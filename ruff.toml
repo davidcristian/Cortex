@@ -1,0 +1,28 @@
+# Shared lint/format config for ALL Python in the repo (brain/ and scripts/).
+# Each uv project runs `ruff check .` / `ruff format --check .` over its own tree;
+# config discovery walks up to this file. Keep ignores short and justified.
+
+target-version = "py312"
+line-length = 100
+src = ["brain/packages/core/src", "scripts"]
+
+[lint]
+select = ["ALL"]
+ignore = [
+  "D",      # docstring style rules: module contracts live in docs/modules/ (AGENTS.md DoD)
+  "COM812", # trailing-comma rule conflicts with the ruff formatter
+  "ISC001", # implicit-str-concat rule conflicts with the ruff formatter
+]
+
+[lint.per-file-ignores]
+"scripts/*.py" = [
+  "T201", # the repo gates are CLIs; reporting via stdout/stderr is their contract
+]
+"**/tests/**" = [
+  "S101",    # tests use bare asserts by design (pytest)
+  "PLR2004", # magic values in assertions are the point of a test
+  "INP001",  # test dirs are intentionally not packages (pytest rootdir-based discovery)
+]
+
+[format]
+docstring-code-format = true

@@ -1,0 +1,20 @@
+[workspace]
+members = ["crates/core"]
+resolver = "3"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[workspace.dependencies]
+thiserror = "2"
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+
+[workspace.lints.clippy]
+pedantic = { level = "warn", priority = -1 }
+# AGENTS.md: no unwrap()/expect() on fallible paths; clippy.toml relaxes both in tests.
+unwrap_used = "deny"
+expect_used = "deny"

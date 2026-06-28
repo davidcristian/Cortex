@@ -1,0 +1,7 @@
+# Local-only artifacts of the uv workspace.
+.venv/
+__pycache__/
+*.py[cod]
+.coverage
+.pytest_cache/
+.ruff_cache/

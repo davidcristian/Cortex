@@ -1,0 +1,17 @@
+# Rust
+target/
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+.coverage
+coverage.json
+htmlcov/
+lcov.info
+
+# Node (Tauri webview, later)
+node_modules/
+dist/

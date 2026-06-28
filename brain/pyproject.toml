@@ -1,0 +1,44 @@
+# Virtual workspace root for the Python brain (see AGENTS.md and docs/ROADMAP.md Slice 1).
+# Not a package itself; real code lives in packages/*.
+
+[project]
+name = "brain"
+version = "0.0.0"
+requires-python = ">=3.12"
+# The virtual root depends on every workspace member so `uv sync --locked` installs them all.
+dependencies = ["cortex-core"]
+
+[tool.uv.sources]
+cortex-core = { workspace = true }
+
+[dependency-groups]
+dev = [
+  "pyright>=1.1.400",
+  "pytest>=8.3",
+  "pytest-cov>=6.0",
+  "ruff>=0.11",
+]
+
+[tool.uv]
+package = false
+
+[tool.uv.workspace]
+members = ["packages/*"]
+
+[tool.pyright]
+typeCheckingMode = "strict"
+include = ["packages"]
+venvPath = "."
+venv = ".venv"
+
+[tool.pytest.ini_options]
+testpaths = ["packages"]
+markers = [
+  "integration: exercises live external systems; excluded from coverage gate and CI",
+]
+addopts = "--cov --cov-branch --cov-fail-under=100 --cov-report=term-missing -m \"not integration\""
+
+[tool.coverage.run]
+branch = true
+source = ["packages"]
+omit = ["*/tests/*"]
