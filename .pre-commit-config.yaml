@@ -1,5 +1,7 @@
 # Mirrors `just check` exactly (AGENTS.md gate 6): one hook, the whole gate.
 # Anything less than the full gate here would let local commits drift from CI.
+# Plus commit-msg enforcement of Conventional Commits (AGENTS.md "Commits").
+default_install_hook_types: [pre-commit, commit-msg]
 repos:
   - repo: local
     hooks:
@@ -9,3 +11,9 @@ repos:
         language: system
         pass_filenames: false
         always_run: true
+  - repo: https://github.com/compilerla/conventional-pre-commit
+    rev: v4.4.0
+    hooks:
+      - id: conventional-pre-commit
+        stages: [commit-msg]
+        args: [feat, fix, docs, test, refactor, perf, build, ci, chore, revert]
