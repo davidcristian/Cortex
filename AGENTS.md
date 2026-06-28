@@ -100,6 +100,8 @@ brain/            Python workspace (uv), dockerized
 body/             Rust/Tauri workspace, host-native
   crates/         core (pure logic + OS traits), os_windows, os_macos, os_linux, rpc
   app/            the Tauri app (backend wiring + webview frontend)
+scripts/          repo gates: linecap.py (300-line cap), coverage_gate.py (Rust branches)
+.github/          GPU-less CI running the same `just` recipes as local dev
 justfile          `just check` (all gates), `just up`, `just body`, ...
 docker-compose.yml / docker-compose.gpu.yml   brain services; GPU isolated to override
 ```

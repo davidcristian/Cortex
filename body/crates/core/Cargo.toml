@@ -1,0 +1,12 @@
+[package]
+name = "body-core"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+description = "Pure, I/O-free core logic for the Cortex body (lib name: body_core)"
+
+[dependencies]
+thiserror.workspace = true
+
+[lints]
+workspace = true
