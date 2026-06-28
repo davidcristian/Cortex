@@ -79,6 +79,21 @@ Interfaces are designed around this rule from day one. Retrofitting it is a rewr
    `cargo fmt --check`, clippy, `cargo test`, `cargo llvm-cov`, and the cross-tree
    line-cap scan. Pre-commit mirrors it. Run it before declaring anything done.
 
+## Commits
+
+[Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/), enforced by a
+commit-msg hook:
+
+- Format: `type(scope)?: subject`, in imperative mood, lowercase subject, no trailing
+  period, subject ≤ 72 chars. The body explains what/why (wrapped at 72) and references
+  the slice and ADRs where relevant.
+- Types: `feat`, `fix`, `docs`, `test`, `refactor`, `perf`, `build`, `ci`, `chore`,
+  `revert`. Breaking change: `!` after type/scope plus a `BREAKING CHANGE:` footer.
+- Scopes (optional, only when the change is contained to one area): `brain`, `body`,
+  `scripts`, `proto`, `docs`, `ci`.
+- One logical change per commit (typically one slice, one fix, or one doc change);
+  every commit passes `just check`, which the pre-commit hook enforces.
+
 ## Working agreement
 
 - **Vertical slices, not horizontal layers.** Each increment is a thin end-to-end path,
