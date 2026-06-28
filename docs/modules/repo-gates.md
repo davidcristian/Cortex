@@ -9,15 +9,20 @@ unit-tested core function).
 
 - `linecap.py [--root DIR] [--max-lines N]` implements AGENTS.md gate 1. Scans `*.py`/`*.rs`
   under `--root` (default `.`), counting ALL lines (code, comments, blanks; cap default
-  300). Skips dir components `.git`, `.venv`, `target`, `node_modules`, `__pycache__`,
-  `.pytest_cache`, `.ruff_cache`, `tests`, `_generated` (the generated-code marker),
-  and test-named files (`test_*.py`, `*_test.py`, `conftest.py`, `*_test.rs`).
+  300). Skips dir components `.git`, `.venv`, `.claude`, `target`, `node_modules`,
+  `__pycache__`, `.pytest_cache`, `.ruff_cache`, `tests`, `_generated` (the
+  generated-code marker), and test-named files (`test_*.py`, `*_test.py`,
+  `conftest.py`, `*_test.rs`). Directory symlinks are not traversed (deliberate: no
+  cycles, no escapes outside the root); a candidate that is not a regular file after
+  following symlinks (e.g. a dangling editor-lockfile symlink) is skipped.
   Exit 0 with a summary line; exit 1 printing `path: N lines (cap M)` per violation;
-  exit 2 if `--root` is not a directory.
-- `coverage_gate.py PATH` reads a `cargo llvm-cov --json --summary-only` export and
-  requires `data[0].totals.{lines,regions,branches}.percent == 100`. A metric with
-  `count == 0` passes vacuously (with a printed note). Malformed/missing input → typed
-  error, exit 1. Exit 0 only when all three metrics pass.
+  exit 2 if `--root` is not a directory or a source file cannot be read.
+- `coverage_gate.py PATH` reads a `cargo llvm-cov --json --summary-only` export,
+  requires exactly one `data[]` entry, and gates each of
+  `data[0].totals.{lines,regions,branches}` on `covered == count` (the producer's
+  `percent` is never trusted; displayed percentages are recomputed). A metric with
+  `count == 0` passes vacuously (with a printed note). Malformed/missing/non-UTF-8
+  input → typed error, exit 1. Exit 0 only when all three metrics pass.
 
 **Invariants.**
 - stdlib-only modules; pure cores (`scan`, `evaluate`/`check`) unit-tested to 100%

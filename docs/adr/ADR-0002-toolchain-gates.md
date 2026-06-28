@@ -16,9 +16,10 @@ decisions the spec left open; this ADR records them so no future agent re-derive
    In CI, nightly is installed before stable so stable remains the default toolchain.
 2. **The Rust branch threshold is enforced by `scripts/coverage_gate.py`.**
    cargo-llvm-cov has `--fail-under-lines/-regions` but no `--fail-under-branches`, so
-   the gate exports JSON (`--json --summary-only`) and the script requires
-   `data[0].totals.{lines,regions,branches}.percent == 100` (a metric with count 0 is
-   vacuously satisfied, noted aloud).
+   the gate exports JSON (`--json --summary-only`) and the script requires exactly one
+   `data[]` entry and `covered == count` for each of
+   `data[0].totals.{lines,regions,branches}`. The producer's `percent` is never
+   trusted (a metric with count 0 is vacuously satisfied, noted aloud).
 3. **`scripts/` is a standalone uv project (`repo-gates`), not a brain workspace
    member.** Repo tooling is not brain domain code and must scan both trees; it is
    still gated exactly like all other Python (ruff, pyright strict, pytest at 100%).

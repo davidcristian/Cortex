@@ -15,3 +15,6 @@ lcov.info
 # Node (Tauri webview, later)
 node_modules/
 dist/
+
+# Harness-local state (session worktrees etc.)
+.claude/

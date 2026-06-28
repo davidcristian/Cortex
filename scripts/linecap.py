@@ -12,6 +12,7 @@ SKIPPED_DIRS = frozenset(
     {
         ".git",
         ".venv",
+        ".claude",
         "target",
         "node_modules",
         "__pycache__",
@@ -22,6 +23,10 @@ SKIPPED_DIRS = frozenset(
     }
 )
 SKIPPED_FILE_PATTERNS = ("test_*.py", "*_test.py", "conftest.py", "*_test.rs")
+
+
+class UnreadableFileError(Exception):
+    """A candidate source file exists but cannot be read."""
 
 
 class Violation(NamedTuple):
@@ -38,7 +43,11 @@ def is_skipped_file(name: str) -> bool:
 
 def count_lines(path: Path) -> int:
     """Count every line in the file: code, comments, and blanks alike."""
-    return len(path.read_bytes().splitlines())
+    try:
+        return len(path.read_bytes().splitlines())
+    except OSError as err:
+        msg = f"cannot read {path}: {err}"
+        raise UnreadableFileError(msg) from err
 
 
 def scan(root: Path, cap: int) -> list[Violation]:
@@ -50,6 +59,8 @@ def scan(root: Path, cap: int) -> list[Violation]:
             if Path(name).suffix not in SOURCE_SUFFIXES or is_skipped_file(name):
                 continue
             path = directory / name
+            if not path.is_file():  # dangling symlink or other non-regular file
+                continue
             lines = count_lines(path)
             if lines > cap:
                 violations.append(Violation(path=path.relative_to(root), lines=lines))
@@ -79,7 +90,11 @@ def main(argv: list[str] | None = None) -> int:
     if not root.is_dir():
         print(f"linecap: root {root} is not a directory", file=sys.stderr)
         return 2
-    violations = scan(root, cap)
+    try:
+        violations = scan(root, cap)
+    except UnreadableFileError as err:
+        print(f"linecap: {err}", file=sys.stderr)
+        return 2
     for violation in violations:
         print(f"{violation.path}: {violation.lines} lines (cap {cap})")
     if violations:

@@ -19,7 +19,10 @@ dev = [
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
-addopts = "--cov=linecap --cov=coverage_gate --cov-branch --cov-report=term-missing --cov-fail-under=100"
+markers = [
+  "integration: exercises live external systems; excluded from coverage gate and CI",
+]
+addopts = "--cov=linecap --cov=coverage_gate --cov-branch --cov-report=term-missing --cov-fail-under=100 --strict-markers -m \"not integration\""
 
 [tool.coverage.run]
 branch = true

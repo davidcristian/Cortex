@@ -32,8 +32,8 @@ check-scripts:
 # --fail-under-branches, so the JSON export is checked by coverage_gate.py (ADR-0002).
 check-body:
     cd body && cargo fmt --all --check
-    cd body && cargo clippy --workspace --all-targets -- -D warnings
-    cd body && cargo test --workspace
-    cd body && cargo +nightly llvm-cov --branch --workspace --all-targets --fail-under-lines 100 --fail-under-regions 100 --json --summary-only --output-path coverage.json
+    cd body && cargo clippy --locked --workspace --all-targets -- -D warnings
+    cd body && cargo test --locked --workspace
+    cd body && cargo +nightly llvm-cov --locked --branch --workspace --all-targets --fail-under-lines 100 --fail-under-regions 100 --json --summary-only --output-path coverage.json
     cd scripts && uv sync --locked
     cd scripts && uv run python coverage_gate.py ../body/coverage.json

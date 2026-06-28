@@ -91,17 +91,20 @@ Interfaces are designed around this rule from day one. Retrofitting it is a rewr
 
 ## Repo map
 
+Entries marked *(planned)* are target layout; docs/ROADMAP.md says which slice delivers each.
+
 ```
 proto/            body↔brain gRPC contract (source of truth for the seam)
 docs/             ARCHITECTURE.md, index.md, ROADMAP.md, adr/, modules/, runbooks/
 brain/            Python workspace (uv), dockerized
-  packages/       core (pure logic + ports), model_manager, orchestrator, memory,
-                  tools (MCP servers), body_client (generated stub + client), shared
+  packages/       core (pure logic + ports); (planned) model_manager, orchestrator,
+                  memory, tools (MCP servers), body_client (generated stub), shared
 body/             Rust/Tauri workspace, host-native
-  crates/         core (pure logic + OS traits), os_windows, os_macos, os_linux, rpc
-  app/            the Tauri app (backend wiring + webview frontend)
+  crates/         core (pure logic + OS traits); (planned) os_windows, os_macos,
+                  os_linux, rpc
+  app/            (planned) the Tauri app (backend wiring + webview frontend)
 scripts/          repo gates: linecap.py (300-line cap), coverage_gate.py (Rust branches)
 .github/          GPU-less CI running the same `just` recipes as local dev
-justfile          `just check` (all gates), `just up`, `just body`, ...
-docker-compose.yml / docker-compose.gpu.yml   brain services; GPU isolated to override
+justfile          `just check` + per-tree check recipes; more land with their slices
+docker-compose.yml / docker-compose.gpu.yml   (planned, Slices 2/4) brain services
 ```
