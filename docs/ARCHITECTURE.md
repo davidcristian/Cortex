@@ -93,7 +93,9 @@ Host-side traits (Rust, in `body/crates/core`):
 ## The seam
 
 The body↔brain contract is one gRPC `.proto`, namely [proto/body.proto](../proto/body.proto),
-the single source of truth. Rust uses tonic codegen; Python uses generated stubs.
+the single source of truth. Rust uses tonic codegen; Python uses generated stubs shipped
+in `brain/packages/seam`. Stubs are committed under `_generated/` dirs on both sides
+(hermetic builds with no protoc in CI) and regenerated with `just proto` (ADR-0003).
 Two services: `BrainService` (hosted by the brain; the body streams conversation turns
 to it) and `BodyService` (hosted by the body; the brain calls it for OS actions).
 **Never in-process FFI.** The language boundary is exactly the process/network boundary.

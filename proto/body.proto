@@ -1,7 +1,8 @@
-// body.proto is the single source of truth for the body<->brain seam.
-// SKETCH (Phase 0): shapes for review, not yet compiled. Field numbers stabilize in
-// Slice 2. Everything crossing the wire between the Rust body and the Python brain is
-// defined here; tonic (Rust) and grpcio/betterproto stubs (Python) are generated from it.
+// body.proto is the single source of truth for the body<->brain seam (AGENTS.md).
+// v0 (Slice 2): field numbers are stable from here on; extend, don't renumber.
+// BrainService.Health is implemented end-to-end; Converse and BodyService shapes are
+// stabilized here, their implementations land in later slices. Stubs are committed
+// under _generated/ dirs on both sides; regenerate with `just proto` (ADR-0003).
 
 syntax = "proto3";
 

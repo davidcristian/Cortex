@@ -8,5 +8,8 @@ description = "Pure, I/O-free core logic for the Cortex body (lib name: body_cor
 [dependencies]
 thiserror.workspace = true
 
+[dev-dependencies]
+tokio = { workspace = true, features = ["macros", "rt"] }
+
 [lints]
 workspace = true

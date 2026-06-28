@@ -1,0 +1,24 @@
+[package]
+name = "body-rpc"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+description = "tonic adapter for the body↔brain gRPC seam (lib name: body_rpc)"
+
+[dependencies]
+body-core.workspace = true
+prost.workspace = true
+tonic.workspace = true
+tonic-prost.workspace = true
+
+[dev-dependencies]
+# "sync" is dev-only: the contract tests' stoppable fake brain uses a oneshot
+# to trigger graceful shutdown (brain-death-after-connect scenario).
+tokio = { workspace = true, features = ["macros", "net", "rt-multi-thread", "sync"] }
+tokio-stream = { workspace = true, features = ["net"] }
+
+[build-dependencies]
+tonic-prost-build.workspace = true
+
+[lints]
+workspace = true
