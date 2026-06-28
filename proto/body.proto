@@ -1,0 +1,101 @@
+// body.proto is the single source of truth for the body<->brain seam.
+// SKETCH (Phase 0): shapes for review, not yet compiled. Field numbers stabilize in
+// Slice 2. Everything crossing the wire between the Rust body and the Python brain is
+// defined here; tonic (Rust) and grpcio/betterproto stubs (Python) are generated from it.
+
+syntax = "proto3";
+
+package cortex.seam.v1;
+
+// ---------------------------------------------------------------------------
+// BrainService is hosted by the brain (Docker). The body is the client.
+// ---------------------------------------------------------------------------
+service BrainService {
+  // One conversational exchange stream per overlay session. Client events carry user
+  // turns and cancellations; server events stream tokens, tool activity, and status
+  // (e.g. "brain model loading" during a handoff, so the overlay can show progress).
+  rpc Converse(stream ClientEvent) returns (stream ServerEvent);
+
+  // Liveness/readiness for the overlay to display connection state.
+  rpc Health(HealthRequest) returns (HealthReply);
+}
+
+message ClientEvent {
+  string session_id = 1;
+  oneof event {
+    UserTurn user_turn = 2;   // text (+ optional attached capture) from the overlay
+    Cancel cancel = 3;        // stop generating the current turn
+  }
+}
+
+message UserTurn {
+  string text = 1;
+  repeated ImageBlob images = 2; // e.g. a screen capture the user attached
+}
+
+message Cancel {}
+
+message ServerEvent {
+  oneof event {
+    TextDelta text_delta = 1;      // streamed assistant tokens
+    ToolActivity tool_activity = 2; // "reading email...", audit-visible tool use
+    StatusUpdate status = 3;        // model swap in progress, queue position, etc.
+    TurnComplete turn_complete = 4;
+    SeamError error = 5;
+  }
+}
+
+message TextDelta { string text = 1; }
+message ToolActivity { string tool_name = 1; string summary = 2; }
+message StatusUpdate { string state = 1; string detail = 2; }
+message TurnComplete { string turn_id = 1; }
+message SeamError { string code = 1; string message = 2; }
+
+message HealthRequest {}
+message HealthReply { bool ready = 1; string detail = 2; }
+
+// ---------------------------------------------------------------------------
+// BodyService is hosted by the body (host-native). The brain is the client.
+// Exposes host OS capabilities behind the body's Rust traits.
+// (Whether these also surface to models as MCP tools: ADR-0001 open question #2.
+//  Connectivity direction: ADR-0001 open question #3.)
+// ---------------------------------------------------------------------------
+service BodyService {
+  rpc CaptureScreen(CaptureScreenRequest) returns (CaptureScreenReply);
+  rpc GetVolume(GetVolumeRequest) returns (VolumeState);
+  rpc SetVolume(SetVolumeRequest) returns (VolumeState);
+  rpc InjectInput(InjectInputRequest) returns (InjectInputReply);
+}
+
+message CaptureScreenRequest {
+  // Empty = primary display; later: display index / window handle.
+}
+message CaptureScreenReply { ImageBlob image = 1; }
+
+message ImageBlob {
+  bytes data = 1;
+  string mime_type = 2; // e.g. image/png
+  uint32 width = 3;
+  uint32 height = 4;
+}
+
+message GetVolumeRequest {}
+message SetVolumeRequest {
+  // Both fields have explicit presence so callers can set level, mute, or both.
+  optional float level = 1; // clamped to [0.0, 1.0]
+  optional bool mute = 2;
+}
+message VolumeState {
+  float level = 1;
+  bool muted = 2;
+}
+
+message InjectInputRequest {
+  oneof input {
+    TypeText type_text = 1; // literal text entry
+    KeyChord key_chord = 2; // e.g. ctrl+shift+esc
+  }
+}
+message TypeText { string text = 1; }
+message KeyChord { repeated string keys = 1; }
+message InjectInputReply { bool applied = 1; }
