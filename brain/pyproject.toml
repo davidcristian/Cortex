@@ -27,6 +27,7 @@ members = ["packages/*"]
 
 [tool.pyright]
 typeCheckingMode = "strict"
+pythonVersion = "3.12"
 include = ["packages"]
 venvPath = "."
 venv = ".venv"
@@ -36,9 +37,10 @@ testpaths = ["packages"]
 markers = [
   "integration: exercises live external systems; excluded from coverage gate and CI",
 ]
-addopts = "--cov --cov-branch --cov-fail-under=100 --cov-report=term-missing -m \"not integration\""
+addopts = "--cov --cov-branch --cov-fail-under=100 --cov-report=term-missing --strict-markers -m \"not integration\""
 
 [tool.coverage.run]
 branch = true
 source = ["packages"]
-omit = ["*/tests/*"]
+# _generated: the generated-code marker dirs are coverage-exempt (ADR-0002 decision 4)
+omit = ["*/tests/*", "*/_generated/*"]
