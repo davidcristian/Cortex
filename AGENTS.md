@@ -111,15 +111,16 @@ Entries marked *(planned)* are target layout; docs/ROADMAP.md says which slice d
 ```
 proto/            body↔brain gRPC contract (source of truth for the seam)
 docs/             ARCHITECTURE.md, index.md, ROADMAP.md, adr/, modules/, runbooks/
-brain/            Python workspace (uv), dockerized
-  packages/       core (pure logic + ports); (planned) model_manager, orchestrator,
-                  memory, tools (MCP servers), body_client (generated stub), shared
+brain/            Python workspace (uv), dockerized (brain/Dockerfile)
+  packages/       core (pure logic + ports), seam (committed gRPC stubs + typed facade),
+                  orchestrator (hosts BrainService); (planned) model_manager, memory,
+                  tools (MCP servers), body_client, shared
 body/             Rust/Tauri workspace, host-native
-  crates/         core (pure logic + OS traits); (planned) os_windows, os_macos,
-                  os_linux, rpc
+  crates/         core (pure logic + OS traits + BrainTransport port), rpc (tonic
+                  adapter, committed stubs); (planned) os_windows, os_macos, os_linux
   app/            (planned) the Tauri app (backend wiring + webview frontend)
 scripts/          repo gates: linecap.py (300-line cap), coverage_gate.py (Rust branches)
 .github/          GPU-less CI running the same `just` recipes as local dev
-justfile          `just check` + per-tree check recipes; more land with their slices
-docker-compose.yml / docker-compose.gpu.yml   (planned, Slices 2/4) brain services
+justfile          `just check` + check-*; proto, up/down, brain-serve, seam-health
+docker-compose.yml   brain in Compose, loopback-only; gpu override (planned, Slice 4)
 ```

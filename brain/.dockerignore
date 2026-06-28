@@ -1,0 +1,17 @@
+# Build-context hygiene: only what `uv sync --locked --no-dev` needs reaches the daemon.
+
+# Local-only artifacts (mirrors brain/.gitignore).
+.venv
+**/__pycache__
+*.py[cod]
+.coverage
+.pytest_cache
+.ruff_cache
+
+# Tests never ship in the image; they run on the host via `just check`.
+**/tests
+
+# Docker plumbing itself.
+Dockerfile
+.dockerignore
+.gitignore
