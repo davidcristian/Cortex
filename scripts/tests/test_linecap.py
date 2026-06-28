@@ -62,6 +62,7 @@ def test_scan_does_not_skip_files_that_merely_contain_test(tmp_path: Path) -> No
     [
         ".git",
         ".venv",
+        ".claude",
         "target",
         "node_modules",
         "__pycache__",
@@ -81,6 +82,39 @@ def test_scan_skips_exempt_directory_components_at_any_depth(tmp_path: Path) -> 
     write_file(tmp_path / "crate" / "src" / "big.rs", 50)
     violations = linecap.scan(tmp_path, cap=10)
     assert violations == [linecap.Violation(path=Path("crate/src/big.rs"), lines=50)]
+
+
+def test_scan_skips_dangling_symlink(tmp_path: Path) -> None:
+    write_file(tmp_path / "ok.py", 3)
+    (tmp_path / ".#routing.py").symlink_to(tmp_path / "routing.py")
+    assert linecap.scan(tmp_path, cap=10) == []
+
+
+def test_scan_raises_typed_error_for_unreadable_file(tmp_path: Path) -> None:
+    locked = tmp_path / "locked.py"
+    write_file(locked, 5)
+    locked.chmod(0o000)
+    try:
+        with pytest.raises(linecap.UnreadableFileError, match=f"cannot read {locked}"):
+            linecap.scan(tmp_path, cap=10)
+    finally:
+        locked.chmod(0o600)
+
+
+def test_main_reports_unreadable_file_and_exits_2(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    locked = tmp_path / "locked.py"
+    write_file(locked, 5)
+    locked.chmod(0o000)
+    try:
+        exit_code = linecap.main(["--root", str(tmp_path)])
+    finally:
+        locked.chmod(0o600)
+    assert exit_code == 2
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert captured.err.startswith(f"linecap: cannot read {locked}: ")
 
 
 def test_main_prints_violations_and_exits_1(
