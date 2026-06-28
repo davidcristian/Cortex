@@ -1,5 +1,5 @@
 [workspace]
-members = ["crates/core"]
+members = ["crates/core", "crates/rpc"]
 resolver = "3"
 
 [workspace.package]
@@ -8,7 +8,14 @@ edition = "2024"
 publish = false
 
 [workspace.dependencies]
+body-core = { path = "crates/core" }
+prost = "0.14"
 thiserror = "2"
+tokio = "1"
+tokio-stream = "0.1"
+tonic = "0.14"
+tonic-prost = "0.14"
+tonic-prost-build = "0.14"
 
 [workspace.lints.rust]
 unsafe_code = "forbid"

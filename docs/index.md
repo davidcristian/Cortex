@@ -17,6 +17,10 @@ Start here. Rules for working in this repo: [AGENTS.md](../AGENTS.md).
 - [ADR-0002: Toolchain and gate mechanics](adr/ADR-0002-toolchain-gates.md): nightly
   for Rust branch coverage, the JSON branch gate, `scripts/` as a standalone project,
   the `_generated` marker, tests-outside-source, ruff ALL, pre-commit = `just check`.
+- [ADR-0003: Seam codegen and packaging](adr/ADR-0003-seam-codegen.md): committed
+  stubs in `_generated` dirs (hermetic builds, `just proto` to regen), tonic + grpcio,
+  `#[ignore]` tests as the Rust integration suite, stubs shared via `cortex_seam`,
+  the CORTEX_SEAM_* env contract.
 
 New non-obvious decision → add `adr/ADR-XXXX-<slug>.md`, link it here.
 
@@ -26,11 +30,17 @@ New non-obvious decision → add `adr/ADR-XXXX-<slug>.md`, link it here.
 - [modules/](modules/) holds one short contract doc per module (purpose, public contract,
   invariants, dependencies). Every module lands with its doc:
   - [brain-core.md](modules/brain-core.md) covers `cortex_core`: pure brain logic (routing).
-  - [body-core.md](modules/body-core.md) covers `body_core`: pure host types (hotkey chord).
+  - [brain-seam.md](modules/brain-seam.md) covers `cortex_seam`: committed wire stubs + facade.
+  - [brain-orchestrator.md](modules/brain-orchestrator.md) covers `cortex_orchestrator`:
+    the gRPC service hosting `BrainService`.
+  - [body-core.md](modules/body-core.md) covers `body_core`: pure host types + ports
+    (hotkey chord, `BrainTransport`).
+  - [body-rpc.md](modules/body-rpc.md) covers `body_rpc`: tonic adapter for `BrainTransport`.
   - [repo-gates.md](modules/repo-gates.md) covers `scripts/`: linecap + coverage gate CLIs.
 
 ## Runbooks
 
-- [runbooks/](runbooks/) holds operational guides. Expected as slices land:
-  `local-dev-wsl.md` (Slice 2), `blackwell-vllm.md` (Slice 4), `model-swap.md`
+- [runbooks/local-dev-wsl.md](runbooks/local-dev-wsl.md) covers the daily dev loop: brain
+  natively or in Compose, env vars, the live seam check, Docker Desktop notes.
+- Expected as later slices land: `blackwell-vllm.md` (Slice 4), `model-swap.md`
   (Slice 11).

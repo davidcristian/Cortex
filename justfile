@@ -34,6 +34,29 @@ check-body:
     cd body && cargo fmt --all --check
     cd body && cargo clippy --locked --workspace --all-targets -- -D warnings
     cd body && cargo test --locked --workspace
-    cd body && cargo +nightly llvm-cov --locked --branch --workspace --all-targets --fail-under-lines 100 --fail-under-regions 100 --json --summary-only --output-path coverage.json
+    cd body && cargo +nightly llvm-cov --locked --branch --workspace --all-targets --ignore-filename-regex '/_generated/' --fail-under-lines 100 --fail-under-regions 100 --json --summary-only --output-path coverage.json
     cd scripts && uv sync --locked
     cd scripts && uv run python coverage_gate.py ../body/coverage.json
+
+# Regenerate the committed seam stubs from proto/body.proto (needs local protoc; ADR-0003).
+proto:
+    mkdir -p /tmp/protostage/cortex_seam/_generated
+    cp proto/body.proto /tmp/protostage/cortex_seam/_generated/
+    cd brain && uv run python -m grpc_tools.protoc -I /tmp/protostage --python_out=packages/seam/src --grpc_python_out=packages/seam/src --pyi_out=packages/seam/src /tmp/protostage/cortex_seam/_generated/body.proto
+    cd body && CORTEX_REGEN_PROTO=1 cargo build -p body-rpc
+
+# Run the brain natively (no docker): BrainService on CORTEX_SEAM_HOST:CORTEX_SEAM_PORT.
+brain-serve:
+    cd brain && uv run python -m cortex_orchestrator
+
+# Brain services in Compose (loopback-only publish; see docs/runbooks/local-dev-wsl.md).
+up:
+    docker compose up -d --build
+
+down:
+    docker compose down
+
+# Live seam check from the body side. Needs a running brain (`just up` or `just brain-serve`);
+# this is the Rust integration suite (#[ignore]-marked, never in CI/coverage per ADR-0003).
+seam-health:
+    cd body && cargo test -p body-rpc --test live -- --ignored --nocapture

@@ -1,0 +1,29 @@
+
+services:
+  brain:
+    build: ./brain
+    environment:
+      # Bind all container interfaces; exposure is governed by `ports` (ADR-0003 d6).
+      CORTEX_SEAM_HOST: "0.0.0.0"
+    ports:
+      # Loopback-only publish for the single-user security posture (ROADMAP assumption 5):
+      # nothing listens beyond 127.0.0.1 on the host.
+      - "127.0.0.1:50051:50051"
+    restart: unless-stopped
+    # tini as PID 1 so SIGTERM reaches Python and `docker compose down` stays fast.
+    init: true
+    healthcheck:
+      # The real BrainService.Health RPC via the installed cortex_seam package, since
+      # a bare TCP poke could pass while the gRPC server is broken.
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import grpc, cortex_seam as seam; reply = seam.BrainServiceStub(grpc.insecure_channel('127.0.0.1:50051')).Health(seam.HealthRequest(), timeout=2); raise SystemExit(0 if reply.ready else 1)",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+      start_interval: 1s

@@ -26,10 +26,14 @@ decisions the spec left open; this ADR records them so no future agent re-derive
 4. **Generated-code marker: a directory named `_generated`.** The linecap scan skips
    any path containing a `_generated` component; coverage configs must exclude the same
    (implements ADR-0001 decision 7). No generated code exists yet; Slice 2 uses this.
-5. **Tests live outside counted source files.** Rust tests go in `tests/` directories
-   (never inline `#[cfg(test)]` modules, because the 300-line cap counts source files);
+5. **Tests live outside counted source files.** Rust tests go in `tests/` directories;
    Python tests in `tests/` directories. The linecap scan excludes `tests/` dir
    components plus `test_*.py`, `*_test.py`, `conftest.py`, `*_test.rs`.
+   *Amended (Slice 2):* a narrowly-scoped inline `#[cfg(test)]` module is permitted
+   when it unit-tests private internals unreachable through the public API (first use:
+   the status-mapping helpers in `body/crates/rpc/src/client.rs`). Inline tests count
+   toward the file's 300-line cap, which keeps them small; prefer `tests/` whenever
+   the behavior is publicly reachable.
 6. **Ruff runs with `select = ["ALL"]`** and a short, individually-justified ignore
    list in the root `ruff.toml`, shared by every Python project in the repo.
 7. **Rust policy details:** edition 2024; `unsafe_code = "forbid"` and clippy

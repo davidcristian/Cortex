@@ -1,4 +1,4 @@
-// body.proto is the single source of truth for the body<->brain seam.
+// body.proto is the single source of truth for the body<->brain seam (AGENTS.md).
 
 syntax = "proto3";
 

@@ -26,11 +26,12 @@ building and gating both trees.
 ## Slice 2 (The seam): proto compiled on both sides
 
 `proto/body.proto` v0 (`BrainService.Health` + `Converse` shape), tonic build in
-`body/crates/rpc`, generated Python stub in `brain/packages/body_client`; a body-side dev
-command calls brain `Health` end-to-end (brain in Compose, caller on host). Contract
-tests with fakes on both sides; generated-code exemption wired into the scan/coverage
-config. Runbook: `docs/runbooks/local-dev-wsl.md` (brain in Compose + host-side dev loop
-from WSL).
+`body/crates/rpc`, generated Python stubs in `brain/packages/seam`. That is the shared wire
+code; the typed `BodyService` client wrapper (`body_client`) arrives with Slice 9. A
+body-side dev command calls brain `Health` end-to-end (brain in Compose, caller on
+host). Contract tests with fakes on both sides; generated-code exemption wired into the
+scan/coverage config. Runbook: `docs/runbooks/local-dev-wsl.md` (brain in Compose +
+host-side dev loop from WSL).
 **Gate proven:** gRPC seam as single source of truth (codegen in both builds).
 
 ## Slice 3 (Cortex-only chat with fake inference)
