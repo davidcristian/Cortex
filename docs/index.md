@@ -14,6 +14,9 @@ Start here. Rules for working in this repo: [AGENTS.md](../AGENTS.md).
 - [ADR-0001: Founding architecture](adr/ADR-0001-architecture.md): hexagonal on both
   sides, polyglot split with a gRPC seam (no FFI), external state as swap safety, vLLM
   behind `InferenceBackend`, Redis + Postgres/pgvector, toolchain gates; open questions.
+- [ADR-0002: Toolchain and gate mechanics](adr/ADR-0002-toolchain-gates.md): nightly
+  for Rust branch coverage, the JSON branch gate, `scripts/` as a standalone project,
+  the `_generated` marker, tests-outside-source, ruff ALL, pre-commit = `just check`.
 
 New non-obvious decision → add `adr/ADR-XXXX-<slug>.md`, link it here.
 
@@ -21,7 +24,10 @@ New non-obvious decision → add `adr/ADR-XXXX-<slug>.md`, link it here.
 
 - [proto/body.proto](../proto/body.proto) is the body↔brain seam (single source of truth).
 - [modules/](modules/) holds one short contract doc per module (purpose, public contract,
-  invariants, dependencies). Empty until Slice 1; every module lands with its doc.
+  invariants, dependencies). Every module lands with its doc:
+  - [brain-core.md](modules/brain-core.md) covers `cortex_core`: pure brain logic (routing).
+  - [body-core.md](modules/body-core.md) covers `body_core`: pure host types (hotkey chord).
+  - [repo-gates.md](modules/repo-gates.md) covers `scripts/`: linecap + coverage gate CLIs.
 
 ## Runbooks
 

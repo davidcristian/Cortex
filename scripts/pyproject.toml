@@ -1,0 +1,32 @@
+[project]
+name = "repo-gates"
+version = "0.1.0"
+description = "Repo-wide hard-gate tooling: the 300-line-cap scan and the Rust coverage gate."
+requires-python = ">=3.12"
+dependencies = []
+
+[tool.uv]
+package = false
+
+[dependency-groups]
+dev = [
+  "pytest>=8.3",
+  "pytest-cov>=6.0",
+  "pyright>=1.1.390",
+  "ruff>=0.11",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "--cov=linecap --cov=coverage_gate --cov-branch --cov-report=term-missing --cov-fail-under=100"
+
+[tool.coverage.run]
+branch = true
+
+[tool.pyright]
+typeCheckingMode = "strict"
+pythonVersion = "3.12"
+venvPath = "."
+venv = ".venv"
+include = ["linecap.py", "coverage_gate.py", "tests"]
