@@ -4,7 +4,6 @@
 # pyright: reportUnusedFunction=false
 
 import asyncio
-from dataclasses import asdict
 
 from mcp.server.fastmcp import FastMCP
 
@@ -24,25 +23,28 @@ def build_server(reader: EmailReader) -> FastMCP:
     )
 
     @server.tool()
-    async def list_folders() -> list[str]:
-        """List the mailbox folders available to read."""
-        return list(await asyncio.to_thread(reader.folders))
+    async def list_folders() -> str:
+        """List the mailbox folders available to read, one per line."""
+        return "\n".join(await asyncio.to_thread(reader.folders))
 
     @server.tool()
-    async def search_emails(
-        folder: str, query: str, limit: int = _DEFAULT_SEARCH_LIMIT
-    ) -> list[dict[str, str]]:
-        """Search one folder with an IMAP query; return matching message summaries."""
+    async def search_emails(folder: str, query: str, limit: int = _DEFAULT_SEARCH_LIMIT) -> str:
+        """Search one folder with an IMAP query; return one summary line per match."""
         summaries = await asyncio.to_thread(reader.search, folder, query, limit)
-        return [asdict(summary) for summary in summaries]
+        if not summaries:
+            return "(no matching messages)"
+        return "\n".join(f"[{s.uid}] {s.date} | {s.sender} | {s.subject}" for s in summaries)
 
     @server.tool()
-    async def read_email(folder: str, uid: str) -> dict[str, str]:
+    async def read_email(folder: str, uid: str) -> str:
         """Read one message in full (headers + plain-text body) by its uid."""
         detail = await asyncio.to_thread(reader.read, folder, uid)
         if detail is None:
-            return {"uid": uid, "error": "message not found"}
-        return asdict(detail)
+            return f"message {uid} not found in {folder}"
+        return (
+            f"From: {detail.sender}\nTo: {detail.recipients}\n"
+            f"Date: {detail.date}\nSubject: {detail.subject}\n\n{detail.body}"
+        )
 
     return server
 

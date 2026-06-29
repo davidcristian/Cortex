@@ -20,6 +20,14 @@ _NO_TEXT_BODY = (
     b"\r\n"
     b"\x00\x01\x02\r\n"
 )
+# HTML-only message: _body_text falls back to the html part (most real mail is HTML-only).
+_HTML_ONLY = (
+    b"From: Dave <dave@example.com>\r\n"
+    b"Subject: Newsletter\r\n"
+    b"Content-Type: text/html\r\n"
+    b"\r\n"
+    b"<p>Hello <b>world</b></p>\r\n"
+)
 
 
 class FakeMailbox:
@@ -79,7 +87,13 @@ def test_read_missing_message_returns_none() -> None:
     assert EmailReader(FakeMailbox(one=None)).read("INBOX", "999") is None
 
 
-def test_body_and_absent_headers_are_empty_without_a_plain_part() -> None:
+def test_body_and_absent_headers_are_empty_without_any_text_part() -> None:
     detail = EmailReader(FakeMailbox(one=RawEmail(uid="8", raw=_NO_TEXT_BODY))).read("INBOX", "8")
     assert detail is not None
     assert (detail.body, detail.recipients, detail.date) == ("", "", "")
+
+
+def test_read_falls_back_to_html_when_no_plain_part() -> None:
+    detail = EmailReader(FakeMailbox(one=RawEmail(uid="9", raw=_HTML_ONLY))).read("INBOX", "9")
+    assert detail is not None
+    assert detail.body == "<p>Hello <b>world</b></p>"
