@@ -143,3 +143,22 @@ context}[]`) is a later refinement behind the same tool. Bad arguments return an
 `ToolResult` the model can correct, not an exception. The `CompositeToolRegistry` gives built-ins
 precedence over remote (MCP) tools of the same name. The shadowed remote tool is neither advertised
 nor invoked, and duplicate built-in names are a construction error.
+
+## Addendum (2026-06-29): increment 4 validated the machinery on a real CPU model
+
+The delegation path was validated end to end against a real CPU `llama-server`. Because a plain
+WSL distro cannot see the user's `D:\Software\AI\Models` drive (the Windows bind resolves only
+host-side, the same constraint as the Slice 4 GPU run), the validation used a **stand-in** small
+model in a WSL-local dir: **Qwen2.5-1.5B-Instruct Q4_K_M** on `ghcr.io/ggml-org/llama.cpp:server`
+(`-ngl 0 --jinja --parallel 2`). Invoking `spawn_subagents` directly (as the cortex would) with
+three instructions ran three subagents **concurrently** under the `ConcurrencyScheduler` and folded
+their results in order ("capital of France" → *Paris*, "17 + 25" → *42*, and a one-word reply), with
+`is_error=False`, each body non-empty. This exercises the real `LlamaCppBackend` (CPU),
+`SubagentRunner`, the concurrency budget, and the batch aggregation. The integration test
+(`test_subagent_live.py`, host-only) reproduces it; the runbook is
+[docs/runbooks/subagents-cpu.md](../runbooks/subagents-cpu.md).
+
+Two things remain the host-only half (they need the GPU cortex + the real model on `D:`):
+the **cortex-driven** path (a resident gemma-4-12B *deciding* to emit `spawn_subagents`), and
+**locking the final subagent pick** (the real Qwen3.5-2B) in the ADR-0004 addendum with its measured
+CPU footprint/latency. The machinery under both is the same code proven above.
