@@ -10,6 +10,7 @@ dependencies = [
   "cortex-core",
   "cortex-embedding",
   "cortex-inference",
+  "cortex-memory",
   "cortex-orchestrator",
   "cortex-seam",
   "cortex-session",
@@ -19,12 +20,14 @@ dependencies = [
 cortex-core = { workspace = true }
 cortex-embedding = { workspace = true }
 cortex-inference = { workspace = true }
+cortex-memory = { workspace = true }
 cortex-orchestrator = { workspace = true }
 cortex-seam = { workspace = true }
 cortex-session = { workspace = true }
 
 [dependency-groups]
 dev = [
+  "asyncpg-stubs>=0.30",
   "fakeredis>=2.26",
   "grpcio-tools>=1.66",
   "pyright>=1.1.400",

@@ -11,9 +11,16 @@ import pytest
 from fakeredis import FakeAsyncRedis, FakeServer
 from grpc import aio
 
-from cortex_core import EchoInferenceBackend
+from cortex_core import EchoInferenceBackend, MemoryRecaller, SystemClock
 from cortex_inference import LlamaCppBackend
-from cortex_orchestrator import InferenceConfig, build_inference_backend, run_from_env
+from cortex_memory import PgVectorMemoryStore
+from cortex_orchestrator import (
+    InferenceConfig,
+    MemoryConfig,
+    build_inference_backend,
+    build_memory,
+    run_from_env,
+)
 from cortex_seam import BrainServiceStub, ClientEvent, ServerEvent, UserTurn
 from cortex_session import RedisSessionStore
 
@@ -115,3 +122,38 @@ async def test_build_inference_backend_selects_llamacpp_and_returns_a_closer() -
     backend, close = build_inference_backend(config, "cortex")
     assert isinstance(backend, LlamaCppBackend)
     await close()  # releases the httpx client
+
+
+async def test_build_memory_defaults_to_disabled() -> None:
+    """The DB-less default: no recaller, and a closer that is a clean no-op."""
+    memory, close = await build_memory(MemoryConfig(backend="none"), SystemClock())
+    assert memory is None
+    await close()  # no resources to release; must not raise
+
+
+async def test_build_memory_selects_pgvector_and_returns_a_closer(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The opt-in path: a recaller over the pgvector store, whose closer releases the pool."""
+    closed: list[str] = []
+    seen_dsn: list[str] = []
+
+    class FakeStore:
+        async def aclose(self) -> None:
+            closed.append("store")
+
+    async def fake_connect(dsn: str) -> FakeStore:
+        seen_dsn.append(dsn)
+        return FakeStore()
+
+    monkeypatch.setattr(PgVectorMemoryStore, "connect", fake_connect)
+    config = MemoryConfig(
+        backend="pgvector",
+        dsn="postgresql://cortex@db/cortex",
+        embedder_endpoint="http://llama-embed:8081",
+    )
+    memory, close = await build_memory(config, SystemClock())
+    assert isinstance(memory, MemoryRecaller)
+    assert seen_dsn == ["postgresql://cortex@db/cortex"]
+    await close()  # releases the pool and the embedder client
+    assert closed == ["store"]

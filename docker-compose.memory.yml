@@ -1,0 +1,90 @@
+# Memory override (Slice 5 per ADR-0008). Layer it ON TOP of the base file:
+#     docker compose -f docker-compose.yml -f docker-compose.memory.yml up
+# It adds Postgres + pgvector (the durable MemoryStore) and a CPU embedding llama-server,
+# and flips the brain from memory=none to the pgvector backend pointed at them. CI never
+# runs this file. Memory is opt-in so CI and the no-GPU dev loop stay DB-free.
+#
+# Set these on the host (a .env next to this file works):
+#   CORTEX_MODELS_DIR       host dir holding the GGUFs (default ./models, ADR-0004)
+#   CORTEX_EMBED_MODEL_FILE embedding GGUF path under that dir (default: the nomic pick)
+#
+# The live Postgres data lives in a named volume (avoids the ownership/latency pitfalls of a
+# PGDATA dir over a Docker-Desktop Windows bind mount, ADR-0008); the plug-and-play export
+# to D:\Software\AI\Database is a dump/sync job, not a raw bind mount.
+
+services:
+  brain:
+    environment:
+      # Opt into durable memory; without this the base image runs memory=none (ADR-0008).
+      CORTEX_MEMORY_BACKEND: "pgvector"
+      CORTEX_MEMORY_DSN: "postgresql://cortex:cortex@postgres:5432/cortex"
+      CORTEX_MEMORY_EMBEDDER_ENDPOINT: "http://llama-embed:8081"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      llama-embed:
+        condition: service_healthy
+
+  postgres:
+    image: "pgvector/pgvector:pg16"
+    environment:
+      POSTGRES_USER: cortex
+      POSTGRES_PASSWORD: cortex
+      POSTGRES_DB: cortex
+    volumes:
+      # Live data: a named volume (durable across restarts; not a Windows bind mount).
+      - type: volume
+        source: cortex-pgdata
+        target: /var/lib/postgresql/data
+      # Schema bootstrap: runs once on first init (ADR-0008).
+      - type: bind
+        source: ./docker/postgres/init.sql
+        target: /docker-entrypoint-initdb.d/init.sql
+        read_only: true
+    ports:
+      # Loopback-only publish so host-side integration tests can reach it (assumption 5).
+      - "127.0.0.1:5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cortex -d cortex"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    restart: unless-stopped
+
+  llama-embed:
+    # CPU build (no CUDA): embeddings run on CPU, off the GPU budget (ADR-0004 addendum).
+    image: "ghcr.io/ggml-org/llama.cpp:server"
+    # --embeddings turns on /v1/embeddings; -ngl 0 keeps it entirely on the CPU. The model
+    # is the nomic pick (ADR-0004); override the path with CORTEX_EMBED_MODEL_FILE.
+    command:
+      - "--model"
+      - "/models/${CORTEX_EMBED_MODEL_FILE:-nomic-ai/nomic-embed-text-v1.5-GGUF/nomic-embed-text-v1.5.Q8_0.gguf}"
+      - "--embeddings"
+      - "--host"
+      - "0.0.0.0"
+      - "--port"
+      - "8081"
+      - "-ngl"
+      - "0"
+    volumes:
+      # Models stay on the Windows drive, mounted read-only (ADR-0004); override with CORTEX_MODELS_DIR.
+      - type: bind
+        source: "${CORTEX_MODELS_DIR:-./models}"
+        target: /models
+        read_only: true
+    ports:
+      # Loopback-only publish so the host-side embedder integration test can reach it.
+      - "127.0.0.1:8081:8081"
+    healthcheck:
+      # If this image ships without curl, swap the test for a python poke (see the runbook).
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8081/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 120s
+      start_interval: 2s
+    restart: unless-stopped
+
+volumes:
+  cortex-pgdata:

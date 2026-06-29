@@ -5,7 +5,9 @@ description = "Thin gRPC service hosting BrainService; orchestration logic stays
 requires-python = ">=3.12"
 dependencies = [
   "cortex-core",
+  "cortex-embedding",
   "cortex-inference",
+  "cortex-memory",
   "cortex-seam",
   "cortex-session",
   # Floor tracks the committed gencode's import-time minimum; bump on every regen (ADR-0003).
@@ -17,7 +19,9 @@ dependencies = [
 
 [tool.uv.sources]
 cortex-core = { workspace = true }
+cortex-embedding = { workspace = true }
 cortex-inference = { workspace = true }
+cortex-memory = { workspace = true }
 cortex-seam = { workspace = true }
 cortex-session = { workspace = true }
 
