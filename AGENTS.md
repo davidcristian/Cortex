@@ -9,7 +9,8 @@ index: [docs/index.md](docs/index.md), decisions: `docs/adr/`).
 
 A personal, mostly-local assistant. A host-native Rust/Tauri app (the **body**: global
 hotkey, overlay UI, screen capture, audio, input injection) talks over gRPC to a
-dockerized Python **brain** (inference via vLLM, orchestration, memory, MCP tool servers).
+dockerized Python **brain** (inference via llama.cpp, orchestration, memory, MCP tool
+servers).
 Three model tiers share one 24 GB GPU: a resident ~9-12B multimodal **cortex**, small
 2-4B **subagents**, and an on-demand ~31B **brain** model that requires evicting the
 others. See `docs/adr/ADR-0001-architecture.md` for why everything below is the way it is.
@@ -41,7 +42,7 @@ Interfaces are designed around this rule from day one. Retrofitting it is a rewr
 - **Two portability seams**, each a port with per-platform adapters:
   1. OS backends (Rust traits, `cfg(target_os)`-gated crates), with Windows implemented,
      macOS/Linux as `unimplemented!()` stubs that satisfy the traits.
-  2. `InferenceBackend` is vLLM now; a future MLX/llama.cpp backend is an adapter.
+  2. `InferenceBackend` is llama.cpp now (ADR-0005); any future engine is an adapter.
   Everything else stays portable: no hard-coded paths, no OS assumptions in the core,
   all config via env (`pydantic-settings` / typed env parsing in Rust).
 - **Orchestration is explicit typed code in the core**, with no heavy agent framework that
