@@ -7,8 +7,9 @@
 
 ## Context
 
-Three tiers share the 24 GB GPU (ADR-0001); cortex + embedder + one subagent must fit in
-12 GB, and the cortex must be natively multimodal (vision). The user has downloaded the
+Three tiers share the 24 GB GPU (ADR-0001); the AI stack must fit under a deliberate soft
+cap (**14 GB**, see the addendum), and the cortex must be natively multimodal (vision).
+The user has downloaded the
 candidates locally via LM Studio to `D:\Software\AI\Models` (Windows; the drive is not
 mounted into WSL).
 
@@ -42,7 +43,7 @@ they use more memory; revisit only if latency demands it.
 4. **Envelope sanity (to verify in Slice 4).** Rough Q4 weight sizes: 12B ≈ 7 GB,
    9B ≈ 5.5 GB (cortex) + embedder (the nomic candidates are small, ~0.1-1 GB
    depending on quant; the v2-moe F16 sits at the top of that range) +
-   2-4B subagent (~1.5-2.5 GB) + KV. The 12 GB envelope is plausible but tight with
+   2-4B subagent (~1.5-2.5 GB) + KV. The 14 GB envelope is plausible but tight with
    the 12B cortex; the 9B leaves more headroom. Brain candidates (~15-18 GB) all fit
    alone in 24 GB. The cortex pick must ship its vision tower and its VRAM cost counts
    against the envelope.
@@ -88,15 +89,20 @@ bound, so they are *not* representative of full-power throughput.
    4 slots, pre-allocating ~8 GB of KV (17.3 GB total for Qwen-9B). The compose now sets
    `--ctx-size` (env `CORTEX_CTX_SIZE`, default 16384) and a single slot (the Model
    Manager serializes turns anyway).
-3. **The 12 GB GPU budget is a deliberate soft cap.** The user reserves the other ~12 GB
-   of the 24 GB for a second monitor + gaming, so the AI stack stays under ~12 GB VRAM. The
-   ~11 GB cortex therefore **fills the AI budget on its own**, and everything else runs on
-   **CPU** (or hybrid). The CPU/hybrid split is a *requirement of the cap*, not an
-   optimization. Placement is a per-`llama-server` `-ngl` concern (ADR-0005: engine flags
-   are adapter/deployment, never core), exposed as env `CORTEX_NGL` (default 99); CPU-only
+3. **The GPU budget is a deliberate soft cap of 14 GB (env `CORTEX_VRAM_SOFT_CAP_GB`).**
+   The user reserves the other ~10 GB of the 24 GB for a second monitor + gaming, so the
+   AI stack stays under ~14 GB VRAM. The ~11.3 GB cortex therefore sits **comfortably under
+   the cap** with ~2.7 GB of headroom. The cap was raised from 12 GB precisely to give the
+   always-resident cortex room for KV/context/vision growth rather than sitting at the edge.
+   Everything else still runs on **CPU** (or hybrid). The budget stays a single GPU-resident
+   cortex; the CPU/hybrid split is a *requirement of the cap*, not an optimization. The cap
+   is a single number the **Model Manager** enforces once it gains admission control (Slice
+   7); until then it is documentation plus the levers that actually bound VRAM today, namely model
+   choice, `CORTEX_CTX_SIZE`, and the per-`llama-server` `-ngl` (ADR-0005: engine flags are
+   adapter/deployment, never core), exposed as env `CORTEX_NGL` (default 99); CPU-only
    (`-ngl 0`) and hybrid (partial `-ngl`, or `--no-kv-offload`) cost **zero core change**:
-   - **Cortex** gets the full GPU; ~11 GB (16K ctx) sits right at the cap, so context size is
-     itself budget-bounded (a larger window's KV would push over).
+   - **Cortex** gets the full GPU; ~11.3 GB (16K ctx) sits under the 14 GB cap with ~2.7 GB
+     headroom, so context size is still budget-bounded but no longer at the edge.
    - **Embedder** (nomic, 0.15-0.27 GB) runs on **CPU**; tiny + bursty (memory write/retrieval).
    - **Subagents** (2-4B) run on **CPU** (the GPU budget is spent on the cortex). Not one slot:
      the cortex spawns **one or more** subagents and picks their count and size within the
