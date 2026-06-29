@@ -4,27 +4,41 @@ import asyncio
 import os
 import signal
 import socket
-from collections.abc import Awaitable, Callable, Sequence
+from collections.abc import Awaitable, Callable, Mapping, Sequence
 from typing import cast
 
 import pytest
 from fakeredis import FakeAsyncRedis, FakeServer
 from grpc import aio
 
-from cortex_core import EchoInferenceBackend, MemoryRecaller, SystemClock, ToolDispatcher
+from cortex_core import (
+    ConcurrencyScheduler,
+    EchoInferenceBackend,
+    InMemoryTaskStore,
+    InMemoryToolRegistry,
+    MemoryRecaller,
+    SpawnSubagentsTool,
+    SubagentRunner,
+    SystemClock,
+    ToolDispatcher,
+    ToolSpec,
+)
 from cortex_inference import LlamaCppBackend
 from cortex_memory import PgVectorMemoryStore
 from cortex_orchestrator import (
     InferenceConfig,
     MemoryConfig,
+    SubagentsConfig,
     ToolsConfig,
+    build_cortex_tools,
     build_inference_backend,
     build_memory,
-    build_tools,
+    build_subagents,
+    build_tool_registry,
     run_from_env,
 )
 from cortex_seam import BrainServiceStub, ClientEvent, ServerEvent, UserTurn
-from cortex_session import RedisSessionStore
+from cortex_session import RedisSessionStore, RedisTaskStore
 from cortex_tools import McpToolRegistry
 
 
@@ -162,17 +176,17 @@ async def test_build_memory_selects_pgvector_and_returns_a_closer(
     assert closed == ["store"]
 
 
-async def test_build_tools_defaults_to_disabled() -> None:
-    """The MCP-less default: no dispatcher, and a closer that is a clean no-op."""
-    tools, close = await build_tools(ToolsConfig(backend="none"), SystemClock())
-    assert tools is None
+async def test_build_tool_registry_defaults_to_disabled() -> None:
+    """The MCP-less default: no registry, and a closer that is a clean no-op."""
+    registry, close = await build_tool_registry(ToolsConfig(backend="none"))
+    assert registry is None
     await close()  # no resources to release; must not raise
 
 
-async def test_build_tools_selects_mcp_and_returns_a_closer(
+async def test_build_tool_registry_selects_mcp_and_returns_a_closer(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """The opt-in path: an audited dispatcher over the MCP registry, whose closer releases it."""
+    """The opt-in path: the raw MCP registry (shared by cortex + subagents) + a closer."""
     closed: list[str] = []
     seen_url: list[str] = []
 
@@ -185,9 +199,83 @@ async def test_build_tools_selects_mcp_and_returns_a_closer(
         return object(), closer
 
     monkeypatch.setattr(McpToolRegistry, "connect", fake_connect)
-    config = ToolsConfig(backend="mcp", endpoint="http://fs:9000/mcp")
-    tools, close = await build_tools(config, SystemClock())
-    assert isinstance(tools, ToolDispatcher)
+    registry, close = await build_tool_registry(
+        ToolsConfig(backend="mcp", endpoint="http://fs:9000/mcp")
+    )
+    assert registry is not None
     assert seen_url == ["http://fs:9000/mcp"]
     await close()  # releases the MCP session
     assert closed == ["session"]
+
+
+async def test_build_subagents_defaults_to_disabled() -> None:
+    """The default: no spawn tool, and a closer that is a clean no-op."""
+    spawn, close = await build_subagents(
+        SubagentsConfig(backend="none"), None, "redis://x:6379/0", SystemClock()
+    )
+    assert spawn is None
+    await close()  # no resources to release; must not raise
+
+
+# None and an empty MCP registry both exercised: the subagent-tools branch runs either way.
+@pytest.mark.parametrize("registry", [None, InMemoryToolRegistry({})])
+async def test_build_subagents_selects_llamacpp_and_returns_a_closer(
+    registry: InMemoryToolRegistry | None,
+) -> None:
+    """The opt-in path: a spawn tool over a CPU backend + Redis task store, plus a closer."""
+    seen_url: list[str] = []
+
+    def factory(url: str) -> RedisTaskStore:
+        seen_url.append(url)
+        return RedisTaskStore(FakeAsyncRedis(server=FakeServer()))
+
+    config = SubagentsConfig(
+        backend="llamacpp", endpoint="http://llama-subagent:8082", max_concurrency=2
+    )
+    spawn, close = await build_subagents(
+        config, registry, "redis://sub:6379/0", SystemClock(), task_store_factory=factory
+    )
+    assert isinstance(spawn, SpawnSubagentsTool)
+    assert seen_url == ["redis://sub:6379/0"]
+    await close()  # releases the fake task store + the httpx client
+
+
+async def _read_handler(arguments: Mapping[str, object]) -> str:
+    del arguments
+    return "ok"
+
+
+def _spawn_tool() -> SpawnSubagentsTool:
+    store = InMemoryTaskStore()
+    runner = SubagentRunner(
+        store, EchoInferenceBackend(), ConcurrencyScheduler(1), SystemClock(), subagent_model="s"
+    )
+    return SpawnSubagentsTool(runner, store, SystemClock())
+
+
+def _read_registry() -> InMemoryToolRegistry:
+    return InMemoryToolRegistry(
+        {"read": (ToolSpec(name="read", description="", parameters={}), _read_handler)}
+    )
+
+
+def test_build_cortex_tools_none_when_nothing_is_enabled() -> None:
+    assert build_cortex_tools(None, None, SystemClock()) is None
+
+
+async def test_build_cortex_tools_merges_the_spawn_tool_with_mcp_tools() -> None:
+    tools = build_cortex_tools(_read_registry(), _spawn_tool(), SystemClock())
+    assert isinstance(tools, ToolDispatcher)
+    assert {spec.name for spec in await tools.describe_tools()} == {"spawn_subagents", "read"}
+
+
+async def test_build_cortex_tools_spawn_only_when_no_mcp() -> None:
+    tools = build_cortex_tools(None, _spawn_tool(), SystemClock())
+    assert isinstance(tools, ToolDispatcher)
+    assert {spec.name for spec in await tools.describe_tools()} == {"spawn_subagents"}
+
+
+async def test_build_cortex_tools_mcp_only_when_no_subagents() -> None:
+    tools = build_cortex_tools(_read_registry(), None, SystemClock())
+    assert isinstance(tools, ToolDispatcher)
+    assert {spec.name for spec in await tools.describe_tools()} == {"read"}

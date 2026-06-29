@@ -1,0 +1,72 @@
+# Subagents override (Slice 7, ADR-0010). Layer it ON TOP of the base file:
+#     docker compose -f docker-compose.yml -f docker-compose.subagents.yml up
+# It adds one CPU llama-server (the small subagent model) and flips the brain from
+# subagents=none to the llamacpp backend pointed at it. Subagent task state lives in the base
+# file's Redis (the TaskStore). CI never runs this file. Subagents are opt-in so CI and the
+# no-GPU dev loop stay subagent-free (AGENTS.md gate 3).
+#
+# Subagents run on CPU (the GPU budget is the cortex's, ADR-0004 addendum), so this needs NO
+# GPU and can run alongside docker-compose.gpu.yml. To give subagents tools, ALSO layer the
+# tools/email overrides. The wiring hands them the MCP subset without the spawn tool (depth-1):
+#     docker compose -f docker-compose.yml -f docker-compose.tools.yml -f docker-compose.subagents.yml up
+#
+# Set on the host (a .env next to this file works):
+#   CORTEX_MODELS_DIR          host dir holding the GGUFs (default ./models, ADR-0004)
+#   CORTEX_MODEL_FILE_SUBAGENT subagent GGUF path under that dir (a Qwen3.5-2B candidate; the
+#                              final pick is measured in docs/runbooks/subagents-cpu.md)
+#   CORTEX_SUBAGENTS_MAX_CONCURRENCY  how many subagents may run at once (default 2)
+
+services:
+  brain:
+    environment:
+      # Opt into delegation; without this the base image runs subagents=none (ADR-0010).
+      CORTEX_SUBAGENTS_BACKEND: "llamacpp"
+      # In-network address of the CPU llama-server below (NOT the host-published port).
+      CORTEX_SUBAGENTS_ENDPOINT: "http://llama-subagent:8082"
+      CORTEX_SUBAGENTS_MAX_CONCURRENCY: "${CORTEX_SUBAGENTS_MAX_CONCURRENCY:-2}"
+    depends_on:
+      llama-subagent:
+        condition: service_healthy
+
+  llama-subagent:
+    # CPU (non-CUDA) OpenAI-compatible llama.cpp server (ADR-0005). Pin to a digest on the host
+    # once the subagent pick is locked. Mutable tags are a supply-chain risk (ADR-0006).
+    image: "ghcr.io/ggml-org/llama.cpp:server"
+    # A small (2-4B) subagent model on CPU. --jinja enables the tool-capable chat template so
+    # tools-enabled subagents can function-call (ADR-0010); --parallel matches the concurrency
+    # budget so the scheduler's admitted subagents each get a server slot.
+    command:
+      - "--model"
+      - "/models/${CORTEX_MODEL_FILE_SUBAGENT:-Qwen/Qwen3.5-2B-GGUF/Qwen3.5-2B-Q4_K_M.gguf}"
+      - "--host"
+      - "0.0.0.0"
+      - "--port"
+      - "8082"
+      # CPU only. The GPU is the cortex's (ADR-0004 addendum).
+      - "-ngl"
+      - "0"
+      - "--jinja"
+      - "--ctx-size"
+      - "${CORTEX_SUBAGENT_CTX_SIZE:-8192}"
+      - "--parallel"
+      - "${CORTEX_SUBAGENTS_MAX_CONCURRENCY:-2}"
+    volumes:
+      # Models stay on the Windows drive, mounted read-only (ADR-0004 d3).
+      - type: bind
+        source: "${CORTEX_MODELS_DIR:-./models}"
+        target: /models
+        read_only: true
+    ports:
+      # Loopback-only publish so host-side integration tests can reach it (assumption 5);
+      # the brain uses the in-network address above, not this one.
+      - "127.0.0.1:8082:8082"
+    restart: unless-stopped
+    healthcheck:
+      # llama-server serves /health once the model finishes loading; a smaller CPU model
+      # loads faster than the cortex, so a shorter start_period than the GPU file suffices.
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8082/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 90s
+      start_interval: 2s

@@ -52,14 +52,19 @@ The service:
   `SingleResidentModelManager(cortex_model, endpoint)` + the httpx client's `aclose`
   (short connect timeout, no read deadline). The uniform closer keeps `run_from_env`'s
   shutdown path backend-agnostic.
-- `run_from_env() -> None` (async) is the composition root: reads all three configs from
-  the env and serves with `RedisSessionStore.from_url(redis_url)`,
-  `build_inference_backend(...)`, and `SystemClock`. **Echo is the default runtime
-  backend; the real llama.cpp adapter is opt-in via `CORTEX_INFERENCE_BACKEND=llamacpp`**
-  (ADR-0007), so CI and the no-GPU dev loop keep the deterministic `"reply {n}: {text}"`
-  script (see brain-core.md). The store's connections and the backend's resources are
-  both released on the way out. Keyword-only `store_factory` exists for tests (fakeredis
-  injection).
+- `run_from_env() -> None` (async) is the composition root: reads the env configs and serves
+  with `RedisSessionStore.from_url(redis_url)`, `build_inference_backend(...)`, `SystemClock`,
+  and three opt-in adapters, each disabled by default so CI and the no-GPU dev loop stay
+  external-service-free: **memory** (`build_memory`, ADR-0008), **tools** (`build_tool_registry`
+  builds the raw MCP `ToolRegistry` shared by cortex and subagents, ADR-0009), and **subagents**
+  (`build_subagents` builds the `spawn_subagents` tool over a CPU backend + Redis `TaskStore` +
+  concurrency budget, ADR-0010). The cortex's dispatcher is
+  `build_cortex_tools(registry, spawn_tool, clock)`, the spawn tool merged with the MCP tools
+  via a `CompositeToolRegistry`, or `None` when neither is enabled (the Slice 3 turn path).
+  **Echo is the default inference backend; llama.cpp is opt-in via
+  `CORTEX_INFERENCE_BACKEND=llamacpp`** (ADR-0007), so the deterministic `"reply {n}: {text}"`
+  script (brain-core.md) runs in CI. Every adapter's resources are released on the way out.
+  Keyword-only `store_factory` exists for tests (fakeredis injection).
 - `ORCHESTRATOR_VERSION` is the static version string `Health` reports.
 - Entrypoint: `python -m cortex_orchestrator` runs `run_from_env()`; configuration is
   env-only, per AGENTS.md.
