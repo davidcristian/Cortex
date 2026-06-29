@@ -1,4 +1,8 @@
-"""BrainService behavior over a real loopback grpc.aio server (CI-safe, no network)."""
+"""Server lifecycle behavior over a real loopback grpc.aio server (CI-safe, no network).
+
+Converse behavior lives in test_converse.py (unit) and test_converse_grpc.py (wire);
+this file covers Health, binding, and graceful shutdown.
+"""
 
 import asyncio
 import os
@@ -7,39 +11,25 @@ import socket
 from collections.abc import AsyncIterator
 from typing import cast
 
-import grpc
 import pytest
 from grpc import aio
 
+from cortex_core import EchoInferenceBackend, InMemorySessionStore, SystemClock, TurnEngine
 from cortex_orchestrator import (
     ORCHESTRATOR_VERSION,
     SeamServerConfig,
     create_server,
     serve,
 )
-from cortex_seam import (
-    BrainServiceStub,
-    Cancel,
-    ClientEvent,
-    HealthReply,
-    HealthRequest,
-    ServerEvent,
-)
+from cortex_seam import BrainServiceStub, HealthReply, HealthRequest
 
 # The generated stub's attributes are untyped wire code (gate-exempt, ADR-0002 d4);
-# these two helpers pin the real types once so every test below stays fully typed.
+# this helper pins the real types once so every test below stays fully typed.
 
 
 async def _health(stub: BrainServiceStub) -> HealthReply:
     health = stub.Health  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
     return cast("HealthReply", await health(HealthRequest()))
-
-
-def _start_converse(
-    stub: BrainServiceStub, event: ClientEvent
-) -> aio.StreamStreamCall[ClientEvent, ServerEvent]:
-    converse = stub.Converse  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
-    return cast("aio.StreamStreamCall[ClientEvent, ServerEvent]", converse(iter([event])))
 
 
 def _free_loopback_port() -> int:
@@ -49,10 +39,14 @@ def _free_loopback_port() -> int:
     return port
 
 
+def _engine() -> TurnEngine:
+    return TurnEngine(InMemorySessionStore(), EchoInferenceBackend(), SystemClock())
+
+
 @pytest.fixture
 async def running_server() -> AsyncIterator[str]:
     """A BrainService bound to an ephemeral loopback port, torn down after the test."""
-    server, port = create_server(SeamServerConfig(host="127.0.0.1", port=0))
+    server, port = create_server(SeamServerConfig(host="127.0.0.1", port=0), _engine())
     await server.start()
     yield f"127.0.0.1:{port}"
     await server.stop(grace=None)
@@ -65,26 +59,16 @@ async def test_health_reports_ready_with_version(running_server: str) -> None:
     assert reply.detail == f"cortex-orchestrator {ORCHESTRATOR_VERSION}"
 
 
-async def test_converse_aborts_unimplemented(running_server: str) -> None:
-    async with aio.insecure_channel(running_server) as channel:
-        event = ClientEvent(session_id="s1", cancel=Cancel())
-        call = _start_converse(BrainServiceStub(channel), event)
-        with pytest.raises(aio.AioRpcError) as excinfo:
-            await call.read()
-    assert excinfo.value.code() is grpc.StatusCode.UNIMPLEMENTED
-    assert "Slice 3" in (excinfo.value.details() or "")
-
-
 async def test_create_server_binds_the_configured_port() -> None:
     port = _free_loopback_port()
-    server, bound = create_server(SeamServerConfig(host="127.0.0.1", port=port))
+    server, bound = create_server(SeamServerConfig(host="127.0.0.1", port=port), _engine())
     assert bound == port
     await server.stop(grace=None)
 
 
 async def test_serve_answers_health_and_shuts_down_on_cancel() -> None:
     port = _free_loopback_port()
-    task = asyncio.create_task(serve(SeamServerConfig(host="127.0.0.1", port=port)))
+    task = asyncio.create_task(serve(SeamServerConfig(host="127.0.0.1", port=port), _engine()))
     try:
         async with aio.insecure_channel(f"127.0.0.1:{port}") as channel:
             await asyncio.wait_for(channel.channel_ready(), timeout=10)
@@ -104,7 +88,7 @@ async def test_serve_answers_health_and_shuts_down_on_cancel() -> None:
 async def test_serve_stops_gracefully_on_signal(signum: signal.Signals) -> None:
     """SIGTERM (docker compose down) and SIGINT (Ctrl-C) trigger the graceful stop path."""
     port = _free_loopback_port()
-    task = asyncio.create_task(serve(SeamServerConfig(host="127.0.0.1", port=port)))
+    task = asyncio.create_task(serve(SeamServerConfig(host="127.0.0.1", port=port), _engine()))
     try:
         async with aio.insecure_channel(f"127.0.0.1:{port}") as channel:
             await asyncio.wait_for(channel.channel_ready(), timeout=10)

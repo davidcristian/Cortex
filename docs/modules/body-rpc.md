@@ -40,16 +40,28 @@ cd body && CORTEX_REGEN_PROTO=1 cargo build -p body-rpc
 `src/_generated/cortex.seam.v1.rs`. Output is deterministic for a pinned toolchain:
 regenerating with an unchanged proto must leave `git diff` empty.
 
-**Live check** (AGENTS.md gate 3, the Rust `integration` suite). One `#[ignore]`d
-test calls `Health` against a real brain:
+**Live checks** (AGENTS.md gate 3, the Rust `integration` suite, ADR-0003 decision 3).
+Two `#[ignore]`d tests run against a real brain:
 
 ```sh
 cargo test -p body-rpc --test live -- --ignored
 ```
 
-It reads `CORTEX_BRAIN_ADDR` (default `http://127.0.0.1:50051`, which matches the brain
-server's `CORTEX_SEAM_HOST`/`CORTEX_SEAM_PORT` defaults `127.0.0.1`/`50051`) and
-asserts `ready`. Being ignored, it never runs in CI and never counts toward coverage.
+Both read `CORTEX_BRAIN_ADDR` (default `http://127.0.0.1:50051`, which matches the brain
+server's `CORTEX_SEAM_HOST`/`CORTEX_SEAM_PORT` defaults `127.0.0.1`/`50051`):
+
+- `brain_reports_ready_over_the_live_seam` calls `Health` via `BrainSeamClient` and
+  asserts `ready`.
+- `converse_round_trips_one_turn_over_the_live_seam` (Slice 3) drives the raw generated
+  `BrainServiceClient`, deliberately not `BrainTransport`, which grows a typed converse
+  method only with the body slices. It opens the bidirectional `Converse` stream, sends
+  one `ClientEvent{session_id, user_turn}` with a session id unique per run (so reruns
+  never share session state), collects `TextDelta`s until `TurnComplete` (tolerating
+  interleaved `ToolActivity`/`StatusUpdate`, failing on `SeamError`), and asserts at
+  least one delta arrived, the concatenated text is non-empty, and `TurnComplete`
+  carries a non-empty `turn_id`.
+
+Being ignored, they never run in CI and never count toward coverage.
 
 **Invariants.**
 - Thin adapter: translate types and errors, nothing else; everything crossing the seam

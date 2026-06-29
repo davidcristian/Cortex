@@ -79,7 +79,9 @@ later move to macOS or Linux is plausible.
    firewall/portability makes that brittle is tunneling body-directed calls over a
    body-initiated bidirectional stream.
 4. **Concrete model choices** (cortex, subagent, brain, embedder) and their VRAM fit have
-   decided in the real-inference slice, recorded in a runbook + ADR.
+   candidate sets locked in [ADR-0004](ADR-0004-model-lineup.md) (all GGUF, which also
+   opens a vLLM-vs-llama.cpp engine question); final picks + engine decided in the
+   real-inference slice with measurements.
 5. **Default global hotkey** (`Win+Space` is taken on Windows) is configurable from day
    one; `Ctrl+Alt+Space` proposed in the roadmap's assumptions list, confirmed at the
    first body slice.

@@ -6,15 +6,17 @@ name = "brain"
 version = "0.0.0"
 requires-python = ">=3.12"
 # The virtual root depends on every workspace member so `uv sync --locked` installs them all.
-dependencies = ["cortex-core", "cortex-orchestrator", "cortex-seam"]
+dependencies = ["cortex-core", "cortex-orchestrator", "cortex-seam", "cortex-session"]
 
 [tool.uv.sources]
 cortex-core = { workspace = true }
 cortex-orchestrator = { workspace = true }
 cortex-seam = { workspace = true }
+cortex-session = { workspace = true }
 
 [dependency-groups]
 dev = [
+  "fakeredis>=2.26",
   "grpcio-tools>=1.66",
   "pyright>=1.1.400",
   "pytest>=8.3",

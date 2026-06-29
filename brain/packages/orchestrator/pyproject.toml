@@ -4,14 +4,19 @@ version = "0.0.0"
 description = "Thin gRPC service hosting BrainService; orchestration logic stays in cortex-core."
 requires-python = ">=3.12"
 dependencies = [
+  "cortex-core",
   "cortex-seam",
+  "cortex-session",
   # Floor tracks the committed gencode's import-time minimum; bump on every regen (ADR-0003).
   "grpcio>=1.81.1",
+  "pydantic>=2.11",
   "pydantic-settings>=2.6",
 ]
 
 [tool.uv.sources]
+cortex-core = { workspace = true }
 cortex-seam = { workspace = true }
+cortex-session = { workspace = true }
 
 [build-system]
 requires = ["hatchling"]
