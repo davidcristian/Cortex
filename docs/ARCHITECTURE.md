@@ -12,7 +12,7 @@ maintainable by agents with small context windows. Rules live in
 │  ├─ overlay webview (show/hide)      │   │  model_manager  owns the GPU, swap queue   │
 │  ├─ Hotkey / ScreenCapture /         │gRPC  memory        MemoryStore + Embedder     │
 │  │  AudioControl / InputControl      │◄──►  tools         MCP servers: email, files  │
-│  │  (per-OS trait backends)          │   │  vLLM           serves the loaded model    │
+│  │  (per-OS trait backends)          │   │  llama.cpp      serves the loaded models   │
 │  └─ rpc: tonic client + server       │   ├────────────────────────────────────────────┤
 └──────────────────────────────────────┘   │  Redis (hot state, event bus)              │
                                            │  Postgres + pgvector (durable, vectors)    │
@@ -32,7 +32,8 @@ maintainable by agents with small context windows. Rules live in
 
 ## Model tiers and the swap rule
 
-Three tiers share one 24 GB GPU via vLLM:
+Three tiers share one 24 GB GPU via llama.cpp (ADR-0005; one
+`llama-server` process per loaded model):
 
 | Tier | Role | Residency | VRAM |
 |---|---|---|---|
@@ -46,7 +47,8 @@ state may live in a model-server process or KV cache. Handoff sequence:
 1. Cortex decides a task needs the brain; the orchestrator **serializes** the relevant
    context (a handoff record) into the session store.
 2. Orchestrator asks the model manager for the brain model; the manager queues the
-   request, evicts cortex/subagents (vLLM sleep/offload), loads the brain.
+   request, evicts cortex/subagents (stops their `llama-server` processes), and starts
+   the brain's.
 3. The brain model is **rehydrated** purely from the store, runs, and its results are
    **persisted** back to the store.
 4. The manager swaps back; cortex resumes by **reading the brain's output from the
@@ -107,9 +109,10 @@ Internal Python↔Python boundaries use FastAPI + Pydantic v2; tools use MCP.
    `cfg(target_os)`-gated. Windows is implemented (Core Audio via the `windows` crate,
    `enigo`, `global-hotkey`, `xcap`/`scap`); macOS/Linux are `unimplemented!()` stubs
    (coverage-off with inline reason) until needed. One binary per OS.
-2. **`InferenceBackend`** is vLLM (CUDA/Blackwell quirks stay inside the adapter and its
-   runbook, `docs/runbooks/`); a Mac MLX/llama.cpp backend later is an adapter, not a
-   rewrite.
+2. **`InferenceBackend`** is llama.cpp (ADR-0005; engine flags and GPU quirks stay
+   inside the adapter and its runbook, `docs/runbooks/`). llama.cpp also runs
+   Metal/CPU, so a later Mac move likely reuses this adapter rather than needing a new
+   one.
 
 Everything else (core logic, stores, MCP servers, Compose topology) stays portable:
 config via env only, no hard-coded paths, no OS assumptions in the core.

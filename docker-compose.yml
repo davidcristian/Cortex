@@ -1,6 +1,7 @@
 # Brain services (Slice 3: cortex-only chat; state in redis). The body is host-native
 # and never dockerized (AGENTS.md). CPU-only, with no GPU anywhere in this file; the GPU
-# override (docker-compose.gpu.yml: vLLM + device reservations) arrives with Slice 4
+# override (docker-compose.gpu.yml: llama.cpp servers + device reservations, ADR-0005)
+# arrives with Slice 4
 # (docs/ROADMAP.md). Ops loop: docs/runbooks/local-dev-wsl.md.
 
 services:

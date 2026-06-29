@@ -42,22 +42,27 @@ the pure core; a turn arrives over `Converse`, is answered by the fake, and the 
 state survives an orchestrator process restart (proving state is external).
 **Gate proven:** ports-before-adapters with contract tests; repository pattern.
 
-## Slice 4 (Real inference): engine adapter + Model Manager v1
+## Slice 4 (Real inference): llama.cpp adapter + Model Manager v1
 
-Engine evaluation first (ADR-0004: the locked candidates are all GGUF, so vLLM-GGUF vs
-a llama.cpp-server adapter vs re-quantizing is measured and decided here), then the
-chosen adapter for `InferenceBackend` (all GPU/WSL2 quirks inside + runbook); Model
-Manager v1: owns the GPU, single resident model, `acquire()` lease + queue API (no swap
-yet); `docker-compose.gpu.yml` override with the model-dir bind mount. Final per-tier
-model picks recorded against measured VRAM (ADR-0004). Live tests are
-`integration`-marked, run manually on the host.
+llama.cpp adapter for `InferenceBackend` (ADR-0005: one `llama-server` process per
+model, OpenAI-compatible HTTP as the adapter surface; engine flags/quirks inside the
+adapter + runbook `docs/runbooks/llamacpp-gpu.md`); Model Manager v1: owns the GPU,
+single resident model, `acquire()` lease + queue API (no swap yet);
+`docker-compose.gpu.yml` override with the read-only model-dir bind mount
+(`D:\Software\AI Models`, ADR-0004). Final per-tier model picks recorded against
+measured VRAM (ADR-0004). Live tests are `integration`-marked, run manually on the
+host.
 **Gate proven:** integration suite excluded from coverage/CI; adapter as blast radius.
 
 ## Slice 5 (Memory v1): retrieval that grows
 
-`MemoryStore` + `Embedder` ports; pgvector adapter + local embedding model (fake in CI);
-memory writes at turn end, top-k retrieval into cortex context. ADR resolving
-Letta vs. custom decides the implementation behind the unchanged port.
+`MemoryStore` + `Embedder` ports; pgvector adapter + local embedding model (fake in CI;
+the nomic candidates in ADR-0004 run on llama.cpp per ADR-0005); memory writes at turn
+end, top-k retrieval into cortex context. ADR resolving Letta vs. custom decides the
+implementation behind the unchanged port. The knowledge base's durable data lives under
+`D:\Software\AI Database` (plug-and-play requirement, ADR-0004 addendum). Validate the
+Postgres-over-Windows-bind-mount caveat here; fallback is a named volume + automated
+sync into that directory.
 
 ## Slice 6 (Tools via MCP): files, then email
 
@@ -94,10 +99,10 @@ multimodal cortex; "what's on my screen?" answered in the overlay.
 ## Slice 11 (Brain handoff): the swap rule, for real (capstone)
 
 Full handoff: cortex escalates → context serialized → `ModelManager` evicts
-cortex/subagents and loads the brain (vLLM sleep/offload + load) → brain rehydrates from
-the store, works, persists → swap back → cortex resumes from the store. Includes a chaos
-test (kill a model mid-handoff; system resumes from the store) and runbook
-`docs/runbooks/model-swap.md`.
+cortex/subagents and loads the brain (stops their `llama-server` processes, starts the
+brain's, per ADR-0005) → brain rehydrates from the store, works, persists → swap back →
+cortex resumes from the store. Includes a chaos test (kill a model mid-handoff; system
+resumes from the store) and runbook `docs/runbooks/model-swap.md`.
 **Gate proven:** THE hard rule, end to end.
 
 ## Later (unordered)
@@ -113,10 +118,11 @@ plan bets on, with what would invalidate each:
 1. **VRAM fit.** A quantized ~9-12B multimodal cortex + embedder + one 2-4B subagent fit
    in 12 GB with usable KV headroom. Invalidated if the vision tower + KV blow the
    budget → smaller cortex or tighter quantization (checked in Slices 4/7).
-2. **Swap latency/stability.** vLLM sleep/offload + load on Blackwell/WSL2 completes a
-   cortex↔brain swap in seconds and is reliable. Slow is tolerable (the `Converse`
-   stream reports swap status to the overlay); *unstable* would force full process
-   restarts per swap (survivable only because of the external-state rule).
+2. **Swap latency.** A cortex↔brain swap is a `llama-server` stop + start (ADR-0005),
+   so its cost is loading a multi-GB GGUF from the bind-mounted Windows drive.
+   Assumed acceptable (seconds, reported to the overlay via the `Converse` status
+   stream); if the Windows mount is the bottleneck, hot models get mirrored into a
+   WSL-side/volume cache (measured in Slice 4).
 3. **Brain→body connectivity.** The dockerized brain can dial the host body's gRPC
    server via `host.docker.internal` through the Windows firewall. Fallback: tunnel
    body-directed calls over a body-initiated stream (ADR-0001 Q3).

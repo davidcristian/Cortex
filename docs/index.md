@@ -12,8 +12,9 @@ Start here. Rules for working in this repo: [AGENTS.md](../AGENTS.md).
 ## Decisions (ADRs)
 
 - [ADR-0001: Founding architecture](adr/ADR-0001-architecture.md): hexagonal on both
-  sides, polyglot split with a gRPC seam (no FFI), external state as swap safety, vLLM
-  behind `InferenceBackend`, Redis + Postgres/pgvector, toolchain gates; open questions.
+  sides, polyglot split with a gRPC seam (no FFI), external state as swap safety, the
+  engine behind `InferenceBackend` (originally vLLM, now superseded by ADR-0005),
+  Redis + Postgres/pgvector, toolchain gates; open questions.
 - [ADR-0002: Toolchain and gate mechanics](adr/ADR-0002-toolchain-gates.md): nightly
   for Rust branch coverage, the JSON branch gate, `scripts/` as a standalone project,
   the `_generated` marker, tests-outside-source, ruff ALL, pre-commit = `just check`.
@@ -22,8 +23,11 @@ Start here. Rules for working in this repo: [AGENTS.md](../AGENTS.md).
   `#[ignore]` tests as the Rust integration suite, stubs shared via `cortex_seam`,
   the CORTEX_SEAM_* env contract.
 - [ADR-0004: Model lineup](adr/ADR-0004-model-lineup.md): locked candidate sets per
-  tier (all GGUF via LM Studio), the vLLM-vs-llama.cpp engine question for Slice 4,
-  logical model ids, bind-mount access to `D:\Software\AI Models`.
+  tier + embedder (all GGUF via LM Studio), logical model ids, local data locations
+  (models in `D:\Software\AI Models`, knowledge base in `D:\Software\AI Database`).
+- [ADR-0005: llama.cpp as the inference engine](adr/ADR-0005-llamacpp-engine.md):
+  supersedes vLLM (ADR-0001 d4); one `llama-server` per model behind the
+  OpenAI-compatible API; swap = process lifecycle; embeddings on the same engine.
 
 New non-obvious decision → add `adr/ADR-XXXX-<slug>.md`, link it here.
 
@@ -48,5 +52,5 @@ New non-obvious decision → add `adr/ADR-XXXX-<slug>.md`, link it here.
 
 - [runbooks/local-dev-wsl.md](runbooks/local-dev-wsl.md) covers the daily dev loop: brain
   natively or in Compose, env vars, the live seam check, Docker Desktop notes.
-- Expected as later slices land: `blackwell-vllm.md` (Slice 4), `model-swap.md`
+- Expected as later slices land: `llamacpp-gpu.md` (Slice 4), `model-swap.md`
   (Slice 11).
