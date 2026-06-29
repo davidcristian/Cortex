@@ -117,3 +117,25 @@ bound, so they are *not* representative of full-power throughput.
 5. **Data dir reorganized** to `D:\Software\AI\Models` (and `…\AI\Database`). The earlier
    `AI Models` name (with a space) broke Docker Desktop's on-demand host-mount traversal
    from WSL; removing the space fixed it. Windows-native compose runs were unaffected.
+
+## Addendum (2026-06-29): Slice 5 embedder pick + memory host validation
+
+Both host halves of Slice 5 validated on the host machine (WSL + Docker Desktop). The
+integration suites passed against real services:
+
+- **`cortex_memory` vs. Postgres + pgvector 0.8.4.** The full `MemoryStore` contract
+  (empty search, cosine ranking, top-k, roundtrip fidelity incl. the float4 embedding and
+  the timestamptz instant) passed, proving the adapter's SQL (`docs/runbooks/memory-pgvector.md`).
+- **`cortex_embedding` vs. nomic on a CPU `llama-server`.** A real embedding streamed back
+  and was deterministic.
+
+| Tier | Pick | Quant | Dim | Weights | Placement |
+|---|---|---|---|---|---|
+| **Embedder** | **nomic-embed-text-v1.5** | Q8_0 | 768 | 0.146 GB | **CPU** (`-ngl 0`), ~18 MiB RSS |
+
+- **Embedder pick: nomic-embed-text-v1.5 Q8_0** is 768-dim, loads in ~1.2 s, negligible RAM,
+  entirely off the GPU budget (as designed). It is the `docker-compose.memory.yml` default
+  (`CORTEX_EMBED_MODEL_FILE`); `nomic-embed-text-v2-moe` (also 768-dim, larger) is the
+  multilingual alternative, overridable via that env. Both are downloaded locally.
+- **Schema is dimension-agnostic.** The `memories.embedding` column is an unbounded
+  `vector`, so switching embedder/dimension needs no migration (an ANN index would; deferred).
