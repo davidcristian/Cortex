@@ -8,7 +8,7 @@
 #
 # Set these on the host (a .env next to this file works):
 #   CORTEX_MODELS_DIR      host dir holding the GGUFs (default ./models, ADR-0004)
-#   CORTEX_MODEL_FILE_CORTEX  the cortex GGUF filename inside that dir (chosen in Slice 4)
+#   CORTEX_MODEL_FILE_CORTEX  cortex GGUF path under that dir (default: the gemma-4-12B pick)
 
 services:
   brain:
@@ -25,11 +25,11 @@ services:
     # OpenAI-compatible CUDA server build of llama.cpp (ADR-0005). Pin to a digest on the
     # host once chosen. Mutable tags are a supply-chain risk (ADR-0006).
     image: "ghcr.io/ggml-org/llama.cpp:server-cuda"
-    # The resident cortex model. Artifact filename and flags (context size, etc.) are
-    # finalized against measured VRAM (ADR-0004 §4). -ngl 99 offloads all layers to the GPU.
+    # The resident cortex model: gemma-4-12B (QAT Q4, ADR-0004 addendum pick). Text-only for
+    # now; the vision projector (--mmproj) is added with Slice 10. -ngl 99 = all on the GPU.
     command:
       - "--model"
-      - "/models/${CORTEX_MODEL_FILE_CORTEX:-REPLACE_WITH_CORTEX_ARTIFACT.gguf}"
+      - "/models/${CORTEX_MODEL_FILE_CORTEX:-google/gemma-4-12B-it-qat-q4_0-gguf/gemma-4-12b-it-qat-q4_0.gguf}"
       - "--host"
       - "0.0.0.0"
       - "--port"
