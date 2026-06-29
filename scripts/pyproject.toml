@@ -1,7 +1,7 @@
 [project]
 name = "repo-gates"
 version = "0.1.0"
-description = "Repo-wide hard-gate tooling: the 300-line-cap scan and the Rust coverage gate."
+description = "Repo-wide hard-gate tooling: the line-cap scan, the Rust coverage gate, and the CI path classifier."
 requires-python = ">=3.12"
 dependencies = []
 
@@ -22,7 +22,7 @@ pythonpath = ["."]
 markers = [
   "integration: exercises live external systems; excluded from coverage gate and CI",
 ]
-addopts = "--cov=linecap --cov=coverage_gate --cov-branch --cov-report=term-missing --cov-fail-under=100 --strict-markers -m \"not integration\""
+addopts = "--cov=linecap --cov=coverage_gate --cov=ci_paths --cov-branch --cov-report=term-missing --cov-fail-under=100 --strict-markers -m \"not integration\""
 
 [tool.coverage.run]
 branch = true
@@ -32,4 +32,4 @@ typeCheckingMode = "strict"
 pythonVersion = "3.12"
 venvPath = "."
 venv = ".venv"
-include = ["linecap.py", "coverage_gate.py", "tests"]
+include = ["linecap.py", "coverage_gate.py", "ci_paths.py", "tests"]

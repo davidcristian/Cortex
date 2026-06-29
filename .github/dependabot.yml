@@ -1,0 +1,9 @@
+# Keeps the commit SHAs of the actions in .github/workflows/ current. For a release-tagged action
+# dependabot updates the SHA and its "# vN" comment together; dtolnay/rust-toolchain has no
+# releases, so only its SHA changes.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly

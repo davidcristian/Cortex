@@ -1,11 +1,12 @@
 # scripts/ (`repo-gates`)
 
-**Purpose.** The repo's own gate tooling: the cross-tree line cap and the Rust branch
-coverage threshold. A standalone uv project (not a brain workspace member, per ADR-0002),
-gated exactly like all other Python.
+**Purpose.** The repo's own gate tooling: the cross-tree line cap, the Rust branch
+coverage threshold, and the CI path classifier. A standalone uv project (not a brain
+workspace member, per ADR-0002), gated exactly like all other Python.
 
-**Public contract** (both are CLIs invoked by `just` recipes; both also expose a pure,
-unit-tested core function).
+**Public contract** (all are CLIs, with `linecap.py` and `coverage_gate.py` invoked by
+`just` recipes, `ci_paths.py` by the CI workflow; each also exposes a pure, unit-tested
+core function).
 
 - `linecap.py [--root DIR] [--max-lines N]` implements AGENTS.md gate 1. Scans `*.py`/`*.rs`
   under `--root` (default `.`), counting ALL lines (code, comments, blanks; cap default
@@ -23,11 +24,24 @@ unit-tested core function).
   `percent` is never trusted; displayed percentages are recomputed). A metric with
   `count == 0` passes vacuously (with a printed note). Malformed/missing/non-UTF-8
   input → typed error, exit 1. Exit 0 only when all three metrics pass.
+- `ci_paths.py` implements AGENTS.md gate 3 / ADR-0006. Decides which toolchain CI jobs must run
+  for a set of changed files. Reads newline-separated repo-relative paths (the output of
+  `git diff --name-only`) on stdin; blank lines are ignored. Each path is classified by
+  ordered rules, first match wins (the normative rule list lives in ADR-0006); the
+  result is the union over all paths. Writes exactly two `GITHUB_OUTPUT`-format lines
+  to stdout, in order: `python=true|false` then `rust=true|false`. Nothing else. Logs
+  one `ci-paths: PATH -> VERDICT` line per path to stderr so CI logs show why a job
+  ran. Empty input yields `python=false`/`rust=false`. Unmatched paths fail closed to
+  BOTH (unknown means over-test, never under-test). Always exits 0, because classification has
+  no failure mode.
 
 **Invariants.**
-- stdlib-only modules; pure cores (`scan`, `evaluate`/`check`) unit-tested to 100%
-  line+branch; the only coverage pragmas are the two `__main__` guard lines.
+- stdlib-only modules; pure cores (`scan`, `evaluate`/`check`, `classify`) unit-tested
+  to 100% line+branch; the only coverage pragmas are the `__main__` guard lines.
 - The exclusion lists above are the single definition of "non-test source file" and
   "generated code" for the cap. Change them only with an ADR update.
+- `ci_paths.py` runs under a plain `python3` on a GitHub runner **before** any `uv
+  sync`: it must never grow a third-party import. Its `RULES` table and the rule list
+  in ADR-0006 are the same normative list, so change them together.
 
 **Dependencies.** Python stdlib; dev-only: pytest, pytest-cov, pyright, ruff.

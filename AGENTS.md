@@ -66,7 +66,7 @@ Interfaces are designed around this rule from day one. Retrofitting it is a rewr
    `integration`-marked, excluded from the coverage gate, run manually on the host, never
    in CI. **CI runs without a GPU** and builds both toolchains. Each toolchain's job
    runs when a change can affect it (path-filtered, ADR-0006); shared gate files
-   (justfile, proto, scripts, the workflow itself) trigger both.
+   (justfile, proto, scripts, workflows) and unrecognized paths trigger both (fail closed).
 4. **Doc-first Definition of Done.** Per slice: design doc/ADR → define or adjust the
    port → tests → implementation → module doc + runbook updates. A change that touches
    code but not docs is incomplete. Every module has a short contract doc in
@@ -122,7 +122,8 @@ body/             Rust/Tauri workspace, host-native
   crates/         core (pure logic + OS traits + BrainTransport port), rpc (tonic
                   adapter, committed stubs); (planned) os_windows, os_macos, os_linux
   app/            (planned) the Tauri app (backend wiring + webview frontend)
-scripts/          repo gates: linecap.py (300-line cap), coverage_gate.py (Rust branches)
+scripts/          repo gates: linecap.py (300-line cap), coverage_gate.py (Rust branches),
+                  ci_paths.py (CI path classifier)
 .github/          GPU-less CI running the same `just` recipes as local dev
 justfile          `just check` + check-*; proto, up/down, brain-serve, seam-health
 docker-compose.yml   brain + redis in Compose, loopback-only; gpu override (planned, Slice 4)
