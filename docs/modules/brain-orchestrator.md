@@ -17,6 +17,11 @@ Config (pydantic-settings; explicit constructor arguments beat the environment):
   `redis_url: str = "redis://127.0.0.1:6379/0"` (`CORTEX_REDIS_URL`) and
   `cortex_model: str = "cortex"` (`CORTEX_MODEL_CORTEX`) is a LOGICAL model id
   (ADR-0004), never a file path.
+- `InferenceConfig` uses env prefix `CORTEX_INFERENCE_`: which backend answers turns
+  (ADR-0007 d4). `backend: "echo" | "llamacpp" = "echo"` (`CORTEX_INFERENCE_BACKEND`) and
+  `endpoint: str = ""` (`CORTEX_INFERENCE_ENDPOINT`, the resident `llama-server` base
+  URL). Validates that `llamacpp` has a non-empty `endpoint`. Echo is the GPU-less
+  default (CI + no-GPU dev); `llamacpp` is opt-in, set by `docker-compose.gpu.yml`.
 
 The service:
 
@@ -41,12 +46,20 @@ The service:
   are installed on the running loop for the server's lifetime (removed on exit) and
   trigger the same graceful stop as cancellation: in-flight RPCs drain for up to the 5 s
   grace before the listener closes. SIGTERM is what `docker compose down` delivers.
-- `run_from_env() -> None` (async) is the composition root: reads both configs from the
-  env and serves with `RedisSessionStore.from_url(redis_url)` + `EchoInferenceBackend`
-  + `SystemClock`. **The echo backend IS the runtime inference backend until Slice 4
-  delivers the real engine adapter** (docs/ROADMAP.md). Replies are the deterministic
-  `"reply {n}: {text}"` script (see brain-core.md). The store's connections are released
-  on the way out. Keyword-only `store_factory` exists for tests (fakeredis injection).
+- `build_inference_backend(config: InferenceConfig, cortex_model: str) -> tuple[InferenceBackend, Callable[[], Awaitable[None]]]`
+  picks the backend from config and returns it with the coroutine that releases it:
+  `EchoInferenceBackend` + a no-op closer, or `LlamaCppBackend` over a
+  `SingleResidentModelManager(cortex_model, endpoint)` + the httpx client's `aclose`
+  (short connect timeout, no read deadline). The uniform closer keeps `run_from_env`'s
+  shutdown path backend-agnostic.
+- `run_from_env() -> None` (async) is the composition root: reads all three configs from
+  the env and serves with `RedisSessionStore.from_url(redis_url)`,
+  `build_inference_backend(...)`, and `SystemClock`. **Echo is the default runtime
+  backend; the real llama.cpp adapter is opt-in via `CORTEX_INFERENCE_BACKEND=llamacpp`**
+  (ADR-0007), so CI and the no-GPU dev loop keep the deterministic `"reply {n}: {text}"`
+  script (see brain-core.md). The store's connections and the backend's resources are
+  both released on the way out. Keyword-only `store_factory` exists for tests (fakeredis
+  injection).
 - `ORCHESTRATOR_VERSION` is the static version string `Health` reports.
 - Entrypoint: `python -m cortex_orchestrator` runs `run_from_env()`; configuration is
   env-only, per AGENTS.md.
@@ -89,5 +102,6 @@ The service:
 - Fully typed, pyright strict clean; 100% line+branch coverage. The `__main__` guard is
   the only coverage pragma. Tests are loopback-only (ephemeral ports, fakeredis), CI-safe.
 
-**Dependencies.** cortex-core, cortex-seam, cortex-session (workspace), grpcio
-(`grpc.aio`), pydantic, pydantic-settings.
+**Dependencies.** cortex-core, cortex-inference, cortex-seam, cortex-session (workspace),
+grpcio (`grpc.aio`), httpx (the injected client for the llama.cpp backend), pydantic,
+pydantic-settings.

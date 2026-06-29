@@ -1,0 +1,19 @@
+[project]
+name = "cortex-inference"
+version = "0.0.0"
+description = "llama.cpp adapter for the core's InferenceBackend port: OpenAI-compatible HTTP streaming (ADR-0005)."
+requires-python = ">=3.12"
+dependencies = [
+  "cortex-core",
+  "httpx>=0.27",
+]
+
+[tool.uv.sources]
+cortex-core = { workspace = true }
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/cortex_inference"]

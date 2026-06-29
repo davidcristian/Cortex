@@ -31,6 +31,10 @@ Start here. Rules for working in this repo: [AGENTS.md](../AGENTS.md).
 - [ADR-0006: Gate performance](adr/ADR-0006-gate-performance.md): path-filtered CI via
   the fail-closed in-repo classifier (`scripts/ci_paths.py`), PR-only run cancellation,
   SHA-pinned actions + dependabot, parallel `just check`.
+- [ADR-0007: Model Manager v1 + llama.cpp adapter](adr/ADR-0007-model-manager-inference.md):
+  `ModelManager` core port; the `LlamaCppBackend` httpx adapter behind the unchanged
+  `InferenceBackend`; a pure single-resident Model Manager (no swap yet); Echo stays the
+  GPU-less default, llama.cpp opt-in; the `docker-compose.gpu.yml` override.
 
 New non-obvious decision → add `adr/ADR-XXXX-<slug>.md`, link it here.
 
@@ -43,6 +47,8 @@ New non-obvious decision → add `adr/ADR-XXXX-<slug>.md`, link it here.
     conversation domain, ports, the turn engine, reference fakes).
   - [brain-session.md](modules/brain-session.md) covers `cortex_session`: Redis adapter for
     the `SessionStore` port.
+  - [brain-inference.md](modules/brain-inference.md) covers `cortex_inference`: llama.cpp
+    adapter for the `InferenceBackend` port (OpenAI-compatible HTTP streaming).
   - [brain-seam.md](modules/brain-seam.md) covers `cortex_seam`: committed wire stubs + facade.
   - [brain-orchestrator.md](modules/brain-orchestrator.md) covers `cortex_orchestrator`:
     the gRPC service hosting `BrainService`.
@@ -55,5 +61,6 @@ New non-obvious decision → add `adr/ADR-XXXX-<slug>.md`, link it here.
 
 - [runbooks/local-dev-wsl.md](runbooks/local-dev-wsl.md) covers the daily dev loop: brain
   natively or in Compose, env vars, the live seam check, Docker Desktop notes.
-- Expected as later slices land: `llamacpp-gpu.md` (Slice 4), `model-swap.md`
-  (Slice 11).
+- [runbooks/llamacpp-gpu.md](runbooks/llamacpp-gpu.md) covers Slice 4 host half: bring up the
+  GPU compose override, run the integration test, measure VRAM, lock the final picks.
+- Expected as later slices land: `model-swap.md` (Slice 11).
