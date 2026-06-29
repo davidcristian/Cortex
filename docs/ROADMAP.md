@@ -8,13 +8,20 @@ every later slice talks over `Converse` and the seam gate should be proven befor
 piles up on both sides) and real inference at Slice 4, so memory/tools/subagents build
 against a real model while CI keeps using fakes.
 
+Each slice carries a **Status** marker (*done* or *in progress*); slices without one are
+planned and not yet started.
+
 ## Slice 0 (Governance, this phase)
+
+**Status:** done.
 
 AGENTS.md, CLAUDE.md, docs skeleton, ADR-0001, port/trait list, proto sketch, this plan,
 and the assumptions & risks list at the bottom of this file. No feature code.
 **Stops for maintainer review.**
 
 ## Slice 1 (Walking skeleton): both toolchains, all gates
+
+**Status:** done.
 
 One trivial pure module per side (e.g. a typed routing decision in `brain/packages/core`,
 a hotkey-config type in `body/crates/core`), plus: `uv` workspace, Cargo workspace,
@@ -24,6 +31,8 @@ building and gating both trees.
 · dual-toolchain `just check` · GPU-less CI.
 
 ## Slice 2 (The seam): proto compiled on both sides
+
+**Status:** done.
 
 `proto/body.proto` v0 (`BrainService.Health` + `Converse` shape), tonic build in
 `body/crates/rpc`, generated Python stubs in `brain/packages/seam`. That is the shared wire
@@ -36,6 +45,8 @@ host-side dev loop from WSL).
 
 ## Slice 3 (Cortex-only chat with fake inference)
 
+**Status:** done.
+
 `SessionStore` port (in-memory fake + Redis adapter behind the same contract test),
 `InferenceBackend` port + scripted fake, orchestrator use-case "handle a user turn" in
 the pure core; a turn arrives over `Converse`, is answered by the fake, and the session
@@ -43,6 +54,8 @@ state survives an orchestrator process restart (proving state is external).
 **Gate proven:** ports-before-adapters with contract tests; repository pattern.
 
 ## Slice 4 (Real inference): llama.cpp adapter + Model Manager v1
+
+**Status:** done.
 
 llama.cpp adapter for `InferenceBackend` (ADR-0005: one `llama-server` process per
 model, OpenAI-compatible HTTP as the adapter surface; engine flags/quirks inside the
@@ -54,17 +67,20 @@ measured VRAM (ADR-0004). Live tests are `integration`-marked, run manually on t
 host.
 **Gate proven:** integration suite excluded from coverage/CI; adapter as blast radius.
 
-**Status (2026-06-29):** CI-gated half delivered ([ADR-0007](adr/ADR-0007-model-manager-inference.md)):
+**Delivered (2026-06-29):** CI-gated half ([ADR-0007](adr/ADR-0007-model-manager-inference.md)):
 the `cortex_inference` llama.cpp adapter behind the unchanged `InferenceBackend`, the
 `ModelManager` port + pure `SingleResidentModelManager`, config-driven backend selection
 (Echo default, llama.cpp opt-in), and `docker-compose.gpu.yml`. All are green under
-`just check` without a GPU. The host half (bring up the GPU compose, run the live
-integration tests, measure VRAM, lock the final per-tier picks) is host-driven per
-[docs/runbooks/llamacpp-gpu.md](runbooks/llamacpp-gpu.md). The Model Manager v1 is pure
+`just check` without a GPU. Host half done too: GPU compose up, live integration tests run,
+VRAM measured, and the cortex pick locked to gemma-4-12B. See
+[docs/runbooks/llamacpp-gpu.md](runbooks/llamacpp-gpu.md) and the
+[ADR-0004 addendum](adr/ADR-0004-model-lineup.md). The Model Manager v1 is pure
 and lives in `cortex_core`; the `cortex_model_manager` package (process lifecycle) is
 deferred to Slice 11, when swap gives it real I/O.
 
 ## Slice 5 (Memory v1): retrieval that grows
+
+**Status:** in progress.
 
 `MemoryStore` + `Embedder` ports; pgvector adapter + local embedding model (fake in CI;
 the nomic candidates in ADR-0004 run on llama.cpp per ADR-0005); memory writes at turn
@@ -74,7 +90,7 @@ implementation behind the unchanged port. The knowledge base's durable data live
 Postgres-over-Windows-bind-mount caveat here; fallback (now the default, ADR-0008) is a
 named volume + automated sync into that directory.
 
-**Status (2026-06-29):** design + first two increments landed
+**Progress (2026-06-29):** design + first three increments landed
 ([ADR-0008](adr/ADR-0008-memory-v1.md)), all 100% under `just check`, no DB.
 (1) The `Embedder` + `MemoryStore` core ports, the `MemoryRecord`/`ScoredMemory` values,
 the `MemoryRecaller` remember/recall use-case, and the in-memory fakes
