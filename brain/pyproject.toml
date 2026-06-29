@@ -8,6 +8,7 @@ requires-python = ">=3.12"
 # The virtual root depends on every workspace member so `uv sync --locked` installs them all.
 dependencies = [
   "cortex-core",
+  "cortex-embedding",
   "cortex-inference",
   "cortex-orchestrator",
   "cortex-seam",
@@ -16,6 +17,7 @@ dependencies = [
 
 [tool.uv.sources]
 cortex-core = { workspace = true }
+cortex-embedding = { workspace = true }
 cortex-inference = { workspace = true }
 cortex-orchestrator = { workspace = true }
 cortex-seam = { workspace = true }

@@ -82,11 +82,13 @@ the `MemoryRecaller` remember/recall use-case, and the in-memory fakes
 (2) Memory wired into the turn: `TurnEngine` takes an optional `MemoryRecaller`; when
 present it recalls top-k into an ephemeral `Role.SYSTEM` context message (never persisted)
 and records the exchange at turn end. `memory=None` keeps the old behavior, so the GPU-less
-default path is unchanged. Remaining increments: the CPU embedder adapter over llama.cpp
-`/v1/embeddings`; the pgvector adapter + its composition-root wiring (memory is not wired
-into `run_from_env` until a durable backend exists); and the host-driven host half
-(Postgres + pgvector up, the nomic pick measured, the volume/export and bind-mount caveat
-validated).
+default path is unchanged.
+(3) The CPU embedder adapter (`cortex_embedding`): `LlamaCppEmbedder` over a llama-server
+OpenAI `/v1/embeddings` endpoint behind the `Embedder` port, 100%-covered via
+`httpx.MockTransport` with an `integration`-marked live test. Remaining increments: the
+pgvector adapter + its composition-root wiring (memory + embedder are not wired into
+`run_from_env` until the durable store exists); and the host-driven host half (Postgres +
+pgvector up, the nomic pick measured, the volume/export and bind-mount caveat validated).
 
 ## Slice 6 (Tools via MCP): files, then email
 
