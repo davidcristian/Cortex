@@ -6,8 +6,9 @@ Start here. Rules for working in this repo: [AGENTS.md](../AGENTS.md).
 
 - [ARCHITECTURE.md](ARCHITECTURE.md) covers components, boundaries, data flow, the swap rule,
   the body/brain split, ports & traits, the two portability seams.
-- [ROADMAP.md](ROADMAP.md) lists ordered vertical slices; which slice proves which gate;
-  the Phase 0 assumptions & risks list.
+- [ROADMAP.md](ROADMAP.md) lists ordered vertical slices; which slice proves which gate; the
+  consolidated deferred-refinements backlog (every follow-up, by origin ADR); the Phase 0
+  assumptions & risks list.
 
 ## Decisions (ADRs)
 
