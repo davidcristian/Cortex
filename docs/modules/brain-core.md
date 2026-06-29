@@ -159,6 +159,19 @@ Use-case:
   user ask, `context` as a `Role.SYSTEM` message), and persists + returns a `SubagentResult`. A
   mid-stream `InferenceError` becomes an `ok=False` result carrying the partial text, not an
   exception. Tools-enabled but not given the delegation tool, so fan-out is depth-1.
+- `SpawnSubagentsTool(runner, store, clock, *, task_id_factory=<uuid4>)` is the built-in
+  `spawn_subagents` tool (`SPAWN_TOOL_NAME`), the cortex's delegation primitive (ADR-0010). Its
+  `spec` advertises `instructions: string[]`; `invoke(call)` validates them (bad input → an
+  `is_error` result, not a raise), persists one `SubagentTask` each, runs the `SubagentRunner`s
+  **concurrently** (bounded by the scheduler), and returns one aggregated `ToolResult`, with a
+  `[subagent N] …` block per subtask, failures shown inline. A `BuiltinTool` (`.spec` + async
+  `invoke`), so it registers in a `CompositeToolRegistry`.
+- `CompositeToolRegistry(builtins, remote=None)` is a `ToolRegistry` merging built-in tools with
+  an optional remote (MCP) registry (ADR-0010). `describe_tools` advertises every built-in then
+  the remote tools none shadows; `invoke` routes by name, built-ins first, else the remote, else
+  `ToolNotFoundError`. Duplicate built-in names raise `ValueError` at construction. The
+  internal-tool seam (ADR-0001 Q2) the body's OS actions (Slices 9-10) will reuse. `BuiltinTool`
+  is the protocol it advertises/invokes.
 
 Reference implementations (pure, shipped in core; the runtime wiring until Slice 4):
 

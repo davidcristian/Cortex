@@ -129,3 +129,17 @@ endpoint/id, and `CORTEX_SUBAGENTS_MAX_CONCURRENCY`.
 - **Swap coupling (Slice 11).** A brain handoff quiesces subagents. The `SubagentScheduler` exposes
   a drain the orchestrator calls during a swap; the two admission ports are composed there, never
   merged, so this ADR's separation holds.
+
+## Addendum (2026-06-29): in increment 2 the tool is `spawn_subagents` (a concurrent batch)
+
+The built-in tool is **`spawn_subagents(instructions: string[])`**. One call spawns *N* subagents
+that run **concurrently** under the `SubagentScheduler`, not one subagent per call dispatched
+sequentially by the tool loop. The batch form is what makes the concurrency budget meaningful:
+the tool loop dispatches a step's tool calls sequentially, so per-call spawning would never exercise
+the CPU cap. The model still *may* emit several `spawn_subagents` calls in one step (decision 1
+holds); each runs its batch. v1 folds any per-subtask context into the instruction string
+(`SubagentTask.context` stays `""` from this tool). A richer object schema (`{instruction,
+context}[]`) is a later refinement behind the same tool. Bad arguments return an `is_error`
+`ToolResult` the model can correct, not an exception. The `CompositeToolRegistry` gives built-ins
+precedence over remote (MCP) tools of the same name. The shadowed remote tool is neither advertised
+nor invoked, and duplicate built-in names are a construction error.
