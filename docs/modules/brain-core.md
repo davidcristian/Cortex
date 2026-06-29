@@ -1,9 +1,9 @@
 # brain/packages/core (`cortex_core`)
 
-**Purpose.** The brain's pure core: domain types, ports, and application logic. Routing
-and the "handle a user turn" use-case live here now; handoff orchestration, memory
-policy, and tool dispatch decisions join them in later slices. No I/O, ever. This is
-the hexagon's center.
+**Purpose.** The brain's pure core: domain types, ports, and application logic. Routing,
+the "handle a user turn" use-case, and the memory remember/recall use-case live here now;
+handoff orchestration and tool dispatch decisions join them in later slices. No I/O, ever
+(this is the hexagon's center).
 
 **Public contract** (everything importable from `cortex_core`; `__all__` is the API):
 
@@ -32,6 +32,14 @@ Model management (Slice 4, ADR-0007):
   model, valid only inside the `acquire(...)` block that yields it; `endpoint` is the
   base URL of that model's `llama-server`.
 
+Memory domain (Slice 5, ADR-0008):
+
+- `MemoryRecord` is a frozen dataclass: `id: str`, `text: str`, `embedding: tuple[float, ...]`,
+  `at: datetime`. One durable memory; rejects naive `at` with `ValueError` (memory outlives
+  every process). The caller fills every field, leaving the store a pure translator.
+- `ScoredMemory` is a frozen dataclass: `record: MemoryRecord`, `score: float`. A retrieval
+  hit and its similarity (higher = closer).
+
 Ports (`typing.Protocol`; failures cross them only as the typed errors below):
 
 - `SessionStore` provides `async append(session_id, message) -> None`,
@@ -42,10 +50,15 @@ Ports (`typing.Protocol`; failures cross them only as the typed errors below):
 - `ModelManager` provides `acquire(model) -> AbstractAsyncContextManager[ModelLease]`: owns the
   GPU, queues for access, yields a `ModelLease`; leaving the block releases it to the
   next waiter. Consumed by the inference adapter (and, later, the handoff use-case).
+- `Embedder` provides `async embed(text) -> Sequence[float]`: one stateless call, text to vector.
+  Dimension is fixed by the deployment's model (ADR-0008); the core assumes no value.
+- `MemoryStore` provides `async add(record) -> None`, `async search(embedding, *, k) ->
+  Sequence[ScoredMemory]` (top-`k` by similarity, most-similar first, over ALL memories, since
+  v1 is one global space). Durable, cross-session; the caller builds each record.
 - `Clock` provides `now() -> datetime`, always tz-aware. The core's only time source.
 - `SessionStoreError` / `InferenceError` / `ModelManagerError` (+ its
-  `ModelUnavailableError`) are typed errors; adapters wrap their backend's failures into
-  these with the cause chained.
+  `ModelUnavailableError`) / `MemoryStoreError` / `EmbedderError` are typed errors; adapters
+  wrap their backend's failures into these with the cause chained.
 
 Use-case:
 
@@ -62,6 +75,12 @@ Use-case:
   user message was persisted.
 - `DEFAULT_CORTEX_MODEL` is the logical id `"cortex"`. Deployments override it via
   `CORTEX_MODEL_CORTEX`, read by the composition root (orchestrator), never here.
+- `MemoryRecaller(store, embedder, clock, *, id_factory=<uuid4>)` is the memory v1 use-case
+  (ADR-0008). `record(text)` embeds `text`, persists a `MemoryRecord` (id from the factory,
+  `at` from the clock, embedding from the embedder), and returns it; `recall(query, *, k)`
+  embeds `query` and returns the store's top-`k` `ScoredMemory`. Stateless over the store:
+  every memory lives in `MemoryStore`, so recall is identical across restarts and swaps.
+  Turn integration (retrieve-into-context, record-at-turn-end) lands in a later increment.
 
 Reference implementations (pure, shipped in core; the runtime wiring until Slice 4):
 
@@ -79,6 +98,13 @@ Reference implementations (pure, shipped in core; the runtime wiring until Slice
   `ModelUnavailableError` (v1 performs no swap, since that lands in Slice 11). Lives in the
   core because it does no I/O; the process-lifecycle adapter arrives later behind the
   same port.
+- `InMemoryMemoryStore` is a list-backed `MemoryStore` ranking by cosine similarity in Python;
+  behavioral twin of the pgvector adapter (Slice 5 host half) behind the same contract. A
+  zero-magnitude vector scores 0.0. Does not survive a restart, by design.
+- `HashEmbedder(dimension=16)` is a deterministic, I/O-free `Embedder`: identical text always
+  yields the identical vector (so a stored memory is its own strongest cosine match), distinct
+  text a distinct vector. Carries no semantics. It is the CI/tests stand-in for the real nomic
+  adapter (Slice 5 host half). Never emits an all-zero vector.
 - `SystemClock` provides tz-aware UTC `now()`.
 
 **Invariants.**
