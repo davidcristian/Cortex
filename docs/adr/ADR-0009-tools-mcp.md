@@ -142,3 +142,29 @@ passed.
   security need.
 - **The read tool is `read_text_file`** on the current server (older builds named it
   `read_file`, still present); the live test's tool name is env-overridable.
+
+## Addendum (2026-06-29): increment 4 host validation
+
+The `cortex_email` sidecar was validated against the user's live **ProtonMail Bridge** (WSL
++ Docker Desktop). WSL cannot reach the Bridge's Windows-loopback IMAP directly, but the
+sidecar container reaches it via `host.docker.internal:1143` (STARTTLS, `tls_insecure` on
+loopback), as confirmed by the Bridge's IMAP banner. Dogfooding `McpToolRegistry` from WSL
+against the sidecar (`http://127.0.0.1:9100/mcp`): `describe_tools()` returned **exactly the
+three read-only tools** (no write tool exists), `list_folders` returned **17 real folders**
+(INBOX present), `search_emails` returned a well-formed summary line, and `read_email`
+returned a real message.
+
+Two refinements landed during validation:
+
+- **Tools return a single readable string, not `list`/`dict`.** FastMCP renders a list/dict
+  return as *per-item* content blocks; a text-only MCP client (our `McpToolRegistry`, which
+  joins text blocks) then smushes them. Returning one formatted string per tool keeps the
+  result clean end to end. Readable text is what the model consumes anyway.
+- **`read_email` falls back to `text/html` when there is no `text/plain` part.** Most real
+  mail is HTML-only, so plain-only extraction returned empty bodies; the fallback returns the
+  HTML source (readable enough for the model). A readable-text-from-HTML extraction is a
+  noted refinement. With it, every sampled INBOX message returned a non-empty body.
+
+Read-only is confirmed three ways end to end: only the three read tools are registered,
+folders open with EXAMINE (`readonly=True`), and fetches use `mark_seen=False`, so the live
+mailbox is never modified.
