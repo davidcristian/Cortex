@@ -1,5 +1,7 @@
 # GPU-less by design (AGENTS.md gate 3): plain ubuntu runners, no CUDA anywhere.
 # Both jobs run the same `just` recipes developers run locally (no drift).
+# Path-filtered per ADR-0006: each toolchain's job runs when a change can affect it;
+# shared gate files (justfile, proto, scripts, this workflow) trigger both.
 name: CI
 
 on:
@@ -7,8 +9,40 @@ on:
     branches: [master]
   pull_request:
 
+# A newer push supersedes the in-flight run for the same ref (ADR-0006).
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      python: ${{ steps.filter.outputs.python }}
+      rust: ${{ steps.filter.outputs.rust }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            shared: &shared
+              - 'justfile'
+              - '.github/workflows/ci.yml'
+              - 'proto/**'
+              - 'scripts/**'
+              - '.python-version'
+            python:
+              - *shared
+              - 'brain/**'
+              - 'ruff.toml'
+            rust:
+              - *shared
+              - 'body/**'
+
   python:
+    needs: changes
+    if: needs.changes.outputs.python == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -23,6 +57,8 @@ jobs:
       - run: just check-scripts
 
   rust:
+    needs: changes
+    if: needs.changes.outputs.rust == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

@@ -64,7 +64,9 @@ Interfaces are designed around this rule from day one. Retrofitting it is a rewr
    an inline reason (e.g. non-target-OS `unimplemented!()` stubs, `__main__` guards).
 3. **Real GPU/OS/network calls live only in thin adapters.** Their live tests are
    `integration`-marked, excluded from the coverage gate, run manually on the host, never
-   in CI. **CI runs without a GPU** and builds both toolchains.
+   in CI. **CI runs without a GPU** and builds both toolchains. Each toolchain's job
+   runs when a change can affect it (path-filtered, ADR-0006); shared gate files
+   (justfile, proto, scripts, the workflow itself) trigger both.
 4. **Doc-first Definition of Done.** Per slice: design doc/ADR → define or adjust the
    port → tests → implementation → module doc + runbook updates. A change that touches
    code but not docs is incomplete. Every module has a short contract doc in
