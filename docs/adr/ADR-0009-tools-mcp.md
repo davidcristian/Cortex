@@ -42,12 +42,15 @@ concrete target for the email tool.
 
 3. **The tool loop is explicit typed code in `TurnEngine` and uses no framework.** Per turn:
    recall → one inference step → if the model emitted tool calls, dispatch each through
-   `ToolDispatcher` (audited), append the tool-call and tool-result messages to history,
-   and re-infer; repeat until the model returns a final text answer, then stream it. A
-   **max-steps** guard bounds the loop. Tool-call and tool-result messages persist to
-   session history as new `Role.TOOL` / `Role.TOOL_RESULT` messages. They survive a swap
-   like all state (the one hard rule) and roll into the single memory exchange recorded
-   at turn end.
+   `ToolDispatcher` (audited), feed the tool-call and result messages back, and re-infer;
+   repeat until the model returns a final text answer (streamed live throughout). A
+   **max-steps** guard (`MAX_TOOL_STEPS`) bounds the loop. The fed-back context carries the
+   native structure (an `ASSISTANT` message with `tool_calls`, then `Role.TOOL` result
+   messages keyed by call id), so re-inference is faithful. **v1 keeps this context
+   in-turn** (there is no mid-turn swap yet, ADR-0007): only the user turn and the final
+   assistant answer are persisted, and the exchange rolls into the single memory record at
+   turn end. Persisting the tool steps for mid-swap rehydration lands with the swap slice
+   (Slice 11), which teaches the session store their schema.
 
 4. **MCP integration: the brain is an MCP *client* via the official `mcp` SDK, hidden
    behind the port.** Pin `mcp>=1.23,<2` because v2.0 is a pre-release with a breaking Client
@@ -85,9 +88,10 @@ Increments (each small, green, documented), mirroring Slice 5:
 1. **The pure tool-dispatch core** covers the `ToolRegistry` + `ToolAuditSink` ports, the value
    types, the typed errors, the `InMemoryToolRegistry` + `RecordingAuditSink` fakes, and the
    `ToolDispatcher` use-case, fully covered in the core, no MCP.
-2. **Native function-calling in the turn.** Evolve `InferenceBackend` to `InferenceEvent`,
-   add `Role.TOOL` / `Role.TOOL_RESULT`, the tool loop in `TurnEngine`, a scripted tool
-   backend fake, and opt-in wiring, tested end-to-end over the fakes.
+2. **Native function-calling in the turn.** Evolve `InferenceBackend` to yield
+   `InferenceEvent`, add `Role.TOOL` and the `Message` tool fields, the bounded tool loop in
+   `TurnEngine` (behind the `TurnCapabilities` bundle), and the llama.cpp adapter's `tools`
+   payload + streamed-`tool_calls` reassembly, tested end-to-end over the fakes.
 3. **The MCP filesystem adapter** (`mcp` SDK behind the port) + the sidecar Compose service
    with read-only mounts + a runbook. Host-validated.
 4. **The thin read-only IMAP email server** + the ProtonMail Bridge wiring + a runbook.

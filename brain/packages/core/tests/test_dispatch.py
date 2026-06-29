@@ -84,3 +84,9 @@ async def test_tool_failure_becomes_an_error_result_and_is_audited() -> None:
     assert result == ToolResult(call_id="c-3", content="tool blew up", is_error=True)
     (record,) = sink.records
     assert (record.ok, record.detail) == (False, "tool blew up")
+
+
+async def test_describe_tools_passes_through_to_the_registry() -> None:
+    registry = InMemoryToolRegistry({"read": (_spec("read"), _ran), "list": (_spec("list"), _ran)})
+    specs = await _dispatcher(registry, RecordingAuditSink()).describe_tools()
+    assert [spec.name for spec in specs] == ["read", "list"]

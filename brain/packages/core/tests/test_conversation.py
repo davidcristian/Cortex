@@ -5,7 +5,7 @@ from datetime import UTC, datetime, timedelta, timezone, tzinfo
 
 import pytest
 
-from cortex_core import Message, Role
+from cortex_core import Message, Role, ToolCall
 
 _AT = datetime(2026, 7, 3, 12, 0, 0, tzinfo=UTC)
 
@@ -18,7 +18,15 @@ class _OffsetlessTzinfo(tzinfo):
         return None
 
 
-@pytest.mark.parametrize(("role", "value"), [(Role.USER, "user"), (Role.ASSISTANT, "assistant")])
+@pytest.mark.parametrize(
+    ("role", "value"),
+    [
+        (Role.USER, "user"),
+        (Role.ASSISTANT, "assistant"),
+        (Role.SYSTEM, "system"),
+        (Role.TOOL, "tool"),
+    ],
+)
 def test_role_values_are_stable_strings(role: Role, value: str) -> None:
     assert role.value == value
 
@@ -31,6 +39,16 @@ def test_message_carries_all_fields() -> None:
         _AT,
         "t-1",
     )
+    # Tool fields default empty for ordinary dialogue.
+    assert (message.tool_calls, message.tool_call_id) == ((), None)
+
+
+def test_message_carries_tool_call_structure() -> None:
+    call = ToolCall(id="c1", name="read", arguments={"path": "/x"})
+    assistant = Message(role=Role.ASSISTANT, text="", at=_AT, turn_id="t-1", tool_calls=(call,))
+    result = Message(role=Role.TOOL, text="body", at=_AT, turn_id="t-1", tool_call_id="c1")
+    assert assistant.tool_calls == (call,)
+    assert (result.tool_call_id, result.text) == ("c1", "body")
 
 
 def test_message_is_immutable() -> None:

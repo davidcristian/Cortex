@@ -8,6 +8,7 @@ from typing import Any
 
 from cortex_core.conversation import Message, Role
 from cortex_core.errors import InferenceError, ToolNotFoundError
+from cortex_core.inference import InferenceEvent, TextChunk
 from cortex_core.memory import MemoryRecord, ScoredMemory
 from cortex_core.tools import ToolCall, ToolInvocation, ToolResult, ToolSpec
 
@@ -38,16 +39,18 @@ class InMemorySessionStore:
 class EchoInferenceBackend:
     """The scripted fake behind CI chat: deterministic, observable state survival."""
 
-    async def stream(self, model: str, messages: Sequence[Message]) -> AsyncIterator[str]:
-        """Stream the scripted reply; the logical model id does not alter the script."""
-        del model  # routing/config concern; the script is model-independent
+    async def stream(
+        self, model: str, messages: Sequence[Message], *, tools: Sequence[ToolSpec] = ()
+    ) -> AsyncIterator[InferenceEvent]:
+        """Stream the scripted reply; the model id and offered tools do not alter the script."""
+        del model, tools  # routing/config concern; the script is model- and tool-independent
         user_messages = [message for message in messages if message.role is Role.USER]
         if not user_messages:
             msg = "EchoInferenceBackend requires at least one user message in the history"
             raise InferenceError(msg)
-        yield "reply "
-        yield f"{len(user_messages)}:"
-        yield f" {user_messages[-1].text}"
+        yield TextChunk("reply ")
+        yield TextChunk(f"{len(user_messages)}:")
+        yield TextChunk(f" {user_messages[-1].text}")
 
 
 class HashEmbedder:

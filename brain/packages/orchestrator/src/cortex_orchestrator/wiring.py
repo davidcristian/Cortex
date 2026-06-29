@@ -11,6 +11,7 @@ from cortex_core import (
     MemoryRecaller,
     SingleResidentModelManager,
     SystemClock,
+    TurnCapabilities,
     TurnEngine,
 )
 from cortex_embedding import LlamaCppEmbedder
@@ -87,7 +88,13 @@ async def run_from_env(
     backend, close_backend = build_inference_backend(inference, runtime.cortex_model)
     memory, close_memory = await build_memory(memory_config, clock)
     try:
-        engine = TurnEngine(store, backend, clock, cortex_model=runtime.cortex_model, memory=memory)
+        engine = TurnEngine(
+            store,
+            backend,
+            clock,
+            cortex_model=runtime.cortex_model,
+            capabilities=TurnCapabilities(memory=memory),
+        )
         await serve(seam_config, engine)
     finally:
         await close_memory()

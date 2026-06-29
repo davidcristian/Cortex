@@ -10,11 +10,14 @@ from collections.abc import AsyncIterator, Sequence
 from cortex_core import (
     EchoInferenceBackend,
     InferenceError,
+    InferenceEvent,
     InMemorySessionStore,
     Message,
     Role,
     SessionStoreError,
     SystemClock,
+    TextChunk,
+    ToolSpec,
     TurnEngine,
 )
 from cortex_orchestrator import (
@@ -77,9 +80,11 @@ class CountingFailingStore:
 class MidStreamFailingBackend:
     """Backend that yields one delta and then fails with the typed error."""
 
-    async def stream(self, model: str, messages: Sequence[Message]) -> AsyncIterator[str]:
-        del model, messages
-        yield "partial "
+    async def stream(
+        self, model: str, messages: Sequence[Message], *, tools: Sequence[ToolSpec] = ()
+    ) -> AsyncIterator[InferenceEvent]:
+        del model, messages, tools
+        yield TextChunk("partial ")
         msg = "backend exploded mid-stream"
         raise InferenceError(msg)
 
@@ -87,11 +92,13 @@ class MidStreamFailingBackend:
 class BrokenBackend:
     """Backend that fails with an unexpected (untyped) error. This is the internal path."""
 
-    async def stream(self, model: str, messages: Sequence[Message]) -> AsyncIterator[str]:
-        del model, messages
+    async def stream(
+        self, model: str, messages: Sequence[Message], *, tools: Sequence[ToolSpec] = ()
+    ) -> AsyncIterator[InferenceEvent]:
+        del model, messages, tools
         msg = "a bug, not a typed seam failure"
         raise RuntimeError(msg)
-        yield ""  # makes this an async generator; never reached
+        yield TextChunk("")  # makes this an async generator; never reached
 
 
 class GatedBackend:
@@ -101,11 +108,13 @@ class GatedBackend:
         self.calls = 0
         self.closed = asyncio.Event()
 
-    async def stream(self, model: str, messages: Sequence[Message]) -> AsyncIterator[str]:
-        del model, messages
+    async def stream(
+        self, model: str, messages: Sequence[Message], *, tools: Sequence[ToolSpec] = ()
+    ) -> AsyncIterator[InferenceEvent]:
+        del model, messages, tools
         self.calls += 1
         try:
-            yield "never-finished"
+            yield TextChunk("never-finished")
             await asyncio.sleep(3600)
         finally:
             self.closed.set()
@@ -118,10 +127,12 @@ class TeardownGatedBackend:
         self.teardown_started = asyncio.Event()
         self.release = asyncio.Event()
 
-    async def stream(self, model: str, messages: Sequence[Message]) -> AsyncIterator[str]:
-        del model, messages
+    async def stream(
+        self, model: str, messages: Sequence[Message], *, tools: Sequence[ToolSpec] = ()
+    ) -> AsyncIterator[InferenceEvent]:
+        del model, messages, tools
         try:
-            yield "never-finished"
+            yield TextChunk("never-finished")
             await asyncio.sleep(3600)
         finally:
             self.teardown_started.set()

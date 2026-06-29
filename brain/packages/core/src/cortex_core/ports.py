@@ -10,6 +10,7 @@ from datetime import datetime
 from typing import Protocol
 
 from cortex_core.conversation import Message
+from cortex_core.inference import InferenceEvent
 from cortex_core.memory import MemoryRecord, ScoredMemory
 from cortex_core.model import ModelLease
 from cortex_core.tools import ToolCall, ToolInvocation, ToolResult, ToolSpec
@@ -26,7 +27,9 @@ class SessionStore(Protocol):
 class InferenceBackend(Protocol):
     """One stateless streamed completion against a loaded model, with no sessions and no retries."""
 
-    def stream(self, model: str, messages: Sequence[Message]) -> AsyncIterator[str]: ...
+    def stream(
+        self, model: str, messages: Sequence[Message], *, tools: Sequence[ToolSpec] = ()
+    ) -> AsyncIterator[InferenceEvent]: ...
 
 
 class ModelManager(Protocol):

@@ -18,15 +18,19 @@ Routing (Slice 1):
 
 Conversation domain (Slice 3):
 
-- `Role` is an enum: `USER`, `ASSISTANT`, `SYSTEM` (string values). `SYSTEM` carries
-  engine-injected context (recalled memories, ADR-0008) and is never persisted to a
-  session's history. It is derived fresh per turn and handed only to the model.
-- `Message` is a frozen dataclass: `role: Role`, `text: str`, `at: datetime`,
-  `turn_id: str`. Rejects naive `at` with `ValueError`, since externalized state must carry
-  its timezone. `turn_id` ties a user message to the assistant reply it produced.
+- `Role` is an enum: `USER`, `ASSISTANT`, `SYSTEM`, `TOOL` (string values). `SYSTEM` carries
+  engine-injected context (recalled memories, ADR-0008); `TOOL` carries a tool result fed
+  back to the model (ADR-0009). Both (and the in-turn tool-call messages) are derived per
+  turn and handed only to the model, never persisted to a session's history in v1.
+- `Message` is a frozen dataclass: `role: Role`, `text: str`, `at: datetime`, `turn_id: str`,
+  plus the optional tool fields `tool_calls: tuple[ToolCall, ...] = ()` (set on an assistant
+  message that asked to run tools) and `tool_call_id: str | None = None` (set on a `TOOL`
+  result). Rejects naive `at` with `ValueError`, since externalized state must carry its
+  timezone. `turn_id` ties a user message to the assistant reply it produced.
 - `TextDelta(text)` / `TurnCompleted(turn_id, full_text)` are frozen domain events;
-  `TurnEvent` is their union (the orchestrator maps them onto the proto's
-  `ServerEvent` at the seam).
+  `TurnEvent` is their union (the orchestrator maps them onto the proto's `ServerEvent`).
+- `TextChunk(text)` carries one streamed text delta from a backend; `InferenceEvent` is the union
+  `TextChunk | ToolCall`, what an `InferenceBackend` yields (ADR-0009).
 
 Model management (Slice 4, ADR-0007):
 
@@ -59,8 +63,9 @@ Ports (`typing.Protocol`; failures cross them only as the typed errors below):
 - `SessionStore` provides `async append(session_id, message) -> None`,
   `async history(session_id) -> Sequence[Message]` (append order; empty when unknown).
   The source of truth for conversation state; survives swaps and restarts.
-- `InferenceBackend` provides `stream(model, messages) -> AsyncIterator[str]`: one stateless
-  streamed completion. `model` is a logical id (ADR-0004), never a path.
+- `InferenceBackend` has `stream(model, messages, *, tools=()) -> AsyncIterator[InferenceEvent]`:
+  one stateless streamed completion, yielding `TextChunk` deltas interleaved with `ToolCall`s
+  the model makes from the offered `tools` (ADR-0009). `model` is a logical id (ADR-0004).
 - `ModelManager` provides `acquire(model) -> AbstractAsyncContextManager[ModelLease]`: owns the
   GPU, queues for access, yields a `ModelLease`; leaving the block releases it to the
   next waiter. Consumed by the inference adapter (and, later, the handoff use-case).
@@ -84,22 +89,30 @@ Ports (`typing.Protocol`; failures cross them only as the typed errors below):
 
 Use-case:
 
-- `TurnEngine(store, backend, clock, *, cortex_model=DEFAULT_CORTEX_MODEL, memory=None,
-  turn_id_factory=<uuid4>)` is pure orchestration over the ports.
-  `handle_turn(session_id, text)` is an async generator: routes via
+- `TurnEngine(store, backend, clock, *, cortex_model=DEFAULT_CORTEX_MODEL,
+  capabilities=TurnCapabilities(), turn_id_factory=<uuid4>)` is pure orchestration over the
+  ports. `handle_turn(session_id, text)` is an async generator: routes via
   `route_turn(RoutingHints())` (always `CORTEX` in this slice; the tier keys the model
-  choice), builds the user `Message` (clock + turn-id factory), appends it to the
-  store, streams deltas from the backend over the FULL history, yields `TextDelta`
-  per delta, then persists the assistant `Message` and yields one `TurnCompleted`.
+  choice), builds the user `Message` (clock + turn-id factory), appends it to the store,
+  runs the inference↔tool loop over the FULL history, yields `TextDelta` per streamed
+  chunk, then persists the assistant `Message` and yields one `TurnCompleted`.
   Cancellation semantics: closing the event stream mid-generation (`aclose()`) keeps
   the persisted user message, does NOT persist the partial assistant text, and closes
   the abandoned backend stream. Backend failures surface as `InferenceError` after the
   user message was persisted.
-  Memory (optional, ADR-0008): when a `MemoryRecaller` is injected, before inference the
+  Memory (optional, ADR-0008): when `capabilities.memory` is set, before inference the
   engine recalls the top `DEFAULT_RECALL_K` (5) memories for the user text and, if any,
-  prepends them as a `Role.SYSTEM` message to the history the backend sees. It is ephemeral,
-  never stored. After completion it records the `User: …\nAssistant: …` exchange to
-  memory. With `memory=None` (the default) the turn behaves exactly as before.
+  prepends them as a `Role.SYSTEM` message to the context the backend sees. It is ephemeral,
+  never stored. After completion it records the `User: …\nAssistant: …` exchange to memory.
+  Tools (optional, ADR-0009): when `capabilities.tools` is set, the engine advertises the
+  registry's tools each inference step; a step that emits `ToolCall`s is dispatched through
+  the `ToolDispatcher` (audited), its results fed back as an `ASSISTANT`-with-`tool_calls`
+  message plus `Role.TOOL` results, and the model re-infers for up to `MAX_TOOL_STEPS` rounds.
+  These tool messages are in-turn only (never persisted in v1). With a bare
+  `TurnCapabilities()` (the default) the turn behaves exactly as Slice 3.
+- `TurnCapabilities(memory=None, tools=None)` is a frozen bundle of the optional per-turn
+  collaborators (a `MemoryRecaller` and a `ToolDispatcher`), keeping the engine within its
+  DI ceiling. `MAX_TOOL_STEPS` is the tool-loop bound (8).
 - `DEFAULT_CORTEX_MODEL` is the logical id `"cortex"`. Deployments override it via
   `CORTEX_MODEL_CORTEX`, read by the composition root (orchestrator), never here.
 - `MemoryRecaller(store, embedder, clock, *, id_factory=<uuid4>)` is the memory v1 use-case
@@ -108,12 +121,13 @@ Use-case:
   embeds `query` and returns the store's top-`k` `ScoredMemory`. Stateless over the store:
   every memory lives in `MemoryStore`, so recall is identical across restarts and swaps.
   Wired into `TurnEngine` (retrieve-into-context, record-at-turn-end) when injected.
-- `ToolDispatcher(registry, audit, clock)` is the tool-dispatch use-case (ADR-0009).
+- `ToolDispatcher(registry, audit, clock)` is the turn's tool gateway (ADR-0009).
   `dispatch(call)` runs `call` through the `ToolRegistry`, writes exactly one
   `ToolInvocation` to the `ToolAuditSink` (success or failure), and returns the
   `ToolResult`; a `ToolError` from the registry becomes an `is_error` result so the loop
-  keeps going and the model is told. Stateless over the ports; the turn-engine loop that
-  drives it lands in Slice 6 increment 2.
+  keeps going and the model is told. `describe_tools()` passes through to the registry so
+  the engine advertises what it can dispatch. Stateless over the ports; `TurnEngine` drives
+  the loop that calls it.
 
 Reference implementations (pure, shipped in core; the runtime wiring until Slice 4):
 
@@ -121,9 +135,10 @@ Reference implementations (pure, shipped in core; the runtime wiring until Slice
   adapter (`cortex_session`), intentionally does not survive a restart.
 - `EchoInferenceBackend` is the scripted fake: for a history with `n` user messages
   (including the current one, counted from the store-backed history alone) whose
-  latest user text is `T`, streams exactly `"reply {n}: {T}"` in three deltas; raises
-  `InferenceError` if the history has no user message. Because `n` comes from the
-  store, it keeps counting across a process restart. That is observable state survival.
+  latest user text is `T`, streams exactly `"reply {n}: {T}"` as three `TextChunk`s
+  (tool-independent, since it never calls a tool); raises `InferenceError` if the history has no
+  user message. Because `n` comes from the store, it keeps counting across a process
+  restart. That is observable state survival.
 - `SingleResidentModelManager(resident_model, endpoint)` is the `ModelManager` v1
   (ADR-0007 d3): pure policy, no I/O. `acquire` serializes callers with an
   `asyncio.Lock` (its waiter queue is the "queue API") and yields a `ModelLease` for the
