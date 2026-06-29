@@ -159,10 +159,21 @@ is complete.
 
 Delegate narrow tasks to small (2-4B) subagents: task record in the store, each subagent
 runs as a stateless function over it, result persisted, cortex consumes it. The cortex
-spawns **one or more** subagents and picks their count and size; the `ModelManager` admits
-or rejects each spawn against the budget. Per the Slice 4 measurements (ADR-0004 addendum)
-subagents run on **CPU** (the GPU's 14 GB soft cap is spent on the cortex), so the budget
-here is CPU RAM + acceptable concurrency, not VRAM.
+spawns **one or more** subagents and picks their count and size; a bounded CPU budget admits
+each spawn. Per the Slice 4 measurements (ADR-0004 addendum) subagents run on **CPU** because the
+GPU's 14 GB soft cap is spent on the cortex. The budget here is CPU RAM + acceptable
+concurrency, not VRAM.
+
+**Design ([ADR-0010](adr/ADR-0010-subagents.md)):** delegation is a **native
+`spawn_subagent` tool** dispatched through Slice 6's audited tool loop (the cortex decides
+mid-turn, picking count/size), merged with the MCP tools by a `CompositeToolRegistry`, which is the
+first internal-tool seam (ADR-0001 Q2). The bounded infer↔tool loop is extracted from
+`TurnEngine` into a shared runner the cortex turn and each subagent both use; subagents are
+**tools-enabled but delegation-free** (no `spawn_subagent` in their set), bounding fan-out to
+**depth-1**. A subagent is a stateless function over a Redis `TaskStore`. Admission moves to a
+dedicated **`SubagentScheduler`** port (bounded CPU concurrency) rather than the GPU
+`ModelManager`. ADR-0010 refines the "ModelManager admits or rejects" wording above, since
+the two are different resources (exclusive GPU lease vs. counting CPU budget).
 
 ## Slice 8 (Body v1): hotkey → overlay → chat
 
