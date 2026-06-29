@@ -168,3 +168,15 @@ Two refinements landed during validation:
 Read-only is confirmed three ways end to end: only the three read tools are registered,
 folders open with EXAMINE (`readonly=True`), and fetches use `mark_seen=False`, so the live
 mailbox is never modified.
+
+## Addendum (2026-06-29): multi-server tool aggregation as a noted refinement
+
+Wiring connects `CORTEX_TOOLS_BACKEND=mcp` to a **single** MCP endpoint, so a running brain
+has the filesystem tools *or* the email tools, not both at once. An `AggregateToolRegistry`
+satisfying the same `ToolRegistry` port, fanning `describe_tools()` across several
+`McpToolRegistry` sessions and routing `invoke(call)` to the owning session by tool name
+(with a name-collision policy), lets several sidecars coexist behind the unchanged port and
+the same audited `ToolDispatcher`. Deferred: no slice needs both tool families live at once
+yet, and the port already admits it without change. Tracked in the ROADMAP deferred-refinements
+list alongside the two refinements that *did* land above (readable-string output; HTML-body
+fallback) and the advertised-write-tool filtering from the increment-3 addendum.

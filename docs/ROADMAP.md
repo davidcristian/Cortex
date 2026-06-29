@@ -193,10 +193,44 @@ cortex resumes from the store. Includes a chaos test (kill a model mid-handoff; 
 resumes from the store) and runbook `docs/runbooks/model-swap.md`.
 **Gate proven:** THE hard rule, end to end.
 
-## Later (unordered)
+## Deferred refinements & later work
 
-Pointer-input injection (extend the proto first), richer memory policies, email
-write-actions behind explicit confirmation, macOS/Linux backends, more subagent roles.
+Refinements consciously deferred as slices landed. Each is a small change behind an
+**unchanged port**, recorded at its origin ADR and collected here so none is lost. Not
+ordered; picked up when a slice needs one or on request.
+
+**Tools in Slice 6 ([ADR-0009](adr/ADR-0009-tools-mcp.md)):**
+- **Multi-server tool aggregation.** The brain connects to *one* MCP endpoint at a time
+  (files *or* email); an `AggregateToolRegistry` fanning `describe`/`invoke` across several
+  `McpToolRegistry`s (routing by tool name) lets both coexist behind the unchanged port, per the
+  multi-server aggregation addendum.
+- **Advertised-tool filtering.** The reference filesystem server advertises write tools the
+  read-only mount then `EROFS`-blocks; filtering the advertised set to read tools is a UX
+  nicety, not a security need (the mount is the boundary), per the increment-3 addendum.
+- **Readable-text-from-HTML extraction.** `read_email` falls back to raw HTML when there is
+  no `text/plain` part; a real HTML→text pass would read cleaner, per the increment-4 addendum.
+- **Salience / rate policy on the tool loop.** Bounded by `MAX_TOOL_STEPS` today; rate and
+  salience limits are a later refinement behind the port (decision 3 / risks).
+
+**Memory in Slice 5 ([ADR-0008](adr/ADR-0008-memory-v1.md)):**
+- **Per-session / namespaced scoping.** v1 recall is global across conversations; scoped
+  recall is a later refinement behind the same `MemoryStore` port (decision 3).
+- **Tiered / self-editing memory + summarization.** Letta's good ideas, adoptable later
+  behind the unchanged port (not the framework), per decision 1.
+- **ANN index.** Exact cosine now; an approximate index would need a migration, per
+  [ADR-0004](adr/ADR-0004-model-lineup.md).
+
+**Inference / Model Manager in Slice 4 ([ADR-0007](adr/ADR-0007-model-manager-inference.md)):**
+- **`cortex_model_manager` process lifecycle, co-residency, real swap.** The pure
+  single-resident manager exists now; process I/O and swap land in **Slice 11** behind the
+  unchanged `ModelManager` port (consequences).
+- **MTP (multi-token-prediction) model variants.** Deferred until they earn their keep, per
+  [ADR-0004](adr/ADR-0004-model-lineup.md).
+
+**Cross-cutting (originally "Later, unordered"):** pointer-input injection (extend the proto
+first), richer memory policies, **email write-actions behind explicit per-action
+confirmation** (ADR-0009 risk; Phase-0 assumption 6 below), macOS/Linux OS backends, more
+subagent roles.
 
 ## Assumptions & risks to confirm (Phase 0)
 
