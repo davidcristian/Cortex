@@ -142,8 +142,14 @@ server), plus the `LoggingAuditSink`; wired into `run_from_env` **opt-in**
 server as a read-only-mounted sidecar over streamable-http. Host-validated (2026-06-29):
 the live sidecar (supergateway-bridged filesystem server) passed the integration test, and
 the read-only mount blocked a write (`EROFS`), with the containment boundary proven end to end
-([ADR-0009 addendum](adr/ADR-0009-tools-mcp.md)). Increment 4 (the read-only IMAP email
-server for ProtonMail Bridge) follows.
+([ADR-0009 addendum](adr/ADR-0009-tools-mcp.md)). (4) **The read-only IMAP email tool** (CI
+half): the standalone `cortex_email` package, which is a FastMCP server exposing read-only
+list/search/read tools over **imap-tools** (STARTTLS, chosen over aioimaplib which lacks it;
+the server is a sidecar, so async-nativeness doesn't apply), 100%-covered without a server;
+read-only enforced three ways (only read tools register, EXAMINE, `mark_seen=False`);
+`docker-compose.email.yml` runs it as a sidecar reaching the host ProtonMail Bridge. Host
+validation against the user's live Bridge (needs the Bridge + its credentials) is the
+remaining host-driven half. Slice 6 is code-complete pending it.
 
 ## Slice 7 (Subagents)
 

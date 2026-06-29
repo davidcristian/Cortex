@@ -67,15 +67,18 @@ concrete target for the email tool.
    into the Python image and runs the tool server in the brain's own process space (weaker
    isolation). No write tools in v1: only the read-only filesystem tool subset registers.
 
-6. **Email: a thin, purpose-built read-only IMAP MCP server (aioimaplib).** ~300 lines,
-   read-only (list folders / search / fetch headers + body, with **no** send/delete/flag
-   surface), 100%-covered with a fake IMAP transport, pointed at the ProtonMail Bridge
+6. **Email: a thin, purpose-built read-only IMAP MCP server (imap-tools).** Read-only (list
+   folders / search / read one message, with **no** send/delete/flag surface), 100%-covered with a
+   fake `Mailbox` and a fake imap-tools `MailBox`, pointed at the ProtonMail Bridge
    (`host.docker.internal:1143`, STARTTLS, Bridge-generated per-client credentials + the
-   exported self-signed cert, all via env, never in the repo). `aioimaplib` is async-native
-   (the brain is async-first); stdlib `imaplib` would need executor wrapping. The rejected
-   alternative (vendoring `ai-zerolab/mcp-email-server`) carries a send/write surface to
-   lock down, an external dependency, and resists 100% coverage; it is studied as a
-   reference, not vendored.
+   exported self-signed cert or a loopback `tls_insecure` escape hatch, all via env, never in
+   the repo). **imap-tools (over stdlib `imaplib`) replaces the originally-planned aioimaplib**:
+   aioimaplib has no STARTTLS (the Bridge's default) and the async-native rationale for it does
+   not apply, because the email server is a **separate sidecar process**, not the async brain;
+   imap-tools also gives cleanly parsed messages. Read-only is enforced three ways: only read
+   tools register, folders open with EXAMINE (`readonly=True`), and fetches never set Seen
+   (`mark_seen=False`). The rejected alternative (vendoring `ai-zerolab/mcp-email-server`)
+   carries a send/write surface to lock down, an external dependency, and resists 100% coverage.
 
 7. **Opt-in, mirroring memory and inference.** `CORTEX_TOOLS_BACKEND` (`none` default, `mcp`
    enables); CI and the no-GPU dev loop stay tool-free. `registry=None` keeps the old turn

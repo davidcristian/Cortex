@@ -119,7 +119,8 @@ brain/            Python workspace (uv), dockerized (brain/Dockerfile)
                   orchestrator (hosts BrainService), session (Redis SessionStore
                   adapter), inference (llama.cpp InferenceBackend adapter), embedding
                   (llama.cpp CPU Embedder adapter), memory (pgvector MemoryStore adapter),
-                  tools (MCP-client ToolRegistry adapter + audit sink);
+                  tools (MCP-client ToolRegistry adapter + audit sink), email (read-only IMAP
+                  MCP server over ProtonMail Bridge);
                   (planned) model_manager (Slice 11), body_client, shared
 body/             Rust/Tauri workspace, host-native
   crates/         core (pure logic + OS traits + BrainTransport port), rpc (tonic
@@ -132,5 +133,6 @@ justfile          `just check` + check-*; proto, up/down, brain-serve, seam-heal
 docker-compose.yml   brain + redis in Compose, loopback-only; docker-compose.gpu.yml adds
                      the llama.cpp server + read-only model bind mount (ADR-0005/0007);
                      docker-compose.memory.yml adds Postgres+pgvector + CPU embedder (ADR-0008);
-                     docker-compose.tools.yml adds the filesystem MCP sidecar (ADR-0009)
+                     docker-compose.tools.yml + docker-compose.email.yml add the MCP tool
+                     sidecars for filesystem and read-only email (ADR-0009)
 ```

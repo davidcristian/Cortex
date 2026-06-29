@@ -65,6 +65,8 @@ New non-obvious decision → add `adr/ADR-XXXX-<slug>.md`, link it here.
     `MemoryStore` port (Postgres, cosine ranking).
   - [brain-tools.md](modules/brain-tools.md) covers `cortex_tools`: MCP-client adapter for the
     `ToolRegistry` port + the logging audit sink (ADR-0009).
+  - [brain-email.md](modules/brain-email.md) covers `cortex_email`: standalone read-only IMAP MCP
+    server over ProtonMail Bridge (ADR-0009).
   - [brain-seam.md](modules/brain-seam.md) covers `cortex_seam`: committed wire stubs + facade.
   - [brain-orchestrator.md](modules/brain-orchestrator.md) covers `cortex_orchestrator`:
     the gRPC service hosting `BrainService`.
@@ -83,4 +85,6 @@ New non-obvious decision → add `adr/ADR-XXXX-<slug>.md`, link it here.
   Postgres+pgvector and the CPU embedder, run the memory/embedder integration tests.
 - [runbooks/tools-mcp.md](runbooks/tools-mcp.md) covers Slice 6 host half: bring up the filesystem
   MCP sidecar (streamable-http, read-only mount), run the tools integration test.
+- [runbooks/email-imap.md](runbooks/email-imap.md) covers Slice 6 host half: bring up the read-only
+  IMAP MCP server against a live ProtonMail Bridge, run the email integration test.
 - Expected as later slices land: `model-swap.md` (Slice 11).
