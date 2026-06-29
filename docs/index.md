@@ -40,6 +40,11 @@ Start here. Rules for working in this repo: [AGENTS.md](../AGENTS.md).
   `MemoryRecaller` use-case; the pgvector adapter stays 100%-covered without a DB in CI via
   the accepted MockTransport pattern (behavior proven against the fake in CI, against real
   Postgres on the host); durable data as a named volume + export to `D:\Software\AI\Database`.
+- [ADR-0009: Tools via MCP](adr/ADR-0009-tools-mcp.md): `ToolRegistry` + audited
+  `ToolDispatcher` in the pure core; native function-calling (evolve `InferenceBackend`,
+  not prompt-and-parse); the brain as an MCP client (`mcp` SDK v1.x behind the port); tool
+  servers as sidecar containers over streamable-http (filesystem read-only-mounted, patched
+  for the EscapeRoute CVEs); a thin read-only IMAP server for email over ProtonMail Bridge.
 
 New non-obvious decision → add `adr/ADR-XXXX-<slug>.md`, link it here.
 
