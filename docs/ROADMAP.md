@@ -42,12 +42,14 @@ the pure core; a turn arrives over `Converse`, is answered by the fake, and the 
 state survives an orchestrator process restart (proving state is external).
 **Gate proven:** ports-before-adapters with contract tests; repository pattern.
 
-## Slice 4 (Real inference): vLLM adapter + Model Manager v1
+## Slice 4 (Real inference): engine adapter + Model Manager v1
 
-vLLM adapter for `InferenceBackend` (all Blackwell/WSL2 quirks inside + runbook
-`docs/runbooks/blackwell-vllm.md`); Model Manager v1: owns the GPU, single resident
-model, `acquire()` lease + queue API (no swap yet); `docker-compose.gpu.yml` override.
-Concrete cortex/embedder model choices recorded (ADR + runbook). Live tests are
+Engine evaluation first (ADR-0004: the locked candidates are all GGUF, so vLLM-GGUF vs
+a llama.cpp-server adapter vs re-quantizing is measured and decided here), then the
+chosen adapter for `InferenceBackend` (all GPU/WSL2 quirks inside + runbook); Model
+Manager v1: owns the GPU, single resident model, `acquire()` lease + queue API (no swap
+yet); `docker-compose.gpu.yml` override with the model-dir bind mount. Final per-tier
+model picks recorded against measured VRAM (ADR-0004). Live tests are
 `integration`-marked, run manually on the host.
 **Gate proven:** integration suite excluded from coverage/CI; adapter as blast radius.
 
