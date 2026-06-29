@@ -10,6 +10,7 @@ from datetime import datetime
 from typing import Protocol
 
 from cortex_core.conversation import Message
+from cortex_core.memory import MemoryRecord, ScoredMemory
 from cortex_core.model import ModelLease
 
 
@@ -31,6 +32,24 @@ class ModelManager(Protocol):
     """Owns the single GPU: leases the resident model, serializes callers (ADR-0007)."""
 
     def acquire(self, model: str) -> AbstractAsyncContextManager[ModelLease]: ...
+
+
+class Embedder(Protocol):
+    """Turns text into the vector retrieval ranks on (one stateless call, no I/O state).
+
+    ``embed`` returns the embedding of ``text``; its dimension is fixed by the deployment's
+    model (ADR-0008) and the core never assumes a value. Failures surface as ``EmbedderError``.
+    """
+
+    async def embed(self, text: str) -> Sequence[float]: ...
+
+
+class MemoryStore(Protocol):
+    """Durable, cross-session memory: append one record, retrieve the top-k by similarity."""
+
+    async def add(self, record: MemoryRecord) -> None: ...
+
+    async def search(self, embedding: Sequence[float], *, k: int) -> Sequence[ScoredMemory]: ...
 
 
 class Clock(Protocol):
