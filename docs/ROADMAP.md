@@ -54,6 +54,16 @@ measured VRAM (ADR-0004). Live tests are `integration`-marked, run manually on t
 host.
 **Gate proven:** integration suite excluded from coverage/CI; adapter as blast radius.
 
+**Status (2026-06-29):** CI-gated half delivered ([ADR-0007](adr/ADR-0007-model-manager-inference.md)):
+the `cortex_inference` llama.cpp adapter behind the unchanged `InferenceBackend`, the
+`ModelManager` port + pure `SingleResidentModelManager`, config-driven backend selection
+(Echo default, llama.cpp opt-in), and `docker-compose.gpu.yml`. All are green under
+`just check` without a GPU. The host half (bring up the GPU compose, run the live
+integration tests, measure VRAM, lock the final per-tier picks) is host-driven per
+[docs/runbooks/llamacpp-gpu.md](runbooks/llamacpp-gpu.md). The Model Manager v1 is pure
+and lives in `cortex_core`; the `cortex_model_manager` package (process lifecycle) is
+deferred to Slice 11, when swap gives it real I/O.
+
 ## Slice 5 (Memory v1): retrieval that grows
 
 `MemoryStore` + `Embedder` ports; pgvector adapter + local embedding model (fake in CI;

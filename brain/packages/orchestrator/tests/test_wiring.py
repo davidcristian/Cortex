@@ -11,7 +11,9 @@ import pytest
 from fakeredis import FakeAsyncRedis, FakeServer
 from grpc import aio
 
-from cortex_orchestrator import run_from_env
+from cortex_core import EchoInferenceBackend
+from cortex_inference import LlamaCppBackend
+from cortex_orchestrator import InferenceConfig, build_inference_backend, run_from_env
 from cortex_seam import BrainServiceStub, ClientEvent, ServerEvent, UserTurn
 from cortex_session import RedisSessionStore
 
@@ -98,3 +100,18 @@ async def test_run_from_env_default_store_surfaces_redis_outage_as_seam_error(
     (only,) = events
     assert only.WhichOneof("event") == "error"
     assert only.error.code == "session_store_unavailable"
+
+
+async def test_build_inference_backend_defaults_to_echo() -> None:
+    """The GPU-less default: Echo, with a closer that is a clean no-op."""
+    backend, close = build_inference_backend(InferenceConfig(backend="echo", endpoint=""), "cortex")
+    assert isinstance(backend, EchoInferenceBackend)
+    await close()  # no resources to release; must not raise
+
+
+async def test_build_inference_backend_selects_llamacpp_and_returns_a_closer() -> None:
+    """The opt-in GPU path: the real adapter, with the HTTP client's aclose as the closer."""
+    config = InferenceConfig(backend="llamacpp", endpoint="http://llama-cortex:8080")
+    backend, close = build_inference_backend(config, "cortex")
+    assert isinstance(backend, LlamaCppBackend)
+    await close()  # releases the httpx client

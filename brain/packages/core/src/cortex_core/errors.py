@@ -11,3 +11,11 @@ class SessionStoreError(Exception):
 
 class InferenceError(Exception):
     """An InferenceBackend failed to produce or continue a completion."""
+
+
+class ModelManagerError(Exception):
+    """A ModelManager operation failed; adapters wrap their backend's errors into this."""
+
+
+class ModelUnavailableError(ModelManagerError):
+    """acquire() was asked for a model that is not the resident one (no swap in v1)."""

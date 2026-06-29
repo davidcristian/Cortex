@@ -198,7 +198,7 @@ Prerequisites: Docker with the NVIDIA container toolkit and a folder of GGUF mod
 the brain; Rust (stable), Node, and [`just`](https://github.com/casey/just) for the body.
 
 Point `CORTEX_MODELS_DIR` at your GGUF folder (every knob and the model picks are
-walked through in `docs/runbooks/llamacpp-gpu.md`),
+walked through in [docs/runbooks/llamacpp-gpu.md](docs/runbooks/llamacpp-gpu.md)),
 then:
 
 ```bash

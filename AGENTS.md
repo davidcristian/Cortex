@@ -117,7 +117,8 @@ docs/             ARCHITECTURE.md, index.md, ROADMAP.md, adr/, modules/, runbook
 brain/            Python workspace (uv), dockerized (brain/Dockerfile)
   packages/       core (pure logic + ports), seam (committed gRPC stubs + typed facade),
                   orchestrator (hosts BrainService), session (Redis SessionStore
-                  adapter); (planned) model_manager, memory, tools, body_client, shared
+                  adapter), inference (llama.cpp InferenceBackend adapter);
+                  (planned) model_manager (Slice 11), memory, tools, body_client, shared
 body/             Rust/Tauri workspace, host-native
   crates/         core (pure logic + OS traits + BrainTransport port), rpc (tonic
                   adapter, committed stubs); (planned) os_windows, os_macos, os_linux
@@ -126,5 +127,6 @@ scripts/          repo gates: linecap.py (300-line cap), coverage_gate.py (Rust 
                   ci_paths.py (CI path classifier)
 .github/          GPU-less CI running the same `just` recipes as local dev
 justfile          `just check` + check-*; proto, up/down, brain-serve, seam-health
-docker-compose.yml   brain + redis in Compose, loopback-only; gpu override (planned, Slice 4)
+docker-compose.yml   brain + redis in Compose, loopback-only; docker-compose.gpu.yml adds
+                     the llama.cpp server + read-only model bind mount (ADR-0005/0007)
 ```
