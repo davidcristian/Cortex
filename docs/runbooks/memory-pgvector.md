@@ -52,10 +52,13 @@ cd brain && CORTEX_EMBEDDING_ENDPOINT=http://127.0.0.1:8081 \
 - With both up, `docker compose -f docker-compose.yml -f docker-compose.memory.yml up` runs
   the brain with `CORTEX_MEMORY_BACKEND=pgvector`, so turns recall + record for real.
 
-## Record the nomic pick
+## The nomic pick (validated 2026-06-29)
 
-Lock the embedder choice (nomic-embed-text v1.5 vs. v2-moe, and quant) in
-[ADR-0004](../adr/ADR-0004-model-lineup.md) once measured, alongside its dimension.
+**nomic-embed-text-v1.5 Q8_0** (768-dim, ~146 MB) is the compose default and the validated
+pick. It loads in ~1.2 s on CPU with negligible RAM. `nomic-embed-text-v2-moe` (also
+768-dim, larger, multilingual) is the alternative via `CORTEX_EMBED_MODEL_FILE`. Recorded in
+the [ADR-0004 addendum](../adr/ADR-0004-model-lineup.md). The `memories.embedding` column is
+dimension-agnostic, so switching needs no migration.
 
 ## Plug-and-play export (ADR-0008)
 
