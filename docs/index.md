@@ -46,6 +46,11 @@ Start here. Rules for working in this repo: [AGENTS.md](../AGENTS.md).
   not prompt-and-parse); the brain as an MCP client (`mcp` SDK v1.x behind the port); tool
   servers as sidecar containers over streamable-http (filesystem read-only-mounted, patched
   for the EscapeRoute CVEs); a thin read-only IMAP server for email over ProtonMail Bridge.
+- [ADR-0010: Subagents](adr/ADR-0010-subagents.md): delegation as a native `spawn_subagent`
+  tool through the audited tool loop; a `CompositeToolRegistry` merging built-in + MCP tools;
+  the shared infer↔tool loop extracted from `TurnEngine`; tools-enabled depth-1 subagents over a
+  Redis `TaskStore`; a dedicated `SubagentScheduler` (bounded CPU concurrency, not the GPU
+  `ModelManager`); subagent inference on a CPU `llama-server`.
 
 New non-obvious decision → add `adr/ADR-XXXX-<slug>.md`, link it here.
 
