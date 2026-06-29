@@ -117,8 +117,10 @@ docs/             ARCHITECTURE.md, index.md, ROADMAP.md, adr/, modules/, runbook
 brain/            Python workspace (uv), dockerized (brain/Dockerfile)
   packages/       core (pure logic + ports), seam (committed gRPC stubs + typed facade),
                   orchestrator (hosts BrainService), session (Redis SessionStore
-                  adapter), inference (llama.cpp InferenceBackend adapter);
-                  (planned) model_manager (Slice 11), memory, tools, body_client, shared
+                  adapter), inference (llama.cpp InferenceBackend adapter), embedding
+                  (llama.cpp CPU Embedder adapter);
+                  (planned) memory (pgvector MemoryStore adapter), model_manager (Slice 11),
+                  tools, body_client, shared
 body/             Rust/Tauri workspace, host-native
   crates/         core (pure logic + OS traits + BrainTransport port), rpc (tonic
                   adapter, committed stubs); (planned) os_windows, os_macos, os_linux

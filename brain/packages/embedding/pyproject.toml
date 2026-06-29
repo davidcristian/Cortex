@@ -1,0 +1,19 @@
+[project]
+name = "cortex-embedding"
+version = "0.0.0"
+description = "llama.cpp CPU adapter for the core's Embedder port: OpenAI /v1/embeddings (ADR-0008)."
+requires-python = ">=3.12"
+dependencies = [
+  "cortex-core",
+  "httpx>=0.27",
+]
+
+[tool.uv.sources]
+cortex-core = { workspace = true }
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/cortex_embedding"]

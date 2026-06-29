@@ -54,6 +54,8 @@ New non-obvious decision → add `adr/ADR-XXXX-<slug>.md`, link it here.
     the `SessionStore` port.
   - [brain-inference.md](modules/brain-inference.md) covers `cortex_inference`: llama.cpp
     adapter for the `InferenceBackend` port (OpenAI-compatible HTTP streaming).
+  - [brain-embedding.md](modules/brain-embedding.md) covers `cortex_embedding`: llama.cpp CPU
+    adapter for the `Embedder` port (OpenAI `/v1/embeddings`).
   - [brain-seam.md](modules/brain-seam.md) covers `cortex_seam`: committed wire stubs + facade.
   - [brain-orchestrator.md](modules/brain-orchestrator.md) covers `cortex_orchestrator`:
     the gRPC service hosting `BrainService`.
