@@ -21,6 +21,14 @@ class EmbedderError(Exception):
     """An Embedder failed to produce an embedding (adapters wrap their backend's errors)."""
 
 
+class ToolError(Exception):
+    """A ToolRegistry could not dispatch a call (adapters wrap their backend's errors)."""
+
+
+class ToolNotFoundError(ToolError):
+    """invoke() named a tool the registry does not know."""
+
+
 class ModelManagerError(Exception):
     """A ModelManager operation failed; adapters wrap their backend's errors into this."""
 

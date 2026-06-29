@@ -12,6 +12,7 @@ from typing import Protocol
 from cortex_core.conversation import Message
 from cortex_core.memory import MemoryRecord, ScoredMemory
 from cortex_core.model import ModelLease
+from cortex_core.tools import ToolCall, ToolInvocation, ToolResult, ToolSpec
 
 
 class SessionStore(Protocol):
@@ -56,3 +57,17 @@ class Clock(Protocol):
     """The only time source the core may use; ``now()`` is always timezone-aware."""
 
     def now(self) -> datetime: ...
+
+
+class ToolRegistry(Protocol):
+    """The tools the cortex can call, and the one gateway that runs a call (ADR-0009)."""
+
+    async def describe_tools(self) -> Sequence[ToolSpec]: ...
+
+    async def invoke(self, call: ToolCall) -> ToolResult: ...
+
+
+class ToolAuditSink(Protocol):
+    """The audit trail where every dispatched tool call is recorded (AGENTS.md, ADR-0009)."""
+
+    async def record(self, invocation: ToolInvocation) -> None: ...

@@ -1,0 +1,68 @@
+"""Behavior tests for the tool value types and the in-memory ToolRegistry fake."""
+
+from collections.abc import Mapping
+from datetime import UTC, datetime
+
+import pytest
+
+from cortex_core import (
+    InMemoryToolRegistry,
+    ToolCall,
+    ToolInvocation,
+    ToolNotFoundError,
+    ToolResult,
+    ToolSpec,
+)
+
+_AT = datetime(2026, 7, 3, 12, 0, 0, tzinfo=UTC)
+
+
+async def _noop(arguments: Mapping[str, object]) -> str:
+    del arguments
+    return "ok"
+
+
+def _spec(name: str, description: str = "a tool") -> ToolSpec:
+    return ToolSpec(name=name, description=description, parameters={"type": "object"})
+
+
+def test_tool_result_defaults_to_success() -> None:
+    assert ToolResult(call_id="c-1", content="hi").is_error is False
+
+
+def test_tool_invocation_rejects_a_naive_timestamp() -> None:
+    with pytest.raises(ValueError, match="timezone-aware"):
+        ToolInvocation(
+            name="read",
+            arguments={},
+            ok=True,
+            detail="x",
+            at=datetime(2026, 7, 3, 12, 0, 0),  # noqa: DTZ001 -- the naive value under test
+        )
+
+
+def test_tool_invocation_accepts_an_aware_timestamp() -> None:
+    invocation = ToolInvocation(name="read", arguments={"p": 1}, ok=True, detail="x", at=_AT)
+    assert invocation.at is _AT
+
+
+async def test_registry_describe_tools_lists_specs_in_insertion_order() -> None:
+    registry = InMemoryToolRegistry(
+        {"read": (_spec("read"), _noop), "list": (_spec("list"), _noop)}
+    )
+    assert [spec.name for spec in await registry.describe_tools()] == ["read", "list"]
+
+
+async def test_registry_describe_tools_is_empty_when_none_registered() -> None:
+    assert list(await InMemoryToolRegistry({}).describe_tools()) == []
+
+
+async def test_registry_invoke_runs_the_named_handler() -> None:
+    registry = InMemoryToolRegistry({"read": (_spec("read"), _noop)})
+    result = await registry.invoke(ToolCall(id="c", name="read", arguments={}))
+    assert result == ToolResult(call_id="c", content="ok", is_error=False)
+
+
+async def test_registry_invoke_raises_tool_not_found_for_an_unknown_tool() -> None:
+    with pytest.raises(ToolNotFoundError, match="unknown tool 'missing'"):
+        await InMemoryToolRegistry({}).invoke(ToolCall(id="c", name="missing", arguments={}))
