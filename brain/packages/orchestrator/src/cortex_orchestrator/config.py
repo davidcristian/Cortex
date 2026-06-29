@@ -10,6 +10,7 @@ from cortex_session import DEFAULT_REDIS_URL
 
 InferenceBackendName = Literal["echo", "llamacpp"]
 MemoryBackendName = Literal["none", "pgvector"]
+ToolsBackendName = Literal["none", "mcp"]
 
 
 class SeamServerConfig(BaseSettings):
@@ -86,5 +87,26 @@ class MemoryConfig(BaseSettings):
                 "CORTEX_MEMORY_DSN and CORTEX_MEMORY_EMBEDDER_ENDPOINT are required when "
                 "CORTEX_MEMORY_BACKEND=pgvector"
             )
+            raise ValueError(msg)
+        return self
+
+
+class ToolsConfig(BaseSettings):
+    """Whether the cortex can call tools over MCP (ADR-0009).
+
+    ``none`` (the default) disables tools. CI and the no-GPU dev loop run with no MCP server.
+    ``mcp`` enables the MCP client and requires ``endpoint`` (the streamable-http URL of the
+    tool server, e.g. the filesystem sidecar in ``docker-compose.tools.yml``).
+    """
+
+    model_config = SettingsConfigDict(env_prefix="CORTEX_TOOLS_")
+
+    backend: ToolsBackendName = "none"
+    endpoint: str = ""
+
+    @model_validator(mode="after")
+    def _mcp_needs_an_endpoint(self) -> "ToolsConfig":
+        if self.backend == "mcp" and not self.endpoint:
+            msg = "CORTEX_TOOLS_ENDPOINT is required when CORTEX_TOOLS_BACKEND=mcp"
             raise ValueError(msg)
         return self

@@ -12,6 +12,7 @@ src = [
   "brain/packages/orchestrator/src",
   "brain/packages/seam/src",
   "brain/packages/session/src",
+  "brain/packages/tools/src",
   "scripts",
 ]
 # Generated code is exempt from all quality gates (ADR-0001 d7, ADR-0002 d4).

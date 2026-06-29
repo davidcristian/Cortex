@@ -4,25 +4,28 @@ import asyncio
 import os
 import signal
 import socket
-from collections.abc import Sequence
+from collections.abc import Awaitable, Callable, Sequence
 from typing import cast
 
 import pytest
 from fakeredis import FakeAsyncRedis, FakeServer
 from grpc import aio
 
-from cortex_core import EchoInferenceBackend, MemoryRecaller, SystemClock
+from cortex_core import EchoInferenceBackend, MemoryRecaller, SystemClock, ToolDispatcher
 from cortex_inference import LlamaCppBackend
 from cortex_memory import PgVectorMemoryStore
 from cortex_orchestrator import (
     InferenceConfig,
     MemoryConfig,
+    ToolsConfig,
     build_inference_backend,
     build_memory,
+    build_tools,
     run_from_env,
 )
 from cortex_seam import BrainServiceStub, ClientEvent, ServerEvent, UserTurn
 from cortex_session import RedisSessionStore
+from cortex_tools import McpToolRegistry
 
 
 def _free_loopback_port() -> int:
@@ -157,3 +160,34 @@ async def test_build_memory_selects_pgvector_and_returns_a_closer(
     assert seen_dsn == ["postgresql://cortex@db/cortex"]
     await close()  # releases the pool and the embedder client
     assert closed == ["store"]
+
+
+async def test_build_tools_defaults_to_disabled() -> None:
+    """The MCP-less default: no dispatcher, and a closer that is a clean no-op."""
+    tools, close = await build_tools(ToolsConfig(backend="none"), SystemClock())
+    assert tools is None
+    await close()  # no resources to release; must not raise
+
+
+async def test_build_tools_selects_mcp_and_returns_a_closer(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The opt-in path: an audited dispatcher over the MCP registry, whose closer releases it."""
+    closed: list[str] = []
+    seen_url: list[str] = []
+
+    async def fake_connect(url: str) -> tuple[object, Callable[[], Awaitable[None]]]:
+        seen_url.append(url)
+
+        async def closer() -> None:
+            closed.append("session")
+
+        return object(), closer
+
+    monkeypatch.setattr(McpToolRegistry, "connect", fake_connect)
+    config = ToolsConfig(backend="mcp", endpoint="http://fs:9000/mcp")
+    tools, close = await build_tools(config, SystemClock())
+    assert isinstance(tools, ToolDispatcher)
+    assert seen_url == ["http://fs:9000/mcp"]
+    await close()  # releases the MCP session
+    assert closed == ["session"]

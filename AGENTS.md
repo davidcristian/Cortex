@@ -118,8 +118,9 @@ brain/            Python workspace (uv), dockerized (brain/Dockerfile)
   packages/       core (pure logic + ports), seam (committed gRPC stubs + typed facade),
                   orchestrator (hosts BrainService), session (Redis SessionStore
                   adapter), inference (llama.cpp InferenceBackend adapter), embedding
-                  (llama.cpp CPU Embedder adapter), memory (pgvector MemoryStore adapter);
-                  (planned) model_manager (Slice 11), tools, body_client, shared
+                  (llama.cpp CPU Embedder adapter), memory (pgvector MemoryStore adapter),
+                  tools (MCP-client ToolRegistry adapter + audit sink);
+                  (planned) model_manager (Slice 11), body_client, shared
 body/             Rust/Tauri workspace, host-native
   crates/         core (pure logic + OS traits + BrainTransport port), rpc (tonic
                   adapter, committed stubs); (planned) os_windows, os_macos, os_linux
@@ -130,5 +131,6 @@ scripts/          repo gates: linecap.py (300-line cap), coverage_gate.py (Rust 
 justfile          `just check` + check-*; proto, up/down, brain-serve, seam-health
 docker-compose.yml   brain + redis in Compose, loopback-only; docker-compose.gpu.yml adds
                      the llama.cpp server + read-only model bind mount (ADR-0005/0007);
-                     docker-compose.memory.yml adds Postgres+pgvector + CPU embedder (ADR-0008)
+                     docker-compose.memory.yml adds Postgres+pgvector + CPU embedder (ADR-0008);
+                     docker-compose.tools.yml adds the filesystem MCP sidecar (ADR-0009)
 ```
