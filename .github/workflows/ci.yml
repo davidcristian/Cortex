@@ -1,7 +1,10 @@
 # GPU-less by design (AGENTS.md gate 3): plain ubuntu runners, no CUDA anywhere.
-# Both jobs run the same `just` recipes developers run locally (no drift).
-# Path-filtered per ADR-0006: each toolchain's job runs when a change can affect it;
-# shared gate files (justfile, proto, scripts, this workflow) trigger both.
+# Jobs run the same `just` recipes developers run locally (no drift).
+# Path filtering is a fail-closed in-repo classifier (scripts/ci_paths.py,
+# ADR-0006): unknown paths run both toolchains, and if the diff range cannot be
+# determined we also run both. The cross-tree 300-line cap (linecap) is exempt
+# from the filter and always runs. Every action is pinned to a full commit SHA
+# with a version comment; dependabot (.github/dependabot.yml) keeps the pins fresh.
 name: CI
 
 on:
@@ -9,10 +12,14 @@ on:
     branches: [master]
   pull_request:
 
-# A newer push supersedes the in-flight run for the same ref (ADR-0006).
+# A newer PR push supersedes the in-flight run for the same ref, but every
+# master commit keeps its CI verdict, preserving a bisectable history (ADR-0006).
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
 
 jobs:
   changes:
@@ -21,38 +28,68 @@ jobs:
       python: ${{ steps.filter.outputs.python }}
       rust: ${{ steps.filter.outputs.rust }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: dorny/paths-filter@v3
-        id: filter
+      # fetch-depth 0: the repo is small, and full history makes computing the
+      # diff range trivial (merge bases and `before` SHAs are always present).
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
-          filters: |
-            shared: &shared
-              - 'justfile'
-              - '.github/workflows/ci.yml'
-              - 'proto/**'
-              - 'scripts/**'
-              - '.python-version'
-            python:
-              - *shared
-              - 'brain/**'
-              - 'ruff.toml'
-            rust:
-              - *shared
-              - 'body/**'
+          fetch-depth: 0
+      - id: filter
+        name: Classify changed paths (fail-closed)
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE_REF: ${{ github.base_ref }}
+          BEFORE: ${{ github.event.before }}
+        run: |
+          set -euo pipefail
+          range=""
+          if [ "${EVENT}" = "pull_request" ]; then
+            # Three-dot = diff against the merge base with the PR target.
+            # origin has the base branch because fetch-depth is 0 and PR runs
+            # check out from the base repo.
+            range="origin/${BASE_REF:-}...HEAD"
+          elif [ -n "${BEFORE:-}" ] \
+            && [ "${BEFORE:-}" != "0000000000000000000000000000000000000000" ] \
+            && git cat-file -e "${BEFORE:-}" 2>/dev/null; then
+            range="${BEFORE}..HEAD"
+          fi
+          if [ -n "${range}" ] && git diff --name-only "${range}" > /dev/null 2>&1; then
+            # The classifier is stdlib-only, so plain python3 works with no uv
+            # setup in this job. Under pipefail, a classifier error fails this
+            # step and therefore the run: visible red, never silently green.
+            git diff --name-only "${range}" | python3 scripts/ci_paths.py >> "$GITHUB_OUTPUT"
+          else
+            echo "No usable diff range (first push, or a force-push whose 'before' is gone); running everything, fail-closed."
+            echo "python=true" >> "$GITHUB_OUTPUT"
+            echo "rust=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  # The 300-line cap (AGENTS.md gate 1) is repo-wide: linecap.py scans .py and
+  # .rs across every tree, docs/ included. It is exempt from the path filter and
+  # runs unconditionally, so a Rust-only or docs-only change is still capped.
+  linecap:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
+        with:
+          enable-cache: true
+      - uses: taiki-e/install-action@16b05812d776ae1dfaabc8277e421fb6d2506419 # v2
+        with:
+          tool: just
+      - run: just check-linecap
 
   python:
     needs: changes
     if: needs.changes.outputs.python == 'true'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v6
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
         with:
           enable-cache: true
-      - uses: taiki-e/install-action@v2
+      - uses: taiki-e/install-action@16b05812d776ae1dfaabc8277e421fb6d2506419 # v2
         with:
           tool: just
-      - run: just check-linecap
       - run: just check-brain
       - run: just check-scripts
 
@@ -61,23 +98,26 @@ jobs:
     if: needs.changes.outputs.rust == 'true'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
       # Nightly first (branch-coverage instrumentation only), stable second so that
-      # stable stays the default toolchain (ADR-0002).
-      - uses: dtolnay/rust-toolchain@nightly
+      # stable stays the default toolchain (ADR-0002). The SHA pin drops the
+      # @nightly/@stable ref selection, so the toolchain is passed explicitly.
+      - uses: dtolnay/rust-toolchain@fa04a1451ff1842e2626ccb99004d0195b455a88 # pinned master (no releases; dependabot bumps the SHA only)
         with:
+          toolchain: nightly
           components: llvm-tools-preview
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@fa04a1451ff1842e2626ccb99004d0195b455a88 # pinned master (no releases; dependabot bumps the SHA only)
         with:
+          toolchain: stable
           components: rustfmt, clippy
-      - uses: taiki-e/install-action@v2
+      - uses: taiki-e/install-action@16b05812d776ae1dfaabc8277e421fb6d2506419 # v2
         with:
           tool: cargo-llvm-cov,just
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
         with:
           workspaces: body
       # uv is needed because check-body's branch gate runs scripts/coverage_gate.py.
-      - uses: astral-sh/setup-uv@v6
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
         with:
           enable-cache: true
       - run: just check-body
