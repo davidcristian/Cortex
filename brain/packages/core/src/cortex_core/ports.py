@@ -10,6 +10,7 @@ from datetime import datetime
 from typing import Protocol
 
 from cortex_core.conversation import Message
+from cortex_core.inference import InferenceEvent
 from cortex_core.memory import MemoryRecord, ScoredMemory
 from cortex_core.model import ModelLease
 from cortex_core.tools import ToolCall, ToolInvocation, ToolResult, ToolSpec
@@ -33,12 +34,16 @@ class SessionStore(Protocol):
 class InferenceBackend(Protocol):
     """One stateless streamed completion against a loaded model, with no sessions and no retries.
 
-    ``stream`` yields the assistant reply to ``messages`` as text deltas. ``model``
-    is a logical model id (ADR-0004), never a file path. Multimodal input arrives in
-    a later slice; failures surface as ``InferenceError``.
+    ``stream`` yields the reply to ``messages`` as ``InferenceEvent``s: ``TextChunk`` deltas
+    of assistant text, interleaved with ``ToolCall``s when the model asks to run a tool from
+    ``tools`` (native function-calling, ADR-0009). With ``tools`` empty the stream is text
+    only, exactly as before. ``model`` is a logical id (ADR-0004), never a file path.
+    Multimodal input arrives in a later slice; failures surface as ``InferenceError``.
     """
 
-    def stream(self, model: str, messages: Sequence[Message]) -> AsyncIterator[str]: ...
+    def stream(
+        self, model: str, messages: Sequence[Message], *, tools: Sequence[ToolSpec] = ()
+    ) -> AsyncIterator[InferenceEvent]: ...
 
 
 class ModelManager(Protocol):

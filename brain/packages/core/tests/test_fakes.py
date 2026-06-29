@@ -11,6 +11,7 @@ from cortex_core import (
     Message,
     Role,
     SystemClock,
+    TextChunk,
 )
 
 _AT = datetime(2026, 7, 3, 12, 0, 0, tzinfo=UTC)
@@ -21,7 +22,7 @@ def _message(role: Role, text: str, turn_id: str = "t-1") -> Message:
 
 
 async def _deltas(backend: EchoInferenceBackend, messages: tuple[Message, ...]) -> list[str]:
-    return [delta async for delta in backend.stream("cortex", messages)]
+    return [e.text async for e in backend.stream("cortex", messages) if isinstance(e, TextChunk)]
 
 
 async def test_in_memory_store_starts_empty() -> None:

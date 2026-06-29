@@ -14,7 +14,7 @@ from datetime import UTC, datetime
 import httpx
 import pytest
 
-from cortex_core import Message, Role, SingleResidentModelManager
+from cortex_core import Message, Role, SingleResidentModelManager, TextChunk
 from cortex_inference import LlamaCppBackend
 
 _MODEL = os.environ.get("CORTEX_MODEL_CORTEX", "cortex")
@@ -34,5 +34,6 @@ async def test_llama_cpp_backend_streams_from_a_live_server() -> None:
     ]
     async with httpx.AsyncClient(timeout=httpx.Timeout(60.0)) as client:
         backend = LlamaCppBackend(manager, client)
-        chunks = [chunk async for chunk in backend.stream(_MODEL, messages)]
-    assert "".join(chunks).strip() != ""
+        events = [event async for event in backend.stream(_MODEL, messages)]
+    text = "".join(e.text for e in events if isinstance(e, TextChunk))
+    assert text.strip() != ""

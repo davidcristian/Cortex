@@ -14,12 +14,15 @@ from grpc import aio
 
 from cortex_core import (
     EchoInferenceBackend,
+    InferenceEvent,
     InMemorySessionStore,
     Message,
     Role,
     SessionStore,
     SessionStoreError,
     SystemClock,
+    TextChunk,
+    ToolSpec,
     TurnEngine,
 )
 from cortex_orchestrator import (
@@ -97,14 +100,16 @@ class BlockingFirstTurnBackend:
         self.calls = 0
         self.first_call_closed = asyncio.Event()
 
-    async def stream(self, model: str, messages: Sequence[Message]) -> AsyncIterator[str]:
+    async def stream(
+        self, model: str, messages: Sequence[Message], *, tools: Sequence[ToolSpec] = ()
+    ) -> AsyncIterator[InferenceEvent]:
         self.calls += 1
         if self.calls > 1:
-            async for delta in self._echo.stream(model, messages):
-                yield delta
+            async for event in self._echo.stream(model, messages, tools=tools):
+                yield event
             return
         try:
-            yield "cut short"
+            yield TextChunk("cut short")
             await asyncio.sleep(3600)
         finally:
             self.first_call_closed.set()

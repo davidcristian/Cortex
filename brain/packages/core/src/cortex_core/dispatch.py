@@ -7,18 +7,28 @@ dispatch writes exactly one audit record, so a dispatch failure becomes an ``is_
 ``ToolResult`` (the model is told and can recover), never an unaudited crash.
 """
 
+from collections.abc import Sequence
+
 from cortex_core.errors import ToolError
 from cortex_core.ports import Clock, ToolAuditSink, ToolRegistry
-from cortex_core.tools import ToolCall, ToolInvocation, ToolResult
+from cortex_core.tools import ToolCall, ToolInvocation, ToolResult, ToolSpec
 
 
 class ToolDispatcher:
-    """Run a tool call through the registry, recording one audit line per dispatch."""
+    """Run a tool call through the registry, recording one audit line per dispatch.
+
+    Also the turn's single tool gateway: ``describe_tools`` passes through to the registry
+    so the engine advertises the same tools it can dispatch.
+    """
 
     def __init__(self, registry: ToolRegistry, audit: ToolAuditSink, clock: Clock) -> None:
         self._registry = registry
         self._audit = audit
         self._clock = clock
+
+    async def describe_tools(self) -> Sequence[ToolSpec]:
+        """The tools available to advertise to the model (delegates to the registry)."""
+        return await self._registry.describe_tools()
 
     async def dispatch(self, call: ToolCall) -> ToolResult:
         """Invoke ``call``, audit the outcome, and return the result the model consumes.

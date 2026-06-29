@@ -2,7 +2,7 @@
 
 from cortex_core.conversation import Message, Role
 from cortex_core.dispatch import ToolDispatcher
-from cortex_core.engine import DEFAULT_CORTEX_MODEL, TurnEngine
+from cortex_core.engine import DEFAULT_CORTEX_MODEL, TurnCapabilities, TurnEngine
 from cortex_core.errors import (
     EmbedderError,
     InferenceError,
@@ -23,6 +23,7 @@ from cortex_core.fakes import (
     RecordingAuditSink,
     SystemClock,
 )
+from cortex_core.inference import InferenceEvent, TextChunk
 from cortex_core.memory import MemoryRecord, ScoredMemory
 from cortex_core.model import ModelLease, SingleResidentModelManager
 from cortex_core.ports import (
@@ -51,6 +52,7 @@ __all__ = [
     "InMemoryToolRegistry",
     "InferenceBackend",
     "InferenceError",
+    "InferenceEvent",
     "MemoryRecaller",
     "MemoryRecord",
     "MemoryStore",
@@ -68,6 +70,7 @@ __all__ = [
     "SessionStoreError",
     "SingleResidentModelManager",
     "SystemClock",
+    "TextChunk",
     "TextDelta",
     "Tier",
     "ToolAuditSink",
@@ -79,6 +82,7 @@ __all__ = [
     "ToolRegistry",
     "ToolResult",
     "ToolSpec",
+    "TurnCapabilities",
     "TurnCompleted",
     "TurnEngine",
     "TurnEvent",
