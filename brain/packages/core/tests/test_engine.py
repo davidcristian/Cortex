@@ -9,8 +9,12 @@ import pytest
 from cortex_core import (
     DEFAULT_CORTEX_MODEL,
     EchoInferenceBackend,
+    HashEmbedder,
     InferenceError,
+    InMemoryMemoryStore,
     InMemorySessionStore,
+    MemoryRecaller,
+    MemoryRecord,
     Message,
     Role,
     SystemClock,
@@ -223,3 +227,49 @@ async def test_plain_async_iterator_backend_completes_normally() -> None:
     events = await _collect(engine.handle_turn("s", "hi"))
     assert events[-1] == TurnCompleted(turn_id="t-1", full_text="xyz")
     assert [m.text for m in await store.history("s")] == ["hi", "xyz"]
+
+
+async def test_recalled_memory_is_injected_as_ephemeral_system_context() -> None:
+    mem_store = InMemoryMemoryStore()
+    embedder = HashEmbedder()
+    # Seed a memory whose embedding matches the query "pizza" so it is the top hit.
+    seeded = MemoryRecord(
+        id="mem-1",
+        text="I love pizza",
+        embedding=tuple(await embedder.embed("pizza")),
+        at=_START,
+    )
+    await mem_store.add(seeded)
+    recaller = MemoryRecaller(mem_store, embedder, SystemClock())
+    backend = RecordingBackend(("ok",))
+    store = InMemorySessionStore()
+    engine = TurnEngine(
+        store, backend, TickingClock(), memory=recaller, turn_id_factory=lambda: "t-1"
+    )
+    await _collect(engine.handle_turn("s", "pizza"))
+    _, messages = backend.calls[0]
+    assert messages[0].role is Role.SYSTEM
+    assert "I love pizza" in messages[0].text
+    assert (messages[1].role, messages[1].text) == (Role.USER, "pizza")
+    # The system context is ephemeral: the session store holds only real dialogue.
+    assert [m.role for m in await store.history("s")] == [Role.USER, Role.ASSISTANT]
+
+
+async def test_empty_memory_adds_no_context_and_records_the_exchange() -> None:
+    mem_store = InMemoryMemoryStore()
+    recaller = MemoryRecaller(mem_store, HashEmbedder(), SystemClock())
+    backend = RecordingBackend(("ok",))
+    engine = TurnEngine(
+        InMemorySessionStore(),
+        backend,
+        TickingClock(),
+        memory=recaller,
+        turn_id_factory=lambda: "t-1",
+    )
+    await _collect(engine.handle_turn("s", "hello"))
+    # Nothing to recall on the first turn -> no system message, just the user turn.
+    _, messages = backend.calls[0]
+    assert [m.role for m in messages] == [Role.USER]
+    # The completed exchange was recorded to memory at turn end.
+    (recorded,) = await recaller.recall("hello", k=1)
+    assert recorded.record.text == "User: hello\nAssistant: ok"
