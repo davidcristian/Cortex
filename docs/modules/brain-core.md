@@ -1,9 +1,10 @@
 # brain/packages/core (`cortex_core`)
 
 **Purpose.** The brain's pure core: domain types, ports, and application logic. Routing,
-the "handle a user turn" use-case, the memory remember/recall use-case, and tool dispatch
-live here now; handoff orchestration joins them in a later slice. No I/O, ever. This is
-the hexagon's center.
+the "handle a user turn" use-case, the memory remember/recall use-case, tool dispatch, and
+subagent delegation live here now; handoff orchestration joins them in a later slice. No I/O,
+ever. This is the hexagon's center. The bounded infer↔tool loop is one shared function
+(`tool_loop.stream_tool_loop`) that both the cortex turn and each subagent run (ADR-0010).
 
 **Public contract** (everything importable from `cortex_core`; `__all__` is the API):
 
@@ -58,6 +59,16 @@ Tool domain (Slice 6, ADR-0009):
 - `ToolInvocation` is a frozen dataclass: `name`, `arguments`, `ok: bool`, `detail: str`,
   `at: datetime` (tz-aware, rejects naive). One audit-trail line.
 
+Subagent domain (Slice 7, ADR-0010):
+
+- `SubagentTask` is a frozen dataclass: `id: str`, `instruction: str`, `context: str`,
+  `at: datetime` (tz-aware, rejects naive). One narrow task delegated to a subagent, persisted
+  before it runs; `context` is the material the subagent works from (the cortex conversation is
+  never shared, since the subagent is stateless over the task).
+- `SubagentResult` is a frozen dataclass: `task_id: str`, `output: str`, `ok: bool = True`,
+  `detail: str = ""`. A subagent's outcome; `ok=False` (with `detail`) marks a failure the
+  cortex consumes as a value, mirroring `ToolResult.is_error`.
+
 Ports (`typing.Protocol`; failures cross them only as the typed errors below):
 
 - `SessionStore` provides `async append(session_id, message) -> None`,
@@ -81,11 +92,18 @@ Ports (`typing.Protocol`; failures cross them only as the typed errors below):
   error result.
 - `ToolAuditSink` has `async record(invocation) -> None`: every dispatched call is written
   here, success or failure (the AGENTS.md audit requirement).
+- `TaskStore` has `async put_task(task) -> None`, `async get_task(task_id) -> SubagentTask | None`,
+  `async put_result(result) -> None`, `async get_result(task_id) -> SubagentResult | None`. The
+  hot store (Redis) a subagent is a stateless function over: task and result live here, never in
+  a model process (ADR-0010). Unknown ids return `None`.
+- `SubagentScheduler` (`admit() -> AbstractAsyncContextManager[None]`): a bounded-concurrency CPU
+  budget for spawns (yields a slot, queues over the cap). Distinct from `ModelManager`'s
+  exclusive GPU lease. This is a counting budget, not a lock (ADR-0010).
 - `Clock` provides `now() -> datetime`, always tz-aware. The core's only time source.
 - `SessionStoreError` / `InferenceError` / `ModelManagerError` (+ its
   `ModelUnavailableError`) / `MemoryStoreError` / `EmbedderError` / `ToolError` (+ its
-  `ToolNotFoundError`) are typed errors; adapters wrap their backend's failures into these
-  with the cause chained.
+  `ToolNotFoundError`) / `TaskStoreError` are typed errors; adapters wrap their backend's failures
+  into these with the cause chained.
 
 Use-case:
 
@@ -104,15 +122,20 @@ Use-case:
   engine recalls the top `DEFAULT_RECALL_K` (5) memories for the user text and, if any,
   prepends them as a `Role.SYSTEM` message to the context the backend sees. It is ephemeral,
   never stored. After completion it records the `User: …\nAssistant: …` exchange to memory.
-  Tools (optional, ADR-0009): when `capabilities.tools` is set, the engine advertises the
-  registry's tools each inference step; a step that emits `ToolCall`s is dispatched through
-  the `ToolDispatcher` (audited), its results fed back as an `ASSISTANT`-with-`tool_calls`
-  message plus `Role.TOOL` results, and the model re-infers for up to `MAX_TOOL_STEPS` rounds.
-  These tool messages are in-turn only (never persisted in v1). With a bare
-  `TurnCapabilities()` (the default) the turn behaves exactly as Slice 3.
+  Tools (optional, ADR-0009): when `capabilities.tools` is set, the engine runs the shared
+  `stream_tool_loop` with that `ToolDispatcher`. The loop advertises the registry's tools each
+  step, dispatches a step's `ToolCall`s (audited), feeds results back as an
+  `ASSISTANT`-with-`tool_calls` message plus `Role.TOOL` results, and re-infers up to
+  `MAX_TOOL_STEPS` rounds. These tool messages are in-turn only (never persisted in v1). With a
+  bare `TurnCapabilities()` (the default) the turn behaves exactly as Slice 3.
 - `TurnCapabilities(memory=None, tools=None)` is a frozen bundle of the optional per-turn
   collaborators (a `MemoryRecaller` and a `ToolDispatcher`), keeping the engine within its
-  DI ceiling. `MAX_TOOL_STEPS` is the tool-loop bound (8).
+  DI ceiling.
+- `stream_tool_loop(backend, model, working, *, dispatcher, clock, turn_id)` (in `tool_loop`)
+  is the bounded infer↔tool loop shared by `TurnEngine` and `SubagentRunner` (ADR-0010): an
+  async generator yielding assistant text deltas, mutating `working` in place with the tool-call
+  and `Role.TOOL` result messages; ends on a tool-free step, a `None` dispatcher, or
+  `MAX_TOOL_STEPS` (8) rounds. `MAX_TOOL_STEPS` is defined here.
 - `DEFAULT_CORTEX_MODEL` is the logical id `"cortex"`. Deployments override it via
   `CORTEX_MODEL_CORTEX`, read by the composition root (orchestrator), never here.
 - `MemoryRecaller(store, embedder, clock, *, id_factory=<uuid4>)` is the memory v1 use-case
@@ -128,6 +151,14 @@ Use-case:
   keeps going and the model is told. `describe_tools()` passes through to the registry so
   the engine advertises what it can dispatch. Stateless over the ports; `TurnEngine` drives
   the loop that calls it.
+- `SubagentRunner(store, backend, scheduler, clock, *, subagent_model, tools=None)` is a
+  subagent's body (ADR-0010), a stateless function over the `TaskStore`. `run(task_id)` admits
+  against the `SubagentScheduler`'s CPU budget, loads the `SubagentTask` **by id** (never from
+  cortex memory, since a missing task is an `ok=False` "task not found" result), runs
+  `stream_tool_loop` on `subagent_model` with its optional tool subset (the instruction as the
+  user ask, `context` as a `Role.SYSTEM` message), and persists + returns a `SubagentResult`. A
+  mid-stream `InferenceError` becomes an `ok=False` result carrying the partial text, not an
+  exception. Tools-enabled but not given the delegation tool, so fan-out is depth-1.
 
 Reference implementations (pure, shipped in core; the runtime wiring until Slice 4):
 
@@ -158,12 +189,20 @@ Reference implementations (pure, shipped in core; the runtime wiring until Slice
   raises `ToolNotFoundError` for an unknown name. No server, fully deterministic.
 - `RecordingAuditSink` is a `ToolAuditSink` that keeps invocations in a list (`.records`) so
   tests can assert the audit trail.
+- `InMemoryTaskStore` is a dict-backed `TaskStore`; contract twin of the Redis adapter (Slice 7
+  CI half). Unknown ids return `None`. Does not survive a restart, by design.
+- `ConcurrencyScheduler(max_concurrency)` is the `SubagentScheduler` v1 (ADR-0010): pure policy
+  over an `asyncio.Semaphore`. `admit()` grants one CPU slot and queues over the cap; a
+  `max_concurrency < 1` raises `ValueError`. Lives in the core because it does no I/O. Hard
+  RAM-ceiling rejection is a later refinement behind the port.
 - `SystemClock` provides tz-aware UTC `now()`.
 
 **Invariants.**
 - Pure and deterministic: no I/O, no adapter or framework imports, stdlib only.
 - The engine is a stateless function over the store: nothing about a conversation
-  outlives `handle_turn` except what `SessionStore` holds (the one hard rule).
+  outlives `handle_turn` except what `SessionStore` holds (the one hard rule). Likewise a
+  subagent is a stateless function over the `TaskStore`. `SubagentRunner` reads the task by
+  id and persists the result, holding nothing between calls.
 - The assistant message is persisted if and only if `TurnCompleted` is emitted.
 - Fully typed (PEP 561 `py.typed` ships with the package); pyright strict clean.
 - 100% line+branch covered by behavior tests in `tests/` (cancellation and failure

@@ -10,6 +10,7 @@ from cortex_core.errors import (
     ModelManagerError,
     ModelUnavailableError,
     SessionStoreError,
+    TaskStoreError,
     ToolError,
     ToolNotFoundError,
 )
@@ -19,6 +20,7 @@ from cortex_core.fakes import (
     HashEmbedder,
     InMemoryMemoryStore,
     InMemorySessionStore,
+    InMemoryTaskStore,
     InMemoryToolRegistry,
     RecordingAuditSink,
     SystemClock,
@@ -33,22 +35,29 @@ from cortex_core.ports import (
     MemoryStore,
     ModelManager,
     SessionStore,
+    SubagentScheduler,
+    TaskStore,
     ToolAuditSink,
     ToolRegistry,
 )
 from cortex_core.recall import MemoryRecaller
 from cortex_core.routing import RoutingHints, Tier, route_turn
+from cortex_core.runner import SubagentRunner
+from cortex_core.scheduler import ConcurrencyScheduler
+from cortex_core.subagents import SubagentResult, SubagentTask
 from cortex_core.tools import ToolCall, ToolInvocation, ToolResult, ToolSpec
 
 __all__ = [
     "DEFAULT_CORTEX_MODEL",
     "Clock",
+    "ConcurrencyScheduler",
     "EchoInferenceBackend",
     "Embedder",
     "EmbedderError",
     "HashEmbedder",
     "InMemoryMemoryStore",
     "InMemorySessionStore",
+    "InMemoryTaskStore",
     "InMemoryToolRegistry",
     "InferenceBackend",
     "InferenceError",
@@ -69,7 +78,13 @@ __all__ = [
     "SessionStore",
     "SessionStoreError",
     "SingleResidentModelManager",
+    "SubagentResult",
+    "SubagentRunner",
+    "SubagentScheduler",
+    "SubagentTask",
     "SystemClock",
+    "TaskStore",
+    "TaskStoreError",
     "TextChunk",
     "TextDelta",
     "Tier",

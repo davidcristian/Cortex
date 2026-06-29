@@ -15,6 +15,7 @@ from cortex_core.conversation import Message, Role
 from cortex_core.errors import InferenceError, ToolNotFoundError
 from cortex_core.inference import InferenceEvent, TextChunk
 from cortex_core.memory import MemoryRecord, ScoredMemory
+from cortex_core.subagents import SubagentResult, SubagentTask
 from cortex_core.tools import ToolCall, ToolInvocation, ToolResult, ToolSpec
 
 # The fake embedder's default vector width. Small (< a sha256 digest) so distinct texts
@@ -116,6 +117,35 @@ class InMemoryMemoryStore:
         ]
         scored.sort(key=lambda hit: hit.score, reverse=True)
         return tuple(scored[:k])
+
+
+class InMemoryTaskStore:
+    """TaskStore held in dicts as the contract twin of the Redis adapter (ADR-0010).
+
+    Keeps tasks and results in memory keyed by task id; ``get_task``/``get_result`` return
+    ``None`` for an unknown id. Like ``InMemorySessionStore`` it does NOT survive a restart, and
+    the Redis adapter is what proves task state survives a swap. For tests and CI only.
+    """
+
+    def __init__(self) -> None:
+        self._tasks: dict[str, SubagentTask] = {}
+        self._results: dict[str, SubagentResult] = {}
+
+    async def put_task(self, task: SubagentTask) -> None:
+        """Persist one delegated task."""
+        self._tasks[task.id] = task
+
+    async def get_task(self, task_id: str) -> SubagentTask | None:
+        """Return the task with ``task_id``, or None when unknown."""
+        return self._tasks.get(task_id)
+
+    async def put_result(self, result: SubagentResult) -> None:
+        """Persist one subagent result."""
+        self._results[result.task_id] = result
+
+    async def get_result(self, task_id: str) -> SubagentResult | None:
+        """Return the result for ``task_id``, or None until the subagent has finished."""
+        return self._results.get(task_id)
 
 
 _ToolHandler = Callable[[Mapping[str, Any]], Awaitable[str]]

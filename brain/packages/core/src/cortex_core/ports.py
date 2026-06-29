@@ -13,6 +13,7 @@ from cortex_core.conversation import Message
 from cortex_core.inference import InferenceEvent
 from cortex_core.memory import MemoryRecord, ScoredMemory
 from cortex_core.model import ModelLease
+from cortex_core.subagents import SubagentResult, SubagentTask
 from cortex_core.tools import ToolCall, ToolInvocation, ToolResult, ToolSpec
 
 
@@ -113,3 +114,35 @@ class ToolAuditSink(Protocol):
     """
 
     async def record(self, invocation: ToolInvocation) -> None: ...
+
+
+class TaskStore(Protocol):
+    """Hot store for in-flight subagent tasks and their results (Redis; ADR-0010).
+
+    A subagent is a stateless function over this store: ``put_task`` persists the delegated
+    task, ``get_task`` loads it by id (the runner reads only the store, never cortex memory),
+    ``put_result`` persists the outcome, and ``get_result`` returns it for the cortex to read
+    (``None`` until the subagent has finished). Task state lives here, never in a model process, per
+    the one hard rule, for delegation. Failures surface as ``TaskStoreError``.
+    """
+
+    async def put_task(self, task: SubagentTask) -> None: ...
+
+    async def get_task(self, task_id: str) -> SubagentTask | None: ...
+
+    async def put_result(self, result: SubagentResult) -> None: ...
+
+    async def get_result(self, task_id: str) -> SubagentResult | None: ...
+
+
+class SubagentScheduler(Protocol):
+    """Admits subagent spawns against a bounded CPU budget. Concurrency, not the GPU (ADR-0010).
+
+    ``admit`` returns an async context manager that yields once a worker slot is free and
+    releases it on exit; over the concurrency cap callers wait (depth-1 delegation guarantees no
+    spawn waits on another spawn, so this cannot deadlock). This is a *counting* budget, distinct
+    from the ``ModelManager``'s exclusive GPU lease; the two stay separate ports. Hard
+    RAM-ceiling rejection is a later refinement behind this port.
+    """
+
+    def admit(self) -> AbstractAsyncContextManager[None]: ...
