@@ -86,7 +86,7 @@ Delegate narrow tasks to small (2-4B) subagents: task record in the store, each 
 runs as a stateless function over it, result persisted, cortex consumes it. The cortex
 spawns **one or more** subagents and picks their count and size; the `ModelManager` admits
 or rejects each spawn against the budget. Per the Slice 4 measurements (ADR-0004 addendum)
-subagents run on **CPU** (the GPU's 12 GB soft cap is spent on the cortex), so the budget
+subagents run on **CPU** (the GPU's 14 GB soft cap is spent on the cortex), so the budget
 here is CPU RAM + acceptable concurrency, not VRAM.
 
 ## Slice 8 (Body v1): hotkey → overlay → chat
@@ -128,11 +128,14 @@ write-actions behind explicit confirmation, macOS/Linux backends, more subagent 
 Deferred *decisions* live in ADR-0001's open questions; these are the *assumptions* the
 plan bets on, with what would invalidate each:
 
-1. **VRAM fit.** *Measured in Slice 4 (ADR-0004 addendum).* The 12 GB is a **deliberate
-   soft cap**. The user reserves the other ~12 GB of the 24 GB GPU for a second monitor +
-   gaming. The chosen cortex (gemma-4-12B, QAT Q4) is ~11 GB at 16K ctx incl. the vision
-   tower, so it fills the AI budget on its own → the embedder and subagents run on **CPU**
-   (the CPU/hybrid split is required by the cap, not an optimization). Context size is
+1. **VRAM fit.** *Measured in Slice 4 (ADR-0004 addendum).* The soft cap is **14 GB**
+   (env `CORTEX_VRAM_SOFT_CAP_GB`, one knob; enforced by the Model Manager from Slice 7). It is
+   a deliberate budget: the user reserves the other ~10 GB of the 24 GB GPU for a second
+   monitor + gaming. The chosen cortex (gemma-4-12B, QAT Q4) is ~11.3 GB at 16K ctx incl.
+   the vision tower, so it sits **comfortably under the cap** (~2.7 GB headroom, since the bump
+   from 12 GB buys the always-resident cortex room for KV/context/vision growth). The
+   embedder and subagents still run on **CPU**. The GPU budget stays a single-resident
+   cortex; the CPU/hybrid split is required by the cap, not an optimization. Context size is
    itself budget-bounded.
 2. **Swap latency.** A cortex↔brain swap is a `llama-server` stop + start (ADR-0005),
    so its cost is loading a multi-GB GGUF from the bind-mounted Windows drive.

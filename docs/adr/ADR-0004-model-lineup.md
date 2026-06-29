@@ -7,8 +7,9 @@
 
 ## Context
 
-Three tiers share the 24 GB GPU (ADR-0001); cortex + embedder + one subagent must fit in
-12 GB, and the cortex must be natively multimodal (vision). The user has downloaded the
+Three tiers share the 24 GB GPU (ADR-0001); the AI stack must fit under a deliberate soft
+cap (**14 GB**, see the addendum), and the cortex must be natively multimodal (vision).
+The user has downloaded the
 candidates locally via LM Studio to `D:\Software\AI\Models` (Windows; the drive is not
 mounted into WSL).
 
@@ -42,7 +43,7 @@ they use more memory; revisit only if latency demands it.
 4. **Envelope sanity (to verify in Slice 4).** Rough Q4 weight sizes: 12B ≈ 7 GB,
    9B ≈ 5.5 GB (cortex) + embedder (the nomic candidates are small, ~0.1-1 GB
    depending on quant; the v2-moe F16 sits at the top of that range) +
-   2-4B subagent (~1.5-2.5 GB) + KV. The 12 GB envelope is plausible but tight with
+   2-4B subagent (~1.5-2.5 GB) + KV. The 14 GB envelope is plausible but tight with
    the 12B cortex; the 9B leaves more headroom. Brain candidates (~15-18 GB) all fit
    alone in 24 GB. The cortex pick must ship its vision tower and its VRAM cost counts
    against the envelope.

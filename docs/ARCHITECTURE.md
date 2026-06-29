@@ -37,8 +37,8 @@ Three tiers share one 24 GB GPU via llama.cpp (ADR-0005; one
 
 | Tier | Role | Residency | VRAM |
 |---|---|---|---|
-| Cortex | always-on conversational + routing model (multimodal, ~9-12B) | resident | cortex + embeddings + one subagent ≤ 12 GB |
-| Subagents | small (2-4B) workers for narrow delegated tasks | co-resident or quick-swap | within the 12 GB envelope |
+| Cortex | always-on conversational + routing model (multimodal, ~9-12B) | resident on GPU | ~11.3 GB, under the 14 GB soft cap (ADR-0004 addendum) |
+| Subagents | small (2-4B) workers for narrow delegated tasks | dynamic pool on **CPU** | CPU RAM + concurrency; GPU budget is the cortex's |
 | Brain | large reasoning model (~31B-class) for hard problems | loaded on demand | full GPU; others evicted |
 
 **The hard rule: state must survive a model swap.** No conversation, task, or working
