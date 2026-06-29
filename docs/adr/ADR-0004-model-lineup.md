@@ -1,7 +1,8 @@
 # ADR-0004: Model lineup (candidates locked)
 
-- **Status:** Accepted (candidate sets locked by the user, 2026-06-29; final per-tier
-  pick happens in Slice 4 with measured VRAM)
+- **Status:** Accepted (candidates locked 2026-06-29; cortex pick = **gemma-4-12B**, made
+  in Slice 4 (see the measurements addendum); subagent/brain/embedder picks follow in
+  Slices 7/11/5)
 - **Date:** 2026-06-29
 
 ## Context
@@ -78,27 +79,32 @@ bound, so they are *not* representative of full-power throughput.
 | Qwen3.5-9B Q4_K_M | 9.2 GB | 11.0 GB (mmproj F32, +1.8) | ~32-42 s |
 | gemma-4-12B q4_0 | 11.0 GB | 11.3 GB (mmproj 0.18 GB, +0.3) | ~38-52 s |
 
-1. **Both multimodal cortex options land at ~11 GB**, so VRAM does not decide the pick
-   (choose on capability / vision quality). Qwen's F32 projector is heavy but its 9B body
-   is lighter; gemma's projector is tiny but the 12B body is heavier, so they converge. The
-   **final cortex pick stays open**, deferred to real use, not blocked on VRAM.
+1. **Cortex pick: gemma-4-12B** (`gemma-4-12b-it-qat-q4_0`). Both multimodal candidates
+   land at ~11 GB, so VRAM does not decide it; gemma wins on being the stronger general
+   chat model and on **QAT** (quantization-aware training, so its Q4 holds quality better
+   than a post-hoc quant). Qwen's F32 projector is heavy but its 9B body is lighter;
+   gemma's projector is tiny but its 12B body is heavier, so they converge at ~11 GB (16K).
 2. **Context is a footgun.** llama-server defaults to the model's max context (262144) ×
    4 slots, pre-allocating ~8 GB of KV (17.3 GB total for Qwen-9B). The compose now sets
    `--ctx-size` (env `CORTEX_CTX_SIZE`, default 16384) and a single slot (the Model
    Manager serializes turns anyway).
-3. **Model placement is a per-`llama-server` `-ngl` concern** (ADR-0005: engine flags are
-   adapter/deployment, never core), exposed as env `CORTEX_NGL` (default 99). CPU-only
+3. **The 12 GB GPU budget is a deliberate soft cap.** The user reserves the other ~12 GB
+   of the 24 GB for a second monitor + gaming, so the AI stack stays under ~12 GB VRAM. The
+   ~11 GB cortex therefore **fills the AI budget on its own**, and everything else runs on
+   **CPU** (or hybrid). The CPU/hybrid split is a *requirement of the cap*, not an
+   optimization. Placement is a per-`llama-server` `-ngl` concern (ADR-0005: engine flags
+   are adapter/deployment, never core), exposed as env `CORTEX_NGL` (default 99); CPU-only
    (`-ngl 0`) and hybrid (partial `-ngl`, or `--no-kv-offload`) cost **zero core change**:
-   - **Cortex** gets the full GPU (always-resident, interactive, latency-critical).
-   - **Embedder** (nomic, 0.15-0.27 GB) runs on **CPU**; tiny + bursty (memory write/retrieval),
-     doesn't count against the GPU envelope.
-   - **Subagents** (2-4B) co-reside on GPU when headroom allows (24 GB − ~11 GB cortex
-     ≈ 13 GB free, so a 2-4B fits easily), else CPU/hybrid (decided in Slice 7).
-   - **Brain** (~31B) evicts the others; hybrid `-ngl` / CPU-KV fallback if it doesn't
-     fit (Slice 11).
-   The Model Manager owns GPU *allocation*; CPU-only models are always-available and don't
-   count against the envelope. This **relaxes ROADMAP assumption 1's 12 GB target**, because with
-   24 GB, an ~11 GB cortex + a co-resident 2-4B subagent fit with room to spare.
+   - **Cortex** gets the full GPU; ~11 GB (16K ctx) sits right at the cap, so context size is
+     itself budget-bounded (a larger window's KV would push over).
+   - **Embedder** (nomic, 0.15-0.27 GB) runs on **CPU**; tiny + bursty (memory write/retrieval).
+   - **Subagents** (2-4B) run on **CPU** (the GPU budget is spent on the cortex). Not one slot:
+     the cortex spawns **one or more** subagents and picks their count and size within the
+     budget (here CPU RAM + acceptable concurrency, not VRAM). The Model Manager admits or
+     rejects each spawn against that budget (Slice 7).
+   - **Brain** (~31B) is the swap model: it evicts the cortex, so it gets the full budget;
+     hybrid `-ngl` / CPU-KV fallback if it doesn't fit (Slice 11).
+   The Model Manager owns *allocation* against the soft cap; CPU models don't draw from it.
 4. **Load ≈ mount-read bound** (~150-180 MB/s off the Windows drvfs bind mount) is the
    swap-latency bottleneck (ROADMAP assumption 2). A WSL-side/volume mirror of hot models
    is the lever if swap ever feels slow.
