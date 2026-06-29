@@ -120,16 +120,22 @@ is **nomic-embed-text-v1.5 Q8_0** (768-dim), recorded in the
 audit-logged; MCP filesystem server, then IMAP email server (read-only first). All later
 tools (including body-backed OS actions) go through this port.
 
-**Progress (2026-06-29):** design + increment 1 landed ([ADR-0009](adr/ADR-0009-tools-mcp.md)),
-100% under `just check`, no MCP. (1) The pure tool-dispatch core: the `ToolRegistry` +
-`ToolAuditSink` ports, the `ToolSpec`/`ToolCall`/`ToolResult`/`ToolInvocation` values, the
-typed `ToolError`/`ToolNotFoundError`, the `InMemoryToolRegistry` + `RecordingAuditSink`
-fakes, and the stateless `ToolDispatcher` use-case that runs a call through the registry
-and writes exactly one audit record per dispatch (a registry failure becomes an `is_error`
-result the model can recover from). The three forks are resolved in ADR-0009: **native
-function-calling** (evolve `InferenceBackend`), **sidecar-over-http** tool servers, and a
-**thin read-only IMAP** email server for ProtonMail Bridge. Increments 2-4 (the turn-engine
-tool loop; the MCP filesystem adapter; the email server) follow.
+**Progress (2026-06-29):** design + increments 1-2 landed
+([ADR-0009](adr/ADR-0009-tools-mcp.md)), 100% under `just check`, no MCP. (1) The pure
+tool-dispatch core: the `ToolRegistry` + `ToolAuditSink` ports, the
+`ToolSpec`/`ToolCall`/`ToolResult`/`ToolInvocation` values, the typed
+`ToolError`/`ToolNotFoundError`, the `InMemoryToolRegistry` + `RecordingAuditSink` fakes, and
+the stateless `ToolDispatcher` use-case. It runs a call through the registry and writes
+exactly one audit record per dispatch (a registry failure becomes an `is_error` result the
+model can recover from). (2) **Native function-calling in the turn:** `InferenceBackend`
+now yields `InferenceEvent` (`TextChunk | ToolCall`) and takes `tools`; `Message` gained the
+`tool_calls`/`tool_call_id` structure and `Role.TOOL`; `TurnEngine` runs the bounded
+(`MAX_TOOL_STEPS`) inference↔tool loop behind an optional `TurnCapabilities` bundle
+(dispatch is audited, results fed back, tool context in-turn only in v1); and `LlamaCppBackend`
+sends the OpenAI `tools` payload and reassembles streamed `tool_calls` (needs `--jinja`). The
+three forks are resolved in ADR-0009: **native function-calling**, **sidecar-over-http** tool
+servers, and a **thin read-only IMAP** email server for ProtonMail Bridge. Increments 3-4
+(the MCP filesystem adapter; the email server) follow.
 
 ## Slice 7 (Subagents)
 

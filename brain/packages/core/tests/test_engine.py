@@ -1,6 +1,6 @@
 """Behavior tests for TurnEngine: event contract, persistence, cancellation, failure."""
 
-from collections.abc import AsyncIterator, Sequence
+from collections.abc import AsyncIterator, Mapping, Sequence
 from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
@@ -11,18 +11,27 @@ from cortex_core import (
     EchoInferenceBackend,
     HashEmbedder,
     InferenceError,
+    InferenceEvent,
     InMemoryMemoryStore,
     InMemorySessionStore,
+    InMemoryToolRegistry,
     MemoryRecaller,
     MemoryRecord,
     Message,
+    RecordingAuditSink,
     Role,
     SystemClock,
+    TextChunk,
     TextDelta,
+    ToolCall,
+    ToolDispatcher,
+    ToolSpec,
+    TurnCapabilities,
     TurnCompleted,
     TurnEngine,
     TurnEvent,
 )
+from cortex_core.engine import MAX_TOOL_STEPS
 
 _START = datetime(2026, 7, 3, 12, 0, 0, tzinfo=UTC)
 
@@ -47,11 +56,14 @@ class RecordingBackend:
         self.calls: list[tuple[str, tuple[Message, ...]]] = []
         self.closed = False
 
-    async def stream(self, model: str, messages: Sequence[Message]) -> AsyncIterator[str]:
+    async def stream(
+        self, model: str, messages: Sequence[Message], *, tools: Sequence[ToolSpec] = ()
+    ) -> AsyncIterator[InferenceEvent]:
+        del tools
         self.calls.append((model, tuple(messages)))
         try:
             for delta in self._deltas:
-                yield delta
+                yield TextChunk(delta)
         finally:
             self.closed = True
 
@@ -65,10 +77,10 @@ class _PlainDeltas:
     def __aiter__(self) -> "_PlainDeltas":
         return self
 
-    async def __anext__(self) -> str:
+    async def __anext__(self) -> InferenceEvent:
         if not self._pending:
             raise StopAsyncIteration
-        return self._pending.pop(0)
+        return TextChunk(self._pending.pop(0))
 
 
 class PlainIteratorBackend:
@@ -77,17 +89,21 @@ class PlainIteratorBackend:
     def __init__(self, deltas: Sequence[str]) -> None:
         self._deltas = deltas
 
-    def stream(self, model: str, messages: Sequence[Message]) -> AsyncIterator[str]:
-        del model, messages
+    def stream(
+        self, model: str, messages: Sequence[Message], *, tools: Sequence[ToolSpec] = ()
+    ) -> AsyncIterator[InferenceEvent]:
+        del model, messages, tools
         return _PlainDeltas(self._deltas)
 
 
 class MidStreamFailingBackend:
     """Backend that yields one delta and then fails with the typed error."""
 
-    async def stream(self, model: str, messages: Sequence[Message]) -> AsyncIterator[str]:
-        del model, messages
-        yield "partial "
+    async def stream(
+        self, model: str, messages: Sequence[Message], *, tools: Sequence[ToolSpec] = ()
+    ) -> AsyncIterator[InferenceEvent]:
+        del model, messages, tools
+        yield TextChunk("partial ")
         msg = "backend exploded mid-stream"
         raise InferenceError(msg)
 
@@ -244,7 +260,11 @@ async def test_recalled_memory_is_injected_as_ephemeral_system_context() -> None
     backend = RecordingBackend(("ok",))
     store = InMemorySessionStore()
     engine = TurnEngine(
-        store, backend, TickingClock(), memory=recaller, turn_id_factory=lambda: "t-1"
+        store,
+        backend,
+        TickingClock(),
+        capabilities=TurnCapabilities(memory=recaller),
+        turn_id_factory=lambda: "t-1",
     )
     await _collect(engine.handle_turn("s", "pizza"))
     _, messages = backend.calls[0]
@@ -263,7 +283,7 @@ async def test_empty_memory_adds_no_context_and_records_the_exchange() -> None:
         InMemorySessionStore(),
         backend,
         TickingClock(),
-        memory=recaller,
+        capabilities=TurnCapabilities(memory=recaller),
         turn_id_factory=lambda: "t-1",
     )
     await _collect(engine.handle_turn("s", "hello"))
@@ -273,3 +293,140 @@ async def test_empty_memory_adds_no_context_and_records_the_exchange() -> None:
     # The completed exchange was recorded to memory at turn end.
     (recorded,) = await recaller.recall("hello", k=1)
     assert recorded.record.text == "User: hello\nAssistant: ok"
+
+
+def _read_tool() -> ToolSpec:
+    return ToolSpec(name="read", description="read a file", parameters={"type": "object"})
+
+
+async def _read_handler(arguments: Mapping[str, object]) -> str:
+    return f"contents of {arguments['path']}"
+
+
+async def _noop_handler(arguments: Mapping[str, object]) -> str:
+    del arguments
+    return "ok"
+
+
+class ScriptedToolBackend:
+    """Replays a fixed list of per-call event lists; records messages + tools per call."""
+
+    def __init__(self, steps: Sequence[Sequence[InferenceEvent]]) -> None:
+        self._steps = list(steps)
+        self._call = 0
+        self.seen: list[tuple[Message, ...]] = []
+        self.offered: list[tuple[ToolSpec, ...]] = []
+
+    async def stream(
+        self, model: str, messages: Sequence[Message], *, tools: Sequence[ToolSpec] = ()
+    ) -> AsyncIterator[InferenceEvent]:
+        del model
+        self.seen.append(tuple(messages))
+        self.offered.append(tuple(tools))
+        step = self._steps[self._call]
+        self._call += 1
+        for event in step:
+            yield event
+
+
+class AlwaysCallsBackend:
+    """Emits one tool call on every step (used to hit the tool-loop bound)."""
+
+    def __init__(self) -> None:
+        self.calls = 0
+
+    async def stream(
+        self, model: str, messages: Sequence[Message], *, tools: Sequence[ToolSpec] = ()
+    ) -> AsyncIterator[InferenceEvent]:
+        del model, messages, tools
+        self.calls += 1
+        yield ToolCall(id=f"c{self.calls}", name="noop", arguments={})
+
+
+def _read_dispatcher(sink: RecordingAuditSink) -> ToolDispatcher:
+    registry = InMemoryToolRegistry({"read": (_read_tool(), _read_handler)})
+    return ToolDispatcher(registry, sink, TickingClock())
+
+
+async def test_tool_call_is_dispatched_audited_and_fed_back() -> None:
+    sink = RecordingAuditSink()
+    backend = ScriptedToolBackend(
+        [
+            [
+                TextChunk("checking... "),
+                ToolCall(id="c1", name="read", arguments={"path": "/etc/hosts"}),
+            ],
+            [TextChunk("done")],
+        ]
+    )
+    store = InMemorySessionStore()
+    engine = TurnEngine(
+        store,
+        backend,
+        TickingClock(),
+        capabilities=TurnCapabilities(tools=_read_dispatcher(sink)),
+        turn_id_factory=lambda: "t-1",
+    )
+    events = await _collect(engine.handle_turn("s", "show hosts"))
+    # Reasoning + final answer stream across the two steps; one TurnCompleted at the end.
+    assert events == [
+        TextDelta("checking... "),
+        TextDelta("done"),
+        TurnCompleted(turn_id="t-1", full_text="checking... done"),
+    ]
+    # The call was dispatched once and audited as a success.
+    (audit,) = sink.records
+    assert (audit.name, audit.ok, audit.detail) == ("read", True, "contents of /etc/hosts")
+    # Step 2 saw the assistant tool-call message then the tool result, structured.
+    first_step, second_step = backend.seen
+    assert [m.role for m in first_step] == [Role.USER]
+    assert second_step[-2].role is Role.ASSISTANT
+    assert second_step[-2].tool_calls[0].name == "read"
+    assert (second_step[-1].role, second_step[-1].text, second_step[-1].tool_call_id) == (
+        Role.TOOL,
+        "contents of /etc/hosts",
+        "c1",
+    )
+    # Tools were advertised on every step.
+    assert [tuple(t.name for t in offered) for offered in backend.offered] == [("read",), ("read",)]
+    # The store holds only real dialogue. Tool messages are in-turn, never persisted.
+    history = list(await store.history("s"))
+    assert [m.role for m in history] == [Role.USER, Role.ASSISTANT]
+    assert history[-1].text == "checking... done"
+
+
+async def test_no_tool_call_ends_the_turn_in_one_step() -> None:
+    sink = RecordingAuditSink()
+    backend = ScriptedToolBackend([[TextChunk("just an answer")]])
+    engine = TurnEngine(
+        InMemorySessionStore(),
+        backend,
+        TickingClock(),
+        capabilities=TurnCapabilities(tools=_read_dispatcher(sink)),
+        turn_id_factory=lambda: "t-1",
+    )
+    events = await _collect(engine.handle_turn("s", "hi"))
+    assert events[-1] == TurnCompleted(turn_id="t-1", full_text="just an answer")
+    assert len(backend.seen) == 1  # a single inference step, no re-inference
+    assert sink.records == ()  # nothing dispatched
+
+
+async def test_tool_loop_stops_at_the_step_bound() -> None:
+    sink = RecordingAuditSink()
+    registry = InMemoryToolRegistry(
+        {"noop": (ToolSpec(name="noop", description="", parameters={}), _noop_handler)}
+    )
+    backend = AlwaysCallsBackend()
+    engine = TurnEngine(
+        InMemorySessionStore(),
+        backend,
+        TickingClock(),
+        capabilities=TurnCapabilities(tools=ToolDispatcher(registry, sink, TickingClock())),
+        turn_id_factory=lambda: "t-1",
+    )
+    events = await _collect(engine.handle_turn("s", "go"))
+    completed = events[-1]
+    assert isinstance(completed, TurnCompleted)
+    assert completed.full_text == ""  # the model only ever called tools, never answered
+    assert backend.calls == MAX_TOOL_STEPS  # bounded rather than an infinite loop
+    assert len(sink.records) == MAX_TOOL_STEPS

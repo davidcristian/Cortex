@@ -3,22 +3,27 @@
 **Purpose.** The llama.cpp adapter for the core's `InferenceBackend` port (ADR-0005,
 ADR-0007). A thin HTTP translator: it takes a GPU lease from a `ModelManager`, opens a
 streaming chat completion against the leased `llama-server` endpoint over the
-OpenAI-compatible API, and yields the assistant text deltas. No orchestration, no session
-state (the one hard rule). The core keeps talking only to `InferenceBackend`, unchanged
-since Slice 3.
+OpenAI-compatible API, and yields the assistant text deltas plus any tool calls the model
+makes (native function-calling, ADR-0009). No orchestration, no session state (the one hard
+rule). The core keeps talking only to `InferenceBackend`.
 
 **Public contract** (everything importable from `cortex_inference`; `__all__` is the API):
 
 - `LlamaCppBackend(model_manager: ModelManager, http_client: httpx.AsyncClient)` is an
-  `InferenceBackend`. `stream(model, messages)`:
+  `InferenceBackend`. `stream(model, messages, *, tools=())`:
   1. `async with model_manager.acquire(model) as lease` queues for the GPU, gets the
      resident model's endpoint (or the manager raises for a non-resident model).
-  2. POSTs `{model, messages, stream: true}` to `{lease.endpoint}/v1/chat/completions`,
-     mapping each `Message` to an OpenAI `{role, content}` (`USER`→`user`,
-     `ASSISTANT`→`assistant`).
-  3. Parses the SSE `data:` lines, yields each `choices[0].delta.content` string, and
-     stops at `data: [DONE]`. Chunks with no text (the role-only opening chunk, a
-     finish chunk with an empty delta, an empty `choices`) are skipped.
+  2. POSTs `{model, messages, stream: true}` (plus `tools` when any are offered) to
+     `{lease.endpoint}/v1/chat/completions`, mapping each `Message` to an OpenAI message:
+     `USER`/`SYSTEM`/`ASSISTANT`→`{role, content}`, an assistant with `tool_calls`→the
+     OpenAI `tool_calls` array, and a `TOOL` result→`{role: "tool", tool_call_id, content}`.
+     Native tool calling needs the server started with `--jinja` and a tool-capable chat
+     template (gemma-4 ships one).
+  3. Parses the SSE `data:` lines: yields each `choices[0].delta.content` as a `TextChunk`,
+     reassembles streamed `delta.tool_calls` fragments (id/name/arguments accumulated by
+     index) and yields them as `ToolCall`s once the stream ends, and stops at
+     `data: [DONE]`. Chunks with no text (the role-only opening chunk, an empty delta, an
+     empty `choices`) are skipped.
   - The injected `http_client` owns timeouts/transport (the adapter sets none itself because a
     generation may legitimately stream for a long time; the composition root gives it a
     short connect timeout and no read deadline).
@@ -29,8 +34,9 @@ with the cause chained:
 - a `ModelManager` failure (e.g. `ModelUnavailableError` for a non-resident model) is
   caught as `ModelManagerError` and re-raised, so the core sees only `InferenceError`;
 - any transport or non-2xx status is caught as `httpx.HTTPError` and re-raised;
-- a malformed streaming chunk (bad JSON, unexpected shape, non-string content) raises
-  `InferenceError` directly, because a silently skipped chunk would drop reply text, the same
+- a malformed streaming chunk (bad JSON, unexpected shape, non-string content) or a
+  tool call whose accumulated arguments are not valid JSON raises `InferenceError`
+  directly, since a silently skipped chunk would drop reply text or a tool call, the same
   fail-loud stance the session store takes on corrupt records.
 
 **Invariants.**

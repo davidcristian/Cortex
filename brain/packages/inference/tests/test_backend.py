@@ -18,6 +18,9 @@ from cortex_core import (
     ModelUnavailableError,
     Role,
     SingleResidentModelManager,
+    TextChunk,
+    ToolCall,
+    ToolSpec,
 )
 from cortex_inference import LlamaCppBackend
 
@@ -36,6 +39,15 @@ def _sse(*chunks: str) -> bytes:
     return "".join(f"data: {chunk}\n\n" for chunk in chunks).encode()
 
 
+def _chunk(delta: dict[str, object]) -> str:
+    """One streaming chat-completion chunk carrying ``delta`` (JSON-encoded, no manual escaping)."""
+    return json.dumps({"choices": [{"delta": delta}]})
+
+
+def _read_spec() -> ToolSpec:
+    return ToolSpec(name="read", description="read a file", parameters={"type": "object"})
+
+
 def _content_handler(_request: httpx.Request) -> httpx.Response:
     """A minimal one-delta response, shared by the no-[DONE] and unavailable-model tests."""
     return httpx.Response(200, content=_sse('{"choices":[{"delta":{"content":"solo"}}]}'))
@@ -48,7 +60,8 @@ def _backend(handler: _Handler, *, resident: str = "cortex") -> LlamaCppBackend:
 
 
 async def _collect(backend: LlamaCppBackend, model: str = "cortex") -> list[str]:
-    return [delta async for delta in backend.stream(model, _messages())]
+    stream = backend.stream(model, _messages())
+    return [event.text async for event in stream if isinstance(event, TextChunk)]
 
 
 async def test_streams_content_deltas_and_stops_on_done() -> None:
@@ -133,3 +146,115 @@ async def test_unavailable_model_wraps_into_inference_error() -> None:
     with pytest.raises(InferenceError, match="could not lease 'brain'") as excinfo:
         await _collect(_backend(_content_handler), model="brain")
     assert isinstance(excinfo.value.__cause__, ModelUnavailableError)
+
+
+async def test_offers_tools_and_serializes_the_tool_calling_conversation() -> None:
+    captured: dict[str, object] = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured["body"] = json.loads(request.content)
+        return httpx.Response(200, content=_sse(_chunk({"content": "ok"})))
+
+    conversation = [
+        Message(role=Role.USER, text="read it", at=_AT, turn_id="t-1"),
+        Message(
+            role=Role.ASSISTANT,
+            text="",
+            at=_AT,
+            turn_id="t-1",
+            tool_calls=(ToolCall(id="c1", name="read", arguments={"path": "/x"}),),
+        ),
+        Message(role=Role.TOOL, text="file body", at=_AT, turn_id="t-1", tool_call_id="c1"),
+    ]
+    stream = _backend(handler).stream("cortex", conversation, tools=[_read_spec()])
+    events = [event async for event in stream]
+    assert events == [TextChunk("ok")]
+    assert captured["body"] == {
+        "model": "cortex",
+        "stream": True,
+        "messages": [
+            {"role": "user", "content": "read it"},
+            {
+                "role": "assistant",
+                "content": "",
+                "tool_calls": [
+                    {
+                        "id": "c1",
+                        "type": "function",
+                        "function": {"name": "read", "arguments": '{"path": "/x"}'},
+                    }
+                ],
+            },
+            {"role": "tool", "tool_call_id": "c1", "content": "file body"},
+        ],
+        "tools": [
+            {
+                "type": "function",
+                "function": {
+                    "name": "read",
+                    "description": "read a file",
+                    "parameters": {"type": "object"},
+                },
+            }
+        ],
+    }
+
+
+async def test_reassembles_a_streamed_tool_call_and_final_text() -> None:
+    content = _sse(
+        _chunk({"content": "checking "}),
+        _chunk(
+            {
+                "tool_calls": [
+                    {"index": 0, "id": "c1", "function": {"name": "read", "arguments": '{"path"'}}
+                ]
+            }
+        ),
+        _chunk({"tool_calls": [{"index": 0, "function": {"arguments": ':"/x"}'}}]}),
+        _chunk({}),  # a terminal empty-delta chunk carries neither text nor a fragment
+        "[DONE]",
+    )
+
+    def handler(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, content=content)
+
+    stream = _backend(handler).stream("cortex", _messages(), tools=[_read_spec()])
+    events = [event async for event in stream]
+    assert events == [
+        TextChunk("checking "),
+        ToolCall(id="c1", name="read", arguments={"path": "/x"}),
+    ]
+
+
+async def test_tool_call_with_no_arguments_yields_an_empty_mapping() -> None:
+    content = _sse(
+        _chunk({"tool_calls": [{"index": 0, "id": "c2", "function": {"name": "ping"}}]}),
+        "[DONE]",
+    )
+
+    def handler(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, content=content)
+
+    stream = _backend(handler).stream("cortex", _messages(), tools=[_read_spec()])
+    events = [event async for event in stream]
+    assert events == [ToolCall(id="c2", name="ping", arguments={})]
+
+
+async def test_malformed_tool_call_arguments_raise_inference_error() -> None:
+    content = _sse(
+        _chunk(
+            {
+                "tool_calls": [
+                    {"index": 0, "id": "c3", "function": {"name": "read", "arguments": "{not json"}}
+                ]
+            }
+        ),
+        "[DONE]",
+    )
+
+    def handler(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, content=content)
+
+    stream = _backend(handler).stream("cortex", _messages(), tools=[_read_spec()])
+    with pytest.raises(InferenceError, match="malformed tool-call arguments"):
+        [event async for event in stream]

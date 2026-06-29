@@ -26,9 +26,9 @@ ignore = [
 ]
 
 [lint.pylint]
-# TurnEngine injects three ports + an optional memory collaborator + two seams (the
-# model id and the turn-id factory). Six is a sane dependency-injection ceiling; keep
-# constructors from growing past it (bundle into a config object before asking for more).
+# TurnEngine injects three ports + a TurnCapabilities bundle (optional memory + tools) +
+# two seams (the model id and the turn-id factory). Six is a sane dependency-injection
+# ceiling; bundle optional collaborators (as TurnCapabilities does) before asking for more.
 max-args = 6
 
 [lint.per-file-ignores]
