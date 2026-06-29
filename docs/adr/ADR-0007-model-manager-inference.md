@@ -13,7 +13,7 @@ that shape this design: the one hard rule (no state in a model process, per AGEN
 `integration`-marked adapter tests), gate 2 (100% line+branch **without** a GPU), gate 1
 (≤ 300 lines/file), ports-before-adapters, ADR-0005 (one `llama-server` per model,
 OpenAI-compatible HTTP as the adapter surface), and ADR-0004 (logical model ids, models
-bind-mounted read-only from `D:\Software\AI Models`).
+bind-mounted read-only from `D:\Software\AI\Models`).
 
 ## Decisions
 
@@ -62,7 +62,7 @@ bind-mounted read-only from `D:\Software\AI Models`).
 
 5. **`docker-compose.gpu.yml` override** adds a `llama-cortex` service (pinned llama.cpp
    CUDA server image, `--model /models/<artifact>.gguf -ngl 99 --host 0.0.0.0`, GPU
-   device reservation, `D:\Software\AI Models:/models:ro` read-only bind mount,
+   device reservation, `D:\Software\AI\Models:/models:ro` read-only bind mount,
    loopback-only publish, per assumption 5) and sets the brain service's
    `CORTEX_INFERENCE_BACKEND`/`CORTEX_INFERENCE_ENDPOINT`. The exact image tag, flags,
    context size, and per-tier model artifacts are measured on the host and recorded in
@@ -91,3 +91,8 @@ bind-mounted read-only from `D:\Software\AI Models`).
 - Risks flagged for host validation: the exact `llama-server` SSE shape (assumed OpenAI
   `delta.content` / `[DONE]`), VRAM fit of the 12B cortex + KV (ROADMAP assumption 1), and
   swap latency from the Windows bind mount (assumption 2). All are measured in the host half.
+- **Host-validated 2026-06-29** (ADR-0004 addendum): the live integration test streams a
+  real completion through `LlamaCppBackend` against llama.cpp on the 24 GB card. The SSE
+  shape assumption holds; a multimodal cortex fits at ~11 GB (16K ctx); load is
+  mount-read bound. The context-size and `-ngl` (CPU/hybrid) knobs were added to
+  `docker-compose.gpu.yml` as a result.

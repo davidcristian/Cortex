@@ -49,7 +49,7 @@ model, OpenAI-compatible HTTP as the adapter surface; engine flags/quirks inside
 adapter + runbook `docs/runbooks/llamacpp-gpu.md`); Model Manager v1: owns the GPU,
 single resident model, `acquire()` lease + queue API (no swap yet);
 `docker-compose.gpu.yml` override with the read-only model-dir bind mount
-(`D:\Software\AI Models`, ADR-0004). Final per-tier model picks recorded against
+(`D:\Software\AI\Models`, ADR-0004). Final per-tier model picks recorded against
 measured VRAM (ADR-0004). Live tests are `integration`-marked, run manually on the
 host.
 **Gate proven:** integration suite excluded from coverage/CI; adapter as blast radius.
@@ -70,7 +70,7 @@ deferred to Slice 11, when swap gives it real I/O.
 the nomic candidates in ADR-0004 run on llama.cpp per ADR-0005); memory writes at turn
 end, top-k retrieval into cortex context. ADR resolving Letta vs. custom decides the
 implementation behind the unchanged port. The knowledge base's durable data lives under
-`D:\Software\AI Database` (plug-and-play requirement, ADR-0004 addendum). Validate the
+`D:\Software\AI\Database` (plug-and-play requirement, ADR-0004 addendum). Validate the
 Postgres-over-Windows-bind-mount caveat here; fallback is a named volume + automated
 sync into that directory.
 
