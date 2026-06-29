@@ -1,6 +1,7 @@
 # ADR-0001: Founding architecture
 
-- **Status:** Proposed in Phase 0 (awaiting maintainer review)
+- **Status:** Accepted (Phase 0 reviewed and approved by the user, 2026-06-28;
+  decision 4 later superseded by ADR-0005)
 - **Date:** 2026-06-28
 
 ## Context
@@ -38,6 +39,9 @@ later move to macOS or Linux is plausible.
 4. **vLLM behind `InferenceBackend`.** All Blackwell/WSL2-specific configuration
    (SM120/FP8, FlashInfer, `--enforce-eager` workarounds) lives in the vLLM adapter and
    its runbook, never in the core. A future MLX/llama.cpp backend is a new adapter.
+   *Superseded (2026-06-29):* [ADR-0005](ADR-0005-llamacpp-engine.md) replaced vLLM
+   with llama.cpp once the model lineup was locked to GGUF artifacts (ADR-0004). The
+   port-based design meant this was an adapter decision, exactly as intended.
 5. **Stores: Redis + Postgres/pgvector.** Redis for hot session/task state and the event
    bus (what survives swaps); Postgres + pgvector for durable data and vector memory, with
    both behind `SessionStore`/`MemoryStore` repository ports. Embeddings come from a
@@ -79,9 +83,9 @@ later move to macOS or Linux is plausible.
    firewall/portability makes that brittle is tunneling body-directed calls over a
    body-initiated bidirectional stream.
 4. **Concrete model choices** (cortex, subagent, brain, embedder) and their VRAM fit have
-   candidate sets locked in [ADR-0004](ADR-0004-model-lineup.md) (all GGUF, which also
-   opens a vLLM-vs-llama.cpp engine question); final picks + engine decided in the
-   real-inference slice with measurements.
+   candidate sets locked in [ADR-0004](ADR-0004-model-lineup.md) (all GGUF); the engine
+   question this raised is resolved (llama.cpp, [ADR-0005](ADR-0005-llamacpp-engine.md));
+   final per-tier picks decided in the real-inference slice with measurements.
 5. **Default global hotkey** (`Win+Space` is taken on Windows) is configurable from day
    one; `Ctrl+Alt+Space` proposed in the roadmap's assumptions list, confirmed at the
    first body slice.
