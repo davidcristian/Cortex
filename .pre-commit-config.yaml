@@ -11,6 +11,7 @@ repos:
         language: system
         pass_filenames: false
         always_run: true
+        stages: [pre-commit] # without this the hook ALSO runs at commit-msg (twice per commit)
   - repo: https://github.com/compilerla/conventional-pre-commit
     rev: v4.4.0
     hooks:
