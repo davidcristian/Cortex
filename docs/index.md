@@ -93,4 +93,6 @@ New non-obvious decision → add `adr/ADR-XXXX-<slug>.md`, link it here.
   MCP sidecar (streamable-http, read-only mount), run the tools integration test.
 - [runbooks/email-imap.md](runbooks/email-imap.md) covers Slice 6 host half: bring up the read-only
   IMAP MCP server against a live ProtonMail Bridge, run the email integration test.
+- [runbooks/subagents-cpu.md](runbooks/subagents-cpu.md) covers Slice 7 host half: bring up the CPU
+  subagent `llama-server`, validate delegation (integration test + cortex-driven full stack).
 - Expected as later slices land: `model-swap.md` (Slice 11).
