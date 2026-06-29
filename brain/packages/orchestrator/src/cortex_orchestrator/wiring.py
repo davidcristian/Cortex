@@ -10,7 +10,9 @@ The one place that reads config and picks adapters (DI at the edge, AGENTS.md):
 - Memory -> disabled by default, or a `MemoryRecaller` over the `PgVectorMemoryStore` +
   `LlamaCppEmbedder` when CORTEX_MEMORY_BACKEND is `pgvector` (ADR-0008). Opt-in so CI and
   the no-GPU dev loop stay DB-free.
-- Clock -> `SystemClock`, shared by the turn engine and the memory recaller.
+- Tools -> disabled by default, or an audited `ToolDispatcher` over an `McpToolRegistry`
+  (MCP client) when CORTEX_TOOLS_BACKEND is `mcp` (ADR-0009). Opt-in so CI stays MCP-free.
+- Clock -> `SystemClock`, shared by the turn engine, the memory recaller, and tool audit.
 
 Everything below the edge receives ports, never settings objects or env access.
 """
@@ -26,6 +28,7 @@ from cortex_core import (
     MemoryRecaller,
     SingleResidentModelManager,
     SystemClock,
+    ToolDispatcher,
     TurnCapabilities,
     TurnEngine,
 )
@@ -37,9 +40,11 @@ from cortex_orchestrator.config import (
     InferenceConfig,
     MemoryConfig,
     SeamServerConfig,
+    ToolsConfig,
 )
 from cortex_orchestrator.server import serve
 from cortex_session import RedisSessionStore
+from cortex_tools import LoggingAuditSink, McpToolRegistry
 
 # Connect/write/pool time out fast on a dead server; reads have no deadline, since a
 # generation may legitimately stream for a long time (the adapter sets no timeout itself).
@@ -89,6 +94,21 @@ async def build_memory(
     return None, _noop_aclose
 
 
+async def build_tools(
+    config: ToolsConfig, clock: Clock
+) -> tuple[ToolDispatcher | None, Callable[[], Awaitable[None]]]:
+    """Pick the tools backend from config; return the dispatcher (or None) with its closer.
+
+    ``none`` disables tools. The MCP-less default CI and the no-GPU dev loop run. ``mcp``
+    connects the MCP client to the tool server and wraps it in an audited dispatcher; the
+    returned closer releases the MCP session.
+    """
+    if config.backend == "mcp":
+        registry, close = await McpToolRegistry.connect(config.endpoint)
+        return ToolDispatcher(registry, LoggingAuditSink(), clock), close
+    return None, _noop_aclose
+
+
 async def run_from_env(
     *,
     store_factory: Callable[[str], RedisSessionStore] = RedisSessionStore.from_url,
@@ -103,20 +123,23 @@ async def run_from_env(
     runtime = BrainRuntimeConfig()
     inference = InferenceConfig()
     memory_config = MemoryConfig()
+    tools_config = ToolsConfig()
     clock = SystemClock()
     store = store_factory(runtime.redis_url)
     backend, close_backend = build_inference_backend(inference, runtime.cortex_model)
     memory, close_memory = await build_memory(memory_config, clock)
+    tools, close_tools = await build_tools(tools_config, clock)
     try:
         engine = TurnEngine(
             store,
             backend,
             clock,
             cortex_model=runtime.cortex_model,
-            capabilities=TurnCapabilities(memory=memory),
+            capabilities=TurnCapabilities(memory=memory, tools=tools),
         )
         await serve(seam_config, engine)
     finally:
+        await close_tools()
         await close_memory()
         await close_backend()
         await store.aclose()

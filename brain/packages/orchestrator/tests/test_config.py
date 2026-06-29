@@ -8,6 +8,7 @@ from cortex_orchestrator import (
     InferenceConfig,
     MemoryConfig,
     SeamServerConfig,
+    ToolsConfig,
 )
 
 
@@ -24,6 +25,8 @@ def clean_env(monkeypatch: pytest.MonkeyPatch) -> None:
         "CORTEX_MEMORY_DSN",
         "CORTEX_MEMORY_EMBEDDER_ENDPOINT",
         "CORTEX_MEMORY_EMBEDDER_MODEL",
+        "CORTEX_TOOLS_BACKEND",
+        "CORTEX_TOOLS_ENDPOINT",
     ):
         monkeypatch.delenv(name, raising=False)
 
@@ -126,3 +129,26 @@ def test_memory_pgvector_without_dsn_is_rejected(monkeypatch: pytest.MonkeyPatch
     monkeypatch.setenv("CORTEX_MEMORY_EMBEDDER_ENDPOINT", "http://llama-embed:8081")
     with pytest.raises(ValidationError, match="CORTEX_MEMORY_DSN and CORTEX_MEMORY_EMBEDDER"):
         MemoryConfig()
+
+
+@pytest.mark.usefixtures("clean_env")
+def test_tools_defaults_to_disabled() -> None:
+    config = ToolsConfig()
+    assert config.backend == "none"
+    assert config.endpoint == ""
+
+
+@pytest.mark.usefixtures("clean_env")
+def test_tools_env_selects_mcp_with_endpoint(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("CORTEX_TOOLS_BACKEND", "mcp")
+    monkeypatch.setenv("CORTEX_TOOLS_ENDPOINT", "http://fs:9000/mcp")
+    config = ToolsConfig()
+    assert config.backend == "mcp"
+    assert config.endpoint == "http://fs:9000/mcp"
+
+
+@pytest.mark.usefixtures("clean_env")
+def test_tools_mcp_without_endpoint_is_rejected(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("CORTEX_TOOLS_BACKEND", "mcp")
+    with pytest.raises(ValidationError, match="CORTEX_TOOLS_ENDPOINT is required"):
+        ToolsConfig()
