@@ -6,10 +6,13 @@ from enum import Enum
 
 
 class Role(Enum):
-    """Who authored a message in a session."""
+    """Who authored a message: USER/ASSISTANT dialogue, or SYSTEM for engine-injected
+    context such as recalled memories (ADR-0008). SYSTEM messages are never persisted to
+    a session's history. They are derived fresh per turn and passed only to the model."""
 
     USER = "user"
     ASSISTANT = "assistant"
+    SYSTEM = "system"
 
 
 @dataclass(frozen=True, slots=True)

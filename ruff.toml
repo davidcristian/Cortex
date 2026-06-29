@@ -23,6 +23,12 @@ ignore = [
   "ISC001", # implicit-str-concat rule conflicts with the ruff formatter
 ]
 
+[lint.pylint]
+# TurnEngine injects three ports + an optional memory collaborator + two seams (the
+# model id and the turn-id factory). Six is a sane dependency-injection ceiling; keep
+# constructors from growing past it (bundle into a config object before asking for more).
+max-args = 6
+
 [lint.per-file-ignores]
 "scripts/*.py" = [
   "T201", # the repo gates are CLIs; reporting via stdout/stderr is their contract

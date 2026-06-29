@@ -18,7 +18,9 @@ Routing (Slice 1):
 
 Conversation domain (Slice 3):
 
-- `Role` is an enum: `USER`, `ASSISTANT` (string values `"user"`/`"assistant"`).
+- `Role` is an enum: `USER`, `ASSISTANT`, `SYSTEM` (string values). `SYSTEM` carries
+  engine-injected context (recalled memories, ADR-0008) and is never persisted to a
+  session's history. It is derived fresh per turn and handed only to the model.
 - `Message` is a frozen dataclass: `role: Role`, `text: str`, `at: datetime`,
   `turn_id: str`. Rejects naive `at` with `ValueError`, since externalized state must carry
   its timezone. `turn_id` ties a user message to the assistant reply it produced.
@@ -62,7 +64,7 @@ Ports (`typing.Protocol`; failures cross them only as the typed errors below):
 
 Use-case:
 
-- `TurnEngine(store, backend, clock, *, cortex_model=DEFAULT_CORTEX_MODEL,
+- `TurnEngine(store, backend, clock, *, cortex_model=DEFAULT_CORTEX_MODEL, memory=None,
   turn_id_factory=<uuid4>)` is pure orchestration over the ports.
   `handle_turn(session_id, text)` is an async generator: routes via
   `route_turn(RoutingHints())` (always `CORTEX` in this slice; the tier keys the model
@@ -73,6 +75,11 @@ Use-case:
   the persisted user message, does NOT persist the partial assistant text, and closes
   the abandoned backend stream. Backend failures surface as `InferenceError` after the
   user message was persisted.
+  Memory (optional, ADR-0008): when a `MemoryRecaller` is injected, before inference the
+  engine recalls the top `DEFAULT_RECALL_K` (5) memories for the user text and, if any,
+  prepends them as a `Role.SYSTEM` message to the history the backend sees. It is ephemeral,
+  never stored. After completion it records the `User: …\nAssistant: …` exchange to
+  memory. With `memory=None` (the default) the turn behaves exactly as before.
 - `DEFAULT_CORTEX_MODEL` is the logical id `"cortex"`. Deployments override it via
   `CORTEX_MODEL_CORTEX`, read by the composition root (orchestrator), never here.
 - `MemoryRecaller(store, embedder, clock, *, id_factory=<uuid4>)` is the memory v1 use-case
@@ -80,7 +87,7 @@ Use-case:
   `at` from the clock, embedding from the embedder), and returns it; `recall(query, *, k)`
   embeds `query` and returns the store's top-`k` `ScoredMemory`. Stateless over the store:
   every memory lives in `MemoryStore`, so recall is identical across restarts and swaps.
-  Turn integration (retrieve-into-context, record-at-turn-end) lands in a later increment.
+  Wired into `TurnEngine` (retrieve-into-context, record-at-turn-end) when injected.
 
 Reference implementations (pure, shipped in core; the runtime wiring until Slice 4):
 
