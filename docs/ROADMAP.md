@@ -71,8 +71,18 @@ the nomic candidates in ADR-0004 run on llama.cpp per ADR-0005); memory writes a
 end, top-k retrieval into cortex context. ADR resolving Letta vs. custom decides the
 implementation behind the unchanged port. The knowledge base's durable data lives under
 `D:\Software\AI\Database` (plug-and-play requirement, ADR-0004 addendum). Validate the
-Postgres-over-Windows-bind-mount caveat here; fallback is a named volume + automated
-sync into that directory.
+Postgres-over-Windows-bind-mount caveat here; fallback (now the default, ADR-0008) is a
+named volume + automated sync into that directory.
+
+**Status (2026-06-29):** design + ports-first increment landed
+([ADR-0008](adr/ADR-0008-memory-v1.md)): the `Embedder` + `MemoryStore` core ports, the
+`MemoryRecord`/`ScoredMemory` values, the `MemoryRecaller` remember/recall use-case, and
+the in-memory fakes (`InMemoryMemoryStore` cosine twin of pgvector, deterministic
+`HashEmbedder`). All 100% under `just check`, no DB. Remaining increments: wire memory
+into the turn (a `Role.SYSTEM` context message from `recall`, `record` at turn end); the
+CPU embedder adapter over llama.cpp `/v1/embeddings`; the pgvector adapter; and the
+host-driven host half (Postgres + pgvector up, the nomic pick measured, the volume/export
+and bind-mount caveat validated).
 
 ## Slice 6 (Tools via MCP): files, then email
 

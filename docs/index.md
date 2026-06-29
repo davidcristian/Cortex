@@ -35,6 +35,11 @@ Start here. Rules for working in this repo: [AGENTS.md](../AGENTS.md).
   `ModelManager` core port; the `LlamaCppBackend` httpx adapter behind the unchanged
   `InferenceBackend`; a pure single-resident Model Manager (no swap yet); Echo stays the
   GPU-less default, llama.cpp opt-in; the `docker-compose.gpu.yml` override.
+- [ADR-0008: Memory v1](adr/ADR-0008-memory-v1.md): custom-and-thin over pgvector, not
+  Letta (no framework that hides control flow); `Embedder` + `MemoryStore` ports and the
+  `MemoryRecaller` use-case; the pgvector adapter stays 100%-covered without a DB in CI via
+  the accepted MockTransport pattern (behavior proven against the fake in CI, against real
+  Postgres on the host); durable data as a named volume + export to `D:\Software\AI\Database`.
 
 New non-obvious decision → add `adr/ADR-XXXX-<slug>.md`, link it here.
 
@@ -44,7 +49,7 @@ New non-obvious decision → add `adr/ADR-XXXX-<slug>.md`, link it here.
 - [modules/](modules/) holds one short contract doc per module (purpose, public contract,
   invariants, dependencies). Every module lands with its doc:
   - [brain-core.md](modules/brain-core.md) covers `cortex_core`: pure brain logic (routing,
-    conversation domain, ports, the turn engine, reference fakes).
+    conversation + memory domains, ports, the turn engine, the memory recaller, fakes).
   - [brain-session.md](modules/brain-session.md) covers `cortex_session`: Redis adapter for
     the `SessionStore` port.
   - [brain-inference.md](modules/brain-inference.md) covers `cortex_inference`: llama.cpp

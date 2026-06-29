@@ -13,6 +13,14 @@ class InferenceError(Exception):
     """An InferenceBackend failed to produce or continue a completion."""
 
 
+class MemoryStoreError(Exception):
+    """A MemoryStore operation failed (memory adapters wrap their backend's errors)."""
+
+
+class EmbedderError(Exception):
+    """An Embedder failed to produce an embedding (adapters wrap their backend's errors)."""
+
+
 class ModelManagerError(Exception):
     """A ModelManager operation failed; adapters wrap their backend's errors into this."""
 
