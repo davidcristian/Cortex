@@ -117,3 +117,25 @@ added to the GPU Compose command when the real tool path is validated on the hos
   the runbook.
 - **Loop non-termination / tool spam.** Bounded by the max-steps guard; the audit trail
   makes runaway visible. Salience/rate policy is a later refinement behind the port.
+
+## Addendum (2026-06-29): increment 3 host validation
+
+The filesystem sidecar + `McpToolRegistry` were validated on the host machine (WSL +
+Docker Desktop). The sidecar is `@modelcontextprotocol/server-filesystem` bridged to
+streamable-http by `supergateway` (`--outputTransport streamableHttp --port 9000`, endpoint
+`/mcp`), with `./sandbox` bind-mounted read-only at `/projects`. `McpToolRegistry.connect`
+opened a real session, `describe_tools()` listed the server's 14 tools, and
+`read_text_file` returned the file's contents (`is_error=False`). The integration test
+passed.
+
+- **Read-only containment works at the OS level.** `write_file` on the mount returned
+  `is_error=True` with `EROFS: read-only file system`. The model *can* call a write tool,
+  but the mount blocks it. This is the real security boundary (fork 2), proven end to end.
+- **The reference server advertises write tools** (`write_file`, `edit_file`, `move_file`,
+  `create_directory`) rather than a read-only subset, so decision 5's "only the read-only
+  subset registers" is enforced by the **mount**, not by tool filtering. Filtering the
+  advertised set to the read tools (so the model never sees a write tool that will EROFS) is
+  a **noted refinement**, behind the unchanged port; the mount makes it a UX nicety, not a
+  security need.
+- **The read tool is `read_text_file`** on the current server (older builds named it
+  `read_file`, still present); the live test's tool name is env-overridable.

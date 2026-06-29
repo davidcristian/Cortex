@@ -139,9 +139,11 @@ filesystem tool** (CI half): the `cortex_tools` package with `McpToolRegistry` o
 `mcp` SDK (pinned `>=1.23,<2`) behind an injected `McpSession` port + fake (100% without a
 server), plus the `LoggingAuditSink`; wired into `run_from_env` **opt-in**
 (`CORTEX_TOOLS_BACKEND`, default `none`); `docker-compose.tools.yml` adds the filesystem
-server as a read-only-mounted sidecar over streamable-http. Host validation of the live
-sidecar + the integration test is the host-driven half. Increment 4 (the read-only IMAP
-email server for ProtonMail Bridge) follows.
+server as a read-only-mounted sidecar over streamable-http. Host-validated (2026-06-29):
+the live sidecar (supergateway-bridged filesystem server) passed the integration test, and
+the read-only mount blocked a write (`EROFS`), with the containment boundary proven end to end
+([ADR-0009 addendum](adr/ADR-0009-tools-mcp.md)). Increment 4 (the read-only IMAP email
+server for ProtonMail Bridge) follows.
 
 ## Slice 7 (Subagents)
 
