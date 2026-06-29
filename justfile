@@ -83,7 +83,20 @@ up:
 down:
     docker compose down
 
+# Brain + a GPU llama-server (real inference). Needs an NVIDIA GPU + configured models dir;
+# see docs/runbooks/llamacpp-gpu.md. Never runs in CI (GPU-less by design, AGENTS.md gate 3).
+up-gpu:
+    docker compose -f docker-compose.yml -f docker-compose.gpu.yml up -d --build
+
+down-gpu:
+    docker compose -f docker-compose.yml -f docker-compose.gpu.yml down
+
 # Live seam check from the body side. Needs a running brain (`just up` or `just brain-serve`);
 # this is the Rust integration suite (#[ignore]-marked, never in CI/coverage per ADR-0003).
 seam-health:
     cd body && cargo test -p body-rpc --test live -- --ignored --nocapture
+
+# Live inference check: streams a real completion through LlamaCppBackend. Needs the gpu
+# stack up (`just up-gpu`); integration-marked, never in CI/coverage (ADR-0007).
+brain-inference-live:
+    cd brain && CORTEX_INFERENCE_ENDPOINT=http://127.0.0.1:8080 uv run pytest -m integration --no-cov packages/inference

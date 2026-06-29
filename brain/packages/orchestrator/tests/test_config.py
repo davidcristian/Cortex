@@ -1,13 +1,21 @@
-"""Config behavior: defaults and env overrides for both settings models."""
+"""Config behavior: defaults and env overrides for the settings models."""
 
 import pytest
+from pydantic import ValidationError
 
-from cortex_orchestrator import BrainRuntimeConfig, SeamServerConfig
+from cortex_orchestrator import BrainRuntimeConfig, InferenceConfig, SeamServerConfig
 
 
 @pytest.fixture
 def clean_env(monkeypatch: pytest.MonkeyPatch) -> None:
-    for name in ("CORTEX_SEAM_HOST", "CORTEX_SEAM_PORT", "CORTEX_REDIS_URL", "CORTEX_MODEL_CORTEX"):
+    for name in (
+        "CORTEX_SEAM_HOST",
+        "CORTEX_SEAM_PORT",
+        "CORTEX_REDIS_URL",
+        "CORTEX_MODEL_CORTEX",
+        "CORTEX_INFERENCE_BACKEND",
+        "CORTEX_INFERENCE_ENDPOINT",
+    ):
         monkeypatch.delenv(name, raising=False)
 
 
@@ -59,3 +67,26 @@ def test_runtime_explicit_arguments_beat_the_environment(monkeypatch: pytest.Mon
     config = BrainRuntimeConfig(redis_url="redis://explicit:6379/1", cortex_model="explicit")
     assert config.redis_url == "redis://explicit:6379/1"
     assert config.cortex_model == "explicit"
+
+
+@pytest.mark.usefixtures("clean_env")
+def test_inference_defaults_to_echo_without_an_endpoint() -> None:
+    config = InferenceConfig()
+    assert config.backend == "echo"
+    assert config.endpoint == ""
+
+
+@pytest.mark.usefixtures("clean_env")
+def test_inference_env_selects_llamacpp_with_an_endpoint(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("CORTEX_INFERENCE_BACKEND", "llamacpp")
+    monkeypatch.setenv("CORTEX_INFERENCE_ENDPOINT", "http://llama-cortex:8080")
+    config = InferenceConfig()
+    assert config.backend == "llamacpp"
+    assert config.endpoint == "http://llama-cortex:8080"
+
+
+@pytest.mark.usefixtures("clean_env")
+def test_inference_llamacpp_without_endpoint_is_rejected(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("CORTEX_INFERENCE_BACKEND", "llamacpp")
+    with pytest.raises(ValidationError, match="CORTEX_INFERENCE_ENDPOINT is required"):
+        InferenceConfig()

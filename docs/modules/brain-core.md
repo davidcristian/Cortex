@@ -26,6 +26,12 @@ Conversation domain (Slice 3):
   `TurnEvent` is their union (the orchestrator maps them onto the proto's
   `ServerEvent` at the seam).
 
+Model management (Slice 4, ADR-0007):
+
+- `ModelLease` is a frozen dataclass: `endpoint: str`. A live claim on the GPU for one
+  model, valid only inside the `acquire(...)` block that yields it; `endpoint` is the
+  base URL of that model's `llama-server`.
+
 Ports (`typing.Protocol`; failures cross them only as the typed errors below):
 
 - `SessionStore` provides `async append(session_id, message) -> None`,
@@ -33,9 +39,13 @@ Ports (`typing.Protocol`; failures cross them only as the typed errors below):
   The source of truth for conversation state; survives swaps and restarts.
 - `InferenceBackend` provides `stream(model, messages) -> AsyncIterator[str]`: one stateless
   streamed completion. `model` is a logical id (ADR-0004), never a path.
+- `ModelManager` provides `acquire(model) -> AbstractAsyncContextManager[ModelLease]`: owns the
+  GPU, queues for access, yields a `ModelLease`; leaving the block releases it to the
+  next waiter. Consumed by the inference adapter (and, later, the handoff use-case).
 - `Clock` provides `now() -> datetime`, always tz-aware. The core's only time source.
-- `SessionStoreError` / `InferenceError` are typed errors; adapters wrap their backend's
-  failures into these with the cause chained.
+- `SessionStoreError` / `InferenceError` / `ModelManagerError` (+ its
+  `ModelUnavailableError`) are typed errors; adapters wrap their backend's failures into
+  these with the cause chained.
 
 Use-case:
 
@@ -62,6 +72,13 @@ Reference implementations (pure, shipped in core; the runtime wiring until Slice
   latest user text is `T`, streams exactly `"reply {n}: {T}"` in three deltas; raises
   `InferenceError` if the history has no user message. Because `n` comes from the
   store, it keeps counting across a process restart. That is observable state survival.
+- `SingleResidentModelManager(resident_model, endpoint)` is the `ModelManager` v1
+  (ADR-0007 d3): pure policy, no I/O. `acquire` serializes callers with an
+  `asyncio.Lock` (its waiter queue is the "queue API") and yields a `ModelLease` for the
+  `endpoint`; acquiring any model other than `resident_model` raises
+  `ModelUnavailableError` (v1 performs no swap, since that lands in Slice 11). Lives in the
+  core because it does no I/O; the process-lifecycle adapter arrives later behind the
+  same port.
 - `SystemClock` provides tz-aware UTC `now()`.
 
 **Invariants.**

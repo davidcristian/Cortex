@@ -1,0 +1,67 @@
+# GPU override for the brain (Slice 4 with the ADR-0005 engine, ADR-0007 wiring). Layer it ON
+# TOP of the base file:
+#     docker compose -f docker-compose.yml -f docker-compose.gpu.yml up
+# It adds one llama-server (the resident cortex model) and flips the brain from the Echo
+# fake to the real llama.cpp adapter pointed at it. CI never runs this file, since CI is
+# GPU-less by design (AGENTS.md gate 3). Everything marked "validate on host" is
+# measured/finalized in docs/runbooks/llamacpp-gpu.md and ADR-0004 (final model picks).
+#
+# Set these on the host (a .env next to this file works):
+#   CORTEX_MODELS_DIR      host dir holding the GGUFs (default ./models, ADR-0004)
+#   CORTEX_MODEL_FILE_CORTEX  the cortex GGUF filename inside that dir (chosen in Slice 4)
+
+services:
+  brain:
+    environment:
+      # Opt into the real adapter; without this the base image runs Echo (ADR-0007 d4).
+      CORTEX_INFERENCE_BACKEND: "llamacpp"
+      # In-network address of the llama-server below (NOT the host-published port).
+      CORTEX_INFERENCE_ENDPOINT: "http://llama-cortex:8080"
+    depends_on:
+      llama-cortex:
+        condition: service_healthy
+
+  llama-cortex:
+    # OpenAI-compatible CUDA server build of llama.cpp (ADR-0005). Pin to a digest on the
+    # host once chosen. Mutable tags are a supply-chain risk (ADR-0006).
+    image: "ghcr.io/ggml-org/llama.cpp:server-cuda"
+    # The resident cortex model. Artifact filename and flags (context size, etc.) are
+    # finalized against measured VRAM (ADR-0004 §4). -ngl 99 offloads all layers to the GPU.
+    command:
+      - "--model"
+      - "/models/${CORTEX_MODEL_FILE_CORTEX:-REPLACE_WITH_CORTEX_ARTIFACT.gguf}"
+      - "--host"
+      - "0.0.0.0"
+      - "--port"
+      - "8080"
+      - "-ngl"
+      - "99"
+    volumes:
+      # Models stay on the Windows drive, mounted read-only (ADR-0004 d3). Forward slashes
+      # work in Docker Desktop on Windows; override the source with CORTEX_MODELS_DIR.
+      - type: bind
+        source: "${CORTEX_MODELS_DIR:-./models}"
+        target: /models
+        read_only: true
+    ports:
+      # Loopback-only publish so host-side integration tests can reach it (assumption 5);
+      # the brain uses the in-network address above, not this one.
+      - "127.0.0.1:8080:8080"
+    restart: unless-stopped
+    healthcheck:
+      # llama-server serves /health once the model finishes loading; the generous
+      # start_period covers loading a multi-GB GGUF off the bind mount (ROADMAP
+      # assumption 2). If this image ships without curl, swap in the runbook's alternative.
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8080/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 180s
+      start_interval: 2s
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: ["gpu"]
