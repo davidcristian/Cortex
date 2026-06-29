@@ -80,7 +80,7 @@ deferred to Slice 11, when swap gives it real I/O.
 
 ## Slice 5 (Memory v1): retrieval that grows
 
-**Status:** in progress.
+**Status:** done.
 
 `MemoryStore` + `Embedder` ports; pgvector adapter + local embedding model (fake in CI;
 the nomic candidates in ADR-0004 run on llama.cpp per ADR-0005); memory writes at turn
@@ -106,8 +106,10 @@ OpenAI `/v1/embeddings` endpoint behind the `Embedder` port, 100%-covered via
 port, 100%-covered without a DB via a canned-row fake `Database` (the asyncpg analog of
 `MockTransport`); wired into `run_from_env` **opt-in** (`CORTEX_MEMORY_BACKEND`, default
 `none`) alongside the embedder; `docker-compose.memory.yml` adds Postgres+pgvector + a CPU
-embedder. Remaining: the host-driven host half (Postgres up, the memory + embedder live
-tests run, the nomic pick measured), per
+embedder. Host half validated (2026-06-29): the memory contract passed against real
+Postgres+pgvector 0.8.4 and the embedder against a live CPU `llama-server`. The nomic pick
+is **nomic-embed-text-v1.5 Q8_0** (768-dim), recorded in the
+[ADR-0004 addendum](adr/ADR-0004-model-lineup.md), per
 [docs/runbooks/memory-pgvector.md](runbooks/memory-pgvector.md).
 
 ## Slice 6 (Tools via MCP): files, then email
