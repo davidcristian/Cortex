@@ -24,7 +24,7 @@ Start here. Rules for working in this repo: [AGENTS.md](../AGENTS.md).
   the CORTEX_SEAM_* env contract.
 - [ADR-0004: Model lineup](adr/ADR-0004-model-lineup.md): locked candidate sets per
   tier + embedder (all GGUF via LM Studio), logical model ids, local data locations
-  (models in `D:\Software\AI Models`, knowledge base in `D:\Software\AI Database`).
+  (models in `D:\Software\AI\Models`, knowledge base in `D:\Software\AI\Database`).
 - [ADR-0005: llama.cpp as the inference engine](adr/ADR-0005-llamacpp-engine.md):
   supersedes vLLM (ADR-0001 d4); one `llama-server` per model behind the
   OpenAI-compatible API; swap = process lifecycle; embeddings on the same engine.

@@ -34,8 +34,16 @@ services:
       - "0.0.0.0"
       - "--port"
       - "8080"
+      # -ngl 99 = all layers on the GPU. Set CORTEX_NGL=0 for CPU-only, or a lower number
+      # for hybrid offload with per-process placement (ADR-0004 addendum), no core change.
       - "-ngl"
-      - "99"
+      - "${CORTEX_NGL:-99}"
+      # Explicit context: the model default (262144) pre-allocates a huge KV cache that
+      # blows the VRAM envelope. Single slot. The Model Manager serializes turns anyway.
+      - "--ctx-size"
+      - "${CORTEX_CTX_SIZE:-16384}"
+      - "--parallel"
+      - "1"
     volumes:
       # Models stay on the Windows drive, mounted read-only (ADR-0004 d3). Forward slashes
       # work in Docker Desktop on Windows; override the source with CORTEX_MODELS_DIR.
