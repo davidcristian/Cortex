@@ -63,6 +63,8 @@ New non-obvious decision → add `adr/ADR-XXXX-<slug>.md`, link it here.
     adapter for the `Embedder` port (OpenAI `/v1/embeddings`).
   - [brain-memory.md](modules/brain-memory.md) covers `cortex_memory`: pgvector adapter for the
     `MemoryStore` port (Postgres, cosine ranking).
+  - [brain-tools.md](modules/brain-tools.md) covers `cortex_tools`: MCP-client adapter for the
+    `ToolRegistry` port + the logging audit sink (ADR-0009).
   - [brain-seam.md](modules/brain-seam.md) covers `cortex_seam`: committed wire stubs + facade.
   - [brain-orchestrator.md](modules/brain-orchestrator.md) covers `cortex_orchestrator`:
     the gRPC service hosting `BrainService`.
@@ -79,4 +81,6 @@ New non-obvious decision → add `adr/ADR-XXXX-<slug>.md`, link it here.
   GPU compose override, run the integration test, measure VRAM, lock the final picks.
 - [runbooks/memory-pgvector.md](runbooks/memory-pgvector.md) covers Slice 5 host half: bring up
   Postgres+pgvector and the CPU embedder, run the memory/embedder integration tests.
+- [runbooks/tools-mcp.md](runbooks/tools-mcp.md) covers Slice 6 host half: bring up the filesystem
+  MCP sidecar (streamable-http, read-only mount), run the tools integration test.
 - Expected as later slices land: `model-swap.md` (Slice 11).

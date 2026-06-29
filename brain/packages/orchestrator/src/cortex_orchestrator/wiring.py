@@ -11,6 +11,7 @@ from cortex_core import (
     MemoryRecaller,
     SingleResidentModelManager,
     SystemClock,
+    ToolDispatcher,
     TurnCapabilities,
     TurnEngine,
 )
@@ -22,9 +23,11 @@ from cortex_orchestrator.config import (
     InferenceConfig,
     MemoryConfig,
     SeamServerConfig,
+    ToolsConfig,
 )
 from cortex_orchestrator.server import serve
 from cortex_session import RedisSessionStore
+from cortex_tools import LoggingAuditSink, McpToolRegistry
 
 # Connect/write/pool time out fast on a dead server; reads have no deadline, since a
 # generation may legitimately stream for a long time (the adapter sets no timeout itself).
@@ -74,6 +77,16 @@ async def build_memory(
     return None, _noop_aclose
 
 
+async def build_tools(
+    config: ToolsConfig, clock: Clock
+) -> tuple[ToolDispatcher | None, Callable[[], Awaitable[None]]]:
+    """Pick the tools backend from config; return the dispatcher (or None) with its closer."""
+    if config.backend == "mcp":
+        registry, close = await McpToolRegistry.connect(config.endpoint)
+        return ToolDispatcher(registry, LoggingAuditSink(), clock), close
+    return None, _noop_aclose
+
+
 async def run_from_env(
     *,
     store_factory: Callable[[str], RedisSessionStore] = RedisSessionStore.from_url,
@@ -83,20 +96,23 @@ async def run_from_env(
     runtime = BrainRuntimeConfig()
     inference = InferenceConfig()
     memory_config = MemoryConfig()
+    tools_config = ToolsConfig()
     clock = SystemClock()
     store = store_factory(runtime.redis_url)
     backend, close_backend = build_inference_backend(inference, runtime.cortex_model)
     memory, close_memory = await build_memory(memory_config, clock)
+    tools, close_tools = await build_tools(tools_config, clock)
     try:
         engine = TurnEngine(
             store,
             backend,
             clock,
             cortex_model=runtime.cortex_model,
-            capabilities=TurnCapabilities(memory=memory),
+            capabilities=TurnCapabilities(memory=memory, tools=tools),
         )
         await serve(seam_config, engine)
     finally:
+        await close_tools()
         await close_memory()
         await close_backend()
         await store.aclose()

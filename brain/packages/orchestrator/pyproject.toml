@@ -10,6 +10,7 @@ dependencies = [
   "cortex-memory",
   "cortex-seam",
   "cortex-session",
+  "cortex-tools",
   # Floor tracks the committed gencode's import-time minimum; bump on every regen (ADR-0003).
   "grpcio>=1.81.1",
   "httpx>=0.27",
@@ -24,6 +25,7 @@ cortex-inference = { workspace = true }
 cortex-memory = { workspace = true }
 cortex-seam = { workspace = true }
 cortex-session = { workspace = true }
+cortex-tools = { workspace = true }
 
 [build-system]
 requires = ["hatchling"]

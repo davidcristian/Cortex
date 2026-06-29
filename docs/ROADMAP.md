@@ -134,8 +134,14 @@ now yields `InferenceEvent` (`TextChunk | ToolCall`) and takes `tools`; `Message
 (dispatch is audited, results fed back, tool context in-turn only in v1); and `LlamaCppBackend`
 sends the OpenAI `tools` payload and reassembles streamed `tool_calls` (needs `--jinja`). The
 three forks are resolved in ADR-0009: **native function-calling**, **sidecar-over-http** tool
-servers, and a **thin read-only IMAP** email server for ProtonMail Bridge. Increments 3-4
-(the MCP filesystem adapter; the email server) follow.
+servers, and a **thin read-only IMAP** email server for ProtonMail Bridge. (3) **The MCP
+filesystem tool** (CI half): the `cortex_tools` package with `McpToolRegistry` over the official
+`mcp` SDK (pinned `>=1.23,<2`) behind an injected `McpSession` port + fake (100% without a
+server), plus the `LoggingAuditSink`; wired into `run_from_env` **opt-in**
+(`CORTEX_TOOLS_BACKEND`, default `none`); `docker-compose.tools.yml` adds the filesystem
+server as a read-only-mounted sidecar over streamable-http. Host validation of the live
+sidecar + the integration test is the host-driven half. Increment 4 (the read-only IMAP
+email server for ProtonMail Bridge) follows.
 
 ## Slice 7 (Subagents)
 

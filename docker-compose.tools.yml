@@ -1,0 +1,36 @@
+
+services:
+  brain:
+    environment:
+      # Opt into tools; without this the base image runs tools=none (ADR-0009).
+      CORTEX_TOOLS_BACKEND: "mcp"
+      CORTEX_TOOLS_ENDPOINT: "http://mcp-filesystem:9000/mcp"
+    depends_on:
+      mcp-filesystem:
+        condition: service_started
+
+  mcp-filesystem:
+    # supergateway bridges the stdio reference filesystem server to streamable-http; the
+    # server is confined to /projects (the read-only mount below). Pin the filesystem server
+    # to a patched version on the host. See docs/runbooks/tools-mcp.md.
+    image: "node:22-bookworm-slim"
+    command:
+      - "npx"
+      - "-y"
+      - "supergateway"
+      - "--outputTransport"
+      - "streamableHttp"
+      - "--port"
+      - "9000"
+      - "--stdio"
+      - "npx -y @modelcontextprotocol/server-filesystem /projects"
+    volumes:
+      # The ONLY thing the filesystem tool can see, and it cannot write it (ADR-0009).
+      - type: bind
+        source: "${CORTEX_TOOLS_ROOT:-./sandbox}"
+        target: /projects
+        read_only: true
+    ports:
+      # Loopback-only publish so a host-side integration test can reach it (assumption 5).
+      - "127.0.0.1:9000:9000"
+    restart: unless-stopped
