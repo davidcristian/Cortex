@@ -6,6 +6,7 @@ target-version = "py312"
 line-length = 100
 src = [
   "brain/packages/core/src",
+  "brain/packages/email/src",
   "brain/packages/embedding/src",
   "brain/packages/inference/src",
   "brain/packages/memory/src",
