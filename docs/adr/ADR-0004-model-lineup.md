@@ -8,7 +8,7 @@
 
 Three tiers share the 24 GB GPU (ADR-0001); cortex + embedder + one subagent must fit in
 12 GB, and the cortex must be natively multimodal (vision). The user has downloaded the
-candidates locally via LM Studio to `D:\Software\AI Models` (Windows; the drive is not
+candidates locally via LM Studio to `D:\Software\AI\Models` (Windows; the drive is not
 mounted into WSL).
 
 ## Decision on candidate sets (verbatim)
@@ -32,7 +32,7 @@ they use more memory; revisit only if latency demands it.
 2. **Logical model ids, not file paths.** The core and config speak tier-logical ids
    (`cortex`, `subagent`, `brain`); only the inference adapter maps ids to artifact
    paths. File paths never enter the core.
-3. **Model access without copying.** Models stay in `D:\Software\AI Models`. The
+3. **Model access without copying.** Models stay in `D:\Software\AI\Models`. The
    inference container bind-mounts that directory via Docker Desktop (Windows paths work
    natively in compose on this setup); WSL never needs the files unless the
    swap-latency fallback in ADR-0005 kicks in and hot models get mirrored into a

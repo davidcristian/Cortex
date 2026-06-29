@@ -31,7 +31,7 @@ program on a consumer GPU, not a throughput-serving deployment.
    engine for all tiers plus the embedder, one VRAM accounting model (per-process).
 5. **GPU deployment stays dockerized** via the NVIDIA container toolkit in the
    `docker-compose.gpu.yml` override (pinned llama.cpp CUDA server image or build),
-   with models bind-mounted read-only from `D:\Software\AI Models` (ADR-0004).
+   with models bind-mounted read-only from `D:\Software\AI\Models` (ADR-0004).
 6. **Portability improves.** llama.cpp runs Metal and CPU: the future macOS move can
    likely reuse this same adapter against a Metal build (the second portability seam in
    AGENTS.md/ARCHITECTURE.md; the new MLX adapter ADR-0001 d4 anticipated is likely
