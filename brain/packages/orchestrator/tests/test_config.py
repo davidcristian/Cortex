@@ -3,7 +3,12 @@
 import pytest
 from pydantic import ValidationError
 
-from cortex_orchestrator import BrainRuntimeConfig, InferenceConfig, SeamServerConfig
+from cortex_orchestrator import (
+    BrainRuntimeConfig,
+    InferenceConfig,
+    MemoryConfig,
+    SeamServerConfig,
+)
 
 
 @pytest.fixture
@@ -15,6 +20,10 @@ def clean_env(monkeypatch: pytest.MonkeyPatch) -> None:
         "CORTEX_MODEL_CORTEX",
         "CORTEX_INFERENCE_BACKEND",
         "CORTEX_INFERENCE_ENDPOINT",
+        "CORTEX_MEMORY_BACKEND",
+        "CORTEX_MEMORY_DSN",
+        "CORTEX_MEMORY_EMBEDDER_ENDPOINT",
+        "CORTEX_MEMORY_EMBEDDER_MODEL",
     ):
         monkeypatch.delenv(name, raising=False)
 
@@ -90,3 +99,30 @@ def test_inference_llamacpp_without_endpoint_is_rejected(monkeypatch: pytest.Mon
     monkeypatch.setenv("CORTEX_INFERENCE_BACKEND", "llamacpp")
     with pytest.raises(ValidationError, match="CORTEX_INFERENCE_ENDPOINT is required"):
         InferenceConfig()
+
+
+@pytest.mark.usefixtures("clean_env")
+def test_memory_defaults_to_disabled() -> None:
+    config = MemoryConfig()
+    assert config.backend == "none"
+    assert config.dsn == ""
+    assert config.embedder_endpoint == ""
+
+
+@pytest.mark.usefixtures("clean_env")
+def test_memory_env_selects_pgvector_with_dsn_and_embedder(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("CORTEX_MEMORY_BACKEND", "pgvector")
+    monkeypatch.setenv("CORTEX_MEMORY_DSN", "postgresql://cortex@db/cortex")
+    monkeypatch.setenv("CORTEX_MEMORY_EMBEDDER_ENDPOINT", "http://llama-embed:8081")
+    config = MemoryConfig()
+    assert config.backend == "pgvector"
+    assert config.dsn == "postgresql://cortex@db/cortex"
+    assert config.embedder_endpoint == "http://llama-embed:8081"
+
+
+@pytest.mark.usefixtures("clean_env")
+def test_memory_pgvector_without_dsn_is_rejected(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("CORTEX_MEMORY_BACKEND", "pgvector")
+    monkeypatch.setenv("CORTEX_MEMORY_EMBEDDER_ENDPOINT", "http://llama-embed:8081")
+    with pytest.raises(ValidationError, match="CORTEX_MEMORY_DSN and CORTEX_MEMORY_EMBEDDER"):
+        MemoryConfig()

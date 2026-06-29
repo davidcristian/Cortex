@@ -9,6 +9,7 @@ from cortex_core import DEFAULT_CORTEX_MODEL
 from cortex_session import DEFAULT_REDIS_URL
 
 InferenceBackendName = Literal["echo", "llamacpp"]
+MemoryBackendName = Literal["none", "pgvector"]
 
 
 class SeamServerConfig(BaseSettings):
@@ -53,5 +54,26 @@ class InferenceConfig(BaseSettings):
     def _llamacpp_needs_an_endpoint(self) -> "InferenceConfig":
         if self.backend == "llamacpp" and not self.endpoint:
             msg = "CORTEX_INFERENCE_ENDPOINT is required when CORTEX_INFERENCE_BACKEND=llamacpp"
+            raise ValueError(msg)
+        return self
+
+
+class MemoryConfig(BaseSettings):
+    """Whether turns recall/record durable memory (ADR-0008)."""
+
+    model_config = SettingsConfigDict(env_prefix="CORTEX_MEMORY_")
+
+    backend: MemoryBackendName = "none"
+    dsn: str = ""
+    embedder_endpoint: str = ""
+    embedder_model: str = "embedding"
+
+    @model_validator(mode="after")
+    def _pgvector_needs_dsn_and_embedder(self) -> "MemoryConfig":
+        if self.backend == "pgvector" and not (self.dsn and self.embedder_endpoint):
+            msg = (
+                "CORTEX_MEMORY_DSN and CORTEX_MEMORY_EMBEDDER_ENDPOINT are required when "
+                "CORTEX_MEMORY_BACKEND=pgvector"
+            )
             raise ValueError(msg)
         return self

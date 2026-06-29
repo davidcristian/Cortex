@@ -101,10 +101,14 @@ and records the exchange at turn end. `memory=None` keeps the old behavior, so t
 default path is unchanged.
 (3) The CPU embedder adapter (`cortex_embedding`): `LlamaCppEmbedder` over a llama-server
 OpenAI `/v1/embeddings` endpoint behind the `Embedder` port, 100%-covered via
-`httpx.MockTransport` with an `integration`-marked live test. Remaining increments: the
-pgvector adapter + its composition-root wiring (memory + embedder are not wired into
-`run_from_env` until the durable store exists); and the host-driven host half (Postgres +
-pgvector up, the nomic pick measured, the volume/export and bind-mount caveat validated).
+`httpx.MockTransport` with an `integration`-marked live test.
+(4) The pgvector adapter (`cortex_memory`): `PgVectorMemoryStore` behind the `MemoryStore`
+port, 100%-covered without a DB via a canned-row fake `Database` (the asyncpg analog of
+`MockTransport`); wired into `run_from_env` **opt-in** (`CORTEX_MEMORY_BACKEND`, default
+`none`) alongside the embedder; `docker-compose.memory.yml` adds Postgres+pgvector + a CPU
+embedder. Remaining: the host-driven host half (Postgres up, the memory + embedder live
+tests run, the nomic pick measured), per
+[docs/runbooks/memory-pgvector.md](runbooks/memory-pgvector.md).
 
 ## Slice 6 (Tools via MCP): files, then email
 

@@ -1,6 +1,11 @@
 """Cortex orchestrator: the thin gRPC shell hosting BrainService (logic lives in cortex_core)."""
 
-from cortex_orchestrator.config import BrainRuntimeConfig, InferenceConfig, SeamServerConfig
+from cortex_orchestrator.config import (
+    BrainRuntimeConfig,
+    InferenceConfig,
+    MemoryConfig,
+    SeamServerConfig,
+)
 from cortex_orchestrator.converse import (
     ERROR_CODE_INFERENCE_FAILED,
     ERROR_CODE_INTERNAL,
@@ -8,7 +13,7 @@ from cortex_orchestrator.converse import (
     converse,
 )
 from cortex_orchestrator.server import ORCHESTRATOR_VERSION, BrainService, create_server, serve
-from cortex_orchestrator.wiring import build_inference_backend, run_from_env
+from cortex_orchestrator.wiring import build_inference_backend, build_memory, run_from_env
 
 __all__ = [
     "ERROR_CODE_INFERENCE_FAILED",
@@ -18,8 +23,10 @@ __all__ = [
     "BrainRuntimeConfig",
     "BrainService",
     "InferenceConfig",
+    "MemoryConfig",
     "SeamServerConfig",
     "build_inference_backend",
+    "build_memory",
     "converse",
     "create_server",
     "run_from_env",

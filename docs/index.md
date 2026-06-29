@@ -56,6 +56,8 @@ New non-obvious decision → add `adr/ADR-XXXX-<slug>.md`, link it here.
     adapter for the `InferenceBackend` port (OpenAI-compatible HTTP streaming).
   - [brain-embedding.md](modules/brain-embedding.md) covers `cortex_embedding`: llama.cpp CPU
     adapter for the `Embedder` port (OpenAI `/v1/embeddings`).
+  - [brain-memory.md](modules/brain-memory.md) covers `cortex_memory`: pgvector adapter for the
+    `MemoryStore` port (Postgres, cosine ranking).
   - [brain-seam.md](modules/brain-seam.md) covers `cortex_seam`: committed wire stubs + facade.
   - [brain-orchestrator.md](modules/brain-orchestrator.md) covers `cortex_orchestrator`:
     the gRPC service hosting `BrainService`.
@@ -70,4 +72,6 @@ New non-obvious decision → add `adr/ADR-XXXX-<slug>.md`, link it here.
   natively or in Compose, env vars, the live seam check, Docker Desktop notes.
 - [runbooks/llamacpp-gpu.md](runbooks/llamacpp-gpu.md) covers Slice 4 host half: bring up the
   GPU compose override, run the integration test, measure VRAM, lock the final picks.
+- [runbooks/memory-pgvector.md](runbooks/memory-pgvector.md) covers Slice 5 host half: bring up
+  Postgres+pgvector and the CPU embedder, run the memory/embedder integration tests.
 - Expected as later slices land: `model-swap.md` (Slice 11).
