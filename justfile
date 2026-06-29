@@ -3,8 +3,27 @@
 
 default: check
 
-# All gates: cross-tree line cap, both Python projects, the Rust workspace.
-check: check-linecap check-brain check-scripts check-body
+# All gates: cross-tree line cap first (fast), then the three tree checks in
+# PARALLEL (ADR-0006), so wall time ≈ the slowest tree. Output is buffered per tree
+# and printed in a fixed order so logs stay readable; any failure fails the gate.
+check:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    just check-linecap
+    tmp=$(mktemp -d)
+    trap 'rm -rf "$tmp"' EXIT
+    declare -A pid
+    for tree in brain scripts body; do
+        just "check-$tree" >"$tmp/$tree.log" 2>&1 &
+        pid[$tree]=$!
+    done
+    fail=0
+    for tree in brain scripts body; do
+        if wait "${pid[$tree]}"; then status=OK; else status=FAILED; fail=1; fi
+        echo "=== check-$tree: $status ==="
+        cat "$tmp/$tree.log"
+    done
+    exit "$fail"
 
 # AGENTS.md gate 1: ≤300 lines per non-test .py/.rs source file, both trees.
 check-linecap:
