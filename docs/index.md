@@ -21,6 +21,9 @@ Start here. Rules for working in this repo: [AGENTS.md](../AGENTS.md).
   stubs in `_generated` dirs (hermetic builds, `just proto` to regen), tonic + grpcio,
   `#[ignore]` tests as the Rust integration suite, stubs shared via `cortex_seam`,
   the CORTEX_SEAM_* env contract.
+- [ADR-0004: Model lineup](adr/ADR-0004-model-lineup.md): locked candidate sets per
+  tier (all GGUF via LM Studio), the vLLM-vs-llama.cpp engine question for Slice 4,
+  logical model ids, bind-mount access to `D:\Software\AI Models`.
 
 New non-obvious decision → add `adr/ADR-XXXX-<slug>.md`, link it here.
 
@@ -29,7 +32,10 @@ New non-obvious decision → add `adr/ADR-XXXX-<slug>.md`, link it here.
 - [proto/body.proto](../proto/body.proto) is the body↔brain seam (single source of truth).
 - [modules/](modules/) holds one short contract doc per module (purpose, public contract,
   invariants, dependencies). Every module lands with its doc:
-  - [brain-core.md](modules/brain-core.md) covers `cortex_core`: pure brain logic (routing).
+  - [brain-core.md](modules/brain-core.md) covers `cortex_core`: pure brain logic (routing,
+    conversation domain, ports, the turn engine, reference fakes).
+  - [brain-session.md](modules/brain-session.md) covers `cortex_session`: Redis adapter for
+    the `SessionStore` port.
   - [brain-seam.md](modules/brain-seam.md) covers `cortex_seam`: committed wire stubs + facade.
   - [brain-orchestrator.md](modules/brain-orchestrator.md) covers `cortex_orchestrator`:
     the gRPC service hosting `BrainService`.

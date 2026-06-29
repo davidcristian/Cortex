@@ -2,11 +2,10 @@
 
 import importlib
 
-from cortex_orchestrator import SeamServerConfig, serve
+from cortex_orchestrator import run_from_env
 
 
 def test_importing_the_entrypoint_starts_nothing() -> None:
     module = importlib.import_module("cortex_orchestrator.__main__")
     # Importing must only wire names together; serving happens solely under `-m`.
-    assert module.serve is serve
-    assert module.SeamServerConfig is SeamServerConfig
+    assert module.run_from_env is run_from_env

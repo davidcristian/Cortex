@@ -1,18 +1,20 @@
-"""BrainService hosted on grpc.aio: Health is live; Converse lands in Slice 3.
+"""BrainService hosted on grpc.aio: Health plus the Converse conversation loop.
 
-A thin service shell per AGENTS.md. Orchestration logic belongs in cortex_core
-(this slice has none). State never lives in this process beyond a single RPC.
+A thin service shell per AGENTS.md. Turn logic lives in cortex_core's TurnEngine
+and the stream mechanics in `converse.py`; this module only binds them to the wire.
+State never lives in this process beyond the in-flight turn (the one hard rule).
 """
 
 import asyncio
 import logging
 import signal
-from collections.abc import AsyncIterator
+from collections.abc import AsyncGenerator, AsyncIterator
 
-import grpc
 from grpc import aio
 
+from cortex_core import TurnEngine
 from cortex_orchestrator.config import SeamServerConfig
+from cortex_orchestrator.converse import converse
 from cortex_seam import (
     BrainServiceServicer,
     ClientEvent,
@@ -31,7 +33,14 @@ _logger = logging.getLogger(__name__)
 
 
 class BrainService(BrainServiceServicer):
-    """The brain's side of the seam (proto/body.proto BrainService)."""
+    """The brain's side of the seam (proto/body.proto BrainService).
+
+    Constructed with the turn engine by the composition root (`wiring.py` in
+    production, tests otherwise). DI stays at the edge, the service holds no state.
+    """
+
+    def __init__(self, engine: TurnEngine) -> None:
+        self._engine = engine
 
     async def Health(  # noqa: N802 - method name is fixed by the gRPC codegen interface
         self,
@@ -46,34 +55,42 @@ class BrainService(BrainServiceServicer):
         self,
         request_iterator: AsyncIterator[ClientEvent],
         context: aio.ServicerContext[ClientEvent, ServerEvent],
-    ) -> None:
-        """Abort UNIMPLEMENTED until the conversation loop arrives in Slice 3."""
-        del request_iterator  # part of the generated servicer signature; unused here
-        await context.abort(
-            grpc.StatusCode.UNIMPLEMENTED,
-            "Converse is not implemented yet; it arrives with Slice 3 (docs/ROADMAP.md).",
-        )
+    ) -> AsyncGenerator[ServerEvent, None]:
+        """Stream the conversation loop; contract and cancel semantics: `converse.py`.
+
+        `UserTurn.images` are ignored in this slice (multimodal arrives with vision,
+        Slice 10). Failures surface as a terminal SeamError event, never as an RPC error.
+        """
+        del context  # RPC cancellation/disconnect arrive as generator close, not via context
+        events = converse(self._engine, request_iterator)
+        try:
+            async for event in events:
+                yield event
+        finally:
+            # Runs on normal end, RPC cancel, and client disconnect alike: closing the
+            # stream tears down its pump task and any in-flight turn deterministically.
+            await events.aclose()
 
 
-def create_server(config: SeamServerConfig) -> tuple[aio.Server, int]:
-    """Build the aio server, register BrainService, and bind it (not yet started).
+def create_server(config: SeamServerConfig, engine: TurnEngine) -> tuple[aio.Server, int]:
+    """Build the aio server, register BrainService over `engine`, and bind it (not started).
 
     Returns the server plus the actually-bound port (useful when config.port is 0).
     """
     server = aio.server()
-    add_BrainServiceServicer_to_server(BrainService(), server)
+    add_BrainServiceServicer_to_server(BrainService(engine), server)
     bound_port = server.add_insecure_port(config.bind_address)
     return server, bound_port
 
 
-async def serve(config: SeamServerConfig) -> None:
+async def serve(config: SeamServerConfig, engine: TurnEngine) -> None:
     """Run the seam server until SIGTERM/SIGINT or cancellation; always stop gracefully.
 
     Signal handlers are installed on the running loop for the server's lifetime and
     removed on the way out; either signal (or cancelling this coroutine) drains in-flight
     RPCs for up to the shutdown grace period before the listener closes.
     """
-    server, bound_port = create_server(config)
+    server, bound_port = create_server(config, engine)
     await server.start()
     _logger.info("seam server listening", extra={"host": config.host, "port": bound_port})
     loop = asyncio.get_running_loop()

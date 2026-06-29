@@ -1,6 +1,6 @@
-# Brain services (Slice 2: the seam). The body is host-native and never dockerized
-# (AGENTS.md). CPU-only (no GPU anywhere in this file); the GPU override
-# (docker-compose.gpu.yml: vLLM + device reservations) arrives with Slice 4
+# Brain services (Slice 3: cortex-only chat; state in redis). The body is host-native
+# and never dockerized (AGENTS.md). CPU-only, with no GPU anywhere in this file; the GPU
+# override (docker-compose.gpu.yml: vLLM + device reservations) arrives with Slice 4
 # (docs/ROADMAP.md). Ops loop: docs/runbooks/local-dev-wsl.md.
 
 services:
@@ -9,6 +9,9 @@ services:
     environment:
       # Bind all container interfaces; exposure is governed by `ports` (ADR-0003 d6).
       CORTEX_SEAM_HOST: "0.0.0.0"
+      # Session state lives in the redis service, per the one hard rule: restarting the
+      # brain container must lose no conversation (see the runbook's restart check).
+      CORTEX_REDIS_URL: "redis://redis:6379/0"
     ports:
       # Loopback-only publish for the single-user security posture (ROADMAP assumption 5):
       # nothing listens beyond 127.0.0.1 on the host.
@@ -16,6 +19,9 @@ services:
     restart: unless-stopped
     # tini as PID 1 so SIGTERM reaches Python and `docker compose down` stays fast.
     init: true
+    depends_on:
+      redis:
+        condition: service_healthy
     healthcheck:
       # The real BrainService.Health RPC via the installed cortex_seam package, since
       # a bare TCP poke could pass while the gRPC server is broken.
@@ -31,3 +37,28 @@ services:
       retries: 3
       start_period: 15s
       start_interval: 1s
+
+  redis:
+    # redis over valkey: redis-py + fakeredis (the contract-test twin) track Redis
+    # semantics first, and Redis 8 is open source again (AGPLv3 option). Rationale
+    # in docs/runbooks/local-dev-wsl.md.
+    image: redis:8-alpine
+    # Append-only persistence so sessions also survive a redis restart, not just a
+    # brain restart; data lives in the named volume below.
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      # Loopback-only publish, for dev inspection with a host redis-cli (assumption 5).
+      - "127.0.0.1:6379:6379"
+    restart: unless-stopped
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+      start_interval: 1s
+
+volumes:
+  redis-data:
