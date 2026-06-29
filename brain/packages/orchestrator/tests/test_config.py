@@ -8,6 +8,7 @@ from cortex_orchestrator import (
     InferenceConfig,
     MemoryConfig,
     SeamServerConfig,
+    SubagentsConfig,
     ToolsConfig,
 )
 
@@ -27,6 +28,10 @@ def clean_env(monkeypatch: pytest.MonkeyPatch) -> None:
         "CORTEX_MEMORY_EMBEDDER_MODEL",
         "CORTEX_TOOLS_BACKEND",
         "CORTEX_TOOLS_ENDPOINT",
+        "CORTEX_SUBAGENTS_BACKEND",
+        "CORTEX_SUBAGENTS_ENDPOINT",
+        "CORTEX_SUBAGENTS_MODEL",
+        "CORTEX_SUBAGENTS_MAX_CONCURRENCY",
     ):
         monkeypatch.delenv(name, raising=False)
 
@@ -152,3 +157,41 @@ def test_tools_mcp_without_endpoint_is_rejected(monkeypatch: pytest.MonkeyPatch)
     monkeypatch.setenv("CORTEX_TOOLS_BACKEND", "mcp")
     with pytest.raises(ValidationError, match="CORTEX_TOOLS_ENDPOINT is required"):
         ToolsConfig()
+
+
+@pytest.mark.usefixtures("clean_env")
+def test_subagents_default_to_disabled() -> None:
+    config = SubagentsConfig()
+    assert config.backend == "none"
+    assert config.endpoint == ""
+    assert config.model == "subagent"  # a LOGICAL id (ADR-0004), never a path
+    assert config.max_concurrency == 2
+
+
+@pytest.mark.usefixtures("clean_env")
+def test_subagents_env_selects_llamacpp_with_endpoint_and_budget(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("CORTEX_SUBAGENTS_BACKEND", "llamacpp")
+    monkeypatch.setenv("CORTEX_SUBAGENTS_ENDPOINT", "http://llama-subagent:8082")
+    monkeypatch.setenv("CORTEX_SUBAGENTS_MODEL", "qwen3-2b")
+    monkeypatch.setenv("CORTEX_SUBAGENTS_MAX_CONCURRENCY", "3")
+    config = SubagentsConfig()
+    assert config.backend == "llamacpp"
+    assert config.endpoint == "http://llama-subagent:8082"
+    assert config.model == "qwen3-2b"
+    assert config.max_concurrency == 3
+
+
+@pytest.mark.usefixtures("clean_env")
+def test_subagents_llamacpp_without_endpoint_is_rejected(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("CORTEX_SUBAGENTS_BACKEND", "llamacpp")
+    with pytest.raises(ValidationError, match="CORTEX_SUBAGENTS_ENDPOINT is required"):
+        SubagentsConfig()
+
+
+@pytest.mark.usefixtures("clean_env")
+def test_subagents_max_concurrency_must_be_at_least_one(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("CORTEX_SUBAGENTS_MAX_CONCURRENCY", "0")
+    with pytest.raises(ValidationError, match="max_concurrency"):
+        SubagentsConfig()

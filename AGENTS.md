@@ -116,11 +116,12 @@ proto/            body↔brain gRPC contract (source of truth for the seam)
 docs/             ARCHITECTURE.md, index.md, ROADMAP.md, adr/, modules/, runbooks/
 brain/            Python workspace (uv), dockerized (brain/Dockerfile)
   packages/       core (pure logic + ports), seam (committed gRPC stubs + typed facade),
-                  orchestrator (hosts BrainService), session (Redis SessionStore
-                  adapter), inference (llama.cpp InferenceBackend adapter), embedding
+                  orchestrator (hosts BrainService), session (Redis SessionStore +
+                  TaskStore adapters), inference (llama.cpp InferenceBackend adapter), embedding
                   (llama.cpp CPU Embedder adapter), memory (pgvector MemoryStore adapter),
                   tools (MCP-client ToolRegistry adapter + audit sink), email (read-only IMAP
                   MCP server over ProtonMail Bridge);
+                  subagents live in core (runner, scheduler, spawn tool) + session (task store);
                   (planned) model_manager (Slice 11), body_client, shared
 body/             Rust/Tauri workspace, host-native
   crates/         core (pure logic + OS traits + BrainTransport port), rpc (tonic
@@ -134,5 +135,6 @@ docker-compose.yml   brain + redis in Compose, loopback-only; docker-compose.gpu
                      the llama.cpp server + read-only model bind mount (ADR-0005/0007);
                      docker-compose.memory.yml adds Postgres+pgvector + CPU embedder (ADR-0008);
                      docker-compose.tools.yml + docker-compose.email.yml add the MCP tool
-                     sidecars for filesystem and read-only email (ADR-0009)
+                     sidecars for filesystem and read-only email (ADR-0009);
+                     docker-compose.subagents.yml adds a CPU llama-server for subagents (ADR-0010)
 ```

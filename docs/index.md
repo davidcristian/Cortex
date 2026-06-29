@@ -61,8 +61,8 @@ New non-obvious decision → add `adr/ADR-XXXX-<slug>.md`, link it here.
   invariants, dependencies). Every module lands with its doc:
   - [brain-core.md](modules/brain-core.md) covers `cortex_core`: pure brain logic (routing,
     conversation + memory domains, ports, the turn engine, the memory recaller, fakes).
-  - [brain-session.md](modules/brain-session.md) covers `cortex_session`: Redis adapter for
-    the `SessionStore` port.
+  - [brain-session.md](modules/brain-session.md) covers `cortex_session`: Redis adapters for the
+    `SessionStore` and `TaskStore` (subagent tasks, ADR-0010) hot-state ports.
   - [brain-inference.md](modules/brain-inference.md) covers `cortex_inference`: llama.cpp
     adapter for the `InferenceBackend` port (OpenAI-compatible HTTP streaming).
   - [brain-embedding.md](modules/brain-embedding.md) covers `cortex_embedding`: llama.cpp CPU
