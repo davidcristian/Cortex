@@ -34,6 +34,10 @@ class ToolNotFoundError(ToolError):
     """invoke() named a tool the registry does not know."""
 
 
+class TaskStoreError(Exception):
+    """A TaskStore operation failed (task-store adapters wrap their backend's errors)."""
+
+
 class ModelManagerError(Exception):
     """A ModelManager operation failed; adapters wrap their backend's errors into this."""
 
