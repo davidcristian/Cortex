@@ -157,6 +157,8 @@ is complete.
 
 ## Slice 7 (Subagents)
 
+**Status:** in progress.
+
 Delegate narrow tasks to small (2-4B) subagents: task record in the store, each subagent
 runs as a stateless function over it, result persisted, cortex consumes it. The cortex
 spawns **one or more** subagents and picks their count and size; a bounded CPU budget admits
@@ -174,6 +176,19 @@ first internal-tool seam (ADR-0001 Q2). The bounded infer↔tool loop is extract
 dedicated **`SubagentScheduler`** port (bounded CPU concurrency) rather than the GPU
 `ModelManager`. ADR-0010 refines the "ModelManager admits or rejects" wording above, since
 the two are different resources (exclusive GPU lease vs. counting CPU budget).
+
+**Progress (2026-06-29):** CI half landed (increments 1-3), 100% under `just check`, no
+GPU/Redis. (1) The pure subagent core: `SubagentTask`/`SubagentResult`, the `TaskStore` +
+`SubagentScheduler` ports with the `InMemoryTaskStore` fake and the pure `ConcurrencyScheduler`,
+the shared `stream_tool_loop` extracted from `TurnEngine`, and the `SubagentRunner` use-case.
+(2) The native `spawn_subagents` tool + `CompositeToolRegistry` (built-in ⊕ MCP), delegation
+proven end-to-end over the fakes; the tool is a **concurrent batch** so the CPU budget is
+meaningful (ADR-0010 increment-2 addendum). (3) Adapters + wiring: the Redis `RedisTaskStore`
+(in `cortex_session`, 100%-covered via fakeredis), the `CORTEX_SUBAGENTS_*` config, `run_from_env`
+composition (the cortex gets the composite dispatcher; subagents get the MCP subset, so depth-1),
+and `docker-compose.subagents.yml` (a CPU `llama-server` sidecar). **Remaining:** the host half
+(increment 4) covers a real CPU subagent `llama-server`, end-to-end delegation validated, the
+subagent model pick locked, and `docs/runbooks/subagents-cpu.md`.
 
 ## Slice 8 (Body v1): hotkey → overlay → chat
 

@@ -11,6 +11,10 @@ from cortex_session import DEFAULT_REDIS_URL
 InferenceBackendName = Literal["echo", "llamacpp"]
 MemoryBackendName = Literal["none", "pgvector"]
 ToolsBackendName = Literal["none", "mcp"]
+SubagentsBackendName = Literal["none", "llamacpp"]
+
+# The logical id of the subagent tier (ADR-0004); deployments override via CORTEX_SUBAGENTS_MODEL.
+DEFAULT_SUBAGENT_MODEL = "subagent"
 
 
 class SeamServerConfig(BaseSettings):
@@ -108,5 +112,30 @@ class ToolsConfig(BaseSettings):
     def _mcp_needs_an_endpoint(self) -> "ToolsConfig":
         if self.backend == "mcp" and not self.endpoint:
             msg = "CORTEX_TOOLS_ENDPOINT is required when CORTEX_TOOLS_BACKEND=mcp"
+            raise ValueError(msg)
+        return self
+
+
+class SubagentsConfig(BaseSettings):
+    """Whether the cortex can delegate to subagents (ADR-0010).
+
+    ``none`` (the default) disables delegation. The cortex's tool set has no ``spawn_subagents``
+    and the turn path is byte-for-byte the Slice 6 behavior, so CI and the no-GPU dev loop run
+    subagent-free. ``llamacpp`` enables it and requires ``endpoint`` (the base URL of the CPU
+    subagent ``llama-server`` in ``docker-compose.subagents.yml``). ``max_concurrency`` is the CPU
+    budget, meaning how many subagents may run at once (RAM + concurrency, not VRAM; ADR-0004).
+    """
+
+    model_config = SettingsConfigDict(env_prefix="CORTEX_SUBAGENTS_")
+
+    backend: SubagentsBackendName = "none"
+    endpoint: str = ""
+    model: str = DEFAULT_SUBAGENT_MODEL
+    max_concurrency: int = Field(default=2, ge=1)
+
+    @model_validator(mode="after")
+    def _llamacpp_needs_an_endpoint(self) -> "SubagentsConfig":
+        if self.backend == "llamacpp" and not self.endpoint:
+            msg = "CORTEX_SUBAGENTS_ENDPOINT is required when CORTEX_SUBAGENTS_BACKEND=llamacpp"
             raise ValueError(msg)
         return self

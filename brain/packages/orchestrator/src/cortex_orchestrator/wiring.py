@@ -10,9 +10,13 @@ The one place that reads config and picks adapters (DI at the edge, AGENTS.md):
 - Memory -> disabled by default, or a `MemoryRecaller` over the `PgVectorMemoryStore` +
   `LlamaCppEmbedder` when CORTEX_MEMORY_BACKEND is `pgvector` (ADR-0008). Opt-in so CI and
   the no-GPU dev loop stay DB-free.
-- Tools -> disabled by default, or an audited `ToolDispatcher` over an `McpToolRegistry`
-  (MCP client) when CORTEX_TOOLS_BACKEND is `mcp` (ADR-0009). Opt-in so CI stays MCP-free.
-- Clock -> `SystemClock`, shared by the turn engine, the memory recaller, and tool audit.
+- Tools -> the raw MCP `ToolRegistry` when CORTEX_TOOLS_BACKEND is `mcp` (ADR-0009), else None.
+  Shared by the cortex (via the composite) and its subagents.
+- Subagents -> disabled by default, or a `spawn_subagents` tool over a `SubagentRunner` (CPU
+  `llama-server` + Redis `TaskStore` + concurrency budget) when CORTEX_SUBAGENTS_BACKEND is
+  `llamacpp` (ADR-0010). The cortex's dispatcher merges the spawn tool with the MCP tools; a
+  subagent gets the MCP tools without the spawn tool (depth-1). Opt-in so CI stays subagent-free.
+- Clock -> `SystemClock`, shared by the turn engine, memory recaller, and tool/subagent audit.
 
 Everything below the edge receives ports, never settings objects or env access.
 """
@@ -22,13 +26,19 @@ from collections.abc import Awaitable, Callable
 import httpx
 
 from cortex_core import (
+    BuiltinTool,
     Clock,
+    CompositeToolRegistry,
+    ConcurrencyScheduler,
     EchoInferenceBackend,
     InferenceBackend,
     MemoryRecaller,
     SingleResidentModelManager,
+    SpawnSubagentsTool,
+    SubagentRunner,
     SystemClock,
     ToolDispatcher,
+    ToolRegistry,
     TurnCapabilities,
     TurnEngine,
 )
@@ -40,10 +50,11 @@ from cortex_orchestrator.config import (
     InferenceConfig,
     MemoryConfig,
     SeamServerConfig,
+    SubagentsConfig,
     ToolsConfig,
 )
 from cortex_orchestrator.server import serve
-from cortex_session import RedisSessionStore
+from cortex_session import RedisSessionStore, RedisTaskStore
 from cortex_tools import LoggingAuditSink, McpToolRegistry
 
 # Connect/write/pool time out fast on a dead server; reads have no deadline, since a
@@ -94,19 +105,78 @@ async def build_memory(
     return None, _noop_aclose
 
 
-async def build_tools(
-    config: ToolsConfig, clock: Clock
-) -> tuple[ToolDispatcher | None, Callable[[], Awaitable[None]]]:
-    """Pick the tools backend from config; return the dispatcher (or None) with its closer.
+async def build_tool_registry(
+    config: ToolsConfig,
+) -> tuple[ToolRegistry | None, Callable[[], Awaitable[None]]]:
+    """The raw MCP `ToolRegistry` shared by the cortex and its subagents, or None (ADR-0009).
 
-    ``none`` disables tools. The MCP-less default CI and the no-GPU dev loop run. ``mcp``
-    connects the MCP client to the tool server and wraps it in an audited dispatcher; the
-    returned closer releases the MCP session.
+    ``none`` disables tools. The MCP-less default CI and the no-GPU dev loop run. ``mcp`` connects
+    the MCP client to the tool server; the returned closer releases that session. The registry is
+    left un-audited here. The cortex and each subagent wrap it in their own `ToolDispatcher`.
     """
     if config.backend == "mcp":
         registry, close = await McpToolRegistry.connect(config.endpoint)
-        return ToolDispatcher(registry, LoggingAuditSink(), clock), close
+        return registry, close
     return None, _noop_aclose
+
+
+async def build_subagents(
+    config: SubagentsConfig,
+    tool_registry: ToolRegistry | None,
+    redis_url: str,
+    clock: Clock,
+    *,
+    task_store_factory: Callable[[str], RedisTaskStore] = RedisTaskStore.from_url,
+) -> tuple[SpawnSubagentsTool | None, Callable[[], Awaitable[None]]]:
+    """The `spawn_subagents` tool, or None when delegation is disabled (ADR-0010).
+
+    Enabled: a subagent runs the shared tool loop on its CPU `llama-server` with the MCP tool
+    subset (depth-1, so no delegation), as a stateless function over the Redis `TaskStore`, admitted
+    by the concurrency budget. The returned closer releases the subagent backend client and the
+    task store; the shared MCP session is released by `build_tool_registry`'s closer, not here.
+    """
+    if config.backend == "none":
+        return None, _noop_aclose
+    client = httpx.AsyncClient(timeout=httpx.Timeout(_LLAMACPP_CONNECT_TIMEOUT_S, read=None))
+    manager = SingleResidentModelManager(config.model, config.endpoint)
+    store = task_store_factory(redis_url)
+    subagent_tools = (
+        ToolDispatcher(tool_registry, LoggingAuditSink(), clock)
+        if tool_registry is not None
+        else None
+    )
+    runner = SubagentRunner(
+        store,
+        LlamaCppBackend(manager, client),
+        ConcurrencyScheduler(config.max_concurrency),
+        clock,
+        subagent_model=config.model,
+        tools=subagent_tools,
+    )
+
+    async def close_subagents() -> None:
+        await store.aclose()
+        await client.aclose()
+
+    return SpawnSubagentsTool(runner, store, clock), close_subagents
+
+
+def build_cortex_tools(
+    tool_registry: ToolRegistry | None,
+    spawn_tool: SpawnSubagentsTool | None,
+    clock: Clock,
+) -> ToolDispatcher | None:
+    """The cortex's audited dispatcher: the spawn tool merged with the MCP tools (ADR-0010).
+
+    None when neither is enabled (the Slice 3 turn path unchanged). The `CompositeToolRegistry`
+    gives the built-in spawn tool precedence and advertises the MCP tools alongside it; subagents
+    receive the MCP subset without the spawn tool (depth-1), wired in `build_subagents`.
+    """
+    builtins: list[BuiltinTool] = [spawn_tool] if spawn_tool is not None else []
+    if not builtins and tool_registry is None:
+        return None
+    registry = CompositeToolRegistry(builtins, remote=tool_registry)
+    return ToolDispatcher(registry, LoggingAuditSink(), clock)
 
 
 async def run_from_env(
@@ -116,7 +186,7 @@ async def run_from_env(
     """Compose the brain from the environment and serve until shutdown.
 
     `store_factory` exists so tests can substitute a fakeredis-backed store; the
-    production entrypoint always uses the default. The store's connections and the
+    production entrypoint always uses the default. The store's connections and every
     backend's resources are released on the way out, whatever ends `serve`.
     """
     seam_config = SeamServerConfig()
@@ -124,11 +194,16 @@ async def run_from_env(
     inference = InferenceConfig()
     memory_config = MemoryConfig()
     tools_config = ToolsConfig()
+    subagents_config = SubagentsConfig()
     clock = SystemClock()
     store = store_factory(runtime.redis_url)
     backend, close_backend = build_inference_backend(inference, runtime.cortex_model)
     memory, close_memory = await build_memory(memory_config, clock)
-    tools, close_tools = await build_tools(tools_config, clock)
+    tool_registry, close_tools = await build_tool_registry(tools_config)
+    spawn_tool, close_subagents = await build_subagents(
+        subagents_config, tool_registry, runtime.redis_url, clock
+    )
+    tools = build_cortex_tools(tool_registry, spawn_tool, clock)
     try:
         engine = TurnEngine(
             store,
@@ -139,6 +214,7 @@ async def run_from_env(
         )
         await serve(seam_config, engine)
     finally:
+        await close_subagents()
         await close_tools()
         await close_memory()
         await close_backend()
