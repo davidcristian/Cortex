@@ -1,0 +1,46 @@
+# Email override (Slice 6 per ADR-0009). Layer it ON TOP of the base file:
+#     docker compose -f docker-compose.yml -f docker-compose.email.yml up
+# It adds the read-only IMAP MCP server (our `cortex_email`, over ProtonMail Bridge) as a
+# sidecar reached over streamable-http, and flips the brain from tools=none to the mcp
+# backend pointed at it. CI never runs this file. Tools are opt-in.
+#
+# The Bridge runs on the Windows HOST; the sidecar reaches it via host.docker.internal.
+# Supply the Bridge credentials via env. Use a .env next to this file (gitignored) or the shell.
+# NEVER commit secrets:
+#   CORTEX_EMAIL_IMAP_USER          the Bridge username (your Proton address)
+#   CORTEX_EMAIL_IMAP_PASSWORD      the Bridge-generated per-client password
+#   CORTEX_EMAIL_IMAP_TLS_INSECURE  set true to accept the Bridge self-signed cert on
+#                                   loopback, or point CORTEX_EMAIL_IMAP_CA_CERT at the
+#                                   exported Bridge cert (docs/runbooks/email-imap.md).
+
+services:
+  brain:
+    environment:
+      # Opt into tools, pointed at the email sidecar (ADR-0009).
+      CORTEX_TOOLS_BACKEND: "mcp"
+      CORTEX_TOOLS_ENDPOINT: "http://mcp-email:9100/mcp"
+    depends_on:
+      mcp-email:
+        condition: service_started
+
+  mcp-email:
+    # The read-only IMAP MCP server ships in the brain image (cortex_email workspace member).
+    build: ./brain
+    command: ["python", "-m", "cortex_email"]
+    environment:
+      CORTEX_EMAIL_IMAP_HOST: "host.docker.internal"
+      CORTEX_EMAIL_IMAP_PORT: "1143"
+      CORTEX_EMAIL_IMAP_SECURITY: "starttls"
+      CORTEX_EMAIL_IMAP_USER: "${CORTEX_EMAIL_IMAP_USER:?set the Bridge username}"
+      CORTEX_EMAIL_IMAP_PASSWORD: "${CORTEX_EMAIL_IMAP_PASSWORD:?set the Bridge password}"
+      CORTEX_EMAIL_IMAP_TLS_INSECURE: "${CORTEX_EMAIL_IMAP_TLS_INSECURE:-false}"
+      CORTEX_EMAIL_IMAP_CA_CERT: "${CORTEX_EMAIL_IMAP_CA_CERT:-}"
+    # Reach the Windows-host Bridge; host.docker.internal is automatic on Docker Desktop,
+    # host-gateway is the portable fallback (ROADMAP assumption 3).
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      # Loopback-only publish so a host-side integration test can reach it (assumption 5).
+      - "127.0.0.1:9100:9100"
+    init: true
+    restart: unless-stopped
