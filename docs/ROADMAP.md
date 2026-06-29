@@ -74,15 +74,19 @@ implementation behind the unchanged port. The knowledge base's durable data live
 Postgres-over-Windows-bind-mount caveat here; fallback (now the default, ADR-0008) is a
 named volume + automated sync into that directory.
 
-**Status (2026-06-29):** design + ports-first increment landed
-([ADR-0008](adr/ADR-0008-memory-v1.md)): the `Embedder` + `MemoryStore` core ports, the
-`MemoryRecord`/`ScoredMemory` values, the `MemoryRecaller` remember/recall use-case, and
-the in-memory fakes (`InMemoryMemoryStore` cosine twin of pgvector, deterministic
-`HashEmbedder`). All 100% under `just check`, no DB. Remaining increments: wire memory
-into the turn (a `Role.SYSTEM` context message from `recall`, `record` at turn end); the
-CPU embedder adapter over llama.cpp `/v1/embeddings`; the pgvector adapter; and the
-host-driven host half (Postgres + pgvector up, the nomic pick measured, the volume/export
-and bind-mount caveat validated).
+**Status (2026-06-29):** design + first two increments landed
+([ADR-0008](adr/ADR-0008-memory-v1.md)), all 100% under `just check`, no DB.
+(1) The `Embedder` + `MemoryStore` core ports, the `MemoryRecord`/`ScoredMemory` values,
+the `MemoryRecaller` remember/recall use-case, and the in-memory fakes
+(`InMemoryMemoryStore` cosine twin of pgvector, deterministic `HashEmbedder`).
+(2) Memory wired into the turn: `TurnEngine` takes an optional `MemoryRecaller`; when
+present it recalls top-k into an ephemeral `Role.SYSTEM` context message (never persisted)
+and records the exchange at turn end. `memory=None` keeps the old behavior, so the GPU-less
+default path is unchanged. Remaining increments: the CPU embedder adapter over llama.cpp
+`/v1/embeddings`; the pgvector adapter + its composition-root wiring (memory is not wired
+into `run_from_env` until a durable backend exists); and the host-driven host half
+(Postgres + pgvector up, the nomic pick measured, the volume/export and bind-mount caveat
+validated).
 
 ## Slice 6 (Tools via MCP): files, then email
 
