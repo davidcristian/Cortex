@@ -1,0 +1,10 @@
+# Keeps the commit-SHA action pins in .github/workflows/ fresh. For a
+# release-tagged action dependabot bumps the SHA and its "# vN" comment
+# together; dtolnay/rust-toolchain has no releases, so its SHA is bumped and its
+# (version-less) comment left as-is.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly

@@ -12,29 +12,73 @@ as a defect, `a51ce2d`), and cold builds, where CI compiles the Rust dependency 
 times (clippy/test/coverage profiles) on a fresh 2-core runner regardless of what
 changed, and every push queued a full run even when a newer push had superseded it.
 
+The decisions were revised same-day, pre-push, for open-source longevity.
+
 ## Decisions
 
-1. **CI is path-filtered** (dorny/paths-filter, a `changes` job feeding job-level
-   `if`s): the python job runs for `brain/**`, `ruff.toml`, or shared files; the rust
-   job for `body/**` or shared files; **shared** = `justfile`,
-   `.github/workflows/ci.yml`, `proto/**`, `scripts/**`, `.python-version`, all the files
-   that can affect both toolchains' gates. Docs-only pushes skip both jobs (the run is
-   still green). AGENTS.md gate 3 is amended accordingly: CI builds each toolchain
-   when a change can affect it.
-2. **CI runs are superseded per ref**: `concurrency` with `cancel-in-progress`, so a
-   newer push cancels the in-flight run for the same branch.
-3. **`just check` parallelizes the tree checks**: linecap runs first (fast,
-   fail-early), then check-brain / check-scripts / check-body run concurrently with
-   per-tree buffered output printed in fixed order. Wall time ≈ the slowest tree.
-   Concurrent `uv sync` on the scripts venv (check-scripts vs. check-body's gate step)
-   is safe, because uv serializes per-environment via its own lock.
+1. **CI is path-filtered by an in-repo, fail-closed classifier** (`scripts/ci_paths.py`,
+   stdlib-only, gated like every other script: ruff, pyright strict, 100% coverage).
+   A `changes` job computes `git diff --name-only` over the run's range (PR: three-dot
+   diff against the base ref; push: `event.before..HEAD` when resolvable) and pipes it
+   into the classifier, which emits `python=`/`rust=` outputs consumed by job-level
+   `if`s. Classification is ordered rules, first match wins, union over all paths:
+   - **both:** `justfile`, `.python-version` (exact); `proto/`, `scripts/`,
+     `.github/workflows/` (prefix);
+   - **python:** `ruff.toml` (exact); `brain/` (prefix);
+   - **rust:** `body/` (prefix);
+   - **neither:** `docs/`, `.claude/` (prefix); `.gitignore`,
+     `.pre-commit-config.yaml`, `LICENSE`, `.github/dependabot.yml` (exact); `.md`
+     (suffix rule, reached only when no earlier rule matched, so `brain/README.md` is
+     python; that precedence is deliberate: files inside a toolchain tree are never
+     assumed inert, tests may read them as fixtures);
+   - **default:** both. Unknown means over-test, never under-test.
+   Fail-closed everywhere: unmatched paths run both toolchains, an undeterminable range
+   runs both (first push to a branch, or a force-push whose `before` SHA is the zero-SHA
+   or no longer fetchable, though an ordinary rebase-force-push keeps a fetchable `before` and
+   takes the safe `before..HEAD` diff), and a classifier error fails the run visibly.
+   *Alternative considered and rejected:* dorny/paths-filter (briefly adopted
+   in `aaf4f38`). Its hand-maintained shared-file allowlist was fail-open, since a forgotten
+   entry silently under-tests CI, the worst failure mode for a repo heading to open
+   source. It is also a mutable-tag third-party action in the same class as
+   tj-actions/changed-files, compromised in March 2025 to exfiltrate secrets from
+   thousands of repos. This repo already owns its gates as 100%-covered scripts in
+   `scripts/`; the classifier follows that pattern.
+   The line-cap gate is the one exception to the filter: `linecap.py` scans `.py` and
+   `.rs` across every tree (`docs/` included), so `check-linecap` runs as its own
+   unconditional CI job rather than inside a path-gated one. Otherwise a Rust-only or
+   docs-only change would skip the cross-tree cap. Locally it stays the fail-early first
+   step of `just check`.
+2. **Cancellation is PR-only**: `concurrency` with `cancel-in-progress` applies only to
+   `pull_request` events. Superseded PR pushes cancel (the churny case), but every
+   master commit keeps its CI verdict, because a bisectable history matters for a
+   multi-contributor repo.
+3. **`just check` parallelizes the tree checks, in bash 3.2**: linecap runs first
+   (fast, fail-early), then check-brain / check-scripts / check-body run concurrently
+   with per-tree buffered output printed in fixed order. Wall time ≈ the slowest tree.
+   The recipe avoids bash-4+ features (`declare -A`) because macOS system bash is 3.2 and
+   contributors must be able to run the gate untouched. Concurrent `uv sync` on the
+   scripts venv (check-scripts vs. check-body's gate step) is safe, because uv serializes
+   per-environment via its own lock.
+4. **All actions are pinned to full commit SHAs.** Release-tagged actions carry a `# vN`
+   comment that dependabot bumps alongside the SHA; `dtolnay/rust-toolchain` has no
+   releases, so it carries a plain marker and dependabot advances only its SHA. A new
+   `.github/dependabot.yml` (github-actions ecosystem, weekly) keeps the pins fresh.
+   Mutable tags are how the tj-actions compromise propagated; pinned SHAs turn action
+   updates into reviewable PRs.
 
 ## Consequences
 
-- The shared-filter list is now load-bearing: a new cross-tree file (e.g. a future
-  shared config) must be added to it, or CI can green-light a change it never tested.
-  Review the list whenever repo structure changes.
-- Skipped CI jobs report "skipped", not "passed", which is expected and fine for this repo.
+- The classification rules are tested code, and a stale rule list **over-tests** rather
+  than under-tests: a new cross-tree file simply defaults to both toolchains. The
+  pressure to keep the rules current is economic (wasted CI minutes), not correctness.
+- Skipped jobs report "skipped", which GitHub branch protection treats as satisfied, and
+  this is why filtering is job-level `if`s fed by a `changes` job rather than
+  `on.push.paths`, which would leave required checks pending forever.
+- The line-cap gate runs unconditionally, outside the filter: it is cross-tree (`.py` +
+  `.rs`, `docs/` included), so gating it on any one toolchain's paths would let a
+  Rust-only or docs-only change merge an over-cap file green.
+- Action version bumps now arrive as weekly dependabot PRs; merging them is routine
+  maintenance (each touches `.github/workflows/`, so both toolchains re-gate).
 - Buffered parallel gate output means no live streaming per tree; logs print complete,
   per tree, on completion.
 - Observed adjacent gap while writing the filters (not addressed here): nothing in CI

@@ -28,8 +28,9 @@ Start here. Rules for working in this repo: [AGENTS.md](../AGENTS.md).
 - [ADR-0005: llama.cpp as the inference engine](adr/ADR-0005-llamacpp-engine.md):
   supersedes vLLM (ADR-0001 d4); one `llama-server` per model behind the
   OpenAI-compatible API; swap = process lifecycle; embeddings on the same engine.
-- [ADR-0006: Gate performance](adr/ADR-0006-gate-performance.md): path-filtered CI
-  with a load-bearing shared-file list, cancel-in-progress runs, parallel `just check`.
+- [ADR-0006: Gate performance](adr/ADR-0006-gate-performance.md): path-filtered CI via
+  the fail-closed in-repo classifier (`scripts/ci_paths.py`), PR-only run cancellation,
+  SHA-pinned actions + dependabot, parallel `just check`.
 
 New non-obvious decision → add `adr/ADR-XXXX-<slug>.md`, link it here.
 

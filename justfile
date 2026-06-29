@@ -6,20 +6,28 @@ default: check
 # All gates: cross-tree line cap first (fast), then the three tree checks in
 # PARALLEL (ADR-0006), so wall time ≈ the slowest tree. Output is buffered per tree
 # and printed in a fixed order so logs stay readable; any failure fails the gate.
+# Kept bash-3.2 compatible (no `declare -A` etc.) for macOS system bash.
 check:
     #!/usr/bin/env bash
     set -euo pipefail
     just check-linecap
     tmp=$(mktemp -d)
     trap 'rm -rf "$tmp"' EXIT
-    declare -A pid
-    for tree in brain scripts body; do
-        just "check-$tree" >"$tmp/$tree.log" 2>&1 &
-        pid[$tree]=$!
-    done
+    echo "Running check-brain, check-scripts, check-body in parallel (output buffered)..."
+    just check-brain >"$tmp/brain.log" 2>&1 &
+    pid_brain=$!
+    just check-scripts >"$tmp/scripts.log" 2>&1 &
+    pid_scripts=$!
+    just check-body >"$tmp/body.log" 2>&1 &
+    pid_body=$!
     fail=0
     for tree in brain scripts body; do
-        if wait "${pid[$tree]}"; then status=OK; else status=FAILED; fail=1; fi
+        case "$tree" in
+            brain) pid=$pid_brain ;;
+            scripts) pid=$pid_scripts ;;
+            body) pid=$pid_body ;;
+        esac
+        if wait "$pid"; then status=OK; else status=FAILED; fail=1; fi
         echo "=== check-$tree: $status ==="
         cat "$tmp/$tree.log"
     done
