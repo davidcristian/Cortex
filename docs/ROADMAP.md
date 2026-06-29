@@ -114,9 +114,22 @@ is **nomic-embed-text-v1.5 Q8_0** (768-dim), recorded in the
 
 ## Slice 6 (Tools via MCP): files, then email
 
+**Status:** in progress.
+
 `ToolRegistry` port + tool dispatch in the pure core (command pattern), every invocation
 audit-logged; MCP filesystem server, then IMAP email server (read-only first). All later
 tools (including body-backed OS actions) go through this port.
+
+**Progress (2026-06-29):** design + increment 1 landed ([ADR-0009](adr/ADR-0009-tools-mcp.md)),
+100% under `just check`, no MCP. (1) The pure tool-dispatch core: the `ToolRegistry` +
+`ToolAuditSink` ports, the `ToolSpec`/`ToolCall`/`ToolResult`/`ToolInvocation` values, the
+typed `ToolError`/`ToolNotFoundError`, the `InMemoryToolRegistry` + `RecordingAuditSink`
+fakes, and the stateless `ToolDispatcher` use-case that runs a call through the registry
+and writes exactly one audit record per dispatch (a registry failure becomes an `is_error`
+result the model can recover from). The three forks are resolved in ADR-0009: **native
+function-calling** (evolve `InferenceBackend`), **sidecar-over-http** tool servers, and a
+**thin read-only IMAP** email server for ProtonMail Bridge. Increments 2-4 (the turn-engine
+tool loop; the MCP filesystem adapter; the email server) follow.
 
 ## Slice 7 (Subagents)
 

@@ -7,12 +7,14 @@ is the contract-test twin of the Redis adapter (``cortex_session``).
 
 import hashlib
 import math
-from collections.abc import AsyncIterator, Sequence
+from collections.abc import AsyncIterator, Awaitable, Callable, Mapping, Sequence
 from datetime import UTC, datetime
+from typing import Any
 
 from cortex_core.conversation import Message, Role
-from cortex_core.errors import InferenceError
+from cortex_core.errors import InferenceError, ToolNotFoundError
 from cortex_core.memory import MemoryRecord, ScoredMemory
+from cortex_core.tools import ToolCall, ToolInvocation, ToolResult, ToolSpec
 
 # The fake embedder's default vector width. Small (< a sha256 digest) so distinct texts
 # get distinct vectors without cycling the digest; the real nomic model is 768-dim.
@@ -111,6 +113,51 @@ class InMemoryMemoryStore:
         ]
         scored.sort(key=lambda hit: hit.score, reverse=True)
         return tuple(scored[:k])
+
+
+_ToolHandler = Callable[[Mapping[str, Any]], Awaitable[str]]
+
+
+class InMemoryToolRegistry:
+    """ToolRegistry held in a dict as the contract twin of the MCP adapter (ADR-0009).
+
+    Constructed with ``{name: (spec, handler)}``, where a handler maps call arguments to
+    result text. ``invoke`` raises ``ToolNotFoundError`` for an unknown name and lets a
+    handler's own ``ToolError`` propagate (the dispatcher turns it into an error result).
+    For tests, CI, and single-process experiments, with no server and fully deterministic.
+    """
+
+    def __init__(self, tools: Mapping[str, tuple[ToolSpec, _ToolHandler]]) -> None:
+        self._tools = dict(tools)
+
+    async def describe_tools(self) -> Sequence[ToolSpec]:
+        """List the registered tool specs, in insertion order."""
+        return tuple(spec for spec, _ in self._tools.values())
+
+    async def invoke(self, call: ToolCall) -> ToolResult:
+        """Run the named tool's handler; raise ToolNotFoundError when it is not registered."""
+        entry = self._tools.get(call.name)
+        if entry is None:
+            msg = f"unknown tool {call.name!r}"
+            raise ToolNotFoundError(msg)
+        _, handler = entry
+        return ToolResult(call_id=call.id, content=await handler(call.arguments))
+
+
+class RecordingAuditSink:
+    """ToolAuditSink that keeps invocations in a list so tests can assert the audit trail."""
+
+    def __init__(self) -> None:
+        self._records: list[ToolInvocation] = []
+
+    async def record(self, invocation: ToolInvocation) -> None:
+        """Append one invocation to the recorded trail."""
+        self._records.append(invocation)
+
+    @property
+    def records(self) -> Sequence[ToolInvocation]:
+        """The invocations recorded so far, in dispatch order."""
+        return tuple(self._records)
 
 
 class SystemClock:

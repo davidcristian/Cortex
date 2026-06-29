@@ -1,9 +1,9 @@
 # brain/packages/core (`cortex_core`)
 
 **Purpose.** The brain's pure core: domain types, ports, and application logic. Routing,
-the "handle a user turn" use-case, and the memory remember/recall use-case live here now;
-handoff orchestration and tool dispatch decisions join them in later slices. No I/O, ever
-(this is the hexagon's center).
+the "handle a user turn" use-case, the memory remember/recall use-case, and tool dispatch
+live here now; handoff orchestration joins them in a later slice. No I/O, ever. This is
+the hexagon's center.
 
 **Public contract** (everything importable from `cortex_core`; `__all__` is the API):
 
@@ -42,6 +42,18 @@ Memory domain (Slice 5, ADR-0008):
 - `ScoredMemory` is a frozen dataclass: `record: MemoryRecord`, `score: float`. A retrieval
   hit and its similarity (higher = closer).
 
+Tool domain (Slice 6, ADR-0009):
+
+- `ToolSpec` is a frozen dataclass: `name: str`, `description: str`,
+  `parameters: Mapping[str, Any]` (the JSON Schema the model fills; passed through verbatim,
+  never interpreted by the core). What a tool advertises.
+- `ToolCall` is a frozen dataclass: `id: str`, `name: str`, `arguments: Mapping[str, Any]`. A
+  model's request to run one tool; `id` correlates it with its `ToolResult`.
+- `ToolResult` is a frozen dataclass: `call_id: str`, `content: str`, `is_error: bool = False`.
+  The outcome fed back to the model; `is_error` marks a tool (or dispatch) failure.
+- `ToolInvocation` is a frozen dataclass: `name`, `arguments`, `ok: bool`, `detail: str`,
+  `at: datetime` (tz-aware, rejects naive). One audit-trail line.
+
 Ports (`typing.Protocol`; failures cross them only as the typed errors below):
 
 - `SessionStore` provides `async append(session_id, message) -> None`,
@@ -57,10 +69,18 @@ Ports (`typing.Protocol`; failures cross them only as the typed errors below):
 - `MemoryStore` provides `async add(record) -> None`, `async search(embedding, *, k) ->
   Sequence[ScoredMemory]` (top-`k` by similarity, most-similar first, over ALL memories, since
   v1 is one global space). Durable, cross-session; the caller builds each record.
+- `ToolRegistry` has `async describe_tools() -> Sequence[ToolSpec]` (advertise the tools),
+  `async invoke(call) -> ToolResult` (run one call; `is_error` reflects a tool-level
+  failure). An unknown tool or a transport failure raises `ToolError`
+  (`ToolNotFoundError` for the name). The dispatcher, not the registry, turns that into an
+  error result.
+- `ToolAuditSink` has `async record(invocation) -> None`: every dispatched call is written
+  here, success or failure (the AGENTS.md audit requirement).
 - `Clock` provides `now() -> datetime`, always tz-aware. The core's only time source.
 - `SessionStoreError` / `InferenceError` / `ModelManagerError` (+ its
-  `ModelUnavailableError`) / `MemoryStoreError` / `EmbedderError` are typed errors; adapters
-  wrap their backend's failures into these with the cause chained.
+  `ModelUnavailableError`) / `MemoryStoreError` / `EmbedderError` / `ToolError` (+ its
+  `ToolNotFoundError`) are typed errors; adapters wrap their backend's failures into these
+  with the cause chained.
 
 Use-case:
 
@@ -88,6 +108,12 @@ Use-case:
   embeds `query` and returns the store's top-`k` `ScoredMemory`. Stateless over the store:
   every memory lives in `MemoryStore`, so recall is identical across restarts and swaps.
   Wired into `TurnEngine` (retrieve-into-context, record-at-turn-end) when injected.
+- `ToolDispatcher(registry, audit, clock)` is the tool-dispatch use-case (ADR-0009).
+  `dispatch(call)` runs `call` through the `ToolRegistry`, writes exactly one
+  `ToolInvocation` to the `ToolAuditSink` (success or failure), and returns the
+  `ToolResult`; a `ToolError` from the registry becomes an `is_error` result so the loop
+  keeps going and the model is told. Stateless over the ports; the turn-engine loop that
+  drives it lands in Slice 6 increment 2.
 
 Reference implementations (pure, shipped in core; the runtime wiring until Slice 4):
 
@@ -112,6 +138,11 @@ Reference implementations (pure, shipped in core; the runtime wiring until Slice
   yields the identical vector (so a stored memory is its own strongest cosine match), distinct
   text a distinct vector. Carries no semantics. It is the CI/tests stand-in for the real nomic
   adapter (Slice 5 host half). Never emits an all-zero vector.
+- `InMemoryToolRegistry({name: (spec, handler)})` is a dict-backed `ToolRegistry`; contract
+  twin of the MCP adapter (Slice 6). A handler maps call arguments to result text; `invoke`
+  raises `ToolNotFoundError` for an unknown name. No server, fully deterministic.
+- `RecordingAuditSink` is a `ToolAuditSink` that keeps invocations in a list (`.records`) so
+  tests can assert the audit trail.
 - `SystemClock` provides tz-aware UTC `now()`.
 
 **Invariants.**
