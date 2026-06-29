@@ -1,7 +1,8 @@
 # ADR-0004: Model lineup (candidates locked)
 
-- **Status:** Accepted (candidate sets locked by the user, 2026-06-29; final per-tier
-  pick happens in Slice 4 with measured VRAM)
+- **Status:** Accepted (candidates locked 2026-06-29; cortex pick = **gemma-4-12B**, made
+  in Slice 4 (see the measurements addendum); subagent/brain/embedder picks follow in
+  Slices 7/11/5)
 - **Date:** 2026-06-29
 
 ## Context

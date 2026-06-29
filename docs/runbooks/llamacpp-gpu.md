@@ -14,15 +14,15 @@ design, AGENTS.md gate 3).
   enabled (`docker run --rm --gpus all nvidia/cuda:12.4.0-base-ubuntu22.04 nvidia-smi`
   should list the GPU).
 - The cortex GGUF present under the models dir (default `./models`,
-  ADR-0004). Pick a cortex candidate from ADR-0004 to start (the 9B leaves more KV
-  headroom than the 12B).
+  ADR-0004). The chosen cortex is **gemma-4-12B** (QAT Q4 per the ADR-0004 addendum), the compose
+  default; `CORTEX_MODEL_FILE_CORTEX` overrides it to try another candidate.
 
 ## Configure (host env / a `.env` beside the compose files)
 
 | Variable | Meaning | Example |
 |---|---|---|
 | `CORTEX_MODELS_DIR` | host dir holding the GGUFs, mounted read-only | `./models` |
-| `CORTEX_MODEL_FILE_CORTEX` | cortex GGUF path **relative to that dir** (LM Studio nests it under `publisher/repo/`) | `unsloth/Qwen3.5-9B-GGUF/Qwen3.5-9B-Q4_K_M.gguf` |
+| `CORTEX_MODEL_FILE_CORTEX` | cortex GGUF path **relative to that dir** (LM Studio nests it under `publisher/repo/`); default is the gemma-4-12B pick | `google/gemma-4-12B-it-qat-q4_0-gguf/gemma-4-12b-it-qat-q4_0.gguf` |
 | `CORTEX_CTX_SIZE` | context window (KV size); **set it**. The model default (262144) alone eats ~8 GB | `16384` |
 | `CORTEX_NGL` | GPU layers to offload: `99` = all, `0` = CPU-only, partial = hybrid (ADR-0004 addendum) | `99` |
 
@@ -92,23 +92,25 @@ independent, load/throughput are not. Full detail + placement strategy in the
 
 | Tier | Candidate | Quant | Weights only | + vision (mmproj) | Load (55 W) |
 |---|---|---|---|---|---|
-| Cortex | Qwen3.5-9B | Q4_K_M | 9.2 GB | 11.0 GB (F32 proj) | ~32-42 s |
-| Cortex (alt) | gemma-4-12B | q4_0 (qat) | 11.0 GB | 11.3 GB (small proj) | ~38-52 s |
-| Subagent | _tbd (Slice 7)_ | | | | |
+| **Cortex (pick)** | **gemma-4-12B** | q4_0 (QAT) | 11.0 GB | 11.3 GB (small proj) | ~38-52 s |
+| Cortex (alt) | Qwen3.5-9B | Q4_K_M | 9.2 GB | 11.0 GB (F32 proj) | ~32-42 s |
+| Subagent | _tbd (Slice 7, CPU)_ | | | | |
 | Brain | _tbd (Slice 11)_ | | | | |
 | Embedder | _tbd (Slice 5, CPU)_ | | | | |
 
-- **Both multimodal cortex options ≈ 11 GB**, so VRAM does not decide the pick; choose on
-  capability/vision quality. ~11 GB leaves ~13 GB of 24 GB for a co-resident 2-4B subagent
-  (the 12 GB target in ROADMAP assumption 1 is relaxed, per the ADR-0004 addendum).
-- **Placement:** embedder → CPU (`CORTEX_NGL=0`), subagents → GPU when headroom allows
-  else CPU/hybrid, brain → hybrid if it doesn't fit. All per-`llama-server` flags, no core
-  change (ADR-0004 addendum).
+- **Cortex = gemma-4-12B** (stronger chat model + QAT). Both candidates ≈ 11 GB, so VRAM
+  didn't decide it. The **12 GB budget is a deliberate soft cap** (the user keeps ~12 GB
+  of 24 GB for a second monitor + gaming), so an ~11 GB cortex fills the AI budget. The
+  embedder and subagents run on **CPU** (ADR-0004 addendum, not a relaxed envelope).
+- **Placement:** cortex → GPU (~11 GB, at the cap), embedder → CPU (`CORTEX_NGL=0`),
+  subagents → CPU (a dynamic pool the cortex sizes within budget), brain → hybrid if it
+  doesn't fit. All per-`llama-server` flags, no core change (ADR-0004 addendum).
 - **Swap latency (ROADMAP assumption 2):** load is ~mount-read bound (~150-180 MB/s off
   the Windows bind mount). If it dominates once swap lands (Slice 11), mirror hot models
   into a WSL-side/volume cache and re-measure.
-- **Final per-tier picks:** still open (VRAM doesn't force it). Once chosen, set
-  `CORTEX_MODEL_FILE_CORTEX` and note them in [ADR-0004](../adr/ADR-0004-model-lineup.md).
+- **Remaining picks:** cortex is settled (gemma-4-12B, the compose default). Subagent sizes
+  (Slice 7), brain (Slice 11), and embedder quant (Slice 5) follow, recorded in
+  [ADR-0004](../adr/ADR-0004-model-lineup.md) as each lands.
 - **Pin the image:** replace the `ghcr.io/ggml-org/llama.cpp:server-cuda` tag in
   `docker-compose.gpu.yml` with a digest once a working version is settled (ADR-0006:
   mutable tags are a supply-chain risk).
