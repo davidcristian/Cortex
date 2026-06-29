@@ -99,10 +99,11 @@ independent, load/throughput are not. Full detail + placement strategy in the
 | Embedder | _tbd (Slice 5, CPU)_ | | | | |
 
 - **Cortex = gemma-4-12B** (stronger chat model + QAT). Both candidates ≈ 11 GB, so VRAM
-  didn't decide it. The **12 GB budget is a deliberate soft cap** (the user keeps ~12 GB
-  of 24 GB for a second monitor + gaming), so an ~11 GB cortex fills the AI budget. The
-  embedder and subagents run on **CPU** (ADR-0004 addendum, not a relaxed envelope).
-- **Placement:** cortex → GPU (~11 GB, at the cap), embedder → CPU (`CORTEX_NGL=0`),
+  didn't decide it. The budget is a **deliberate 14 GB soft cap** (env
+  `CORTEX_VRAM_SOFT_CAP_GB`; the user keeps ~10 GB of 24 GB for a second monitor + gaming),
+  so the ~11.3 GB cortex sits under it with ~2.7 GB headroom. The embedder and subagents
+  still run on **CPU** (ADR-0004 addendum, not a relaxed envelope).
+- **Placement:** cortex → GPU (~11.3 GB, ~2.7 GB under the 14 GB cap), embedder → CPU (`CORTEX_NGL=0`),
   subagents → CPU (a dynamic pool the cortex sizes within budget), brain → hybrid if it
   doesn't fit. All per-`llama-server` flags, no core change (ADR-0004 addendum).
 - **Swap latency (ROADMAP assumption 2):** load is ~mount-read bound (~150-180 MB/s off
