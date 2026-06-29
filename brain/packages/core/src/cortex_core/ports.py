@@ -13,6 +13,7 @@ from cortex_core.conversation import Message
 from cortex_core.inference import InferenceEvent
 from cortex_core.memory import MemoryRecord, ScoredMemory
 from cortex_core.model import ModelLease
+from cortex_core.subagents import SubagentResult, SubagentTask
 from cortex_core.tools import ToolCall, ToolInvocation, ToolResult, ToolSpec
 
 
@@ -74,3 +75,21 @@ class ToolAuditSink(Protocol):
     """The audit trail where every dispatched tool call is recorded (AGENTS.md, ADR-0009)."""
 
     async def record(self, invocation: ToolInvocation) -> None: ...
+
+
+class TaskStore(Protocol):
+    """Hot store for in-flight subagent tasks and their results (Redis; ADR-0010)."""
+
+    async def put_task(self, task: SubagentTask) -> None: ...
+
+    async def get_task(self, task_id: str) -> SubagentTask | None: ...
+
+    async def put_result(self, result: SubagentResult) -> None: ...
+
+    async def get_result(self, task_id: str) -> SubagentResult | None: ...
+
+
+class SubagentScheduler(Protocol):
+    """Admits subagent spawns against a bounded CPU budget. Concurrency, not the GPU (ADR-0010)."""
+
+    def admit(self) -> AbstractAsyncContextManager[None]: ...

@@ -31,7 +31,7 @@ from cortex_core import (
     TurnEngine,
     TurnEvent,
 )
-from cortex_core.engine import MAX_TOOL_STEPS
+from cortex_core.tool_loop import MAX_TOOL_STEPS
 
 _START = datetime(2026, 7, 3, 12, 0, 0, tzinfo=UTC)
 
