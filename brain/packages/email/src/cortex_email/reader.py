@@ -42,7 +42,9 @@ def _header(msg: EmailMessage, name: str) -> str:
 
 
 def _body_text(msg: EmailMessage) -> str:
-    body = msg.get_body(preferencelist=("plain",))
+    # Prefer text/plain; fall back to text/html (most real mail is HTML-only) so the body is
+    # not empty. The HTML is returned as-is. A readable-text extraction is a later refinement.
+    body = msg.get_body(preferencelist=("plain", "html"))
     if body is None:
         return ""
     return str(cast("EmailMessage", body).get_content()).strip()

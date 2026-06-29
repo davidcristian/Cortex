@@ -114,7 +114,7 @@ is **nomic-embed-text-v1.5 Q8_0** (768-dim), recorded in the
 
 ## Slice 6 (Tools via MCP): files, then email
 
-**Status:** in progress.
+**Status:** done.
 
 `ToolRegistry` port + tool dispatch in the pure core (command pattern), every invocation
 audit-logged; MCP filesystem server, then IMAP email server (read-only first). All later
@@ -147,9 +147,13 @@ half): the standalone `cortex_email` package, which is a FastMCP server exposing
 list/search/read tools over **imap-tools** (STARTTLS, chosen over aioimaplib which lacks it;
 the server is a sidecar, so async-nativeness doesn't apply), 100%-covered without a server;
 read-only enforced three ways (only read tools register, EXAMINE, `mark_seen=False`);
-`docker-compose.email.yml` runs it as a sidecar reaching the host ProtonMail Bridge. Host
-validation against the user's live Bridge (needs the Bridge + its credentials) is the
-remaining host-driven half. Slice 6 is code-complete pending it.
+`docker-compose.email.yml` runs it as a sidecar reaching the host ProtonMail Bridge.
+Host-validated (2026-06-29): the sidecar reached the user's live Bridge (STARTTLS via
+host.docker.internal), and dogfooding `McpToolRegistry` returned exactly the three read-only
+tools, 17 real folders, a formatted search line, and a real message body, with read-only enforced
+end to end (EXAMINE + `mark_seen=False`). Two refinements landed (readable-string tool output;
+HTML-body fallback), recorded in the [ADR-0009 addendum](adr/ADR-0009-tools-mcp.md). Slice 6
+is complete.
 
 ## Slice 7 (Subagents)
 
