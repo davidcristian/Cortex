@@ -4,4 +4,4 @@ pub mod hotkey;
 pub mod transport;
 
 pub use hotkey::{HotkeyChord, HotkeyParseError, Modifier};
-pub use transport::{BrainTransport, SeamHealth, TransportError};
+pub use transport::{BrainTransport, SeamHealth, TransportError, TurnEvent};

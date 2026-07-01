@@ -1,6 +1,7 @@
 //! tonic adapter for the body↔brain gRPC seam (`proto/body.proto`).
 
 mod client;
+mod converse;
 
 /// Generated tonic/prost stubs for the `cortex.seam.v1` package.
 pub mod generated {

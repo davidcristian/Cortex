@@ -6,10 +6,13 @@ publish.workspace = true
 description = "Pure, I/O-free core logic for the Cortex body (lib name: body_core)"
 
 [dependencies]
+futures-core.workspace = true
 thiserror.workspace = true
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["macros", "rt"] }
+# The converse contract test builds a fake TurnEvent stream and drains it.
+tokio-stream.workspace = true
 
 [lints]
 workspace = true

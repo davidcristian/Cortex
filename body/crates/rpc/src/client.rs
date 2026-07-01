@@ -1,6 +1,7 @@
 //! [`BrainSeamClient`] is the gRPC adapter behind `body_core::BrainTransport`.
 
-use body_core::{BrainTransport, SeamHealth, TransportError};
+use body_core::{BrainTransport, SeamHealth, TransportError, TurnEvent};
+use futures_core::Stream;
 use tonic::Status;
 use tonic::transport::Channel;
 
@@ -45,10 +46,18 @@ impl BrainTransport for BrainSeamClient {
             detail: reply.detail,
         })
     }
+
+    fn converse(
+        &self,
+        session_id: &str,
+        text: &str,
+    ) -> impl Stream<Item = Result<TurnEvent, TransportError>> + Send {
+        crate::converse::converse_turn(self.inner.clone(), session_id.to_owned(), text.to_owned())
+    }
 }
 
 /// Maps a non-OK [`Status`] from a seam call to the port's error taxonomy.
-fn status_to_error(status: &Status) -> TransportError {
+pub(crate) fn status_to_error(status: &Status) -> TransportError {
     match transport_source(status) {
         Some(transport) => TransportError::Connection(error_chain(transport)),
         None => TransportError::Rpc {
