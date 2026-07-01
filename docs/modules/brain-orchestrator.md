@@ -64,7 +64,10 @@ The service:
   and a `VramBudgetPlacer` (built at the call site from the runtime VRAM knobs) that fit-tests each
   spawn GPU-first with CPU overflow, ADR-0010/0012). The cortex's dispatcher is
   `build_cortex_tools(registry, spawn_tool, clock)`, the spawn tool merged with the MCP tools
-  via a `CompositeToolRegistry`, or `None` when neither is enabled (the Slice 3 turn path).
+  via a `CompositeToolRegistry`, or `None` when neither is enabled (the Slice 3 turn path). Its
+  `ToolDispatcher` takes the default `confirmer=None` (ADR-0013): fail-closed, so a gated tool on a
+  tainted turn is denied. No tool is gated today; the real overlay confirmer adapter is wired here
+  with the first outbound tool (Slice 9/10).
   **Echo is the default inference backend; llama.cpp is opt-in via
   `CORTEX_INFERENCE_BACKEND=llamacpp`** (ADR-0007), so the deterministic `"reply {n}: {text}"`
   script (brain-core.md) runs in CI. Every adapter's resources are released on the way out.
