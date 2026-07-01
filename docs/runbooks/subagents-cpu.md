@@ -3,7 +3,7 @@
 Bring up the CPU subagent `llama-server` and validate delegation end to end. This is the
 host-only half of Slice 7. CI stays subagent-free (subagents are opt-in, `CORTEX_SUBAGENTS_*`).
 Subagents run on **CPU** (the GPU budget is the cortex's, ADR-0004), so this needs **no GPU**
-and runs alongside `docker-compose.gpu.yml`.
+and runs alongside `docker/docker-compose.gpu.yml`.
 
 ## Prerequisites
 
@@ -19,7 +19,7 @@ and runs alongside `docker-compose.gpu.yml`.
 
 ```bash
 CORTEX_MODELS_DIR=/srv/models \
-  docker compose -f docker-compose.yml -f docker-compose.subagents.yml up -d redis llama-subagent
+  docker compose --project-directory . -f docker/docker-compose.yml -f docker/docker-compose.subagents.yml up -d redis llama-subagent
 # wait for health (Qwen3.5-2B loads in ~15 s on CPU):
 curl http://127.0.0.1:8082/health   # -> {"status":"ok"}
 ```
@@ -54,8 +54,8 @@ too by adding the tools override. The wiring hands them the MCP subset without t
 (depth-1):
 
 ```powershell
-docker compose -f docker-compose.yml -f docker-compose.gpu.yml `
-  -f docker-compose.tools.yml -f docker-compose.subagents.yml up -d
+docker compose --project-directory . -f docker/docker-compose.yml -f docker/docker-compose.gpu.yml `
+  -f docker/docker-compose.tools.yml -f docker/docker-compose.subagents.yml up -d
 ```
 
 Then speak a prompt that invites parallel work ("look up X and Y at the same time") through the
@@ -66,7 +66,7 @@ audit-logged (ADR-0009/0010).
 ## 4. Teardown
 
 ```powershell
-docker compose -f docker-compose.yml -f docker-compose.subagents.yml down
+docker compose --project-directory . -f docker/docker-compose.yml -f docker/docker-compose.subagents.yml down
 ```
 
 ## Notes

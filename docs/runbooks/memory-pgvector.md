@@ -12,7 +12,7 @@ The memory contract test needs **only Postgres** (it builds embeddings by hand, 
 embedder). From the repo root:
 
 ```
-docker compose -f docker-compose.yml -f docker-compose.memory.yml up -d postgres
+docker compose --project-directory . -f docker/docker-compose.yml -f docker/docker-compose.memory.yml up -d postgres
 ```
 
 `docker/postgres/init.sql` creates the `vector` extension and the `memories` table on first
@@ -41,7 +41,7 @@ The embedder needs the nomic GGUF present under the models dir. Set `CORTEX_MODE
 `/srv/models`) and `CORTEX_EMBED_MODEL_FILE` (the nomic pick's path under it), then:
 
 ```
-docker compose -f docker-compose.yml -f docker-compose.memory.yml up -d llama-embed
+docker compose --project-directory . -f docker/docker-compose.yml -f docker/docker-compose.memory.yml up -d llama-embed
 cd brain && CORTEX_EMBEDDING_ENDPOINT=http://127.0.0.1:8081 \
   uv run pytest -m integration --no-cov packages/embedding
 ```
@@ -49,7 +49,7 @@ cd brain && CORTEX_EMBEDDING_ENDPOINT=http://127.0.0.1:8081 \
 - **Healthcheck:** if the CPU `server` image ships without `curl`, the healthcheck stays
   unhealthy though the server is up. Watch `docker compose logs llama-embed` for the
   `listening on http` line, or swap the compose test for a `python -c` poke.
-- With both up, `docker compose -f docker-compose.yml -f docker-compose.memory.yml up` runs
+- With both up, `docker compose --project-directory . -f docker/docker-compose.yml -f docker/docker-compose.memory.yml up` runs
   the brain with `CORTEX_MEMORY_BACKEND=pgvector`, so turns recall + record for real.
 
 ## The nomic pick (validated 2026-06-29)
@@ -76,7 +76,7 @@ nice-to-have (not the default) is optional.
 ## Teardown
 
 ```
-docker compose -f docker-compose.yml -f docker-compose.memory.yml down
+docker compose --project-directory . -f docker/docker-compose.yml -f docker/docker-compose.memory.yml down
 ```
 
 Add `-v` to also drop the `cortex-pgdata` volume (wipes the memory store).

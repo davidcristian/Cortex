@@ -6,7 +6,7 @@
 # GPU-less by design (AGENTS.md gate 3). Everything marked "validate on host" is
 # measured/finalized in docs/runbooks/llamacpp-gpu.md and ADR-0004 (final model picks).
 #
-# Set these on the host (a .env next to this file works):
+# Set these on the host (a .env at the repo root works):
 #   CORTEX_MODELS_DIR      host dir holding the GGUFs (default ./models, ADR-0004)
 #   CORTEX_MODEL_FILE_CORTEX  cortex GGUF path under that dir (default: the gemma-4-12B pick)
 

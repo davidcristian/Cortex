@@ -39,4 +39,4 @@ flag (`mark_seen=False`). Nothing in this package can modify a mailbox.
 
 **Dependencies.** mcp (the FastMCP server), imap-tools (the IMAP client, STARTTLS-capable via
 stdlib `imaplib`, which the Bridge defaults to), pydantic-settings (env config). Deployed by
-`docker-compose.email.yml`.
+`docker/docker-compose.email.yml`.

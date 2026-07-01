@@ -12,6 +12,11 @@ coverage.json
 htmlcov/
 lcov.info
 
+# Host secrets / local env (compose reads a repo-root .env; never commit it)
+.env
+.env.*
+!.env.example
+
 # Node (Tauri webview, later)
 node_modules/
 dist/

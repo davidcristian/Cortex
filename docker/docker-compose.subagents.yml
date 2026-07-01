@@ -10,7 +10,7 @@
 # tools/email overrides. The wiring hands them the MCP subset without the spawn tool (depth-1):
 #     docker compose -f docker-compose.yml -f docker-compose.tools.yml -f docker-compose.subagents.yml up
 #
-# Set on the host (a .env next to this file works):
+# Set on the host (a .env at the repo root works):
 #   CORTEX_MODELS_DIR          host dir holding the GGUFs (default ./models, ADR-0004)
 #   CORTEX_MODEL_FILE_SUBAGENT subagent GGUF path under that dir (a Qwen3.5-2B candidate; the
 #                              final pick is measured in docs/runbooks/subagents-cpu.md)

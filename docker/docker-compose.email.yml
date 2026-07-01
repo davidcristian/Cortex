@@ -5,7 +5,7 @@
 # backend pointed at it. CI never runs this file. Tools are opt-in.
 #
 # The Bridge runs on the Windows HOST; the sidecar reaches it via host.docker.internal.
-# Supply the Bridge credentials via env. Use a .env next to this file (gitignored) or the shell.
+# Supply the Bridge credentials via env. Use a .env at the repo root (gitignored) or the shell.
 # NEVER commit secrets:
 #   CORTEX_EMAIL_IMAP_USER          the Bridge username (your Proton address)
 #   CORTEX_EMAIL_IMAP_PASSWORD      the Bridge-generated per-client password

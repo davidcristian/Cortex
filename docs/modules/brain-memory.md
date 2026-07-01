@@ -29,7 +29,7 @@ timestamp) in `search`.
 text text, embedding vector, created_at timestamptz)`. The `embedding` column is unbounded
 (any dimension) and unindexed (exact cosine scan, fine at personal scale); an ANN index
 (fixed dim) is a later tuning (ADR-0008). Applied by `docker/postgres/init.sql` via
-`docker-compose.memory.yml`. pgvector stores float4, so embeddings roundtrip at single
+`docker/docker-compose.memory.yml`. pgvector stores float4, so embeddings roundtrip at single
 precision (irrelevant to similarity ranking).
 
 **Invariants.**
