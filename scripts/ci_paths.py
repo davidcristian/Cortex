@@ -1,11 +1,12 @@
 """CI path classifier: decide which toolchain jobs must run for a set of changed files.
 
 Reads newline-separated repo-relative paths (the output of ``git diff --name-only``)
-from stdin and writes exactly two ``GITHUB_OUTPUT``-format lines to stdout:
-``python=true|false`` then ``rust=true|false``. Each path is classified by ordered
-rules (first match wins); the result is the union over all paths. Unmatched paths fail
-closed to BOTH -- unknown means over-test, never under-test (ADR-0006). The script must
-keep running under a plain ``python3`` on a GitHub runner: stdlib only, no uv sync.
+from stdin and writes exactly three ``GITHUB_OUTPUT``-format lines to stdout:
+``python=true|false``, ``rust=true|false``, then ``overlay=true|false``. Each path is
+classified by ordered rules (first match wins); the result is the union over all paths.
+Unmatched paths fail closed to ALL toolchains -- unknown means over-test, never
+under-test (ADR-0006). The script must keep running under a plain ``python3`` on a
+GitHub runner: stdlib only, no uv sync.
 """
 
 import sys
@@ -18,14 +19,16 @@ class Verdict(NamedTuple):
     label: str
     python: bool
     rust: bool
+    overlay: bool
 
 
-BOTH = Verdict("both", python=True, rust=True)
-PYTHON_ONLY = Verdict("python", python=True, rust=False)
-RUST_ONLY = Verdict("rust", python=False, rust=True)
-NEITHER = Verdict("neither", python=False, rust=False)
-# Same effect as BOTH, but the distinct label makes CI logs say WHY both jobs ran.
-DEFAULT = Verdict("both (fail-closed default)", python=True, rust=True)
+ALL = Verdict("all", python=True, rust=True, overlay=True)
+PYTHON_ONLY = Verdict("python", python=True, rust=False, overlay=False)
+RUST_ONLY = Verdict("rust", python=False, rust=True, overlay=False)
+OVERLAY_ONLY = Verdict("overlay", python=False, rust=False, overlay=True)
+NEITHER = Verdict("neither", python=False, rust=False, overlay=False)
+# Same effect as ALL, but the distinct label makes CI logs say WHY every job ran.
+DEFAULT = Verdict("all (fail-closed default)", python=True, rust=True, overlay=True)
 
 
 class Rule(NamedTuple):
@@ -37,16 +40,20 @@ class Rule(NamedTuple):
 
 
 # Ordered, first match wins; this list is normative in ADR-0006 -- change them together.
-# The `.md` suffix rule sits last on purpose: files inside a toolchain tree are never
-# assumed inert (tests may read them as fixtures), so e.g. brain/README.md is PYTHON.
+# `body/app/` (the React overlay + its host-only Tauri shell) is the OVERLAY tree; its
+# rule must sit BEFORE the broader `body/` -> RUST rule so overlay changes gate the node
+# toolchain, not the Rust one. The `.md` suffix rule sits last on purpose: files inside a
+# toolchain tree are never assumed inert (tests may read them as fixtures), so e.g.
+# brain/README.md is PYTHON.
 RULES: tuple[Rule, ...] = (
-    Rule("exact", "justfile", BOTH),
-    Rule("exact", ".python-version", BOTH),
-    Rule("prefix", "proto/", BOTH),
-    Rule("prefix", "scripts/", BOTH),
-    Rule("prefix", ".github/workflows/", BOTH),
+    Rule("exact", "justfile", ALL),
+    Rule("exact", ".python-version", ALL),
+    Rule("prefix", "proto/", ALL),
+    Rule("prefix", "scripts/", ALL),
+    Rule("prefix", ".github/workflows/", ALL),
     Rule("exact", "ruff.toml", PYTHON_ONLY),
     Rule("prefix", "brain/", PYTHON_ONLY),
+    Rule("prefix", "body/app/", OVERLAY_ONLY),
     Rule("prefix", "body/", RUST_ONLY),
     Rule("prefix", "docs/", NEITHER),
     Rule("prefix", ".claude/", NEITHER),
@@ -68,7 +75,7 @@ def matches(rule: Rule, path: str) -> bool:
 
 
 def classify(path: str) -> Verdict:
-    """Classify one repo-relative path; unmatched paths fail closed to both toolchains."""
+    """Classify one repo-relative path; unmatched paths fail closed to all toolchains."""
     for rule in RULES:
         if matches(rule, path):
             return rule.verdict
@@ -76,9 +83,10 @@ def classify(path: str) -> Verdict:
 
 
 def main(lines: list[str] | None = None) -> int:
-    """Classify every stdin path; print the union as exactly two GITHUB_OUTPUT lines."""
+    """Classify every stdin path; print the union as exactly three GITHUB_OUTPUT lines."""
     python = False
     rust = False
+    overlay = False
     source = sys.stdin if lines is None else lines
     for raw in source:
         path = raw.strip()
@@ -88,8 +96,10 @@ def main(lines: list[str] | None = None) -> int:
         print(f"ci-paths: {path} -> {verdict.label}", file=sys.stderr)
         python |= verdict.python
         rust |= verdict.rust
+        overlay |= verdict.overlay
     print(f"python={'true' if python else 'false'}")
     print(f"rust={'true' if rust else 'false'}")
+    print(f"overlay={'true' if overlay else 'false'}")
     return 0
 
 
