@@ -10,7 +10,8 @@ addopts (`-m "not integration"`); run manually with a subagent server up (subage
       uv run pytest -m integration --no-cov packages/orchestrator/tests/test_subagent_live.py
 
 Skips unless CORTEX_SUBAGENTS_ENDPOINT is set (the `--no-cov` matters, since the 100% gate would
-otherwise fail the run).
+otherwise fail the run). Against a *reasoning* subagent model (Qwen3.5/3.6), run the server with
+reasoning disabled (`--reasoning-budget 0`) or this crawls. See docs/runbooks/subagents-cpu.md.
 """
 
 import os

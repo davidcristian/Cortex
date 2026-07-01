@@ -1,8 +1,8 @@
 # ADR-0004: Model lineup (candidates locked)
 
-- **Status:** Accepted (candidates locked 2026-06-29; cortex pick = **gemma-4-12B**, made
-  in Slice 4 (see the measurements addendum); subagent/brain/embedder picks follow in
-  Slices 7/11/5)
+- **Status:** Accepted (candidates locked 2026-06-29). Picks: cortex = **gemma-4-12B** (Slice 4),
+  embedder = **nomic-embed-text-v1.5 Q8_0** (Slice 5), subagent = **Qwen3.5-2B Q4_K_M** (Slice 7);
+  see the measurement addenda; brain pick follows in Slice 11.
 - **Date:** 2026-06-29
 
 ## Context
@@ -139,3 +139,25 @@ integration suites passed against real services:
   multilingual alternative, overridable via that env. Both are downloaded locally.
 - **Schema is dimension-agnostic.** The `memories.embedding` column is an unbounded
   `vector`, so switching embedder/dimension needs no migration (an ANN index would; deferred).
+
+## Addendum (2026-07-01): Slice 7 subagent pick + CPU measurement
+
+The subagent tier was measured on the host machine (WSL + Docker Desktop, models at
+`/srv/models`) on a CPU `llama-server` (`ghcr.io/ggml-org/llama.cpp:server`, `-ngl 0 --jinja`).
+
+| Tier | Pick | Quant | Weights | Load | Placement |
+|---|---|---|---|---|---|
+| **Subagent** | **Qwen3.5-2B** | Q4_K_M | 1.19 GB | ~14.5 s | **CPU** (`-ngl 0`), ~893 MiB RSS (+2 slots) |
+
+- **Subagent pick: Qwen3.5-2B Q4_K_M** is off the GPU budget entirely (as designed, ADR-0001);
+  ~0.9 GB RSS leaves ample CPU RAM for several concurrent subagents. It is the
+  `docker-compose.subagents.yml` default (`CORTEX_MODEL_FILE_SUBAGENT`).
+- **Must run with reasoning disabled.** Qwen3.5/3.6 are reasoning models; unbounded on CPU they
+  emit long `<think>` traces (minutes/call). With thinking off, a narrow task answers correctly in
+  ~0.6 s ("17 + 25" → 42). Disable it on the dedicated subagent server (`--reasoning-budget 0`) or
+  per request (`chat_template_kwargs: {enable_thinking: false}`). See the
+  [ADR-0010 addendum](ADR-0010-subagents.md) and the ROADMAP deferred-refinements list. If the 2B's
+  tool-calling proves too weak with thinking off, gemma-4-E4B or Qwen3.5-4B (both present) are the
+  fallbacks at higher CPU cost.
+- **Cortex-driven end-to-end** (a resident gemma-4-12B *deciding* to delegate) still needs the GPU
+  and is validated with the full stack per `docs/runbooks/subagents-cpu.md` §3.
