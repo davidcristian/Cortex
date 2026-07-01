@@ -126,6 +126,15 @@ This gives the "fire it, keep working, glance when it pings me" flow the maintai
 is coherent with the hard rule: dismissing is purely a *view* change. The turn keeps streaming to
 the store, so nothing depends on the window staying open.
 
+**v1 window scope (Slice 8).** This whole state machine ships in v1, but it runs *inside* a fixed,
+frameless, **transparent** always-on-top window (640×720, centered): the panel/orb/preview float
+over the desktop and every morph/drift/preview animation plays within that window. The
+**OS-window-level** moves are deferred to a later overlay-polish pass: morphing the actual window to
+a true *screen* corner (v1's orb sits at the window's own corner), **click-through** on the
+transparent margins (they currently capture clicks), and **hide-on-blur** (v1 toggles with the
+hotkey instead). Host bring-up and the running list of these deferrals live in
+[body-overlay.md](../runbooks/body-overlay.md).
+
 ## 5. Chats, history, and sessions
 
 **A chat is a session.** Each chat maps to a `session_id`; the brain persists that session's

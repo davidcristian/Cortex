@@ -199,7 +199,7 @@ cortex-driven path (a resident gemma-4-12B *deciding* to emit `spawn_subagents` 
 
 ## Slice 8 (Body v1): hotkey → overlay → chat
 
-**Status:** in progress.
+**Status:** host-validated. Hotkey → overlay → chat runs on Windows; one live-brain stream check remains.
 
 Tauri app skeleton: tray + hidden window, `Hotkey` trait with Windows backend
 (macOS/Linux stubs, coverage-off with reasons), overlay shows on hotkey, prompt goes
@@ -230,8 +230,14 @@ Host-authored (excluded from CI; Windows validation in [body-overlay.md](runbook
 (`body/app/src-tauri`, `cortex-body`) has tray + hidden window, hotkey → toggle + `cortex:activate`,
 the `converse` command streaming `TurnEvent`s to the webview over a Tauri `Channel`
 ([body-app.md](modules/body-app.md)).
-**Remaining (host Windows half):** build + run `npm run tauri dev`, press the chord, type,
-watch the real brain stream back. Add any Tauri-version-specific config (CSP, capabilities).
+**Host run (2026-07-01):** built + ran `npm run tauri dev` on Windows. The hotkey summons the
+overlay, the tray works, and a prompt reaches the brain over IPC→gRPC. A brain-down run surfaced
+the "cannot reach the brain" error through the full path, confirming the wiring end to end. Refined
+from that run: the window is **transparent** (only the panel floats over the desktop) and the
+light/dark toggle moved into the panel header. **Remaining:** one confirmation with the brain up
+(`just up-gpu`) to watch a real reply stream token by token. **Deferred overlay polish** (OS-window
+morph to a real screen corner, hide-on-blur, click-through on the transparent margins, a tighter
+CSP) is recorded in [overlay-ux.md](design/overlay-ux.md) §4 + [body-overlay.md](runbooks/body-overlay.md).
 
 ## Slice 8.5 (Resource governance): revise the GPU/CPU managers
 
