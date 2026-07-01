@@ -144,9 +144,9 @@ expose session data over the seam; today's `proto` has only per-turn `Converse`.
 - **v1 (Slice 8):** the overlay keeps the **current app run's** chats + history in memory (fed by
   the streams it renders), supports new-chat and the full animation/state machine, and one live
   session at a time is fully functional. Re-summoning within a run restores the in-memory chat.
-- **Later (a seam slice):** add `ListSessions` + `GetSessionMessages` RPCs so history and the chat
-  list load from the store. Then cross-restart persistence and cycling are real, not in-memory.
-  The UX above is the target; the build reaches it without changing this design.
+- **Later ([Slice 8.7](../ROADMAP.md)):** add read-only `ListSessions` + `GetSessionMessages` RPCs
+  so history and the chat list load from the store. Then cross-restart persistence and cycling
+  are real, not in-memory. The UX above is the target; the build reaches it without changing it.
 
 ## 6. Keyboard shortcuts
 

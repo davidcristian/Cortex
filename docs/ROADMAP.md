@@ -279,6 +279,21 @@ decision, admission coordination), 100% without a GPU. Host half (user) is per-c
 caps in the compose layering + real GPU-placed-subagent validation, landing the mechanism with
 the Slice 11 lifecycle behind the corrected ports.
 
+## Slice 8.7 (Chat history & cycling over the seam)
+
+**Status:** planned (inserted 2026-07-01). Delivers the overlay's deferred multi-chat features
+([design/overlay-ux.md §5](design/overlay-ux.md)): store-backed history, listing, and cycling.
+
+The overlay (Slice 8) keeps the current run's chat in memory; persistence across restarts, the
+chat switcher, and `Ctrl+↑/↓` cycling need the brain to expose session data over the seam. This
+slice extends [proto/body.proto](../proto/body.proto) with read-only `ListSessions` +
+`GetSessionMessages` (views of the durable store, as the hard rule keeps sessions safe), threads
+them through `BrainService`, grows the `BrainTransport`/`BrainBridge` ports with typed methods +
+adapters + contract tests, and switches the overlay's chat list / switcher / cycling to load from
+the store instead of memory (brain-generated chat titles may land here too). CI-gated end to end
+(fakes both sides, no GPU); the overlay chrome browser-validated. Inserted as 8.7 (decimal insert,
+no renumber); independent of the OS-action slices, orderable any time after Slice 8.
+
 ## Slice 9 (One OS action end-to-end, volume)
 
 `AudioControl` Windows backend (Core Audio); `BodyService.SetVolume/GetVolume` served by
