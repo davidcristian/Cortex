@@ -169,6 +169,15 @@ Read-only is confirmed three ways end to end: only the three read tools are regi
 folders open with EXAMINE (`readonly=True`), and fetches use `mark_seen=False`, so the live
 mailbox is never modified.
 
+## Addendum (2026-07-01): the untrusted-content boundary is ADR-0013
+
+Two threads left open here are now owned by [ADR-0013](ADR-0013-untrusted-content.md) (Slice 6.5):
+tool-result content re-entering the loop is **untrusted data** (framed, not obeyed), and the deferred
+"email write-actions behind explicit per-action confirmation" (the Risks section) is subsumed by
+ADR-0013's capability gate (`ToolSpec.gated` + the `Confirmer` port), shipped inert until the first
+outbound tool. The tool seams (`ToolRegistry`/`ToolDispatcher`/`stream_tool_loop`) are unchanged; the
+boundary is a hardening pass behind them plus that one new port.
+
 ## Addendum (2026-06-29): multi-server tool aggregation as a noted refinement
 
 Wiring connects `CORTEX_TOOLS_BACKEND=mcp` to a **single** MCP endpoint, so a running brain
