@@ -228,6 +228,57 @@ and the `os_linux`/`os_macos` `unimplemented!()` stub crates proving the
 hotkey → show → `converse` → render, validated end to end on the host (press the chord,
 type, watch the real brain stream back).
 
+## Slice 8.5 (Resource governance): revise the GPU/CPU managers
+
+**Status:** planned (inserted 2026-07-01; **target: land before Slice 11**, which builds on the
+`ModelManager`). Design → ADR-0012 (opens the slice). Inserted as 8.5 to avoid renumbering the
+heavily-referenced Slices 9-11.
+
+Revise the `ModelManager` (ADR-0007) and `SubagentScheduler` (ADR-0010) **ports** while they are
+still small and pure and before the Slice 11 swap builds on them (retrofitting the swap's
+foundation is a rewrite; the same "design the interface around the rule from day one" logic as
+the hard rule). Two user-directed motivations:
+
+1. **Subagents are GPU-first, CPU-overflow (not CPU-only)** (corrects ADR-0010 dec 6/7 and
+   ADR-0004). The `ModelManager` becomes a **VRAM-budget accountant**: per spawn it fit-tests a
+   subagent against the remaining headroom under `CORTEX_VRAM_SOFT_CAP_GB` (cortex + already-
+   placed subagents) and places the **whole** model on GPU (`-ngl 99`, allowing **bigger**
+   subagents up to ~4B when it fits) or falls back to **CPU-only** (`-ngl 0`), never a partial
+   GPU+CPU straddle for a 2-4B (verified worst-of-both-worlds). It owns the accounting rather
+   than trusting llama.cpp `--fit` (which sizes to *free* VRAM, not the policy cap). CUDA OOM
+   (fails loudly) → re-place on CPU; container OOM → rehydrate from the store (the hard rule).
+   The `SubagentScheduler` gains **resource-budget admission** and coordinates with the
+   `ModelManager` for placement.
+
+2. **Container-scoped resource caps so the machine stays usable** (verified WSL2 feasibility,
+   2026-07-01 research, recorded in [[resource-governance-wsl2]] / ADR-0012):
+   - **CPU per subagent:** `--cpus` fractional quota, the user's pick (elastic, per-container,
+     touches no WSL-global config).
+   - **CPU/RAM global ceiling:** enforced **softly by the `SubagentScheduler`'s admission budget**
+     (sum of admitted `--cpus`/`--memory` ≤ target). **No `.wslconfig`, no shared parent cgroup,
+     no hard limits on WSL** (user's constraint). RAM per subagent via `--memory` +
+     `--memory-swap==--memory`.
+   - **GPU compute:** there is **no** per-process GPU-utilization cap on this stack (no MIG on
+     consumer GPUs; MPS unusable under WSL2; `nvidia-smi` power/clock host-only + whole-GPU).
+     Modeled as a **scheduler concurrency policy** (max concurrent GPU subagents + smaller
+     ctx/batch), tuned on the host. The host-side clock clamp is **dropped** (whole-GPU,
+     laptop-unreliable, throttles the cortex + games, so not worth it; user + author agreed).
+
+**A deferred option is the Intel NPU (Core Ultra 9 275HX).** Using the otherwise-idle NPU for tiny
+subagents/embeddings would fit as a **third `InferenceBackend` adapter** (OpenVINO GenAI, since
+llama.cpp has no NPU path) and a third placement target, aligned with "keep the machine usable."
+**Needs a feasibility pass before committing**, gated on three unknowns: (a) whether the 275HX
+(Arrow Lake-HX is the one Intel line where the NPU is often absent/minimal) exposes a usable NPU
+at all; (b) whether the NPU is reachable from the dockerized **WSL2** brain, likely the blocker,
+since WSL2 paravirtualizes the dGPU but not the NPU, so it may force a host-side runtime that
+crosses the dockerized-brain seam; (c) whether NPU LLM inference for 2-4B is fast/mature enough.
+
+**Splits (our rhythm):** CI-gated half (me) covers ADR-0012, then the revised `ModelManager` +
+`SubagentScheduler` **ports + pure fakes + contract tests** (budget math, fit-test, placement
+decision, admission coordination), 100% without a GPU. Host half (user) is per-container cgroup
+caps in the compose layering + real GPU-placed-subagent validation, landing the mechanism with
+the Slice 11 lifecycle behind the corrected ports.
+
 ## Slice 9 (One OS action end-to-end, volume)
 
 `AudioControl` Windows backend (Core Audio); `BodyService.SetVolume/GetVolume` served by
