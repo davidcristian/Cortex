@@ -355,6 +355,36 @@ decision, admission coordination), 100% without a GPU. Host half (user) is per-c
 caps in the compose layering + real GPU-placed-subagent validation, landing the mechanism with
 the Slice 11 lifecycle behind the corrected ports.
 
+## Slice 8.6 (Heterogeneous subagent models): the cortex picks which, and how many
+
+**Status:** planned (inserted 2026-07-01). Builds on Slice 7 (delegation) + Slice 8.5 (placement),
+both done; orderable any time after 8.5. Inserted as 8.6 (decimal insert, no renumber).
+
+Today `spawn_subagents(instructions: string[])` runs every subagent on **one** wired model
+([spawn.py](../brain/packages/core/src/cortex_core/spawn.py) + `build_subagents`). But the design
+intends the cortex to **choose the subagent model per spawn and mix-and-match** across the ADR-0004
+subagent roster (`gemma-4-E2B/E4B`, `Qwen3.5-0.8B/2B/4B`). A small-fast model for a trivial lookup, a
+larger/robust one for a harder or untrusted-content subtask. This slice delivers that, additively behind
+the existing `TaskStore`/spawn/`SubagentPlacer` seams:
+
+- **The spawn tool gains a per-instruction model choice.** Each subtask names a subagent tier/model
+  (defaulting to the pick) from a roster the spec advertises to the cortex, with each option's
+  trade-offs (size/latency, and **injection-robustness** where gemma-4-E4B is the standout, ADR-0013
+  harness). `SubagentTask` already carries what a subagent needs; the runner selects the model's
+  resources.
+- **The wiring builds a roster of `SubagentResources`**, one per candidate model (its own logical id,
+  `PlacementRequest`, GPU+CPU backends), instead of a single tier. Each spawn is placed independently
+  (GPU-first, CPU-overflow, ADR-0012) and admitted against the shared CPU/RAM budget. A bigger model
+  simply fit-tests to CPU more often. Config moves from one `CORTEX_MODEL_FILE_SUBAGENT` to a small
+  roster map.
+- **Safety note (ADR-0013):** the deterministic layers contain a subagent regardless of model (no
+  outbound tools, fail-closed gate, taint), so model choice is a *quality/robustness* preference, not a
+  safety gate. But the cortex should prefer a robust model (gemma-E4B) for untrusted-content subtasks.
+
+CI-gated end to end (the roster + per-spawn routing + placement over fakes, 100% no-GPU); real
+multi-model spawning is host-validated (agent, via Docker). **Gate proven:** the cortex composing a
+heterogeneous team of subagents within one budget.
+
 ## Slice 8.7 (Chat history & cycling over the seam)
 
 **Status:** planned (inserted 2026-07-01). Delivers the overlay's deferred multi-chat features
