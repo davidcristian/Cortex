@@ -152,12 +152,11 @@ The subagent tier was measured on the host machine (WSL + Docker Desktop, models
 - **Subagent pick: Qwen3.5-2B Q4_K_M** is off the GPU budget entirely (as designed, ADR-0001);
   ~0.9 GB RSS leaves ample CPU RAM for several concurrent subagents. It is the
   `docker-compose.subagents.yml` default (`CORTEX_MODEL_FILE_SUBAGENT`).
-- **Must run with reasoning disabled.** Qwen3.5/3.6 are reasoning models; unbounded on CPU they
-  emit long `<think>` traces (minutes/call). With thinking off, a narrow task answers correctly in
-  ~0.6 s ("17 + 25" → 42). Disable it on the dedicated subagent server (`--reasoning-budget 0`) or
-  per request (`chat_template_kwargs: {enable_thinking: false}`). See the
-  [ADR-0010 addendum](ADR-0010-subagents.md) and the ROADMAP deferred-refinements list. If the 2B's
-  tool-calling proves too weak with thinking off, gemma-4-E4B or Qwen3.5-4B (both present) are the
-  fallbacks at higher CPU cost.
+- **Runs with reasoning disabled.** Qwen3.5/3.6 are reasoning models; unbounded on CPU they emit
+  long `<think>` traces (minutes/call). The subagent server disables it (`--chat-template-kwargs
+  '{"enable_thinking": false}'`, baked into `docker-compose.subagents.yml`), so a narrow task
+  answers correctly in ~0.6 s ("17 + 25" → 42). See the [ADR-0010 addendum](ADR-0010-subagents.md).
+  If the 2B's tool-calling proves too weak with reasoning off, gemma-4-E4B or Qwen3.5-4B (both
+  present) are the fallbacks at higher CPU cost.
 - **Cortex-driven end-to-end** (a resident gemma-4-12B *deciding* to delegate) still needs the GPU
   and is validated with the full stack per `docs/runbooks/subagents-cpu.md` §3.

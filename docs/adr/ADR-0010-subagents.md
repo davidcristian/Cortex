@@ -157,15 +157,18 @@ wrongly said the drive was unreachable and used a stand-in). On `ghcr.io/ggml-or
 the concurrency budget, and the batch aggregation. The integration test (`test_subagent_live.py`,
 host-only) reproduces it; the runbook is [docs/runbooks/subagents-cpu.md](../runbooks/subagents-cpu.md).
 
-**Finding (subagents need thinking disabled, a required follow-up).** Qwen3.5/3.6 are *reasoning*
-models: unbounded on CPU they emit long `<think>` traces (minutes per call, and the naive run timed
-out), and llama.cpp streams those into `reasoning_content`, leaving the assistant `content` (what
-`LlamaCppBackend` reads) empty until reasoning finishes. Narrow subagent tasks do not need
-reasoning, so the subagent tier must disable it, either server-side on the dedicated subagent
-`llama-server` (`--reasoning-budget 0`, one line in `docker-compose.subagents.yml`) or per-request
-(`chat_template_kwargs: {enable_thinking: false}`, verified to yield the direct answer in ~0.6 s;
-this needs the backend to pass request extras). Tracked in the ROADMAP deferred-refinements list;
-**apply before the subagent tier is usable on a reasoning model.**
+**Finding + fix (subagents run with reasoning disabled).** Qwen3.5/3.6 are *reasoning* models:
+unbounded on CPU they emit long `<think>` traces (minutes per call, so the naive run timed out), and
+llama.cpp streams those into `reasoning_content`, leaving the assistant `content` (what
+`LlamaCppBackend` reads) empty until reasoning finishes. Narrow subagent tasks do not need it, so
+the dedicated subagent `llama-server` **disables reasoning** via `--chat-template-kwargs
+'{"enable_thinking": false}'` (baked into `docker-compose.subagents.yml`). This was chosen over a
+per-request backend change because it needs no code, keeps the shared `InferenceBackend` untouched,
+and (being a server flag) llama.cpp applies the right per-model mechanism (the kwarg is ignored by
+non-reasoning templates like gemma-4-E\*, so overriding the model stays correct). Verified: with the
+flag, plain requests answer directly in ~0.3-0.6 s and the live delegation test passes end to end.
+(`--reasoning-budget 0` did **not** work on this build. It still produced reasoning; only
+`--chat-template-kwargs` / the per-request `enable_thinking` disabled it.)
 
 Still the host-only half (needs the GPU): the **cortex-driven** path, meaning a resident
 gemma-4-12B *deciding* to emit `spawn_subagents` end to end. The measured pick is recorded in the
