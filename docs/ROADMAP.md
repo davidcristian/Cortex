@@ -412,6 +412,20 @@ Refinements consciously deferred as slices landed. Each is a small change behind
 **unchanged port**, recorded at its origin ADR and collected here so none is lost. Not
 ordered; picked up when a slice needs one or on request.
 
+**Seam / transport in Slice 2 ([ADR-0003](adr/ADR-0003-seam-codegen.md)):**
+- **Transport retry / reconnect policy.** The body's `body_rpc` adapter is thin translation with
+  **no retries** ([body-rpc.md](modules/body-rpc.md)), so a dropped stream or a transient failure
+  surfaces straight to the caller. A backoff/reconnect policy is a later refinement behind the
+  unchanged `BrainTransport` port; the overlay treats a failed turn as terminal until then.
+
+**Cortex chat / session in Slice 3:**
+- **Session-history windowing / truncation / summarization.** `TurnEngine` sends the **full**
+  session history to the model every turn ([brain-core.md](modules/brain-core.md)) with no brain-side
+  cap, so a long conversation eventually exceeds the model's context window (`CORTEX_CTX_SIZE`). A
+  windowing/summarization pass (drop or compress old turns before inference) is a later refinement
+  behind the unchanged `SessionStore`/`TurnEngine`. Distinct from memory summarization (Slice 5,
+  which is cross-session recall, not the in-context history).
+
 **Tools in Slice 6 ([ADR-0009](adr/ADR-0009-tools-mcp.md)):**
 - **Multi-server tool aggregation.** The brain connects to *one* MCP endpoint at a time
   (files *or* email); an `AggregateToolRegistry` fanning `describe`/`invoke` across several
