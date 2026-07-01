@@ -9,7 +9,13 @@ import { Preview } from "./Preview";
 // The mode router: the panel is always mounted (its `open` class drives the enter/travel
 // animation); the orb and preview mount only in their modes. Also owns the global keys. Esc
 // dismisses (→ orb mid-stream), Ctrl/Cmd+N starts a new chat.
-export function Overlay({ controller }: { readonly controller: OverlayController }) {
+interface OverlayProps {
+  readonly controller: OverlayController;
+  readonly dark: boolean;
+  readonly onToggleTheme: () => void;
+}
+
+export function Overlay({ controller, dark, onToggleTheme }: OverlayProps) {
   const { state, submit, dismiss, open, newChat } = controller;
 
   useEffect(() => {
@@ -32,6 +38,8 @@ export function Overlay({ controller }: { readonly controller: OverlayController
       <Panel
         state={state}
         open={state.mode === "panel"}
+        dark={dark}
+        onToggleTheme={onToggleTheme}
         onSubmit={submit}
         onDismiss={dismiss}
         onNewChat={newChat}
