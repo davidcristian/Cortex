@@ -31,6 +31,10 @@ tool that *ran* but reported an error (`CallToolResult.isError`) is a normal `is
 result, not an exception.
 
 **Invariants.**
+- Untrusted by default (ADR-0013): `invoke` leaves `ToolResult.trust` at its fail-closed
+  `UNTRUSTED` default, so every remote MCP result (file contents, email bodies) is framed as
+  data and taints the turn. The adapter needs no per-tool trust annotation; the core's default
+  carries it. (A genuinely trusted remote tool, if one ever exists, is a composition-root overlay.)
 - Stateless per call: no tool state outlives a call (the one hard rule); the adapter holds
   only the injected session.
 - Adapter-only: real MCP/network I/O lives here, never in the core (AGENTS.md gate 3).
