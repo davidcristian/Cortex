@@ -24,6 +24,7 @@ from cortex_core.fakes import (
     InMemoryTaskStore,
     InMemoryToolRegistry,
     RecordingAuditSink,
+    RecordingConfirmer,
     SystemClock,
 )
 from cortex_core.inference import InferenceEvent, TextChunk
@@ -33,6 +34,7 @@ from cortex_core.placement import Placement, PlacementRequest, PlacementTarget
 from cortex_core.placer import VramBudgetPlacer
 from cortex_core.ports import (
     Clock,
+    Confirmer,
     Embedder,
     InferenceBackend,
     MemoryStore,
@@ -50,14 +52,33 @@ from cortex_core.runner import SubagentResources, SubagentRunner
 from cortex_core.scheduler import ResourceBudgetScheduler
 from cortex_core.spawn import SPAWN_TOOL_NAME, SpawnSubagentsTool
 from cortex_core.subagents import SubagentResult, SubagentTask
-from cortex_core.tools import ToolCall, ToolInvocation, ToolResult, ToolSpec
+from cortex_core.tools import (
+    ConfirmationRequest,
+    ToolCall,
+    ToolInvocation,
+    ToolResult,
+    ToolSpec,
+    Trust,
+)
+from cortex_core.untrusted import (
+    DENIED_MSG,
+    SECURITY_PREAMBLE,
+    TaintLedger,
+    new_nonce,
+    security_preamble_message,
+    wrap_untrusted,
+)
 
 __all__ = [
     "DEFAULT_CORTEX_MODEL",
+    "DENIED_MSG",
+    "SECURITY_PREAMBLE",
     "SPAWN_TOOL_NAME",
     "BuiltinTool",
     "Clock",
     "CompositeToolRegistry",
+    "ConfirmationRequest",
+    "Confirmer",
     "EchoInferenceBackend",
     "Embedder",
     "EmbedderError",
@@ -82,6 +103,7 @@ __all__ = [
     "PlacementRequest",
     "PlacementTarget",
     "RecordingAuditSink",
+    "RecordingConfirmer",
     "ResourceBudgetScheduler",
     "Role",
     "RoutingHints",
@@ -97,6 +119,7 @@ __all__ = [
     "SubagentScheduler",
     "SubagentTask",
     "SystemClock",
+    "TaintLedger",
     "TaskStore",
     "TaskStoreError",
     "TextChunk",
@@ -111,10 +134,14 @@ __all__ = [
     "ToolRegistry",
     "ToolResult",
     "ToolSpec",
+    "Trust",
     "TurnCapabilities",
     "TurnCompleted",
     "TurnEngine",
     "TurnEvent",
     "VramBudgetPlacer",
+    "new_nonce",
     "route_turn",
+    "security_preamble_message",
+    "wrap_untrusted",
 ]
