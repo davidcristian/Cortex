@@ -8,23 +8,30 @@ and runs alongside `docker-compose.gpu.yml`.
 ## Prerequisites
 
 - Docker Desktop (WSL2 backend) running.
-- A small subagent GGUF (2-4B) under the models dir. The compose default expects a Qwen3.5-2B
-  Q4_K_M at `D:\Software\AI\Models` (override with `CORTEX_MODELS_DIR` /
-  `CORTEX_MODEL_FILE_SUBAGENT`). Note the Windows `D:` bind resolves only when Docker is invoked
-  **host-side** (Windows shell or a WSL distro with the drive mounted). A plain WSL distro
-  cannot see `D:`.
+- The subagent GGUF: `Qwen3.5-2B-Q4_K_M.gguf` (the pick, ADR-0004). On the dev machine the models are
+  mounted into WSL at **`/srv/models`** (Windows `D:\Software\AI\...`), so from WSL set
+  `CORTEX_MODELS_DIR=/srv/models`; the compose default (`./models`) is for
+  host-side (Windows) Docker, which resolves `D:`. A plain WSL distro sees the drive at `/srv`,
+  not `D:`. Override the file with `CORTEX_MODEL_FILE_SUBAGENT` (default
+  `unsloth/Qwen3.5-2B-GGUF/Qwen3.5-2B-Q4_K_M.gguf`).
 
 ## 1. Bring up the subagent server
 
-```powershell
-docker compose -f docker-compose.yml -f docker-compose.subagents.yml up -d redis llama-subagent
-# wait for health (a small CPU model loads in seconds):
+```bash
+CORTEX_MODELS_DIR=/srv/models \
+  docker compose -f docker-compose.yml -f docker-compose.subagents.yml up -d redis llama-subagent
+# wait for health (Qwen3.5-2B loads in ~15 s on CPU):
 curl http://127.0.0.1:8082/health   # -> {"status":"ok"}
 ```
 
 `-ngl 0` keeps it CPU-only; `--jinja` enables the tool-capable chat template (so tools-enabled
 subagents can function-call); `--parallel` matches `CORTEX_SUBAGENTS_MAX_CONCURRENCY` so each
 scheduler-admitted subagent gets a server slot.
+
+> **Reasoning off (important).** Qwen3.5 is a reasoning model. On CPU, unbounded thinking is
+> minutes per call and `LlamaCppBackend` discards the `<think>` traces (it reads `content`, not
+> `reasoning_content`). Until the subagent tier disables reasoning (deferred-refinements list), add
+> `--reasoning-budget 0` to the `llama-subagent` command, or the live test below will crawl.
 
 ## 2. Validate the delegation machinery (no GPU cortex needed)
 
@@ -62,13 +69,12 @@ docker compose -f docker-compose.yml -f docker-compose.subagents.yml down
 
 ## Notes
 
-- **Machinery validated locally (2026-06-29).** The delegation path was proven on a real CPU
-  `llama-server` using a **stand-in** small model (Qwen2.5-1.5B-Instruct Q4_K_M, in a WSL-local
-  dir since `D:` is unreachable from a plain WSL distro): three concurrent subagents returned
-  correct answers ("capital of France" → Paris, "17 + 25" → 42, plus a one-word reply), aggregated
-  in order, `is_error=False`. See the [ADR-0010 addendum](../adr/ADR-0010-subagents.md).
-- **Still the user's to confirm:** the final subagent model pick (the real Qwen3.5-2B on `D:`)
-  and the cortex-driven path (step 3, GPU cortex emitting `spawn_subagents`). Lock the pick in the
-  [ADR-0004 addendum](../adr/ADR-0004-model-lineup.md) with the measured CPU footprint/latency.
-- If the subagent model tool-calls unreliably at 2B, prefer a gemma-4-E4B or Qwen3.5-4B (ADR-0004)
-  at higher CPU cost, or keep subagents as pure text workers (they need no tools to be useful).
+- **Machinery validated on the real pick (2026-07-01).** The delegation path was proven on a real
+  CPU `llama-server` running **Qwen3.5-2B Q4_K_M** (from `/srv/models`): concurrent subagents
+  answered correctly (e.g. "17 + 25" → 42) in ~0.6 s each **with thinking off**, `is_error=False`;
+  load ~14.5 s, ~893 MiB RSS. Pick locked in the [ADR-0004 addendum](../adr/ADR-0004-model-lineup.md);
+  details in the [ADR-0010 addendum](../adr/ADR-0010-subagents.md).
+- **Still the user's to confirm:** the cortex-driven path (step 3, the GPU cortex *deciding* to
+  emit `spawn_subagents`), which needs the resident gemma-4-12B.
+- If the subagent tool-calls unreliably at 2B (once reasoning is disabled), prefer gemma-4-E4B or
+  Qwen3.5-4B (ADR-0004) at higher CPU cost, or keep subagents as pure text workers (no tools needed).
