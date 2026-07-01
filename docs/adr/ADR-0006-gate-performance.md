@@ -20,20 +20,23 @@ The decisions were revised same-day, pre-push, for open-source longevity.
    stdlib-only, gated like every other script: ruff, pyright strict, 100% coverage).
    A `changes` job computes `git diff --name-only` over the run's range (PR: three-dot
    diff against the base ref; push: `event.before..HEAD` when resolvable) and pipes it
-   into the classifier, which emits `python=`/`rust=` outputs consumed by job-level
-   `if`s. Classification is ordered rules, first match wins, union over all paths:
-   - **both:** `justfile`, `.python-version` (exact); `proto/`, `scripts/`,
+   into the classifier, which emits `python=`/`rust=`/`overlay=` outputs consumed by
+   job-level `if`s. Classification is ordered rules, first match wins, union over all paths:
+   - **all:** `justfile`, `.python-version` (exact); `proto/`, `scripts/`,
      `.github/workflows/` (prefix);
    - **python:** `ruff.toml` (exact); `brain/` (prefix);
+   - **overlay:** `body/app/` (prefix) is the React overlay tree; ordered BEFORE the
+     `body/` rule so overlay changes gate the node toolchain, not Rust (the app crate is
+     excluded from the gated Rust workspace, ADR-0011);
    - **rust:** `body/` (prefix);
    - **neither:** `docs/`, `.claude/` (prefix); `.gitignore`,
      `.pre-commit-config.yaml`, `LICENSE`, `.github/dependabot.yml` (exact); `.md`
      (suffix rule, reached only when no earlier rule matched, so `brain/README.md` is
      python; that precedence is deliberate: files inside a toolchain tree are never
      assumed inert, tests may read them as fixtures);
-   - **default:** both. Unknown means over-test, never under-test.
-   Fail-closed everywhere: unmatched paths run both toolchains, an undeterminable range
-   runs both (first push to a branch, or a force-push whose `before` SHA is the zero-SHA
+   - **default:** all. Unknown means over-test, never under-test.
+   Fail-closed everywhere: unmatched paths run all toolchains, an undeterminable range
+   runs all (first push to a branch, or a force-push whose `before` SHA is the zero-SHA
    or no longer fetchable, though an ordinary rebase-force-push keeps a fetchable `before` and
    takes the safe `before..HEAD` diff), and a classifier error fails the run visibly.
    *Alternative considered and rejected:* dorny/paths-filter (briefly adopted
@@ -69,7 +72,7 @@ The decisions were revised same-day, pre-push, for open-source longevity.
 ## Consequences
 
 - The classification rules are tested code, and a stale rule list **over-tests** rather
-  than under-tests: a new cross-tree file simply defaults to both toolchains. The
+  than under-tests: a new cross-tree file simply defaults to all toolchains. The
   pressure to keep the rules current is economic (wasted CI minutes), not correctness.
 - Skipped jobs report "skipped", which GitHub branch protection treats as satisfied, and
   this is why filtering is job-level `if`s fed by a `changes` job rather than
@@ -78,7 +81,7 @@ The decisions were revised same-day, pre-push, for open-source longevity.
   `.rs`, `docs/` included), so gating it on any one toolchain's paths would let a
   Rust-only or docs-only change merge an over-cap file green.
 - Action version bumps now arrive as weekly dependabot PRs; merging them is routine
-  maintenance (each touches `.github/workflows/`, so both toolchains re-gate).
+  maintenance (each touches `.github/workflows/`, so all toolchains re-gate).
 - Buffered parallel gate output means no live streaming per tree; logs print complete,
   per tree, on completion.
 - Observed adjacent gap while writing the filters (not addressed here): nothing in CI

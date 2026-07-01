@@ -28,12 +28,13 @@ core function).
   for a set of changed files. Reads newline-separated repo-relative paths (the output of
   `git diff --name-only`) on stdin; blank lines are ignored. Each path is classified by
   ordered rules, first match wins (the normative rule list lives in ADR-0006); the
-  result is the union over all paths. Writes exactly two `GITHUB_OUTPUT`-format lines
-  to stdout, in order: `python=true|false` then `rust=true|false`. Nothing else. Logs
-  one `ci-paths: PATH -> VERDICT` line per path to stderr so CI logs show why a job
-  ran. Empty input yields `python=false`/`rust=false`. Unmatched paths fail closed to
-  BOTH (unknown means over-test, never under-test). Always exits 0, because classification has
-  no failure mode.
+  result is the union over all paths. Writes exactly three `GITHUB_OUTPUT`-format lines
+  to stdout, in order: `python=true|false`, `rust=true|false`, then `overlay=true|false`
+  (the overlay = the `body/app/` React tree, gated by `check-overlay`), and nothing else.
+  Logs one `ci-paths: PATH -> VERDICT` line per path to stderr so CI logs show why a job
+  ran. Empty input yields all three `false`. Unmatched paths fail closed to ALL three
+  (unknown means over-test, never under-test). Always exits 0, because classification has no
+  failure mode.
 
 **Invariants.**
 - stdlib-only modules; pure cores (`scan`, `evaluate`/`check`, `classify`) unit-tested
