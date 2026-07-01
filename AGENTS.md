@@ -69,9 +69,12 @@ Interfaces are designed around this rule from day one. Retrofitting it is a rewr
    it (path-filtered, ADR-0006); shared gate files (justfile, proto, scripts, workflows)
    and unrecognized paths trigger all of them (fail closed).
 4. **Doc-first Definition of Done.** Per slice: design doc/ADR → define or adjust the
-   port → tests → implementation → module doc + runbook updates. A change that touches
-   code but not docs is incomplete. Every module has a short contract doc in
-   `docs/modules/` (purpose, public contract, invariants, dependencies) that lets a
+   port → tests → implementation → module doc + runbook updates → **record every consciously
+   deferred refinement in the ROADMAP's "Deferred refinements & later work" section (and at its
+   origin ADR)**. A change that touches code but not docs is incomplete; a refinement knowingly
+   punted but not written down is a lost decision. That section is the one place none is lost, so
+   updating it is part of finishing a slice, not an afterthought. Every module has a short contract
+   doc in `docs/modules/` (purpose, public contract, invariants, dependencies) that lets a
    future agent work on it without reading the tree.
 5. **Types & quality.** Python: `ruff` (lint + format) clean; `pyright` in strict mode
    clean; no unjustified `Any`; public functions fully typed; explicit typed exceptions, never
