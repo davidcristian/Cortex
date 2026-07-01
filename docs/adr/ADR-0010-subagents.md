@@ -146,19 +146,27 @@ nor invoked, and duplicate built-in names are a construction error.
 
 ## Addendum (2026-06-29): increment 4 validated the machinery on a real CPU model
 
-The delegation path was validated end to end against a real CPU `llama-server`. Because a plain
-WSL distro cannot see the user's `D:\Software\AI\Models` drive (the Windows bind resolves only
-host-side, the same constraint as the Slice 4 GPU run), the validation used a **stand-in** small
-model in a WSL-local dir: **Qwen2.5-1.5B-Instruct Q4_K_M** on `ghcr.io/ggml-org/llama.cpp:server`
-(`-ngl 0 --jinja --parallel 2`). Invoking `spawn_subagents` directly (as the cortex would) with
-three instructions ran three subagents **concurrently** under the `ConcurrencyScheduler` and folded
-their results in order ("capital of France" → *Paris*, "17 + 25" → *42*, and a one-word reply), with
-`is_error=False`, each body non-empty. This exercises the real `LlamaCppBackend` (CPU),
-`SubagentRunner`, the concurrency budget, and the batch aggregation. The integration test
-(`test_subagent_live.py`, host-only) reproduces it; the runbook is
-[docs/runbooks/subagents-cpu.md](../runbooks/subagents-cpu.md).
+The delegation path was validated end to end against a real CPU `llama-server` running the
+**user's actual subagent pick** (`unsloth/Qwen3.5-2B-GGUF/Qwen3.5-2B-Q4_K_M.gguf`), mounted from
+`/srv/models` (the models are reachable from WSL at `/srv`; an earlier draft of this addendum
+wrongly said the drive was unreachable and used a stand-in). On `ghcr.io/ggml-org/llama.cpp:server`
+(`-ngl 0 --jinja --parallel 2`) the model loaded in ~14.5 s, resident RSS ~893 MiB. Invoking
+`spawn_subagents` directly (as the cortex would) ran the subagents **concurrently** under the
+`ConcurrencyScheduler`; with thinking disabled the model answered correctly and fast ("17 + 25" →
+*42* in ~0.6 s), `is_error=False`. This exercises the real `LlamaCppBackend` (CPU), `SubagentRunner`,
+the concurrency budget, and the batch aggregation. The integration test (`test_subagent_live.py`,
+host-only) reproduces it; the runbook is [docs/runbooks/subagents-cpu.md](../runbooks/subagents-cpu.md).
 
-Two things remain the host-only half (they need the GPU cortex + the real model on `D:`):
-the **cortex-driven** path (a resident gemma-4-12B *deciding* to emit `spawn_subagents`), and
-**locking the final subagent pick** (the real Qwen3.5-2B) in the ADR-0004 addendum with its measured
-CPU footprint/latency. The machinery under both is the same code proven above.
+**Finding (subagents need thinking disabled, a required follow-up).** Qwen3.5/3.6 are *reasoning*
+models: unbounded on CPU they emit long `<think>` traces (minutes per call, and the naive run timed
+out), and llama.cpp streams those into `reasoning_content`, leaving the assistant `content` (what
+`LlamaCppBackend` reads) empty until reasoning finishes. Narrow subagent tasks do not need
+reasoning, so the subagent tier must disable it, either server-side on the dedicated subagent
+`llama-server` (`--reasoning-budget 0`, one line in `docker-compose.subagents.yml`) or per-request
+(`chat_template_kwargs: {enable_thinking: false}`, verified to yield the direct answer in ~0.6 s;
+this needs the backend to pass request extras). Tracked in the ROADMAP deferred-refinements list;
+**apply before the subagent tier is usable on a reasoning model.**
+
+Still the host-only half (needs the GPU): the **cortex-driven** path, meaning a resident
+gemma-4-12B *deciding* to emit `spawn_subagents` end to end. The measured pick is recorded in the
+[ADR-0004 addendum](ADR-0004-model-lineup.md).
