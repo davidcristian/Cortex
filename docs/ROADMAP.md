@@ -199,10 +199,34 @@ cortex-driven path (a resident gemma-4-12B *deciding* to emit `spawn_subagents` 
 
 ## Slice 8 (Body v1): hotkey → overlay → chat
 
+**Status:** in progress.
+
 Tauri app skeleton: tray + hidden window, `Hotkey` trait with Windows backend
 (macOS/Linux stubs, coverage-off with reasons), overlay shows on hotkey, prompt goes
 over `Converse`, streamed reply renders. Configurable hotkey.
 **Gate proven:** cfg-gated OS backends; stub coverage escape hatch policy.
+
+**Design ([ADR-0011](adr/ADR-0011-body-v1.md)):** six decisions. One turn per `Converse`
+call (session continuity is external, so each prompt is a fresh call sharing the
+`session_id`; cancel = drop the stream); a typed `TurnEvent` core mirror of `ServerEvent`
+(+ `TransportError::Protocol`); the `Hotkey` port as the first `cfg`-gated OS backend
+(Windows real, macOS/Linux `unimplemented!()` stubs behind the coverage escape hatch); the
+Windows backend over the `global-hotkey` crate (keeps `unsafe` forbidden); the Tauri app as
+a host-native shell **outside** the gated workspace (assumption 4's narrowly-scoped
+exclusion); and a React + Vite overlay frontend.
+
+**Progress (2026-07-01):** the CI-gated half landed (increments 1-2), 100% under
+`just check`, no GUI/OS. (1) `BrainTransport::converse` streaming a typed `TurnEvent` turn,
+its `body_rpc` adapter over the generated bidi `Converse` (one turn per call, half-close,
+`SeamError`→`Failed`, empty/early-close→`Protocol`), and contract tests scripting the fake
+brain over loopback. (2) The `Hotkey` OS-backend seam: the port + the pure
+`Accelerator::from_chord` chord→`KeyboardEvent.code` mapping in `body_core` (fully tested),
+and the `os_linux`/`os_macos` `unimplemented!()` stub crates proving the
+`#[cfg_attr(coverage, coverage(off))]` escape-hatch policy ([body-os.md](modules/body-os.md)).
+**Remaining (host Windows half):** (3) the real `os_windows` `Hotkey` backend
+(`global-hotkey`) and (4) the Tauri app with tray + hidden window, the React overlay, wiring
+hotkey → show → `converse` → render, validated end to end on the host (press the chord,
+type, watch the real brain stream back).
 
 ## Slice 9 (One OS action end-to-end, volume)
 
