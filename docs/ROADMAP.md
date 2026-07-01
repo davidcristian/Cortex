@@ -240,9 +240,26 @@ recorded in [overlay-ux.md](design/overlay-ux.md) §4 + [body-overlay.md](runboo
 
 ## Slice 8.5 (Resource governance): revise the GPU/CPU managers
 
-**Status:** planned (inserted 2026-07-01; **target: land before Slice 11**, which builds on the
-`ModelManager`). Design → ADR-0012 (opens the slice). Inserted as 8.5 to avoid renumbering the
-heavily-referenced Slices 9-11.
+**Status:** in progress. CI half landed 2026-07-01 ([ADR-0012](adr/ADR-0012-resource-governance.md));
+user's host half (cgroup caps + real GPU-placed-subagent validation) pending. Inserted 2026-07-01;
+**target: land before Slice 11**, which builds on the `ModelManager`. Inserted as 8.5 to avoid
+renumbering the heavily-referenced Slices 9-11.
+
+**Delivered (CI half, 2026-07-01), 100% under `just check`, no GPU:** the placement seam is a new
+pure-core port **`SubagentPlacer`** (`place`/`release`) rather than a fattening of `ModelManager`
+(both it and its `acquire` are untouched, so Slice 11's swap rides the same signature). Its reference
+impl **`VramBudgetPlacer`** is the VRAM-budget accountant: a sync, lock-free fit-test of each spawn
+against `soft_cap − cortex_reservation − placed`, placing the whole model on GPU (`-ngl 99`) when it
+fits or spilling to CPU (`-ngl 0`), with no straddle, no separate GPU-concurrency knob (the ledger
+bounds it). **`SubagentScheduler.admit(request)`** gains a soft two-dimensional CPU/RAM budget
+(`ResourceBudgetScheduler`, replacing `ConcurrencyScheduler`); over-budget spawns queue, an impossible
+charge raises. `SubagentRunner` composes admit (outer, waits) → place (inner, sync) → route to
+`backends[target]` → release in a `finally`. Inference reaches the placed endpoint via two
+backends selected by target, so `InferenceBackend`/the proto are untouched. New env: `CORTEX_VRAM_*`
+and `CORTEX_SUBAGENTS_{GPU_ENDPOINT,VRAM_GB,CPUS,MEMORY_GB,CPU_BUDGET,MEM_BUDGET_GB}` (replacing
+`MAX_CONCURRENCY`). The ledgers are live-resource state rebuilt from zero, never the durable state
+the hard rule governs. **Deferred behind these unchanged ports:** the scheduler `drain()` and the
+CUDA-OOM→CPU re-place (Slice 11), placement-aware CPU charging, and the NPU as a third target.
 
 Revise the `ModelManager` (ADR-0007) and `SubagentScheduler` (ADR-0010) **ports** while they are
 still small and pure and before the Slice 11 swap builds on them (retrofitting the swap's
@@ -371,7 +388,8 @@ Deferred *decisions* live in ADR-0001's open questions; these are the *assumptio
 plan bets on, with what would invalidate each:
 
 1. **VRAM fit.** *Measured in Slice 4 (ADR-0004 addendum).* The soft cap is **14 GB**
-   (env `CORTEX_VRAM_SOFT_CAP_GB`, one knob; enforced by the Model Manager from Slice 7). It is
+   (env `CORTEX_VRAM_SOFT_CAP_GB`, one knob; enforced by the `SubagentPlacer` from Slice 8.5,
+   ADR-0012). It is
    a deliberate budget: the user reserves the other ~10 GB of the 24 GB GPU for a second
    monitor + gaming. The chosen cortex (gemma-4-12B, QAT Q4) is ~11.3 GB at 16K ctx incl.
    the vision tower, so it sits **comfortably under the cap** (~2.7 GB headroom, since the bump

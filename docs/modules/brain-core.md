@@ -69,6 +69,21 @@ Subagent domain (Slice 7, ADR-0010):
   `detail: str = ""`. A subagent's outcome; `ok=False` (with `detail`) marks a failure the
   cortex consumes as a value, mirroring `ToolResult.is_error`.
 
+Placement domain (Slice 8.5, ADR-0012):
+
+- `PlacementTarget` is an enum `GPU` / `CPU` (string values), where a subagent's whole model runs
+  (never a partial straddle). `.ngl` maps it to the llama.cpp offload flag: `GPU → 99`, `CPU → 0`.
+- `PlacementRequest` is a frozen dataclass: `model: str`, `vram_gb: float`, `cpus: float`,
+  `memory_gb: float`. One subagent's resource ask; `__post_init__` rejects a non-positive resource
+  with `ValueError`. `vram_gb` is fit-tested against headroom; `cpus`/`memory_gb` are the
+  per-container caps the scheduler sums.
+- `Placement` (frozen dataclass): `target: PlacementTarget`, `reserved_gb: float`. A `SubagentPlacer`
+  verdict; `reserved_gb` is the request's `vram_gb` on GPU, `0.0` on CPU, so `release` is exact.
+- `SubagentResources` is a frozen dataclass bundling one subagent tier's placement machinery:
+  `backends: Mapping[PlacementTarget, InferenceBackend]`, `scheduler: SubagentScheduler`,
+  `placer: SubagentPlacer`, `request: PlacementRequest`. Mirrors `TurnCapabilities`, collaborators
+  the `SubagentRunner` always takes together (`request.model` is the subagent id).
+
 Ports (`typing.Protocol`; failures cross them only as the typed errors below):
 
 - `SessionStore` provides `async append(session_id, message) -> None`,
@@ -96,9 +111,15 @@ Ports (`typing.Protocol`; failures cross them only as the typed errors below):
   `async put_result(result) -> None`, `async get_result(task_id) -> SubagentResult | None`. The
   hot store (Redis) a subagent is a stateless function over: task and result live here, never in
   a model process (ADR-0010). Unknown ids return `None`.
-- `SubagentScheduler` (`admit() -> AbstractAsyncContextManager[None]`): a bounded-concurrency CPU
-  budget for spawns (yields a slot, queues over the cap). Distinct from `ModelManager`'s
-  exclusive GPU lease. This is a counting budget, not a lock (ADR-0010).
+- `SubagentPlacer` has `place(request) -> Placement`, `release(placement) -> None` (both sync): the
+  VRAM-budget accountant (ADR-0012). `place` fit-tests `request.vram_gb` against the live headroom
+  (`soft_cap − cortex_reservation − placed`), reserving it on GPU or spilling to CPU; `release`
+  frees it. The GPU/VRAM contract, separate from `ModelManager`'s lease and `SubagentScheduler`'s
+  budget. The three compose at `SubagentRunner`.
+- `SubagentScheduler` (`admit(request) -> AbstractAsyncContextManager[None]`): a soft two-dimensional
+  CPU/RAM budget for spawns (yields once the request's `cpus`/`memory_gb` fit the summed targets,
+  queues over budget, releases both on exit). A charge larger than the whole budget raises
+  `ValueError`. A counting budget, not the GPU lease (ADR-0012, revising ADR-0010).
 - `Clock` provides `now() -> datetime`, always tz-aware. The core's only time source.
 - `SessionStoreError` / `InferenceError` / `ModelManagerError` (+ its
   `ModelUnavailableError`) / `MemoryStoreError` / `EmbedderError` / `ToolError` (+ its
@@ -151,14 +172,15 @@ Use-case:
   keeps going and the model is told. `describe_tools()` passes through to the registry so
   the engine advertises what it can dispatch. Stateless over the ports; `TurnEngine` drives
   the loop that calls it.
-- `SubagentRunner(store, backend, scheduler, clock, *, subagent_model, tools=None)` is a
-  subagent's body (ADR-0010), a stateless function over the `TaskStore`. `run(task_id)` admits
-  against the `SubagentScheduler`'s CPU budget, loads the `SubagentTask` **by id** (never from
-  cortex memory, since a missing task is an `ok=False` "task not found" result), runs
-  `stream_tool_loop` on `subagent_model` with its optional tool subset (the instruction as the
-  user ask, `context` as a `Role.SYSTEM` message), and persists + returns a `SubagentResult`. A
-  mid-stream `InferenceError` becomes an `ok=False` result carrying the partial text, not an
-  exception. Tools-enabled but not given the delegation tool, so fan-out is depth-1.
+- `SubagentRunner(store, resources, clock, *, tools=None)` is a subagent's body (ADR-0010/0012), a
+  stateless function over the `TaskStore`. `run(task_id)` **admits** against the scheduler's CPU/RAM
+  budget (outer, may wait), **places** on GPU or CPU against the VRAM budget (inner, synchronous),
+  routes to `resources.backends[placement.target]`, loads the `SubagentTask` **by id** (never from
+  cortex memory, with a missing task an `ok=False` "task not found" result), runs `stream_tool_loop`
+  on `resources.request.model` with its optional tool subset (instruction as the user ask, `context`
+  as a `Role.SYSTEM` message), persists + returns a `SubagentResult`, and always releases the VRAM in
+  a `finally`. A mid-stream `InferenceError` becomes an `ok=False` result carrying the partial text.
+  Tools-enabled but not given the delegation tool, so fan-out is depth-1.
 - `SpawnSubagentsTool(runner, store, clock, *, task_id_factory=<uuid4>)` is the built-in
   `spawn_subagents` tool (`SPAWN_TOOL_NAME`), the cortex's delegation primitive (ADR-0010). Its
   `spec` advertises `instructions: string[]`; `invoke(call)` validates them (bad input → an
@@ -204,10 +226,16 @@ Reference implementations (pure, shipped in core; the runtime wiring until Slice
   tests can assert the audit trail.
 - `InMemoryTaskStore` is a dict-backed `TaskStore`; contract twin of the Redis adapter (Slice 7
   CI half). Unknown ids return `None`. Does not survive a restart, by design.
-- `ConcurrencyScheduler(max_concurrency)` is the `SubagentScheduler` v1 (ADR-0010): pure policy
-  over an `asyncio.Semaphore`. `admit()` grants one CPU slot and queues over the cap; a
-  `max_concurrency < 1` raises `ValueError`. Lives in the core because it does no I/O. Hard
-  RAM-ceiling rejection is a later refinement behind the port.
+- `VramBudgetPlacer(*, soft_cap_gb, cortex_reservation_gb)` is the `SubagentPlacer` v1 (ADR-0012):
+  pure GPU-first policy, no I/O. `place` returns a GPU `Placement` (reserving `vram_gb`) when the ask
+  fits `soft_cap − cortex_reservation − placed`, else a CPU one (reserving nothing); `release` credits
+  it back. Sync and lock-free (single-threaded asyncio atomicity), so the concurrent batch races the
+  ledger correctly. The ledger is live-resource state, rebuilt from zero. It is never durable state.
+- `ResourceBudgetScheduler(cpu_budget, mem_budget_gb)` is `SubagentScheduler` v2 (ADR-0012): pure
+  policy over an `asyncio.Condition`. `admit(request)` reserves the request's `cpus`/`memory_gb` while
+  both summed reservations stay within targets, queuing (with `notify_all` on release) otherwise; a
+  non-positive budget or a charge exceeding the whole budget raises `ValueError`. Replaces Slice 7's
+  `ConcurrencyScheduler` (the bare counting semaphore), which the two-dimensional budget subsumes.
 - `SystemClock` provides tz-aware UTC `now()`.
 
 **Invariants.**

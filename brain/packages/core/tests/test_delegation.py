@@ -10,15 +10,18 @@ from datetime import UTC, datetime
 
 from cortex_core import (
     CompositeToolRegistry,
-    ConcurrencyScheduler,
     EchoInferenceBackend,
     InferenceEvent,
     InMemorySessionStore,
     InMemoryTaskStore,
     Message,
+    PlacementRequest,
+    PlacementTarget,
     RecordingAuditSink,
+    ResourceBudgetScheduler,
     Role,
     SpawnSubagentsTool,
+    SubagentResources,
     SubagentRunner,
     TextChunk,
     ToolCall,
@@ -28,6 +31,7 @@ from cortex_core import (
     TurnCompleted,
     TurnEngine,
     TurnEvent,
+    VramBudgetPlacer,
 )
 
 _AT = datetime(2026, 7, 3, 12, 0, tzinfo=UTC)
@@ -69,13 +73,14 @@ def _counter() -> Callable[[], str]:
 async def test_cortex_turn_delegates_and_consumes_the_results() -> None:
     task_store = InMemoryTaskStore()
     # A subagent tier with no tools of its own. The delegation-free subset keeps fan-out depth-1.
-    runner = SubagentRunner(
-        task_store,
-        EchoInferenceBackend(),
-        ConcurrencyScheduler(2),
-        FixedClock(),
-        subagent_model="subagent",
+    echo = EchoInferenceBackend()
+    resources = SubagentResources(
+        backends={PlacementTarget.GPU: echo, PlacementTarget.CPU: echo},
+        scheduler=ResourceBudgetScheduler(8.0, 8.0),
+        placer=VramBudgetPlacer(soft_cap_gb=14.0, cortex_reservation_gb=11.0),
+        request=PlacementRequest("subagent", vram_gb=2.0, cpus=2.0, memory_gb=2.0),
     )
+    runner = SubagentRunner(task_store, resources, FixedClock())
     spawn = SpawnSubagentsTool(runner, task_store, FixedClock(), task_id_factory=_counter())
     # The cortex's tools: the built-in spawn tool only (no remote MCP registry in this test).
     sink = RecordingAuditSink()

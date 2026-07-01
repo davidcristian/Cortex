@@ -4,21 +4,26 @@ from collections.abc import AsyncIterator, Mapping, Sequence
 from datetime import UTC, datetime
 
 from cortex_core import (
-    ConcurrencyScheduler,
     InferenceBackend,
     InferenceError,
     InferenceEvent,
     InMemoryTaskStore,
     InMemoryToolRegistry,
     Message,
+    PlacementRequest,
+    PlacementTarget,
     RecordingAuditSink,
+    ResourceBudgetScheduler,
     Role,
+    SubagentPlacer,
+    SubagentResources,
     SubagentRunner,
     SubagentTask,
     TextChunk,
     ToolCall,
     ToolDispatcher,
     ToolSpec,
+    VramBudgetPlacer,
 )
 
 _AT = datetime(2026, 7, 3, 12, 0, tzinfo=UTC)
@@ -80,20 +85,29 @@ async def _read_handler(arguments: Mapping[str, object]) -> str:
     return f"read {arguments['path']}"
 
 
+_REQUEST = PlacementRequest("subagent", vram_gb=2.0, cpus=2.0, memory_gb=2.0)
+
+
+def _resources(
+    gpu: InferenceBackend, cpu: InferenceBackend, placer: SubagentPlacer
+) -> SubagentResources:
+    return SubagentResources(
+        backends={PlacementTarget.GPU: gpu, PlacementTarget.CPU: cpu},
+        scheduler=ResourceBudgetScheduler(4.0, 8.0),
+        placer=placer,
+        request=_REQUEST,
+    )
+
+
 def _runner(
     store: InMemoryTaskStore,
     backend: InferenceBackend,
     *,
     tools: ToolDispatcher | None = None,
 ) -> SubagentRunner:
-    return SubagentRunner(
-        store,
-        backend,
-        ConcurrencyScheduler(2),
-        FixedClock(),
-        subagent_model="subagent",
-        tools=tools,
-    )
+    # Both targets route to the one backend; the placer picks GPU (headroom 14 - 11 = 3 >= 2).
+    placer = VramBudgetPlacer(soft_cap_gb=14.0, cortex_reservation_gb=11.0)
+    return SubagentRunner(store, _resources(backend, backend, placer), FixedClock(), tools=tools)
 
 
 async def test_runs_a_plain_task_and_persists_the_result() -> None:
@@ -157,3 +171,33 @@ async def test_tools_enabled_subagent_dispatches_and_audits_its_calls() -> None:
     # The subagent's own tool call went through the same audited dispatcher.
     (audit,) = sink.records
     assert (audit.name, audit.ok, audit.detail) == ("read", True, "read /x")
+
+
+def _routed_runner(
+    store: InMemoryTaskStore, gpu: InferenceBackend, cpu: InferenceBackend, placer: SubagentPlacer
+) -> SubagentRunner:
+    return SubagentRunner(store, _resources(gpu, cpu, placer), FixedClock())
+
+
+async def test_a_fitting_subagent_runs_on_the_gpu_backend_and_its_vram_is_released() -> None:
+    store = InMemoryTaskStore()
+    await store.put_task(SubagentTask(id="g", instruction="hi", context="", at=_AT))
+    gpu, cpu = TextBackend(["on-gpu"]), TextBackend(["on-cpu"])
+    placer = VramBudgetPlacer(soft_cap_gb=14.0, cortex_reservation_gb=11.0)  # headroom 3.0
+    result = await _routed_runner(store, gpu, cpu, placer).run("g")
+    assert result.output == "on-gpu"
+    assert gpu.seen
+    assert not cpu.seen
+    # The placement's 2 GB was released in the finally, so the whole 3 GB headroom is free again.
+    assert placer.place(PlacementRequest("subagent", 3.0, 1.0, 1.0)).target is PlacementTarget.GPU
+
+
+async def test_an_overflowing_subagent_runs_on_the_cpu_backend() -> None:
+    store = InMemoryTaskStore()
+    await store.put_task(SubagentTask(id="c", instruction="hi", context="", at=_AT))
+    gpu, cpu = TextBackend(["on-gpu"]), TextBackend(["on-cpu"])
+    placer = VramBudgetPlacer(soft_cap_gb=11.0, cortex_reservation_gb=11.0)  # headroom 0.0
+    result = await _routed_runner(store, gpu, cpu, placer).run("c")
+    assert result.output == "on-cpu"
+    assert cpu.seen
+    assert not gpu.seen

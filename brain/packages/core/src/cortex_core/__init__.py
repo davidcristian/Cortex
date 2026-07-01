@@ -29,6 +29,8 @@ from cortex_core.fakes import (
 from cortex_core.inference import InferenceEvent, TextChunk
 from cortex_core.memory import MemoryRecord, ScoredMemory
 from cortex_core.model import ModelLease, SingleResidentModelManager
+from cortex_core.placement import Placement, PlacementRequest, PlacementTarget
+from cortex_core.placer import VramBudgetPlacer
 from cortex_core.ports import (
     Clock,
     Embedder,
@@ -36,6 +38,7 @@ from cortex_core.ports import (
     MemoryStore,
     ModelManager,
     SessionStore,
+    SubagentPlacer,
     SubagentScheduler,
     TaskStore,
     ToolAuditSink,
@@ -43,8 +46,8 @@ from cortex_core.ports import (
 )
 from cortex_core.recall import MemoryRecaller
 from cortex_core.routing import RoutingHints, Tier, route_turn
-from cortex_core.runner import SubagentRunner
-from cortex_core.scheduler import ConcurrencyScheduler
+from cortex_core.runner import SubagentResources, SubagentRunner
+from cortex_core.scheduler import ResourceBudgetScheduler
 from cortex_core.spawn import SPAWN_TOOL_NAME, SpawnSubagentsTool
 from cortex_core.subagents import SubagentResult, SubagentTask
 from cortex_core.tools import ToolCall, ToolInvocation, ToolResult, ToolSpec
@@ -55,7 +58,6 @@ __all__ = [
     "BuiltinTool",
     "Clock",
     "CompositeToolRegistry",
-    "ConcurrencyScheduler",
     "EchoInferenceBackend",
     "Embedder",
     "EmbedderError",
@@ -76,7 +78,11 @@ __all__ = [
     "ModelManager",
     "ModelManagerError",
     "ModelUnavailableError",
+    "Placement",
+    "PlacementRequest",
+    "PlacementTarget",
     "RecordingAuditSink",
+    "ResourceBudgetScheduler",
     "Role",
     "RoutingHints",
     "ScoredMemory",
@@ -84,6 +90,8 @@ __all__ = [
     "SessionStoreError",
     "SingleResidentModelManager",
     "SpawnSubagentsTool",
+    "SubagentPlacer",
+    "SubagentResources",
     "SubagentResult",
     "SubagentRunner",
     "SubagentScheduler",
@@ -107,5 +115,6 @@ __all__ = [
     "TurnCompleted",
     "TurnEngine",
     "TurnEvent",
+    "VramBudgetPlacer",
     "route_turn",
 ]

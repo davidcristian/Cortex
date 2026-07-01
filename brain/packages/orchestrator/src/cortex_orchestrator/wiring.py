@@ -29,18 +29,23 @@ from cortex_core import (
     BuiltinTool,
     Clock,
     CompositeToolRegistry,
-    ConcurrencyScheduler,
     EchoInferenceBackend,
     InferenceBackend,
     MemoryRecaller,
+    PlacementRequest,
+    PlacementTarget,
+    ResourceBudgetScheduler,
     SingleResidentModelManager,
     SpawnSubagentsTool,
+    SubagentPlacer,
+    SubagentResources,
     SubagentRunner,
     SystemClock,
     ToolDispatcher,
     ToolRegistry,
     TurnCapabilities,
     TurnEngine,
+    VramBudgetPlacer,
 )
 from cortex_embedding import LlamaCppEmbedder
 from cortex_inference import LlamaCppBackend
@@ -126,33 +131,41 @@ async def build_subagents(
     redis_url: str,
     clock: Clock,
     *,
+    placer: SubagentPlacer,
     task_store_factory: Callable[[str], RedisTaskStore] = RedisTaskStore.from_url,
 ) -> tuple[SpawnSubagentsTool | None, Callable[[], Awaitable[None]]]:
-    """The `spawn_subagents` tool, or None when delegation is disabled (ADR-0010).
+    """The `spawn_subagents` tool, or None when delegation is disabled (ADR-0010, ADR-0012).
 
-    Enabled: a subagent runs the shared tool loop on its CPU `llama-server` with the MCP tool
-    subset (depth-1, so no delegation), as a stateless function over the Redis `TaskStore`, admitted
-    by the concurrency budget. The returned closer releases the subagent backend client and the
-    task store; the shared MCP session is released by `build_tool_registry`'s closer, not here.
+    Enabled (GPU-first, ADR-0012): the `placer` (built from the GPU soft cap at the call site)
+    fit-tests each spawn, routing to the GPU `llama-server` (`-ngl 99`) or the CPU one (`-ngl 0`);
+    the `ResourceBudgetScheduler` admits it under a soft CPU/RAM budget. A subagent runs the shared
+    tool loop with the MCP tool subset (no delegation -- depth-1), as a stateless function over the
+    Redis `TaskStore`. The returned closer releases the shared backend client and the task store;
+    the shared MCP session is released by `build_tool_registry`, not here.
     """
     if config.backend == "none":
         return None, _noop_aclose
     client = httpx.AsyncClient(timeout=httpx.Timeout(_LLAMACPP_CONNECT_TIMEOUT_S, read=None))
-    manager = SingleResidentModelManager(config.model, config.endpoint)
+    resources = SubagentResources(
+        backends={
+            PlacementTarget.GPU: LlamaCppBackend(
+                SingleResidentModelManager(config.model, config.gpu_endpoint), client
+            ),
+            PlacementTarget.CPU: LlamaCppBackend(
+                SingleResidentModelManager(config.model, config.endpoint), client
+            ),
+        },
+        scheduler=ResourceBudgetScheduler(config.cpu_budget, config.mem_budget_gb),
+        placer=placer,
+        request=PlacementRequest(config.model, config.vram_gb, config.cpus, config.memory_gb),
+    )
     store = task_store_factory(redis_url)
     subagent_tools = (
         ToolDispatcher(tool_registry, LoggingAuditSink(), clock)
         if tool_registry is not None
         else None
     )
-    runner = SubagentRunner(
-        store,
-        LlamaCppBackend(manager, client),
-        ConcurrencyScheduler(config.max_concurrency),
-        clock,
-        subagent_model=config.model,
-        tools=subagent_tools,
-    )
+    runner = SubagentRunner(store, resources, clock, tools=subagent_tools)
 
     async def close_subagents() -> None:
         await store.aclose()
@@ -201,7 +214,14 @@ async def run_from_env(
     memory, close_memory = await build_memory(memory_config, clock)
     tool_registry, close_tools = await build_tool_registry(tools_config)
     spawn_tool, close_subagents = await build_subagents(
-        subagents_config, tool_registry, runtime.redis_url, clock
+        subagents_config,
+        tool_registry,
+        runtime.redis_url,
+        clock,
+        placer=VramBudgetPlacer(
+            soft_cap_gb=runtime.vram_soft_cap_gb,
+            cortex_reservation_gb=runtime.cortex_reservation_gb,
+        ),
     )
     tools = build_cortex_tools(tool_registry, spawn_tool, clock)
     try:
