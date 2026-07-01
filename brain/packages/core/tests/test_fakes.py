@@ -5,10 +5,12 @@ from datetime import UTC, datetime, timedelta
 import pytest
 
 from cortex_core import (
+    ConfirmationRequest,
     EchoInferenceBackend,
     InferenceError,
     InMemorySessionStore,
     Message,
+    RecordingConfirmer,
     Role,
     SystemClock,
     TextChunk,
@@ -73,3 +75,13 @@ def test_system_clock_is_timezone_aware_utc() -> None:
     now = SystemClock().now()
     assert now.tzinfo is UTC
     assert now.utcoffset() == timedelta(0)
+
+
+async def test_recording_confirmer_returns_its_fixed_answer_and_records_requests() -> None:
+    request = ConfirmationRequest(tool_name="send_email", arguments={"to": "x"}, reason="outbound")
+    approver = RecordingConfirmer(answer=True)
+    denier = RecordingConfirmer(answer=False)
+    assert await approver.confirm(request) is True
+    assert await denier.confirm(request) is False
+    assert approver.requests == (request,)
+    assert denier.requests == (request,)

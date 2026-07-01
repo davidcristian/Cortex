@@ -15,7 +15,7 @@ from cortex_core.memory import MemoryRecord, ScoredMemory
 from cortex_core.model import ModelLease
 from cortex_core.placement import Placement, PlacementRequest
 from cortex_core.subagents import SubagentResult, SubagentTask
-from cortex_core.tools import ToolCall, ToolInvocation, ToolResult, ToolSpec
+from cortex_core.tools import ConfirmationRequest, ToolCall, ToolInvocation, ToolResult, ToolSpec
 
 
 class SessionStore(Protocol):
@@ -84,6 +84,12 @@ class ToolAuditSink(Protocol):
     """The audit trail where every dispatched tool call is recorded (AGENTS.md, ADR-0009)."""
 
     async def record(self, invocation: ToolInvocation) -> None: ...
+
+
+class Confirmer(Protocol):
+    """Answers a request to confirm a gated tool call. Out of band, the human's call (ADR-0013)."""
+
+    async def confirm(self, request: ConfirmationRequest) -> bool: ...
 
 
 class TaskStore(Protocol):
