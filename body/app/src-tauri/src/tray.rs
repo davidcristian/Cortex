@@ -2,7 +2,7 @@
 
 use tauri::menu::{Menu, MenuItem};
 use tauri::tray::TrayIconBuilder;
-use tauri::{AppHandle, Manager};
+use tauri::AppHandle;
 
 /// Builds the tray icon and its menu. Errors propagate to `setup`. A tray is
 /// part of the app's contract.
