@@ -462,8 +462,17 @@ behind the unchanged `ToolRegistry`/`ToolDispatcher`/`stream_tool_loop` seams (o
   `SECURITY_PREAMBLE` in its reasoning to defeat seven injection variants; the gate is the
   deterministic backstop. Re-runnable per the [runbook](runbooks/llamacpp-gpu.md).
 - **The screening subagent.** A small subagent that pre-screens external content for injection
-  markers before the cortex sees it, to be added only if the GPU validation shows framing too leaky
-  (the trigger), behind the same delegation seam, gated by a flag.
+  markers before the cortex sees it. Mostly moot: the GPU validation showed a screener would be
+  another small, equally-injectable model. Kept only as a last-resort option behind the delegation seam.
+- **Model-independent output guardrail for the small tier** ([ADR-0013 hardening addendum](adr/ADR-0013-untrusted-content.md)).
+  The hardened preamble closes output-laundering on capable models (gemma-12B/E4B) but not the smallest
+  (E2B/Qwen, which launder regardless). A prompt-independent layer, scanning untrusted-derived output
+  for injected URLs/footers before it reaches the user, would cover the small tier; deferred (the
+  deterministic layers cover the concrete risk today, since subagent output is taint-contained).
+- **Reconsider the subagent model pick (feeds [ADR-0004](adr/ADR-0004-model-lineup.md)).** The
+  injection validation found **gemma-4-E4B markedly more injection-robust than the current Qwen3.5-2B**
+  pick (Qwen launders regardless of preamble; gemma-E4B resists with the hardened rule, thinking on).
+  Weigh against gemma-E4B's size/latency and the thinking-on cost before changing the pick.
 - **Context-preserving tainted-memory recording.** A tainted turn currently records **nothing** to
   memory (fail-closed); recording it with a provenance marker and framing it as untrusted on recall
   would preserve legitimate context (a later refinement behind the unchanged `MemoryRecaller`).
