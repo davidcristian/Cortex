@@ -23,7 +23,7 @@ Config (pydantic-settings; explicit constructor arguments beat the environment):
   (ADR-0007 d4). `backend: "echo" | "llamacpp" = "echo"` (`CORTEX_INFERENCE_BACKEND`) and
   `endpoint: str = ""` (`CORTEX_INFERENCE_ENDPOINT`, the resident `llama-server` base
   URL). Validates that `llamacpp` has a non-empty `endpoint`. Echo is the GPU-less
-  default (CI + no-GPU dev); `llamacpp` is opt-in, set by `docker-compose.gpu.yml`.
+  default (CI + no-GPU dev); `llamacpp` is opt-in, set by `docker/docker-compose.gpu.yml`.
 
 The service:
 

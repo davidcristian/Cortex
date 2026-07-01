@@ -114,7 +114,7 @@ Entries marked *(planned)* are target layout; docs/ROADMAP.md says which slice d
 
 ```
 proto/            body↔brain gRPC contract (source of truth for the seam)
-docs/             ARCHITECTURE.md, index.md, ROADMAP.md, adr/, modules/, runbooks/
+docs/             ARCHITECTURE.md, index.md, ROADMAP.md, adr/, modules/, runbooks/, assets/ (logo)
 brain/            Python workspace (uv), dockerized (brain/Dockerfile)
   packages/       core (pure logic + ports), seam (committed gRPC stubs + typed facade),
                   orchestrator (hosts BrainService), session (Redis SessionStore +
@@ -134,10 +134,9 @@ scripts/          repo gates: linecap.py (300-line cap), coverage_gate.py (Rust 
                   ci_paths.py (CI path classifier)
 .github/          GPU-less CI running the same `just` recipes as local dev
 justfile          `just check` + check-*; proto, up/down, brain-serve, seam-health
-docker-compose.yml   brain + redis in Compose, loopback-only; docker-compose.gpu.yml adds
-                     the llama.cpp server + read-only model bind mount (ADR-0005/0007);
-                     docker-compose.memory.yml adds Postgres+pgvector + CPU embedder (ADR-0008);
-                     docker-compose.tools.yml + docker-compose.email.yml add the MCP tool
-                     sidecars for filesystem and read-only email (ADR-0009);
-                     docker-compose.subagents.yml adds a CPU llama-server for subagents (ADR-0010)
+docker/           Compose stack (run via `just up`/`up-gpu`, or `docker compose --project-directory .
+                  -f docker/docker-compose.yml …`): docker-compose.yml (brain + redis, loopback-only)
+                  + overrides: gpu (llama.cpp server + read-only model mount, ADR-0005/0007), memory
+                  (Postgres+pgvector + CPU embedder, ADR-0008), tools + email (MCP sidecars: filesystem,
+                  read-only email, ADR-0009), subagents (CPU llama-server, ADR-0010); + postgres/init.sql
 ```

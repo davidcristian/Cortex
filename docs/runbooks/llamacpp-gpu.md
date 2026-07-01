@@ -55,7 +55,7 @@ dev distro is set), two one-time steps are needed:
 ## Bring it up
 
 ```
-docker compose -f docker-compose.yml -f docker-compose.gpu.yml up --build
+docker compose --project-directory . -f docker/docker-compose.yml -f docker/docker-compose.gpu.yml up --build
 ```
 
 This starts `llama-cortex` (one `llama-server`, all layers on the GPU via `-ngl 99`) and
@@ -113,11 +113,11 @@ independent, load/throughput are not. Full detail + placement strategy in the
   (Slice 7), brain (Slice 11), and embedder quant (Slice 5) follow, recorded in
   [ADR-0004](../adr/ADR-0004-model-lineup.md) as each lands.
 - **Pin the image:** replace the `ghcr.io/ggml-org/llama.cpp:server-cuda` tag in
-  `docker-compose.gpu.yml` with a digest once a working version is settled (ADR-0006:
+  `docker/docker-compose.gpu.yml` with a digest once a working version is settled (ADR-0006:
   mutable tags are a supply-chain risk).
 
 ## Teardown
 
 ```
-docker compose -f docker-compose.yml -f docker-compose.gpu.yml down
+docker compose --project-directory . -f docker/docker-compose.yml -f docker/docker-compose.gpu.yml down
 ```

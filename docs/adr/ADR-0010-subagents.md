@@ -102,7 +102,7 @@ Increments (each small, green, documented), mirroring Slices 5-6:
    fakes, end to end.
 3. **Adapters (CI half)** are the Redis `TaskStore` adapter (behind a fake `Database`, 100% without
    Redis, the accepted MockTransport pattern), the concurrency-capped scheduler config, opt-in
-   `run_from_env` wiring (`CORTEX_SUBAGENTS_*`), and `docker-compose.subagents.yml` (a CPU
+   `run_from_env` wiring (`CORTEX_SUBAGENTS_*`), and `docker/docker-compose.subagents.yml` (a CPU
    `llama-server` sidecar + the subagent model bind mount). Green under `just check`, no GPU/Redis.
 4. **Host half** is a real CPU `llama-server` running a small subagent model (a Qwen3.5-2B Q4_K_M
    candidate, ADR-0004), end-to-end delegation validated on the host (cortex spawns, subagents

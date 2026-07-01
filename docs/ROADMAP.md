@@ -61,7 +61,7 @@ llama.cpp adapter for `InferenceBackend` (ADR-0005: one `llama-server` process p
 model, OpenAI-compatible HTTP as the adapter surface; engine flags/quirks inside the
 adapter + runbook `docs/runbooks/llamacpp-gpu.md`); Model Manager v1: owns the GPU,
 single resident model, `acquire()` lease + queue API (no swap yet);
-`docker-compose.gpu.yml` override with the read-only model-dir bind mount
+`docker/docker-compose.gpu.yml` override with the read-only model-dir bind mount
 (`D:\Software\AI\Models`, ADR-0004). Final per-tier model picks recorded against
 measured VRAM (ADR-0004). Live tests are `integration`-marked, run manually on the
 host.
@@ -70,7 +70,7 @@ host.
 **Delivered (2026-06-29):** CI-gated half ([ADR-0007](adr/ADR-0007-model-manager-inference.md)):
 the `cortex_inference` llama.cpp adapter behind the unchanged `InferenceBackend`, the
 `ModelManager` port + pure `SingleResidentModelManager`, config-driven backend selection
-(Echo default, llama.cpp opt-in), and `docker-compose.gpu.yml`. All are green under
+(Echo default, llama.cpp opt-in), and `docker/docker-compose.gpu.yml`. All are green under
 `just check` without a GPU. Host half done too: GPU compose up, live integration tests run,
 VRAM measured, and the cortex pick locked to gemma-4-12B. See
 [docs/runbooks/llamacpp-gpu.md](runbooks/llamacpp-gpu.md) and the
@@ -105,7 +105,7 @@ OpenAI `/v1/embeddings` endpoint behind the `Embedder` port, 100%-covered via
 (4) The pgvector adapter (`cortex_memory`): `PgVectorMemoryStore` behind the `MemoryStore`
 port, 100%-covered without a DB via a canned-row fake `Database` (the asyncpg analog of
 `MockTransport`); wired into `run_from_env` **opt-in** (`CORTEX_MEMORY_BACKEND`, default
-`none`) alongside the embedder; `docker-compose.memory.yml` adds Postgres+pgvector + a CPU
+`none`) alongside the embedder; `docker/docker-compose.memory.yml` adds Postgres+pgvector + a CPU
 embedder. Host half validated (2026-06-29): the memory contract passed against real
 Postgres+pgvector 0.8.4 and the embedder against a live CPU `llama-server`. The nomic pick
 is **nomic-embed-text-v1.5 Q8_0** (768-dim), recorded in the
@@ -138,7 +138,7 @@ servers, and a **thin read-only IMAP** email server for ProtonMail Bridge. (3) *
 filesystem tool** (CI half): the `cortex_tools` package with `McpToolRegistry` over the official
 `mcp` SDK (pinned `>=1.23,<2`) behind an injected `McpSession` port + fake (100% without a
 server), plus the `LoggingAuditSink`; wired into `run_from_env` **opt-in**
-(`CORTEX_TOOLS_BACKEND`, default `none`); `docker-compose.tools.yml` adds the filesystem
+(`CORTEX_TOOLS_BACKEND`, default `none`); `docker/docker-compose.tools.yml` adds the filesystem
 server as a read-only-mounted sidecar over streamable-http. Host-validated (2026-06-29):
 the live sidecar (supergateway-bridged filesystem server) passed the integration test, and
 the read-only mount blocked a write (`EROFS`), with the containment boundary proven end to end
@@ -147,7 +147,7 @@ half): the standalone `cortex_email` package, which is a FastMCP server exposing
 list/search/read tools over **imap-tools** (STARTTLS, chosen over aioimaplib which lacks it;
 the server is a sidecar, so async-nativeness doesn't apply), 100%-covered without a server;
 read-only enforced three ways (only read tools register, EXAMINE, `mark_seen=False`);
-`docker-compose.email.yml` runs it as a sidecar reaching the host ProtonMail Bridge.
+`docker/docker-compose.email.yml` runs it as a sidecar reaching the host ProtonMail Bridge.
 Host-validated (2026-06-29): the sidecar reached the user's live Bridge (STARTTLS via
 host.docker.internal), and dogfooding `McpToolRegistry` returned exactly the three read-only
 tools, 17 real folders, a formatted search line, and a real message body, with read-only enforced
@@ -220,14 +220,14 @@ proven end-to-end over the fakes; the tool is a **concurrent batch** so the CPU 
 meaningful (ADR-0010 increment-2 addendum). (3) Adapters + wiring: the Redis `RedisTaskStore`
 (in `cortex_session`, 100%-covered via fakeredis), the `CORTEX_SUBAGENTS_*` config, `run_from_env`
 composition (the cortex gets the composite dispatcher; subagents get the MCP subset, so depth-1),
-and `docker-compose.subagents.yml` (a CPU `llama-server` sidecar). (4) The delegation machinery is
+and `docker/docker-compose.subagents.yml` (a CPU `llama-server` sidecar). (4) The delegation machinery is
 **validated on a real CPU `llama-server` running the actual pick, Qwen3.5-2B Q4_K_M** (increment 4;
 models are at `/srv/models`): subagents ran concurrently and answered correctly (~893 MiB RSS,
 ~14.5 s load, ~0.6 s/short answer *with thinking off*), pick locked in the
 [ADR-0004 addendum](adr/ADR-0004-model-lineup.md), with an integration test (`test_subagent_live.py`)
 and [runbook](runbooks/subagents-cpu.md). Qwen3.5 is a reasoning model (unbounded thinking on CPU
 is minutes/call); the dedicated subagent server disables it (`--chat-template-kwargs
-'{"enable_thinking": false}'`, baked into `docker-compose.subagents.yml`), so plain requests answer
+'{"enable_thinking": false}'`, baked into `docker/docker-compose.subagents.yml`), so plain requests answer
 directly (~0.3-0.6 s) and the live test passes end to end. The cortex-driven GPU path (a resident
 gemma-4-12B *deciding* to emit `spawn_subagents` end to end) is the user's host validation, closed
 2026-07-01 with the slice.
@@ -463,7 +463,7 @@ the unchanged `SubagentPlacer`/`SubagentScheduler`/`ModelManager` ports.
   Auto-recovery (re-issue a CPU-forced request) needs a real GPU to exercise, so it lands in **Slice
   11** / the host half, not the pure core (simulating it would be vacuous coverage).
 - **The real GPU-placed runtime mechanism.** Two live `llama-server` sidecars (GPU `-ngl 99` + CPU
-  `-ngl 0`) in `docker-compose.subagents.yml` + per-container `--cpus`/`--memory` cgroup caps + real
+  `-ngl 0`) in `docker/docker-compose.subagents.yml` + per-container `--cpus`/`--memory` cgroup caps + real
   GPU-placed-subagent validation lands with the **Slice 11** lifecycle behind the corrected ports.
 - **Placement-aware CPU charging.** `admit` charges every spawn its full `cpus`/`memory_gb` regardless
   of placement (conservative); charging GPU-placed subagents less is a tweak behind the same port.

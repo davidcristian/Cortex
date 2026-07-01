@@ -178,7 +178,7 @@ CI-half increments (each small, green under `just check`, no GPU):
   `PlacementTarget` (ROADMAP deferred option).
 
 **Deferred to the host half (user):** two real `llama-server` sidecars (GPU `-ngl 99` + CPU `-ngl 0`)
-in `docker-compose.subagents.yml`; the per-container `--cpus`/`--memory`/`--memory-swap` caps; the
+in `docker/docker-compose.subagents.yml`; the per-container `--cpus`/`--memory`/`--memory-swap` caps; the
 measured `vram_gb`/`cortex_reservation_gb`/budget numbers; real GPU-placed-subagent validation; the
 runbook update.
 

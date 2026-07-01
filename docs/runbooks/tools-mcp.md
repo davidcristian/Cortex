@@ -14,7 +14,7 @@ host directory the tool may read (default `./sandbox`):
 ```
 mkdir -p sandbox && echo "hello from the sandbox" > sandbox/hello.txt
 CORTEX_TOOLS_ROOT=./sandbox \
-  docker compose -f docker-compose.yml -f docker-compose.tools.yml up -d mcp-filesystem
+  docker compose --project-directory . -f docker/docker-compose.yml -f docker/docker-compose.tools.yml up -d mcp-filesystem
 ```
 
 - **Sanity poke:** watch `docker compose logs mcp-filesystem` for supergateway's "listening"
@@ -40,7 +40,7 @@ if the pinned server names its read tool differently (older builds used `read_fi
 
 ## End-to-end (the cortex actually uses a tool)
 
-With both up, `docker compose -f docker-compose.yml -f docker-compose.tools.yml up` runs the
+With both up, `docker compose --project-directory . -f docker/docker-compose.yml -f docker/docker-compose.tools.yml up` runs the
 brain with `CORTEX_TOOLS_BACKEND=mcp`, so a turn that needs a file calls the tool, the dispatch
 is audited (one `cortex.tools.audit` line per call), and the result is fed back to the model.
 A real model that emits tool calls also needs the GPU compose up with `--jinja` (ADR-0009).
@@ -48,5 +48,5 @@ A real model that emits tool calls also needs the GPU compose up with `--jinja` 
 ## Teardown
 
 ```
-docker compose -f docker-compose.yml -f docker-compose.tools.yml down
+docker compose --project-directory . -f docker/docker-compose.yml -f docker/docker-compose.tools.yml down
 ```

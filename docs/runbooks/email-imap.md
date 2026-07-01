@@ -45,7 +45,7 @@ never touch your mail.
 
 ```
 set -a; . ~/.cortex/email.env; set +a
-docker compose -f docker-compose.yml -f docker-compose.email.yml up
+docker compose --project-directory . -f docker/docker-compose.yml -f docker/docker-compose.email.yml up
 ```
 
 The sidecar reaches the Bridge via `host.docker.internal:1143` and serves the read-only tools at
@@ -56,5 +56,5 @@ is fed back to the model (a real model that emits tool calls also needs the GPU 
 ## Teardown
 
 ```
-docker compose -f docker-compose.yml -f docker-compose.email.yml down
+docker compose --project-directory . -f docker/docker-compose.yml -f docker/docker-compose.email.yml down
 ```

@@ -1,4 +1,6 @@
 
+name: cortex
+
 services:
   brain:
     build: ./brain

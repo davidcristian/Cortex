@@ -43,7 +43,7 @@ bind-mounted read-only from `D:\Software\AI\Models`).
 
 3. **Model Manager v1 is a pure policy object in `cortex_core`, not a process manager.**
    "No swap yet" (ROADMAP): the single resident `llama-server` is brought up declaratively
-   by `docker-compose.gpu.yml`. `SingleResidentModelManager(resident_model, endpoint)` (in
+   by `docker/docker-compose.gpu.yml`. `SingleResidentModelManager(resident_model, endpoint)` (in
    `cortex_core.model`) implements the `ModelManager` port with pure policy, namely
    single-resident enforcement (`acquire` of any other id raises `ModelUnavailableError`)
    and serialized GPU access via an `asyncio.Lock` whose waiter queue **is** the "queue
@@ -60,7 +60,7 @@ bind-mounted read-only from `D:\Software\AI\Models`).
    `EchoInferenceBackend`. The GPU path is exercised on the host via the gpu compose
    override and integration-marked tests.
 
-5. **`docker-compose.gpu.yml` override** adds a `llama-cortex` service (pinned llama.cpp
+5. **`docker/docker-compose.gpu.yml` override** adds a `llama-cortex` service (pinned llama.cpp
    CUDA server image, `--model /models/<artifact>.gguf -ngl 99 --host 0.0.0.0`, GPU
    device reservation, `D:\Software\AI\Models:/models:ro` read-only bind mount,
    loopback-only publish, per assumption 5) and sets the brain service's
@@ -95,4 +95,4 @@ bind-mounted read-only from `D:\Software\AI\Models`).
   real completion through `LlamaCppBackend` against llama.cpp on the 24 GB card. The SSE
   shape assumption holds; a multimodal cortex fits at ~11 GB (16K ctx); load is
   mount-read bound. The context-size and `-ngl` (CPU/hybrid) knobs were added to
-  `docker-compose.gpu.yml` as a result.
+  `docker/docker-compose.gpu.yml` as a result.

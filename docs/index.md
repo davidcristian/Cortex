@@ -35,7 +35,7 @@ Start here. Rules for working in this repo: [AGENTS.md](../AGENTS.md).
 - [ADR-0007: Model Manager v1 + llama.cpp adapter](adr/ADR-0007-model-manager-inference.md):
   `ModelManager` core port; the `LlamaCppBackend` httpx adapter behind the unchanged
   `InferenceBackend`; a pure single-resident Model Manager (no swap yet); Echo stays the
-  GPU-less default, llama.cpp opt-in; the `docker-compose.gpu.yml` override.
+  GPU-less default, llama.cpp opt-in; the `docker/docker-compose.gpu.yml` override.
 - [ADR-0008: Memory v1](adr/ADR-0008-memory-v1.md): custom-and-thin over pgvector, not
   Letta (no framework that hides control flow); `Embedder` + `MemoryStore` ports and the
   `MemoryRecaller` use-case; the pgvector adapter stays 100%-covered without a DB in CI via
