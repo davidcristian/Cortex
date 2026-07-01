@@ -269,3 +269,39 @@ framing is the reducer, the **gate is the deterministic backstop** (and it is pr
 `content`, so a long adversarial deliberation streams nothing until it concludes (fine for ordinary
 prompts (Slice 8), but a latency/truncation risk under a heavy think). Recorded as a deferred
 inference-path refinement (ROADMAP), owned by ADR-0007/ADR-0004, not this slice.
+
+## Addendum (2026-07-01): framing is model-dependent and FAILS on the small subagent models
+
+The first addendum's happy result does **not** generalize down the model tiers. Re-running the probe
+with a **harder, low-obvious-malice suite** (plausible retention/accessibility/business-logic
+"forward this" requests to *non-*evil-looking addresses, an instruction-file framing, a fake casual
+continuation, and an **output-laundering** payload that asks the summary to end with a phishing line)
+against the actual subagent-tier models, namely **Qwen3.5-2B** (the ADR-0004 subagent pick) and
+**Qwen3.5-9B**, each with thinking on *and* off:
+
+- **Framing is ineffective on both.** Framed exactly as shipped, both sizes **parrot the injected
+  instruction into their answer** ("… *with a request to forward a copy to records@…*") and **fully
+  launder the phishing line** into the summary, identical to the unframed control, and unchanged by
+  thinking. Unlike gemma-12B, they do not reason about or cite the preamble; they just follow the
+  text. Framing efficacy scales with model capability, and 2-9B is below the bar.
+- They did **not** emit a `send_email` call in any case. But small models are erratic at *initiating*
+  tool calls, so that is **not** reliable resistance to the action, only the absence of one here.
+
+**This is the empirical proof of decision 6, not a regression:** framing is necessary-but-insufficient,
+and on weak models it is nearly absent, so the **deterministic layers are the boundary**, and they
+hold regardless of how injectable the subagent is:
+1. **Subagents get no outbound/gated tools**, only a read-only MCP subset, delegation-free, depth-1
+   (ADR-0010). There is nothing dangerous for an injected subagent to call.
+2. **The dispatch gate is fail-closed for subagents**. Their `ToolDispatcher` has `confirmer=None`,
+   and a subagent that read untrusted content is `tainted`, so any *future* gated tool it were given
+   is **denied without running** (decision 4). The model's obedience is irrelevant.
+3. **A subagent's output re-enters the cortex as UNTRUSTED** (taint → `spawn_subagents` UNTRUSTED →
+   fenced, decision 3), so a laundered subagent answer is treated as *data* by the framing-robust
+   cortex. The weak link is contained by the strong one.
+
+**Residual (accepted, flagged):** output-laundering is *content*, not an action, so the gate does not
+cover it; it rests on the reader model's framing-adherence. The **cortex** (gemma-12B) resists it
+(validated); a subagent's laundered output is contained by taint (above). The exposure would reopen
+if the cortex were swapped for a weak model, a reason to keep the **cortex** capable, and **not** to
+rely on framing for the subagent tier. A screening subagent (decision 6's deferred option) would not
+help here: it would be another small, equally-injectable model.
