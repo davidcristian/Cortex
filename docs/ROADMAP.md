@@ -267,11 +267,11 @@ the hard rule). Two user-directed motivations:
 **A deferred option is the Intel NPU (Core Ultra 9 275HX).** Using the otherwise-idle NPU for tiny
 subagents/embeddings would fit as a **third `InferenceBackend` adapter** (OpenVINO GenAI, since
 llama.cpp has no NPU path) and a third placement target, aligned with "keep the machine usable."
-**Needs a feasibility pass before committing**, gated on three unknowns: (a) whether the 275HX
-(Arrow Lake-HX is the one Intel line where the NPU is often absent/minimal) exposes a usable NPU
-at all; (b) whether the NPU is reachable from the dockerized **WSL2** brain, likely the blocker,
-since WSL2 paravirtualizes the dGPU but not the NPU, so it may force a host-side runtime that
-crosses the dockerized-brain seam; (c) whether NPU LLM inference for 2-4B is fast/mature enough.
+**Needs a feasibility pass before committing.** The NPU **is present** (maintainer confirmed via Task
+Manager, 2026-07-01), so the two remaining unknowns are: (a) whether the NPU is reachable from the
+dockerized **WSL2** brain, likely the blocker, since WSL2 paravirtualizes the dGPU but not the
+NPU, so it may force a host-side runtime that crosses the dockerized-brain seam; (b) whether NPU
+LLM inference for 2-4B is fast/mature enough (OpenVINO GenAI).
 
 **Splits (our rhythm):** CI-gated half (me) covers ADR-0012, then the revised `ModelManager` +
 `SubagentScheduler` **ports + pure fakes + contract tests** (budget math, fit-test, placement

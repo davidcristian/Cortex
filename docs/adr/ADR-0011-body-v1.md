@@ -161,3 +161,9 @@ overlay is validated in a real browser here. Windows is needed only for the Taur
 
 The overlay is thus fully CI-gated and locally verifiable; the host-only surface shrinks to the
 Rust Tauri shell + `os_windows` (still authored by me, validated on the host Windows machine).
+
+The overlay's **look, feel, and interaction model**, the bubbly/alive/colorful identity, design
+tokens, the interaction state machine (including the user's *dismiss-while-processing* → corner
+orb → response-preview behavior), message history, keyboard shortcuts, and chats-as-sessions are
+specified in [docs/design/overlay-ux.md](../design/overlay-ux.md), the design source of truth that
+overlay components are built against.
