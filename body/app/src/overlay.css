@@ -12,35 +12,23 @@
   box-sizing: border-box;
 }
 
+/* Let the transparent host window show through (WebView2 composites the desktop). */
+html,
+body,
+#root {
+  background: transparent;
+}
+
+/* Transparent by design: the host window is transparent, so only the panel (and
+   the orb/preview) float over the desktop. There is no full-window backdrop. */
 .stage {
   position: fixed;
   inset: 0;
-  background: var(--bg);
+  background: transparent;
   color: var(--text);
   font-family: var(--font);
   overflow: hidden;
-  transition:
-    background 0.4s var(--ease),
-    color 0.4s var(--ease);
-}
-
-.themebtn {
-  position: fixed;
-  top: 20px;
-  right: 22px;
-  z-index: 20;
-  width: 38px;
-  height: 38px;
-  border: none;
-  border-radius: 12px;
-  background: var(--control);
-  color: var(--muted);
-  cursor: pointer;
-  font-size: 16px;
-  transition: 0.2s var(--ease);
-}
-.themebtn:hover {
-  color: var(--text);
+  transition: color 0.4s var(--ease);
 }
 
 /* Sleek at rest: neutral glass, no gradient, a soft neutral shadow. */

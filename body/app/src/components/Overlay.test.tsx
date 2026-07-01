@@ -26,23 +26,34 @@ const reply: Message = {
   error: null,
 };
 
+function renderOverlay(controller: OverlayController, onToggleTheme: () => void = vi.fn()) {
+  return render(<Overlay controller={controller} dark={false} onToggleTheme={onToggleTheme} />);
+}
+
 describe("Overlay", () => {
   it("routes to the panel with no orb or preview in panel mode", () => {
-    render(<Overlay controller={fakeController("panel")} />);
+    renderOverlay(fakeController("panel"));
     expect(screen.getByRole("dialog").className).toContain("open");
     expect(screen.queryByLabelText(/Reopen/u)).toBeNull();
   });
 
+  it("forwards the theme toggle to the panel header", () => {
+    const onToggleTheme = vi.fn();
+    renderOverlay(fakeController("panel"), onToggleTheme);
+    fireEvent.click(screen.getByLabelText("Toggle theme"));
+    expect(onToggleTheme).toHaveBeenCalledOnce();
+  });
+
   it("shows the orb in orb mode and reopens on click", () => {
     const controller = fakeController("orb");
-    render(<Overlay controller={controller} />);
+    renderOverlay(controller);
     fireEvent.click(screen.getByLabelText(/Reopen/u));
     expect(controller.open).toHaveBeenCalledOnce();
   });
 
   it("shows the preview with the latest reply and reopens on click", () => {
     const controller = fakeController("preview", [reply]);
-    render(<Overlay controller={controller} />);
+    renderOverlay(controller);
     expect(screen.getByText("the answer")).toBeInTheDocument();
     fireEvent.click(screen.getByText(/Reply ready/u));
     expect(controller.open).toHaveBeenCalledOnce();
@@ -50,19 +61,19 @@ describe("Overlay", () => {
 
   it("Escape dismisses when visible, but not when hidden", () => {
     const visible = fakeController("panel");
-    const { unmount } = render(<Overlay controller={visible} />);
+    const { unmount } = renderOverlay(visible);
     fireEvent.keyDown(document.body, { key: "Escape" });
     expect(visible.dismiss).toHaveBeenCalledOnce();
     unmount();
     const hidden = fakeController("hidden");
-    render(<Overlay controller={hidden} />);
+    renderOverlay(hidden);
     fireEvent.keyDown(document.body, { key: "Escape" });
     expect(hidden.dismiss).not.toHaveBeenCalled();
   });
 
   it("Ctrl+N and Cmd+N start a new chat; other keys and Ctrl+other are ignored", () => {
     const controller = fakeController("panel");
-    render(<Overlay controller={controller} />);
+    renderOverlay(controller);
     fireEvent.keyDown(document.body, { key: "n", ctrlKey: true });
     fireEvent.keyDown(document.body, { key: "N", metaKey: true });
     expect(controller.newChat).toHaveBeenCalledTimes(2);
