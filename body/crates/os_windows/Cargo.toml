@@ -1,0 +1,17 @@
+[package]
+name = "os-windows"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+description = "Slice 8 global-hotkey Windows OS backends for the Cortex body (lib name: os_windows)"
+
+# Everything here is `cfg(windows)`: the real backend makes Windows OS calls and
+# cannot compile elsewhere. On Linux CI the crate builds to nothing (no deps, no
+# code), so the coverage gate never measures it (ADR-0011). Deps are Windows-only
+# for the same reason. Linux never fetches or builds `global-hotkey`.
+[target.'cfg(windows)'.dependencies]
+body-core.workspace = true
+global-hotkey = "0.8"
+
+[lints]
+workspace = true

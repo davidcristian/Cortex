@@ -126,8 +126,9 @@ brain/            Python workspace (uv), dockerized (brain/Dockerfile)
                   (planned) model_manager (Slice 11), body_client, shared
 body/             Rust/Tauri workspace, host-native
   crates/         core (pure logic + OS traits + BrainTransport port), rpc (tonic
-                  adapter, committed stubs); (planned) os_windows, os_macos, os_linux
-  app/            (planned) the Tauri app (backend wiring + webview frontend)
+                  adapter, committed stubs), os_windows (real global-hotkey backend,
+                  cfg(windows)) + os_linux/os_macos (cfg-gated stubs)
+  app/            React+Vite overlay (gated 100%); (planned) its Tauri src-tauri shell
 scripts/          repo gates: linecap.py (300-line cap), coverage_gate.py (Rust branches),
                   ci_paths.py (CI path classifier)
 .github/          GPU-less CI running the same `just` recipes as local dev
