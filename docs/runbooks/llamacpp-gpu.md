@@ -44,13 +44,26 @@ dev distro is set), two one-time steps are needed:
   export CORTEX_MODELS_DIR=/srv/models          # persist via /etc/fstab if you like
   ```
 - **Credential helper.** With interop off, `docker` can't exec the Windows
-  `docker-credential-desktop.exe` (→ `exec format error` on pull). Point `DOCKER_CONFIG` at
-  a config without a `credsStore` (public images pull anonymously):
+  `docker-credential-desktop.exe` (→ `exec format error` / `executable not found` on pull).
+  Point `DOCKER_CONFIG` at a config without a `credsStore` (public images pull anonymously):
   ```
   mkdir -p ~/.docker-nohelper && echo '{}' > ~/.docker-nohelper/config.json
   export DOCKER_CONFIG=~/.docker-nohelper
   ```
   (Same footgun the WSL dev runbook notes for `just up`.)
+- **The GPU toolkit is needed when `docker` is a *native* `dockerd` in the distro** (context
+  `default → /var/run/docker.sock`, not Docker Desktop). Then `--gpus all` and compose
+  `deploy.reservations.devices` fail with `could not select device driver "nvidia" [[gpu]]`
+  until the NVIDIA Container Toolkit is installed **in the distro** and wired into the daemon:
+  ```
+  sudo apt-get install -y nvidia-container-toolkit
+  sudo nvidia-ctk runtime configure --runtime=docker
+  sudo service docker restart          # a Docker update without a PC restart can also break this
+  ```
+  Verify: `docker info` shows `Runtimes: … cdi: nvidia.com/gpu=all`, and
+  `docker run --rm --gpus all --entrypoint nvidia-smi ghcr.io/ggml-org/llama.cpp:server-cuda -L`
+  lists the GPU. (Docker Desktop from PowerShell bridges the GPU for you; a native WSL dockerd
+  does not.)
 
 ## Bring it up
 
@@ -82,6 +95,26 @@ cd brain && CORTEX_INFERENCE_ENDPOINT=http://127.0.0.1:8080 \
 `--no-cov` matters. The 100% gate in the workspace addopts would otherwise fail the run
 (the same convention as the Redis live test). This streams a real completion through
 `LlamaCppBackend` and asserts non-empty output.
+
+## Framing-efficacy probe (Slice 6.5 / ADR-0013, agent-runnable)
+
+Confirms the prompt-injection **framing** actually changes the cortex's behavior. This is the model
+observation CI can't make. Bring up **only** the model on GPU (no brain build), adding `--jinja`
+so gemma's tool chat-template renders (a `command:` override in a scratch compose file):
+
+```
+docker compose --project-directory . -f docker/docker-compose.yml -f docker/docker-compose.gpu.yml \
+  -f <override-adding-"--jinja"> up -d llama-cortex     # 127.0.0.1:8080, ~9.8 GB VRAM, healthy in ~10 s
+```
+
+Then probe `/v1/chat/completions` directly, building messages with the **shipped** constants
+(`from cortex_core import SECURITY_PREAMBLE, wrap_untrusted`): a `system` = `SECURITY_PREAMBLE`, the
+user ask, an assistant `read_file` tool-call, and a `tool` message whose content is
+`wrap_untrusted(<injection payload>)` (exactly what the brain produces). Compare against an
+unframed control (no preamble, raw payload). **gemma-4-12B is a reasoning model**, so give it
+`max_tokens≈1500` and read `reasoning_content` (not just `content`), or it hits the length cap
+mid-think and returns empty. Result (2026-07-01): the framed model cites the preamble in its
+reasoning to defeat every injection variant. See the [ADR-0013 addendum](../adr/ADR-0013-untrusted-content.md).
 
 ## Measured so far (2026-06-29, 24 GB card, 16K ctx, single slot, full offload)
 

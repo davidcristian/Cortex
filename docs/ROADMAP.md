@@ -185,14 +185,18 @@ powerful tools (`spawn_subagents` now; volume/OS actions in Slices 9-10; email-w
   aggregates it, so a subagent that reads a malicious file taints the cortex; a tainted turn records
   nothing to memory, keeping recall trustworthy.
 
-**Deferred (ADR-0013), collected in the Deferred-refinements section below.** The remaining
-validation splits three ways (see ADR-0013 Consequences): **agent GPU validation** (that a live
-cortex (gemma-4-12B) treats crafted malicious file/email content as data, is the **agent's to run
-via Docker + `/srv`** (the Slice 4-7 integration path), not the user's; framing efficacy is a
-model observation, not a CI assertion, and the gate is the deterministic boundary that holds
-regardless. Only the **overlay confirmation UI** (Rust/Tauri on Windows, with the first outbound
-tool, Slice 9/10) is genuinely host/host-only. **Gate proven:** the untrusted-input boundary the
-founding safety posture requires.
+**Agent GPU validation done 2026-07-01 ([ADR-0013 addendum](adr/ADR-0013-untrusted-content.md)).**
+The agent ran the framing-efficacy probe on the host GPU (gemma-4-12B, via Docker compose once
+the WSL `nvidia-container-toolkit` was in place per [runbook](runbooks/llamacpp-gpu.md)): the framed
+model **cites the shipped `SECURITY_PREAMBLE` in its own reasoning** to defeat seven injection
+variants (including an exfil-via-`send_email` tool call, a rule-override, and a forged closing tag);
+framing works causally, and the gate remains the deterministic backstop (proven in CI). The
+incidental finding that **gemma-4-12B is a reasoning model** is recorded as an inference-path
+deferral below.
+
+**Deferred (ADR-0013), collected in the Deferred-refinements section below.** Only the **overlay
+confirmation UI** (Rust/Tauri on Windows, with the first outbound tool, Slice 9/10) remains genuinely
+host/host-only. **Gate proven:** the untrusted-input boundary the founding safety posture requires.
 
 ## Slice 7 (Subagents)
 
@@ -453,10 +457,10 @@ behind the unchanged `ToolRegistry`/`ToolDispatcher`/`stream_tool_loop` seams (o
   `confirmer=None`; the real adapter is an overlay confirmation exchange over the seam (a new proto
   message + the Rust/Tauri UI). It lands with the **first outbound/gated tool** (email-write or the
   Slice 9/10 OS actions), and is the **only** genuinely host/OS-host-only piece of this slice.
-- **Agent GPU validation of framing efficacy.** That a live cortex (gemma-4-12B) treats crafted
-  malicious file/email content as data is a model observation, not a CI assertion. But it is the
-  **agent's** to run via Docker + `/srv` (`just up-gpu` + the MCP sidecars, the Slice 4-7 path),
-  not the user's. An `integration`-marked check, excluded from CI/coverage.
+- **Agent GPU validation of framing efficacy done 2026-07-01** ([ADR-0013 addendum](adr/ADR-0013-untrusted-content.md)).
+  The agent ran it on the host GPU via Docker (gemma-4-12B): the framed model cites the shipped
+  `SECURITY_PREAMBLE` in its reasoning to defeat seven injection variants; the gate is the
+  deterministic backstop. Re-runnable per the [runbook](runbooks/llamacpp-gpu.md).
 - **The screening subagent.** A small subagent that pre-screens external content for injection
   markers before the cortex sees it, to be added only if the GPU validation shows framing too leaky
   (the trigger), behind the same delegation seam, gated by a flag.
@@ -485,6 +489,14 @@ behind the unchanged `ToolRegistry`/`ToolDispatcher`/`stream_tool_loop` seams (o
   unchanged `ModelManager` port (consequences).
 - **MTP (multi-token-prediction) model variants.** Deferred until they earn their keep, per
   [ADR-0004](adr/ADR-0004-model-lineup.md).
+- **The cortex gemma-4-12B is a reasoning model** (found during the Slice 6.5 GPU validation,
+  [ADR-0013 addendum](adr/ADR-0013-untrusted-content.md)): it emits `reasoning_content` before
+  `content`, yet the cortex GPU compose does not disable thinking and `LlamaCppBackend` reads only
+  `content`, so a long deliberation streams nothing until it concludes (fine for ordinary prompts,
+  a latency/truncation risk under a heavy think). Options behind the unchanged `InferenceBackend`:
+  disable thinking for the cortex (the subagent `enable_thinking=false` twin), surface
+  `reasoning_content` as a "thinking" status, or budget enough tokens. Decide when the cortex path is
+  next touched.
 
 **Resource governance in Slice 8.5 ([ADR-0012](adr/ADR-0012-resource-governance.md)):** each behind
 the unchanged `SubagentPlacer`/`SubagentScheduler`/`ModelManager` ports.
