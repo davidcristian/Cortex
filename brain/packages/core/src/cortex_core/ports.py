@@ -13,6 +13,7 @@ from cortex_core.conversation import Message
 from cortex_core.inference import InferenceEvent
 from cortex_core.memory import MemoryRecord, ScoredMemory
 from cortex_core.model import ModelLease
+from cortex_core.placement import Placement, PlacementRequest
 from cortex_core.subagents import SubagentResult, SubagentTask
 from cortex_core.tools import ToolCall, ToolInvocation, ToolResult, ToolSpec
 
@@ -37,6 +38,14 @@ class ModelManager(Protocol):
     """Owns the single GPU: leases the resident model, serializes callers (ADR-0007)."""
 
     def acquire(self, model: str) -> AbstractAsyncContextManager[ModelLease]: ...
+
+
+class SubagentPlacer(Protocol):
+    """Fit-tests a subagent onto the GPU under the VRAM soft cap, else CPU (ADR-0012)."""
+
+    def place(self, request: PlacementRequest) -> Placement: ...
+
+    def release(self, placement: Placement) -> None: ...
 
 
 class Embedder(Protocol):
@@ -90,6 +99,6 @@ class TaskStore(Protocol):
 
 
 class SubagentScheduler(Protocol):
-    """Admits subagent spawns against a bounded CPU budget. Concurrency, not the GPU (ADR-0010)."""
+    """Admits subagent spawns against a soft CPU/RAM budget. Concurrency, not the GPU (ADR-0012)."""
 
-    def admit(self) -> AbstractAsyncContextManager[None]: ...
+    def admit(self, request: PlacementRequest) -> AbstractAsyncContextManager[None]: ...

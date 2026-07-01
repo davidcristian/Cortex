@@ -12,16 +12,20 @@ from fakeredis import FakeAsyncRedis, FakeServer
 from grpc import aio
 
 from cortex_core import (
-    ConcurrencyScheduler,
     EchoInferenceBackend,
     InMemoryTaskStore,
     InMemoryToolRegistry,
     MemoryRecaller,
+    PlacementRequest,
+    PlacementTarget,
+    ResourceBudgetScheduler,
     SpawnSubagentsTool,
+    SubagentResources,
     SubagentRunner,
     SystemClock,
     ToolDispatcher,
     ToolSpec,
+    VramBudgetPlacer,
 )
 from cortex_inference import LlamaCppBackend
 from cortex_memory import PgVectorMemoryStore
@@ -211,7 +215,11 @@ async def test_build_tool_registry_selects_mcp_and_returns_a_closer(
 async def test_build_subagents_defaults_to_disabled() -> None:
     """The default: no spawn tool, and a closer that is a clean no-op."""
     spawn, close = await build_subagents(
-        SubagentsConfig(backend="none"), None, "redis://x:6379/0", SystemClock()
+        SubagentsConfig(backend="none"),
+        None,
+        "redis://x:6379/0",
+        SystemClock(),
+        placer=VramBudgetPlacer(soft_cap_gb=14.0, cortex_reservation_gb=11.3),
     )
     assert spawn is None
     await close()  # no resources to release; must not raise
@@ -230,10 +238,17 @@ async def test_build_subagents_selects_llamacpp_and_returns_a_closer(
         return RedisTaskStore(FakeAsyncRedis(server=FakeServer()))
 
     config = SubagentsConfig(
-        backend="llamacpp", endpoint="http://llama-subagent:8082", max_concurrency=2
+        backend="llamacpp",
+        endpoint="http://llama-subagent-cpu:8082",
+        gpu_endpoint="http://llama-subagent-gpu:8083",
     )
     spawn, close = await build_subagents(
-        config, registry, "redis://sub:6379/0", SystemClock(), task_store_factory=factory
+        config,
+        registry,
+        "redis://sub:6379/0",
+        SystemClock(),
+        placer=VramBudgetPlacer(soft_cap_gb=14.0, cortex_reservation_gb=11.3),
+        task_store_factory=factory,
     )
     assert isinstance(spawn, SpawnSubagentsTool)
     assert seen_url == ["redis://sub:6379/0"]
@@ -247,10 +262,14 @@ async def _read_handler(arguments: Mapping[str, object]) -> str:
 
 def _spawn_tool() -> SpawnSubagentsTool:
     store = InMemoryTaskStore()
-    runner = SubagentRunner(
-        store, EchoInferenceBackend(), ConcurrencyScheduler(1), SystemClock(), subagent_model="s"
+    echo = EchoInferenceBackend()
+    resources = SubagentResources(
+        backends={PlacementTarget.GPU: echo, PlacementTarget.CPU: echo},
+        scheduler=ResourceBudgetScheduler(4.0, 8.0),
+        placer=VramBudgetPlacer(soft_cap_gb=14.0, cortex_reservation_gb=11.3),
+        request=PlacementRequest("s", vram_gb=2.0, cpus=2.0, memory_gb=2.0),
     )
-    return SpawnSubagentsTool(runner, store, SystemClock())
+    return SpawnSubagentsTool(SubagentRunner(store, resources, SystemClock()), store, SystemClock())
 
 
 def _read_registry() -> InMemoryToolRegistry:

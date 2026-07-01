@@ -1,11 +1,26 @@
-"""SubagentRunner: run one delegated task as a stateless function over the store (ADR-0010)."""
+"""SubagentRunner: run one delegated task as a stateless function over the store (ADR-0010/0012)."""
+
+from collections.abc import Mapping
+from dataclasses import dataclass
 
 from cortex_core.conversation import Message, Role
 from cortex_core.dispatch import ToolDispatcher
 from cortex_core.errors import InferenceError
-from cortex_core.ports import Clock, InferenceBackend, SubagentScheduler, TaskStore
+from cortex_core.placement import PlacementRequest, PlacementTarget
+from cortex_core.ports import Clock, InferenceBackend, SubagentPlacer, SubagentScheduler, TaskStore
 from cortex_core.subagents import SubagentResult, SubagentTask
 from cortex_core.tool_loop import stream_tool_loop
+
+
+@dataclass(frozen=True, slots=True)
+class SubagentResources:
+    """One subagent tier's placement machinery, bundled so the runner takes it as a unit (ADR-0012).
+    """
+
+    backends: Mapping[PlacementTarget, InferenceBackend]
+    scheduler: SubagentScheduler
+    placer: SubagentPlacer
+    request: PlacementRequest
 
 
 def _task_messages(task: SubagentTask) -> list[Message]:
@@ -18,54 +33,57 @@ def _task_messages(task: SubagentTask) -> list[Message]:
 
 
 class SubagentRunner:
-    """Run a delegated task to a persisted result, under a CPU-budget slot (ADR-0010)."""
+    """Run a delegated task to a persisted result -- admitted, placed, then streamed (ADR-0012)."""
 
     def __init__(
         self,
         store: TaskStore,
-        backend: InferenceBackend,
-        scheduler: SubagentScheduler,
+        resources: SubagentResources,
         clock: Clock,
         *,
-        subagent_model: str,
         tools: ToolDispatcher | None = None,
     ) -> None:
         self._store = store
-        self._backend = backend
-        self._scheduler = scheduler
+        self._resources = resources
         self._clock = clock
-        self._subagent_model = subagent_model
         self._tools = tools
 
     async def run(self, task_id: str) -> SubagentResult:
-        """Admit, load the task, run the tool loop, and persist + return the result."""
-        async with self._scheduler.admit():
-            task = await self._store.get_task(task_id)
-            if task is None:
-                return await self._persist(
-                    SubagentResult(task_id=task_id, output="", ok=False, detail="task not found")
-                )
-            working = _task_messages(task)
-            parts: list[str] = []
+        """Admit (CPU/RAM), place (VRAM), route to the placed backend, then persist the result."""
+        res = self._resources
+        async with res.scheduler.admit(res.request):
+            placement = res.placer.place(res.request)
             try:
-                async for delta in stream_tool_loop(
-                    self._backend,
-                    self._subagent_model,
-                    working,
-                    dispatcher=self._tools,
-                    clock=self._clock,
-                    turn_id=task_id,
-                ):
-                    # Append incrementally (not a comprehension) so text produced before a
-                    # mid-stream failure survives into the ok=False result below.
-                    parts.append(delta)  # noqa: PERF401
-            except InferenceError as err:
-                return await self._persist(
-                    SubagentResult(
-                        task_id=task_id, output="".join(parts), ok=False, detail=str(err)
-                    )
-                )
-            return await self._persist(SubagentResult(task_id=task_id, output="".join(parts)))
+                return await self._run_placed(task_id, res.backends[placement.target])
+            finally:
+                res.placer.release(placement)
+
+    async def _run_placed(self, task_id: str, backend: InferenceBackend) -> SubagentResult:
+        """Load the task by id and stream it to a persisted result on the placed backend."""
+        task = await self._store.get_task(task_id)
+        if task is None:
+            return await self._persist(
+                SubagentResult(task_id=task_id, output="", ok=False, detail="task not found")
+            )
+        working = _task_messages(task)
+        parts: list[str] = []
+        try:
+            async for delta in stream_tool_loop(
+                backend,
+                self._resources.request.model,
+                working,
+                dispatcher=self._tools,
+                clock=self._clock,
+                turn_id=task_id,
+            ):
+                # Append incrementally (not a comprehension) so text produced before a
+                # mid-stream failure survives into the ok=False result below.
+                parts.append(delta)  # noqa: PERF401
+        except InferenceError as err:
+            return await self._persist(
+                SubagentResult(task_id=task_id, output="".join(parts), ok=False, detail=str(err))
+            )
+        return await self._persist(SubagentResult(task_id=task_id, output="".join(parts)))
 
     async def _persist(self, result: SubagentResult) -> SubagentResult:
         """Write the result to the store and hand it back to the caller."""

@@ -8,18 +8,23 @@ from cortex_core import (
     BuiltinTool,
     Clock,
     CompositeToolRegistry,
-    ConcurrencyScheduler,
     EchoInferenceBackend,
     InferenceBackend,
     MemoryRecaller,
+    PlacementRequest,
+    PlacementTarget,
+    ResourceBudgetScheduler,
     SingleResidentModelManager,
     SpawnSubagentsTool,
+    SubagentPlacer,
+    SubagentResources,
     SubagentRunner,
     SystemClock,
     ToolDispatcher,
     ToolRegistry,
     TurnCapabilities,
     TurnEngine,
+    VramBudgetPlacer,
 )
 from cortex_embedding import LlamaCppEmbedder
 from cortex_inference import LlamaCppBackend
@@ -100,27 +105,33 @@ async def build_subagents(
     redis_url: str,
     clock: Clock,
     *,
+    placer: SubagentPlacer,
     task_store_factory: Callable[[str], RedisTaskStore] = RedisTaskStore.from_url,
 ) -> tuple[SpawnSubagentsTool | None, Callable[[], Awaitable[None]]]:
-    """The `spawn_subagents` tool, or None when delegation is disabled (ADR-0010)."""
+    """The `spawn_subagents` tool, or None when delegation is disabled (ADR-0010, ADR-0012)."""
     if config.backend == "none":
         return None, _noop_aclose
     client = httpx.AsyncClient(timeout=httpx.Timeout(_LLAMACPP_CONNECT_TIMEOUT_S, read=None))
-    manager = SingleResidentModelManager(config.model, config.endpoint)
+    resources = SubagentResources(
+        backends={
+            PlacementTarget.GPU: LlamaCppBackend(
+                SingleResidentModelManager(config.model, config.gpu_endpoint), client
+            ),
+            PlacementTarget.CPU: LlamaCppBackend(
+                SingleResidentModelManager(config.model, config.endpoint), client
+            ),
+        },
+        scheduler=ResourceBudgetScheduler(config.cpu_budget, config.mem_budget_gb),
+        placer=placer,
+        request=PlacementRequest(config.model, config.vram_gb, config.cpus, config.memory_gb),
+    )
     store = task_store_factory(redis_url)
     subagent_tools = (
         ToolDispatcher(tool_registry, LoggingAuditSink(), clock)
         if tool_registry is not None
         else None
     )
-    runner = SubagentRunner(
-        store,
-        LlamaCppBackend(manager, client),
-        ConcurrencyScheduler(config.max_concurrency),
-        clock,
-        subagent_model=config.model,
-        tools=subagent_tools,
-    )
+    runner = SubagentRunner(store, resources, clock, tools=subagent_tools)
 
     async def close_subagents() -> None:
         await store.aclose()
@@ -159,7 +170,14 @@ async def run_from_env(
     memory, close_memory = await build_memory(memory_config, clock)
     tool_registry, close_tools = await build_tool_registry(tools_config)
     spawn_tool, close_subagents = await build_subagents(
-        subagents_config, tool_registry, runtime.redis_url, clock
+        subagents_config,
+        tool_registry,
+        runtime.redis_url,
+        clock,
+        placer=VramBudgetPlacer(
+            soft_cap_gb=runtime.vram_soft_cap_gb,
+            cortex_reservation_gb=runtime.cortex_reservation_gb,
+        ),
     )
     tools = build_cortex_tools(tool_registry, spawn_tool, clock)
     try:

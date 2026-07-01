@@ -1,0 +1,209 @@
+# ADR-0012: Resource governance via GPU-first subagents, a VRAM-budget placer, a soft CPU/RAM budget
+
+- **Status:** Accepted (Slice 8.5 CI-half design; user-directed, 2026-07-01)
+- **Date:** 2026-07-01
+- **Revises:** [ADR-0007](ADR-0007-model-manager-inference.md) (Model Manager v1),
+  [ADR-0010](ADR-0010-subagents.md) decisions 6-7 (subagents = CPU-only) and its 2026-07-01 addendum.
+
+## Context
+
+Slice 8.5 (docs/ROADMAP.md) revises two pure-core ports **before** the Slice 11 swap builds on
+them. It is the same "design the interface around the rule from day one; retrofitting is a rewrite"
+logic as the one hard rule. Two user-directed corrections drive it:
+
+1. **Subagents are GPU-first, CPU-overflow (not CPU-only).** ADR-0010 dec 6-7 spent the whole GPU on
+   the cortex and ran every subagent on CPU. The user's revision: fit each spawn onto the GPU when
+   the VRAM soft cap has headroom, spilling to CPU only when it does not. This makes the
+   `ModelManager`'s VRAM accounting real. Today `CORTEX_VRAM_SOFT_CAP_GB` (14 GB, ADR-0004) is
+   documentation, not an enforced knob.
+2. **Container-scoped resource caps so the machine stays usable.** A soft budget bounds how much
+   CPU/RAM admitted subagents may commit, so a spawn burst never starves the user's foreground.
+
+Feasibility of every cap was adversarially verified (2026-07-01 research in [[resource-governance-wsl2]]).
+The **decisive constraint: there is no per-process GPU-compute-utilization cap on this stack**. MIG
+is absent on consumer/laptop GPUs, MPS is unusable under WSL2, and `nvidia-smi` clock/power knobs
+are host-only + whole-GPU. So "limit the GPU" is **not a driver knob**; it is modeled as the VRAM
+fit-test (which bounds GPU concurrency) plus, if ever needed, a scheduler concurrency policy. The
+user's locked decisions: per-subagent CPU via docker `--cpus` (elastic quota); the global CPU/RAM
+ceiling enforced **softly** by the scheduler's admission budget (**no `.wslconfig`, no parent cgroup,
+no hard WSL limits**); the host-side GPU clock clamp **dropped**.
+
+Constraints unchanged from prior slices: the hard rule (no state in a model process), gate 2 (100%
+line+branch **without a GPU**), gate 1 (≤ 300 lines/file), ports-before-adapters, YAGNI. The **real**
+dual-endpoint `llama-server` processes, `-ngl` flags, and per-container cgroup caps are the **host +
+Slice-11 half**. They sit behind these ports, never in them.
+
+## Decisions
+
+1. **`ModelManager` (and `acquire`) is UNCHANGED; placement is a NEW `SubagentPlacer` port.** ADR-0010
+   dec 6 established that the GPU (exclusive lease) and the subagent pool (bounded admission) are
+   different resources behind different ports, "composed at the orchestrator, not merged." VRAM
+   placement is a **third** contract (a fit-test that reserves headroom and decides GPU-vs-CPU), so
+   by the same logic it is its own port, not a fattening of `ModelManager`. Interface Segregation:
+   `SingleResidentModelManager` (the cortex lease) and Slice 11's process-lifecycle manager keep
+   `acquire(model) -> ModelLease` with **zero change** and **no raising placement stubs**. The
+   ROADMAP's prose "the ModelManager becomes a VRAM-budget accountant" is realized as this dedicated
+   port under the same responsibility, which the swap orchestrator composes with `acquire` (Slice 11).
+
+   ```python
+   class SubagentPlacer(Protocol):
+       def place(self, request: PlacementRequest) -> Placement: ...
+       def release(self, placement: Placement) -> None: ...
+   ```
+
+2. **`VramBudgetPlacer` is the pure VRAM-budget accountant.** It owns a live ledger of GPU-placed
+   subagent VRAM and fit-tests each spawn against the policy cap, **not** llama.cpp `--fit`, which
+   sizes to *free* VRAM, not the soft cap. The formula:
+
+   ```
+   headroom = soft_cap_gb − cortex_reservation_gb − placed_gb
+   place(request):  vram_gb ≤ headroom  →  GPU (reserve vram_gb, -ngl 99)
+                    else                →  CPU (reserve nothing,  -ngl 0)
+   ```
+
+   The **whole** model goes on GPU or CPU, with no partial straddle for a 2-4B (verified
+   worst-of-both-worlds). "Bigger subagents up to ~4B when it fits" is emergent: nothing caps
+   `vram_gb` but headroom, so a larger model fits when the pool is empty and overflows as `placed_gb`
+   rises. `place`/`release` are **synchronous and lock-free**: with no `await` inside, a coroutine's
+   read-modify-write of `placed_gb` runs to completion without interleaving (single-threaded asyncio
+   atomicity), so the concurrent-batch spawns (`asyncio.gather`, ADR-0010 addendum) race the headroom
+   correctly with no lock. The VRAM fit-test **is** the GPU-concurrency limiter: with ~2.7 GB headroom
+   (14 GB cap − ~11.3 GB cortex) and ~2 GB/subagent, at most one subagent lands on GPU and the rest
+   spill to CPU, so **no separate `max_gpu_subagents` knob** (it would be a second dial for the same
+   constraint; the user lowers the cap or raises the reservation to reserve more). A future
+   compute-contention cap slots in behind this port if host measurement demands it.
+
+3. **Placement value types** (`cortex_core/placement.py`, importing no ports as in `subagents.py`):
+
+   ```python
+   class PlacementTarget(Enum):        # GPU = "gpu" (-ngl 99);  CPU = "cpu" (-ngl 0)
+       @property
+       def ngl(self) -> int: ...       # GPU → 99, CPU → 0 (the number the host server-start uses)
+   PlacementRequest(model, vram_gb, cpus, memory_gb)   # frozen; __post_init__ asserts all > 0
+   Placement(target: PlacementTarget, reserved_gb: float)   # reserved_gb = vram_gb on GPU else 0.0
+   ```
+
+   `Placement` carries `reserved_gb` so `release` is exact and self-contained (no back-reference to
+   the request). `ngl` is derived from `target` (they are isomorphic, so no redundant field). The
+   endpoint is **not** on `Placement`: the runner routes by `target` (decision 6), keeping the placer
+   pure VRAM policy with no endpoint knowledge.
+
+4. **`SubagentScheduler.admit` gains a two-dimensional soft CPU/RAM budget.** `admit(request)` (was
+   `admit()`) reserves the request's `cpus`/`memory_gb` against summed soft targets; over budget the
+   spawn **waits** (an `asyncio.Condition`; depth-1 guarantees no spawn waits on another spawn, so it
+   cannot deadlock), matching the user's "soft budget, not a hard wall." A charge larger than the
+   whole budget is a config error that could wait forever, so it raises `ValueError` up front (the
+   only guard; a well-formed charge always eventually fits as peers release). This delivers ADR-0010
+   dec 6's deferred "hard RAM-ceiling rejection" as soft-budget-with-loud-rejection-of-the-impossible.
+   `ConcurrencyScheduler` (the bare counting semaphore) is **replaced** by `ResourceBudgetScheduler`;
+   its `admit()` no longer satisfies the revised port, and the two-dimensional budget subsumes the
+   `max_concurrency` count.
+
+5. **The runner composes the two ports; no VRAM is held while waiting.** `SubagentRunner.run` orders
+   **admit (CPU/RAM, may wait) OUTER → place (VRAM, sync, instant) INNER → release in `finally`**:
+
+   ```python
+   async with self._scheduler.admit(self._request):          # waits on the soft budget
+       placement = self._placer.place(self._request)          # sync fit-test, cannot block
+       try:
+           backend = self._backends[placement.target]         # route to GPU or CPU (decision 6)
+           ... existing load-task + stream_tool_loop body ...
+       finally:
+           self._placer.release(placement)
+   ```
+
+   Because `place` runs only after admission and never blocks, the "reserved VRAM then no CPU slot"
+   leak is **impossible by construction**. No rollback path exists. Admission charges the request's
+   full `cpus`/`memory_gb` regardless of where it lands (conservative; a GPU placement barely touches
+   host CPU, so this over-charges safely). Placement-aware charging is a later refinement behind the
+   unchanged `admit(request)`. The existing failure contract is preserved exactly: a missing task or an
+   `InferenceError` still becomes an `ok=False` `SubagentResult` (no new failure branches).
+
+6. **A placement reaches inference via two backends selected by `target`. `InferenceBackend` and the
+   proto are untouched.** `LlamaCppBackend.stream` resolves its endpoint from its own manager's lease
+   (backend.py:148); it takes no endpoint argument. Rather than make one backend's `acquire` return
+   different endpoints per placement (a racy `last_endpoint` reconciliation), the runner holds
+   `backends: Mapping[PlacementTarget, InferenceBackend]`, a GPU backend (over the GPU sidecar) and a
+   CPU backend (over the CPU sidecar), and selects `backends[placement.target]`. Each backend keeps
+   the unchanged `SingleResidentModelManager`/lease mechanism. `stream`'s signature and
+   `proto/body.proto` do not change. In CI the subagent path is off; tests route both branches through
+   fakes.
+
+7. **The ledgers are live-resource state, categorically NOT the durable state the hard rule governs.**
+   `placed_gb` (GB on the GPU now) and `cpu_used`/`mem_used_gb` (container shares admitted now) are
+   semaphore counts denominated in resources, in the same class as the `asyncio.Lock`
+   `SingleResidentModelManager` already holds and the `Semaphore` the old scheduler held (both accepted
+   pure-core state). They carry **no** conversation/task/message/output content, are keyed by nothing,
+   are constructed at zero, mutated only by their single owning object under the reserve/release
+   lifecycle, and are **never persisted**. Losing them on a model swap is **correct, not a violation**:
+   an evicted model's VRAM is physically freed and its containers are gone, so the accurate post-swap
+   ledger *is* zero, and persisting it would be the bug (it would claim VRAM no live process holds).
+   Contrast the `TaskStore`: a task lost on swap **is** a bug, because the work still needs doing. The
+   hard rule forbids state that must **outlive** a swap from living in a model; these ledgers are state
+   that a swap **invalidates and rebuilds around**, like a lock or a connection pool. The durable path
+   (task in Redis, conversation in the store) is untouched.
+
+8. **Opt-in unchanged; CI-default is byte-for-byte the current behavior.** `CORTEX_SUBAGENTS_BACKEND`
+   defaults to `none`, so `build_subagents` returns `None` and no placer/scheduler is constructed at
+   runtime, so the GPU-less dev loop and CI run exactly as before. The pure `VramBudgetPlacer` /
+   `ResourceBudgetScheduler` are exercised only by core unit tests, 100% line+branch without a GPU.
+
+## Consequences
+
+CI-half increments (each small, green under `just check`, no GPU):
+
+1. **Placement values + revised ports** are `placement.py` (`PlacementTarget`/`PlacementRequest`/
+   `Placement`), the `SubagentPlacer` port, and `SubagentScheduler.admit(request)`; `ModelManager`
+   untouched.
+2. **Pure impls + contract tests.** `VramBudgetPlacer` (`placer.py`) and `ResourceBudgetScheduler`
+   (replacing `ConcurrencyScheduler` in `scheduler.py`), each the reference impl its Slice-11 adapter
+   must re-satisfy, covered 100% via pure arithmetic + asyncio primitives.
+3. **Runner composition + routing.** `SubagentRunner` gains `backends`/`placer`/`request`, composes
+   admit→place→release, and routes by target; existing subagent behavior preserved (the Slice-7 tests
+   are the guard).
+4. **Wiring + config.** `build_subagents` builds the placer, scheduler, request, and two backends;
+   `BrainRuntimeConfig` gains `vram_soft_cap_gb`/`cortex_reservation_gb`, `SubagentsConfig` gains
+   `gpu_endpoint` + the per-subagent/budget knobs and drops `max_concurrency`. Docs + ROADMAP.
+
+**Deferred to Slice 11, behind these unchanged ports (additive, no churn):**
+- `SubagentScheduler.drain()` quiesces the pool for a swap (evict → load brain → swap back). Adding a
+  method is additive; the swap composes `drain` + `release` (subagents) with `acquire` (brain) at the
+  orchestrator, never merging the ports.
+- **CUDA-OOM → re-place on CPU.** `place` is optimistic; a real CUDA OOM fails loudly at process start.
+  Today that surfaces as `ok=False` (the existing contract, no corruption). Auto-recovery (re-issue a
+  CPU-forced request) is a Slice-11/host refinement (a real GPU is needed to trigger it; simulating
+  one in the pure core to cover a retry branch would be the vacuous coverage AGENTS.md forbids).
+- The real process-lifecycle `ModelManager` adapter (the deferred `cortex_model_manager` package,
+  ADR-0007) whose `acquire` performs the swap; placement-aware CPU charging; the Intel NPU as a third
+  `PlacementTarget` (ROADMAP deferred option).
+
+**Deferred to the host half (user):** two real `llama-server` sidecars (GPU `-ngl 99` + CPU `-ngl 0`)
+in `docker-compose.subagents.yml`; the per-container `--cpus`/`--memory`/`--memory-swap` caps; the
+measured `vram_gb`/`cortex_reservation_gb`/budget numbers; real GPU-placed-subagent validation; the
+runbook update.
+
+Config gains, at the composition root only: `CORTEX_VRAM_SOFT_CAP_GB`, `CORTEX_VRAM_CORTEX_GB`,
+`CORTEX_SUBAGENTS_GPU_ENDPOINT`, `CORTEX_SUBAGENTS_VRAM_GB`, `CORTEX_SUBAGENTS_CPUS`,
+`CORTEX_SUBAGENTS_MEMORY_GB`, `CORTEX_SUBAGENTS_CPU_BUDGET`, `CORTEX_SUBAGENTS_MEM_BUDGET_GB`
+(replacing `CORTEX_SUBAGENTS_MAX_CONCURRENCY`).
+
+## Risks
+
+- **VRAM-estimate accuracy.** The fit-test trusts a static `vram_gb`; real footprint is weights + KV
+  (grows with context) + fragmentation, allocated lazily. Optimistic → CUDA OOM at runtime (degrades
+  to `ok=False`, no corruption); pessimistic → spurious CPU overflow. The port is right; the *number*
+  is host-tuned in the runbook (the CI/host split).
+- **Soft budget is not a wall.** By the user's constraint (no parent cgroup / `.wslconfig`), the
+  scheduler bounds only the subagents it admitted; a mis-sized per-container cap, or the cortex/brain
+  themselves, can still exceed the intended global ceiling. Deliberate tradeoff; a hard wall remains a
+  refinement behind the same port.
+- **No GPU-util cap at all.** A single GPU-placed subagent can still spike utilization and stutter the
+  foreground; only concurrency + smaller ctx/batch govern it. Accepted, not solved (the stack offers
+  no lever, per [[resource-governance-wsl2]]).
+- **Pre-existing backend-lock serialization.** `LlamaCppBackend` holds the manager lease for the whole
+  stream, so subagents sharing one backend serialize at its lock regardless of the admission budget (a
+  Slice-7 property, not introduced here). GPU-first (≈1 GPU subagent) makes it moot on the GPU path;
+  genuine CPU-sidecar `--parallel` concurrency is a host-half wiring concern.
+- **Float drift.** Repeated `+=`/`-=` on `placed_gb`/`cpu_used` can leave a tiny residue; with coarse
+  (0.1 GB) config values it never crosses a boundary. Fixed-precision rounding is a no-interface-impact
+  fallback if it ever bites.
