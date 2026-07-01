@@ -8,7 +8,8 @@
 //! brain map to [`TransportError::Rpc`]. No business logic, no retries
 //! (retry policy is a later slice's concern).
 
-use body_core::{BrainTransport, SeamHealth, TransportError};
+use body_core::{BrainTransport, SeamHealth, TransportError, TurnEvent};
+use futures_core::Stream;
 use tonic::Status;
 use tonic::transport::Channel;
 
@@ -60,6 +61,14 @@ impl BrainTransport for BrainSeamClient {
             detail: reply.detail,
         })
     }
+
+    fn converse(
+        &self,
+        session_id: &str,
+        text: &str,
+    ) -> impl Stream<Item = Result<TurnEvent, TransportError>> + Send {
+        crate::converse::converse_turn(self.inner.clone(), session_id.to_owned(), text.to_owned())
+    }
 }
 
 /// Maps a non-OK [`Status`] from a seam call to the port's error taxonomy.
@@ -69,8 +78,10 @@ impl BrainTransport for BrainSeamClient {
 /// `tonic::transport::Error`, which it attaches to the status's `source()`
 /// chain. Those mean "cannot reach the brain" and map to
 /// [`TransportError::Connection`]; a status without a transport source was
-/// genuinely reported by the brain and maps to [`TransportError::Rpc`].
-fn status_to_error(status: &Status) -> TransportError {
+/// genuinely reported by the brain and maps to [`TransportError::Rpc`]. Shared
+/// with the `converse` adapter (`crate::converse`), which maps `Converse`
+/// stream statuses the same way.
+pub(crate) fn status_to_error(status: &Status) -> TransportError {
     match transport_source(status) {
         Some(transport) => TransportError::Connection(error_chain(transport)),
         None => TransportError::Rpc {

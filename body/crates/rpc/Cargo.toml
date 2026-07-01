@@ -6,7 +6,9 @@ publish.workspace = true
 description = "tonic adapter for the body↔brain gRPC seam (lib name: body_rpc)"
 
 [dependencies]
+async-stream.workspace = true
 body-core.workspace = true
+futures-core.workspace = true
 prost.workspace = true
 tonic.workspace = true
 tonic-prost.workspace = true

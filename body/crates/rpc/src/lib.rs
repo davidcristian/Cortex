@@ -6,6 +6,7 @@
 //! `body_core::BrainTransport` port. No business logic lives here.
 
 mod client;
+mod converse;
 
 /// Generated tonic/prost stubs for the `cortex.seam.v1` package.
 ///

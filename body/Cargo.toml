@@ -9,6 +9,8 @@ publish = false
 
 [workspace.dependencies]
 body-core = { path = "crates/core" }
+async-stream = "0.3"
+futures-core = "0.3"
 prost = "0.14"
 thiserror = "2"
 tokio = "1"

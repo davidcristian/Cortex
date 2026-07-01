@@ -18,6 +18,14 @@ Thin translation only. No business logic, no retries (retry policy is a later sl
     after the channel connected) maps to `TransportError::Connection`; a status
     genuinely reported by the brain maps to `TransportError::Rpc { code, message }`
     where `code` is the status-code name (`Internal`, `Unimplemented`, …).
+  - `converse(session_id, text)` opens `BrainService.Converse` (`src/converse.rs`), sends
+    one `ClientEvent{session_id, user_turn}` then half-closes (one turn per call, ADR-0011),
+    and maps each streamed `ServerEvent` to a `TurnEvent`: `TextDelta`→`Delta`,
+    `ToolActivity`→`ToolActivity`, `StatusUpdate`→`Status`, `TurnComplete`→`Complete`
+    (terminal), `SeamError`→`Failed` (terminal). A status raised at the call or mid-stream
+    reuses the same origin split (`status_to_error`, shared with `health`) → `Rpc`/`Connection`;
+    an empty `ServerEvent` or a stream that ends before `TurnComplete` → `Protocol`. The
+    request stream is built with `async-stream`.
   - Every `TransportError::Connection` message folds the error's full `source()` chain
     (e.g. `transport error: tcp connect error: Connection refused (os error 111)`), so
     tonic's opaque `"transport error"` `Display` still names the root cause.
@@ -75,6 +83,7 @@ Being ignored, they never run in CI and never count toward coverage.
   status-origin split, including brain death after a successful connect (graceful
   fake shutdown → next `health()` must be `Connection`, not `Rpc`).
 
-**Dependencies.** `body-core` (the port), `tonic` + `tonic-prost` + `prost`;
-build-dependency `tonic-prost-build` (idle unless `CORTEX_REGEN_PROTO=1`);
+**Dependencies.** `body-core` (the port), `tonic` + `tonic-prost` + `prost`, plus
+`async-stream` (builds the one-turn `converse` request stream) and `futures-core` (the
+`Stream` trait); build-dependency `tonic-prost-build` (idle unless `CORTEX_REGEN_PROTO=1`);
 dev-only `tokio`, `tokio-stream`.
