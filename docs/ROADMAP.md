@@ -470,9 +470,14 @@ behind the unchanged `ToolRegistry`/`ToolDispatcher`/`stream_tool_loop` seams (o
   for injected URLs/footers before it reaches the user, would cover the small tier; deferred (the
   deterministic layers cover the concrete risk today, since subagent output is taint-contained).
 - **Reconsider the subagent model pick (feeds [ADR-0004](adr/ADR-0004-model-lineup.md)).** The
-  injection validation found **gemma-4-E4B markedly more injection-robust than the current Qwen3.5-2B**
-  pick (Qwen launders regardless of preamble; gemma-E4B resists with the hardened rule, thinking on).
-  Weigh against gemma-E4B's size/latency and the thinking-on cost before changing the pick.
+  injection-defense harness ([`test_injection_defense_live.py`](../brain/packages/inference/tests/test_injection_defense_live.py),
+  10-category corpus, [ADR-0013 addendum](adr/ADR-0013-untrusted-content.md)) found **gemma-4-E4B the
+  standout (0/10 obeyed even thinking-off)**, clearly ahead of the current **Qwen3.5-2B (1/10)** and
+  gemma-E2B (4/10). Strongly worth adopting for subagents; weigh against E4B's size/latency.
+- **Slice 9-10 requirement: subagents must never be *handed* a gated/outbound tool.** Today's read-only
+  subset does this by construction and the fail-closed gate is the backstop; when the first outbound
+  tool lands, make the exclusion explicit in `build_subagents`. A jailbroken small subagent (framing is
+  unreliable on the small tier) must have nothing dangerous to call, not merely be denied at the gate.
 - **Context-preserving tainted-memory recording.** A tainted turn currently records **nothing** to
   memory (fail-closed); recording it with a provenance marker and framing it as untrusted on recall
   would preserve legitimate context (a later refinement behind the unchanged `MemoryRecaller`).
