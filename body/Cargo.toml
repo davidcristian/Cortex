@@ -1,5 +1,8 @@
 [workspace]
 members = ["crates/core", "crates/rpc", "crates/os_linux", "crates/os_macos", "crates/os_windows"]
+# The Tauri app (body/app/src-tauri) is its own workspace root, host-native and
+# ungated (ADR-0011 decision 5): keep `cargo --workspace` from ever descending into it.
+exclude = ["app"]
 resolver = "3"
 
 [workspace.package]

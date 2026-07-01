@@ -16,6 +16,9 @@ lcov.info
 node_modules/
 dist/
 
+# Tauri-generated schemas/bindings (body/app/src-tauri/gen)
+gen/
+
 # Harness-local state (session worktrees etc.)
 .claude/
 
