@@ -191,10 +191,11 @@ and `docker-compose.subagents.yml` (a CPU `llama-server` sidecar). (4) The deleg
 models are at `/srv/models`): subagents ran concurrently and answered correctly (~893 MiB RSS,
 ~14.5 s load, ~0.6 s/short answer *with thinking off*), pick locked in the
 [ADR-0004 addendum](adr/ADR-0004-model-lineup.md), with an integration test (`test_subagent_live.py`)
-and [runbook](runbooks/subagents-cpu.md). **Finding:** Qwen3.5 is a reasoning model, so subagents
-must disable thinking (a required follow-up, in the deferred-refinements list). **Remaining
-(host GPU half):** the cortex-driven path with a resident gemma-4-12B *deciding* to emit
-`spawn_subagents` end to end.
+and [runbook](runbooks/subagents-cpu.md). Qwen3.5 is a reasoning model (unbounded thinking on CPU
+is minutes/call); the dedicated subagent server disables it (`--chat-template-kwargs
+'{"enable_thinking": false}'`, baked into `docker-compose.subagents.yml`), so plain requests answer
+directly (~0.3-0.6 s) and the live test passes end to end. **Remaining (host GPU half):** the
+cortex-driven path (a resident gemma-4-12B *deciding* to emit `spawn_subagents` end to end).
 
 ## Slice 8 (Body v1): hotkey → overlay → chat
 
@@ -230,14 +231,6 @@ resumes from the store) and runbook `docs/runbooks/model-swap.md`.
 Refinements consciously deferred as slices landed. Each is a small change behind an
 **unchanged port**, recorded at its origin ADR and collected here so none is lost. Not
 ordered; picked up when a slice needs one or on request.
-
-**Subagents in Slice 7 ([ADR-0010](adr/ADR-0010-subagents.md)):**
-- **Disable reasoning for the subagent tier (required before use).** Qwen3.5/3.6 are reasoning
-  models; unbounded on CPU they emit long `<think>` traces (minutes/call) that `LlamaCppBackend`
-  discards (it reads `content`, not `reasoning_content`). Narrow subagents don't need it, so disable
-  it server-side (`--reasoning-budget 0` in `docker-compose.subagents.yml`) or per-request
-  (`chat_template_kwargs: {enable_thinking: false}`, which needs the backend to pass request
-  extras). Increment-4 addendum. Not a v1-optional nicety. The tier is impractical without it.
 
 **Tools in Slice 6 ([ADR-0009](adr/ADR-0009-tools-mcp.md)):**
 - **Multi-server tool aggregation.** The brain connects to *one* MCP endpoint at a time

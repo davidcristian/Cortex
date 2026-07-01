@@ -28,10 +28,12 @@ curl http://127.0.0.1:8082/health   # -> {"status":"ok"}
 subagents can function-call); `--parallel` matches `CORTEX_SUBAGENTS_MAX_CONCURRENCY` so each
 scheduler-admitted subagent gets a server slot.
 
-> **Reasoning off (important).** Qwen3.5 is a reasoning model. On CPU, unbounded thinking is
-> minutes per call and `LlamaCppBackend` discards the `<think>` traces (it reads `content`, not
-> `reasoning_content`). Until the subagent tier disables reasoning (deferred-refinements list), add
-> `--reasoning-budget 0` to the `llama-subagent` command, or the live test below will crawl.
+> **Reasoning is disabled** on the subagent server (`--chat-template-kwargs
+> '{"enable_thinking": false}'`, baked into the compose command). Qwen3.5 is a reasoning model and
+> unbounded thinking on CPU is minutes per call. `LlamaCppBackend` also reads `content`, not the
+> `reasoning_content` where `<think>` traces land, so it would look empty and crawl. With the flag,
+> plain requests answer directly in ~0.3-0.6 s. The flag is ignored by non-reasoning templates
+> (e.g. gemma-4-E*), so it stays correct if you override the model.
 
 ## 2. Validate the delegation machinery (no GPU cortex needed)
 

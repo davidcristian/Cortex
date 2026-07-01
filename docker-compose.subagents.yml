@@ -20,7 +20,7 @@ services:
     # budget so the scheduler's admitted subagents each get a server slot.
     command:
       - "--model"
-      - "/models/${CORTEX_MODEL_FILE_SUBAGENT:-Qwen/Qwen3.5-2B-GGUF/Qwen3.5-2B-Q4_K_M.gguf}"
+      - "/models/${CORTEX_MODEL_FILE_SUBAGENT:-unsloth/Qwen3.5-2B-GGUF/Qwen3.5-2B-Q4_K_M.gguf}"
       - "--host"
       - "0.0.0.0"
       - "--port"
@@ -29,6 +29,8 @@ services:
       - "-ngl"
       - "0"
       - "--jinja"
+      - "--chat-template-kwargs"
+      - '{"enable_thinking": false}'
       - "--ctx-size"
       - "${CORTEX_SUBAGENT_CTX_SIZE:-8192}"
       - "--parallel"
