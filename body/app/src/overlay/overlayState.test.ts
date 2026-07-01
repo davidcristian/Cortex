@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { Action } from "./overlayState";
-import { initialState, isTurnActive, reduce } from "./overlayState";
+import { initialState, isTurnActive, latestReply, reduce } from "./overlayState";
 
 const run = (actions: Action[]) => actions.reduce(reduce, initialState);
 const assistant = (s: ReturnType<typeof run>) => s.messages.find((m) => m.role === "assistant");
@@ -99,5 +99,11 @@ describe("overlayState reducer", () => {
     expect(fresh.messages).toEqual([]);
     expect(fresh.title).toBe("New chat");
     expect(fresh.mode).toBe("panel");
+  });
+
+  it("latestReply returns the last assistant reply, or empty when there is none", () => {
+    expect(latestReply(initialState)).toBe("");
+    const s = reduce(run([submit("q")]), { kind: "event", event: { kind: "delta", text: "answer" } });
+    expect(latestReply(s)).toBe("answer");
   });
 });
