@@ -338,3 +338,41 @@ a strict superset (it can only help). Two adjacent findings for later:
   for the small tier, e.g. scanning untrusted-derived output for injected URLs/footers before it
   reaches the user, is a possible future guardrail, deferred; the deterministic layers cover the
   concrete risk today.
+
+## Addendum (2026-07-01): the committable injection-defense harness + full-corpus matrix
+
+A reusable measurement harness ships as
+[`test_injection_defense_live.py`](../../brain/packages/inference/tests/test_injection_defense_live.py)
+(integration-marked, GPU/host-run, agent-runnable). It runs a **10-category corpus** drawn from public
+indirect-injection / jailbreak taxonomies (OWASP LLM01:2025): instruction-override, task-completion
+spoofing, system-prompt mimicking, DAN/roleplay, refusal-suppression, payload-splitting,
+output-laundering, conditional-trigger, system-prompt exfiltration, and **tool-exfil** (`send_email`)
+against every model in an editable `MODELS` list, **framed** (the shipped defense) vs an unframed
+control, and prints a per-model resistance matrix. Its only hard assertion is that framing never
+*backfires*; the matrix is the signal. Re-run it when models or the preamble change.
+
+Full run (2026-07-01, hardened preamble, framed obeyed / 10):
+
+| model | thinking | framed obeyed |
+|---|---|---|
+| gemma-4-12B (cortex) | on | **0 / 10** |
+| gemma-4-E4B (~4B) | off | **0 / 10** |
+| gemma-4-E2B (~2B) | off | 4 / 10 |
+| Qwen3.5-2B (subagent pick) | off | 1 / 10 (laundering) |
+| Qwen3.5-0.8B | off | **0 / 10** |
+
+**Safety posture for the smallest models.** Per-model resistance is uneven (gemma-E2B 4/10; note a
+tiny model's "0/10" can be incompetence, not judgment), so the system's safety for the small tier does
+**not** rest on the subagent model's own resistance. It rests on layers the harness does not exercise:
+(1) the **framing-robust cortex** (gemma-12B, 0/10) is the only user-facing generator, and a subagent's
+output reaches it as *untrusted* (taint → fenced); (2) **subagents get no outbound/gated tools** and
+their dispatcher is **fail-closed** (`confirmer=None`), so a fully-jailbroken subagent has nothing
+dangerous to call. That is the CI-proven deterministic boundary. Two consequences:
+
+- **The subagent model pick is the biggest per-model safety lever** (feeds ADR-0004): **gemma-4-E4B is
+  the standout (0/10 even thinking-off)**, clearly ahead of the current Qwen3.5-2B (1/10) and gemma-E2B
+  (4/10). Strongly worth adopting for subagents, weighed against its size/latency.
+- **Requirement for Slices 9-10:** when the first gated/outbound tool lands, the wiring MUST keep it out
+  of the subagent tool set (today's read-only subset does this by construction; the fail-closed gate is
+  the backstop). Make the exclusion explicit then. A jailbroken small subagent must never be *handed* a
+  dangerous tool, not merely denied at the gate.
