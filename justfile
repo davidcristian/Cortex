@@ -20,12 +20,15 @@ check:
     pid_scripts=$!
     just check-body >"$tmp/body.log" 2>&1 &
     pid_body=$!
+    just check-overlay >"$tmp/overlay.log" 2>&1 &
+    pid_overlay=$!
     fail=0
-    for tree in brain scripts body; do
+    for tree in brain scripts body overlay; do
         case "$tree" in
             brain) pid=$pid_brain ;;
             scripts) pid=$pid_scripts ;;
             body) pid=$pid_body ;;
+            overlay) pid=$pid_overlay ;;
         esac
         if wait "$pid"; then status=OK; else status=FAILED; fail=1; fi
         echo "=== check-$tree: $status ==="
@@ -64,6 +67,14 @@ check-body:
     cd body && cargo +nightly llvm-cov --locked --branch --workspace --all-targets --ignore-filename-regex '/_generated/' --fail-under-lines 100 --fail-under-regions 100 --json --summary-only --output-path coverage.json
     cd scripts && uv sync --locked
     cd scripts && uv run python coverage_gate.py ../body/coverage.json
+
+# Overlay frontend (React + Vite): typecheck + Vitest at 100% line+branch coverage
+# (ADR-0011 addendum). Host-only node toolchain, path-filtered in CI (ADR-0006); not under
+# the .py/.rs line cap. Entry glue (main.tsx) + the real Tauri bridge are coverage-excluded.
+check-overlay:
+    cd body/app && npm ci
+    cd body/app && npm run typecheck
+    cd body/app && npm run test:cov
 
 # Regenerate the committed seam stubs from proto/body.proto (needs local protoc; ADR-0003).
 proto:
