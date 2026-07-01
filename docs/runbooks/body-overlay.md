@@ -72,11 +72,11 @@ npm run tauri dev
   machine, theming) is browser-validated here and 100%-gated. **Still the user's to confirm on
   Windows:** the `os_windows` `global-hotkey` registration, the tray, window show/hide, and the
   real `converse` command streaming a live brain turn to the webview.
-- **v1 window behaviour.** A fixed 640×720 frameless **transparent** always-on-top window where only
-  the panel (and the corner orb/preview) float over the desktop, no full-window backdrop. The
-  hotkey **toggles** it (no hide-on-blur, predictable for validation). Still deferred: click-through
-  on the transparent margins (they currently capture clicks), hide-on-blur, and the morph to a real
-  screen-corner orb.
+- **v1 window behaviour.** A fixed 640×720 frameless **opaque** always-on-top window; the hotkey
+  **toggles** it (no hide-on-blur, so validation is predictable). Deferred to a later overlay-polish
+  pass (all together): a **transparent** window so only the panel floats (a first attempt bled
+  through the panel content and left a window border; it needs doing properly with click-through),
+  **click-through** margins, **hide-on-blur**, and the morph to a real screen-corner orb.
 - **CSP** is `null` for v1 (a fully local app loading only bundled assets); tighten it once the IPC
   + dev allow-list is settled on the host.
 - **If the hotkey collides** with other software, set a different `CORTEX_HOTKEY`; a registration
