@@ -49,6 +49,12 @@ export function isTurnActive(state: OverlayState): boolean {
   return state.messages.some((message) => message.streaming);
 }
 
+/** The most recent assistant reply's text (for the minimized preview); "" if none yet. */
+export function latestReply(state: OverlayState): string {
+  const reply = [...state.messages].reverse().find((message) => message.role === "assistant");
+  return reply?.content ?? "";
+}
+
 export function reduce(state: OverlayState, action: Action): OverlayState {
   switch (action.kind) {
     case "open":
