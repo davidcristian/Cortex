@@ -475,6 +475,40 @@ first), richer memory policies, **email write-actions behind explicit per-action
 confirmation** (ADR-0009 risk; Phase-0 assumption 6 below), macOS/Linux OS backends, more
 subagent roles.
 
+## Ship the user-facing README (the very last step)
+
+**Status:** planned. This is the terminal action, gated on **every slice above AND the entire
+deferred-refinements backlog being cleared**. The README describes the *finished* system, so it
+lands only once nothing remains marked planned or deferred; writing it earlier would advertise
+capabilities that aren't real yet.
+
+Until now every doc is engineer-facing (AGENTS.md, ADRs, module contracts, runbooks). There is
+deliberately **no root `README.md`**. This final step writes the one document that *sells* the
+project to a human skimming the repo (a reviewer, a recruiter, a curious visitor). It is a
+presentation deliverable, not a slice: it proves no gate and ships no feature, but it makes the
+finished work legible and impressive at a glance.
+
+It should:
+
+- **Lead with the logo** ([docs/assets/logo.jpg](assets/logo.jpg), cropped from the source) and a
+  one-line elevator pitch: a personal, mostly-local AI assistant. A host-native Rust/Tauri **body**
+  (global hotkey, overlay, OS actions) talking over gRPC to a dockerized Python **brain** (local
+  llama.cpp inference, memory, tools, subagents) with a live **model-swap** rule.
+- **Sell the engineering**, not just the feature list. The things a resume reviewer notices:
+  hexagonal architecture across a polyglot seam, ports-before-adapters with contract tests, **100%
+  line+branch coverage in both toolchains**, the one hard rule (state survives a model swap) designed
+  in from day one, doc-first Definition of Done, GPU-first resource governance under a VRAM budget.
+- **Show, don't tell:** a short overlay demo (GIF/screenshots of the hotkey → overlay → streamed
+  reply), and a small architecture diagram (or a link to [ARCHITECTURE.md](ARCHITECTURE.md)).
+- **Quickstart** that actually works end to end (`just up-gpu`, the hotkey, a first turn), the tech
+  stack + three model tiers + the 24 GB GPU budget, and pointers into the deeper docs
+  ([index](index.md), the ADRs, this roadmap).
+- Read as a **finished product**, in the present tense, with no "planned"/"TODO" sections.
+
+**Gate proven:** none. This is the presentation layer over a complete system. It is done when a
+stranger can understand what Cortex is, why it is built the way it is, and how to run it, in under a
+minute of skimming.
+
 ## Assumptions & risks to confirm (Phase 0)
 
 Deferred *decisions* live in ADR-0001's open questions; these are the *assumptions* the
