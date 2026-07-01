@@ -9,7 +9,13 @@ import { defineConfig } from "vite";
 export default defineConfig({
   plugins: [react()],
   clearScreen: false,
-  server: { port: 5173, strictPort: true },
+  server: {
+    port: 5173,
+    strictPort: true,
+    // Tauri writes the Rust build output under src-tauri/target; if Vite's HMR
+    // watcher follows it, it crashes with EBUSY when cargo relinks the .dll.
+    watch: { ignored: ["**/src-tauri/**"] },
+  },
   test: {
     environment: "jsdom",
     setupFiles: ["./src/test-setup.ts"],
