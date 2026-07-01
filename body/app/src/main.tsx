@@ -14,5 +14,6 @@ if (root) {
       <App bridge={new DemoBridge()} sessionId="dev" />
     </StrictMode>,
   );
-  window.dispatchEvent(new Event("cortex:activate"));
+  // Defer so App's activate listener is attached (effects run after the first render).
+  setTimeout(() => window.dispatchEvent(new Event("cortex:activate")), 0);
 }

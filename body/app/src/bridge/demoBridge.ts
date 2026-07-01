@@ -21,7 +21,7 @@ export class DemoBridge implements BrainBridge {
       }
       sink.onEvent({ kind: "delta", text: index === 0 ? word : ` ${word}` });
       index += 1;
-    }, 60);
+    }, 55);
     return () => clearInterval(timer);
   }
 }
