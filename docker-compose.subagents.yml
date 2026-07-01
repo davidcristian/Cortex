@@ -37,7 +37,7 @@ services:
     # budget so the scheduler's admitted subagents each get a server slot.
     command:
       - "--model"
-      - "/models/${CORTEX_MODEL_FILE_SUBAGENT:-Qwen/Qwen3.5-2B-GGUF/Qwen3.5-2B-Q4_K_M.gguf}"
+      - "/models/${CORTEX_MODEL_FILE_SUBAGENT:-unsloth/Qwen3.5-2B-GGUF/Qwen3.5-2B-Q4_K_M.gguf}"
       - "--host"
       - "0.0.0.0"
       - "--port"
@@ -46,6 +46,13 @@ services:
       - "-ngl"
       - "0"
       - "--jinja"
+      # Disable reasoning for the subagent tier (ADR-0010 increment-4 addendum): the pick,
+      # Qwen3.5, is a reasoning model, and unbounded thinking on CPU is minutes/call. Narrow
+      # subagents don't need it. This is the server-side twin of enable_thinking=false; it is
+      # ignored by non-reasoning templates (e.g. gemma-4-E*), so it stays correct if the model
+      # is overridden. Validated: plain requests answer directly in ~0.3-0.6s.
+      - "--chat-template-kwargs"
+      - '{"enable_thinking": false}'
       - "--ctx-size"
       - "${CORTEX_SUBAGENT_CTX_SIZE:-8192}"
       - "--parallel"
