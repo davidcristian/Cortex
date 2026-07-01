@@ -21,13 +21,17 @@ import httpx
 import pytest
 
 from cortex_core import (
-    ConcurrencyScheduler,
     InMemoryTaskStore,
+    PlacementRequest,
+    PlacementTarget,
+    ResourceBudgetScheduler,
     SingleResidentModelManager,
     SpawnSubagentsTool,
+    SubagentResources,
     SubagentRunner,
     SystemClock,
     ToolCall,
+    VramBudgetPlacer,
 )
 from cortex_inference import LlamaCppBackend
 
@@ -41,13 +45,17 @@ async def test_spawn_subagents_runs_two_subagents_on_a_real_cpu_model() -> None:
     async with httpx.AsyncClient(timeout=httpx.Timeout(10.0, read=None)) as client:
         store = InMemoryTaskStore()
         manager = SingleResidentModelManager(_MODEL, _ENDPOINT or "")
-        runner = SubagentRunner(
-            store,
-            LlamaCppBackend(manager, client),
-            ConcurrencyScheduler(2),
-            SystemClock(),
-            subagent_model=_MODEL,
+        backend = LlamaCppBackend(manager, client)
+        # This host smoke test drives one CPU server; a zero-headroom placer (cap == reservation)
+        # keeps both spawns on the CPU path (ADR-0012). The two-server GPU-first path is the user's
+        # separate host-half validation.
+        resources = SubagentResources(
+            backends={PlacementTarget.GPU: backend, PlacementTarget.CPU: backend},
+            scheduler=ResourceBudgetScheduler(8.0, 8.0),
+            placer=VramBudgetPlacer(soft_cap_gb=11.0, cortex_reservation_gb=11.0),
+            request=PlacementRequest(_MODEL, vram_gb=2.0, cpus=2.0, memory_gb=2.0),
         )
+        runner = SubagentRunner(store, resources, SystemClock())
         tool = SpawnSubagentsTool(runner, store, SystemClock())
         call = ToolCall(
             id="c1",

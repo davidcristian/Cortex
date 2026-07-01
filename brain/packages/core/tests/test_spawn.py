@@ -6,18 +6,22 @@ from datetime import UTC, datetime
 import pytest
 
 from cortex_core import (
-    ConcurrencyScheduler,
     EchoInferenceBackend,
     InferenceBackend,
     InferenceError,
     InferenceEvent,
     InMemoryTaskStore,
     Message,
+    PlacementRequest,
+    PlacementTarget,
+    ResourceBudgetScheduler,
     SpawnSubagentsTool,
+    SubagentResources,
     SubagentRunner,
     TextChunk,
     ToolCall,
     ToolSpec,
+    VramBudgetPlacer,
 )
 
 _AT = datetime(2026, 7, 3, 12, 0, tzinfo=UTC)
@@ -45,11 +49,20 @@ def _counter() -> Callable[[], str]:
     return lambda: next(ids)
 
 
-def _tool(store: InMemoryTaskStore, backend: InferenceBackend) -> SpawnSubagentsTool:
-    runner = SubagentRunner(
-        store, backend, ConcurrencyScheduler(4), FixedClock(), subagent_model="subagent"
+def _runner(store: InMemoryTaskStore, backend: InferenceBackend, model: str) -> SubagentRunner:
+    resources = SubagentResources(
+        backends={PlacementTarget.GPU: backend, PlacementTarget.CPU: backend},
+        scheduler=ResourceBudgetScheduler(8.0, 8.0),
+        placer=VramBudgetPlacer(soft_cap_gb=14.0, cortex_reservation_gb=11.0),
+        request=PlacementRequest(model, vram_gb=2.0, cpus=2.0, memory_gb=2.0),
     )
-    return SpawnSubagentsTool(runner, store, FixedClock(), task_id_factory=_counter())
+    return SubagentRunner(store, resources, FixedClock())
+
+
+def _tool(store: InMemoryTaskStore, backend: InferenceBackend) -> SpawnSubagentsTool:
+    return SpawnSubagentsTool(
+        _runner(store, backend, "subagent"), store, FixedClock(), task_id_factory=_counter()
+    )
 
 
 def _call(arguments: dict[str, object]) -> ToolCall:
@@ -74,10 +87,7 @@ async def test_default_task_id_factory_round_trips_through_the_store() -> None:
     # With no injected factory the tool mints uuid4 task ids; the subagent's success proves the
     # same id was used to persist and to read the task back (a mismatch would be "task not found").
     store = InMemoryTaskStore()
-    runner = SubagentRunner(
-        store, EchoInferenceBackend(), ConcurrencyScheduler(1), FixedClock(), subagent_model="s"
-    )
-    tool = SpawnSubagentsTool(runner, store, FixedClock())
+    tool = SpawnSubagentsTool(_runner(store, EchoInferenceBackend(), "s"), store, FixedClock())
     result = await tool.invoke(_call({"instructions": ["go"]}))
     assert result.content == "[subagent 1] reply 1: go"
 

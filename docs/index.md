@@ -55,6 +55,11 @@ Start here. Rules for working in this repo: [AGENTS.md](../AGENTS.md).
   `Converse` streaming (`TurnEvent`), the `Hotkey` OS-backend seam (first `cfg`-gated backend +
   the stub coverage escape hatch), the Tauri app outside the gated workspace, and a React+Vite
   overlay gated at 100% + browser-validated (addendum).
+- [ADR-0012: Resource governance](adr/ADR-0012-resource-governance.md): GPU-first/CPU-overflow
+  subagents (revising ADR-0007/0010) with the new pure `SubagentPlacer` VRAM-budget accountant
+  (`VramBudgetPlacer`, `acquire` untouched), a soft two-dimensional CPU/RAM `SubagentScheduler`
+  (`ResourceBudgetScheduler`), composed at `SubagentRunner`; ledgers as live-resource (not durable)
+  state; `drain()`/CUDA-OOM re-place deferred to Slice 11.
 
 New non-obvious decision → add `adr/ADR-XXXX-<slug>.md`, link it here.
 

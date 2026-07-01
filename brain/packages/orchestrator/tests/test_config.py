@@ -66,15 +66,21 @@ def test_runtime_defaults_match_the_dictated_contract() -> None:
     config = BrainRuntimeConfig()
     assert config.redis_url == "redis://127.0.0.1:6379/0"
     assert config.cortex_model == "cortex"  # a LOGICAL model id (ADR-0004), never a path
+    assert config.vram_soft_cap_gb == 14.0  # the deliberate GPU budget (ADR-0004)
+    assert config.cortex_reservation_gb == 11.3  # gemma-4-12B footprint (ADR-0004 addendum)
 
 
 @pytest.mark.usefixtures("clean_env")
 def test_runtime_env_overrides_redis_url_and_model(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("CORTEX_REDIS_URL", "redis://redis:6379/0")
     monkeypatch.setenv("CORTEX_MODEL_CORTEX", "cortex-experimental")
+    monkeypatch.setenv("CORTEX_VRAM_SOFT_CAP_GB", "12.0")
+    monkeypatch.setenv("CORTEX_VRAM_CORTEX_GB", "9.5")
     config = BrainRuntimeConfig()
     assert config.redis_url == "redis://redis:6379/0"
     assert config.cortex_model == "cortex-experimental"
+    assert config.vram_soft_cap_gb == 12.0
+    assert config.cortex_reservation_gb == 9.5
 
 
 @pytest.mark.usefixtures("clean_env")
@@ -164,34 +170,44 @@ def test_subagents_default_to_disabled() -> None:
     config = SubagentsConfig()
     assert config.backend == "none"
     assert config.endpoint == ""
+    assert config.gpu_endpoint == ""
     assert config.model == "subagent"  # a LOGICAL id (ADR-0004), never a path
-    assert config.max_concurrency == 2
+    # GPU-less-safe placeholders; the maintainer measures the real numbers on the host (ADR-0012).
+    assert (config.vram_gb, config.cpus, config.memory_gb) == (2.0, 2.0, 2.0)
+    assert (config.cpu_budget, config.mem_budget_gb) == (4.0, 8.0)
 
 
 @pytest.mark.usefixtures("clean_env")
-def test_subagents_env_selects_llamacpp_with_endpoint_and_budget(
+def test_subagents_env_selects_llamacpp_with_endpoints_and_budget(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setenv("CORTEX_SUBAGENTS_BACKEND", "llamacpp")
-    monkeypatch.setenv("CORTEX_SUBAGENTS_ENDPOINT", "http://llama-subagent:8082")
+    monkeypatch.setenv("CORTEX_SUBAGENTS_ENDPOINT", "http://llama-subagent-cpu:8082")
+    monkeypatch.setenv("CORTEX_SUBAGENTS_GPU_ENDPOINT", "http://llama-subagent-gpu:8083")
     monkeypatch.setenv("CORTEX_SUBAGENTS_MODEL", "qwen3-2b")
-    monkeypatch.setenv("CORTEX_SUBAGENTS_MAX_CONCURRENCY", "3")
+    monkeypatch.setenv("CORTEX_SUBAGENTS_VRAM_GB", "2.5")
+    monkeypatch.setenv("CORTEX_SUBAGENTS_CPU_BUDGET", "6.0")
     config = SubagentsConfig()
     assert config.backend == "llamacpp"
-    assert config.endpoint == "http://llama-subagent:8082"
+    assert config.endpoint == "http://llama-subagent-cpu:8082"
+    assert config.gpu_endpoint == "http://llama-subagent-gpu:8083"
     assert config.model == "qwen3-2b"
-    assert config.max_concurrency == 3
+    assert config.vram_gb == 2.5
+    assert config.cpu_budget == 6.0
 
 
 @pytest.mark.usefixtures("clean_env")
-def test_subagents_llamacpp_without_endpoint_is_rejected(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_subagents_llamacpp_without_both_endpoints_is_rejected(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     monkeypatch.setenv("CORTEX_SUBAGENTS_BACKEND", "llamacpp")
-    with pytest.raises(ValidationError, match="CORTEX_SUBAGENTS_ENDPOINT is required"):
+    monkeypatch.setenv("CORTEX_SUBAGENTS_ENDPOINT", "http://llama-subagent-cpu:8082")  # GPU missing
+    with pytest.raises(ValidationError, match="CORTEX_SUBAGENTS_GPU_ENDPOINT are required"):
         SubagentsConfig()
 
 
 @pytest.mark.usefixtures("clean_env")
-def test_subagents_max_concurrency_must_be_at_least_one(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("CORTEX_SUBAGENTS_MAX_CONCURRENCY", "0")
-    with pytest.raises(ValidationError, match="max_concurrency"):
+def test_subagents_budget_must_be_positive(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("CORTEX_SUBAGENTS_CPU_BUDGET", "0")
+    with pytest.raises(ValidationError, match="cpu_budget"):
         SubagentsConfig()

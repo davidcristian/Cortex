@@ -45,6 +45,14 @@ class BrainRuntimeConfig(BaseSettings):
     # env CORTEX_MODEL_CORTEX is a LOGICAL model id (ADR-0004), never a file path.
     # The dictated env name breaks the prefix pattern, hence the explicit alias.
     cortex_model: str = Field(default=DEFAULT_CORTEX_MODEL, validation_alias="CORTEX_MODEL_CORTEX")
+    # env CORTEX_VRAM_SOFT_CAP_GB is the deliberate GPU budget (ADR-0004, 14 GB); the
+    # SubagentPlacer fit-tests subagents against it (ADR-0012), enforced from this slice on.
+    vram_soft_cap_gb: float = Field(default=14.0, gt=0)
+    # env CORTEX_VRAM_CORTEX_GB is the resident cortex's measured footprint (~11.3 GB, ADR-0004
+    # addendum); the subagent GPU headroom is the cap minus this.
+    cortex_reservation_gb: float = Field(
+        default=11.3, ge=0, validation_alias="CORTEX_VRAM_CORTEX_GB"
+    )
 
 
 class InferenceConfig(BaseSettings):
@@ -117,25 +125,38 @@ class ToolsConfig(BaseSettings):
 
 
 class SubagentsConfig(BaseSettings):
-    """Whether the cortex can delegate to subagents (ADR-0010).
+    """Whether the cortex can delegate to subagents (ADR-0010, ADR-0012).
 
     ``none`` (the default) disables delegation. The cortex's tool set has no ``spawn_subagents``
     and the turn path is byte-for-byte the Slice 6 behavior, so CI and the no-GPU dev loop run
-    subagent-free. ``llamacpp`` enables it and requires ``endpoint`` (the base URL of the CPU
-    subagent ``llama-server`` in ``docker-compose.subagents.yml``). ``max_concurrency`` is the CPU
-    budget, meaning how many subagents may run at once (RAM + concurrency, not VRAM; ADR-0004).
+    subagent-free. ``llamacpp`` enables GPU-first placement (ADR-0012) and requires both
+    ``gpu_endpoint`` (the GPU subagent ``llama-server``, ``-ngl 99``) and ``endpoint`` (the CPU
+    overflow ``llama-server``, ``-ngl 0``), each a base URL in ``docker-compose.subagents.yml``.
+
+    ``vram_gb``/``cpus``/``memory_gb`` are one subagent's resource ask (VRAM footprint the placer
+    fit-tests, and the per-container ``--cpus``/``--memory`` the scheduler sums); ``cpu_budget``/
+    ``mem_budget_gb`` are the soft admission ceilings (sum of admitted asks ≤ target). The user
+    measures the real numbers on the host; the defaults are GPU-less-safe placeholders.
     """
 
     model_config = SettingsConfigDict(env_prefix="CORTEX_SUBAGENTS_")
 
     backend: SubagentsBackendName = "none"
     endpoint: str = ""
+    gpu_endpoint: str = ""
     model: str = DEFAULT_SUBAGENT_MODEL
-    max_concurrency: int = Field(default=2, ge=1)
+    vram_gb: float = Field(default=2.0, gt=0)
+    cpus: float = Field(default=2.0, gt=0)
+    memory_gb: float = Field(default=2.0, gt=0)
+    cpu_budget: float = Field(default=4.0, gt=0)
+    mem_budget_gb: float = Field(default=8.0, gt=0)
 
     @model_validator(mode="after")
-    def _llamacpp_needs_an_endpoint(self) -> "SubagentsConfig":
-        if self.backend == "llamacpp" and not self.endpoint:
-            msg = "CORTEX_SUBAGENTS_ENDPOINT is required when CORTEX_SUBAGENTS_BACKEND=llamacpp"
+    def _llamacpp_needs_both_endpoints(self) -> "SubagentsConfig":
+        if self.backend == "llamacpp" and not (self.endpoint and self.gpu_endpoint):
+            msg = (
+                "CORTEX_SUBAGENTS_ENDPOINT and CORTEX_SUBAGENTS_GPU_ENDPOINT are required when "
+                "CORTEX_SUBAGENTS_BACKEND=llamacpp"
+            )
             raise ValueError(msg)
         return self

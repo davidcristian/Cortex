@@ -13,6 +13,7 @@ from cortex_core.conversation import Message
 from cortex_core.inference import InferenceEvent
 from cortex_core.memory import MemoryRecord, ScoredMemory
 from cortex_core.model import ModelLease
+from cortex_core.placement import Placement, PlacementRequest
 from cortex_core.subagents import SubagentResult, SubagentTask
 from cortex_core.tools import ToolCall, ToolInvocation, ToolResult, ToolSpec
 
@@ -54,9 +55,28 @@ class ModelManager(Protocol):
     yields a ``ModelLease`` for the block's duration; leaving the block releases the GPU
     to the next waiter. v1 holds one resident model and performs no swap, so acquiring any
     other id raises ``ModelUnavailableError``. Failures surface as ``ModelManagerError``.
+    Subagent VRAM placement is a separate concern behind ``SubagentPlacer`` (ADR-0012), so
+    this port (and Slice 11's swap that reuses ``acquire``) stays unchanged.
     """
 
     def acquire(self, model: str) -> AbstractAsyncContextManager[ModelLease]: ...
+
+
+class SubagentPlacer(Protocol):
+    """Fit-tests a subagent onto the GPU under the VRAM soft cap, else CPU (ADR-0012).
+
+    ``place(request)`` decides where one subagent runs: it reserves ``request.vram_gb`` and returns
+    a GPU ``Placement`` when it fits the live headroom (``soft_cap - cortex_reservation - placed``),
+    else a CPU ``Placement`` reserving nothing (the whole model on one target, never a straddle).
+    ``release(placement)`` returns the reserved VRAM to the ledger. Both are sync (a fit-test, not
+    a wait) and must pair exactly once, which ``SubagentRunner`` does in a ``finally``. It
+    is the GPU/VRAM contract, kept separate from the ``ModelManager``'s exclusive lease and the
+    ``SubagentScheduler``'s CPU/RAM budget; the three compose at the runner (ADR-0010 decision 6).
+    """
+
+    def place(self, request: PlacementRequest) -> Placement: ...
+
+    def release(self, placement: Placement) -> None: ...
 
 
 class Embedder(Protocol):
@@ -136,13 +156,16 @@ class TaskStore(Protocol):
 
 
 class SubagentScheduler(Protocol):
-    """Admits subagent spawns against a bounded CPU budget. Concurrency, not the GPU (ADR-0010).
+    """Admits subagent spawns against a soft CPU/RAM budget. Concurrency, not the GPU (ADR-0012).
 
-    ``admit`` returns an async context manager that yields once a worker slot is free and
-    releases it on exit; over the concurrency cap callers wait (depth-1 delegation guarantees no
-    spawn waits on another spawn, so this cannot deadlock). This is a *counting* budget, distinct
-    from the ``ModelManager``'s exclusive GPU lease; the two stay separate ports. Hard
-    RAM-ceiling rejection is a later refinement behind this port.
+    ``admit(request)`` returns an async context manager that yields once the request's ``cpus``/
+    ``memory_gb`` fit the remaining budget (summed admitted ``cpus`` ≤ cpu target AND summed
+    ``memory_gb`` ≤ memory target) and releases both on exit; over budget, callers wait (depth-1
+    delegation guarantees no spawn waits on another spawn, so this cannot deadlock). A charge larger
+    than the whole budget can never be admitted, so it raises ``ValueError`` rather than waiting
+    forever. This is a soft *budget*, not a hard wall (no ``.wslconfig``/parent cgroup, the user's
+    constraint); it is distinct from the ``ModelManager``'s GPU lease and the ``SubagentPlacer``'s
+    VRAM ledger. The three compose at the runner (ADR-0010 decision 6, ADR-0012).
     """
 
-    def admit(self) -> AbstractAsyncContextManager[None]: ...
+    def admit(self, request: PlacementRequest) -> AbstractAsyncContextManager[None]: ...

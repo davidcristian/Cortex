@@ -14,9 +14,11 @@ Config (pydantic-settings; explicit constructor arguments beat the environment):
   property yields `"host:port"`. The body's live check dials the same endpoint via
   `CORTEX_BRAIN_ADDR` (default `http://127.0.0.1:50051`). Keep the two in sync.
 - `BrainRuntimeConfig` holds runtime wiring knobs, read only by the composition root:
-  `redis_url: str = "redis://127.0.0.1:6379/0"` (`CORTEX_REDIS_URL`) and
-  `cortex_model: str = "cortex"` (`CORTEX_MODEL_CORTEX`) is a LOGICAL model id
-  (ADR-0004), never a file path.
+  `redis_url: str = "redis://127.0.0.1:6379/0"` (`CORTEX_REDIS_URL`);
+  `cortex_model: str = "cortex"` (`CORTEX_MODEL_CORTEX`) is a LOGICAL model id (ADR-0004), never a
+  file path; and the GPU-budget facts the `SubagentPlacer` fit-tests against (ADR-0012):
+  `vram_soft_cap_gb: float = 14.0` (`CORTEX_VRAM_SOFT_CAP_GB`, the deliberate soft cap, ADR-0004) and
+  `cortex_reservation_gb: float = 11.3` (`CORTEX_VRAM_CORTEX_GB`, the resident cortex's footprint).
 - `InferenceConfig` uses env prefix `CORTEX_INFERENCE_`: which backend answers turns
   (ADR-0007 d4). `backend: "echo" | "llamacpp" = "echo"` (`CORTEX_INFERENCE_BACKEND`) and
   `endpoint: str = ""` (`CORTEX_INFERENCE_ENDPOINT`, the resident `llama-server` base
@@ -57,8 +59,10 @@ The service:
   and three opt-in adapters, each disabled by default so CI and the no-GPU dev loop stay
   external-service-free: **memory** (`build_memory`, ADR-0008), **tools** (`build_tool_registry`
   builds the raw MCP `ToolRegistry` shared by cortex and subagents, ADR-0009), and **subagents**
-  (`build_subagents` builds the `spawn_subagents` tool over a CPU backend + Redis `TaskStore` +
-  concurrency budget, ADR-0010). The cortex's dispatcher is
+  (`build_subagents(config, tool_registry, redis_url, clock, *, placer, task_store_factory)`, the
+  `spawn_subagents` tool over GPU + CPU subagent backends, a Redis `TaskStore`, a soft CPU/RAM budget,
+  and a `VramBudgetPlacer` (built at the call site from the runtime VRAM knobs) that fit-tests each
+  spawn GPU-first with CPU overflow, ADR-0010/0012). The cortex's dispatcher is
   `build_cortex_tools(registry, spawn_tool, clock)`, the spawn tool merged with the MCP tools
   via a `CompositeToolRegistry`, or `None` when neither is enabled (the Slice 3 turn path).
   **Echo is the default inference backend; llama.cpp is opt-in via
