@@ -5,7 +5,7 @@ shared tool loop dispatches it (audited), the SpawnSubagentsTool runs subagents,
 aggregated results feed back into the cortex's next inference step.
 """
 
-from collections.abc import AsyncIterator, Callable, Sequence
+from collections.abc import AsyncIterator, Callable, Mapping, Sequence
 from datetime import UTC, datetime
 
 from cortex_core import (
@@ -14,6 +14,7 @@ from cortex_core import (
     InferenceEvent,
     InMemorySessionStore,
     InMemoryTaskStore,
+    InMemoryToolRegistry,
     Message,
     PlacementRequest,
     PlacementTarget,
@@ -115,4 +116,58 @@ async def test_cortex_turn_delegates_and_consumes_the_results() -> None:
     tool_msg = second_step[-1]
     assert tool_msg.role is Role.TOOL
     assert tool_msg.tool_call_id == "c1"
+    # Clean subagents (no untrusted reads) -> the aggregate is trusted, so it is not fenced.
     assert tool_msg.text == "[subagent 1] reply 1: task A\n\n[subagent 2] reply 1: task B"
+
+
+async def _read_handler(arguments: Mapping[str, object]) -> str:
+    return f"contents of {arguments['path']}"
+
+
+async def test_a_subagent_reading_untrusted_content_taints_the_delegation_result() -> None:
+    task_store = InMemoryTaskStore()
+    # The subagent reads an (untrusted) file tool, then answers.
+    sub_backend = ScriptedCortexBackend(
+        [
+            [ToolCall(id="s1", name="read", arguments={"path": "/secret"})],
+            [TextChunk("the file said hi")],
+        ]
+    )
+    resources = SubagentResources(
+        backends={PlacementTarget.GPU: sub_backend, PlacementTarget.CPU: sub_backend},
+        scheduler=ResourceBudgetScheduler(8.0, 8.0),
+        placer=VramBudgetPlacer(soft_cap_gb=14.0, cortex_reservation_gb=11.0),
+        request=PlacementRequest("subagent", vram_gb=2.0, cpus=2.0, memory_gb=2.0),
+    )
+    read_spec = ToolSpec(name="read", description="", parameters={})
+    sub_tools = ToolDispatcher(
+        InMemoryToolRegistry({"read": (read_spec, _read_handler)}),
+        RecordingAuditSink(),
+        FixedClock(),
+    )
+    runner = SubagentRunner(task_store, resources, FixedClock(), tools=sub_tools)
+    spawn = SpawnSubagentsTool(runner, task_store, FixedClock(), task_id_factory=_counter())
+    cortex_tools = ToolDispatcher(
+        CompositeToolRegistry([spawn]), RecordingAuditSink(), FixedClock()
+    )
+    cortex_backend = ScriptedCortexBackend(
+        [
+            [ToolCall(id="c1", name="spawn_subagents", arguments={"instructions": ["read it"]})],
+            [TextChunk("relayed")],
+        ]
+    )
+    engine = TurnEngine(
+        InMemorySessionStore(),
+        cortex_backend,
+        FixedClock(),
+        capabilities=TurnCapabilities(tools=cortex_tools),
+        turn_id_factory=lambda: "t-1",
+    )
+    await _collect(engine.handle_turn("s", "delegate"))
+    # The subagent read untrusted content, so the aggregated spawn result feeds back to the
+    # cortex fenced as untrusted data. The taint propagated up (ADR-0013).
+    _, second_step = cortex_backend.seen
+    spawn_msg = second_step[-1]
+    assert spawn_msg.role is Role.TOOL
+    assert spawn_msg.text.startswith("<untrusted-tool-output id=")
+    assert "the file said hi" in spawn_msg.text

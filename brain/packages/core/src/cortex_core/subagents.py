@@ -38,9 +38,12 @@ class SubagentResult:
     ``output`` is the answer text. ``ok`` is False when the subagent could not complete (e.g.
     its inference failed or the task vanished), ``detail`` carrying the reason. This mirrors
     ``ToolResult.is_error`` so a failed delegation is a value the cortex consumes, not a crash.
+    ``tainted`` is True when the subagent consumed untrusted content (ADR-0013); the spawn tool
+    aggregates it so a subagent that read a malicious file taints the cortex that spawned it.
     """
 
     task_id: str
     output: str
     ok: bool = True
     detail: str = ""
+    tainted: bool = False

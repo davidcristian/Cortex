@@ -8,6 +8,8 @@ import pytest
 
 from cortex_core import (
     DEFAULT_CORTEX_MODEL,
+    DENIED_MSG,
+    SECURITY_PREAMBLE,
     EchoInferenceBackend,
     HashEmbedder,
     InferenceError,
@@ -379,14 +381,15 @@ async def test_tool_call_is_dispatched_audited_and_fed_back() -> None:
     assert (audit.name, audit.ok, audit.detail) == ("read", True, "contents of /etc/hosts")
     # Step 2 saw the assistant tool-call message then the tool result, structured.
     first_step, second_step = backend.seen
-    assert [m.role for m in first_step] == [Role.USER]
+    # A tool-enabled turn opens with the untrusted-content security preamble (ADR-0013).
+    assert [m.role for m in first_step] == [Role.SYSTEM, Role.USER]
     assert second_step[-2].role is Role.ASSISTANT
     assert second_step[-2].tool_calls[0].name == "read"
-    assert (second_step[-1].role, second_step[-1].text, second_step[-1].tool_call_id) == (
-        Role.TOOL,
-        "contents of /etc/hosts",
-        "c1",
-    )
+    tool_msg = second_step[-1]
+    assert (tool_msg.role, tool_msg.tool_call_id) == (Role.TOOL, "c1")
+    # The untrusted file contents are fenced as data, not instructions (ADR-0013).
+    assert tool_msg.text.startswith("<untrusted-tool-output id=")
+    assert "contents of /etc/hosts" in tool_msg.text
     # Tools were advertised on every step.
     assert [tuple(t.name for t in offered) for offered in backend.offered] == [("read",), ("read",)]
     # The store holds only real dialogue. Tool messages are in-turn, never persisted.
@@ -430,3 +433,82 @@ async def test_tool_loop_stops_at_the_step_bound() -> None:
     assert completed.full_text == ""  # the model only ever called tools, never answered
     assert backend.calls == MAX_TOOL_STEPS  # bounded rather than an infinite loop
     assert len(sink.records) == MAX_TOOL_STEPS
+
+
+async def test_security_preamble_precedes_a_tool_enabled_turn() -> None:
+    sink = RecordingAuditSink()
+    backend = ScriptedToolBackend([[TextChunk("hi")]])
+    engine = TurnEngine(
+        InMemorySessionStore(),
+        backend,
+        TickingClock(),
+        capabilities=TurnCapabilities(tools=_read_dispatcher(sink)),
+        turn_id_factory=lambda: "t-1",
+    )
+    await _collect(engine.handle_turn("s", "hello"))
+    (messages,) = backend.seen
+    assert messages[0].role is Role.SYSTEM
+    assert messages[0].text == SECURITY_PREAMBLE
+    assert messages[1].role is Role.USER
+
+
+async def test_tainted_turn_is_not_recorded_to_memory() -> None:
+    # A turn that read untrusted content must not poison durable memory (ADR-0013): nothing is
+    # written, so every stored memory stays trustworthy on later recall.
+    mem_store = InMemoryMemoryStore()
+    recaller = MemoryRecaller(mem_store, HashEmbedder(), SystemClock())
+    backend = ScriptedToolBackend(
+        [
+            [ToolCall(id="c1", name="read", arguments={"path": "/x"})],
+            [TextChunk("here is the summary")],
+        ]
+    )
+    engine = TurnEngine(
+        InMemorySessionStore(),
+        backend,
+        TickingClock(),
+        capabilities=TurnCapabilities(
+            memory=recaller, tools=_read_dispatcher(RecordingAuditSink())
+        ),
+        turn_id_factory=lambda: "t-1",
+    )
+    await _collect(engine.handle_turn("s", "summarize /x"))
+    assert await recaller.recall("summarize", k=1) == ()  # nothing recorded
+
+
+async def _blocked_send(arguments: Mapping[str, object]) -> str:
+    del arguments
+    return "SENT"  # if this ever runs, the gate failed
+
+
+async def test_gated_tool_is_blocked_after_an_untrusted_read() -> None:
+    # The headline boundary: read untrusted content, then try a gated outbound action -> with no
+    # confirmer wired it is denied and never runs (ADR-0013).
+    sink = RecordingAuditSink()
+    registry = InMemoryToolRegistry(
+        {
+            "read": (_read_tool(), _read_handler),
+            "send": (
+                ToolSpec(name="send", description="send", parameters={}, gated=True),
+                _blocked_send,
+            ),
+        }
+    )
+    backend = ScriptedToolBackend(
+        [
+            [ToolCall(id="c1", name="read", arguments={"path": "/x"})],
+            [ToolCall(id="c2", name="send", arguments={"to": "x"})],
+            [TextChunk("could not send")],
+        ]
+    )
+    engine = TurnEngine(
+        InMemorySessionStore(),
+        backend,
+        TickingClock(),
+        capabilities=TurnCapabilities(tools=ToolDispatcher(registry, sink, TickingClock())),
+        turn_id_factory=lambda: "t-1",
+    )
+    await _collect(engine.handle_turn("s", "read then send"))
+    # The read succeeded (and tainted the turn); the send was blocked, never invoked.
+    assert [(r.name, r.ok) for r in sink.records] == [("read", True), ("send", False)]
+    assert sink.records[1].detail == DENIED_MSG

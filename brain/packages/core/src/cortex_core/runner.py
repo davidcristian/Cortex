@@ -17,7 +17,8 @@ from cortex_core.errors import InferenceError
 from cortex_core.placement import PlacementRequest, PlacementTarget
 from cortex_core.ports import Clock, InferenceBackend, SubagentPlacer, SubagentScheduler, TaskStore
 from cortex_core.subagents import SubagentResult, SubagentTask
-from cortex_core.tool_loop import stream_tool_loop
+from cortex_core.tool_loop import ToolLoopContext, stream_tool_loop
+from cortex_core.untrusted import TaintLedger, new_nonce, security_preamble_message
 
 
 @dataclass(frozen=True, slots=True)
@@ -84,24 +85,40 @@ class SubagentRunner:
                 SubagentResult(task_id=task_id, output="", ok=False, detail="task not found")
             )
         working = _task_messages(task)
+        # A tools-enabled subagent reads untrusted content too, so it gets the same standing rule
+        # and its own taint ledger. A subagent that reads a malicious file taints its result,
+        # which propagates to the cortex that spawned it (ADR-0013).
+        if self._tools is not None:
+            working.insert(0, security_preamble_message(task.at, task.id))
+        taint = TaintLedger()
+        context = ToolLoopContext(
+            dispatcher=self._tools,
+            clock=self._clock,
+            turn_id=task_id,
+            taint=taint,
+            nonce=new_nonce(),
+        )
         parts: list[str] = []
         try:
             async for delta in stream_tool_loop(
-                backend,
-                self._resources.request.model,
-                working,
-                dispatcher=self._tools,
-                clock=self._clock,
-                turn_id=task_id,
+                backend, self._resources.request.model, working, context
             ):
                 # Append incrementally (not a comprehension) so text produced before a
                 # mid-stream failure survives into the ok=False result below.
                 parts.append(delta)  # noqa: PERF401
         except InferenceError as err:
             return await self._persist(
-                SubagentResult(task_id=task_id, output="".join(parts), ok=False, detail=str(err))
+                SubagentResult(
+                    task_id=task_id,
+                    output="".join(parts),
+                    ok=False,
+                    detail=str(err),
+                    tainted=taint.tainted,
+                )
             )
-        return await self._persist(SubagentResult(task_id=task_id, output="".join(parts)))
+        return await self._persist(
+            SubagentResult(task_id=task_id, output="".join(parts), tainted=taint.tainted)
+        )
 
     async def _persist(self, result: SubagentResult) -> SubagentResult:
         """Write the result to the store and hand it back to the caller."""

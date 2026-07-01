@@ -1,4 +1,4 @@
-"""The bounded infer↔tool loop, shared by the cortex turn and each subagent (ADR-0010).
+"""The bounded infer↔tool loop, shared by the cortex turn and each subagent (ADR-0010/0013).
 
 Both the cortex ``TurnEngine`` and a ``SubagentRunner`` do the same thing: stream from a model
 with tools available; when the model emits tool calls, dispatch each through the audited
@@ -7,19 +7,42 @@ with tools available; when the model emits tool calls, dispatch each through the
 callers reuse it verbatim: one loop, one bound, one audited dispatch path. The loop mutates the
 ``working`` message list in place (appending the tool-call and result messages) and yields each
 assistant text delta; the caller accumulates the full answer and decides what to do with deltas.
+
+The loop is also where the untrusted-content boundary is drawn (ADR-0013): an UNTRUSTED result
+is fenced by ``wrap_untrusted`` before it re-enters the context, the per-turn ``TaintLedger`` is
+marked so a later gated call is confirmed, and the ledger + nonce ride in the ``ToolLoopContext``
+bundle (keeping the loop within its argument ceiling). Both callers construct the ledger, so both
+accumulate taint by the same mechanism.
 """
 
 from collections.abc import AsyncGenerator, Sequence
+from dataclasses import dataclass
 from datetime import datetime
 
 from cortex_core.conversation import Message, Role
 from cortex_core.dispatch import ToolDispatcher
 from cortex_core.ports import Clock, InferenceBackend
-from cortex_core.tools import ToolCall, ToolResult
+from cortex_core.tools import ToolCall, ToolResult, Trust
+from cortex_core.untrusted import TaintLedger, wrap_untrusted
 
 # Upper bound on inference↔tool rounds in one loop (ADR-0009): a safety net against a model
 # that never stops calling tools. On exhaustion the loop ends with the text produced so far.
 MAX_TOOL_STEPS = 8
+
+
+@dataclass(frozen=True, slots=True)
+class ToolLoopContext:
+    """The per-invocation collaborators of one tool loop (ADR-0013), bundled to stay under the
+    argument ceiling. ``dispatcher`` is the audited tool gateway (``None`` = a no-tools turn);
+    ``taint`` is the turn-local ledger the loop marks on each untrusted result; ``nonce`` fences
+    those results. Both the cortex turn and each subagent build one per invocation.
+    """
+
+    dispatcher: ToolDispatcher | None
+    clock: Clock
+    turn_id: str
+    taint: TaintLedger
+    nonce: str
 
 
 def _call_message(text: str, calls: Sequence[ToolCall], at: datetime, turn_id: str) -> Message:
@@ -27,30 +50,36 @@ def _call_message(text: str, calls: Sequence[ToolCall], at: datetime, turn_id: s
     return Message(role=Role.ASSISTANT, text=text, at=at, turn_id=turn_id, tool_calls=tuple(calls))
 
 
-def _result_message(result: ToolResult, at: datetime, turn_id: str) -> Message:
-    """One tool result fed back to the model, keyed to the call it answers."""
-    return Message(
-        role=Role.TOOL, text=result.content, at=at, turn_id=turn_id, tool_call_id=result.call_id
+def _result_message(result: ToolResult, at: datetime, turn_id: str, *, nonce: str) -> Message:
+    """One tool result fed back to the model, keyed to the call it answers.
+
+    UNTRUSTED content is fenced as inert data (ADR-0013); TRUSTED content passes through verbatim.
+    """
+    text = (
+        result.content
+        if result.trust is Trust.TRUSTED
+        else wrap_untrusted(result.content, nonce=nonce)
     )
+    return Message(role=Role.TOOL, text=text, at=at, turn_id=turn_id, tool_call_id=result.call_id)
 
 
 async def stream_tool_loop(
     backend: InferenceBackend,
     model: str,
     working: list[Message],
-    *,
-    dispatcher: ToolDispatcher | None,
-    clock: Clock,
-    turn_id: str,
+    context: ToolLoopContext,
 ) -> AsyncGenerator[str, None]:
     """Run the bounded infer↔tool loop over ``working``, yielding assistant text deltas.
 
     The loop advertises exactly the tools it can dispatch: the dispatcher's tools when present,
     none otherwise. With ``dispatcher`` None (or once the model stops calling tools) the loop
-    ends after one inference step. Each tool call is dispatched through the audited dispatcher
-    and its result fed back as a ``Role.TOOL`` message before re-inference.
+    ends after one inference step. Each tool call is dispatched through the audited dispatcher, with
+    gated calls confirmed against the turn's taint (ADR-0013). Its result marks the taint ledger
+    and is fed back (fenced when untrusted) as a ``Role.TOOL`` message before re-inference.
     """
+    dispatcher = context.dispatcher
     specs = await dispatcher.describe_tools() if dispatcher is not None else ()
+    gated_by_name = {spec.name: spec.gated for spec in specs}
     for _step in range(MAX_TOOL_STEPS):
         calls: list[ToolCall] = []
         step_text: list[str] = []
@@ -69,7 +98,14 @@ async def stream_tool_loop(
                 await deltas.aclose()
         if not calls or dispatcher is None:
             break
-        working.append(_call_message("".join(step_text), calls, clock.now(), turn_id))
+        working.append(
+            _call_message("".join(step_text), calls, context.clock.now(), context.turn_id)
+        )
         for call in calls:
-            result = await dispatcher.dispatch(call)
-            working.append(_result_message(result, clock.now(), turn_id))
+            result = await dispatcher.dispatch(
+                call, tainted=context.taint.tainted, gated=gated_by_name.get(call.name, False)
+            )
+            context.taint.mark(result.trust)
+            working.append(
+                _result_message(result, context.clock.now(), context.turn_id, nonce=context.nonce)
+            )
