@@ -173,3 +173,17 @@ flag, plain requests answer directly in ~0.3-0.6 s and the live delegation test 
 Still the host-only half (needs the GPU): the **cortex-driven** path, meaning a resident
 gemma-4-12B *deciding* to emit `spawn_subagents` end to end. The measured pick is recorded in the
 [ADR-0004 addendum](ADR-0004-model-lineup.md).
+
+## Addendum (2026-07-01): subagents are GPU-first, not CPU-only (revises decisions 6-7)
+
+At the user's direction, subagents are **GPU-first with CPU overflow**, not CPU-only. Decisions
+6-7 kept the `SubagentScheduler` (CPU concurrency) cleanly separate from the `ModelManager`
+(GPU/VRAM); under GPU-first placement the two **coordinate at admission**: the `ModelManager`
+fit-tests each spawn against the VRAM soft-cap headroom and places the **whole** subagent on GPU
+(`-ngl 99`, bigger models up to ~4B when it fits) or falls back to CPU-only (`-ngl 0`), with no
+partial GPU+CPU straddle. The dedicated CPU `llama-server` sidecar (increment 3/4) becomes the
+**fallback** path, not the only one. The `SubagentScheduler` also gains a soft CPU/RAM admission
+budget for per-container resource caps (no hard WSL limits). This revision, with the
+resource-governance design and adversarially-verified WSL2 feasibility (there is no per-process
+GPU-utilization cap on this stack), is **Slice 8.5 / ADR-0012**. The Slice 7 code (scheduler,
+task store, spawn tool) is unchanged; the placement/admission layer above it grows.

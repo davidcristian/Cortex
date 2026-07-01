@@ -160,3 +160,15 @@ The subagent tier was measured on the host machine (WSL + Docker Desktop, models
   present) are the fallbacks at higher CPU cost.
 - **Cortex-driven end-to-end** (a resident gemma-4-12B *deciding* to delegate) still needs the GPU
   and is validated with the full stack per `docs/runbooks/subagents-cpu.md` §3.
+
+## Addendum (2026-07-01): subagents are GPU-first (revises the "subagents = CPU" placement)
+
+The Slice 7 addendum above (and implication 3's placement note) placed subagents on **CPU**. At
+the user's direction this is revised: subagents are **GPU-first, CPU-overflow**. The
+`ModelManager` places a subagent in VRAM when it fits under the 14 GB soft cap, allowing
+**bigger** subagents (up to ~4B, e.g. `Qwen3.5-4B` or `gemma-4-E4B` from the candidate set above,
+when the resident cortex leaves headroom), and spills to CPU (the Qwen3.5-2B pick, `-ngl 0`) only
+when the cap would be exceeded. The measured CPU footprint above still stands for the
+**CPU-fallback** path. Design + adversarially-verified WSL2 resource feasibility: **Slice 8.5 /
+ADR-0012** (there is no per-process GPU-utilization cap on the dev machine+WSL2 stack, so GPU load is
+governed by scheduler concurrency, not a driver knob).
