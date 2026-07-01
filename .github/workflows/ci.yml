@@ -27,6 +27,7 @@ jobs:
     outputs:
       python: ${{ steps.filter.outputs.python }}
       rust: ${{ steps.filter.outputs.rust }}
+      overlay: ${{ steps.filter.outputs.overlay }}
     steps:
       # fetch-depth 0: the repo is small, and full history makes computing the
       # diff range trivial (merge bases and `before` SHAs are always present).
@@ -61,6 +62,7 @@ jobs:
             echo "No usable diff range (first push, or a force-push whose 'before' is gone); running everything, fail-closed."
             echo "python=true" >> "$GITHUB_OUTPUT"
             echo "rust=true" >> "$GITHUB_OUTPUT"
+            echo "overlay=true" >> "$GITHUB_OUTPUT"
           fi
 
   # The 300-line cap (AGENTS.md gate 1) is repo-wide: linecap.py scans .py and
@@ -121,3 +123,23 @@ jobs:
         with:
           enable-cache: true
       - run: just check-body
+
+  # The React overlay under body/app/ (ADR-0011 addendum): a host-only node toolchain,
+  # gated at 100% line+branch by check-overlay (Vitest + v8). Path-filtered like the
+  # others (ADR-0006); the Tauri src-tauri shell in the same tree is host-validated and
+  # never built here. GPU-less/webkit-less by construction. This is npm + jsdom only.
+  overlay:
+    needs: changes
+    if: needs.changes.outputs.overlay == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: body/app/package-lock.json
+      - uses: taiki-e/install-action@16b05812d776ae1dfaabc8277e421fb6d2506419 # v2
+        with:
+          tool: just
+      - run: just check-overlay
