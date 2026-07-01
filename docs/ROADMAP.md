@@ -215,18 +215,23 @@ Windows backend over the `global-hotkey` crate (keeps `unsafe` forbidden); the T
 a host-native shell **outside** the gated workspace (assumption 4's narrowly-scoped
 exclusion); and a React + Vite overlay frontend.
 
-**Progress (2026-07-01):** the CI-gated half landed (increments 1-2), 100% under
-`just check`, no GUI/OS. (1) `BrainTransport::converse` streaming a typed `TurnEvent` turn,
-its `body_rpc` adapter over the generated bidi `Converse` (one turn per call, half-close,
-`SeamError`→`Failed`, empty/early-close→`Protocol`), and contract tests scripting the fake
-brain over loopback. (2) The `Hotkey` OS-backend seam: the port + the pure
-`Accelerator::from_chord` chord→`KeyboardEvent.code` mapping in `body_core` (fully tested),
-and the `os_linux`/`os_macos` `unimplemented!()` stub crates proving the
+**Progress (2026-07-01):** all four increments are authored; only host validation remains.
+CI-gated half (100% under `just check`, no GUI/OS): (1) `BrainTransport::converse` streaming a
+typed `TurnEvent` turn, its `body_rpc` adapter over the generated bidi `Converse` (one turn per
+call, half-close, `SeamError`→`Failed`, empty/early-close→`Protocol`), and contract tests
+scripting the fake brain over loopback. (2) The `Hotkey` OS-backend seam: the port + the pure
+`Accelerator::from_chord` chord→`KeyboardEvent.code` mapping in `body_core` (fully tested), and
+the `os_linux`/`os_macos` `unimplemented!()` stub crates proving the
 `#[cfg_attr(coverage, coverage(off))]` escape-hatch policy ([body-os.md](modules/body-os.md)).
-**Remaining (host Windows half):** (3) the real `os_windows` `Hotkey` backend
-(`global-hotkey`) and (4) the Tauri app with tray + hidden window, the React overlay, wiring
-hotkey → show → `converse` → render, validated end to end on the host (press the chord,
-type, watch the real brain stream back).
+The React overlay is 100%-gated (Vitest, its own path-filtered CI job per the ADR-0006 addendum) and
+browser-validated; its `TauriBridge` typechecks against `@tauri-apps/api`.
+Host-authored (excluded from CI; Windows validation in [body-overlay.md](runbooks/body-overlay.md)):
+(3) the real `os_windows` `global-hotkey` backend behind the `Hotkey` port; (4) the Tauri shell
+(`body/app/src-tauri`, `cortex-body`) has tray + hidden window, hotkey → toggle + `cortex:activate`,
+the `converse` command streaming `TurnEvent`s to the webview over a Tauri `Channel`
+([body-app.md](modules/body-app.md)).
+**Remaining (host Windows half):** build + run `npm run tauri dev`, press the chord, type,
+watch the real brain stream back. Add any Tauri-version-specific config (CSP, capabilities).
 
 ## Slice 8.5 (Resource governance): revise the GPU/CPU managers
 

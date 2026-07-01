@@ -1,0 +1,34 @@
+[package]
+name = "cortex-body"
+version = "0.1.0"
+edition = "2024"
+publish = false
+description = "Cortex body, the host-native Tauri shell (overlay + hotkey + brain seam)"
+
+# Its own workspace root, excluded from the gated `body` workspace (ADR-0011
+# decision 5): `just check`'s `cargo --workspace` never builds Tauri, so CI needs
+# no webkit/node and the coverage gate never sees the app.
+[workspace]
+
+[lib]
+name = "cortex_body_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[[bin]]
+name = "cortex-body"
+path = "src/main.rs"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = ["tray-icon"] }
+serde = { version = "1", features = ["derive"] }
+futures-util = "0.3"
+body-core = { path = "../../crates/core" }
+body-rpc = { path = "../../crates/rpc" }
+
+# The real global-hotkey backend is Windows-only (ADR-0011); other platforms have
+# no summon hotkey yet, so the crate is not depended on there.
+[target.'cfg(windows)'.dependencies]
+os-windows = { path = "../../crates/os_windows" }
