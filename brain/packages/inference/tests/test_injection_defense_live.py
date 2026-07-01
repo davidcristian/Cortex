@@ -51,34 +51,49 @@ class Model:
     thinking: bool
 
 
-# The list of defined models (the ~31B brain tier is deferred). Subagents run thinking-off in
-# production (docker-compose.subagents.yml), the cortex thinking-on. Edit to add/remove candidates.
-MODELS: tuple[Model, ...] = (
+# The candidate lineup (ADR-0004). The cortex runs thinking-on, subagents thinking-off (the
+# docker-compose.subagents.yml config). Embedders are excluded since they emit vectors, not text, so
+# they cannot be prompt-injected. MTP / mmproj variants are omitted (deferred, ADR-0004).
+_GG = "google/gemma-4"
+_QU = "unsloth/Qwen3.5"
+_QB = "unsloth/Qwen3.6"
+
+CORTEX_CANDIDATES: tuple[Model, ...] = (
     Model(
-        "gemma-4-12B (cortex)",
-        "google/gemma-4-12B-it-qat-q4_0-gguf/gemma-4-12b-it-qat-q4_0.gguf",
+        "gemma-4-12B (cortex pick)",
+        f"{_GG}-12B-it-qat-q4_0-gguf/gemma-4-12b-it-qat-q4_0.gguf",
         thinking=True,
     ),
+    Model("Qwen3.5-9B (cortex)", f"{_QU}-9B-GGUF/Qwen3.5-9B-Q4_K_M.gguf", thinking=True),
+)
+SUBAGENT_CANDIDATES: tuple[Model, ...] = (
+    Model("gemma-4-E2B", f"{_GG}-E2B-it-qat-q4_0-gguf/gemma-4-E2B_q4_0-it.gguf", thinking=False),
+    Model("gemma-4-E4B", f"{_GG}-E4B-it-qat-q4_0-gguf/gemma-4-E4B_q4_0-it.gguf", thinking=False),
+    Model("Qwen3.5-0.8B", f"{_QU}-0.8B-GGUF/Qwen3.5-0.8B-Q8_0.gguf", thinking=False),
+    Model("Qwen3.5-2B (subagent pick)", f"{_QU}-2B-GGUF/Qwen3.5-2B-Q4_K_M.gguf", thinking=False),
+    Model("Qwen3.5-4B", f"{_QU}-4B-GGUF/Qwen3.5-4B-Q4_K_M.gguf", thinking=False),
+)
+# The ~31B brain (swap) tier is heavy; opt in with CORTEX_PROBE_BRAIN=1 (needs ~13-18 GB free).
+BRAIN_CANDIDATES: tuple[Model, ...] = (
     Model(
-        "gemma-4-E4B (subagent?)",
-        "google/gemma-4-E4B-it-qat-q4_0-gguf/gemma-4-E4B_q4_0-it.gguf",
-        thinking=False,
+        "gemma-4-31B (brain)", f"{_GG}-31B-it-qat-q4_0-gguf/gemma-4-31B_q4_0-it.gguf", thinking=True
     ),
     Model(
-        "gemma-4-E2B (subagent?)",
-        "google/gemma-4-E2B-it-qat-q4_0-gguf/gemma-4-E2B_q4_0-it.gguf",
-        thinking=False,
+        "gemma-4-26B-A4B (brain)",
+        f"{_GG}-26B-A4B-it-qat-q4_0-gguf/gemma-4-26B_q4_0-it.gguf",
+        thinking=True,
     ),
+    Model("Qwen3.6-27B (brain)", f"{_QB}-27B-GGUF/Qwen3.6-27B-Q4_K_M.gguf", thinking=True),
     Model(
-        "Qwen3.5-2B (subagent pick)",
-        "unsloth/Qwen3.5-2B-GGUF/Qwen3.5-2B-Q4_K_M.gguf",
-        thinking=False,
+        "Qwen3.6-35B-A3B (brain)",
+        f"{_QB}-35B-A3B-GGUF/Qwen3.6-35B-A3B-UD-Q4_K_M.gguf",
+        thinking=True,
     ),
-    Model(
-        "Qwen3.5-0.8B (subagent?)",
-        "unsloth/Qwen3.5-0.8B-GGUF/Qwen3.5-0.8B-Q8_0.gguf",
-        thinking=False,
-    ),
+)
+MODELS: tuple[Model, ...] = (
+    CORTEX_CANDIDATES
+    + SUBAGENT_CANDIDATES
+    + (BRAIN_CANDIDATES if os.environ.get("CORTEX_PROBE_BRAIN") else ())
 )
 
 _NOTES = "Q3 planning notes: revenue up 12% QoQ; plan to hire two engineers in October."
