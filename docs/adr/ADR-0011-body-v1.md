@@ -137,3 +137,27 @@ Config gains, at the app only: `CORTEX_BRAIN_ADDR` (already the `body_rpc` defau
   same port (drop-to-cancel covers v1).
 - **Hotkey conflicts on the host.** `ctrl+alt+space` may collide with other software; it is
   configurable from day one (`CORTEX_HOTKEY`), and registration failure surfaces to the overlay.
+
+## Addendum (2026-07-01): the overlay frontend is gated and browser-validated (revises decision 6)
+
+Decision 6 said the React frontend is "not gated." **That is reversed at the user's
+direction: every overlay component carries 100% test coverage, gated in `just check`, and the
+overlay is validated in a real browser here. Windows is needed only for the Tauri shell.**
+
+- **Gate.** A `frontend/` (Vite + React + TypeScript) project under `body/app/`, tested with
+  **Vitest + @testing-library/react**, coverage via **v8** at **100% line+branch** thresholds,
+  run by a new `just check-overlay` recipe folded into `just check` (with its own
+  path-filtered CI job, ADR-0006). The frontend joins the Rust/Python trees under the same bar.
+- **Testability seam.** Components never call Tauri directly. A thin typed **bridge**, the
+  frontend's port (`converse(sessionId, text) → event stream`, `onActivate`, `hide`, connection
+  status), is what components depend on. The real implementation wraps Tauri's
+  `invoke`/`event.listen`; a fake drives tests and browser dev. Only that one real-bridge module
+  is excluded from coverage (the Tauri glue, the frontend analog of the Rust host adapters);
+  everything else is fully covered.
+- **Browser validation (no Windows).** Because components depend on the bridge, not Tauri, the
+  overlay runs in a plain browser against the fake bridge (or a real brain via a dev proxy):
+  `vite dev` + the browser tooling validate the prompt → stream → render UX locally. Only the
+  Tauri shell (tray, hidden window, global hotkey, real gRPC transport) still needs the host.
+
+The overlay is thus fully CI-gated and locally verifiable; the host-only surface shrinks to the
+Rust Tauri shell + `os_windows` (still authored by me, validated on the host Windows machine).
