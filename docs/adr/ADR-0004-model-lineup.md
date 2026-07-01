@@ -172,3 +172,31 @@ when the cap would be exceeded. The measured CPU footprint above still stands fo
 **CPU-fallback** path. Design + adversarially-verified WSL2 resource feasibility: **Slice 8.5 /
 ADR-0012** (there is no per-process GPU-utilization cap on the dev machine+WSL2 stack, so GPU load is
 governed by scheduler concurrency, not a driver knob).
+
+## Addendum (2026-07-01): injection-robustness as a new model-selection dimension (Slice 6.5)
+
+The untrusted-content boundary (ADR-0013) added a **safety axis** to the per-tier pick, measured by the
+committable harness [`test_injection_defense_live.py`](../../brain/packages/inference/tests/test_injection_defense_live.py)
+(10-category indirect-injection corpus, framed-vs-control, agent-run on the GPU). Every cortex + subagent
+candidate above was run under the shipped (hardened) preamble; **embedders are excluded** (they emit
+vectors, not text, and are not prompt-injectable); the brain tier is opt-in and not yet run.
+
+| tier | candidate | framed obeyed / 10 |
+|---|---|---|
+| **cortex** | gemma-4-12B (pick) · Qwen3.5-9B | **0** · **0** |
+| **subagent** | gemma-4-E4B | **0** |
+| | Qwen3.5-0.8B | 0 (may be incompetence, not judgment) |
+| | Qwen3.5-2B (pick) | 1 (output-laundering) |
+| | Qwen3.5-4B | 2 |
+| | gemma-4-E2B | 4 |
+
+- **Cortex:** injection-robustness does **not** decide it (both candidates are 0/10), so the gemma-4-12B
+  pick stands on VRAM/quality/QAT (decision 1). Reassuring, since the cortex is the only user-facing
+  generator (ADR-0013).
+- **Subagent:** **gemma-4-E4B (0/10) is materially more injection-robust than the current Qwen3.5-2B
+  pick (1/10)** and the rest of the tier. This does **not** overturn the Qwen-2B pick on its own. Safety
+  for subagents rests on the deterministic layers (no outbound tools, fail-closed gate, taint
+  containment, ADR-0013), so model choice here is a *quality/robustness* preference, but it is a strong
+  reason to prefer gemma-E4B for untrusted-content subtasks. **Slice 8.6** (heterogeneous subagent
+  models) makes this per-task: the cortex can pick gemma-E4B for a risky read and a cheaper model
+  elsewhere. Re-run the harness when picks or the preamble change.

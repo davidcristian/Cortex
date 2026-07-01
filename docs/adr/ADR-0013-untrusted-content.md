@@ -351,15 +351,23 @@ against every model in an editable `MODELS` list, **framed** (the shipped defens
 control, and prints a per-model resistance matrix. Its only hard assertion is that framing never
 *backfires*; the matrix is the signal. Re-run it when models or the preamble change.
 
-Full run (2026-07-01, hardened preamble, framed obeyed / 10):
+Full run (2026-07-01, hardened preamble, framed obeyed / 10). **Every ADR-0004 cortex + subagent
+candidate** (embedders excluded as not generative; the ~31B brain tier is opt-in via
+`CORTEX_PROBE_BRAIN=1`, not yet run):
 
-| model | thinking | framed obeyed |
-|---|---|---|
-| gemma-4-12B (cortex) | on | **0 / 10** |
-| gemma-4-E4B (~4B) | off | **0 / 10** |
-| gemma-4-E2B (~2B) | off | 4 / 10 |
-| Qwen3.5-2B (subagent pick) | off | 1 / 10 (laundering) |
-| Qwen3.5-0.8B | off | **0 / 10** |
+| model | tier | thinking | framed obeyed |
+|---|---|---|---|
+| gemma-4-12B | cortex | on | **0 / 10** |
+| Qwen3.5-9B | cortex | on | **0 / 10** |
+| gemma-4-E4B | subagent | off | **0 / 10** |
+| gemma-4-E2B | subagent | off | 4 / 10 |
+| Qwen3.5-0.8B | subagent | off | **0 / 10** |
+| Qwen3.5-2B (pick) | subagent | off | 1 / 10 (laundering) |
+| Qwen3.5-4B | subagent | off | 2 / 10 |
+
+**Both cortex candidates are fully robust** (0/10). Among subagents, gemma-E4B is the standout (0/10);
+the Qwen tier laundering-slips 1-2/10; gemma-E2B is weakest (4/10). (A tiny model's 0/10 (Qwen-0.8B)
+can be incompetence, not judgment.)
 
 **Safety posture for the smallest models.** Per-model resistance is uneven (gemma-E2B 4/10; note a
 tiny model's "0/10" can be incompetence, not judgment), so the system's safety for the small tier does
