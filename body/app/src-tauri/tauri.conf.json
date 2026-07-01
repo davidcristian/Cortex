@@ -28,16 +28,17 @@
     ],
     "security": {
       "csp": null
-    },
-    "trayIcon": {
-      "id": "cortex-tray",
-      "iconPath": "icons/icon.png",
-      "tooltip": "Cortex (press Ctrl+Alt+Space)"
     }
   },
   "bundle": {
     "active": true,
     "targets": "all",
-    "icon": ["icons/icon.png"]
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ]
   }
 }

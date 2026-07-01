@@ -31,11 +31,11 @@ just check-overlay     # npm ci + tsc --noEmit + Vitest at 100% line+branch
 - The **brain** reachable at `CORTEX_BRAIN_ADDR` (default `http://127.0.0.1:50051`) via e.g.
   `just up-gpu` for the real resident cortex, or `just brain-serve` for a native brain.
 
-### Icons (one-time)
+### Icons
 
-A placeholder `src-tauri/icons/icon.png` (the orb identity) is committed so `tauri dev` runs. For a
-real bundle / installer, regenerate the full platform set (adds the Windows `.ico`) from any square
-source image:
+The full platform icon set is committed under `src-tauri/icons/` (a placeholder orb identity),
+including the Windows `icon.ico` that `tauri-build` needs even for `dev`. Nothing to do. To
+rebrand, regenerate from any square source image (ideally ≥1024×1024) and commit the result:
 
 ```powershell
 cd body/app
