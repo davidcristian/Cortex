@@ -35,10 +35,7 @@ export function App({ bridge, sessionId }: AppProps) {
 
   return (
     <div className="stage">
-      <button className="themebtn" onClick={toggleTheme} aria-label="Toggle theme" type="button">
-        {theme.scheme === "dark" ? "☾" : "☀"}
-      </button>
-      <Overlay controller={controller} />
+      <Overlay controller={controller} dark={theme.scheme === "dark"} onToggleTheme={toggleTheme} />
     </div>
   );
 }
