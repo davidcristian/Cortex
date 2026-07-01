@@ -1,0 +1,12 @@
+[package]
+name = "os-macos"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+description = "Slice 8 stub macOS OS backends for the Cortex body (lib name: os_macos)"
+
+[dependencies]
+body-core.workspace = true
+
+[lints]
+workspace = true
