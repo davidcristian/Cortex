@@ -11,7 +11,8 @@ from cortex_core.memory import ScoredMemory
 from cortex_core.ports import Clock, InferenceBackend, SessionStore
 from cortex_core.recall import MemoryRecaller
 from cortex_core.routing import RoutingHints, Tier, route_turn
-from cortex_core.tool_loop import stream_tool_loop
+from cortex_core.tool_loop import ToolLoopContext, stream_tool_loop
+from cortex_core.untrusted import TaintLedger, new_nonce, security_preamble_message
 
 # The logical id of the resident cortex model (ADR-0004: logical ids, never paths).
 # Deployments override it via CORTEX_MODEL_CORTEX, which is read by the composition root
@@ -78,15 +79,16 @@ class TurnEngine:
         await self._store.append(session_id, user)
         history = await self._store.history(session_id)
         working = list(await self._inference_messages(text, history, turn_id))
-        parts: list[str] = []
-        loop = stream_tool_loop(
-            self._backend,
-            model,
-            working,
+        taint = TaintLedger()
+        context = ToolLoopContext(
             dispatcher=self._caps.tools,
             clock=self._clock,
             turn_id=turn_id,
+            taint=taint,
+            nonce=new_nonce(),
         )
+        parts: list[str] = []
+        loop = stream_tool_loop(self._backend, model, working, context)
         try:
             async for delta in loop:
                 parts.append(delta)
@@ -100,23 +102,28 @@ class TurnEngine:
             role=Role.ASSISTANT, text=full_text, at=self._clock.now(), turn_id=turn_id
         )
         await self._store.append(session_id, assistant)
-        if self._caps.memory is not None:
+        # A turn that read untrusted content is not recorded to memory (ADR-0013): every stored
+        # memory then comes from an untainted turn, so recall stays safe to treat as trusted.
+        if self._caps.memory is not None and not taint.tainted:
             await self._caps.memory.record(_render_exchange(text, full_text))
         yield TurnCompleted(turn_id=turn_id, full_text=full_text)
 
     async def _inference_messages(
         self, query: str, history: Sequence[Message], turn_id: str
     ) -> Sequence[Message]:
-        """History, optionally prefixed with a system message of recalled memories."""
-        if self._caps.memory is None:
-            return history
-        hits = await self._caps.memory.recall(query, k=DEFAULT_RECALL_K)
-        if not hits:
-            return history
-        context = Message(
-            role=Role.SYSTEM,
-            text=_render_memory_context(hits),
-            at=self._clock.now(),
-            turn_id=turn_id,
-        )
-        return [context, *history]
+        """History, prefixed with the system context a turn needs (ADR-0008/0013)."""
+        prefix: list[Message] = []
+        if self._caps.tools is not None:
+            prefix.append(security_preamble_message(self._clock.now(), turn_id))
+        if self._caps.memory is not None:
+            hits = await self._caps.memory.recall(query, k=DEFAULT_RECALL_K)
+            if hits:
+                prefix.append(
+                    Message(
+                        role=Role.SYSTEM,
+                        text=_render_memory_context(hits),
+                        at=self._clock.now(),
+                        turn_id=turn_id,
+                    )
+                )
+        return [*prefix, *history]

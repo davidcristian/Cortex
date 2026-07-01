@@ -27,3 +27,4 @@ class SubagentResult:
     output: str
     ok: bool = True
     detail: str = ""
+    tainted: bool = False

@@ -8,7 +8,7 @@ from uuid import uuid4
 from cortex_core.ports import Clock, TaskStore
 from cortex_core.runner import SubagentRunner
 from cortex_core.subagents import SubagentResult, SubagentTask
-from cortex_core.tools import ToolCall, ToolResult, ToolSpec
+from cortex_core.tools import ToolCall, ToolResult, ToolSpec, Trust
 
 SPAWN_TOOL_NAME = "spawn_subagents"
 
@@ -85,7 +85,7 @@ class SpawnSubagentsTool:
         """Persist each subtask, run the subagents concurrently, and aggregate their results."""
         parsed = _parse_instructions(call.arguments)
         if isinstance(parsed, str):
-            return ToolResult(call_id=call.id, content=parsed, is_error=True)
+            return ToolResult(call_id=call.id, content=parsed, is_error=True, trust=Trust.TRUSTED)
         tasks = [
             SubagentTask(
                 id=self._task_id_factory(), instruction=text, context="", at=self._clock.now()
@@ -97,4 +97,5 @@ class SpawnSubagentsTool:
         results: list[SubagentResult] = list(
             await asyncio.gather(*(self._runner.run(task.id) for task in tasks))
         )
-        return ToolResult(call_id=call.id, content=_format(results))
+        trust = Trust.UNTRUSTED if any(r.tainted for r in results) else Trust.TRUSTED
+        return ToolResult(call_id=call.id, content=_format(results), trust=trust)

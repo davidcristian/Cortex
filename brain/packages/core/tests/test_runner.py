@@ -116,6 +116,7 @@ async def test_runs_a_plain_task_and_persists_the_result() -> None:
     backend = TextBackend(["sum", "mary"])
     result = await _runner(store, backend).run("t1")
     assert (result.task_id, result.ok, result.output) == ("t1", True, "summary")
+    assert result.tainted is False  # a tool-less subagent reads no untrusted content
     # The cortex reads the outcome back from the store, not from the runner's return.
     assert await store.get_result("t1") == result
     # No context -> a single user message carrying the instruction.
@@ -168,6 +169,7 @@ async def test_tools_enabled_subagent_dispatches_and_audits_its_calls() -> None:
     result = await _runner(store, backend, tools=dispatcher).run("t4")
     assert result.ok is True
     assert result.output == "looking... done"
+    assert result.tainted is True  # it read an untrusted tool result -> the result is tainted
     # The subagent's own tool call went through the same audited dispatcher.
     (audit,) = sink.records
     assert (audit.name, audit.ok, audit.detail) == ("read", True, "read /x")

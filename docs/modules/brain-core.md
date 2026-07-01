@@ -47,17 +47,27 @@ Memory domain (Slice 5, ADR-0008):
 - `ScoredMemory` is a frozen dataclass: `record: MemoryRecord`, `score: float`. A retrieval
   hit and its similarity (higher = closer).
 
-Tool domain (Slice 6, ADR-0009):
+Tool domain (Slice 6, ADR-0009; untrusted-content fields Slice 6.5, ADR-0013):
 
+- `Trust` is an enum `TRUSTED` / `UNTRUSTED` (string values): the provenance of a tool result's
+  content (ADR-0013). `UNTRUSTED` is third-party content framed as data; `TRUSTED` is
+  system-generated. The default is `UNTRUSTED` everywhere (fail-closed).
 - `ToolSpec` is a frozen dataclass: `name: str`, `description: str`,
   `parameters: Mapping[str, Any]` (the JSON Schema the model fills; passed through verbatim,
-  never interpreted by the core). What a tool advertises.
+  never interpreted by the core), `gated: bool = False` (an irreversible/outbound action that
+  needs confirmation once the turn read untrusted content, but no tool sets it today). What a tool
+  advertises.
 - `ToolCall` is a frozen dataclass: `id: str`, `name: str`, `arguments: Mapping[str, Any]`. A
   model's request to run one tool; `id` correlates it with its `ToolResult`.
-- `ToolResult` is a frozen dataclass: `call_id: str`, `content: str`, `is_error: bool = False`.
-  The outcome fed back to the model; `is_error` marks a tool (or dispatch) failure.
+- `ToolResult` is a frozen dataclass: `call_id: str`, `content: str`, `is_error: bool = False`,
+  `trust: Trust = Trust.UNTRUSTED`. The outcome fed back to the model; `is_error` marks a tool
+  (or dispatch) failure; `trust` is the content's provenance (fail-closed default), read by the
+  loop to fence untrusted content and mark taint.
 - `ToolInvocation` is a frozen dataclass: `name`, `arguments`, `ok: bool`, `detail: str`,
-  `at: datetime` (tz-aware, rejects naive). One audit-trail line.
+  `at: datetime` (tz-aware, rejects naive), `trust: Trust = Trust.UNTRUSTED` (the provenance
+  audit trail). One audit-trail line.
+- `ConfirmationRequest` is a frozen dataclass: `tool_name: str`, `arguments: Mapping[str, Any]`,
+  `reason: str`. What the dispatcher hands the `Confirmer` to approve a gated call out of band.
 
 Subagent domain (Slice 7, ADR-0010):
 
@@ -66,8 +76,9 @@ Subagent domain (Slice 7, ADR-0010):
   before it runs; `context` is the material the subagent works from (the cortex conversation is
   never shared, since the subagent is stateless over the task).
 - `SubagentResult` is a frozen dataclass: `task_id: str`, `output: str`, `ok: bool = True`,
-  `detail: str = ""`. A subagent's outcome; `ok=False` (with `detail`) marks a failure the
-  cortex consumes as a value, mirroring `ToolResult.is_error`.
+  `detail: str = ""`, `tainted: bool = False`. A subagent's outcome; `ok=False` (with `detail`)
+  marks a failure the cortex consumes as a value, mirroring `ToolResult.is_error`; `tainted` is
+  set when the subagent read untrusted content, aggregated by the spawn tool (ADR-0013).
 
 Placement domain (Slice 8.5, ADR-0012):
 
@@ -83,6 +94,21 @@ Placement domain (Slice 8.5, ADR-0012):
   `backends: Mapping[PlacementTarget, InferenceBackend]`, `scheduler: SubagentScheduler`,
   `placer: SubagentPlacer`, `request: PlacementRequest`. Mirrors `TurnCapabilities`, collaborators
   the `SubagentRunner` always takes together (`request.model` is the subagent id).
+
+Untrusted-content boundary (Slice 6.5, ADR-0013; the pure primitives in `untrusted.py`):
+
+- `SECURITY_PREAMBLE` is the standing-rule constant, injected as a `Role.SYSTEM` message by the
+  engine/runner when a turn has tools: content in the untrusted markers is data, never obeyed.
+- `wrap_untrusted(content, *, nonce) -> str` fences untrusted content as
+  `<untrusted-tool-output id=NONCE> … </untrusted-tool-output id=NONCE>`; a closing tag embedded
+  in `content` cannot end the fence (it lacks the per-turn `nonce`), the delimiter-injection defense.
+- `security_preamble_message(at, turn_id) -> Message` is the preamble as a `Role.SYSTEM` message.
+- `new_nonce() -> str` is a new per-turn nonce (`secrets.token_hex(8)`), unpredictable, dies with the turn.
+- `DENIED_MSG` is the `is_error` result content fed back when a gated tool is blocked.
+- `TaintLedger` is mutable, turn-local: `tainted: bool = False`, `mark(trust)` flips it on the first
+  `UNTRUSTED` result. Passed into the shared loop; reconstructed each turn, never persisted.
+- `ToolLoopContext` is a frozen bundle of a tool loop's per-invocation collaborators (`dispatcher`,
+  `clock`, `turn_id`, `taint`, `nonce`), keeping `stream_tool_loop` under its argument ceiling.
 
 Ports (`typing.Protocol`; failures cross them only as the typed errors below):
 
@@ -107,6 +133,10 @@ Ports (`typing.Protocol`; failures cross them only as the typed errors below):
   error result.
 - `ToolAuditSink` has `async record(invocation) -> None`: every dispatched call is written
   here, success or failure (the AGENTS.md audit requirement).
+- `Confirmer` has `async confirm(request: ConfirmationRequest) -> bool` (ADR-0013): approves or
+  denies a gated tool call out of band (the overlay, later). The human's decision, never the
+  model's; a missing confirmer denies (fail-closed). The real adapter arrives with the first
+  gated tool (Slice 9/10).
 - `TaskStore` has `async put_task(task) -> None`, `async get_task(task_id) -> SubagentTask | None`,
   `async put_result(result) -> None`, `async get_result(task_id) -> SubagentResult | None`. The
   hot store (Redis) a subagent is a stateless function over: task and result live here, never in
@@ -142,21 +172,27 @@ Use-case:
   Memory (optional, ADR-0008): when `capabilities.memory` is set, before inference the
   engine recalls the top `DEFAULT_RECALL_K` (5) memories for the user text and, if any,
   prepends them as a `Role.SYSTEM` message to the context the backend sees. It is ephemeral,
-  never stored. After completion it records the `User: …\nAssistant: …` exchange to memory.
-  Tools (optional, ADR-0009): when `capabilities.tools` is set, the engine runs the shared
-  `stream_tool_loop` with that `ToolDispatcher`. The loop advertises the registry's tools each
-  step, dispatches a step's `ToolCall`s (audited), feeds results back as an
-  `ASSISTANT`-with-`tool_calls` message plus `Role.TOOL` results, and re-infers up to
-  `MAX_TOOL_STEPS` rounds. These tool messages are in-turn only (never persisted in v1). With a
-  bare `TurnCapabilities()` (the default) the turn behaves exactly as Slice 3.
+  never stored. After completion it records the `User: …\nAssistant: …` exchange to memory
+  **unless the turn read untrusted content**, in which case nothing is recorded (ADR-0013), so
+  every stored memory stays safe to recall as trusted.
+  Tools (optional, ADR-0009): when `capabilities.tools` is set, the engine prepends the
+  untrusted-content `SECURITY_PREAMBLE` (ADR-0013) and runs the shared `stream_tool_loop` with
+  that `ToolDispatcher` and a fresh per-turn `TaintLedger`. The loop advertises the registry's
+  tools each step, dispatches a step's `ToolCall`s (audited, gated), feeds results back as an
+  `ASSISTANT`-with-`tool_calls` message plus (untrusted-fenced) `Role.TOOL` results, and re-infers
+  up to `MAX_TOOL_STEPS` rounds. These tool messages are in-turn only (never persisted in v1). With
+  a bare `TurnCapabilities()` (the default) the turn behaves exactly as Slice 3.
 - `TurnCapabilities(memory=None, tools=None)` is a frozen bundle of the optional per-turn
   collaborators (a `MemoryRecaller` and a `ToolDispatcher`), keeping the engine within its
   DI ceiling.
-- `stream_tool_loop(backend, model, working, *, dispatcher, clock, turn_id)` (in `tool_loop`)
+- `stream_tool_loop(backend, model, working, context: ToolLoopContext)` (in `tool_loop`)
   is the bounded infer↔tool loop shared by `TurnEngine` and `SubagentRunner` (ADR-0010): an
   async generator yielding assistant text deltas, mutating `working` in place with the tool-call
   and `Role.TOOL` result messages; ends on a tool-free step, a `None` dispatcher, or
-  `MAX_TOOL_STEPS` (8) rounds. `MAX_TOOL_STEPS` is defined here.
+  `MAX_TOOL_STEPS` (8) rounds. It draws the untrusted boundary (ADR-0013): each call is dispatched
+  with the turn's `tainted` state and the tool's `gated` flag (so a gated call on a tainted turn is
+  confirmed), its result marks `context.taint`, and an `UNTRUSTED` result is fenced by
+  `wrap_untrusted` before it re-enters `working`. `MAX_TOOL_STEPS` and `ToolLoopContext` are here.
 - `DEFAULT_CORTEX_MODEL` is the logical id `"cortex"`. Deployments override it via
   `CORTEX_MODEL_CORTEX`, read by the composition root (orchestrator), never here.
 - `MemoryRecaller(store, embedder, clock, *, id_factory=<uuid4>)` is the memory v1 use-case
@@ -165,29 +201,34 @@ Use-case:
   embeds `query` and returns the store's top-`k` `ScoredMemory`. Stateless over the store:
   every memory lives in `MemoryStore`, so recall is identical across restarts and swaps.
   Wired into `TurnEngine` (retrieve-into-context, record-at-turn-end) when injected.
-- `ToolDispatcher(registry, audit, clock)` is the turn's tool gateway (ADR-0009).
-  `dispatch(call)` runs `call` through the `ToolRegistry`, writes exactly one
-  `ToolInvocation` to the `ToolAuditSink` (success or failure), and returns the
-  `ToolResult`; a `ToolError` from the registry becomes an `is_error` result so the loop
-  keeps going and the model is told. `describe_tools()` passes through to the registry so
-  the engine advertises what it can dispatch. Stateless over the ports; `TurnEngine` drives
-  the loop that calls it.
+- `ToolDispatcher(registry, audit, clock, *, confirmer=None)` is the turn's tool gateway and
+  capability gate (ADR-0009/0013). `dispatch(call, *, tainted=False, gated=False)` runs `call`
+  through the `ToolRegistry`, writes exactly one `ToolInvocation` (with the result's `trust`) to
+  the `ToolAuditSink`, and returns the `ToolResult`; a `ToolError` becomes a `TRUSTED` `is_error`
+  result (our own message, so it neither frames nor taints). A `gated` tool on a `tainted` turn is
+  confirmed via the `Confirmer` first, and a denial (including the fail-closed `confirmer=None`
+  default) returns `DENIED_MSG` **without invoking the tool**, audited as a block. `describe_tools()`
+  passes through to the registry. Stateless over the ports; the loop drives it.
 - `SubagentRunner(store, resources, clock, *, tools=None)` is a subagent's body (ADR-0010/0012), a
   stateless function over the `TaskStore`. `run(task_id)` **admits** against the scheduler's CPU/RAM
   budget (outer, may wait), **places** on GPU or CPU against the VRAM budget (inner, synchronous),
   routes to `resources.backends[placement.target]`, loads the `SubagentTask` **by id** (never from
   cortex memory, with a missing task an `ok=False` "task not found" result), runs `stream_tool_loop`
   on `resources.request.model` with its optional tool subset (instruction as the user ask, `context`
-  as a `Role.SYSTEM` message), persists + returns a `SubagentResult`, and always releases the VRAM in
-  a `finally`. A mid-stream `InferenceError` becomes an `ok=False` result carrying the partial text.
-  Tools-enabled but not given the delegation tool, so fan-out is depth-1.
+  as a `Role.SYSTEM` message; a tools-enabled subagent also gets the `SECURITY_PREAMBLE` and its own
+  `TaintLedger`, ADR-0013), persists + returns a `SubagentResult` carrying `tainted` from that ledger,
+  and always releases the VRAM in a `finally`. A mid-stream `InferenceError` becomes an `ok=False`
+  result carrying the partial text. Tools-enabled but not given the delegation tool, so fan-out is
+  depth-1.
 - `SpawnSubagentsTool(runner, store, clock, *, task_id_factory=<uuid4>)` is the built-in
   `spawn_subagents` tool (`SPAWN_TOOL_NAME`), the cortex's delegation primitive (ADR-0010). Its
   `spec` advertises `instructions: string[]`; `invoke(call)` validates them (bad input → an
   `is_error` result, not a raise), persists one `SubagentTask` each, runs the `SubagentRunner`s
   **concurrently** (bounded by the scheduler), and returns one aggregated `ToolResult`, with a
-  `[subagent N] …` block per subtask, failures shown inline. A `BuiltinTool` (`.spec` + async
-  `invoke`), so it registers in a `CompositeToolRegistry`.
+  `[subagent N] …` block per subtask, failures shown inline. The aggregate is `UNTRUSTED` iff any
+  subagent was tainted, so a subagent that read a malicious file taints the cortex through the
+  normal result path (ADR-0013). A `BuiltinTool` (`.spec` + async `invoke`), registered in a
+  `CompositeToolRegistry`.
 - `CompositeToolRegistry(builtins, remote=None)` is a `ToolRegistry` merging built-in tools with
   an optional remote (MCP) registry (ADR-0010). `describe_tools` advertises every built-in then
   the remote tools none shadows; `invoke` routes by name, built-ins first, else the remote, else
@@ -224,6 +265,8 @@ Reference implementations (pure, shipped in core; the runtime wiring until Slice
   raises `ToolNotFoundError` for an unknown name. No server, fully deterministic.
 - `RecordingAuditSink` is a `ToolAuditSink` that keeps invocations in a list (`.records`) so
   tests can assert the audit trail.
+- `RecordingConfirmer(*, answer)` is a `Confirmer` returning a fixed `answer` and recording each
+  `ConfirmationRequest` in `.requests`, so gate tests can assert what was confirmed (ADR-0013).
 - `InMemoryTaskStore` is a dict-backed `TaskStore`; contract twin of the Redis adapter (Slice 7
   CI half). Unknown ids return `None`. Does not survive a restart, by design.
 - `VramBudgetPlacer(*, soft_cap_gb, cortex_reservation_gb)` is the `SubagentPlacer` v1 (ADR-0012):
@@ -245,6 +288,10 @@ Reference implementations (pure, shipped in core; the runtime wiring until Slice
   subagent is a stateless function over the `TaskStore`. `SubagentRunner` reads the task by
   id and persists the result, holding nothing between calls.
 - The assistant message is persisted if and only if `TurnCompleted` is emitted.
+- The untrusted boundary is fail-closed (ADR-0013): `trust`/provenance defaults to `UNTRUSTED`,
+  so unstamped content is framed as data; the `TaintLedger` is turn-local, reconstructed each turn
+  from the store + live tool results, never persisted (the one hard rule holds); a tainted turn is
+  never recorded to memory, so recall stays trustworthy.
 - Fully typed (PEP 561 `py.typed` ships with the package); pyright strict clean.
 - 100% line+branch covered by behavior tests in `tests/` (cancellation and failure
   paths included).
