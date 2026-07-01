@@ -60,6 +60,12 @@ Start here. Rules for working in this repo: [AGENTS.md](../AGENTS.md).
   (`VramBudgetPlacer`, `acquire` untouched), a soft two-dimensional CPU/RAM `SubagentScheduler`
   (`ResourceBudgetScheduler`), composed at `SubagentRunner`; ledgers as live-resource (not durable)
   state; `drain()`/CUDA-OOM re-place deferred to Slice 11.
+- [ADR-0013: Untrusted-content boundary](adr/ADR-0013-untrusted-content.md): prompt-injection
+  defense behind the tool seams (Slice 6.5) via fail-closed `Trust` on `ToolResult`, a static
+  security preamble + nonce-delimited per-result wrap, a turn-local `TaintLedger` in the shared
+  loop (propagating subagent → cortex), `ToolSpec.gated` + a dispatcher gate + the one new
+  `Confirmer` port (inert until the first outbound tool), memory-suppress on taint; the screening
+  subagent and the real overlay confirmation adapter deferred.
 
 New non-obvious decision → add `adr/ADR-XXXX-<slug>.md`, link it here.
 
