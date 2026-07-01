@@ -3,6 +3,13 @@
 # override (docker-compose.gpu.yml: llama.cpp servers + device reservations, ADR-0005)
 # arrives with Slice 4
 # (docs/ROADMAP.md). Ops loop: docs/runbooks/local-dev-wsl.md.
+#
+# Compose files live under docker/; always invoke with `--project-directory .` from the repo root
+# (the `just` recipes do) so relative paths (./brain, ./docker/postgres, ./sandbox) and the .env
+# resolve from the root, not from docker/. `name:` pins the `cortex` project name so containers and
+# volumes stay stable regardless of the checkout directory.
+
+name: cortex
 
 services:
   brain:

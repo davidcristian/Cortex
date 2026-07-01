@@ -21,7 +21,7 @@ config contract in [ADR-0003](../adr/ADR-0003-seam-codegen.md).
   (Settings → Resources → WSL integration). The daemon runs on Windows; the
   `docker` / `docker compose` CLIs inside WSL talk to it, and ports published on
   `127.0.0.1` are reachable from both WSL and Windows. No GPU wiring exists yet. The
-  `docker-compose.gpu.yml` override arrives with Slice 4 (docs/ROADMAP.md).
+  `docker/docker-compose.gpu.yml` override arrives with Slice 4 (docs/ROADMAP.md).
   Footgun: `docker-credential-desktop.exe … exec format error` means the shell lacks
   WSL interop (Docker Desktop's credential helper is a Windows binary); run from a
   shell with interop, or point `DOCKER_CONFIG` at a config without a `credsStore`.

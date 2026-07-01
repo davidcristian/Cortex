@@ -88,19 +88,21 @@ brain-serve:
     cd brain && uv run python -m cortex_orchestrator
 
 # Brain services in Compose (loopback-only publish; see docs/runbooks/local-dev-wsl.md).
+# Compose files live under docker/; `--project-directory .` keeps ./brain, ./sandbox, the .env,
+# and the `cortex` project name resolving from the repo root (see docker/docker-compose.yml).
 up:
-    docker compose up -d --build
+    docker compose --project-directory . -f docker/docker-compose.yml up -d --build
 
 down:
-    docker compose down
+    docker compose --project-directory . -f docker/docker-compose.yml down
 
 # Brain + a GPU llama-server (real inference). Needs an NVIDIA GPU + configured models dir;
 # see docs/runbooks/llamacpp-gpu.md. Never runs in CI (GPU-less by design, AGENTS.md gate 3).
 up-gpu:
-    docker compose -f docker-compose.yml -f docker-compose.gpu.yml up -d --build
+    docker compose --project-directory . -f docker/docker-compose.yml -f docker/docker-compose.gpu.yml up -d --build
 
 down-gpu:
-    docker compose -f docker-compose.yml -f docker-compose.gpu.yml down
+    docker compose --project-directory . -f docker/docker-compose.yml -f docker/docker-compose.gpu.yml down
 
 # Live seam check from the body side. Needs a running brain (`just up` or `just brain-serve`);
 # this is the Rust integration suite (#[ignore]-marked, never in CI/coverage per ADR-0003).

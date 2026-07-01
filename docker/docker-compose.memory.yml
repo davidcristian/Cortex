@@ -4,7 +4,7 @@
 # and flips the brain from memory=none to the pgvector backend pointed at them. CI never
 # runs this file. Memory is opt-in so CI and the no-GPU dev loop stay DB-free.
 #
-# Set these on the host (a .env next to this file works):
+# Set these on the host (a .env at the repo root works):
 #   CORTEX_MODELS_DIR       host dir holding the GGUFs (default ./models, ADR-0004)
 #   CORTEX_EMBED_MODEL_FILE embedding GGUF path under that dir (default: the nomic pick)
 #

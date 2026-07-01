@@ -102,7 +102,7 @@ Increments (each small, green, documented), mirroring Slices 5-6:
    fakes, end to end.
 3. **Adapters (CI half)** are the Redis `TaskStore` adapter (behind a fake `Database`, 100% without
    Redis, the accepted MockTransport pattern), the concurrency-capped scheduler config, opt-in
-   `run_from_env` wiring (`CORTEX_SUBAGENTS_*`), and `docker-compose.subagents.yml` (a CPU
+   `run_from_env` wiring (`CORTEX_SUBAGENTS_*`), and `docker/docker-compose.subagents.yml` (a CPU
    `llama-server` sidecar + the subagent model bind mount). Green under `just check`, no GPU/Redis.
 4. **Host half** is a real CPU `llama-server` running a small subagent model (a Qwen3.5-2B Q4_K_M
    candidate, ADR-0004), end-to-end delegation validated on the host (cortex spawns, subagents
@@ -162,7 +162,7 @@ unbounded on CPU they emit long `<think>` traces (minutes per call, so the naive
 llama.cpp streams those into `reasoning_content`, leaving the assistant `content` (what
 `LlamaCppBackend` reads) empty until reasoning finishes. Narrow subagent tasks do not need it, so
 the dedicated subagent `llama-server` **disables reasoning** via `--chat-template-kwargs
-'{"enable_thinking": false}'` (baked into `docker-compose.subagents.yml`). This was chosen over a
+'{"enable_thinking": false}'` (baked into `docker/docker-compose.subagents.yml`). This was chosen over a
 per-request backend change because it needs no code, keeps the shared `InferenceBackend` untouched,
 and (being a server flag) llama.cpp applies the right per-model mechanism (the kwarg is ignored by
 non-reasoning templates like gemma-4-E\*, so overriding the model stays correct). Verified: with the

@@ -134,7 +134,7 @@ integration suites passed against real services:
 | **Embedder** | **nomic-embed-text-v1.5** | Q8_0 | 768 | 0.146 GB | **CPU** (`-ngl 0`), ~18 MiB RSS |
 
 - **Embedder pick: nomic-embed-text-v1.5 Q8_0** is 768-dim, loads in ~1.2 s, negligible RAM,
-  entirely off the GPU budget (as designed). It is the `docker-compose.memory.yml` default
+  entirely off the GPU budget (as designed). It is the `docker/docker-compose.memory.yml` default
   (`CORTEX_EMBED_MODEL_FILE`); `nomic-embed-text-v2-moe` (also 768-dim, larger) is the
   multilingual alternative, overridable via that env. Both are downloaded locally.
 - **Schema is dimension-agnostic.** The `memories.embedding` column is an unbounded
@@ -151,10 +151,10 @@ The subagent tier was measured on the host machine (WSL + Docker Desktop, models
 
 - **Subagent pick: Qwen3.5-2B Q4_K_M** is off the GPU budget entirely (as designed, ADR-0001);
   ~0.9 GB RSS leaves ample CPU RAM for several concurrent subagents. It is the
-  `docker-compose.subagents.yml` default (`CORTEX_MODEL_FILE_SUBAGENT`).
+  `docker/docker-compose.subagents.yml` default (`CORTEX_MODEL_FILE_SUBAGENT`).
 - **Runs with reasoning disabled.** Qwen3.5/3.6 are reasoning models; unbounded on CPU they emit
   long `<think>` traces (minutes/call). The subagent server disables it (`--chat-template-kwargs
-  '{"enable_thinking": false}'`, baked into `docker-compose.subagents.yml`), so a narrow task
+  '{"enable_thinking": false}'`, baked into `docker/docker-compose.subagents.yml`), so a narrow task
   answers correctly in ~0.6 s ("17 + 25" → 42). See the [ADR-0010 addendum](ADR-0010-subagents.md).
   If the 2B's tool-calling proves too weak with reasoning off, gemma-4-E4B or Qwen3.5-4B (both
   present) are the fallbacks at higher CPU cost.
