@@ -16,7 +16,7 @@ from cortex_core.errors import InferenceError, ToolNotFoundError
 from cortex_core.inference import InferenceEvent, TextChunk
 from cortex_core.memory import MemoryRecord, ScoredMemory
 from cortex_core.subagents import SubagentResult, SubagentTask
-from cortex_core.tools import ToolCall, ToolInvocation, ToolResult, ToolSpec
+from cortex_core.tools import ConfirmationRequest, ToolCall, ToolInvocation, ToolResult, ToolSpec
 
 # The fake embedder's default vector width. Small (< a sha256 digest) so distinct texts
 # get distinct vectors without cycling the digest; the real nomic model is 768-dim.
@@ -191,6 +191,29 @@ class RecordingAuditSink:
     def records(self) -> Sequence[ToolInvocation]:
         """The invocations recorded so far, in dispatch order."""
         return tuple(self._records)
+
+
+class RecordingConfirmer:
+    """Confirmer that records each request and returns a fixed answer, for gate tests (ADR-0013).
+
+    ``answer=True`` approves every gated call, ``False`` denies; ``requests`` exposes what the
+    dispatcher asked to confirm so a test can assert the tool name and the reason shown to the
+    user. The real confirmer round-trips the overlay; this one is deterministic and offline.
+    """
+
+    def __init__(self, *, answer: bool) -> None:
+        self._answer = answer
+        self._requests: list[ConfirmationRequest] = []
+
+    async def confirm(self, request: ConfirmationRequest) -> bool:
+        """Record the request and return the fixed answer."""
+        self._requests.append(request)
+        return self._answer
+
+    @property
+    def requests(self) -> Sequence[ConfirmationRequest]:
+        """The confirmation requests received so far, in order."""
+        return tuple(self._requests)
 
 
 class SystemClock:

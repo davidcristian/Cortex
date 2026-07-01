@@ -6,12 +6,14 @@ from datetime import UTC, datetime
 import pytest
 
 from cortex_core import (
+    ConfirmationRequest,
     InMemoryToolRegistry,
     ToolCall,
     ToolInvocation,
     ToolNotFoundError,
     ToolResult,
     ToolSpec,
+    Trust,
 )
 
 _AT = datetime(2026, 7, 3, 12, 0, 0, tzinfo=UTC)
@@ -28,6 +30,30 @@ def _spec(name: str, description: str = "a tool") -> ToolSpec:
 
 def test_tool_result_defaults_to_success() -> None:
     assert ToolResult(call_id="c-1", content="hi").is_error is False
+
+
+def test_tool_result_defaults_to_untrusted() -> None:
+    # Fail-closed (ADR-0013): a result reaching the loop without a trust stamp is untrusted.
+    assert ToolResult(call_id="c-1", content="hi").trust is Trust.UNTRUSTED
+
+
+def test_tool_spec_defaults_to_ungated() -> None:
+    assert _spec("read").gated is False
+
+
+def test_tool_invocation_defaults_to_untrusted_provenance() -> None:
+    assert ToolInvocation(name="read", arguments={}, ok=True, detail="x", at=_AT).trust is (
+        Trust.UNTRUSTED
+    )
+
+
+def test_confirmation_request_carries_the_action_and_reason() -> None:
+    request = ConfirmationRequest(tool_name="send_email", arguments={"to": "x"}, reason="outbound")
+    assert (request.tool_name, request.arguments, request.reason) == (
+        "send_email",
+        {"to": "x"},
+        "outbound",
+    )
 
 
 def test_tool_invocation_rejects_a_naive_timestamp() -> None:

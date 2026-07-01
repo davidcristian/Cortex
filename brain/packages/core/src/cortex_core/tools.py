@@ -10,7 +10,23 @@ introspected by the core.
 from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import datetime
+from enum import Enum
 from typing import Any
+
+
+class Trust(Enum):
+    """The provenance of a tool result's content (ADR-0013): is it data or instructions?
+
+    ``UNTRUSTED`` content comes from a third party (file contents, email bodies, later web
+    pages and screen captures) and must be framed as inert data the model never obeys.
+    ``TRUSTED`` content is system-generated (a built-in's status string). The distinction is
+    binary because the boundary only ever acts on that one question. The default everywhere is
+    ``UNTRUSTED`` (fail-closed): content that reaches the model without an explicit trust stamp
+    is framed as hostile, never silently trusted.
+    """
+
+    TRUSTED = "trusted"
+    UNTRUSTED = "untrusted"
 
 
 @dataclass(frozen=True, slots=True)
@@ -18,12 +34,15 @@ class ToolSpec:
     """A tool advertised to the model: its name, a one-line purpose, and its JSON-Schema args.
 
     ``parameters`` is the JSON Schema the model fills to call the tool, passed through to the
-    model verbatim and never interpreted by the core.
+    model verbatim and never interpreted by the core. ``gated`` marks an irreversible/outbound
+    action (email-write, later OS actions) that requires explicit confirmation once the turn
+    has read untrusted content (ADR-0013); no tool sets it today (all reads are read-only).
     """
 
     name: str
     description: str
     parameters: Mapping[str, Any]
+    gated: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -42,11 +61,18 @@ class ToolCall:
 @dataclass(frozen=True, slots=True)
 class ToolResult:
     """The outcome of one ``ToolCall``: ``content`` fed back to the model, ``is_error`` set
-    when the tool (or its dispatch) failed. The model is told, so it can recover."""
+    when the tool (or its dispatch) failed. The model is told, so it can recover.
+
+    ``trust`` is the provenance of ``content`` (ADR-0013), defaulting ``UNTRUSTED`` so any
+    result reaching the loop without an explicit stamp is framed as data. A generic registry
+    (MCP, the in-memory twin) leaves the default; only a built-in returning system-generated
+    bytes stamps ``TRUSTED``.
+    """
 
     call_id: str
     content: str
     is_error: bool = False
+    trust: Trust = Trust.UNTRUSTED
 
 
 @dataclass(frozen=True, slots=True)
@@ -54,7 +80,8 @@ class ToolInvocation:
     """One line of the audit trail: every dispatched call is recorded, success or failure.
 
     ``ok`` is the negation of the result's ``is_error``; ``detail`` is the result content or
-    the error message; ``at`` must be timezone-aware (the audit outlives the process).
+    the error message; ``trust`` records whether the call returned untrusted content (the
+    provenance trail, ADR-0013); ``at`` must be timezone-aware (the audit outlives the process).
     """
 
     name: str
@@ -62,8 +89,24 @@ class ToolInvocation:
     ok: bool
     detail: str
     at: datetime
+    trust: Trust = Trust.UNTRUSTED
 
     def __post_init__(self) -> None:
         if self.at.tzinfo is None or self.at.tzinfo.utcoffset(self.at) is None:
             msg = "ToolInvocation.at must be timezone-aware"
             raise ValueError(msg)
+
+
+@dataclass(frozen=True, slots=True)
+class ConfirmationRequest:
+    """A request for out-of-band user confirmation of a gated tool call (ADR-0013).
+
+    Raised by the dispatcher when a ``gated`` tool is called on a turn that has read untrusted
+    content: ``tool_name``/``arguments`` name the action and ``reason`` says why confirmation
+    is required, so the overlay can show the user what they are approving. The ``Confirmer``
+    port answers it; the model never does. Confirmation is the human's, out of band.
+    """
+
+    tool_name: str
+    arguments: Mapping[str, Any]
+    reason: str

@@ -15,7 +15,7 @@ from cortex_core.memory import MemoryRecord, ScoredMemory
 from cortex_core.model import ModelLease
 from cortex_core.placement import Placement, PlacementRequest
 from cortex_core.subagents import SubagentResult, SubagentTask
-from cortex_core.tools import ToolCall, ToolInvocation, ToolResult, ToolSpec
+from cortex_core.tools import ConfirmationRequest, ToolCall, ToolInvocation, ToolResult, ToolSpec
 
 
 class SessionStore(Protocol):
@@ -134,6 +134,19 @@ class ToolAuditSink(Protocol):
     """
 
     async def record(self, invocation: ToolInvocation) -> None: ...
+
+
+class Confirmer(Protocol):
+    """Answers a request to confirm a gated tool call. Out of band, the human's call (ADR-0013).
+
+    ``confirm`` returns ``True`` to allow an irreversible/outbound action the dispatcher gated
+    because the turn read untrusted content, ``False`` to block it. The decision is the user's,
+    reached out of band (the overlay), never the model's. A jailbroken model cannot forge it.
+    The real adapter round-trips the overlay over the seam and arrives with the first gated tool
+    (Slice 9/10); today no tool is gated, and a missing confirmer denies (fail-closed).
+    """
+
+    async def confirm(self, request: ConfirmationRequest) -> bool: ...
 
 
 class TaskStore(Protocol):
