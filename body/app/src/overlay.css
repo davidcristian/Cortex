@@ -1,0 +1,416 @@
+/* Overlay styles follow design/overlay-ux.md. Theme tokens (--bg, --panel, --text, --accent, …) are
+   written onto :root by applyTheme(); this file consumes them. Color (the accent gradient) appears
+   only on *working* affordances (the streaming caret/glow, a live send, and the orb). */
+
+:root {
+  --spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease: cubic-bezier(0.4, 0, 0.2, 1);
+  --font: -apple-system, "Segoe UI", system-ui, "Helvetica Neue", sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+.stage {
+  position: fixed;
+  inset: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  overflow: hidden;
+  transition:
+    background 0.4s var(--ease),
+    color 0.4s var(--ease);
+}
+
+.themebtn {
+  position: fixed;
+  top: 20px;
+  right: 22px;
+  z-index: 20;
+  width: 38px;
+  height: 38px;
+  border: none;
+  border-radius: 12px;
+  background: var(--control);
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 16px;
+  transition: 0.2s var(--ease);
+}
+.themebtn:hover {
+  color: var(--text);
+}
+
+/* Sleek at rest: neutral glass, no gradient, a soft neutral shadow. */
+.panel {
+  position: fixed;
+  left: 50%;
+  top: 46%;
+  width: min(560px, 92vw);
+  max-height: 76vh;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  background: var(--panel);
+  backdrop-filter: blur(30px) saturate(140%);
+  border: 1px solid var(--stroke);
+  border-radius: 28px;
+  box-shadow: 0 34px 90px -26px rgba(0, 0, 0, 0.55);
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(calc(-50% + 32vw), calc(-50% + 30vh)) scale(0.2);
+  transition:
+    transform 0.44s var(--spring),
+    opacity 0.3s var(--ease);
+}
+.panel.open {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translate(-50%, -50%) scale(1);
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 15px 16px 9px;
+}
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--spark);
+  box-shadow: 0 0 8px var(--spark);
+  flex: none;
+}
+.title {
+  flex: 1;
+  font-size: 13.5px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.hbtn {
+  width: 30px;
+  height: 30px;
+  flex: none;
+  border: none;
+  border-radius: 11px;
+  background: var(--control);
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 15px;
+  transition: 0.18s var(--ease);
+}
+.hbtn:hover {
+  color: var(--text);
+  transform: translateY(-1px);
+}
+
+.history {
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+  padding: 6px 16px 4px;
+  overflow-y: auto;
+}
+.history::-webkit-scrollbar {
+  width: 7px;
+}
+.history::-webkit-scrollbar-thumb {
+  background: var(--stroke);
+  border-radius: 8px;
+}
+
+.bubble {
+  max-width: 82%;
+  padding: 10px 15px;
+  font-size: 14.5px;
+  line-height: 1.55;
+  border-radius: 20px;
+  white-space: pre-wrap;
+}
+.b-user {
+  align-self: flex-end;
+  background: var(--bubble-user);
+  border-bottom-right-radius: 7px;
+}
+.b-ai {
+  align-self: flex-start;
+  background: var(--bubble-ai);
+  border-bottom-left-radius: 7px;
+  box-shadow: 0 0 0 0 transparent;
+  transition: box-shadow 0.6s var(--ease);
+}
+/* Color only while working. */
+.b-ai.streaming {
+  box-shadow:
+    0 0 0 1px rgba(139, 92, 246, 0.3),
+    0 10px 34px -10px rgba(226, 75, 196, 0.4);
+}
+.b-error {
+  align-self: flex-start;
+  background: rgba(226, 75, 107, 0.14);
+  color: var(--text);
+  border-bottom-left-radius: 7px;
+}
+.w {
+  display: inline-block;
+  white-space: pre;
+  animation: wordin 0.5s var(--ease) both;
+}
+.caret {
+  display: inline-block;
+  width: 7px;
+  height: 15px;
+  vertical-align: -2px;
+  margin-left: 2px;
+  border-radius: 3px;
+  background: var(--accent);
+  animation: pulse 1s ease infinite;
+}
+
+.composer {
+  display: flex;
+  gap: 9px;
+  align-items: flex-end;
+  padding: 11px 15px 9px;
+}
+.field {
+  flex: 1;
+  background: var(--field);
+  border: 1.5px solid transparent;
+  border-radius: 21px;
+  padding: 11px 15px;
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 14.5px;
+  resize: none;
+  outline: none;
+  max-height: 120px;
+  transition: 0.2s var(--ease);
+}
+.field::placeholder {
+  color: var(--dim);
+}
+.field:focus {
+  border-color: var(--stroke);
+  background: var(--control);
+}
+.send {
+  width: 42px;
+  height: 42px;
+  flex: none;
+  border: none;
+  border-radius: 15px;
+  background: var(--control);
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 16px;
+  transition: 0.18s var(--spring);
+}
+.send:hover {
+  color: var(--text);
+  transform: translateY(-1px);
+}
+/* Color only when it's ready to fire. */
+.send.live {
+  background: var(--accent);
+  color: #fff;
+  box-shadow: 0 8px 20px -6px rgba(226, 75, 196, 0.6);
+}
+.send:active {
+  transform: scale(0.94);
+}
+
+.hints {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px 13px;
+  padding: 2px 17px 14px;
+  font-size: 11.5px;
+  color: var(--dim);
+}
+.hints b {
+  color: var(--muted);
+  font-weight: 500;
+  background: var(--control);
+  padding: 1px 6px;
+  border-radius: 6px;
+  font-size: 11px;
+}
+
+/* The orb: colorful (it's a working state), breathing + drifting. */
+.orb {
+  position: fixed;
+  right: 26px;
+  bottom: 26px;
+  width: 60px;
+  height: 60px;
+  z-index: 9;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  background: conic-gradient(from 0deg, #8b5cf6, #e24bc4, #ff7a6b, #4fe3d0, #8b5cf6);
+  animation:
+    drift 6s var(--ease) infinite,
+    spinbreathe 3.4s var(--ease) infinite;
+}
+.orb::after {
+  content: "";
+  position: absolute;
+  inset: 6px;
+  border-radius: 50%;
+  background: var(--bg);
+  opacity: 0.86;
+}
+.halo {
+  position: absolute;
+  inset: -7px;
+  border-radius: 50%;
+  z-index: -1;
+  background: radial-gradient(circle, rgba(226, 75, 196, 0.55), transparent 68%);
+  animation: halo 3.4s var(--ease) infinite;
+}
+
+.preview {
+  position: fixed;
+  right: 26px;
+  bottom: 26px;
+  width: min(340px, 84vw);
+  z-index: 9;
+  text-align: left;
+  border: 1px solid var(--stroke);
+  border-radius: 22px;
+  padding: 14px 16px 12px;
+  background: var(--panel);
+  backdrop-filter: blur(28px) saturate(140%);
+  color: var(--text);
+  cursor: pointer;
+  box-shadow: 0 24px 60px -14px rgba(0, 0, 0, 0.55);
+  animation: previewin 0.4s var(--spring) both;
+}
+.pv-t {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 7px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.pv-b {
+  font-size: 14px;
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.pv-h {
+  margin-top: 8px;
+  font-size: 11px;
+  color: var(--dim);
+}
+.bar {
+  height: 3px;
+  margin-top: 11px;
+  border-radius: 3px;
+  background: var(--accent);
+  transform-origin: left;
+  animation: drain 6s linear forwards;
+}
+.preview:hover .bar {
+  animation-play-state: paused;
+}
+
+@keyframes wordin {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+    filter: blur(3px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+    filter: none;
+  }
+}
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.3;
+  }
+}
+@keyframes previewin {
+  from {
+    opacity: 0;
+    transform: scale(0.6) translate(30px, 30px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes spinbreathe {
+  0% {
+    transform: rotate(0) scale(1);
+  }
+  50% {
+    transform: rotate(180deg) scale(1.08);
+  }
+  100% {
+    transform: rotate(360deg) scale(1);
+  }
+}
+@keyframes drift {
+  0%,
+  100% {
+    right: 26px;
+    bottom: 26px;
+  }
+  25% {
+    right: 32px;
+    bottom: 34px;
+  }
+  50% {
+    right: 22px;
+    bottom: 30px;
+  }
+  75% {
+    right: 29px;
+    bottom: 21px;
+  }
+}
+@keyframes halo {
+  0%,
+  100% {
+    opacity: 0.55;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.15;
+    transform: scale(1.3);
+  }
+}
+@keyframes drain {
+  from {
+    transform: scaleX(1);
+  }
+  to {
+    transform: scaleX(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.12s !important;
+  }
+}

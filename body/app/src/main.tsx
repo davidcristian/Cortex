@@ -1,13 +1,18 @@
-// Entry glue: mounts the overlay. Excluded from coverage (the browser bootstrap
-// analog of the Rust __main__ guard); the Overlay component itself is gated.
+// Entry glue (excluded from coverage): mounts the overlay for `vite dev` with the browser-dev
+// bridge and summons it once so the design is visible immediately. Production mounts via Tauri.
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
+
+import { DemoBridge } from "./bridge/demoBridge";
+import { App } from "./components/App";
+import "./overlay.css";
 
 const root = document.getElementById("root");
 if (root) {
   createRoot(root).render(
     <StrictMode>
-      <div>Cortex overlay</div>
+      <App bridge={new DemoBridge()} sessionId="dev" />
     </StrictMode>,
   );
+  window.dispatchEvent(new Event("cortex:activate"));
 }
