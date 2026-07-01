@@ -6,34 +6,59 @@ It describes the **target** experience and marks what ships in v1 vs. what waits
 
 ## 1. Identity and what it should feel like
 
-A friendly, *alive*, colorful assistant you summon in a keystroke and dismiss without a thought.
-Three adjectives drive every choice: **bubbly** (soft, rounded, and springy, never sharp or
-static), **alive** (it breathes, streams, and reacts; the "thinking" state feels present, not a
-spinner), and **colorful** (a vibrant accent gradient is the brand and never a flat grey box). It
-should read like the best modern LLM UIs: glassy panel, gradient accents, springy motion, gentle
-token reveals. But it is an *overlay* and not a full app, fast to summon, effortless to dismiss, and
-it never nags. Motion is generous but quick; it always respects `prefers-reduced-motion`.
+A **sleek, modern** assistant you summon in a keystroke and dismiss without a thought. One that
+**comes alive with color while it works**.
+
+**The core rule: color is the signal of *activity*.** At rest the overlay is calm and
+near-monochrome: a clean glass surface, restrained type, one quiet chosen neutral, no gradients on
+resting chrome or composed messages. **Color (the accent gradient) is reserved for *working*
+affordances**: a model thinking, text streaming in, the minimized orb, progress. So "the assistant
+is alive / doing something" reads at a glance, and the resting UI stays modern and out of the way.
+
+Three adjectives, in priority order: **sleek** (minimal, precise, current, never loud at rest),
+**alive** (it breathes, streams fluidly, and *blooms* with color while thinking), **bubbly** (soft,
+rounded, springy shapes and motion, friendly and never sharp). It ships **light and dark** from day
+one and is **theme-customizable** later (a token swap). It is an *overlay*, not an app: fast to
+summon, effortless to dismiss, and it never nags. Motion is fluid and purposeful: text *streams* in
+rather than popping, the panel *travels* when it minimizes/maximizes, and the orb *drifts* as it
+breathes. All of it respects `prefers-reduced-motion`.
 
 ## 2. Visual language (design tokens)
 
-Implement as CSS custom properties so the whole surface restyles from one place.
+Everything is CSS custom properties, so the whole surface restyles from one place and a theme
+is a token swap, not a rewrite.
 
-- **Accent gradient** (the signature): a 3-stop violet→fuchsia diagonal,
-  `--accent: linear-gradient(135deg, #7C5CFF 0%, #C15CFF 45%, #FF6AD5 100%)`, with a cyan spark
-  `#5CE1FF` reserved for the "alive"/thinking accents. Tune freely, but keep it a *gradient*.
-- **Surface:** frosted dark glass via `--panel: rgba(20, 18, 34, 0.72)` over a `backdrop-filter:
-  blur(24px) saturate(140%)`, with a 1px gradient-tinted border and a soft outer glow
-  (`box-shadow` in the accent hue at low alpha). A light theme is a later token swap, not a v1 need.
-- **Bubbles:** user = accent-gradient fill, white text, right-aligned; assistant = translucent
-  neutral glass (`rgba(255,255,255,0.06)`), left-aligned. Both `border-radius: 20px` with one
-  "tail" corner tightened (16px → 6px) so they read as speech bubbles.
+- **Two grounds, light and dark, both sleek** (mandatory in v1). Switched by `[data-theme]` (with
+  `prefers-color-scheme` as the default). Both are frosted glass with `backdrop-filter: blur(28px)
+  saturate(140%)`, over a *chosen* neutral biased a hair toward the accent, never a pure grey:
+  - Dark: `--panel: rgba(18,16,28,0.72)`, text `#F3F1FA`, muted lavender-grey `#A79FC4`, hairline
+    `rgba(255,255,255,0.10)`.
+  - Light: `--panel: rgba(250,250,253,0.72)`, text `#1A1726`, muted cool-grey `#6C6880`, hairline
+    `rgba(20,16,40,0.10)`.
+  - **Custom themes are a later token-swap** (user-defined `--panel`/`--text`/`--accent` sets).
+- **Accent gradient (activity only).** `--accent: linear-gradient(135deg, #8B5CF6, #E24BC4 52%,
+  #FF7A6B)` plus a mint spark `--spark: #4FE3D0`. It appears **only** on *working* affordances: the
+  thinking dots, the streaming caret and a faint reveal shimmer on incoming text, the minimized
+  orb, and progress bars. It **never** touches resting chrome, buttons, or composed messages, the
+  single most important rule (see §1). Exact hues are provisional; keep it a warm-leaning gradient.
+- **Bubbles (neutral at rest).** Both user and assistant bubbles use a quiet raised neutral fill
+  (a subtle tint of the ground, e.g. `rgba(127,110,190,0.14)` for the user in dark). The **only**
+  color is *transient*: while a reply streams, a soft accent glow/shimmer rides the in-progress
+  bubble, then settles to neutral on completion. `border-radius: 20px`, one tail corner tightened.
 - **Radius scale:** panel `28px`, bubbles `20px`, input pill `22px`, orb `50%`. Generous, uniform.
-- **Typography:** system UI stack; assistant text ~15px/1.5; a slightly rounded display face for
-  the header/title if available (fallback to system). Never cramped (line-height ≥ 1.5).
-- **Motion tokens:** `--spring: cubic-bezier(.34,1.56,.64,1)` (the bouncy one) for
-  entrances/morphs; `--ease: cubic-bezier(.4,0,.2,1)` for fades. Durations: micro 120ms,
-  standard 220ms, morph 320ms. Under `prefers-reduced-motion: reduce`, collapse all of these to a
-  ≤120ms opacity fade and drop transforms.
+- **Typography:** a clean modern sans for everything (system stack in v1; a licensed sans inlined
+  as a `@font-face` data URI later; no CDN). Assistant text ~15px/1.5, never cramped. Sleek, not
+  decorative. The personality is in motion + the color bloom, not a novelty face.
+- **Motion:** `--spring: cubic-bezier(.34,1.56,.64,1)` for shape; `--ease: cubic-bezier(.4,0,.2,1)`
+  for fades. Three signatures, detailed in §4:
+  - **Fluid streaming**. Each incoming token *fades and rises* into place (opacity + a few px +
+    a brief blur), never a pop. The stream feels like it flows.
+  - **Traveling morph**. Minimize/maximize animate real *movement*: the panel glides along a path
+    between center and the corner while it scales to/from the orb (FLIP), so you see it travel.
+  - **Drifting orb**. The orb both breathes (scale/glow pulse) *and* slowly drifts (a small
+    floating translate), so it reads as alive, not a static badge.
+  - Durations: micro 120ms, standard 240ms, morph ~360ms. `prefers-reduced-motion: reduce` →
+    collapse to ≤120ms opacity fades, no travel/drift, orb still shown without the float.
 
 ## 3. Anatomy of the panel
 
@@ -73,18 +98,22 @@ while a turn is processing must not lose it*) lives here. States:
                                           └──── click ────────────┘ (→ PANEL(done))
 ```
 
-- **PANEL(composing / streaming / done):** the full centered panel. Streaming renders tokens into
-  the assistant bubble with a gentle per-chunk reveal; a "thinking" shimmer sits on the bubble
-  until the first token.
+- **PANEL(composing / streaming / done):** the full centered panel, sleek and near-monochrome at
+  rest (composing/done). **Streaming** is where color blooms: a "thinking" shimmer holds the
+  assistant bubble until the first token, then tokens **flow in fluidly** (fade + rise, never a
+  pop) behind an accent caret, with a soft accent glow on the in-progress bubble that settles back
+  to neutral on completion.
 - **Dismiss while idle** (composing or done): the panel springs out, backdrop clears → **HIDDEN**.
   Nothing is lost. The chat is persisted; re-summoning restores it.
 - **Dismiss while streaming** (Esc or click-away): the panel **morphs**, scaling and gliding down
   to a corner (default **bottom-right**, configurable), shedding its chrome, into a small **ORB**.
-  This is one continuous transform (FLIP-style), not a disappear-then-appear.
+  This is one continuous transform (FLIP-style), not a disappear-then-appear, and the reverse
+  (maximize) *travels* it back from the corner to center. You always **see it move**, both ways.
 - **ORB(thinking):** a ~56px living blob at the corner, with the accent gradient slowly rotating, a
-  soft breathing scale pulse, a faint pulsing halo. It means "still working." **Click** it → morph
-  back to **PANEL(streaming)** (the in-progress turn, right where it is). It never covers active
-  work (small, corner-pinned, click-through-safe margins).
+  breathing scale/glow pulse, and a slow **drift** (a small floating translate) so it reads as
+  alive, not a static badge. It means "still working." **Click** it → morph back to
+  **PANEL(streaming)** (the in-progress turn, right where it is). It never covers active work, with
+  small, corner-pinned, click-through-safe margins.
 - **PREVIEW:** when the turn **completes while minimized**, the orb **expands** into a compact
   card near the corner: the chat title, the answer (or a 2-3 line snippet with a fade if long),
   and a hairline accent progress bar counting down the auto-dismiss (~6s). **Hover pauses** the
