@@ -1,0 +1,13 @@
+[package]
+name = "os-windows"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+description = "Slice 8 global-hotkey Windows OS backends for the Cortex body (lib name: os_windows)"
+
+[target.'cfg(windows)'.dependencies]
+body-core.workspace = true
+global-hotkey = "0.8"
+
+[lints]
+workspace = true
