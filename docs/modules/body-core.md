@@ -1,9 +1,11 @@
 # body/crates/core (`body_core`)
 
-**Purpose.** The body's pure core: host-side domain types and ports (and, from Slice 8,
-the OS traits `ScreenCapture`/`AudioControl`/`InputControl`/`Hotkey`). No OS calls,
-ever. Currently: the typed global-hotkey chord and the `BrainTransport` port to the
-brain seam.
+**Purpose.** The body's pure core: host-side domain types and ports, including the
+OS-capability ports in `os` (`Hotkey` from Slice 8; `AudioControl`/`ScreenCapture`/
+`InputControl` join in Slices 9-10). No OS calls, ever. Per-platform backends live in
+the `os_windows`/`os_linux`/`os_macos` crates (`docs/modules/body-os.md`). Currently: the
+typed global-hotkey chord, the `BrainTransport` port to the brain seam (`health` +
+streaming `converse`), and the `Hotkey` port with the `Accelerator` chord→code mapping.
 
 **Public contract.**
 
@@ -43,6 +45,24 @@ brain seam.
     v1 sends text only. Images (vision) arrive in Slice 10.
   The gRPC adapter is `body/crates/rpc` (`docs/modules/body-rpc.md`); fakes implement
   the same trait for tests.
+
+OS-capability ports (`os` module) are the first portability seam (ADR-0011):
+
+- `Hotkey` is the global-hotkey backend port: `register(&self, chord: &HotkeyChord,
+  on_activate: HotkeyCallback) -> Result<(), HotkeyError>`. The body registers one chord
+  for its lifetime; the backend owns the OS registration and fires `on_activate` on each
+  press. Per-platform adapters (`os_windows` real; `os_linux`/`os_macos` stubs) are documented in
+  `docs/modules/body-os.md`.
+- `HotkeyCallback` is `Box<dyn Fn() + Send + 'static>`, invoked on an OS/event-loop thread.
+- `HotkeyError` (thiserror, `Clone`) is `UnsupportedKey(String)` (the key has no `code`
+  mapping) | `Registration(String)` (the OS refused the binding).
+- `Accelerator` is a chord resolved to the OS-neutral form a backend needs: `modifiers:
+  Vec<Modifier>` (canonical order) + `code: String` (the W3C `KeyboardEvent.code` name,
+  e.g. `"Space"`, `"KeyA"`, `"F5"`). `Accelerator::from_chord(&HotkeyChord) ->
+  Result<Accelerator, HotkeyError>` maps letters→`KeyA`…, digits→`Digit0`…, `f1`…`f24`→
+  `F1`…`F24`, and a small named set (space, enter/return, escape/esc, tab, backspace,
+  arrows); anything else is `UnsupportedKey`. Pure and fully tested, covering the key-mapping logic
+  the backend would otherwise hold untested.
 
 **Invariants.**
 - Pure: no OS/network calls; `unsafe_code = "forbid"`; no `unwrap`/`expect` outside

@@ -1,5 +1,5 @@
 [workspace]
-members = ["crates/core", "crates/rpc"]
+members = ["crates/core", "crates/rpc", "crates/os_linux", "crates/os_macos"]
 resolver = "3"
 
 [workspace.package]
@@ -21,6 +21,9 @@ tonic-prost-build = "0.14"
 
 [workspace.lints.rust]
 unsafe_code = "forbid"
+# `coverage` is set by cargo-llvm-cov; the OS-backend stubs gate their
+# coverage(off) escape hatch on it (ADR-0011). Declare it so it isn't "unexpected".
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage)'] }
 
 [workspace.lints.clippy]
 pedantic = { level = "warn", priority = -1 }

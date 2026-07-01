@@ -1,0 +1,12 @@
+[package]
+name = "os-linux"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+description = "Slice 8 stub Linux OS backends for the Cortex body (lib name: os_linux)"
+
+[dependencies]
+body-core.workspace = true
+
+[lints]
+workspace = true
