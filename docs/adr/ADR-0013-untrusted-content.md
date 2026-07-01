@@ -187,22 +187,32 @@ is the fail-closed default, so the composition root (`wiring.py`) is essentially
 today's read-only tools behave exactly as before (nothing is gated, so `gate` always
 allows).
 
-**CI half (this slice, 100% no-GPU over fakes):** every pure decision, namely the fail-closed
-default, wrapping incl. delimiter-injection, taint propagation through subagents, the gate's
+The validation splits three ways (not two):
+
+**CI (this slice, 100% no-GPU over fakes):** every pure decision, namely the fail-closed default,
+wrapping incl. delimiter-injection, taint propagation through subagents, the gate's
 approve/deny/fail-closed branches, memory-suppress, preamble injection.
 
-**Host half (user, later slices, not CI):** the real `Confirmer` adapter (an overlay
-confirmation exchange over the seam via a new proto message + UI), which lands with the first
-real gated tool (Slice 9/10); and validating that a live cortex (gemma-4-12B) treats crafted
-malicious file/email content as data. Framing efficacy is inherently a model observation,
-not a CI assertion.
+**Agent GPU validation (via Docker + the models at `/srv`, no user needed):** framing
+efficacy against the real cortex. Run `just up-gpu` (gemma-4-12B) plus the filesystem/email MCP
+sidecars, feed the model a file/email carrying an injection payload, and observe that it treats
+the fenced content as data (reports it, does not obey it). This is the **same integration path
+the agent already ran for Slices 4-7** (the model mount is Docker-reachable), so it is the
+agent's to run, not the user's. It is an `integration`-marked check, excluded from CI/coverage.
+
+**User / OS-specific host (later slices):** only the genuinely host-bound piece, namely the real
+`Confirmer` adapter's **overlay confirmation UI** (a new proto message + the Rust/Tauri body on
+Windows), which lands with the first real gated tool (Slice 9/10). The brain-side gate is
+Docker-validatable by the agent; the Windows overlay is the user's.
 
 ## Risks
 
-- **Framing efficacy is unverifiable in CI.** The whole prong-1 defense rests on the model
-  honoring the "content in markers is data" rule, which no CI test can prove (no model). This
-  is exactly why the *gate* (deterministic) is the real boundary and framing (probabilistic)
-  is the reducer, which is also the #1 host-validation item.
+- **Framing efficacy is unverifiable in CI**, but not unverifiable overall. No CI test can
+  prove the model honors the "content in markers is data" rule (no GPU in CI). But the agent
+  can and should verify it via Docker against real gemma-4-12B (see the Agent GPU validation
+  above); it is not a host-only item. It is exactly why the *gate* (deterministic) is the real
+  boundary and framing (probabilistic) is the reducer: even if the GPU check shows the model
+  occasionally obeying an injection, the gate still mechanically stops the outbound action.
 - **Talk-only exfiltration to the user's own screen.** An obeyed injection can still make the
   cortex *say* something misleading in its reply (no tool call, no gate). Accepted: the single
   user is the only audience and there is no outbound channel without a gated tool.

@@ -185,13 +185,14 @@ powerful tools (`spawn_subagents` now; volume/OS actions in Slices 9-10; email-w
   aggregates it, so a subagent that reads a malicious file taints the cortex; a tainted turn records
   nothing to memory, keeping recall trustworthy.
 
-**Deferred (ADR-0013), behind these unchanged seams:** the real overlay confirmation adapter (proto
-message + UI, with the first outbound tool, Slice 9/10); the **screening subagent** (added only if host
-validation shows framing too leaky); context-preserving tainted-memory recording; per-remote-tool
-trust/gating overrides; persisting taint across a mid-turn swap (Slice 11). **Host-validated later:**
-that a live cortex (gemma-4-12B) treats crafted malicious file/email content as data. Framing efficacy
-is a model observation, not a CI assertion; the gate is the deterministic boundary that holds regardless.
-**Gate proven:** the untrusted-input boundary the founding safety posture requires.
+**Deferred (ADR-0013), collected in the Deferred-refinements section below.** The remaining
+validation splits three ways (see ADR-0013 Consequences): **agent GPU validation** (that a live
+cortex (gemma-4-12B) treats crafted malicious file/email content as data, is the **agent's to run
+via Docker + `/srv`** (the Slice 4-7 integration path), not the user's; framing efficacy is a
+model observation, not a CI assertion, and the gate is the deterministic boundary that holds
+regardless. Only the **overlay confirmation UI** (Rust/Tauri on Windows, with the first outbound
+tool, Slice 9/10) is genuinely host/host-only. **Gate proven:** the untrusted-input boundary the
+founding safety posture requires.
 
 ## Slice 7 (Subagents)
 
@@ -445,6 +446,30 @@ ordered; picked up when a slice needs one or on request.
   no `text/plain` part; a real HTML→text pass would read cleaner, per the increment-4 addendum.
 - **Salience / rate policy on the tool loop.** Bounded by `MAX_TOOL_STEPS` today; rate and
   salience limits are a later refinement behind the port (decision 3 / risks).
+
+**Untrusted-content boundary in Slice 6.5 ([ADR-0013](adr/ADR-0013-untrusted-content.md)):** each
+behind the unchanged `ToolRegistry`/`ToolDispatcher`/`stream_tool_loop` seams (or the new `Confirmer` port).
+- **The real overlay confirmation adapter.** The `Confirmer` port ships inert with a fail-closed
+  `confirmer=None`; the real adapter is an overlay confirmation exchange over the seam (a new proto
+  message + the Rust/Tauri UI). It lands with the **first outbound/gated tool** (email-write or the
+  Slice 9/10 OS actions), and is the **only** genuinely host/OS-host-only piece of this slice.
+- **Agent GPU validation of framing efficacy.** That a live cortex (gemma-4-12B) treats crafted
+  malicious file/email content as data is a model observation, not a CI assertion. But it is the
+  **agent's** to run via Docker + `/srv` (`just up-gpu` + the MCP sidecars, the Slice 4-7 path),
+  not the user's. An `integration`-marked check, excluded from CI/coverage.
+- **The screening subagent.** A small subagent that pre-screens external content for injection
+  markers before the cortex sees it, to be added only if the GPU validation shows framing too leaky
+  (the trigger), behind the same delegation seam, gated by a flag.
+- **Context-preserving tainted-memory recording.** A tainted turn currently records **nothing** to
+  memory (fail-closed); recording it with a provenance marker and framing it as untrusted on recall
+  would preserve legitimate context (a later refinement behind the unchanged `MemoryRecaller`).
+- **Per-remote-tool trust / gating overrides.** Trust is fail-closed `UNTRUSTED` and `gated` is
+  per-`ToolSpec`; a genuinely trusted or gated *remote* MCP tool would need a composition-root
+  overlay onto the spec. None exists now.
+- **Persisting taint / provenance across a mid-turn swap.** Taint is turn-local and reconstructed;
+  once **Slice 11** serializes the tool-step context, provenance rides on the stored `Role.TOOL`
+  messages. Flagged for that schema. Structured provenance beyond the binary (source URI, sender)
+  joins here if the confirmation UI needs to display a source.
 
 **Memory in Slice 5 ([ADR-0008](adr/ADR-0008-memory-v1.md)):**
 - **Per-session / namespaced scoping.** v1 recall is global across conversations; scoped
