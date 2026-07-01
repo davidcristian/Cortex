@@ -51,8 +51,20 @@ Start here. Rules for working in this repo: [AGENTS.md](../AGENTS.md).
   the shared infer↔tool loop extracted from `TurnEngine`; tools-enabled depth-1 subagents over a
   Redis `TaskStore`; a dedicated `SubagentScheduler` (bounded CPU concurrency, not the GPU
   `ModelManager`); subagent inference on a CPU `llama-server`.
+- [ADR-0011: Body v1](adr/ADR-0011-body-v1.md): the first host-native slice with one-turn-per-
+  `Converse` streaming (`TurnEvent`), the `Hotkey` OS-backend seam (first `cfg`-gated backend +
+  the stub coverage escape hatch), the Tauri app outside the gated workspace, and a React+Vite
+  overlay gated at 100% + browser-validated (addendum).
 
 New non-obvious decision → add `adr/ADR-XXXX-<slug>.md`, link it here.
+
+## Design
+
+- [design/overlay-ux.md](design/overlay-ux.md) covers the overlay's UX & visual language (Slice 8):
+  the bubbly/alive/colorful identity, design tokens, the panel anatomy, the interaction state
+  machine (incl. dismiss-while-processing → corner orb → response preview), chats-as-sessions,
+  keyboard shortcuts, and how it maps to the `BrainBridge` port + the store. Agents building
+  overlay components follow it.
 
 ## Contracts
 

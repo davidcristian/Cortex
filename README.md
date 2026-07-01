@@ -294,6 +294,7 @@ GPU. The full working agreement is [AGENTS.md](AGENTS.md).
 | [docs/adr/](docs/adr/) | Every decision, from the founding architecture to the streaming redesign |
 | [docs/modules/](docs/modules/) | One short contract doc per module |
 | [docs/runbooks/](docs/runbooks/) | How to bring up and validate each subsystem live |
+| [docs/design/overlay-ux.md](docs/design/overlay-ux.md) | The overlay's UX and visual language |
 | [docs/ROADMAP.md](docs/ROADMAP.md) | The ordered vertical slices |
 | [AGENTS.md](AGENTS.md) | The rules every change in this repo is held to |
 
