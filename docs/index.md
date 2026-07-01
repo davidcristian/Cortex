@@ -91,6 +91,10 @@ New non-obvious decision → add `adr/ADR-XXXX-<slug>.md`, link it here.
   - [body-core.md](modules/body-core.md) covers `body_core`: pure host types + ports
     (hotkey chord, `BrainTransport`).
   - [body-rpc.md](modules/body-rpc.md) covers `body_rpc`: tonic adapter for `BrainTransport`.
+  - [body-os.md](modules/body-os.md) covers `os_windows`/`os_linux`/`os_macos`: per-platform OS
+    backends (the `Hotkey` seam; real Windows, cfg-gated stubs elsewhere).
+  - [body-app.md](modules/body-app.md) covers `body/app`: the React overlay (gated 100%) + its
+    host-native Tauri shell (`cortex-body`).
   - [repo-gates.md](modules/repo-gates.md) covers `scripts/`: linecap + coverage gate CLIs.
 
 ## Runbooks
@@ -107,4 +111,6 @@ New non-obvious decision → add `adr/ADR-XXXX-<slug>.md`, link it here.
   IMAP MCP server against a live ProtonMail Bridge, run the email integration test.
 - [runbooks/subagents-cpu.md](runbooks/subagents-cpu.md) covers Slice 7 host half: bring up the CPU
   subagent `llama-server`, validate delegation (integration test + cortex-driven full stack).
+- [runbooks/body-overlay.md](runbooks/body-overlay.md) covers Slice 8: run the overlay in a browser
+  (fake bridge) or as the real Tauri app on Windows (hotkey → overlay → live brain).
 - Expected as later slices land: `model-swap.md` (Slice 11).
