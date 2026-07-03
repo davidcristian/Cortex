@@ -1,4 +1,4 @@
-"""EmailReader: parse raw RFC822 into email values over a read-only Mailbox port (ADR-0009)."""
+"""EmailReader: parse raw RFC822 into email values over a read-only Mailbox port."""
 
 from collections.abc import Sequence
 from dataclasses import dataclass
@@ -6,6 +6,7 @@ from email import message_from_bytes, policy
 from email.message import EmailMessage
 from typing import Protocol, cast
 
+from cortex_email.html import html_to_text
 from cortex_email.values import EmailDetail, EmailSummary
 
 
@@ -36,12 +37,16 @@ def _header(msg: EmailMessage, name: str) -> str:
 
 
 def _body_text(msg: EmailMessage) -> str:
-    # Prefer text/plain; fall back to text/html (most real mail is HTML-only) so the body is
-    # not empty. The HTML is returned as-is. A readable-text extraction is a later refinement.
+    # Prefer text/plain and fall back to text/html, since most real mail is HTML only. An HTML
+    # body keeps its raw markup only when there is no prose to extract from it.
     body = msg.get_body(preferencelist=("plain", "html"))
     if body is None:
         return ""
-    return str(cast("EmailMessage", body).get_content()).strip()
+    part = cast("EmailMessage", body)
+    content = str(part.get_content()).strip()
+    if part.get_content_type() == "text/html":
+        return html_to_text(content) or content
+    return content
 
 
 def _summary(item: RawEmail) -> EmailSummary:

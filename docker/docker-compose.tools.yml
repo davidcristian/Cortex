@@ -4,7 +4,14 @@ services:
     environment:
       # Opt into tools; without this the base image runs tools=none (ADR-0009).
       CORTEX_TOOLS_BACKEND: "mcp"
-      CORTEX_TOOLS_ENDPOINT: "http://mcp-filesystem:9000/mcp"
+      CORTEX_TOOLS_ENDPOINTS__FILESYSTEM: "http://mcp-filesystem:9000/mcp"
+      # The reference server also advertises write tools the read-only mount can only
+      # EROFS-block; advertise just the read subset (refinements addendum, which is a UX nicety
+      # plus defense in depth; the read-only mount below stays the security boundary).
+      CORTEX_TOOLS_ALLOW__FILESYSTEM: >-
+        ["read_file", "read_text_file", "read_media_file", "read_multiple_files",
+        "list_directory", "list_directory_with_sizes", "directory_tree",
+        "search_files", "get_file_info", "list_allowed_directories"]
     depends_on:
       mcp-filesystem:
         condition: service_started

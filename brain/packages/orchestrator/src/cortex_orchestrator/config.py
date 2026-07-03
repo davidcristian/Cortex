@@ -93,19 +93,39 @@ class MemoryConfig(BaseSettings):
 
 
 class ToolsConfig(BaseSettings):
-    """Whether the cortex can call tools over MCP (ADR-0009)."""
+    """Whether the cortex can call tools over MCP (ADR-0009, refinements addendum)."""
 
-    model_config = SettingsConfigDict(env_prefix="CORTEX_TOOLS_")
+    model_config = SettingsConfigDict(env_prefix="CORTEX_TOOLS_", env_nested_delimiter="__")
 
     backend: ToolsBackendName = "none"
     endpoint: str = ""
+    endpoints: dict[str, str] = {}
+    allow: dict[str, tuple[str, ...]] = {}
 
     @model_validator(mode="after")
-    def _mcp_needs_an_endpoint(self) -> "ToolsConfig":
-        if self.backend == "mcp" and not self.endpoint:
-            msg = "CORTEX_TOOLS_ENDPOINT is required when CORTEX_TOOLS_BACKEND=mcp"
+    def _mcp_needs_unambiguous_endpoints(self) -> "ToolsConfig":
+        if self.backend == "mcp" and not (self.endpoint or self.endpoints):
+            msg = (
+                "CORTEX_TOOLS_ENDPOINT or CORTEX_TOOLS_ENDPOINTS__<name> is required "
+                "when CORTEX_TOOLS_BACKEND=mcp"
+            )
+            raise ValueError(msg)
+        if self.endpoint and self.endpoints:
+            msg = "set CORTEX_TOOLS_ENDPOINT or CORTEX_TOOLS_ENDPOINTS__<name>, not both"
+            raise ValueError(msg)
+        if unmatched := set(self.allow) - set(self.named_endpoints):
+            msg = f"CORTEX_TOOLS_ALLOW names no configured endpoint: {sorted(unmatched)}"
             raise ValueError(msg)
         return self
+
+    @property
+    def named_endpoints(self) -> dict[str, str]:
+        """Every configured endpoint by name, sorted by name so precedence is deterministic."""
+        if self.endpoints:
+            return dict(sorted(self.endpoints.items()))
+        if self.endpoint:
+            return {"default": self.endpoint}
+        return {}
 
 
 class SubagentsConfig(BaseSettings):

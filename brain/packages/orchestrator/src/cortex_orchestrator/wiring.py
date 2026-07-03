@@ -1,14 +1,17 @@
 """Composition root: build the runtime dependencies at the edge, then serve."""
 
 from collections.abc import Awaitable, Callable
+from contextlib import AsyncExitStack
 
 import httpx
 
 from cortex_core import (
+    AggregateToolRegistry,
     BuiltinTool,
     Clock,
     CompositeToolRegistry,
     EchoInferenceBackend,
+    FilteredToolRegistry,
     InferenceBackend,
     MemoryRecaller,
     PlacementRequest,
@@ -93,10 +96,22 @@ async def build_tool_registry(
     config: ToolsConfig,
 ) -> tuple[ToolRegistry | None, Callable[[], Awaitable[None]]]:
     """The raw MCP `ToolRegistry` shared by the cortex and its subagents, or None (ADR-0009)."""
-    if config.backend == "mcp":
-        registry, close = await McpToolRegistry.connect(config.endpoint)
-        return registry, close
-    return None, _noop_aclose
+    if config.backend != "mcp":
+        return None, _noop_aclose
+    stack = AsyncExitStack()
+    registries: list[ToolRegistry] = []
+    try:
+        for name, url in config.named_endpoints.items():
+            registry, close = await McpToolRegistry.connect(url)
+            stack.push_async_callback(close)
+            allow = config.allow.get(name)
+            registries.append(FilteredToolRegistry(registry, allow=allow) if allow else registry)
+    except BaseException:
+        await stack.aclose()
+        raise
+    if len(registries) == 1:
+        return registries[0], stack.aclose
+    return AggregateToolRegistry(registries), stack.aclose
 
 
 async def build_subagents(

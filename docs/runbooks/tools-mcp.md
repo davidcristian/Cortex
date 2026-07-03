@@ -50,6 +50,28 @@ command). Validated 2026-07-03: with both up, a `Converse` turn asking for a fil
 the resident gemma-4-12B natively emit `read_text_file` through the audited loop and answer with
 the file's exact contents (ADR-0009 addendum).
 
+The override advertises only the server's **read** tools (`CORTEX_TOOLS_ALLOW__FILESYSTEM`,
+ADR-0009 refinements addendum): the reference server also ships write tools the read-only
+mount would only `EROFS`-block, and there is no point showing the model a tool that cannot
+work. The mount stays the security boundary; the allowlist is UX plus defense in depth. If a
+pin bump renames tools, update that allowlist alongside it.
+
+## Both tool families at once (filesystem + email)
+
+Layer the email override on top and the brain aggregates the two sidecars behind one registry
+(ADR-0009 refinements addendum). Each override contributes its own
+`CORTEX_TOOLS_ENDPOINTS__<name>` env key, so the compose merge keeps both:
+
+```
+set -a; . ~/.cortex/email.env; set +a
+docker compose --project-directory . -f docker/docker-compose.yml \
+  -f docker/docker-compose.tools.yml -f docker/docker-compose.email.yml up
+```
+
+One turn can then read a file **and** search the mailbox; every call still flows through the
+same audited dispatcher. A sidecar that is down fails tool listing loudly (`ToolError` → an
+`is_error` result the model sees) rather than silently shrinking the tool set.
+
 ## Teardown
 
 ```

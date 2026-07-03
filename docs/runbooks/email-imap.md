@@ -49,9 +49,21 @@ docker compose --project-directory . -f docker/docker-compose.yml -f docker/dock
 ```
 
 The sidecar reaches the Bridge via `host.docker.internal:1143` and serves the read-only tools at
-`http://mcp-email:9100/mcp`; the brain runs with `CORTEX_TOOLS_BACKEND=mcp` pointed at it. A turn
-that needs email calls `list_folders`/`search_emails`/`read_email`, each audited, and the result
-is fed back to the model (a real model that emits tool calls also needs the GPU compose + `--jinja`).
+`http://mcp-email:9100/mcp`; the brain runs with `CORTEX_TOOLS_BACKEND=mcp` pointed at it
+(`CORTEX_TOOLS_ENDPOINTS__EMAIL`). A turn that needs email calls
+`list_folders`/`search_emails`/`read_email`, each audited, and the result is fed back to the
+model (a real model that emits tool calls also needs the GPU compose + `--jinja`). `read_email`
+returns readable text extracted from HTML-only mail (ADR-0009 refinements addendum), falling
+back to the raw HTML only when nothing extracts.
+
+To run the **filesystem tools at the same time**, layer the tools override too. Each override
+contributes its own `CORTEX_TOOLS_ENDPOINTS__<name>` key and the brain aggregates both sidecars
+behind one registry ([tools-mcp.md](tools-mcp.md)):
+
+```
+docker compose --project-directory . -f docker/docker-compose.yml \
+  -f docker/docker-compose.tools.yml -f docker/docker-compose.email.yml up
+```
 
 ## Teardown
 

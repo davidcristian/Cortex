@@ -1,5 +1,6 @@
 """Cortex brain pure core: typed logic and ports, no I/O."""
 
+from cortex_core.aggregate import AggregateToolRegistry, FilteredToolRegistry
 from cortex_core.composite import BuiltinTool, CompositeToolRegistry
 from cortex_core.conversation import Message, Role
 from cortex_core.dispatch import ToolDispatcher
@@ -74,6 +75,7 @@ __all__ = [
     "DENIED_MSG",
     "SECURITY_PREAMBLE",
     "SPAWN_TOOL_NAME",
+    "AggregateToolRegistry",
     "BuiltinTool",
     "Clock",
     "CompositeToolRegistry",
@@ -82,6 +84,7 @@ __all__ = [
     "EchoInferenceBackend",
     "Embedder",
     "EmbedderError",
+    "FilteredToolRegistry",
     "HashEmbedder",
     "InMemoryMemoryStore",
     "InMemorySessionStore",

@@ -2,9 +2,10 @@
 services:
   brain:
     environment:
-      # Opt into tools, pointed at the email sidecar (ADR-0009).
+      # Opt into tools, pointed at the email sidecar (ADR-0009). No allowlist needed:
+      # the server is ours and read-only by construction (only the three read tools exist).
       CORTEX_TOOLS_BACKEND: "mcp"
-      CORTEX_TOOLS_ENDPOINT: "http://mcp-email:9100/mcp"
+      CORTEX_TOOLS_ENDPOINTS__EMAIL: "http://mcp-email:9100/mcp"
     depends_on:
       mcp-email:
         condition: service_started
