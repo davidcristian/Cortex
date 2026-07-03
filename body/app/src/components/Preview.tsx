@@ -1,3 +1,5 @@
+import { RingMark } from "./RingMark";
+
 interface PreviewProps {
   readonly reply: string;
   readonly onClick: () => void;
@@ -8,7 +10,7 @@ export function Preview({ reply, onClick }: PreviewProps) {
   return (
     <button className="preview" onClick={onClick} type="button">
       <div className="pv-t">
-        <span className="dot" aria-hidden="true" /> Reply ready
+        <RingMark size={14} idPrefix="pv" strokeWidth={5} /> Reply ready
       </div>
       <div className="pv-b">{reply}</div>
       <div className="pv-h">Click to open · fades on its own</div>

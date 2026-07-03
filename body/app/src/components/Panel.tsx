@@ -1,6 +1,7 @@
 import { type OverlayState, isTurnActive } from "../overlay/overlayState";
 import { Composer } from "./Composer";
 import { Message } from "./Message";
+import { ThemeIcon } from "./ThemeIcon";
 
 interface PanelProps {
   readonly state: OverlayState;
@@ -17,10 +18,9 @@ export function Panel({ state, open, dark, onToggleTheme, onSubmit, onDismiss, o
   return (
     <div className={`panel${open ? " open" : ""}`} role="dialog" aria-label="Cortex" aria-hidden={!open}>
       <header className="head">
-        <span className="dot" aria-hidden="true" />
         <span className="title">{state.title}</span>
         <button className="hbtn" onClick={onToggleTheme} aria-label="Toggle theme" type="button">
-          {dark ? "☾" : "☀"}
+          <ThemeIcon dark={dark} />
         </button>
         <button className="hbtn" onClick={onNewChat} aria-label="New chat" type="button">
           +

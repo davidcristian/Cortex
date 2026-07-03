@@ -23,7 +23,7 @@ const userMsg: Message = {
 };
 
 describe("Panel", () => {
-  it("shows the title, the sun glyph in light mode, and wires the header buttons", () => {
+  it("shows the title, the sun-form theme icon in light mode, and wires the header buttons", () => {
     const onDismiss = vi.fn();
     const onNewChat = vi.fn();
     const onToggleTheme = vi.fn();
@@ -40,7 +40,9 @@ describe("Panel", () => {
     );
     expect(screen.getByText("My chat")).toBeInTheDocument();
     expect(screen.getByRole("dialog").className).toContain("open");
-    expect(screen.getByLabelText("Toggle theme").textContent).toBe("☀");
+    const icon = screen.getByLabelText("Toggle theme").querySelector("svg.sunmoon");
+    expect(icon).not.toBeNull();
+    expect(icon?.classList.contains("dark")).toBe(false);
     fireEvent.click(screen.getByLabelText("Toggle theme"));
     fireEvent.click(screen.getByLabelText("New chat"));
     fireEvent.click(screen.getByLabelText("Dismiss"));
@@ -49,7 +51,7 @@ describe("Panel", () => {
     expect(onDismiss).toHaveBeenCalledOnce();
   });
 
-  it("shows the moon glyph in dark mode, is not open when closed, and renders its messages", () => {
+  it("marks the theme icon dark, is not open when closed, and renders its messages", () => {
     render(
       <Panel
         state={state({ messages: [userMsg] })}
@@ -62,7 +64,8 @@ describe("Panel", () => {
       />,
     );
     expect(screen.getByRole("dialog", { hidden: true }).className).not.toContain("open");
-    expect(screen.getByLabelText("Toggle theme").textContent).toBe("☾");
+    const icon = screen.getByLabelText("Toggle theme").querySelector("svg.sunmoon");
+    expect(icon?.classList.contains("dark")).toBe(true);
     expect(screen.getByText(/hi/u)).toBeInTheDocument();
   });
 });

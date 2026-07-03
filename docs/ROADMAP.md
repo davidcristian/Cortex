@@ -589,6 +589,19 @@ behind the unchanged `ToolRegistry`/`ToolDispatcher`/`stream_tool_loop` seams (o
   [body-overlay.md](runbooks/body-overlay.md), recorded at ADR-0011 (2026-07-03 addendum). The
   design doc's smaller "later" marks (custom theme token sets, a licensed `@font-face`, a
   `Ctrl+K` command palette) ride along in §2-3 of the same doc.
+- **A real connection indicator.** The v1 header dot was decoration (always "ready") and the
+  2026-07-03 design pass removed it (user direction, [overlay-ux.md §3](design/overlay-ux.md));
+  the meaningful green/amber/red indicator needs a health/status signal over the bridge. The
+  seam's `Health` RPC exists, the `BrainBridge` doesn't carry it yet. Joins whichever slice first
+  streams brain status to the overlay.
+- **Design-doc interaction gaps** (surfaced 2026-07-03 driving the overlay in a browser; each a
+  small change behind the unchanged `BrainBridge` port / reducer): history auto-scroll while
+  streaming (unless the reader scrolled up), composer focus-on-summon, click-away dismiss, the
+  streaming **stop** (■) control (the bridge's `Cancellation` is wired but unused mid-turn),
+  rendering the tool/status chips the reducer already tracks, the empty-state mark + example
+  prompts, the pre-first-token thinking shimmer, the `?` shortcut sheet, composer auto-grow, and
+  making preview **hover actually pause the auto-fade** (today only the bar's animation pauses while
+  the fade timer fires regardless, diverging from [overlay-ux.md §4](design/overlay-ux.md)).
 
 **Resource governance in Slice 8.5 ([ADR-0012](adr/ADR-0012-resource-governance.md)):** each behind
 the unchanged `SubagentPlacer`/`SubagentScheduler`/`ModelManager` ports.
