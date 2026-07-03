@@ -268,6 +268,11 @@ Use-case:
   `invoke` refuses any other name as `ToolNotFoundError`, so the filter is a real layer, not
   advisory, though it only *restricts*, never grants (an allowlisted name the inner lacks stays
   unadvertised and surfaces the inner not-found). An empty allowlist raises `ValueError`.
+- `UngatedToolRegistry(inner)` is a `ToolRegistry` stripped of gated tools (ADR-0013
+  subagent-exclusion addendum): `describe_tools` drops every `gated` spec; `invoke` refuses a
+  name the inner registry currently advertises as gated (live walk, no cached view) as
+  `ToolNotFoundError`, failing closed as a real layer. Wraps the subagent tool subset in the wiring
+  so a subagent is never *handed* an outbound/gated tool, whatever the shared registry grows.
 
 Reference implementations (pure, shipped in core; the runtime wiring until Slice 4):
 

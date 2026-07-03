@@ -17,7 +17,8 @@ releases it, so the root's shutdown path is uniform whatever was picked:
 - Subagents -> disabled by default, or a `spawn_subagents` tool over a `SubagentRunner` (CPU
   `llama-server` + Redis `TaskStore` + concurrency budget) when CORTEX_SUBAGENTS_BACKEND is
   `llamacpp` (ADR-0010). The cortex's dispatcher merges the spawn tool with the MCP tools; a
-  subagent gets the MCP tools without the spawn tool (depth-1). Opt-in so CI stays subagent-free.
+  subagent gets the MCP tools without the spawn tool (depth-1) and stripped of gated tools
+  (ADR-0013 subagent-exclusion addendum). Opt-in so CI stays subagent-free.
 - History window -> `CharBudgetHistoryWindow` over CORTEX_HISTORY_CHAR_BUDGET (ADR-0014),
   on by default (48K chars ≈ 12K of the cortex's 16K-token context); 0 disables it.
 """
@@ -50,6 +51,7 @@ from cortex_core import (
     ToolDispatcher,
     ToolError,
     ToolRegistry,
+    UngatedToolRegistry,
 )
 from cortex_embedding import LlamaCppEmbedder
 from cortex_inference import LlamaCppBackend
@@ -176,9 +178,11 @@ async def build_subagents(
     Enabled (GPU-first, ADR-0012): the `placer` (built from the GPU soft cap at the call site)
     fit-tests each spawn, routing to the GPU `llama-server` (`-ngl 99`) or the CPU one (`-ngl 0`);
     the `ResourceBudgetScheduler` admits it under a soft CPU/RAM budget. A subagent runs the shared
-    tool loop with the MCP tool subset (no delegation -- depth-1), as a stateless function over the
-    Redis `TaskStore`. The returned closer releases the shared backend client and the task store;
-    the shared MCP session is released by `build_tool_registry`, not here.
+    tool loop with the MCP tool subset (no delegation -- depth-1), stripped of gated tools by
+    `UngatedToolRegistry` (ADR-0013 subagent-exclusion addendum: a subagent is never *handed* an
+    outbound/irreversible capability, whatever the shared registry grows), as a stateless function
+    over the Redis `TaskStore`. The returned closer releases the shared backend client and the task
+    store; the shared MCP session is released by `build_tool_registry`, not here.
     """
     if config.backend == "none":
         return None, _noop_aclose
@@ -197,18 +201,29 @@ async def build_subagents(
         request=PlacementRequest(config.model, config.vram_gb, config.cpus, config.memory_gb),
     )
     store = task_store_factory(redis_url)
-    subagent_tools = (
-        ToolDispatcher(tool_registry, LoggingAuditSink(), clock)
-        if tool_registry is not None
-        else None
+    runner = SubagentRunner(
+        store, resources, clock, tools=build_subagent_tools(tool_registry, clock)
     )
-    runner = SubagentRunner(store, resources, clock, tools=subagent_tools)
 
     async def close_subagents() -> None:
         await store.aclose()
         await client.aclose()
 
     return SpawnSubagentsTool(runner, store, clock), close_subagents
+
+
+def build_subagent_tools(tool_registry: ToolRegistry | None, clock: Clock) -> ToolDispatcher | None:
+    """A subagent's audited dispatcher over the gated-stripped MCP subset, or None (ADR-0013).
+
+    A subagent is never *handed* an outbound/gated tool (subagent-exclusion addendum):
+    `UngatedToolRegistry` strips gated specs from advertisement and refuses invoking them, so
+    a gated tool added to the shared registry later simply does not exist for a subagent. There is
+    nothing dangerous to call, not merely denied at the fail-closed gate (its dispatcher also
+    keeps the `confirmer=None` default). The spawn tool is likewise absent (depth-1, ADR-0010).
+    """
+    if tool_registry is None:
+        return None
+    return ToolDispatcher(UngatedToolRegistry(tool_registry), LoggingAuditSink(), clock)
 
 
 def build_history_window(char_budget: int) -> CharBudgetHistoryWindow | None:

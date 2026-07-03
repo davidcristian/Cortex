@@ -7,10 +7,13 @@ allowlist. This is the advertised-tool refinement that stops the model seeing wr
 read-only mount would only ``EROFS`` (the mount stays the security boundary; this is UX plus
 defense in depth). ``SkipUnavailableToolRegistry`` marks one registry optional, giving the
 skip-and-report degraded mode (ADR-0009 degraded-mode addendum) that keeps an aggregate
-serving its healthy sidecars while a dead one is reported, never silently dropped. All are
-pure routing over the port: no I/O of their own, no cached state (the one hard rule), where
-aggregation resolves ownership by a live ``describe_tools`` walk, so a tool dropped
-server-side mid-turn fails closed instead of routing stale.
+serving its healthy sidecars while a dead one is reported, never silently dropped.
+``UngatedToolRegistry`` strips gated tools at the subagent hand-off boundary (ADR-0013
+subagent-exclusion addendum): a jailbroken subagent must have nothing dangerous to call, not
+merely be denied at the gate. All are pure routing over the port: no I/O of their own, no
+cached state (the one hard rule), with aggregation and the gated-tool check resolving by a live
+``describe_tools`` walk, so a tool dropped or re-flagged server-side mid-turn fails closed
+instead of routing stale.
 """
 
 from collections.abc import Callable, Sequence
@@ -89,6 +92,33 @@ class SkipUnavailableToolRegistry:
 
     async def invoke(self, call: ToolCall) -> ToolResult:
         """Delegate untouched. Execution failures are never skipped, only discovery is."""
+        return await self._inner.invoke(call)
+
+
+class UngatedToolRegistry:
+    """A ``ToolRegistry`` stripped of gated tools is what a subagent may be handed (ADR-0013).
+
+    ``describe_tools`` drops every ``gated`` spec; ``invoke`` refuses a name the inner
+    registry currently advertises as gated (resolved by a live walk, never a cached view), so
+    the exclusion is a real layer, not advisory. Framing is unreliable on the small subagent
+    tier, so a subagent must never *hold* an outbound/irreversible capability. Wrapping its
+    tool subset here makes that structural: a gated tool added to the shared registry later
+    simply does not exist from a subagent's point of view.
+    """
+
+    def __init__(self, inner: ToolRegistry) -> None:
+        self._inner = inner
+
+    async def describe_tools(self) -> Sequence[ToolSpec]:
+        """The inner registry's ungated tools, inner order kept."""
+        return tuple(spec for spec in await self._inner.describe_tools() if not spec.gated)
+
+    async def invoke(self, call: ToolCall) -> ToolResult:
+        """Delegate an ungated call; refuse a gated name as not found (fail closed)."""
+        gated = {spec.name for spec in await self._inner.describe_tools() if spec.gated}
+        if call.name in gated:
+            msg = f"unknown tool {call.name!r}"
+            raise ToolNotFoundError(msg)
         return await self._inner.invoke(call)
 
 

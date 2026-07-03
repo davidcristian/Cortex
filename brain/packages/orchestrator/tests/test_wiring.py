@@ -43,6 +43,7 @@ from cortex_orchestrator import (
     build_history_window,
     build_inference_backend,
     build_memory,
+    build_subagent_tools,
     build_subagents,
     build_tool_registry,
     run_from_env,
@@ -408,6 +409,30 @@ def _read_registry() -> InMemoryToolRegistry:
     return InMemoryToolRegistry(
         {"read": (ToolSpec(name="read", description="", parameters={}), _read_handler)}
     )
+
+
+def test_build_subagent_tools_none_when_tools_are_disabled() -> None:
+    assert build_subagent_tools(None, SystemClock()) is None
+
+
+async def test_build_subagent_tools_strips_gated_tools_structurally() -> None:
+    """A subagent is never handed a gated tool (ADR-0013 subagent-exclusion addendum):
+    the gated name is not advertised, and invoking it anyway fails closed as not found."""
+    registry = InMemoryToolRegistry(
+        {
+            "read": (ToolSpec(name="read", description="", parameters={}), _read_handler),
+            "send": (
+                ToolSpec(name="send", description="", parameters={}, gated=True),
+                _read_handler,
+            ),
+        }
+    )
+    tools = build_subagent_tools(registry, SystemClock())
+    assert isinstance(tools, ToolDispatcher)
+    assert [spec.name for spec in await tools.describe_tools()] == ["read"]
+    denied = await tools.dispatch(ToolCall(id="g1", name="send", arguments={}))
+    assert denied.is_error
+    assert "unknown tool 'send'" in denied.content
 
 
 def test_build_history_window_positive_budget_enables_windowing() -> None:

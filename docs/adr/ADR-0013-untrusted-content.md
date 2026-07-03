@@ -388,3 +388,20 @@ dangerous to call. That is the CI-proven deterministic boundary. Two consequence
   of the subagent tool set (today's read-only subset does this by construction; the fail-closed gate is
   the backstop). Make the exclusion explicit then. A jailbroken small subagent must never be *handed* a
   dangerous tool, not merely denied at the gate.
+
+## Addendum (2026-07-03): the subagent exclusion is structural via `UngatedToolRegistry`
+
+The Slice 9-10 requirement above ("a jailbroken small subagent must never be *handed* a dangerous
+tool") no longer waits for the first gated tool: it is now enforced structurally, ahead of need.
+`UngatedToolRegistry(inner)` (core, `aggregate.py`) is a port-preserving combinator that strips
+gated tools from a registry: `describe_tools` drops every `gated` spec, and `invoke` refuses a
+name the inner registry *currently* advertises as gated (a live walk, like the aggregate's
+routing and never a cached view) as `ToolNotFoundError`, so the exclusion is a real layer, not
+advisory. The subagent wiring (`build_subagent_tools`, orchestrator) wraps the shared MCP
+registry in it before building the subagent dispatcher, so from a subagent's point of view a
+gated tool added to the shared registry later simply does not exist.
+
+The defense-in-depth stack for a subagent is now, in order: it is never handed a gated tool
+(structural, this addendum) → its dispatcher's gate is fail-closed (`confirmer=None`) → its
+output re-enters the cortex as UNTRUSTED (taint containment). The first layer no longer depends
+on wiring discipline. Unchanged seams: `ToolRegistry`, `ToolDispatcher`, `SubagentRunner`.
