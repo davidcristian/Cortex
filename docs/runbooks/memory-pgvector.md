@@ -64,14 +64,22 @@ dimension-agnostic, so switching needs no migration.
 
 The durable data is a named volume, not a raw `D:\Software\AI\Database` bind mount (Postgres
 PGDATA over a Windows bind mount has ownership/latency pitfalls). The plug-and-play guarantee
-is a dump/sync into that directory:
+is the **`pg-backup` sidecar** (in `docker-compose.memory.yml`, script
+`docker/postgres/backup.sh`): it `pg_dump`s into `CORTEX_DB_DIR` (default
+`./pgdata`; WSL: `/srv/pgdata`) immediately on start and then every
+`CORTEX_DB_SYNC_INTERVAL_S` seconds (default 6 h), writing `cortex.dump` atomically and
+keeping the prior dump as `cortex-previous.dump`. It starts with the stack:
 
 ```
-docker compose ... exec postgres pg_dump -U cortex -d cortex -Fc -f /tmp/cortex.dump
+CORTEX_DB_DIR=/srv/pgdata \
+  docker compose --project-directory . -f docker/docker-compose.yml -f docker/docker-compose.memory.yml up -d postgres pg-backup
+ls /srv/pgdata   # cortex.dump appears after the first tick; watch: docker compose logs pg-backup
 ```
 
-then copy it out to `D:\Software\AI\Database`. Validating a direct PGDATA bind mount as a
-nice-to-have (not the default) is optional.
+Restore with `pg_restore -U cortex -d cortex /path/to/cortex.dump`. A one-off manual dump
+remains available (`docker compose ... exec postgres pg_dump -U cortex -d cortex -Fc -f
+/tmp/cortex.dump`, then copy it out) but the guarantee no longer depends on remembering it.
+Validating a direct PGDATA bind mount as a nice-to-have (not the default) is optional.
 
 ## Teardown
 

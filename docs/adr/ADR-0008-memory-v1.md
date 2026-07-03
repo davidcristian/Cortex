@@ -97,3 +97,29 @@ addendum: the GPU budget is spent on the cortex).
   when the pgvector adapter lands; exact search is fine at small scale.
 - **Embedding model + quant.** The nomic pick (v1.5 vs. v2-moe, quant) is the host-driven
   half of this slice, recorded in ADR-0004 when measured.
+
+## Addendum (2026-07-03): the automated dump/sync job is delivered; dev-credential carve-out
+
+Two follow-ups from the slice audit ([audit/slice-5.md](../../audit/slice-5.md),
+[audit/cross-cutting.md](../../audit/cross-cutting.md)):
+
+1. **Decision 7's dump/sync job now exists.** Until 2026-07-03 the export was a manual
+   `pg_dump` runbook step. Decision 7's "a dump/sync job exports it" was written in the
+   present tense but not delivered, and the automation gap was recorded nowhere. The
+   **`pg-backup` sidecar** (`docker-compose.memory.yml` + `docker/postgres/backup.sh`)
+   closes it: on the same image as the server, it dumps to `CORTEX_DB_DIR` (default
+   `./pgdata`) immediately on start and every `CORTEX_DB_SYNC_INTERVAL_S`
+   (default 6 h), atomic replace plus a one-deep `cortex-previous.dump` rotation. The
+   plug-and-play guarantee no longer depends on an operator remembering a manual step.
+   Validated live via Docker (dump + rotation observed against real Postgres); see
+   [memory-pgvector.md](../runbooks/memory-pgvector.md).
+
+2. **The `cortex`/`cortex` Postgres credential is a deliberate dev-stack default, not a
+   secret.** AGENTS.md gate 5 says "no secrets in the repo"; this ADR never recorded why the
+   memory override commits a password. The carve-out, now written down: the credential guards
+   a **loopback-only** (assumption 5), single-user, throwaway dev database whose only content
+   is locally-generated memories. It is a well-known default, not a credential to protect,
+   and refusing to default it (the email override's pattern, where the password is a *real*
+   Proton Bridge secret) would break plug-and-play bring-up. It is now env-overridable as
+   `CORTEX_PG_PASSWORD` (compose default `cortex`), so any non-dev deployment can inject a
+   real secret via env per gate 5.
