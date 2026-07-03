@@ -1,12 +1,13 @@
 # scripts/ (`repo-gates`)
 
 **Purpose.** The repo's own gate tooling: the cross-tree line cap, the Rust branch
-coverage threshold, and the CI path classifier. A standalone uv project (not a brain
-workspace member, per ADR-0002), gated exactly like all other Python.
+coverage threshold, the CI path classifier, and the commit-subject style hook. A
+standalone uv project (not a brain workspace member, per ADR-0002), gated exactly like all
+other Python.
 
 **Public contract** (all are CLIs, with `linecap.py` and `coverage_gate.py` invoked by
-`just` recipes, `ci_paths.py` by the CI workflow; each also exposes a pure, unit-tested
-core function).
+`just` recipes, `ci_paths.py` by the CI workflow, `commitlint.py` by the commit-msg
+pre-commit stage; each also exposes a pure, unit-tested core function).
 
 - `linecap.py [--root DIR] [--max-lines N]` implements AGENTS.md gate 1. Scans `*.py`/`*.rs`
   under `--root` (default `.`), counting ALL lines (code, comments, blanks; cap default
@@ -35,6 +36,14 @@ core function).
   ran. Empty input yields all three `false`. Unmatched paths fail closed to ALL three
   (unknown means over-test, never under-test). Always exits 0, because classification has no
   failure mode.
+- `commitlint.py MESSAGE_FILE` is the machine-checkable half of the AGENTS.md commit
+  rules, run at the commit-msg stage next to conventional-pre-commit. Checks the header
+  (first non-comment line): ≤ 72 chars, lowercase subject, no trailing period. A header
+  that is not Conventional-Commits-shaped passes silently (structure errors are the
+  other hook's to report); `Merge `/`fixup! `/`squash! `/`amend! ` headers are exempt.
+  Imperative mood is not machine-checkable and stays convention. Exit 0 clean; exit 1
+  printing one `commitlint: PROBLEM: HEADER` line per violation; argparse exit 2 on
+  usage errors.
 
 **Invariants.**
 - stdlib-only modules; pure cores (`scan`, `evaluate`/`check`, `classify`) unit-tested

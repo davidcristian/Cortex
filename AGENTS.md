@@ -72,7 +72,9 @@ Interfaces are designed around this rule from day one. Retrofitting it is a rewr
    (the Windows Rust/Tauri body) is host-only. **CI runs without a GPU** and builds each toolchain
    (Python, Rust, and the `body/app/` overlay's node tree). Each toolchain's job runs when a change
    can affect it (path-filtered, ADR-0006); shared gate files (justfile, proto, scripts, workflows)
-   and unrecognized paths trigger all of them (fail closed).
+   and unrecognized paths trigger all of them (fail closed), with one deliberate carve-out:
+   `.md` files outside a toolchain tree are toolchain-inert (the classifier's trailing markdown
+   rule, ADR-0006, so only the unconditional line-cap job sees them).
 4. **Doc-first Definition of Done.** Per slice: design doc/ADR → define or adjust the
    port → tests → implementation → module doc + runbook updates → **record every consciously
    deferred refinement in the ROADMAP's "Deferred refinements & later work" section (and at its
@@ -93,8 +95,9 @@ Interfaces are designed around this rule from day one. Retrofitting it is a rewr
 
 ## Commits
 
-[Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/), enforced by a
-commit-msg hook:
+[Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/), enforced by two
+commit-msg hooks (conventional-pre-commit validates the type/format; `scripts/commitlint.py`
+the subject style). Imperative mood is the one convention no machine checks:
 
 - Format: `type(scope)?: subject`, in imperative mood, lowercase subject, no trailing
   period, subject ≤ 72 chars. The body explains what/why (wrapped at 72) and references
@@ -155,7 +158,7 @@ body/             Rust/Tauri workspace, host-native
   app/            React+Vite overlay (gated 100%) + its host-native Tauri src-tauri
                   shell (ungated, host-validated) named cortex-body, its own workspace
 scripts/          repo gates: linecap.py (300-line cap), coverage_gate.py (Rust branches),
-                  ci_paths.py (CI path classifier)
+                  ci_paths.py (CI path classifier), commitlint.py (commit-subject style)
 .github/          GPU-less CI running the same `just` recipes as local dev
 justfile          `just check` + check-*; proto, up/down, brain-serve, seam-health
 docker/           Compose stack (run via `just up`/`up-gpu`, or `docker compose --project-directory .
