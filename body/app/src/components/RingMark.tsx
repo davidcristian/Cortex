@@ -35,16 +35,16 @@ export function RingMark({ size, idPrefix, strokeWidth, animated }: RingMarkProp
     <svg className="rings" viewBox="0 0 64 64" width={size} height={size} aria-hidden="true">
       <defs>
         <linearGradient id={`${idPrefix}-band-a`} x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor="#38BDF8" />
-          <stop offset="38%" stopColor="#8B5CF6" />
-          <stop offset="70%" stopColor="#E24BC4" />
-          <stop offset="100%" stopColor="#FF7A6B" />
+          <stop offset="0%" stopColor="#3fa2ff" />
+          <stop offset="33%" stopColor="#6a5cff" />
+          <stop offset="66%" stopColor="#c44fd8" />
+          <stop offset="100%" stopColor="#e055d8" />
         </linearGradient>
         <linearGradient id={`${idPrefix}-band-b`} x1="1" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#22D3EE" />
-          <stop offset="35%" stopColor="#4FE3D0" />
-          <stop offset="68%" stopColor="#6366F1" />
-          <stop offset="100%" stopColor="#C084FC" />
+          <stop offset="0%" stopColor="#43d675" />
+          <stop offset="35%" stopColor="#ffd23f" />
+          <stop offset="68%" stopColor="#ffb347" />
+          <stop offset="100%" stopColor="#ff5f6d" />
         </linearGradient>
       </defs>
       <path

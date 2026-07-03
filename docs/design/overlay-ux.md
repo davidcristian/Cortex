@@ -20,8 +20,8 @@ Three adjectives, in priority order: **sleek** (minimal, precise, current, never
 rounded, springy shapes and motion, friendly and never sharp). It ships **light and dark** from day
 one and is **theme-customizable** later (a token swap). It is an *overlay*, not an app: fast to
 summon, effortless to dismiss, and it never nags. Motion is fluid and purposeful: text *streams* in
-rather than popping, the panel *travels* when it minimizes/maximizes, and the orb *drifts* as it
-breathes. All of it respects `prefers-reduced-motion`.
+rather than popping, the panel *travels* when it minimizes/maximizes, and the orb's rings *turn*
+as their waves swell and relax. All of it respects `prefers-reduced-motion`.
 
 ## 2. Visual language (design tokens)
 
@@ -56,10 +56,11 @@ is a token swap, not a rewrite.
     a brief blur), never a pop. The stream feels like it flows.
   - **Traveling morph**. Minimize/maximize animate real *movement*: the panel glides along a path
     between center and the corner while it scales to/from the orb (FLIP), so you see it travel.
-  - **Drifting orb**. The orb both breathes (scale/glow pulse) *and* slowly drifts (a small
-    floating translate), so it reads as alive, not a static badge.
+  - **Living rings**. The orb's mark spins as one while each band's wave depth pulses on its
+    own clock; the anchor point holds rock still (no breathing scale, no positional drift, per
+    2026-07-03 user refinements), so it reads as alive without wandering.
   - Durations: micro 120ms, standard 240ms, morph ~360ms. `prefers-reduced-motion: reduce` →
-    collapse to ≤120ms opacity fades, no travel/drift, orb still shown without the float.
+    collapse to ≤120ms opacity fades, no travel, rings shown static.
 
 ## 3. Anatomy of the panel
 
@@ -78,8 +79,9 @@ Top-to-bottom, the summoned panel is:
    "swapping model…"), not as bubbles. Empty state: a centered, gently-breathing accent orb +
    "Ask me anything" + a couple of example prompts as tappable chips.
 3. **Composer** is a rounded pill textarea (`⏎` sends, `⇧⏎` newlines, auto-grows to a few lines),
-   a glowing accent focus ring when active, and a gradient **send** button that springs on press.
-   While streaming, send becomes a **stop** (■) control.
+   a glowing accent focus ring when active, and a gradient **send** button that springs on press;
+   its gradient **fades in** as the field gains content (an opacity overlay, since gradients can't
+   interpolate, and a hard swap pops). While streaming, send becomes a **stop** (■) control.
 4. **Hint strip** is a subtle one-line footer of the live shortcuts (§6), dimmed and **centered**,
    with a `?` that opens the full shortcut sheet.
 
@@ -118,21 +120,20 @@ while a turn is processing must not lose it*) lives here. States:
   (maximize) *travels* it back from the corner to center. You always **see it move**, both ways.
 - **ORB(thinking):** the **living rings** at the corner (~64px; redesigned 2026-07-03 to the
   user's reference, motion refined same day): two thin wavy bands built from sine-modulated circles
-  (7 and 9 waves, `wavyRingPath`), each stroked with a run of the AI palette
-  (sky→violet→fuchsia→coral / cyan→mint→indigo→lavender), over a soft neon glow. Motion is
-  deliberately layered: the mark **spins as one** (waves and gradient rotate together, so the
-  bands never rotate against each other, and there is no breathing scale) while each band's
-  **wave depth pulses independently** (SMIL `d` animation, skipped under reduced motion); plus a
-  slow **drift** and hue walk (`hue-rotate`). It reads as alive, not a static badge, and means
-  "still working." **Click** it → morph back to **PANEL(streaming)** (the in-progress turn,
-  right where it is). It never covers active work. It is small, corner-pinned, click-through-safe
-  margins. A small resting variant of the same mark (`RingMark`) identifies the preview card in
-  place of the removed dot.
+  (7 and 9 waves, `wavyRingPath`), stroked with the eight-hue palette (cool band
+  `#3fa2ff→#6a5cff→#c44fd8→#e055d8`, warm band `#43d675→#ffd23f→#ffb347→#ff5f6d`), over a soft
+  neon glow. Motion is deliberately layered and *only* this: the mark **spins as one** (waves
+  and gradient rotate together, so the bands never rotate against each other) while each band's
+  **wave depth pulses independently** (SMIL `d` animation, skipped under reduced motion), plus
+  a slow hue walk (`hue-rotate`). No breathing scale, no positional drift. The anchor holds
+  still. It reads as alive, not a static badge, and means "still working." **Click** it → morph
+  back to **PANEL(streaming)** (the in-progress turn, right where it is). It never covers
+  active work, thanks to small, corner-pinned, click-through-safe margins.
 - **PREVIEW:** when the turn **completes while minimized**, the orb **expands** into a compact
-  card near the corner: the resting ring mark, the answer (a few-line clamp), and a hairline
-  accent progress bar counting down the auto-dismiss (~6s), with **no caption text** ("reply
-  ready" / "click to open" were redundant, removed 2026-07-03: the card appearing *is* the
-  signal, and the draining bar says it will go). **Hover pauses** the countdown; **click**
+  card near the corner: the answer (a few-line clamp) and a hairline accent progress bar
+  counting down the auto-dismiss (~6s) and **nothing else** (the "reply ready"/"click to open"
+  captions and then the mini mark were removed 2026-07-03 as redundant: the card appearing *is*
+  the signal, and the draining bar says it will go). **Hover pauses** the countdown; **click**
   morphs to **PANEL(done)** (full answer in context); ignore it and it **fades out** → HIDDEN
   (still persisted). A failed turn previews as a soft error card (same shape, red-tinted) that
   does *not* auto-fade, because errors wait to be seen.

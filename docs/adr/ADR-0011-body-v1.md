@@ -203,3 +203,11 @@ reserved for the orb morph (`.to-orb`, mode-driven). The same pass surfaced the 
 interaction gaps now recorded in the ROADMAP ledger (Slice 8 block): auto-scroll,
 focus-on-summon, click-away dismiss, the stop control, tool/status chips, empty state, thinking
 shimmer, shortcut sheet, composer auto-grow, and preview hover-pause.
+
+A third maintainer pass finished the motion discipline: the positional **drift is gone** (it read as
+a breathe anchored at the corner, and the orb's anchor now holds rock still; motion is the unified
+spin + independent depth pulses + hue walk, nothing else), the band gradients were rebuilt from
+the eight-hue palette, the preview card slimmed to **reply + drain bar only** (the mini
+mark followed the captions out), the send button's gradient now **fades in** via an opacity
+overlay (a gradient background can't interpolate, so the hard swap popped), and the chat title
+gained a 6px optical left margin.

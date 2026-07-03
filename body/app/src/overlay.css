@@ -66,6 +66,7 @@
 }
 .title {
   flex: 1;
+  padding-left: 6px;
   font-size: 13.5px;
   font-weight: 500;
   white-space: nowrap;
@@ -216,6 +217,8 @@
   background: var(--control);
 }
 .send {
+  position: relative;
+  overflow: hidden;
   width: 42px;
   height: 42px;
   flex: none;
@@ -225,7 +228,24 @@
   color: var(--muted);
   cursor: pointer;
   font-size: 16px;
-  transition: 0.18s var(--spring);
+  transition:
+    color 0.35s var(--ease),
+    box-shadow 0.35s var(--ease),
+    transform 0.18s var(--spring);
+}
+/* The accent lives on an overlay so going live *fades* the gradient in. A gradient
+   background can't interpolate, so swapping it on .send directly would pop. */
+.send::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--accent);
+  opacity: 0;
+  transition: opacity 0.35s var(--ease);
+}
+.send-glyph {
+  position: relative;
 }
 .send:hover {
   color: var(--text);
@@ -233,9 +253,11 @@
 }
 /* Color only when it's ready to fire. */
 .send.live {
-  background: var(--accent);
   color: #fff;
   box-shadow: 0 8px 20px -6px rgba(226, 75, 196, 0.6);
+}
+.send.live::before {
+  opacity: 1;
 }
 .send:active {
   transform: scale(0.94);
@@ -261,8 +283,8 @@
 
 /* The orb: the living rings are colorful (it's a working state). The mark spins as one (waves and
    gradient rotate together, never against each other) while each band's wave depth pulses on its
-   own (SMIL, in RingMark); plus drift and a slow hue walk. Resting uses of .rings (the preview
-   mark) stay still. All motion is scoped under .orb. */
+   own (SMIL, in RingMark); plus a slow hue walk. Nothing else moves, with no breathing scale, no
+   positional drift; the anchor stays rock still. */
 .orb {
   position: fixed;
   right: 26px;
@@ -276,7 +298,6 @@
   border: none;
   background: none;
   cursor: pointer;
-  animation: drift 7s ease-in-out infinite;
 }
 .rings {
   overflow: visible;
@@ -286,9 +307,6 @@
   animation:
     spin 18s linear infinite,
     huedrift 21s linear infinite;
-}
-.preview .rings {
-  filter: drop-shadow(0 0 3px rgba(226, 75, 196, 0.5));
 }
 
 .preview {
@@ -307,15 +325,6 @@
   cursor: pointer;
   box-shadow: 0 24px 60px -14px rgba(0, 0, 0, 0.55);
   animation: previewin 0.4s var(--spring) both;
-}
-.pv-row {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-}
-.pv-row .rings {
-  flex: none;
-  margin-top: 3px;
 }
 .pv-b {
   font-size: 14px;
@@ -381,25 +390,6 @@
   to {
     filter: drop-shadow(0 0 4px rgba(226, 75, 196, 0.55)) drop-shadow(0 0 22px rgba(139, 92, 246, 0.5))
       hue-rotate(360deg);
-  }
-}
-@keyframes drift {
-  0%,
-  100% {
-    right: 26px;
-    bottom: 26px;
-  }
-  25% {
-    right: 32px;
-    bottom: 34px;
-  }
-  50% {
-    right: 22px;
-    bottom: 30px;
-  }
-  75% {
-    right: 29px;
-    bottom: 21px;
   }
 }
 @keyframes drain {
