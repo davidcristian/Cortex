@@ -33,6 +33,7 @@ config contract in [ADR-0003](../adr/ADR-0003-seam-codegen.md).
 |---|---|---|
 | `CORTEX_SEAM_HOST` | `127.0.0.1` | brain server bind host (Compose sets `0.0.0.0` inside the container; exposure stays loopback-only via the port publish) |
 | `CORTEX_SEAM_PORT` | `50051` | brain server bind port |
+| `CORTEX_SEAM_TOKEN` | *(empty, auth off)* | both sides (ADR-0016): the brain rejects untokened calls when set (Compose passes it through from the host env/`.env`); the body/live checks present the same value |
 | `CORTEX_REDIS_URL` | `redis://127.0.0.1:6379/0` | brain composition root (where session state lives; Compose sets `redis://redis:6379/0`) |
 | `CORTEX_MODEL_CORTEX` | `cortex` | brain composition root (the LOGICAL cortex model id (ADR-0004), never a path) |
 | `CORTEX_BRAIN_ADDR` | `http://127.0.0.1:50051` | body-side live check (the address it dials) |

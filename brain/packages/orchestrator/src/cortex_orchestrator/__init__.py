@@ -1,5 +1,6 @@
 """Cortex orchestrator: the thin gRPC shell hosting BrainService (logic lives in cortex_core)."""
 
+from cortex_orchestrator.auth import SEAM_TOKEN_HEADER, SeamTokenInterceptor
 from cortex_orchestrator.builders import (
     build_cortex_tools,
     build_history_window,
@@ -34,11 +35,13 @@ __all__ = [
     "ERROR_CODE_INTERNAL",
     "ERROR_CODE_SESSION_STORE_UNAVAILABLE",
     "ORCHESTRATOR_VERSION",
+    "SEAM_TOKEN_HEADER",
     "BrainRuntimeConfig",
     "BrainService",
     "InferenceConfig",
     "MemoryConfig",
     "SeamServerConfig",
+    "SeamTokenInterceptor",
     "SubagentsConfig",
     "ToolsConfig",
     "build_cortex_tools",

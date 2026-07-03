@@ -675,6 +675,10 @@ plan bets on, with what would invalidate each:
    resists instrumentation, that glue gets an ADR'd, narrowly-scoped exclusion.
 5. **Security model.** Single-user machine: loopback-only listeners, shared-secret token
    on the seam via env, no mTLS. Revisit only if anything ever listens beyond loopback.
+   *Both halves are real as of 2026-07-03:* loopback-only publish since Slice 2, and the
+   token landed as [ADR-0016](adr/ADR-0016-seam-token.md) (`CORTEX_SEAM_TOKEN` on both
+   sides, with a brain-side interceptor rejecting untokened calls UNAUTHENTICATED, the body's
+   client attaching it; empty disables, keeping the dev loop and CI unchanged).
 6. **Email safety.** IMAP read-only first; any send/write action lands later, behind
    explicit per-action confirmation in the overlay.
 7. **Default hotkey.** `Ctrl+Alt+Space`, configurable from day one (`Win+Space` is

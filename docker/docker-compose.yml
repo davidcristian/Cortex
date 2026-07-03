@@ -17,6 +17,9 @@ services:
     environment:
       # Bind all container interfaces; exposure is governed by `ports` (ADR-0003 d6).
       CORTEX_SEAM_HOST: "0.0.0.0"
+      # The shared seam secret (assumption 5, ADR-0016), passed through from the host
+      # env / .env (never committed). Empty (the default) disables the token check.
+      CORTEX_SEAM_TOKEN: ${CORTEX_SEAM_TOKEN:-}
       # Session state lives in the redis service, per the one hard rule: restarting the
       # brain container must lose no conversation (see the runbook's restart check).
       CORTEX_REDIS_URL: "redis://redis:6379/0"
@@ -32,13 +35,14 @@ services:
         condition: service_healthy
     healthcheck:
       # The real BrainService.Health RPC via the installed cortex_seam package, since
-      # a bare TCP poke could pass while the gRPC server is broken.
+      # a bare TCP poke could pass while the gRPC server is broken. Attaches the
+      # seam token when one is configured (ADR-0016), or the check would flap.
       test:
         [
           "CMD",
           "python",
           "-c",
-          "import grpc, cortex_seam as seam; reply = seam.BrainServiceStub(grpc.insecure_channel('127.0.0.1:50051')).Health(seam.HealthRequest(), timeout=2); raise SystemExit(0 if reply.ready else 1)",
+          "import os, grpc, cortex_seam as seam; token = os.environ.get('CORTEX_SEAM_TOKEN', ''); metadata = (('x-cortex-seam-token', token),) if token else None; reply = seam.BrainServiceStub(grpc.insecure_channel('127.0.0.1:50051')).Health(seam.HealthRequest(), timeout=2, metadata=metadata); raise SystemExit(0 if reply.ready else 1)",
         ]
       interval: 30s
       timeout: 5s

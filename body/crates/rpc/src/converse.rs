@@ -13,9 +13,8 @@
 use async_stream::stream;
 use body_core::{TransportError, TurnEvent};
 use futures_core::Stream;
-use tonic::transport::Channel;
 
-use crate::client::status_to_error;
+use crate::client::{SeamChannel, status_to_error};
 use crate::generated::brain_service_client::BrainServiceClient;
 use crate::generated::{ClientEvent, ServerEvent, UserTurn, client_event, server_event};
 
@@ -77,7 +76,7 @@ fn map_event(event: ServerEvent) -> (Result<TurnEvent, TransportError>, bool) {
 /// Runs one turn against the brain and yields typed `TurnEvent`s. See the
 /// module docs and `BrainTransport::converse` for the contract.
 pub(crate) fn converse_turn(
-    mut client: BrainServiceClient<Channel>,
+    mut client: BrainServiceClient<SeamChannel>,
     session_id: String,
     text: String,
 ) -> impl Stream<Item = Result<TurnEvent, TransportError>> + Send {
