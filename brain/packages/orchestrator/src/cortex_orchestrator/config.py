@@ -57,6 +57,11 @@ class BrainRuntimeConfig(BaseSettings):
     cortex_reservation_gb: float = Field(
         default=11.3, ge=0, validation_alias="CORTEX_VRAM_CORTEX_GB"
     )
+    # env CORTEX_HISTORY_CHAR_BUDGET sets how many characters of session history one turn sends
+    # to the model (the newest whole turns; ADR-0014). Default ≈ 12K tokens against the
+    # 16K-token cortex context, leaving headroom for preamble/memories/tools/reply. 0 disables
+    # windowing (the model gets the full stored history).
+    history_char_budget: int = Field(default=48_000, ge=0)
 
 
 class InferenceConfig(BaseSettings):

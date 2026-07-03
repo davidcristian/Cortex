@@ -163,8 +163,10 @@ Use-case:
   ports. `handle_turn(session_id, text)` is an async generator: routes via
   `route_turn(RoutingHints())` (always `CORTEX` in this slice; the tier keys the model
   choice), builds the user `Message` (clock + turn-id factory), appends it to the store,
-  runs the inference↔tool loop over the FULL history, yields `TextDelta` per streamed
-  chunk, then persists the assistant `Message` and yields one `TurnCompleted`.
+  runs the inference↔tool loop over ALL of the stored history, unless a
+  `capabilities.window` selects the newest slice (ADR-0014; persistence untouched),
+  yields `TextDelta` per streamed chunk, then persists the assistant `Message` and
+  yields one `TurnCompleted`.
   Cancellation semantics: closing the event stream mid-generation (`aclose()`) keeps
   the persisted user message, does NOT persist the partial assistant text, and closes
   the abandoned backend stream. Backend failures surface as `InferenceError` after the
@@ -182,9 +184,18 @@ Use-case:
   `ASSISTANT`-with-`tool_calls` message plus (untrusted-fenced) `Role.TOOL` results, and re-infers
   up to `MAX_TOOL_STEPS` rounds. These tool messages are in-turn only (never persisted in v1). With
   a bare `TurnCapabilities()` (the default) the turn behaves exactly as Slice 3.
-- `TurnCapabilities(memory=None, tools=None)` is a frozen bundle of the optional per-turn
-  collaborators (a `MemoryRecaller` and a `ToolDispatcher`), keeping the engine within its
-  DI ceiling.
+- `TurnCapabilities(memory=None, tools=None, window=None)` is a frozen bundle of the optional
+  per-turn collaborators (a `MemoryRecaller`, a `ToolDispatcher`, and a `HistoryWindow`),
+  keeping the engine within its DI ceiling.
+- `HistoryWindow` (protocol, `windowing.py`) / `CharBudgetHistoryWindow(max_chars)` are the
+  session-history windowing seam and its shipped policy (ADR-0014). `select(history)`
+  returns the slice one turn sends to the model: `CharBudgetHistoryWindow` keeps the newest
+  whole turns (grouped by consecutive `turn_id`) whose summed text length fits `max_chars`,
+  as a contiguous tail, with turns kept or dropped whole, the walk stopping at the first
+  overflow, the newest turn always kept even oversized (the current user message must reach
+  the model). Characters approximate tokens (~4 chars/token) so the core needs no tokenizer.
+  Applied at inference-message assembly only. The store keeps the full history.
+  `max_chars < 1` raises `ValueError` (`0` as an off switch lives in the wiring, not here).
 - `stream_tool_loop(backend, model, working, context: ToolLoopContext)` (in `tool_loop`)
   is the bounded infer↔tool loop shared by `TurnEngine` and `SubagentRunner` (ADR-0010): an
   async generator yielding assistant text deltas, mutating `working` in place with the tool-call

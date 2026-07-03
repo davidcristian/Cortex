@@ -22,6 +22,7 @@ from cortex_core.recall import MemoryRecaller
 from cortex_core.routing import RoutingHints, Tier, route_turn
 from cortex_core.tool_loop import ToolLoopContext, stream_tool_loop
 from cortex_core.untrusted import TaintLedger, new_nonce, security_preamble_message
+from cortex_core.windowing import HistoryWindow
 
 # The logical id of the resident cortex model (ADR-0004: logical ids, never paths).
 # Deployments override it via CORTEX_MODEL_CORTEX, which is read by the composition root
@@ -50,15 +51,18 @@ def _render_exchange(user_text: str, assistant_text: str) -> str:
 
 @dataclass(frozen=True, slots=True)
 class TurnCapabilities:
-    """Optional collaborators that augment a turn: memory recall and tool use.
+    """Optional collaborators that augment a turn: memory recall, tool use, windowing.
 
-    Both default off. A bare ``TurnCapabilities()`` is the Slice 3 behavior (no recall, no
-    tools). Bundled so the turn engine stays within its dependency ceiling (ruff max-args);
-    future per-turn capabilities join here, not as new constructor arguments.
+    All default off. A bare ``TurnCapabilities()`` is the Slice 3 behavior (no recall, no
+    tools, full history). Bundled so the turn engine stays within its dependency ceiling
+    (ruff max-args); future per-turn capabilities join here, not as new constructor
+    arguments. ``window`` (ADR-0014) bounds what one turn sends to the model. Persistence
+    is untouched.
     """
 
     memory: MemoryRecaller | None = None
     tools: ToolDispatcher | None = None
+    window: HistoryWindow | None = None
 
 
 class TurnEngine:
@@ -131,13 +135,18 @@ class TurnEngine:
     async def _inference_messages(
         self, query: str, history: Sequence[Message], turn_id: str
     ) -> Sequence[Message]:
-        """History, prefixed with the system context a turn needs (ADR-0008/0013).
+        """History (windowed when configured) prefixed with the system context a turn
+        needs (ADR-0008/0013/0014).
 
-        When tools are enabled the untrusted-content ``SECURITY_PREAMBLE`` is prepended (a
-        tool-enabled turn can ingest untrusted content); when memory is enabled the recalled
-        memories follow. Both are derived fresh each turn, handed only to the backend, and
-        never persisted. A bare turn (no tools, no memory) returns the history unchanged.
+        When a window is enabled it selects the newest slice of the stored history the
+        model sees (persistence is untouched). When tools are enabled the untrusted-content
+        ``SECURITY_PREAMBLE`` is prepended (a tool-enabled turn can ingest untrusted
+        content); when memory is enabled the recalled memories follow. All are derived
+        fresh each turn and handed only to the backend (never persisted). A bare turn
+        (no tools, no memory, no window) returns the history unchanged.
         """
+        if self._caps.window is not None:
+            history = self._caps.window.select(history)
         prefix: list[Message] = []
         if self._caps.tools is not None:
             prefix.append(security_preamble_message(self._clock.now(), turn_id))
