@@ -83,6 +83,12 @@ Start here. Rules for working in this repo: [AGENTS.md](../AGENTS.md).
   real, via `CORTEX_SEAM_TOKEN` on both sides of the seam; a brain-side gRPC interceptor
   rejects untokened calls UNAUTHENTICATED (structural, covers future RPCs), the body's
   tonic client attaches it, the healthcheck carries it; empty disables (dev/CI unchanged).
+- [ADR-0017: Subagent model safety](adr/ADR-0017-subagent-model-safety.md): a constraint
+  on the planned Slice 8.6 (heterogeneous subagent models). Untrusted content never reaches
+  an injection-weak model. The cortex's per-spawn model choice is a hint, not authority: the
+  wiring forces the injection-robust default (gemma-4-E4B) whenever the spawn is tainted or
+  tools-enabled, so a weak roster model is reachable only for a tool-less subagent on an
+  untainted turn. Deterministic; binds the ADR-0013 taint signal to the ADR-0004 pick.
 
 New non-obvious decision → add `adr/ADR-XXXX-<slug>.md`, link it here.
 

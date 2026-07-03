@@ -380,13 +380,21 @@ the existing `TaskStore`/spawn/`SubagentPlacer` seams:
   (GPU-first, CPU-overflow, ADR-0012) and admitted against the shared CPU/RAM budget. A bigger model
   simply fit-tests to CPU more often. Config moves from one `CORTEX_MODEL_FILE_SUBAGENT` to a small
   roster map.
-- **Safety note (ADR-0013):** the deterministic layers contain a subagent regardless of model (no
-  outbound tools, fail-closed gate, taint), so model choice is a *quality/robustness* preference, not a
-  safety gate. But the cortex should prefer a robust model (gemma-E4B) for untrusted-content subtasks.
+- **A hard safety constraint is that untrusted content never reaches an injection-weak model
+  ([ADR-0017](adr/ADR-0017-subagent-model-safety.md)).** The per-spawn model choice is an
+  optimization *hint, not authority*: the wiring **forces** the injection-robust default (the
+  ADR-0004 pick, gemma-4-E4B) whenever the spawn path can carry untrusted content, i.e. when the
+  spawning cortex turn is already tainted (ADR-0013) **or** the subagent is tools-enabled (can fetch
+  untrusted content itself). A cheap/weak model is thus reachable only for a **tool-less subagent on
+  an untainted turn** (a pure text transform over trusted material). Deterministic, not the cortex's
+  judgment. So it holds even when the cortex picks a weak model for what turns out to be a hostile
+  subtask. The roster still advertises the cheap models with their robustness trade-offs; the wiring
+  just refuses to honor that choice on an untrusted path.
 
-CI-gated end to end (the roster + per-spawn routing + placement over fakes, 100% no-GPU); real
-multi-model spawning is host-validated (agent, via Docker). **Gate proven:** the cortex composing a
-heterogeneous team of subagents within one budget.
+CI-gated end to end (the roster + per-spawn routing + the ADR-0017 forced-robust override + placement
+over fakes, 100% no-GPU); real multi-model spawning is host-validated (agent, via Docker). **Gate
+proven:** the cortex composing a heterogeneous team of subagents within one budget, with every
+untrusted-content path pinned to the robust model.
 
 ## Slice 8.7 (Chat history & cycling over the seam)
 
@@ -525,6 +533,19 @@ behind the unchanged `ToolRegistry`/`ToolDispatcher`/`stream_tool_loop` seams (o
   cost (38 s load, ~1.8 s narrow task, ~2.5 GiB RSS) was judged acceptable and the compose
   default + admission asks updated. Qwen3.5-2B stays the documented cheap override; **Slice
   8.6** still makes the model choice per-task, with E4B as the safe default.
+- **Forced-robust model on any untrusted-content spawn was decided 2026-07-03, delivered with Slice
+  8.6 ([ADR-0017](adr/ADR-0017-subagent-model-safety.md)).** Recorded ahead of the slice so it is
+  built safe: once the cortex can pick the subagent model per spawn, the choice is an optimization
+  *hint, not authority*. The wiring forces the injection-robust default (gemma-4-E4B) whenever the
+  spawn path can carry untrusted content (the cortex turn is tainted, or the subagent is
+  tools-enabled), so a weak model is reachable only for a tool-less subagent on an untainted turn.
+  Deterministic; closes the heterogeneous-roster residual the pick-revision alone would leave open.
+  Detail folded into the Slice 8.6 plan above.
+- **Grammar-constrained subagent output** ([ADR-0017](adr/ADR-0017-subagent-model-safety.md)
+  composes-with; option (c)). Schema-constrained decoding behind the unchanged `InferenceBackend`
+  would kill *format*-laundering (appended footers/links/sections) even on a weak model in the narrow
+  trusted-tool-less niche where one is still used (orthogonal to the which-model boundary above).
+  Deferred; picked up by 8.6 or a later hardening pass.
 - **Subagents are never *handed* a gated/outbound tool. Landed 2026-07-03, ahead of the Slice 9-10
   need** ([ADR-0013 subagent-exclusion addendum](adr/ADR-0013-untrusted-content.md)). Structural, no
   longer wiring discipline: `UngatedToolRegistry` (core) strips gated specs from advertisement and
