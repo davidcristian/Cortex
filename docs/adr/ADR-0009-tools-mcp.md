@@ -192,7 +192,8 @@ fallback) and the advertised-write-tool filtering from the increment-3 addendum.
 
 ## Addendum (2026-07-03): `--jinja` committed to the GPU compose; live cortex tool path validated; the version pin made real
 
-Closes the two open ends the 2026-07-02 audit flagged ([audit/slice-6.md](../../audit/slice-6.md)):
+Closes the two open ends the 2026-07-02 slice audit flagged (`audit/slice-6.md`, which is a review
+artifact removed after remediation; in git history through commit `96463aa`):
 
 - **The Consequences condition is met and the flag is committed.** "`--jinja` … is added to
   the GPU Compose command when the real tool path is validated on the host" had never been

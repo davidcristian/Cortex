@@ -100,8 +100,9 @@ addendum: the GPU budget is spent on the cortex).
 
 ## Addendum (2026-07-03): the automated dump/sync job is delivered; dev-credential carve-out
 
-Two follow-ups from the slice audit ([audit/slice-5.md](../../audit/slice-5.md),
-[audit/cross-cutting.md](../../audit/cross-cutting.md)):
+Two follow-ups from the 2026-07-02 slice audit (`audit/slice-5.md` and
+`audit/cross-cutting.md` holds review artifacts removed after remediation; in git history
+through commit `96463aa`):
 
 1. **Decision 7's dump/sync job now exists.** Until 2026-07-03 the export was a manual
    `pg_dump` runbook step. Decision 7's "a dump/sync job exports it" was written in the

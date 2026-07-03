@@ -195,6 +195,7 @@ The remaining host-only half, the resident gemma-4-12B *deciding* to emit `spawn
 end to end ([runbook §3](../runbooks/subagents-cpu.md)), was validated and closed by the
 **user on 2026-07-01**, closing Slice 7 with it. The closure was recorded at the time only in
 the ROADMAP status/progress text (commit `42fb330`); this addendum is the ADR-side record,
-added when the slice audit ([audit/slice-7.md](../../audit/slice-7.md)) flagged the
-ROADMAP-only paper trail. No measurements were recorded beyond the closure itself. The
+added when the 2026-07-02 slice audit (`audit/slice-7.md`, which was a review artifact removed
+after remediation; in git history through commit `96463aa`) flagged the ROADMAP-only
+paper trail. No measurements were recorded beyond the closure itself. The
 machinery measurements live in the increment-4 addendum above.
