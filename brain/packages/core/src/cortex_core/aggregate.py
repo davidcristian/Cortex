@@ -1,8 +1,8 @@
 """Port-preserving ToolRegistry combinators (ADR-0009 refinements addendum)."""
 
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 
-from cortex_core.errors import ToolNotFoundError
+from cortex_core.errors import ToolError, ToolNotFoundError
 from cortex_core.ports import ToolRegistry
 from cortex_core.tools import ToolCall, ToolResult, ToolSpec
 
@@ -33,6 +33,29 @@ class AggregateToolRegistry:
                 return await registry.invoke(call)
         msg = f"unknown tool {call.name!r}"
         raise ToolNotFoundError(msg)
+
+
+class SkipUnavailableToolRegistry:
+    """A ``ToolRegistry`` whose unavailable inner registry lists as empty and is reported."""
+
+    def __init__(
+        self, inner: ToolRegistry, *, name: str, report: Callable[[str, ToolError], None]
+    ) -> None:
+        self._inner = inner
+        self._name = name
+        self._report = report
+
+    async def describe_tools(self) -> Sequence[ToolSpec]:
+        """The inner registry's tools, or an empty (reported) advertisement when it fails."""
+        try:
+            return await self._inner.describe_tools()
+        except ToolError as err:
+            self._report(self._name, err)
+            return ()
+
+    async def invoke(self, call: ToolCall) -> ToolResult:
+        """Delegate untouched. Execution failures are never skipped, only discovery is."""
+        return await self._inner.invoke(call)
 
 
 class FilteredToolRegistry:

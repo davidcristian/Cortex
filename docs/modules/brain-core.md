@@ -242,8 +242,15 @@ Use-case:
   invokable); `invoke` routes to the first registry *currently* advertising the name, resolved
   by a live `describe_tools` walk (no cached routing, so a tool dropped server-side mid-turn
   fails closed as `ToolNotFoundError`). A listing failure anywhere propagates as `ToolError`
-  (one dead sidecar is loud, never a silently smaller tool set). An empty registry sequence
-  raises `ValueError` at construction.
+  (one dead sidecar is loud, never a silently smaller tool set, unless that sidecar is
+  explicitly marked optional, below). An empty registry sequence raises `ValueError` at
+  construction.
+- `SkipUnavailableToolRegistry(inner, *, name, report)` marks one registry optional: the
+  skip-and-report degraded mode (ADR-0009 degraded-mode addendum). A `describe_tools`
+  failure (`ToolError`) becomes an empty advertisement plus one `report(name, error)` call, and
+  the reporter is mandatory, so skipping cannot be silent, and it fires on every walk. Only
+  discovery is softened: `invoke` delegates untouched (execution still fails loudly); via an
+  aggregate, a dead sidecar's tools are unadvertised and fail closed as `ToolNotFoundError`.
 - `FilteredToolRegistry(inner, *, allow)` is a `ToolRegistry` restricted to an allowlist of names
   (ADR-0009 refinements addendum, to stop advertising the write tools a read-only mount can only
   `EROFS`). `describe_tools` intersects the inner advertisement with `allow` (inner order kept);

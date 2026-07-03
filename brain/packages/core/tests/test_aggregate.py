@@ -9,6 +9,7 @@ from cortex_core import (
     AggregateToolRegistry,
     FilteredToolRegistry,
     InMemoryToolRegistry,
+    SkipUnavailableToolRegistry,
     ToolCall,
     ToolError,
     ToolNotFoundError,
@@ -95,6 +96,54 @@ async def test_a_dead_registry_fails_invoke_routing_loudly() -> None:
     aggregate = AggregateToolRegistry([FailingRegistry(), _registry("mail", "send")])
     with pytest.raises(ToolError, match="listing MCP tools failed"):
         await aggregate.invoke(ToolCall(id="c4", name="send", arguments={}))
+
+
+async def test_skip_unavailable_lists_a_dead_inner_as_empty_and_reports() -> None:
+    reports: list[tuple[str, str]] = []
+    skip = SkipUnavailableToolRegistry(
+        FailingRegistry(), name="mail", report=lambda n, e: reports.append((n, str(e)))
+    )
+    assert await skip.describe_tools() == ()
+    assert reports == [("mail", "listing MCP tools failed")]
+
+
+async def test_skip_unavailable_passes_a_healthy_inner_through_untouched() -> None:
+    reports: list[tuple[str, str]] = []
+    skip = SkipUnavailableToolRegistry(
+        _registry("fs", "read"), name="fs", report=lambda n, e: reports.append((n, str(e)))
+    )
+    assert [spec.name for spec in await skip.describe_tools()] == ["read"]
+    result = await skip.invoke(ToolCall(id="c8", name="read", arguments={}))
+    assert result.content == "from fs"
+    assert reports == []
+
+
+async def test_skip_unavailable_softens_only_discovery_never_execution() -> None:
+    # A direct invoke on the dead inner fails loudly and unreported: only listing is skipped.
+    reports: list[tuple[str, str]] = []
+    skip = SkipUnavailableToolRegistry(
+        FailingRegistry(), name="mail", report=lambda n, e: reports.append((n, str(e)))
+    )
+    with pytest.raises(ToolError, match="never routed to"):
+        await skip.invoke(ToolCall(id="c9", name="read", arguments={}))
+    assert reports == []
+
+
+async def test_aggregate_over_a_skipped_dead_sidecar_serves_the_healthy_ones() -> None:
+    """The degraded mode end to end: healthy sidecars serve, the dead one is reported per walk."""
+    reports: list[tuple[str, str]] = []
+    dead = SkipUnavailableToolRegistry(
+        FailingRegistry(), name="mail", report=lambda n, e: reports.append((n, str(e)))
+    )
+    aggregate = AggregateToolRegistry([dead, _registry("fs", "read")])
+    assert [spec.name for spec in await aggregate.describe_tools()] == ["read"]
+    result = await aggregate.invoke(ToolCall(id="c10", name="read", arguments={}))
+    assert result.content == "from fs"
+    # A tool only the dead sidecar had fails closed. It is unadvertised, so not found.
+    with pytest.raises(ToolNotFoundError, match="unknown tool 'search_emails'"):
+        await aggregate.invoke(ToolCall(id="c11", name="search_emails", arguments={}))
+    # One report per live walk (describe + each invoke's routing walk): degraded, never silent.
+    assert [name for name, _ in reports] == ["mail", "mail", "mail"]
 
 
 def test_filter_requires_a_non_empty_allowlist() -> None:

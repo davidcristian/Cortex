@@ -70,7 +70,12 @@ docker compose --project-directory . -f docker/docker-compose.yml \
 
 One turn can then read a file **and** search the mailbox; every call still flows through the
 same audited dispatcher. A sidecar that is down fails tool listing loudly (`ToolError` → an
-`is_error` result the model sees) rather than silently shrinking the tool set.
+`is_error` result the model sees) rather than silently shrinking the tool set. To keep the
+healthy sidecars serving instead, set `CORTEX_TOOLS_ON_UNAVAILABLE=skip` (ADR-0009
+degraded-mode addendum): the dead sidecar's tools drop out of the advertisement and every
+walk logs a `tool sidecar unavailable` warning naming it and stays degraded, never silent. Skip mode
+covers a sidecar dying *after* startup; one that is down when the brain boots still fails the
+MCP connect (restart the brain once the sidecar is back).
 
 ## Teardown
 

@@ -481,12 +481,17 @@ Not ordered; picked up when a slice needs one or on request.
 **Tools in Slice 6 ([ADR-0009](adr/ADR-0009-tools-mcp.md)):** multi-server aggregation,
 advertised-tool filtering, and readable-text-from-HTML extraction **landed 2026-07-03**
 (ADR-0009 refinements addendum, with `AggregateToolRegistry`/`FilteredToolRegistry` in the core,
-`CORTEX_TOOLS_ENDPOINTS__<name>` config, `html_to_text` in the email sidecar). Remaining:
+`CORTEX_TOOLS_ENDPOINTS__<name>` config, `html_to_text` in the email sidecar); the
+partial-degradation policy for the aggregate **landed 2026-07-03** as well (degraded-mode
+addendum adds `SkipUnavailableToolRegistry` + `CORTEX_TOOLS_ON_UNAVAILABLE=skip`, default
+`fail`). Remaining:
 - **Salience / rate policy on the tool loop.** Bounded by `MAX_TOOL_STEPS` today; rate and
   salience limits are a later refinement behind the port (decision 3 / risks).
-- **Partial-degradation policy for the aggregate.** `AggregateToolRegistry` fails tool listing
-  loudly when any one sidecar is down (deliberate, upholding "never a silently smaller tool set"); a
-  skip-and-report degraded mode is a later knob behind the same port (refinements addendum).
+- **Connect-time sidecar tolerance / reconnect policy.** Skip mode covers a sidecar dying
+  *after* its MCP session connected; one down at brain startup still fails
+  `McpToolRegistry.connect` in the wiring, and a skipped-dead sidecar is only re-joined by a
+  brain restart. Tolerating a down sidecar at boot and re-dialing a recovered one is a
+  wiring-lifecycle refinement behind the same port (degraded-mode addendum).
 
 **Untrusted-content boundary in Slice 6.5 ([ADR-0013](adr/ADR-0013-untrusted-content.md)):** each
 behind the unchanged `ToolRegistry`/`ToolDispatcher`/`stream_tool_loop` seams (or the new `Confirmer` port).

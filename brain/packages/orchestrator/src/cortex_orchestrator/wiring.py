@@ -1,5 +1,6 @@
 """Composition root: build the runtime dependencies at the edge, then serve."""
 
+import logging
 from collections.abc import Awaitable, Callable
 from contextlib import AsyncExitStack
 
@@ -18,12 +19,14 @@ from cortex_core import (
     PlacementTarget,
     ResourceBudgetScheduler,
     SingleResidentModelManager,
+    SkipUnavailableToolRegistry,
     SpawnSubagentsTool,
     SubagentPlacer,
     SubagentResources,
     SubagentRunner,
     SystemClock,
     ToolDispatcher,
+    ToolError,
     ToolRegistry,
     TurnCapabilities,
     TurnEngine,
@@ -49,6 +52,16 @@ from cortex_tools import LoggingAuditSink, McpToolRegistry
 _LLAMACPP_CONNECT_TIMEOUT_S = 10.0
 # An embedding is a quick request (no streaming), so it gets a finite overall timeout.
 _EMBEDDER_TIMEOUT_S = 30.0
+
+_logger = logging.getLogger(__name__)
+
+
+def _report_sidecar_unavailable(name: str, error: ToolError) -> None:
+    """The skip-and-report reporter: degradation is a logged warning, never silent."""
+    _logger.warning(
+        "tool sidecar unavailable; serving without it",
+        extra={"sidecar": name, "error": str(error)},
+    )
 
 
 async def _noop_aclose() -> None:
@@ -105,7 +118,13 @@ async def build_tool_registry(
             registry, close = await McpToolRegistry.connect(url)
             stack.push_async_callback(close)
             allow = config.allow.get(name)
-            registries.append(FilteredToolRegistry(registry, allow=allow) if allow else registry)
+            if allow:
+                registry = FilteredToolRegistry(registry, allow=allow)
+            if config.on_unavailable == "skip":
+                registry = SkipUnavailableToolRegistry(
+                    registry, name=name, report=_report_sidecar_unavailable
+                )
+            registries.append(registry)
     except BaseException:
         await stack.aclose()
         raise

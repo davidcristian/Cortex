@@ -1,6 +1,7 @@
 """run_from_env composes env config + Redis store + echo backend and serves the seam."""
 
 import asyncio
+import logging
 import os
 import signal
 import socket
@@ -264,6 +265,55 @@ async def test_build_tool_registry_filters_and_aggregates_endpoints(
         await registry.invoke(ToolCall(id="c2", name="write_file", arguments={}))
     await close()  # releases every session, LIFO
     assert closed == [fs_url, mail_url]
+
+
+class DeadListingRegistry:
+    """A connected registry whose listing fails (the sidecar died after connect)."""
+
+    async def describe_tools(self) -> Sequence[ToolSpec]:
+        msg = "sidecar gone"
+        raise ToolError(msg)
+
+    async def invoke(self, call: ToolCall) -> object:
+        del call
+        msg = "never routed to"
+        raise ToolError(msg)
+
+
+async def test_build_tool_registry_skip_mode_serves_around_a_dead_sidecar(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    """CORTEX_TOOLS_ON_UNAVAILABLE=skip: healthy sidecars serve, the dead one is logged."""
+    fs_url = "http://mcp-filesystem:9000/mcp"
+    mail_url = "http://mcp-email:9100/mcp"
+    canned: dict[str, object] = {
+        fs_url: _canned_registry(fs_url, "read_text_file"),
+        mail_url: DeadListingRegistry(),
+    }
+
+    async def fake_connect(url: str) -> tuple[object, Callable[[], Awaitable[None]]]:
+        async def closer() -> None:
+            return
+
+        return canned[url], closer
+
+    monkeypatch.setattr(McpToolRegistry, "connect", fake_connect)
+    registry, close = await build_tool_registry(
+        ToolsConfig(
+            backend="mcp",
+            endpoints={"filesystem": fs_url, "email": mail_url},
+            on_unavailable="skip",
+        )
+    )
+    assert registry is not None
+    with caplog.at_level(logging.WARNING, logger="cortex_orchestrator.wiring"):
+        names = [spec.name for spec in await registry.describe_tools()]
+    assert names == ["read_text_file"]  # the email sidecar is skipped, not fatal
+    (record,) = caplog.records  # … and reported, never silent
+    # The reporter's structured fields ride on the LogRecord as dynamic attributes.
+    assert getattr(record, "sidecar", "") == "email"
+    assert "sidecar gone" in str(getattr(record, "error", ""))
+    await close()
 
 
 async def test_build_tool_registry_unwinds_sessions_when_a_later_connect_fails(

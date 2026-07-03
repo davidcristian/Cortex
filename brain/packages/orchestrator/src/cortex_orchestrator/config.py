@@ -105,6 +105,7 @@ class ToolsConfig(BaseSettings):
     endpoint: str = ""
     endpoints: dict[str, str] = {}
     allow: dict[str, tuple[str, ...]] = {}
+    on_unavailable: Literal["fail", "skip"] = "fail"
 
     @model_validator(mode="after")
     def _mcp_needs_unambiguous_endpoints(self) -> "ToolsConfig":

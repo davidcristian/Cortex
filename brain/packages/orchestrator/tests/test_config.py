@@ -31,6 +31,7 @@ def clean_env(monkeypatch: pytest.MonkeyPatch) -> None:
         "CORTEX_MEMORY_EMBEDDER_MODEL",
         "CORTEX_TOOLS_BACKEND",
         "CORTEX_TOOLS_ENDPOINT",
+        "CORTEX_TOOLS_ON_UNAVAILABLE",
         "CORTEX_SUBAGENTS_BACKEND",
         "CORTEX_SUBAGENTS_ENDPOINT",
         "CORTEX_SUBAGENTS_MODEL",
@@ -171,6 +172,20 @@ def test_tools_defaults_to_disabled() -> None:
     assert config.endpoints == {}
     assert config.allow == {}
     assert config.named_endpoints == {}
+    assert config.on_unavailable == "fail"  # a dead sidecar is loud unless opted into skip
+
+
+@pytest.mark.usefixtures("clean_env")
+def test_tools_env_selects_the_skip_degraded_mode(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("CORTEX_TOOLS_ON_UNAVAILABLE", "skip")
+    assert ToolsConfig().on_unavailable == "skip"
+
+
+@pytest.mark.usefixtures("clean_env")
+def test_tools_rejects_an_unknown_unavailable_policy(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("CORTEX_TOOLS_ON_UNAVAILABLE", "retry")
+    with pytest.raises(ValidationError, match="on_unavailable"):
+        ToolsConfig()
 
 
 @pytest.mark.usefixtures("clean_env")
