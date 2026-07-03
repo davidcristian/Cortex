@@ -43,6 +43,11 @@ Config (pydantic-settings; explicit constructor arguments beat the environment):
   `mcp` has at least one endpoint, that both forms are not mixed (ambiguity fails closed), and
   that every allowlist names a configured endpoint. Set by `docker/docker-compose.tools.yml`
   / `docker-compose.email.yml`. Layer both and both tool families are live at once.
+  `on_unavailable: "fail" | "skip" = "fail"` (`CORTEX_TOOLS_ON_UNAVAILABLE`) picks the
+  dead-sidecar policy: `fail` keeps listing loud; `skip` wraps each endpoint in
+  `SkipUnavailableToolRegistry` so healthy sidecars keep serving while the dead one is
+  logged on every walk (ADR-0009 degraded-mode addendum; covers a sidecar dying after
+  startup, though one down at boot still fails the MCP connect).
 - `SubagentsConfig` uses env prefix `CORTEX_SUBAGENTS_` (ADR-0010, revised by ADR-0012):
   `backend: "none" | "llamacpp" = "none"` (`CORTEX_SUBAGENTS_BACKEND`), `endpoint` (the CPU
   overflow `llama-server`) **and** `gpu_endpoint` (the GPU one), which are both required when
@@ -89,10 +94,11 @@ The service:
   and three opt-in adapters, each disabled by default so CI and the no-GPU dev loop stay
   external-service-free: **memory** (`build_memory`, ADR-0008), **tools** (`build_tool_registry`
   builds the MCP `ToolRegistry` shared by cortex and subagents, ADR-0009: one `McpToolRegistry` per
-  configured endpoint, wrapped in a `FilteredToolRegistry` where an allowlist is set and merged
-  behind one `AggregateToolRegistry` when several, with every session owned by one `AsyncExitStack`
-  whose `aclose` is the returned closer, and a failed later connect unwinds the earlier
-  sessions), and **subagents**
+  configured endpoint, wrapped in a `FilteredToolRegistry` where an allowlist is set, in a
+  `SkipUnavailableToolRegistry` reporting through a structured warning when
+  `on_unavailable="skip"`, and merged behind one `AggregateToolRegistry` when several, with every
+  session owned by one `AsyncExitStack` whose `aclose` is the returned closer, and a failed
+  later connect unwinds the earlier sessions), and **subagents**
   (`build_subagents(config, tool_registry, redis_url, clock, *, placer, task_store_factory)`, the
   `spawn_subagents` tool over GPU + CPU subagent backends, a Redis `TaskStore`, a soft CPU/RAM budget,
   and a `VramBudgetPlacer` (built at the call site from the runtime VRAM knobs) that fit-tests each

@@ -268,3 +268,32 @@ artifact removed after remediation; in git history through commit `96463aa`):
   pins `@modelcontextprotocol/server-filesystem@2026.1.14` (EscapeRoute CVE-2025-53109/53110
   were patched in `2025.7.1`; both GitHub advisories confirm) and `supergateway@3.4.3`.
   Validated live: the pinned sidecar passes the tools integration test unchanged.
+
+## Addendum (2026-07-03): degraded-mode aggregation lands the skip-and-report knob
+
+The 2026-07-03 refinements addendum left one policy open: `AggregateToolRegistry` fails tool
+listing loudly when any one sidecar is down ("a partial-degradation policy would be a later
+knob behind the same port"). That knob now exists, as a third port-preserving combinator:
+
+- **`SkipUnavailableToolRegistry(inner, *, name, report)` (core, `aggregate.py`)** marks one
+  registry *optional*: a `describe_tools` failure (`ToolError`) becomes an empty advertisement
+  plus one `report(name, error)` call. The reporter is a **mandatory** constructor argument, so
+  the "never a silently smaller tool set" rule is kept by construction, since the skipping
+  behavior cannot be built without the reporting. Degradation is reported on **every** walk
+  (the aggregate re-lists per describe and per invoke-routing), so a dead sidecar stays loud
+  in the logs for as long as it is dead. Only *discovery* is softened: `invoke` delegates
+  untouched, so executing against an unavailable registry still fails loudly, and through the
+  aggregate a dead sidecar's tools are simply unadvertised. Calls fail closed as
+  `ToolNotFoundError`.
+- **Config: `CORTEX_TOOLS_ON_UNAVAILABLE=fail|skip`, default `fail`.** The default keeps the
+  original loud behavior; `skip` makes the wiring wrap each endpoint's registry (outside its
+  allowlist filter) with the combinator, reporting through a structured `warning` log at the
+  composition root (`wiring._report_sidecar_unavailable`, since the core stays log-free/pure; the
+  reporter is injected like every other edge concern).
+- **Boundary, stated honestly:** the knob covers a sidecar that dies *after* its MCP session
+  connected (the listing walk). A sidecar down *at startup* still fails
+  `McpToolRegistry.connect` in `build_tool_registry`, skip mode or not. Connect-time
+  tolerance plus a reconnect policy is a separate lifecycle refinement, recorded in the
+  ROADMAP deferred-refinements list (Slice 6 block).
+
+The `ToolRegistry` port, the audited `ToolDispatcher`, and the MCP adapter remain unchanged.

@@ -1,6 +1,10 @@
 """Cortex brain pure core: typed logic and ports, no I/O."""
 
-from cortex_core.aggregate import AggregateToolRegistry, FilteredToolRegistry
+from cortex_core.aggregate import (
+    AggregateToolRegistry,
+    FilteredToolRegistry,
+    SkipUnavailableToolRegistry,
+)
 from cortex_core.composite import BuiltinTool, CompositeToolRegistry
 from cortex_core.conversation import Message, Role
 from cortex_core.dispatch import ToolDispatcher
@@ -114,6 +118,7 @@ __all__ = [
     "SessionStore",
     "SessionStoreError",
     "SingleResidentModelManager",
+    "SkipUnavailableToolRegistry",
     "SpawnSubagentsTool",
     "SubagentPlacer",
     "SubagentResources",
