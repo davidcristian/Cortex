@@ -189,3 +189,23 @@ the same audited `ToolDispatcher`. Deferred: no slice needs both tool families l
 yet, and the port already admits it without change. Tracked in the ROADMAP deferred-refinements
 list alongside the two refinements that *did* land above (readable-string output; HTML-body
 fallback) and the advertised-write-tool filtering from the increment-3 addendum.
+
+## Addendum (2026-07-03): `--jinja` committed to the GPU compose; live cortex tool path validated; the version pin made real
+
+Closes the two open ends the 2026-07-02 audit flagged ([audit/slice-6.md](../../audit/slice-6.md)):
+
+- **The Consequences condition is met and the flag is committed.** "`--jinja` … is added to
+  the GPU Compose command when the real tool path is validated on the host" had never been
+  exercised: increments 3/4 dogfooded `McpToolRegistry` directly and the ADR-0013 probe
+  hand-built the tool-call message, so no recorded run showed the cortex *natively* emitting
+  a tool call. Validated 2026-07-03 (agent, via Docker): with `--jinja` on the resident
+  gemma-4-12B and the filesystem sidecar up, a `Converse` turn asking for a file's contents
+  made the model emit a native `read_text_file` call through the full audited loop. The
+  MCP sidecar served it, the audit trail logged it (`tool.invocation … "tool":
+  "read_text_file", "trust": "untrusted"`), and the reply contained the file's exact
+  contents. `--jinja` is now baked into `docker/docker-compose.gpu.yml`.
+- **The filesystem-server pin decision 5 asserts now exists in the compose.** The committed
+  override had run *unversioned* `npx` (the pin was delegated to an operator comment); it now
+  pins `@modelcontextprotocol/server-filesystem@2026.1.14` (EscapeRoute CVE-2025-53109/53110
+  were patched in `2025.7.1`; both GitHub advisories confirm) and `supergateway@3.4.3`.
+  Validated live: the pinned sidecar passes the tools integration test unchanged.

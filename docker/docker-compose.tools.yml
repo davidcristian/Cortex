@@ -24,19 +24,20 @@ services:
 
   mcp-filesystem:
     # supergateway bridges the stdio reference filesystem server to streamable-http; the
-    # server is confined to /projects (the read-only mount below). Pin the filesystem server
-    # to a patched version on the host. See docs/runbooks/tools-mcp.md.
+    # server is confined to /projects (the read-only mount below). Both npm packages are
+    # version-pinned: the filesystem server past the EscapeRoute fixes (CVE-2025-53109/53110,
+    # patched in 2025.7.1) and the bridge for determinism. Bump deliberately, never float.
     image: "node:22-bookworm-slim"
     command:
       - "npx"
       - "-y"
-      - "supergateway"
+      - "supergateway@3.4.3"
       - "--outputTransport"
       - "streamableHttp"
       - "--port"
       - "9000"
       - "--stdio"
-      - "npx -y @modelcontextprotocol/server-filesystem /projects"
+      - "npx -y @modelcontextprotocol/server-filesystem@2026.1.14 /projects"
     volumes:
       # The ONLY thing the filesystem tool can see, and it cannot write it (ADR-0009).
       - type: bind

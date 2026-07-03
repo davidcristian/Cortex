@@ -44,6 +44,11 @@ services:
       - "${CORTEX_CTX_SIZE:-16384}"
       - "--parallel"
       - "1"
+      # Tool-capable chat template so the cortex can native-function-call (ADR-0009).
+      # Committed once the live cortex tool path was validated end to end (2026-07-06,
+      # ADR-0009 addendum): the resident model natively emitted a tool call through the
+      # audited loop against the MCP filesystem sidecar.
+      - "--jinja"
     volumes:
       # Models stay on the Windows drive, mounted read-only (ADR-0004 d3). Forward slashes
       # work in Docker Desktop on Windows; override the source with CORTEX_MODELS_DIR.
