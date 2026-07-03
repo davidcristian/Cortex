@@ -1,0 +1,81 @@
+# Audit of Slice 6.5 (Untrusted-content boundary: prompt-injection defense)
+
+**Audited:** 2026-07-02 · **Verdict:** implemented, with undocumented documentation gaps
+
+Method: a dedicated audit agent verified every checkable claim in the slice's
+ROADMAP section (and its referenced ADRs, module docs, and runbooks) against the
+actual tree; every discrepancy was then independently re-checked by an adversarial
+verifier instructed to refute it. `just check` passed end to end on the audit date.
+
+## Summary
+
+Slice 6.5 is substantively implemented exactly as the ROADMAP describes: the fail-closed Trust default on ToolResult, the nonce-fenced wrap_untrusted + SECURITY_PREAMBLE (including the later laundering-hardening clause) in the shared tool loop and subagent runner, the ToolSpec.gated dispatcher gate with the fail-closed Confirmer port returning DENIED_MSG without invocation, the turn-local TaintLedger, SubagentResult.tainted aggregation through spawn_subagents, and memory suppression on tainted turns, all backed by the promised unit and end-to-end tests including the delimiter-injection case, all four gate branches, a fake gated tool, and subagent-taint propagation. The GPU framing-efficacy validation and the 10-category injection harness are properly integration-marked with a matching runbook section and four dated ADR-0013 addenda, and the overlay-confirmation deferral plus every other named deferral is recorded in both the ROADMAP deferred section and the ADR. Two undocumented gaps remain: the production LoggingAuditSink drops ToolInvocation.trust from its emitted log fields, so the 'durable forensic fact' the ADR promises does not actually reach the durable trail (medium, as port-level plumbing and tests are correct, only the logging adapter was never updated); and ADR-0013 names AutoApproveConfirmer/AutoDenyConfirmer fakes that shipped as a single RecordingConfirmer (low, stale text). Because the audit-trail gap is written down nowhere, the verdict is undocumented-gaps.
+
+## Claims checked (17)
+
+- **✅ verified.** Fail-closed Trust enum on ToolResult defaulting UNTRUSTED, so the MCP adapter and its in-memory fake are correctly untrusted with no change
+  - Evidence: brain/packages/core/src/cortex_core/tools.py:17-29 (Trust enum), tools.py:75 (trust: Trust = Trust.UNTRUSTED); no 'trust' reference in brain/packages/tools/src/cortex_tools/registry.py or in InMemoryToolRegistry (grep over cortex_tools and fakes.py returned nothing); default asserted in brain/packages/core/tests/test_tools.py:35; docs/modules/brain-tools.md:34-37 documents the adapter needing no change
+
+- **✅ verified**. Shared loop fences an UNTRUSTED result behind a per-turn wrap_untrusted nonce (delimiter-injection-resistant) and prepends a standing SECURITY_PREAMBLE
+  - Evidence: brain/packages/core/src/cortex_core/untrusted.py:33-47 (SECURITY_PREAMBLE), 59-70 (new_nonce, wrap_untrusted); tool_loop.py:53-63 (_result_message wraps UNTRUSTED, TRUSTED verbatim), tool_loop.py:110 (nonce from ToolLoopContext); engine.py:141-143 prepends preamble on tool-enabled turns; runner.py:91-92 does the same for subagents; tests: test_untrusted.py:26-44 (incl. forged-closer delimiter-injection case at :35), test_engine.py:438-452 (preamble first message), test_engine.py:391 (fenced tool result)
+
+- **◐ partial.** Provenance is written to the ToolAuditSink trail via ToolInvocation.trust, set by the dispatcher from result.trust
+  - Evidence: ToolInvocation.trust exists (tools.py:92) and the dispatcher sets it on every audit record (dispatch.py:94-102); asserted in test_dispatch.py:106-114. BUT the only production sink, LoggingAuditSink (brain/packages/tools/src/cortex_tools/audit.py:22-32), omits trust from its logged fields (tool/ok/arguments/at/result_chars|error only), so the durable log trail lacks the provenance ADR-0013 decision 2 calls 'a durable forensic fact'; audit.py unchanged since Slice 6 (git log: 8d4bcc8)
+  - Adversarial re-check: confirmed. The auditor is correct. The port-level half of the claim is implemented and tested: ToolInvocation carries trust (tools.py:92) and ToolDispatcher sets it from result.trust on every audit record (dispatch.py:101), asserted in test_dispatch.py:106-114. But the only production ToolAuditSink, LoggingAuditSink (audit.py:22-32), constructs its structured-log fields from tool/ok/arguments/at plus result_
+
+- **✅ verified**. ToolSpec.gated plus a ToolDispatcher gate confirmed via the new Confirmer port; a denial including the fail-closed confirmer=None default returns DENIED_MSG without invoking the tool, and is audited
+  - Evidence: tools.py:45 (gated: bool = False), tools.py:100-113 (ConfirmationRequest); ports.py:139-149 (Confirmer protocol); dispatch.py:68-72 (block path, DENIED_MSG, audited via _audited without invoking), dispatch.py:83-90 (confirmer None denies); untrusted.py:52-56 (DENIED_MSG); all four branches + fail-closed tested: test_dispatch.py:117-166 (blocked-no-confirmer :117 asserting the audit record, approve-runs :130, deny-blocks :141, gated-clean-runs :150, ungated-tainted-runs :160)
+
+- **✅ verified**. Ships inert but complete. No tool is gated yet (all reads), tested with a fake gated tool
+  - Evidence: grep for gated=True across brain/packages/*/src finds nothing (only tests set it); orchestrator wiring constructs both dispatchers without a confirmer (brain/packages/orchestrator/src/cortex_orchestrator/wiring.py:164, 192); fake gated tool end-to-end test: brain/packages/core/tests/test_engine.py:484-514 (read-then-send blocked, DENIED_MSG audited)
+
+- **✅ verified**. Subsumes ADR-0009's deferred email-write-confirmation and Phase-0 assumption 6
+  - Evidence: docs/adr/ADR-0009-tools-mcp.md addendum (2026-07-01, lines ~172-179) records ownership moving to ADR-0013's capability gate; docs/ROADMAP.md:561-565 (Cross-cutting) ties the gate to Phase-0 assumption 6
+
+- **✅ verified**. Turn-local TaintLedger marked through the shared loop, never persisted
+  - Evidence: untrusted.py:78-93 (TaintLedger.mark flips on UNTRUSTED); tool_loop.py:106-108 (dispatch passes tainted, then taint.mark(result.trust)); constructed fresh per turn at engine.py:102 and per subagent run at runner.py:93; no persistence path (docstring untrusted.py:85 and ADR-0013 decision 3); tests test_untrusted.py:55-71
+
+- **✅ verified**. SubagentResult.tainted rides home and spawn_subagents aggregates it, so a subagent that reads a malicious file taints the cortex
+  - Evidence: subagents.py:49 (tainted: bool = False); runner.py:116 and :120 set it from the runner's own ledger; spawn.py:113 (trust = UNTRUSTED iff any(r.tainted)); end-to-end propagation test brain/packages/core/tests/test_delegation.py:127-173 (spawn result re-enters cortex fenced as <untrusted-tool-output id=...>)
+
+- **✅ verified.** A tainted turn records nothing to memory, keeping recall trustworthy
+  - Evidence: engine.py:127-128 (record only if not taint.tainted); test_engine.py:455-476 (test_tainted_turn_is_not_recorded_to_memory)
+
+- **📄 verified-as-documented (host-only run; paper trail checked)**. CI half delivered 2026-07-01, 100% under just check, no GPU
+  - Evidence: Gates not re-run here (orchestrator runs just check separately); the covering tests exist across test_untrusted.py, test_tools.py:35-46, test_dispatch.py:61-172, test_engine.py:438-514, test_delegation.py:127-173; ADR-0013 header dated 2026-07-01, Status Accepted (Slice 6.5)
+
+- **📄 verified-as-documented (host-only run; paper trail checked)**. Agent GPU validation done 2026-07-01: framing-efficacy probe on gemma-4-12B, framed model cites the shipped SECURITY_PREAMBLE to defeat seven injection variants (exfil-via-send_email, rule-override, forged closing tag), recorded in an ADR-0013 addendum with runbook
+  - Evidence: docs/adr/ADR-0013-untrusted-content.md first addendum (2026-07-01, lines 244-271) records the run, the verbatim reasoning quote, and the seven variants; docs/runbooks/llamacpp-gpu.md:99-117 ('Framing-efficacy probe (Slice 6.5 / ADR-0013, agent-runnable)') describes reproduction with the shipped constants
+
+- **✅ verified.** A committable injection-defense harness test_injection_defense_live.py: integration-marked, 10-category OWASP-derived corpus, every cortex + subagent candidate in an editable MODELS list (brain tier opt-in via CORTEX_PROBE_BRAIN), framed vs unframed control, only hard assertion that framing never backfires
+  - Evidence: brain/packages/inference/tests/test_injection_defense_live.py: docstring 1-19, @pytest.mark.integration at :294, 10 Attack entries at :134-195 (instruction-override through exfil-tool), MODELS at :93-97 with CORTEX_PROBE_BRAIN gate at :96, backfire-only assertion at :315; matrix results recorded in the ADR-0013 fourth addendum (lines 342-386)
+
+- **✅ verified.** Hardened SECURITY_PREAMBLE content-manipulation (output-laundering) clause shipped after GPU findings
+  - Evidence: untrusted.py:30-32 (comment citing the ADR-0013 addendum) and :41-46 (the FORM-of-reply clause); ADR-0013 third addendum (lines 310-340) with the per-model laundering table
+
+- **✅ verified**. The real overlay confirmation adapter (proto message + Rust/Tauri UI) is deferred to the first outbound/gated tool (Slice 9/10) and recorded
+  - Evidence: docs/ROADMAP.md:486-489 (Deferred refinements, Slice 6.5 block) and docs/adr/ADR-0013-untrusted-content.md:230-232 (Deferred section) both record it; ports.py:146 notes it in the port docstring
+
+- **✅ verified.** Incidental finding that gemma-4-12B is a reasoning model is recorded as a deferred inference-path refinement owned by ADR-0007/ADR-0004
+  - Evidence: docs/ROADMAP.md:536-543 (Inference/Model Manager deferred block) and ADR-0013 first addendum (lines 267-271)
+
+- **✅ verified.** Every consciously deferred refinement (screening subagent, context-preserving tainted-memory recording, per-remote-tool overrides, taint persistence across mid-turn swap, small-tier output guardrail, subagent-pick reconsideration, Slice 9-10 subagent tool-exclusion requirement) is collected in the ROADMAP Deferred-refinements section and the ADR
+  - Evidence: docs/ROADMAP.md:484-520 (Slice 6.5 deferred block, all items present) matching docs/adr/ADR-0013-untrusted-content.md:228-242 (Deferred) plus addenda follow-ups (lines 332-340, 380-386)
+
+- **◐ partial.** ADR-0013 ships AutoApproveConfirmer/AutoDenyConfirmer fakes (decision 4)
+  - Evidence: The shipped fake is RecordingConfirmer(answer=bool) (brain/packages/core/src/cortex_core/fakes.py:196-216), which subsumes both roles and is what the gate tests use (test_dispatch.py:130-166); no AutoApproveConfirmer/AutoDenyConfirmer exists anywhere (grep). The ADR-0013 text at line 139 names fakes that were shipped under a different, consolidated name
+  - **Adversarial re-check: the auditor's downgrade was REFUTED**. The artifact ADR-0013 decision 4 promises exists. It shipped under a single consolidated name rather than two. RecordingConfirmer(answer=bool) is exactly an AutoApproveConfirmer when constructed with answer=True and an AutoDenyConfirmer with answer=False; its docstring explicitly binds it to ADR-0013 gate tests, and test_fakes.py even instantiates the two roles as "approver" and "denier". Every functional requirement of decision 4 is met: the Confirmer port (ports.py:139), the ConfirmationRequest value, the four-branch dispatcher rule including the confirmer=None fail-closed default, all covered in CI with a fake gated tool (test_dispatch.py:117-166). The consolidated fake is a strict superset (it additionally records requests so tests can assert the tool name and reason shown to the user). Git history shows the AutoApprove/AutoDeny names only ever existed in the ADR prose written before implementation (0409f64); the implementation commit (d2456f1) delivered the merged class, and the ADR's own increments section (line 175) refers only to "the confirmer fakes", which the shipped code satisfies. Nothing was deferred, so no ROADMAP/ADR deferral entry is expected. The auditor's raw facts are accurate (no class bears those exact names), but the audit item is satisfied under a different name. The residual issue is at most a one-line naming drift in the ADR text, not a missing or partial implementation.
+
+## Gaps (2)
+
+### G1 · severity medium · **not documented as a deferral**
+
+The production audit adapter LoggingAuditSink (brain/packages/tools/src/cortex_tools/audit.py:22-32) does not include ToolInvocation.trust in the structured log fields it emits (only tool, ok, arguments, at, result_chars/error), so the durable log trail cannot answer 'this turn read untrusted content at 14:03 via read_email'. ADR-0013 decision 2 explicitly promises that forensic property. The provenance exists at the port level (dispatch.py:94-102 stamps every ToolInvocation) but is dropped by the only wired sink (wiring.py:164, 192). Not listed in the ROADMAP 'Deferred refinements & later work' Slice 6.5 block (ROADMAP.md:484-520) nor in ADR-0013's Deferred section; docs/modules/brain-tools.md:22-25 also omits trust from the sink's described fields.
+
+**Adversarial re-check: confirmed.** The auditor is correct on both halves. (1) The gap is real: dispatch.py stamps trust onto every ToolInvocation (dispatch.py:101), but the only production sink, LoggingAuditSink (audit.py:22-32), omits trust from the structured log fields it emits, so the durable log trail cannot answer the forensic question ADR-0013 decision 2 explicitly promises at lines 87-89 ('this turn read untrusted content at 14:03 via read_email is a durable forensic fact'). Its tests confirm the trust-less field set. The only other sink, RecordingAuditSink, is a test fake in cortex_core/fakes.py. (2) The deferral is undocumented: I searched the ROADMAP Slice 6.5 deferred block (ROADMAP.md:484-520), ADR-0013's Deferred section (lines 228-243) and all four addenda, docs/modules/brain-tools.md, docs/runbooks/, docs/design/, ADR-0009's deferred items, and git commit history. Nothing anywhere records that trust was consciously left out of the sink's log fields. The one refutation angle (promise satisfied at the port level because ToolInvocation carries trust) fails: the ADR promises durability, and the in-memory invocation object is not durable. Only the log line is, and it lacks the field.
+
+### G2 · severity low · **not documented as a deferral**
+
+Stale ADR text: ADR-0013 decision 4 (docs/adr/ADR-0013-untrusted-content.md:139) says CI ships 'AutoApproveConfirmer/AutoDenyConfirmer fakes', but the code ships a single RecordingConfirmer(answer=bool) fake (brain/packages/core/src/cortex_core/fakes.py:196-216) that covers both behaviors. Functionality is fully present; only the documented fake names are wrong. No correction recorded anywhere.
+
+**Adversarial re-check: confirmed.** Attempted refutation fails on every avenue. (1) The ADR text is exactly as the auditor quoted: decision 4 at docs/adr/ADR-0013-untrusted-content.md:139 promises 'AutoApproveConfirmer/AutoDenyConfirmer fakes'. (2) Those classes exist nowhere in the repo under any name variant. A repo-wide grep across all file types finds them only in the ADR line itself, and git history (-S search across all branches) shows they were never implemented and then renamed; the implementing commit d2456f1 shipped a single consolidated RecordingConfirmer(answer=bool) from the start. (3) The functionality is indeed fully present (RecordingConfirmer(answer=True) approves, answer=False denies, and test_dispatch.py covers all four gate branches including confirmer=None fail-closed), matching the auditor's characterization that only the documented names are stale. (4) No written record of the divergence exists in either sanctioned location: ADR-0013's four addenda discuss GPU validation, subagent framing failure, preamble hardening, and the injection harness (never the fake names), and the ROADMAP's Slice 6.5 deferred-refinements block lists seven ADR-0013 deferrals, none about confirmer fakes. The module doc (brain-core.md:268) documents the real fake but does not acknowledge or correct the ADR's stale naming. The commit message mentions RecordingConfirmer but a commit message is neither the ROADMAP ledger nor the origin ADR. The auditor's finding stands: stale ADR text, functionality present, discrepancy undocumented.
