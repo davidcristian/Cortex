@@ -7,10 +7,11 @@ index: [docs/index.md](docs/index.md), decisions: `docs/adr/`).
 
 ## What this is
 
-A personal, mostly-local assistant. A host-native Rust/Tauri app (the **body**: global
-hotkey, overlay UI, screen capture, audio, input injection) talks over gRPC to a
-dockerized Python **brain** (inference via llama.cpp, orchestration, memory, MCP tool
-servers).
+A personal, local-first assistant: inference, memory, and state live on-machine; only
+tools reach out to external services (e.g. read-only email over IMAP). A host-native
+Rust/Tauri app (the **body**: global hotkey, overlay UI, screen capture, audio, input
+injection) talks over gRPC to a dockerized Python **brain** (inference via llama.cpp,
+orchestration, memory, MCP tool servers).
 Three model tiers share one 24 GB GPU: a resident ~9-12B multimodal **cortex**, small
 2-4B **subagents**, and an on-demand ~31B **brain** model that requires evicting the
 others. See `docs/adr/ADR-0001-architecture.md` for why everything below is the way it is.

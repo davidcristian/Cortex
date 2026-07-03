@@ -6,7 +6,8 @@
 
 ## Context
 
-Cortex is a personal, mostly-local assistant maintained long-term by agents with small
+Cortex is a personal, local-first assistant (all inference and data on-machine; only
+tools reach external services) maintained long-term by agents with small
 context windows. Three model tiers (resident ~9-12B cortex, 2-4B subagents, on-demand
 ~31B brain) share a single 24 GB GPU, so models are loaded and unloaded at any time. The
 overlay/hotkey/OS-control surface needs host OS access that does not cross the

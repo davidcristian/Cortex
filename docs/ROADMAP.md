@@ -665,7 +665,7 @@ finished work legible and impressive at a glance.
 It should:
 
 - **Lead with the logo** ([docs/assets/logo.jpg](assets/logo.jpg), cropped from the source) and a
-  one-line elevator pitch: a personal, mostly-local AI assistant. A host-native Rust/Tauri **body**
+  one-line elevator pitch: a personal, local-first AI assistant. A host-native Rust/Tauri **body**
   (global hotkey, overlay, OS actions) talking over gRPC to a dockerized Python **brain** (local
   llama.cpp inference, memory, tools, subagents) with a live **model-swap** rule.
 - **Sell the engineering**, not just the feature list. The things a resume reviewer notices:
