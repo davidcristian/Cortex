@@ -20,6 +20,7 @@ def clean_env(monkeypatch: pytest.MonkeyPatch) -> None:
     for name in (
         "CORTEX_SEAM_HOST",
         "CORTEX_SEAM_PORT",
+        "CORTEX_SEAM_CONVERSE_BUFFER",
         "CORTEX_REDIS_URL",
         "CORTEX_MODEL_CORTEX",
         "CORTEX_INFERENCE_BACKEND",
@@ -48,6 +49,20 @@ def test_seam_defaults_are_loopback_50051() -> None:
     assert config.host == "127.0.0.1"
     assert config.port == 50051
     assert config.bind_address == "127.0.0.1:50051"
+    assert config.converse_buffer == 256  # the converse.py default, one knob (backpressure)
+
+
+@pytest.mark.usefixtures("clean_env")
+def test_seam_env_overrides_the_converse_buffer(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("CORTEX_SEAM_CONVERSE_BUFFER", "8")
+    assert SeamServerConfig().converse_buffer == 8
+
+
+@pytest.mark.usefixtures("clean_env")
+def test_seam_rejects_a_non_positive_converse_buffer(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("CORTEX_SEAM_CONVERSE_BUFFER", "0")
+    with pytest.raises(ValidationError, match="converse_buffer"):
+        SeamServerConfig()
 
 
 @pytest.mark.usefixtures("clean_env")
