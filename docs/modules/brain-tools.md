@@ -22,7 +22,9 @@ source of audited, model-callable tools.
 - `LoggingAuditSink` is a `ToolAuditSink` writing one structured `logging` record per
   dispatched call. A success logs the result *size* (not its content, since a file read can be
   large or sensitive); a failure logs the short error detail; both log the tool name,
-  arguments, and timestamp (the AGENTS.md audit gate).
+  arguments, the result's `trust` provenance (so "did this turn read untrusted content?"
+  is answerable from the durable trail alone, per ADR-0013 decision 2), and timestamp (the
+  AGENTS.md audit gate).
 
 **Error contract.** Every MCP transport/protocol failure (`McpError`, socket `OSError`)
 crosses the `ToolRegistry` port as `ToolError` with the cause chained; the dispatcher turns
