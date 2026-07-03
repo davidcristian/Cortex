@@ -153,7 +153,10 @@ host.docker.internal), and dogfooding `McpToolRegistry` returned exactly the thr
 tools, 17 real folders, a formatted search line, and a real message body, with read-only enforced
 end to end (EXAMINE + `mark_seen=False`). Two refinements landed (readable-string tool output;
 HTML-body fallback), recorded in the [ADR-0009 addendum](adr/ADR-0009-tools-mcp.md). Slice 6
-is complete.
+is complete. **Closed out 2026-07-03 (agent, via Docker):** the deferred `--jinja` condition was
+met. The flag is committed to the GPU compose and the *cortex-driven* tool path validated live
+(the resident gemma-4-12B natively emitted `read_text_file` through the audited loop against the
+version-pinned filesystem sidecar). See [ADR-0009 addendum](adr/ADR-0009-tools-mcp.md).
 
 ## Slice 6.5 (Untrusted-content boundary): prompt-injection defense
 
@@ -451,8 +454,9 @@ resumes from the store) and runbook `docs/runbooks/model-swap.md`.
 ## Deferred refinements & later work
 
 Refinements consciously deferred as slices landed. Each is a small change behind an
-**unchanged port**, recorded at its origin ADR and collected here so none is lost. Not
-ordered; picked up when a slice needs one or on request.
+**unchanged port**, recorded at its origin ADR (where one exists, as Slice 3 shipped without
+an ADR, so its entries below are the canonical record) and collected here so none is lost.
+Not ordered; picked up when a slice needs one or on request.
 
 **Seam / transport in Slice 2 ([ADR-0003](adr/ADR-0003-seam-codegen.md)):**
 - **Transport retry / reconnect policy.** The body's `body_rpc` adapter is thin translation with
@@ -467,6 +471,12 @@ ordered; picked up when a slice needs one or on request.
   windowing/summarization pass (drop or compress old turns before inference) is a later refinement
   behind the unchanged `SessionStore`/`TurnEngine`. Distinct from memory summarization (Slice 5,
   which is cross-session recall, not the in-context history).
+- **Bounded backpressure on the `Converse` output queue.** The per-turn output queue
+  (`converse.py`) is deliberately unbounded; the original in-code note promised bounds "with real
+  inference (Slice 4)", but Slice 4 landed without them and the punt went unrecorded until the
+  2026-07-02 audit. Exposure is small (single-user seam; unread output is bounded by one turn's
+  reply), so a bounded queue / flow-control pass stays a later refinement behind the unchanged
+  `Converse` stream contract.
 
 **Tools in Slice 6 ([ADR-0009](adr/ADR-0009-tools-mcp.md)):**
 - **Multi-server tool aggregation.** The brain connects to *one* MCP endpoint at a time
@@ -518,6 +528,10 @@ behind the unchanged `ToolRegistry`/`ToolDispatcher`/`stream_tool_loop` seams (o
   once **Slice 11** serializes the tool-step context, provenance rides on the stored `Role.TOOL`
   messages. Flagged for that schema. Structured provenance beyond the binary (source URI, sender)
   joins here if the confirmation UI needs to display a source.
+- **Injection-harness run against the ~31B brain tier.** The harness's brain tier is **opt-in and
+  not yet run** (`CORTEX_PROBE_BRAIN=1`, as the VRAM cost needs the others evicted; ADR-0013 harness
+  addendum + [ADR-0004](adr/ADR-0004-model-lineup.md) injection addendum). Run it when the brain
+  pick lands (**Slice 11**), and whenever picks or the preamble change.
 
 **Memory in Slice 5 ([ADR-0008](adr/ADR-0008-memory-v1.md)):**
 - **Per-session / namespaced scoping.** v1 recall is global across conversations; scoped
@@ -542,6 +556,27 @@ behind the unchanged `ToolRegistry`/`ToolDispatcher`/`stream_tool_loop` seams (o
   `reasoning_content` as a "thinking" status, or budget enough tokens. Decide when the cortex path is
   next touched.
 
+**Subagents in Slice 7 ([ADR-0010](adr/ADR-0010-subagents.md)):**
+- **Subagent progress reporting over the `Converse` status stream.** v1 delegation is synchronous
+  within the cortex turn; surfacing per-subagent progress to the overlay is a later refinement. See
+  ADR-0010 risks.
+- **Richer `spawn_subagents` object schema.** v1 folds per-subtask context into the instruction
+  string (`SubagentTask.context` stays `""` from the tool); a `{instruction, context}[]` schema is
+  a later refinement behind the same tool (ADR-0010 increment-2 addendum). Planned **Slice 8.6**
+  grows the spawn schema for per-instruction model choice; the context field joins that schema
+  growth or a later one.
+
+**Body / overlay in Slice 8 ([ADR-0011](adr/ADR-0011-body-v1.md)):**
+- **Multi-turn-within-one-stream + an explicit proto `Cancel` event.** One turn per `Converse`
+  call; drop-to-cancel covers v1 (ADR-0011 decision 1 / risks). Picked up when a turn must be
+  interruptible mid-stream or client events start to interleave.
+- **Deferred overlay polish.** A proper transparent window + click-through margins (done
+  together), the OS-window morph to a real screen corner, hide-on-blur, and a tighter CSP are
+  detailed in [overlay-ux.md §4](design/overlay-ux.md) and
+  [body-overlay.md](runbooks/body-overlay.md), recorded at ADR-0011 (2026-07-03 addendum). The
+  design doc's smaller "later" marks (custom theme token sets, a licensed `@font-face`, a
+  `Ctrl+K` command palette) ride along in §2-3 of the same doc.
+
 **Resource governance in Slice 8.5 ([ADR-0012](adr/ADR-0012-resource-governance.md)):** each behind
 the unchanged `SubagentPlacer`/`SubagentScheduler`/`ModelManager` ports.
 - **`SubagentScheduler.drain()` for a swap.** Quiesce the subagent pool (evict → load brain → swap
@@ -557,6 +592,9 @@ the unchanged `SubagentPlacer`/`SubagentScheduler`/`ModelManager` ports.
   of placement (conservative); charging GPU-placed subagents less is a tweak behind the same port.
 - **The Intel NPU as a third placement target.** A future OpenVINO `InferenceBackend` adapter + a
   `PlacementTarget.NPU`, pending a feasibility pass (reachability from the dockerized WSL2 brain).
+- **A hard budget wall.** The CPU/RAM budget bounds only what the scheduler *admits* (soft,
+  admission-only, a deliberate tradeoff per ADR-0012 risks); hard enforcement remains a refinement
+  behind the same `SubagentScheduler` port.
 
 **Cross-cutting (originally "Later, unordered"):** pointer-input injection (extend the proto
 first), richer memory policies, **the email-write tool itself**. The capability gate it rides

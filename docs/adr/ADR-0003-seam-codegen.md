@@ -52,3 +52,13 @@ about stub generation, where generated code lives, how it stays exempt from the 
   seam/orchestrator `pyproject.toml`s must be bumped together with every regen.
 - tonic-build compiles as a build-dependency on fresh builds (~tens of seconds, cached
   in CI by rust-cache) even though normal builds skip codegen.
+
+## Addendum (2026-07-03): the Slice-2 retry/reconnect deferral, recorded here
+
+Slice 2's one consciously deferred refinement is a transport retry / backoff / reconnect
+policy behind the unchanged `BrainTransport` port (the thin `body_rpc` adapter does **no
+retries**; a dropped stream or transient failure surfaces straight to the caller, and the
+overlay treats a failed turn as terminal until the refinement lands) was recorded in the
+ROADMAP deferred-refinements ledger and [body-rpc.md](../modules/body-rpc.md) but never at
+this, its origin ADR. Added when the 2026-07-02 audit flagged the missing ADR-side half of
+the AGENTS.md gate-4 record.
