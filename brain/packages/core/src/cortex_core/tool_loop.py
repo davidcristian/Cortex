@@ -9,10 +9,12 @@ callers reuse it verbatim: one loop, one bound, one audited dispatch path. The l
 assistant text delta; the caller accumulates the full answer and decides what to do with deltas.
 
 The loop is also where the untrusted-content boundary is drawn (ADR-0013): an UNTRUSTED result
-is fenced by ``wrap_untrusted`` before it re-enters the context, the per-turn ``TaintLedger`` is
-marked so a later gated call is confirmed, and the ledger + nonce ride in the ``ToolLoopContext``
-bundle (keeping the loop within its argument ceiling). Both callers construct the ledger, so both
-accumulate taint by the same mechanism.
+is fenced by ``wrap_untrusted`` before it re-enters the context, the per-turn ``TaintLedger``
+observes every result, marking taint so a later gated call is confirmed, and collecting the
+URLs untrusted content carried so the output guardrail can redact a laundered one (ADR-0015)
+and the ledger + nonce ride in the ``ToolLoopContext`` bundle (keeping the loop within its
+argument ceiling). Both callers construct the ledger, so both accumulate taint by the same
+mechanism.
 """
 
 from collections.abc import AsyncGenerator, Sequence
@@ -105,7 +107,7 @@ async def stream_tool_loop(
             result = await dispatcher.dispatch(
                 call, tainted=context.taint.tainted, gated=gated_by_name.get(call.name, False)
             )
-            context.taint.mark(result.trust)
+            context.taint.observe(result)
             working.append(
                 _result_message(result, context.clock.now(), context.turn_id, nonce=context.nonce)
             )

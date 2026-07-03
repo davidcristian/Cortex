@@ -21,6 +21,8 @@ releases it, so the root's shutdown path is uniform whatever was picked:
   (ADR-0013 subagent-exclusion addendum). Opt-in so CI stays subagent-free.
 - History window -> `CharBudgetHistoryWindow` over CORTEX_HISTORY_CHAR_BUDGET (ADR-0014),
   on by default (48K chars ≈ 12K of the cortex's 16K-token context); 0 disables it.
+- Output guardrail -> `UrlRedactingGuardrail` over CORTEX_OUTPUT_GUARDRAIL (ADR-0015), on by
+  default (hardening ships enabled); `off` restores the unguarded stream.
 """
 
 import logging
@@ -52,6 +54,7 @@ from cortex_core import (
     ToolError,
     ToolRegistry,
     UngatedToolRegistry,
+    UrlRedactingGuardrail,
 )
 from cortex_embedding import LlamaCppEmbedder
 from cortex_inference import LlamaCppBackend
@@ -224,6 +227,17 @@ def build_subagent_tools(tool_registry: ToolRegistry | None, clock: Clock) -> To
     if tool_registry is None:
         return None
     return ToolDispatcher(UngatedToolRegistry(tool_registry), LoggingAuditSink(), clock)
+
+
+def build_output_guardrail(mode: str) -> UrlRedactingGuardrail | None:
+    """The turn's output guardrail, or None when disabled (ADR-0015).
+
+    `redact` (`CORTEX_OUTPUT_GUARDRAIL`'s default, so hardening is on out of the box) scrubs
+    URLs sourced from untrusted tool results out of the reply the user sees, the
+    model-independent laundering defense; `off` restores the unguarded stream. A clean turn
+    is untouched either way (nothing collected, nothing scrubbed).
+    """
+    return UrlRedactingGuardrail() if mode == "redact" else None
 
 
 def build_history_window(char_budget: int) -> CharBudgetHistoryWindow | None:

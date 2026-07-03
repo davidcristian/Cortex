@@ -33,6 +33,13 @@ from cortex_core.fakes import (
     RecordingConfirmer,
     SystemClock,
 )
+from cortex_core.guardrail import (
+    REDACTED_LINK,
+    OutputFilter,
+    OutputGuardrail,
+    UrlRedactingGuardrail,
+    extract_urls,
+)
 from cortex_core.inference import InferenceEvent, TextChunk
 from cortex_core.memory import MemoryRecord, ScoredMemory
 from cortex_core.model import ModelLease, SingleResidentModelManager
@@ -79,6 +86,7 @@ from cortex_core.windowing import CharBudgetHistoryWindow, HistoryWindow
 __all__ = [
     "DEFAULT_CORTEX_MODEL",
     "DENIED_MSG",
+    "REDACTED_LINK",
     "SECURITY_PREAMBLE",
     "SPAWN_TOOL_NAME",
     "AggregateToolRegistry",
@@ -110,6 +118,8 @@ __all__ = [
     "ModelManager",
     "ModelManagerError",
     "ModelUnavailableError",
+    "OutputFilter",
+    "OutputGuardrail",
     "Placement",
     "PlacementRequest",
     "PlacementTarget",
@@ -152,7 +162,9 @@ __all__ = [
     "TurnEngine",
     "TurnEvent",
     "UngatedToolRegistry",
+    "UrlRedactingGuardrail",
     "VramBudgetPlacer",
+    "extract_urls",
     "new_nonce",
     "route_turn",
     "security_preamble_message",

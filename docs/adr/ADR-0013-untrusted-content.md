@@ -339,9 +339,11 @@ a strict superset (it can only help). Two adjacent findings for later:
   as Qwen launders regardless of preamble; gemma-E4B (thinking on) resists with the hardened rule. A
   reason to reconsider the subagent pick, weighed against gemma-E4B's cost + thinking-on latency.
 - **Guardrail depth:** the hardening is prompt-level (helps capable models). A model-independent layer
-  for the small tier, e.g. scanning untrusted-derived output for injected URLs/footers before it
-  reaches the user, is a possible future guardrail, deferred; the deterministic layers cover the
-  concrete risk today.
+  for the small tier, scanning untrusted-derived output for injected URLs/footers before it
+  reaches the user, **landed 2026-07-03 as [ADR-0015](ADR-0015-output-guardrail.md)**: the
+  `TaintLedger` collects every URL untrusted content carries into the turn, and the engine's
+  `UrlRedactingGuardrail` redacts any that reappear in the reply (minus the user's own),
+  streaming-safe and on by default.
 
 ## Addendum (2026-07-01): the committable injection-defense harness + full-corpus matrix
 

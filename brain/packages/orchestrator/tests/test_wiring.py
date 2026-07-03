@@ -30,6 +30,7 @@ from cortex_core import (
     ToolError,
     ToolNotFoundError,
     ToolSpec,
+    UrlRedactingGuardrail,
     VramBudgetPlacer,
 )
 from cortex_inference import LlamaCppBackend
@@ -43,6 +44,7 @@ from cortex_orchestrator import (
     build_history_window,
     build_inference_backend,
     build_memory,
+    build_output_guardrail,
     build_subagent_tools,
     build_subagents,
     build_tool_registry,
@@ -433,6 +435,15 @@ async def test_build_subagent_tools_strips_gated_tools_structurally() -> None:
     denied = await tools.dispatch(ToolCall(id="g1", name="send", arguments={}))
     assert denied.is_error
     assert "unknown tool 'send'" in denied.content
+
+
+def test_build_output_guardrail_redact_is_the_shipped_defense() -> None:
+    assert isinstance(build_output_guardrail("redact"), UrlRedactingGuardrail)
+
+
+def test_build_output_guardrail_off_disables_it() -> None:
+    # CORTEX_OUTPUT_GUARDRAIL=off is the documented off switch (ADR-0015).
+    assert build_output_guardrail("off") is None
 
 
 def test_build_history_window_positive_budget_enables_windowing() -> None:

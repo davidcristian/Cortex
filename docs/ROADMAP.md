@@ -509,11 +509,15 @@ behind the unchanged `ToolRegistry`/`ToolDispatcher`/`stream_tool_loop` seams (o
 - **The screening subagent.** A small subagent that pre-screens external content for injection
   markers before the cortex sees it. Mostly moot: the GPU validation showed a screener would be
   another small, equally-injectable model. Kept only as a last-resort option behind the delegation seam.
-- **Model-independent output guardrail for the small tier** ([ADR-0013 hardening addendum](adr/ADR-0013-untrusted-content.md)).
-  The hardened preamble closes output-laundering on capable models (gemma-12B/E4B) but not the smallest
-  (E2B/Qwen, which launder regardless). A prompt-independent layer, scanning untrusted-derived output
-  for injected URLs/footers before it reaches the user, would cover the small tier; deferred (the
-  deterministic layers cover the concrete risk today, since subagent output is taint-contained).
+- **Model-independent output guardrail landed 2026-07-03 ([ADR-0015](adr/ADR-0015-output-guardrail.md)).**
+  The prompt-independent laundering defense the hardening addendum deferred: the `TaintLedger`
+  collects every URL untrusted content carries into the turn, and the engine's
+  `UrlRedactingGuardrail` (an `OutputGuardrail` seam in `TurnCapabilities`) redacts any that
+  reappear in the reply (minus the user's own) before the user sees it, streaming-safe;
+  the persisted reply equals the shown reply. On by default (`CORTEX_OUTPUT_GUARDRAIL=redact`,
+  `off` disables). Remaining behind the same seam (ADR-0015 deferred): obfuscation-resistant
+  matching, a strict redact-all-URLs mode, more schemes (`mailto:`), footer/boilerplate
+  heuristics (screening-model territory), and a structured redaction event for the overlay.
 - **Reconsider the subagent model pick (feeds [ADR-0004](adr/ADR-0004-model-lineup.md)).** The
   injection-defense harness ([`test_injection_defense_live.py`](../brain/packages/inference/tests/test_injection_defense_live.py),
   10-category corpus, [ADR-0013 addendum](adr/ADR-0013-untrusted-content.md)) found **gemma-4-E4B the
