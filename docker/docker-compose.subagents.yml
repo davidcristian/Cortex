@@ -1,29 +1,45 @@
-# Subagents override (Slice 7, ADR-0010). Layer it ON TOP of the base file:
+# Subagents override (Slice 7, ADR-0010; placement revised GPU-first by Slice 8.5, ADR-0012).
+# Layer it ON TOP of the base file:
 #     docker compose -f docker-compose.yml -f docker-compose.subagents.yml up
 # It adds one CPU llama-server (the small subagent model) and flips the brain from
-# subagents=none to the llamacpp backend pointed at it. Subagent task state lives in the base
-# file's Redis (the TaskStore). CI never runs this file. Subagents are opt-in so CI and the
-# no-GPU dev loop stay subagent-free (AGENTS.md gate 3).
+# subagents=none to the llamacpp backend. Subagent task state lives in the base file's Redis
+# (the TaskStore). CI never runs this file. Subagents are opt-in so CI and the no-GPU dev
+# loop stay subagent-free (AGENTS.md gate 3).
 #
-# Subagents run on CPU (the GPU budget is the cortex's, ADR-0004 addendum), so this needs NO
-# GPU and can run alongside docker-compose.gpu.yml. To give subagents tools, ALSO layer the
-# tools/email overrides. The wiring hands them the MCP subset without the spawn tool (depth-1):
+# Placement is GPU-first with CPU overflow (ADR-0012): the brain fit-tests each spawn against
+# the VRAM headroom (CORTEX_VRAM_SOFT_CAP_GB − CORTEX_VRAM_CORTEX_GB − placed) and routes it
+# to the GPU or the CPU backend. INTERIM until Slice 11 lands the real GPU sidecar + cgroup
+# caps (the recorded ADR-0012 host-half deferral): this override runs only the CPU server and
+# points BOTH endpoints at it, so a GPU-placed subagent still executes on CPU. It therefore
+# needs NO GPU and runs alongside docker-compose.gpu.yml. To give subagents tools, ALSO layer
+# the tools/email overrides. The wiring hands them the MCP subset without the spawn tool
+# (depth-1):
 #     docker compose -f docker-compose.yml -f docker-compose.tools.yml -f docker-compose.subagents.yml up
 #
 # Set on the host (a .env at the repo root works):
 #   CORTEX_MODELS_DIR          host dir holding the GGUFs (default ./models, ADR-0004)
-#   CORTEX_MODEL_FILE_SUBAGENT subagent GGUF path under that dir (a Qwen3.5-2B candidate; the
-#                              final pick is measured in docs/runbooks/subagents-cpu.md)
-#   CORTEX_SUBAGENTS_MAX_CONCURRENCY  how many subagents may run at once (default 2)
+#   CORTEX_MODEL_FILE_SUBAGENT subagent GGUF path under that dir (the pick: Qwen3.5-2B Q4_K_M,
+#                              measured in docs/runbooks/subagents-cpu.md)
+#   CORTEX_SUBAGENTS_{CPUS,MEMORY_GB,VRAM_GB}    one subagent's resource ask (ADR-0012)
+#   CORTEX_SUBAGENTS_{CPU_BUDGET,MEM_BUDGET_GB}  soft admission ceilings (sum of admitted asks)
+#   CORTEX_SUBAGENTS_PARALLEL  server slots; keep ≈ CPU_BUDGET / CPUS (default 2)
 
 services:
   brain:
     environment:
       # Opt into delegation; without this the base image runs subagents=none (ADR-0010).
       CORTEX_SUBAGENTS_BACKEND: "llamacpp"
-      # In-network address of the CPU llama-server below (NOT the host-published port).
+      # In-network addresses of the llama-server(s) below (NOT the host-published port).
+      # Both placement targets resolve to the one CPU server until Slice 11 delivers the
+      # real GPU sidecar (ADR-0012 deferral); override GPU_ENDPOINT to test a real one.
       CORTEX_SUBAGENTS_ENDPOINT: "http://llama-subagent:8082"
-      CORTEX_SUBAGENTS_MAX_CONCURRENCY: "${CORTEX_SUBAGENTS_MAX_CONCURRENCY:-2}"
+      CORTEX_SUBAGENTS_GPU_ENDPOINT: "${CORTEX_SUBAGENTS_GPU_ENDPOINT:-http://llama-subagent:8082}"
+      # Per-subagent ask + soft admission budgets (ADR-0012); defaults mirror SubagentsConfig.
+      CORTEX_SUBAGENTS_CPUS: "${CORTEX_SUBAGENTS_CPUS:-2.0}"
+      CORTEX_SUBAGENTS_MEMORY_GB: "${CORTEX_SUBAGENTS_MEMORY_GB:-2.0}"
+      CORTEX_SUBAGENTS_VRAM_GB: "${CORTEX_SUBAGENTS_VRAM_GB:-2.0}"
+      CORTEX_SUBAGENTS_CPU_BUDGET: "${CORTEX_SUBAGENTS_CPU_BUDGET:-4.0}"
+      CORTEX_SUBAGENTS_MEM_BUDGET_GB: "${CORTEX_SUBAGENTS_MEM_BUDGET_GB:-8.0}"
     depends_on:
       llama-subagent:
         condition: service_healthy
@@ -33,8 +49,9 @@ services:
     # once the subagent pick is locked. Mutable tags are a supply-chain risk (ADR-0006).
     image: "ghcr.io/ggml-org/llama.cpp:server"
     # A small (2-4B) subagent model on CPU. --jinja enables the tool-capable chat template so
-    # tools-enabled subagents can function-call (ADR-0010); --parallel matches the concurrency
-    # budget so the scheduler's admitted subagents each get a server slot.
+    # tools-enabled subagents can function-call (ADR-0010); --parallel gives each admitted
+    # subagent a server slot. Keep it ≈ CPU_BUDGET / CPUS, the scheduler's effective
+    # concurrency under the ADR-0012 soft budget.
     command:
       - "--model"
       - "/models/${CORTEX_MODEL_FILE_SUBAGENT:-unsloth/Qwen3.5-2B-GGUF/Qwen3.5-2B-Q4_K_M.gguf}"
@@ -42,7 +59,8 @@ services:
       - "0.0.0.0"
       - "--port"
       - "8082"
-      # CPU only. The GPU is the cortex's (ADR-0004 addendum).
+      # CPU only: this server is the interim executor for BOTH placement targets; the real
+      # GPU sidecar (-ngl 99) lands with Slice 11 (ADR-0012 host-half deferral).
       - "-ngl"
       - "0"
       - "--jinja"
@@ -56,7 +74,7 @@ services:
       - "--ctx-size"
       - "${CORTEX_SUBAGENT_CTX_SIZE:-8192}"
       - "--parallel"
-      - "${CORTEX_SUBAGENTS_MAX_CONCURRENCY:-2}"
+      - "${CORTEX_SUBAGENTS_PARALLEL:-2}"
     volumes:
       # Models stay on the Windows drive, mounted read-only (ADR-0004 d3).
       - type: bind
