@@ -117,6 +117,9 @@ class ToolsConfig(BaseSettings):
     contribute their own key and coexist. ``CORTEX_TOOLS_ALLOW__<name>=<JSON name list>``
     optionally restricts what ``<name>`` advertises (the read-only filesystem allowlist).
     Setting both forms is ambiguous and rejected, as is an allowlist naming no endpoint.
+    ``CORTEX_TOOLS_ON_UNAVAILABLE`` picks the dead-sidecar policy: ``fail`` (the default)
+    fails tool listing loudly; ``skip`` serves the healthy sidecars and logs the dead one
+    on every walk (ADR-0009 degraded-mode addendum), degraded but never silent.
     """
 
     model_config = SettingsConfigDict(env_prefix="CORTEX_TOOLS_", env_nested_delimiter="__")
@@ -125,6 +128,7 @@ class ToolsConfig(BaseSettings):
     endpoint: str = ""
     endpoints: dict[str, str] = {}
     allow: dict[str, tuple[str, ...]] = {}
+    on_unavailable: Literal["fail", "skip"] = "fail"
 
     @model_validator(mode="after")
     def _mcp_needs_unambiguous_endpoints(self) -> "ToolsConfig":

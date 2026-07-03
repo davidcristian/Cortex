@@ -5,14 +5,17 @@ refinement that lets the filesystem and email sidecars coexist behind the unchan
 the same audited ``ToolDispatcher``. ``FilteredToolRegistry`` restricts one registry to an
 allowlist. This is the advertised-tool refinement that stops the model seeing write tools the
 read-only mount would only ``EROFS`` (the mount stays the security boundary; this is UX plus
-defense in depth). Both are pure routing over the port: no I/O of their own, no cached state
-(the one hard rule). Aggregation resolves ownership by a live ``describe_tools`` walk, so a
-tool dropped server-side mid-turn fails closed instead of routing stale.
+defense in depth). ``SkipUnavailableToolRegistry`` marks one registry optional, giving the
+skip-and-report degraded mode (ADR-0009 degraded-mode addendum) that keeps an aggregate
+serving its healthy sidecars while a dead one is reported, never silently dropped. All are
+pure routing over the port: no I/O of their own, no cached state (the one hard rule), where
+aggregation resolves ownership by a live ``describe_tools`` walk, so a tool dropped
+server-side mid-turn fails closed instead of routing stale.
 """
 
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 
-from cortex_core.errors import ToolNotFoundError
+from cortex_core.errors import ToolError, ToolNotFoundError
 from cortex_core.ports import ToolRegistry
 from cortex_core.tools import ToolCall, ToolResult, ToolSpec
 
@@ -54,6 +57,39 @@ class AggregateToolRegistry:
                 return await registry.invoke(call)
         msg = f"unknown tool {call.name!r}"
         raise ToolNotFoundError(msg)
+
+
+class SkipUnavailableToolRegistry:
+    """A ``ToolRegistry`` whose unavailable inner registry lists as empty and is reported.
+
+    The skip-and-report degraded mode (ADR-0009 degraded-mode addendum): a listing failure
+    (``ToolError``) becomes an empty advertisement plus one ``report(name, error)`` call, so
+    an aggregate keeps serving its healthy sidecars while the operator hears about the dead
+    one on every walk, degraded but never silent. The reporter is mandatory: there is no way
+    to construct the skipping behavior without the reporting. Only discovery is softened, and
+    ``invoke`` delegates untouched, so directly invoking a tool on an unavailable registry
+    still fails loudly; through an aggregate, an unadvertised tool fails closed as
+    ``ToolNotFoundError``.
+    """
+
+    def __init__(
+        self, inner: ToolRegistry, *, name: str, report: Callable[[str, ToolError], None]
+    ) -> None:
+        self._inner = inner
+        self._name = name
+        self._report = report
+
+    async def describe_tools(self) -> Sequence[ToolSpec]:
+        """The inner registry's tools, or an empty (reported) advertisement when it fails."""
+        try:
+            return await self._inner.describe_tools()
+        except ToolError as err:
+            self._report(self._name, err)
+            return ()
+
+    async def invoke(self, call: ToolCall) -> ToolResult:
+        """Delegate untouched. Execution failures are never skipped, only discovery is."""
+        return await self._inner.invoke(call)
 
 
 class FilteredToolRegistry:

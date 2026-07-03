@@ -22,6 +22,7 @@ The one place that reads config and picks adapters (DI at the edge, AGENTS.md):
 Everything below the edge receives ports, never settings objects or env access.
 """
 
+import logging
 from collections.abc import Awaitable, Callable
 from contextlib import AsyncExitStack
 
@@ -40,12 +41,14 @@ from cortex_core import (
     PlacementTarget,
     ResourceBudgetScheduler,
     SingleResidentModelManager,
+    SkipUnavailableToolRegistry,
     SpawnSubagentsTool,
     SubagentPlacer,
     SubagentResources,
     SubagentRunner,
     SystemClock,
     ToolDispatcher,
+    ToolError,
     ToolRegistry,
     TurnCapabilities,
     TurnEngine,
@@ -71,6 +74,16 @@ from cortex_tools import LoggingAuditSink, McpToolRegistry
 _LLAMACPP_CONNECT_TIMEOUT_S = 10.0
 # An embedding is a quick request (no streaming), so it gets a finite overall timeout.
 _EMBEDDER_TIMEOUT_S = 30.0
+
+_logger = logging.getLogger(__name__)
+
+
+def _report_sidecar_unavailable(name: str, error: ToolError) -> None:
+    """The skip-and-report reporter: degradation is a logged warning, never silent."""
+    _logger.warning(
+        "tool sidecar unavailable; serving without it",
+        extra={"sidecar": name, "error": str(error)},
+    )
 
 
 async def _noop_aclose() -> None:
@@ -122,10 +135,14 @@ async def build_tool_registry(
     ``none`` disables tools. The MCP-less default CI and the no-GPU dev loop run. ``mcp``
     connects one MCP client per configured endpoint (refinements addendum): an endpoint with
     an allowlist is wrapped in `FilteredToolRegistry`, and several endpoints merge behind one
-    `AggregateToolRegistry` (first-wins by the config's sorted-name order). The returned
-    closer releases every session; a failed later connect unwinds the earlier ones. The
-    registry is left un-audited here. The cortex and each subagent wrap it in their own
-    `ToolDispatcher`.
+    `AggregateToolRegistry` (first-wins by the config's sorted-name order). With
+    `CORTEX_TOOLS_ON_UNAVAILABLE=skip` each endpoint is additionally wrapped in
+    `SkipUnavailableToolRegistry` (degraded-mode addendum): a sidecar dead at listing time is
+    logged and served around instead of failing the whole tool set. Note this covers a
+    sidecar dying *after* connect; a sidecar down *at startup* still fails `connect` here.
+    The returned closer releases every session; a failed later connect unwinds the earlier
+    ones. The registry is left un-audited here. The cortex and each subagent wrap it in
+    their own `ToolDispatcher`.
     """
     if config.backend != "mcp":
         return None, _noop_aclose
@@ -136,7 +153,13 @@ async def build_tool_registry(
             registry, close = await McpToolRegistry.connect(url)
             stack.push_async_callback(close)
             allow = config.allow.get(name)
-            registries.append(FilteredToolRegistry(registry, allow=allow) if allow else registry)
+            if allow:
+                registry = FilteredToolRegistry(registry, allow=allow)
+            if config.on_unavailable == "skip":
+                registry = SkipUnavailableToolRegistry(
+                    registry, name=name, report=_report_sidecar_unavailable
+                )
+            registries.append(registry)
     except BaseException:
         await stack.aclose()
         raise
