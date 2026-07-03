@@ -13,10 +13,13 @@ interface PanelProps {
   readonly onNewChat: () => void;
 }
 
-/** The overlay panel: header, scrolling history, composer, and the shortcut hints. */
+/** The overlay panel: header, scrolling history, composer, and the shortcut hints. Closed, it
+ *  sits scaled at center (summon/dismiss pop from the middle), except when the mode is `orb`,
+ *  where `to-orb` parks it at the corner so minimize/maximize *travel* to and from the orb. */
 export function Panel({ state, open, dark, onToggleTheme, onSubmit, onDismiss, onNewChat }: PanelProps) {
+  const closed = state.mode === "orb" ? " to-orb" : "";
   return (
-    <div className={`panel${open ? " open" : ""}`} role="dialog" aria-label="Cortex" aria-hidden={!open}>
+    <div className={`panel${open ? " open" : closed}`} role="dialog" aria-label="Cortex" aria-hidden={!open}>
       <header className="head">
         <span className="title">{state.title}</span>
         <button className="hbtn" onClick={onToggleTheme} aria-label="Toggle theme" type="button">
