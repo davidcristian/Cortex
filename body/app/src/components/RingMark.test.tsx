@@ -13,8 +13,8 @@ describe("RingMark", () => {
     expect(svg).toHaveAttribute("aria-hidden", "true");
     const bands = container.querySelectorAll("path.ring");
     expect(bands).toHaveLength(2);
-    expect(bands[0]).toHaveAttribute("stroke", "url(#orb-band-a)");
-    expect(bands[1]).toHaveAttribute("stroke", "url(#orb-band-b)");
+    expect(bands[0]).toHaveAttribute("stroke", "url(#orb-band)");
+    expect(bands[1]).toHaveAttribute("stroke", "url(#orb-band)");
     const pulses = container.querySelectorAll("animate");
     expect(pulses).toHaveLength(2);
     expect(pulses[0]).toHaveAttribute("attributeName", "d");
@@ -30,7 +30,7 @@ describe("RingMark", () => {
     );
     expect(container.querySelectorAll("animate")).toHaveLength(0);
     const ids = [...container.querySelectorAll("linearGradient")].map((node) => node.id);
-    expect(new Set(ids).size).toBe(4);
-    expect(container.querySelector("#pv-band-a")).not.toBeNull();
+    expect(new Set(ids).size).toBe(2);
+    expect(container.querySelector("#pv-band")).not.toBeNull();
   });
 });
