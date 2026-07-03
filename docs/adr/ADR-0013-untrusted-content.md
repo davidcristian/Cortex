@@ -136,8 +136,12 @@ enables a gated tool but forgets to wire confirmation cannot perform the action.
 confirmation is out-of-band by construction: the human authorizes, never the (possibly
 jailbroken) model. That is why the block is *not* modelled as the model re-deciding, and
 why an is-error-result-only design was rejected as the boundary. CI ships the port, the
-`ConfirmationRequest` value, `AutoApproveConfirmer`/`AutoDenyConfirmer` fakes, and the
-dispatcher rule, all fully covered with a fake gated tool. **No new `TurnEvent` is added**:
+`ConfirmationRequest` value, the confirmer fake, and the dispatcher rule, all fully covered
+with a fake gated tool. (This text originally named `AutoApproveConfirmer`/`AutoDenyConfirmer`
+fakes; they shipped consolidated as the single `RecordingConfirmer(answer=bool)`, where
+`answer=True` is the approver, `answer=False` the denier, and it additionally records the
+requests so tests can assert what the user was shown. Same coverage, one name. Corrected
+2026-07-03 after the slice audit.) **No new `TurnEvent` is added**:
 the `confirm` coroutine hides the eventual wire; the real adapter (which emits an overlay
 prompt over the seam and awaits the reply) is the host half, deferred to the first gated tool
 (Slice 9/10), landing behind this unchanged port.

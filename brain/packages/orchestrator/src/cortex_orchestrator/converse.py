@@ -58,9 +58,10 @@ class _ConverseStream:
 
     The pump and the consumer are decoupled by an output queue so a `Cancel` can be
     acted on while a turn is still generating; `None` on the queue ends the stream.
-    The queue is DELIBERATELY unbounded: the echo backend's replies are short and
-    finite, so unread output is bounded by the turn. Bounded backpressure arrives
-    with real inference (Slice 4).
+    The queue is DELIBERATELY unbounded, real inference included: one turn runs at a
+    time, so unread output is bounded by a single turn's reply on a single-user seam.
+    Bounded backpressure is a recorded deferral (ROADMAP "Deferred refinements",
+    Slice 3 block), not a pending Slice-4 promise.
 
     Turn scheduling: at most one turn task runs; `UserTurn`s arriving mid-turn wait
     in `_pending` and the finishing turn's own cleanup starts the next one, so the

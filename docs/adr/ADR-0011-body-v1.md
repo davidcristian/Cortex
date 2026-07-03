@@ -167,3 +167,21 @@ tokens, the interaction state machine (including the user's *dismiss-while-proce
 orb → response-preview behavior), message history, keyboard shortcuts, and chats-as-sessions are
 specified in [docs/design/overlay-ux.md](../design/overlay-ux.md), the design source of truth that
 overlay components are built against.
+
+## Addendum (2026-07-03): Slice 8 close-out with a deferral record + two corrections
+
+- **Deferred overlay polish (the Slice 8 conscious deferral), recorded at its origin ADR.**
+  A proper transparent window + click-through margins (done together), the OS-window morph
+  to a real screen corner, hide-on-blur, and a tighter CSP (null in v1) shipped deferred
+  with the slice. Details live in [overlay-ux.md §4](../design/overlay-ux.md) and the
+  [body-overlay runbook](../runbooks/body-overlay.md); collected in the ROADMAP "Deferred
+  refinements & later work" ledger (Slice 8 block). Until this note the deferral was
+  written down only outside the two canonical locations (flagged by the 2026-07-02 audit).
+- **Correction (layout).** The 2026-07-01 addendum described "a `frontend/` project under
+  `body/app/`"; the shipped Vite project lives directly at `body/app/` (`src/`,
+  `package.json` at the root, with no `frontend/` subdirectory).
+- **Correction (bridge sketch).** The same addendum sketched the bridge port as
+  `converse(...)` + `onActivate` + `hide` + connection status. The shipped `BrainBridge`
+  ([body-app.md](../modules/body-app.md)) is **`converse` only**: activation arrives as the
+  `cortex:activate` DOM event, there is no `hide` method, and no connection-status surface
+  exists in v1 (the design doc's connection dot is unshipped target design).
