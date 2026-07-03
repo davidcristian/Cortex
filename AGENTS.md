@@ -140,8 +140,6 @@ Entries marked *(planned)* are target layout; docs/ROADMAP.md says which slice d
 ```
 proto/            body↔brain gRPC contract (source of truth for the seam)
 docs/             ARCHITECTURE.md, index.md, ROADMAP.md, adr/, modules/, runbooks/, assets/ (logo)
-audit/            per-slice implementation audit reports + cross-cutting findings, all
-                  review artifacts, not contract docs; gates and ADRs stay authoritative
 brain/            Python workspace (uv), dockerized (brain/Dockerfile)
   packages/       core (pure logic + ports), seam (committed gRPC stubs + typed facade),
                   orchestrator (hosts BrainService), session (Redis SessionStore +
