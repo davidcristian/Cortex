@@ -23,7 +23,8 @@ addendum: the GPU budget is spent on the cortex).
    violates the invariant that *orchestration is explicit typed code in the core, no heavy
    agent framework that hides control flow* (AGENTS.md). Its good ideas (tiered/self-editing
    memory, summarization) can be adopted later **behind the unchanged port**; the framework
-   cannot. YAGNI wins the tie for v1.
+   cannot. Extensibility wins the tie for v1: the thin port keeps every one of those
+   ideas adoptable later; the framework would foreclose them.
 
 2. **Two ports, both stateless functions over a backend (ports.py):**
    - `Embedder.embed(text) -> Sequence[float]` maps one text to one vector. Failures →
