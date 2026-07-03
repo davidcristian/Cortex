@@ -4,10 +4,12 @@ import { describe, expect, it, vi } from "vitest";
 import { Orb } from "./Orb";
 
 describe("Orb", () => {
-  it("reopens the turn when clicked", () => {
+  it("shows the living rings and reopens the turn when clicked", () => {
     const onClick = vi.fn();
     render(<Orb onClick={onClick} />);
-    fireEvent.click(screen.getByLabelText(/Reopen/u));
+    const button = screen.getByLabelText(/Reopen/u);
+    expect(button.querySelectorAll("path.ring")).toHaveLength(2);
+    fireEvent.click(button);
     expect(onClick).toHaveBeenCalledOnce();
   });
 });

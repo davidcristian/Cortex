@@ -59,14 +59,6 @@
   gap: 10px;
   padding: 15px 16px 9px;
 }
-.dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--spark);
-  box-shadow: 0 0 8px var(--spark);
-  flex: none;
-}
 .title {
   flex: 1;
   font-size: 13.5px;
@@ -79,6 +71,8 @@
   width: 30px;
   height: 30px;
   flex: none;
+  display: grid;
+  place-items: center;
   border: none;
   border-radius: 11px;
   background: var(--control);
@@ -86,6 +80,40 @@
   cursor: pointer;
   font-size: 15px;
   transition: 0.18s var(--ease);
+}
+
+/* The theme toggle's sun↔crescent morph: the changing geometry (SVG2 cx/cy/r as CSS) transitions
+   instead of swapping glyphs. Rays retract while the masking "bite" slides in to carve the moon. */
+.sunmoon .core {
+  r: 5px;
+  transition: r 0.45s var(--spring);
+}
+.sunmoon .bite {
+  cx: 30px;
+  cy: -6px;
+  transition:
+    cx 0.45s var(--ease),
+    cy 0.45s var(--ease);
+}
+.sunmoon .rays {
+  opacity: 1;
+  transform: rotate(0deg);
+  transform-origin: 12px 12px;
+  transform-box: view-box;
+  transition:
+    opacity 0.3s var(--ease),
+    transform 0.45s var(--spring);
+}
+.sunmoon.dark .core {
+  r: 8px;
+}
+.sunmoon.dark .bite {
+  cx: 17px;
+  cy: 7px;
+}
+.sunmoon.dark .rays {
+  opacity: 0;
+  transform: rotate(90deg) scale(0.4);
 }
 .hbtn:hover {
   color: var(--text);
@@ -211,6 +239,7 @@
 .hints {
   display: flex;
   flex-wrap: wrap;
+  justify-content: center;
   gap: 5px 13px;
   padding: 2px 17px 14px;
   font-size: 11.5px;
@@ -225,37 +254,45 @@
   font-size: 11px;
 }
 
-/* The orb: colorful (it's a working state), breathing + drifting. */
+/* The orb: the living rings are colorful (it's a working state). The two wavy bands counter-spin,
+   so the waves travel and the gradient stroked along each band flows with them; the whole mark
+   breathes, drifts, and slowly walks the accent hues. Resting uses of .rings (the preview title
+   mark) stay still. All motion is scoped under .orb. */
 .orb {
   position: fixed;
   right: 26px;
   bottom: 26px;
-  width: 60px;
-  height: 60px;
+  width: 72px;
+  height: 72px;
   z-index: 9;
+  display: grid;
+  place-items: center;
+  padding: 0;
   border: none;
-  border-radius: 50%;
+  background: none;
   cursor: pointer;
-  background: conic-gradient(from 0deg, #8b5cf6, #e24bc4, #ff7a6b, #4fe3d0, #8b5cf6);
+  animation: drift 7s ease-in-out infinite;
+}
+.rings {
+  overflow: visible;
+}
+.ring {
+  transform-box: view-box;
+  transform-origin: 50% 50%;
+}
+.orb .rings {
   animation:
-    drift 6s var(--ease) infinite,
-    spinbreathe 3.4s var(--ease) infinite;
+    breathe 3.4s var(--ease) infinite,
+    huedrift 21s linear infinite;
 }
-.orb::after {
-  content: "";
-  position: absolute;
-  inset: 6px;
-  border-radius: 50%;
-  background: var(--bg);
-  opacity: 0.86;
+.orb .ring-a {
+  animation: spin 16s linear infinite;
 }
-.halo {
-  position: absolute;
-  inset: -7px;
-  border-radius: 50%;
-  z-index: -1;
-  background: radial-gradient(circle, rgba(226, 75, 196, 0.55), transparent 68%);
-  animation: halo 3.4s var(--ease) infinite;
+.orb .ring-b {
+  animation: spin 11s linear infinite reverse;
+}
+.preview .rings {
+  filter: drop-shadow(0 0 3px rgba(226, 75, 196, 0.5));
 }
 
 .preview {
@@ -339,15 +376,28 @@
     transform: none;
   }
 }
-@keyframes spinbreathe {
-  0% {
-    transform: rotate(0) scale(1);
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes breathe {
+  0%,
+  100% {
+    transform: scale(1);
   }
   50% {
-    transform: rotate(180deg) scale(1.08);
+    transform: scale(1.07);
   }
-  100% {
-    transform: rotate(360deg) scale(1);
+}
+@keyframes huedrift {
+  from {
+    filter: drop-shadow(0 0 4px rgba(226, 75, 196, 0.55)) drop-shadow(0 0 22px rgba(139, 92, 246, 0.5))
+      hue-rotate(0deg);
+  }
+  to {
+    filter: drop-shadow(0 0 4px rgba(226, 75, 196, 0.55)) drop-shadow(0 0 22px rgba(139, 92, 246, 0.5))
+      hue-rotate(360deg);
   }
 }
 @keyframes drift {
@@ -367,17 +417,6 @@
   75% {
     right: 29px;
     bottom: 21px;
-  }
-}
-@keyframes halo {
-  0%,
-  100% {
-    opacity: 0.55;
-    transform: scale(1);
-  }
-  50% {
-    opacity: 0.15;
-    transform: scale(1.3);
   }
 }
 @keyframes drain {

@@ -45,7 +45,8 @@ is a token swap, not a rewrite.
   (a subtle tint of the ground, e.g. `rgba(127,110,190,0.14)` for the user in dark). The **only**
   color is *transient*: while a reply streams, a soft accent glow/shimmer rides the in-progress
   bubble, then settles to neutral on completion. `border-radius: 20px`, one tail corner tightened.
-- **Radius scale:** panel `28px`, bubbles `20px`, input pill `22px`, orb `50%`. Generous, uniform.
+- **Radius scale:** panel `28px`, bubbles `20px`, input pill `22px`; the orb is the stroked
+  living-rings mark (§4), not a filled disc. Generous, uniform.
 - **Typography:** a clean modern sans for everything (system stack in v1; a licensed sans inlined
   as a `@font-face` data URI later; no CDN). Assistant text ~15px/1.5, never cramped. Sleek, not
   decorative. The personality is in motion + the color bloom, not a novelty face.
@@ -65,8 +66,12 @@ is a token swap, not a rewrite.
 Top-to-bottom, the summoned panel is:
 
 1. **Header** is the current chat's title (auto-derived from its first message; "New chat" until
-   then), a small **connection dot** (green = brain ready, amber = model loading/status, red =
-   unreachable), a **＋ new chat** button, and a **chat switcher** affordance (⌄) opening the list.
+   then), the **theme toggle** (a single SVG sun that *morphs* into a crescent as rays retract while
+   a masking bite slides in; never a glyph swap, per 2026-07-03 user direction), a **＋ new chat**
+   button, and a **chat switcher** affordance (⌄) opening the list. A **connection indicator**
+   (green = brain ready, amber = model loading/status, red = unreachable) joins the header only
+   when a real health signal crosses the bridge: v1 shipped it as an always-green decoration and
+   the 2026-07-03 pass removed it. Chrome earns its place by meaning something.
 2. **History** is the scrollable conversation: alternating user/assistant bubbles, newest at the
    bottom, auto-scrolling as tokens stream (but *not* if the user has scrolled up to read).
    Tool-activity and status appear as slim inline chips between bubbles ("📧 reading inbox…",
@@ -75,8 +80,8 @@ Top-to-bottom, the summoned panel is:
 3. **Composer** is a rounded pill textarea (`⏎` sends, `⇧⏎` newlines, auto-grows to a few lines),
    a glowing accent focus ring when active, and a gradient **send** button that springs on press.
    While streaming, send becomes a **stop** (■) control.
-4. **Hint strip** is a subtle one-line footer of the live shortcuts (§6), dimmed, with a `?` that
-   opens the full shortcut sheet.
+4. **Hint strip** is a subtle one-line footer of the live shortcuts (§6), dimmed and **centered**,
+   with a `?` that opens the full shortcut sheet.
 
 ## 4. The interaction state machine (the heart)
 
@@ -109,11 +114,15 @@ while a turn is processing must not lose it*) lives here. States:
   to a corner (default **bottom-right**, configurable), shedding its chrome, into a small **ORB**.
   This is one continuous transform (FLIP-style), not a disappear-then-appear, and the reverse
   (maximize) *travels* it back from the corner to center. You always **see it move**, both ways.
-- **ORB(thinking):** a ~56px living blob at the corner, with the accent gradient slowly rotating, a
-  breathing scale/glow pulse, and a slow **drift** (a small floating translate) so it reads as
-  alive, not a static badge. It means "still working." **Click** it → morph back to
-  **PANEL(streaming)** (the in-progress turn, right where it is). It never covers active work, with
-  small, corner-pinned, click-through-safe margins.
+- **ORB(thinking):** the **living rings** at the corner (~64px; redesigned 2026-07-03 to the
+  user's reference): two thin wavy bands built from sine-modulated circles (7 and 9 waves,
+  `wavyRingPath`). Each is stroked with a run of the accent hues, **counter-spinning** at different
+  speeds so the waves travel and the gradient flows along them, over a soft neon glow. The mark
+  breathes, slowly **drifts**, and walks its hues (a slow `hue-rotate`), so it reads as alive,
+  not a static badge. It means "still working." **Click** it → morph back to **PANEL(streaming)**
+  (the in-progress turn, right where it is). It never covers active work, with small, corner-pinned,
+  click-through-safe margins. A small resting variant of the same mark (`RingMark`) identifies
+  the preview card in place of the removed dot.
 - **PREVIEW:** when the turn **completes while minimized**, the orb **expands** into a compact
   card near the corner: the chat title, the answer (or a 2-3 line snippet with a fade if long),
   and a hairline accent progress bar counting down the auto-dismiss (~6s). **Hover pauses** the
