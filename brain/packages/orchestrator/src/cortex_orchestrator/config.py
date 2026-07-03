@@ -104,24 +104,53 @@ class MemoryConfig(BaseSettings):
 
 
 class ToolsConfig(BaseSettings):
-    """Whether the cortex can call tools over MCP (ADR-0009).
+    """Whether the cortex can call tools over MCP (ADR-0009, refinements addendum).
 
     ``none`` (the default) disables tools. CI and the no-GPU dev loop run with no MCP server.
-    ``mcp`` enables the MCP client and requires ``endpoint`` (the streamable-http URL of the
-    tool server, e.g. the filesystem sidecar in ``docker-compose.tools.yml``).
+    ``mcp`` enables the MCP client and requires tool-server endpoint(s), one of two forms:
+    the singular ``endpoint`` (one streamable-http URL), or one ``endpoints`` entry per
+    sidecar (``CORTEX_TOOLS_ENDPOINTS__<name>=<url>``), so layered compose overrides each
+    contribute their own key and coexist. ``CORTEX_TOOLS_ALLOW__<name>=<JSON name list>``
+    optionally restricts what ``<name>`` advertises (the read-only filesystem allowlist).
+    Setting both forms is ambiguous and rejected, as is an allowlist naming no endpoint.
     """
 
-    model_config = SettingsConfigDict(env_prefix="CORTEX_TOOLS_")
+    model_config = SettingsConfigDict(env_prefix="CORTEX_TOOLS_", env_nested_delimiter="__")
 
     backend: ToolsBackendName = "none"
     endpoint: str = ""
+    endpoints: dict[str, str] = {}
+    allow: dict[str, tuple[str, ...]] = {}
 
     @model_validator(mode="after")
-    def _mcp_needs_an_endpoint(self) -> "ToolsConfig":
-        if self.backend == "mcp" and not self.endpoint:
-            msg = "CORTEX_TOOLS_ENDPOINT is required when CORTEX_TOOLS_BACKEND=mcp"
+    def _mcp_needs_unambiguous_endpoints(self) -> "ToolsConfig":
+        if self.backend == "mcp" and not (self.endpoint or self.endpoints):
+            msg = (
+                "CORTEX_TOOLS_ENDPOINT or CORTEX_TOOLS_ENDPOINTS__<name> is required "
+                "when CORTEX_TOOLS_BACKEND=mcp"
+            )
+            raise ValueError(msg)
+        if self.endpoint and self.endpoints:
+            msg = "set CORTEX_TOOLS_ENDPOINT or CORTEX_TOOLS_ENDPOINTS__<name>, not both"
+            raise ValueError(msg)
+        if unmatched := set(self.allow) - set(self.named_endpoints):
+            msg = f"CORTEX_TOOLS_ALLOW names no configured endpoint: {sorted(unmatched)}"
             raise ValueError(msg)
         return self
+
+    @property
+    def named_endpoints(self) -> dict[str, str]:
+        """Every configured endpoint by name, sorted by name so precedence is deterministic.
+
+        The order fixes the `AggregateToolRegistry` collision policy (first-wins by sorted
+        name), independent of env enumeration order. The singular ``endpoint`` becomes the
+        sole entry ``default``.
+        """
+        if self.endpoints:
+            return dict(sorted(self.endpoints.items()))
+        if self.endpoint:
+            return {"default": self.endpoint}
+        return {}
 
 
 class SubagentsConfig(BaseSettings):

@@ -23,7 +23,10 @@ from cortex_core import (
     SubagentResources,
     SubagentRunner,
     SystemClock,
+    ToolCall,
     ToolDispatcher,
+    ToolError,
+    ToolNotFoundError,
     ToolSpec,
     VramBudgetPlacer,
 )
@@ -210,6 +213,83 @@ async def test_build_tool_registry_selects_mcp_and_returns_a_closer(
     assert seen_url == ["http://fs:9000/mcp"]
     await close()  # releases the MCP session
     assert closed == ["session"]
+
+
+def _canned_registry(url: str, *names: str) -> InMemoryToolRegistry:
+    """One tool per name, each replying with the URL it came from, so routing is visible."""
+
+    async def reply(arguments: Mapping[str, object]) -> str:
+        del arguments
+        return url
+
+    return InMemoryToolRegistry(
+        {n: (ToolSpec(name=n, description="", parameters={}), reply) for n in names}
+    )
+
+
+async def test_build_tool_registry_filters_and_aggregates_endpoints(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Several endpoints: per-endpoint allowlists apply, and one aggregate spans them all
+    in sorted-name order (ADR-0009 refinements addendum)."""
+    fs_url = "http://mcp-filesystem:9000/mcp"
+    mail_url = "http://mcp-email:9100/mcp"
+    canned = {
+        fs_url: _canned_registry(fs_url, "read_text_file", "write_file"),
+        mail_url: _canned_registry(mail_url, "read_email"),
+    }
+    closed: list[str] = []
+
+    async def fake_connect(url: str) -> tuple[object, Callable[[], Awaitable[None]]]:
+        async def closer() -> None:
+            closed.append(url)
+
+        return canned[url], closer
+
+    monkeypatch.setattr(McpToolRegistry, "connect", fake_connect)
+    registry, close = await build_tool_registry(
+        ToolsConfig(
+            backend="mcp",
+            endpoints={"filesystem": fs_url, "email": mail_url},
+            allow={"filesystem": ("read_text_file",)},
+        )
+    )
+    assert registry is not None
+    # "email" sorts before "filesystem"; the filesystem write tool is filtered out.
+    names = [spec.name for spec in await registry.describe_tools()]
+    assert names == ["read_email", "read_text_file"]
+    routed = await registry.invoke(ToolCall(id="c1", name="read_text_file", arguments={}))
+    assert routed.content == fs_url
+    with pytest.raises(ToolNotFoundError, match="unknown tool 'write_file'"):
+        await registry.invoke(ToolCall(id="c2", name="write_file", arguments={}))
+    await close()  # releases every session, LIFO
+    assert closed == [fs_url, mail_url]
+
+
+async def test_build_tool_registry_unwinds_sessions_when_a_later_connect_fails(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A failed connect must not leak the sessions already opened before it."""
+    closed: list[str] = []
+
+    async def fake_connect(url: str) -> tuple[object, Callable[[], Awaitable[None]]]:
+        if url == "http://b:9100/mcp":
+            msg = "connect refused"
+            raise ToolError(msg)
+
+        async def closer() -> None:
+            closed.append(url)
+
+        return _canned_registry(url, "read"), closer
+
+    monkeypatch.setattr(McpToolRegistry, "connect", fake_connect)
+    config = ToolsConfig(
+        backend="mcp",
+        endpoints={"a": "http://a:9000/mcp", "b": "http://b:9100/mcp"},
+    )
+    with pytest.raises(ToolError, match="connect refused"):
+        await build_tool_registry(config)
+    assert closed == ["http://a:9000/mcp"]
 
 
 async def test_build_subagents_defaults_to_disabled() -> None:

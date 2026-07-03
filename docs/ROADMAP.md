@@ -478,18 +478,15 @@ Not ordered; picked up when a slice needs one or on request.
   reply), so a bounded queue / flow-control pass stays a later refinement behind the unchanged
   `Converse` stream contract.
 
-**Tools in Slice 6 ([ADR-0009](adr/ADR-0009-tools-mcp.md)):**
-- **Multi-server tool aggregation.** The brain connects to *one* MCP endpoint at a time
-  (files *or* email); an `AggregateToolRegistry` fanning `describe`/`invoke` across several
-  `McpToolRegistry`s (routing by tool name) lets both coexist behind the unchanged port, per the
-  multi-server aggregation addendum.
-- **Advertised-tool filtering.** The reference filesystem server advertises write tools the
-  read-only mount then `EROFS`-blocks; filtering the advertised set to read tools is a UX
-  nicety, not a security need (the mount is the boundary), per the increment-3 addendum.
-- **Readable-text-from-HTML extraction.** `read_email` falls back to raw HTML when there is
-  no `text/plain` part; a real HTML→text pass would read cleaner, per the increment-4 addendum.
+**Tools in Slice 6 ([ADR-0009](adr/ADR-0009-tools-mcp.md)):** multi-server aggregation,
+advertised-tool filtering, and readable-text-from-HTML extraction **landed 2026-07-03**
+(ADR-0009 refinements addendum, with `AggregateToolRegistry`/`FilteredToolRegistry` in the core,
+`CORTEX_TOOLS_ENDPOINTS__<name>` config, `html_to_text` in the email sidecar). Remaining:
 - **Salience / rate policy on the tool loop.** Bounded by `MAX_TOOL_STEPS` today; rate and
   salience limits are a later refinement behind the port (decision 3 / risks).
+- **Partial-degradation policy for the aggregate.** `AggregateToolRegistry` fails tool listing
+  loudly when any one sidecar is down (deliberate, upholding "never a silently smaller tool set"); a
+  skip-and-report degraded mode is a later knob behind the same port (refinements addendum).
 
 **Untrusted-content boundary in Slice 6.5 ([ADR-0013](adr/ADR-0013-untrusted-content.md)):** each
 behind the unchanged `ToolRegistry`/`ToolDispatcher`/`stream_tool_loop` seams (or the new `Confirmer` port).

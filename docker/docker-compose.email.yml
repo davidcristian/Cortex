@@ -4,6 +4,11 @@
 # sidecar reached over streamable-http, and flips the brain from tools=none to the mcp
 # backend pointed at it. CI never runs this file. Tools are opt-in.
 #
+# Layer docker-compose.tools.yml on top as well and BOTH tool families are live at once:
+# each override contributes its own CORTEX_TOOLS_ENDPOINTS__<name> key (compose merges the
+# environment maps key-wise) and the brain aggregates the sidecars behind one registry
+# (ADR-0009 refinements addendum).
+#
 # The Bridge runs on the Windows HOST; the sidecar reaches it via host.docker.internal.
 # Supply the Bridge credentials via env. Use a .env at the repo root (gitignored) or the shell.
 # NEVER commit secrets:
@@ -16,9 +21,10 @@
 services:
   brain:
     environment:
-      # Opt into tools, pointed at the email sidecar (ADR-0009).
+      # Opt into tools, pointed at the email sidecar (ADR-0009). No allowlist needed:
+      # the server is ours and read-only by construction (only the three read tools exist).
       CORTEX_TOOLS_BACKEND: "mcp"
-      CORTEX_TOOLS_ENDPOINT: "http://mcp-email:9100/mcp"
+      CORTEX_TOOLS_ENDPOINTS__EMAIL: "http://mcp-email:9100/mcp"
     depends_on:
       mcp-email:
         condition: service_started

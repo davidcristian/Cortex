@@ -49,4 +49,7 @@ result, not an exception.
 
 **Dependencies.** cortex-core (the `ToolRegistry`/`ToolAuditSink` ports, the tool values, and
 typed errors), mcp (the client SDK). The composition root (`cortex_orchestrator.wiring`) calls
-`McpToolRegistry.connect` and wraps the result in an audited `ToolDispatcher`.
+`McpToolRegistry.connect` per configured endpoint, optionally composing the core's
+`FilteredToolRegistry`/`AggregateToolRegistry` around the sessions (ADR-0009 refinements
+addendum, with this adapter staying single-server), and wraps the result in an audited
+`ToolDispatcher`.

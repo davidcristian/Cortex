@@ -10,8 +10,11 @@ sidecar process, and the brain reaches it as an ordinary MCP server through `cor
 - `EmailReader(mailbox: Mailbox)` is the read-only use-case over the `Mailbox` port. `folders()`
   lists folder names; `search(folder, query, limit)` returns `EmailSummary`s; `read(folder, uid)`
   returns the full `EmailDetail` or None. It parses raw RFC822 with the stdlib `email` package
-  (canonicalized headers, plain-text body), so the parsing is pure and fully tested with canned
-  messages.
+  (canonicalized headers), so the parsing is pure and fully tested with canned messages. The
+  body prefers `text/plain`; an HTML-only message goes through `html.html_to_text` (ADR-0009
+  refinements addendum, via stdlib `HTMLParser`: script/style dropped, block boundaries become
+  line breaks, entities decoded, whitespace collapsed), keeping the raw HTML only when nothing
+  extracts (e.g. an image-only body), so the body is never empty when the message has one.
 - `Mailbox` is the `Protocol` the reader needs (`list_folders`, `search`, `fetch` → `RawEmail`);
   the imap-tools adapter and a fake both satisfy it.
 - `ImapMailbox(config)` is the `Mailbox` over imap-tools. Connects per call (the Bridge is local)

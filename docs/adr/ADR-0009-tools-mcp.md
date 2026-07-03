@@ -190,6 +190,64 @@ yet, and the port already admits it without change. Tracked in the ROADMAP defer
 list alongside the two refinements that *did* land above (readable-string output; HTML-body
 fallback) and the advertised-write-tool filtering from the increment-3 addendum.
 
+## Addendum (2026-07-03): three deferred refinements land (aggregation, advertised-tool filtering, HTML→text)
+
+The multi-server-aggregation addendum above, the increment-3 advertised-write-tool filtering
+note, and the increment-4 readable-text-from-HTML note are now implemented (they were the
+Slice 6 entries in the ROADMAP deferred-refinements list). The `ToolRegistry` port, the
+audited `ToolDispatcher`, and the MCP adapter are all **unchanged**. The first two land as
+pure port-preserving combinators in the core next to `CompositeToolRegistry`, the third as
+pure parsing inside the email sidecar.
+
+1. **`AggregateToolRegistry` (core, `aggregate.py`)** satisfies `ToolRegistry` over an
+   ordered sequence of registries. `describe_tools` lists each in order and dedups by name
+   **first-wins**, matching the shadowing precedence `CompositeToolRegistry` gives built-ins, with
+   construction order as the precedence order; a duplicate name from a later registry is
+   neither advertised nor routed to. `invoke` routes to the first registry currently
+   advertising the name, resolved by a **live `describe_tools()` walk at invoke time**, with no
+   cached routing table (nothing to invalidate or rehydrate; a tool dropped server-side
+   mid-turn fails closed as `ToolNotFoundError`). A listing failure propagates as `ToolError`:
+   one dead sidecar is a loud, audited failure, **not** a silently smaller tool set. A
+   partial-degradation policy would be a later knob behind the same port.
+2. **`FilteredToolRegistry` (core, same module)** is an allowlist over one registry:
+   `describe_tools` intersects the inner advertisement with the allowlist, and `invoke`
+   refuses a name outside it (`ToolNotFoundError`) so the filter is a real layer, not
+   advisory, even though the read-only mount remains the security boundary (increment-3
+   addendum); this closes the UX gap of advertising write tools that can only `EROFS`. The
+   filter only *restricts*: an allowlisted name the inner registry does not advertise stays
+   unadvertised, and invoking it surfaces the inner registry's own not-found.
+3. **Config: one env var per sidecar, merge-friendly.** `CORTEX_TOOLS_ENDPOINTS__<name>=<url>`
+   declares an endpoint and `CORTEX_TOOLS_ALLOW__<name>=<JSON name list>` optionally filters
+   it (pydantic-settings `env_nested_delimiter="__"`). Compose merges `environment` maps
+   key-wise, so layering `docker-compose.tools.yml` **and** `docker-compose.email.yml` now
+   yields both sidecars. The singular `CORTEX_TOOLS_ENDPOINT` the two overrides previously
+   fought over remains valid for a one-server deployment, but setting both forms is a
+   validation error (ambiguity fails closed), as is an `ALLOW__<name>` with no matching
+   endpoint. The wiring connects each endpoint, wraps it in `FilteredToolRegistry` when an
+   allowlist is set, and aggregates when more than one, with registries ordered by **sorted
+   endpoint name**, so collision precedence is deterministic and independent of env
+   enumeration order. Sessions are owned by one `AsyncExitStack`; a failed later connect
+   unwinds the earlier sessions.
+4. **`read_email` HTML→text (email sidecar, `html.py`).** The increment-4 raw-HTML fallback
+   now runs through a stdlib-`HTMLParser` extraction: script/style/head content dropped,
+   block boundaries become newlines, entities decoded, whitespace collapsed. An extraction
+   that comes back empty (e.g. an image-only body) falls back to the raw HTML, preserving
+   increment 4's non-empty-body property. No new dependency.
+
+The filesystem sidecar's allowlist (its 10 read tools) lives in `docker-compose.tools.yml`
+where the mount it mirrors is declared; the email sidecar needs none (it never had write
+tools). Runbook: [tools-mcp.md](../runbooks/tools-mcp.md) covers running both sidecars at
+once.
+
+Validated live 2026-07-03 (agent, via Docker, both sidecars up under the layered overrides):
+`build_tool_registry` over both endpoints advertised exactly 13 tools, made up of the 10 allowlisted
+filesystem read tools (every allowlist name exists on the pinned server; none of the 4 write
+tools advertised) plus the 3 email tools; `read_text_file` routed through the aggregate and
+returned the sandbox file's contents; `write_file` was refused at the filter
+(`ToolNotFoundError`); and with the ProtonMail Bridge down on the host, `list_folders` still
+routed to the email sidecar and its failure came back as a clean `is_error` result, which is the
+graceful-degradation path of the Risks section, observed end to end.
+
 ## Addendum (2026-07-03): `--jinja` committed to the GPU compose; live cortex tool path validated; the version pin made real
 
 Closes the two open ends the 2026-07-02 slice audit flagged (`audit/slice-6.md`, which is a review

@@ -4,6 +4,11 @@
 # brain from tools=none to the mcp backend pointed at it. CI never runs this file. Tools are
 # opt-in so CI and the no-GPU dev loop stay MCP-free.
 #
+# Layer docker-compose.email.yml on top as well and BOTH tool families are live at once:
+# each override contributes its own CORTEX_TOOLS_ENDPOINTS__<name> key (compose merges the
+# environment maps key-wise) and the brain aggregates the sidecars behind one registry
+# (ADR-0009 refinements addendum).
+#
 # Set on the host (a .env at the repo root works):
 #   CORTEX_TOOLS_ROOT  host dir the filesystem tool may read (default ./sandbox), mounted RO
 #
@@ -17,7 +22,14 @@ services:
     environment:
       # Opt into tools; without this the base image runs tools=none (ADR-0009).
       CORTEX_TOOLS_BACKEND: "mcp"
-      CORTEX_TOOLS_ENDPOINT: "http://mcp-filesystem:9000/mcp"
+      CORTEX_TOOLS_ENDPOINTS__FILESYSTEM: "http://mcp-filesystem:9000/mcp"
+      # The reference server also advertises write tools the read-only mount can only
+      # EROFS-block; advertise just the read subset (refinements addendum, which is a UX nicety
+      # plus defense in depth; the read-only mount below stays the security boundary).
+      CORTEX_TOOLS_ALLOW__FILESYSTEM: >-
+        ["read_file", "read_text_file", "read_media_file", "read_multiple_files",
+        "list_directory", "list_directory_with_sizes", "directory_tree",
+        "search_files", "get_file_info", "list_allowed_directories"]
     depends_on:
       mcp-filesystem:
         condition: service_started
