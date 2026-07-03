@@ -471,12 +471,12 @@ Not ordered; picked up when a slice needs one or on request.
   windowing/summarization pass (drop or compress old turns before inference) is a later refinement
   behind the unchanged `SessionStore`/`TurnEngine`. Distinct from memory summarization (Slice 5,
   which is cross-session recall, not the in-context history).
-- **Bounded backpressure on the `Converse` output queue.** The per-turn output queue
-  (`converse.py`) is deliberately unbounded; the original in-code note promised bounds "with real
-  inference (Slice 4)", but Slice 4 landed without them and the punt went unrecorded until the
-  2026-07-02 audit. Exposure is small (single-user seam; unread output is bounded by one turn's
-  reply), so a bounded queue / flow-control pass stays a later refinement behind the unchanged
-  `Converse` stream contract.
+- **Bounded backpressure on the `Converse` output queue landed 2026-07-03.** The per-turn
+  output queue (`converse.py`) is now credit-bounded (`CORTEX_SEAM_CONVERSE_BUFFER`, default
+  256): a consumer that stops reading suspends generation at the bound, while the terminal
+  `SeamError` and teardown bypass the credits so failure never blocks behind a full buffer.
+  The `Converse` stream contract is unchanged; design in
+  [brain-orchestrator.md](modules/brain-orchestrator.md).
 
 **Tools in Slice 6 ([ADR-0009](adr/ADR-0009-tools-mcp.md)):** multi-server aggregation,
 advertised-tool filtering, and readable-text-from-HTML extraction **landed 2026-07-03**

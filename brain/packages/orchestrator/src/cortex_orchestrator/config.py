@@ -6,6 +6,7 @@ from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from cortex_core import DEFAULT_CORTEX_MODEL
+from cortex_orchestrator.converse import DEFAULT_MAX_BUFFERED_EVENTS
 from cortex_session import DEFAULT_REDIS_URL
 
 InferenceBackendName = Literal["echo", "llamacpp"]
@@ -24,6 +25,9 @@ class SeamServerConfig(BaseSettings):
 
     host: str = "127.0.0.1"
     port: int = 50051
+    # env CORTEX_SEAM_CONVERSE_BUFFER sets how many ServerEvents one Converse stream may
+    # buffer unread before generation stalls (bounded backpressure; converse.py).
+    converse_buffer: int = Field(default=DEFAULT_MAX_BUFFERED_EVENTS, gt=0)
 
     @property
     def bind_address(self) -> str:

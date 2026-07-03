@@ -13,6 +13,9 @@ Config (pydantic-settings; explicit constructor arguments beat the environment):
   (`CORTEX_SEAM_HOST`), `port: int = 50051` (`CORTEX_SEAM_PORT`); `bind_address`
   property yields `"host:port"`. The body's live check dials the same endpoint via
   `CORTEX_BRAIN_ADDR` (default `http://127.0.0.1:50051`). Keep the two in sync.
+  `converse_buffer: int = 256` (`CORTEX_SEAM_CONVERSE_BUFFER`, positive) bounds how many
+  `ServerEvent`s one Converse stream buffers unread before generation stalls
+  (backpressure, below).
 - `BrainRuntimeConfig` holds runtime wiring knobs, read only by the composition root:
   `redis_url: str = "redis://127.0.0.1:6379/0"` (`CORTEX_REDIS_URL`);
   `cortex_model: str = "cortex"` (`CORTEX_MODEL_CORTEX`) is a LOGICAL model id (ADR-0004), never a
@@ -50,15 +53,19 @@ Config (pydantic-settings; explicit constructor arguments beat the environment):
 
 The service:
 
-- `BrainService(engine: TurnEngine)` is the `BrainServiceServicer` implementation;
-  the engine is injected (DI at the edge), the service holds no state.
+- `BrainService(engine: TurnEngine, *, max_buffered_events: int = 256)` is the
+  `BrainServiceServicer` implementation; the engine is injected (DI at the edge), the
+  service holds no state.
   - `Health` → `HealthReply(ready=True, detail="cortex-orchestrator <version>")`.
   - `Converse` is the conversation loop (contract below).
-- `converse(engine, client_events) -> AsyncGenerator[ServerEvent, None]` is the loop
-  itself, servicer-independent (what `BrainService.Converse` delegates to). Closing
-  the generator tears down the stream's pump task, any in-flight turn, and the queue
-  of not-yet-started turns. Teardown completes even when it races a client `Cancel`
-  whose turn is still cleaning up.
+- `converse(engine, client_events, *, max_buffered_events=DEFAULT_MAX_BUFFERED_EVENTS)
+  -> AsyncGenerator[ServerEvent, None]` is the loop itself, servicer-independent (what
+  `BrainService.Converse` delegates to). Closing the generator tears down the stream's
+  pump task, any in-flight turn, and the queue of not-yet-started turns. Teardown
+  completes even when it races a client `Cancel` whose turn is still cleaning up, and
+  even while the turn is blocked on a buffer credit.
+- `DEFAULT_MAX_BUFFERED_EVENTS = 256` is the default Converse buffer bound
+  (`SeamServerConfig.converse_buffer` feeds the deployed value through `create_server`).
 - `ERROR_CODE_SESSION_STORE_UNAVAILABLE` / `ERROR_CODE_INFERENCE_FAILED` /
   `ERROR_CODE_INTERNAL` are the `SeamError.code` values (`"session_store_unavailable"`,
   `"inference_failed"`, `"internal"`).
@@ -128,6 +135,12 @@ The service:
   stream are not acted upon). Client events without a known payload are ignored.
 - Client disconnect / RPC cancellation tears down the in-flight turn the same way a
   `Cancel` does.
+- **Bounded backpressure** (the Slice-3 deferral, landed 2026-07-03): at most
+  `converse_buffer` events sit unread per stream. The turn's data path holds a credit
+  per buffered event (returned on dequeue), so a consumer that stops reading suspends
+  generation at the bound instead of growing an unbounded buffer. The terminal
+  `SeamError` and stream teardown bypass the credits: failure reporting never blocks
+  behind a full buffer, whatever the consumer does.
 
 **Invariants.**
 - Conversation state lives ONLY in the session store: the service holds a turn's

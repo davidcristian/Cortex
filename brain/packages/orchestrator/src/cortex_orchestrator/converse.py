@@ -43,6 +43,11 @@ ERROR_CODE_SESSION_STORE_UNAVAILABLE = "session_store_unavailable"
 ERROR_CODE_INFERENCE_FAILED = "inference_failed"
 ERROR_CODE_INTERNAL = "internal"
 
+# Default bound on buffered-but-unread ServerEvents per stream: generous for a live
+# consumer (a whole short reply fits), small enough that a stalled one caps the brain's
+# memory at a few tens of KB of deltas. Env override: CORTEX_SEAM_CONVERSE_BUFFER.
+DEFAULT_MAX_BUFFERED_EVENTS = 256
+
 _logger = logging.getLogger(__name__)
 
 
@@ -58,10 +63,13 @@ class _ConverseStream:
 
     The pump and the consumer are decoupled by an output queue so a `Cancel` can be
     acted on while a turn is still generating; `None` on the queue ends the stream.
-    The queue is DELIBERATELY unbounded, real inference included: one turn runs at a
-    time, so unread output is bounded by a single turn's reply on a single-user seam.
-    Bounded backpressure is a recorded deferral (ROADMAP "Deferred refinements",
-    Slice 3 block), not a pending Slice-4 promise.
+    The queue is bounded by a credit semaphore (`max_buffered_events`, the Slice-3
+    backpressure deferral, landed 2026-07-06): the turn's data path acquires one
+    credit per event and the consumer returns it on dequeue, so a consumer that stops
+    reading stalls generation at the bound instead of buffering an unbounded reply.
+    Control events (the terminal `SeamError` and the `None` sentinel) bypass the
+    credits (`put_nowait` on the still-unbounded queue): failure reporting and stream
+    teardown must never block behind a full buffer, whatever the consumer does.
 
     Turn scheduling: at most one turn task runs; `UserTurn`s arriving mid-turn wait
     in `_pending` and the finishing turn's own cleanup starts the next one, so the
@@ -74,9 +82,15 @@ class _ConverseStream:
     pump resumed reading the client iterator, and `aclose()` hung the RPC handler.
     """
 
-    def __init__(self, engine: TurnEngine) -> None:
+    def __init__(
+        self, engine: TurnEngine, *, max_buffered_events: int = DEFAULT_MAX_BUFFERED_EVENTS
+    ) -> None:
+        if max_buffered_events < 1:
+            msg = "max_buffered_events must be at least 1"
+            raise ValueError(msg)
         self._engine = engine
         self._out: asyncio.Queue[ServerEvent | None] = asyncio.Queue()
+        self._credits = asyncio.Semaphore(max_buffered_events)
         self._pending: deque[tuple[str, str]] = deque()
         self._turn: asyncio.Task[None] | None = None
         self._failed = False
@@ -88,6 +102,10 @@ class _ConverseStream:
         pump = asyncio.create_task(self._pump(client_events))
         try:
             while (event := await self._out.get()) is not None:
+                # Return the data credit on dequeue. A SeamError never acquired one, so
+                # this over-credits by one on the failure path. That is harmless: the stream is
+                # terminal and no further turn starts (_start_next_turn refuses).
+                self._credits.release()
                 yield event
         finally:
             # Runs on normal end, RPC cancellation, and client disconnect alike:
@@ -169,6 +187,9 @@ class _ConverseStream:
         events = self._engine.handle_turn(session_id, text)
         try:
             async for event in events:
+                # Backpressure: block here (suspending generation) until the consumer
+                # frees a credit; cancellation while blocked tears down cleanly below.
+                await self._credits.acquire()
                 self._out.put_nowait(_to_server_event(event))
         finally:
             # Cancellation lands while suspended inside handle_turn; closing the
@@ -183,11 +204,16 @@ class _ConverseStream:
 
 
 def converse(
-    engine: TurnEngine, client_events: AsyncIterator[ClientEvent]
+    engine: TurnEngine,
+    client_events: AsyncIterator[ClientEvent],
+    *,
+    max_buffered_events: int = DEFAULT_MAX_BUFFERED_EVENTS,
 ) -> AsyncGenerator[ServerEvent, None]:
     """The Converse conversation loop as a server-event stream (see module docstring).
 
-    Close the returned generator to tear everything down (in-flight turn included), and
-    that is what the servicer does when the RPC ends or the client disconnects.
+    `max_buffered_events` bounds how many events may sit unread before generation
+    stalls (must be positive). Close the returned generator to tear everything down
+    (in-flight turn included). That is what the servicer does when the RPC ends or
+    the client disconnects.
     """
-    return _ConverseStream(engine).events(client_events)
+    return _ConverseStream(engine, max_buffered_events=max_buffered_events).events(client_events)

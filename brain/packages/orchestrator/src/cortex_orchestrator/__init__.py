@@ -9,6 +9,7 @@ from cortex_orchestrator.config import (
     ToolsConfig,
 )
 from cortex_orchestrator.converse import (
+    DEFAULT_MAX_BUFFERED_EVENTS,
     ERROR_CODE_INFERENCE_FAILED,
     ERROR_CODE_INTERNAL,
     ERROR_CODE_SESSION_STORE_UNAVAILABLE,
@@ -25,6 +26,7 @@ from cortex_orchestrator.wiring import (
 )
 
 __all__ = [
+    "DEFAULT_MAX_BUFFERED_EVENTS",
     "ERROR_CODE_INFERENCE_FAILED",
     "ERROR_CODE_INTERNAL",
     "ERROR_CODE_SESSION_STORE_UNAVAILABLE",
