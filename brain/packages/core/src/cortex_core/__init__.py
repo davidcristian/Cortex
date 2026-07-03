@@ -73,6 +73,7 @@ from cortex_core.untrusted import (
     security_preamble_message,
     wrap_untrusted,
 )
+from cortex_core.windowing import CharBudgetHistoryWindow, HistoryWindow
 
 __all__ = [
     "DEFAULT_CORTEX_MODEL",
@@ -81,6 +82,7 @@ __all__ = [
     "SPAWN_TOOL_NAME",
     "AggregateToolRegistry",
     "BuiltinTool",
+    "CharBudgetHistoryWindow",
     "Clock",
     "CompositeToolRegistry",
     "ConfirmationRequest",
@@ -90,6 +92,7 @@ __all__ = [
     "EmbedderError",
     "FilteredToolRegistry",
     "HashEmbedder",
+    "HistoryWindow",
     "InMemoryMemoryStore",
     "InMemorySessionStore",
     "InMemoryTaskStore",

@@ -67,6 +67,10 @@ Start here. Rules for working in this repo: [AGENTS.md](../AGENTS.md).
   loop (propagating subagent → cortex), `ToolSpec.gated` + a dispatcher gate + the one new
   `Confirmer` port (inert until the first outbound tool), memory-suppress on taint; the screening
   subagent and the real overlay confirmation adapter deferred.
+- [ADR-0014: Session-history windowing](adr/ADR-0014-history-windowing.md): the Slice-3
+  deferral landed as a pure `HistoryWindow` seam in `TurnCapabilities` with a turn-aligned
+  char-budget tail (`CharBudgetHistoryWindow`, `CORTEX_HISTORY_CHAR_BUDGET`, on by default,
+  0 disables); persistence untouched; summarization still deferred behind the same seam.
 
 New non-obvious decision → add `adr/ADR-XXXX-<slug>.md`, link it here.
 

@@ -23,6 +23,7 @@ def clean_env(monkeypatch: pytest.MonkeyPatch) -> None:
         "CORTEX_SEAM_CONVERSE_BUFFER",
         "CORTEX_REDIS_URL",
         "CORTEX_MODEL_CORTEX",
+        "CORTEX_HISTORY_CHAR_BUDGET",
         "CORTEX_INFERENCE_BACKEND",
         "CORTEX_INFERENCE_ENDPOINT",
         "CORTEX_MEMORY_BACKEND",
@@ -90,6 +91,21 @@ def test_runtime_defaults_match_the_dictated_contract() -> None:
     assert config.cortex_model == "cortex"  # a LOGICAL model id (ADR-0004), never a path
     assert config.vram_soft_cap_gb == 14.0  # the deliberate GPU budget (ADR-0004)
     assert config.cortex_reservation_gb == 11.3  # gemma-4-12B footprint (ADR-0004 addendum)
+    assert config.history_char_budget == 48_000  # ≈12K of the 16K-token context (ADR-0014)
+
+
+@pytest.mark.usefixtures("clean_env")
+def test_runtime_env_overrides_the_history_budget(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("CORTEX_HISTORY_CHAR_BUDGET", "1000")
+    assert BrainRuntimeConfig().history_char_budget == 1000
+
+
+@pytest.mark.usefixtures("clean_env")
+def test_runtime_rejects_a_negative_history_budget(monkeypatch: pytest.MonkeyPatch) -> None:
+    # 0 is the documented off switch; anything below it is a config mistake.
+    monkeypatch.setenv("CORTEX_HISTORY_CHAR_BUDGET", "-1")
+    with pytest.raises(ValidationError, match="history_char_budget"):
+        BrainRuntimeConfig()
 
 
 @pytest.mark.usefixtures("clean_env")

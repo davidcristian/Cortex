@@ -1,9 +1,11 @@
 # brain/packages/orchestrator (`cortex_orchestrator`)
 
 **Purpose.** The thin grpc.aio service hosting `BrainService` (the brain's end of the
-seam), plus the composition root that wires the core's ports to real adapters. A shell
-only: turn logic lives in `cortex_core.TurnEngine`; no conversation/task state may live
-in this process beyond the in-flight turn (AGENTS.md hard rule).
+seam), plus the composition root that wires the core's ports to real adapters (the
+per-capability `build_*` factories in `builders.py`, the root `run_from_env` in
+`wiring.py`). A shell only: turn logic lives in `cortex_core.TurnEngine`; no
+conversation/task state may live in this process beyond the in-flight turn (AGENTS.md
+hard rule).
 
 **Public contract** (everything importable from `cortex_orchestrator`; `__all__` is the API):
 
@@ -21,7 +23,10 @@ Config (pydantic-settings; explicit constructor arguments beat the environment):
   `cortex_model: str = "cortex"` (`CORTEX_MODEL_CORTEX`) is a LOGICAL model id (ADR-0004), never a
   file path; and the GPU-budget facts the `SubagentPlacer` fit-tests against (ADR-0012):
   `vram_soft_cap_gb: float = 14.0` (`CORTEX_VRAM_SOFT_CAP_GB`, the deliberate soft cap, ADR-0004) and
-  `cortex_reservation_gb: float = 11.3` (`CORTEX_VRAM_CORTEX_GB`, the resident cortex's footprint).
+  `cortex_reservation_gb: float = 11.3` (`CORTEX_VRAM_CORTEX_GB`, the resident cortex's footprint);
+  `history_char_budget: int = 48000` (`CORTEX_HISTORY_CHAR_BUDGET`, ADR-0014) sets how many
+  characters of session history one turn sends to the model (the newest whole turns;
+  `0` disables windowing, negative rejected).
 - `InferenceConfig` uses env prefix `CORTEX_INFERENCE_`: which backend answers turns
   (ADR-0007 d4). `backend: "echo" | "llamacpp" = "echo"` (`CORTEX_INFERENCE_BACKEND`) and
   `endpoint: str = ""` (`CORTEX_INFERENCE_ENDPOINT`, the resident `llama-server` base
@@ -89,8 +94,12 @@ The service:
   `SingleResidentModelManager(cortex_model, endpoint)` + the httpx client's `aclose`
   (short connect timeout, no read deadline). The uniform closer keeps `run_from_env`'s
   shutdown path backend-agnostic.
+- `build_history_window(char_budget: int) -> CharBudgetHistoryWindow | None` is the turn's
+  history window (ADR-0014): a positive budget returns the char-budget window, `0` returns
+  `None` (windowing off). On by default via `BrainRuntimeConfig.history_char_budget`.
 - `run_from_env() -> None` (async) is the composition root: reads the env configs and serves
   with `RedisSessionStore.from_url(redis_url)`, `build_inference_backend(...)`, `SystemClock`,
+  the default-on history window (`build_history_window`, ADR-0014),
   and three opt-in adapters, each disabled by default so CI and the no-GPU dev loop stay
   external-service-free: **memory** (`build_memory`, ADR-0008), **tools** (`build_tool_registry`
   builds the MCP `ToolRegistry` shared by cortex and subagents, ADR-0009: one `McpToolRegistry` per
