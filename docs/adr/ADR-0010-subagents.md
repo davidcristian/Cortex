@@ -170,8 +170,9 @@ flag, plain requests answer directly in ~0.3-0.6 s and the live delegation test 
 (`--reasoning-budget 0` did **not** work on this build. It still produced reasoning; only
 `--chat-template-kwargs` / the per-request `enable_thinking` disabled it.)
 
-Still the host-only half (needs the GPU): the **cortex-driven** path, meaning a resident
-gemma-4-12B *deciding* to emit `spawn_subagents` end to end. The measured pick is recorded in the
+At the time of this addendum, the **cortex-driven** path (a resident gemma-4-12B *deciding* to
+emit `spawn_subagents` end to end) remained the host-only half (needs the GPU); it was
+closed 2026-07-01 (see the closure addendum below). The measured pick is recorded in the
 [ADR-0004 addendum](ADR-0004-model-lineup.md).
 
 ## Addendum (2026-07-01): subagents are GPU-first, not CPU-only (revises decisions 6-7)
@@ -187,3 +188,13 @@ budget for per-container resource caps (no hard WSL limits). This revision, with
 resource-governance design and adversarially-verified WSL2 feasibility (there is no per-process
 GPU-utilization cap on this stack), is **Slice 8.5 / ADR-0012**. The Slice 7 code (scheduler,
 task store, spawn tool) is unchanged; the placement/admission layer above it grows.
+
+## Addendum (2026-07-03): the cortex-driven GPU path was host-closed 2026-07-01
+
+The remaining host-only half, the resident gemma-4-12B *deciding* to emit `spawn_subagents`
+end to end ([runbook §3](../runbooks/subagents-cpu.md)), was validated and closed by the
+**user on 2026-07-01**, closing Slice 7 with it. The closure was recorded at the time only in
+the ROADMAP status/progress text (commit `42fb330`); this addendum is the ADR-side record,
+added when the slice audit ([audit/slice-7.md](../../audit/slice-7.md)) flagged the
+ROADMAP-only paper trail. No measurements were recorded beyond the closure itself. The
+machinery measurements live in the increment-4 addendum above.

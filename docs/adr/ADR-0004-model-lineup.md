@@ -158,8 +158,9 @@ The subagent tier was measured on the host machine (WSL + Docker Desktop, models
   answers correctly in ~0.6 s ("17 + 25" → 42). See the [ADR-0010 addendum](ADR-0010-subagents.md).
   If the 2B's tool-calling proves too weak with reasoning off, gemma-4-E4B or Qwen3.5-4B (both
   present) are the fallbacks at higher CPU cost.
-- **Cortex-driven end-to-end** (a resident gemma-4-12B *deciding* to delegate) still needs the GPU
-  and is validated with the full stack per `docs/runbooks/subagents-cpu.md` §3.
+- **Cortex-driven end-to-end** (a resident gemma-4-12B *deciding* to delegate) needs the GPU and
+  the full stack per `docs/runbooks/subagents-cpu.md` §3. Host-closed 2026-07-01 (dated closure
+  addendum in [ADR-0010](ADR-0010-subagents.md)).
 
 ## Addendum (2026-07-01): subagents are GPU-first (revises the "subagents = CPU" placement)
 
