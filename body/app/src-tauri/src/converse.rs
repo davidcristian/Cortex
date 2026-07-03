@@ -90,7 +90,11 @@ pub async fn converse(
     channel: Channel<WireMessage>,
 ) -> Result<(), String> {
     let addr = std::env::var("CORTEX_BRAIN_ADDR").unwrap_or_else(|_| DEFAULT_ADDR.to_owned());
-    let client = match BrainSeamClient::connect(&addr).await {
+    // The shared seam secret (ADR-0016): same env var the brain reads; empty = auth off.
+    let token = std::env::var("CORTEX_SEAM_TOKEN")
+        .ok()
+        .filter(|token| !token.is_empty());
+    let client = match BrainSeamClient::connect_with_token(&addr, token.as_deref()).await {
         Ok(client) => client,
         Err(error) => {
             let _ = channel.send(WireMessage::error(error));

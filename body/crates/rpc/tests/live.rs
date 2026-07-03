@@ -9,7 +9,8 @@
 //! ```
 //!
 //! The target address comes from `CORTEX_BRAIN_ADDR`
-//! (default `http://127.0.0.1:50051`).
+//! (default `http://127.0.0.1:50051`); a token-protected brain (ADR-0016)
+//! additionally needs `CORTEX_SEAM_TOKEN` set to the same value it serves with.
 
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -22,6 +23,13 @@ use body_rpc::generated::{ClientEvent, UserTurn, client_event, server_event};
 /// server's own defaults (ADR-0003 decision 6).
 fn brain_addr() -> String {
     std::env::var("CORTEX_BRAIN_ADDR").unwrap_or_else(|_| String::from("http://127.0.0.1:50051"))
+}
+
+/// The seam token to present, when the live brain requires one (ADR-0016).
+fn seam_token() -> Option<String> {
+    std::env::var("CORTEX_SEAM_TOKEN")
+        .ok()
+        .filter(|token| !token.is_empty())
 }
 
 /// A session id unique per test run, so reruns against the same live brain
@@ -40,7 +48,8 @@ fn unique_session_id() -> String {
 #[ignore = "live seam check: needs a real brain at CORTEX_BRAIN_ADDR (run with -- --ignored)"]
 async fn brain_reports_ready_over_the_live_seam() {
     let addr = brain_addr();
-    let client = match BrainSeamClient::connect(&addr).await {
+    let token = seam_token();
+    let client = match BrainSeamClient::connect_with_token(&addr, token.as_deref()).await {
         Ok(client) => client,
         Err(error) => panic!("cannot reach the brain at {addr}: {error}"),
     };
@@ -73,7 +82,15 @@ async fn converse_round_trips_one_turn_over_the_live_seam() {
             images: Vec::new(),
         })),
     };
-    let response = match client.converse(tokio_stream::iter(vec![turn])).await {
+    let mut request = tonic::Request::new(tokio_stream::iter(vec![turn]));
+    if let Some(token) = seam_token() {
+        let value = match token.parse() {
+            Ok(value) => value,
+            Err(error) => panic!("CORTEX_SEAM_TOKEN is not valid ASCII metadata: {error}"),
+        };
+        request.metadata_mut().insert("x-cortex-seam-token", value);
+    }
+    let response = match client.converse(request).await {
         Ok(response) => response,
         Err(status) => {
             panic!("opening Converse on session {session_id} at {addr} failed: {status}")

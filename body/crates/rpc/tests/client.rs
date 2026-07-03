@@ -31,8 +31,20 @@ enum Script {
 }
 
 /// A scripted fake implementing the generated `BrainService` server trait.
+/// With `expected_token` set it mirrors the brain's seam-token check
+/// (ADR-0016): `Health` demands the matching `x-cortex-seam-token` metadata.
 struct FakeBrain {
     script: Script,
+    expected_token: Option<&'static str>,
+}
+
+impl FakeBrain {
+    fn new(script: Script) -> Self {
+        Self {
+            script,
+            expected_token: None,
+        }
+    }
 }
 
 #[tonic::async_trait]
@@ -48,8 +60,14 @@ impl BrainService for FakeBrain {
 
     async fn health(
         &self,
-        _request: Request<HealthRequest>,
+        request: Request<HealthRequest>,
     ) -> Result<Response<HealthReply>, Status> {
+        if let Some(expected) = self.expected_token {
+            match request.metadata().get("x-cortex-seam-token") {
+                Some(value) if *value == *expected => {}
+                _ => return Err(Status::unauthenticated("invalid or missing seam token")),
+            }
+        }
         match self.script {
             Script::Ready => Ok(Response::new(HealthReply {
                 ready: true,
@@ -104,11 +122,9 @@ async fn spawn_stoppable_fake_brain(
 
 #[tokio::test]
 async fn health_round_trips_through_the_transport_port() {
-    let addr = spawn_fake_brain(FakeBrain {
-        script: Script::Ready,
-    })
-    .await
-    .unwrap();
+    let addr = spawn_fake_brain(FakeBrain::new(Script::Ready))
+        .await
+        .unwrap();
     let client = BrainSeamClient::connect(&format!("http://{addr}"))
         .await
         .unwrap();
@@ -124,11 +140,9 @@ async fn health_round_trips_through_the_transport_port() {
 
 #[tokio::test]
 async fn non_ok_grpc_status_maps_to_the_rpc_variant() {
-    let addr = spawn_fake_brain(FakeBrain {
-        script: Script::Failing,
-    })
-    .await
-    .unwrap();
+    let addr = spawn_fake_brain(FakeBrain::new(Script::Failing))
+        .await
+        .unwrap();
     let client = BrainSeamClient::connect(&format!("http://{addr}"))
         .await
         .unwrap();
@@ -168,11 +182,9 @@ async fn brain_death_after_connect_maps_to_the_connection_variant() {
     // channel connected. tonic surfaces that as a locally-synthesized status;
     // the adapter must report it as Connection ("cannot reach the brain"),
     // never as a brain-reported Rpc error.
-    let (addr, shutdown, server) = spawn_stoppable_fake_brain(FakeBrain {
-        script: Script::Ready,
-    })
-    .await
-    .unwrap();
+    let (addr, shutdown, server) = spawn_stoppable_fake_brain(FakeBrain::new(Script::Ready))
+        .await
+        .unwrap();
     let client = BrainSeamClient::connect(&format!("http://{addr}"))
         .await
         .unwrap();
@@ -199,11 +211,9 @@ async fn invalid_address_maps_to_the_connection_variant() {
 
 #[tokio::test]
 async fn client_clones_share_the_connection_and_debug_formats() {
-    let addr = spawn_fake_brain(FakeBrain {
-        script: Script::Ready,
-    })
-    .await
-    .unwrap();
+    let addr = spawn_fake_brain(FakeBrain::new(Script::Ready))
+        .await
+        .unwrap();
     let client = BrainSeamClient::connect(&format!("http://{addr}"))
         .await
         .unwrap();
@@ -216,11 +226,9 @@ async fn client_clones_share_the_connection_and_debug_formats() {
 async fn fake_brain_scripts_converse_as_unimplemented() {
     // Drives the committed streaming codegen directly: the scripted fake
     // answers `Converse` with `Unimplemented` until a later slice ships it.
-    let addr = spawn_fake_brain(FakeBrain {
-        script: Script::Ready,
-    })
-    .await
-    .unwrap();
+    let addr = spawn_fake_brain(FakeBrain::new(Script::Ready))
+        .await
+        .unwrap();
     let mut raw = BrainServiceClient::connect(format!("http://{addr}"))
         .await
         .unwrap();
@@ -230,4 +238,68 @@ async fn fake_brain_scripts_converse_as_unimplemented() {
         .unwrap_err();
     assert_eq!(status.code(), tonic::Code::Unimplemented);
     assert_eq!(status.message(), "converse lands in a later slice");
+}
+
+#[tokio::test]
+async fn seam_token_round_trips_when_the_brain_requires_it() {
+    let mut fake = FakeBrain::new(Script::Ready);
+    fake.expected_token = Some("sekrit-seam-token");
+    let addr = spawn_fake_brain(fake).await.unwrap();
+    let client =
+        BrainSeamClient::connect_with_token(&format!("http://{addr}"), Some("sekrit-seam-token"))
+            .await
+            .unwrap();
+    assert!(client.health().await.unwrap().ready);
+    // The client's Debug never carries the secret (tonic prints the
+    // interceptor by type name; the interceptor itself has no Debug).
+    let debugged = format!("{client:?}");
+    assert!(debugged.contains("BrainSeamClient"));
+    assert!(!debugged.contains("sekrit-seam-token"));
+}
+
+#[tokio::test]
+async fn missing_seam_token_maps_to_the_rpc_unauthenticated_variant() {
+    let mut fake = FakeBrain::new(Script::Ready);
+    fake.expected_token = Some("sekrit-seam-token");
+    let addr = spawn_fake_brain(fake).await.unwrap();
+    let client = BrainSeamClient::connect(&format!("http://{addr}"))
+        .await
+        .unwrap();
+    assert_eq!(
+        client.health().await.unwrap_err(),
+        TransportError::Rpc {
+            code: String::from("Unauthenticated"),
+            message: String::from("invalid or missing seam token"),
+        }
+    );
+}
+
+#[tokio::test]
+async fn wrong_seam_token_maps_to_the_rpc_unauthenticated_variant() {
+    let mut fake = FakeBrain::new(Script::Ready);
+    fake.expected_token = Some("sekrit-seam-token");
+    let addr = spawn_fake_brain(fake).await.unwrap();
+    let client = BrainSeamClient::connect_with_token(&format!("http://{addr}"), Some("guessed"))
+        .await
+        .unwrap();
+    let error = client.health().await.unwrap_err();
+    let TransportError::Rpc { code, .. } = error else {
+        panic!("expected the rpc variant, got: {error:?}");
+    };
+    assert_eq!(code, "Unauthenticated");
+}
+
+#[tokio::test]
+async fn non_ascii_seam_token_maps_to_the_connection_variant() {
+    // The parse fails before any dial, so no server is needed at the address.
+    let error = BrainSeamClient::connect_with_token("http://127.0.0.1:1", Some("bad\ntoken"))
+        .await
+        .unwrap_err();
+    let TransportError::Connection(message) = error else {
+        panic!("expected the connection variant, got: {error:?}");
+    };
+    assert!(
+        message.contains("invalid seam token"),
+        "message should name the token as the cause, got: {message}"
+    );
 }

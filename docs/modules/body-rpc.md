@@ -7,10 +7,19 @@ Thin translation only. No business logic, no retries (retry policy is a later sl
 
 **Public contract.**
 
-- `BrainSeamClient` (`Clone` lets clones share the channel; `Debug`).
+- `BrainSeamClient` (`Clone` lets clones share the channel; `Debug` never carries the seam
+  token: the interceptor holding it has no `Debug`, and tonic prints interceptors by type
+  name only).
   - `BrainSeamClient::connect(addr: &str) -> Result<Self, TransportError>` (async)
-    dials e.g. `http://127.0.0.1:50051`; an invalid URI or unreachable endpoint maps to
-    `TransportError::Connection`.
+    dials e.g. `http://127.0.0.1:50051` sending no seam token; an invalid URI or
+    unreachable endpoint maps to `TransportError::Connection`.
+  - `BrainSeamClient::connect_with_token(addr: &str, token: Option<&str>) -> Result<Self, TransportError>`
+    (async, ADR-0016) is like `connect`, additionally attaching `token` as
+    `x-cortex-seam-token` metadata on **every** call (a tonic client interceptor) when
+    `Some`, which is what a `CORTEX_SEAM_TOKEN`-protected brain requires; the Tauri shell reads
+    that env var and passes it here. A token that is not valid ASCII metadata maps to
+    `TransportError::Connection` before any dial; a wrong/missing token surfaces per the
+    normal status mapping as `TransportError::Rpc { code: "Unauthenticated", .. }`.
   - `impl BrainTransport`: `health()` calls `BrainService.Health`; an Ok reply maps to
     `SeamHealth { ready, detail }`. A non-OK gRPC status splits by origin: a status
     tonic *synthesized* from a client-local transport failure (detected by a
@@ -56,7 +65,8 @@ cargo test -p body-rpc --test live -- --ignored
 ```
 
 Both read `CORTEX_BRAIN_ADDR` (default `http://127.0.0.1:50051`, which matches the brain
-server's `CORTEX_SEAM_HOST`/`CORTEX_SEAM_PORT` defaults `127.0.0.1`/`50051`):
+server's `CORTEX_SEAM_HOST`/`CORTEX_SEAM_PORT` defaults `127.0.0.1`/`50051`) and, when the
+live brain is token-protected (ADR-0016), `CORTEX_SEAM_TOKEN`:
 
 - `brain_reports_ready_over_the_live_seam` calls `Health` via `BrainSeamClient` and
   asserts `ready`.

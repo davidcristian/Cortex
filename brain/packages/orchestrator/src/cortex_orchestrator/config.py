@@ -19,12 +19,20 @@ DEFAULT_SUBAGENT_MODEL = "subagent"
 
 
 class SeamServerConfig(BaseSettings):
-    """Where the brain hosts BrainService (loopback-only per ROADMAP assumption 5)."""
+    """Where (and to whom) the brain hosts BrainService.
+
+    The security posture is ROADMAP assumption 5: loopback-only listeners plus an optional
+    shared-secret token (ADR-0016). With `token` set, every call must carry it as
+    `x-cortex-seam-token` metadata or is rejected UNAUTHENTICATED; empty (the default)
+    disables the check and loopback-only remains the sole boundary.
+    """
 
     model_config = SettingsConfigDict(env_prefix="CORTEX_SEAM_")
 
     host: str = "127.0.0.1"
     port: int = 50051
+    # env CORTEX_SEAM_TOKEN is the shared secret both sides read from env (never the repo).
+    token: str = ""
     # env CORTEX_SEAM_CONVERSE_BUFFER sets how many ServerEvents one Converse stream may
     # buffer unread before generation stalls (bounded backpressure; converse.py).
     converse_buffer: int = Field(default=DEFAULT_MAX_BUFFERED_EVENTS, gt=0)
