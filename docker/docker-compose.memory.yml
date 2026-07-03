@@ -7,17 +7,23 @@
 # Set these on the host (a .env at the repo root works):
 #   CORTEX_MODELS_DIR       host dir holding the GGUFs (default ./models, ADR-0004)
 #   CORTEX_EMBED_MODEL_FILE embedding GGUF path under that dir (default: the nomic pick)
+#   CORTEX_DB_DIR           host dir receiving the plug-and-play dump (default ./pgdata)
+#   CORTEX_DB_SYNC_INTERVAL_S  seconds between automated dumps (default 21600 = 6h)
+#   CORTEX_PG_PASSWORD      Postgres password (default `cortex`, a deliberate throwaway
+#                           dev-stack default, loopback-only; NOT a secret. Recorded as a
+#                           carve-out in the ADR-0008 addendum; override for anything else.)
 #
 # The live Postgres data lives in a named volume (avoids the ownership/latency pitfalls of a
-# PGDATA dir over a Docker-Desktop Windows bind mount, ADR-0008); the plug-and-play export
-# to D:\Software\AI\Database is a dump/sync job, not a raw bind mount.
+# PGDATA dir over a Docker-Desktop Windows bind mount, ADR-0008); the plug-and-play export to
+# CORTEX_DB_DIR is the pg-backup sidecar below (an automated pg_dump sync, ADR-0008 decision 7),
+# not a raw bind mount.
 
 services:
   brain:
     environment:
       # Opt into durable memory; without this the base image runs memory=none (ADR-0008).
       CORTEX_MEMORY_BACKEND: "pgvector"
-      CORTEX_MEMORY_DSN: "postgresql://cortex:cortex@postgres:5432/cortex"
+      CORTEX_MEMORY_DSN: "postgresql://cortex:${CORTEX_PG_PASSWORD:-cortex}@postgres:5432/cortex"
       CORTEX_MEMORY_EMBEDDER_ENDPOINT: "http://llama-embed:8081"
     depends_on:
       postgres:
@@ -29,7 +35,8 @@ services:
     image: "pgvector/pgvector:pg16"
     environment:
       POSTGRES_USER: cortex
-      POSTGRES_PASSWORD: cortex
+      # Throwaway dev default, loopback-only (ADR-0008 addendum carve-out); override on the host.
+      POSTGRES_PASSWORD: "${CORTEX_PG_PASSWORD:-cortex}"
       POSTGRES_DB: cortex
     volumes:
       # Live data: a named volume (durable across restarts; not a Windows bind mount).
@@ -50,6 +57,29 @@ services:
       timeout: 5s
       retries: 5
       start_period: 20s
+    restart: unless-stopped
+
+  pg-backup:
+    # The automated plug-and-play export (ADR-0008 decision 7): the live data stays in the
+    # named volume; this sidecar pg_dumps it into CORTEX_DB_DIR on an interval (immediately
+    # on start, then every CORTEX_DB_SYNC_INTERVAL_S), so the guarantee never depends on a
+    # manually-run step. Same image as the server, so pg_dump matches the major version.
+    image: "pgvector/pgvector:pg16"
+    entrypoint: ["/bin/sh", "/backup.sh"]
+    environment:
+      PGPASSWORD: "${CORTEX_PG_PASSWORD:-cortex}"
+      CORTEX_DB_SYNC_INTERVAL_S: "${CORTEX_DB_SYNC_INTERVAL_S:-21600}"
+    volumes:
+      - type: bind
+        source: "${CORTEX_DB_DIR:-./pgdata}"
+        target: /backup
+      - type: bind
+        source: ./docker/postgres/backup.sh
+        target: /backup.sh
+        read_only: true
+    depends_on:
+      postgres:
+        condition: service_healthy
     restart: unless-stopped
 
   llama-embed:
