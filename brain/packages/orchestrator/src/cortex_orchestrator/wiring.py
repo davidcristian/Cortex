@@ -10,8 +10,9 @@ The one place that reads config and picks adapters (DI at the edge, AGENTS.md):
 - Memory -> disabled by default, or a `MemoryRecaller` over the `PgVectorMemoryStore` +
   `LlamaCppEmbedder` when CORTEX_MEMORY_BACKEND is `pgvector` (ADR-0008). Opt-in so CI and
   the no-GPU dev loop stay DB-free.
-- Tools -> the raw MCP `ToolRegistry` when CORTEX_TOOLS_BACKEND is `mcp` (ADR-0009), else None.
-  Shared by the cortex (via the composite) and its subagents.
+- Tools -> the MCP `ToolRegistry` when CORTEX_TOOLS_BACKEND is `mcp` (ADR-0009), else None:
+  one client per configured endpoint, allowlist-filtered and aggregated as configured
+  (refinements addendum). Shared by the cortex (via the composite) and its subagents.
 - Subagents -> disabled by default, or a `spawn_subagents` tool over a `SubagentRunner` (CPU
   `llama-server` + Redis `TaskStore` + concurrency budget) when CORTEX_SUBAGENTS_BACKEND is
   `llamacpp` (ADR-0010). The cortex's dispatcher merges the spawn tool with the MCP tools; a
@@ -22,14 +23,17 @@ Everything below the edge receives ports, never settings objects or env access.
 """
 
 from collections.abc import Awaitable, Callable
+from contextlib import AsyncExitStack
 
 import httpx
 
 from cortex_core import (
+    AggregateToolRegistry,
     BuiltinTool,
     Clock,
     CompositeToolRegistry,
     EchoInferenceBackend,
+    FilteredToolRegistry,
     InferenceBackend,
     MemoryRecaller,
     PlacementRequest,
@@ -115,14 +119,30 @@ async def build_tool_registry(
 ) -> tuple[ToolRegistry | None, Callable[[], Awaitable[None]]]:
     """The raw MCP `ToolRegistry` shared by the cortex and its subagents, or None (ADR-0009).
 
-    ``none`` disables tools. The MCP-less default CI and the no-GPU dev loop run. ``mcp`` connects
-    the MCP client to the tool server; the returned closer releases that session. The registry is
-    left un-audited here. The cortex and each subagent wrap it in their own `ToolDispatcher`.
+    ``none`` disables tools. The MCP-less default CI and the no-GPU dev loop run. ``mcp``
+    connects one MCP client per configured endpoint (refinements addendum): an endpoint with
+    an allowlist is wrapped in `FilteredToolRegistry`, and several endpoints merge behind one
+    `AggregateToolRegistry` (first-wins by the config's sorted-name order). The returned
+    closer releases every session; a failed later connect unwinds the earlier ones. The
+    registry is left un-audited here. The cortex and each subagent wrap it in their own
+    `ToolDispatcher`.
     """
-    if config.backend == "mcp":
-        registry, close = await McpToolRegistry.connect(config.endpoint)
-        return registry, close
-    return None, _noop_aclose
+    if config.backend != "mcp":
+        return None, _noop_aclose
+    stack = AsyncExitStack()
+    registries: list[ToolRegistry] = []
+    try:
+        for name, url in config.named_endpoints.items():
+            registry, close = await McpToolRegistry.connect(url)
+            stack.push_async_callback(close)
+            allow = config.allow.get(name)
+            registries.append(FilteredToolRegistry(registry, allow=allow) if allow else registry)
+    except BaseException:
+        await stack.aclose()
+        raise
+    if len(registries) == 1:
+        return registries[0], stack.aclose
+    return AggregateToolRegistry(registries), stack.aclose
 
 
 async def build_subagents(

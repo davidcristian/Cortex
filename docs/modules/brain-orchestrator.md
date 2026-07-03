@@ -29,10 +29,17 @@ Config (pydantic-settings; explicit constructor arguments beat the environment):
   `embedder_endpoint: str = ""` (`CORTEX_MEMORY_EMBEDDER_ENDPOINT`), `embedder_model: str`
   (`CORTEX_MEMORY_EMBEDDER_MODEL`). Validates that `pgvector` has both a DSN and an
   embedder endpoint. Set by `docker/docker-compose.memory.yml`.
-- `ToolsConfig` uses env prefix `CORTEX_TOOLS_` (ADR-0009): `backend: "none" | "mcp" = "none"`
-  (`CORTEX_TOOLS_BACKEND`), `endpoint: str = ""` (`CORTEX_TOOLS_ENDPOINT`, the streamable-http
-  MCP URL). Validates that `mcp` has a non-empty endpoint. Set by
-  `docker/docker-compose.tools.yml` / `docker-compose.email.yml`.
+- `ToolsConfig` uses env prefix `CORTEX_TOOLS_`, nested delimiter `__` (ADR-0009 + refinements
+  addendum): `backend: "none" | "mcp" = "none"` (`CORTEX_TOOLS_BACKEND`); endpoints in one of
+  two forms, either the singular `endpoint: str = ""` (`CORTEX_TOOLS_ENDPOINT`, one streamable-http
+  MCP URL) or per-sidecar `endpoints: dict[str, str]` (`CORTEX_TOOLS_ENDPOINTS__<name>=<url>`,
+  one env var per sidecar so layered compose overrides merge key-wise); and per-endpoint
+  allowlists `allow: dict[str, tuple[str, ...]]` (`CORTEX_TOOLS_ALLOW__<name>=<JSON name
+  list>`). `named_endpoints` is the effective roster, **sorted by name** (deterministic
+  aggregate precedence; the singular form becomes the sole entry `"default"`). Validates that
+  `mcp` has at least one endpoint, that both forms are not mixed (ambiguity fails closed), and
+  that every allowlist names a configured endpoint. Set by `docker/docker-compose.tools.yml`
+  / `docker-compose.email.yml`. Layer both and both tool families are live at once.
 - `SubagentsConfig` uses env prefix `CORTEX_SUBAGENTS_` (ADR-0010, revised by ADR-0012):
   `backend: "none" | "llamacpp" = "none"` (`CORTEX_SUBAGENTS_BACKEND`), `endpoint` (the CPU
   overflow `llama-server`) **and** `gpu_endpoint` (the GPU one), which are both required when
@@ -74,7 +81,11 @@ The service:
   with `RedisSessionStore.from_url(redis_url)`, `build_inference_backend(...)`, `SystemClock`,
   and three opt-in adapters, each disabled by default so CI and the no-GPU dev loop stay
   external-service-free: **memory** (`build_memory`, ADR-0008), **tools** (`build_tool_registry`
-  builds the raw MCP `ToolRegistry` shared by cortex and subagents, ADR-0009), and **subagents**
+  builds the MCP `ToolRegistry` shared by cortex and subagents, ADR-0009: one `McpToolRegistry` per
+  configured endpoint, wrapped in a `FilteredToolRegistry` where an allowlist is set and merged
+  behind one `AggregateToolRegistry` when several, with every session owned by one `AsyncExitStack`
+  whose `aclose` is the returned closer, and a failed later connect unwinds the earlier
+  sessions), and **subagents**
   (`build_subagents(config, tool_registry, redis_url, clock, *, placer, task_store_factory)`, the
   `spawn_subagents` tool over GPU + CPU subagent backends, a Redis `TaskStore`, a soft CPU/RAM budget,
   and a `VramBudgetPlacer` (built at the call site from the runtime VRAM knobs) that fit-tests each

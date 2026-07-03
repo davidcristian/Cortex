@@ -235,6 +235,21 @@ Use-case:
   `ToolNotFoundError`. Duplicate built-in names raise `ValueError` at construction. The
   internal-tool seam (ADR-0001 Q2) the body's OS actions (Slices 9-10) will reuse. `BuiltinTool`
   is the protocol it advertises/invokes.
+- `AggregateToolRegistry(registries)` is a `ToolRegistry` over several registries (ADR-0009
+  refinements addendum), letting the filesystem and email sidecars coexist behind the one port.
+  `describe_tools` unions in registry order, deduplicating **first-wins** (construction order is
+  precedence under the composite's shadowing rule; a later duplicate is neither advertised nor
+  invokable); `invoke` routes to the first registry *currently* advertising the name, resolved
+  by a live `describe_tools` walk (no cached routing, so a tool dropped server-side mid-turn
+  fails closed as `ToolNotFoundError`). A listing failure anywhere propagates as `ToolError`
+  (one dead sidecar is loud, never a silently smaller tool set). An empty registry sequence
+  raises `ValueError` at construction.
+- `FilteredToolRegistry(inner, *, allow)` is a `ToolRegistry` restricted to an allowlist of names
+  (ADR-0009 refinements addendum, to stop advertising the write tools a read-only mount can only
+  `EROFS`). `describe_tools` intersects the inner advertisement with `allow` (inner order kept);
+  `invoke` refuses any other name as `ToolNotFoundError`, so the filter is a real layer, not
+  advisory, though it only *restricts*, never grants (an allowlisted name the inner lacks stays
+  unadvertised and surfaces the inner not-found). An empty allowlist raises `ValueError`.
 
 Reference implementations (pure, shipped in core; the runtime wiring until Slice 4):
 

@@ -1,5 +1,7 @@
 """Config behavior: defaults and env overrides for the settings models."""
 
+import os
+
 import pytest
 from pydantic import ValidationError
 
@@ -34,6 +36,10 @@ def clean_env(monkeypatch: pytest.MonkeyPatch) -> None:
         "CORTEX_SUBAGENTS_MAX_CONCURRENCY",
     ):
         monkeypatch.delenv(name, raising=False)
+    # The per-sidecar tool vars are open-ended (one per <name>); sweep by prefix.
+    for name in list(os.environ):
+        if name.startswith(("CORTEX_TOOLS_ENDPOINTS__", "CORTEX_TOOLS_ALLOW__")):
+            monkeypatch.delenv(name, raising=False)
 
 
 @pytest.mark.usefixtures("clean_env")
@@ -147,6 +153,9 @@ def test_tools_defaults_to_disabled() -> None:
     config = ToolsConfig()
     assert config.backend == "none"
     assert config.endpoint == ""
+    assert config.endpoints == {}
+    assert config.allow == {}
+    assert config.named_endpoints == {}
 
 
 @pytest.mark.usefixtures("clean_env")
@@ -156,12 +165,45 @@ def test_tools_env_selects_mcp_with_endpoint(monkeypatch: pytest.MonkeyPatch) ->
     config = ToolsConfig()
     assert config.backend == "mcp"
     assert config.endpoint == "http://fs:9000/mcp"
+    # The singular form is the sole named endpoint, so the wiring has one code path.
+    assert config.named_endpoints == {"default": "http://fs:9000/mcp"}
 
 
 @pytest.mark.usefixtures("clean_env")
 def test_tools_mcp_without_endpoint_is_rejected(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("CORTEX_TOOLS_BACKEND", "mcp")
-    with pytest.raises(ValidationError, match="CORTEX_TOOLS_ENDPOINT is required"):
+    with pytest.raises(ValidationError, match="CORTEX_TOOLS_ENDPOINT or CORTEX_TOOLS_ENDPOINTS"):
+        ToolsConfig()
+
+
+@pytest.mark.usefixtures("clean_env")
+def test_tools_named_endpoints_merge_and_sort(monkeypatch: pytest.MonkeyPatch) -> None:
+    """One env var per sidecar (compose overrides merge key-wise), sorted-name precedence."""
+    monkeypatch.setenv("CORTEX_TOOLS_BACKEND", "mcp")
+    monkeypatch.setenv("CORTEX_TOOLS_ENDPOINTS__FILESYSTEM", "http://mcp-filesystem:9000/mcp")
+    monkeypatch.setenv("CORTEX_TOOLS_ENDPOINTS__EMAIL", "http://mcp-email:9100/mcp")
+    monkeypatch.setenv("CORTEX_TOOLS_ALLOW__FILESYSTEM", '["read_text_file", "list_directory"]')
+    config = ToolsConfig()
+    assert list(config.named_endpoints) == ["email", "filesystem"]  # sorted, not env order
+    assert config.named_endpoints["filesystem"] == "http://mcp-filesystem:9000/mcp"
+    assert config.allow == {"filesystem": ("read_text_file", "list_directory")}
+
+
+@pytest.mark.usefixtures("clean_env")
+def test_tools_both_endpoint_forms_are_rejected(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("CORTEX_TOOLS_BACKEND", "mcp")
+    monkeypatch.setenv("CORTEX_TOOLS_ENDPOINT", "http://fs:9000/mcp")
+    monkeypatch.setenv("CORTEX_TOOLS_ENDPOINTS__EMAIL", "http://mcp-email:9100/mcp")
+    with pytest.raises(ValidationError, match="not both"):
+        ToolsConfig()
+
+
+@pytest.mark.usefixtures("clean_env")
+def test_tools_allowlist_must_name_an_endpoint(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("CORTEX_TOOLS_BACKEND", "mcp")
+    monkeypatch.setenv("CORTEX_TOOLS_ENDPOINTS__FILESYSTEM", "http://mcp-filesystem:9000/mcp")
+    monkeypatch.setenv("CORTEX_TOOLS_ALLOW__GHOST", '["read_text_file"]')
+    with pytest.raises(ValidationError, match=r"names no configured endpoint: \['ghost'\]"):
         ToolsConfig()
 
 
