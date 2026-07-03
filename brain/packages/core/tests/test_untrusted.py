@@ -7,6 +7,7 @@ from cortex_core import (
     SECURITY_PREAMBLE,
     Role,
     TaintLedger,
+    ToolResult,
     Trust,
     new_nonce,
     security_preamble_message,
@@ -68,6 +69,31 @@ def test_taint_ledger_marks_on_an_untrusted_result_and_is_idempotent() -> None:
     assert ledger.tainted is True
     ledger.mark(Trust.TRUSTED)  # a later trusted result cannot un-taint the turn
     assert ledger.tainted is True
+
+
+def test_observe_collects_urls_from_an_untrusted_result_and_marks_taint() -> None:
+    ledger = TaintLedger()
+    ledger.observe(ToolResult(call_id="c1", content="report at https://evil.example/pay. Thanks!"))
+    assert ledger.tainted is True
+    assert ledger.untrusted_urls == {"https://evil.example/pay"}
+
+
+def test_observe_ignores_a_trusted_result_entirely() -> None:
+    # Our own (trusted) messages neither taint nor contribute laundering evidence, so a
+    # dispatch-error mentioning a URL never causes its redaction (ADR-0015).
+    ledger = TaintLedger()
+    ledger.observe(
+        ToolResult(call_id="c2", content="see https://ours.example/x", trust=Trust.TRUSTED)
+    )
+    assert ledger.tainted is False
+    assert ledger.untrusted_urls == set()
+
+
+def test_observe_accumulates_urls_across_results() -> None:
+    ledger = TaintLedger()
+    ledger.observe(ToolResult(call_id="c3", content="https://a.example/1"))
+    ledger.observe(ToolResult(call_id="c4", content="https://b.example/2"))
+    assert ledger.untrusted_urls == {"https://a.example/1", "https://b.example/2"}
 
 
 def test_boundary_constants_carry_the_rule() -> None:

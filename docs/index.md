@@ -71,6 +71,11 @@ Start here. Rules for working in this repo: [AGENTS.md](../AGENTS.md).
   deferral landed as a pure `HistoryWindow` seam in `TurnCapabilities` with a turn-aligned
   char-budget tail (`CharBudgetHistoryWindow`, `CORTEX_HISTORY_CHAR_BUDGET`, on by default,
   0 disables); persistence untouched; summarization still deferred behind the same seam.
+- [ADR-0015: Output guardrail](adr/ADR-0015-output-guardrail.md): the model-independent
+  laundering defense (ADR-0013 hardening deferral landed). The `TaintLedger` collects the
+  URLs untrusted content carries in, an `OutputGuardrail` seam in `TurnCapabilities` redacts
+  any that reappear in the reply (minus the user's own) before the user sees it,
+  streaming-safe, persisted-equals-shown (`CORTEX_OUTPUT_GUARDRAIL`, on by default).
 
 New non-obvious decision → add `adr/ADR-XXXX-<slug>.md`, link it here.
 

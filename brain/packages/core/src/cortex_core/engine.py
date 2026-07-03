@@ -7,6 +7,7 @@ from uuid import uuid4
 from cortex_core.conversation import Message, Role
 from cortex_core.dispatch import ToolDispatcher
 from cortex_core.events import TextDelta, TurnCompleted, TurnEvent
+from cortex_core.guardrail import OutputFilter, OutputGuardrail, extract_urls
 from cortex_core.memory import ScoredMemory
 from cortex_core.ports import Clock, InferenceBackend, SessionStore
 from cortex_core.recall import MemoryRecaller
@@ -42,11 +43,12 @@ def _render_exchange(user_text: str, assistant_text: str) -> str:
 
 @dataclass(frozen=True, slots=True)
 class TurnCapabilities:
-    """Optional collaborators that augment a turn: memory recall, tool use, windowing."""
+    """Optional collaborators that augment a turn: memory, tools, windowing, the guardrail."""
 
     memory: MemoryRecaller | None = None
     tools: ToolDispatcher | None = None
     window: HistoryWindow | None = None
+    guardrail: OutputGuardrail | None = None
 
 
 class TurnEngine:
@@ -90,15 +92,26 @@ class TurnEngine:
             nonce=new_nonce(),
         )
         parts: list[str] = []
+        guard: OutputFilter | None = (
+            self._caps.guardrail.open(taint.untrusted_urls, allow=extract_urls(text))
+            if self._caps.guardrail is not None
+            else None
+        )
         loop = stream_tool_loop(self._backend, model, working, context)
         try:
             async for delta in loop:
-                parts.append(delta)
-                yield TextDelta(text=delta)
+                shown = delta if guard is None else guard.feed(delta)
+                if not shown:
+                    continue
+                parts.append(shown)
+                yield TextDelta(text=shown)
         finally:
             # A consumer that closes this generator mid-turn must not leave the shared loop
             # (and the backend stream it holds) half-suspended. Close it deterministically.
             await loop.aclose()
+        if guard is not None and (tail := guard.flush()):
+            parts.append(tail)
+            yield TextDelta(text=tail)
         full_text = "".join(parts)
         assistant = Message(
             role=Role.ASSISTANT, text=full_text, at=self._clock.now(), turn_id=turn_id

@@ -92,6 +92,7 @@ def test_runtime_defaults_match_the_dictated_contract() -> None:
     assert config.vram_soft_cap_gb == 14.0  # the deliberate GPU budget (ADR-0004)
     assert config.cortex_reservation_gb == 11.3  # gemma-4-12B footprint (ADR-0004 addendum)
     assert config.history_char_budget == 48_000  # ≈12K of the 16K-token context (ADR-0014)
+    assert config.output_guardrail == "redact"  # the laundering defense ships on (ADR-0015)
 
 
 @pytest.mark.usefixtures("clean_env")
@@ -105,6 +106,19 @@ def test_runtime_rejects_a_negative_history_budget(monkeypatch: pytest.MonkeyPat
     # 0 is the documented off switch; anything below it is a config mistake.
     monkeypatch.setenv("CORTEX_HISTORY_CHAR_BUDGET", "-1")
     with pytest.raises(ValidationError, match="history_char_budget"):
+        BrainRuntimeConfig()
+
+
+@pytest.mark.usefixtures("clean_env")
+def test_runtime_env_disables_the_output_guardrail(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("CORTEX_OUTPUT_GUARDRAIL", "off")
+    assert BrainRuntimeConfig().output_guardrail == "off"
+
+
+@pytest.mark.usefixtures("clean_env")
+def test_runtime_rejects_an_unknown_guardrail_mode(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("CORTEX_OUTPUT_GUARDRAIL", "maybe")
+    with pytest.raises(ValidationError, match="output_guardrail"):
         BrainRuntimeConfig()
 
 

@@ -29,6 +29,7 @@ from cortex_core import (
     ToolError,
     ToolRegistry,
     UngatedToolRegistry,
+    UrlRedactingGuardrail,
 )
 from cortex_embedding import LlamaCppEmbedder
 from cortex_inference import LlamaCppBackend
@@ -171,6 +172,11 @@ def build_subagent_tools(tool_registry: ToolRegistry | None, clock: Clock) -> To
     if tool_registry is None:
         return None
     return ToolDispatcher(UngatedToolRegistry(tool_registry), LoggingAuditSink(), clock)
+
+
+def build_output_guardrail(mode: str) -> UrlRedactingGuardrail | None:
+    """The turn's output guardrail, or None when disabled (ADR-0015)."""
+    return UrlRedactingGuardrail() if mode == "redact" else None
 
 
 def build_history_window(char_budget: int) -> CharBudgetHistoryWindow | None:

@@ -105,10 +105,29 @@ Untrusted-content boundary (Slice 6.5, ADR-0013; the pure primitives in `untrust
 - `security_preamble_message(at, turn_id) -> Message` is the preamble as a `Role.SYSTEM` message.
 - `new_nonce() -> str` is a new per-turn nonce (`secrets.token_hex(8)`), unpredictable, dies with the turn.
 - `DENIED_MSG` is the `is_error` result content fed back when a gated tool is blocked.
-- `TaintLedger` is mutable, turn-local: `tainted: bool = False`, `mark(trust)` flips it on the first
-  `UNTRUSTED` result. Passed into the shared loop; reconstructed each turn, never persisted.
+- `TaintLedger` is mutable, turn-local: `tainted: bool = False` plus `untrusted_urls: set[str]`
+  (the laundering evidence, ADR-0015). `mark(trust)` flips `tainted` on the first `UNTRUSTED`
+  result; `observe(result)` (what the shared loop calls) marks AND collects an untrusted
+  result's URLs. Reconstructed each turn, never persisted.
 - `ToolLoopContext` is a frozen bundle of a tool loop's per-invocation collaborators (`dispatcher`,
   `clock`, `turn_id`, `taint`, `nonce`), keeping `stream_tool_loop` under its argument ceiling.
+
+Output guardrail (ADR-0015; the pure laundering defense in `guardrail.py`):
+
+- `extract_urls(text) -> frozenset[str]` finds every absolute http(s) URL in `text`, normalized for
+  identity (scheme+authority lowercased, trailing prose punctuation dropped, path/query case
+  kept). Both sides of the defense use it for collection (`TaintLedger.observe`) and the
+  user-message allowlist, so a collected URL and its reappearance always compare equal.
+- `OutputGuardrail` (protocol) has `open(untrusted_urls, *, allow) -> OutputFilter`: one turn's
+  filter over the turn's **live** untrusted-URL set (it grows as results arrive) and the URLs
+  the user's own message carried.
+- `OutputFilter` (protocol) provides `feed(chunk) -> str` (the scrubbed text safe to emit now; an
+  ambiguous suffix (a URL still growing, a partial `http(s)://`) is carried) and
+  `flush() -> str` (end of stream resolves the carry).
+- `UrlRedactingGuardrail` is the shipped policy: a URL whose normalized form is in
+  `untrusted_urls − allow` is replaced with `REDACTED_LINK` (`"[link removed: untrusted
+  source]"`, trailing prose punctuation preserved); every other byte passes through. A clean
+  turn (nothing collected) is untouched.
 
 Ports (`typing.Protocol`; failures cross them only as the typed errors below):
 
@@ -182,11 +201,16 @@ Use-case:
   that `ToolDispatcher` and a fresh per-turn `TaintLedger`. The loop advertises the registry's
   tools each step, dispatches a step's `ToolCall`s (audited, gated), feeds results back as an
   `ASSISTANT`-with-`tool_calls` message plus (untrusted-fenced) `Role.TOOL` results, and re-infers
-  up to `MAX_TOOL_STEPS` rounds. These tool messages are in-turn only (never persisted in v1). With
-  a bare `TurnCapabilities()` (the default) the turn behaves exactly as Slice 3.
-- `TurnCapabilities(memory=None, tools=None, window=None)` is a frozen bundle of the optional
-  per-turn collaborators (a `MemoryRecaller`, a `ToolDispatcher`, and a `HistoryWindow`),
-  keeping the engine within its DI ceiling.
+  up to `MAX_TOOL_STEPS` rounds. These tool messages are in-turn only (never persisted in v1).
+  Guardrail (optional, ADR-0015): when `capabilities.guardrail` is set, every assistant delta
+  passes through the per-turn `OutputFilter` (opened over the ledger's live URL set, the user
+  message's own URLs allowlisted). An emptied delta emits no event, the flush tail is emitted
+  last, and the sanitized text is what streams, completes, AND persists: the reply on record is
+  the reply shown. With a bare `TurnCapabilities()` (the default) the turn behaves exactly as
+  Slice 3.
+- `TurnCapabilities(memory=None, tools=None, window=None, guardrail=None)` is a frozen bundle of
+  the optional per-turn collaborators (a `MemoryRecaller`, a `ToolDispatcher`, a
+  `HistoryWindow`, and an `OutputGuardrail`), keeping the engine within its DI ceiling.
 - `HistoryWindow` (protocol, `windowing.py`) / `CharBudgetHistoryWindow(max_chars)` are the
   session-history windowing seam and its shipped policy (ADR-0014). `select(history)`
   returns the slice one turn sends to the model: `CharBudgetHistoryWindow` keeps the newest
@@ -202,7 +226,8 @@ Use-case:
   and `Role.TOOL` result messages; ends on a tool-free step, a `None` dispatcher, or
   `MAX_TOOL_STEPS` (8) rounds. It draws the untrusted boundary (ADR-0013): each call is dispatched
   with the turn's `tainted` state and the tool's `gated` flag (so a gated call on a tainted turn is
-  confirmed), its result marks `context.taint`, and an `UNTRUSTED` result is fenced by
+  confirmed), its result is observed by `context.taint` (taint bit + the untrusted-URL
+  evidence the output guardrail reads, ADR-0015), and an `UNTRUSTED` result is fenced by
   `wrap_untrusted` before it re-enters `working`. `MAX_TOOL_STEPS` and `ToolLoopContext` are here.
 - `DEFAULT_CORTEX_MODEL` is the logical id `"cortex"`. Deployments override it via
   `CORTEX_MODEL_CORTEX`, read by the composition root (orchestrator), never here.
@@ -329,7 +354,9 @@ Reference implementations (pure, shipped in core; the runtime wiring until Slice
 - The untrusted boundary is fail-closed (ADR-0013): `trust`/provenance defaults to `UNTRUSTED`,
   so unstamped content is framed as data; the `TaintLedger` is turn-local, reconstructed each turn
   from the store + live tool results, never persisted (the one hard rule holds); a tainted turn is
-  never recorded to memory, so recall stays trustworthy.
+  never recorded to memory, so recall stays trustworthy; a URL sourced only from untrusted
+  content never reaches the user when the guardrail is wired (ADR-0015), and the persisted
+  reply equals the shown reply.
 - Fully typed (PEP 561 `py.typed` ships with the package); pyright strict clean.
 - 100% line+branch covered by behavior tests in `tests/` (cancellation and failure
   paths included).

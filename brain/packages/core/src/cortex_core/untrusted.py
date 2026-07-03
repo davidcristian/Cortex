@@ -1,11 +1,12 @@
 """The untrusted-content boundary: framing primitives + the turn-local taint ledger (ADR-0013)."""
 
 import secrets
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 
 from cortex_core.conversation import Message, Role
-from cortex_core.tools import Trust
+from cortex_core.guardrail import extract_urls
+from cortex_core.tools import ToolResult, Trust
 
 _WRAP_TAG = "untrusted-tool-output"
 
@@ -59,11 +60,18 @@ def security_preamble_message(at: datetime, turn_id: str) -> Message:
 
 @dataclass(slots=True)
 class TaintLedger:
-    """Turn-local record of whether untrusted content has entered this turn (ADR-0013)."""
+    """Turn-local record of the untrusted content that has entered this turn (ADR-0013/0015)."""
 
     tainted: bool = False
+    untrusted_urls: set[str] = field(default_factory=set[str])
 
     def mark(self, trust: Trust) -> None:
         """Flip the ledger tainted once any untrusted result is observed."""
         if trust is Trust.UNTRUSTED:
             self.tainted = True
+
+    def observe(self, result: ToolResult) -> None:
+        """Record one dispatched result: mark taint, and collect an untrusted result's URLs."""
+        self.mark(result.trust)
+        if result.trust is Trust.UNTRUSTED:
+            self.untrusted_urls |= extract_urls(result.content)

@@ -81,7 +81,7 @@ async def stream_tool_loop(
             result = await dispatcher.dispatch(
                 call, tainted=context.taint.tainted, gated=gated_by_name.get(call.name, False)
             )
-            context.taint.mark(result.trust)
+            context.taint.observe(result)
             working.append(
                 _result_message(result, context.clock.now(), context.turn_id, nonce=context.nonce)
             )

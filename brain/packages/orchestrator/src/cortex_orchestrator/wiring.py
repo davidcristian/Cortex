@@ -8,6 +8,7 @@ from cortex_orchestrator.builders import (
     build_history_window,
     build_inference_backend,
     build_memory,
+    build_output_guardrail,
     build_subagents,
     build_tool_registry,
 )
@@ -60,6 +61,7 @@ async def run_from_env(
                 memory=memory,
                 tools=tools,
                 window=build_history_window(runtime.history_char_budget),
+                guardrail=build_output_guardrail(runtime.output_guardrail),
             ),
         )
         await serve(seam_config, engine)
