@@ -15,6 +15,7 @@ from cortex_core import (
     ToolNotFoundError,
     ToolResult,
     ToolSpec,
+    UngatedToolRegistry,
 )
 
 
@@ -144,6 +145,43 @@ async def test_aggregate_over_a_skipped_dead_sidecar_serves_the_healthy_ones() -
         await aggregate.invoke(ToolCall(id="c11", name="search_emails", arguments={}))
     # One report per live walk (describe + each invoke's routing walk): degraded, never silent.
     assert [name for name, _ in reports] == ["mail", "mail", "mail"]
+
+
+def _mixed_registry() -> InMemoryToolRegistry:
+    """One ungated read tool next to one gated send tool (the subagent hand-off case)."""
+    return InMemoryToolRegistry(
+        {
+            "read": (ToolSpec(name="read", description="", parameters={}), _replies("fs")),
+            "send": (
+                ToolSpec(name="send", description="", parameters={}, gated=True),
+                _replies("mail"),
+            ),
+        }
+    )
+
+
+async def test_ungated_advertises_only_ungated_tools() -> None:
+    ungated = UngatedToolRegistry(_mixed_registry())
+    assert [spec.name for spec in await ungated.describe_tools()] == ["read"]
+
+
+async def test_ungated_delegates_an_ungated_call() -> None:
+    ungated = UngatedToolRegistry(_mixed_registry())
+    result = await ungated.invoke(ToolCall(id="g1", name="read", arguments={}))
+    assert result.content == "from fs"
+
+
+async def test_ungated_refuses_a_gated_call_the_inner_would_run() -> None:
+    # The inner registry HAS the gated tool; the exclusion is a real layer, not advisory.
+    ungated = UngatedToolRegistry(_mixed_registry())
+    with pytest.raises(ToolNotFoundError, match="unknown tool 'send'"):
+        await ungated.invoke(ToolCall(id="g2", name="send", arguments={}))
+
+
+async def test_ungated_surfaces_the_inner_not_found_for_an_unknown_name() -> None:
+    ungated = UngatedToolRegistry(_mixed_registry())
+    with pytest.raises(ToolNotFoundError, match="unknown tool 'ghost'"):
+        await ungated.invoke(ToolCall(id="g3", name="ghost", arguments={}))
 
 
 def test_filter_requires_a_non_empty_allowlist() -> None:

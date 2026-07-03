@@ -519,10 +519,12 @@ behind the unchanged `ToolRegistry`/`ToolDispatcher`/`stream_tool_loop` seams (o
   10-category corpus, [ADR-0013 addendum](adr/ADR-0013-untrusted-content.md)) found **gemma-4-E4B the
   standout (0/10 obeyed even thinking-off)**, clearly ahead of the current **Qwen3.5-2B (1/10)** and
   gemma-E2B (4/10). Strongly worth adopting for subagents; weigh against E4B's size/latency.
-- **Slice 9-10 requirement: subagents must never be *handed* a gated/outbound tool.** Today's read-only
-  subset does this by construction and the fail-closed gate is the backstop; when the first outbound
-  tool lands, make the exclusion explicit in `build_subagents`. A jailbroken small subagent (framing is
-  unreliable on the small tier) must have nothing dangerous to call, not merely be denied at the gate.
+- **Subagents are never *handed* a gated/outbound tool. Landed 2026-07-03, ahead of the Slice 9-10
+  need** ([ADR-0013 subagent-exclusion addendum](adr/ADR-0013-untrusted-content.md)). Structural, no
+  longer wiring discipline: `UngatedToolRegistry` (core) strips gated specs from advertisement and
+  refuses invoking them (live walk, fail closed); `build_subagent_tools` wraps the shared registry in
+  it before the subagent dispatcher. A jailbroken small subagent (framing is unreliable on the small
+  tier) has nothing dangerous to call, not merely a gate denial.
 - **Context-preserving tainted-memory recording.** A tainted turn currently records **nothing** to
   memory (fail-closed); recording it with a provenance marker and framing it as untrusted on recall
   would preserve legitimate context (a later refinement behind the unchanged `MemoryRecaller`).

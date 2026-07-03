@@ -28,6 +28,7 @@ from cortex_core import (
     ToolDispatcher,
     ToolError,
     ToolRegistry,
+    UngatedToolRegistry,
 )
 from cortex_embedding import LlamaCppEmbedder
 from cortex_inference import LlamaCppBackend
@@ -154,18 +155,22 @@ async def build_subagents(
         request=PlacementRequest(config.model, config.vram_gb, config.cpus, config.memory_gb),
     )
     store = task_store_factory(redis_url)
-    subagent_tools = (
-        ToolDispatcher(tool_registry, LoggingAuditSink(), clock)
-        if tool_registry is not None
-        else None
+    runner = SubagentRunner(
+        store, resources, clock, tools=build_subagent_tools(tool_registry, clock)
     )
-    runner = SubagentRunner(store, resources, clock, tools=subagent_tools)
 
     async def close_subagents() -> None:
         await store.aclose()
         await client.aclose()
 
     return SpawnSubagentsTool(runner, store, clock), close_subagents
+
+
+def build_subagent_tools(tool_registry: ToolRegistry | None, clock: Clock) -> ToolDispatcher | None:
+    """A subagent's audited dispatcher over the gated-stripped MCP subset, or None (ADR-0013)."""
+    if tool_registry is None:
+        return None
+    return ToolDispatcher(UngatedToolRegistry(tool_registry), LoggingAuditSink(), clock)
 
 
 def build_history_window(char_budget: int) -> CharBudgetHistoryWindow | None:

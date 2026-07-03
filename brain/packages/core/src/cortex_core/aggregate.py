@@ -58,6 +58,25 @@ class SkipUnavailableToolRegistry:
         return await self._inner.invoke(call)
 
 
+class UngatedToolRegistry:
+    """A ``ToolRegistry`` stripped of gated tools is what a subagent may be handed (ADR-0013)."""
+
+    def __init__(self, inner: ToolRegistry) -> None:
+        self._inner = inner
+
+    async def describe_tools(self) -> Sequence[ToolSpec]:
+        """The inner registry's ungated tools, inner order kept."""
+        return tuple(spec for spec in await self._inner.describe_tools() if not spec.gated)
+
+    async def invoke(self, call: ToolCall) -> ToolResult:
+        """Delegate an ungated call; refuse a gated name as not found (fail closed)."""
+        gated = {spec.name for spec in await self._inner.describe_tools() if spec.gated}
+        if call.name in gated:
+            msg = f"unknown tool {call.name!r}"
+            raise ToolNotFoundError(msg)
+        return await self._inner.invoke(call)
+
+
 class FilteredToolRegistry:
     """A ``ToolRegistry`` restricted to an allowlist of tool names."""
 
