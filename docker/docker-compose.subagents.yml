@@ -9,10 +9,9 @@ services:
       # real GPU sidecar (ADR-0012 deferral); override GPU_ENDPOINT to test a real one.
       CORTEX_SUBAGENTS_ENDPOINT: "http://llama-subagent:8082"
       CORTEX_SUBAGENTS_GPU_ENDPOINT: "${CORTEX_SUBAGENTS_GPU_ENDPOINT:-http://llama-subagent:8082}"
-      # Per-subagent ask + soft admission budgets (ADR-0012); defaults mirror SubagentsConfig.
       CORTEX_SUBAGENTS_CPUS: "${CORTEX_SUBAGENTS_CPUS:-2.0}"
-      CORTEX_SUBAGENTS_MEMORY_GB: "${CORTEX_SUBAGENTS_MEMORY_GB:-2.0}"
-      CORTEX_SUBAGENTS_VRAM_GB: "${CORTEX_SUBAGENTS_VRAM_GB:-2.0}"
+      CORTEX_SUBAGENTS_MEMORY_GB: "${CORTEX_SUBAGENTS_MEMORY_GB:-3.0}"
+      CORTEX_SUBAGENTS_VRAM_GB: "${CORTEX_SUBAGENTS_VRAM_GB:-5.5}"
       CORTEX_SUBAGENTS_CPU_BUDGET: "${CORTEX_SUBAGENTS_CPU_BUDGET:-4.0}"
       CORTEX_SUBAGENTS_MEM_BUDGET_GB: "${CORTEX_SUBAGENTS_MEM_BUDGET_GB:-8.0}"
     depends_on:
@@ -25,7 +24,7 @@ services:
     image: "ghcr.io/ggml-org/llama.cpp:server"
     command:
       - "--model"
-      - "/models/${CORTEX_MODEL_FILE_SUBAGENT:-unsloth/Qwen3.5-2B-GGUF/Qwen3.5-2B-Q4_K_M.gguf}"
+      - "/models/${CORTEX_MODEL_FILE_SUBAGENT:-google/gemma-4-E4B-it-qat-q4_0-gguf/gemma-4-E4B_q4_0-it.gguf}"
       - "--host"
       - "0.0.0.0"
       - "--port"

@@ -518,11 +518,13 @@ behind the unchanged `ToolRegistry`/`ToolDispatcher`/`stream_tool_loop` seams (o
   `off` disables). Remaining behind the same seam (ADR-0015 deferred): obfuscation-resistant
   matching, a strict redact-all-URLs mode, more schemes (`mailto:`), footer/boilerplate
   heuristics (screening-model territory), and a structured redaction event for the overlay.
-- **Reconsider the subagent model pick (feeds [ADR-0004](adr/ADR-0004-model-lineup.md)).** The
-  injection-defense harness ([`test_injection_defense_live.py`](../brain/packages/inference/tests/test_injection_defense_live.py),
-  10-category corpus, [ADR-0013 addendum](adr/ADR-0013-untrusted-content.md)) found **gemma-4-E4B the
-  standout (0/10 obeyed even thinking-off)**, clearly ahead of the current **Qwen3.5-2B (1/10)** and
-  gemma-E2B (4/10). Strongly worth adopting for subagents; weigh against E4B's size/latency.
+- **Subagent model pick revised to gemma-4-E4B (landed 2026-07-03)**
+  ([ADR-0004 pick-revision addendum](adr/ADR-0004-model-lineup.md)). The injection-defense
+  harness found E4B the standout (0/10 framed-obeyed even thinking-off, re-confirmed at
+  adoption) vs the old Qwen3.5-2B (1/10, laundering) and gemma-E2B (4/10); the measured CPU
+  cost (38 s load, ~1.8 s narrow task, ~2.5 GiB RSS) was judged acceptable and the compose
+  default + admission asks updated. Qwen3.5-2B stays the documented cheap override; **Slice
+  8.6** still makes the model choice per-task, with E4B as the safe default.
 - **Subagents are never *handed* a gated/outbound tool. Landed 2026-07-03, ahead of the Slice 9-10
   need** ([ADR-0013 subagent-exclusion addendum](adr/ADR-0013-untrusted-content.md)). Structural, no
   longer wiring discipline: `UngatedToolRegistry` (core) strips gated specs from advertisement and
