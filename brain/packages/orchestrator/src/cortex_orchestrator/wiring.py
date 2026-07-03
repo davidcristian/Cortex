@@ -9,9 +9,10 @@ them, hands the `TurnEngine` its ports, and releases everything on the way out:
   survives restarts and model swaps (the one hard rule).
 - Clock -> `SystemClock`, shared by the turn engine, memory recaller, and
   tool/subagent audit.
-- InferenceBackend / Memory / Tools / Subagents / History window -> the builders
-  (ADR-0007/0008/0009/0010/0012/0014); every optional capability is off by default
-  so CI and the no-GPU dev loop stay external-service-free.
+- InferenceBackend / Memory / Tools / Subagents / History window / Output guardrail
+  -> the builders (ADR-0007/0008/0009/0010/0012/0014/0015); every capability needing an
+  external service is off by default so CI and the no-GPU dev loop run free of them
+  (the pure guardrail, like the window, ships on).
 
 Everything below the edge receives ports, never settings objects or env access.
 """
@@ -24,6 +25,7 @@ from cortex_orchestrator.builders import (
     build_history_window,
     build_inference_backend,
     build_memory,
+    build_output_guardrail,
     build_subagents,
     build_tool_registry,
 )
@@ -81,6 +83,7 @@ async def run_from_env(
                 memory=memory,
                 tools=tools,
                 window=build_history_window(runtime.history_char_budget),
+                guardrail=build_output_guardrail(runtime.output_guardrail),
             ),
         )
         await serve(seam_config, engine)

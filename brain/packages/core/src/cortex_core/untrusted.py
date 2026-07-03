@@ -10,11 +10,12 @@ ledger is turn-local state reconstructed each turn, never persisted (the one har
 """
 
 import secrets
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 
 from cortex_core.conversation import Message, Role
-from cortex_core.tools import Trust
+from cortex_core.guardrail import extract_urls
+from cortex_core.tools import ToolResult, Trust
 
 # The wrap tag stem. Content is fenced as ``<TAG id=NONCE> … </TAG id=NONCE>`` where NONCE is a
 # per-turn random token the attacker (authoring a file before the turn) cannot predict, so a
@@ -77,17 +78,31 @@ def security_preamble_message(at: datetime, turn_id: str) -> Message:
 
 @dataclass(slots=True)
 class TaintLedger:
-    """Turn-local record of whether untrusted content has entered this turn (ADR-0013).
+    """Turn-local record of the untrusted content that has entered this turn (ADR-0013/0015).
 
-    Mutable and passed into the shared tool loop, which ``mark``s it after each dispatch; the
-    caller reads ``tainted`` mid-loop (to gate the next call) and after (to decide whether to
-    record the exchange to memory). Reconstructed each turn from the store + live tool results,
-    never persisted, so a swap mid-turn rebuilds it as the loop replays.
+    Mutable and passed into the shared tool loop, which ``observe``s each dispatched result;
+    the caller reads ``tainted`` mid-loop (to gate the next call) and after (to decide whether
+    to record the exchange to memory), and the output guardrail reads ``untrusted_urls``. It is the
+    laundering evidence, every URL untrusted content carried into the turn (ADR-0015).
+    Reconstructed each turn from the store + live tool results, never persisted, so a swap
+    mid-turn rebuilds it as the loop replays.
     """
 
     tainted: bool = False
+    untrusted_urls: set[str] = field(default_factory=set[str])
 
     def mark(self, trust: Trust) -> None:
         """Flip the ledger tainted once any untrusted result is observed."""
         if trust is Trust.UNTRUSTED:
             self.tainted = True
+
+    def observe(self, result: ToolResult) -> None:
+        """Record one dispatched result: mark taint, and collect an untrusted result's URLs.
+
+        Anything collected here can only have entered the turn through untrusted content, so
+        its reappearance in the assistant's reply is laundering. The output guardrail redacts
+        it (ADR-0015). Trusted results contribute nothing.
+        """
+        self.mark(result.trust)
+        if result.trust is Trust.UNTRUSTED:
+            self.untrusted_urls |= extract_urls(result.content)

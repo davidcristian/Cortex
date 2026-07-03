@@ -62,6 +62,10 @@ class BrainRuntimeConfig(BaseSettings):
     # 16K-token cortex context, leaving headroom for preamble/memories/tools/reply. 0 disables
     # windowing (the model gets the full stored history).
     history_char_budget: int = Field(default=48_000, ge=0)
+    # env CORTEX_OUTPUT_GUARDRAIL is the model-independent laundering defense (ADR-0015):
+    # `redact` (the default, so hardening is on out of the box) replaces URLs sourced from
+    # untrusted tool results in the reply the user sees; `off` restores the unguarded stream.
+    output_guardrail: Literal["redact", "off"] = "redact"
 
 
 class InferenceConfig(BaseSettings):
