@@ -190,11 +190,16 @@ overlay components are built against.
 
 Maintainer review of the running overlay reshaped the resting chrome. The design source of truth updated
 with it ([overlay-ux.md](../design/overlay-ux.md) §2-§4): the corner orb became the **living
-rings** (two counter-spinning wavy gradient bands; a pure `wavyRingPath` helper + a shared
-`RingMark` component, fully gated), the always-green header dot was **removed** (it was
-decoration; a real indicator waits on a health signal over the bridge, per the ROADMAP ledger), the
-theme toggle became a **sun↔crescent SVG morph** (CSS-transitioned geometry, no glyph swap), and
-the hint strip centered. The same pass surfaced the browser-side interaction gaps now recorded in
-the ROADMAP ledger (Slice 8 block): auto-scroll, focus-on-summon, click-away dismiss, the stop
-control, tool/status chips, empty state, thinking shimmer, shortcut sheet, composer auto-grow,
-and preview hover-pause.
+rings** (two wavy gradient bands; a pure `wavyRingPath` helper + a shared `RingMark` component,
+fully gated), the always-green header dot was **removed** (it was decoration; a real indicator
+waits on a health signal over the bridge, per the ROADMAP ledger), the theme toggle became a
+**sun↔crescent SVG morph** (CSS-transitioned geometry, no glyph swap), and the hint strip
+centered. A same-day motion refinement (maintainer review of the running rings): the mark **spins as
+one** (the bands never rotate against each other, no breathing scale) while each band's **wave
+depth pulses independently** (SMIL, reduced-motion aware); the palette gained the AI blues
+(sky/cyan/indigo/lavender); the preview card dropped its redundant caption text (mark + reply +
+drain bar only); and the panel's summon/idle-dismiss pop **from center**, with the corner travel
+reserved for the orb morph (`.to-orb`, mode-driven). The same pass surfaced the browser-side
+interaction gaps now recorded in the ROADMAP ledger (Slice 8 block): auto-scroll,
+focus-on-summon, click-away dismiss, the stop control, tool/status chips, empty state, thinking
+shimmer, shortcut sheet, composer auto-grow, and preview hover-pause.

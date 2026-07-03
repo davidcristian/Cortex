@@ -25,7 +25,9 @@
     color 0.4s var(--ease);
 }
 
-/* Sleek at rest: neutral glass, no gradient, a soft neutral shadow. */
+/* Sleek at rest: neutral glass, no gradient, a soft neutral shadow. Closed = scaled at center
+   (summon/dismiss pop from the middle); .to-orb parks the closed panel at the corner instead so
+   minimize-to-orb / reopen-from-orb are a real travel. */
 .panel {
   position: fixed;
   left: 50%;
@@ -42,10 +44,13 @@
   box-shadow: 0 34px 90px -26px rgba(0, 0, 0, 0.55);
   opacity: 0;
   pointer-events: none;
-  transform: translate(calc(-50% + 32vw), calc(-50% + 30vh)) scale(0.2);
+  transform: translate(-50%, -50%) scale(0.92);
   transition:
     transform 0.44s var(--spring),
     opacity 0.3s var(--ease);
+}
+.panel.to-orb {
+  transform: translate(calc(-50% + 32vw), calc(-50% + 30vh)) scale(0.2);
 }
 .panel.open {
   opacity: 1;
@@ -254,9 +259,9 @@
   font-size: 11px;
 }
 
-/* The orb: the living rings are colorful (it's a working state). The two wavy bands counter-spin,
-   so the waves travel and the gradient stroked along each band flows with them; the whole mark
-   breathes, drifts, and slowly walks the accent hues. Resting uses of .rings (the preview title
+/* The orb: the living rings are colorful (it's a working state). The mark spins as one (waves and
+   gradient rotate together, never against each other) while each band's wave depth pulses on its
+   own (SMIL, in RingMark); plus drift and a slow hue walk. Resting uses of .rings (the preview
    mark) stay still. All motion is scoped under .orb. */
 .orb {
   position: fixed;
@@ -276,20 +281,11 @@
 .rings {
   overflow: visible;
 }
-.ring {
-  transform-box: view-box;
-  transform-origin: 50% 50%;
-}
 .orb .rings {
+  transform-origin: center;
   animation:
-    breathe 3.4s var(--ease) infinite,
+    spin 18s linear infinite,
     huedrift 21s linear infinite;
-}
-.orb .ring-a {
-  animation: spin 16s linear infinite;
-}
-.orb .ring-b {
-  animation: spin 11s linear infinite reverse;
 }
 .preview .rings {
   filter: drop-shadow(0 0 3px rgba(226, 75, 196, 0.5));
@@ -312,13 +308,14 @@
   box-shadow: 0 24px 60px -14px rgba(0, 0, 0, 0.55);
   animation: previewin 0.4s var(--spring) both;
 }
-.pv-t {
+.pv-row {
   display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 7px;
-  font-size: 12px;
-  color: var(--muted);
+  align-items: flex-start;
+  gap: 10px;
+}
+.pv-row .rings {
+  flex: none;
+  margin-top: 3px;
 }
 .pv-b {
   font-size: 14px;
@@ -327,11 +324,6 @@
   -webkit-line-clamp: 4;
   -webkit-box-orient: vertical;
   overflow: hidden;
-}
-.pv-h {
-  margin-top: 8px;
-  font-size: 11px;
-  color: var(--dim);
 }
 .bar {
   height: 3px;
@@ -379,15 +371,6 @@
 @keyframes spin {
   to {
     transform: rotate(360deg);
-  }
-}
-@keyframes breathe {
-  0%,
-  100% {
-    transform: scale(1);
-  }
-  50% {
-    transform: scale(1.07);
   }
 }
 @keyframes huedrift {

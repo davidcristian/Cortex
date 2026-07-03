@@ -55,7 +55,7 @@ describe("Overlay", () => {
     const controller = fakeController("preview", [reply]);
     renderOverlay(controller);
     expect(screen.getByText("the answer")).toBeInTheDocument();
-    fireEvent.click(screen.getByText(/Reply ready/u));
+    fireEvent.click(screen.getByLabelText("Open reply"));
     expect(controller.open).toHaveBeenCalledOnce();
   });
 

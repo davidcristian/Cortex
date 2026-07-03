@@ -108,27 +108,34 @@ while a turn is processing must not lose it*) lives here. States:
   assistant bubble until the first token, then tokens **flow in fluidly** (fade + rise, never a
   pop) behind an accent caret, with a soft accent glow on the in-progress bubble that settles back
   to neutral on completion.
-- **Dismiss while idle** (composing or done): the panel springs out, backdrop clears → **HIDDEN**.
-  Nothing is lost. The chat is persisted; re-summoning restores it.
+- **Dismiss while idle** (composing or done): the panel springs out **at center** (a scale-fade,
+  no corner travel, per 2026-07-03 user direction; summon pops in from center the same way) →
+  **HIDDEN**. Nothing is lost, because the chat is persisted; re-summoning restores it. The corner
+  travel is reserved for the orb morph below.
 - **Dismiss while streaming** (Esc or click-away): the panel **morphs**, scaling and gliding down
   to a corner (default **bottom-right**, configurable), shedding its chrome, into a small **ORB**.
   This is one continuous transform (FLIP-style), not a disappear-then-appear, and the reverse
   (maximize) *travels* it back from the corner to center. You always **see it move**, both ways.
 - **ORB(thinking):** the **living rings** at the corner (~64px; redesigned 2026-07-03 to the
-  user's reference): two thin wavy bands built from sine-modulated circles (7 and 9 waves,
-  `wavyRingPath`). Each is stroked with a run of the accent hues, **counter-spinning** at different
-  speeds so the waves travel and the gradient flows along them, over a soft neon glow. The mark
-  breathes, slowly **drifts**, and walks its hues (a slow `hue-rotate`), so it reads as alive,
-  not a static badge. It means "still working." **Click** it → morph back to **PANEL(streaming)**
-  (the in-progress turn, right where it is). It never covers active work, with small, corner-pinned,
-  click-through-safe margins. A small resting variant of the same mark (`RingMark`) identifies
-  the preview card in place of the removed dot.
+  user's reference, motion refined same day): two thin wavy bands built from sine-modulated circles
+  (7 and 9 waves, `wavyRingPath`), each stroked with a run of the AI palette
+  (sky→violet→fuchsia→coral / cyan→mint→indigo→lavender), over a soft neon glow. Motion is
+  deliberately layered: the mark **spins as one** (waves and gradient rotate together, so the
+  bands never rotate against each other, and there is no breathing scale) while each band's
+  **wave depth pulses independently** (SMIL `d` animation, skipped under reduced motion); plus a
+  slow **drift** and hue walk (`hue-rotate`). It reads as alive, not a static badge, and means
+  "still working." **Click** it → morph back to **PANEL(streaming)** (the in-progress turn,
+  right where it is). It never covers active work. It is small, corner-pinned, click-through-safe
+  margins. A small resting variant of the same mark (`RingMark`) identifies the preview card in
+  place of the removed dot.
 - **PREVIEW:** when the turn **completes while minimized**, the orb **expands** into a compact
-  card near the corner: the chat title, the answer (or a 2-3 line snippet with a fade if long),
-  and a hairline accent progress bar counting down the auto-dismiss (~6s). **Hover pauses** the
-  countdown; **click** morphs to **PANEL(done)** (full answer in context); ignore it and it
-  **fades out** → HIDDEN (still persisted). A failed turn previews as a soft error card (same
-  shape, red-tinted) that does *not* auto-fade. Errors wait to be seen.
+  card near the corner: the resting ring mark, the answer (a few-line clamp), and a hairline
+  accent progress bar counting down the auto-dismiss (~6s), with **no caption text** ("reply
+  ready" / "click to open" were redundant, removed 2026-07-03: the card appearing *is* the
+  signal, and the draining bar says it will go). **Hover pauses** the countdown; **click**
+  morphs to **PANEL(done)** (full answer in context); ignore it and it **fades out** → HIDDEN
+  (still persisted). A failed turn previews as a soft error card (same shape, red-tinted) that
+  does *not* auto-fade, because errors wait to be seen.
 - Re-summoning the hotkey from HIDDEN always returns to **PANEL** on the current chat.
 
 This gives the "fire it, keep working, glance when it pings me" flow the maintainer asked for, and it

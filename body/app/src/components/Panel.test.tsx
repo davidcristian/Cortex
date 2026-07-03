@@ -54,7 +54,7 @@ describe("Panel", () => {
   it("marks the theme icon dark, is not open when closed, and renders its messages", () => {
     render(
       <Panel
-        state={state({ messages: [userMsg] })}
+        state={state({ messages: [userMsg], mode: "hidden" })}
         open={false}
         dark={true}
         onToggleTheme={vi.fn()}
@@ -63,9 +63,26 @@ describe("Panel", () => {
         onNewChat={vi.fn()}
       />,
     );
-    expect(screen.getByRole("dialog", { hidden: true }).className).not.toContain("open");
+    const dialog = screen.getByRole("dialog", { hidden: true });
+    expect(dialog.className).not.toContain("open");
+    expect(dialog.className).not.toContain("to-orb");
     const icon = screen.getByLabelText("Toggle theme").querySelector("svg.sunmoon");
     expect(icon?.classList.contains("dark")).toBe(true);
     expect(screen.getByText(/hi/u)).toBeInTheDocument();
+  });
+
+  it("parks the closed panel at the corner while the orb owns the turn", () => {
+    render(
+      <Panel
+        state={state({ mode: "orb" })}
+        open={false}
+        dark={false}
+        onToggleTheme={vi.fn()}
+        onSubmit={vi.fn()}
+        onDismiss={vi.fn()}
+        onNewChat={vi.fn()}
+      />,
+    );
+    expect(screen.getByRole("dialog", { hidden: true }).className).toContain("to-orb");
   });
 });
