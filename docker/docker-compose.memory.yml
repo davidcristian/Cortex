@@ -4,7 +4,7 @@ services:
     environment:
       # Opt into durable memory; without this the base image runs memory=none (ADR-0008).
       CORTEX_MEMORY_BACKEND: "pgvector"
-      CORTEX_MEMORY_DSN: "postgresql://cortex:cortex@postgres:5432/cortex"
+      CORTEX_MEMORY_DSN: "postgresql://cortex:${CORTEX_PG_PASSWORD:-cortex}@postgres:5432/cortex"
       CORTEX_MEMORY_EMBEDDER_ENDPOINT: "http://llama-embed:8081"
     depends_on:
       postgres:
@@ -16,7 +16,8 @@ services:
     image: "pgvector/pgvector:pg16"
     environment:
       POSTGRES_USER: cortex
-      POSTGRES_PASSWORD: cortex
+      # Throwaway dev default, loopback-only (ADR-0008 addendum carve-out); override on the host.
+      POSTGRES_PASSWORD: "${CORTEX_PG_PASSWORD:-cortex}"
       POSTGRES_DB: cortex
     volumes:
       # Live data: a named volume (durable across restarts; not a Windows bind mount).
@@ -37,6 +38,25 @@ services:
       timeout: 5s
       retries: 5
       start_period: 20s
+    restart: unless-stopped
+
+  pg-backup:
+    image: "pgvector/pgvector:pg16"
+    entrypoint: ["/bin/sh", "/backup.sh"]
+    environment:
+      PGPASSWORD: "${CORTEX_PG_PASSWORD:-cortex}"
+      CORTEX_DB_SYNC_INTERVAL_S: "${CORTEX_DB_SYNC_INTERVAL_S:-21600}"
+    volumes:
+      - type: bind
+        source: "${CORTEX_DB_DIR:-./pgdata}"
+        target: /backup
+      - type: bind
+        source: ./docker/postgres/backup.sh
+        target: /backup.sh
+        read_only: true
+    depends_on:
+      postgres:
+        condition: service_healthy
     restart: unless-stopped
 
   llama-embed:
