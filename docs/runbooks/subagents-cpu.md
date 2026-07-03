@@ -1,9 +1,11 @@
-# Runbook for subagents on CPU (Slice 7 host half, ADR-0010)
+# Subagents on CPU runbook (Slice 7 host half, ADR-0010; placement GPU-first since Slice 8.5, ADR-0012)
 
-Bring up the CPU subagent `llama-server` and validate delegation end to end. This is the
+Bring up the subagent `llama-server` and validate delegation end to end. This is the
 host-only half of Slice 7. CI stays subagent-free (subagents are opt-in, `CORTEX_SUBAGENTS_*`).
-Subagents run on **CPU** (the GPU budget is the cortex's, ADR-0004), so this needs **no GPU**
-and runs alongside `docker/docker-compose.gpu.yml`.
+Placement is **GPU-first with CPU overflow** (ADR-0012), but until Slice 11 lands the real GPU
+sidecar (the recorded ADR-0012 host-half deferral) the compose runs **one CPU server** and
+points both placement targets at it. A GPU-*placed* subagent still *executes* on CPU. So this
+needs **no GPU** and runs alongside `docker/docker-compose.gpu.yml`.
 
 ## Prerequisites
 
@@ -25,8 +27,10 @@ curl http://127.0.0.1:8082/health   # -> {"status":"ok"}
 ```
 
 `-ngl 0` keeps it CPU-only; `--jinja` enables the tool-capable chat template (so tools-enabled
-subagents can function-call); `--parallel` matches `CORTEX_SUBAGENTS_MAX_CONCURRENCY` so each
-scheduler-admitted subagent gets a server slot.
+subagents can function-call); `--parallel` (`CORTEX_SUBAGENTS_PARALLEL`, default 2) gives each
+scheduler-admitted subagent a server slot, so keep it ≈ `CORTEX_SUBAGENTS_CPU_BUDGET /
+CORTEX_SUBAGENTS_CPUS`, the effective admission concurrency under the ADR-0012 soft budget
+(which replaced the pre-8.5 `CORTEX_SUBAGENTS_MAX_CONCURRENCY` knob).
 
 > **Reasoning is disabled** on the subagent server (`--chat-template-kwargs
 > '{"enable_thinking": false}'`, baked into the compose command). Qwen3.5 is a reasoning model and
@@ -51,7 +55,9 @@ cd brain && CORTEX_SUBAGENTS_ENDPOINT=http://127.0.0.1:8082 \
 
 Layer all three overrides so the resident cortex can *decide* to delegate. Give subagents tools
 too by adding the tools override. The wiring hands them the MCP subset without the spawn tool
-(depth-1):
+(depth-1). The override bakes in both required endpoints (`CORTEX_SUBAGENTS_ENDPOINT` and
+`CORTEX_SUBAGENTS_GPU_ENDPOINT`, ADR-0012, where both resolve to the one CPU server until Slice 11)
+and passes through the ask/budget knobs (`CORTEX_SUBAGENTS_{CPUS,MEMORY_GB,VRAM_GB,CPU_BUDGET,MEM_BUDGET_GB}`):
 
 ```powershell
 docker compose --project-directory . -f docker/docker-compose.yml -f docker/docker-compose.gpu.yml `
@@ -76,7 +82,9 @@ docker compose --project-directory . -f docker/docker-compose.yml -f docker/dock
   answered correctly (e.g. "17 + 25" → 42) in ~0.6 s each **with thinking off**, `is_error=False`;
   load ~14.5 s, ~893 MiB RSS. Pick locked in the [ADR-0004 addendum](../adr/ADR-0004-model-lineup.md);
   details in the [ADR-0010 addendum](../adr/ADR-0010-subagents.md).
-- **Still the user's to confirm:** the cortex-driven path (step 3, the GPU cortex *deciding* to
-  emit `spawn_subagents`), which needs the resident gemma-4-12B.
+- **Cortex-driven path host-closed (2026-07-01).** The maintainer ran step 3 with the resident
+  gemma-4-12B and closed the slice: the cortex *decided* to emit `spawn_subagents` end to end
+  (ROADMAP Slice 7 status; dated closure addendum in
+  [ADR-0010](../adr/ADR-0010-subagents.md)). No measurements were recorded beyond the closure.
 - If the subagent tool-calls unreliably at 2B (once reasoning is disabled), prefer gemma-4-E4B or
   Qwen3.5-4B (ADR-0004) at higher CPU cost, or keep subagents as pure text workers (no tools needed).
