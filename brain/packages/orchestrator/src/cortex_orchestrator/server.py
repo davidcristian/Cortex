@@ -14,7 +14,7 @@ from grpc import aio
 
 from cortex_core import TurnEngine
 from cortex_orchestrator.config import SeamServerConfig
-from cortex_orchestrator.converse import converse
+from cortex_orchestrator.converse import DEFAULT_MAX_BUFFERED_EVENTS, converse
 from cortex_seam import (
     BrainServiceServicer,
     ClientEvent,
@@ -39,8 +39,11 @@ class BrainService(BrainServiceServicer):
     production, tests otherwise). DI stays at the edge, the service holds no state.
     """
 
-    def __init__(self, engine: TurnEngine) -> None:
+    def __init__(
+        self, engine: TurnEngine, *, max_buffered_events: int = DEFAULT_MAX_BUFFERED_EVENTS
+    ) -> None:
         self._engine = engine
+        self._max_buffered_events = max_buffered_events
 
     async def Health(  # noqa: N802 - method name is fixed by the gRPC codegen interface
         self,
@@ -62,7 +65,9 @@ class BrainService(BrainServiceServicer):
         Slice 10). Failures surface as a terminal SeamError event, never as an RPC error.
         """
         del context  # RPC cancellation/disconnect arrive as generator close, not via context
-        events = converse(self._engine, request_iterator)
+        events = converse(
+            self._engine, request_iterator, max_buffered_events=self._max_buffered_events
+        )
         try:
             async for event in events:
                 yield event
@@ -78,7 +83,8 @@ def create_server(config: SeamServerConfig, engine: TurnEngine) -> tuple[aio.Ser
     Returns the server plus the actually-bound port (useful when config.port is 0).
     """
     server = aio.server()
-    add_BrainServiceServicer_to_server(BrainService(engine), server)
+    service = BrainService(engine, max_buffered_events=config.converse_buffer)
+    add_BrainServiceServicer_to_server(service, server)
     bound_port = server.add_insecure_port(config.bind_address)
     return server, bound_port
 

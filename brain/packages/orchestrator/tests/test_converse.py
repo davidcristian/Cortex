@@ -7,6 +7,8 @@ test_converse_grpc.py prove the same contract over the real wire.
 import asyncio
 from collections.abc import AsyncIterator, Sequence
 
+import pytest
+
 from cortex_core import (
     EchoInferenceBackend,
     InferenceError,
@@ -139,6 +141,37 @@ class TeardownGatedBackend:
             await self.release.wait()
 
 
+class CountingEndlessBackend:
+    """Yields deltas forever and counts them. Backpressure must stall the count."""
+
+    def __init__(self) -> None:
+        self.yielded = 0
+
+    async def stream(
+        self, model: str, messages: Sequence[Message], *, tools: Sequence[ToolSpec] = ()
+    ) -> AsyncIterator[InferenceEvent]:
+        del model, messages, tools
+        while True:
+            self.yielded += 1
+            yield TextChunk(f"d{self.yielded}")
+
+
+class BurstThenFailBackend:
+    """Yields a fixed burst of deltas, then fails with the typed inference error."""
+
+    def __init__(self, burst: int) -> None:
+        self._burst = burst
+
+    async def stream(
+        self, model: str, messages: Sequence[Message], *, tools: Sequence[ToolSpec] = ()
+    ) -> AsyncIterator[InferenceEvent]:
+        del model, messages, tools
+        for n in range(1, self._burst + 1):
+            yield TextChunk(f"d{n}")
+        msg = "burst over"
+        raise InferenceError(msg)
+
+
 class ExplodingClientEvents:
     """A client stream that fails mid-read (e.g. transport breakage)."""
 
@@ -269,6 +302,51 @@ async def test_failing_client_stream_becomes_internal_seam_error() -> None:
     (only,) = events
     assert only.error.code == ERROR_CODE_INTERNAL
     assert "transport blew up" in only.error.message
+
+
+async def _spin(times: int = 50) -> None:
+    """Give the loop plenty of turns; a producer blocked on a credit cannot advance."""
+    for _ in range(times):
+        await asyncio.sleep(0)
+
+
+def test_converse_rejects_a_non_positive_buffer() -> None:
+    with pytest.raises(ValueError, match="at least 1"):
+        converse(_engine(), _events_from(), max_buffered_events=0)
+
+
+async def test_backpressure_stalls_generation_until_the_consumer_reads() -> None:
+    """With a small buffer, an unread stream suspends the turn instead of buffering it."""
+    backend = CountingEndlessBackend()
+    engine = TurnEngine(InMemorySessionStore(), backend, SystemClock())
+    stream = converse(engine, _events_from(_user_turn("s", "hi")), max_buffered_events=2)
+    first = await anext(stream)
+    assert first.text_delta.text == "d1"
+    await _spin()
+    # 2 credits + the 1 returned by the read above + 1 delta held awaiting a credit.
+    assert backend.yielded == 4
+    await _spin()
+    assert backend.yielded == 4  # genuinely stalled, not merely slow
+    assert (await anext(stream)).text_delta.text == "d2"
+    assert (await anext(stream)).text_delta.text == "d3"
+    await _spin()
+    assert backend.yielded == 6  # each read returns exactly one credit
+    # Teardown must complete while the producer is blocked on a credit.
+    async with asyncio.timeout(5):
+        await stream.aclose()
+
+
+async def test_seam_error_bypasses_the_buffer_credits() -> None:
+    """A failure after the buffer filled must still deliver SeamError and end the stream."""
+    engine = TurnEngine(InMemorySessionStore(), BurstThenFailBackend(3), SystemClock())
+    stream = converse(engine, _events_from(_user_turn("s", "hi")), max_buffered_events=2)
+    first = await anext(stream)
+    assert first.text_delta.text == "d1"
+    await _spin()  # the turn fills the buffer (d2, d3), fails, and must not block
+    rest = await _collect(stream)
+    assert [e.WhichOneof("event") for e in rest] == ["text_delta", "text_delta", "error"]
+    assert rest[-1].error.code == ERROR_CODE_INFERENCE_FAILED
+    assert "burst over" in rest[-1].error.message
 
 
 async def test_closing_the_stream_mid_turn_tears_down_pump_and_turn() -> None:
