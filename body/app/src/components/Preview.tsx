@@ -5,15 +5,15 @@ interface PreviewProps {
   readonly onClick: () => void;
 }
 
-/** The completed-while-minimized preview card: shows the reply, click to open, fades on its own. */
+/** The completed-while-minimized preview card: the mark, the reply, and the draining auto-fade
+ *  bar (no caption text); the card appearing *is* the signal, and the bar says it will go. */
 export function Preview({ reply, onClick }: PreviewProps) {
   return (
-    <button className="preview" onClick={onClick} type="button">
-      <div className="pv-t">
-        <RingMark size={14} idPrefix="pv" strokeWidth={5} /> Reply ready
+    <button className="preview" onClick={onClick} aria-label="Open reply" type="button">
+      <div className="pv-row">
+        <RingMark size={14} idPrefix="pv" strokeWidth={5} animated={false} />
+        <div className="pv-b">{reply}</div>
       </div>
-      <div className="pv-b">{reply}</div>
-      <div className="pv-h">Click to open · fades on its own</div>
       <div className="bar" aria-hidden="true" />
     </button>
   );
