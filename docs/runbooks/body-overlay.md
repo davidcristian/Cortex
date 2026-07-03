@@ -66,6 +66,14 @@ $env:CORTEX_HOTKEY = "ctrl+alt+space"
 npm run tauri dev
 ```
 
+If the brain runs with a seam token (`CORTEX_SEAM_TOKEN` set on the compose stack,
+ADR-0016), set the **same** variable for the shell before `tauri dev`. An untokened body
+gets `Unauthenticated` on every call:
+
+```powershell
+$env:CORTEX_SEAM_TOKEN = "<the same secret the brain serves with>"
+```
+
 ## Notes
 
 - **What's proven vs. the user's to confirm.** The frontend (prompt → stream → render, the mode

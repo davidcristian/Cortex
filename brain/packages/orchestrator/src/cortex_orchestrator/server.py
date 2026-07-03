@@ -8,6 +8,7 @@ from collections.abc import AsyncGenerator, AsyncIterator
 from grpc import aio
 
 from cortex_core import TurnEngine
+from cortex_orchestrator.auth import SeamTokenInterceptor
 from cortex_orchestrator.config import SeamServerConfig
 from cortex_orchestrator.converse import DEFAULT_MAX_BUFFERED_EVENTS, converse
 from cortex_seam import (
@@ -73,11 +74,9 @@ class BrainService(BrainServiceServicer):
 
 
 def create_server(config: SeamServerConfig, engine: TurnEngine) -> tuple[aio.Server, int]:
-    """Build the aio server, register BrainService over `engine`, and bind it (not started).
-
-    Returns the server plus the actually-bound port (useful when config.port is 0).
-    """
-    server = aio.server()
+    """Build the aio server, register BrainService over `engine`, and bind it (not started)."""
+    interceptors = (SeamTokenInterceptor(config.token),) if config.token else ()
+    server = aio.server(interceptors=interceptors)
     service = BrainService(engine, max_buffered_events=config.converse_buffer)
     add_BrainServiceServicer_to_server(service, server)
     bound_port = server.add_insecure_port(config.bind_address)

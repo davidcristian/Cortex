@@ -19,12 +19,14 @@ DEFAULT_SUBAGENT_MODEL = "subagent"
 
 
 class SeamServerConfig(BaseSettings):
-    """Where the brain hosts BrainService (loopback-only per ROADMAP assumption 5)."""
+    """Where (and to whom) the brain hosts BrainService."""
 
     model_config = SettingsConfigDict(env_prefix="CORTEX_SEAM_")
 
     host: str = "127.0.0.1"
     port: int = 50051
+    # env CORTEX_SEAM_TOKEN is the shared secret both sides read from env (never the repo).
+    token: str = ""
     # env CORTEX_SEAM_CONVERSE_BUFFER sets how many ServerEvents one Converse stream may
     # buffer unread before generation stalls (bounded backpressure; converse.py).
     converse_buffer: int = Field(default=DEFAULT_MAX_BUFFERED_EVENTS, gt=0)

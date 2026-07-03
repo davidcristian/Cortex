@@ -2,24 +2,68 @@
 
 use body_core::{BrainTransport, SeamHealth, TransportError, TurnEvent};
 use futures_core::Stream;
-use tonic::Status;
+use tonic::metadata::{Ascii, MetadataValue};
+use tonic::service::Interceptor;
+use tonic::service::interceptor::InterceptedService;
 use tonic::transport::Channel;
+use tonic::{Request, Status};
 
 use crate::generated::HealthRequest;
 use crate::generated::brain_service_client::BrainServiceClient;
+
+/// The metadata key the seam token travels under (ADR-0016; lowercase per gRPC).
+const SEAM_TOKEN_HEADER: &str = "x-cortex-seam-token";
+
+/// The service every seam call runs over: tonic's [`Channel`] fronted by the
+/// token interceptor (which is a pass-through when no token is configured).
+pub(crate) type SeamChannel = InterceptedService<Channel, SeamTokenInterceptor>;
+
+/// Attaches the shared seam token to every outgoing request (ADR-0016).
+#[derive(Clone)]
+pub(crate) struct SeamTokenInterceptor {
+    token: Option<MetadataValue<Ascii>>,
+}
+
+impl Interceptor for SeamTokenInterceptor {
+    fn call(&mut self, mut request: Request<()>) -> Result<Request<()>, Status> {
+        if let Some(token) = &self.token {
+            request
+                .metadata_mut()
+                .insert(SEAM_TOKEN_HEADER, token.clone());
+        }
+        Ok(request)
+    }
+}
 
 /// gRPC client for `BrainService`, connected over a tonic [`Channel`].
 ///
 /// Cheap to clone: clones share the underlying HTTP/2 connection.
 #[derive(Clone, Debug)]
 pub struct BrainSeamClient {
-    inner: BrainServiceClient<Channel>,
+    inner: BrainServiceClient<SeamChannel>,
 }
 
 impl BrainSeamClient {
     /// Connects to the brain at `addr`, e.g. `http://127.0.0.1:50051`
-    /// (the `CORTEX_BRAIN_ADDR` default, see `docs/modules/body-rpc.md`).
+    /// (the `CORTEX_BRAIN_ADDR` default, see `docs/modules/body-rpc.md`),
+    /// sending no seam token. This suits a brain with auth disabled.
     pub async fn connect(addr: &str) -> Result<Self, TransportError> {
+        Self::connect_with_token(addr, None).await
+    }
+
+    /// Like [`BrainSeamClient::connect`], additionally attaching `token` as `x-cortex-seam-token`
+    /// metadata on every call when `Some`.
+    pub async fn connect_with_token(
+        addr: &str,
+        token: Option<&str>,
+    ) -> Result<Self, TransportError> {
+        let token = token
+            .map(|value| {
+                value.parse::<MetadataValue<Ascii>>().map_err(|err| {
+                    TransportError::Connection(format!("invalid seam token: {}", error_chain(&err)))
+                })
+            })
+            .transpose()?;
         let endpoint = Channel::from_shared(addr.to_owned())
             .map_err(|err| TransportError::Connection(error_chain(&err)))?;
         let channel = endpoint
@@ -27,7 +71,7 @@ impl BrainSeamClient {
             .await
             .map_err(|err| TransportError::Connection(error_chain(&err)))?;
         Ok(Self {
-            inner: BrainServiceClient::new(channel),
+            inner: BrainServiceClient::with_interceptor(channel, SeamTokenInterceptor { token }),
         })
     }
 }

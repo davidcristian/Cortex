@@ -15,6 +15,9 @@ Config (pydantic-settings; explicit constructor arguments beat the environment):
   (`CORTEX_SEAM_HOST`), `port: int = 50051` (`CORTEX_SEAM_PORT`); `bind_address`
   property yields `"host:port"`. The body's live check dials the same endpoint via
   `CORTEX_BRAIN_ADDR` (default `http://127.0.0.1:50051`). Keep the two in sync.
+  `token: str = ""` (`CORTEX_SEAM_TOKEN`, ADR-0016) is the shared seam secret; set, it
+  makes every RPC require the matching `x-cortex-seam-token` metadata (the body reads
+  the same env var), empty disables the check (loopback-only remains the boundary).
   `converse_buffer: int = 256` (`CORTEX_SEAM_CONVERSE_BUFFER`, positive) bounds how many
   `ServerEvent`s one Converse stream buffers unread before generation stalls
   (backpressure, below).
@@ -85,7 +88,11 @@ The service:
 - `create_server(config: SeamServerConfig, engine: TurnEngine) -> tuple[grpc.aio.Server, int]`
   builds the aio server, registers `BrainService(engine)`, binds `config.bind_address`;
   returns the not-yet-started server plus the actually-bound port (the OS pick when
-  `port=0`; gRPC reports 0 if the bind failed).
+  `port=0`; gRPC reports 0 if the bind failed). With `config.token` set it registers the
+  `SeamTokenInterceptor` (ADR-0016, `auth.py`): every RPC, unary and streaming, current
+  and future, must carry the matching `x-cortex-seam-token` metadata (`SEAM_TOKEN_HEADER`)
+  or is aborted `UNAUTHENTICATED` before the servicer runs (constant-time compare, rejection
+  shaped to the method). Empty token = no interceptor, the previous server byte for byte.
 - `serve(config: SeamServerConfig, engine: TurnEngine) -> None` (async) starts the
   server and blocks until SIGTERM/SIGINT or task cancellation; handlers for both signals
   are installed on the running loop for the server's lifetime (removed on exit) and

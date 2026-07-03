@@ -52,6 +52,13 @@ def test_seam_defaults_are_loopback_50051() -> None:
     assert config.port == 50051
     assert config.bind_address == "127.0.0.1:50051"
     assert config.converse_buffer == 256  # the converse.py default, one knob (backpressure)
+    assert config.token == ""  # auth off by default, so loopback-only stays the boundary
+
+
+@pytest.mark.usefixtures("clean_env")
+def test_seam_env_sets_the_token(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("CORTEX_SEAM_TOKEN", "s3-seam-secret")
+    assert SeamServerConfig().token == "s3-seam-secret"  # noqa: S105 - test fixture value
 
 
 @pytest.mark.usefixtures("clean_env")
