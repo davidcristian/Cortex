@@ -21,8 +21,10 @@ CORTEX_TOOLS_ROOT=./sandbox \
   line; the streamable-http endpoint is `http://127.0.0.1:9000/mcp`.
 - **From WSL** (automount/interop off): the same drvfs + `DOCKER_CONFIG` one-time steps as the
   [llama.cpp runbook](llamacpp-gpu.md).
-- **Pin the server** to a patched version (post-EscapeRoute, CVE-2025-53109/53110):
-  `@modelcontextprotocol/server-filesystem@<patched>` in the compose command. The read-only,
+- **The server is version-pinned in the compose command**
+  (`@modelcontextprotocol/server-filesystem@2026.1.14`, past the EscapeRoute fixes
+  CVE-2025-53109/53110 patched in `2025.7.1`; the `supergateway` bridge is pinned too). Bump
+  the pins deliberately. Never float back to unversioned `npx`. The read-only,
   single-directory mount bounds the blast radius regardless (ADR-0009, fork 2).
 
 ## Run the tools integration test
@@ -43,7 +45,10 @@ if the pinned server names its read tool differently (older builds used `read_fi
 With both up, `docker compose --project-directory . -f docker/docker-compose.yml -f docker/docker-compose.tools.yml up` runs the
 brain with `CORTEX_TOOLS_BACKEND=mcp`, so a turn that needs a file calls the tool, the dispatch
 is audited (one `cortex.tools.audit` line per call), and the result is fed back to the model.
-A real model that emits tool calls also needs the GPU compose up with `--jinja` (ADR-0009).
+A real model that emits tool calls also needs the GPU compose up (`--jinja` is baked into its
+command). Validated 2026-07-03: with both up, a `Converse` turn asking for a file's contents made
+the resident gemma-4-12B natively emit `read_text_file` through the audited loop and answer with
+the file's exact contents (ADR-0009 addendum).
 
 ## Teardown
 

@@ -99,12 +99,13 @@ cd brain && CORTEX_INFERENCE_ENDPOINT=http://127.0.0.1:8080 \
 ## Framing-efficacy probe (Slice 6.5 / ADR-0013, agent-runnable)
 
 Confirms the prompt-injection **framing** actually changes the cortex's behavior. This is the model
-observation CI can't make. Bring up **only** the model on GPU (no brain build), adding `--jinja`
-so gemma's tool chat-template renders (a `command:` override in a scratch compose file):
+observation CI can't make. Bring up **only** the model on GPU (no brain build); `--jinja` (so
+gemma's tool chat-template renders) is baked into the GPU compose since 2026-07-03 (ADR-0009
+addendum, though at probe time it still needed a scratch override):
 
 ```
 docker compose --project-directory . -f docker/docker-compose.yml -f docker/docker-compose.gpu.yml \
-  -f <override-adding-"--jinja"> up -d llama-cortex     # 127.0.0.1:8080, ~9.8 GB VRAM, healthy in ~10 s
+  up -d llama-cortex     # 127.0.0.1:8080, ~9.8 GB VRAM, healthy in ~10 s
 ```
 
 Then probe `/v1/chat/completions` directly, building messages with the **shipped** constants

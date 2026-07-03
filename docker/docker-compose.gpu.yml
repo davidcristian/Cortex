@@ -33,6 +33,7 @@ services:
       - "${CORTEX_CTX_SIZE:-16384}"
       - "--parallel"
       - "1"
+      - "--jinja"
     volumes:
       # Models stay on the Windows drive, mounted read-only (ADR-0004 d3). Forward slashes
       # work in Docker Desktop on Windows; override the source with CORTEX_MODELS_DIR.
