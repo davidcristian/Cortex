@@ -13,6 +13,7 @@ from fakeredis import FakeAsyncRedis, FakeServer
 from grpc import aio
 
 from cortex_core import (
+    CharBudgetHistoryWindow,
     EchoInferenceBackend,
     InMemoryTaskStore,
     InMemoryToolRegistry,
@@ -39,6 +40,7 @@ from cortex_orchestrator import (
     SubagentsConfig,
     ToolsConfig,
     build_cortex_tools,
+    build_history_window,
     build_inference_backend,
     build_memory,
     build_subagents,
@@ -306,7 +308,7 @@ async def test_build_tool_registry_skip_mode_serves_around_a_dead_sidecar(
         )
     )
     assert registry is not None
-    with caplog.at_level(logging.WARNING, logger="cortex_orchestrator.wiring"):
+    with caplog.at_level(logging.WARNING, logger="cortex_orchestrator.builders"):
         names = [spec.name for spec in await registry.describe_tools()]
     assert names == ["read_text_file"]  # the email sidecar is skipped, not fatal
     (record,) = caplog.records  # … and reported, never silent
@@ -406,6 +408,15 @@ def _read_registry() -> InMemoryToolRegistry:
     return InMemoryToolRegistry(
         {"read": (ToolSpec(name="read", description="", parameters={}), _read_handler)}
     )
+
+
+def test_build_history_window_positive_budget_enables_windowing() -> None:
+    assert isinstance(build_history_window(100), CharBudgetHistoryWindow)
+
+
+def test_build_history_window_zero_disables_windowing() -> None:
+    # CORTEX_HISTORY_CHAR_BUDGET=0 is the documented off switch (ADR-0014).
+    assert build_history_window(0) is None
 
 
 def test_build_cortex_tools_none_when_nothing_is_enabled() -> None:

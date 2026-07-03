@@ -10,6 +10,7 @@ from cortex_core import (
     DEFAULT_CORTEX_MODEL,
     DENIED_MSG,
     SECURITY_PREAMBLE,
+    CharBudgetHistoryWindow,
     EchoInferenceBackend,
     HashEmbedder,
     InferenceError,
@@ -202,6 +203,29 @@ async def test_backend_receives_model_id_and_full_history() -> None:
     first_history, second_history = (messages for _, messages in backend.calls)
     assert [m.text for m in first_history] == ["first"]
     assert [m.text for m in second_history] == ["first", "abc", "second"]
+
+
+async def test_windowed_history_bounds_the_backend_not_the_store() -> None:
+    """With a window capability the backend sees a tail; the store keeps everything."""
+    store = InMemorySessionStore()
+    backend = RecordingBackend(("a", "b", "c"))
+    ids = _sequential_turn_ids()
+    engine = TurnEngine(
+        store,
+        backend,
+        TickingClock(),
+        capabilities=TurnCapabilities(window=CharBudgetHistoryWindow(15)),
+        turn_id_factory=lambda: ids.pop(0),
+    )
+    await _collect(engine.handle_turn("s", "one"))
+    await _collect(engine.handle_turn("s", "two"))
+    await _collect(engine.handle_turn("s", "three"))
+    histories = [[m.text for m in messages] for _, messages in backend.calls]
+    # Turns 1-2 fit the budget whole; turn 3 drops the oldest exchange wholesale.
+    assert histories == [["one"], ["one", "abc", "two"], ["two", "abc", "three"]]
+    # Persistence is untouched by the window: the store holds the full history.
+    stored = [m.text for m in await store.history("s")]
+    assert stored == ["one", "abc", "two", "abc", "three", "abc"]
 
 
 async def test_default_model_and_turn_ids_are_uuid4_cortex() -> None:

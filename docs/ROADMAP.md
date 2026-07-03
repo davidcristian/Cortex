@@ -465,12 +465,15 @@ Not ordered; picked up when a slice needs one or on request.
   unchanged `BrainTransport` port; the overlay treats a failed turn as terminal until then.
 
 **Cortex chat / session in Slice 3:**
-- **Session-history windowing / truncation / summarization.** `TurnEngine` sends the **full**
-  session history to the model every turn ([brain-core.md](modules/brain-core.md)) with no brain-side
-  cap, so a long conversation eventually exceeds the model's context window (`CORTEX_CTX_SIZE`). A
-  windowing/summarization pass (drop or compress old turns before inference) is a later refinement
-  behind the unchanged `SessionStore`/`TurnEngine`. Distinct from memory summarization (Slice 5,
-  which is cross-session recall, not the in-context history).
+- **Session-history windowing landed 2026-07-03 ([ADR-0014](adr/ADR-0014-history-windowing.md)).**
+  A pure `HistoryWindow` seam in `TurnCapabilities` with a turn-aligned char-budget tail
+  (`CharBudgetHistoryWindow`; `CORTEX_HISTORY_CHAR_BUDGET`, default 48000 ≈ 12K of the
+  16K-token context, `0` disables). What one turn sends to the model is bounded, persistence
+  untouched. Remaining from the original deferral:
+- **Session-history summarization.** Compressing old turns instead of dropping them changes
+  content (a lossy model pass) and needs inference in turn assembly, so it stays deferred, and
+  it will land behind the same `HistoryWindow` seam (ADR-0014 alternatives). Distinct from
+  memory summarization (Slice 5, cross-session recall, not the in-context history).
 - **Bounded backpressure on the `Converse` output queue landed 2026-07-03.** The per-turn
   output queue (`converse.py`) is now credit-bounded (`CORTEX_SEAM_CONVERSE_BUFFER`, default
   256): a consumer that stops reading suspends generation at the bound, while the terminal
