@@ -201,3 +201,45 @@ vectors, not text, and are not prompt-injectable); the brain tier is opt-in and 
   reason to prefer gemma-E4B for untrusted-content subtasks. **Slice 8.6** (heterogeneous subagent
   models) makes this per-task: the cortex can pick gemma-E4B for a risky read and a cheaper model
   elsewhere. Re-run the harness when picks or the preamble change.
+
+## Addendum (2026-07-03): subagent pick revised to gemma-4-E4B (injection-robustness adopted)
+
+The injection-robustness addendum above left the Qwen3.5-2B pick standing with a flag; the
+ROADMAP's deferred-refinements entry ("reconsider the subagent model pick") is now resolved:
+**the subagent pick is gemma-4-E4B (QAT q4_0)**. The safety axis wins the tie, at a measured
+and acceptable CPU cost. Agent-run measurements (WSL + Docker Desktop, models at
+`/srv/models`, the actual `docker-compose.subagents.yml` server: CPU `-ngl 0 --jinja`,
+thinking off, ctx 8192, 2 slots):
+
+| | Qwen3.5-2B Q4_K_M (old pick) | gemma-4-E4B QAT q4_0 (new pick) |
+|---|---|---|
+| weights | 1.19 GB | 4.9 GB |
+| load (drvfs mount) | ~14.5 s | **38 s** |
+| RSS after inference | ~893 MiB | **~2.5 GiB** |
+| narrow task ("17 + 25") | ~0.6 s | **~1.8 s** |
+| tool call (`--jinja`, schema in prompt) | works | **works, ~8 s** (CPU prefill-bound) |
+| delegation live test (`test_subagent_live.py`) | passed 2026-07-01 | **passed 2026-07-03** (2 concurrent, 3.3 s) |
+| injection, framed, thinking off | 1/10 (output-laundering) | **0/10** (re-confirmed 2026-07-03; the unframed control obeyed 2) |
+
+- **Why adopt now:** the small tier is the injection-weak link (ADR-0013 addenda) and the
+  hardening focus makes per-model robustness worth its cost. E4B is the only small candidate
+  at 0/10, it launders nothing, and its robustness holds with thinking **off** (the deployed
+  subagent mode). Defense stays layered: the deterministic boundary (no gated tools, made
+  structural since the ADR-0013 subagent-exclusion addendum, plus the fail-closed gate, taint
+  containment, and the ADR-0015 output guardrail) does not depend on this pick; E4B lowers
+  the residual on the one axis only a model can (parroting/laundering into taint-contained
+  output, and general instruction-following quality on untrusted reads).
+- **Costs, quantified above:** ~2.6× load, ~3× narrow-task latency, ~2.8× RSS. Acceptable for
+  narrow asynchronous subtasks; the admission ask in the compose is updated to the measured
+  numbers (memory 3.0 GB → two concurrent under the 8 GB budget, matching `--parallel 2`;
+  VRAM ask 5.5 GB, deliberately above the current GPU headroom so the ADR-0012 placer
+  overflows every E4B spawn to CPU).
+- **`enable_thinking=false` is honored by the gemma-4-E4B template** (validated: no
+  `reasoning_content`, direct answers). The earlier compose comment claiming gemma-4-E* are
+  non-reasoning templates was wrong and is corrected; both lineup families are
+  reasoning-capable and both need the flag on CPU.
+- **Qwen3.5-2B remains the documented cheap override** (`CORTEX_MODEL_FILE_SUBAGENT`) when
+  latency matters more than robustness; **Slice 8.6** (heterogeneous subagent models) still
+  makes the choice per-task, with E4B as the safe default rather than the special case.
+- Artifacts: `google/gemma-4-E4B-it-qat-q4_0-gguf/gemma-4-E4B_q4_0-it.gguf` (the
+  harness-tested QAT quant; the lmstudio Q8_0 stays unused, since 7.5 GB buys no robustness).

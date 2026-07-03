@@ -68,9 +68,13 @@ CORTEX_CANDIDATES: tuple[Model, ...] = (
 )
 SUBAGENT_CANDIDATES: tuple[Model, ...] = (
     Model("gemma-4-E2B", f"{_GG}-E2B-it-qat-q4_0-gguf/gemma-4-E2B_q4_0-it.gguf", thinking=False),
-    Model("gemma-4-E4B", f"{_GG}-E4B-it-qat-q4_0-gguf/gemma-4-E4B_q4_0-it.gguf", thinking=False),
+    Model(
+        "gemma-4-E4B (subagent pick)",
+        f"{_GG}-E4B-it-qat-q4_0-gguf/gemma-4-E4B_q4_0-it.gguf",
+        thinking=False,
+    ),
     Model("Qwen3.5-0.8B", f"{_QU}-0.8B-GGUF/Qwen3.5-0.8B-Q8_0.gguf", thinking=False),
-    Model("Qwen3.5-2B (subagent pick)", f"{_QU}-2B-GGUF/Qwen3.5-2B-Q4_K_M.gguf", thinking=False),
+    Model("Qwen3.5-2B", f"{_QU}-2B-GGUF/Qwen3.5-2B-Q4_K_M.gguf", thinking=False),
     Model("Qwen3.5-4B", f"{_QU}-4B-GGUF/Qwen3.5-4B-Q4_K_M.gguf", thinking=False),
 )
 # The ~31B brain (swap) tier is heavy; opt in with CORTEX_PROBE_BRAIN=1 (needs ~13-18 GB free).
