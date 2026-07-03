@@ -20,8 +20,9 @@ config contract in [ADR-0003](../adr/ADR-0003-seam-codegen.md).
 - **Docker Desktop on Windows** with WSL integration enabled for this distro
   (Settings → Resources → WSL integration). The daemon runs on Windows; the
   `docker` / `docker compose` CLIs inside WSL talk to it, and ports published on
-  `127.0.0.1` are reachable from both WSL and Windows. No GPU wiring exists yet. The
-  `docker/docker-compose.gpu.yml` override arrives with Slice 4 (docs/ROADMAP.md).
+  `127.0.0.1` are reachable from both WSL and Windows. The base compose is GPU-free;
+  real inference is the opt-in `docker/docker-compose.gpu.yml` override (Slice 4,
+  see [llamacpp-gpu.md](llamacpp-gpu.md)).
   Footgun: `docker-credential-desktop.exe … exec format error` means the shell lacks
   WSL interop (Docker Desktop's credential helper is a Windows binary); run from a
   shell with interop, or point `DOCKER_CONFIG` at a config without a `credsStore`.
@@ -88,7 +89,8 @@ docker compose down
 ## Talk Converse from the host
 
 With a brain running either way, one full turn over the real seam (the deterministic
-echo backend answers until Slice 4 delivers real inference, per `docs/ROADMAP.md`):
+echo backend answers on the default path; real inference is the opt-in GPU override,
+`CORTEX_INFERENCE_BACKEND=llamacpp` from Slice 4, [llamacpp-gpu.md](llamacpp-gpu.md)):
 
 ```sh
 cd brain && uv run python - <<'EOF'

@@ -104,3 +104,46 @@ without one).
   implementation; see [cross-cutting.md](cross-cutting.md)).
 - The audit is a point-in-time snapshot (2026-07-02, working tree at commit `87f137d`).
   Line references will drift as files change.
+
+## Remediation (2026-07-03)
+
+Every action item above was cleared the following day (the 2026-07-03 commits; `just check`
+green, findings validated live via Docker where applicable). Line references in the reports
+predate these fixes.
+
+**The four medium-severity findings:**
+
+1. **Automated dump/sync is built.** A `pg-backup` sidecar (`docker-compose.memory.yml` +
+   `docker/postgres/backup.sh`) dumps into `CORTEX_DB_DIR` on start and every
+   `CORTEX_DB_SYNC_INTERVAL_S` (atomic replace + one-deep rotation). Validated live
+   (dump + rotation observed against real Postgres). Recorded in the ADR-0008 addendum.
+2. **`LoggingAuditSink` now emits `trust`.** Two adjacent defects found while
+   validating were fixed with it: the orchestrator never configured logging handlers (so
+   the INFO-level audit trail was dropped entirely in the container), and a plain formatter
+   showed none of the `extra` fields (the payload is now also JSON-embedded in the message).
+   Proven live: a real turn's `tool.invocation` line lands in `docker logs` with `trust`.
+3. **The subagents compose boots again.** `docker-compose.subagents.yml` + the runbook were
+   updated to the post-8.5 config (both required endpoints set, and in the interim both resolve to
+   the one CPU server until Slice 11's real GPU sidecar; the removed `MAX_CONCURRENCY` knob
+   replaced by `CORTEX_SUBAGENTS_PARALLEL` + the budget knobs; CPU-only framing corrected).
+4. **The Slice 7 user closure now has an ADR-side record** (dated ADR-0010 addendum;
+   runbook + ADR-0004 notes updated to match).
+
+**Ledger sync:** all six missing entries added to the ROADMAP ledger (new Slice 7 and
+Slice 8 blocks, the 8.5 hard-wall bullet, the brain-tier probe entry, the Slice 3
+backpressure entry) with matching origin-ADR records (ADR-0003 addendum, ADR-0011 addendum);
+the ledger preamble now states the Slice-3 no-origin-ADR case.
+
+**Documentation drift:** ARCHITECTURE.md tier + port tables refreshed (GPU-first subagents;
+five shipped ports added; `EventBus`/`BodyGateway` marked planned); stale Slice-4 tense in
+local-dev-wsl.md; the converse.py backpressure docstring; ADR-0013's confirmer-fake naming;
+ADR-0011's `frontend/`-layout and bridge-sketch corrections; index.md's `spawn_subagents`
+blurb; brain-orchestrator.md's three missing config classes.
+
+**Gates infrastructure:** the filesystem MCP server (and supergateway) are now version-pinned
+in the committed compose (EscapeRoute-patched; validated live); `--jinja` is committed to the
+GPU compose and the ADR-0009 condition was met by a live cortex-driven native tool call
+(ADR-0009 addendum); the dev Postgres credential is env-parametrized with a written ADR-0008
+carve-out; commit-subject style is now machine-enforced (`scripts/commitlint.py`, gated at
+100% like the other gate scripts); AGENTS.md's path-filter and commit-hook claims now match
+the implementation.

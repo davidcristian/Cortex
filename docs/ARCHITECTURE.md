@@ -35,10 +35,10 @@ maintainable by agents with small context windows. Rules live in
 Three tiers share one 24 GB GPU via llama.cpp (ADR-0005; one
 `llama-server` process per loaded model):
 
-| Tier | Role | Residency | VRAM |
+| Tier | Role | Residency | Budget |
 |---|---|---|---|
 | Cortex | always-on conversational + routing model (multimodal, ~9-12B) | resident on GPU | ~11.3 GB, under the 14 GB soft cap (ADR-0004 addendum) |
-| Subagents | small (2-4B) workers for narrow delegated tasks | dynamic pool on **CPU** | CPU RAM + concurrency; GPU budget is the cortex's |
+| Subagents | small (2-4B) workers for narrow delegated tasks | dynamic pool, **GPU-first with CPU overflow** (ADR-0012) | whole-model fit-test against `soft cap − cortex reservation − placed` (on GPU (`-ngl 99`) when it fits, spilled to CPU (`-ngl 0`) when not, never a straddle); plus a soft CPU/RAM admission budget |
 | Brain | large reasoning model (~31B-class) for hard problems | loaded on demand | full GPU; others evicted |
 
 **The hard rule: state must survive a model swap.** No conversation, task, or working
@@ -68,7 +68,9 @@ to the overlay → turn persisted to the store; memory writes go to pgvector.
 
 ## Ports and traits (contracts come first, defined before any adapter)
 
-Brain-side ports (Python `Protocol`s in `brain/packages/core`):
+Brain-side ports (Python `Protocol`s in `brain/packages/core`; entries marked *(planned)*
+have no `Protocol` in the core yet, and the shipped inventory lives in
+[modules/brain-core.md](modules/brain-core.md)):
 
 | Port | Contract (one line) |
 |---|---|
@@ -78,9 +80,14 @@ Brain-side ports (Python `Protocol`s in `brain/packages/core`):
 | `MemoryStore` | Long-term retrieval memory: upsert, top-k semantic search, delete. Never backed by a model. |
 | `Embedder` | Text → fixed-dimension vector, stable for a given model version. |
 | `ToolRegistry` | Enumerate typed tool schemas; invoke by name with validated args; every invocation is audit-logged. |
-| `EventBus` | At-least-once pub/sub of typed coordination events (swap requested, tool invoked, turn complete). |
+| `ToolAuditSink` | Write exactly one durable audit record per dispatched tool call (`ToolInvocation`, incl. the ADR-0013 `trust` provenance). |
+| `Confirmer` | Out-of-band human confirmation of a gated tool call on a turn that read untrusted content; fail-closed. No confirmer means denied (ADR-0013). |
+| `TaskStore` | Durable subagent task/result records (`put`/`get` task and result); every subagent is a stateless function over it (ADR-0010). |
+| `SubagentPlacer` | Fit-test one spawn against the VRAM budget and place the whole model on GPU or CPU (`place`/`release`), never a straddle (ADR-0012). |
+| `SubagentScheduler` | `admit(request)` under the soft CPU/RAM admission budget; over-budget spawns queue, impossible charges raise (ADR-0012). |
+| `EventBus` *(planned)* | At-least-once pub/sub of typed coordination events (swap requested, tool invoked, turn complete). |
 | `Clock` | `now()` / monotonic ticks. It is the only time source the core may use. |
-| `BodyGateway` | Brain-side port for host actions (capture screen, get/set volume, inject input); implemented by the gRPC body client. |
+| `BodyGateway` *(Slice 9, planned)* | Brain-side port for host actions (capture screen, get/set volume, inject input); implemented by the gRPC body client. |
 
 Host-side traits (Rust, in `body/crates/core`):
 

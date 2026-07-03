@@ -24,6 +24,22 @@ Config (pydantic-settings; explicit constructor arguments beat the environment):
   `endpoint: str = ""` (`CORTEX_INFERENCE_ENDPOINT`, the resident `llama-server` base
   URL). Validates that `llamacpp` has a non-empty `endpoint`. Echo is the GPU-less
   default (CI + no-GPU dev); `llamacpp` is opt-in, set by `docker/docker-compose.gpu.yml`.
+- `MemoryConfig` uses env prefix `CORTEX_MEMORY_` (ADR-0008): `backend: "none" | "pgvector" =
+  "none"` (`CORTEX_MEMORY_BACKEND`), `dsn: str = ""` (`CORTEX_MEMORY_DSN`),
+  `embedder_endpoint: str = ""` (`CORTEX_MEMORY_EMBEDDER_ENDPOINT`), `embedder_model: str`
+  (`CORTEX_MEMORY_EMBEDDER_MODEL`). Validates that `pgvector` has both a DSN and an
+  embedder endpoint. Set by `docker/docker-compose.memory.yml`.
+- `ToolsConfig` uses env prefix `CORTEX_TOOLS_` (ADR-0009): `backend: "none" | "mcp" = "none"`
+  (`CORTEX_TOOLS_BACKEND`), `endpoint: str = ""` (`CORTEX_TOOLS_ENDPOINT`, the streamable-http
+  MCP URL). Validates that `mcp` has a non-empty endpoint. Set by
+  `docker/docker-compose.tools.yml` / `docker-compose.email.yml`.
+- `SubagentsConfig` uses env prefix `CORTEX_SUBAGENTS_` (ADR-0010, revised by ADR-0012):
+  `backend: "none" | "llamacpp" = "none"` (`CORTEX_SUBAGENTS_BACKEND`), `endpoint` (the CPU
+  overflow `llama-server`) **and** `gpu_endpoint` (the GPU one), which are both required when
+  `llamacpp`; `model` (`CORTEX_SUBAGENTS_MODEL`); one subagent's resource ask `vram_gb` /
+  `cpus` / `memory_gb` and the soft admission ceilings `cpu_budget` / `mem_budget_gb`
+  (defaults are GPU-less-safe placeholders; the maintainer measures real numbers on the host).
+  Set by `docker/docker-compose.subagents.yml`.
 
 The service:
 
