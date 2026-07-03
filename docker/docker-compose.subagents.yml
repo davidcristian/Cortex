@@ -18,8 +18,10 @@
 #
 # Set on the host (a .env at the repo root works):
 #   CORTEX_MODELS_DIR          host dir holding the GGUFs (default ./models, ADR-0004)
-#   CORTEX_MODEL_FILE_SUBAGENT subagent GGUF path under that dir (the pick: Qwen3.5-2B Q4_K_M,
-#                              measured in docs/runbooks/subagents-cpu.md)
+#   CORTEX_MODEL_FILE_SUBAGENT subagent GGUF path under that dir (the pick: gemma-4-E4B QAT q4_0
+#                              is the injection-robust subagent, ADR-0004 pick-revision addendum;
+#                              measured in docs/runbooks/subagents-cpu.md. Qwen3.5-2B Q4_K_M is
+#                              the cheaper/faster override when robustness matters less)
 #   CORTEX_SUBAGENTS_{CPUS,MEMORY_GB,VRAM_GB}    one subagent's resource ask (ADR-0012)
 #   CORTEX_SUBAGENTS_{CPU_BUDGET,MEM_BUDGET_GB}  soft admission ceilings (sum of admitted asks)
 #   CORTEX_SUBAGENTS_PARALLEL  server slots; keep ≈ CPU_BUDGET / CPUS (default 2)
@@ -34,10 +36,14 @@ services:
       # real GPU sidecar (ADR-0012 deferral); override GPU_ENDPOINT to test a real one.
       CORTEX_SUBAGENTS_ENDPOINT: "http://llama-subagent:8082"
       CORTEX_SUBAGENTS_GPU_ENDPOINT: "${CORTEX_SUBAGENTS_GPU_ENDPOINT:-http://llama-subagent:8082}"
-      # Per-subagent ask + soft admission budgets (ADR-0012); defaults mirror SubagentsConfig.
+      # Per-subagent ask + soft admission budgets (ADR-0012). The ask reflects the measured
+      # E4B pick (ADR-0004 pick-revision addendum): ~2.5 GiB RSS on CPU -> 3.0 memory ask
+      # (2 admitted under the 8 GB budget, matching --parallel); ~5.5 GB weights+KV VRAM ask,
+      # deliberately above the GPU headroom (soft cap - cortex), so the ADR-0012 placer
+      # correctly overflows every E4B spawn to CPU until the budget ever allows it.
       CORTEX_SUBAGENTS_CPUS: "${CORTEX_SUBAGENTS_CPUS:-2.0}"
-      CORTEX_SUBAGENTS_MEMORY_GB: "${CORTEX_SUBAGENTS_MEMORY_GB:-2.0}"
-      CORTEX_SUBAGENTS_VRAM_GB: "${CORTEX_SUBAGENTS_VRAM_GB:-2.0}"
+      CORTEX_SUBAGENTS_MEMORY_GB: "${CORTEX_SUBAGENTS_MEMORY_GB:-3.0}"
+      CORTEX_SUBAGENTS_VRAM_GB: "${CORTEX_SUBAGENTS_VRAM_GB:-5.5}"
       CORTEX_SUBAGENTS_CPU_BUDGET: "${CORTEX_SUBAGENTS_CPU_BUDGET:-4.0}"
       CORTEX_SUBAGENTS_MEM_BUDGET_GB: "${CORTEX_SUBAGENTS_MEM_BUDGET_GB:-8.0}"
     depends_on:
@@ -54,7 +60,7 @@ services:
     # concurrency under the ADR-0012 soft budget.
     command:
       - "--model"
-      - "/models/${CORTEX_MODEL_FILE_SUBAGENT:-unsloth/Qwen3.5-2B-GGUF/Qwen3.5-2B-Q4_K_M.gguf}"
+      - "/models/${CORTEX_MODEL_FILE_SUBAGENT:-google/gemma-4-E4B-it-qat-q4_0-gguf/gemma-4-E4B_q4_0-it.gguf}"
       - "--host"
       - "0.0.0.0"
       - "--port"
@@ -64,11 +70,12 @@ services:
       - "-ngl"
       - "0"
       - "--jinja"
-      # Disable reasoning for the subagent tier (ADR-0010 increment-4 addendum): the pick,
-      # Qwen3.5, is a reasoning model, and unbounded thinking on CPU is minutes/call. Narrow
-      # subagents don't need it. This is the server-side twin of enable_thinking=false; it is
-      # ignored by non-reasoning templates (e.g. gemma-4-E*), so it stays correct if the model
-      # is overridden. Validated: plain requests answer directly in ~0.3-0.6s.
+      # Disable reasoning for the subagent tier (ADR-0010 increment-4 addendum): both lineup
+      # families (gemma-4-E*, Qwen3.5) are reasoning models, and unbounded thinking on CPU is
+      # minutes/call. Narrow subagents don't need it. This is the server-side twin of
+      # enable_thinking=false; templates honor it (validated on the E4B pick: '17 + 25' answers
+      # '42' in ~1.8 s with no reasoning trace; on the Qwen-2B override, ~0.3-0.6 s). The E4B
+      # injection-robustness holds with thinking OFF (0/10, ADR-0004 injection addendum).
       - "--chat-template-kwargs"
       - '{"enable_thinking": false}'
       - "--ctx-size"
