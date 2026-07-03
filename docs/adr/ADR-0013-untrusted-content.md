@@ -407,3 +407,10 @@ The defense-in-depth stack for a subagent is now, in order: it is never handed a
 (structural, this addendum) → its dispatcher's gate is fail-closed (`confirmer=None`) → its
 output re-enters the cortex as UNTRUSTED (taint containment). The first layer no longer depends
 on wiring discipline. Unchanged seams: `ToolRegistry`, `ToolDispatcher`, `SubagentRunner`.
+
+**Forward pointer (heterogeneous models, Slice 8.6).** When the cortex gains per-spawn model
+choice, a fourth deterministic layer joins the stack: the turn's taint (this ADR) plus the
+subagent's tool-enablement force the injection-robust model on any untrusted-content spawn,
+regardless of the model the cortex requested, so a weak roster model never reads untrusted
+content. Recorded as [ADR-0017](ADR-0017-subagent-model-safety.md), which binds the taint signal
+here to the ADR-0004 robust pick.

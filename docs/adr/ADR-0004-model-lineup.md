@@ -241,5 +241,11 @@ thinking off, ctx 8192, 2 slots):
 - **Qwen3.5-2B remains the documented cheap override** (`CORTEX_MODEL_FILE_SUBAGENT`) when
   latency matters more than robustness; **Slice 8.6** (heterogeneous subagent models) still
   makes the choice per-task, with E4B as the safe default rather than the special case.
+- **E4B is the "robust default" the safety override falls back to.** When Slice 8.6 lets the cortex
+  pick the subagent model per spawn, [ADR-0017](ADR-0017-subagent-model-safety.md) **forces** this
+  pick on any spawn whose path can carry untrusted content (tainted turn or tools-enabled subagent),
+  overriding the cortex's choice. The weak roster models are therefore reachable only for tool-less
+  subagents on untainted turns. The override binds to *this pick* by its logical id, so a future
+  revision here moves the safety default with it automatically.
 - Artifacts: `google/gemma-4-E4B-it-qat-q4_0-gguf/gemma-4-E4B_q4_0-it.gguf` (the
   harness-tested QAT quant; the lmstudio Q8_0 stays unused, since 7.5 GB buys no robustness).
