@@ -5,6 +5,7 @@ from cortex_orchestrator.builders import (
     build_history_window,
     build_inference_backend,
     build_memory,
+    build_subagent_tools,
     build_subagents,
     build_tool_registry,
 )
@@ -43,6 +44,7 @@ __all__ = [
     "build_history_window",
     "build_inference_backend",
     "build_memory",
+    "build_subagent_tools",
     "build_subagents",
     "build_tool_registry",
     "converse",

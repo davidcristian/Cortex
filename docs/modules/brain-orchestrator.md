@@ -111,7 +111,10 @@ The service:
   (`build_subagents(config, tool_registry, redis_url, clock, *, placer, task_store_factory)`, the
   `spawn_subagents` tool over GPU + CPU subagent backends, a Redis `TaskStore`, a soft CPU/RAM budget,
   and a `VramBudgetPlacer` (built at the call site from the runtime VRAM knobs) that fit-tests each
-  spawn GPU-first with CPU overflow, ADR-0010/0012). The cortex's dispatcher is
+  spawn GPU-first with CPU overflow, ADR-0010/0012; the subagent dispatcher comes from
+  comes from `build_subagent_tools(tool_registry, clock)`, the shared registry wrapped in
+  `UngatedToolRegistry`, so a subagent is never handed a gated/outbound tool, ADR-0013
+  subagent-exclusion addendum). The cortex's dispatcher is
   `build_cortex_tools(registry, spawn_tool, clock)`, the spawn tool merged with the MCP tools
   via a `CompositeToolRegistry`, or `None` when neither is enabled (the Slice 3 turn path). Its
   `ToolDispatcher` takes the default `confirmer=None` (ADR-0013): fail-closed, so a gated tool on a

@@ -4,6 +4,7 @@ from cortex_core.aggregate import (
     AggregateToolRegistry,
     FilteredToolRegistry,
     SkipUnavailableToolRegistry,
+    UngatedToolRegistry,
 )
 from cortex_core.composite import BuiltinTool, CompositeToolRegistry
 from cortex_core.conversation import Message, Role
@@ -150,6 +151,7 @@ __all__ = [
     "TurnCompleted",
     "TurnEngine",
     "TurnEvent",
+    "UngatedToolRegistry",
     "VramBudgetPlacer",
     "new_nonce",
     "route_turn",
