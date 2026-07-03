@@ -120,9 +120,9 @@ while a turn is processing must not lose it*) lives here. States:
   (maximize) *travels* it back from the corner to center. You always **see it move**, both ways.
 - **ORB(thinking):** the **living rings** at the corner (~64px; redesigned 2026-07-03 to the
   user's reference, motion refined same day): two thin wavy bands built from sine-modulated circles
-  (7 and 9 waves, `wavyRingPath`), stroked with the eight-hue palette (cool band
-  `#3fa2ff→#6a5cff→#c44fd8→#e055d8`, warm band `#43d675→#ffd23f→#ffb347→#ff5f6d`), over a soft
-  neon glow. Motion is deliberately layered and *only* this: the mark **spins as one** (waves
+  (7 and 9 waves, `wavyRingPath`), both stroked with the **same eight-stop gradient** (the
+  user's palette is one gradient, not two arcs: `#43d675 #ffb347 #ff5f6d #e055d8 #3fa2ff
+  #6a5cff #c44fd8 #ffd23f`), over a soft neon glow. Motion is deliberately layered and *only* this: the mark **spins as one** (waves
   and gradient rotate together, so the bands never rotate against each other) while each band's
   **wave depth pulses independently** (SMIL `d` animation, skipped under reduced motion), plus
   a slow hue walk (`hue-rotate`). No breathing scale, no positional drift. The anchor holds

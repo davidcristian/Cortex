@@ -29,23 +29,21 @@ export function RingMark({ size, idPrefix, strokeWidth, animated }: RingMarkProp
   return (
     <svg className="rings" viewBox="0 0 64 64" width={size} height={size} aria-hidden="true">
       <defs>
-        <linearGradient id={`${idPrefix}-band-a`} x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor="#3fa2ff" />
-          <stop offset="33%" stopColor="#6a5cff" />
-          <stop offset="66%" stopColor="#c44fd8" />
-          <stop offset="100%" stopColor="#e055d8" />
-        </linearGradient>
-        <linearGradient id={`${idPrefix}-band-b`} x1="1" y1="0" x2="0" y2="1">
+        <linearGradient id={`${idPrefix}-band`} x1="0" y1="0" x2="1" y2="1">
           <stop offset="0%" stopColor="#43d675" />
-          <stop offset="35%" stopColor="#ffd23f" />
-          <stop offset="68%" stopColor="#ffb347" />
-          <stop offset="100%" stopColor="#ff5f6d" />
+          <stop offset="14%" stopColor="#ffb347" />
+          <stop offset="29%" stopColor="#ff5f6d" />
+          <stop offset="43%" stopColor="#e055d8" />
+          <stop offset="57%" stopColor="#3fa2ff" />
+          <stop offset="71%" stopColor="#6a5cff" />
+          <stop offset="86%" stopColor="#c44fd8" />
+          <stop offset="100%" stopColor="#ffd23f" />
         </linearGradient>
       </defs>
       <path
         className="ring ring-a"
         d={bandA(2.4)}
-        stroke={`url(#${idPrefix}-band-a)`}
+        stroke={`url(#${idPrefix}-band)`}
         strokeWidth={strokeWidth}
         fill="none"
       >
@@ -54,7 +52,7 @@ export function RingMark({ size, idPrefix, strokeWidth, animated }: RingMarkProp
       <path
         className="ring ring-b"
         d={bandB(2)}
-        stroke={`url(#${idPrefix}-band-b)`}
+        stroke={`url(#${idPrefix}-band)`}
         strokeWidth={strokeWidth}
         fill="none"
       >
