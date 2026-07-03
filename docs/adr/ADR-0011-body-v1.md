@@ -185,3 +185,16 @@ overlay components are built against.
   ([body-app.md](../modules/body-app.md)) is **`converse` only**: activation arrives as the
   `cortex:activate` DOM event, there is no `hide` method, and no connection-status surface
   exists in v1 (the design doc's connection dot is unshipped target design).
+
+## Addendum (2026-07-03, later): user-directed design pass on the overlay chrome
+
+Maintainer review of the running overlay reshaped the resting chrome. The design source of truth updated
+with it ([overlay-ux.md](../design/overlay-ux.md) §2-§4): the corner orb became the **living
+rings** (two counter-spinning wavy gradient bands; a pure `wavyRingPath` helper + a shared
+`RingMark` component, fully gated), the always-green header dot was **removed** (it was
+decoration; a real indicator waits on a health signal over the bridge, per the ROADMAP ledger), the
+theme toggle became a **sun↔crescent SVG morph** (CSS-transitioned geometry, no glyph swap), and
+the hint strip centered. The same pass surfaced the browser-side interaction gaps now recorded in
+the ROADMAP ledger (Slice 8 block): auto-scroll, focus-on-summon, click-away dismiss, the stop
+control, tool/status chips, empty state, thinking shimmer, shortcut sheet, composer auto-grow,
+and preview hover-pause.

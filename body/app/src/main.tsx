@@ -28,7 +28,10 @@ if (root) {
       listen("cortex:activate", () => window.dispatchEvent(new Event("cortex:activate"))),
     );
   } else {
-    // Defer so App's activate listener is attached (effects run after first render).
-    setTimeout(() => window.dispatchEvent(new Event("cortex:activate")), 0);
+    // Defer so App's activate listener is attached: effects flush before paint, so two animation
+    // frames are safely past them (setTimeout(0) raced StrictMode's mount-unmount-remount cycle).
+    requestAnimationFrame(() =>
+      requestAnimationFrame(() => window.dispatchEvent(new Event("cortex:activate"))),
+    );
   }
 }
