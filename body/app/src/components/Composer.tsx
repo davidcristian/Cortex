@@ -43,7 +43,7 @@ export function Composer({ busy, onSubmit }: ComposerProps) {
         aria-label={busy ? "Streaming" : "Send"}
         type="button"
       >
-        {busy ? "…" : "↑"}
+        <span className="send-glyph">{busy ? "…" : "↑"}</span>
       </button>
     </div>
   );
