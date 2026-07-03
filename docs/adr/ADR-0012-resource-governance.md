@@ -29,7 +29,8 @@ ceiling enforced **softly** by the scheduler's admission budget (**no `.wslconfi
 no hard WSL limits**); the host-side GPU clock clamp **dropped**.
 
 Constraints unchanged from prior slices: the hard rule (no state in a model process), gate 2 (100%
-line+branch **without a GPU**), gate 1 (≤ 300 lines/file), ports-before-adapters, YAGNI. The **real**
+line+branch **without a GPU**), gate 1 (≤ 300 lines/file), ports-before-adapters, extensibility-first
+design. The **real**
 dual-endpoint `llama-server` processes, `-ngl` flags, and per-container cgroup caps are the **host +
 Slice-11 half**. They sit behind these ports, never in them.
 

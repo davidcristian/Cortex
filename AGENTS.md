@@ -46,7 +46,9 @@ Interfaces are designed around this rule from day one. Retrofitting it is a rewr
   Everything else stays portable: no hard-coded paths, no OS assumptions in the core,
   all config via env (`pydantic-settings` / typed env parsing in Rust).
 - **Orchestration is explicit typed code in the core**, with no heavy agent framework that
-  hides control flow. Patterns only where they earn their keep; YAGNI wins ties.
+  hides control flow. New capabilities and patterns are always welcome (breadth is a
+  goal, not creep), provided each lands extensibly: behind a port, contract-tested,
+  documented.
 
 ## Hard gates (CI and pre-commit run the same `just check`)
 
@@ -108,6 +110,10 @@ commit-msg hook:
 
 - **Vertical slices, not horizontal layers.** Each increment is a thin end-to-end path,
   small, green, and documented. No big-bang scaffolding of empty layers.
+- **Scope grows freely; design stays extensible.** More capability is welcome. Feature
+  richness is a goal and feature creep is not a concern. But every addition is built
+  for extension: behind a port, contract-tested, swappable, documented. Cutting scope
+  is never the answer to a design problem; designing the seam is.
 - **Interfaces before implementations.** Port → contract test + fake → real adapter.
 - **Decisions are written down.** Any non-obvious choice becomes an ADR in `docs/adr/`.
   Underspecified requirement? Record your interpretation as an ADR and proceed. Don't

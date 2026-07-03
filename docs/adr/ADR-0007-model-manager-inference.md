@@ -51,7 +51,8 @@ bind-mounted read-only from `D:\Software\AI\Models`).
    `InMemorySessionStore` / `EchoInferenceBackend`) and is fully covered in CI. Process
    lifecycle (start on load, stop on unload, per ADR-0005's swap mechanism) is real I/O and
    lands in a `cortex_model_manager` adapter package in Slice 11, passing this slice's
-   `ModelManager` contract unchanged; building it now would be dead code (YAGNI).
+   `ModelManager` contract unchanged; building it now would be dead code with nothing
+   real to exercise it until the swap exists.
 
 4. **Echo stays the default runtime backend; llama.cpp is opt-in by env.** `just check`
    and CI remain inference-free (gate 3) and the GPU-less dev loop keeps working.
