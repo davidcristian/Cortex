@@ -1,4 +1,4 @@
-"""The ``spawn_subagents`` built-in tool: delegate subtasks concurrently (ADR-0010).
+"""The ``spawn_subagents`` built-in tool: delegate subtasks concurrently (ADR-0010/0018).
 
 The cortex calls this like any tool. Each instruction becomes a ``SubagentTask`` persisted to the
 ``TaskStore``; the ``SubagentRunner``s run **concurrently**, bounded by the ``SubagentScheduler``'s
@@ -6,39 +6,113 @@ CPU budget; the aggregated results feed back to the cortex. A batch (not one-per
 makes the concurrency budget meaningful. The tool is given only to the cortex, never to a
 subagent, so delegation fan-out stays depth-1. Bad arguments become an ``is_error`` result the
 model can correct rather than an exception.
+
+Slice 8.6 (ADR-0018): an instructions item is a bare string or ``{instruction, model?, context?}``
+so the cortex picks the subagent model per subtask from the runner's roster and hands it working
+material. The spec is built from that roster and is honest about the wiring: when subagents are
+tools-enabled, ADR-0017 pins every spawn to the robust default, so no ``model`` knob is
+advertised at all. Each task is stamped with the spawning turn's taint (the dispatcher's
+``ToolCall.tainted`` stamp), which the runner's resolution needs. Enforcement itself lives in
+``SubagentRoster.resolve``, not here.
 """
 
 import asyncio
 from collections.abc import Callable, Mapping, Sequence
+from dataclasses import dataclass
 from typing import Any, cast
 from uuid import uuid4
 
 from cortex_core.ports import Clock, TaskStore
+from cortex_core.roster import SubagentRoster
 from cortex_core.runner import SubagentRunner
 from cortex_core.subagents import SubagentResult, SubagentTask
 from cortex_core.tools import ToolCall, ToolResult, ToolSpec, Trust
 
 SPAWN_TOOL_NAME = "spawn_subagents"
 
-_SPEC = ToolSpec(
-    name=SPAWN_TOOL_NAME,
-    description=(
-        "Delegate one or more narrow subtasks to small subagents that run concurrently and "
-        "return their results. Use for independent lookups or transforms worth parallelizing; "
-        "each instruction must be self-contained (subagents do not see this conversation)."
-    ),
-    parameters={
-        "type": "object",
-        "properties": {
-            "instructions": {
-                "type": "array",
-                "items": {"type": "string"},
-                "description": "One self-contained instruction per subagent.",
-            }
-        },
-        "required": ["instructions"],
-    },
+_DESCRIPTION = (
+    "Delegate one or more narrow subtasks to small subagents that run concurrently and "
+    "return their results. Use for independent lookups or transforms worth parallelizing; "
+    "each instruction must be self-contained (subagents do not see this conversation)."
 )
+# Appended when the wiring lets the cortex pick a model per subtask (tool-less subagents).
+_CHOICE_NOTE = (
+    " Each subtask may pick a 'model'; on a turn that has read untrusted external content "
+    "the robust default model is enforced regardless of the pick."
+)
+# Appended when subagents are tools-enabled: ADR-0017 rule 2b pins every spawn, so the spec
+# advertises no knob that cannot do anything.
+_PINNED_NOTE = " Every subtask runs on the deployment's default subagent model."
+
+
+@dataclass(frozen=True, slots=True)
+class _SpawnItem:
+    """One parsed instructions item: what to do, on which model, over what material."""
+
+    instruction: str
+    model: str = ""
+    context: str = ""
+
+
+def _model_property(roster: SubagentRoster) -> dict[str, Any]:
+    """The per-subtask ``model`` JSON-Schema property, listing every entry's trade-offs."""
+    options = "; ".join(
+        f"{name!r} ({roster.entries[name].description})"
+        if roster.entries[name].description
+        else f"{name!r}"
+        for name in sorted(roster.entries)
+    )
+    return {
+        "type": "string",
+        "enum": sorted(roster.entries),
+        "description": (
+            f"The subagent model for this subtask; omit for the default {roster.default!r}. "
+            f"Options: {options}."
+        ),
+    }
+
+
+def _build_spec(roster: SubagentRoster, *, tools_enabled: bool) -> ToolSpec:
+    """The advertised spec, built from the roster and honest about the wiring (ADR-0018)."""
+    item_properties: dict[str, Any] = {
+        "instruction": {"type": "string", "description": "The self-contained subtask."},
+        "context": {
+            "type": "string",
+            "description": "Optional material the subagent works from (it sees nothing else).",
+        },
+    }
+    with_choice = not tools_enabled and len(roster.entries) > 1
+    if with_choice:
+        item_properties["model"] = _model_property(roster)
+    return ToolSpec(
+        name=SPAWN_TOOL_NAME,
+        description=_DESCRIPTION + (_CHOICE_NOTE if with_choice else _PINNED_NOTE),
+        parameters={
+            "type": "object",
+            "properties": {
+                "instructions": {
+                    "type": "array",
+                    "items": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "description": (
+                                    "A bare self-contained instruction (default model, no context)."
+                                ),
+                            },
+                            {
+                                "type": "object",
+                                "properties": item_properties,
+                                "required": ["instruction"],
+                            },
+                        ]
+                    },
+                    "description": "One entry per subagent.",
+                }
+            },
+            "required": ["instructions"],
+        },
+    )
 
 
 def _uuid4_task_id() -> str:
@@ -46,17 +120,51 @@ def _uuid4_task_id() -> str:
     return str(uuid4())
 
 
-def _parse_instructions(arguments: Mapping[str, Any]) -> list[str] | str:
-    """Validate the ``instructions`` argument; return the list or an error message string."""
+_ERR_INSTRUCTION = (
+    "each instruction must be a non-empty string or an object with a non-empty 'instruction'"
+)
+
+
+def _parse_item(item: object, roster: SubagentRoster) -> _SpawnItem | str:
+    """Validate one instructions item; return the parsed item or an error message string."""
+    if isinstance(item, str):
+        return _SpawnItem(instruction=item) if item.strip() else _ERR_INSTRUCTION
+    if not isinstance(item, Mapping):
+        return _ERR_INSTRUCTION
+    return _parse_object_item(cast("Mapping[str, object]", item), roster)
+
+
+def _parse_object_item(entry: Mapping[str, object], roster: SubagentRoster) -> _SpawnItem | str:
+    """Validate one ``{instruction, model?, context?}`` item against the roster."""
+    instruction = entry.get("instruction")
+    if not isinstance(instruction, str) or not instruction.strip():
+        return _ERR_INSTRUCTION
+    model = entry.get("model", "")
+    if not isinstance(model, str):
+        return "the 'model' of a subtask must be a string"
+    if model and model not in roster.entries:
+        options = ", ".join(sorted(roster.entries))
+        return f"unknown subagent model {model!r}; options: {options}"
+    context = entry.get("context", "")
+    if not isinstance(context, str):
+        return "the 'context' of a subtask must be a string"
+    return _SpawnItem(instruction=instruction, model=model, context=context)
+
+
+def _parse_instructions(
+    arguments: Mapping[str, Any], roster: SubagentRoster
+) -> list[_SpawnItem] | str:
+    """Validate the ``instructions`` argument; return the items or an error message string."""
     raw = arguments.get("instructions")
     if not isinstance(raw, list) or not raw:
         return "spawn_subagents requires a non-empty 'instructions' array"
-    instructions: list[str] = []
-    for item in cast("list[object]", raw):
-        if not isinstance(item, str) or not item.strip():
-            return "each instruction must be a non-empty string"
-        instructions.append(item)
-    return instructions
+    items: list[_SpawnItem] = []
+    for element in cast("list[object]", raw):
+        parsed = _parse_item(element, roster)
+        if isinstance(parsed, str):
+            return parsed
+        items.append(parsed)
+    return items
 
 
 def _format(results: Sequence[SubagentResult]) -> str:
@@ -86,24 +194,31 @@ class SpawnSubagentsTool:
 
     @property
     def spec(self) -> ToolSpec:
-        """The tool advertised to the cortex."""
-        return _SPEC
+        """The tool advertised to the cortex, derived from the runner it fronts (ADR-0018)."""
+        return _build_spec(self._runner.roster, tools_enabled=self._runner.tools_enabled)
 
     async def invoke(self, call: ToolCall) -> ToolResult:
         """Persist each subtask, run the subagents concurrently, and aggregate their results.
 
+        Each task carries the requested model and the spawning turn's taint (the dispatcher's
+        stamp on ``call``) so the runner resolves it safely from the store alone (ADR-0018).
         The aggregate is UNTRUSTED iff any subagent consumed untrusted content, so a subagent
         that read a malicious file taints the cortex turn through the normal result path
         (ADR-0013); a bad-arguments error is our own message and stays trusted.
         """
-        parsed = _parse_instructions(call.arguments)
+        parsed = _parse_instructions(call.arguments, self._runner.roster)
         if isinstance(parsed, str):
             return ToolResult(call_id=call.id, content=parsed, is_error=True, trust=Trust.TRUSTED)
         tasks = [
             SubagentTask(
-                id=self._task_id_factory(), instruction=text, context="", at=self._clock.now()
+                id=self._task_id_factory(),
+                instruction=item.instruction,
+                context=item.context,
+                at=self._clock.now(),
+                model=item.model,
+                tainted=call.tainted,
             )
-            for text in parsed
+            for item in parsed
         ]
         for task in tasks:
             await self._store.put_task(task)

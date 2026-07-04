@@ -27,7 +27,9 @@ from cortex_core import (
     ResourceBudgetScheduler,
     SingleResidentModelManager,
     SpawnSubagentsTool,
+    SubagentProfile,
     SubagentResources,
+    SubagentRoster,
     SubagentRunner,
     SystemClock,
     ToolCall,
@@ -55,7 +57,10 @@ async def test_spawn_subagents_runs_two_subagents_on_a_real_cpu_model() -> None:
             placer=VramBudgetPlacer(soft_cap_gb=11.0, cortex_reservation_gb=11.0),
             request=PlacementRequest(_MODEL, vram_gb=2.0, cpus=2.0, memory_gb=2.0),
         )
-        runner = SubagentRunner(store, resources, SystemClock())
+        roster = SubagentRoster(
+            entries={_MODEL: SubagentProfile(resources=resources)}, default=_MODEL
+        )
+        runner = SubagentRunner(store, roster, SystemClock())
         tool = SpawnSubagentsTool(runner, store, SystemClock())
         call = ToolCall(
             id="c1",

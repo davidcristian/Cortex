@@ -16,8 +16,17 @@ def _task_id() -> str:
     return f"contract-{uuid4()}"
 
 
-def make_task(task_id: str, *, instruction: str = "do it", context: str = "") -> SubagentTask:
-    return SubagentTask(id=task_id, instruction=instruction, context=context, at=_AT)
+def make_task(
+    task_id: str,
+    *,
+    instruction: str = "do it",
+    context: str = "",
+    model: str = "",
+    tainted: bool = False,
+) -> SubagentTask:
+    return SubagentTask(
+        id=task_id, instruction=instruction, context=context, at=_AT, model=model, tainted=tainted
+    )
 
 
 async def check_missing_task_and_result_are_none(store: TaskStore) -> None:
@@ -28,14 +37,24 @@ async def check_missing_task_and_result_are_none(store: TaskStore) -> None:
 
 
 async def check_task_round_trips(store: TaskStore) -> None:
-    """A stored task reads back field-for-field."""
-    task = make_task(_task_id(), instruction="summarize the notes", context="notes: ...")
+    """A stored task reads back field-for-field, the resolution inputs included (ADR-0018)."""
+    task = make_task(
+        _task_id(),
+        instruction="summarize the notes",
+        context="notes: ...",
+        model="fast",
+        tainted=True,
+    )
     await store.put_task(task)
     assert await store.get_task(task.id) == task
 
 
 async def check_result_round_trips(store: TaskStore) -> None:
-    """A stored result reads back field-for-field, failures included."""
+    """A stored result reads back field-for-field, failures and taint included.
+
+    Taint MUST survive the round-trip (ADR-0018): a result re-read after a restart that lost
+    ``tainted`` would fail open. That is the exact gap the slice 8.6 review closed.
+    """
     task_id = _task_id()
     ok = SubagentResult(task_id=task_id, output="done")
     await store.put_result(ok)
@@ -43,6 +62,9 @@ async def check_result_round_trips(store: TaskStore) -> None:
     failed = SubagentResult(task_id=task_id, output="", ok=False, detail="boom")
     await store.put_result(failed)  # overwrites
     assert await store.get_result(task_id) == failed
+    tainted = SubagentResult(task_id=task_id, output="the file said hi", tainted=True)
+    await store.put_result(tainted)
+    assert await store.get_result(task_id) == tainted
 
 
 async def check_task_timezone_fidelity(store: TaskStore) -> None:

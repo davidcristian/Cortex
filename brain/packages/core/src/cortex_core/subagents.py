@@ -17,13 +17,18 @@ class SubagentTask:
     ``instruction`` is what to do; ``context`` is the material the subagent needs to work from
     the store alone (the cortex conversation is never shared, so the subagent is stateless over
     the task). ``at`` must be timezone-aware: task state outlives the process and any swap (the
-    one hard rule), so a naive timestamp is ambiguous.
+    one hard rule), so a naive timestamp is ambiguous. ``model`` is the roster entry the cortex
+    requested (``""`` = the default) and ``tainted`` whether the spawning turn had read untrusted
+    content at spawn time (the two resolution inputs only the spawn site knows), riding on the
+    record so the runner resolves safely from the store alone (ADR-0017/0018).
     """
 
     id: str
     instruction: str
     context: str
     at: datetime
+    model: str = ""
+    tainted: bool = False
 
     def __post_init__(self) -> None:
         if self.at.tzinfo is None or self.at.tzinfo.utcoffset(self.at) is None:

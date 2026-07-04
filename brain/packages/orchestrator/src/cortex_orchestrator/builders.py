@@ -48,7 +48,9 @@ from cortex_core import (
     SkipUnavailableToolRegistry,
     SpawnSubagentsTool,
     SubagentPlacer,
+    SubagentProfile,
     SubagentResources,
+    SubagentRoster,
     SubagentRunner,
     ToolDispatcher,
     ToolError,
@@ -203,10 +205,13 @@ async def build_subagents(
         placer=placer,
         request=PlacementRequest(config.model, config.vram_gb, config.cpus, config.memory_gb),
     )
-    store = task_store_factory(redis_url)
-    runner = SubagentRunner(
-        store, resources, clock, tools=build_subagent_tools(tool_registry, clock)
+    # A single-entry roster for now: the config-driven multi-model roster (ADR-0018) lands
+    # with the wiring increment; the default entry IS the flat-env subagent, unchanged.
+    roster = SubagentRoster(
+        entries={config.model: SubagentProfile(resources=resources)}, default=config.model
     )
+    store = task_store_factory(redis_url)
+    runner = SubagentRunner(store, roster, clock, tools=build_subagent_tools(tool_registry, clock))
 
     async def close_subagents() -> None:
         await store.aclose()
