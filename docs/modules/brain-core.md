@@ -291,8 +291,11 @@ Use-case:
   description and the ADR-0017 caveat, omitted entirely when the runner is tools-enabled or the
   roster has one entry (a knob that cannot do anything is not advertised). `invoke(call)`
   validates items against the roster (bad input / unknown model → an `is_error` result, not a
-  raise), persists one `SubagentTask` each, stamped with the requested `model`, the item's
-  `context`, and the **call's `tainted`** (the dispatcher's stamp), runs the `SubagentRunner`s
+  raise); a string item that parses as a JSON object carrying an `instruction` key is diverted
+  into the object path (real models sometimes stringify the object form, per the ADR-0018 addendum;
+  same validation either way). It persists one `SubagentTask` per item, each stamped with the
+  requested `model`, the item's `context`, and the **call's `tainted`** (the dispatcher's
+  stamp). It runs the `SubagentRunner`s
   **concurrently** (bounded by the scheduler), and returns one aggregated `ToolResult`, with a
   `[subagent N] …` block per subtask, failures shown inline. The aggregate is `UNTRUSTED` iff any
   subagent was tainted, so a subagent that read a malicious file taints the cortex through the

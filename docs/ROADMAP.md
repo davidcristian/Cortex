@@ -360,10 +360,19 @@ the Slice 11 lifecycle behind the corrected ports.
 
 ## Slice 8.6 (Heterogeneous subagent models): the cortex picks which, and how many
 
-**Status:** in progress. Design landed 2026-07-03 as
+**Status:** done on 2026-07-03. Design landed as
 [ADR-0018](adr/ADR-0018-heterogeneous-subagents.md) (the roster mechanics; ADR-0017 fixed the
-safety boundary ahead of it). Builds on Slice 7 (delegation) + Slice 8.5 (placement), both done;
-orderable any time after 8.5. Inserted as 8.6 (decimal insert, no renumber).
+safety boundary ahead of it); CI half 100% under `just check` (the `SubagentRoster` +
+`resolve` enforcing ADR-0017 at the runner, the dispatcher taint stamp on `ToolCall`, the
+per-item `{instruction, model?, context?}` spawn schema, delivering the deferred ADR-0010
+context field, the config roster with `CORTEX_SUBAGENTS_ROSTER__<name>` alternates, and the
+`SubagentResult.tainted` store round-trip fix). Host-validated via Docker (agent, 2026-07-03,
+ADR-0018 addendum): both sidecars live (E4B default + Qwen-2B `qwen`), the roster live test
+routed a mixed batch per pick (log-verified), and the resident gemma-4-12B **cortex-decided** a
+per-item `"model": "qwen"` spawn end to end. Two live findings folded back in: the spec now
+shows the object form by example, and the parser accepts the stringified object item real
+models sometimes emit. Builds on Slice 7 (delegation) + Slice 8.5 (placement), both done.
+Inserted as 8.6 (decimal insert, no renumber).
 
 Today `spawn_subagents(instructions: string[])` runs every subagent on **one** wired model
 ([spawn.py](../brain/packages/core/src/cortex_core/spawn.py) + `build_subagents`). But the design
@@ -535,19 +544,19 @@ behind the unchanged `ToolRegistry`/`ToolDispatcher`/`stream_tool_loop` seams (o
   cost (38 s load, ~1.8 s narrow task, ~2.5 GiB RSS) was judged acceptable and the compose
   default + admission asks updated. Qwen3.5-2B stays the documented cheap override; **Slice
   8.6** still makes the model choice per-task, with E4B as the safe default.
-- **Forced-robust model on any untrusted-content spawn was decided 2026-07-03, delivered with Slice
-  8.6 ([ADR-0017](adr/ADR-0017-subagent-model-safety.md)).** Recorded ahead of the slice so it is
-  built safe: once the cortex can pick the subagent model per spawn, the choice is an optimization
-  *hint, not authority*. The wiring forces the injection-robust default (gemma-4-E4B) whenever the
-  spawn path can carry untrusted content (the cortex turn is tainted, or the subagent is
-  tools-enabled), so a weak model is reachable only for a tool-less subagent on an untainted turn.
-  Deterministic; closes the heterogeneous-roster residual the pick-revision alone would leave open.
-  Detail folded into the Slice 8.6 plan above.
+- **Forced-robust model on any untrusted-content spawn landed 2026-07-03 with Slice 8.6**
+  ([ADR-0017](adr/ADR-0017-subagent-model-safety.md), mechanics in
+  [ADR-0018](adr/ADR-0018-heterogeneous-subagents.md)). The choice is an optimization *hint, not
+  authority*: `SubagentRoster.resolve` (pure core, at the runner, over the store-carried
+  `SubagentTask.model`/`tainted`) forces the injection-robust default whenever the spawn path can
+  carry untrusted content (tainted turn or tools-enabled subagent), so a weak model is reachable
+  only for a tool-less subagent on an untainted turn. Deterministic, CI-proven over the full
+  matrix and end to end (taint ledger → dispatcher stamp → task record → resolution).
 - **Grammar-constrained subagent output** ([ADR-0017](adr/ADR-0017-subagent-model-safety.md)
   composes-with; option (c)). Schema-constrained decoding behind the unchanged `InferenceBackend`
   would kill *format*-laundering (appended footers/links/sections) even on a weak model in the narrow
   trusted-tool-less niche where one is still used (orthogonal to the which-model boundary above).
-  Deferred; picked up by 8.6 or a later hardening pass.
+  Deferred; **not** picked up by 8.6, left for a later hardening pass.
 - **Subagents are never *handed* a gated/outbound tool. Landed 2026-07-03, ahead of the Slice 9-10
   need** ([ADR-0013 subagent-exclusion addendum](adr/ADR-0013-untrusted-content.md)). Structural, no
   longer wiring discipline: `UngatedToolRegistry` (core) strips gated specs from advertisement and
@@ -596,11 +605,21 @@ behind the unchanged `ToolRegistry`/`ToolDispatcher`/`stream_tool_loop` seams (o
 - **Subagent progress reporting over the `Converse` status stream.** v1 delegation is synchronous
   within the cortex turn; surfacing per-subagent progress to the overlay is a later refinement. See
   ADR-0010 risks.
-- **Richer `spawn_subagents` object schema.** v1 folds per-subtask context into the instruction
-  string (`SubagentTask.context` stays `""` from the tool); a `{instruction, context}[]` schema is
-  a later refinement behind the same tool (ADR-0010 increment-2 addendum). Planned **Slice 8.6**
-  grows the spawn schema for per-instruction model choice; the context field joins that schema
-  growth or a later one.
+- **Richer `spawn_subagents` object schema landed 2026-07-03 with Slice 8.6 (ADR-0018).**
+  An instructions item is now a bare string or `{instruction, model?, context?}`, so per-subtask
+  context reaches `SubagentTask.context` and the model choice rides alongside, closing the
+  ADR-0010 increment-2 deferral. Remaining nearby: the cortex uses the model knob reliably when
+  directed but may not reach for it spontaneously on a prose-only ask (ADR-0018 addendum
+  finding 1). Further spec/description tuning is a later refinement behind the same tool.
+
+**Heterogeneous subagents in Slice 8.6 ([ADR-0018](adr/ADR-0018-heterogeneous-subagents.md)):**
+- **Measured trade-off advertisement.** Roster descriptions are config-authored text
+  (`description` per entry, `CORTEX_SUBAGENTS_MODEL_DESCRIPTION` for the default); deriving or
+  cross-checking them from measured latency/robustness numbers is a later refinement behind the
+  same spec-building seam. Wrong text misleads only the optimization. Safety is deterministic.
+- **Spontaneous model picks.** See the richer-spawn-schema entry above (ADR-0018 addendum
+  finding 1): further nudging beyond the inline example, if the cortex should reach for cheap
+  models unprompted.
 
 **Body / overlay in Slice 8 ([ADR-0011](adr/ADR-0011-body-v1.md)):**
 - **Multi-turn-within-one-stream + an explicit proto `Cancel` event.** One turn per `Converse`

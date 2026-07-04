@@ -156,6 +156,68 @@ async def test_object_items_carry_model_and_context_onto_the_task() -> None:
     assert (second.instruction, second.model, second.context) == ("plain one", "", "")
 
 
+async def test_a_stringified_object_item_is_parsed_as_the_object_form() -> None:
+    # Live gemma-4-12B JSON-encodes the object form into the string slot (ADR-0018 addendum);
+    # the pick must not silently degrade to "run the JSON blob as an instruction".
+    store = InMemoryTaskStore()
+    tool = SpawnSubagentsTool(
+        SubagentRunner(
+            store,
+            SubagentRoster(
+                entries={
+                    "subagent": _profile(EchoInferenceBackend(), "subagent"),
+                    "fast": _profile(EchoInferenceBackend(), "fast"),
+                },
+                default="subagent",
+            ),
+            FixedClock(),
+        ),
+        store,
+        FixedClock(),
+        task_id_factory=_counter(),
+    )
+    result = await tool.invoke(
+        _call({"instructions": ['{"instruction": "name a color", "model": "fast"}']})
+    )
+    assert result.is_error is False
+    task = await store.get_task("st-1")
+    assert task is not None
+    assert (task.instruction, task.model) == ("name a color", "fast")
+
+
+async def test_a_stringified_object_item_is_still_validated() -> None:
+    # The diverted form goes through the same validation. An unknown pick is an error the
+    # cortex can correct, not a silent fallback.
+    store = InMemoryTaskStore()
+    result = await _tool(store, EchoInferenceBackend()).invoke(
+        _call({"instructions": ['{"instruction": "go", "model": "ghost"}']})
+    )
+    assert result.is_error is True
+    assert "unknown subagent model 'ghost'" in result.content
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "{not json, just braces in an instruction",  # invalid JSON -> a plain instruction
+        '{"model": "fast"}',  # a JSON object without 'instruction' -> a plain instruction
+        '  {"instruction": "indented ok"}',  # leading whitespace still detected as JSON
+    ],
+)
+async def test_brace_strings_that_are_not_object_items_stay_plain_instructions(
+    text: str,
+) -> None:
+    store = InMemoryTaskStore()
+    result = await _tool(store, EchoInferenceBackend()).invoke(_call({"instructions": [text]}))
+    assert result.is_error is False
+    task = await store.get_task("st-1")
+    assert task is not None
+    # The third case IS a valid object item, so its instruction is the unwrapped text.
+    expected = "indented ok" if "indented ok" in text else text
+    assert task.instruction == expected
+    assert task.model == ""
+
+
 async def test_the_dispatchers_taint_stamp_rides_onto_every_task() -> None:
     # The dispatcher stamped the call because the turn had read untrusted content (ADR-0018);
     # the tool copies that onto each task so the runner's ADR-0017 resolution sees it.

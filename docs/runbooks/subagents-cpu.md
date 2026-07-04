@@ -1,4 +1,4 @@
-# Subagents on CPU runbook (Slice 7 host half, ADR-0010; placement GPU-first since Slice 8.5, ADR-0012)
+# Subagents on CPU runbook (Slice 7 host half, ADR-0010; placement GPU-first since Slice 8.5, ADR-0012; roster since Slice 8.6, ADR-0018)
 
 Bring up the subagent `llama-server` and validate delegation end to end. This is the
 host-only half of Slice 7. CI stays subagent-free (subagents are opt-in, `CORTEX_SUBAGENTS_*`).
@@ -54,6 +54,30 @@ cd brain && CORTEX_SUBAGENTS_ENDPOINT=http://127.0.0.1:8082 \
 
 `--no-cov` matters. The 100% gate in the workspace addopts would otherwise fail the run.
 
+## 2b. Validate the multi-model roster (ADR-0018)
+
+Layer `docker-compose.subagents-roster.yml` on top to add the Qwen-2B override as roster entry
+`qwen` on its own server (port 8083) alongside the default. Run **without** the tools override
+so subagents are tool-less. With tools layered, ADR-0017 rule 2b pins every spawn to the
+default and the spec stops advertising the `model` knob:
+
+```bash
+CORTEX_MODELS_DIR=/srv/models \
+  docker compose --project-directory . -f docker/docker-compose.yml \
+  -f docker/docker-compose.subagents.yml -f docker/docker-compose.subagents-roster.yml up -d
+cd brain && CORTEX_SUBAGENTS_ENDPOINT=http://127.0.0.1:8082 \
+  CORTEX_SUBAGENTS_QWEN_ENDPOINT=http://127.0.0.1:8083 \
+  uv run pytest -m integration --no-cov packages/orchestrator/tests/test_subagent_live.py -v
+```
+
+The roster test spawns one batch mixing a bare (default-model) item with a `{"model": "qwen"}`
+pick. Servers are per-model, so routing is verifiable in the logs, where each container's
+`prompt eval time` count is its served-request count:
+
+```bash
+docker logs cortex-llama-subagent-qwen-1 2>&1 | grep -c "prompt eval time"
+```
+
 ## 3. Validate cortex-driven delegation (full stack, needs the GPU cortex)
 
 Layer all three overrides so the resident cortex can *decide* to delegate. Give subagents tools
@@ -96,3 +120,11 @@ docker compose --project-directory . -f docker/docker-compose.yml -f docker/dock
 - Tool-calling is validated on the E4B pick (`--jinja`, a clean `read_file` call). If a task can
   tolerate the cheaper Qwen-2B override and IT tool-calls unreliably, fall back to the pick or
   keep that subagent a pure text worker (no tools handed to it).
+- **Roster + cortex-driven pick validated via Docker (2026-07-03, agent, ADR-0018 addendum).**
+  Both sidecars healthy off the real GGUFs; the roster live test routed a mixed batch to both
+  models (log counts confirmed: the `qwen` pick was that server's only request); and over the
+  seam the resident gemma-4-12B emitted `spawn_subagents` with a per-item `"model": "qwen"`
+  object. The qwen server's count incremented and the cortex reported both results. Two live
+  findings, both handled: given only prose, the cortex may fold the pick into the instruction
+  text (the spec now shows an object example), and it sometimes emits the object item
+  JSON-encoded as a string. The parser accepts that stringified form (validated identically).
