@@ -14,11 +14,8 @@ releases it, so the root's shutdown path is uniform whatever was picked:
   one client per configured endpoint, allowlist-filtered, optionally skip-unavailable
   (degraded-mode addendum), and aggregated as configured. Shared by the cortex (via the
   composite) and its subagents.
-- Subagents -> disabled by default, or a `spawn_subagents` tool over a `SubagentRunner` (CPU
-  `llama-server` + Redis `TaskStore` + concurrency budget) when CORTEX_SUBAGENTS_BACKEND is
-  `llamacpp` (ADR-0010). The cortex's dispatcher merges the spawn tool with the MCP tools; a
-  subagent gets the MCP tools without the spawn tool (depth-1) and stripped of gated tools
-  (ADR-0013 subagent-exclusion addendum). Opt-in so CI stays subagent-free.
+- Subagents -> `subagent_builders.py` (split for the 300-line cap when the ADR-0018 roster
+  arrived): the `spawn_subagents` tool over a roster-resolving `SubagentRunner`.
 - History window -> `CharBudgetHistoryWindow` over CORTEX_HISTORY_CHAR_BUDGET (ADR-0014),
   on by default (48K chars ≈ 12K of the cortex's 16K-token context); 0 disables it.
 - Output guardrail -> `UrlRedactingGuardrail` over CORTEX_OUTPUT_GUARDRAIL (ADR-0015), on by
@@ -41,38 +38,24 @@ from cortex_core import (
     FilteredToolRegistry,
     InferenceBackend,
     MemoryRecaller,
-    PlacementRequest,
-    PlacementTarget,
-    ResourceBudgetScheduler,
     SingleResidentModelManager,
     SkipUnavailableToolRegistry,
     SpawnSubagentsTool,
-    SubagentPlacer,
-    SubagentProfile,
-    SubagentResources,
-    SubagentRoster,
-    SubagentRunner,
     ToolDispatcher,
     ToolError,
     ToolRegistry,
-    UngatedToolRegistry,
     UrlRedactingGuardrail,
 )
 from cortex_embedding import LlamaCppEmbedder
 from cortex_inference import LlamaCppBackend
 from cortex_memory import PgVectorMemoryStore
-from cortex_orchestrator.config import (
-    InferenceConfig,
-    MemoryConfig,
-    SubagentsConfig,
-    ToolsConfig,
-)
-from cortex_session import RedisTaskStore
+from cortex_orchestrator.config import InferenceConfig, MemoryConfig, ToolsConfig
 from cortex_tools import LoggingAuditSink, McpToolRegistry
 
 # Connect/write/pool time out fast on a dead server; reads have no deadline, since a
 # generation may legitimately stream for a long time (the adapter sets no timeout itself).
-_LLAMACPP_CONNECT_TIMEOUT_S = 10.0
+# Public: `subagent_builders` dials its llama-servers with the same policy (one knob).
+LLAMACPP_CONNECT_TIMEOUT_S = 10.0
 # An embedding is a quick request (no streaming), so it gets a finite overall timeout.
 _EMBEDDER_TIMEOUT_S = 30.0
 
@@ -87,8 +70,8 @@ def _report_sidecar_unavailable(name: str, error: ToolError) -> None:
     )
 
 
-async def _noop_aclose() -> None:
-    """Echo holds no resources; the default backend has nothing to release."""
+async def noop_aclose() -> None:
+    """The closer for a capability that held no resources; shared by every builder module."""
     return
 
 
@@ -101,10 +84,10 @@ def build_inference_backend(
     llama.cpp, so the caller's shutdown path is uniform regardless of which backend ran.
     """
     if config.backend == "llamacpp":
-        client = httpx.AsyncClient(timeout=httpx.Timeout(_LLAMACPP_CONNECT_TIMEOUT_S, read=None))
+        client = httpx.AsyncClient(timeout=httpx.Timeout(LLAMACPP_CONNECT_TIMEOUT_S, read=None))
         manager = SingleResidentModelManager(cortex_model, config.endpoint)
         return LlamaCppBackend(manager, client), client.aclose
-    return EchoInferenceBackend(), _noop_aclose
+    return EchoInferenceBackend(), noop_aclose
 
 
 async def build_memory(
@@ -125,7 +108,7 @@ async def build_memory(
             await client.aclose()
 
         return MemoryRecaller(store, embedder, clock), close_memory
-    return None, _noop_aclose
+    return None, noop_aclose
 
 
 async def build_tool_registry(
@@ -146,7 +129,7 @@ async def build_tool_registry(
     their own `ToolDispatcher`.
     """
     if config.backend != "mcp":
-        return None, _noop_aclose
+        return None, noop_aclose
     stack = AsyncExitStack()
     registries: list[ToolRegistry] = []
     try:
@@ -167,71 +150,6 @@ async def build_tool_registry(
     if len(registries) == 1:
         return registries[0], stack.aclose
     return AggregateToolRegistry(registries), stack.aclose
-
-
-async def build_subagents(
-    config: SubagentsConfig,
-    tool_registry: ToolRegistry | None,
-    redis_url: str,
-    clock: Clock,
-    *,
-    placer: SubagentPlacer,
-    task_store_factory: Callable[[str], RedisTaskStore] = RedisTaskStore.from_url,
-) -> tuple[SpawnSubagentsTool | None, Callable[[], Awaitable[None]]]:
-    """The `spawn_subagents` tool, or None when delegation is disabled (ADR-0010, ADR-0012).
-
-    Enabled (GPU-first, ADR-0012): the `placer` (built from the GPU soft cap at the call site)
-    fit-tests each spawn, routing to the GPU `llama-server` (`-ngl 99`) or the CPU one (`-ngl 0`);
-    the `ResourceBudgetScheduler` admits it under a soft CPU/RAM budget. A subagent runs the shared
-    tool loop with the MCP tool subset (no delegation -- depth-1), stripped of gated tools by
-    `UngatedToolRegistry` (ADR-0013 subagent-exclusion addendum: a subagent is never *handed* an
-    outbound/irreversible capability, whatever the shared registry grows), as a stateless function
-    over the Redis `TaskStore`. The returned closer releases the shared backend client and the task
-    store; the shared MCP session is released by `build_tool_registry`, not here.
-    """
-    if config.backend == "none":
-        return None, _noop_aclose
-    client = httpx.AsyncClient(timeout=httpx.Timeout(_LLAMACPP_CONNECT_TIMEOUT_S, read=None))
-    resources = SubagentResources(
-        backends={
-            PlacementTarget.GPU: LlamaCppBackend(
-                SingleResidentModelManager(config.model, config.gpu_endpoint), client
-            ),
-            PlacementTarget.CPU: LlamaCppBackend(
-                SingleResidentModelManager(config.model, config.endpoint), client
-            ),
-        },
-        scheduler=ResourceBudgetScheduler(config.cpu_budget, config.mem_budget_gb),
-        placer=placer,
-        request=PlacementRequest(config.model, config.vram_gb, config.cpus, config.memory_gb),
-    )
-    # A single-entry roster for now: the config-driven multi-model roster (ADR-0018) lands
-    # with the wiring increment; the default entry IS the flat-env subagent, unchanged.
-    roster = SubagentRoster(
-        entries={config.model: SubagentProfile(resources=resources)}, default=config.model
-    )
-    store = task_store_factory(redis_url)
-    runner = SubagentRunner(store, roster, clock, tools=build_subagent_tools(tool_registry, clock))
-
-    async def close_subagents() -> None:
-        await store.aclose()
-        await client.aclose()
-
-    return SpawnSubagentsTool(runner, store, clock), close_subagents
-
-
-def build_subagent_tools(tool_registry: ToolRegistry | None, clock: Clock) -> ToolDispatcher | None:
-    """A subagent's audited dispatcher over the gated-stripped MCP subset, or None (ADR-0013).
-
-    A subagent is never *handed* an outbound/gated tool (subagent-exclusion addendum):
-    `UngatedToolRegistry` strips gated specs from advertisement and refuses invoking them, so
-    a gated tool added to the shared registry later simply does not exist for a subagent. There is
-    nothing dangerous to call, not merely denied at the fail-closed gate (its dispatcher also
-    keeps the `confirmer=None` default). The spawn tool is likewise absent (depth-1, ADR-0010).
-    """
-    if tool_registry is None:
-        return None
-    return ToolDispatcher(UngatedToolRegistry(tool_registry), LoggingAuditSink(), clock)
 
 
 def build_output_guardrail(mode: str) -> UrlRedactingGuardrail | None:

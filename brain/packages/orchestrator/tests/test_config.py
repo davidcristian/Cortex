@@ -10,6 +10,7 @@ from cortex_orchestrator import (
     InferenceConfig,
     MemoryConfig,
     SeamServerConfig,
+    SubagentRosterEntry,
     SubagentsConfig,
     ToolsConfig,
 )
@@ -319,4 +320,84 @@ def test_subagents_llamacpp_without_both_endpoints_is_rejected(
 def test_subagents_budget_must_be_positive(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("CORTEX_SUBAGENTS_CPU_BUDGET", "0")
     with pytest.raises(ValidationError, match="cpu_budget"):
+        SubagentsConfig()
+
+
+def _llamacpp_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("CORTEX_SUBAGENTS_BACKEND", "llamacpp")
+    monkeypatch.setenv("CORTEX_SUBAGENTS_ENDPOINT", "http://llama-subagent-cpu:8082")
+    monkeypatch.setenv("CORTEX_SUBAGENTS_GPU_ENDPOINT", "http://llama-subagent-gpu:8083")
+
+
+@pytest.mark.usefixtures("clean_env")
+def test_subagents_roster_entries_parse_from_env_json(monkeypatch: pytest.MonkeyPatch) -> None:
+    # One CORTEX_SUBAGENTS_ROSTER__<name> JSON object per alternate model (ADR-0018); the
+    # env-name suffix becomes the lowercase entry name, exactly as the tools endpoints do.
+    _llamacpp_env(monkeypatch)
+    monkeypatch.setenv(
+        "CORTEX_SUBAGENTS_ROSTER__QWEN",
+        '{"endpoint": "http://qwen:8083", "memory_gb": 1.5, "description": "small and fast"}',
+    )
+    monkeypatch.setenv("CORTEX_SUBAGENTS_MODEL_DESCRIPTION", "the sturdy one")
+    config = SubagentsConfig()
+    assert config.roster == {
+        "qwen": SubagentRosterEntry(
+            endpoint="http://qwen:8083", memory_gb=1.5, description="small and fast"
+        )
+    }
+    assert config.model_description == "the sturdy one"
+
+
+@pytest.mark.usefixtures("clean_env")
+def test_subagents_named_roster_synthesizes_the_default_from_the_flat_fields() -> None:
+    config = SubagentsConfig(
+        backend="llamacpp",
+        endpoint="http://cpu:8082",
+        gpu_endpoint="http://gpu:8082",
+        vram_gb=5.5,
+        memory_gb=3.0,
+        roster={
+            "qwen": SubagentRosterEntry(endpoint="http://qwen:8083"),
+            "big": SubagentRosterEntry(
+                endpoint="http://big:8084", gpu_endpoint="http://big-gpu:8085"
+            ),
+        },
+    )
+    named = config.named_roster
+    assert list(named) == ["subagent", "big", "qwen"]  # the default first, alternates sorted
+    default = named["subagent"]
+    assert (default.endpoint, default.gpu_endpoint) == ("http://cpu:8082", "http://gpu:8082")
+    assert (default.vram_gb, default.memory_gb) == (5.5, 3.0)
+    assert "injection-robust" in default.description  # the advertised default text
+    # An alternate's empty gpu_endpoint is normalized to its endpoint; a set one is kept.
+    assert named["qwen"].gpu_endpoint == "http://qwen:8083"
+    assert named["big"].gpu_endpoint == "http://big-gpu:8085"
+
+
+@pytest.mark.usefixtures("clean_env")
+def test_subagents_named_roster_is_empty_when_delegation_is_disabled() -> None:
+    assert SubagentsConfig().named_roster == {}
+
+
+@pytest.mark.usefixtures("clean_env")
+def test_subagents_roster_key_naming_the_default_is_rejected(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # The default entry's resources come from the flat fields. A roster entry shadowing it
+    # would be a second source of truth.
+    _llamacpp_env(monkeypatch)
+    monkeypatch.setenv("CORTEX_SUBAGENTS_MODEL", "qwen")
+    monkeypatch.setenv("CORTEX_SUBAGENTS_ROSTER__QWEN", '{"endpoint": "http://qwen:8083"}')
+    with pytest.raises(ValidationError, match="collides with CORTEX_SUBAGENTS_MODEL"):
+        SubagentsConfig()
+
+
+@pytest.mark.usefixtures("clean_env")
+@pytest.mark.parametrize("entry", ['{"description": "no endpoint"}', '{"endpoint": ""}'])
+def test_subagents_roster_entry_requires_an_endpoint(
+    monkeypatch: pytest.MonkeyPatch, entry: str
+) -> None:
+    _llamacpp_env(monkeypatch)
+    monkeypatch.setenv("CORTEX_SUBAGENTS_ROSTER__QWEN", entry)
+    with pytest.raises(ValidationError, match="endpoint"):
         SubagentsConfig()

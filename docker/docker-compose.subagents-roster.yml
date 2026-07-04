@@ -1,0 +1,77 @@
+# Roster override (Slice 8.6, ADR-0018): a second CPU llama-server exposing the cheap
+# Qwen3.5-2B override as roster entry `qwen` ALONGSIDE the flat-env default (the
+# injection-robust gemma-4-E4B in docker-compose.subagents.yml). Layer it ON TOP of the
+# base + subagents files:
+#     docker compose -f docker-compose.yml -f docker-compose.subagents.yml \
+#         -f docker-compose.subagents-roster.yml up
+# The cortex can then pick `qwen` per subtask (the spawn tool's `model` knob), but only for
+# a tool-less subagent on an untainted turn: any spawn path that can carry untrusted content
+# is pinned to the robust default by the wiring, whatever the pick (ADR-0017). NOTE: layering
+# the tools/email overrides makes subagents tools-enabled, which pins EVERY spawn to the
+# default and the spec stops advertising the knob. Run without them to exercise the choice.
+# CI never runs this file (subagents are opt-in, AGENTS.md gate 3).
+#
+# Set on the host (a .env at the repo root works):
+#   CORTEX_MODELS_DIR               host dir holding the GGUFs (default ./models)
+#   CORTEX_MODEL_FILE_SUBAGENT_QWEN the alternate GGUF under that dir (default: the measured
+#                                   cheap override, Qwen3.5-2B Q4_K_M per ADR-0004 pick-revision
+#                                   addendum; ~0.3-0.6 s per narrow answer, ~15 s load)
+
+services:
+  brain:
+    environment:
+      # One JSON object per alternate roster entry (ADR-0018; parsed by SubagentsConfig).
+      # gpu_endpoint is omitted -> falls back to endpoint (the interim one-executor stance,
+      # ADR-0012 deferral). The resource ask reflects the Qwen-2B measurements (~0.9 GiB RSS
+      # -> 1.5 GB memory; ~2.5 GB weights+KV VRAM ask). The description is advertised to the
+      # cortex verbatim (trade-off text only); safety is the wiring's (ADR-0017).
+      CORTEX_SUBAGENTS_ROSTER__qwen: >-
+        {"endpoint": "http://llama-subagent-qwen:8083",
+        "vram_gb": 2.5, "cpus": 2.0, "memory_gb": 1.5,
+        "description": "small and fast; weaker against prompt injection, so only
+        offered for trusted text-only subtasks"}
+    depends_on:
+      llama-subagent-qwen:
+        condition: service_healthy
+
+  llama-subagent-qwen:
+    # CPU (non-CUDA) OpenAI-compatible llama.cpp server (ADR-0005), the same image and flag
+    # rationale as llama-subagent in docker-compose.subagents.yml (--jinja for tool-capable
+    # templates; thinking disabled because Qwen3.5 unbounded thinking on CPU is minutes/call).
+    image: "ghcr.io/ggml-org/llama.cpp:server"
+    command:
+      - "--model"
+      - "/models/${CORTEX_MODEL_FILE_SUBAGENT_QWEN:-unsloth/Qwen3.5-2B-GGUF/Qwen3.5-2B-Q4_K_M.gguf}"
+      - "--host"
+      - "0.0.0.0"
+      - "--port"
+      - "8083"
+      - "-ngl"
+      - "0"
+      - "--jinja"
+      - "--chat-template-kwargs"
+      - '{"enable_thinking": false}'
+      - "--ctx-size"
+      - "${CORTEX_SUBAGENT_CTX_SIZE:-8192}"
+      - "--parallel"
+      - "${CORTEX_SUBAGENTS_PARALLEL:-2}"
+    volumes:
+      # Models stay on the Windows drive, mounted read-only (ADR-0004 d3).
+      - type: bind
+        source: "${CORTEX_MODELS_DIR:-./models}"
+        target: /models
+        read_only: true
+    ports:
+      # Loopback-only publish so host-side integration tests can reach it (assumption 5);
+      # the brain uses the in-network address above, not this one.
+      - "127.0.0.1:8083:8083"
+    restart: unless-stopped
+    healthcheck:
+      # llama-server serves /health once the model finishes loading; Qwen-2B loads in ~15 s
+      # on CPU, comfortably inside the subagents file's start_period.
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8083/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 90s
+      start_interval: 2s

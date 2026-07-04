@@ -40,6 +40,7 @@ from cortex_memory import PgVectorMemoryStore
 from cortex_orchestrator import (
     InferenceConfig,
     MemoryConfig,
+    SubagentRosterEntry,
     SubagentsConfig,
     ToolsConfig,
     build_cortex_tools,
@@ -390,6 +391,71 @@ async def test_build_subagents_selects_llamacpp_and_returns_a_closer(
     assert isinstance(spawn, SpawnSubagentsTool)
     assert seen_url == ["redis://sub:6379/0"]
     await close()  # releases the fake task store + the httpx client
+
+
+def _fake_task_store(url: str) -> RedisTaskStore:
+    del url
+    return RedisTaskStore(FakeAsyncRedis(server=FakeServer()))
+
+
+def _spec_model_property(spawn: SpawnSubagentsTool) -> dict[str, object] | None:
+    """Dig the per-item ``model`` property out of the advertised spawn spec (ADR-0018)."""
+    instructions = cast("Mapping[str, object]", spawn.spec.parameters["properties"])
+    items = cast(
+        "Mapping[str, object]", cast("Mapping[str, object]", instructions["instructions"])["items"]
+    )
+    item_object = cast("Mapping[str, object]", cast("Sequence[object]", items["anyOf"])[1])
+    properties = cast("Mapping[str, dict[str, object]]", item_object["properties"])
+    return properties.get("model")
+
+
+def _roster_config() -> SubagentsConfig:
+    return SubagentsConfig(
+        backend="llamacpp",
+        endpoint="http://llama-subagent-cpu:8082",
+        gpu_endpoint="http://llama-subagent-gpu:8083",
+        roster={
+            "qwen": SubagentRosterEntry(
+                endpoint="http://llama-subagent-qwen:8084", description="small and fast"
+            )
+        },
+    )
+
+
+async def test_build_subagents_builds_the_config_roster_and_advertises_it() -> None:
+    """A tool-less wiring with an alternate entry: the spec offers the choice (ADR-0018)."""
+    spawn, close = await build_subagents(
+        _roster_config(),
+        None,  # tool-less subagents -> the model knob is advertised
+        "redis://sub:6379/0",
+        SystemClock(),
+        placer=VramBudgetPlacer(soft_cap_gb=14.0, cortex_reservation_gb=11.3),
+        task_store_factory=_fake_task_store,
+    )
+    assert spawn is not None
+    model = _spec_model_property(spawn)
+    assert model is not None
+    assert model["enum"] == ["qwen", "subagent"]
+    description = str(model["description"])
+    assert "default 'subagent'" in description  # the flat-env default entry
+    assert "small and fast" in description  # the alternate's configured trade-off text
+    await close()
+
+
+async def test_build_subagents_with_tools_pins_the_spec_to_the_default() -> None:
+    """Tools-enabled subagents: ADR-0017 rule 2b pins every spawn, so no knob is advertised."""
+    spawn, close = await build_subagents(
+        _roster_config(),
+        _read_registry(),
+        "redis://sub:6379/0",
+        SystemClock(),
+        placer=VramBudgetPlacer(soft_cap_gb=14.0, cortex_reservation_gb=11.3),
+        task_store_factory=_fake_task_store,
+    )
+    assert spawn is not None
+    assert _spec_model_property(spawn) is None
+    assert "default subagent model" in spawn.spec.description
+    await close()
 
 
 async def _read_handler(arguments: Mapping[str, object]) -> str:

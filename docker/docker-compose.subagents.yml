@@ -4,7 +4,9 @@
 # It adds one CPU llama-server (the small subagent model) and flips the brain from
 # subagents=none to the llamacpp backend. Subagent task state lives in the base file's Redis
 # (the TaskStore). CI never runs this file. Subagents are opt-in so CI and the no-GPU dev
-# loop stay subagent-free (AGENTS.md gate 3).
+# loop stay subagent-free (AGENTS.md gate 3). The model this file wires is the roster's
+# DEFAULT entry (the injection-robust pick, ADR-0017); docker-compose.subagents-roster.yml
+# layers an alternate model the cortex can pick per subtask (ADR-0018).
 #
 # Placement is GPU-first with CPU overflow (ADR-0012): the brain fit-tests each spawn against
 # the VRAM headroom (CORTEX_VRAM_SOFT_CAP_GB − CORTEX_VRAM_CORTEX_GB − placed) and routes it
