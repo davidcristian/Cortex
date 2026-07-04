@@ -9,7 +9,6 @@ from cortex_orchestrator.builders import (
     build_inference_backend,
     build_memory,
     build_output_guardrail,
-    build_subagents,
     build_tool_registry,
 )
 from cortex_orchestrator.config import (
@@ -21,6 +20,7 @@ from cortex_orchestrator.config import (
     ToolsConfig,
 )
 from cortex_orchestrator.server import serve
+from cortex_orchestrator.subagent_builders import build_subagents
 from cortex_session import RedisSessionStore
 
 

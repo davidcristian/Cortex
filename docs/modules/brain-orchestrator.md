@@ -59,13 +59,21 @@ Config (pydantic-settings; explicit constructor arguments beat the environment):
   `SkipUnavailableToolRegistry` so healthy sidecars keep serving while the dead one is
   logged on every walk (ADR-0009 degraded-mode addendum; covers a sidecar dying after
   startup, though one down at boot still fails the MCP connect).
-- `SubagentsConfig` uses env prefix `CORTEX_SUBAGENTS_` (ADR-0010, revised by ADR-0012):
+- `SubagentsConfig` uses env prefix `CORTEX_SUBAGENTS_` (ADR-0010, revised by ADR-0012/0018):
   `backend: "none" | "llamacpp" = "none"` (`CORTEX_SUBAGENTS_BACKEND`), `endpoint` (the CPU
   overflow `llama-server`) **and** `gpu_endpoint` (the GPU one), which are both required when
   `llamacpp`; `model` (`CORTEX_SUBAGENTS_MODEL`); one subagent's resource ask `vram_gb` /
   `cpus` / `memory_gb` and the soft admission ceilings `cpu_budget` / `mem_budget_gb`
   (defaults are GPU-less-safe placeholders; the maintainer measures real numbers on the host).
-  Set by `docker/docker-compose.subagents.yml`.
+  Set by `docker/docker-compose.subagents.yml`. The flat fields define the roster's
+  **default entry** (the robust ADR-0004 pick; `model_description` /
+  `CORTEX_SUBAGENTS_MODEL_DESCRIPTION` is its advertised text); each
+  `CORTEX_SUBAGENTS_ROSTER__<name>` adds one **alternate** model as a JSON
+  `SubagentRosterEntry` (`endpoint` required; `gpu_endpoint` empty falls back to it;
+  per-entry `vram_gb`/`cpus`/`memory_gb`; `description` advertised verbatim, per ADR-0018, set
+  by `docker/docker-compose.subagents-roster.yml`). A key naming the default is rejected.
+  `named_roster` (property) synthesizes the ready-to-dial mapping, with the flat-field default
+  first, alternates sorted, fallbacks applied; empty unless `backend="llamacpp"`.
 
 The service:
 
@@ -122,10 +130,14 @@ The service:
   `on_unavailable="skip"`, and merged behind one `AggregateToolRegistry` when several, with every
   session owned by one `AsyncExitStack` whose `aclose` is the returned closer, and a failed
   later connect unwinds the earlier sessions), and **subagents**
-  (`build_subagents(config, tool_registry, redis_url, clock, *, placer, task_store_factory)`, the
-  `spawn_subagents` tool over GPU + CPU subagent backends, a Redis `TaskStore`, a soft CPU/RAM budget,
-  and a `VramBudgetPlacer` (built at the call site from the runtime VRAM knobs) that fit-tests each
-  spawn GPU-first with CPU overflow, ADR-0010/0012; the subagent dispatcher comes from
+  (`build_subagents(config, tool_registry, redis_url, clock, *, placer, task_store_factory)`,
+  in `subagent_builders.py` (split from `builders.py` for the 300-line cap), the
+  `spawn_subagents` tool over a `SubagentRoster` built from `config.named_roster` (ADR-0018):
+  per entry its own GPU + CPU `LlamaCppBackend` pair (one shared httpx client) and
+  `PlacementRequest`, all entries sharing ONE `ResourceBudgetScheduler` and the ONE
+  `VramBudgetPlacer` built at the call site from the runtime VRAM knobs (one budget, one
+  ledger, per ADR-0012), a Redis `TaskStore`, GPU-first placement with CPU overflow,
+  ADR-0010/0012; the runner enforces ADR-0017 via `roster.resolve`; the subagent dispatcher
   comes from `build_subagent_tools(tool_registry, clock)`, the shared registry wrapped in
   `UngatedToolRegistry`, so a subagent is never handed a gated/outbound tool, ADR-0013
   subagent-exclusion addendum). The cortex's dispatcher is

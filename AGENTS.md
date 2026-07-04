@@ -164,5 +164,6 @@ docker/           Compose stack (run via `just up`/`up-gpu`, or `docker compose 
                   -f docker/docker-compose.yml …`): docker-compose.yml (brain + redis, loopback-only)
                   + overrides: gpu (llama.cpp server + read-only model mount, ADR-0005/0007), memory
                   (Postgres+pgvector + CPU embedder, ADR-0008), tools + email (MCP sidecars: filesystem,
-                  read-only email, ADR-0009), subagents (CPU llama-server, ADR-0010); + postgres/init.sql
+                  read-only email, ADR-0009), subagents (CPU llama-server, ADR-0010) + subagents-roster
+                  (a second CPU model as an ADR-0018 roster alternate); + postgres/init.sql
 ```

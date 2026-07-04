@@ -1,0 +1,54 @@
+
+services:
+  brain:
+    environment:
+      CORTEX_SUBAGENTS_ROSTER__qwen: >-
+        {"endpoint": "http://llama-subagent-qwen:8083",
+        "vram_gb": 2.5, "cpus": 2.0, "memory_gb": 1.5,
+        "description": "small and fast; weaker against prompt injection, so only
+        offered for trusted text-only subtasks"}
+    depends_on:
+      llama-subagent-qwen:
+        condition: service_healthy
+
+  llama-subagent-qwen:
+    # CPU (non-CUDA) OpenAI-compatible llama.cpp server (ADR-0005), the same image and flag
+    # rationale as llama-subagent in docker-compose.subagents.yml (--jinja for tool-capable
+    # templates; thinking disabled because Qwen3.5 unbounded thinking on CPU is minutes/call).
+    image: "ghcr.io/ggml-org/llama.cpp:server"
+    command:
+      - "--model"
+      - "/models/${CORTEX_MODEL_FILE_SUBAGENT_QWEN:-unsloth/Qwen3.5-2B-GGUF/Qwen3.5-2B-Q4_K_M.gguf}"
+      - "--host"
+      - "0.0.0.0"
+      - "--port"
+      - "8083"
+      - "-ngl"
+      - "0"
+      - "--jinja"
+      - "--chat-template-kwargs"
+      - '{"enable_thinking": false}'
+      - "--ctx-size"
+      - "${CORTEX_SUBAGENT_CTX_SIZE:-8192}"
+      - "--parallel"
+      - "${CORTEX_SUBAGENTS_PARALLEL:-2}"
+    volumes:
+      # Models stay on the Windows drive, mounted read-only (ADR-0004 d3).
+      - type: bind
+        source: "${CORTEX_MODELS_DIR:-./models}"
+        target: /models
+        read_only: true
+    ports:
+      # Loopback-only publish so host-side integration tests can reach it (assumption 5);
+      # the brain uses the in-network address above, not this one.
+      - "127.0.0.1:8083:8083"
+    restart: unless-stopped
+    healthcheck:
+      # llama-server serves /health once the model finishes loading; Qwen-2B loads in ~15 s
+      # on CPU, comfortably inside the subagents file's start_period.
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8083/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 90s
+      start_interval: 2s

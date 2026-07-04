@@ -7,8 +7,6 @@ from cortex_orchestrator.builders import (
     build_inference_backend,
     build_memory,
     build_output_guardrail,
-    build_subagent_tools,
-    build_subagents,
     build_tool_registry,
 )
 from cortex_orchestrator.config import (
@@ -16,6 +14,7 @@ from cortex_orchestrator.config import (
     InferenceConfig,
     MemoryConfig,
     SeamServerConfig,
+    SubagentRosterEntry,
     SubagentsConfig,
     ToolsConfig,
 )
@@ -27,6 +26,7 @@ from cortex_orchestrator.converse import (
     converse,
 )
 from cortex_orchestrator.server import ORCHESTRATOR_VERSION, BrainService, create_server, serve
+from cortex_orchestrator.subagent_builders import build_subagent_tools, build_subagents
 from cortex_orchestrator.wiring import run_from_env
 
 __all__ = [
@@ -42,6 +42,7 @@ __all__ = [
     "MemoryConfig",
     "SeamServerConfig",
     "SeamTokenInterceptor",
+    "SubagentRosterEntry",
     "SubagentsConfig",
     "ToolsConfig",
     "build_cortex_tools",

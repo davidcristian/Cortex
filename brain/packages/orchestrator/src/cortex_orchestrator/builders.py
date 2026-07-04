@@ -16,38 +16,24 @@ from cortex_core import (
     FilteredToolRegistry,
     InferenceBackend,
     MemoryRecaller,
-    PlacementRequest,
-    PlacementTarget,
-    ResourceBudgetScheduler,
     SingleResidentModelManager,
     SkipUnavailableToolRegistry,
     SpawnSubagentsTool,
-    SubagentPlacer,
-    SubagentProfile,
-    SubagentResources,
-    SubagentRoster,
-    SubagentRunner,
     ToolDispatcher,
     ToolError,
     ToolRegistry,
-    UngatedToolRegistry,
     UrlRedactingGuardrail,
 )
 from cortex_embedding import LlamaCppEmbedder
 from cortex_inference import LlamaCppBackend
 from cortex_memory import PgVectorMemoryStore
-from cortex_orchestrator.config import (
-    InferenceConfig,
-    MemoryConfig,
-    SubagentsConfig,
-    ToolsConfig,
-)
-from cortex_session import RedisTaskStore
+from cortex_orchestrator.config import InferenceConfig, MemoryConfig, ToolsConfig
 from cortex_tools import LoggingAuditSink, McpToolRegistry
 
 # Connect/write/pool time out fast on a dead server; reads have no deadline, since a
 # generation may legitimately stream for a long time (the adapter sets no timeout itself).
-_LLAMACPP_CONNECT_TIMEOUT_S = 10.0
+# Public: `subagent_builders` dials its llama-servers with the same policy (one knob).
+LLAMACPP_CONNECT_TIMEOUT_S = 10.0
 # An embedding is a quick request (no streaming), so it gets a finite overall timeout.
 _EMBEDDER_TIMEOUT_S = 30.0
 
@@ -62,8 +48,8 @@ def _report_sidecar_unavailable(name: str, error: ToolError) -> None:
     )
 
 
-async def _noop_aclose() -> None:
-    """Echo holds no resources; the default backend has nothing to release."""
+async def noop_aclose() -> None:
+    """The closer for a capability that held no resources; shared by every builder module."""
     return
 
 
@@ -76,10 +62,10 @@ def build_inference_backend(
     llama.cpp, so the caller's shutdown path is uniform regardless of which backend ran.
     """
     if config.backend == "llamacpp":
-        client = httpx.AsyncClient(timeout=httpx.Timeout(_LLAMACPP_CONNECT_TIMEOUT_S, read=None))
+        client = httpx.AsyncClient(timeout=httpx.Timeout(LLAMACPP_CONNECT_TIMEOUT_S, read=None))
         manager = SingleResidentModelManager(cortex_model, config.endpoint)
         return LlamaCppBackend(manager, client), client.aclose
-    return EchoInferenceBackend(), _noop_aclose
+    return EchoInferenceBackend(), noop_aclose
 
 
 async def build_memory(
@@ -100,7 +86,7 @@ async def build_memory(
             await client.aclose()
 
         return MemoryRecaller(store, embedder, clock), close_memory
-    return None, _noop_aclose
+    return None, noop_aclose
 
 
 async def build_tool_registry(
@@ -108,7 +94,7 @@ async def build_tool_registry(
 ) -> tuple[ToolRegistry | None, Callable[[], Awaitable[None]]]:
     """The raw MCP `ToolRegistry` shared by the cortex and its subagents, or None (ADR-0009)."""
     if config.backend != "mcp":
-        return None, _noop_aclose
+        return None, noop_aclose
     stack = AsyncExitStack()
     registries: list[ToolRegistry] = []
     try:
@@ -129,54 +115,6 @@ async def build_tool_registry(
     if len(registries) == 1:
         return registries[0], stack.aclose
     return AggregateToolRegistry(registries), stack.aclose
-
-
-async def build_subagents(
-    config: SubagentsConfig,
-    tool_registry: ToolRegistry | None,
-    redis_url: str,
-    clock: Clock,
-    *,
-    placer: SubagentPlacer,
-    task_store_factory: Callable[[str], RedisTaskStore] = RedisTaskStore.from_url,
-) -> tuple[SpawnSubagentsTool | None, Callable[[], Awaitable[None]]]:
-    """The `spawn_subagents` tool, or None when delegation is disabled (ADR-0010, ADR-0012)."""
-    if config.backend == "none":
-        return None, _noop_aclose
-    client = httpx.AsyncClient(timeout=httpx.Timeout(_LLAMACPP_CONNECT_TIMEOUT_S, read=None))
-    resources = SubagentResources(
-        backends={
-            PlacementTarget.GPU: LlamaCppBackend(
-                SingleResidentModelManager(config.model, config.gpu_endpoint), client
-            ),
-            PlacementTarget.CPU: LlamaCppBackend(
-                SingleResidentModelManager(config.model, config.endpoint), client
-            ),
-        },
-        scheduler=ResourceBudgetScheduler(config.cpu_budget, config.mem_budget_gb),
-        placer=placer,
-        request=PlacementRequest(config.model, config.vram_gb, config.cpus, config.memory_gb),
-    )
-    # A single-entry roster for now: the config-driven multi-model roster (ADR-0018) lands
-    # with the wiring increment; the default entry IS the flat-env subagent, unchanged.
-    roster = SubagentRoster(
-        entries={config.model: SubagentProfile(resources=resources)}, default=config.model
-    )
-    store = task_store_factory(redis_url)
-    runner = SubagentRunner(store, roster, clock, tools=build_subagent_tools(tool_registry, clock))
-
-    async def close_subagents() -> None:
-        await store.aclose()
-        await client.aclose()
-
-    return SpawnSubagentsTool(runner, store, clock), close_subagents
-
-
-def build_subagent_tools(tool_registry: ToolRegistry | None, clock: Clock) -> ToolDispatcher | None:
-    """A subagent's audited dispatcher over the gated-stripped MCP subset, or None (ADR-0013)."""
-    if tool_registry is None:
-        return None
-    return ToolDispatcher(UngatedToolRegistry(tool_registry), LoggingAuditSink(), clock)
 
 
 def build_output_guardrail(mode: str) -> UrlRedactingGuardrail | None:
