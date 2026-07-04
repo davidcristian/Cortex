@@ -50,12 +50,17 @@ class ToolCall:
     """A request to run one tool: the model's chosen ``name`` and ``arguments``.
 
     ``id`` correlates this call with its ``ToolResult`` across the tool loop; the model (or
-    the loop, for a fake backend) assigns it.
+    the loop, for a fake backend) assigns it. ``tainted`` is never the model's to set: the
+    dispatcher overwrites it at dispatch time with the calling turn's taint (ADR-0018), so a
+    built-in that spawns further work (``spawn_subagents``) can propagate provenance. The
+    stamp is transient (the loop persists the unstamped calls) and it never feeds the
+    ADR-0013 gate, which uses the dispatcher's explicit argument.
     """
 
     id: str
     name: str
     arguments: Mapping[str, Any]
+    tainted: bool = False
 
 
 @dataclass(frozen=True, slots=True)

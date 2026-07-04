@@ -12,7 +12,7 @@ _AT = datetime(2026, 7, 3, 12, 0, tzinfo=UTC)
 
 async def test_put_and_get_task_round_trips() -> None:
     store = InMemoryTaskStore()
-    task = SubagentTask(id="t1", instruction="do", context="", at=_AT)
+    task = SubagentTask(id="t1", instruction="do", context="", at=_AT, model="fast", tainted=True)
     await store.put_task(task)
     assert await store.get_task("t1") == task
 

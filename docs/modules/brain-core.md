@@ -57,8 +57,12 @@ Tool domain (Slice 6, ADR-0009; untrusted-content fields Slice 6.5, ADR-0013):
   never interpreted by the core), `gated: bool = False` (an irreversible/outbound action that
   needs confirmation once the turn read untrusted content, but no tool sets it today). What a tool
   advertises.
-- `ToolCall` is a frozen dataclass: `id: str`, `name: str`, `arguments: Mapping[str, Any]`. A
-  model's request to run one tool; `id` correlates it with its `ToolResult`.
+- `ToolCall` is a frozen dataclass: `id: str`, `name: str`, `arguments: Mapping[str, Any]`,
+  `tainted: bool = False`. A model's request to run one tool; `id` correlates it with its
+  `ToolResult`. `tainted` is never the model's to set: the dispatcher **overwrites** it at
+  dispatch time with the calling turn's taint (ADR-0018) so a built-in that spawns further work
+  can propagate provenance, staying transient (the loop persists the unstamped calls) and never the
+  gate's input (the gate uses the dispatcher's explicit argument).
 - `ToolResult` is a frozen dataclass: `call_id: str`, `content: str`, `is_error: bool = False`,
   `trust: Trust = Trust.UNTRUSTED`. The outcome fed back to the model; `is_error` marks a tool
   (or dispatch) failure; `trust` is the content's provenance (fail-closed default), read by the
@@ -72,9 +76,13 @@ Tool domain (Slice 6, ADR-0009; untrusted-content fields Slice 6.5, ADR-0013):
 Subagent domain (Slice 7, ADR-0010):
 
 - `SubagentTask` is a frozen dataclass: `id: str`, `instruction: str`, `context: str`,
-  `at: datetime` (tz-aware, rejects naive). One narrow task delegated to a subagent, persisted
-  before it runs; `context` is the material the subagent works from (the cortex conversation is
-  never shared, since the subagent is stateless over the task).
+  `at: datetime` (tz-aware, rejects naive), `model: str = ""`, `tainted: bool = False`. One
+  narrow task delegated to a subagent, persisted before it runs; `context` is the material the
+  subagent works from (the cortex conversation is never shared, as the subagent is stateless over
+  the task). `model` is the roster entry the cortex requested (`""` = the default) and `tainted`
+  the spawning turn's taint at spawn time. They are the two `SubagentRoster.resolve` inputs only the
+  spawn site knows, riding the record so the runner resolves safely from the store alone
+  (ADR-0017/0018).
 - `SubagentResult` is a frozen dataclass: `task_id: str`, `output: str`, `ok: bool = True`,
   `detail: str = ""`, `tainted: bool = False`. A subagent's outcome; `ok=False` (with `detail`)
   marks a failure the cortex consumes as a value, mirroring `ToolResult.is_error`; `tainted` is
@@ -90,10 +98,23 @@ Placement domain (Slice 8.5, ADR-0012):
   per-container caps the scheduler sums.
 - `Placement` (frozen dataclass): `target: PlacementTarget`, `reserved_gb: float`. A `SubagentPlacer`
   verdict; `reserved_gb` is the request's `vram_gb` on GPU, `0.0` on CPU, so `release` is exact.
-- `SubagentResources` is a frozen dataclass bundling one subagent tier's placement machinery:
+Roster domain (Slice 8.6, ADR-0018; in `roster.py`):
+
+- `SubagentResources` is a frozen dataclass bundling one subagent entry's placement machinery:
   `backends: Mapping[PlacementTarget, InferenceBackend]`, `scheduler: SubagentScheduler`,
   `placer: SubagentPlacer`, `request: PlacementRequest`. Mirrors `TurnCapabilities`, collaborators
-  the `SubagentRunner` always takes together (`request.model` is the subagent id).
+  that always travel together (`request.model` is the id handed to the backend). In a multi-entry
+  roster the `scheduler`/`placer` are the SAME objects in every entry (one budget, one VRAM
+  ledger); only `backends`/`request` differ.
+- `SubagentProfile` is a frozen dataclass: `resources: SubagentResources`, `description: str = ""`.
+  One roster entry; the description is the trade-off text the spawn spec advertises (informs
+  optimization only, never safety).
+- `SubagentRoster` is a frozen dataclass: `entries: Mapping[str, SubagentProfile]`, `default: str`
+  (must be an entry; empty rosters rejected with `ValueError` at construction). `resolve(requested,
+  *, tainted, tools_enabled) -> str | None` is where ADR-0017 executes: `tainted or tools_enabled`
+  → the robust `default` whatever was requested (unknown names included); else the requested
+  entry (`""` = default); an unknown name on a clean tool-less path → `None` (the runner fails
+  it closed).
 
 Untrusted-content boundary (Slice 6.5, ADR-0013; the pure primitives in `untrusted.py`):
 
@@ -243,23 +264,35 @@ Use-case:
   the `ToolAuditSink`, and returns the `ToolResult`; a `ToolError` becomes a `TRUSTED` `is_error`
   result (our own message, so it neither frames nor taints). A `gated` tool on a `tainted` turn is
   confirmed via the `Confirmer` first, and a denial (including the fail-closed `confirmer=None`
-  default) returns `DENIED_MSG` **without invoking the tool**, audited as a block. `describe_tools()`
-  passes through to the registry. Stateless over the ports; the loop drives it.
-- `SubagentRunner(store, resources, clock, *, tools=None)` is a subagent's body (ADR-0010/0012), a
-  stateless function over the `TaskStore`. `run(task_id)` **admits** against the scheduler's CPU/RAM
-  budget (outer, may wait), **places** on GPU or CPU against the VRAM budget (inner, synchronous),
-  routes to `resources.backends[placement.target]`, loads the `SubagentTask` **by id** (never from
-  cortex memory, with a missing task an `ok=False` "task not found" result), runs `stream_tool_loop`
-  on `resources.request.model` with its optional tool subset (instruction as the user ask, `context`
-  as a `Role.SYSTEM` message; a tools-enabled subagent also gets the `SECURITY_PREAMBLE` and its own
-  `TaintLedger`, ADR-0013), persists + returns a `SubagentResult` carrying `tainted` from that ledger,
-  and always releases the VRAM in a `finally`. A mid-stream `InferenceError` becomes an `ok=False`
-  result carrying the partial text. Tools-enabled but not given the delegation tool, so fan-out is
+  default) returns `DENIED_MSG` **without invoking the tool**, audited as a block. Before the
+  registry invoke it **stamps the turn's taint onto the call** (`replace(call, tainted=tainted)`,
+  ADR-0018). That is provenance for built-ins, never the gate's input, and a model-forged stamp is
+  overwritten. `describe_tools()` passes through to the registry. Stateless over the ports; the
+  loop drives it.
+- `SubagentRunner(store, roster, clock, *, tools=None)` is a subagent's body (ADR-0010/0012/0018),
+  a stateless function over the `TaskStore`. `run(task_id)` loads the `SubagentTask` **by id**
+  (never from cortex memory, so a missing task is an `ok=False` "task not found" result),
+  **resolves** the roster entry via `roster.resolve(task.model, tainted=task.tainted,
+  tools_enabled=…)` (ADR-0017; an unknown model is an `ok=False` "unknown subagent model" result,
+  fail closed), **admits** against that entry's scheduler CPU/RAM budget (outer, may wait),
+  **places** on GPU or CPU against the VRAM budget (inner, synchronous), routes to the entry's
+  `backends[placement.target]`, runs `stream_tool_loop` on the entry's `request.model` with its
+  optional tool subset (instruction as the user ask, `context` as a `Role.SYSTEM` message; a
+  tools-enabled subagent also gets the `SECURITY_PREAMBLE` and its own `TaintLedger`, ADR-0013),
+  persists + returns a `SubagentResult` carrying `tainted` from that ledger, and always releases
+  the VRAM in a `finally`. A mid-stream `InferenceError` becomes an `ok=False` result carrying
+  the partial text. Exposes `roster`/`tools_enabled` (read-only) so the spawn tool advertises
+  exactly what it will honor. Tools-enabled but not given the delegation tool, so fan-out is
   depth-1.
 - `SpawnSubagentsTool(runner, store, clock, *, task_id_factory=<uuid4>)` is the built-in
-  `spawn_subagents` tool (`SPAWN_TOOL_NAME`), the cortex's delegation primitive (ADR-0010). Its
-  `spec` advertises `instructions: string[]`; `invoke(call)` validates them (bad input → an
-  `is_error` result, not a raise), persists one `SubagentTask` each, runs the `SubagentRunner`s
+  `spawn_subagents` tool (`SPAWN_TOOL_NAME`), the cortex's delegation primitive (ADR-0010/0018).
+  Its `spec` is **derived from the runner's roster**: an instructions item is a bare string or
+  `{instruction, model?, context?}` (`anyOf`); the `model` enum lists every entry with its
+  description and the ADR-0017 caveat, omitted entirely when the runner is tools-enabled or the
+  roster has one entry (a knob that cannot do anything is not advertised). `invoke(call)`
+  validates items against the roster (bad input / unknown model → an `is_error` result, not a
+  raise), persists one `SubagentTask` each, stamped with the requested `model`, the item's
+  `context`, and the **call's `tainted`** (the dispatcher's stamp), runs the `SubagentRunner`s
   **concurrently** (bounded by the scheduler), and returns one aggregated `ToolResult`, with a
   `[subagent N] …` block per subtask, failures shown inline. The aggregate is `UNTRUSTED` iff any
   subagent was tainted, so a subagent that read a malicious file taints the cortex through the

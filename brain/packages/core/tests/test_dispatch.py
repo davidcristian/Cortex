@@ -170,3 +170,40 @@ async def test_describe_tools_passes_through_to_the_registry() -> None:
     registry = InMemoryToolRegistry({"read": (_spec("read"), _ran), "list": (_spec("list"), _ran)})
     specs = await _dispatcher(registry, RecordingAuditSink()).describe_tools()
     assert [spec.name for spec in specs] == ["read", "list"]
+
+
+class _CallRecordingRegistry:
+    """A registry that records the exact ToolCall values it was invoked with (ADR-0018)."""
+
+    def __init__(self) -> None:
+        self.calls: list[ToolCall] = []
+
+    async def describe_tools(self) -> list[ToolSpec]:
+        return []
+
+    async def invoke(self, call: ToolCall) -> ToolResult:
+        self.calls.append(call)
+        return ToolResult(call_id=call.id, content="ok", trust=Trust.TRUSTED)
+
+
+async def test_dispatch_stamps_the_turns_taint_onto_the_invoked_call() -> None:
+    # Built-ins that spawn further work read the stamp (ADR-0018); the registry sees the
+    # turn's taint, not the default the call was constructed with.
+    registry = _CallRecordingRegistry()
+    dispatcher = ToolDispatcher(registry, RecordingAuditSink(), _FixedClock())
+    await dispatcher.dispatch(ToolCall(id="c", name="spawn", arguments={}), tainted=True)
+    (stamped,) = registry.calls
+    assert stamped.tainted is True
+    assert (stamped.id, stamped.name) == ("c", "spawn")  # everything else rides unchanged
+
+
+async def test_dispatch_overwrites_a_forged_taint_stamp_with_the_turns() -> None:
+    # The stamp is never the model's to set: a call arriving pre-marked tainted on a clean
+    # turn is overwritten, so a forged stamp cannot influence anything downstream.
+    registry = _CallRecordingRegistry()
+    dispatcher = ToolDispatcher(registry, RecordingAuditSink(), _FixedClock())
+    await dispatcher.dispatch(
+        ToolCall(id="c", name="spawn", arguments={}, tainted=True), tainted=False
+    )
+    (stamped,) = registry.calls
+    assert stamped.tainted is False

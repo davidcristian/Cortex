@@ -7,7 +7,9 @@ durable session history (and its schema-version escape hatch), a task is written
 one deployment within one turn, so it carries no ``v``/``kind`` markers. Redis is the state a
 subagent is a stateless function over. It survives an orchestrator restart or a model swap
 mid-delegation (the one hard rule). This adapter only translates: every backend failure crosses
-the port as ``TaskStoreError`` with the cause chained, and a corrupt record fails LOUDLY.
+the port as ``TaskStoreError`` with the cause chained, and a corrupt record fails LOUDLY. The
+whole record round-trips, including ``model``/``tainted`` on a task and ``tainted`` on a result
+(ADR-0018): taint that did not survive a re-read would fail open.
 """
 
 import json
@@ -39,6 +41,8 @@ def _encode_task(task: SubagentTask) -> str:
             "instruction": task.instruction,
             "context": task.context,
             "at": task.at.isoformat(),
+            "model": task.model,
+            "tainted": task.tainted,
         }
     )
 
@@ -51,6 +55,8 @@ def _decode_task(raw: bytes | str, task_id: str) -> SubagentTask:
             instruction=fields["instruction"],
             context=fields["context"],
             at=datetime.fromisoformat(fields["at"]),
+            model=fields["model"],
+            tainted=fields["tainted"],
         )
     except (KeyError, TypeError, ValueError) as err:
         msg = f"corrupt task record at {_task_key(task_id)!r}"
@@ -64,6 +70,7 @@ def _encode_result(result: SubagentResult) -> str:
             "output": result.output,
             "ok": result.ok,
             "detail": result.detail,
+            "tainted": result.tainted,
         }
     )
 
@@ -76,6 +83,7 @@ def _decode_result(raw: bytes | str, task_id: str) -> SubagentResult:
             output=fields["output"],
             ok=fields["ok"],
             detail=fields["detail"],
+            tainted=fields["tainted"],
         )
     except (KeyError, TypeError, ValueError) as err:
         msg = f"corrupt result record at {_result_key(task_id)!r}"

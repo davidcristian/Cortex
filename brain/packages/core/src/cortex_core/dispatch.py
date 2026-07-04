@@ -14,6 +14,7 @@ confirmation is the human's, reached out of band, never the (possibly jailbroken
 """
 
 from collections.abc import Sequence
+from dataclasses import replace
 
 from cortex_core.errors import ToolError
 from cortex_core.ports import Clock, Confirmer, ToolAuditSink, ToolRegistry
@@ -65,6 +66,10 @@ class ToolDispatcher:
         transport) is caught and returned as an ``is_error`` result. The loop keeps going and
         the model sees the failure.
         """
+        # Overwrite the call's taint stamp with the turn's (ADR-0018): provenance for built-ins
+        # that spawn further work, never authority. The gate below keeps using the explicit
+        # ``tainted`` argument, so a model-forged stamp is discarded and feeds nothing.
+        call = replace(call, tainted=tainted)
         if gated and tainted and not await self._confirmed(call):
             blocked = ToolResult(
                 call_id=call.id, content=DENIED_MSG, is_error=True, trust=Trust.TRUSTED
