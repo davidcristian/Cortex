@@ -17,6 +17,7 @@ advertised at all. Each task is stamped with the spawning turn's taint (the disp
 """
 
 import asyncio
+import json
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any, cast
@@ -36,9 +37,12 @@ _DESCRIPTION = (
     "each instruction must be self-contained (subagents do not see this conversation)."
 )
 # Appended when the wiring lets the cortex pick a model per subtask (tool-less subagents).
+# The inline example nudges the object form. A live cortex given only prose folded the pick
+# into the instruction text (ADR-0018 addendum).
 _CHOICE_NOTE = (
-    " Each subtask may pick a 'model'; on a turn that has read untrusted external content "
-    "the robust default model is enforced regardless of the pick."
+    " Each subtask may pick a 'model' by using an object item, e.g. "
+    '{"instruction": "...", "model": "<roster name>"}; on a turn that has read untrusted '
+    "external content the robust default model is enforced regardless of the pick."
 )
 # Appended when subagents are tools-enabled: ADR-0017 rule 2b pins every spawn, so the spec
 # advertises no knob that cannot do anything.
@@ -128,10 +132,34 @@ _ERR_INSTRUCTION = (
 def _parse_item(item: object, roster: SubagentRoster) -> _SpawnItem | str:
     """Validate one instructions item; return the parsed item or an error message string."""
     if isinstance(item, str):
+        stringified = _stringified_object_item(item)
+        if stringified is not None:
+            return _parse_object_item(stringified, roster)
         return _SpawnItem(instruction=item) if item.strip() else _ERR_INSTRUCTION
     if not isinstance(item, Mapping):
         return _ERR_INSTRUCTION
     return _parse_object_item(cast("Mapping[str, object]", item), roster)
+
+
+def _stringified_object_item(item: str) -> Mapping[str, object] | None:
+    """An object item the model JSON-encoded into the string slot, or None (ADR-0018 addendum).
+
+    Live gemma-4-12B emits `"{\\"instruction\\": ..., \\"model\\": ...}"` (the object form as a
+    JSON string inside the array), which would otherwise run as a *literal instruction* on the
+    default model, silently dropping the pick. Only a string that parses to an object carrying
+    an ``instruction`` key is diverted; anything else stays a plain instruction. Model-tolerance
+    only. The diverted item goes through the same validation, and ADR-0017 enforcement is the
+    runner's either way.
+    """
+    if not item.lstrip().startswith("{"):
+        return None
+    try:
+        parsed: object = json.loads(item)
+    except ValueError:
+        return None
+    if isinstance(parsed, Mapping) and "instruction" in cast("Mapping[str, object]", parsed):
+        return cast("Mapping[str, object]", parsed)
+    return None
 
 
 def _parse_object_item(entry: Mapping[str, object], roster: SubagentRoster) -> _SpawnItem | str:
