@@ -144,3 +144,30 @@ this ADR. Two adjacent facts shape it:
 - **Deferred, recorded in the ROADMAP:** grammar-constrained subagent output (ADR-0017
   composes-with) stays open; richer measured-latency advertisement; the per-role escape hatch
   (ADR-0017 risks) remains unimplemented by design.
+
+## Addendum on live validation via Docker (2026-07-03, agent)
+
+Stack: base + subagents + subagents-roster overrides (`CORTEX_MODELS_DIR=/srv/models`), both
+CPU sidecars healthy off the real GGUFs (default gemma-4-E4B on 8082, alternate Qwen3.5-2B as
+`qwen` on 8083); the GPU override added for the cortex-driven half (resident gemma-4-12B).
+
+- **Machinery:** the new roster live test (`test_spawn_subagents_routes_each_pick_to_its_roster_model`)
+  passed on one batch mixing a bare item with a `{"model": "qwen"}` pick, both answered; servers
+  are per-model, and the log counts confirmed routing (the pick was the qwen server's only
+  request).
+- **Cortex-driven:** over the seam, gemma-4-12B called `spawn_subagents` with a per-item
+  `"model": "qwen"` object (audit trail), the qwen server's request count incremented, and the
+  reply reported both subagent results (the full chain, model-decided).
+- **Finding 1 (the pick needs the object form shown).** Given only prose ("run this one on the
+  small fast 'qwen' model"), the cortex emitted bare strings and folded the pick into the
+  instruction text. The subtask silently ran on the default (safe direction, wrong
+  optimization). The spec's choice note now includes an inline object example.
+- **Finding 2 (the object item can arrive JSON-encoded as a string).** On one run the cortex
+  emitted `"{\"instruction\": ..., \"model\": \"qwen\"}"`, the object form *stringified into
+  the string slot of the `anyOf`*. It parsed as a literal instruction on the default model.
+  Run-to-run the same model emits either form, so the parser now diverts a string item that
+  parses as a JSON object carrying an `instruction` key into the object path (same validation,
+  same runner-side ADR-0017 enforcement; a brace-led string that is not that stays a plain
+  instruction). Re-validated live after the change: the pick reached the qwen server.
+
+Evidence commands and bring-up in [runbooks/subagents-cpu.md](../runbooks/subagents-cpu.md) §2b.
