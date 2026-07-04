@@ -360,8 +360,10 @@ the Slice 11 lifecycle behind the corrected ports.
 
 ## Slice 8.6 (Heterogeneous subagent models): the cortex picks which, and how many
 
-**Status:** planned (inserted 2026-07-01). Builds on Slice 7 (delegation) + Slice 8.5 (placement),
-both done; orderable any time after 8.5. Inserted as 8.6 (decimal insert, no renumber).
+**Status:** in progress. Design landed 2026-07-03 as
+[ADR-0018](adr/ADR-0018-heterogeneous-subagents.md) (the roster mechanics; ADR-0017 fixed the
+safety boundary ahead of it). Builds on Slice 7 (delegation) + Slice 8.5 (placement), both done;
+orderable any time after 8.5. Inserted as 8.6 (decimal insert, no renumber).
 
 Today `spawn_subagents(instructions: string[])` runs every subagent on **one** wired model
 ([spawn.py](../brain/packages/core/src/cortex_core/spawn.py) + `build_subagents`). But the design
