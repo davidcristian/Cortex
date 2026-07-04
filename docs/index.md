@@ -89,6 +89,13 @@ Start here. Rules for working in this repo: [AGENTS.md](../AGENTS.md).
   wiring forces the injection-robust default (gemma-4-E4B) whenever the spawn is tainted or
   tools-enabled, so a weak roster model is reachable only for a tool-less subagent on an
   untainted turn. Deterministic; binds the ADR-0013 taint signal to the ADR-0004 pick.
+- [ADR-0018: Heterogeneous subagents](adr/ADR-0018-heterogeneous-subagents.md): Slice 8.6
+  mechanics. The spawn schema grows per-item `{instruction, model?, context?}`; a pure
+  `SubagentRoster` (per-entry backends + `PlacementRequest`, one shared scheduler/placer)
+  whose `resolve` enforces ADR-0017 at the runner; the turn's taint reaches built-ins as a
+  dispatcher stamp on `ToolCall`; the task record carries `model`/`tainted` (and the
+  `SubagentResult.tainted` round-trip gap is fixed); flat env = the default entry,
+  `CORTEX_SUBAGENTS_ROSTER__<name>` adds alternates.
 
 New non-obvious decision → add `adr/ADR-XXXX-<slug>.md`, link it here.
 
