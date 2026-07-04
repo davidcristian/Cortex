@@ -29,6 +29,8 @@ def _encode_task(task: SubagentTask) -> str:
             "instruction": task.instruction,
             "context": task.context,
             "at": task.at.isoformat(),
+            "model": task.model,
+            "tainted": task.tainted,
         }
     )
 
@@ -41,6 +43,8 @@ def _decode_task(raw: bytes | str, task_id: str) -> SubagentTask:
             instruction=fields["instruction"],
             context=fields["context"],
             at=datetime.fromisoformat(fields["at"]),
+            model=fields["model"],
+            tainted=fields["tainted"],
         )
     except (KeyError, TypeError, ValueError) as err:
         msg = f"corrupt task record at {_task_key(task_id)!r}"
@@ -54,6 +58,7 @@ def _encode_result(result: SubagentResult) -> str:
             "output": result.output,
             "ok": result.ok,
             "detail": result.detail,
+            "tainted": result.tainted,
         }
     )
 
@@ -66,6 +71,7 @@ def _decode_result(raw: bytes | str, task_id: str) -> SubagentResult:
             output=fields["output"],
             ok=fields["ok"],
             detail=fields["detail"],
+            tainted=fields["tainted"],
         )
     except (KeyError, TypeError, ValueError) as err:
         msg = f"corrupt result record at {_result_key(task_id)!r}"

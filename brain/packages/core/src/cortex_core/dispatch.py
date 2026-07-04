@@ -1,6 +1,7 @@
 """Dispatch one tool call and audit it. It is the only path a tool runs through (ADR-0009/0013)."""
 
 from collections.abc import Sequence
+from dataclasses import replace
 
 from cortex_core.errors import ToolError
 from cortex_core.ports import Clock, Confirmer, ToolAuditSink, ToolRegistry
@@ -46,6 +47,10 @@ class ToolDispatcher:
         self, call: ToolCall, *, tainted: bool = False, gated: bool = False
     ) -> ToolResult:
         """Invoke ``call``, audit the outcome, and return the result the model consumes."""
+        # Overwrite the call's taint stamp with the turn's (ADR-0018): provenance for built-ins
+        # that spawn further work, never authority. The gate below keeps using the explicit
+        # ``tainted`` argument, so a model-forged stamp is discarded and feeds nothing.
+        call = replace(call, tainted=tainted)
         if gated and tainted and not await self._confirmed(call):
             blocked = ToolResult(
                 call_id=call.id, content=DENIED_MSG, is_error=True, trust=Trust.TRUSTED

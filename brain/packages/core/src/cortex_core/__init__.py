@@ -60,8 +60,9 @@ from cortex_core.ports import (
     ToolRegistry,
 )
 from cortex_core.recall import MemoryRecaller
+from cortex_core.roster import SubagentProfile, SubagentResources, SubagentRoster
 from cortex_core.routing import RoutingHints, Tier, route_turn
-from cortex_core.runner import SubagentResources, SubagentRunner
+from cortex_core.runner import SubagentRunner
 from cortex_core.scheduler import ResourceBudgetScheduler
 from cortex_core.spawn import SPAWN_TOOL_NAME, SpawnSubagentsTool
 from cortex_core.subagents import SubagentResult, SubagentTask
@@ -135,8 +136,10 @@ __all__ = [
     "SkipUnavailableToolRegistry",
     "SpawnSubagentsTool",
     "SubagentPlacer",
+    "SubagentProfile",
     "SubagentResources",
     "SubagentResult",
+    "SubagentRoster",
     "SubagentRunner",
     "SubagentScheduler",
     "SubagentTask",

@@ -26,15 +26,12 @@ class ToolSpec:
 
 @dataclass(frozen=True, slots=True)
 class ToolCall:
-    """A request to run one tool: the model's chosen ``name`` and ``arguments``.
-
-    ``id`` correlates this call with its ``ToolResult`` across the tool loop; the model (or
-    the loop, for a fake backend) assigns it.
-    """
+    """A request to run one tool: the model's chosen ``name`` and ``arguments``."""
 
     id: str
     name: str
     arguments: Mapping[str, Any]
+    tainted: bool = False
 
 
 @dataclass(frozen=True, slots=True)

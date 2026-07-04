@@ -1,4 +1,4 @@
-"""Behavior tests for SubagentRunner: a stateless function over the TaskStore (ADR-0010)."""
+"""Behavior tests for SubagentRunner: a stateless function over the TaskStore (ADR-0010/0018)."""
 
 from collections.abc import AsyncIterator, Mapping, Sequence
 from datetime import UTC, datetime
@@ -16,7 +16,9 @@ from cortex_core import (
     ResourceBudgetScheduler,
     Role,
     SubagentPlacer,
+    SubagentProfile,
     SubagentResources,
+    SubagentRoster,
     SubagentRunner,
     SubagentTask,
     TextChunk,
@@ -99,6 +101,13 @@ def _resources(
     )
 
 
+def _roster(resources: SubagentResources, **extra: SubagentResources) -> SubagentRoster:
+    entries = {"subagent": SubagentProfile(resources=resources)} | {
+        name: SubagentProfile(resources=res) for name, res in extra.items()
+    }
+    return SubagentRoster(entries=entries, default="subagent")
+
+
 def _runner(
     store: InMemoryTaskStore,
     backend: InferenceBackend,
@@ -107,7 +116,8 @@ def _runner(
 ) -> SubagentRunner:
     # Both targets route to the one backend; the placer picks GPU (headroom 14 - 11 = 3 >= 2).
     placer = VramBudgetPlacer(soft_cap_gb=14.0, cortex_reservation_gb=11.0)
-    return SubagentRunner(store, _resources(backend, backend, placer), FixedClock(), tools=tools)
+    roster = _roster(_resources(backend, backend, placer))
+    return SubagentRunner(store, roster, FixedClock(), tools=tools)
 
 
 async def test_runs_a_plain_task_and_persists_the_result() -> None:
@@ -178,7 +188,7 @@ async def test_tools_enabled_subagent_dispatches_and_audits_its_calls() -> None:
 def _routed_runner(
     store: InMemoryTaskStore, gpu: InferenceBackend, cpu: InferenceBackend, placer: SubagentPlacer
 ) -> SubagentRunner:
-    return SubagentRunner(store, _resources(gpu, cpu, placer), FixedClock())
+    return SubagentRunner(store, _roster(_resources(gpu, cpu, placer)), FixedClock())
 
 
 async def test_a_fitting_subagent_runs_on_the_gpu_backend_and_its_vram_is_released() -> None:
@@ -203,3 +213,87 @@ async def test_an_overflowing_subagent_runs_on_the_cpu_backend() -> None:
     assert result.output == "on-cpu"
     assert cpu.seen
     assert not gpu.seen
+
+
+def _two_model_runner(
+    store: InMemoryTaskStore,
+    robust: InferenceBackend,
+    fast: InferenceBackend,
+    *,
+    tools: ToolDispatcher | None = None,
+) -> SubagentRunner:
+    """A roster with the robust default plus a 'fast' alternate, each on its own backend."""
+    placer = VramBudgetPlacer(soft_cap_gb=14.0, cortex_reservation_gb=11.0)
+    roster = SubagentRoster(
+        entries={
+            "subagent": SubagentProfile(resources=_resources(robust, robust, placer)),
+            "fast": SubagentProfile(
+                resources=SubagentResources(
+                    backends={PlacementTarget.GPU: fast, PlacementTarget.CPU: fast},
+                    scheduler=ResourceBudgetScheduler(4.0, 8.0),
+                    placer=placer,
+                    request=PlacementRequest("fast", vram_gb=1.0, cpus=1.0, memory_gb=1.0),
+                )
+            ),
+        },
+        default="subagent",
+    )
+    return SubagentRunner(store, roster, FixedClock(), tools=tools)
+
+
+async def test_a_clean_tool_less_spawn_runs_on_the_requested_model() -> None:
+    store = InMemoryTaskStore()
+    await store.put_task(SubagentTask(id="t", instruction="go", context="", at=_AT, model="fast"))
+    robust, fast = TextBackend(["robust says"]), TextBackend(["fast says"])
+    result = await _two_model_runner(store, robust, fast).run("t")
+    assert result.output == "fast says"
+    assert fast.seen
+    assert not robust.seen
+
+
+async def test_a_tainted_spawn_is_forced_onto_the_robust_default() -> None:
+    # ADR-0017 rule 2a: the spawning turn read untrusted content, so the requested cheap
+    # model is overridden. The instruction itself may be hostile.
+    store = InMemoryTaskStore()
+    await store.put_task(
+        SubagentTask(id="t", instruction="go", context="", at=_AT, model="fast", tainted=True)
+    )
+    robust, fast = TextBackend(["robust says"]), TextBackend(["fast says"])
+    result = await _two_model_runner(store, robust, fast).run("t")
+    assert result.output == "robust says"
+    assert robust.seen
+    assert not fast.seen
+
+
+async def test_a_tools_enabled_spawn_is_forced_onto_the_robust_default() -> None:
+    # ADR-0017 rule 2b: a tools-enabled subagent can fetch untrusted content itself, so the
+    # model choice is pinned regardless of the turn's taint.
+    store = InMemoryTaskStore()
+    await store.put_task(SubagentTask(id="t", instruction="go", context="", at=_AT, model="fast"))
+    robust, fast = TextBackend(["robust says"]), TextBackend(["fast says"])
+    dispatcher = ToolDispatcher(InMemoryToolRegistry({}), RecordingAuditSink(), FixedClock())
+    result = await _two_model_runner(store, robust, fast, tools=dispatcher).run("t")
+    assert result.output == "robust says"
+    assert robust.seen
+    assert not fast.seen
+
+
+async def test_an_unknown_model_fails_closed_as_a_failed_result() -> None:
+    store = InMemoryTaskStore()
+    await store.put_task(SubagentTask(id="t", instruction="go", context="", at=_AT, model="ghost"))
+    backend = TextBackend(["never"])
+    result = await _runner(store, backend).run("t")
+    assert (result.ok, result.output) == (False, "")
+    assert "unknown subagent model 'ghost'" in result.detail
+    assert not backend.seen  # nothing was admitted, placed, or run
+    assert await store.get_result("t") == result
+
+
+async def test_the_runner_exposes_its_roster_and_tool_enablement() -> None:
+    # The spawn tool advertises from these (ADR-0018), so they must reflect the wiring.
+    store = InMemoryTaskStore()
+    runner = _runner(store, TextBackend(["x"]))
+    assert runner.roster.default == "subagent"
+    assert runner.tools_enabled is False
+    dispatcher = ToolDispatcher(InMemoryToolRegistry({}), RecordingAuditSink(), FixedClock())
+    assert _runner(store, TextBackend(["x"]), tools=dispatcher).tools_enabled is True

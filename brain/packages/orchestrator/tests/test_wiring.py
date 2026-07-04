@@ -22,7 +22,9 @@ from cortex_core import (
     PlacementTarget,
     ResourceBudgetScheduler,
     SpawnSubagentsTool,
+    SubagentProfile,
     SubagentResources,
+    SubagentRoster,
     SubagentRunner,
     SystemClock,
     ToolCall,
@@ -404,7 +406,8 @@ def _spawn_tool() -> SpawnSubagentsTool:
         placer=VramBudgetPlacer(soft_cap_gb=14.0, cortex_reservation_gb=11.3),
         request=PlacementRequest("s", vram_gb=2.0, cpus=2.0, memory_gb=2.0),
     )
-    return SpawnSubagentsTool(SubagentRunner(store, resources, SystemClock()), store, SystemClock())
+    roster = SubagentRoster(entries={"s": SubagentProfile(resources=resources)}, default="s")
+    return SpawnSubagentsTool(SubagentRunner(store, roster, SystemClock()), store, SystemClock())
 
 
 def _read_registry() -> InMemoryToolRegistry:

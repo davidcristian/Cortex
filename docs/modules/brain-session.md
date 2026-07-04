@@ -37,7 +37,11 @@ Task state uses two string keys per delegation: `cortex:task:{id}` (the `Subagen
 `cortex:task:{id}:result` (the `SubagentResult`), each one JSON document written with a **1-hour
 TTL**. Task state is *hot and ephemeral* (it lives only for the in-flight delegation, written
 and read back by one deployment within one turn), so unlike session/memory records it carries
-**no `v`/`kind` markers**. Timestamps preserve their offset the same way.
+**no `v`/`kind` markers**. Timestamps preserve their offset the same way. The whole record
+round-trips, with a task's `model`/`tainted` and a result's `tainted` included (ADR-0018): the
+resolution inputs and the taint verdict are exactly what must survive a restart or swap
+mid-delegation (taint that did not would fail open), and both decode strictly (a missing key is
+a corrupt record, no legacy paths, since ephemeral records need none).
 
 **Record evolution policy.**
 - *New optional keys are safe*: the reader touches only the keys it knows, so extra
