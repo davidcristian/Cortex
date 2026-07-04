@@ -1,9 +1,10 @@
 """Composition root: build the runtime dependencies at the edge, then serve.
 
 The one place that reads config and picks adapters (DI at the edge, AGENTS.md).
-The per-capability builders live in `builders.py`. There is one per port, each returning
-the dependency plus its closer; this module only reads the env configs, calls
-them, hands the `TurnEngine` its ports, and releases everything on the way out:
+The per-capability builders live in `builders.py` (and `subagent_builders.py` for
+delegation), one per port, each returning the dependency plus its closer; this
+module only reads the env configs, calls them, hands the `TurnEngine` its ports,
+and releases everything on the way out:
 
 - SessionStore  -> `RedisSessionStore` over CORTEX_REDIS_URL, holding the state that
   survives restarts and model swaps (the one hard rule).
@@ -26,7 +27,6 @@ from cortex_orchestrator.builders import (
     build_inference_backend,
     build_memory,
     build_output_guardrail,
-    build_subagents,
     build_tool_registry,
 )
 from cortex_orchestrator.config import (
@@ -38,6 +38,7 @@ from cortex_orchestrator.config import (
     ToolsConfig,
 )
 from cortex_orchestrator.server import serve
+from cortex_orchestrator.subagent_builders import build_subagents
 from cortex_session import RedisSessionStore
 
 
