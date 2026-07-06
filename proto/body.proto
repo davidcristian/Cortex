@@ -19,6 +19,12 @@ service BrainService {
 
   // Liveness/readiness for the overlay to display connection state.
   rpc Health(HealthRequest) returns (HealthReply);
+
+  // Read-only views of the durable session store (ADR-0021): the overlay's chat
+  // list + switcher + cycling. Snapshots, not streams; they add no write path and
+  // so cannot touch the one hard rule beyond reading what the store already holds.
+  rpc ListSessions(ListSessionsRequest) returns (ListSessionsReply);
+  rpc GetSessionMessages(GetSessionMessagesRequest) returns (GetSessionMessagesReply);
 }
 
 message ClientEvent {
@@ -54,6 +60,27 @@ message SeamError { string code = 1; string message = 2; }
 
 message HealthRequest {}
 message HealthReply { bool ready = 1; string detail = 2; }
+
+// Recent chats, most-recently-active first (ADR-0021). `limit` caps the count;
+// 0 means the server default.
+message ListSessionsRequest { int32 limit = 1; }
+message ListSessionsReply { repeated SessionSummary sessions = 1; }
+message SessionSummary {
+  string session_id = 1;
+  string title = 2;                // derived: first user message, one line, truncated
+  string preview = 3;              // derived: last message text, one line, truncated
+  int64 last_activity_unix_ms = 4; // for a relative timestamp in the switcher
+}
+
+// One session's persisted history, in append order (ADR-0021).
+message GetSessionMessagesRequest { string session_id = 1; }
+message GetSessionMessagesReply { repeated SessionMessage messages = 1; }
+message SessionMessage {
+  string role = 1; // "user" | "assistant" (the only persisted roles)
+  string text = 2;
+  string turn_id = 3;
+  int64 at_unix_ms = 4;
+}
 
 // ---------------------------------------------------------------------------
 // BodyService is hosted by the body (host-native). The brain is the client.

@@ -78,11 +78,22 @@ Config (pydantic-settings; explicit constructor arguments beat the environment):
 
 The service:
 
-- `BrainService(engine: TurnEngine, *, max_buffered_events: int = 256)` is the
-  `BrainServiceServicer` implementation; the engine is injected (DI at the edge), the
-  service holds no state.
+- `BrainService(engine: TurnEngine, store: SessionStore, *, max_buffered_events: int = 256)`
+  is the `BrainServiceServicer` implementation; the engine and the session store are injected
+  (DI at the edge), the service holds no state. `store` is the same instance the engine
+  writes, so the read-only session RPCs serve exactly what turns persist.
   - `Health` → `HealthReply(ready=True, detail="cortex-orchestrator <version>")`.
   - `Converse` is the conversation loop (contract below).
+  - `ListSessions` → `ListSessionsReply` (ADR-0021): recent chats newest-active first via
+    `store.list_sessions`, each a `SessionSummary` (title/preview/last_activity mapped to the
+    wire, timestamps as unix-ms). `request.limit` is clamped by `_clamp_limit` (0/negative →
+    `DEFAULT_SESSION_LIST_LIMIT`, capped at `MAX_SESSION_LIST_LIMIT`).
+  - `GetSessionMessages` → `GetSessionMessagesReply` (ADR-0021): one session's persisted
+    history via `store.history`, each a wire `SessionMessage`; unknown session → empty.
+  - Both read RPCs are unary; a `SessionStoreError` aborts them `UNAVAILABLE` (the body maps
+    that to `TransportError::Rpc`). They add no write path, only reads over existing state.
+- `DEFAULT_SESSION_LIST_LIMIT = 50` / `MAX_SESSION_LIST_LIMIT = 200` are the `ListSessions`
+  limit default and hard cap (ADR-0021).
 - `converse(engine, client_events, *, max_buffered_events=DEFAULT_MAX_BUFFERED_EVENTS)
   -> AsyncGenerator[ServerEvent, None]` is the loop itself, servicer-independent (what
   `BrainService.Converse` delegates to). Closing the generator tears down the stream's
@@ -94,16 +105,16 @@ The service:
 - `ERROR_CODE_SESSION_STORE_UNAVAILABLE` / `ERROR_CODE_INFERENCE_FAILED` /
   `ERROR_CODE_INTERNAL` are the `SeamError.code` values (`"session_store_unavailable"`,
   `"inference_failed"`, `"internal"`).
-- `create_server(config: SeamServerConfig, engine: TurnEngine) -> tuple[grpc.aio.Server, int]`
-  builds the aio server, registers `BrainService(engine)`, binds `config.bind_address`;
+- `create_server(config: SeamServerConfig, engine: TurnEngine, store: SessionStore) -> tuple[grpc.aio.Server, int]`
+  builds the aio server, registers `BrainService(engine, store)`, binds `config.bind_address`;
   returns the not-yet-started server plus the actually-bound port (the OS pick when
   `port=0`; gRPC reports 0 if the bind failed). With `config.token` set it registers the
   `SeamTokenInterceptor` (ADR-0016, `auth.py`): every RPC, unary and streaming, current
   and future, must carry the matching `x-cortex-seam-token` metadata (`SEAM_TOKEN_HEADER`)
   or is aborted `UNAUTHENTICATED` before the servicer runs (constant-time compare, rejection
   shaped to the method). Empty token = no interceptor, the previous server byte for byte.
-- `serve(config: SeamServerConfig, engine: TurnEngine) -> None` (async) starts the
-  server and blocks until SIGTERM/SIGINT or task cancellation; handlers for both signals
+- `serve(config: SeamServerConfig, engine: TurnEngine, store: SessionStore) -> None` (async)
+  starts the server and blocks until SIGTERM/SIGINT or task cancellation; handlers for both signals
   are installed on the running loop for the server's lifetime (removed on exit) and
   trigger the same graceful stop as cancellation: in-flight RPCs drain for up to the 5 s
   grace before the listener closes. SIGTERM is what `docker compose down` delivers.

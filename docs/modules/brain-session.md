@@ -16,6 +16,11 @@ error wrapping; no business logic.
     list.
   - `async history(session_id)` is LRANGE 0..-1, decoded in append order; an unknown
     session is an empty history, not an error.
+  - `async list_sessions(*, limit)` builds the chat list (ADR-0021): ZREVRANGE the recency
+    index for at most `limit` session ids newest-active first, load each session's history
+    (reusing `history`), and derive its `SessionSummary` via the core `summarize_session`
+    (derivation is domain logic, since the adapter only enumerates and translates). A dangling
+    index entry (id present, message list gone) is skipped, not fatal.
   - `async aclose()` closes the underlying client's connections.
 - `RedisTaskStore` implements the `TaskStore` port over redis-py asyncio (ADR-0010), same
   injected-client / `from_url` / `aclose` shape as above:
@@ -31,7 +36,12 @@ error wrapping; no business logic.
 one JSON object per message: `{"v": 1, "kind": "message", "role", "text", "at", "turn_id"}`
 with `at` as an ISO-8601 string carrying its UTC offset. Roundtrip is exact for role,
 text, tz-aware timestamp (offset preserved, not normalized to UTC), and turn id.
-`v`/`kind` are the schema escape hatch for evolving persisted records.
+`v`/`kind` are the schema escape hatch for evolving persisted records. A sorted set
+`cortex:sessions` is the recency index for `list_sessions` (ADR-0021): `append` `ZADD`s the
+session id scored by the message's `at` (last append wins → the score is last-activity),
+and `list_sessions` reads it with `ZREVRANGE`. The N+1 reads it does (one `LRANGE` per
+listed session) are fine for a personal system's recent list; caching each session's
+first/last/length in the index is a deferred perf refinement behind the unchanged port.
 
 Task state uses two string keys per delegation: `cortex:task:{id}` (the `SubagentTask`) and
 `cortex:task:{id}:result` (the `SubagentResult`), each one JSON document written with a **1-hour
@@ -63,9 +73,13 @@ offending record (session: list index + kind/version; task: the key); no `redis.
 type ever crosses the port.
 
 **Contract tests.** `tests/contract.py` is one shared behavior suite (empty history,
-append→history order, multi-session isolation, roundtrip fidelity incl. timezone) run
-against BOTH implementations (`InMemorySessionStore` and `RedisSessionStore` over
-fakeredis) plus fakeredis-injected failure tests for the error wrapping. `tests/task_contract.py`
+append→history order, multi-session isolation, roundtrip fidelity incl. timezone, and
+`list_sessions` recency-ordering + title/preview derivation) run against BOTH
+implementations (`InMemorySessionStore` and `RedisSessionStore` over fakeredis) plus
+fakeredis-injected failure tests for the error wrapping (append, history, list, close) and
+Redis-specific `list_sessions` edges (empty store, limit, dangling index entry). The
+`list_sessions` check filters the global list to the ids it created, so it is safe against
+a shared live server. `tests/task_contract.py`
 does the same for the `TaskStore` (missing→None, task/result round-trip, timezone fidelity) over
 `InMemoryTaskStore` and `RedisTaskStore`, plus disconnected/corrupt-record failure tests. The
 integration-marked test in `tests/test_store_live.py` runs the session suite against real

@@ -19,11 +19,21 @@ from typing import cast
 from redis.asyncio import Redis
 from redis.exceptions import RedisError
 
-from cortex_core import Message, Role, SessionStoreError
+from cortex_core import (
+    Message,
+    Role,
+    SessionStoreError,
+    SessionSummary,
+    summarize_session,
+)
 
 # The dictated connection default; deployments override via CORTEX_REDIS_URL, which is
 # read by the composition root (the orchestrator's settings), never by this adapter.
 DEFAULT_REDIS_URL = "redis://127.0.0.1:6379/0"
+
+# The recency index for `list_sessions` (ADR-0021): a sorted set of session ids scored
+# by last-activity unix time, maintained on `append` alongside the per-session list.
+_SESSIONS_KEY = "cortex:sessions"
 
 # The record schema this writer emits and the ONLY combination this reader accepts.
 # Records missing the markers decode as this combination (pre-versioning writers).
@@ -98,9 +108,10 @@ class RedisSessionStore:
             raise SessionStoreError(msg) from err
 
     async def append(self, session_id: str, message: Message) -> None:
-        """Persist one message at the end of the session's history."""
+        """Persist one message and refresh the session's recency-index score (ADR-0021)."""
         try:
             await self._client.rpush(_key(session_id), _encode(message))
+            await self._client.zadd(_SESSIONS_KEY, {session_id: message.at.timestamp()})
         except RedisError as err:
             msg = f"append to session {session_id!r} failed"
             raise SessionStoreError(msg) from err
@@ -113,3 +124,31 @@ class RedisSessionStore:
             msg = f"history read for session {session_id!r} failed"
             raise SessionStoreError(msg) from err
         return tuple(_decode(item, index) for index, item in enumerate(raw))
+
+    async def list_sessions(self, *, limit: int) -> Sequence[SessionSummary]:
+        """Return at most ``limit`` recent chats, most-recently-active first (ADR-0021).
+
+        Reads the recency index newest-first, then loads each session's history (reusing
+        `history`, so its decode + error wrapping apply) and derives the summary in the
+        core. A session id whose list is empty (a dangling index entry, e.g. after a
+        future deletion) is skipped rather than crashing the whole list.
+        """
+        try:
+            # zrevrange's return type is a partially-Any union (scores/without-scores
+            # overloads); this no-scores call yields members, cast to bytes below.
+            raw_ids = await self._client.zrevrange(  # pyright: ignore[reportUnknownMemberType]
+                _SESSIONS_KEY, 0, limit - 1
+            )
+        except RedisError as err:
+            msg = "listing sessions failed"
+            raise SessionStoreError(msg) from err
+        # Members come back as bytes (this client leaves decode_responses off, as the
+        # message reads below rely on); the cast pins that so decoding needs no type branch.
+        ids = cast("list[bytes]", raw_ids)
+        summaries: list[SessionSummary] = []
+        for raw_id in ids:
+            session_id = raw_id.decode("utf-8")
+            messages = await self.history(session_id)
+            if messages:
+                summaries.append(summarize_session(session_id, messages))
+        return tuple(summaries)

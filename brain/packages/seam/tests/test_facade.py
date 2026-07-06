@@ -35,6 +35,26 @@ def test_image_blob_preserves_bytes_and_metadata() -> None:
     assert (decoded.width, decoded.height) == (8, 6)
 
 
+def test_session_summary_round_trips_on_the_wire() -> None:
+    summary = cortex_seam.SessionSummary(
+        session_id="s-1", title="about cats", preview="cats are great", last_activity_unix_ms=1234
+    )
+    decoded = cortex_seam.SessionSummary.FromString(summary.SerializeToString())
+    assert decoded == summary
+    assert decoded.session_id == "s-1"
+    assert decoded.last_activity_unix_ms == 1234
+
+
+def test_session_message_round_trips_on_the_wire() -> None:
+    message = cortex_seam.SessionMessage(
+        role="assistant", text="hello", turn_id="t-1", at_unix_ms=99
+    )
+    reply = cortex_seam.GetSessionMessagesReply(messages=[message])
+    decoded = cortex_seam.GetSessionMessagesReply.FromString(reply.SerializeToString())
+    assert list(decoded.messages) == [message]
+    assert decoded.messages[0].role == "assistant"
+
+
 def test_every_advertised_name_is_importable() -> None:
     exported = [getattr(cortex_seam, name) for name in cortex_seam.__all__]
     assert all(obj is not None for obj in exported)

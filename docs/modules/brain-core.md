@@ -36,6 +36,16 @@ Conversation domain (Slice 3):
   backend; `InferenceEvent` is the union `TextChunk | ReasoningChunk | ToolCall`, what an
   `InferenceBackend` yields (ADR-0009/0020).
 
+Session listing (Slice 8.7, ADR-0021; `sessions.py`):
+
+- `SessionSummary` is a frozen dataclass: `session_id: str`, `title: str`, `preview: str`,
+  `last_activity: datetime`. One recent chat as the overlay's switcher shows it; `title`/
+  `preview` are already derived (one line, truncated), `last_activity` tz-aware.
+- `summarize_session(session_id, messages) -> SessionSummary` is the pure derivation both
+  `SessionStore` implementations share (so the rule never drifts): `title` from the first
+  message, `preview` from the last, `last_activity` from the last's `at`; each collapsed to
+  one line and truncated (`TITLE_MAX` / `PREVIEW_MAX`). Requires a non-empty history.
+
 Model management (Slice 4, ADR-0007):
 
 - `ModelLease` is a frozen dataclass: `endpoint: str`. A live claim on the GPU for one
@@ -180,7 +190,9 @@ Output guardrail (ADR-0015; the pure laundering defense built from the redactor 
 Ports (`typing.Protocol`; failures cross them only as the typed errors below):
 
 - `SessionStore` provides `async append(session_id, message) -> None`,
-  `async history(session_id) -> Sequence[Message]` (append order; empty when unknown).
+  `async history(session_id) -> Sequence[Message]` (append order; empty when unknown),
+  `async list_sessions(*, limit) -> Sequence[SessionSummary]` (recent chats newest-active
+  first, at most `limit`; ADR-0021 adds a read over the same state, no write path).
   The source of truth for conversation state; survives swaps and restarts.
 - `InferenceBackend` has `stream(model, messages, *, tools=()) -> AsyncIterator[InferenceEvent]`:
   one stateless streamed completion, yielding `TextChunk` deltas interleaved with `ToolCall`s
@@ -382,8 +394,9 @@ Use-case:
 
 Reference implementations (pure, shipped in core; the runtime wiring until Slice 4):
 
-- `InMemorySessionStore` is a dict-backed `SessionStore`; contract-test twin of the Redis
-  adapter (`cortex_session`), intentionally does not survive a restart.
+- `InMemorySessionStore` is a dict-backed `SessionStore` (append/history/`list_sessions`);
+  contract-test twin of the Redis adapter (`cortex_session`), intentionally does not
+  survive a restart.
 - `EchoInferenceBackend` is the scripted fake: for a history with `n` user messages
   (including the current one, counted from the store-backed history alone) whose
   latest user text is `T`, streams exactly `"reply {n}: {T}"` as three `TextChunk`s
