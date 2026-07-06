@@ -17,7 +17,7 @@ from cortex_core.errors import InferenceError
 from cortex_core.ports import Clock, InferenceBackend, TaskStore
 from cortex_core.roster import SubagentResources, SubagentRoster
 from cortex_core.subagents import SubagentResult, SubagentTask
-from cortex_core.tool_loop import ToolLoopContext, stream_tool_loop
+from cortex_core.tool_loop import ReasoningDelta, ToolLoopContext, stream_tool_loop
 from cortex_core.untrusted import TaintLedger, new_nonce, security_preamble_message
 
 
@@ -101,9 +101,12 @@ class SubagentRunner:
         parts: list[str] = []
         try:
             async for delta in stream_tool_loop(backend, res.request.model, working, context):
-                # Append incrementally (not a comprehension) so text produced before a
-                # mid-stream failure survives into the ok=False result below.
-                parts.append(delta)  # noqa: PERF401
+                # A reasoning delta is ephemeral status, never the answer; the subagent tier runs
+                # thinking-off (ADR-0010) so none is expected, but drop one defensively. Append
+                # text incrementally (not a comprehension) so text produced before a mid-stream
+                # failure survives into the ok=False result below.
+                if not isinstance(delta, ReasoningDelta):
+                    parts.append(delta)  # noqa: PERF401
         except InferenceError as err:
             return await self._persist(
                 SubagentResult(

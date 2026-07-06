@@ -608,14 +608,20 @@ behind the unchanged `ToolRegistry`/`ToolDispatcher`/`stream_tool_loop` seams (o
   unchanged `ModelManager` port (consequences).
 - **MTP (multi-token-prediction) model variants.** Deferred until they earn their keep, per
   [ADR-0004](adr/ADR-0004-model-lineup.md).
-- **The cortex gemma-4-12B is a reasoning model** (found during the Slice 6.5 GPU validation,
-  [ADR-0013 addendum](adr/ADR-0013-untrusted-content.md)): it emits `reasoning_content` before
-  `content`, yet the cortex GPU compose does not disable thinking and `LlamaCppBackend` reads only
-  `content`, so a long deliberation streams nothing until it concludes (fine for ordinary prompts,
-  a latency/truncation risk under a heavy think). Options behind the unchanged `InferenceBackend`:
-  disable thinking for the cortex (the subagent `enable_thinking=false` twin), surface
-  `reasoning_content` as a "thinking" status, or budget enough tokens. Decide when the cortex path is
-  next touched.
+- **The cortex reasoning trace is surfaced as a thinking status. This landed 2026-07-06
+  ([ADR-0020](adr/ADR-0020-reasoning-status.md)).** The cortex (gemma-4-12B) emits
+  `reasoning_content` before `content` (found during the Slice 6.5 GPU validation), and thinking
+  stays on for it; `LlamaCppBackend` used to read only `content`, so a long deliberation streamed
+  nothing until it concluded. The chosen option (of disable-thinking / surface / token-budget) is
+  **surface**: `ReasoningChunk` joins the `InferenceEvent` union, the shared `stream_tool_loop`
+  yields `str | ReasoningDelta` (reasoning ephemeral, never persisted or fed back), and the engine
+  maps it to a domain `StatusUpdate(state="thinking", …)` → the wire `ServerEvent.status` the
+  proto/body/overlay already carried but the brain never emitted. CI-gated end to end over the
+  fakes. Remaining behind the same `InferenceBackend`/`TurnCapabilities` seams (ADR-0020 deferred):
+  the **disable-thinking / token-budget** alternatives (still available if a runaway trace needs
+  capping), the **output guardrail over reasoning status** (it scrubs the reply, not the thinking),
+  **`state`-aware overlay treatment** (the reducer shows `detail` for any status today, which is an
+  overlay-gap item), and **reasoning persistence/summarization**.
 
 **Subagents in Slice 7 ([ADR-0010](adr/ADR-0010-subagents.md)):**
 - **Subagent progress reporting over the `Converse` status stream.** v1 delegation is synchronous

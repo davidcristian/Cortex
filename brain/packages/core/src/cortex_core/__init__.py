@@ -21,7 +21,7 @@ from cortex_core.errors import (
     ToolError,
     ToolNotFoundError,
 )
-from cortex_core.events import TextDelta, TurnCompleted, TurnEvent
+from cortex_core.events import StatusUpdate, TextDelta, TurnCompleted, TurnEvent
 from cortex_core.fakes import (
     EchoInferenceBackend,
     HashEmbedder,
@@ -40,7 +40,7 @@ from cortex_core.guardrail import (
     UrlRedactingGuardrail,
     extract_urls,
 )
-from cortex_core.inference import InferenceEvent, TextChunk
+from cortex_core.inference import InferenceEvent, ReasoningChunk, TextChunk
 from cortex_core.memory import GLOBAL_SCOPE, MemoryRecord, ScoredMemory
 from cortex_core.model import ModelLease, SingleResidentModelManager
 from cortex_core.placement import Placement, PlacementRequest, PlacementTarget
@@ -134,6 +134,7 @@ __all__ = [
     "Placement",
     "PlacementRequest",
     "PlacementTarget",
+    "ReasoningChunk",
     "RecordingAuditSink",
     "RecordingConfirmer",
     "ResourceBudgetScheduler",
@@ -146,6 +147,7 @@ __all__ = [
     "SingleResidentModelManager",
     "SkipUnavailableToolRegistry",
     "SpawnSubagentsTool",
+    "StatusUpdate",
     "SubagentPlacer",
     "SubagentProfile",
     "SubagentResources",

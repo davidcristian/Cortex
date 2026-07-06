@@ -2,10 +2,11 @@
 
 ADR-0005: one ``llama-server`` per model, its OpenAI-compatible ``/v1/chat/completions``
 as the adapter surface. This adapter takes a GPU lease from the ``ModelManager``, opens a
-streaming chat completion against the leased endpoint, and yields the assistant text as
-``TextChunk`` deltas plus any ``ToolCall`` the model makes from the offered ``tools``
-(native function-calling, ADR-0009, which needs the server started with ``--jinja``). It is a
-thin HTTP translator with no orchestration and no session state (the one hard rule). Every
+streaming chat completion against the leased endpoint, and yields the assistant reply as
+``TextChunk`` deltas, a reasoning model's thinking as ``ReasoningChunk`` deltas (ADR-0020's
+``reasoning_content``, emitted before the reply), and any ``ToolCall`` the model makes from the
+offered ``tools`` (native function-calling, ADR-0009, needing the server started with ``--jinja``).
+It is a thin HTTP translator with no orchestration and no session state (the one hard rule). Every
 transport, status, or decode failure, and any ``ModelManager`` failure, crosses the port as
 ``InferenceError`` with the cause chained.
 """
@@ -21,6 +22,7 @@ from cortex_core import (
     Message,
     ModelManager,
     ModelManagerError,
+    ReasoningChunk,
     Role,
     TextChunk,
     ToolCall,
@@ -77,8 +79,21 @@ def _to_openai_tools(tools: Sequence[ToolSpec]) -> list[dict[str, object]]:
     ]
 
 
-def _consume_chunk(payload: str, pending: dict[int, _PendingCall]) -> str | None:
-    """Return a chunk's text delta (or ``None``), folding any tool-call fragments into ``pending``.
+def _require_text(value: object, field: str) -> str | None:
+    """A delta text field is a string or absent; anything else fails loud (a non-string is a
+    protocol violation, never silently dropped, matching the store adapter's stance)."""
+    if value is None:
+        return None
+    if not isinstance(value, str):
+        msg = f"non-string {field} in streaming chunk: {value!r}"
+        raise InferenceError(msg)
+    return value
+
+
+def _consume_chunk(payload: str, pending: dict[int, _PendingCall]) -> tuple[str | None, str | None]:
+    """Return a chunk's ``(content, reasoning_content)`` text deltas (either may be ``None``),
+    folding any tool-call fragments into ``pending``. A reasoning model (the cortex, ADR-0020)
+    streams ``reasoning_content`` (its thinking) before ``content`` (its reply); both are surfaced.
 
     Malformed JSON or an unexpected shape raises ``InferenceError``. A silently skipped chunk
     would drop reply text or a tool call, exactly the failure mode the store adapter refuses.
@@ -87,7 +102,7 @@ def _consume_chunk(payload: str, pending: dict[int, _PendingCall]) -> str | None
         data = json.loads(payload)
         choices = data["choices"]
         if not choices:
-            return None
+            return None, None
         delta = choices[0]["delta"]
         for fragment in delta.get("tool_calls", ()):
             slot = pending.setdefault(fragment.get("index", 0), _PendingCall())
@@ -96,15 +111,11 @@ def _consume_chunk(payload: str, pending: dict[int, _PendingCall]) -> str | None
             slot.name = function.get("name") or slot.name
             slot.arguments += function.get("arguments") or ""
         content = delta.get("content")
+        reasoning = delta.get("reasoning_content")
     except (json.JSONDecodeError, KeyError, IndexError, TypeError, AttributeError) as err:
         msg = f"malformed streaming chunk from llama-server: {payload!r}"
         raise InferenceError(msg) from err
-    if content is None:
-        return None
-    if not isinstance(content, str):
-        msg = f"non-string content in streaming chunk: {content!r}"
-        raise InferenceError(msg)
-    return content
+    return _require_text(content, "content"), _require_text(reasoning, "reasoning_content")
 
 
 def _finish_calls(pending: dict[int, _PendingCall]) -> list[ToolCall]:
@@ -156,9 +167,13 @@ class LlamaCppBackend:
                         data = stripped[len(_SSE_DATA_PREFIX) :].strip()
                         if data == _SSE_DONE:
                             break
-                        delta = _consume_chunk(data, pending)
-                        if delta:
-                            yield TextChunk(delta)
+                        content, reasoning = _consume_chunk(data, pending)
+                        # A reasoning model emits its thinking before its reply; keep that order
+                        # (ADR-0020). Either may be present in a chunk, usually not both.
+                        if reasoning:
+                            yield ReasoningChunk(reasoning)
+                        if content:
+                            yield TextChunk(content)
         except ModelManagerError as err:
             msg = f"model manager could not lease {model!r} for inference"
             raise InferenceError(msg) from err
