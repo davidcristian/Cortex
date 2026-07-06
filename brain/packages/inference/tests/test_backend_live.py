@@ -14,7 +14,7 @@ from datetime import UTC, datetime
 import httpx
 import pytest
 
-from cortex_core import Message, Role, SingleResidentModelManager, TextChunk
+from cortex_core import Message, ReasoningChunk, Role, SingleResidentModelManager, TextChunk
 from cortex_inference import LlamaCppBackend
 
 _MODEL = os.environ.get("CORTEX_MODEL_CORTEX", "cortex")
@@ -37,3 +37,30 @@ async def test_llama_cpp_backend_streams_from_a_live_server() -> None:
         events = [event async for event in backend.stream(_MODEL, messages)]
     text = "".join(e.text for e in events if isinstance(e, TextChunk))
     assert text.strip() != ""
+
+
+@pytest.mark.integration
+async def test_reasoning_model_emits_reasoning_before_reply() -> None:
+    """ADR-0020, host-validated 2026-07-06: the resident reasoning cortex (gemma-4-12B, thinking
+    ON) streams reasoning_content, surfaced as ReasoningChunk alongside the reply TextChunks. A
+    reasoning-inducing prompt (the bat-and-ball trap) reliably triggers a trace."""
+    manager = SingleResidentModelManager(_MODEL, _ENDPOINT)
+    messages = [
+        Message(
+            role=Role.USER,
+            text=(
+                "A bat and a ball cost $1.10 together. The bat costs $1 more than the ball. "
+                "How much is the ball? Think it through, then give the answer."
+            ),
+            at=datetime.now(UTC),
+            turn_id="live-reasoning",
+        )
+    ]
+    # No read deadline: a reasoning model may think for a while before the reply.
+    async with httpx.AsyncClient(timeout=httpx.Timeout(60.0, read=None)) as client:
+        backend = LlamaCppBackend(manager, client)
+        events = [event async for event in backend.stream(_MODEL, messages)]
+    reasoning = [e for e in events if isinstance(e, ReasoningChunk)]
+    reply = "".join(e.text for e in events if isinstance(e, TextChunk))
+    assert reasoning, "reasoning_content was not surfaced as ReasoningChunk"
+    assert reply.strip() != ""
