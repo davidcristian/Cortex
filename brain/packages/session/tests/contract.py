@@ -77,9 +77,36 @@ async def check_roundtrip_fidelity(store: SessionStore) -> list[str]:
     return [session_id]
 
 
+async def check_list_sessions_orders_and_summarizes(store: SessionStore) -> list[str]:
+    """list_sessions returns recent chats newest-active first, with a derived title/preview.
+
+    Robust against a shared live server: it filters the global list down to the two sessions
+    it created, then asserts their relative order and summaries. Extra sessions never break
+    it (the filtered sublist of a sorted list is still sorted)."""
+    older, newer = _session_id(), _session_id()
+    early = datetime(2026, 7, 3, 9, 0, tzinfo=UTC)
+    late = datetime(2026, 7, 3, 10, 0, tzinfo=UTC)
+    await store.append(older, make_message(Role.USER, "question about cats", at=early, turn_id="a"))
+    await store.append(older, make_message(Role.ASSISTANT, "cats are great", at=early, turn_id="a"))
+    await store.append(newer, make_message(Role.USER, "question about dogs", at=late, turn_id="b"))
+    mine = [s for s in await store.list_sessions(limit=50) if s.session_id in {older, newer}]
+    assert [s.session_id for s in mine] == [newer, older]  # most-recently-active first
+    by_id = {s.session_id: s for s in mine}
+    # older: title from the first (user) message, preview from the last (assistant) message.
+    assert by_id[older].title == "question about cats"
+    assert by_id[older].preview == "cats are great"
+    assert by_id[older].last_activity == early
+    # newer: one message, so title and preview both come from it.
+    assert by_id[newer].title == "question about dogs"
+    assert by_id[newer].preview == "question about dogs"
+    assert by_id[newer].last_activity == late
+    return [older, newer]
+
+
 ALL_CHECKS = (
     check_empty_history,
     check_append_then_history_order,
     check_multi_session_isolation,
     check_roundtrip_fidelity,
+    check_list_sessions_orders_and_summarizes,
 )

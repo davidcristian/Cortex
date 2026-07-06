@@ -40,15 +40,16 @@ async def _health(stub: BrainServiceStub, metadata: tuple[tuple[str, str], ...])
     return cast("HealthReply", await health(HealthRequest(), metadata=metadata))
 
 
-def _engine() -> TurnEngine:
-    return TurnEngine(InMemorySessionStore(), EchoInferenceBackend(), SystemClock())
+def _engine_and_store() -> tuple[TurnEngine, InMemorySessionStore]:
+    store = InMemorySessionStore()
+    return TurnEngine(store, EchoInferenceBackend(), SystemClock()), store
 
 
 @pytest.fixture
 async def token_server() -> AsyncIterator[str]:
     """A BrainService requiring the seam token, on an ephemeral loopback port."""
     config = SeamServerConfig(host="127.0.0.1", port=0, token=_TOKEN)
-    server, port = create_server(config, _engine())
+    server, port = create_server(config, *_engine_and_store())
     await server.start()
     yield f"127.0.0.1:{port}"
     await server.stop(grace=None)

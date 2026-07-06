@@ -14,6 +14,7 @@ from cortex_core.inference import InferenceEvent
 from cortex_core.memory import MemoryRecord, ScoredMemory
 from cortex_core.model import ModelLease
 from cortex_core.placement import Placement, PlacementRequest
+from cortex_core.sessions import SessionSummary
 from cortex_core.subagents import SubagentResult, SubagentTask
 from cortex_core.tools import ConfirmationRequest, ToolCall, ToolInvocation, ToolResult, ToolSpec
 
@@ -25,12 +26,17 @@ class SessionStore(Protocol):
     process or the orchestrator may hold a message only for the in-flight turn.
     ``append`` persists one message at the end of a session's history; ``history``
     returns that session's full history in append order (empty when unknown).
-    Failures surface as ``SessionStoreError``.
+    ``list_sessions`` returns at most ``limit`` recent chats, most-recently-active first,
+    as ``SessionSummary`` values (ADR-0021) for the overlay's chat list/switcher/cycling;
+    it is a read over the same state, adding no write path. Failures surface as
+    ``SessionStoreError``.
     """
 
     async def append(self, session_id: str, message: Message) -> None: ...
 
     async def history(self, session_id: str) -> Sequence[Message]: ...
+
+    async def list_sessions(self, *, limit: int) -> Sequence[SessionSummary]: ...
 
 
 class InferenceBackend(Protocol):

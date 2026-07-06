@@ -18,6 +18,7 @@ from cortex_core import (
     ReasoningChunk,
     Role,
     SessionStoreError,
+    SessionSummary,
     SystemClock,
     TextChunk,
     ToolSpec,
@@ -77,6 +78,10 @@ class CountingFailingStore:
 
     async def history(self, session_id: str) -> Sequence[Message]:
         del session_id
+        return ()
+
+    async def list_sessions(self, *, limit: int) -> Sequence[SessionSummary]:
+        del limit
         return ()
 
 

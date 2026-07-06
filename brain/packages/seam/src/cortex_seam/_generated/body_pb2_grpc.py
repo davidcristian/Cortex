@@ -47,6 +47,16 @@ class BrainServiceStub:
                 request_serializer=cortex__seam_dot___generated_dot_body__pb2.HealthRequest.SerializeToString,
                 response_deserializer=cortex__seam_dot___generated_dot_body__pb2.HealthReply.FromString,
                 _registered_method=True)
+        self.ListSessions = channel.unary_unary(
+                '/cortex.seam.v1.BrainService/ListSessions',
+                request_serializer=cortex__seam_dot___generated_dot_body__pb2.ListSessionsRequest.SerializeToString,
+                response_deserializer=cortex__seam_dot___generated_dot_body__pb2.ListSessionsReply.FromString,
+                _registered_method=True)
+        self.GetSessionMessages = channel.unary_unary(
+                '/cortex.seam.v1.BrainService/GetSessionMessages',
+                request_serializer=cortex__seam_dot___generated_dot_body__pb2.GetSessionMessagesRequest.SerializeToString,
+                response_deserializer=cortex__seam_dot___generated_dot_body__pb2.GetSessionMessagesReply.FromString,
+                _registered_method=True)
 
 
 class BrainServiceServicer:
@@ -71,6 +81,21 @@ class BrainServiceServicer:
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def ListSessions(self, request, context):
+        """Read-only views of the durable session store (ADR-0021): the overlay's chat
+        list + switcher + cycling. Snapshots, not streams; they add no write path and
+        so cannot touch the one hard rule beyond reading what the store already holds.
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def GetSessionMessages(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
 
 def add_BrainServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
@@ -83,6 +108,16 @@ def add_BrainServiceServicer_to_server(servicer, server):
                     servicer.Health,
                     request_deserializer=cortex__seam_dot___generated_dot_body__pb2.HealthRequest.FromString,
                     response_serializer=cortex__seam_dot___generated_dot_body__pb2.HealthReply.SerializeToString,
+            ),
+            'ListSessions': grpc.unary_unary_rpc_method_handler(
+                    servicer.ListSessions,
+                    request_deserializer=cortex__seam_dot___generated_dot_body__pb2.ListSessionsRequest.FromString,
+                    response_serializer=cortex__seam_dot___generated_dot_body__pb2.ListSessionsReply.SerializeToString,
+            ),
+            'GetSessionMessages': grpc.unary_unary_rpc_method_handler(
+                    servicer.GetSessionMessages,
+                    request_deserializer=cortex__seam_dot___generated_dot_body__pb2.GetSessionMessagesRequest.FromString,
+                    response_serializer=cortex__seam_dot___generated_dot_body__pb2.GetSessionMessagesReply.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -142,6 +177,60 @@ class BrainService:
             '/cortex.seam.v1.BrainService/Health',
             cortex__seam_dot___generated_dot_body__pb2.HealthRequest.SerializeToString,
             cortex__seam_dot___generated_dot_body__pb2.HealthReply.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def ListSessions(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/cortex.seam.v1.BrainService/ListSessions',
+            cortex__seam_dot___generated_dot_body__pb2.ListSessionsRequest.SerializeToString,
+            cortex__seam_dot___generated_dot_body__pb2.ListSessionsReply.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def GetSessionMessages(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/cortex.seam.v1.BrainService/GetSessionMessages',
+            cortex__seam_dot___generated_dot_body__pb2.GetSessionMessagesRequest.SerializeToString,
+            cortex__seam_dot___generated_dot_body__pb2.GetSessionMessagesReply.FromString,
             options,
             channel_credentials,
             insecure,

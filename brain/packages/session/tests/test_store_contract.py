@@ -5,6 +5,7 @@ interchangeable behind the port. That is this slice's ports-before-adapters gate
 """
 
 import json
+from datetime import UTC, datetime
 
 import contract
 import pytest
@@ -38,6 +39,43 @@ async def test_sessions_are_isolated(store: SessionStore) -> None:
 
 async def test_messages_roundtrip_with_timezone_fidelity(store: SessionStore) -> None:
     await contract.check_roundtrip_fidelity(store)
+
+
+async def test_list_sessions_orders_and_summarizes(store: SessionStore) -> None:
+    await contract.check_list_sessions_orders_and_summarizes(store)
+
+
+async def test_list_sessions_is_empty_for_a_store_with_no_sessions(store: SessionStore) -> None:
+    assert list(await store.list_sessions(limit=10)) == []
+
+
+async def test_list_sessions_respects_the_limit(store: SessionStore) -> None:
+    """Only the newest `limit` sessions come back, most-recently-active first."""
+    for hour, session_id in enumerate(("oldest", "middle", "newest")):
+        await store.append(
+            session_id,
+            contract.make_message(
+                Role.USER, session_id, at=datetime(2026, 7, 3, 9 + hour, tzinfo=UTC)
+            ),
+        )
+    summaries = await store.list_sessions(limit=2)
+    assert [s.session_id for s in summaries] == ["newest", "middle"]
+
+
+async def test_list_sessions_skips_a_dangling_index_entry() -> None:
+    """A session id in the recency index whose message list is gone is skipped, not fatal."""
+    client = FakeAsyncRedis(server=FakeServer())
+    store = RedisSessionStore(client)
+    await store.append("real", contract.make_message(Role.USER, "hi"))
+    await client.zadd("cortex:sessions", {"ghost": 9999999999.0})  # indexed, but no messages
+    summaries = await store.list_sessions(limit=10)
+    assert [s.session_id for s in summaries] == ["real"]
+
+
+async def test_connection_failure_on_list_sessions_wraps_the_cause() -> None:
+    with pytest.raises(SessionStoreError, match="listing sessions") as excinfo:
+        await _disconnected_store().list_sessions(limit=10)
+    assert isinstance(excinfo.value.__cause__, redis_exceptions.ConnectionError)
 
 
 def _disconnected_store() -> RedisSessionStore:

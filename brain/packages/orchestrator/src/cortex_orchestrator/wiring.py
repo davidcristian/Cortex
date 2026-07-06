@@ -89,7 +89,7 @@ async def run_from_env(
                 record_tainted_memory=memory_config.on_tainted == "record",
             ),
         )
-        await serve(seam_config, engine)
+        await serve(seam_config, engine, store)
     finally:
         await close_subagents()
         await close_tools()
