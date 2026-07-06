@@ -35,6 +35,11 @@ Thin translation only. No business logic, no retries (retry policy is a later sl
     reuses the same origin split (`status_to_error`, shared with `health`) → `Rpc`/`Connection`;
     an empty `ServerEvent` or a stream that ends before `TurnComplete` → `Protocol`. The
     request stream is built with `async-stream`.
+  - `list_sessions(limit)` / `session_messages(session_id)` (the read-only session views,
+    ADR-0021; `src/sessions.rs`) are unary calls to `BrainService.ListSessions` /
+    `GetSessionMessages` mapping each reply row to a core `SessionSummary` / `SessionMessage`;
+    a non-OK status reuses `status_to_error` → `Rpc`/`Connection` (a store failure is
+    `Rpc{code:"Unavailable"}`). Kept in their own module so `client.rs` stays under the line cap.
   - Every `TransportError::Connection` message folds the error's full `source()` chain
     (e.g. `transport error: tcp connect error: Connection refused (os error 111)`), so
     tonic's opaque `"transport error"` `Display` still names the root cause.

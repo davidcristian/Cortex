@@ -92,6 +92,55 @@ pub struct HealthReply {
     #[prost(string, tag = "2")]
     pub detail: ::prost::alloc::string::String,
 }
+/// Recent chats, most-recently-active first (ADR-0021). `limit` caps the count;
+/// 0 means the server default.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct ListSessionsRequest {
+    #[prost(int32, tag = "1")]
+    pub limit: i32,
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct ListSessionsReply {
+    #[prost(message, repeated, tag = "1")]
+    pub sessions: ::prost::alloc::vec::Vec<SessionSummary>,
+}
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct SessionSummary {
+    #[prost(string, tag = "1")]
+    pub session_id: ::prost::alloc::string::String,
+    /// derived: first user message, one line, truncated
+    #[prost(string, tag = "2")]
+    pub title: ::prost::alloc::string::String,
+    /// derived: last message text, one line, truncated
+    #[prost(string, tag = "3")]
+    pub preview: ::prost::alloc::string::String,
+    /// for a relative timestamp in the switcher
+    #[prost(int64, tag = "4")]
+    pub last_activity_unix_ms: i64,
+}
+/// One session's persisted history, in append order (ADR-0021).
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct GetSessionMessagesRequest {
+    #[prost(string, tag = "1")]
+    pub session_id: ::prost::alloc::string::String,
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct GetSessionMessagesReply {
+    #[prost(message, repeated, tag = "1")]
+    pub messages: ::prost::alloc::vec::Vec<SessionMessage>,
+}
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct SessionMessage {
+    /// "user" | "assistant" are the only persisted roles
+    #[prost(string, tag = "1")]
+    pub role: ::prost::alloc::string::String,
+    #[prost(string, tag = "2")]
+    pub text: ::prost::alloc::string::String,
+    #[prost(string, tag = "3")]
+    pub turn_id: ::prost::alloc::string::String,
+    #[prost(int64, tag = "4")]
+    pub at_unix_ms: i64,
+}
 /// Empty = primary display; later: display index / window handle.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct CaptureScreenRequest {}
@@ -306,6 +355,59 @@ pub mod brain_service_client {
                 .insert(GrpcMethod::new("cortex.seam.v1.BrainService", "Health"));
             self.inner.unary(req, path, codec).await
         }
+        /// Read-only views of the durable session store (ADR-0021): the overlay's chat
+        /// list + switcher + cycling. Snapshots, not streams; they add no write path and
+        /// so cannot touch the one hard rule beyond reading what the store already holds.
+        pub async fn list_sessions(
+            &mut self,
+            request: impl tonic::IntoRequest<super::ListSessionsRequest>,
+        ) -> std::result::Result<
+            tonic::Response<super::ListSessionsReply>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic_prost::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/cortex.seam.v1.BrainService/ListSessions",
+            );
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(GrpcMethod::new("cortex.seam.v1.BrainService", "ListSessions"));
+            self.inner.unary(req, path, codec).await
+        }
+        pub async fn get_session_messages(
+            &mut self,
+            request: impl tonic::IntoRequest<super::GetSessionMessagesRequest>,
+        ) -> std::result::Result<
+            tonic::Response<super::GetSessionMessagesReply>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic_prost::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/cortex.seam.v1.BrainService/GetSessionMessages",
+            );
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(
+                    GrpcMethod::new("cortex.seam.v1.BrainService", "GetSessionMessages"),
+                );
+            self.inner.unary(req, path, codec).await
+        }
     }
 }
 /// Generated server implementations.
@@ -339,6 +441,23 @@ pub mod brain_service_server {
             &self,
             request: tonic::Request<super::HealthRequest>,
         ) -> std::result::Result<tonic::Response<super::HealthReply>, tonic::Status>;
+        /// Read-only views of the durable session store (ADR-0021): the overlay's chat
+        /// list + switcher + cycling. Snapshots, not streams; they add no write path and
+        /// so cannot touch the one hard rule beyond reading what the store already holds.
+        async fn list_sessions(
+            &self,
+            request: tonic::Request<super::ListSessionsRequest>,
+        ) -> std::result::Result<
+            tonic::Response<super::ListSessionsReply>,
+            tonic::Status,
+        >;
+        async fn get_session_messages(
+            &self,
+            request: tonic::Request<super::GetSessionMessagesRequest>,
+        ) -> std::result::Result<
+            tonic::Response<super::GetSessionMessagesReply>,
+            tonic::Status,
+        >;
     }
     /// ---
     ///
@@ -495,6 +614,97 @@ pub mod brain_service_server {
                     let inner = self.inner.clone();
                     let fut = async move {
                         let method = HealthSvc(inner);
+                        let codec = tonic_prost::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            )
+                            .apply_max_message_size_config(
+                                max_decoding_message_size,
+                                max_encoding_message_size,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                "/cortex.seam.v1.BrainService/ListSessions" => {
+                    #[allow(non_camel_case_types)]
+                    struct ListSessionsSvc<T: BrainService>(pub Arc<T>);
+                    impl<
+                        T: BrainService,
+                    > tonic::server::UnaryService<super::ListSessionsRequest>
+                    for ListSessionsSvc<T> {
+                        type Response = super::ListSessionsReply;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::ListSessionsRequest>,
+                        ) -> Self::Future {
+                            let inner = Arc::clone(&self.0);
+                            let fut = async move {
+                                <T as BrainService>::list_sessions(&inner, request).await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let max_decoding_message_size = self.max_decoding_message_size;
+                    let max_encoding_message_size = self.max_encoding_message_size;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let method = ListSessionsSvc(inner);
+                        let codec = tonic_prost::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            )
+                            .apply_max_message_size_config(
+                                max_decoding_message_size,
+                                max_encoding_message_size,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                "/cortex.seam.v1.BrainService/GetSessionMessages" => {
+                    #[allow(non_camel_case_types)]
+                    struct GetSessionMessagesSvc<T: BrainService>(pub Arc<T>);
+                    impl<
+                        T: BrainService,
+                    > tonic::server::UnaryService<super::GetSessionMessagesRequest>
+                    for GetSessionMessagesSvc<T> {
+                        type Response = super::GetSessionMessagesReply;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::GetSessionMessagesRequest>,
+                        ) -> Self::Future {
+                            let inner = Arc::clone(&self.0);
+                            let fut = async move {
+                                <T as BrainService>::get_session_messages(&inner, request)
+                                    .await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let max_decoding_message_size = self.max_decoding_message_size;
+                    let max_encoding_message_size = self.max_encoding_message_size;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let method = GetSessionMessagesSvc(inner);
                         let codec = tonic_prost::ProstCodec::default();
                         let mut grpc = tonic::server::Grpc::new(codec)
                             .apply_compression_config(

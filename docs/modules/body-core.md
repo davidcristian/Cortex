@@ -34,6 +34,11 @@ streaming `converse`), and the `Hotkey` port with the `Accelerator` chord→code
   (`Clone`, `Eq`, `Debug`): `Delta(String)` (assistant text) | `ToolActivity { tool_name,
   summary }` | `Status { state, detail }` | `Complete { turn_id }` (terminal) |
   `Failed { code, message }` (brain-reported turn error; terminal, since the connection is fine).
+- `SessionSummary` / `SessionMessage` are typed core mirrors of the proto session-read messages
+  (`Clone`, `Eq`, `Debug`; ADR-0021). `SessionSummary { session_id, title, preview,
+  last_activity_unix_ms }` is one recent chat as the switcher shows it (title/preview already
+  derived); `SessionMessage { role, text, turn_id, at_unix_ms }` is one persisted message
+  (`role` is `"user"`/`"assistant"`).
 - `BrainTransport` is the body's typed async client port to the brain seam
   (`Send + Sync` supertraits):
   - `health(&self)` returns `impl Future<Output = Result<SeamHealth, TransportError>> +
@@ -43,6 +48,11 @@ streaming `converse`), and the `Hotkey` port with the `Accelerator` chord→code
     so each prompt is a fresh call sharing the `session_id`; dropping the stream cancels).
     `Ok(TurnEvent)` per brain event; `Err(TransportError)` for a transport/protocol failure.
     v1 sends text only. Images (vision) arrive in Slice 10.
+  - `list_sessions(&self, limit)` / `session_messages(&self, session_id)` (ADR-0021) are the
+    read-only session views the overlay's chat list / switcher / cycling load: `Vec<SessionSummary>`
+    newest-active first (at most `limit`; `0` = the brain default) and `Vec<SessionMessage>` in
+    append order. Both `impl Future<... > + Send`; a store failure surfaces as
+    `TransportError::Rpc` (`Unavailable`).
   The gRPC adapter is `body/crates/rpc` (`docs/modules/body-rpc.md`); fakes implement
   the same trait for tests.
 

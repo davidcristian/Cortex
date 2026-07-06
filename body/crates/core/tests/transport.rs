@@ -2,7 +2,9 @@
 //! `TransportError` types plus a contract-style check that `BrainTransport`
 //! works as a generic bound with `Send` futures, exercised through a fake.
 
-use body_core::{BrainTransport, SeamHealth, TransportError, TurnEvent};
+use body_core::{
+    BrainTransport, SeamHealth, SessionMessage, SessionSummary, TransportError, TurnEvent,
+};
 use futures_core::Stream;
 use tokio_stream::StreamExt;
 
@@ -42,6 +44,29 @@ impl BrainTransport for FakeTransport {
                 turn_id: String::from(session_id),
             }),
         ])
+    }
+
+    async fn list_sessions(&self, limit: i32) -> Result<Vec<SessionSummary>, TransportError> {
+        // Canned single row echoing the limit, which is enough to exercise the port shape;
+        // the adapter's row mapping lives in body_rpc's contract tests.
+        Ok(vec![SessionSummary {
+            session_id: String::from("s1"),
+            title: format!("limit {limit}"),
+            preview: String::from("hi"),
+            last_activity_unix_ms: 42,
+        }])
+    }
+
+    async fn session_messages(
+        &self,
+        session_id: &str,
+    ) -> Result<Vec<SessionMessage>, TransportError> {
+        Ok(vec![SessionMessage {
+            role: String::from("user"),
+            text: String::from(session_id),
+            turn_id: String::from("t"),
+            at_unix_ms: 7,
+        }])
     }
 }
 
@@ -286,4 +311,77 @@ fn error_equality_compares_variant_and_payload() {
             message: String::from("a"),
         }
     );
+}
+
+#[tokio::test]
+async fn fake_transport_lists_sessions_through_the_generic_bound() {
+    async fn probe<T: BrainTransport>(t: &T, limit: i32) -> Vec<SessionSummary> {
+        t.list_sessions(limit).await.unwrap()
+    }
+    let fake = FakeTransport {
+        script: Ok(SeamHealth {
+            ready: true,
+            detail: String::new(),
+        }),
+    };
+    let sessions = assert_send(probe(&fake, 3)).await;
+    assert_eq!(sessions.len(), 1);
+    assert_eq!(sessions[0].title, "limit 3");
+    assert_eq!(sessions[0].last_activity_unix_ms, 42);
+}
+
+#[tokio::test]
+async fn fake_transport_reads_session_messages_through_the_generic_bound() {
+    async fn probe<T: BrainTransport>(t: &T, session_id: &str) -> Vec<SessionMessage> {
+        t.session_messages(session_id).await.unwrap()
+    }
+    let fake = FakeTransport {
+        script: Ok(SeamHealth {
+            ready: true,
+            detail: String::new(),
+        }),
+    };
+    let messages = assert_send(probe(&fake, "chat-7")).await;
+    assert_eq!(messages.len(), 1);
+    assert_eq!(messages[0].role, "user");
+    assert_eq!(messages[0].text, "chat-7");
+}
+
+#[test]
+fn session_summary_and_message_are_clone_eq_and_debug() {
+    let summary = SessionSummary {
+        session_id: String::from("s1"),
+        title: String::from("about cats"),
+        preview: String::from("cats are great"),
+        last_activity_unix_ms: 1000,
+    };
+    assert_eq!(summary.clone(), summary);
+    assert_ne!(
+        summary,
+        SessionSummary {
+            session_id: String::from("s2"),
+            ..summary.clone()
+        }
+    );
+    let summary_debug = format!("{summary:?}");
+    assert!(summary_debug.contains("SessionSummary"), "{summary_debug}");
+    assert!(summary_debug.contains("about cats"), "{summary_debug}");
+
+    let message = SessionMessage {
+        role: String::from("user"),
+        text: String::from("hi"),
+        turn_id: String::from("t-1"),
+        at_unix_ms: 7,
+    };
+    assert_eq!(message.clone(), message);
+    assert_ne!(
+        message,
+        SessionMessage {
+            text: String::from("bye"),
+            ..message.clone()
+        }
+    );
+    let message_debug = format!("{message:?}");
+    assert!(message_debug.contains("SessionMessage"), "{message_debug}");
+    assert!(message_debug.contains("user"), "{message_debug}");
 }
