@@ -155,11 +155,11 @@ class TurnEngine:
         working = list(await self._inference_messages(text, history, session_id, context))
         parts: list[str] = []
         # The output guardrail (ADR-0015) filters what the user sees AND what is persisted:
-        # the reply on record is the reply that was shown. The turn's untrusted-URL set is
-        # passed live (it grows as tool results arrive); the user's own URLs are theirs to
-        # see again, so they are allowlisted.
+        # the reply on record is the reply that was shown. The turn's taint ledger is passed
+        # live (its URL set and tainted bit both grow as tool results arrive); the user's own
+        # URLs are theirs to see again, so they are allowlisted.
         guard: OutputFilter | None = (
-            self._caps.guardrail.open(taint.untrusted_urls, allow=extract_urls(text))
+            self._caps.guardrail.open(taint, allow=extract_urls(text))
             if self._caps.guardrail is not None
             else None
         )

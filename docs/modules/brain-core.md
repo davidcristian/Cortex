@@ -137,26 +137,36 @@ Untrusted-content boundary (Slice 6.5, ADR-0013; the pure primitives in `untrust
   result; `observe(result)` (what the shared loop calls) marks AND collects an untrusted
   result's URLs; `ingest_untrusted(content)` is the non-tool twin (ADR-0019). The engine calls it
   for a recalled tainted memory so it taints and contributes URLs like a live untrusted result.
-  Reconstructed each turn, never persisted.
+  Reconstructed each turn, never persisted. Structurally satisfies `TaintView` (below), so the
+  engine passes the live ledger straight to `OutputGuardrail.open`.
 - `ToolLoopContext` is a frozen bundle of a tool loop's per-invocation collaborators (`dispatcher`,
   `clock`, `turn_id`, `taint`, `nonce`), keeping `stream_tool_loop` under its argument ceiling.
 
 Output guardrail (ADR-0015; the pure laundering defense in `guardrail.py`):
 
-- `extract_urls(text) -> frozenset[str]` finds every absolute http(s) URL in `text`, normalized for
-  identity (scheme+authority lowercased, trailing prose punctuation dropped, path/query case
-  kept). Both sides of the defense use it for collection (`TaintLedger.observe`) and the
-  user-message allowlist, so a collected URL and its reappearance always compare equal.
-- `OutputGuardrail` (protocol) has `open(untrusted_urls, *, allow) -> OutputFilter`: one turn's
-  filter over the turn's **live** untrusted-URL set (it grows as results arrive) and the URLs
-  the user's own message carried.
+- `extract_urls(text) -> frozenset[str]` finds every clickable http(s)/`mailto:` URL in `text`,
+  normalized for identity (scheme+authority lowercased, trailing prose punctuation dropped,
+  path/query case kept; a `mailto:` has no `://` so it folds whole). Both sides of the defense
+  use it (collection via `TaintLedger.observe`, and the user-message allowlist), so a collected
+  URL and its reappearance always compare equal. Bare addresses/domains and other schemes stay
+  out (they would over-redact prose).
+- `TaintView` (protocol) exposes the **live** taint signals the guardrail reads at scan time
+  (`tainted: bool`, `untrusted_urls: AbstractSet[str]`); the turn's `TaintLedger` already
+  satisfies it structurally (guardrail cannot import `untrusted`, which imports it).
+- `OutputGuardrail` (protocol) has `open(taint, *, allow) -> OutputFilter`: one turn's filter over
+  the turn's live `TaintView` (both fields grow as results arrive) and the URLs the user's own
+  message carried.
 - `OutputFilter` (protocol) provides `feed(chunk) -> str` (the scrubbed text safe to emit now; an
-  ambiguous suffix (a URL still growing, a partial `http(s)://`) is carried) and
+  ambiguous suffix (a URL still growing, a partial `http(s)://`/`mailto:`) is carried) and
   `flush() -> str` (end of stream resolves the carry).
-- `UrlRedactingGuardrail` is the shipped policy: a URL whose normalized form is in
-  `untrusted_urls − allow` is replaced with `REDACTED_LINK` (`"[link removed: untrusted
-  source]"`, trailing prose punctuation preserved); every other byte passes through. A clean
-  turn (nothing collected) is untouched.
+- `UrlRedactingGuardrail` is the default policy: a URL whose normalized form is in
+  `taint.untrusted_urls − allow` (collected *verbatim* from untrusted content) is replaced with
+  `REDACTED_LINK` (`"[link removed: untrusted source]"`, trailing prose punctuation preserved);
+  every other byte passes through. A clean turn (nothing collected) is untouched.
+- `StrictUrlRedactingGuardrail` (ADR-0015 addendum) is the opt-in policy: on a **tainted** turn
+  (`taint.tainted`), redact *every* URL outside `allow`, not just the verbatim-collected ones,
+  the answer to a model that transforms or reconstructs a laundered link. An untainted turn is
+  untouched, so the model's own recalled links still stream on a clean turn.
 
 Ports (`typing.Protocol`; failures cross them only as the typed errors below):
 
