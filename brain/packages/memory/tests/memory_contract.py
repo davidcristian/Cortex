@@ -9,7 +9,7 @@ Embeddings are float4-exact values so the roundtrip check holds against pgvector
 from datetime import UTC, datetime, timedelta, timezone
 from uuid import uuid4
 
-from cortex_core import MemoryRecord, MemoryStore
+from cortex_core import GLOBAL_SCOPE, MemoryRecord, MemoryStore
 
 _AT = datetime(2026, 7, 3, 12, 0, 0, tzinfo=UTC)
 
@@ -18,8 +18,10 @@ def _id() -> str:
     return f"contract-{uuid4()}"
 
 
-def make_record(text: str, embedding: tuple[float, ...], *, at: datetime = _AT) -> MemoryRecord:
-    return MemoryRecord(id=_id(), text=text, embedding=embedding, at=at)
+def make_record(
+    text: str, embedding: tuple[float, ...], *, at: datetime = _AT, scope: str = GLOBAL_SCOPE
+) -> MemoryRecord:
+    return MemoryRecord(id=_id(), text=text, embedding=embedding, at=at, scope=scope)
 
 
 async def check_empty_search(store: MemoryStore) -> list[str]:
@@ -55,15 +57,31 @@ async def check_roundtrip_fidelity(store: MemoryStore) -> list[str]:
         "unicode ✓ / newline\n",
         (1.0, 0.5, -0.25),
         at=datetime(2026, 7, 3, 17, 45, 30, tzinfo=timezone(timedelta(hours=5, minutes=30))),
+        scope="contract-scope",
     )
     await store.add(original)
-    (hit,) = await store.search((1.0, 0.5, -0.25), k=1)
+    (hit,) = await store.search((1.0, 0.5, -0.25), k=1, scopes=["contract-scope"])
     assert hit.record.id == original.id
     assert hit.record.text == original.text
     assert tuple(hit.record.embedding) == original.embedding
+    assert hit.record.scope == original.scope  # the namespace roundtrips
     # timestamptz normalizes to UTC, so compare the instant (not the original offset).
     assert hit.record.at == original.at
     return [original.id]
+
+
+async def check_scope_filter_isolates_and_unions(store: MemoryStore) -> list[str]:
+    """``scopes`` restricts candidates to those namespaces; ``None`` spans every scope."""
+    a = make_record("scope-a memory", (1.0, 0.0, 0.0), scope=f"contract-a-{uuid4()}")
+    b = make_record("scope-b memory", (1.0, 0.0, 0.0), scope=f"contract-b-{uuid4()}")
+    await store.add(a)
+    await store.add(b)
+    only_a = await store.search((1.0, 0.0, 0.0), k=10, scopes=[a.scope])
+    assert a.id in {hit.record.id for hit in only_a}
+    assert b.id not in {hit.record.id for hit in only_a}  # filtered out by scope
+    both = await store.search((1.0, 0.0, 0.0), k=10, scopes=[a.scope, b.scope])
+    assert {a.id, b.id} <= {hit.record.id for hit in both}  # a union of the two scopes
+    return [a.id, b.id]
 
 
 ALL_CHECKS = (
@@ -71,4 +89,5 @@ ALL_CHECKS = (
     check_ranks_by_similarity,
     check_top_k_truncates,
     check_roundtrip_fidelity,
+    check_scope_filter_isolates_and_unions,
 )

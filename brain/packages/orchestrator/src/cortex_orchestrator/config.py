@@ -11,6 +11,7 @@ from cortex_session import DEFAULT_REDIS_URL
 
 InferenceBackendName = Literal["echo", "llamacpp"]
 MemoryBackendName = Literal["none", "pgvector"]
+MemoryScopeName = Literal["global", "session"]
 ToolsBackendName = Literal["none", "mcp"]
 SubagentsBackendName = Literal["none", "llamacpp"]
 
@@ -109,6 +110,11 @@ class MemoryConfig(BaseSettings):
     run, and the turn behaves exactly as in Slice 3. ``pgvector`` enables it and requires
     ``dsn`` (the Postgres URL) and ``embedder_endpoint`` (the base URL of the CPU embedding
     ``llama-server``).
+
+    ``scope`` (env ``CORTEX_MEMORY_SCOPE``, ADR-0008 scoping addendum) picks the recall
+    namespace policy: ``global`` (the default) keeps the founding one-global-space behavior, so
+    recall spans every conversation; ``session`` isolates each conversation's memory to itself.
+    It applies only when a backend is set; ``none`` records/recalls nothing regardless.
     """
 
     model_config = SettingsConfigDict(env_prefix="CORTEX_MEMORY_")
@@ -117,6 +123,7 @@ class MemoryConfig(BaseSettings):
     dsn: str = ""
     embedder_endpoint: str = ""
     embedder_model: str = "embedding"
+    scope: MemoryScopeName = "global"
 
     @model_validator(mode="after")
     def _pgvector_needs_dsn_and_embedder(self) -> "MemoryConfig":

@@ -109,11 +109,19 @@ class InMemoryMemoryStore:
         """Persist one memory record."""
         self._records.append(record)
 
-    async def search(self, embedding: Sequence[float], *, k: int) -> Sequence[ScoredMemory]:
-        """Return the ``k`` records most similar to ``embedding``, most-similar first."""
+    async def search(
+        self, embedding: Sequence[float], *, k: int, scopes: Sequence[str] | None = None
+    ) -> Sequence[ScoredMemory]:
+        """Return the ``k`` records most similar to ``embedding``, most-similar first.
+
+        ``scopes`` restricts the candidate set to those namespaces (the pgvector
+        ``WHERE scope = ANY`` twin, ADR-0008 addendum); ``None`` ranks over all memories.
+        """
+        allowed = None if scopes is None else set(scopes)
         scored = [
             ScoredMemory(record=record, score=_cosine(embedding, record.embedding))
             for record in self._records
+            if allowed is None or record.scope in allowed
         ]
         scored.sort(key=lambda hit: hit.score, reverse=True)
         return tuple(scored[:k])

@@ -9,11 +9,13 @@ pool (the one hard rule).
 **Public contract** (everything importable from `cortex_memory`; `__all__` is the API):
 
 - `PgVectorMemoryStore(db: Database)` is a `MemoryStore`.
-  - `add(record)` → `INSERT` with `embedding = $3::vector` (the vector passed as a pgvector
-    text literal, e.g. `[0.1,0.2]`).
-  - `search(embedding, *, k)` → `ORDER BY embedding <=> $1::vector LIMIT $2`, mapping each
-    row to `ScoredMemory(record, score = 1 - distance)`, most-similar first. Reads the vector
-    back via `embedding::text`, so no driver-side vector-type registration is needed.
+  - `add(record)` → `INSERT (id, text, embedding, scope, created_at)` with `embedding =
+    $3::vector` (the vector passed as a pgvector text literal, e.g. `[0.1,0.2]`).
+  - `search(embedding, *, k, scopes=None)` → `ORDER BY embedding <=> $1::vector LIMIT $2`,
+    mapping each row to `ScoredMemory(record, score = 1 - distance)`, most-similar first. Reads
+    the vector back via `embedding::text`, so no driver-side vector-type registration is needed.
+    A non-`None` `scopes` adds `WHERE scope = ANY($3)` to filter candidates to those namespaces
+    before ranking (ADR-0008 scoping addendum); `None` ranks over every memory.
   - `aclose()` → releases the pool.
   - `PgVectorMemoryStore.connect(dsn)` (classmethod) → builds a store owning a fresh asyncpg
     pool for `dsn`.
@@ -26,9 +28,12 @@ add/search/close; a malformed result row (missing column, unparseable vector, na
 timestamp) in `search`.
 
 **Schema (host/infra, not the adapter).** `CREATE EXTENSION vector;` + `memories(id text pk,
-text text, embedding vector, created_at timestamptz)`. The `embedding` column is unbounded
-(any dimension) and unindexed (exact cosine scan, fine at personal scale); an ANN index
-(fixed dim) is a later tuning (ADR-0008). Applied by `docker/postgres/init.sql` via
+text text, embedding vector, scope text not null default 'global', created_at timestamptz)` +
+a btree `memories_scope_idx` on `scope`. The `embedding` column is unbounded (any dimension)
+and unindexed (exact cosine scan, fine at personal scale); an ANN index (fixed dim) is a later
+tuning (ADR-0008). `scope` is the memory's namespace (scoping addendum); its `DEFAULT 'global'`
+makes it an additive `ALTER TABLE … ADD COLUMN` on an existing DB, back-filling every old row
+into the global space (migration in the runbook). Applied by `docker/postgres/init.sql` via
 `docker/docker-compose.memory.yml`. pgvector stores float4, so embeddings roundtrip at single
 precision (irrelevant to similarity ranking).
 

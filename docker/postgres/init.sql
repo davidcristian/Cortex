@@ -5,11 +5,21 @@
 -- The embedding column is an UNBOUNDED vector (any dimension) and UNINDEXED: exact cosine
 -- scan, which is fine at personal scale. An ANN index (hnsw/ivfflat) needs a fixed
 -- dimension and is a later tuning step (ADR-0008 risk: index tuning deferred).
+--
+-- `scope` is the memory's namespace (ADR-0008 scoping addendum): `MemoryScope` chooses it
+-- per turn and `search` filters on it (`WHERE scope = ANY`). DEFAULT 'global' makes the
+-- column additive for an existing DB. `ALTER TABLE memories ADD COLUMN scope text NOT NULL
+-- DEFAULT 'global';` back-fills every pre-existing row into the one global space, so an
+-- in-place upgrade keeps recalling exactly as before. The btree indexes the equality filter
+-- (not the still-deferred ANN index on `embedding`).
 CREATE EXTENSION IF NOT EXISTS vector;
 
 CREATE TABLE IF NOT EXISTS memories (
     id         text        PRIMARY KEY,
     text       text        NOT NULL,
     embedding  vector      NOT NULL,
+    scope      text        NOT NULL DEFAULT 'global',
     created_at timestamptz NOT NULL
 );
+
+CREATE INDEX IF NOT EXISTS memories_scope_idx ON memories (scope);

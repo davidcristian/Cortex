@@ -3,6 +3,10 @@
 from dataclasses import dataclass
 from datetime import datetime
 
+# The namespace a memory with no explicit scope belongs to (ADR-0008 scoping addendum).
+# One shared space is the v1 behavior, and what ``GlobalMemoryScope`` keeps recall across.
+GLOBAL_SCOPE = "global"
+
 
 @dataclass(frozen=True, slots=True)
 class MemoryRecord:
@@ -11,13 +15,15 @@ class MemoryRecord:
     ``at`` must be timezone-aware because memory outlives every process and model swap (the one
     hard rule), so a naive timestamp is ambiguous. ``embedding`` is a tuple so the record
     stays immutable and hashable; the caller (``MemoryRecaller``) fills every field, leaving
-    the store a pure translator.
+    the store a pure translator. ``scope`` is the opaque namespace the memory lives in
+    (ADR-0008 scoping addendum), ``GLOBAL_SCOPE`` unless the caller's ``MemoryScope`` chose one.
     """
 
     id: str
     text: str
     embedding: tuple[float, ...]
     at: datetime
+    scope: str = GLOBAL_SCOPE
 
     def __post_init__(self) -> None:
         if self.at.tzinfo is None or self.at.tzinfo.utcoffset(self.at) is None:

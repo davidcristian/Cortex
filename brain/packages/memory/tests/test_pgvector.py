@@ -45,16 +45,17 @@ class FakeDatabase:
         self.closed = True
 
 
-def _record() -> MemoryRecord:
-    return MemoryRecord(id="m-1", text="hi", embedding=(1.0, 0.5), at=_AT)
+def _record(*, scope: str = "global") -> MemoryRecord:
+    return MemoryRecord(id="m-1", text="hi", embedding=(1.0, 0.5), at=_AT, scope=scope)
 
 
-async def test_add_executes_insert_with_a_vector_literal() -> None:
+async def test_add_executes_insert_with_a_vector_literal_and_scope() -> None:
     db = FakeDatabase()
-    await PgVectorMemoryStore(db).add(_record())
+    await PgVectorMemoryStore(db).add(_record(scope="work"))
     sql, args = db.calls[0]
     assert "INSERT INTO memories" in sql
-    assert args == ("m-1", "hi", "[1.0,0.5]", _AT)
+    assert "scope" in sql
+    assert args == ("m-1", "hi", "[1.0,0.5]", "work", _AT)
 
 
 async def test_add_wraps_a_backend_error() -> None:
@@ -66,17 +67,41 @@ async def test_add_wraps_a_backend_error() -> None:
 
 async def test_search_maps_rows_to_scored_memories_and_sends_the_query() -> None:
     rows: list[dict[str, object]] = [
-        {"id": "a", "text": "alpha", "embedding": "[1,0]", "created_at": _AT, "score": 0.9},
-        {"id": "b", "text": "beta", "embedding": "[0,1]", "created_at": _AT, "score": 0.1},
+        {
+            "id": "a",
+            "text": "alpha",
+            "embedding": "[1,0]",
+            "scope": "work",
+            "created_at": _AT,
+            "score": 0.9,
+        },
+        {
+            "id": "b",
+            "text": "beta",
+            "embedding": "[0,1]",
+            "scope": "global",
+            "created_at": _AT,
+            "score": 0.1,
+        },
     ]
     db = FakeDatabase(rows=rows)
     hits = await PgVectorMemoryStore(db).search((1.0, 0.0), k=5)
     assert [hit.record.id for hit in hits] == ["a", "b"]
     assert hits[0].record.embedding == (1.0, 0.0)
+    assert hits[0].record.scope == "work"  # the namespace roundtrips out of the row
     assert hits[0].score == 0.9
     sql, args = db.calls[0]
     assert "ORDER BY embedding <=>" in sql
+    assert "WHERE scope" not in sql  # unscoped search ranks over every memory
     assert args == ("[1.0,0.0]", 5)
+
+
+async def test_scoped_search_filters_by_any_of_the_requested_scopes() -> None:
+    db = FakeDatabase(rows=())
+    await PgVectorMemoryStore(db).search((1.0, 0.0), k=3, scopes=["conv-a", "conv-b"])
+    sql, args = db.calls[0]
+    assert "WHERE scope = ANY($3)" in sql
+    assert args == ("[1.0,0.0]", 3, ["conv-a", "conv-b"])
 
 
 async def test_empty_search_returns_nothing() -> None:

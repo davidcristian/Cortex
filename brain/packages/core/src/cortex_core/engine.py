@@ -105,7 +105,7 @@ class TurnEngine:
         user = Message(role=Role.USER, text=text, at=self._clock.now(), turn_id=turn_id)
         await self._store.append(session_id, user)
         history = await self._store.history(session_id)
-        working = list(await self._inference_messages(text, history, turn_id))
+        working = list(await self._inference_messages(text, history, turn_id, session_id))
         taint = TaintLedger()
         context = ToolLoopContext(
             dispatcher=self._caps.tools,
@@ -147,11 +147,11 @@ class TurnEngine:
         # A turn that read untrusted content is not recorded to memory (ADR-0013): every stored
         # memory then comes from an untainted turn, so recall stays safe to treat as trusted.
         if self._caps.memory is not None and not taint.tainted:
-            await self._caps.memory.record(_render_exchange(text, full_text))
+            await self._caps.memory.record(_render_exchange(text, full_text), session_id=session_id)
         yield TurnCompleted(turn_id=turn_id, full_text=full_text)
 
     async def _inference_messages(
-        self, query: str, history: Sequence[Message], turn_id: str
+        self, query: str, history: Sequence[Message], turn_id: str, session_id: str
     ) -> Sequence[Message]:
         """History (windowed when configured) prefixed with the system context a turn
         needs (ADR-0008/0013/0014).
@@ -169,7 +169,7 @@ class TurnEngine:
         if self._caps.tools is not None:
             prefix.append(security_preamble_message(self._clock.now(), turn_id))
         if self._caps.memory is not None:
-            hits = await self._caps.memory.recall(query, k=DEFAULT_RECALL_K)
+            hits = await self._caps.memory.recall(query, k=DEFAULT_RECALL_K, session_id=session_id)
             if hits:
                 prefix.append(
                     Message(

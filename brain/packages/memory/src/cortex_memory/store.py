@@ -1,10 +1,11 @@
 """PgVectorMemoryStore: the MemoryStore port over Postgres + pgvector (ADR-0008).
 
-One row per memory in ``memories(id, text, embedding vector, created_at)``. ``search`` ranks
-by cosine distance (``<=>``) and returns cosine *similarity* as the score, so it is observably
-interchangeable with ``InMemoryMemoryStore`` behind the port. This adapter only translates
-between the core's values and SQL, with no business logic; every backend failure crosses the
-port as ``MemoryStoreError`` with the cause chained.
+One row per memory in ``memories(id, text, embedding vector, scope, created_at)``. ``search``
+ranks by cosine distance (``<=>``) and returns cosine *similarity* as the score, so it is
+observably interchangeable with ``InMemoryMemoryStore`` behind the port; a non-``None``
+``scopes`` filters candidates to those namespaces first (``WHERE scope = ANY``, ADR-0008
+scoping addendum). This adapter only translates between the core's values and SQL with no business
+logic; every backend failure crosses the port as ``MemoryStoreError`` with the cause chained.
 
 The embedding is passed as a pgvector text literal and cast (``$n::vector``), and read back
 via ``embedding::text``, so no driver-side vector-type registration is needed. Real pools are
@@ -23,12 +24,19 @@ from cortex_core import MemoryRecord, MemoryStoreError, ScoredMemory
 # misuse, and OSError for socket-level failures. All are wrapped as MemoryStoreError.
 _WRAPPED = (asyncpg.PostgresError, asyncpg.InterfaceError, OSError)
 
-_INSERT = "INSERT INTO memories (id, text, embedding, created_at) VALUES ($1, $2, $3::vector, $4)"
-_SEARCH = (
-    "SELECT id, text, embedding::text AS embedding, created_at,"
-    " 1 - (embedding <=> $1::vector) AS score"
-    " FROM memories ORDER BY embedding <=> $1::vector LIMIT $2"
+_INSERT = (
+    "INSERT INTO memories (id, text, embedding, scope, created_at)"
+    " VALUES ($1, $2, $3::vector, $4, $5)"
 )
+# The SELECT list is shared; the scoped variant only adds a WHERE that filters candidates to the
+# requested namespaces before ranking (ADR-0008 scoping addendum). $1/$2 stay the vector/limit in
+# both, so the args tuple's head is identical and only the optional scope list ($3) is appended.
+_SELECT = (
+    "SELECT id, text, embedding::text AS embedding, scope, created_at,"
+    " 1 - (embedding <=> $1::vector) AS score FROM memories"
+)
+_SEARCH_ALL = f"{_SELECT} ORDER BY embedding <=> $1::vector LIMIT $2"
+_SEARCH_SCOPED = f"{_SELECT} WHERE scope = ANY($3) ORDER BY embedding <=> $1::vector LIMIT $2"
 
 
 class Row(Protocol):
@@ -69,6 +77,7 @@ def _to_scored(row: Row) -> ScoredMemory:
         text=row["text"],
         embedding=_from_literal(row["embedding"]),
         at=row["created_at"],
+        scope=row["scope"],
     )
     return ScoredMemory(record=record, score=float(row["score"]))
 
@@ -97,16 +106,31 @@ class PgVectorMemoryStore:
         """Persist one memory record."""
         try:
             await self._db.execute(
-                _INSERT, record.id, record.text, _to_literal(record.embedding), record.at
+                _INSERT,
+                record.id,
+                record.text,
+                _to_literal(record.embedding),
+                record.scope,
+                record.at,
             )
         except _WRAPPED as err:
             msg = f"adding memory {record.id!r} failed"
             raise MemoryStoreError(msg) from err
 
-    async def search(self, embedding: Sequence[float], *, k: int) -> Sequence[ScoredMemory]:
-        """Return the ``k`` records most similar to ``embedding``, most-similar first."""
+    async def search(
+        self, embedding: Sequence[float], *, k: int, scopes: Sequence[str] | None = None
+    ) -> Sequence[ScoredMemory]:
+        """Return the ``k`` records most similar to ``embedding``, most-similar first.
+
+        ``scopes`` (ADR-0008 addendum) filters candidates to those namespaces via
+        ``WHERE scope = ANY``; ``None`` ranks over every memory (the global-space default).
+        """
         try:
-            rows = await self._db.fetch(_SEARCH, _to_literal(embedding), k)
+            literal = _to_literal(embedding)
+            if scopes is None:
+                rows = await self._db.fetch(_SEARCH_ALL, literal, k)
+            else:
+                rows = await self._db.fetch(_SEARCH_SCOPED, literal, k, list(scopes))
             return tuple(_to_scored(row) for row in rows)
         except _WRAPPED as err:
             msg = "memory search failed"
