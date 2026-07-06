@@ -466,6 +466,14 @@ capability gate, and the `Confirmer` round-trip over the seam.
 the body; brain-side `BodyGateway` port + gRPC adapter; the volume tool registers in the
 Slice 6 `ToolRegistry` and dispatches through the existing audited path. "Set volume to
 30%" spoken to the overlay changes host volume.
+
+Volume is the **first, minimal** OS action. It was chosen to prove the brain→body seam with the
+smallest surface. **OS actions are an open-ended, growing set, never a fixed catalog:** each
+later one (brightness, media/transport keys, window & app control, input injection, clipboard,
+launch/focus, …) is another `BodyService` RPC + a `cfg`-gated OS-backend method (`AudioControl`
+is the first of many such capability traits) + an audited tool, all behind the *same*
+`BodyGateway` port and OS-trait seams. New capability, no seam change (AGENTS.md scope policy).
+Any *side-effectful* OS action inherits the Slice 6.5 gate + the Slice 8.8 `Confirmer` for free.
 **Gate proven:** bidirectional seam (brain calls body).
 
 ## Slice 9.5 (Scheduling & proactive reminders)
