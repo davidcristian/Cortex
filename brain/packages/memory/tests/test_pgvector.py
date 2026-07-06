@@ -45,17 +45,21 @@ class FakeDatabase:
         self.closed = True
 
 
-def _record(*, scope: str = "global") -> MemoryRecord:
-    return MemoryRecord(id="m-1", text="hi", embedding=(1.0, 0.5), at=_AT, scope=scope)
+def _record(*, scope: str = "global", tainted: bool = False) -> MemoryRecord:
+    return MemoryRecord(
+        id="m-1", text="hi", embedding=(1.0, 0.5), at=_AT, scope=scope, tainted=tainted
+    )
 
 
-async def test_add_executes_insert_with_a_vector_literal_and_scope() -> None:
+async def test_add_executes_insert_with_a_vector_literal_scope_and_taint() -> None:
     db = FakeDatabase()
-    await PgVectorMemoryStore(db).add(_record(scope="work"))
+    await PgVectorMemoryStore(db).add(_record(scope="work", tainted=True))
     sql, args = db.calls[0]
     assert "INSERT INTO memories" in sql
     assert "scope" in sql
-    assert args == ("m-1", "hi", "[1.0,0.5]", "work", _AT)
+    assert "tainted" in sql
+    # id, text, vector literal, scope, tainted, created_at appear in column order (ADR-0019).
+    assert args == ("m-1", "hi", "[1.0,0.5]", "work", True, _AT)
 
 
 async def test_add_wraps_a_backend_error() -> None:
@@ -72,6 +76,7 @@ async def test_search_maps_rows_to_scored_memories_and_sends_the_query() -> None
             "text": "alpha",
             "embedding": "[1,0]",
             "scope": "work",
+            "tainted": False,
             "created_at": _AT,
             "score": 0.9,
         },
@@ -80,6 +85,7 @@ async def test_search_maps_rows_to_scored_memories_and_sends_the_query() -> None
             "text": "beta",
             "embedding": "[0,1]",
             "scope": "global",
+            "tainted": True,
             "created_at": _AT,
             "score": 0.1,
         },
@@ -89,9 +95,11 @@ async def test_search_maps_rows_to_scored_memories_and_sends_the_query() -> None
     assert [hit.record.id for hit in hits] == ["a", "b"]
     assert hits[0].record.embedding == (1.0, 0.0)
     assert hits[0].record.scope == "work"  # the namespace roundtrips out of the row
+    assert (hits[0].record.tainted, hits[1].record.tainted) == (False, True)  # marker roundtrips
     assert hits[0].score == 0.9
     sql, args = db.calls[0]
     assert "ORDER BY embedding <=>" in sql
+    assert "tainted" in sql  # the marker is selected back
     assert "WHERE scope" not in sql  # unscoped search ranks over every memory
     assert args == ("[1.0,0.0]", 5)
 

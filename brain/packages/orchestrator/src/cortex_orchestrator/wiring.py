@@ -85,6 +85,8 @@ async def run_from_env(
                 tools=tools,
                 window=build_history_window(runtime.history_char_budget),
                 guardrail=build_output_guardrail(runtime.output_guardrail),
+                # The core takes a bool; the composition root maps the string (ADR-0019).
+                record_tainted_memory=memory_config.on_tainted == "record",
             ),
         )
         await serve(seam_config, engine)
