@@ -7,6 +7,7 @@
 
 mod client;
 mod converse;
+mod sessions;
 
 /// Generated tonic/prost stubs for the `cortex.seam.v1` package.
 ///

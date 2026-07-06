@@ -17,7 +17,8 @@ use body_core::{BrainTransport, TransportError, TurnEvent};
 use body_rpc::BrainSeamClient;
 use body_rpc::generated::brain_service_server::{BrainService, BrainServiceServer};
 use body_rpc::generated::{
-    ClientEvent, HealthReply, HealthRequest, SeamError, ServerEvent, StatusUpdate, TextDelta,
+    ClientEvent, GetSessionMessagesReply, GetSessionMessagesRequest, HealthReply, HealthRequest,
+    ListSessionsReply, ListSessionsRequest, SeamError, ServerEvent, StatusUpdate, TextDelta,
     ToolActivity, TurnComplete, client_event, server_event,
 };
 use tokio::net::TcpListener;
@@ -131,6 +132,22 @@ impl BrainService for FakeBrain {
             ready: true,
             detail: String::from("fake brain ready"),
         }))
+    }
+
+    // The session-read RPCs are unused by these converse tests; they exist only to
+    // satisfy the server trait (their own mapping is covered in tests/client.rs).
+    async fn list_sessions(
+        &self,
+        _request: Request<ListSessionsRequest>,
+    ) -> Result<Response<ListSessionsReply>, Status> {
+        Err(Status::unimplemented("not exercised here"))
+    }
+
+    async fn get_session_messages(
+        &self,
+        _request: Request<GetSessionMessagesRequest>,
+    ) -> Result<Response<GetSessionMessagesReply>, Status> {
+        Err(Status::unimplemented("not exercised here"))
     }
 }
 

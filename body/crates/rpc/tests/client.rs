@@ -8,11 +8,15 @@
 use std::net::SocketAddr;
 use std::pin::Pin;
 
-use body_core::{BrainTransport, SeamHealth, TransportError};
+use body_core::{BrainTransport, SeamHealth, SessionMessage, SessionSummary, TransportError};
 use body_rpc::BrainSeamClient;
 use body_rpc::generated::brain_service_client::BrainServiceClient;
 use body_rpc::generated::brain_service_server::{BrainService, BrainServiceServer};
-use body_rpc::generated::{ClientEvent, HealthReply, HealthRequest, ServerEvent};
+use body_rpc::generated::{
+    ClientEvent, GetSessionMessagesReply, GetSessionMessagesRequest, HealthReply, HealthRequest,
+    ListSessionsReply, ListSessionsRequest, ServerEvent, SessionMessage as PbSessionMessage,
+    SessionSummary as PbSessionSummary,
+};
 use tokio::net::TcpListener;
 use tokio::sync::oneshot;
 use tokio::task::JoinHandle;
@@ -36,6 +40,9 @@ enum Script {
 struct FakeBrain {
     script: Script,
     expected_token: Option<&'static str>,
+    /// When set, the read-only session RPCs (ADR-0021) fail `Unavailable` (a
+    /// store-down abort); otherwise they answer with canned rows.
+    sessions_fail: bool,
 }
 
 impl FakeBrain {
@@ -43,6 +50,7 @@ impl FakeBrain {
         Self {
             script,
             expected_token: None,
+            sessions_fail: false,
         }
     }
 }
@@ -75,6 +83,61 @@ impl BrainService for FakeBrain {
             })),
             Script::Failing => Err(Status::internal("scripted failure")),
         }
+    }
+
+    async fn list_sessions(
+        &self,
+        request: Request<ListSessionsRequest>,
+    ) -> Result<Response<ListSessionsReply>, Status> {
+        if self.sessions_fail {
+            return Err(Status::unavailable("store down"));
+        }
+        // Echo the requested limit into the first title so the test can prove the
+        // request field crossed the wire; two rows prove order is preserved.
+        let limit = request.into_inner().limit;
+        Ok(Response::new(ListSessionsReply {
+            sessions: vec![
+                PbSessionSummary {
+                    session_id: String::from("beta"),
+                    title: format!("limit={limit}"),
+                    preview: String::from("newest chat"),
+                    last_activity_unix_ms: 2000,
+                },
+                PbSessionSummary {
+                    session_id: String::from("alpha"),
+                    title: String::from("older chat"),
+                    preview: String::from("oldest chat"),
+                    last_activity_unix_ms: 1000,
+                },
+            ],
+        }))
+    }
+
+    async fn get_session_messages(
+        &self,
+        request: Request<GetSessionMessagesRequest>,
+    ) -> Result<Response<GetSessionMessagesReply>, Status> {
+        if self.sessions_fail {
+            return Err(Status::unavailable("store down"));
+        }
+        // Echo the session id into the first message text (same wire-round-trip proof).
+        let session_id = request.into_inner().session_id;
+        Ok(Response::new(GetSessionMessagesReply {
+            messages: vec![
+                PbSessionMessage {
+                    role: String::from("user"),
+                    text: session_id,
+                    turn_id: String::from("t1"),
+                    at_unix_ms: 1000,
+                },
+                PbSessionMessage {
+                    role: String::from("assistant"),
+                    text: String::from("hi there"),
+                    turn_id: String::from("t1"),
+                    at_unix_ms: 1500,
+                },
+            ],
+        }))
     }
 }
 
@@ -238,6 +301,96 @@ async fn fake_brain_scripts_converse_as_unimplemented() {
         .unwrap_err();
     assert_eq!(status.code(), tonic::Code::Unimplemented);
     assert_eq!(status.message(), "converse lands in a later slice");
+}
+
+#[tokio::test]
+async fn list_sessions_maps_summaries_in_order() {
+    let addr = spawn_fake_brain(FakeBrain::new(Script::Ready))
+        .await
+        .unwrap();
+    let client = BrainSeamClient::connect(&format!("http://{addr}"))
+        .await
+        .unwrap();
+    let sessions = client.list_sessions(7).await.unwrap();
+    assert_eq!(
+        sessions,
+        vec![
+            SessionSummary {
+                session_id: String::from("beta"),
+                title: String::from("limit=7"), // the limit crossed the wire
+                preview: String::from("newest chat"),
+                last_activity_unix_ms: 2000,
+            },
+            SessionSummary {
+                session_id: String::from("alpha"),
+                title: String::from("older chat"),
+                preview: String::from("oldest chat"),
+                last_activity_unix_ms: 1000,
+            },
+        ]
+    );
+}
+
+#[tokio::test]
+async fn session_messages_maps_history_in_order() {
+    let addr = spawn_fake_brain(FakeBrain::new(Script::Ready))
+        .await
+        .unwrap();
+    let client = BrainSeamClient::connect(&format!("http://{addr}"))
+        .await
+        .unwrap();
+    let messages = client.session_messages("chat-9").await.unwrap();
+    assert_eq!(
+        messages,
+        vec![
+            SessionMessage {
+                role: String::from("user"),
+                text: String::from("chat-9"), // the session id crossed the wire
+                turn_id: String::from("t1"),
+                at_unix_ms: 1000,
+            },
+            SessionMessage {
+                role: String::from("assistant"),
+                text: String::from("hi there"),
+                turn_id: String::from("t1"),
+                at_unix_ms: 1500,
+            },
+        ]
+    );
+}
+
+#[tokio::test]
+async fn list_sessions_store_failure_maps_to_the_rpc_variant() {
+    let mut fake = FakeBrain::new(Script::Ready);
+    fake.sessions_fail = true;
+    let addr = spawn_fake_brain(fake).await.unwrap();
+    let client = BrainSeamClient::connect(&format!("http://{addr}"))
+        .await
+        .unwrap();
+    assert_eq!(
+        client.list_sessions(10).await.unwrap_err(),
+        TransportError::Rpc {
+            code: String::from("Unavailable"),
+            message: String::from("store down"),
+        }
+    );
+}
+
+#[tokio::test]
+async fn session_messages_store_failure_maps_to_the_rpc_variant() {
+    let mut fake = FakeBrain::new(Script::Ready);
+    fake.sessions_fail = true;
+    let addr = spawn_fake_brain(fake).await.unwrap();
+    let client = BrainSeamClient::connect(&format!("http://{addr}"))
+        .await
+        .unwrap();
+    assert_eq!(
+        client.session_messages("s").await.unwrap_err(),
+        TransportError::Rpc {
+            code: String::from("Unavailable"),
+            message: String::from("store down"),
+        }
+    );
 }
 
 #[tokio::test]
