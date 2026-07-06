@@ -36,8 +36,11 @@ from cortex_core import (
     CompositeToolRegistry,
     EchoInferenceBackend,
     FilteredToolRegistry,
+    GlobalMemoryScope,
     InferenceBackend,
     MemoryRecaller,
+    MemoryScope,
+    SessionMemoryScope,
     SingleResidentModelManager,
     SkipUnavailableToolRegistry,
     SpawnSubagentsTool,
@@ -49,7 +52,7 @@ from cortex_core import (
 from cortex_embedding import LlamaCppEmbedder
 from cortex_inference import LlamaCppBackend
 from cortex_memory import PgVectorMemoryStore
-from cortex_orchestrator.config import InferenceConfig, MemoryConfig, ToolsConfig
+from cortex_orchestrator.config import InferenceConfig, MemoryConfig, MemoryScopeName, ToolsConfig
 from cortex_tools import LoggingAuditSink, McpToolRegistry
 
 # Connect/write/pool time out fast on a dead server; reads have no deadline, since a
@@ -90,13 +93,26 @@ def build_inference_backend(
     return EchoInferenceBackend(), noop_aclose
 
 
+def memory_scope_from_name(name: MemoryScopeName) -> MemoryScope:
+    """Map ``CORTEX_MEMORY_SCOPE`` to its recall-namespace policy (ADR-0008 scoping addendum).
+
+    ``global`` keeps the founding one-global-space recall (spans conversations); ``session``
+    isolates each conversation's memory to itself. The composition root's one env→core seam
+    for scoping, since the core never reads the string.
+    """
+    if name == "session":
+        return SessionMemoryScope()
+    return GlobalMemoryScope()
+
+
 async def build_memory(
     config: MemoryConfig, clock: Clock
 ) -> tuple[MemoryRecaller | None, Callable[[], Awaitable[None]]]:
     """Pick the memory backend from config; return the recaller (or None) with its closer.
 
     ``none`` disables memory. The DB-less default CI and the no-GPU dev loop run. ``pgvector``
-    connects an asyncpg pool and a CPU embedder client; the returned closer releases both.
+    connects an asyncpg pool and a CPU embedder client; the returned closer releases both. The
+    ``scope`` config selects the recaller's namespace policy (default global, ADR-0008 addendum).
     """
     if config.backend == "pgvector":
         client = httpx.AsyncClient(timeout=httpx.Timeout(_EMBEDDER_TIMEOUT_S))
@@ -107,7 +123,8 @@ async def build_memory(
             await store.aclose()
             await client.aclose()
 
-        return MemoryRecaller(store, embedder, clock), close_memory
+        scope = memory_scope_from_name(config.scope)
+        return MemoryRecaller(store, embedder, clock, scope=scope), close_memory
     return None, noop_aclose
 
 

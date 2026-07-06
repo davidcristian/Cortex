@@ -124,3 +124,58 @@ through commit `96463aa`):
    Proton Bridge secret) would break plug-and-play bring-up. It is now env-overridable as
    `CORTEX_PG_PASSWORD` (compose default `cortex`), so any non-dev deployment can inject a
    real secret via env per gate 5.
+
+## Addendum (2026-07-06): memory scoping as the deferred decision-3 refinement
+
+Decision 3 shipped v1 as **one global memory space** and named per-session / namespaced
+scoping as "a later refinement behind the same port." This addendum delivers it, additively,
+behind the unchanged `MemoryStore`/`Embedder` ports and the `MemoryRecaller` use-case. CI-gated
+end to end over the fakes; the pgvector SQL is host-validated via Docker (as decision 6 requires
+because CI never proves the adapter's SQL).
+
+1. **A memory belongs to a `scope` (an opaque namespace string).** `MemoryRecord` gains
+   `scope: str` (default `GLOBAL_SCOPE = "global"`, appended last so every positional caller and
+   the contract's `make_record` are source-compatible). The scope is a free-form label, not an
+   enum: `"global"`, a `session_id`, or a future `"work"`/`"personal"` namespace all fit the
+   same column. The store is still a pure translator. The caller (the `MemoryRecaller`) sets the
+   scope, exactly as it already sets id/timestamp/embedding.
+
+2. **`search` gains an optional scope filter, defaulting to the v1 behavior.**
+   `MemoryStore.search(embedding, *, k, scopes: Sequence[str] | None = None)`. `None` ranks over
+   **all** memories (the global recall v1 always did, unchanged), a non-`None` sequence restricts
+   the candidate set to those scopes before ranking (pgvector: `WHERE scope = ANY($n)`; the fake:
+   a Python filter). `add` is unchanged (the record carries its scope). No existing caller passes
+   `scopes`, so the default keeps every current path byte-for-byte identical.
+
+3. **The write-scope and read-scopes for a turn come from an injected `MemoryScope` policy, which is
+   the extensible seam.** `MemoryScope` (pure core, `scope.py`, the `HistoryWindow` pattern) maps
+   a turn's `session_id` to `write_scope(session_id) -> str` and
+   `read_scopes(session_id) -> Sequence[str] | None`. Two reference policies ship:
+   - **`GlobalMemoryScope`** (the default, `GLOBAL_MEMORY_SCOPE` singleton) means write to
+     `GLOBAL_SCOPE`, read `None` (all). **v1 behavior exactly**, so recall stays cross-session by
+     default: that is the founding "retrieval that grows across conversations" feature (decision 3)
+     and what the eventual README sells. Scoping is **opt-in**, not a default flip.
+   - **`SessionMemoryScope`** means write to `session_id`, read `(session_id,)`. Each conversation's
+     memory is private to that conversation; recall no longer crosses conversations.
+
+   `MemoryRecaller.__init__` takes `scope=GLOBAL_MEMORY_SCOPE`; `record(text, *, session_id)` and
+   `recall(query, *, k, session_id)` thread the turn's session through the policy. `TurnEngine`
+   already owns `session_id` in `handle_turn` and now passes it to both calls. The store filters,
+   the policy decides, the engine stays dumb: three responsibilities, three seams.
+
+4. **Config selects the policy at the composition root only.** `CORTEX_MEMORY_SCOPE`
+   (`MemoryConfig.scope`) is `global` (default) or `session`; `build_memory` maps it to the policy
+   via `memory_scope_from_name` and injects it into the `MemoryRecaller`. No core code reads env.
+
+5. **Schema + migration.** `init.sql`'s `memories` table gains `scope text NOT NULL DEFAULT
+   'global'` and a btree `memories_scope_idx` (equality filtering, not the still-deferred ANN
+   index). The `DEFAULT 'global'` makes the column additive for an existing dev DB
+   (`ALTER TABLE memories ADD COLUMN scope text NOT NULL DEFAULT 'global';` +
+   `CREATE INDEX …` (runbook)), and back-fills every pre-existing row into the global space, so an
+   in-place upgrade keeps recalling exactly as before.
+
+**Consciously deferred (behind these same seams), recorded in the ROADMAP:** a **session+global
+union** read policy (a `SessionMemoryScope` that also reads `GLOBAL_SCOPE`, once something writes
+durable global facts under scoping, though today nothing does, so the union would be dead); a
+**per-scope retention / eviction** policy; and **cross-scope recall ranking** (weighting a hit by
+which scope it came from). All are `MemoryScope`/`MemoryStore` refinements, none a port change.

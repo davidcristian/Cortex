@@ -24,6 +24,7 @@ from cortex_core import (
     Message,
     RecordingAuditSink,
     Role,
+    SessionMemoryScope,
     SystemClock,
     TextChunk,
     TextDelta,
@@ -319,8 +320,38 @@ async def test_empty_memory_adds_no_context_and_records_the_exchange() -> None:
     _, messages = backend.calls[0]
     assert [m.role for m in messages] == [Role.USER]
     # The completed exchange was recorded to memory at turn end.
-    (recorded,) = await recaller.recall("hello", k=1)
+    (recorded,) = await recaller.recall("hello", k=1, session_id="s")
     assert recorded.record.text == "User: hello\nAssistant: ok"
+
+
+async def test_session_scope_keeps_one_conversations_memory_out_of_another() -> None:
+    # The engine threads its session_id through record/recall, so a session-scoped recaller
+    # confines a conversation's memory to itself (ADR-0008 scoping addendum). Conversation B
+    # sees no system-context message carrying A's recorded exchange.
+    mem_store = InMemoryMemoryStore()
+    recaller = MemoryRecaller(mem_store, HashEmbedder(), SystemClock(), scope=SessionMemoryScope())
+    engine = TurnEngine(
+        InMemorySessionStore(),
+        RecordingBackend(("ok",)),
+        TickingClock(),
+        capabilities=TurnCapabilities(memory=recaller),
+        turn_id_factory=lambda: "t-1",
+    )
+    await _collect(engine.handle_turn("conv-a", "hello"))
+    backend_b = RecordingBackend(("ok",))
+    engine_b = TurnEngine(
+        InMemorySessionStore(),
+        backend_b,
+        TickingClock(),
+        capabilities=TurnCapabilities(memory=recaller),
+        turn_id_factory=lambda: "t-2",
+    )
+    await _collect(engine_b.handle_turn("conv-b", "hello"))
+    _, messages = backend_b.calls[0]
+    assert [m.role for m in messages] == [Role.USER]  # no recalled-memory system message
+    # A recorded in its own scope; B's scope is empty until B records its own turn.
+    assert await recaller.recall("hello", k=5, session_id="conv-a") != ()
+    assert await recaller.recall("hello", k=5, session_id="conv-b") != ()  # only B's own now
 
 
 def _read_tool() -> ToolSpec:
@@ -499,7 +530,7 @@ async def test_tainted_turn_is_not_recorded_to_memory() -> None:
         turn_id_factory=lambda: "t-1",
     )
     await _collect(engine.handle_turn("s", "summarize /x"))
-    assert await recaller.recall("summarize", k=1) == ()  # nothing recorded
+    assert await recaller.recall("summarize", k=1, session_id="s") == ()  # nothing recorded
 
 
 async def _blocked_send(arguments: Mapping[str, object]) -> str:

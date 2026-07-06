@@ -92,16 +92,19 @@ class Embedder(Protocol):
 class MemoryStore(Protocol):
     """Durable, cross-session memory: append one record, retrieve the top-k by similarity.
 
-    ``add`` persists one ``MemoryRecord`` that the caller builds (id, timestamp, embedding),
-    so the store only translates, as ``SessionStore.append`` does. ``search`` returns the
-    ``k`` records whose embeddings are most similar to ``embedding``, most-similar first,
-    ranking over ALL memories (v1 is one global space, ADR-0008). Failures surface as
-    ``MemoryStoreError``.
+    ``add`` persists one ``MemoryRecord`` that the caller builds (id, timestamp, embedding,
+    scope), so the store only translates, as ``SessionStore.append`` does. ``search`` returns
+    the ``k`` records whose embeddings are most similar to ``embedding``, most-similar first;
+    ``scopes`` restricts the candidate set to those namespaces (ADR-0008 scoping addendum) and
+    defaults to ``None``, which ranks over ALL memories, the global-space v1 behavior. Failures
+    surface as ``MemoryStoreError``.
     """
 
     async def add(self, record: MemoryRecord) -> None: ...
 
-    async def search(self, embedding: Sequence[float], *, k: int) -> Sequence[ScoredMemory]: ...
+    async def search(
+        self, embedding: Sequence[float], *, k: int, scopes: Sequence[str] | None = None
+    ) -> Sequence[ScoredMemory]: ...
 
 
 class Clock(Protocol):
