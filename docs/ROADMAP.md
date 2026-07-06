@@ -617,7 +617,10 @@ behind the unchanged `ToolRegistry`/`ToolDispatcher`/`stream_tool_loop` seams (o
   yields `str | ReasoningDelta` (reasoning ephemeral, never persisted or fed back), and the engine
   maps it to a domain `StatusUpdate(state="thinking", …)` → the wire `ServerEvent.status` the
   proto/body/overlay already carried but the brain never emitted. CI-gated end to end over the
-  fakes. Remaining behind the same `InferenceBackend`/`TurnCapabilities` seams (ADR-0020 deferred):
+  fakes; **host-validated via Docker (agent, 2026-07-06, [ADR-0020 addendum](adr/ADR-0020-reasoning-status.md)):**
+  live gemma-4-12B streamed a real reasoning trace surfaced as 326 `StatusUpdate(state="thinking")`
+  events, reply clean and persisted==shown (integration test `test_reasoning_model_emits_reasoning_before_reply`).
+  Remaining behind the same `InferenceBackend`/`TurnCapabilities` seams (ADR-0020 deferred):
   the **disable-thinking / token-budget** alternatives (still available if a runaway trace needs
   capping), the **output guardrail over reasoning status** (it scrubs the reply, not the thinking),
   **`state`-aware overlay treatment** (the reducer shows `detail` for any status today, which is an

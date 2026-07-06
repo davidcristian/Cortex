@@ -94,7 +94,13 @@ cd brain && CORTEX_INFERENCE_ENDPOINT=http://127.0.0.1:8080 \
 
 `--no-cov` matters. The 100% gate in the workspace addopts would otherwise fail the run
 (the same convention as the Redis live test). This streams a real completion through
-`LlamaCppBackend` and asserts non-empty output.
+`LlamaCppBackend` and asserts non-empty output. It also runs
+`test_reasoning_model_emits_reasoning_before_reply` (ADR-0020): with a reasoning-inducing prompt
+(the bat-and-ball trap) the resident reasoning cortex streams `reasoning_content`, which the
+adapter surfaces as `ReasoningChunk` (the model observation CI can't make). Validated 2026-07-06
+(both live tests green); the engine end of the path (reasoning → `StatusUpdate(state="thinking")`,
+326 events on that prompt, reply clean and persisted==shown) is in the
+[ADR-0020 addendum](../adr/ADR-0020-reasoning-status.md).
 
 ## Framing-efficacy probe (Slice 6.5 / ADR-0013, agent-runnable)
 
