@@ -8,7 +8,8 @@ reply of the turn in flight and never the conversation.
 Stream contract (proto/body.proto `BrainService.Converse`):
 
 - `UserTurn` runs one core turn; domain events map onto `ServerEvent`: one
-  `TextDelta` per streamed delta, then `TurnComplete{turn_id}`. `UserTurn.images`
+  `TextDelta` per streamed reply delta, a `StatusUpdate` per reasoning delta
+  (ADR-0020, `state="thinking"`), then `TurnComplete{turn_id}`. `UserTurn.images`
   are ignored in this slice. Multimodal input arrives with vision (Slice 10).
 - Turns run one at a time, but dispatch never blocks on the running turn: a
   `UserTurn` arriving mid-turn is queued and starts when the in-flight turn
@@ -34,8 +35,10 @@ from cortex_core import (
     TurnEngine,
     TurnEvent,
 )
+from cortex_core import StatusUpdate as DomainStatusUpdate
 from cortex_core import TextDelta as DomainTextDelta
 from cortex_seam import ClientEvent, SeamError, ServerEvent, TurnComplete
+from cortex_seam import StatusUpdate as WireStatusUpdate
 from cortex_seam import TextDelta as WireTextDelta
 
 # SeamError.code values are part of the seam contract (the overlay switches on these).
@@ -55,6 +58,8 @@ def _to_server_event(event: TurnEvent) -> ServerEvent:
     """Map one core domain event onto the wire (the core never imports wire code)."""
     if isinstance(event, DomainTextDelta):
         return ServerEvent(text_delta=WireTextDelta(text=event.text))
+    if isinstance(event, DomainStatusUpdate):
+        return ServerEvent(status=WireStatusUpdate(state=event.state, detail=event.detail))
     return ServerEvent(turn_complete=TurnComplete(turn_id=event.turn_id))
 
 

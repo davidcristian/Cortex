@@ -22,9 +22,11 @@ from cortex_core import (
     MemoryRecaller,
     MemoryRecord,
     Message,
+    ReasoningChunk,
     RecordingAuditSink,
     Role,
     SessionMemoryScope,
+    StatusUpdate,
     SystemClock,
     TextChunk,
     TextDelta,
@@ -490,6 +492,27 @@ async def test_tool_loop_stops_at_the_step_bound() -> None:
     assert completed.full_text == ""  # the model only ever called tools, never answered
     assert backend.calls == MAX_TOOL_STEPS  # bounded rather than an infinite loop
     assert len(sink.records) == MAX_TOOL_STEPS
+
+
+async def test_reasoning_deltas_surface_as_thinking_status_and_never_reach_the_reply() -> None:
+    """A reasoning model's thinking (ADR-0020) streams as ephemeral StatusUpdate events: never
+    shown as reply text, accumulated into full_text, nor persisted with the assistant turn."""
+    backend = ScriptedToolBackend(
+        [[ReasoningChunk("let me "), ReasoningChunk("think"), TextChunk("hi")]]
+    )
+    store = InMemorySessionStore()
+    engine = TurnEngine(store, backend, TickingClock(), turn_id_factory=lambda: "t-1")
+    events = await _collect(engine.handle_turn("s", "hey"))
+    assert events == [
+        StatusUpdate(state="thinking", detail="let me "),
+        StatusUpdate(state="thinking", detail="think"),
+        TextDelta("hi"),
+        TurnCompleted(turn_id="t-1", full_text="hi"),
+    ]
+    # The persisted assistant message is the reply alone. The thinking left no trace in the store.
+    history = list(await store.history("s"))
+    assert [m.role for m in history] == [Role.USER, Role.ASSISTANT]
+    assert history[-1].text == "hi"
 
 
 async def test_security_preamble_precedes_a_tool_enabled_turn() -> None:

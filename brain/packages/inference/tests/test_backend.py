@@ -16,6 +16,7 @@ from cortex_core import (
     InferenceError,
     Message,
     ModelUnavailableError,
+    ReasoningChunk,
     Role,
     SingleResidentModelManager,
     TextChunk,
@@ -119,6 +120,41 @@ async def test_non_string_content_raises_inference_error() -> None:
         return httpx.Response(200, content=_sse('{"choices":[{"delta":{"content":123}}]}'))
 
     with pytest.raises(InferenceError, match="non-string content"):
+        await _collect(_backend(handler))
+
+
+async def test_streams_reasoning_before_reply_content() -> None:
+    """A reasoning model (ADR-0020) streams reasoning_content before content; both surface as
+    their own events, thinking first, and a chunk carrying both keeps that order."""
+
+    def handler(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            content=_sse(
+                _chunk({"reasoning_content": "let me think"}),  # reasoning-only
+                _chunk({"reasoning_content": " harder", "content": "the "}),  # both, order kept
+                _chunk({"content": "answer"}),  # content-only
+                "[DONE]",
+            ),
+        )
+
+    stream = _backend(handler).stream("cortex", _messages())
+    events = [event async for event in stream]
+    assert events == [
+        ReasoningChunk("let me think"),
+        ReasoningChunk(" harder"),
+        TextChunk("the "),
+        TextChunk("answer"),
+    ]
+
+
+async def test_non_string_reasoning_content_raises_inference_error() -> None:
+    def handler(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200, content=_sse('{"choices":[{"delta":{"reasoning_content":123}}]}')
+        )
+
+    with pytest.raises(InferenceError, match="non-string reasoning_content"):
         await _collect(_backend(handler))
 
 

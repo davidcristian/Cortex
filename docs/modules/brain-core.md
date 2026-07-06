@@ -28,10 +28,13 @@ Conversation domain (Slice 3):
   message that asked to run tools) and `tool_call_id: str | None = None` (set on a `TOOL`
   result). Rejects naive `at` with `ValueError`, since externalized state must carry its
   timezone. `turn_id` ties a user message to the assistant reply it produced.
-- `TextDelta(text)` / `TurnCompleted(turn_id, full_text)` are frozen domain events;
-  `TurnEvent` is their union (the orchestrator maps them onto the proto's `ServerEvent`).
-- `TextChunk(text)` carries one streamed text delta from a backend; `InferenceEvent` is the union
-  `TextChunk | ToolCall`, what an `InferenceBackend` yields (ADR-0009).
+- `TextDelta(text)` / `StatusUpdate(state, detail)` / `TurnCompleted(turn_id, full_text)` are
+  frozen domain events; `TurnEvent` is their union (the orchestrator maps them onto the proto's
+  `ServerEvent`). `StatusUpdate` is ephemeral mid-turn progress. Its first use (ADR-0020) is a
+  reasoning model's live thinking (`state="thinking"`), never persisted or part of the reply.
+- `TextChunk(text)` / `ReasoningChunk(text)` carries one streamed reply / thinking delta from a
+  backend; `InferenceEvent` is the union `TextChunk | ReasoningChunk | ToolCall`, what an
+  `InferenceBackend` yields (ADR-0009/0020).
 
 Model management (Slice 4, ADR-0007):
 

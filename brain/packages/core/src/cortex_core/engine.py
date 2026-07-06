@@ -15,13 +15,13 @@ from uuid import uuid4
 
 from cortex_core.conversation import Message, Role
 from cortex_core.dispatch import ToolDispatcher
-from cortex_core.events import TextDelta, TurnCompleted, TurnEvent
+from cortex_core.events import StatusUpdate, TextDelta, TurnCompleted, TurnEvent
 from cortex_core.guardrail import OutputFilter, OutputGuardrail, extract_urls
 from cortex_core.memory import ScoredMemory
 from cortex_core.ports import Clock, InferenceBackend, SessionStore
 from cortex_core.recall import MemoryRecaller
 from cortex_core.routing import RoutingHints, Tier, route_turn
-from cortex_core.tool_loop import ToolLoopContext, stream_tool_loop
+from cortex_core.tool_loop import ReasoningDelta, ToolLoopContext, stream_tool_loop
 from cortex_core.untrusted import (
     TaintLedger,
     new_nonce,
@@ -37,6 +37,10 @@ DEFAULT_CORTEX_MODEL = "cortex"
 
 # How many past memories to recall into a turn's context by default (ADR-0008).
 DEFAULT_RECALL_K = 5
+
+# The StatusUpdate.state a reasoning model's live deliberation is surfaced under (ADR-0020).
+# Part of the seam contract: the overlay may switch on it (today it renders the detail either way).
+THINKING_STATE = "thinking"
 
 
 def _uuid4_turn_id() -> str:
@@ -101,10 +105,12 @@ class TurnCapabilities:
 class TurnEngine:
     """The "handle a user turn" use-case, wired only to ports.
 
-    Event contract per turn: zero or more ``TextDelta`` then exactly one
-    ``TurnCompleted``. The user message is persisted before inference starts; the
-    assistant message is persisted only on completion. A consumer that closes the
-    event stream mid-generation keeps the user message and drops the partial reply.
+    Event contract per turn: zero or more ``TextDelta`` / ``StatusUpdate`` (interleaved) then
+    exactly one ``TurnCompleted``. A ``StatusUpdate`` carries ephemeral progress, a reasoning
+    model's live deliberation (ADR-0020, ``state="thinking"``). It is neither filtered as reply
+    text, accumulated into ``full_text``, nor recorded to memory. The user message is persisted
+    before inference starts; the assistant message is persisted only on completion. A consumer
+    that closes the event stream mid-generation keeps the user message and drops the partial reply.
     """
 
     def __init__(
@@ -160,6 +166,11 @@ class TurnEngine:
         loop = stream_tool_loop(self._backend, model, working, context)
         try:
             async for delta in loop:
+                if isinstance(delta, ReasoningDelta):
+                    # A reasoning model's live thinking (ADR-0020): surfaced as ephemeral status,
+                    # never the reply. It therefore skips the guardrail, `parts`, and persistence.
+                    yield StatusUpdate(state=THINKING_STATE, detail=delta.text)
+                    continue
                 shown = delta if guard is None else guard.feed(delta)
                 if not shown:
                     continue

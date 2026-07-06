@@ -6,7 +6,9 @@ with tools available; when the model emits tool calls, dispatch each through the
 ``MAX_TOOL_STEPS``. That loop (inlined in ``handle_turn`` before Slice 7) lives here so both
 callers reuse it verbatim: one loop, one bound, one audited dispatch path. The loop mutates the
 ``working`` message list in place (appending the tool-call and result messages) and yields each
-assistant text delta; the caller accumulates the full answer and decides what to do with deltas.
+assistant reply delta (a ``str``) plus any ``ReasoningDelta`` a reasoning model streams (ADR-0020);
+the caller accumulates the reply text and decides what to do with each (the cortex surfaces
+reasoning as status, a subagent drops it).
 
 The loop is also where the untrusted-content boundary is drawn (ADR-0013): an UNTRUSTED result
 is fenced by ``wrap_untrusted`` before it re-enters the context, the per-turn ``TaintLedger``
@@ -23,6 +25,7 @@ from datetime import datetime
 
 from cortex_core.conversation import Message, Role
 from cortex_core.dispatch import ToolDispatcher
+from cortex_core.inference import ReasoningChunk
 from cortex_core.ports import Clock, InferenceBackend
 from cortex_core.tools import ToolCall, ToolResult, Trust
 from cortex_core.untrusted import TaintLedger, wrap_untrusted
@@ -30,6 +33,17 @@ from cortex_core.untrusted import TaintLedger, wrap_untrusted
 # Upper bound on inference↔tool rounds in one loop (ADR-0009): a safety net against a model
 # that never stops calling tools. On exhaustion the loop ends with the text produced so far.
 MAX_TOOL_STEPS = 8
+
+
+@dataclass(frozen=True, slots=True)
+class ReasoningDelta:
+    """A delta of the model's reasoning trace, surfaced by the loop distinctly from reply text
+    (ADR-0020). The loop's yield vocabulary is ``str`` (reply text) or ``ReasoningDelta``: reply
+    text accumulates into the answer and is persisted, a reasoning delta is ephemeral status and
+    is never added to the assistant message nor fed back into the context.
+    """
+
+    text: str
 
 
 @dataclass(frozen=True, slots=True)
@@ -70,14 +84,17 @@ async def stream_tool_loop(
     model: str,
     working: list[Message],
     context: ToolLoopContext,
-) -> AsyncGenerator[str, None]:
-    """Run the bounded infer↔tool loop over ``working``, yielding assistant text deltas.
+) -> AsyncGenerator[str | ReasoningDelta, None]:
+    """Run the bounded infer↔tool loop over ``working``, yielding reply-text deltas (``str``) and
+    reasoning deltas (``ReasoningDelta``, ADR-0020).
 
     The loop advertises exactly the tools it can dispatch: the dispatcher's tools when present,
     none otherwise. With ``dispatcher`` None (or once the model stops calling tools) the loop
     ends after one inference step. Each tool call is dispatched through the audited dispatcher, with
     gated calls confirmed against the turn's taint (ADR-0013). Its result marks the taint ledger
     and is fed back (fenced when untrusted) as a ``Role.TOOL`` message before re-inference.
+    Reasoning deltas are surfaced live but never join ``step_text``, so they are neither persisted
+    with the assistant message nor fed back into the next step's context.
     """
     dispatcher = context.dispatcher
     specs = await dispatcher.describe_tools() if dispatcher is not None else ()
@@ -90,6 +107,8 @@ async def stream_tool_loop(
             async for event in deltas:
                 if isinstance(event, ToolCall):
                     calls.append(event)
+                elif isinstance(event, ReasoningChunk):
+                    yield ReasoningDelta(event.text)
                 else:
                     step_text.append(event.text)
                     yield event.text

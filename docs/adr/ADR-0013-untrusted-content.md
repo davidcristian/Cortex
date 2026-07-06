@@ -271,10 +271,12 @@ framed case reached a clean summary (`finish=stop`), while the unframed control 
 framing is the reducer, the **gate is the deterministic backstop** (and it is proven in CI).
 
 **Incidental finding (gemma-4-12B is a reasoning model).** It emits `reasoning_content` before
-`content`. The cortex GPU compose does *not* disable thinking and `LlamaCppBackend` reads only
-`content`, so a long adversarial deliberation streams nothing until it concludes (fine for ordinary
+`content`. The cortex GPU compose does *not* disable thinking and `LlamaCppBackend` read only
+`content`, so a long adversarial deliberation streamed nothing until it concluded (fine for ordinary
 prompts (Slice 8), but a latency/truncation risk under a heavy think). Recorded as a deferred
-inference-path refinement (ROADMAP), owned by ADR-0007/ADR-0004, not this slice.
+inference-path refinement (ROADMAP), owned by ADR-0007/ADR-0004. **Landed 2026-07-06 as
+[ADR-0020](ADR-0020-reasoning-status.md):** thinking stays on and the reasoning trace is surfaced
+live as a `StatusUpdate(state="thinking")` rather than dropped.
 
 ## Addendum (2026-07-01): framing is model-dependent and FAILS on the small subagent models
 
