@@ -43,10 +43,10 @@ def test_extract_urls_drops_trailing_prose_punctuation() -> None:
     assert extract_urls(f"Really: {EVIL}!?") == {EVIL}
 
 
-def test_extract_urls_ignores_bare_domains_and_unsupported_schemes() -> None:
-    # Bare domains and other schemes stay out of scope (ADR-0015): matching "setup.py"-shaped
-    # prose or every bare "user@host" would over-redact.
-    assert extract_urls("see evil.example or user@host.example or ftp://x.example") == frozenset()
+def test_extract_urls_ignores_bare_domains_and_addresses() -> None:
+    # Bare domains and bare addresses stay out of scope (ADR-0015): matching "setup.py"-shaped
+    # prose or every bare "user@host" would over-redact. (ftp:// is now in scope. See below.)
+    assert extract_urls("see evil.example or user@host.example") == frozenset()
 
 
 def test_extract_urls_collects_mailto_links_case_folded() -> None:
@@ -263,3 +263,71 @@ def test_defanged_dot_split_across_chunks_is_carried_not_lost() -> None:
     guard = _filter({EVIL})
     assert guard.feed("at https://evil[.") == "at "
     assert guard.feed("]example/report ") == f"{REDACTED_LINK} "
+
+
+# --- Obfuscation-resistant matching: percent-encoding + fullwidth homoglyphs (ADR-0015 third
+# addendum). Both reduce a rewritten link to its plain identity, so a defense inherits them free.
+
+
+def test_extract_urls_percent_decodes_to_a_canonical_identity() -> None:
+    # A percent-escape is decoded on the wire by every browser, so `evil%2ecom` is a clickable
+    # transform of `evil.com`. It normalizes to the same identity (host and path both decoded).
+    assert extract_urls("http://evil%2eexample/re%70ort") == {"http://evil.example/report"}
+
+
+def test_a_percent_encoded_url_and_its_plain_twin_share_one_identity() -> None:
+    assert extract_urls("http://evil%2eexample") == extract_urls("http://evil.example")
+
+
+def test_percent_encoded_transform_of_a_collected_url_is_redacted() -> None:
+    # EVIL was collected plain; the reply percent-encodes it. Redact mode still catches it.
+    guard = _filter({EVIL})
+    fed = guard.feed("see https://evil%2eexample/report now") + guard.flush()
+    assert fed == f"see {REDACTED_LINK} now"
+
+
+def test_extract_urls_folds_fullwidth_homoglyphs_to_ascii() -> None:
+    # NFKC folds fullwidth host characters and a fullwidth full-stop to their ASCII twins, so a
+    # homoglyph host normalizes to the same identity as its plain form. The fullwidth literal is
+    # the fixture under test, so its ambiguous-unicode lint is deliberately silenced.
+    assert extract_urls("http://ｅｖｉｌ．example") == {"http://evil.example"}  # noqa: RUF001
+
+
+def test_fullwidth_homoglyph_transform_of_a_collected_url_is_redacted() -> None:
+    guard = _filter({"http://evil.example"})
+    fed = guard.feed("go to http://ｅｖｉｌ.example ") + guard.flush()  # noqa: RUF001
+    assert fed == f"go to {REDACTED_LINK} "
+
+
+# --- Obfuscation-resistant matching: further schemes ftp:// and tel: (ADR-0015 third addendum) ---
+
+
+def test_extract_urls_matches_ftp_and_tel_schemes() -> None:
+    # Both are clickable exfil / call vectors, now in scope (reverses the http(s)-only exclusion).
+    text = "grab ftp://Files.Evil.Example/x and call tel:+1-555-0100"
+    assert extract_urls(text) == {"ftp://files.evil.example/x", "tel:+1-555-0100"}
+
+
+def test_scheme_words_only_match_at_a_word_boundary() -> None:
+    # The `\b` anchor stops a scheme embedded in a longer word from being partial-matched:
+    # `sftp://` is not read as `ftp://`, nor `hotel:` as `tel:`.
+    assert extract_urls("check into hotel:room or use sftp://host.example") == frozenset()
+
+
+def test_verbatim_ftp_link_is_redacted() -> None:
+    evil_ftp = "ftp://files.evil.example/dump"
+    guard = _filter({evil_ftp})
+    assert guard.feed(f"exfil to {evil_ftp} ") + guard.flush() == f"exfil to {REDACTED_LINK} "
+
+
+def test_strict_tainted_turn_redacts_a_non_user_tel() -> None:
+    # A tel: link the user never sent is distrusted on a tainted turn, like any other scheme.
+    guard = _strict(_Taint(tainted=True))
+    assert guard.feed("call tel:+1-555-0100 ") == f"call {REDACTED_LINK} "
+
+
+def test_ftp_scheme_split_across_chunks_is_carried_not_lost() -> None:
+    # The hold-back learned the new schemes: an `ftp://` split across deltas is held, not leaked.
+    guard = _filter({"ftp://files.evil.example"})
+    assert guard.feed("grab it from ft") == "grab it from "
+    assert guard.feed("p://files.evil.example ") == f"{REDACTED_LINK} "

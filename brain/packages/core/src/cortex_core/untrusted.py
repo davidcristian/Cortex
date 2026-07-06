@@ -5,8 +5,8 @@ from dataclasses import dataclass, field
 from datetime import datetime
 
 from cortex_core.conversation import Message, Role
-from cortex_core.guardrail import extract_urls
 from cortex_core.tools import ToolResult, Trust
+from cortex_core.urls import extract_urls
 
 _WRAP_TAG = "untrusted-tool-output"
 
