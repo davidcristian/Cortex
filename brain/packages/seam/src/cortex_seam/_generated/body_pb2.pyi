@@ -90,6 +90,54 @@ class HealthReply(_message.Message):
     detail: str
     def __init__(self, ready: _Optional[bool] = ..., detail: _Optional[str] = ...) -> None: ...
 
+class ListSessionsRequest(_message.Message):
+    __slots__ = ("limit",)
+    LIMIT_FIELD_NUMBER: _ClassVar[int]
+    limit: int
+    def __init__(self, limit: _Optional[int] = ...) -> None: ...
+
+class ListSessionsReply(_message.Message):
+    __slots__ = ("sessions",)
+    SESSIONS_FIELD_NUMBER: _ClassVar[int]
+    sessions: _containers.RepeatedCompositeFieldContainer[SessionSummary]
+    def __init__(self, sessions: _Optional[_Iterable[_Union[SessionSummary, _Mapping]]] = ...) -> None: ...
+
+class SessionSummary(_message.Message):
+    __slots__ = ("session_id", "title", "preview", "last_activity_unix_ms")
+    SESSION_ID_FIELD_NUMBER: _ClassVar[int]
+    TITLE_FIELD_NUMBER: _ClassVar[int]
+    PREVIEW_FIELD_NUMBER: _ClassVar[int]
+    LAST_ACTIVITY_UNIX_MS_FIELD_NUMBER: _ClassVar[int]
+    session_id: str
+    title: str
+    preview: str
+    last_activity_unix_ms: int
+    def __init__(self, session_id: _Optional[str] = ..., title: _Optional[str] = ..., preview: _Optional[str] = ..., last_activity_unix_ms: _Optional[int] = ...) -> None: ...
+
+class GetSessionMessagesRequest(_message.Message):
+    __slots__ = ("session_id",)
+    SESSION_ID_FIELD_NUMBER: _ClassVar[int]
+    session_id: str
+    def __init__(self, session_id: _Optional[str] = ...) -> None: ...
+
+class GetSessionMessagesReply(_message.Message):
+    __slots__ = ("messages",)
+    MESSAGES_FIELD_NUMBER: _ClassVar[int]
+    messages: _containers.RepeatedCompositeFieldContainer[SessionMessage]
+    def __init__(self, messages: _Optional[_Iterable[_Union[SessionMessage, _Mapping]]] = ...) -> None: ...
+
+class SessionMessage(_message.Message):
+    __slots__ = ("role", "text", "turn_id", "at_unix_ms")
+    ROLE_FIELD_NUMBER: _ClassVar[int]
+    TEXT_FIELD_NUMBER: _ClassVar[int]
+    TURN_ID_FIELD_NUMBER: _ClassVar[int]
+    AT_UNIX_MS_FIELD_NUMBER: _ClassVar[int]
+    role: str
+    text: str
+    turn_id: str
+    at_unix_ms: int
+    def __init__(self, role: _Optional[str] = ..., text: _Optional[str] = ..., turn_id: _Optional[str] = ..., at_unix_ms: _Optional[int] = ...) -> None: ...
+
 class CaptureScreenRequest(_message.Message):
     __slots__ = ()
     def __init__(self) -> None: ...

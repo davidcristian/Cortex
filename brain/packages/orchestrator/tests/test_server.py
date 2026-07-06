@@ -39,14 +39,15 @@ def _free_loopback_port() -> int:
     return port
 
 
-def _engine() -> TurnEngine:
-    return TurnEngine(InMemorySessionStore(), EchoInferenceBackend(), SystemClock())
+def _engine_and_store() -> tuple[TurnEngine, InMemorySessionStore]:
+    store = InMemorySessionStore()
+    return TurnEngine(store, EchoInferenceBackend(), SystemClock()), store
 
 
 @pytest.fixture
 async def running_server() -> AsyncIterator[str]:
     """A BrainService bound to an ephemeral loopback port, torn down after the test."""
-    server, port = create_server(SeamServerConfig(host="127.0.0.1", port=0), _engine())
+    server, port = create_server(SeamServerConfig(host="127.0.0.1", port=0), *_engine_and_store())
     await server.start()
     yield f"127.0.0.1:{port}"
     await server.stop(grace=None)
@@ -61,14 +62,18 @@ async def test_health_reports_ready_with_version(running_server: str) -> None:
 
 async def test_create_server_binds_the_configured_port() -> None:
     port = _free_loopback_port()
-    server, bound = create_server(SeamServerConfig(host="127.0.0.1", port=port), _engine())
+    server, bound = create_server(
+        SeamServerConfig(host="127.0.0.1", port=port), *_engine_and_store()
+    )
     assert bound == port
     await server.stop(grace=None)
 
 
 async def test_serve_answers_health_and_shuts_down_on_cancel() -> None:
     port = _free_loopback_port()
-    task = asyncio.create_task(serve(SeamServerConfig(host="127.0.0.1", port=port), _engine()))
+    task = asyncio.create_task(
+        serve(SeamServerConfig(host="127.0.0.1", port=port), *_engine_and_store())
+    )
     try:
         async with aio.insecure_channel(f"127.0.0.1:{port}") as channel:
             await asyncio.wait_for(channel.channel_ready(), timeout=10)
@@ -88,7 +93,9 @@ async def test_serve_answers_health_and_shuts_down_on_cancel() -> None:
 async def test_serve_stops_gracefully_on_signal(signum: signal.Signals) -> None:
     """SIGTERM (docker compose down) and SIGINT (Ctrl-C) trigger the graceful stop path."""
     port = _free_loopback_port()
-    task = asyncio.create_task(serve(SeamServerConfig(host="127.0.0.1", port=port), _engine()))
+    task = asyncio.create_task(
+        serve(SeamServerConfig(host="127.0.0.1", port=port), *_engine_and_store())
+    )
     try:
         async with aio.insecure_channel(f"127.0.0.1:{port}") as channel:
             await asyncio.wait_for(channel.channel_ready(), timeout=10)

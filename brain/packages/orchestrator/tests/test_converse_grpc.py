@@ -20,6 +20,7 @@ from cortex_core import (
     Role,
     SessionStore,
     SessionStoreError,
+    SessionSummary,
     SystemClock,
     TextChunk,
     ToolSpec,
@@ -73,8 +74,8 @@ def _engine(store: SessionStore) -> TurnEngine:
     return TurnEngine(store, EchoInferenceBackend(), SystemClock())
 
 
-async def _start_server(engine: TurnEngine) -> tuple[aio.Server, str]:
-    server, port = create_server(SeamServerConfig(host="127.0.0.1", port=0), engine)
+async def _start_server(engine: TurnEngine, store: SessionStore) -> tuple[aio.Server, str]:
+    server, port = create_server(SeamServerConfig(host="127.0.0.1", port=0), engine, store)
     await server.start()
     return server, f"127.0.0.1:{port}"
 
@@ -89,6 +90,10 @@ class FailingStore:
 
     async def history(self, session_id: str) -> Sequence[Message]:
         del session_id
+        return ()
+
+    async def list_sessions(self, *, limit: int) -> Sequence[SessionSummary]:
+        del limit
         return ()
 
 
@@ -116,7 +121,8 @@ class BlockingFirstTurnBackend:
 
 
 async def test_full_turn_streams_deltas_then_turn_complete() -> None:
-    server, address = await _start_server(_engine(InMemorySessionStore()))
+    store = InMemorySessionStore()
+    server, address = await _start_server(_engine(store), store)
     try:
         events = await _run_turn_over_grpc(address, "s", "hello")
     finally:
@@ -129,7 +135,8 @@ async def test_full_turn_streams_deltas_then_turn_complete() -> None:
 
 
 async def test_second_turn_in_the_same_session_counts_up() -> None:
-    server, address = await _start_server(_engine(InMemorySessionStore()))
+    store = InMemorySessionStore()
+    server, address = await _start_server(_engine(store), store)
     try:
         await _run_turn_over_grpc(address, "s", "one")
         events = await _run_turn_over_grpc(address, "s", "two")
@@ -142,10 +149,11 @@ async def test_conversation_survives_a_server_and_deps_restart() -> None:
     """THE slice acceptance: instance B over the SAME store continues instance A's count."""
     redis_state = FakeServer()  # plays the role of the redis process: it alone survives
 
-    def fresh_deps() -> TurnEngine:
-        return _engine(RedisSessionStore(FakeAsyncRedis(server=redis_state)))
+    def fresh_deps() -> tuple[TurnEngine, RedisSessionStore]:
+        store = RedisSessionStore(FakeAsyncRedis(server=redis_state))
+        return _engine(store), store
 
-    server_a, address_a = await _start_server(fresh_deps())
+    server_a, address_a = await _start_server(*fresh_deps())
     try:
         events_a = await _run_turn_over_grpc(address_a, "e2e", "hello")
     finally:
@@ -163,7 +171,7 @@ async def test_conversation_survives_a_server_and_deps_restart() -> None:
     )
     await bare.aclose()
 
-    server_b, address_b = await _start_server(fresh_deps())
+    server_b, address_b = await _start_server(*fresh_deps())
     try:
         events_b = await _run_turn_over_grpc(address_b, "e2e", "again")
     finally:
@@ -175,7 +183,7 @@ async def test_conversation_survives_a_server_and_deps_restart() -> None:
 async def test_cancel_mid_generation_keeps_the_stream_usable() -> None:
     store = InMemorySessionStore()
     backend = BlockingFirstTurnBackend()
-    server, address = await _start_server(TurnEngine(store, backend, SystemClock()))
+    server, address = await _start_server(TurnEngine(store, backend, SystemClock()), store)
     try:
         async with aio.insecure_channel(address) as channel:
             call = _open_converse(BrainServiceStub(channel))
@@ -201,7 +209,8 @@ async def test_cancel_mid_generation_keeps_the_stream_usable() -> None:
 
 
 async def test_store_failure_yields_seam_error_and_ends_the_stream_cleanly() -> None:
-    server, address = await _start_server(_engine(FailingStore()))
+    failing = FailingStore()
+    server, address = await _start_server(_engine(failing), failing)
     try:
         async with aio.insecure_channel(address) as channel:
             call = _open_converse(BrainServiceStub(channel))
@@ -217,7 +226,8 @@ async def test_store_failure_yields_seam_error_and_ends_the_stream_cleanly() -> 
 
 
 async def test_client_closing_without_events_ends_the_stream_empty() -> None:
-    server, address = await _start_server(_engine(InMemorySessionStore()))
+    store = InMemorySessionStore()
+    server, address = await _start_server(_engine(store), store)
     try:
         async with aio.insecure_channel(address) as channel:
             call = _open_converse(BrainServiceStub(channel))

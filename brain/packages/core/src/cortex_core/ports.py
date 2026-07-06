@@ -14,6 +14,7 @@ from cortex_core.inference import InferenceEvent
 from cortex_core.memory import MemoryRecord, ScoredMemory
 from cortex_core.model import ModelLease
 from cortex_core.placement import Placement, PlacementRequest
+from cortex_core.sessions import SessionSummary
 from cortex_core.subagents import SubagentResult, SubagentTask
 from cortex_core.tools import ConfirmationRequest, ToolCall, ToolInvocation, ToolResult, ToolSpec
 
@@ -24,6 +25,8 @@ class SessionStore(Protocol):
     async def append(self, session_id: str, message: Message) -> None: ...
 
     async def history(self, session_id: str) -> Sequence[Message]: ...
+
+    async def list_sessions(self, *, limit: int) -> Sequence[SessionSummary]: ...
 
 
 class InferenceBackend(Protocol):

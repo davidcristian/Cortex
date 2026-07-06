@@ -10,6 +10,7 @@ from cortex_core.conversation import Message, Role
 from cortex_core.errors import InferenceError, ToolNotFoundError
 from cortex_core.inference import InferenceEvent, TextChunk
 from cortex_core.memory import MemoryRecord, ScoredMemory
+from cortex_core.sessions import SessionSummary, summarize_session
 from cortex_core.subagents import SubagentResult, SubagentTask
 from cortex_core.tools import ConfirmationRequest, ToolCall, ToolInvocation, ToolResult, ToolSpec
 
@@ -35,6 +36,15 @@ class InMemorySessionStore:
     async def history(self, session_id: str) -> Sequence[Message]:
         """Return the session's full history in append order (empty when unknown)."""
         return tuple(self._sessions.get(session_id, ()))
+
+    async def list_sessions(self, *, limit: int) -> Sequence[SessionSummary]:
+        """Return at most ``limit`` recent chats, most-recently-active first (ADR-0021)."""
+        summaries = [
+            summarize_session(session_id, messages)
+            for session_id, messages in self._sessions.items()
+        ]
+        summaries.sort(key=lambda summary: summary.last_activity, reverse=True)
+        return tuple(summaries[:limit])
 
 
 class EchoInferenceBackend:

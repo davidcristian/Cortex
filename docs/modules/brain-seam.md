@@ -8,9 +8,11 @@ imports seam names from `cortex_seam` and never from `cortex_seam._generated` di
 
 - Every proto message class: `ClientEvent`, `UserTurn`, `Cancel`, `ServerEvent`,
   `TextDelta`, `ToolActivity`, `StatusUpdate`, `TurnComplete`, `SeamError`,
-  `HealthRequest`, `HealthReply`, `CaptureScreenRequest`, `CaptureScreenReply`,
-  `ImageBlob`, `GetVolumeRequest`, `SetVolumeRequest`, `VolumeState`,
-  `InjectInputRequest`, `TypeText`, `KeyChord`, `InjectInputReply`.
+  `HealthRequest`, `HealthReply`, `ListSessionsRequest`, `ListSessionsReply`,
+  `SessionSummary`, `GetSessionMessagesRequest`, `GetSessionMessagesReply`,
+  `SessionMessage` (the read-only session views, ADR-0021), `CaptureScreenRequest`,
+  `CaptureScreenReply`, `ImageBlob`, `GetVolumeRequest`, `SetVolumeRequest`,
+  `VolumeState`, `InjectInputRequest`, `TypeText`, `KeyChord`, `InjectInputReply`.
 - `BrainServiceServicer` (base class to implement), `BrainServiceStub` (client), and
   `add_BrainServiceServicer_to_server` belong to `BrainService`, hosted by the brain
   (`cortex_orchestrator`), called by the body.
