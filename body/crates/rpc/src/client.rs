@@ -8,7 +8,9 @@
 //! brain map to [`TransportError::Rpc`]. No business logic, no retries
 //! (retry policy is a later slice's concern).
 
-use body_core::{BrainTransport, SeamHealth, TransportError, TurnEvent};
+use body_core::{
+    BrainTransport, SeamHealth, SessionMessage, SessionSummary, TransportError, TurnEvent,
+};
 use futures_core::Stream;
 use tonic::metadata::{Ascii, MetadataValue};
 use tonic::service::Interceptor;
@@ -123,6 +125,17 @@ impl BrainTransport for BrainSeamClient {
         text: &str,
     ) -> impl Stream<Item = Result<TurnEvent, TransportError>> + Send {
         crate::converse::converse_turn(self.inner.clone(), session_id.to_owned(), text.to_owned())
+    }
+
+    async fn list_sessions(&self, limit: i32) -> Result<Vec<SessionSummary>, TransportError> {
+        crate::sessions::list_sessions(self.inner.clone(), limit).await
+    }
+
+    async fn session_messages(
+        &self,
+        session_id: &str,
+    ) -> Result<Vec<SessionMessage>, TransportError> {
+        crate::sessions::session_messages(self.inner.clone(), session_id.to_owned()).await
     }
 }
 
