@@ -592,9 +592,15 @@ behind the unchanged `ToolRegistry`/`ToolDispatcher`/`stream_tool_loop` seams (o
   pass in `_normalize`) now recognizes contiguous defang forms (`hxxp://`, `evil[.]com`,
   `evil[dot]com`, `[://]`/`[:]//` separators) and refangs them to one canonical identity, so a
   defanged link that formerly slipped past *both* redact and strict mode is caught on both the
-  collection and reply sides, with no seam change (grammar-only). Remaining behind the same seam
-  (ADR-0015 deferred): the rest of obfuscation-resistant matching (whitespace-split `evil dot
-  com`, homoglyphs/IDN, percent/other encodings), further schemes (`ftp:`/`tel:`/`data:`),
+  collection and reply sides, with no seam change (grammar-only). **Three more obfuscation-resistant
+  classes landed 2026-07-06 ([ADR-0015 third addendum](adr/ADR-0015-output-guardrail.md)):**
+  the grammar split into `cortex_core/urls.py` (grammar + identity) from `guardrail.py` (redactor +
+  policies), and `normalize_url` gained **percent-decoding** (`evil%2ecom`→`evil.com`) + **NFKC**
+  folding (fullwidth/compatibility homoglyphs → ASCII), while the matcher gained the **`ftp://`
+  and `tel:`** schemes (word-boundary-anchored so `sftp://`/`hotel:` don't partial-match). Still
+  deterministic/stdlib, no seam change, redact + strict inherit it. Remaining behind the same seam
+  (ADR-0015 deferred): the rest of obfuscation-resistant matching (whitespace-split `evil dot com`,
+  cross-script homoglyphs/IDN/punycode, multi-pass encodings), further schemes (`data:` …),
   footer/boilerplate heuristics (screening-model territory), and a structured redaction event
   for the overlay.
 - **Subagent model pick revised to gemma-4-E4B (landed 2026-07-03)**

@@ -40,7 +40,6 @@ from cortex_core.guardrail import (
     StrictUrlRedactingGuardrail,
     TaintView,
     UrlRedactingGuardrail,
-    extract_urls,
 )
 from cortex_core.inference import InferenceEvent, ReasoningChunk, TextChunk
 from cortex_core.memory import GLOBAL_SCOPE, MemoryRecord, ScoredMemory
@@ -90,6 +89,7 @@ from cortex_core.untrusted import (
     security_preamble_message,
     wrap_untrusted,
 )
+from cortex_core.urls import extract_urls
 from cortex_core.windowing import CharBudgetHistoryWindow, HistoryWindow
 
 __all__ = [

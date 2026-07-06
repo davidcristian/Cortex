@@ -142,18 +142,23 @@ Untrusted-content boundary (Slice 6.5, ADR-0013; the pure primitives in `untrust
 - `ToolLoopContext` is a frozen bundle of a tool loop's per-invocation collaborators (`dispatcher`,
   `clock`, `turn_id`, `taint`, `nonce`), keeping `stream_tool_loop` under its argument ceiling.
 
-Output guardrail (ADR-0015; the pure laundering defense in `guardrail.py`):
+Output guardrail (ADR-0015; the pure laundering defense built from the redactor + policies in
+`guardrail.py`, the URL grammar + identity in `urls.py`):
 
-- `extract_urls(text) -> frozenset[str]` finds every clickable http(s)/`mailto:` URL in `text`,
-  normalized for identity (scheme+authority lowercased, trailing prose punctuation dropped,
-  path/query case kept; a `mailto:` has no `://` so it folds whole). Common **defang** forms are
-  refanged first (ADR-0015 obfuscation addendum): `hxxp(s)`→`http(s)`, `[://]`/`[:]//`→`://`, and
-  bracketed dots `[.]`/`(.)`/`{.}`/`[dot]`/`(dot)` inside a scheme'd URL → `.`, so a defanged link
-  and its plain twin normalize to one identity (a defang *transform* in the reply is caught, not
-  only verbatim reproduction). Both sides of the defense use it for collection
-  (`TaintLedger.observe`) and the user-message allowlist, so a collected URL and its reappearance
-  always compare equal. Bare addresses/domains (defanged or not), whitespace-split (`evil dot
-  com`), homoglyphs/encodings, and other schemes stay out (they would over-redact prose).
+- `extract_urls(text) -> frozenset[str]` (in `urls.py`) finds every clickable URL in `text` (schemes
+  `http(s)`, `ftp`, `mailto:`, `tel:`), normalized for identity (scheme+authority lowercased,
+  trailing prose punctuation dropped, path/query case kept; an opaque `mailto:`/`tel:` has no
+  `://` so it folds whole). Every scheme is anchored at a word boundary, so `sftp://`/`hotel:` are
+  not partial-matched. Three **obfuscation-resistant** passes reduce a rewritten link to its plain
+  identity (ADR-0015 addenda): **defang** refanging (`hxxp(s)`→`http(s)`, `[://]`/`[:]//`→`://`,
+  bracketed dots `[.]`/`(.)`/`{.}`/`[dot]`/`(dot)` inside a scheme'd URL → `.`), **percent-decoding**
+  once (`evil%2ecom`→`evil.com`), and **NFKC** folding (fullwidth/compatibility homoglyphs → ASCII).
+  So a defanged, encoded, or fullwidth link normalizes to the same identity as its plain twin. A
+  *transform* in the reply is caught, not only verbatim reproduction. Both sides of the defense use
+  it for collection (`TaintLedger.observe`) and the user-message allowlist, so a collected URL and
+  its reappearance always compare equal. Held deliberately out (they would over-redact prose or
+  need a dependency): bare addresses/domains, whitespace-split defang (`evil dot com`), cross-script
+  homoglyphs/IDN/punycode, multi-pass encodings, and unlisted schemes (`data:` …).
 - `TaintView` (protocol) exposes the **live** taint signals the guardrail reads at scan time
   (`tainted: bool`, `untrusted_urls: AbstractSet[str]`); the turn's `TaintLedger` already
   satisfies it structurally (guardrail cannot import `untrusted`, which imports it).
