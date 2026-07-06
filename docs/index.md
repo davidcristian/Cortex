@@ -108,6 +108,13 @@ Start here. Rules for working in this repo: [AGENTS.md](../AGENTS.md).
   `InferenceEvent` union, the shared tool loop yields `str | ReasoningDelta`, and the engine maps
   reasoning to an ephemeral (unpersisted, non-reply) `StatusUpdate`; the proto/body/overlay status
   path was already built and is now lit end to end. Behind the unchanged `InferenceBackend`.
+- [ADR-0021: Session-read seam](adr/ADR-0021-session-read-seam.md): Slice 8.7. Two read-only
+  unary RPCs (`ListSessions`/`GetSessionMessages`) expose views of the durable store over the seam,
+  so the overlay's chat list, switcher, and `Ctrl+↑/↓` cycling load store-backed history instead of
+  in-memory. One new port method (`SessionStore.list_sessions`, a `cortex:sessions` ZSET index; a
+  pure `summarize_session` derives title/preview both adapters share); `GetSessionMessages` reuses
+  `history`. The body `BrainTransport` / overlay `BrainBridge` grow typed reads, and the overlay
+  owns the `session_id` for real multi-chat.
 
 New non-obvious decision → add `adr/ADR-XXXX-<slug>.md`, link it here.
 
