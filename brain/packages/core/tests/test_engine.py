@@ -27,6 +27,7 @@ from cortex_core import (
     Role,
     SessionMemoryScope,
     StatusUpdate,
+    StrictUrlRedactingGuardrail,
     SystemClock,
     TextChunk,
     TextDelta,
@@ -682,6 +683,59 @@ async def test_guardrail_leaves_a_clean_turn_untouched() -> None:
     completed = events[-1]
     assert isinstance(completed, TurnCompleted)
     assert completed.full_text == "docs live at https://docs.example/x"
+
+
+_UNCOLLECTED_URL = "https://not-in-the-file.example/x"
+
+
+def _uncollected_url_turn() -> ScriptedToolBackend:
+    # A tool read taints the turn; the model then emits a link that never appeared in the
+    # untrusted content (so it is not in the collected set) and the user did not send.
+    return ScriptedToolBackend(
+        [
+            [ToolCall(id="c1", name="read", arguments={"path": "/x"})],
+            [TextChunk(f"Done. See {_UNCOLLECTED_URL}")],
+        ]
+    )
+
+
+async def test_redact_mode_passes_a_non_collected_url_on_a_tainted_turn() -> None:
+    # The default is deliberately narrow: redact mode scrubs only verbatim-collected links, so a
+    # tainted turn's non-collected URL survives (ADR-0015). Contrast this with strict mode below.
+    events = await _collect(
+        _guarded_engine(_uncollected_url_turn(), InMemorySessionStore()).handle_turn("s", "go")
+    )
+    completed = events[-1]
+    assert isinstance(completed, TurnCompleted)
+    assert completed.full_text == f"Done. See {_UNCOLLECTED_URL}"
+
+
+def _strict_guarded_engine(backend: ScriptedToolBackend, store: InMemorySessionStore) -> TurnEngine:
+    dispatcher = ToolDispatcher(_phishing_registry(), RecordingAuditSink(), TickingClock())
+    return TurnEngine(
+        store,
+        backend,
+        TickingClock(),
+        capabilities=TurnCapabilities(tools=dispatcher, guardrail=StrictUrlRedactingGuardrail()),
+        turn_id_factory=lambda: "t-1",
+    )
+
+
+async def test_strict_mode_redacts_a_non_collected_url_on_a_tainted_turn() -> None:
+    # Strict mode (ADR-0015 addendum) distrusts every non-user link once the turn is tainted, so
+    # the same non-collected URL redact mode passed above is scrubbed from stream, reply, and store.
+    store = InMemorySessionStore()
+    events = await _collect(
+        _strict_guarded_engine(_uncollected_url_turn(), store).handle_turn("s", "go")
+    )
+    completed = events[-1]
+    assert isinstance(completed, TurnCompleted)
+    assert completed.full_text == f"Done. See {REDACTED_LINK}"
+    deltas = "".join(e.text for e in events[:-1] if isinstance(e, TextDelta))
+    assert deltas == completed.full_text  # the user saw exactly the sanitized reply
+    assert _UNCOLLECTED_URL not in deltas
+    history = list(await store.history("s"))
+    assert history[-1].text == completed.full_text  # the reply on record is the reply shown
 
 
 async def test_tainted_turn_is_recorded_with_provenance_when_enabled() -> None:

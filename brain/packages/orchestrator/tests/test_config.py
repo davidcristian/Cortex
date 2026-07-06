@@ -124,6 +124,13 @@ def test_runtime_env_disables_the_output_guardrail(monkeypatch: pytest.MonkeyPat
 
 
 @pytest.mark.usefixtures("clean_env")
+def test_runtime_env_selects_strict_guardrail(monkeypatch: pytest.MonkeyPatch) -> None:
+    # The opt-in strict mode (ADR-0015 addendum): redact every non-user URL on a tainted turn.
+    monkeypatch.setenv("CORTEX_OUTPUT_GUARDRAIL", "strict")
+    assert BrainRuntimeConfig().output_guardrail == "strict"
+
+
+@pytest.mark.usefixtures("clean_env")
 def test_runtime_rejects_an_unknown_guardrail_mode(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("CORTEX_OUTPUT_GUARDRAIL", "maybe")
     with pytest.raises(ValidationError, match="output_guardrail"):

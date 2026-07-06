@@ -44,6 +44,7 @@ from cortex_core import (
     SingleResidentModelManager,
     SkipUnavailableToolRegistry,
     SpawnSubagentsTool,
+    StrictUrlRedactingGuardrail,
     ToolDispatcher,
     ToolError,
     ToolRegistry,
@@ -169,14 +170,19 @@ async def build_tool_registry(
     return AggregateToolRegistry(registries), stack.aclose
 
 
-def build_output_guardrail(mode: str) -> UrlRedactingGuardrail | None:
+def build_output_guardrail(
+    mode: str,
+) -> UrlRedactingGuardrail | StrictUrlRedactingGuardrail | None:
     """The turn's output guardrail, or None when disabled (ADR-0015).
 
-    `redact` (`CORTEX_OUTPUT_GUARDRAIL`'s default, so hardening is on out of the box) scrubs
-    URLs sourced from untrusted tool results out of the reply the user sees, the
-    model-independent laundering defense; `off` restores the unguarded stream. A clean turn
-    is untouched either way (nothing collected, nothing scrubbed).
+    `redact` (`CORTEX_OUTPUT_GUARDRAIL`'s default, so hardening is on out of the box) scrubs URLs
+    sourced *verbatim* from untrusted tool results out of the reply the user sees, the
+    model-independent laundering defense; `strict` (ADR-0015 addendum) redacts every non-user
+    URL on a tainted turn; `off` restores the unguarded stream. An untainted/clean turn is
+    untouched by any mode (nothing collected, nothing flagged, nothing scrubbed).
     """
+    if mode == "strict":
+        return StrictUrlRedactingGuardrail()
     return UrlRedactingGuardrail() if mode == "redact" else None
 
 

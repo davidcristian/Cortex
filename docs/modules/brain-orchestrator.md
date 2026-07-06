@@ -30,9 +30,10 @@ Config (pydantic-settings; explicit constructor arguments beat the environment):
   `history_char_budget: int = 48000` (`CORTEX_HISTORY_CHAR_BUDGET`, ADR-0014) sets how many
   characters of session history one turn sends to the model (the newest whole turns;
   `0` disables windowing, negative rejected);
-  `output_guardrail: "redact" | "off" = "redact"` (`CORTEX_OUTPUT_GUARDRAIL`, ADR-0015) is
-  the model-independent laundering defense: `redact` (default) scrubs untrusted-sourced
-  URLs from the reply the user sees, `off` restores the unguarded stream.
+  `output_guardrail: "redact" | "strict" | "off" = "redact"` (`CORTEX_OUTPUT_GUARDRAIL`,
+  ADR-0015) is the model-independent laundering defense: `redact` (default) scrubs
+  verbatim-untrusted-sourced URLs from the reply the user sees, `strict` (addendum) scrubs
+  every non-user URL on a tainted turn, `off` restores the unguarded stream.
 - `InferenceConfig` uses env prefix `CORTEX_INFERENCE_`: which backend answers turns
   (ADR-0007 d4). `backend: "echo" | "llamacpp" = "echo"` (`CORTEX_INFERENCE_BACKEND`) and
   `endpoint: str = ""` (`CORTEX_INFERENCE_ENDPOINT`, the resident `llama-server` base
@@ -115,9 +116,10 @@ The service:
 - `build_history_window(char_budget: int) -> CharBudgetHistoryWindow | None` is the turn's
   history window (ADR-0014): a positive budget returns the char-budget window, `0` returns
   `None` (windowing off). On by default via `BrainRuntimeConfig.history_char_budget`.
-- `build_output_guardrail(mode: str) -> UrlRedactingGuardrail | None` is the turn's output
-  guardrail (ADR-0015): `redact` returns the shipped URL-redacting policy, `off` returns
-  `None`. On by default via `BrainRuntimeConfig.output_guardrail`.
+- `build_output_guardrail(mode: str) -> UrlRedactingGuardrail | StrictUrlRedactingGuardrail | None`
+  is the turn's output guardrail (ADR-0015): `redact` returns the default verbatim URL-redacting
+  policy, `strict` (addendum) the redact-all-non-user-URL policy, `off` returns `None`. On by
+  default via `BrainRuntimeConfig.output_guardrail`.
 - `run_from_env() -> None` (async) is the composition root: reads the env configs and serves
   with `RedisSessionStore.from_url(redis_url)`, `build_inference_backend(...)`, `SystemClock`,
   the default-on history window (`build_history_window`, ADR-0014) and output guardrail
