@@ -12,6 +12,7 @@ from cortex_session import DEFAULT_REDIS_URL
 InferenceBackendName = Literal["echo", "llamacpp"]
 MemoryBackendName = Literal["none", "pgvector"]
 MemoryScopeName = Literal["global", "session"]
+MemoryTaintPolicyName = Literal["skip", "record"]
 ToolsBackendName = Literal["none", "mcp"]
 SubagentsBackendName = Literal["none", "llamacpp"]
 
@@ -115,6 +116,11 @@ class MemoryConfig(BaseSettings):
     namespace policy: ``global`` (the default) keeps the founding one-global-space behavior, so
     recall spans every conversation; ``session`` isolates each conversation's memory to itself.
     It applies only when a backend is set; ``none`` records/recalls nothing regardless.
+
+    ``on_tainted`` (env ``CORTEX_MEMORY_ON_TAINTED``, ADR-0019) is the tainted-turn recording
+    policy: ``skip`` (the default) drops a turn that read untrusted content from memory (ADR-0013);
+    ``record`` records it with the untrusted-provenance marker so recall fences it. It governs only
+    writing. A tainted memory already stored is always fenced on recall regardless.
     """
 
     model_config = SettingsConfigDict(env_prefix="CORTEX_MEMORY_")
@@ -124,6 +130,7 @@ class MemoryConfig(BaseSettings):
     embedder_endpoint: str = ""
     embedder_model: str = "embedding"
     scope: MemoryScopeName = "global"
+    on_tainted: MemoryTaintPolicyName = "skip"
 
     @model_validator(mode="after")
     def _pgvector_needs_dsn_and_embedder(self) -> "MemoryConfig":

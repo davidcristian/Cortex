@@ -9,13 +9,15 @@ pool (the one hard rule).
 **Public contract** (everything importable from `cortex_memory`; `__all__` is the API):
 
 - `PgVectorMemoryStore(db: Database)` is a `MemoryStore`.
-  - `add(record)` → `INSERT (id, text, embedding, scope, created_at)` with `embedding =
-    $3::vector` (the vector passed as a pgvector text literal, e.g. `[0.1,0.2]`).
+  - `add(record)` → `INSERT (id, text, embedding, scope, tainted, created_at)` with `embedding =
+    $3::vector` (the vector passed as a pgvector text literal, e.g. `[0.1,0.2]`). `tainted` is the
+    untrusted-provenance marker (ADR-0019).
   - `search(embedding, *, k, scopes=None)` → `ORDER BY embedding <=> $1::vector LIMIT $2`,
-    mapping each row to `ScoredMemory(record, score = 1 - distance)`, most-similar first. Reads
-    the vector back via `embedding::text`, so no driver-side vector-type registration is needed.
-    A non-`None` `scopes` adds `WHERE scope = ANY($3)` to filter candidates to those namespaces
-    before ranking (ADR-0008 scoping addendum); `None` ranks over every memory.
+    mapping each row to `ScoredMemory(record, score = 1 - distance)`, most-similar first (each
+    record carrying its `scope` and `tainted` back out). Reads the vector back via
+    `embedding::text`, so no driver-side vector-type registration is needed. A non-`None` `scopes`
+    adds `WHERE scope = ANY($3)` to filter candidates to those namespaces before ranking (ADR-0008
+    scoping addendum); `None` ranks over every memory.
   - `aclose()` → releases the pool.
   - `PgVectorMemoryStore.connect(dsn)` (classmethod) → builds a store owning a fresh asyncpg
     pool for `dsn`.
@@ -28,14 +30,15 @@ add/search/close; a malformed result row (missing column, unparseable vector, na
 timestamp) in `search`.
 
 **Schema (host/infra, not the adapter).** `CREATE EXTENSION vector;` + `memories(id text pk,
-text text, embedding vector, scope text not null default 'global', created_at timestamptz)` +
-a btree `memories_scope_idx` on `scope`. The `embedding` column is unbounded (any dimension)
-and unindexed (exact cosine scan, fine at personal scale); an ANN index (fixed dim) is a later
-tuning (ADR-0008). `scope` is the memory's namespace (scoping addendum); its `DEFAULT 'global'`
-makes it an additive `ALTER TABLE … ADD COLUMN` on an existing DB, back-filling every old row
-into the global space (migration in the runbook). Applied by `docker/postgres/init.sql` via
-`docker/docker-compose.memory.yml`. pgvector stores float4, so embeddings roundtrip at single
-precision (irrelevant to similarity ranking).
+text text, embedding vector, scope text not null default 'global', tainted boolean not null
+default false, created_at timestamptz)` + a btree `memories_scope_idx` on `scope`. The `embedding`
+column is unbounded (any dimension) and unindexed (exact cosine scan, fine at personal scale); an
+ANN index (fixed dim) is a later tuning (ADR-0008). `scope` is the memory's namespace (scoping
+addendum) and `tainted` its untrusted-provenance marker (ADR-0019); each column's `DEFAULT` makes
+it an additive `ALTER TABLE … ADD COLUMN` on an existing DB, back-filling every old row (into the
+global space / as trusted, since they were only ever written by untainted turns; migration in the
+runbook). Applied by `docker/postgres/init.sql` via `docker/docker-compose.memory.yml`. pgvector
+stores float4, so embeddings roundtrip at single precision (irrelevant to similarity ranking).
 
 **Invariants.**
 - Stateless per call beyond the pool; no memory or context held here (the one hard rule).

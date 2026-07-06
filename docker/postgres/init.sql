@@ -12,6 +12,12 @@
 -- DEFAULT 'global';` back-fills every pre-existing row into the one global space, so an
 -- in-place upgrade keeps recalling exactly as before. The btree indexes the equality filter
 -- (not the still-deferred ANN index on `embedding`).
+--
+-- `tainted` is the untrusted-provenance marker (ADR-0019): true when the exchange was recorded
+-- from a turn that read untrusted content, so recall fences it as data. DEFAULT false is likewise
+-- additive. `ALTER TABLE memories ADD COLUMN tainted boolean NOT NULL DEFAULT false;` marks every
+-- pre-existing row trusted (they were only ever written by untainted turns), so an in-place upgrade
+-- keeps recalling exactly as before.
 CREATE EXTENSION IF NOT EXISTS vector;
 
 CREATE TABLE IF NOT EXISTS memories (
@@ -19,6 +25,7 @@ CREATE TABLE IF NOT EXISTS memories (
     text       text        NOT NULL,
     embedding  vector      NOT NULL,
     scope      text        NOT NULL DEFAULT 'global',
+    tainted    boolean     NOT NULL DEFAULT false,
     created_at timestamptz NOT NULL
 );
 

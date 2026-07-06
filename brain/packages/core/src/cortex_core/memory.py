@@ -17,6 +17,9 @@ class MemoryRecord:
     stays immutable and hashable; the caller (``MemoryRecaller``) fills every field, leaving
     the store a pure translator. ``scope`` is the opaque namespace the memory lives in
     (ADR-0008 scoping addendum), ``GLOBAL_SCOPE`` unless the caller's ``MemoryScope`` chose one.
+    ``tainted`` is the untrusted-provenance marker (ADR-0019): ``True`` when the exchange was
+    recorded from a turn that read untrusted content, so recall fences it as data, not trusted
+    context. Defaults ``False``, which is the trusted memory every untainted turn writes.
     """
 
     id: str
@@ -24,6 +27,7 @@ class MemoryRecord:
     embedding: tuple[float, ...]
     at: datetime
     scope: str = GLOBAL_SCOPE
+    tainted: bool = False
 
     def __post_init__(self) -> None:
         if self.at.tzinfo is None or self.at.tzinfo.utcoffset(self.at) is None:

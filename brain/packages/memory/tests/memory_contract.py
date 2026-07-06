@@ -19,9 +19,16 @@ def _id() -> str:
 
 
 def make_record(
-    text: str, embedding: tuple[float, ...], *, at: datetime = _AT, scope: str = GLOBAL_SCOPE
+    text: str,
+    embedding: tuple[float, ...],
+    *,
+    at: datetime = _AT,
+    scope: str = GLOBAL_SCOPE,
+    tainted: bool = False,
 ) -> MemoryRecord:
-    return MemoryRecord(id=_id(), text=text, embedding=embedding, at=at, scope=scope)
+    return MemoryRecord(
+        id=_id(), text=text, embedding=embedding, at=at, scope=scope, tainted=tainted
+    )
 
 
 async def check_empty_search(store: MemoryStore) -> list[str]:
@@ -58,6 +65,7 @@ async def check_roundtrip_fidelity(store: MemoryStore) -> list[str]:
         (1.0, 0.5, -0.25),
         at=datetime(2026, 7, 3, 17, 45, 30, tzinfo=timezone(timedelta(hours=5, minutes=30))),
         scope="contract-scope",
+        tainted=True,
     )
     await store.add(original)
     (hit,) = await store.search((1.0, 0.5, -0.25), k=1, scopes=["contract-scope"])
@@ -65,6 +73,7 @@ async def check_roundtrip_fidelity(store: MemoryStore) -> list[str]:
     assert hit.record.text == original.text
     assert tuple(hit.record.embedding) == original.embedding
     assert hit.record.scope == original.scope  # the namespace roundtrips
+    assert hit.record.tainted is True  # the untrusted-provenance marker roundtrips (ADR-0019)
     # timestamptz normalizes to UTC, so compare the instant (not the original offset).
     assert hit.record.at == original.at
     return [original.id]
