@@ -16,7 +16,7 @@ from uuid import uuid4
 from cortex_core.conversation import Message, Role
 from cortex_core.dispatch import ToolDispatcher
 from cortex_core.events import StatusUpdate, TextDelta, TurnCompleted, TurnEvent
-from cortex_core.guardrail import OutputFilter, OutputGuardrail, extract_urls
+from cortex_core.guardrail import OutputFilter, OutputGuardrail
 from cortex_core.memory import ScoredMemory
 from cortex_core.ports import Clock, InferenceBackend, SessionStore
 from cortex_core.recall import MemoryRecaller
@@ -28,6 +28,7 @@ from cortex_core.untrusted import (
     security_preamble_message,
     wrap_untrusted,
 )
+from cortex_core.urls import extract_urls
 from cortex_core.windowing import HistoryWindow
 
 # The logical id of the resident cortex model (ADR-0004: logical ids, never paths).

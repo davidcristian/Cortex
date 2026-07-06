@@ -14,8 +14,8 @@ from dataclasses import dataclass, field
 from datetime import datetime
 
 from cortex_core.conversation import Message, Role
-from cortex_core.guardrail import extract_urls
 from cortex_core.tools import ToolResult, Trust
+from cortex_core.urls import extract_urls
 
 # The wrap tag stem. Content is fenced as ``<TAG id=NONCE> … </TAG id=NONCE>`` where NONCE is a
 # per-turn random token the attacker (authoring a file before the turn) cannot predict, so a

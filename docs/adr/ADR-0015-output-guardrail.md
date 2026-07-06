@@ -214,3 +214,66 @@ match and inflate prose false positives (`the dot product`); **homoglyph/IDN/pun
 **percent/other encodings** (the remaining obfuscation-resistant items); and **further schemes**
 (`ftp:`, `tel:`, `data:`; each its own false-positive tradeoff, added when a vector is observed).
 Safety stays deterministic: what is not matched is not redacted, never mis-instructed.
+
+## Addendum (2026-07-06): obfuscation-resistant matching (percent-encoding, fullwidth homoglyphs, further schemes)
+
+Advances three more of the obfuscation-resistant deferrals above. Like the defanging addendum it
+is **grammar-and-identity only, with no seam change**: both `OutputGuardrail` policies, the
+`TaintLedger`, `TaintView`, the streaming filter, and the config are untouched; redact and strict
+mode inherit the wider matching for free; a clean/untainted turn is byte-identical to before.
+Everything remains **deterministic and dependency-free** (stdlib `re`/`urllib.parse`/`unicodedata`
+only), the line that keeps obfuscation-resistance out of the heuristic/screening-model layer.
+
+### Refactor moves the URL grammar to `urls.py`
+
+The URL grammar and identity (`URL_RE`, `normalize_url`, `extract_urls`, `_refang`, `held_from`,
+the scheme/separator constants) split out of `guardrail.py` into a new `cortex_core/urls.py`;
+`guardrail.py` keeps the streaming redactor and its two policies and imports the grammar. Two
+distinct responsibilities, *recognizing a clickable URL (even a partial one mid-stream) and
+reducing it to a canonical identity* vs. *what to redact and how to buffer a stream*, and the
+grammar has grown an addendum per obfuscation class, so it earned its own module before the file
+hit the 300-line cap. The `untrusted.py`/`engine.py` import of `extract_urls` now points at
+`urls.py` (dropping `untrusted`'s dependency on `guardrail`); the public `cortex_core.extract_urls`
+path is unchanged.
+
+### The three classes
+
+- **Percent-encoding.** `normalize_url` percent-decodes once (`urllib.parse.unquote`) before
+  splitting the authority, so `http://evil%2ecom` and `http://%65vil.com` reduce to the same
+  identity as `http://evil.com`. Browsers decode a percent-escape on the wire, so an encoded link
+  is *clickable* (a real transform, not a defang). Single-pass (matching a browser's one decode per
+  hop); multi-encoding (`%252e`) stays out. A fully-encoded *scheme* (`http%3a%2f%2f…`) never
+  matched `URL_RE` in the first place, so only host/path encoding is in play. No new match surface,
+  only a wider identity for an already-matched URL.
+- **Fullwidth / compatibility homoglyphs.** `normalize_url` NFKC-folds
+  (`unicodedata.normalize("NFKC", …)`), so a fullwidth host (`http://ｅｖｉｌ.example`) or a fullwidth
+  full-stop (`evil．com`) folds to its ASCII twin. This is the **compatibility** subclass of
+  homoglyphs only, deterministic and in stdlib. **Cross-script confusables** (Cyrillic `е`, Greek
+  `ο`) and **punycode/IDNA** are *not* NFKC-equivalent to their Latin lookalikes; catching them
+  needs a Unicode UTS-39 confusables table (a dependency and a real false-positive budget), so they
+  stay deferred. The scheme must still be ASCII or defanged (a fullwidth *scheme* would not match
+  `URL_RE`, and NFKC-normalizing the raw text pre-match would break in-place redaction offsets). But
+  homoglyph attacks target the host, which this covers.
+- **Further schemes `ftp://` and `tel:`.** Added to the grammar's two families (authority-separator
+  and opaque-colon), each a clickable exfil / call vector. To avoid partial-scheme false positives
+  the matcher now anchors every scheme at a word boundary (`\b`), so `sftp://…` and `hotel:…` are
+  not mis-read as `ftp://`/`tel:` (the anchor is correct for the existing schemes too). **`data:`
+  stays out**: `\bdata:` still fires on prose like `data:the results` and it is a less-observed
+  laundering vector. It goes in when one is seen. This reverses the "scope is http(s)"-era assertion
+  that `ftp://` is ignored; the guardrail test that documented that exclusion now documents `ftp://`
+  as in scope.
+
+Consequence for the matcher/hold-back: `URL_RE` and the streaming `_SCHEME_PREFIXES` are now both
+**derived from one scheme-family table**, so adding a scheme cannot leave the hold-back out of sync
+(the old "kept in sync" comment is gone, as the drift is structurally impossible). A `ftp:`/`tel:`
+scheme split across stream deltas is carried, not leaked, like every other scheme.
+
+### Scope held deliberately narrow (updated)
+
+Still **out**, behind the same grammar: **whitespace-separated** defang (`evil dot com`). Internal
+spaces break the contiguous non-whitespace token the streaming hold-back relies on and inflate prose
+false positives (`the dot product`), and a spaced form is not clickable (the copy-paste-refangable
+bracket/`hxxp` defang is already covered), so the value is low and the cost high;
+**cross-script homoglyphs / IDN / punycode** (needs a confusables table + dependency);
+**multi-pass percent-encoding**; and **`data:`** and other schemes. Safety stays deterministic:
+what is not matched is not redacted, never mis-instructed.

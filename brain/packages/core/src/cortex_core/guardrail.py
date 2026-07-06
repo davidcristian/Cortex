@@ -9,127 +9,21 @@ it collected from every untrusted tool result); the filter scans the streamed as
 and replaces flagged URLs (minus URLs the user themselves sent) with ``REDACTED_LINK`` before
 they reach the user. Two policies (ADR-0015 + addendum): ``UrlRedactingGuardrail`` redacts the
 verbatim-collected untrusted URLs (the default), ``StrictUrlRedactingGuardrail`` redacts *every*
-non-user URL on a tainted turn. Both see through common *defanging* (``hxxp://``, ``evil[.]com``,
-``evil[dot]com``) via a refang pass on the shared URL grammar, so a defanged link and its plain
-twin share one identity (ADR-0015 obfuscation addendum). Model-independent by construction:
+non-user URL on a tainted turn. The URL grammar and identity live in ``urls.py``, and this module
+recognizes, normalizes, and streams URLs through it, so obfuscation-resistant matching (defang,
+percent-encoding, fullwidth homoglyphs) is inherited for free. Model-independent by construction:
 however injectable the generating model is, a laundered link does not survive the seam. Pure, no
 I/O; the only state is one turn's carry buffer, dying with the turn.
 """
 
-import re
 from collections.abc import Set as AbstractSet
 from typing import Protocol
 
-# The scheme word a URL may open with, plain or *defanged*: `hxxp`/`hxxps` are the standard CTI
-# defang of `http`/`https` (ADR-0015 obfuscation addendum), refanged for identity by `_refang`.
-# `mailto:` is an intentional, clickable exfil/phishing vector so it is in scope; bare addresses
-# and other schemes stay out (matching every `user@host` or `name.py` would redact prose).
-_HTTP_WORD = r"h(?:tt|xx)ps?"
-
-# Scheme separators, plain or defanged: `://` may arrive as `[://]` or `[:]//`, a `mailto:` colon
-# as `[:]`. Each pairs only with its own scheme, so `http:foo`/`mailto://x` do not over-match.
-_HTTP_SEP = r"://|\[://\]|\[:\]//"
-_MAILTO_SEP = r":|\[:\]"
-
-# A defanged dot inside the host/path: `[.]`, `(.)`, `{.}`, `[dot]`, `(dot)`, `{dot}` (any case).
-# Recognized only *inside* a scheme'd URL, so a bare `evil[.]com` in prose still never matches.
-_DEFANG_DOT = r"[\[({](?:\.|dot)[\])}]"
-
-# A character that may belong to a URL body: anything but whitespace and the usual prose/markup
-# closers (which also bound a Markdown `(url)`/`[url]`). A defanged dot is matched atomically
-# ahead of this, so its closing bracket does not end the match early.
-_URL_CHAR = r"[^\s<>\"'\)\]\}]"
-
-# A clickable link, plain or defanged, matched liberally to the first character that cannot belong
-# to one. Defanged forms are refanged to a canonical identity by `_normalize`/`_refang`.
-_URL_RE = re.compile(
-    rf"(?:{_HTTP_WORD}(?:{_HTTP_SEP})|mailto(?:{_MAILTO_SEP}))(?:{_DEFANG_DOT}|{_URL_CHAR})+",
-    re.IGNORECASE,
-)
-
-# The full scheme openings, plain and defanged, whose prefixes the streaming hold-back carries so
-# a scheme split across deltas is never leaked (`_held_from`). Kept in sync with `_URL_RE`.
-_SCHEME_PREFIXES = (
-    "https://",
-    "http://",
-    "hxxps://",
-    "hxxp://",
-    "https[://]",
-    "http[://]",
-    "hxxps[://]",
-    "hxxp[://]",
-    "https[:]//",
-    "http[:]//",
-    "hxxps[:]//",
-    "hxxp[:]//",
-    "mailto:",
-    "mailto[:]",
-)
-
-# Prose punctuation a URL match may drag along at its end is part of the sentence, never of
-# the URL identity, and preserved outside a redaction.
-_TRAILING_PUNCTUATION = ".,;:!?"
-
-# Ends the authority (host[:port]) component: from here on a URL is case-sensitive.
-_AUTHORITY_END = re.compile(r"[/?#]")
-
-# The longest string that is a prefix of a scheme+separator but not yet a URL match
-# ("https://" needs one more character to match _URL_RE). It is the stream filter's hold-back bound.
-_LONGEST_OPEN_PREFIX = max(len(prefix) for prefix in _SCHEME_PREFIXES)
+from cortex_core.urls import TRAILING_PUNCTUATION, URL_RE, held_from, normalize_url
 
 # What the user sees in place of a laundered link. Self-explanatory inline, so the overlay
 # needs no extra event type to surface the redaction.
 REDACTED_LINK = "[link removed: untrusted source]"
-
-# Defanged-token substitutions applied before identity comparison (`_refang`): each maps a
-# defanged token back to the character it hides. `hxx` is rewritten only at the scheme (anchored),
-# never inside a host/path; the separator and dot forms are unambiguous wherever they appear.
-_REFANG_SUBS: tuple[tuple[re.Pattern[str], str], ...] = (
-    (re.compile(r"\Ahxx", re.IGNORECASE), "htt"),
-    (re.compile(r"\[://\]"), "://"),
-    (re.compile(r"\[:\]"), ":"),
-    (re.compile(_DEFANG_DOT, re.IGNORECASE), "."),
-)
-
-
-def _refang(url: str) -> str:
-    """Rewrite a URL's defanged tokens (`hxxp`, `[.]`, `[://]`, …) to their plain characters.
-
-    Applied at the head of ``_normalize`` so a defanged link collected from untrusted content and
-    its plain reproduction in the reply (or vice versa) compare equal, the point of obfuscation-
-    resistant matching (ADR-0015 addendum). A no-op on an already-plain URL.
-    """
-    for pattern, repl in _REFANG_SUBS:
-        url = pattern.sub(repl, url)
-    return url
-
-
-def _normalize(url: str) -> str:
-    """One URL's identity: defang refanged, trailing prose punctuation dropped, scheme+authority
-    lowercased.
-
-    The path/query/fragment keep their case (URL semantics). Laundering is verbatim
-    reproduction, so exact-but-case-normalized identity is the right match. A ``mailto:`` has
-    no ``://`` authority to split on, so it is fully case-folded (harmless: it only widens a
-    security redaction, and both sides fold identically so verbatim matches still compare equal).
-    ``_refang`` runs first so ``hxxp://evil[.]com`` and ``http://evil.com`` reduce to one identity.
-    """
-    trimmed = _refang(url).rstrip(_TRAILING_PUNCTUATION)
-    head, sep, tail = trimmed.partition("://")
-    cut = _AUTHORITY_END.search(tail)
-    if cut is None:
-        return f"{head.lower()}{sep}{tail.lower()}"
-    return f"{head.lower()}{sep}{tail[: cut.start()].lower()}{tail[cut.start() :]}"
-
-
-def extract_urls(text: str) -> frozenset[str]:
-    """Every clickable http(s)/``mailto:`` URL in ``text``, normalized for identity comparison.
-
-    Both sides of the laundering defense use this one function, with collection from untrusted
-    tool results (``TaintLedger.observe``) and the user-message allowlist, so a collected
-    URL and its reappearance in a reply always compare equal.
-    """
-    return frozenset(_normalize(match.group()) for match in _URL_RE.finditer(text))
 
 
 class OutputFilter(Protocol):
@@ -202,26 +96,6 @@ class StrictUrlRedactingGuardrail:
         return _UrlRedactingFilter(taint, allow, strict=True)
 
 
-def _held_from(buf: str) -> int:
-    """The index from which ``buf`` may still be growing a URL. Everything before is final.
-
-    Two open cases: a URL match touching the buffer's end (the next chunk may extend it), and
-    a trailing prefix of a scheme ("h" … "https://") that has not yet become matchable. Both
-    are carried; anything else cannot change meaning with more text.
-    """
-    last = None
-    for match in _URL_RE.finditer(buf):
-        last = match
-    if last is not None and last.end() == len(buf):
-        return last.start()
-    lower = buf.lower()
-    for size in range(min(len(buf), _LONGEST_OPEN_PREFIX), 0, -1):
-        suffix = lower[-size:]
-        if any(prefix.startswith(suffix) for prefix in _SCHEME_PREFIXES):
-            return len(buf) - size
-    return len(buf)
-
-
 class _UrlRedactingFilter:
     """The streaming redactor behind the redacting guardrails (one instance per turn).
 
@@ -239,7 +113,7 @@ class _UrlRedactingFilter:
     def feed(self, chunk: str) -> str:
         """Scrub and release the finalized prefix; carry what a later chunk might extend."""
         buf = self._pending + chunk
-        held = _held_from(buf)
+        held = held_from(buf)
         self._pending = buf[held:]
         return self._scrub(buf[:held])
 
@@ -264,7 +138,7 @@ class _UrlRedactingFilter:
             flagged = frozenset(self._taint.untrusted_urls) - self._allow
             if not flagged:
                 return text
-        return _URL_RE.sub(lambda match: self._redacted(match.group(), flagged), text)
+        return URL_RE.sub(lambda match: self._redacted(match.group(), flagged), text)
 
     def _redacted(self, url: str, flagged: frozenset[str] | None) -> str:
         """The replacement for one matched URL. Its trailing prose punctuation survives.
@@ -272,9 +146,9 @@ class _UrlRedactingFilter:
         ``flagged`` is the verbatim set to redact, or ``None`` in strict mode (redact any URL
         outside the user's allowlist).
         """
-        normalized = _normalize(url)
+        normalized = normalize_url(url)
         redact = normalized not in self._allow if flagged is None else normalized in flagged
         if not redact:
             return url
-        stripped = url.rstrip(_TRAILING_PUNCTUATION)
+        stripped = url.rstrip(TRAILING_PUNCTUATION)
         return REDACTED_LINK + url[len(stripped) :]
