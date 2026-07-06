@@ -24,6 +24,7 @@ from cortex_core import (
     ResourceBudgetScheduler,
     SessionMemoryScope,
     SpawnSubagentsTool,
+    StrictUrlRedactingGuardrail,
     SubagentProfile,
     SubagentResources,
     SubagentRoster,
@@ -516,7 +517,14 @@ async def test_build_subagent_tools_strips_gated_tools_structurally() -> None:
 
 
 def test_build_output_guardrail_redact_is_the_shipped_defense() -> None:
-    assert isinstance(build_output_guardrail("redact"), UrlRedactingGuardrail)
+    guard = build_output_guardrail("redact")
+    assert isinstance(guard, UrlRedactingGuardrail)
+    assert not isinstance(guard, StrictUrlRedactingGuardrail)
+
+
+def test_build_output_guardrail_strict_is_the_opt_in_policy() -> None:
+    # CORTEX_OUTPUT_GUARDRAIL=strict selects the addendum's redact-all-non-user-URL policy.
+    assert isinstance(build_output_guardrail("strict"), StrictUrlRedactingGuardrail)
 
 
 def test_build_output_guardrail_off_disables_it() -> None:

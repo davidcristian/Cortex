@@ -22,6 +22,7 @@ from cortex_core import (
     SingleResidentModelManager,
     SkipUnavailableToolRegistry,
     SpawnSubagentsTool,
+    StrictUrlRedactingGuardrail,
     ToolDispatcher,
     ToolError,
     ToolRegistry,
@@ -124,8 +125,12 @@ async def build_tool_registry(
     return AggregateToolRegistry(registries), stack.aclose
 
 
-def build_output_guardrail(mode: str) -> UrlRedactingGuardrail | None:
+def build_output_guardrail(
+    mode: str,
+) -> UrlRedactingGuardrail | StrictUrlRedactingGuardrail | None:
     """The turn's output guardrail, or None when disabled (ADR-0015)."""
+    if mode == "strict":
+        return StrictUrlRedactingGuardrail()
     return UrlRedactingGuardrail() if mode == "redact" else None
 
 

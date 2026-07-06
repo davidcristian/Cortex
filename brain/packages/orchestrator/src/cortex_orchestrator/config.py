@@ -67,10 +67,7 @@ class BrainRuntimeConfig(BaseSettings):
         default=11.3, ge=0, validation_alias="CORTEX_VRAM_CORTEX_GB"
     )
     history_char_budget: int = Field(default=48_000, ge=0)
-    # env CORTEX_OUTPUT_GUARDRAIL is the model-independent laundering defense (ADR-0015):
-    # `redact` (the default, so hardening is on out of the box) replaces URLs sourced from
-    # untrusted tool results in the reply the user sees; `off` restores the unguarded stream.
-    output_guardrail: Literal["redact", "off"] = "redact"
+    output_guardrail: Literal["redact", "strict", "off"] = "redact"
 
 
 class InferenceConfig(BaseSettings):

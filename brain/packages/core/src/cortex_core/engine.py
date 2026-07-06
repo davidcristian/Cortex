@@ -119,7 +119,7 @@ class TurnEngine:
         working = list(await self._inference_messages(text, history, session_id, context))
         parts: list[str] = []
         guard: OutputFilter | None = (
-            self._caps.guardrail.open(taint.untrusted_urls, allow=extract_urls(text))
+            self._caps.guardrail.open(taint, allow=extract_urls(text))
             if self._caps.guardrail is not None
             else None
         )

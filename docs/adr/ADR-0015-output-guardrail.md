@@ -83,7 +83,9 @@ appending a link, plus any future model swap silently re-opening the gap.
   below as the obfuscation-resistant deferral.
 - **Scope is http(s).** `mailto:`, bare domains, and other schemes are not collected or
   redacted, since matching them would over-redact routine content (every email sender address,
-  every `setup.py`). The scheme list is one regex away if the threat model grows.
+  every `setup.py`). The scheme list is one regex away if the threat model grows. *(Superseded
+  in part by the 2026-07-06 addendum below: `mailto:` is now in scope; bare addresses/domains and
+  other schemes remain out.)*
 - **Over-redaction on legitimate quoting** (above). Deliberate: a missing link degrades a
   reply; a delivered phishing link ends a user.
 
@@ -92,8 +94,10 @@ appending a link, plus any future model swap silently re-opening the gap.
 - **Obfuscation-resistant matching** (homoglyphs, spaced-out URLs, encodings) needs evidence
   a deployed model actually obeys transform instructions before buying its false-positive risk.
 - **A strict mode** redacting every URL absent from the user's message on a tainted turn is
-  a one-line policy swap behind the same seam if exact-match proves too narrow.
+  a one-line policy swap behind the same seam if exact-match proves too narrow. **Landed
+  2026-07-06 (addendum below).**
 - **More schemes** (`mailto:` above all) once a real laundering vector for them is observed.
+  **`mailto:` landed 2026-07-06 (addendum below);** bare domains and other schemes stay out.
 - **Footer/boilerplate heuristics** ("call this number", non-URL phishing payloads) are heuristic,
   so it must not ride in the deterministic layer; likely a screening-model job (ADR-0013).
 - **Structured redaction reporting** (a `Converse` status event alongside the inline marker)

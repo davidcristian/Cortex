@@ -534,9 +534,15 @@ behind the unchanged `ToolRegistry`/`ToolDispatcher`/`stream_tool_loop` seams (o
   `UrlRedactingGuardrail` (an `OutputGuardrail` seam in `TurnCapabilities`) redacts any that
   reappear in the reply (minus the user's own) before the user sees it, streaming-safe;
   the persisted reply equals the shown reply. On by default (`CORTEX_OUTPUT_GUARDRAIL=redact`,
-  `off` disables). Remaining behind the same seam (ADR-0015 deferred): obfuscation-resistant
-  matching, a strict redact-all-URLs mode, more schemes (`mailto:`), footer/boilerplate
-  heuristics (screening-model territory), and a structured redaction event for the overlay.
+  `off` disables). **Strict mode + `mailto:` coverage landed 2026-07-06
+  ([ADR-0015 addendum](adr/ADR-0015-output-guardrail.md)):** `CORTEX_OUTPUT_GUARDRAIL=strict`
+  (`StrictUrlRedactingGuardrail`) redacts *every* non-user URL on a tainted turn. It is verbatim-
+  independent, the answer to a transformed/reconstructed link. That required the seam to open
+  over the live `TaintView` (taint bit + URLs) rather than the URL subset alone; and
+  `extract_urls`/`_URL_RE` now cover `mailto:` (a real exfil vector) in both modes. Remaining
+  behind the same seam (ADR-0015 deferred): obfuscation-resistant matching, further schemes,
+  footer/boilerplate heuristics (screening-model territory), and a structured redaction event
+  for the overlay.
 - **Subagent model pick revised to gemma-4-E4B (landed 2026-07-03)**
   ([ADR-0004 pick-revision addendum](adr/ADR-0004-model-lineup.md)). The injection-defense
   harness found E4B the standout (0/10 framed-obeyed even thinking-off, re-confirmed at
