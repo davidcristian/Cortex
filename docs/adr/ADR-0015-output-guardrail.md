@@ -93,6 +93,10 @@ appending a link, plus any future model swap silently re-opening the gap.
 
 - **Obfuscation-resistant matching** (homoglyphs, spaced-out URLs, encodings) needs evidence
   a deployed model actually obeys transform instructions before buying its false-positive risk.
+  **The *defanging* subclass landed 2026-07-06 (second addendum below):** contiguous defang forms
+  (`hxxp://`, `evil[.]com`, `evil[dot]com`, `[://]`/`[:]//` separators) are now refanged to a
+  canonical identity, so a defanged link and its plain twin match on both sides. Whitespace-split
+  (`evil dot com`), homoglyph/IDN, and percent/other encodings stay deferred here.
 - **A strict mode** redacting every URL absent from the user's message on a tainted turn is
   a one-line policy swap behind the same seam if exact-match proves too narrow. **Landed
   2026-07-06 (addendum below).**
