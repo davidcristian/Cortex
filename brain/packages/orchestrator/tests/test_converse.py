@@ -15,6 +15,7 @@ from cortex_core import (
     InferenceEvent,
     InMemorySessionStore,
     Message,
+    ReasoningChunk,
     Role,
     SessionStoreError,
     SystemClock,
@@ -228,6 +229,29 @@ async def test_turn_maps_deltas_then_turn_complete() -> None:
     assert kinds == ["text_delta", "text_delta", "text_delta", "turn_complete"]
     assert "".join(_delta_texts(events)) == "reply 1: hello"
     assert events[-1].turn_complete.turn_id == "t-1"
+
+
+class ReasoningBackend:
+    """Streams one reasoning delta (surfaced as a thinking status) then one reply delta."""
+
+    async def stream(
+        self, model: str, messages: Sequence[Message], *, tools: Sequence[ToolSpec] = ()
+    ) -> AsyncIterator[InferenceEvent]:
+        del model, messages, tools
+        yield ReasoningChunk("pondering")
+        yield TextChunk("hi")
+
+
+async def test_reasoning_maps_to_a_thinking_status_update() -> None:
+    """A domain StatusUpdate becomes a wire ServerEvent(status=...) (ADR-0020); the reasoning
+    delta is surfaced as status and the reply delta follows as text."""
+    engine = TurnEngine(
+        InMemorySessionStore(), ReasoningBackend(), SystemClock(), turn_id_factory=lambda: "t-1"
+    )
+    events = await _collect(converse(engine, _events_from(_user_turn("s", "hey"))))
+    assert [e.WhichOneof("event") for e in events] == ["status", "text_delta", "turn_complete"]
+    assert (events[0].status.state, events[0].status.detail) == ("thinking", "pondering")
+    assert "".join(_delta_texts(events)) == "hi"
 
 
 async def test_second_turn_on_the_same_stream_keeps_counting() -> None:

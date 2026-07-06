@@ -12,6 +12,7 @@ from cortex_core import (
     Message,
     PlacementRequest,
     PlacementTarget,
+    ReasoningChunk,
     RecordingAuditSink,
     ResourceBudgetScheduler,
     Role,
@@ -133,6 +134,16 @@ async def test_runs_a_plain_task_and_persists_the_result() -> None:
     (messages,) = backend.seen
     assert [m.role for m in messages] == [Role.USER]
     assert messages[0].text == "summarize"
+
+
+async def test_reasoning_deltas_are_dropped_from_the_subagent_output() -> None:
+    """A reasoning delta (ADR-0020) is ephemeral status, not the answer: the subagent tier runs
+    thinking-off, but the runner drops any reasoning defensively rather than folding it in."""
+    store = InMemoryTaskStore()
+    await store.put_task(SubagentTask(id="t1", instruction="add", context="", at=_AT))
+    backend = ScriptedBackend([[ReasoningChunk("thinking..."), TextChunk("42")]])
+    result = await _runner(store, backend).run("t1")
+    assert (result.ok, result.output) == (True, "42")
 
 
 async def test_context_is_passed_as_a_system_message() -> None:

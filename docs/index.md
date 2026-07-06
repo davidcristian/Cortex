@@ -102,6 +102,12 @@ Start here. Rules for working in this repo: [AGENTS.md](../AGENTS.md).
   `skip`); recall always fences a stored tainted memory and re-taints the turn, so untrusted-derived
   content is fenced-and-tainting across turns, not just within one, behind the unchanged
   `MemoryStore`/`MemoryRecaller`/`TaintLedger` seams.
+- [ADR-0020: Reasoning status](adr/ADR-0020-reasoning-status.md): the Slice-4 reasoning-model
+  deferral landed. The cortex's `reasoning_content` (it thinks before it replies) is surfaced as a
+  live `StatusUpdate` (`state="thinking"`) instead of silently dropped. `ReasoningChunk` joins the
+  `InferenceEvent` union, the shared tool loop yields `str | ReasoningDelta`, and the engine maps
+  reasoning to an ephemeral (unpersisted, non-reply) `StatusUpdate`; the proto/body/overlay status
+  path was already built and is now lit end to end. Behind the unchanged `InferenceBackend`.
 
 New non-obvious decision → add `adr/ADR-XXXX-<slug>.md`, link it here.
 

@@ -3,9 +3,10 @@
 **Purpose.** The llama.cpp adapter for the core's `InferenceBackend` port (ADR-0005,
 ADR-0007). A thin HTTP translator: it takes a GPU lease from a `ModelManager`, opens a
 streaming chat completion against the leased `llama-server` endpoint over the
-OpenAI-compatible API, and yields the assistant text deltas plus any tool calls the model
-makes (native function-calling, ADR-0009). No orchestration, no session state (the one hard
-rule). The core keeps talking only to `InferenceBackend`.
+OpenAI-compatible API, and yields the assistant reply deltas, a reasoning model's thinking
+deltas (ADR-0020), plus any tool calls the model makes (native function-calling, ADR-0009).
+No orchestration, no session state (the one hard rule). The core keeps talking only to
+`InferenceBackend`.
 
 **Public contract** (everything importable from `cortex_inference`; `__all__` is the API):
 

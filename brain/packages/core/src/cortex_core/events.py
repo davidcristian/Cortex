@@ -15,6 +15,16 @@ class TextDelta:
 
 
 @dataclass(frozen=True, slots=True)
+class StatusUpdate:
+    """Mid-turn progress for the overlay to show (proto ``StatusUpdate``): a machine-readable
+    ``state`` and human-readable ``detail``.
+    """
+
+    state: str
+    detail: str
+
+
+@dataclass(frozen=True, slots=True)
 class TurnCompleted:
     """The turn finished and the assistant message was persisted to the store."""
 
@@ -22,4 +32,4 @@ class TurnCompleted:
     full_text: str
 
 
-type TurnEvent = TextDelta | TurnCompleted
+type TurnEvent = TextDelta | StatusUpdate | TurnCompleted

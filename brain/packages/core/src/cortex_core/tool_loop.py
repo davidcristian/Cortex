@@ -6,6 +6,7 @@ from datetime import datetime
 
 from cortex_core.conversation import Message, Role
 from cortex_core.dispatch import ToolDispatcher
+from cortex_core.inference import ReasoningChunk
 from cortex_core.ports import Clock, InferenceBackend
 from cortex_core.tools import ToolCall, ToolResult, Trust
 from cortex_core.untrusted import TaintLedger, wrap_untrusted
@@ -13,6 +14,15 @@ from cortex_core.untrusted import TaintLedger, wrap_untrusted
 # Upper bound on inference↔tool rounds in one loop (ADR-0009): a safety net against a model
 # that never stops calling tools. On exhaustion the loop ends with the text produced so far.
 MAX_TOOL_STEPS = 8
+
+
+@dataclass(frozen=True, slots=True)
+class ReasoningDelta:
+    """A delta of the model's reasoning trace, surfaced by the loop distinctly from reply text
+    (ADR-0020).
+    """
+
+    text: str
 
 
 @dataclass(frozen=True, slots=True)
@@ -51,8 +61,10 @@ async def stream_tool_loop(
     model: str,
     working: list[Message],
     context: ToolLoopContext,
-) -> AsyncGenerator[str, None]:
-    """Run the bounded infer↔tool loop over ``working``, yielding assistant text deltas."""
+) -> AsyncGenerator[str | ReasoningDelta, None]:
+    """Run the bounded infer↔tool loop over ``working``, yielding reply-text deltas (``str``) and
+    reasoning deltas (``ReasoningDelta``, ADR-0020).
+    """
     dispatcher = context.dispatcher
     specs = await dispatcher.describe_tools() if dispatcher is not None else ()
     gated_by_name = {spec.name: spec.gated for spec in specs}
@@ -64,6 +76,8 @@ async def stream_tool_loop(
             async for event in deltas:
                 if isinstance(event, ToolCall):
                     calls.append(event)
+                elif isinstance(event, ReasoningChunk):
+                    yield ReasoningDelta(event.text)
                 else:
                     step_text.append(event.text)
                     yield event.text

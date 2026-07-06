@@ -157,8 +157,9 @@ The service:
 **Converse contract** (proto/body.proto `BrainService.Converse`, stream ↔ stream):
 
 - `UserTurn` runs one `TurnEngine` turn against the session named by
-  `ClientEvent.session_id`; each engine delta streams back as a `TextDelta` ServerEvent
-  (the echo script yields at least 3), followed by exactly one `TurnComplete{turn_id}`.
+  `ClientEvent.session_id`; each engine reply delta streams back as a `TextDelta` ServerEvent
+  (the echo script yields at least 3), a reasoning model's thinking as a `StatusUpdate`
+  (ADR-0020, `state="thinking"`), followed by exactly one `TurnComplete{turn_id}`.
   `UserTurn.images` are **ignored in this slice**, because multimodal input arrives with
   vision (Slice 10).
 - Turns run one at a time per stream, but dispatch never blocks on the running turn:
