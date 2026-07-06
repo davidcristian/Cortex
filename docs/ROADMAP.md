@@ -586,8 +586,15 @@ behind the unchanged `ToolRegistry`/`ToolDispatcher`/`stream_tool_loop` seams (o
   (`StrictUrlRedactingGuardrail`) redacts *every* non-user URL on a tainted turn. It is verbatim-
   independent, the answer to a transformed/reconstructed link. That required the seam to open
   over the live `TaintView` (taint bit + URLs) rather than the URL subset alone; and
-  `extract_urls`/`_URL_RE` now cover `mailto:` (a real exfil vector) in both modes. Remaining
-  behind the same seam (ADR-0015 deferred): obfuscation-resistant matching, further schemes,
+  `extract_urls`/`_URL_RE` now cover `mailto:` (a real exfil vector) in both modes. **The
+  defanging subclass of obfuscation-resistant matching landed 2026-07-06 ([ADR-0015 second
+  addendum](adr/ADR-0015-output-guardrail.md)):** the shared URL grammar (`_URL_RE` + a `_refang`
+  pass in `_normalize`) now recognizes contiguous defang forms (`hxxp://`, `evil[.]com`,
+  `evil[dot]com`, `[://]`/`[:]//` separators) and refangs them to one canonical identity, so a
+  defanged link that formerly slipped past *both* redact and strict mode is caught on both the
+  collection and reply sides, with no seam change (grammar-only). Remaining behind the same seam
+  (ADR-0015 deferred): the rest of obfuscation-resistant matching (whitespace-split `evil dot
+  com`, homoglyphs/IDN, percent/other encodings), further schemes (`ftp:`/`tel:`/`data:`),
   footer/boilerplate heuristics (screening-model territory), and a structured redaction event
   for the overlay.
 - **Subagent model pick revised to gemma-4-E4B (landed 2026-07-03)**

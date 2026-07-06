@@ -93,6 +93,10 @@ appending a link, plus any future model swap silently re-opening the gap.
 
 - **Obfuscation-resistant matching** (homoglyphs, spaced-out URLs, encodings) needs evidence
   a deployed model actually obeys transform instructions before buying its false-positive risk.
+  **The *defanging* subclass landed 2026-07-06 (second addendum below):** contiguous defang forms
+  (`hxxp://`, `evil[.]com`, `evil[dot]com`, `[://]`/`[:]//` separators) are now refanged to a
+  canonical identity, so a defanged link and its plain twin match on both sides. Whitespace-split
+  (`evil dot com`), homoglyph/IDN, and percent/other encodings stay deferred here.
 - **A strict mode** redacting every URL absent from the user's message on a tainted turn is
   a one-line policy swap behind the same seam if exact-match proves too narrow. **Landed
   2026-07-06 (addendum below).**
@@ -156,3 +160,57 @@ The config `Literal` grows `strict`; `build_output_guardrail` maps it to the new
 structured-reporting and obfuscation-resistant deferrals above are untouched. Strict mode is
 verbatim-independent but still exact about *which* links (the user's) survive, so
 obfuscation-resistant matching (homoglyphs, encodings) remains its own item.
+
+## Addendum (2026-07-06): obfuscation-resistant matching (defanged URLs)
+
+Closes the **defanging** subclass of the obfuscation-resistant deferral. Purely the shared URL
+grammar (`_URL_RE` + `_normalize` in `guardrail.py`) growing, with **no seam change**: both
+`OutputGuardrail` policies, the `TaintLedger`, `TaintView`, the streaming filter, and the config
+are untouched. Redact and strict mode inherit the wider matching for free; a clean/untainted turn
+is byte-identical to before.
+
+### The gap
+
+Exact-identity matching (and even strict mode) only ever act on strings `_URL_RE` *recognizes as
+a URL*. A **defanged** link (the security-community convention for writing a URL so it is not
+clickable) is not recognized: `hxxp://evil[.]com` matches neither the old `https?://…` opener
+(wrong scheme word) nor its body (the `]` in `[.]` is an excluded closer, so the match dies at the
+bracket). So a defanged link laundered out of untrusted content escaped **both** modes: redact
+never collected it (so a verbatim reproduction sailed through) and strict never matched it in the
+reply (so even distrust-every-link missed it). Refanging is a routine, deterministic operation a
+weak model can be talked into ("write the link defanged so it isn't flagged"), and a user's mail
+client or a copy-paste can refang it back, so this is a real residual, not a hypothetical.
+
+### The change is to recognize, then refang to one identity
+
+`_URL_RE` now also matches the **contiguous** defang forms (no internal whitespace, so the
+non-whitespace-token model and the streaming hold-back are preserved):
+
+- **Scheme word** `hxxp`/`hxxps` (any case) alongside `http`/`https`.
+- **Scheme separator** `[://]` and `[:]//` alongside `://`; `mailto[:]` alongside `mailto:`. Each
+  defanged separator pairs only with its own scheme, so `http:foo` / `mailto://x` do not over-match.
+- **Dots** `[.]`, `(.)`, `{.}`, `[dot]`, `(dot)`, `{dot}` (any case) inside the host/path, consumed
+  atomically so the closing bracket does not terminate the match. Recognized **only inside a
+  scheme'd URL**, so a bare `evil[.]com` in prose is still ignored (the conservative scope holds:
+  no scheme, no match).
+
+`_normalize` gains a `_refang` head pass (`hxx`→`htt` anchored at the scheme only, `[://]`/`[:]`→
+their real separators, defanged dots→`.`) so a defanged URL and its plain twin normalize to the
+**same** identity. Consequences that fall out for free:
+
+- **Redact mode now also catches a defang *transform*.** Collecting untrusted `http://evil.com`
+  and seeing the reply emit `hxxp://evil[.]com` (or vice versa) redacts, because both normalize to
+  `http://evil.com`, not only byte-verbatim reproduction. The ADR risk's "transforms the URL on
+  instruction" is now partly covered for the defang transform specifically.
+- **Strict mode now matches defanged links**, closing the escape above on any tainted turn.
+- The streaming hold-back (`_SCHEME_PREFIXES`) learned every defanged opening, so a defanged scheme
+  split across deltas (`…hxx` | `p://…`, `http[` | `:]//…`) is carried, not leaked.
+
+### Scope held deliberately narrow
+
+Still **out** (documented, behind the same grammar for a later pass): **whitespace-separated**
+defang (`evil dot com`, `evil . com`), as admitting internal spaces would break the contiguous-token
+match and inflate prose false positives (`the dot product`); **homoglyph/IDN/punycode** and
+**percent/other encodings** (the remaining obfuscation-resistant items); and **further schemes**
+(`ftp:`, `tel:`, `data:`; each its own false-positive tradeoff, added when a vector is observed).
+Safety stays deterministic: what is not matched is not redacted, never mis-instructed.

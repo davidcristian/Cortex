@@ -146,10 +146,14 @@ Output guardrail (ADR-0015; the pure laundering defense in `guardrail.py`):
 
 - `extract_urls(text) -> frozenset[str]` finds every clickable http(s)/`mailto:` URL in `text`,
   normalized for identity (scheme+authority lowercased, trailing prose punctuation dropped,
-  path/query case kept; a `mailto:` has no `://` so it folds whole). Both sides of the defense
-  use it (collection via `TaintLedger.observe`, and the user-message allowlist), so a collected
-  URL and its reappearance always compare equal. Bare addresses/domains and other schemes stay
-  out (they would over-redact prose).
+  path/query case kept; a `mailto:` has no `://` so it folds whole). Common **defang** forms are
+  refanged first (ADR-0015 obfuscation addendum): `hxxp(s)`→`http(s)`, `[://]`/`[:]//`→`://`, and
+  bracketed dots `[.]`/`(.)`/`{.}`/`[dot]`/`(dot)` inside a scheme'd URL → `.`, so a defanged link
+  and its plain twin normalize to one identity (a defang *transform* in the reply is caught, not
+  only verbatim reproduction). Both sides of the defense use it for collection
+  (`TaintLedger.observe`) and the user-message allowlist, so a collected URL and its reappearance
+  always compare equal. Bare addresses/domains (defanged or not), whitespace-split (`evil dot
+  com`), homoglyphs/encodings, and other schemes stay out (they would over-redact prose).
 - `TaintView` (protocol) exposes the **live** taint signals the guardrail reads at scan time
   (`tainted: bool`, `untrusted_urls: AbstractSet[str]`); the turn's `TaintLedger` already
   satisfies it structurally (guardrail cannot import `untrusted`, which imports it).

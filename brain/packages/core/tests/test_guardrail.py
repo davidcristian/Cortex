@@ -177,3 +177,89 @@ def test_strict_tainted_turn_redacts_a_non_user_mailto() -> None:
     # Strict mode covers mailto: too: any non-user link on a tainted turn goes.
     guard = _strict(_Taint(tainted=True))
     assert guard.feed("write mailto:x@evil.example ") == f"write {REDACTED_LINK} "
+
+
+# --- Obfuscation-resistant matching: defanged URLs (ADR-0015 obfuscation addendum) ---
+
+
+def test_extract_urls_refangs_a_defanged_scheme() -> None:
+    # hxxp/hxxps are the standard CTI defang of http/https. Both are refanged to a plain identity.
+    assert extract_urls("hxxp://evil.example and hxxps://evil.example/a") == {
+        "http://evil.example",
+        "https://evil.example/a",
+    }
+
+
+def test_extract_urls_refangs_bracketed_dots() -> None:
+    # [.] / (.) / {.} inside the host/path are refanged; the closing bracket does not cut short.
+    assert extract_urls("http://evil[.]example/a(.)b and http://x{.}y") == {
+        "http://evil.example/a.b",
+        "http://x.y",
+    }
+
+
+def test_extract_urls_refangs_the_word_dot_defang() -> None:
+    # [dot]/(dot)/{dot} (any case) are refanged too.
+    assert extract_urls("http://evil[dot]example and http://a(DOT)b") == {
+        "http://evil.example",
+        "http://a.b",
+    }
+
+
+def test_extract_urls_refangs_bracketed_scheme_separators() -> None:
+    # Both defanged separators, [://] and [:]//, refang to a plain ://.
+    assert extract_urls("http[://]evil.example and http[:]//evil.example/a") == {
+        "http://evil.example",
+        "http://evil.example/a",
+    }
+
+
+def test_extract_urls_refangs_a_defanged_mailto() -> None:
+    assert extract_urls("mailto[:]abuse@evil[.]example") == {"mailto:abuse@evil.example"}
+
+
+def test_a_defanged_url_and_its_plain_twin_share_one_identity() -> None:
+    # The whole point: a fully-defanged link normalizes to exactly its plain form, so collection
+    # from untrusted content and reproduction in the reply always compare equal.
+    assert extract_urls("hxxps://evil[.]example/report") == extract_urls(
+        "https://evil.example/report"
+    )
+
+
+def test_extract_urls_refangs_only_the_leading_scheme_not_a_paths_hxx() -> None:
+    # `hxx` is rewritten anchored at the scheme; an `hxxp` living in the path is left intact
+    # (and the path keeps its case, as always).
+    assert extract_urls("http://ex.example/HxXp") == {"http://ex.example/HxXp"}
+
+
+def test_extract_urls_still_ignores_a_defanged_host_without_a_scheme() -> None:
+    # Conservative scope holds: no scheme, no match. A bare defanged host is not redacted.
+    assert extract_urls("reach evil[.]example or evil[dot]example") == frozenset()
+
+
+def test_defang_transform_of_a_collected_url_is_redacted() -> None:
+    # EVIL was collected in its plain form; the reply defangs it. Redact mode still catches it,
+    # because the defanged reproduction normalizes back to the collected identity.
+    guard = _filter({EVIL})
+    fed = guard.feed("see hxxps://evil[.]example/report now") + guard.flush()
+    assert fed == f"see {REDACTED_LINK} now"
+
+
+def test_strict_mode_redacts_a_defanged_link_that_used_to_escape() -> None:
+    # Before refanging, a defanged link matched no URL and slipped past even strict mode.
+    guard = _strict(_Taint(tainted=True))
+    assert guard.feed("go to hxxp://evil[.]example ") == f"go to {REDACTED_LINK} "
+
+
+def test_defanged_scheme_split_across_chunks_is_carried_not_lost() -> None:
+    # The hold-back learned the defanged openings: a scheme split mid-`hxxp` is held, not leaked.
+    guard = _filter({EVIL})
+    assert guard.feed("report at hxx") == "report at "
+    assert guard.feed("ps://evil[.]example/report ") == f"{REDACTED_LINK} "
+
+
+def test_defanged_dot_split_across_chunks_is_carried_not_lost() -> None:
+    # A bracketed dot straddling a chunk boundary is held until the closing bracket arrives.
+    guard = _filter({EVIL})
+    assert guard.feed("at https://evil[.") == "at "
+    assert guard.feed("]example/report ") == f"{REDACTED_LINK} "
