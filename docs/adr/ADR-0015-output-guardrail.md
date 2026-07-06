@@ -118,7 +118,11 @@ redacted. The original "scope is http(s)" risk excluded `mailto:` for fear of re
 sender address*. But that fear is about **bare** addresses (`user@host`), which are still not
 matched; the explicit `mailto:` scheme is an intentional, clickable link and a real exfil vector
 (`?body=<stolen data>`) / phishing-address substitution, so its false-positive cost is low.
-Identity is fully case-folded for a `mailto:` (no `://` authority to split on), so verbatim
+This is added **proactively**: the deferral above gated `mailto:` on an in-the-wild vector being
+*observed* first, and that trigger was **not** met. The reversal is a deliberate call that the
+exfil/phishing-substitution class is real enough and the false-positive cost low enough to cover
+now rather than wait (maintainer-sanctioned, 2026-07-06). Identity is fully case-folded for a `mailto:`
+(no `://` authority to split on), so verbatim
 laundering still compares equal on both sides, and the extra case-insensitivity only widens a
 security redaction, never a legitimate pass-through. The streaming hold-back learned the
 `mailto:` prefix so a scheme split across deltas is still carried, not leaked.
