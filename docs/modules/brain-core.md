@@ -42,8 +42,9 @@ Model management (Slice 4, ADR-0007):
 Memory domain (Slice 5, ADR-0008):
 
 - `MemoryRecord` is a frozen dataclass: `id: str`, `text: str`, `embedding: tuple[float, ...]`,
-  `at: datetime`. One durable memory; rejects naive `at` with `ValueError` (memory outlives
-  every process). The caller fills every field, leaving the store a pure translator.
+  `at: datetime`, `scope: str = GLOBAL_SCOPE`. One durable memory; rejects naive `at` with
+  `ValueError` (memory outlives every process). `scope` is its namespace (ADR-0008 addendum).
+  The caller fills every field, leaving the store a pure translator.
 - `ScoredMemory` is a frozen dataclass: `record: MemoryRecord`, `score: float`. A retrieval
   hit and its similarity (higher = closer).
 
@@ -163,9 +164,11 @@ Ports (`typing.Protocol`; failures cross them only as the typed errors below):
   next waiter. Consumed by the inference adapter (and, later, the handoff use-case).
 - `Embedder` provides `async embed(text) -> Sequence[float]`: one stateless call, text to vector.
   Dimension is fixed by the deployment's model (ADR-0008); the core assumes no value.
-- `MemoryStore` provides `async add(record) -> None`, `async search(embedding, *, k) ->
-  Sequence[ScoredMemory]` (top-`k` by similarity, most-similar first, over ALL memories, since
-  v1 is one global space). Durable, cross-session; the caller builds each record.
+- `MemoryStore` provides `async add(record) -> None`, `async search(embedding, *, k, scopes=None) ->
+  Sequence[ScoredMemory]` (top-`k` by similarity, most-similar first). `scopes` restricts the
+  candidate set to those namespaces (ADR-0008 scoping addendum); `None` (the default) ranks over
+  ALL memories (the global-space behavior). Durable, cross-session; the caller builds each record
+  (including its `scope`).
 - `ToolRegistry` has `async describe_tools() -> Sequence[ToolSpec]` (advertise the tools),
   `async invoke(call) -> ToolResult` (run one call; `is_error` reflects a tool-level
   failure). An unknown tool or a transport failure raises `ToolError`
@@ -212,9 +215,10 @@ Use-case:
   the abandoned backend stream. Backend failures surface as `InferenceError` after the
   user message was persisted.
   Memory (optional, ADR-0008): when `capabilities.memory` is set, before inference the
-  engine recalls the top `DEFAULT_RECALL_K` (5) memories for the user text and, if any,
-  prepends them as a `Role.SYSTEM` message to the context the backend sees. It is ephemeral,
-  never stored. After completion it records the `User: …\nAssistant: …` exchange to memory
+  engine recalls the top `DEFAULT_RECALL_K` (5) memories for the user text, within the
+  turn's `session_id` scope (ADR-0008 addendum; global by default), and, if any, prepends
+  them as a `Role.SYSTEM` message to the context the backend sees (ephemeral, never stored).
+  After completion it records the `User: …\nAssistant: …` exchange to memory,
   **unless the turn read untrusted content**, in which case nothing is recorded (ADR-0013), so
   every stored memory stays safe to recall as trusted.
   Tools (optional, ADR-0009): when `capabilities.tools` is set, the engine prepends the
@@ -252,12 +256,20 @@ Use-case:
   `wrap_untrusted` before it re-enters `working`. `MAX_TOOL_STEPS` and `ToolLoopContext` are here.
 - `DEFAULT_CORTEX_MODEL` is the logical id `"cortex"`. Deployments override it via
   `CORTEX_MODEL_CORTEX`, read by the composition root (orchestrator), never here.
-- `MemoryRecaller(store, embedder, clock, *, id_factory=<uuid4>)` is the memory v1 use-case
-  (ADR-0008). `record(text)` embeds `text`, persists a `MemoryRecord` (id from the factory,
-  `at` from the clock, embedding from the embedder), and returns it; `recall(query, *, k)`
-  embeds `query` and returns the store's top-`k` `ScoredMemory`. Stateless over the store:
-  every memory lives in `MemoryStore`, so recall is identical across restarts and swaps.
-  Wired into `TurnEngine` (retrieve-into-context, record-at-turn-end) when injected.
+- `MemoryRecaller(store, embedder, clock, *, scope=GLOBAL_MEMORY_SCOPE, id_factory=<uuid4>)` is
+  the memory use-case (ADR-0008). `record(text, *, session_id)` embeds `text`, persists a
+  `MemoryRecord` (id from the factory, `at` from the clock, embedding from the embedder, `scope`
+  from the policy's `write_scope(session_id)`), and returns it; `recall(query, *, k, session_id)`
+  embeds `query` and returns the store's top-`k` `ScoredMemory` within the policy's
+  `read_scopes(session_id)`. Stateless over the store: every memory lives in `MemoryStore`, so
+  recall is identical across restarts and swaps. Wired into `TurnEngine` (retrieve-into-context,
+  record-at-turn-end) when injected. The engine threads its `session_id` through both calls.
+- `MemoryScope` (port, `scope.py`) + `GlobalMemoryScope` / `SessionMemoryScope` (ADR-0008 scoping
+  addendum) are the pure policy mapping a turn's `session_id` to its `write_scope` and `read_scopes`
+  (the `HistoryWindow` pattern). `GlobalMemoryScope` (the `GLOBAL_MEMORY_SCOPE` singleton, the
+  default) writes `GLOBAL_SCOPE` and reads `None` (all), keeping recall cross-session;
+  `SessionMemoryScope` writes/reads the `session_id`, isolating a conversation's memory to itself.
+  Selected at the composition root via `CORTEX_MEMORY_SCOPE`; the store filters, the policy decides.
 - `ToolDispatcher(registry, audit, clock, *, confirmer=None)` is the turn's tool gateway and
   capability gate (ADR-0009/0013). `dispatch(call, *, tainted=False, gated=False)` runs `call`
   through the `ToolRegistry`, writes exactly one `ToolInvocation` (with the result's `trust`) to
@@ -354,7 +366,8 @@ Reference implementations (pure, shipped in core; the runtime wiring until Slice
   same port.
 - `InMemoryMemoryStore` is a list-backed `MemoryStore` ranking by cosine similarity in Python;
   behavioral twin of the pgvector adapter (Slice 5 host half) behind the same contract. A
-  zero-magnitude vector scores 0.0. Does not survive a restart, by design.
+  zero-magnitude vector scores 0.0; `scopes` filters candidates by namespace before ranking
+  (the `WHERE scope = ANY` twin). Does not survive a restart, by design.
 - `HashEmbedder(dimension=16)` is a deterministic, I/O-free `Embedder`: identical text always
   yields the identical vector (so a stored memory is its own strongest cosine match), distinct
   text a distinct vector. Carries no semantics. It is the CI/tests stand-in for the real nomic

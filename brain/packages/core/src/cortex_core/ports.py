@@ -63,7 +63,9 @@ class MemoryStore(Protocol):
 
     async def add(self, record: MemoryRecord) -> None: ...
 
-    async def search(self, embedding: Sequence[float], *, k: int) -> Sequence[ScoredMemory]: ...
+    async def search(
+        self, embedding: Sequence[float], *, k: int, scopes: Sequence[str] | None = None
+    ) -> Sequence[ScoredMemory]: ...
 
 
 class Clock(Protocol):

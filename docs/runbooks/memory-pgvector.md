@@ -32,8 +32,28 @@ cd brain && CORTEX_MEMORY_DSN=postgresql://cortex:cortex@127.0.0.1:5432/cortex \
 
 `--no-cov` matters. The 100% gate in the workspace addopts would otherwise fail the run.
 This runs the full `MemoryStore` contract (empty search, cosine ranking, top-k, roundtrip
-fidelity) against real pgvector, proving the adapter's SQL, which CI's canned-row fake
-cannot. The test cleans up its own `contract-%` rows.
+fidelity including the `scope`, and scope-filter isolation/union) against real pgvector,
+proving the adapter's SQL, which CI's canned-row fake cannot. The test cleans up its own
+`contract-%` rows.
+
+## Memory scoping (ADR-0008 scoping addendum)
+
+Recall is **global by default** (`CORTEX_MEMORY_SCOPE=global`). Memories are one shared space
+across every conversation, the founding "retrieval that grows" behavior. Set
+`CORTEX_MEMORY_SCOPE=session` to isolate each conversation: a memory recorded in one session is
+never recalled in another (`search` filters on `scope = ANY(read-scopes)`). It applies only when
+`CORTEX_MEMORY_BACKEND=pgvector`; the policy is selected at the composition root, never in the core.
+
+**Upgrading an existing DB.** `docker/postgres/init.sql` only runs on a *fresh* data dir, so a
+volume created before this addendum has no `scope` column. Add it in place as the `DEFAULT 'global'`
+back-fills every existing row into the global space, so recall is unchanged until you opt into
+`session` scoping:
+
+```
+docker compose ... exec postgres psql -U cortex -d cortex -c \
+  "ALTER TABLE memories ADD COLUMN IF NOT EXISTS scope text NOT NULL DEFAULT 'global'; \
+   CREATE INDEX IF NOT EXISTS memories_scope_idx ON memories (scope);"
+```
 
 ## Bring up the CPU embedder (for the end-to-end path)
 

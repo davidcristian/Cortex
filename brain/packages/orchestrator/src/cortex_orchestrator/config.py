@@ -11,6 +11,7 @@ from cortex_session import DEFAULT_REDIS_URL
 
 InferenceBackendName = Literal["echo", "llamacpp"]
 MemoryBackendName = Literal["none", "pgvector"]
+MemoryScopeName = Literal["global", "session"]
 ToolsBackendName = Literal["none", "mcp"]
 SubagentsBackendName = Literal["none", "llamacpp"]
 
@@ -96,6 +97,7 @@ class MemoryConfig(BaseSettings):
     dsn: str = ""
     embedder_endpoint: str = ""
     embedder_model: str = "embedding"
+    scope: MemoryScopeName = "global"
 
     @model_validator(mode="after")
     def _pgvector_needs_dsn_and_embedder(self) -> "MemoryConfig":

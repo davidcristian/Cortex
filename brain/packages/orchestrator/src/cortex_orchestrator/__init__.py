@@ -8,6 +8,7 @@ from cortex_orchestrator.builders import (
     build_memory,
     build_output_guardrail,
     build_tool_registry,
+    memory_scope_from_name,
 )
 from cortex_orchestrator.config import (
     BrainRuntimeConfig,
@@ -55,6 +56,7 @@ __all__ = [
     "build_tool_registry",
     "converse",
     "create_server",
+    "memory_scope_from_name",
     "run_from_env",
     "serve",
 ]

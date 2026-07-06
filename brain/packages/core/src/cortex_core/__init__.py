@@ -41,7 +41,7 @@ from cortex_core.guardrail import (
     extract_urls,
 )
 from cortex_core.inference import InferenceEvent, TextChunk
-from cortex_core.memory import MemoryRecord, ScoredMemory
+from cortex_core.memory import GLOBAL_SCOPE, MemoryRecord, ScoredMemory
 from cortex_core.model import ModelLease, SingleResidentModelManager
 from cortex_core.placement import Placement, PlacementRequest, PlacementTarget
 from cortex_core.placer import VramBudgetPlacer
@@ -64,6 +64,12 @@ from cortex_core.roster import SubagentProfile, SubagentResources, SubagentRoste
 from cortex_core.routing import RoutingHints, Tier, route_turn
 from cortex_core.runner import SubagentRunner
 from cortex_core.scheduler import ResourceBudgetScheduler
+from cortex_core.scope import (
+    GLOBAL_MEMORY_SCOPE,
+    GlobalMemoryScope,
+    MemoryScope,
+    SessionMemoryScope,
+)
 from cortex_core.spawn import SPAWN_TOOL_NAME, SpawnSubagentsTool
 from cortex_core.subagents import SubagentResult, SubagentTask
 from cortex_core.tools import (
@@ -87,6 +93,8 @@ from cortex_core.windowing import CharBudgetHistoryWindow, HistoryWindow
 __all__ = [
     "DEFAULT_CORTEX_MODEL",
     "DENIED_MSG",
+    "GLOBAL_MEMORY_SCOPE",
+    "GLOBAL_SCOPE",
     "REDACTED_LINK",
     "SECURITY_PREAMBLE",
     "SPAWN_TOOL_NAME",
@@ -101,6 +109,7 @@ __all__ = [
     "Embedder",
     "EmbedderError",
     "FilteredToolRegistry",
+    "GlobalMemoryScope",
     "HashEmbedder",
     "HistoryWindow",
     "InMemoryMemoryStore",
@@ -112,6 +121,7 @@ __all__ = [
     "InferenceEvent",
     "MemoryRecaller",
     "MemoryRecord",
+    "MemoryScope",
     "MemoryStore",
     "MemoryStoreError",
     "Message",
@@ -130,6 +140,7 @@ __all__ = [
     "Role",
     "RoutingHints",
     "ScoredMemory",
+    "SessionMemoryScope",
     "SessionStore",
     "SessionStoreError",
     "SingleResidentModelManager",

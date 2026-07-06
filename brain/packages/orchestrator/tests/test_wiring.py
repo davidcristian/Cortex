@@ -15,12 +15,14 @@ from grpc import aio
 from cortex_core import (
     CharBudgetHistoryWindow,
     EchoInferenceBackend,
+    GlobalMemoryScope,
     InMemoryTaskStore,
     InMemoryToolRegistry,
     MemoryRecaller,
     PlacementRequest,
     PlacementTarget,
     ResourceBudgetScheduler,
+    SessionMemoryScope,
     SpawnSubagentsTool,
     SubagentProfile,
     SubagentResources,
@@ -51,6 +53,7 @@ from cortex_orchestrator import (
     build_subagent_tools,
     build_subagents,
     build_tool_registry,
+    memory_scope_from_name,
     run_from_env,
 )
 from cortex_seam import BrainServiceStub, ClientEvent, ServerEvent, UserTurn
@@ -190,6 +193,12 @@ async def test_build_memory_selects_pgvector_and_returns_a_closer(
     assert seen_dsn == ["postgresql://cortex@db/cortex"]
     await close()  # releases the pool and the embedder client
     assert closed == ["store"]
+
+
+def test_memory_scope_from_name_maps_config_to_the_policy() -> None:
+    """The one env→core seam for scoping: `global` (default) vs `session` (ADR-0008 addendum)."""
+    assert isinstance(memory_scope_from_name("global"), GlobalMemoryScope)
+    assert isinstance(memory_scope_from_name("session"), SessionMemoryScope)
 
 
 async def test_build_tool_registry_defaults_to_disabled() -> None:

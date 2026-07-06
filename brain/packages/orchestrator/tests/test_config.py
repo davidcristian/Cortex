@@ -181,6 +181,13 @@ def test_memory_defaults_to_disabled() -> None:
     assert config.backend == "none"
     assert config.dsn == ""
     assert config.embedder_endpoint == ""
+    assert config.scope == "global"  # recall spans conversations unless opted out
+
+
+@pytest.mark.usefixtures("clean_env")
+def test_memory_scope_env_selects_session(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("CORTEX_MEMORY_SCOPE", "session")
+    assert MemoryConfig().scope == "session"
 
 
 @pytest.mark.usefixtures("clean_env")
