@@ -182,12 +182,19 @@ def test_memory_defaults_to_disabled() -> None:
     assert config.dsn == ""
     assert config.embedder_endpoint == ""
     assert config.scope == "global"  # recall spans conversations unless opted out
+    assert config.on_tainted == "skip"  # a tainted turn is dropped from memory by default
 
 
 @pytest.mark.usefixtures("clean_env")
 def test_memory_scope_env_selects_session(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("CORTEX_MEMORY_SCOPE", "session")
     assert MemoryConfig().scope == "session"
+
+
+@pytest.mark.usefixtures("clean_env")
+def test_memory_on_tainted_env_selects_record(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("CORTEX_MEMORY_ON_TAINTED", "record")
+    assert MemoryConfig().on_tainted == "record"  # opt into provenance-marked recording (ADR-0019)
 
 
 @pytest.mark.usefixtures("clean_env")

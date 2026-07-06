@@ -563,9 +563,18 @@ behind the unchanged `ToolRegistry`/`ToolDispatcher`/`stream_tool_loop` seams (o
   refuses invoking them (live walk, fail closed); `build_subagent_tools` wraps the shared registry in
   it before the subagent dispatcher. A jailbroken small subagent (framing is unreliable on the small
   tier) has nothing dangerous to call, not merely a gate denial.
-- **Context-preserving tainted-memory recording.** A tainted turn currently records **nothing** to
-  memory (fail-closed); recording it with a provenance marker and framing it as untrusted on recall
-  would preserve legitimate context (a later refinement behind the unchanged `MemoryRecaller`).
+- **Context-preserving tainted-memory recording landed 2026-07-06
+  ([ADR-0019](adr/ADR-0019-tainted-memory-recording.md)).** A tainted turn dropped its exchange
+  from memory (fail-closed); it can now be recorded instead with an untrusted-provenance marker
+  (`MemoryRecord.tainted`, a pgvector column) under `CORTEX_MEMORY_ON_TAINTED=record` (default
+  `skip` = the old behavior). Recall **always** fences a stored tainted memory (`wrap_untrusted` +
+  `TaintLedger.ingest_untrusted`) and re-taints the turn, so untrusted-derived content is
+  fenced-and-tainting across turns, not just within one, with the invariant extended behind the
+  unchanged `MemoryRecaller`/`MemoryStore`/`TaintLedger` seams. CI-gated end to end over the fakes;
+  the pgvector column host-validated by the live contract check. Remaining behind the same seams
+  (ADR-0019 deferred): **structured provenance** beyond the bit (source URI/sender, joining the
+  ADR-0013 deferral), a **fence-without-block** recall mode if taint-spread on tangential recall is
+  too blunt, **summarizing** a tainted exchange before recording, and **per-provenance eviction**.
 - **Per-remote-tool trust / gating overrides.** Trust is fail-closed `UNTRUSTED` and `gated` is
   per-`ToolSpec`; a genuinely trusted or gated *remote* MCP tool would need a composition-root
   overlay onto the spec. None exists now.

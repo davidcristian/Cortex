@@ -31,7 +31,7 @@ class MemoryRecaller:
         self._scope = scope
         self._id_factory = id_factory
 
-    async def record(self, text: str, *, session_id: str) -> MemoryRecord:
+    async def record(self, text: str, *, session_id: str, tainted: bool = False) -> MemoryRecord:
         """Embed ``text``, persist it in the turn's write-scope, and return the record."""
         embedding = tuple(await self._embedder.embed(text))
         record = MemoryRecord(
@@ -40,6 +40,7 @@ class MemoryRecaller:
             embedding=embedding,
             at=self._clock.now(),
             scope=self._scope.write_scope(session_id),
+            tainted=tainted,
         )
         await self._store.add(record)
         return record

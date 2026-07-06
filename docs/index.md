@@ -96,6 +96,12 @@ Start here. Rules for working in this repo: [AGENTS.md](../AGENTS.md).
   dispatcher stamp on `ToolCall`; the task record carries `model`/`tainted` (and the
   `SubagentResult.tainted` round-trip gap is fixed); flat env = the default entry,
   `CORTEX_SUBAGENTS_ROSTER__<name>` adds alternates.
+- [ADR-0019: Tainted-memory recording](adr/ADR-0019-tainted-memory-recording.md): the ADR-0013
+  poisoning deferral landed. A tainted turn can be recorded with an untrusted-provenance marker
+  (`MemoryRecord.tainted`, a pgvector column) under `CORTEX_MEMORY_ON_TAINTED=record` (default
+  `skip`); recall always fences a stored tainted memory and re-taints the turn, so untrusted-derived
+  content is fenced-and-tainting across turns, not just within one, behind the unchanged
+  `MemoryStore`/`MemoryRecaller`/`TaintLedger` seams.
 
 New non-obvious decision → add `adr/ADR-XXXX-<slug>.md`, link it here.
 

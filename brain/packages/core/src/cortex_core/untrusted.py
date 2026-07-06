@@ -75,3 +75,10 @@ class TaintLedger:
         self.mark(result.trust)
         if result.trust is Trust.UNTRUSTED:
             self.untrusted_urls |= extract_urls(result.content)
+
+    def ingest_untrusted(self, content: str) -> None:
+        """Taint the turn from a non-tool untrusted source: mark taint and collect ``content``'s
+        URLs.
+        """
+        self.mark(Trust.UNTRUSTED)
+        self.untrusted_urls |= extract_urls(content)

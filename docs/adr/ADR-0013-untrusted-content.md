@@ -237,7 +237,9 @@ Docker-validatable by the agent; the Windows overlay is the user's.
 - **The screening subagent** is added only if host validation shows framing too leaky (the
   trigger in decision 6).
 - **Context-preserving tainted-memory recording** (marker + frame-on-recall) instead of the
-  current suppression, if losing tainted-turn context proves to matter.
+  current suppression. **Landed 2026-07-06 ([ADR-0019](ADR-0019-tainted-memory-recording.md))**:
+  `MemoryRecord.tainted` + `CORTEX_MEMORY_ON_TAINTED=record` (default `skip` keeps this
+  suppression), recall always fencing a stored tainted memory and re-tainting the turn.
 - **Per-remote-tool trust / gating overrides.** The design admits a trusted or gated remote
   tool via a composition-root overlay when one first exists; none does now.
 - **Persisting taint/provenance across a mid-turn swap** is irrelevant until Slice 11

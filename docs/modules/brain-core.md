@@ -42,9 +42,11 @@ Model management (Slice 4, ADR-0007):
 Memory domain (Slice 5, ADR-0008):
 
 - `MemoryRecord` is a frozen dataclass: `id: str`, `text: str`, `embedding: tuple[float, ...]`,
-  `at: datetime`, `scope: str = GLOBAL_SCOPE`. One durable memory; rejects naive `at` with
-  `ValueError` (memory outlives every process). `scope` is its namespace (ADR-0008 addendum).
-  The caller fills every field, leaving the store a pure translator.
+  `at: datetime`, `scope: str = GLOBAL_SCOPE`, `tainted: bool = False`. One durable memory;
+  rejects naive `at` with `ValueError` (memory outlives every process). `scope` is its namespace
+  (ADR-0008 addendum); `tainted` is the untrusted-provenance marker (ADR-0019), set `True` when the
+  exchange came from a turn that read untrusted content, so recall fences it as data. The caller
+  fills every field, leaving the store a pure translator.
 - `ScoredMemory` is a frozen dataclass: `record: MemoryRecord`, `score: float`. A retrieval
   hit and its similarity (higher = closer).
 
@@ -130,7 +132,9 @@ Untrusted-content boundary (Slice 6.5, ADR-0013; the pure primitives in `untrust
 - `TaintLedger` is mutable, turn-local: `tainted: bool = False` plus `untrusted_urls: set[str]`
   (the laundering evidence, ADR-0015). `mark(trust)` flips `tainted` on the first `UNTRUSTED`
   result; `observe(result)` (what the shared loop calls) marks AND collects an untrusted
-  result's URLs. Reconstructed each turn, never persisted.
+  result's URLs; `ingest_untrusted(content)` is the non-tool twin (ADR-0019). The engine calls it
+  for a recalled tainted memory so it taints and contributes URLs like a live untrusted result.
+  Reconstructed each turn, never persisted.
 - `ToolLoopContext` is a frozen bundle of a tool loop's per-invocation collaborators (`dispatcher`,
   `clock`, `turn_id`, `taint`, `nonce`), keeping `stream_tool_loop` under its argument ceiling.
 
@@ -218,9 +222,13 @@ Use-case:
   engine recalls the top `DEFAULT_RECALL_K` (5) memories for the user text, within the
   turn's `session_id` scope (ADR-0008 addendum; global by default), and, if any, prepends
   them as a `Role.SYSTEM` message to the context the backend sees (ephemeral, never stored).
-  After completion it records the `User: …\nAssistant: …` exchange to memory,
-  **unless the turn read untrusted content**, in which case nothing is recorded (ADR-0013), so
-  every stored memory stays safe to recall as trusted.
+  A recalled memory carrying the `tainted` marker is **fenced** with the turn nonce and taints
+  the turn (ADR-0019: `ingest_untrusted`), so it re-enters as data (never trusted context) and
+  the `SECURITY_PREAMBLE` is added even on a tool-less turn to explain the markers. After
+  completion it records the `User: …\nAssistant: …` exchange to memory, **unless the turn read
+  untrusted content**, in which case nothing is recorded by default (ADR-0013). With
+  `capabilities.record_tainted_memory` on (ADR-0019) a tainted turn is recorded instead with
+  `tainted=True`, so recall fences it; an untainted turn always records a trusted memory.
   Tools (optional, ADR-0009): when `capabilities.tools` is set, the engine prepends the
   untrusted-content `SECURITY_PREAMBLE` (ADR-0013) and runs the shared `stream_tool_loop` with
   that `ToolDispatcher` and a fresh per-turn `TaintLedger`. The loop advertises the registry's
@@ -233,9 +241,11 @@ Use-case:
   last, and the sanitized text is what streams, completes, AND persists: the reply on record is
   the reply shown. With a bare `TurnCapabilities()` (the default) the turn behaves exactly as
   Slice 3.
-- `TurnCapabilities(memory=None, tools=None, window=None, guardrail=None)` is a frozen bundle of
-  the optional per-turn collaborators (a `MemoryRecaller`, a `ToolDispatcher`, a
-  `HistoryWindow`, and an `OutputGuardrail`), keeping the engine within its DI ceiling.
+- `TurnCapabilities(memory=None, tools=None, window=None, guardrail=None,
+  record_tainted_memory=False)` is a frozen bundle of the optional per-turn collaborators (a
+  `MemoryRecaller`, a `ToolDispatcher`, a `HistoryWindow`, and an `OutputGuardrail`) plus the
+  tainted-turn recording policy (ADR-0019), keeping the engine within its DI ceiling. The bool
+  governs only writing. A stored tainted memory is always fenced on recall regardless.
 - `HistoryWindow` (protocol, `windowing.py`) / `CharBudgetHistoryWindow(max_chars)` are the
   session-history windowing seam and its shipped policy (ADR-0014). `select(history)`
   returns the slice one turn sends to the model: `CharBudgetHistoryWindow` keeps the newest
@@ -257,9 +267,10 @@ Use-case:
 - `DEFAULT_CORTEX_MODEL` is the logical id `"cortex"`. Deployments override it via
   `CORTEX_MODEL_CORTEX`, read by the composition root (orchestrator), never here.
 - `MemoryRecaller(store, embedder, clock, *, scope=GLOBAL_MEMORY_SCOPE, id_factory=<uuid4>)` is
-  the memory use-case (ADR-0008). `record(text, *, session_id)` embeds `text`, persists a
-  `MemoryRecord` (id from the factory, `at` from the clock, embedding from the embedder, `scope`
-  from the policy's `write_scope(session_id)`), and returns it; `recall(query, *, k, session_id)`
+  the memory use-case (ADR-0008). `record(text, *, session_id, tainted=False)` embeds `text`,
+  persists a `MemoryRecord` (id from the factory, `at` from the clock, embedding from the embedder,
+  `scope` from the policy's `write_scope(session_id)`, `tainted` from the caller per ADR-0019), and
+  returns it; `recall(query, *, k, session_id)`
   embeds `query` and returns the store's top-`k` `ScoredMemory` within the policy's
   `read_scopes(session_id)`. Stateless over the store: every memory lives in `MemoryStore`, so
   recall is identical across restarts and swaps. Wired into `TurnEngine` (retrieve-into-context,
@@ -403,9 +414,11 @@ Reference implementations (pure, shipped in core; the runtime wiring until Slice
 - The untrusted boundary is fail-closed (ADR-0013): `trust`/provenance defaults to `UNTRUSTED`,
   so unstamped content is framed as data; the `TaintLedger` is turn-local, reconstructed each turn
   from the store + live tool results, never persisted (the one hard rule holds); a tainted turn is
-  never recorded to memory, so recall stays trustworthy; a URL sourced only from untrusted
-  content never reaches the user when the guardrail is wired (ADR-0015), and the persisted
-  reply equals the shown reply.
+  dropped from memory by default (or, under `record_tainted_memory`, recorded with `tainted=True`
+  and fenced on recall (ADR-0019)), so recall stays trustworthy either way; a URL sourced only from
+  untrusted content never reaches the user when the guardrail is wired (ADR-0015), and the
+  persisted reply equals the shown reply. Untrusted-derived content is fenced-and-tainting wherever
+  the model sees it, whether live from a tool or recalled from memory.
 - Fully typed (PEP 561 `py.typed` ships with the package); pyright strict clean.
 - 100% line+branch covered by behavior tests in `tests/` (cancellation and failure
   paths included).

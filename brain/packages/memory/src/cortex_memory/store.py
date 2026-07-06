@@ -12,14 +12,14 @@ from cortex_core import MemoryRecord, MemoryStoreError, ScoredMemory
 _WRAPPED = (asyncpg.PostgresError, asyncpg.InterfaceError, OSError)
 
 _INSERT = (
-    "INSERT INTO memories (id, text, embedding, scope, created_at)"
-    " VALUES ($1, $2, $3::vector, $4, $5)"
+    "INSERT INTO memories (id, text, embedding, scope, tainted, created_at)"
+    " VALUES ($1, $2, $3::vector, $4, $5, $6)"
 )
 # The SELECT list is shared; the scoped variant only adds a WHERE that filters candidates to the
 # requested namespaces before ranking (ADR-0008 scoping addendum). $1/$2 stay the vector/limit in
 # both, so the args tuple's head is identical and only the optional scope list ($3) is appended.
 _SELECT = (
-    "SELECT id, text, embedding::text AS embedding, scope, created_at,"
+    "SELECT id, text, embedding::text AS embedding, scope, tainted, created_at,"
     " 1 - (embedding <=> $1::vector) AS score FROM memories"
 )
 _SEARCH_ALL = f"{_SELECT} ORDER BY embedding <=> $1::vector LIMIT $2"
@@ -65,6 +65,7 @@ def _to_scored(row: Row) -> ScoredMemory:
         embedding=_from_literal(row["embedding"]),
         at=row["created_at"],
         scope=row["scope"],
+        tainted=row["tainted"],
     )
     return ScoredMemory(record=record, score=float(row["score"]))
 
@@ -98,6 +99,7 @@ class PgVectorMemoryStore:
                 record.text,
                 _to_literal(record.embedding),
                 record.scope,
+                record.tainted,
                 record.at,
             )
         except _WRAPPED as err:

@@ -103,9 +103,21 @@ async def test_record_builds_persists_and_returns_the_memory() -> None:
     assert stored.text == "remember this"
     assert stored.embedding == tuple(await embedder.embed("remember this"))
     assert stored.scope == GLOBAL_SCOPE  # the default policy writes the global space
+    assert stored.tainted is False  # an untainted turn writes a trusted memory (ADR-0019)
     # It is genuinely in the store: recall of the same text surfaces exactly it.
     (hit,) = await recaller.recall("remember this", k=1, session_id="s")
     assert hit.record == stored
+
+
+async def test_record_stamps_the_tainted_marker_when_requested() -> None:
+    # A tainted turn records its exchange with the untrusted-provenance marker so recall can
+    # fence it (ADR-0019); the recaller only carries the flag onto the record.
+    store = InMemoryMemoryStore()
+    recaller = MemoryRecaller(store, HashEmbedder(), _FixedClock(), id_factory=lambda: "t-mem")
+    stored = await recaller.record("from a hostile file", session_id="s", tainted=True)
+    assert stored.tainted is True
+    (hit,) = await recaller.recall("from a hostile file", k=1, session_id="s")
+    assert hit.record.tainted is True
 
 
 async def test_recall_embeds_the_query_and_returns_the_closest_memory() -> None:
@@ -129,6 +141,12 @@ async def test_record_uses_uuid_ids_by_default() -> None:
 def test_memory_record_defaults_to_the_global_scope() -> None:
     assert _record("hi", (1.0, 0.0)).scope == GLOBAL_SCOPE
     assert MemoryRecord(id="m", text="t", embedding=(1.0,), at=_AT, scope="work").scope == "work"
+
+
+def test_memory_record_defaults_to_untainted() -> None:
+    assert _record("hi", (1.0, 0.0)).tainted is False  # trusted provenance unless marked (ADR-0019)
+    tainted = MemoryRecord(id="m", text="t", embedding=(1.0,), at=_AT, tainted=True)
+    assert tainted.tainted is True
 
 
 def test_global_memory_scope_writes_global_and_reads_everything() -> None:

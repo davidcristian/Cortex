@@ -44,14 +44,26 @@ across every conversation, the founding "retrieval that grows" behavior. Set
 never recalled in another (`search` filters on `scope = ANY(read-scopes)`). It applies only when
 `CORTEX_MEMORY_BACKEND=pgvector`; the policy is selected at the composition root, never in the core.
 
+## Tainted-turn recording (`CORTEX_MEMORY_ON_TAINTED`, ADR-0019)
+
+A turn that reads untrusted content is dropped from memory by default (`skip`), so every stored
+memory is trusted. Set `CORTEX_MEMORY_ON_TAINTED=record` to preserve that context instead: the
+exchange is recorded with the `tainted` marker, and recall **fences** it (and re-taints the turn)
+so it can only re-enter as data, never trusted context. The knob governs only *writing*. A stored
+tainted memory is always fenced on recall regardless. It applies only when
+`CORTEX_MEMORY_BACKEND=pgvector`; the string maps to a bool at the composition root, never in the
+core.
+
 **Upgrading an existing DB.** `docker/postgres/init.sql` only runs on a *fresh* data dir, so a
-volume created before this addendum has no `scope` column. Add it in place as the `DEFAULT 'global'`
-back-fills every existing row into the global space, so recall is unchanged until you opt into
-`session` scoping:
+volume created before these addenda lacks the `scope` and/or `tainted` columns. Add them in place as
+each column's `DEFAULT` back-fills every existing row (into the global space / as trusted, since
+old rows were only ever written by untainted turns), so recall is unchanged until you opt into
+`session` scoping or `record` recording:
 
 ```
 docker compose ... exec postgres psql -U cortex -d cortex -c \
   "ALTER TABLE memories ADD COLUMN IF NOT EXISTS scope text NOT NULL DEFAULT 'global'; \
+   ALTER TABLE memories ADD COLUMN IF NOT EXISTS tainted boolean NOT NULL DEFAULT false; \
    CREATE INDEX IF NOT EXISTS memories_scope_idx ON memories (scope);"
 ```
 
