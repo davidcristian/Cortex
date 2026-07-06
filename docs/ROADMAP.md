@@ -422,6 +422,44 @@ the store instead of memory (brain-generated chat titles may land here too). CI-
 (fakes both sides, no GPU); the overlay chrome browser-validated. Inserted as 8.7 (decimal insert,
 no renumber); independent of the OS-action slices, orderable any time after Slice 8.
 
+## Slice 8.8 (Email-write): the first gated outbound tool + the real Confirmer
+
+**Status:** planned (inserted 2026-07-06). Design → new ADR (opens the slice). The first
+*outbound, irreversible* capability, and the vehicle that lands the real overlay **confirmation**
+adapter every later gated action reuses (Slice 9 OS actions, Slice 9.5 side-effectful reminders).
+Builds on Slice 6 (tools + audited dispatch), Slice 6.5 (the untrusted-content gate: `ToolSpec.gated`
++ the `Confirmer` port, [ADR-0013](adr/ADR-0013-untrusted-content.md)), and Slice 8 (body/overlay).
+Inserted as 8.8 (decimal insert, no renumber); orderable any time after Slice 8, and it should
+**precede Slice 9** so the OS actions inherit a working Confirmer instead of re-inventing it.
+
+Send email as a **gated** MCP tool, and make a gated action actually confirmable end to end. The one
+hard rule holds throughout: no confirmation state lives in a model process. A pending confirmation is
+turn-local / store-backed, reconstructed like taint. Three parts:
+
+- **The send tool (brain, CI-gated, mine).** An SMTP write path in `cortex_email` (a send tool over
+  ProtonMail Bridge SMTP, the write twin of the read-only IMAP reader, Slice 6), advertised as a
+  `gated=True` `ToolSpec` and dispatched through the Slice 6 audited `ToolDispatcher`. Every send is
+  audit-logged; the draft the user approves is `{to, subject, body}`. 100%-covered without a live
+  server via the canned-transport pattern (the IMAP adapter's twin), with an `integration`-marked live
+  test round-tripping a message **between two `example.com` addresses over the Bridge** (user's domain,
+  mine to run).
+- **The real `Confirmer` adapter (proto + body/overlay, host/OS-host-only).** The `Confirmer` port
+  ships inert (`confirmer=None`, fail-closed) since Slice 6.5; this slice builds the real one: a new
+  `Confirm` request/response in [proto/body.proto](../proto/body.proto), threaded over the seam and
+  surfaced as an overlay approval prompt (what/why, approve/deny) in the Rust/Tauri body. This is the
+  genuinely host-only piece (Windows-native UI), the same class as the Slice 9/10 OS backends.
+- **Gate composition (core, CI-gated, mine).** The dispatcher already blocks a `gated` tool on a
+  **tainted** turn (ADR-0013 decision 4); with a real Confirmer wired, an *untainted* gated send
+  prompts the user and proceeds only on approval. A **tainted** turn's send stays fail-closed, since
+  a send demanded by injected content is never merely a confirm-away (ADR-0013). `UngatedToolRegistry`
+  keeps the send tool off subagents entirely (ADR-0013 subagent-exclusion).
+
+CI-gated end to end with fakes on both sides (`RecordingConfirmer` + the canned transport, no GPU/SMTP);
+the brain-side send live-validated to `example.com` (mine); the overlay confirmation prompt host-validated
+on Windows (user). Closes two deferred items: the real overlay confirmation adapter (Slice 6.5) and the
+email-write tool (cross-cutting). **Gate proven:** the first outbound/irreversible capability under the
+capability gate, and the `Confirmer` round-trip over the seam.
+
 ## Slice 9 (One OS action end-to-end, volume)
 
 `AudioControl` Windows backend (Core Audio); `BodyService.SetVolume/GetVolume` served by
@@ -517,10 +555,11 @@ addendum adds `SkipUnavailableToolRegistry` + `CORTEX_TOOLS_ON_UNAVAILABLE=skip`
 
 **Untrusted-content boundary in Slice 6.5 ([ADR-0013](adr/ADR-0013-untrusted-content.md)):** each
 behind the unchanged `ToolRegistry`/`ToolDispatcher`/`stream_tool_loop` seams (or the new `Confirmer` port).
-- **The real overlay confirmation adapter.** The `Confirmer` port ships inert with a fail-closed
-  `confirmer=None`; the real adapter is an overlay confirmation exchange over the seam (a new proto
-  message + the Rust/Tauri UI). It lands with the **first outbound/gated tool** (email-write or the
-  Slice 9/10 OS actions), and is the **only** genuinely host/OS-host-only piece of this slice.
+- **The real overlay confirmation adapter (scheduled as Slice 8.8).** The `Confirmer` port ships inert
+  with a fail-closed `confirmer=None`; the real adapter is an overlay confirmation exchange over the
+  seam (a new proto message + the Rust/Tauri UI). It lands with the **first outbound/gated tool**,
+  now the email-write slice (**Slice 8.8**), ahead of the Slice 9/10 OS actions that reuse it, the
+  **only** genuinely host/OS-host-only piece of this slice.
 - **Agent GPU validation of framing efficacy done 2026-07-01** ([ADR-0013 addendum](adr/ADR-0013-untrusted-content.md)).
   The agent ran it on the host GPU via Docker (gemma-4-12B): the framed model cites the shipped
   `SECURITY_PREAMBLE` in its reasoning to defeat seven injection variants; the gate is the
@@ -696,10 +735,10 @@ the unchanged `SubagentPlacer`/`SubagentScheduler`/`ModelManager` ports.
   behind the same `SubagentScheduler` port.
 
 **Cross-cutting (originally "Later, unordered"):** pointer-input injection (extend the proto
-first), richer memory policies, **the email-write tool itself**. The capability gate it rides
-now exists (ADR-0013: `ToolSpec.gated` + the `Confirmer` port; Phase-0 assumption 6), so what
-remains is the write tool plus the real overlay confirmer adapter (Slice 9/10). macOS/Linux OS
-backends, more subagent roles.
+first), richer memory policies, **the email-write tool itself, now scheduled as Slice 8.8** (the
+capability gate it rides already exists in ADR-0013: `ToolSpec.gated` + the `Confirmer` port;
+Phase-0 assumption 6, making the slice the write tool plus the real overlay confirmer adapter), and
+macOS/Linux OS backends, more subagent roles.
 
 ## Ship the user-facing README (the very last step)
 
@@ -767,7 +806,7 @@ plan bets on, with what would invalidate each:
    token landed as [ADR-0016](adr/ADR-0016-seam-token.md) (`CORTEX_SEAM_TOKEN` on both
    sides, with a brain-side interceptor rejecting untokened calls UNAUTHENTICATED, the body's
    client attaching it; empty disables, keeping the dev loop and CI unchanged).
-6. **Email safety.** IMAP read-only first; any send/write action lands later, behind
-   explicit per-action confirmation in the overlay.
+6. **Email safety.** IMAP read-only first; any send/write action lands later (**Slice 8.8**),
+   behind explicit per-action confirmation in the overlay (the real `Confirmer` adapter).
 7. **Default hotkey.** `Ctrl+Alt+Space`, configurable from day one (`Win+Space` is
    taken by Windows).
