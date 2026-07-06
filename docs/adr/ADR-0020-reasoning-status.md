@@ -101,3 +101,24 @@ for the cortex. We surface it, not suppress it.
   separate concern from the ephemeral live status this ADR adds.
 - **Injection-harness run against the ~31B brain tier** is unchanged; still opt-in and tied to the
   Slice 11 brain pick (ADR-0013 harness addendum).
+
+## Addendum (2026-07-06): host-validated live against gemma-4-12B
+
+Agent-run on the host GPU via Docker (native WSL2 `dockerd`, CDI `nvidia.com/gpu=all`; the
+`server-cuda` image cached, model at `/srv/models`, [runbook](../runbooks/llamacpp-gpu.md)).
+Brought up only `llama-cortex` (gemma-4-12B, `-ngl 99`, 16K ctx, ready in ~36-42 s) and drove the
+**real** `LlamaCppBackend` and the full `TurnEngine` from the host against `127.0.0.1:8080` with a
+reasoning-inducing prompt (the bat-and-ball trap):
+
+- **Adapter layer.** The model streamed `reasoning_content` (its step-by-step algebra, correctly
+  landing on the counter-intuitive $0.05) surfaced as `ReasoningChunk`, then the reply as
+  `TextChunk`, both non-empty, thinking first. The prior silent-drop is gone.
+- **End to end.** `TurnEngine.handle_turn` emitted **326 `StatusUpdate(state="thinking")`** events
+  and 164 `TextDelta` events, then one `TurnCompleted`; every status state was `"thinking"`, the
+  reasoning did **not** leak into the reply, and `full_text == streamed reply text` (persisted ==
+  shown). The reply correctly answers $0.05.
+
+Captured as the reproducible integration test `test_reasoning_model_emits_reasoning_before_reply`
+in `packages/inference/tests/test_backend_live.py` (both live tests green: `2 passed`). Re-runnable
+per the runbook. The CI half remains proven over the fakes; this confirms the live model actually
+walks the path.
