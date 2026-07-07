@@ -8,6 +8,7 @@
 
 mod converse;
 mod hotkey;
+mod sessions;
 mod tray;
 
 use tauri::{AppHandle, Emitter, Manager};
@@ -26,7 +27,11 @@ pub fn run() {
             hotkey::register(app.handle());
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![converse::converse])
+        .invoke_handler(tauri::generate_handler![
+            converse::converse,
+            sessions::list_sessions,
+            sessions::session_messages
+        ])
         .run(tauri::generate_context!())
         .expect("error while running the Cortex body");
 }

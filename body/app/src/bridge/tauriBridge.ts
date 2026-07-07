@@ -1,6 +1,14 @@
 import { Channel, invoke } from "@tauri-apps/api/core";
 
-import type { BrainBridge, Cancellation, TransportError, TurnEvent, TurnSink } from "./types";
+import type {
+  BrainBridge,
+  Cancellation,
+  SessionMessage,
+  SessionSummary,
+  TransportError,
+  TurnEvent,
+  TurnSink,
+} from "./types";
 
 // One message on a turn's IPC channel from the Rust `converse` command: exactly
 // one of `event`/`error` is set (mirrors the Rust `WireMessage`; ADR-0011).
@@ -38,5 +46,15 @@ export class TauriBridge implements BrainBridge {
     return () => {
       live = false;
     };
+  }
+
+  // The read-only session views (ADR-0021): simple request/response Tauri commands
+  // that call the brain's ListSessions / GetSessionMessages over the seam.
+  listSessions(limit: number): Promise<readonly SessionSummary[]> {
+    return invoke<readonly SessionSummary[]>("list_sessions", { limit });
+  }
+
+  sessionMessages(sessionId: string): Promise<readonly SessionMessage[]> {
+    return invoke<readonly SessionMessage[]>("session_messages", { sessionId });
   }
 }
