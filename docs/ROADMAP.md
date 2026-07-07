@@ -751,12 +751,15 @@ behind the unchanged `ToolRegistry`/`ToolDispatcher`/`stream_tool_loop` seams (o
   streams brain status to the overlay.
 - **Design-doc interaction gaps** (surfaced 2026-07-03 driving the overlay in a browser; each a
   small change behind the unchanged `BrainBridge` port / reducer): history auto-scroll while
-  streaming (unless the reader scrolled up), composer focus-on-summon, click-away dismiss, the
-  streaming **stop** (■) control (the bridge's `Cancellation` is wired but unused mid-turn),
+  streaming (unless the reader scrolled up), composer focus-on-summon, click-away dismiss,
   rendering the tool/status chips the reducer already tracks, the empty-state mark + example
   prompts, the pre-first-token thinking shimmer, the `?` shortcut sheet, composer auto-grow, and
   making preview **hover actually pause the auto-fade** (today only the bar's animation pauses while
   the fade timer fires regardless, diverging from [overlay-ux.md §4](design/overlay-ux.md)).
+  **The streaming stop control landed 2026-07-07**. The send button becomes a real stop mid-turn
+  (a `stop` reducer action drops the stream via the bridge `Cancellation` and ends the reply in
+  place); browser-verified. The header/composer glyphs were also unified onto one outline icon set
+  (`components/icons.tsx`) the same day.
 
 **Chat history & sessions in Slice 8.7 ([ADR-0021](adr/ADR-0021-session-read-seam.md)):** each
 behind the unchanged `SessionStore.list_sessions` / `BrainTransport` / `BrainBridge` seams.

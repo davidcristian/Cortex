@@ -17,7 +17,7 @@ interface OverlayProps {
 }
 
 export function Overlay({ controller, dark, onToggleTheme }: OverlayProps) {
-  const { state, submit, dismiss, open, newChat, openSession, cyclePrev, cycleNext, toggleSwitcher } =
+  const { state, submit, stop, dismiss, open, newChat, openSession, cyclePrev, cycleNext, toggleSwitcher } =
     controller;
 
   useEffect(() => {
@@ -53,6 +53,7 @@ export function Overlay({ controller, dark, onToggleTheme }: OverlayProps) {
         dark={dark}
         onToggleTheme={onToggleTheme}
         onSubmit={submit}
+        onStop={stop}
         onDismiss={dismiss}
         onNewChat={newChat}
         onToggleSwitcher={toggleSwitcher}

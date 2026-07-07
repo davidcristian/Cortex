@@ -37,6 +37,7 @@ export type Action =
   | { readonly kind: "event"; readonly event: TurnEvent }
   | { readonly kind: "transportError"; readonly error: TransportError }
   | { readonly kind: "dismiss" }
+  | { readonly kind: "stop" }
   | { readonly kind: "previewFade" }
   | { readonly kind: "newChat"; readonly sessionId: string }
   | { readonly kind: "sessionsLoaded"; readonly sessions: readonly SessionSummary[] }
@@ -88,6 +89,10 @@ export function reduce(state: OverlayState, action: Action): OverlayState {
       return endTurn(state, action.error.message);
     case "dismiss":
       return { ...state, mode: isTurnActive(state) ? "orb" : "hidden" };
+    case "stop":
+      // User cancelled the turn: end the streaming reply in place (keep the partial text,
+      // no error) and stay in the panel. This differs from dismiss, which minimizes to the orb.
+      return endTurn(state, null);
     case "previewFade":
       return state.mode === "preview" ? { ...state, mode: "hidden" } : state;
     case "newChat":

@@ -16,6 +16,7 @@ const SESSION_LIST_LIMIT = 50;
 export interface OverlayController {
   readonly state: OverlayState;
   submit(text: string): void;
+  stop(): void;
   dismiss(): void;
   open(): void;
   newChat(): void;
@@ -81,6 +82,10 @@ export function useOverlay(
     [state, bridge],
   );
 
+  const stop = useCallback(() => {
+    cancelRef.current?.();
+    dispatch({ kind: "stop" });
+  }, []);
   const dismiss = useCallback(() => dispatch({ kind: "dismiss" }), []);
   const open = useCallback(() => dispatch({ kind: "open" }), []);
   const newChat = useCallback(() => {
@@ -119,6 +124,7 @@ export function useOverlay(
   return {
     state,
     submit,
+    stop,
     dismiss,
     open,
     newChat,
