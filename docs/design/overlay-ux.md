@@ -67,9 +67,14 @@ is a token swap, not a rewrite.
 Top-to-bottom, the summoned panel is:
 
 1. **Header** is the current chat's title (auto-derived from its first message; "New chat" until
-   then), the **theme toggle** (a single SVG sun that *morphs* into a crescent as rays retract while
-   a masking bite slides in; never a glyph swap, per 2026-07-03 user direction), a **＋ new chat**
-   button, and a **chat switcher** affordance (⌄) opening the list. A **connection indicator**
+   then) and a set of **outline icon buttons that share one vocabulary** (1.7px round-cap strokes
+   on a 24 grid, `currentColor`, hollow, in `components/icons.tsx` + `ThemeIcon.tsx`; 2026-07-07
+   revision): a **chat-switcher** (two speech bubbles) opening the recent-chats list, lit while
+   open (`aria-expanded`); the **theme toggle** (an outline sun that *morphs* into an outline
+   crescent, as the two forms cross-fade and spin, the rays retract; never a glyph swap); a **new
+   chat** (pencil for "compose a new one"); and **dismiss** (a downward "tuck-away" chevron, since
+   dismissing only hides; the chat is saved and re-summoning restores it, so the glyph tells the
+   truth, not an `×`). A **connection indicator**
    (green = brain ready, amber = model loading/status, red = unreachable) joins the header only
    when a real health signal crosses the bridge: v1 shipped it as an always-green decoration and
    the 2026-07-03 pass removed it. Chrome earns its place by meaning something.
