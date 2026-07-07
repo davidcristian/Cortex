@@ -80,6 +80,16 @@ describe("overlayState reducer", () => {
     expect(isTurnActive(errored)).toBe(false);
   });
 
+  it("stop ends the streaming turn in place, keeping the panel and the partial reply", () => {
+    let s = run([{ kind: "open" }, submit("q")]);
+    s = reduce(s, { kind: "event", event: { kind: "delta", text: "partial" } });
+    const stopped = reduce(s, { kind: "stop" });
+    expect(isTurnActive(stopped)).toBe(false);
+    expect(stopped.mode).toBe("panel");
+    expect(assistant(stopped)?.content).toBe("partial");
+    expect(assistant(stopped)?.error).toBeNull();
+  });
+
   it("dismiss minimizes to the orb mid-stream, else hides", () => {
     const streaming = run([{ kind: "open" }, submit("q")]);
     expect(reduce(streaming, { kind: "dismiss" }).mode).toBe("orb");

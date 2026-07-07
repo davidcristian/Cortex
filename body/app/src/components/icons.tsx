@@ -49,3 +49,51 @@ export function TuckIcon() {
     </Icon>
   );
 }
+
+/** Send: an up arrow to submit the prompt. */
+export function SendIcon() {
+  return (
+    <Icon>
+      <path d="M12 19V6" />
+      <path d="M6.5 11.5L12 6l5.5 5.5" />
+    </Icon>
+  );
+}
+
+/** Stop: a filled rounded square to cancel the streaming turn. */
+export function StopIcon() {
+  return (
+    <Icon>
+      <rect x="7.5" y="7.5" width="9" height="9" rx="2.4" fill="currentColor" />
+    </Icon>
+  );
+}
+
+/** Keycap glyph: the return arrow (Enter). */
+export function ReturnKey() {
+  return (
+    <Icon>
+      <path d="M20 7v3a2.5 2.5 0 0 1 -2.5 2.5H6" />
+      <path d="M9 9.5L5.5 12.5L9 15.5" />
+    </Icon>
+  );
+}
+
+/** Keycap glyph: the Shift key. */
+export function ShiftKey() {
+  return (
+    <Icon>
+      <path d="M12 4.5l6 6.5h-3.2v6h-5.6v-6H6z" />
+    </Icon>
+  );
+}
+
+/** Keycap glyph: stacked up/down chevrons (the cycle-chats arrows). */
+export function UpDownKeys() {
+  return (
+    <Icon>
+      <path d="M8.5 10l3.5 -3.5l3.5 3.5" />
+      <path d="M8.5 14l3.5 3.5l3.5 -3.5" />
+    </Icon>
+  );
+}

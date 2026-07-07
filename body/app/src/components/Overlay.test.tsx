@@ -22,6 +22,7 @@ function fakeController(
       ...extra,
     },
     submit: vi.fn(),
+    stop: vi.fn(),
     dismiss: vi.fn(),
     open: vi.fn(),
     newChat: vi.fn(),

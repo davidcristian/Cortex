@@ -1,12 +1,16 @@
 import { type KeyboardEvent, useState } from "react";
 
+import { SendIcon, StopIcon } from "./icons";
+
 interface ComposerProps {
   readonly busy: boolean;
   readonly onSubmit: (text: string) => void;
+  readonly onStop: () => void;
 }
 
-/** The prompt input: Enter sends, Shift+Enter newlines; disabled from sending while streaming. */
-export function Composer({ busy, onSubmit }: ComposerProps) {
+/** The prompt input: Enter sends, Shift+Enter newlines. While a turn streams the send button
+ *  becomes a stop that cancels it (design/overlay-ux.md §3). */
+export function Composer({ busy, onSubmit, onStop }: ComposerProps) {
   const [text, setText] = useState("");
 
   const submit = () => {
@@ -38,12 +42,12 @@ export function Composer({ busy, onSubmit }: ComposerProps) {
         rows={1}
       />
       <button
-        className={`send${live ? " live" : ""}`}
-        onClick={submit}
-        aria-label={busy ? "Streaming" : "Send"}
+        className={`send${live ? " live" : ""}${busy ? " stopping" : ""}`}
+        onClick={busy ? onStop : submit}
+        aria-label={busy ? "Stop" : "Send"}
         type="button"
       >
-        <span className="send-glyph">{busy ? "…" : "↑"}</span>
+        <span className="send-glyph">{busy ? <StopIcon /> : <SendIcon />}</span>
       </button>
     </div>
   );

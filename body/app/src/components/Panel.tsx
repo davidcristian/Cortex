@@ -1,6 +1,6 @@
 import { type OverlayState, isTurnActive } from "../overlay/overlayState";
 import { Composer } from "./Composer";
-import { ChatsIcon, PencilIcon, TuckIcon } from "./icons";
+import { ChatsIcon, PencilIcon, ReturnKey, ShiftKey, TuckIcon, UpDownKeys } from "./icons";
 import { Message } from "./Message";
 import { SessionList } from "./SessionList";
 import { ThemeIcon } from "./ThemeIcon";
@@ -11,6 +11,7 @@ interface PanelProps {
   readonly dark: boolean;
   readonly onToggleTheme: () => void;
   readonly onSubmit: (text: string) => void;
+  readonly onStop: () => void;
   readonly onDismiss: () => void;
   readonly onNewChat: () => void;
   readonly onToggleSwitcher: () => void;
@@ -26,6 +27,7 @@ export function Panel({
   dark,
   onToggleTheme,
   onSubmit,
+  onStop,
   onDismiss,
   onNewChat,
   onToggleSwitcher,
@@ -67,22 +69,34 @@ export function Panel({
           <Message key={message.id} message={message} />
         ))}
       </div>
-      <Composer busy={isTurnActive(state)} onSubmit={onSubmit} />
+      <Composer busy={isTurnActive(state)} onSubmit={onSubmit} onStop={onStop} />
       <div className="hints">
         <span>
-          <b>⏎</b> send
+          <b className="key">
+            <ReturnKey />
+          </b>{" "}
+          send
         </span>
         <span>
-          <b>⇧⏎</b> newline
+          <b className="key">
+            <ShiftKey />
+            <ReturnKey />
+          </b>{" "}
+          newline
         </span>
         <span>
           <b>Esc</b> dismiss
         </span>
         <span>
-          <b>Ctrl+N</b> new
+          <b>Ctrl</b>
+          <b>N</b> new
         </span>
         <span>
-          <b>Ctrl+↑↓</b> chats
+          <b>Ctrl</b>
+          <b className="key">
+            <UpDownKeys />
+          </b>{" "}
+          chats
         </span>
       </div>
     </div>

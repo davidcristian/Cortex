@@ -41,6 +41,7 @@ function renderPanel(over: Partial<OverlayState>, open: boolean, dark: boolean, 
       dark={dark}
       onToggleTheme={handlers.onToggleTheme ?? vi.fn()}
       onSubmit={vi.fn()}
+      onStop={vi.fn()}
       onDismiss={handlers.onDismiss ?? vi.fn()}
       onNewChat={handlers.onNewChat ?? vi.fn()}
       onToggleSwitcher={handlers.onToggleSwitcher ?? vi.fn()}

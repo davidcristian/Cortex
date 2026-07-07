@@ -84,11 +84,15 @@ Top-to-bottom, the summoned panel is:
    "swapping model…"), not as bubbles. Empty state: a centered, gently-breathing accent orb +
    "Ask me anything" + a couple of example prompts as tappable chips.
 3. **Composer** is a rounded pill textarea (`⏎` sends, `⇧⏎` newlines, auto-grows to a few lines),
-   a glowing accent focus ring when active, and a gradient **send** button that springs on press;
-   its gradient **fades in** as the field gains content (an opacity overlay, since gradients can't
-   interpolate, and a hard swap pops). While streaming, send becomes a **stop** (■) control.
+   a glowing accent focus ring when active, and a gradient **send** button (an outline up-arrow,
+   `components/icons.tsx`) that springs on press; its gradient **fades in** as the field gains
+   content (an opacity overlay, since gradients can't interpolate, and a hard swap pops). **While
+   streaming the button is a real stop** (a filled square, lit): it cancels the turn. A `stop`
+   reducer action drops the bridge stream and ends the reply in place, keeping the partial text
+   (distinct from dismiss, which minimizes to the orb). Landed 2026-07-07.
 4. **Hint strip** is a subtle one-line footer of the live shortcuts (§6), dimmed and **centered**,
-   with a `?` that opens the full shortcut sheet.
+   with a `?` that opens the full shortcut sheet. The kbd glyphs are outline icons matching the
+   header set (return / shift / cycle chevrons), not raw Unicode symbols (2026-07-07).
 
 ## 4. The interaction state machine (the heart)
 
