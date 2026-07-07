@@ -246,6 +246,12 @@
 }
 .send-glyph {
   position: relative;
+  display: grid;
+  place-items: center;
+}
+.send-glyph svg {
+  width: 19px;
+  height: 19px;
 }
 .send:hover {
   color: var(--text);
@@ -258,6 +264,10 @@
 }
 .send.live::before {
   opacity: 1;
+}
+/* Streaming: the button is a live stop control. It is lit (not muted) so it reads as actionable. */
+.send.stopping {
+  color: var(--text);
 }
 .send:active {
   transform: scale(0.94);
@@ -279,6 +289,19 @@
   padding: 1px 6px;
   border-radius: 6px;
   font-size: 11px;
+}
+/* Keycaps whose glyph is an outline SVG (Enter/Shift/cycle arrows) instead of a letter: shrink
+   the icon to cap size and center it, so they read as clearly as the letter keys beside them. */
+.hints b.key {
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+  padding: 2px 5px;
+  vertical-align: -3px;
+}
+.hints b.key svg {
+  width: 13px;
+  height: 13px;
 }
 
 /* The orb: the living rings are colorful (it's a working state). The mark spins as one (waves and

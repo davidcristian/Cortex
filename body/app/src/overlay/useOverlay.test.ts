@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { FakeBridge } from "../bridge/fakeBridge";
 import type { SessionSummary } from "../bridge/types";
+import { isTurnActive } from "./overlayState";
 import { useOverlay } from "./useOverlay";
 
 const summary = (sessionId: string): SessionSummary => ({
@@ -61,6 +62,20 @@ describe("useOverlay", () => {
     expect(result.current.state.mode).toBe("preview");
     act(() => vi.advanceTimersByTime(6000));
     expect(result.current.state.mode).toBe("hidden");
+  });
+
+  it("stop cancels the stream and ends the turn in place", async () => {
+    const bridge = new FakeBridge();
+    const { result } = renderHook(() => useOverlay(bridge, () => "s1"));
+    await flush();
+    act(() => result.current.submit("q"));
+    expect(isTurnActive(result.current.state)).toBe(true);
+    act(() => result.current.stop());
+    expect(isTurnActive(result.current.state)).toBe(false);
+    // The stream was cancelled: late events no longer reach the (ended) message.
+    act(() => bridge.emit({ kind: "delta", text: "late" }));
+    expect(result.current.state.messages.at(-1)?.content).toBe("");
+    expect(result.current.state.mode).toBe("panel");
   });
 
   it("surfaces a transport error onto the message", async () => {
