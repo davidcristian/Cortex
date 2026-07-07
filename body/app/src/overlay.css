@@ -189,42 +189,50 @@
   animation: pulse 1s ease infinite;
 }
 
+/* The composer IS the rounded field pill; the textarea flows inside it and the send button is
+   nested at the bottom-right. They are flex siblings, so the typing area ends before the button
+   (text never runs under it) and the button stays bottom-aligned as the textarea grows. */
 .composer {
   display: flex;
-  gap: 9px;
   align-items: flex-end;
-  padding: 11px 15px 9px;
+  gap: 6px;
+  margin: 11px 15px 9px;
+  padding: 4px 4px 4px 3px;
+  background: var(--field);
+  border: 1.5px solid transparent;
+  border-radius: 23px;
+  transition: 0.2s var(--ease);
+}
+.composer:focus-within {
+  border-color: var(--stroke);
+  background: var(--control);
 }
 .field {
   flex: 1;
-  background: var(--field);
-  border: 1.5px solid transparent;
-  border-radius: 21px;
-  padding: 11px 15px;
+  min-width: 0;
+  background: none;
+  border: none;
+  border-radius: 0;
+  padding: 9px 2px 9px 13px;
   color: var(--text);
   font-family: var(--font);
   font-size: 14.5px;
   resize: none;
   outline: none;
   max-height: 120px;
-  transition: 0.2s var(--ease);
 }
 .field::placeholder {
   color: var(--dim);
 }
-.field:focus {
-  border-color: var(--stroke);
-  background: var(--control);
-}
 .send {
   position: relative;
   overflow: hidden;
-  width: 42px;
-  height: 42px;
+  width: 38px;
+  height: 38px;
   flex: none;
   border: none;
-  border-radius: 15px;
-  background: var(--control);
+  border-radius: 13px;
+  background: transparent;
   color: var(--muted);
   cursor: pointer;
   font-size: 16px;
@@ -255,7 +263,7 @@
 }
 .send:hover {
   color: var(--text);
-  transform: translateY(-1px);
+  background: var(--control);
 }
 /* Color only when it's ready to fire. */
 .send.live {
@@ -302,6 +310,11 @@
 .hints b.key svg {
   width: 13px;
   height: 13px;
+}
+/* Space between two keycaps in one hint (Ctrl + N, Ctrl + cycle arrows) so they read as
+   separate keys, not one run. */
+.hints b + b {
+  margin-left: 4px;
 }
 
 /* The orb: the living rings are colorful (it's a working state). The mark spins as one (waves and
