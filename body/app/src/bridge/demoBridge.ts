@@ -48,7 +48,18 @@ export class DemoBridge implements BrainBridge {
     ]);
   }
 
-  sessionMessages(_sessionId: string): Promise<readonly SessionMessage[]> {
+  sessionMessages(sessionId: string): Promise<readonly SessionMessage[]> {
+    if (sessionId === "demo-2") {
+      return Promise.resolve([
+        { role: "user", text: "Summarize my unread email", turnId: "t2", atUnixMs: 0 },
+        {
+          role: "assistant",
+          text: "You have three unread threads: a deploy failure from CI, a review request on the seam PR, and a calendar invite for Thursday.",
+          turnId: "t2",
+          atUnixMs: 0,
+        },
+      ]);
+    }
     return Promise.resolve([
       { role: "user", text: "How does the model swap work?", turnId: "t1", atUnixMs: 0 },
       { role: "assistant", text: ANSWER, turnId: "t1", atUnixMs: 0 },
