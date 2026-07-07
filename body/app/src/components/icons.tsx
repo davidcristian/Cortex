@@ -88,12 +88,22 @@ export function ShiftKey() {
   );
 }
 
-/** Keycap glyph: stacked up/down chevrons (the cycle-chats arrows). */
-export function UpDownKeys() {
+/** Keycap glyph: the up-arrow key (cycle to a newer chat). */
+export function UpArrowKey() {
   return (
     <Icon>
-      <path d="M8.5 10l3.5 -3.5l3.5 3.5" />
-      <path d="M8.5 14l3.5 3.5l3.5 -3.5" />
+      <path d="M12 18V6.8" />
+      <path d="M7.5 11L12 6.5L16.5 11" />
+    </Icon>
+  );
+}
+
+/** Keycap glyph: the down-arrow key (cycle to an older chat). */
+export function DownArrowKey() {
+  return (
+    <Icon>
+      <path d="M12 6v11.2" />
+      <path d="M7.5 13L12 17.5L16.5 13" />
     </Icon>
   );
 }

@@ -1,6 +1,6 @@
 import { type OverlayState, isTurnActive } from "../overlay/overlayState";
 import { Composer } from "./Composer";
-import { ChatsIcon, PencilIcon, ReturnKey, ShiftKey, TuckIcon, UpDownKeys } from "./icons";
+import { ChatsIcon, DownArrowKey, PencilIcon, ReturnKey, ShiftKey, TuckIcon, UpArrowKey } from "./icons";
 import { Message } from "./Message";
 import { SessionList } from "./SessionList";
 import { ThemeIcon } from "./ThemeIcon";
@@ -94,7 +94,10 @@ export function Panel({
         <span>
           <b>Ctrl</b>
           <b className="key">
-            <UpDownKeys />
+            <UpArrowKey />
+          </b>
+          <b className="key">
+            <DownArrowKey />
           </b>{" "}
           chats
         </span>
