@@ -1,7 +1,15 @@
 import { describe, expect, it } from "vitest";
 
+import type { SessionMessage, SessionSummary } from "../bridge/types";
 import type { Action } from "./overlayState";
-import { initialState, isTurnActive, latestReply, reduce } from "./overlayState";
+import { createInitialState, cycleTarget, initialState, isTurnActive, latestReply, reduce } from "./overlayState";
+
+const summary = (sessionId: string): SessionSummary => ({
+  sessionId,
+  title: `title ${sessionId}`,
+  preview: `preview ${sessionId}`,
+  lastActivityUnixMs: 1000,
+});
 
 const run = (actions: Action[]) => actions.reduce(reduce, initialState);
 const assistant = (s: ReturnType<typeof run>) => s.messages.find((m) => m.role === "assistant");
@@ -94,16 +102,82 @@ describe("overlayState reducer", () => {
     expect(reduce(panel, { kind: "previewFade" })).toBe(panel);
   });
 
-  it("newChat clears the conversation back to a fresh panel", () => {
-    const fresh = reduce(run([{ kind: "open" }, submit("q")]), { kind: "newChat" });
+  it("newChat mints a fresh session, clears the conversation, and closes the switcher", () => {
+    const started = reduce(run([{ kind: "open" }, submit("q")]), { kind: "toggleSwitcher" });
+    const fresh = reduce(started, { kind: "newChat", sessionId: "new-42" });
+    expect(fresh.sessionId).toBe("new-42");
     expect(fresh.messages).toEqual([]);
     expect(fresh.title).toBe("New chat");
     expect(fresh.mode).toBe("panel");
+    expect(fresh.switcherOpen).toBe(false);
+  });
+
+  it("sessionsLoaded stores the chat list and toggleSwitcher flips it open then shut", () => {
+    const loaded = reduce(initialState, { kind: "sessionsLoaded", sessions: [summary("a")] });
+    expect(loaded.sessions).toEqual([summary("a")]);
+    const opened = reduce(loaded, { kind: "toggleSwitcher" });
+    expect(opened.switcherOpen).toBe(true);
+    expect(reduce(opened, { kind: "toggleSwitcher" }).switcherOpen).toBe(false);
+  });
+
+  it("openSession hydrates a stored chat: messages, derived title, session id, closed switcher", () => {
+    const messages: SessionMessage[] = [
+      { role: "user", text: "about cats", turnId: "t", atUnixMs: 1 },
+      { role: "assistant", text: "cats are great", turnId: "t", atUnixMs: 2 },
+    ];
+    const open = reduce({ ...initialState, switcherOpen: true }, {
+      kind: "openSession",
+      sessionId: "chat-7",
+      messages,
+    });
+    expect(open.sessionId).toBe("chat-7");
+    expect(open.title).toBe("about cats");
+    expect(open.mode).toBe("panel");
+    expect(open.switcherOpen).toBe(false);
+    expect(open.seq).toBe(2);
+    expect(open.messages.map((m) => [m.role, m.content, m.streaming])).toEqual([
+      ["user", "about cats", false],
+      ["assistant", "cats are great", false],
+    ]);
+  });
+
+  it("openSession with no messages falls back to the New chat title", () => {
+    const open = reduce(initialState, { kind: "openSession", sessionId: "empty", messages: [] });
+    expect(open.title).toBe("New chat");
+    expect(open.messages).toEqual([]);
   });
 
   it("latestReply returns the last assistant reply, or empty when there is none", () => {
     expect(latestReply(initialState)).toBe("");
     const s = reduce(run([submit("q")]), { kind: "event", event: { kind: "delta", text: "answer" } });
     expect(latestReply(s)).toBe("answer");
+  });
+
+  it("createInitialState seeds the session id", () => {
+    expect(createInitialState("seed-1").sessionId).toBe("seed-1");
+  });
+});
+
+describe("cycleTarget", () => {
+  const sessions = [summary("newest"), summary("middle"), summary("oldest")];
+
+  it("returns null when there are no sessions", () => {
+    expect(cycleTarget([], "x", 1)).toBeNull();
+    expect(cycleTarget([], "x", -1)).toBeNull();
+  });
+
+  it("steps newer (-1) and older (+1) within the list", () => {
+    expect(cycleTarget(sessions, "middle", -1)).toBe("newest");
+    expect(cycleTarget(sessions, "middle", 1)).toBe("oldest");
+  });
+
+  it("clamps at both ends (no wrap)", () => {
+    expect(cycleTarget(sessions, "newest", -1)).toBeNull();
+    expect(cycleTarget(sessions, "oldest", 1)).toBeNull();
+  });
+
+  it("an unsaved current chat enters the list only when going older", () => {
+    expect(cycleTarget(sessions, "unsaved", 1)).toBe("newest");
+    expect(cycleTarget(sessions, "unsaved", -1)).toBeNull();
   });
 });

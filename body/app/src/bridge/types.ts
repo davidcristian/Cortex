@@ -26,7 +26,27 @@ export interface TurnSink {
 /** Cancels an in-flight turn (drops the stream). */
 export type Cancellation = () => void;
 
+/** One recent chat as the switcher shows it (mirror of the proto `SessionSummary`, ADR-0021). */
+export interface SessionSummary {
+  readonly sessionId: string;
+  readonly title: string;
+  readonly preview: string;
+  readonly lastActivityUnixMs: number;
+}
+
+/** One persisted message in a session's history (mirror of the proto `SessionMessage`). */
+export interface SessionMessage {
+  readonly role: "user" | "assistant";
+  readonly text: string;
+  readonly turnId: string;
+  readonly atUnixMs: number;
+}
+
 /** The overlay's port to the brain. Implemented over Tauri IPC (real) or a fake. */
 export interface BrainBridge {
   converse(sessionId: string, text: string, sink: TurnSink): Cancellation;
+  /** Recent chats, newest-active first (at most `limit`; `0` = the brain default). */
+  listSessions(limit: number): Promise<readonly SessionSummary[]>;
+  /** One session's persisted history, in append order. */
+  sessionMessages(sessionId: string): Promise<readonly SessionMessage[]>;
 }

@@ -166,14 +166,18 @@ restarts. The overlay is a *view* of store-backed state, never the user of it.
   chat's history.
 - **Titles:** derived from the first user message (later: a brain-generated summary title).
 
-**Seam dependency (staged).** Listing chats and loading a chat's full history require the brain to
-expose session data over the seam; today's `proto` has only per-turn `Converse`. So:
-- **v1 (Slice 8):** the overlay keeps the **current app run's** chats + history in memory (fed by
-  the streams it renders), supports new-chat and the full animation/state machine, and one live
-  session at a time is fully functional. Re-summoning within a run restores the in-memory chat.
-- **Later ([Slice 8.7](../ROADMAP.md)):** add read-only `ListSessions` + `GetSessionMessages` RPCs
-  so history and the chat list load from the store. Then cross-restart persistence and cycling
-  are real, not in-memory. The UX above is the target; the build reaches it without changing it.
+**Seam dependency delivered in [Slice 8.7](../ROADMAP.md) ([ADR-0021](../adr/ADR-0021-session-read-seam.md)).**
+Listing chats and loading a chat's history require the brain to expose session data over the
+seam. That landed:
+- **v1 (Slice 8):** the overlay kept the **current app run's** chats + history in memory.
+- **Now (Slice 8.7):** read-only `ListSessions` + `GetSessionMessages` RPCs feed the
+  `BrainBridge` (`listSessions`/`sessionMessages`); `useOverlay` owns the `session_id` (minted per
+  new chat), loads the list on mount + after each turn, and loads a chat's history on
+  select/cycle. The chat list, the switcher (`⌄` / `Ctrl+K`), and `Ctrl+↑/↓` cycling are
+  store-backed and survive restarts. **Cold start opens a new chat**; prior chats are reachable
+  via the switcher and cycling (auto-restoring the most-recent chat on launch is a recorded
+  deferral). Titles are still derived from the first user message (brain-generated summary
+  titles remain a later refinement, deferred).
 
 ## 6. Keyboard shortcuts
 
