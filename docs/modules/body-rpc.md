@@ -83,6 +83,11 @@ live brain is token-protected (ADR-0016), `CORTEX_SEAM_TOKEN`:
   interleaved `ToolActivity`/`StatusUpdate`, failing on `SeamError`), and asserts at
   least one delta arrived, the concatenated text is non-empty, and `TurnComplete`
   carries a non-empty `turn_id`.
+- `session_reads_round_trip_over_the_live_seam` (Slice 8.7, ADR-0021) seeds one turn over
+  the raw `Converse` to persist a session, then reads it back over the typed
+  `BrainTransport`: `list_sessions(50)` must return the chat with its derived title (the
+  first user message) and a real last-activity timestamp, and `session_messages` the user
+  turn + assistant reply in order. Needs only brain + Redis (no GPU).
 
 Being ignored, they never run in CI and never count toward coverage.
 
