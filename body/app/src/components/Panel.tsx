@@ -1,5 +1,6 @@
 import { type OverlayState, isTurnActive } from "../overlay/overlayState";
 import { Composer } from "./Composer";
+import { ChatsIcon, PencilIcon, TuckIcon } from "./icons";
 import { Message } from "./Message";
 import { SessionList } from "./SessionList";
 import { ThemeIcon } from "./ThemeIcon";
@@ -42,16 +43,16 @@ export function Panel({
           aria-expanded={state.switcherOpen}
           type="button"
         >
-          ⌄
+          <ChatsIcon />
         </button>
         <button className="hbtn" onClick={onToggleTheme} aria-label="Toggle theme" type="button">
           <ThemeIcon dark={dark} />
         </button>
         <button className="hbtn" onClick={onNewChat} aria-label="New chat" type="button">
-          +
+          <PencilIcon />
         </button>
         <button className="hbtn" onClick={onDismiss} aria-label="Dismiss" type="button">
-          ×
+          <TuckIcon />
         </button>
       </header>
       {state.switcherOpen ? (
