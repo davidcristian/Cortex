@@ -1,4 +1,4 @@
-import type { TransportError, TurnEvent } from "../bridge/types";
+import type { SessionMessage, SessionSummary, TransportError, TurnEvent } from "../bridge/types";
 
 /** Where the overlay is on screen. */
 export type Mode = "hidden" | "panel" | "orb" | "preview";
@@ -15,8 +15,14 @@ export interface Message {
 
 export interface OverlayState {
   readonly mode: Mode;
+  /** The current chat's session id (its identity for `converse`, history, and cycling). */
+  readonly sessionId: string;
   readonly title: string;
   readonly messages: readonly Message[];
+  /** Recent chats for the switcher / cycling (store-backed, newest-active first). */
+  readonly sessions: readonly SessionSummary[];
+  /** Whether the switcher list is open in the header. */
+  readonly switcherOpen: boolean;
   readonly seq: number;
 }
 
@@ -27,17 +33,32 @@ export type Action =
   | { readonly kind: "transportError"; readonly error: TransportError }
   | { readonly kind: "dismiss" }
   | { readonly kind: "previewFade" }
-  | { readonly kind: "newChat" };
+  | { readonly kind: "newChat"; readonly sessionId: string }
+  | { readonly kind: "sessionsLoaded"; readonly sessions: readonly SessionSummary[] }
+  | {
+      readonly kind: "openSession";
+      readonly sessionId: string;
+      readonly messages: readonly SessionMessage[];
+    }
+  | { readonly kind: "toggleSwitcher" };
 
 const NEW_CHAT_TITLE = "New chat";
 const TITLE_MAX = 32;
 
-export const initialState: OverlayState = {
-  mode: "hidden",
-  title: NEW_CHAT_TITLE,
-  messages: [],
-  seq: 0,
-};
+/** A fresh, empty overlay state for `sessionId` (a new chat). */
+export function createInitialState(sessionId: string): OverlayState {
+  return {
+    mode: "hidden",
+    sessionId,
+    title: NEW_CHAT_TITLE,
+    messages: [],
+    sessions: [],
+    switcherOpen: false,
+    seq: 0,
+  };
+}
+
+export const initialState: OverlayState = createInitialState("");
 
 /** True while an assistant message is still streaming. */
 export function isTurnActive(state: OverlayState): boolean {
@@ -65,8 +86,64 @@ export function reduce(state: OverlayState, action: Action): OverlayState {
     case "previewFade":
       return state.mode === "preview" ? { ...state, mode: "hidden" } : state;
     case "newChat":
-      return { ...state, mode: "panel", title: NEW_CHAT_TITLE, messages: [] };
+      return {
+        ...state,
+        mode: "panel",
+        sessionId: action.sessionId,
+        title: NEW_CHAT_TITLE,
+        messages: [],
+        switcherOpen: false,
+      };
+    case "sessionsLoaded":
+      return { ...state, sessions: action.sessions };
+    case "openSession":
+      return openSession(state, action.sessionId, action.messages);
+    case "toggleSwitcher":
+      return { ...state, switcherOpen: !state.switcherOpen };
   }
+}
+
+/** Load a stored chat into the panel: hydrate its messages, derive the header title. */
+function openSession(
+  state: OverlayState,
+  sessionId: string,
+  messages: readonly SessionMessage[],
+): OverlayState {
+  const loaded: Message[] = messages.map((m, index) => ({
+    id: `m${index}`,
+    role: m.role,
+    content: m.text,
+    streaming: false,
+    tool: null,
+    status: null,
+    error: null,
+  }));
+  const firstUser = messages.find((m) => m.role === "user");
+  return {
+    ...state,
+    mode: "panel",
+    sessionId,
+    title: firstUser ? deriveTitle(firstUser.text) : NEW_CHAT_TITLE,
+    messages: loaded,
+    switcherOpen: false,
+    seq: loaded.length,
+  };
+}
+
+/**
+ * The session id to switch to when cycling from `currentId` by `delta` (-1 = newer / previous, +1
+ * = older / next), or `null` for no move.
+ */
+export function cycleTarget(
+  sessions: readonly SessionSummary[],
+  currentId: string,
+  delta: -1 | 1,
+): string | null {
+  const index = sessions.findIndex((s) => s.sessionId === currentId);
+  // A current chat not in the list (index -1, a fresh unsaved chat) enters the list only
+  // going older (delta 1 → index 0); an out-of-range target reads back as undefined → null.
+  const target = index === -1 ? (delta === 1 ? 0 : -1) : index + delta;
+  return sessions[target]?.sessionId ?? null;
 }
 
 function submit(state: OverlayState, text: string): OverlayState {

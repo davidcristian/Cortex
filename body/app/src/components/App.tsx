@@ -11,12 +11,13 @@ function systemPrefersDark(): boolean {
 
 interface AppProps {
   readonly bridge: BrainBridge;
-  readonly sessionId: string;
+  /** Injects the new-chat id factory (tests pin it); production uses the default uuid. */
+  readonly newSessionId?: () => string;
 }
 
 /** Wires the theme + host activation to the overlay controller. */
-export function App({ bridge, sessionId }: AppProps) {
-  const controller = useOverlay(bridge, sessionId);
+export function App({ bridge, newSessionId }: AppProps) {
+  const controller = useOverlay(bridge, newSessionId);
   const [preference, setPreference] = useState<string | null>(null);
   const theme = resolveTheme(preference, systemPrefersDark());
 

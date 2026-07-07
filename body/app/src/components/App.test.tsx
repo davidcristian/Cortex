@@ -10,9 +10,15 @@ const activate = () => {
   });
 };
 
+/** Render App with a pinned session id, flushing the mount chat-list load. */
+async function renderApp(bridge: FakeBridge) {
+  render(<App bridge={bridge} newSessionId={() => "s1"} />);
+  await act(async () => {});
+}
+
 describe("App", () => {
-  it("applies a theme, toggles it, and summons the overlay on the host activate event", () => {
-    render(<App bridge={new FakeBridge()} sessionId="s1" />);
+  it("applies a theme, toggles it, and summons the overlay on the host activate event", async () => {
+    await renderApp(new FakeBridge());
     expect(document.documentElement.dataset.theme).toBe("light");
     const toggle = screen.getByLabelText("Toggle theme");
     fireEvent.click(toggle);
@@ -23,9 +29,9 @@ describe("App", () => {
     expect(screen.getByRole("dialog").className).toContain("open");
   });
 
-  it("streams a submitted turn through the bridge", () => {
+  it("streams a submitted turn through the bridge on the minted session id", async () => {
     const bridge = new FakeBridge();
-    render(<App bridge={bridge} sessionId="s1" />);
+    await renderApp(bridge);
     activate();
     fireEvent.change(screen.getByLabelText("Message"), { target: { value: "hi" } });
     fireEvent.keyDown(screen.getByLabelText("Message"), { key: "Enter" });

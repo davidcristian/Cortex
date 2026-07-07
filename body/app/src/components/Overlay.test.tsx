@@ -5,13 +5,30 @@ import type { Message, OverlayState } from "../overlay/overlayState";
 import type { OverlayController } from "../overlay/useOverlay";
 import { Overlay } from "./Overlay";
 
-function fakeController(mode: OverlayState["mode"], messages: readonly Message[] = []) {
+function fakeController(
+  mode: OverlayState["mode"],
+  messages: readonly Message[] = [],
+  extra: Partial<OverlayState> = {},
+) {
   const controller: OverlayController = {
-    state: { mode, title: "t", messages, seq: 0 },
+    state: {
+      mode,
+      sessionId: "s1",
+      title: "t",
+      messages,
+      sessions: [],
+      switcherOpen: false,
+      seq: 0,
+      ...extra,
+    },
     submit: vi.fn(),
     dismiss: vi.fn(),
     open: vi.fn(),
     newChat: vi.fn(),
+    openSession: vi.fn(),
+    cyclePrev: vi.fn(),
+    cycleNext: vi.fn(),
+    toggleSwitcher: vi.fn(),
   };
   return controller;
 }
@@ -81,5 +98,31 @@ describe("Overlay", () => {
     fireEvent.keyDown(document.body, { key: "a", ctrlKey: true });
     expect(controller.newChat).toHaveBeenCalledTimes(2);
     expect(controller.dismiss).not.toHaveBeenCalled();
+  });
+
+  it("Ctrl+K toggles the switcher and Ctrl+↑/↓ cycle chats", () => {
+    const controller = fakeController("panel");
+    renderOverlay(controller);
+    fireEvent.keyDown(document.body, { key: "k", ctrlKey: true });
+    expect(controller.toggleSwitcher).toHaveBeenCalledOnce();
+    fireEvent.keyDown(document.body, { key: "ArrowUp", ctrlKey: true });
+    expect(controller.cyclePrev).toHaveBeenCalledOnce();
+    fireEvent.keyDown(document.body, { key: "ArrowDown", metaKey: true });
+    expect(controller.cycleNext).toHaveBeenCalledOnce();
+    // Arrows without the modifier are ignored (they scroll the history).
+    fireEvent.keyDown(document.body, { key: "ArrowUp" });
+    expect(controller.cyclePrev).toHaveBeenCalledOnce();
+  });
+
+  it("opens a chat from the switcher list", () => {
+    const controller = fakeController("panel", [], {
+      switcherOpen: true,
+      sessions: [
+        { sessionId: "c1", title: "First chat", preview: "hello", lastActivityUnixMs: 1000 },
+      ],
+    });
+    renderOverlay(controller);
+    fireEvent.click(screen.getByText("First chat"));
+    expect(controller.openSession).toHaveBeenCalledWith("c1");
   });
 });

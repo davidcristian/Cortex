@@ -12,10 +12,9 @@ const inTauri = "__TAURI_INTERNALS__" in window;
 const root = document.getElementById("root");
 if (root) {
   const bridge: BrainBridge = inTauri ? new TauriBridge() : new DemoBridge();
-  const sessionId = inTauri ? crypto.randomUUID() : "dev";
   createRoot(root).render(
     <StrictMode>
-      <App bridge={bridge} sessionId={sessionId} />
+      <App bridge={bridge} />
     </StrictMode>,
   );
   if (inTauri) {

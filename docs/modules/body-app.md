@@ -21,14 +21,21 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
 **Public contract.**
 
 - **The `BrainBridge` port** (`src/bridge/types.ts`): `converse(sessionId, text, sink) →
-  Cancellation`, plus the `TurnEvent` / `TransportError` unions that mirror the Rust
-  `body_core::{TurnEvent, TransportError}`. Three implementations: `TauriBridge` (real, over IPC),
-  `DemoBridge` (canned stream for `vite dev`), `FakeBridge` (tests). Only `tauriBridge.ts`,
-  `demoBridge.ts`, and `main.tsx` are coverage-excluded (the un-gated glue); everything else is
-  100% line + branch.
+  Cancellation`, the read-only `listSessions(limit)` / `sessionMessages(sessionId)` (ADR-0021),
+  plus the `TurnEvent` / `TransportError` / `SessionSummary` / `SessionMessage` types, the TS
+  mirror of the Rust `body_core` values. Three implementations: `TauriBridge` (real, over IPC),
+  `DemoBridge` (canned stream + canned chats for `vite dev`), `FakeBridge` (tests). Only
+  `tauriBridge.ts`, `demoBridge.ts`, and `main.tsx` are coverage-excluded (the un-gated glue);
+  everything else is 100% line + branch. `useOverlay` owns the `session_id` (minted per new chat)
+  and the store-backed chat list (loaded on mount + after each turn; a chat's history loads on
+  select/cycle).
 - **The `converse` command** (`src-tauri/src/converse.rs`): `converse(session_id, text, channel)`.
   It serialises each `TurnEvent` / `TransportError` to a `WireMessage` (`{ event }` | `{ error }`)
   that matches the TS `WireMessage` in `tauriBridge.ts` field for field (tag `kind`, camelCase).
+- **The session-read commands** (`src-tauri/src/sessions.rs`, ADR-0021): `list_sessions(limit)` and
+  `session_messages(session_id)` are unary calls returning `Vec<WireSummary>` / `Vec<WireMessage>`
+  (camelCase, matching the TS `SessionSummary` / `SessionMessage`); a dial/RPC failure is the
+  command's `Err`, which the bridge's `.catch` handles.
 - **The activate seam**: the hotkey and tray emit the `cortex:activate` Tauri event; `main.tsx`
   (in-shell only) re-dispatches it as the DOM event the overlay listens on. In a plain browser,
   `main.tsx` self-summons instead.
@@ -39,8 +46,8 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
 
 - Components depend on the `BrainBridge` port, not Tauri, so the whole overlay is browser-runnable
   and 100%-gated; the Tauri glue is the single un-gated edge (ADR-0011 addendum).
-- The wire types on both sides of `converse` are one contract: change `types.ts`,
-  `tauriBridge.ts`, and `converse.rs` together.
+- The wire types on both sides of the seam are one contract: change `types.ts`,
+  `tauriBridge.ts`, and `converse.rs` / `sessions.rs` together.
 - The shell stays thin. Every branchy decision (accelerator mapping, seam translation) lives in
   the gated `body_core` / `body_rpc`; the app holds wiring only, which is what keeps the coverage
   exclusion safe (ADR-0011 risk: coverage creep).
