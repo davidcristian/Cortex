@@ -143,3 +143,94 @@ async fn converse_round_trips_one_turn_over_the_live_seam() {
         "TurnComplete carried an empty turn_id on session {session_id}"
     );
 }
+
+/// Drives one turn to completion over the raw client, so a session exists in the
+/// store for the read RPCs to list. Panics on any failure (this is a live check).
+async fn seed_one_turn(addr: &str, session_id: &str, text: &str) {
+    let mut client = match BrainServiceClient::connect(addr.to_owned()).await {
+        Ok(client) => client,
+        Err(error) => panic!("cannot reach the brain at {addr}: {error}"),
+    };
+    let turn = ClientEvent {
+        session_id: session_id.to_owned(),
+        event: Some(client_event::Event::UserTurn(UserTurn {
+            text: text.to_owned(),
+            images: Vec::new(),
+        })),
+    };
+    let mut request = tonic::Request::new(tokio_stream::iter(vec![turn]));
+    if let Some(token) = seam_token() {
+        match token.parse() {
+            Ok(value) => {
+                request.metadata_mut().insert("x-cortex-seam-token", value);
+            }
+            Err(error) => panic!("CORTEX_SEAM_TOKEN is not valid ASCII metadata: {error}"),
+        }
+    }
+    let mut events = match client.converse(request).await {
+        Ok(response) => response.into_inner(),
+        Err(status) => panic!("seeding a turn on {session_id} failed: {status}"),
+    };
+    // Drain until the turn completes, so the assistant reply is persisted too.
+    loop {
+        match events.message().await {
+            Ok(Some(event)) => {
+                if matches!(event.event, Some(server_event::Event::TurnComplete(_))) {
+                    return;
+                }
+            }
+            Ok(None) => panic!("seed turn on {session_id} ended without TurnComplete"),
+            Err(status) => panic!("seed turn on {session_id} failed mid-stream: {status}"),
+        }
+    }
+}
+
+#[tokio::test]
+#[ignore = "live seam check: needs a real brain at CORTEX_BRAIN_ADDR (run with -- --ignored)"]
+async fn session_reads_round_trip_over_the_live_seam() {
+    // ListSessions / GetSessionMessages (ADR-0021) end to end: seed a turn, then read
+    // the chat back over the typed BrainTransport port. Needs only the brain + Redis
+    // (no GPU), since the echo backend serves the turn.
+    let addr = brain_addr();
+    let token = seam_token();
+    let session_id = unique_session_id();
+    let question = "list me over the seam";
+    seed_one_turn(&addr, &session_id, question).await;
+
+    let client = match BrainSeamClient::connect_with_token(&addr, token.as_deref()).await {
+        Ok(client) => client,
+        Err(error) => panic!("cannot reach the brain at {addr}: {error}"),
+    };
+
+    let sessions = match client.list_sessions(50).await {
+        Ok(sessions) => sessions,
+        Err(error) => panic!("ListSessions at {addr} failed: {error}"),
+    };
+    let Some(mine) = sessions.iter().find(|s| s.session_id == session_id) else {
+        panic!("session {session_id} was not returned by ListSessions");
+    };
+    // Title derives from the first user message (ADR-0021), which fits under the cap.
+    assert_eq!(mine.title, question);
+    assert!(
+        mine.last_activity_unix_ms > 0,
+        "expected a real last-activity timestamp, got {}",
+        mine.last_activity_unix_ms
+    );
+
+    let messages = match client.session_messages(&session_id).await {
+        Ok(messages) => messages,
+        Err(error) => panic!("GetSessionMessages at {addr} failed: {error}"),
+    };
+    assert!(
+        messages.len() >= 2,
+        "expected the user turn + assistant reply, got {} messages",
+        messages.len()
+    );
+    assert_eq!(messages[0].role, "user");
+    assert_eq!(messages[0].text, question);
+    assert_eq!(messages[1].role, "assistant");
+    assert!(
+        !messages[1].text.is_empty(),
+        "the assistant reply for {session_id} was empty"
+    );
+}

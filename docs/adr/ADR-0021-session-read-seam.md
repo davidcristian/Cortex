@@ -196,3 +196,26 @@ one keystroke away. Auto-restoring the most-recent chat is a recorded deferral.
 - **Paging / cursor** on `ListSessions`/`GetSessionMessages` if a list or history grows large.
 - **A real connection indicator** and **session-title refresh push** join whichever slice first
   streams brain status to the overlay (the ADR-0011 deferral), which is not this one.
+
+## Addendum on live validation (agent, 2026-07-07)
+
+Validated the brain half end to end against the **real brain + Redis** via Docker (no GPU, since the
+reads never touch a model; the echo backend served the seeding turn), per the working rhythm
+(Docker/backend validation is the agent's; only OS-native Rust/Tauri is host-only):
+
+- **Full-seam round-trip**, `body/crates/rpc/tests/live.rs::session_reads_round_trip_over_the_live_seam`
+  (`#[ignore]`d, run with `cargo test -p body-rpc --test live -- --ignored`): it seeds one turn over
+  `Converse` (persisting a session to real Redis), then reads it back over the typed `BrainTransport`
+  where `ListSessions` returns the chat with its derived title (the first user message) and a real
+  last-activity timestamp, and `GetSessionMessages` returns the user turn + assistant reply in order.
+  This exercises the `cortex:sessions` ZSET index, `list_sessions`, `summarize_session`, the
+  orchestrator handlers, and the gRPC seam against live backends.
+- **Store contract against live Redis.** `uv run pytest -m integration --no-cov packages/session`
+  passed, so the shared `list_sessions` contract check (recency ordering + title/preview derivation)
+  holds on real Redis, not just fakeredis.
+
+Both green. The overlay chrome is browser-validated (CI-gated, 77 tests); the Windows-native Tauri
+`list_sessions`/`session_messages` commands remain host validation.
+
+Environment note: the Docker build needed a clean `DOCKER_CONFIG` (the host `~/.docker/config.json`'s
+`credsStore: "desktop.exe"` is unreachable from the WSL shell and breaks the BuildKit frontend pull).
