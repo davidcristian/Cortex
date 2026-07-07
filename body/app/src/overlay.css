@@ -88,42 +88,42 @@
   transition: 0.18s var(--ease);
 }
 
-/* The theme toggle's sun↔crescent morph: the changing geometry (SVG2 cx/cy/r as CSS) transitions
-   instead of swapping glyphs. Rays retract while the masking "bite" slides in to carve the moon. */
-.sunmoon .core {
-  r: 5px;
-  transition: r 0.45s var(--spring);
-}
-.sunmoon .bite {
-  cx: 30px;
-  cy: -6px;
-  transition:
-    cx 0.45s var(--ease),
-    cy 0.45s var(--ease);
-}
+/* The theme toggle's sun↔crescent morph, in the header's outline vocabulary: the hollow sun and
+   hollow crescent cross-fade and spin into each other, and the sun's rays retract in a morph, not
+   a glyph swap. Both forms share the same 12,12 origin so the spin reads as one transformation. */
+.sunmoon .sun,
+.sunmoon .moon,
 .sunmoon .rays {
-  opacity: 1;
-  transform: rotate(0deg);
   transform-origin: 12px 12px;
   transform-box: view-box;
   transition:
-    opacity 0.3s var(--ease),
-    transform 0.45s var(--spring);
+    opacity 0.32s var(--ease),
+    transform 0.5s var(--spring);
 }
-.sunmoon.dark .core {
-  r: 8px;
+.sunmoon .moon {
+  opacity: 0;
+  transform: rotate(-65deg) scale(0.5);
 }
-.sunmoon.dark .bite {
-  cx: 17px;
-  cy: 7px;
+.sunmoon.dark .sun {
+  opacity: 0;
+  transform: rotate(65deg) scale(0.7);
 }
 .sunmoon.dark .rays {
   opacity: 0;
-  transform: rotate(90deg) scale(0.4);
+  transform: scale(0.3);
+}
+.sunmoon.dark .moon {
+  opacity: 1;
+  transform: rotate(0deg) scale(1);
 }
 .hbtn:hover {
   color: var(--text);
   transform: translateY(-1px);
+}
+/* The switcher reflects its own state: while its list is open the trigger stays lit. */
+.hbtn[aria-expanded="true"] {
+  color: var(--text);
+  background: var(--field);
 }
 
 .history {

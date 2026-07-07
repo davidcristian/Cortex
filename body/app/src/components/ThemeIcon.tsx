@@ -1,8 +1,9 @@
 const RAY_ANGLES = [0, 45, 90, 135, 180, 225, 270, 315];
 
-// The theme toggle's face: a single SVG sun that morphs into a crescent instead of swapping
-// glyphs. The geometry that changes (core radius, the masking "bite" circle, ray retraction)
-// is driven by CSS on `.sunmoon`/`.sunmoon.dark`, so the switch transitions smoothly.
+// The theme toggle's face, in the header's outline vocabulary (design/overlay-ux.md §2): a
+// hollow sun (ring + rays) that morphs into a hollow crescent. Both forms are drawn; CSS on
+// `.sunmoon`/`.sunmoon.dark` cross-fades and spins them and retracts the rays, so the switch
+// transitions smoothly rather than swapping glyphs.
 export function ThemeIcon({ dark }: { readonly dark: boolean }) {
   return (
     <svg
@@ -11,17 +12,21 @@ export function ThemeIcon({ dark }: { readonly dark: boolean }) {
       width="16"
       height="16"
       aria-hidden="true"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.7"
+      strokeLinecap="round"
+      strokeLinejoin="round"
     >
-      <mask id="theme-bite">
-        <rect width="24" height="24" fill="#fff" />
-        <circle className="bite" cx="30" cy="-6" r="7" fill="#000" />
-      </mask>
-      <circle className="core" cx="12" cy="12" r="5" mask="url(#theme-bite)" fill="currentColor" />
-      <g className="rays" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
-        {RAY_ANGLES.map((angle) => (
-          <line key={angle} x1="12" y1="2.5" x2="12" y2="4.5" transform={`rotate(${angle} 12 12)`} />
-        ))}
+      <g className="sun">
+        <circle cx="12" cy="12" r="4" />
+        <g className="rays">
+          {RAY_ANGLES.map((angle) => (
+            <line key={angle} x1="12" y1="3.4" x2="12" y2="5.4" transform={`rotate(${angle} 12 12)`} />
+          ))}
+        </g>
       </g>
+      <path className="moon" d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1 -9 -9z" />
     </svg>
   );
 }
