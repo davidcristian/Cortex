@@ -409,18 +409,40 @@ untrusted-content path pinned to the robust model.
 
 ## Slice 8.7 (Chat history & cycling over the seam)
 
-**Status:** planned (inserted 2026-07-01). Delivers the overlay's deferred multi-chat features
-([design/overlay-ux.md §5](design/overlay-ux.md)): store-backed history, listing, and cycling.
+**Status:** done on 2026-07-07 ([ADR-0021](adr/ADR-0021-session-read-seam.md)). Delivers the
+overlay's deferred multi-chat features ([design/overlay-ux.md §5](design/overlay-ux.md)):
+store-backed history, listing, and cycling. Inserted as 8.7 (decimal insert, no renumber);
+independent of the OS-action slices.
 
-The overlay (Slice 8) keeps the current run's chat in memory; persistence across restarts, the
-chat switcher, and `Ctrl+↑/↓` cycling need the brain to expose session data over the seam. This
-slice extends [proto/body.proto](../proto/body.proto) with read-only `ListSessions` +
-`GetSessionMessages` (views of the durable store, as the hard rule keeps sessions safe), threads
-them through `BrainService`, grows the `BrainTransport`/`BrainBridge` ports with typed methods +
-adapters + contract tests, and switches the overlay's chat list / switcher / cycling to load from
-the store instead of memory (brain-generated chat titles may land here too). CI-gated end to end
-(fakes both sides, no GPU); the overlay chrome browser-validated. Inserted as 8.7 (decimal insert,
-no renumber); independent of the OS-action slices, orderable any time after Slice 8.
+The overlay (Slice 8) kept the current run's chat in memory; persistence across restarts, the chat
+switcher, and `Ctrl+↑/↓` cycling needed the brain to expose session data over the seam. This slice
+extended [proto/body.proto](../proto/body.proto) with two **read-only** RPCs, `ListSessions` +
+`GetSessionMessages` (views of the durable store, as the hard rule keeps sessions safe) and threaded
+them through every seam.
+
+**Delivered CI-gated end to end (fakes both sides, no GPU), 100% under `just check`:**
+- **Brain.** One new `SessionStore.list_sessions` port method + the pure `SessionSummary` value and
+  `summarize_session` derivation both adapters share; `GetSessionMessages` reuses `history`. The
+  Redis adapter maintains a `cortex:sessions` ZSET recency index on `append` and serves the list
+  from it (shared contract check + edge tests). `BrainService` gained the two handlers with the
+  store injected alongside the engine; a `SessionStoreError` aborts `UNAVAILABLE`.
+- **Body.** `body_core::BrainTransport` grew `list_sessions`/`session_messages` (+ `SessionSummary`/
+  `SessionMessage` core mirrors); `BrainSeamClient` implements them as unary calls (`sessions.rs`,
+  reusing `status_to_error`); in-process fake-brain contract tests cover mapping + the failure path.
+- **Overlay.** `BrainBridge` grew the two reads; `useOverlay` now **owns the `session_id`** (minted
+  per new chat), loads the chat list on mount + after each turn, and loads a chat's history on
+  select/cycle; the pure reducer gained `sessions`/`switcherOpen`/`cycleTarget`. The `⌄` switcher +
+  `SessionList`, `Ctrl+↑/↓` cycling, and `Ctrl+K` ship (77 tests, browser-validated shape).
+
+**Host half (host-validated on Windows):** the `list_sessions`/`session_messages` Tauri commands
+(`src-tauri/src/sessions.rs`), the same ungated-glue class as the `converse` command. **Cold start
+opens a new chat**; prior chats are reachable via the switcher/cycling (auto-restore deferred).
+**Brain-side Docker-validated (agent, 2026-07-07, [ADR-0021 addendum](adr/ADR-0021-session-read-seam.md)):**
+against the real brain + Redis (no GPU), the new `session_reads_round_trip_over_the_live_seam` test
+seeds a turn over Converse, then reads it back over the typed `BrainTransport`. The `cortex:sessions`
+ZSET index, `list_sessions`, `summarize_session`, the orchestrator handlers, and the gRPC seam all
+proven end to end; the session contract suite (incl. `list_sessions`) also passed against live Redis.
+**Gate proven:** the overlay as a true view of store-backed session state. Deferrals recorded below.
 
 ## Slice 8.8 (Email-write): the first gated outbound tool + the real Confirmer
 
@@ -735,6 +757,24 @@ behind the unchanged `ToolRegistry`/`ToolDispatcher`/`stream_tool_loop` seams (o
   prompts, the pre-first-token thinking shimmer, the `?` shortcut sheet, composer auto-grow, and
   making preview **hover actually pause the auto-fade** (today only the bar's animation pauses while
   the fade timer fires regardless, diverging from [overlay-ux.md §4](design/overlay-ux.md)).
+
+**Chat history & sessions in Slice 8.7 ([ADR-0021](adr/ADR-0021-session-read-seam.md)):** each
+behind the unchanged `SessionStore.list_sessions` / `BrainTransport` / `BrainBridge` seams.
+- **Per-session first/last/length cache in the recency index.** `list_sessions` is one `ZREVRANGE`
+  + N `LRANGE`s (N ≤ limit); caching each session's first/last message + length in the index (or a
+  companion hash) drops the per-session reads. Negligible for a personal recent list today.
+- **Auto-restore the most-recent chat on cold start.** This slice opens a **new** chat on launch;
+  prior chats are reachable via the switcher / `Ctrl+↓`. Auto-adopting `sessions[0]`'s history on
+  mount (when the fresh chat is untouched) is a hook-effect refinement.
+- **Brain-generated summary titles.** Titles derive from the first user message (`summarize_session`);
+  a brain-generated summary title would replace that behind the unchanged `SessionSummary`. The
+  overlay's own live-title `deriveTitle` stays for a not-yet-persisted chat.
+- **Session deletion / rename / pinning.** Write operations on the catalog, a later *gated* surface
+  (Slice 6.5 gate + Slice 8.8 Confirmer), out of scope for this read-only slice.
+- **Paging / cursor** on `ListSessions` / `GetSessionMessages` if a list or a single history ever
+  grows large (a cursor field on the same RPCs); unary snapshots suffice at personal scale.
+- **A real connection indicator** and a **session-title refresh push** ride whichever slice first
+  streams brain status to the overlay (the ADR-0011 `Health`/status deferral), not this one.
 
 **Resource governance in Slice 8.5 ([ADR-0012](adr/ADR-0012-resource-governance.md)):** each behind
 the unchanged `SubagentPlacer`/`SubagentScheduler`/`ModelManager` ports.
