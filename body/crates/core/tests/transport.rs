@@ -3,7 +3,8 @@
 //! works as a generic bound with `Send` futures, exercised through a fake.
 
 use body_core::{
-    BrainTransport, SeamHealth, SessionMessage, SessionSummary, TransportError, TurnEvent,
+    BrainTransport, ConfirmDecision, SeamHealth, SessionMessage, SessionSummary, TransportError,
+    TurnEvent,
 };
 use futures_core::Stream;
 use tokio_stream::StreamExt;
@@ -34,10 +35,14 @@ impl BrainTransport for FakeTransport {
         &self,
         session_id: &str,
         text: &str,
+        decisions: impl Stream<Item = ConfirmDecision> + Send + 'static,
     ) -> impl Stream<Item = Result<TurnEvent, TransportError>> + Send {
         // A canned two-event turn echoing the inputs, which is enough to exercise the
         // port's streaming shape generically; the adapter's rich mapping lives
-        // in body_rpc's contract tests.
+        // in body_rpc's contract tests. The fake never confirms, so it drops
+        // the decisions stream. The port allows ignoring it (an unanswered
+        // confirm is denied brain-side, fail-closed).
+        drop(decisions);
         tokio_stream::iter(vec![
             Ok(TurnEvent::Delta(format!("turn:{text}"))),
             Ok(TurnEvent::Complete {
@@ -76,12 +81,18 @@ async fn probe<T: BrainTransport>(transport: &T) -> Result<SeamHealth, Transport
 }
 
 /// Drains a `converse` turn through a generic bound, collecting every item.
+/// Passes one canned decision so the `decisions` parameter is exercised the
+/// way application code will feed it (the fake is free to ignore it).
 async fn converse_probe<T: BrainTransport>(
     transport: &T,
     session_id: &str,
     text: &str,
 ) -> Vec<Result<TurnEvent, TransportError>> {
-    let stream = transport.converse(session_id, text);
+    let decisions = tokio_stream::iter(vec![ConfirmDecision {
+        confirm_id: String::from("c-1"),
+        approved: true,
+    }]);
+    let stream = transport.converse(session_id, text, decisions);
     tokio::pin!(stream);
     let mut events = Vec::new();
     while let Some(event) = stream.next().await {
@@ -181,17 +192,49 @@ fn turn_event_is_clone_eq_and_debug() {
         code: String::from("overloaded"),
         message: String::from("busy"),
     };
+    let confirm = TurnEvent::ConfirmRequest {
+        confirm_id: String::from("c-1"),
+        tool_name: String::from("send_email"),
+        arguments_json: String::from("{\"to\":\"a@b\"}"),
+        reason: String::from("outbound"),
+    };
     assert_ne!(tool, status);
     assert_ne!(complete, failed);
+    assert_eq!(confirm.clone(), confirm);
+    assert_ne!(confirm, complete);
     for (event, name) in [
         (&delta, "Delta"),
         (&tool, "ToolActivity"),
         (&status, "Status"),
         (&complete, "Complete"),
         (&failed, "Failed"),
+        (&confirm, "ConfirmRequest"),
     ] {
         assert!(format!("{event:?}").contains(name), "{event:?}");
     }
+}
+
+#[test]
+fn confirm_decision_is_clone_eq_and_debug() {
+    let approve = ConfirmDecision {
+        confirm_id: String::from("c-1"),
+        approved: true,
+    };
+    assert_eq!(approve.clone(), approve);
+    let deny = ConfirmDecision {
+        confirm_id: String::from("c-1"),
+        approved: false,
+    };
+    let other_id = ConfirmDecision {
+        confirm_id: String::from("c-2"),
+        approved: true,
+    };
+    assert_ne!(approve, deny);
+    assert_ne!(approve, other_id);
+    let debug = format!("{approve:?}");
+    assert!(debug.contains("ConfirmDecision"), "{debug}");
+    assert!(debug.contains("c-1"), "{debug}");
+    assert!(debug.contains("approved: true"), "{debug}");
 }
 
 #[test]

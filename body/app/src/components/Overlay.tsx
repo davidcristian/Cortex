@@ -17,8 +17,19 @@ interface OverlayProps {
 }
 
 export function Overlay({ controller, dark, onToggleTheme }: OverlayProps) {
-  const { state, submit, stop, dismiss, open, newChat, openSession, cyclePrev, cycleNext, toggleSwitcher } =
-    controller;
+  const {
+    state,
+    submit,
+    stop,
+    dismiss,
+    open,
+    newChat,
+    openSession,
+    cyclePrev,
+    cycleNext,
+    toggleSwitcher,
+    respondConfirm,
+  } = controller;
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -58,6 +69,7 @@ export function Overlay({ controller, dark, onToggleTheme }: OverlayProps) {
         onNewChat={newChat}
         onToggleSwitcher={toggleSwitcher}
         onSelectSession={openSession}
+        onRespondConfirm={respondConfirm}
       />
       {state.mode === "orb" ? <Orb onClick={open} /> : null}
       {state.mode === "preview" ? <Preview reply={latestReply(state)} onClick={open} /> : null}

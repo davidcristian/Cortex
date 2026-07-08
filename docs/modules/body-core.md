@@ -32,8 +32,13 @@ streaming `converse`), and the `Hotkey` port with the `Accelerator` chord→code
   error, which is `TurnEvent::Failed`).
 - `TurnEvent` is the typed core mirror of the proto `ServerEvent`, streamed by `converse`
   (`Clone`, `Eq`, `Debug`): `Delta(String)` (assistant text) | `ToolActivity { tool_name,
-  summary }` | `Status { state, detail }` | `Complete { turn_id }` (terminal) |
+  summary }` | `Status { state, detail }` | `ConfirmRequest { confirm_id, tool_name,
+  arguments_json, reason }` (a gated tool call awaits the user's approval, ADR-0022;
+  **non-terminal**, answered via the `decisions` stream) | `Complete { turn_id }` (terminal) |
   `Failed { code, message }` (brain-reported turn error; terminal, since the connection is fine).
+- `ConfirmDecision { confirm_id, approved }` is the user's answer to a `ConfirmRequest`
+  (`Clone`, `Eq`, `Debug`; ADR-0022): fed into `converse`'s `decisions` stream, delivered
+  to the brain as a `ConfirmResponse` on the open `Converse` stream.
 - `SessionSummary` / `SessionMessage` are typed core mirrors of the proto session-read messages
   (`Clone`, `Eq`, `Debug`; ADR-0021). `SessionSummary { session_id, title, preview,
   last_activity_unix_ms }` is one recent chat as the switcher shows it (title/preview already
@@ -43,11 +48,16 @@ streaming `converse`), and the `Hotkey` port with the `Accelerator` chord→code
   (`Send + Sync` supertraits):
   - `health(&self)` returns `impl Future<Output = Result<SeamHealth, TransportError>> +
     Send`, so implementors just write `async fn health`.
-  - `converse(&self, session_id, text)` returns `impl Stream<Item = Result<TurnEvent,
-    TransportError>> + Send`, giving one turn per call (ADR-0011: session continuity is external,
-    so each prompt is a fresh call sharing the `session_id`; dropping the stream cancels).
-    `Ok(TurnEvent)` per brain event; `Err(TransportError)` for a transport/protocol failure.
-    v1 sends text only. Images (vision) arrive in Slice 10.
+  - `converse(&self, session_id, text, decisions)` returns `impl Stream<Item =
+    Result<TurnEvent, TransportError>> + Send`, giving one turn per call (ADR-0011: session
+    continuity is external, so each prompt is a fresh call sharing the `session_id`;
+    dropping the returned stream still cancels the turn). `decisions: impl Stream<Item =
+    ConfirmDecision> + Send + 'static` answers mid-turn `ConfirmRequest`s (ADR-0022); the
+    request stream half-closes when it ends (a caller with no confirm surface passes an
+    empty stream, which is the pre-8.8 one-shot shape). An unanswered/undeliverable confirm is
+    denied brain-side (fail-closed), so a decision sent after teardown is a harmless
+    no-op. `Ok(TurnEvent)` per brain event; `Err(TransportError)` for a
+    transport/protocol failure. v1 sends text only. Images (vision) arrive in Slice 10.
   - `list_sessions(&self, limit)` / `session_messages(&self, session_id)` (ADR-0021) are the
     read-only session views the overlay's chat list / switcher / cycling load: `Vec<SessionSummary>`
     newest-active first (at most `limit`; `0` = the brain default) and `Vec<SessionMessage>` in

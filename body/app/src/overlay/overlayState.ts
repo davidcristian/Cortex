@@ -18,6 +18,15 @@ export interface Message {
   readonly error: string | null;
 }
 
+/** A gated tool call awaiting the user's mid-turn approval (ADR-0022); at most one per turn. */
+export interface PendingConfirm {
+  readonly confirmId: string;
+  readonly toolName: string;
+  /** The exact draft being approved, one JSON object string (the executed contract). */
+  readonly argumentsJson: string;
+  readonly reason: string;
+}
+
 export interface OverlayState {
   readonly mode: Mode;
   /** The current chat's session id (its identity for `converse`, history, and cycling). */
@@ -28,6 +37,8 @@ export interface OverlayState {
   readonly sessions: readonly SessionSummary[];
   /** Whether the switcher list is open in the header. */
   readonly switcherOpen: boolean;
+  /** The approval the current turn is paused on, if any (ADR-0022). */
+  readonly pendingConfirm: PendingConfirm | null;
   readonly seq: number;
 }
 
@@ -38,6 +49,7 @@ export type Action =
   | { readonly kind: "transportError"; readonly error: TransportError }
   | { readonly kind: "dismiss" }
   | { readonly kind: "stop" }
+  | { readonly kind: "confirmResolved"; readonly approved: boolean }
   | { readonly kind: "previewFade" }
   | { readonly kind: "newChat"; readonly sessionId: string }
   | { readonly kind: "sessionsLoaded"; readonly sessions: readonly SessionSummary[] }
@@ -60,6 +72,7 @@ export function createInitialState(sessionId: string): OverlayState {
     messages: [],
     sessions: [],
     switcherOpen: false,
+    pendingConfirm: null,
     seq: 0,
   };
 }
@@ -88,13 +101,22 @@ export function reduce(state: OverlayState, action: Action): OverlayState {
     case "transportError":
       return endTurn(state, action.error.message);
     case "dismiss":
-      return { ...state, mode: isTurnActive(state) ? "orb" : "hidden" };
+      // Dismissing drops any pending approval with it (walking away is a deny, since the brain
+      // fails closed by timeout, ADR-0022); the turn itself keeps streaming to the store.
+      return { ...state, mode: isTurnActive(state) ? "orb" : "hidden", pendingConfirm: null };
     case "stop":
       // User cancelled the turn: end the streaming reply in place (keep the partial text,
       // no error) and stay in the panel. This differs from dismiss, which minimizes to the orb.
       return endTurn(state, null);
+    case "confirmResolved":
+      // The user answered (either way); the card leaves. The answer itself rides the bridge.
+      return { ...state, pendingConfirm: null };
     case "previewFade":
-      return state.mode === "preview" ? { ...state, mode: "hidden" } : state;
+      // A pending approval waits to be seen (the errors rule, design/overlay-ux.md §4):
+      // the preview never fades out from under an open question.
+      return state.mode === "preview" && state.pendingConfirm === null
+        ? { ...state, mode: "hidden" }
+        : state;
     case "newChat":
       return {
         ...state,
@@ -103,6 +125,7 @@ export function reduce(state: OverlayState, action: Action): OverlayState {
         title: NEW_CHAT_TITLE,
         messages: [],
         switcherOpen: false,
+        pendingConfirm: null,
       };
     case "sessionsLoaded":
       return { ...state, sessions: action.sessions };
@@ -136,6 +159,7 @@ function openSession(
     title: firstUser ? deriveTitle(firstUser.text) : NEW_CHAT_TITLE,
     messages: loaded,
     switcherOpen: false,
+    pendingConfirm: null,
     seq: loaded.length,
   };
 }
@@ -183,6 +207,8 @@ function applyEvent(state: OverlayState, event: TurnEvent): OverlayState {
       return patchStreaming(state, (m) => ({ ...m, tool: `${event.toolName}: ${event.summary}` }));
     case "status":
       return patchStreaming(state, (m) => ({ ...m, status: event.detail }));
+    case "confirmRequest":
+      return applyConfirmRequest(state, event);
     case "complete":
       return endTurn(state, null);
     case "failed":
@@ -190,10 +216,33 @@ function applyEvent(state: OverlayState, event: TurnEvent): OverlayState {
   }
 }
 
-/** End the streaming turn (optionally with an error) and surface it: orb → preview. */
+/** A gated call awaits approval: raise the card, surfacing it like a completed turn (orb →
+ *  preview). Only a live turn can ask. A cancelled/dead turn's late request must not resurrect
+ *  UI state (the same no-op property `patchStreaming` gives every other event). */
+function applyConfirmRequest(
+  state: OverlayState,
+  event: Extract<TurnEvent, { kind: "confirmRequest" }>,
+): OverlayState {
+  if (!isTurnActive(state)) {
+    return state;
+  }
+  return {
+    ...state,
+    mode: state.mode === "orb" ? "preview" : state.mode,
+    pendingConfirm: {
+      confirmId: event.confirmId,
+      toolName: event.toolName,
+      argumentsJson: event.argumentsJson,
+      reason: event.reason,
+    },
+  };
+}
+
+/** End the streaming turn (optionally with an error) and surface it: orb → preview. Any pending
+ *  approval dies with its turn. The stream is gone, and stream-death is the deny (ADR-0022). */
 function endTurn(state: OverlayState, error: string | null): OverlayState {
   const ended = patchStreaming(state, (m) => ({ ...m, streaming: false, error }));
-  return { ...ended, mode: state.mode === "orb" ? "preview" : state.mode };
+  return { ...ended, mode: state.mode === "orb" ? "preview" : state.mode, pendingConfirm: null };
 }
 
 function patchStreaming(state: OverlayState, patch: (m: Message) => Message): OverlayState {

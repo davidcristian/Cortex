@@ -7,6 +7,13 @@ export type TurnEvent =
   | { readonly kind: "delta"; readonly text: string }
   | { readonly kind: "toolActivity"; readonly toolName: string; readonly summary: string }
   | { readonly kind: "status"; readonly state: string; readonly detail: string }
+  | {
+      readonly kind: "confirmRequest";
+      readonly confirmId: string;
+      readonly toolName: string;
+      readonly argumentsJson: string;
+      readonly reason: string;
+    }
   | { readonly kind: "complete"; readonly turnId: string }
   | { readonly kind: "failed"; readonly code: string; readonly message: string };
 
@@ -49,4 +56,9 @@ export interface BrainBridge {
   listSessions(limit: number): Promise<readonly SessionSummary[]>;
   /** One session's persisted history, in append order. */
   sessionMessages(sessionId: string): Promise<readonly SessionMessage[]>;
+  /**
+   * Answer a mid-turn `confirmRequest` (ADR-0022). A failure is non-fatal: an
+   * unanswered confirmation denies by timeout brain-side (fail-closed).
+   */
+  respondConfirm(confirmId: string, approved: boolean): Promise<void>;
 }

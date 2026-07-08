@@ -11,6 +11,7 @@ const state = (over: Partial<OverlayState> = {}): OverlayState => ({
   messages: [],
   sessions: [],
   switcherOpen: false,
+  pendingConfirm: null,
   seq: 0,
   ...over,
 });
@@ -31,6 +32,7 @@ interface Handlers {
   onNewChat?: () => void;
   onToggleSwitcher?: () => void;
   onSelectSession?: (sessionId: string) => void;
+  onRespondConfirm?: (confirmId: string, approved: boolean) => void;
 }
 
 function renderPanel(over: Partial<OverlayState>, open: boolean, dark: boolean, handlers: Handlers = {}) {
@@ -46,6 +48,7 @@ function renderPanel(over: Partial<OverlayState>, open: boolean, dark: boolean, 
       onNewChat={handlers.onNewChat ?? vi.fn()}
       onToggleSwitcher={handlers.onToggleSwitcher ?? vi.fn()}
       onSelectSession={handlers.onSelectSession ?? vi.fn()}
+      onRespondConfirm={handlers.onRespondConfirm ?? vi.fn()}
     />,
   );
 }
@@ -85,6 +88,27 @@ describe("Panel", () => {
   it("parks the closed panel at the corner while the orb owns the turn", () => {
     renderPanel({ mode: "orb" }, false, false);
     expect(screen.getByRole("dialog", { hidden: true }).className).toContain("to-orb");
+  });
+
+  it("renders the approval card in the history while a confirm is pending and wires the answer", () => {
+    const onRespondConfirm = vi.fn();
+    renderPanel(
+      {
+        messages: [userMsg],
+        pendingConfirm: {
+          confirmId: "c-1",
+          toolName: "send_email",
+          argumentsJson: '{"to":"ada@example.com"}',
+          reason: "outbound",
+        },
+      },
+      true,
+      false,
+      { onRespondConfirm },
+    );
+    expect(screen.getByRole("group", { name: "Approval required" })).toBeInTheDocument();
+    fireEvent.click(screen.getByText("Approve"));
+    expect(onRespondConfirm).toHaveBeenCalledWith("c-1", true);
   });
 
   it("shows the switcher list when open and selecting a chat calls back", () => {

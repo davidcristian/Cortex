@@ -27,14 +27,18 @@ Thin translation only. No business logic, no retries (retry policy is a later sl
     after the channel connected) maps to `TransportError::Connection`; a status
     genuinely reported by the brain maps to `TransportError::Rpc { code, message }`
     where `code` is the status-code name (`Internal`, `Unimplemented`, …).
-  - `converse(session_id, text)` opens `BrainService.Converse` (`src/converse.rs`), sends
-    one `ClientEvent{session_id, user_turn}` then half-closes (one turn per call, ADR-0011),
-    and maps each streamed `ServerEvent` to a `TurnEvent`: `TextDelta`→`Delta`,
-    `ToolActivity`→`ToolActivity`, `StatusUpdate`→`Status`, `TurnComplete`→`Complete`
+  - `converse(session_id, text, decisions)` opens `BrainService.Converse` (`src/converse.rs`,
+    one turn per call, ADR-0011): the request stream is `once(ClientEvent{session_id,
+    user_turn})` chained with one `confirm_response` per `ConfirmDecision` from the caller's
+    `decisions` stream (ADR-0022). The client half-closes when `decisions` ends, so an
+    empty stream keeps the pre-8.8 one-shot shape. Each streamed `ServerEvent` maps to a
+    `TurnEvent`: `TextDelta`→`Delta`, `ToolActivity`→`ToolActivity`, `StatusUpdate`→`Status`,
+    `ConfirmRequest`→`ConfirmRequest` (non-terminal, since the brain suspends the gated call and
+    denies it fail-closed if no matching decision ever arrives), `TurnComplete`→`Complete`
     (terminal), `SeamError`→`Failed` (terminal). A status raised at the call or mid-stream
     reuses the same origin split (`status_to_error`, shared with `health`) → `Rpc`/`Connection`;
     an empty `ServerEvent` or a stream that ends before `TurnComplete` → `Protocol`. The
-    request stream is built with `async-stream`.
+    reply mapping is built with `async-stream`, the request chain with `tokio-stream`.
   - `list_sessions(limit)` / `session_messages(session_id)` (the read-only session views,
     ADR-0021; `src/sessions.rs`) are unary calls to `BrainService.ListSessions` /
     `GetSessionMessages` mapping each reply row to a core `SessionSummary` / `SessionMessage`;
@@ -101,9 +105,14 @@ Being ignored, they never run in CI and never count toward coverage.
 - Contract tests exercise a scripted in-process fake `BrainService` over loopback
   (`127.0.0.1:0`) only, which is CI-safe, with no real network. They cover both sides of the
   status-origin split, including brain death after a successful connect (graceful
-  fake shutdown → next `health()` must be `Connection`, not `Rpc`).
+  fake shutdown → next `health()` must be `Connection`, not `Rpc`), and the confirm
+  round-trip (ADR-0022): the fake emits `ConfirmRequest` mid-turn and asserts the
+  echoed `ConfirmResponse` arrives on the still-open request stream (approve and
+  deny, answered reactively over a channel), plus the half-close of an empty
+  decisions stream.
 
 **Dependencies.** `body-core` (the port), `tonic` + `tonic-prost` + `prost`, plus
-`async-stream` (builds the one-turn `converse` request stream) and `futures-core` (the
-`Stream` trait); build-dependency `tonic-prost-build` (idle unless `CORTEX_REGEN_PROTO=1`);
-dev-only `tokio`, `tokio-stream`.
+`async-stream` (builds the `converse` reply mapping), `tokio-stream` (chains the confirm
+decisions onto the request stream, promoted from dev-only in Slice 8.8, ADR-0022) and
+`futures-core` (the `Stream` trait); build-dependency `tonic-prost-build` (idle unless
+`CORTEX_REGEN_PROTO=1`); dev-only `tokio`.
