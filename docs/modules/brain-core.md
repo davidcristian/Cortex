@@ -167,16 +167,19 @@ Output guardrail (ADR-0015; the pure laundering defense built from the redactor 
   `http(s)`, `ftp`, `mailto:`, `tel:`), normalized for identity (scheme+authority lowercased,
   trailing prose punctuation dropped, path/query case kept; an opaque `mailto:`/`tel:` has no
   `://` so it folds whole). Every scheme is anchored at a word boundary, so `sftp://`/`hotel:` are
-  not partial-matched. Three **obfuscation-resistant** passes reduce a rewritten link to its plain
+  not partial-matched. Four **obfuscation-resistant** passes reduce a rewritten link to its plain
   identity (ADR-0015 addenda): **defang** refanging (`hxxp(s)`→`http(s)`, `[://]`/`[:]//`→`://`,
   bracketed dots `[.]`/`(.)`/`{.}`/`[dot]`/`(dot)` inside a scheme'd URL → `.`), **percent-decoding**
-  once (`evil%2ecom`→`evil.com`), and **NFKC** folding (fullwidth/compatibility homoglyphs → ASCII).
-  So a defanged, encoded, or fullwidth link normalizes to the same identity as its plain twin. A
-  *transform* in the reply is caught, not only verbatim reproduction. Both sides of the defense use
-  it for collection (`TaintLedger.observe`) and the user-message allowlist, so a collected URL and
-  its reappearance always compare equal. Held deliberately out (they would over-redact prose or
-  need a dependency): bare addresses/domains, whitespace-split defang (`evil dot com`), cross-script
-  homoglyphs/IDN/punycode, multi-pass encodings, and unlisted schemes (`data:` …).
+  to a bounded fixpoint (`evil%252ecom`→`evil%2ecom`→`evil.com`), **NFKC** folding
+  (fullwidth/compatibility homoglyphs → ASCII), and a **curated cross-script confusable** fold
+  (Cyrillic/Greek Latin-lookalikes → ASCII, e.g. Cyrillic `расе`→`pace`). So a defanged, encoded,
+  fullwidth, or homoglyph link normalizes to the same identity as its plain twin. A *transform* in
+  the reply is caught, not only verbatim reproduction. The passes compose (a percent-encoded
+  homoglyph decodes, then folds). Both sides of the defense use it, namely collection
+  (`TaintLedger.observe`) and the user-message allowlist, so a collected URL and its reappearance
+  always compare equal. Held deliberately out (they would over-redact prose or need a dependency):
+  bare addresses/domains, whitespace-split defang (`evil dot com`), the *full* UTS-39 confusables
+  set + IDN/punycode, and unlisted schemes (`data:` …).
 - `TaintView` (protocol) exposes the **live** taint signals the guardrail reads at scan time
   (`tainted: bool`, `untrusted_urls: AbstractSet[str]`); the turn's `TaintLedger` already
   satisfies it structurally (guardrail cannot import `untrusted`, which imports it).
