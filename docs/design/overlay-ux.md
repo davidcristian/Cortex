@@ -81,7 +81,8 @@ Top-to-bottom, the summoned panel is:
 2. **History** is the scrollable conversation: alternating user/assistant bubbles, newest at the
    bottom, auto-scrolling as tokens stream (but *not* if the user has scrolled up to read).
    Tool-activity and status appear as slim inline chips between bubbles ("📧 reading inbox…",
-   "swapping model…"), not as bubbles. Empty state: a centered, gently-breathing accent orb +
+   "swapping model…"), not as bubbles. The **approval card** (§4, ADR-0022) is this inline
+   layer's first real occupant. Empty state: a centered, gently-breathing accent orb +
    "Ask me anything" + a couple of example prompts as tappable chips.
 3. **Composer** is a rounded pill textarea (`⏎` sends, `⇧⏎` newlines, auto-grows to a few lines),
    a glowing accent focus ring when active, and a gradient **send** button (an outline up-arrow,
@@ -151,6 +152,24 @@ while a turn is processing must not lose it*) lives here. States:
 This gives the "fire it, keep working, glance when it pings me" flow the maintainer asked for, and it
 is coherent with the hard rule: dismissing is purely a *view* change. The turn keeps streaming to
 the store, so nothing depends on the window staying open.
+
+**The approval card (Slice 8.8, [ADR-0022](../adr/ADR-0022-email-write-confirmer.md)).** A gated
+(outbound/irreversible) tool call pauses its turn mid-stream on the user's explicit approval; the
+card is that question. It renders in the **history's inline layer** (below the streaming bubble),
+neutral like the rest of the resting chrome: an outline shield + the tool name, the draft's
+fields as **verbatim** key→value lines (falling back to the raw JSON string if the arguments
+aren't one JSON object, since what you approve is what runs, so nothing is prettified away), the
+brain's reason line, and **Deny / Approve**. Approve is the one place the accent gradient
+appears. It is the working affordance that runs the action; Deny stays neutral. Semantics:
+**Approve** sends the answer back over the turn's stream and the tool runs; **Deny** returns a
+user-declined result the model relays; either way the card leaves immediately (a second click is
+a no-op). Everything else is a deny by **fail-closed** construction: dismissing, stopping the
+turn, switching chats, or simply walking away all drop or abandon the question, and the brain
+denies on its own timeout. Nothing ever runs without an explicit Approve. Two rules carry over
+from the machine above: a confirm arriving **while minimized** surfaces the preview exactly like
+a completed turn, but the preview **does not auto-fade** while the question is open ("errors wait
+to be seen" extends to questions, so the countdown starts once it resolves); and only a **live**
+turn can raise the card. A cancelled turn's late request changes nothing.
 
 **v1 window scope (Slice 8).** This whole state machine ships in v1, but it runs *inside* a fixed,
 frameless, **opaque** always-on-top window (640×720, centered): the panel/orb/preview live within
