@@ -1,16 +1,13 @@
 //! The read-only session IPC commands (ADR-0021): list recent chats and load one
 //! chat's history for the overlay's switcher / cycling (`bridge/tauriBridge.ts`).
 //!
-//! Thin glue. Connect a `BrainSeamClient` (gated `body_rpc`), make the unary call,
-//! and map each row to a camelCase wire struct the overlay's `SessionSummary` /
-//! `SessionMessage` types expect. All seam logic lives in `body_rpc`.
+//! Thin glue. Connect the resilient read transport (`seam::connect`, a
+//! `RetryingTransport` over `body_rpc`; ADR-0024), make the unary call, and map each row to a
+//! camelCase wire struct the overlay's `SessionSummary` / `SessionMessage` types expect. All
+//! seam logic lives in `body_rpc`; the retry/backoff logic in `body_core`.
 
 use body_core::{BrainTransport, SessionMessage, SessionSummary};
-use body_rpc::BrainSeamClient;
 use serde::Serialize;
-
-/// Default brain seam address (matches `body_rpc`); override with `CORTEX_BRAIN_ADDR`.
-const DEFAULT_ADDR: &str = "http://127.0.0.1:50051";
 
 /// The overlay's `SessionSummary` (camelCase, matches `bridge/types.ts`).
 #[derive(Serialize)]
@@ -54,23 +51,12 @@ impl From<SessionMessage> for WireMessage {
     }
 }
 
-/// Connects a seam client, reading the address + optional token from the env
-/// (the same knobs `converse` uses; ADR-0016). A dial failure surfaces as the
-/// command's `Err`, which the overlay bridge's `.catch` handles.
-async fn connect() -> Result<BrainSeamClient, String> {
-    let addr = std::env::var("CORTEX_BRAIN_ADDR").unwrap_or_else(|_| DEFAULT_ADDR.to_owned());
-    let token = std::env::var("CORTEX_SEAM_TOKEN")
-        .ok()
-        .filter(|token| !token.is_empty());
-    BrainSeamClient::connect_with_token(&addr, token.as_deref())
-        .await
-        .map_err(|error| error.to_string())
-}
-
-/// Lists recent chats newest-active first (`BrainService.ListSessions`).
+/// Lists recent chats newest-active first (`BrainService.ListSessions`). A transient
+/// unreachable brain is retried with backoff by the resilient transport (ADR-0024) before
+/// the error surfaces to the overlay bridge's `.catch`.
 #[tauri::command]
 pub async fn list_sessions(limit: i32) -> Result<Vec<WireSummary>, String> {
-    let client = connect().await?;
+    let client = crate::seam::connect()?;
     let sessions = client
         .list_sessions(limit)
         .await
@@ -81,7 +67,7 @@ pub async fn list_sessions(limit: i32) -> Result<Vec<WireSummary>, String> {
 /// Loads one session's persisted history (`BrainService.GetSessionMessages`).
 #[tauri::command]
 pub async fn session_messages(session_id: String) -> Result<Vec<WireMessage>, String> {
-    let client = connect().await?;
+    let client = crate::seam::connect()?;
     let messages = client
         .session_messages(&session_id)
         .await

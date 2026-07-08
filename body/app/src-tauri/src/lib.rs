@@ -10,6 +10,7 @@ mod body_server;
 mod confirm;
 mod converse;
 mod hotkey;
+mod seam;
 mod sessions;
 mod tray;
 

@@ -12,6 +12,7 @@ mod client;
 mod converse;
 mod server;
 mod sessions;
+mod status;
 
 /// Generated tonic/prost stubs for the `cortex.seam.v1` package.
 ///

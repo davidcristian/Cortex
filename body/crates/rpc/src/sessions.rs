@@ -5,13 +5,14 @@
 //! `ListSessions` and `GetSessionMessages`. Thin translation only. Map the
 //! request, await the unary reply, map each row to its typed core value; a
 //! non-OK gRPC status maps the same way `health` does (via
-//! [`crate::client::status_to_error`]).
+//! [`crate::status::status_to_error`]).
 
 use body_core::{SessionMessage, SessionSummary, TransportError};
 
-use crate::client::{SeamChannel, status_to_error};
+use crate::client::SeamChannel;
 use crate::generated::brain_service_client::BrainServiceClient;
 use crate::generated::{GetSessionMessagesRequest, ListSessionsRequest};
+use crate::status::status_to_error;
 
 /// Lists recent chats newest-active first (`BrainService.ListSessions`). At most
 /// `limit`; `0` means the brain's default.

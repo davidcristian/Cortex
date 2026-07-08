@@ -133,6 +133,12 @@ Start here. Rules for working in this repo: [AGENTS.md](../AGENTS.md).
   + the reversed seam-token validator in `body_rpc`. Volume is ungated (reversible); `set_volume`
   is opt-in-gatable via `CORTEX_TOOLS_GATED`. `unsafe` for Core Audio is authorized narrowly to
   `os_windows`; `SEAM_TOKEN_HEADER` is lifted to `cortex_seam`.
+- [ADR-0024: Transport retry / reconnect](adr/ADR-0024-transport-retry.md): the Slice-2
+  deferral, landed as a `RetryingTransport` decorator over the unchanged `BrainTransport` port, with
+  bounded exponential backoff on the idempotent calls, a `Sleeper` port keeping time injectable
+  (real `TokioSleeper` in the shell, a recording fake in tests), and a lazy
+  `connect_lazy_with_token` channel so a briefly-down brain reconnects transparently. `converse`
+  is forwarded unchanged (non-idempotent → a failed turn stays terminal).
 
 New non-obvious decision → add `adr/ADR-XXXX-<slug>.md`, link it here.
 

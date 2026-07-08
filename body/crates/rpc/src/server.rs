@@ -83,7 +83,7 @@ impl<A: AudioControl + 'static> BodyService for VolumeService<A> {
 }
 
 /// Maps an [`AudioError`] to the outbound gRPC [`Status`] the brain reads. This is the inverse of
-/// `client::status_to_error`. A missing endpoint is `Unavailable` (transient, like a dead
+/// `status::status_to_error`. A missing endpoint is `Unavailable` (transient, like a dead
 /// backend); a backend failure is `Internal`.
 fn audio_error_to_status(error: &AudioError) -> Status {
     match error {
