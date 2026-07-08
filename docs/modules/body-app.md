@@ -47,7 +47,15 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
 - **The session-read commands** (`src-tauri/src/sessions.rs`, ADR-0021): `list_sessions(limit)` and
   `session_messages(session_id)` are unary calls returning `Vec<WireSummary>` / `Vec<WireMessage>`
   (camelCase, matching the TS `SessionSummary` / `SessionMessage`); a dial/RPC failure is the
-  command's `Err`, which the bridge's `.catch` handles.
+  command's `Err`, which the bridge's `.catch` handles. They dial through `seam::connect()` (below),
+  so a *transient* unreachable brain is retried with backoff before the error surfaces (ADR-0024).
+- **The resilient read transport** (`src-tauri/src/seam.rs`, ADR-0024): `connect()` builds a
+  `body_core::RetryingTransport<BrainSeamClient, TokioSleeper>` over `BrainSeamClient::connect_lazy_with_token`
+  (a lazy channel that never fails at construction and reconnects on demand), reading the address +
+  seam token + retry knobs from env. `TokioSleeper` is the real `Sleeper` (`tokio::time::sleep`), the
+  one timer effect, kept in the un-gated shell so the retry *logic* stays gated in `body_core`. The
+  read commands use it; `converse` keeps its own eager dial (a turn is non-idempotent, so a failed
+  turn is terminal, per ADR-0024 decision 2).
 - **The `body_server` module** (`src-tauri/src/body_server.rs`, ADR-0023): `start()` (`cfg(windows)`)
   binds `CORTEX_BODY_ADDR` (default `127.0.0.1:50151`), reads `CORTEX_SEAM_TOKEN`, and serves
   `body_rpc::body_service(WindowsAudioControl::new(), &token)` on Tauri's async runtime
@@ -59,8 +67,9 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
   `main.tsx` self-summons instead.
 - **Config** (shell only): `CORTEX_HOTKEY` (chord, default `ctrl+alt+space`),
   `CORTEX_BRAIN_ADDR` (default `http://127.0.0.1:50051`), `CORTEX_BODY_ADDR` (the `BodyService`
-  bind, default `127.0.0.1:50151`), and `CORTEX_SEAM_TOKEN` (empty = the validator is a
-  pass-through).
+  bind, default `127.0.0.1:50151`), `CORTEX_SEAM_TOKEN` (empty = the validator is a
+  pass-through), and the read-transport retry knobs (ADR-0024) `CORTEX_BRAIN_RETRY_ATTEMPTS`
+  (default 3), `_BASE_MS` (200), `_MULTIPLIER` (2), `_MAX_MS` (2000).
 
 **Invariants.**
 
@@ -78,7 +87,8 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
 bridge). Shell: `tauri` 2 (`tray-icon`), `body-core` + `body-rpc` (the gated crates), `os-windows`
 (`cfg(windows)`, provides `WindowsAudioControl`), `serde`, `futures-util`, `tonic` (serving the
 `BodyService`, ADR-0023), `tokio` (`sync` for the ADR-0022 confirm channel; `net` +
-`rt-multi-thread` for the ADR-0023 `BodyService` server) + `tokio-stream` (`net` for
+`rt-multi-thread` for the ADR-0023 `BodyService` server; `time` for the ADR-0024 retry
+backoff sleeper) + `tokio-stream` (`net` for
 `TcpListenerStream`, the `BodyService` incoming, ADR-0023; its receiver wrapper also carries the
 ADR-0022 confirm decision channel). Bring-up + validation:
 [body-overlay.md](../runbooks/body-overlay.md).

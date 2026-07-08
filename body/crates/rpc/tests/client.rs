@@ -456,3 +456,53 @@ async fn non_ascii_seam_token_maps_to_the_connection_variant() {
         "message should name the token as the cause, got: {message}"
     );
 }
+
+#[tokio::test]
+async fn lazy_connect_health_round_trips_over_a_lazy_channel() {
+    // The lazy constructor (ADR-0024) never dials at construction; the first RPC
+    // establishes the connection, so a healthy round-trip still works.
+    let addr = spawn_fake_brain(FakeBrain::new(Script::Ready))
+        .await
+        .unwrap();
+    let client = BrainSeamClient::connect_lazy_with_token(&format!("http://{addr}"), None).unwrap();
+    assert!(client.health().await.unwrap().ready);
+}
+
+#[tokio::test]
+async fn lazy_connect_to_a_dead_endpoint_constructs_then_fails_on_the_first_call() {
+    // The point of the lazy channel: construction succeeds even with nothing
+    // listening (unlike eager `connect`), so the `RetryingTransport` decorator
+    // gets a channel to retry over. The failure surfaces on the call as
+    // Connection, and tonic reconnects on a later call if the brain returns.
+    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let addr = listener.local_addr().unwrap();
+    drop(listener);
+    let client = BrainSeamClient::connect_lazy_with_token(&format!("http://{addr}"), None).unwrap();
+    let error = client.health().await.unwrap_err();
+    let TransportError::Connection(message) = error else {
+        panic!("expected the connection variant, got: {error:?}");
+    };
+    assert!(!message.is_empty());
+}
+
+#[tokio::test]
+async fn lazy_connect_invalid_address_maps_to_the_connection_variant() {
+    let error = BrainSeamClient::connect_lazy_with_token("not a valid uri", None).unwrap_err();
+    let TransportError::Connection(message) = error else {
+        panic!("expected the connection variant, got: {error:?}");
+    };
+    assert!(!message.is_empty());
+}
+
+#[tokio::test]
+async fn lazy_connect_non_ascii_seam_token_maps_to_the_connection_variant() {
+    let error = BrainSeamClient::connect_lazy_with_token("http://127.0.0.1:1", Some("bad\ntoken"))
+        .unwrap_err();
+    let TransportError::Connection(message) = error else {
+        panic!("expected the connection variant, got: {error:?}");
+    };
+    assert!(
+        message.contains("invalid seam token"),
+        "message should name the token as the cause, got: {message}"
+    );
+}

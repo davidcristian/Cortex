@@ -27,8 +27,8 @@ serde = { version = "1", features = ["derive"] }
 futures-util = "0.3"
 # "sync" for the confirm decision route (ADR-0022); "net" + "rt-multi-thread" for the
 # BodyService server the app hosts (ADR-0023), to bind a loopback listener and serve on Tauri's
-# runtime.
-tokio = { version = "1", features = ["sync", "net", "rt-multi-thread"] }
+# runtime; "time" for the transport retry backoff (TokioSleeper, ADR-0024).
+tokio = { version = "1", features = ["sync", "net", "rt-multi-thread", "time"] }
 # "net" for TcpListenerStream (the BodyService incoming, ADR-0023).
 tokio-stream = { version = "0.1", features = ["net"] }
 # Serve the BodyService the brain dials (ADR-0023); the adapter lives in body-rpc.

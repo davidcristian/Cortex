@@ -61,4 +61,6 @@ retries**; a dropped stream or transient failure surfaces straight to the caller
 overlay treats a failed turn as terminal until the refinement lands) was recorded in the
 ROADMAP deferred-refinements ledger and [body-rpc.md](../modules/body-rpc.md) but never at
 this, its origin ADR. Added when the 2026-07-02 audit flagged the missing ADR-side half of
-the AGENTS.md gate-4 record.
+the AGENTS.md gate-4 record. **Landed 2026-07-08 as [ADR-0024](ADR-0024-transport-retry.md)**
+with a `RetryingTransport` decorator + `Sleeper` port + lazy `connect_lazy_with_token` channel,
+all behind the unchanged `BrainTransport` port.

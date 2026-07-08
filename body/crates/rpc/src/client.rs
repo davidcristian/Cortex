@@ -5,8 +5,10 @@
 //! channel connected (tonic surfaces those as statuses synthesized from a
 //! client-local `tonic::transport::Error`), maps to
 //! [`TransportError::Connection`]; non-OK statuses genuinely reported by the
-//! brain map to [`TransportError::Rpc`]. No business logic, no retries
-//! (retry policy is a later slice's concern).
+//! brain map to [`TransportError::Rpc`]. No business logic and no retries: the
+//! bounded-retry policy lives in `body_core`'s `RetryingTransport` decorator
+//! over this adapter (ADR-0024), and [`BrainSeamClient::connect_lazy_with_token`]
+//! gives it a reconnecting channel to retry over.
 
 use body_core::{
     BrainTransport, ConfirmDecision, SeamHealth, SessionMessage, SessionSummary, TransportError,
@@ -21,6 +23,7 @@ use tonic::{Request, Status};
 
 use crate::generated::HealthRequest;
 use crate::generated::brain_service_client::BrainServiceClient;
+use crate::status::{error_chain, status_to_error};
 
 /// The metadata key the seam token travels under (ADR-0016; lowercase per gRPC).
 const SEAM_TOKEN_HEADER: &str = "x-cortex-seam-token";
@@ -86,23 +89,59 @@ impl BrainSeamClient {
         addr: &str,
         token: Option<&str>,
     ) -> Result<Self, TransportError> {
-        let token = token
-            .map(|value| {
-                value.parse::<MetadataValue<Ascii>>().map_err(|err| {
-                    TransportError::Connection(format!("invalid seam token: {}", error_chain(&err)))
-                })
-            })
-            .transpose()?;
-        let endpoint = Channel::from_shared(addr.to_owned())
-            .map_err(|err| TransportError::Connection(error_chain(&err)))?;
-        let channel = endpoint
+        let token = parse_seam_token(token)?;
+        let channel = endpoint(addr)?
             .connect()
             .await
             .map_err(|err| TransportError::Connection(error_chain(&err)))?;
-        Ok(Self {
-            inner: BrainServiceClient::with_interceptor(channel, SeamTokenInterceptor { token }),
-        })
+        Ok(Self::with_token(channel, token))
     }
+
+    /// Like [`BrainSeamClient::connect_with_token`], but over a **lazy** channel
+    /// (`Channel::connect_lazy`): construction never dials, so it only fails on a
+    /// bad URI or a non-ASCII token (never on reachability), and each RPC
+    /// (re)establishes the connection on demand. This is the channel the
+    /// `RetryingTransport` decorator retries over: a call against a briefly-down
+    /// brain fails [`TransportError::Connection`], the decorator backs off, and
+    /// tonic reconnects transparently when the brain returns (ADR-0024).
+    ///
+    /// # Errors
+    ///
+    /// [`TransportError::Connection`] when `addr` is not a valid URI or `token`
+    /// is not valid ASCII metadata.
+    pub fn connect_lazy_with_token(
+        addr: &str,
+        token: Option<&str>,
+    ) -> Result<Self, TransportError> {
+        let token = parse_seam_token(token)?;
+        Ok(Self::with_token(endpoint(addr)?.connect_lazy(), token))
+    }
+
+    /// Wraps a ready channel in the client with the token interceptor attached.
+    fn with_token(channel: Channel, token: Option<MetadataValue<Ascii>>) -> Self {
+        Self {
+            inner: BrainServiceClient::with_interceptor(channel, SeamTokenInterceptor { token }),
+        }
+    }
+}
+
+/// Parses the optional seam token into gRPC-safe ASCII metadata (ADR-0016), or
+/// [`TransportError::Connection`] if it is not valid ASCII the wire can carry.
+fn parse_seam_token(token: Option<&str>) -> Result<Option<MetadataValue<Ascii>>, TransportError> {
+    token
+        .map(|value| {
+            value.parse::<MetadataValue<Ascii>>().map_err(|err| {
+                TransportError::Connection(format!("invalid seam token: {}", error_chain(&err)))
+            })
+        })
+        .transpose()
+}
+
+/// Builds the tonic endpoint for `addr`, mapping an invalid URI to
+/// [`TransportError::Connection`]. Shared by the eager and lazy constructors.
+fn endpoint(addr: &str) -> Result<tonic::transport::Endpoint, TransportError> {
+    Channel::from_shared(addr.to_owned())
+        .map_err(|err| TransportError::Connection(error_chain(&err)))
 }
 
 impl BrainTransport for BrainSeamClient {
@@ -143,128 +182,5 @@ impl BrainTransport for BrainSeamClient {
         session_id: &str,
     ) -> Result<Vec<SessionMessage>, TransportError> {
         crate::sessions::session_messages(self.inner.clone(), session_id.to_owned()).await
-    }
-}
-
-/// Maps a non-OK [`Status`] from a seam call to the port's error taxonomy.
-///
-/// tonic reports client-local transport failures (e.g. the brain died after
-/// the channel connected) as statuses *synthesized* from the underlying
-/// `tonic::transport::Error`, which it attaches to the status's `source()`
-/// chain. Those mean "cannot reach the brain" and map to
-/// [`TransportError::Connection`]; a status without a transport source was
-/// genuinely reported by the brain and maps to [`TransportError::Rpc`]. Shared
-/// with the `converse` adapter (`crate::converse`), which maps `Converse`
-/// stream statuses the same way.
-pub(crate) fn status_to_error(status: &Status) -> TransportError {
-    match transport_source(status) {
-        Some(transport) => TransportError::Connection(error_chain(transport)),
-        None => TransportError::Rpc {
-            code: format!("{:?}", status.code()),
-            message: status.message().to_owned(),
-        },
-    }
-}
-
-/// Walks `status`'s `source()` chain looking for a locally-synthesized
-/// [`tonic::transport::Error`].
-fn transport_source(status: &Status) -> Option<&(dyn std::error::Error + 'static)> {
-    let mut cause = std::error::Error::source(status);
-    while let Some(err) = cause {
-        if err.is::<tonic::transport::Error>() {
-            return Some(err);
-        }
-        cause = err.source();
-    }
-    None
-}
-
-/// Folds `err` and its `source()` chain into one `: `-separated message, so
-/// opaque wrappers (tonic's transport-error `Display` is just "transport
-/// error") still name the root cause.
-fn error_chain(err: &(dyn std::error::Error + 'static)) -> String {
-    let mut message = err.to_string();
-    let mut cause = err.source();
-    while let Some(err) = cause {
-        message.push_str(": ");
-        message.push_str(&err.to_string());
-        cause = err.source();
-    }
-    message
-}
-
-#[cfg(test)]
-mod tests {
-    //! Unit tests for the status→error mapping helpers, driving the chain
-    //! walks over constructed sources the end-to-end contract tests
-    //! (`tests/client.rs`) cannot reach: a transport error nested behind a
-    //! non-transport cause, and a chain with no transport error at all.
-
-    use std::error::Error;
-    use std::fmt;
-
-    use body_core::TransportError;
-    use tonic::Status;
-    use tonic::transport::Endpoint;
-
-    use super::{error_chain, status_to_error};
-
-    /// Test-only wrapper exposing the wrapped error as its `source()`.
-    #[derive(Debug)]
-    struct Wrapped<E>(E);
-
-    impl<E> fmt::Display for Wrapped<E> {
-        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-            f.write_str("wrapped")
-        }
-    }
-
-    impl<E: fmt::Debug + Error + 'static> Error for Wrapped<E> {
-        fn source(&self) -> Option<&(dyn Error + 'static)> {
-            Some(&self.0)
-        }
-    }
-
-    /// A real `tonic::transport::Error`, obtained through the public API
-    /// (the type has no public constructor; `Endpoint` has no `Debug` impl,
-    /// so take the error side via `Result::err`).
-    fn transport_error() -> tonic::transport::Error {
-        Endpoint::from_shared(String::from("not a valid uri"))
-            .err()
-            .unwrap()
-    }
-
-    #[test]
-    fn error_chain_folds_every_source_into_the_message() {
-        let error = Wrapped(std::io::Error::from(std::io::ErrorKind::NotFound));
-        assert_eq!(error_chain(&error), "wrapped: entity not found");
-    }
-
-    #[test]
-    fn status_with_a_nested_transport_source_maps_to_connection() {
-        // The walk skips the non-transport `Wrapped` cause, finds the
-        // transport error deeper in the chain, and folds the message from
-        // the transport error onward (not from the wrapper).
-        let status = Status::from_error(Box::new(Wrapped(transport_error())));
-        assert_eq!(
-            status_to_error(&status),
-            TransportError::Connection(error_chain(&transport_error())),
-        );
-    }
-
-    #[test]
-    fn status_without_a_transport_source_maps_to_rpc() {
-        // A source chain with no transport error anywhere means the status
-        // was not synthesized from a connection failure: it stays Rpc.
-        let status = Status::from_error(Box::new(Wrapped(std::io::Error::from(
-            std::io::ErrorKind::NotFound,
-        ))));
-        assert_eq!(
-            status_to_error(&status),
-            TransportError::Rpc {
-                code: String::from("Unknown"),
-                message: String::from("wrapped"),
-            }
-        );
     }
 }
