@@ -20,7 +20,7 @@ Everything below the edge receives ports, never settings objects or env access.
 
 from collections.abc import Callable
 
-from cortex_core import SystemClock, TurnCapabilities, TurnEngine, VramBudgetPlacer
+from cortex_core import Confirmer, SystemClock, TurnCapabilities, TurnEngine, VramBudgetPlacer
 from cortex_orchestrator.builders import (
     build_cortex_tools,
     build_history_window,
@@ -34,9 +34,9 @@ from cortex_orchestrator.config import (
     InferenceConfig,
     MemoryConfig,
     SeamServerConfig,
-    SubagentsConfig,
     ToolsConfig,
 )
+from cortex_orchestrator.config_subagents import SubagentsConfig
 from cortex_orchestrator.server import serve
 from cortex_orchestrator.subagent_builders import build_subagents
 from cortex_session import RedisSessionStore
@@ -73,23 +73,34 @@ async def run_from_env(
             cortex_reservation_gb=runtime.cortex_reservation_gb,
         ),
     )
-    tools = build_cortex_tools(tool_registry, spawn_tool, clock)
     try:
-        engine = TurnEngine(
-            store,
-            backend,
-            clock,
-            cortex_model=runtime.cortex_model,
-            capabilities=TurnCapabilities(
-                memory=memory,
-                tools=tools,
-                window=build_history_window(runtime.history_char_budget),
-                guardrail=build_output_guardrail(runtime.output_guardrail),
-                # The core takes a bool; the composition root maps the string (ADR-0019).
-                record_tainted_memory=memory_config.on_tainted == "record",
-            ),
-        )
-        await serve(seam_config, engine, store)
+
+        def make_engine(confirmer: Confirmer) -> TurnEngine:
+            # One engine per Converse stream (ADR-0022): the stream's confirmer reaches the
+            # dispatcher, and everything else is the same shared adapters. Engines are
+            # stateless functions over the store, so per-stream construction costs nothing.
+            return TurnEngine(
+                store,
+                backend,
+                clock,
+                cortex_model=runtime.cortex_model,
+                capabilities=TurnCapabilities(
+                    memory=memory,
+                    tools=build_cortex_tools(
+                        tool_registry,
+                        spawn_tool,
+                        clock,
+                        confirmer=confirmer,
+                        gated_names=tools_config.gated,
+                    ),
+                    window=build_history_window(runtime.history_char_budget),
+                    guardrail=build_output_guardrail(runtime.output_guardrail),
+                    # The core takes a bool; the composition root maps the string (ADR-0019).
+                    record_tainted_memory=memory_config.on_tainted == "record",
+                ),
+            )
+
+        await serve(seam_config, make_engine, store)
     finally:
         await close_subagents()
         await close_tools()

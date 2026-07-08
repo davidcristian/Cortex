@@ -11,6 +11,9 @@ source of audited, model-callable tools.
 - `McpToolRegistry(session: McpSession)` is a `ToolRegistry`.
   - `describe_tools()` → `list_tools()` on the session, mapping each MCP `Tool` to a
     `ToolSpec` (name, description, `inputSchema` as the parameters) to advertise to the model.
+    Every spec arrives `gated=False` and MCP annotations are deliberately dropped. A sidecar
+    must never self-declare policy; gating for remote tools is stamped brain-side by the
+    composition root's `GatedToolRegistry` overlay (`CORTEX_TOOLS_GATED`, ADR-0022).
   - `invoke(call)` → `call_tool(name, arguments)`, joining the result's text content blocks
     into `ToolResult.content` (non-text blocks skipped) and setting `is_error` from the
     server's `isError`.

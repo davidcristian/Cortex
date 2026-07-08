@@ -28,6 +28,7 @@ from cortex_orchestrator import (
     ERROR_CODE_INFERENCE_FAILED,
     ERROR_CODE_INTERNAL,
     ERROR_CODE_SESSION_STORE_UNAVAILABLE,
+    EngineFactory,
     converse,
 )
 from cortex_seam import Cancel, ClientEvent, ServerEvent, UserTurn
@@ -52,6 +53,11 @@ async def _collect(stream: AsyncIterator[ServerEvent]) -> list[ServerEvent]:
 
 def _delta_texts(events: Sequence[ServerEvent]) -> list[str]:
     return [e.text_delta.text for e in events if e.WhichOneof("event") == "text_delta"]
+
+
+def _make(engine: TurnEngine) -> EngineFactory:
+    """A bare engine as an EngineFactory. These tests wire no confirmer (fail-closed)."""
+    return lambda _confirmer: engine
 
 
 def _engine(store: InMemorySessionStore | None = None) -> TurnEngine:
@@ -229,7 +235,7 @@ class SignalingClientEvents:
 
 
 async def test_turn_maps_deltas_then_turn_complete() -> None:
-    events = await _collect(converse(_engine(), _events_from(_user_turn("s", "hello"))))
+    events = await _collect(converse(_make(_engine()), _events_from(_user_turn("s", "hello"))))
     kinds = [e.WhichOneof("event") for e in events]
     assert kinds == ["text_delta", "text_delta", "text_delta", "turn_complete"]
     assert "".join(_delta_texts(events)) == "reply 1: hello"
@@ -253,7 +259,7 @@ async def test_reasoning_maps_to_a_thinking_status_update() -> None:
     engine = TurnEngine(
         InMemorySessionStore(), ReasoningBackend(), SystemClock(), turn_id_factory=lambda: "t-1"
     )
-    events = await _collect(converse(engine, _events_from(_user_turn("s", "hey"))))
+    events = await _collect(converse(_make(engine), _events_from(_user_turn("s", "hey"))))
     assert [e.WhichOneof("event") for e in events] == ["status", "text_delta", "turn_complete"]
     assert (events[0].status.state, events[0].status.detail) == ("thinking", "pondering")
     assert "".join(_delta_texts(events)) == "hi"
@@ -261,32 +267,32 @@ async def test_reasoning_maps_to_a_thinking_status_update() -> None:
 
 async def test_second_turn_on_the_same_stream_keeps_counting() -> None:
     client = _events_from(_user_turn("s", "one"), _user_turn("s", "two"))
-    events = await _collect(converse(_engine(), client))
+    events = await _collect(converse(_make(_engine()), client))
     completions = [e for e in events if e.WhichOneof("event") == "turn_complete"]
     assert [c.turn_complete.turn_id for c in completions] == ["t-1", "t-2"]
     assert "".join(_delta_texts(events[4:])) == "reply 2: two"
 
 
 async def test_empty_client_stream_yields_nothing() -> None:
-    assert await _collect(converse(_engine(), _events_from())) == []
+    assert await _collect(converse(_make(_engine()), _events_from())) == []
 
 
 async def test_event_without_payload_is_ignored() -> None:
     client = _events_from(ClientEvent(session_id="s"), _user_turn("s", "hi"))
-    events = await _collect(converse(_engine(), client))
+    events = await _collect(converse(_make(_engine()), client))
     assert "".join(_delta_texts(events)) == "reply 1: hi"
 
 
 async def test_cancel_without_a_turn_in_flight_is_a_no_op() -> None:
     client = _events_from(_cancel("s"), _user_turn("s", "hi"))
-    events = await _collect(converse(_engine(), client))
+    events = await _collect(converse(_make(_engine()), client))
     assert "".join(_delta_texts(events)) == "reply 1: hi"
 
 
 async def test_store_failure_becomes_terminal_session_store_seam_error() -> None:
     store = CountingFailingStore()
     engine = TurnEngine(store, EchoInferenceBackend(), SystemClock())
-    events = await _collect(converse(engine, _events_from(_user_turn("s", "hi"))))
+    events = await _collect(converse(_make(engine), _events_from(_user_turn("s", "hi"))))
     (only,) = events
     assert only.WhichOneof("event") == "error"
     assert only.error.code == ERROR_CODE_SESSION_STORE_UNAVAILABLE
@@ -297,7 +303,7 @@ async def test_after_a_seam_error_later_user_turns_are_not_started() -> None:
     store = CountingFailingStore()
     engine = TurnEngine(store, EchoInferenceBackend(), SystemClock())
     client = SignalingClientEvents(_user_turn("s", "one"), _user_turn("s", "two"))
-    stream = converse(engine, client)
+    stream = converse(_make(engine), client)
     first = await anext(stream)
     assert first.WhichOneof("event") == "error"
     # Hold the stream open until the server has read PAST the second user turn …
@@ -310,7 +316,7 @@ async def test_after_a_seam_error_later_user_turns_are_not_started() -> None:
 async def test_inference_failure_becomes_inference_failed_after_partial_delta() -> None:
     store = InMemorySessionStore()
     engine = TurnEngine(store, MidStreamFailingBackend(), SystemClock())
-    events = await _collect(converse(engine, _events_from(_user_turn("s", "hi"))))
+    events = await _collect(converse(_make(engine), _events_from(_user_turn("s", "hi"))))
     assert [e.WhichOneof("event") for e in events] == ["text_delta", "error"]
     assert events[-1].error.code == ERROR_CODE_INFERENCE_FAILED
     assert "mid-stream" in events[-1].error.message
@@ -320,14 +326,14 @@ async def test_inference_failure_becomes_inference_failed_after_partial_delta() 
 
 async def test_unexpected_failure_becomes_internal_seam_error() -> None:
     engine = TurnEngine(InMemorySessionStore(), BrokenBackend(), SystemClock())
-    events = await _collect(converse(engine, _events_from(_user_turn("s", "hi"))))
+    events = await _collect(converse(_make(engine), _events_from(_user_turn("s", "hi"))))
     (only,) = events
     assert only.error.code == ERROR_CODE_INTERNAL
     assert "a bug" in only.error.message
 
 
 async def test_failing_client_stream_becomes_internal_seam_error() -> None:
-    events = await _collect(converse(_engine(), ExplodingClientEvents()))
+    events = await _collect(converse(_make(_engine()), ExplodingClientEvents()))
     (only,) = events
     assert only.error.code == ERROR_CODE_INTERNAL
     assert "transport blew up" in only.error.message
@@ -341,14 +347,14 @@ async def _spin(times: int = 50) -> None:
 
 def test_converse_rejects_a_non_positive_buffer() -> None:
     with pytest.raises(ValueError, match="at least 1"):
-        converse(_engine(), _events_from(), max_buffered_events=0)
+        converse(_make(_engine()), _events_from(), max_buffered_events=0)
 
 
 async def test_backpressure_stalls_generation_until_the_consumer_reads() -> None:
     """With a small buffer, an unread stream suspends the turn instead of buffering it."""
     backend = CountingEndlessBackend()
     engine = TurnEngine(InMemorySessionStore(), backend, SystemClock())
-    stream = converse(engine, _events_from(_user_turn("s", "hi")), max_buffered_events=2)
+    stream = converse(_make(engine), _events_from(_user_turn("s", "hi")), max_buffered_events=2)
     first = await anext(stream)
     assert first.text_delta.text == "d1"
     await _spin()
@@ -368,7 +374,7 @@ async def test_backpressure_stalls_generation_until_the_consumer_reads() -> None
 async def test_seam_error_bypasses_the_buffer_credits() -> None:
     """A failure after the buffer filled must still deliver SeamError and end the stream."""
     engine = TurnEngine(InMemorySessionStore(), BurstThenFailBackend(3), SystemClock())
-    stream = converse(engine, _events_from(_user_turn("s", "hi")), max_buffered_events=2)
+    stream = converse(_make(engine), _events_from(_user_turn("s", "hi")), max_buffered_events=2)
     first = await anext(stream)
     assert first.text_delta.text == "d1"
     await _spin()  # the turn fills the buffer (d2, d3), fails, and must not block
@@ -383,7 +389,7 @@ async def test_closing_the_stream_mid_turn_tears_down_pump_and_turn() -> None:
     store = InMemorySessionStore()
     backend = GatedBackend()
     engine = TurnEngine(store, backend, SystemClock())
-    stream = converse(engine, _events_from(_user_turn("s", "hi")))
+    stream = converse(_make(engine), _events_from(_user_turn("s", "hi")))
     first = await anext(stream)
     assert first.text_delta.text == "never-finished"
     await stream.aclose()
@@ -403,7 +409,7 @@ async def test_cancel_behind_a_queued_turn_stops_current_and_drops_queued() -> N
     backend = GatedBackend()
     engine = TurnEngine(store, backend, SystemClock())
     client = ScriptedClientEvents()
-    stream = converse(engine, client)
+    stream = converse(_make(engine), client)
     client.send(_user_turn("s", "first"))
     first = await anext(stream)
     assert first.text_delta.text == "never-finished"  # A is mid-stream …
@@ -429,7 +435,7 @@ async def test_closing_the_stream_during_cancel_teardown_does_not_hang() -> None
     backend = TeardownGatedBackend()
     engine = TurnEngine(store, backend, SystemClock())
     client = ScriptedClientEvents()
-    stream = converse(engine, client)
+    stream = converse(_make(engine), client)
     client.send(_user_turn("s", "hi"))
     first = await anext(stream)
     assert first.text_delta.text == "never-finished"

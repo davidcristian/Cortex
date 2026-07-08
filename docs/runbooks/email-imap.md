@@ -70,3 +70,38 @@ docker compose --project-directory . -f docker/docker-compose.yml \
 ```
 docker compose --project-directory . -f docker/docker-compose.yml -f docker/docker-compose.email.yml down
 ```
+
+## The send path (Slice 8.8, ADR-0022) is opt-in, gated, confirmed
+
+`send_email` is the write twin (SMTP over the same Bridge, default `127.0.0.1:1025`,
+STARTTLS, same credentials). It is **off by default**. The sidecar registers it only under
+`CORTEX_EMAIL_SEND_ENABLED=true`. Brain-side it is stamped `gated` by the composition
+root (`CORTEX_TOOLS_GATED`, default already covers `send_email`), so an untainted turn's send
+prompts the overlay confirmation card and a tainted turn's send is denied outright
+([ADR-0022](../adr/ADR-0022-email-write-confirmer.md)). The sender authenticates as the
+Bridge user and always sends as that address. `From` is not a parameter.
+
+Add to `~/.cortex/email.env` (the Bridge SMTP password is the same generated one):
+
+```
+CORTEX_EMAIL_SEND_ENABLED=true
+CORTEX_EMAIL_SMTP_HOST=127.0.0.1
+CORTEX_EMAIL_SMTP_PORT=1025
+CORTEX_EMAIL_SMTP_USER=<bridge username>
+CORTEX_EMAIL_SMTP_PASSWORD=<bridge generated password>
+CORTEX_EMAIL_SMTP_TLS_INSECURE=true   # or CORTEX_EMAIL_SMTP_CA_CERT, as for IMAP
+```
+
+The live round-trip test really sends one message between the two `example.com` test
+addresses and verifies arrival back over IMAP; point `CORTEX_EMAIL_LIVE_SEND_TO` at the
+second address and run the integration suite as above:
+
+```
+set -a; . ~/.cortex/email.env; set +a
+export CORTEX_EMAIL_LIVE_SEND_TO=<the second example.com address>
+cd brain && uv run pytest -m integration --no-cov packages/email
+```
+
+The compose override passes the `CORTEX_EMAIL_SMTP_*`/`SEND_ENABLED` env through to the
+sidecar (host `host.docker.internal`), so the same `.env` drives the end-to-end stack; with
+send left disabled the sidecar is byte-for-byte the read-only Slice 6 server.

@@ -59,7 +59,9 @@ async def _messages(stub: BrainServiceStub, session_id: str) -> GetSessionMessag
 async def _serve(store: SessionStore) -> tuple[aio.Server, str]:
     """A BrainService over `store` on an ephemeral loopback port."""
     engine = TurnEngine(store, EchoInferenceBackend(), SystemClock())
-    server, port = create_server(SeamServerConfig(host="127.0.0.1", port=0), engine, store)
+    server, port = create_server(
+        SeamServerConfig(host="127.0.0.1", port=0), lambda _confirmer: engine, store
+    )
     await server.start()
     return server, f"127.0.0.1:{port}"
 

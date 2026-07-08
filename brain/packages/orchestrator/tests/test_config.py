@@ -422,3 +422,34 @@ def test_subagents_roster_entry_requires_an_endpoint(
     monkeypatch.setenv("CORTEX_SUBAGENTS_ROSTER__QWEN", entry)
     with pytest.raises(ValidationError, match="endpoint"):
         SubagentsConfig()
+
+
+def test_seam_confirm_timeout_defaults_generous() -> None:
+    assert SeamServerConfig().confirm_timeout_s == 120.0
+
+
+def test_seam_env_overrides_the_confirm_timeout(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("CORTEX_SEAM_CONFIRM_TIMEOUT_S", "7.5")
+    assert SeamServerConfig().confirm_timeout_s == 7.5
+
+
+def test_seam_rejects_a_non_positive_confirm_timeout(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("CORTEX_SEAM_CONFIRM_TIMEOUT_S", "0")
+    with pytest.raises(ValidationError):
+        SeamServerConfig()
+
+
+def test_tools_gated_defaults_to_send_email() -> None:
+    # The fail-closed pairing (ADR-0022): enabling the email sidecar's write path without
+    # touching gating config still gates it.
+    assert ToolsConfig().gated == ("send_email",)
+
+
+def test_tools_env_overrides_the_gated_names(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("CORTEX_TOOLS_GATED", '["send_email", "set_volume"]')
+    assert ToolsConfig().gated == ("send_email", "set_volume")
+
+
+def test_tools_env_empties_the_gated_names(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("CORTEX_TOOLS_GATED", "[]")
+    assert ToolsConfig().gated == ()

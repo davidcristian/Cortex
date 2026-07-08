@@ -123,6 +123,9 @@ async def stream_tool_loop(
             _call_message("".join(step_text), calls, context.clock.now(), context.turn_id)
         )
         for call in calls:
+            # The advertised gated flag is a hint; the dispatcher OR-s it with its own
+            # authoritative gated-name set, so a tool a flaky sidecar hid from this snapshot
+            # (skip mode) and later recovered is still gated at dispatch (ADR-0022).
             result = await dispatcher.dispatch(
                 call, tainted=context.taint.tainted, gated=gated_by_name.get(call.name, False)
             )

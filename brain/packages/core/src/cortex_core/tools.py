@@ -104,12 +104,13 @@ class ToolInvocation:
 
 @dataclass(frozen=True, slots=True)
 class ConfirmationRequest:
-    """A request for out-of-band user confirmation of a gated tool call (ADR-0013).
+    """A request for out-of-band user confirmation of a gated tool call (ADR-0013/0022).
 
-    Raised by the dispatcher when a ``gated`` tool is called on a turn that has read untrusted
-    content: ``tool_name``/``arguments`` name the action and ``reason`` says why confirmation
-    is required, so the overlay can show the user what they are approving. The ``Confirmer``
-    port answers it; the model never does. Confirmation is the human's, out of band.
+    Built by the dispatcher when a ``gated`` tool is called on an **untainted** turn (a tainted
+    turn's gated call is denied outright, never confirmed per ADR-0022): ``tool_name``/``arguments``
+    name the action and ``reason`` says why confirmation is required, so the overlay can show the
+    user what they are approving. The ``Confirmer`` port answers it; the model never does, since
+    confirmation is the human's, out of band.
     """
 
     tool_name: str

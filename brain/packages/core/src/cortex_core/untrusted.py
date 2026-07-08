@@ -48,12 +48,21 @@ SECURITY_PREAMBLE = (
 )
 
 
-# The result content fed back to the model when a gated tool is blocked (ADR-0013 decision 4):
-# the action did not run and needs the user's explicit confirmation.
+# The result content fed back to the model when a gated tool is blocked on a tainted turn
+# (ADR-0013 decision 4, table revised by ADR-0022 decision 2): after untrusted content has
+# entered the turn, the outbound surface is closed. It is never merely a confirm-away.
 DENIED_MSG = (
     "BLOCKED: this action is irreversible or outbound and this turn has read untrusted external "
-    "content, so it was not performed. If the user explicitly wants it, tell them it needs their "
-    "confirmation."
+    "content, so it was not performed and cannot be confirmed within this turn. If the user "
+    "explicitly wants it, tell them to ask for it again in a fresh message."
+)
+
+# The result content fed back when the user declined (or was unreachable for) an untainted
+# gated call (ADR-0022 decision 2): distinct from DENIED_MSG so the model can relay "the user
+# said no" honestly instead of explaining a taint block. Relay it; do not retry the action.
+USER_DECLINED_MSG = (
+    "DECLINED: this action is irreversible or outbound and the user did not approve it, so it "
+    "was not performed. Relay this to the user; do not retry unless they explicitly ask again."
 )
 
 

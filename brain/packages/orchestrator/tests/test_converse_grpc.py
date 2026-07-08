@@ -5,7 +5,7 @@ conversation counting, because state lives only in the session store, never in t
 """
 
 import asyncio
-from collections.abc import AsyncIterator, Sequence
+from collections.abc import AsyncIterator, Mapping, Sequence
 from typing import cast
 
 import grpc
@@ -13,25 +13,39 @@ from fakeredis import FakeAsyncRedis, FakeServer
 from grpc import aio
 
 from cortex_core import (
+    Confirmer,
     EchoInferenceBackend,
     InferenceEvent,
     InMemorySessionStore,
+    InMemoryToolRegistry,
     Message,
+    RecordingAuditSink,
     Role,
     SessionStore,
     SessionStoreError,
     SessionSummary,
     SystemClock,
     TextChunk,
+    ToolCall,
+    ToolDispatcher,
     ToolSpec,
+    TurnCapabilities,
     TurnEngine,
 )
 from cortex_orchestrator import (
     ERROR_CODE_SESSION_STORE_UNAVAILABLE,
+    EngineFactory,
     SeamServerConfig,
     create_server,
 )
-from cortex_seam import BrainServiceStub, Cancel, ClientEvent, ServerEvent, UserTurn
+from cortex_seam import (
+    BrainServiceStub,
+    Cancel,
+    ClientEvent,
+    ConfirmResponse,
+    ServerEvent,
+    UserTurn,
+)
 from cortex_session import RedisSessionStore
 
 # The generated stub's attributes are untyped wire code (gate-exempt, ADR-0002 d4);
@@ -75,7 +89,9 @@ def _engine(store: SessionStore) -> TurnEngine:
 
 
 async def _start_server(engine: TurnEngine, store: SessionStore) -> tuple[aio.Server, str]:
-    server, port = create_server(SeamServerConfig(host="127.0.0.1", port=0), engine, store)
+    server, port = create_server(
+        SeamServerConfig(host="127.0.0.1", port=0), lambda _confirmer: engine, store
+    )
     await server.start()
     return server, f"127.0.0.1:{port}"
 
@@ -233,5 +249,129 @@ async def test_client_closing_without_events_ends_the_stream_empty() -> None:
             call = _open_converse(BrainServiceStub(channel))
             await call.done_writing()
             assert await _read_remaining(call) == []
+    finally:
+        await server.stop(grace=None)
+
+
+async def _events_until_complete(
+    call: aio.StreamStreamCall[ClientEvent, ServerEvent],
+) -> list[ServerEvent]:
+    """Read via read() until the turn completes, because grpc.aio forbids mixing read() with the
+    iterator API on one call, and the untyped EOF sentinel stays out of the picture."""
+    events: list[ServerEvent] = []
+    while True:
+        event = cast("ServerEvent", await call.read())
+        events.append(event)
+        if event.WhichOneof("event") == "turn_complete":
+            return events
+
+
+class _SendOnceBackend:
+    """Step 1: call the gated 'send' tool; step 2: reply 'done' (per stream call count)."""
+
+    def __init__(self) -> None:
+        self._calls = 0
+
+    async def stream(
+        self, model: str, messages: Sequence[Message], *, tools: Sequence[ToolSpec] = ()
+    ) -> AsyncIterator[InferenceEvent]:
+        del model, messages, tools
+        self._calls += 1
+        if self._calls == 1:
+            yield ToolCall(id="c1", name="send", arguments={"to": "bob@example.com"})
+        else:
+            yield TextChunk("done")
+
+
+def _gated_engine_factory(ran: list[str]) -> EngineFactory:
+    """A per-stream engine whose gated 'send' tool records approved runs (ADR-0022)."""
+
+    async def send(arguments: Mapping[str, object]) -> str:
+        ran.append(str(arguments["to"]))
+        return "sent"
+
+    def make(confirmer: Confirmer) -> TurnEngine:
+        registry = InMemoryToolRegistry(
+            {"send": (ToolSpec(name="send", description="", parameters={}, gated=True), send)}
+        )
+        dispatcher = ToolDispatcher(
+            registry, RecordingAuditSink(), SystemClock(), confirmer=confirmer
+        )
+        return TurnEngine(
+            InMemorySessionStore(),
+            _SendOnceBackend(),
+            SystemClock(),
+            capabilities=TurnCapabilities(tools=dispatcher),
+        )
+
+    return make
+
+
+async def test_confirm_round_trips_over_the_real_wire() -> None:
+    """THE ADR-0022 wire proof: ConfirmRequest out and ConfirmResponse back over real gRPC.
+
+    The client keeps writing after the first UserTurn (the ADR-0011 deferral taken): it
+    reads the mid-turn ConfirmRequest, answers approved on the same open call, and the
+    gated tool runs.
+    """
+    ran: list[str] = []
+    server, port = create_server(
+        SeamServerConfig(host="127.0.0.1", port=0),
+        _gated_engine_factory(ran),
+        InMemorySessionStore(),
+    )
+    await server.start()
+    try:
+        async with aio.insecure_channel(f"127.0.0.1:{port}") as channel:
+            call = _open_converse(BrainServiceStub(channel))
+            await call.write(_user_turn("s", "send it"))
+            request = None
+            while request is None:
+                event = cast("ServerEvent", await call.read())
+                if event.WhichOneof("event") == "confirm_request":
+                    request = event.confirm_request
+            assert request.tool_name == "send"
+            assert request.arguments_json == '{"to": "bob@example.com"}'
+            await call.write(
+                ClientEvent(
+                    session_id="s",
+                    confirm_response=ConfirmResponse(confirm_id=request.confirm_id, approved=True),
+                )
+            )
+            await call.done_writing()
+            remaining = await _events_until_complete(call)
+        assert ran == ["bob@example.com"]
+        assert _completions(remaining) != []
+    finally:
+        await server.stop(grace=None)
+
+
+async def test_denied_confirm_over_the_real_wire_never_runs_the_tool() -> None:
+    ran: list[str] = []
+    server, port = create_server(
+        SeamServerConfig(host="127.0.0.1", port=0),
+        _gated_engine_factory(ran),
+        InMemorySessionStore(),
+    )
+    await server.start()
+    try:
+        async with aio.insecure_channel(f"127.0.0.1:{port}") as channel:
+            call = _open_converse(BrainServiceStub(channel))
+            await call.write(_user_turn("s", "send it"))
+            request = None
+            while request is None:
+                event = cast("ServerEvent", await call.read())
+                if event.WhichOneof("event") == "confirm_request":
+                    request = event.confirm_request
+            await call.write(
+                ClientEvent(
+                    session_id="s",
+                    confirm_response=ConfirmResponse(confirm_id=request.confirm_id, approved=False),
+                )
+            )
+            await call.done_writing()
+            remaining = await _events_until_complete(call)
+        assert ran == []
+        assert _completions(remaining) != []
     finally:
         await server.stop(grace=None)

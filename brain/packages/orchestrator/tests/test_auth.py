@@ -18,6 +18,7 @@ from grpc import aio
 from cortex_core import EchoInferenceBackend, InMemorySessionStore, SystemClock, TurnEngine
 from cortex_orchestrator import (
     SEAM_TOKEN_HEADER,
+    EngineFactory,
     SeamServerConfig,
     SeamTokenInterceptor,
     create_server,
@@ -40,9 +41,10 @@ async def _health(stub: BrainServiceStub, metadata: tuple[tuple[str, str], ...])
     return cast("HealthReply", await health(HealthRequest(), metadata=metadata))
 
 
-def _engine_and_store() -> tuple[TurnEngine, InMemorySessionStore]:
+def _engine_and_store() -> tuple[EngineFactory, InMemorySessionStore]:
     store = InMemorySessionStore()
-    return TurnEngine(store, EchoInferenceBackend(), SystemClock()), store
+    engine = TurnEngine(store, EchoInferenceBackend(), SystemClock())
+    return (lambda _confirmer: engine), store
 
 
 @pytest.fixture

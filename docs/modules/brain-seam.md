@@ -8,6 +8,7 @@ imports seam names from `cortex_seam` and never from `cortex_seam._generated` di
 
 - Every proto message class: `ClientEvent`, `UserTurn`, `Cancel`, `ServerEvent`,
   `TextDelta`, `ToolActivity`, `StatusUpdate`, `TurnComplete`, `SeamError`,
+  `ConfirmRequest`, `ConfirmResponse` (the gated-tool confirm exchange, ADR-0022),
   `HealthRequest`, `HealthReply`, `ListSessionsRequest`, `ListSessionsReply`,
   `SessionSummary`, `GetSessionMessagesRequest`, `GetSessionMessagesReply`,
   `SessionMessage` (the read-only session views, ADR-0021), `CaptureScreenRequest`,

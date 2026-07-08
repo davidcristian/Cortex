@@ -141,7 +141,10 @@ Untrusted-content boundary (Slice 6.5, ADR-0013; the pure primitives in `untrust
   in `content` cannot end the fence (it lacks the per-turn `nonce`), the delimiter-injection defense.
 - `security_preamble_message(at, turn_id) -> Message` is the preamble as a `Role.SYSTEM` message.
 - `new_nonce() -> str` is a new per-turn nonce (`secrets.token_hex(8)`), unpredictable, dies with the turn.
-- `DENIED_MSG` is the `is_error` result content fed back when a gated tool is blocked.
+- `DENIED_MSG` is the `is_error` result content for a gated tool blocked on a **tainted** turn
+  (ADR-0022: unconditional, never confirmable within the turn).
+- `USER_DECLINED_MSG` is the `is_error` result content for an **untainted** gated call the user
+  declined (or no confirmer answered): the model relays "no", never retries (ADR-0022).
 - `TaintLedger` is mutable, turn-local: `tainted: bool = False` plus `untrusted_urls: set[str]`
   (the laundering evidence, ADR-0015). `mark(trust)` flips `tainted` on the first `UNTRUSTED`
   result; `observe(result)` (what the shared loop calls) marks AND collects an untrusted
@@ -215,9 +218,9 @@ Ports (`typing.Protocol`; failures cross them only as the typed errors below):
 - `ToolAuditSink` has `async record(invocation) -> None`: every dispatched call is written
   here, success or failure (the AGENTS.md audit requirement).
 - `Confirmer` has `async confirm(request: ConfirmationRequest) -> bool` (ADR-0013): approves or
-  denies a gated tool call out of band (the overlay, later). The human's decision, never the
-  model's; a missing confirmer denies (fail-closed). The real adapter arrives with the first
-  gated tool (Slice 9/10).
+  denies a gated tool call out of band. The human's decision, never the model's; a missing
+  confirmer denies (fail-closed). The real adapter is the orchestrator's `SeamConfirmer`
+  (ADR-0022): the request rides the Converse stream to the overlay's approval card.
 - `TaskStore` has `async put_task(task) -> None`, `async get_task(task_id) -> SubagentTask | None`,
   `async put_result(result) -> None`, `async get_result(task_id) -> SubagentResult | None`. The
   hot store (Redis) a subagent is a stateless function over: task and result live here, never in
@@ -294,8 +297,8 @@ Use-case:
   async generator yielding assistant text deltas, mutating `working` in place with the tool-call
   and `Role.TOOL` result messages; ends on a tool-free step, a `None` dispatcher, or
   `MAX_TOOL_STEPS` (8) rounds. It draws the untrusted boundary (ADR-0013): each call is dispatched
-  with the turn's `tainted` state and the tool's `gated` flag (so a gated call on a tainted turn is
-  confirmed), its result is observed by `context.taint` (taint bit + the untrusted-URL
+  with the turn's `tainted` state and the tool's `gated` flag (the ADR-0022 gate: tainted denies
+  outright, untainted confirms), its result is observed by `context.taint` (taint bit + the untrusted-URL
   evidence the output guardrail reads, ADR-0015), and an `UNTRUSTED` result is fenced by
   `wrap_untrusted` before it re-enters `working`. `MAX_TOOL_STEPS` and `ToolLoopContext` are here.
 - `DEFAULT_CORTEX_MODEL` is the logical id `"cortex"`. Deployments override it via
@@ -319,9 +322,11 @@ Use-case:
   capability gate (ADR-0009/0013). `dispatch(call, *, tainted=False, gated=False)` runs `call`
   through the `ToolRegistry`, writes exactly one `ToolInvocation` (with the result's `trust`) to
   the `ToolAuditSink`, and returns the `ToolResult`; a `ToolError` becomes a `TRUSTED` `is_error`
-  result (our own message, so it neither frames nor taints). A `gated` tool on a `tainted` turn is
-  confirmed via the `Confirmer` first, and a denial (including the fail-closed `confirmer=None`
-  default) returns `DENIED_MSG` **without invoking the tool**, audited as a block. Before the
+  result (our own message, so it neither frames nor taints). The gate (ADR-0013, table revised by
+  ADR-0022): a `gated` call on a `tainted` turn is blocked outright as `DENIED_MSG`, with the
+  confirmer deliberately unconsulted; on an untainted turn it runs only when the `Confirmer`
+  approves, else `USER_DECLINED_MSG` (the fail-closed `confirmer=None` default included). Both
+  blocks return **without invoking the tool**, audited. Before the
   registry invoke it **stamps the turn's taint onto the call** (`replace(call, tainted=tainted)`,
   ADR-0018). That is provenance for built-ins, never the gate's input, and a model-forged stamp is
   overwritten. `describe_tools()` passes through to the registry. Stateless over the ports; the
@@ -386,6 +391,11 @@ Use-case:
   `invoke` refuses any other name as `ToolNotFoundError`, so the filter is a real layer, not
   advisory, though it only *restricts*, never grants (an allowlisted name the inner lacks stays
   unadvertised and surfaces the inner not-found). An empty allowlist raises `ValueError`.
+- `GatedToolRegistry(inner, *, gated)` is a `ToolRegistry` whose named tools are advertised
+  `gated=True` (ADR-0022): the composition-root overlay that declares a *remote* tool
+  outbound/irreversible in brain-side code/config (`CORTEX_TOOLS_GATED`), never trusting sidecar
+  metadata. `describe_tools` stamps; `invoke` delegates untouched (the dispatcher enforces).
+  An empty name set is rejected; a name that never appears is harmless (fail-closed default).
 - `UngatedToolRegistry(inner)` is a `ToolRegistry` stripped of gated tools (ADR-0013
   subagent-exclusion addendum): `describe_tools` drops every `gated` spec; `invoke` refuses a
   name the inner registry currently advertises as gated (live walk, no cached view) as

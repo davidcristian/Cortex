@@ -17,7 +17,7 @@ delegation, so depth-1), stripped of gated tools by `UngatedToolRegistry` (ADR-0
 subagent-exclusion addendum), as a stateless function over the Redis `TaskStore`.
 """
 
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Collection
 
 import httpx
 
@@ -40,7 +40,7 @@ from cortex_core import (
 )
 from cortex_inference import LlamaCppBackend
 from cortex_orchestrator.builders import LLAMACPP_CONNECT_TIMEOUT_S, noop_aclose
-from cortex_orchestrator.config import SubagentRosterEntry, SubagentsConfig
+from cortex_orchestrator.config_subagents import SubagentRosterEntry, SubagentsConfig
 from cortex_session import RedisTaskStore
 from cortex_tools import LoggingAuditSink
 
@@ -103,6 +103,10 @@ async def build_subagents(
         default=config.model,
     )
     store = task_store_factory(redis_url)
+    # No gated_names passed for subagents: they are protected by UngatedToolRegistry (strips
+    # gated tools, refusing a gated name by a live walk at invoke) plus confirmer=None. The
+    # gated-name backstop is available on build_subagent_tools for a caller that wants it, but
+    # the default subagent path does not need a 7th builder arg for it (ADR-0022).
     runner = SubagentRunner(store, roster, clock, tools=build_subagent_tools(tool_registry, clock))
 
     async def close_subagents() -> None:
@@ -112,7 +116,9 @@ async def build_subagents(
     return SpawnSubagentsTool(runner, store, clock), close_subagents
 
 
-def build_subagent_tools(tool_registry: ToolRegistry | None, clock: Clock) -> ToolDispatcher | None:
+def build_subagent_tools(
+    tool_registry: ToolRegistry | None, clock: Clock, *, gated_names: Collection[str] = ()
+) -> ToolDispatcher | None:
     """A subagent's audited dispatcher over the gated-stripped MCP subset, or None (ADR-0013).
 
     A subagent is never *handed* an outbound/gated tool (subagent-exclusion addendum):
@@ -120,7 +126,12 @@ def build_subagent_tools(tool_registry: ToolRegistry | None, clock: Clock) -> To
     a gated tool added to the shared registry later simply does not exist for a subagent. There is
     nothing dangerous to call, not merely denied at the fail-closed gate (its dispatcher also
     keeps the `confirmer=None` default). The spawn tool is likewise absent (depth-1, ADR-0010).
+    `gated_names` is the authoritative gate backstop (ADR-0022): should the skip-mode
+    advertisement window ever let a stripped-then-recovered gated name through, the dispatcher
+    still treats it as gated, and with `confirmer=None` that is a hard deny.
     """
     if tool_registry is None:
         return None
-    return ToolDispatcher(UngatedToolRegistry(tool_registry), LoggingAuditSink(), clock)
+    return ToolDispatcher(
+        UngatedToolRegistry(tool_registry), LoggingAuditSink(), clock, gated_names=gated_names
+    )

@@ -418,3 +418,18 @@ subagent's tool-enablement force the injection-robust model on any untrusted-con
 regardless of the model the cortex requested, so a weak roster model never reads untrusted
 content. Recorded as [ADR-0017](ADR-0017-subagent-model-safety.md), which binds the taint signal
 here to the ADR-0004 robust pick.
+
+## Addendum (2026-07-08): decision 4's gate table superseded by ADR-0022
+
+With the first real gated tool (`send_email`, Slice 8.8), the branch table in decision 4 is
+superseded by [ADR-0022](ADR-0022-email-write-confirmer.md) decision 2: confirmation moves to
+the **untainted** branch (every gated call now needs the human's explicit approval, since "gated"
+means "the user approves each use", not "approval only under suspicion"), and the **tainted**
+branch becomes an unconditional block, with the confirmer deliberately unconsulted, because a
+confirmation dialog showing injection-authored arguments is not a boundary. `DENIED_MSG` stays
+the tainted-block text; `USER_DECLINED_MSG` (new) is the declined/unreachable-confirmer result,
+so the model can relay "no" honestly. Everything else here stands: the fail-closed
+`confirmer=None` default (now denying every gated call), the out-of-band principle, the audit
+discipline, and the subagent posture (never handed a gated tool; `confirmer=None`; taint
+containment). The real `Confirmer` adapter this ADR deferred is ADR-0022's `SeamConfirmer`, where
+the confirm exchange rides the Converse stream to the overlay's approval card.
