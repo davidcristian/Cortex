@@ -449,14 +449,15 @@ proven end to end; the session contract suite (incl. `list_sessions`) also passe
 **Status:** CI-gated half done on 2026-07-08 ([ADR-0022](adr/ADR-0022-email-write-confirmer.md)),
 100% under `just check` across all four trees, including the confirm exchange proven over a
 real loopback gRPC wire on both answers; delivered summary at the end of this slice.
-Remaining, in order: the agent-run Docker/live half. It is a small-model cortex-driven confirm loop
-plus the SMTP round-trip between the `example.com` addresses (attempted 2026-07-08 with the host
-Bridge + Docker Desktop up, but **this WSL distro cannot reach either**: `interop=false` +
-`nat` networking blocks the Windows-loopback Bridge, and Docker Desktop's WSL integration is
-not attached to this distro. The proxy socket is `root:root`, no `/var/run/docker.sock`. Needs
-the user to enable WSL integration + expose the Bridge to the WSL subnet, or run it from a
-distro with a native dockerd; recipe in [email-imap.md](runbooks/email-imap.md)), and the
-host Windows overlay-confirm validation ([body-overlay.md](runbooks/body-overlay.md)).
+Agent-validated 2026-07-08 ([ADR-0022 addendum](adr/ADR-0022-email-write-confirmer.md)): the
+overlay confirm card end to end in Chrome (approve/deny/multi-turn), and the gating overlay +
+send tool over **real MCP via Docker** (a native dockerd was set up mid-session), where `send_email`
+registers ungated over MCP and is stamped gated by the composition root, a send that can't reach
+the Bridge is a clean `is_error`, and the sidecar is read-only when the flag is off. Remaining,
+both environment-bound not code: the **live SMTP round-trip** to `example.com` (Docker + GPU now
+work, but the Bridge binds Windows-loopback and this distro's `nat`/`interop=false` networking
+can't reach it without WSL mirrored networking or a Windows portproxy) and the **Windows Tauri
+confirm-card** validation ([body-overlay.md](runbooks/body-overlay.md)).
 Design → ADR-0022 (opened the slice). The first
 *outbound, irreversible* capability, and the vehicle that lands the real overlay **confirmation**
 adapter every later gated action reuses (Slice 9 OS actions, Slice 9.5 side-effectful reminders).
