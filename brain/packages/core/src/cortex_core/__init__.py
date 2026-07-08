@@ -80,6 +80,15 @@ from cortex_core.schedule import (
     ScheduleStatus,
     next_due,
 )
+from cortex_core.schedule_tools import (
+    CANCEL_SCHEDULED_TOOL_NAME,
+    LIST_SCHEDULED_TOOL_NAME,
+    SCHEDULE_TOOL_NAME,
+    TAINTED_TASK_MSG,
+    CancelScheduledTool,
+    ListScheduledTool,
+    ScheduleTaskTool,
+)
 from cortex_core.scheduler import ResourceBudgetScheduler
 from cortex_core.scope import (
     GLOBAL_MEMORY_SCOPE,
@@ -117,20 +126,25 @@ from cortex_core.volume import (
 from cortex_core.windowing import CharBudgetHistoryWindow, HistoryWindow
 
 __all__ = [
+    "CANCEL_SCHEDULED_TOOL_NAME",
     "DEFAULT_CORTEX_MODEL",
     "DENIED_MSG",
     "GET_VOLUME_TOOL_NAME",
     "GLOBAL_MEMORY_SCOPE",
     "GLOBAL_SCOPE",
+    "LIST_SCHEDULED_TOOL_NAME",
     "REDACTED_LINK",
+    "SCHEDULE_TOOL_NAME",
     "SECURITY_PREAMBLE",
     "SET_VOLUME_TOOL_NAME",
     "SPAWN_TOOL_NAME",
+    "TAINTED_TASK_MSG",
     "USER_DECLINED_MSG",
     "AggregateToolRegistry",
     "BodyGateway",
     "BodyGatewayError",
     "BuiltinTool",
+    "CancelScheduledTool",
     "CharBudgetHistoryWindow",
     "Clock",
     "CompositeToolRegistry",
@@ -155,6 +169,7 @@ __all__ = [
     "InferenceBackend",
     "InferenceError",
     "InferenceEvent",
+    "ListScheduledTool",
     "MemoryRecaller",
     "MemoryRecord",
     "MemoryScope",
@@ -181,6 +196,7 @@ __all__ = [
     "ScheduleStatus",
     "ScheduleStore",
     "ScheduleStoreError",
+    "ScheduleTaskTool",
     "ScheduledItem",
     "ScoredMemory",
     "SessionMemoryScope",
