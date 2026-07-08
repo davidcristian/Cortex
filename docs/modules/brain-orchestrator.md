@@ -85,6 +85,13 @@ Config (pydantic-settings; explicit constructor arguments beat the environment):
   `grpc` has a non-empty `endpoint`. Off by default (CI + no-GPU dev never dial a host body);
   the shared `CORTEX_SEAM_TOKEN` (SeamServerConfig, not a `CORTEX_BODY_` var) authenticates the
   dial.
+- `ScheduleConfig` uses env prefix `CORTEX_SCHEDULE_` (`config_schedule.py`, ADR-0025): `backend:
+  "none" | "redis" = "none"` (off by default, with no store, no built-ins, no ticker, and the
+  reminder pull RPCs answer benignly empty), `poll_s: float = 5.0` (the ticker's pass
+  interval), `lease_s: float = 300.0` (how long a claimed fire may run before it is
+  re-claimable, so keep it above the slowest expected task), `claim_limit: int = 8` (one pass's
+  batch cap), `max_active: int = 32` (the `schedule_task` creation bound). All positive,
+  validated. The store dials `CORTEX_REDIS_URL` (BrainRuntimeConfig), with no second URL knob.
 
 The service:
 
@@ -102,6 +109,14 @@ The service:
     history via `store.history`, each a wire `SessionMessage`; unknown session → empty.
   - Both read RPCs are unary; a `SessionStoreError` aborts them `UNAVAILABLE` (the body maps
     that to `TransportError::Rpc`). They add no write path, only reads over existing state.
+  - `ListDueReminders` / `AckReminder` (ADR-0025; policy + mapping in `reminders.py`): the
+    reminder pull pair over the injected `ScheduleStore`, covering fired-but-undelivered reminders
+    (`DueReminder`: id, text, fired-at unix-ms, recurrence, the `tainted` provenance bit, the
+    origin `session_id`) and the one narrow idempotent write (`acked=false` for an unknown or
+    already-delivered id, so a retried ack is harmless). **With no store wired (the default)
+    both answer benignly (empty / `acked=false`, never `UNAVAILABLE`)**, which the body's
+    `RetryingTransport` would treat as transient and retry on every overlay open; a live
+    store's `ScheduleStoreError` does abort `UNAVAILABLE` (the session-reads precedent).
 - `DEFAULT_SESSION_LIST_LIMIT = 50` / `MAX_SESSION_LIST_LIMIT = 200` are the `ListSessions`
   limit default and hard cap (ADR-0021).
 - `converse(make_engine, client_events, *, max_buffered_events=DEFAULT_MAX_BUFFERED_EVENTS,
@@ -128,8 +143,10 @@ The service:
 - `ERROR_CODE_SESSION_STORE_UNAVAILABLE` / `ERROR_CODE_INFERENCE_FAILED` /
   `ERROR_CODE_INTERNAL` are the `SeamError.code` values (`"session_store_unavailable"`,
   `"inference_failed"`, `"internal"`).
-- `create_server(config: SeamServerConfig, make_engine: EngineFactory, store: SessionStore) -> tuple[grpc.aio.Server, int]`
-  builds the aio server, registers `BrainService(make_engine, store)`, binds `config.bind_address`;
+- `create_server(config: SeamServerConfig, make_engine: EngineFactory, store: SessionStore, *,
+  schedules: ScheduleStore | None = None) -> tuple[grpc.aio.Server, int]`
+  builds the aio server, registers `BrainService(make_engine, store, schedules=schedules)`
+  (the reminder pull RPCs' store, `None` = scheduling off), binds `config.bind_address`;
   returns the not-yet-started server plus the actually-bound port (the OS pick when
   `port=0`; gRPC reports 0 if the bind failed). With `config.token` set it registers the
   `SeamTokenInterceptor` (ADR-0016, `auth.py`): every RPC, unary and streaming, current
@@ -160,6 +177,20 @@ The service:
   `x-cortex-seam-token` metadata (empty = none), and returns it with its channel closer; `none`
   (default) returns `(None, no-op closer)`. Off by default so CI and the no-GPU dev loop never
   reach for a host body. The uniform closer keeps `run_from_env`'s shutdown backend-agnostic.
+- `ScheduleTicker(store, clock, settings: TickerSettings, *, spawn=None, body=None)`
+  (`ticker.py`, ADR-0025) is the stateless firing loop: each `run_once` pass claims what is due
+  (under the fencing lease), fires the batch concurrently, and persists each outcome; the
+  ticker holds nothing but its loop (the one hard rule, live). A `REMINDER` finishes
+  deliverable then attempts the push (`REMINDER_TITLE` toast via `BodyGateway.notify`; shown →
+  acked at once, declined/failed/absent body → the pull path delivers); a fenced-off finish
+  (cancel or re-claim won) pushes nothing. A `TASK` dispatches a synthetic `spawn_subagents`
+  call through `spawn`, the ticker's own audited dispatcher (`confirmer=None`, fail-closed;
+  the dispatch stamps `item.tainted` → ADR-0017 pinning; the result's trust becomes the
+  fire-time taint the store ORs onto the item); no `spawn` wired → an `ok=False` outcome, so a
+  stale TASK neither crashes nor lease-cycles. `run` wraps each pass in a logged catch-all and
+  paces on an `asyncio.Event` (`stop()` wakes it, so the graceful path completes in-flight fires
+  and strands no claims); unfinished claims are `release`d best-effort, the lease covering the
+  rest. Every fire failure is logged, never fatal.
 - `run_from_env() -> None` (async) is the composition root: reads the env configs and serves
   with `RedisSessionStore.from_url(redis_url)`, `build_inference_backend(...)`, `SystemClock`,
   the default-on history window (`build_history_window`, ADR-0014) and output guardrail
@@ -183,15 +214,24 @@ The service:
   ADR-0010/0012; the runner enforces ADR-0017 via `roster.resolve`; the subagent dispatcher
   comes from `build_subagent_tools(tool_registry, clock)`, the shared registry wrapped in
   `UngatedToolRegistry`, so a subagent is never handed a gated/outbound tool, ADR-0013
-  subagent-exclusion addendum), and **body** (`build_body_gateway`, ADR-0023, opening the opt-in
-  `GrpcBodyGateway` dial to the host `BodyService`, off by default, closed in the `finally`).
+  subagent-exclusion addendum), **body** (`build_body_gateway`, ADR-0023, opening the opt-in
+  `GrpcBodyGateway` dial to the host `BodyService`, off by default, closed in the `finally`),
+  and **schedules** (`build_schedule(config, redis_url, *, store_factory)`, in
+  `schedule_builders.py`, ADR-0025, giving the durable `RedisScheduleStore` or `None`; its
+  built-ins come from `build_schedule_tools(config, schedules, clock, tasks_enabled=...)`
+  and its firing loop from `build_ticker(config, schedules, clock, spawn_tool=..., body=...)`,
+  started beside `serve` via `start_ticker` (a named task with the death-logging callback)
+  and stopped first in the `finally` via `stop_ticker`, with a graceful signal, then a
+  `TICKER_STOP_GRACE_S` forced cancel the store's lease covers).
   The cortex's dispatcher is
-  `build_cortex_tools(registry, spawn_tool, clock, confirmer=..., body=...)`, the spawn tool
-  merged with the MCP tools via a `CompositeToolRegistry`, plus the two volume built-ins
-  (`get_volume`/`set_volume`, ADR-0023) appended when a `BodyGateway` is threaded in, or `None`
-  when none is enabled (the Slice 3 turn path). The volume built-ins are ungated by default
-  (volume is reversible); a user can require confirmation for `set_volume` by naming it in
-  `CORTEX_TOOLS_GATED` (the dispatcher's authoritative backstop).
+  `build_cortex_tools(registry, builtins, clock, confirmer=..., gated_names=...)` over the
+  built-in set `build_builtin_tools(spawn_tool, body, schedule_tools=...)` assembles **once**
+  (the one-sequence bundling that keeps the builder under the six-argument ceiling as
+  capabilities accumulate, ADR-0025 d7): delegation, the two volume built-ins when a
+  `BodyGateway` is threaded in (ADR-0023), and the three schedule verbs (ADR-0025), all merged
+  with the MCP tools via a `CompositeToolRegistry`, or `None` when nothing is enabled (the
+  Slice 3 turn path). The volume and schedule built-ins are ungated by default (reversible);
+  a user gates any by name in `CORTEX_TOOLS_GATED` (the dispatcher's authoritative backstop).
   `run_from_env` hands `serve` an **engine factory** (ADR-0022): each Converse
   stream's `SeamConfirmer` reaches its dispatcher through it, so an untainted gated call (e.g.
   the email sidecar's `send_email`, stamped by the `CORTEX_TOOLS_GATED` overlay in

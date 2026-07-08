@@ -1,7 +1,7 @@
 """Adapter builders for the composition root: pick each port's adapter from config."""
 
 import logging
-from collections.abc import Awaitable, Callable, Collection
+from collections.abc import Awaitable, Callable, Collection, Sequence
 from functools import partial
 
 import httpx
@@ -160,20 +160,29 @@ async def build_body_gateway(
     return await GrpcBodyGateway.connect(config.endpoint, token=token)
 
 
-def build_cortex_tools(
-    tool_registry: ToolRegistry | None,
+def build_builtin_tools(
     spawn_tool: SpawnSubagentsTool | None,
-    clock: Clock,
-    *,
-    confirmer: Confirmer | None = None,
-    gated_names: Collection[str] = (),
-    body: BodyGateway | None = None,
-) -> ToolDispatcher | None:
-    """The cortex's audited dispatcher: the spawn + volume built-ins merged with the MCP tools."""
+    body: BodyGateway | None,
+    schedule_tools: Sequence[BuiltinTool] = (),
+) -> list[BuiltinTool]:
+    """The cortex's built-in set, assembled once by the wiring (ADR-0025 decision 7)."""
     builtins: list[BuiltinTool] = [spawn_tool] if spawn_tool is not None else []
     if body is not None:
         builtins.append(GetVolumeTool(body))
         builtins.append(SetVolumeTool(body))
+    builtins.extend(schedule_tools)
+    return builtins
+
+
+def build_cortex_tools(
+    tool_registry: ToolRegistry | None,
+    builtins: Sequence[BuiltinTool],
+    clock: Clock,
+    *,
+    confirmer: Confirmer | None = None,
+    gated_names: Collection[str] = (),
+) -> ToolDispatcher | None:
+    """The cortex's audited dispatcher: the built-in set merged with the MCP tools."""
     if not builtins and tool_registry is None:
         return None
     registry = CompositeToolRegistry(builtins, remote=tool_registry)
