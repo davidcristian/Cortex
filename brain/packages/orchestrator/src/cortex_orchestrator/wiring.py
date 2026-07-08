@@ -23,6 +23,7 @@ from collections.abc import Callable
 from cortex_core import Confirmer, SystemClock, TurnCapabilities, TurnEngine, VramBudgetPlacer
 from cortex_orchestrator.builders import (
     build_body_gateway,
+    build_builtin_tools,
     build_cortex_tools,
     build_history_window,
     build_inference_backend,
@@ -38,7 +39,15 @@ from cortex_orchestrator.config import (
     SeamServerConfig,
     ToolsConfig,
 )
+from cortex_orchestrator.config_schedule import ScheduleConfig
 from cortex_orchestrator.config_subagents import SubagentsConfig
+from cortex_orchestrator.schedule_builders import (
+    build_schedule,
+    build_schedule_tools,
+    build_ticker,
+    start_ticker,
+    stop_ticker,
+)
 from cortex_orchestrator.server import serve
 from cortex_orchestrator.subagent_builders import build_subagents
 from cortex_session import RedisSessionStore
@@ -61,6 +70,7 @@ async def run_from_env(
     tools_config = ToolsConfig()
     body_config = BodyConfig()
     subagents_config = SubagentsConfig()
+    schedule_config = ScheduleConfig()
     clock = SystemClock()
     store = store_factory(runtime.redis_url)
     backend, close_backend = build_inference_backend(inference, runtime.cortex_model)
@@ -77,6 +87,18 @@ async def run_from_env(
             cortex_reservation_gb=runtime.cortex_reservation_gb,
         ),
     )
+    schedules, close_schedules = build_schedule(schedule_config, runtime.redis_url)
+    # The built-in set is confirmer-independent, so it is assembled once (ADR-0025 d7);
+    # the ticker fires beside `serve` and is stopped before its store closes.
+    builtins = build_builtin_tools(
+        spawn_tool,
+        body,
+        schedule_tools=build_schedule_tools(
+            schedule_config, schedules, clock, tasks_enabled=spawn_tool is not None
+        ),
+    )
+    ticker = build_ticker(schedule_config, schedules, clock, spawn_tool=spawn_tool, body=body)
+    ticker_task = start_ticker(ticker)
     try:
 
         def make_engine(confirmer: Confirmer) -> TurnEngine:
@@ -92,11 +114,10 @@ async def run_from_env(
                     memory=memory,
                     tools=build_cortex_tools(
                         tool_registry,
-                        spawn_tool,
+                        builtins,
                         clock,
                         confirmer=confirmer,
                         gated_names=tools_config.gated,
-                        body=body,
                     ),
                     window=build_history_window(runtime.history_char_budget),
                     guardrail=build_output_guardrail(runtime.output_guardrail),
@@ -105,8 +126,10 @@ async def run_from_env(
                 ),
             )
 
-        await serve(seam_config, make_engine, store)
+        await serve(seam_config, make_engine, store, schedules=schedules)
     finally:
+        await stop_ticker(ticker, ticker_task)
+        await close_schedules()
         await close_body()
         await close_subagents()
         await close_tools()

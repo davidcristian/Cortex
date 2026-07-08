@@ -23,6 +23,9 @@ services:
       # Session state lives in the redis service, per the one hard rule: restarting the
       # brain container must lose no conversation (see the runbook's restart check).
       CORTEX_REDIS_URL: "redis://redis:6379/0"
+      # Durable schedules + the reminder ticker (ADR-0025) over the same append-only
+      # redis. Off by default; set CORTEX_SCHEDULE_BACKEND=redis (e.g. in .env) to enable.
+      CORTEX_SCHEDULE_BACKEND: ${CORTEX_SCHEDULE_BACKEND:-none}
     ports:
       # Loopback-only publish for the single-user security posture (ROADMAP assumption 5):
       # nothing listens beyond 127.0.0.1 on the host.

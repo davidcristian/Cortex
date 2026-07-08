@@ -24,7 +24,7 @@ releases it, so the root's shutdown path is uniform whatever was picked:
 """
 
 import logging
-from collections.abc import Awaitable, Callable, Collection
+from collections.abc import Awaitable, Callable, Collection, Sequence
 from functools import partial
 
 import httpx
@@ -227,30 +227,46 @@ async def build_body_gateway(
     return await GrpcBodyGateway.connect(config.endpoint, token=token)
 
 
-def build_cortex_tools(
-    tool_registry: ToolRegistry | None,
+def build_builtin_tools(
     spawn_tool: SpawnSubagentsTool | None,
-    clock: Clock,
-    *,
-    confirmer: Confirmer | None = None,
-    gated_names: Collection[str] = (),
-    body: BodyGateway | None = None,
-) -> ToolDispatcher | None:
-    """The cortex's audited dispatcher: the spawn + volume built-ins merged with the MCP tools.
+    body: BodyGateway | None,
+    schedule_tools: Sequence[BuiltinTool] = (),
+) -> list[BuiltinTool]:
+    """The cortex's built-in set, assembled once by the wiring (ADR-0025 decision 7).
 
-    None when nothing is enabled (the Slice 3 turn path unchanged). The `CompositeToolRegistry`
-    gives the built-in tools precedence and advertises the MCP tools alongside them; subagents
-    receive the MCP subset without the built-ins (depth-1, so a subagent never gets an OS
-    action, per ADR-0013/0023), wired in `build_subagents`, and always `confirmer=None` (ADR-0013):
-    only the cortex's dispatcher gets the stream's real confirmer (ADR-0022), threaded per stream
-    by the wiring's engine factory. When `body` is wired, the ungated `get_volume`/`set_volume`
-    built-ins join the set (ADR-0023); a user gates `set_volume` by adding it to `gated_names`
-    (`CORTEX_TOOLS_GATED`), the dispatcher's authoritative backstop.
+    The bundling that keeps `build_cortex_tools` under the six-argument ceiling as
+    capabilities accumulate: delegation (ADR-0010), the volume pair when the body is wired
+    (ADR-0023), and the schedule tools (`build_schedule_tools`, ADR-0025). Built-ins are
+    cortex-only by construction, so subagents never see any of these (ADR-0013).
     """
     builtins: list[BuiltinTool] = [spawn_tool] if spawn_tool is not None else []
     if body is not None:
         builtins.append(GetVolumeTool(body))
         builtins.append(SetVolumeTool(body))
+    builtins.extend(schedule_tools)
+    return builtins
+
+
+def build_cortex_tools(
+    tool_registry: ToolRegistry | None,
+    builtins: Sequence[BuiltinTool],
+    clock: Clock,
+    *,
+    confirmer: Confirmer | None = None,
+    gated_names: Collection[str] = (),
+) -> ToolDispatcher | None:
+    """The cortex's audited dispatcher: the built-in set merged with the MCP tools.
+
+    None when nothing is enabled (the Slice 3 turn path unchanged). `builtins` arrives
+    pre-assembled from `build_builtin_tools` (one sequence, not one parameter per
+    capability). The `CompositeToolRegistry` gives the built-in tools precedence and
+    advertises the MCP tools alongside them; subagents receive the MCP subset without the
+    built-ins (depth-1, so a subagent never gets an OS action or a schedule verb, per
+    ADR-0013/0023/0025), wired in `build_subagents`, and always `confirmer=None`
+    (ADR-0013): only the cortex's dispatcher gets the stream's real confirmer (ADR-0022),
+    threaded per stream by the wiring's engine factory. A user gates any built-in by
+    naming it in `gated_names` (`CORTEX_TOOLS_GATED`), the dispatcher's backstop.
+    """
     if not builtins and tool_registry is None:
         return None
     registry = CompositeToolRegistry(builtins, remote=tool_registry)

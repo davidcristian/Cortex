@@ -58,6 +58,7 @@ from cortex_orchestrator import (
     SubagentsConfig,
     ToolsConfig,
     build_body_gateway,
+    build_builtin_tools,
     build_cortex_tools,
     build_history_window,
     build_inference_backend,
@@ -535,23 +536,23 @@ def test_build_history_window_zero_disables_windowing() -> None:
 
 
 def test_build_cortex_tools_none_when_nothing_is_enabled() -> None:
-    assert build_cortex_tools(None, None, SystemClock()) is None
+    assert build_cortex_tools(None, (), SystemClock()) is None
 
 
 async def test_build_cortex_tools_merges_the_spawn_tool_with_mcp_tools() -> None:
-    tools = build_cortex_tools(_read_registry(), _spawn_tool(), SystemClock())
+    tools = build_cortex_tools(_read_registry(), [_spawn_tool()], SystemClock())
     assert isinstance(tools, ToolDispatcher)
     assert {spec.name for spec in await tools.describe_tools()} == {"spawn_subagents", "read"}
 
 
 async def test_build_cortex_tools_spawn_only_when_no_mcp() -> None:
-    tools = build_cortex_tools(None, _spawn_tool(), SystemClock())
+    tools = build_cortex_tools(None, [_spawn_tool()], SystemClock())
     assert isinstance(tools, ToolDispatcher)
     assert {spec.name for spec in await tools.describe_tools()} == {"spawn_subagents"}
 
 
 async def test_build_cortex_tools_mcp_only_when_no_subagents() -> None:
-    tools = build_cortex_tools(_read_registry(), None, SystemClock())
+    tools = build_cortex_tools(_read_registry(), (), SystemClock())
     assert isinstance(tools, ToolDispatcher)
     assert {spec.name for spec in await tools.describe_tools()} == {"read"}
 
@@ -593,14 +594,18 @@ async def test_build_body_gateway_selects_grpc_and_returns_a_closer(
 
 
 async def test_build_cortex_tools_adds_volume_tools_when_body_is_wired() -> None:
-    tools = build_cortex_tools(None, None, SystemClock(), body=InMemoryBodyGateway())
+    tools = build_cortex_tools(
+        None, build_builtin_tools(None, InMemoryBodyGateway()), SystemClock()
+    )
     assert isinstance(tools, ToolDispatcher)
     advertised = {spec.name for spec in await tools.describe_tools()}
     assert advertised == {GET_VOLUME_TOOL_NAME, SET_VOLUME_TOOL_NAME}
 
 
 async def test_build_cortex_tools_volume_is_ungated_by_default() -> None:
-    tools = build_cortex_tools(None, None, SystemClock(), body=InMemoryBodyGateway())
+    tools = build_cortex_tools(
+        None, build_builtin_tools(None, InMemoryBodyGateway()), SystemClock()
+    )
     assert isinstance(tools, ToolDispatcher)
     gated = {spec.name: spec.gated for spec in await tools.describe_tools()}
     assert gated == {GET_VOLUME_TOOL_NAME: False, SET_VOLUME_TOOL_NAME: False}
@@ -649,7 +654,7 @@ async def test_build_cortex_tools_threads_the_confirmer_into_the_gate() -> None:
         {"send": (ToolSpec(name="send", description="", parameters={}, gated=True), _reply_ok)}
     )
     confirmer = RecordingConfirmer(answer=True)
-    tools = build_cortex_tools(registry, None, SystemClock(), confirmer=confirmer)
+    tools = build_cortex_tools(registry, (), SystemClock(), confirmer=confirmer)
     assert tools is not None
     result = await tools.dispatch(
         ToolCall(id="c", name="send", arguments={}), tainted=False, gated=True
@@ -664,7 +669,7 @@ async def test_build_cortex_tools_defaults_to_no_confirmer_fail_closed() -> None
     registry = InMemoryToolRegistry(
         {"send": (ToolSpec(name="send", description="", parameters={}, gated=True), _reply_ok)}
     )
-    tools = build_cortex_tools(registry, None, SystemClock())
+    tools = build_cortex_tools(registry, (), SystemClock())
     assert tools is not None
     result = await tools.dispatch(
         ToolCall(id="c", name="send", arguments={}), tainted=False, gated=True
@@ -687,7 +692,7 @@ async def test_build_cortex_tools_gated_names_gate_a_name_the_registry_advertise
     )
     tools = build_cortex_tools(
         registry,
-        None,
+        (),
         SystemClock(),
         confirmer=RecordingConfirmer(answer=True),
         gated_names={"send_email"},
