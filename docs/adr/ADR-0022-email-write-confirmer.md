@@ -326,3 +326,33 @@ without a brain; `overlay-ux.md` gains the card's spec.
 - Batching / per-tool session allowlists against confirmation fatigue.
 - Salience of `ToolActivity`: still emitted by nothing; the confirm card is the first
   mid-turn tool surface, and a general tool-activity chip remains an overlay-gap item.
+
+## Addendum (2026-07-08): agent validation of overlay UI (Chrome) + gating over real MCP (Docker)
+
+Two of the three validation arms were run by the agent this session; only the pieces that need
+the ProtonMail Bridge or the Windows Tauri shell remain.
+
+**Overlay confirm card (Chrome, demo bridge).** Ran the overlay under `vite dev` and drove the
+gated-send flow in a real browser: a "send an email" prompt surfaces the `ConfirmCard` exactly to
+spec. The shield + `send_email`, the draft as verbatim `to`/`subject`/`body` key→value lines, the
+reason line, and Deny (neutral) vs Approve (accent gradient). **Approve** clears the card and the
+reply resumes ("Sent …"); **Deny** clears it and the reply resumes ("Okay, not sent. The draft
+is discarded."); multi-turn history is preserved across rounds. This exercises the real React
+component, the reducer wiring, and the `BrainBridge` interface. That is everything but the Tauri IPC
+transport (the `WireEvent` serde ↔ TS mapping, the `confirm_response` command, `ConfirmRoute`),
+which stays host/Windows-only.
+
+**Gating overlay + send tool over real MCP (Docker).** Brought up the `cortex_email` sidecar with
+`CORTEX_EMAIL_SEND_ENABLED=true` and dogfooded it through the real `McpToolRegistry`:
+- `send_email` **registers** (all four tools present) and arrives `gated=False` over MCP. The
+  sidecar never self-declares gating, while the composition-root `GatedToolRegistry` stamps it
+  `gated=True` and leaves the three read tools ungated. The ADR-0022 overlay, proven end to end.
+- A `send_email` call that cannot reach the Bridge returns a **clean `is_error`** result
+  (`Connection refused`), not a crash or a hang (the FastMCP exception path).
+- With `CORTEX_EMAIL_SEND_ENABLED=false` the sidecar is **read-only by default**. `send_email` is
+  absent, only the three read tools register.
+
+**Still pending (environment-bound, not code):** the **live SMTP round-trip** to `example.com`, where
+Docker + GPU now work on this host, but the Bridge binds Windows-loopback and this WSL distro is in
+`nat` mode with `interop=false`, so the Bridge is unreachable from WSL/containers (needs WSL
+mirrored networking or a Windows portproxy), and the **Windows Tauri confirm-card** validation.
