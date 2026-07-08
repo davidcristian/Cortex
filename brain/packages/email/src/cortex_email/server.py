@@ -1,9 +1,13 @@
-"""FastMCP server exposing the read-only email tools over an EmailReader (ADR-0009).
+"""FastMCP server exposing the email tools over an EmailReader (ADR-0009, ADR-0022).
 
-Three read-only tools (``list_folders``, ``search_emails``, ``read_email``). ``build_server``
-wires them to an `EmailReader` (covered in-process via ``FastMCP.call_tool``); ``main`` reads the
-env config, builds the imap-tools-backed reader, and runs the server over streamable-http. The
-sync IMAP work runs in a thread so the async MCP loop is never blocked.
+Three read tools (``list_folders``, ``search_emails``, ``read_email``) always register;
+the ``send_email`` write twin registers **only** when a sender is passed (``main`` builds
+one only under ``CORTEX_EMAIL_SEND_ENABLED=true``, ADR-0022), so an unconfigured server is
+byte-for-byte the read-only Slice 6 sidecar. ``build_server`` wires them (covered
+in-process via ``FastMCP.call_tool``); ``main`` reads the env config and runs the server
+over streamable-http. Sync IMAP/SMTP work runs in a thread so the async MCP loop is never
+blocked. Brain-side, ``send_email`` is stamped ``gated`` at the composition root
+(``CORTEX_TOOLS_GATED``). The annotations here are advisory metadata, never authority.
 """
 # The tool handlers are registered via the @server.tool() decorator (a side effect), so
 # pyright's "not accessed" check is a false positive for this small handler module.
@@ -12,18 +16,20 @@ sync IMAP work runs in a thread so the async MCP loop is never blocked.
 import asyncio
 
 from mcp.server.fastmcp import FastMCP
+from mcp.types import ToolAnnotations
 
-from cortex_email.config import EmailConfig
+from cortex_email.config import EmailConfig, SmtpConfig
 from cortex_email.imap import ImapMailbox
 from cortex_email.reader import EmailReader
+from cortex_email.smtp import EmailSender, SmtpSender
 
 _SERVER_HOST = "0.0.0.0"  # noqa: S104 - the sidecar binds its container interface; compose publishes loopback-only
 _SERVER_PORT = 9100
 _DEFAULT_SEARCH_LIMIT = 20
 
 
-def build_server(reader: EmailReader) -> FastMCP:
-    """Register the read-only email tools on a FastMCP server backed by ``reader``.
+def build_server(reader: EmailReader, sender: EmailSender | None = None) -> FastMCP:
+    """Register the email tools on a FastMCP server: reads always, send only with a sender.
 
     Each tool returns a single readable string: the model consumes tool results as text, and
     a list/dict return would be split into per-item content blocks a text client cannot
@@ -57,10 +63,30 @@ def build_server(reader: EmailReader) -> FastMCP:
             f"Date: {detail.date}\nSubject: {detail.subject}\n\n{detail.body}"
         )
 
+    if sender is not None:
+        # Advisory MCP metadata only. The enforcing declaration is the brain-side
+        # CORTEX_TOOLS_GATED overlay (ADR-0022): a sidecar must not be able to
+        # self-declare its way past the gate, in either direction.
+        @server.tool(
+            annotations=ToolAnnotations(
+                readOnlyHint=False, destructiveHint=True, openWorldHint=True
+            )
+        )
+        async def send_email(to: str, subject: str, body: str) -> str:
+            """Send a plain-text email as the configured account (outbound, irreversible;
+            it runs only with the user's explicit approval)."""
+            return await asyncio.to_thread(sender.send, to, subject, body)
+
     return server
 
 
 def main() -> None:
-    """Run the read-only email MCP server from the environment (streamable-http)."""
+    """Run the email MCP server from the environment (streamable-http).
+
+    The send path is opt-in: a sender exists only under CORTEX_EMAIL_SEND_ENABLED=true
+    (with credentials validated at startup). Otherwise this is the read-only server.
+    """
     reader = EmailReader(ImapMailbox(EmailConfig()))
-    build_server(reader).run(transport="streamable-http")
+    smtp = SmtpConfig()
+    sender = SmtpSender(smtp) if smtp.enabled else None
+    build_server(reader, sender).run(transport="streamable-http")

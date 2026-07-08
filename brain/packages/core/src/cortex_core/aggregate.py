@@ -10,13 +10,16 @@ skip-and-report degraded mode (ADR-0009 degraded-mode addendum) that keeps an ag
 serving its healthy sidecars while a dead one is reported, never silently dropped.
 ``UngatedToolRegistry`` strips gated tools at the subagent hand-off boundary (ADR-0013
 subagent-exclusion addendum): a jailbroken subagent must have nothing dangerous to call, not
-merely be denied at the gate. All are pure routing over the port: no I/O of their own, no
-cached state (the one hard rule), with aggregation and the gated-tool check resolving by a live
-``describe_tools`` walk, so a tool dropped or re-flagged server-side mid-turn fails closed
-instead of routing stale.
+merely be denied at the gate. ``GatedToolRegistry`` stamps named remote tools ``gated``, forming
+the composition-root gating overlay (ADR-0022): gating is declared in code under review on
+the brain side, never by a sidecar's own metadata. All are pure routing over the port: no
+I/O of their own, no cached state (the one hard rule). Aggregation and the gated-tool
+check resolve by a live ``describe_tools`` walk, so a tool dropped or re-flagged
+server-side mid-turn fails closed instead of routing stale.
 """
 
 from collections.abc import Callable, Sequence
+from dataclasses import replace
 
 from cortex_core.errors import ToolError, ToolNotFoundError
 from cortex_core.ports import ToolRegistry
@@ -119,6 +122,37 @@ class UngatedToolRegistry:
         if call.name in gated:
             msg = f"unknown tool {call.name!r}"
             raise ToolNotFoundError(msg)
+        return await self._inner.invoke(call)
+
+
+class GatedToolRegistry:
+    """A ``ToolRegistry`` whose named tools are advertised ``gated`` (ADR-0022).
+
+    The composition-root gating overlay for *remote* tools: ``McpToolRegistry`` builds specs
+    generically and must never honor a sidecar's own gating claim (a compromised server
+    could un-gate itself), so the brain declares gating here, over the shared registry root.
+    ``describe_tools`` stamps ``gated=True`` onto matching specs; ``invoke`` delegates
+    untouched. The *dispatcher* enforces the gate (ADR-0013), this overlay only declares
+    it, and ``UngatedToolRegistry`` downstream strips the stamped tools from subagents. A
+    name that never appears is harmless, so a fail-closed default set costs nothing.
+    """
+
+    def __init__(self, inner: ToolRegistry, *, gated: Sequence[str]) -> None:
+        if not gated:
+            msg = "GatedToolRegistry needs a non-empty gated-name set"
+            raise ValueError(msg)
+        self._inner = inner
+        self._gated = frozenset(gated)
+
+    async def describe_tools(self) -> Sequence[ToolSpec]:
+        """The inner registry's tools, gated names stamped, inner order kept."""
+        return tuple(
+            replace(spec, gated=True) if spec.name in self._gated else spec
+            for spec in await self._inner.describe_tools()
+        )
+
+    async def invoke(self, call: ToolCall) -> ToolResult:
+        """Delegate untouched. Enforcement is the dispatcher's, declaration is ours."""
         return await self._inner.invoke(call)
 
 

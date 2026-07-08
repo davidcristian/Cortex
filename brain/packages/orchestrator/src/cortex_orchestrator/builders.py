@@ -23,7 +23,7 @@ releases it, so the root's shutdown path is uniform whatever was picked:
 """
 
 import logging
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Collection
 from contextlib import AsyncExitStack
 
 import httpx
@@ -34,8 +34,10 @@ from cortex_core import (
     CharBudgetHistoryWindow,
     Clock,
     CompositeToolRegistry,
+    Confirmer,
     EchoInferenceBackend,
     FilteredToolRegistry,
+    GatedToolRegistry,
     GlobalMemoryScope,
     InferenceBackend,
     MemoryRecaller,
@@ -143,8 +145,11 @@ async def build_tool_registry(
     logged and served around instead of failing the whole tool set. Note this covers a
     sidecar dying *after* connect; a sidecar down *at startup* still fails `connect` here.
     The returned closer releases every session; a failed later connect unwinds the earlier
-    ones. The registry is left un-audited here. The cortex and each subagent wrap it in
-    their own `ToolDispatcher`.
+    ones. `CORTEX_TOOLS_GATED` names stamp the shared root via `GatedToolRegistry`
+    (ADR-0022): gating is declared here in brain-side config, never by a sidecar's own
+    metadata, and the subagent wiring's `UngatedToolRegistry` then strips the stamped tools.
+    The registry is left un-audited here. The cortex and each subagent wrap it in their
+    own `ToolDispatcher`.
     """
     if config.backend != "mcp":
         return None, noop_aclose
@@ -165,9 +170,10 @@ async def build_tool_registry(
     except BaseException:
         await stack.aclose()
         raise
-    if len(registries) == 1:
-        return registries[0], stack.aclose
-    return AggregateToolRegistry(registries), stack.aclose
+    root = registries[0] if len(registries) == 1 else AggregateToolRegistry(registries)
+    if config.gated:
+        root = GatedToolRegistry(root, gated=config.gated)
+    return root, stack.aclose
 
 
 def build_output_guardrail(
@@ -200,15 +206,24 @@ def build_cortex_tools(
     tool_registry: ToolRegistry | None,
     spawn_tool: SpawnSubagentsTool | None,
     clock: Clock,
+    *,
+    confirmer: Confirmer | None = None,
+    gated_names: Collection[str] = (),
 ) -> ToolDispatcher | None:
     """The cortex's audited dispatcher: the spawn tool merged with the MCP tools (ADR-0010).
 
     None when neither is enabled (the Slice 3 turn path unchanged). The `CompositeToolRegistry`
     gives the built-in spawn tool precedence and advertises the MCP tools alongside it; subagents
-    receive the MCP subset without the spawn tool (depth-1), wired in `build_subagents`.
+    receive the MCP subset without the spawn tool (depth-1), wired in `build_subagents`, and
+    always `confirmer=None` (ADR-0013): only the cortex's dispatcher gets the stream's real
+    confirmer (ADR-0022), threaded per stream by the wiring's engine factory. `gated_names`
+    (the same `CORTEX_TOOLS_GATED` set the advertisement overlay uses) makes the gate
+    authoritative even if a flaky sidecar transiently hid a gated tool from the advertisement.
     """
     builtins: list[BuiltinTool] = [spawn_tool] if spawn_tool is not None else []
     if not builtins and tool_registry is None:
         return None
     registry = CompositeToolRegistry(builtins, remote=tool_registry)
-    return ToolDispatcher(registry, LoggingAuditSink(), clock)
+    return ToolDispatcher(
+        registry, LoggingAuditSink(), clock, confirmer=confirmer, gated_names=gated_names
+    )

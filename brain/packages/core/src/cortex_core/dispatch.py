@@ -6,14 +6,17 @@ model swap between calls changes nothing (the one hard rule). Its contract is th
 dispatch writes exactly one audit record, so a dispatch failure becomes an ``is_error``
 ``ToolResult`` (the model is told and can recover), never an unaudited crash.
 
-It is also the capability gate (ADR-0013): a ``gated`` (irreversible/outbound) tool called on
-a turn that has read untrusted content (``tainted``) must be confirmed by the ``Confirmer``
-before it runs. A denial (including the fail-closed no-confirmer default) returns the
-``DENIED_MSG`` error result **without invoking the tool**, and audits the block. The
-confirmation is the human's, reached out of band, never the (possibly jailbroken) model's.
+It is also the capability gate (ADR-0013, table revised by ADR-0022 decision 2): a ``gated``
+(irreversible/outbound) tool runs only with the human's out-of-band approval via the
+``Confirmer`` port. On a turn that has read untrusted content (``tainted``) it never
+runs at all, the confirmer deliberately unconsulted: an action demanded by injected content
+must not be merely a confirm-away. Every block returns an error result **without invoking
+the tool** (``DENIED_MSG`` for the taint block, ``USER_DECLINED_MSG`` for a declined or
+unreachable confirmation, the fail-closed no-confirmer default included) and is audited.
+The approval is the human's, reached out of band, never the (possibly jailbroken) model's.
 """
 
-from collections.abc import Sequence
+from collections.abc import Collection, Sequence
 from dataclasses import replace
 
 from cortex_core.errors import ToolError
@@ -26,10 +29,10 @@ from cortex_core.tools import (
     ToolSpec,
     Trust,
 )
-from cortex_core.untrusted import DENIED_MSG
+from cortex_core.untrusted import DENIED_MSG, USER_DECLINED_MSG
 
-# Why a gated call was stopped, shown to the user by the overlay confirmer (ADR-0013).
-_GATE_REASON = "outbound or irreversible action requested after this turn read untrusted content"
+# Why confirmation is required, shown verbatim to the user by the overlay (ADR-0022).
+_GATE_REASON = "this action is outbound or irreversible and runs only with your approval"
 
 
 class ToolDispatcher:
@@ -46,11 +49,18 @@ class ToolDispatcher:
         clock: Clock,
         *,
         confirmer: Confirmer | None = None,
+        gated_names: Collection[str] = (),
     ) -> None:
         self._registry = registry
         self._audit = audit
         self._clock = clock
         self._confirmer = confirmer
+        # Names the composition root declares gated regardless of advertisement (ADR-0022):
+        # the caller passes each call's advertised `gated` flag, but that snapshot can miss a
+        # tool a flaky sidecar transiently hid (skip mode) and later recovered, meaning the gate's
+        # security decision never rests on the model-facing advertisement, only on this
+        # authoritative set plus the flag. Empty for a dispatcher with no gated tools.
+        self._gated_names = frozenset(gated_names)
 
     async def describe_tools(self) -> Sequence[ToolSpec]:
         """The tools available to advertise to the model (delegates to the registry)."""
@@ -61,20 +71,31 @@ class ToolDispatcher:
     ) -> ToolResult:
         """Invoke ``call``, audit the outcome, and return the result the model consumes.
 
-        A gated tool on a tainted turn is confirmed first; a denial returns ``DENIED_MSG``
-        without invoking the tool. Otherwise a ``ToolError`` from the registry (unknown tool,
-        transport) is caught and returned as an ``is_error`` result. The loop keeps going and
-        the model sees the failure.
+        The gate (ADR-0022 decision 2): a gated tool on a tainted turn is blocked outright
+        (``DENIED_MSG``, the confirmer never consulted); on an untainted turn it runs only
+        with the user's approval (``USER_DECLINED_MSG`` otherwise, and a missing confirmer
+        denies, fail-closed). Both blocks return without invoking the tool. Otherwise a
+        ``ToolError`` from the registry (unknown tool, transport) is caught and returned as
+        an ``is_error`` result. The loop keeps going and the model sees the failure.
         """
         # Overwrite the call's taint stamp with the turn's (ADR-0018): provenance for built-ins
         # that spawn further work, never authority. The gate below keeps using the explicit
         # ``tainted`` argument, so a model-forged stamp is discarded and feeds nothing.
         call = replace(call, tainted=tainted)
-        if gated and tainted and not await self._confirmed(call):
-            blocked = ToolResult(
-                call_id=call.id, content=DENIED_MSG, is_error=True, trust=Trust.TRUSTED
-            )
-            return await self._audited(call, blocked)
+        # The advertised flag OR the authoritative gated set (ADR-0022): a gated tool a flaky
+        # sidecar hid from this turn's advertisement snapshot is still gated here.
+        gated = gated or call.name in self._gated_names
+        if gated:
+            if tainted:
+                blocked = ToolResult(
+                    call_id=call.id, content=DENIED_MSG, is_error=True, trust=Trust.TRUSTED
+                )
+                return await self._audited(call, blocked)
+            if not await self._confirmed(call):
+                declined = ToolResult(
+                    call_id=call.id, content=USER_DECLINED_MSG, is_error=True, trust=Trust.TRUSTED
+                )
+                return await self._audited(call, declined)
         try:
             result = await self._registry.invoke(call)
         except ToolError as err:

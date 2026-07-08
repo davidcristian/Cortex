@@ -1,8 +1,12 @@
-# Email override (Slice 6 per ADR-0009). Layer it ON TOP of the base file:
+# Email override (Slice 6 per ADR-0009; send path Slice 8.8 per ADR-0022). Layer it ON TOP of
+# the base file:
 #     docker compose -f docker-compose.yml -f docker-compose.email.yml up
-# It adds the read-only IMAP MCP server (our `cortex_email`, over ProtonMail Bridge) as a
-# sidecar reached over streamable-http, and flips the brain from tools=none to the mcp
-# backend pointed at it. CI never runs this file. Tools are opt-in.
+# It adds the email MCP server (our `cortex_email`, over ProtonMail Bridge) as a sidecar
+# reached over streamable-http, and flips the brain from tools=none to the mcp backend
+# pointed at it. Read-only BY DEFAULT: the SMTP send tool registers only under
+# CORTEX_EMAIL_SEND_ENABLED=true, and the brain gates it (CORTEX_TOOLS_GATED covers
+# send_email out of the box, so every send needs the user's overlay approval, and a tainted
+# turn's send is denied outright). CI never runs this file. Tools are opt-in.
 #
 # Layer docker-compose.tools.yml on top as well and BOTH tool families are live at once:
 # each override contributes its own CORTEX_TOOLS_ENDPOINTS__<name> key (compose merges the
@@ -21,8 +25,9 @@
 services:
   brain:
     environment:
-      # Opt into tools, pointed at the email sidecar (ADR-0009). No allowlist needed:
-      # the server is ours and read-only by construction (only the three read tools exist).
+      # Opt into tools, pointed at the email sidecar (ADR-0009). No allowlist needed: the
+      # server is ours (read-only by default), and its opt-in send_email arrives gated
+      # (the brain's CORTEX_TOOLS_GATED default stamps it; ADR-0022).
       CORTEX_TOOLS_BACKEND: "mcp"
       CORTEX_TOOLS_ENDPOINTS__EMAIL: "http://mcp-email:9100/mcp"
     depends_on:
@@ -41,6 +46,16 @@ services:
       CORTEX_EMAIL_IMAP_PASSWORD: "${CORTEX_EMAIL_IMAP_PASSWORD:?set the Bridge password}"
       CORTEX_EMAIL_IMAP_TLS_INSECURE: "${CORTEX_EMAIL_IMAP_TLS_INSECURE:-false}"
       CORTEX_EMAIL_IMAP_CA_CERT: "${CORTEX_EMAIL_IMAP_CA_CERT:-}"
+      # The ADR-0022 send path: OFF unless the deployment explicitly enables it. The Bridge
+      # serves SMTP on 1025 (STARTTLS) with the same generated credentials.
+      CORTEX_EMAIL_SEND_ENABLED: "${CORTEX_EMAIL_SEND_ENABLED:-false}"
+      CORTEX_EMAIL_SMTP_HOST: "host.docker.internal"
+      CORTEX_EMAIL_SMTP_PORT: "1025"
+      CORTEX_EMAIL_SMTP_SECURITY: "starttls"
+      CORTEX_EMAIL_SMTP_USER: "${CORTEX_EMAIL_SMTP_USER:-}"
+      CORTEX_EMAIL_SMTP_PASSWORD: "${CORTEX_EMAIL_SMTP_PASSWORD:-}"
+      CORTEX_EMAIL_SMTP_TLS_INSECURE: "${CORTEX_EMAIL_SMTP_TLS_INSECURE:-false}"
+      CORTEX_EMAIL_SMTP_CA_CERT: "${CORTEX_EMAIL_SMTP_CA_CERT:-}"
     # Reach the Windows-host Bridge; host.docker.internal is automatic on Docker Desktop,
     # host-gateway is the portable fallback (ROADMAP assumption 3).
     extra_hosts:

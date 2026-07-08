@@ -17,6 +17,7 @@ from grpc import aio
 from cortex_core import EchoInferenceBackend, InMemorySessionStore, SystemClock, TurnEngine
 from cortex_orchestrator import (
     ORCHESTRATOR_VERSION,
+    EngineFactory,
     SeamServerConfig,
     create_server,
     serve,
@@ -39,9 +40,10 @@ def _free_loopback_port() -> int:
     return port
 
 
-def _engine_and_store() -> tuple[TurnEngine, InMemorySessionStore]:
+def _engine_and_store() -> tuple[EngineFactory, InMemorySessionStore]:
     store = InMemorySessionStore()
-    return TurnEngine(store, EchoInferenceBackend(), SystemClock()), store
+    engine = TurnEngine(store, EchoInferenceBackend(), SystemClock())
+    return (lambda _confirmer: engine), store
 
 
 @pytest.fixture

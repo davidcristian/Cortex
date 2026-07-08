@@ -146,13 +146,15 @@ class ToolAuditSink(Protocol):
 
 
 class Confirmer(Protocol):
-    """Answers a request to confirm a gated tool call. Out of band, the human's call (ADR-0013).
+    """Answers a request to confirm a gated tool call. Out of band, the human's call (ADR-0013,
+    gate table revised by ADR-0022).
 
-    ``confirm`` returns ``True`` to allow an irreversible/outbound action the dispatcher gated
-    because the turn read untrusted content, ``False`` to block it. The decision is the user's,
-    reached out of band (the overlay), never the model's. A jailbroken model cannot forge it.
-    The real adapter round-trips the overlay over the seam and arrives with the first gated tool
-    (Slice 9/10); today no tool is gated, and a missing confirmer denies (fail-closed).
+    ``confirm`` returns ``True`` to allow an irreversible/outbound action, ``False`` to block it.
+    The dispatcher consults it for a gated call on an **untainted** turn (a tainted turn's gated
+    call is denied outright, the confirmer never asked). The decision is the user's, reached out
+    of band (the overlay), never the model's. A jailbroken model cannot forge it. The real
+    adapter is the orchestrator's ``SeamConfirmer``, round-tripping the overlay's approval card
+    over the ``Converse`` stream; a missing confirmer denies (fail-closed).
     """
 
     async def confirm(self, request: ConfirmationRequest) -> bool: ...

@@ -32,6 +32,7 @@ message ClientEvent {
   oneof event {
     UserTurn user_turn = 2;   // text (+ optional attached capture) from the overlay
     Cancel cancel = 3;        // stop generating the current turn
+    ConfirmResponse confirm_response = 4; // the user's answer to a ConfirmRequest (ADR-0022)
   }
 }
 
@@ -49,6 +50,7 @@ message ServerEvent {
     StatusUpdate status = 3;        // model swap in progress, queue position, etc.
     TurnComplete turn_complete = 4;
     SeamError error = 5;
+    ConfirmRequest confirm_request = 6; // a gated tool call awaits user approval (ADR-0022)
   }
 }
 
@@ -57,6 +59,22 @@ message ToolActivity { string tool_name = 1; string summary = 2; }
 message StatusUpdate { string state = 1; string detail = 2; }
 message TurnComplete { string turn_id = 1; }
 message SeamError { string code = 1; string message = 2; }
+
+// Out-of-band user confirmation of a gated (outbound/irreversible) tool call (ADR-0022).
+// The brain emits ConfirmRequest mid-turn on the Converse stream and suspends the tool
+// call until the matching ConfirmResponse arrives, the timeout denies, or the stream
+// dies (deny). The human authorizes, never the model: an unanswered or unmatched
+// request always resolves as a denial (fail-closed, ADR-0013).
+message ConfirmRequest {
+  string confirm_id = 1;      // correlation id, minted per request by the brain
+  string tool_name = 2;       // what would run, e.g. "send_email"
+  string arguments_json = 3;  // the exact draft being approved, one JSON object
+  string reason = 4;          // why confirmation is required, shown verbatim
+}
+message ConfirmResponse {
+  string confirm_id = 1;      // echoes the request it answers
+  bool approved = 2;
+}
 
 message HealthRequest {}
 message HealthReply { bool ready = 1; string detail = 2; }
