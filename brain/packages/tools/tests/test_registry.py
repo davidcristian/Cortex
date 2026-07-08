@@ -5,9 +5,10 @@ actual shapes; the behavioral contract against a live MCP server is test_registr
 """
 
 from collections.abc import AsyncGenerator
-from contextlib import asynccontextmanager
+from contextlib import AbstractAsyncContextManager, asynccontextmanager
 from typing import Self
 
+import httpx
 import pytest
 from mcp.shared.exceptions import McpError
 from mcp.types import (
@@ -21,7 +22,12 @@ from mcp.types import (
 
 import cortex_tools.registry as registry_module
 from cortex_core import ToolCall, ToolError, ToolResult
-from cortex_tools import McpToolRegistry
+from cortex_tools import (
+    McpSession,
+    McpToolRegistry,
+    ReconnectingMcpToolRegistry,
+    streamable_http_session,
+)
 
 
 class FakeSession:
@@ -107,7 +113,7 @@ async def test_describe_tools_wraps_transport_failure_as_tool_error() -> None:
     assert isinstance(excinfo.value.__cause__, OSError)
 
 
-async def test_connect_opens_a_session_initializes_it_and_returns_a_closer(
+async def test_streamable_http_session_opens_initializes_and_closes(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     seen_url: list[str] = []
@@ -143,9 +149,88 @@ async def test_connect_opens_a_session_initializes_it_and_returns_a_closer(
 
     monkeypatch.setattr(registry_module, "streamable_http_client", fake_streamable)
     monkeypatch.setattr(registry_module, "ClientSession", FakeConnectSession)
-    registry, close = await McpToolRegistry.connect("http://fs:9000/mcp")
-    assert isinstance(registry, McpToolRegistry)
-    assert list(await registry.describe_tools()) == []  # the session is live and usable
-    await close()
+    async with streamable_http_session("http://fs:9000/mcp") as session:
+        assert list((await session.list_tools()).tools) == []  # live and usable inside the scope
     assert seen_url == ["http://fs:9000/mcp"]
-    assert lifecycle == ["initialized", "session-closed"]
+    assert lifecycle == ["initialized", "session-closed"]  # structured close on exit
+
+
+class ScriptedOpener:
+    """A session-opener factory for `ReconnectingMcpToolRegistry`: each call returns a fresh
+    context manager scripted to yield a `FakeSession` or raise at open. The last outcome repeats
+    for calls beyond the script, and ``opens`` counts how many sessions were opened."""
+
+    def __init__(self, *outcomes: FakeSession | BaseException) -> None:
+        self._outcomes = list(outcomes)
+        self.opens = 0
+
+    def __call__(self) -> AbstractAsyncContextManager[McpSession]:
+        outcome = self._outcomes[min(self.opens, len(self._outcomes) - 1)]
+        self.opens += 1
+        return self._session(outcome)
+
+    @asynccontextmanager
+    async def _session(
+        self, outcome: FakeSession | BaseException
+    ) -> AsyncGenerator[McpSession, None]:
+        if isinstance(outcome, BaseException):
+            raise outcome
+        yield outcome
+
+
+async def test_reconnecting_registry_lists_tools_from_a_fresh_session() -> None:
+    tools = ListToolsResult(
+        tools=[Tool(name="read", description="d", inputSchema={"type": "object"})]
+    )
+    opener = ScriptedOpener(FakeSession(tools=tools))
+    specs = await ReconnectingMcpToolRegistry(opener).describe_tools()
+    assert [s.name for s in specs] == ["read"]
+    assert opener.opens == 1  # dialed on demand, not at construction
+
+
+async def test_reconnecting_registry_invokes_through_a_fresh_session() -> None:
+    result = CallToolResult(content=[TextContent(type="text", text="ok")], isError=False)
+    session = FakeSession(result=result)
+    out = await ReconnectingMcpToolRegistry(ScriptedOpener(session)).invoke(
+        ToolCall(id="c1", name="read", arguments={"path": "/x"})
+    )
+    assert out == ToolResult(call_id="c1", content="ok", is_error=False)
+    assert session.calls == [("read", {"path": "/x"})]
+
+
+async def test_reconnecting_registry_maps_a_refused_dial_to_tool_error() -> None:
+    opener = ScriptedOpener(httpx.ConnectError("connection refused"))
+    with pytest.raises(ToolError, match="MCP sidecar unavailable") as excinfo:
+        await ReconnectingMcpToolRegistry(opener).describe_tools()
+    assert excinfo.value.__cause__ is not None  # the open failure is chained
+
+
+async def test_reconnecting_registry_unwraps_an_exception_group_open_failure() -> None:
+    # anyio delivers a refused dial inside an ExceptionGroup; except* must unwrap it.
+    group = ExceptionGroup("open failed", [httpx.ConnectError("refused")])
+    opener = ScriptedOpener(group)
+    with pytest.raises(ToolError, match="MCP sidecar unavailable"):
+        await ReconnectingMcpToolRegistry(opener).invoke(
+            ToolCall(id="c", name="read", arguments={})
+        )
+
+
+async def test_reconnecting_registry_redials_a_recovered_sidecar() -> None:
+    # First open fails (down at boot); the next open succeeds (recovered). No restart needed.
+    tools = ListToolsResult(tools=[Tool(name="read", description="", inputSchema={})])
+    opener = ScriptedOpener(httpx.ConnectError("down"), FakeSession(tools=tools))
+    registry = ReconnectingMcpToolRegistry(opener)
+    with pytest.raises(ToolError):
+        await registry.describe_tools()
+    specs = await registry.describe_tools()  # re-dials the recovered sidecar
+    assert [s.name for s in specs] == ["read"]
+    assert opener.opens == 2
+
+
+async def test_reconnecting_registry_passes_through_a_listing_error() -> None:
+    # A live session whose list_tools fails is McpToolRegistry's own ToolError, not an open
+    # failure. It must pass through verbatim, never re-wrapped as "MCP sidecar unavailable".
+    opener = ScriptedOpener(FakeSession(error=McpError(ErrorData(code=-32603, message="boom"))))
+    with pytest.raises(ToolError, match="listing MCP tools failed") as excinfo:
+        await ReconnectingMcpToolRegistry(opener).describe_tools()
+    assert isinstance(excinfo.value.__cause__, McpError)

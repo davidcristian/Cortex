@@ -297,3 +297,43 @@ knob behind the same port"). That knob now exists, as a third port-preserving co
   ROADMAP deferred-refinements list (Slice 6 block).
 
 The `ToolRegistry` port, the audited `ToolDispatcher`, and the MCP adapter remain unchanged.
+
+## Addendum (2026-07-08): connect-time boot tolerance + re-dial retire the eager `connect`
+
+The boundary the degraded-mode addendum stated honestly ("a sidecar down *at startup* still
+fails `McpToolRegistry.connect` … connect-time tolerance plus a reconnect policy is a separate
+lifecycle refinement") now lands, and the fix forced retiring the held-session `connect`.
+
+**The finding (agent, Docker/uv probe against the real `mcp`/`httpx`/`anyio` stack).** `connect`
+held the streamable-http transport + `ClientSession` open on a long-lived `AsyncExitStack` and
+returned `stack.aclose` as the shutdown closer. But `streamable_http_client` runs an
+`anyio.create_task_group()`, whose cancel scopes are **task-bound**: entering the stack in one task
+and closing it from another (composition-root shutdown, or a later turn) raises "Attempted to exit
+cancel scope in a different task". Worse, a refused dial at boot surfaced through the stack as a
+bare `asyncio.CancelledError` (a `BaseException`), not a catchable transport error, so
+skip-mode could never have absorbed it. A **structured, same-task** `async with
+streamable_http_client(...) as …: async with ClientSession(...) …:` instead surfaces a refused
+dial cleanly as `httpx.ConnectError` inside an anyio `ExceptionGroup`.
+
+**The decision.** Open a **fresh session per call**, structured and same-task, and never hold one
+across tasks:
+
+- **`streamable_http_session(url)` (adapter, `registry.py`)** is an `@asynccontextmanager` that
+  opens `streamable_http_client` + `ClientSession` + `initialize` for the scope of one
+  `async with`. Replaces the `connect` classmethod, now removed.
+- **`ReconnectingMcpToolRegistry(opener)` (adapter)** is a `ToolRegistry` that opens a session per
+  `describe_tools`/`invoke` from an injected `opener` and maps an open failure
+  (`McpError`/`OSError`/`httpx.HTTPError`, unwrapped from the `ExceptionGroup` by `except*`) to
+  `ToolError`; a `ToolError` from the live session's own describe/invoke passes through untouched.
+- **`build_tool_registry` is now synchronous and dials nothing.** It builds one
+  `ReconnectingMcpToolRegistry(partial(streamable_http_session, url))` per endpoint, still wrapping
+  each in the allowlist filter and (under `skip`) `SkipUnavailableToolRegistry`, and returns a
+  no-op closer (no session is held). No `AsyncExitStack`, no eager connect.
+
+**Both properties fall out.** A sidecar **down at boot no longer fails the build**. It is dialed
+on first use, and when down the open fails as `ToolError` that `SkipUnavailableToolRegistry`
+reports and serves around. A **recovered sidecar rejoins without a brain restart**, as the next call
+re-dials. **Trade-off:** a per-call session open (a localhost handshake per describe/invoke); a
+session cache/pool is a later optimization behind the unchanged `ToolRegistry` port and recorded in
+the ROADMAP. The port, the audited `ToolDispatcher`, and the core combinators are unchanged;
+`httpx` becomes a direct `cortex_tools` dependency (the transport whose connect errors it maps).
