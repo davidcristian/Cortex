@@ -121,14 +121,19 @@ def next_due(due_at: datetime, every: timedelta | None, now: datetime) -> dateti
     the brain was down **coalesce** into the single fire that just happened. The next
     re-arm is in the future, one catch-up fire instead of a flood (ADR-0025 decision 2).
     ``every`` must be positive (the ``ScheduledItem`` invariant; enforced here too so the
-    pure function is total on its own terms).
+    pure function is total on its own terms). An occurrence past ``datetime.max`` cannot
+    be scheduled, so the recurrence **ends** (None, since terminal beats a fire that can never
+    persist its re-arm and lease-cycles forever; post-review hardening).
     """
     if every is None:
         return None
     if every <= timedelta(0):
         msg = "next_due requires a positive 'every' interval"
         raise ValueError(msg)
-    behind = now - due_at
-    if behind < timedelta(0):
-        return due_at + every
-    return due_at + (behind // every + 1) * every
+    try:
+        behind = now - due_at
+        if behind < timedelta(0):
+            return due_at + every
+        return due_at + (behind // every + 1) * every
+    except OverflowError:
+        return None

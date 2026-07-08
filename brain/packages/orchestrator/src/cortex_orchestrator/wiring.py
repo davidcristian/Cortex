@@ -97,7 +97,14 @@ async def run_from_env(
             schedule_config, schedules, clock, tasks_enabled=spawn_tool is not None
         ),
     )
-    ticker = build_ticker(schedule_config, schedules, clock, spawn_tool=spawn_tool, body=body)
+    ticker = build_ticker(
+        schedule_config,
+        schedules,
+        clock,
+        spawn_tool=spawn_tool,
+        body=body,
+        gated_names=tools_config.gated,
+    )
     ticker_task = start_ticker(ticker)
     try:
 

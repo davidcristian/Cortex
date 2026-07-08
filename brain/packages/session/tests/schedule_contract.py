@@ -248,6 +248,7 @@ async def check_cancel_sticks_through_an_in_flight_fire(store: ScheduleStore) ->
     assert await store.cancel(item.id) is True
     outcome = FireOutcome(fired_at=_NOW, next_due=_NOW + timedelta(hours=1), deliverable=True)
     assert await store.finish(claim, outcome) is False
+    assert await store.release(claim) is False  # the un-claim path is equally dead
     assert await store.get(item.id) is None
     assert await store.list_active() == ()
     assert await store.deliverable() == ()
@@ -281,6 +282,21 @@ async def check_release_returns_the_item_to_pending(store: ScheduleStore) -> Non
     (again,) = await store.claim_due(_NOW, lease=_LEASE, limit=10)
     assert again.item.id == item.id
     assert await store.release(claim) is False  # the old token is stale now
+
+
+async def check_claim_orders_across_both_classes(store: ScheduleStore) -> None:
+    """Oldest-due-first spans due PENDING and lease-expired FIRING items together."""
+    older = make_item(_item_id(), due_at=_NOW - timedelta(minutes=10))
+    await store.add(older)
+    (first,) = await store.claim_due(_NOW - _LEASE, lease=_LEASE, limit=10)
+    newer = make_item(_item_id(), due_at=_NOW - timedelta(minutes=2))
+    await store.add(newer)
+    # One slot, one candidate per class: the older due (the lease-expired FIRING) wins.
+    (winner,) = await store.claim_due(_NOW, lease=_LEASE, limit=1)
+    assert winner.item.id == older.id
+    assert winner.token != first.token
+    (second,) = await store.claim_due(_NOW, lease=_LEASE, limit=1)
+    assert second.item.id == newer.id
 
 
 async def check_ack_requires_deliverability(store: ScheduleStore) -> None:
@@ -325,6 +341,7 @@ ALL_CHECKS = (
     check_cancel_sticks_through_an_in_flight_fire,
     check_cancel_clears_a_deliverable_reminder,
     check_release_returns_the_item_to_pending,
+    check_claim_orders_across_both_classes,
     check_ack_requires_deliverability,
     check_deliverable_lists_oldest_fired_first,
 )
