@@ -1,6 +1,6 @@
 # Runbook for tools over MCP (Slice 6 host half)
 
-Bring up the filesystem MCP server sidecar and validate `McpToolRegistry` against it. CI never
+Bring up the filesystem MCP server sidecar and validate `ReconnectingMcpToolRegistry` against it. CI never
 runs any of this (service-free by design, AGENTS.md gate 3): the adapter, the wiring, and the
 audit sink are built and 100%-covered without a server. Design: [ADR-0009](../adr/ADR-0009-tools-mcp.md);
 module: [brain-tools.md](../modules/brain-tools.md).
@@ -73,9 +73,11 @@ same audited dispatcher. A sidecar that is down fails tool listing loudly (`Tool
 `is_error` result the model sees) rather than silently shrinking the tool set. To keep the
 healthy sidecars serving instead, set `CORTEX_TOOLS_ON_UNAVAILABLE=skip` (ADR-0009
 degraded-mode addendum): the dead sidecar's tools drop out of the advertisement and every
-walk logs a `tool sidecar unavailable` warning naming it and stays degraded, never silent. Skip mode
-covers a sidecar dying *after* startup; one that is down when the brain boots still fails the
-MCP connect (restart the brain once the sidecar is back).
+walk logs a `tool sidecar unavailable` warning naming it and stays degraded, never silent. Sessions
+are now opened **per call** (`ReconnectingMcpToolRegistry`, ADR-0009 boot-tolerance addendum),
+so skip mode covers a sidecar down at *any* time, including one down when the brain **boots**
+(startup no longer fails). A recovered sidecar rejoins on its next call, **no brain
+restart needed**.
 
 ## Teardown
 

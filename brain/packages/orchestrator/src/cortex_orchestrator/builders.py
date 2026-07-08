@@ -11,8 +11,9 @@ releases it, so the root's shutdown path is uniform whatever was picked:
   `LlamaCppEmbedder` when CORTEX_MEMORY_BACKEND is `pgvector` (ADR-0008). Opt-in so CI and
   the no-GPU dev loop stay DB-free.
 - Tools -> the MCP `ToolRegistry` when CORTEX_TOOLS_BACKEND is `mcp` (ADR-0009), else None:
-  one client per configured endpoint, allowlist-filtered, optionally skip-unavailable
-  (degraded-mode addendum), and aggregated as configured. Shared by the cortex (via the
+  one lazy `ReconnectingMcpToolRegistry` per configured endpoint (dialed on first use, not at
+  startup, hence boot-tolerant), allowlist-filtered, optionally skip-unavailable (degraded-mode +
+  boot-tolerance addenda), and aggregated as configured. Shared by the cortex (via the
   composite) and its subagents.
 - Subagents -> `subagent_builders.py` (split for the 300-line cap when the ADR-0018 roster
   arrived): the `spawn_subagents` tool over a roster-resolving `SubagentRunner`.
@@ -24,7 +25,7 @@ releases it, so the root's shutdown path is uniform whatever was picked:
 
 import logging
 from collections.abc import Awaitable, Callable, Collection
-from contextlib import AsyncExitStack
+from functools import partial
 
 import httpx
 
@@ -66,7 +67,11 @@ from cortex_orchestrator.config import (
     MemoryScopeName,
     ToolsConfig,
 )
-from cortex_tools import LoggingAuditSink, McpToolRegistry
+from cortex_tools import (
+    LoggingAuditSink,
+    ReconnectingMcpToolRegistry,
+    streamable_http_session,
+)
 
 # Connect/write/pool time out fast on a dead server; reads have no deadline, since a
 # generation may legitimately stream for a long time (the adapter sets no timeout itself).
@@ -141,49 +146,43 @@ async def build_memory(
     return None, noop_aclose
 
 
-async def build_tool_registry(
+def build_tool_registry(
     config: ToolsConfig,
 ) -> tuple[ToolRegistry | None, Callable[[], Awaitable[None]]]:
     """The raw MCP `ToolRegistry` shared by the cortex and its subagents, or None (ADR-0009).
 
     ``none`` disables tools. The MCP-less default CI and the no-GPU dev loop run. ``mcp``
-    connects one MCP client per configured endpoint (refinements addendum): an endpoint with
-    an allowlist is wrapped in `FilteredToolRegistry`, and several endpoints merge behind one
-    `AggregateToolRegistry` (first-wins by the config's sorted-name order). With
-    `CORTEX_TOOLS_ON_UNAVAILABLE=skip` each endpoint is additionally wrapped in
-    `SkipUnavailableToolRegistry` (degraded-mode addendum): a sidecar dead at listing time is
-    logged and served around instead of failing the whole tool set. Note this covers a
-    sidecar dying *after* connect; a sidecar down *at startup* still fails `connect` here.
-    The returned closer releases every session; a failed later connect unwinds the earlier
-    ones. `CORTEX_TOOLS_GATED` names stamp the shared root via `GatedToolRegistry`
-    (ADR-0022): gating is declared here in brain-side config, never by a sidecar's own
-    metadata, and the subagent wiring's `UngatedToolRegistry` then strips the stamped tools.
-    The registry is left un-audited here. The cortex and each subagent wrap it in their
-    own `ToolDispatcher`.
+    builds one lazy `ReconnectingMcpToolRegistry` per configured endpoint (refinements +
+    boot-tolerance addenda): no dial happens here, so a sidecar **down at startup no longer
+    fails the build**. It is dialed on first use, per call, and a recovered one rejoins without
+    a brain restart. An endpoint with an allowlist is wrapped in `FilteredToolRegistry`, and
+    several endpoints merge behind one `AggregateToolRegistry` (first-wins by the config's
+    sorted-name order). With `CORTEX_TOOLS_ON_UNAVAILABLE=skip` each endpoint is additionally
+    wrapped in `SkipUnavailableToolRegistry` (degraded-mode addendum): an unavailable sidecar
+    (dead at listing time *or* down at boot) is logged and served around instead of failing the
+    whole tool set. `CORTEX_TOOLS_GATED` names stamp the shared root via `GatedToolRegistry`
+    (ADR-0022): gating is declared here in brain-side config, never by a sidecar's own metadata,
+    and the subagent wiring's `UngatedToolRegistry` then strips the stamped tools. No session is
+    held between calls, so the closer is a no-op; the registry is left un-audited. The cortex
+    and each subagent wrap it in their own `ToolDispatcher`.
     """
     if config.backend != "mcp":
         return None, noop_aclose
-    stack = AsyncExitStack()
     registries: list[ToolRegistry] = []
-    try:
-        for name, url in config.named_endpoints.items():
-            registry, close = await McpToolRegistry.connect(url)
-            stack.push_async_callback(close)
-            allow = config.allow.get(name)
-            if allow:
-                registry = FilteredToolRegistry(registry, allow=allow)
-            if config.on_unavailable == "skip":
-                registry = SkipUnavailableToolRegistry(
-                    registry, name=name, report=_report_sidecar_unavailable
-                )
-            registries.append(registry)
-    except BaseException:
-        await stack.aclose()
-        raise
+    for name, url in config.named_endpoints.items():
+        registry: ToolRegistry = ReconnectingMcpToolRegistry(partial(streamable_http_session, url))
+        allow = config.allow.get(name)
+        if allow:
+            registry = FilteredToolRegistry(registry, allow=allow)
+        if config.on_unavailable == "skip":
+            registry = SkipUnavailableToolRegistry(
+                registry, name=name, report=_report_sidecar_unavailable
+            )
+        registries.append(registry)
     root = registries[0] if len(registries) == 1 else AggregateToolRegistry(registries)
     if config.gated:
         root = GatedToolRegistry(root, gated=config.gated)
-    return root, stack.aclose
+    return root, noop_aclose
 
 
 def build_output_guardrail(

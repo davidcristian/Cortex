@@ -60,8 +60,9 @@ Config (pydantic-settings; explicit constructor arguments beat the environment):
   `on_unavailable: "fail" | "skip" = "fail"` (`CORTEX_TOOLS_ON_UNAVAILABLE`) picks the
   dead-sidecar policy: `fail` keeps listing loud; `skip` wraps each endpoint in
   `SkipUnavailableToolRegistry` so healthy sidecars keep serving while the dead one is
-  logged on every walk (ADR-0009 degraded-mode addendum; covers a sidecar dying after
-  startup, though one down at boot still fails the MCP connect).
+  logged on every walk (ADR-0009 degraded-mode addendum; now covers a sidecar down at *any*
+  time; sessions open per call, so one down at boot no longer fails startup and a recovered
+  one rejoins without a restart, ADR-0009 boot-tolerance addendum).
 - `SubagentsConfig` uses env prefix `CORTEX_SUBAGENTS_` (ADR-0010, revised by ADR-0012/0018):
   `backend: "none" | "llamacpp" = "none"` (`CORTEX_SUBAGENTS_BACKEND`), `endpoint` (the CPU
   overflow `llama-server`) **and** `gpu_endpoint` (the GPU one), which are both required when
@@ -165,12 +166,13 @@ The service:
   (`build_output_guardrail`, ADR-0015),
   and four opt-in adapters, each disabled by default so CI and the no-GPU dev loop stay
   external-service-free: **memory** (`build_memory`, ADR-0008), **tools** (`build_tool_registry`
-  builds the MCP `ToolRegistry` shared by cortex and subagents, ADR-0009: one `McpToolRegistry` per
-  configured endpoint, wrapped in a `FilteredToolRegistry` where an allowlist is set, in a
-  `SkipUnavailableToolRegistry` reporting through a structured warning when
-  `on_unavailable="skip"`, and merged behind one `AggregateToolRegistry` when several, with every
-  session owned by one `AsyncExitStack` whose `aclose` is the returned closer, and a failed
-  later connect unwinds the earlier sessions), **subagents**
+  builds the MCP `ToolRegistry` shared by cortex and subagents, ADR-0009: one lazy
+  `ReconnectingMcpToolRegistry` per configured endpoint (dialed on first use, not at startup, so
+  boot-tolerant, ADR-0009 boot-tolerance addendum), wrapped in a `FilteredToolRegistry` where an
+  allowlist is set, in a `SkipUnavailableToolRegistry` reporting through a structured warning when
+  `on_unavailable="skip"`, and merged behind one `AggregateToolRegistry` when several. No session
+  is held between calls, so `build_tool_registry` is synchronous and its closer is a no-op),
+  **subagents**
   (`build_subagents(config, tool_registry, redis_url, clock, *, placer, task_store_factory)`,
   in `subagent_builders.py` (split from `builders.py` for the 300-line cap), the
   `spawn_subagents` tool over a `SubagentRoster` built from `config.named_roster` (ADR-0018):

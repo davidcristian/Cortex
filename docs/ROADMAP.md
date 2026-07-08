@@ -687,11 +687,22 @@ addendum adds `SkipUnavailableToolRegistry` + `CORTEX_TOOLS_ON_UNAVAILABLE=skip`
 `fail`). Remaining:
 - **Salience / rate policy on the tool loop.** Bounded by `MAX_TOOL_STEPS` today; rate and
   salience limits are a later refinement behind the port (decision 3 / risks).
-- **Connect-time sidecar tolerance / reconnect policy.** Skip mode covers a sidecar dying
-  *after* its MCP session connected; one down at brain startup still fails
-  `McpToolRegistry.connect` in the wiring, and a skipped-dead sidecar is only re-joined by a
-  brain restart. Tolerating a down sidecar at boot and re-dialing a recovered one is a
-  wiring-lifecycle refinement behind the same port (degraded-mode addendum).
+- **Connect-time sidecar tolerance / reconnect policy landed 2026-07-08
+  ([ADR-0009 boot-tolerance addendum](adr/ADR-0009-tools-mcp.md)).** Skip mode covered a sidecar
+  dying *after* connect; a sidecar down *at brain startup* still failed `McpToolRegistry.connect`
+  in the wiring, with no re-dial. A Docker/uv probe against the real `mcp`/`httpx`/`anyio` stack
+  found the held-`AsyncExitStack` `connect` was the problem. Its anyio task-group cancel scopes
+  are task-bound (close-from-another-task errors) and a refused boot dial surfaced as a bare
+  `CancelledError`, uncatchable by skip mode. So `connect` is **retired** for a structured,
+  same-task `streamable_http_session` (`@asynccontextmanager`) driven by a new
+  `ReconnectingMcpToolRegistry` that opens a **fresh session per call**: `build_tool_registry` is
+  now synchronous and dials nothing, so a sidecar down at boot no longer fails the build (its
+  first-use open fails as `ToolError` that `SkipUnavailableToolRegistry` serves around) and a
+  recovered sidecar rejoins without a restart. CI-gated end to end over a scripted opener (open
+  success, refused dial, anyio `ExceptionGroup`, re-dial, listing passthrough) at 100%. Remaining
+  behind the same `ToolRegistry` port: a **session cache/pool** to retire the per-call open
+  overhead (a localhost handshake per describe/invoke, which is acceptable at personal scale, an
+  optimization when it matters).
 
 **Untrusted-content boundary in Slice 6.5 ([ADR-0013](adr/ADR-0013-untrusted-content.md)):** each
 behind the unchanged `ToolRegistry`/`ToolDispatcher`/`stream_tool_loop` seams (or the new `Confirmer` port).
