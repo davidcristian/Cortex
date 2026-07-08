@@ -13,9 +13,10 @@ use body_rpc::BrainSeamClient;
 use body_rpc::generated::brain_service_client::BrainServiceClient;
 use body_rpc::generated::brain_service_server::{BrainService, BrainServiceServer};
 use body_rpc::generated::{
-    ClientEvent, GetSessionMessagesReply, GetSessionMessagesRequest, HealthReply, HealthRequest,
-    ListSessionsReply, ListSessionsRequest, ServerEvent, SessionMessage as PbSessionMessage,
-    SessionSummary as PbSessionSummary,
+    AckReminderReply, AckReminderRequest, ClientEvent, GetSessionMessagesReply,
+    GetSessionMessagesRequest, HealthReply, HealthRequest, ListDueRemindersReply,
+    ListDueRemindersRequest, ListSessionsReply, ListSessionsRequest, ServerEvent,
+    SessionMessage as PbSessionMessage, SessionSummary as PbSessionSummary,
 };
 use tokio::net::TcpListener;
 use tokio::sync::oneshot;
@@ -138,6 +139,22 @@ impl BrainService for FakeBrain {
                 },
             ],
         }))
+    }
+
+    // The reminder RPCs are unused by these transport tests until BrainTransport grows
+    // them (ADR-0025); they exist only to satisfy the generated server trait.
+    async fn list_due_reminders(
+        &self,
+        _request: Request<ListDueRemindersRequest>,
+    ) -> Result<Response<ListDueRemindersReply>, Status> {
+        Err(Status::unimplemented("not exercised here"))
+    }
+
+    async fn ack_reminder(
+        &self,
+        _request: Request<AckReminderRequest>,
+    ) -> Result<Response<AckReminderReply>, Status> {
+        Err(Status::unimplemented("not exercised here"))
     }
 }
 

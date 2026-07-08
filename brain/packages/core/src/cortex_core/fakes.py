@@ -11,9 +11,8 @@ from collections.abc import AsyncIterator, Awaitable, Callable, Mapping, Sequenc
 from datetime import UTC, datetime
 from typing import Any
 
-from cortex_core.body import VolumeState
 from cortex_core.conversation import Message, Role
-from cortex_core.errors import BodyGatewayError, InferenceError, ToolNotFoundError
+from cortex_core.errors import InferenceError, ToolNotFoundError
 from cortex_core.inference import InferenceEvent, TextChunk
 from cortex_core.memory import MemoryRecord, ScoredMemory
 from cortex_core.sessions import SessionSummary, summarize_session
@@ -237,41 +236,6 @@ class RecordingConfirmer:
     def requests(self) -> Sequence[ConfirmationRequest]:
         """The confirmation requests received so far, in order."""
         return tuple(self._requests)
-
-
-class InMemoryBodyGateway:
-    """BodyGateway held in memory as the contract twin of the gRPC adapter (ADR-0023).
-
-    Keeps the host's volume state in the process; ``get_volume`` reports it and ``set_volume``
-    applies a change (clamping ``level`` to [0.0, 1.0], the OS backend's own rule) and reports
-    the result. Constructed with ``fail`` set to a ``BodyGatewayError`` to script an
-    unreachable body for the tools' error path. For tests, CI, and single-process experiments.
-    """
-
-    def __init__(
-        self, *, level: float = 0.5, muted: bool = False, fail: BodyGatewayError | None = None
-    ) -> None:
-        self._level = level
-        self._muted = muted
-        self._fail = fail
-
-    async def get_volume(self) -> VolumeState:
-        """Report the current volume state, or raise the scripted failure."""
-        if self._fail is not None:
-            raise self._fail
-        return VolumeState(level=self._level, muted=self._muted)
-
-    async def set_volume(
-        self, *, level: float | None = None, mute: bool | None = None
-    ) -> VolumeState:
-        """Apply a change (clamping ``level``) and report the result, or raise the failure."""
-        if self._fail is not None:
-            raise self._fail
-        if level is not None:
-            self._level = min(1.0, max(0.0, level))
-        if mute is not None:
-            self._muted = mute
-        return VolumeState(level=self._level, muted=self._muted)
 
 
 class SystemClock:

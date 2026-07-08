@@ -11,7 +11,7 @@ use body_core::{AudioControl, AudioError, VolumeChange, VolumeState};
 use body_rpc::body_service;
 use body_rpc::generated::body_service_client::BodyServiceClient;
 use body_rpc::generated::{
-    CaptureScreenRequest, GetVolumeRequest, InjectInputRequest, SetVolumeRequest,
+    CaptureScreenRequest, GetVolumeRequest, InjectInputRequest, NotifyRequest, SetVolumeRequest,
     VolumeState as PbVolumeState,
 };
 use tokio::net::TcpListener;
@@ -245,6 +245,18 @@ async fn capture_screen_and_inject_input_are_unimplemented() {
         .await
         .unwrap_err();
     assert_eq!(input.code(), Code::Unimplemented);
+    // Shape-now (ADR-0025): the brain treats Unimplemented like any push failure, so a
+    // reminder stays deliverable for the pull path until the body's Notify trait lands.
+    let notify = client
+        .notify(NotifyRequest {
+            title: "Reminder".into(),
+            body: "stretch".into(),
+            reminder_id: "r1".into(),
+            tainted: false,
+        })
+        .await
+        .unwrap_err();
+    assert_eq!(notify.code(), Code::Unimplemented);
 }
 
 #[tokio::test]
