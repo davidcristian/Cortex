@@ -352,7 +352,17 @@ which stays host/Windows-only.
 - With `CORTEX_EMAIL_SEND_ENABLED=false` the sidecar is **read-only by default**. `send_email` is
   absent, only the three read tools register.
 
-**Still pending (environment-bound, not code):** the **live SMTP round-trip** to `example.com`, where
-Docker + GPU now work on this host, but the Bridge binds Windows-loopback and this WSL distro is in
-`nat` mode with `interop=false`, so the Bridge is unreachable from WSL/containers (needs WSL
-mirrored networking or a Windows portproxy), and the **Windows Tauri confirm-card** validation.
+**Live SMTP + IMAP round-trip (real ProtonMail Bridge).** Once the user added a Windows
+`netsh` portproxy (the vEthernet-(WSL) adapter → the Bridge's `127.0.0.1:1143/1025`, since this
+distro is `nat`-mode with `interop=false` and can't reach Windows loopback directly), the
+`integration`-marked live tests passed against the real Bridge: the read-only IMAP reader
+(`test_reader_lists_and_reads_from_a_live_bridge`), and (the headline) **`send_email` really
+sent one message over SMTP and the test found it back over IMAP by its unique subject within the
+60 s window** (`test_send_round_trips_between_the_two_test_addresses`, ~13 s end to end). The
+whole write path (`SmtpSender` → Bridge SMTP (STARTTLS) → delivery → IMAP search) is proven end
+to end; `From` was the authenticated account (never a parameter), the CR/LF guard and the
+opt-in/gating all in the loop.
+
+**Still pending (genuinely OS-native, host-only):** the **Windows Tauri confirm-card**
+validation (hotkey → gated send → card → approve/deny through the real IPC transport). It is the one
+piece Chrome/Docker can't reach, exactly as ADR-0013 predicted.
