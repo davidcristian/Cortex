@@ -212,12 +212,16 @@ describe("overlayState reducer", () => {
     }
   });
 
-  it("previewFade is a no-op while an approval is pending. A question waits to be seen", () => {
+  it("previewFade waits out a pending approval AND a still-streaming turn", () => {
     const pending = run([{ kind: "open" }, submit("send it"), { kind: "dismiss" }, confirmRequest]);
     expect(pending.mode).toBe("preview");
-    expect(reduce(pending, { kind: "previewFade" })).toBe(pending);
+    expect(reduce(pending, { kind: "previewFade" })).toBe(pending); // a question waits to be seen
+    // The user answers, but the turn is still streaming. The preview must not fade from under it.
     const resolved = reduce(pending, { kind: "confirmResolved", approved: true });
-    expect(reduce(resolved, { kind: "previewFade" }).mode).toBe("hidden");
+    expect(reduce(resolved, { kind: "previewFade" })).toBe(resolved);
+    // Only once the turn completes does the fade apply.
+    const done = reduce(resolved, { kind: "event", event: { kind: "complete", turnId: "t" } });
+    expect(reduce(done, { kind: "previewFade" }).mode).toBe("hidden");
   });
 
   it("latestReply returns the last assistant reply, or empty when there is none", () => {

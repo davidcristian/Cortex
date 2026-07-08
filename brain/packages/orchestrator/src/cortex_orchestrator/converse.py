@@ -106,15 +106,12 @@ class _ConverseStream:
                     )
                 else:
                     _logger.debug("ignoring client event without a known payload")
-            # Input ended (half-close): no answer can ever arrive, so anything awaiting
-            # confirmation is denied NOW. A draining turn must not hang out the timeout.
             self._confirmer.close()
             await self._drain_turns()
         except Exception as err:  # deliberately broad: nothing may escape the seam unhandled
             _logger.exception("Converse client stream failed")
             self._fail(ERROR_CODE_INTERNAL, str(err))
         finally:
-            self._confirmer.close()  # idempotent; covers the failure and teardown paths
             self._out.put_nowait(None)
 
     def _enqueue_turn(self, session_id: str, text: str) -> None:
