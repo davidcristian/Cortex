@@ -16,6 +16,10 @@ from typing import Any
 from cortex_core.schedule import ScheduleKind
 
 MIN_EVERY_SECONDS = 60
+# Ten years: nothing a personal reminder needs recurs slower, and the bound keeps every
+# re-arm's datetime arithmetic far from overflow (post-review hardening; next_due is
+# additionally total, because an occurrence past datetime.max ends the recurrence).
+MAX_EVERY_SECONDS = 315_360_000
 
 _BAD_KIND = '\'kind\' must be "reminder" or "task"'
 _TASKS_NOT_WIRED = "this deployment schedules reminders only; 'kind': \"task\" is not available"
@@ -24,7 +28,7 @@ _ONE_WHEN = "provide exactly one of 'at' (ISO-8601 with offset) or 'in_seconds'"
 _BAD_AT = "'at' must be an ISO-8601 date-time, e.g. 2026-07-12T18:00:00+00:00"
 _NAIVE_AT = "'at' must include a UTC offset, e.g. 2026-07-12T18:00:00+00:00"
 _BAD_IN_SECONDS = "'in_seconds' must be a positive number of seconds"
-_BAD_EVERY = f"'every_seconds' must be a number of at least {MIN_EVERY_SECONDS}"
+_BAD_EVERY = f"'every_seconds' must be a number between {MIN_EVERY_SECONDS} and {MAX_EVERY_SECONDS}"
 _MODEL_NEEDS_TASK = "'model' applies only to 'kind': \"task\""
 _BAD_MODEL = "'model' must be a string"
 
@@ -101,12 +105,9 @@ def _parse_every(arguments: Mapping[str, Any]) -> timedelta | None | str:
     if every_seconds is None:
         return None
     seconds = _parse_number(every_seconds)
-    if seconds is None or seconds < MIN_EVERY_SECONDS:
+    if seconds is None or not MIN_EVERY_SECONDS <= seconds <= MAX_EVERY_SECONDS:
         return _BAD_EVERY
-    try:
-        return timedelta(seconds=seconds)
-    except (OverflowError, ValueError):
-        return _BAD_EVERY
+    return timedelta(seconds=seconds)
 
 
 def _parse_text_and_model(

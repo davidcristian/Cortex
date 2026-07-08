@@ -12,7 +12,7 @@ gateway is wired (no second knob).
 
 import asyncio
 import logging
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Collection
 from datetime import timedelta
 
 from cortex_core import (
@@ -88,18 +88,28 @@ def build_ticker(
     *,
     spawn_tool: SpawnSubagentsTool | None,
     body: BodyGateway | None,
+    gated_names: Collection[str] = (),
 ) -> ScheduleTicker | None:
     """The firing loop over the store, or None when scheduling is off.
 
     The ticker's TASK path is its own audited ``ToolDispatcher`` holding just the spawn
     tool: the fire gets an audit line, the dispatcher taint stamp (→ ADR-0017 pinning),
     and the fail-closed ``confirmer=None`` gate. All this leaves `build_subagents`' public shape
-    untouched (ADR-0025 decision 4). Push rides exactly when the body gateway is wired.
+    untouched (ADR-0025 decision 4). ``gated_names`` is `CORTEX_TOOLS_GATED`, threaded so
+    the user's backstop covers the autonomous path too (post-review hardening): a gated
+    `spawn_subagents` hard-denies here (there is nobody to confirm), exactly the
+    fail-closed answer the live turn's tainted branch gives. Push rides exactly when the
+    body gateway is wired.
     """
     if schedules is None:
         return None
     spawn = (
-        ToolDispatcher(CompositeToolRegistry([spawn_tool]), LoggingAuditSink(), clock)
+        ToolDispatcher(
+            CompositeToolRegistry([spawn_tool]),
+            LoggingAuditSink(),
+            clock,
+            gated_names=gated_names,
+        )
         if spawn_tool is not None
         else None
     )

@@ -7,6 +7,7 @@ import signal
 import socket
 from collections.abc import AsyncGenerator, Awaitable, Callable, Mapping, Sequence
 from contextlib import asynccontextmanager
+from datetime import UTC, datetime
 from typing import cast
 
 import httpx
@@ -14,6 +15,7 @@ import pytest
 from fakeredis import FakeAsyncRedis, FakeServer
 from grpc import aio
 from mcp.types import CallToolResult, ListToolsResult, TextContent, Tool
+from redis.asyncio import Redis
 
 import cortex_orchestrator.builders as builders_module
 from cortex_body_client import GrpcBodyGateway
@@ -33,6 +35,8 @@ from cortex_core import (
     PlacementTarget,
     RecordingConfirmer,
     ResourceBudgetScheduler,
+    ScheduledItem,
+    ScheduleKind,
     SessionMemoryScope,
     SpawnSubagentsTool,
     StrictUrlRedactingGuardrail,
@@ -70,8 +74,15 @@ from cortex_orchestrator import (
     memory_scope_from_name,
     run_from_env,
 )
-from cortex_seam import BrainServiceStub, ClientEvent, ServerEvent, UserTurn
-from cortex_session import RedisSessionStore, RedisTaskStore
+from cortex_seam import (
+    BrainServiceStub,
+    ClientEvent,
+    ListDueRemindersReply,
+    ListDueRemindersRequest,
+    ServerEvent,
+    UserTurn,
+)
+from cortex_session import RedisScheduleStore, RedisSessionStore, RedisTaskStore
 
 
 def _free_loopback_port() -> int:
@@ -720,3 +731,56 @@ async def test_build_subagent_tools_gated_names_are_the_fail_closed_backstop() -
     # confirmer=None on subagents -> the gated-by-name call is declined, never run.
     assert result.is_error is True
     assert result.content == USER_DECLINED_MSG
+
+
+async def test_run_from_env_with_scheduling_fires_and_shuts_down_cleanly(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """CORTEX_SCHEDULE_BACKEND=redis end to end at the composition root: build_schedule
+    dials the (patched-to-fakeredis) URL, the ticker fires a seeded reminder, the pull RPC
+    serves it, and the SIGTERM path stops the ticker cleanly before its store closes."""
+    port = _free_loopback_port()
+    monkeypatch.setenv("CORTEX_SEAM_HOST", "127.0.0.1")
+    monkeypatch.setenv("CORTEX_SEAM_PORT", str(port))
+    monkeypatch.setenv("CORTEX_SCHEDULE_BACKEND", "redis")
+    monkeypatch.setenv("CORTEX_SCHEDULE_POLL_S", "0.05")
+    server = FakeServer()
+
+    def fake_from_url(url: str) -> Redis:
+        del url  # every schedule-store dial lands on the shared fake server
+        return FakeAsyncRedis(server=server)
+
+    monkeypatch.setattr(Redis, "from_url", fake_from_url)
+    store = RecordingStore()
+    task = asyncio.create_task(run_from_env(store_factory=lambda _url: store))
+    seeder = RedisScheduleStore(FakeAsyncRedis(server=server))
+    now = datetime.now(UTC)
+    await seeder.add(
+        ScheduledItem(
+            id="wired-reminder",
+            kind=ScheduleKind.REMINDER,
+            text="fire through the root",
+            session_id="",
+            due_at=now,
+            created_at=now,
+        )
+    )
+    try:
+        async with aio.insecure_channel(f"127.0.0.1:{port}") as channel:
+            await asyncio.wait_for(channel.channel_ready(), timeout=10)
+            stub = BrainServiceStub(channel)
+            method = stub.ListDueReminders  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
+            fired = None
+            for _ in range(100):
+                reply = cast("ListDueRemindersReply", await method(ListDueRemindersRequest()))
+                if reply.reminders:
+                    fired = reply.reminders[0]
+                    break
+                await asyncio.sleep(0.02)
+            assert fired is not None, "the composition-root ticker did not fire the reminder"
+            assert fired.reminder_id == "wired-reminder"
+        os.kill(os.getpid(), signal.SIGTERM)
+        await asyncio.wait_for(task, timeout=10)  # ticker stopped, stores closed, no errors
+    finally:
+        task.cancel()
+        await seeder.aclose()

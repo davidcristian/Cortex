@@ -248,6 +248,45 @@ async def test_one_shot_task_is_cleaned_up_after_its_fire() -> None:
     assert await store.get("t1") is None  # terminal cleanup (outcome history is deferred)
 
 
+async def test_a_hung_fire_is_cancelled_at_the_lease_and_released() -> None:
+    """One wedged task cannot stall scheduling: wait_for cancels it, the claim releases."""
+
+    class HangingSpawnTool(FakeSpawnTool):
+        async def invoke(self, call: ToolCall) -> ToolResult:
+            del call
+            await asyncio.Event().wait()  # a wedged inference socket, forever
+            msg = "unreachable"
+            raise AssertionError(msg)
+
+    store = InMemoryScheduleStore()
+    await store.add(_item("t1", kind=ScheduleKind.TASK, every=timedelta(hours=1)))
+    settings = TickerSettings(poll_s=0.001, lease=timedelta(milliseconds=50), claim_limit=8)
+    ticker = ScheduleTicker(store, FixedClock(), settings, spawn=_dispatcher(HangingSpawnTool()))
+    await asyncio.wait_for(ticker.run_once(), timeout=2.0)  # bounded, not stalled
+    loaded = await store.get("t1")
+    assert loaded is not None
+    assert loaded.status.value == "pending"  # released: the next pass re-fires it
+
+
+async def test_a_gated_spawn_is_hard_denied_on_the_autonomous_path() -> None:
+    """CORTEX_TOOLS_GATED covers the ticker too: no confirmer exists, so the fire denies."""
+    store = InMemoryScheduleStore()
+    spawn = FakeSpawnTool()
+    gated = ToolDispatcher(
+        CompositeToolRegistry([spawn]),
+        RecordingAuditSink(),
+        FixedClock(),
+        gated_names={"spawn_subagents"},
+    )
+    await store.add(_item("t1", kind=ScheduleKind.TASK, every=timedelta(hours=1)))
+    await _ticker(store, spawn=gated).run_once()
+    assert spawn.calls == []  # never invoked, since the gate blocked it before the tool
+    loaded = await store.get("t1")
+    assert loaded is not None
+    assert loaded.last_outcome is not None
+    assert loaded.last_outcome.startswith("FAILED: ")
+
+
 # --- pass robustness ----------------------------------------------------------------------------
 
 
