@@ -206,6 +206,11 @@ New non-obvious decision → add `adr/ADR-XXXX-<slug>.md`, link it here.
   integration tests (read-only IMAP; the opt-in SMTP send round-trip).
 - [runbooks/subagents-cpu.md](runbooks/subagents-cpu.md) covers Slice 7 host half: bring up the CPU
   subagent `llama-server`, validate delegation (integration test + cortex-driven full stack).
+- [runbooks/scheduling.md](runbooks/scheduling.md) covers Slice 9.5: bring up durable schedules +
+  the reminder ticker (`CORTEX_SCHEDULE_BACKEND=redis`), the agent-Docker validation runs
+  (live contract + the end-to-end fire over the seam), the host-only half (native toast + the
+  overlay reminder surface), and tuning/troubleshooting (lease vs long tasks, the
+  dead-letter hash).
 - [runbooks/body-volume.md](runbooks/body-volume.md) covers Slice 9 host half: the brain→body volume
   seam (`docker-compose.body.yml`) with the agent brain→body dial across the container boundary and
   the host-only Windows Core Audio validation ("set volume to 30%").
