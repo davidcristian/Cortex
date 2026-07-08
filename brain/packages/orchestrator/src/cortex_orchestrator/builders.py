@@ -6,8 +6,10 @@ from contextlib import AsyncExitStack
 
 import httpx
 
+from cortex_body_client import GrpcBodyGateway
 from cortex_core import (
     AggregateToolRegistry,
+    BodyGateway,
     BuiltinTool,
     CharBudgetHistoryWindow,
     Clock,
@@ -16,11 +18,13 @@ from cortex_core import (
     EchoInferenceBackend,
     FilteredToolRegistry,
     GatedToolRegistry,
+    GetVolumeTool,
     GlobalMemoryScope,
     InferenceBackend,
     MemoryRecaller,
     MemoryScope,
     SessionMemoryScope,
+    SetVolumeTool,
     SingleResidentModelManager,
     SkipUnavailableToolRegistry,
     SpawnSubagentsTool,
@@ -33,7 +37,13 @@ from cortex_core import (
 from cortex_embedding import LlamaCppEmbedder
 from cortex_inference import LlamaCppBackend
 from cortex_memory import PgVectorMemoryStore
-from cortex_orchestrator.config import InferenceConfig, MemoryConfig, MemoryScopeName, ToolsConfig
+from cortex_orchestrator.config import (
+    BodyConfig,
+    InferenceConfig,
+    MemoryConfig,
+    MemoryScopeName,
+    ToolsConfig,
+)
 from cortex_tools import LoggingAuditSink, McpToolRegistry
 
 # Connect/write/pool time out fast on a dead server; reads have no deadline, since a
@@ -142,6 +152,16 @@ def build_history_window(char_budget: int) -> CharBudgetHistoryWindow | None:
     return CharBudgetHistoryWindow(char_budget) if char_budget > 0 else None
 
 
+async def build_body_gateway(
+    config: BodyConfig, *, token: str
+) -> tuple[BodyGateway | None, Callable[[], Awaitable[None]]]:
+    """Pick the body gateway from config; return it with the coroutine that releases it (ADR-0023).
+    """
+    if config.backend != "grpc":
+        return None, noop_aclose
+    return await GrpcBodyGateway.connect(config.endpoint, token=token)
+
+
 def build_cortex_tools(
     tool_registry: ToolRegistry | None,
     spawn_tool: SpawnSubagentsTool | None,
@@ -149,9 +169,13 @@ def build_cortex_tools(
     *,
     confirmer: Confirmer | None = None,
     gated_names: Collection[str] = (),
+    body: BodyGateway | None = None,
 ) -> ToolDispatcher | None:
-    """The cortex's audited dispatcher: the spawn tool merged with the MCP tools (ADR-0010)."""
+    """The cortex's audited dispatcher: the spawn + volume built-ins merged with the MCP tools."""
     builtins: list[BuiltinTool] = [spawn_tool] if spawn_tool is not None else []
+    if body is not None:
+        builtins.append(GetVolumeTool(body))
+        builtins.append(SetVolumeTool(body))
     if not builtins and tool_registry is None:
         return None
     registry = CompositeToolRegistry(builtins, remote=tool_registry)

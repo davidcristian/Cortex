@@ -65,7 +65,10 @@ type _AddBrainServicer = Callable[[BrainServiceServicer, grpc.Server | aio.Serve
 add_BodyServiceServicer_to_server = cast("_AddBodyServicer", _untyped_add_body)  # noqa: N816
 add_BrainServiceServicer_to_server = cast("_AddBrainServicer", _untyped_add_brain)  # noqa: N816
 
+SEAM_TOKEN_HEADER = "x-cortex-seam-token"  # noqa: S105 - the header NAME, not a secret
+
 __all__ = [
+    "SEAM_TOKEN_HEADER",
     "BodyServiceServicer",
     "BodyServiceStub",
     "BrainServiceServicer",

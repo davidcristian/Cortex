@@ -1,0 +1,13 @@
+
+services:
+  brain:
+    environment:
+      # Opt into the brain->body direction; without this the base image runs body=none (ADR-0023).
+      CORTEX_BODY_BACKEND: "grpc"
+      # Where the host body's BodyService listens, as seen from the container. 50151 is the
+      # body's port (50051 is the brain's BrainService). Override the port to match the host bind.
+      CORTEX_BODY_ENDPOINT: "${CORTEX_BODY_ENDPOINT:-host.docker.internal:50151}"
+    # Reach the Windows-host body; host.docker.internal is automatic on Docker Desktop,
+    # host-gateway is the portable fallback (ROADMAP assumption 3).
+    extra_hosts:
+      - "host.docker.internal:host-gateway"

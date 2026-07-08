@@ -4,6 +4,7 @@ version = "0.0.0"
 description = "Thin gRPC service hosting BrainService; orchestration logic stays in cortex-core."
 requires-python = ">=3.12"
 dependencies = [
+  "cortex-body-client",
   "cortex-core",
   "cortex-embedding",
   "cortex-inference",
@@ -19,6 +20,7 @@ dependencies = [
 ]
 
 [tool.uv.sources]
+cortex-body-client = { workspace = true }
 cortex-core = { workspace = true }
 cortex-embedding = { workspace = true }
 cortex-inference = { workspace = true }

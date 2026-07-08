@@ -33,6 +33,10 @@ class TaskStoreError(Exception):
     """A TaskStore operation failed (task-store adapters wrap their backend's errors)."""
 
 
+class BodyGatewayError(Exception):
+    """A BodyGateway call failed. The body was unreachable or the OS action errored."""
+
+
 class ModelManagerError(Exception):
     """A ModelManager operation failed; adapters wrap their backend's errors into this."""
 

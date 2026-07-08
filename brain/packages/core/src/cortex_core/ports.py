@@ -9,6 +9,7 @@ from contextlib import AbstractAsyncContextManager
 from datetime import datetime
 from typing import Protocol
 
+from cortex_core.body import VolumeState
 from cortex_core.conversation import Message
 from cortex_core.inference import InferenceEvent
 from cortex_core.memory import MemoryRecord, ScoredMemory
@@ -109,6 +110,16 @@ class TaskStore(Protocol):
     async def put_result(self, result: SubagentResult) -> None: ...
 
     async def get_result(self, task_id: str) -> SubagentResult | None: ...
+
+
+class BodyGateway(Protocol):
+    """Calls the host body to read or change an OS setting over the brain→body seam (ADR-0023)."""
+
+    async def get_volume(self) -> VolumeState: ...
+
+    async def set_volume(
+        self, *, level: float | None = None, mute: bool | None = None
+    ) -> VolumeState: ...
 
 
 class SubagentScheduler(Protocol):

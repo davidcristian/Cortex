@@ -9,6 +9,7 @@ from cortex_core import DEFAULT_CORTEX_MODEL
 from cortex_orchestrator.converse import DEFAULT_CONFIRM_TIMEOUT_S, DEFAULT_MAX_BUFFERED_EVENTS
 from cortex_session import DEFAULT_REDIS_URL
 
+BodyBackendName = Literal["none", "grpc"]
 InferenceBackendName = Literal["echo", "llamacpp"]
 MemoryBackendName = Literal["none", "pgvector"]
 MemoryScopeName = Literal["global", "session"]
@@ -63,6 +64,22 @@ class BrainRuntimeConfig(BaseSettings):
     )
     history_char_budget: int = Field(default=48_000, ge=0)
     output_guardrail: Literal["redact", "strict", "off"] = "redact"
+
+
+class BodyConfig(BaseSettings):
+    """Whether the cortex can call the host body over ``BodyService`` (ADR-0023)."""
+
+    model_config = SettingsConfigDict(env_prefix="CORTEX_BODY_")
+
+    backend: BodyBackendName = "none"
+    endpoint: str = ""
+
+    @model_validator(mode="after")
+    def _grpc_needs_an_endpoint(self) -> "BodyConfig":
+        if self.backend == "grpc" and not self.endpoint:
+            msg = "CORTEX_BODY_ENDPOINT is required when CORTEX_BODY_BACKEND=grpc"
+            raise ValueError(msg)
+        return self
 
 
 class InferenceConfig(BaseSettings):

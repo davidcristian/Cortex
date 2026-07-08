@@ -5,6 +5,7 @@
 target-version = "py312"
 line-length = 100
 src = [
+  "brain/packages/body_client/src",
   "brain/packages/core/src",
   "brain/packages/email/src",
   "brain/packages/embedding/src",

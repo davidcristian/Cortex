@@ -18,8 +18,14 @@ imports seam names from `cortex_seam` and never from `cortex_seam._generated` di
   `add_BrainServiceServicer_to_server` belong to `BrainService`, hosted by the brain
   (`cortex_orchestrator`), called by the body.
 - `BodyServiceServicer`, `BodyServiceStub`, and `add_BodyServiceServicer_to_server` cover
-  `BodyService`, hosted by the body; the brain-side typed client wrapper
-  (`body_client`) arrives with Slice 9.
+  `BodyService`, hosted by the body; the brain-side typed client wrapper lands with
+  Slice 9 as `cortex_body_client` (`GrpcBodyGateway` over the committed
+  `BodyServiceStub`, ADR-0023).
+- `SEAM_TOKEN_HEADER = "x-cortex-seam-token"` is the metadata key for the seam token
+  (ADR-0016). Lifted here as its natural home (Slice 9, ADR-0023): a seam-contract
+  detail shared by the brain server interceptor (`cortex_orchestrator`'s `auth.py`) and
+  the `BodyService` client (`cortex_body_client`); the body's Rust side keeps its own
+  const of the same value.
 - Typing: message classes are fully typed via the committed `body_pb2.pyi`; the two
   `add_*` registration helpers are re-annotated in the facade as
   `Callable[[<Servicer>, grpc.Server | grpc.aio.Server], None]`. The generated stub

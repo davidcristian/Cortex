@@ -1,5 +1,6 @@
 //! The Cortex body: the host-native Tauri shell (ADR-0011 decision 5).
 
+mod body_server;
 mod confirm;
 mod converse;
 mod hotkey;
@@ -21,6 +22,7 @@ pub fn run() {
         .setup(|app| {
             tray::build(app.handle())?;
             hotkey::register(app.handle());
+            body_server::start();
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![

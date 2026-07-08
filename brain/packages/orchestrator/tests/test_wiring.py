@@ -12,12 +12,16 @@ import pytest
 from fakeredis import FakeAsyncRedis, FakeServer
 from grpc import aio
 
+from cortex_body_client import GrpcBodyGateway
 from cortex_core import (
     DENIED_MSG,
+    GET_VOLUME_TOOL_NAME,
+    SET_VOLUME_TOOL_NAME,
     USER_DECLINED_MSG,
     CharBudgetHistoryWindow,
     EchoInferenceBackend,
     GlobalMemoryScope,
+    InMemoryBodyGateway,
     InMemoryTaskStore,
     InMemoryToolRegistry,
     MemoryRecaller,
@@ -44,11 +48,13 @@ from cortex_core import (
 from cortex_inference import LlamaCppBackend
 from cortex_memory import PgVectorMemoryStore
 from cortex_orchestrator import (
+    BodyConfig,
     InferenceConfig,
     MemoryConfig,
     SubagentRosterEntry,
     SubagentsConfig,
     ToolsConfig,
+    build_body_gateway,
     build_cortex_tools,
     build_history_window,
     build_inference_backend,
@@ -564,6 +570,56 @@ async def test_build_cortex_tools_mcp_only_when_no_subagents() -> None:
     tools = build_cortex_tools(_read_registry(), None, SystemClock())
     assert isinstance(tools, ToolDispatcher)
     assert {spec.name for spec in await tools.describe_tools()} == {"read"}
+
+
+async def test_build_body_gateway_defaults_to_disabled() -> None:
+    """The no-body default: no gateway, and a closer that is a clean no-op."""
+    gateway, close = await build_body_gateway(BodyConfig(backend="none"), token="")
+    assert gateway is None
+    await close()  # no resources to release; must not raise
+
+
+async def test_build_body_gateway_selects_grpc_and_returns_a_closer(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The opt-in path: an endpoint + the shared seam token reach GrpcBodyGateway.connect."""
+    seen: dict[str, str] = {}
+    closed: list[str] = []
+
+    async def fake_connect(
+        endpoint: str, *, token: str = ""
+    ) -> tuple[object, Callable[[], Awaitable[None]]]:
+        seen["endpoint"] = endpoint
+        seen["token"] = token
+
+        async def closer() -> None:
+            closed.append("channel")
+
+        return object(), closer
+
+    monkeypatch.setattr(GrpcBodyGateway, "connect", fake_connect)
+    gateway, close = await build_body_gateway(
+        BodyConfig(backend="grpc", endpoint="host.docker.internal:50151"),
+        token="s3cret",  # noqa: S106 - test seam token, not a real secret
+    )
+    assert gateway is not None
+    assert seen == {"endpoint": "host.docker.internal:50151", "token": "s3cret"}
+    await close()  # closes the channel
+    assert closed == ["channel"]
+
+
+async def test_build_cortex_tools_adds_volume_tools_when_body_is_wired() -> None:
+    tools = build_cortex_tools(None, None, SystemClock(), body=InMemoryBodyGateway())
+    assert isinstance(tools, ToolDispatcher)
+    advertised = {spec.name for spec in await tools.describe_tools()}
+    assert advertised == {GET_VOLUME_TOOL_NAME, SET_VOLUME_TOOL_NAME}
+
+
+async def test_build_cortex_tools_volume_is_ungated_by_default() -> None:
+    tools = build_cortex_tools(None, None, SystemClock(), body=InMemoryBodyGateway())
+    assert isinstance(tools, ToolDispatcher)
+    gated = {spec.name: spec.gated for spec in await tools.describe_tools()}
+    assert gated == {GET_VOLUME_TOOL_NAME: False, SET_VOLUME_TOOL_NAME: False}
 
 
 async def test_build_tool_registry_stamps_gated_names_at_the_root(

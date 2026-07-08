@@ -77,6 +77,13 @@ Config (pydantic-settings; explicit constructor arguments beat the environment):
   by `docker/docker-compose.subagents-roster.yml`). A key naming the default is rejected.
   `named_roster` (property) synthesizes the ready-to-dial mapping, with the flat-field default
   first, alternates sorted, fallbacks applied; empty unless `backend="llamacpp"`.
+- `BodyConfig` uses env prefix `CORTEX_BODY_` (ADR-0023, Slice 9 brings the first brain→body seam
+  direction, the brain as gRPC client of the host body's `BodyService`): `backend: "none" |
+  "grpc" = "none"` (`CORTEX_BODY_BACKEND`), `endpoint: str = ""` (`CORTEX_BODY_ENDPOINT`, the
+  host body's bind, `host.docker.internal:50151` from the dockerized brain). Validates that
+  `grpc` has a non-empty `endpoint`. Off by default (CI + no-GPU dev never dial a host body);
+  the shared `CORTEX_SEAM_TOKEN` (SeamServerConfig, not a `CORTEX_BODY_` var) authenticates the
+  dial.
 
 The service:
 
@@ -146,18 +153,24 @@ The service:
   is the turn's output guardrail (ADR-0015): `redact` returns the default verbatim URL-redacting
   policy, `strict` (addendum) the redact-all-non-user-URL policy, `off` returns `None`. On by
   default via `BrainRuntimeConfig.output_guardrail`.
+- `build_body_gateway(config: BodyConfig, *, token: str) -> tuple[BodyGateway | None, Callable[[], Awaitable[None]]]`
+  is the opt-in body dial (ADR-0023): `grpc` opens a `GrpcBodyGateway` (cortex-body-client) over
+  `connect(config.endpoint, token=token)`, attaching the shared `CORTEX_SEAM_TOKEN` as
+  `x-cortex-seam-token` metadata (empty = none), and returns it with its channel closer; `none`
+  (default) returns `(None, no-op closer)`. Off by default so CI and the no-GPU dev loop never
+  reach for a host body. The uniform closer keeps `run_from_env`'s shutdown backend-agnostic.
 - `run_from_env() -> None` (async) is the composition root: reads the env configs and serves
   with `RedisSessionStore.from_url(redis_url)`, `build_inference_backend(...)`, `SystemClock`,
   the default-on history window (`build_history_window`, ADR-0014) and output guardrail
   (`build_output_guardrail`, ADR-0015),
-  and three opt-in adapters, each disabled by default so CI and the no-GPU dev loop stay
+  and four opt-in adapters, each disabled by default so CI and the no-GPU dev loop stay
   external-service-free: **memory** (`build_memory`, ADR-0008), **tools** (`build_tool_registry`
   builds the MCP `ToolRegistry` shared by cortex and subagents, ADR-0009: one `McpToolRegistry` per
   configured endpoint, wrapped in a `FilteredToolRegistry` where an allowlist is set, in a
   `SkipUnavailableToolRegistry` reporting through a structured warning when
   `on_unavailable="skip"`, and merged behind one `AggregateToolRegistry` when several, with every
   session owned by one `AsyncExitStack` whose `aclose` is the returned closer, and a failed
-  later connect unwinds the earlier sessions), and **subagents**
+  later connect unwinds the earlier sessions), **subagents**
   (`build_subagents(config, tool_registry, redis_url, clock, *, placer, task_store_factory)`,
   in `subagent_builders.py` (split from `builders.py` for the 300-line cap), the
   `spawn_subagents` tool over a `SubagentRoster` built from `config.named_roster` (ADR-0018):
@@ -168,10 +181,16 @@ The service:
   ADR-0010/0012; the runner enforces ADR-0017 via `roster.resolve`; the subagent dispatcher
   comes from `build_subagent_tools(tool_registry, clock)`, the shared registry wrapped in
   `UngatedToolRegistry`, so a subagent is never handed a gated/outbound tool, ADR-0013
-  subagent-exclusion addendum). The cortex's dispatcher is
-  `build_cortex_tools(registry, spawn_tool, clock, confirmer=...)`, the spawn tool merged with
-  the MCP tools via a `CompositeToolRegistry`, or `None` when neither is enabled (the Slice 3
-  turn path). `run_from_env` hands `serve` an **engine factory** (ADR-0022): each Converse
+  subagent-exclusion addendum), and **body** (`build_body_gateway`, ADR-0023, opening the opt-in
+  `GrpcBodyGateway` dial to the host `BodyService`, off by default, closed in the `finally`).
+  The cortex's dispatcher is
+  `build_cortex_tools(registry, spawn_tool, clock, confirmer=..., body=...)`, the spawn tool
+  merged with the MCP tools via a `CompositeToolRegistry`, plus the two volume built-ins
+  (`get_volume`/`set_volume`, ADR-0023) appended when a `BodyGateway` is threaded in, or `None`
+  when none is enabled (the Slice 3 turn path). The volume built-ins are ungated by default
+  (volume is reversible); a user can require confirmation for `set_volume` by naming it in
+  `CORTEX_TOOLS_GATED` (the dispatcher's authoritative backstop).
+  `run_from_env` hands `serve` an **engine factory** (ADR-0022): each Converse
   stream's `SeamConfirmer` reaches its dispatcher through it, so an untainted gated call (e.g.
   the email sidecar's `send_email`, stamped by the `CORTEX_TOOLS_GATED` overlay in
   `build_tool_registry`) prompts the overlay and a tainted one is denied outright. Subagent
@@ -233,6 +252,6 @@ The service:
 - Fully typed, pyright strict clean; 100% line+branch coverage. The `__main__` guard is
   the only coverage pragma. Tests are loopback-only (ephemeral ports, fakeredis), CI-safe.
 
-**Dependencies.** cortex-core, cortex-inference, cortex-seam, cortex-session (workspace),
-grpcio (`grpc.aio`), httpx (the injected client for the llama.cpp backend), pydantic,
-pydantic-settings.
+**Dependencies.** cortex-core, cortex-body-client (the `GrpcBodyGateway` dial, ADR-0023),
+cortex-inference, cortex-seam, cortex-session (workspace), grpcio (`grpc.aio`), httpx (the
+injected client for the llama.cpp backend), pydantic, pydantic-settings.

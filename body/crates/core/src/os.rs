@@ -91,6 +91,78 @@ fn single_char_code(key: &str) -> Option<String> {
     None
 }
 
+/// Why reading or changing the host audio volume failed. See [`AudioControl`].
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
+pub enum AudioError {
+    /// No usable audio output endpoint (no default device, or it was removed).
+    /// `0` is a backend detail.
+    #[error("no audio output endpoint is available: {0}")]
+    NoEndpoint(String),
+    /// The OS audio backend refused or failed the operation. `0` is a backend detail.
+    #[error("the audio backend failed: {0}")]
+    Backend(String),
+}
+
+/// The host's audio output state: `level` in `[0.0, 1.0]` and whether it is `muted`.
+/// The OS-neutral value both directions of the seam speak (mirrors the proto `VolumeState`).
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct VolumeState {
+    /// Output volume as a fraction, `0.0` (silent) to `1.0` (max).
+    pub level: f32,
+    /// Whether the output is muted.
+    pub muted: bool,
+}
+
+/// A requested change to the host volume: set the `level`, the `mute` flag, or both.
+/// A `None` field is left untouched (proto explicit presence, resolved to the core here).
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct VolumeChange {
+    /// The target level, already clamped to `[0.0, 1.0]`, or `None` to leave it.
+    pub level: Option<f32>,
+    /// The target mute state, or `None` to leave it.
+    pub mute: Option<bool>,
+}
+
+impl VolumeChange {
+    /// Builds a change from a raw request, clamping a present `level` to `[0.0, 1.0]` (a `NaN`
+    /// level clamps to the silent floor `0.0`).
+    #[must_use]
+    pub fn new(level: Option<f32>, mute: Option<bool>) -> Self {
+        Self {
+            level: level.map(clamp_level),
+            mute,
+        }
+    }
+}
+
+/// Clamps a raw volume level to `[0.0, 1.0]`; `NaN` becomes the silent floor `0.0`.
+fn clamp_level(level: f32) -> f32 {
+    if level.is_nan() {
+        0.0
+    } else {
+        level.clamp(0.0, 1.0)
+    }
+}
+
+/// The port an audio-control backend implements (`os_windows` real via Core Audio; other
+/// platforms are stubs until built, per ADR-0023). It is the sibling of [`Hotkey`] and the first
+/// OS capability the brain drives over `BodyService`.
+pub trait AudioControl: Send + Sync {
+    /// Reads the host's current output volume state.
+    ///
+    /// # Errors
+    ///
+    /// [`AudioError`] if no output endpoint is available or the backend fails.
+    fn get_volume(&self) -> Result<VolumeState, AudioError>;
+
+    /// Applies `change` (level and/or mute) and reports the resulting state.
+    ///
+    /// # Errors
+    ///
+    /// [`AudioError`] if no output endpoint is available or the backend fails.
+    fn set_volume(&self, change: VolumeChange) -> Result<VolumeState, AudioError>;
+}
+
 /// The `code` for a named key (space, enter, arrows, …), or `None`.
 fn named_code(key: &str) -> Option<String> {
     let code = match key {
