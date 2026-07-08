@@ -308,7 +308,7 @@ describe("useOverlay", () => {
     expect(bridge.confirms).toHaveLength(0);
   });
 
-  it("the preview never auto-fades under a pending confirm; the countdown starts once answered", async () => {
+  it("the preview waits out a pending confirm and the streaming turn; fades once complete", async () => {
     const bridge = new FakeBridge();
     const { result } = renderHook(() => useOverlay(bridge, () => "s1"));
     await flush();
@@ -319,8 +319,11 @@ describe("useOverlay", () => {
     act(() => vi.advanceTimersByTime(60_000));
     expect(result.current.state.mode).toBe("preview"); // a question waits to be seen
     act(() => result.current.respondConfirm("c-1", false));
+    act(() => vi.advanceTimersByTime(60_000));
+    expect(result.current.state.mode).toBe("preview"); // the turn is still streaming, so no fade
+    act(() => bridge.emit({ kind: "complete", turnId: "t" }));
     act(() => vi.advanceTimersByTime(6000));
-    expect(result.current.state.mode).toBe("hidden");
+    expect(result.current.state.mode).toBe("hidden"); // completed, then faded
   });
 
   it("defaults the session id to a freshly minted uuid", async () => {

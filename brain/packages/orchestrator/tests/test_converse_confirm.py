@@ -192,6 +192,20 @@ async def test_input_ending_mid_confirm_denies_immediately() -> None:
     assert any(e.WhichOneof("event") == "turn_complete" for e in remaining)
 
 
+async def test_stream_teardown_mid_confirm_cancels_the_turn_cleanly() -> None:
+    # A client disconnect (aclose) while a confirm is pending must CANCEL the turn rather than
+    # resume it to a spurious "user declined" audit (ADR-0022 post-review fix): the pump's
+    # finally no longer close()s the confirmer; events()'s finally cancels the in-flight turn.
+    ran: list[str] = []
+    client = _LiveClient()
+    stream = converse(_gated_send_factory(ran), client, confirm_timeout_s=60.0)
+    client.send(_user_turn("send it"))
+    await _next_of(stream, "confirm_request")
+    async with asyncio.timeout(5.0):
+        await stream.aclose()  # teardown: must not hang, must not run the tool
+    assert ran == []
+
+
 async def test_cancel_mid_confirm_drops_the_turn_and_the_stream_stays_open() -> None:
     ran: list[str] = []
     client = _LiveClient()

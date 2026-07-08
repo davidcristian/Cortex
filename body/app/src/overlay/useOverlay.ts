@@ -53,15 +53,17 @@ export function useOverlay(
   }, [bridge]);
 
   // A completed preview fades on its own after PREVIEW_MS (design/overlay-ux.md §4), unless
-  // an approval is pending: a question waits to be seen, and the countdown starts only once
-  // the confirm resolves (the reducer's previewFade no-op is the same rule, belt and braces).
+  // an approval is pending or the turn is still streaming: a question waits to be seen, and a
+  // confirm approved mid-turn keeps the preview up until the turn completes. The countdown
+  // arms only once both are clear (the reducer's previewFade guard is the same rule).
+  const previewActive = isTurnActive(state);
   useEffect(() => {
-    if (state.mode !== "preview" || state.pendingConfirm !== null) {
+    if (state.mode !== "preview" || state.pendingConfirm !== null || previewActive) {
       return undefined;
     }
     const timer = setTimeout(() => dispatch({ kind: "previewFade" }), PREVIEW_MS);
     return () => clearTimeout(timer);
-  }, [state.mode, state.pendingConfirm]);
+  }, [state.mode, state.pendingConfirm, previewActive]);
 
   // Load the chat list on mount, and refresh it each time a turn finishes: `turnActive`
   // flips false→true→false per turn, so the false edges (mount + completion) reload.

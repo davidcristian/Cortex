@@ -17,6 +17,13 @@ from typing import Protocol
 from cortex_email.config import SmtpConfig
 
 
+def _reject_header_injection(field: str, value: str) -> None:
+    """Raise if ``value`` carries a CR/LF that could inject an extra email header."""
+    if "\r" in value or "\n" in value:
+        msg = f"{field} must not contain a newline (header-injection attempt)"
+        raise ValueError(msg)
+
+
 class EmailSender(Protocol):
     """What the server's send tool needs: one blocking send, returning a readable line."""
 
@@ -37,6 +44,11 @@ class SmtpSender:
         return context
 
     def _compose(self, to: str, subject: str, body: str) -> EmailMessage:
+        # Reject header injection explicitly rather than trust the interpreter: a CR/LF in a
+        # header value can smuggle extra headers (a Bcc exfil) on some CPython patch levels
+        # (the 3.12.0-3.12.4 window). `body` is payload, not a header, so it is unrestricted.
+        _reject_header_injection("recipient", to)
+        _reject_header_injection("subject", subject)
         message = EmailMessage()
         message["From"] = self._config.user  # the authenticated identity, never a parameter
         message["To"] = to

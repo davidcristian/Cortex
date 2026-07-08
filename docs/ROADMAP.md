@@ -523,15 +523,21 @@ capability gate, and the `Confirmer` round-trip over the seam.
   deny so the brain resolves the confirm at once, not after the timeout, because dropping the event
   stream does not half-close the Tauri request stream); `BrainBridge.respondConfirm`; the demo
   bridge scripts a confirm round.
-- **Post-review hardening (2026-07-08, adversarial multi-agent review of the diff).** Five
-  verified findings fixed: the dispatcher now holds the authoritative `CORTEX_TOOLS_GATED`
-  name-set so a flaky sidecar that transiently hides a gated tool from the advertisement
-  snapshot (skip mode) cannot open a gate-bypass window; the Tauri `ConfirmRoute` is a
-  compare-and-clear by generation so a superseded turn cannot wipe the live turn's confirm
-  sender; turn-ending overlay actions send an explicit deny (no confirm-timeout zombie turn);
-  `CORTEX_EMAIL_SEND_ENABLED` is the sole enable channel (the prefixed `CORTEX_EMAIL_SMTP_ENABLED`
-  is closed); the live send test searches by unique subject, not the oldest 20; and env-reading
-  email tests are isolated so a sourced `email.env` can't perturb `just check`.
+- **Post-review hardening (2026-07-08, adversarial multi-agent review of the diff with 15 findings
+  verified, all fixed).** The dispatcher holds the authoritative `CORTEX_TOOLS_GATED` name-set so
+  a flaky sidecar that transiently hides a gated tool from the advertisement snapshot (skip mode)
+  cannot open a gate-bypass window; the Tauri `ConfirmRoute` is a compare-and-clear by generation
+  so a superseded turn cannot wipe the live turn's confirm sender; turn-ending overlay actions
+  send an explicit deny (no confirm-timeout zombie turn); the preview never auto-fades from under
+  a still-streaming turn (a confirm approved mid-turn keeps it up until completion); on stream
+  teardown a pending confirm is *cancelled*, not audited as "user declined" (only a real
+  input half-close declines); `send_email` rejects a CR/LF in the recipient/subject (header
+  injection, defence-in-depth against the CPython 3.12.0-3.12.4 window); `CORTEX_EMAIL_SEND_ENABLED`
+  is the sole enable channel (the prefixed `CORTEX_EMAIL_SMTP_ENABLED` is closed); the live send
+  test searches by unique subject, not the oldest 20; and env-reading email tests are isolated so
+  a sourced `email.env` can't perturb `just check`. (The one refuted finding, a "backpressure
+  credit leak", is the deliberate, bounded, load-bearing credit-free confirm emit, ADR-0022
+  decision 3.)
 
 ## Slice 9 (One OS action end-to-end, volume)
 
