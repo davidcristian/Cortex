@@ -5,7 +5,11 @@ the single source of truth): the committed tonic/prost stubs for `cortex.seam.v1
 two directions of the seam, namely `BrainSeamClient`, the tonic implementation of the
 `body_core::BrainTransport` port (body→brain), and `body_service`, the `BodyService` server
 over the `body_core::AudioControl` port (brain→body, Slice 9, ADR-0023). Thin translation
-only, with no business logic and no retries (retry policy is a later slice).
+only, with no business logic, and no retries *here*: bounded retry is composed over this adapter
+by `body_core`'s `RetryingTransport` decorator (ADR-0024), for which `connect_lazy_with_token`
+supplies a reconnecting channel. The status→error mapping is split into `status.rs`
+(`status_to_error` / `error_chain`, shared by every direction) to keep both files under the
+line cap.
 
 **Public contract.**
 
@@ -22,6 +26,13 @@ only, with no business logic and no retries (retry policy is a later slice).
     that env var and passes it here. A token that is not valid ASCII metadata maps to
     `TransportError::Connection` before any dial; a wrong/missing token surfaces per the
     normal status mapping as `TransportError::Rpc { code: "Unauthenticated", .. }`.
+  - `BrainSeamClient::connect_lazy_with_token(addr, token) -> Result<Self, TransportError>`
+    (**sync**, ADR-0024) is like `connect_with_token` but over a *lazy* channel
+    (`Channel::connect_lazy`): construction never dials, so it fails only on a bad URI or a
+    non-ASCII token, never on reachability, and each RPC (re)establishes the connection on
+    demand. This is the channel `body_core`'s `RetryingTransport` retries over. A call
+    against a briefly-down brain fails `Connection`, the decorator backs off, and tonic
+    reconnects transparently. The ungated shell's `seam::connect()` composes the two.
   - `impl BrainTransport`: `health()` calls `BrainService.Health`; an Ok reply maps to
     `SeamHealth { ready, detail }`. A non-OK gRPC status splits by origin: a status
     tonic *synthesized* from a client-local transport failure (detected by a
@@ -129,7 +140,9 @@ Being ignored, they never run in CI and never count toward coverage.
 - Contract tests exercise a scripted in-process fake `BrainService` over loopback
   (`127.0.0.1:0`) only, which is CI-safe, with no real network. They cover both sides of the
   status-origin split, including brain death after a successful connect (graceful
-  fake shutdown → next `health()` must be `Connection`, not `Rpc`), and the confirm
+  fake shutdown → next `health()` must be `Connection`, not `Rpc`); the lazy
+  constructor (ADR-0024, covering a healthy round-trip over a lazy channel, construct-then-fail
+  against a dead endpoint, bad URI, non-ASCII token); and the confirm
   round-trip (ADR-0022): the fake emits `ConfirmRequest` mid-turn and asserts the
   echoed `ConfirmResponse` arrives on the still-open request stream (approve and
   deny, answered reactively over a channel), plus the half-close of an empty

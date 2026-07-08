@@ -5,9 +5,8 @@ edition = "2024"
 publish = false
 description = "Cortex body, the host-native Tauri shell (overlay + hotkey + brain seam)"
 
-# Its own workspace root, excluded from the gated `body` workspace (ADR-0011
-# decision 5): `just check`'s `cargo --workspace` never builds Tauri, so CI needs
-# no webkit/node and the coverage gate never sees the app.
+# Its own workspace root, kept out of the `body` workspace: `just check`'s `cargo --workspace`
+# never builds Tauri, so CI needs no webkit or node and coverage never measures this crate.
 [workspace]
 
 [lib]
@@ -27,8 +26,8 @@ serde = { version = "1", features = ["derive"] }
 futures-util = "0.3"
 # "sync" for the confirm decision route (ADR-0022); "net" + "rt-multi-thread" for the
 # BodyService server the app hosts (ADR-0023), to bind a loopback listener and serve on Tauri's
-# runtime.
-tokio = { version = "1", features = ["sync", "net", "rt-multi-thread"] }
+# runtime; "time" for the transport retry backoff (TokioSleeper, ADR-0024).
+tokio = { version = "1", features = ["sync", "net", "rt-multi-thread", "time"] }
 # "net" for TcpListenerStream (the BodyService incoming, ADR-0023).
 tokio-stream = { version = "0.1", features = ["net"] }
 # Serve the BodyService the brain dials (ADR-0023); the adapter lives in body-rpc.

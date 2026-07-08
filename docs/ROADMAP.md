@@ -644,10 +644,22 @@ an ADR, so its entries below are the canonical record) and collected here so non
 Not ordered; picked up when a slice needs one or on request.
 
 **Seam / transport in Slice 2 ([ADR-0003](adr/ADR-0003-seam-codegen.md)):**
-- **Transport retry / reconnect policy.** The body's `body_rpc` adapter is thin translation with
-  **no retries** ([body-rpc.md](modules/body-rpc.md)), so a dropped stream or a transient failure
-  surfaces straight to the caller. A backoff/reconnect policy is a later refinement behind the
-  unchanged `BrainTransport` port; the overlay treats a failed turn as terminal until then.
+- **Transport retry / reconnect policy landed 2026-07-08 ([ADR-0024](adr/ADR-0024-transport-retry.md)).**
+  The deferred backoff/reconnect refinement, added as a **decorator over the unchanged
+  `BrainTransport` port** so the `body_rpc` adapter stays thin (its "no retries" contract is now
+  true by construction): `RetryingTransport<T, S>` (pure core) retries the **idempotent** methods
+  (`health`, `list_sessions`, `session_messages`) on a transient error (`Connection` /
+  `Rpc{Unavailable}`) with bounded exponential backoff (`RetryPolicy`), waiting via an injected
+  `Sleeper` port so the schedule is asserted with a fake (no wall-clock, 100%-gated). A new lazy
+  constructor (`BrainSeamClient::connect_lazy_with_token`) gives it a reconnecting channel, so a
+  briefly-down brain is retried and tonic reconnects transparently; the ungated shell composes it
+  (`seam::connect`, real `TokioSleeper`, env knobs) for the session-read path. `converse` is
+  forwarded **unchanged** (non-idempotent, one-shot `decisions` stream), so a failed turn stays
+  terminal. Remaining behind the same `BrainTransport`/`Sleeper` seams (ADR-0024 deferred):
+  randomized **jitter** (needs a randomness effect); **safe `converse` reconnect-before-first-event**
+  (needs a replayable request + a signature change); **dial-retry for the *eager* `connect`** (the
+  lazy path covers the shell); a **per-method / per-error-code policy**; and a **retry budget /
+  circuit-breaker** if a flapping brain ever makes blind retries wasteful.
 
 **Cortex chat / session in Slice 3:**
 - **Session-history windowing landed 2026-07-03 ([ADR-0014](adr/ADR-0014-history-windowing.md)).**

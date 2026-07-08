@@ -3,9 +3,10 @@
 
 use body_core::{SessionMessage, SessionSummary, TransportError};
 
-use crate::client::{SeamChannel, status_to_error};
+use crate::client::SeamChannel;
 use crate::generated::brain_service_client::BrainServiceClient;
 use crate::generated::{GetSessionMessagesRequest, ListSessionsRequest};
+use crate::status::status_to_error;
 
 /// Lists recent chats newest-active first (`BrainService.ListSessions`). At most
 /// `limit`; `0` means the brain's default.

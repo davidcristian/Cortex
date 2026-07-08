@@ -6,11 +6,12 @@ use body_core::{ConfirmDecision, TransportError, TurnEvent};
 use futures_core::Stream;
 use tokio_stream::StreamExt;
 
-use crate::client::{SeamChannel, status_to_error};
+use crate::client::SeamChannel;
 use crate::generated::brain_service_client::BrainServiceClient;
 use crate::generated::{
     ClientEvent, ConfirmResponse, ServerEvent, UserTurn, client_event, server_event,
 };
+use crate::status::status_to_error;
 
 /// The one-turn client request: a single `UserTurn`, then one `confirm_response` per decision, then
 /// end-of-stream when `decisions` ends (ADR-0022 defines the caller's sender going away as the

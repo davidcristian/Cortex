@@ -5,7 +5,9 @@ OS-capability ports in `os` (`Hotkey` from Slice 8; `AudioControl`/`ScreenCaptur
 `InputControl` join in Slices 9-10). No OS calls, ever. Per-platform backends live in
 the `os_windows`/`os_linux`/`os_macos` crates (`docs/modules/body-os.md`). Currently: the
 typed global-hotkey chord, the `BrainTransport` port to the brain seam (`health` +
-streaming `converse`), and the `Hotkey` port with the `Accelerator` chord→code mapping.
+streaming `converse`) with the `RetryingTransport` decorator + `Sleeper` port that add
+bounded-retry resilience over it (ADR-0024), and the `Hotkey` port with the `Accelerator`
+chord→code mapping.
 
 **Public contract.**
 
@@ -66,6 +68,27 @@ streaming `converse`), and the `Hotkey` port with the `Accelerator` chord→code
   The gRPC adapter is `body/crates/rpc` (`docs/modules/body-rpc.md`); fakes implement
   the same trait for tests.
 
+Retry resilience (`retry` module, ADR-0024) is a decorator over the port, so the adapter
+stays thin and the retry is exercised against a fake with no network or wall-clock:
+
+- `Sleeper` is a timer effect port: `sleep(&self, Duration) -> impl Future<Output = ()> +
+  Send`. The one seam the retry loop waits on; a fake records the schedule and returns
+  instantly, the real `tokio::time::sleep` lives in the ungated shell.
+- `RetryPolicy` (`Copy`, `Eq`, `Debug`) is a bounded exponential-backoff schedule: public
+  fields `max_attempts` (total tries incl. the first; `0`/`1` disable retry), `base_delay`,
+  `multiplier`, `max_delay` (cap). `delay(index)` = `min(base·multiplierⁱⁿᵈᵉˣ, max_delay)`
+  (saturating, so no overflow escapes the cap); `backoff(attempt, error)` returns the wait to
+  apply or `None` to give up (retry only while an attempt remains *and* the error is
+  transient). `Default` = 3 attempts / 200 ms / ×2 / 2 s cap.
+- `is_transient(&TransportError) -> bool` is the retryable classifier: `Connection` and
+  `Rpc{code=="Unavailable"}` are transient; every other `Rpc` status and `Protocol` are not.
+- `RetryingTransport<T: BrainTransport, S: Sleeper>` *is* a `BrainTransport`: wraps an
+  inner transport and retries its **idempotent** methods (`health`, `list_sessions`,
+  `session_messages`) on a transient failure per the policy, sleeping via the `Sleeper`
+  between tries. `converse` is forwarded **unchanged**, since it is non-idempotent, its `decisions`
+  stream is one-shot, and a failed turn is terminal by the overlay's contract (ADR-0024
+  decision 2). `new(inner, sleeper, policy)`.
+
 OS-capability ports (`os` module) are the first portability seam (ADR-0011):
 
 - `Hotkey` is the global-hotkey backend port: `register(&self, chord: &HotkeyChord,
@@ -92,5 +115,7 @@ OS-capability ports (`os` module) are the first portability seam (ADR-0011):
   modules; the 300-line cap counts source files, per ADR-0002).
 
 **Dependencies.** `thiserror` and `futures-core` (the `Stream` trait for the `converse`
-return type). Both are trait/type-only, no runtime. Dev-only: `tokio` and `tokio-stream`
-(to await the `health` and drain the `converse` contract streams).
+return type, and the `Future` bound the retry loop is generic over). Both are trait/type-only,
+no runtime; time is the injected `Sleeper` port, never a timer dependency. Dev-only: `tokio`
+and `tokio-stream` (to await `health`, drain the `converse` contract streams, and drive the
+`RetryingTransport` fakes).
