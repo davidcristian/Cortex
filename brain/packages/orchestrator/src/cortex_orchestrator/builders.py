@@ -2,7 +2,7 @@
 
 import logging
 from collections.abc import Awaitable, Callable, Collection
-from contextlib import AsyncExitStack
+from functools import partial
 
 import httpx
 
@@ -44,7 +44,11 @@ from cortex_orchestrator.config import (
     MemoryScopeName,
     ToolsConfig,
 )
-from cortex_tools import LoggingAuditSink, McpToolRegistry
+from cortex_tools import (
+    LoggingAuditSink,
+    ReconnectingMcpToolRegistry,
+    streamable_http_session,
+)
 
 # Connect/write/pool time out fast on a dead server; reads have no deadline, since a
 # generation may legitimately stream for a long time (the adapter sets no timeout itself).
@@ -109,33 +113,27 @@ async def build_memory(
     return None, noop_aclose
 
 
-async def build_tool_registry(
+def build_tool_registry(
     config: ToolsConfig,
 ) -> tuple[ToolRegistry | None, Callable[[], Awaitable[None]]]:
     """The raw MCP `ToolRegistry` shared by the cortex and its subagents, or None (ADR-0009)."""
     if config.backend != "mcp":
         return None, noop_aclose
-    stack = AsyncExitStack()
     registries: list[ToolRegistry] = []
-    try:
-        for name, url in config.named_endpoints.items():
-            registry, close = await McpToolRegistry.connect(url)
-            stack.push_async_callback(close)
-            allow = config.allow.get(name)
-            if allow:
-                registry = FilteredToolRegistry(registry, allow=allow)
-            if config.on_unavailable == "skip":
-                registry = SkipUnavailableToolRegistry(
-                    registry, name=name, report=_report_sidecar_unavailable
-                )
-            registries.append(registry)
-    except BaseException:
-        await stack.aclose()
-        raise
+    for name, url in config.named_endpoints.items():
+        registry: ToolRegistry = ReconnectingMcpToolRegistry(partial(streamable_http_session, url))
+        allow = config.allow.get(name)
+        if allow:
+            registry = FilteredToolRegistry(registry, allow=allow)
+        if config.on_unavailable == "skip":
+            registry = SkipUnavailableToolRegistry(
+                registry, name=name, report=_report_sidecar_unavailable
+            )
+        registries.append(registry)
     root = registries[0] if len(registries) == 1 else AggregateToolRegistry(registries)
     if config.gated:
         root = GatedToolRegistry(root, gated=config.gated)
-    return root, stack.aclose
+    return root, noop_aclose
 
 
 def build_output_guardrail(

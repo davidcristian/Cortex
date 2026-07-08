@@ -1,11 +1,12 @@
 [project]
 name = "cortex-tools"
 version = "0.0.0"
-description = "MCP-client adapter for the core's ToolRegistry port: audited tool dispatch over MCP servers (ADR-0009)."
+description = "MCP-client adapter for the core's ToolRegistry port: audited tool dispatch over MCP servers."
 requires-python = ">=3.12"
 dependencies = [
   "cortex-core",
   "mcp>=1.23,<2",
+  "httpx>=0.27",
 ]
 
 [tool.uv.sources]

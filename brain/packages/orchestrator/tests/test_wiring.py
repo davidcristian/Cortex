@@ -5,13 +5,17 @@ import logging
 import os
 import signal
 import socket
-from collections.abc import Awaitable, Callable, Mapping, Sequence
+from collections.abc import AsyncGenerator, Awaitable, Callable, Mapping, Sequence
+from contextlib import asynccontextmanager
 from typing import cast
 
+import httpx
 import pytest
 from fakeredis import FakeAsyncRedis, FakeServer
 from grpc import aio
+from mcp.types import CallToolResult, ListToolsResult, TextContent, Tool
 
+import cortex_orchestrator.builders as builders_module
 from cortex_body_client import GrpcBodyGateway
 from cortex_core import (
     DENIED_MSG,
@@ -39,7 +43,6 @@ from cortex_core import (
     SystemClock,
     ToolCall,
     ToolDispatcher,
-    ToolError,
     ToolNotFoundError,
     ToolSpec,
     UrlRedactingGuardrail,
@@ -68,7 +71,6 @@ from cortex_orchestrator import (
 )
 from cortex_seam import BrainServiceStub, ClientEvent, ServerEvent, UserTurn
 from cortex_session import RedisSessionStore, RedisTaskStore
-from cortex_tools import McpToolRegistry
 
 
 def _free_loopback_port() -> int:
@@ -213,46 +215,64 @@ def test_memory_scope_from_name_maps_config_to_the_policy() -> None:
 
 async def test_build_tool_registry_defaults_to_disabled() -> None:
     """The MCP-less default: no registry, and a closer that is a clean no-op."""
-    registry, close = await build_tool_registry(ToolsConfig(backend="none"))
+    registry, close = build_tool_registry(ToolsConfig(backend="none"))
     assert registry is None
     await close()  # no resources to release; must not raise
 
 
-async def test_build_tool_registry_selects_mcp_and_returns_a_closer(
+class _FakeMcpSession:
+    """A fake McpSession returning canned tools, each call reporting the URL it came from."""
+
+    def __init__(self, url: str, names: Sequence[str]) -> None:
+        self._url, self._names = url, names
+
+    async def list_tools(self) -> ListToolsResult:
+        return ListToolsResult(
+            tools=[Tool(name=n, description="", inputSchema={}) for n in self._names]
+        )
+
+    async def call_tool(
+        self, name: str, arguments: dict[str, object] | None = None
+    ) -> CallToolResult:
+        del name, arguments
+        return CallToolResult(content=[TextContent(type="text", text=self._url)], isError=False)
+
+
+def _fake_opener(
+    script: Mapping[str, Sequence[str] | BaseException], opens: list[str]
+) -> Callable[[str], object]:
+    """A fake `streamable_http_session`: per url it yields a canned session or raises (a down
+    sidecar). ``opens`` records every dial attempt, so lazy/boot-tolerant dialing is observable."""
+
+    @asynccontextmanager
+    async def opener(url: str) -> AsyncGenerator[_FakeMcpSession, None]:
+        opens.append(url)
+        outcome = script[url]
+        if isinstance(outcome, BaseException):
+            raise outcome
+        yield _FakeMcpSession(url, outcome)
+
+    return opener
+
+
+async def test_build_tool_registry_selects_mcp_and_dials_lazily(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """The opt-in path: the raw MCP registry (shared by cortex + subagents) + a closer."""
-    closed: list[str] = []
-    seen_url: list[str] = []
-
-    async def fake_connect(url: str) -> tuple[object, Callable[[], Awaitable[None]]]:
-        seen_url.append(url)
-
-        async def closer() -> None:
-            closed.append("session")
-
-        return object(), closer
-
-    monkeypatch.setattr(McpToolRegistry, "connect", fake_connect)
-    registry, close = await build_tool_registry(
-        ToolsConfig(backend="mcp", endpoint="http://fs:9000/mcp")
+    """The opt-in path dials nothing at build time (boot-tolerant, ADR-0009 addendum): the
+    reconnecting registry opens a session on first use, not at construction."""
+    opens: list[str] = []
+    monkeypatch.setattr(
+        builders_module,
+        "streamable_http_session",
+        _fake_opener({"http://fs:9000/mcp": ["read_text_file"]}, opens),
     )
+    registry, close = build_tool_registry(ToolsConfig(backend="mcp", endpoint="http://fs:9000/mcp"))
     assert registry is not None
-    assert seen_url == ["http://fs:9000/mcp"]
-    await close()  # releases the MCP session
-    assert closed == ["session"]
-
-
-def _canned_registry(url: str, *names: str) -> InMemoryToolRegistry:
-    """One tool per name, each replying with the URL it came from, so routing is visible."""
-
-    async def reply(arguments: Mapping[str, object]) -> str:
-        del arguments
-        return url
-
-    return InMemoryToolRegistry(
-        {n: (ToolSpec(name=n, description="", parameters={}), reply) for n in names}
-    )
+    assert opens == []  # no dial at build, so a sidecar down at boot does not fail the build
+    names = [spec.name for spec in await registry.describe_tools()]
+    assert names == ["read_text_file"]
+    assert opens == ["http://fs:9000/mcp"]  # dialed on first use
+    await close()  # no held session; a clean no-op
 
 
 async def test_build_tool_registry_filters_and_aggregates_endpoints(
@@ -262,20 +282,13 @@ async def test_build_tool_registry_filters_and_aggregates_endpoints(
     in sorted-name order (ADR-0009 refinements addendum)."""
     fs_url = "http://mcp-filesystem:9000/mcp"
     mail_url = "http://mcp-email:9100/mcp"
-    canned = {
-        fs_url: _canned_registry(fs_url, "read_text_file", "write_file"),
-        mail_url: _canned_registry(mail_url, "read_email"),
-    }
-    closed: list[str] = []
-
-    async def fake_connect(url: str) -> tuple[object, Callable[[], Awaitable[None]]]:
-        async def closer() -> None:
-            closed.append(url)
-
-        return canned[url], closer
-
-    monkeypatch.setattr(McpToolRegistry, "connect", fake_connect)
-    registry, close = await build_tool_registry(
+    opens: list[str] = []
+    monkeypatch.setattr(
+        builders_module,
+        "streamable_http_session",
+        _fake_opener({fs_url: ["read_text_file", "write_file"], mail_url: ["read_email"]}, opens),
+    )
+    registry, close = build_tool_registry(
         ToolsConfig(
             backend="mcp",
             endpoints={"filesystem": fs_url, "email": mail_url},
@@ -290,42 +303,23 @@ async def test_build_tool_registry_filters_and_aggregates_endpoints(
     assert routed.content == fs_url
     with pytest.raises(ToolNotFoundError, match="unknown tool 'write_file'"):
         await registry.invoke(ToolCall(id="c2", name="write_file", arguments={}))
-    await close()  # releases every session, LIFO
-    assert closed == [fs_url, mail_url]
+    await close()
 
 
-class DeadListingRegistry:
-    """A connected registry whose listing fails (the sidecar died after connect)."""
-
-    async def describe_tools(self) -> Sequence[ToolSpec]:
-        msg = "sidecar gone"
-        raise ToolError(msg)
-
-    async def invoke(self, call: ToolCall) -> object:
-        del call
-        msg = "never routed to"
-        raise ToolError(msg)
-
-
-async def test_build_tool_registry_skip_mode_serves_around_a_dead_sidecar(
+async def test_build_tool_registry_skip_mode_serves_around_an_unavailable_sidecar(
     monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """CORTEX_TOOLS_ON_UNAVAILABLE=skip: healthy sidecars serve, the dead one is logged."""
+    """CORTEX_TOOLS_ON_UNAVAILABLE=skip: healthy sidecars serve, a sidecar down at boot (its dial
+    fails) is mapped to ToolError, skipped, and logged (ADR-0009 boot-tolerance addendum)."""
     fs_url = "http://mcp-filesystem:9000/mcp"
     mail_url = "http://mcp-email:9100/mcp"
-    canned: dict[str, object] = {
-        fs_url: _canned_registry(fs_url, "read_text_file"),
-        mail_url: DeadListingRegistry(),
-    }
-
-    async def fake_connect(url: str) -> tuple[object, Callable[[], Awaitable[None]]]:
-        async def closer() -> None:
-            return
-
-        return canned[url], closer
-
-    monkeypatch.setattr(McpToolRegistry, "connect", fake_connect)
-    registry, close = await build_tool_registry(
+    opens: list[str] = []
+    monkeypatch.setattr(
+        builders_module,
+        "streamable_http_session",
+        _fake_opener({fs_url: ["read_text_file"], mail_url: httpx.ConnectError("refused")}, opens),
+    )
+    registry, close = build_tool_registry(
         ToolsConfig(
             backend="mcp",
             endpoints={"filesystem": fs_url, "email": mail_url},
@@ -335,38 +329,28 @@ async def test_build_tool_registry_skip_mode_serves_around_a_dead_sidecar(
     assert registry is not None
     with caplog.at_level(logging.WARNING, logger="cortex_orchestrator.builders"):
         names = [spec.name for spec in await registry.describe_tools()]
-    assert names == ["read_text_file"]  # the email sidecar is skipped, not fatal
+    assert names == ["read_text_file"]  # the down email sidecar is skipped, not fatal
     (record,) = caplog.records  # … and reported, never silent
     # The reporter's structured fields ride on the LogRecord as dynamic attributes.
     assert getattr(record, "sidecar", "") == "email"
-    assert "sidecar gone" in str(getattr(record, "error", ""))
+    assert "MCP sidecar unavailable" in str(getattr(record, "error", ""))
     await close()
 
 
-async def test_build_tool_registry_unwinds_sessions_when_a_later_connect_fails(
+def test_build_tool_registry_tolerates_a_sidecar_down_at_build_time(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """A failed connect must not leak the sessions already opened before it."""
-    closed: list[str] = []
-
-    async def fake_connect(url: str) -> tuple[object, Callable[[], Awaitable[None]]]:
-        if url == "http://b:9100/mcp":
-            msg = "connect refused"
-            raise ToolError(msg)
-
-        async def closer() -> None:
-            closed.append(url)
-
-        return _canned_registry(url, "read"), closer
-
-    monkeypatch.setattr(McpToolRegistry, "connect", fake_connect)
-    config = ToolsConfig(
-        backend="mcp",
-        endpoints={"a": "http://a:9000/mcp", "b": "http://b:9100/mcp"},
+    """The boot-tolerance guarantee: building never dials, so a sidecar down at startup no longer
+    fails the build. It is dialed (and skipped, if configured) only on first use (ADR-0009)."""
+    opens: list[str] = []
+    monkeypatch.setattr(
+        builders_module,
+        "streamable_http_session",
+        _fake_opener({"http://down:9000/mcp": httpx.ConnectError("refused")}, opens),
     )
-    with pytest.raises(ToolError, match="connect refused"):
-        await build_tool_registry(config)
-    assert closed == ["http://a:9000/mcp"]
+    registry, _ = build_tool_registry(ToolsConfig(backend="mcp", endpoint="http://down:9000/mcp"))
+    assert registry is not None  # the down endpoint did not fail the build …
+    assert opens == []  # … because nothing was dialed
 
 
 async def test_build_subagents_defaults_to_disabled() -> None:
@@ -629,16 +613,12 @@ async def test_build_tool_registry_stamps_gated_names_at_the_root(
     gated=False from MCP and leaves the shared root gated=True because it is declared brain-side,
     with the default CORTEX_TOOLS_GATED covering it (fail-closed pairing)."""
     url = "http://mcp-email:9100/mcp"
-    canned = _canned_registry(url, "read_email", "send_email")
-
-    async def fake_connect(_url: str) -> tuple[object, Callable[[], Awaitable[None]]]:
-        async def closer() -> None:
-            return
-
-        return canned, closer
-
-    monkeypatch.setattr(McpToolRegistry, "connect", fake_connect)
-    registry, close = await build_tool_registry(ToolsConfig(backend="mcp", endpoint=url))
+    monkeypatch.setattr(
+        builders_module,
+        "streamable_http_session",
+        _fake_opener({url: ["read_email", "send_email"]}, []),
+    )
+    registry, close = build_tool_registry(ToolsConfig(backend="mcp", endpoint=url))
     assert registry is not None
     gated = {spec.name: spec.gated for spec in await registry.describe_tools()}
     assert gated == {"read_email": False, "send_email": True}
@@ -652,16 +632,10 @@ async def test_build_tool_registry_gated_overlay_disabled_by_an_empty_list(
 ) -> None:
     """CORTEX_TOOLS_GATED=[] is the documented off switch for the overlay."""
     url = "http://mcp-email:9100/mcp"
-    canned = _canned_registry(url, "send_email")
-
-    async def fake_connect(_url: str) -> tuple[object, Callable[[], Awaitable[None]]]:
-        async def closer() -> None:
-            return
-
-        return canned, closer
-
-    monkeypatch.setattr(McpToolRegistry, "connect", fake_connect)
-    registry, close = await build_tool_registry(ToolsConfig(backend="mcp", endpoint=url, gated=()))
+    monkeypatch.setattr(
+        builders_module, "streamable_http_session", _fake_opener({url: ["send_email"]}, [])
+    )
+    registry, close = build_tool_registry(ToolsConfig(backend="mcp", endpoint=url, gated=()))
     assert registry is not None
     (spec,) = await registry.describe_tools()
     assert spec.gated is False
