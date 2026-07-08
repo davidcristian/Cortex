@@ -212,3 +212,25 @@ surfaced as overlay state; and the remaining `BodyService` RPCs (`CaptureScreen`
 - **Body binds loopback only.** Rejected as insufficient for the container→host path (the
   brain cannot reach the host's `127.0.0.1`); a configurable bind + the seam token is the
   chosen resolution of assumption 5's revisit.
+
+## Addendum (2026-07-08): agent-Docker validation of the dial across the container boundary
+
+The agent half is validated. A host-side fake `BodyService` (the runbook's blessed path: the
+`test_gateway.py` `FakeBody` as template, with stateful volume and a required token) was served on
+`0.0.0.0:50151` from the brain venv, and `test_gateway_live.py` ran **from a container** (the
+uv builder image with the brain workspace mounted; the shipped runtime image carries no dev
+deps) with `--add-host host.docker.internal:host-gateway`, `CORTEX_BODY_ENDPOINT=
+host.docker.internal:50151`, and the shared `CORTEX_SEAM_TOKEN`:
+
+- **Tokened dial: 1 passed (0.14 s).** The containerized `GrpcBodyGateway` resolved
+  `host.docker.internal`, attached `x-cortex-seam-token`, and round-tripped
+  `GetVolume` → `SetVolume(0.8)` → restore `SetVolume(0.5)`. The server log shows exactly
+  those three calls, and the test left the state as it found it.
+- **Untokened dial: rejected.** The same run without the token failed with
+  `UNAUTHENTICATED: invalid or missing seam token`, surfaced as `BodyGatewayError`. So the
+  reversed seam token is enforced across the container boundary, not just on loopback.
+
+Assumption 3 (`host.docker.internal` reachability, here via the `host-gateway` mapping on a
+native WSL2 dockerd) holds. Remaining for the slice: only the **Host-Windows** half, the real
+`WindowsAudioControl` Core Audio backend and the spoken "set volume to 30%" end to end
+([body-volume.md](../runbooks/body-volume.md)).
