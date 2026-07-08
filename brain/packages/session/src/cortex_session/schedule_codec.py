@@ -1,0 +1,98 @@
+"""The RedisScheduleStore's record codec + key layout (ADR-0025).
+
+Schedules are DURABLE, long-horizon records in the opposite retention class from the TTL'd,
+marker-less task records, so they take the session store's durable-record policy: every
+record carries ``{"v": 1, "kind": "schedule"}``, unknown EXTRA keys are ignored (forward-
+compatible additions), an unknown kind/version or a malformed record fails LOUDLY naming its
+key, with no silent skip. The claim fencing token and claim time are persisted INSIDE the
+record (adapter mechanics, not domain state): the domain ``ScheduledItem`` never carries them.
+"""
+
+import json
+from datetime import datetime, timedelta
+from typing import Any, cast
+
+from cortex_core import ScheduledItem, ScheduleKind, ScheduleStatus, ScheduleStoreError
+
+RECORD_KIND = "schedule"
+RECORD_VERSION = 1
+
+DUE_KEY = "cortex:schedules:due"
+FIRING_KEY = "cortex:schedules:firing"
+DELIVERABLE_KEY = "cortex:schedules:deliverable"
+DEAD_KEY = "cortex:schedules:dead"
+
+
+def record_key(item_id: str) -> str:
+    return f"cortex:schedule:{item_id}"
+
+
+def encode(item: ScheduledItem, *, claim: str | None, claimed_at: datetime | None) -> str:
+    """One JSON document per schedule; ``claim``/``claimed_at`` ride only while FIRING."""
+    return json.dumps(
+        {
+            "v": RECORD_VERSION,
+            "kind": RECORD_KIND,
+            "id": item.id,
+            "item_kind": item.kind.value,
+            "text": item.text,
+            "session_id": item.session_id,
+            "due_at": item.due_at.isoformat(),
+            "created_at": item.created_at.isoformat(),
+            "every_s": item.every.total_seconds() if item.every is not None else None,
+            "model": item.model,
+            "tainted": item.tainted,
+            "status": item.status.value,
+            "deliverable_since": (
+                item.deliverable_since.isoformat() if item.deliverable_since is not None else None
+            ),
+            "last_outcome": item.last_outcome,
+            "claim": claim,
+            "claimed_at": claimed_at.isoformat() if claimed_at is not None else None,
+        }
+    )
+
+
+def decode(raw: bytes | str, item_id: str) -> tuple[ScheduledItem, str | None, datetime | None]:
+    """Decode the record at ``item_id``'s key; every failure names that key precisely.
+
+    Returns ``(item, claim, claimed_at)``. Only known keys are read (unknown extras pass
+    through untouched); an unknown kind/version raises BEFORE field decoding so a future
+    record shape fails with the precise message, not an arbitrary missing-field error.
+    """
+    try:
+        fields = cast("dict[str, Any]", json.loads(raw))
+        kind = fields.get("kind", RECORD_KIND)
+        version = fields.get("v", RECORD_VERSION)
+        if kind != RECORD_KIND or version != RECORD_VERSION:
+            msg = (
+                f"unreadable schedule record at {record_key(item_id)!r}: kind {kind!r}"
+                f" v {version!r} (this reader supports kind {RECORD_KIND!r} v {RECORD_VERSION})"
+            )
+            raise ScheduleStoreError(msg)
+        every_s = fields["every_s"]
+        deliverable_since = fields["deliverable_since"]
+        claim = cast("str | None", fields["claim"])
+        raw_claimed_at = fields["claimed_at"]
+        claimed_at = datetime.fromisoformat(raw_claimed_at) if raw_claimed_at is not None else None
+        item = ScheduledItem(
+            id=fields["id"],
+            kind=ScheduleKind(fields["item_kind"]),
+            text=fields["text"],
+            session_id=fields["session_id"],
+            due_at=datetime.fromisoformat(fields["due_at"]),
+            created_at=datetime.fromisoformat(fields["created_at"]),
+            every=timedelta(seconds=every_s) if every_s is not None else None,
+            model=fields["model"],
+            tainted=fields["tainted"],
+            status=ScheduleStatus(fields["status"]),
+            deliverable_since=(
+                datetime.fromisoformat(deliverable_since) if deliverable_since is not None else None
+            ),
+            last_outcome=fields["last_outcome"],
+        )
+    except (AttributeError, KeyError, TypeError, ValueError) as err:
+        # AttributeError: a JSON document that is not an object has no .get.
+        msg = f"corrupt schedule record at {record_key(item_id)!r}"
+        raise ScheduleStoreError(msg) from err
+    return item, claim, claimed_at

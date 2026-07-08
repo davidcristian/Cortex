@@ -47,6 +47,15 @@ class BodyGatewayError(Exception):
     """
 
 
+class ScheduleStoreError(Exception):
+    """A ScheduleStore operation failed (schedule adapters wrap their backend's errors).
+
+    A store-down signal, not a poison record: per-record corruption on the claim path is
+    quarantined inside the adapter (ADR-0025 decision 1), so the ticker treats this error
+    as transient (log, skip the pass, retry next poll).
+    """
+
+
 class ModelManagerError(Exception):
     """A ModelManager operation failed; adapters wrap their backend's errors into this."""
 

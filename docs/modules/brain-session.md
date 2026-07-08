@@ -1,9 +1,9 @@
 # brain/packages/session (`cortex_session`)
 
-**Purpose.** The Redis adapters for the core's hot-state ports, `SessionStore` (conversation
-history) and `TaskStore` (subagent tasks + results), the state that survives orchestrator
-restarts and model swaps (the one hard rule). Translators only: serialization, key layout, and
-error wrapping; no business logic.
+**Purpose.** The Redis adapters for the core's stateful ports, `SessionStore` (conversation
+history), `TaskStore` (subagent tasks + results), and `ScheduleStore` (durable schedules,
+ADR-0025), the state that survives orchestrator restarts and model swaps (the one hard rule).
+Translators only: serialization, key layout, and error wrapping; no business logic.
 
 **Public contract** (everything importable from `cortex_session`; `__all__` is the API):
 
@@ -28,6 +28,23 @@ error wrapping; no business logic.
     document (unknown id → `None`).
   - `async put_result(result)` / `async get_result(task_id)` SET/GET one `SubagentResult`
     JSON document (unknown id → `None`).
+- `RedisScheduleStore` implements the `ScheduleStore` port over redis-py asyncio
+  (ADR-0025), same injected-client / `from_url` / `aclose` shape as above. The fenced
+  claim→finish protocol's *semantics* live at the port (a stale token no-ops `False`;
+  `cancel` deletes outright and so sticks through an in-flight fire; terminal items are
+  deleted unless deliverable); this adapter translates them onto the key layout below:
+  - `async add(item)` / `async get(item_id)` handle one versioned JSON record per schedule.
+  - `async list_active()` is the union of the three live indexes, records loaded and sorted by
+    due time (dangling index ids skipped; a present-but-corrupt record fails loudly).
+  - `async cancel(item_id)` deletes the record + every index entry in one MULTI/EXEC (never
+    decodes, so a corrupt record is cancellable too).
+  - `async claim_due(now, *, lease, limit)` returns due PENDING ids plus lease-expired FIRING
+    ids (both score-bounded reads), each moved to FIRING under a fresh uuid token; an
+    undecodable record is **quarantined** to the dead-letter hash instead of failing the
+    pass; candidates merged past `limit` are released back (bounded surplus).
+  - `async finish(claim, outcome)` / `async release(claim)` are guarded by the record's
+    live token; one MULTI/EXEC re-arms/terminates (finish) or returns to PENDING (release).
+  - `async deliverable()` / `async ack(item_id)` are the fired-reminder delivery slot.
 - `DEFAULT_REDIS_URL` is `"redis://127.0.0.1:6379/0"`. Deployments override via
   `CORTEX_REDIS_URL`, read by the composition root (orchestrator settings), never by
   this adapter.
@@ -53,6 +70,20 @@ resolution inputs and the taint verdict are exactly what must survive a restart 
 mid-delegation (taint that did not would fail open), and both decode strictly (a missing key is
 a corrupt record, no legacy paths, since ephemeral records need none).
 
+Schedule state (ADR-0025) is the durable retention class again: one record per schedule at
+`cortex:schedule:{id}` storing `{"v": 1, "kind": "schedule", "id", "item_kind", "text",
+"session_id", "due_at", "created_at", "every_s", "model", "tainted", "status",
+"deliverable_since", "last_outcome", "claim", "claimed_at"}` with **no TTL** (the task
+store's expiry would silently drop reminders) and the session store's `v`/`kind` markers +
+evolution policy. The fencing `claim` token and `claimed_at` are adapter mechanics persisted
+inside the record; the domain `ScheduledItem` never carries them. Three ZSET indexes drive
+the ticker and delivery. They are `cortex:schedules:due` (score = due-at epoch),
+`cortex:schedules:firing` (score = claim epoch, the lease), `cortex:schedules:deliverable`
+(score = fired-at epoch), plus the dead-letter hash `cortex:schedules:dead` holding
+quarantined raw records for forensics (retention/inspection tooling is a recorded deferral).
+Every record+index update runs as one MULTI/EXEC pipeline, so a crash cannot orphan a record
+from its indexes.
+
 **Record evolution policy.**
 - *New optional keys are safe*: the reader touches only the keys it knows, so extra
   keys added by a newer writer are ignored (forward-compatible additions).
@@ -67,10 +98,12 @@ a corrupt record, no legacy paths, since ephemeral records need none).
   that would invisibly corrupt the context of a future handoff.
 
 **Error contract.** Every Redis/connection failure and every corrupt or unreadable stored
-record is raised as the core's `SessionStoreError` (session) or `TaskStoreError` (task);
-backend failures carry the original exception chained as `__cause__`, decode failures name the
-offending record (session: list index + kind/version; task: the key); no `redis.exceptions.*`
-type ever crosses the port.
+record is raised as the core's `SessionStoreError` (session), `TaskStoreError` (task), or
+`ScheduleStoreError` (schedule); backend failures carry the original exception chained as
+`__cause__`, decode failures name the offending record (session: list index + kind/version;
+task/schedule: the key); no `redis.exceptions.*` type ever crosses the port. The one
+exception to fail-loud is the schedule **claim path**, where a corrupt record quarantines
+(ADR-0025's poison-pill defense) rather than raising.
 
 **Contract tests.** `tests/contract.py` is one shared behavior suite (empty history,
 append→history order, multi-session isolation, roundtrip fidelity incl. timezone, and
@@ -81,12 +114,19 @@ Redis-specific `list_sessions` edges (empty store, limit, dangling index entry).
 `list_sessions` check filters the global list to the ids it created, so it is safe against
 a shared live server. `tests/task_contract.py`
 does the same for the `TaskStore` (missing→None, task/result round-trip, timezone fidelity) over
-`InMemoryTaskStore` and `RedisTaskStore`, plus disconnected/corrupt-record failure tests. The
-integration-marked test in `tests/test_store_live.py` runs the session suite against real
-Redis at `CORTEX_REDIS_URL` (excluded from CI/coverage by the workspace addopts; run
-manually: `cd brain && uv run pytest -m integration --no-cov packages/session`. The
-`--no-cov` matters, the 100% gate in addopts would otherwise fail the run) and cleans
-up the keys it creates.
+`InMemoryTaskStore` and `RedisTaskStore`, plus disconnected/corrupt-record failure tests.
+`tests/schedule_contract.py` does it for the `ScheduleStore`. The fenced protocol is the
+point of that suite (stale finish rejected, cancel-during-fire sticks, lease-expiry re-claim
+under a fresh token, terminal cleanup, fire-time taint OR, delivery lifecycle), and it runs over
+`InMemoryScheduleStore` and `RedisScheduleStore`, with adapter-only mechanics (error wrapping
+per operation, codec policy, quarantine, dangling-id tolerance, surplus release) tested against
+the Redis adapter alone. The integration-marked tests in `tests/test_store_live.py` and
+`tests/test_schedule_live.py` run the suites against real Redis at `CORTEX_REDIS_URL`
+(excluded from CI/coverage by the workspace addopts; run manually:
+`cd brain && uv run pytest -m integration --no-cov packages/session`. Here the `--no-cov`
+matters, the 100% gate in addopts would otherwise fail the run) and clean up the keys they
+create; the schedule live test additionally **skips when real schedules exist** (its checks
+assert exact global views and claim whatever is due, so it refuses to disturb them).
 
 **Invariants.**
 - State outlives every process: nothing is cached in the adapter; every read hits
