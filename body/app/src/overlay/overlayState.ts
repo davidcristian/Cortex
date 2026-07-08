@@ -112,9 +112,10 @@ export function reduce(state: OverlayState, action: Action): OverlayState {
       // The user answered (either way); the card leaves. The answer itself rides the bridge.
       return { ...state, pendingConfirm: null };
     case "previewFade":
-      // A pending approval waits to be seen (the errors rule, design/overlay-ux.md §4):
-      // the preview never fades out from under an open question.
-      return state.mode === "preview" && state.pendingConfirm === null
+      // A pending approval waits to be seen (the errors rule, design/overlay-ux.md §4), and a
+      // still-streaming turn is never faded from under: a confirm approved mid-turn keeps the
+      // preview up until the turn completes, then the fade countdown starts (useOverlay).
+      return state.mode === "preview" && state.pendingConfirm === null && !isTurnActive(state)
         ? { ...state, mode: "hidden" }
         : state;
     case "newChat":

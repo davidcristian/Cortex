@@ -168,3 +168,20 @@ def test_the_smtp_prefixed_enable_name_is_not_a_second_channel(
     monkeypatch.setenv("CORTEX_EMAIL_SMTP_USER", "me@example.com")
     monkeypatch.setenv("CORTEX_EMAIL_SMTP_PASSWORD", "pw")
     assert SmtpConfig().enabled is False
+
+
+def test_send_rejects_a_newline_in_the_recipient(monkeypatch: pytest.MonkeyPatch) -> None:
+    # Header injection is refused in code, not left to the interpreter's patch level (ADR-0022).
+    client = _FakeSmtp()
+    _patch(monkeypatch, client, "starttls")
+    with pytest.raises(ValueError, match="recipient must not contain a newline"):
+        SmtpSender(_config()).send("you@example.com\r\nBcc: evil@x.test", "Hi", "b")
+    assert client.sent == []  # never reached the wire
+
+
+def test_send_rejects_a_newline_in_the_subject(monkeypatch: pytest.MonkeyPatch) -> None:
+    client = _FakeSmtp()
+    _patch(monkeypatch, client, "starttls")
+    with pytest.raises(ValueError, match="subject must not contain a newline"):
+        SmtpSender(_config()).send("you@example.com", "Hi\nBcc: evil@x.test", "b")
+    assert client.sent == []

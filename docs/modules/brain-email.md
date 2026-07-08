@@ -36,7 +36,8 @@ denied outright.
 - `EmailSender` is the `Protocol` the send tool needs (`send(to, subject, body) -> str`).
 - `SmtpSender(config)` is the `EmailSender` over smtplib + STARTTLS (or implicit TLS),
   connecting per call. `From` is the authenticated Bridge user, never a parameter, so the tool
-  cannot spoof a sender. Returns one readable confirmation line.
+  cannot spoof a sender; a CR/LF in the recipient or subject is refused in code (header
+  injection, not left to the interpreter's patch level). Returns one readable confirmation line.
 - `SmtpConfig` holds env-driven settings (`CORTEX_EMAIL_SMTP_*` + `CORTEX_EMAIL_SEND_ENABLED`):
   defaults target the Bridge SMTP loopback (127.0.0.1:1025, STARTTLS) with the same
   cert-verification escape hatches as IMAP; enabling send without credentials fails fast at
