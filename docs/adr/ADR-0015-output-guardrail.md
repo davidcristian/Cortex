@@ -277,3 +277,58 @@ bracket/`hxxp` defang is already covered), so the value is low and the cost high
 **cross-script homoglyphs / IDN / punycode** (needs a confusables table + dependency);
 **multi-pass percent-encoding**; and **`data:`** and other schemes. Safety stays deterministic:
 what is not matched is not redacted, never mis-instructed.
+
+## Addendum (2026-07-08): obfuscation-resistant matching (multi-pass percent-encoding + curated cross-script homoglyphs)
+
+Advances two more of the obfuscation-resistant deferrals. Like the earlier addenda it is
+**grammar-and-identity only (no seam change)**: both `OutputGuardrail` policies, the `TaintLedger`,
+`TaintView`, the streaming filter, and the config are untouched; redact and strict mode inherit the
+wider identity for free; a clean/untainted turn is byte-identical to before. Everything stays
+**deterministic and dependency-free** (stdlib `re`/`urllib.parse`/`unicodedata` only). Both passes
+are pure *identity* widening. The matcher (`URL_RE`) and the streaming hold-back (`_SCHEME_PREFIXES`)
+are unchanged, because both new forms live *inside* an already-matched URL (a stacked `%25…`, a
+non-ASCII host letter, and neither is whitespace or a closer, so `_URL_CHAR` already consumes them).
+
+### Multi-pass percent-encoding
+
+`normalize_url` now percent-decodes to a **fixpoint** (`_percent_decode`: `unquote` until the string
+stops changing, bounded by `_MAX_PERCENT_DECODE_PASSES`) instead of once, so a *stacked* escape
+reduces to the plain identity: `http://evil%252eexample` → `http://evil%2eexample` →
+`http://evil.example`. This **reverses** the third addendum's deliberate "single-pass (matching a
+browser's one decode per hop)" boundary, with reasoning: the guardrail models *destination identity*,
+not one browser hop, and a chain of redirects/proxies can resolve nested escapes; and, decisively,
+the decode is **symmetric** (the collected URL and its reply reproduction fold identically), so
+multi-pass can only *close a redact-mode gap* (a `%252e` transform single-pass missed) and adds **no
+new match surface**. Termination is guaranteed independently of the cap. Each non-fixpoint `unquote`
+strictly shrinks the string (a `%XX` → one character), so the cap is a belt-and-suspenders DoS
+bound: a URL with more stacked encodings than that is never a real clickable link and is left
+*partially* decoded (still symmetric, so both sides compare equal, and the bound never causes a
+missed match at equal depth, only declines to over-resolve an absurd one).
+
+### Cross-script homoglyphs (curated table, no dependency)
+
+`normalize_url` folds a **curated table** of the common single-script confusable letters, namely the
+Cyrillic and Greek glyphs that render identically to an ASCII Latin letter (`а е о р с у х …` →
+`a e o p c y x …`, Greek `ο`/`ρ` → `o`/`p`, plus the classic uppercase Cyrillic `ABEKMHOPCTYX`
+lookalikes) to their ASCII twin (`_fold_confusables`, a `str.translate`), so a homoglyph host
+normalizes to its plain identity (`http://<Cyrillic е><Cyrillic v-less…>`, e.g. Cyrillic `расе` →
+`pace`). This partially closes the "cross-script homoglyphs / IDN / punycode" deferral **without the
+dependency** the third addendum named as the blocker: a small, hand-curated, high-confidence table is
+stdlib-only and deterministic, unlike the full UTS-39 confusables set. It runs *after* NFKC (which
+already handles the fullwidth/compatibility subclass) and after percent-decoding, so a
+percent-encoded homoglyph (`%D0%B0` → Cyrillic `а` → `a`) folds too. The passes compose. The scheme
+must still be ASCII or defanged (a homoglyph *scheme* would not match `URL_RE`, unchanged), which is
+fine: homoglyph attacks target the host, and this covers the host.
+
+**Scope / FP tradeoff (the riskiest assumption).** Folding a confusable letter *widens* a security
+redaction and is *symmetric* on both sides of the defense, so its only false positive is a
+**legitimately** Cyrillic/Greek URL in the model's reply folding to an identity that collides with an
+untrusted-collected one (redact mode, vanishingly rare in a single-user, English-first deployment),
+or being redacted on a *tainted* turn (where strict mode already redacts every non-user link). Given
+that, and that the whole guardrail is `off`-able, the curated fold is judged worth its budget now
+(user-reviewable; the table is one edit to trim). What stays **deferred** behind the same grammar:
+the **full UTS-39 confusables set** and **IDN/punycode** canonicalization (both need a dependency and
+a real FP budget. The curated table is the pragmatic 95% without either); **whitespace-split** defang
+(`evil dot com` has no scheme to anchor, prose FP, not clickable); **mixed/other encodings** beyond
+percent; and **`data:`** and further schemes (`\bdata:` fires on prose like `data:the results`; no
+observed vector). Safety stays deterministic: what is not matched is not redacted, never mis-instructed.

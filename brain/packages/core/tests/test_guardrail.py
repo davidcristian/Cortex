@@ -331,3 +331,79 @@ def test_ftp_scheme_split_across_chunks_is_carried_not_lost() -> None:
     guard = _filter({"ftp://files.evil.example"})
     assert guard.feed("grab it from ft") == "grab it from "
     assert guard.feed("p://files.evil.example ") == f"{REDACTED_LINK} "
+
+
+# --- Obfuscation-resistant matching: multi-pass percent-encoding (ADR-0015 fourth addendum). A
+# stacked escape reduces to one identity, not just a single browser-hop decode. -----------------
+
+
+def test_extract_urls_multipass_percent_decodes_to_a_canonical_identity() -> None:
+    # `%252e` is `.` encoded twice; decoding to a fixpoint (not once) reduces it to the plain host.
+    assert extract_urls("http://evil%252eexample") == {"http://evil.example"}
+
+
+def test_a_double_encoded_url_and_its_plain_twin_share_one_identity() -> None:
+    assert extract_urls("http://evil%252eexample") == extract_urls("http://evil.example")
+
+
+def test_multipass_percent_transform_of_a_collected_url_is_redacted() -> None:
+    # EVIL-host collected plain; the reply double-encodes the dot. Redact mode still catches it,
+    # because the stacked escape normalizes back to the collected identity.
+    guard = _filter({"http://evil.example"})
+    fed = guard.feed("see http://evil%252eexample now") + guard.flush()
+    assert fed == f"see {REDACTED_LINK} now"
+
+
+def test_percent_decoding_is_bounded_on_absurdly_deep_encoding() -> None:
+    # `_percent_decode` stops after `_MAX_PERCENT_DECODE_PASSES` (= 5) passes, so a dot encoded six
+    # levels deep (`"%" + "25"*(k-1) + "2e"`) is left *partially* decoded, never over-resolved. The
+    # bound is symmetric, so an equal-depth transform still matches; it only declines an absurd one.
+    six_deep = "http://evil%25252525252eexample"  # the dot, encoded six levels deep
+    assert extract_urls(six_deep) == {"http://evil%2eexample"}
+
+
+# --- Obfuscation-resistant matching: curated cross-script homoglyphs (ADR-0015 fourth addendum).
+# Cyrillic/Greek Latin-lookalikes fold to their ASCII twin, so a homoglyph host matches its plain
+# form. Fixtures are written as \u escapes so the confusable codepoint under test is explicit. -----
+
+
+# Cyrillic p/a/c/e lookalikes (U+0440 0430 0441 0435) render as "pace"; the RUF001 noqa marks the
+# deliberate ambiguous-glyph fixture (same convention as the fullwidth-homoglyph tests above).
+_CYRILLIC_PACE = "http://расе.example"  # noqa: RUF001
+
+
+def test_extract_urls_folds_cyrillic_homoglyphs_to_ascii() -> None:
+    assert extract_urls(_CYRILLIC_PACE) == {"http://pace.example"}
+
+
+def test_a_homoglyph_host_and_its_ascii_twin_share_one_identity() -> None:
+    assert extract_urls(_CYRILLIC_PACE) == extract_urls("http://pace.example")
+
+
+def test_extract_urls_folds_uppercase_cyrillic_homoglyphs() -> None:
+    # The classic uppercase C/O lookalikes (U+0421 041E) fold too, then the authority lowercases.
+    assert extract_urls("http://СО.example") == {"http://co.example"}  # noqa: RUF001
+
+
+def test_extract_urls_folds_greek_homoglyphs() -> None:
+    # Greek rho + omicron (U+03C1 03BF) render as "po".
+    assert extract_urls("http://ρο.example") == {"http://po.example"}  # noqa: RUF001
+
+
+def test_a_percent_encoded_homoglyph_folds_to_ascii() -> None:
+    # The passes compose: `%D0%B0` percent-decodes to the Cyrillic a-lookalike (U+0430), which the
+    # confusable fold then reduces to ASCII `a`, so the host `p<U+0430>ce` normalizes to `pace`.
+    assert extract_urls("http://p%D0%B0ce.example") == {"http://pace.example"}
+
+
+def test_cyrillic_homoglyph_transform_of_a_collected_url_is_redacted() -> None:
+    # "pace.example" collected plain; the reply spells the host in Cyrillic. Redact catches it.
+    guard = _filter({"http://pace.example"})
+    fed = guard.feed(f"see {_CYRILLIC_PACE} now") + guard.flush()
+    assert fed == f"see {REDACTED_LINK} now"
+
+
+def test_strict_tainted_turn_redacts_a_homoglyph_link() -> None:
+    # A homoglyph link never collected verbatim is still distrusted on a tainted turn.
+    guard = _strict(_Taint(tainted=True))
+    assert guard.feed(f"go to {_CYRILLIC_PACE} ") == f"go to {REDACTED_LINK} "
