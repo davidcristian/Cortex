@@ -742,9 +742,17 @@ behind the unchanged `ToolRegistry`/`ToolDispatcher`/`stream_tool_loop` seams (o
   policies), and `normalize_url` gained **percent-decoding** (`evil%2ecom`→`evil.com`) + **NFKC**
   folding (fullwidth/compatibility homoglyphs → ASCII), while the matcher gained the **`ftp://`
   and `tel:`** schemes (word-boundary-anchored so `sftp://`/`hotel:` don't partial-match). Still
-  deterministic/stdlib, no seam change, redact + strict inherit it. Remaining behind the same seam
-  (ADR-0015 deferred): the rest of obfuscation-resistant matching (whitespace-split `evil dot com`,
-  cross-script homoglyphs/IDN/punycode, multi-pass encodings), further schemes (`data:` …),
+  deterministic/stdlib, no seam change, redact + strict inherit it. **Two more obfuscation-resistant
+  classes landed 2026-07-08 ([ADR-0015 fourth addendum](adr/ADR-0015-output-guardrail.md)):**
+  `normalize_url` now **percent-decodes to a bounded fixpoint** (`evil%252ecom`→`evil.com`, closing
+  the multi-pass-encoding gap, reversing the third addendum's deliberate single-pass boundary, since
+  the decode is symmetric and so only *widens* a redaction) and folds a **curated cross-script
+  confusable table** (Cyrillic/Greek Latin-lookalikes → ASCII, e.g. Cyrillic `расе`→`pace`), the
+  dependency-free 95% of the homoglyph class, still grammar/identity-only, no seam change, redact +
+  strict inherit both, and the passes compose (a percent-encoded homoglyph decodes then folds).
+  Remaining behind the same seam (ADR-0015 deferred): the rest of obfuscation-resistant matching
+  (whitespace-split `evil dot com` has no scheme to anchor, prose FP; the **full UTS-39 confusables
+  set + IDN/punycode**, which need a dependency; mixed/other encodings), further schemes (`data:` …),
   footer/boilerplate heuristics (screening-model territory), and a structured redaction event
   for the overlay.
 - **Subagent model pick revised to gemma-4-E4B (landed 2026-07-03)**

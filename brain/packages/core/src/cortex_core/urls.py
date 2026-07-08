@@ -9,12 +9,14 @@ defense share: the ``TaintLedger``'s collection and the user-message allowlist.
 Obfuscation-resistant by construction, and deterministic + dependency-free (stdlib only). The
 line that keeps this out of the heuristic/screening-model layer. A URL's identity is computed by
 ``normalize_url`` after (1) *refanging* common defang forms (``hxxp://``, ``evil[.]com``, ``[://]``;
-ADR-0015 obfuscation addendum), (2) *percent-decoding* once (``evil%2ecom`` → ``evil.com``), and
-(3) *NFKC* Unicode folding (fullwidth/compatibility homoglyphs → ASCII), so a defanged, encoded, or
-fullwidth link reduces to the same identity as its plain twin (ADR-0015 third addendum). What is
-*not* recognized is never redacted, so the scope stays deliberately narrow: bare addresses/domains,
-whitespace-split defang (``evil dot com``), cross-script homoglyphs/IDN/punycode, and unlisted
-schemes (``data:`` …) stay out. See the ADR for why. Pure, no I/O, no state.
+ADR-0015 obfuscation addendum), (2) *percent-decoding* to a fixpoint (``evil%252ecom`` →
+``evil%2ecom`` → ``evil.com``; bounded), (3) *NFKC* Unicode folding (fullwidth/compatibility
+homoglyphs → ASCII), and (4) folding a *curated* table of cross-script confusable letters (Cyrillic/
+Greek Latin-lookalikes → ASCII), so a defanged, encoded, fullwidth, or homoglyph link reduces to the
+same identity as its plain twin (ADR-0015 third + fourth addenda). What is *not* recognized is never
+redacted, so the scope stays deliberately narrow: bare addresses/domains, whitespace-split defang
+(``evil dot com``), the *full* UTS-39 confusables set + IDN/punycode (need a dependency), and
+unlisted schemes (``data:`` …) stay out. See the ADR for why. Pure, no I/O, no state.
 """
 
 import re
@@ -102,18 +104,92 @@ def _refang(url: str) -> str:
     return url
 
 
-def normalize_url(url: str) -> str:
-    """One URL's identity: defang refanged, percent-decoded, NFKC-folded, trailing prose
-    punctuation dropped, scheme+authority lowercased.
+# Percent-decoding is applied to a **fixpoint**, not once, so a *stacked* escape (`evil%252ecom` →
+# `evil%2ecom` → `evil.com`) reduces to one identity (ADR-0015 fourth addendum). Each non-fixpoint
+# `unquote` strictly shrinks the string (a `%XX` → one char), so this always terminates on its own;
+# the cap is a belt-and-suspenders DoS bound. A URL with more stacked encodings than this is never a
+# real clickable link. It is left *partially* decoded, still symmetric (both sides fold the same),
+# so an equal-depth transform still matches; the bound only declines to over-resolve an absurd one.
+_MAX_PERCENT_DECODE_PASSES = 5
 
-    The three obfuscation-resistant passes run first so a defanged/encoded/fullwidth link reduces
-    to the same identity as its plain twin (ADR-0015 third addendum). The path/query/fragment keep
-    their case (URL semantics). Laundering is verbatim reproduction, so exact-but-case-normalized
+
+def _percent_decode(url: str) -> str:
+    """Percent-decode ``url`` repeatedly until it stops changing (bounded). A multiply-encoded
+    escape reduces to its plain identity, not just a single browser-hop decode."""
+    for _ in range(_MAX_PERCENT_DECODE_PASSES):
+        decoded = unquote(url)
+        if decoded == url:
+            return decoded
+        url = decoded
+    return url
+
+
+# The common single-script *confusables*: Cyrillic and Greek letters that render identically to an
+# ASCII Latin letter, folded to that letter so a homoglyph host (`<cyr>evil.example`) normalizes to
+# its plain twin (ADR-0015 fourth addendum). A curated, high-confidence table, deterministic and
+# dependency-free, but NOT the full UTS-39 confusables set (which, with IDN/punycode, needs a
+# dependency and stays deferred). Folding only ever *widens* a redaction and is *symmetric* on both
+# sides of the defense, so its false-positive surface is a legitimately Cyrillic/Greek URL, rare in
+# a single-user deployment, and already redacted on a tainted turn under strict mode. Keys are `\u`
+# escapes so the source stays ASCII and each confusable codepoint is explicit.
+_CONFUSABLES = str.maketrans(
+    {
+        # Cyrillic -> Latin, lowercase (a e o p c y x i j s d h l)
+        "\u0430": "a",
+        "\u0435": "e",
+        "\u043e": "o",
+        "\u0440": "p",
+        "\u0441": "c",
+        "\u0443": "y",
+        "\u0445": "x",
+        "\u0456": "i",
+        "\u0458": "j",
+        "\u0455": "s",
+        "\u0501": "d",
+        "\u04bb": "h",
+        "\u04cf": "l",
+        # Cyrillic -> Latin, the classic uppercase lookalikes (A B E K M H O P C T Y X)
+        "\u0410": "A",
+        "\u0412": "B",
+        "\u0415": "E",
+        "\u041a": "K",
+        "\u041c": "M",
+        "\u041d": "H",
+        "\u041e": "O",
+        "\u0420": "P",
+        "\u0421": "C",
+        "\u0422": "T",
+        "\u0423": "Y",
+        "\u0425": "X",
+        # Greek -> Latin (omicron/rho, both cases)
+        "\u03bf": "o",
+        "\u039f": "O",
+        "\u03c1": "p",
+        "\u03a1": "P",
+    }
+)
+
+
+def _fold_confusables(url: str) -> str:
+    """Fold the curated cross-script confusable letters to their ASCII twin (``_CONFUSABLES``)."""
+    return url.translate(_CONFUSABLES)
+
+
+def normalize_url(url: str) -> str:
+    """One URL's identity: defang refanged, percent-decoded (to a fixpoint), NFKC-folded,
+    cross-script confusables folded, trailing prose punctuation dropped, scheme+authority lowered.
+
+    The obfuscation-resistant passes run first so a defanged/encoded/fullwidth/homoglyph link
+    reduces to its plain twin's identity (ADR-0015 third + fourth addenda); their order lets them
+    compose (a percent-encoded homoglyph decodes, then folds). The path/query/fragment keep their
+    case (URL semantics). Laundering is verbatim reproduction, so exact-but-case-normalized
     identity is the right match. An opaque URL (`mailto:`/`tel:`) has no ``://`` authority to split
     on, so it folds whole (harmless: it only widens a security redaction, and both sides fold
     identically so verbatim matches still compare equal).
     """
-    trimmed = unicodedata.normalize("NFKC", unquote(_refang(url))).rstrip(TRAILING_PUNCTUATION)
+    decoded = _percent_decode(_refang(url))
+    folded = _fold_confusables(unicodedata.normalize("NFKC", decoded))
+    trimmed = folded.rstrip(TRAILING_PUNCTUATION)
     head, sep, tail = trimmed.partition("://")
     cut = _AUTHORITY_END.search(tail)
     if cut is None:
