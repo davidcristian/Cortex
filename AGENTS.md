@@ -147,13 +147,15 @@ brain/            Python workspace (uv), dockerized (brain/Dockerfile)
                   TaskStore adapters), inference (llama.cpp InferenceBackend adapter), embedding
                   (llama.cpp CPU Embedder adapter), memory (pgvector MemoryStore adapter),
                   tools (MCP-client ToolRegistry adapter + audit sink), email (read-only IMAP
-                  MCP server over ProtonMail Bridge);
+                  MCP server over ProtonMail Bridge), body_client (BodyGateway gRPC client of the
+                  body's BodyService, which is the brain→body seam, ADR-0023);
                   subagents live in core (runner, scheduler, spawn tool) + session (task store);
-                  (planned) model_manager (Slice 11), body_client, shared
+                  (planned) model_manager (Slice 11), shared
 body/             Rust/Tauri workspace, host-native
-  crates/         core (pure logic + OS traits + BrainTransport port), rpc (tonic
-                  adapter, committed stubs), os_windows (real global-hotkey backend,
-                  cfg(windows)) + os_linux/os_macos (cfg-gated stubs)
+  crates/         core (pure logic + OS traits [Hotkey, AudioControl] + BrainTransport port),
+                  rpc (tonic adapter, committed stubs; BrainService client + BodyService server),
+                  os_windows (real global-hotkey + Core Audio backends, cfg(windows)) +
+                  os_linux/os_macos (cfg-gated stubs)
   app/            React+Vite overlay (gated 100%) + its host-native Tauri src-tauri
                   shell (ungated, host-validated) named cortex-body, its own workspace
 scripts/          repo gates: linecap.py (300-line cap), coverage_gate.py (Rust branches),
@@ -165,5 +167,6 @@ docker/           Compose stack (run via `just up`/`up-gpu`, or `docker compose 
                   + overrides: gpu (llama.cpp server + read-only model mount, ADR-0005/0007), memory
                   (Postgres+pgvector + CPU embedder, ADR-0008), tools + email (MCP sidecars: filesystem,
                   read-only email, ADR-0009), subagents (CPU llama-server, ADR-0010) + subagents-roster
-                  (a second CPU model as an ADR-0018 roster alternate); + postgres/init.sql
+                  (a second CPU model as an ADR-0018 roster alternate), body (points the brain at the
+                  host-native body's BodyService, ADR-0023); + postgres/init.sql
 ```

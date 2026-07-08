@@ -124,6 +124,15 @@ Start here. Rules for working in this repo: [AGENTS.md](../AGENTS.md).
   (untainted gated → user confirms via the overlay card; tainted gated → denied outright and
   never merely a confirm-away), and `GatedToolRegistry` + `CORTEX_TOOLS_GATED` declare remote
   tools gated at the composition root (subagents never see them).
+- [ADR-0023: Body gateway + volume](adr/ADR-0023-body-gateway-volume.md): Slice 9 brings the first
+  **brain→body** seam direction and the first OS action. Resolves ADR-0001 Q2 (body capabilities
+  are internal tools over a `BodyGateway` port, not MCP) and Q3 (the brain dials the host body via
+  `host.docker.internal`; the abstract port keeps the tunnel fallback an adapter swap). Adds the
+  `BodyGateway` port + `GrpcBodyGateway` adapter (`cortex_body_client`) on the brain, the
+  `AudioControl` OS trait + real Core Audio `WindowsAudioControl` on the body, and `VolumeService`
+  + the reversed seam-token validator in `body_rpc`. Volume is ungated (reversible); `set_volume`
+  is opt-in-gatable via `CORTEX_TOOLS_GATED`. `unsafe` for Core Audio is authorized narrowly to
+  `os_windows`; `SEAM_TOKEN_HEADER` is lifted to `cortex_seam`.
 
 New non-obvious decision → add `adr/ADR-XXXX-<slug>.md`, link it here.
 
@@ -155,6 +164,8 @@ New non-obvious decision → add `adr/ADR-XXXX-<slug>.md`, link it here.
   - [brain-email.md](modules/brain-email.md) covers `cortex_email`: standalone read-only IMAP MCP
     server over ProtonMail Bridge (ADR-0009).
   - [brain-seam.md](modules/brain-seam.md) covers `cortex_seam`: committed wire stubs + facade.
+  - [brain-body-client.md](modules/brain-body-client.md) covers `cortex_body_client`: gRPC client
+    adapter for the `BodyGateway` port (the brain calls the body's `BodyService`, ADR-0023).
   - [brain-orchestrator.md](modules/brain-orchestrator.md) covers `cortex_orchestrator`:
     the gRPC service hosting `BrainService`.
   - [body-core.md](modules/body-core.md) covers `body_core`: pure host types + ports
@@ -181,6 +192,9 @@ New non-obvious decision → add `adr/ADR-XXXX-<slug>.md`, link it here.
   integration tests (read-only IMAP; the opt-in SMTP send round-trip).
 - [runbooks/subagents-cpu.md](runbooks/subagents-cpu.md) covers Slice 7 host half: bring up the CPU
   subagent `llama-server`, validate delegation (integration test + cortex-driven full stack).
+- [runbooks/body-volume.md](runbooks/body-volume.md) covers Slice 9 host half: the brain→body volume
+  seam (`docker-compose.body.yml`) with the agent brain→body dial across the container boundary and
+  the host-only Windows Core Audio validation ("set volume to 30%").
 - [runbooks/body-overlay.md](runbooks/body-overlay.md) covers Slice 8: run the overlay in a browser
   (fake bridge) or as the real Tauri app on Windows (hotkey → overlay → live brain).
 - Expected as later slices land: `model-swap.md` (Slice 11).
