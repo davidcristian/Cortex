@@ -544,7 +544,11 @@ capability gate, and the `Confirmer` round-trip over the seam.
 ## Slice 9 (One OS action end-to-end, volume)
 
 **Status:** CI-gated half done on 2026-07-08 ([ADR-0023](adr/ADR-0023-body-gateway-volume.md)),
-100% under `just check` across all four trees. The first **brain→body** seam direction and the
+100% under `just check` across all four trees; **agent-Docker validated 2026-07-08**
+([ADR-0023 addendum](adr/ADR-0023-body-gateway-volume.md)). The containerized brain dialed a
+host-side `BodyService` over `host.docker.internal`, round-tripped volume with the seam token
+attached, and the untokened dial was rejected `UNAUTHENTICATED` (assumption 3 holds). Only the
+Host-Windows Core Audio half remains. The first **brain→body** seam direction and the
 first OS action. Resolves ADR-0001 Q2 (body capabilities are **internal** tools over a
 `BodyGateway` port, not MCP) and Q3 (the brain **dials** the host body via `host.docker.internal`;
 the abstract port keeps the ADR-0001 Q3 tunnel fallback a pure adapter swap). No proto change, since
@@ -575,11 +579,12 @@ committed; Slice 9 is hand-written wiring on top.
   clean turn → confirm, tainted turn → denied, ADR-0022). Trust is `TRUSTED` so a volume call never
   taints the turn.
 
-**Remaining:** the **agent-Docker** brain→body dial across the container boundary
-(`integration`-marked `test_gateway_live.py`, `docker-compose.body.yml`) and the **Host-Windows**
-real Core Audio validation ("set volume to 30%") in [body-volume.md](runbooks/body-volume.md). On an
-8 GB GPU the gemma-4-12B cortex does not fit, so a fully *cortex-driven* `set_volume` is bounded by
-what fits; the seam + gateway + tool path validate directly.
+**Remaining:** only the **Host-Windows** real Core Audio validation ("set volume to 30%"), per
+[body-volume.md](runbooks/body-volume.md). The **agent-Docker** dial across the container
+boundary is done (2026-07-08, [ADR-0023 addendum](adr/ADR-0023-body-gateway-volume.md)): the
+tokened round-trip passed from a container and the untokened dial was rejected. On an 8 GB GPU
+the gemma-4-12B cortex does not fit, so a fully *cortex-driven* `set_volume` is bounded by what
+fits; the seam + gateway + tool path validated directly.
 
 Original scope (still the design):
 `AudioControl` Windows backend (Core Audio); `BodyService.SetVolume/GetVolume` served by
@@ -958,9 +963,10 @@ each behind the unchanged `Confirmer`/`ToolDispatcher`/`GatedToolRegistry`/seam 
 
 **Body gateway & OS actions in Slice 9 ([ADR-0023](adr/ADR-0023-body-gateway-volume.md)):** each
 behind the unchanged `BodyGateway`/`AudioControl`/`BodyService` seams.
-- **Agent-Docker + Host-Windows validation.** The CI-gated half is done; the brain→body dial
-  across the container boundary (`test_gateway_live.py`, `docker-compose.body.yml`) and the real
-  Core Audio "set volume to 30%" on Windows remain ([body-volume.md](runbooks/body-volume.md)).
+- **Host-Windows validation.** The CI-gated half and the **agent-Docker dial are done**
+  (2026-07-08, [ADR-0023 addendum](adr/ADR-0023-body-gateway-volume.md), where a tokened round-trip
+  passed across the container boundary, untokened rejected); the real Core Audio
+  "set volume to 30%" on Windows remains. See [body-volume.md](runbooks/body-volume.md).
 - **The Q3 body-initiated-stream tunnel fallback.** The brain dials the body directly today; if
   `host.docker.internal` proves brittle on WSL2, tunneling body-directed calls over a
   body-initiated bidi stream is a different `BodyGateway` adapter, with no core/tool/proto change.
