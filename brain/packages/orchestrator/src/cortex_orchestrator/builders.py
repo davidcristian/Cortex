@@ -1,7 +1,7 @@
 """Adapter builders for the composition root: pick each port's adapter from config."""
 
 import logging
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Collection
 from contextlib import AsyncExitStack
 
 import httpx
@@ -12,8 +12,10 @@ from cortex_core import (
     CharBudgetHistoryWindow,
     Clock,
     CompositeToolRegistry,
+    Confirmer,
     EchoInferenceBackend,
     FilteredToolRegistry,
+    GatedToolRegistry,
     GlobalMemoryScope,
     InferenceBackend,
     MemoryRecaller,
@@ -120,9 +122,10 @@ async def build_tool_registry(
     except BaseException:
         await stack.aclose()
         raise
-    if len(registries) == 1:
-        return registries[0], stack.aclose
-    return AggregateToolRegistry(registries), stack.aclose
+    root = registries[0] if len(registries) == 1 else AggregateToolRegistry(registries)
+    if config.gated:
+        root = GatedToolRegistry(root, gated=config.gated)
+    return root, stack.aclose
 
 
 def build_output_guardrail(
@@ -143,10 +146,15 @@ def build_cortex_tools(
     tool_registry: ToolRegistry | None,
     spawn_tool: SpawnSubagentsTool | None,
     clock: Clock,
+    *,
+    confirmer: Confirmer | None = None,
+    gated_names: Collection[str] = (),
 ) -> ToolDispatcher | None:
     """The cortex's audited dispatcher: the spawn tool merged with the MCP tools (ADR-0010)."""
     builtins: list[BuiltinTool] = [spawn_tool] if spawn_tool is not None else []
     if not builtins and tool_registry is None:
         return None
     registry = CompositeToolRegistry(builtins, remote=tool_registry)
-    return ToolDispatcher(registry, LoggingAuditSink(), clock)
+    return ToolDispatcher(
+        registry, LoggingAuditSink(), clock, confirmer=confirmer, gated_names=gated_names
+    )

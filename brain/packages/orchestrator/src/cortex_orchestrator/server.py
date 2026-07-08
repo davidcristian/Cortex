@@ -9,10 +9,15 @@ from datetime import datetime
 import grpc
 from grpc import aio
 
-from cortex_core import Message, SessionStore, SessionStoreError, SessionSummary, TurnEngine
+from cortex_core import Message, SessionStore, SessionStoreError, SessionSummary
 from cortex_orchestrator.auth import SeamTokenInterceptor
 from cortex_orchestrator.config import SeamServerConfig
-from cortex_orchestrator.converse import DEFAULT_MAX_BUFFERED_EVENTS, converse
+from cortex_orchestrator.converse import (
+    DEFAULT_CONFIRM_TIMEOUT_S,
+    DEFAULT_MAX_BUFFERED_EVENTS,
+    EngineFactory,
+    converse,
+)
 from cortex_seam import (
     BrainServiceServicer,
     ClientEvent,
@@ -77,14 +82,16 @@ class BrainService(BrainServiceServicer):
 
     def __init__(
         self,
-        engine: TurnEngine,
+        make_engine: EngineFactory,
         store: SessionStore,
         *,
         max_buffered_events: int = DEFAULT_MAX_BUFFERED_EVENTS,
+        confirm_timeout_s: float = DEFAULT_CONFIRM_TIMEOUT_S,
     ) -> None:
-        self._engine = engine
+        self._make_engine = make_engine
         self._store = store
         self._max_buffered_events = max_buffered_events
+        self._confirm_timeout_s = confirm_timeout_s
 
     async def Health(  # noqa: N802 - method name is fixed by the gRPC codegen interface
         self,
@@ -107,7 +114,10 @@ class BrainService(BrainServiceServicer):
         """
         del context  # RPC cancellation/disconnect arrive as generator close, not via context
         events = converse(
-            self._engine, request_iterator, max_buffered_events=self._max_buffered_events
+            self._make_engine,
+            request_iterator,
+            max_buffered_events=self._max_buffered_events,
+            confirm_timeout_s=self._confirm_timeout_s,
         )
         try:
             async for event in events:
@@ -151,21 +161,25 @@ class BrainService(BrainServiceServicer):
 
 
 def create_server(
-    config: SeamServerConfig, engine: TurnEngine, store: SessionStore
+    config: SeamServerConfig, make_engine: EngineFactory, store: SessionStore
 ) -> tuple[aio.Server, int]:
-    """Build the aio server, register BrainService over `engine`/`store`, and bind it (not started).
-    """
+    """Build the aio server over `make_engine`/`store` and bind it (not started)."""
     interceptors = (SeamTokenInterceptor(config.token),) if config.token else ()
     server = aio.server(interceptors=interceptors)
-    service = BrainService(engine, store, max_buffered_events=config.converse_buffer)
+    service = BrainService(
+        make_engine,
+        store,
+        max_buffered_events=config.converse_buffer,
+        confirm_timeout_s=config.confirm_timeout_s,
+    )
     add_BrainServiceServicer_to_server(service, server)
     bound_port = server.add_insecure_port(config.bind_address)
     return server, bound_port
 
 
-async def serve(config: SeamServerConfig, engine: TurnEngine, store: SessionStore) -> None:
+async def serve(config: SeamServerConfig, make_engine: EngineFactory, store: SessionStore) -> None:
     """Run the seam server until SIGTERM/SIGINT or cancellation; always stop gracefully."""
-    server, bound_port = create_server(config, engine, store)
+    server, bound_port = create_server(config, make_engine, store)
     await server.start()
     _logger.info("seam server listening", extra={"host": config.host, "port": bound_port})
     loop = asyncio.get_running_loop()

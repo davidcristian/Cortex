@@ -1,6 +1,6 @@
 """Subagent wiring: the roster, the runner, and the spawn tool from config (ADR-0010/0012/0018)."""
 
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Collection
 
 import httpx
 
@@ -23,7 +23,7 @@ from cortex_core import (
 )
 from cortex_inference import LlamaCppBackend
 from cortex_orchestrator.builders import LLAMACPP_CONNECT_TIMEOUT_S, noop_aclose
-from cortex_orchestrator.config import SubagentRosterEntry, SubagentsConfig
+from cortex_orchestrator.config_subagents import SubagentRosterEntry, SubagentsConfig
 from cortex_session import RedisTaskStore
 from cortex_tools import LoggingAuditSink
 
@@ -85,8 +85,12 @@ async def build_subagents(
     return SpawnSubagentsTool(runner, store, clock), close_subagents
 
 
-def build_subagent_tools(tool_registry: ToolRegistry | None, clock: Clock) -> ToolDispatcher | None:
+def build_subagent_tools(
+    tool_registry: ToolRegistry | None, clock: Clock, *, gated_names: Collection[str] = ()
+) -> ToolDispatcher | None:
     """A subagent's audited dispatcher over the gated-stripped MCP subset, or None (ADR-0013)."""
     if tool_registry is None:
         return None
-    return ToolDispatcher(UngatedToolRegistry(tool_registry), LoggingAuditSink(), clock)
+    return ToolDispatcher(
+        UngatedToolRegistry(tool_registry), LoggingAuditSink(), clock, gated_names=gated_names
+    )

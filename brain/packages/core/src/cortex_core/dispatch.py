@@ -1,6 +1,6 @@
 """Dispatch one tool call and audit it. It is the only path a tool runs through (ADR-0009/0013)."""
 
-from collections.abc import Sequence
+from collections.abc import Collection, Sequence
 from dataclasses import replace
 
 from cortex_core.errors import ToolError
@@ -13,10 +13,10 @@ from cortex_core.tools import (
     ToolSpec,
     Trust,
 )
-from cortex_core.untrusted import DENIED_MSG
+from cortex_core.untrusted import DENIED_MSG, USER_DECLINED_MSG
 
-# Why a gated call was stopped, shown to the user by the overlay confirmer (ADR-0013).
-_GATE_REASON = "outbound or irreversible action requested after this turn read untrusted content"
+# Why confirmation is required, shown verbatim to the user by the overlay (ADR-0022).
+_GATE_REASON = "this action is outbound or irreversible and runs only with your approval"
 
 
 class ToolDispatcher:
@@ -33,11 +33,13 @@ class ToolDispatcher:
         clock: Clock,
         *,
         confirmer: Confirmer | None = None,
+        gated_names: Collection[str] = (),
     ) -> None:
         self._registry = registry
         self._audit = audit
         self._clock = clock
         self._confirmer = confirmer
+        self._gated_names = frozenset(gated_names)
 
     async def describe_tools(self) -> Sequence[ToolSpec]:
         """The tools available to advertise to the model (delegates to the registry)."""
@@ -51,11 +53,20 @@ class ToolDispatcher:
         # that spawn further work, never authority. The gate below keeps using the explicit
         # ``tainted`` argument, so a model-forged stamp is discarded and feeds nothing.
         call = replace(call, tainted=tainted)
-        if gated and tainted and not await self._confirmed(call):
-            blocked = ToolResult(
-                call_id=call.id, content=DENIED_MSG, is_error=True, trust=Trust.TRUSTED
-            )
-            return await self._audited(call, blocked)
+        # The advertised flag OR the authoritative gated set (ADR-0022): a gated tool a flaky
+        # sidecar hid from this turn's advertisement snapshot is still gated here.
+        gated = gated or call.name in self._gated_names
+        if gated:
+            if tainted:
+                blocked = ToolResult(
+                    call_id=call.id, content=DENIED_MSG, is_error=True, trust=Trust.TRUSTED
+                )
+                return await self._audited(call, blocked)
+            if not await self._confirmed(call):
+                declined = ToolResult(
+                    call_id=call.id, content=USER_DECLINED_MSG, is_error=True, trust=Trust.TRUSTED
+                )
+                return await self._audited(call, declined)
         try:
             result = await self._registry.invoke(call)
         except ToolError as err:

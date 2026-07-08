@@ -9,6 +9,7 @@ from datetime import UTC, datetime
 
 from cortex_core import (
     DENIED_MSG,
+    USER_DECLINED_MSG,
     InMemoryToolRegistry,
     RecordingAuditSink,
     RecordingConfirmer,
@@ -115,7 +116,8 @@ async def test_audit_records_the_result_provenance() -> None:
 
 
 async def test_gated_tool_on_a_tainted_turn_is_blocked_without_a_confirmer() -> None:
-    # Fail-closed: no confirmer wired -> the gated action is denied and never runs.
+    # The taint block (ADR-0022 decision 2): after untrusted content, the outbound surface
+    # is closed for the turn. The call is denied and never run, with or without a confirmer.
     sink = RecordingAuditSink()
     result = await _outbound(sink, None).dispatch(
         ToolCall(id="c", name="send", arguments={"path": "/p"}), tainted=True, gated=True
@@ -127,34 +129,52 @@ async def test_gated_tool_on_a_tainted_turn_is_blocked_without_a_confirmer() -> 
     assert (record.ok, record.detail) == (False, DENIED_MSG)
 
 
-async def test_gated_tool_on_a_tainted_turn_runs_when_the_confirmer_approves() -> None:
+async def test_gated_tool_on_a_tainted_turn_is_blocked_even_when_a_confirmer_would_approve() -> (
+    None
+):
+    # A send demanded by injected content is never merely a confirm-away (ADR-0022): the
+    # confirmer is deliberately not consulted on a tainted turn. An approver changes nothing.
     confirmer = RecordingConfirmer(answer=True)
     result = await _outbound(RecordingAuditSink(), confirmer).dispatch(
         ToolCall(id="c", name="send", arguments={"path": "/p"}), tainted=True, gated=True
     )
-    assert result.content == "ran:/p"  # the tool ran
-    (request,) = confirmer.requests
-    assert request.tool_name == "send"
-    assert "untrusted" in request.reason
-
-
-async def test_gated_tool_on_a_tainted_turn_is_blocked_when_the_confirmer_denies() -> None:
-    confirmer = RecordingConfirmer(answer=False)
-    result = await _outbound(RecordingAuditSink(), confirmer).dispatch(
-        ToolCall(id="c", name="send", arguments={"path": "/p"}), tainted=True, gated=True
-    )
     assert result.content == DENIED_MSG
-    assert confirmer.requests != ()  # it was asked, and said no
+    assert confirmer.requests == ()  # never consulted
 
 
-async def test_gated_tool_on_a_clean_turn_runs_without_confirmation() -> None:
-    # No untrusted content in the turn -> no elevated risk -> the gate does not engage.
-    confirmer = RecordingConfirmer(answer=False)  # would deny if it were asked
+async def test_gated_tool_on_a_clean_turn_runs_when_the_user_approves() -> None:
+    confirmer = RecordingConfirmer(answer=True)
     result = await _outbound(RecordingAuditSink(), confirmer).dispatch(
         ToolCall(id="c", name="send", arguments={"path": "/p"}), tainted=False, gated=True
     )
-    assert result.content == "ran:/p"
-    assert confirmer.requests == ()  # never consulted
+    assert result.content == "ran:/p"  # the tool ran
+    (request,) = confirmer.requests
+    assert request.tool_name == "send"
+    assert request.arguments == {"path": "/p"}  # the draft the user approved
+    assert "approval" in request.reason
+
+
+async def test_gated_tool_on_a_clean_turn_is_declined_when_the_user_says_no() -> None:
+    sink = RecordingAuditSink()
+    confirmer = RecordingConfirmer(answer=False)
+    result = await _outbound(sink, confirmer).dispatch(
+        ToolCall(id="c", name="send", arguments={"path": "/p"}), tainted=False, gated=True
+    )
+    assert result.is_error is True
+    assert result.content == USER_DECLINED_MSG  # "the user said no", not the taint block
+    assert result.trust is Trust.TRUSTED
+    assert confirmer.requests != ()  # it was asked, and said no
+    (record,) = sink.records
+    assert (record.ok, record.detail) == (False, USER_DECLINED_MSG)
+
+
+async def test_gated_tool_on_a_clean_turn_is_declined_without_a_confirmer() -> None:
+    # Fail-closed (ADR-0022): every gated call needs the human's approval. A deployment
+    # with no confirmer wired cannot perform the action, tainted or not.
+    result = await _outbound(RecordingAuditSink(), None).dispatch(
+        ToolCall(id="c", name="send", arguments={"path": "/p"}), tainted=False, gated=True
+    )
+    assert result.content == USER_DECLINED_MSG
 
 
 async def test_ungated_tool_on_a_tainted_turn_runs_without_confirmation() -> None:
@@ -207,3 +227,55 @@ async def test_dispatch_overwrites_a_forged_taint_stamp_with_the_turns() -> None
     )
     (stamped,) = registry.calls
     assert stamped.tainted is False
+
+
+async def test_gated_names_gate_a_call_the_snapshot_advertised_as_ungated() -> None:
+    # The authoritative backstop (ADR-0022): a flaky sidecar can hide a gated tool from the
+    # turn's advertisement snapshot (skip mode), so the loop may pass gated=False; the
+    # dispatcher's own gated-name set still gates it. On a clean turn, that means confirm.
+    sink = RecordingAuditSink()
+    confirmer = RecordingConfirmer(answer=False)
+    dispatcher = ToolDispatcher(
+        InMemoryToolRegistry({"send": (_spec("send"), _ran)}),
+        sink,
+        _FixedClock(),
+        confirmer=confirmer,
+        gated_names={"send"},
+    )
+    result = await dispatcher.dispatch(
+        ToolCall(id="c", name="send", arguments={"path": "/p"}), tainted=False, gated=False
+    )
+    assert result.content == USER_DECLINED_MSG  # gated by name, and the user declined
+    assert confirmer.requests != ()
+
+
+async def test_gated_names_deny_a_tainted_call_the_snapshot_advertised_as_ungated() -> None:
+    # Same window on a tainted turn: the dispatcher's authoritative set denies outright,
+    # the confirmer never consulted. There is no gate bypass even if advertisement missed the tool.
+    confirmer = RecordingConfirmer(answer=True)
+    dispatcher = ToolDispatcher(
+        InMemoryToolRegistry({"send": (_spec("send"), _ran)}),
+        RecordingAuditSink(),
+        _FixedClock(),
+        confirmer=confirmer,
+        gated_names={"send"},
+    )
+    result = await dispatcher.dispatch(
+        ToolCall(id="c", name="send", arguments={"path": "/p"}), tainted=True, gated=False
+    )
+    assert result.content == DENIED_MSG
+    assert confirmer.requests == ()  # never consulted
+
+
+async def test_a_name_outside_the_gated_set_stays_ungated() -> None:
+    # The set only gates its own names. An ordinary tool still runs untouched.
+    dispatcher = ToolDispatcher(
+        InMemoryToolRegistry({"read": (_spec("read"), _ran)}),
+        RecordingAuditSink(),
+        _FixedClock(),
+        gated_names={"send"},
+    )
+    result = await dispatcher.dispatch(
+        ToolCall(id="c", name="read", arguments={"path": "/p"}), tainted=True, gated=False
+    )
+    assert result.content == "ran:/p"

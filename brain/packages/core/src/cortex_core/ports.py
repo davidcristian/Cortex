@@ -92,7 +92,9 @@ class ToolAuditSink(Protocol):
 
 
 class Confirmer(Protocol):
-    """Answers a request to confirm a gated tool call. Out of band, the human's call (ADR-0013)."""
+    """Answers a request to confirm a gated tool call. Out of band, the human's call (ADR-0013,
+    gate table revised by ADR-0022).
+    """
 
     async def confirm(self, request: ConfirmationRequest) -> bool: ...
 

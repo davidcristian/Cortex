@@ -2,11 +2,11 @@
 
 from typing import Literal
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from cortex_core import DEFAULT_CORTEX_MODEL
-from cortex_orchestrator.converse import DEFAULT_MAX_BUFFERED_EVENTS
+from cortex_orchestrator.converse import DEFAULT_CONFIRM_TIMEOUT_S, DEFAULT_MAX_BUFFERED_EVENTS
 from cortex_session import DEFAULT_REDIS_URL
 
 InferenceBackendName = Literal["echo", "llamacpp"]
@@ -14,15 +14,6 @@ MemoryBackendName = Literal["none", "pgvector"]
 MemoryScopeName = Literal["global", "session"]
 MemoryTaintPolicyName = Literal["skip", "record"]
 ToolsBackendName = Literal["none", "mcp"]
-SubagentsBackendName = Literal["none", "llamacpp"]
-
-# The logical id of the subagent tier (ADR-0004); deployments override via CORTEX_SUBAGENTS_MODEL.
-DEFAULT_SUBAGENT_MODEL = "subagent"
-
-# What the spawn spec advertises for the default entry unless the deployment overrides it
-# (CORTEX_SUBAGENTS_MODEL_DESCRIPTION). Trade-off text only. Safety never rides a description
-# (ADR-0017 is enforced in the core, whatever this says).
-DEFAULT_SUBAGENT_DESCRIPTION = "the injection-robust default; safe for any subtask"
 
 
 class SeamServerConfig(BaseSettings):
@@ -37,6 +28,10 @@ class SeamServerConfig(BaseSettings):
     # env CORTEX_SEAM_CONVERSE_BUFFER sets how many ServerEvents one Converse stream may
     # buffer unread before generation stalls (bounded backpressure; converse.py).
     converse_buffer: int = Field(default=DEFAULT_MAX_BUFFERED_EVENTS, gt=0)
+    # env CORTEX_SEAM_CONFIRM_TIMEOUT_S sets how long a gated tool call waits for the user's
+    # answer to a ConfirmRequest before it is denied (fail-closed, ADR-0022). Generous for
+    # a human decision, bounded so an unattended overlay cannot hang a turn forever.
+    confirm_timeout_s: float = Field(default=DEFAULT_CONFIRM_TIMEOUT_S, gt=0)
 
     @property
     def bind_address(self) -> str:
@@ -119,6 +114,7 @@ class ToolsConfig(BaseSettings):
     endpoints: dict[str, str] = {}
     allow: dict[str, tuple[str, ...]] = {}
     on_unavailable: Literal["fail", "skip"] = "fail"
+    gated: tuple[str, ...] = ("send_email",)
 
     @model_validator(mode="after")
     def _mcp_needs_unambiguous_endpoints(self) -> "ToolsConfig":
@@ -144,71 +140,3 @@ class ToolsConfig(BaseSettings):
         if self.endpoint:
             return {"default": self.endpoint}
         return {}
-
-
-class SubagentRosterEntry(BaseModel):
-    """One alternate subagent model: a ``CORTEX_SUBAGENTS_ROSTER__<name>`` JSON value (ADR-0018)."""
-
-    endpoint: str = Field(min_length=1)
-    gpu_endpoint: str = ""
-    vram_gb: float = Field(default=2.0, gt=0)
-    cpus: float = Field(default=2.0, gt=0)
-    memory_gb: float = Field(default=2.0, gt=0)
-    description: str = ""
-
-
-class SubagentsConfig(BaseSettings):
-    """Whether the cortex can delegate to subagents (ADR-0010, ADR-0012, ADR-0018)."""
-
-    model_config = SettingsConfigDict(env_prefix="CORTEX_SUBAGENTS_", env_nested_delimiter="__")
-
-    backend: SubagentsBackendName = "none"
-    endpoint: str = ""
-    gpu_endpoint: str = ""
-    model: str = DEFAULT_SUBAGENT_MODEL
-    model_description: str = DEFAULT_SUBAGENT_DESCRIPTION
-    vram_gb: float = Field(default=2.0, gt=0)
-    cpus: float = Field(default=2.0, gt=0)
-    memory_gb: float = Field(default=2.0, gt=0)
-    cpu_budget: float = Field(default=4.0, gt=0)
-    mem_budget_gb: float = Field(default=8.0, gt=0)
-    roster: dict[str, SubagentRosterEntry] = {}
-
-    @model_validator(mode="after")
-    def _llamacpp_needs_both_endpoints(self) -> "SubagentsConfig":
-        if self.backend == "llamacpp" and not (self.endpoint and self.gpu_endpoint):
-            msg = (
-                "CORTEX_SUBAGENTS_ENDPOINT and CORTEX_SUBAGENTS_GPU_ENDPOINT are required when "
-                "CORTEX_SUBAGENTS_BACKEND=llamacpp"
-            )
-            raise ValueError(msg)
-        return self
-
-    @model_validator(mode="after")
-    def _roster_must_not_shadow_the_default(self) -> "SubagentsConfig":
-        if self.model in self.roster:
-            msg = (
-                f"CORTEX_SUBAGENTS_ROSTER__{self.model} collides with CORTEX_SUBAGENTS_MODEL; "
-                "the default entry's resources come from the flat fields"
-            )
-            raise ValueError(msg)
-        return self
-
-    @property
-    def named_roster(self) -> dict[str, SubagentRosterEntry]:
-        """Every roster entry by name, with the flat-field default first and alternates sorted."""
-        if self.backend != "llamacpp":
-            return {}
-        default = SubagentRosterEntry(
-            endpoint=self.endpoint,
-            gpu_endpoint=self.gpu_endpoint,
-            vram_gb=self.vram_gb,
-            cpus=self.cpus,
-            memory_gb=self.memory_gb,
-            description=self.model_description,
-        )
-        alternates = {
-            name: entry.model_copy(update={"gpu_endpoint": entry.gpu_endpoint or entry.endpoint})
-            for name, entry in sorted(self.roster.items())
-        }
-        return {self.model: default} | alternates

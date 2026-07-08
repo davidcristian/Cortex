@@ -65,7 +65,7 @@ class ToolInvocation:
 
 @dataclass(frozen=True, slots=True)
 class ConfirmationRequest:
-    """A request for out-of-band user confirmation of a gated tool call (ADR-0013)."""
+    """A request for out-of-band user confirmation of a gated tool call (ADR-0013/0022)."""
 
     tool_name: str
     arguments: Mapping[str, Any]

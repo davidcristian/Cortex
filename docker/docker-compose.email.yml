@@ -1,9 +1,12 @@
+# Email override: it adds the `cortex_email` MCP server as a sidecar, reaching the ProtonMail
+# Bridge on the host. Read-only unless CORTEX_EMAIL_SEND_ENABLED is true, and a send then still
+# needs the user's approval. Credentials go in a .env, never in the repo; email-imap.md runbook.
 
 services:
   brain:
     environment:
-      # Opt into tools, pointed at the email sidecar (ADR-0009). No allowlist needed:
-      # the server is ours and read-only by construction (only the three read tools exist).
+      # Opt into tools, pointed at the email sidecar. No allowlist is needed: this server is our
+      # own, read-only by default, and send_email always needs approval.
       CORTEX_TOOLS_BACKEND: "mcp"
       CORTEX_TOOLS_ENDPOINTS__EMAIL: "http://mcp-email:9100/mcp"
     depends_on:
@@ -11,7 +14,7 @@ services:
         condition: service_started
 
   mcp-email:
-    # The read-only IMAP MCP server ships in the brain image (cortex_email workspace member).
+    # The read-only IMAP MCP server ships in the brain image.
     build: ./brain
     command: ["python", "-m", "cortex_email"]
     environment:
@@ -22,12 +25,21 @@ services:
       CORTEX_EMAIL_IMAP_PASSWORD: "${CORTEX_EMAIL_IMAP_PASSWORD:?set the Bridge password}"
       CORTEX_EMAIL_IMAP_TLS_INSECURE: "${CORTEX_EMAIL_IMAP_TLS_INSECURE:-false}"
       CORTEX_EMAIL_IMAP_CA_CERT: "${CORTEX_EMAIL_IMAP_CA_CERT:-}"
-    # Reach the Windows-host Bridge; host.docker.internal is automatic on Docker Desktop,
-    # host-gateway is the portable fallback (ROADMAP assumption 3).
+      # Sending is off unless a deployment turns it on. The Bridge serves SMTP on 1025 with
+      # STARTTLS and the same generated credentials.
+      CORTEX_EMAIL_SEND_ENABLED: "${CORTEX_EMAIL_SEND_ENABLED:-false}"
+      CORTEX_EMAIL_SMTP_HOST: "host.docker.internal"
+      CORTEX_EMAIL_SMTP_PORT: "1025"
+      CORTEX_EMAIL_SMTP_SECURITY: "starttls"
+      CORTEX_EMAIL_SMTP_USER: "${CORTEX_EMAIL_SMTP_USER:-}"
+      CORTEX_EMAIL_SMTP_PASSWORD: "${CORTEX_EMAIL_SMTP_PASSWORD:-}"
+      CORTEX_EMAIL_SMTP_TLS_INSECURE: "${CORTEX_EMAIL_SMTP_TLS_INSECURE:-false}"
+      CORTEX_EMAIL_SMTP_CA_CERT: "${CORTEX_EMAIL_SMTP_CA_CERT:-}"
+    # host.docker.internal is automatic on Docker Desktop; host-gateway is the portable fallback.
     extra_hosts:
       - "host.docker.internal:host-gateway"
     ports:
-      # Loopback-only publish so a host-side integration test can reach it (assumption 5).
+      # Published on loopback so a host-side integration test can reach it.
       - "127.0.0.1:9100:9100"
     init: true
     restart: unless-stopped

@@ -7,14 +7,16 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class ClientEvent(_message.Message):
-    __slots__ = ("session_id", "user_turn", "cancel")
+    __slots__ = ("session_id", "user_turn", "cancel", "confirm_response")
     SESSION_ID_FIELD_NUMBER: _ClassVar[int]
     USER_TURN_FIELD_NUMBER: _ClassVar[int]
     CANCEL_FIELD_NUMBER: _ClassVar[int]
+    CONFIRM_RESPONSE_FIELD_NUMBER: _ClassVar[int]
     session_id: str
     user_turn: UserTurn
     cancel: Cancel
-    def __init__(self, session_id: _Optional[str] = ..., user_turn: _Optional[_Union[UserTurn, _Mapping]] = ..., cancel: _Optional[_Union[Cancel, _Mapping]] = ...) -> None: ...
+    confirm_response: ConfirmResponse
+    def __init__(self, session_id: _Optional[str] = ..., user_turn: _Optional[_Union[UserTurn, _Mapping]] = ..., cancel: _Optional[_Union[Cancel, _Mapping]] = ..., confirm_response: _Optional[_Union[ConfirmResponse, _Mapping]] = ...) -> None: ...
 
 class UserTurn(_message.Message):
     __slots__ = ("text", "images")
@@ -29,18 +31,20 @@ class Cancel(_message.Message):
     def __init__(self) -> None: ...
 
 class ServerEvent(_message.Message):
-    __slots__ = ("text_delta", "tool_activity", "status", "turn_complete", "error")
+    __slots__ = ("text_delta", "tool_activity", "status", "turn_complete", "error", "confirm_request")
     TEXT_DELTA_FIELD_NUMBER: _ClassVar[int]
     TOOL_ACTIVITY_FIELD_NUMBER: _ClassVar[int]
     STATUS_FIELD_NUMBER: _ClassVar[int]
     TURN_COMPLETE_FIELD_NUMBER: _ClassVar[int]
     ERROR_FIELD_NUMBER: _ClassVar[int]
+    CONFIRM_REQUEST_FIELD_NUMBER: _ClassVar[int]
     text_delta: TextDelta
     tool_activity: ToolActivity
     status: StatusUpdate
     turn_complete: TurnComplete
     error: SeamError
-    def __init__(self, text_delta: _Optional[_Union[TextDelta, _Mapping]] = ..., tool_activity: _Optional[_Union[ToolActivity, _Mapping]] = ..., status: _Optional[_Union[StatusUpdate, _Mapping]] = ..., turn_complete: _Optional[_Union[TurnComplete, _Mapping]] = ..., error: _Optional[_Union[SeamError, _Mapping]] = ...) -> None: ...
+    confirm_request: ConfirmRequest
+    def __init__(self, text_delta: _Optional[_Union[TextDelta, _Mapping]] = ..., tool_activity: _Optional[_Union[ToolActivity, _Mapping]] = ..., status: _Optional[_Union[StatusUpdate, _Mapping]] = ..., turn_complete: _Optional[_Union[TurnComplete, _Mapping]] = ..., error: _Optional[_Union[SeamError, _Mapping]] = ..., confirm_request: _Optional[_Union[ConfirmRequest, _Mapping]] = ...) -> None: ...
 
 class TextDelta(_message.Message):
     __slots__ = ("text",)
@@ -77,6 +81,26 @@ class SeamError(_message.Message):
     code: str
     message: str
     def __init__(self, code: _Optional[str] = ..., message: _Optional[str] = ...) -> None: ...
+
+class ConfirmRequest(_message.Message):
+    __slots__ = ("confirm_id", "tool_name", "arguments_json", "reason")
+    CONFIRM_ID_FIELD_NUMBER: _ClassVar[int]
+    TOOL_NAME_FIELD_NUMBER: _ClassVar[int]
+    ARGUMENTS_JSON_FIELD_NUMBER: _ClassVar[int]
+    REASON_FIELD_NUMBER: _ClassVar[int]
+    confirm_id: str
+    tool_name: str
+    arguments_json: str
+    reason: str
+    def __init__(self, confirm_id: _Optional[str] = ..., tool_name: _Optional[str] = ..., arguments_json: _Optional[str] = ..., reason: _Optional[str] = ...) -> None: ...
+
+class ConfirmResponse(_message.Message):
+    __slots__ = ("confirm_id", "approved")
+    CONFIRM_ID_FIELD_NUMBER: _ClassVar[int]
+    APPROVED_FIELD_NUMBER: _ClassVar[int]
+    confirm_id: str
+    approved: bool
+    def __init__(self, confirm_id: _Optional[str] = ..., approved: _Optional[bool] = ...) -> None: ...
 
 class HealthRequest(_message.Message):
     __slots__ = ()

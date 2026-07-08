@@ -3,9 +3,10 @@
 import asyncio
 import logging
 from collections import deque
-from collections.abc import AsyncGenerator, AsyncIterator
+from collections.abc import AsyncGenerator, AsyncIterator, Callable
 
 from cortex_core import (
+    Confirmer,
     InferenceError,
     SessionStoreError,
     TurnEngine,
@@ -13,9 +14,15 @@ from cortex_core import (
 )
 from cortex_core import StatusUpdate as DomainStatusUpdate
 from cortex_core import TextDelta as DomainTextDelta
+from cortex_orchestrator.confirm import SeamConfirmer
 from cortex_seam import ClientEvent, SeamError, ServerEvent, TurnComplete
 from cortex_seam import StatusUpdate as WireStatusUpdate
 from cortex_seam import TextDelta as WireTextDelta
+
+# How the servicer builds one stream's engine (ADR-0022): a closure over the shared
+# adapters that wires THIS stream's confirmer into the dispatcher. Engines are stateless
+# functions over the store, so per-stream construction costs nothing.
+EngineFactory = Callable[[Confirmer], TurnEngine]
 
 # SeamError.code values are part of the seam contract (the overlay switches on these).
 ERROR_CODE_SESSION_STORE_UNAVAILABLE = "session_store_unavailable"
@@ -26,6 +33,10 @@ ERROR_CODE_INTERNAL = "internal"
 # consumer (a whole short reply fits), small enough that a stalled one caps the brain's
 # memory at a few tens of KB of deltas. Env override: CORTEX_SEAM_CONVERSE_BUFFER.
 DEFAULT_MAX_BUFFERED_EVENTS = 256
+
+# Default wait for the user's answer to a ConfirmRequest before the gated call is denied
+# (fail-closed, ADR-0022). Env override: CORTEX_SEAM_CONFIRM_TIMEOUT_S.
+DEFAULT_CONFIRM_TIMEOUT_S = 120.0
 
 _logger = logging.getLogger(__name__)
 
@@ -43,14 +54,21 @@ class _ConverseStream:
     """One Converse stream: a pump task dispatches client events into turn tasks."""
 
     def __init__(
-        self, engine: TurnEngine, *, max_buffered_events: int = DEFAULT_MAX_BUFFERED_EVENTS
+        self,
+        make_engine: EngineFactory,
+        *,
+        max_buffered_events: int = DEFAULT_MAX_BUFFERED_EVENTS,
+        confirm_timeout_s: float = DEFAULT_CONFIRM_TIMEOUT_S,
     ) -> None:
         if max_buffered_events < 1:
             msg = "max_buffered_events must be at least 1"
             raise ValueError(msg)
-        self._engine = engine
         self._out: asyncio.Queue[ServerEvent | None] = asyncio.Queue()
         self._credits = asyncio.Semaphore(max_buffered_events)
+        # This stream's confirmer rides the control path via put_nowait (see the class
+        # docstring on credits); the factory wires it into the stream's own engine.
+        self._confirmer = SeamConfirmer(self._out.put_nowait, timeout_s=confirm_timeout_s)
+        self._engine = make_engine(self._confirmer)
         self._pending: deque[tuple[str, str]] = deque()
         self._turn: asyncio.Task[None] | None = None
         self._failed = False
@@ -62,9 +80,6 @@ class _ConverseStream:
         pump = asyncio.create_task(self._pump(client_events))
         try:
             while (event := await self._out.get()) is not None:
-                # Return the data credit on dequeue. A SeamError never acquired one, so
-                # this over-credits by one on the failure path. That is harmless: the stream is
-                # terminal and no further turn starts (_start_next_turn refuses).
                 self._credits.release()
                 yield event
         finally:
@@ -84,13 +99,22 @@ class _ConverseStream:
                     self._enqueue_turn(event.session_id, event.user_turn.text)
                 elif kind == "cancel":
                     await self._cancel_turn()
+                elif kind == "confirm_response":
+                    self._confirmer.resolve(
+                        event.confirm_response.confirm_id,
+                        approved=event.confirm_response.approved,
+                    )
                 else:
                     _logger.debug("ignoring client event without a known payload")
+            # Input ended (half-close): no answer can ever arrive, so anything awaiting
+            # confirmation is denied NOW. A draining turn must not hang out the timeout.
+            self._confirmer.close()
             await self._drain_turns()
         except Exception as err:  # deliberately broad: nothing may escape the seam unhandled
             _logger.exception("Converse client stream failed")
             self._fail(ERROR_CODE_INTERNAL, str(err))
         finally:
+            self._confirmer.close()  # idempotent; covers the failure and teardown paths
             self._out.put_nowait(None)
 
     def _enqueue_turn(self, session_id: str, text: str) -> None:
@@ -160,10 +184,16 @@ class _ConverseStream:
 
 
 def converse(
-    engine: TurnEngine,
+    make_engine: EngineFactory,
     client_events: AsyncIterator[ClientEvent],
     *,
     max_buffered_events: int = DEFAULT_MAX_BUFFERED_EVENTS,
+    confirm_timeout_s: float = DEFAULT_CONFIRM_TIMEOUT_S,
 ) -> AsyncGenerator[ServerEvent, None]:
     """The Converse conversation loop as a server-event stream (see module docstring)."""
-    return _ConverseStream(engine, max_buffered_events=max_buffered_events).events(client_events)
+    stream = _ConverseStream(
+        make_engine,
+        max_buffered_events=max_buffered_events,
+        confirm_timeout_s=confirm_timeout_s,
+    )
+    return stream.events(client_events)

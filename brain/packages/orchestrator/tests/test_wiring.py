@@ -13,6 +13,8 @@ from fakeredis import FakeAsyncRedis, FakeServer
 from grpc import aio
 
 from cortex_core import (
+    DENIED_MSG,
+    USER_DECLINED_MSG,
     CharBudgetHistoryWindow,
     EchoInferenceBackend,
     GlobalMemoryScope,
@@ -21,6 +23,7 @@ from cortex_core import (
     MemoryRecaller,
     PlacementRequest,
     PlacementTarget,
+    RecordingConfirmer,
     ResourceBudgetScheduler,
     SessionMemoryScope,
     SpawnSubagentsTool,
@@ -561,3 +564,124 @@ async def test_build_cortex_tools_mcp_only_when_no_subagents() -> None:
     tools = build_cortex_tools(_read_registry(), None, SystemClock())
     assert isinstance(tools, ToolDispatcher)
     assert {spec.name for spec in await tools.describe_tools()} == {"read"}
+
+
+async def test_build_tool_registry_stamps_gated_names_at_the_root(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The composition-root gating overlay (ADR-0022): the remote send_email arrives
+    gated=False from MCP and leaves the shared root gated=True because it is declared brain-side,
+    with the default CORTEX_TOOLS_GATED covering it (fail-closed pairing)."""
+    url = "http://mcp-email:9100/mcp"
+    canned = _canned_registry(url, "read_email", "send_email")
+
+    async def fake_connect(_url: str) -> tuple[object, Callable[[], Awaitable[None]]]:
+        async def closer() -> None:
+            return
+
+        return canned, closer
+
+    monkeypatch.setattr(McpToolRegistry, "connect", fake_connect)
+    registry, close = await build_tool_registry(ToolsConfig(backend="mcp", endpoint=url))
+    assert registry is not None
+    gated = {spec.name: spec.gated for spec in await registry.describe_tools()}
+    assert gated == {"read_email": False, "send_email": True}
+    routed = await registry.invoke(ToolCall(id="c1", name="send_email", arguments={}))
+    assert routed.content == url  # the overlay declares; it never blocks routing
+    await close()
+
+
+async def test_build_tool_registry_gated_overlay_disabled_by_an_empty_list(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """CORTEX_TOOLS_GATED=[] is the documented off switch for the overlay."""
+    url = "http://mcp-email:9100/mcp"
+    canned = _canned_registry(url, "send_email")
+
+    async def fake_connect(_url: str) -> tuple[object, Callable[[], Awaitable[None]]]:
+        async def closer() -> None:
+            return
+
+        return canned, closer
+
+    monkeypatch.setattr(McpToolRegistry, "connect", fake_connect)
+    registry, close = await build_tool_registry(ToolsConfig(backend="mcp", endpoint=url, gated=()))
+    assert registry is not None
+    (spec,) = await registry.describe_tools()
+    assert spec.gated is False
+    await close()
+
+
+async def test_build_cortex_tools_threads_the_confirmer_into_the_gate() -> None:
+    """The dispatcher build_cortex_tools returns enforces ADR-0022's untainted-confirm
+    branch with the confirmer it was given, so approval runs the gated tool."""
+    registry = InMemoryToolRegistry(
+        {"send": (ToolSpec(name="send", description="", parameters={}, gated=True), _reply_ok)}
+    )
+    confirmer = RecordingConfirmer(answer=True)
+    tools = build_cortex_tools(registry, None, SystemClock(), confirmer=confirmer)
+    assert tools is not None
+    result = await tools.dispatch(
+        ToolCall(id="c", name="send", arguments={}), tainted=False, gated=True
+    )
+    assert result.is_error is False
+    assert len(confirmer.requests) == 1
+
+
+async def test_build_cortex_tools_defaults_to_no_confirmer_fail_closed() -> None:
+    """Without a confirmer (the default), an untainted gated call is declined. This is the
+    ADR-0013 fail-closed posture now covering every gated call (ADR-0022)."""
+    registry = InMemoryToolRegistry(
+        {"send": (ToolSpec(name="send", description="", parameters={}, gated=True), _reply_ok)}
+    )
+    tools = build_cortex_tools(registry, None, SystemClock())
+    assert tools is not None
+    result = await tools.dispatch(
+        ToolCall(id="c", name="send", arguments={}), tainted=False, gated=True
+    )
+    assert result.is_error is True
+    assert result.content == USER_DECLINED_MSG
+
+
+async def _reply_ok(arguments: Mapping[str, object]) -> str:
+    del arguments
+    return "ok"
+
+
+async def test_build_cortex_tools_gated_names_gate_a_name_the_registry_advertises_ungated() -> None:
+    """The wiring threads CORTEX_TOOLS_GATED into the dispatcher as the authoritative set
+    (ADR-0022): a send tool the raw registry advertises ungated is still gated at dispatch,
+    closing the skip-mode advertisement window."""
+    registry = InMemoryToolRegistry(
+        {"send_email": (ToolSpec(name="send_email", description="", parameters={}), _reply_ok)}
+    )
+    tools = build_cortex_tools(
+        registry,
+        None,
+        SystemClock(),
+        confirmer=RecordingConfirmer(answer=True),
+        gated_names={"send_email"},
+    )
+    assert tools is not None
+    # The registry never stamped it gated, yet a tainted turn's call is denied outright.
+    result = await tools.dispatch(
+        ToolCall(id="c", name="send_email", arguments={}), tainted=True, gated=False
+    )
+    assert result.is_error is True
+    assert result.content == DENIED_MSG
+
+
+async def test_build_subagent_tools_gated_names_are_the_fail_closed_backstop() -> None:
+    """A subagent dispatcher with a gated name and confirmer=None hard-denies it even if the
+    UngatedToolRegistry strip were bypassed by the advertisement window (ADR-0022)."""
+    registry = InMemoryToolRegistry(
+        {"send_email": (ToolSpec(name="send_email", description="", parameters={}), _reply_ok)}
+    )
+    tools = build_subagent_tools(registry, SystemClock(), gated_names={"send_email"})
+    assert tools is not None
+    result = await tools.dispatch(
+        ToolCall(id="c", name="send_email", arguments={}), tainted=False, gated=False
+    )
+    # confirmer=None on subagents -> the gated-by-name call is declined, never run.
+    assert result.is_error is True
+    assert result.content == USER_DECLINED_MSG

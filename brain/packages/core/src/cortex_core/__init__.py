@@ -3,6 +3,7 @@
 from cortex_core.aggregate import (
     AggregateToolRegistry,
     FilteredToolRegistry,
+    GatedToolRegistry,
     SkipUnavailableToolRegistry,
     UngatedToolRegistry,
 )
@@ -85,6 +86,7 @@ from cortex_core.tools import (
 from cortex_core.untrusted import (
     DENIED_MSG,
     SECURITY_PREAMBLE,
+    USER_DECLINED_MSG,
     TaintLedger,
     new_nonce,
     security_preamble_message,
@@ -101,6 +103,7 @@ __all__ = [
     "REDACTED_LINK",
     "SECURITY_PREAMBLE",
     "SPAWN_TOOL_NAME",
+    "USER_DECLINED_MSG",
     "AggregateToolRegistry",
     "BuiltinTool",
     "CharBudgetHistoryWindow",
@@ -112,6 +115,7 @@ __all__ = [
     "Embedder",
     "EmbedderError",
     "FilteredToolRegistry",
+    "GatedToolRegistry",
     "GlobalMemoryScope",
     "HashEmbedder",
     "HistoryWindow",

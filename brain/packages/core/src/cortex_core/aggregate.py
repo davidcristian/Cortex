@@ -1,6 +1,7 @@
 """Port-preserving ToolRegistry combinators (ADR-0009 refinements addendum)."""
 
 from collections.abc import Callable, Sequence
+from dataclasses import replace
 
 from cortex_core.errors import ToolError, ToolNotFoundError
 from cortex_core.ports import ToolRegistry
@@ -74,6 +75,28 @@ class UngatedToolRegistry:
         if call.name in gated:
             msg = f"unknown tool {call.name!r}"
             raise ToolNotFoundError(msg)
+        return await self._inner.invoke(call)
+
+
+class GatedToolRegistry:
+    """A ``ToolRegistry`` whose named tools are advertised ``gated`` (ADR-0022)."""
+
+    def __init__(self, inner: ToolRegistry, *, gated: Sequence[str]) -> None:
+        if not gated:
+            msg = "GatedToolRegistry needs a non-empty gated-name set"
+            raise ValueError(msg)
+        self._inner = inner
+        self._gated = frozenset(gated)
+
+    async def describe_tools(self) -> Sequence[ToolSpec]:
+        """The inner registry's tools, gated names stamped, inner order kept."""
+        return tuple(
+            replace(spec, gated=True) if spec.name in self._gated else spec
+            for spec in await self._inner.describe_tools()
+        )
+
+    async def invoke(self, call: ToolCall) -> ToolResult:
+        """Delegate untouched. Enforcement is the dispatcher's, declaration is ours."""
         return await self._inner.invoke(call)
 
 

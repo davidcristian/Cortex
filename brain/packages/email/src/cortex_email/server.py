@@ -1,4 +1,4 @@
-"""FastMCP server exposing the read-only email tools over an EmailReader (ADR-0009)."""
+"""FastMCP server exposing the email tools over an EmailReader (ADR-0009, ADR-0022)."""
 # The tool handlers are registered via the @server.tool() decorator (a side effect), so
 # pyright's "not accessed" check is a false positive for this small handler module.
 # pyright: reportUnusedFunction=false
@@ -6,18 +6,20 @@
 import asyncio
 
 from mcp.server.fastmcp import FastMCP
+from mcp.types import ToolAnnotations
 
-from cortex_email.config import EmailConfig
+from cortex_email.config import EmailConfig, SmtpConfig
 from cortex_email.imap import ImapMailbox
 from cortex_email.reader import EmailReader
+from cortex_email.smtp import EmailSender, SmtpSender
 
 _SERVER_HOST = "0.0.0.0"  # noqa: S104 - the sidecar binds its container interface; compose publishes loopback-only
 _SERVER_PORT = 9100
 _DEFAULT_SEARCH_LIMIT = 20
 
 
-def build_server(reader: EmailReader) -> FastMCP:
-    """Register the read-only email tools on a FastMCP server backed by ``reader``."""
+def build_server(reader: EmailReader, sender: EmailSender | None = None) -> FastMCP:
+    """Register the email tools on a FastMCP server: reads always, send only with a sender."""
     server = FastMCP(
         "cortex-email", host=_SERVER_HOST, port=_SERVER_PORT, streamable_http_path="/mcp"
     )
@@ -46,10 +48,30 @@ def build_server(reader: EmailReader) -> FastMCP:
             f"Date: {detail.date}\nSubject: {detail.subject}\n\n{detail.body}"
         )
 
+    if sender is not None:
+        # Advisory MCP metadata only. The enforcing declaration is the brain-side
+        # CORTEX_TOOLS_GATED overlay (ADR-0022): a sidecar must not be able to
+        # self-declare its way past the gate, in either direction.
+        @server.tool(
+            annotations=ToolAnnotations(
+                readOnlyHint=False, destructiveHint=True, openWorldHint=True
+            )
+        )
+        async def send_email(to: str, subject: str, body: str) -> str:
+            """Send a plain-text email as the configured account (outbound, irreversible;
+            it runs only with the user's explicit approval)."""
+            return await asyncio.to_thread(sender.send, to, subject, body)
+
     return server
 
 
 def main() -> None:
-    """Run the read-only email MCP server from the environment (streamable-http)."""
+    """Run the email MCP server from the environment (streamable-http).
+
+    The send path is opt-in: a sender exists only under CORTEX_EMAIL_SEND_ENABLED=true
+    (with credentials validated at startup). Otherwise this is the read-only server.
+    """
     reader = EmailReader(ImapMailbox(EmailConfig()))
-    build_server(reader).run(transport="streamable-http")
+    smtp = SmtpConfig()
+    sender = SmtpSender(smtp) if smtp.enabled else None
+    build_server(reader, sender).run(transport="streamable-http")

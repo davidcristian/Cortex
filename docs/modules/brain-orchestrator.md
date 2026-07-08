@@ -20,7 +20,9 @@ Config (pydantic-settings; explicit constructor arguments beat the environment):
   the same env var), empty disables the check (loopback-only remains the boundary).
   `converse_buffer: int = 256` (`CORTEX_SEAM_CONVERSE_BUFFER`, positive) bounds how many
   `ServerEvent`s one Converse stream buffers unread before generation stalls
-  (backpressure, below).
+  (backpressure, below). `confirm_timeout_s: float = 120.0`
+  (`CORTEX_SEAM_CONFIRM_TIMEOUT_S`, positive, ADR-0022) bounds how long a gated tool call
+  awaits the user's `ConfirmResponse` before it is denied (fail-closed).
 - `BrainRuntimeConfig` holds runtime wiring knobs, read only by the composition root:
   `redis_url: str = "redis://127.0.0.1:6379/0"` (`CORTEX_REDIS_URL`);
   `cortex_model: str = "cortex"` (`CORTEX_MODEL_CORTEX`) is a LOGICAL model id (ADR-0004), never a
@@ -94,19 +96,32 @@ The service:
     that to `TransportError::Rpc`). They add no write path, only reads over existing state.
 - `DEFAULT_SESSION_LIST_LIMIT = 50` / `MAX_SESSION_LIST_LIMIT = 200` are the `ListSessions`
   limit default and hard cap (ADR-0021).
-- `converse(engine, client_events, *, max_buffered_events=DEFAULT_MAX_BUFFERED_EVENTS)
-  -> AsyncGenerator[ServerEvent, None]` is the loop itself, servicer-independent (what
-  `BrainService.Converse` delegates to). Closing the generator tears down the stream's
-  pump task, any in-flight turn, and the queue of not-yet-started turns. Teardown
-  completes even when it races a client `Cancel` whose turn is still cleaning up, and
-  even while the turn is blocked on a buffer credit.
+- `converse(make_engine, client_events, *, max_buffered_events=DEFAULT_MAX_BUFFERED_EVENTS,
+  confirm_timeout_s=DEFAULT_CONFIRM_TIMEOUT_S) -> AsyncGenerator[ServerEvent, None]` is the loop
+  itself, servicer-independent (what `BrainService.Converse` delegates to). `make_engine` is an
+  `EngineFactory` (`Callable[[Confirmer], TurnEngine]`, ADR-0022): each stream builds one
+  `SeamConfirmer` bound to its own output queue and runs the engine the factory returns for it
+  (a bare engine wraps as `lambda _confirmer: engine`, leaving gated calls fail-closed).
+  Closing the generator tears down the stream's pump task, any in-flight turn, and the queue of
+  not-yet-started turns. Teardown completes even when it races a client `Cancel` whose turn is
+  still cleaning up, and even while the turn is blocked on a buffer credit.
+- `SeamConfirmer(emit, *, timeout_s)` (`confirm.py`, ADR-0022) is the real `Confirmer` adapter:
+  `confirm(request)` mints a `confirm_id`, emits `ServerEvent.confirm_request` (tool name, the
+  draft as one JSON object, the reason, all shown verbatim) via the stream's **control path**
+  (`put_nowait`, the `SeamError` precedent, so a stalled consumer can never deadlock the ask),
+  and awaits the matching `ConfirmResponse` under `timeout_s`. Timeout, `close()` (client
+  half-close, so no answer can ever arrive), and cancellation (turn/stream death) all deny;
+  unknown or repeated `confirm_id`s resolve nothing. Pending state is one awaiting coroutine, with
+  nothing persisted, nothing survives the turn (the one hard rule).
 - `DEFAULT_MAX_BUFFERED_EVENTS = 256` is the default Converse buffer bound
   (`SeamServerConfig.converse_buffer` feeds the deployed value through `create_server`).
+- `DEFAULT_CONFIRM_TIMEOUT_S = 120.0` is the default confirm wait
+  (`SeamServerConfig.confirm_timeout_s` feeds the deployed value through `create_server`).
 - `ERROR_CODE_SESSION_STORE_UNAVAILABLE` / `ERROR_CODE_INFERENCE_FAILED` /
   `ERROR_CODE_INTERNAL` are the `SeamError.code` values (`"session_store_unavailable"`,
   `"inference_failed"`, `"internal"`).
-- `create_server(config: SeamServerConfig, engine: TurnEngine, store: SessionStore) -> tuple[grpc.aio.Server, int]`
-  builds the aio server, registers `BrainService(engine, store)`, binds `config.bind_address`;
+- `create_server(config: SeamServerConfig, make_engine: EngineFactory, store: SessionStore) -> tuple[grpc.aio.Server, int]`
+  builds the aio server, registers `BrainService(make_engine, store)`, binds `config.bind_address`;
   returns the not-yet-started server plus the actually-bound port (the OS pick when
   `port=0`; gRPC reports 0 if the bind failed). With `config.token` set it registers the
   `SeamTokenInterceptor` (ADR-0016, `auth.py`): every RPC, unary and streaming, current
@@ -154,11 +169,13 @@ The service:
   comes from `build_subagent_tools(tool_registry, clock)`, the shared registry wrapped in
   `UngatedToolRegistry`, so a subagent is never handed a gated/outbound tool, ADR-0013
   subagent-exclusion addendum). The cortex's dispatcher is
-  `build_cortex_tools(registry, spawn_tool, clock)`, the spawn tool merged with the MCP tools
-  via a `CompositeToolRegistry`, or `None` when neither is enabled (the Slice 3 turn path). Its
-  `ToolDispatcher` takes the default `confirmer=None` (ADR-0013): fail-closed, so a gated tool on a
-  tainted turn is denied. No tool is gated today; the real overlay confirmer adapter is wired here
-  with the first outbound tool (Slice 9/10).
+  `build_cortex_tools(registry, spawn_tool, clock, confirmer=...)`, the spawn tool merged with
+  the MCP tools via a `CompositeToolRegistry`, or `None` when neither is enabled (the Slice 3
+  turn path). `run_from_env` hands `serve` an **engine factory** (ADR-0022): each Converse
+  stream's `SeamConfirmer` reaches its dispatcher through it, so an untainted gated call (e.g.
+  the email sidecar's `send_email`, stamped by the `CORTEX_TOOLS_GATED` overlay in
+  `build_tool_registry`) prompts the overlay and a tainted one is denied outright. Subagent
+  dispatchers keep `confirmer=None` (fail-closed, ADR-0013).
   **Echo is the default inference backend; llama.cpp is opt-in via
   `CORTEX_INFERENCE_BACKEND=llamacpp`** (ADR-0007), so the deterministic `"reply {n}: {text}"`
   script (brain-core.md) runs in CI. Every adapter's resources are released on the way out.
@@ -192,7 +209,11 @@ The service:
   (gRPC status OK, no unhandled exception server-side; later client events on that
   stream are not acted upon). Client events without a known payload are ignored.
 - Client disconnect / RPC cancellation tears down the in-flight turn the same way a
-  `Cancel` does.
+  `Cancel` does, and any pending confirmation dies with it, as a denial (ADR-0022).
+- **The confirm exchange** (ADR-0022): a gated call mid-turn emits `ConfirmRequest` and
+  suspends inside the dispatcher until the pump routes the matching `confirm_response`
+  client event, the timeout denies, or input ends (`SeamConfirmer.close()` denies pending
+  and future asks immediately, so a draining turn never hangs out the timeout).
 - **Bounded backpressure** (the Slice-3 deferral, landed 2026-07-03): at most
   `converse_buffer` events sit unread per stream. The turn's data path holds a credit
   per buffered event (returned on dequeue), so a consumer that stops reading suspends

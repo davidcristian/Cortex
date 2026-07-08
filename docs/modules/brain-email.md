@@ -1,9 +1,13 @@
 # brain/packages/email (`cortex_email`)
 
-**Purpose.** A standalone **read-only** IMAP MCP server (ADR-0009). It exposes three read-only
-email tools (list folders, search, read one message) over an MCP streamable-http endpoint,
-backed by imap-tools against a ProtonMail Bridge. It is **not** the brain: it runs as its own
-sidecar process, and the brain reaches it as an ordinary MCP server through `cortex_tools`.
+**Purpose.** A standalone email MCP server: **read-only IMAP by default** (ADR-0009), plus an
+**opt-in SMTP send twin** (ADR-0022). It exposes three read tools (list folders, search, read
+one message) and, only under `CORTEX_EMAIL_SEND_ENABLED=true`, the `send_email` write tool,
+over an MCP streamable-http endpoint against a ProtonMail Bridge. It is **not** the brain: it
+runs as its own sidecar process, and the brain reaches it as an ordinary MCP server through
+`cortex_tools`. There `send_email` is stamped `gated` by the composition-root overlay
+(`CORTEX_TOOLS_GATED`), so every send needs the user's approval and a tainted turn's send is
+denied outright.
 
 **Public contract** (everything importable from `cortex_email`; `__all__` is the API):
 
@@ -23,13 +27,26 @@ sidecar process, and the brain reaches it as an ordinary MCP server through `cor
   (`SecretStr`), `security` (starttls|ssl), and `ca_cert` / `tls_insecure` for the Bridge's
   self-signed cert. Defaults target a local Bridge (127.0.0.1:1143, STARTTLS).
 - `EmailSummary` / `EmailDetail` are frozen value types (a search hit; a full message).
-- `build_server(reader) -> FastMCP` registers the three tools on a FastMCP server (covered
-  in-process via `FastMCP.call_tool`). `main()` reads the env config, builds the imap-tools
-  reader, and runs the server over streamable-http (`python -m cortex_email`).
+- `build_server(reader, sender=None) -> FastMCP` registers the three read tools always, and
+  `send_email(to, subject, body)` only when a sender is passed (with advisory MCP
+  `ToolAnnotations`: not read-only, destructive, open-world, and never authority; the brain-side
+  overlay is). Covered in-process via `FastMCP.call_tool`. `main()` reads the env config,
+  builds the imap-tools reader (and an `SmtpSender` only when `SmtpConfig.enabled`), and runs
+  the server over streamable-http (`python -m cortex_email`).
+- `EmailSender` is the `Protocol` the send tool needs (`send(to, subject, body) -> str`).
+- `SmtpSender(config)` is the `EmailSender` over smtplib + STARTTLS (or implicit TLS),
+  connecting per call. `From` is the authenticated Bridge user, never a parameter, so the tool
+  cannot spoof a sender. Returns one readable confirmation line.
+- `SmtpConfig` holds env-driven settings (`CORTEX_EMAIL_SMTP_*` + `CORTEX_EMAIL_SEND_ENABLED`):
+  defaults target the Bridge SMTP loopback (127.0.0.1:1025, STARTTLS) with the same
+  cert-verification escape hatches as IMAP; enabling send without credentials fails fast at
+  startup.
 
-**Read-only guarantee in three layers.** Only read tools are registered (no write tool exists);
-folders are opened with EXAMINE (`readonly=True`, never SELECT); and fetches never set the Seen
-flag (`mark_seen=False`). Nothing in this package can modify a mailbox.
+**Read-only by default, in three layers on the read path.** Without the explicit send opt-in,
+only read tools register; folders are opened with EXAMINE (`readonly=True`, never SELECT); and
+fetches never set the Seen flag (`mark_seen=False`). The IMAP path can never modify a mailbox.
+The one write capability (`send_email`, SMTP on a different protocol and connection) exists only
+when deliberately enabled, and is gated + confirmed brain-side (ADR-0022).
 
 **Invariants.**
 - Standalone sidecar that depends on no other cortex package; the brain reaches it over MCP.

@@ -3,6 +3,9 @@
 Each tool returns a single readable string; these assert on that text (what a text client,
 and thus the model, actually receives), not on FastMCP's structured side-channel.
 """
+# The autouse env-isolation fixture below is invoked by pytest, not statically
+# referenced. Pyright cannot see that. (Same class as server.py's decorator handlers.)
+# pyright: reportUnusedFunction=false
 
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, cast
@@ -10,7 +13,8 @@ from typing import TYPE_CHECKING, cast
 import pytest
 from mcp.server.fastmcp import FastMCP
 
-from cortex_email import EmailReader, RawEmail, build_server, main
+import cortex_email.server as server_module
+from cortex_email import EmailReader, RawEmail, SmtpSender, build_server, main
 
 if TYPE_CHECKING:
     from mcp.types import TextContent
@@ -19,6 +23,22 @@ _SIMPLE = (
     b"From: A <a@x.com>\r\nSubject: Hi\r\n"
     b"Date: Fri, 03 Jul 2026 12:00:00 +0000\r\n\r\nbody text\r\n"
 )
+
+
+_SMTP_ENV = (
+    "CORTEX_EMAIL_SEND_ENABLED",
+    "CORTEX_EMAIL_SMTP_ENABLED",
+    "CORTEX_EMAIL_SMTP_USER",
+    "CORTEX_EMAIL_SMTP_PASSWORD",
+)
+
+
+@pytest.fixture(autouse=True)
+def _clean_smtp_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    # Isolate the send-path env so a sourced ~/.cortex/email.env can't make `main()` wire a
+    # sender in the read-only-default test; tests that need it set the vars after this runs.
+    for name in _SMTP_ENV:
+        monkeypatch.delenv(name, raising=False)
 
 
 class FakeMailbox:
@@ -83,12 +103,84 @@ async def test_read_email_tool_reports_not_found() -> None:
     assert text == "message 999 not found in INBOX"
 
 
+class FakeSender:
+    """Records sends and returns the readable confirmation line (the SmtpSender contract)."""
+
+    def __init__(self) -> None:
+        self.sent: list[tuple[str, str, str]] = []
+
+    def send(self, to: str, subject: str, body: str) -> str:
+        self.sent.append((to, subject, body))
+        return f"email sent to {to}"
+
+
+async def _tool_names(server: FastMCP) -> set[str]:
+    return {tool.name for tool in await server.list_tools()}
+
+
+async def test_without_a_sender_only_the_read_tools_register() -> None:
+    # The Slice 6 read-only-by-construction property, preserved by default (ADR-0022).
+    server = build_server(EmailReader(FakeMailbox()))
+    assert await _tool_names(server) == {"list_folders", "search_emails", "read_email"}
+
+
+async def test_with_a_sender_send_email_registers_with_write_annotations() -> None:
+    server = build_server(EmailReader(FakeMailbox()), FakeSender())
+    tools = {tool.name: tool for tool in await server.list_tools()}
+    assert set(tools) == {"list_folders", "search_emails", "read_email", "send_email"}
+    annotations = tools["send_email"].annotations
+    assert annotations is not None
+    # Advisory MCP metadata (never authority, because the brain-side overlay gates it).
+    assert annotations.readOnlyHint is False
+    assert annotations.destructiveHint is True
+    assert annotations.openWorldHint is True
+
+
+async def test_send_email_tool_sends_and_reports() -> None:
+    sender = FakeSender()
+    server = build_server(EmailReader(FakeMailbox()), sender)
+    text = await _text(
+        server, "send_email", {"to": "you@example.com", "subject": "Hi", "body": "hello"}
+    )
+    assert text == "email sent to you@example.com"
+    assert sender.sent == [("you@example.com", "Hi", "hello")]
+
+
 def test_main_builds_the_server_and_runs_streamable_http(monkeypatch: pytest.MonkeyPatch) -> None:
     transports: list[str] = []
+    senders: list[object] = []
 
     def fake_run(_self: FastMCP, transport: str) -> None:
         transports.append(transport)
 
+    def spy_build(reader: EmailReader, sender: object = None) -> FastMCP:
+        senders.append(sender)
+        return build_server(reader, None)
+
     monkeypatch.setattr(FastMCP, "run", fake_run)
+    monkeypatch.setattr(server_module, "build_server", spy_build)
     main()
     assert transports == ["streamable-http"]
+    assert senders == [None]  # send disabled by default: the read-only server
+
+
+def test_main_wires_a_sender_when_send_is_enabled(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("CORTEX_EMAIL_SEND_ENABLED", "true")
+    monkeypatch.setenv("CORTEX_EMAIL_SMTP_USER", "me@example.com")
+    monkeypatch.setenv("CORTEX_EMAIL_SMTP_PASSWORD", "pw")
+    transports: list[str] = []
+    senders: list[object] = []
+
+    def fake_run(_self: FastMCP, transport: str) -> None:
+        transports.append(transport)
+
+    def spy_build(reader: EmailReader, sender: object = None) -> FastMCP:
+        senders.append(sender)
+        return build_server(reader, None)
+
+    monkeypatch.setattr(FastMCP, "run", fake_run)
+    monkeypatch.setattr(server_module, "build_server", spy_build)
+    main()
+    assert transports == ["streamable-http"]
+    (sender,) = senders
+    assert isinstance(sender, SmtpSender)

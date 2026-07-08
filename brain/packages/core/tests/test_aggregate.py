@@ -8,6 +8,7 @@ import pytest
 from cortex_core import (
     AggregateToolRegistry,
     FilteredToolRegistry,
+    GatedToolRegistry,
     InMemoryToolRegistry,
     SkipUnavailableToolRegistry,
     ToolCall,
@@ -215,3 +216,42 @@ async def test_filter_only_restricts_never_grants() -> None:
     assert [spec.name for spec in await filtered.describe_tools()] == ["read"]
     with pytest.raises(ToolNotFoundError, match="unknown tool 'ghost'"):
         await filtered.invoke(ToolCall(id="c7", name="ghost", arguments={}))
+
+
+def test_gated_overlay_requires_a_non_empty_name_set() -> None:
+    with pytest.raises(ValueError, match="non-empty gated-name set"):
+        GatedToolRegistry(_registry("mail", "send_email"), gated=[])
+
+
+async def test_gated_overlay_stamps_named_tools_and_leaves_the_rest() -> None:
+    # The composition-root declaration (ADR-0022): the remote spec arrives gated=False and
+    # leaves gated=True; unnamed tools ride through untouched, inner order kept.
+    inner = _registry("mail", "read_email", "send_email")
+    overlay = GatedToolRegistry(inner, gated=["send_email"])
+    specs = {spec.name: spec.gated for spec in await overlay.describe_tools()}
+    assert specs == {"read_email": False, "send_email": True}
+
+
+async def test_gated_overlay_tolerates_a_name_that_never_appears() -> None:
+    # The fail-closed default set may name tools no sidecar serves. That is harmless.
+    overlay = GatedToolRegistry(_registry("fs", "read"), gated=["send_email"])
+    specs = {spec.name: spec.gated for spec in await overlay.describe_tools()}
+    assert specs == {"read": False}
+
+
+async def test_gated_overlay_delegates_invocation_untouched() -> None:
+    # Enforcement is the dispatcher's; the overlay only declares.
+    overlay = GatedToolRegistry(_registry("mail", "send_email"), gated=["send_email"])
+    result = await overlay.invoke(ToolCall(id="c8", name="send_email", arguments={}))
+    assert result.content == "from mail"
+
+
+async def test_gated_overlay_composes_with_the_subagent_strip() -> None:
+    # The end-to-end property (ADR-0022 decision 4): stamp at the shared root, and the
+    # subagent-facing UngatedToolRegistry strips the stamped tool. A subagent never sees
+    # send_email at all, not merely a gate denial.
+    root = GatedToolRegistry(_registry("mail", "read_email", "send_email"), gated=["send_email"])
+    subagent_view = UngatedToolRegistry(root)
+    assert [spec.name for spec in await subagent_view.describe_tools()] == ["read_email"]
+    with pytest.raises(ToolNotFoundError, match="unknown tool 'send_email'"):
+        await subagent_view.invoke(ToolCall(id="c9", name="send_email", arguments={}))
