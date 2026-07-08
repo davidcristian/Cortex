@@ -49,6 +49,13 @@ Note: on an 8 GB GPU the gemma-4-12B cortex does not fit, so a fully *cortex-dri
 `set_volume` (the model emitting the tool call) is bounded by what fits; the seam + gateway +
 tool path are what this half validates directly.
 
+**Validated 2026-07-08 (agent, [ADR-0023 addendum](../adr/ADR-0023-body-gateway-volume.md)):**
+the host-side-test-server path, run end to end. A token-requiring fake `BodyService` served on
+`0.0.0.0:50151` from the brain venv; `test_gateway_live.py` ran from a container (the uv builder
+image with the brain workspace mounted (the runtime image has no dev deps) plus
+`--add-host host.docker.internal:host-gateway`): the tokened round-trip **passed** and the same
+run without `CORTEX_SEAM_TOKEN` was rejected `UNAUTHENTICATED: invalid or missing seam token`.
+
 ## Host-only half (real Core Audio on Windows)
 
 `WindowsAudioControl` (`os_windows`, Core Audio via the `windows` crate, ADR-0023-scoped
