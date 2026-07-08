@@ -543,6 +543,45 @@ capability gate, and the `Confirmer` round-trip over the seam.
 
 ## Slice 9 (One OS action end-to-end, volume)
 
+**Status:** CI-gated half done on 2026-07-08 ([ADR-0023](adr/ADR-0023-body-gateway-volume.md)),
+100% under `just check` across all four trees. The first **brain→body** seam direction and the
+first OS action. Resolves ADR-0001 Q2 (body capabilities are **internal** tools over a
+`BodyGateway` port, not MCP) and Q3 (the brain **dials** the host body via `host.docker.internal`;
+the abstract port keeps the ADR-0001 Q3 tunnel fallback a pure adapter swap). No proto change, since
+`BodyService`/`GetVolume`/`SetVolume`/`VolumeState` were frozen at Slice 2 and both stubs already
+committed; Slice 9 is hand-written wiring on top.
+
+**Delivered CI-gated end to end (fakes on both sides, no GPU/OS/GUI):**
+- **Brain (mine).** `BodyGateway` port + pure `VolumeState` value + `BodyGatewayError` +
+  `InMemoryBodyGateway` fake in `cortex_core`; the ungated `get_volume`/`set_volume` built-ins
+  (`volume.py`, `Trust.TRUSTED` results, as host state never taints; bad args and a dead body both
+  become a recoverable `is_error`, cortex-only like `spawn_subagents`); the new `cortex_body_client`
+  package (`GrpcBodyGateway` over the committed `BodyServiceStub`, 100%-covered via a loopback fake
+  `BodyServiceServicer`, no live body); `BodyConfig` (`CORTEX_BODY_*`, off by default) +
+  `build_body_gateway` + the `build_cortex_tools` `body=` overlay, threaded per stream in
+  `run_from_env` with the shared `CORTEX_SEAM_TOKEN`. `SEAM_TOKEN_HEADER` lifted to `cortex_seam`.
+- **Body (mine).** `AudioControl` OS trait + pure `VolumeState`/`VolumeChange`/`clamp_level`/
+  `AudioError` in `body_core::os` (the `Hotkey` sibling; `Send + Sync` for the server); the
+  `VolumeService<A>` `BodyService` server + `audio_error_to_status` + the reversed `SeamTokenValidator`
+  (constant-time, always-attached/pass-through-when-empty) + `body_service(audio, token)` in
+  `body_rpc`, contract-tested over a loopback server + fake `AudioControl` to 100% line+region+branch;
+  `os_linux`/`os_macos` `AudioControl` stubs.
+- **Host-authored (host-validated on Windows, never in CI).** The real `WindowsAudioControl`
+  (Core Audio, `cfg(windows)`, the `windows` crate; `unsafe` for COM authorized narrowly to
+  `os_windows` by ADR-0023, the one crate opting out of the workspace `unsafe_code = forbid`), and
+  the Tauri shell's `body_server::start()` binding `CORTEX_BODY_ADDR` and serving on Tauri's runtime.
+- **Gating.** Volume is **ungated** (reversible), so a spoken "set volume to 30%" needs no approval
+  card; a user can gate `set_volume` by adding it to `CORTEX_TOOLS_GATED` (the dispatcher backstop:
+  clean turn → confirm, tainted turn → denied, ADR-0022). Trust is `TRUSTED` so a volume call never
+  taints the turn.
+
+**Remaining:** the **agent-Docker** brain→body dial across the container boundary
+(`integration`-marked `test_gateway_live.py`, `docker-compose.body.yml`) and the **Host-Windows**
+real Core Audio validation ("set volume to 30%") in [body-volume.md](runbooks/body-volume.md). On an
+8 GB GPU the gemma-4-12B cortex does not fit, so a fully *cortex-driven* `set_volume` is bounded by
+what fits; the seam + gateway + tool path validate directly.
+
+Original scope (still the design):
 `AudioControl` Windows backend (Core Audio); `BodyService.SetVolume/GetVolume` served by
 the body; brain-side `BodyGateway` port + gRPC adapter; the volume tool registers in the
 Slice 6 `ToolRegistry` and dispatches through the existing audited path. "Set volume to
@@ -885,6 +924,26 @@ each behind the unchanged `Confirmer`/`ToolDispatcher`/`GatedToolRegistry`/seam 
   `UngatedToolRegistry` (strip + live-walk refusal) + `confirmer=None`; only the astronomically
   narrow skip-mode double-walk window is uncovered on that path. Wire it through the unchanged
   `build_subagent_tools` seam if it ever matters.
+
+**Body gateway & OS actions in Slice 9 ([ADR-0023](adr/ADR-0023-body-gateway-volume.md)):** each
+behind the unchanged `BodyGateway`/`AudioControl`/`BodyService` seams.
+- **Agent-Docker + Host-Windows validation.** The CI-gated half is done; the brain→body dial
+  across the container boundary (`test_gateway_live.py`, `docker-compose.body.yml`) and the real
+  Core Audio "set volume to 30%" on Windows remain ([body-volume.md](runbooks/body-volume.md)).
+- **The Q3 body-initiated-stream tunnel fallback.** The brain dials the body directly today; if
+  `host.docker.internal` proves brittle on WSL2, tunneling body-directed calls over a
+  body-initiated bidi stream is a different `BodyGateway` adapter, with no core/tool/proto change.
+- **A hardened non-loopback posture.** The body binds a configurable interface (loopback for dev,
+  `0.0.0.0` for the container→host path) behind the seam token + host firewall (assumption 5's
+  revisit). mTLS / per-direction tokens, if the machine ever leaves single-user.
+- **`spawn_blocking` for the sync OS call.** The `AudioControl` port is sync and called inline in
+  the async `BodyService` handler (fine at personal scale, as it is a fast COM call); moving it to
+  `spawn_blocking` is a body-side tweak behind the unchanged trait.
+- **`GetVolume` surfaced as overlay state** (a real volume indicator), and the remaining
+  `BodyService` RPCs, `CaptureScreen` (Slice 10) and `InjectInput` (later), behind the same seam.
+- **A safe Core Audio wrapper.** `WindowsAudioControl` uses the ADR-0023-scoped `unsafe` over the
+  `windows` crate's COM API; a fully-safe wrapper crate (à la `global-hotkey` for the hotkey) would
+  retire the exception if one matures.
 
 **Cross-cutting (originally "Later, unordered"):** pointer-input injection (extend the proto
 first), richer memory policies (**the email-write tool landed 2026-07-08 as Slice 8.8**,

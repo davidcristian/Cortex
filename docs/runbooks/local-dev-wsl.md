@@ -33,14 +33,19 @@ config contract in [ADR-0003](../adr/ADR-0003-seam-codegen.md).
 |---|---|---|
 | `CORTEX_SEAM_HOST` | `127.0.0.1` | brain server bind host (Compose sets `0.0.0.0` inside the container; exposure stays loopback-only via the port publish) |
 | `CORTEX_SEAM_PORT` | `50051` | brain server bind port |
-| `CORTEX_SEAM_TOKEN` | *(empty, auth off)* | both sides (ADR-0016): the brain rejects untokened calls when set (Compose passes it through from the host env/`.env`); the body/live checks present the same value |
+| `CORTEX_SEAM_TOKEN` | *(empty, auth off)* | both directions (ADR-0016/0023): the brain server rejects untokened body→brain calls when set (Compose passes it through from the host env/`.env`); the body server now validates the same token on brain→body calls and the brain client attaches it when dialing the body; the body/live checks present the same value |
 | `CORTEX_REDIS_URL` | `redis://127.0.0.1:6379/0` | brain composition root (where session state lives; Compose sets `redis://redis:6379/0`) |
 | `CORTEX_MODEL_CORTEX` | `cortex` | brain composition root (the LOGICAL cortex model id (ADR-0004), never a path) |
 | `CORTEX_BRAIN_ADDR` | `http://127.0.0.1:50051` | body-side live check (the address it dials) |
+| `CORTEX_BODY_BACKEND` | `none` | brain composition root (ADR-0023, the brain→body direction); `none` (off) or `grpc` (dial the host body, wiring the `get_volume`/`set_volume` tools) |
+| `CORTEX_BODY_ENDPOINT` | *(required when `grpc`)* | brain composition root (the host body the brain dials; `host.docker.internal:50151` from the dockerized brain) |
+| `CORTEX_BODY_ADDR` | `127.0.0.1:50151` | body server bind addr (ADR-0023); set `0.0.0.0:50151` for the real container→host path (seam token + host firewall are then the boundary) |
 
 The defaults line up: a brain on defaults is reachable by a body check on defaults and
 finds a redis published by Compose on loopback. Everything listens on loopback only
-(ROADMAP assumption 5).
+(ROADMAP assumption 5). The brain→body direction (`CORTEX_BODY_*`, the first host OS
+action, reading and setting system volume) has its own end-to-end validation in
+[body-volume.md](body-volume.md).
 
 ## Redis (the session store)
 
