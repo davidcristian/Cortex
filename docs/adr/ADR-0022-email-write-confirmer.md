@@ -326,6 +326,17 @@ without a brain; `overlay-ux.md` gains the card's spec.
 - Batching / per-tool session allowlists against confirmation fatigue.
 - Salience of `ToolActivity`: still emitted by nothing; the confirm card is the first
   mid-turn tool surface, and a general tool-activity chip remains an overlay-gap item.
+- **The subagent-side authoritative gated-name backstop is available but not wired.**
+  `ToolDispatcher` and `build_subagent_tools` both accept `gated_names` (the post-review
+  hardening that makes the *cortex's* gate independent of advertisement), but
+  `build_subagents` does not pass it (a 7th arg trips the PLR0913 cap), so a subagent's
+  dispatcher runs with an empty set. Subagents stay protected by the two structural layers
+  they already have, namely `UngatedToolRegistry` (strips gated specs and refuses a gated name by a
+  live walk at invoke) plus `confirmer=None` (fail-closed). These cover every case except the
+  astronomically narrow skip-mode double-walk window (a sidecar down for the strip's walk yet
+  up for the inner invoke walk, with the subagent independently emitting the exact gated name).
+  Wiring the backstop through is a small change behind the unchanged `build_subagent_tools`
+  seam if that residual ever matters.
 
 ## Addendum (2026-07-08): agent validation of overlay UI (Chrome) + gating over real MCP (Docker)
 
