@@ -116,6 +116,15 @@ Start here. Rules for working in this repo: [AGENTS.md](../AGENTS.md).
   `history`. The body `BrainTransport` / overlay `BrainBridge` grow typed reads, and the overlay
   owns the `session_id` for real multi-chat.
 
+- [ADR-0022: Email-write + the real Confirmer](adr/ADR-0022-email-write-confirmer.md):
+  Slice 8.8 adds the first outbound/irreversible tool (`send_email`, SMTP over ProtonMail Bridge,
+  off by default) and the machinery every later gated action reuses: the confirm exchange rides
+  the Converse stream (`ConfirmRequest`/`ConfirmResponse`), each stream builds its engine via an
+  `EngineFactory` so its `SeamConfirmer` reaches the dispatcher, the gate table is revised
+  (untainted gated → user confirms via the overlay card; tainted gated → denied outright and
+  never merely a confirm-away), and `GatedToolRegistry` + `CORTEX_TOOLS_GATED` declare remote
+  tools gated at the composition root (subagents never see them).
+
 New non-obvious decision → add `adr/ADR-XXXX-<slug>.md`, link it here.
 
 ## Design
@@ -167,8 +176,9 @@ New non-obvious decision → add `adr/ADR-XXXX-<slug>.md`, link it here.
   Postgres+pgvector and the CPU embedder, run the memory/embedder integration tests.
 - [runbooks/tools-mcp.md](runbooks/tools-mcp.md) covers Slice 6 host half: bring up the filesystem
   MCP sidecar (streamable-http, read-only mount), run the tools integration test.
-- [runbooks/email-imap.md](runbooks/email-imap.md) covers Slice 6 host half: bring up the read-only
-  IMAP MCP server against a live ProtonMail Bridge, run the email integration test.
+- [runbooks/email-imap.md](runbooks/email-imap.md) covers Slice 6 host half (+ the Slice 8.8 send
+  path): bring up the email MCP server against a live ProtonMail Bridge, run the email
+  integration tests (read-only IMAP; the opt-in SMTP send round-trip).
 - [runbooks/subagents-cpu.md](runbooks/subagents-cpu.md) covers Slice 7 host half: bring up the CPU
   subagent `llama-server`, validate delegation (integration test + cortex-driven full stack).
 - [runbooks/body-overlay.md](runbooks/body-overlay.md) covers Slice 8: run the overlay in a browser

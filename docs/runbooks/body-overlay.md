@@ -15,7 +15,9 @@ npm run dev            # vite on http://localhost:5173; the overlay self-summons
 
 The page mounts with `DemoBridge` (a canned streamed reply) and dispatches `cortex:activate` once,
 so the design is visible immediately. This is the loop for iterating on look/feel
-([overlay-ux.md](../design/overlay-ux.md)). The gate is the same code path:
+([overlay-ux.md](../design/overlay-ux.md)). A prompt containing "send" or "email" walks the
+scripted **confirm round** (ADR-0022): the reply pauses on the approval card, and Approve/Deny
+steers how the canned turn ends. The gate is the same code path:
 
 ```bash
 just check-overlay     # npm ci + tsc --noEmit + Vitest at 100% line+branch
@@ -57,6 +59,15 @@ Then validate the loop end to end:
    design's colour-on-activity), then settles sleek.
 3. Confirm follow-ups keep context (the brain persists session state; each turn is a fresh
    `Converse` sharing the app's `session_id`).
+4. **The confirm flow** (ADR-0022; needs the email sidecar's write path enabled on the stack:
+   `CORTEX_EMAIL_SEND_ENABLED=true` + SMTP credentials, see
+   [email-imap.md](email-imap.md)): ask for a send ("email ada a quick hello"). The reply
+   pauses on the **approval card** (tool name, the draft as key→value lines, the reason).
+   **Approve** → the send runs and the reply reports it sent; **deny** → the reply relays that
+   it wasn't sent. Then check fail-closed: trigger another confirm and ignore it (or dismiss to
+   the orb). The brain denies on timeout (default 120 s) and the reply says the user declined.
+   A confirm arriving while minimized surfaces the preview, which must **not** auto-fade while
+   the question is open.
 
 Override the seam address or chord as needed:
 
@@ -78,8 +89,9 @@ $env:CORTEX_SEAM_TOKEN = "<the same secret the brain serves with>"
 
 - **What's proven vs. the user's to confirm.** The frontend (prompt → stream → render, the mode
   machine, theming) is browser-validated here and 100%-gated. **Still the user's to confirm on
-  Windows:** the `os_windows` `global-hotkey` registration, the tray, window show/hide, and the
-  real `converse` command streaming a live brain turn to the webview.
+  Windows:** the `os_windows` `global-hotkey` registration, the tray, window show/hide, the
+  real `converse` command streaming a live brain turn to the webview, and the `confirm_response`
+  command carrying an approval back into the open turn (ADR-0022).
 - **v1 window behaviour.** A fixed 640×720 frameless **opaque** always-on-top window; the hotkey
   **toggles** it (no hide-on-blur, so validation is predictable). Deferred to a later overlay-polish
   pass (all together): a **transparent** window so only the panel floats (a first attempt bled
