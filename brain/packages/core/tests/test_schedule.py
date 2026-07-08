@@ -88,3 +88,9 @@ def test_next_due_coalesces_missed_occurrences() -> None:
 def test_next_due_on_an_exact_interval_boundary_is_strictly_after_now() -> None:
     got = next_due(_NOW - timedelta(hours=2), timedelta(hours=1), _NOW)
     assert got == _NOW + timedelta(hours=1)
+
+
+def test_next_due_past_datetime_max_ends_the_recurrence() -> None:
+    # Terminal beats a fire that can never persist its re-arm and lease-cycles forever.
+    near_max = datetime(9999, 12, 31, tzinfo=UTC)
+    assert next_due(near_max, timedelta(days=365), near_max) is None

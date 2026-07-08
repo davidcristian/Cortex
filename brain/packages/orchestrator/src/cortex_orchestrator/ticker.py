@@ -79,11 +79,7 @@ class ScheduleTicker:
                 continue
 
     async def run_once(self) -> None:
-        """One stateless pass: claim → fire concurrently → persist; release what didn't finish.
-
-        ``release`` is fenced by the claim token, so releasing a claim whose fire already
-        finished is a safe no-op. The pending set only avoids pointless round-trips.
-        """
+        """One stateless pass: claim → fire concurrently → persist; release what didn't finish."""
         now = self._clock.now()
         claims = await self._store.claim_due(
             now, lease=self._settings.lease, limit=self._settings.claim_limit
@@ -91,7 +87,7 @@ class ScheduleTicker:
         pending = {claim.token: claim for claim in claims}
 
         async def fire(claim: ScheduleClaim) -> None:
-            await self._fire(claim)
+            await asyncio.wait_for(self._fire(claim), timeout=self._settings.lease.total_seconds())
             # Only reached when the fire persisted its outcome (or was fenced off).
             pending.pop(claim.token, None)
 

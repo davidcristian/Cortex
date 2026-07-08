@@ -89,6 +89,39 @@ def test_spec_carries_the_current_utc_time() -> None:
     assert "2026-07-12T12:00:00+00:00" in tool.spec.description
 
 
+class SteppingClock:
+    """now() advances one minute per call. Proves the spec is REBUILT, not cached."""
+
+    def __init__(self) -> None:
+        self._minute = 0
+
+    def now(self) -> datetime:
+        self._minute += 1
+        return _NOW + timedelta(minutes=self._minute)
+
+
+async def test_spec_is_rebuilt_per_walk_with_the_live_clock() -> None:
+    """Two describe walks through the full dispatcher chain carry two different times.
+
+    The ADR-0025 blocker mechanism: a cached spec would freeze "now" at build time and
+    the model could never compute a correct absolute 'at' again.
+    """
+    tool = ScheduleTaskTool(
+        InMemoryScheduleStore(), SteppingClock(), tasks_enabled=False, max_active=8
+    )
+    dispatcher = ToolDispatcher(CompositeToolRegistry([tool]), RecordingAuditSink(), FixedClock())
+
+    async def described() -> str:
+        specs = {spec.name: spec for spec in await dispatcher.describe_tools()}
+        return specs["schedule_task"].description
+
+    first = await described()
+    second = await described()
+    assert first != second  # each walk re-read the clock; nothing cached the spec
+    assert "The current UTC date-time is 2026-07-12T12:0" in first
+    assert "The current UTC date-time is 2026-07-12T12:0" in second
+
+
 def test_spec_advertises_tasks_and_model_only_when_wired() -> None:
     enabled, _ = _tool(tasks_enabled=True)
     properties = dict(enabled.spec.parameters["properties"])

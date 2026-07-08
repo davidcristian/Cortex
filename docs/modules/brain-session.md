@@ -32,7 +32,12 @@ Translators only: serialization, key layout, and error wrapping; no business log
   (ADR-0025), same injected-client / `from_url` / `aclose` shape as above. The fenced
   claim→finish protocol's *semantics* live at the port (a stale token no-ops `False`;
   `cancel` deletes outright and so sticks through an in-flight fire; terminal items are
-  deleted unless deliverable); this adapter translates them onto the key layout below:
+  deleted unless deliverable); this adapter translates them onto the key layout below.
+  **Every guarded transition is optimistically atomic** (post-review hardening): the
+  guard read and the state write share one WATCH→MULTI/EXEC transaction (the helpers in
+  `schedule_claims.py`, split out for the line cap), so a `cancel`/`ack`/re-claim racing
+  the window makes the write's EXEC fail as `WatchError`, which is answered like a stale token,
+  never silently overwritten:
   - `async add(item)` / `async get(item_id)` handle one versioned JSON record per schedule.
   - `async list_active()` is the union of the three live indexes, records loaded and sorted by
     due time (dangling index ids skipped; a present-but-corrupt record fails loudly).

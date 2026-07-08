@@ -88,7 +88,10 @@ def next_due(due_at: datetime, every: timedelta | None, now: datetime) -> dateti
     if every <= timedelta(0):
         msg = "next_due requires a positive 'every' interval"
         raise ValueError(msg)
-    behind = now - due_at
-    if behind < timedelta(0):
-        return due_at + every
-    return due_at + (behind // every + 1) * every
+    try:
+        behind = now - due_at
+        if behind < timedelta(0):
+            return due_at + every
+        return due_at + (behind // every + 1) * every
+    except OverflowError:
+        return None

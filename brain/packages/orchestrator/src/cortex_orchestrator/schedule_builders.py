@@ -2,7 +2,7 @@
 
 import asyncio
 import logging
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Collection
 from datetime import timedelta
 
 from cortex_core import (
@@ -73,12 +73,18 @@ def build_ticker(
     *,
     spawn_tool: SpawnSubagentsTool | None,
     body: BodyGateway | None,
+    gated_names: Collection[str] = (),
 ) -> ScheduleTicker | None:
     """The firing loop over the store, or None when scheduling is off."""
     if schedules is None:
         return None
     spawn = (
-        ToolDispatcher(CompositeToolRegistry([spawn_tool]), LoggingAuditSink(), clock)
+        ToolDispatcher(
+            CompositeToolRegistry([spawn_tool]),
+            LoggingAuditSink(),
+            clock,
+            gated_names=gated_names,
+        )
         if spawn_tool is not None
         else None
     )
