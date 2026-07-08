@@ -175,6 +175,44 @@ pub struct SessionMessage {
     #[prost(int64, tag = "4")]
     pub at_unix_ms: i64,
 }
+/// Reminder pull-delivery views (ADR-0025). All sessions are listed deliberately because
+/// a single-user assistant has one user to remind; session_id rides along so the
+/// overlay can later offer "open the conversation this came from" without a wire change.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct ListDueRemindersRequest {}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct ListDueRemindersReply {
+    #[prost(message, repeated, tag = "1")]
+    pub reminders: ::prost::alloc::vec::Vec<DueReminder>,
+}
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct DueReminder {
+    #[prost(string, tag = "1")]
+    pub reminder_id: ::prost::alloc::string::String,
+    #[prost(string, tag = "2")]
+    pub text: ::prost::alloc::string::String,
+    /// when it became deliverable
+    #[prost(int64, tag = "3")]
+    pub fired_at_unix_ms: i64,
+    #[prost(bool, tag = "4")]
+    pub recurring: bool,
+    /// untrusted provenance, so the overlay may badge it
+    #[prost(bool, tag = "5")]
+    pub tainted: bool,
+    /// origin chat ("" until session attribution lands)
+    #[prost(string, tag = "6")]
+    pub session_id: ::prost::alloc::string::String,
+}
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct AckReminderRequest {
+    #[prost(string, tag = "1")]
+    pub reminder_id: ::prost::alloc::string::String,
+}
+#[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct AckReminderReply {
+    #[prost(bool, tag = "1")]
+    pub acked: bool,
+}
 /// Empty = primary display; later: display index / window handle.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct CaptureScreenRequest {}
@@ -245,6 +283,23 @@ pub struct KeyChord {
 pub struct InjectInputReply {
     #[prost(bool, tag = "1")]
     pub applied: bool,
+}
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct NotifyRequest {
+    #[prost(string, tag = "1")]
+    pub title: ::prost::alloc::string::String,
+    #[prost(string, tag = "2")]
+    pub body: ::prost::alloc::string::String,
+    #[prost(string, tag = "3")]
+    pub reminder_id: ::prost::alloc::string::String,
+    /// symmetric with DueReminder, so the toast may badge provenance
+    #[prost(bool, tag = "4")]
+    pub tainted: bool,
+}
+#[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct NotifyReply {
+    #[prost(bool, tag = "1")]
+    pub shown: bool,
 }
 /// Generated client implementations.
 pub mod brain_service_client {
@@ -442,6 +497,62 @@ pub mod brain_service_client {
                 );
             self.inner.unary(req, path, codec).await
         }
+        /// Reminder pull-delivery (ADR-0025): the overlay surfaces fired-but-undelivered
+        /// reminders when it opens and acks what it showed. ListDueReminders is a read-only
+        /// store view (the ADR-0021 pattern); AckReminder is the one narrow idempotent write
+        /// the pull loop needs (acking a non-deliverable id is a no-op acked=false). With no
+        /// ScheduleStore wired both answer benignly (empty / acked=false), never an error, because
+        /// a schedule-free brain is indistinguishable from one with nothing due.
+        pub async fn list_due_reminders(
+            &mut self,
+            request: impl tonic::IntoRequest<super::ListDueRemindersRequest>,
+        ) -> std::result::Result<
+            tonic::Response<super::ListDueRemindersReply>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic_prost::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/cortex.seam.v1.BrainService/ListDueReminders",
+            );
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(
+                    GrpcMethod::new("cortex.seam.v1.BrainService", "ListDueReminders"),
+                );
+            self.inner.unary(req, path, codec).await
+        }
+        pub async fn ack_reminder(
+            &mut self,
+            request: impl tonic::IntoRequest<super::AckReminderRequest>,
+        ) -> std::result::Result<
+            tonic::Response<super::AckReminderReply>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic_prost::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/cortex.seam.v1.BrainService/AckReminder",
+            );
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(GrpcMethod::new("cortex.seam.v1.BrainService", "AckReminder"));
+            self.inner.unary(req, path, codec).await
+        }
     }
 }
 /// Generated server implementations.
@@ -490,6 +601,26 @@ pub mod brain_service_server {
             request: tonic::Request<super::GetSessionMessagesRequest>,
         ) -> std::result::Result<
             tonic::Response<super::GetSessionMessagesReply>,
+            tonic::Status,
+        >;
+        /// Reminder pull-delivery (ADR-0025): the overlay surfaces fired-but-undelivered
+        /// reminders when it opens and acks what it showed. ListDueReminders is a read-only
+        /// store view (the ADR-0021 pattern); AckReminder is the one narrow idempotent write
+        /// the pull loop needs (acking a non-deliverable id is a no-op acked=false). With no
+        /// ScheduleStore wired both answer benignly (empty / acked=false), never an error, because
+        /// a schedule-free brain is indistinguishable from one with nothing due.
+        async fn list_due_reminders(
+            &self,
+            request: tonic::Request<super::ListDueRemindersRequest>,
+        ) -> std::result::Result<
+            tonic::Response<super::ListDueRemindersReply>,
+            tonic::Status,
+        >;
+        async fn ack_reminder(
+            &self,
+            request: tonic::Request<super::AckReminderRequest>,
+        ) -> std::result::Result<
+            tonic::Response<super::AckReminderReply>,
             tonic::Status,
         >;
     }
@@ -754,6 +885,97 @@ pub mod brain_service_server {
                     };
                     Box::pin(fut)
                 }
+                "/cortex.seam.v1.BrainService/ListDueReminders" => {
+                    #[allow(non_camel_case_types)]
+                    struct ListDueRemindersSvc<T: BrainService>(pub Arc<T>);
+                    impl<
+                        T: BrainService,
+                    > tonic::server::UnaryService<super::ListDueRemindersRequest>
+                    for ListDueRemindersSvc<T> {
+                        type Response = super::ListDueRemindersReply;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::ListDueRemindersRequest>,
+                        ) -> Self::Future {
+                            let inner = Arc::clone(&self.0);
+                            let fut = async move {
+                                <T as BrainService>::list_due_reminders(&inner, request)
+                                    .await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let max_decoding_message_size = self.max_decoding_message_size;
+                    let max_encoding_message_size = self.max_encoding_message_size;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let method = ListDueRemindersSvc(inner);
+                        let codec = tonic_prost::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            )
+                            .apply_max_message_size_config(
+                                max_decoding_message_size,
+                                max_encoding_message_size,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                "/cortex.seam.v1.BrainService/AckReminder" => {
+                    #[allow(non_camel_case_types)]
+                    struct AckReminderSvc<T: BrainService>(pub Arc<T>);
+                    impl<
+                        T: BrainService,
+                    > tonic::server::UnaryService<super::AckReminderRequest>
+                    for AckReminderSvc<T> {
+                        type Response = super::AckReminderReply;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::AckReminderRequest>,
+                        ) -> Self::Future {
+                            let inner = Arc::clone(&self.0);
+                            let fut = async move {
+                                <T as BrainService>::ack_reminder(&inner, request).await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let max_decoding_message_size = self.max_decoding_message_size;
+                    let max_encoding_message_size = self.max_encoding_message_size;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let method = AckReminderSvc(inner);
+                        let codec = tonic_prost::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            )
+                            .apply_max_message_size_config(
+                                max_decoding_message_size,
+                                max_encoding_message_size,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
                 _ => {
                     Box::pin(async move {
                         let mut response = http::Response::new(
@@ -981,6 +1203,32 @@ pub mod body_service_client {
                 .insert(GrpcMethod::new("cortex.seam.v1.BodyService", "InjectInput"));
             self.inner.unary(req, path, codec).await
         }
+        /// Show a native notification (ADR-0025): the brain->body push half of reminder
+        /// delivery. shown=true means the OS accepted/displayed the toast. The ticker then
+        /// acks the reminder (a toast IS delivery); false or an error leaves it deliverable
+        /// for the pull path. The body renders title/body as inert escaped text: reminder
+        /// text can be attacker-influenced (tainted marks it), and a toast template is XML.
+        pub async fn notify(
+            &mut self,
+            request: impl tonic::IntoRequest<super::NotifyRequest>,
+        ) -> std::result::Result<tonic::Response<super::NotifyReply>, tonic::Status> {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic_prost::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/cortex.seam.v1.BodyService/Notify",
+            );
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(GrpcMethod::new("cortex.seam.v1.BodyService", "Notify"));
+            self.inner.unary(req, path, codec).await
+        }
     }
 }
 /// Generated server implementations.
@@ -1018,6 +1266,15 @@ pub mod body_service_server {
             tonic::Response<super::InjectInputReply>,
             tonic::Status,
         >;
+        /// Show a native notification (ADR-0025): the brain->body push half of reminder
+        /// delivery. shown=true means the OS accepted/displayed the toast. The ticker then
+        /// acks the reminder (a toast IS delivery); false or an error leaves it deliverable
+        /// for the pull path. The body renders title/body as inert escaped text: reminder
+        /// text can be attacker-influenced (tainted marks it), and a toast template is XML.
+        async fn notify(
+            &self,
+            request: tonic::Request<super::NotifyRequest>,
+        ) -> std::result::Result<tonic::Response<super::NotifyReply>, tonic::Status>;
     }
     /// ---
     ///
@@ -1266,6 +1523,51 @@ pub mod body_service_server {
                     let inner = self.inner.clone();
                     let fut = async move {
                         let method = InjectInputSvc(inner);
+                        let codec = tonic_prost::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            )
+                            .apply_max_message_size_config(
+                                max_decoding_message_size,
+                                max_encoding_message_size,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                "/cortex.seam.v1.BodyService/Notify" => {
+                    #[allow(non_camel_case_types)]
+                    struct NotifySvc<T: BodyService>(pub Arc<T>);
+                    impl<
+                        T: BodyService,
+                    > tonic::server::UnaryService<super::NotifyRequest>
+                    for NotifySvc<T> {
+                        type Response = super::NotifyReply;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::NotifyRequest>,
+                        ) -> Self::Future {
+                            let inner = Arc::clone(&self.0);
+                            let fut = async move {
+                                <T as BodyService>::notify(&inner, request).await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let max_decoding_message_size = self.max_decoding_message_size;
+                    let max_encoding_message_size = self.max_encoding_message_size;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let method = NotifySvc(inner);
                         let codec = tonic_prost::ProstCodec::default();
                         let mut grpc = tonic::server::Grpc::new(codec)
                             .apply_compression_config(

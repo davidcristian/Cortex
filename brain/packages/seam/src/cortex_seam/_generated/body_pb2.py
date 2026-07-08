@@ -24,7 +24,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n!cortex_seam/_generated/body.proto\x12\x0e\x63ortex.seam.v1\"\xc0\x01\n\x0b\x43lientEvent\x12\x12\n\nsession_id\x18\x01 \x01(\t\x12-\n\tuser_turn\x18\x02 \x01(\x0b\x32\x18.cortex.seam.v1.UserTurnH\x00\x12(\n\x06\x63\x61ncel\x18\x03 \x01(\x0b\x32\x16.cortex.seam.v1.CancelH\x00\x12;\n\x10\x63onfirm_response\x18\x04 \x01(\x0b\x32\x1f.cortex.seam.v1.ConfirmResponseH\x00\x42\x07\n\x05\x65vent\"C\n\x08UserTurn\x12\x0c\n\x04text\x18\x01 \x01(\t\x12)\n\x06images\x18\x02 \x03(\x0b\x32\x19.cortex.seam.v1.ImageBlob\"\x08\n\x06\x43\x61ncel\"\xcc\x02\n\x0bServerEvent\x12/\n\ntext_delta\x18\x01 \x01(\x0b\x32\x19.cortex.seam.v1.TextDeltaH\x00\x12\x35\n\rtool_activity\x18\x02 \x01(\x0b\x32\x1c.cortex.seam.v1.ToolActivityH\x00\x12.\n\x06status\x18\x03 \x01(\x0b\x32\x1c.cortex.seam.v1.StatusUpdateH\x00\x12\x35\n\rturn_complete\x18\x04 \x01(\x0b\x32\x1c.cortex.seam.v1.TurnCompleteH\x00\x12*\n\x05\x65rror\x18\x05 \x01(\x0b\x32\x19.cortex.seam.v1.SeamErrorH\x00\x12\x39\n\x0f\x63onfirm_request\x18\x06 \x01(\x0b\x32\x1e.cortex.seam.v1.ConfirmRequestH\x00\x42\x07\n\x05\x65vent\"\x19\n\tTextDelta\x12\x0c\n\x04text\x18\x01 \x01(\t\"2\n\x0cToolActivity\x12\x11\n\ttool_name\x18\x01 \x01(\t\x12\x0f\n\x07summary\x18\x02 \x01(\t\"-\n\x0cStatusUpdate\x12\r\n\x05state\x18\x01 \x01(\t\x12\x0e\n\x06\x64\x65tail\x18\x02 \x01(\t\"\x1f\n\x0cTurnComplete\x12\x0f\n\x07turn_id\x18\x01 \x01(\t\"*\n\tSeamError\x12\x0c\n\x04\x63ode\x18\x01 \x01(\t\x12\x0f\n\x07message\x18\x02 \x01(\t\"_\n\x0e\x43onfirmRequest\x12\x12\n\nconfirm_id\x18\x01 \x01(\t\x12\x11\n\ttool_name\x18\x02 \x01(\t\x12\x16\n\x0e\x61rguments_json\x18\x03 \x01(\t\x12\x0e\n\x06reason\x18\x04 \x01(\t\"7\n\x0f\x43onfirmResponse\x12\x12\n\nconfirm_id\x18\x01 \x01(\t\x12\x10\n\x08\x61pproved\x18\x02 \x01(\x08\"\x0f\n\rHealthRequest\",\n\x0bHealthReply\x12\r\n\x05ready\x18\x01 \x01(\x08\x12\x0e\n\x06\x64\x65tail\x18\x02 \x01(\t\"$\n\x13ListSessionsRequest\x12\r\n\x05limit\x18\x01 \x01(\x05\"E\n\x11ListSessionsReply\x12\x30\n\x08sessions\x18\x01 \x03(\x0b\x32\x1e.cortex.seam.v1.SessionSummary\"c\n\x0eSessionSummary\x12\x12\n\nsession_id\x18\x01 \x01(\t\x12\r\n\x05title\x18\x02 \x01(\t\x12\x0f\n\x07preview\x18\x03 \x01(\t\x12\x1d\n\x15last_activity_unix_ms\x18\x04 \x01(\x03\"/\n\x19GetSessionMessagesRequest\x12\x12\n\nsession_id\x18\x01 \x01(\t\"K\n\x17GetSessionMessagesReply\x12\x30\n\x08messages\x18\x01 \x03(\x0b\x32\x1e.cortex.seam.v1.SessionMessage\"Q\n\x0eSessionMessage\x12\x0c\n\x04role\x18\x01 \x01(\t\x12\x0c\n\x04text\x18\x02 \x01(\t\x12\x0f\n\x07turn_id\x18\x03 \x01(\t\x12\x12\n\nat_unix_ms\x18\x04 \x01(\x03\"\x16\n\x14\x43\x61ptureScreenRequest\">\n\x12\x43\x61ptureScreenReply\x12(\n\x05image\x18\x01 \x01(\x0b\x32\x19.cortex.seam.v1.ImageBlob\"K\n\tImageBlob\x12\x0c\n\x04\x64\x61ta\x18\x01 \x01(\x0c\x12\x11\n\tmime_type\x18\x02 \x01(\t\x12\r\n\x05width\x18\x03 \x01(\r\x12\x0e\n\x06height\x18\x04 \x01(\r\"\x12\n\x10GetVolumeRequest\"L\n\x10SetVolumeRequest\x12\x12\n\x05level\x18\x01 \x01(\x02H\x00\x88\x01\x01\x12\x11\n\x04mute\x18\x02 \x01(\x08H\x01\x88\x01\x01\x42\x08\n\x06_levelB\x07\n\x05_mute\"+\n\x0bVolumeState\x12\r\n\x05level\x18\x01 \x01(\x02\x12\r\n\x05muted\x18\x02 \x01(\x08\"{\n\x12InjectInputRequest\x12-\n\ttype_text\x18\x01 \x01(\x0b\x32\x18.cortex.seam.v1.TypeTextH\x00\x12-\n\tkey_chord\x18\x02 \x01(\x0b\x32\x18.cortex.seam.v1.KeyChordH\x00\x42\x07\n\x05input\"\x18\n\x08TypeText\x12\x0c\n\x04text\x18\x01 \x01(\t\"\x18\n\x08KeyChord\x12\x0c\n\x04keys\x18\x01 \x03(\t\"#\n\x10InjectInputReply\x12\x0f\n\x07\x61pplied\x18\x01 \x01(\x08\x32\xe0\x02\n\x0c\x42rainService\x12H\n\x08\x43onverse\x12\x1b.cortex.seam.v1.ClientEvent\x1a\x1b.cortex.seam.v1.ServerEvent(\x01\x30\x01\x12\x44\n\x06Health\x12\x1d.cortex.seam.v1.HealthRequest\x1a\x1b.cortex.seam.v1.HealthReply\x12V\n\x0cListSessions\x12#.cortex.seam.v1.ListSessionsRequest\x1a!.cortex.seam.v1.ListSessionsReply\x12h\n\x12GetSessionMessages\x12).cortex.seam.v1.GetSessionMessagesRequest\x1a\'.cortex.seam.v1.GetSessionMessagesReply2\xd5\x02\n\x0b\x42odyService\x12Y\n\rCaptureScreen\x12$.cortex.seam.v1.CaptureScreenRequest\x1a\".cortex.seam.v1.CaptureScreenReply\x12J\n\tGetVolume\x12 .cortex.seam.v1.GetVolumeRequest\x1a\x1b.cortex.seam.v1.VolumeState\x12J\n\tSetVolume\x12 .cortex.seam.v1.SetVolumeRequest\x1a\x1b.cortex.seam.v1.VolumeState\x12S\n\x0bInjectInput\x12\".cortex.seam.v1.InjectInputRequest\x1a .cortex.seam.v1.InjectInputReplyb\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n!cortex_seam/_generated/body.proto\x12\x0e\x63ortex.seam.v1\"\xc0\x01\n\x0b\x43lientEvent\x12\x12\n\nsession_id\x18\x01 \x01(\t\x12-\n\tuser_turn\x18\x02 \x01(\x0b\x32\x18.cortex.seam.v1.UserTurnH\x00\x12(\n\x06\x63\x61ncel\x18\x03 \x01(\x0b\x32\x16.cortex.seam.v1.CancelH\x00\x12;\n\x10\x63onfirm_response\x18\x04 \x01(\x0b\x32\x1f.cortex.seam.v1.ConfirmResponseH\x00\x42\x07\n\x05\x65vent\"C\n\x08UserTurn\x12\x0c\n\x04text\x18\x01 \x01(\t\x12)\n\x06images\x18\x02 \x03(\x0b\x32\x19.cortex.seam.v1.ImageBlob\"\x08\n\x06\x43\x61ncel\"\xcc\x02\n\x0bServerEvent\x12/\n\ntext_delta\x18\x01 \x01(\x0b\x32\x19.cortex.seam.v1.TextDeltaH\x00\x12\x35\n\rtool_activity\x18\x02 \x01(\x0b\x32\x1c.cortex.seam.v1.ToolActivityH\x00\x12.\n\x06status\x18\x03 \x01(\x0b\x32\x1c.cortex.seam.v1.StatusUpdateH\x00\x12\x35\n\rturn_complete\x18\x04 \x01(\x0b\x32\x1c.cortex.seam.v1.TurnCompleteH\x00\x12*\n\x05\x65rror\x18\x05 \x01(\x0b\x32\x19.cortex.seam.v1.SeamErrorH\x00\x12\x39\n\x0f\x63onfirm_request\x18\x06 \x01(\x0b\x32\x1e.cortex.seam.v1.ConfirmRequestH\x00\x42\x07\n\x05\x65vent\"\x19\n\tTextDelta\x12\x0c\n\x04text\x18\x01 \x01(\t\"2\n\x0cToolActivity\x12\x11\n\ttool_name\x18\x01 \x01(\t\x12\x0f\n\x07summary\x18\x02 \x01(\t\"-\n\x0cStatusUpdate\x12\r\n\x05state\x18\x01 \x01(\t\x12\x0e\n\x06\x64\x65tail\x18\x02 \x01(\t\"\x1f\n\x0cTurnComplete\x12\x0f\n\x07turn_id\x18\x01 \x01(\t\"*\n\tSeamError\x12\x0c\n\x04\x63ode\x18\x01 \x01(\t\x12\x0f\n\x07message\x18\x02 \x01(\t\"_\n\x0e\x43onfirmRequest\x12\x12\n\nconfirm_id\x18\x01 \x01(\t\x12\x11\n\ttool_name\x18\x02 \x01(\t\x12\x16\n\x0e\x61rguments_json\x18\x03 \x01(\t\x12\x0e\n\x06reason\x18\x04 \x01(\t\"7\n\x0f\x43onfirmResponse\x12\x12\n\nconfirm_id\x18\x01 \x01(\t\x12\x10\n\x08\x61pproved\x18\x02 \x01(\x08\"\x0f\n\rHealthRequest\",\n\x0bHealthReply\x12\r\n\x05ready\x18\x01 \x01(\x08\x12\x0e\n\x06\x64\x65tail\x18\x02 \x01(\t\"$\n\x13ListSessionsRequest\x12\r\n\x05limit\x18\x01 \x01(\x05\"E\n\x11ListSessionsReply\x12\x30\n\x08sessions\x18\x01 \x03(\x0b\x32\x1e.cortex.seam.v1.SessionSummary\"c\n\x0eSessionSummary\x12\x12\n\nsession_id\x18\x01 \x01(\t\x12\r\n\x05title\x18\x02 \x01(\t\x12\x0f\n\x07preview\x18\x03 \x01(\t\x12\x1d\n\x15last_activity_unix_ms\x18\x04 \x01(\x03\"/\n\x19GetSessionMessagesRequest\x12\x12\n\nsession_id\x18\x01 \x01(\t\"K\n\x17GetSessionMessagesReply\x12\x30\n\x08messages\x18\x01 \x03(\x0b\x32\x1e.cortex.seam.v1.SessionMessage\"Q\n\x0eSessionMessage\x12\x0c\n\x04role\x18\x01 \x01(\t\x12\x0c\n\x04text\x18\x02 \x01(\t\x12\x0f\n\x07turn_id\x18\x03 \x01(\t\x12\x12\n\nat_unix_ms\x18\x04 \x01(\x03\"\x19\n\x17ListDueRemindersRequest\"G\n\x15ListDueRemindersReply\x12.\n\treminders\x18\x01 \x03(\x0b\x32\x1b.cortex.seam.v1.DueReminder\"\x82\x01\n\x0b\x44ueReminder\x12\x13\n\x0breminder_id\x18\x01 \x01(\t\x12\x0c\n\x04text\x18\x02 \x01(\t\x12\x18\n\x10\x66ired_at_unix_ms\x18\x03 \x01(\x03\x12\x11\n\trecurring\x18\x04 \x01(\x08\x12\x0f\n\x07tainted\x18\x05 \x01(\x08\x12\x12\n\nsession_id\x18\x06 \x01(\t\")\n\x12\x41\x63kReminderRequest\x12\x13\n\x0breminder_id\x18\x01 \x01(\t\"!\n\x10\x41\x63kReminderReply\x12\r\n\x05\x61\x63ked\x18\x01 \x01(\x08\"\x16\n\x14\x43\x61ptureScreenRequest\">\n\x12\x43\x61ptureScreenReply\x12(\n\x05image\x18\x01 \x01(\x0b\x32\x19.cortex.seam.v1.ImageBlob\"K\n\tImageBlob\x12\x0c\n\x04\x64\x61ta\x18\x01 \x01(\x0c\x12\x11\n\tmime_type\x18\x02 \x01(\t\x12\r\n\x05width\x18\x03 \x01(\r\x12\x0e\n\x06height\x18\x04 \x01(\r\"\x12\n\x10GetVolumeRequest\"L\n\x10SetVolumeRequest\x12\x12\n\x05level\x18\x01 \x01(\x02H\x00\x88\x01\x01\x12\x11\n\x04mute\x18\x02 \x01(\x08H\x01\x88\x01\x01\x42\x08\n\x06_levelB\x07\n\x05_mute\"+\n\x0bVolumeState\x12\r\n\x05level\x18\x01 \x01(\x02\x12\r\n\x05muted\x18\x02 \x01(\x08\"{\n\x12InjectInputRequest\x12-\n\ttype_text\x18\x01 \x01(\x0b\x32\x18.cortex.seam.v1.TypeTextH\x00\x12-\n\tkey_chord\x18\x02 \x01(\x0b\x32\x18.cortex.seam.v1.KeyChordH\x00\x42\x07\n\x05input\"\x18\n\x08TypeText\x12\x0c\n\x04text\x18\x01 \x01(\t\"\x18\n\x08KeyChord\x12\x0c\n\x04keys\x18\x01 \x03(\t\"#\n\x10InjectInputReply\x12\x0f\n\x07\x61pplied\x18\x01 \x01(\x08\"R\n\rNotifyRequest\x12\r\n\x05title\x18\x01 \x01(\t\x12\x0c\n\x04\x62ody\x18\x02 \x01(\t\x12\x13\n\x0breminder_id\x18\x03 \x01(\t\x12\x0f\n\x07tainted\x18\x04 \x01(\x08\"\x1c\n\x0bNotifyReply\x12\r\n\x05shown\x18\x01 \x01(\x08\x32\x99\x04\n\x0c\x42rainService\x12H\n\x08\x43onverse\x12\x1b.cortex.seam.v1.ClientEvent\x1a\x1b.cortex.seam.v1.ServerEvent(\x01\x30\x01\x12\x44\n\x06Health\x12\x1d.cortex.seam.v1.HealthRequest\x1a\x1b.cortex.seam.v1.HealthReply\x12V\n\x0cListSessions\x12#.cortex.seam.v1.ListSessionsRequest\x1a!.cortex.seam.v1.ListSessionsReply\x12h\n\x12GetSessionMessages\x12).cortex.seam.v1.GetSessionMessagesRequest\x1a\'.cortex.seam.v1.GetSessionMessagesReply\x12\x62\n\x10ListDueReminders\x12\'.cortex.seam.v1.ListDueRemindersRequest\x1a%.cortex.seam.v1.ListDueRemindersReply\x12S\n\x0b\x41\x63kReminder\x12\".cortex.seam.v1.AckReminderRequest\x1a .cortex.seam.v1.AckReminderReply2\x9b\x03\n\x0b\x42odyService\x12Y\n\rCaptureScreen\x12$.cortex.seam.v1.CaptureScreenRequest\x1a\".cortex.seam.v1.CaptureScreenReply\x12J\n\tGetVolume\x12 .cortex.seam.v1.GetVolumeRequest\x1a\x1b.cortex.seam.v1.VolumeState\x12J\n\tSetVolume\x12 .cortex.seam.v1.SetVolumeRequest\x1a\x1b.cortex.seam.v1.VolumeState\x12S\n\x0bInjectInput\x12\".cortex.seam.v1.InjectInputRequest\x1a .cortex.seam.v1.InjectInputReply\x12\x44\n\x06Notify\x12\x1d.cortex.seam.v1.NotifyRequest\x1a\x1b.cortex.seam.v1.NotifyReplyb\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -69,28 +69,42 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['_GETSESSIONMESSAGESREPLY']._serialized_end=1416
   _globals['_SESSIONMESSAGE']._serialized_start=1418
   _globals['_SESSIONMESSAGE']._serialized_end=1499
-  _globals['_CAPTURESCREENREQUEST']._serialized_start=1501
-  _globals['_CAPTURESCREENREQUEST']._serialized_end=1523
-  _globals['_CAPTURESCREENREPLY']._serialized_start=1525
-  _globals['_CAPTURESCREENREPLY']._serialized_end=1587
-  _globals['_IMAGEBLOB']._serialized_start=1589
-  _globals['_IMAGEBLOB']._serialized_end=1664
-  _globals['_GETVOLUMEREQUEST']._serialized_start=1666
-  _globals['_GETVOLUMEREQUEST']._serialized_end=1684
-  _globals['_SETVOLUMEREQUEST']._serialized_start=1686
-  _globals['_SETVOLUMEREQUEST']._serialized_end=1762
-  _globals['_VOLUMESTATE']._serialized_start=1764
-  _globals['_VOLUMESTATE']._serialized_end=1807
-  _globals['_INJECTINPUTREQUEST']._serialized_start=1809
-  _globals['_INJECTINPUTREQUEST']._serialized_end=1932
-  _globals['_TYPETEXT']._serialized_start=1934
-  _globals['_TYPETEXT']._serialized_end=1958
-  _globals['_KEYCHORD']._serialized_start=1960
-  _globals['_KEYCHORD']._serialized_end=1984
-  _globals['_INJECTINPUTREPLY']._serialized_start=1986
-  _globals['_INJECTINPUTREPLY']._serialized_end=2021
-  _globals['_BRAINSERVICE']._serialized_start=2024
-  _globals['_BRAINSERVICE']._serialized_end=2376
-  _globals['_BODYSERVICE']._serialized_start=2379
-  _globals['_BODYSERVICE']._serialized_end=2720
+  _globals['_LISTDUEREMINDERSREQUEST']._serialized_start=1501
+  _globals['_LISTDUEREMINDERSREQUEST']._serialized_end=1526
+  _globals['_LISTDUEREMINDERSREPLY']._serialized_start=1528
+  _globals['_LISTDUEREMINDERSREPLY']._serialized_end=1599
+  _globals['_DUEREMINDER']._serialized_start=1602
+  _globals['_DUEREMINDER']._serialized_end=1732
+  _globals['_ACKREMINDERREQUEST']._serialized_start=1734
+  _globals['_ACKREMINDERREQUEST']._serialized_end=1775
+  _globals['_ACKREMINDERREPLY']._serialized_start=1777
+  _globals['_ACKREMINDERREPLY']._serialized_end=1810
+  _globals['_CAPTURESCREENREQUEST']._serialized_start=1812
+  _globals['_CAPTURESCREENREQUEST']._serialized_end=1834
+  _globals['_CAPTURESCREENREPLY']._serialized_start=1836
+  _globals['_CAPTURESCREENREPLY']._serialized_end=1898
+  _globals['_IMAGEBLOB']._serialized_start=1900
+  _globals['_IMAGEBLOB']._serialized_end=1975
+  _globals['_GETVOLUMEREQUEST']._serialized_start=1977
+  _globals['_GETVOLUMEREQUEST']._serialized_end=1995
+  _globals['_SETVOLUMEREQUEST']._serialized_start=1997
+  _globals['_SETVOLUMEREQUEST']._serialized_end=2073
+  _globals['_VOLUMESTATE']._serialized_start=2075
+  _globals['_VOLUMESTATE']._serialized_end=2118
+  _globals['_INJECTINPUTREQUEST']._serialized_start=2120
+  _globals['_INJECTINPUTREQUEST']._serialized_end=2243
+  _globals['_TYPETEXT']._serialized_start=2245
+  _globals['_TYPETEXT']._serialized_end=2269
+  _globals['_KEYCHORD']._serialized_start=2271
+  _globals['_KEYCHORD']._serialized_end=2295
+  _globals['_INJECTINPUTREPLY']._serialized_start=2297
+  _globals['_INJECTINPUTREPLY']._serialized_end=2332
+  _globals['_NOTIFYREQUEST']._serialized_start=2334
+  _globals['_NOTIFYREQUEST']._serialized_end=2416
+  _globals['_NOTIFYREPLY']._serialized_start=2418
+  _globals['_NOTIFYREPLY']._serialized_end=2446
+  _globals['_BRAINSERVICE']._serialized_start=2449
+  _globals['_BRAINSERVICE']._serialized_end=2986
+  _globals['_BODYSERVICE']._serialized_start=2989
+  _globals['_BODYSERVICE']._serialized_end=3400
 # @@protoc_insertion_point(module_scope)

@@ -16,6 +16,8 @@ from cortex_seam import (
     SEAM_TOKEN_HEADER,
     BodyServiceServicer,
     GetVolumeRequest,
+    NotifyReply,
+    NotifyRequest,
     SetVolumeRequest,
     add_BodyServiceServicer_to_server,
 )
@@ -35,15 +37,18 @@ class FakeBody(BodyServiceServicer):
         *,
         level: float = 0.5,
         muted: bool = False,
+        shown: bool = True,
         fail: grpc.StatusCode | None = None,
         require_token: str | None = None,
     ) -> None:
         self.level = level
         self.muted = muted
+        self.shown = shown
         self._fail = fail
         self._require_token = require_token
         self.saw_level: bool | None = None
         self.saw_mute: bool | None = None
+        self.notified: NotifyRequest | None = None
 
     async def _ensure_token[Req, Resp](self, context: aio.ServicerContext[Req, Resp]) -> None:
         if self._require_token is None:
@@ -79,6 +84,17 @@ class FakeBody(BodyServiceServicer):
         if request.HasField("mute"):
             self.muted = request.mute
         return VolumeStatePb(level=self.level, muted=self.muted)
+
+    async def Notify(  # noqa: N802 - method name is fixed by the gRPC codegen interface
+        self,
+        request: NotifyRequest,
+        context: aio.ServicerContext[NotifyRequest, NotifyReply],
+    ) -> NotifyReply:
+        await self._ensure_token(context)
+        if self._fail is not None:
+            await context.abort(self._fail, "notify failed")
+        self.notified = request
+        return NotifyReply(shown=self.shown)
 
 
 async def _serve(servicer: BodyServiceServicer) -> tuple[str, aio.Server]:
@@ -151,6 +167,32 @@ async def test_set_volume_error_maps_to_body_gateway_error() -> None:
     async with _gateway(FakeBody(fail=grpc.StatusCode.UNAVAILABLE)) as gateway:
         with pytest.raises(BodyGatewayError, match="set failed"):
             await gateway.set_volume(mute=True)
+
+
+async def test_notify_round_trips_the_toast_and_the_shown_verdict() -> None:
+    fake = FakeBody(shown=True)
+    async with _gateway(fake) as gateway:
+        shown = await gateway.notify(
+            title="Reminder", body="stretch", reminder_id="r1", tainted=True
+        )
+    assert shown is True
+    assert fake.notified is not None
+    assert fake.notified.title == "Reminder"
+    assert fake.notified.body == "stretch"
+    assert fake.notified.reminder_id == "r1"
+    assert fake.notified.tainted is True
+
+
+async def test_notify_not_shown_comes_back_false() -> None:
+    async with _gateway(FakeBody(shown=False)) as gateway:
+        assert await gateway.notify(title="t", body="b", reminder_id="r1") is False
+
+
+async def test_notify_unimplemented_maps_to_body_gateway_error() -> None:
+    # The body's shape-now answer until its toast lands (ADR-0025): a push failure.
+    async with _gateway(FakeBody(fail=grpc.StatusCode.UNIMPLEMENTED)) as gateway:
+        with pytest.raises(BodyGatewayError, match="notify failed"):
+            await gateway.notify(title="t", body="b", reminder_id="r1")
 
 
 async def test_token_is_attached_when_configured() -> None:

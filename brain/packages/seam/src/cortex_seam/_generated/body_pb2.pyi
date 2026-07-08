@@ -162,6 +162,44 @@ class SessionMessage(_message.Message):
     at_unix_ms: int
     def __init__(self, role: _Optional[str] = ..., text: _Optional[str] = ..., turn_id: _Optional[str] = ..., at_unix_ms: _Optional[int] = ...) -> None: ...
 
+class ListDueRemindersRequest(_message.Message):
+    __slots__ = ()
+    def __init__(self) -> None: ...
+
+class ListDueRemindersReply(_message.Message):
+    __slots__ = ("reminders",)
+    REMINDERS_FIELD_NUMBER: _ClassVar[int]
+    reminders: _containers.RepeatedCompositeFieldContainer[DueReminder]
+    def __init__(self, reminders: _Optional[_Iterable[_Union[DueReminder, _Mapping]]] = ...) -> None: ...
+
+class DueReminder(_message.Message):
+    __slots__ = ("reminder_id", "text", "fired_at_unix_ms", "recurring", "tainted", "session_id")
+    REMINDER_ID_FIELD_NUMBER: _ClassVar[int]
+    TEXT_FIELD_NUMBER: _ClassVar[int]
+    FIRED_AT_UNIX_MS_FIELD_NUMBER: _ClassVar[int]
+    RECURRING_FIELD_NUMBER: _ClassVar[int]
+    TAINTED_FIELD_NUMBER: _ClassVar[int]
+    SESSION_ID_FIELD_NUMBER: _ClassVar[int]
+    reminder_id: str
+    text: str
+    fired_at_unix_ms: int
+    recurring: bool
+    tainted: bool
+    session_id: str
+    def __init__(self, reminder_id: _Optional[str] = ..., text: _Optional[str] = ..., fired_at_unix_ms: _Optional[int] = ..., recurring: _Optional[bool] = ..., tainted: _Optional[bool] = ..., session_id: _Optional[str] = ...) -> None: ...
+
+class AckReminderRequest(_message.Message):
+    __slots__ = ("reminder_id",)
+    REMINDER_ID_FIELD_NUMBER: _ClassVar[int]
+    reminder_id: str
+    def __init__(self, reminder_id: _Optional[str] = ...) -> None: ...
+
+class AckReminderReply(_message.Message):
+    __slots__ = ("acked",)
+    ACKED_FIELD_NUMBER: _ClassVar[int]
+    acked: bool
+    def __init__(self, acked: _Optional[bool] = ...) -> None: ...
+
 class CaptureScreenRequest(_message.Message):
     __slots__ = ()
     def __init__(self) -> None: ...
@@ -229,3 +267,21 @@ class InjectInputReply(_message.Message):
     APPLIED_FIELD_NUMBER: _ClassVar[int]
     applied: bool
     def __init__(self, applied: _Optional[bool] = ...) -> None: ...
+
+class NotifyRequest(_message.Message):
+    __slots__ = ("title", "body", "reminder_id", "tainted")
+    TITLE_FIELD_NUMBER: _ClassVar[int]
+    BODY_FIELD_NUMBER: _ClassVar[int]
+    REMINDER_ID_FIELD_NUMBER: _ClassVar[int]
+    TAINTED_FIELD_NUMBER: _ClassVar[int]
+    title: str
+    body: str
+    reminder_id: str
+    tainted: bool
+    def __init__(self, title: _Optional[str] = ..., body: _Optional[str] = ..., reminder_id: _Optional[str] = ..., tainted: _Optional[bool] = ...) -> None: ...
+
+class NotifyReply(_message.Message):
+    __slots__ = ("shown",)
+    SHOWN_FIELD_NUMBER: _ClassVar[int]
+    shown: bool
+    def __init__(self, shown: _Optional[bool] = ...) -> None: ...

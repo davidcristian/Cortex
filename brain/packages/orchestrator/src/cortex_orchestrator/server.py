@@ -9,7 +9,14 @@ from datetime import datetime
 import grpc
 from grpc import aio
 
-from cortex_core import Message, SessionStore, SessionStoreError, SessionSummary
+from cortex_core import (
+    Message,
+    ScheduleStore,
+    ScheduleStoreError,
+    SessionStore,
+    SessionStoreError,
+    SessionSummary,
+)
 from cortex_orchestrator.auth import SeamTokenInterceptor
 from cortex_orchestrator.config import SeamServerConfig
 from cortex_orchestrator.converse import (
@@ -18,13 +25,18 @@ from cortex_orchestrator.converse import (
     EngineFactory,
     converse,
 )
+from cortex_orchestrator.reminders import ack_reminder, list_due_reminders
 from cortex_seam import (
+    AckReminderReply,
+    AckReminderRequest,
     BrainServiceServicer,
     ClientEvent,
     GetSessionMessagesReply,
     GetSessionMessagesRequest,
     HealthReply,
     HealthRequest,
+    ListDueRemindersReply,
+    ListDueRemindersRequest,
     ListSessionsReply,
     ListSessionsRequest,
     ServerEvent,
@@ -85,11 +97,13 @@ class BrainService(BrainServiceServicer):
         make_engine: EngineFactory,
         store: SessionStore,
         *,
+        schedules: ScheduleStore | None = None,
         max_buffered_events: int = DEFAULT_MAX_BUFFERED_EVENTS,
         confirm_timeout_s: float = DEFAULT_CONFIRM_TIMEOUT_S,
     ) -> None:
         self._make_engine = make_engine
         self._store = store
+        self._schedules = schedules
         self._max_buffered_events = max_buffered_events
         self._confirm_timeout_s = confirm_timeout_s
 
@@ -159,9 +173,40 @@ class BrainService(BrainServiceServicer):
             await context.abort(grpc.StatusCode.UNAVAILABLE, str(err))
         return GetSessionMessagesReply(messages=[_message_to_proto(m) for m in messages])
 
+    async def ListDueReminders(  # noqa: N802 - method name is fixed by the gRPC codegen interface
+        self,
+        request: ListDueRemindersRequest,
+        context: aio.ServicerContext[ListDueRemindersRequest, ListDueRemindersReply],
+    ) -> ListDueRemindersReply:
+        """Fired-but-undelivered reminders (ADR-0025; policy + mapping in `reminders.py`).
+
+        Benignly empty with no ScheduleStore wired; a live store's `ScheduleStoreError`
+        aborts `UNAVAILABLE` (the session-reads precedent).
+        """
+        del request
+        try:
+            return await list_due_reminders(self._schedules)
+        except ScheduleStoreError as err:
+            await context.abort(grpc.StatusCode.UNAVAILABLE, str(err))
+
+    async def AckReminder(  # noqa: N802 - method name is fixed by the gRPC codegen interface
+        self,
+        request: AckReminderRequest,
+        context: aio.ServicerContext[AckReminderRequest, AckReminderReply],
+    ) -> AckReminderReply:
+        """Mark one reminder delivered (ADR-0025). Idempotent, `acked=false` when unknown."""
+        try:
+            return await ack_reminder(self._schedules, request.reminder_id)
+        except ScheduleStoreError as err:
+            await context.abort(grpc.StatusCode.UNAVAILABLE, str(err))
+
 
 def create_server(
-    config: SeamServerConfig, make_engine: EngineFactory, store: SessionStore
+    config: SeamServerConfig,
+    make_engine: EngineFactory,
+    store: SessionStore,
+    *,
+    schedules: ScheduleStore | None = None,
 ) -> tuple[aio.Server, int]:
     """Build the aio server over `make_engine`/`store` and bind it (not started)."""
     interceptors = (SeamTokenInterceptor(config.token),) if config.token else ()
@@ -169,6 +214,7 @@ def create_server(
     service = BrainService(
         make_engine,
         store,
+        schedules=schedules,
         max_buffered_events=config.converse_buffer,
         confirm_timeout_s=config.confirm_timeout_s,
     )
@@ -177,9 +223,15 @@ def create_server(
     return server, bound_port
 
 
-async def serve(config: SeamServerConfig, make_engine: EngineFactory, store: SessionStore) -> None:
+async def serve(
+    config: SeamServerConfig,
+    make_engine: EngineFactory,
+    store: SessionStore,
+    *,
+    schedules: ScheduleStore | None = None,
+) -> None:
     """Run the seam server until SIGTERM/SIGINT or cancellation; always stop gracefully."""
-    server, bound_port = create_server(config, make_engine, store)
+    server, bound_port = create_server(config, make_engine, store, schedules=schedules)
     await server.start()
     _logger.info("seam server listening", extra={"host": config.host, "port": bound_port})
     loop = asyncio.get_running_loop()

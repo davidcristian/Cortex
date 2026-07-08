@@ -146,6 +146,10 @@ class BodyGateway(Protocol):
         self, *, level: float | None = None, mute: bool | None = None
     ) -> VolumeState: ...
 
+    async def notify(
+        self, *, title: str, body: str, reminder_id: str, tainted: bool = False
+    ) -> bool: ...
+
 
 class SubagentScheduler(Protocol):
     """Admits subagent spawns against a soft CPU/RAM budget. Concurrency, not the GPU (ADR-0012)."""

@@ -29,7 +29,6 @@ from cortex_core.events import StatusUpdate, TextDelta, TurnCompleted, TurnEvent
 from cortex_core.fakes import (
     EchoInferenceBackend,
     HashEmbedder,
-    InMemoryBodyGateway,
     InMemoryMemoryStore,
     InMemorySessionStore,
     InMemoryTaskStore,
@@ -38,6 +37,7 @@ from cortex_core.fakes import (
     RecordingConfirmer,
     SystemClock,
 )
+from cortex_core.fakes_body import InMemoryBodyGateway, SentNotification
 from cortex_core.fakes_schedule import InMemoryScheduleStore
 from cortex_core.guardrail import (
     REDACTED_LINK,
@@ -199,6 +199,7 @@ __all__ = [
     "ScheduleTaskTool",
     "ScheduledItem",
     "ScoredMemory",
+    "SentNotification",
     "SessionMemoryScope",
     "SessionStore",
     "SessionStoreError",

@@ -57,6 +57,16 @@ class BrainServiceStub:
                 request_serializer=cortex__seam_dot___generated_dot_body__pb2.GetSessionMessagesRequest.SerializeToString,
                 response_deserializer=cortex__seam_dot___generated_dot_body__pb2.GetSessionMessagesReply.FromString,
                 _registered_method=True)
+        self.ListDueReminders = channel.unary_unary(
+                '/cortex.seam.v1.BrainService/ListDueReminders',
+                request_serializer=cortex__seam_dot___generated_dot_body__pb2.ListDueRemindersRequest.SerializeToString,
+                response_deserializer=cortex__seam_dot___generated_dot_body__pb2.ListDueRemindersReply.FromString,
+                _registered_method=True)
+        self.AckReminder = channel.unary_unary(
+                '/cortex.seam.v1.BrainService/AckReminder',
+                request_serializer=cortex__seam_dot___generated_dot_body__pb2.AckReminderRequest.SerializeToString,
+                response_deserializer=cortex__seam_dot___generated_dot_body__pb2.AckReminderReply.FromString,
+                _registered_method=True)
 
 
 class BrainServiceServicer:
@@ -96,6 +106,24 @@ class BrainServiceServicer:
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def ListDueReminders(self, request, context):
+        """Reminder pull-delivery (ADR-0025): the overlay surfaces fired-but-undelivered
+        reminders when it opens and acks what it showed. ListDueReminders is a read-only
+        store view (the ADR-0021 pattern); AckReminder is the one narrow idempotent write
+        the pull loop needs (acking a non-deliverable id is a no-op acked=false). With no
+        ScheduleStore wired both answer benignly (empty / acked=false), never an error, because
+        a schedule-free brain is indistinguishable from one with nothing due.
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def AckReminder(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
 
 def add_BrainServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
@@ -118,6 +146,16 @@ def add_BrainServiceServicer_to_server(servicer, server):
                     servicer.GetSessionMessages,
                     request_deserializer=cortex__seam_dot___generated_dot_body__pb2.GetSessionMessagesRequest.FromString,
                     response_serializer=cortex__seam_dot___generated_dot_body__pb2.GetSessionMessagesReply.SerializeToString,
+            ),
+            'ListDueReminders': grpc.unary_unary_rpc_method_handler(
+                    servicer.ListDueReminders,
+                    request_deserializer=cortex__seam_dot___generated_dot_body__pb2.ListDueRemindersRequest.FromString,
+                    response_serializer=cortex__seam_dot___generated_dot_body__pb2.ListDueRemindersReply.SerializeToString,
+            ),
+            'AckReminder': grpc.unary_unary_rpc_method_handler(
+                    servicer.AckReminder,
+                    request_deserializer=cortex__seam_dot___generated_dot_body__pb2.AckReminderRequest.FromString,
+                    response_serializer=cortex__seam_dot___generated_dot_body__pb2.AckReminderReply.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -241,6 +279,60 @@ class BrainService:
             metadata,
             _registered_method=True)
 
+    @staticmethod
+    def ListDueReminders(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/cortex.seam.v1.BrainService/ListDueReminders',
+            cortex__seam_dot___generated_dot_body__pb2.ListDueRemindersRequest.SerializeToString,
+            cortex__seam_dot___generated_dot_body__pb2.ListDueRemindersReply.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def AckReminder(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/cortex.seam.v1.BrainService/AckReminder',
+            cortex__seam_dot___generated_dot_body__pb2.AckReminderRequest.SerializeToString,
+            cortex__seam_dot___generated_dot_body__pb2.AckReminderReply.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
 
 class BodyServiceStub:
     """---------------------------------------------------------------------------
@@ -277,6 +369,11 @@ class BodyServiceStub:
                 request_serializer=cortex__seam_dot___generated_dot_body__pb2.InjectInputRequest.SerializeToString,
                 response_deserializer=cortex__seam_dot___generated_dot_body__pb2.InjectInputReply.FromString,
                 _registered_method=True)
+        self.Notify = channel.unary_unary(
+                '/cortex.seam.v1.BodyService/Notify',
+                request_serializer=cortex__seam_dot___generated_dot_body__pb2.NotifyRequest.SerializeToString,
+                response_deserializer=cortex__seam_dot___generated_dot_body__pb2.NotifyReply.FromString,
+                _registered_method=True)
 
 
 class BodyServiceServicer:
@@ -312,6 +409,17 @@ class BodyServiceServicer:
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def Notify(self, request, context):
+        """Show a native notification (ADR-0025): the brain->body push half of reminder
+        delivery. shown=true means the OS accepted/displayed the toast. The ticker then
+        acks the reminder (a toast IS delivery); false or an error leaves it deliverable
+        for the pull path. The body renders title/body as inert escaped text: reminder
+        text can be attacker-influenced (tainted marks it), and a toast template is XML.
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
 
 def add_BodyServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
@@ -334,6 +442,11 @@ def add_BodyServiceServicer_to_server(servicer, server):
                     servicer.InjectInput,
                     request_deserializer=cortex__seam_dot___generated_dot_body__pb2.InjectInputRequest.FromString,
                     response_serializer=cortex__seam_dot___generated_dot_body__pb2.InjectInputReply.SerializeToString,
+            ),
+            'Notify': grpc.unary_unary_rpc_method_handler(
+                    servicer.Notify,
+                    request_deserializer=cortex__seam_dot___generated_dot_body__pb2.NotifyRequest.FromString,
+                    response_serializer=cortex__seam_dot___generated_dot_body__pb2.NotifyReply.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -450,6 +563,33 @@ class BodyService:
             '/cortex.seam.v1.BodyService/InjectInput',
             cortex__seam_dot___generated_dot_body__pb2.InjectInputRequest.SerializeToString,
             cortex__seam_dot___generated_dot_body__pb2.InjectInputReply.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def Notify(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/cortex.seam.v1.BodyService/Notify',
+            cortex__seam_dot___generated_dot_body__pb2.NotifyRequest.SerializeToString,
+            cortex__seam_dot___generated_dot_body__pb2.NotifyReply.FromString,
             options,
             channel_credentials,
             insecure,
