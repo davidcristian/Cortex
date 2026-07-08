@@ -24,6 +24,8 @@ export interface OverlayController {
   cyclePrev(): void;
   cycleNext(): void;
   toggleSwitcher(): void;
+  /** Answer the pending approval (ADR-0022); stale/duplicate answers are no-ops. */
+  respondConfirm(confirmId: string, approved: boolean): void;
 }
 
 /**
@@ -50,14 +52,16 @@ export function useOverlay(
       });
   }, [bridge]);
 
-  // A completed preview fades on its own after PREVIEW_MS (design/overlay-ux.md §4).
+  // A completed preview fades on its own after PREVIEW_MS (design/overlay-ux.md §4), unless
+  // an approval is pending: a question waits to be seen, and the countdown starts only once
+  // the confirm resolves (the reducer's previewFade no-op is the same rule, belt and braces).
   useEffect(() => {
-    if (state.mode !== "preview") {
+    if (state.mode !== "preview" || state.pendingConfirm !== null) {
       return undefined;
     }
     const timer = setTimeout(() => dispatch({ kind: "previewFade" }), PREVIEW_MS);
     return () => clearTimeout(timer);
-  }, [state.mode]);
+  }, [state.mode, state.pendingConfirm]);
 
   // Load the chat list on mount, and refresh it each time a turn finishes: `turnActive`
   // flips false→true→false per turn, so the false edges (mount + completion) reload.
@@ -82,20 +86,55 @@ export function useOverlay(
     [state, bridge],
   );
 
+  // Dropping the turn's event stream (cancelRef) mutes the JS sink but does not half-close
+  // the request stream in the Tauri embedding, so a mid-turn confirm would otherwise sit
+  // pending brain-side until its timeout (a zombie turn). Every turn-ending action therefore
+  // sends an explicit deny for a still-pending confirm first, resolving it immediately
+  // (fail-closed all the same, since the user did not approve). ADR-0022.
+  const denyPendingConfirm = useCallback(() => {
+    const pending = state.pendingConfirm;
+    if (pending !== null) {
+      bridge.respondConfirm(pending.confirmId, false).catch(() => {
+        // Non-fatal. The brain still denies by timeout if the answer is lost.
+      });
+    }
+  }, [state.pendingConfirm, bridge]);
+
   const stop = useCallback(() => {
+    denyPendingConfirm();
     cancelRef.current?.();
     dispatch({ kind: "stop" });
-  }, []);
-  const dismiss = useCallback(() => dispatch({ kind: "dismiss" }), []);
+  }, [denyPendingConfirm]);
+
+  const respondConfirm = useCallback(
+    (confirmId: string, approved: boolean) => {
+      // Only the live question can be answered: a double-click (or StrictMode re-fire) and a
+      // stale card race the same guard. The second answer is a no-op (ADR-0022).
+      if (state.pendingConfirm?.confirmId !== confirmId) {
+        return;
+      }
+      bridge.respondConfirm(confirmId, approved).catch(() => {
+        // A lost answer is non-fatal. The brain denies by timeout (fail-closed).
+      });
+      dispatch({ kind: "confirmResolved", approved });
+    },
+    [state.pendingConfirm, bridge],
+  );
+  const dismiss = useCallback(() => {
+    denyPendingConfirm();
+    dispatch({ kind: "dismiss" });
+  }, [denyPendingConfirm]);
   const open = useCallback(() => dispatch({ kind: "open" }), []);
   const newChat = useCallback(() => {
+    denyPendingConfirm();
     cancelRef.current?.();
     dispatch({ kind: "newChat", sessionId: newSessionId() });
-  }, [newSessionId]);
+  }, [denyPendingConfirm, newSessionId]);
   const toggleSwitcher = useCallback(() => dispatch({ kind: "toggleSwitcher" }), []);
 
   const openSession = useCallback(
     (sessionId: string) => {
+      denyPendingConfirm();
       cancelRef.current?.();
       bridge
         .sessionMessages(sessionId)
@@ -104,7 +143,7 @@ export function useOverlay(
           // Leave the current chat in place if its history cannot load.
         });
     },
-    [bridge],
+    [denyPendingConfirm, bridge],
   );
 
   const cyclePrev = useCallback(() => {
@@ -132,5 +171,6 @@ export function useOverlay(
     cyclePrev,
     cycleNext,
     toggleSwitcher,
+    respondConfirm,
   };
 }

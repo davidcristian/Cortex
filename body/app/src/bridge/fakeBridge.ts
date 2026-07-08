@@ -17,6 +17,8 @@ import type {
 export class FakeBridge implements BrainBridge {
   private sink: TurnSink | null = null;
   readonly calls: { readonly sessionId: string; readonly text: string }[] = [];
+  /** The confirm answers sent so far, in order (ADR-0022). */
+  readonly confirms: { readonly confirmId: string; readonly approved: boolean }[] = [];
   /** What `listSessions` resolves with (assignable by a test). */
   sessions: readonly SessionSummary[] = [];
   /** What `sessionMessages` resolves with, keyed by session id. */
@@ -24,6 +26,8 @@ export class FakeBridge implements BrainBridge {
   /** When set, the matching read rejects (the transport-failure path). */
   listFails = false;
   messagesFail = false;
+  /** When set, `respondConfirm` rejects (a lost answer, so deny-by-timeout brain-side). */
+  confirmFails = false;
 
   converse(sessionId: string, text: string, sink: TurnSink): Cancellation {
     this.calls.push({ sessionId, text });
@@ -45,6 +49,14 @@ export class FakeBridge implements BrainBridge {
       return Promise.reject(new Error("history failed"));
     }
     return Promise.resolve(this.messagesBySession[sessionId] ?? []);
+  }
+
+  respondConfirm(confirmId: string, approved: boolean): Promise<void> {
+    this.confirms.push({ confirmId, approved });
+    if (this.confirmFails) {
+      return Promise.reject(new Error("confirm failed"));
+    }
+    return Promise.resolve();
   }
 
   /** Deliver one server event to the active turn (no-op if none). */

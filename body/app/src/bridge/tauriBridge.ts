@@ -57,4 +57,11 @@ export class TauriBridge implements BrainBridge {
   sessionMessages(sessionId: string): Promise<readonly SessionMessage[]> {
     return invoke<readonly SessionMessage[]>("session_messages", { sessionId });
   }
+
+  // The confirm answer (ADR-0022): a fire-and-forget command that pushes the decision
+  // into the open turn's held sender. Failures are the caller's non-fatal `.catch`, since
+  // the brain denies by timeout (fail-closed).
+  respondConfirm(confirmId: string, approved: boolean): Promise<void> {
+    return invoke<void>("confirm_response", { confirmId, approved });
+  }
 }

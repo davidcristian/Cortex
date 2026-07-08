@@ -43,6 +43,17 @@ pub enum TransportError {
     Protocol(String),
 }
 
+/// The user's answer to a [`TurnEvent::ConfirmRequest`] (ADR-0022): fed into
+/// [`BrainTransport::converse`]'s `decisions` stream and delivered to the brain
+/// as a `ConfirmResponse` client event on the open `Converse` stream.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ConfirmDecision {
+    /// Echoes the `confirm_id` of the request being answered.
+    pub confirm_id: String,
+    /// `true` approves the gated call; `false` denies it.
+    pub approved: bool,
+}
+
 /// One event from the brain during a `Converse` turn. This is the typed core mirror
 /// of the proto `ServerEvent`, decoupling the overlay from the wire types.
 ///
@@ -68,6 +79,21 @@ pub enum TurnEvent {
         state: String,
         /// Human-readable detail.
         detail: String,
+    },
+    /// A gated (outbound/irreversible) tool call awaits the user's approval
+    /// (proto `ConfirmRequest`, ADR-0022); **non-terminal**, because the turn is
+    /// suspended brain-side until a matching [`ConfirmDecision`] arrives on
+    /// the `decisions` stream, the brain's timeout denies, or the turn dies.
+    ConfirmRequest {
+        /// Correlation id minted by the brain; echo it in the decision.
+        confirm_id: String,
+        /// What would run, e.g. `send_email`.
+        tool_name: String,
+        /// The exact draft being approved, one JSON object that is the executed
+        /// contract (what you approve is what runs).
+        arguments_json: String,
+        /// Why confirmation is required; shown to the user verbatim.
+        reason: String,
     },
     /// The turn finished successfully (proto `TurnComplete`); terminal.
     Complete {
@@ -144,10 +170,18 @@ pub trait BrainTransport: Send + Sync {
     /// unreachable brain or non-OK gRPC status ([`TransportError::Connection`]
     /// / [`TransportError::Rpc`]), or a malformed stream
     /// ([`TransportError::Protocol`]).
+    ///
+    /// `decisions` answers mid-turn [`TurnEvent::ConfirmRequest`]s (ADR-0022):
+    /// each item is forwarded to the brain on the open request stream, which
+    /// half-closes when `decisions` ends. A caller with no confirm surface
+    /// passes an empty stream (an immediate half-close, which is the pre-confirm shape).
+    /// An unanswered or undeliverable confirm is denied brain-side
+    /// (fail-closed), so a decision sent after teardown is a harmless no-op.
     fn converse(
         &self,
         session_id: &str,
         text: &str,
+        decisions: impl Stream<Item = ConfirmDecision> + Send + 'static,
     ) -> impl Stream<Item = Result<TurnEvent, TransportError>> + Send;
 
     /// Lists recent chats, most-recently-active first, for the overlay's chat

@@ -25,4 +25,21 @@ describe("FakeBridge", () => {
     cancel();
     expect(() => bridge.emit({ kind: "delta", text: "y" })).not.toThrow();
   });
+
+  it("records confirm answers in order and resolves", async () => {
+    const bridge = new FakeBridge();
+    await bridge.respondConfirm("c-1", true);
+    await bridge.respondConfirm("c-2", false);
+    expect(bridge.confirms).toEqual([
+      { confirmId: "c-1", approved: true },
+      { confirmId: "c-2", approved: false },
+    ]);
+  });
+
+  it("rejects a confirm answer when the failure flag is set, still recording the attempt", async () => {
+    const bridge = new FakeBridge();
+    bridge.confirmFails = true;
+    await expect(bridge.respondConfirm("c-1", true)).rejects.toThrow("confirm failed");
+    expect(bridge.confirms).toEqual([{ confirmId: "c-1", approved: true }]);
+  });
 });

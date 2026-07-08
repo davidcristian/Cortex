@@ -14,5 +14,6 @@ pub mod transport;
 pub use hotkey::{HotkeyChord, HotkeyParseError, Modifier};
 pub use os::{Accelerator, Hotkey, HotkeyCallback, HotkeyError};
 pub use transport::{
-    BrainTransport, SeamHealth, SessionMessage, SessionSummary, TransportError, TurnEvent,
+    BrainTransport, ConfirmDecision, SeamHealth, SessionMessage, SessionSummary, TransportError,
+    TurnEvent,
 };

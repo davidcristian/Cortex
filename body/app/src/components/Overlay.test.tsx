@@ -18,6 +18,7 @@ function fakeController(
       messages,
       sessions: [],
       switcherOpen: false,
+      pendingConfirm: null,
       seq: 0,
       ...extra,
     },
@@ -30,6 +31,7 @@ function fakeController(
     cyclePrev: vi.fn(),
     cycleNext: vi.fn(),
     toggleSwitcher: vi.fn(),
+    respondConfirm: vi.fn(),
   };
   return controller;
 }
@@ -113,6 +115,20 @@ describe("Overlay", () => {
     // Arrows without the modifier are ignored (they scroll the history).
     fireEvent.keyDown(document.body, { key: "ArrowUp" });
     expect(controller.cyclePrev).toHaveBeenCalledOnce();
+  });
+
+  it("routes a card answer to the controller's respondConfirm", () => {
+    const controller = fakeController("panel", [], {
+      pendingConfirm: {
+        confirmId: "c-1",
+        toolName: "send_email",
+        argumentsJson: '{"to":"ada@example.com"}',
+        reason: "outbound",
+      },
+    });
+    renderOverlay(controller);
+    fireEvent.click(screen.getByText("Deny"));
+    expect(controller.respondConfirm).toHaveBeenCalledWith("c-1", false);
   });
 
   it("opens a chat from the switcher list", () => {

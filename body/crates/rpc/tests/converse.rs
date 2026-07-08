@@ -6,20 +6,24 @@
 //! proves the one-turn request is transmitted, because the fake echoes the received
 //! text and session id), a brain-reported `SeamError` (→ `Failed`), an empty
 //! `ServerEvent` and a stream that ends before `TurnComplete` (→ `Protocol`),
-//! the `Converse` call itself failing (→ `Rpc`), and a status raised mid-stream
-//! (→ `Rpc`). The `Connection` mapping is shared with `health` and covered in
-//! `tests/client.rs`.
+//! the `Converse` call itself failing (→ `Rpc`), a status raised mid-stream
+//! (→ `Rpc`), and the confirm round-trip (ADR-0022): a mid-turn
+//! `ConfirmRequest` (→ non-terminal `TurnEvent::ConfirmRequest`) answered by a
+//! decision the client relays as a `confirm_response` on the still-open
+//! request stream (approve and deny), plus the half-close of an ended/empty
+//! decisions stream (the pre-8.8 one-shot shape). The `Connection` mapping is
+//! shared with `health` and covered in `tests/client.rs`.
 
 use std::net::SocketAddr;
 use std::pin::Pin;
 
-use body_core::{BrainTransport, TransportError, TurnEvent};
+use body_core::{BrainTransport, ConfirmDecision, TransportError, TurnEvent};
 use body_rpc::BrainSeamClient;
 use body_rpc::generated::brain_service_server::{BrainService, BrainServiceServer};
 use body_rpc::generated::{
-    ClientEvent, GetSessionMessagesReply, GetSessionMessagesRequest, HealthReply, HealthRequest,
-    ListSessionsReply, ListSessionsRequest, SeamError, ServerEvent, StatusUpdate, TextDelta,
-    ToolActivity, TurnComplete, client_event, server_event,
+    ClientEvent, ConfirmRequest, GetSessionMessagesReply, GetSessionMessagesRequest, HealthReply,
+    HealthRequest, ListSessionsReply, ListSessionsRequest, SeamError, ServerEvent, StatusUpdate,
+    TextDelta, ToolActivity, TurnComplete, client_event, server_event,
 };
 use tokio::net::TcpListener;
 use tokio_stream::wrappers::TcpListenerStream;
@@ -43,6 +47,15 @@ enum Script {
     RejectCall,
     /// One delta, then a non-OK status raised mid-stream.
     MidStreamError,
+    /// Read the user turn, emit a `ConfirmRequest`, then read the next inbound
+    /// client event and assert it is the matching `ConfirmResponse` with this
+    /// `approved` value, proving the client kept its sender open and relayed
+    /// the caller's decision (ADR-0022). Then echo the verdict and complete.
+    Confirm { approved: bool },
+    /// Read the user turn, then assert the inbound stream half-closes (ends)
+    /// in the pre-8.8 shape when the caller's decisions stream is empty, then
+    /// complete normally.
+    HalfClose,
 }
 
 /// A scripted fake implementing the generated `BrainService` server trait.
@@ -58,15 +71,66 @@ fn delta(text: &str) -> ServerEvent {
     }
 }
 
-/// Reads the single inbound `ClientEvent` and returns its `(session_id, text)`,
+/// Reads the next inbound `ClientEvent` and returns its `(session_id, event)`
+/// oneof, or `None` when the client has half-closed. This is the generalized inbound
+/// reader every script builds on (the confirm scripts read past the user turn).
+async fn read_client_event(
+    inbound: &mut Streaming<ClientEvent>,
+) -> Result<Option<(String, client_event::Event)>, Status> {
+    Ok(inbound
+        .message()
+        .await?
+        .and_then(|event| event.event.map(|inner| (event.session_id, inner))))
+}
+
+/// Reads one inbound `ClientEvent` and returns its `(session_id, text)`,
 /// or placeholders if it is missing or not a user turn.
 async fn read_user_turn(inbound: &mut Streaming<ClientEvent>) -> Result<(String, String), Status> {
-    match inbound.message().await? {
-        Some(ClientEvent {
-            session_id,
-            event: Some(client_event::Event::UserTurn(turn)),
-        }) => Ok((session_id, turn.text)),
+    match read_client_event(inbound).await? {
+        Some((session_id, client_event::Event::UserTurn(turn))) => Ok((session_id, turn.text)),
         _ => Ok((String::from("<none>"), String::from("<none>"))),
+    }
+}
+
+/// The confirm round-trip response stream (ADR-0022): emit a `ConfirmRequest`,
+/// then read the client's next inbound event and assert it is the matching
+/// `ConfirmResponse{confirm_id, approved}` on the same session, which proves the
+/// client kept its request sender open past the user turn and relayed the
+/// caller's decision. Any mismatch fails the stream with an `internal` status
+/// the test surfaces as an unexpected `Rpc` error.
+fn confirm_script(
+    mut inbound: Streaming<ClientEvent>,
+    session_id: String,
+    expect_approved: bool,
+) -> impl Stream<Item = Result<ServerEvent, Status>> + Send {
+    async_stream::stream! {
+        yield Ok(ServerEvent {
+            event: Some(server_event::Event::ConfirmRequest(ConfirmRequest {
+                confirm_id: String::from("confirm-7"),
+                tool_name: String::from("send_email"),
+                arguments_json: String::from("{\"to\":\"x@y\"}"),
+                reason: String::from("outbound and irreversible"),
+            })),
+        });
+        match read_client_event(&mut inbound).await {
+            Ok(Some((sid, client_event::Event::ConfirmResponse(response))))
+                if sid == session_id
+                    && response.confirm_id == "confirm-7"
+                    && response.approved == expect_approved =>
+            {
+                yield Ok(delta(&format!("verdict:{}", response.approved)));
+                yield Ok(ServerEvent {
+                    event: Some(server_event::Event::TurnComplete(TurnComplete {
+                        turn_id: String::from("turn-confirm"),
+                    })),
+                });
+            }
+            other => {
+                yield Err(Status::internal(format!(
+                    "expected the echoed confirm response, got {other:?}"
+                )));
+            }
+        }
     }
 }
 
@@ -82,6 +146,12 @@ impl BrainService for FakeBrain {
             return Err(Status::internal("cannot start turn"));
         }
         let mut inbound = request.into_inner();
+        if let Script::Confirm { approved } = self.script {
+            let (session_id, _text) = read_user_turn(&mut inbound).await?;
+            return Ok(Response::new(Box::pin(confirm_script(
+                inbound, session_id, approved,
+            ))));
+        }
         let events: Vec<Result<ServerEvent, Status>> = match self.script {
             Script::Echo => {
                 let (session_id, text) = read_user_turn(&mut inbound).await?;
@@ -119,7 +189,23 @@ impl BrainService for FakeBrain {
             Script::EmptyEvent => vec![Ok(ServerEvent { event: None })],
             Script::EarlyClose => vec![Ok(delta("hi"))],
             Script::MidStreamError => vec![Ok(delta("hi")), Err(Status::internal("boom"))],
-            Script::RejectCall => unreachable!("handled above"),
+            Script::HalfClose => {
+                let _ = read_user_turn(&mut inbound).await?;
+                match read_client_event(&mut inbound).await? {
+                    None => vec![
+                        Ok(delta("half-closed")),
+                        Ok(ServerEvent {
+                            event: Some(server_event::Event::TurnComplete(TurnComplete {
+                                turn_id: String::from("turn-halfclose"),
+                            })),
+                        }),
+                    ],
+                    Some(event) => vec![Err(Status::internal(format!(
+                        "expected the half-close after the user turn, got {event:?}"
+                    )))],
+                }
+            }
+            Script::RejectCall | Script::Confirm { .. } => unreachable!("handled above"),
         };
         Ok(Response::new(Box::pin(tokio_stream::iter(events))))
     }
@@ -166,16 +252,19 @@ async fn spawn_fake_brain(script: Script) -> Result<SocketAddr, std::io::Error> 
 }
 
 /// Runs one turn through the transport port and collects every stream item.
+/// `decisions` is the caller's confirm-answer stream (ADR-0022); the legacy
+/// scripts pass an empty one (immediate half-close, the pre-8.8 shape).
 /// Errors propagate (via `?`) so the `.unwrap()` stays in each `#[test]` body,
 /// where clippy allows it, rather than in this shared helper.
 async fn run_turn(
     script: Script,
     session_id: &str,
     text: &str,
+    decisions: impl Stream<Item = ConfirmDecision> + Send + 'static,
 ) -> Result<Vec<Result<TurnEvent, TransportError>>, Box<dyn std::error::Error>> {
     let addr = spawn_fake_brain(script).await?;
     let client = BrainSeamClient::connect(&format!("http://{addr}")).await?;
-    let stream = client.converse(session_id, text);
+    let stream = client.converse(session_id, text, decisions);
     tokio::pin!(stream);
     let mut out = Vec::new();
     while let Some(item) = stream.next().await {
@@ -184,9 +273,37 @@ async fn run_turn(
     Ok(out)
 }
 
+/// Runs one `Script::Confirm` turn the way the overlay would: the decision is
+/// sent *in reaction to* the streamed `ConfirmRequest` over a channel whose
+/// sender the caller holds open. It is never pre-scripted. Proves the adapter keeps
+/// polling the outbound stream mid-turn (no deadlock between "brain awaits the
+/// response" and "client only sends at call time").
+async fn run_confirm_turn(approved: bool) -> Result<Vec<TurnEvent>, Box<dyn std::error::Error>> {
+    let addr = spawn_fake_brain(Script::Confirm { approved }).await?;
+    let client = BrainSeamClient::connect(&format!("http://{addr}")).await?;
+    let (sender, receiver) = tokio::sync::mpsc::unbounded_channel();
+    let decisions = tokio_stream::wrappers::UnboundedReceiverStream::new(receiver);
+    let stream = client.converse("sess-c", "send it", decisions);
+    tokio::pin!(stream);
+    let mut events = Vec::new();
+    while let Some(item) = stream.next().await {
+        let event = item?;
+        if let TurnEvent::ConfirmRequest { confirm_id, .. } = &event {
+            sender.send(ConfirmDecision {
+                confirm_id: confirm_id.clone(),
+                approved,
+            })?;
+        }
+        events.push(event);
+    }
+    Ok(events)
+}
+
 #[tokio::test]
 async fn echo_turn_round_trips_every_event_kind() {
-    let events = run_turn(Script::Echo, "sess-42", "ping").await.unwrap();
+    let events = run_turn(Script::Echo, "sess-42", "ping", tokio_stream::empty())
+        .await
+        .unwrap();
     let events: Vec<TurnEvent> = events.into_iter().map(Result::unwrap).collect();
     assert_eq!(
         events,
@@ -210,7 +327,9 @@ async fn echo_turn_round_trips_every_event_kind() {
 
 #[tokio::test]
 async fn brain_reported_seam_error_maps_to_failed_and_is_terminal() {
-    let events = run_turn(Script::PartialThenError, "s", "hi").await.unwrap();
+    let events = run_turn(Script::PartialThenError, "s", "hi", tokio_stream::empty())
+        .await
+        .unwrap();
     assert_eq!(events.len(), 2);
     assert_eq!(
         events[0].as_ref().unwrap(),
@@ -227,7 +346,9 @@ async fn brain_reported_seam_error_maps_to_failed_and_is_terminal() {
 
 #[tokio::test]
 async fn empty_server_event_maps_to_protocol_error() {
-    let events = run_turn(Script::EmptyEvent, "s", "hi").await.unwrap();
+    let events = run_turn(Script::EmptyEvent, "s", "hi", tokio_stream::empty())
+        .await
+        .unwrap();
     assert_eq!(events.len(), 1);
     assert_eq!(
         events[0].as_ref().unwrap_err(),
@@ -237,7 +358,9 @@ async fn empty_server_event_maps_to_protocol_error() {
 
 #[tokio::test]
 async fn stream_ending_before_completion_maps_to_protocol_error() {
-    let events = run_turn(Script::EarlyClose, "s", "hi").await.unwrap();
+    let events = run_turn(Script::EarlyClose, "s", "hi", tokio_stream::empty())
+        .await
+        .unwrap();
     assert_eq!(events.len(), 2);
     assert_eq!(
         events[0].as_ref().unwrap(),
@@ -253,7 +376,9 @@ async fn stream_ending_before_completion_maps_to_protocol_error() {
 
 #[tokio::test]
 async fn rejected_converse_call_maps_to_rpc_error() {
-    let events = run_turn(Script::RejectCall, "s", "hi").await.unwrap();
+    let events = run_turn(Script::RejectCall, "s", "hi", tokio_stream::empty())
+        .await
+        .unwrap();
     assert_eq!(events.len(), 1);
     assert_eq!(
         events[0].as_ref().unwrap_err(),
@@ -266,7 +391,9 @@ async fn rejected_converse_call_maps_to_rpc_error() {
 
 #[tokio::test]
 async fn status_raised_mid_stream_maps_to_rpc_error() {
-    let events = run_turn(Script::MidStreamError, "s", "hi").await.unwrap();
+    let events = run_turn(Script::MidStreamError, "s", "hi", tokio_stream::empty())
+        .await
+        .unwrap();
     assert_eq!(events.len(), 2);
     assert_eq!(
         events[0].as_ref().unwrap(),
@@ -278,5 +405,68 @@ async fn status_raised_mid_stream_maps_to_rpc_error() {
             code: String::from("Internal"),
             message: String::from("boom"),
         },
+    );
+}
+
+#[tokio::test]
+async fn approved_confirm_round_trips_over_the_open_request_stream() {
+    // The fake asserts the wire shape (echoed confirm_id + approved=true on
+    // the same session) before completing. A mismatch would surface as an
+    // unexpected Rpc error below instead of this exact event vector.
+    let events = run_confirm_turn(true).await.unwrap();
+    assert_eq!(
+        events,
+        vec![
+            TurnEvent::ConfirmRequest {
+                confirm_id: String::from("confirm-7"),
+                tool_name: String::from("send_email"),
+                arguments_json: String::from("{\"to\":\"x@y\"}"),
+                reason: String::from("outbound and irreversible"),
+            },
+            TurnEvent::Delta(String::from("verdict:true")),
+            TurnEvent::Complete {
+                turn_id: String::from("turn-confirm"),
+            },
+        ],
+    );
+}
+
+#[tokio::test]
+async fn denied_confirm_round_trips_over_the_open_request_stream() {
+    let events = run_confirm_turn(false).await.unwrap();
+    assert_eq!(
+        events,
+        vec![
+            TurnEvent::ConfirmRequest {
+                confirm_id: String::from("confirm-7"),
+                tool_name: String::from("send_email"),
+                arguments_json: String::from("{\"to\":\"x@y\"}"),
+                reason: String::from("outbound and irreversible"),
+            },
+            TurnEvent::Delta(String::from("verdict:false")),
+            TurnEvent::Complete {
+                turn_id: String::from("turn-confirm"),
+            },
+        ],
+    );
+}
+
+#[tokio::test]
+async fn empty_decisions_stream_still_half_closes_and_the_turn_completes() {
+    // The pre-8.8 one-shot shape: with no decisions the request stream ends
+    // right after the user turn; the fake proves the half-close reached it
+    // (an extra inbound event would fail the turn with an Rpc error).
+    let events = run_turn(Script::HalfClose, "s", "hi", tokio_stream::empty())
+        .await
+        .unwrap();
+    let events: Vec<TurnEvent> = events.into_iter().map(Result::unwrap).collect();
+    assert_eq!(
+        events,
+        vec![
+            TurnEvent::Delta(String::from("half-closed")),
+            TurnEvent::Complete {
+                turn_id: String::from("turn-halfclose"),
+            },
+        ],
     );
 }

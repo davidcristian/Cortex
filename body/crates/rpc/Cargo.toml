@@ -10,6 +10,10 @@ async-stream.workspace = true
 body-core.workspace = true
 futures-core.workspace = true
 prost.workspace = true
+# Promoted from dev-dependencies for the confirm round-trip (ADR-0022): the
+# converse request stream chains the caller's decision stream onto the user
+# turn with tokio-stream's once/chain/map combinators.
+tokio-stream.workspace = true
 tonic.workspace = true
 tonic-prost.workspace = true
 

@@ -126,6 +126,13 @@ async fn converse_round_trips_one_turn_over_the_live_seam() {
             // Tool/status traffic is legal on the stream; this check only
             // cares about the reply text and turn completion.
             Some(server_event::Event::ToolActivity(_) | server_event::Event::Status(_)) => {}
+            // Nothing gated is asked for here, and this raw one-shot client
+            // could not answer anyway (ADR-0022). A confirm request means
+            // something is wrong brain-side.
+            Some(server_event::Event::ConfirmRequest(request)) => panic!(
+                "unexpected confirm request for tool {tool} on session {session_id}",
+                tool = request.tool_name
+            ),
             None => panic!("server sent an event with an empty oneof on session {session_id}"),
         }
     };

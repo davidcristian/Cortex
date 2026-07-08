@@ -15,6 +15,16 @@ const run = (actions: Action[]) => actions.reduce(reduce, initialState);
 const assistant = (s: ReturnType<typeof run>) => s.messages.find((m) => m.role === "assistant");
 const submit = (text: string): Action => ({ kind: "submit", text });
 const complete: Action = { kind: "event", event: { kind: "complete", turnId: "t-1" } };
+const confirmRequest: Action = {
+  kind: "event",
+  event: {
+    kind: "confirmRequest",
+    confirmId: "c-1",
+    toolName: "send_email",
+    argumentsJson: '{"to":"ada@example.com"}',
+    reason: "outbound",
+  },
+};
 
 describe("overlayState reducer", () => {
   it("open shows the panel", () => {
@@ -155,6 +165,59 @@ describe("overlayState reducer", () => {
     const open = reduce(initialState, { kind: "openSession", sessionId: "empty", messages: [] });
     expect(open.title).toBe("New chat");
     expect(open.messages).toEqual([]);
+  });
+
+  it("confirmRequest raises the pending approval on a streaming turn", () => {
+    const s = run([{ kind: "open" }, submit("send it"), confirmRequest]);
+    expect(s.pendingConfirm).toEqual({
+      confirmId: "c-1",
+      toolName: "send_email",
+      argumentsJson: '{"to":"ada@example.com"}',
+      reason: "outbound",
+    });
+    expect(s.mode).toBe("panel");
+  });
+
+  it("confirmRequest on a dead turn is a no-op. A cancelled turn must not resurrect UI state", () => {
+    expect(initialState.pendingConfirm).toBeNull();
+    const stopped = run([{ kind: "open" }, submit("q"), { kind: "stop" }]);
+    expect(reduce(stopped, confirmRequest)).toBe(stopped);
+  });
+
+  it("confirmRequest while minimized surfaces the preview, like a completed turn", () => {
+    const s = run([{ kind: "open" }, submit("send it"), { kind: "dismiss" }, confirmRequest]);
+    expect(s.mode).toBe("preview");
+    expect(s.pendingConfirm?.confirmId).toBe("c-1");
+  });
+
+  it("confirmResolved clears the pending approval either way", () => {
+    const pending = run([submit("send it"), confirmRequest]);
+    expect(reduce(pending, { kind: "confirmResolved", approved: true }).pendingConfirm).toBeNull();
+    expect(reduce(pending, { kind: "confirmResolved", approved: false }).pendingConfirm).toBeNull();
+  });
+
+  it("every turn-ending path drops the pending approval. The drop is the deny", () => {
+    const pending = run([{ kind: "open" }, submit("send it"), confirmRequest]);
+    const enders: Action[] = [
+      complete,
+      { kind: "event", event: { kind: "failed", code: "overloaded", message: "busy" } },
+      { kind: "transportError", error: { kind: "connection", message: "down" } },
+      { kind: "stop" },
+      { kind: "dismiss" },
+      { kind: "newChat", sessionId: "next" },
+      { kind: "openSession", sessionId: "other", messages: [] },
+    ];
+    for (const ender of enders) {
+      expect(reduce(pending, ender).pendingConfirm).toBeNull();
+    }
+  });
+
+  it("previewFade is a no-op while an approval is pending. A question waits to be seen", () => {
+    const pending = run([{ kind: "open" }, submit("send it"), { kind: "dismiss" }, confirmRequest]);
+    expect(pending.mode).toBe("preview");
+    expect(reduce(pending, { kind: "previewFade" })).toBe(pending);
+    const resolved = reduce(pending, { kind: "confirmResolved", approved: true });
+    expect(reduce(resolved, { kind: "previewFade" }).mode).toBe("hidden");
   });
 
   it("latestReply returns the last assistant reply, or empty when there is none", () => {

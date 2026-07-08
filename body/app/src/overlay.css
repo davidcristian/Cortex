@@ -178,6 +178,99 @@
   white-space: pre;
   animation: wordin 0.5s var(--ease) both;
 }
+
+/* The approval card (ADR-0022) is the history's inline layer between bubbles, its first real
+   occupant. Resting chrome stays neutral (it is a question, not activity); the accent lives
+   only on Approve, the one affordance that runs the gated action. Keys and values render
+   verbatim. What you approve is what runs. */
+.confirm {
+  align-self: stretch;
+  padding: 12px 14px 11px;
+  background: var(--control);
+  border: 1px solid var(--stroke);
+  border-radius: 16px;
+  animation: confirmin 0.36s var(--spring) both;
+}
+.confirm-tool {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+}
+.confirm-tool svg {
+  width: 15px;
+  height: 15px;
+}
+.confirm-draft {
+  margin: 9px 0 0;
+}
+.confirm-row {
+  display: flex;
+  gap: 10px;
+  font-size: 13.5px;
+  line-height: 1.55;
+}
+.confirm-row dt {
+  flex: none;
+  min-width: 54px;
+  color: var(--muted);
+}
+.confirm-row dd {
+  margin: 0;
+  min-width: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.confirm-raw {
+  margin-top: 9px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.confirm-reason {
+  margin: 8px 0 0;
+  font-size: 11.5px;
+  color: var(--dim);
+}
+.confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 11px;
+}
+.confirm-actions button {
+  padding: 7px 16px;
+  border-radius: 12px;
+  font-family: var(--font);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    color 0.18s var(--ease),
+    background 0.18s var(--ease),
+    transform 0.18s var(--spring);
+}
+.confirm-actions button:active {
+  transform: scale(0.95);
+}
+.confirm-deny {
+  background: none;
+  border: 1px solid var(--stroke);
+  color: var(--muted);
+}
+.confirm-deny:hover {
+  color: var(--text);
+  background: var(--field);
+}
+.confirm-approve {
+  border: none;
+  background: var(--accent);
+  color: #fff;
+  box-shadow: 0 8px 20px -6px rgba(226, 75, 196, 0.6);
+}
 .caret {
   display: inline-block;
   width: 7px;
@@ -401,6 +494,16 @@
   }
   50% {
     opacity: 0.3;
+  }
+}
+@keyframes confirmin {
+  from {
+    opacity: 0;
+    transform: translateY(7px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: none;
   }
 }
 @keyframes previewin {

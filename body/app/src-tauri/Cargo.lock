@@ -234,6 +234,7 @@ dependencies = [
  "body-core",
  "futures-core",
  "prost",
+ "tokio-stream",
  "tonic",
  "tonic-prost",
  "tonic-prost-build",
@@ -489,6 +490,8 @@ dependencies = [
  "serde",
  "tauri",
  "tauri-build",
+ "tokio",
+ "tokio-stream",
 ]
 
 [[package]]

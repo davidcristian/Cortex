@@ -5,11 +5,15 @@
 //! `Channel` as a `WireMessage` mirroring `bridge/tauriBridge.ts`. All seam logic
 //! lives in `body_rpc`; the mapping here is mechanical.
 
-use body_core::{BrainTransport, TransportError, TurnEvent};
+use body_core::{BrainTransport, ConfirmDecision, TransportError, TurnEvent};
 use body_rpc::BrainSeamClient;
 use futures_util::{StreamExt, pin_mut};
 use serde::Serialize;
 use tauri::ipc::Channel;
+use tauri::State;
+use tokio_stream::wrappers::UnboundedReceiverStream;
+
+use crate::confirm::ConfirmRoute;
 
 /// Default brain seam address (matches `body_rpc`); override with `CORTEX_BRAIN_ADDR`.
 const DEFAULT_ADDR: &str = "http://127.0.0.1:50051";
@@ -32,6 +36,7 @@ enum WireEvent {
     Delta { text: String },
     ToolActivity { tool_name: String, summary: String },
     Status { state: String, detail: String },
+    ConfirmRequest { confirm_id: String, tool_name: String, arguments_json: String, reason: String },
     Complete { turn_id: String },
     Failed { code: String, message: String },
 }
@@ -51,6 +56,9 @@ impl From<TurnEvent> for WireEvent {
                 Self::ToolActivity { tool_name, summary }
             }
             TurnEvent::Status { state, detail } => Self::Status { state, detail },
+            TurnEvent::ConfirmRequest { confirm_id, tool_name, arguments_json, reason } => {
+                Self::ConfirmRequest { confirm_id, tool_name, arguments_json, reason }
+            }
             TurnEvent::Complete { turn_id } => Self::Complete { turn_id },
             TurnEvent::Failed { code, message } => Self::Failed { code, message },
         }
@@ -83,11 +91,17 @@ impl WireMessage {
 /// is external (the brain persists it), so each call is independent and shares a
 /// stable `session_id`. Returns `Ok(())` once the stream ends; connection and
 /// turn failures are delivered on the channel, not as a command error.
+///
+/// Mid-turn confirm answers (ADR-0022) arrive out of band via the
+/// `confirm_response` command: this command parks the turn's decision sender in
+/// the managed [`ConfirmRoute`] for the duration of its event loop, and the
+/// receiver is chained onto the open request stream by `body_rpc`.
 #[tauri::command]
 pub async fn converse(
     session_id: String,
     text: String,
     channel: Channel<WireMessage>,
+    route: State<'_, ConfirmRoute>,
 ) -> Result<(), String> {
     let addr = std::env::var("CORTEX_BRAIN_ADDR").unwrap_or_else(|_| DEFAULT_ADDR.to_owned());
     // The shared seam secret (ADR-0016): same env var the brain reads; empty = auth off.
@@ -101,7 +115,9 @@ pub async fn converse(
             return Ok(());
         }
     };
-    let stream = client.converse(&session_id, &text);
+    let (sender, receiver) = tokio::sync::mpsc::unbounded_channel::<ConfirmDecision>();
+    let generation = route.set(sender);
+    let stream = client.converse(&session_id, &text, UnboundedReceiverStream::new(receiver));
     pin_mut!(stream);
     while let Some(item) = stream.next().await {
         let message = match item {
@@ -112,5 +128,10 @@ pub async fn converse(
             break;
         }
     }
+    // The turn is over: drop the route so a late answer is a no-op (the brain
+    // denies an unanswered confirm by timeout, so it is fail-closed). Compare-and-clear
+    // by generation so a superseded turn ending late cannot wipe the live turn's
+    // route (a newer turn already reclaimed the slot).
+    route.clear(generation);
     Ok(())
 }

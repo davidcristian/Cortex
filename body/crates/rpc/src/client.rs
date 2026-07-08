@@ -9,7 +9,8 @@
 //! (retry policy is a later slice's concern).
 
 use body_core::{
-    BrainTransport, SeamHealth, SessionMessage, SessionSummary, TransportError, TurnEvent,
+    BrainTransport, ConfirmDecision, SeamHealth, SessionMessage, SessionSummary, TransportError,
+    TurnEvent,
 };
 use futures_core::Stream;
 use tonic::metadata::{Ascii, MetadataValue};
@@ -123,8 +124,14 @@ impl BrainTransport for BrainSeamClient {
         &self,
         session_id: &str,
         text: &str,
+        decisions: impl Stream<Item = ConfirmDecision> + Send + 'static,
     ) -> impl Stream<Item = Result<TurnEvent, TransportError>> + Send {
-        crate::converse::converse_turn(self.inner.clone(), session_id.to_owned(), text.to_owned())
+        crate::converse::converse_turn(
+            self.inner.clone(),
+            session_id.to_owned(),
+            text.to_owned(),
+            decisions,
+        )
     }
 
     async fn list_sessions(&self, limit: i32) -> Result<Vec<SessionSummary>, TransportError> {

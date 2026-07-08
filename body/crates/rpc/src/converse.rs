@@ -1,35 +1,52 @@
 //! `Converse` translation for `BrainSeamClient`, forming the streaming half of the
 //! `body_core::BrainTransport` port.
 //!
-//! One turn per call (ADR-0011): send a single `ClientEvent{session_id,
-//! user_turn}` on a fresh stream, half-close (so the brain knows the turn's
-//! input is complete), and map each `ServerEvent` to a typed `TurnEvent`. The
-//! turn is terminal on `TurnComplete` (→ [`TurnEvent::Complete`]) or `SeamError`
-//! (→ [`TurnEvent::Failed`] means the brain reported a turn error, the connection is
-//! fine). A stream that ends without a terminal event, or an empty
+//! One turn per call (ADR-0011): send a `ClientEvent{session_id, user_turn}`
+//! on a fresh stream, followed by one `confirm_response` per caller decision
+//! (ADR-0022), and map each `ServerEvent` to a typed `TurnEvent`. The client
+//! half-closes when the caller's decision stream ends (so a caller with no
+//! confirm surface keeps the pre-confirm one-shot shape). The turn is terminal
+//! on `TurnComplete` (→ [`TurnEvent::Complete`]) or `SeamError` (→
+//! [`TurnEvent::Failed`] means the brain reported a turn error, the connection is
+//! fine); a mid-turn `ConfirmRequest` (→ [`TurnEvent::ConfirmRequest`]) is
+//! non-terminal. A stream that ends without a terminal event, or an empty
 //! `ServerEvent`, is a [`TransportError::Protocol`]; a non-OK gRPC status maps
 //! the same way `health` does (via [`crate::client::status_to_error`]).
 
 use async_stream::stream;
-use body_core::{TransportError, TurnEvent};
+use body_core::{ConfirmDecision, TransportError, TurnEvent};
 use futures_core::Stream;
+use tokio_stream::StreamExt;
 
 use crate::client::{SeamChannel, status_to_error};
 use crate::generated::brain_service_client::BrainServiceClient;
-use crate::generated::{ClientEvent, ServerEvent, UserTurn, client_event, server_event};
+use crate::generated::{
+    ClientEvent, ConfirmResponse, ServerEvent, UserTurn, client_event, server_event,
+};
 
-/// The one-turn client request: a single `UserTurn`, then end-of-stream. v1
-/// sends text only. `UserTurn.images` (vision) arrives in Slice 10 (ADR-0011).
-fn user_turn_request(session_id: String, text: String) -> impl Stream<Item = ClientEvent> + Send {
-    stream! {
-        yield ClientEvent {
-            session_id,
-            event: Some(client_event::Event::UserTurn(UserTurn {
-                text,
-                images: Vec::new(),
-            })),
-        };
-    }
+/// The one-turn client request: a single `UserTurn`, then one
+/// `confirm_response` per decision, then end-of-stream when `decisions` ends
+/// (ADR-0022 defines the caller's sender going away as the half-close). v1 sends
+/// text only. `UserTurn.images` (vision) arrives in Slice 10 (ADR-0011).
+fn turn_request(
+    session_id: String,
+    text: String,
+    decisions: impl Stream<Item = ConfirmDecision> + Send + 'static,
+) -> impl Stream<Item = ClientEvent> + Send {
+    let user_turn = ClientEvent {
+        session_id: session_id.clone(),
+        event: Some(client_event::Event::UserTurn(UserTurn {
+            text,
+            images: Vec::new(),
+        })),
+    };
+    tokio_stream::once(user_turn).chain(decisions.map(move |decision| ClientEvent {
+        session_id: session_id.clone(),
+        event: Some(client_event::Event::ConfirmResponse(ConfirmResponse {
+            confirm_id: decision.confirm_id,
+            approved: decision.approved,
+        })),
+    }))
 }
 
 /// Maps one `ServerEvent` to a `TurnEvent` (or a `Protocol` error for an empty
@@ -48,6 +65,15 @@ fn map_event(event: ServerEvent) -> (Result<TurnEvent, TransportError>, bool) {
             Ok(TurnEvent::Status {
                 state: status.state,
                 detail: status.detail,
+            }),
+            false,
+        ),
+        Some(server_event::Event::ConfirmRequest(request)) => (
+            Ok(TurnEvent::ConfirmRequest {
+                confirm_id: request.confirm_id,
+                tool_name: request.tool_name,
+                arguments_json: request.arguments_json,
+                reason: request.reason,
             }),
             false,
         ),
@@ -79,9 +105,10 @@ pub(crate) fn converse_turn(
     mut client: BrainServiceClient<SeamChannel>,
     session_id: String,
     text: String,
+    decisions: impl Stream<Item = ConfirmDecision> + Send + 'static,
 ) -> impl Stream<Item = Result<TurnEvent, TransportError>> + Send {
     stream! {
-        let mut inbound = match client.converse(user_turn_request(session_id, text)).await {
+        let mut inbound = match client.converse(turn_request(session_id, text, decisions)).await {
             Ok(response) => response.into_inner(),
             Err(status) => {
                 yield Err(status_to_error(&status));
