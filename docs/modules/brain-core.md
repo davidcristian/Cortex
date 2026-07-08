@@ -104,6 +104,30 @@ Subagent domain (Slice 7, ADR-0010):
   marks a failure the cortex consumes as a value, mirroring `ToolResult.is_error`; `tainted` is
   set when the subagent read untrusted content, aggregated by the spawn tool (ADR-0013).
 
+Schedule domain (Slice 9.5, ADR-0025, in `schedule.py`; named `schedule`/`ScheduleTicker`
+throughout, never "Scheduler", which means resource *admission* here):
+
+- `ScheduleKind` is an enum `REMINDER` / `TASK` (string values) whose firing means: deliver text
+  to the user, or run an autonomous subagent.
+- `ScheduleStatus` is an enum `PENDING` / `FIRING` / `DONE`. No `CANCELLED`: cancel deletes the
+  record outright, and `DONE` persists only while a fired one-shot reminder awaits delivery
+  (terminal cleanup).
+- `ScheduledItem` is a frozen dataclass: `id`, `kind`, `text`, `session_id` (`""` until a
+  turn-context stamp exists; this is a recorded deferral), `due_at`/`created_at` (tz-aware, rejects
+  naive), `every: timedelta | None = None` (recurrence; must be positive),
+  `model: str = ""` (task-only roster hint), `tainted: bool = False` (creation taint, OR'd
+  with fire-time taint at `finish`), `status`, `deliverable_since: datetime | None = None`,
+  `last_outcome: str | None = None`.
+- `ScheduleClaim` is a frozen dataclass: `item` (as of the claim, FIRING) + the fencing `token`
+  minted per claim; `finish`/`release` apply only under it.
+- `FireOutcome` is a frozen dataclass: `fired_at`, `next_due: datetime | None` (None = terminal),
+  `deliverable: bool`, `outcome: str | None = None`, `tainted: bool = False` (the fire consumed
+  untrusted content).
+- `next_due(due_at, every, now) -> datetime | None` is the pure coalescing recurrence: the
+  first anchored occurrence (`due_at + k * every`, integer `k >= 1`) strictly after `now`,
+  so occurrences missed while down coalesce into the single fire that just happened; `None`
+  for one-shots; a non-positive `every` raises `ValueError`.
+
 Placement domain (Slice 8.5, ADR-0012):
 
 - `PlacementTarget` is an enum `GPU` / `CPU` (string values), where a subagent's whole model runs
@@ -248,11 +272,22 @@ Ports (`typing.Protocol`; failures cross them only as the typed errors below):
   `BodyService`). Absent kwargs leave that field alone; an unreachable body surfaces as
   `BodyGatewayError`. The real adapter is `cortex_body_client`'s `GrpcBodyGateway` over the gRPC
   seam, opt-in and off by default (wired at the composition root, not here).
+- `ScheduleStore` holds durable schedules with the fenced claim→finish protocol (ADR-0025):
+  `async add(item)`, `async get(item_id) -> ScheduledItem | None`, `async list_active()`,
+  `async cancel(item_id) -> bool` (deletes outright, so it sticks through an in-flight fire),
+  `async claim_due(now, *, lease, limit) -> Sequence[ScheduleClaim]` (due PENDING plus
+  lease-expired FIRING, oldest-due-first, fresh fencing token per claim; undecodable records
+  quarantined, never a poison pill), `async finish(claim, outcome) -> bool` /
+  `async release(claim) -> bool` (both apply only under the claim's token, so a stale claimant
+  no-ops `False`; finish ORs fire-time taint onto the item, re-arms at `outcome.next_due` or
+  terminates, with terminal records deleted unless deliverable), `async deliverable()`, and
+  `async ack(item_id) -> bool`. A schedule outlives every model swap and restart, and the one
+  hard rule is the reason this port exists.
 - `Clock` provides `now() -> datetime`, always tz-aware. The core's only time source.
 - `SessionStoreError` / `InferenceError` / `ModelManagerError` (+ its
   `ModelUnavailableError`) / `MemoryStoreError` / `EmbedderError` / `ToolError` (+ its
-  `ToolNotFoundError`) / `TaskStoreError` / `BodyGatewayError` are typed errors; adapters wrap their
-  backend's failures into these with the cause chained.
+  `ToolNotFoundError`) / `TaskStoreError` / `BodyGatewayError` / `ScheduleStoreError` are typed
+  errors; adapters wrap their backend's failures into these with the cause chained.
 
 Use-case:
 
@@ -456,6 +491,11 @@ Reference implementations (pure, shipped in core; the runtime wiring until Slice
   tests can assert the audit trail.
 - `RecordingConfirmer(*, answer)` is a `Confirmer` returning a fixed `answer` and recording each
   `ConfirmationRequest` in `.requests`, so gate tests can assert what was confirmed (ADR-0013).
+- `InMemoryScheduleStore(*, token_factory=<uuid4>)` is a dict-backed `ScheduleStore` implementing
+  the full fenced protocol (fresh token per claim, stale finish/release no-op `False`,
+  cancel-deletes-outright, terminal cleanup, fire-time taint OR); contract twin of
+  `RedisScheduleStore` (ADR-0025). Lives in `fakes_schedule.py` (`fakes.py` is at its line-cap
+  budget). Does not survive a restart, by design. The Redis adapter proves the hard rule.
 - `InMemoryBodyGateway` fakes `BodyGateway` in memory: `get_volume` returns the held `VolumeState`
   and `set_volume` clamps a present `level` to `[0,1]` before applying the given fields; a `fail`
   kwarg scripts an unreachable body (`BodyGatewayError`). Contract twin of `cortex_body_client`'s
