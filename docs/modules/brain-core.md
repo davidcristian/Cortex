@@ -419,6 +419,22 @@ Use-case:
   (host state, never taints the turn); bad arguments and a `BodyGatewayError` both become an
   `is_error` `TRUSTED` `ToolResult`, never a raise. `BuiltinTool`s, registered in the
   `CompositeToolRegistry`.
+- `ScheduleTaskTool(store, clock, *, tasks_enabled, max_active, item_id_factory=<uuid4>)` /
+  `ListScheduledTool(store)` / `CancelScheduledTool(store)` are the built-in `schedule_task` /
+  `list_scheduled` / `cancel_scheduled` tools (`schedule_tools.py`, argument parsing in
+  `schedule_args.py`), cortex-only like `spawn_subagents`, since a subagent cannot re-schedule
+  (ADR-0025). `schedule_task` takes `{kind: reminder|task, text, at | in_seconds,
+  every_seconds? (≥ 60), model? (task-only)}`; its spec is rebuilt per `describe_tools` walk and
+  **carries the current UTC time** from the `Clock` (the model cannot otherwise compute an
+  absolute `at`), advertising `task`/`model` only when delegation is wired. Two creation bounds:
+  the `max_active` cap, and the **tainted-task refusal**. A tainted turn cannot create a
+  `kind: "task"` item at all (`TAINTED_TASK_MSG`; a reminder may carry attacker-influenced text
+  because it only reaches a human, an autonomous instruction may not). Creation stamps
+  `ScheduledItem.tainted` from the dispatcher's `call.tainted`; creation/cancel results are
+  `TRUSTED` and never echo the stored text; the listing echoes text and so is `TRUSTED` only
+  when every listed item is clean, else `UNTRUSTED` (fenced + re-tainting, the spawn aggregate
+  rule). All three ungated by default (`CORTEX_TOOLS_GATED` is the backstop); bad arguments, a
+  naive `at`, and a `ScheduleStoreError` all become `is_error` `TRUSTED` results. None ever raises.
 - `CompositeToolRegistry(builtins, remote=None)` is a `ToolRegistry` merging built-in tools with
   an optional remote (MCP) registry (ADR-0010). `describe_tools` advertises every built-in then
   the remote tools none shadows; `invoke` routes by name, built-ins first, else the remote, else
