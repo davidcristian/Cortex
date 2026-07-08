@@ -50,6 +50,15 @@ export function TuckIcon() {
   );
 }
 
+/** Gated action: a hollow shield. This call runs only with the user's approval (ADR-0022). */
+export function ShieldIcon() {
+  return (
+    <Icon>
+      <path d="M12 3.5l7 2.6v5.4c0 4.3 -2.9 7.7 -7 9c-4.1 -1.3 -7 -4.7 -7 -9V6.1z" />
+    </Icon>
+  );
+}
+
 /** Send: an up arrow to submit the prompt. */
 export function SendIcon() {
   return (

@@ -1,5 +1,6 @@
 import { type OverlayState, isTurnActive } from "../overlay/overlayState";
 import { Composer } from "./Composer";
+import { ConfirmCard } from "./ConfirmCard";
 import { ChatsIcon, DownArrowKey, PencilIcon, ReturnKey, ShiftKey, TuckIcon, UpArrowKey } from "./icons";
 import { Message } from "./Message";
 import { SessionList } from "./SessionList";
@@ -16,6 +17,7 @@ interface PanelProps {
   readonly onNewChat: () => void;
   readonly onToggleSwitcher: () => void;
   readonly onSelectSession: (sessionId: string) => void;
+  readonly onRespondConfirm: (confirmId: string, approved: boolean) => void;
 }
 
 /** The overlay panel: header, scrolling history, composer, and the shortcut hints. Closed, it
@@ -32,6 +34,7 @@ export function Panel({
   onNewChat,
   onToggleSwitcher,
   onSelectSession,
+  onRespondConfirm,
 }: PanelProps) {
   const closed = state.mode === "orb" ? " to-orb" : "";
   return (
@@ -68,6 +71,9 @@ export function Panel({
         {state.messages.map((message) => (
           <Message key={message.id} message={message} />
         ))}
+        {state.pendingConfirm !== null ? (
+          <ConfirmCard confirm={state.pendingConfirm} onRespond={onRespondConfirm} />
+        ) : null}
       </div>
       <Composer busy={isTurnActive(state)} onSubmit={onSubmit} onStop={onStop} />
       <div className="hints">

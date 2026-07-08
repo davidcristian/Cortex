@@ -1,5 +1,6 @@
 //! The Cortex body: the host-native Tauri shell (ADR-0011 decision 5).
 
+mod confirm;
 mod converse;
 mod hotkey;
 mod sessions;
@@ -16,6 +17,7 @@ const ACTIVATE_EVENT: &str = "cortex:activate";
 /// is unrecoverable at process start, so it panics rather than returning.
 pub fn run() {
     tauri::Builder::default()
+        .manage(confirm::ConfirmRoute::default())
         .setup(|app| {
             tray::build(app.handle())?;
             hotkey::register(app.handle());
@@ -23,6 +25,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             converse::converse,
+            confirm::confirm_response,
             sessions::list_sessions,
             sessions::session_messages
         ])

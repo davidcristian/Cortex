@@ -31,7 +31,17 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
   select/cycle).
 - **The `converse` command** (`src-tauri/src/converse.rs`): `converse(session_id, text, channel)`.
   It serialises each `TurnEvent` / `TransportError` to a `WireMessage` (`{ event }` | `{ error }`)
-  that matches the TS `WireMessage` in `tauriBridge.ts` field for field (tag `kind`, camelCase).
+  that matches the TS `WireMessage` in `tauriBridge.ts` field for field (tag `kind`, camelCase, so
+  a mid-turn confirm request is `{ kind: "confirmRequest", confirmId, toolName, argumentsJson,
+  reason }`, ADR-0022). For the turn's duration it parks a decision sender in the managed
+  `ConfirmRoute` state (`src-tauri/src/confirm.rs`, one slot, as at most one turn runs at a time);
+  the matching receiver stream feeds `BrainTransport::converse`'s `decisions` parameter and is
+  cleared when the event loop ends.
+- **The `confirm_response` command** (`src-tauri/src/confirm.rs`, ADR-0022):
+  `confirm_response(confirm_id, approved)` pushes the user's answer into the `ConfirmRoute`
+  slot, from where it reaches the open turn's request stream. An absent or closed route is
+  silently ok (never a webview error) because an unanswered confirm is denied brain-side by
+  timeout (fail-closed), making a late answer a harmless no-op.
 - **The session-read commands** (`src-tauri/src/sessions.rs`, ADR-0021): `list_sessions(limit)` and
   `session_messages(session_id)` are unary calls returning `Vec<WireSummary>` / `Vec<WireMessage>`
   (camelCase, matching the TS `SessionSummary` / `SessionMessage`); a dial/RPC failure is the
@@ -47,7 +57,7 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
 - Components depend on the `BrainBridge` port, not Tauri, so the whole overlay is browser-runnable
   and 100%-gated; the Tauri glue is the single un-gated edge (ADR-0011 addendum).
 - The wire types on both sides of the seam are one contract: change `types.ts`,
-  `tauriBridge.ts`, and `converse.rs` / `sessions.rs` together.
+  `tauriBridge.ts`, and `converse.rs` / `confirm.rs` / `sessions.rs` together.
 - The shell stays thin. Every branchy decision (accelerator mapping, seam translation) lives in
   the gated `body_core` / `body_rpc`; the app holds wiring only, which is what keeps the coverage
   exclusion safe (ADR-0011 risk: coverage creep).
@@ -56,5 +66,6 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
 
 **Dependencies.** Frontend: React 18, Vite 5, Vitest (the gate), `@tauri-apps/api` (the real
 bridge). Shell: `tauri` 2 (`tray-icon`), `body-core` + `body-rpc` (the gated crates), `os-windows`
-(`cfg(windows)`), `serde`, `futures-util`. Bring-up + validation:
+(`cfg(windows)`), `serde`, `futures-util`, `tokio` (`sync`) + `tokio-stream` (the confirm
+decision channel, ADR-0022). Bring-up + validation:
 [body-overlay.md](../runbooks/body-overlay.md).

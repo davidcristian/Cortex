@@ -3,7 +3,7 @@
 pub struct ClientEvent {
     #[prost(string, tag = "1")]
     pub session_id: ::prost::alloc::string::String,
-    #[prost(oneof = "client_event::Event", tags = "2, 3")]
+    #[prost(oneof = "client_event::Event", tags = "2, 3, 4")]
     pub event: ::core::option::Option<client_event::Event>,
 }
 /// Nested message and enum types in `ClientEvent`.
@@ -16,6 +16,9 @@ pub mod client_event {
         /// stop generating the current turn
         #[prost(message, tag = "3")]
         Cancel(super::Cancel),
+        /// the user's answer to a ConfirmRequest (ADR-0022)
+        #[prost(message, tag = "4")]
+        ConfirmResponse(super::ConfirmResponse),
     }
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -30,7 +33,7 @@ pub struct UserTurn {
 pub struct Cancel {}
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct ServerEvent {
-    #[prost(oneof = "server_event::Event", tags = "1, 2, 3, 4, 5")]
+    #[prost(oneof = "server_event::Event", tags = "1, 2, 3, 4, 5, 6")]
     pub event: ::core::option::Option<server_event::Event>,
 }
 /// Nested message and enum types in `ServerEvent`.
@@ -50,6 +53,9 @@ pub mod server_event {
         TurnComplete(super::TurnComplete),
         #[prost(message, tag = "5")]
         Error(super::SeamError),
+        /// a gated tool call awaits user approval (ADR-0022)
+        #[prost(message, tag = "6")]
+        ConfirmRequest(super::ConfirmRequest),
     }
 }
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
@@ -82,6 +88,34 @@ pub struct SeamError {
     pub code: ::prost::alloc::string::String,
     #[prost(string, tag = "2")]
     pub message: ::prost::alloc::string::String,
+}
+/// Out-of-band user confirmation of a gated (outbound/irreversible) tool call (ADR-0022).
+/// The brain emits ConfirmRequest mid-turn on the Converse stream and suspends the tool
+/// call until the matching ConfirmResponse arrives, the timeout denies, or the stream
+/// dies (deny). The human authorizes, never the model: an unanswered or unmatched
+/// request always resolves as a denial (fail-closed, ADR-0013).
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct ConfirmRequest {
+    /// correlation id, minted per request by the brain
+    #[prost(string, tag = "1")]
+    pub confirm_id: ::prost::alloc::string::String,
+    /// what would run, e.g. "send_email"
+    #[prost(string, tag = "2")]
+    pub tool_name: ::prost::alloc::string::String,
+    /// the exact draft being approved, one JSON object
+    #[prost(string, tag = "3")]
+    pub arguments_json: ::prost::alloc::string::String,
+    /// why confirmation is required, shown verbatim
+    #[prost(string, tag = "4")]
+    pub reason: ::prost::alloc::string::String,
+}
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct ConfirmResponse {
+    /// echoes the request it answers
+    #[prost(string, tag = "1")]
+    pub confirm_id: ::prost::alloc::string::String,
+    #[prost(bool, tag = "2")]
+    pub approved: bool,
 }
 #[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct HealthRequest {}

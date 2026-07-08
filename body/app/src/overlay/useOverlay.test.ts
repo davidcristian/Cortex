@@ -13,6 +13,15 @@ const summary = (sessionId: string): SessionSummary => ({
   lastActivityUnixMs: 1000,
 });
 
+const confirmRequest = (confirmId: string) =>
+  ({
+    kind: "confirmRequest",
+    confirmId,
+    toolName: "send_email",
+    argumentsJson: '{"to":"ada@example.com"}',
+    reason: "outbound",
+  }) as const;
+
 /** Flush the microtasks a bridge read (`listSessions`/`sessionMessages`) resolves on. */
 async function flush(): Promise<void> {
   await act(async () => {});
@@ -197,6 +206,121 @@ describe("useOverlay", () => {
     act(() => result.current.cycleNext());
     await flush();
     expect(result.current.state.sessionId).toBe("oldest");
+  });
+
+  it("answers a pending confirm over the bridge and clears the card", async () => {
+    const bridge = new FakeBridge();
+    const { result } = renderHook(() => useOverlay(bridge, () => "s1"));
+    await flush();
+    act(() => result.current.submit("send it"));
+    act(() => bridge.emit(confirmRequest("c-1")));
+    expect(result.current.state.pendingConfirm?.confirmId).toBe("c-1");
+    act(() => result.current.respondConfirm("c-1", true));
+    expect(bridge.confirms).toEqual([{ confirmId: "c-1", approved: true }]);
+    expect(result.current.state.pendingConfirm).toBeNull();
+  });
+
+  it("a deny answer crosses the bridge as approved: false", async () => {
+    const bridge = new FakeBridge();
+    const { result } = renderHook(() => useOverlay(bridge, () => "s1"));
+    await flush();
+    act(() => result.current.submit("send it"));
+    act(() => bridge.emit(confirmRequest("c-1")));
+    act(() => result.current.respondConfirm("c-1", false));
+    expect(bridge.confirms).toEqual([{ confirmId: "c-1", approved: false }]);
+    expect(result.current.state.pendingConfirm).toBeNull();
+  });
+
+  it("ignores answers with no pending confirm, a stale id, or a duplicate click", async () => {
+    const bridge = new FakeBridge();
+    const { result } = renderHook(() => useOverlay(bridge, () => "s1"));
+    await flush();
+    act(() => result.current.respondConfirm("c-0", true)); // nothing pending
+    expect(bridge.confirms).toHaveLength(0);
+    act(() => result.current.submit("send it"));
+    act(() => bridge.emit(confirmRequest("c-1")));
+    act(() => result.current.respondConfirm("c-9", true)); // a different (stale) id
+    expect(bridge.confirms).toHaveLength(0);
+    act(() => result.current.respondConfirm("c-1", true));
+    act(() => result.current.respondConfirm("c-1", true)); // the double-click no-op
+    expect(bridge.confirms).toEqual([{ confirmId: "c-1", approved: true }]);
+  });
+
+  it("a lost confirm answer is non-fatal. The card still closes (deny-by-timeout brain-side)", async () => {
+    const bridge = new FakeBridge();
+    bridge.confirmFails = true;
+    const { result } = renderHook(() => useOverlay(bridge, () => "s1"));
+    await flush();
+    act(() => result.current.submit("send it"));
+    act(() => bridge.emit(confirmRequest("c-1")));
+    act(() => result.current.respondConfirm("c-1", true));
+    await flush(); // the rejection lands in the hook's swallow-and-continue catch
+    expect(result.current.state.pendingConfirm).toBeNull();
+  });
+
+  it("stop denies a pending confirm over the bridge (no zombie turn), then ends the turn", async () => {
+    const bridge = new FakeBridge();
+    const { result } = renderHook(() => useOverlay(bridge, () => "s1"));
+    await flush();
+    act(() => result.current.submit("send it"));
+    act(() => bridge.emit(confirmRequest("c-1")));
+    act(() => result.current.stop());
+    expect(bridge.confirms).toEqual([{ confirmId: "c-1", approved: false }]);
+    expect(result.current.state.pendingConfirm).toBeNull();
+  });
+
+  it("dismiss denies a pending confirm so the hidden turn resolves immediately", async () => {
+    const bridge = new FakeBridge();
+    const { result } = renderHook(() => useOverlay(bridge, () => "s1"));
+    await flush();
+    act(() => result.current.submit("send it"));
+    act(() => bridge.emit(confirmRequest("c-1")));
+    act(() => result.current.dismiss());
+    expect(bridge.confirms).toEqual([{ confirmId: "c-1", approved: false }]);
+    expect(result.current.state.pendingConfirm).toBeNull();
+  });
+
+  it("newChat and openSession each deny a pending confirm before switching away", async () => {
+    const bridge = new FakeBridge();
+    bridge.messagesBySession["prior"] = [];
+    const { result } = renderHook(() => useOverlay(bridge, () => "s1"));
+    await flush();
+    act(() => result.current.submit("send it"));
+    act(() => bridge.emit(confirmRequest("c-1")));
+    act(() => result.current.newChat());
+    expect(bridge.confirms).toEqual([{ confirmId: "c-1", approved: false }]);
+    act(() => result.current.submit("send again"));
+    act(() => bridge.emit(confirmRequest("c-2")));
+    act(() => result.current.openSession("prior"));
+    await flush();
+    expect(bridge.confirms).toEqual([
+      { confirmId: "c-1", approved: false },
+      { confirmId: "c-2", approved: false },
+    ]);
+  });
+
+  it("a turn-ending action with no pending confirm sends no deny", async () => {
+    const bridge = new FakeBridge();
+    const { result } = renderHook(() => useOverlay(bridge, () => "s1"));
+    await flush();
+    act(() => result.current.submit("plain turn"));
+    act(() => result.current.stop()); // no confirm was pending
+    expect(bridge.confirms).toHaveLength(0);
+  });
+
+  it("the preview never auto-fades under a pending confirm; the countdown starts once answered", async () => {
+    const bridge = new FakeBridge();
+    const { result } = renderHook(() => useOverlay(bridge, () => "s1"));
+    await flush();
+    act(() => result.current.submit("send it"));
+    act(() => result.current.dismiss());
+    act(() => bridge.emit(confirmRequest("c-1")));
+    expect(result.current.state.mode).toBe("preview");
+    act(() => vi.advanceTimersByTime(60_000));
+    expect(result.current.state.mode).toBe("preview"); // a question waits to be seen
+    act(() => result.current.respondConfirm("c-1", false));
+    act(() => vi.advanceTimersByTime(6000));
+    expect(result.current.state.mode).toBe("hidden");
   });
 
   it("defaults the session id to a freshly minted uuid", async () => {
