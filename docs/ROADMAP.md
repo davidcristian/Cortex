@@ -603,7 +603,9 @@ Any *side-effectful* OS action inherits the Slice 6.5 gate + the Slice 8.8 `Conf
 
 ## Slice 9.5 (Scheduling & proactive reminders)
 
-**Status:** planned (inserted 2026-07-01). Design → ADR-0014 (opens the slice). Placed after Slice 9
+**Status:** in progress. Design landed 2026-07-08 as
+[ADR-0025](adr/ADR-0025-scheduling-reminders.md) (the 2026-07-01 insertion's "ADR-0014" pointer
+was stale, since that number was taken by history windowing). Placed after Slice 9
 because proactive delivery rides the **brain→body** direction that slice establishes; the store-backed
 core could land earlier pull-only. Inserted as 9.5 (decimal insert, no renumber).
 

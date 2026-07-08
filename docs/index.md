@@ -139,6 +139,14 @@ Start here. Rules for working in this repo: [AGENTS.md](../AGENTS.md).
   (real `TokioSleeper` in the shell, a recording fake in tests), and a lazy
   `connect_lazy_with_token` channel so a briefly-down brain reconnects transparently. `converse`
   is forwarded unchanged (non-idempotent → a failed turn stays terminal).
+- [ADR-0025: Scheduling & reminders](adr/ADR-0025-scheduling-reminders.md): Slice 9.5 adds durable
+  schedules behind a new `ScheduleStore` port (Redis adapter, no TTL, versioned records), a pure
+  coalescing `next_due`, three cortex-only built-ins (`schedule_task`/`list_scheduled`/
+  `cancel_scheduled`, taint riding the record), the stateless `ScheduleTicker` (at-least-once via
+  a claim lease; autonomous tasks fire through the existing subagent seams with `confirmer=None` +
+  `UngatedToolRegistry` as the structural safety posture), and delivery over both seam directions:
+  pull (`ListDueReminders`/`AckReminder` on `BrainService`) and push (`BodyService.Notify` → a
+  native toast, the body's second OS capability).
 
 New non-obvious decision → add `adr/ADR-XXXX-<slug>.md`, link it here.
 
