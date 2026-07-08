@@ -18,7 +18,8 @@ import grpc
 from grpc import aio
 
 # The metadata key the body's client attaches the token under (lowercase per gRPC rules).
-SEAM_TOKEN_HEADER = "x-cortex-seam-token"  # noqa: S105 - the header NAME, not a secret
+# Its home is the seam facade (ADR-0023); this interceptor reads it to authorize inbound calls.
+from cortex_seam import SEAM_TOKEN_HEADER
 
 # What a rejected caller sees; deliberately silent on whether the token was absent or wrong.
 _DENIED_DETAIL = "invalid or missing seam token"

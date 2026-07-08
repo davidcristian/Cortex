@@ -4,10 +4,13 @@
 //! through a fake (success fires the callback; failure does not).
 
 use std::cell::RefCell;
-use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::{Arc, Mutex, PoisonError};
 
-use body_core::{Accelerator, Hotkey, HotkeyCallback, HotkeyChord, HotkeyError, Modifier};
+use body_core::{
+    Accelerator, AudioControl, AudioError, Hotkey, HotkeyCallback, HotkeyChord, HotkeyError,
+    Modifier, VolumeChange, VolumeState,
+};
 
 /// A fake `Hotkey` backend: records the chords it registers and fires the
 /// callback once per successful registration; scripted to fail on demand.
@@ -167,4 +170,155 @@ fn hotkey_backend_reports_registration_failure_without_firing() {
     assert_eq!(error, HotkeyError::Registration(String::from("taken")));
     assert_eq!(hits.load(Ordering::SeqCst), 0);
     assert!(backend.registered.borrow().is_empty());
+}
+
+/// A fake `AudioControl` backend: reads/writes a `Mutex`-held state (the port requires
+/// `Send + Sync`, so (unlike `FakeHotkey`'s `RefCell`) the interior mutability is a `Mutex`),
+/// or returns a scripted error.
+struct FakeAudio {
+    state: Mutex<VolumeState>,
+    fail: Option<AudioError>,
+}
+
+impl AudioControl for FakeAudio {
+    fn get_volume(&self) -> Result<VolumeState, AudioError> {
+        if let Some(error) = &self.fail {
+            return Err(error.clone());
+        }
+        Ok(*self.state.lock().unwrap_or_else(PoisonError::into_inner))
+    }
+
+    fn set_volume(&self, change: VolumeChange) -> Result<VolumeState, AudioError> {
+        if let Some(error) = &self.fail {
+            return Err(error.clone());
+        }
+        let mut state = self.state.lock().unwrap_or_else(PoisonError::into_inner);
+        if let Some(level) = change.level {
+            state.level = level;
+        }
+        if let Some(mute) = change.mute {
+            state.muted = mute;
+        }
+        Ok(*state)
+    }
+}
+
+/// Reads through a generic bound, the way the `BodyService` server does.
+fn get_via<A: AudioControl>(backend: &A) -> Result<VolumeState, AudioError> {
+    backend.get_volume()
+}
+
+/// Writes through a generic bound.
+fn set_via<A: AudioControl>(backend: &A, change: VolumeChange) -> Result<VolumeState, AudioError> {
+    backend.set_volume(change)
+}
+
+#[test]
+fn audio_backend_reads_and_writes_through_the_bound() {
+    let backend = FakeAudio {
+        state: Mutex::new(VolumeState {
+            level: 0.4,
+            muted: false,
+        }),
+        fail: None,
+    };
+    assert_eq!(
+        get_via(&backend).unwrap(),
+        VolumeState {
+            level: 0.4,
+            muted: false,
+        },
+    );
+    // Level and mute both set.
+    assert_eq!(
+        set_via(&backend, VolumeChange::new(Some(0.9), Some(true))).unwrap(),
+        VolumeState {
+            level: 0.9,
+            muted: true,
+        },
+    );
+    // A None field leaves that dimension untouched (mute changes, level stays 0.9).
+    assert_eq!(
+        set_via(&backend, VolumeChange::new(None, Some(false))).unwrap(),
+        VolumeState {
+            level: 0.9,
+            muted: false,
+        },
+    );
+}
+
+#[test]
+fn audio_backend_surfaces_its_error() {
+    let backend = FakeAudio {
+        state: Mutex::new(VolumeState {
+            level: 0.5,
+            muted: false,
+        }),
+        fail: Some(AudioError::NoEndpoint(String::from("no device"))),
+    };
+    assert_eq!(
+        get_via(&backend).unwrap_err(),
+        AudioError::NoEndpoint(String::from("no device")),
+    );
+    assert_eq!(
+        set_via(&backend, VolumeChange::new(Some(0.1), None)).unwrap_err(),
+        AudioError::NoEndpoint(String::from("no device")),
+    );
+}
+
+#[test]
+fn volume_change_clamps_a_present_level() {
+    // Both fields set; in-range level is preserved.
+    assert_eq!(
+        VolumeChange::new(Some(0.5), Some(true)),
+        VolumeChange {
+            level: Some(0.5),
+            mute: Some(true),
+        },
+    );
+    // Out-of-range clamps to the nearest bound; NaN clamps to the silent floor.
+    assert_eq!(VolumeChange::new(Some(1.5), None).level, Some(1.0));
+    assert_eq!(VolumeChange::new(Some(-0.2), None).level, Some(0.0));
+    assert_eq!(VolumeChange::new(Some(f32::NAN), None).level, Some(0.0));
+    // A missing level stays absent; mute rides alone.
+    assert_eq!(
+        VolumeChange::new(None, Some(false)),
+        VolumeChange {
+            level: None,
+            mute: Some(false),
+        },
+    );
+}
+
+#[test]
+fn volume_values_are_debug_and_eq() {
+    let state = VolumeState {
+        level: 0.3,
+        muted: true,
+    };
+    assert!(format!("{state:?}").contains("VolumeState"));
+    assert_ne!(
+        state,
+        VolumeState {
+            level: 0.3,
+            muted: false,
+        },
+    );
+    let change = VolumeChange::new(Some(0.3), None);
+    assert!(format!("{change:?}").contains("VolumeChange"));
+}
+
+#[test]
+fn audio_error_messages_and_debug() {
+    assert_eq!(
+        AudioError::NoEndpoint(String::from("no device")).to_string(),
+        "no audio output endpoint is available: no device",
+    );
+    assert_eq!(
+        AudioError::Backend(String::from("COM 0x1")).to_string(),
+        "the audio backend failed: COM 0x1",
+    );
+    let error = AudioError::Backend(String::from("x"));
+    assert!(format!("{error:?}").contains("Backend"));
+    assert_ne!(error, AudioError::NoEndpoint(String::from("x")));
 }

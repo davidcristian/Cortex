@@ -1,12 +1,16 @@
 //! tonic adapter for the body↔brain gRPC seam (`proto/body.proto`).
 //!
 //! This crate is a thin adapter: it holds the committed tonic/prost stubs
-//! generated from the proto (the seam's single source of truth, AGENTS.md)
-//! and [`BrainSeamClient`], the gRPC implementation of the
-//! `body_core::BrainTransport` port. No business logic lives here.
+//! generated from the proto (the seam's single source of truth, AGENTS.md),
+//! [`BrainSeamClient`] (the body→brain `BrainService` client behind the
+//! `body_core::BrainTransport` port), and [`body_service`] (the brain→body
+//! `BodyService` server over the `body_core::AudioControl` port, Slice 9,
+//! ADR-0023). No business logic lives here.
 
+mod auth;
 mod client;
 mod converse;
+mod server;
 mod sessions;
 
 /// Generated tonic/prost stubs for the `cortex.seam.v1` package.
@@ -28,4 +32,6 @@ pub mod generated {
     include!("_generated/cortex.seam.v1.rs");
 }
 
+pub use auth::SeamTokenValidator;
 pub use client::BrainSeamClient;
+pub use server::{VolumeService, body_service};

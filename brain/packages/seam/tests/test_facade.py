@@ -58,4 +58,7 @@ def test_session_message_round_trips_on_the_wire() -> None:
 def test_every_advertised_name_is_importable() -> None:
     exported = [getattr(cortex_seam, name) for name in cortex_seam.__all__]
     assert all(obj is not None for obj in exported)
-    assert sorted(cortex_seam.__all__) == list(cortex_seam.__all__)
+    # A stable export surface: no duplicates. Ordering is owned by ruff's RUF022 (which groups
+    # SCREAMING_CASE constants like SEAM_TOKEN_HEADER ahead of the class re-exports), not a plain
+    # `sorted()`. The two diverge once __all__ carries a constant.
+    assert len(set(cortex_seam.__all__)) == len(cortex_seam.__all__)

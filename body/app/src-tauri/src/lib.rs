@@ -6,6 +6,7 @@
 //! mapping, seam translation) lives in the gated crates `body_core`/`body_rpc`;
 //! this crate is excluded from the coverage gate and host-validated on Windows.
 
+mod body_server;
 mod confirm;
 mod converse;
 mod hotkey;
@@ -27,6 +28,7 @@ pub fn run() {
         .setup(|app| {
             tray::build(app.handle())?;
             hotkey::register(app.handle());
+            body_server::start();
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![

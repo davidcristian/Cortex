@@ -3,15 +3,34 @@ name = "os-windows"
 version.workspace = true
 edition.workspace = true
 publish.workspace = true
-description = "Slice 8 global-hotkey Windows OS backends for the Cortex body (lib name: os_windows)"
+description = "Windows OS backends for the Cortex body, hotkey (Slice 8) + audio (Slice 9) (lib name: os_windows)"
 
-# Everything here is `cfg(windows)`: the real backend makes Windows OS calls and
+# Everything here is `cfg(windows)`: the real backends make Windows OS calls and
 # cannot compile elsewhere. On Linux CI the crate builds to nothing (no deps, no
 # code), so the coverage gate never measures it (ADR-0011). Deps are Windows-only
-# for the same reason. Linux never fetches or builds `global-hotkey`.
+# for the same reason. Linux never fetches or builds them.
 [target.'cfg(windows)'.dependencies]
 body-core.workspace = true
 global-hotkey = "0.8"
+# Core Audio (IAudioEndpointVolume) for the volume backend (ADR-0023). COM calls are
+# `unsafe`, authorized narrowly for this crate (see the `[lints]` note below).
+windows = { version = "0.58", features = [
+  "Win32_Foundation",
+  "Win32_Media_Audio",
+  "Win32_Media_Audio_Endpoints",
+  "Win32_System_Com",
+] }
 
-[lints]
-workspace = true
+# os_windows opts OUT of the workspace `unsafe_code = "forbid"` for Core Audio COM
+# (ADR-0023 decision 7): `unsafe` stays denied crate-wide and is re-enabled only in the
+# `audio` module via a scoped `#![allow(unsafe_code)]`. Because `[lints]` is all-or-nothing,
+# the other workspace lints (the `coverage` cfg allowance, clippy pedantic, no unwrap/expect)
+# are re-declared here. Every other crate keeps `forbid`.
+[lints.rust]
+unsafe_code = "deny"
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage)'] }
+
+[lints.clippy]
+pedantic = { level = "warn", priority = -1 }
+unwrap_used = "deny"
+expect_used = "deny"

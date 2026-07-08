@@ -6,6 +6,7 @@ import pytest
 from pydantic import ValidationError
 
 from cortex_orchestrator import (
+    BodyConfig,
     BrainRuntimeConfig,
     InferenceConfig,
     MemoryConfig,
@@ -38,6 +39,8 @@ def clean_env(monkeypatch: pytest.MonkeyPatch) -> None:
         "CORTEX_SUBAGENTS_ENDPOINT",
         "CORTEX_SUBAGENTS_MODEL",
         "CORTEX_SUBAGENTS_MAX_CONCURRENCY",
+        "CORTEX_BODY_BACKEND",
+        "CORTEX_BODY_ENDPOINT",
     ):
         monkeypatch.delenv(name, raising=False)
     # The per-sidecar tool vars are open-ended (one per <name>); sweep by prefix.
@@ -180,6 +183,29 @@ def test_inference_llamacpp_without_endpoint_is_rejected(monkeypatch: pytest.Mon
     monkeypatch.setenv("CORTEX_INFERENCE_BACKEND", "llamacpp")
     with pytest.raises(ValidationError, match="CORTEX_INFERENCE_ENDPOINT is required"):
         InferenceConfig()
+
+
+@pytest.mark.usefixtures("clean_env")
+def test_body_defaults_to_disabled() -> None:
+    config = BodyConfig()
+    assert config.backend == "none"
+    assert config.endpoint == ""
+
+
+@pytest.mark.usefixtures("clean_env")
+def test_body_env_selects_grpc_with_an_endpoint(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("CORTEX_BODY_BACKEND", "grpc")
+    monkeypatch.setenv("CORTEX_BODY_ENDPOINT", "host.docker.internal:50151")
+    config = BodyConfig()
+    assert config.backend == "grpc"
+    assert config.endpoint == "host.docker.internal:50151"
+
+
+@pytest.mark.usefixtures("clean_env")
+def test_body_grpc_without_endpoint_is_rejected(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("CORTEX_BODY_BACKEND", "grpc")
+    with pytest.raises(ValidationError, match="CORTEX_BODY_ENDPOINT is required"):
+        BodyConfig()
 
 
 @pytest.mark.usefixtures("clean_env")

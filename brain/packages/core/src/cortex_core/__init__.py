@@ -7,11 +7,13 @@ from cortex_core.aggregate import (
     SkipUnavailableToolRegistry,
     UngatedToolRegistry,
 )
+from cortex_core.body import VolumeState
 from cortex_core.composite import BuiltinTool, CompositeToolRegistry
 from cortex_core.conversation import Message, Role
 from cortex_core.dispatch import ToolDispatcher
 from cortex_core.engine import DEFAULT_CORTEX_MODEL, TurnCapabilities, TurnEngine
 from cortex_core.errors import (
+    BodyGatewayError,
     EmbedderError,
     InferenceError,
     MemoryStoreError,
@@ -26,6 +28,7 @@ from cortex_core.events import StatusUpdate, TextDelta, TurnCompleted, TurnEvent
 from cortex_core.fakes import (
     EchoInferenceBackend,
     HashEmbedder,
+    InMemoryBodyGateway,
     InMemoryMemoryStore,
     InMemorySessionStore,
     InMemoryTaskStore,
@@ -48,6 +51,7 @@ from cortex_core.model import ModelLease, SingleResidentModelManager
 from cortex_core.placement import Placement, PlacementRequest, PlacementTarget
 from cortex_core.placer import VramBudgetPlacer
 from cortex_core.ports import (
+    BodyGateway,
     Clock,
     Confirmer,
     Embedder,
@@ -93,18 +97,28 @@ from cortex_core.untrusted import (
     wrap_untrusted,
 )
 from cortex_core.urls import extract_urls
+from cortex_core.volume import (
+    GET_VOLUME_TOOL_NAME,
+    SET_VOLUME_TOOL_NAME,
+    GetVolumeTool,
+    SetVolumeTool,
+)
 from cortex_core.windowing import CharBudgetHistoryWindow, HistoryWindow
 
 __all__ = [
     "DEFAULT_CORTEX_MODEL",
     "DENIED_MSG",
+    "GET_VOLUME_TOOL_NAME",
     "GLOBAL_MEMORY_SCOPE",
     "GLOBAL_SCOPE",
     "REDACTED_LINK",
     "SECURITY_PREAMBLE",
+    "SET_VOLUME_TOOL_NAME",
     "SPAWN_TOOL_NAME",
     "USER_DECLINED_MSG",
     "AggregateToolRegistry",
+    "BodyGateway",
+    "BodyGatewayError",
     "BuiltinTool",
     "CharBudgetHistoryWindow",
     "Clock",
@@ -116,9 +130,11 @@ __all__ = [
     "EmbedderError",
     "FilteredToolRegistry",
     "GatedToolRegistry",
+    "GetVolumeTool",
     "GlobalMemoryScope",
     "HashEmbedder",
     "HistoryWindow",
+    "InMemoryBodyGateway",
     "InMemoryMemoryStore",
     "InMemorySessionStore",
     "InMemoryTaskStore",
@@ -152,6 +168,7 @@ __all__ = [
     "SessionStore",
     "SessionStoreError",
     "SessionSummary",
+    "SetVolumeTool",
     "SingleResidentModelManager",
     "SkipUnavailableToolRegistry",
     "SpawnSubagentsTool",
@@ -189,6 +206,7 @@ __all__ = [
     "TurnEvent",
     "UngatedToolRegistry",
     "UrlRedactingGuardrail",
+    "VolumeState",
     "VramBudgetPlacer",
     "extract_urls",
     "new_nonce",

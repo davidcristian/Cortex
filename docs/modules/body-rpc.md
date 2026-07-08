@@ -1,9 +1,11 @@
 # body/crates/rpc (`body_rpc`)
 
 **Purpose.** The body's gRPC adapter for the seam ([proto/body.proto](../../proto/body.proto),
-the single source of truth): the committed tonic/prost stubs for `cortex.seam.v1` plus
-`BrainSeamClient`, the tonic implementation of the `body_core::BrainTransport` port.
-Thin translation only. No business logic, no retries (retry policy is a later slice).
+the single source of truth): the committed tonic/prost stubs for `cortex.seam.v1` plus the
+two directions of the seam, namely `BrainSeamClient`, the tonic implementation of the
+`body_core::BrainTransport` port (body→brain), and `body_service`, the `BodyService` server
+over the `body_core::AudioControl` port (brain→body, Slice 9, ADR-0023). Thin translation
+only, with no business logic and no retries (retry policy is a later slice).
 
 **Public contract.**
 
@@ -47,12 +49,34 @@ Thin translation only. No business logic, no retries (retry policy is a later sl
   - Every `TransportError::Connection` message folds the error's full `source()` chain
     (e.g. `transport error: tcp connect error: Connection refused (os error 111)`), so
     tonic's opaque `"transport error"` `Display` still names the root cause.
+- `body_service(audio: A, token: &str)` (Slice 9, ADR-0023; `src/server.rs`) is the
+  brain→body direction: builds the `BodyService` server over an `AudioControl` backend,
+  fronted by the seam-token validator. Its pieces:
+  - `VolumeService<A: AudioControl>` is the generated `BodyService` trait over an injected
+    backend. `get_volume`/`set_volume` map the wire messages onto the port (the level
+    clamp lives in `body_core::VolumeChange`, not here); `capture_screen`/`inject_input`
+    answer `Status::unimplemented` until their slices (10 / later). No state is held. Volume is
+    read from the OS on demand (the one hard rule).
+  - `audio_error_to_status(&AudioError) -> Status` is the inverse of
+    `client::status_to_error`: `NoEndpoint`→`Unavailable` (transient, like a dead
+    backend), `Backend`→`Internal`.
+  - `SeamTokenValidator` (`src/auth.rs`) is a tonic server `Interceptor`, the mirror of the
+    client `SeamTokenInterceptor` (ADR-0016, reversed for this direction). Rejects any
+    call lacking a matching `x-cortex-seam-token` with `UNAUTHENTICATED` before any handler
+    runs; the compare is constant-time (the Rust twin of `secrets.compare_digest`).
+    **Always attached** but a **pass-through when the configured token is empty** (a
+    tokenless deployment is byte-for-byte the tokenless server, which is the single-type
+    equivalent of the brain's register-only-when-set). Deliberately not `Debug`: it holds
+    the shared secret.
+  - The bind/serve lifecycle (address, runtime) lives in the ungated Tauri shell; this
+    crate holds only the coverable translation.
 - `generated` is the codegen for the whole proto package: message types plus
   `brain_service_client::BrainServiceClient`,
-  `brain_service_server::{BrainService, BrainServiceServer}` (and the `BodyService`
-  counterparts, unused until Slice 9). Generated code: exempt from lint, coverage, and
-  the line cap (ADR-0002 decision 4). Public so contract tests and later server wiring
-  can drive it directly.
+  `brain_service_server::{BrainService, BrainServiceServer}` and the `BodyService`
+  counterparts (`body_service_client`/`body_service_server`, now driven by the Slice 9
+  server above and its contract tests). Generated code: exempt from lint, coverage, and
+  the line cap (ADR-0002 decision 4). Public so contract tests and server wiring can drive
+  it directly.
 
 **Stub regeneration** (the `just proto` loop). Stubs are committed under
 `src/_generated/`; normal builds and CI run **no** codegen and never need `protoc`.
@@ -110,6 +134,11 @@ Being ignored, they never run in CI and never count toward coverage.
   echoed `ConfirmResponse` arrives on the still-open request stream (approve and
   deny, answered reactively over a channel), plus the half-close of an empty
   decisions stream.
+- The `body_service` server (Slice 9) is contract-tested the same way, via a real loopback
+  server over a fake `AudioControl`, to 100% line+region+branch: `get_volume`/`set_volume`
+  happy paths, both `audio_error_to_status` arms, the `Unimplemented` handlers, and the
+  `SeamTokenValidator` pass-through (empty token) plus its accept/reject arms (matching,
+  wrong, and missing token).
 
 **Dependencies.** `body-core` (the port), `tonic` + `tonic-prost` + `prost`, plus
 `async-stream` (builds the `converse` reply mapping), `tokio-stream` (chains the confirm
