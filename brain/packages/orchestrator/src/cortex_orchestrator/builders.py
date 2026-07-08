@@ -28,8 +28,10 @@ from contextlib import AsyncExitStack
 
 import httpx
 
+from cortex_body_client import GrpcBodyGateway
 from cortex_core import (
     AggregateToolRegistry,
+    BodyGateway,
     BuiltinTool,
     CharBudgetHistoryWindow,
     Clock,
@@ -38,11 +40,13 @@ from cortex_core import (
     EchoInferenceBackend,
     FilteredToolRegistry,
     GatedToolRegistry,
+    GetVolumeTool,
     GlobalMemoryScope,
     InferenceBackend,
     MemoryRecaller,
     MemoryScope,
     SessionMemoryScope,
+    SetVolumeTool,
     SingleResidentModelManager,
     SkipUnavailableToolRegistry,
     SpawnSubagentsTool,
@@ -55,7 +59,13 @@ from cortex_core import (
 from cortex_embedding import LlamaCppEmbedder
 from cortex_inference import LlamaCppBackend
 from cortex_memory import PgVectorMemoryStore
-from cortex_orchestrator.config import InferenceConfig, MemoryConfig, MemoryScopeName, ToolsConfig
+from cortex_orchestrator.config import (
+    BodyConfig,
+    InferenceConfig,
+    MemoryConfig,
+    MemoryScopeName,
+    ToolsConfig,
+)
 from cortex_tools import LoggingAuditSink, McpToolRegistry
 
 # Connect/write/pool time out fast on a dead server; reads have no deadline, since a
@@ -202,6 +212,22 @@ def build_history_window(char_budget: int) -> CharBudgetHistoryWindow | None:
     return CharBudgetHistoryWindow(char_budget) if char_budget > 0 else None
 
 
+async def build_body_gateway(
+    config: BodyConfig, *, token: str
+) -> tuple[BodyGateway | None, Callable[[], Awaitable[None]]]:
+    """Pick the body gateway from config; return it with the coroutine that releases it (ADR-0023).
+
+    ``none`` disables the brain→body direction. The no-body default CI and dev loop run and the
+    volume tools are never registered. ``grpc`` opens a channel to the host body's ``BodyService``
+    and attaches the shared seam ``token`` (ADR-0016) on every call; the returned closer closes
+    the channel. The channel connects lazily, so an unreachable body fails a volume call (a
+    recoverable ``is_error`` result), never brain startup.
+    """
+    if config.backend != "grpc":
+        return None, noop_aclose
+    return await GrpcBodyGateway.connect(config.endpoint, token=token)
+
+
 def build_cortex_tools(
     tool_registry: ToolRegistry | None,
     spawn_tool: SpawnSubagentsTool | None,
@@ -209,18 +235,23 @@ def build_cortex_tools(
     *,
     confirmer: Confirmer | None = None,
     gated_names: Collection[str] = (),
+    body: BodyGateway | None = None,
 ) -> ToolDispatcher | None:
-    """The cortex's audited dispatcher: the spawn tool merged with the MCP tools (ADR-0010).
+    """The cortex's audited dispatcher: the spawn + volume built-ins merged with the MCP tools.
 
-    None when neither is enabled (the Slice 3 turn path unchanged). The `CompositeToolRegistry`
-    gives the built-in spawn tool precedence and advertises the MCP tools alongside it; subagents
-    receive the MCP subset without the spawn tool (depth-1), wired in `build_subagents`, and
-    always `confirmer=None` (ADR-0013): only the cortex's dispatcher gets the stream's real
-    confirmer (ADR-0022), threaded per stream by the wiring's engine factory. `gated_names`
-    (the same `CORTEX_TOOLS_GATED` set the advertisement overlay uses) makes the gate
-    authoritative even if a flaky sidecar transiently hid a gated tool from the advertisement.
+    None when nothing is enabled (the Slice 3 turn path unchanged). The `CompositeToolRegistry`
+    gives the built-in tools precedence and advertises the MCP tools alongside them; subagents
+    receive the MCP subset without the built-ins (depth-1, so a subagent never gets an OS
+    action, per ADR-0013/0023), wired in `build_subagents`, and always `confirmer=None` (ADR-0013):
+    only the cortex's dispatcher gets the stream's real confirmer (ADR-0022), threaded per stream
+    by the wiring's engine factory. When `body` is wired, the ungated `get_volume`/`set_volume`
+    built-ins join the set (ADR-0023); a user gates `set_volume` by adding it to `gated_names`
+    (`CORTEX_TOOLS_GATED`), the dispatcher's authoritative backstop.
     """
     builtins: list[BuiltinTool] = [spawn_tool] if spawn_tool is not None else []
+    if body is not None:
+        builtins.append(GetVolumeTool(body))
+        builtins.append(SetVolumeTool(body))
     if not builtins and tool_registry is None:
         return None
     registry = CompositeToolRegistry(builtins, remote=tool_registry)

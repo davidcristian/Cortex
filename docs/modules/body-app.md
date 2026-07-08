@@ -17,6 +17,8 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
 - **Tauri shell** (`src-tauri/`, host-validated). Tray + hidden always-on-top window; the global
   hotkey (`os_windows`) toggles the window and emits `cortex:activate`; the `converse` command
   drives one `BrainSeamClient` turn and streams each event to the webview over a Tauri `Channel`.
+  It also **hosts the `BodyService` gRPC server** (Slice 9, ADR-0023, opening the first brain→body
+  direction), so the brain can dial the host for OS actions like read/set system volume.
 
 **Public contract.**
 
@@ -46,11 +48,19 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
   `session_messages(session_id)` are unary calls returning `Vec<WireSummary>` / `Vec<WireMessage>`
   (camelCase, matching the TS `SessionSummary` / `SessionMessage`); a dial/RPC failure is the
   command's `Err`, which the bridge's `.catch` handles.
+- **The `body_server` module** (`src-tauri/src/body_server.rs`, ADR-0023): `start()` (`cfg(windows)`)
+  binds `CORTEX_BODY_ADDR` (default `127.0.0.1:50151`), reads `CORTEX_SEAM_TOKEN`, and serves
+  `body_rpc::body_service(WindowsAudioControl::new(), &token)` on Tauri's async runtime
+  (`tauri::async_runtime::spawn`); a non-windows stub logs and does nothing. Wired into `run()`'s
+  `.setup()`. All the coverable translation (`VolumeService` + the `SeamTokenValidator`) lives in
+  the gated `body_rpc`; this module is thin un-gated glue, host-validated on Windows.
 - **The activate seam**: the hotkey and tray emit the `cortex:activate` Tauri event; `main.tsx`
   (in-shell only) re-dispatches it as the DOM event the overlay listens on. In a plain browser,
   `main.tsx` self-summons instead.
-- **Config** (shell only): `CORTEX_HOTKEY` (chord, default `ctrl+alt+space`) and
-  `CORTEX_BRAIN_ADDR` (default `http://127.0.0.1:50051`).
+- **Config** (shell only): `CORTEX_HOTKEY` (chord, default `ctrl+alt+space`),
+  `CORTEX_BRAIN_ADDR` (default `http://127.0.0.1:50051`), `CORTEX_BODY_ADDR` (the `BodyService`
+  bind, default `127.0.0.1:50151`), and `CORTEX_SEAM_TOKEN` (empty = the validator is a
+  pass-through).
 
 **Invariants.**
 
@@ -66,6 +76,9 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
 
 **Dependencies.** Frontend: React 18, Vite 5, Vitest (the gate), `@tauri-apps/api` (the real
 bridge). Shell: `tauri` 2 (`tray-icon`), `body-core` + `body-rpc` (the gated crates), `os-windows`
-(`cfg(windows)`), `serde`, `futures-util`, `tokio` (`sync`) + `tokio-stream` (the confirm
-decision channel, ADR-0022). Bring-up + validation:
+(`cfg(windows)`, provides `WindowsAudioControl`), `serde`, `futures-util`, `tonic` (serving the
+`BodyService`, ADR-0023), `tokio` (`sync` for the ADR-0022 confirm channel; `net` +
+`rt-multi-thread` for the ADR-0023 `BodyService` server) + `tokio-stream` (`net` for
+`TcpListenerStream`, the `BodyService` incoming, ADR-0023; its receiver wrapper also carries the
+ADR-0022 confirm decision channel). Bring-up + validation:
 [body-overlay.md](../runbooks/body-overlay.md).

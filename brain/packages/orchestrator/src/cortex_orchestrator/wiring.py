@@ -22,6 +22,7 @@ from collections.abc import Callable
 
 from cortex_core import Confirmer, SystemClock, TurnCapabilities, TurnEngine, VramBudgetPlacer
 from cortex_orchestrator.builders import (
+    build_body_gateway,
     build_cortex_tools,
     build_history_window,
     build_inference_backend,
@@ -30,6 +31,7 @@ from cortex_orchestrator.builders import (
     build_tool_registry,
 )
 from cortex_orchestrator.config import (
+    BodyConfig,
     BrainRuntimeConfig,
     InferenceConfig,
     MemoryConfig,
@@ -57,12 +59,14 @@ async def run_from_env(
     inference = InferenceConfig()
     memory_config = MemoryConfig()
     tools_config = ToolsConfig()
+    body_config = BodyConfig()
     subagents_config = SubagentsConfig()
     clock = SystemClock()
     store = store_factory(runtime.redis_url)
     backend, close_backend = build_inference_backend(inference, runtime.cortex_model)
     memory, close_memory = await build_memory(memory_config, clock)
     tool_registry, close_tools = await build_tool_registry(tools_config)
+    body, close_body = await build_body_gateway(body_config, token=seam_config.token)
     spawn_tool, close_subagents = await build_subagents(
         subagents_config,
         tool_registry,
@@ -92,6 +96,7 @@ async def run_from_env(
                         clock,
                         confirmer=confirmer,
                         gated_names=tools_config.gated,
+                        body=body,
                     ),
                     window=build_history_window(runtime.history_char_budget),
                     guardrail=build_output_guardrail(runtime.output_guardrail),
@@ -102,6 +107,7 @@ async def run_from_env(
 
         await serve(seam_config, make_engine, store)
     finally:
+        await close_body()
         await close_subagents()
         await close_tools()
         await close_memory()

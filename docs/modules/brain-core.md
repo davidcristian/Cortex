@@ -132,6 +132,11 @@ Roster domain (Slice 8.6, ADR-0018; in `roster.py`):
   entry (`""` = default); an unknown name on a clean tool-less path → `None` (the runner fails
   it closed).
 
+Body-gateway domain (Slice 9, ADR-0023; in `body.py`):
+
+- `VolumeState` is a frozen value: `level: float` (0-1), `muted: bool`. One reading of the host's
+  system volume (the shape both `get_volume` and `set_volume` return across the brain→body seam).
+
 Untrusted-content boundary (Slice 6.5, ADR-0013; the pure primitives in `untrusted.py`):
 
 - `SECURITY_PREAMBLE` is the standing-rule constant, injected as a `Role.SYSTEM` message by the
@@ -234,11 +239,17 @@ Ports (`typing.Protocol`; failures cross them only as the typed errors below):
   CPU/RAM budget for spawns (yields once the request's `cpus`/`memory_gb` fit the summed targets,
   queues over budget, releases both on exit). A charge larger than the whole budget raises
   `ValueError`. A counting budget, not the GPU lease (ADR-0012, revising ADR-0010).
+- `BodyGateway` provides `async get_volume() -> VolumeState`,
+  `async set_volume(*, level=None, mute=None) -> VolumeState` (ADR-0023): the brain-side handle on
+  the host body's OS actions. It is the first brain→body seam direction (the brain dials the body's
+  `BodyService`). Absent kwargs leave that field alone; an unreachable body surfaces as
+  `BodyGatewayError`. The real adapter is `cortex_body_client`'s `GrpcBodyGateway` over the gRPC
+  seam, opt-in and off by default (wired at the composition root, not here).
 - `Clock` provides `now() -> datetime`, always tz-aware. The core's only time source.
 - `SessionStoreError` / `InferenceError` / `ModelManagerError` (+ its
   `ModelUnavailableError`) / `MemoryStoreError` / `EmbedderError` / `ToolError` (+ its
-  `ToolNotFoundError`) / `TaskStoreError` are typed errors; adapters wrap their backend's failures
-  into these with the cause chained.
+  `ToolNotFoundError`) / `TaskStoreError` / `BodyGatewayError` are typed errors; adapters wrap their
+  backend's failures into these with the cause chained.
 
 Use-case:
 
@@ -363,6 +374,13 @@ Use-case:
   subagent was tainted, so a subagent that read a malicious file taints the cortex through the
   normal result path (ADR-0013). A `BuiltinTool` (`.spec` + async `invoke`), registered in a
   `CompositeToolRegistry`.
+- `GetVolumeTool(body)` / `SetVolumeTool(body)` are the built-in `get_volume` / `set_volume` tools
+  (`volume.py`), the cortex's host-volume primitives over a `BodyGateway` (ADR-0023), cortex-only
+  like `spawn_subagents`. `get_volume` reads the state; `set_volume` takes optional `level` (0-1)
+  and/or `mute`. Both `gated=False` (volume is reversible) and every result is `Trust.TRUSTED`
+  (host state, never taints the turn); bad arguments and a `BodyGatewayError` both become an
+  `is_error` `TRUSTED` `ToolResult`, never a raise. `BuiltinTool`s, registered in the
+  `CompositeToolRegistry`.
 - `CompositeToolRegistry(builtins, remote=None)` is a `ToolRegistry` merging built-in tools with
   an optional remote (MCP) registry (ADR-0010). `describe_tools` advertises every built-in then
   the remote tools none shadows; `invoke` routes by name, built-ins first, else the remote, else
@@ -435,6 +453,10 @@ Reference implementations (pure, shipped in core; the runtime wiring until Slice
   tests can assert the audit trail.
 - `RecordingConfirmer(*, answer)` is a `Confirmer` returning a fixed `answer` and recording each
   `ConfirmationRequest` in `.requests`, so gate tests can assert what was confirmed (ADR-0013).
+- `InMemoryBodyGateway` fakes `BodyGateway` in memory: `get_volume` returns the held `VolumeState`
+  and `set_volume` clamps a present `level` to `[0,1]` before applying the given fields; a `fail`
+  kwarg scripts an unreachable body (`BodyGatewayError`). Contract twin of `cortex_body_client`'s
+  `GrpcBodyGateway`, no live body.
 - `InMemoryTaskStore` is a dict-backed `TaskStore`; contract twin of the Redis adapter (Slice 7
   CI half). Unknown ids return `None`. Does not survive a restart, by design.
 - `VramBudgetPlacer(*, soft_cap_gb, cortex_reservation_gb)` is the `SubagentPlacer` v1 (ADR-0012):

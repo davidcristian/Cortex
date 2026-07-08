@@ -65,7 +65,14 @@ type _AddBrainServicer = Callable[[BrainServiceServicer, grpc.Server | aio.Serve
 add_BodyServiceServicer_to_server = cast("_AddBodyServicer", _untyped_add_body)  # noqa: N816
 add_BrainServiceServicer_to_server = cast("_AddBrainServicer", _untyped_add_brain)  # noqa: N816
 
+# The metadata key the seam token travels under, on either direction of the seam (ADR-0016;
+# lowercase per gRPC). It lives here as a seam-contract detail both the brain's server-side
+# interceptor and the brain's `BodyService` client (`cortex_body_client`, ADR-0023) share; the
+# body's Rust side declares its own `const` of the same value.
+SEAM_TOKEN_HEADER = "x-cortex-seam-token"  # noqa: S105 - the header NAME, not a secret
+
 __all__ = [
+    "SEAM_TOKEN_HEADER",
     "BodyServiceServicer",
     "BodyServiceStub",
     "BrainServiceServicer",

@@ -1,0 +1,31 @@
+# Body override (Slice 9 per ADR-0023). Layer it ON TOP of the base file:
+#     docker compose -f docker-compose.yml -f docker-compose.body.yml up
+# It flips the brain from body=none to the grpc backend, so the cortex can call the host body's
+# BodyService (OS actions, volume for now). CI never runs this file. The brain->body direction is
+# opt-in so CI and the no-body dev loop stay body-free.
+#
+# Unlike the tool sidecars, the body is NOT a container: it is the host-native Rust/Tauri app
+# (ADR-0011), running the BodyService gRPC server. So this override adds no service. It only
+# points the brain at the host and lets the container resolve it:
+#   - CORTEX_BODY_ENDPOINT reaches the host body over host.docker.internal (assumption 3);
+#   - the body binds CORTEX_BODY_ADDR on the host (default 127.0.0.1:50151). For the container
+#     to reach it the user binds the body to an interface the container can see (0.0.0.0:50151)
+#     and lets the host firewall keep the port host-local. The seam token is the boundary once
+#     the bind is not pure loopback (ADR-0023, assumption 5). See docs/runbooks/body-volume.md.
+#
+# The seam token is the SAME shared CORTEX_SEAM_TOKEN as the BrainService direction: the brain
+# attaches it as x-cortex-seam-token metadata, the body's SeamTokenValidator checks it (ADR-0016,
+# mirrored). Set it on the host (a .env at the repo root works); empty disables auth both ways.
+
+services:
+  brain:
+    environment:
+      # Opt into the brain->body direction; without this the base image runs body=none (ADR-0023).
+      CORTEX_BODY_BACKEND: "grpc"
+      # Where the host body's BodyService listens, as seen from the container. 50151 is the
+      # body's port (50051 is the brain's BrainService). Override the port to match the host bind.
+      CORTEX_BODY_ENDPOINT: "${CORTEX_BODY_ENDPOINT:-host.docker.internal:50151}"
+    # Reach the Windows-host body; host.docker.internal is automatic on Docker Desktop,
+    # host-gateway is the portable fallback (ROADMAP assumption 3).
+    extra_hosts:
+      - "host.docker.internal:host-gateway"

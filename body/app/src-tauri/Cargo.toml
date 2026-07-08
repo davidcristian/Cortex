@@ -25,10 +25,14 @@ tauri-build = { version = "2", features = [] }
 tauri = { version = "2", features = ["tray-icon"] }
 serde = { version = "1", features = ["derive"] }
 futures-util = "0.3"
-# The confirm decision route (ADR-0022): converse parks a tokio mpsc sender in
-# managed state; the receiver stream feeds the open Converse request stream.
-tokio = { version = "1", features = ["sync"] }
-tokio-stream = "0.1"
+# "sync" for the confirm decision route (ADR-0022); "net" + "rt-multi-thread" for the
+# BodyService server the app hosts (ADR-0023), to bind a loopback listener and serve on Tauri's
+# runtime.
+tokio = { version = "1", features = ["sync", "net", "rt-multi-thread"] }
+# "net" for TcpListenerStream (the BodyService incoming, ADR-0023).
+tokio-stream = { version = "0.1", features = ["net"] }
+# Serve the BodyService the brain dials (ADR-0023); the adapter lives in body-rpc.
+tonic = "0.14"
 body-core = { path = "../../crates/core" }
 body-rpc = { path = "../../crates/rpc" }
 

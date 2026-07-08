@@ -9,6 +9,7 @@ from cortex_core import DEFAULT_CORTEX_MODEL
 from cortex_orchestrator.converse import DEFAULT_CONFIRM_TIMEOUT_S, DEFAULT_MAX_BUFFERED_EVENTS
 from cortex_session import DEFAULT_REDIS_URL
 
+BodyBackendName = Literal["none", "grpc"]
 InferenceBackendName = Literal["echo", "llamacpp"]
 MemoryBackendName = Literal["none", "pgvector"]
 MemoryScopeName = Literal["global", "session"]
@@ -77,6 +78,30 @@ class BrainRuntimeConfig(BaseSettings):
     # from untrusted tool results in the reply the user sees; `strict` (ADR-0015 addendum)
     # redacts every non-user URL on a tainted turn; `off` restores the unguarded stream.
     output_guardrail: Literal["redact", "strict", "off"] = "redact"
+
+
+class BodyConfig(BaseSettings):
+    """Whether the cortex can call the host body over ``BodyService`` (ADR-0023).
+
+    ``none`` (the default) disables the brain→body direction. CI and the no-body dev loop
+    run without it, and the volume tools are simply not registered. ``grpc`` enables it and
+    requires ``endpoint`` (``host:port`` of the host-native body's ``BodyService`` server; from
+    the dockerized brain this is ``host.docker.internal:<port>``). The seam token is the shared
+    ``CORTEX_SEAM_TOKEN`` (ADR-0016), attached by the client, so it lives in ``SeamServerConfig``
+    and is not duplicated here.
+    """
+
+    model_config = SettingsConfigDict(env_prefix="CORTEX_BODY_")
+
+    backend: BodyBackendName = "none"
+    endpoint: str = ""
+
+    @model_validator(mode="after")
+    def _grpc_needs_an_endpoint(self) -> "BodyConfig":
+        if self.backend == "grpc" and not self.endpoint:
+            msg = "CORTEX_BODY_ENDPOINT is required when CORTEX_BODY_BACKEND=grpc"
+            raise ValueError(msg)
+        return self
 
 
 class InferenceConfig(BaseSettings):

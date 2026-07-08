@@ -9,6 +9,7 @@ from contextlib import AbstractAsyncContextManager
 from datetime import datetime
 from typing import Protocol
 
+from cortex_core.body import VolumeState
 from cortex_core.conversation import Message
 from cortex_core.inference import InferenceEvent
 from cortex_core.memory import MemoryRecord, ScoredMemory
@@ -177,6 +178,26 @@ class TaskStore(Protocol):
     async def put_result(self, result: SubagentResult) -> None: ...
 
     async def get_result(self, task_id: str) -> SubagentResult | None: ...
+
+
+class BodyGateway(Protocol):
+    """Calls the host body to read or change an OS setting over the brain→body seam (ADR-0023).
+
+    The first bidirectional direction of the seam: the brain is the client of the body's
+    ``BodyService``. ``get_volume`` reports the host's current audio state; ``set_volume``
+    applies a change (``level`` clamped to [0.0, 1.0], ``mute``, or both, with a ``None`` field
+    left untouched) and reports the state after. Both return a domain ``VolumeState``; no wire
+    type crosses this boundary. Failures (the body unreachable, an OS error) surface as
+    ``BodyGatewayError``, which the volume tools turn into an error result the cortex can
+    recover from. The port is deliberately abstract so the connectivity fallback (a
+    body-initiated tunnel, ADR-0001 Q3) is a later adapter, not a seam change.
+    """
+
+    async def get_volume(self) -> VolumeState: ...
+
+    async def set_volume(
+        self, *, level: float | None = None, mute: bool | None = None
+    ) -> VolumeState: ...
 
 
 class SubagentScheduler(Protocol):

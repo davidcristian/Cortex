@@ -1,7 +1,8 @@
 """Cortex orchestrator: the thin gRPC shell hosting BrainService (logic lives in cortex_core)."""
 
-from cortex_orchestrator.auth import SEAM_TOKEN_HEADER, SeamTokenInterceptor
+from cortex_orchestrator.auth import SeamTokenInterceptor
 from cortex_orchestrator.builders import (
+    build_body_gateway,
     build_cortex_tools,
     build_history_window,
     build_inference_backend,
@@ -11,6 +12,7 @@ from cortex_orchestrator.builders import (
     memory_scope_from_name,
 )
 from cortex_orchestrator.config import (
+    BodyConfig,
     BrainRuntimeConfig,
     InferenceConfig,
     MemoryConfig,
@@ -38,6 +40,7 @@ from cortex_orchestrator.server import (
 )
 from cortex_orchestrator.subagent_builders import build_subagent_tools, build_subagents
 from cortex_orchestrator.wiring import run_from_env
+from cortex_seam import SEAM_TOKEN_HEADER
 
 __all__ = [
     "DEFAULT_CONFIRM_TIMEOUT_S",
@@ -49,6 +52,7 @@ __all__ = [
     "MAX_SESSION_LIST_LIMIT",
     "ORCHESTRATOR_VERSION",
     "SEAM_TOKEN_HEADER",
+    "BodyConfig",
     "BrainRuntimeConfig",
     "BrainService",
     "EngineFactory",
@@ -60,6 +64,7 @@ __all__ = [
     "SubagentRosterEntry",
     "SubagentsConfig",
     "ToolsConfig",
+    "build_body_gateway",
     "build_cortex_tools",
     "build_history_window",
     "build_inference_backend",

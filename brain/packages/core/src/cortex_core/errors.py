@@ -38,6 +38,15 @@ class TaskStoreError(Exception):
     """A TaskStore operation failed (task-store adapters wrap their backend's errors)."""
 
 
+class BodyGatewayError(Exception):
+    """A BodyGateway call failed. The body was unreachable or the OS action errored.
+
+    The gRPC adapter wraps its transport failures (a refused dial, a non-OK status) into this,
+    cause chained; the volume tools catch it and return an ``is_error`` result so the cortex
+    hears about a dead body and can recover, never a turn-killing crash.
+    """
+
+
 class ModelManagerError(Exception):
     """A ModelManager operation failed; adapters wrap their backend's errors into this."""
 
