@@ -800,6 +800,9 @@ behind the unchanged `ToolRegistry`/`ToolDispatcher`/`stream_tool_loop` seams (o
   taken by **Slice 8.8** (ADR-0022): the body's client stream now stays open past the first
   `UserTurn` to answer `ConfirmRequest`s mid-turn. Still deferred: multiple turns per call
   body-side and the client actually sending `Cancel` (drop-to-cancel remains the mechanism).
+  When multiple turns per call land, Slice 8.8's single-slot `ConfirmRoute` (Tauri) and the
+  `SeamConfirmer`'s "at most one confirm outstanding per stream" assumption need per-turn keying
+  (a map, not one slot); the route is already generation-tagged, so the change is contained there.
 - **Deferred overlay polish.** A proper transparent window + click-through margins (done
   together), the OS-window morph to a real screen corner, hide-on-blur, and a tighter CSP are
   detailed in [overlay-ux.md §4](design/overlay-ux.md) and
@@ -872,6 +875,16 @@ each behind the unchanged `Confirmer`/`ToolDispatcher`/`GatedToolRegistry`/seam 
   needs a TRUSTED remote tool.
 - **Batching / per-tool session allowlists** against confirmation fatigue, if sends become
   frequent enough to matter.
+- **`ToolActivity` salience** is still emitted by nothing; the confirm card is the first mid-turn
+  tool surface, so a general tool-activity chip stays an overlay-gap item (joins the Slice-8
+  design-doc interaction gaps).
+- **The subagent-side authoritative gated-name backstop is available but not wired** (post-review,
+  2026-07-08). `ToolDispatcher`/`build_subagent_tools` accept `gated_names` (which makes the
+  cortex's gate independent of advertisement, closing the skip-mode window there), but
+  `build_subagents` does not pass it (a 7th arg trips the PLR0913 cap). Subagents stay covered by
+  `UngatedToolRegistry` (strip + live-walk refusal) + `confirmer=None`; only the astronomically
+  narrow skip-mode double-walk window is uncovered on that path. Wire it through the unchanged
+  `build_subagent_tools` seam if it ever matters.
 
 **Cross-cutting (originally "Later, unordered"):** pointer-input injection (extend the proto
 first), richer memory policies (**the email-write tool landed 2026-07-08 as Slice 8.8**,
