@@ -450,14 +450,15 @@ proven end to end; the session contract suite (incl. `list_sessions`) also passe
 100% under `just check` across all four trees, including the confirm exchange proven over a
 real loopback gRPC wire on both answers; delivered summary at the end of this slice.
 Agent-validated 2026-07-08 ([ADR-0022 addendum](adr/ADR-0022-email-write-confirmer.md)): the
-overlay confirm card end to end in Chrome (approve/deny/multi-turn), and the gating overlay +
-send tool over **real MCP via Docker** (a native dockerd was set up mid-session), where `send_email`
+overlay confirm card end to end in Chrome (approve/deny/multi-turn); the gating overlay + send
+tool over **real MCP via Docker** (a native dockerd was set up mid-session), where `send_email`
 registers ungated over MCP and is stamped gated by the composition root, a send that can't reach
-the Bridge is a clean `is_error`, and the sidecar is read-only when the flag is off. Remaining,
-both environment-bound not code: the **live SMTP round-trip** to `example.com` (Docker + GPU now
-work, but the Bridge binds Windows-loopback and this distro's `nat`/`interop=false` networking
-can't reach it without WSL mirrored networking or a Windows portproxy) and the **Windows Tauri
-confirm-card** validation ([body-overlay.md](runbooks/body-overlay.md)).
+the Bridge is a clean `is_error`, and the sidecar is read-only when the flag is off; and, once
+the user added a Windows `netsh` portproxy to the Bridge, the **live IMAP + SMTP round-trip**
+against the real ProtonMail Bridge (`send_email` really sent a message and the test found it back
+over IMAP by subject, ~13 s). **Only the Windows Tauri confirm-card** (hotkey → gated send → card
+→ approve/deny through the real IPC) remains, genuinely OS-native and host-only
+([body-overlay.md](runbooks/body-overlay.md)).
 Design → ADR-0022 (opened the slice). The first
 *outbound, irreversible* capability, and the vehicle that lands the real overlay **confirmation**
 adapter every later gated action reuses (Slice 9 OS actions, Slice 9.5 side-effectful reminders).
