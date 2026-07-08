@@ -603,11 +603,69 @@ Any *side-effectful* OS action inherits the Slice 6.5 gate + the Slice 8.8 `Conf
 
 ## Slice 9.5 (Scheduling & proactive reminders)
 
-**Status:** in progress. Design landed 2026-07-08 as
-[ADR-0025](adr/ADR-0025-scheduling-reminders.md) (the 2026-07-01 insertion's "ADR-0014" pointer
-was stale, since that number was taken by history windowing). Placed after Slice 9
+**Status:** brain half done on 2026-07-08 ([ADR-0025](adr/ADR-0025-scheduling-reminders.md);
+the 2026-07-01 insertion's "ADR-0014" pointer was stale, since that number was taken by history
+windowing). The design was **adversarially reviewed pre-implementation** (four lenses, 27
+findings, with every major one folded in before a line of code: the fencing claim token,
+cancel-sticks-through-a-fire, corrupt-record quarantine, the tainted-task refusal, fire-time
+outcome taint, the model-learns-"now" spec, the store-absent RPC posture, the arg-ceiling
+refactor), then implemented in four commits, each 100% under `just check`, and
+**agent-Docker validated the same day** ([addendum](adr/ADR-0025-scheduling-reminders.md)):
+the fenced-protocol contract suite against live Redis, and the end-to-end fire (seed →
+the brain's ticker → `ListDueReminders` → `AckReminder` → idempotent no-op) over the live
+seam against the rebuilt compose stack, with `just seam-health` confirming the rewired turn
+path still converses. Remaining in-slice, behind the committed seam shapes: the Rust
+`BrainTransport` reminder methods + retry forwarding, the overlay's reminders-on-open
+surface, and the body-side `Notify` trait + Tauri toast (host-validated). See
+[runbooks/scheduling.md](runbooks/scheduling.md). Placed after Slice 9
 because proactive delivery rides the **brain→body** direction that slice establishes; the store-backed
 core could land earlier pull-only. Inserted as 9.5 (decimal insert, no renumber).
+
+**Delivered as the brain half (2026-07-08, ADR-0025), fakes on all sides in CI, no Redis/GPU/OS:**
+- **The fenced store.** `ScheduledItem`/`ScheduleClaim`/`FireOutcome` + the `ScheduleStore`
+  port: `claim_due` claims due PENDING + lease-expired FIRING items oldest-due-first under
+  fresh per-claim fencing tokens (at-least-once; corrupt records quarantine to a dead-letter
+  hash instead of poison-pilling the pass); `finish`/`release` apply only under the live
+  token (a stale claimant no-ops); `cancel` deletes outright and so sticks through an
+  in-flight fire; terminal items delete unless awaiting delivery; fire-time taint ORs onto
+  the item. One contract suite (races included) runs the in-memory fake and
+  `RedisScheduleStore` (durable versioned records, **no TTL**, MULTI/EXEC record+index
+  updates) interchangeably; pure coalescing `next_due` re-arms recurrence.
+- **The three cortex-only built-ins.** `schedule_task` (its spec rebuilt per walk and
+  **carrying the current UTC time** from the Clock, because the model cannot otherwise compute an
+  absolute `at`; honest about task wiring; two creation bounds, namely the `MAX_ACTIVE` cap and
+  the **tainted-task refusal**), `list_scheduled` (TRUSTED only when every listed item is
+  clean, else fenced UNTRUSTED, which is the laundering guard), `cancel_scheduled`. Creation/cancel
+  confirmations never echo stored text. Subagents never see any of them (depth-1 analog:
+  no self-rescheduling).
+- **The seam.** `ListDueReminders`/`AckReminder` on `BrainService` (benignly empty /
+  `acked=false` with no store wired, never `UNAVAILABLE`, which the body's retry decorator
+  would storm on) and `Notify` on `BodyService` (title/body/reminder_id/tainted;
+  `BodyGateway.notify` on the port + gRPC adapter + fake; the body's server answers
+  `Unimplemented` until its toast trait lands, following the shape-now precedent).
+- **The ticker.** A stateless poll loop beside `serve`: claim → fire concurrently →
+  persist; reminders finish deliverable then attempt the push (shown → acked at once, since a
+  toast IS delivery; declined/failed/no body → pull delivers); tasks dispatch a synthetic
+  `spawn_subagents` call through the ticker's own audited dispatcher (`confirmer=None`
+  fail-closed, taint stamp → ADR-0017 pinning, result trust persisted as fire-time taint;
+  no runner wired → a clean `ok=False` outcome). Pass-level catch-all, stop-signal shutdown
+  that completes in-flight fires, best-effort release, the lease covering the rest.
+  `CORTEX_SCHEDULE_*` config + the compose passthrough; `build_cortex_tools` now takes ONE
+  pre-assembled builtins sequence (`build_builtin_tools` is the six-arg-ceiling bundling).
+- **Post-review hardening (same day, a second adversarial multi-agent review over the
+  landed diff: 13 findings, 11 confirmed and all fixed, 2 refuted;
+  [ADR-0025 addendum](adr/ADR-0025-scheduling-reminders.md)).** The Redis fenced
+  transitions became **optimistically atomic** (WATCH→MULTI/EXEC in `schedule_claims.py`, so
+  a cancel racing a fire's guard read can no longer be silently overwritten and resurrect
+  a cancelled recurring task; deterministic race tests pin all four transitions); each
+  ticker fire is **bounded by the lease** (`wait_for`, so one wedged task can no longer
+  stall every later-due reminder for the process lifetime); `CORTEX_TOOLS_GATED` now
+  rides onto the ticker's spawn dispatcher (a user-gated `spawn_subagents` hard-denies
+  autonomously); `next_due` is total (an occurrence past `datetime.max` ends the
+  recurrence instead of lease-cycling forever) with a ten-year `every_seconds` ceiling;
+  and four test-honesty gaps closed (poison-first quarantine, the stepping-clock spec
+  rebuild, cross-class claim ordering in the shared contract, a scheduling-enabled
+  composition-root test).
 
 Give the assistant a sense of time: schedule a task or reminder now, have it fire later. Two halves,
 both governed by the one hard rule (**a schedule outlives every model swap**), so it lives in the
@@ -983,6 +1041,29 @@ behind the unchanged `BodyGateway`/`AudioControl`/`BodyService` seams.
 - **A safe Core Audio wrapper.** `WindowsAudioControl` uses the ADR-0023-scoped `unsafe` over the
   `windows` crate's COM API; a fully-safe wrapper crate (à la `global-hotkey` for the hotkey) would
   retire the exception if one matures.
+
+**Scheduling & reminders in Slice 9.5 ([ADR-0025](adr/ADR-0025-scheduling-reminders.md)):** each
+behind the unchanged `ScheduleStore`/`BodyGateway`/seam shapes.
+- **The in-slice remainder.** The Rust `BrainTransport` reminder methods (+ `RetryingTransport`
+  forwarding `list_due_reminders` as idempotent; ack unretried v1), the overlay's
+  reminders-on-open surface (fetch on open, badge tainted, ack on dismiss), and the body-side
+  `Notify` OS trait + the Tauri toast rendering reminder text inert (host-validated), all
+  behind the committed proto shapes; the brain treats the interim `Unimplemented` as any push
+  failure, so pull already delivers end to end.
+- **Session attribution.** `ScheduledItem.session_id` is stored and rides the wire but is
+  `""` at creation, since the tool has no turn-context channel; it joins the ADR-0013/0019
+  structured-provenance deferral (a dispatcher-stamped turn context would fill it).
+- **The Postgres durable twin** behind the unchanged port, when per-provenance queries or
+  retention policies earn it (Redis AOF on a named volume is the sessions-grade v1 tier).
+- **Local-time / cron recurrence and a display-timezone knob.** v1 is UTC end-to-end with
+  fixed intervals; DST-aware daily/weekly and cron strings land behind the same `every`
+  field; `list_scheduled` renders ISO-8601 UTC until a `CORTEX_SCHEDULE_TZ` exists.
+- **Occurrence history.** Coalesced single-slot deliverability keeps no per-fire records,
+  and terminal cleanup deletes a one-shot task's outcome with its record; a history table
+  would also cover unseen-toast recovery.
+- **Snooze / edit verbs**; **task-outcome delivery** as a notification; a **push retry
+  policy** beyond next-poll-pull; **retention/inspection tooling** for the dead-letter
+  quarantine hash (`cortex:schedules:dead`); overlay badge/UX polish for tainted reminders.
 
 **Cross-cutting (originally "Later, unordered"):** pointer-input injection (extend the proto
 first), richer memory policies (**the email-write tool landed 2026-07-08 as Slice 8.8**,
