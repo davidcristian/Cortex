@@ -25,6 +25,15 @@ service BrainService {
   // so cannot touch the one hard rule beyond reading what the store already holds.
   rpc ListSessions(ListSessionsRequest) returns (ListSessionsReply);
   rpc GetSessionMessages(GetSessionMessagesRequest) returns (GetSessionMessagesReply);
+
+  // Reminder pull-delivery (ADR-0025): the overlay surfaces fired-but-undelivered
+  // reminders when it opens and acks what it showed. ListDueReminders is a read-only
+  // store view (the ADR-0021 pattern); AckReminder is the one narrow idempotent write
+  // the pull loop needs (acking a non-deliverable id is a no-op acked=false). With no
+  // ScheduleStore wired both answer benignly (empty / acked=false), never an error, because
+  // a schedule-free brain is indistinguishable from one with nothing due.
+  rpc ListDueReminders(ListDueRemindersRequest) returns (ListDueRemindersReply);
+  rpc AckReminder(AckReminderRequest) returns (AckReminderReply);
 }
 
 message ClientEvent {
@@ -100,6 +109,22 @@ message SessionMessage {
   int64 at_unix_ms = 4;
 }
 
+// Reminder pull-delivery views (ADR-0025). All sessions are listed deliberately because
+// a single-user assistant has one user to remind; session_id rides along so the
+// overlay can later offer "open the conversation this came from" without a wire change.
+message ListDueRemindersRequest {}
+message ListDueRemindersReply { repeated DueReminder reminders = 1; }
+message DueReminder {
+  string reminder_id = 1;
+  string text = 2;
+  int64 fired_at_unix_ms = 3; // when it became deliverable
+  bool recurring = 4;
+  bool tainted = 5;           // untrusted provenance, so the overlay may badge it
+  string session_id = 6;      // origin chat ("" until session attribution lands)
+}
+message AckReminderRequest { string reminder_id = 1; }
+message AckReminderReply { bool acked = 1; }
+
 // ---------------------------------------------------------------------------
 // BodyService is hosted by the body (host-native). The brain is the client.
 // Exposes host OS capabilities behind the body's Rust traits.
@@ -111,6 +136,12 @@ service BodyService {
   rpc GetVolume(GetVolumeRequest) returns (VolumeState);
   rpc SetVolume(SetVolumeRequest) returns (VolumeState);
   rpc InjectInput(InjectInputRequest) returns (InjectInputReply);
+  // Show a native notification (ADR-0025): the brain->body push half of reminder
+  // delivery. shown=true means the OS accepted/displayed the toast. The ticker then
+  // acks the reminder (a toast IS delivery); false or an error leaves it deliverable
+  // for the pull path. The body renders title/body as inert escaped text: reminder
+  // text can be attacker-influenced (tainted marks it), and a toast template is XML.
+  rpc Notify(NotifyRequest) returns (NotifyReply);
 }
 
 message CaptureScreenRequest {
@@ -145,3 +176,11 @@ message InjectInputRequest {
 message TypeText { string text = 1; }
 message KeyChord { repeated string keys = 1; }
 message InjectInputReply { bool applied = 1; }
+
+message NotifyRequest {
+  string title = 1;
+  string body = 2;
+  string reminder_id = 3;
+  bool tainted = 4; // symmetric with DueReminder, so the toast may badge provenance
+}
+message NotifyReply { bool shown = 1; }

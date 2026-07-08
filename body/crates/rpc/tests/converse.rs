@@ -21,9 +21,10 @@ use body_core::{BrainTransport, ConfirmDecision, TransportError, TurnEvent};
 use body_rpc::BrainSeamClient;
 use body_rpc::generated::brain_service_server::{BrainService, BrainServiceServer};
 use body_rpc::generated::{
-    ClientEvent, ConfirmRequest, GetSessionMessagesReply, GetSessionMessagesRequest, HealthReply,
-    HealthRequest, ListSessionsReply, ListSessionsRequest, SeamError, ServerEvent, StatusUpdate,
-    TextDelta, ToolActivity, TurnComplete, client_event, server_event,
+    AckReminderReply, AckReminderRequest, ClientEvent, ConfirmRequest, GetSessionMessagesReply,
+    GetSessionMessagesRequest, HealthReply, HealthRequest, ListDueRemindersReply,
+    ListDueRemindersRequest, ListSessionsReply, ListSessionsRequest, SeamError, ServerEvent,
+    StatusUpdate, TextDelta, ToolActivity, TurnComplete, client_event, server_event,
 };
 use tokio::net::TcpListener;
 use tokio_stream::wrappers::TcpListenerStream;
@@ -233,6 +234,20 @@ impl BrainService for FakeBrain {
         &self,
         _request: Request<GetSessionMessagesRequest>,
     ) -> Result<Response<GetSessionMessagesReply>, Status> {
+        Err(Status::unimplemented("not exercised here"))
+    }
+
+    async fn list_due_reminders(
+        &self,
+        _request: Request<ListDueRemindersRequest>,
+    ) -> Result<Response<ListDueRemindersReply>, Status> {
+        Err(Status::unimplemented("not exercised here"))
+    }
+
+    async fn ack_reminder(
+        &self,
+        _request: Request<AckReminderRequest>,
+    ) -> Result<Response<AckReminderReply>, Status> {
         Err(Status::unimplemented("not exercised here"))
     }
 }

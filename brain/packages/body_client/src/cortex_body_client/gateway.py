@@ -19,7 +19,14 @@ from typing import cast
 from grpc import aio
 
 from cortex_core import BodyGatewayError, VolumeState
-from cortex_seam import SEAM_TOKEN_HEADER, BodyServiceStub, GetVolumeRequest, SetVolumeRequest
+from cortex_seam import (
+    SEAM_TOKEN_HEADER,
+    BodyServiceStub,
+    GetVolumeRequest,
+    NotifyReply,
+    NotifyRequest,
+    SetVolumeRequest,
+)
 from cortex_seam import VolumeState as VolumeStatePb
 
 _Metadata = tuple[tuple[str, str], ...]
@@ -77,3 +84,22 @@ class GrpcBodyGateway:
             msg = f"body set_volume failed: {err.details()}"
             raise BodyGatewayError(msg) from err
         return VolumeState(level=reply.level, muted=reply.muted)
+
+    async def notify(
+        self, *, title: str, body: str, reminder_id: str, tainted: bool = False
+    ) -> bool:
+        """Show a native notification over ``BodyService.Notify`` (ADR-0025).
+
+        Returns the body's ``shown`` verdict; every gRPC failure (including the body's
+        shape-now ``Unimplemented`` answer until its toast lands) becomes a
+        ``BodyGatewayError`` the ticker treats as push-failed (the reminder stays
+        deliverable for the pull path).
+        """
+        request = NotifyRequest(title=title, body=body, reminder_id=reminder_id, tainted=tainted)
+        method = self._stub.Notify  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
+        try:
+            reply = cast("NotifyReply", await method(request, metadata=self._metadata))
+        except aio.AioRpcError as err:
+            msg = f"body notify failed: {err.details()}"
+            raise BodyGatewayError(msg) from err
+        return reply.shown

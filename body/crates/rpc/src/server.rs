@@ -18,7 +18,7 @@ use crate::generated::VolumeState as PbVolumeState;
 use crate::generated::body_service_server::{BodyService, BodyServiceServer};
 use crate::generated::{
     CaptureScreenReply, CaptureScreenRequest, GetVolumeRequest, InjectInputReply,
-    InjectInputRequest, SetVolumeRequest,
+    InjectInputRequest, NotifyReply, NotifyRequest, SetVolumeRequest,
 };
 
 /// The `BodyService` implementation over an [`AudioControl`] backend.
@@ -78,6 +78,18 @@ impl<A: AudioControl + 'static> BodyService for VolumeService<A> {
     ) -> Result<Response<InjectInputReply>, Status> {
         Err(Status::unimplemented(
             "input injection lands in a later slice",
+        ))
+    }
+
+    async fn notify(
+        &self,
+        _request: Request<NotifyRequest>,
+    ) -> Result<Response<NotifyReply>, Status> {
+        // Shape-now (ADR-0025 decision 6): the brain treats Unimplemented like any push
+        // failure. The reminder stays deliverable for the pull path. The real handler
+        // lands with the body-side `Notify` OS trait.
+        Err(Status::unimplemented(
+            "the native toast lands with the body-side Notify trait (ADR-0025)",
         ))
     }
 }
