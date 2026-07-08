@@ -37,6 +37,10 @@ class BodyGatewayError(Exception):
     """A BodyGateway call failed. The body was unreachable or the OS action errored."""
 
 
+class ScheduleStoreError(Exception):
+    """A ScheduleStore operation failed (schedule adapters wrap their backend's errors)."""
+
+
 class ModelManagerError(Exception):
     """A ModelManager operation failed; adapters wrap their backend's errors into this."""
 

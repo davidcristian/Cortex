@@ -6,7 +6,7 @@ Failures cross these boundaries exclusively as the typed errors in ``errors.py``
 
 from collections.abc import AsyncIterator, Sequence
 from contextlib import AbstractAsyncContextManager
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Protocol
 
 from cortex_core.body import VolumeState
@@ -15,6 +15,7 @@ from cortex_core.inference import InferenceEvent
 from cortex_core.memory import MemoryRecord, ScoredMemory
 from cortex_core.model import ModelLease
 from cortex_core.placement import Placement, PlacementRequest
+from cortex_core.schedule import FireOutcome, ScheduleClaim, ScheduledItem
 from cortex_core.sessions import SessionSummary
 from cortex_core.subagents import SubagentResult, SubagentTask
 from cortex_core.tools import ConfirmationRequest, ToolCall, ToolInvocation, ToolResult, ToolSpec
@@ -110,6 +111,30 @@ class TaskStore(Protocol):
     async def put_result(self, result: SubagentResult) -> None: ...
 
     async def get_result(self, task_id: str) -> SubagentResult | None: ...
+
+
+class ScheduleStore(Protocol):
+    """Durable schedules with a fenced claim→finish protocol (ADR-0025)."""
+
+    async def add(self, item: ScheduledItem) -> None: ...
+
+    async def get(self, item_id: str) -> ScheduledItem | None: ...
+
+    async def list_active(self) -> Sequence[ScheduledItem]: ...
+
+    async def cancel(self, item_id: str) -> bool: ...
+
+    async def claim_due(
+        self, now: datetime, *, lease: timedelta, limit: int
+    ) -> Sequence[ScheduleClaim]: ...
+
+    async def finish(self, claim: ScheduleClaim, outcome: FireOutcome) -> bool: ...
+
+    async def release(self, claim: ScheduleClaim) -> bool: ...
+
+    async def deliverable(self) -> Sequence[ScheduledItem]: ...
+
+    async def ack(self, item_id: str) -> bool: ...
 
 
 class BodyGateway(Protocol):

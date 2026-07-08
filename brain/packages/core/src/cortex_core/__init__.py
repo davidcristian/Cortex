@@ -19,6 +19,7 @@ from cortex_core.errors import (
     MemoryStoreError,
     ModelManagerError,
     ModelUnavailableError,
+    ScheduleStoreError,
     SessionStoreError,
     TaskStoreError,
     ToolError,
@@ -37,6 +38,7 @@ from cortex_core.fakes import (
     RecordingConfirmer,
     SystemClock,
 )
+from cortex_core.fakes_schedule import InMemoryScheduleStore
 from cortex_core.guardrail import (
     REDACTED_LINK,
     OutputFilter,
@@ -58,6 +60,7 @@ from cortex_core.ports import (
     InferenceBackend,
     MemoryStore,
     ModelManager,
+    ScheduleStore,
     SessionStore,
     SubagentPlacer,
     SubagentScheduler,
@@ -69,6 +72,14 @@ from cortex_core.recall import MemoryRecaller
 from cortex_core.roster import SubagentProfile, SubagentResources, SubagentRoster
 from cortex_core.routing import RoutingHints, Tier, route_turn
 from cortex_core.runner import SubagentRunner
+from cortex_core.schedule import (
+    FireOutcome,
+    ScheduleClaim,
+    ScheduledItem,
+    ScheduleKind,
+    ScheduleStatus,
+    next_due,
+)
 from cortex_core.scheduler import ResourceBudgetScheduler
 from cortex_core.scope import (
     GLOBAL_MEMORY_SCOPE,
@@ -129,6 +140,7 @@ __all__ = [
     "Embedder",
     "EmbedderError",
     "FilteredToolRegistry",
+    "FireOutcome",
     "GatedToolRegistry",
     "GetVolumeTool",
     "GlobalMemoryScope",
@@ -136,6 +148,7 @@ __all__ = [
     "HistoryWindow",
     "InMemoryBodyGateway",
     "InMemoryMemoryStore",
+    "InMemoryScheduleStore",
     "InMemorySessionStore",
     "InMemoryTaskStore",
     "InMemoryToolRegistry",
@@ -163,6 +176,12 @@ __all__ = [
     "ResourceBudgetScheduler",
     "Role",
     "RoutingHints",
+    "ScheduleClaim",
+    "ScheduleKind",
+    "ScheduleStatus",
+    "ScheduleStore",
+    "ScheduleStoreError",
+    "ScheduledItem",
     "ScoredMemory",
     "SessionMemoryScope",
     "SessionStore",
@@ -210,6 +229,7 @@ __all__ = [
     "VramBudgetPlacer",
     "extract_urls",
     "new_nonce",
+    "next_due",
     "route_turn",
     "security_preamble_message",
     "summarize_session",
