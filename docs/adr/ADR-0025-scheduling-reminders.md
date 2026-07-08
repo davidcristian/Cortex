@@ -433,3 +433,66 @@ tooling for the dead-letter key.
   occurrence-history item.
 - **Ticker vs. turn contention.** Fires share the process with live turns; the claim
   limit bounds a pass, and subagent admission (ADR-0012) already budgets the heavy part.
+
+## Addendum (2026-07-08): the brain half landed + agent-Docker validation
+
+The CI-gated brain half is implemented across four commits (store layer → built-ins →
+seam → ticker/wiring), 100% line+branch across the workspace at every commit, with two
+small implementation refinements to the shapes above: `ScheduledItem.model` is `str = ""`
+(the `SubagentTask` convention, where `""` is the default roster entry) rather than
+`str | None`, and `ScheduleStatus` has no `CANCELLED` member (decision 1's cancel-deletes
+semantics made it unreachable; `DONE` persists only while deliverable).
+
+**Agent-Docker validation (same day), against the rebuilt compose stack
+(`CORTEX_SCHEDULE_BACKEND=redis`):**
+
+- the fenced-protocol **contract suite passed against live Redis** (all checks; the run
+  guards against and cleans up after itself, per [scheduling.md](../runbooks/scheduling.md));
+- the **end-to-end fire round-tripped over the live seam**: a reminder seeded directly
+  into the store was fired by the brain's ticker, listed over `ListDueReminders` (text,
+  recurrence, provenance, and origin session intact), acked over `AckReminder`, and a
+  second ack no-opped `acked=false`;
+- `just seam-health` confirmed the rewired turn path still converses (Health, one full
+  `Converse` turn, and the session reads all green against the same containers).
+
+Remaining in-slice, behind the committed seam shapes: the Rust `BrainTransport` reminder
+methods + retry forwarding, the overlay's reminders-on-open surface, and the body-side
+`Notify` trait + Tauri toast (host-validated). Then comes the multi-agent adversarial review
+of the landed diff, recorded below when its findings are folded.
+
+## Addendum (2026-07-08): post-implementation adversarial review (11 findings, all fixed)
+
+A second multi-agent adversarial review ran over the landed diff (four lenses covering races,
+security/taint, contract honesty, wiring, with each finding independently verified against the
+committed code; 13 findings, 11 confirmed, 2 refuted). Every confirmed finding is fixed:
+
+- **The fenced transitions are now optimistically atomic** (the review's sharpest find:
+  `finish`/`release`/`ack`/claim were check-then-act across two Redis round-trips, so a
+  cancel landing between a guard read and its write was silently overwritten, so a cancelled
+  recurring task could resurrect). Every guarded transition now runs its guard and write in
+  one WATCH→MULTI/EXEC transaction (`schedule_claims.py`, split out for the cap): a raced
+  EXEC fails as `WatchError`, answered exactly like a stale token. Deterministic race tests
+  poke a concurrent cancel/touch into the guard window and pin all four transitions.
+- **Fires are bounded by the lease** (a wedged inference socket or saturated admission
+  budget in one TASK fire would have blocked the strictly serial ticker, and every
+  later-due reminder, for the process lifetime, with the documented overrun re-claim
+  unreachable in-process). `run_once` wraps each fire in `wait_for(lease)`: a hung fire is
+  cancelled and its claim released for the next pass.
+- **`CORTEX_TOOLS_GATED` now covers the autonomous path**: the ticker's private spawn
+  dispatcher takes the gated set, so a user-gated `spawn_subagents` hard-denies on a
+  scheduled fire (no confirmer exists to ask) instead of silently bypassing the backstop.
+- **`next_due` is total**: an occurrence past `datetime.max` ends the recurrence (None)
+  instead of raising into a forever lease-cycling item, and `every_seconds` gained a
+  ten-year ceiling at the tool boundary, which closes the planted-overflow starvation vector.
+- **Test honesty**: the quarantine test now puts the poison FIRST (a halt-the-pass
+  regression fails it); the clock-bearing spec's per-walk rebuild is asserted with a
+  stepping clock through the full dispatcher chain; cross-class oldest-due-first joined the
+  shared contract; and a composition-root test runs `run_from_env` with
+  `CORTEX_SCHEDULE_BACKEND=redis` end to end (env → store → ticker fire → pull RPC →
+  SIGTERM shutdown). The two refuted findings (compose pacing passthrough; a duplicate of
+  the WATCH find) are recorded as such.
+
+The Docker validation was re-run against the rebuilt stack after the fixes. The
+"CI-gated" Consequences list above reads as the slice-total ledger; the previous addendum
+names what of it still remains (the Rust transport methods, the overlay surface, the body
+`Notify` trait).
