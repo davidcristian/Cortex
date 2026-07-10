@@ -101,14 +101,23 @@ commit-msg hooks (conventional-pre-commit validates the type/format; `scripts/co
 the subject style). Imperative mood is the one convention no machine checks:
 
 - Format: `type(scope)?: subject`, in imperative mood, lowercase subject, no trailing
-  period, subject ≤ 72 chars. The body explains what/why (wrapped at 72) and references
-  the slice and ADRs where relevant.
+  period, subject ≤ 72 chars. The body explains what and why, wrapped at 72.
 - Types: `feat`, `fix`, `docs`, `test`, `refactor`, `perf`, `build`, `ci`, `chore`,
   `revert`. Breaking change: `!` after type/scope plus a `BREAKING CHANGE:` footer.
 - Scopes (optional, only when the change is contained to one area): `brain`, `body`,
-  `scripts`, `proto`, `docs`, `ci`.
-- One logical change per commit (typically one slice, one fix, or one doc change);
-  every commit passes `just check`, which the pre-commit hook enforces.
+  `scripts`, `proto`, `docs`, `ci`. Never repeat the type as its own scope
+  (`docs(docs)`).
+- **Self-contained: no volatile references.** A message must still read correctly once
+  the planning docs move on, so never cite a slice number, an ADR number, a roadmap
+  entry, an audit, a commit hash, or any numbered pointer into a mutable doc (`gate 3`,
+  `assumption 1`, `§5`). Describe the substance instead: name the capability, the
+  decision, or the behaviour. Concrete code paths, package names, env vars, and
+  measurements are stable, so they stay welcome.
+- **No dashes as punctuation.** No em dash, en dash, or spaced `--` in a subject or
+  body; restructure the sentence rather than swapping in another mark. Hyphenated words
+  and CLI flags (`--locked`) are unaffected.
+- One logical change per commit (typically one slice, one fix, or one doc change).
+  Every commit passes `just check`, which the pre-commit hook enforces.
 
 ## Working agreement
 
