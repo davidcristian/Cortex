@@ -24,7 +24,8 @@ def _write(root: Path, name: str, text: str) -> Path:
     ("line", "kind"),
     [
         (f"the cause chained {EM} it fails loud", "em dash"),
-        (f"prose with a {EN} spaced en dash in it", "spaced en dash"),
+        (f"prose with a {EN} spaced en dash in it", "en dash"),
+        (f"a 2{EN}4B model, where the range once passed", "en dash"),
     ],
 )
 def test_punctuating_dashes_are_found(line: str, kind: str) -> None:
@@ -34,9 +35,9 @@ def test_punctuating_dashes_are_found(line: str, kind: str) -> None:
 @pytest.mark.parametrize(
     "line",
     [
-        f"a 2{EN}4B model fits the budget",  # unspaced en dash: a range
-        f"0.15{EN}0.27 GB of VRAM",
-        f"24 GB {MINUS} ~11 GB of headroom",  # minus sign: arithmetic
+        "a 2-4B model fits the budget",  # a range takes a plain hyphen
+        "0.15-0.27 GB of VRAM",
+        f"24 GB {MINUS} ~11 GB of headroom",  # minus sign: arithmetic, still legal
         "# noqa: DTZ001 -- the naive value under test",  # the inline-reason idiom
         "run cargo build --locked",
         "a well-formed hyphenated-word",
