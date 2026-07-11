@@ -12,8 +12,8 @@ repos:
         pass_filenames: false
         always_run: true
         stages: [pre-commit] # without this the hook ALSO runs at commit-msg (twice per commit)
-      - id: commit-subject-style
-        name: commit subject style (AGENTS.md rules on length, lowercase, no trailing period)
+      - id: commit-message-style
+        name: commit message style (length, lowercase, no dashes, no volatile refs)
         entry: python3 scripts/commitlint.py
         language: system
         stages: [commit-msg] # receives the commit-message file path; stdlib-only, no sync

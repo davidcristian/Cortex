@@ -2,8 +2,8 @@
 # Jobs run the same `just` recipes developers run locally (no drift).
 # Path filtering is a fail-closed in-repo classifier (scripts/ci_paths.py,
 # ADR-0006): unknown paths run both toolchains, and if the diff range cannot be
-# determined we also run both. The cross-tree 300-line cap (linecap) is exempt
-# from the filter and always runs. Every action is pinned to a full commit SHA
+# determined we also run both. The cross-tree scans (the 300-line cap and the
+# punctuating-dash ban) are exempt from the filter and always run. Every action is pinned to a full commit SHA
 # with a version comment; dependabot (.github/dependabot.yml) keeps the pins fresh.
 name: CI
 
@@ -65,10 +65,11 @@ jobs:
             echo "overlay=true" >> "$GITHUB_OUTPUT"
           fi
 
-  # The 300-line cap (AGENTS.md gate 1) is repo-wide: linecap.py scans .py and
-  # .rs across every tree, docs/ included. It is exempt from the path filter and
-  # runs unconditionally, so a Rust-only or docs-only change is still capped.
-  linecap:
+  # The cross-tree scans are repo-wide and exempt from the path filter, so a
+  # Rust-only or docs-only change is still covered. linecap.py caps .py and .rs
+  # everywhere (AGENTS.md gate 1); dashcheck.py bans a dash used as punctuation in
+  # any text file, which is mostly a docs concern and would otherwise never run.
+  cross-tree:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -79,6 +80,7 @@ jobs:
         with:
           tool: just
       - run: just check-linecap
+      - run: just check-dashcheck
 
   python:
     needs: changes

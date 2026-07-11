@@ -3,7 +3,7 @@
 
 default: check
 
-# All gates: cross-tree line cap first (fast), then the three tree checks in
+# All gates: the cross-tree scans first (fast), then the three tree checks in
 # PARALLEL (ADR-0006), so wall time ≈ the slowest tree. Output is buffered per tree
 # and printed in a fixed order so logs stay readable; any failure fails the gate.
 # Kept bash-3.2 compatible (no `declare -A` etc.) for macOS system bash.
@@ -11,6 +11,7 @@ check:
     #!/usr/bin/env bash
     set -euo pipefail
     just check-linecap
+    just check-dashcheck
     tmp=$(mktemp -d)
     trap 'rm -rf "$tmp"' EXIT
     echo "Running check-brain, check-scripts, check-body in parallel (output buffered)..."
@@ -40,6 +41,11 @@ check:
 check-linecap:
     cd scripts && uv sync --locked
     cd scripts && uv run python linecap.py --root ..
+
+# No dash as punctuation, in any text file across every tree.
+check-dashcheck:
+    cd scripts && uv sync --locked
+    cd scripts && uv run python dashcheck.py --root ..
 
 # Python brain workspace: format, lint, strict types, tests at 100% line+branch.
 check-brain:

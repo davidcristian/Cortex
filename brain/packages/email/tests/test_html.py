@@ -4,7 +4,8 @@ from cortex_email.html import html_to_text
 
 
 def test_strips_tags_and_decodes_entities() -> None:
-    assert html_to_text("<p>Caf&eacute; &amp; tea &#8212; now</p>") == "Café & tea — now"
+    expected = "Café & tea — now"  # dashcheck: allow -- &#8212; must decode to this character
+    assert html_to_text("<p>Caf&eacute; &amp; tea &#8212; now</p>") == expected
 
 
 def test_block_tags_become_line_breaks() -> None:
