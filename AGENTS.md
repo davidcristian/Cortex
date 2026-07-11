@@ -91,8 +91,9 @@ Interfaces are designed around this rule from day one. Retrofitting it is a rewr
    an ADR. Both: structured logging, no secrets in logs, **no secrets in the repo**,
    config via env only.
 6. **`just check` is the single gate**, running ruff, pyright, pytest + coverage,
-   `cargo fmt --check`, clippy, `cargo test`, `cargo llvm-cov`, and the cross-tree
-   line-cap scan. Pre-commit mirrors it. Run it before declaring anything done.
+   `cargo fmt --check`, clippy, `cargo test`, `cargo llvm-cov`, and the two cross-tree
+   scans: the line cap and `dashcheck.py`, which bans a dash used as punctuation in any
+   text file (ADR-0026). Pre-commit mirrors it. Run it before declaring anything done.
 
 ## Commits
 
@@ -167,8 +168,9 @@ body/             Rust/Tauri workspace, host-native
                   os_linux/os_macos (cfg-gated stubs)
   app/            React+Vite overlay (gated 100%) + its host-native Tauri src-tauri
                   shell (ungated, host-validated) named cortex-body, its own workspace
-scripts/          repo gates: linecap.py (300-line cap), coverage_gate.py (Rust branches),
-                  ci_paths.py (CI path classifier), commitlint.py (commit-subject style)
+scripts/          repo gates: linecap.py (300-line cap), dashcheck.py (no dash as
+                  punctuation), coverage_gate.py (Rust branches), ci_paths.py (CI path
+                  classifier), commitlint.py (commit-message style)
 .github/          GPU-less CI running the same `just` recipes as local dev
 justfile          `just check` + check-*; proto, up/down, brain-serve, seam-health
 docker/           Compose stack (run via `just up`/`up-gpu`, or `docker compose --project-directory .

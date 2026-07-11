@@ -58,10 +58,7 @@ jobs:
             echo "overlay=true" >> "$GITHUB_OUTPUT"
           fi
 
-  # The 300-line cap (AGENTS.md gate 1) is repo-wide: linecap.py scans .py and
-  # .rs across every tree, docs/ included. It is exempt from the path filter and
-  # runs unconditionally, so a Rust-only or docs-only change is still capped.
-  linecap:
+  cross-tree:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -72,6 +69,7 @@ jobs:
         with:
           tool: just
       - run: just check-linecap
+      - run: just check-dashcheck
 
   python:
     needs: changes

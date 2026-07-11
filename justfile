@@ -7,6 +7,7 @@ check:
     #!/usr/bin/env bash
     set -euo pipefail
     just check-linecap
+    just check-dashcheck
     tmp=$(mktemp -d)
     trap 'rm -rf "$tmp"' EXIT
     echo "Running check-brain, check-scripts, check-body in parallel (output buffered)..."
@@ -36,6 +37,11 @@ check:
 check-linecap:
     cd scripts && uv sync --locked
     cd scripts && uv run python linecap.py --root ..
+
+# No dash as punctuation, in any text file across every tree.
+check-dashcheck:
+    cd scripts && uv sync --locked
+    cd scripts && uv run python dashcheck.py --root ..
 
 # Python brain workspace: format, lint, strict types, tests at 100% line+branch.
 check-brain:

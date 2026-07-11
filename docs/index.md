@@ -147,6 +147,13 @@ Start here. Rules for working in this repo: [AGENTS.md](../AGENTS.md).
   `UngatedToolRegistry` as the structural safety posture), and delivery over both seam directions:
   pull (`ListDueReminders`/`AckReminder` on `BrainService`) and push (`BodyService.Notify` → a
   native toast, the body's second OS capability).
+- [ADR-0026: Prose style gates](adr/ADR-0026-prose-style-gates.md): the no-dash-as-punctuation and
+  no-volatile-reference rules get gates instead of goodwill, after a sweep found 3452 em-dash lines
+  and 144 of 148 non-conforming commit messages. `dashcheck.py` scans every text file (em dash
+  always, en dash only when spaced, so ranges and the minus sign stay legal; ASCII `--` stays the
+  inline-reason idiom in files but is banned in messages, which are pure prose). `commitlint.py`
+  grows from the header to the whole message and resolves hex tokens with `git cat-file`, so only a
+  hash that really is a commit is flagged. Escape hatch: `dashcheck: allow` plus a reason.
 
 New non-obvious decision → add `adr/ADR-XXXX-<slug>.md`, link it here.
 
@@ -189,7 +196,8 @@ New non-obvious decision → add `adr/ADR-XXXX-<slug>.md`, link it here.
     backends (the `Hotkey` seam; real Windows, cfg-gated stubs elsewhere).
   - [body-app.md](modules/body-app.md) covers `body/app`: the React overlay (gated 100%) + its
     host-native Tauri shell (`cortex-body`).
-  - [repo-gates.md](modules/repo-gates.md) covers `scripts/`: linecap + coverage gate CLIs.
+  - [repo-gates.md](modules/repo-gates.md) covers `scripts/`: linecap, dashcheck, coverage gate,
+    CI path classifier, and commit-message CLIs.
 
 ## Runbooks
 

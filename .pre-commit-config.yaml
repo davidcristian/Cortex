@@ -1,6 +1,5 @@
-# Mirrors `just check` exactly (AGENTS.md gate 6): one hook, the whole gate.
-# Anything less than the full gate here would let local commits drift from CI.
-# Plus commit-msg enforcement of Conventional Commits (AGENTS.md "Commits").
+# One hook running the whole of `just check`, so a local commit is checked exactly as CI checks
+# it, plus two hooks on the commit message itself.
 default_install_hook_types: [pre-commit, commit-msg]
 repos:
   - repo: local
@@ -12,8 +11,8 @@ repos:
         pass_filenames: false
         always_run: true
         stages: [pre-commit] # without this the hook ALSO runs at commit-msg (twice per commit)
-      - id: commit-subject-style
-        name: commit subject style (AGENTS.md rules on length, lowercase, no trailing period)
+      - id: commit-message-style
+        name: commit message style (length, lowercase, no dashes, no volatile refs, no banned words)
         entry: python3 scripts/commitlint.py
         language: system
         stages: [commit-msg] # receives the commit-message file path; stdlib-only, no sync
