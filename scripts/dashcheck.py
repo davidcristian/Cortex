@@ -1,4 +1,4 @@
-"""Repo gate: fail when a tracked text file uses a dash as sentence punctuation.
+"""Repo gate: fail when a tracked text file uses a banned dash.
 
 Prose here never uses an em dash. The rule is stylistic, so nothing but a gate keeps it:
 prose is rewritten constantly and the dash returns by default. This scans every text
@@ -7,9 +7,10 @@ file, not just `.py`/`.rs`, because the rule covers docs and comments alike.
 What counts as punctuation, and what deliberately does not:
 
 - U+2014 EM DASH is always punctuation. Banned.
-- U+2013 EN DASH is banned only when spaced. Unspaced it denotes a range, as in a 2-4B
-  model or 0.15-0.27 GB of VRAM, which is correct typography rather than punctuation.
-- U+2212 MINUS SIGN is arithmetic, as in 24 GB less ~11 GB. Never flagged.
+- U+2013 EN DASH is banned outright, spaced or not. It once survived in a range (a 2-4B
+  model, 0.15-0.27 GB of VRAM), but the plain ASCII hyphen is the hand-typed form of a
+  range, so nothing is lost by spelling it that way and the rule gets simpler.
+- U+2212 MINUS SIGN is arithmetic and stays legal, so `-` is not forced on a subtraction.
 - ASCII `--` is NOT flagged. It is this repo's inline-reason idiom
   (`# noqa: DTZ001 -- the naive value under test`, `# pragma: no cover -- reason`), which
   the escape-hatch rule effectively requires. Commit messages are stricter and ban it;
@@ -54,7 +55,7 @@ class UnreadableFileError(Exception):
 
 
 class Violation(NamedTuple):
-    """One line using a dash as sentence punctuation."""
+    """One line using a banned dash."""
 
     path: Path
     line: int
@@ -74,18 +75,18 @@ def is_binary(data: bytes) -> bool:
 
 
 def find_in_line(line: str) -> str | None:
-    """Return the offending dash kind in ``line``, or None when it is clean."""
+    """Return the banned dash kind in ``line``, or None when it is clean."""
     if ALLOW_PRAGMA in line:
         return None
     if EM_DASH in line:
         return "em dash"
-    if f" {EN_DASH} " in line:
-        return "spaced en dash"
+    if EN_DASH in line:
+        return "en dash"
     return None
 
 
 def scan_text(path: Path, text: str) -> list[Violation]:
-    """Return every punctuating-dash violation in ``text``."""
+    """Return every banned-dash violation in ``text``."""
     violations: list[Violation] = []
     for number, line in enumerate(text.splitlines(), start=1):
         kind = find_in_line(line)
@@ -107,7 +108,7 @@ def read_text(path: Path) -> str | None:
 
 
 def scan(root: Path) -> list[Violation]:
-    """Walk ``root`` and return every punctuating-dash violation in its text files."""
+    """Walk ``root`` and return every banned-dash violation in its text files."""
     violations: list[Violation] = []
     for directory, dirnames, filenames in root.walk():
         dirnames[:] = sorted(name for name in dirnames if name not in SKIPPED_DIRS)
@@ -125,7 +126,7 @@ def scan(root: Path) -> list[Violation]:
 def main(argv: list[str] | None = None) -> int:
     """Run the gate; print any violations and return the process exit code."""
     parser = argparse.ArgumentParser(
-        description="Fail when a text file uses a dash as sentence punctuation.",
+        description="Fail when a text file uses a banned dash.",
     )
     parser.add_argument(
         "--root",
@@ -147,13 +148,14 @@ def main(argv: list[str] | None = None) -> int:
         print(f"{violation.path}:{violation.line}: {violation.kind}: {violation.text}")
     if violations:
         print(
-            f"\ndashcheck: {len(violations)} line(s) use a dash as punctuation. "
-            f"Restructure the sentence; do not swap in another mark. "
-            f"If the dash carries meaning, add '{ALLOW_PRAGMA}' with a reason.",
+            f"\ndashcheck: {len(violations)} line(s) use a banned dash. "
+            f"For punctuation, restructure the sentence rather than swapping in another "
+            f"mark; a range takes a plain hyphen. If the dash carries meaning, add "
+            f"'{ALLOW_PRAGMA}' with a reason.",
             file=sys.stderr,
         )
         return 1
-    print(f"dashcheck OK: no text file under {root} uses a dash as punctuation")
+    print(f"dashcheck OK: no text file under {root} uses a banned dash")
     return 0
 
 

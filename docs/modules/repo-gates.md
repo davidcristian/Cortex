@@ -22,9 +22,9 @@ core function).
   exit 2 if `--root` is not a directory or a source file cannot be read.
 - `dashcheck.py [--root DIR]` implements the no-dash-as-punctuation rule (ADR-0026).
   Scans EVERY text file under `--root` (default `.`), not just `*.py`/`*.rs`, because the
-  rule covers docs and comments alike. Flags U+2014 EM DASH anywhere, and U+2013 EN DASH
-  only when spaced. Deliberately silent on an unspaced en dash (a range), U+2212 MINUS
-  SIGN (arithmetic), and ASCII `--` (the repo's inline-reason idiom, which the gate-2
+  rule covers docs and comments alike. Flags U+2014 EM DASH and U+2013 EN DASH anywhere,
+  spaced or not, since a range takes a plain ASCII hyphen. Deliberately silent on U+2212
+  MINUS SIGN (arithmetic), and on ASCII `--` (the repo's inline-reason idiom, which the gate-2
   escape-hatch rule effectively requires; commit messages are stricter and `commitlint.py`
   bans it there). Skips the same directory components as `linecap.py` minus `tests` and
   `_generated`, since prose in a test or a generated stub is still prose; binary files are
@@ -55,8 +55,8 @@ core function).
   header that is not Conventional-Commits-shaped passes silently (structure errors are the
   other hook's to report); `Merge `/`fixup! `/`squash! `/`amend! ` headers are exempt, body
   rules included, because that wording is git's and not the author's. Across the WHOLE
-  message (subject and body) it also bans a dash used as punctuation (em dash, spaced en
-  dash, spaced ASCII `--`, since a message is pure prose) and volatile references: a slice
+  message (subject and body) it also bans a dash used as punctuation (em dash, en dash,
+  spaced ASCII `--`, since a message is pure prose) and volatile references: a slice
   number, a decision-record number, the roadmap, or a numbered assumption/increment/gate/
   decision/audit. Hex tokens are resolved against `--repo` (default `.`) with `git
   cat-file`, so ONLY a hash that really is a commit is reported: a rewrite invalidates it,

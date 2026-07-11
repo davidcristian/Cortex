@@ -29,11 +29,19 @@ gate that cries wolf gets disabled, so the boundary needs to be exact.
 Add `scripts/dashcheck.py` (cross-tree, in `just check` and unconditionally in CI, like
 the line cap) and extend `scripts/commitlint.py` from the header to the whole message.
 
-1. **The em dash is always punctuation; the en dash only when spaced.** An unspaced en
-   dash is a range (a 2-4B model, 0.15-0.27 GB), which is correct typography, and U+2212
-   MINUS SIGN is arithmetic. Neither is punctuation, so neither is flagged. This is the
-   precise form of the false positive the sweep hit, and the reason the gate keys on
-   spacing rather than on the character alone.
+1. **The em dash and the en dash are both banned outright; U+2212 MINUS SIGN is not.**
+   The first cut of this ADR banned the en dash only when spaced, on the grounds that an
+   unspaced one is a range (a 2-4B model, 0.15-0.27 GB) and therefore correct typography
+   rather than punctuation. That reasoning was sound but beside the point: the rule exists
+   so prose reads as typed, and a plain ASCII hyphen is how a range is typed. All 49 en
+   dashes in the tree were ranges, every one took a hyphen without loss, and the rule got
+   simpler for it. The minus sign stays legal, since forcing `-` on a subtraction would
+   make the arithmetic wrong rather than plain.
+
+   This is a substitution, which the em-dash rule forbids. The distinction is that an em
+   dash *punctuates*, so swapping in a comma leaves a worse sentence and the fix is to
+   restructure. A range does not punctuate anything; the hyphen is simply its ASCII
+   spelling.
 
 2. **ASCII `--` is banned in a commit message and allowed in a file.** The two are
    different registers. A commit message is pure prose, so ` -- ` there is an em dash in

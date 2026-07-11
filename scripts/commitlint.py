@@ -32,11 +32,11 @@ _HEADER = re.compile(r"^[a-z]+(?:\([^)]*\))?!?: (?P<subject>.+)$")
 # Git-generated or rebase-tooling headers that are exempt from subject style.
 _EXEMPT_PREFIXES = ("Merge ", "fixup! ", "squash! ", "amend! ")
 
-# A dash used as punctuation. An unspaced en dash is a range (``2-4B``) and stays legal;
-# ``--flag`` and a leading ``--`` are not punctuation either.
+# A dash used as punctuation. The en dash is banned outright (a range takes a plain
+# hyphen); ``--flag`` and a leading ``--`` are not punctuation and stay legal.
 _DASHES = (
     (re.compile("\u2014"), "an em dash"),
-    (re.compile("\\s\u2013\\s"), "a spaced en dash"),
+    (re.compile("\u2013"), "an en dash"),
     (re.compile(r"\S\s+--\s"), "a spaced ASCII --"),
 )
 
