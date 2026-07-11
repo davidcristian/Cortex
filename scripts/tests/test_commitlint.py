@@ -105,7 +105,8 @@ def test_main_usage_error_without_a_file_argument(
     ("line", "label"),
     [
         (f"the cause chained {EM} it fails loud", "an em dash"),
-        (f"the cause chained {EN} it fails loud", "a spaced en dash"),
+        (f"the cause chained {EN} it fails loud", "an en dash"),
+        (f"a 2{EN}4B model, where the range once passed", "an en dash"),
         ("the cause chained -- it fails loud", "a spaced ASCII --"),
     ],
 )
@@ -117,8 +118,8 @@ def test_dash_as_punctuation_is_flagged(line: str, label: str) -> None:
 @pytest.mark.parametrize(
     "line",
     [
-        f"a 2{EN}4B model fits",  # unspaced en dash is a range, not punctuation
-        f"VRAM is 24 GB {MINUS} ~11 GB",  # minus sign is arithmetic
+        "a 2-4B model fits",  # a range takes a plain hyphen
+        f"VRAM is 24 GB {MINUS} ~11 GB",  # minus sign is arithmetic, still legal
         "run cargo build --locked",  # CLI flag
         "the well-formed hyphenated-word case",
         "--locked at the start of a line",
