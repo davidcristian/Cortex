@@ -1,13 +1,14 @@
 # scripts/ (`repo-gates`)
 
-**Purpose.** The repo's own gate tooling: the cross-tree line cap, the Rust branch
-coverage threshold, the CI path classifier, and the commit-subject style hook. A
-standalone uv project (not a brain workspace member, per ADR-0002), gated exactly like all
-other Python.
+**Purpose.** The repo's own gate tooling: the cross-tree line cap, the punctuating-dash
+ban, the Rust branch coverage threshold, the CI path classifier, and the commit-message
+style hook. A standalone uv project (not a brain workspace member, per ADR-0002), gated
+exactly like all other Python.
 
-**Public contract** (all are CLIs, with `linecap.py` and `coverage_gate.py` invoked by
-`just` recipes, `ci_paths.py` by the CI workflow, `commitlint.py` by the commit-msg
-pre-commit stage; each also exposes a pure, unit-tested core function).
+**Public contract** (all are CLIs, with `linecap.py`, `dashcheck.py`, and
+`coverage_gate.py` invoked by `just` recipes, `ci_paths.py` by the CI workflow,
+`commitlint.py` by the commit-msg pre-commit stage; each also exposes a pure, unit-tested
+core function).
 
 - `linecap.py [--root DIR] [--max-lines N]` implements AGENTS.md gate 1. Scans `*.py`/`*.rs`
   under `--root` (default `.`), counting ALL lines (code, comments, blanks; cap default
@@ -19,6 +20,18 @@ pre-commit stage; each also exposes a pure, unit-tested core function).
   following symlinks (e.g. a dangling editor-lockfile symlink) is skipped.
   Exit 0 with a summary line; exit 1 printing `path: N lines (cap M)` per violation;
   exit 2 if `--root` is not a directory or a source file cannot be read.
+- `dashcheck.py [--root DIR]` implements the no-dash-as-punctuation rule (ADR-0026).
+  Scans EVERY text file under `--root` (default `.`), not just `*.py`/`*.rs`, because the
+  rule covers docs and comments alike. Flags U+2014 EM DASH anywhere, and U+2013 EN DASH
+  only when spaced. Deliberately silent on an unspaced en dash (a range), U+2212 MINUS
+  SIGN (arithmetic), and ASCII `--` (the repo's inline-reason idiom, which the gate-2
+  escape-hatch rule effectively requires; commit messages are stricter and `commitlint.py`
+  bans it there). Skips the same directory components as `linecap.py` minus `tests` and
+  `_generated`, since prose in a test or a generated stub is still prose; binary files are
+  detected and skipped. A line carrying `dashcheck: allow` plus a reason is exempt, for a
+  dash that means rather than punctuates. Exit 0 with a summary; exit 1 printing
+  `path:line: kind: text` per violation; exit 2 if `--root` is not a directory or a file
+  cannot be read.
 - `coverage_gate.py PATH` reads a `cargo llvm-cov --json --summary-only` export,
   requires exactly one `data[]` entry, and gates each of
   `data[0].totals.{lines,regions,branches}` on `covered == count` (the producer's
@@ -36,20 +49,30 @@ pre-commit stage; each also exposes a pure, unit-tested core function).
   ran. Empty input yields all three `false`. Unmatched paths fail closed to ALL three
   (unknown means over-test, never under-test). Always exits 0, because classification has no
   failure mode.
-- `commitlint.py MESSAGE_FILE` is the machine-checkable half of the AGENTS.md commit
-  rules, run at the commit-msg stage next to conventional-pre-commit. Checks the header
-  (first non-comment line): ≤ 72 chars, lowercase subject, no trailing period. A header
-  that is not Conventional-Commits-shaped passes silently (structure errors are the
-  other hook's to report); `Merge `/`fixup! `/`squash! `/`amend! ` headers are exempt.
-  Imperative mood is not machine-checkable and stays convention. Exit 0 clean; exit 1
-  printing one `commitlint: PROBLEM: HEADER` line per violation; argparse exit 2 on
-  usage errors.
+- `commitlint.py MESSAGE_FILE [--repo DIR]` is the machine-checkable half of the AGENTS.md
+  commit rules, run at the commit-msg stage next to conventional-pre-commit. Checks the
+  header (first non-comment line): ≤ 72 chars, lowercase subject, no trailing period. A
+  header that is not Conventional-Commits-shaped passes silently (structure errors are the
+  other hook's to report); `Merge `/`fixup! `/`squash! `/`amend! ` headers are exempt, body
+  rules included, because that wording is git's and not the author's. Across the WHOLE
+  message (subject and body) it also bans a dash used as punctuation (em dash, spaced en
+  dash, spaced ASCII `--`, since a message is pure prose) and volatile references: a slice
+  number, a decision-record number, the roadmap, or a numbered assumption/increment/gate/
+  decision/audit. Hex tokens are resolved against `--repo` (default `.`) with `git
+  cat-file`, so ONLY a hash that really is a commit is reported: a rewrite invalidates it,
+  while action SHAs and digests stay legal. If `git` is unavailable the hash check cannot
+  disprove anything and passes rather than blocking the commit. Imperative mood is not
+  machine-checkable and stays convention. Exit 0 clean; exit 1 printing one
+  `commitlint: PROBLEM` line per violation; argparse exit 2 on usage errors.
 
 **Invariants.**
 - stdlib-only modules; pure cores (`scan`, `evaluate`/`check`, `classify`) unit-tested
   to 100% line+branch; the only coverage pragmas are the `__main__` guard lines.
 - The exclusion lists above are the single definition of "non-test source file" and
   "generated code" for the cap. Change them only with an ADR update.
+- `dashcheck.py`, `commitlint.py`, and their tests spell the dashes as `\uXXXX` escapes
+  rather than literals, so the gates pass the rule they enforce. A literal would make the
+  gate flag itself.
 - `ci_paths.py` runs under a plain `python3` on a GitHub runner **before** any `uv
   sync`: it must never grow a third-party import. Its `RULES` table and the rule list
   in ADR-0006 are the same normative list, so change them together.
