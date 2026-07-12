@@ -498,12 +498,13 @@ async def test_tool_loop_stops_at_the_step_bound() -> None:
     assert len(sink.records) == MAX_TOOL_STEPS
 
 
-async def test_tool_step_summary_derives_from_the_spec_never_the_arguments() -> None:
-    """The activity summary is registry-authored (ADR-0009 addendum): a multi-line advertised
-    description contributes its first line (length-capped), an empty one falls back to the tool
-    name, and a call to a tool missing from the advertised snapshot falls back to its name too.
-    Model-authored arguments never reach the chip: an argument echo would hand injected content
-    a display channel the reply-side guardrail never inspects."""
+async def test_tool_step_summary_derives_from_the_spec_never_the_model() -> None:
+    """The activity chip is registry-authored (ADR-0009 addendum): a multi-line advertised
+    description contributes its first line (length-capped), an empty one falls back to the
+    advertised name, and a call to a tool MISSING from the advertised snapshot surfaces NO
+    chip at all (only advertised names and descriptions may render). Nothing the model
+    authored, neither the call name nor its arguments, reaches the chip: either would be a
+    display channel the reply-side guardrail never inspects."""
     long_line = "peek at " + "x" * (2 * MAX_STEP_SUMMARY_CHARS)
     registry = InMemoryToolRegistry(
         {
@@ -519,7 +520,7 @@ async def test_tool_step_summary_derives_from_the_spec_never_the_arguments() -> 
             [
                 ToolCall(id="c1", name="peek", arguments={"leak": "http://evil.example"}),
                 ToolCall(id="c2", name="bare", arguments={}),
-                ToolCall(id="c3", name="ghost", arguments={}),
+                ToolCall(id="c3", name="see http://evil.example", arguments={}),
             ],
             [TextChunk("done")],
         ]
@@ -534,19 +535,55 @@ async def test_tool_step_summary_derives_from_the_spec_never_the_arguments() -> 
     )
     events = await _collect(engine.handle_turn("s", "go"))
     activities = [e for e in events if isinstance(e, ToolActivity)]
-    assert [a.tool_name for a in activities] == ["peek", "bare", "ghost"]
-    peek, bare, ghost = activities
+    # Only the two advertised calls surface chips; the model-named ghost call surfaces none,
+    # so its attacker-controlled name never reaches the overlay.
+    assert [a.tool_name for a in activities] == ["peek", "bare"]
+    peek, bare = activities
     assert peek.summary == long_line[:MAX_STEP_SUMMARY_CHARS]
     assert "evil.example" not in peek.summary
     assert bare.summary == "bare"
-    # The unknown tool still surfaced (the activity precedes its failing dispatch) and the
-    # dispatch itself was audited as the usual is_error result the model recovers from.
-    assert ghost.summary == "ghost"
+    # The unadvertised call still dispatched and audited as the usual is_error result.
     assert [(record.name, record.ok) for record in sink.records] == [
         ("peek", True),
         ("bare", True),
-        ("ghost", False),
+        ("see http://evil.example", False),
     ]
+
+
+async def test_tool_activity_is_emitted_before_its_dispatch() -> None:
+    """The chip must show WHILE the tool runs, so the loop yields the activity before it
+    dispatches (ADR-0009 addendum). A yield moved to after the dispatch would still land
+    between the reply deltas and pass a position-only test, so pin the ordering against the
+    dispatch itself: the handler records when it ran, the consumer records when it saw the
+    event, and the event must come first."""
+    order: list[str] = []
+
+    async def logging_handler(arguments: Mapping[str, object]) -> str:
+        del arguments
+        order.append("dispatched")
+        return "ok"
+
+    registry = InMemoryToolRegistry(
+        {"work": (ToolSpec(name="work", description="do work", parameters={}), logging_handler)}
+    )
+    backend = ScriptedToolBackend(
+        [[ToolCall(id="c1", name="work", arguments={})], [TextChunk("done")]]
+    )
+    engine = TurnEngine(
+        InMemorySessionStore(),
+        backend,
+        TickingClock(),
+        capabilities=TurnCapabilities(
+            tools=ToolDispatcher(registry, RecordingAuditSink(), TickingClock())
+        ),
+        turn_id_factory=lambda: "t-1",
+    )
+    async for event in engine.handle_turn("s", "go"):
+        # Interleaved with the handler's own append (not a transform): a comprehension would
+        # collect activities separately and lose the ordering against `dispatched`.
+        if isinstance(event, ToolActivity):
+            order.append("activity")  # noqa: PERF401
+    assert order == ["activity", "dispatched"]
 
 
 async def test_reasoning_deltas_surface_as_thinking_status_and_never_reach_the_reply() -> None:

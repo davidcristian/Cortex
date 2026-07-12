@@ -356,14 +356,17 @@ and closed here (the loop's home). Decisions:
    `SubagentRunner` keeps only `str` deltas in its joined output, dropping tool steps with
    reasoning: a subagent's loop has no `Converse` stream to ride, and surfacing its progress
    is the standing ADR-0010 deferral.
-2. **The summary is registry-authored, never model-authored.** It derives from the advertised
-   `ToolSpec.description` (first line, capped at `MAX_STEP_SUMMARY_CHARS`), falling back to the
-   bare tool name when the description is empty or the called tool is missing from the step's
-   advertisement snapshot (the skip-mode window; the dispatch itself still runs and fails as
-   its usual `is_error` result). The model's call *arguments* never reach the chip: they are
-   written after the model may have read untrusted content, and the ADR-0015 guardrail scrubs
-   only reply text, so an argument echo would hand injected content an unfiltered display
-   channel.
+2. **Both chip fields are registry-authored, never model-authored (post-review hardening).**
+   A `ToolStep` is yielded **only for a call that matched an advertised `ToolSpec`**, and it
+   carries `spec.name` and `spec.description` (first line, capped at `MAX_STEP_SUMMARY_CHARS`,
+   name as the empty-description fallback), never the model's `call.name` or its arguments. An
+   unadvertised name (a model hallucination, or a tool skip-mode hid) still dispatches and
+   fails as its usual `is_error` result, but renders **no chip**. The first cut rendered
+   `call.name` and, for an unadvertised call, used it as the summary too: an adversarial
+   review flagged that as exactly the model-writable display channel this event must not open,
+   since the model's string is written after it may have read untrusted content and the
+   ADR-0015 guardrail scrubs only reply text. Closed by keying the emission (and both fields)
+   on the advertised spec.
 3. **Start-only, no wire `phase` field.** One event per dispatch; the overlay chip is
    latest-wins and the turn-ending event clears it, which already gives a sensible lifecycle.
    A `phase` on the wire needs a proto field plus both committed stub trees; deferred until a
@@ -373,6 +376,7 @@ and closed here (the loop's home). Decisions:
    credit-bounded `Converse` queue), so the chip needed no policy to land; limiting *dispatch*
    is its own design.
 
-CI-gated end to end over the fakes (loop yield order, engine passthrough and summary
-derivation branches, runner drop, wire mapping); the overlay half was already browser-validated
-when the chips landed, and renders this event with no overlay change.
+CI-gated end to end over the fakes (loop yield-before-dispatch order, engine passthrough, the
+registry-authored summary derivation with an unadvertised call surfacing no chip, runner drop,
+wire mapping); the overlay half was already browser-validated when the chips landed, and
+renders this event with no overlay change.

@@ -56,24 +56,26 @@ class ToolStep:
     """One audited tool dispatch about to run, yielded by the loop immediately before the
     dispatch so a consumer can surface it while the tool works (ADR-0009 addendum). Ephemeral
     like ``ReasoningDelta``: the cortex engine maps it to the domain ``ToolActivity`` event,
-    a subagent drops it. ``summary`` derives from the advertised spec (``_step_summary``),
-    never from model-authored call arguments.
+    a subagent drops it. Both fields are copied straight off the advertised ``ToolSpec``
+    (``tool_name`` is ``spec.name``, ``summary`` is ``_step_summary``): nothing the model
+    authored, neither the call name nor its arguments, ever rides this event.
     """
 
     tool_name: str
     summary: str
 
 
-def _step_summary(spec: ToolSpec | None, name: str) -> str:
-    """The chip text for one dispatch: the advertised description's first line, capped; the
-    bare tool name when the spec is unknown to this step's snapshot or its description empty.
+def _step_summary(spec: ToolSpec) -> str:
+    """The chip text for one dispatch: the advertised description's first line, capped, with
+    the advertised name as the fallback when the description is empty.
 
-    Registry-authored by construction. The model's call arguments never reach it, as an
-    argument echo would hand injected content a display channel the reply-side guardrail
-    (ADR-0015) never inspects.
+    Registry-authored by construction, because a ``ToolStep`` is only yielded for a call that
+    matched an advertised spec (``stream_tool_loop``). The model's call name and arguments
+    never reach it: a value the model authored would be a display channel the reply-side
+    guardrail (ADR-0015) never inspects, exactly the laundering surface this event must not open.
     """
-    description = spec.description.strip() if spec is not None else ""
-    line = description.splitlines()[0] if description else name
+    description = spec.description.strip()
+    line = description.splitlines()[0] if description else spec.name
     return line[:MAX_STEP_SUMMARY_CHARS]
 
 
@@ -156,9 +158,13 @@ async def stream_tool_loop(
             _call_message("".join(step_text), calls, context.clock.now(), context.turn_id)
         )
         for call in calls:
-            yield ToolStep(
-                tool_name=call.name, summary=_step_summary(spec_by_name.get(call.name), call.name)
-            )
+            # Surface activity only for a call that matched an advertised spec, so the chip's
+            # name and summary are both registry-authored (ADR-0009 addendum). A call to an
+            # unadvertised name (a model hallucination, or a tool skip-mode hid) still
+            # dispatches below and fails as its usual is_error result, but never renders a
+            # chip carrying the model's chosen string.
+            if (spec := spec_by_name.get(call.name)) is not None:
+                yield ToolStep(tool_name=spec.name, summary=_step_summary(spec))
             # The advertised gated flag is a hint; the dispatcher OR-s it with its own
             # authoritative gated-name set, so a tool a flaky sidecar hid from this snapshot
             # (skip mode) and later recovered is still gated at dispatch (ADR-0022).

@@ -33,8 +33,10 @@ Conversation domain (Slice 3):
   orchestrator maps them onto the proto's `ServerEvent`). `StatusUpdate` is ephemeral mid-turn
   progress. Its first use (ADR-0020) is a reasoning model's live thinking (`state="thinking"`),
   never persisted or part of the reply. `ToolActivity` (ADR-0009 addendum) is equally ephemeral:
-  one per audited dispatch, emitted just before the tool runs, its `summary` registry-authored
-  (spec description first line, name fallback), never model-authored call arguments.
+  one per audited dispatch, emitted just before the tool runs. Both fields are registry-authored
+  (`tool_name` = advertised `ToolSpec.name`, `summary` = its description first line); the loop
+  emits none for a call that matched no advertised spec, so nothing the model authored, name or
+  arguments, ever reaches the chip.
 - `TextChunk(text)` / `ReasoningChunk(text)` carries one streamed reply / thinking delta from a
   backend; `InferenceEvent` is the union `TextChunk | ReasoningChunk | ToolCall`, what an
   `InferenceBackend` yields (ADR-0009/0020).
@@ -350,8 +352,9 @@ Use-case:
 - `stream_tool_loop(backend, model, working, context: ToolLoopContext)` (in `tool_loop`)
   is the bounded infer↔tool loop shared by `TurnEngine` and `SubagentRunner` (ADR-0010): an
   async generator yielding assistant text deltas (`str`), `ReasoningDelta`s (ADR-0020), and a
-  `ToolStep(tool_name, summary)` immediately before each audited dispatch (ADR-0009 addendum;
-  the engine maps it to `ToolActivity`, a subagent drops it), mutating `working` in place with
+  `ToolStep(tool_name, summary)` immediately before each audited dispatch *of an advertised
+  tool* (ADR-0009 addendum; both fields copied off the matched `ToolSpec`, so an unadvertised
+  call surfaces no step; the engine maps it to `ToolActivity`, a subagent drops it), mutating `working` in place with
   the tool-call and `Role.TOOL` result messages; ends on a tool-free step, a `None` dispatcher,
   or `MAX_TOOL_STEPS` (8) rounds. It draws the untrusted boundary (ADR-0013): each call is dispatched
   with the turn's `tainted` state and the tool's `gated` flag (the ADR-0022 gate: tainted denies
@@ -443,9 +446,10 @@ Use-case:
   `ScheduledItem.tainted` from the dispatcher's `call.tainted`; creation/cancel/snooze results
   are `TRUSTED` and never echo the stored text; the listing echoes text and so is `TRUSTED` only
   when every listed item is clean, else `UNTRUSTED` (fenced + re-tainting, the spawn aggregate
-  rule). `snooze_scheduled` takes `{id, for_seconds}` (relative by meaning; the creation bounds
-  mirrored) and refuses a recurring item with the workaround named, since rewriting `due_at`
-  would re-anchor the series (snooze addendum). All four ungated by default
+  rule). `snooze_scheduled` takes `{id, for_seconds}` (relative by meaning; `for_seconds`
+  reuses the recurrence-interval bounds `[60 s, ten-year]`, not the unbounded one-shot delay)
+  and refuses a recurring item with the workaround named, since rewriting `due_at` would
+  re-anchor the series (snooze addendum). All four ungated by default
   (`CORTEX_TOOLS_GATED` is the backstop); bad arguments, a naive `at`, and a
   `ScheduleStoreError` all become `is_error` `TRUSTED` results. None ever raises.
 - `CompositeToolRegistry(builtins, remote=None)` is a `ToolRegistry` merging built-in tools with

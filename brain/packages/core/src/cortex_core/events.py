@@ -30,10 +30,11 @@ class StatusUpdate:
 class ToolActivity:
     """An audited tool call the turn is running (proto ``ToolActivity``), emitted just before
     its dispatch so the overlay's activity chip shows while the tool works (ADR-0009 addendum).
-    ``summary`` is registry-authored (derived from the advertised ``ToolSpec``), never
-    model-authored call arguments: an argument echo would hand injected content a display
-    channel the reply-side guardrail (ADR-0015) never inspects. Ephemeral like
-    ``StatusUpdate``: never reply text, never persisted.
+    Both fields are registry-authored: ``tool_name`` is the advertised ``ToolSpec.name`` and
+    ``summary`` its description (the loop emits nothing for a call that matched no advertised
+    spec). Nothing the model authored, neither the call name nor its arguments, ever rides
+    here: a model-authored value would be a display channel the reply-side guardrail (ADR-0015)
+    never inspects. Ephemeral like ``StatusUpdate``: never reply text, never persisted.
     """
 
     tool_name: str

@@ -324,8 +324,11 @@ without a brain; `overlay-ux.md` gains the card's spec.
 - A structured confirm-resolution event so the overlay can close a stale card exactly.
 - Trust (as opposed to gating) overlays for remote tools. Still nothing needs one.
 - Batching / per-tool session allowlists against confirmation fatigue.
-- Salience of `ToolActivity`: still emitted by nothing; the confirm card is the first
-  mid-turn tool surface, and a general tool-activity chip remains an overlay-gap item.
+- Salience of `ToolActivity`: **landed 2026-07-12** end to end (the shared tool loop emits a
+  registry-authored `ToolActivity` per audited dispatch, the overlay renders it as an inline
+  chip; ADR-0009 chip addendum). The confirm card was the first mid-turn tool surface; the
+  general activity chip is now the second. The *dispatch* rate/salience policy this line
+  originally gestured at stays a separate deferral (ADR-0009 risks).
 - **The subagent-side authoritative gated-name backstop is available but not wired.**
   `ToolDispatcher` and `build_subagent_tools` both accept `gated_names` (the post-review
   hardening that makes the *cortex's* gate independent of advertisement), but
