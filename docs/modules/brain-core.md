@@ -28,10 +28,13 @@ Conversation domain (Slice 3):
   message that asked to run tools) and `tool_call_id: str | None = None` (set on a `TOOL`
   result). Rejects naive `at` with `ValueError`, since externalized state must carry its
   timezone. `turn_id` ties a user message to the assistant reply it produced.
-- `TextDelta(text)` / `StatusUpdate(state, detail)` / `TurnCompleted(turn_id, full_text)` are
-  frozen domain events; `TurnEvent` is their union (the orchestrator maps them onto the proto's
-  `ServerEvent`). `StatusUpdate` is ephemeral mid-turn progress. Its first use (ADR-0020) is a
-  reasoning model's live thinking (`state="thinking"`), never persisted or part of the reply.
+- `TextDelta(text)` / `StatusUpdate(state, detail)` / `ToolActivity(tool_name, summary)` /
+  `TurnCompleted(turn_id, full_text)` are frozen domain events; `TurnEvent` is their union (the
+  orchestrator maps them onto the proto's `ServerEvent`). `StatusUpdate` is ephemeral mid-turn
+  progress. Its first use (ADR-0020) is a reasoning model's live thinking (`state="thinking"`),
+  never persisted or part of the reply. `ToolActivity` (ADR-0009 addendum) is equally ephemeral:
+  one per audited dispatch, emitted just before the tool runs, its `summary` registry-authored
+  (spec description first line, name fallback), never model-authored call arguments.
 - `TextChunk(text)` / `ReasoningChunk(text)` carries one streamed reply / thinking delta from a
   backend; `InferenceEvent` is the union `TextChunk | ReasoningChunk | ToolCall`, what an
   `InferenceBackend` yields (ADR-0009/0020).
@@ -343,9 +346,11 @@ Use-case:
   `max_chars < 1` raises `ValueError` (`0` as an off switch lives in the wiring, not here).
 - `stream_tool_loop(backend, model, working, context: ToolLoopContext)` (in `tool_loop`)
   is the bounded infer↔tool loop shared by `TurnEngine` and `SubagentRunner` (ADR-0010): an
-  async generator yielding assistant text deltas, mutating `working` in place with the tool-call
-  and `Role.TOOL` result messages; ends on a tool-free step, a `None` dispatcher, or
-  `MAX_TOOL_STEPS` (8) rounds. It draws the untrusted boundary (ADR-0013): each call is dispatched
+  async generator yielding assistant text deltas (`str`), `ReasoningDelta`s (ADR-0020), and a
+  `ToolStep(tool_name, summary)` immediately before each audited dispatch (ADR-0009 addendum;
+  the engine maps it to `ToolActivity`, a subagent drops it), mutating `working` in place with
+  the tool-call and `Role.TOOL` result messages; ends on a tool-free step, a `None` dispatcher,
+  or `MAX_TOOL_STEPS` (8) rounds. It draws the untrusted boundary (ADR-0013): each call is dispatched
   with the turn's `tainted` state and the tool's `gated` flag (the ADR-0022 gate: tainted denies
   outright, untainted confirms), its result is observed by `context.taint` (taint bit + the untrusted-URL
   evidence the output guardrail reads, ADR-0015), and an `UNTRUSTED` result is fenced by

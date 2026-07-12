@@ -9,7 +9,8 @@ Stream contract (proto/body.proto `BrainService.Converse`):
 
 - `UserTurn` runs one core turn; domain events map onto `ServerEvent`: one
   `TextDelta` per streamed reply delta, a `StatusUpdate` per reasoning delta
-  (ADR-0020, `state="thinking"`), then `TurnComplete{turn_id}`. `UserTurn.images`
+  (ADR-0020, `state="thinking"`), a `ToolActivity` per audited tool dispatch
+  (ADR-0009 addendum), then `TurnComplete{turn_id}`. `UserTurn.images`
   are ignored in this slice. Multimodal input arrives with vision (Slice 10).
 - Turns run one at a time, but dispatch never blocks on the running turn: a
   `UserTurn` arriving mid-turn is queued and starts when the in-flight turn
@@ -41,10 +42,12 @@ from cortex_core import (
 )
 from cortex_core import StatusUpdate as DomainStatusUpdate
 from cortex_core import TextDelta as DomainTextDelta
+from cortex_core import ToolActivity as DomainToolActivity
 from cortex_orchestrator.confirm import SeamConfirmer
 from cortex_seam import ClientEvent, SeamError, ServerEvent, TurnComplete
 from cortex_seam import StatusUpdate as WireStatusUpdate
 from cortex_seam import TextDelta as WireTextDelta
+from cortex_seam import ToolActivity as WireToolActivity
 
 # How the servicer builds one stream's engine (ADR-0022): a closure over the shared
 # adapters that wires THIS stream's confirmer into the dispatcher. Engines are stateless
@@ -74,6 +77,10 @@ def _to_server_event(event: TurnEvent) -> ServerEvent:
         return ServerEvent(text_delta=WireTextDelta(text=event.text))
     if isinstance(event, DomainStatusUpdate):
         return ServerEvent(status=WireStatusUpdate(state=event.state, detail=event.detail))
+    if isinstance(event, DomainToolActivity):
+        return ServerEvent(
+            tool_activity=WireToolActivity(tool_name=event.tool_name, summary=event.summary)
+        )
     return ServerEvent(turn_complete=TurnComplete(turn_id=event.turn_id))
 
 
