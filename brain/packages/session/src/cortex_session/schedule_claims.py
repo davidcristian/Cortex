@@ -107,12 +107,11 @@ async def purge_dead_letter(client: Redis, item_id: str) -> bool:
     return removed > 0
 
 
-async def _claim_one(client: Redis, item_id: str, now: datetime) -> ScheduleClaim | None:
-    """Move one eligible item to FIRING under a fresh token, the guard WATCH-fenced.
-
-    A record raced away (cancelled) or claimed by a concurrent transition skips (None);
-    an undecodable one quarantines; a dangling index entry is dropped.
-    """
+async def _claim_one(
+    client: Redis, item_id: str, now: datetime, lease: timedelta
+) -> ScheduleClaim | None:
+    """Move one eligible item to FIRING under a fresh token, the guard WATCH-fenced."""
+    del lease
     async with client.pipeline(transaction=True) as pipe:
         await pipe.watch(record_key(item_id))
         raw = await pipe.get(record_key(item_id))
@@ -130,6 +129,9 @@ async def _claim_one(client: Redis, item_id: str, now: datetime) -> ScheduleClai
             logger.exception("undecodable schedule record on the claim path")
             await pipe.unwatch()
             await quarantine(client, item_id, raw)
+            return None
+        if item.status is ScheduleStatus.PENDING and item.due_at > now:
+            await pipe.unwatch()
             return None
         firing = replace(item, status=ScheduleStatus.FIRING)
         token = str(uuid4())
@@ -152,7 +154,7 @@ async def claim_due(
     expired = await ids(client, FIRING_KEY, upto=(now - lease).timestamp(), limit=limit)
     claims: list[ScheduleClaim] = []
     for item_id in dict.fromkeys(due + expired):
-        claim = await _claim_one(client, item_id, now)
+        claim = await _claim_one(client, item_id, now, lease)
         if claim is not None:
             claims.append(claim)
     claims.sort(key=lambda claim: claim.item.due_at)
