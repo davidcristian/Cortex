@@ -103,3 +103,21 @@ the line cap) and extend `scripts/commitlint.py` from the header to the whole me
   tree still read 100%, since an unmeasured module cannot lower an average. Measuring the
   tree instead of a list is the fix; recorded in the ROADMAP's deferred-refinements
   section. Until then a new script must be hand-added to both lists or it is ungated.
+  *Closed by the 2026-07-12 addendum below.*
+
+## Addendum (2026-07-12): the fail-open gate config is closed
+
+The deferred item above is done. `scripts/pyproject.toml` now measures the tree instead
+of a list on both fronts. pytest-cov runs `--cov=.`, under which coverage discovers every
+`*.py` file in the tree, so a script no test imports reports 0% and fails the 100%
+threshold instead of being invisibly absent from an average. An explicit
+`[tool.coverage.run] omit` keeps `tests/` and `.venv/` out, preserving the prior
+semantics (test files were never measured). pyright's `include` is now `"."`, with an
+explicit `exclude` for `.venv`, `__pycache__`, and `.pytest_cache`. Escaping either gate
+now requires writing an exclusion, never forgetting an addition, which is the fail-closed
+posture every other classifier in `scripts/` already had.
+
+Proven to fail before being trusted, per the repo's distrust-green rule: a probe script
+(an untested, untyped function added to no list) dropped total coverage to 98.62% and
+failed pytest, and raised two strict-mode pyright errors; with the probe removed,
+`just check-scripts` passes at 100%.
