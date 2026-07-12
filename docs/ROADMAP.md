@@ -1026,13 +1026,14 @@ each behind the unchanged `Confirmer`/`ToolDispatcher`/`GatedToolRegistry`/seam 
 - **`ToolActivity` salience** is still emitted by nothing; the confirm card is the first mid-turn
   tool surface, so a general tool-activity chip stays an overlay-gap item (joins the Slice-8
   design-doc interaction gaps).
-- **The subagent-side authoritative gated-name backstop is available but not wired** (post-review,
-  2026-07-08). `ToolDispatcher`/`build_subagent_tools` accept `gated_names` (which makes the
-  cortex's gate independent of advertisement, closing the skip-mode window there), but
-  `build_subagents` does not pass it (a 7th arg trips the PLR0913 cap). Subagents stay covered by
-  `UngatedToolRegistry` (strip + live-walk refusal) + `confirmer=None`; only the astronomically
-  narrow skip-mode double-walk window is uncovered on that path. Wire it through the unchanged
-  `build_subagent_tools` seam if it ever matters.
+- **The subagent-side authoritative gated-name backstop wired 2026-07-12
+  ([ADR-0022 addendum](adr/ADR-0022-email-write-confirmer.md)).** `build_subagents` now receives
+  its dispatcher pre-assembled: the composition root calls
+  `build_subagent_tools(tool_registry, clock, gated_names=CORTEX_TOOLS_GATED)` and passes the
+  result (the builtins-bundling precedent, so no 7th arg trips the PLR0913 cap). The user's
+  gated set covers subagents exactly as it covers the cortex and the ticker, closing the
+  skip-mode double-walk window; `UngatedToolRegistry` (strip + live-walk refusal) and
+  `confirmer=None` stay as the structural layers beneath it.
 
 **Body gateway & OS actions in Slice 9 ([ADR-0023](adr/ADR-0023-body-gateway-volume.md)):** each
 behind the unchanged `BodyGateway`/`AudioControl`/`BodyService` seams.

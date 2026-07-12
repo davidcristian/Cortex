@@ -14,7 +14,10 @@ client) and its own `PlacementRequest`; the `ResourceBudgetScheduler` and the `S
 are ONE object across entries, meaning one CPU/RAM budget, one VRAM ledger, whatever the mix
 (ADR-0012 unchanged). A subagent runs the shared tool loop with the MCP tool subset (no
 delegation, so depth-1), stripped of gated tools by `UngatedToolRegistry` (ADR-0013
-subagent-exclusion addendum), as a stateless function over the Redis `TaskStore`.
+subagent-exclusion addendum), as a stateless function over the Redis `TaskStore`. The
+dispatcher over that subset arrives pre-assembled from `build_subagent_tools` at the
+composition root (the builtins-bundling precedent for the argument ceiling), which threads
+`CORTEX_TOOLS_GATED` in as the authoritative gated-name backstop (ADR-0022).
 """
 
 from collections.abc import Awaitable, Callable, Collection
@@ -73,7 +76,7 @@ def _entry_profile(
 
 async def build_subagents(
     config: SubagentsConfig,
-    tool_registry: ToolRegistry | None,
+    tools: ToolDispatcher | None,
     redis_url: str,
     clock: Clock,
     *,
@@ -88,8 +91,11 @@ async def build_subagents(
     GPU-first per entry: the shared `placer` (built from the GPU soft cap at the call site)
     fit-tests each spawn, routing to that entry's GPU `llama-server` (`-ngl 99`) or its CPU one
     (`-ngl 0`); the shared `ResourceBudgetScheduler` admits it under one soft CPU/RAM budget.
-    The returned closer releases the shared backend client and the task store; the shared MCP
-    session is released by `build_tool_registry`, not here.
+    `tools` is the subagents' dispatcher, pre-assembled by `build_subagent_tools` at the
+    composition root so the user's `CORTEX_TOOLS_GATED` backstop reaches it without a
+    seventh builder argument (ADR-0022). The returned closer releases the shared backend
+    client and the task store; the shared MCP session is released by `build_tool_registry`,
+    not here.
     """
     if config.backend == "none":
         return None, noop_aclose
@@ -103,11 +109,7 @@ async def build_subagents(
         default=config.model,
     )
     store = task_store_factory(redis_url)
-    # No gated_names passed for subagents: they are protected by UngatedToolRegistry (strips
-    # gated tools, refusing a gated name by a live walk at invoke) plus confirmer=None. The
-    # gated-name backstop is available on build_subagent_tools for a caller that wants it, but
-    # the default subagent path does not need a 7th builder arg for it (ADR-0022).
-    runner = SubagentRunner(store, roster, clock, tools=build_subagent_tools(tool_registry, clock))
+    runner = SubagentRunner(store, roster, clock, tools=tools)
 
     async def close_subagents() -> None:
         await store.aclose()
@@ -128,7 +130,8 @@ def build_subagent_tools(
     keeps the `confirmer=None` default). The spawn tool is likewise absent (depth-1, ADR-0010).
     `gated_names` is the authoritative gate backstop (ADR-0022): should the skip-mode
     advertisement window ever let a stripped-then-recovered gated name through, the dispatcher
-    still treats it as gated, and with `confirmer=None` that is a hard deny.
+    still treats it as gated, and with `confirmer=None` that is a hard deny. The composition
+    root passes `CORTEX_TOOLS_GATED` here, so the user's set covers subagents too.
     """
     if tool_registry is None:
         return None
