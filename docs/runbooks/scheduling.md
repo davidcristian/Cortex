@@ -1,7 +1,9 @@
 # Runbook for Slice 9.5: scheduling & reminders
 
-Slice 9.5 (ADR-0025) gives the brain a sense of time: durable schedules in Redis, three
-cortex-only tools (`schedule_task` / `list_scheduled` / `cancel_scheduled`), the
+Slice 9.5 (ADR-0025) gives the brain a sense of time: durable schedules in Redis, four
+cortex-only tools (`schedule_task` / `list_scheduled` / `cancel_scheduled` /
+`snooze_scheduled`, the last postponing a one-shot by `for_seconds` from now; recurring
+items refuse, per the snooze addendum), the
 `ScheduleTicker` firing what is due, and reminder delivery by pull over
 `ListDueReminders`/`AckReminder`, push over `BodyService.Notify` when the body is wired.
 The CI-gated half is green under `just check`; this runbook covers bring-up, the

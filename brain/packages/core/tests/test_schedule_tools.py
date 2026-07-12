@@ -1,4 +1,4 @@
-"""The three schedule built-ins: parsing, bounds, trust, and the tainted-task refusal
+"""The four schedule built-ins: parsing, bounds, trust, and the tainted-task refusal
 (ADR-0025)."""
 
 from collections.abc import Callable, Sequence
@@ -19,6 +19,7 @@ from cortex_core import (
     ScheduleKind,
     ScheduleStoreError,
     ScheduleTaskTool,
+    SnoozeScheduledTool,
     ToolCall,
     ToolDispatcher,
     Trust,
@@ -77,6 +78,10 @@ class FailingStore(InMemoryScheduleStore):
         raise self._down()
 
     async def cancel(self, item_id: str) -> bool:
+        del item_id
+        raise self._down()
+
+    async def get(self, item_id: str) -> ScheduledItem | None:
         del item_id
         raise self._down()
 
@@ -418,3 +423,102 @@ async def test_cancel_requires_a_string_id(bad_id: object) -> None:
 def test_view_tool_specs_name_their_tools() -> None:
     assert ListScheduledTool(InMemoryScheduleStore()).spec.name == "list_scheduled"
     assert CancelScheduledTool(InMemoryScheduleStore()).spec.name == "cancel_scheduled"
+    assert _snooze_tool(InMemoryScheduleStore()).spec.name == "snooze_scheduled"
+
+
+# --- snooze ------------------------------------------------------------------------------------
+
+
+def _snooze_tool(store: InMemoryScheduleStore) -> SnoozeScheduledTool:
+    return SnoozeScheduledTool(store, FixedClock())
+
+
+def _snooze_call(arguments: dict[str, Any]) -> ToolCall:
+    return ToolCall(id="c", name="snooze_scheduled", arguments=arguments)
+
+
+async def test_snooze_round_trip_postpones_from_now() -> None:
+    tool, store = _tool()
+    await tool.invoke(_call({"kind": "reminder", "text": "stretch", "in_seconds": 60}))
+    result = await _snooze_tool(store).invoke(_snooze_call({"id": "item-1", "for_seconds": 600}))
+    assert not result.is_error
+    assert result.content == "snoozed item-1: now due 2026-07-12T12:10:00+00:00"
+    assert result.trust is Trust.TRUSTED
+    loaded = await store.get("item-1")
+    assert loaded is not None
+    assert loaded.due_at == _NOW + timedelta(minutes=10)
+    # The stored text never rides the result (the no-echo rule).
+    assert "stretch" not in result.content
+
+
+async def test_snooze_unknown_id_is_a_correctable_error() -> None:
+    result = await _snooze_tool(InMemoryScheduleStore()).invoke(
+        _snooze_call({"id": "ghost", "for_seconds": 600})
+    )
+    assert result.is_error
+    assert "no scheduled item ghost" in result.content
+
+
+async def test_snooze_refuses_a_recurring_item_with_the_workaround() -> None:
+    tool, store = _tool()
+    await tool.invoke(
+        _call({"kind": "reminder", "text": "water", "in_seconds": 60, "every_seconds": 3600})
+    )
+    result = await _snooze_tool(store).invoke(_snooze_call({"id": "item-1", "for_seconds": 600}))
+    assert result.is_error
+    assert "recurring" in result.content
+    assert "cancel" in result.content
+
+
+async def test_snooze_refuses_a_firing_item() -> None:
+    tool, store = _tool()
+    await tool.invoke(_call({"kind": "reminder", "text": "x", "in_seconds": 60}))
+    await store.claim_due(_NOW + timedelta(seconds=60), lease=timedelta(seconds=300), limit=8)
+    result = await _snooze_tool(store).invoke(_snooze_call({"id": "item-1", "for_seconds": 600}))
+    assert result.is_error
+    assert "firing right now" in result.content
+
+
+async def test_snooze_racing_a_change_reports_it_correctably() -> None:
+    """The advisory read passes but the fenced transition refuses (a cancel/claim won)."""
+
+    class RacingStore(InMemoryScheduleStore):
+        async def snooze(self, item_id: str, *, until: datetime) -> bool:
+            del item_id, until
+            return False  # the store-side fence lost to a concurrent transition
+
+    store = RacingStore()
+    tool = ScheduleTaskTool(
+        store, FixedClock(), tasks_enabled=False, max_active=8, item_id_factory=_ids()
+    )
+    await tool.invoke(_call({"kind": "reminder", "text": "x", "in_seconds": 60}))
+    result = await _snooze_tool(store).invoke(_snooze_call({"id": "item-1", "for_seconds": 600}))
+    assert result.is_error
+    assert "changed underneath" in result.content
+
+
+@pytest.mark.parametrize("bad_id", [None, 3, ""])
+async def test_snooze_requires_a_string_id(bad_id: object) -> None:
+    result = await _snooze_tool(InMemoryScheduleStore()).invoke(
+        _snooze_call({"id": bad_id, "for_seconds": 600})
+    )
+    assert result.is_error
+    assert "'id' must be" in result.content
+
+
+@pytest.mark.parametrize("bad_delay", [None, "soon", True, 59, 315_360_001])
+async def test_snooze_bounds_the_delay(bad_delay: object) -> None:
+    result = await _snooze_tool(InMemoryScheduleStore()).invoke(
+        _snooze_call({"id": "item-1", "for_seconds": bad_delay})
+    )
+    assert result.is_error
+    assert "'for_seconds' must be a number between" in result.content
+
+
+async def test_snooze_wraps_a_down_store() -> None:
+    result = await _snooze_tool(FailingStore()).invoke(
+        _snooze_call({"id": "item-1", "for_seconds": 600})
+    )
+    assert result.is_error
+    assert "unavailable" in result.content
+    assert result.trust is Trust.TRUSTED

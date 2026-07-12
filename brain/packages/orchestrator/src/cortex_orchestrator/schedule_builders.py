@@ -14,6 +14,7 @@ from cortex_core import (
     ListScheduledTool,
     ScheduleStore,
     ScheduleTaskTool,
+    SnoozeScheduledTool,
     SpawnSubagentsTool,
     ToolDispatcher,
 )
@@ -54,7 +55,7 @@ def build_schedule_tools(
     *,
     tasks_enabled: bool,
 ) -> list[BuiltinTool]:
-    """The three cortex-only built-ins, or nothing when scheduling is off (ADR-0025)."""
+    """The four cortex-only built-ins, or nothing when scheduling is off (ADR-0025)."""
     if schedules is None:
         return []
     return [
@@ -63,6 +64,7 @@ def build_schedule_tools(
         ),
         ListScheduledTool(schedules),
         CancelScheduledTool(schedules),
+        SnoozeScheduledTool(schedules, clock),
     ]
 
 

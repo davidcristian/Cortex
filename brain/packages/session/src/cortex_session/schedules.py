@@ -105,6 +105,32 @@ class RedisScheduleStore:
         deleted: int = results[3]
         return deleted > 0
 
+    async def snooze(self, item_id: str, *, until: datetime) -> bool:
+        """Postpone a one-shot to ``until``; recurring, FIRING, and unknown answer False."""
+        try:
+            async with self._client.pipeline(transaction=True) as pipe:
+                state = await watched_state(pipe, item_id)
+                if state is None:
+                    return False
+                item, _, _ = state
+                if item.every is not None or item.status is ScheduleStatus.FIRING:
+                    return False
+                snoozed = replace(
+                    item, status=ScheduleStatus.PENDING, due_at=until, deliverable_since=None
+                )
+                pipe.multi()
+                pipe.zrem(DELIVERABLE_KEY, item_id)
+                pipe.set(record_key(item_id), encode(snoozed, claim=None, claimed_at=None))
+                pipe.zadd(DUE_KEY, {item_id: until.timestamp()})
+                try:
+                    await pipe.execute()
+                except WatchError:
+                    return False
+        except RedisError as err:
+            msg = f"snooze of schedule {item_id!r} failed"
+            raise ScheduleStoreError(msg) from err
+        return True
+
     async def claim_due(
         self, now: datetime, *, lease: timedelta, limit: int
     ) -> Sequence[ScheduleClaim]:
