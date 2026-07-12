@@ -144,7 +144,8 @@ stays in CSS.
 
 **Cold start opens a new chat.** Persisted chats are reachable via the switcher and cycling,
 not auto-restored into the panel on launch. That is simpler and fully testable, and the switcher is
-one keystroke away. Auto-restoring the most-recent chat is a recorded deferral.
+one keystroke away. Auto-restoring the most-recent chat is a recorded deferral (landed
+2026-07-12; addendum below).
 
 ## Alternatives rejected
 
@@ -187,8 +188,7 @@ one keystroke away. Auto-restoring the most-recent chat is a recorded deferral.
 ### Deferred (recorded in the ROADMAP)
 
 - **Per-session first/last/length cache in the index** to drop `list_sessions`' N+1 reads.
-- **Auto-restore the most-recent chat on cold start** (this slice opens a new chat; prior chats
-  are reachable via switcher/cycling).
+- **Auto-restore the most-recent chat on cold start** landed 2026-07-12 (addendum below).
 - **Brain-generated summary titles** replace `summarize_session`'s title behind the same
   `SessionSummary`.
 - **Session deletion / rename / pinning** are write operations on the catalog, a later gated
@@ -219,3 +219,21 @@ Both green. The overlay chrome is browser-validated (CI-gated, 77 tests); the Wi
 
 Environment note: the Docker build needed a clean `DOCKER_CONFIG` (the host `~/.docker/config.json`'s
 `credsStore: "desktop.exe"` is unreachable from the WSL shell and breaks the BuildKit frontend pull).
+
+## Addendum (2026-07-12): cold start adopts the most recent chat
+
+The auto-restore deferral lands as the hook-effect refinement the decision anticipated, with one
+design point worth recording: the existing `openSession` action could not be reused. Its
+reducer unconditionally raises the panel (a background restore must never pop UI) and its hook
+callback cancels the in-flight turn and denies pending confirms (correct for a user click,
+destructive for a background adopt). So adoption is its own reducer action, `adoptSession`
+(`sessionState.ts`, split from `overlayState.ts` for the line cap): it hydrates exactly like
+`openSession` but preserves `mode`, and it no-ops unless the overlay is provably untouched,
+still `hidden` with no messages and `seq` 0, so an explicitly fresh chat (new-chat after a
+turn) is never hijacked. The guard is evaluated in the reducer at dispatch time, which makes
+StrictMode's double-fired mount effect idempotent and lets a racing summon, submit, or
+new-chat win; the hook adds a one-attempt-per-mount ref so a later list refresh never
+re-adopts, and a failed history load leaves the fresh chat (the `openSession` rule). Gated at
+100% through the existing FakeBridge harness; browser-validated against the demo bridge in
+both themes (launch lands in the restored chat, hidden until summoned). The real-bridge leg
+rides the unchanged `BrainBridge`, so nothing below the hook changed.
