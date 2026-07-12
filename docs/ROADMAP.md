@@ -739,6 +739,11 @@ Not ordered; picked up when a slice needs one or on request.
   lazy path covers the shell); a **per-method / per-error-code policy**; and a **retry budget /
   circuit-breaker** if a flapping brain ever makes blind retries wasteful.
 
+**Seam auth ([ADR-0016](adr/ADR-0016-seam-token.md)):**
+- **Token rotation / multiple tokens.** Pointless for one user-managed body↔brain pair;
+  revisit with any second client (ADR-0016 deferred). The other ADR-0016 deferral, mTLS on a
+  non-loopback seam, is recorded at the Slice 9 hardened-posture entry below.
+
 **Cortex chat / session in Slice 3:**
 - **Session-history windowing landed 2026-07-03 ([ADR-0014](adr/ADR-0014-history-windowing.md)).**
   A pure `HistoryWindow` seam in `TurnCapabilities` with a turn-aligned char-budget tail
@@ -895,6 +900,12 @@ behind the unchanged `ToolRegistry`/`ToolDispatcher`/`stream_tool_loop` seams (o
   under scoping), **per-scope retention/eviction**, and **cross-scope recall ranking**.
 - **Tiered / self-editing memory + summarization.** Letta's good ideas, adoptable later
   behind the unchanged port (not the framework), per decision 1.
+- **Retrieval quality.** v1 recall is raw top-k cosine with no reranking, recency weighting,
+  or dedup (ADR-0008 risks); revisit behind the unchanged `MemoryStore` port if recall proves
+  noisy.
+- **Write-salience policy.** v1 records the raw exchange text every turn; deciding what
+  *deserves* remembering (salience filtering at record time) is a later policy behind the same
+  port (ADR-0008 risks). Its summarization half is adjacent to the tiered-memory entry above.
 - **ANN index.** Exact cosine now; an approximate index would need a migration, per
   [ADR-0004](adr/ADR-0004-model-lineup.md).
 
@@ -919,8 +930,9 @@ behind the unchanged `ToolRegistry`/`ToolDispatcher`/`stream_tool_loop` seams (o
   Remaining behind the same `InferenceBackend`/`TurnCapabilities` seams (ADR-0020 deferred):
   the **disable-thinking / token-budget** alternatives (still available if a runaway trace needs
   capping), the **output guardrail over reasoning status** (it scrubs the reply, not the thinking),
-  **`state`-aware overlay treatment** (the reducer shows `detail` for any status today, which is an
-  overlay-gap item), and **reasoning persistence/summarization**.
+  **`state`-aware overlay treatment** (the inline chips that landed 2026-07-12 render any status's
+  `detail` with no branch on `state`; a thinking-specific treatment is a chip refinement), and
+  **reasoning persistence/summarization**.
 
 **Subagents in Slice 7 ([ADR-0010](adr/ADR-0010-subagents.md)):**
 - **Subagent progress reporting over the `Converse` status stream.** v1 delegation is synchronous
@@ -941,6 +953,10 @@ behind the unchanged `ToolRegistry`/`ToolDispatcher`/`stream_tool_loop` seams (o
 - **Spontaneous model picks.** See the richer-spawn-schema entry above (ADR-0018 addendum
   finding 1): further nudging beyond the inline example, if the cortex should reach for cheap
   models unprompted.
+- **The per-role escape hatch.** A future subagent role needing a cheap model on a
+  tainted/tool path for a proven-safe reason would be a per-role override on the same roster
+  seam, never a relaxation of the forced-robust default (ADR-0017 risks, ADR-0018 risks).
+  Unimplemented by design; no role justifies it today.
 
 **Body / overlay in Slice 8 ([ADR-0011](adr/ADR-0011-body-v1.md)):**
 - **Multi-turn-within-one-stream + an explicit proto `Cancel` event.** One turn per `Converse`
