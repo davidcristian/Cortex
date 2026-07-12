@@ -4,7 +4,7 @@ Split from ``builders.py`` per the ``subagent_builders.py`` precedent; same cont
 builders called only by ``wiring.run_from_env``, each returning the dependency plus its
 closer where one holds resources. Scheduling is disabled by default (``none``); with
 ``CORTEX_SCHEDULE_BACKEND=redis`` the durable store comes up at ``CORTEX_REDIS_URL``, the
-three cortex-only built-ins join the composite set, and the ticker fires due items, sending
+four cortex-only built-ins join the composite set, and the ticker fires due items, sending
 tasks through its own audited spawn dispatcher (``confirmer=None``, the fail-closed
 autonomous posture), reminders to the deliverable slot plus a push attempt when the body
 gateway is wired (no second knob).
@@ -24,6 +24,7 @@ from cortex_core import (
     ListScheduledTool,
     ScheduleStore,
     ScheduleTaskTool,
+    SnoozeScheduledTool,
     SpawnSubagentsTool,
     ToolDispatcher,
 )
@@ -64,7 +65,7 @@ def build_schedule_tools(
     *,
     tasks_enabled: bool,
 ) -> list[BuiltinTool]:
-    """The three cortex-only built-ins, or nothing when scheduling is off (ADR-0025).
+    """The four cortex-only built-ins, or nothing when scheduling is off (ADR-0025).
 
     ``tasks_enabled`` keys honest advertisement: without a spawn tool wired, the spec
     offers reminders only (and the fire path answers a stale TASK with an ok=False
@@ -78,6 +79,7 @@ def build_schedule_tools(
         ),
         ListScheduledTool(schedules),
         CancelScheduledTool(schedules),
+        SnoozeScheduledTool(schedules, clock),
     ]
 
 

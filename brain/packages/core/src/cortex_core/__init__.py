@@ -81,13 +81,17 @@ from cortex_core.schedule import (
     next_due,
 )
 from cortex_core.schedule_tools import (
-    CANCEL_SCHEDULED_TOOL_NAME,
     LIST_SCHEDULED_TOOL_NAME,
     SCHEDULE_TOOL_NAME,
     TAINTED_TASK_MSG,
-    CancelScheduledTool,
     ListScheduledTool,
     ScheduleTaskTool,
+)
+from cortex_core.schedule_verbs import (
+    CANCEL_SCHEDULED_TOOL_NAME,
+    SNOOZE_SCHEDULED_TOOL_NAME,
+    CancelScheduledTool,
+    SnoozeScheduledTool,
 )
 from cortex_core.scheduler import ResourceBudgetScheduler
 from cortex_core.scope import (
@@ -137,6 +141,7 @@ __all__ = [
     "SCHEDULE_TOOL_NAME",
     "SECURITY_PREAMBLE",
     "SET_VOLUME_TOOL_NAME",
+    "SNOOZE_SCHEDULED_TOOL_NAME",
     "SPAWN_TOOL_NAME",
     "TAINTED_TASK_MSG",
     "USER_DECLINED_MSG",
@@ -207,6 +212,7 @@ __all__ = [
     "SetVolumeTool",
     "SingleResidentModelManager",
     "SkipUnavailableToolRegistry",
+    "SnoozeScheduledTool",
     "SpawnSubagentsTool",
     "StatusUpdate",
     "StrictUrlRedactingGuardrail",

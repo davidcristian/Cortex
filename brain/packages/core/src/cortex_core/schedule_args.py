@@ -29,6 +29,7 @@ _BAD_AT = "'at' must be an ISO-8601 date-time, e.g. 2026-07-12T18:00:00+00:00"
 _NAIVE_AT = "'at' must include a UTC offset, e.g. 2026-07-12T18:00:00+00:00"
 _BAD_IN_SECONDS = "'in_seconds' must be a positive number of seconds"
 _BAD_EVERY = f"'every_seconds' must be a number between {MIN_EVERY_SECONDS} and {MAX_EVERY_SECONDS}"
+_BAD_FOR = f"'for_seconds' must be a number between {MIN_EVERY_SECONDS} and {MAX_EVERY_SECONDS}"
 _MODEL_NEEDS_TASK = "'model' applies only to 'kind': \"task\""
 _BAD_MODEL = "'model' must be a string"
 
@@ -123,6 +124,18 @@ def _parse_text_and_model(
     if model and kind is not ScheduleKind.TASK:
         return _MODEL_NEEDS_TASK
     return text, model
+
+
+def parse_for_seconds(arguments: Mapping[str, Any]) -> timedelta | str:
+    """The validated ``snooze_scheduled`` delay, or a correction string (snooze addendum).
+
+    Snooze is relative by meaning ("from now"), so only ``for_seconds`` exists; its bounds
+    mirror the creation policy (the 60 s floor and the ten-year ceiling).
+    """
+    seconds = _parse_number(arguments.get("for_seconds"))
+    if seconds is None or not MIN_EVERY_SECONDS <= seconds <= MAX_EVERY_SECONDS:
+        return _BAD_FOR
+    return timedelta(seconds=seconds)
 
 
 def parse_schedule(

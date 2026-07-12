@@ -58,7 +58,18 @@ def _dummy_claim() -> ScheduleClaim:
 
 @pytest.mark.parametrize(
     "operation",
-    ["add", "get", "list_active", "cancel", "claim_due", "finish", "release", "deliverable", "ack"],
+    [
+        "add",
+        "get",
+        "list_active",
+        "cancel",
+        "snooze",
+        "claim_due",
+        "finish",
+        "release",
+        "deliverable",
+        "ack",
+    ],
 )
 async def test_backend_failure_wraps_into_schedule_store_error(operation: str) -> None:
     store = _disconnected_store()
@@ -68,6 +79,7 @@ async def test_backend_failure_wraps_into_schedule_store_error(operation: str) -
         "get": lambda: store.get("s1"),
         "list_active": store.list_active,
         "cancel": lambda: store.cancel("s1"),
+        "snooze": lambda: store.snooze("s1", until=_NOW),
         "claim_due": lambda: store.claim_due(_NOW, lease=_LEASE, limit=8),
         "finish": lambda: store.finish(_dummy_claim(), outcome),
         "release": lambda: store.release(_dummy_claim()),
@@ -303,3 +315,22 @@ async def test_claim_racing_a_cancel_is_fenced(monkeypatch: pytest.MonkeyPatch) 
     _poke_on_decode(monkeypatch, server, delete_it)
     assert await store.claim_due(_NOW, lease=_LEASE, limit=8) == ()
     assert await client.get(record_key("raced")) is None  # the cancel stuck; nothing FIRING
+
+
+async def test_snooze_racing_a_cancel_is_fenced_not_resurrected(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A cancel landing between snooze's guard read and its write wins; nothing resurrects."""
+    server = FakeServer()
+    client = FakeAsyncRedis(server=server)
+    store = RedisScheduleStore(client)
+    await store.add(schedule_contract.make_item("raced"))
+
+    def delete_it(poker: FakeStrictRedis) -> None:
+        poker.delete(record_key("raced"))
+        poker.zrem(DUE_KEY, "raced")
+
+    _poke_on_decode(monkeypatch, server, delete_it)
+    assert await store.snooze("raced", until=_NOW + timedelta(minutes=30)) is False
+    assert await client.get(record_key("raced")) is None  # the cancel stuck
+    assert await client.zscore(DUE_KEY, "raced") is None  # not re-indexed by the loser

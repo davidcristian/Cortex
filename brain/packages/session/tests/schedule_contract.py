@@ -322,6 +322,72 @@ async def check_deliverable_lists_oldest_fired_first(store: ScheduleStore) -> No
     assert [item.id for item in listed] == [first.id, second.id]
 
 
+async def check_snooze_moves_a_pending_one_shot(store: ScheduleStore) -> None:
+    """snooze re-dues a PENDING one-shot: not claimable at the old time, claimable at the new."""
+    item = make_item(_item_id())
+    await store.add(item)
+    until = _NOW + timedelta(minutes=30)
+    assert await store.snooze(item.id, until=until) is True
+    loaded = await store.get(item.id)
+    assert loaded is not None
+    assert loaded.status is ScheduleStatus.PENDING
+    assert loaded.due_at == until
+    assert await store.claim_due(_NOW, lease=_LEASE, limit=10) == ()
+    (claim,) = await store.claim_due(until, lease=_LEASE, limit=10)
+    assert claim.item.id == item.id
+
+
+async def check_snooze_rearms_a_deliverable_reminder(store: ScheduleStore) -> None:
+    """snooze of a fired-but-undelivered one-shot re-arms it: it fires fresh, not re-delivers."""
+    item = make_item(_item_id())
+    await store.add(item)
+    (claim,) = await store.claim_due(_NOW, lease=_LEASE, limit=10)
+    fired = FireOutcome(fired_at=_NOW, next_due=None, deliverable=True)
+    assert await store.finish(claim, fired) is True
+    until = _NOW + timedelta(minutes=10)
+    assert await store.snooze(item.id, until=until) is True
+    assert await store.deliverable() == ()
+    assert await store.ack(item.id) is False  # nothing awaits delivery any more
+    loaded = await store.get(item.id)
+    assert loaded is not None
+    assert loaded.status is ScheduleStatus.PENDING
+    assert loaded.deliverable_since is None
+    (again,) = await store.claim_due(until, lease=_LEASE, limit=10)
+    assert again.item.id == item.id
+
+
+async def check_snooze_refuses_a_recurring_item(store: ScheduleStore) -> None:
+    """A recurring item cannot be snoozed (rewriting due_at would re-anchor the series)."""
+    item = make_item(_item_id(), every=timedelta(hours=1))
+    await store.add(item)
+    assert await store.snooze(item.id, until=_NOW + timedelta(minutes=30)) is False
+    loaded = await store.get(item.id)
+    assert loaded is not None
+    assert loaded.due_at == item.due_at
+
+
+async def check_snooze_refuses_firing_and_unknown(store: ScheduleStore) -> None:
+    """A claimed (FIRING) item and an unknown id both answer False, state untouched."""
+    assert await store.snooze(_item_id(), until=_NOW + timedelta(minutes=5)) is False
+    item = make_item(_item_id())
+    await store.add(item)
+    (claim,) = await store.claim_due(_NOW, lease=_LEASE, limit=10)
+    assert await store.snooze(item.id, until=_NOW + timedelta(minutes=5)) is False
+    # The in-flight fire still finishes normally under its token.
+    fired = FireOutcome(fired_at=_NOW, next_due=None, deliverable=True)
+    assert await store.finish(claim, fired) is True
+
+
+async def check_snooze_then_cancel_still_sticks(store: ScheduleStore) -> None:
+    """The snoozed item stays cancellable; nothing about snooze weakens deletion."""
+    item = make_item(_item_id())
+    await store.add(item)
+    assert await store.snooze(item.id, until=_NOW + timedelta(minutes=30)) is True
+    assert await store.cancel(item.id) is True
+    assert await store.get(item.id) is None
+    assert await store.claim_due(_NOW + timedelta(hours=1), lease=_LEASE, limit=10) == ()
+
+
 ALL_CHECKS = (
     check_missing_get_is_none,
     check_add_get_round_trips,
@@ -344,4 +410,9 @@ ALL_CHECKS = (
     check_claim_orders_across_both_classes,
     check_ack_requires_deliverability,
     check_deliverable_lists_oldest_fired_first,
+    check_snooze_moves_a_pending_one_shot,
+    check_snooze_rearms_a_deliverable_reminder,
+    check_snooze_refuses_a_recurring_item,
+    check_snooze_refuses_firing_and_unknown,
+    check_snooze_then_cancel_still_sticks,
 )

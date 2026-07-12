@@ -50,6 +50,10 @@ Translators only: serialization, key layout, and error wrapping; no business log
   - `async finish(claim, outcome)` / `async release(claim)` are guarded by the record's
     live token; one MULTI/EXEC re-arms/terminates (finish) or returns to PENDING (release).
   - `async deliverable()` / `async ack(item_id)` are the fired-reminder delivery slot.
+  - `async snooze(item_id, *, until)` postpones a one-shot (PENDING re-scored in the due
+    index; a fired-but-undelivered reminder re-arms off the deliverable index), refusing a
+    recurring or FIRING item and answering a raced transition `False` like the rest
+    (ADR-0025 snooze addendum).
 - `DEFAULT_REDIS_URL` is `"redis://127.0.0.1:6379/0"`. Deployments override via
   `CORTEX_REDIS_URL`, read by the composition root (orchestrator settings), never by
   this adapter.
