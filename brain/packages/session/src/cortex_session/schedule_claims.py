@@ -27,6 +27,7 @@ from cortex_session.schedule_codec import (
     DELIVERABLE_KEY,
     DUE_KEY,
     FIRING_KEY,
+    DeadLetter,
     decode,
     encode,
     record_key,
@@ -95,6 +96,30 @@ async def quarantine(client: Redis, item_id: str, raw: bytes | str) -> None:
         pipe.zrem(DELIVERABLE_KEY, item_id)
         pipe.delete(record_key(item_id))
         await pipe.execute()
+
+
+def _replaced(value: bytes | str) -> str:
+    """Bytes as inspectable text (replacement characters, never a second decode crash)."""
+    return value if isinstance(value, str) else value.decode("utf-8", errors="replace")
+
+
+async def dead_letters(client: Redis) -> tuple[DeadLetter, ...]:
+    """The quarantined records, id order: `quarantine`'s operator-facing counterpart.
+
+    Never surfaced through a model tool. The raw bytes are exactly the corrupt or hostile
+    content the codec refused, so they stay unparsed inspection data (dead-letter addendum).
+    """
+    raw = await client.hgetall(DEAD_KEY)
+    letters = [
+        DeadLetter(item_id=_replaced(field), raw=_replaced(value)) for field, value in raw.items()
+    ]
+    return tuple(sorted(letters, key=lambda letter: letter.item_id))
+
+
+async def purge_dead_letter(client: Redis, item_id: str) -> bool:
+    """Drop one quarantined record for good; False when nothing was quarantined under it."""
+    removed = await client.hdel(DEAD_KEY, item_id)
+    return removed > 0
 
 
 async def _claim_one(client: Redis, item_id: str, now: datetime) -> ScheduleClaim | None:

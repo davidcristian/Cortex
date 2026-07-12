@@ -25,11 +25,19 @@ from cortex_core import (
     ScheduleStatus,
     ScheduleStoreError,
 )
-from cortex_session.schedule_claims import claim_due, ids, release_claim, watched_state
+from cortex_session.schedule_claims import (
+    claim_due,
+    dead_letters,
+    ids,
+    purge_dead_letter,
+    release_claim,
+    watched_state,
+)
 from cortex_session.schedule_codec import (
     DELIVERABLE_KEY,
     DUE_KEY,
     FIRING_KEY,
+    DeadLetter,
     decode,
     encode,
     record_key,
@@ -210,6 +218,27 @@ class RedisScheduleStore:
             return await release_claim(self._client, claim)
         except RedisError as err:
             msg = f"release of schedule {claim.item.id!r} failed"
+            raise ScheduleStoreError(msg) from err
+
+    async def dead_letters(self) -> Sequence[DeadLetter]:
+        """The quarantined records, for operator inspection (dead-letter addendum).
+
+        Adapter-only, deliberately not on the ``ScheduleStore`` port: quarantine is a codec
+        mechanic the in-memory fake can never produce, and no core path (least of all a
+        model tool) consumes it.
+        """
+        try:
+            return await dead_letters(self._client)
+        except RedisError as err:
+            msg = "listing dead-lettered schedules failed"
+            raise ScheduleStoreError(msg) from err
+
+    async def purge_dead_letter(self, item_id: str) -> bool:
+        """Drop one quarantined record for good; False when it was not quarantined."""
+        try:
+            return await purge_dead_letter(self._client, item_id)
+        except RedisError as err:
+            msg = f"purging dead-lettered schedule {item_id!r} failed"
             raise ScheduleStoreError(msg) from err
 
     async def deliverable(self) -> Sequence[ScheduledItem]:

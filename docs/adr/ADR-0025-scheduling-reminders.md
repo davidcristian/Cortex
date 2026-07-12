@@ -530,4 +530,21 @@ creation/listing vs lifecycle-verb split anyway). Decisions:
 
 CI-gated through the shared contract suite (fake + fakeredis interchangeably) and the tool
 tests over the fake; the live Redis integration suite exercises the same contract on the
-real backend.
+real backend (run 2026-07-12 by the agent against the compose Redis, passing).
+
+## Addendum (2026-07-12): dead-letter inspection lands adapter-side
+
+The quarantine hash gets its deferred inspection tooling as **`RedisScheduleStore` methods,
+not port methods**: `dead_letters()` returns the quarantined `DeadLetter(item_id, raw)`
+entries (id order, raw bytes rendered with replacement characters so corrupt content stays
+inspectable and never crashes a second time), and `purge_dead_letter(item_id)` drops one for
+good. Deliberately off the `ScheduleStore` port: quarantine is a codec mechanic of the Redis
+claim path, the in-memory fake can never produce one (a port method would force a vacuous
+fake), and no core path consumes dead letters. Operator-facing only, never a model tool: the
+raw bytes are exactly the hostile or corrupt content the codec refused, and they stay
+unparsed inspection data. The runbook shows the store calls and the redis-cli equivalents.
+Retention stays manual, because the hash only grows when a record is quarantined, which is
+exceptional; an automated policy joins the deferred ledger only if reality produces volume.
+CI-gated over fakeredis (quarantine-then-inspect, hostile-bytes rendering, failure
+wrapping); live-validated 2026-07-12 by the agent against the compose Redis (a corrupt
+record planted, quarantined by a real claim pass, listed, purged, purge-again False).

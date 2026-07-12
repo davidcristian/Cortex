@@ -23,7 +23,7 @@ from cortex_core import (
     ScheduleStore,
     ScheduleStoreError,
 )
-from cortex_session import DEFAULT_REDIS_URL, RedisScheduleStore, schedule_claims
+from cortex_session import DEFAULT_REDIS_URL, DeadLetter, RedisScheduleStore, schedule_claims
 from cortex_session.schedule_codec import DEAD_KEY, DELIVERABLE_KEY, DUE_KEY, record_key
 
 _NOW = datetime(2026, 7, 12, 12, 0, 0, tzinfo=UTC)
@@ -315,6 +315,41 @@ async def test_claim_racing_a_cancel_is_fenced(monkeypatch: pytest.MonkeyPatch) 
     _poke_on_decode(monkeypatch, server, delete_it)
     assert await store.claim_due(_NOW, lease=_LEASE, limit=8) == ()
     assert await client.get(record_key("raced")) is None  # the cancel stuck; nothing FIRING
+
+
+async def test_dead_letters_lists_and_purges_the_quarantine() -> None:
+    """The operator inspection pair over the quarantine hash (dead-letter addendum)."""
+    client = FakeAsyncRedis(server=FakeServer())
+    store = RedisScheduleStore(client)
+    await _seed_raw(client, "poison", "not json")
+    survivor = schedule_contract.make_item("survivor", due_at=_NOW - timedelta(minutes=1))
+    await store.add(survivor)
+    claims = await store.claim_due(_NOW, lease=_LEASE, limit=8)
+    assert [claim.item.id for claim in claims] == ["survivor"]  # the pass degraded by one
+    (letter,) = await store.dead_letters()
+    assert letter == DeadLetter(item_id="poison", raw="not json")
+    assert await store.purge_dead_letter("poison") is True
+    assert await store.dead_letters() == ()
+    assert await store.purge_dead_letter("poison") is False
+
+
+async def test_dead_letters_render_hostile_bytes_with_replacement() -> None:
+    """Corrupt bytes stay inspectable: decoding never becomes a second crash."""
+    client = FakeAsyncRedis(server=FakeServer())
+    store = RedisScheduleStore(client)
+    await client.hset(DEAD_KEY, "bad", b"\xff\xfe not utf-8")  # pyright: ignore[reportUnknownMemberType]
+    (letter,) = await store.dead_letters()
+    assert letter.item_id == "bad"
+    assert "not utf-8" in letter.raw
+    assert "�" in letter.raw  # the undecodable bytes became replacement characters
+
+
+async def test_dead_letter_operations_wrap_backend_failure() -> None:
+    store = _disconnected_store()
+    with pytest.raises(ScheduleStoreError, match="listing dead-lettered"):
+        await store.dead_letters()
+    with pytest.raises(ScheduleStoreError, match="purging dead-lettered"):
+        await store.purge_dead_letter("x")
 
 
 async def test_snooze_racing_a_cancel_is_fenced_not_resurrected(
