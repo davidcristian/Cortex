@@ -212,3 +212,36 @@ shared by both bands, not two four-stop arcs), the preview card slimmed to **rep
 only** (the mini mark followed the captions out), the send button's gradient now **fades in**
 via an opacity overlay (a gradient background can't interpolate, so the hard swap popped), and
 the chat title gained a 6px optical left margin.
+
+## Addendum (2026-07-12): the recorded interaction gaps are closed
+
+All nine browser-side interaction gaps from the 2026-07-03 pass landed behind the unchanged
+`BrainBridge` port and reducer, CI-gated at 100% and browser-validated (light and dark, Chrome
+against the demo bridge):
+
+- The history **auto-scrolls** with the stream through a pinned-at-bottom latch: scrolling up
+  holds the reader's place; returning near the bottom re-pins. The approval card scrolls into
+  view the same way.
+- The composer **takes focus on summon** (the panel-open rising edge) and **auto-grows** with
+  its content up to the CSS ceiling, past which it scrolls internally.
+- A press on the bare stage is **click-away dismiss**, the same path as Esc: mid-stream it
+  morphs to the orb, idle it hides. Presses inside the panel pass through.
+- The reducer's tool/status fields finally **render as slim inline chips** above the streaming
+  bubble (a neutral pill with a pulsing accent dot, gone on completion), so the ADR-0020
+  thinking status and any future `ToolActivity` have a visible surface.
+- The empty chat greets with the **mark, "Ask me anything", and two tappable example prompts**
+  (real capabilities only) that submit on tap.
+- A **thinking shimmer** (three accent dots) holds the assistant bubble until the first token.
+- The **`?` shortcut sheet** covers the panel, opened from the hint strip's ? button or the ?
+  key outside the composer (where ? is just typing); Esc closes the sheet before it dismisses
+  the panel, and `sheetOpen` lives in the reducer beside `switcherOpen`.
+- The preview's **hover now pauses the fade timer itself**, not just the bar's animation: the
+  hook latches hover, leaving restarts the full countdown, and the drain bar remounts in step
+  so what it shows always matches the timer. The countdown-restarts-on-leave choice is noted
+  in overlay-ux.md §4.
+
+Two implementation nuances: the sheet is not frosted glass, because the panel's own
+backdrop-filter bounds the backdrop root and a child's blur cannot reach the history beneath
+it, so the sheet layers the panel tint over the solid ground instead; and the demo bridge
+gained a short thinking pause plus a status event before streaming, so the new working
+affordances are visible (and hand-verifiable) in plain browser dev.

@@ -11,6 +11,7 @@ const state = (over: Partial<OverlayState> = {}): OverlayState => ({
   messages: [],
   sessions: [],
   switcherOpen: false,
+  sheetOpen: false,
   pendingConfirm: null,
   seq: 0,
   ...over,
@@ -26,31 +27,46 @@ const userMsg: Message = {
   error: null,
 };
 
+const reply = (id: string): Message => ({
+  id,
+  role: "assistant",
+  content: `reply ${id}`,
+  streaming: false,
+  tool: null,
+  status: null,
+  error: null,
+});
+
 interface Handlers {
   onToggleTheme?: () => void;
+  onSubmit?: (text: string) => void;
   onDismiss?: () => void;
   onNewChat?: () => void;
   onToggleSwitcher?: () => void;
+  onToggleSheet?: () => void;
   onSelectSession?: (sessionId: string) => void;
   onRespondConfirm?: (confirmId: string, approved: boolean) => void;
 }
 
+function panelProps(over: Partial<OverlayState>, open: boolean, dark: boolean, handlers: Handlers = {}) {
+  return {
+    state: state(over),
+    open,
+    dark,
+    onToggleTheme: handlers.onToggleTheme ?? vi.fn(),
+    onSubmit: handlers.onSubmit ?? vi.fn(),
+    onStop: vi.fn(),
+    onDismiss: handlers.onDismiss ?? vi.fn(),
+    onNewChat: handlers.onNewChat ?? vi.fn(),
+    onToggleSwitcher: handlers.onToggleSwitcher ?? vi.fn(),
+    onToggleSheet: handlers.onToggleSheet ?? vi.fn(),
+    onSelectSession: handlers.onSelectSession ?? vi.fn(),
+    onRespondConfirm: handlers.onRespondConfirm ?? vi.fn(),
+  };
+}
+
 function renderPanel(over: Partial<OverlayState>, open: boolean, dark: boolean, handlers: Handlers = {}) {
-  return render(
-    <Panel
-      state={state(over)}
-      open={open}
-      dark={dark}
-      onToggleTheme={handlers.onToggleTheme ?? vi.fn()}
-      onSubmit={vi.fn()}
-      onStop={vi.fn()}
-      onDismiss={handlers.onDismiss ?? vi.fn()}
-      onNewChat={handlers.onNewChat ?? vi.fn()}
-      onToggleSwitcher={handlers.onToggleSwitcher ?? vi.fn()}
-      onSelectSession={handlers.onSelectSession ?? vi.fn()}
-      onRespondConfirm={handlers.onRespondConfirm ?? vi.fn()}
-    />,
-  );
+  return render(<Panel {...panelProps(over, open, dark, handlers)} />);
 }
 
 describe("Panel", () => {
@@ -61,7 +77,7 @@ describe("Panel", () => {
     const onToggleSwitcher = vi.fn();
     renderPanel({}, true, false, { onToggleTheme, onDismiss, onNewChat, onToggleSwitcher });
     expect(screen.getByText("My chat")).toBeInTheDocument();
-    expect(screen.getByRole("dialog").className).toContain("open");
+    expect(screen.getByRole("dialog", { name: "Cortex" }).className).toContain("open");
     const icon = screen.getByLabelText("Toggle theme").querySelector("svg.sunmoon");
     expect(icon).not.toBeNull();
     expect(icon?.classList.contains("dark")).toBe(false);
@@ -126,5 +142,51 @@ describe("Panel", () => {
     );
     fireEvent.click(screen.getByText("First chat"));
     expect(onSelectSession).toHaveBeenCalledWith("c1");
+  });
+
+  it("greets an empty chat with the mark and tappable example prompts that submit", () => {
+    const onSubmit = vi.fn();
+    const { container } = renderPanel({}, true, false, { onSubmit });
+    expect(screen.getByText("Ask me anything")).toBeInTheDocument();
+    expect(container.querySelector(".empty .rings")).not.toBeNull();
+    fireEvent.click(screen.getByText("Summarize my unread email"));
+    expect(onSubmit).toHaveBeenCalledWith("Summarize my unread email");
+  });
+
+  it("clears the empty state once the chat has messages", () => {
+    renderPanel({ messages: [userMsg] }, true, false);
+    expect(screen.queryByText("Ask me anything")).toBeNull();
+  });
+
+  it("auto-scrolls the history to the newest message unless the reader scrolled up", () => {
+    const props = (messages: Message[]) => panelProps({ messages }, true, false);
+    const view = render(<Panel {...props([userMsg])} />);
+    const el = view.container.querySelector(".history") as HTMLDivElement;
+    Object.defineProperty(el, "scrollHeight", { configurable: true, value: 500 });
+    Object.defineProperty(el, "clientHeight", { configurable: true, value: 100 });
+    // Pinned at the bottom (the mount default): a new message keeps the tail in view.
+    view.rerender(<Panel {...props([userMsg, reply("m1")])} />);
+    expect(el.scrollTop).toBe(500);
+    // The reader scrolls up to read; the next message must not yank them back down.
+    el.scrollTop = 100;
+    fireEvent.scroll(el);
+    view.rerender(<Panel {...props([userMsg, reply("m1"), reply("m2")])} />);
+    expect(el.scrollTop).toBe(100);
+    // Returning to (near) the bottom re-pins the tail.
+    el.scrollTop = 470;
+    fireEvent.scroll(el);
+    view.rerender(<Panel {...props([userMsg, reply("m1"), reply("m2"), reply("m3")])} />);
+    expect(el.scrollTop).toBe(500);
+  });
+
+  it("opens the shortcut sheet from the hint strip's ? and closes it on a sheet click", () => {
+    const onToggleSheet = vi.fn();
+    renderPanel({}, true, false, { onToggleSheet });
+    expect(screen.queryByRole("dialog", { name: "Keyboard shortcuts" })).toBeNull();
+    fireEvent.click(screen.getByLabelText("Shortcuts"));
+    expect(onToggleSheet).toHaveBeenCalledOnce();
+    renderPanel({ sheetOpen: true }, true, false, { onToggleSheet });
+    fireEvent.click(screen.getByRole("dialog", { name: "Keyboard shortcuts" }));
+    expect(onToggleSheet).toHaveBeenCalledTimes(2);
   });
 });

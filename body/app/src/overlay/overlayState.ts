@@ -37,6 +37,8 @@ export interface OverlayState {
   readonly sessions: readonly SessionSummary[];
   /** Whether the switcher list is open in the header. */
   readonly switcherOpen: boolean;
+  /** Whether the full shortcut sheet covers the panel (design/overlay-ux.md §6). */
+  readonly sheetOpen: boolean;
   /** The approval the current turn is paused on, if any (ADR-0022). */
   readonly pendingConfirm: PendingConfirm | null;
   readonly seq: number;
@@ -58,7 +60,8 @@ export type Action =
       readonly sessionId: string;
       readonly messages: readonly SessionMessage[];
     }
-  | { readonly kind: "toggleSwitcher" };
+  | { readonly kind: "toggleSwitcher" }
+  | { readonly kind: "toggleSheet" };
 
 const NEW_CHAT_TITLE = "New chat";
 const TITLE_MAX = 32;
@@ -72,6 +75,7 @@ export function createInitialState(sessionId: string): OverlayState {
     messages: [],
     sessions: [],
     switcherOpen: false,
+    sheetOpen: false,
     pendingConfirm: null,
     seq: 0,
   };
@@ -102,8 +106,14 @@ export function reduce(state: OverlayState, action: Action): OverlayState {
       return endTurn(state, action.error.message);
     case "dismiss":
       // Dismissing drops any pending approval with it (walking away is a deny, since the brain
-      // fails closed by timeout, ADR-0022); the turn itself keeps streaming to the store.
-      return { ...state, mode: isTurnActive(state) ? "orb" : "hidden", pendingConfirm: null };
+      // fails closed by timeout, ADR-0022); the turn itself keeps streaming to the store. The
+      // shortcut sheet closes too, so a re-summoned panel never opens onto stale help.
+      return {
+        ...state,
+        mode: isTurnActive(state) ? "orb" : "hidden",
+        sheetOpen: false,
+        pendingConfirm: null,
+      };
     case "stop":
       // User cancelled the turn: end the streaming reply in place (keep the partial text,
       // no error) and stay in the panel. This differs from dismiss, which minimizes to the orb.
@@ -134,6 +144,8 @@ export function reduce(state: OverlayState, action: Action): OverlayState {
       return openSession(state, action.sessionId, action.messages);
     case "toggleSwitcher":
       return { ...state, switcherOpen: !state.switcherOpen };
+    case "toggleSheet":
+      return { ...state, sheetOpen: !state.sheetOpen };
   }
 }
 

@@ -179,6 +179,97 @@
   animation: wordin 0.5s var(--ease) both;
 }
 
+/* The pre-first-token thinking shimmer: three accent dots hold the bubble until text arrives
+   (design/overlay-ux.md §4). A working affordance, so it carries the accent. */
+.thinking {
+  display: inline-flex;
+  gap: 5px;
+  padding: 5px 2px 2px;
+}
+.thinking i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: think 1.05s ease-in-out infinite;
+}
+.thinking i:nth-child(2) {
+  animation-delay: 0.16s;
+}
+.thinking i:nth-child(3) {
+  animation-delay: 0.32s;
+}
+
+/* Slim inline activity chips between bubbles (tool/status, design/overlay-ux.md §3): a neutral
+   pill whose pulsing accent dot is the working signal; the text clamps to one line. */
+.chip {
+  align-self: flex-start;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  max-width: 82%;
+  padding: 4px 12px;
+  background: var(--control);
+  border: 1px solid var(--stroke);
+  border-radius: 999px;
+  font-size: 12px;
+  color: var(--muted);
+  animation: confirmin 0.3s var(--ease) both;
+}
+.chip::before {
+  content: "";
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: pulse 1.2s ease infinite;
+}
+.chip-t {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* The empty state (design/overlay-ux.md §3): the mark, an invitation, and tappable example
+   prompts. Resting chrome stays neutral; the mark carries the color. */
+.empty {
+  margin: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 13px;
+  padding: 32px 10px 26px;
+  text-align: center;
+}
+.empty-line {
+  margin: 0;
+  font-size: 14.5px;
+  color: var(--muted);
+}
+.empty-chips {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+}
+.echip {
+  padding: 7px 14px;
+  background: var(--control);
+  border: 1px solid var(--stroke);
+  border-radius: 999px;
+  color: var(--muted);
+  font-family: var(--font);
+  font-size: 12.5px;
+  cursor: pointer;
+  transition: 0.18s var(--ease);
+}
+.echip:hover {
+  color: var(--text);
+  background: var(--field);
+  transform: translateY(-1px);
+}
+
 /* The approval card (ADR-0022) is the history's inline layer between bubbles, its first real
    occupant. Resting chrome stays neutral (it is a question, not activity); the accent lives
    only on Approve, the one affordance that runs the gated action. Keys and values render
@@ -383,7 +474,8 @@
   font-size: 11.5px;
   color: var(--dim);
 }
-.hints b {
+.hints b,
+.sheet-row b {
   color: var(--muted);
   font-weight: 500;
   background: var(--control);
@@ -393,14 +485,16 @@
 }
 /* Keycaps whose glyph is an outline SVG (Enter/Shift/cycle arrows) instead of a letter: shrink
    the icon to cap size and center it, so they read as clearly as the letter keys beside them. */
-.hints b.key {
+.hints b.key,
+.sheet-row b.key {
   display: inline-flex;
   align-items: center;
   gap: 1px;
   padding: 2px 5px;
   vertical-align: -3px;
 }
-.hints b.key svg {
+.hints b.key svg,
+.sheet-row b.key svg {
   width: 13px;
   height: 13px;
 }
@@ -408,6 +502,69 @@
    separate keys, not one run. */
 .hints b + b {
   margin-left: 4px;
+}
+/* The hint strip's ? is a real button in keycap clothing; it opens the shortcut sheet. */
+.qbtn {
+  padding: 0;
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  display: inline-flex;
+}
+.qbtn:hover b {
+  color: var(--text);
+}
+
+/* The full shortcut sheet (design/overlay-ux.md §6) covers the panel. Informational resting
+   chrome (no accent); a click anywhere on it, or Esc, closes it. The panel's own
+   backdrop-filter bounds the backdrop root, so a frosted child cannot blur the history
+   beneath it; the panel tint layered over the solid ground keeps the hue and covers it. */
+.sheet {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  display: flex;
+  flex-direction: column;
+  padding: 22px 26px 16px;
+  background: linear-gradient(var(--panel), var(--panel)), var(--bg);
+  border-radius: 28px;
+  cursor: pointer;
+  animation: confirmin 0.28s var(--spring) both;
+}
+.sheet-head {
+  margin: 0 0 10px;
+  font-size: 13.5px;
+  font-weight: 600;
+}
+.sheet-rows {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow-y: auto;
+}
+.sheet-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 6px 2px;
+  font-size: 13px;
+  color: var(--muted);
+}
+.sheet-row dd {
+  margin: 0;
+  display: flex;
+  gap: 4px;
+}
+.sheet-foot {
+  margin: auto 0 0;
+  padding-top: 12px;
+  text-align: center;
+  font-size: 11.5px;
+  color: var(--dim);
 }
 
 /* The orb: the living rings are colorful (it's a working state). The mark spins as one (waves and
@@ -494,6 +651,17 @@
   }
   50% {
     opacity: 0.3;
+  }
+}
+@keyframes think {
+  0%,
+  100% {
+    opacity: 0.25;
+    transform: translateY(0);
+  }
+  40% {
+    opacity: 1;
+    transform: translateY(-3px);
   }
 }
 @keyframes confirmin {

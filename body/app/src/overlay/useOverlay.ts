@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useReducer, useRef } from "react";
+import { useCallback, useEffect, useReducer, useRef, useState } from "react";
 
 import type { BrainBridge, Cancellation } from "../bridge/types";
 import {
@@ -24,6 +24,9 @@ export interface OverlayController {
   cyclePrev(): void;
   cycleNext(): void;
   toggleSwitcher(): void;
+  toggleSheet(): void;
+  /** Hovering the preview pauses its auto-fade; leaving restarts the full countdown. */
+  previewHover(hovering: boolean): void;
   /** Answer the pending approval (ADR-0022); stale/duplicate answers are no-ops. */
   respondConfirm(confirmId: string, approved: boolean): void;
 }
@@ -42,6 +45,7 @@ export function useOverlay(
     createInitialState(newSessionId()),
   );
   const cancelRef = useRef<Cancellation | null>(null);
+  const [previewHovered, setPreviewHovered] = useState(false);
 
   const refreshSessions = useCallback(() => {
     bridge
@@ -53,17 +57,31 @@ export function useOverlay(
   }, [bridge]);
 
   // A completed preview fades on its own after PREVIEW_MS (design/overlay-ux.md §4), unless
-  // an approval is pending or the turn is still streaming: a question waits to be seen, and a
-  // confirm approved mid-turn keeps the preview up until the turn completes. The countdown
-  // arms only once both are clear (the reducer's previewFade guard is the same rule).
+  // an approval is pending, the turn is still streaming, or the pointer is over the card: a
+  // question waits to be seen, a confirm approved mid-turn keeps the preview up until the turn
+  // completes, and hover pauses the countdown (leaving restarts it in full; the card's drain
+  // bar remounts in step, Preview). The countdown arms only once all are clear (the reducer's
+  // previewFade guard is the same rule).
   const previewActive = isTurnActive(state);
   useEffect(() => {
-    if (state.mode !== "preview" || state.pendingConfirm !== null || previewActive) {
+    if (
+      state.mode !== "preview" ||
+      state.pendingConfirm !== null ||
+      previewActive ||
+      previewHovered
+    ) {
       return undefined;
     }
     const timer = setTimeout(() => dispatch({ kind: "previewFade" }), PREVIEW_MS);
     return () => clearTimeout(timer);
-  }, [state.mode, state.pendingConfirm, previewActive]);
+  }, [state.mode, state.pendingConfirm, previewActive, previewHovered]);
+
+  // Leaving preview mode clears the hover latch, so the next preview always arms its fade.
+  useEffect(() => {
+    if (state.mode !== "preview") {
+      setPreviewHovered(false);
+    }
+  }, [state.mode]);
 
   // Load the chat list on mount, and refresh it each time a turn finishes: `turnActive`
   // flips false→true→false per turn, so the false edges (mount + completion) reload.
@@ -133,6 +151,8 @@ export function useOverlay(
     dispatch({ kind: "newChat", sessionId: newSessionId() });
   }, [denyPendingConfirm, newSessionId]);
   const toggleSwitcher = useCallback(() => dispatch({ kind: "toggleSwitcher" }), []);
+  const toggleSheet = useCallback(() => dispatch({ kind: "toggleSheet" }), []);
+  const previewHover = useCallback((hovering: boolean) => setPreviewHovered(hovering), []);
 
   const openSession = useCallback(
     (sessionId: string) => {
@@ -173,6 +193,8 @@ export function useOverlay(
     cyclePrev,
     cycleNext,
     toggleSwitcher,
+    toggleSheet,
+    previewHover,
     respondConfirm,
   };
 }

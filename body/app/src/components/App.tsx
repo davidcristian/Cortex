@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { type MouseEvent, useEffect, useState } from "react";
 
 import type { BrainBridge } from "../bridge/types";
 import { useOverlay } from "../overlay/useOverlay";
@@ -34,8 +34,17 @@ export function App({ bridge, newSessionId }: AppProps) {
 
   const toggleTheme = () => setPreference(theme.scheme === "dark" ? "daylight" : "midnight");
 
+  // Click-away dismisses (design/overlay-ux.md §4): a press on the bare stage around the open
+  // panel is the same gesture as Esc. Presses inside the panel (or on the orb/preview, which
+  // own their click) bubble up with a different target and pass through.
+  const onStageMouseDown = (event: MouseEvent<HTMLDivElement>) => {
+    if (event.target === event.currentTarget && controller.state.mode === "panel") {
+      controller.dismiss();
+    }
+  };
+
   return (
-    <div className="stage">
+    <div className="stage" onMouseDown={onStageMouseDown}>
       <Overlay controller={controller} dark={theme.scheme === "dark"} onToggleTheme={toggleTheme} />
     </div>
   );
