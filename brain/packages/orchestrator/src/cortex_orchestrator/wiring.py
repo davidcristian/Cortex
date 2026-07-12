@@ -49,7 +49,7 @@ from cortex_orchestrator.schedule_builders import (
     stop_ticker,
 )
 from cortex_orchestrator.server import serve
-from cortex_orchestrator.subagent_builders import build_subagents
+from cortex_orchestrator.subagent_builders import build_subagent_tools, build_subagents
 from cortex_session import RedisSessionStore
 
 
@@ -77,9 +77,12 @@ async def run_from_env(
     memory, close_memory = await build_memory(memory_config, clock)
     tool_registry, close_tools = build_tool_registry(tools_config)
     body, close_body = await build_body_gateway(body_config, token=seam_config.token)
+    # The subagent dispatcher is assembled here so the user's gated-name backstop
+    # (CORTEX_TOOLS_GATED) covers subagents too, composing with the UngatedToolRegistry
+    # strip inside build_subagent_tools (ADR-0022).
     spawn_tool, close_subagents = await build_subagents(
         subagents_config,
-        tool_registry,
+        build_subagent_tools(tool_registry, clock, gated_names=tools_config.gated),
         runtime.redis_url,
         clock,
         placer=VramBudgetPlacer(

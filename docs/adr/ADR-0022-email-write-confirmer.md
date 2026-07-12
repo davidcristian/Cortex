@@ -336,7 +336,7 @@ without a brain; `overlay-ux.md` gains the card's spec.
   astronomically narrow skip-mode double-walk window (a sidecar down for the strip's walk yet
   up for the inner invoke walk, with the subagent independently emitting the exact gated name).
   Wiring the backstop through is a small change behind the unchanged `build_subagent_tools`
-  seam if that residual ever matters.
+  seam if that residual ever matters. *Closed by the 2026-07-12 addendum below.*
 
 ## Addendum (2026-07-08): agent validation of overlay UI (Chrome) + gating over real MCP (Docker)
 
@@ -377,3 +377,18 @@ opt-in/gating all in the loop.
 **Still pending (genuinely OS-native, host-only):** the **Windows Tauri confirm-card**
 validation (hotkey → gated send → card → approve/deny through the real IPC transport). It is the one
 piece Chrome/Docker can't reach, exactly as ADR-0013 predicted.
+
+## Addendum (2026-07-12): the subagent gated-name backstop is wired
+
+The deferred wiring above is done, through the unchanged `build_subagent_tools` seam and
+without a seventh argument: `build_subagents` no longer assembles the subagent dispatcher
+itself. It now receives it pre-assembled (`tools: ToolDispatcher | None` replaces the
+`tool_registry` parameter), and the composition root builds it with
+`build_subagent_tools(tool_registry, clock, gated_names=tools_config.gated)`, the same
+bundling move that kept `build_cortex_tools` under the argument ceiling (one pre-assembled
+collaborator instead of one parameter per concern). `CORTEX_TOOLS_GATED` therefore now
+covers subagents exactly as it covers the cortex and the schedule ticker: the user's set
+is authoritative at the dispatcher regardless of advertisement, and `confirmer=None` turns
+a gated name into a hard deny, closing the skip-mode double-walk window. The dispatcher's
+behavior under `gated_names` was already pinned by the existing backstop test; the builder
+tests now assemble the dispatcher exactly as the composition root does.

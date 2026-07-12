@@ -204,17 +204,20 @@ The service:
   `on_unavailable="skip"`, and merged behind one `AggregateToolRegistry` when several. No session
   is held between calls, so `build_tool_registry` is synchronous and its closer is a no-op),
   **subagents**
-  (`build_subagents(config, tool_registry, redis_url, clock, *, placer, task_store_factory)`,
+  (`build_subagents(config, tools, redis_url, clock, *, placer, task_store_factory)`,
   in `subagent_builders.py` (split from `builders.py` for the 300-line cap), the
   `spawn_subagents` tool over a `SubagentRoster` built from `config.named_roster` (ADR-0018):
   per entry its own GPU + CPU `LlamaCppBackend` pair (one shared httpx client) and
   `PlacementRequest`, all entries sharing ONE `ResourceBudgetScheduler` and the ONE
   `VramBudgetPlacer` built at the call site from the runtime VRAM knobs (one budget, one
   ledger, per ADR-0012), a Redis `TaskStore`, GPU-first placement with CPU overflow,
-  ADR-0010/0012; the runner enforces ADR-0017 via `roster.resolve`; the subagent dispatcher
-  comes from `build_subagent_tools(tool_registry, clock)`, the shared registry wrapped in
-  `UngatedToolRegistry`, so a subagent is never handed a gated/outbound tool, ADR-0013
-  subagent-exclusion addendum), **body** (`build_body_gateway`, ADR-0023, opening the opt-in
+  ADR-0010/0012; the runner enforces ADR-0017 via `roster.resolve`; `tools` is the subagent
+  dispatcher, pre-assembled at the root by
+  `build_subagent_tools(tool_registry, clock, gated_names=CORTEX_TOOLS_GATED)`: the shared
+  registry wrapped in `UngatedToolRegistry`, so a subagent is never handed a gated/outbound
+  tool (ADR-0013 subagent-exclusion addendum), with the user's gated names as the
+  dispatcher's authoritative backstop, which `confirmer=None` turns into a hard deny even if
+  the skip-mode advertisement window ever resurfaced a stripped name, ADR-0022), **body** (`build_body_gateway`, ADR-0023, opening the opt-in
   `GrpcBodyGateway` dial to the host `BodyService`, off by default, closed in the `finally`),
   and **schedules** (`build_schedule(config, redis_url, *, store_factory)`, in
   `schedule_builders.py`, ADR-0025, giving the durable `RedisScheduleStore` or `None`; its
