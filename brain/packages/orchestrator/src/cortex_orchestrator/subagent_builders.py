@@ -56,7 +56,7 @@ def _entry_profile(
 
 async def build_subagents(
     config: SubagentsConfig,
-    tool_registry: ToolRegistry | None,
+    tools: ToolDispatcher | None,
     redis_url: str,
     clock: Clock,
     *,
@@ -76,7 +76,7 @@ async def build_subagents(
         default=config.model,
     )
     store = task_store_factory(redis_url)
-    runner = SubagentRunner(store, roster, clock, tools=build_subagent_tools(tool_registry, clock))
+    runner = SubagentRunner(store, roster, clock, tools=tools)
 
     async def close_subagents() -> None:
         await store.aclose()

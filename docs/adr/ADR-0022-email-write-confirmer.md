@@ -336,4 +336,4 @@ without a brain; `overlay-ux.md` gains the card's spec.
   astronomically narrow skip-mode double-walk window (a sidecar down for the strip's walk yet
   up for the inner invoke walk, with the subagent independently emitting the exact gated name).
   Wiring the backstop through is a small change behind the unchanged `build_subagent_tools`
-  seam if that residual ever matters.
+  seam if that residual ever matters. *Closed by the 2026-07-12 addendum below.*

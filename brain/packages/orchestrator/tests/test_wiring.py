@@ -378,7 +378,8 @@ async def test_build_subagents_defaults_to_disabled() -> None:
     await close()  # no resources to release; must not raise
 
 
-# None and an empty MCP registry both exercised: the subagent-tools branch runs either way.
+# None and an empty MCP registry both exercised: the dispatcher argument arrives None or
+# real either way, assembled exactly as the composition root assembles it.
 @pytest.mark.parametrize("registry", [None, InMemoryToolRegistry({})])
 async def test_build_subagents_selects_llamacpp_and_returns_a_closer(
     registry: InMemoryToolRegistry | None,
@@ -397,7 +398,7 @@ async def test_build_subagents_selects_llamacpp_and_returns_a_closer(
     )
     spawn, close = await build_subagents(
         config,
-        registry,
+        build_subagent_tools(registry, SystemClock()),
         "redis://sub:6379/0",
         SystemClock(),
         placer=VramBudgetPlacer(soft_cap_gb=14.0, cortex_reservation_gb=11.3),
@@ -461,7 +462,7 @@ async def test_build_subagents_with_tools_pins_the_spec_to_the_default() -> None
     """Tools-enabled subagents: ADR-0017 rule 2b pins every spawn, so no knob is advertised."""
     spawn, close = await build_subagents(
         _roster_config(),
-        _read_registry(),
+        build_subagent_tools(_read_registry(), SystemClock()),
         "redis://sub:6379/0",
         SystemClock(),
         placer=VramBudgetPlacer(soft_cap_gb=14.0, cortex_reservation_gb=11.3),
