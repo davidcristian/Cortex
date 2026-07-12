@@ -25,6 +25,16 @@ class StatusUpdate:
 
 
 @dataclass(frozen=True, slots=True)
+class ToolActivity:
+    """An audited tool call the turn is running (proto ``ToolActivity``), emitted just before its
+    dispatch so the overlay's activity chip shows while the tool works (ADR-0009 addendum).
+    """
+
+    tool_name: str
+    summary: str
+
+
+@dataclass(frozen=True, slots=True)
 class TurnCompleted:
     """The turn finished and the assistant message was persisted to the store."""
 
@@ -32,4 +42,4 @@ class TurnCompleted:
     full_text: str
 
 
-type TurnEvent = TextDelta | StatusUpdate | TurnCompleted
+type TurnEvent = TextDelta | StatusUpdate | ToolActivity | TurnCompleted

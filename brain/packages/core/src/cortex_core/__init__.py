@@ -25,7 +25,7 @@ from cortex_core.errors import (
     ToolError,
     ToolNotFoundError,
 )
-from cortex_core.events import StatusUpdate, TextDelta, TurnCompleted, TurnEvent
+from cortex_core.events import StatusUpdate, TextDelta, ToolActivity, TurnCompleted, TurnEvent
 from cortex_core.fakes import (
     EchoInferenceBackend,
     HashEmbedder,
@@ -226,6 +226,7 @@ __all__ = [
     "TextChunk",
     "TextDelta",
     "Tier",
+    "ToolActivity",
     "ToolAuditSink",
     "ToolCall",
     "ToolDispatcher",

@@ -253,7 +253,8 @@ The service:
 - `UserTurn` runs one `TurnEngine` turn against the session named by
   `ClientEvent.session_id`; each engine reply delta streams back as a `TextDelta` ServerEvent
   (the echo script yields at least 3), a reasoning model's thinking as a `StatusUpdate`
-  (ADR-0020, `state="thinking"`), followed by exactly one `TurnComplete{turn_id}`.
+  (ADR-0020, `state="thinking"`), each audited tool dispatch as a `ToolActivity` (ADR-0009
+  addendum, the overlay's activity chip), followed by exactly one `TurnComplete{turn_id}`.
   `UserTurn.images` are **ignored in this slice**, because multimodal input arrives with
   vision (Slice 10).
 - Turns run one at a time per stream, but dispatch never blocks on the running turn:

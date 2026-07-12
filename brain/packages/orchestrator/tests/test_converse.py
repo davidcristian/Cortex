@@ -5,7 +5,7 @@ test_converse_grpc.py prove the same contract over the real wire.
 """
 
 import asyncio
-from collections.abc import AsyncIterator, Sequence
+from collections.abc import AsyncIterator, Mapping, Sequence
 
 import pytest
 
@@ -14,14 +14,19 @@ from cortex_core import (
     InferenceError,
     InferenceEvent,
     InMemorySessionStore,
+    InMemoryToolRegistry,
     Message,
     ReasoningChunk,
+    RecordingAuditSink,
     Role,
     SessionStoreError,
     SessionSummary,
     SystemClock,
     TextChunk,
+    ToolCall,
+    ToolDispatcher,
     ToolSpec,
+    TurnCapabilities,
     TurnEngine,
 )
 from cortex_orchestrator import (
@@ -263,6 +268,50 @@ async def test_reasoning_maps_to_a_thinking_status_update() -> None:
     assert [e.WhichOneof("event") for e in events] == ["status", "text_delta", "turn_complete"]
     assert (events[0].status.state, events[0].status.detail) == ("thinking", "pondering")
     assert "".join(_delta_texts(events)) == "hi"
+
+
+class OneToolCallBackend:
+    """Calls one tool on its first step, then answers (drives one ToolActivity event)."""
+
+    def __init__(self) -> None:
+        self._calls = 0
+
+    async def stream(
+        self, model: str, messages: Sequence[Message], *, tools: Sequence[ToolSpec] = ()
+    ) -> AsyncIterator[InferenceEvent]:
+        del model, messages, tools
+        self._calls += 1
+        if self._calls == 1:
+            yield ToolCall(id="c1", name="read", arguments={"path": "/x"})
+        else:
+            yield TextChunk("done")
+
+
+async def test_tool_activity_maps_to_the_wire_event() -> None:
+    """A domain ToolActivity becomes a wire ServerEvent(tool_activity=...) (ADR-0009 addendum):
+    the audited dispatch reaches the overlay chip with its registry-derived summary."""
+
+    async def _read(arguments: Mapping[str, object]) -> str:
+        del arguments
+        return "data"
+
+    registry = InMemoryToolRegistry(
+        {"read": (ToolSpec(name="read", description="read a file", parameters={}), _read)}
+    )
+    engine = TurnEngine(
+        InMemorySessionStore(),
+        OneToolCallBackend(),
+        SystemClock(),
+        capabilities=TurnCapabilities(
+            tools=ToolDispatcher(registry, RecordingAuditSink(), SystemClock())
+        ),
+        turn_id_factory=lambda: "t-1",
+    )
+    events = await _collect(converse(_make(engine), _events_from(_user_turn("s", "go"))))
+    kinds = [e.WhichOneof("event") for e in events]
+    assert kinds == ["tool_activity", "text_delta", "turn_complete"]
+    activity = events[0].tool_activity
+    assert (activity.tool_name, activity.summary) == ("read", "read a file")
 
 
 async def test_second_turn_on_the_same_stream_keeps_counting() -> None:
