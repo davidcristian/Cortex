@@ -20,6 +20,7 @@ from cortex_core import (
     FireOutcome,
     InMemoryScheduleStore,
     ScheduleClaim,
+    ScheduleStatus,
     ScheduleStore,
     ScheduleStoreError,
 )
@@ -317,20 +318,32 @@ async def test_claim_racing_a_cancel_is_fenced(monkeypatch: pytest.MonkeyPatch) 
     assert await client.get(record_key("raced")) is None  # the cancel stuck; nothing FIRING
 
 
-async def test_dead_letters_lists_and_purges_the_quarantine() -> None:
-    """The operator inspection pair over the quarantine hash (dead-letter addendum)."""
+async def test_dead_letters_lists_in_id_order_and_purges_one_scope() -> None:
+    """The operator inspection pair over the quarantine hash (dead-letter addendum).
+
+    Two entries at once pin the documented id order AND that a purge drops only its own
+    field: a `delete(DEAD_KEY)` purge or a listing that returned one entry would pass a
+    single-entry test but fail here.
+    """
     client = FakeAsyncRedis(server=FakeServer())
     store = RedisScheduleStore(client)
-    await _seed_raw(client, "poison", "not json")
+    await _seed_raw(client, "zeta", "junk-z")
+    await _seed_raw(client, "alpha", "junk-a")
     survivor = schedule_contract.make_item("survivor", due_at=_NOW - timedelta(minutes=1))
     await store.add(survivor)
     claims = await store.claim_due(_NOW, lease=_LEASE, limit=8)
-    assert [claim.item.id for claim in claims] == ["survivor"]  # the pass degraded by one
-    (letter,) = await store.dead_letters()
-    assert letter == DeadLetter(item_id="poison", raw="not json")
-    assert await store.purge_dead_letter("poison") is True
+    assert [claim.item.id for claim in claims] == ["survivor"]  # the pass degraded by two
+    assert await store.dead_letters() == (
+        DeadLetter(item_id="alpha", raw="junk-a"),
+        DeadLetter(item_id="zeta", raw="junk-z"),
+    )
+    assert await store.purge_dead_letter("alpha") is True
+    assert await store.dead_letters() == (
+        DeadLetter(item_id="zeta", raw="junk-z"),
+    )  # zeta survived
+    assert await store.purge_dead_letter("alpha") is False
+    assert await store.purge_dead_letter("zeta") is True
     assert await store.dead_letters() == ()
-    assert await store.purge_dead_letter("poison") is False
 
 
 async def test_dead_letters_render_hostile_bytes_with_replacement() -> None:
@@ -369,3 +382,36 @@ async def test_snooze_racing_a_cancel_is_fenced_not_resurrected(
     assert await store.snooze("raced", until=_NOW + timedelta(minutes=30)) is False
     assert await client.get(record_key("raced")) is None  # the cancel stuck
     assert await client.zscore(DUE_KEY, "raced") is None  # not re-indexed by the loser
+
+
+async def test_claim_honors_a_snooze_that_committed_before_the_watch(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The before-WATCH race: a snooze commits between claim_due's due snapshot and the
+    per-item WATCH, moving the record forward. WATCH cannot see it, so the claim must
+    re-check the read record and skip, not fire the reminder at the stale time (snooze
+    addendum). Without the re-check the item is claimed FIRING and its future due-entry lost.
+    """
+    server = FakeServer()
+    client = FakeAsyncRedis(server=server)
+    store = RedisScheduleStore(client)
+    await store.add(schedule_contract.make_item("raced", due_at=_NOW - timedelta(minutes=1)))
+    until = _NOW + timedelta(minutes=10)
+    original_ids = schedule_claims.ids
+    snoozed: list[bool] = []
+
+    async def snoozing_ids(client_: Redis, key: str, **kwargs: object) -> list[str]:
+        result = await original_ids(client_, key, **kwargs)  # pyright: ignore[reportArgumentType]
+        if key == DUE_KEY and not snoozed:
+            # The due snapshot has just captured "raced"; commit the snooze before the WATCH.
+            snoozed.append(True)
+            await store.snooze("raced", until=until)
+        return result
+
+    monkeypatch.setattr(schedule_claims, "ids", snoozing_ids)
+    assert await store.claim_due(_NOW, lease=_LEASE, limit=8) == ()  # the snoozed item is skipped
+    loaded = await store.get("raced")
+    assert loaded is not None
+    assert loaded.status is ScheduleStatus.PENDING  # still armed, not fired
+    assert loaded.due_at == until  # the snooze survives
+    assert await client.zscore(DUE_KEY, "raced") == until.timestamp()  # its future due-entry intact

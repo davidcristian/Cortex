@@ -520,8 +520,12 @@ creation/listing vs lifecycle-verb split anyway). Decisions:
   False, never a lost update.
 - **The tool takes relative time.** `snooze_scheduled(id, for_seconds)` computes
   `until = now + for_seconds` from the injected Clock (snooze means "from now", and no
-  clock arithmetic is demanded of the model); the bounds mirror creation (the 60 s floor
-  and ten-year ceiling, `parse_for_seconds` beside the creation parser). The tool reads the
+  clock arithmetic is demanded of the model); `for_seconds` reuses the same `[60 s, ten-year]`
+  bounds the recurrence interval (`every_seconds`) enforces, via a `parse_for_seconds` beside
+  the creation parser. (This is a deliberate floor, not a mirror of the one-shot `in_seconds`
+  delay, which is unbounded above 0: a sub-minute snooze is below the poll granularity and
+  unlikely to be wanted, and reusing the recurrence bounds keeps one number to reason about.)
+  The tool reads the
   item first for a precise correction (unknown / recurring / firing now), then relies on
   the fenced transition for the race-free answer, so the read is advisory and the store is
   authoritative. No taint gate, matching `cancel_scheduled`: postponing an existing
@@ -531,6 +535,19 @@ creation/listing vs lifecycle-verb split anyway). Decisions:
 CI-gated through the shared contract suite (fake + fakeredis interchangeably) and the tool
 tests over the fake; the live Redis integration suite exercises the same contract on the
 real backend (run 2026-07-12 by the agent against the compose Redis, passing).
+
+**Claim re-check (post-review hardening).** The Redis claim path had a before-WATCH race an
+adversarial review found: `claim_due` snapshots the due index, then WATCH-claims each
+candidate one at a time. A `snooze` (or a recurring `finish`) committing *between* the
+snapshot and a candidate's WATCH moves that record's due time forward, but WATCH fences only
+writes landing *after* the watch, so the stale snapshot would still claim it and fire the
+reminder at the old time, silently discarding the user-confirmed snooze. `_claim_one` now
+re-checks the WATCH'd read (skip when a PENDING record's `due_at` is now in the future),
+closing the window; a lease-expired FIRING candidate stays re-claimable, and a
+cancelled/finished-away record already reads absent. The in-memory fake claims in one
+synchronous block so it never exhibited the hole; the fix is proven by a Redis test that
+commits the snooze from inside the due-snapshot call and asserts the item is skipped, its
+future due-entry intact (it fails without the re-check).
 
 ## Addendum (2026-07-12): dead-letter inspection lands adapter-side
 
