@@ -39,12 +39,12 @@ class ToolStep:
     summary: str
 
 
-def _step_summary(spec: ToolSpec | None, name: str) -> str:
-    """The chip text for one dispatch: the advertised description's first line, capped; the
-    bare tool name when the spec is unknown to this step's snapshot or its description empty.
+def _step_summary(spec: ToolSpec) -> str:
+    """The chip text for one dispatch: the advertised description's first line, capped, with
+    the advertised name as the fallback when the description is empty.
     """
-    description = spec.description.strip() if spec is not None else ""
-    line = description.splitlines()[0] if description else name
+    description = spec.description.strip()
+    line = description.splitlines()[0] if description else spec.name
     return line[:MAX_STEP_SUMMARY_CHARS]
 
 
@@ -117,9 +117,8 @@ async def stream_tool_loop(
             _call_message("".join(step_text), calls, context.clock.now(), context.turn_id)
         )
         for call in calls:
-            yield ToolStep(
-                tool_name=call.name, summary=_step_summary(spec_by_name.get(call.name), call.name)
-            )
+            if (spec := spec_by_name.get(call.name)) is not None:
+                yield ToolStep(tool_name=spec.name, summary=_step_summary(spec))
             # The advertised gated flag is a hint; the dispatcher OR-s it with its own
             # authoritative gated-name set, so a tool a flaky sidecar hid from this snapshot
             # (skip mode) and later recovered is still gated at dispatch (ADR-0022).
