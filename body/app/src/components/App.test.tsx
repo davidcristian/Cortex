@@ -37,4 +37,19 @@ describe("App", () => {
     fireEvent.keyDown(screen.getByLabelText("Message"), { key: "Enter" });
     expect(bridge.calls).toEqual([{ sessionId: "s1", text: "hi" }]);
   });
+
+  it("a press on the bare stage dismisses the open panel; presses inside do not", async () => {
+    await renderApp(new FakeBridge());
+    activate();
+    const stage = document.querySelector(".stage") as HTMLElement;
+    // Inside the panel the press bubbles up with a different target and passes through.
+    fireEvent.mouseDown(screen.getByLabelText("Message"));
+    expect(screen.getByRole("dialog", { name: "Cortex" }).className).toContain("open");
+    // The bare stage around the panel is the click-away surface.
+    fireEvent.mouseDown(stage);
+    expect(screen.getByRole("dialog", { hidden: true }).className).not.toContain("open");
+    // Hidden already: another stage press is a no-op.
+    fireEvent.mouseDown(stage);
+    expect(screen.getByRole("dialog", { hidden: true }).className).not.toContain("open");
+  });
 });

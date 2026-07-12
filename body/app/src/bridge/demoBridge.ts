@@ -52,7 +52,22 @@ export class DemoBridge implements BrainBridge {
     if (/send|email/iu.test(text)) {
       return this.confirmTurn(sink);
     }
-    return streamWords(sink, ANSWER, "", () => sink.onEvent({ kind: "complete", turnId: "demo" }));
+    // Hold the bubble on the thinking shimmer, surface a status chip, then stream: the same
+    // shape a real reasoning turn has (ADR-0020), so the working affordances are visible here.
+    let cancelStream: Cancellation = () => undefined;
+    const status = setTimeout(() => {
+      sink.onEvent({ kind: "status", state: "thinking", detail: "planning the answer" });
+    }, 450);
+    const start = setTimeout(() => {
+      cancelStream = streamWords(sink, ANSWER, "", () =>
+        sink.onEvent({ kind: "complete", turnId: "demo" }),
+      );
+    }, 1100);
+    return () => {
+      clearTimeout(status);
+      clearTimeout(start);
+      cancelStream();
+    };
   }
 
   private confirmTurn(sink: TurnSink): Cancellation {

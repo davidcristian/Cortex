@@ -342,4 +342,48 @@ describe("useOverlay", () => {
     act(() => result.current.toggleSwitcher());
     expect(result.current.state.switcherOpen).toBe(true);
   });
+
+  it("toggleSheet drives the reducer's shortcut-sheet flag", async () => {
+    const bridge = new FakeBridge();
+    const { result } = renderHook(() => useOverlay(bridge, () => "s1"));
+    await flush();
+    act(() => result.current.toggleSheet());
+    expect(result.current.state.sheetOpen).toBe(true);
+  });
+
+  it("hovering the preview pauses the auto-fade; leaving restarts the full countdown", async () => {
+    const bridge = new FakeBridge();
+    const { result } = renderHook(() => useOverlay(bridge, () => "s1"));
+    await flush();
+    act(() => result.current.submit("q"));
+    act(() => result.current.dismiss());
+    act(() => bridge.emit({ kind: "complete", turnId: "t" }));
+    expect(result.current.state.mode).toBe("preview");
+    act(() => result.current.previewHover(true));
+    act(() => vi.advanceTimersByTime(60_000));
+    expect(result.current.state.mode).toBe("preview"); // held under the pointer
+    act(() => result.current.previewHover(false));
+    act(() => vi.advanceTimersByTime(5999));
+    expect(result.current.state.mode).toBe("preview"); // a fresh, full countdown
+    act(() => vi.advanceTimersByTime(1));
+    expect(result.current.state.mode).toBe("hidden");
+  });
+
+  it("the hover latch clears on leaving preview mode, so the next preview still fades", async () => {
+    const bridge = new FakeBridge();
+    const { result } = renderHook(() => useOverlay(bridge, () => "s1"));
+    await flush();
+    act(() => result.current.submit("q"));
+    act(() => result.current.dismiss());
+    act(() => bridge.emit({ kind: "complete", turnId: "t" }));
+    act(() => result.current.previewHover(true));
+    act(() => result.current.open()); // clicked through: the hover never got its mouseleave
+    await flush();
+    act(() => result.current.submit("again"));
+    act(() => result.current.dismiss());
+    act(() => bridge.emit({ kind: "complete", turnId: "t2" }));
+    expect(result.current.state.mode).toBe("preview");
+    act(() => vi.advanceTimersByTime(6000));
+    expect(result.current.state.mode).toBe("hidden");
+  });
 });

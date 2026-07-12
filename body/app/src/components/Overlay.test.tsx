@@ -18,6 +18,7 @@ function fakeController(
       messages,
       sessions: [],
       switcherOpen: false,
+      sheetOpen: false,
       pendingConfirm: null,
       seq: 0,
       ...extra,
@@ -31,6 +32,8 @@ function fakeController(
     cyclePrev: vi.fn(),
     cycleNext: vi.fn(),
     toggleSwitcher: vi.fn(),
+    toggleSheet: vi.fn(),
+    previewHover: vi.fn(),
     respondConfirm: vi.fn(),
   };
   return controller;
@@ -141,5 +144,30 @@ describe("Overlay", () => {
     renderOverlay(controller);
     fireEvent.click(screen.getByText("First chat"));
     expect(controller.openSession).toHaveBeenCalledWith("c1");
+  });
+
+  it("? toggles the shortcut sheet, except while typing in the composer", () => {
+    const controller = fakeController("panel");
+    renderOverlay(controller);
+    fireEvent.keyDown(document.body, { key: "?" });
+    expect(controller.toggleSheet).toHaveBeenCalledOnce();
+    // In the composer a ? is just typing, never the sheet.
+    fireEvent.keyDown(screen.getByLabelText("Message"), { key: "?" });
+    expect(controller.toggleSheet).toHaveBeenCalledOnce();
+  });
+
+  it("Escape closes an open shortcut sheet instead of dismissing the panel", () => {
+    const controller = fakeController("panel", [], { sheetOpen: true });
+    renderOverlay(controller);
+    fireEvent.keyDown(document.body, { key: "Escape" });
+    expect(controller.toggleSheet).toHaveBeenCalledOnce();
+    expect(controller.dismiss).not.toHaveBeenCalled();
+  });
+
+  it("forwards preview hover to the controller's pause latch", () => {
+    const controller = fakeController("preview", [reply]);
+    renderOverlay(controller);
+    fireEvent.mouseEnter(screen.getByLabelText("Open reply"));
+    expect(controller.previewHover).toHaveBeenCalledWith(true);
   });
 });
