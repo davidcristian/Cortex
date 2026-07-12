@@ -140,6 +140,14 @@ describe("overlayState reducer", () => {
     expect(reduce(opened, { kind: "toggleSwitcher" }).switcherOpen).toBe(false);
   });
 
+  it("toggleSheet flips the shortcut sheet open then shut, and dismiss closes it too", () => {
+    const opened = reduce(reduce(initialState, { kind: "open" }), { kind: "toggleSheet" });
+    expect(opened.sheetOpen).toBe(true);
+    expect(reduce(opened, { kind: "toggleSheet" }).sheetOpen).toBe(false);
+    // A dismissed panel never re-summons onto stale help.
+    expect(reduce(opened, { kind: "dismiss" }).sheetOpen).toBe(false);
+  });
+
   it("openSession hydrates a stored chat: messages, derived title, session id, closed switcher", () => {
     const messages: SessionMessage[] = [
       { role: "user", text: "about cats", turnId: "t", atUnixMs: 1 },

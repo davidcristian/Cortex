@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useReducer, useRef } from "react";
+import { useCallback, useEffect, useReducer, useRef, useState } from "react";
 
 import type { BrainBridge, Cancellation } from "../bridge/types";
 import {
@@ -24,6 +24,9 @@ export interface OverlayController {
   cyclePrev(): void;
   cycleNext(): void;
   toggleSwitcher(): void;
+  toggleSheet(): void;
+  /** Hovering the preview pauses its auto-fade; leaving restarts the full countdown. */
+  previewHover(hovering: boolean): void;
   /** Answer the pending approval (ADR-0022); stale/duplicate answers are no-ops. */
   respondConfirm(confirmId: string, approved: boolean): void;
 }
@@ -40,6 +43,7 @@ export function useOverlay(
     createInitialState(newSessionId()),
   );
   const cancelRef = useRef<Cancellation | null>(null);
+  const [previewHovered, setPreviewHovered] = useState(false);
 
   const refreshSessions = useCallback(() => {
     bridge
@@ -52,12 +56,24 @@ export function useOverlay(
 
   const previewActive = isTurnActive(state);
   useEffect(() => {
-    if (state.mode !== "preview" || state.pendingConfirm !== null || previewActive) {
+    if (
+      state.mode !== "preview" ||
+      state.pendingConfirm !== null ||
+      previewActive ||
+      previewHovered
+    ) {
       return undefined;
     }
     const timer = setTimeout(() => dispatch({ kind: "previewFade" }), PREVIEW_MS);
     return () => clearTimeout(timer);
-  }, [state.mode, state.pendingConfirm, previewActive]);
+  }, [state.mode, state.pendingConfirm, previewActive, previewHovered]);
+
+  // Leaving preview mode clears the hover latch, so the next preview always arms its fade.
+  useEffect(() => {
+    if (state.mode !== "preview") {
+      setPreviewHovered(false);
+    }
+  }, [state.mode]);
 
   // Load the chat list on mount, and refresh it each time a turn finishes: `turnActive`
   // flips false→true→false per turn, so the false edges (mount + completion) reload.
@@ -122,6 +138,8 @@ export function useOverlay(
     dispatch({ kind: "newChat", sessionId: newSessionId() });
   }, [denyPendingConfirm, newSessionId]);
   const toggleSwitcher = useCallback(() => dispatch({ kind: "toggleSwitcher" }), []);
+  const toggleSheet = useCallback(() => dispatch({ kind: "toggleSheet" }), []);
+  const previewHover = useCallback((hovering: boolean) => setPreviewHovered(hovering), []);
 
   const openSession = useCallback(
     (sessionId: string) => {
@@ -162,6 +180,8 @@ export function useOverlay(
     cyclePrev,
     cycleNext,
     toggleSwitcher,
+    toggleSheet,
+    previewHover,
     respondConfirm,
   };
 }

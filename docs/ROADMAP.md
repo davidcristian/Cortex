@@ -962,13 +962,17 @@ behind the unchanged `ToolRegistry`/`ToolDispatcher`/`stream_tool_loop` seams (o
   the meaningful green/amber/red indicator needs a health/status signal over the bridge. The
   seam's `Health` RPC exists, the `BrainBridge` doesn't carry it yet. Joins whichever slice first
   streams brain status to the overlay.
-- **Design-doc interaction gaps** (surfaced 2026-07-03 driving the overlay in a browser; each a
-  small change behind the unchanged `BrainBridge` port / reducer): history auto-scroll while
-  streaming (unless the reader scrolled up), composer focus-on-summon, click-away dismiss,
-  rendering the tool/status chips the reducer already tracks, the empty-state mark + example
-  prompts, the pre-first-token thinking shimmer, the `?` shortcut sheet, composer auto-grow, and
-  making preview **hover actually pause the auto-fade** (today only the bar's animation pauses while
-  the fade timer fires regardless, diverging from [overlay-ux.md §4](design/overlay-ux.md)).
+- **Design-doc interaction gaps closed 2026-07-12 ([ADR-0011 addendum](adr/ADR-0011-body-v1.md)).**
+  All nine items surfaced by the 2026-07-03 browser pass landed behind the unchanged
+  `BrainBridge` port / reducer, CI-gated at 100% and browser-validated in both themes: history
+  auto-scroll while streaming (a pinned-at-bottom latch; scrolling up holds the reader's place),
+  composer focus-on-summon, click-away dismiss (the Esc path: orb mid-stream, hidden idle), the
+  tool/status chips the reducer already tracked (slim accent-dotted pills above the streaming
+  bubble, giving the ADR-0020 thinking status a visible surface), the empty-state mark + tappable
+  example prompts, the pre-first-token thinking shimmer, the `?` shortcut sheet (`sheetOpen` in
+  the reducer; Esc closes it before dismissing), composer auto-grow, and preview **hover now
+  pausing the fade timer itself** (leaving restarts the full countdown, with the drain bar
+  remounting in step so bar and timer always agree).
   **The streaming stop control landed 2026-07-07**. The send button becomes a real stop mid-turn
   (a `stop` reducer action drops the stream via the bridge `Cancellation` and ends the reply in
   place); browser-verified. The header/composer glyphs were also unified onto one outline icon set
@@ -1023,9 +1027,10 @@ each behind the unchanged `Confirmer`/`ToolDispatcher`/`GatedToolRegistry`/seam 
   needs a TRUSTED remote tool.
 - **Batching / per-tool session allowlists** against confirmation fatigue, if sends become
   frequent enough to matter.
-- **`ToolActivity` salience** is still emitted by nothing; the confirm card is the first mid-turn
-  tool surface, so a general tool-activity chip stays an overlay-gap item (joins the Slice-8
-  design-doc interaction gaps).
+- **`ToolActivity` salience**: the overlay half landed 2026-07-12 (the Slice-8 gap closure's
+  inline chips render a streaming message's tool activity), but the brain still emits no
+  `ToolActivity` event; when the tool loop gains salience emission, the chip lights up with no
+  overlay change.
 - **The subagent-side authoritative gated-name backstop wired 2026-07-12
   ([ADR-0022 addendum](adr/ADR-0022-email-write-confirmer.md)).** `build_subagents` now receives
   its dispatcher pre-assembled: the composition root calls

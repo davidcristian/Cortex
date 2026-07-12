@@ -24,6 +24,8 @@ export function Overlay({ controller, dark, onToggleTheme }: OverlayProps) {
     cyclePrev,
     cycleNext,
     toggleSwitcher,
+    toggleSheet,
+    previewHover,
     respondConfirm,
   } = controller;
 
@@ -31,9 +33,14 @@ export function Overlay({ controller, dark, onToggleTheme }: OverlayProps) {
     const onKey = (event: KeyboardEvent) => {
       const mod = event.ctrlKey || event.metaKey;
       if (event.key === "Escape") {
-        if (state.mode !== "hidden") {
+        if (state.sheetOpen) {
+          toggleSheet();
+        } else if (state.mode !== "hidden") {
           dismiss();
         }
+      } else if (event.key === "?" && !(event.target instanceof HTMLTextAreaElement)) {
+        event.preventDefault();
+        toggleSheet();
       } else if (mod && event.key.toLowerCase() === "n") {
         event.preventDefault();
         newChat();
@@ -50,7 +57,7 @@ export function Overlay({ controller, dark, onToggleTheme }: OverlayProps) {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [state.mode, dismiss, newChat, toggleSwitcher, cyclePrev, cycleNext]);
+  }, [state.mode, state.sheetOpen, dismiss, newChat, toggleSwitcher, toggleSheet, cyclePrev, cycleNext]);
 
   return (
     <>
@@ -64,11 +71,14 @@ export function Overlay({ controller, dark, onToggleTheme }: OverlayProps) {
         onDismiss={dismiss}
         onNewChat={newChat}
         onToggleSwitcher={toggleSwitcher}
+        onToggleSheet={toggleSheet}
         onSelectSession={openSession}
         onRespondConfirm={respondConfirm}
       />
       {state.mode === "orb" ? <Orb onClick={open} /> : null}
-      {state.mode === "preview" ? <Preview reply={latestReply(state)} onClick={open} /> : null}
+      {state.mode === "preview" ? (
+        <Preview reply={latestReply(state)} onClick={open} onHover={previewHover} />
+      ) : null}
     </>
   );
 }

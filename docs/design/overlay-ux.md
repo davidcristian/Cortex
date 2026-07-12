@@ -79,12 +79,14 @@ Top-to-bottom, the summoned panel is:
    when a real health signal crosses the bridge: v1 shipped it as an always-green decoration and
    the 2026-07-03 pass removed it. Chrome earns its place by meaning something.
 2. **History** is the scrollable conversation: alternating user/assistant bubbles, newest at the
-   bottom, auto-scrolling as tokens stream (but *not* if the user has scrolled up to read).
-   Tool-activity and status appear as slim inline chips between bubbles ("📧 reading inbox…",
-   "swapping model…"), not as bubbles. The **approval card** (§4, ADR-0022) is this inline
-   layer's first real occupant. Empty state: a centered, gently-breathing accent orb +
-   "Ask me anything" + a couple of example prompts as tappable chips.
-3. **Composer** is a rounded pill textarea (`⏎` sends, `⇧⏎` newlines, auto-grows to a few lines),
+   bottom, auto-scrolling as tokens stream (but *not* if the user has scrolled up to read;
+   landed 2026-07-12). Tool-activity and status appear as slim inline chips between bubbles
+   ("📧 reading inbox…", "swapping model…"), not as bubbles (landed 2026-07-12: a neutral pill
+   with a pulsing accent dot, above the streaming bubble, gone on completion). The **approval
+   card** (§4, ADR-0022) is this inline layer's first real occupant. Empty state: the mark +
+   "Ask me anything" + a couple of example prompts as tappable chips (landed 2026-07-12).
+3. **Composer** is a rounded pill textarea (`⏎` sends, `⇧⏎` newlines, auto-grows to a few lines;
+   grow + focus-on-summon landed 2026-07-12),
    a glowing accent focus ring when active, and a gradient **send** button (an outline up-arrow,
    `components/icons.tsx`) that springs on press; its gradient **fades in** as the field gains
    content (an opacity overlay, since gradients can't interpolate, and a hard swap pops). **While
@@ -92,7 +94,11 @@ Top-to-bottom, the summoned panel is:
    reducer action drops the bridge stream and ends the reply in place, keeping the partial text
    (distinct from dismiss, which minimizes to the orb). Landed 2026-07-07.
 4. **Hint strip** is a subtle one-line footer of the live shortcuts (§6), dimmed and **centered**,
-   with a `?` that opens the full shortcut sheet. The kbd glyphs are outline icons matching the
+   with a `?` that opens the full shortcut sheet (landed 2026-07-12; the `?` key works too,
+   outside the composer, and Esc closes the sheet before it dismisses the panel). The sheet is
+   not frosted: the panel's own backdrop-filter bounds the backdrop root, so a child's blur
+   cannot reach the history beneath it, and the sheet layers the panel tint over the solid
+   ground instead. The kbd glyphs are outline icons matching the
    header set (return / shift / cycle chevrons), not raw Unicode symbols (2026-07-07).
 
 ## 4. The interaction state machine (the heart)
@@ -143,7 +149,10 @@ while a turn is processing must not lose it*) lives here. States:
   card near the corner: the answer (a few-line clamp) and a hairline accent progress bar
   counting down the auto-dismiss (~6s) and **nothing else** (the "reply ready"/"click to open"
   captions and then the mini mark were removed 2026-07-03 as redundant: the card appearing *is*
-  the signal, and the draining bar says it will go). **Hover pauses** the countdown; **click**
+  the signal, and the draining bar says it will go). **Hover pauses** the countdown (landed
+  2026-07-12: the fade timer itself pauses, not just the bar; leaving restarts the full
+  countdown rather than resuming, with the drain bar remounting in step, so what the bar shows
+  always matches the timer); **click**
   morphs to **PANEL(done)** (full answer in context); ignore it and it **fades out** → HIDDEN
   (still persisted). A failed turn previews as a soft error card (same shape, red-tinted) that
   does *not* auto-fade, because errors wait to be seen.
