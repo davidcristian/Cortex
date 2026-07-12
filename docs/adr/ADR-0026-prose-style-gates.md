@@ -103,3 +103,4 @@ the line cap) and extend `scripts/commitlint.py` from the header to the whole me
   tree still read 100%, since an unmeasured module cannot lower an average. Measuring the
   tree instead of a list is the fix; recorded in the ROADMAP's deferred-refinements
   section. Until then a new script must be hand-added to both lists or it is ungated.
+  *Closed by the 2026-07-12 addendum below.*

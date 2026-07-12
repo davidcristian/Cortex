@@ -709,16 +709,17 @@ an ADR, so its entries below are the canonical record) and collected here so non
 Not ordered; picked up when a slice needs one or on request.
 
 **Repo gates ([ADR-0026](adr/ADR-0026-prose-style-gates.md)):**
-- **The `scripts/` gate config is fail-open, and it bit.** `scripts/pyproject.toml`
-  enumerates the modules it measures, once in the pytest `--cov=` list and again in
-  pyright's `include`. Adding `dashcheck.py` silently escaped BOTH the 100% coverage gate
-  and strict typing until the omission was spotted by eye: the tree still reported 100%,
-  because a module nobody measures cannot lower the average. Every other classifier here
-  fails closed (`ci_paths.py` routes an unknown path to all toolchains), so this is the
-  odd one out. The fix is to measure the tree rather than a list (`--cov=.` plus an
-  explicit omit for `tests/`, and a pyright `include` of `.`), which needs care to keep
-  the test files' own coverage semantics intact. Until then, **a new script in `scripts/`
-  must be added to both lists by hand or it is silently ungated.**
+- **The fail-open `scripts/` gate config closed 2026-07-12
+  ([ADR-0026 addendum](adr/ADR-0026-prose-style-gates.md)).** `scripts/pyproject.toml`
+  enumerated the modules it measured, once in the pytest `--cov=` list and again in
+  pyright's `include`; adding `dashcheck.py` silently escaped BOTH the 100% coverage gate
+  and strict typing until the omission was spotted by eye (the tree still reported 100%,
+  because a module nobody measures cannot lower the average). Both now measure the tree
+  rather than a list: `--cov=.` with an explicit coverage omit for `tests/` and `.venv/`
+  (test files stay unmeasured, as before), and a pyright `include` of `"."` with an
+  explicit exclude. A new script is gated by default; escaping needs a written exclusion.
+  Proven to fail on an unlisted probe script (coverage 98.62% + two strict pyright
+  errors) before being trusted.
 
 **Seam / transport in Slice 2 ([ADR-0003](adr/ADR-0003-seam-codegen.md)):**
 - **Transport retry / reconnect policy landed 2026-07-08 ([ADR-0024](adr/ADR-0024-transport-retry.md)).**
