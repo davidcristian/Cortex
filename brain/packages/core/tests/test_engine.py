@@ -31,6 +31,7 @@ from cortex_core import (
     SystemClock,
     TextChunk,
     TextDelta,
+    ToolActivity,
     ToolCall,
     ToolDispatcher,
     ToolSpec,
@@ -40,7 +41,7 @@ from cortex_core import (
     TurnEvent,
     UrlRedactingGuardrail,
 )
-from cortex_core.tool_loop import MAX_TOOL_STEPS
+from cortex_core.tool_loop import MAX_STEP_SUMMARY_CHARS, MAX_TOOL_STEPS
 
 _START = datetime(2026, 7, 3, 12, 0, 0, tzinfo=UTC)
 
@@ -430,9 +431,11 @@ async def test_tool_call_is_dispatched_audited_and_fed_back() -> None:
         turn_id_factory=lambda: "t-1",
     )
     events = await _collect(engine.handle_turn("s", "show hosts"))
-    # Reasoning + final answer stream across the two steps; one TurnCompleted at the end.
+    # The audited dispatch surfaces as an ephemeral ToolActivity between the two steps' reply
+    # deltas (ADR-0009 addendum); its summary is the advertised description, never arguments.
     assert events == [
         TextDelta("checking... "),
+        ToolActivity(tool_name="read", summary="read a file"),
         TextDelta("done"),
         TurnCompleted(turn_id="t-1", full_text="checking... done"),
     ]
@@ -493,6 +496,57 @@ async def test_tool_loop_stops_at_the_step_bound() -> None:
     assert completed.full_text == ""  # the model only ever called tools, never answered
     assert backend.calls == MAX_TOOL_STEPS  # bounded rather than an infinite loop
     assert len(sink.records) == MAX_TOOL_STEPS
+
+
+async def test_tool_step_summary_derives_from_the_spec_never_the_arguments() -> None:
+    """The activity summary is registry-authored (ADR-0009 addendum): a multi-line advertised
+    description contributes its first line (length-capped), an empty one falls back to the tool
+    name, and a call to a tool missing from the advertised snapshot falls back to its name too.
+    Model-authored arguments never reach the chip: an argument echo would hand injected content
+    a display channel the reply-side guardrail never inspects."""
+    long_line = "peek at " + "x" * (2 * MAX_STEP_SUMMARY_CHARS)
+    registry = InMemoryToolRegistry(
+        {
+            "peek": (
+                ToolSpec(name="peek", description=f"{long_line}\nsecond line", parameters={}),
+                _noop_handler,
+            ),
+            "bare": (ToolSpec(name="bare", description="  ", parameters={}), _noop_handler),
+        }
+    )
+    backend = ScriptedToolBackend(
+        [
+            [
+                ToolCall(id="c1", name="peek", arguments={"leak": "http://evil.example"}),
+                ToolCall(id="c2", name="bare", arguments={}),
+                ToolCall(id="c3", name="ghost", arguments={}),
+            ],
+            [TextChunk("done")],
+        ]
+    )
+    sink = RecordingAuditSink()
+    engine = TurnEngine(
+        InMemorySessionStore(),
+        backend,
+        TickingClock(),
+        capabilities=TurnCapabilities(tools=ToolDispatcher(registry, sink, TickingClock())),
+        turn_id_factory=lambda: "t-1",
+    )
+    events = await _collect(engine.handle_turn("s", "go"))
+    activities = [e for e in events if isinstance(e, ToolActivity)]
+    assert [a.tool_name for a in activities] == ["peek", "bare", "ghost"]
+    peek, bare, ghost = activities
+    assert peek.summary == long_line[:MAX_STEP_SUMMARY_CHARS]
+    assert "evil.example" not in peek.summary
+    assert bare.summary == "bare"
+    # The unknown tool still surfaced (the activity precedes its failing dispatch) and the
+    # dispatch itself was audited as the usual is_error result the model recovers from.
+    assert ghost.summary == "ghost"
+    assert [(record.name, record.ok) for record in sink.records] == [
+        ("peek", True),
+        ("bare", True),
+        ("ghost", False),
+    ]
 
 
 async def test_reasoning_deltas_surface_as_thinking_status_and_never_reach_the_reply() -> None:

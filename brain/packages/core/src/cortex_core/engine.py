@@ -15,13 +15,13 @@ from uuid import uuid4
 
 from cortex_core.conversation import Message, Role
 from cortex_core.dispatch import ToolDispatcher
-from cortex_core.events import StatusUpdate, TextDelta, TurnCompleted, TurnEvent
+from cortex_core.events import StatusUpdate, TextDelta, ToolActivity, TurnCompleted, TurnEvent
 from cortex_core.guardrail import OutputFilter, OutputGuardrail
 from cortex_core.memory import ScoredMemory
 from cortex_core.ports import Clock, InferenceBackend, SessionStore
 from cortex_core.recall import MemoryRecaller
 from cortex_core.routing import RoutingHints, Tier, route_turn
-from cortex_core.tool_loop import ReasoningDelta, ToolLoopContext, stream_tool_loop
+from cortex_core.tool_loop import ReasoningDelta, ToolLoopContext, ToolStep, stream_tool_loop
 from cortex_core.untrusted import (
     TaintLedger,
     new_nonce,
@@ -106,9 +106,10 @@ class TurnCapabilities:
 class TurnEngine:
     """The "handle a user turn" use-case, wired only to ports.
 
-    Event contract per turn: zero or more ``TextDelta`` / ``StatusUpdate`` (interleaved) then
-    exactly one ``TurnCompleted``. A ``StatusUpdate`` carries ephemeral progress, a reasoning
-    model's live deliberation (ADR-0020, ``state="thinking"``). It is neither filtered as reply
+    Event contract per turn: zero or more ``TextDelta`` / ``StatusUpdate`` / ``ToolActivity``
+    (interleaved) then exactly one ``TurnCompleted``. A ``StatusUpdate`` carries ephemeral
+    progress, a reasoning model's live deliberation (ADR-0020, ``state="thinking"``); a
+    ``ToolActivity`` an audited dispatch (ADR-0009 addendum). Neither is filtered as reply
     text, accumulated into ``full_text``, nor recorded to memory. The user message is persisted
     before inference starts; the assistant message is persisted only on completion. A consumer
     that closes the event stream mid-generation keeps the user message and drops the partial reply.
@@ -171,6 +172,11 @@ class TurnEngine:
                     # A reasoning model's live thinking (ADR-0020): surfaced as ephemeral status,
                     # never the reply. It therefore skips the guardrail, `parts`, and persistence.
                     yield StatusUpdate(state=THINKING_STATE, detail=delta.text)
+                    continue
+                if isinstance(delta, ToolStep):
+                    # An audited dispatch about to run (ADR-0009 addendum): surfaced as ephemeral
+                    # activity for the overlay chip, with the same non-reply treatment.
+                    yield ToolActivity(tool_name=delta.tool_name, summary=delta.summary)
                     continue
                 shown = delta if guard is None else guard.feed(delta)
                 if not shown:

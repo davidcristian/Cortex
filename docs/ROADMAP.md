@@ -1043,10 +1043,18 @@ each behind the unchanged `Confirmer`/`ToolDispatcher`/`GatedToolRegistry`/seam 
   needs a TRUSTED remote tool.
 - **Batching / per-tool session allowlists** against confirmation fatigue, if sends become
   frequent enough to matter.
-- **`ToolActivity` salience**: the overlay half landed 2026-07-12 (the Slice-8 gap closure's
-  inline chips render a streaming message's tool activity), but the brain still emits no
-  `ToolActivity` event; when the tool loop gains salience emission, the chip lights up with no
-  overlay change.
+- **`ToolActivity` landed end to end 2026-07-12 ([ADR-0009 chip addendum](adr/ADR-0009-tools-mcp.md)).**
+  The overlay half landed first (the Slice-8 gap closure's inline chips); the brain half followed
+  the same day: `stream_tool_loop` yields a `ToolStep` immediately before each audited dispatch,
+  the engine maps it to the ephemeral domain `ToolActivity` (the ADR-0020 precedent: skips
+  guardrail, reply, and persistence; the subagent runner drops it), and the orchestrator maps
+  that onto the wire event the proto carried since Slice 2, so the already-shipped chip lit up
+  with no overlay change. The summary is registry-authored (spec description first line, capped,
+  name fallback), never model-authored arguments (an argument echo would hand injected content a
+  display channel the ADR-0015 guardrail never inspects). Remaining behind the same seams: a wire
+  `phase` field if the chip ever needs completion states (a proto + both-stub-trees change);
+  subagent tool-step surfacing (the ADR-0010 progress deferral); and the dispatch rate/salience
+  policy (the ADR-0009 tools-block entry above), all unchanged.
 - **The subagent-side authoritative gated-name backstop wired 2026-07-12
   ([ADR-0022 addendum](adr/ADR-0022-email-write-confirmer.md)).** `build_subagents` now receives
   its dispatcher pre-assembled: the composition root calls

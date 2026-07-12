@@ -6,9 +6,10 @@ with tools available; when the model emits tool calls, dispatch each through the
 ``MAX_TOOL_STEPS``. That loop (inlined in ``handle_turn`` before Slice 7) lives here so both
 callers reuse it verbatim: one loop, one bound, one audited dispatch path. The loop mutates the
 ``working`` message list in place (appending the tool-call and result messages) and yields each
-assistant reply delta (a ``str``) plus any ``ReasoningDelta`` a reasoning model streams (ADR-0020);
-the caller accumulates the reply text and decides what to do with each (the cortex surfaces
-reasoning as status, a subagent drops it).
+assistant reply delta (a ``str``), any ``ReasoningDelta`` a reasoning model streams (ADR-0020),
+and a ``ToolStep`` per audited dispatch (ADR-0009 addendum); the caller accumulates the reply
+text and decides what to do with each (the cortex surfaces reasoning as status and tool steps
+as activity, a subagent drops both).
 
 The loop is also where the untrusted-content boundary is drawn (ADR-0013): an UNTRUSTED result
 is fenced by ``wrap_untrusted`` before it re-enters the context, the per-turn ``TaintLedger``
@@ -27,23 +28,53 @@ from cortex_core.conversation import Message, Role
 from cortex_core.dispatch import ToolDispatcher
 from cortex_core.inference import ReasoningChunk
 from cortex_core.ports import Clock, InferenceBackend
-from cortex_core.tools import ToolCall, ToolResult, Trust
+from cortex_core.tools import ToolCall, ToolResult, ToolSpec, Trust
 from cortex_core.untrusted import TaintLedger, wrap_untrusted
 
 # Upper bound on inference↔tool rounds in one loop (ADR-0009): a safety net against a model
 # that never stops calling tools. On exhaustion the loop ends with the text produced so far.
 MAX_TOOL_STEPS = 8
 
+# Upper bound on a ToolStep summary: the chip is one slim line, and an advertised description
+# is sidecar-authored text of arbitrary length (ADR-0009 addendum).
+MAX_STEP_SUMMARY_CHARS = 120
+
 
 @dataclass(frozen=True, slots=True)
 class ReasoningDelta:
     """A delta of the model's reasoning trace, surfaced by the loop distinctly from reply text
-    (ADR-0020). The loop's yield vocabulary is ``str`` (reply text) or ``ReasoningDelta``: reply
-    text accumulates into the answer and is persisted, a reasoning delta is ephemeral status and
-    is never added to the assistant message nor fed back into the context.
+    (ADR-0020). The loop's yield vocabulary is ``str`` (reply text), ``ReasoningDelta``, or
+    ``ToolStep``: reply text accumulates into the answer and is persisted, a reasoning delta is
+    ephemeral status and is never added to the assistant message nor fed back into the context.
     """
 
     text: str
+
+
+@dataclass(frozen=True, slots=True)
+class ToolStep:
+    """One audited tool dispatch about to run, yielded by the loop immediately before the
+    dispatch so a consumer can surface it while the tool works (ADR-0009 addendum). Ephemeral
+    like ``ReasoningDelta``: the cortex engine maps it to the domain ``ToolActivity`` event,
+    a subagent drops it. ``summary`` derives from the advertised spec (``_step_summary``),
+    never from model-authored call arguments.
+    """
+
+    tool_name: str
+    summary: str
+
+
+def _step_summary(spec: ToolSpec | None, name: str) -> str:
+    """The chip text for one dispatch: the advertised description's first line, capped; the
+    bare tool name when the spec is unknown to this step's snapshot or its description empty.
+
+    Registry-authored by construction. The model's call arguments never reach it, as an
+    argument echo would hand injected content a display channel the reply-side guardrail
+    (ADR-0015) never inspects.
+    """
+    description = spec.description.strip() if spec is not None else ""
+    line = description.splitlines()[0] if description else name
+    return line[:MAX_STEP_SUMMARY_CHARS]
 
 
 @dataclass(frozen=True, slots=True)
@@ -84,21 +115,23 @@ async def stream_tool_loop(
     model: str,
     working: list[Message],
     context: ToolLoopContext,
-) -> AsyncGenerator[str | ReasoningDelta, None]:
-    """Run the bounded infer↔tool loop over ``working``, yielding reply-text deltas (``str``) and
-    reasoning deltas (``ReasoningDelta``, ADR-0020).
+) -> AsyncGenerator[str | ReasoningDelta | ToolStep, None]:
+    """Run the bounded infer↔tool loop over ``working``, yielding reply-text deltas (``str``),
+    reasoning deltas (``ReasoningDelta``, ADR-0020), and a ``ToolStep`` per audited dispatch
+    (ADR-0009 addendum).
 
     The loop advertises exactly the tools it can dispatch: the dispatcher's tools when present,
     none otherwise. With ``dispatcher`` None (or once the model stops calling tools) the loop
     ends after one inference step. Each tool call is dispatched through the audited dispatcher, with
     gated calls confirmed against the turn's taint (ADR-0013). Its result marks the taint ledger
     and is fed back (fenced when untrusted) as a ``Role.TOOL`` message before re-inference.
-    Reasoning deltas are surfaced live but never join ``step_text``, so they are neither persisted
-    with the assistant message nor fed back into the next step's context.
+    Reasoning deltas and tool steps are surfaced live but never join ``step_text``, so they are
+    neither persisted with the assistant message nor fed back into the next step's context.
     """
     dispatcher = context.dispatcher
     specs = await dispatcher.describe_tools() if dispatcher is not None else ()
     gated_by_name = {spec.name: spec.gated for spec in specs}
+    spec_by_name = {spec.name: spec for spec in specs}
     for _step in range(MAX_TOOL_STEPS):
         calls: list[ToolCall] = []
         step_text: list[str] = []
@@ -123,6 +156,9 @@ async def stream_tool_loop(
             _call_message("".join(step_text), calls, context.clock.now(), context.turn_id)
         )
         for call in calls:
+            yield ToolStep(
+                tool_name=call.name, summary=_step_summary(spec_by_name.get(call.name), call.name)
+            )
             # The advertised gated flag is a hint; the dispatcher OR-s it with its own
             # authoritative gated-name set, so a tool a flaky sidecar hid from this snapshot
             # (skip mode) and later recovered is still gated at dispatch (ADR-0022).

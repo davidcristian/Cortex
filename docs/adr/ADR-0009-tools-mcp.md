@@ -337,3 +337,42 @@ re-dials. **Trade-off:** a per-call session open (a localhost handshake per desc
 session cache/pool is a later optimization behind the unchanged `ToolRegistry` port and recorded in
 the ROADMAP. The port, the audited `ToolDispatcher`, and the core combinators are unchanged;
 `httpx` becomes a direct `cortex_tools` dependency (the transport whose connect errors it maps).
+
+## Addendum (2026-07-12): the tool loop emits `ToolActivity` for the overlay chip
+
+The proto has carried `ServerEvent.tool_activity` (`ToolActivity{tool_name, summary}`) since the
+seam landed, and the overlay's inline activity chips (the ADR-0011 gap closure) render it, but the
+brain never emitted it: every audited dispatch inside `stream_tool_loop` was invisible to the user
+mid-turn. This addendum lands the brain half, recorded as deferred at ADR-0022 (the chip's origin)
+and closed here (the loop's home). Decisions:
+
+1. **The loop yields a `ToolStep`; the engine maps it.** `stream_tool_loop`'s yield vocabulary
+   grows to `str | ReasoningDelta | ToolStep` (frozen: `tool_name`, `summary`), yielded
+   immediately *before* each audited `dispatcher.dispatch` so the chip shows while the tool
+   runs. The `TurnEngine` maps it onto the new domain event `ToolActivity(tool_name, summary)`
+   (the `ReasoningDelta` → `StatusUpdate` precedent, ADR-0020): ephemeral, never fed to the
+   output guardrail, never part of `full_text`, never persisted or recorded to memory. The
+   orchestrator's `_to_server_event` maps the domain event onto the wire type. The
+   `SubagentRunner` keeps only `str` deltas in its joined output, dropping tool steps with
+   reasoning: a subagent's loop has no `Converse` stream to ride, and surfacing its progress
+   is the standing ADR-0010 deferral.
+2. **The summary is registry-authored, never model-authored.** It derives from the advertised
+   `ToolSpec.description` (first line, capped at `MAX_STEP_SUMMARY_CHARS`), falling back to the
+   bare tool name when the description is empty or the called tool is missing from the step's
+   advertisement snapshot (the skip-mode window; the dispatch itself still runs and fails as
+   its usual `is_error` result). The model's call *arguments* never reach the chip: they are
+   written after the model may have read untrusted content, and the ADR-0015 guardrail scrubs
+   only reply text, so an argument echo would hand injected content an unfiltered display
+   channel.
+3. **Start-only, no wire `phase` field.** One event per dispatch; the overlay chip is
+   latest-wins and the turn-ending event clears it, which already gives a sensible lifecycle.
+   A `phase` on the wire needs a proto field plus both committed stub trees; deferred until a
+   design actually needs completion states.
+4. **The dispatch rate/salience policy stays a separate deferral** (this ADR's risks; the
+   ROADMAP's tools block). Emission is intrinsically bounded (`MAX_TOOL_STEPS` per turn, the
+   credit-bounded `Converse` queue), so the chip needed no policy to land; limiting *dispatch*
+   is its own design.
+
+CI-gated end to end over the fakes (loop yield order, engine passthrough and summary
+derivation branches, runner drop, wire mapping); the overlay half was already browser-validated
+when the chips landed, and renders this event with no overlay change.
