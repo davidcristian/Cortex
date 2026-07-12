@@ -141,8 +141,8 @@ Start here. Rules for working in this repo: [AGENTS.md](../AGENTS.md).
   is forwarded unchanged (non-idempotent → a failed turn stays terminal).
 - [ADR-0025: Scheduling & reminders](adr/ADR-0025-scheduling-reminders.md): Slice 9.5 adds durable
   schedules behind a new `ScheduleStore` port (Redis adapter, no TTL, versioned records), a pure
-  coalescing `next_due`, three cortex-only built-ins (`schedule_task`/`list_scheduled`/
-  `cancel_scheduled`, taint riding the record), the stateless `ScheduleTicker` (at-least-once via
+  coalescing `next_due`, four cortex-only built-ins (`schedule_task`/`list_scheduled`/
+  `cancel_scheduled`/`snooze_scheduled`, taint riding the record), the stateless `ScheduleTicker` (at-least-once via
   a claim lease; autonomous tasks fire through the existing subagent seams with `confirmer=None` +
   `UngatedToolRegistry` as the structural safety posture), and delivery over both seam directions:
   pull (`ListDueReminders`/`AckReminder` on `BrainService`) and push (`BodyService.Notify` → a

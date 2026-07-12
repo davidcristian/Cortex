@@ -231,7 +231,8 @@ The service:
   built-in set `build_builtin_tools(spawn_tool, body, schedule_tools=...)` assembles **once**
   (the one-sequence bundling that keeps the builder under the six-argument ceiling as
   capabilities accumulate, ADR-0025 d7): delegation, the two volume built-ins when a
-  `BodyGateway` is threaded in (ADR-0023), and the three schedule verbs (ADR-0025), all merged
+  `BodyGateway` is threaded in (ADR-0023), and the four schedule built-ins
+  (`schedule_task`/`list_scheduled`/`cancel_scheduled`/`snooze_scheduled`, ADR-0025), all merged
   with the MCP tools via a `CompositeToolRegistry`, or `None` when nothing is enabled (the
   Slice 3 turn path). The volume and schedule built-ins are ungated by default (reversible);
   a user gates any by name in `CORTEX_TOOLS_GATED` (the dispatcher's authoritative backstop).
