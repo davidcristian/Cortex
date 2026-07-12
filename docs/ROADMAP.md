@@ -1109,9 +1109,20 @@ behind the unchanged `ScheduleStore`/`BodyGateway`/seam shapes.
 - **Occurrence history.** Coalesced single-slot deliverability keeps no per-fire records,
   and terminal cleanup deletes a one-shot task's outcome with its record; a history table
   would also cover unseen-toast recovery.
-- **Snooze / edit verbs**; **task-outcome delivery** as a notification; a **push retry
-  policy** beyond next-poll-pull; **retention/inspection tooling** for the dead-letter
-  quarantine hash (`cortex:schedules:dead`); overlay badge/UX polish for tainted reminders.
+- **Snooze landed 2026-07-12 ([ADR-0025 snooze addendum](adr/ADR-0025-scheduling-reminders.md)).**
+  A new fenced `ScheduleStore.snooze(item_id, until)` transition (WATCH-fenced like
+  finish/release/ack, contract-tested across fake + fakeredis + the live suite) plus the
+  fourth cortex-only built-in `snooze_scheduled(id, for_seconds)` (in `schedule_verbs.py`,
+  the line-cap split that took `cancel_scheduled` along). One-shots only: recurrence anchors
+  on `due_at`, so a snoozed recurring item would silently re-anchor its series; the refusal
+  names the workaround, and an **anchor-preserving occurrence snooze** joins this list as the
+  recorded remainder. A fired-but-undelivered reminder re-arms (fires fresh, never
+  re-delivers stale).
+- **Edit verbs** (retext / re-recur without cancel-and-recreate; must OR the editing turn's
+  taint, never clear it, or the listing trust launders); **task-outcome delivery** as a
+  notification; a **push retry policy** beyond next-poll-pull (both blocked on the body half
+  of this slice); **retention/inspection tooling** for the dead-letter quarantine hash
+  (`cortex:schedules:dead`); overlay badge/UX polish for tainted reminders.
 
 **Cross-cutting (originally "Later, unordered"):** pointer-input injection (extend the proto
 first), richer memory policies (**the email-write tool landed 2026-07-08 as Slice 8.8**,

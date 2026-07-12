@@ -194,6 +194,9 @@ class ScheduleStore(Protocol):
     ``release`` un-claims (FIRING → PENDING, due unchanged); both apply only under the
     claim's token and no-op ``False`` for a stale claimant. ``cancel`` deletes outright, and
     it sticks through an in-flight fire, returning ``False`` only for an unknown id.
+    ``snooze`` postpones a one-shot to ``until``; a fired-but-undelivered reminder re-arms
+    with deliverability cleared, while a recurring, FIRING, or unknown item answers
+    ``False``, and the transition is fenced like the rest (ADR-0025 snooze addendum).
     ``deliverable`` lists fired reminders awaiting ``ack`` (which clears the slot and
     deletes a DONE one-shot). ``list_active`` is PENDING/FIRING plus deliverable, due
     order. Failures surface as ``ScheduleStoreError``.
@@ -206,6 +209,8 @@ class ScheduleStore(Protocol):
     async def list_active(self) -> Sequence[ScheduledItem]: ...
 
     async def cancel(self, item_id: str) -> bool: ...
+
+    async def snooze(self, item_id: str, *, until: datetime) -> bool: ...
 
     async def claim_due(
         self, now: datetime, *, lease: timedelta, limit: int

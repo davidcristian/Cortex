@@ -496,3 +496,38 @@ The Docker validation was re-run against the rebuilt stack after the fixes. The
 "CI-gated" Consequences list above reads as the slice-total ledger; the previous addendum
 names what of it still remains (the Rust transport methods, the overlay surface, the body
 `Notify` trait).
+
+## Addendum (2026-07-12): `snooze` joins the fenced verb set
+
+The deferred snooze verb lands behind the unchanged seams: one new fenced
+`ScheduleStore.snooze(item_id, *, until)` transition plus a fourth cortex-only built-in,
+`snooze_scheduled` (in `schedule_verbs.py`, split from `schedule_tools.py` with
+`CancelScheduledTool` and the shared result helpers, since the line cap forces the
+creation/listing vs lifecycle-verb split anyway). Decisions:
+
+- **One-shots only.** `next_due` anchors recurrence on `due_at` (occurrences are
+  `due_at + k * every`), so snoozing a recurring item by rewriting `due_at` would silently
+  re-anchor the whole series (a daily 09:00 nudged ten minutes once becomes a daily 09:10).
+  v1 refuses a recurring item with a correction naming the workaround (cancel and
+  re-create); an anchor-preserving occurrence snooze (a separate anchor field, or an
+  occurrence skip) is recorded deferred rather than drifting silently.
+- **Two snoozable states.** A PENDING one-shot moves its `due_at` to `until` (the due index
+  re-scored); a fired-but-undelivered one-shot reminder (DONE and deliverable, the
+  snooze-the-toast case) re-arms to PENDING at `until` with deliverability cleared, so it
+  fires fresh instead of re-delivering stale. FIRING refuses (the in-flight fire settles
+  first) and unknown ids answer False. The transition is WATCH-fenced exactly like
+  `finish`/`release`/`ack`: a racing cancel or claim fails the EXEC and snooze answers
+  False, never a lost update.
+- **The tool takes relative time.** `snooze_scheduled(id, for_seconds)` computes
+  `until = now + for_seconds` from the injected Clock (snooze means "from now", and no
+  clock arithmetic is demanded of the model); the bounds mirror creation (the 60 s floor
+  and ten-year ceiling, `parse_for_seconds` beside the creation parser). The tool reads the
+  item first for a precise correction (unknown / recurring / firing now), then relies on
+  the fenced transition for the race-free answer, so the read is advisory and the store is
+  authoritative. No taint gate, matching `cancel_scheduled`: postponing an existing
+  human-visible item is the same trust class as deleting it, and results never echo stored
+  text.
+
+CI-gated through the shared contract suite (fake + fakeredis interchangeably) and the tool
+tests over the fake; the live Redis integration suite exercises the same contract on the
+real backend.

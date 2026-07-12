@@ -1,4 +1,4 @@
-"""The ``schedule_task`` / ``list_scheduled`` / ``cancel_scheduled`` built-ins (ADR-0025).
+"""The ``schedule_task`` / ``list_scheduled`` built-ins (ADR-0025).
 
 Cortex-only by construction (built-ins never reach subagents, per ADR-0010/0013), so a subagent
 cannot re-schedule: self-perpetuation is bounded exactly like depth-1 bounds delegation.
@@ -8,14 +8,15 @@ refusal** (a turn that has read untrusted content cannot create a ``kind: "task"
 an autonomous agent instruction authored by injected content is a standing directive, not a
 reminder a human vets). The ``schedule_task`` spec is rebuilt per ``describe_tools`` walk and
 carries the current UTC time from the injected ``Clock``. The model cannot otherwise compute an
-absolute ``at``. Creation/cancel results are TRUSTED and never echo the stored text; the listing
+absolute ``at``. Creation results are TRUSTED and never echo the stored text; the listing
 does echo text, so it is TRUSTED only when every listed item is clean (the spawn aggregate rule, so
 hostile text is fenced and re-taints the turn instead of laundering through a trusted result).
-Bad arguments and a down store both become ``is_error`` results, never exceptions.
+Bad arguments and a down store both become ``is_error`` results, never exceptions. The
+lifecycle verbs (``cancel_scheduled``/``snooze_scheduled``) live in ``schedule_verbs.py``
+(the line-cap split), which also owns the result helpers shared here.
 """
 
 from collections.abc import Callable
-from datetime import UTC, datetime
 from typing import Any
 from uuid import uuid4
 
@@ -23,36 +24,21 @@ from cortex_core.errors import ScheduleStoreError
 from cortex_core.ports import Clock, ScheduleStore
 from cortex_core.schedule import ScheduledItem, ScheduleKind, ScheduleStatus
 from cortex_core.schedule_args import MIN_EVERY_SECONDS, parse_schedule
+from cortex_core.schedule_verbs import error_result, store_down_result, utc_str
 from cortex_core.tools import ToolCall, ToolResult, ToolSpec, Trust
 
 SCHEDULE_TOOL_NAME = "schedule_task"
 LIST_SCHEDULED_TOOL_NAME = "list_scheduled"
-CANCEL_SCHEDULED_TOOL_NAME = "cancel_scheduled"
 
 TAINTED_TASK_MSG = (
     "cannot schedule an autonomous task on a turn that has read untrusted external "
     "content; schedule a reminder instead, or re-ask in a fresh turn"
 )
-_STORE_DOWN = "the schedule store is unavailable"
 
 
 def _uuid4_id() -> str:
     """Default item-id factory; injectable so tests can pin ids."""
     return str(uuid4())
-
-
-def _store_down(call_id: str, err: ScheduleStoreError) -> ToolResult:
-    return ToolResult(
-        call_id=call_id, content=f"{_STORE_DOWN}: {err}", is_error=True, trust=Trust.TRUSTED
-    )
-
-
-def _error(call_id: str, message: str) -> ToolResult:
-    return ToolResult(call_id=call_id, content=message, is_error=True, trust=Trust.TRUSTED)
-
-
-def _utc(moment: datetime) -> str:
-    return moment.astimezone(UTC).isoformat(timespec="seconds")
 
 
 class ScheduleTaskTool:
@@ -113,7 +99,7 @@ class ScheduleTaskTool:
             name=SCHEDULE_TOOL_NAME,
             description=(
                 f"Schedule {what} for later; it fires even after a restart. "
-                f"The current UTC date-time is {_utc(self._clock.now())}. "
+                f"The current UTC date-time is {utc_str(self._clock.now())}. "
                 "Provide 'at' (ISO-8601 with offset) or 'in_seconds' (delay from now); "
                 "add 'every_seconds' to recur."
             ),
@@ -130,12 +116,12 @@ class ScheduleTaskTool:
         now = self._clock.now()
         parsed = parse_schedule(call.arguments, now=now, tasks_enabled=self._tasks_enabled)
         if isinstance(parsed, str):
-            return _error(call.id, parsed)
+            return error_result(call.id, parsed)
         if parsed.kind is ScheduleKind.TASK and call.tainted:
-            return _error(call.id, TAINTED_TASK_MSG)
+            return error_result(call.id, TAINTED_TASK_MSG)
         try:
             if len(await self._store.list_active()) >= self._max_active:
-                return _error(
+                return error_result(
                     call.id,
                     f"the schedule is full ({self._max_active} active items); cancel one first",
                 )
@@ -152,11 +138,13 @@ class ScheduleTaskTool:
             )
             await self._store.add(item)
         except ScheduleStoreError as err:
-            return _store_down(call.id, err)
+            return store_down_result(call.id, err)
         recurring = (
             f", recurring every {int(parsed.every.total_seconds())}s" if parsed.every else ""
         )
-        content = f"scheduled {parsed.kind.value} {item.id}: due {_utc(parsed.due_at)}{recurring}"
+        content = (
+            f"scheduled {parsed.kind.value} {item.id}: due {utc_str(parsed.due_at)}{recurring}"
+        )
         return ToolResult(call_id=call.id, content=content, trust=Trust.TRUSTED)
 
 
@@ -167,7 +155,7 @@ def _describe(item: ScheduledItem) -> str:
     firing = ", firing now" if item.status is ScheduleStatus.FIRING else ""
     tainted = ", from untrusted content" if item.tainted else ""
     marks = f"{recurring}{firing}{fired}{tainted}"
-    line = f"[{item.id}] {item.kind.value} due {_utc(item.due_at)}{marks}: {item.text}"
+    line = f"[{item.id}] {item.kind.value} due {utc_str(item.due_at)}{marks}: {item.text}"
     if item.last_outcome is not None:
         line += f"\n    last outcome: {item.last_outcome}"
     return line
@@ -200,43 +188,10 @@ class ListScheduledTool:
         try:
             items = await self._store.list_active()
         except ScheduleStoreError as err:
-            return _store_down(call.id, err)
+            return store_down_result(call.id, err)
         if not items:
             return ToolResult(call_id=call.id, content="no scheduled items", trust=Trust.TRUSTED)
         trust = Trust.UNTRUSTED if any(item.tainted for item in items) else Trust.TRUSTED
         return ToolResult(
             call_id=call.id, content="\n".join(_describe(item) for item in items), trust=trust
         )
-
-
-class CancelScheduledTool:
-    """Built-in ``cancel_scheduled``: delete a schedule outright. It sticks mid-fire too."""
-
-    def __init__(self, store: ScheduleStore) -> None:
-        self._store = store
-
-    @property
-    def spec(self) -> ToolSpec:
-        """Takes the id a listing (or creation confirmation) reported."""
-        return ToolSpec(
-            name=CANCEL_SCHEDULED_TOOL_NAME,
-            description="Cancel a scheduled reminder or task by its id (see list_scheduled).",
-            parameters={
-                "type": "object",
-                "properties": {"id": {"type": "string", "description": "The scheduled item's id."}},
-                "required": ["id"],
-            },
-        )
-
-    async def invoke(self, call: ToolCall) -> ToolResult:
-        """Cancel by id; unknown ids are a correctable error, never an exception."""
-        item_id = call.arguments.get("id")
-        if not isinstance(item_id, str) or not item_id:
-            return _error(call.id, "'id' must be a non-empty string")
-        try:
-            cancelled = await self._store.cancel(item_id)
-        except ScheduleStoreError as err:
-            return _store_down(call.id, err)
-        if not cancelled:
-            return _error(call.id, f"no scheduled item {item_id}")
-        return ToolResult(call_id=call.id, content=f"cancelled {item_id}", trust=Trust.TRUSTED)
