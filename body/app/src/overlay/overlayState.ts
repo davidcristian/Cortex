@@ -1,4 +1,7 @@
 import type { SessionMessage, SessionSummary, TransportError, TurnEvent } from "../bridge/types";
+import { NEW_CHAT_TITLE, adoptSession, deriveTitle, openSession } from "./sessionState";
+
+export { cycleTarget } from "./sessionState";
 
 /** Where the overlay is on screen. */
 export type Mode = "hidden" | "panel" | "orb" | "preview";
@@ -55,11 +58,13 @@ export type Action =
       readonly sessionId: string;
       readonly messages: readonly SessionMessage[];
     }
+  | {
+      readonly kind: "adoptSession";
+      readonly sessionId: string;
+      readonly messages: readonly SessionMessage[];
+    }
   | { readonly kind: "toggleSwitcher" }
   | { readonly kind: "toggleSheet" };
-
-const NEW_CHAT_TITLE = "New chat";
-const TITLE_MAX = 32;
 
 /** A fresh, empty overlay state for `sessionId` (a new chat). */
 export function createInitialState(sessionId: string): OverlayState {
@@ -137,55 +142,13 @@ export function reduce(state: OverlayState, action: Action): OverlayState {
       return { ...state, sessions: action.sessions };
     case "openSession":
       return openSession(state, action.sessionId, action.messages);
+    case "adoptSession":
+      return adoptSession(state, action.sessionId, action.messages);
     case "toggleSwitcher":
       return { ...state, switcherOpen: !state.switcherOpen };
     case "toggleSheet":
       return { ...state, sheetOpen: !state.sheetOpen };
   }
-}
-
-/** Load a stored chat into the panel: hydrate its messages, derive the header title. */
-function openSession(
-  state: OverlayState,
-  sessionId: string,
-  messages: readonly SessionMessage[],
-): OverlayState {
-  const loaded: Message[] = messages.map((m, index) => ({
-    id: `m${index}`,
-    role: m.role,
-    content: m.text,
-    streaming: false,
-    tool: null,
-    status: null,
-    error: null,
-  }));
-  const firstUser = messages.find((m) => m.role === "user");
-  return {
-    ...state,
-    mode: "panel",
-    sessionId,
-    title: firstUser ? deriveTitle(firstUser.text) : NEW_CHAT_TITLE,
-    messages: loaded,
-    switcherOpen: false,
-    pendingConfirm: null,
-    seq: loaded.length,
-  };
-}
-
-/**
- * The session id to switch to when cycling from `currentId` by `delta` (-1 = newer / previous, +1
- * = older / next), or `null` for no move.
- */
-export function cycleTarget(
-  sessions: readonly SessionSummary[],
-  currentId: string,
-  delta: -1 | 1,
-): string | null {
-  const index = sessions.findIndex((s) => s.sessionId === currentId);
-  // A current chat not in the list (index -1, a fresh unsaved chat) enters the list only
-  // going older (delta 1 → index 0); an out-of-range target reads back as undefined → null.
-  const target = index === -1 ? (delta === 1 ? 0 : -1) : index + delta;
-  return sessions[target]?.sessionId ?? null;
 }
 
 function submit(state: OverlayState, text: string): OverlayState {
@@ -260,9 +223,4 @@ function patchStreaming(state: OverlayState, patch: (m: Message) => Message): Ov
 
 function message(id: string, role: Message["role"], content: string, streaming: boolean): Message {
   return { id, role, content, streaming, tool: null, status: null, error: null };
-}
-
-function deriveTitle(text: string): string {
-  const oneLine = text.replace(/\s+/gu, " ").trim();
-  return oneLine.length > TITLE_MAX ? `${oneLine.slice(0, TITLE_MAX)}…` : oneLine;
 }

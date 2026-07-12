@@ -9,7 +9,8 @@ shell** is host-validated on Windows, like the brain's real adapters.
 Two halves meet at one seam. That seam is the typed `BrainBridge` port:
 
 - **Frontend** (`src/`, gated). Pure logic first: the theme system (`theme/`), the overlay state
-  machine (`overlay/overlayState.ts` is a pure reducer over a `Mode` = hidden/panel/orb/preview),
+  machine (`overlay/overlayState.ts` is a pure reducer over a `Mode` = hidden/panel/orb/preview,
+  with the session-switching helpers split into `overlay/sessionState.ts` for the line cap),
   and the controller hook (`overlay/useOverlay.ts`). Components (`components/`) depend only on the
   `BrainBridge` port and a `cortex:activate` DOM event (never on Tauri), so they run and test in a
   plain browser. Look and feel is [overlay-ux.md](../design/overlay-ux.md) (colour = activity,
@@ -30,7 +31,10 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
   `tauriBridge.ts`, `demoBridge.ts`, and `main.tsx` are coverage-excluded (the un-gated glue);
   everything else is 100% line + branch. `useOverlay` owns the `session_id` (minted per new chat)
   and the store-backed chat list (loaded on mount + after each turn; a chat's history loads on
-  select/cycle).
+  select/cycle). On cold start the first list arrival adopts the most recent chat into the
+  still-hidden overlay (ADR-0021 addendum): the `adoptSession` reducer action hydrates like
+  `openSession` but preserves `mode` and no-ops unless the fresh chat is untouched, so a racing
+  summon/submit/new-chat wins; the hook attempts it once per mount.
 - **The `converse` command** (`src-tauri/src/converse.rs`): `converse(session_id, text, channel)`.
   It serialises each `TurnEvent` / `TransportError` to a `WireMessage` (`{ event }` | `{ error }`)
   that matches the TS `WireMessage` in `tauriBridge.ts` field for field (tag `kind`, camelCase, so

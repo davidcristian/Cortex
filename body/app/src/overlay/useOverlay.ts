@@ -84,6 +84,21 @@ export function useOverlay(
     }
   }, [turnActive, refreshSessions]);
 
+  const adoptAttempted = useRef(false);
+  const latestSessionId = state.sessions[0]?.sessionId;
+  useEffect(() => {
+    if (adoptAttempted.current || latestSessionId === undefined) {
+      return;
+    }
+    adoptAttempted.current = true;
+    bridge
+      .sessionMessages(latestSessionId)
+      .then((messages) => dispatch({ kind: "adoptSession", sessionId: latestSessionId, messages }))
+      .catch(() => {
+        // Leave the fresh chat in place if the history cannot load (the openSession rule).
+      });
+  }, [latestSessionId, bridge]);
+
   const submit = useCallback(
     (text: string) => {
       if (text.trim().length === 0 || isTurnActive(state)) {

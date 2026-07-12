@@ -141,6 +141,49 @@ describe("useOverlay", () => {
     expect(result.current.state.sessions).toEqual([]);
   });
 
+  it("adopts the most recent chat on cold start, staying hidden", async () => {
+    const bridge = new FakeBridge();
+    bridge.sessions = [summary("recent"), summary("older")];
+    bridge.messagesBySession = {
+      recent: [{ role: "user", text: "where we left off", turnId: "t", atUnixMs: 1 }],
+    };
+    const { result } = renderHook(() => useOverlay(bridge, () => "s1"));
+    await flush();
+    expect(result.current.state.sessionId).toBe("recent");
+    expect(result.current.state.title).toBe("where we left off");
+    expect(result.current.state.mode).toBe("hidden");
+  });
+
+  it("a failed cold-start history load leaves the fresh chat, and never retries", async () => {
+    const bridge = new FakeBridge();
+    bridge.sessions = [summary("recent")];
+    bridge.messagesFail = true;
+    const { result } = renderHook(() => useOverlay(bridge, () => "s1"));
+    await flush();
+    expect(result.current.state.sessionId).toBe("s1");
+    // Adoption is one attempt per mount: a later list refresh does not re-adopt.
+    bridge.messagesFail = false;
+    act(() => result.current.submit("q"));
+    act(() => bridge.emit({ kind: "complete", turnId: "t" }));
+    await flush();
+    expect(result.current.state.sessionId).toBe("s1");
+  });
+
+  it("a submit racing the cold-start restore wins; adoption backs off", async () => {
+    const bridge = new FakeBridge();
+    bridge.sessions = [summary("recent")];
+    bridge.messagesBySession = {
+      recent: [{ role: "user", text: "stored", turnId: "t", atUnixMs: 1 }],
+    };
+    const { result } = renderHook(() => useOverlay(bridge, () => "s1"));
+    // No flush yet: the user summons and submits before the chat list ever resolves.
+    act(() => result.current.open());
+    act(() => result.current.submit("racing turn"));
+    await flush();
+    expect(result.current.state.sessionId).toBe("s1");
+    expect(result.current.state.messages.at(0)?.content).toBe("racing turn");
+  });
+
   it("openSession cancels any in-flight turn, loads history, and switches to it", async () => {
     const bridge = new FakeBridge();
     bridge.messagesBySession = {
@@ -185,9 +228,7 @@ describe("useOverlay", () => {
     };
     const { result } = renderHook(() => useOverlay(bridge, () => "s1"));
     await flush();
-    // s1 isn't listed → cycleNext enters the most recent saved chat.
-    act(() => result.current.cycleNext());
-    await flush();
+    // Cold start already adopted the most recent saved chat, so cycling starts there.
     expect(result.current.state.sessionId).toBe("newest");
     // From the newest, next → oldest; prev → back to newest.
     act(() => result.current.cycleNext());

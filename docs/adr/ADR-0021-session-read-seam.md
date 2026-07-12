@@ -144,7 +144,8 @@ stays in CSS.
 
 **Cold start opens a new chat.** Persisted chats are reachable via the switcher and cycling,
 not auto-restored into the panel on launch. That is simpler and fully testable, and the switcher is
-one keystroke away. Auto-restoring the most-recent chat is a recorded deferral.
+one keystroke away. Auto-restoring the most-recent chat is a recorded deferral (landed
+2026-07-12; addendum below).
 
 ## Alternatives rejected
 
@@ -187,8 +188,7 @@ one keystroke away. Auto-restoring the most-recent chat is a recorded deferral.
 ### Deferred (recorded in the ROADMAP)
 
 - **Per-session first/last/length cache in the index** to drop `list_sessions`' N+1 reads.
-- **Auto-restore the most-recent chat on cold start** (this slice opens a new chat; prior chats
-  are reachable via switcher/cycling).
+- **Auto-restore the most-recent chat on cold start** landed 2026-07-12 (addendum below).
 - **Brain-generated summary titles** replace `summarize_session`'s title behind the same
   `SessionSummary`.
 - **Session deletion / rename / pinning** are write operations on the catalog, a later gated

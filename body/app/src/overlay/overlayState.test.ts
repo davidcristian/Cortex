@@ -175,6 +175,53 @@ describe("overlayState reducer", () => {
     expect(open.messages).toEqual([]);
   });
 
+  it("adoptSession hydrates like openSession but keeps the overlay hidden", () => {
+    const messages: SessionMessage[] = [
+      { role: "user", text: "about cats", turnId: "t", atUnixMs: 1 },
+      { role: "assistant", text: "cats are great", turnId: "t", atUnixMs: 2 },
+    ];
+    const adopted = reduce(initialState, { kind: "adoptSession", sessionId: "chat-7", messages });
+    expect(adopted.mode).toBe("hidden");
+    expect(adopted.sessionId).toBe("chat-7");
+    expect(adopted.title).toBe("about cats");
+    expect(adopted.seq).toBe(2);
+    expect(adopted.messages.map((m) => [m.role, m.content, m.streaming])).toEqual([
+      ["user", "about cats", false],
+      ["assistant", "cats are great", false],
+    ]);
+  });
+
+  it("adoptSession is a no-op once the overlay was summoned", () => {
+    const summoned = reduce(initialState, { kind: "open" });
+    const adopt: Action = {
+      kind: "adoptSession",
+      sessionId: "chat-7",
+      messages: [{ role: "user", text: "hi", turnId: "t", atUnixMs: 1 }],
+    };
+    expect(reduce(summoned, adopt)).toBe(summoned);
+  });
+
+  it("adoptSession is a no-op once a turn was submitted", () => {
+    // The racing submit already streamed into the fresh chat; adoption must not clobber it.
+    const chatting = run([{ kind: "open" }, submit("q"), { kind: "dismiss" }]);
+    const adopt: Action = { kind: "adoptSession", sessionId: "chat-7", messages: [] };
+    expect(reduce(chatting, adopt)).toBe(chatting);
+  });
+
+  it("adoptSession is a no-op on an explicitly fresh chat, even when it looks empty", () => {
+    // submit → newChat → dismiss leaves a hidden, message-less chat whose seq betrays the
+    // history: the user chose a fresh chat, so cold-start adoption must not hijack it.
+    const fresh = run([{ kind: "open" }, submit("q"), complete]);
+    const cleared = reduce(
+      reduce(fresh, { kind: "newChat", sessionId: "n-2" }),
+      { kind: "dismiss" },
+    );
+    expect(cleared.mode).toBe("hidden");
+    expect(cleared.messages).toEqual([]);
+    const adopt: Action = { kind: "adoptSession", sessionId: "chat-7", messages: [] };
+    expect(reduce(cleared, adopt)).toBe(cleared);
+  });
+
   it("confirmRequest raises the pending approval on a streaming turn", () => {
     const s = run([{ kind: "open" }, submit("send it"), confirmRequest]);
     expect(s.pendingConfirm).toEqual({
