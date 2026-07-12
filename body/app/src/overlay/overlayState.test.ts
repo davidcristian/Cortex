@@ -208,18 +208,18 @@ describe("overlayState reducer", () => {
     expect(reduce(chatting, adopt)).toBe(chatting);
   });
 
-  it("adoptSession is a no-op on an explicitly fresh chat, even when it looks empty", () => {
-    // submit → newChat → dismiss leaves a hidden, message-less chat whose seq betrays the
-    // history: the user chose a fresh chat, so cold-start adoption must not hijack it.
-    const fresh = run([{ kind: "open" }, submit("q"), complete]);
-    const cleared = reduce(
-      reduce(fresh, { kind: "newChat", sessionId: "n-2" }),
-      { kind: "dismiss" },
-    );
+  it("adoptSession is a no-op on an explicitly minted fresh chat that looks pristine", () => {
+    // open → newChat → dismiss leaves {hidden, messages: [], seq: 0}: byte-identical to a
+    // pristine boot on the seq/messages/mode proxy, yet the user explicitly chose a fresh
+    // chat. The `touched` flag is what distinguishes them, so adoption must be a no-op here.
+    const cleared = run([{ kind: "open" }, { kind: "newChat", sessionId: "n-2" }, { kind: "dismiss" }]);
     expect(cleared.mode).toBe("hidden");
     expect(cleared.messages).toEqual([]);
+    expect(cleared.seq).toBe(0); // the proxy the old guard used cannot tell this from boot
+    expect(cleared.sessionId).toBe("n-2");
     const adopt: Action = { kind: "adoptSession", sessionId: "chat-7", messages: [] };
     expect(reduce(cleared, adopt)).toBe(cleared);
+    expect(cleared.sessionId).toBe("n-2"); // the user's fresh chat survives
   });
 
   it("confirmRequest raises the pending approval on a streaming turn", () => {

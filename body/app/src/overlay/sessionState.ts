@@ -38,6 +38,7 @@ export function openSession(
   return {
     ...state,
     mode: "panel",
+    touched: true,
     sessionId,
     title: titleFor(messages),
     messages: loaded,
@@ -56,7 +57,7 @@ export function adoptSession(
   sessionId: string,
   messages: readonly SessionMessage[],
 ): OverlayState {
-  if (state.mode !== "hidden" || state.messages.length > 0 || state.seq > 0) {
+  if (state.touched) {
     return state;
   }
   const loaded = hydrate(messages);

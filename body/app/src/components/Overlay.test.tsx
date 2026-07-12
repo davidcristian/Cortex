@@ -21,6 +21,7 @@ function fakeController(
       sheetOpen: false,
       pendingConfirm: null,
       seq: 0,
+      touched: false,
       ...extra,
     },
     submit: vi.fn(),
