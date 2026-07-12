@@ -75,5 +75,30 @@ Both land behind the committed seam shapes; nothing brain-side changes.
   (at-least-once by design; the fencing token keeps the duplicate's late finish from
   clobbering state). Raise the lease if tasks legitimately run long.
 - **A corrupt record:** the claim path quarantines it to the `cortex:schedules:dead` hash
-  (logged loudly) and the pass continues; inspect with `redis-cli hgetall
-  cortex:schedules:dead`. Retention/inspection tooling is a recorded deferral.
+  (logged loudly) and the pass continues. See the next section.
+
+## Dead-letter quarantine
+
+A record that fails to decode on the claim path is quarantined (field = item id, value = the
+raw bytes) so one corrupt record degrades the pass by one item instead of poison-pilling it.
+Inspection is operator-side only, never a model tool, because the bytes are exactly the
+corrupt or hostile content the codec refused (ADR-0025 dead-letter addendum):
+
+```bash
+cd brain && uv run python -c "
+import asyncio
+from cortex_session import RedisScheduleStore
+
+async def main() -> None:
+    store = RedisScheduleStore.from_url()
+    for letter in await store.dead_letters():
+        print(letter.item_id, repr(letter.raw[:120]))
+    await store.aclose()
+
+asyncio.run(main())"
+```
+
+`redis-cli hgetall cortex:schedules:dead` is the raw equivalent; drop one entry for good
+with `store.purge_dead_letter(item_id)` (or `redis-cli hdel cortex:schedules:dead <id>`).
+Retention is manual by design: the hash only grows when a record is quarantined, which is
+exceptional, so an automated policy joins the deferred ledger only if volume ever appears.

@@ -1118,11 +1118,16 @@ behind the unchanged `ScheduleStore`/`BodyGateway`/seam shapes.
   names the workaround, and an **anchor-preserving occurrence snooze** joins this list as the
   recorded remainder. A fired-but-undelivered reminder re-arms (fires fresh, never
   re-delivers stale).
+- **Dead-letter inspection landed 2026-07-12 ([ADR-0025 dead-letter addendum](adr/ADR-0025-scheduling-reminders.md)).**
+  `RedisScheduleStore.dead_letters()`/`purge_dead_letter()`, adapter-only by design (the
+  quarantine is a codec mechanic the fake can never produce; a port method would force a
+  vacuous fake), operator-facing and never a model tool (the raw bytes are the content the
+  codec refused); runbook recipe + redis-cli equivalents in scheduling.md. Automated
+  retention stays deferred until quarantine volume ever exists.
 - **Edit verbs** (retext / re-recur without cancel-and-recreate; must OR the editing turn's
   taint, never clear it, or the listing trust launders); **task-outcome delivery** as a
   notification; a **push retry policy** beyond next-poll-pull (both blocked on the body half
-  of this slice); **retention/inspection tooling** for the dead-letter quarantine hash
-  (`cortex:schedules:dead`); overlay badge/UX polish for tainted reminders.
+  of this slice); overlay badge/UX polish for tainted reminders.
 
 **Cross-cutting (originally "Later, unordered"):** pointer-input injection (extend the proto
 first), richer memory policies (**the email-write tool landed 2026-07-08 as Slice 8.8**,

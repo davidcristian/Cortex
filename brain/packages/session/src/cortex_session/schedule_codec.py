@@ -9,6 +9,7 @@ record (adapter mechanics, not domain state): the domain ``ScheduledItem`` never
 """
 
 import json
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Any, cast
 
@@ -16,6 +17,21 @@ from cortex_core import ScheduledItem, ScheduleKind, ScheduleStatus, ScheduleSto
 
 RECORD_KIND = "schedule"
 RECORD_VERSION = 1
+
+
+@dataclass(frozen=True, slots=True)
+class DeadLetter:
+    """One quarantined record from the dead-letter hash: the item id and its raw bytes as text.
+
+    Adapter-level, deliberately not domain state: only the Redis claim path quarantines (a
+    record the codec refuses), so the ``ScheduleStore`` port never carries this type. ``raw``
+    decodes with replacement characters, because corrupt bytes must stay inspectable, never
+    a second crash (ADR-0025 dead-letter addendum).
+    """
+
+    item_id: str
+    raw: str
+
 
 DUE_KEY = "cortex:schedules:due"
 FIRING_KEY = "cortex:schedules:firing"
