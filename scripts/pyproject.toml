@@ -22,14 +22,18 @@ pythonpath = ["."]
 markers = [
   "integration: exercises live external systems; excluded from coverage gate and CI",
 ]
-addopts = "--cov=linecap --cov=dashcheck --cov=coverage_gate --cov=ci_paths --cov=commitlint --cov-branch --cov-report=term-missing --cov-fail-under=100 --strict-markers -m \"not integration\""
+addopts = "--cov=. --cov-branch --cov-report=term-missing --cov-fail-under=100 --strict-markers -m \"not integration\""
 
 [tool.coverage.run]
 branch = true
+# Measure the whole tree so a new script is gated by default (fail closed);
+# a module must be excluded here to escape, never merely forgotten.
+omit = ["tests/*", ".venv/*"]
 
 [tool.pyright]
 typeCheckingMode = "strict"
 pythonVersion = "3.12"
 venvPath = "."
 venv = ".venv"
-include = ["linecap.py", "dashcheck.py", "coverage_gate.py", "ci_paths.py", "commitlint.py", "tests"]
+include = ["."]
+exclude = [".venv", "**/__pycache__", ".pytest_cache"]
