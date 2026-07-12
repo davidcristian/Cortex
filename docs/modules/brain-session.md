@@ -54,6 +54,11 @@ Translators only: serialization, key layout, and error wrapping; no business log
     index; a fired-but-undelivered reminder re-arms off the deliverable index), refusing a
     recurring or FIRING item and answering a raced transition `False` like the rest
     (ADR-0025 snooze addendum).
+  - `async dead_letters() -> Sequence[DeadLetter]` / `async purge_dead_letter(item_id)` are
+    **adapter-only** operator inspection over the quarantine hash (deliberately not port
+    methods: the fake can never quarantine, and no core path or model tool consumes them);
+    `DeadLetter(item_id, raw)` renders bytes with replacement characters so corrupt content
+    stays inspectable (ADR-0025 dead-letter addendum, runbook recipe in scheduling.md).
 - `DEFAULT_REDIS_URL` is `"redis://127.0.0.1:6379/0"`. Deployments override via
   `CORTEX_REDIS_URL`, read by the composition root (orchestrator settings), never by
   this adapter.

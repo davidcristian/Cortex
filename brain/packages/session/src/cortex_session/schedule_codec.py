@@ -1,6 +1,7 @@
 """The RedisScheduleStore's record codec + key layout (ADR-0025)."""
 
 import json
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Any, cast
 
@@ -8,6 +9,15 @@ from cortex_core import ScheduledItem, ScheduleKind, ScheduleStatus, ScheduleSto
 
 RECORD_KIND = "schedule"
 RECORD_VERSION = 1
+
+
+@dataclass(frozen=True, slots=True)
+class DeadLetter:
+    """One quarantined record from the dead-letter hash: the item id and its raw bytes as text."""
+
+    item_id: str
+    raw: str
+
 
 DUE_KEY = "cortex:schedules:due"
 FIRING_KEY = "cortex:schedules:firing"
