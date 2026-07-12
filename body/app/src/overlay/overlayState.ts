@@ -46,6 +46,13 @@ export interface OverlayState {
   /** The approval the current turn is paused on, if any (ADR-0022). */
   readonly pendingConfirm: PendingConfirm | null;
   readonly seq: number;
+  /**
+   * Whether the user has acted on this overlay since mount (opened it, typed, switched, or
+   * minted a new chat). Cold-start adoption (ADR-0021) only replaces the fresh boot chat while
+   * this is still false, so an explicitly chosen new chat is never hijacked. `seq`/`messages`
+   * cannot stand in for it: `newChat` leaves both at their pristine values.
+   */
+  readonly touched: boolean;
 }
 
 export type Action =
@@ -84,6 +91,7 @@ export function createInitialState(sessionId: string): OverlayState {
     sheetOpen: false,
     pendingConfirm: null,
     seq: 0,
+    touched: false,
   };
 }
 
@@ -103,7 +111,7 @@ export function latestReply(state: OverlayState): string {
 export function reduce(state: OverlayState, action: Action): OverlayState {
   switch (action.kind) {
     case "open":
-      return { ...state, mode: "panel" };
+      return { ...state, mode: "panel", touched: true };
     case "submit":
       return submit(state, action.text);
     case "event":
@@ -138,6 +146,7 @@ export function reduce(state: OverlayState, action: Action): OverlayState {
       return {
         ...state,
         mode: "panel",
+        touched: true,
         sessionId: action.sessionId,
         title: NEW_CHAT_TITLE,
         messages: [],
@@ -168,6 +177,7 @@ function submit(state: OverlayState, text: string): OverlayState {
   return {
     ...state,
     mode: "panel",
+    touched: true,
     title,
     messages: [...state.messages, user, assistant],
     seq: state.seq + 2,

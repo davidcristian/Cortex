@@ -94,9 +94,10 @@ export function useOverlay(
 
   // Cold-start restore (ADR-0021 refinement): when the first chat list arrives, adopt the
   // most recent stored chat so summoning lands where the user left off instead of an empty
-  // fresh chat. One attempt per mount (the ref also absorbs StrictMode's double-fired
-  // effect); whether it applies is the reducer's untouched-and-still-hidden guard, decided
-  // at dispatch time, so a racing summon, submit, or explicit new chat always wins.
+  // fresh chat. One attempt per mount (the ref also absorbs StrictMode's double-fired effect,
+  // and blocks re-adoption if a later list refresh moves `latestSessionId` while the chat is
+  // still untouched); whether it applies is the reducer's `touched` guard, decided at dispatch
+  // time, so a racing summon, submit, cycle, or explicit new chat always wins.
   const adoptAttempted = useRef(false);
   const latestSessionId = state.sessions[0]?.sessionId;
   useEffect(() => {

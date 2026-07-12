@@ -33,8 +33,10 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
   and the store-backed chat list (loaded on mount + after each turn; a chat's history loads on
   select/cycle). On cold start the first list arrival adopts the most recent chat into the
   still-hidden overlay (ADR-0021 addendum): the `adoptSession` reducer action hydrates like
-  `openSession` but preserves `mode` and no-ops unless the fresh chat is untouched, so a racing
-  summon/submit/new-chat wins; the hook attempts it once per mount.
+  `openSession` but preserves `mode` and no-ops unless the overlay's `touched` flag is still
+  false (set by open/submit/new-chat/cycle, so a racing user action wins; a `seq`/`messages`
+  proxy cannot tell an explicit new chat from a pristine boot); the hook attempts it once per
+  mount.
 - **The `converse` command** (`src-tauri/src/converse.rs`): `converse(session_id, text, channel)`.
   It serialises each `TurnEvent` / `TransportError` to a `WireMessage` (`{ event }` | `{ error }`)
   that matches the TS `WireMessage` in `tauriBridge.ts` field for field (tag `kind`, camelCase, so

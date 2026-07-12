@@ -228,12 +228,16 @@ reducer unconditionally raises the panel (a background restore must never pop UI
 callback cancels the in-flight turn and denies pending confirms (correct for a user click,
 destructive for a background adopt). So adoption is its own reducer action, `adoptSession`
 (`sessionState.ts`, split from `overlayState.ts` for the line cap): it hydrates exactly like
-`openSession` but preserves `mode`, and it no-ops unless the overlay is provably untouched,
-still `hidden` with no messages and `seq` 0, so an explicitly fresh chat (new-chat after a
-turn) is never hijacked. The guard is evaluated in the reducer at dispatch time, which makes
-StrictMode's double-fired mount effect idempotent and lets a racing summon, submit, or
-new-chat win; the hook adds a one-attempt-per-mount ref so a later list refresh never
-re-adopts, and a failed history load leaves the fresh chat (the `openSession` rule). Gated at
-100% through the existing FakeBridge harness; browser-validated against the demo bridge in
+`openSession` but preserves `mode`, and it no-ops unless the overlay is untouched. The guard
+is an explicit `touched` flag (set by open/submit/new-chat/cycle), **not** a `seq`/`messages`
+proxy: an adversarial review found that `newChat` leaves both at their pristine values, so
+open then new-chat then dismiss reads as a boot-fresh `{hidden, [], seq 0}` and the proxy
+would hijack the explicitly chosen fresh chat. The flag distinguishes them, so a racing summon,
+submit, cycle, or explicit new-chat always wins. The guard is evaluated in the reducer at
+dispatch time (StrictMode's double-fired mount effect stays idempotent); the hook adds a
+one-attempt-per-mount ref so a later newest-session change (a completed turn) never triggers a
+redundant adopt fetch, and a failed history load leaves the fresh chat (the `openSession`
+rule). Gated at 100% through the existing FakeBridge harness (including the exact new-chat
+hijack scenario and the latch's fetch count); browser-validated against the demo bridge in
 both themes (launch lands in the restored chat, hidden until summoned). The real-bridge leg
 rides the unchanged `BrainBridge`, so nothing below the hook changed.

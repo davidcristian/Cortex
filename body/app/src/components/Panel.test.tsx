@@ -14,6 +14,7 @@ const state = (over: Partial<OverlayState> = {}): OverlayState => ({
   sheetOpen: false,
   pendingConfirm: null,
   seq: 0,
+  touched: false,
   ...over,
 });
 
