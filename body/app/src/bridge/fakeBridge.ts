@@ -17,6 +17,8 @@ import type {
 export class FakeBridge implements BrainBridge {
   private sink: TurnSink | null = null;
   readonly calls: { readonly sessionId: string; readonly text: string }[] = [];
+  /** Session ids `sessionMessages` was asked for, in order (proves the adopt latch fires once). */
+  readonly messagesCalls: string[] = [];
   /** The confirm answers sent so far, in order (ADR-0022). */
   readonly confirms: { readonly confirmId: string; readonly approved: boolean }[] = [];
   /** What `listSessions` resolves with (assignable by a test). */
@@ -45,6 +47,7 @@ export class FakeBridge implements BrainBridge {
   }
 
   sessionMessages(sessionId: string): Promise<readonly SessionMessage[]> {
+    this.messagesCalls.push(sessionId);
     if (this.messagesFail) {
       return Promise.reject(new Error("history failed"));
     }

@@ -44,6 +44,7 @@ export function openSession(
   return {
     ...state,
     mode: "panel",
+    touched: true,
     sessionId,
     title: titleFor(messages),
     messages: loaded,
@@ -55,17 +56,19 @@ export function openSession(
 
 /**
  * Adopt the most recent stored chat on cold start (ADR-0021 refinement): hydrate exactly like
- * `openSession` but preserve `mode`, so a background restore never pops the panel. The
- * untouched guard lives here, evaluated at dispatch time: it only fires while the overlay is
- * still hidden with the pristine fresh chat (no messages, `seq` 0), so a racing summon,
- * submit, or explicit new-chat wins, and a StrictMode double-fired mount effect is idempotent.
+ * `openSession` but preserve `mode`, so a background restore never pops the panel. The guard is
+ * the reducer-evaluated `touched` flag: adoption applies only while the user has not acted on
+ * the overlay since mount, so a racing summon, submit, cycle, or explicit new-chat wins (each
+ * sets `touched`), and a StrictMode double-fired mount effect is idempotent. `seq`/`messages`
+ * cannot stand in for `touched`: `newChat` leaves both pristine, so open then new-chat then
+ * dismiss would otherwise read as an untouched boot and be hijacked.
  */
 export function adoptSession(
   state: OverlayState,
   sessionId: string,
   messages: readonly SessionMessage[],
 ): OverlayState {
-  if (state.mode !== "hidden" || state.messages.length > 0 || state.seq > 0) {
+  if (state.touched) {
     return state;
   }
   const loaded = hydrate(messages);

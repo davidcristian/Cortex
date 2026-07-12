@@ -154,19 +154,34 @@ describe("useOverlay", () => {
     expect(result.current.state.mode).toBe("hidden");
   });
 
-  it("a failed cold-start history load leaves the fresh chat, and never retries", async () => {
+  it("a failed cold-start history load leaves the fresh chat", async () => {
     const bridge = new FakeBridge();
     bridge.sessions = [summary("recent")];
     bridge.messagesFail = true;
     const { result } = renderHook(() => useOverlay(bridge, () => "s1"));
     await flush();
     expect(result.current.state.sessionId).toBe("s1");
-    // Adoption is one attempt per mount: a later list refresh does not re-adopt.
+  });
+
+  it("attempts cold-start adoption once: a later newest-session change re-fetches nothing", async () => {
+    // The latch's job: after the one mount attempt, a `latestSessionId` change (a completed turn
+    // makes its session the newest) must NOT re-run adoption. Without the latch the effect
+    // re-fires and fetches that session's history; the reducer's `touched` guard would then no-op
+    // the dispatch, but the wasted fetch already happened. This pins the latch by the fetch count.
+    const bridge = new FakeBridge();
+    bridge.sessions = [summary("recent")];
+    bridge.messagesFail = true; // the cold-start attempt fails but still spends the latch
+    const { result } = renderHook(() => useOverlay(bridge, () => "s1"));
+    await flush();
+    expect(bridge.messagesCalls).toEqual(["recent"]); // the one attempt
+
     bridge.messagesFail = false;
-    act(() => result.current.submit("q"));
+    act(() => result.current.submit("q")); // the user acts; a turn runs on s1
+    bridge.sessions = [summary("fresh"), summary("recent")]; // its session becomes newest
     act(() => bridge.emit({ kind: "complete", turnId: "t" }));
     await flush();
-    expect(result.current.state.sessionId).toBe("s1");
+    expect(bridge.messagesCalls).toEqual(["recent"]); // the latch blocked a second adopt fetch
+    expect(result.current.state.sessionId).toBe("s1"); // no surprise session swap
   });
 
   it("a submit racing the cold-start restore wins; adoption backs off", async () => {
