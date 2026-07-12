@@ -999,9 +999,14 @@ behind the unchanged `SessionStore.list_sessions` / `BrainTransport` / `BrainBri
 - **Per-session first/last/length cache in the recency index.** `list_sessions` is one `ZREVRANGE`
   + N `LRANGE`s (N ≤ limit); caching each session's first/last message + length in the index (or a
   companion hash) drops the per-session reads. Negligible for a personal recent list today.
-- **Auto-restore the most-recent chat on cold start.** This slice opens a **new** chat on launch;
-  prior chats are reachable via the switcher / `Ctrl+↓`. Auto-adopting `sessions[0]`'s history on
-  mount (when the fresh chat is untouched) is a hook-effect refinement.
+- **Auto-restore the most-recent chat on cold start landed 2026-07-12
+  ([ADR-0021 addendum](adr/ADR-0021-session-read-seam.md)).** A new reducer action
+  (`adoptSession`, in the line-cap-driven `sessionState.ts` split) hydrates `sessions[0]`'s
+  history like `openSession` but mode-preserving (no panel pop) and guarded in the reducer:
+  only an untouched, still-hidden fresh chat adopts, so a racing summon, submit, or explicit
+  new-chat wins and StrictMode's double-fire is idempotent; the hook attempts once per mount
+  and a failed history load leaves the fresh chat. Gated at 100%; browser-validated in both
+  themes against the demo bridge.
 - **Brain-generated summary titles.** Titles derive from the first user message (`summarize_session`);
   a brain-generated summary title would replace that behind the unchanged `SessionSummary`. The
   overlay's own live-title `deriveTitle` stays for a not-yet-persisted chat.
