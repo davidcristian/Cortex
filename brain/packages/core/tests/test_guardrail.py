@@ -554,3 +554,147 @@ def test_a_long_unclosed_bracket_run_terminates_and_matches_linearly() -> None:
     # (this test would hang under catastrophic backtracking). The run is eaten as plain URL chars.
     text = "http://evil.example/a[" + "x" * 4000 + " end"
     assert extract_urls(text) == {"http://evil.example/a[" + "x" * 4000}
+
+
+# --- Obfuscation-resistant matching: the encoded defang separator, punycode, and zero-width format
+# characters (ADR-0015 seventh addendum). The separator anchors the match and so is matched before
+# any decode, but only its *shape* need be constrained: a bracket chunk carrying an escape marker
+# (`&`/`%`) is admitted and `normalize_url`'s decode fixpoint resolves whichever encoding it was,
+# so
+# no table of encodings enters the anchor. Punycode decoding (stdlib `idna`) feeds the confusable
+# table a registered IDN homoglyph, and Cf-category characters, which survive NFKC, are stripped. -
+
+
+def test_extract_urls_refangs_an_encoded_scheme_separator() -> None:
+    # The gap: the colon entity-/percent-encoded inside defang brackets. The whole match used to
+    # fail to anchor, so `extract_urls` returned *nothing*: both redact and strict mode missed it.
+    plain = {"http://evil.example"}
+    assert extract_urls("http[&#58;//]evil.example") == plain  # numeric entity colon
+    assert extract_urls("http[%3a//]evil.example") == plain  # percent-escaped colon
+    assert extract_urls("http(&#58;//)evil.example") == plain
+    assert extract_urls("http{&#58;//}evil.example") == plain
+
+
+def test_extract_urls_refangs_an_encoded_separator_on_an_opaque_scheme() -> None:
+    assert extract_urls("mailto[&#58;]a@evil.example") == {"mailto:a@evil.example"}
+    assert extract_urls("tel[%3a]+15550100") == {"tel:+15550100"}
+
+
+def test_extract_urls_refangs_an_encoded_separator_on_a_data_url() -> None:
+    # `data:` shares `_family`, so it inherits the encoded separator behind its MIME anchor.
+    assert extract_urls("data[&#58;]text/html;base64,AA") == {"data:text/html;base64,aa"}
+
+
+def test_an_encoded_separator_and_its_plain_twin_share_one_identity() -> None:
+    assert extract_urls("http[&#58;//]evil.example") == extract_urls("http://evil.example")
+
+
+def test_encoded_separator_transform_of_a_collected_url_is_redacted() -> None:
+    guard = _filter({"http://evil.example"})
+    fed = guard.feed("see http[&#58;//]evil.example now") + guard.flush()
+    assert fed == f"see {REDACTED_LINK} now"
+
+
+def test_strict_tainted_turn_redacts_an_encoded_separator() -> None:
+    guard = _strict(_Taint(tainted=True))
+    assert guard.feed("go to http[&#58;//]evil.example ") == f"go to {REDACTED_LINK} "
+
+
+def test_encoded_separator_split_across_chunks_is_carried_not_lost() -> None:
+    # An encoded separator is variable-length, so it cannot be enumerated into the hold-back's
+    # scheme prefixes; `_OPEN_SEP_RE` holds the buffer while the separator chunk is still open.
+    guard = _filter({"http://evil.example"})
+    assert guard.feed("at http[&#5") == "at "
+    assert guard.feed("8;//]evil.example ") == f"{REDACTED_LINK} "
+
+
+def test_an_unescaped_bracket_at_the_separator_is_not_a_url() -> None:
+    # The escape marker is load bearing: without it this chunk would match ordinary prose, which
+    # strict mode would then redact out of the repo's own docs.
+    assert extract_urls("http(s)-only endpoints") == frozenset()
+    assert extract_urls("use http(s) or ftp(s) here") == frozenset()
+
+
+def test_a_bracket_run_without_a_scheme_word_is_not_held() -> None:
+    # `_OPEN_SEP_RE` anchors on a scheme word, so ordinary bracketed prose streams straight through.
+    guard = _filter({EVIL})
+    assert guard.feed("config [abc") == "config [abc"
+
+
+# Punycode: `xn--e1awd7f` is the registered ASCII-compatible encoding of Cyrillic "epic"
+# (U+0435 0440 0456 0441), which the curated confusable table then folds to the ASCII it imitates.
+_PUNYCODE_EPIC = "http://xn--e1awd7f.example"
+
+
+def test_extract_urls_decodes_punycode_then_folds_the_confusables() -> None:
+    assert extract_urls(_PUNYCODE_EPIC) == {"http://epic.example"}
+
+
+def test_a_punycode_host_and_its_ascii_twin_share_one_identity() -> None:
+    assert extract_urls(_PUNYCODE_EPIC) == extract_urls("http://epic.example")
+
+
+def test_a_malformed_punycode_label_is_left_verbatim() -> None:
+    # The codec rejects it (incomplete punycode); the label stays as-is rather than raising, and
+    # the identity is still symmetric on both sides of the defense.
+    assert extract_urls("http://xn--zzzzzzzz.example") == {"http://xn--zzzzzzzz.example"}
+
+
+def test_punycode_transform_of_a_collected_url_is_redacted() -> None:
+    guard = _filter({"http://epic.example"})
+    fed = guard.feed(f"see {_PUNYCODE_EPIC} now") + guard.flush()
+    assert fed == f"see {REDACTED_LINK} now"
+
+
+def test_extract_urls_strips_zero_width_format_characters() -> None:
+    # Cf-category characters render as nothing but survive NFKC, so they used to split the identity.
+    plain = {"http://evil.example"}
+    assert extract_urls("http://evi\u200bl.example") == plain  # zero-width space
+    assert extract_urls("http://evi\u200dl.example") == plain  # zero-width joiner
+    assert extract_urls("http://evi\u00adl.example") == plain  # soft hyphen
+    assert extract_urls("http://evi\ufeffl.example") == plain  # BOM / zero-width no-break space
+
+
+def test_an_encoded_zero_width_character_is_stripped_after_decoding() -> None:
+    # The stripper runs after the decode fixpoint, so a percent-encoded ZWSP is exposed first.
+    assert extract_urls("http://evi%E2%80%8Bl.example") == {"http://evil.example"}
+
+
+def test_zero_width_transform_of_a_collected_url_is_redacted() -> None:
+    guard = _filter({"http://evil.example"})
+    fed = guard.feed("see http://evi\u200bl.example now") + guard.flush()
+    assert fed == f"see {REDACTED_LINK} now"
+
+
+def test_strict_tainted_turn_redacts_a_zero_width_split_host() -> None:
+    guard = _strict(_Taint(tainted=True))
+    assert guard.feed("go to http://evi\u200bl.example ") == f"go to {REDACTED_LINK} "
+
+
+def test_the_seventh_addendum_classes_compose() -> None:
+    # An encoded separator, a punycode host, and a zero-width character in one link still fold to
+    # the single identity its plain twin has: the passes chain rather than shadowing one another.
+    assert extract_urls("http[&#58;//]xn--e1awd7f\u200b.example") == {"http://epic.example"}
+
+
+def test_extract_urls_refangs_every_defang_bracket_shape_at_the_separator() -> None:
+    # The standing asymmetry the seventh addendum found: the refanger folded `(.)`/`{.}` as readily
+    # as `[.]`, but the separator tables listed only the square form, so a round- or brace-bracketed
+    # separator anchored nothing and the link was never matched at all. All shapes are equivalent.
+    plain = {"http://evil.example"}
+    assert extract_urls("http(://)evil.example") == plain
+    assert extract_urls("http{://}evil.example") == plain
+    assert extract_urls("http(:)//evil.example") == plain
+    assert extract_urls("http{:}//evil.example") == plain
+    assert extract_urls("mailto(:)a@evil.example") == {"mailto:a@evil.example"}
+
+
+def test_a_round_bracket_defang_separator_is_redacted() -> None:
+    guard = _filter({"http://evil.example"})
+    fed = guard.feed("see http(://)evil.example now") + guard.flush()
+    assert fed == f"see {REDACTED_LINK} now"
+
+
+def test_a_bare_bracketed_colon_in_prose_is_not_a_url() -> None:
+    # The separator only counts behind a scheme word, so ratio/emoticon prose is untouched.
+    assert extract_urls("the ratio (:) here") == frozenset()

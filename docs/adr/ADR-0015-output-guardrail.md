@@ -456,3 +456,103 @@ pre-match (abandoning the span-preserving redaction). Also still out, unchanged 
 UTS-39 confusables set** and **IDN/punycode** (need a dependency); **mixed/other encodings** past percent
 and HTML references; **footer/boilerplate heuristics**; and the **structured redaction event** for the
 overlay. Safety stays deterministic: what is not matched is not redacted, never mis-instructed.
+
+## Addendum (2026-07-13): the encoded defang separator, punycode, and zero-width format characters
+
+Closes **four** live bypasses, three of them named as out-of-scope by the sixth addendum and one it
+never saw. Like every earlier addendum this is **grammar-and-identity only, with no seam change**:
+both `OutputGuardrail` policies, the `TaintLedger`, `TaintView`, the streaming filter, and the config
+are untouched; redact and strict mode inherit the wider matching for free; a clean or untainted turn
+is byte-identical to before. Still **deterministic and dependency-free** (stdlib only).
+
+All four were confirmed live against the shipped module before any change, each shown next to the
+plain twin it should have matched:
+
+| Input | `extract_urls` before | Plain twin |
+|---|---|---|
+| `http[&#58;//]evil.com` | `frozenset()` | `{http://evil.com}` |
+| `http(://)evil.com` | `frozenset()` | `{http://evil.com}` |
+| `http://xn--e1awd7f.com` | itself, unfolded | `http://epic.com` |
+| `http://evi<ZWSP>l.com` | itself, unfolded | `http://evil.com` |
+
+The first two matched **nothing at all**, so they escaped *both* redact and strict mode. That is the
+severe shape: strict mode is the designed backstop for exactly the "the model was told to transform
+the link" case, and a link that never becomes a match is never a candidate for either policy.
+
+### The encoded defang separator, and why the sixth addendum's dichotomy was false
+
+The sixth addendum rejected `http[&#58;//]evil.com` on the reasoning that the scheme+separator
+**anchors** the whole match and is matched literally *before* any decode runs, so tolerating it would
+mean either **enumerating encodings in the anchor** (the enumeration the decode-fixpoint design
+exists to avoid) or **decoding the whole stream pre-match** (abandoning span-preserving redaction).
+
+That dichotomy is **false, and this addendum reverses it**. A third option exists: constrain the
+*shape* of an escape rather than enumerate escapes. `_ENCODED_SEP_CHUNK` admits a bracket chunk at
+the separator position whose inner carries an **escape marker** (`&` or `%`), and `normalize_url`'s
+existing decode fixpoint then resolves whichever encoding it actually was. No table of encodings
+appears in the anchor, nothing is decoded pre-match, and the span is preserved. The reasoning the
+sixth addendum recorded was sound about its two options and wrong that they were the only two.
+
+The escape marker is **load bearing, not decoration**. An unconstrained chunk in that position
+matches ordinary prose such as `http(s)-only` and `use http(s) or ftp(s)`, which strict mode would
+then redact out of this repo's own documentation. Requiring `&`/`%` is what makes the widening
+honest, and it is a shape constraint in the anchor, which the sixth addendum did rule out in
+general terms. **This addendum owns that reversal explicitly** rather than claiming the earlier
+decision merely overlooked an option: a shape constraint is admitted where an encoding enumeration
+is still not.
+
+### The bracket-shape asymmetry (found while widening the separator)
+
+Not a deferred item; a standing bug the work surfaced. The refanger always folded `(.)` and `{.}` as
+readily as `[.]`, but the separator tables listed only the **square** form, so `http(://)evil.com`
+and `http{://}evil.com` anchored nothing and were never matched at all. The bracket vocabulary is now
+enumerated once (`_BRACKETS`) and every defang token derives from it, so the shapes cannot drift
+apart again. This is the bypass with the lowest attacker cost of the four, needing no encoding at all.
+
+### Punycode is stdlib, not a dependency
+
+The fourth and sixth addenda bundled **IDN/punycode** together with the full UTS-39 confusables set
+as "need a dependency". Half of that is wrong: `str.encode("ascii").decode("idna")` is stdlib.
+`_decode_punycode` decodes each `xn--` label back to the Unicode it renders as, which then feeds the
+**existing** curated confusable table, so a *registered* homoglyph domain (`xn--e1awd7f.com`, which
+resolves and renders as Cyrillic `epic`) folds to the ASCII it imitates instead of sailing past a
+table that only ever saw the pre-encoded form. Decoding is **per label** so one malformed label
+cannot cost the rest theirs, and a label the codec rejects is left verbatim (still symmetric on both
+sides). The **full UTS-39 set** genuinely does still need a dependency and stays deferred.
+
+### Zero-width format characters (unnamed by any prior addendum)
+
+Unicode category `Cf` (zero-width space/joiner/non-joiner, the directional marks, soft hyphen, BOM)
+renders as **nothing** to the eye and to the resolver, but survives NFKC untouched, so
+`evi<ZWSP>l.com` and `evil.com` compared unequal. `_strip_format_chars` drops them, run *after* the
+decode fixpoint so a percent- or entity-encoded zero-width character (`evi%E2%80%8Bl.com`) is exposed
+first. Pure identity widening with no new match surface.
+
+### Tradeoff and scope
+
+The separator widening **adds a bounded match surface**, the second addendum to do so after the
+sixth. The cost is contained by the same properties: the escape marker keeps prose out (proven by
+test over the exact `http(s)` forms that would otherwise fire); the chunk inner is a negated class
+that cannot hold a bracket, so the matcher stays **linear**; the widening is **symmetric** on both
+sides of the defense; a chunk that decodes to no separator stays verbatim in the identity, so
+redaction only ever covers a fuller span, never a spurious collision; and the whole guardrail is
+`off`-able. The other three changes are pure identity widening. Each fix was **mutation-proven**:
+reverting it individually turns the new tests red (8, 2, 4, and 4 failures respectively), so none of
+them is a test that cannot fail.
+
+`urls.py` reached the 300-line cap as this landed and split by responsibility: `urls.py` keeps the
+**grammar** (what counts as a clickable URL, including the streaming hold-back), `url_identity.py`
+takes the **identity** (the six folding passes and `normalize_url`). `extract_urls` stays in
+`urls.py` as the single entry both sides of the defense share, so no importer outside `guardrail.py`
+changed.
+
+### Scope held deliberately narrow (updated)
+
+Still **out**, behind the same grammar: **whitespace-split** defang (`evil dot com`, no scheme to
+anchor, prose FP, not clickable); the **full UTS-39 confusables set** (needs a dependency; punycode,
+which this addendum's predecessors bundled with it, is now in); **mixed/other encodings** past
+percent and HTML references; **footer/boilerplate heuristics**; and the **structured redaction
+event** for the overlay (no proto change needed, as `StatusUpdate` and the overlay's status chip
+already exist; its real cost is that `OutputFilter.feed` returns `str`, so no redaction signal
+reaches the engine). Safety stays deterministic: what is not matched is not redacted, never
+mis-instructed.

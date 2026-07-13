@@ -19,7 +19,8 @@ I/O; the only state is one turn's carry buffer, dying with the turn.
 from collections.abc import Set as AbstractSet
 from typing import Protocol
 
-from cortex_core.urls import TRAILING_PUNCTUATION, URL_RE, held_from, normalize_url
+from cortex_core.url_identity import TRAILING_PUNCTUATION, normalize_url
+from cortex_core.urls import URL_RE, held_from
 
 # What the user sees in place of a laundered link. Self-explanatory inline, so the overlay
 # needs no extra event type to surface the redaction.

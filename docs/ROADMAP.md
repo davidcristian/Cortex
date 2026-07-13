@@ -862,12 +862,31 @@ behind the unchanged `ToolRegistry`/`ToolDispatcher`/`stream_tool_loop` seams (o
   decodes to a dot folds, any other stays verbatim. Unlike every earlier addendum this one **adds a
   bounded new match surface** (a bracketed run in the body is now consumed whole, not cut at `]`), the
   accepted tradeoff being symmetric/over-redaction-only: a bare `[]` still terminates, Markdown `(url)`
-  still bounds, the matcher stays linear, and the whole guardrail is `off`-able. Remaining behind the same
-  seam (ADR-0015 deferred): an encoded defang *separator* (`http[&#58;//]`, which anchors the match
-  pre-decode, so it needs enumeration or whole-stream decode, both rejected); whitespace-split
-  `evil dot com` (no scheme to anchor, prose FP); the **full UTS-39 confusables set + IDN/punycode**
-  (need a dependency); mixed/other encodings past percent + HTML; footer/boilerplate heuristics
-  (screening-model territory); and a structured redaction event for the overlay.
+  still bounds, the matcher stays linear, and the whole guardrail is `off`-able. **The encoded defang
+  separator, punycode, and zero-width format characters landed 2026-07-13 ([ADR-0015 seventh
+  addendum](adr/ADR-0015-output-guardrail.md)),** closing **four** live bypasses verified against the
+  shipped module first, two of which matched *nothing at all* and so escaped **both** redact and strict
+  mode. (1) The encoded separator (`http[&#58;//]evil.com`) is admitted as a bracket chunk whose inner
+  carries an **escape marker** (`&`/`%`), the decode fixpoint then resolving whichever encoding it was:
+  the sixth addendum's "needs enumeration or whole-stream decode, both rejected" was a **false
+  dichotomy**, since constraining the *shape* of an escape is a third option, and the marker is load
+  bearing (an unconstrained chunk matches prose like `http(s)-only`, which strict mode would redact out
+  of the repo's own docs). (2) A **bracket-shape asymmetry** found while widening that position: the
+  refanger always folded `(.)`/`{.}` but the separator tables listed only the square form, so
+  `http(://)evil.com` anchored nothing; every defang token now derives from one `_BRACKETS` table.
+  (3) **Punycode** decoding of `xn--` labels (stdlib `idna`, so the "needs a dependency" claim was
+  wrong for this half) feeds a registered IDN homoglyph to the existing confusable table. (4)
+  **Cf-category format characters** (zero-width space/joiner, soft hyphen, BOM) are stripped after
+  decoding; they render as nothing yet survive NFKC, and no prior addendum had named them. Each fix is
+  mutation-proven (reverting it individually turns the new tests red); `urls.py` hit the 300-line cap
+  and split, keeping the **grammar** while `url_identity.py` took the **identity** passes, with
+  `extract_urls` staying put so only `guardrail.py`'s import moved. Remaining behind the same
+  seam (ADR-0015 deferred): whitespace-split
+  `evil dot com` (no scheme to anchor, prose FP); the **full UTS-39 confusables set**
+  (needs a dependency); mixed/other encodings past percent + HTML; footer/boilerplate heuristics
+  (screening-model territory); and a structured redaction event for the overlay (**not** a proto
+  change, as `StatusUpdate` and the overlay status chip already exist; its real cost is that
+  `OutputFilter.feed` returns `str`, so no redaction signal reaches the engine).
 - **Subagent model pick revised to gemma-4-E4B (landed 2026-07-03)**
   ([ADR-0004 pick-revision addendum](adr/ADR-0004-model-lineup.md)). The injection-defense
   harness found E4B the standout (0/10 framed-obeyed even thinking-off, re-confirmed at
