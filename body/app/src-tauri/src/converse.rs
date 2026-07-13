@@ -1,6 +1,6 @@
 //! The `converse` IPC command: run one brain turn and stream it to the webview.
 
-use body_core::{BrainTransport, ConfirmDecision, TransportError, TurnEvent};
+use body_core::{BrainTransport, ConfirmDecision, TransportError, TurnEvent, retry_with};
 use body_rpc::BrainSeamClient;
 use futures_util::{StreamExt, pin_mut};
 use serde::Serialize;
@@ -9,6 +9,7 @@ use tauri::State;
 use tokio_stream::wrappers::UnboundedReceiverStream;
 
 use crate::confirm::ConfirmRoute;
+use crate::seam::{ShellRandomness, TokioSleeper, policy_from_env};
 
 /// Default brain seam address (matches `body_rpc`); override with `CORTEX_BRAIN_ADDR`.
 const DEFAULT_ADDR: &str = "http://127.0.0.1:50051";
@@ -95,7 +96,16 @@ pub async fn converse(
     let token = std::env::var("CORTEX_SEAM_TOKEN")
         .ok()
         .filter(|token| !token.is_empty());
-    let client = match BrainSeamClient::connect_with_token(&addr, token.as_deref()).await {
+    if let Err(error) = BrainSeamClient::connect_lazy_with_token(&addr, token.as_deref()) {
+        let _ = channel.send(WireMessage::error(error));
+        return Ok(());
+    }
+    let sleeper = TokioSleeper;
+    let randomness = ShellRandomness::from_env();
+    let dial = retry_with(policy_from_env(), &sleeper, &randomness, || {
+        BrainSeamClient::connect_with_token(&addr, token.as_deref())
+    });
+    let client = match dial.await {
         Ok(client) => client,
         Err(error) => {
             let _ = channel.send(WireMessage::error(error));

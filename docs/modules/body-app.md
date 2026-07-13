@@ -56,12 +56,19 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
   command's `Err`, which the bridge's `.catch` handles. They dial through `seam::connect()` (below),
   so a *transient* unreachable brain is retried with backoff before the error surfaces (ADR-0024).
 - **The resilient read transport** (`src-tauri/src/seam.rs`, ADR-0024): `connect()` builds a
-  `body_core::RetryingTransport<BrainSeamClient, TokioSleeper>` over `BrainSeamClient::connect_lazy_with_token`
+  `body_core::RetryingTransport<BrainSeamClient, TokioSleeper, ShellRandomness>` over
+  `BrainSeamClient::connect_lazy_with_token`
   (a lazy channel that never fails at construction and reconnects on demand), reading the address +
   seam token + retry knobs from env. `TokioSleeper` is the real `Sleeper` (`tokio::time::sleep`), the
-  one timer effect, kept in the un-gated shell so the retry *logic* stays gated in `body_core`. The
-  read commands use it; `converse` keeps its own eager dial (a turn is non-idempotent, so a failed
-  turn is terminal, per ADR-0024 decision 2).
+  one timer effect, and `ShellRandomness` the real `Randomness` (a `RandomState`-seeded jitter draw,
+  `CORTEX_BRAIN_RETRY_JITTER=off` pinning it to the deterministic schedule), both kept in the
+  un-gated shell so the retry *logic* stays gated in `body_core`. `policy_from_env()` (the shared
+  `RetryPolicy` builder) is `pub` so `converse` reuses it. The read commands use `connect()`;
+  `converse` keeps its **eager** dial but wraps it in `retry_with` (ADR-0024 addendum), so a turn
+  started against a briefly-down brain retries the *dial* (safe: the non-idempotent turn has not
+  begun) while a turn that fails after its first event stays terminal (decision 2). It first runs
+  the lazy constructor as a synchronous config gate, so a bad URI or non-ASCII token fails fast
+  instead of being retried for the whole budget.
 - **The `body_server` module** (`src-tauri/src/body_server.rs`, ADR-0023): `start()` (`cfg(windows)`)
   binds `CORTEX_BODY_ADDR` (default `127.0.0.1:50151`), reads `CORTEX_SEAM_TOKEN`, and serves
   `body_rpc::body_service(WindowsAudioControl::new(), &token)` on Tauri's async runtime

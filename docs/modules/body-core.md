@@ -74,6 +74,15 @@ stays thin and the retry is exercised against a fake with no network or wall-clo
 - `Sleeper` is a timer effect port: `sleep(&self, Duration) -> impl Future<Output = ()> +
   Send`. The one seam the retry loop waits on; a fake records the schedule and returns
   instantly, the real `tokio::time::sleep` lives in the ungated shell.
+- `Randomness` is a jitter effect port (ADR-0024 addendum): `unit(&self) -> f64`, one draw
+  in `[0, 1]` per backoff. `FullDelay` (the exported `Randomness` impl returning a constant
+  `1.0`) turns jitter off structurally: the retry loop scales each delay by
+  `0.5 + 0.5·unit()` (equal jitter, half kept as a floor so the wait still lets a restarting
+  brain recover), which for a constant `1.0` degenerates to the exact deterministic schedule.
+  The real `ShellRandomness` (a `RandomState`-seeded draw) lives in the ungated shell; tests
+  inject a scripted fake. A draw is sanitized (out-of-range clamped into `[0, 1]`, a
+  non-finite draw treated as the full delay so `clamp` cannot pass a `NaN` to a panicking
+  `mul_f64`), so a misbehaving source cannot panic the `Duration` math.
 - `RetryPolicy` (`Copy`, `Eq`, `Debug`) is a bounded exponential-backoff schedule: public
   fields `max_attempts` (total tries incl. the first; `0`/`1` disable retry), `base_delay`,
   `multiplier`, `max_delay` (cap). `delay(index)` = `min(base·multiplierⁱⁿᵈᵉˣ, max_delay)`
@@ -82,12 +91,18 @@ stays thin and the retry is exercised against a fake with no network or wall-clo
   transient). `Default` = 3 attempts / 200 ms / ×2 / 2 s cap.
 - `is_transient(&TransportError) -> bool` is the retryable classifier: `Connection` and
   `Rpc{code=="Unavailable"}` are transient; every other `Rpc` status and `Protocol` are not.
-- `RetryingTransport<T: BrainTransport, S: Sleeper>` *is* a `BrainTransport`: wraps an
-  inner transport and retries its **idempotent** methods (`health`, `list_sessions`,
-  `session_messages`) on a transient failure per the policy, sleeping via the `Sleeper`
-  between tries. `converse` is forwarded **unchanged**, since it is non-idempotent, its `decisions`
-  stream is one-shot, and a failed turn is terminal by the overlay's contract (ADR-0024
-  decision 2). `new(inner, sleeper, policy)`.
+- `retry_with(policy, sleeper, randomness, call)` is the bounded-retry loop over any fallible
+  async factory (ADR-0024 addendum): re-issues `call()` each attempt, sleeping the jittered
+  delay while `backoff` says so. Public so patience composes around a non-transport factory,
+  which the shell uses to wrap its eager `converse` dial (safe: the non-idempotent turn has
+  not begun until the dial succeeds).
+- `RetryingTransport<T: BrainTransport, S: Sleeper, R: Randomness = FullDelay>` *is* a
+  `BrainTransport`: wraps an inner transport and retries its **idempotent** methods (`health`,
+  `list_sessions`, `session_messages`) via `retry_with` on a transient failure per the policy,
+  sleeping via the `Sleeper` between tries. `converse` is forwarded **unchanged**, since it is
+  non-idempotent, its `decisions` stream is one-shot, and a failed turn is terminal by the
+  overlay's contract (ADR-0024 decision 2). `new(inner, sleeper, policy)` (no jitter, the v1
+  default) or `with_randomness(inner, sleeper, randomness, policy)` (jittered).
 
 OS-capability ports (`os` module) are the first portability seam (ADR-0011):
 
