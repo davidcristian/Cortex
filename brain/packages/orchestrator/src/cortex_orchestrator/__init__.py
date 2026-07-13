@@ -7,10 +7,8 @@ from cortex_orchestrator.builders import (
     build_cortex_tools,
     build_history_window,
     build_inference_backend,
-    build_memory,
     build_output_guardrail,
     build_tool_registry,
-    memory_scope_from_name,
 )
 from cortex_orchestrator.config import (
     BodyConfig,
@@ -31,6 +29,11 @@ from cortex_orchestrator.converse import (
     ERROR_CODE_SESSION_STORE_UNAVAILABLE,
     EngineFactory,
     converse,
+)
+from cortex_orchestrator.memory_builders import (
+    build_memory,
+    memory_scope_from_name,
+    recall_policy_from_config,
 )
 from cortex_orchestrator.schedule_builders import (
     TICKER_STOP_GRACE_S,
@@ -96,6 +99,7 @@ __all__ = [
     "converse",
     "create_server",
     "memory_scope_from_name",
+    "recall_policy_from_config",
     "run_from_env",
     "serve",
     "start_ticker",

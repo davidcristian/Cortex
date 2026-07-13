@@ -69,6 +69,12 @@ from cortex_core.ports import (
     ToolRegistry,
 )
 from cortex_core.recall import MemoryRecaller
+from cortex_core.rerank import (
+    RAW_RECALL_POLICY,
+    RawRecallPolicy,
+    RecallPolicy,
+    RerankingRecallPolicy,
+)
 from cortex_core.roster import SubagentProfile, SubagentResources, SubagentRoster
 from cortex_core.routing import RoutingHints, Tier, route_turn
 from cortex_core.runner import SubagentRunner
@@ -139,6 +145,7 @@ __all__ = [
     "GLOBAL_MEMORY_SCOPE",
     "GLOBAL_SCOPE",
     "LIST_SCHEDULED_TOOL_NAME",
+    "RAW_RECALL_POLICY",
     "REDACTED_LINK",
     "SCHEDULE_TOOL_NAME",
     "SECURITY_PREAMBLE",
@@ -194,9 +201,12 @@ __all__ = [
     "Placement",
     "PlacementRequest",
     "PlacementTarget",
+    "RawRecallPolicy",
     "ReasoningChunk",
+    "RecallPolicy",
     "RecordingAuditSink",
     "RecordingConfirmer",
+    "RerankingRecallPolicy",
     "ResourceBudgetScheduler",
     "Role",
     "RoutingHints",

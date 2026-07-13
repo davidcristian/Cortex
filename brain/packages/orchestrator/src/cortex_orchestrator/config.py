@@ -13,6 +13,7 @@ BodyBackendName = Literal["none", "grpc"]
 InferenceBackendName = Literal["echo", "llamacpp"]
 MemoryBackendName = Literal["none", "pgvector"]
 MemoryScopeName = Literal["global", "session"]
+MemoryRecallName = Literal["raw", "reranked"]
 MemoryTaintPolicyName = Literal["skip", "record"]
 ToolsBackendName = Literal["none", "mcp"]
 
@@ -109,6 +110,11 @@ class MemoryConfig(BaseSettings):
     embedder_model: str = "embedding"
     scope: MemoryScopeName = "global"
     on_tainted: MemoryTaintPolicyName = "skip"
+    recall: MemoryRecallName = "raw"
+    recall_half_life_days: float = 30.0
+    recall_recency_weight: float = 0.3
+    recall_dedup_threshold: float = 0.98
+    recall_pool_factor: int = 4
 
     @model_validator(mode="after")
     def _pgvector_needs_dsn_and_embedder(self) -> "MemoryConfig":

@@ -1,6 +1,7 @@
 """Behavior of the memory value types, in-memory fakes, and the MemoryRecaller use-case."""
 
 import uuid
+from collections.abc import Sequence
 from datetime import UTC, datetime
 
 import pytest
@@ -13,6 +14,7 @@ from cortex_core import (
     InMemoryMemoryStore,
     MemoryRecaller,
     MemoryRecord,
+    ScoredMemory,
     SessionMemoryScope,
 )
 
@@ -172,6 +174,40 @@ async def test_scoped_search_filters_the_candidate_set() -> None:
     assert {hit.record.id for hit in both} == {"a", "b"}  # a union of scopes
     unfiltered = await store.search([1.0, 0.0], k=5)
     assert {hit.record.id for hit in unfiltered} == {"a", "b"}  # None spans every scope
+
+
+class _SpyRecallPolicy:
+    """A RecallPolicy that records how the recaller called it and returns only the first hit."""
+
+    def __init__(self) -> None:
+        self.select_call: tuple[tuple[str, ...], datetime, int] | None = None
+
+    def candidate_k(self, k: int) -> int:
+        return k + 3  # ask for a wider pool than the caller's k, to observe the over-fetch
+
+    def select(
+        self, hits: Sequence[ScoredMemory], *, now: datetime, k: int
+    ) -> Sequence[ScoredMemory]:
+        self.select_call = (tuple(hit.record.id for hit in hits), now, k)
+        return tuple(hits[:1])
+
+
+async def test_recall_over_fetches_the_pool_and_applies_the_policy() -> None:
+    store = InMemoryMemoryStore()
+    ids = iter([f"m{i}" for i in range(5)])
+    spy = _SpyRecallPolicy()
+    recaller = MemoryRecaller(
+        store, HashEmbedder(), _FixedClock(), policy=spy, id_factory=lambda: next(ids)
+    )
+    for i in range(5):
+        await recaller.record(f"fact {i}", session_id="s")
+    hits = await recaller.recall("fact 0", k=2, session_id="s")
+    assert spy.select_call is not None
+    pool_ids, now, k = spy.select_call
+    assert len(pool_ids) == 5  # candidate_k(2) == 5, so the store handed the policy 5 candidates
+    assert now == _AT  # the recaller passes clock.now() as the recall time
+    assert k == 2
+    assert len(hits) == 1  # the recaller returns exactly what the policy selected
 
 
 async def test_session_scoped_recaller_does_not_cross_conversations() -> None:

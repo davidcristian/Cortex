@@ -928,9 +928,24 @@ behind the unchanged `ToolRegistry`/`ToolDispatcher`/`stream_tool_loop` seams (o
   under scoping), **per-scope retention/eviction**, and **cross-scope recall ranking**.
 - **Tiered / self-editing memory + summarization.** Letta's good ideas, adoptable later
   behind the unchanged port (not the framework), per decision 1.
-- **Retrieval quality.** v1 recall is raw top-k cosine with no reranking, recency weighting,
-  or dedup (ADR-0008 risks); revisit behind the unchanged `MemoryStore` port if recall proves
-  noisy.
+- **Recency-weighted reranking + near-duplicate dedup landed 2026-07-13 ([ADR-0008 rerank
+  addendum](adr/ADR-0008-memory-v1.md)).** v1 recall was raw top-k cosine with no reranking,
+  recency weighting, or dedup. A new pure-core `RecallPolicy` seam (`rerank.py`, the
+  `MemoryScope`/`HistoryWindow` pattern) now turns an over-fetched candidate pool into the final
+  `k` hits behind the **unchanged `MemoryStore` port** (it needs the recaller's `Clock`, which the
+  store lacks, and composes recency with dedup in one pass the pgvector `ORDER BY <=> LIMIT`
+  cannot). `RawRecallPolicy` (the default singleton `RAW_RECALL_POLICY`) is v1 behavior exactly, so
+  recall stays byte-for-byte unchanged unless a deployment opts into `RerankingRecallPolicy`
+  (`CORTEX_MEMORY_RECALL=reranked`), which blends similarity with an exponential recency decay
+  (over an age floored at 0, so clock skew neither outranks a fresh hit nor overflows) and greedily
+  drops near-duplicate memories, tuned by the
+  `CORTEX_MEMORY_RECALL_*` knobs; the reported `ScoredMemory.score` stays the raw cosine, only order
+  and membership change. The `MemoryRecaller` over-fetches `policy.candidate_k(k)` then applies
+  `policy.select(now, k)`; the memory builders split to `memory_builders.py` for the line cap.
+  CI-gated end to end over the fakes at 100%; no SQL change, so no host validation is owed. Remaining
+  behind the same `RecallPolicy` seam (ADR-0008 rerank addendum): a **model-based reranker** (a
+  cross-encoder or an LLM-judge `select`), **surfacing the blended relevance** as a distinct field,
+  and **maximal-marginal-relevance** diversity beyond threshold dedup.
 - **Write-salience policy.** v1 records the raw exchange text every turn; deciding what
   *deserves* remembering (salience filtering at record time) is a later policy behind the same
   port (ADR-0008 risks). Its summarization half is adjacent to the tiered-memory entry above.

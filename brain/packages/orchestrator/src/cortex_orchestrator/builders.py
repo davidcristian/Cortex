@@ -19,11 +19,7 @@ from cortex_core import (
     FilteredToolRegistry,
     GatedToolRegistry,
     GetVolumeTool,
-    GlobalMemoryScope,
     InferenceBackend,
-    MemoryRecaller,
-    MemoryScope,
-    SessionMemoryScope,
     SetVolumeTool,
     SingleResidentModelManager,
     SkipUnavailableToolRegistry,
@@ -34,14 +30,10 @@ from cortex_core import (
     ToolRegistry,
     UrlRedactingGuardrail,
 )
-from cortex_embedding import LlamaCppEmbedder
 from cortex_inference import LlamaCppBackend
-from cortex_memory import PgVectorMemoryStore
 from cortex_orchestrator.config import (
     BodyConfig,
     InferenceConfig,
-    MemoryConfig,
-    MemoryScopeName,
     ToolsConfig,
 )
 from cortex_tools import (
@@ -54,8 +46,6 @@ from cortex_tools import (
 # generation may legitimately stream for a long time (the adapter sets no timeout itself).
 # Public: `subagent_builders` dials its llama-servers with the same policy (one knob).
 LLAMACPP_CONNECT_TIMEOUT_S = 10.0
-# An embedding is a quick request (no streaming), so it gets a finite overall timeout.
-_EMBEDDER_TIMEOUT_S = 30.0
 
 _logger = logging.getLogger(__name__)
 
@@ -86,31 +76,6 @@ def build_inference_backend(
         manager = SingleResidentModelManager(cortex_model, config.endpoint)
         return LlamaCppBackend(manager, client), client.aclose
     return EchoInferenceBackend(), noop_aclose
-
-
-def memory_scope_from_name(name: MemoryScopeName) -> MemoryScope:
-    """Map ``CORTEX_MEMORY_SCOPE`` to its recall-namespace policy (ADR-0008 scoping addendum)."""
-    if name == "session":
-        return SessionMemoryScope()
-    return GlobalMemoryScope()
-
-
-async def build_memory(
-    config: MemoryConfig, clock: Clock
-) -> tuple[MemoryRecaller | None, Callable[[], Awaitable[None]]]:
-    """Pick the memory backend from config; return the recaller (or None) with its closer."""
-    if config.backend == "pgvector":
-        client = httpx.AsyncClient(timeout=httpx.Timeout(_EMBEDDER_TIMEOUT_S))
-        embedder = LlamaCppEmbedder(client, config.embedder_endpoint, model=config.embedder_model)
-        store = await PgVectorMemoryStore.connect(config.dsn)
-
-        async def close_memory() -> None:
-            await store.aclose()
-            await client.aclose()
-
-        scope = memory_scope_from_name(config.scope)
-        return MemoryRecaller(store, embedder, clock, scope=scope), close_memory
-    return None, noop_aclose
 
 
 def build_tool_registry(

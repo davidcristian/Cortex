@@ -5,6 +5,7 @@ from uuid import uuid4
 
 from cortex_core.memory import MemoryRecord, ScoredMemory
 from cortex_core.ports import Clock, Embedder, MemoryStore
+from cortex_core.rerank import RAW_RECALL_POLICY, RecallPolicy
 from cortex_core.scope import GLOBAL_MEMORY_SCOPE, MemoryScope
 
 
@@ -23,12 +24,14 @@ class MemoryRecaller:
         clock: Clock,
         *,
         scope: MemoryScope = GLOBAL_MEMORY_SCOPE,
+        policy: RecallPolicy = RAW_RECALL_POLICY,
         id_factory: Callable[[], str] = _uuid4_memory_id,
     ) -> None:
         self._store = store
         self._embedder = embedder
         self._clock = clock
         self._scope = scope
+        self._policy = policy
         self._id_factory = id_factory
 
     async def record(self, text: str, *, session_id: str, tainted: bool = False) -> MemoryRecord:
@@ -46,6 +49,9 @@ class MemoryRecaller:
         return record
 
     async def recall(self, query: str, *, k: int, session_id: str) -> Sequence[ScoredMemory]:
-        """Return the ``k`` memories most similar to ``query`` within the turn's read-scopes."""
+        """Return the ``k`` most relevant memories to ``query`` within the turn's read-scopes."""
         embedding = await self._embedder.embed(query)
-        return await self._store.search(embedding, k=k, scopes=self._scope.read_scopes(session_id))
+        pool = await self._store.search(
+            embedding, k=self._policy.candidate_k(k), scopes=self._scope.read_scopes(session_id)
+        )
+        return self._policy.select(pool, now=self._clock.now(), k=k)

@@ -9,7 +9,6 @@ from cortex_orchestrator.builders import (
     build_cortex_tools,
     build_history_window,
     build_inference_backend,
-    build_memory,
     build_output_guardrail,
     build_tool_registry,
 )
@@ -23,6 +22,7 @@ from cortex_orchestrator.config import (
 )
 from cortex_orchestrator.config_schedule import ScheduleConfig
 from cortex_orchestrator.config_subagents import SubagentsConfig
+from cortex_orchestrator.memory_builders import build_memory
 from cortex_orchestrator.schedule_builders import (
     build_schedule,
     build_schedule_tools,

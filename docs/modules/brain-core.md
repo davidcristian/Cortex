@@ -392,21 +392,30 @@ Use-case:
   `wrap_untrusted` before it re-enters `working`. `MAX_TOOL_STEPS` and `ToolLoopContext` are here.
 - `DEFAULT_CORTEX_MODEL` is the logical id `"cortex"`. Deployments override it via
   `CORTEX_MODEL_CORTEX`, read by the composition root (orchestrator), never here.
-- `MemoryRecaller(store, embedder, clock, *, scope=GLOBAL_MEMORY_SCOPE, id_factory=<uuid4>)` is
-  the memory use-case (ADR-0008). `record(text, *, session_id, tainted=False)` embeds `text`,
-  persists a `MemoryRecord` (id from the factory, `at` from the clock, embedding from the embedder,
-  `scope` from the policy's `write_scope(session_id)`, `tainted` from the caller per ADR-0019), and
-  returns it; `recall(query, *, k, session_id)`
-  embeds `query` and returns the store's top-`k` `ScoredMemory` within the policy's
-  `read_scopes(session_id)`. Stateless over the store: every memory lives in `MemoryStore`, so
-  recall is identical across restarts and swaps. Wired into `TurnEngine` (retrieve-into-context,
-  record-at-turn-end) when injected. The engine threads its `session_id` through both calls.
+- `MemoryRecaller(store, embedder, clock, *, scope=GLOBAL_MEMORY_SCOPE, policy=RAW_RECALL_POLICY,
+  id_factory=<uuid4>)` is the memory use-case (ADR-0008). `record(text, *, session_id,
+  tainted=False)` embeds `text`, persists a `MemoryRecord` (id from the factory, `at` from the clock,
+  embedding from the embedder, `scope` from the policy's `write_scope(session_id)`, `tainted` from
+  the caller per ADR-0019), and returns it; `recall(query, *, k, session_id)` embeds `query`, fetches
+  the store's `policy.candidate_k(k)` `ScoredMemory` within the policy's `read_scopes(session_id)`,
+  and returns `policy.select(...)` reranked and pruned to `k`. Stateless over the store: every memory
+  lives in `MemoryStore`, so recall is identical across restarts and swaps. Wired into `TurnEngine`
+  (retrieve-into-context, record-at-turn-end) when injected. The engine threads its `session_id`
+  through both calls.
 - `MemoryScope` (port, `scope.py`) + `GlobalMemoryScope` / `SessionMemoryScope` (ADR-0008 scoping
   addendum) are the pure policy mapping a turn's `session_id` to its `write_scope` and `read_scopes`
   (the `HistoryWindow` pattern). `GlobalMemoryScope` (the `GLOBAL_MEMORY_SCOPE` singleton, the
   default) writes `GLOBAL_SCOPE` and reads `None` (all), keeping recall cross-session;
   `SessionMemoryScope` writes/reads the `session_id`, isolating a conversation's memory to itself.
   Selected at the composition root via `CORTEX_MEMORY_SCOPE`; the store filters, the policy decides.
+- `RecallPolicy` (port, `rerank.py`) + `RawRecallPolicy` / `RerankingRecallPolicy` (ADR-0008 rerank
+  addendum) are the pure policy that turns an over-fetched candidate pool into the final `k` hits
+  (the `MemoryScope` / `HistoryWindow` pattern): `candidate_k(k)` sizes the pool the recaller
+  fetches, `select(hits, *, now, k)` reranks and prunes it. `RAW_RECALL_POLICY` (the default
+  singleton) keeps v1 top-`k` cosine exactly; `RerankingRecallPolicy` blends similarity with an
+  exponential recency decay and drops near-duplicate memories. Selected at the composition root via
+  `CORTEX_MEMORY_RECALL`; the reported `ScoredMemory.score` stays the raw cosine, only order and
+  membership change.
 - `ToolDispatcher(registry, audit, clock, *, confirmer=None)` is the turn's tool gateway and
   capability gate (ADR-0009/0013). `dispatch(call, *, stamp=UNSTAMPED, gated=False)` runs `call`
   through the `ToolRegistry`, writes exactly one `ToolInvocation` (with the result's `trust`) to
