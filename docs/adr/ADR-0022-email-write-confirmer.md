@@ -320,7 +320,8 @@ without a brain; `overlay-ux.md` gains the card's spec.
 ## Deferred (recorded in the ROADMAP)
 
 - Confirm-with-provenance for tainted turns (needs structured provenance, ADR-0013/0019).
-- Richer send shapes (cc/bcc/HTML/attachments) behind the same tool name.
+- Richer send shapes behind the same tool name: **cc/bcc/HTML landed 2026-07-13** (addendum
+  below); **attachments remain** (they need a bytes-transport decision, recorded there).
 - A structured confirm-resolution event so the overlay can close a stale card exactly.
 - Trust (as opposed to gating) overlays for remote tools. Still nothing needs one.
 - Batching / per-tool session allowlists against confirmation fatigue.
@@ -395,3 +396,42 @@ is authoritative at the dispatcher regardless of advertisement, and `confirmer=N
 a gated name into a hard deny, closing the skip-mode double-walk window. The dispatcher's
 behavior under `gated_names` was already pinned by the existing backstop test; the builder
 tests now assemble the dispatcher exactly as the composition root does.
+
+## Addendum (2026-07-13): richer send shapes (cc/bcc/HTML) behind an `EmailDraft` seam
+
+The deferred richer-send-shapes refinement lands for **cc, bcc, and an HTML alternative**,
+entirely inside the `cortex_email` sidecar and behind the **unchanged brain-side gate**: the
+brain still sees the tool by the name `send_email` in `CORTEX_TOOLS_GATED`, still stamps it
+`gated`, and the confirm card still renders the draft as generic `key→value` argument lines
+(now including any `cc`/`bcc`/`html` the model authored), so the gate, the taint table, and the
+`SeamConfirmer` are all untouched. No proto, port, or orchestrator change.
+
+**The seam is a value object, not a wider signature.** `EmailSender.send` changed from
+`send(to, subject, body)` to `send(draft: EmailDraft)`, where `EmailDraft` is a frozen value
+(`to`/`subject`/`body` + optional `cc`/`bcc`/`html`, each defaulting to `""` = omitted). This is
+the deliberate extension point: the still-deferred **attachments** shape becomes one more field
+on `EmailDraft`, never another change to the `send` contract or to every fake that implements it.
+The MCP `send_email` handler gained matching optional parameters, so the richer shapes flow to the
+cortex as ordinary advertised tool arguments with no brain-side plumbing.
+
+**Safety carried forward.** `cc` and `bcc` get the same in-code CR/LF header-injection refusal as
+the recipient and subject (a laundered `\r\nBcc:` in any address field is rejected before the
+wire, not left to the interpreter's patch level). `From` is still the authenticated identity,
+never a parameter. A `bcc` is composed as a header but `smtplib.send_message` deletes it from the
+transmitted copy while still delivering to it, so a blind recipient stays hidden from the To/Cc
+readers (stdlib behavior, exercised by the live round-trip). An `html` draft composes a
+`multipart/alternative` (plain `body` fallback first, then the HTML part); a plain draft is
+byte-for-byte the previous single `text/plain` message.
+
+**Validation.** CI-gated at 100% over the fake smtplib (cc/bcc/html composition, the two new
+header-injection refusals, the plain-draft-stays-text/plain regression) and the in-process MCP
+server (the tool forwards the new arguments onto the draft). The `integration`-marked live
+round-trip now sends with a `cc` back to the sending account and an HTML alternative, so a real
+Bridge run validates cc/HTML composition end to end, not just the plain path.
+
+**Attachments remain deferred**, recorded here as the open sub-item: they need a bytes-transport
+decision the other shapes did not (a path into the sidecar's mounted filesystem, which adds a
+file-read capability to the email sidecar, versus a base64 blob in the JSON tool argument, which
+bloats the call and the audit line). Chosen deliberately as a separate increment so this slice
+stays a pure header/body composition change with no new capability surface. It lands as a new
+`EmailDraft` field behind this same seam.

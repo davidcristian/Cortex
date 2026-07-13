@@ -11,7 +11,14 @@ import uuid
 
 import pytest
 
-from cortex_email import EmailConfig, EmailReader, ImapMailbox, SmtpConfig, SmtpSender
+from cortex_email import (
+    EmailConfig,
+    EmailDraft,
+    EmailReader,
+    ImapMailbox,
+    SmtpConfig,
+    SmtpSender,
+)
 
 
 @pytest.mark.integration
@@ -44,7 +51,17 @@ def test_send_round_trips_between_the_two_test_addresses() -> None:
         pytest.skip("set CORTEX_EMAIL_SEND_ENABLED/SMTP_* and CORTEX_EMAIL_LIVE_SEND_TO to run")
     stamp = uuid.uuid4().hex[:12]
     subject = f"cortex live send {stamp}"
-    line = SmtpSender(smtp_config).send(to, subject, "slice 8.8 live round-trip")
+    # Exercise the richer shapes on the real Bridge: an html alternative plus a cc back to the
+    # sending account, so a live run validates cc/html composition end to end, not just plain.
+    line = SmtpSender(smtp_config).send(
+        EmailDraft(
+            to,
+            subject,
+            "live round-trip (plain fallback)",
+            cc=smtp_config.user,
+            html="<p>live round-trip (rich)</p>",
+        )
+    )
     assert to in line
 
     # Search server-side BY the unique stamp, not the oldest N of the folder: a populated

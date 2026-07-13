@@ -22,6 +22,7 @@ from cortex_email.config import EmailConfig, SmtpConfig
 from cortex_email.imap import ImapMailbox
 from cortex_email.reader import EmailReader
 from cortex_email.smtp import EmailSender, SmtpSender
+from cortex_email.values import EmailDraft
 
 _SERVER_HOST = "0.0.0.0"  # noqa: S104 - the sidecar binds its container interface; compose publishes loopback-only
 _SERVER_PORT = 9100
@@ -72,10 +73,21 @@ def build_server(reader: EmailReader, sender: EmailSender | None = None) -> Fast
                 readOnlyHint=False, destructiveHint=True, openWorldHint=True
             )
         )
-        async def send_email(to: str, subject: str, body: str) -> str:
-            """Send a plain-text email as the configured account (outbound, irreversible;
-            it runs only with the user's explicit approval)."""
-            return await asyncio.to_thread(sender.send, to, subject, body)
+        async def send_email(
+            to: str,
+            subject: str,
+            body: str,
+            cc: str = "",
+            bcc: str = "",
+            html: str = "",
+        ) -> str:
+            """Send an email as the configured account (outbound, irreversible; it runs only
+            with the user's explicit approval). ``to``/``cc``/``bcc`` are comma-separated
+            address lists (``cc``/``bcc`` optional); ``body`` is the plain-text message; pass
+            ``html`` to add a rich alternative shown as the body where the reader supports it."""
+            return await asyncio.to_thread(
+                sender.send, EmailDraft(to, subject, body, cc, bcc, html)
+            )
 
     return server
 
