@@ -12,8 +12,8 @@ use std::sync::{Arc, Mutex, PoisonError};
 use std::time::Duration;
 
 use body_core::{
-    BrainTransport, ConfirmDecision, RetryPolicy, RetryingTransport, SeamHealth, SessionMessage,
-    SessionSummary, Sleeper, TransportError, TurnEvent, is_transient,
+    BrainTransport, ConfirmDecision, Randomness, RetryPolicy, RetryingTransport, SeamHealth,
+    SessionMessage, SessionSummary, Sleeper, TransportError, TurnEvent, is_transient, retry_with,
 };
 use futures_core::Stream;
 use tokio_stream::StreamExt;
@@ -390,4 +390,116 @@ fn is_transient_classifies_every_variant() {
 #[test]
 fn the_decorator_is_send_and_sync() {
     assert_send_sync::<RetryingTransport<FlakyTransport, FakeSleeper>>();
+}
+
+/// A `Randomness` that replays scripted unit draws (front to back), sharing the script via
+/// `Arc` like `FakeSleeper`. Draws past the script's end return 1 (full delay), so a test
+/// only scripts the draws it asserts.
+#[derive(Clone, Default)]
+struct FakeRandomness {
+    draws: Arc<Mutex<Vec<f64>>>,
+}
+
+impl FakeRandomness {
+    fn scripted(draws: &[f64]) -> Self {
+        Self {
+            draws: Arc::new(Mutex::new(draws.to_vec())),
+        }
+    }
+}
+
+impl Randomness for FakeRandomness {
+    fn unit(&self) -> f64 {
+        let mut draws = self.draws.lock().unwrap_or_else(PoisonError::into_inner);
+        if draws.is_empty() {
+            1.0
+        } else {
+            draws.remove(0)
+        }
+    }
+}
+
+#[tokio::test]
+async fn with_randomness_equal_jitters_each_delay() {
+    // Equal jitter (ADR-0024 addendum): each computed delay is scaled by 0.5 + 0.5 * draw,
+    // so a 0 draw halves it (the floor) and a 1 draw keeps it whole (the v1 schedule).
+    let flaky = FlakyTransport::new(FailKind::Connection, 2);
+    let sleeper = FakeSleeper::default();
+    let transport = RetryingTransport::with_randomness(
+        flaky.clone(),
+        sleeper.clone(),
+        FakeRandomness::scripted(&[0.0, 1.0]),
+        policy(3),
+    );
+    assert!(transport.health().await.unwrap().ready);
+    assert_eq!(
+        sleeper.delays(),
+        vec![Duration::from_millis(50), Duration::from_millis(200)]
+    );
+}
+
+#[tokio::test]
+async fn out_of_range_and_non_finite_draws_are_sanitized_not_panicked() {
+    // A misbehaving source cannot break the Duration math: finite draws are clamped into
+    // [0, 1] (2.0 -> full delay, a negative draw -> the half-delay floor), and a non-finite
+    // draw (which clamp would propagate as NaN, panicking mul_f64) falls back to full delay.
+    let flaky = FlakyTransport::new(FailKind::Connection, 3);
+    let sleeper = FakeSleeper::default();
+    let transport = RetryingTransport::with_randomness(
+        flaky.clone(),
+        sleeper.clone(),
+        FakeRandomness::scripted(&[2.0, -3.0, f64::NAN]),
+        policy(4),
+    );
+    assert!(transport.health().await.unwrap().ready);
+    assert_eq!(
+        sleeper.delays(),
+        vec![
+            Duration::from_millis(100), // 2.0 clamps to 1.0: full first delay
+            Duration::from_millis(100), // -3.0 clamps to 0.0: the half-delay floor of 200
+            Duration::from_millis(400), // NaN -> full: the third delay (base*4) whole
+        ]
+    );
+}
+
+#[tokio::test]
+async fn retry_with_composes_patience_around_a_dial_style_factory() {
+    // The extracted loop retries any fallible async factory (the shell wraps its eager dial
+    // in exactly this, ADR-0024 addendum): one refused dial, then success.
+    let attempts = Arc::new(AtomicUsize::new(0));
+    let sleeper = FakeSleeper::default();
+    let counted = Arc::clone(&attempts);
+    let dialed = retry_with(policy(3), &sleeper, &FakeRandomness::default(), move || {
+        let attempt = counted.fetch_add(1, Ordering::SeqCst);
+        async move {
+            if attempt == 0 {
+                Err(TransportError::Connection(String::from("refused")))
+            } else {
+                Ok(String::from("client"))
+            }
+        }
+    })
+    .await;
+    assert_eq!(dialed.unwrap(), "client");
+    assert_eq!(attempts.load(Ordering::SeqCst), 2);
+    assert_eq!(sleeper.delays(), vec![Duration::from_millis(100)]);
+}
+
+#[tokio::test]
+async fn retry_with_fails_fast_on_a_non_transient_error() {
+    // A genuine application answer is returned immediately: no sleep, no second attempt.
+    let attempts = Arc::new(AtomicUsize::new(0));
+    let sleeper = FakeSleeper::default();
+    let counted = Arc::clone(&attempts);
+    let denied = retry_with(policy(3), &sleeper, &FakeRandomness::default(), move || {
+        counted.fetch_add(1, Ordering::SeqCst);
+        std::future::ready(Err::<(), _>(TransportError::Rpc {
+            code: String::from("Internal"),
+            message: String::from("boom"),
+        }))
+    })
+    .await;
+    assert!(matches!(denied, Err(TransportError::Rpc { .. })));
+    assert_eq!(attempts.load(Ordering::SeqCst), 1);
+    assert!(sleeper.delays().is_empty());
 }

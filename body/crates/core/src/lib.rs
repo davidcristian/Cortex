@@ -20,7 +20,9 @@ pub use os::{
     Accelerator, AudioControl, AudioError, Hotkey, HotkeyCallback, HotkeyError, VolumeChange,
     VolumeState,
 };
-pub use retry::{RetryPolicy, RetryingTransport, Sleeper, is_transient};
+pub use retry::{
+    FullDelay, Randomness, RetryPolicy, RetryingTransport, Sleeper, is_transient, retry_with,
+};
 pub use transport::{
     BrainTransport, ConfirmDecision, SeamHealth, SessionMessage, SessionSummary, TransportError,
     TurnEvent,
