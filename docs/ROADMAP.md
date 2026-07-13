@@ -844,9 +844,17 @@ behind the unchanged `ToolRegistry`/`ToolDispatcher`/`stream_tool_loop` seams (o
   confusable table** (Cyrillic/Greek Latin-lookalikes → ASCII, e.g. Cyrillic `расе`→`pace`), the
   dependency-free 95% of the homoglyph class, still grammar/identity-only, no seam change, redact +
   strict inherit both, and the passes compose (a percent-encoded homoglyph decodes then folds).
-  Remaining behind the same seam (ADR-0015 deferred): the rest of obfuscation-resistant matching
-  (whitespace-split `evil dot com` has no scheme to anchor, prose FP; the **full UTS-39 confusables
-  set + IDN/punycode**, which need a dependency; mixed/other encodings), further schemes (`data:` …),
+  **HTML-entity encoding + the `data:` scheme landed 2026-07-13 ([ADR-0015 fifth
+  addendum](adr/ADR-0015-output-guardrail.md)):** the percent-decode generalized to a combined
+  `_decode_escapes` fixpoint that also decodes **HTML character references** (`evil&#46;com`→`evil.com`,
+  the way HTML email, the chief untrusted source, renders a hidden dot), run **before** refang so an
+  entity-hidden defang bracket folds too; and `data:` became a matched scheme, admitted only behind a
+  **MIME-type lookahead** (`data:text/html;base64,…` matches, `data:the results` prose does not), a
+  proactive maintainer-sanctioned reversal like `mailto:`. Both stay grammar/identity-only (no seam change),
+  deterministic/stdlib (`html.unescape`), redact + strict inherit them. Remaining behind the same seam
+  (ADR-0015 deferred): the rest of obfuscation-resistant matching (whitespace-split `evil dot com` has
+  no scheme to anchor, prose FP; the **full UTS-39 confusables set + IDN/punycode**, which need a
+  dependency; entity-encoding wrapped around a defang token; mixed/other encodings past percent + HTML),
   footer/boilerplate heuristics (screening-model territory), and a structured redaction event
   for the overlay.
 - **Subagent model pick revised to gemma-4-E4B (landed 2026-07-03)**

@@ -355,7 +355,7 @@ def test_multipass_percent_transform_of_a_collected_url_is_redacted() -> None:
 
 
 def test_percent_decoding_is_bounded_on_absurdly_deep_encoding() -> None:
-    # `_percent_decode` stops after `_MAX_PERCENT_DECODE_PASSES` (= 5) passes, so a dot encoded six
+    # `_decode_escapes` stops after `_MAX_DECODE_PASSES` (= 5) passes, so a dot encoded six
     # levels deep (`"%" + "25"*(k-1) + "2e"`) is left *partially* decoded, never over-resolved. The
     # bound is symmetric, so an equal-depth transform still matches; it only declines an absurd one.
     six_deep = "http://evil%25252525252eexample"  # the dot, encoded six levels deep
@@ -407,3 +407,79 @@ def test_strict_tainted_turn_redacts_a_homoglyph_link() -> None:
     # A homoglyph link never collected verbatim is still distrusted on a tainted turn.
     guard = _strict(_Taint(tainted=True))
     assert guard.feed(f"go to {_CYRILLIC_PACE} ") == f"go to {REDACTED_LINK} "
+
+
+# --- Obfuscation-resistant matching: HTML-entity encoding (ADR-0015 fifth addendum). An
+# entity-encoded character (`&#46;`, `&#x2e;`, `&period;`) folds to its literal identity, the way an
+# HTML mail client renders it, so the chief untrusted source (HTML email) cannot hide a link. ------
+
+
+def test_extract_urls_decodes_html_entities_to_a_canonical_identity() -> None:
+    # Numeric, hex, and named references for `.` all reduce to the plain host.
+    plain = {"http://evil.example"}
+    assert extract_urls("http://evil&#46;example") == plain
+    assert extract_urls("http://evil&#x2e;example") == plain
+    assert extract_urls("http://evil&period;example") == plain
+
+
+def test_an_entity_encoded_url_and_its_plain_twin_share_one_identity() -> None:
+    assert extract_urls("http://evil&#46;example") == extract_urls("http://evil.example")
+
+
+def test_entity_and_percent_encoding_compose_to_one_identity() -> None:
+    # `&#37;` is `%` entity-encoded; decoding it exposes `%2e`, which the same fixpoint then
+    # percent-decodes to `.`. The combined html+percent loop resolves the stack to the plain host.
+    assert extract_urls("http://evil&#37;2eexample") == {"http://evil.example"}
+
+
+def test_entity_encoded_defang_brackets_are_refanged() -> None:
+    # Decoding runs *before* refanging, so entity-hidden defang brackets (`&#91;`/`&#93;` = `[`/`]`)
+    # become a literal `[.]` that refang then reduces (`evil&#91;.&#93;com` folds to `evil.com`).
+    assert extract_urls("http://evil&#91;.&#93;com") == {"http://evil.com"}
+
+
+def test_entity_encoded_transform_of_a_collected_url_is_redacted() -> None:
+    # EVIL-host collected plain; the reply entity-encodes the dot. Redact mode still catches it.
+    guard = _filter({"http://evil.example"})
+    fed = guard.feed("see http://evil&#46;example now") + guard.flush()
+    assert fed == f"see {REDACTED_LINK} now"
+
+
+# --- Obfuscation-resistant matching: the data: scheme (ADR-0015 fifth addendum). A data URL is a
+# clickable inline phishing/exfil payload, matched only behind a MIME-type anchor so prose like
+# `data:the results` stays out. Identity folds it whole (no `://` authority to split). ------------
+
+_DATA_URL = "data:text/html,hello"
+
+
+def test_extract_urls_matches_a_data_url_with_a_mediatype() -> None:
+    assert extract_urls(f"open {_DATA_URL} now") == {_DATA_URL}
+
+
+def test_extract_urls_matches_a_data_url_with_an_immediate_comma() -> None:
+    # The minimal data URL (`data:,<data>`) has no mediatype; the comma anchor admits it.
+    assert extract_urls("run data:,payload here") == {"data:,payload"}
+
+
+def test_extract_urls_ignores_data_colon_in_prose() -> None:
+    # No `type/subtype` slash and no immediate `,`/`;` after the colon, so the MIME anchor rejects
+    # ordinary prose. The scheme is admitted only where a real data URL shape follows.
+    assert extract_urls("the data: shows a chart and data:the results vary") == frozenset()
+
+
+def test_verbatim_data_url_is_redacted() -> None:
+    guard = _filter({_DATA_URL})
+    fed = guard.feed(f"see {_DATA_URL} now") + guard.flush()
+    assert fed == f"see {REDACTED_LINK} now"
+
+
+def test_strict_tainted_turn_redacts_a_data_url() -> None:
+    guard = _strict(_Taint(tainted=True))
+    assert guard.feed(f"go to {_DATA_URL} ") == f"go to {REDACTED_LINK} "
+
+
+def test_data_scheme_split_across_chunks_is_carried_not_lost() -> None:
+    # A `data:` opening split across deltas is held back, not leaked, then redacted once joined.
+    guard = _filter({_DATA_URL})
+    out = guard.feed("see data") + guard.feed(":text/html,hello now") + guard.flush()
+    assert out == f"see {REDACTED_LINK} now"
