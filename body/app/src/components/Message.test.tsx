@@ -11,6 +11,7 @@ const msg = (over: Partial<MessageModel>): MessageModel => ({
   streaming: false,
   tool: null,
   status: null,
+  statusState: null,
   error: null,
   ...over,
 });
@@ -60,6 +61,28 @@ describe("Message", () => {
       "read_email: reading inbox",
       "thinking it over",
     ]);
+  });
+
+  it("marks a thinking status chip distinctly from a generic status chip", () => {
+    const { container } = render(
+      <Message
+        message={msg({ content: "x", streaming: true, status: "reasoning", statusState: "thinking" })}
+      />,
+    );
+    const chip = container.querySelector(".chip");
+    expect(chip?.className).toContain("chip-think");
+    expect(chip?.getAttribute("aria-label")).toBe("Thinking");
+  });
+
+  it("leaves a non-thinking status chip plain", () => {
+    const { container } = render(
+      <Message
+        message={msg({ content: "x", streaming: true, status: "swapping", statusState: "load" })}
+      />,
+    );
+    const chip = container.querySelector(".chip");
+    expect(chip?.className).not.toContain("chip-think");
+    expect(chip?.getAttribute("aria-label")).toBeNull();
   });
 
   it("drops the chips once the turn settles", () => {

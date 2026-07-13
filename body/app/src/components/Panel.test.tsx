@@ -25,6 +25,7 @@ const userMsg: Message = {
   streaming: false,
   tool: null,
   status: null,
+  statusState: null,
   error: null,
 };
 
@@ -35,6 +36,7 @@ const reply = (id: string): Message => ({
   streaming: false,
   tool: null,
   status: null,
+  statusState: null,
   error: null,
 });
 

@@ -82,7 +82,9 @@ Top-to-bottom, the summoned panel is:
    bottom, auto-scrolling as tokens stream (but *not* if the user has scrolled up to read;
    landed 2026-07-12). Tool-activity and status appear as slim inline chips between bubbles
    ("📧 reading inbox…", "swapping model…"), not as bubbles (landed 2026-07-12: a neutral pill
-   with a pulsing accent dot, above the streaming bubble, gone on completion). The **approval
+   with a pulsing accent dot, above the streaming bubble, gone on completion). A `"thinking"`
+   status chip reads distinctly (landed 2026-07-13: `chip-think`, the dot carrying the reasoning
+   bob and the label the accent, so deliberation is not mistaken for tool action). The **approval
    card** (§4, ADR-0022) is this inline layer's first real occupant. Empty state: the mark +
    "Ask me anything" + a couple of example prompts as tappable chips (landed 2026-07-12).
 3. **Composer** is a rounded pill textarea (`⏎` sends, `⇧⏎` newlines, auto-grows to a few lines;

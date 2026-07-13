@@ -1002,9 +1002,13 @@ behind the unchanged `ToolRegistry`/`ToolDispatcher`/`stream_tool_loop` seams (o
   change; reasoning stays ephemeral. Remaining behind the same
   `InferenceBackend`/`TurnCapabilities` seams (ADR-0020 deferred):
   the **disable-thinking / token-budget** alternatives (still available if a runaway trace needs
-  capping), **`state`-aware overlay treatment** (the inline chips that landed 2026-07-12 render
-  any status's `detail` with no branch on `state`; a thinking-specific treatment is a chip
-  refinement), and **reasoning persistence/summarization**.
+  capping) and **reasoning persistence/summarization**. **`state`-aware overlay treatment landed
+  2026-07-13 ([ADR-0020 third addendum](adr/ADR-0020-reasoning-status.md)):** the reducer now
+  keeps the status event's `state` (a new `Message.statusState`) and a `"thinking"` chip renders
+  distinctly (a `chip-think` modifier: the reasoning bob on its dot, an accent label, an aria
+  label) from a generic status or tool chip, entirely in the CI-gated overlay tree with no seam
+  change (the `state` field already rode the wire). A richer collapsed "thoughts" section stays
+  open behind the same field.
 
 **Subagents in Slice 7 ([ADR-0010](adr/ADR-0010-subagents.md)):**
 - **Subagent progress reporting over the `Converse` status stream.** v1 delegation is synchronous

@@ -86,16 +86,19 @@ for the cortex. We surface it, not suppress it.
   `Converse` output queue (`CORTEX_SEAM_CONVERSE_BUFFER`, ADR-0014 backpressure). A verbose think
   produces many small events; the credit bound already caps memory and stalls generation if the
   consumer lags, so this needs no new limit.
-- **`state` is advisory.** The overlay currently renders `detail` regardless of `state`; the
-  `"thinking"` marker is informational until the overlay distinguishes status kinds (deferred).
+- **`state` is advisory.** The overlay first rendered `detail` regardless of `state`; the
+  `"thinking"` marker was informational until the overlay distinguished status kinds. It now
+  does (third addendum below): the reducer keeps `state` and the chip branches on it.
 
 ## Deferred (behind the unchanged `InferenceBackend` / `TurnCapabilities` / tool-loop seams)
 
 - **Output guardrail over reasoning status landed 2026-07-12** (second addendum below): the
   overlay's inline chips gave the thinking status a rendered surface, so the deferral's "if
   displaying reasoning proves an exfiltration surface" condition came true.
-- **`state`-aware overlay treatment** is a distinct thinking shimmer / collapsed "thoughts" section
-  vs. plain detail text; today the reducer shows `detail` for any status (an overlay-gap item).
+- **`state`-aware overlay treatment landed 2026-07-13** (third addendum below): a `"thinking"`
+  status chip now reads distinctly (its dot bobs with the reasoning shimmer, its label leans on
+  the accent) from a generic status or tool chip. A collapsed "thoughts" section remains a
+  possible richer treatment behind the same reducer field.
 - **Disable-thinking / token-budget alternatives** stay available for the cortex behind the same
   seams if a runaway trace or latency floor argues for capping rather than only surfacing.
 - **Reasoning persistence / summarization.** Keeping a turn's reasoning for later inspection is a
@@ -165,3 +168,28 @@ are all untouched). CI-gated at 100% line+branch over the fakes in the engine su
 strict, split-across-deltas, the cross-burst straddle around a live dispatch, end-of-stream
 release, user-allowlist, empty-delta drop, clean turn). The scrub is deterministic post-model
 filtering, so no live-model validation is needed beyond the existing addendum above.
+
+## Addendum (2026-07-13): the overlay treats a thinking status distinctly
+
+The `state`-advisory deferral closes on the overlay side. When the inline chips landed, the
+reducer folded a status event's `detail` into the streaming message but dropped its `state`, so
+a `"thinking"` status rendered identically to a generic status or a tool-activity chip: the
+marker the engine already emitted had no consumer. It does now, entirely in the CI-gated React
+overlay tree (vitest), with no seam, proto, brain, or Rust change (the `state` field already
+rode the wire since ADR-0011 and `converse.rs` already mapped it).
+
+- **The reducer keeps `state`.** `Message` gains `statusState: string | null`, and the `status`
+  event fold stores `event.state` alongside `event.detail`. It is `null` until a status lands
+  and rides the same per-turn lifecycle as `status` (dropped when the turn settles).
+- **The chip branches on it.** A status chip whose `statusState === "thinking"` renders with a
+  `chip-think` modifier and an aria-label of "Thinking"; every other status stays the plain
+  neutral pill. In CSS, `chip-think` swaps the steady tool `pulse` on the leading dot for the
+  reasoning `think` bob (the same keyframe the pre-first-token bubble shimmer uses) and tints
+  the label with the accent, so deliberation reads as deliberation, not action. Color still
+  lives only in the working states.
+
+This is intentionally the minimal state-aware treatment; a richer collapsed "thoughts" section
+remains open behind the same `statusState` field. CI-gated at 100% over the overlay suite (the
+reducer folds `statusState`, the thinking chip carries `chip-think` + the label, a non-thinking
+status stays plain); the pixel-level look rides the same browser/user validation as the rest of
+the overlay design language.

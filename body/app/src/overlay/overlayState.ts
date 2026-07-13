@@ -19,6 +19,9 @@ export interface Message {
   readonly streaming: boolean;
   readonly tool: string | null;
   readonly status: string | null;
+  /** The status event's `state` (e.g. "thinking"), so the chip can treat deliberation
+   *  distinctly from a generic status; null until a status event lands (ADR-0020). */
+  readonly statusState: string | null;
   readonly error: string | null;
 }
 
@@ -191,7 +194,7 @@ function applyEvent(state: OverlayState, event: TurnEvent): OverlayState {
     case "toolActivity":
       return patchStreaming(state, (m) => ({ ...m, tool: `${event.toolName}: ${event.summary}` }));
     case "status":
-      return patchStreaming(state, (m) => ({ ...m, status: event.detail }));
+      return patchStreaming(state, (m) => ({ ...m, status: event.detail, statusState: event.state }));
     case "confirmRequest":
       return applyConfirmRequest(state, event);
     case "complete":
@@ -238,5 +241,5 @@ function patchStreaming(state: OverlayState, patch: (m: Message) => Message): Ov
 }
 
 function message(id: string, role: Message["role"], content: string, streaming: boolean): Message {
-  return { id, role, content, streaming, tool: null, status: null, error: null };
+  return { id, role, content, streaming, tool: null, status: null, statusState: null, error: null };
 }
