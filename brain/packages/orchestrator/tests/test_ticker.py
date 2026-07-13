@@ -22,6 +22,7 @@ from cortex_core import (
     ToolResult,
     ToolSpec,
     Trust,
+    TurnStamp,
 )
 from cortex_orchestrator import REMINDER_TITLE, ScheduleTicker, TickerSettings
 
@@ -182,7 +183,9 @@ async def test_task_fires_as_a_spawn_dispatch_and_records_the_outcome() -> None:
     await _ticker(store, spawn=_dispatcher(spawn)).run_once()
     (call,) = spawn.calls
     assert call.arguments == {"instructions": [{"instruction": "text of t1", "model": "fast"}]}
-    assert call.tainted is False
+    # The stamp carries the item's stored provenance (ADR-0027): clean, and attributed to
+    # the chat that scheduled it.
+    assert call.stamp == TurnStamp(session_id="chat-1", tainted=False)
     loaded = await store.get("t1")
     assert loaded is not None
     assert loaded.last_outcome == "[subagent 1] summarized"
@@ -195,7 +198,7 @@ async def test_tainted_task_rides_the_dispatcher_stamp() -> None:
     await store.add(_item("t1", kind=ScheduleKind.TASK, every=timedelta(hours=1), tainted=True))
     await _ticker(store, spawn=_dispatcher(spawn)).run_once()
     (call,) = spawn.calls
-    assert call.tainted is True  # -> SubagentTask.tainted -> ADR-0017 pinning
+    assert call.stamp.tainted is True  # -> SubagentTask.tainted -> ADR-0017 pinning
 
 
 async def test_untrusted_task_result_taints_the_item() -> None:

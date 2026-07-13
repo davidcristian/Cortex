@@ -20,6 +20,7 @@ from cortex_core import (
     ToolCall,
     ToolDispatcher,
     Trust,
+    TurnStamp,
     next_due,
 )
 
@@ -168,7 +169,9 @@ class ScheduleTicker:
             arguments={"instructions": [instruction]},
         )
         try:
-            result = await self._spawn.dispatch(call, tainted=item.tainted)
+            result = await self._spawn.dispatch(
+                call, stamp=TurnStamp(session_id=item.session_id, tainted=item.tainted)
+            )
         except TaskStoreError as err:
             return f"FAILED: the task store is unavailable: {err}", False
         text = result.content if not result.is_error else f"FAILED: {result.content}"

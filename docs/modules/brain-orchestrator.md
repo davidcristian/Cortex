@@ -185,7 +185,9 @@ The service:
   acked at once, declined/failed/absent body → the pull path delivers); a fenced-off finish
   (cancel or re-claim won) pushes nothing. A `TASK` dispatches a synthetic `spawn_subagents`
   call through `spawn`, the ticker's own audited dispatcher (`confirmer=None`, fail-closed;
-  the dispatch stamps `item.tainted` → ADR-0017 pinning; the result's trust becomes the
+  the dispatch's `TurnStamp` carries `item.tainted` → ADR-0017 pinning, plus the item's origin
+  `session_id` (provenance on the dispatch, unconsumed until the ADR-0027 SubagentTask
+  deferral lands); the result's trust becomes the
   fire-time taint the store ORs onto the item); no `spawn` wired → an `ok=False` outcome, so a
   stale TASK neither crashes nor lease-cycles. `run` wraps each pass in a logged catch-all and
   paces on an `asyncio.Event` (`stop()` wakes it, so the graceful path completes in-flight fires

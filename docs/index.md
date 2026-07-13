@@ -154,6 +154,12 @@ Start here. Rules for working in this repo: [AGENTS.md](../AGENTS.md).
   inline-reason idiom in files but is banned in messages, which are pure prose). `commitlint.py`
   grows from the header to the whole message and resolves hex tokens with `git cat-file`, so only a
   hash that really is a commit is flagged. Escape hatch: `dashcheck: allow` plus a reason.
+- [ADR-0027: Structured turn provenance](adr/ADR-0027-turn-provenance.md): the convergence seam
+  for four provenance deferrals (ADR-0013/0019/0022/0025). One frozen `TurnStamp`
+  (`session_id` + `tainted`, future source fields join it) replaces the loose taint keyword:
+  the dispatcher stamps every call, discarding a model-forged stamp; the engine threads the
+  turn's session through `ToolLoopContext`; the ticker stamps a fired item's stored provenance.
+  First consumer: `schedule_task` fills `ScheduledItem.session_id`, closing session attribution.
 
 New non-obvious decision → add `adr/ADR-XXXX-<slug>.md`, link it here.
 

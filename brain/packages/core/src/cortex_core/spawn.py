@@ -213,7 +213,7 @@ class SpawnSubagentsTool:
                 context=item.context,
                 at=self._clock.now(),
                 model=item.model,
-                tainted=call.tainted,
+                tainted=call.stamp.tainted,
             )
             for item in parsed
         ]

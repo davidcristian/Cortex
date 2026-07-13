@@ -25,13 +25,26 @@ class ToolSpec:
 
 
 @dataclass(frozen=True, slots=True)
+class TurnStamp:
+    """The dispatching turn's provenance, stamped onto every call at dispatch time (ADR-0027)."""
+
+    session_id: str = ""
+    tainted: bool = False
+
+
+# The unattributed default stamp: no originating session, no taint. A named constant
+# (not a call in a default) so signatures can default to it under the lint gate.
+UNSTAMPED = TurnStamp()
+
+
+@dataclass(frozen=True, slots=True)
 class ToolCall:
     """A request to run one tool: the model's chosen ``name`` and ``arguments``."""
 
     id: str
     name: str
     arguments: Mapping[str, Any]
-    tainted: bool = False
+    stamp: TurnStamp = UNSTAMPED
 
 
 @dataclass(frozen=True, slots=True)

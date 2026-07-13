@@ -165,7 +165,7 @@ pub struct GetSessionMessagesReply {
 }
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct SessionMessage {
-    /// "user" | "assistant" are the only persisted roles
+    /// "user" | "assistant" (the only persisted roles)
     #[prost(string, tag = "1")]
     pub role: ::prost::alloc::string::String,
     #[prost(string, tag = "2")]
@@ -199,7 +199,7 @@ pub struct DueReminder {
     /// untrusted provenance, so the overlay may badge it
     #[prost(bool, tag = "5")]
     pub tainted: bool,
-    /// origin chat ("" until session attribution lands)
+    /// origin chat, filled at creation; "" for session-less callers
     #[prost(string, tag = "6")]
     pub session_id: ::prost::alloc::string::String,
 }

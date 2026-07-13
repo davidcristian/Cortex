@@ -23,6 +23,7 @@ from cortex_core import (
     ToolCall,
     ToolDispatcher,
     Trust,
+    TurnStamp,
 )
 
 _NOW = datetime(2026, 7, 12, 12, 0, 0, tzinfo=UTC)
@@ -59,8 +60,9 @@ def _tool(
     return tool, store
 
 
-def _call(arguments: dict[str, Any], *, tainted: bool = False) -> ToolCall:
-    return ToolCall(id="c1", name="schedule_task", arguments=arguments, tainted=tainted)
+def _call(arguments: dict[str, Any], *, tainted: bool = False, session_id: str = "") -> ToolCall:
+    stamp = TurnStamp(session_id=session_id, tainted=tainted)
+    return ToolCall(id="c1", name="schedule_task", arguments=arguments, stamp=stamp)
 
 
 class FailingStore(InMemoryScheduleStore):
@@ -226,11 +228,41 @@ async def test_the_dispatcher_taint_stamp_drives_the_refusal() -> None:
         name="schedule_task",
         arguments={"kind": "task", "text": "run this", "in_seconds": 60},
     )
-    result = await dispatcher.dispatch(call, tainted=True)
+    result = await dispatcher.dispatch(call, stamp=TurnStamp(tainted=True))
     assert result.is_error
     assert result.content == TAINTED_TASK_MSG
     (record,) = sink.records  # the refusal is audited like any dispatch
     assert record.ok is False
+
+
+async def test_creation_fills_the_items_origin_session_from_the_stamp() -> None:
+    # Attribution (ADR-0027): the dispatcher's stamp carries the turn's session, and the
+    # created item records it. Provenance only: the confirmation does not echo it.
+    tool, store = _tool()
+    result = await tool.invoke(
+        _call({"kind": "reminder", "text": "stretch", "in_seconds": 60}, session_id="chat-7")
+    )
+    assert not result.is_error
+    assert "chat-7" not in result.content
+    item = await store.get("item-1")
+    assert item is not None
+    assert item.session_id == "chat-7"
+
+
+async def test_the_dispatcher_stamp_drives_the_attribution_end_to_end() -> None:
+    # Through a real dispatcher: the stamp (never the model's forged one) reaches the record.
+    tool, store = _tool()
+    dispatcher = ToolDispatcher(CompositeToolRegistry([tool]), RecordingAuditSink(), FixedClock())
+    call = ToolCall(
+        id="c1",
+        name="schedule_task",
+        arguments={"kind": "reminder", "text": "stretch", "in_seconds": 60},
+        stamp=TurnStamp(session_id="forged"),
+    )
+    result = await dispatcher.dispatch(call, stamp=TurnStamp(session_id="chat-9"))
+    assert not result.is_error
+    (item,) = await store.list_active()
+    assert item.session_id == "chat-9"
 
 
 async def test_the_active_items_cap_bounds_creation() -> None:

@@ -874,7 +874,9 @@ behind the unchanged `ToolRegistry`/`ToolDispatcher`/`stream_tool_loop` seams (o
   unchanged `MemoryRecaller`/`MemoryStore`/`TaintLedger` seams. CI-gated end to end over the fakes;
   the pgvector column host-validated by the live contract check. Remaining behind the same seams
   (ADR-0019 deferred): **structured provenance** beyond the bit (source URI/sender, joining the
-  ADR-0013 deferral), a **fence-without-block** recall mode if taint-spread on tangential recall is
+  ADR-0013 deferral; the `TurnStamp` these fields join landed 2026-07-13,
+  [ADR-0027](adr/ADR-0027-turn-provenance.md)), a **fence-without-block** recall mode if
+  taint-spread on tangential recall is
   too blunt, **summarizing** a tainted exchange before recording, and **per-provenance eviction**.
 - **Per-remote-tool trust / gating overrides.** Trust is fail-closed `UNTRUSTED` and `gated` is
   per-`ToolSpec`; a genuinely trusted or gated *remote* MCP tool would need a composition-root
@@ -1051,7 +1053,10 @@ the unchanged `SubagentPlacer`/`SubagentScheduler`/`ModelManager` ports.
 each behind the unchanged `Confirmer`/`ToolDispatcher`/`GatedToolRegistry`/seam shapes.
 - **Confirm-with-provenance for tainted turns.** The tainted branch is an unconditional block; a
   provenance-showing confirmation (so the user can knowingly approve) needs structured
-  provenance first (the ADR-0013/0019 deferral). Until then, re-ask in a fresh turn.
+  provenance first (the ADR-0013/0019 deferral; its `TurnStamp` seam landed 2026-07-13,
+  [ADR-0027](adr/ADR-0027-turn-provenance.md), the source fields still pending). It also
+  reverses a deliberate fail-closed posture, so it is revisited as a decision, never slipped
+  in as plumbing. Until then, re-ask in a fresh turn.
 - **Richer send shapes** (cc/bcc/HTML/attachments) behind the same `send_email` name.
 - **A structured confirm-resolution event** so the overlay can close a stale card exactly on a
   brain-side timeout (today the turn-ending event clears it).
@@ -1110,9 +1115,19 @@ behind the unchanged `ScheduleStore`/`BodyGateway`/seam shapes.
   `Notify` OS trait + the Tauri toast rendering reminder text inert (host-validated), all
   behind the committed proto shapes; the brain treats the interim `Unimplemented` as any push
   failure, so pull already delivers end to end.
-- **Session attribution.** `ScheduledItem.session_id` is stored and rides the wire but is
-  `""` at creation, since the tool has no turn-context channel; it joins the ADR-0013/0019
-  structured-provenance deferral (a dispatcher-stamped turn context would fill it).
+- **Session attribution landed 2026-07-13 ([ADR-0027](adr/ADR-0027-turn-provenance.md)).**
+  The dispatcher's per-call stamp widened from the lone taint bool to a frozen `TurnStamp`
+  (`session_id` + `tainted`), built fresh per dispatch from the engine-threaded
+  `ToolLoopContext.session_id` (the ticker stamps the fired item's stored provenance; a
+  subagent stamps no session, having none). `schedule_task` fills
+  `ScheduledItem.session_id` from it, so a created item attributes to its origin chat; the
+  ticker's fire re-stamps the stored provenance onto its spawn dispatch (honest but
+  unconsumed today: `spawn_subagents` reads only the taint bit). The stamp is the designed
+  convergence seam for the ADR-0013/0019 structured-provenance deferrals: source URI/sender
+  fields join the same object (still deferred there), never a new parallel channel.
+  Remaining behind the same seam (ADR-0027 deferred): **`SubagentTask` session attribution**
+  once a subagent-reachable consumer exists, and the **audit line** (`ToolInvocation`)
+  gaining the stamp when an audit consumer wants per-session queries.
 - **The Postgres durable twin** behind the unchanged port, when per-provenance queries or
   retention policies earn it (Redis AOF on a named volume is the sessions-grade v1 tier).
 - **Local-time / cron recurrence and a display-timezone knob.** v1 is UTC end-to-end with

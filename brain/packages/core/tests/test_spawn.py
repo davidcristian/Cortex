@@ -27,6 +27,7 @@ from cortex_core import (
     ToolCall,
     ToolDispatcher,
     ToolSpec,
+    TurnStamp,
     VramBudgetPlacer,
 )
 
@@ -85,7 +86,8 @@ def _tool(store: InMemoryTaskStore, backend: InferenceBackend) -> SpawnSubagents
 
 
 def _call(arguments: dict[str, object], *, tainted: bool = False) -> ToolCall:
-    return ToolCall(id="c1", name="spawn_subagents", arguments=arguments, tainted=tainted)
+    stamp = TurnStamp(tainted=tainted)
+    return ToolCall(id="c1", name="spawn_subagents", arguments=arguments, stamp=stamp)
 
 
 async def test_spawns_run_concurrently_and_results_aggregate_in_order() -> None:
