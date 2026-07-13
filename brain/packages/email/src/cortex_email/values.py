@@ -23,3 +23,15 @@ class EmailDetail:
     subject: str
     date: str
     body: str
+
+
+@dataclass(frozen=True, slots=True)
+class EmailDraft:
+    """One outbound message the user approves: recipients, subject, and body shapes."""
+
+    to: str
+    subject: str
+    body: str
+    cc: str = ""
+    bcc: str = ""
+    html: str = ""

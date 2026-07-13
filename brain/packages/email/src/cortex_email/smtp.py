@@ -6,6 +6,7 @@ from email.message import EmailMessage
 from typing import Protocol
 
 from cortex_email.config import SmtpConfig
+from cortex_email.values import EmailDraft
 
 
 def _reject_header_injection(field: str, value: str) -> None:
@@ -18,7 +19,7 @@ def _reject_header_injection(field: str, value: str) -> None:
 class EmailSender(Protocol):
     """What the server's send tool needs: one blocking send, returning a readable line."""
 
-    def send(self, to: str, subject: str, body: str) -> str: ...
+    def send(self, draft: EmailDraft) -> str: ...
 
 
 class SmtpSender:
@@ -34,22 +35,32 @@ class SmtpSender:
             context.verify_mode = ssl.CERT_NONE
         return context
 
-    def _compose(self, to: str, subject: str, body: str) -> EmailMessage:
+    def _compose(self, draft: EmailDraft) -> EmailMessage:
         # Reject header injection explicitly rather than trust the interpreter: a CR/LF in a
         # header value can smuggle extra headers (a Bcc exfil) on some CPython patch levels
-        # (the 3.12.0-3.12.4 window). `body` is payload, not a header, so it is unrestricted.
-        _reject_header_injection("recipient", to)
-        _reject_header_injection("subject", subject)
+        # (the 3.12.0-3.12.4 window). `body`/`html` are payload, not headers, so unrestricted.
+        _reject_header_injection("recipient", draft.to)
+        _reject_header_injection("subject", draft.subject)
+        _reject_header_injection("cc", draft.cc)
+        _reject_header_injection("bcc", draft.bcc)
         message = EmailMessage()
         message["From"] = self._config.user  # the authenticated identity, never a parameter
-        message["To"] = to
-        message["Subject"] = subject
-        message.set_content(body)
+        message["To"] = draft.to
+        message["Subject"] = draft.subject
+        if draft.cc:
+            message["Cc"] = draft.cc
+        if draft.bcc:
+            # send_message reads To+Cc+Bcc for the envelope recipients, then deletes Bcc from
+            # the transmitted copy, so a Bcc address stays hidden from the To/Cc readers (stdlib).
+            message["Bcc"] = draft.bcc
+        message.set_content(draft.body)
+        if draft.html:
+            message.add_alternative(draft.html, subtype="html")
         return message
 
-    def send(self, to: str, subject: str, body: str) -> str:
+    def send(self, draft: EmailDraft) -> str:
         """Send the message and report one human-readable confirmation line."""
-        message = self._compose(to, subject, body)
+        message = self._compose(draft)
         config = self._config
         context = self._ssl_context()
         if config.security == "starttls":
@@ -61,4 +72,4 @@ class SmtpSender:
             with smtplib.SMTP_SSL(config.host, config.port, context=context) as client:
                 client.login(config.user, config.password.get_secret_value())
                 client.send_message(message)
-        return f'email sent to {to} (subject: "{subject}")'
+        return f'email sent to {draft.to} (subject: "{draft.subject}")'

@@ -27,17 +27,25 @@ denied outright.
   (`SecretStr`), `security` (starttls|ssl), and `ca_cert` / `tls_insecure` for the Bridge's
   self-signed cert. Defaults target a local Bridge (127.0.0.1:1143, STARTTLS).
 - `EmailSummary` / `EmailDetail` are frozen value types (a search hit; a full message).
+- `EmailDraft` is the frozen send-side value the user approves: `to`/`subject`/`body` plus
+  optional `cc`, `bcc`, and `html` (each defaulting to `""` = omitted). It is the seam's
+  extension point: a further shape (attachments) is a new field here, never a change to the
+  `EmailSender.send` signature.
 - `build_server(reader, sender=None) -> FastMCP` registers the three read tools always, and
-  `send_email(to, subject, body)` only when a sender is passed (with advisory MCP
-  `ToolAnnotations`: not read-only, destructive, open-world, and never authority; the brain-side
-  overlay is). Covered in-process via `FastMCP.call_tool`. `main()` reads the env config,
+  `send_email(to, subject, body, cc="", bcc="", html="")` only when a sender is passed (with
+  advisory MCP `ToolAnnotations`: not read-only, destructive, open-world, and never authority;
+  the brain-side overlay is). `cc`/`bcc` are comma-separated address lists; `html` adds a rich
+  alternative. Covered in-process via `FastMCP.call_tool`. `main()` reads the env config,
   builds the imap-tools reader (and an `SmtpSender` only when `SmtpConfig.enabled`), and runs
   the server over streamable-http (`python -m cortex_email`).
-- `EmailSender` is the `Protocol` the send tool needs (`send(to, subject, body) -> str`).
+- `EmailSender` is the `Protocol` the send tool needs (`send(draft: EmailDraft) -> str`).
 - `SmtpSender(config)` is the `EmailSender` over smtplib + STARTTLS (or implicit TLS),
   connecting per call. `From` is the authenticated Bridge user, never a parameter, so the tool
-  cannot spoof a sender; a CR/LF in the recipient or subject is refused in code (header
-  injection, not left to the interpreter's patch level). Returns one readable confirmation line.
+  cannot spoof a sender; a CR/LF in the recipient, subject, `cc`, or `bcc` is refused in code
+  (header injection, not left to the interpreter's patch level). A `bcc` rides the envelope but
+  is stripped from the transmitted message by `send_message`, so it stays hidden from the To/Cc
+  readers. An `html` draft composes a `multipart/alternative` (plain `body` fallback + HTML);
+  a plain draft stays a single `text/plain` part. Returns one readable confirmation line.
 - `SmtpConfig` holds env-driven settings (`CORTEX_EMAIL_SMTP_*` + `CORTEX_EMAIL_SEND_ENABLED`):
   defaults target the Bridge SMTP loopback (127.0.0.1:1025, STARTTLS) with the same
   cert-verification escape hatches as IMAP; enabling send without credentials fails fast at

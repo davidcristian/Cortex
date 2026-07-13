@@ -1117,7 +1117,17 @@ each behind the unchanged `Confirmer`/`ToolDispatcher`/`GatedToolRegistry`/seam 
   [ADR-0027](adr/ADR-0027-turn-provenance.md), the source fields still pending). It also
   reverses a deliberate fail-closed posture, so it is revisited as a decision, never slipped
   in as plumbing. Until then, re-ask in a fresh turn.
-- **Richer send shapes** (cc/bcc/HTML/attachments) behind the same `send_email` name.
+- **Richer send shapes.** **cc/bcc/HTML landed 2026-07-13 ([ADR-0022 richer-send-shapes
+  addendum](adr/ADR-0022-email-write-confirmer.md)).** The `EmailSender.send` contract took a
+  frozen `EmailDraft` value (to/subject/body + optional cc/bcc/html), so the addition rides a
+  value object, not a wider signature; cc/bcc get the recipient's CR/LF header-injection refusal,
+  a bcc is stripped from the transmitted message by `send_message` (stdlib), and html composes a
+  `multipart/alternative`. Entirely inside the sidecar behind the unchanged brain-side gate
+  (still `send_email` in `CORTEX_TOOLS_GATED`, confirm card unchanged); CI-gated at 100% and the
+  live round-trip now exercises cc + html. Remaining behind the same `EmailDraft` seam:
+  **attachments**, deferred deliberately for their bytes-transport decision (a path into the
+  sidecar's mounted filesystem, adding a file-read capability, versus a base64 blob that bloats
+  the tool call and audit line); they land as one more `EmailDraft` field.
 - **A structured confirm-resolution event** so the overlay can close a stale card exactly on a
   brain-side timeout (today the turn-ending event clears it).
 - **Trust overlays for remote tools** are the other half of the ADR-0013 deferral; still nothing

@@ -14,7 +14,7 @@ import pytest
 from mcp.server.fastmcp import FastMCP
 
 import cortex_email.server as server_module
-from cortex_email import EmailReader, RawEmail, SmtpSender, build_server, main
+from cortex_email import EmailDraft, EmailReader, RawEmail, SmtpSender, build_server, main
 
 if TYPE_CHECKING:
     from mcp.types import TextContent
@@ -107,11 +107,11 @@ class FakeSender:
     """Records sends and returns the readable confirmation line (the SmtpSender contract)."""
 
     def __init__(self) -> None:
-        self.sent: list[tuple[str, str, str]] = []
+        self.sent: list[EmailDraft] = []
 
-    def send(self, to: str, subject: str, body: str) -> str:
-        self.sent.append((to, subject, body))
-        return f"email sent to {to}"
+    def send(self, draft: EmailDraft) -> str:
+        self.sent.append(draft)
+        return f"email sent to {draft.to}"
 
 
 async def _tool_names(server: FastMCP) -> set[str]:
@@ -143,7 +143,29 @@ async def test_send_email_tool_sends_and_reports() -> None:
         server, "send_email", {"to": "you@example.com", "subject": "Hi", "body": "hello"}
     )
     assert text == "email sent to you@example.com"
-    assert sender.sent == [("you@example.com", "Hi", "hello")]
+    (draft,) = sender.sent
+    assert (draft.to, draft.subject, draft.body) == ("you@example.com", "Hi", "hello")
+    assert (draft.cc, draft.bcc, draft.html) == ("", "", "")  # omitted shapes default empty
+
+
+async def test_send_email_tool_forwards_cc_bcc_and_html() -> None:
+    sender = FakeSender()
+    server = build_server(EmailReader(FakeMailbox()), sender)
+    text = await _text(
+        server,
+        "send_email",
+        {
+            "to": "you@example.com",
+            "subject": "Hi",
+            "body": "hello",
+            "cc": "c@example.com",
+            "bcc": "b@example.com",
+            "html": "<p>hi</p>",
+        },
+    )
+    assert text == "email sent to you@example.com"
+    (draft,) = sender.sent
+    assert (draft.cc, draft.bcc, draft.html) == ("c@example.com", "b@example.com", "<p>hi</p>")
 
 
 def test_main_builds_the_server_and_runs_streamable_http(monkeypatch: pytest.MonkeyPatch) -> None:

@@ -320,7 +320,8 @@ without a brain; `overlay-ux.md` gains the card's spec.
 ## Deferred (recorded in the ROADMAP)
 
 - Confirm-with-provenance for tainted turns (needs structured provenance, ADR-0013/0019).
-- Richer send shapes (cc/bcc/HTML/attachments) behind the same tool name.
+- Richer send shapes behind the same tool name: **cc/bcc/HTML landed 2026-07-13** (addendum
+  below); **attachments remain** (they need a bytes-transport decision, recorded there).
 - A structured confirm-resolution event so the overlay can close a stale card exactly.
 - Trust (as opposed to gating) overlays for remote tools. Still nothing needs one.
 - Batching / per-tool session allowlists against confirmation fatigue.
