@@ -108,3 +108,41 @@ ledger:** randomized jitter; safe `converse` reconnect-before-first-event (repla
 signature change); dial-retry for the *eager* `connect` (the lazy path covers the shell); a
 per-method or per-error-code policy; and a retry budget / circuit-breaker if a flapping brain
 ever makes blind retries wasteful.
+
+## Addendum (2026-07-13): jitter and the patient eager dial land
+
+Two of the deferrals land together, behind the unchanged `BrainTransport`/`Sleeper` seams.
+
+**Equal jitter over a `Randomness` port.** The randomness effect decision 4 called for:
+`Randomness::unit(&self) -> f64` (a value in `[0, 1]`), mirroring `Sleeper` exactly (real
+adapter in the ungated shell, deterministic fake in tests). The retry loop scales each
+computed delay by `0.5 + 0.5 * unit()` (equal jitter): half the delay stays as a floor,
+because this wait's purpose is giving a restarting local brain time to come back, not only
+decorrelating a herd, and a zero-floor draw would burn an attempt instantly. The drawn
+value is sanitized first (out-of-range clamped into `[0, 1]`, a non-finite draw treated as
+the full delay, since `clamp` would otherwise pass a `NaN` through to a panicking
+`mul_f64`), so a misbehaving source degrades the spread rather than crashing the loop.
+`FullDelay`, the constant-1 source, degenerates the formula to the exact v1
+schedule; `RetryingTransport::new` uses it, so existing compositions and the schedule
+tests hold unchanged, and `with_randomness` opts a composition in. The shell adapter
+(`ShellRandomness`) draws its unit values from `std::collections::hash_map::RandomState`
+(std's per-instance random seed), which is jitter-grade spread without a new dependency;
+`CORTEX_BRAIN_RETRY_JITTER=off` pins it to 1, restoring the deterministic schedule, and
+the default is on.
+
+**The patient eager dial.** The decorator's private retry loop is extracted as a public
+`retry_with(policy, sleeper, randomness, call)` helper over any fallible async factory
+(the transport's idempotent methods now delegate to it). `converse.rs` composes it around
+its eager `connect_with_token`, so a turn started against a briefly-down brain retries the
+dial instead of failing on the first refused connect. This is safe precisely because the
+non-idempotent turn has not begun until the dial succeeds, so it does not touch decision
+2's terminal-turn contract. A permanent misconfiguration (bad URI, non-ASCII token) would
+otherwise be retried for the whole budget, since it surfaces as the same `Connection`
+error a down brain does, so `converse` first runs the lazy constructor as a synchronous
+config gate (it validates URI and token without dialing, the same fast-fail the read path
+already gets) and only the reachability dial is retried. `connect_with_token` itself stays
+fail-fast (decision 6's callers are unchanged); patience is composed where it is wanted,
+never baked in.
+
+Still deferred (ROADMAP ledger): safe `converse` reconnect-before-first-event, the
+per-method / per-error-code policy, and the retry budget / circuit breaker.
