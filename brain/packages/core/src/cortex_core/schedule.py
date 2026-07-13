@@ -1,6 +1,6 @@
 """Schedule value types + the pure recurrence math (ADR-0025): durable, swap-safe time."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime, timedelta
 from enum import Enum
 
@@ -79,6 +79,32 @@ class FireOutcome:
         _require_aware("FireOutcome.fired_at", self.fired_at)
         if self.next_due is not None:
             _require_aware("FireOutcome.next_due", self.next_due)
+
+
+@dataclass(frozen=True, slots=True)
+class ScheduleEdit:
+    """A validated in-place change to a stored schedule: new text and/or recurrence (edit addendum).
+    """
+
+    text: str | None = None
+    every: timedelta | None = None
+    set_every: bool = False
+    tainted: bool = False
+
+    def __post_init__(self) -> None:
+        if self.every is not None and self.every <= timedelta(0):
+            msg = "ScheduleEdit.every must be a positive interval"
+            raise ValueError(msg)
+
+
+def apply_edit(item: ScheduledItem, edit: ScheduleEdit) -> ScheduledItem:
+    """Return ``item`` with ``edit`` applied: new text/recurrence, taint OR'd, timing kept."""
+    return replace(
+        item,
+        text=edit.text if edit.text is not None else item.text,
+        every=edit.every if edit.set_every else item.every,
+        tainted=item.tainted or edit.tainted,
+    )
 
 
 def next_due(due_at: datetime, every: timedelta | None, now: datetime) -> datetime | None:

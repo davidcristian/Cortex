@@ -54,6 +54,10 @@ Translators only: serialization, key layout, and error wrapping; no business log
     index; a fired-but-undelivered reminder re-arms off the deliverable index), refusing a
     recurring or FIRING item and answering a raced transition `False` like the rest
     (ADR-0025 snooze addendum).
+  - `async edit(item_id, edit)` retexts / re-recurs a non-FIRING item: a bare watched `SET` of
+    the re-encoded record (`due_at` untouched, so the due/firing/deliverable indexes need no
+    write), applying the pure `apply_edit` the fake shares; FIRING and unknown answer `False`,
+    raced transitions `False` like the rest (ADR-0025 edit addendum).
   - `async dead_letters() -> Sequence[DeadLetter]` / `async purge_dead_letter(item_id)` are
     **adapter-only** operator inspection over the quarantine hash (deliberately not port
     methods: the fake can never quarantine, and no core path or model tool consumes them);

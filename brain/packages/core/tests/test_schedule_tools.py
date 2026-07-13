@@ -1,4 +1,4 @@
-"""The four schedule built-ins: parsing, bounds, trust, and the tainted-task refusal
+"""The five schedule built-ins: parsing, bounds, trust, and the tainted-task refusal
 (ADR-0025)."""
 
 from collections.abc import Callable, Sequence
@@ -11,11 +11,13 @@ from cortex_core import (
     TAINTED_TASK_MSG,
     CancelScheduledTool,
     CompositeToolRegistry,
+    EditScheduledTool,
     FireOutcome,
     InMemoryScheduleStore,
     ListScheduledTool,
     RecordingAuditSink,
     ScheduledItem,
+    ScheduleEdit,
     ScheduleKind,
     ScheduleStoreError,
     ScheduleTaskTool,
@@ -456,6 +458,7 @@ def test_view_tool_specs_name_their_tools() -> None:
     assert ListScheduledTool(InMemoryScheduleStore()).spec.name == "list_scheduled"
     assert CancelScheduledTool(InMemoryScheduleStore()).spec.name == "cancel_scheduled"
     assert _snooze_tool(InMemoryScheduleStore()).spec.name == "snooze_scheduled"
+    assert EditScheduledTool(InMemoryScheduleStore()).spec.name == "edit_scheduled"
 
 
 # --- snooze ------------------------------------------------------------------------------------
@@ -551,6 +554,163 @@ async def test_snooze_wraps_a_down_store() -> None:
     result = await _snooze_tool(FailingStore()).invoke(
         _snooze_call({"id": "item-1", "for_seconds": 600})
     )
+    assert result.is_error
+    assert "unavailable" in result.content
+    assert result.trust is Trust.TRUSTED
+
+
+# --- edit --------------------------------------------------------------------------------------
+
+
+def _edit_call(arguments: dict[str, Any], *, tainted: bool = False) -> ToolCall:
+    return ToolCall(
+        id="c", name="edit_scheduled", arguments=arguments, stamp=TurnStamp(tainted=tainted)
+    )
+
+
+async def test_edit_retext_round_trip_keeps_timing() -> None:
+    tool, store = _tool()
+    await tool.invoke(
+        _call({"kind": "reminder", "text": "old", "in_seconds": 60, "every_seconds": 3600})
+    )
+    result = await EditScheduledTool(store).invoke(_edit_call({"id": "item-1", "text": "new"}))
+    assert not result.is_error
+    assert result.content == "edited item-1"
+    assert result.trust is Trust.TRUSTED
+    assert "new" not in result.content  # never echoes the stored text
+    loaded = await store.get("item-1")
+    assert loaded is not None
+    assert loaded.text == "new"
+    assert loaded.due_at == _NOW + timedelta(seconds=60)  # the next occurrence is unmoved
+    assert loaded.every == timedelta(hours=1)  # recurrence untouched
+
+
+async def test_edit_changes_and_clears_recurrence() -> None:
+    tool, store = _tool()
+    await tool.invoke(_call({"kind": "reminder", "text": "x", "in_seconds": 60}))
+    edit = EditScheduledTool(store)
+    set_result = await edit.invoke(_edit_call({"id": "item-1", "every_seconds": 7200}))
+    assert not set_result.is_error
+    loaded = await store.get("item-1")
+    assert loaded is not None
+    assert loaded.every == timedelta(hours=2)
+    clear_result = await edit.invoke(_edit_call({"id": "item-1", "every_seconds": 0}))
+    assert not clear_result.is_error
+    loaded = await store.get("item-1")
+    assert loaded is not None
+    assert loaded.every is None  # 0 stops repeating
+
+
+async def test_edit_taint_ors_onto_a_reminder() -> None:
+    tool, store = _tool()
+    await tool.invoke(_call({"kind": "reminder", "text": "clean", "in_seconds": 60}))
+    result = await EditScheduledTool(store).invoke(
+        _edit_call({"id": "item-1", "text": "visit evil.com"}, tainted=True)
+    )
+    assert not result.is_error
+    loaded = await store.get("item-1")
+    assert loaded is not None
+    assert loaded.tainted is True  # a retext on a tainted turn marks the item
+
+
+async def test_edit_refuses_a_task_on_a_tainted_turn() -> None:
+    tool, store = _tool()
+    await tool.invoke(_call({"kind": "task", "text": "sweep", "in_seconds": 60}))
+    result = await EditScheduledTool(store).invoke(
+        _edit_call({"id": "item-1", "text": "exfiltrate"}, tainted=True)
+    )
+    assert result.is_error
+    assert "cannot edit an autonomous task" in result.content
+    assert result.trust is Trust.TRUSTED
+    loaded = await store.get("item-1")
+    assert loaded is not None
+    assert loaded.text == "sweep"  # the injected retext never landed
+
+
+async def test_edit_a_reminder_on_a_tainted_turn_is_allowed() -> None:
+    tool, store = _tool()
+    await tool.invoke(_call({"kind": "reminder", "text": "old", "in_seconds": 60}))
+    result = await EditScheduledTool(store).invoke(
+        _edit_call({"id": "item-1", "text": "new"}, tainted=True)
+    )
+    assert not result.is_error  # a reminder's text only reaches a badged human
+
+
+async def test_edit_with_no_change_is_a_correctable_error() -> None:
+    tool, store = _tool()
+    await tool.invoke(_call({"kind": "reminder", "text": "x", "in_seconds": 60}))
+    result = await EditScheduledTool(store).invoke(_edit_call({"id": "item-1"}))
+    assert result.is_error
+    assert "change something" in result.content
+
+
+@pytest.mark.parametrize(
+    ("arguments", "expected"),
+    [
+        ({"id": "item-1", "every_seconds": 30}, "'every_seconds' must be 0"),
+        ({"id": "item-1", "every_seconds": -5}, "'every_seconds' must be 0"),
+        ({"id": "item-1", "every_seconds": True}, "'every_seconds' must be 0"),
+        ({"id": "item-1", "every_seconds": 315_360_001}, "'every_seconds' must be 0"),
+        ({"id": "item-1", "text": "  "}, "'text' must be"),
+        ({"id": "item-1", "text": 3}, "'text' must be"),
+    ],
+)
+async def test_edit_bad_arguments_are_correctable(arguments: dict[str, Any], expected: str) -> None:
+    tool, store = _tool()
+    await tool.invoke(_call({"kind": "reminder", "text": "x", "in_seconds": 60}))
+    result = await EditScheduledTool(store).invoke(_edit_call(arguments))
+    assert result.is_error
+    assert expected in result.content
+    assert result.trust is Trust.TRUSTED
+
+
+async def test_edit_unknown_id_is_a_correctable_error() -> None:
+    result = await EditScheduledTool(InMemoryScheduleStore()).invoke(
+        _edit_call({"id": "ghost", "text": "x"})
+    )
+    assert result.is_error
+    assert "no scheduled item ghost" in result.content
+
+
+async def test_edit_refuses_a_firing_item() -> None:
+    tool, store = _tool()
+    await tool.invoke(_call({"kind": "reminder", "text": "x", "in_seconds": 60}))
+    await store.claim_due(_NOW + timedelta(seconds=60), lease=timedelta(seconds=300), limit=8)
+    result = await EditScheduledTool(store).invoke(_edit_call({"id": "item-1", "text": "y"}))
+    assert result.is_error
+    assert "firing right now" in result.content
+
+
+async def test_edit_racing_a_change_reports_it_correctably() -> None:
+    """The advisory read passes but the fenced transition refuses (a cancel/claim won)."""
+
+    class RacingStore(InMemoryScheduleStore):
+        async def edit(self, item_id: str, edit: ScheduleEdit) -> bool:
+            del item_id, edit
+            return False  # the store-side fence lost to a concurrent transition
+
+    store = RacingStore()
+    tool = ScheduleTaskTool(
+        store, FixedClock(), tasks_enabled=False, max_active=8, item_id_factory=_ids()
+    )
+    await tool.invoke(_call({"kind": "reminder", "text": "x", "in_seconds": 60}))
+    result = await EditScheduledTool(store).invoke(_edit_call({"id": "item-1", "text": "y"}))
+    assert result.is_error
+    assert "changed underneath" in result.content
+
+
+@pytest.mark.parametrize("bad_id", [None, 3, ""])
+async def test_edit_requires_a_string_id(bad_id: object) -> None:
+    result = await EditScheduledTool(InMemoryScheduleStore()).invoke(
+        _edit_call({"id": bad_id, "text": "x"})
+    )
+    assert result.is_error
+    assert "'id' must be" in result.content
+
+
+async def test_edit_wraps_a_down_store() -> None:
+    tool = EditScheduledTool(FailingStore())
+    result = await tool.invoke(_edit_call({"id": "item-1", "text": "x"}))
     assert result.is_error
     assert "unavailable" in result.content
     assert result.trust is Trust.TRUSTED

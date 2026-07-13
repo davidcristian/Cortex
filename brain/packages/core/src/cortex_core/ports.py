@@ -15,7 +15,7 @@ from cortex_core.inference import InferenceEvent, JsonSchema
 from cortex_core.memory import MemoryRecord, ScoredMemory
 from cortex_core.model import ModelLease
 from cortex_core.placement import Placement, PlacementRequest
-from cortex_core.schedule import FireOutcome, ScheduleClaim, ScheduledItem
+from cortex_core.schedule import FireOutcome, ScheduleClaim, ScheduledItem, ScheduleEdit
 from cortex_core.sessions import SessionSummary
 from cortex_core.subagents import SubagentResult, SubagentTask
 from cortex_core.tools import ConfirmationRequest, ToolCall, ToolInvocation, ToolResult, ToolSpec
@@ -130,6 +130,8 @@ class ScheduleStore(Protocol):
     async def cancel(self, item_id: str) -> bool: ...
 
     async def snooze(self, item_id: str, *, until: datetime) -> bool: ...
+
+    async def edit(self, item_id: str, edit: ScheduleEdit) -> bool: ...
 
     async def claim_due(
         self, now: datetime, *, lease: timedelta, limit: int

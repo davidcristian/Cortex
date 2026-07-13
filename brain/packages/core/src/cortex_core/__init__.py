@@ -82,8 +82,10 @@ from cortex_core.schedule import (
     FireOutcome,
     ScheduleClaim,
     ScheduledItem,
+    ScheduleEdit,
     ScheduleKind,
     ScheduleStatus,
+    apply_edit,
     next_due,
 )
 from cortex_core.schedule_tools import (
@@ -95,8 +97,10 @@ from cortex_core.schedule_tools import (
 )
 from cortex_core.schedule_verbs import (
     CANCEL_SCHEDULED_TOOL_NAME,
+    EDIT_SCHEDULED_TOOL_NAME,
     SNOOZE_SCHEDULED_TOOL_NAME,
     CancelScheduledTool,
+    EditScheduledTool,
     SnoozeScheduledTool,
 )
 from cortex_core.scheduler import ResourceBudgetScheduler
@@ -141,6 +145,7 @@ __all__ = [
     "CANCEL_SCHEDULED_TOOL_NAME",
     "DEFAULT_CORTEX_MODEL",
     "DENIED_MSG",
+    "EDIT_SCHEDULED_TOOL_NAME",
     "GET_VOLUME_TOOL_NAME",
     "GLOBAL_MEMORY_SCOPE",
     "GLOBAL_SCOPE",
@@ -166,6 +171,7 @@ __all__ = [
     "ConfirmationRequest",
     "Confirmer",
     "EchoInferenceBackend",
+    "EditScheduledTool",
     "Embedder",
     "EmbedderError",
     "FilteredToolRegistry",
@@ -211,6 +217,7 @@ __all__ = [
     "Role",
     "RoutingHints",
     "ScheduleClaim",
+    "ScheduleEdit",
     "ScheduleKind",
     "ScheduleStatus",
     "ScheduleStore",
@@ -266,6 +273,7 @@ __all__ = [
     "UrlRedactingGuardrail",
     "VolumeState",
     "VramBudgetPlacer",
+    "apply_edit",
     "extract_urls",
     "new_nonce",
     "next_due",
