@@ -927,12 +927,22 @@ behind the unchanged `ToolRegistry`/`ToolDispatcher`/`stream_tool_loop` seams (o
   fakes; **host-validated via Docker (agent, 2026-07-06, [ADR-0020 addendum](adr/ADR-0020-reasoning-status.md)):**
   live gemma-4-12B streamed a real reasoning trace surfaced as 326 `StatusUpdate(state="thinking")`
   events, reply clean and persisted==shown (integration test `test_reasoning_model_emits_reasoning_before_reply`).
-  Remaining behind the same `InferenceBackend`/`TurnCapabilities` seams (ADR-0020 deferred):
+  **The output guardrail over reasoning status landed 2026-07-12
+  ([ADR-0020 addendum](adr/ADR-0020-reasoning-status.md)):** the inline chips (below) gave the
+  thinking status a rendered surface, so a laundered URL in the reasoning trace had a display
+  channel the reply-side guardrail never inspected. The trace now streams through its own second
+  `OutputFilter` under the same policy and user-URL allowlist (`output_channels.py`, an engine
+  line-cap split): a `ThinkingChannel` scrubs each delta (a wholly-carried one emits no status),
+  its carry surviving tool steps between thinking bursts so a URL split around a dispatch is
+  joined before matching (an adversarial multi-agent review caught the per-burst-flush variant
+  letting a fragmented URL cross the seam), released once at end of stream. Redact +
+  strict modes and the obfuscation-resistant grammar are inherited; no new config, no seam
+  change; reasoning stays ephemeral. Remaining behind the same
+  `InferenceBackend`/`TurnCapabilities` seams (ADR-0020 deferred):
   the **disable-thinking / token-budget** alternatives (still available if a runaway trace needs
-  capping), the **output guardrail over reasoning status** (it scrubs the reply, not the thinking),
-  **`state`-aware overlay treatment** (the inline chips that landed 2026-07-12 render any status's
-  `detail` with no branch on `state`; a thinking-specific treatment is a chip refinement), and
-  **reasoning persistence/summarization**.
+  capping), **`state`-aware overlay treatment** (the inline chips that landed 2026-07-12 render
+  any status's `detail` with no branch on `state`; a thinking-specific treatment is a chip
+  refinement), and **reasoning persistence/summarization**.
 
 **Subagents in Slice 7 ([ADR-0010](adr/ADR-0010-subagents.md)):**
 - **Subagent progress reporting over the `Converse` status stream.** v1 delegation is synchronous
@@ -1052,8 +1062,9 @@ each behind the unchanged `Confirmer`/`ToolDispatcher`/`GatedToolRegistry`/seam 
 - **`ToolActivity` landed end to end 2026-07-12 ([ADR-0009 chip addendum](adr/ADR-0009-tools-mcp.md)).**
   The overlay half landed first (the Slice-8 gap closure's inline chips); the brain half followed
   the same day: `stream_tool_loop` yields a `ToolStep` immediately before each audited dispatch,
-  the engine maps it to the ephemeral domain `ToolActivity` (the ADR-0020 precedent: skips
-  guardrail, reply, and persistence; the subagent runner drops it), and the orchestrator maps
+  the engine maps it to the ephemeral domain `ToolActivity` (the ADR-0020 ephemerality
+  precedent: never reply text, never persisted; its registry-authored fields need no
+  guardrail pass; the subagent runner drops it), and the orchestrator maps
   that onto the wire event the proto carried since Slice 2, so the already-shipped chip lit up
   with no overlay change. The summary is registry-authored (spec description first line, capped,
   name fallback), never model-authored arguments (an argument echo would hand injected content a

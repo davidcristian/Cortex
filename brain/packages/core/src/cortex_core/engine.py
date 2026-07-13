@@ -15,9 +15,10 @@ from uuid import uuid4
 
 from cortex_core.conversation import Message, Role
 from cortex_core.dispatch import ToolDispatcher
-from cortex_core.events import StatusUpdate, TextDelta, ToolActivity, TurnCompleted, TurnEvent
-from cortex_core.guardrail import OutputFilter, OutputGuardrail
+from cortex_core.events import TextDelta, ToolActivity, TurnCompleted, TurnEvent
+from cortex_core.guardrail import OutputGuardrail
 from cortex_core.memory import ScoredMemory
+from cortex_core.output_channels import open_output_channels
 from cortex_core.ports import Clock, InferenceBackend, SessionStore
 from cortex_core.recall import MemoryRecaller
 from cortex_core.routing import RoutingHints, Tier, route_turn
@@ -28,7 +29,6 @@ from cortex_core.untrusted import (
     security_preamble_message,
     wrap_untrusted,
 )
-from cortex_core.urls import extract_urls
 from cortex_core.windowing import HistoryWindow
 
 # The logical id of the resident cortex model (ADR-0004: logical ids, never paths).
@@ -38,10 +38,6 @@ DEFAULT_CORTEX_MODEL = "cortex"
 
 # How many past memories to recall into a turn's context by default (ADR-0008).
 DEFAULT_RECALL_K = 5
-
-# The StatusUpdate.state a reasoning model's live deliberation is surfaced under (ADR-0020).
-# Part of the seam contract: the overlay may switch on it (today it renders the detail either way).
-THINKING_STATE = "thinking"
 
 
 def _uuid4_turn_id() -> str:
@@ -89,7 +85,8 @@ class TurnCapabilities:
     dependency ceiling (ruff max-args); future per-turn capabilities join here, not as new
     constructor arguments. ``window`` (ADR-0014) bounds what one turn sends to the model, and
     persistence is untouched. ``guardrail`` (ADR-0015) scrubs untrusted-sourced URLs from
-    the reply before the user sees it. This is the deterministic laundering defense.
+    both rendered surfaces, the reply and the thinking status (ADR-0020 addendum), before
+    the user sees them. This is the deterministic laundering defense.
     ``record_tainted_memory`` (ADR-0019) is the tainted-turn recording policy: ``False`` (the
     default) drops a tainted turn's memory (ADR-0013); ``True`` records it with the untrusted-
     provenance marker so recall can fence it. It governs only writing. A tainted memory already
@@ -109,8 +106,10 @@ class TurnEngine:
     Event contract per turn: zero or more ``TextDelta`` / ``StatusUpdate`` / ``ToolActivity``
     (interleaved) then exactly one ``TurnCompleted``. A ``StatusUpdate`` carries ephemeral
     progress, a reasoning model's live deliberation (ADR-0020, ``state="thinking"``); a
-    ``ToolActivity`` an audited dispatch (ADR-0009 addendum). Neither is filtered as reply
-    text, accumulated into ``full_text``, nor recorded to memory. The user message is persisted
+    ``ToolActivity`` an audited dispatch (ADR-0009 addendum). Neither is accumulated into
+    ``full_text`` nor recorded to memory, but the thinking detail is a rendered surface, so
+    the output guardrail scrubs it as its own stream (ADR-0020 addendum); an activity's
+    fields stay registry-authored by construction. The user message is persisted
     before inference starts; the assistant message is persisted only on completion. A consumer
     that closes the event stream mid-generation keeps the user message and drops the partial reply.
     """
@@ -159,19 +158,20 @@ class TurnEngine:
         # The output guardrail (ADR-0015) filters what the user sees AND what is persisted:
         # the reply on record is the reply that was shown. The turn's taint ledger is passed
         # live (its URL set and tainted bit both grow as tool results arrive); the user's own
-        # URLs are theirs to see again, so they are allowlisted.
-        guard: OutputFilter | None = (
-            self._caps.guardrail.open(taint, allow=extract_urls(text))
-            if self._caps.guardrail is not None
-            else None
-        )
+        # URLs are theirs to see again, so they are allowlisted. The reasoning status is a
+        # display channel too (the overlay renders its detail), so it gets a second filter
+        # under the same policy and allowlist (ADR-0020 addendum) via the thinking channel.
+        guard, thinking = open_output_channels(self._caps.guardrail, taint, text)
         loop = stream_tool_loop(self._backend, model, working, context)
         try:
             async for delta in loop:
                 if isinstance(delta, ReasoningDelta):
-                    # A reasoning model's live thinking (ADR-0020): surfaced as ephemeral status,
-                    # never the reply. It therefore skips the guardrail, `parts`, and persistence.
-                    yield StatusUpdate(state=THINKING_STATE, detail=delta.text)
+                    # A reasoning model's live thinking (ADR-0020): surfaced as ephemeral
+                    # status, never the reply, so it skips `parts` and persistence. It is
+                    # scrubbed like the reply; a wholly-carried delta emits no event, and
+                    # the carry survives tool steps between bursts (one trace, one stream).
+                    if (status := thinking.feed(delta.text)) is not None:
+                        yield status
                     continue
                 if isinstance(delta, ToolStep):
                     # An audited dispatch about to run (ADR-0009 addendum): surfaced as ephemeral
@@ -187,6 +187,10 @@ class TurnEngine:
             # A consumer that closes this generator mid-turn must not leave the shared loop
             # (and the backend stream it holds) half-suspended. Close it deterministically.
             await loop.aclose()
+        if (status := thinking.release()) is not None:
+            # The trace's one flush: end of stream releases the scrubbed thinking carry,
+            # which deliberately survived any burst boundaries (see ThinkingChannel).
+            yield status
         if guard is not None and (tail := guard.flush()):
             parts.append(tail)
             yield TextDelta(text=tail)

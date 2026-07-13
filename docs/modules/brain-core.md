@@ -32,7 +32,9 @@ Conversation domain (Slice 3):
   `TurnCompleted(turn_id, full_text)` are frozen domain events; `TurnEvent` is their union (the
   orchestrator maps them onto the proto's `ServerEvent`). `StatusUpdate` is ephemeral mid-turn
   progress. Its first use (ADR-0020) is a reasoning model's live thinking (`state="thinking"`),
-  never persisted or part of the reply. `ToolActivity` (ADR-0009 addendum) is equally ephemeral:
+  never persisted or part of the reply, though its detail is a rendered surface and so is
+  scrubbed by the output guardrail like the reply (ADR-0020 addendum, `output_channels.py`).
+  `ToolActivity` (ADR-0009 addendum) is equally ephemeral:
   one per audited dispatch, emitted just before the tool runs. Both fields are registry-authored
   (`tool_name` = advertised `ToolSpec.name`, `summary` = its description first line); the loop
   emits none for a call that matched no advertised spec, so nothing the model authored, name or
@@ -226,6 +228,16 @@ Output guardrail (ADR-0015; the pure laundering defense built from the redactor 
   (`taint.tainted`), redact *every* URL outside `allow`, not just the verbatim-collected ones,
   the answer to a model that transforms or reconstructs a laundered link. An untainted turn is
   untouched, so the model's own recalled links still stream on a clean turn.
+- `ThinkingChannel` + `open_output_channels(guardrail, taint, user_text)` (`output_channels.py`,
+  ADR-0020 addendum) extend the same defense over the second display surface, the thinking status
+  the overlay renders. `open_output_channels` opens one turn's reply `OutputFilter` plus a
+  `ThinkingChannel` under the same policy and user-URL allowlist, one filter instance each so the
+  two carry buffers never mix; the channel's `feed(text)` maps one reasoning delta to the
+  `StatusUpdate(state=THINKING_STATE)` to show now (`None` = wholly carried). One turn's trace is
+  one stream: the carry survives tool steps and reply deltas between thinking bursts, so a URL
+  split around a dispatch is joined before matching (per-burst flushing would pass its fragments),
+  and `release()` drains the scrubbed carry exactly once, at end of stream. With no guardrail both
+  channels pass text through unchanged (an empty delta emits no event on either path).
 
 Ports (`typing.Protocol`; failures cross them only as the typed errors below):
 
@@ -333,8 +345,12 @@ Use-case:
   passes through the per-turn `OutputFilter` (opened over the ledger's live URL set, the user
   message's own URLs allowlisted). An emptied delta emits no event, the flush tail is emitted
   last, and the sanitized text is what streams, completes, AND persists: the reply on record is
-  the reply shown. With a bare `TurnCapabilities()` (the default) the turn behaves exactly as
-  Slice 3.
+  the reply shown. The reasoning status passes through its own second filter under the same
+  policy (`open_output_channels`, ADR-0020 addendum): a wholly-carried delta emits no status,
+  the carry survives burst boundaries (a URL straddling a tool call is joined, then matched),
+  and the scrubbed carry is released once at end of stream, so the thinking surface carries
+  the same laundering guarantee as the reply. With a bare `TurnCapabilities()` (the default)
+  the turn behaves exactly as Slice 3.
 - `TurnCapabilities(memory=None, tools=None, window=None, guardrail=None,
   record_tainted_memory=False)` is a frozen bundle of the optional per-turn collaborators (a
   `MemoryRecaller`, a `ToolDispatcher`, a `HistoryWindow`, and an `OutputGuardrail`) plus the

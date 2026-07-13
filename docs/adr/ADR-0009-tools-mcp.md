@@ -365,7 +365,9 @@ and closed here (the loop's home). Decisions:
    `call.name` and, for an unadvertised call, used it as the summary too: an adversarial
    review flagged that as exactly the model-writable display channel this event must not open,
    since the model's string is written after it may have read untrusted content and the
-   ADR-0015 guardrail scrubs only reply text. Closed by keying the emission (and both fields)
+   ADR-0015 guardrail scrubbed only reply text at the time (its coverage has since grown to
+   the thinking status, ADR-0020 addendum; the registry-authored rule stands on its own, as
+   chip fields never pass any filter). Closed by keying the emission (and both fields)
    on the advertised spec.
 3. **Start-only, no wire `phase` field.** One event per dispatch; the overlay chip is
    latest-wins and the turn-ending event clears it, which already gives a sensible lifecycle.
