@@ -581,3 +581,42 @@ Decision snippets above showing `call.tainted` and `dispatch(call, tainted=...)`
 the rename and read with `call.stamp.tainted` / `stamp=TurnStamp(...)` applied.
 CI-gated end to end (dispatcher stamp + forged-stamp discard, engine-to-item attribution
 through a real dispatcher, the ticker's stamped fire).
+
+## Addendum (2026-07-13): `edit` joins the fenced verb set
+
+The deferred edit verbs (retext / re-recur without cancel-and-recreate) land behind the
+unchanged seams, replaying the snooze slice: one new fenced `ScheduleStore.edit(item_id,
+edit)` transition plus a fifth cortex-only built-in, `edit_scheduled` (in `schedule_verbs.py`
+with its siblings). Decisions:
+
+- **`due_at` is not editable; the recurrence is.** An edit changes `text` and/or `every`,
+  never the next due time, so re-recur alters the cadence of *future* re-arms only and the
+  imminent occurrence is never silently moved (the very re-anchoring hazard that keeps
+  `snooze` off recurring items). `every` is three-valued in the tool: a bounded interval
+  sets/replaces it, the `0` sentinel stops repeating (one-shot), and omitting it leaves the
+  recurrence alone. Because only the record changes (text/every/taint live in it, not the
+  due/firing/deliverable indexes), the fenced transition is a bare watched `SET`, needing no
+  `zadd`/`zrem` at all: the lightest of the guarded writes.
+- **One pure `apply_edit`, both stores.** The change is expressed as a `ScheduleEdit`
+  value (`text?`, `every` + `set_every`, `tainted`) applied by one pure `apply_edit` function
+  the in-memory fake and the Redis helper both call, so they mutate an item identically (the
+  ports-before-adapters guarantee) and the fenced-vs-plain difference is only the concurrency
+  wrapper. FIRING refuses (the in-flight fire settles first) and unknown ids answer `False`,
+  WATCH-fenced exactly like `finish`/`snooze`/`ack`: a racing cancel or claim fails the EXEC
+  and `edit` answers `False`, never a lost update.
+- **The taint gate is the one departure from cancel/snooze.** Unlike deleting or postponing
+  an existing item, a retext *injects new content*, so the editing turn's taint ORs onto the
+  item (never clearing it: the listing then badges it and re-taints on recall, the aggregate
+  rule), and an autonomous **task** cannot be edited on a tainted turn at all, matching the
+  creation-side tainted-task refusal (a task instruction authored by injected content is a
+  standing directive, not a reminder a human vets). A reminder edit on a tainted turn is
+  allowed, its text only ever reaching a badged human. The refusal is deterministic (the
+  dispatcher's stamp on `edit.tainted`, never a model claim). Results stay `TRUSTED` and
+  never echo the stored text (`edited <id>`), matching the sibling verbs.
+
+CI-gated through the shared contract suite (fake + fakeredis interchangeably: retext,
+set/clear recurrence, taint monotonicity, FIRING/unknown refusal, the WATCH-fence race) and
+the tool tests over the fake (parsing matrix, the tainted-task refusal, the tainted-reminder
+allowance, down-store wrapping); the live Redis integration suite exercises the same contract
+on the real backend. Remaining deferred (unchanged): an anchor-preserving occurrence snooze
+still wants the same separate-anchor field this verb deliberately did not add.

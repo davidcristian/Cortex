@@ -12,8 +12,8 @@ absolute ``at``. Creation results are TRUSTED and never echo the stored text; th
 does echo text, so it is TRUSTED only when every listed item is clean (the spawn aggregate rule, so
 hostile text is fenced and re-taints the turn instead of laundering through a trusted result).
 Bad arguments and a down store both become ``is_error`` results, never exceptions. The
-lifecycle verbs (``cancel_scheduled``/``snooze_scheduled``) live in ``schedule_verbs.py``
-(the line-cap split), which also owns the result helpers shared here.
+lifecycle verbs (``cancel_scheduled``/``snooze_scheduled``/``edit_scheduled``) live in
+``schedule_verbs.py`` (the line-cap split), which also owns the result helpers shared here.
 """
 
 from collections.abc import Callable

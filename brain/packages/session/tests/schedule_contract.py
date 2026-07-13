@@ -12,6 +12,7 @@ from uuid import uuid4
 from cortex_core import (
     FireOutcome,
     ScheduledItem,
+    ScheduleEdit,
     ScheduleKind,
     ScheduleStatus,
     ScheduleStore,
@@ -388,6 +389,81 @@ async def check_snooze_then_cancel_still_sticks(store: ScheduleStore) -> None:
     assert await store.claim_due(_NOW + timedelta(hours=1), lease=_LEASE, limit=10) == ()
 
 
+async def check_edit_retexts_a_pending_item(store: ScheduleStore) -> None:
+    """edit changes text, leaving the next due time and the recurrence intact."""
+    item = make_item(_item_id(), every=timedelta(hours=1))
+    await store.add(item)
+    assert await store.edit(item.id, ScheduleEdit(text="new text")) is True
+    loaded = await store.get(item.id)
+    assert loaded is not None
+    assert loaded.text == "new text"
+    assert loaded.due_at == item.due_at  # the next occurrence is unmoved
+    assert loaded.every == timedelta(hours=1)  # recurrence left alone
+
+
+async def check_edit_sets_and_clears_recurrence(store: ScheduleStore) -> None:
+    """set_every replaces the interval; set_every with every=None clears it (a one-shot)."""
+    item = make_item(_item_id())
+    await store.add(item)
+    assert await store.edit(item.id, ScheduleEdit(every=timedelta(hours=2), set_every=True)) is True
+    loaded = await store.get(item.id)
+    assert loaded is not None
+    assert loaded.every == timedelta(hours=2)
+    assert loaded.due_at == item.due_at
+    assert await store.edit(item.id, ScheduleEdit(every=None, set_every=True)) is True
+    loaded = await store.get(item.id)
+    assert loaded is not None
+    assert loaded.every is None
+
+
+async def check_edit_taint_is_monotone(store: ScheduleStore) -> None:
+    """A tainted edit marks the item; a later clean edit never clears it."""
+    item = make_item(_item_id())
+    await store.add(item)
+    assert await store.edit(item.id, ScheduleEdit(text="a", tainted=True)) is True
+    loaded = await store.get(item.id)
+    assert loaded is not None
+    assert loaded.tainted is True
+    assert await store.edit(item.id, ScheduleEdit(text="b", tainted=False)) is True
+    loaded = await store.get(item.id)
+    assert loaded is not None
+    assert loaded.tainted is True  # OR'd forward, never cleared
+
+
+async def check_edit_refuses_a_firing_item(store: ScheduleStore) -> None:
+    """A claimed (FIRING) item cannot be edited; its state is untouched and it still finishes."""
+    item = make_item(_item_id())
+    await store.add(item)
+    (claim,) = await store.claim_due(_NOW, lease=_LEASE, limit=10)
+    assert await store.edit(item.id, ScheduleEdit(text="nope")) is False
+    loaded = await store.get(item.id)
+    assert loaded is not None
+    assert loaded.text == "stretch your legs"
+    fired = FireOutcome(fired_at=_NOW, next_due=None, deliverable=True)
+    assert await store.finish(claim, fired) is True
+
+
+async def check_edit_unknown_is_false(store: ScheduleStore) -> None:
+    """An unknown id answers False, like snooze and cancel."""
+    assert await store.edit(_item_id(), ScheduleEdit(text="x")) is False
+
+
+async def check_edit_rerecur_then_fire_uses_the_new_cadence(store: ScheduleStore) -> None:
+    """re-recur leaves the next fire at due_at; the edited interval persists to the re-arm."""
+    item = make_item(_item_id(), every=timedelta(hours=1))
+    await store.add(item)
+    assert await store.edit(item.id, ScheduleEdit(every=timedelta(hours=3), set_every=True)) is True
+    (claim,) = await store.claim_due(_NOW, lease=_LEASE, limit=10)  # still due at the old time
+    assert claim.item.id == item.id
+    rearm_at = _NOW + timedelta(hours=3)
+    fired = FireOutcome(fired_at=_NOW, next_due=rearm_at, deliverable=False)
+    assert await store.finish(claim, fired) is True
+    loaded = await store.get(item.id)
+    assert loaded is not None
+    assert loaded.every == timedelta(hours=3)
+    assert loaded.due_at == rearm_at
+
+
 ALL_CHECKS = (
     check_missing_get_is_none,
     check_add_get_round_trips,
@@ -415,4 +491,10 @@ ALL_CHECKS = (
     check_snooze_refuses_a_recurring_item,
     check_snooze_refuses_firing_and_unknown,
     check_snooze_then_cancel_still_sticks,
+    check_edit_retexts_a_pending_item,
+    check_edit_sets_and_clears_recurrence,
+    check_edit_taint_is_monotone,
+    check_edit_refuses_a_firing_item,
+    check_edit_unknown_is_false,
+    check_edit_rerecur_then_fire_uses_the_new_cadence,
 )

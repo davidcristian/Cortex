@@ -21,7 +21,14 @@ from redis.asyncio import Redis
 from redis.asyncio.client import Pipeline
 from redis.exceptions import WatchError
 
-from cortex_core import ScheduleClaim, ScheduledItem, ScheduleStatus, ScheduleStoreError
+from cortex_core import (
+    ScheduleClaim,
+    ScheduledItem,
+    ScheduleEdit,
+    ScheduleStatus,
+    ScheduleStoreError,
+    apply_edit,
+)
 from cortex_session.schedule_codec import (
     DEAD_KEY,
     DELIVERABLE_KEY,
@@ -79,6 +86,32 @@ async def release_claim(client: Redis, claim: ScheduleClaim) -> bool:
         pipe.set(record_key(item.id), encode(pending, claim=None, claimed_at=None))
         pipe.zrem(FIRING_KEY, item.id)
         pipe.zadd(DUE_KEY, {item.id: item.due_at.timestamp()})
+        try:
+            await pipe.execute()
+        except WatchError:
+            return False
+    return True
+
+
+async def edit_item(client: Redis, item_id: str, edit: ScheduleEdit) -> bool:
+    """Retext / re-recur a non-FIRING item under a WATCH fence; FIRING/unknown answer False.
+
+    Only the record changes: ``text``/``every``/``tainted`` live in it, not the indexes, and
+    ``due_at`` is left intact, so the due order and the fired slot are untouched and this
+    transition needs no ``zadd``/``zrem`` at all. ``apply_edit`` is the same pure function the
+    fake uses, so the two stores change an item identically. A ``cancel``/claim racing between
+    the guard read and the write fails the EXEC and answers ``False``, like every fenced
+    transition (ADR-0025 edit addendum).
+    """
+    async with client.pipeline(transaction=True) as pipe:
+        state = await watched_state(pipe, item_id)
+        if state is None:
+            return False
+        item, _, _ = state
+        if item.status is ScheduleStatus.FIRING:
+            return False
+        pipe.multi()
+        pipe.set(record_key(item_id), encode(apply_edit(item, edit), claim=None, claimed_at=None))
         try:
             await pipe.execute()
         except WatchError:

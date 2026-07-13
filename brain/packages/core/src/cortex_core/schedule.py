@@ -11,7 +11,7 @@ decision 1). Named ``schedule``/``ScheduleTicker`` throughout, never "Scheduler"
 means resource *admission* here (``SubagentScheduler``).
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime, timedelta
 from enum import Enum
 
@@ -112,6 +112,46 @@ class FireOutcome:
         _require_aware("FireOutcome.fired_at", self.fired_at)
         if self.next_due is not None:
             _require_aware("FireOutcome.next_due", self.next_due)
+
+
+@dataclass(frozen=True, slots=True)
+class ScheduleEdit:
+    """A validated in-place change to a stored schedule: new text and/or recurrence (edit addendum).
+
+    ``text=None`` leaves the text unchanged; ``every`` is applied only when ``set_every`` is
+    True (``every=None`` then clears recurrence, making the item a one-shot), so the three
+    cases unchanged / set / clear are all expressible without a sentinel interval. ``tainted``
+    is the editing turn's taint, OR'd onto the item and never clearing it, because a retext can
+    carry untrusted content forward. At least one of a text or a recurrence change is present
+    by construction (the verb refuses a no-op edit); ``due_at`` is deliberately not editable, so
+    the next occurrence stays anchored and only future re-arms take a new cadence.
+    """
+
+    text: str | None = None
+    every: timedelta | None = None
+    set_every: bool = False
+    tainted: bool = False
+
+    def __post_init__(self) -> None:
+        if self.every is not None and self.every <= timedelta(0):
+            msg = "ScheduleEdit.every must be a positive interval"
+            raise ValueError(msg)
+
+
+def apply_edit(item: ScheduledItem, edit: ScheduleEdit) -> ScheduledItem:
+    """Return ``item`` with ``edit`` applied: new text/recurrence, taint OR'd, timing kept.
+
+    Both store implementations apply an edit through this one pure function, so the fake and
+    the Redis adapter change an item identically (the ports-before-adapters guarantee). ``due_at``
+    stays put on purpose (re-recur changes the cadence of future re-arms, not the next fire), and
+    taint is monotone: OR'd, never cleared (ADR-0025 edit addendum).
+    """
+    return replace(
+        item,
+        text=edit.text if edit.text is not None else item.text,
+        every=edit.every if edit.set_every else item.every,
+        tainted=item.tainted or edit.tainted,
+    )
 
 
 def next_due(due_at: datetime, every: timedelta | None, now: datetime) -> datetime | None:

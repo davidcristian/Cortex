@@ -316,11 +316,14 @@ Ports (`typing.Protocol`; failures cross them only as the typed errors below):
   `async release(claim) -> bool` (both apply only under the claim's token, so a stale claimant
   no-ops `False`; finish ORs fire-time taint onto the item, re-arms at `outcome.next_due` or
   terminates, with terminal records deleted unless deliverable), `async deliverable()`,
-  `async ack(item_id) -> bool`, and `async snooze(item_id, *, until) -> bool` (postpones a
+  `async ack(item_id) -> bool`, `async snooze(item_id, *, until) -> bool` (postpones a
   one-shot; a fired-but-undelivered reminder re-arms with deliverability cleared; recurring,
-  FIRING, and unknown answer `False`, fenced like the rest, ADR-0025 snooze addendum). A
-  schedule outlives every model swap and restart, and the one hard rule is the reason this
-  port exists.
+  FIRING, and unknown answer `False`, fenced like the rest, ADR-0025 snooze addendum), and
+  `async edit(item_id, edit) -> bool` (retexts / re-recurs a non-FIRING item via the pure
+  `apply_edit`, `due_at` untouched so only future re-arms take the new cadence; the editing
+  turn's taint ORs on; FIRING and unknown answer `False`, WATCH-fenced, ADR-0025 edit
+  addendum). A schedule outlives every model swap and restart, and the one hard rule is the
+  reason this port exists.
 - `Clock` provides `now() -> datetime`, always tz-aware. The core's only time source.
 - `SessionStoreError` / `InferenceError` / `ModelManagerError` (+ its
   `ModelUnavailableError`) / `MemoryStoreError` / `EmbedderError` / `ToolError` (+ its
@@ -482,10 +485,11 @@ Use-case:
   `CompositeToolRegistry`.
 - `ScheduleTaskTool(store, clock, *, tasks_enabled, max_active, item_id_factory=<uuid4>)` /
   `ListScheduledTool(store)` (`schedule_tools.py`) and `CancelScheduledTool(store)` /
-  `SnoozeScheduledTool(store, clock)` (`schedule_verbs.py`, the line-cap split that also owns
-  the shared result helpers; argument parsing in `schedule_args.py`) are the built-in
-  `schedule_task` / `list_scheduled` / `cancel_scheduled` / `snooze_scheduled` tools,
-  cortex-only like `spawn_subagents`, since a subagent cannot re-schedule
+  `SnoozeScheduledTool(store, clock)` / `EditScheduledTool(store)` (`schedule_verbs.py`, the
+  line-cap split that also owns the shared result helpers; argument parsing in
+  `schedule_args.py`) are the built-in
+  `schedule_task` / `list_scheduled` / `cancel_scheduled` / `snooze_scheduled` /
+  `edit_scheduled` tools, cortex-only like `spawn_subagents`, since a subagent cannot re-schedule
   (ADR-0025). `schedule_task` takes `{kind: reminder|task, text, at | in_seconds,
   every_seconds? (≥ 60), model? (task-only)}`; its spec is rebuilt per `describe_tools` walk and
   **carries the current UTC time** from the `Clock` (the model cannot otherwise compute an
@@ -500,7 +504,12 @@ Use-case:
   rule). `snooze_scheduled` takes `{id, for_seconds}` (relative by meaning; `for_seconds`
   reuses the recurrence-interval bounds `[60 s, ten-year]`, not the unbounded one-shot delay)
   and refuses a recurring item with the workaround named, since rewriting `due_at` would
-  re-anchor the series (snooze addendum). All four ungated by default
+  re-anchor the series (snooze addendum). `edit_scheduled` takes `{id, text?, every_seconds?}`
+  (a bounded interval sets recurrence, `0` stops it, omission leaves it; at least one change
+  required) and changes text/recurrence in place without moving `due_at`; unlike cancel/snooze
+  it ORs the editing turn's taint onto the item and refuses editing a *task* on a tainted turn
+  (the creation-side refusal, since a retext injects content), while a reminder edit on a
+  tainted turn is allowed (edit addendum). All five ungated by default
   (`CORTEX_TOOLS_GATED` is the backstop); bad arguments, a naive `at`, and a
   `ScheduleStoreError` all become `is_error` `TRUSTED` results. None ever raises.
 - `CompositeToolRegistry(builtins, remote=None)` is a `ToolRegistry` merging built-in tools with

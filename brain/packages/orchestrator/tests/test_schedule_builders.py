@@ -91,7 +91,13 @@ def test_build_schedule_tools_names_and_honest_advertisement() -> None:
         ScheduleConfig(max_active=5), InMemoryScheduleStore(), FixedClock(), tasks_enabled=False
     )
     specs = {tool.spec.name: tool.spec for tool in tools}
-    assert set(specs) == {"schedule_task", "list_scheduled", "cancel_scheduled", "snooze_scheduled"}
+    assert set(specs) == {
+        "schedule_task",
+        "list_scheduled",
+        "cancel_scheduled",
+        "snooze_scheduled",
+        "edit_scheduled",
+    }
     # tasks_enabled=False: the spec offers reminders only (the fire path still answers a
     # stale TASK with an ok=False outcome via the ticker's no-runner branch).
     assert dict(specs["schedule_task"].parameters["properties"])["kind"]["enum"] == ["reminder"]
@@ -112,6 +118,7 @@ def test_build_builtin_tools_composes_in_capability_order() -> None:
         "list_scheduled",
         "cancel_scheduled",
         "snooze_scheduled",
+        "edit_scheduled",
     ]
     assert build_builtin_tools(None, None) == []
 
