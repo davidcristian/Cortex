@@ -10,6 +10,7 @@ from cortex_core import (
     GlobalMemoryScope,
     MemoryRecaller,
     MemoryScope,
+    MmrRecallPolicy,
     RecallPolicy,
     RerankingRecallPolicy,
     SessionMemoryScope,
@@ -40,6 +41,11 @@ def recall_policy_from_config(config: MemoryConfig) -> RecallPolicy:
             half_life_seconds=config.recall_half_life_days * _SECONDS_PER_DAY,
             recency_weight=config.recall_recency_weight,
             dedup_threshold=config.recall_dedup_threshold,
+            pool_factor=config.recall_pool_factor,
+        )
+    if config.recall == "mmr":
+        return MmrRecallPolicy(
+            relevance_weight=config.recall_mmr_lambda,
             pool_factor=config.recall_pool_factor,
         )
     return RAW_RECALL_POLICY

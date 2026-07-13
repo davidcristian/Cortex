@@ -71,6 +71,7 @@ from cortex_core.ports import (
 from cortex_core.recall import MemoryRecaller
 from cortex_core.rerank import (
     RAW_RECALL_POLICY,
+    MmrRecallPolicy,
     RawRecallPolicy,
     RecallPolicy,
     RerankingRecallPolicy,
@@ -200,6 +201,7 @@ __all__ = [
     "MemoryStore",
     "MemoryStoreError",
     "Message",
+    "MmrRecallPolicy",
     "ModelLease",
     "ModelManager",
     "ModelManagerError",

@@ -427,14 +427,16 @@ Use-case:
   default) writes `GLOBAL_SCOPE` and reads `None` (all), keeping recall cross-session;
   `SessionMemoryScope` writes/reads the `session_id`, isolating a conversation's memory to itself.
   Selected at the composition root via `CORTEX_MEMORY_SCOPE`; the store filters, the policy decides.
-- `RecallPolicy` (port, `rerank.py`) + `RawRecallPolicy` / `RerankingRecallPolicy` (ADR-0008 rerank
-  addendum) are the pure policy that turns an over-fetched candidate pool into the final `k` hits
-  (the `MemoryScope` / `HistoryWindow` pattern): `candidate_k(k)` sizes the pool the recaller
-  fetches, `select(hits, *, now, k)` reranks and prunes it. `RAW_RECALL_POLICY` (the default
-  singleton) keeps v1 top-`k` cosine exactly; `RerankingRecallPolicy` blends similarity with an
-  exponential recency decay and drops near-duplicate memories. Selected at the composition root via
-  `CORTEX_MEMORY_RECALL`; the reported `ScoredMemory.score` stays the raw cosine, only order and
-  membership change.
+- `RecallPolicy` (port, `rerank.py`) + `RawRecallPolicy` / `RerankingRecallPolicy` / `MmrRecallPolicy`
+  (ADR-0008 rerank + MMR addenda) are the pure policy that turns an over-fetched candidate pool into
+  the final `k` hits (the `MemoryScope` / `HistoryWindow` pattern): `candidate_k(k)` sizes the pool
+  the recaller fetches, `select(hits, *, now, k)` reranks and prunes it. `RAW_RECALL_POLICY` (the
+  default singleton) keeps v1 top-`k` cosine exactly; `RerankingRecallPolicy` blends similarity with
+  an exponential recency decay and drops near-duplicate memories; `MmrRecallPolicy` selects greedily
+  for maximal marginal relevance (`relevance_weight` trading query-relevance against redundancy to
+  an already-kept hit), diversifying beyond the reranker's near-duplicate cutoff. Selected at the
+  composition root via `CORTEX_MEMORY_RECALL`; the reported `ScoredMemory.score` stays the raw cosine,
+  only order and membership change.
 - `ToolDispatcher(registry, audit, clock, *, confirmer=None)` is the turn's tool gateway and
   capability gate (ADR-0009/0013). `dispatch(call, *, stamp=UNSTAMPED, gated=False)` runs `call`
   through the `ToolRegistry`, writes exactly one `ToolInvocation` (with the result's `trust`) to

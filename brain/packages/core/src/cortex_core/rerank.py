@@ -100,6 +100,45 @@ class RerankingRecallPolicy:
         return _cosine(hit.record.embedding, other.record.embedding) >= self._dedup_threshold
 
 
+class MmrRecallPolicy:
+    """Select for maximal marginal relevance: trade query-relevance against diversity, greedily."""
+
+    def __init__(self, *, relevance_weight: float, pool_factor: int) -> None:
+        if not 0.0 <= relevance_weight <= 1.0:
+            msg = "relevance_weight must be within [0, 1]"
+            raise ValueError(msg)
+        if pool_factor < 1:
+            msg = "pool_factor must be at least 1"
+            raise ValueError(msg)
+        self._relevance_weight = relevance_weight
+        self._pool_factor = pool_factor
+
+    def candidate_k(self, k: int) -> int:
+        """Over-fetch a pool ``pool_factor`` times wider than the returned ``k``."""
+        return k * self._pool_factor
+
+    def select(
+        self, hits: Sequence[ScoredMemory], *, now: datetime, k: int
+    ) -> Sequence[ScoredMemory]:
+        """Greedily keep the ``k`` hits of highest marginal relevance (relevance less penalty)."""
+        del now  # MMR weighs relevance against diversity, not age
+        remaining = list(hits)
+        kept: list[ScoredMemory] = []
+        while remaining and len(kept) < k:
+            best = max(remaining, key=lambda hit: self._marginal_relevance(hit, kept))
+            kept.append(best)
+            remaining.remove(best)
+        return tuple(kept)
+
+    def _marginal_relevance(self, hit: ScoredMemory, kept: Sequence[ScoredMemory]) -> float:
+        """The MMR objective: query-relevance discounted by redundancy against what is kept."""
+        redundancy = max(
+            (_cosine(hit.record.embedding, other.record.embedding) for other in kept),
+            default=0.0,
+        )
+        return self._relevance_weight * hit.score - (1.0 - self._relevance_weight) * redundancy
+
+
 # The default policy is stateless and immutable, so one shared singleton is safe and lets
 # ``MemoryRecaller``'s default argument be a plain value (mirrors ``GLOBAL_MEMORY_SCOPE``).
 RAW_RECALL_POLICY = RawRecallPolicy()
