@@ -1,4 +1,4 @@
-"""Behavior of the RecallPolicy seam: raw top-k, recency reranking, and near-duplicate dedup."""
+"""Behavior of the RecallPolicy seam: raw top-k, recency reranking, dedup, and MMR diversity."""
 
 from datetime import UTC, datetime, timedelta
 
@@ -7,6 +7,7 @@ import pytest
 from cortex_core import (
     RAW_RECALL_POLICY,
     MemoryRecord,
+    MmrRecallPolicy,
     RawRecallPolicy,
     RerankingRecallPolicy,
     ScoredMemory,
@@ -130,3 +131,63 @@ def test_reranking_rejects_a_dedup_threshold_out_of_range() -> None:
 def test_reranking_rejects_a_pool_factor_below_one() -> None:
     with pytest.raises(ValueError, match="pool_factor must be at least 1"):
         _reranker(pool_factor=0)
+
+
+def _mmr(*, relevance_weight: float = 0.5, pool_factor: int = 4) -> MmrRecallPolicy:
+    return MmrRecallPolicy(relevance_weight=relevance_weight, pool_factor=pool_factor)
+
+
+def test_mmr_over_fetches_a_wider_pool() -> None:
+    assert _mmr(pool_factor=4).candidate_k(5) == 20
+
+
+def test_mmr_prefers_a_diverse_hit_over_a_more_similar_redundant_one() -> None:
+    # `b` is more similar to the query than `c` (0.88 > 0.80) and is NOT a near-duplicate of the
+    # top hit (cosine 0.707 sits below any sane dedup cutoff, so threshold dedup keeps it), yet MMR
+    # still prefers the orthogonal `c` for its second pick: diversity beyond dedup.
+    top = _hit("top", 0.90, (1.0, 0.0))
+    redundant = _hit("redundant", 0.88, (1.0, 1.0))  # cosine 0.707 to top: similar, not a dupe
+    diverse = _hit("diverse", 0.80, (0.0, 1.0))  # orthogonal to top
+    kept = _mmr(relevance_weight=0.5).select([top, redundant, diverse], now=_NOW, k=2)
+    assert [hit.record.id for hit in kept] == ["top", "diverse"]
+    assert kept[0].score == 0.90  # the reported score stays the raw cosine, not the MMR objective
+
+
+def test_mmr_with_full_relevance_weight_is_top_k_by_score() -> None:
+    # relevance_weight 1.0 zeroes the diversity penalty, so MMR degenerates to raw top-k order.
+    hits = [_hit("a", 0.90, (1.0, 0.0)), _hit("b", 0.88, (1.0, 1.0)), _hit("c", 0.80, (0.0, 1.0))]
+    kept = _mmr(relevance_weight=1.0).select(hits, now=_NOW, k=3)
+    assert [hit.record.id for hit in kept] == ["a", "b", "c"]
+
+
+def test_mmr_returns_all_when_the_pool_is_smaller_than_k() -> None:
+    hits = [_hit("a", 0.90, (1.0, 0.0)), _hit("b", 0.80, (0.0, 1.0))]
+    kept = _mmr().select(hits, now=_NOW, k=5)
+    assert [hit.record.id for hit in kept] == ["a", "b"]  # pool exhausted before k, both kept
+
+
+def test_mmr_of_an_empty_pool_is_empty() -> None:
+    assert _mmr().select([], now=_NOW, k=5) == ()
+
+
+def test_mmr_never_counts_a_degenerate_zero_embedding_as_redundant() -> None:
+    # A zero-magnitude embedding scores cosine 0.0 against everything (the no-magnitude guard), so
+    # it is never penalized as redundant. `zero` takes the last slot over the more-similar
+    # `redundant` because `redundant` overlaps the already-kept `top` (cosine 1.0, marginal
+    # 0.5*0.70 - 0.5*1.0 = -0.15) while `zero` is unpenalized (0.5*0.60 - 0.5*0.0 = 0.30). A guard
+    # counting the zero embedding redundant would flip its marginal negative and pick `redundant`.
+    top = _hit("top", 0.90, (1.0, 0.0))
+    redundant = _hit("redundant", 0.70, (1.0, 0.0))  # cosine 1.0 to top: penalized
+    zero = _hit("zero", 0.60, (0.0, 0.0))  # zero magnitude: cosine 0.0 to all, so never penalized
+    kept = _mmr(relevance_weight=0.5).select([top, redundant, zero], now=_NOW, k=2)
+    assert [hit.record.id for hit in kept] == ["top", "zero"]  # zero beats the redundant hit
+
+
+def test_mmr_rejects_a_relevance_weight_out_of_range() -> None:
+    with pytest.raises(ValueError, match="relevance_weight must be within"):
+        _mmr(relevance_weight=1.5)
+
+
+def test_mmr_rejects_a_pool_factor_below_one() -> None:
+    with pytest.raises(ValueError, match="pool_factor must be at least 1"):
+        _mmr(pool_factor=0)

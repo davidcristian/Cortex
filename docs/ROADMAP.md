@@ -963,8 +963,22 @@ behind the unchanged `ToolRegistry`/`ToolDispatcher`/`stream_tool_loop` seams (o
   `policy.select(now, k)`; the memory builders split to `memory_builders.py` for the line cap.
   CI-gated end to end over the fakes at 100%; no SQL change, so no host validation is owed. Remaining
   behind the same `RecallPolicy` seam (ADR-0008 rerank addendum): a **model-based reranker** (a
-  cross-encoder or an LLM-judge `select`), **surfacing the blended relevance** as a distinct field,
-  and **maximal-marginal-relevance** diversity beyond threshold dedup.
+  cross-encoder or an LLM-judge `select`) and **surfacing the blended relevance** as a distinct field.
+- **Maximal-marginal-relevance diversity landed 2026-07-13 ([ADR-0008 MMR
+  addendum](adr/ADR-0008-memory-v1.md)).** The rerank addendum's deferred diversity policy: a third
+  pure-core `MmrRecallPolicy` (`rerank.py`, behind the **unchanged `MemoryStore`/`Embedder` ports**)
+  builds its result greedily, each step keeping the candidate that maximizes
+  `relevance_weight * similarity - (1 - relevance_weight) * redundancy` (redundancy = its greatest
+  embedding cosine to an already-kept hit), so distinct-but-redundant memories sitting *below* the
+  reranker's near-duplicate cutoff still spread across the query's neighborhood instead of clustering
+  on its single closest region. `CORTEX_MEMORY_RECALL=mmr` selects it (now `raw`, `reranked`, or
+  `mmr`), `CORTEX_MEMORY_RECALL_MMR_LAMBDA` (0.5) is the relevance-vs-diversity dial (`1` pure
+  relevance, degenerating to `RawRecallPolicy` order; `0` pure diversity), reusing the shared
+  `recall_pool_factor`; the reported `ScoredMemory.score` stays the raw cosine, only order and
+  membership change. CI-gated end to end over the fakes at 100%; no SQL change, so no host validation
+  is owed. Remaining behind the same seam: a **recency-and-diversity** policy (MMR run over the
+  reranker's recency-blended relevance), joining the model-based reranker and blended-relevance
+  deferrals above.
 - **Write-salience policy.** v1 records the raw exchange text every turn; deciding what
   *deserves* remembering (salience filtering at record time) is a later policy behind the same
   port (ADR-0008 risks). Its summarization half is adjacent to the tiered-memory entry above.

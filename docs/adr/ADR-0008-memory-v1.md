@@ -233,4 +233,43 @@ reranking is pure core, above the store).
 **model-based reranker** (a cross-encoder or an LLM-judge `select`, the natural next policy once a
 deterministic blend proves too blunt); **surfacing the blended relevance** as a distinct field
 should a consumer ever need to display it (the store's cosine is kept today); and **maximal-marginal-
-relevance** diversity beyond threshold dedup. All are policy swaps, none a port change.
+relevance** diversity beyond threshold dedup (**landed 2026-07-13**, the addendum below). All are
+policy swaps, none a port change.
+
+## Addendum (2026-07-13): maximal-marginal-relevance diversity as a third `RecallPolicy`
+
+The rerank addendum's deferred **maximal-marginal-relevance** diversity lands here, additively, as a
+third reference `RecallPolicy` behind the **unchanged `MemoryStore`/`Embedder` ports** and the
+`MemoryRecaller` use-case. No new seam, no SQL change, so no host validation is owed (pure core,
+above the store); CI-gated end to end over the fakes at 100%.
+
+1. **Why beyond threshold dedup.** `RerankingRecallPolicy`'s dedup only drops a hit whose embedding
+   cosine to an already-kept hit clears `dedup_threshold` (0.98 by default), so a pool of *distinct
+   but redundant* memories (several phrasings of one fact, each below the cutoff) still crowds out
+   the rest and the turn sees one region of the query's neighborhood `k` times. MMR penalizes *every*
+   candidate by its similarity to what is already kept, so the returned `k` spread across the
+   neighborhood rather than clustering on its single closest region.
+
+2. **`MmrRecallPolicy` (a new pure-core policy in `rerank.py`).** `candidate_k(k) = k * pool_factor`
+   over-fetches (MMR needs a wider pool to diversify over). `select` builds the result greedily from
+   the empty set, each step picking the candidate maximizing
+   `relevance_weight * similarity - (1 - relevance_weight) * redundancy`, where `similarity` is the
+   hit's raw cosine to the query (the store's `score`) and `redundancy` is its greatest embedding
+   cosine to an already-kept hit (0 for the first pick, so the first pick is the most similar).
+   `relevance_weight` is the MMR `lambda`: `1.0` is pure relevance (degenerating to `RawRecallPolicy`
+   order), `0.0` pure diversity after the first pick. Candidates are scanned in the store's
+   similarity order and only a strict improvement displaces the incumbent, so ties keep that order; a
+   zero-magnitude embedding is never counted redundant (the `_cosine` no-magnitude guard). Each
+   emitted `ScoredMemory.score` **stays the raw cosine**, exactly as `RerankingRecallPolicy`. Recency
+   is out of scope: it is `RerankingRecallPolicy`'s axis, a distinct policy.
+
+3. **Config selects it at the composition root only.** `CORTEX_MEMORY_RECALL` gains `mmr` (now `raw`,
+   `reranked`, or `mmr`); `CORTEX_MEMORY_RECALL_MMR_LAMBDA` (0.5) tunes `relevance_weight`, reusing
+   the shared `CORTEX_MEMORY_RECALL_POOL_FACTOR` (4). `recall_policy_from_config` builds it; no core
+   code reads env.
+
+**Consciously deferred (behind the same `RecallPolicy` seam), recorded in the ROADMAP:** the
+**model-based reranker** and **surfacing the blended relevance** as a distinct field remain from the
+rerank addendum; and a **recency-and-diversity** policy (MMR run over the reranker's recency-blended
+relevance instead of the raw cosine) if one axis alone proves too blunt. All are policy swaps, none a
+port change.

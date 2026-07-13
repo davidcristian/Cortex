@@ -24,6 +24,7 @@ from cortex_core import (
     GlobalMemoryScope,
     MemoryRecaller,
     MemoryScope,
+    MmrRecallPolicy,
     RecallPolicy,
     RerankingRecallPolicy,
     SessionMemoryScope,
@@ -56,15 +57,21 @@ def recall_policy_from_config(config: MemoryConfig) -> RecallPolicy:
     """Map ``CORTEX_MEMORY_RECALL`` to its recall reranking policy (ADR-0008 rerank addendum).
 
     ``raw`` keeps v1 top-k cosine exactly (the default); ``reranked`` blends similarity with a
-    recency decay and drops near-duplicates, tuned by the ``CORTEX_MEMORY_RECALL_*`` knobs (the
-    policy validates their ranges). The composition root's one env->core seam for reranking, since
-    the core never reads the string.
+    recency decay and drops near-duplicates; ``mmr`` selects for maximal marginal relevance
+    (query-relevance traded against diversity), tuned by the ``CORTEX_MEMORY_RECALL_*`` knobs (each
+    policy validates the ranges of the ones it uses). The composition root's one env->core seam for
+    reranking, since the core never reads the string.
     """
     if config.recall == "reranked":
         return RerankingRecallPolicy(
             half_life_seconds=config.recall_half_life_days * _SECONDS_PER_DAY,
             recency_weight=config.recall_recency_weight,
             dedup_threshold=config.recall_dedup_threshold,
+            pool_factor=config.recall_pool_factor,
+        )
+    if config.recall == "mmr":
+        return MmrRecallPolicy(
+            relevance_weight=config.recall_mmr_lambda,
             pool_factor=config.recall_pool_factor,
         )
     return RAW_RECALL_POLICY
