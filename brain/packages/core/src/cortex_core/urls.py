@@ -1,5 +1,6 @@
 """The URL grammar and identity behind the output guardrail's laundering defense (ADR-0015)."""
 
+import html
 import re
 import unicodedata
 from urllib.parse import unquote
@@ -25,20 +26,24 @@ def _family(words: tuple[str, ...], seps: tuple[str, ...]) -> str:
     return rf"(?:{'|'.join(words)})(?:{'|'.join(re.escape(sep) for sep in seps)})"
 
 
+_DATA_ANCHOR = r"(?=[\w.+-]+/|[;,])"
+_DATA_SCHEME = rf"data(?:{'|'.join(re.escape(sep) for sep in _OPAQUE_SEPS)}){_DATA_ANCHOR}"
+
+
 # A clickable link, plain or defanged, anchored at a word boundary (so `sftp://` / `hotel:` are not
 # partial-matched) and matched liberally to the first character that cannot belong to one. Defanged,
 # percent-encoded, and fullwidth forms are reduced to a canonical identity by `normalize_url`.
 URL_RE = re.compile(
-    rf"\b(?:{_family(_AUTHORITY_WORDS, _AUTHORITY_SEPS)}|{_family(_OPAQUE_WORDS, _OPAQUE_SEPS)})"
+    rf"\b(?:{_family(_AUTHORITY_WORDS, _AUTHORITY_SEPS)}|{_family(_OPAQUE_WORDS, _OPAQUE_SEPS)}"
+    rf"|{_DATA_SCHEME})"
     rf"(?:{_DEFANG_DOT}|{_URL_CHAR})+",
     re.IGNORECASE,
 )
 
-# Every plain/defanged scheme opening, derived from the same families as `URL_RE`. The streaming
-# hold-back carries a trailing prefix of any of these so a scheme split across deltas is not leaked
-# (`held_from`). Sharing the table with the matcher makes drift structurally impossible.
-_SCHEME_PREFIXES = tuple(w + s for w in _AUTHORITY_WORDS for s in _AUTHORITY_SEPS) + tuple(
-    w + s for w in _OPAQUE_WORDS for s in _OPAQUE_SEPS
+_SCHEME_PREFIXES = (
+    tuple(w + s for w in _AUTHORITY_WORDS for s in _AUTHORITY_SEPS)
+    + tuple(w + s for w in _OPAQUE_WORDS for s in _OPAQUE_SEPS)
+    + tuple("data" + s for s in _OPAQUE_SEPS)
 )
 
 # The longest string that is a prefix of a scheme+separator but not yet a URL match
@@ -70,14 +75,13 @@ def _refang(url: str) -> str:
     return url
 
 
-_MAX_PERCENT_DECODE_PASSES = 5
+_MAX_DECODE_PASSES = 5
 
 
-def _percent_decode(url: str) -> str:
-    """Percent-decode ``url`` repeatedly until it stops changing (bounded). A multiply-encoded
-    escape reduces to its plain identity, not just a single browser-hop decode."""
-    for _ in range(_MAX_PERCENT_DECODE_PASSES):
-        decoded = unquote(url)
+def _decode_escapes(url: str) -> str:
+    """Decode ``url``'s HTML character references and percent-escapes to a fixpoint (bounded)."""
+    for _ in range(_MAX_DECODE_PASSES):
+        decoded = unquote(html.unescape(url))
         if decoded == url:
             return decoded
         url = decoded
@@ -128,10 +132,10 @@ def _fold_confusables(url: str) -> str:
 
 
 def normalize_url(url: str) -> str:
-    """One URL's identity: defang refanged, percent-decoded (to a fixpoint), NFKC-folded,
+    """One URL's identity: escapes decoded (to a fixpoint), defang refanged, NFKC-folded,
     cross-script confusables folded, trailing prose punctuation dropped, scheme+authority lowered.
     """
-    decoded = _percent_decode(_refang(url))
+    decoded = _refang(_decode_escapes(url))
     folded = _fold_confusables(unicodedata.normalize("NFKC", decoded))
     trimmed = folded.rstrip(TRAILING_PUNCTUATION)
     head, sep, tail = trimmed.partition("://")
