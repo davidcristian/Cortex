@@ -10,8 +10,10 @@ it, so both adapters stay pure translators (the ``MemoryScope``/``HistoryWindow`
 
 ``RawRecallPolicy`` (the default) is v1 behavior exactly, so recall stays byte-for-byte identical
 unless a deployment opts into ``RerankingRecallPolicy``, which blends similarity with an exponential
-recency decay and greedily drops near-duplicate memories. Further policies (a model-based reranker,
-maximal-marginal-relevance diversity) are additions here, behind the unchanged port.
+recency decay and greedily drops near-duplicate memories, or ``MmrRecallPolicy``, which selects for
+maximal marginal relevance (query-relevance traded against diversity, penalizing redundancy beyond
+the reranker's near-duplicate cutoff). A further model-based reranker is one more addition here,
+behind the unchanged port.
 """
 
 from collections.abc import Sequence
@@ -135,6 +137,69 @@ class RerankingRecallPolicy:
     def _is_duplicate(self, hit: ScoredMemory, other: ScoredMemory) -> bool:
         """True when two hits' embeddings are within the dedup cosine threshold."""
         return _cosine(hit.record.embedding, other.record.embedding) >= self._dedup_threshold
+
+
+class MmrRecallPolicy:
+    """Select for maximal marginal relevance: trade query-relevance against diversity, greedily.
+
+    Threshold dedup (``RerankingRecallPolicy``) only removes *near*-identical hits; a pool of
+    distinct-but-redundant memories (say five phrasings of one fact, each just below the dedup
+    cosine) still crowds out everything else, so the turn sees one region of the query's
+    neighborhood ``k`` times over. Maximal-marginal-relevance selection instead penalizes *every*
+    candidate by how similar it already is to what has been kept, so the returned ``k`` spread
+    across the neighborhood rather than clustering (ADR-0008 rerank addendum, the diversity policy
+    beyond threshold dedup).
+
+    ``candidate_k`` over-fetches ``k * pool_factor`` (MMR needs a wider pool to have anything to
+    diversify over). ``select`` builds the result greedily from the empty set: it repeatedly picks
+    the candidate maximizing ``relevance_weight * similarity - (1 - relevance_weight) * redundancy``
+    where ``similarity`` is the hit's raw cosine to the query (the store's score) and ``redundancy``
+    is its greatest embedding cosine to an already-kept hit (0 for the first pick, whose kept set is
+    empty, so the first pick is the most similar). ``relevance_weight`` is the MMR ``lambda``: the
+    relevance-vs-diversity dial. ``1.0`` is pure relevance (top-``k`` by score, degenerating to
+    ``RawRecallPolicy`` order), ``0.0`` is pure diversity after that first pick. Candidates are
+    scanned in the store's similarity order and only a strict improvement displaces the incumbent,
+    so a tie (equal marginal score, e.g. the all-zero redundancy of the first pick) keeps that
+    order. A zero-magnitude embedding scores cosine 0.0 against everything, so it is never counted
+    as redundant. Each emitted ``ScoredMemory.score`` stays the raw cosine, exactly as
+    ``RerankingRecallPolicy`` (order and membership change, the reported score keeps the store's
+    meaning). Recency is out of scope: it is ``RerankingRecallPolicy``'s axis, a distinct policy.
+    """
+
+    def __init__(self, *, relevance_weight: float, pool_factor: int) -> None:
+        if not 0.0 <= relevance_weight <= 1.0:
+            msg = "relevance_weight must be within [0, 1]"
+            raise ValueError(msg)
+        if pool_factor < 1:
+            msg = "pool_factor must be at least 1"
+            raise ValueError(msg)
+        self._relevance_weight = relevance_weight
+        self._pool_factor = pool_factor
+
+    def candidate_k(self, k: int) -> int:
+        """Over-fetch a pool ``pool_factor`` times wider than the returned ``k``."""
+        return k * self._pool_factor
+
+    def select(
+        self, hits: Sequence[ScoredMemory], *, now: datetime, k: int
+    ) -> Sequence[ScoredMemory]:
+        """Greedily keep the ``k`` hits of highest marginal relevance (relevance less penalty)."""
+        del now  # MMR weighs relevance against diversity, not age
+        remaining = list(hits)
+        kept: list[ScoredMemory] = []
+        while remaining and len(kept) < k:
+            best = max(remaining, key=lambda hit: self._marginal_relevance(hit, kept))
+            kept.append(best)
+            remaining.remove(best)
+        return tuple(kept)
+
+    def _marginal_relevance(self, hit: ScoredMemory, kept: Sequence[ScoredMemory]) -> float:
+        """The MMR objective: query-relevance discounted by redundancy against what is kept."""
+        redundancy = max(
+            (_cosine(hit.record.embedding, other.record.embedding) for other in kept),
+            default=0.0,
+        )
+        return self._relevance_weight * hit.score - (1.0 - self._relevance_weight) * redundancy
 
 
 # The default policy is stateless and immutable, so one shared singleton is safe and lets

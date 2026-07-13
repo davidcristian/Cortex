@@ -32,6 +32,7 @@ from cortex_core import (
     InMemoryTaskStore,
     InMemoryToolRegistry,
     MemoryRecaller,
+    MmrRecallPolicy,
     PlacementRequest,
     PlacementTarget,
     RecordingConfirmer,
@@ -230,7 +231,7 @@ def test_memory_scope_from_name_maps_config_to_the_policy() -> None:
 
 
 def test_recall_policy_from_config_maps_config_to_the_policy() -> None:
-    """The one env→core seam for reranking: `raw` (default) vs `reranked` (ADR-0008 addendum)."""
+    """The one env→core seam for reranking: `raw` (default), `reranked`, or `mmr` (ADR-0008)."""
     assert recall_policy_from_config(MemoryConfig()) is RAW_RECALL_POLICY
     reranked = recall_policy_from_config(MemoryConfig(recall="reranked"))
     assert isinstance(reranked, RerankingRecallPolicy)
@@ -241,6 +242,9 @@ def test_recall_policy_from_config_maps_config_to_the_policy() -> None:
         ).candidate_k(5)
         == 5 * MemoryConfig().recall_pool_factor
     )
+    mmr = recall_policy_from_config(MemoryConfig(recall="mmr"))
+    assert isinstance(mmr, MmrRecallPolicy)
+    assert mmr.candidate_k(5) == 5 * MemoryConfig().recall_pool_factor
 
 
 async def test_build_tool_registry_defaults_to_disabled() -> None:

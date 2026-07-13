@@ -13,7 +13,7 @@ BodyBackendName = Literal["none", "grpc"]
 InferenceBackendName = Literal["echo", "llamacpp"]
 MemoryBackendName = Literal["none", "pgvector"]
 MemoryScopeName = Literal["global", "session"]
-MemoryRecallName = Literal["raw", "reranked"]
+MemoryRecallName = Literal["raw", "reranked", "mmr"]
 MemoryTaintPolicyName = Literal["skip", "record"]
 ToolsBackendName = Literal["none", "mcp"]
 
@@ -148,8 +148,11 @@ class MemoryConfig(BaseSettings):
     policy: ``raw`` (the default) keeps v1 top-k cosine exactly; ``reranked`` blends similarity with
     a recency decay and drops near-duplicates, tuned by ``recall_half_life_days`` (30),
     ``recall_recency_weight`` (0.3, the blend's recency share), ``recall_dedup_threshold`` (0.98,
-    the near-duplicate cosine), and ``recall_pool_factor`` (4, how many times ``k`` to over-fetch).
-    The knobs are inert under ``raw``; their ranges are validated when the rerank policy is built.
+    the near-duplicate cosine), and ``recall_pool_factor`` (4, how many times ``k`` to over-fetch);
+    ``mmr`` selects for maximal marginal relevance (query-relevance traded against diversity beyond
+    the reranker's near-duplicate cutoff), tuned by ``recall_mmr_lambda`` (0.5, the relevance share,
+    ``1`` pure relevance and ``0`` pure diversity) and the shared ``recall_pool_factor``. The knobs
+    are inert under ``raw``; each policy validates the ranges of the ones it uses when it is built.
     """
 
     model_config = SettingsConfigDict(env_prefix="CORTEX_MEMORY_")
@@ -165,6 +168,7 @@ class MemoryConfig(BaseSettings):
     recall_recency_weight: float = 0.3
     recall_dedup_threshold: float = 0.98
     recall_pool_factor: int = 4
+    recall_mmr_lambda: float = 0.5
 
     @model_validator(mode="after")
     def _pgvector_needs_dsn_and_embedder(self) -> "MemoryConfig":
