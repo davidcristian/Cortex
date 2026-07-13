@@ -20,6 +20,7 @@ from cortex_core import (
     FireOutcome,
     InMemoryScheduleStore,
     ScheduleClaim,
+    ScheduleEdit,
     ScheduleStatus,
     ScheduleStore,
     ScheduleStoreError,
@@ -65,6 +66,7 @@ def _dummy_claim() -> ScheduleClaim:
         "list_active",
         "cancel",
         "snooze",
+        "edit",
         "claim_due",
         "finish",
         "release",
@@ -81,6 +83,7 @@ async def test_backend_failure_wraps_into_schedule_store_error(operation: str) -
         "list_active": store.list_active,
         "cancel": lambda: store.cancel("s1"),
         "snooze": lambda: store.snooze("s1", until=_NOW),
+        "edit": lambda: store.edit("s1", ScheduleEdit(text="x")),
         "claim_due": lambda: store.claim_due(_NOW, lease=_LEASE, limit=8),
         "finish": lambda: store.finish(_dummy_claim(), outcome),
         "release": lambda: store.release(_dummy_claim()),
@@ -302,6 +305,25 @@ async def test_ack_racing_a_concurrent_transition_is_fenced(
     assert await store.ack("raced") is False
     (still_due,) = await store.deliverable()  # nothing was clobbered; the ack can retry
     assert still_due.id == "raced"
+
+
+async def test_edit_racing_a_cancel_is_fenced_not_resurrected(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A cancel landing between edit's guard read and its write wins; nothing resurrects."""
+    server = FakeServer()
+    client = FakeAsyncRedis(server=server)
+    store = RedisScheduleStore(client)
+    await store.add(schedule_contract.make_item("raced"))
+
+    def delete_it(poker: FakeStrictRedis) -> None:
+        poker.delete(record_key("raced"))
+        poker.zrem(DUE_KEY, "raced")
+
+    _poke_on_decode(monkeypatch, server, delete_it)
+    assert await store.edit("raced", ScheduleEdit(text="new")) is False
+    assert await client.get(record_key("raced")) is None  # the cancel stuck; not re-written
+    assert await client.zscore(DUE_KEY, "raced") is None
 
 
 async def test_claim_racing_a_cancel_is_fenced(monkeypatch: pytest.MonkeyPatch) -> None:

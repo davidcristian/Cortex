@@ -18,7 +18,9 @@ from cortex_core.schedule import (
     FireOutcome,
     ScheduleClaim,
     ScheduledItem,
+    ScheduleEdit,
     ScheduleStatus,
+    apply_edit,
 )
 
 
@@ -79,6 +81,18 @@ class InMemoryScheduleStore:
         self._items[item_id] = replace(
             item, status=ScheduleStatus.PENDING, due_at=until, deliverable_since=None
         )
+        return True
+
+    async def edit(self, item_id: str, edit: ScheduleEdit) -> bool:
+        """Retext / re-recur a non-FIRING item via ``apply_edit``; FIRING/unknown answer False.
+
+        Only the record changes (``due_at`` is untouched), so the twin of the Redis fence is
+        a plain in-place replace here (ADR-0025 edit addendum).
+        """
+        item = self._items.get(item_id)
+        if item is None or item.status is ScheduleStatus.FIRING:
+            return False
+        self._items[item_id] = apply_edit(item, edit)
         return True
 
     async def claim_due(

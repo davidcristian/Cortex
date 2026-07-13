@@ -1,26 +1,35 @@
-"""The ``cancel_scheduled`` / ``snooze_scheduled`` lifecycle verbs (ADR-0025).
+"""The ``cancel_scheduled`` / ``snooze_scheduled`` / ``edit_scheduled`` lifecycle verbs (ADR-0025).
 
 Split from ``schedule_tools.py`` by responsibility (the 300-line cap): creation and listing
 stay there, the verbs that change an existing item's lifecycle live here, together with the
 result helpers both modules share. Cortex-only like their siblings (built-ins never reach
-subagents). Neither verb carries a taint gate: cancelling or postponing an existing
+subagents). ``cancel``/``snooze`` carry no taint gate: postponing or deleting an existing
 human-visible item is reversible-by-recreation and never echoes stored text, so a tainted
-turn keeps both (the creation-side tainted-task refusal is where injected content is
-stopped). Bad arguments and a down store both become ``is_error`` results, never exceptions.
+turn keeps both. ``edit`` is the exception, because a retext injects new content: the editing
+turn's taint ORs onto the item (the listing then badges it), and an autonomous *task* cannot
+be edited on a tainted turn at all (the creation-side refusal, since a task instruction
+authored by injected content is a standing directive). Bad arguments and a down store both
+become ``is_error`` results, never exceptions.
 """
 
+from dataclasses import replace
 from datetime import UTC, datetime
 
 from cortex_core.errors import ScheduleStoreError
 from cortex_core.ports import Clock, ScheduleStore
-from cortex_core.schedule import ScheduleStatus
-from cortex_core.schedule_args import MIN_EVERY_SECONDS, parse_for_seconds
+from cortex_core.schedule import ScheduleEdit, ScheduleKind, ScheduleStatus
+from cortex_core.schedule_args import MIN_EVERY_SECONDS, parse_edit, parse_for_seconds
 from cortex_core.tools import ToolCall, ToolResult, ToolSpec, Trust
 
 CANCEL_SCHEDULED_TOOL_NAME = "cancel_scheduled"
 SNOOZE_SCHEDULED_TOOL_NAME = "snooze_scheduled"
+EDIT_SCHEDULED_TOOL_NAME = "edit_scheduled"
 
 _STORE_DOWN = "the schedule store is unavailable"
+_EDIT_TAINTED_TASK = (
+    "cannot edit an autonomous task on a turn that has read untrusted external content; "
+    "edit a reminder instead, or re-ask in a fresh turn"
+)
 
 
 def store_down_result(call_id: str, err: ScheduleStoreError) -> ToolResult:
@@ -144,6 +153,85 @@ class SnoozeScheduledTool:
         if item.status is ScheduleStatus.FIRING:
             return f"{item_id} is firing right now; try again in a moment"
         if not await self._store.snooze(item_id, until=until):
+            return (
+                f"{item_id} changed underneath (fired or cancelled); use list_scheduled to re-check"
+            )
+        return None
+
+
+class EditScheduledTool:
+    """Built-in ``edit_scheduled``: change a schedule's text and/or recurrence in place.
+
+    Retext (``text``) and re-recur (``every_seconds``: a new interval, or ``0`` to stop
+    repeating) without cancel-and-recreate. The next due time is left untouched, so re-recur
+    changes the cadence of future re-arms only. A FIRING item is refused (the in-flight fire
+    settles first); a tainted turn may edit a reminder (the item then becomes tainted) but not
+    a task (the creation-side refusal). No stored text ever rides the result.
+    """
+
+    def __init__(self, store: ScheduleStore) -> None:
+        self._store = store
+
+    @property
+    def spec(self) -> ToolSpec:
+        """Takes the id plus the optional changes; at least one change is required."""
+        return ToolSpec(
+            name=EDIT_SCHEDULED_TOOL_NAME,
+            description=(
+                "Change a scheduled reminder or task by its id: set new 'text', and/or "
+                "'every_seconds' to change the repeat interval (0 to stop repeating). The "
+                "next due time is unchanged. Use the id from list_scheduled."
+            ),
+            parameters={
+                "type": "object",
+                "properties": {
+                    "id": {"type": "string", "description": "The scheduled item's id."},
+                    "text": {"type": "string", "description": "New text (optional)."},
+                    "every_seconds": {
+                        "type": "number",
+                        "description": (
+                            f"New repeat interval in seconds (min {MIN_EVERY_SECONDS}), or "
+                            "0 to stop repeating (optional)."
+                        ),
+                    },
+                },
+                "required": ["id"],
+            },
+        )
+
+    async def invoke(self, call: ToolCall) -> ToolResult:
+        """Validate, then apply the fenced edit; corrections come back as errors."""
+        item_id = call.arguments.get("id")
+        if not isinstance(item_id, str) or not item_id:
+            return error_result(call.id, "'id' must be a non-empty string")
+        parsed = parse_edit(call.arguments)
+        if isinstance(parsed, str):
+            return error_result(call.id, parsed)
+        edit = replace(parsed, tainted=call.stamp.tainted)
+        try:
+            correction = await self._edit(item_id, edit)
+        except ScheduleStoreError as err:
+            return store_down_result(call.id, err)
+        if correction is not None:
+            return error_result(call.id, correction)
+        return ToolResult(call_id=call.id, content=f"edited {item_id}", trust=Trust.TRUSTED)
+
+    async def _edit(self, item_id: str, edit: ScheduleEdit) -> str | None:
+        """Advisory guards (unknown / firing / tainted-task), then the fenced edit.
+
+        The read is advisory; the fenced ``edit`` is authoritative, so a cancel or claim racing
+        this call surfaces as the changed-underneath correction rather than a lost update. The
+        tainted-task refusal is deterministic (the dispatcher's stamp on ``edit.tainted``, never
+        a model claim), matching creation: a task instruction is never rewritten under taint.
+        """
+        item = await self._store.get(item_id)
+        if item is None:
+            return f"no scheduled item {item_id}"
+        if item.status is ScheduleStatus.FIRING:
+            return f"{item_id} is firing right now; try again in a moment"
+        if item.kind is ScheduleKind.TASK and edit.tainted:
+            return _EDIT_TAINTED_TASK
+        if not await self._store.edit(item_id, edit):
             return (
                 f"{item_id} changed underneath (fired or cancelled); use list_scheduled to re-check"
             )

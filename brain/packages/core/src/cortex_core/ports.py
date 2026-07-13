@@ -15,7 +15,7 @@ from cortex_core.inference import InferenceEvent, JsonSchema
 from cortex_core.memory import MemoryRecord, ScoredMemory
 from cortex_core.model import ModelLease
 from cortex_core.placement import Placement, PlacementRequest
-from cortex_core.schedule import FireOutcome, ScheduleClaim, ScheduledItem
+from cortex_core.schedule import FireOutcome, ScheduleClaim, ScheduledItem, ScheduleEdit
 from cortex_core.sessions import SessionSummary
 from cortex_core.subagents import SubagentResult, SubagentTask
 from cortex_core.tools import ConfirmationRequest, ToolCall, ToolInvocation, ToolResult, ToolSpec
@@ -205,6 +205,9 @@ class ScheduleStore(Protocol):
     ``snooze`` postpones a one-shot to ``until``; a fired-but-undelivered reminder re-arms
     with deliverability cleared, while a recurring, FIRING, or unknown item answers
     ``False``, and the transition is fenced like the rest (ADR-0025 snooze addendum).
+    ``edit`` retexts / re-recurs a non-FIRING item in place (``due_at`` untouched, so the next
+    occurrence is unchanged and only future re-arms take the new cadence); the editing turn's
+    taint ORs onto the item, and a FIRING or unknown item answers ``False`` (edit addendum).
     ``deliverable`` lists fired reminders awaiting ``ack`` (which clears the slot and
     deletes a DONE one-shot). ``list_active`` is PENDING/FIRING plus deliverable, due
     order. Failures surface as ``ScheduleStoreError``.
@@ -219,6 +222,8 @@ class ScheduleStore(Protocol):
     async def cancel(self, item_id: str) -> bool: ...
 
     async def snooze(self, item_id: str, *, until: datetime) -> bool: ...
+
+    async def edit(self, item_id: str, edit: ScheduleEdit) -> bool: ...
 
     async def claim_due(
         self, now: datetime, *, lease: timedelta, limit: int

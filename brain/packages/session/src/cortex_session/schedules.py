@@ -22,12 +22,14 @@ from cortex_core import (
     FireOutcome,
     ScheduleClaim,
     ScheduledItem,
+    ScheduleEdit,
     ScheduleStatus,
     ScheduleStoreError,
 )
 from cortex_session.schedule_claims import (
     claim_due,
     dead_letters,
+    edit_item,
     ids,
     purge_dead_letter,
     release_claim,
@@ -155,6 +157,14 @@ class RedisScheduleStore:
             msg = f"snooze of schedule {item_id!r} failed"
             raise ScheduleStoreError(msg) from err
         return True
+
+    async def edit(self, item_id: str, edit: ScheduleEdit) -> bool:
+        """Retext / re-recur a non-FIRING item, WATCH-fenced (``schedule_claims.edit_item``)."""
+        try:
+            return await edit_item(self._client, item_id, edit)
+        except RedisError as err:
+            msg = f"edit of schedule {item_id!r} failed"
+            raise ScheduleStoreError(msg) from err
 
     async def claim_due(
         self, now: datetime, *, lease: timedelta, limit: int

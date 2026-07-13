@@ -4,7 +4,14 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
-from cortex_core import FireOutcome, ScheduledItem, ScheduleKind, next_due
+from cortex_core import (
+    FireOutcome,
+    ScheduledItem,
+    ScheduleEdit,
+    ScheduleKind,
+    apply_edit,
+    next_due,
+)
 
 _NOW = datetime(2026, 7, 12, 12, 0, 0, tzinfo=UTC)
 _NAIVE = datetime(2026, 7, 12, 12, 0, 0)  # noqa: DTZ001 - the invalid input under test
@@ -48,6 +55,34 @@ def test_item_accepts_aware_fields_and_recurrence() -> None:
     item = _item(every=timedelta(minutes=1), deliverable_since=_NOW)
     assert item.every == timedelta(minutes=1)
     assert item.deliverable_since == _NOW
+
+
+@pytest.mark.parametrize("every", [timedelta(0), timedelta(seconds=-60)])
+def test_edit_requires_a_positive_every(every: timedelta) -> None:
+    with pytest.raises(ValueError, match="positive interval"):
+        ScheduleEdit(every=every, set_every=True)
+
+
+def test_apply_edit_keeps_timing_and_ors_taint() -> None:
+    """The pure edit: new text/recurrence, ``due_at`` kept, taint OR'd never cleared."""
+    item = _item(due_at=_NOW, every=timedelta(hours=1), tainted=True)
+    edited = apply_edit(
+        item, ScheduleEdit(text="new", every=timedelta(hours=2), set_every=True, tainted=False)
+    )
+    assert edited.text == "new"
+    assert edited.every == timedelta(hours=2)
+    assert edited.due_at == _NOW  # the next occurrence never moves
+    assert edited.tainted is True  # already tainted, a clean edit cannot clear it
+
+
+def test_apply_edit_leaves_unset_fields_and_can_clear_recurrence() -> None:
+    item = _item(text="keep", every=timedelta(hours=1))
+    unchanged = apply_edit(item, ScheduleEdit(tainted=True))
+    assert unchanged.text == "keep"  # text=None leaves it
+    assert unchanged.every == timedelta(hours=1)  # set_every=False leaves it
+    assert unchanged.tainted is True  # a tainted edit still marks it
+    cleared = apply_edit(item, ScheduleEdit(set_every=True))
+    assert cleared.every is None  # set_every with every=None makes it a one-shot
 
 
 def test_fire_outcome_requires_aware_fired_at() -> None:
