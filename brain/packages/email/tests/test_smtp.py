@@ -16,7 +16,7 @@ from typing import Self
 import pytest
 from pydantic import SecretStr, ValidationError
 
-from cortex_email import SmtpConfig, SmtpSender
+from cortex_email import EmailDraft, SmtpConfig, SmtpSender
 from cortex_email.config import TlsSecurity
 
 _SMTP_ENV = (
@@ -101,19 +101,23 @@ def _patch(
 def test_send_composes_from_the_authenticated_identity(monkeypatch: pytest.MonkeyPatch) -> None:
     client = _FakeSmtp()
     _patch(monkeypatch, client, "starttls")
-    line = SmtpSender(_config()).send("you@example.com", "Hi", "hello there")
+    line = SmtpSender(_config()).send(EmailDraft("you@example.com", "Hi", "hello there"))
     (message,) = client.sent
     assert message["From"] == "me@example.com"  # never a parameter, so no sender spoofing
     assert message["To"] == "you@example.com"
     assert message["Subject"] == "Hi"
     assert message.get_content().strip() == "hello there"
+    # A plain draft stays a single text/plain part: no cc/bcc headers, no html alternative.
+    assert message["Cc"] is None
+    assert message["Bcc"] is None
+    assert message.get_content_type() == "text/plain"
     assert line == 'email sent to you@example.com (subject: "Hi")'
 
 
 def test_starttls_upgrades_then_logs_in(monkeypatch: pytest.MonkeyPatch) -> None:
     client = _FakeSmtp()
     captured = _patch(monkeypatch, client, "starttls")
-    SmtpSender(_config()).send("you@example.com", "s", "b")
+    SmtpSender(_config()).send(EmailDraft("you@example.com", "s", "b"))
     assert (captured["host"], captured["port"]) == ("mail.local", 1025)
     (context,) = client.starttls_contexts
     assert context.verify_mode == ssl.CERT_REQUIRED
@@ -123,7 +127,7 @@ def test_starttls_upgrades_then_logs_in(monkeypatch: pytest.MonkeyPatch) -> None
 def test_ssl_mode_uses_implicit_tls(monkeypatch: pytest.MonkeyPatch) -> None:
     client = _FakeSmtp()
     captured = _patch(monkeypatch, client, "ssl")
-    SmtpSender(_config(security="ssl")).send("you@example.com", "s", "b")
+    SmtpSender(_config(security="ssl")).send(EmailDraft("you@example.com", "s", "b"))
     context = captured["ssl"]
     assert isinstance(context, ssl.SSLContext)
     assert client.starttls_contexts == []  # implicit TLS: no upgrade call
@@ -133,7 +137,7 @@ def test_ssl_mode_uses_implicit_tls(monkeypatch: pytest.MonkeyPatch) -> None:
 def test_insecure_tls_disables_verification(monkeypatch: pytest.MonkeyPatch) -> None:
     client = _FakeSmtp()
     _patch(monkeypatch, client, "starttls")
-    SmtpSender(_config(tls_insecure=True)).send("you@example.com", "s", "b")
+    SmtpSender(_config(tls_insecure=True)).send(EmailDraft("you@example.com", "s", "b"))
     (context,) = client.starttls_contexts
     assert context.verify_mode == ssl.CERT_NONE
     assert context.check_hostname is False
@@ -175,7 +179,7 @@ def test_send_rejects_a_newline_in_the_recipient(monkeypatch: pytest.MonkeyPatch
     client = _FakeSmtp()
     _patch(monkeypatch, client, "starttls")
     with pytest.raises(ValueError, match="recipient must not contain a newline"):
-        SmtpSender(_config()).send("you@example.com\r\nBcc: evil@x.test", "Hi", "b")
+        SmtpSender(_config()).send(EmailDraft("you@example.com\r\nBcc: evil@x.test", "Hi", "b"))
     assert client.sent == []  # never reached the wire
 
 
@@ -183,5 +187,53 @@ def test_send_rejects_a_newline_in_the_subject(monkeypatch: pytest.MonkeyPatch) 
     client = _FakeSmtp()
     _patch(monkeypatch, client, "starttls")
     with pytest.raises(ValueError, match="subject must not contain a newline"):
-        SmtpSender(_config()).send("you@example.com", "Hi\nBcc: evil@x.test", "b")
+        SmtpSender(_config()).send(EmailDraft("you@example.com", "Hi\nBcc: evil@x.test", "b"))
+    assert client.sent == []
+
+
+def test_send_composes_cc_bcc_and_an_html_alternative(monkeypatch: pytest.MonkeyPatch) -> None:
+    client = _FakeSmtp()
+    _patch(monkeypatch, client, "starttls")
+    line = SmtpSender(_config()).send(
+        EmailDraft(
+            "you@example.com",
+            "Hi",
+            "plain body",
+            cc="cc@example.com",
+            bcc="bcc@example.com",
+            html="<p>rich</p>",
+        )
+    )
+    (message,) = client.sent
+    assert message["Cc"] == "cc@example.com"
+    # The Bcc header is composed here; smtplib.send_message strips it from the transmitted
+    # copy while still delivering to it, so the header being present on the composed message
+    # (which never touches a real server in this test) is correct.
+    assert message["Bcc"] == "bcc@example.com"
+    assert message.get_content_type() == "multipart/alternative"
+    plain, html = message.iter_parts()
+    assert plain.get_content_type() == "text/plain"
+    assert plain.get_content().strip() == "plain body"
+    assert html.get_content_type() == "text/html"
+    assert html.get_content().strip() == "<p>rich</p>"
+    assert line == 'email sent to you@example.com (subject: "Hi")'
+
+
+def test_send_rejects_a_newline_in_cc(monkeypatch: pytest.MonkeyPatch) -> None:
+    client = _FakeSmtp()
+    _patch(monkeypatch, client, "starttls")
+    with pytest.raises(ValueError, match="cc must not contain a newline"):
+        SmtpSender(_config()).send(
+            EmailDraft("you@example.com", "Hi", "b", cc="c@example.com\r\nBcc: evil@x.test")
+        )
+    assert client.sent == []
+
+
+def test_send_rejects_a_newline_in_bcc(monkeypatch: pytest.MonkeyPatch) -> None:
+    client = _FakeSmtp()
+    _patch(monkeypatch, client, "starttls")
+    with pytest.raises(ValueError, match="bcc must not contain a newline"):
+        SmtpSender(_config()).send(
+            EmailDraft("you@example.com", "Hi", "b", bcc="b@example.com\r\nTo: evil@x.test")
+        )
     assert client.sent == []
