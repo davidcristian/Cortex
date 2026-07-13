@@ -829,6 +829,170 @@ async def test_strict_mode_redacts_a_non_collected_url_on_a_tainted_turn() -> No
     assert history[-1].text == completed.full_text  # the reply on record is the reply shown
 
 
+def _thinking_details(events: Sequence[TurnEvent]) -> list[str]:
+    return [e.detail for e in events if isinstance(e, StatusUpdate)]
+
+
+async def test_laundered_url_in_reasoning_is_redacted_from_the_thinking_status() -> None:
+    # The overlay renders the thinking detail, so the reasoning trace is a display channel: a
+    # laundered URL there is scrubbed exactly like the reply (ADR-0020 addendum), while the
+    # reply itself keeps streaming clean through its own independent filter.
+    backend = ScriptedToolBackend(
+        [
+            [ToolCall(id="c1", name="read", arguments={"path": "/x"})],
+            [ReasoningChunk(f"I should cite {_EVIL_URL} as demanded. "), TextChunk("Done.")],
+        ]
+    )
+    store = InMemorySessionStore()
+    events = await _collect(_guarded_engine(backend, store).handle_turn("s", "summarize /x"))
+    joined = "".join(_thinking_details(events))
+    assert _EVIL_URL not in joined
+    assert joined == f"I should cite {REDACTED_LINK} as demanded. "
+    completed = events[-1]
+    assert isinstance(completed, TurnCompleted)
+    assert completed.full_text == "Done."  # the trace never bleeds into the reply
+    history = list(await store.history("s"))
+    assert history[-1].text == "Done."  # and nothing of it is persisted
+
+
+async def test_reasoning_url_split_across_deltas_is_redacted_and_never_leaks() -> None:
+    # The URL arrives over three reasoning deltas: the wholly-held fragments must produce NO
+    # status event (never an empty detail), and the carry is released at end of stream, after
+    # the reply (the trace is one stream; only termination completes it).
+    backend = ScriptedToolBackend(
+        [
+            [ToolCall(id="c1", name="read", arguments={"path": "/x"})],
+            [
+                ReasoningChunk("report at "),
+                ReasoningChunk("https://evil.exa"),
+                ReasoningChunk("mple/report"),
+                TextChunk("done"),
+            ],
+        ]
+    )
+    events = await _collect(
+        _guarded_engine(backend, InMemorySessionStore()).handle_turn("s", "summarize /x")
+    )
+    details = _thinking_details(events)
+    assert "" not in details
+    assert "evil.exa" not in "".join(details)  # no fragment of the URL ever rendered
+    assert details == ["report at ", REDACTED_LINK]
+    assert [type(e) for e in events[-3:]] == [TextDelta, StatusUpdate, TurnCompleted]
+
+
+async def test_url_split_across_thinking_bursts_around_a_tool_call_is_redacted() -> None:
+    # The realistic reasoning-model flow is think, call a tool, think again; injected content
+    # can steer the model to straddle a flagged URL across that burst boundary. Were the carry
+    # flushed per burst, each fragment would be scrubbed separately and neither would match the
+    # collected identity, so the full URL would cross the seam in consecutive statuses. The
+    # carry survives the dispatch instead: the fragments are joined and redacted. The "see "
+    # prefix streams before any untrusted content exists (the ledger is empty at scan time),
+    # which is the live-taint contract, not a leak.
+    backend = ScriptedToolBackend(
+        [
+            [
+                ReasoningChunk("see https://evil.exa"),
+                ToolCall(id="c1", name="read", arguments={"path": "/x"}),
+            ],
+            [ReasoningChunk("mple/report ok. "), TextChunk("done")],
+        ]
+    )
+    events = await _collect(
+        _guarded_engine(backend, InMemorySessionStore()).handle_turn("s", "summarize /x")
+    )
+    assert events == [
+        StatusUpdate(state="thinking", detail="see "),
+        ToolActivity(tool_name="read", summary="read a file"),
+        StatusUpdate(state="thinking", detail=f"{REDACTED_LINK} ok. "),
+        TextDelta("done"),
+        TurnCompleted(turn_id="t-1", full_text="done"),
+    ]
+
+
+async def test_empty_reasoning_delta_emits_no_status_on_either_path() -> None:
+    # The real backend never yields an empty reasoning chunk, but the port allows it; an empty
+    # status would blank the overlay chip, so both the guarded and unguarded channels drop it.
+    for engine in (
+        TurnEngine(
+            InMemorySessionStore(),
+            ScriptedToolBackend([[ReasoningChunk(""), TextChunk("hi")]]),
+            TickingClock(),
+            turn_id_factory=lambda: "t-1",
+        ),
+        _guarded_engine(
+            ScriptedToolBackend([[ReasoningChunk(""), TextChunk("hi")]]), InMemorySessionStore()
+        ),
+    ):
+        events = await _collect(engine.handle_turn("s", "hey"))
+        assert _thinking_details(events) == []
+
+
+async def test_thinking_carry_is_flushed_when_the_stream_ends_in_reasoning() -> None:
+    # A turn whose final delta is reasoning still releases the scrubbed carry after the loop:
+    # the guardrail may hold a growing URL, but never silently swallows the end of the trace.
+    backend = ScriptedToolBackend(
+        [
+            [ToolCall(id="c1", name="read", arguments={"path": "/x"})],
+            [TextChunk("Done. "), ReasoningChunk(f"cite {_EVIL_URL}")],
+        ]
+    )
+    events = await _collect(
+        _guarded_engine(backend, InMemorySessionStore()).handle_turn("s", "summarize /x")
+    )
+    assert events == [
+        ToolActivity(tool_name="read", summary="read a file"),
+        TextDelta("Done. "),
+        StatusUpdate(state="thinking", detail="cite "),
+        StatusUpdate(state="thinking", detail=REDACTED_LINK),
+        TurnCompleted(turn_id="t-1", full_text="Done. "),
+    ]
+
+
+async def test_strict_mode_redacts_a_non_collected_url_in_reasoning() -> None:
+    # Strict mode's distrust of every non-user link on a tainted turn (ADR-0015 addendum)
+    # covers the thinking channel too: a reconstructed URL the redact default would pass is
+    # scrubbed from the trace.
+    backend = ScriptedToolBackend(
+        [
+            [ToolCall(id="c1", name="read", arguments={"path": "/x"})],
+            [ReasoningChunk(f"See {_UNCOLLECTED_URL} then. "), TextChunk("ok")],
+        ]
+    )
+    events = await _collect(
+        _strict_guarded_engine(backend, InMemorySessionStore()).handle_turn("s", "go")
+    )
+    assert "".join(_thinking_details(events)) == f"See {REDACTED_LINK} then. "
+
+
+async def test_user_sent_url_survives_in_the_thinking_status() -> None:
+    # The thinking filter opens with the same user allowlist as the reply's: quoting the
+    # user's own link back in the trace is not laundering, even under strict mode.
+    backend = ScriptedToolBackend(
+        [
+            [ToolCall(id="c1", name="read", arguments={"path": "/x"})],
+            [ReasoningChunk(f"the user asked about {_EVIL_URL} here. "), TextChunk("ok")],
+        ]
+    )
+    events = await _collect(
+        _strict_guarded_engine(backend, InMemorySessionStore()).handle_turn(
+            "s", f"what is {_EVIL_URL}?"
+        )
+    )
+    assert "".join(_thinking_details(events)) == f"the user asked about {_EVIL_URL} here. "
+
+
+async def test_guardrail_leaves_a_clean_turns_reasoning_untouched() -> None:
+    # No untrusted content entered the turn: the thinking streams as the model wrote it,
+    # links included, exactly like the reply on a clean turn.
+    backend = ScriptedToolBackend(
+        [[ReasoningChunk("check https://docs.example/x first. "), TextChunk("see the docs")]]
+    )
+    events = await _collect(
+        _guarded_engine(backend, InMemorySessionStore()).handle_turn("s", "where are the docs?")
+    )
+    assert _thinking_details(events) == ["check https://docs.example/x first. "]
+
+
 async def test_tainted_turn_is_recorded_with_provenance_when_enabled() -> None:
     # ADR-0019 record mode: the tainted exchange IS stored, marked untrusted so recall fences it,
     # the context-preserving counterpart to the drop-by-default above.

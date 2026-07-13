@@ -91,8 +91,9 @@ for the cortex. We surface it, not suppress it.
 
 ## Deferred (behind the unchanged `InferenceBackend` / `TurnCapabilities` / tool-loop seams)
 
-- **Output guardrail over reasoning status** redacts laundered untrusted URLs from the reasoning
-  trace as well as the reply, if displaying reasoning proves an exfiltration surface.
+- **Output guardrail over reasoning status landed 2026-07-12** (second addendum below): the
+  overlay's inline chips gave the thinking status a rendered surface, so the deferral's "if
+  displaying reasoning proves an exfiltration surface" condition came true.
 - **`state`-aware overlay treatment** is a distinct thinking shimmer / collapsed "thoughts" section
   vs. plain detail text; today the reducer shows `detail` for any status (an overlay-gap item).
 - **Disable-thinking / token-budget alternatives** stay available for the cortex behind the same
@@ -122,3 +123,45 @@ Captured as the reproducible integration test `test_reasoning_model_emits_reason
 in `packages/inference/tests/test_backend_live.py` (both live tests green: `2 passed`). Re-runnable
 per the runbook. The CI half remains proven over the fakes; this confirms the live model actually
 walks the path.
+
+## Addendum (2026-07-12): the output guardrail now covers the reasoning status
+
+When this ADR landed, the thinking status had no visible surface, so bypassing the guardrail
+was deliberate v1 scope (risk 1). The overlay's inline chips (the Slice-8 design-gap closure,
+ADR-0011 addendum) changed that: the reducer folds any status `detail` into the streaming
+message and the chip renders it verbatim. On a tainted turn, injected content can steer the
+cortex's reasoning to include a URL, which then streamed to the overlay unredacted, exactly
+the display channel the `ToolActivity` event was built to never open (its fields are
+registry-authored for this reason, ADR-0009 addendum). The deferral's condition ("if displaying
+reasoning proves an exfiltration surface") was therefore met.
+
+The reasoning trace now passes through the guardrail as **its own stream**. A new
+`cortex_core/output_channels.py` (an engine line-cap split) holds:
+
+- `ThinkingChannel`: wraps an optional second `OutputFilter`. `feed` maps one reasoning delta
+  to the `StatusUpdate` to show now (a wholly-carried delta emits no event, never an empty
+  detail, and an empty delta from the port is dropped on the unguarded path too); `release`
+  drains the scrubbed carry exactly once, at end of stream, so a held tail is never silently
+  swallowed. One turn's trace is **one stream**: the carry deliberately survives tool steps
+  and reply deltas between thinking bursts, mirroring the reply filter's own carry. The first
+  cut flushed at every burst boundary instead ("complete by termination"), and an adversarial
+  multi-agent review reproduced the consequence: a flagged URL steered to straddle a
+  think→tool→think boundary was scrubbed as two fragments, neither matching the collected
+  identity, so the full URL crossed the seam in consecutive statuses (unrendered today only
+  because the overlay chip replaces its detail per event). Joining across bursts closes that;
+  the cost is that a held fragment shows slightly later, joined to the burst that completes it.
+- `open_output_channels`: opens the reply filter and the thinking channel under the **same**
+  policy and user-URL allowlist (quoting the user's own link back in the trace is not
+  laundering), one filter instance each, so the two carry buffers stay independent. A URL
+  split across the reply/thinking boundary renders as a whole on neither surface; each stream
+  is scrubbed on its own terms.
+
+Redact and strict modes (ADR-0015 + addenda) and the whole obfuscation-resistant URL grammar
+are inherited unchanged; there is no new configuration, since a deployment that guards the
+reply now guards the trace under the same `CORTEX_OUTPUT_GUARDRAIL` knob. Reasoning remains
+ephemeral: never part of `full_text`, never persisted, never fed back. No seam change (the
+`OutputGuardrail`/`OutputFilter` protocols, `TurnCapabilities`, the proto, body, and overlay
+are all untouched). CI-gated at 100% line+branch over the fakes in the engine suite (redact,
+strict, split-across-deltas, the cross-burst straddle around a live dispatch, end-of-stream
+release, user-allowlist, empty-delta drop, clean turn). The scrub is deterministic post-model
+filtering, so no live-model validation is needed beyond the existing addendum above.
