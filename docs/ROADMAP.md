@@ -851,12 +851,23 @@ behind the unchanged `ToolRegistry`/`ToolDispatcher`/`stream_tool_loop` seams (o
   entity-hidden defang bracket folds too; and `data:` became a matched scheme, admitted only behind a
   **MIME-type lookahead** (`data:text/html;base64,…` matches, `data:the results` prose does not), a
   proactive maintainer-sanctioned reversal like `mailto:`. Both stay grammar/identity-only (no seam change),
-  deterministic/stdlib (`html.unescape`), redact + strict inherit them. Remaining behind the same seam
-  (ADR-0015 deferred): the rest of obfuscation-resistant matching (whitespace-split `evil dot com` has
-  no scheme to anchor, prose FP; the **full UTS-39 confusables set + IDN/punycode**, which need a
-  dependency; entity-encoding wrapped around a defang token; mixed/other encodings past percent + HTML),
-  footer/boilerplate heuristics (screening-model territory), and a structured redaction event
-  for the overlay.
+  deterministic/stdlib (`html.unescape`), redact + strict inherit them. **The encoded-inner defang dot
+  landed 2026-07-13 ([ADR-0015 sixth addendum](adr/ADR-0015-output-guardrail.md)):** a defang dot whose
+  inner is encoded (`evil[&#46;]com`, `evil(%2e)com`, an entity-encoded `dot`) behind a *literal* closing
+  bracket used to escape both modes, because `_DEFANG_DOT` matched the raw text atomically and the raw
+  `]`/`)`/`}` (not a `_URL_CHAR`) ended the match before decode ran. The matcher's bracket token widened
+  from the literal `_DEFANG_DOT` to a bracket *chunk* (`_DEFANG_CHUNK`: opener + non-empty non-bracket run
+  + closer) that consumes the whole `[...]` with its closer, so decode+refang fold it like the
+  entity-*bracket* case; the refanger keeps the literal `_DEFANG_DOT` (post-decode), so only a chunk that
+  decodes to a dot folds, any other stays verbatim. Unlike every earlier addendum this one **adds a
+  bounded new match surface** (a bracketed run in the body is now consumed whole, not cut at `]`), the
+  accepted tradeoff being symmetric/over-redaction-only: a bare `[]` still terminates, Markdown `(url)`
+  still bounds, the matcher stays linear, and the whole guardrail is `off`-able. Remaining behind the same
+  seam (ADR-0015 deferred): an encoded defang *separator* (`http[&#58;//]`, which anchors the match
+  pre-decode, so it needs enumeration or whole-stream decode, both rejected); whitespace-split
+  `evil dot com` (no scheme to anchor, prose FP); the **full UTS-39 confusables set + IDN/punycode**
+  (need a dependency); mixed/other encodings past percent + HTML; footer/boilerplate heuristics
+  (screening-model territory); and a structured redaction event for the overlay.
 - **Subagent model pick revised to gemma-4-E4B (landed 2026-07-03)**
   ([ADR-0004 pick-revision addendum](adr/ADR-0004-model-lineup.md)). The injection-defense
   harness found E4B the standout (0/10 framed-obeyed even thinking-off, re-confirmed at

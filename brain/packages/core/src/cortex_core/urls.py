@@ -12,12 +12,15 @@ _AUTHORITY_SEPS = ("://", "[://]", "[:]//")
 _OPAQUE_SEPS = (":", "[:]")
 
 # A defanged dot inside the host/path: `[.]`, `(.)`, `{.}`, `[dot]`, `(dot)`, `{dot}` (any case).
-# Recognized only *inside* a scheme'd URL, so a bare `evil[.]com` in prose still never matches.
+# The *refanger*'s token (`_REFANG_SUBS`), applied after `_decode_escapes`, so it needs only the
+# literal form; the *matcher* uses the broader `_DEFANG_CHUNK` below. Recognized only in a URL.
 _DEFANG_DOT = r"[\[({](?:\.|dot)[\])}]"
 
+_DEFANG_CHUNK = r"[\[({][^\s<>\"'\[\](){}]+[\])}]"
+
 # A character that may belong to a URL body: anything but whitespace and the usual prose/markup
-# closers (which also bound a Markdown `(url)`/`[url]`). A defanged dot is matched atomically ahead
-# of this, so its closing bracket does not end the match early.
+# closers (which also bound a Markdown `(url)`/`[url]`). A bracket `_DEFANG_CHUNK` is matched
+# atomically ahead of this, so a defang token's closing bracket does not end the match early.
 _URL_CHAR = r"[^\s<>\"'\)\]\}]"
 
 
@@ -36,7 +39,7 @@ _DATA_SCHEME = rf"data(?:{'|'.join(re.escape(sep) for sep in _OPAQUE_SEPS)}){_DA
 URL_RE = re.compile(
     rf"\b(?:{_family(_AUTHORITY_WORDS, _AUTHORITY_SEPS)}|{_family(_OPAQUE_WORDS, _OPAQUE_SEPS)}"
     rf"|{_DATA_SCHEME})"
-    rf"(?:{_DEFANG_DOT}|{_URL_CHAR})+",
+    rf"(?:{_DEFANG_CHUNK}|{_URL_CHAR})+",
     re.IGNORECASE,
 )
 
