@@ -1210,11 +1210,10 @@ behind the unchanged `ScheduleStore`/`BodyGateway`/seam shapes.
   A new fenced `ScheduleStore.snooze(item_id, until)` transition (WATCH-fenced like
   finish/release/ack, contract-tested across fake + fakeredis + the live suite) plus the
   fourth cortex-only built-in `snooze_scheduled(id, for_seconds)` (in `schedule_verbs.py`,
-  the line-cap split that took `cancel_scheduled` along). One-shots only: recurrence anchors
-  on `due_at`, so a snoozed recurring item would silently re-anchor its series; the refusal
-  names the workaround, and an **anchor-preserving occurrence snooze** joins this list as the
-  recorded remainder. A fired-but-undelivered reminder re-arms (fires fresh, never
-  re-delivers stale).
+  the line-cap split that took `cancel_scheduled` along). It shipped one-shots only (a snoozed
+  recurring item would silently re-anchor its series), with the recurring case recorded as a
+  remainder; that **anchor-preserving occurrence snooze landed 2026-07-13** (its own entry
+  below). A fired-but-undelivered reminder re-arms (fires fresh, never re-delivers stale).
 - **Dead-letter inspection landed 2026-07-12 ([ADR-0025 dead-letter addendum](adr/ADR-0025-scheduling-reminders.md)).**
   `RedisScheduleStore.dead_letters()`/`purge_dead_letter()`, adapter-only by design (the
   quarantine is a codec mechanic the fake can never produce; a port method would force a
@@ -1233,10 +1232,21 @@ behind the unchanged `ScheduleStore`/`BodyGateway`/seam shapes.
   tainted turn at all (the creation-side refusal), while a reminder edit under taint is allowed.
   Contract-tested across fake + fakeredis + the live Redis suite (retext, set/clear recurrence, taint
   monotonicity, FIRING/unknown refusal, the WATCH-fence race) at 100%.
+- **Anchor-preserving occurrence snooze landed 2026-07-13 ([ADR-0025 occurrence-snooze
+  addendum](adr/ADR-0025-scheduling-reminders.md)).** `snooze` now works on recurring items:
+  `ScheduledItem` gains an optional `anchor` (the recurrence grid origin, separate from `due_at`
+  the next fire; the separate-anchor field the edit verb deliberately did not add), one pure
+  `apply_snooze` both stores share pins it to the pre-snooze `due_at` on a recurring item's
+  first snooze, and the ticker re-arms from `recurrence_base(item)` so a snoozed series returns
+  to `origin + k*every` rather than drifting to `until + every`. The stores drop only the
+  recurring refusal (FIRING/unknown still answer `False`, fence untouched); `anchor` rides the
+  durable record as a forward-compatible additive key (no version bump, `decode` reads it with
+  `.get`); snooze still carries no taint gate (it injects no content). Contract-tested across
+  fake + fakeredis + the live Redis suite, plus pure `apply_snooze`/`recurrence_base` units, the
+  tool test, and a ticker test proving the anchor-grid re-arm, at 100%.
 - **The remaining scheduling deferrals** stay: **task-outcome delivery** as a notification and a
-  **push retry policy** beyond next-poll-pull (both blocked on the body half of this slice);
-  overlay badge/UX polish for tainted reminders; and the **anchor-preserving occurrence snooze**,
-  which still wants the separate-anchor field the edit verb deliberately did not add.
+  **push retry policy** beyond next-poll-pull (both blocked on the body half of this slice); and
+  overlay badge/UX polish for tainted reminders.
 
 **Cross-cutting (originally "Later, unordered"):** pointer-input injection (extend the proto
 first), richer memory policies (**the email-write tool landed 2026-07-08 as Slice 8.8**,

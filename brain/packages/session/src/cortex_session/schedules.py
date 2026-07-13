@@ -14,6 +14,7 @@ from cortex_core import (
     ScheduleEdit,
     ScheduleStatus,
     ScheduleStoreError,
+    apply_snooze,
 )
 from cortex_session.schedule_claims import (
     claim_due,
@@ -116,18 +117,16 @@ class RedisScheduleStore:
         return deleted > 0
 
     async def snooze(self, item_id: str, *, until: datetime) -> bool:
-        """Postpone a one-shot to ``until``; recurring, FIRING, and unknown answer False."""
+        """Postpone an item to ``until`` via ``apply_snooze``; FIRING and unknown answer False."""
         try:
             async with self._client.pipeline(transaction=True) as pipe:
                 state = await watched_state(pipe, item_id)
                 if state is None:
                     return False
                 item, _, _ = state
-                if item.every is not None or item.status is ScheduleStatus.FIRING:
+                if item.status is ScheduleStatus.FIRING:
                     return False
-                snoozed = replace(
-                    item, status=ScheduleStatus.PENDING, due_at=until, deliverable_since=None
-                )
+                snoozed = apply_snooze(item, until)
                 pipe.multi()
                 pipe.zrem(DELIVERABLE_KEY, item_id)
                 pipe.set(record_key(item_id), encode(snoozed, claim=None, claimed_at=None))

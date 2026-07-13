@@ -153,6 +153,30 @@ async def test_recurring_reminder_rearms_and_stays_deliverable() -> None:
     assert loaded.deliverable_since == _NOW
 
 
+async def test_recurring_rearm_follows_the_snooze_anchor_grid() -> None:
+    """A snoozed recurring item re-arms on its original cadence, not due_at + every."""
+    store = InMemoryScheduleStore()
+    anchor = _NOW - timedelta(minutes=90)  # grid anchor + k*1h lands next at _NOW + 30min
+    await store.add(
+        ScheduledItem(
+            id="r1",
+            kind=ScheduleKind.REMINDER,
+            text="text of r1",
+            session_id="chat-1",
+            due_at=_NOW,  # the snoozed occurrence, deliberately off the anchor grid
+            created_at=_NOW,
+            every=timedelta(hours=1),
+            anchor=anchor,
+        )
+    )
+    await _ticker(store).run_once()
+    loaded = await store.get("r1")
+    assert loaded is not None
+    # next_due(anchor, 1h, _NOW) = _NOW + 30min; a due_at-based re-arm would be _NOW + 1h.
+    assert loaded.due_at == _NOW + timedelta(minutes=30)
+    assert loaded.anchor == anchor  # the grid origin persists across the fire
+
+
 class _CancelRacingStore(InMemoryScheduleStore):
     """Scripts the cancel-during-fire race: the claim is handed out already stale."""
 

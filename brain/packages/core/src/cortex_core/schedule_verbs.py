@@ -72,11 +72,7 @@ class CancelScheduledTool:
 
 
 class SnoozeScheduledTool:
-    """Built-in ``snooze_scheduled``: postpone a one-shot schedule from now (snooze addendum).
-
-    One-shots only: recurrence anchors on ``due_at`` (``next_due``), so a snoozed recurring
-    item would silently re-anchor its whole series; the refusal names the workaround.
-    """
+    """Built-in ``snooze_scheduled``: postpone a schedule's next fire from now (snooze addendum)."""
 
     def __init__(self, store: ScheduleStore, clock: Clock) -> None:
         self._store = store
@@ -88,9 +84,10 @@ class SnoozeScheduledTool:
         return ToolSpec(
             name=SNOOZE_SCHEDULED_TOOL_NAME,
             description=(
-                "Postpone a one-shot scheduled reminder or task: it fires 'for_seconds' "
-                "from now instead of its current due time. Recurring schedules cannot be "
-                "snoozed (cancel and re-create instead). Use the id from list_scheduled."
+                "Postpone a scheduled reminder or task: its next fire moves to 'for_seconds' "
+                "from now instead of its current due time. For a recurring schedule this moves "
+                "only the next occurrence; the series keeps its original cadence afterward. "
+                "Use the id from list_scheduled."
             ),
             parameters={
                 "type": "object",
@@ -129,11 +126,6 @@ class SnoozeScheduledTool:
         item = await self._store.get(item_id)
         if item is None:
             return f"no scheduled item {item_id}"
-        if item.every is not None:
-            return (
-                f"{item_id} is recurring and cannot be snoozed; cancel it and "
-                "schedule a new one instead"
-            )
         if item.status is ScheduleStatus.FIRING:
             return f"{item_id} is firing right now; try again in a moment"
         if not await self._store.snooze(item_id, until=until):

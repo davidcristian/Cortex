@@ -12,6 +12,7 @@ from cortex_core.schedule import (
     ScheduleEdit,
     ScheduleStatus,
     apply_edit,
+    apply_snooze,
 )
 
 
@@ -61,17 +62,11 @@ class InMemoryScheduleStore:
         return self._items.pop(item_id, None) is not None
 
     async def snooze(self, item_id: str, *, until: datetime) -> bool:
-        """Postpone a one-shot to ``until``; recurring, FIRING, and unknown answer False.
-
-        A fired-but-undelivered reminder re-arms (PENDING at ``until``, deliverability
-        cleared) so it fires fresh instead of re-delivering stale (ADR-0025 snooze addendum).
-        """
+        """Postpone an item to ``until`` via ``apply_snooze``; FIRING and unknown answer False."""
         item = self._items.get(item_id)
-        if item is None or item.every is not None or item.status is ScheduleStatus.FIRING:
+        if item is None or item.status is ScheduleStatus.FIRING:
             return False
-        self._items[item_id] = replace(
-            item, status=ScheduleStatus.PENDING, due_at=until, deliverable_since=None
-        )
+        self._items[item_id] = apply_snooze(item, until)
         return True
 
     async def edit(self, item_id: str, edit: ScheduleEdit) -> bool:

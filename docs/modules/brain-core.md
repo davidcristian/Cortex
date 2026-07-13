@@ -128,7 +128,9 @@ throughout, never "Scheduler", which means resource *admission* here):
   filled from the dispatcher's `TurnStamp` at creation, ADR-0027; `""` for a session-less
   caller), `due_at`/`created_at` (tz-aware, rejects
   naive), `every: timedelta | None = None` (recurrence; must be positive),
-  `model: str = ""` (task-only roster hint), `tainted: bool = False` (creation taint, OR'd
+  `anchor: datetime | None = None` (the recurrence grid origin, set only by an occurrence
+  snooze so the series keeps its cadence; tz-aware when present, ADR-0025 occurrence-snooze
+  addendum), `model: str = ""` (task-only roster hint), `tainted: bool = False` (creation taint, OR'd
   with fire-time taint at `finish`), `status`, `deliverable_since: datetime | None = None`,
   `last_outcome: str | None = None`.
 - `ScheduleClaim` is a frozen dataclass: `item` (as of the claim, FIRING) + the fencing `token`
@@ -139,7 +141,14 @@ throughout, never "Scheduler", which means resource *admission* here):
 - `next_due(due_at, every, now) -> datetime | None` is the pure coalescing recurrence: the
   first anchored occurrence (`due_at + k * every`, integer `k >= 1`) strictly after `now`,
   so occurrences missed while down coalesce into the single fire that just happened; `None`
-  for one-shots; a non-positive `every` raises `ValueError`.
+  for one-shots; a non-positive `every` raises `ValueError`. The ticker feeds it
+  `recurrence_base(item)` (the `anchor` if set, else `due_at`), so a snoozed recurring item
+  re-arms on its original grid, not `until + every`.
+- `apply_snooze(item, until) -> ScheduledItem` and `apply_edit(item, edit) -> ScheduledItem`
+  are the two pure transitions both stores share (the ports-before-adapters guarantee):
+  `apply_snooze` moves `due_at` to `until`, re-arms `PENDING`, clears deliverability, and pins
+  `anchor` to the pre-snooze `due_at` on a recurring item's first snooze (a one-shot keeps
+  `anchor` unset).
 
 Placement domain (Slice 8.5, ADR-0012):
 
@@ -316,9 +325,11 @@ Ports (`typing.Protocol`; failures cross them only as the typed errors below):
   `async release(claim) -> bool` (both apply only under the claim's token, so a stale claimant
   no-ops `False`; finish ORs fire-time taint onto the item, re-arms at `outcome.next_due` or
   terminates, with terminal records deleted unless deliverable), `async deliverable()`,
-  `async ack(item_id) -> bool`, `async snooze(item_id, *, until) -> bool` (postpones a
-  one-shot; a fired-but-undelivered reminder re-arms with deliverability cleared; recurring,
-  FIRING, and unknown answer `False`, fenced like the rest, ADR-0025 snooze addendum), and
+  `async ack(item_id) -> bool`, `async snooze(item_id, *, until) -> bool` (postpones the next
+  fire via the pure `apply_snooze`; a recurring item moves only its next occurrence and pins
+  `anchor` so the series keeps its cadence; a fired-but-undelivered reminder re-arms with
+  deliverability cleared; FIRING and unknown answer `False`, fenced like the rest, ADR-0025
+  occurrence-snooze addendum), and
   `async edit(item_id, edit) -> bool` (retexts / re-recurs a non-FIRING item via the pure
   `apply_edit`, `due_at` untouched so only future re-arms take the new cadence; the editing
   turn's taint ORs on; FIRING and unknown answer `False`, WATCH-fenced, ADR-0025 edit
@@ -503,8 +514,9 @@ Use-case:
   when every listed item is clean, else `UNTRUSTED` (fenced + re-tainting, the spawn aggregate
   rule). `snooze_scheduled` takes `{id, for_seconds}` (relative by meaning; `for_seconds`
   reuses the recurrence-interval bounds `[60 s, ten-year]`, not the unbounded one-shot delay)
-  and refuses a recurring item with the workaround named, since rewriting `due_at` would
-  re-anchor the series (snooze addendum). `edit_scheduled` takes `{id, text?, every_seconds?}`
+  and postpones the next fire; a recurring item moves only its next occurrence, the store
+  pinning `anchor` so the series keeps its cadence (occurrence-snooze addendum).
+  `edit_scheduled` takes `{id, text?, every_seconds?}`
   (a bounded interval sets recurrence, `0` stops it, omission leaves it; at least one change
   required) and changes text/recurrence in place without moving `due_at`; unlike cancel/snooze
   it ORs the editing turn's taint onto the item and refuses editing a *task* on a tainted turn

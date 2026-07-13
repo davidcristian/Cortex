@@ -22,6 +22,7 @@ from cortex_core import (
     Trust,
     TurnStamp,
     next_due,
+    recurrence_base,
 )
 
 _logger = logging.getLogger(__name__)
@@ -118,7 +119,7 @@ class ScheduleTicker:
         fired_at = self._clock.now()
         outcome = FireOutcome(
             fired_at=fired_at,
-            next_due=next_due(item.due_at, item.every, fired_at),
+            next_due=next_due(recurrence_base(item), item.every, fired_at),
             deliverable=True,
         )
         if await self._store.finish(claim, outcome):
@@ -149,7 +150,7 @@ class ScheduleTicker:
             claim,
             FireOutcome(
                 fired_at=fired_at,
-                next_due=next_due(item.due_at, item.every, fired_at),
+                next_due=next_due(recurrence_base(item), item.every, fired_at),
                 deliverable=False,
                 outcome=outcome_text,
                 tainted=fire_tainted,

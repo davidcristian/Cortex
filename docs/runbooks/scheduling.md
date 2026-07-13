@@ -2,8 +2,9 @@
 
 Slice 9.5 (ADR-0025) gives the brain a sense of time: durable schedules in Redis, five
 cortex-only tools (`schedule_task` / `list_scheduled` / `cancel_scheduled` /
-`snooze_scheduled` / `edit_scheduled`; `snooze_scheduled` postpones a one-shot by
-`for_seconds` from now, recurring items refuse per the snooze addendum, and `edit_scheduled`
+`snooze_scheduled` / `edit_scheduled`; `snooze_scheduled` postpones the next fire by
+`for_seconds` from now, moving only the next occurrence of a recurring item and pinning its
+grid so the series keeps its cadence per the occurrence-snooze addendum, and `edit_scheduled`
 retexts / re-recurs an item in place without moving its next due time, per the edit
 addendum), the `ScheduleTicker` firing what is due, and reminder delivery by pull over
 `ListDueReminders`/`AckReminder`, push over `BodyService.Notify` when the body is wired.

@@ -37,6 +37,7 @@ class ScheduledItem:
     due_at: datetime
     created_at: datetime
     every: timedelta | None = None
+    anchor: datetime | None = None
     model: str = ""
     tainted: bool = False
     status: ScheduleStatus = ScheduleStatus.PENDING
@@ -48,6 +49,8 @@ class ScheduledItem:
         _require_aware("ScheduledItem.created_at", self.created_at)
         if self.deliverable_since is not None:
             _require_aware("ScheduledItem.deliverable_since", self.deliverable_since)
+        if self.anchor is not None:
+            _require_aware("ScheduledItem.anchor", self.anchor)
         if self.every is not None and self.every <= timedelta(0):
             msg = "ScheduledItem.every must be a positive interval"
             raise ValueError(msg)
@@ -105,6 +108,26 @@ def apply_edit(item: ScheduledItem, edit: ScheduleEdit) -> ScheduledItem:
         every=edit.every if edit.set_every else item.every,
         tainted=item.tainted or edit.tainted,
     )
+
+
+def apply_snooze(item: ScheduledItem, until: datetime) -> ScheduledItem:
+    """Return ``item`` postponed to ``until``: PENDING, off the deliverable index, grid kept."""
+    anchor = item.anchor
+    if item.every is not None and anchor is None:
+        anchor = item.due_at
+    return replace(
+        item,
+        status=ScheduleStatus.PENDING,
+        due_at=until,
+        deliverable_since=None,
+        anchor=anchor,
+    )
+
+
+def recurrence_base(item: ScheduledItem) -> datetime:
+    """The recurrence grid origin the ticker re-arms from: the ``anchor`` if set, else ``due_at``.
+    """
+    return item.anchor if item.anchor is not None else item.due_at
 
 
 def next_due(due_at: datetime, every: timedelta | None, now: datetime) -> datetime | None:

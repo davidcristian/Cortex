@@ -494,15 +494,19 @@ async def test_snooze_unknown_id_is_a_correctable_error() -> None:
     assert "no scheduled item ghost" in result.content
 
 
-async def test_snooze_refuses_a_recurring_item_with_the_workaround() -> None:
+async def test_snooze_moves_only_the_next_occurrence_of_a_recurring_item() -> None:
     tool, store = _tool()
     await tool.invoke(
         _call({"kind": "reminder", "text": "water", "in_seconds": 60, "every_seconds": 3600})
     )
     result = await _snooze_tool(store).invoke(_snooze_call({"id": "item-1", "for_seconds": 600}))
-    assert result.is_error
-    assert "recurring" in result.content
-    assert "cancel" in result.content
+    assert not result.is_error
+    assert result.content == "snoozed item-1: now due 2026-07-12T12:10:00+00:00"
+    loaded = await store.get("item-1")
+    assert loaded is not None
+    assert loaded.due_at == _NOW + timedelta(minutes=10)  # only the next fire moved
+    assert loaded.every == timedelta(hours=1)  # still recurring
+    assert loaded.anchor == _NOW + timedelta(seconds=60)  # grid pinned to the original due
 
 
 async def test_snooze_refuses_a_firing_item() -> None:
