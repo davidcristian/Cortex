@@ -12,14 +12,19 @@ line that keeps this out of the heuristic/screening-model layer. A URL's identit
 (``evil&#46;com``, the way HTML email hides a dot) and percent-escapes (``evil%252ecom`` →
 ``evil%2ecom`` → ``evil.com``; bounded; ADR-0015 fourth + fifth addenda), (2) *refanging* common
 defang forms (``hxxp://``, ``evil[.]com``, ``[://]``; run after decode so an entity-hidden bracket
-refangs too), (3) *NFKC* Unicode folding (fullwidth/compatibility homoglyphs → ASCII), and (4)
+refangs too, and the matcher captures a whole bracket *chunk* [``_DEFANG_CHUNK``] so an encoded
+inner behind a literal closer like ``evil[&#46;]com`` is consumed and folded, not cut short;
+ADR-0015 sixth addendum), (3) *NFKC* Unicode folding (fullwidth/compatibility homoglyphs → ASCII),
+and (4)
 folding a *curated* table of cross-script confusable letters (Cyrillic/Greek Latin-lookalikes →
 ASCII), so a defanged, encoded, fullwidth, or homoglyph link reduces to the same identity as its
 plain twin. Recognized schemes are ``http(s)``, ``ftp``, ``mailto``, ``tel``, and ``data:`` (the
 last only behind a MIME-type anchor, so ``data:the results`` prose stays out; ADR-0015 fifth
 addendum). What is *not* recognized is never redacted, so the scope stays deliberately narrow: bare
-addresses/domains, whitespace-split defang (``evil dot com``), and the *full* UTS-39 confusables
-set + IDN/punycode (need a dependency) stay out. See the ADR for why. Pure, no I/O, no state.
+addresses/domains, whitespace-split defang (``evil dot com``), an encoded defang *separator*
+(``http[&#58;//]``, which anchors the match and so cannot be decoded pre-match), and the *full*
+UTS-39 confusables set + IDN/punycode (need a dependency) stay out. See the ADR for why. Pure state-
+and I/O-free.
 """
 
 import html
@@ -44,12 +49,24 @@ _AUTHORITY_SEPS = ("://", "[://]", "[:]//")
 _OPAQUE_SEPS = (":", "[:]")
 
 # A defanged dot inside the host/path: `[.]`, `(.)`, `{.}`, `[dot]`, `(dot)`, `{dot}` (any case).
-# Recognized only *inside* a scheme'd URL, so a bare `evil[.]com` in prose still never matches.
+# The *refanger*'s token (`_REFANG_SUBS`), applied after `_decode_escapes`, so it needs only the
+# literal form; the *matcher* uses the broader `_DEFANG_CHUNK` below. Recognized only in a URL.
 _DEFANG_DOT = r"[\[({](?:\.|dot)[\])}]"
 
+# The matcher's bracket-delimited chunk: an opening bracket, a non-empty run of URL-body characters
+# that are neither whitespace/markup nor another bracket, then a closing bracket. Broader than
+# `_DEFANG_DOT` so `URL_RE` also consumes a defang dot whose inner is *encoded* (`[&#46;]`, `[%2e]`,
+# or an entity-encoded `dot`) sitting behind a *literal* closing bracket: that raw `]`/`)`/`}`
+# (excluded from `_URL_CHAR`) would otherwise end the match before `normalize_url`'s decode could
+# expose the token to the refanger (ADR-0015 sixth addendum). Only a chunk that *decodes to*
+# `[.]`/`[dot]` folds to a dot; any other (`[0]` in a query, `(a)` in a path) is consumed but kept
+# verbatim in the identity, so the widening is symmetric and over-redacts a fuller span at worst.
+# The inner is `+` (never empty), so a bare `[]` array-param still terminates at `]` as before.
+_DEFANG_CHUNK = r"[\[({][^\s<>\"'\[\](){}]+[\])}]"
+
 # A character that may belong to a URL body: anything but whitespace and the usual prose/markup
-# closers (which also bound a Markdown `(url)`/`[url]`). A defanged dot is matched atomically ahead
-# of this, so its closing bracket does not end the match early.
+# closers (which also bound a Markdown `(url)`/`[url]`). A bracket `_DEFANG_CHUNK` is matched
+# atomically ahead of this, so a defang token's closing bracket does not end the match early.
 _URL_CHAR = r"[^\s<>\"'\)\]\}]"
 
 
@@ -76,7 +93,7 @@ _DATA_SCHEME = rf"data(?:{'|'.join(re.escape(sep) for sep in _OPAQUE_SEPS)}){_DA
 URL_RE = re.compile(
     rf"\b(?:{_family(_AUTHORITY_WORDS, _AUTHORITY_SEPS)}|{_family(_OPAQUE_WORDS, _OPAQUE_SEPS)}"
     rf"|{_DATA_SCHEME})"
-    rf"(?:{_DEFANG_DOT}|{_URL_CHAR})+",
+    rf"(?:{_DEFANG_CHUNK}|{_URL_CHAR})+",
     re.IGNORECASE,
 )
 

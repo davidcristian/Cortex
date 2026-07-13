@@ -397,3 +397,62 @@ token** beyond the disjoint case above; **mixed/other encodings** past percent a
 **footer/boilerplate heuristics** (screening-model territory) plus the **structured redaction event** for
 the overlay (a reporting feature, not a grammar one). Safety stays deterministic: what is not matched is
 not redacted, never mis-instructed.
+
+## Addendum (2026-07-13): a defang dot with an encoded inner behind a literal closing bracket
+
+Advances the **entity-encoding wrapped around a defang token** deferral for the common **defang dot**
+case. Like every earlier addendum it is **grammar-and-identity only, with no seam change**: both
+`OutputGuardrail` policies, the `TaintLedger`, `TaintView`, the streaming filter, and the config are
+untouched; redact and strict mode inherit the wider matching for free; a clean or untainted turn is
+byte-identical to before. Still **deterministic and dependency-free** (stdlib only).
+
+### The gap
+
+The fifth addendum closed the *disjoint* case where a defang token's **brackets** are entity-encoded
+(`evil&#91;.&#93;com`): decode exposes a literal `[.]` that refang then folds. But the mirror case
+slipped through: a defang dot whose **inner** is encoded (`evil[&#46;]com`, `evil(%2e)com`, or an
+entity-encoded `dot`) while the **closing bracket is literal**. `_DEFANG_DOT` matched *atomically on the
+raw text* and required a literal `.`/`dot` between the brackets, so it did not fire; the raw `]`/`)`/`}`
+(excluded from `_URL_CHAR` to bound Markdown `(url)`/`[url]`) then **ended the match before**
+`normalize_url`'s decode could run, orphaning the closer and the token. Confirmed live: `evil[&#46;]com`
+extracted as identity `http://evil[`, not `http://evil.com`, so a link the model laundered this way
+escaped both redact and strict mode.
+
+### The change: the matcher captures a bracket *chunk*, not just a literal defang dot
+
+`URL_RE`'s bracket token widens from the literal `_DEFANG_DOT` to `_DEFANG_CHUNK`: an opening bracket, a
+**non-empty** run of URL-body characters that are neither whitespace/markup nor another bracket, then a
+closing bracket. The chunk consumes the whole `[...]`/`(...)`/`{...}` (including its literal closer)
+**before** deciding what it means, so decode+refang in `normalize_url` then fold an encoded inner to one
+identity exactly as they already do for the entity-bracket case. The **refanger keeps `_DEFANG_DOT`**
+(literal `[.]`/`[dot]`): it runs *after* `_decode_escapes`, where the inner is already literal, so only a
+chunk that decodes to a dot folds to a dot; any other chunk (`[0]` in a query, `(a)` in a path) is kept
+**verbatim** in the identity. Encoded `dot` letters (`[&#100;&#111;&#116;]`) now fold too, for free.
+
+### The accepted tradeoff: a bounded new match surface (the first such)
+
+Every prior obfuscation addendum was **pure identity widening** with *no new match surface*. This one is
+different and it is called out deliberately: consuming a bracketed chunk **extends the raw match span** to
+include a literal closer that used to end it (a query `?a[0]=b` now matches whole, not cut at `]`). The
+cost is bounded and safe: (1) the inner is `+`, so a bare `[]` (an array-param `tags[]`) is **not** a
+chunk and still terminates exactly as before, adding no surface there; (2) a wrapping `)`/`]` with no
+opener inside the body still bounds the match, so Markdown `[text](url)` is unaffected; (3) a chunk that
+is not a defang dot stays verbatim in the identity, so redaction only ever covers a **fuller, more
+correct** span (the whole real URL), never a spurious collision; (4) the widening is **symmetric** on
+both sides of the defense (collection and reply fold identically); and (5) the whole guardrail is
+`off`-able. The matcher's `(?:_DEFANG_CHUNK|_URL_CHAR)+` stays **linear**: the chunk's inner is a negated
+class that cannot hold a bracket, so a closer-less run fails and backtracks linearly rather than
+catastrophically (guarded by a test that would hang otherwise). Judged worth its budget now
+(maintainer-sanctioned, 2026-07-13).
+
+### Scope held deliberately narrow (updated)
+
+Still **out**, behind the same grammar: an encoded defang **separator** (`http[&#58;//]evil.com`, colon
+entity-encoded), because the scheme+separator **anchors** the whole match and is matched literally by
+`re.escape` *before* any decode runs, so tolerating it would mean either enumerating encodings in the
+anchor (the enumeration the decode-fixpoint design exists to avoid) or decoding the whole stream
+pre-match (abandoning the span-preserving redaction). Also still out, unchanged from the fifth addendum:
+**whitespace-split** defang (`evil dot com`, no scheme to anchor, prose FP, not clickable); the **full
+UTS-39 confusables set** and **IDN/punycode** (need a dependency); **mixed/other encodings** past percent
+and HTML references; **footer/boilerplate heuristics**; and the **structured redaction event** for the
+overlay. Safety stays deterministic: what is not matched is not redacted, never mis-instructed.
