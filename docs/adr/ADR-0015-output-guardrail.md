@@ -332,3 +332,68 @@ a real FP budget. The curated table is the pragmatic 95% without either); **whit
 (`evil dot com` has no scheme to anchor, prose FP, not clickable); **mixed/other encodings** beyond
 percent; and **`data:`** and further schemes (`\bdata:` fires on prose like `data:the results`; no
 observed vector). Safety stays deterministic: what is not matched is not redacted, never mis-instructed.
+
+## Addendum (2026-07-13): obfuscation-resistant matching (HTML-entity encoding + the `data:` scheme)
+
+Advances two more of the obfuscation-resistant deferrals: the **mixed/other encodings** class (via
+HTML character references) and the **further schemes** class (via `data:`). Like every earlier
+addendum it is **grammar-and-identity only, with no seam change**: both `OutputGuardrail` policies,
+the `TaintLedger`, `TaintView`, the streaming filter, and the config are untouched; redact and strict
+mode inherit the wider matching for free; a clean or untainted turn is byte-identical to before.
+Everything stays **deterministic and dependency-free** (stdlib `re`/`urllib.parse`/`unicodedata`/`html`
+only), the line that keeps obfuscation-resistance out of the heuristic/screening-model layer.
+
+### HTML-entity encoding (the chief untrusted source is HTML email)
+
+`normalize_url` now decodes **HTML character references** (`&#46;`, `&#x2e;`, named `&period;`/`&sol;`)
+alongside percent-escapes. The decode step generalizes from percent-only to a combined `_decode_escapes`
+fixpoint that applies `html.unescape` then `urllib.parse.unquote` each round until the string stops
+changing (bounded by the same DoS cap, now `_MAX_DECODE_PASSES`). This matters because the system's chief
+untrusted source is **HTML email over IMAP**: a link written `http://evil&#46;example` renders as
+`http://evil.example` in any mail client, so an entity-encoded dot or slash is a *clickable transform*,
+not decoration. It is pure **identity** widening (an entity-encoded URL and its plain twin fold to one
+identity), so, exactly like multi-pass percent-decoding, it is **symmetric** on both sides of the defense
+and adds **no new match surface** (an entity's `&`, `#`, `;`, and hex digits are all ordinary URL-body
+characters `URL_RE` already consumes). Termination is independent of the cap: `html.unescape` and
+`unquote` each only ever shrink the string, so a round that changes anything strictly shrinks it.
+
+The decode now runs **before** refanging (the order flips from percent-only's refang-first), because
+decoding reveals the literal characters that the defang, NFKC, and confusable passes then normalize: an
+entity-encoded bracket (`evil&#91;.&#93;com`) decodes to `evil[.]com`, which refang then reduces to
+`evil.com`, so an entity-hidden defang folds to one identity. The reorder is strictly wider and regresses
+no earlier case (refang and entity-decode act on disjoint tokens for a plain defanged link).
+
+**FP tradeoff (the accepted-symmetric-widening reasoning, as for the confusables fold).** `html.unescape`
+also decodes the legacy no-semicolon named references (`&copy`, `&reg`, ...), so a legitimate query like
+`?copy=1` folds to `?` plus a copyright glyph. Because the fold is symmetric it never breaks a verbatim
+match; its only cost is a **collision** (two distinct legitimate URLs folding together, over-redacting in
+redact mode), vanishingly rare in a single-user deployment and already moot under strict mode. The whole
+guardrail is `off`-able. Judged worth its budget now (maintainer-sanctioned, 2026-07-13).
+
+### The `data:` scheme, admitted only behind a MIME anchor
+
+`data:` is now a matched scheme. A data URL (`data:<mediatype>[;base64],<data>`) is a **clickable, inline
+phishing page or exfil payload**, the class the earlier addenda deferred as "added when a vector is
+observed." Like the `mailto:` reversal, this is a **proactive** maintainer-sanctioned call (2026-07-13) that
+the class is real enough and the false-positive cost now low enough to cover, rather than waiting for a
+wild sample.
+
+The prose false positive the earlier addenda named as the blocker (`\bdata:` fires on `data:the results`)
+is closed by a **MIME-type lookahead**: `data:` matches only when the colon is followed by a `type/subtype`
+shape (a `/`-bearing token) or the `,`/`;` that begins the data. Prose has neither, so `data:the results`
+never matches while `data:text/html;base64,...` and the minimal `data:,payload` do. Its separator may be
+defanged (`data[:]`) like the other opaque schemes, and identity folds it whole (no `://` authority to
+split, so the base64 payload lowercases symmetrically, harmless for identity comparison). The streaming
+hold-back learned the `data:`/`data[:]` openings, so a `data:` split across deltas is carried, not leaked;
+the cost is the same one-delta carry the other schemes already pay on a matching prefix (the common word
+"data" ending a delta is released on the next feed).
+
+### Scope held deliberately narrow (updated)
+
+Still **out**, behind the same grammar: **whitespace-split** defang (`evil dot com`, no scheme to anchor,
+prose FP, not clickable); the **full UTS-39 confusables set** and **IDN/punycode** (need a dependency and
+a real FP budget; the curated table remains the pragmatic 95%); **entity-encoding wrapped around a defang
+token** beyond the disjoint case above; **mixed/other encodings** past percent and HTML references; and
+**footer/boilerplate heuristics** (screening-model territory) plus the **structured redaction event** for
+the overlay (a reporting feature, not a grammar one). Safety stays deterministic: what is not matched is
+not redacted, never mis-instructed.

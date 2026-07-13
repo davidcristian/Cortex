@@ -8,17 +8,21 @@ defense share: the ``TaintLedger``'s collection and the user-message allowlist.
 
 Obfuscation-resistant by construction, and deterministic + dependency-free (stdlib only). The
 line that keeps this out of the heuristic/screening-model layer. A URL's identity is computed by
-``normalize_url`` after (1) *refanging* common defang forms (``hxxp://``, ``evil[.]com``, ``[://]``;
-ADR-0015 obfuscation addendum), (2) *percent-decoding* to a fixpoint (``evil%252ecom`` →
-``evil%2ecom`` → ``evil.com``; bounded), (3) *NFKC* Unicode folding (fullwidth/compatibility
-homoglyphs → ASCII), and (4) folding a *curated* table of cross-script confusable letters (Cyrillic/
-Greek Latin-lookalikes → ASCII), so a defanged, encoded, fullwidth, or homoglyph link reduces to the
-same identity as its plain twin (ADR-0015 third + fourth addenda). What is *not* recognized is never
-redacted, so the scope stays deliberately narrow: bare addresses/domains, whitespace-split defang
-(``evil dot com``), the *full* UTS-39 confusables set + IDN/punycode (need a dependency), and
-unlisted schemes (``data:`` …) stay out. See the ADR for why. Pure, no I/O, no state.
+``normalize_url`` after (1) *decoding escapes* to a fixpoint, both HTML character references
+(``evil&#46;com``, the way HTML email hides a dot) and percent-escapes (``evil%252ecom`` →
+``evil%2ecom`` → ``evil.com``; bounded; ADR-0015 fourth + fifth addenda), (2) *refanging* common
+defang forms (``hxxp://``, ``evil[.]com``, ``[://]``; run after decode so an entity-hidden bracket
+refangs too), (3) *NFKC* Unicode folding (fullwidth/compatibility homoglyphs → ASCII), and (4)
+folding a *curated* table of cross-script confusable letters (Cyrillic/Greek Latin-lookalikes →
+ASCII), so a defanged, encoded, fullwidth, or homoglyph link reduces to the same identity as its
+plain twin. Recognized schemes are ``http(s)``, ``ftp``, ``mailto``, ``tel``, and ``data:`` (the
+last only behind a MIME-type anchor, so ``data:the results`` prose stays out; ADR-0015 fifth
+addendum). What is *not* recognized is never redacted, so the scope stays deliberately narrow: bare
+addresses/domains, whitespace-split defang (``evil dot com``), and the *full* UTS-39 confusables
+set + IDN/punycode (need a dependency) stay out. See the ADR for why. Pure, no I/O, no state.
 """
 
+import html
 import re
 import unicodedata
 from urllib.parse import unquote
@@ -54,20 +58,36 @@ def _family(words: tuple[str, ...], seps: tuple[str, ...]) -> str:
     return rf"(?:{'|'.join(words)})(?:{'|'.join(re.escape(sep) for sep in seps)})"
 
 
+# The `data:` scheme opens an inline `data:<mediatype>[;base64],<data>` URL: a clickable phishing
+# page / exfil payload. Unlike the bare-scheme families it is admitted only when the colon is
+# followed by a MIME-type shape (`type/subtype`, a `/`-bearing token) or the `,`/`;` that begins the
+# data, so prose like `data:the results` (no slash, no immediate `,`/`;`) stays out while a real
+# data URL matches (ADR-0015 fifth addendum). Its separator may be defanged (`data[:]`) like the
+# other opaque schemes; identity folds it whole (no `://` authority to split, so the payload
+# lowercases symmetrically, harmless for comparison). The lookahead consumes nothing; the body then
+# matches from the MIME type.
+_DATA_ANCHOR = r"(?=[\w.+-]+/|[;,])"
+_DATA_SCHEME = rf"data(?:{'|'.join(re.escape(sep) for sep in _OPAQUE_SEPS)}){_DATA_ANCHOR}"
+
+
 # A clickable link, plain or defanged, anchored at a word boundary (so `sftp://` / `hotel:` are not
 # partial-matched) and matched liberally to the first character that cannot belong to one. Defanged,
 # percent-encoded, and fullwidth forms are reduced to a canonical identity by `normalize_url`.
 URL_RE = re.compile(
-    rf"\b(?:{_family(_AUTHORITY_WORDS, _AUTHORITY_SEPS)}|{_family(_OPAQUE_WORDS, _OPAQUE_SEPS)})"
+    rf"\b(?:{_family(_AUTHORITY_WORDS, _AUTHORITY_SEPS)}|{_family(_OPAQUE_WORDS, _OPAQUE_SEPS)}"
+    rf"|{_DATA_SCHEME})"
     rf"(?:{_DEFANG_DOT}|{_URL_CHAR})+",
     re.IGNORECASE,
 )
 
-# Every plain/defanged scheme opening, derived from the same families as `URL_RE`. The streaming
-# hold-back carries a trailing prefix of any of these so a scheme split across deltas is not leaked
+# Every plain/defanged scheme opening, derived from the same families as `URL_RE` (the `data:`
+# openings included, so a `data:` split across deltas is carried too). The streaming hold-back
+# carries a trailing prefix of any of these so a scheme split across deltas is not leaked
 # (`held_from`). Sharing the table with the matcher makes drift structurally impossible.
-_SCHEME_PREFIXES = tuple(w + s for w in _AUTHORITY_WORDS for s in _AUTHORITY_SEPS) + tuple(
-    w + s for w in _OPAQUE_WORDS for s in _OPAQUE_SEPS
+_SCHEME_PREFIXES = (
+    tuple(w + s for w in _AUTHORITY_WORDS for s in _AUTHORITY_SEPS)
+    + tuple(w + s for w in _OPAQUE_WORDS for s in _OPAQUE_SEPS)
+    + tuple("data" + s for s in _OPAQUE_SEPS)
 )
 
 # The longest string that is a prefix of a scheme+separator but not yet a URL match
@@ -104,20 +124,26 @@ def _refang(url: str) -> str:
     return url
 
 
-# Percent-decoding is applied to a **fixpoint**, not once, so a *stacked* escape (`evil%252ecom` →
-# `evil%2ecom` → `evil.com`) reduces to one identity (ADR-0015 fourth addendum). Each non-fixpoint
-# `unquote` strictly shrinks the string (a `%XX` → one char), so this always terminates on its own;
-# the cap is a belt-and-suspenders DoS bound. A URL with more stacked encodings than this is never a
-# real clickable link. It is left *partially* decoded, still symmetric (both sides fold the same),
-# so an equal-depth transform still matches; the bound only declines to over-resolve an absurd one.
-_MAX_PERCENT_DECODE_PASSES = 5
+# Escape-decoding is applied to a **fixpoint**, not once, so a *stacked* escape (`evil%252ecom` →
+# `evil%2ecom` → `evil.com`, or an HTML reference over a percent-escape `evil&#37;2ecom` →
+# `evil%2ecom` → `evil.com`) reduces to one identity (ADR-0015 fourth + fifth addenda). Each round
+# applies both `html.unescape` (HTML references → their character) and `unquote` (`%XX` → one char);
+# each only ever *shrinks* the string, so a round that changes anything strictly shrinks it and this
+# always terminates on its own. The cap is a belt-and-suspenders DoS bound: a URL with more stacked
+# escapes than this is never a real clickable link, and is left *partially* decoded, still symmetric
+# (both sides fold the same), so an equal-depth transform still matches; the bound only declines to
+# over-resolve an absurd one.
+_MAX_DECODE_PASSES = 5
 
 
-def _percent_decode(url: str) -> str:
-    """Percent-decode ``url`` repeatedly until it stops changing (bounded). A multiply-encoded
-    escape reduces to its plain identity, not just a single browser-hop decode."""
-    for _ in range(_MAX_PERCENT_DECODE_PASSES):
-        decoded = unquote(url)
+def _decode_escapes(url: str) -> str:
+    """Decode ``url``'s HTML character references and percent-escapes to a fixpoint (bounded).
+
+    A multiply-encoded or HTML-entity-hidden escape reduces to its plain identity, not just a single
+    browser-hop decode. HTML references are decoded first each round so an entity-encoded percent
+    (`&#37;`) is exposed to the same round's ``unquote`` (ADR-0015 fifth addendum)."""
+    for _ in range(_MAX_DECODE_PASSES):
+        decoded = unquote(html.unescape(url))
         if decoded == url:
             return decoded
         url = decoded
@@ -176,18 +202,19 @@ def _fold_confusables(url: str) -> str:
 
 
 def normalize_url(url: str) -> str:
-    """One URL's identity: defang refanged, percent-decoded (to a fixpoint), NFKC-folded,
+    """One URL's identity: escapes decoded (to a fixpoint), defang refanged, NFKC-folded,
     cross-script confusables folded, trailing prose punctuation dropped, scheme+authority lowered.
 
     The obfuscation-resistant passes run first so a defanged/encoded/fullwidth/homoglyph link
-    reduces to its plain twin's identity (ADR-0015 third + fourth addenda); their order lets them
-    compose (a percent-encoded homoglyph decodes, then folds). The path/query/fragment keep their
-    case (URL semantics). Laundering is verbatim reproduction, so exact-but-case-normalized
-    identity is the right match. An opaque URL (`mailto:`/`tel:`) has no ``://`` authority to split
-    on, so it folds whole (harmless: it only widens a security redaction, and both sides fold
-    identically so verbatim matches still compare equal).
+    reduces to its plain twin's identity (ADR-0015 third + fourth + fifth addenda). Decoding runs
+    *before* refanging so an entity-encoded bracket (`&#91;.&#93;` → `[.]`) refangs too, and the
+    passes still compose (a percent-encoded homoglyph decodes, then folds). The path/query/fragment
+    keep their case (URL semantics). Laundering is verbatim reproduction, so an exact but
+    case-normalized identity is the right match. An opaque URL (`mailto:`/`tel:`/`data:`) has no
+    ``://`` authority to split on, so it folds whole (harmless: it only widens a redaction, and both
+    sides fold identically so verbatim matches still compare equal).
     """
-    decoded = _percent_decode(_refang(url))
+    decoded = _refang(_decode_escapes(url))
     folded = _fold_confusables(unicodedata.normalize("NFKC", decoded))
     trimmed = folded.rstrip(TRAILING_PUNCTUATION)
     head, sep, tail = trimmed.partition("://")
