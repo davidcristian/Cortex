@@ -117,7 +117,7 @@ class ScheduleTaskTool:
         parsed = parse_schedule(call.arguments, now=now, tasks_enabled=self._tasks_enabled)
         if isinstance(parsed, str):
             return error_result(call.id, parsed)
-        if parsed.kind is ScheduleKind.TASK and call.tainted:
+        if parsed.kind is ScheduleKind.TASK and call.stamp.tainted:
             return error_result(call.id, TAINTED_TASK_MSG)
         try:
             if len(await self._store.list_active()) >= self._max_active:
@@ -129,12 +129,14 @@ class ScheduleTaskTool:
                 id=self._item_id_factory(),
                 kind=parsed.kind,
                 text=parsed.text,
-                session_id="",
+                # Attribution from the dispatcher's stamp (ADR-0027): the origin chat rides
+                # the record (provenance, never display; the listing does not render it).
+                session_id=call.stamp.session_id,
                 due_at=parsed.due_at,
                 created_at=now,
                 every=parsed.every,
                 model=parsed.model,
-                tainted=call.tainted,
+                tainted=call.stamp.tainted,
             )
             await self._store.add(item)
         except ScheduleStoreError as err:

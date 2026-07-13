@@ -32,6 +32,7 @@ from cortex_core import (
     ToolCall,
     ToolDispatcher,
     Trust,
+    TurnStamp,
     next_due,
 )
 
@@ -190,11 +191,13 @@ class ScheduleTicker:
     async def _run_task(self, item: ScheduledItem) -> tuple[str, bool]:
         """One subagent run via ``spawn_subagents``; failures become outcomes, never raises.
 
-        ``dispatch(call, tainted=item.tainted)`` stamps the stored provenance onto the
-        call (ADR-0018), so a tainted item's subagent is pinned to the injection-robust
-        model by the roster (ADR-0017). The result's trust is the fire-time taint the
-        store ORs onto the item. A clean-created task whose subagent read untrusted
-        content cannot launder it into a trusted listing.
+        The dispatch stamp carries the item's stored provenance (ADR-0018/0027): its taint,
+        so a tainted item's subagent is pinned to the injection-robust model by the roster
+        (ADR-0017), and its origin ``session_id`` (honest provenance on the dispatch; no
+        stamp reader consumes it on this path until the ADR-0027 SubagentTask-attribution
+        deferral lands). The result's trust is the fire-time taint the store ORs onto the
+        item. A clean-created task whose subagent read untrusted content cannot launder it
+        into a trusted listing.
         """
         if self._spawn is None:
             return _NO_RUNNER_OUTCOME, False
@@ -207,7 +210,9 @@ class ScheduleTicker:
             arguments={"instructions": [instruction]},
         )
         try:
-            result = await self._spawn.dispatch(call, tainted=item.tainted)
+            result = await self._spawn.dispatch(
+                call, stamp=TurnStamp(session_id=item.session_id, tainted=item.tainted)
+            )
         except TaskStoreError as err:
             return f"FAILED: the task store is unavailable: {err}", False
         text = result.content if not result.is_error else f"FAILED: {result.content}"

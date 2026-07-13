@@ -12,11 +12,13 @@ from cortex_core import (
     REDACTED_LINK,
     SECURITY_PREAMBLE,
     CharBudgetHistoryWindow,
+    CompositeToolRegistry,
     EchoInferenceBackend,
     HashEmbedder,
     InferenceError,
     InferenceEvent,
     InMemoryMemoryStore,
+    InMemoryScheduleStore,
     InMemorySessionStore,
     InMemoryToolRegistry,
     MemoryRecaller,
@@ -25,6 +27,7 @@ from cortex_core import (
     ReasoningChunk,
     RecordingAuditSink,
     Role,
+    ScheduleTaskTool,
     SessionMemoryScope,
     StatusUpdate,
     StrictUrlRedactingGuardrail,
@@ -459,6 +462,42 @@ async def test_tool_call_is_dispatched_audited_and_fed_back() -> None:
     history = list(await store.history("s"))
     assert [m.role for m in history] == [Role.USER, Role.ASSISTANT]
     assert history[-1].text == "checking... done"
+
+
+async def test_the_turns_session_reaches_a_schedule_created_by_a_tool_call() -> None:
+    # End to end (ADR-0027): handle_turn's session rides ToolLoopContext into the loop's
+    # per-dispatch stamp, and schedule_task records it as the item's origin chat.
+    schedule_store = InMemoryScheduleStore()
+    tool = ScheduleTaskTool(
+        schedule_store,
+        TickingClock(),
+        tasks_enabled=False,
+        max_active=8,
+        item_id_factory=lambda: "item-1",
+    )
+    backend = ScriptedToolBackend(
+        [
+            [
+                ToolCall(
+                    id="c1",
+                    name="schedule_task",
+                    arguments={"kind": "reminder", "text": "stretch", "in_seconds": 60},
+                )
+            ],
+            [TextChunk("scheduled")],
+        ]
+    )
+    dispatcher = ToolDispatcher(CompositeToolRegistry([tool]), RecordingAuditSink(), TickingClock())
+    engine = TurnEngine(
+        InMemorySessionStore(),
+        backend,
+        TickingClock(),
+        capabilities=TurnCapabilities(tools=dispatcher),
+    )
+    await _collect(engine.handle_turn("chat-42", "remind me to stretch"))
+    item = await schedule_store.get("item-1")
+    assert item is not None
+    assert item.session_id == "chat-42"
 
 
 async def test_no_tool_call_ends_the_turn_in_one_step() -> None:

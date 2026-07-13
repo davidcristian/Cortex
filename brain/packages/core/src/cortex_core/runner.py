@@ -97,6 +97,10 @@ class SubagentRunner:
             turn_id=task.id,
             taint=taint,
             nonce=new_nonce(),
+            # A subagent run has no originating chat of its own: SubagentTask carries no
+            # session, and the only session_id consumer is cortex-only by construction
+            # (ADR-0027). The field grows onto the task when a consumer exists.
+            session_id="",
         )
         parts: list[str] = []
         try:

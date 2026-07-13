@@ -49,6 +49,7 @@ from cortex_core import (
     ToolDispatcher,
     ToolNotFoundError,
     ToolSpec,
+    TurnStamp,
     UrlRedactingGuardrail,
     VramBudgetPlacer,
 )
@@ -669,7 +670,7 @@ async def test_build_cortex_tools_threads_the_confirmer_into_the_gate() -> None:
     tools = build_cortex_tools(registry, (), SystemClock(), confirmer=confirmer)
     assert tools is not None
     result = await tools.dispatch(
-        ToolCall(id="c", name="send", arguments={}), tainted=False, gated=True
+        ToolCall(id="c", name="send", arguments={}), stamp=TurnStamp(tainted=False), gated=True
     )
     assert result.is_error is False
     assert len(confirmer.requests) == 1
@@ -684,7 +685,7 @@ async def test_build_cortex_tools_defaults_to_no_confirmer_fail_closed() -> None
     tools = build_cortex_tools(registry, (), SystemClock())
     assert tools is not None
     result = await tools.dispatch(
-        ToolCall(id="c", name="send", arguments={}), tainted=False, gated=True
+        ToolCall(id="c", name="send", arguments={}), stamp=TurnStamp(tainted=False), gated=True
     )
     assert result.is_error is True
     assert result.content == USER_DECLINED_MSG
@@ -712,7 +713,9 @@ async def test_build_cortex_tools_gated_names_gate_a_name_the_registry_advertise
     assert tools is not None
     # The registry never stamped it gated, yet a tainted turn's call is denied outright.
     result = await tools.dispatch(
-        ToolCall(id="c", name="send_email", arguments={}), tainted=True, gated=False
+        ToolCall(id="c", name="send_email", arguments={}),
+        stamp=TurnStamp(tainted=True),
+        gated=False,
     )
     assert result.is_error is True
     assert result.content == DENIED_MSG
@@ -727,7 +730,9 @@ async def test_build_subagent_tools_gated_names_are_the_fail_closed_backstop() -
     tools = build_subagent_tools(registry, SystemClock(), gated_names={"send_email"})
     assert tools is not None
     result = await tools.dispatch(
-        ToolCall(id="c", name="send_email", arguments={}), tainted=False, gated=False
+        ToolCall(id="c", name="send_email", arguments={}),
+        stamp=TurnStamp(tainted=False),
+        gated=False,
     )
     # confirmer=None on subagents -> the gated-by-name call is declined, never run.
     assert result.is_error is True

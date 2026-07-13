@@ -28,7 +28,7 @@ from cortex_core.conversation import Message, Role
 from cortex_core.dispatch import ToolDispatcher
 from cortex_core.inference import ReasoningChunk
 from cortex_core.ports import Clock, InferenceBackend
-from cortex_core.tools import ToolCall, ToolResult, ToolSpec, Trust
+from cortex_core.tools import ToolCall, ToolResult, ToolSpec, Trust, TurnStamp
 from cortex_core.untrusted import TaintLedger, wrap_untrusted
 
 # Upper bound on inference↔tool rounds in one loop (ADR-0009): a safety net against a model
@@ -84,7 +84,9 @@ class ToolLoopContext:
     """The per-invocation collaborators of one tool loop (ADR-0013), bundled to stay under the
     argument ceiling. ``dispatcher`` is the audited tool gateway (``None`` = a no-tools turn);
     ``taint`` is the turn-local ledger the loop marks on each untrusted result; ``nonce`` fences
-    those results. Both the cortex turn and each subagent build one per invocation.
+    those results; ``session_id`` is the originating chat the loop stamps onto each dispatch
+    (ADR-0027; ``""`` for a session-less caller, e.g. a subagent). Both the cortex turn and
+    each subagent build one per invocation.
     """
 
     dispatcher: ToolDispatcher | None
@@ -92,6 +94,7 @@ class ToolLoopContext:
     turn_id: str
     taint: TaintLedger
     nonce: str
+    session_id: str
 
 
 def _call_message(text: str, calls: Sequence[ToolCall], at: datetime, turn_id: str) -> Message:
@@ -167,9 +170,13 @@ async def stream_tool_loop(
                 yield ToolStep(tool_name=spec.name, summary=_step_summary(spec))
             # The advertised gated flag is a hint; the dispatcher OR-s it with its own
             # authoritative gated-name set, so a tool a flaky sidecar hid from this snapshot
-            # (skip mode) and later recovered is still gated at dispatch (ADR-0022).
+            # (skip mode) and later recovered is still gated at dispatch (ADR-0022). The
+            # stamp is built fresh per dispatch (ADR-0027): the taint bit is live and can
+            # flip mid-loop as untrusted results arrive.
             result = await dispatcher.dispatch(
-                call, tainted=context.taint.tainted, gated=gated_by_name.get(call.name, False)
+                call,
+                stamp=TurnStamp(session_id=context.session_id, tainted=context.taint.tainted),
+                gated=gated_by_name.get(call.name, False),
             )
             context.taint.observe(result)
             working.append(
