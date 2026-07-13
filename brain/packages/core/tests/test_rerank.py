@@ -9,6 +9,7 @@ from cortex_core import (
     MemoryRecord,
     MmrRecallPolicy,
     RawRecallPolicy,
+    RecencyMmrRecallPolicy,
     RerankingRecallPolicy,
     ScoredMemory,
 )
@@ -191,3 +192,80 @@ def test_mmr_rejects_a_relevance_weight_out_of_range() -> None:
 def test_mmr_rejects_a_pool_factor_below_one() -> None:
     with pytest.raises(ValueError, match="pool_factor must be at least 1"):
         _mmr(pool_factor=0)
+
+
+def _recency_mmr(
+    *,
+    half_life_days: float = 30.0,
+    recency_weight: float = 0.5,
+    relevance_weight: float = 0.5,
+    pool_factor: int = 4,
+) -> RecencyMmrRecallPolicy:
+    return RecencyMmrRecallPolicy(
+        half_life_seconds=half_life_days * _DAY,
+        recency_weight=recency_weight,
+        relevance_weight=relevance_weight,
+        pool_factor=pool_factor,
+    )
+
+
+def test_recency_mmr_over_fetches_a_wider_pool() -> None:
+    assert _recency_mmr(pool_factor=4).candidate_k(5) == 20
+
+
+def test_recency_mmr_prefers_a_recent_hit_for_the_first_pick() -> None:
+    # The first pick has an empty kept set (redundancy 0 for all), so it is pure recency-blended
+    # relevance: the fresher hit wins even though the stale one is slightly more similar.
+    fresh = _hit("fresh", 0.80, (1.0, 0.0), age_days=0.0)
+    stale = _hit("stale", 0.85, (0.0, 1.0), age_days=400.0)
+    kept = _recency_mmr(recency_weight=0.5).select([stale, fresh], now=_NOW, k=2)
+    assert [hit.record.id for hit in kept] == ["fresh", "stale"]  # recency lifts fresh above stale
+    assert kept[0].score == 0.80  # the reported score stays the raw cosine, not the blend
+
+
+def test_recency_mmr_prefers_a_diverse_hit_over_a_redundant_one() -> None:
+    # Equal ages neutralize recency, so the diversity axis decides the second pick: MMR still
+    # prefers the orthogonal `diverse` over the more-similar `redundant`, as `MmrRecallPolicy` does.
+    top = _hit("top", 0.90, (1.0, 0.0))
+    redundant = _hit("redundant", 0.88, (1.0, 1.0))  # cosine 0.707 to top: similar, not a dupe
+    diverse = _hit("diverse", 0.80, (0.0, 1.0))  # orthogonal to top
+    kept = _recency_mmr().select([top, redundant, diverse], now=_NOW, k=2)
+    assert [hit.record.id for hit in kept] == ["top", "diverse"]
+
+
+def test_recency_mmr_with_full_relevance_weight_is_recency_blended_top_k() -> None:
+    # relevance_weight 1.0 zeroes the diversity penalty, so a redundant hit is kept on relevance
+    # alone; with equal ages the recency blend is monotonic in score, so this is top-k by score.
+    hits = [_hit("a", 0.90, (1.0, 0.0)), _hit("b", 0.88, (1.0, 0.0)), _hit("c", 0.80, (0.0, 1.0))]
+    kept = _recency_mmr(relevance_weight=1.0).select(hits, now=_NOW, k=3)
+    assert [hit.record.id for hit in kept] == ["a", "b", "c"]  # `b` kept despite duplicating `a`
+
+
+def test_recency_mmr_returns_all_when_the_pool_is_smaller_than_k() -> None:
+    hits = [_hit("a", 0.90, (1.0, 0.0)), _hit("b", 0.80, (0.0, 1.0))]
+    kept = _recency_mmr().select(hits, now=_NOW, k=5)
+    assert [hit.record.id for hit in kept] == ["a", "b"]  # pool exhausted before k, both kept
+
+
+def test_recency_mmr_of_an_empty_pool_is_empty() -> None:
+    assert _recency_mmr().select([], now=_NOW, k=5) == ()
+
+
+def test_recency_mmr_rejects_a_non_positive_half_life() -> None:
+    with pytest.raises(ValueError, match="half_life_seconds must be positive"):
+        _recency_mmr(half_life_days=0.0)
+
+
+def test_recency_mmr_rejects_a_recency_weight_out_of_range() -> None:
+    with pytest.raises(ValueError, match="recency_weight must be within"):
+        _recency_mmr(recency_weight=1.5)
+
+
+def test_recency_mmr_rejects_a_relevance_weight_out_of_range() -> None:
+    with pytest.raises(ValueError, match="relevance_weight must be within"):
+        _recency_mmr(relevance_weight=-0.1)
+
+
+def test_recency_mmr_rejects_a_pool_factor_below_one() -> None:
+    with pytest.raises(ValueError, match="pool_factor must be at least 1"):
+        _recency_mmr(pool_factor=0)

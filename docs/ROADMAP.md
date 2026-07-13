@@ -976,9 +976,23 @@ behind the unchanged `ToolRegistry`/`ToolDispatcher`/`stream_tool_loop` seams (o
   relevance, degenerating to `RawRecallPolicy` order; `0` pure diversity), reusing the shared
   `recall_pool_factor`; the reported `ScoredMemory.score` stays the raw cosine, only order and
   membership change. CI-gated end to end over the fakes at 100%; no SQL change, so no host validation
-  is owed. Remaining behind the same seam: a **recency-and-diversity** policy (MMR run over the
-  reranker's recency-blended relevance), joining the model-based reranker and blended-relevance
-  deferrals above.
+  is owed. Remaining behind the same seam: the **model-based reranker** and **surfacing the blended
+  relevance** (the **recency-and-diversity** policy it also named landed, the entry below).
+- **Recency-and-diversity recall landed 2026-07-13 ([ADR-0008 recency-and-diversity
+  addendum](adr/ADR-0008-memory-v1.md)).** The MMR addendum's deferred diversity-over-recency policy:
+  a fourth pure-core `RecencyMmrRecallPolicy` (`rerank.py`, behind the **unchanged
+  `MemoryStore`/`Embedder` ports**) runs the MMR greedy selection over the reranker's recency-blended
+  relevance instead of the raw cosine, so a hit is kept for being recent, relevant, and non-redundant
+  at once (neither the reranker nor plain MMR gives all three). The shared
+  `_recency_blend`/`_redundancy`/`_greedy_mmr` machinery was extracted from the existing two policies
+  (their behavior byte-for-byte unchanged) so the fourth is a composition, not a paste.
+  `CORTEX_MEMORY_RECALL=recency_mmr` selects it (now `raw`, `reranked`, `mmr`, or `recency_mmr`),
+  reusing the existing recency and MMR-lambda knobs; the reported `ScoredMemory.score` stays the raw
+  cosine, only order and membership change. CI-gated end to end over the fakes at 100%; no SQL change,
+  so no host validation is owed. Remaining behind the same seam: the **model-based reranker** and
+  **surfacing the blended relevance**. The opt-in policies and their shared math were split into
+  `rerank_policies.py` (the port and the default `RawRecallPolicy` stay in `rerank.py`) at the
+  300-line cap as this landed.
 - **Write-salience policy.** v1 records the raw exchange text every turn; deciding what
   *deserves* remembering (salience filtering at record time) is a later policy behind the same
   port (ADR-0008 risks). Its summarization half is adjacent to the tiered-memory entry above.
