@@ -9,8 +9,11 @@ from cortex_core import (
     ScheduledItem,
     ScheduleEdit,
     ScheduleKind,
+    ScheduleStatus,
     apply_edit,
+    apply_snooze,
     next_due,
+    recurrence_base,
 )
 
 _NOW = datetime(2026, 7, 12, 12, 0, 0, tzinfo=UTC)
@@ -43,6 +46,11 @@ def test_item_requires_aware_created_at() -> None:
 def test_item_requires_aware_deliverable_since() -> None:
     with pytest.raises(ValueError, match="deliverable_since must be timezone-aware"):
         _item(deliverable_since=_NAIVE)
+
+
+def test_item_requires_aware_anchor() -> None:
+    with pytest.raises(ValueError, match="anchor must be timezone-aware"):
+        _item(every=timedelta(hours=1), anchor=_NAIVE)
 
 
 @pytest.mark.parametrize("every", [timedelta(0), timedelta(seconds=-60)])
@@ -83,6 +91,38 @@ def test_apply_edit_leaves_unset_fields_and_can_clear_recurrence() -> None:
     assert unchanged.tainted is True  # a tainted edit still marks it
     cleared = apply_edit(item, ScheduleEdit(set_every=True))
     assert cleared.every is None  # set_every with every=None makes it a one-shot
+
+
+def test_apply_snooze_rearms_a_delivered_one_shot_without_an_anchor() -> None:
+    """A one-shot has no recurrence grid: snooze re-arms it PENDING and leaves anchor unset."""
+    item = _item(due_at=_NOW, status=ScheduleStatus.DONE, deliverable_since=_NOW)
+    until = _NOW + timedelta(minutes=15)
+    snoozed = apply_snooze(item, until)
+    assert snoozed.status is ScheduleStatus.PENDING
+    assert snoozed.due_at == until
+    assert snoozed.deliverable_since is None
+    assert snoozed.anchor is None
+
+
+def test_apply_snooze_pins_a_recurring_grid_to_the_pre_snooze_due() -> None:
+    item = _item(due_at=_NOW, every=timedelta(hours=1))
+    snoozed = apply_snooze(item, _NOW + timedelta(minutes=20))
+    assert snoozed.anchor == _NOW  # the original occurrence becomes the grid origin
+    assert snoozed.due_at == _NOW + timedelta(minutes=20)  # only the next fire moves
+
+
+def test_apply_snooze_keeps_an_existing_anchor_on_a_second_snooze() -> None:
+    origin = _NOW - timedelta(hours=2)
+    item = _item(due_at=_NOW, every=timedelta(hours=1), anchor=origin)
+    snoozed = apply_snooze(item, _NOW + timedelta(minutes=5))
+    assert snoozed.anchor == origin  # a re-snooze never re-pins the grid
+
+
+def test_recurrence_base_prefers_the_anchor_then_falls_back_to_due_at() -> None:
+    origin = _NOW - timedelta(hours=3)
+    anchored = _item(due_at=_NOW, every=timedelta(hours=1), anchor=origin)
+    assert recurrence_base(anchored) == origin
+    assert recurrence_base(_item(due_at=_NOW)) == _NOW
 
 
 def test_fire_outcome_requires_aware_fired_at() -> None:

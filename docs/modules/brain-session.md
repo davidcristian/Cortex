@@ -50,10 +50,11 @@ Translators only: serialization, key layout, and error wrapping; no business log
   - `async finish(claim, outcome)` / `async release(claim)` are guarded by the record's
     live token; one MULTI/EXEC re-arms/terminates (finish) or returns to PENDING (release).
   - `async deliverable()` / `async ack(item_id)` are the fired-reminder delivery slot.
-  - `async snooze(item_id, *, until)` postpones a one-shot (PENDING re-scored in the due
-    index; a fired-but-undelivered reminder re-arms off the deliverable index), refusing a
-    recurring or FIRING item and answering a raced transition `False` like the rest
-    (ADR-0025 snooze addendum).
+  - `async snooze(item_id, *, until)` postpones the next fire via the pure `apply_snooze`
+    (PENDING re-scored in the due index; a fired-but-undelivered reminder re-arms off the
+    deliverable index). A recurring item is allowed: only its next occurrence moves, `anchor`
+    pinned to the pre-snooze `due_at` so the series keeps its cadence. FIRING refuses, and a
+    raced transition answers `False` like the rest (ADR-0025 occurrence-snooze addendum).
   - `async edit(item_id, edit)` retexts / re-recurs a non-FIRING item: a bare watched `SET` of
     the re-encoded record (`due_at` untouched, so the due/firing/deliverable indexes need no
     write), applying the pure `apply_edit` the fake shares; FIRING and unknown answer `False`,

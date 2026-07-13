@@ -86,7 +86,9 @@ from cortex_core.schedule import (
     ScheduleKind,
     ScheduleStatus,
     apply_edit,
+    apply_snooze,
     next_due,
+    recurrence_base,
 )
 from cortex_core.schedule_tools import (
     LIST_SCHEDULED_TOOL_NAME,
@@ -274,9 +276,11 @@ __all__ = [
     "VolumeState",
     "VramBudgetPlacer",
     "apply_edit",
+    "apply_snooze",
     "extract_urls",
     "new_nonce",
     "next_due",
+    "recurrence_base",
     "route_turn",
     "security_preamble_message",
     "summarize_session",
