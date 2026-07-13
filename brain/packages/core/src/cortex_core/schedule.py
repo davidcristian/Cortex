@@ -49,11 +49,15 @@ class ScheduledItem:
     ``text`` is the reminder text or the task instruction; ``session_id`` is the origin chat
     (``""`` until a turn-context stamp exists, per the ADR-0025 deferral). ``every`` makes the
     item recurring (a positive interval, enforced here; the 60 s floor is tool-boundary
-    policy). ``model`` is the task's roster hint (``""`` = the default; ADR-0017 resolution
-    still rules at fire time). ``tainted`` starts as the creating turn's taint (the
-    dispatcher's stamp, ADR-0018) and is OR'd with each fire's outcome taint at ``finish``, and
-    it decides listing trust and rides both delivery wire paths. ``deliverable_since`` marks
-    a fired reminder awaiting delivery/ack; ``last_outcome`` is the last task fire's result.
+    policy). ``anchor`` pins the recurrence *grid origin* separately from ``due_at`` (the next
+    fire): it is ``None`` until an occurrence snooze moves one fire off the grid, after which
+    ``recurrence_base`` reads it so the series resumes its original cadence instead of drifting
+    (ADR-0025 occurrence-snooze addendum). ``model`` is the task's roster hint (``""`` = the
+    default; ADR-0017 resolution still rules at fire time). ``tainted`` starts as the creating
+    turn's taint (the dispatcher's stamp, ADR-0018) and is OR'd with each fire's outcome taint
+    at ``finish``, and it decides listing trust and rides both delivery wire paths.
+    ``deliverable_since`` marks a fired reminder awaiting delivery/ack; ``last_outcome`` is the
+    last task fire's result.
     """
 
     id: str
@@ -63,6 +67,7 @@ class ScheduledItem:
     due_at: datetime
     created_at: datetime
     every: timedelta | None = None
+    anchor: datetime | None = None
     model: str = ""
     tainted: bool = False
     status: ScheduleStatus = ScheduleStatus.PENDING
@@ -74,6 +79,8 @@ class ScheduledItem:
         _require_aware("ScheduledItem.created_at", self.created_at)
         if self.deliverable_since is not None:
             _require_aware("ScheduledItem.deliverable_since", self.deliverable_since)
+        if self.anchor is not None:
+            _require_aware("ScheduledItem.anchor", self.anchor)
         if self.every is not None and self.every <= timedelta(0):
             msg = "ScheduledItem.every must be a positive interval"
             raise ValueError(msg)
@@ -152,6 +159,38 @@ def apply_edit(item: ScheduledItem, edit: ScheduleEdit) -> ScheduledItem:
         every=edit.every if edit.set_every else item.every,
         tainted=item.tainted or edit.tainted,
     )
+
+
+def apply_snooze(item: ScheduledItem, until: datetime) -> ScheduledItem:
+    """Return ``item`` postponed to ``until``: PENDING, off the deliverable index, grid kept.
+
+    Both stores snooze through this one pure function (the ``apply_edit`` precedent), so the
+    fake and the Redis adapter move an item identically. A recurring item keeps its original
+    cadence: only the single next occurrence moves to ``until``, while ``anchor`` pins the grid
+    origin (its existing anchor, or the pre-snooze ``due_at`` when this is the first snooze) so
+    the fire after the snooze re-arms on ``origin + k*every`` rather than ``until + every``. A
+    one-shot has no grid, so its anchor stays ``None`` (ADR-0025 occurrence-snooze addendum).
+    """
+    anchor = item.anchor
+    if item.every is not None and anchor is None:
+        anchor = item.due_at
+    return replace(
+        item,
+        status=ScheduleStatus.PENDING,
+        due_at=until,
+        deliverable_since=None,
+        anchor=anchor,
+    )
+
+
+def recurrence_base(item: ScheduledItem) -> datetime:
+    """The recurrence grid origin the ticker re-arms from: the ``anchor`` if set, else ``due_at``.
+
+    An unsnoozed item's ``due_at`` is always on its own grid, so ``anchor is None`` reduces to
+    the previous behavior; a snoozed recurring item carries the original origin here so
+    ``next_due`` returns the item to its cadence rather than drifting by the snooze offset.
+    """
+    return item.anchor if item.anchor is not None else item.due_at
 
 
 def next_due(due_at: datetime, every: timedelta | None, now: datetime) -> datetime | None:

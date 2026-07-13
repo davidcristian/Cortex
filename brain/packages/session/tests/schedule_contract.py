@@ -357,14 +357,24 @@ async def check_snooze_rearms_a_deliverable_reminder(store: ScheduleStore) -> No
     assert again.item.id == item.id
 
 
-async def check_snooze_refuses_a_recurring_item(store: ScheduleStore) -> None:
-    """A recurring item cannot be snoozed (rewriting due_at would re-anchor the series)."""
-    item = make_item(_item_id(), every=timedelta(hours=1))
+async def check_snooze_preserves_a_recurring_grid(store: ScheduleStore) -> None:
+    """Snoozing a recurring item moves only the next occurrence; ``anchor`` pins the grid origin.
+
+    The stored anchor round-trips the codec (the Redis leg exercises encode/decode of the new
+    field), and the item becomes claimable at the snoozed time, not the original one.
+    """
+    item = make_item(_item_id(), every=timedelta(hours=1))  # due at _NOW
     await store.add(item)
-    assert await store.snooze(item.id, until=_NOW + timedelta(minutes=30)) is False
+    until = _NOW + timedelta(minutes=30)
+    assert await store.snooze(item.id, until=until) is True
     loaded = await store.get(item.id)
     assert loaded is not None
-    assert loaded.due_at == item.due_at
+    assert loaded.due_at == until  # the single occurrence moved
+    assert loaded.anchor == _NOW  # the grid origin is pinned to the original due
+    assert loaded.every == timedelta(hours=1)  # still recurring
+    assert await store.claim_due(_NOW, lease=_LEASE, limit=10) == ()  # not due at the old time
+    (claim,) = await store.claim_due(until, lease=_LEASE, limit=10)
+    assert claim.item.id == item.id
 
 
 async def check_snooze_refuses_firing_and_unknown(store: ScheduleStore) -> None:
@@ -488,7 +498,7 @@ ALL_CHECKS = (
     check_deliverable_lists_oldest_fired_first,
     check_snooze_moves_a_pending_one_shot,
     check_snooze_rearms_a_deliverable_reminder,
-    check_snooze_refuses_a_recurring_item,
+    check_snooze_preserves_a_recurring_grid,
     check_snooze_refuses_firing_and_unknown,
     check_snooze_then_cancel_still_sticks,
     check_edit_retexts_a_pending_item,

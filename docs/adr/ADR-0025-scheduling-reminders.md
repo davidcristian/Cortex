@@ -618,5 +618,43 @@ CI-gated through the shared contract suite (fake + fakeredis interchangeably: re
 set/clear recurrence, taint monotonicity, FIRING/unknown refusal, the WATCH-fence race) and
 the tool tests over the fake (parsing matrix, the tainted-task refusal, the tainted-reminder
 allowance, down-store wrapping); the live Redis integration suite exercises the same contract
-on the real backend. Remaining deferred (unchanged): an anchor-preserving occurrence snooze
-still wants the same separate-anchor field this verb deliberately did not add.
+on the real backend. Remaining deferred at the time: an anchor-preserving occurrence snooze
+still wanted the same separate-anchor field this verb deliberately did not add. That field
+lands in the addendum below.
+
+## Addendum (2026-07-13): anchor-preserving occurrence snooze
+
+`snooze` now works on recurring items, closing the deferral the original snooze addendum and
+the edit addendum both named. The hazard those addenda avoided was real: `snooze` rewrites
+`due_at`, and because a recurring item's occurrences are `due_at + k*every`, moving `due_at`
+would silently re-anchor the *whole series*. The fix is the separate-anchor field the edit
+verb deliberately did not add, added here for exactly this transition. Decisions:
+
+- **`anchor` pins the grid origin; `due_at` stays the next fire.** `ScheduledItem` gains an
+  optional `anchor: datetime | None` (default `None`). Everything continues to index and claim
+  on `due_at` (unchanged), so the field is inert for one-shots and unsnoozed recurring items.
+  The ticker's two re-arm sites now compute `next_due(recurrence_base(item), item.every, ...)`
+  where `recurrence_base` returns `anchor` when set, else `due_at`. So a snoozed recurring item
+  re-arms on its original cadence (`origin + k*every`) rather than drifting to `until + every`.
+- **One pure `apply_snooze`, both stores.** Mirroring `apply_edit`, the transition is a single
+  pure function the fake and the Redis adapter both call: it sets `due_at=until`, status
+  `PENDING`, clears `deliverable_since`, and, *only for a recurring item on its first snooze*,
+  pins `anchor` to the pre-snooze `due_at` (a later snooze keeps the existing anchor, never
+  re-pinning). The stores drop `every is not None` from their refusal, keeping only the FIRING
+  and unknown guards; the fenced WATCH/MULTI wrapper is otherwise untouched. The
+  `SnoozeScheduledTool` loses its recurring refusal and advertises the occurrence semantics.
+- **A forward-compatible additive record field.** `anchor` rides the durable schedule record
+  under the existing extra-keys policy: `encode` always writes it, `decode` reads it with
+  `.get` so a record written before this addendum (no `anchor` key) decodes as `None`. No
+  version bump; no migration.
+- **Taint is untouched.** Unlike `edit`, a snooze injects no new content (it only postpones an
+  existing human-visible item), so it keeps carrying no taint gate, exactly as before.
+
+CI-gated through the shared contract suite (fake + fakeredis: the recurring snooze moves only
+the next occurrence, pins `anchor`, round-trips the codec, and becomes claimable at the snoozed
+time), the pure `apply_snooze`/`recurrence_base` unit tests, the tool test (recurring snooze now
+succeeds and pins the grid), and a ticker test proving the re-arm follows the anchor grid, not
+`due_at + every`; the live Redis integration suite exercises the same contract on the real
+backend. Remaining deferred (unchanged): local-time/cron recurrence and the occurrence-history
+table stay on the list; the anchor field is now the natural home for any future per-occurrence
+override.

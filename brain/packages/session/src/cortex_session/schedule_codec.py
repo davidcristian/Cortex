@@ -56,6 +56,7 @@ def encode(item: ScheduledItem, *, claim: str | None, claimed_at: datetime | Non
             "due_at": item.due_at.isoformat(),
             "created_at": item.created_at.isoformat(),
             "every_s": item.every.total_seconds() if item.every is not None else None,
+            "anchor": item.anchor.isoformat() if item.anchor is not None else None,
             "model": item.model,
             "tainted": item.tainted,
             "status": item.status.value,
@@ -87,6 +88,9 @@ def decode(raw: bytes | str, item_id: str) -> tuple[ScheduledItem, str | None, d
             )
             raise ScheduleStoreError(msg)
         every_s = fields["every_s"]
+        # .get, not []: a record written before the occurrence-snooze addendum has no "anchor"
+        # key, and the durable-record policy makes a missing additive field decode as absent.
+        anchor = fields.get("anchor")
         deliverable_since = fields["deliverable_since"]
         claim = cast("str | None", fields["claim"])
         raw_claimed_at = fields["claimed_at"]
@@ -99,6 +103,7 @@ def decode(raw: bytes | str, item_id: str) -> tuple[ScheduledItem, str | None, d
             due_at=datetime.fromisoformat(fields["due_at"]),
             created_at=datetime.fromisoformat(fields["created_at"]),
             every=timedelta(seconds=every_s) if every_s is not None else None,
+            anchor=datetime.fromisoformat(anchor) if anchor is not None else None,
             model=fields["model"],
             tainted=fields["tainted"],
             status=ScheduleStatus(fields["status"]),
