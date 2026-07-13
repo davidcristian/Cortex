@@ -1,8 +1,14 @@
 """Inference stream events: what a backend yields while producing one completion."""
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 
 from cortex_core.tools import ToolCall
+
+# A JSON Schema handed to the backend for constrained decoding (ADR-0028). Open-shaped like a
+# tool's parameters, so the value is round-tripped to the model server, never introspected by
+# the core; ``object`` values keep it free of an unjustified ``Any``.
+type JsonSchema = Mapping[str, object]
 
 
 @dataclass(frozen=True, slots=True)

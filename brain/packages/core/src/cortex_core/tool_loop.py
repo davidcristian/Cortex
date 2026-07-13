@@ -6,7 +6,7 @@ from datetime import datetime
 
 from cortex_core.conversation import Message, Role
 from cortex_core.dispatch import ToolDispatcher
-from cortex_core.inference import ReasoningChunk
+from cortex_core.inference import JsonSchema, ReasoningChunk
 from cortex_core.ports import Clock, InferenceBackend
 from cortex_core.tools import ToolCall, ToolResult, ToolSpec, Trust, TurnStamp
 from cortex_core.untrusted import TaintLedger, wrap_untrusted
@@ -60,6 +60,7 @@ class ToolLoopContext:
     taint: TaintLedger
     nonce: str
     session_id: str
+    schema: JsonSchema | None = None
 
 
 def _call_message(text: str, calls: Sequence[ToolCall], at: datetime, turn_id: str) -> Message:
@@ -97,7 +98,7 @@ async def stream_tool_loop(
     for _step in range(MAX_TOOL_STEPS):
         calls: list[ToolCall] = []
         step_text: list[str] = []
-        deltas = backend.stream(model, working, tools=specs)
+        deltas = backend.stream(model, working, tools=specs, schema=context.schema)
         try:
             async for event in deltas:
                 if isinstance(event, ToolCall):

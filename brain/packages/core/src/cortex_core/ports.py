@@ -11,7 +11,7 @@ from typing import Protocol
 
 from cortex_core.body import VolumeState
 from cortex_core.conversation import Message
-from cortex_core.inference import InferenceEvent
+from cortex_core.inference import InferenceEvent, JsonSchema
 from cortex_core.memory import MemoryRecord, ScoredMemory
 from cortex_core.model import ModelLease
 from cortex_core.placement import Placement, PlacementRequest
@@ -35,7 +35,12 @@ class InferenceBackend(Protocol):
     """One stateless streamed completion against a loaded model, with no sessions and no retries."""
 
     def stream(
-        self, model: str, messages: Sequence[Message], *, tools: Sequence[ToolSpec] = ()
+        self,
+        model: str,
+        messages: Sequence[Message],
+        *,
+        tools: Sequence[ToolSpec] = (),
+        schema: JsonSchema | None = None,
     ) -> AsyncIterator[InferenceEvent]: ...
 
 

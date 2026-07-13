@@ -195,9 +195,11 @@ Untrusted-content boundary (Slice 6.5, ADR-0013; the pure primitives in `untrust
   Reconstructed each turn, never persisted. Structurally satisfies `TaintView` (below), so the
   engine passes the live ledger straight to `OutputGuardrail.open`.
 - `ToolLoopContext` is a frozen bundle of a tool loop's per-invocation collaborators (`dispatcher`,
-  `clock`, `turn_id`, `taint`, `nonce`, `session_id`), keeping `stream_tool_loop` under its
-  argument ceiling. `session_id` is the originating chat the loop stamps onto each dispatch
-  (ADR-0027; `""` for a session-less caller, e.g. a subagent).
+  `clock`, `turn_id`, `taint`, `nonce`, `session_id`, `schema=None`), keeping `stream_tool_loop`
+  under its argument ceiling. `session_id` is the originating chat the loop stamps onto each
+  dispatch (ADR-0027; `""` for a session-less caller, e.g. a subagent); `schema` (ADR-0028), when
+  set, constrains the model's output to that JSON Schema (a constrained tool-less subagent
+  envelope; `None` for the cortex and every tool-enabled path).
 
 Output guardrail (ADR-0015; the pure laundering defense built from the redactor + policies in
 `guardrail.py`, the URL grammar + identity in `urls.py`):
@@ -254,9 +256,12 @@ Ports (`typing.Protocol`; failures cross them only as the typed errors below):
   `async list_sessions(*, limit) -> Sequence[SessionSummary]` (recent chats newest-active
   first, at most `limit`; ADR-0021 adds a read over the same state, no write path).
   The source of truth for conversation state; survives swaps and restarts.
-- `InferenceBackend` has `stream(model, messages, *, tools=()) -> AsyncIterator[InferenceEvent]`:
-  one stateless streamed completion, yielding `TextChunk` deltas interleaved with `ToolCall`s
-  the model makes from the offered `tools` (ADR-0009). `model` is a logical id (ADR-0004).
+- `InferenceBackend` has `stream(model, messages, *, tools=(), schema=None) ->
+  AsyncIterator[InferenceEvent]`: one stateless streamed completion, yielding `TextChunk` deltas
+  interleaved with `ToolCall`s the model makes from the offered `tools` (ADR-0009). `model` is a
+  logical id (ADR-0004). `schema` (a `JsonSchema`, `Mapping[str, object]`), when set, constrains
+  decoding to that JSON Schema (ADR-0028); `None` (every caller but a constrained tool-less
+  subagent) leaves output unconstrained.
 - `ModelManager` provides `acquire(model) -> AbstractAsyncContextManager[ModelLease]`: owns the
   GPU, queues for access, yields a `ModelLease`; leaving the block releases it to the
   next waiter. Consumed by the inference adapter (and, later, the handoff use-case).
@@ -415,7 +420,8 @@ Use-case:
   ADR-0018/0027). That is provenance for built-ins, never the gate's input, and a model-forged
   stamp is overwritten. `describe_tools()` passes through to the registry. Stateless over the
   ports; the loop drives it.
-- `SubagentRunner(store, roster, clock, *, tools=None)` is a subagent's body (ADR-0010/0012/0018),
+- `SubagentRunner(store, roster, clock, *, tools=None, constrain_output=False)` is a subagent's
+  body (ADR-0010/0012/0018),
   a stateless function over the `TaskStore`. `run(task_id)` loads the `SubagentTask` **by id**
   (never from cortex memory, so a missing task is an `ok=False` "task not found" result),
   **resolves** the roster entry via `roster.resolve(task.model, tainted=task.tainted,
@@ -427,7 +433,13 @@ Use-case:
   tools-enabled subagent also gets the `SECURITY_PREAMBLE` and its own `TaintLedger`, ADR-0013),
   persists + returns a `SubagentResult` carrying `tainted` from that ledger, and always releases
   the VRAM in a `finally`. A mid-stream `InferenceError` becomes an `ok=False` result carrying
-  the partial text. Exposes `roster`/`tools_enabled` (read-only) so the spawn tool advertises
+  the partial text. With `constrain_output` on **and** the tool-less path (`tools is None`, the
+  ADR-0028 niche where a weak model is reachable), the loop's `schema` is the fixed reply
+  envelope, so the reply is constrained JSON the runner unwraps to the `reply` string before
+  persisting (a malformed envelope degrades to an `ok=False` result whose `output` keeps the raw
+  text and whose `detail` is a fixed message, so the raw text stays in the store, not the cortex);
+  a tools-enabled subagent is never constrained (the JSON grammar would fight tool-calling).
+  Exposes `roster`/`tools_enabled` (read-only) so the spawn tool advertises
   exactly what it will honor. Tools-enabled but not given the delegation tool, so fan-out is
   depth-1.
 - `SpawnSubagentsTool(runner, store, clock, *, task_id_factory=<uuid4>)` is the built-in

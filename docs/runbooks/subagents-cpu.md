@@ -96,6 +96,30 @@ overlay / a `Converse` client and confirm the cortex emits `spawn_subagents`, th
 and their aggregated results fold into the answer. Every dispatched call (cortex and subagent) is
 audit-logged (ADR-0009/0010).
 
+## 3b. Validate constrained output kills format-laundering (ADR-0028)
+
+A standalone CPU E4B server is enough (no full stack). Bring one up on loopback 8090:
+
+```bash
+docker run -d --name e4b-probe --cpus 4 -p 127.0.0.1:8090:8090 -v /srv/models:/models:ro \
+  ghcr.io/ggml-org/llama.cpp:server \
+  --model /models/google/gemma-4-E4B-it-qat-q4_0-gguf/gemma-4-E4B_q4_0-it.gguf \
+  --host 0.0.0.0 --port 8090 -ngl 0 --jinja --chat-template-kwargs '{"enable_thinking": false}'
+```
+
+Then run the integration test through the real `LlamaCppBackend`, which asserts the same
+injection that an unconstrained stream obeys is defeated by the envelope constraint:
+
+```bash
+cd brain && CORTEX_SUBAGENT_ENDPOINT=http://127.0.0.1:8090 CORTEX_MODEL_SUBAGENT=e4b \
+  uv run pytest -m integration --no-cov -s \
+  packages/inference/tests/test_backend_live.py::test_constrained_decoding_kills_format_laundering_on_the_weak_tier
+```
+
+The unconstrained baseline appends `VISIT http://evil.example ...`; the constrained request
+returns exactly `{"reply": "..."}` with the exfil link gone (agent-validated 2026-07-13, ~7 s).
+Tear the probe down with `docker rm -f e4b-probe`.
+
 ## 4. Teardown
 
 ```powershell

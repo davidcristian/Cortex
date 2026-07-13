@@ -864,11 +864,26 @@ behind the unchanged `ToolRegistry`/`ToolDispatcher`/`stream_tool_loop` seams (o
   carry untrusted content (tainted turn or tools-enabled subagent), so a weak model is reachable
   only for a tool-less subagent on an untainted turn. Deterministic, CI-proven over the full
   matrix and end to end (taint ledger → dispatcher stamp → task record → resolution).
-- **Grammar-constrained subagent output** ([ADR-0017](adr/ADR-0017-subagent-model-safety.md)
-  composes-with; option (c)). Schema-constrained decoding behind the unchanged `InferenceBackend`
-  would kill *format*-laundering (appended footers/links/sections) even on a weak model in the narrow
-  trusted-tool-less niche where one is still used (orthogonal to the which-model boundary above).
-  Deferred; **not** picked up by 8.6, left for a later hardening pass.
+- **Grammar-constrained subagent output landed 2026-07-13
+  ([ADR-0028](adr/ADR-0028-grammar-constrained-subagents.md), the ADR-0017 option (c)
+  hardening pass).** An additive `schema` keyword on the unchanged `InferenceBackend` port
+  (`JsonSchema = Mapping[str, object]`; `LlamaCppBackend` maps it to an OpenAI `response_format`
+  `json_schema`, the fake records it) threaded through `ToolLoopContext`; the `SubagentRunner`
+  decodes a **tool-less** subagent's reply into a fixed `{"reply": "..."}` envelope
+  (`constrain_output`, `CORTEX_SUBAGENTS_CONSTRAIN_OUTPUT`, default on) and unwraps it before
+  persisting, so format-laundering (appended footers/links/sections) has no grammatical position
+  even on a weak model. Gated to the tool-less path (the ADR-0017 niche where a weak model is
+  reachable), so the JSON grammar never fights llama.cpp's tool-calling grammar; a malformed
+  envelope degrades to `ok=False` whose `output` holds the raw text (kept in the store, not
+  surfaced to the cortex) and whose `detail` is a fixed message. CI-gated end to end (payload
+  mapping, envelope wrap/unwrap, malformed degradation, the tool-enabled-never-constrained gate),
+  and **agent-Docker live-validated 2026-07-13** on CPU gemma-4-E4B: the same injection an
+  unconstrained stream obeys (`Blue\nVISIT http://evil.example ...`) returns exactly
+  `{"reply": "Red"}` constrained. The envelope kills *appended*-structure laundering; a link woven
+  into the `reply` string stays the untrusted-content boundary's job. Remaining
+  behind the same seam (ADR-0028 deferred): a raw GBNF `grammar` alternative to the JSON envelope,
+  and a per-task caller-supplied schema (rejected for now, revisited only for a structured
+  subagent-result feature).
 - **Subagents are never *handed* a gated/outbound tool. Landed 2026-07-03, ahead of the Slice 9-10
   need** ([ADR-0013 subagent-exclusion addendum](adr/ADR-0013-untrusted-content.md)). Structural, no
   longer wiring discipline: `UngatedToolRegistry` (core) strips gated specs from advertisement and

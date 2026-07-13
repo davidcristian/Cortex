@@ -11,6 +11,7 @@ from cortex_core import (
     InMemorySessionStore,
     InMemoryTaskStore,
     InMemoryToolRegistry,
+    JsonSchema,
     Message,
     PlacementRequest,
     PlacementTarget,
@@ -50,9 +51,14 @@ class ScriptedCortexBackend:
         self.seen: list[tuple[Message, ...]] = []
 
     async def stream(
-        self, model: str, messages: Sequence[Message], *, tools: Sequence[ToolSpec] = ()
+        self,
+        model: str,
+        messages: Sequence[Message],
+        *,
+        tools: Sequence[ToolSpec] = (),
+        schema: JsonSchema | None = None,
     ) -> AsyncIterator[InferenceEvent]:
-        del model, tools
+        del model, tools, schema
         self.seen.append(tuple(messages))
         step = self._steps[self._call]
         self._call += 1
@@ -68,9 +74,14 @@ class TextBackend:
         self.seen: list[tuple[Message, ...]] = []
 
     async def stream(
-        self, model: str, messages: Sequence[Message], *, tools: Sequence[ToolSpec] = ()
+        self,
+        model: str,
+        messages: Sequence[Message],
+        *,
+        tools: Sequence[ToolSpec] = (),
+        schema: JsonSchema | None = None,
     ) -> AsyncIterator[InferenceEvent]:
-        del model, tools
+        del model, tools, schema
         self.seen.append(tuple(messages))
         for delta in self._deltas:
             yield TextChunk(delta)

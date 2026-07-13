@@ -9,6 +9,7 @@ from cortex_core import (
     InferenceEvent,
     InMemoryTaskStore,
     InMemoryToolRegistry,
+    JsonSchema,
     Message,
     PlacementRequest,
     PlacementTarget,
@@ -47,9 +48,14 @@ class TextBackend:
         self.seen: list[tuple[Message, ...]] = []
 
     async def stream(
-        self, model: str, messages: Sequence[Message], *, tools: Sequence[ToolSpec] = ()
+        self,
+        model: str,
+        messages: Sequence[Message],
+        *,
+        tools: Sequence[ToolSpec] = (),
+        schema: JsonSchema | None = None,
     ) -> AsyncIterator[InferenceEvent]:
-        del model, tools
+        del model, tools, schema
         self.seen.append(tuple(messages))
         for delta in self._deltas:
             yield TextChunk(delta)
@@ -63,9 +69,14 @@ class ScriptedBackend:
         self._call = 0
 
     async def stream(
-        self, model: str, messages: Sequence[Message], *, tools: Sequence[ToolSpec] = ()
+        self,
+        model: str,
+        messages: Sequence[Message],
+        *,
+        tools: Sequence[ToolSpec] = (),
+        schema: JsonSchema | None = None,
     ) -> AsyncIterator[InferenceEvent]:
-        del model, messages, tools
+        del model, messages, tools, schema
         step = self._steps[self._call]
         self._call += 1
         for event in step:
@@ -76,12 +87,38 @@ class FailingBackend:
     """Yields one delta, then fails with the typed inference error."""
 
     async def stream(
-        self, model: str, messages: Sequence[Message], *, tools: Sequence[ToolSpec] = ()
+        self,
+        model: str,
+        messages: Sequence[Message],
+        *,
+        tools: Sequence[ToolSpec] = (),
+        schema: JsonSchema | None = None,
     ) -> AsyncIterator[InferenceEvent]:
-        del model, messages, tools
+        del model, messages, tools, schema
         yield TextChunk("partial ")
         msg = "backend exploded"
         raise InferenceError(msg)
+
+
+class SchemaRecordingBackend:
+    """Records the schema it was handed each call and yields fixed text (ADR-0028)."""
+
+    def __init__(self, deltas: Sequence[str]) -> None:
+        self._deltas = deltas
+        self.schemas: list[JsonSchema | None] = []
+
+    async def stream(
+        self,
+        model: str,
+        messages: Sequence[Message],
+        *,
+        tools: Sequence[ToolSpec] = (),
+        schema: JsonSchema | None = None,
+    ) -> AsyncIterator[InferenceEvent]:
+        del model, messages, tools
+        self.schemas.append(schema)
+        for delta in self._deltas:
+            yield TextChunk(delta)
 
 
 async def _read_handler(arguments: Mapping[str, object]) -> str:
@@ -114,11 +151,14 @@ def _runner(
     backend: InferenceBackend,
     *,
     tools: ToolDispatcher | None = None,
+    constrain_output: bool = False,
 ) -> SubagentRunner:
     # Both targets route to the one backend; the placer picks GPU (headroom 14 - 11 = 3 >= 2).
     placer = VramBudgetPlacer(soft_cap_gb=14.0, cortex_reservation_gb=11.0)
     roster = _roster(_resources(backend, backend, placer))
-    return SubagentRunner(store, roster, FixedClock(), tools=tools)
+    return SubagentRunner(
+        store, roster, FixedClock(), tools=tools, constrain_output=constrain_output
+    )
 
 
 async def test_runs_a_plain_task_and_persists_the_result() -> None:
@@ -194,6 +234,74 @@ async def test_tools_enabled_subagent_dispatches_and_audits_its_calls() -> None:
     # The subagent's own tool call went through the same audited dispatcher.
     (audit,) = sink.records
     assert (audit.name, audit.ok, audit.detail) == ("read", True, "read /x")
+
+
+_ENVELOPE: JsonSchema = {
+    "type": "object",
+    "properties": {"reply": {"type": "string"}},
+    "required": ["reply"],
+    "additionalProperties": False,
+}
+
+
+async def test_constrained_tool_less_subagent_passes_the_envelope_and_unwraps_the_reply() -> None:
+    # ADR-0028: a tool-less subagent with constrain_output on gets the fixed envelope schema, and
+    # the runner unwraps the reply so the cortex sees an answer, never raw JSON.
+    store = InMemoryTaskStore()
+    await store.put_task(SubagentTask(id="t1", instruction="name a color", context="", at=_AT))
+    backend = SchemaRecordingBackend(['{"reply": "blue', '"}'])
+    result = await _runner(store, backend, constrain_output=True).run("t1")
+    assert (result.ok, result.output) == (True, "blue")
+    assert backend.schemas == [_ENVELOPE]  # the envelope was threaded to the backend
+
+
+async def test_a_malformed_constrained_reply_is_a_failed_result_carrying_the_raw_text() -> None:
+    # A weak model that slips the grammar (or a partial stream) degrades to ok=False, and the
+    # raw payload rides as the output for debugging rather than being persisted as the answer.
+    store = InMemoryTaskStore()
+    await store.put_task(SubagentTask(id="t1", instruction="go", context="", at=_AT))
+    backend = SchemaRecordingBackend(["not a JSON envelope"])
+    result = await _runner(store, backend, constrain_output=True).run("t1")
+    assert result.ok is False
+    assert result.output == "not a JSON envelope"
+    assert "malformed" in result.detail
+
+
+async def test_a_constrained_reply_missing_the_key_is_a_failed_result() -> None:
+    # Valid JSON but the wrong shape (no string ``reply``) is also malformed.
+    store = InMemoryTaskStore()
+    await store.put_task(SubagentTask(id="t1", instruction="go", context="", at=_AT))
+    result = await _runner(
+        store, SchemaRecordingBackend(['{"other": 1}']), constrain_output=True
+    ).run("t1")
+    assert result.ok is False
+    assert "malformed" in result.detail
+
+
+async def test_output_is_unconstrained_when_the_knob_is_off() -> None:
+    # With constrain_output off, the tool-less path gets no schema and the raw text is the answer.
+    store = InMemoryTaskStore()
+    await store.put_task(SubagentTask(id="t1", instruction="go", context="", at=_AT))
+    backend = SchemaRecordingBackend(["plain answer"])
+    result = await _runner(store, backend, constrain_output=False).run("t1")
+    assert (result.ok, result.output) == (True, "plain answer")
+    assert backend.schemas == [None]
+
+
+async def test_a_tools_enabled_subagent_is_never_constrained() -> None:
+    # The constraint is gated to the tool-less path (ADR-0028 decision 3): a tools-enabled
+    # subagent gets no schema even with the knob on, so the JSON envelope never fights the
+    # tool-calling grammar.
+    store = InMemoryTaskStore()
+    await store.put_task(SubagentTask(id="t1", instruction="go", context="", at=_AT))
+    backend = SchemaRecordingBackend(["ok"])
+    registry = InMemoryToolRegistry(
+        {"read": (ToolSpec(name="read", description="", parameters={}), _read_handler)}
+    )
+    dispatcher = ToolDispatcher(registry, RecordingAuditSink(), FixedClock())
+    result = await _runner(store, backend, tools=dispatcher, constrain_output=True).run("t1")
+    assert (result.ok, result.output) == (True, "ok")
+    assert backend.schemas == [None]  # tool-enabled -> unconstrained
 
 
 def _routed_runner(

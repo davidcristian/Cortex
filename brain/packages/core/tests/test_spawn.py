@@ -13,6 +13,7 @@ from cortex_core import (
     InferenceEvent,
     InMemoryTaskStore,
     InMemoryToolRegistry,
+    JsonSchema,
     Message,
     PlacementRequest,
     PlacementTarget,
@@ -43,9 +44,14 @@ class FailingBackend:
     """Yields one delta then fails. Every subagent driven by it comes back ok=False."""
 
     async def stream(
-        self, model: str, messages: Sequence[Message], *, tools: Sequence[ToolSpec] = ()
+        self,
+        model: str,
+        messages: Sequence[Message],
+        *,
+        tools: Sequence[ToolSpec] = (),
+        schema: JsonSchema | None = None,
     ) -> AsyncIterator[InferenceEvent]:
-        del model, messages, tools
+        del model, messages, tools, schema
         yield TextChunk("x")
         msg = "boom"
         raise InferenceError(msg)

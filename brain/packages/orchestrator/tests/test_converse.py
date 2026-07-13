@@ -15,6 +15,7 @@ from cortex_core import (
     InferenceEvent,
     InMemorySessionStore,
     InMemoryToolRegistry,
+    JsonSchema,
     Message,
     ReasoningChunk,
     RecordingAuditSink,
@@ -100,9 +101,14 @@ class MidStreamFailingBackend:
     """Backend that yields one delta and then fails with the typed error."""
 
     async def stream(
-        self, model: str, messages: Sequence[Message], *, tools: Sequence[ToolSpec] = ()
+        self,
+        model: str,
+        messages: Sequence[Message],
+        *,
+        tools: Sequence[ToolSpec] = (),
+        schema: JsonSchema | None = None,
     ) -> AsyncIterator[InferenceEvent]:
-        del model, messages, tools
+        del model, messages, tools, schema
         yield TextChunk("partial ")
         msg = "backend exploded mid-stream"
         raise InferenceError(msg)
@@ -112,9 +118,14 @@ class BrokenBackend:
     """Backend that fails with an unexpected (untyped) error. This is the internal path."""
 
     async def stream(
-        self, model: str, messages: Sequence[Message], *, tools: Sequence[ToolSpec] = ()
+        self,
+        model: str,
+        messages: Sequence[Message],
+        *,
+        tools: Sequence[ToolSpec] = (),
+        schema: JsonSchema | None = None,
     ) -> AsyncIterator[InferenceEvent]:
-        del model, messages, tools
+        del model, messages, tools, schema
         msg = "a bug, not a typed seam failure"
         raise RuntimeError(msg)
         yield TextChunk("")  # makes this an async generator; never reached
@@ -128,9 +139,14 @@ class GatedBackend:
         self.closed = asyncio.Event()
 
     async def stream(
-        self, model: str, messages: Sequence[Message], *, tools: Sequence[ToolSpec] = ()
+        self,
+        model: str,
+        messages: Sequence[Message],
+        *,
+        tools: Sequence[ToolSpec] = (),
+        schema: JsonSchema | None = None,
     ) -> AsyncIterator[InferenceEvent]:
-        del model, messages, tools
+        del model, messages, tools, schema
         self.calls += 1
         try:
             yield TextChunk("never-finished")
@@ -147,9 +163,14 @@ class TeardownGatedBackend:
         self.release = asyncio.Event()
 
     async def stream(
-        self, model: str, messages: Sequence[Message], *, tools: Sequence[ToolSpec] = ()
+        self,
+        model: str,
+        messages: Sequence[Message],
+        *,
+        tools: Sequence[ToolSpec] = (),
+        schema: JsonSchema | None = None,
     ) -> AsyncIterator[InferenceEvent]:
-        del model, messages, tools
+        del model, messages, tools, schema
         try:
             yield TextChunk("never-finished")
             await asyncio.sleep(3600)
@@ -165,9 +186,14 @@ class CountingEndlessBackend:
         self.yielded = 0
 
     async def stream(
-        self, model: str, messages: Sequence[Message], *, tools: Sequence[ToolSpec] = ()
+        self,
+        model: str,
+        messages: Sequence[Message],
+        *,
+        tools: Sequence[ToolSpec] = (),
+        schema: JsonSchema | None = None,
     ) -> AsyncIterator[InferenceEvent]:
-        del model, messages, tools
+        del model, messages, tools, schema
         while True:
             self.yielded += 1
             yield TextChunk(f"d{self.yielded}")
@@ -180,9 +206,14 @@ class BurstThenFailBackend:
         self._burst = burst
 
     async def stream(
-        self, model: str, messages: Sequence[Message], *, tools: Sequence[ToolSpec] = ()
+        self,
+        model: str,
+        messages: Sequence[Message],
+        *,
+        tools: Sequence[ToolSpec] = (),
+        schema: JsonSchema | None = None,
     ) -> AsyncIterator[InferenceEvent]:
-        del model, messages, tools
+        del model, messages, tools, schema
         for n in range(1, self._burst + 1):
             yield TextChunk(f"d{n}")
         msg = "burst over"
@@ -251,9 +282,14 @@ class ReasoningBackend:
     """Streams one reasoning delta (surfaced as a thinking status) then one reply delta."""
 
     async def stream(
-        self, model: str, messages: Sequence[Message], *, tools: Sequence[ToolSpec] = ()
+        self,
+        model: str,
+        messages: Sequence[Message],
+        *,
+        tools: Sequence[ToolSpec] = (),
+        schema: JsonSchema | None = None,
     ) -> AsyncIterator[InferenceEvent]:
-        del model, messages, tools
+        del model, messages, tools, schema
         yield ReasoningChunk("pondering")
         yield TextChunk("hi")
 
@@ -277,9 +313,14 @@ class OneToolCallBackend:
         self._calls = 0
 
     async def stream(
-        self, model: str, messages: Sequence[Message], *, tools: Sequence[ToolSpec] = ()
+        self,
+        model: str,
+        messages: Sequence[Message],
+        *,
+        tools: Sequence[ToolSpec] = (),
+        schema: JsonSchema | None = None,
     ) -> AsyncIterator[InferenceEvent]:
-        del model, messages, tools
+        del model, messages, tools, schema
         self._calls += 1
         if self._calls == 1:
             yield ToolCall(id="c1", name="read", arguments={"path": "/x"})
