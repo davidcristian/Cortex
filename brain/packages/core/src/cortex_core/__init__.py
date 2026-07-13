@@ -69,11 +69,10 @@ from cortex_core.ports import (
     ToolRegistry,
 )
 from cortex_core.recall import MemoryRecaller
-from cortex_core.rerank import (
-    RAW_RECALL_POLICY,
+from cortex_core.rerank import RAW_RECALL_POLICY, RawRecallPolicy, RecallPolicy
+from cortex_core.rerank_policies import (
     MmrRecallPolicy,
-    RawRecallPolicy,
-    RecallPolicy,
+    RecencyMmrRecallPolicy,
     RerankingRecallPolicy,
 )
 from cortex_core.roster import SubagentProfile, SubagentResources, SubagentRoster
@@ -214,6 +213,7 @@ __all__ = [
     "RawRecallPolicy",
     "ReasoningChunk",
     "RecallPolicy",
+    "RecencyMmrRecallPolicy",
     "RecordingAuditSink",
     "RecordingConfirmer",
     "RerankingRecallPolicy",

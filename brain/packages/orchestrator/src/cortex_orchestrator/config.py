@@ -13,7 +13,7 @@ BodyBackendName = Literal["none", "grpc"]
 InferenceBackendName = Literal["echo", "llamacpp"]
 MemoryBackendName = Literal["none", "pgvector"]
 MemoryScopeName = Literal["global", "session"]
-MemoryRecallName = Literal["raw", "reranked", "mmr"]
+MemoryRecallName = Literal["raw", "reranked", "mmr", "recency_mmr"]
 MemoryTaintPolicyName = Literal["skip", "record"]
 ToolsBackendName = Literal["none", "mcp"]
 
