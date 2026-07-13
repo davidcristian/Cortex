@@ -179,3 +179,58 @@ union** read policy (a `SessionMemoryScope` that also reads `GLOBAL_SCOPE`, once
 durable global facts under scoping, though today nothing does, so the union would be dead); a
 **per-scope retention / eviction** policy; and **cross-scope recall ranking** (weighting a hit by
 which scope it came from). All are `MemoryScope`/`MemoryStore` refinements, none a port change.
+
+## Addendum (2026-07-13): retrieval quality as a `RecallPolicy` seam (recency rerank + dedup)
+
+The "Retrieval quality" risk named v1 recall as **raw top-k cosine with no reranking, recency
+weighting, or dedup**, "revisit behind the port if recall is noisy." This addendum delivers all
+three, additively, behind the **unchanged `MemoryStore`/`Embedder` ports** and the `MemoryRecaller`
+use-case. CI-gated end to end over the fakes; no SQL change, so no host validation is owed (the
+reranking is pure core, above the store).
+
+1. **The rerank lives in the use-case, not the store, behind a new pure `RecallPolicy` seam
+   (`rerank.py`, the `MemoryScope`/`HistoryWindow` pattern).** It needs the record's age, which means
+   the `Clock` the `MemoryRecaller` already owns and the store does not, and it must compose recency
+   with dedup in one pass that the pgvector `ORDER BY <=> LIMIT` cannot express cleanly. Keeping it
+   above the store also means the two adapters (pgvector, in-memory fake) stay pure translators and
+   the port keeps its one meaning: `search` still returns top-k by cosine, most-similar first.
+   `RecallPolicy` has two methods: `candidate_k(k) -> int` (how wide a pool to over-fetch) and
+   `select(hits, *, now, k) -> Sequence[ScoredMemory]` (rerank, dedup, truncate to `k`).
+
+2. **`MemoryRecaller.recall` over-fetches, then applies the policy.** It searches for
+   `policy.candidate_k(k)` candidates in the turn's read-scopes, then returns
+   `policy.select(pool, now=clock.now(), k=k)`. `record` is untouched. The policy is injected
+   (`policy=RAW_RECALL_POLICY`), exactly as `scope=GLOBAL_MEMORY_SCOPE` is.
+
+3. **Two reference policies ship.**
+   - **`RawRecallPolicy`** (the default singleton `RAW_RECALL_POLICY`) is **v1 behavior exactly**:
+     `candidate_k(k) = k`, `select = hits[:k]`. The pool the store returns is already
+     similarity-sorted and length-`k`, so every current recall path stays byte-for-byte identical and
+     pays no extra fetch. Reranking is **opt-in, not a default flip** (the scoping addendum's stance),
+     because it changes what the model sees and its value depends on the embedding model's observed
+     recall noise, which the risk framed as the trigger to enable it.
+   - **`RerankingRecallPolicy`** over-fetches `k * pool_factor`, scores each hit by a convex blend
+     `relevance = (1 - recency_weight) * similarity + recency_weight * recency`, where `recency =
+     0.5 ** (age_seconds / half_life_seconds)` is an exponential decay over an **age floored at 0**
+     (so a future-dated record from clock skew or a corrupt row is treated as maximally recent: it
+     cannot exceed a fresh one, and the non-positive exponent cannot overflow). It sorts by `relevance`
+     (stable, so equal-relevance ties keep the store's similarity order), then greedily drops a hit
+     whose embedding cosine to an already-kept hit is `>= dedup_threshold` (identical text
+     roundtrips to cosine 1.0, so exact duplicates fall out first, and paraphrases with them),
+     and truncates to `k`. Each emitted `ScoredMemory.score` **stays the raw cosine similarity**:
+     the order and membership reflect relevance, but the reported score keeps the store's meaning,
+     so the field never silently becomes "relevance." A degenerate zero-magnitude embedding scores
+     cosine 0.0 and so is never deduped against another.
+
+4. **Config selects and tunes the policy at the composition root only.** `CORTEX_MEMORY_RECALL`
+   (`MemoryConfig.recall`) is `raw` (default) or `reranked`; the tuning knobs
+   `CORTEX_MEMORY_RECALL_HALF_LIFE_DAYS` (30), `CORTEX_MEMORY_RECALL_RECENCY_WEIGHT` (0.3),
+   `CORTEX_MEMORY_RECALL_DEDUP_THRESHOLD` (0.98), and `CORTEX_MEMORY_RECALL_POOL_FACTOR` (4) build
+   the `RerankingRecallPolicy` via `recall_policy_from_config`. No core code reads env; the half-life
+   is authored in days and converted to seconds at the seam.
+
+**Consciously deferred (behind the same `RecallPolicy` seam), recorded in the ROADMAP:** a
+**model-based reranker** (a cross-encoder or an LLM-judge `select`, the natural next policy once a
+deterministic blend proves too blunt); **surfacing the blended relevance** as a distinct field
+should a consumer ever need to display it (the store's cosine is kept today); and **maximal-marginal-
+relevance** diversity beyond threshold dedup. All are policy swaps, none a port change.

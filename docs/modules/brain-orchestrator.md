@@ -44,8 +44,13 @@ Config (pydantic-settings; explicit constructor arguments beat the environment):
 - `MemoryConfig` uses env prefix `CORTEX_MEMORY_` (ADR-0008): `backend: "none" | "pgvector" =
   "none"` (`CORTEX_MEMORY_BACKEND`), `dsn: str = ""` (`CORTEX_MEMORY_DSN`),
   `embedder_endpoint: str = ""` (`CORTEX_MEMORY_EMBEDDER_ENDPOINT`), `embedder_model: str`
-  (`CORTEX_MEMORY_EMBEDDER_MODEL`). Validates that `pgvector` has both a DSN and an
-  embedder endpoint. Set by `docker/docker-compose.memory.yml`.
+  (`CORTEX_MEMORY_EMBEDDER_MODEL`), `scope: "global" | "session" = "global"`
+  (`CORTEX_MEMORY_SCOPE`, scoping addendum), `on_tainted: "skip" | "record" = "skip"`
+  (`CORTEX_MEMORY_ON_TAINTED`, ADR-0019), and `recall: "raw" | "reranked" = "raw"`
+  (`CORTEX_MEMORY_RECALL`, rerank addendum) with its `recall_half_life_days` (30),
+  `recall_recency_weight` (0.3), `recall_dedup_threshold` (0.98), and `recall_pool_factor` (4)
+  tuning knobs. Validates that `pgvector` has both a DSN and an embedder endpoint. Set by
+  `docker/docker-compose.memory.yml`.
 - `ToolsConfig` uses env prefix `CORTEX_TOOLS_`, nested delimiter `__` (ADR-0009 + refinements
   addendum): `backend: "none" | "mcp" = "none"` (`CORTEX_TOOLS_BACKEND`); endpoints in one of
   two forms, either the singular `endpoint: str = ""` (`CORTEX_TOOLS_ENDPOINT`, one streamable-http
@@ -198,7 +203,8 @@ The service:
   the default-on history window (`build_history_window`, ADR-0014) and output guardrail
   (`build_output_guardrail`, ADR-0015),
   and four opt-in adapters, each disabled by default so CI and the no-GPU dev loop stay
-  external-service-free: **memory** (`build_memory`, ADR-0008), **tools** (`build_tool_registry`
+  external-service-free: **memory** (`build_memory`, in `memory_builders.py` split from
+  `builders.py`, ADR-0008), **tools** (`build_tool_registry`
   builds the MCP `ToolRegistry` shared by cortex and subagents, ADR-0009: one lazy
   `ReconnectingMcpToolRegistry` per configured endpoint (dialed on first use, not at startup, so
   boot-tolerant, ADR-0009 boot-tolerance addendum), wrapped in a `FilteredToolRegistry` where an

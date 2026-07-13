@@ -13,6 +13,7 @@ BodyBackendName = Literal["none", "grpc"]
 InferenceBackendName = Literal["echo", "llamacpp"]
 MemoryBackendName = Literal["none", "pgvector"]
 MemoryScopeName = Literal["global", "session"]
+MemoryRecallName = Literal["raw", "reranked"]
 MemoryTaintPolicyName = Literal["skip", "record"]
 ToolsBackendName = Literal["none", "mcp"]
 
@@ -142,6 +143,13 @@ class MemoryConfig(BaseSettings):
     policy: ``skip`` (the default) drops a turn that read untrusted content from memory (ADR-0013);
     ``record`` records it with the untrusted-provenance marker so recall fences it. It governs only
     writing. A tainted memory already stored is always fenced on recall regardless.
+
+    ``recall`` (env ``CORTEX_MEMORY_RECALL``, ADR-0008 rerank addendum) picks the recall reranking
+    policy: ``raw`` (the default) keeps v1 top-k cosine exactly; ``reranked`` blends similarity with
+    a recency decay and drops near-duplicates, tuned by ``recall_half_life_days`` (30),
+    ``recall_recency_weight`` (0.3, the blend's recency share), ``recall_dedup_threshold`` (0.98,
+    the near-duplicate cosine), and ``recall_pool_factor`` (4, how many times ``k`` to over-fetch).
+    The knobs are inert under ``raw``; their ranges are validated when the rerank policy is built.
     """
 
     model_config = SettingsConfigDict(env_prefix="CORTEX_MEMORY_")
@@ -152,6 +160,11 @@ class MemoryConfig(BaseSettings):
     embedder_model: str = "embedding"
     scope: MemoryScopeName = "global"
     on_tainted: MemoryTaintPolicyName = "skip"
+    recall: MemoryRecallName = "raw"
+    recall_half_life_days: float = 30.0
+    recall_recency_weight: float = 0.3
+    recall_dedup_threshold: float = 0.98
+    recall_pool_factor: int = 4
 
     @model_validator(mode="after")
     def _pgvector_needs_dsn_and_embedder(self) -> "MemoryConfig":
