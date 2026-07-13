@@ -35,6 +35,7 @@ from cortex_core import (
     MmrRecallPolicy,
     PlacementRequest,
     PlacementTarget,
+    RecencyMmrRecallPolicy,
     RecordingConfirmer,
     RerankingRecallPolicy,
     ResourceBudgetScheduler,
@@ -245,6 +246,9 @@ def test_recall_policy_from_config_maps_config_to_the_policy() -> None:
     mmr = recall_policy_from_config(MemoryConfig(recall="mmr"))
     assert isinstance(mmr, MmrRecallPolicy)
     assert mmr.candidate_k(5) == 5 * MemoryConfig().recall_pool_factor
+    recency_mmr = recall_policy_from_config(MemoryConfig(recall="recency_mmr"))
+    assert isinstance(recency_mmr, RecencyMmrRecallPolicy)
+    assert recency_mmr.candidate_k(5) == 5 * MemoryConfig().recall_pool_factor
 
 
 async def test_build_tool_registry_defaults_to_disabled() -> None:

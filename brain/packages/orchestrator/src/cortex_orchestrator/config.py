@@ -13,7 +13,7 @@ BodyBackendName = Literal["none", "grpc"]
 InferenceBackendName = Literal["echo", "llamacpp"]
 MemoryBackendName = Literal["none", "pgvector"]
 MemoryScopeName = Literal["global", "session"]
-MemoryRecallName = Literal["raw", "reranked", "mmr"]
+MemoryRecallName = Literal["raw", "reranked", "mmr", "recency_mmr"]
 MemoryTaintPolicyName = Literal["skip", "record"]
 ToolsBackendName = Literal["none", "mcp"]
 
@@ -151,8 +151,10 @@ class MemoryConfig(BaseSettings):
     the near-duplicate cosine), and ``recall_pool_factor`` (4, how many times ``k`` to over-fetch);
     ``mmr`` selects for maximal marginal relevance (query-relevance traded against diversity beyond
     the reranker's near-duplicate cutoff), tuned by ``recall_mmr_lambda`` (0.5, the relevance share,
-    ``1`` pure relevance and ``0`` pure diversity) and the shared ``recall_pool_factor``. The knobs
-    are inert under ``raw``; each policy validates the ranges of the ones it uses when it is built.
+    ``1`` pure relevance and ``0`` pure diversity) and the shared ``recall_pool_factor``;
+    ``recency_mmr`` runs that MMR selection over the recency blend rather than raw similarity,
+    combining both axes and reusing the recency and lambda knobs. The knobs are inert under ``raw``;
+    each policy validates the ranges of the ones it uses when it is built.
     """
 
     model_config = SettingsConfigDict(env_prefix="CORTEX_MEMORY_")

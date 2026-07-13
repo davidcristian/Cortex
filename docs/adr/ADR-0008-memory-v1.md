@@ -270,6 +270,41 @@ above the store); CI-gated end to end over the fakes at 100%.
 
 **Consciously deferred (behind the same `RecallPolicy` seam), recorded in the ROADMAP:** the
 **model-based reranker** and **surfacing the blended relevance** as a distinct field remain from the
-rerank addendum; and a **recency-and-diversity** policy (MMR run over the reranker's recency-blended
-relevance instead of the raw cosine) if one axis alone proves too blunt. All are policy swaps, none a
+rerank addendum. The **recency-and-diversity** policy (MMR run over the reranker's recency-blended
+relevance) it also named **landed 2026-07-13**, the addendum below. All are policy swaps, none a
 port change.
+
+## Addendum (2026-07-13): recency-and-diversity as a fourth `RecallPolicy`
+
+The MMR addendum's deferred **recency-and-diversity** policy lands here, additively, as a fourth
+reference `RecallPolicy` behind the **unchanged `MemoryStore`/`Embedder` ports** and the
+`MemoryRecaller` use-case. `RerankingRecallPolicy` weights recency and `MmrRecallPolicy` diversifies
+on raw similarity; a memory wanted for being fresh, on-topic, *and* non-redundant needs both axes at
+once, which neither alone gives. No new seam, no SQL change, so no host validation is owed (pure
+core, above the store); CI-gated end to end over the fakes at 100%.
+
+1. **`RecencyMmrRecallPolicy` composes the two existing policies (`rerank.py`).** It runs the MMR
+   greedy selection (`_greedy_mmr`: repeatedly keep the candidate of highest marginal score,
+   penalizing each by its `_redundancy` to what is already kept) with the `_recency_blend`
+   similarity-and-recency combination as the relevance term, in place of `MmrRecallPolicy`'s raw
+   cosine. A candidate scores `relevance_weight * blend - (1 - relevance_weight) * redundancy`, where
+   `blend = (1 - recency_weight) * similarity + recency_weight * recency`. `relevance_weight` is the
+   MMR `lambda` (relevance vs diversity); `recency_weight` is the recency share within the relevance
+   term. Each emitted `ScoredMemory.score` **stays the raw cosine**, as the other reranking policies.
+
+2. **The shared machinery was extracted, behavior-preserving.** `_recency_blend` (was
+   `RerankingRecallPolicy._relevance`), `_redundancy` (was `MmrRecallPolicy`'s inline max-cosine),
+   and `_greedy_mmr` (was `MmrRecallPolicy.select`'s loop) are now module free functions the three
+   reranking policies share, so the fourth is a composition rather than a paste. The existing
+   policies' behavior is byte-for-byte unchanged (their tests pass untouched).
+
+3. **Config selects it at the composition root only.** `CORTEX_MEMORY_RECALL` gains `recency_mmr`
+   (now `raw`, `reranked`, `mmr`, or `recency_mmr`), reusing the existing `recall_half_life_days`,
+   `recall_recency_weight`, `recall_mmr_lambda`, and `recall_pool_factor` knobs; no new knob, and no
+   core code reads env. `recall_policy_from_config` builds it.
+
+**Consciously deferred (behind the same `RecallPolicy` seam), recorded in the ROADMAP:** the
+**model-based reranker** and **surfacing the blended relevance** as a distinct field remain. One
+structural note: this landing split the three opt-in reranking policies and their shared math into
+`rerank_policies.py` at the 300-line cap; the port and the default `RawRecallPolicy` stay in
+`rerank.py`.
