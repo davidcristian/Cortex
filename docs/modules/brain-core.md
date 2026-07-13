@@ -213,7 +213,9 @@ Output guardrail (ADR-0015; the pure laundering defense built from the redactor 
   **escape decoding** to a bounded fixpoint (HTML character references `evil&#46;com`→`evil.com` the
   way HTML email renders them, and percent-escapes `evil%252ecom`→`evil%2ecom`→`evil.com`), **defang**
   refanging (`hxxp(s)`→`http(s)`, `[://]`/`[:]//`→`://`, bracketed dots `[.]`/`(.)`/`{.}`/`[dot]`/`(dot)`
-  inside a scheme'd URL → `.`; run after decode so an entity-hidden bracket refangs too), **NFKC**
+  inside a scheme'd URL → `.`; run after decode so an entity-hidden bracket refangs too, and the matcher
+  captures a whole bracket *chunk* so an encoded inner behind a literal closer like `evil[&#46;]com` is
+  consumed and folded, not cut short, ADR-0015 sixth addendum), **NFKC**
   folding (fullwidth/compatibility homoglyphs → ASCII), and a **curated cross-script confusable** fold
   (Cyrillic/Greek Latin-lookalikes → ASCII, e.g. Cyrillic `расе`→`pace`). So a defanged, encoded,
   fullwidth, or homoglyph link normalizes to the same identity as its plain twin. A *transform* in
@@ -221,8 +223,9 @@ Output guardrail (ADR-0015; the pure laundering defense built from the redactor 
   homoglyph decodes, then folds). Both sides of the defense use it, namely collection
   (`TaintLedger.observe`) and the user-message allowlist, so a collected URL and its reappearance
   always compare equal. Held deliberately out (they would over-redact prose or need a dependency):
-  bare addresses/domains, whitespace-split defang (`evil dot com`), and the *full* UTS-39 confusables
-  set + IDN/punycode.
+  bare addresses/domains, whitespace-split defang (`evil dot com`), an encoded defang *separator*
+  (`http[&#58;//]`, which anchors the match pre-decode), and the *full* UTS-39 confusables set +
+  IDN/punycode.
 - `TaintView` (protocol) exposes the **live** taint signals the guardrail reads at scan time
   (`tainted: bool`, `untrusted_urls: AbstractSet[str]`); the turn's `TaintLedger` already
   satisfies it structurally (guardrail cannot import `untrusted`, which imports it).

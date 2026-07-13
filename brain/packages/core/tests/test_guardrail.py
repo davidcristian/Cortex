@@ -483,3 +483,74 @@ def test_data_scheme_split_across_chunks_is_carried_not_lost() -> None:
     guard = _filter({_DATA_URL})
     out = guard.feed("see data") + guard.feed(":text/html,hello now") + guard.flush()
     assert out == f"see {REDACTED_LINK} now"
+
+
+# --- Obfuscation-resistant matching: an encoded defang inner behind a *literal* closing bracket
+# (ADR-0015 sixth addendum). The matcher's bracket token widened from the literal `[.]`/`[dot]`
+# (`_DEFANG_DOT`) to any bracket-delimited chunk (`_DEFANG_CHUNK`), so a defang dot whose inner is
+# entity-/percent-encoded (`[&#46;]`, `[%2e]`) is consumed *with* its raw closing bracket instead of
+# the closer ending the match before `normalize_url`'s decode can expose the token to the refanger.
+# Only a chunk that decodes to `[.]`/`[dot]` folds to a dot; any other is kept verbatim. -----------
+
+
+def test_extract_urls_refangs_a_defang_dot_with_encoded_inner_and_literal_brackets() -> None:
+    # The gap: literal brackets + an encoded inner dot. The raw `]`/`)`/`}` used to end the match
+    # before decode ran, orphaning the token; the chunk now eats the closer so decode+refang fold.
+    plain = {"http://evil.example"}
+    assert extract_urls("http://evil[&#46;]example") == plain  # numeric entity dot
+    assert extract_urls("http://evil(&#46;)example") == plain
+    assert extract_urls("http://evil{&#46;}example") == plain
+    assert extract_urls("http://evil[%2e]example") == plain  # percent-escaped dot
+
+
+def test_extract_urls_refangs_an_encoded_word_dot_behind_literal_brackets() -> None:
+    # The whole `dot` token entity-encoded (`&#100;&#111;&#116;` = `dot`) decodes then refangs.
+    assert extract_urls("http://evil[&#100;&#111;&#116;]example") == {"http://evil.example"}
+
+
+def test_an_encoded_inner_defang_and_its_plain_twin_share_one_identity() -> None:
+    assert extract_urls("http://evil[&#46;]example") == extract_urls("http://evil.example")
+
+
+def test_encoded_inner_defang_transform_of_a_collected_url_is_redacted() -> None:
+    # EVIL-host collected plain; the reply hides the dot inside literal brackets. Redact catches it.
+    guard = _filter({"http://evil.example"})
+    fed = guard.feed("see http://evil[&#46;]example now") + guard.flush()
+    assert fed == f"see {REDACTED_LINK} now"
+
+
+def test_strict_tainted_turn_redacts_an_encoded_inner_defang() -> None:
+    guard = _strict(_Taint(tainted=True))
+    assert guard.feed("go to http://evil[&#46;]example ") == f"go to {REDACTED_LINK} "
+
+
+def test_encoded_inner_defang_split_across_chunks_is_carried_not_lost() -> None:
+    # The chunk is held while it is still open: split mid-entity, the closer arrives next and folds.
+    guard = _filter({"http://evil.example"})
+    assert guard.feed("at http://evil[&#46") == "at "
+    assert guard.feed(";]example ") == f"{REDACTED_LINK} "
+
+
+def test_empty_brackets_still_terminate_the_match_unchanged() -> None:
+    # `_DEFANG_CHUNK`'s inner is non-empty, so a bare `[]` (an array-param `tags[]`) is not a chunk:
+    # the match still ends at the closer exactly as before the widening. No new surface here.
+    assert extract_urls("http://api.example/tags[]=a") == {"http://api.example/tags["}
+
+
+def test_a_parenthesized_url_still_bounds_at_the_closing_paren() -> None:
+    # A wrapping `)` has no opener inside the URL body, so it still bounds the match (Markdown).
+    assert extract_urls("(http://ex.example)") == {"http://ex.example"}
+
+
+def test_a_bracketed_query_param_is_consumed_whole() -> None:
+    # The accepted widening: a bracketed run inside the body (`a[0]`) is now consumed with its
+    # closer rather than cut at `]`. It decodes to no dot, so it stays verbatim in the identity;
+    # this only ever redacts a *fuller, more correct* span, never a spurious collision.
+    assert extract_urls("http://api.example/s?a[0]=b") == {"http://api.example/s?a[0]=b"}
+
+
+def test_a_long_unclosed_bracket_run_terminates_and_matches_linearly() -> None:
+    # A closer-less bracket run makes `_DEFANG_CHUNK` fail and backtrack; it must do so *linearly*
+    # (this test would hang under catastrophic backtracking). The run is eaten as plain URL chars.
+    text = "http://evil.example/a[" + "x" * 4000 + " end"
+    assert extract_urls(text) == {"http://evil.example/a[" + "x" * 4000}
