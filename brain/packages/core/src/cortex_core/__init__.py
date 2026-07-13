@@ -104,12 +104,14 @@ from cortex_core.sessions import SessionSummary, summarize_session
 from cortex_core.spawn import SPAWN_TOOL_NAME, SpawnSubagentsTool
 from cortex_core.subagents import SubagentResult, SubagentTask
 from cortex_core.tools import (
+    UNSTAMPED,
     ConfirmationRequest,
     ToolCall,
     ToolInvocation,
     ToolResult,
     ToolSpec,
     Trust,
+    TurnStamp,
 )
 from cortex_core.untrusted import (
     DENIED_MSG,
@@ -144,6 +146,7 @@ __all__ = [
     "SNOOZE_SCHEDULED_TOOL_NAME",
     "SPAWN_TOOL_NAME",
     "TAINTED_TASK_MSG",
+    "UNSTAMPED",
     "USER_DECLINED_MSG",
     "AggregateToolRegistry",
     "BodyGateway",
@@ -247,6 +250,7 @@ __all__ = [
     "TurnCompleted",
     "TurnEngine",
     "TurnEvent",
+    "TurnStamp",
     "UngatedToolRegistry",
     "UrlRedactingGuardrail",
     "VolumeState",

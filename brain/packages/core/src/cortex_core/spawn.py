@@ -11,9 +11,9 @@ Slice 8.6 (ADR-0018): an instructions item is a bare string or ``{instruction, m
 so the cortex picks the subagent model per subtask from the runner's roster and hands it working
 material. The spec is built from that roster and is honest about the wiring: when subagents are
 tools-enabled, ADR-0017 pins every spawn to the robust default, so no ``model`` knob is
-advertised at all. Each task is stamped with the spawning turn's taint (the dispatcher's
-``ToolCall.tainted`` stamp), which the runner's resolution needs. Enforcement itself lives in
-``SubagentRoster.resolve``, not here.
+advertised at all. Each task is stamped with the spawning turn's taint (the ``tainted`` bit of
+the dispatcher's ``TurnStamp`` on the call, ADR-0018/0027), which the runner's resolution
+needs. Enforcement itself lives in ``SubagentRoster.resolve``, not here.
 """
 
 import asyncio
@@ -244,7 +244,7 @@ class SpawnSubagentsTool:
                 context=item.context,
                 at=self._clock.now(),
                 model=item.model,
-                tainted=call.tainted,
+                tainted=call.stamp.tainted,
             )
             for item in parsed
         ]

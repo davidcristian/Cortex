@@ -433,3 +433,10 @@ so the model can relay "no" honestly. Everything else here stands: the fail-clos
 discipline, and the subagent posture (never handed a gated tool; `confirmer=None`; taint
 containment). The real `Confirmer` adapter this ADR deferred is ADR-0022's `SeamConfirmer`, where
 the confirm exchange rides the Converse stream to the overlay's approval card.
+
+## Addendum (2026-07-13): the loop context grows session_id (ADR-0027)
+
+The frozen collaborator bundle introduced here (`turn_id`, `taint`, `nonce`) gained a
+required `session_id`, which the loop stamps onto every dispatch as part of the ADR-0027
+`TurnStamp`. The boundary semantics this ADR decided (taint marking, fencing, the gate)
+are untouched; the new field is provenance only.

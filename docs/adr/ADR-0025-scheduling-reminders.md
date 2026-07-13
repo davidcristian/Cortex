@@ -565,3 +565,19 @@ exceptional; an automated policy joins the deferred ledger only if reality produ
 CI-gated over fakeredis (quarantine-then-inspect, hostile-bytes rendering, failure
 wrapping); live-validated 2026-07-12 by the agent against the compose Redis (a corrupt
 record planted, quarantined by a real claim pass, listed, purged, purge-again False).
+
+## Addendum (2026-07-13): session attribution lands via the TurnStamp seam
+
+The deferred session attribution landed as the first consumer of ADR-0027's structured
+turn provenance: the dispatcher's per-call stamp widened from the lone taint bool to a
+frozen `TurnStamp` (`session_id` + `tainted`), the engine threads the turn's session
+through `ToolLoopContext`, and `schedule_task` now fills `ScheduledItem.session_id` from
+`call.stamp` instead of `""`. The ticker's synthetic `spawn_subagents` dispatch stamps the
+fired item's stored `session_id` and taint, so a task fire carries its origin chat onward
+exactly as it already carried creation taint. No store, codec, or wire change: the field
+and its round-trip existed since this ADR; only its source did not. The listing keeps not
+rendering it (provenance, never display), and creation confirmations keep not echoing it.
+Decision snippets above showing `call.tainted` and `dispatch(call, tainted=...)` predate
+the rename and read with `call.stamp.tainted` / `stamp=TurnStamp(...)` applied.
+CI-gated end to end (dispatcher stamp + forged-stamp discard, engine-to-item attribution
+through a real dispatcher, the ticker's stamped fire).

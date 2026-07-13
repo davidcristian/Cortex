@@ -152,6 +152,7 @@ class TurnEngine:
             turn_id=turn_id,
             taint=taint,
             nonce=new_nonce(),
+            session_id=session_id,
         )
         working = list(await self._inference_messages(text, history, session_id, context))
         parts: list[str] = []

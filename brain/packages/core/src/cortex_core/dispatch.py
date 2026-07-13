@@ -22,12 +22,14 @@ from dataclasses import replace
 from cortex_core.errors import ToolError
 from cortex_core.ports import Clock, Confirmer, ToolAuditSink, ToolRegistry
 from cortex_core.tools import (
+    UNSTAMPED,
     ConfirmationRequest,
     ToolCall,
     ToolInvocation,
     ToolResult,
     ToolSpec,
     Trust,
+    TurnStamp,
 )
 from cortex_core.untrusted import DENIED_MSG, USER_DECLINED_MSG
 
@@ -67,7 +69,7 @@ class ToolDispatcher:
         return await self._registry.describe_tools()
 
     async def dispatch(
-        self, call: ToolCall, *, tainted: bool = False, gated: bool = False
+        self, call: ToolCall, *, stamp: TurnStamp = UNSTAMPED, gated: bool = False
     ) -> ToolResult:
         """Invoke ``call``, audit the outcome, and return the result the model consumes.
 
@@ -78,15 +80,15 @@ class ToolDispatcher:
         ``ToolError`` from the registry (unknown tool, transport) is caught and returned as
         an ``is_error`` result. The loop keeps going and the model sees the failure.
         """
-        # Overwrite the call's taint stamp with the turn's (ADR-0018): provenance for built-ins
+        # Overwrite the call's stamp with the turn's (ADR-0018/0027): provenance for built-ins
         # that spawn further work, never authority. The gate below keeps using the explicit
-        # ``tainted`` argument, so a model-forged stamp is discarded and feeds nothing.
-        call = replace(call, tainted=tainted)
+        # ``stamp`` argument, so a model-forged stamp is discarded and feeds nothing.
+        call = replace(call, stamp=stamp)
         # The advertised flag OR the authoritative gated set (ADR-0022): a gated tool a flaky
         # sidecar hid from this turn's advertisement snapshot is still gated here.
         gated = gated or call.name in self._gated_names
         if gated:
-            if tainted:
+            if stamp.tainted:
                 blocked = ToolResult(
                     call_id=call.id, content=DENIED_MSG, is_error=True, trust=Trust.TRUSTED
                 )

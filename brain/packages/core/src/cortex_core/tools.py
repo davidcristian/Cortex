@@ -46,21 +46,42 @@ class ToolSpec:
 
 
 @dataclass(frozen=True, slots=True)
+class TurnStamp:
+    """The dispatching turn's provenance, stamped onto every call at dispatch time (ADR-0027).
+
+    ``session_id`` is the originating chat (``""`` when the dispatch has none: a subagent
+    run, or an unattributed caller); ``tainted`` whether the turn had read untrusted content
+    at dispatch time. One frozen value rather than parallel keywords, so future provenance
+    facts (source URI, sender; the ADR-0013/0019 deferrals) join this object and every call
+    site rides along unchanged. A field joins only with a consumer.
+    """
+
+    session_id: str = ""
+    tainted: bool = False
+
+
+# The unattributed default stamp: no originating session, no taint. A named constant
+# (not a call in a default) so signatures can default to it under the lint gate.
+UNSTAMPED = TurnStamp()
+
+
+@dataclass(frozen=True, slots=True)
 class ToolCall:
     """A request to run one tool: the model's chosen ``name`` and ``arguments``.
 
     ``id`` correlates this call with its ``ToolResult`` across the tool loop; the model (or
-    the loop, for a fake backend) assigns it. ``tainted`` is never the model's to set: the
-    dispatcher overwrites it at dispatch time with the calling turn's taint (ADR-0018), so a
-    built-in that spawns further work (``spawn_subagents``) can propagate provenance. The
-    stamp is transient (the loop persists the unstamped calls) and it never feeds the
-    ADR-0013 gate, which uses the dispatcher's explicit argument.
+    the loop, for a fake backend) assigns it. ``stamp`` is never the model's to set: the
+    dispatcher overwrites it at dispatch time with the calling turn's ``TurnStamp``
+    (ADR-0018/0027), so a built-in that spawns further work (``spawn_subagents``, the
+    schedule tools) can propagate provenance. The stamp is transient (the loop persists the
+    unstamped calls) and it never feeds the ADR-0013 gate, which uses the dispatcher's
+    explicit argument.
     """
 
     id: str
     name: str
     arguments: Mapping[str, Any]
-    tainted: bool = False
+    stamp: TurnStamp = UNSTAMPED
 
 
 @dataclass(frozen=True, slots=True)

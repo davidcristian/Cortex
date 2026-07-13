@@ -19,6 +19,7 @@ from cortex_core import (
     ToolResult,
     ToolSpec,
     Trust,
+    TurnStamp,
 )
 
 _AT = datetime(2026, 7, 3, 12, 0, 0, tzinfo=UTC)
@@ -120,7 +121,9 @@ async def test_gated_tool_on_a_tainted_turn_is_blocked_without_a_confirmer() -> 
     # is closed for the turn. The call is denied and never run, with or without a confirmer.
     sink = RecordingAuditSink()
     result = await _outbound(sink, None).dispatch(
-        ToolCall(id="c", name="send", arguments={"path": "/p"}), tainted=True, gated=True
+        ToolCall(id="c", name="send", arguments={"path": "/p"}),
+        stamp=TurnStamp(tainted=True),
+        gated=True,
     )
     assert result.is_error is True
     assert result.content == DENIED_MSG
@@ -136,7 +139,9 @@ async def test_gated_tool_on_a_tainted_turn_is_blocked_even_when_a_confirmer_wou
     # confirmer is deliberately not consulted on a tainted turn. An approver changes nothing.
     confirmer = RecordingConfirmer(answer=True)
     result = await _outbound(RecordingAuditSink(), confirmer).dispatch(
-        ToolCall(id="c", name="send", arguments={"path": "/p"}), tainted=True, gated=True
+        ToolCall(id="c", name="send", arguments={"path": "/p"}),
+        stamp=TurnStamp(tainted=True),
+        gated=True,
     )
     assert result.content == DENIED_MSG
     assert confirmer.requests == ()  # never consulted
@@ -145,7 +150,9 @@ async def test_gated_tool_on_a_tainted_turn_is_blocked_even_when_a_confirmer_wou
 async def test_gated_tool_on_a_clean_turn_runs_when_the_user_approves() -> None:
     confirmer = RecordingConfirmer(answer=True)
     result = await _outbound(RecordingAuditSink(), confirmer).dispatch(
-        ToolCall(id="c", name="send", arguments={"path": "/p"}), tainted=False, gated=True
+        ToolCall(id="c", name="send", arguments={"path": "/p"}),
+        stamp=TurnStamp(tainted=False),
+        gated=True,
     )
     assert result.content == "ran:/p"  # the tool ran
     (request,) = confirmer.requests
@@ -158,7 +165,9 @@ async def test_gated_tool_on_a_clean_turn_is_declined_when_the_user_says_no() ->
     sink = RecordingAuditSink()
     confirmer = RecordingConfirmer(answer=False)
     result = await _outbound(sink, confirmer).dispatch(
-        ToolCall(id="c", name="send", arguments={"path": "/p"}), tainted=False, gated=True
+        ToolCall(id="c", name="send", arguments={"path": "/p"}),
+        stamp=TurnStamp(tainted=False),
+        gated=True,
     )
     assert result.is_error is True
     assert result.content == USER_DECLINED_MSG  # "the user said no", not the taint block
@@ -172,7 +181,9 @@ async def test_gated_tool_on_a_clean_turn_is_declined_without_a_confirmer() -> N
     # Fail-closed (ADR-0022): every gated call needs the human's approval. A deployment
     # with no confirmer wired cannot perform the action, tainted or not.
     result = await _outbound(RecordingAuditSink(), None).dispatch(
-        ToolCall(id="c", name="send", arguments={"path": "/p"}), tainted=False, gated=True
+        ToolCall(id="c", name="send", arguments={"path": "/p"}),
+        stamp=TurnStamp(tainted=False),
+        gated=True,
     )
     assert result.content == USER_DECLINED_MSG
 
@@ -180,7 +191,9 @@ async def test_gated_tool_on_a_clean_turn_is_declined_without_a_confirmer() -> N
 async def test_ungated_tool_on_a_tainted_turn_runs_without_confirmation() -> None:
     confirmer = RecordingConfirmer(answer=False)
     result = await _outbound(RecordingAuditSink(), confirmer).dispatch(
-        ToolCall(id="c", name="send", arguments={"path": "/p"}), tainted=True, gated=False
+        ToolCall(id="c", name="send", arguments={"path": "/p"}),
+        stamp=TurnStamp(tainted=True),
+        gated=False,
     )
     assert result.content == "ran:/p"
     assert confirmer.requests == ()
@@ -206,27 +219,44 @@ class _CallRecordingRegistry:
         return ToolResult(call_id=call.id, content="ok", trust=Trust.TRUSTED)
 
 
-async def test_dispatch_stamps_the_turns_taint_onto_the_invoked_call() -> None:
-    # Built-ins that spawn further work read the stamp (ADR-0018); the registry sees the
-    # turn's taint, not the default the call was constructed with.
-    registry = _CallRecordingRegistry()
-    dispatcher = ToolDispatcher(registry, RecordingAuditSink(), _FixedClock())
-    await dispatcher.dispatch(ToolCall(id="c", name="spawn", arguments={}), tainted=True)
-    (stamped,) = registry.calls
-    assert stamped.tainted is True
-    assert (stamped.id, stamped.name) == ("c", "spawn")  # everything else rides unchanged
-
-
-async def test_dispatch_overwrites_a_forged_taint_stamp_with_the_turns() -> None:
-    # The stamp is never the model's to set: a call arriving pre-marked tainted on a clean
-    # turn is overwritten, so a forged stamp cannot influence anything downstream.
+async def test_dispatch_stamps_the_turns_provenance_onto_the_invoked_call() -> None:
+    # Built-ins that spawn further work read the stamp (ADR-0018/0027); the registry sees
+    # the turn's taint and origin session, not the default the call was constructed with.
     registry = _CallRecordingRegistry()
     dispatcher = ToolDispatcher(registry, RecordingAuditSink(), _FixedClock())
     await dispatcher.dispatch(
-        ToolCall(id="c", name="spawn", arguments={}, tainted=True), tainted=False
+        ToolCall(id="c", name="spawn", arguments={}),
+        stamp=TurnStamp(session_id="s-1", tainted=True),
     )
     (stamped,) = registry.calls
-    assert stamped.tainted is False
+    assert stamped.stamp == TurnStamp(session_id="s-1", tainted=True)
+    assert (stamped.id, stamped.name) == ("c", "spawn")  # everything else rides unchanged
+
+
+async def test_dispatch_overwrites_a_forged_stamp_with_the_turns() -> None:
+    # The stamp is never the model's to set: a call arriving pre-marked tainted (or claiming
+    # another session) on a clean turn is overwritten, so a forged stamp feeds nothing.
+    registry = _CallRecordingRegistry()
+    dispatcher = ToolDispatcher(registry, RecordingAuditSink(), _FixedClock())
+    forged = TurnStamp(session_id="not-mine", tainted=True)
+    await dispatcher.dispatch(
+        ToolCall(id="c", name="spawn", arguments={}, stamp=forged),
+        stamp=TurnStamp(session_id="s-2", tainted=False),
+    )
+    (stamped,) = registry.calls
+    assert stamped.stamp == TurnStamp(session_id="s-2", tainted=False)
+
+
+async def test_dispatch_without_a_stamp_leaves_the_call_unattributed() -> None:
+    # The UNSTAMPED default (ADR-0027): no session, no taint, matching the old
+    # tainted=False posture. A forged stamp is still discarded.
+    registry = _CallRecordingRegistry()
+    dispatcher = ToolDispatcher(registry, RecordingAuditSink(), _FixedClock())
+    await dispatcher.dispatch(
+        ToolCall(id="c", name="spawn", arguments={}, stamp=TurnStamp(tainted=True))
+    )
+    (stamped,) = registry.calls
+    assert stamped.stamp == TurnStamp(session_id="", tainted=False)
 
 
 async def test_gated_names_gate_a_call_the_snapshot_advertised_as_ungated() -> None:
@@ -243,7 +273,9 @@ async def test_gated_names_gate_a_call_the_snapshot_advertised_as_ungated() -> N
         gated_names={"send"},
     )
     result = await dispatcher.dispatch(
-        ToolCall(id="c", name="send", arguments={"path": "/p"}), tainted=False, gated=False
+        ToolCall(id="c", name="send", arguments={"path": "/p"}),
+        stamp=TurnStamp(tainted=False),
+        gated=False,
     )
     assert result.content == USER_DECLINED_MSG  # gated by name, and the user declined
     assert confirmer.requests != ()
@@ -261,7 +293,9 @@ async def test_gated_names_deny_a_tainted_call_the_snapshot_advertised_as_ungate
         gated_names={"send"},
     )
     result = await dispatcher.dispatch(
-        ToolCall(id="c", name="send", arguments={"path": "/p"}), tainted=True, gated=False
+        ToolCall(id="c", name="send", arguments={"path": "/p"}),
+        stamp=TurnStamp(tainted=True),
+        gated=False,
     )
     assert result.content == DENIED_MSG
     assert confirmer.requests == ()  # never consulted
@@ -276,6 +310,8 @@ async def test_a_name_outside_the_gated_set_stays_ungated() -> None:
         gated_names={"send"},
     )
     result = await dispatcher.dispatch(
-        ToolCall(id="c", name="read", arguments={"path": "/p"}), tainted=True, gated=False
+        ToolCall(id="c", name="read", arguments={"path": "/p"}),
+        stamp=TurnStamp(tainted=True),
+        gated=False,
     )
     assert result.content == "ran:/p"

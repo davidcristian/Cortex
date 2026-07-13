@@ -120,7 +120,7 @@ message DueReminder {
   int64 fired_at_unix_ms = 3; // when it became deliverable
   bool recurring = 4;
   bool tainted = 5;           // untrusted provenance, so the overlay may badge it
-  string session_id = 6;      // origin chat ("" until session attribution lands)
+  string session_id = 6;      // origin chat, filled at creation; "" for session-less callers
 }
 message AckReminderRequest { string reminder_id = 1; }
 message AckReminderReply { bool acked = 1; }

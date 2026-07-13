@@ -80,12 +80,17 @@ Tool domain (Slice 6, ADR-0009; untrusted-content fields Slice 6.5, ADR-0013):
   never interpreted by the core), `gated: bool = False` (an irreversible/outbound action that
   needs confirmation once the turn read untrusted content, but no tool sets it today). What a tool
   advertises.
+- `TurnStamp` is a frozen dataclass: `session_id: str = ""`, `tainted: bool = False`. The
+  dispatching turn's provenance (ADR-0027): its origin chat (`""` for a session-less caller)
+  and whether it had read untrusted content at dispatch time. One object rather than parallel
+  keywords, so future provenance facts (source URI, sender) join it and call sites ride along.
+  `UNSTAMPED` is the exported unattributed default.
 - `ToolCall` is a frozen dataclass: `id: str`, `name: str`, `arguments: Mapping[str, Any]`,
-  `tainted: bool = False`. A model's request to run one tool; `id` correlates it with its
-  `ToolResult`. `tainted` is never the model's to set: the dispatcher **overwrites** it at
-  dispatch time with the calling turn's taint (ADR-0018) so a built-in that spawns further work
-  can propagate provenance, staying transient (the loop persists the unstamped calls) and never the
-  gate's input (the gate uses the dispatcher's explicit argument).
+  `stamp: TurnStamp = UNSTAMPED`. A model's request to run one tool; `id` correlates it with its
+  `ToolResult`. `stamp` is never the model's to set: the dispatcher **overwrites** it at
+  dispatch time with the calling turn's `TurnStamp` (ADR-0018/0027) so a built-in that spawns
+  further work can propagate provenance, staying transient (the loop persists the unstamped calls)
+  and never the gate's input (the gate uses the dispatcher's explicit argument).
 - `ToolResult` is a frozen dataclass: `call_id: str`, `content: str`, `is_error: bool = False`,
   `trust: Trust = Trust.UNTRUSTED`. The outcome fed back to the model; `is_error` marks a tool
   (or dispatch) failure; `trust` is the content's provenance (fail-closed default), read by the
@@ -119,8 +124,9 @@ throughout, never "Scheduler", which means resource *admission* here):
 - `ScheduleStatus` is an enum `PENDING` / `FIRING` / `DONE`. No `CANCELLED`: cancel deletes the
   record outright, and `DONE` persists only while a fired one-shot reminder awaits delivery
   (terminal cleanup).
-- `ScheduledItem` is a frozen dataclass: `id`, `kind`, `text`, `session_id` (`""` until a
-  turn-context stamp exists; this is a recorded deferral), `due_at`/`created_at` (tz-aware, rejects
+- `ScheduledItem` is a frozen dataclass: `id`, `kind`, `text`, `session_id` (the origin chat,
+  filled from the dispatcher's `TurnStamp` at creation, ADR-0027; `""` for a session-less
+  caller), `due_at`/`created_at` (tz-aware, rejects
   naive), `every: timedelta | None = None` (recurrence; must be positive),
   `model: str = ""` (task-only roster hint), `tainted: bool = False` (creation taint, OR'd
   with fire-time taint at `finish`), `status`, `deliverable_since: datetime | None = None`,
@@ -189,7 +195,9 @@ Untrusted-content boundary (Slice 6.5, ADR-0013; the pure primitives in `untrust
   Reconstructed each turn, never persisted. Structurally satisfies `TaintView` (below), so the
   engine passes the live ledger straight to `OutputGuardrail.open`.
 - `ToolLoopContext` is a frozen bundle of a tool loop's per-invocation collaborators (`dispatcher`,
-  `clock`, `turn_id`, `taint`, `nonce`), keeping `stream_tool_loop` under its argument ceiling.
+  `clock`, `turn_id`, `taint`, `nonce`, `session_id`), keeping `stream_tool_loop` under its
+  argument ceiling. `session_id` is the originating chat the loop stamps onto each dispatch
+  (ADR-0027; `""` for a session-less caller, e.g. a subagent).
 
 Output guardrail (ADR-0015; the pure laundering defense built from the redactor + policies in
 `guardrail.py`, the URL grammar + identity in `urls.py`):
@@ -395,18 +403,18 @@ Use-case:
   `SessionMemoryScope` writes/reads the `session_id`, isolating a conversation's memory to itself.
   Selected at the composition root via `CORTEX_MEMORY_SCOPE`; the store filters, the policy decides.
 - `ToolDispatcher(registry, audit, clock, *, confirmer=None)` is the turn's tool gateway and
-  capability gate (ADR-0009/0013). `dispatch(call, *, tainted=False, gated=False)` runs `call`
+  capability gate (ADR-0009/0013). `dispatch(call, *, stamp=UNSTAMPED, gated=False)` runs `call`
   through the `ToolRegistry`, writes exactly one `ToolInvocation` (with the result's `trust`) to
   the `ToolAuditSink`, and returns the `ToolResult`; a `ToolError` becomes a `TRUSTED` `is_error`
   result (our own message, so it neither frames nor taints). The gate (ADR-0013, table revised by
-  ADR-0022): a `gated` call on a `tainted` turn is blocked outright as `DENIED_MSG`, with the
-  confirmer deliberately unconsulted; on an untainted turn it runs only when the `Confirmer`
-  approves, else `USER_DECLINED_MSG` (the fail-closed `confirmer=None` default included). Both
-  blocks return **without invoking the tool**, audited. Before the
-  registry invoke it **stamps the turn's taint onto the call** (`replace(call, tainted=tainted)`,
-  ADR-0018). That is provenance for built-ins, never the gate's input, and a model-forged stamp is
-  overwritten. `describe_tools()` passes through to the registry. Stateless over the ports; the
-  loop drives it.
+  ADR-0022): a `gated` call on a tainted turn (`stamp.tainted`) is blocked outright as
+  `DENIED_MSG`, with the confirmer deliberately unconsulted; on an untainted turn it runs only
+  when the `Confirmer` approves, else `USER_DECLINED_MSG` (the fail-closed `confirmer=None`
+  default included). Both blocks return **without invoking the tool**, audited. Before the
+  registry invoke it **stamps the turn's provenance onto the call** (`replace(call, stamp=stamp)`,
+  ADR-0018/0027). That is provenance for built-ins, never the gate's input, and a model-forged
+  stamp is overwritten. `describe_tools()` passes through to the registry. Stateless over the
+  ports; the loop drives it.
 - `SubagentRunner(store, roster, clock, *, tools=None)` is a subagent's body (ADR-0010/0012/0018),
   a stateless function over the `TaskStore`. `run(task_id)` loads the `SubagentTask` **by id**
   (never from cortex memory, so a missing task is an `ok=False` "task not found" result),
@@ -432,8 +440,8 @@ Use-case:
   raise); a string item that parses as a JSON object carrying an `instruction` key is diverted
   into the object path (real models sometimes stringify the object form, per the ADR-0018 addendum;
   same validation either way). It persists one `SubagentTask` per item, each stamped with the
-  requested `model`, the item's `context`, and the **call's `tainted`** (the dispatcher's
-  stamp). It runs the `SubagentRunner`s
+  requested `model`, the item's `context`, and the **call stamp's `tainted`** (the dispatcher's
+  `TurnStamp`, ADR-0018/0027). It runs the `SubagentRunner`s
   **concurrently** (bounded by the scheduler), and returns one aggregated `ToolResult`, with a
   `[subagent N] …` block per subtask, failures shown inline. The aggregate is `UNTRUSTED` iff any
   subagent was tainted, so a subagent that read a malicious file taints the cortex through the
@@ -458,8 +466,9 @@ Use-case:
   absolute `at`), advertising `task`/`model` only when delegation is wired. Two creation bounds:
   the `max_active` cap, and the **tainted-task refusal**. A tainted turn cannot create a
   `kind: "task"` item at all (`TAINTED_TASK_MSG`; a reminder may carry attacker-influenced text
-  because it only reaches a human, an autonomous instruction may not). Creation stamps
-  `ScheduledItem.tainted` from the dispatcher's `call.tainted`; creation/cancel/snooze results
+  because it only reaches a human, an autonomous instruction may not). Creation fills
+  `ScheduledItem.tainted` **and** `ScheduledItem.session_id` from the dispatcher's `call.stamp`
+  (the `TurnStamp`, ADR-0027); creation/cancel/snooze results
   are `TRUSTED` and never echo the stored text; the listing echoes text and so is `TRUSTED` only
   when every listed item is clean, else `UNTRUSTED` (fenced + re-tainting, the spawn aggregate
   rule). `snooze_scheduled` takes `{id, for_seconds}` (relative by meaning; `for_seconds`

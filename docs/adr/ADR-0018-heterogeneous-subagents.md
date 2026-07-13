@@ -171,3 +171,13 @@ CPU sidecars healthy off the real GGUFs (default gemma-4-E4B on 8082, alternate 
   instruction). Re-validated live after the change: the pick reached the qwen server.
 
 Evidence commands and bring-up in [runbooks/subagents-cpu.md](../runbooks/subagents-cpu.md) §2b.
+
+## Addendum (2026-07-13): the taint stamp is now the ADR-0027 TurnStamp
+
+Structured turn provenance (ADR-0027) renamed the field and keyword this ADR's mechanism
+names: `ToolCall.tainted` became `ToolCall.stamp` (a frozen `TurnStamp` of `session_id` +
+`tainted`) and `dispatch(call, tainted=...)` became `dispatch(call, stamp=...)`. The
+mechanism and the invariant are unchanged with the rename applied: the dispatcher still
+overwrites the call's stamp with its own argument, a model-forged stamp still feeds
+nothing, and the gate still decides on the dispatcher's argument (`stamp.tainted`), never
+the call field. The spawn tool reads `call.stamp.tainted`.
