@@ -11,7 +11,7 @@ from typing import Protocol
 
 from cortex_core.body import VolumeState
 from cortex_core.conversation import Message
-from cortex_core.inference import InferenceEvent
+from cortex_core.inference import InferenceEvent, JsonSchema
 from cortex_core.memory import MemoryRecord, ScoredMemory
 from cortex_core.model import ModelLease
 from cortex_core.placement import Placement, PlacementRequest
@@ -48,11 +48,19 @@ class InferenceBackend(Protocol):
     of assistant text, interleaved with ``ToolCall``s when the model asks to run a tool from
     ``tools`` (native function-calling, ADR-0009). With ``tools`` empty the stream is text
     only, exactly as before. ``model`` is a logical id (ADR-0004), never a file path.
-    Multimodal input arrives in a later slice; failures surface as ``InferenceError``.
+    ``schema`` (ADR-0028), when set, constrains decoding so every emitted token conforms to
+    that JSON Schema; ``None`` (the default, every caller but a constrained tool-less subagent)
+    leaves output unconstrained. Multimodal input arrives in a later slice; failures surface
+    as ``InferenceError``.
     """
 
     def stream(
-        self, model: str, messages: Sequence[Message], *, tools: Sequence[ToolSpec] = ()
+        self,
+        model: str,
+        messages: Sequence[Message],
+        *,
+        tools: Sequence[ToolSpec] = (),
+        schema: JsonSchema | None = None,
     ) -> AsyncIterator[InferenceEvent]: ...
 
 

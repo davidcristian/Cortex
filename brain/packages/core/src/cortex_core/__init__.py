@@ -47,7 +47,7 @@ from cortex_core.guardrail import (
     TaintView,
     UrlRedactingGuardrail,
 )
-from cortex_core.inference import InferenceEvent, ReasoningChunk, TextChunk
+from cortex_core.inference import InferenceEvent, JsonSchema, ReasoningChunk, TextChunk
 from cortex_core.memory import GLOBAL_SCOPE, MemoryRecord, ScoredMemory
 from cortex_core.model import ModelLease, SingleResidentModelManager
 from cortex_core.placement import Placement, PlacementRequest, PlacementTarget
@@ -177,6 +177,7 @@ __all__ = [
     "InferenceBackend",
     "InferenceError",
     "InferenceEvent",
+    "JsonSchema",
     "ListScheduledTool",
     "MemoryRecaller",
     "MemoryRecord",

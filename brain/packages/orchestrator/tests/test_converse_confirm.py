@@ -14,6 +14,7 @@ from cortex_core import (
     InferenceEvent,
     InMemorySessionStore,
     InMemoryToolRegistry,
+    JsonSchema,
     Message,
     RecordingAuditSink,
     SystemClock,
@@ -58,9 +59,14 @@ class _ScriptedToolBackend:
         self._call = 0
 
     async def stream(
-        self, model: str, messages: Sequence[Message], *, tools: Sequence[ToolSpec] = ()
+        self,
+        model: str,
+        messages: Sequence[Message],
+        *,
+        tools: Sequence[ToolSpec] = (),
+        schema: JsonSchema | None = None,
     ) -> AsyncIterator[InferenceEvent]:
-        del model, messages, tools
+        del model, messages, tools, schema
         step = self._steps[self._call]
         self._call += 1
         for event in step:

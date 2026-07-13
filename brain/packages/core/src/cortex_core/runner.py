@@ -11,14 +11,29 @@ failed inference becomes an ``ok=False`` result the cortex consumes, not an exce
 contract.
 """
 
+import json
+
 from cortex_core.conversation import Message, Role
 from cortex_core.dispatch import ToolDispatcher
 from cortex_core.errors import InferenceError
+from cortex_core.inference import JsonSchema
 from cortex_core.ports import Clock, InferenceBackend, TaskStore
 from cortex_core.roster import SubagentResources, SubagentRoster
 from cortex_core.subagents import SubagentResult, SubagentTask
 from cortex_core.tool_loop import ToolLoopContext, stream_tool_loop
 from cortex_core.untrusted import TaintLedger, new_nonce, security_preamble_message
+
+# The fixed one-field reply envelope a constrained subagent is decoded into (ADR-0028): there is
+# no grammatical position for an appended footer, link, or section, so a jailbroken weak model
+# cannot format-launder. The runner unwraps ``reply`` before persisting the result.
+_REPLY_ENVELOPE: JsonSchema = {
+    "type": "object",
+    "properties": {"reply": {"type": "string"}},
+    "required": ["reply"],
+    "additionalProperties": False,
+}
+
+_MALFORMED_ENVELOPE_MSG = "subagent produced a malformed constrained reply"
 
 
 def _task_messages(task: SubagentTask) -> list[Message]:
@@ -28,6 +43,21 @@ def _task_messages(task: SubagentTask) -> list[Message]:
         framing = Message(role=Role.SYSTEM, text=task.context, at=task.at, turn_id=task.id)
         messages.insert(0, framing)
     return messages
+
+
+def _unwrap_envelope(text: str) -> str | None:
+    """The ``reply`` string from a constrained envelope, or ``None`` if it is malformed.
+
+    A constrained stream should always yield ``{"reply": "..."}``, but a mid-stream failure or a
+    weak model that slips the grammar could leave a partial or wrong-shaped payload; that degrades
+    to an ``ok=False`` result rather than persisting raw JSON as the answer. A non-object payload
+    or a missing key raises (``TypeError``/``KeyError``), which is caught alongside a decode error.
+    """
+    try:
+        reply = json.loads(text)["reply"]
+    except (json.JSONDecodeError, KeyError, TypeError):
+        return None
+    return reply if isinstance(reply, str) else None
 
 
 class SubagentRunner:
@@ -40,11 +70,16 @@ class SubagentRunner:
         clock: Clock,
         *,
         tools: ToolDispatcher | None = None,
+        constrain_output: bool = False,
     ) -> None:
         self._store = store
         self._roster = roster
         self._clock = clock
         self._tools = tools
+        # Constrain a tool-less subagent's reply to the fixed envelope (ADR-0028), killing
+        # format-laundering on the weak-model niche. Gated to the tool-less path in `_run_placed`
+        # so the JSON grammar never fights llama.cpp's tool-calling grammar (ADR-0028 decision 3).
+        self._constrain_output = constrain_output
 
     @property
     def roster(self) -> SubagentRoster:
@@ -90,6 +125,11 @@ class SubagentRunner:
         # which propagates to the cortex that spawned it (ADR-0013).
         if self._tools is not None:
             working.insert(0, security_preamble_message(task.at, task.id))
+        # Constrain output only on the tool-less path (ADR-0028 decision 3): a tools-enabled
+        # subagent is already forced to the robust model and would make the JSON envelope fight
+        # llama.cpp's tool-calling grammar. Structurally, `self._tools is None` is exactly the
+        # niche a weak model is reachable (ADR-0017).
+        constrain = self._tools is None and self._constrain_output
         taint = TaintLedger()
         context = ToolLoopContext(
             dispatcher=self._tools,
@@ -101,6 +141,7 @@ class SubagentRunner:
             # session, and the only session_id consumer is cortex-only by construction
             # (ADR-0027). The field grows onto the task when a consumer exists.
             session_id="",
+            schema=_REPLY_ENVELOPE if constrain else None,
         )
         parts: list[str] = []
         try:
@@ -123,8 +164,24 @@ class SubagentRunner:
                     tainted=taint.tainted,
                 )
             )
+        text = "".join(parts)
+        if constrain:
+            # Unwrap the envelope so the cortex sees an answer, never raw JSON (ADR-0028). A
+            # malformed payload (a slipped grammar, a partial stream) degrades to ok=False.
+            reply = _unwrap_envelope(text)
+            if reply is None:
+                return await self._persist(
+                    SubagentResult(
+                        task_id=task.id,
+                        output=text,
+                        ok=False,
+                        detail=_MALFORMED_ENVELOPE_MSG,
+                        tainted=taint.tainted,
+                    )
+                )
+            text = reply
         return await self._persist(
-            SubagentResult(task_id=task.id, output="".join(parts), tainted=taint.tainted)
+            SubagentResult(task_id=task.id, output=text, tainted=taint.tainted)
         )
 
     async def _failed(self, task_id: str, detail: str) -> SubagentResult:

@@ -18,6 +18,7 @@ from cortex_core import (
     InferenceEvent,
     InMemorySessionStore,
     InMemoryToolRegistry,
+    JsonSchema,
     Message,
     RecordingAuditSink,
     Role,
@@ -122,11 +123,16 @@ class BlockingFirstTurnBackend:
         self.first_call_closed = asyncio.Event()
 
     async def stream(
-        self, model: str, messages: Sequence[Message], *, tools: Sequence[ToolSpec] = ()
+        self,
+        model: str,
+        messages: Sequence[Message],
+        *,
+        tools: Sequence[ToolSpec] = (),
+        schema: JsonSchema | None = None,
     ) -> AsyncIterator[InferenceEvent]:
         self.calls += 1
         if self.calls > 1:
-            async for event in self._echo.stream(model, messages, tools=tools):
+            async for event in self._echo.stream(model, messages, tools=tools, schema=schema):
                 yield event
             return
         try:
@@ -273,9 +279,14 @@ class _SendOnceBackend:
         self._calls = 0
 
     async def stream(
-        self, model: str, messages: Sequence[Message], *, tools: Sequence[ToolSpec] = ()
+        self,
+        model: str,
+        messages: Sequence[Message],
+        *,
+        tools: Sequence[ToolSpec] = (),
+        schema: JsonSchema | None = None,
     ) -> AsyncIterator[InferenceEvent]:
-        del model, messages, tools
+        del model, messages, tools, schema
         self._calls += 1
         if self._calls == 1:
             yield ToolCall(id="c1", name="send", arguments={"to": "bob@example.com"})

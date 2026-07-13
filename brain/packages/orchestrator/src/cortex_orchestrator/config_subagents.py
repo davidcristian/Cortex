@@ -74,6 +74,10 @@ class SubagentsConfig(BaseSettings):
     cpu_budget: float = Field(default=4.0, gt=0)
     mem_budget_gb: float = Field(default=8.0, gt=0)
     roster: dict[str, SubagentRosterEntry] = {}
+    # Constrain a tool-less subagent's reply to the fixed envelope (ADR-0028), killing
+    # format-laundering on the weak-model niche. On by default; the raw stream is restored per
+    # niche with CORTEX_SUBAGENTS_CONSTRAIN_OUTPUT=false.
+    constrain_output: bool = True
 
     @model_validator(mode="after")
     def _llamacpp_needs_both_endpoints(self) -> "SubagentsConfig":
