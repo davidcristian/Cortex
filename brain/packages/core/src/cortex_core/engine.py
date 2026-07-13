@@ -6,9 +6,10 @@ from uuid import uuid4
 
 from cortex_core.conversation import Message, Role
 from cortex_core.dispatch import ToolDispatcher
-from cortex_core.events import StatusUpdate, TextDelta, ToolActivity, TurnCompleted, TurnEvent
-from cortex_core.guardrail import OutputFilter, OutputGuardrail
+from cortex_core.events import TextDelta, ToolActivity, TurnCompleted, TurnEvent
+from cortex_core.guardrail import OutputGuardrail
 from cortex_core.memory import ScoredMemory
+from cortex_core.output_channels import open_output_channels
 from cortex_core.ports import Clock, InferenceBackend, SessionStore
 from cortex_core.recall import MemoryRecaller
 from cortex_core.routing import RoutingHints, Tier, route_turn
@@ -19,7 +20,6 @@ from cortex_core.untrusted import (
     security_preamble_message,
     wrap_untrusted,
 )
-from cortex_core.urls import extract_urls
 from cortex_core.windowing import HistoryWindow
 
 # The logical id of the resident cortex model (ADR-0004: logical ids, never paths).
@@ -29,10 +29,6 @@ DEFAULT_CORTEX_MODEL = "cortex"
 
 # How many past memories to recall into a turn's context by default (ADR-0008).
 DEFAULT_RECALL_K = 5
-
-# The StatusUpdate.state a reasoning model's live deliberation is surfaced under (ADR-0020).
-# Part of the seam contract: the overlay may switch on it (today it renders the detail either way).
-THINKING_STATE = "thinking"
 
 
 def _uuid4_turn_id() -> str:
@@ -119,18 +115,13 @@ class TurnEngine:
         )
         working = list(await self._inference_messages(text, history, session_id, context))
         parts: list[str] = []
-        guard: OutputFilter | None = (
-            self._caps.guardrail.open(taint, allow=extract_urls(text))
-            if self._caps.guardrail is not None
-            else None
-        )
+        guard, thinking = open_output_channels(self._caps.guardrail, taint, text)
         loop = stream_tool_loop(self._backend, model, working, context)
         try:
             async for delta in loop:
                 if isinstance(delta, ReasoningDelta):
-                    # A reasoning model's live thinking (ADR-0020): surfaced as ephemeral status,
-                    # never the reply. It therefore skips the guardrail, `parts`, and persistence.
-                    yield StatusUpdate(state=THINKING_STATE, detail=delta.text)
+                    if (status := thinking.feed(delta.text)) is not None:
+                        yield status
                     continue
                 if isinstance(delta, ToolStep):
                     # An audited dispatch about to run (ADR-0009 addendum): surfaced as ephemeral
@@ -146,6 +137,10 @@ class TurnEngine:
             # A consumer that closes this generator mid-turn must not leave the shared loop
             # (and the backend stream it holds) half-suspended. Close it deterministically.
             await loop.aclose()
+        if (status := thinking.release()) is not None:
+            # The trace's one flush: end of stream releases the scrubbed thinking carry,
+            # which deliberately survived any burst boundaries (see ThinkingChannel).
+            yield status
         if guard is not None and (tail := guard.flush()):
             parts.append(tail)
             yield TextDelta(text=tail)

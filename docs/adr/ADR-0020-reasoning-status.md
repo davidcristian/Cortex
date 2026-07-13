@@ -91,8 +91,9 @@ for the cortex. We surface it, not suppress it.
 
 ## Deferred (behind the unchanged `InferenceBackend` / `TurnCapabilities` / tool-loop seams)
 
-- **Output guardrail over reasoning status** redacts laundered untrusted URLs from the reasoning
-  trace as well as the reply, if displaying reasoning proves an exfiltration surface.
+- **Output guardrail over reasoning status landed 2026-07-12** (second addendum below): the
+  overlay's inline chips gave the thinking status a rendered surface, so the deferral's "if
+  displaying reasoning proves an exfiltration surface" condition came true.
 - **`state`-aware overlay treatment** is a distinct thinking shimmer / collapsed "thoughts" section
   vs. plain detail text; today the reducer shows `detail` for any status (an overlay-gap item).
 - **Disable-thinking / token-budget alternatives** stay available for the cortex behind the same
