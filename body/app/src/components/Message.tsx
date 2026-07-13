@@ -21,7 +21,10 @@ export function Message({ message }: { readonly message: MessageModel }) {
         </span>
       ) : null}
       {message.streaming && message.status !== null ? (
-        <span className="chip">
+        <span
+          className={`chip${message.statusState === "thinking" ? " chip-think" : ""}`}
+          aria-label={message.statusState === "thinking" ? "Thinking" : undefined}
+        >
           <span className="chip-t">{message.status}</span>
         </span>
       ) : null}

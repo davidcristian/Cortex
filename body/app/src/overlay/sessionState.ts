@@ -18,6 +18,7 @@ function hydrate(messages: readonly SessionMessage[]): Message[] {
     streaming: false,
     tool: null,
     status: null,
+    statusState: null,
     error: null,
   }));
 }

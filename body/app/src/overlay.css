@@ -231,6 +231,15 @@
   text-overflow: ellipsis;
 }
 
+/* A thinking status is deliberation, not action: its dot bobs (the reasoning shimmer) instead
+   of the steady tool pulse, and the label leans on the accent (ADR-0020 state-aware chip). */
+.chip-think::before {
+  animation: think 1.05s ease-in-out infinite;
+}
+.chip-think .chip-t {
+  color: var(--accent);
+}
+
 /* The empty state (design/overlay-ux.md §3): the mark, an invitation, and tappable example
    prompts. Resting chrome stays neutral; the mark carries the color. */
 .empty {

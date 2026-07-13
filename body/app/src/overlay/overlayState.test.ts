@@ -66,7 +66,21 @@ describe("overlayState reducer", () => {
       event: { kind: "toolActivity", toolName: "read_email", summary: "reading" },
     });
     s = reduce(s, { kind: "event", event: { kind: "status", state: "load", detail: "swapping" } });
-    expect(assistant(s)).toMatchObject({ content: "Hello", tool: "read_email: reading", status: "swapping" });
+    expect(assistant(s)).toMatchObject({
+      content: "Hello",
+      tool: "read_email: reading",
+      status: "swapping",
+      statusState: "load",
+    });
+  });
+
+  it("folds a thinking status's state so the chip can treat it distinctly", () => {
+    let s = run([submit("q")]);
+    s = reduce(s, {
+      kind: "event",
+      event: { kind: "status", state: "thinking", detail: "reasoning" },
+    });
+    expect(assistant(s)).toMatchObject({ status: "reasoning", statusState: "thinking" });
   });
 
   it("complete ends the turn and stays in the panel", () => {

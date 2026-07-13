@@ -86,16 +86,19 @@ for the cortex. We surface it, not suppress it.
   `Converse` output queue (`CORTEX_SEAM_CONVERSE_BUFFER`, ADR-0014 backpressure). A verbose think
   produces many small events; the credit bound already caps memory and stalls generation if the
   consumer lags, so this needs no new limit.
-- **`state` is advisory.** The overlay currently renders `detail` regardless of `state`; the
-  `"thinking"` marker is informational until the overlay distinguishes status kinds (deferred).
+- **`state` is advisory.** The overlay first rendered `detail` regardless of `state`; the
+  `"thinking"` marker was informational until the overlay distinguished status kinds. It now
+  does (third addendum below): the reducer keeps `state` and the chip branches on it.
 
 ## Deferred (behind the unchanged `InferenceBackend` / `TurnCapabilities` / tool-loop seams)
 
 - **Output guardrail over reasoning status landed 2026-07-12** (second addendum below): the
   overlay's inline chips gave the thinking status a rendered surface, so the deferral's "if
   displaying reasoning proves an exfiltration surface" condition came true.
-- **`state`-aware overlay treatment** is a distinct thinking shimmer / collapsed "thoughts" section
-  vs. plain detail text; today the reducer shows `detail` for any status (an overlay-gap item).
+- **`state`-aware overlay treatment landed 2026-07-13** (third addendum below): a `"thinking"`
+  status chip now reads distinctly (its dot bobs with the reasoning shimmer, its label leans on
+  the accent) from a generic status or tool chip. A collapsed "thoughts" section remains a
+  possible richer treatment behind the same reducer field.
 - **Disable-thinking / token-budget alternatives** stay available for the cortex behind the same
   seams if a runaway trace or latency floor argues for capping rather than only surfacing.
 - **Reasoning persistence / summarization.** Keeping a turn's reasoning for later inspection is a
