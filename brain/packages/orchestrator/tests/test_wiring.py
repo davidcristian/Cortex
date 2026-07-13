@@ -22,6 +22,7 @@ from cortex_body_client import GrpcBodyGateway
 from cortex_core import (
     DENIED_MSG,
     GET_VOLUME_TOOL_NAME,
+    RAW_RECALL_POLICY,
     SET_VOLUME_TOOL_NAME,
     USER_DECLINED_MSG,
     CharBudgetHistoryWindow,
@@ -34,6 +35,7 @@ from cortex_core import (
     PlacementRequest,
     PlacementTarget,
     RecordingConfirmer,
+    RerankingRecallPolicy,
     ResourceBudgetScheduler,
     ScheduledItem,
     ScheduleKind,
@@ -73,6 +75,7 @@ from cortex_orchestrator import (
     build_subagents,
     build_tool_registry,
     memory_scope_from_name,
+    recall_policy_from_config,
     run_from_env,
 )
 from cortex_seam import (
@@ -224,6 +227,20 @@ def test_memory_scope_from_name_maps_config_to_the_policy() -> None:
     """The one env→core seam for scoping: `global` (default) vs `session` (ADR-0008 addendum)."""
     assert isinstance(memory_scope_from_name("global"), GlobalMemoryScope)
     assert isinstance(memory_scope_from_name("session"), SessionMemoryScope)
+
+
+def test_recall_policy_from_config_maps_config_to_the_policy() -> None:
+    """The one env→core seam for reranking: `raw` (default) vs `reranked` (ADR-0008 addendum)."""
+    assert recall_policy_from_config(MemoryConfig()) is RAW_RECALL_POLICY
+    reranked = recall_policy_from_config(MemoryConfig(recall="reranked"))
+    assert isinstance(reranked, RerankingRecallPolicy)
+    # The half-life knob is authored in days and reaches the policy converted to seconds.
+    assert (
+        recall_policy_from_config(
+            MemoryConfig(recall="reranked", recall_half_life_days=1.0)
+        ).candidate_k(5)
+        == 5 * MemoryConfig().recall_pool_factor
+    )
 
 
 async def test_build_tool_registry_defaults_to_disabled() -> None:

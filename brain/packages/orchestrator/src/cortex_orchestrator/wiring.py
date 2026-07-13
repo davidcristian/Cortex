@@ -2,9 +2,9 @@
 
 The one place that reads config and picks adapters (DI at the edge, AGENTS.md).
 The per-capability builders live in `builders.py` (and `subagent_builders.py` for
-delegation), one per port, each returning the dependency plus its closer; this
-module only reads the env configs, calls them, hands the `TurnEngine` its ports,
-and releases everything on the way out:
+delegation, `memory_builders.py` for recall), one per port, each returning the dependency
+plus its closer; this module only reads the env configs, calls them, hands the `TurnEngine`
+its ports, and releases everything on the way out:
 
 - SessionStore  -> `RedisSessionStore` over CORTEX_REDIS_URL, holding the state that
   survives restarts and model swaps (the one hard rule).
@@ -27,7 +27,6 @@ from cortex_orchestrator.builders import (
     build_cortex_tools,
     build_history_window,
     build_inference_backend,
-    build_memory,
     build_output_guardrail,
     build_tool_registry,
 )
@@ -41,6 +40,7 @@ from cortex_orchestrator.config import (
 )
 from cortex_orchestrator.config_schedule import ScheduleConfig
 from cortex_orchestrator.config_subagents import SubagentsConfig
+from cortex_orchestrator.memory_builders import build_memory
 from cortex_orchestrator.schedule_builders import (
     build_schedule,
     build_schedule_tools,
