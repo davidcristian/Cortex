@@ -75,3 +75,12 @@ is a live runtime choice.
   is still used. Orthogonal to this ADR; recorded in the ROADMAP for when 8.6 or a hardening
   pass wants it. This ADR is the *which-model* boundary; grammar constraint is the
   *what-shape-of-output* boundary.
+
+## Addendum (2026-07-13): grammar-constrained output landed (ADR-0028)
+
+The composes-with option (c) landed as [ADR-0028](ADR-0028-grammar-constrained-subagents.md):
+an additive `schema` keyword on the unchanged `InferenceBackend` lets the `SubagentRunner`
+decode a tool-less subagent's reply into a fixed `{"reply": "..."}` envelope, so
+format-laundering has no grammatical position even on a weak model. It is gated to the
+tool-less path, exactly the niche this ADR leaves a weak model reachable, so it composes with
+the which-model boundary rather than touching it.

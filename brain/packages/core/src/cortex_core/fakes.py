@@ -13,7 +13,7 @@ from typing import Any
 
 from cortex_core.conversation import Message, Role
 from cortex_core.errors import InferenceError, ToolNotFoundError
-from cortex_core.inference import InferenceEvent, TextChunk
+from cortex_core.inference import InferenceEvent, JsonSchema, TextChunk
 from cortex_core.memory import MemoryRecord, ScoredMemory
 from cortex_core.sessions import SessionSummary, summarize_session
 from cortex_core.subagents import SubagentResult, SubagentTask
@@ -67,10 +67,16 @@ class EchoInferenceBackend:
     """
 
     async def stream(
-        self, model: str, messages: Sequence[Message], *, tools: Sequence[ToolSpec] = ()
+        self,
+        model: str,
+        messages: Sequence[Message],
+        *,
+        tools: Sequence[ToolSpec] = (),
+        schema: JsonSchema | None = None,
     ) -> AsyncIterator[InferenceEvent]:
         """Stream the scripted reply; the model id and offered tools do not alter the script."""
-        del model, tools  # routing/config concern; the script is model- and tool-independent
+        # routing/config concern; the script is model/tool/schema-independent
+        del model, tools, schema
         user_messages = [message for message in messages if message.role is Role.USER]
         if not user_messages:
             msg = "EchoInferenceBackend requires at least one user message in the history"

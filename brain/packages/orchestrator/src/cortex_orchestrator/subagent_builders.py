@@ -93,9 +93,10 @@ async def build_subagents(
     (`-ngl 0`); the shared `ResourceBudgetScheduler` admits it under one soft CPU/RAM budget.
     `tools` is the subagents' dispatcher, pre-assembled by `build_subagent_tools` at the
     composition root so the user's `CORTEX_TOOLS_GATED` backstop reaches it without a
-    seventh builder argument (ADR-0022). The returned closer releases the shared backend
-    client and the task store; the shared MCP session is released by `build_tool_registry`,
-    not here.
+    seventh builder argument (ADR-0022). `config.constrain_output` (default on) rides onto the
+    runner, so a tool-less subagent's reply is decoded into the fixed envelope (ADR-0028). The
+    returned closer releases the shared backend client and the task store; the shared MCP
+    session is released by `build_tool_registry`, not here.
     """
     if config.backend == "none":
         return None, noop_aclose
@@ -109,7 +110,9 @@ async def build_subagents(
         default=config.model,
     )
     store = task_store_factory(redis_url)
-    runner = SubagentRunner(store, roster, clock, tools=tools)
+    runner = SubagentRunner(
+        store, roster, clock, tools=tools, constrain_output=config.constrain_output
+    )
 
     async def close_subagents() -> None:
         await store.aclose()

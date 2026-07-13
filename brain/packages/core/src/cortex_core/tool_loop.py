@@ -26,7 +26,7 @@ from datetime import datetime
 
 from cortex_core.conversation import Message, Role
 from cortex_core.dispatch import ToolDispatcher
-from cortex_core.inference import ReasoningChunk
+from cortex_core.inference import JsonSchema, ReasoningChunk
 from cortex_core.ports import Clock, InferenceBackend
 from cortex_core.tools import ToolCall, ToolResult, ToolSpec, Trust, TurnStamp
 from cortex_core.untrusted import TaintLedger, wrap_untrusted
@@ -85,7 +85,9 @@ class ToolLoopContext:
     argument ceiling. ``dispatcher`` is the audited tool gateway (``None`` = a no-tools turn);
     ``taint`` is the turn-local ledger the loop marks on each untrusted result; ``nonce`` fences
     those results; ``session_id`` is the originating chat the loop stamps onto each dispatch
-    (ADR-0027; ``""`` for a session-less caller, e.g. a subagent). Both the cortex turn and
+    (ADR-0027; ``""`` for a session-less caller, e.g. a subagent); ``schema`` (ADR-0028), when
+    set, constrains the model's output to that JSON Schema (a constrained tool-less subagent
+    envelope; ``None`` for the cortex and every tool-enabled path). Both the cortex turn and
     each subagent build one per invocation.
     """
 
@@ -95,6 +97,7 @@ class ToolLoopContext:
     taint: TaintLedger
     nonce: str
     session_id: str
+    schema: JsonSchema | None = None
 
 
 def _call_message(text: str, calls: Sequence[ToolCall], at: datetime, turn_id: str) -> Message:
@@ -140,7 +143,7 @@ async def stream_tool_loop(
     for _step in range(MAX_TOOL_STEPS):
         calls: list[ToolCall] = []
         step_text: list[str] = []
-        deltas = backend.stream(model, working, tools=specs)
+        deltas = backend.stream(model, working, tools=specs, schema=context.schema)
         try:
             async for event in deltas:
                 if isinstance(event, ToolCall):

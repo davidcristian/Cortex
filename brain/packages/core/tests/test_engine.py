@@ -21,6 +21,7 @@ from cortex_core import (
     InMemoryScheduleStore,
     InMemorySessionStore,
     InMemoryToolRegistry,
+    JsonSchema,
     MemoryRecaller,
     MemoryRecord,
     Message,
@@ -70,9 +71,14 @@ class RecordingBackend:
         self.closed = False
 
     async def stream(
-        self, model: str, messages: Sequence[Message], *, tools: Sequence[ToolSpec] = ()
+        self,
+        model: str,
+        messages: Sequence[Message],
+        *,
+        tools: Sequence[ToolSpec] = (),
+        schema: JsonSchema | None = None,
     ) -> AsyncIterator[InferenceEvent]:
-        del tools
+        del tools, schema
         self.calls.append((model, tuple(messages)))
         try:
             for delta in self._deltas:
@@ -103,9 +109,14 @@ class PlainIteratorBackend:
         self._deltas = deltas
 
     def stream(
-        self, model: str, messages: Sequence[Message], *, tools: Sequence[ToolSpec] = ()
+        self,
+        model: str,
+        messages: Sequence[Message],
+        *,
+        tools: Sequence[ToolSpec] = (),
+        schema: JsonSchema | None = None,
     ) -> AsyncIterator[InferenceEvent]:
-        del model, messages, tools
+        del model, messages, tools, schema
         return _PlainDeltas(self._deltas)
 
 
@@ -113,9 +124,14 @@ class MidStreamFailingBackend:
     """Backend that yields one delta and then fails with the typed error."""
 
     async def stream(
-        self, model: str, messages: Sequence[Message], *, tools: Sequence[ToolSpec] = ()
+        self,
+        model: str,
+        messages: Sequence[Message],
+        *,
+        tools: Sequence[ToolSpec] = (),
+        schema: JsonSchema | None = None,
     ) -> AsyncIterator[InferenceEvent]:
-        del model, messages, tools
+        del model, messages, tools, schema
         yield TextChunk("partial ")
         msg = "backend exploded mid-stream"
         raise InferenceError(msg)
@@ -384,9 +400,14 @@ class ScriptedToolBackend:
         self.offered: list[tuple[ToolSpec, ...]] = []
 
     async def stream(
-        self, model: str, messages: Sequence[Message], *, tools: Sequence[ToolSpec] = ()
+        self,
+        model: str,
+        messages: Sequence[Message],
+        *,
+        tools: Sequence[ToolSpec] = (),
+        schema: JsonSchema | None = None,
     ) -> AsyncIterator[InferenceEvent]:
-        del model
+        del model, schema
         self.seen.append(tuple(messages))
         self.offered.append(tuple(tools))
         step = self._steps[self._call]
@@ -402,9 +423,14 @@ class AlwaysCallsBackend:
         self.calls = 0
 
     async def stream(
-        self, model: str, messages: Sequence[Message], *, tools: Sequence[ToolSpec] = ()
+        self,
+        model: str,
+        messages: Sequence[Message],
+        *,
+        tools: Sequence[ToolSpec] = (),
+        schema: JsonSchema | None = None,
     ) -> AsyncIterator[InferenceEvent]:
-        del model, messages, tools
+        del model, messages, tools, schema
         self.calls += 1
         yield ToolCall(id=f"c{self.calls}", name="noop", arguments={})
 

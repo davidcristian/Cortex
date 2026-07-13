@@ -160,6 +160,12 @@ Start here. Rules for working in this repo: [AGENTS.md](../AGENTS.md).
   the dispatcher stamps every call, discarding a model-forged stamp; the engine threads the
   turn's session through `ToolLoopContext`; the ticker stamps a fired item's stored provenance.
   First consumer: `schedule_task` fills `ScheduledItem.session_id`, closing session attribution.
+- [ADR-0028: Grammar-constrained subagent output](adr/ADR-0028-grammar-constrained-subagents.md):
+  the ADR-0017 option (c) hardening pass. An additive `schema` keyword on the unchanged
+  `InferenceBackend` (mapped to a llama.cpp `response_format` `json_schema`) lets the
+  `SubagentRunner` decode a tool-less subagent's reply into a fixed `{"reply": …}` envelope,
+  killing format-laundering on the weak-model niche with no grammatical position for an appended
+  footer or link. Gated to the tool-less path so the JSON grammar never fights tool-calling.
 
 New non-obvious decision → add `adr/ADR-XXXX-<slug>.md`, link it here.
 

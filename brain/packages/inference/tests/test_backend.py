@@ -236,6 +236,47 @@ async def test_offers_tools_and_serializes_the_tool_calling_conversation() -> No
     }
 
 
+async def test_a_schema_maps_to_a_constrained_response_format() -> None:
+    # ADR-0028: a schema constrains decoding via an OpenAI json_schema response_format, so the
+    # subagent runner can force a weak model's reply into the fixed envelope.
+    captured: dict[str, object] = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured["body"] = json.loads(request.content)
+        return httpx.Response(200, content=_sse(_chunk({"content": '{"reply":"ok"}'})))
+
+    envelope = {
+        "type": "object",
+        "properties": {"reply": {"type": "string"}},
+        "required": ["reply"],
+        "additionalProperties": False,
+    }
+    stream = _backend(handler, resident="subagent").stream("subagent", _messages(), schema=envelope)
+    events = [event async for event in stream]
+    assert events == [TextChunk('{"reply":"ok"}')]
+    body = captured["body"]
+    assert isinstance(body, dict)
+    assert body["response_format"] == {
+        "type": "json_schema",
+        "json_schema": {"name": "reply", "schema": envelope, "strict": True},
+    }
+
+
+async def test_no_schema_omits_the_response_format() -> None:
+    # The unconstrained request is byte-for-byte the original: no response_format key at all.
+    captured: dict[str, object] = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured["body"] = json.loads(request.content)
+        return httpx.Response(200, content=_sse(_chunk({"content": "ok"})))
+
+    stream = _backend(handler).stream("cortex", _messages())
+    _ = [event async for event in stream]
+    body = captured["body"]
+    assert isinstance(body, dict)
+    assert "response_format" not in body
+
+
 async def test_reassembles_a_streamed_tool_call_and_final_text() -> None:
     content = _sse(
         _chunk({"content": "checking "}),

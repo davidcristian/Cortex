@@ -11,10 +11,12 @@ No orchestration, no session state (the one hard rule). The core keeps talking o
 **Public contract** (everything importable from `cortex_inference`; `__all__` is the API):
 
 - `LlamaCppBackend(model_manager: ModelManager, http_client: httpx.AsyncClient)` is an
-  `InferenceBackend`. `stream(model, messages, *, tools=())`:
+  `InferenceBackend`. `stream(model, messages, *, tools=(), schema=None)`:
   1. `async with model_manager.acquire(model) as lease` queues for the GPU, gets the
      resident model's endpoint (or the manager raises for a non-resident model).
-  2. POSTs `{model, messages, stream: true}` (plus `tools` when any are offered) to
+  2. POSTs `{model, messages, stream: true}` (plus `tools` when any are offered, plus a
+     `response_format` of `{type: json_schema, json_schema: {name: reply, schema, strict: true}}`
+     when `schema` is set, so the server constrains decoding to that shape, ADR-0028) to
      `{lease.endpoint}/v1/chat/completions`, mapping each `Message` to an OpenAI message:
      `USER`/`SYSTEM`/`ASSISTANT`→`{role, content}`, an assistant with `tool_calls`→the
      OpenAI `tool_calls` array, and a `TOOL` result→`{role: "tool", tool_call_id, content}`.

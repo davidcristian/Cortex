@@ -28,7 +28,7 @@ from cortex_core import (
     ToolCall,
     ToolSpec,
 )
-from cortex_core.inference import InferenceEvent
+from cortex_core.inference import InferenceEvent, JsonSchema
 
 _CHAT_COMPLETIONS_PATH = "/v1/chat/completions"
 _SSE_DATA_PREFIX = "data:"
@@ -77,6 +77,27 @@ def _to_openai_tools(tools: Sequence[ToolSpec]) -> list[dict[str, object]]:
         }
         for tool in tools
     ]
+
+
+def _build_payload(
+    model: str, messages: Sequence[Message], tools: Sequence[ToolSpec], schema: JsonSchema | None
+) -> dict[str, object]:
+    """The streaming chat-completion request body: messages always, tools and a constrained
+    ``response_format`` only when present (ADR-0009/0028), so an unconstrained tool-less turn
+    is byte-for-byte the original request."""
+    payload: dict[str, object] = {
+        "model": model,
+        "messages": [_to_openai_message(message) for message in messages],
+        "stream": True,
+    }
+    if tools:
+        payload["tools"] = _to_openai_tools(tools)
+    if schema is not None:
+        payload["response_format"] = {
+            "type": "json_schema",
+            "json_schema": {"name": "reply", "schema": dict(schema), "strict": True},
+        }
+    return payload
 
 
 def _require_text(value: object, field: str) -> str | None:
@@ -144,16 +165,21 @@ class LlamaCppBackend:
         self._client = http_client
 
     async def stream(
-        self, model: str, messages: Sequence[Message], *, tools: Sequence[ToolSpec] = ()
+        self,
+        model: str,
+        messages: Sequence[Message],
+        *,
+        tools: Sequence[ToolSpec] = (),
+        schema: JsonSchema | None = None,
     ) -> AsyncIterator[InferenceEvent]:
-        """Stream text deltas from the leased llama-server, then any assembled tool calls."""
-        payload: dict[str, object] = {
-            "model": model,
-            "messages": [_to_openai_message(message) for message in messages],
-            "stream": True,
-        }
-        if tools:
-            payload["tools"] = _to_openai_tools(tools)
+        """Stream text deltas from the leased llama-server, then any assembled tool calls.
+
+        With ``schema`` set (ADR-0028), the request carries an OpenAI ``response_format`` of
+        ``json_schema`` so llama-server constrains every token to that shape; the subagent
+        runner uses it to force a tool-less weak model's reply into a fixed envelope, killing
+        format-laundering. ``None`` leaves the request unconstrained, byte-for-byte as before.
+        """
+        payload = _build_payload(model, messages, tools, schema)
         pending: dict[int, _PendingCall] = {}
         try:
             async with self._manager.acquire(model) as lease:
