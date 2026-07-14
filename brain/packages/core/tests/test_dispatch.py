@@ -15,6 +15,7 @@ from cortex_core import (
     RecordingAuditSink,
     RecordingConfirmer,
     ToolCall,
+    ToolCostPolicy,
     ToolDispatcher,
     ToolError,
     ToolResult,
@@ -22,6 +23,7 @@ from cortex_core import (
     Trust,
     TurnStamp,
 )
+from cortex_core.tool_budget import DEFAULT_TOOL_COST
 
 _AT = datetime(2026, 7, 3, 12, 0, 0, tzinfo=UTC)
 
@@ -369,3 +371,25 @@ async def test_a_within_budget_call_is_unaffected() -> None:
         over_budget=False,
     )
     assert result.content == "ran:/p"
+
+
+def test_the_dispatcher_prices_a_call_from_the_policy_it_was_given() -> None:
+    # The loop asks the dispatcher what a call costs (ADR-0009 cost addendum), so the price
+    # rides with the gateway that runs the tool rather than being restated per loop.
+    dispatcher = ToolDispatcher(
+        InMemoryToolRegistry({"send": (_spec("send"), _ran)}),
+        RecordingAuditSink(),
+        _FixedClock(),
+        costs=ToolCostPolicy({"send": 4}),
+    )
+    assert dispatcher.cost_of("send") == 4
+    # An unadvertised name is priced too, not free: it still reaches dispatch and still costs
+    # a round trip, so a model inventing names cannot dispatch without limit.
+    assert dispatcher.cost_of("invented") == DEFAULT_TOOL_COST
+
+
+def test_a_dispatcher_built_without_a_policy_prices_every_call_at_one() -> None:
+    dispatcher = _dispatcher(
+        InMemoryToolRegistry({"read": (_spec("read"), _ran)}), RecordingAuditSink()
+    )
+    assert dispatcher.cost_of("read") == 1

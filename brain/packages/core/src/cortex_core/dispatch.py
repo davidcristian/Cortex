@@ -5,6 +5,7 @@ from dataclasses import replace
 
 from cortex_core.errors import ToolError
 from cortex_core.ports import Clock, Confirmer, ToolAuditSink, ToolRegistry
+from cortex_core.tool_budget import UNIFORM_COST, ToolCostPolicy
 from cortex_core.tools import (
     UNSTAMPED,
     ConfirmationRequest,
@@ -45,16 +46,22 @@ class ToolDispatcher:
         *,
         confirmer: Confirmer | None = None,
         gated_names: Collection[str] = (),
+        costs: ToolCostPolicy = UNIFORM_COST,
     ) -> None:
         self._registry = registry
         self._audit = audit
         self._clock = clock
         self._confirmer = confirmer
+        self._costs = costs
         self._gated_names = frozenset(gated_names)
 
     async def describe_tools(self) -> Sequence[ToolSpec]:
         """The tools available to advertise to the model (delegates to the registry)."""
         return await self._registry.describe_tools()
+
+    def cost_of(self, name: str) -> int:
+        """What dispatching ``name`` spends of the caller's budget (ADR-0009 cost addendum)."""
+        return self._costs.cost_of(name)
 
     async def dispatch(
         self,

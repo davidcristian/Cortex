@@ -5,7 +5,12 @@ from typing import Literal
 from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from cortex_core import DEFAULT_CORTEX_MODEL
+from cortex_core import (
+    DEFAULT_CORTEX_MODEL,
+    MAX_TOOL_DISPATCHES,
+    SPAWN_TOOL_NAME,
+    ToolCostPolicy,
+)
 from cortex_orchestrator.converse import DEFAULT_CONFIRM_TIMEOUT_S, DEFAULT_MAX_BUFFERED_EVENTS
 from cortex_session import DEFAULT_REDIS_URL
 
@@ -16,6 +21,8 @@ MemoryScopeName = Literal["global", "session"]
 MemoryRecallName = Literal["raw", "reranked", "mmr", "recency_mmr"]
 MemoryTaintPolicyName = Literal["skip", "record"]
 ToolsBackendName = Literal["none", "mcp"]
+
+DEFAULT_SPAWN_COST = MAX_TOOL_DISPATCHES // 4
 
 
 class SeamServerConfig(BaseSettings):
@@ -139,6 +146,7 @@ class ToolsConfig(BaseSettings):
     allow: dict[str, tuple[str, ...]] = {}
     on_unavailable: Literal["fail", "skip"] = "fail"
     gated: tuple[str, ...] = ("send_email",)
+    costs: dict[str, int] = {}
 
     @model_validator(mode="after")
     def _mcp_needs_unambiguous_endpoints(self) -> "ToolsConfig":
@@ -154,7 +162,15 @@ class ToolsConfig(BaseSettings):
         if unmatched := set(self.allow) - set(self.named_endpoints):
             msg = f"CORTEX_TOOLS_ALLOW names no configured endpoint: {sorted(unmatched)}"
             raise ValueError(msg)
+        if bad := sorted(n for n, c in self.costs.items() if not 1 <= c <= MAX_TOOL_DISPATCHES):
+            msg = f"CORTEX_TOOLS_COSTS must be 1..{MAX_TOOL_DISPATCHES}: {bad}"
+            raise ValueError(msg)
         return self
+
+    @property
+    def cost_policy(self) -> ToolCostPolicy:
+        """The effective prices as the core's policy value (ADR-0009 cost addendum)."""
+        return ToolCostPolicy({SPAWN_TOOL_NAME: DEFAULT_SPAWN_COST} | self.costs)
 
     @property
     def named_endpoints(self) -> dict[str, str]:

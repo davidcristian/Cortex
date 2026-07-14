@@ -764,6 +764,33 @@ async def test_build_subagent_tools_gated_names_are_the_fail_closed_backstop() -
     assert result.content == USER_DECLINED_MSG
 
 
+def test_the_configured_tool_prices_reach_both_tool_loop_dispatchers() -> None:
+    """CORTEX_TOOLS_COSTS threads to the cortex and to subagents (ADR-0009 cost addendum).
+
+    Both run a `stream_tool_loop` with its own budget, so a tool a user priced has to be
+    priced in delegated work too: fan-out is exactly what multiplies a cheap-looking call.
+    """
+    registry = InMemoryToolRegistry(
+        {"read_file": (ToolSpec(name="read_file", description="", parameters={}), _reply_ok)}
+    )
+    costs = ToolsConfig(costs={"read_file": 5}).cost_policy
+    cortex = build_cortex_tools(registry, (), SystemClock(), costs=costs)
+    subagent = build_subagent_tools(registry, SystemClock(), costs=costs)
+    assert cortex is not None
+    assert subagent is not None
+    assert (cortex.cost_of("read_file"), subagent.cost_of("read_file")) == (5, 5)
+
+
+def test_dispatchers_built_without_prices_charge_one_per_call() -> None:
+    # The default keeps the budget the plain call count it shipped as.
+    registry = InMemoryToolRegistry(
+        {"read_file": (ToolSpec(name="read_file", description="", parameters={}), _reply_ok)}
+    )
+    cortex = build_cortex_tools(registry, (), SystemClock())
+    assert cortex is not None
+    assert cortex.cost_of("read_file") == 1
+
+
 async def test_run_from_env_with_scheduling_fires_and_shuts_down_cleanly(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

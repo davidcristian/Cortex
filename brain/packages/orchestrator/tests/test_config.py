@@ -5,6 +5,8 @@ import os
 import pytest
 from pydantic import ValidationError
 
+from cortex_core import MAX_TOOL_DISPATCHES, SPAWN_TOOL_NAME
+from cortex_core.tool_budget import DEFAULT_TOOL_COST
 from cortex_orchestrator import (
     BodyConfig,
     BrainRuntimeConfig,
@@ -15,6 +17,7 @@ from cortex_orchestrator import (
     SubagentsConfig,
     ToolsConfig,
 )
+from cortex_orchestrator.config import DEFAULT_SPAWN_COST
 
 
 @pytest.fixture
@@ -479,3 +482,46 @@ def test_tools_env_overrides_the_gated_names(monkeypatch: pytest.MonkeyPatch) ->
 def test_tools_env_empties_the_gated_names(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("CORTEX_TOOLS_GATED", "[]")
     assert ToolsConfig().gated == ()
+
+
+def test_tools_costs_price_only_the_fan_out_tool_by_default() -> None:
+    # `spawn_subagents` is the one wired tool whose single dispatch becomes a batch of model
+    # runs and which no confirmation gate bounds (ADR-0009 cost addendum). `send_email` is
+    # deliberately unpriced: every send already needs the user's approval.
+    policy = ToolsConfig().cost_policy
+    assert policy.cost_of(SPAWN_TOOL_NAME) == DEFAULT_SPAWN_COST
+    assert DEFAULT_SPAWN_COST * 4 == MAX_TOOL_DISPATCHES  # four delegations a turn
+    assert policy.cost_of("send_email") == DEFAULT_TOOL_COST
+
+
+def test_tools_env_prices_one_tool_per_key(monkeypatch: pytest.MonkeyPatch) -> None:
+    # The per-key form (not a JSON blob) is what lets layered compose overrides each
+    # contribute the price of the tool they enable. Env keys are matched case-insensitively,
+    # so the compose-style uppercase name reaches the lowercase tool name.
+    monkeypatch.setenv("CORTEX_TOOLS_COSTS__READ_FILE", "3")
+    assert ToolsConfig().costs == {"read_file": 3}
+
+
+def test_pricing_one_tool_does_not_silently_unprice_the_built_in_one() -> None:
+    # A nested-dict env key replaces the whole mapping, so a built-in price kept as the
+    # field's default would vanish the moment a user priced anything else, un-pricing the
+    # fan-out tool as a side effect of an unrelated knob. The policy merges instead.
+    policy = ToolsConfig(costs={"read_file": 3}).cost_policy
+    assert policy.cost_of("read_file") == 3
+    assert policy.cost_of(SPAWN_TOOL_NAME) == DEFAULT_SPAWN_COST
+    assert policy.cost_of("anything_else") == DEFAULT_TOOL_COST
+
+
+def test_restating_a_built_in_price_overrides_it() -> None:
+    # The merge is a floor, not a lock: a user who names the tool explicitly means it.
+    assert ToolsConfig(costs={SPAWN_TOOL_NAME: 2}).cost_policy.cost_of(SPAWN_TOOL_NAME) == 2
+
+
+@pytest.mark.parametrize("cost", [0, -2, MAX_TOOL_DISPATCHES + 1])
+def test_a_tool_cost_outside_the_budget_range_fails_at_boot(cost: int) -> None:
+    # Both ends hide rather than announce themselves at runtime: free means the budget stops
+    # bounding that tool, and unaffordable means it never runs and the first call closes the
+    # turn's budget. Neither is worth debugging from behavior, so the brain refuses to start.
+    expected = rf"CORTEX_TOOLS_COSTS must be 1\.\.{MAX_TOOL_DISPATCHES}: \['read_file'\]"
+    with pytest.raises(ValidationError, match=expected):
+        ToolsConfig(costs={"read_file": cost})

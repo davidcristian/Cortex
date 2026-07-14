@@ -8,6 +8,7 @@ import httpx
 
 from cortex_body_client import GrpcBodyGateway
 from cortex_core import (
+    UNIFORM_COST,
     AggregateToolRegistry,
     BodyGateway,
     BuiltinTool,
@@ -25,6 +26,7 @@ from cortex_core import (
     SkipUnavailableToolRegistry,
     SpawnSubagentsTool,
     StrictUrlRedactingGuardrail,
+    ToolCostPolicy,
     ToolDispatcher,
     ToolError,
     ToolRegistry,
@@ -146,11 +148,17 @@ def build_cortex_tools(
     *,
     confirmer: Confirmer | None = None,
     gated_names: Collection[str] = (),
+    costs: ToolCostPolicy = UNIFORM_COST,
 ) -> ToolDispatcher | None:
     """The cortex's audited dispatcher: the built-in set merged with the MCP tools."""
     if not builtins and tool_registry is None:
         return None
     registry = CompositeToolRegistry(builtins, remote=tool_registry)
     return ToolDispatcher(
-        registry, LoggingAuditSink(), clock, confirmer=confirmer, gated_names=gated_names
+        registry,
+        LoggingAuditSink(),
+        clock,
+        confirmer=confirmer,
+        gated_names=gated_names,
+        costs=costs,
     )

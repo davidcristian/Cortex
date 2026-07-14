@@ -5,6 +5,7 @@ from collections.abc import Awaitable, Callable, Collection
 import httpx
 
 from cortex_core import (
+    UNIFORM_COST,
     Clock,
     PlacementRequest,
     PlacementTarget,
@@ -17,6 +18,7 @@ from cortex_core import (
     SubagentRoster,
     SubagentRunner,
     SubagentScheduler,
+    ToolCostPolicy,
     ToolDispatcher,
     ToolRegistry,
     UngatedToolRegistry,
@@ -88,11 +90,19 @@ async def build_subagents(
 
 
 def build_subagent_tools(
-    tool_registry: ToolRegistry | None, clock: Clock, *, gated_names: Collection[str] = ()
+    tool_registry: ToolRegistry | None,
+    clock: Clock,
+    *,
+    gated_names: Collection[str] = (),
+    costs: ToolCostPolicy = UNIFORM_COST,
 ) -> ToolDispatcher | None:
     """A subagent's audited dispatcher over the gated-stripped MCP subset, or None (ADR-0013)."""
     if tool_registry is None:
         return None
     return ToolDispatcher(
-        UngatedToolRegistry(tool_registry), LoggingAuditSink(), clock, gated_names=gated_names
+        UngatedToolRegistry(tool_registry),
+        LoggingAuditSink(),
+        clock,
+        gated_names=gated_names,
+        costs=costs,
     )

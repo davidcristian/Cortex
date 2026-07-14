@@ -8,14 +8,13 @@ from cortex_core.conversation import Message, Role
 from cortex_core.dispatch import ToolDispatcher
 from cortex_core.inference import JsonSchema, ReasoningChunk
 from cortex_core.ports import Clock, InferenceBackend
+from cortex_core.tool_budget import MAX_TOOL_DISPATCHES
 from cortex_core.tools import ToolCall, ToolResult, ToolSpec, Trust, TurnStamp
 from cortex_core.untrusted import TaintLedger, wrap_untrusted
 
 # Upper bound on inference↔tool rounds in one loop (ADR-0009): a safety net against a model
 # that never stops calling tools. On exhaustion the loop ends with the text produced so far.
 MAX_TOOL_STEPS = 8
-
-MAX_TOOL_DISPATCHES = 32
 
 # Upper bound on a ToolStep summary: the chip is one slim line, and an advertised description
 # is sidecar-authored text of arbitrary length (ADR-0009 addendum).
@@ -98,9 +97,8 @@ async def stream_tool_loop(
     specs = await dispatcher.describe_tools() if dispatcher is not None else ()
     gated_by_name = {spec.name: spec.gated for spec in specs}
     spec_by_name = {spec.name: spec for spec in specs}
-    # Dispatches performed so far, counted across rounds against the budget (ADR-0009 budget
-    # addendum). Refused calls do not increment it: once spent, the budget stays spent.
-    dispatched = 0
+    spent = 0
+    budget_closed = False
     for _step in range(MAX_TOOL_STEPS):
         calls: list[ToolCall] = []
         step_text: list[str] = []
@@ -125,16 +123,17 @@ async def stream_tool_loop(
             _call_message("".join(step_text), calls, context.clock.now(), context.turn_id)
         )
         for call in calls:
-            over_budget = dispatched >= context.dispatch_budget
-            if not over_budget:
-                dispatched += 1
+            cost = dispatcher.cost_of(call.name)
+            budget_closed = budget_closed or spent + cost > context.dispatch_budget
+            if not budget_closed:
+                spent += cost
                 if (spec := spec_by_name.get(call.name)) is not None:
                     yield ToolStep(tool_name=spec.name, summary=_step_summary(spec))
             result = await dispatcher.dispatch(
                 call,
                 stamp=TurnStamp(session_id=context.session_id, tainted=context.taint.tainted),
                 gated=gated_by_name.get(call.name, False),
-                over_budget=over_budget,
+                over_budget=budget_closed,
             )
             context.taint.observe(result)
             working.append(
