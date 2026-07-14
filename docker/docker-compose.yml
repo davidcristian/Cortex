@@ -26,6 +26,10 @@ services:
       # Durable schedules + the reminder ticker (ADR-0025) over the same append-only
       # redis. Off by default; set CORTEX_SCHEDULE_BACKEND=redis (e.g. in .env) to enable.
       CORTEX_SCHEDULE_BACKEND: ${CORTEX_SCHEDULE_BACKEND:-none}
+      # The IANA zone every model-facing schedule time renders in, and the zone an
+      # offset-less 'at' is read as (ADR-0025 display addendum). Display only: stored due
+      # times stay UTC. An unknown key fails the brain at startup, by design.
+      CORTEX_SCHEDULE_TZ: ${CORTEX_SCHEDULE_TZ:-UTC}
     ports:
       # Loopback-only publish for the single-user security posture (ROADMAP assumption 5):
       # nothing listens beyond 127.0.0.1 on the host.

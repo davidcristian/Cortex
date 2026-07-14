@@ -123,6 +123,17 @@ Subagent domain (Slice 7, ADR-0010):
 Schedule domain (Slice 9.5, ADR-0025, in `schedule.py`; named `schedule`/`ScheduleTicker`
 throughout, never "Scheduler", which means resource *admission* here):
 
+- `DisplayZone(name, tz)` (`schedule_time.py`, ADR-0025 display addendum) is the frozen value
+  every model-facing schedule datetime renders through: `render(moment)` is the one canonical
+  string (ISO-8601, seconds precision, offset included), `resolve(naive)` reads an offset-less
+  `at` as that zone's wall time and returns the **UTC instant** (`fold=0`, so an ambiguous
+  time takes the earlier offset and a nonexistent one the pre-transition offset). Both hop
+  through UTC deliberately: `astimezone` is a no-op when the input already carries the target
+  zone, which would otherwise print a wall time that does not exist. `UTC_DISPLAY` is the
+  default, so an unconfigured deployment renders exactly what the UTC-only v1 rendered.
+  The core never imports `zoneinfo`: turning `CORTEX_SCHEDULE_TZ` into a `tzinfo` reads the
+  system tz database and so belongs to the composition root. **Display only:** stored `due_at`
+  / `anchor` stay UTC instants, and no record, codec, or recurrence arithmetic is affected.
 - `ScheduleKind` is an enum `REMINDER` / `TASK` (string values) whose firing means: deliver text
   to the user, or run an autonomous subagent.
 - `ScheduleStatus` is an enum `PENDING` / `FIRING` / `DONE`. No `CANCELLED`: cancel deletes the
@@ -526,17 +537,21 @@ Use-case:
   (host state, never taints the turn); bad arguments and a `BodyGatewayError` both become an
   `is_error` `TRUSTED` `ToolResult`, never a raise. `BuiltinTool`s, registered in the
   `CompositeToolRegistry`.
-- `ScheduleTaskTool(store, clock, *, tasks_enabled, max_active, item_id_factory=<uuid4>)` /
-  `ListScheduledTool(store)` (`schedule_tools.py`) and `CancelScheduledTool(store)` /
-  `SnoozeScheduledTool(store, clock)` / `EditScheduledTool(store)` (`schedule_verbs.py`, the
+- `ScheduleTaskTool(store, clock, *, tasks_enabled, max_active, zone=UTC_DISPLAY,
+  item_id_factory=<uuid4>)` /
+  `ListScheduledTool(store, *, zone=UTC_DISPLAY)` (`schedule_tools.py`) and
+  `CancelScheduledTool(store)` /
+  `SnoozeScheduledTool(store, clock, *, zone=UTC_DISPLAY)` / `EditScheduledTool(store)`
+  (`schedule_verbs.py`, the
   line-cap split that also owns the shared result helpers; argument parsing in
   `schedule_args.py`) are the built-in
   `schedule_task` / `list_scheduled` / `cancel_scheduled` / `snooze_scheduled` /
   `edit_scheduled` tools, cortex-only like `spawn_subagents`, since a subagent cannot re-schedule
   (ADR-0025). `schedule_task` takes `{kind: reminder|task, text, at | in_seconds,
   every_seconds? (≥ 60), model? (task-only)}`; its spec is rebuilt per `describe_tools` walk and
-  **carries the current UTC time** from the `Clock` (the model cannot otherwise compute an
-  absolute `at`), advertising `task`/`model` only when delegation is wired. Two creation bounds:
+  **carries the current time** from the `Clock` (the model cannot otherwise compute an
+  absolute `at`), rendered in the display zone and labelled with its name,
+  advertising `task`/`model` only when delegation is wired. Two creation bounds:
   the `max_active` cap, and the **tainted-task refusal**. A tainted turn cannot create a
   `kind: "task"` item at all (`TAINTED_TASK_MSG`; a reminder may carry attacker-influenced text
   because it only reaches a human, an autonomous instruction may not). Creation fills
