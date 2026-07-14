@@ -225,8 +225,10 @@ Untrusted-content boundary (Slice 6.5, ADR-0013; the pure primitives in `untrust
   dispatch (ADR-0027; `""` for a session-less caller, e.g. a subagent); `schema` (ADR-0028), when
   set, constrains the model's output to that JSON Schema (a constrained tool-less subagent
   envelope; `None` for the cortex and every tool-enabled path); `dispatch_budget` (ADR-0009 budget
-  addendum) caps total dispatches across the loop's rounds, per invocation so a caller can run
-  tighter than the default (neither current caller does, and each gets its own budget).
+  addendum) caps what the loop may spend dispatching across its rounds, per invocation so a caller
+  can run tighter than the default (neither current caller does, and each gets its own budget).
+  What a given call spends comes from the dispatcher's `ToolCostPolicy` (ADR-0009 cost addendum),
+  so a tool's price travels with the gateway that runs it and is not restated per loop.
 
 Output guardrail (ADR-0015; the pure laundering defense built from the redactor + policies in
 `guardrail.py`, the URL grammar in `urls.py`, and one URL's canonical identity in `url_identity.py`,
@@ -431,9 +433,14 @@ Use-case:
   call surfaces no step; the engine maps it to `ToolActivity`, a subagent drops it), mutating `working` in place with
   the tool-call and `Role.TOOL` result messages; ends on a tool-free step, a `None` dispatcher,
   or `MAX_TOOL_STEPS` (8) rounds. Two independent bounds apply (ADR-0009 budget addendum): rounds
-  cap how long the loop runs, and `context.dispatch_budget` (`MAX_TOOL_DISPATCHES`, 32) caps how
-  many calls it may dispatch *in total across those rounds*, since one round can carry unboundedly
-  many calls. Past the budget each further call is still handed to the dispatcher, which refuses it
+  cap how long the loop runs, and `context.dispatch_budget` (`MAX_TOOL_DISPATCHES`, 32) caps what
+  it may *spend* dispatching across those rounds, since one round can carry unboundedly
+  many calls. Each call is charged `dispatcher.cost_of(name)` (ADR-0009 cost addendum), 1 unless
+  a user priced the tool, so with nothing priced the budget is a plain call count. A call that
+  no longer fits **closes** the budget for the rest of the loop rather than being stepped over so
+  cheaper calls trickle through behind it: the refusal tells the model to stop calling tools, and
+  the turn's spend must not depend on the order the model emitted its calls in.
+  Past the budget each further call is still handed to the dispatcher, which refuses it
   as `BUDGET_EXHAUSTED_MSG` and audits it (skipping the dispatch would strand the round's
   `tool_calls` without their `Role.TOOL` answers and leave refusals unaudited), and it yields no
   `ToolStep`, so a chip still means a tool is running.
@@ -473,7 +480,8 @@ Use-case:
   the recency blend rather than raw similarity, combining both axes. Selected at the composition root
   via `CORTEX_MEMORY_RECALL`; the reported `ScoredMemory.score` stays the raw cosine, only order and
   membership change.
-- `ToolDispatcher(registry, audit, clock, *, confirmer=None)` is the turn's tool gateway and
+- `ToolDispatcher(registry, audit, clock, *, confirmer=None, gated_names=(), costs=UNIFORM_COST)`
+  is the turn's tool gateway and
   capability gate (ADR-0009/0013). `dispatch(call, *, stamp=UNSTAMPED, gated=False,
   over_budget=False)` runs `call`
   through the `ToolRegistry`, writes exactly one `ToolInvocation` (with the result's `trust`) to
@@ -489,8 +497,20 @@ Use-case:
   default included). Both blocks return **without invoking the tool**, audited. Before the
   registry invoke it **stamps the turn's provenance onto the call** (`replace(call, stamp=stamp)`,
   ADR-0018/0027). That is provenance for built-ins, never the gate's input, and a model-forged
-  stamp is overwritten. `describe_tools()` passes through to the registry. Stateless over the
-  ports; the loop drives it.
+  stamp is overwritten. `describe_tools()` passes through to the registry. `cost_of(name)` answers
+  what a call spends of the caller's budget (ADR-0009 cost addendum), from the `ToolCostPolicy` the
+  composition root gave it; an unadvertised name is priced at the default rather than free.
+  Stateless over the ports; the loop drives it.
+- `ToolCostPolicy(costs={})` (`tool_budget.py`, ADR-0009 cost addendum) is the per-tool price list:
+  `cost_of(name)` returns the named price or `DEFAULT_TOOL_COST` (1), and `UNIFORM_COST` is the
+  empty policy every dispatcher gets by default (a budget of N is then N calls). Prices must be
+  positive, rejected at construction, since a free tool is one the budget stops bounding. It
+  lives on the dispatcher beside `gated_names` for the same reason: both are composition-root
+  declarations *about* tools by name, so a sidecar's advertisement can claim neither. Frozen, and
+  it copies the mapping it is built from, so the config object cannot edit prices afterwards.
+  `MAX_TOOL_DISPATCHES` (32) lives in the same module: `tool_budget.py` owns how much one loop may
+  *spend*, `tool_loop.py` (`MAX_TOOL_STEPS`) how *long* it runs, which is the split that keeps the
+  two deliberately independent bounds from reading as one.
 - `SubagentRunner(store, roster, clock, *, tools=None, constrain_output=False)` is a subagent's
   body (ADR-0010/0012/0018),
   a stateless function over the `TaskStore`. `run(task_id)` loads the `SubagentTask` **by id**

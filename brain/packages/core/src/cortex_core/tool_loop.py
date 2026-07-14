@@ -30,20 +30,13 @@ from cortex_core.conversation import Message, Role
 from cortex_core.dispatch import ToolDispatcher
 from cortex_core.inference import JsonSchema, ReasoningChunk
 from cortex_core.ports import Clock, InferenceBackend
+from cortex_core.tool_budget import MAX_TOOL_DISPATCHES
 from cortex_core.tools import ToolCall, ToolResult, ToolSpec, Trust, TurnStamp
 from cortex_core.untrusted import TaintLedger, wrap_untrusted
 
 # Upper bound on inference↔tool rounds in one loop (ADR-0009): a safety net against a model
 # that never stops calling tools. On exhaustion the loop ends with the text produced so far.
 MAX_TOOL_STEPS = 8
-
-# Upper bound on tool dispatches across ALL rounds of one loop (ADR-0009 budget addendum).
-# MAX_TOOL_STEPS bounds rounds, not calls: a single round dispatched every call the model
-# emitted, so the two bounds multiplied and neither answered "how many external calls can one
-# turn make?". This one does. Sized above plausible legitimate use (eight rounds averaging
-# four calls) and far below spam. Past it, calls are refused, audited, and reported to the
-# model, which is why the count is total rather than per round.
-MAX_TOOL_DISPATCHES = 32
 
 # Upper bound on a ToolStep summary: the chip is one slim line, and an advertised description
 # is sidecar-authored text of arbitrary length (ADR-0009 addendum).
@@ -98,9 +91,11 @@ class ToolLoopContext:
     (ADR-0027; ``""`` for a session-less caller, e.g. a subagent); ``schema`` (ADR-0028), when
     set, constrains the model's output to that JSON Schema (a constrained tool-less subagent
     envelope; ``None`` for the cortex and every tool-enabled path); ``dispatch_budget``
-    (ADR-0009 budget addendum) caps total dispatches across the loop's rounds, per invocation
-    so a caller can run tighter than the default. Both the cortex turn and each subagent build
-    one per invocation, and each gets its own budget.
+    (ADR-0009 budget addendum) caps what the loop may spend on dispatches across its rounds,
+    per invocation so a caller can run tighter than the default. What each call spends comes
+    from the dispatcher's ``ToolCostPolicy`` (ADR-0009 cost addendum), so the price of a tool
+    travels with the gateway that runs it rather than being restated here. Both the cortex turn
+    and each subagent build one context per invocation, and each gets its own budget.
     """
 
     dispatcher: ToolDispatcher | None
@@ -144,9 +139,10 @@ async def stream_tool_loop(
     The loop advertises exactly the tools it can dispatch: the dispatcher's tools when present,
     none otherwise. With ``dispatcher`` None (or once the model stops calling tools) the loop
     ends after one inference step. Two bounds apply: ``MAX_TOOL_STEPS`` rounds, and
-    ``context.dispatch_budget`` dispatches summed across them (ADR-0009 budget addendum). Past
-    the budget each further call is refused by the dispatcher and audited, and the rounds that
-    remain are how the model learns of it and still answers.
+    ``context.dispatch_budget`` summed across them (ADR-0009 budget addendum), each call
+    charged the dispatcher's price for it (ADR-0009 cost addendum). Once a call does not fit,
+    the budget closes: that call and every later one is refused by the dispatcher and audited,
+    and the rounds that remain are how the model learns of it and still answers.
     Each tool call is dispatched through the audited dispatcher, with
     gated calls confirmed against the turn's taint (ADR-0013). Its result marks the taint ledger
     and is fed back (fenced when untrusted) as a ``Role.TOOL`` message before re-inference.
@@ -157,9 +153,12 @@ async def stream_tool_loop(
     specs = await dispatcher.describe_tools() if dispatcher is not None else ()
     gated_by_name = {spec.name: spec.gated for spec in specs}
     spec_by_name = {spec.name: spec for spec in specs}
-    # Dispatches performed so far, counted across rounds against the budget (ADR-0009 budget
-    # addendum). Refused calls do not increment it: once spent, the budget stays spent.
-    dispatched = 0
+    # Budget spent so far, summed across rounds (ADR-0009 budget addendum). A call is charged
+    # its policy cost rather than a flat one (ADR-0009 cost addendum), so a tool a user
+    # declared expensive exhausts the turn faster than a cheap one. Refused calls are charged
+    # nothing: `budget_closed` is what makes the refusal stick, not the arithmetic.
+    spent = 0
+    budget_closed = False
     for _step in range(MAX_TOOL_STEPS):
         calls: list[ToolCall] = []
         step_text: list[str] = []
@@ -189,9 +188,16 @@ async def stream_tool_loop(
             # this round's tool_calls without their Role.TOOL answers, so the next round's
             # re-inference would send a malformed conversation, and would refuse dispatches
             # that no audit record ever sees.
-            over_budget = dispatched >= context.dispatch_budget
-            if not over_budget:
-                dispatched += 1
+            # A call that no longer fits closes the budget for the whole rest of the loop
+            # rather than being skipped over so cheaper calls can trickle through behind it
+            # (ADR-0009 cost addendum). Two reasons: the refusal the model reads tells it to
+            # stop calling tools entirely, which a budget that kept admitting small calls
+            # would make a lie; and "what did this turn spend?" keeps one answer instead of
+            # depending on the order the model happened to emit its calls in.
+            cost = dispatcher.cost_of(call.name)
+            budget_closed = budget_closed or spent + cost > context.dispatch_budget
+            if not budget_closed:
+                spent += cost
                 # Surface activity only for a call that matched an advertised spec, so the
                 # chip's name and summary are both registry-authored (ADR-0009 addendum). A
                 # call to an unadvertised name (a model hallucination, or a tool skip-mode
@@ -209,7 +215,7 @@ async def stream_tool_loop(
                 call,
                 stamp=TurnStamp(session_id=context.session_id, tainted=context.taint.tainted),
                 gated=gated_by_name.get(call.name, False),
-                over_budget=over_budget,
+                over_budget=budget_closed,
             )
             context.taint.observe(result)
             working.append(

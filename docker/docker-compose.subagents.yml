@@ -48,6 +48,14 @@ services:
       CORTEX_SUBAGENTS_VRAM_GB: "${CORTEX_SUBAGENTS_VRAM_GB:-5.5}"
       CORTEX_SUBAGENTS_CPU_BUDGET: "${CORTEX_SUBAGENTS_CPU_BUDGET:-4.0}"
       CORTEX_SUBAGENTS_MEM_BUDGET_GB: "${CORTEX_SUBAGENTS_MEM_BUDGET_GB:-8.0}"
+      # No price line is needed here: the brain already charges one `spawn_subagents`
+      # dispatch a quarter of a turn's tool budget (ADR-0009 cost addendum), so a turn may
+      # delegate four times, each still a whole batch of instructions. To retune it, add
+      #     CORTEX_TOOLS_COSTS__SPAWN_SUBAGENTS: "4"
+      # here (1..32; outside that fails the brain at startup, by design). Note that any
+      # CORTEX_TOOLS_COSTS__<name> key must be listed in this environment block to reach the
+      # container, and that the brain merges its built-in prices under yours, so pricing one
+      # tool never silently unprices another.
     depends_on:
       llama-subagent:
         condition: service_healthy

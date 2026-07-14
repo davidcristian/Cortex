@@ -69,6 +69,16 @@ Config (pydantic-settings; explicit constructor arguments beat the environment):
   logged on every walk (ADR-0009 degraded-mode addendum; now covers a sidecar down at *any*
   time; sessions open per call, so one down at boot no longer fails startup and a recovered
   one rejoins without a restart, ADR-0009 boot-tolerance addendum).
+  `costs: dict[str, int]` (`CORTEX_TOOLS_COSTS__<name>=<int>`, ADR-0009 cost addendum) prices a
+  tool against a tool loop's dispatch budget; anything unpriced costs 1. `cost_policy` is the
+  effective `ToolCostPolicy` the dispatchers take: it merges the built-in prices **under** the
+  user's, because a nested-dict env key replaces the whole mapping, so a built-in kept as the
+  field default would vanish the moment a user priced an unrelated tool. Built in is
+  `spawn_subagents` at `DEFAULT_SPAWN_COST` (`MAX_TOOL_DISPATCHES // 4`, four delegations a
+  turn): it is the one wired tool whose single dispatch fans out into a batch of model runs and
+  the one with no confirmation gate ahead of it, whereas `send_email` is deliberately unpriced
+  since its ADR-0022 confirmation is the tighter bound. A price outside `1..MAX_TOOL_DISPATCHES`
+  fails at boot (free stops bounding the tool; unaffordable means it can never run).
 - `SubagentsConfig` uses env prefix `CORTEX_SUBAGENTS_` (ADR-0010, revised by ADR-0012/0018):
   `backend: "none" | "llamacpp" = "none"` (`CORTEX_SUBAGENTS_BACKEND`), `endpoint` (the CPU
   overflow `llama-server`) **and** `gpu_endpoint` (the GPU one), which are both required when
@@ -227,7 +237,8 @@ The service:
   ledger, per ADR-0012), a Redis `TaskStore`, GPU-first placement with CPU overflow,
   ADR-0010/0012; the runner enforces ADR-0017 via `roster.resolve`; `tools` is the subagent
   dispatcher, pre-assembled at the root by
-  `build_subagent_tools(tool_registry, clock, gated_names=CORTEX_TOOLS_GATED)`: the shared
+  `build_subagent_tools(tool_registry, clock, gated_names=CORTEX_TOOLS_GATED,
+  costs=CORTEX_TOOLS_COSTS)`: the shared
   registry wrapped in `UngatedToolRegistry`, so a subagent is never handed a gated/outbound
   tool (ADR-0013 subagent-exclusion addendum), with the user's gated names as the
   dispatcher's authoritative backstop, which `confirmer=None` turns into a hard deny even if
@@ -241,7 +252,7 @@ The service:
   and stopped first in the `finally` via `stop_ticker`, with a graceful signal, then a
   `TICKER_STOP_GRACE_S` forced cancel the store's lease covers).
   The cortex's dispatcher is
-  `build_cortex_tools(registry, builtins, clock, confirmer=..., gated_names=...)` over the
+  `build_cortex_tools(registry, builtins, clock, confirmer=..., gated_names=..., costs=...)` over the
   built-in set `build_builtin_tools(spawn_tool, body, schedule_tools=...)` assembles **once**
   (the one-sequence bundling that keeps the builder under the six-argument ceiling as
   capabilities accumulate, ADR-0025 d7): delegation, the two volume built-ins when a
@@ -250,7 +261,10 @@ The service:
   ADR-0025), all merged
   with the MCP tools via a `CompositeToolRegistry`, or `None` when nothing is enabled (the
   Slice 3 turn path). The volume and schedule built-ins are ungated by default (reversible);
-  a user gates any by name in `CORTEX_TOOLS_GATED` (the dispatcher's authoritative backstop).
+  a user gates any by name in `CORTEX_TOOLS_GATED` (the dispatcher's authoritative backstop)
+  and prices any by name in `CORTEX_TOOLS_COSTS`. The cortex and subagent dispatchers get the
+  prices (both drive a `stream_tool_loop` with its own budget); the ticker's private spawn
+  dispatcher does not, since it dispatches one call directly and runs no loop.
   `run_from_env` hands `serve` an **engine factory** (ADR-0022): each Converse
   stream's `SeamConfirmer` reaches its dispatcher through it, so an untainted gated call (e.g.
   the email sidecar's `send_email`, stamped by the `CORTEX_TOOLS_GATED` overlay in

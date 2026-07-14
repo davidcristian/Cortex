@@ -25,6 +25,7 @@ from collections.abc import Awaitable, Callable, Collection
 import httpx
 
 from cortex_core import (
+    UNIFORM_COST,
     Clock,
     PlacementRequest,
     PlacementTarget,
@@ -37,6 +38,7 @@ from cortex_core import (
     SubagentRoster,
     SubagentRunner,
     SubagentScheduler,
+    ToolCostPolicy,
     ToolDispatcher,
     ToolRegistry,
     UngatedToolRegistry,
@@ -122,7 +124,11 @@ async def build_subagents(
 
 
 def build_subagent_tools(
-    tool_registry: ToolRegistry | None, clock: Clock, *, gated_names: Collection[str] = ()
+    tool_registry: ToolRegistry | None,
+    clock: Clock,
+    *,
+    gated_names: Collection[str] = (),
+    costs: ToolCostPolicy = UNIFORM_COST,
 ) -> ToolDispatcher | None:
     """A subagent's audited dispatcher over the gated-stripped MCP subset, or None (ADR-0013).
 
@@ -135,9 +141,17 @@ def build_subagent_tools(
     advertisement window ever let a stripped-then-recovered gated name through, the dispatcher
     still treats it as gated, and with `confirmer=None` that is a hard deny. The composition
     root passes `CORTEX_TOOLS_GATED` here, so the user's set covers subagents too.
+
+    `costs` (`CORTEX_TOOLS_COSTS`) is threaded for the same reason: each subagent's loop has
+    its own budget, so an MCP tool a user priced is priced in delegated work as well. That
+    is where it matters most, since fan-out is exactly what multiplies a cheap-looking call.
     """
     if tool_registry is None:
         return None
     return ToolDispatcher(
-        UngatedToolRegistry(tool_registry), LoggingAuditSink(), clock, gated_names=gated_names
+        UngatedToolRegistry(tool_registry),
+        LoggingAuditSink(),
+        clock,
+        gated_names=gated_names,
+        costs=costs,
     )

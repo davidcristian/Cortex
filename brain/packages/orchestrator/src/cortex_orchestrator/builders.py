@@ -32,6 +32,7 @@ import httpx
 
 from cortex_body_client import GrpcBodyGateway
 from cortex_core import (
+    UNIFORM_COST,
     AggregateToolRegistry,
     BodyGateway,
     BuiltinTool,
@@ -49,6 +50,7 @@ from cortex_core import (
     SkipUnavailableToolRegistry,
     SpawnSubagentsTool,
     StrictUrlRedactingGuardrail,
+    ToolCostPolicy,
     ToolDispatcher,
     ToolError,
     ToolRegistry,
@@ -210,6 +212,7 @@ def build_cortex_tools(
     *,
     confirmer: Confirmer | None = None,
     gated_names: Collection[str] = (),
+    costs: ToolCostPolicy = UNIFORM_COST,
 ) -> ToolDispatcher | None:
     """The cortex's audited dispatcher: the built-in set merged with the MCP tools.
 
@@ -221,11 +224,20 @@ def build_cortex_tools(
     ADR-0013/0023/0025), wired in `build_subagents`, and always `confirmer=None`
     (ADR-0013): only the cortex's dispatcher gets the stream's real confirmer (ADR-0022),
     threaded per stream by the wiring's engine factory. A user gates any built-in by
-    naming it in `gated_names` (`CORTEX_TOOLS_GATED`), the dispatcher's backstop.
+    naming it in `gated_names` (`CORTEX_TOOLS_GATED`), the dispatcher's backstop, and prices
+    any of them in `costs` (`CORTEX_TOOLS_COSTS`), which is what the cortex's tool loop
+    charges each dispatch against its budget (ADR-0009 cost addendum). This is the dispatcher
+    the default `spawn_subagents` price applies to: built-ins are cortex-only, so the
+    subagent and ticker dispatchers never advertise it.
     """
     if not builtins and tool_registry is None:
         return None
     registry = CompositeToolRegistry(builtins, remote=tool_registry)
     return ToolDispatcher(
-        registry, LoggingAuditSink(), clock, confirmer=confirmer, gated_names=gated_names
+        registry,
+        LoggingAuditSink(),
+        clock,
+        confirmer=confirmer,
+        gated_names=gated_names,
+        costs=costs,
     )

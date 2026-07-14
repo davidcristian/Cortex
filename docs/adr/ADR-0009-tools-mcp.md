@@ -441,3 +441,67 @@ aggregate; a turn-wide budget shared across spawned work needs a counter that ou
 CI-gated over the fakes: the total counted across rounds, the boundary call, the refusal
 audited with the tool never invoked, the ordering ahead of both the taint block and the
 confirmer, no chip for a refused call, and the loop's message shape staying well formed.
+
+## Addendum (2026-07-14): tools are priced, because a read and a fan-out are not one unit
+
+The budget addendum above left its own successor open: the budget counts **calls**, so thirty
+two filesystem reads and thirty two `spawn_subagents` batches spend it identically, though one
+of those is thirty two fan-outs of concurrent model runs. This addendum makes the unit a cost.
+
+1. **A `ToolCostPolicy` prices tools by name; the loop charges the price, not one.**
+   `stream_tool_loop` keeps a running `spent` rather than a dispatch count and charges each
+   call `dispatcher.cost_of(call.name)`. Everything unpriced costs `DEFAULT_TOOL_COST` (1), so
+   with no tool priced the budget is exactly the call count it was, and a deployment opts into
+   weighting one tool at a time instead of restating the whole tool set. A price must be
+   positive: a zero or negative one would make a tool free to dispatch, so the budget would
+   bound nothing on precisely the tool a user cared enough to configure, which is a silent
+   hole rather than a visible failure. `MAX_TOOL_DISPATCHES` moved out of `tool_loop.py` to sit
+   with the prices in a new `tool_budget.py`: the total and the prices are one currency, and the
+   split now reads as what it is, `tool_budget.py` owning how much a loop may *spend* and
+   `tool_loop.py` (`MAX_TOOL_STEPS`) how *long* it runs.
+
+2. **The policy lives on the dispatcher, beside the gated-name set, and is never advertised.**
+   Both are composition-root declarations *about* tools by name, so neither may be read off a
+   `ToolSpec`: a sidecar that advertised its own price would be setting its own spending limit,
+   exactly the authority ADR-0022 already denies it over its own gating. Putting it there also
+   means the two `ToolLoopContext` builders (the cortex engine, each subagent) needed no new
+   parameter: the price rides with the gateway that runs the tool. `cost_of` answers for
+   unadvertised names too, at the default rather than free, so a model inventing tool names
+   cannot dispatch without limit.
+
+3. **A call that does not fit closes the budget instead of being stepped over.** The
+   alternative, refusing only the call that overflows and admitting cheaper ones behind it,
+   was rejected twice over: `BUDGET_EXHAUSTED_MSG` tells the model to stop calling tools
+   entirely, which a budget that kept admitting small calls would make a lie; and the turn's
+   spend would then depend on the order the model happened to emit its calls in, so "what can
+   one turn spend?" would stop having one answer. The cost is that a refusal can forfeit up to
+   `max_price - 1` unspent units, which is bounded and small.
+
+4. **Only `spawn_subagents` is priced out of the box, and `send_email` deliberately is not.**
+   The one wired tool whose single dispatch fans out into a batch of model runs is also the one
+   with no confirmation gate in front of it, so it is priced at `MAX_TOOL_DISPATCHES // 4`:
+   four delegations a turn, each still a whole batch. Pricing outbound email would be the
+   obvious-looking choice and the wrong one, because every send already requires the user's
+   out-of-band approval (ADR-0022) and a human saying yes thirty two times is by far the
+   tighter bound; a second, weaker bound on the one path that already has a human in it would
+   buy nothing. The prices reach the cortex dispatcher and each subagent's, since fan-out is
+   what multiplies a cheap-looking call; the ticker's private spawn dispatcher (ADR-0025)
+   deliberately gets none, as it dispatches one call directly and never runs a tool loop.
+
+5. **Misconfiguration fails at boot, and pricing one tool cannot silently unprice another.**
+   `CORTEX_TOOLS_COSTS__<name>=<int>` is validated to `1..MAX_TOOL_DISPATCHES`: below is free,
+   above is permanently unaffordable (the tool never runs, and the first call to it closes the
+   turn's budget), and both would surface as puzzling runtime behavior rather than as an error.
+   Separately, a nested-dict env key **replaces** the whole mapping, so keeping the built-in
+   price as the field's default would have dropped `spawn_subagents` back to one the moment a
+   user priced an unrelated filesystem tool. `ToolsConfig.cost_policy` therefore merges the
+   built-in prices *under* the user's, and restating one still overrides it.
+
+CI-gated over the fakes, each guard mutation-proven to fail when reverted: an expensive tool
+spending its price rather than one, the budget closing to cheaper calls behind a call that did
+not fit, an unpriced tool still costing one, the dispatcher pricing from its policy, the
+out-of-range boot failure, and the built-in price surviving an unrelated one.
+
+Still remaining behind the same seam: the **salience** half (which calls *deserve* dispatching),
+and the **turn-wide** budget spanning spawned subagents, which is unchanged by this addendum,
+since pricing a call does not make one counter outlive one `stream_tool_loop` invocation.

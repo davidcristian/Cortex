@@ -22,6 +22,7 @@ from dataclasses import replace
 
 from cortex_core.errors import ToolError
 from cortex_core.ports import Clock, Confirmer, ToolAuditSink, ToolRegistry
+from cortex_core.tool_budget import UNIFORM_COST, ToolCostPolicy
 from cortex_core.tools import (
     UNSTAMPED,
     ConfirmationRequest,
@@ -62,11 +63,18 @@ class ToolDispatcher:
         *,
         confirmer: Confirmer | None = None,
         gated_names: Collection[str] = (),
+        costs: ToolCostPolicy = UNIFORM_COST,
     ) -> None:
         self._registry = registry
         self._audit = audit
         self._clock = clock
         self._confirmer = confirmer
+        # What each tool spends of the caller's dispatch budget (ADR-0009 cost addendum). It
+        # sits here beside the gated set for the same reason: both are composition-root
+        # declarations *about* tools by name, so neither can be claimed by a sidecar's own
+        # advertisement. The dispatcher does not spend the budget (the loop counts and decides,
+        # then states its verdict as `over_budget`); it only prices the call.
+        self._costs = costs
         # Names the composition root declares gated regardless of advertisement (ADR-0022):
         # the caller passes each call's advertised `gated` flag, but that snapshot can miss a
         # tool a flaky sidecar transiently hid (skip mode) and later recovered, meaning the gate's
@@ -77,6 +85,16 @@ class ToolDispatcher:
     async def describe_tools(self) -> Sequence[ToolSpec]:
         """The tools available to advertise to the model (delegates to the registry)."""
         return await self._registry.describe_tools()
+
+    def cost_of(self, name: str) -> int:
+        """What dispatching ``name`` spends of the caller's budget (ADR-0009 cost addendum).
+
+        Answered for any name, advertised or not, so the loop can charge a call before knowing
+        whether the registry will accept it: an unadvertised name still reaches ``dispatch``
+        and still costs a round trip, so pricing it at the default rather than free keeps a
+        model that invents names from dispatching without limit.
+        """
+        return self._costs.cost_of(name)
 
     async def dispatch(
         self,
