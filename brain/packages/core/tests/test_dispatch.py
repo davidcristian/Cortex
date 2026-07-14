@@ -8,6 +8,7 @@ from collections.abc import Mapping
 from datetime import UTC, datetime
 
 from cortex_core import (
+    BUDGET_EXHAUSTED_MSG,
     DENIED_MSG,
     USER_DECLINED_MSG,
     InMemoryToolRegistry,
@@ -313,5 +314,58 @@ async def test_a_name_outside_the_gated_set_stays_ungated() -> None:
         ToolCall(id="c", name="read", arguments={"path": "/p"}),
         stamp=TurnStamp(tainted=True),
         gated=False,
+    )
+    assert result.content == "ran:/p"
+
+
+async def test_an_over_budget_call_is_refused_without_running_the_tool_and_is_audited() -> None:
+    # The budget refusal lives in the dispatcher, not the caller (ADR-0009 budget addendum),
+    # precisely so it is audited like every other dispatch: a refusal the audit trail never
+    # sees would break the one-record-per-dispatch contract where it matters most.
+    sink = RecordingAuditSink()
+    result = await _outbound(sink, None).dispatch(
+        ToolCall(id="c", name="send", arguments={"path": "/p"}),
+        over_budget=True,
+    )
+    assert result.is_error is True
+    assert result.content == BUDGET_EXHAUSTED_MSG
+    assert result.trust is Trust.TRUSTED  # our own message, so it neither fences nor taints
+    (record,) = sink.records
+    assert (record.name, record.ok, record.detail) == ("send", False, BUDGET_EXHAUSTED_MSG)
+
+
+async def test_an_over_budget_gated_call_never_reaches_the_confirmer() -> None:
+    # Ordering (ADR-0009 budget addendum decision 3): the budget is checked ahead of the gate,
+    # so a model emitting hundreds of gated calls cannot turn the spam bound into a flood of
+    # confirmation prompts at the user.
+    confirmer = RecordingConfirmer(answer=True)
+    result = await _outbound(RecordingAuditSink(), confirmer).dispatch(
+        ToolCall(id="c", name="send", arguments={"path": "/p"}),
+        stamp=TurnStamp(tainted=False),
+        gated=True,
+        over_budget=True,
+    )
+    assert result.content == BUDGET_EXHAUSTED_MSG  # not USER_DECLINED_MSG, and it never ran
+    assert confirmer.requests == ()  # never consulted
+
+
+async def test_an_over_budget_gated_call_on_a_tainted_turn_reports_the_budget() -> None:
+    # Both blocks apply; the budget is the one reported, because it is checked first. Either
+    # message would be safe (neither runs the tool), but the model should read the reason that
+    # actually stopped it, so it stops calling tools rather than retrying in a fresh turn.
+    result = await _outbound(RecordingAuditSink(), None).dispatch(
+        ToolCall(id="c", name="send", arguments={"path": "/p"}),
+        stamp=TurnStamp(tainted=True),
+        gated=True,
+        over_budget=True,
+    )
+    assert result.content == BUDGET_EXHAUSTED_MSG
+
+
+async def test_a_within_budget_call_is_unaffected() -> None:
+    # The default keeps every existing path byte-for-byte: over_budget=False is the old dispatch.
+    result = await _outbound(RecordingAuditSink(), None).dispatch(
+        ToolCall(id="c", name="send", arguments={"path": "/p"}),
+        over_budget=False,
     )
     assert result.content == "ran:/p"

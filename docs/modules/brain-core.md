@@ -204,11 +204,14 @@ Untrusted-content boundary (Slice 6.5, ADR-0013; the pure primitives in `untrust
   Reconstructed each turn, never persisted. Structurally satisfies `TaintView` (below), so the
   engine passes the live ledger straight to `OutputGuardrail.open`.
 - `ToolLoopContext` is a frozen bundle of a tool loop's per-invocation collaborators (`dispatcher`,
-  `clock`, `turn_id`, `taint`, `nonce`, `session_id`, `schema=None`), keeping `stream_tool_loop`
+  `clock`, `turn_id`, `taint`, `nonce`, `session_id`, `schema=None`,
+  `dispatch_budget=MAX_TOOL_DISPATCHES`), keeping `stream_tool_loop`
   under its argument ceiling. `session_id` is the originating chat the loop stamps onto each
   dispatch (ADR-0027; `""` for a session-less caller, e.g. a subagent); `schema` (ADR-0028), when
   set, constrains the model's output to that JSON Schema (a constrained tool-less subagent
-  envelope; `None` for the cortex and every tool-enabled path).
+  envelope; `None` for the cortex and every tool-enabled path); `dispatch_budget` (ADR-0009 budget
+  addendum) caps total dispatches across the loop's rounds, per invocation so a caller can run
+  tighter than the default (neither current caller does, and each gets its own budget).
 
 Output guardrail (ADR-0015; the pure laundering defense built from the redactor + policies in
 `guardrail.py`, the URL grammar in `urls.py`, and one URL's canonical identity in `url_identity.py`,
@@ -412,7 +415,14 @@ Use-case:
   tool* (ADR-0009 addendum; both fields copied off the matched `ToolSpec`, so an unadvertised
   call surfaces no step; the engine maps it to `ToolActivity`, a subagent drops it), mutating `working` in place with
   the tool-call and `Role.TOOL` result messages; ends on a tool-free step, a `None` dispatcher,
-  or `MAX_TOOL_STEPS` (8) rounds. It draws the untrusted boundary (ADR-0013): each call is dispatched
+  or `MAX_TOOL_STEPS` (8) rounds. Two independent bounds apply (ADR-0009 budget addendum): rounds
+  cap how long the loop runs, and `context.dispatch_budget` (`MAX_TOOL_DISPATCHES`, 32) caps how
+  many calls it may dispatch *in total across those rounds*, since one round can carry unboundedly
+  many calls. Past the budget each further call is still handed to the dispatcher, which refuses it
+  as `BUDGET_EXHAUSTED_MSG` and audits it (skipping the dispatch would strand the round's
+  `tool_calls` without their `Role.TOOL` answers and leave refusals unaudited), and it yields no
+  `ToolStep`, so a chip still means a tool is running.
+  It draws the untrusted boundary (ADR-0013): each call is dispatched
   with the turn's `tainted` state and the tool's `gated` flag (the ADR-0022 gate: tainted denies
   outright, untainted confirms), its result is observed by `context.taint` (taint bit + the untrusted-URL
   evidence the output guardrail reads, ADR-0015), and an `UNTRUSTED` result is fenced by
@@ -449,10 +459,15 @@ Use-case:
   via `CORTEX_MEMORY_RECALL`; the reported `ScoredMemory.score` stays the raw cosine, only order and
   membership change.
 - `ToolDispatcher(registry, audit, clock, *, confirmer=None)` is the turn's tool gateway and
-  capability gate (ADR-0009/0013). `dispatch(call, *, stamp=UNSTAMPED, gated=False)` runs `call`
+  capability gate (ADR-0009/0013). `dispatch(call, *, stamp=UNSTAMPED, gated=False,
+  over_budget=False)` runs `call`
   through the `ToolRegistry`, writes exactly one `ToolInvocation` (with the result's `trust`) to
   the `ToolAuditSink`, and returns the `ToolResult`; a `ToolError` becomes a `TRUSTED` `is_error`
-  result (our own message, so it neither frames nor taints). The gate (ADR-0013, table revised by
+  result (our own message, so it neither frames nor taints). `over_budget` (ADR-0009 budget
+  addendum) is the caller's statement that its dispatch budget is spent: it returns
+  `BUDGET_EXHAUSTED_MSG` without invoking, audited like any dispatch, and is checked **ahead of
+  the gate** so a model emitting hundreds of gated calls cannot flood the user with confirmation
+  prompts before the budget refuses any. The gate (ADR-0013, table revised by
   ADR-0022): a `gated` call on a tainted turn (`stamp.tainted`) is blocked outright as
   `DENIED_MSG`, with the confirmer deliberately unconsulted; on an untainted turn it runs only
   when the `Confirmer` approves, else `USER_DECLINED_MSG` (the fail-closed `confirmer=None`
