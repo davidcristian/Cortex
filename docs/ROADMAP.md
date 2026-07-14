@@ -703,10 +703,20 @@ resumes from the store) and runbook `docs/runbooks/model-swap.md`.
 
 ## Deferred refinements & later work
 
-Refinements consciously deferred as slices landed. Each is a small change behind an
-**unchanged port**, recorded at its origin ADR (where one exists, as Slice 3 shipped without
-an ADR, so its entries below are the canonical record) and collected here so none is lost.
-Not ordered; picked up when a slice needs one or on request.
+Refinements consciously deferred as slices landed, recorded at their origin ADR (where one
+exists, as Slice 3 shipped without an ADR, so its entries below are the canonical record) and
+collected here so none is lost. Not ordered; picked up when a slice needs one or on request.
+
+**An entry's own cost estimate is a hypothesis, not a finding.** This section used to open by
+asserting that every entry was "a small change behind an unchanged port". That was wrong often
+enough to mislead planning three times: the tool-dispatch entry and its ADR both claimed tool
+spam was bounded by `MAX_TOOL_STEPS` (it was not, and one round could dispatch unboundedly),
+the `list_sessions` entry misdiagnosed its own cost *and* proposed a worse fix than the one
+that shipped, and the display-timezone entry bundled a knob together with a recurrence change
+that no existing field can express. Entries since audited against the code carry their real
+cost inline, and the ones below that need a **port or protocol change** say so. Treat any
+remaining "behind the unchanged port" phrasing as unverified until you have opened the port and
+checked its signature.
 
 **Repo gates ([ADR-0026](adr/ADR-0026-prose-style-gates.md)):**
 - **The fail-open `scripts/` gate config closed 2026-07-12
@@ -762,9 +772,15 @@ Not ordered; picked up when a slice needs one or on request.
   16K-token context, `0` disables). What one turn sends to the model is bounded, persistence
   untouched. Remaining from the original deferral:
 - **Session-history summarization.** Compressing old turns instead of dropping them changes
-  content (a lossy model pass) and needs inference in turn assembly, so it stays deferred, and
-  it will land behind the same `HistoryWindow` seam (ADR-0014 alternatives). Distinct from
-  memory summarization (Slice 5, cross-session recall, not the in-context history).
+  content (a lossy model pass) and needs inference in turn assembly, so it stays deferred
+  (ADR-0014 alternatives). Distinct from memory summarization (Slice 5, cross-session recall,
+  not the in-context history). **Cost correction:** this is *not* a drop-in behind the
+  `HistoryWindow` seam. `HistoryWindow.select(history) -> Sequence[Message]` is **sync**, so a
+  window that calls the model cannot satisfy it; the port has to become async first, which
+  moves every implementer and call site. Two further costs are real and unresolved: whether a
+  summary is cached on the session or recomputed per turn, and that `backend.py` holds the GPU
+  lease for a generator's lifetime under a non-reentrant lock, so a summarizer stream abandoned
+  mid-turn deadlocks the turn that spawned it.
 - **Bounded backpressure on the `Converse` output queue landed 2026-07-03.** The per-turn
   output queue (`converse.py`) is now credit-bounded (`CORTEX_SEAM_CONVERSE_BUFFER`, default
   256): a consumer that stops reading suspends generation at the bound, while the terminal
@@ -985,8 +1001,12 @@ behind the unchanged `ToolRegistry`/`ToolDispatcher`/`stream_tool_loop` seams (o
   end to end over the fakes; the pgvector SQL host-validated via Docker. Remaining behind the same
   seams: a **session+global union** read policy (dead until something writes durable global facts
   under scoping), **per-scope retention/eviction**, and **cross-scope recall ranking**.
-- **Tiered / self-editing memory + summarization.** Letta's good ideas, adoptable later
-  behind the unchanged port (not the framework), per decision 1.
+- **Tiered / self-editing memory + summarization.** Letta's good ideas, adoptable later without
+  the framework, per decision 1. **Cost correction:** not behind the unchanged port. `MemoryStore`
+  is **`add` + `search` only**, so tiering (promote, demote, expire), self-editing (update in
+  place), and any retention or eviction policy all need verbs the port does not have, plus the
+  pgvector adapter and a fake to implement them. Per-scope retention and per-provenance eviction
+  are blocked on the same missing verbs.
 - **Recency-weighted reranking + near-duplicate dedup landed 2026-07-13 ([ADR-0008 rerank
   addendum](adr/ADR-0008-memory-v1.md)).** v1 recall was raw top-k cosine with no reranking,
   recency weighting, or dedup. A new pure-core `RecallPolicy` seam (`rerank.py`, the
@@ -1002,8 +1022,12 @@ behind the unchanged `ToolRegistry`/`ToolDispatcher`/`stream_tool_loop` seams (o
   and membership change. The `MemoryRecaller` over-fetches `policy.candidate_k(k)` then applies
   `policy.select(now, k)`; the memory builders split to `memory_builders.py` for the line cap.
   CI-gated end to end over the fakes at 100%; no SQL change, so no host validation is owed. Remaining
-  behind the same `RecallPolicy` seam (ADR-0008 rerank addendum): a **model-based reranker** (a
-  cross-encoder or an LLM-judge `select`) and **surfacing the blended relevance** as a distinct field.
+  in the same area (ADR-0008 rerank addendum): a **model-based reranker** (a cross-encoder or an
+  LLM-judge `select`) and **surfacing the blended relevance** as a distinct field. **Cost
+  correction:** only the second is behind the unchanged seam. `RecallPolicy.select` is **sync**,
+  so a policy that calls a model does not fit it; like the history-summarization entry above, the
+  port must go async first, and it inherits the same non-reentrant GPU-lease hazard when the
+  reranker runs inside a turn that already holds the lease.
 - **Maximal-marginal-relevance diversity landed 2026-07-13 ([ADR-0008 MMR
   addendum](adr/ADR-0008-memory-v1.md)).** The rerank addendum's deferred diversity policy: a third
   pure-core `MmrRecallPolicy` (`rerank.py`, behind the **unchanged `MemoryStore`/`Embedder` ports**)
@@ -1016,8 +1040,9 @@ behind the unchanged `ToolRegistry`/`ToolDispatcher`/`stream_tool_loop` seams (o
   relevance, degenerating to `RawRecallPolicy` order; `0` pure diversity), reusing the shared
   `recall_pool_factor`; the reported `ScoredMemory.score` stays the raw cosine, only order and
   membership change. CI-gated end to end over the fakes at 100%; no SQL change, so no host validation
-  is owed. Remaining behind the same seam: the **model-based reranker** and **surfacing the blended
-  relevance** (the **recency-and-diversity** policy it also named landed, the entry below).
+  is owed. Still open: the **model-based reranker** (blocked on the sync `RecallPolicy.select`, see
+  above) and **surfacing the blended relevance**, behind the unchanged seam (the
+  **recency-and-diversity** policy it also named landed, the entry below).
 - **Recency-and-diversity recall landed 2026-07-13 ([ADR-0008 recency-and-diversity
   addendum](adr/ADR-0008-memory-v1.md)).** The MMR addendum's deferred diversity-over-recency policy:
   a fourth pure-core `RecencyMmrRecallPolicy` (`rerank.py`, behind the **unchanged
@@ -1029,13 +1054,17 @@ behind the unchanged `ToolRegistry`/`ToolDispatcher`/`stream_tool_loop` seams (o
   `CORTEX_MEMORY_RECALL=recency_mmr` selects it (now `raw`, `reranked`, `mmr`, or `recency_mmr`),
   reusing the existing recency and MMR-lambda knobs; the reported `ScoredMemory.score` stays the raw
   cosine, only order and membership change. CI-gated end to end over the fakes at 100%; no SQL change,
-  so no host validation is owed. Remaining behind the same seam: the **model-based reranker** and
-  **surfacing the blended relevance**. The opt-in policies and their shared math were split into
+  so no host validation is owed. Still open: the **model-based reranker** (which needs the sync
+  `RecallPolicy.select` to become async first, see the rerank entry above) and **surfacing the
+  blended relevance**, which is behind the unchanged seam. The opt-in policies and their shared math were split into
   `rerank_policies.py` (the port and the default `RawRecallPolicy` stay in `rerank.py`) at the
   300-line cap as this landed.
 - **Write-salience policy.** v1 records the raw exchange text every turn; deciding what
-  *deserves* remembering (salience filtering at record time) is a later policy behind the same
-  port (ADR-0008 risks). Its summarization half is adjacent to the tiered-memory entry above.
+  *deserves* remembering (salience filtering at record time) is a later policy (ADR-0008 risks).
+  Its summarization half is adjacent to the tiered-memory entry above. **Cost correction:** a
+  policy that can decline to record does not fit the current shape, because
+  `MemoryRecaller.record` returns a **non-optional** `MemoryRecord`; the return has to widen
+  (or the decision move to the caller) before anything can drop a write.
 - **ANN index.** Exact cosine now; an approximate index would need a migration, per
   [ADR-0004](adr/ADR-0004-model-lineup.md).
 
@@ -1081,7 +1110,12 @@ behind the unchanged `ToolRegistry`/`ToolDispatcher`/`stream_tool_loop` seams (o
 **Subagents in Slice 7 ([ADR-0010](adr/ADR-0010-subagents.md)):**
 - **Subagent progress reporting over the `Converse` status stream.** v1 delegation is synchronous
   within the cortex turn; surfacing per-subagent progress to the overlay is a later refinement. See
-  ADR-0010 risks.
+  ADR-0010 risks. **Cost correction:** this is not a progress-sink parameter. While a spawn runs,
+  the engine generator is suspended inside `await dispatcher.dispatch(...)` in `tool_loop.py`, so
+  it cannot yield an event; progress needs a side channel writing to the `Converse` queue directly.
+  And `SpawnSubagentsTool` is built **once** in `subagent_builders.py` and shared by every turn, so
+  it must become per-stream (or carry the stream's channel per call) before it can address one
+  turn's overlay.
 - **Richer `spawn_subagents` object schema landed 2026-07-03 with Slice 8.6 (ADR-0018).**
   An instructions item is now a bare string or `{instruction, model?, context?}`, so per-subtask
   context reaches `SubagentTask.context` and the model choice rides alongside, closing the
@@ -1213,9 +1247,11 @@ each behind the unchanged `Confirmer`/`ToolDispatcher`/`GatedToolRegistry`/seam 
   `multipart/alternative`. Entirely inside the sidecar behind the unchanged brain-side gate
   (still `send_email` in `CORTEX_TOOLS_GATED`, confirm card unchanged); CI-gated at 100% and the
   live round-trip now exercises cc + html. Remaining behind the same `EmailDraft` seam:
-  **attachments**, deferred deliberately for their bytes-transport decision (a path into the
-  sidecar's mounted filesystem, adding a file-read capability, versus a base64 blob that bloats
-  the tool call and audit line); they land as one more `EmailDraft` field.
+  **attachments**, deferred deliberately for their bytes-transport decision (a base64 blob that
+  bloats the tool call and audit line, versus a filesystem path, which is the more expensive
+  option than it sounds: `docker-compose.email.yml` has **no `volumes:` key at all**, so the path
+  form means adding a mount to the sidecar *and* a file-read capability to a service that
+  deliberately has neither). The field itself is one more `EmailDraft` entry.
 - **A structured confirm-resolution event** so the overlay can close a stale card exactly on a
   brain-side timeout (today the turn-ending event clears it).
 - **Trust overlays for remote tools** are the other half of the ADR-0013 deferral; still nothing
