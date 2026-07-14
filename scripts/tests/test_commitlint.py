@@ -1,3 +1,4 @@
+import os
 import subprocess
 from pathlib import Path
 
@@ -166,11 +167,23 @@ def test_non_volatile_text_passes(line: str) -> None:
 # ── commit hashes ──────────────────────────────────────────────────────────────
 
 
+def _clean_env() -> dict[str, str]:
+    """The ambient environment with git's own variables stripped out.
+
+    This suite runs inside `just check`, which the pre-commit hook runs during a real
+    commit, and git exports GIT_DIR (and friends) to its hooks. Inheriting those points
+    `git -C tmp_path` at the REAL repository no matter what `-C` says: the fixture's
+    `add f.txt` then lands in the in-flight commit's index and the seed commit fails.
+    """
+    return {key: value for key, value in os.environ.items() if not key.startswith("GIT_")}
+
+
 def _git(repo: Path, *args: str) -> None:
     subprocess.run(  # noqa: S603 -- fixed argv into a tmp repo, no shell
         ["git", "-C", str(repo), *args],  # noqa: S607 -- git on PATH
         check=True,
         capture_output=True,
+        env=_clean_env(),
     )
 
 
@@ -191,6 +204,7 @@ def test_a_resolving_commit_hash_is_flagged(repo: Path) -> None:
         capture_output=True,
         text=True,
         check=True,
+        env=_clean_env(),
     ).stdout.strip()
     (problem,) = commitlint.check_body_lines([f"revises {sha} for longevity"], repo)
     assert "a rewrite invalidates it" in problem

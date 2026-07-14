@@ -64,6 +64,11 @@ core function).
   disprove anything and passes rather than blocking the commit. Imperative mood is not
   machine-checkable and stays convention. Exit 0 clean; exit 1 printing one
   `commitlint: PROBLEM` line per violation; argparse exit 2 on usage errors.
+  That `git` call, and every one its tests make, runs with git's own variables stripped
+  from the environment: these gates execute inside hooks, where git exports `GIT_DIR`, and
+  that variable OUTRANKS `-C`. Inheriting it silently retargets the call at the repository
+  git is mid-commit in, which answered the hash question about the wrong object database
+  and, in the tests, staged a fixture file into the in-flight commit's own index.
 
 **Invariants.**
 - stdlib-only modules; pure cores (`scan`, `evaluate`/`check`, `classify`) unit-tested
