@@ -99,10 +99,13 @@ a corrupt record, no legacy paths, since ephemeral records need none).
 
 Schedule state (ADR-0025) is the durable retention class again: one record per schedule at
 `cortex:schedule:{id}` storing `{"v": 1, "kind": "schedule", "id", "item_kind", "text",
-"session_id", "due_at", "created_at", "every_s", "model", "tainted", "status",
+"session_id", "due_at", "created_at", "every_s", "rule", "anchor", "model", "tainted", "status",
 "deliverable_since", "last_outcome", "claim", "claimed_at"}` with **no TTL** (the task
 store's expiry would silently drop reminders) and the session store's `v`/`kind` markers +
-evolution policy. The fencing `claim` token and `claimed_at` are adapter mechanics persisted
+evolution policy. `anchor` and `rule` are **additive** keys read with `.get` and no version
+bump (a record predating either decodes as absent); `rule` is the nested
+`{"hour", "minute", "days"}` calendar recurrence, read strictly when present so a malformed
+one fails loudly rather than degrading to a one-shot. The fencing `claim` token and `claimed_at` are adapter mechanics persisted
 inside the record; the domain `ScheduledItem` never carries them. Three ZSET indexes drive
 the ticker and delivery. They are `cortex:schedules:due` (score = due-at epoch),
 `cortex:schedules:firing` (score = claim epoch, the lease), `cortex:schedules:deliverable`

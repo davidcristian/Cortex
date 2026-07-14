@@ -4,6 +4,9 @@ from dataclasses import dataclass, replace
 from datetime import datetime, timedelta
 from enum import Enum
 
+from cortex_core.schedule_calendar import CalendarRule, next_calendar_due
+from cortex_core.schedule_time import DisplayZone
+
 
 class ScheduleKind(Enum):
     """What firing an item does: deliver text to the user, or run an autonomous subagent."""
@@ -37,6 +40,7 @@ class ScheduledItem:
     due_at: datetime
     created_at: datetime
     every: timedelta | None = None
+    rule: CalendarRule | None = None
     anchor: datetime | None = None
     model: str = ""
     tainted: bool = False
@@ -53,6 +57,9 @@ class ScheduledItem:
             _require_aware("ScheduledItem.anchor", self.anchor)
         if self.every is not None and self.every <= timedelta(0):
             msg = "ScheduledItem.every must be a positive interval"
+            raise ValueError(msg)
+        if self.every is not None and self.rule is not None:
+            msg = "ScheduledItem takes an interval or a calendar rule, never both"
             raise ValueError(msg)
 
 
@@ -106,6 +113,7 @@ def apply_edit(item: ScheduledItem, edit: ScheduleEdit) -> ScheduledItem:
         item,
         text=edit.text if edit.text is not None else item.text,
         every=edit.every if edit.set_every else item.every,
+        rule=None if edit.set_every else item.rule,
         tainted=item.tainted or edit.tainted,
     )
 
@@ -128,6 +136,13 @@ def recurrence_base(item: ScheduledItem) -> datetime:
     """The recurrence grid origin the ticker re-arms from: the ``anchor`` if set, else ``due_at``.
     """
     return item.anchor if item.anchor is not None else item.due_at
+
+
+def next_occurrence(item: ScheduledItem, now: datetime, zone: DisplayZone) -> datetime | None:
+    """Where ``item`` re-arms after firing at ``now``, or ``None`` when it is terminal."""
+    if item.rule is not None:
+        return next_calendar_due(item.rule, now, zone)
+    return next_due(recurrence_base(item), item.every, now)
 
 
 def next_due(due_at: datetime, every: timedelta | None, now: datetime) -> datetime | None:

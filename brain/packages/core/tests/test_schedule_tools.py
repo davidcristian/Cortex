@@ -8,7 +8,9 @@ from typing import Any
 import pytest
 
 from cortex_core import (
+    DAY_NAMES,
     TAINTED_TASK_MSG,
+    CalendarRule,
     CancelScheduledTool,
     CompositeToolRegistry,
     EditScheduledTool,
@@ -178,7 +180,9 @@ async def test_schedules_a_recurring_task_in_seconds_with_a_model_hint() -> None
         )
     )
     assert not result.is_error
-    assert "recurring every 3600s" in result.content
+    # The creation confirmation and the listing line share one recurrence phrase, so the two
+    # can never describe the same schedule differently (ADR-0025 calendar addendum).
+    assert "every 3600s" in result.content
     item = await store.get("item-1")
     assert item is not None
     assert item.kind is ScheduleKind.TASK
@@ -718,3 +722,96 @@ async def test_edit_wraps_a_down_store() -> None:
     assert result.is_error
     assert "unavailable" in result.content
     assert result.trust is Trust.TRUSTED
+
+
+# --- calendar recurrence: a wall-clock rule beside the interval (calendar addendum) ---------
+
+
+def test_spec_advertises_the_wall_clock_form_with_the_zone_and_the_day_names() -> None:
+    tool, _ = _tool()
+    properties = tool.spec.parameters["properties"]
+    assert "HH:MM in UTC" in properties["at_time"]["description"]
+    assert properties["on_days"]["items"]["enum"] == list(DAY_NAMES)
+    assert "at_time" in tool.spec.description
+
+
+async def test_at_time_derives_the_first_fire_and_stores_the_rule() -> None:
+    """The model names a wall time only; the due time is computed, never asked for twice."""
+    tool, store = _tool()
+    result = await tool.invoke(_call({"kind": "reminder", "text": "stretch", "at_time": "09:00"}))
+    assert not result.is_error
+    item = (await store.list_active())[0]
+    assert item.rule == CalendarRule(hour=9, minute=0)
+    assert item.every is None
+    # _NOW is 12:00, so today's 09:00 has passed and the first fire is tomorrow's.
+    assert item.due_at == datetime(2026, 7, 13, 9, 0, tzinfo=UTC)
+    assert "every day at 09:00" in result.content
+
+
+async def test_on_days_restricts_the_rule_and_the_first_fire() -> None:
+    """2026-07-12 is a Sunday, so a Monday/Friday rule fires first on Monday the 13th."""
+    tool, store = _tool()
+    result = await tool.invoke(
+        _call(
+            {"kind": "reminder", "text": "standup", "at_time": "09:30", "on_days": ["fri", "mon"]}
+        )
+    )
+    assert not result.is_error
+    item = (await store.list_active())[0]
+    assert item.rule == CalendarRule(hour=9, minute=30, days=frozenset({0, 4}))
+    assert item.due_at == datetime(2026, 7, 13, 9, 30, tzinfo=UTC)
+
+
+async def test_a_listing_describes_a_calendar_item_in_wall_clock_terms() -> None:
+    store = InMemoryScheduleStore()
+    tool, _ = _tool(store)
+    await tool.invoke(_call({"kind": "reminder", "text": "stretch", "at_time": "09:00"}))
+    listing = await ListScheduledTool(store).invoke(
+        ToolCall(id="c2", name="list_scheduled", arguments={})
+    )
+    assert "every day at 09:00" in listing.content
+    assert "every 86400s" not in listing.content
+
+
+@pytest.mark.parametrize(
+    ("arguments", "expected"),
+    [
+        ({"at_time": "09:00", "at": "2026-07-12T18:00:00"}, "exactly one"),
+        ({"at_time": "09:00", "in_seconds": 600}, "exactly one"),
+        ({"at_time": "09:00", "every_seconds": 3600}, "already recurs"),
+        ({"in_seconds": 600, "on_days": ["mon"]}, "only together with 'at_time'"),
+        ({"at_time": 900}, "'at_time' must be"),
+        ({"at_time": "9am"}, "'at_time' must be"),
+        ({"at_time": "09:00:30"}, "'at_time' must be"),  # a rule stores no seconds
+        ({"at_time": "09:00+02:00"}, "'at_time' must be"),  # the zone is the deployment's
+        ({"at_time": "09:00", "on_days": "mon"}, "'on_days' must be"),
+        ({"at_time": "09:00", "on_days": []}, "'on_days' must be"),
+        ({"at_time": "09:00", "on_days": ["funday"]}, "'on_days' must be"),
+        ({"at_time": "09:00", "on_days": [3]}, "'on_days' must be"),
+    ],
+)
+async def test_a_bad_wall_clock_request_is_a_correction_not_an_exception(
+    arguments: dict[str, Any], expected: str
+) -> None:
+    tool, store = _tool()
+    result = await tool.invoke(_call({"kind": "reminder", "text": "x", **arguments}))
+    assert result.is_error
+    assert result.trust is Trust.TRUSTED
+    assert expected in result.content
+    assert not await store.list_active()
+
+
+async def test_a_rule_with_no_schedulable_occurrence_is_a_correction() -> None:
+    """Past the representable maximum the rule has no first fire, so creation is refused."""
+
+    class EndOfTimeClock:
+        def now(self) -> datetime:
+            return datetime(9999, 12, 31, 23, 59, tzinfo=UTC)
+
+    store = InMemoryScheduleStore()
+    tool = ScheduleTaskTool(
+        store, EndOfTimeClock(), tasks_enabled=True, max_active=32, item_id_factory=_ids()
+    )
+    result = await tool.invoke(_call({"kind": "reminder", "text": "x", "at_time": "23:30"}))
+    assert result.is_error
+    assert "no next occurrence" in result.content

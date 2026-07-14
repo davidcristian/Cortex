@@ -5,6 +5,8 @@ from datetime import UTC, datetime, timedelta
 import pytest
 
 from cortex_core import (
+    UTC_DISPLAY,
+    CalendarRule,
     FireOutcome,
     ScheduledItem,
     ScheduleEdit,
@@ -13,6 +15,7 @@ from cortex_core import (
     apply_edit,
     apply_snooze,
     next_due,
+    next_occurrence,
     recurrence_base,
 )
 
@@ -169,3 +172,61 @@ def test_next_due_past_datetime_max_ends_the_recurrence() -> None:
     # Terminal beats a fire that can never persist its re-arm and lease-cycles forever.
     near_max = datetime(9999, 12, 31, tzinfo=UTC)
     assert next_due(near_max, timedelta(days=365), near_max) is None
+
+
+def test_an_item_takes_an_interval_or_a_calendar_rule_but_never_both() -> None:
+    """The invariant that lets ``next_occurrence`` answer without reconciling a conflict."""
+    with pytest.raises(ValueError, match="never both"):
+        _item(every=timedelta(hours=1), rule=CalendarRule(hour=9, minute=0))
+
+
+def test_an_item_accepts_either_recurrence_shape_alone() -> None:
+    assert _item(every=timedelta(hours=1)).rule is None
+    assert _item(rule=CalendarRule(hour=9, minute=0)).every is None
+
+
+def test_next_occurrence_reads_the_rule_for_a_calendar_item() -> None:
+    """A calendar item re-arms off its wall clock, ignoring ``due_at`` entirely."""
+    item = _item(rule=CalendarRule(hour=9, minute=0))
+    assert next_occurrence(item, _NOW, UTC_DISPLAY) == datetime(2026, 7, 13, 9, 0, tzinfo=UTC)
+
+
+def test_next_occurrence_keeps_the_anchored_interval_arithmetic() -> None:
+    """An interval item's path is unchanged, snooze grid included."""
+    item = _item(every=timedelta(hours=1), anchor=_NOW - timedelta(minutes=30))
+    assert next_occurrence(item, _NOW, UTC_DISPLAY) == _NOW + timedelta(minutes=30)
+
+
+def test_next_occurrence_is_terminal_for_a_one_shot() -> None:
+    assert next_occurrence(_item(), _NOW, UTC_DISPLAY) is None
+
+
+def test_a_snoozed_calendar_item_gets_no_anchor_and_returns_to_its_rule() -> None:
+    """The rule IS the grid, so the series recovers without the interval anchor machinery."""
+    item = _item(rule=CalendarRule(hour=9, minute=0))
+    snoozed = apply_snooze(item, _NOW + timedelta(minutes=15))
+    assert snoozed.anchor is None
+    fired_at = _NOW + timedelta(minutes=15)
+    assert next_occurrence(snoozed, fired_at, UTC_DISPLAY) == datetime(
+        2026, 7, 13, 9, 0, tzinfo=UTC
+    )
+
+
+def test_setting_an_interval_clears_a_calendar_rule() -> None:
+    """One recurrence shape: an edit that sets ``every`` replaces the rule rather than colliding."""
+    item = _item(rule=CalendarRule(hour=9, minute=0))
+    edited = apply_edit(item, ScheduleEdit(every=timedelta(hours=2), set_every=True))
+    assert edited.every == timedelta(hours=2)
+    assert edited.rule is None
+
+
+def test_the_stop_repeating_sentinel_clears_a_calendar_rule_too() -> None:
+    item = _item(rule=CalendarRule(hour=9, minute=0))
+    edited = apply_edit(item, ScheduleEdit(every=None, set_every=True))
+    assert edited.every is None
+    assert edited.rule is None
+
+
+def test_a_retext_leaves_a_calendar_rule_alone() -> None:
+    item = _item(rule=CalendarRule(hour=9, minute=0))
+    assert apply_edit(item, ScheduleEdit(text="new")).rule == CalendarRule(hour=9, minute=0)

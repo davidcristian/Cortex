@@ -199,7 +199,10 @@ The service:
   (default) returns `(None, no-op closer)`. Off by default so CI and the no-GPU dev loop never
   reach for a host body. The uniform closer keeps `run_from_env`'s shutdown backend-agnostic.
 - `ScheduleTicker(store, clock, settings: TickerSettings, *, spawn=None, body=None)`
-  (`ticker.py`, ADR-0025) is the stateless firing loop: each `run_once` pass claims what is due
+  (`ticker.py`, ADR-0025) is the stateless firing loop. `TickerSettings` carries the pacing
+  (`poll_s`, `lease`, `claim_limit`) plus the `zone: DisplayZone` a calendar item re-arms on
+  (`CORTEX_SCHEDULE_TZ`, defaulting to `UTC_DISPLAY`): a wall-clock re-arm is zone arithmetic,
+  so creation and firing must read one zone (ADR-0025 calendar addendum). Each `run_once` pass claims what is due each `run_once` pass claims what is due
   (under the fencing lease), fires the batch concurrently, and persists each outcome; the
   ticker holds nothing but its loop (the one hard rule, live). A `REMINDER` finishes
   deliverable then attempts the push (`REMINDER_TITLE` toast via `BodyGateway.notify`; shown →

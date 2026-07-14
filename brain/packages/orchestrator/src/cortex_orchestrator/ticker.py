@@ -7,9 +7,11 @@ from datetime import timedelta
 
 from cortex_core import (
     SPAWN_TOOL_NAME,
+    UTC_DISPLAY,
     BodyGateway,
     BodyGatewayError,
     Clock,
+    DisplayZone,
     FireOutcome,
     ScheduleClaim,
     ScheduledItem,
@@ -21,8 +23,7 @@ from cortex_core import (
     ToolDispatcher,
     Trust,
     TurnStamp,
-    next_due,
-    recurrence_base,
+    next_occurrence,
 )
 
 _logger = logging.getLogger(__name__)
@@ -34,11 +35,13 @@ _NO_RUNNER_OUTCOME = "FAILED: subagent delegation is not wired"
 
 @dataclass(frozen=True, slots=True)
 class TickerSettings:
-    """The ticker's pacing, from ``ScheduleConfig`` (plain values below the edge)."""
+    """The ticker's pacing and display zone, from ``ScheduleConfig`` (plain values below the edge).
+    """
 
     poll_s: float
     lease: timedelta
     claim_limit: int
+    zone: DisplayZone = UTC_DISPLAY
 
 
 class ScheduleTicker:
@@ -119,7 +122,7 @@ class ScheduleTicker:
         fired_at = self._clock.now()
         outcome = FireOutcome(
             fired_at=fired_at,
-            next_due=next_due(recurrence_base(item), item.every, fired_at),
+            next_due=next_occurrence(item, fired_at, self._settings.zone),
             deliverable=True,
         )
         if await self._store.finish(claim, outcome):
@@ -150,7 +153,7 @@ class ScheduleTicker:
             claim,
             FireOutcome(
                 fired_at=fired_at,
-                next_due=next_due(recurrence_base(item), item.every, fired_at),
+                next_due=next_occurrence(item, fired_at, self._settings.zone),
                 deliverable=False,
                 outcome=outcome_text,
                 tainted=fire_tainted,
