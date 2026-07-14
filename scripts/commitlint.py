@@ -1,6 +1,7 @@
 """Commit-message style gate: the machine-checkable half of the AGENTS.md commit rules."""
 
 import argparse
+import os
 import re
 import subprocess
 import sys
@@ -58,11 +59,16 @@ def check_header(header: str) -> list[str]:
 
 def commit_exists(token: str, repo: Path) -> bool:
     """Return True when ``token`` resolves to a commit in ``repo``'s object database."""
+    # This runs as a commit-msg hook, and git exports GIT_DIR to its hooks. That variable
+    # outranks the -C below, so inheriting it would answer for whatever repository git is
+    # mid-commit in rather than the ``repo`` asked about. Strip git's variables entirely.
+    env = {key: value for key, value in os.environ.items() if not key.startswith("GIT_")}
     try:
         result = subprocess.run(  # noqa: S603 -- fixed argv, no shell; token is [0-9a-f]+
             ["git", "-C", str(repo), "cat-file", "-e", f"{token}^{{commit}}"],  # noqa: S607 -- git resolves on PATH; a pinned path is not portable
             capture_output=True,
             check=False,
+            env=env,
         )
     except OSError:  # git missing: cannot disprove the hash, so do not block the commit
         return False
