@@ -724,3 +724,117 @@ the builder threading the configured zone into all three tools, and the tool-lev
 that the spec strings and every rendered due time carry the configured zone. The default path
 (`UTC`) keeps its existing assertions unchanged, which is the regression check that the knob is
 additive.
+
+## Addendum (2026-07-14): calendar recurrence, the second recurrence shape
+
+The display addendum landed half of the original "local-time / cron recurrence and a
+display-timezone knob" deferral and recorded honestly that the other half was not a knob.
+It lands here. `every` is a `timedelta` while a calendar day is 23, 24, or 25 hours long, so
+"every day at 09:00" expressed as `every=timedelta(days=1)` drifts by an hour at each
+daylight-saving transition, which is exactly when a user notices. Decisions:
+
+- **A structured `CalendarRule` beside the interval, not a cron expression.** A new pure core
+  module `cortex_core/schedule_calendar.py` holds a frozen
+  `CalendarRule(hour, minute, days: frozenset[int])` (weekday numbers, `date.weekday()`
+  convention) plus `next_calendar_due(rule, after, zone)`. Cron was rejected on two counts: it
+  needs a parser (a dependency, or roughly 150 lines of pure core that exists to serve one
+  field), and it makes the *model* author `0 9 * * 1-5`, a syntax a small model gets subtly
+  wrong in ways that validate fine. A named time plus a weekday list is the subset a personal
+  assistant actually uses, and it stays a value the model can read back in a listing.
+- **`days` is never empty, and every-day is the full set rather than a `None` sentinel.** One
+  representation means one code path, and non-emptiness is load bearing rather than cosmetic:
+  it is what bounds the occurrence search to a single week, so `next_calendar_due` terminates
+  by construction instead of by a defensive iteration cap that could never be covered honestly.
+- **`ScheduledItem` takes an interval or a rule and never both**, enforced in `__post_init__`.
+  Two shapes on one record would make "how does this recur?" a reconciliation instead of a
+  read, and `next_occurrence(item, now, zone)` (the new single entry point the ticker calls)
+  can then answer by dispatch. `apply_edit` therefore **clears a rule whenever it sets
+  `every`**: an edit that could not express the switch would have to fail, and keeping the rule
+  while reporting the new interval would be worse. The `0` sentinel stops whichever shape the
+  item had.
+- **The rule carries no zone of its own; the deployment's `DisplayZone` is it.** The core stays
+  `zoneinfo`-free exactly as the display addendum left it: the rule is pure wall-clock data and
+  the zone arrives as the value the composition root already resolves. The consequence is
+  deliberate and worth stating plainly: **changing `CORTEX_SCHEDULE_TZ` moves existing calendar
+  schedules with it**, because "09:00" means 09:00 as this deployment renders time. For a
+  single-user assistant that travels with its user, a 09:00 reminder that follows them is the
+  wanted reading, and the alternative (a zone frozen onto each record at creation) would need
+  the core to resolve IANA keys. A per-rule zone stays the additive extension if a second zone
+  ever exists: a new field on the same value, not a different shape.
+- **The first fire is derived from the rule, not asked for separately.** `at_time` is
+  mutually exclusive with `at`/`in_seconds`, and `schedule_task` computes the first occurrence
+  itself. The alternative (making the model supply both a due time and a recurrence, and keep
+  them consistent) is the kind of two-field invariant a model silently violates. `on_days` is
+  refused without `at_time`, and `every_seconds` alongside `at_time` is refused with a message
+  naming the alternative, so neither can half-apply.
+- **Daylight-saving policy is inherited, not invented.** Every candidate resolves through
+  `DisplayZone.resolve`, so the two irregularities settle for a calendar occurrence exactly as
+  they already settle for a naive `at`: an occurrence inside a **spring-forward gap** lands just
+  past the gap (03:30 fires at 04:30 local: late, never skipped, because a reminder that
+  silently does not happen on one day is worse than one an hour late), and one inside a
+  **fall-back repeat** takes the earlier offset, so a repeated wall hour fires **once** rather
+  than twice. One policy, one place, no second table of special cases.
+- **A calendar item is self-anchoring, so snooze needed no new machinery.** The
+  occurrence-snooze addendum's `anchor` pins an *interval* grid; a rule **is** its own grid, so
+  a snoozed calendar item takes no anchor and `next_occurrence` returns it to its wall-clock
+  cadence for free. The store transitions, the fencing, and `apply_snooze` are untouched.
+- **The ticker reads the same configured zone the built-ins do**, threaded on `TickerSettings`
+  rather than as a seventh constructor argument (the ruff `max-args = 6` injection ceiling, and
+  the zone arrives from the very `ScheduleConfig` the pacing does). This is not rendering on
+  that path: a calendar re-arm *is* wall-clock arithmetic, so creation and firing must read one
+  zone or a rule would fire somewhere other than where it was scheduled.
+- **The record key is additive, with no version bump.** `rule` encodes as a plain nested object
+  and decodes with `.get`, the `anchor` precedent: a record written before this addendum has no
+  `rule` key and decodes as absent. A rule that *is* present is read strictly, so a malformed
+  one fails loudly like any other corrupt field rather than silently becoming a one-shot. No
+  migration exists, because no existing record changed.
+
+Four things implementation corrected or forced, recorded because each cost real work:
+
+1. **The barrel had to be split first.** `cortex_core/__init__.py` sat at exactly the 300-line
+   cap (its own recorded deferral), so this addendum could not export a single new public name.
+   It now re-exports with the typing spec's redundant-alias form instead of restating every name
+   in `__all__`, which halved it to 162 lines. That landed as its own commit ahead of this one.
+2. **`schedule_args.py` hit the cap too**, and split along the line `schedule_verbs.py` already
+   draws against `schedule_tools.py`: creation arguments stay put, the lifecycle verbs'
+   arguments (`snooze`, `edit`) move to `schedule_verb_args.py`, importing the shared bounds
+   from their sibling so "a legal interval" keeps one definition.
+3. **The creation confirmation and the listing line now share one recurrence phrase.** They had
+   drifted apart already ("recurring every 3600s" versus "every 3600s"), and a calendar rule
+   would have needed the phrase written twice. Unifying them changed the creation wording, which
+   one test pinned, and is the same class of divergence the display addendum caught between a
+   creation confirmation and a later listing.
+4. **The mutation pass caught an under-tested guard.** Reverting "read the *local* date, not the
+   UTC date" left the suite green, because in a zone **ahead** of UTC starting the search a day
+   early only adds candidates the strictly-after filter drops. It is observable only **west** of
+   UTC, where the UTC date is already tomorrow: at 02:00 UTC on a Tuesday it is still Monday
+   19:00 in Los Angeles, and reading the UTC date pushes a Monday 21:00 rule a full week out.
+   The test now pins that direction.
+
+CI-gated at 100% line and branch over the fakes, and every new guard mutation-proven (reverting
+each one individually turns the new tests red): the strictly-after comparison, the local-date
+read, the wrap-into-next-week candidate, the one-shape invariant, the edit's rule clearing, the
+`next_occurrence` dispatch, and the ticker's zone threading. The daylight-saving cases run
+against real `ZoneInfo` zones on both sides of UTC. The store contract suite gained a calendar
+round trip and an interval-replaces-rule edit, so the fake and the fakeredis-backed adapter are
+checked interchangeable on the new field.
+
+No SQL and no proto changed, but the codec did, so two real-stack validations were run
+(agent, 2026-07-14) rather than assumed. **Live Redis:** the contract suite's integration leg
+passed against the containerized Redis, and was mutation-proven to actually exercise the new
+key (encoding `rule` as `None` turns the *live* test red, not just the fakeredis one).
+**The real brain image:** a scripted end-to-end run inside `cortex-brain:latest` against that
+same Redis resolved `Europe/Bucharest` in-image, created "every weekday at 09:00" through the
+real `ScheduleTaskTool`, read it back through `list_scheduled` as
+`due 2026-07-22T09:00:00+03:00, every mon, tue, wed, thu, fri at 09:00`, fired it through a
+real `build_ticker` ticker, and re-armed at `2026-07-23T09:00:00+03:00`: same wall-clock hour,
+rule intact across the fire. Remaining behind the same shape:
+
+- **Monthly, yearly, and day-of-month rules** ("the 1st of each month"). A new field on
+  `CalendarRule` plus a wider candidate walk; the current walk is bounded to one week precisely
+  because the day set is weekly.
+- **Editing a rule in place.** `edit_scheduled` can replace a rule with an interval or stop it
+  repeating, but cannot *set* or retime one; that needs `at_time`/`on_days` on the edit verb and
+  a `ScheduleEdit` that carries the third case.
+- **A per-rule timezone**, per the zone decision above.
+- **Cron expressions**, if a rule this shape cannot express ever turns up.

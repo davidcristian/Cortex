@@ -144,10 +144,12 @@ throughout, never "Scheduler", which means resource *admission* here):
 - `ScheduledItem` is a frozen dataclass: `id`, `kind`, `text`, `session_id` (the origin chat,
   filled from the dispatcher's `TurnStamp` at creation, ADR-0027; `""` for a session-less
   caller), `due_at`/`created_at` (tz-aware, rejects
-  naive), `every: timedelta | None = None` (recurrence; must be positive),
-  `anchor: datetime | None = None` (the recurrence grid origin, set only by an occurrence
+  naive), `every: timedelta | None = None` (interval recurrence; must be positive),
+  `rule: CalendarRule | None = None` (wall-clock recurrence; **at most one of `every`/`rule`
+  is set**, enforced in `__post_init__`, ADR-0025 calendar addendum),
+  `anchor: datetime | None = None` (the *interval* grid origin, set only by an occurrence
   snooze so the series keeps its cadence; tz-aware when present, ADR-0025 occurrence-snooze
-  addendum), `model: str = ""` (task-only roster hint), `tainted: bool = False` (creation taint, OR'd
+  addendum; a calendar item needs none, its rule being the grid), `model: str = ""` (task-only roster hint), `tainted: bool = False` (creation taint, OR'd
   with fire-time taint at `finish`), `status`, `deliverable_since: datetime | None = None`,
   `last_outcome: str | None = None`.
 - `ScheduleClaim` is a frozen dataclass: `item` (as of the claim, FIRING) + the fencing `token`
@@ -161,11 +163,26 @@ throughout, never "Scheduler", which means resource *admission* here):
   for one-shots; a non-positive `every` raises `ValueError`. The ticker feeds it
   `recurrence_base(item)` (the `anchor` if set, else `due_at`), so a snoozed recurring item
   re-arms on its original grid, not `until + every`.
+- `CalendarRule(hour, minute, days: frozenset[int] = EVERY_DAY)` (`schedule_calendar.py`,
+  ADR-0025 calendar addendum) is a frozen wall-clock recurrence: `days` holds `date.weekday()`
+  numbers, is never empty (which is what bounds the occurrence search to one week), and
+  defaults to every day. `describe()` renders a listing phrase (`every mon, fri at 07:30`),
+  `wall_time` the zero-padded `HH:MM`. `DAY_NAMES` is the Monday-first name tuple whose index
+  is the weekday number. The rule carries no zone: the deployment's one `DisplayZone` is it.
+- `next_calendar_due(rule, after, zone) -> datetime | None` is the pure wall-clock occurrence
+  math: the rule's first occurrence strictly after `after`, resolved through
+  `DisplayZone.resolve` so it follows daylight saving rather than drifting against it (a
+  spring-forward gap fires just past the gap, a fall-back repeat fires once); `None` past
+  `datetime.max`, matching `next_due`.
+- `next_occurrence(item, now, zone) -> datetime | None` is the single entry point the ticker
+  calls: a calendar item answers from its rule, an interval item from anchored `next_due`, a
+  one-shot is terminal.
 - `apply_snooze(item, until) -> ScheduledItem` and `apply_edit(item, edit) -> ScheduledItem`
   are the two pure transitions both stores share (the ports-before-adapters guarantee):
   `apply_snooze` moves `due_at` to `until`, re-arms `PENDING`, clears deliverability, and pins
-  `anchor` to the pre-snooze `due_at` on a recurring item's first snooze (a one-shot keeps
-  `anchor` unset).
+  `anchor` to the pre-snooze `due_at` on a recurring item's first snooze (a one-shot and a
+  calendar item both keep `anchor` unset). `apply_edit` clears `rule` whenever it sets `every`,
+  keeping the one-shape invariant true.
 
 Placement domain (Slice 8.5, ADR-0012):
 

@@ -15,6 +15,9 @@ from dataclasses import dataclass, replace
 from datetime import datetime, timedelta
 from enum import Enum
 
+from cortex_core.schedule_calendar import CalendarRule, next_calendar_due
+from cortex_core.schedule_time import DisplayZone
+
 
 class ScheduleKind(Enum):
     """What firing an item does: deliver text to the user, or run an autonomous subagent."""
@@ -49,10 +52,15 @@ class ScheduledItem:
     ``text`` is the reminder text or the task instruction; ``session_id`` is the origin chat
     (``""`` until a turn-context stamp exists, per the ADR-0025 deferral). ``every`` makes the
     item recurring (a positive interval, enforced here; the 60 s floor is tool-boundary
-    policy). ``anchor`` pins the recurrence *grid origin* separately from ``due_at`` (the next
-    fire): it is ``None`` until an occurrence snooze moves one fire off the grid, after which
-    ``recurrence_base`` reads it so the series resumes its original cadence instead of drifting
-    (ADR-0025 occurrence-snooze addendum). ``model`` is the task's roster hint (``""`` = the
+    policy). ``rule`` is the *other* recurrence shape, a wall-clock calendar rule that follows
+    daylight saving where an interval would drift against it (ADR-0025 calendar addendum);
+    **at most one of the two is set**, so "how does this item recur?" always has one answer
+    and ``next_occurrence`` never has to reconcile a conflict. ``anchor`` pins the *interval*
+    grid origin separately from ``due_at`` (the next fire): it is ``None`` until an occurrence
+    snooze moves one fire off the grid, after which ``recurrence_base`` reads it so the series
+    resumes its original cadence instead of drifting (ADR-0025 occurrence-snooze addendum). A
+    calendar item needs no anchor, because its rule *is* the grid. ``model`` is the task's
+    roster hint (``""`` = the
     default; ADR-0017 resolution still rules at fire time). ``tainted`` starts as the creating
     turn's taint (the dispatcher's stamp, ADR-0018) and is OR'd with each fire's outcome taint
     at ``finish``, and it decides listing trust and rides both delivery wire paths.
@@ -67,6 +75,7 @@ class ScheduledItem:
     due_at: datetime
     created_at: datetime
     every: timedelta | None = None
+    rule: CalendarRule | None = None
     anchor: datetime | None = None
     model: str = ""
     tainted: bool = False
@@ -83,6 +92,9 @@ class ScheduledItem:
             _require_aware("ScheduledItem.anchor", self.anchor)
         if self.every is not None and self.every <= timedelta(0):
             msg = "ScheduledItem.every must be a positive interval"
+            raise ValueError(msg)
+        if self.every is not None and self.rule is not None:
+            msg = "ScheduledItem takes an interval or a calendar rule, never both"
             raise ValueError(msg)
 
 
@@ -152,11 +164,17 @@ def apply_edit(item: ScheduledItem, edit: ScheduleEdit) -> ScheduledItem:
     the Redis adapter change an item identically (the ports-before-adapters guarantee). ``due_at``
     stays put on purpose (re-recur changes the cadence of future re-arms, not the next fire), and
     taint is monotone: OR'd, never cleared (ADR-0025 edit addendum).
+
+    Setting an interval **clears any calendar rule**, because the item holds at most one
+    recurrence shape: an edit that set ``every`` on a calendar item would otherwise have to
+    fail, and silently keeping the rule while reporting the new interval would be worse. The
+    ``0`` sentinel therefore stops repeating whichever shape the item had.
     """
     return replace(
         item,
         text=edit.text if edit.text is not None else item.text,
         every=edit.every if edit.set_every else item.every,
+        rule=None if edit.set_every else item.rule,
         tainted=item.tainted or edit.tainted,
     )
 
@@ -170,6 +188,10 @@ def apply_snooze(item: ScheduledItem, until: datetime) -> ScheduledItem:
     origin (its existing anchor, or the pre-snooze ``due_at`` when this is the first snooze) so
     the fire after the snooze re-arms on ``origin + k*every`` rather than ``until + every``. A
     one-shot has no grid, so its anchor stays ``None`` (ADR-0025 occurrence-snooze addendum).
+
+    A **calendar** item needs no anchor and gets none: its rule is the grid, so
+    ``next_occurrence`` reads the rule rather than ``due_at`` and the series returns to its
+    wall-clock cadence after the snoozed fire for free (ADR-0025 calendar addendum).
     """
     anchor = item.anchor
     if item.every is not None and anchor is None:
@@ -191,6 +213,21 @@ def recurrence_base(item: ScheduledItem) -> datetime:
     ``next_due`` returns the item to its cadence rather than drifting by the snooze offset.
     """
     return item.anchor if item.anchor is not None else item.due_at
+
+
+def next_occurrence(item: ScheduledItem, now: datetime, zone: DisplayZone) -> datetime | None:
+    """Where ``item`` re-arms after firing at ``now``, or ``None`` when it is terminal.
+
+    The one entry point the ticker calls, so which recurrence shape an item carries is decided
+    in the pure core rather than at the firing edge. A calendar rule answers from the wall
+    clock in ``zone`` (drift-free across daylight saving, and self-anchoring: the rule is its
+    own grid, so a snoozed calendar item returns to its cadence without an ``anchor``); an
+    interval keeps the anchored ``next_due`` arithmetic, snooze grid and coalescing included.
+    A one-shot has neither and is terminal.
+    """
+    if item.rule is not None:
+        return next_calendar_due(item.rule, now, zone)
+    return next_due(recurrence_base(item), item.every, now)
 
 
 def next_due(due_at: datetime, every: timedelta | None, now: datetime) -> datetime | None:

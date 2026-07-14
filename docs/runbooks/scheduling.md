@@ -47,9 +47,29 @@ silent fallback would render every time in the wrong zone. Check `docker compose
 for `unknown timezone` if the container will not come up after changing it. An `at` that
 carries an explicit offset is always honored; a bare wall time reads as this zone, and the two
 DST irregularities resolve with `fold=0` (an ambiguous hour takes the earlier offset, a
-skipped one lands just past the gap). Recurrence is unaffected and stays a fixed interval, so
-a repeat spanning a DST transition keeps its interval rather than its wall-clock hour; the
-calendar-rule recurrence that would fix that is still deferred (see the ROADMAP).
+skipped one lands just past the gap).
+
+### Recurrence: an interval, or a wall-clock rule
+
+There are two shapes, and an item takes exactly one (ADR-0025 calendar addendum):
+
+- `every_seconds` is a **fixed interval**, unchanged. It is the right shape for "every 90
+  minutes"; across a DST transition it keeps its interval, so its wall-clock time shifts.
+- `at_time` (`HH:MM`, in `CORTEX_SCHEDULE_TZ`) with optional `on_days`
+  (`["mon","tue",...]`, omitted = every day) is a **wall-clock rule**. It is the right shape
+  for "every weekday at 09:00": it keeps the clock time across a DST transition, where a
+  86400-second interval would drift an hour. The first fire is computed from the rule, so
+  `at_time` replaces `at`/`in_seconds` rather than accompanying them.
+
+A calendar occurrence that lands in a spring-forward gap fires just past the gap (late, never
+skipped); one in a fall-back repeat fires once, on the earlier of the two readings. Because a
+rule names a wall time rather than an instant, **changing `CORTEX_SCHEDULE_TZ` moves existing
+calendar schedules** to the new zone's 09:00, while interval and one-shot items (stored as UTC
+instants) only re-render. That is deliberate: a 09:00 reminder follows its user.
+
+`edit_scheduled` can replace a rule with an interval, or stop it repeating with
+`every_seconds: 0`; setting or retiming a rule in place is not wired yet, so cancel and
+recreate for that.
 
 With subagents wired (`CORTEX_SUBAGENTS_BACKEND=llamacpp`) the tool also offers
 `kind: "task"`, which is an autonomous subagent run per fire, dispatched through the ticker's own

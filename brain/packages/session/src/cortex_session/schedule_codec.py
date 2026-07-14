@@ -13,10 +13,33 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Any, cast
 
-from cortex_core import ScheduledItem, ScheduleKind, ScheduleStatus, ScheduleStoreError
+from cortex_core import (
+    CalendarRule,
+    ScheduledItem,
+    ScheduleKind,
+    ScheduleStatus,
+    ScheduleStoreError,
+)
 
 RECORD_KIND = "schedule"
 RECORD_VERSION = 1
+
+
+def _encode_rule(rule: CalendarRule | None) -> dict[str, Any] | None:
+    """A calendar rule as a plain JSON object; ``days`` is sorted so records compare stably."""
+    if rule is None:
+        return None
+    return {"hour": rule.hour, "minute": rule.minute, "days": sorted(rule.days)}
+
+
+def _decode_rule(fields: dict[str, Any]) -> CalendarRule | None:
+    """The stored rule, or None. Absent on every record written before calendar recurrence."""
+    raw = cast("dict[str, Any] | None", fields.get("rule"))
+    if raw is None:
+        return None
+    return CalendarRule(
+        hour=raw["hour"], minute=raw["minute"], days=frozenset(cast("list[int]", raw["days"]))
+    )
 
 
 @dataclass(frozen=True, slots=True)
@@ -56,6 +79,7 @@ def encode(item: ScheduledItem, *, claim: str | None, claimed_at: datetime | Non
             "due_at": item.due_at.isoformat(),
             "created_at": item.created_at.isoformat(),
             "every_s": item.every.total_seconds() if item.every is not None else None,
+            "rule": _encode_rule(item.rule),
             "anchor": item.anchor.isoformat() if item.anchor is not None else None,
             "model": item.model,
             "tainted": item.tainted,
@@ -89,7 +113,9 @@ def decode(raw: bytes | str, item_id: str) -> tuple[ScheduledItem, str | None, d
             raise ScheduleStoreError(msg)
         every_s = fields["every_s"]
         # .get, not []: a record written before the occurrence-snooze addendum has no "anchor"
-        # key, and the durable-record policy makes a missing additive field decode as absent.
+        # key (nor "rule", before calendar recurrence), and the durable-record policy makes a
+        # missing additive field decode as absent. A rule that IS present is read strictly, so
+        # a malformed one fails loudly here like any other corrupt field.
         anchor = fields.get("anchor")
         deliverable_since = fields["deliverable_since"]
         claim = cast("str | None", fields["claim"])
@@ -103,6 +129,7 @@ def decode(raw: bytes | str, item_id: str) -> tuple[ScheduledItem, str | None, d
             due_at=datetime.fromisoformat(fields["due_at"]),
             created_at=datetime.fromisoformat(fields["created_at"]),
             every=timedelta(seconds=every_s) if every_s is not None else None,
+            rule=_decode_rule(fields),
             anchor=datetime.fromisoformat(anchor) if anchor is not None else None,
             model=fields["model"],
             tainted=fields["tainted"],
