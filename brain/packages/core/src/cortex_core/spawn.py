@@ -15,10 +15,13 @@ from cortex_core.tools import ToolCall, ToolResult, ToolSpec, Trust
 
 SPAWN_TOOL_NAME = "spawn_subagents"
 
+MAX_SPAWN_BATCH = 8
+
 _DESCRIPTION = (
     "Delegate one or more narrow subtasks to small subagents that run concurrently and "
     "return their results. Use for independent lookups or transforms worth parallelizing; "
-    "each instruction must be self-contained (subagents do not see this conversation)."
+    "each instruction must be self-contained (subagents do not see this conversation). "
+    f"At most {MAX_SPAWN_BATCH} subtasks per call."
 )
 # Appended when the wiring lets the cortex pick a model per subtask (tool-less subagents).
 # The inline example nudges the object form. A live cortex given only prose folded the pick
@@ -80,6 +83,7 @@ def _build_spec(roster: SubagentRoster, *, tools_enabled: bool) -> ToolSpec:
             "properties": {
                 "instructions": {
                     "type": "array",
+                    "maxItems": MAX_SPAWN_BATCH,
                     "items": {
                         "anyOf": [
                             {
@@ -95,7 +99,7 @@ def _build_spec(roster: SubagentRoster, *, tools_enabled: bool) -> ToolSpec:
                             },
                         ]
                     },
-                    "description": "One entry per subagent.",
+                    "description": f"One entry per subagent, at most {MAX_SPAWN_BATCH}.",
                 }
             },
             "required": ["instructions"],
@@ -110,6 +114,11 @@ def _uuid4_task_id() -> str:
 
 _ERR_INSTRUCTION = (
     "each instruction must be a non-empty string or an object with a non-empty 'instruction'"
+)
+# Refused, never truncated: silently dropping subtasks would hand the cortex an aggregate that
+# looks complete. An error the model can act on, so it re-delegates in batches that fit.
+_ERR_BATCH = (
+    f"spawn_subagents takes at most {MAX_SPAWN_BATCH} subtasks per call; delegate fewer at once"
 )
 
 
@@ -162,8 +171,13 @@ def _parse_instructions(
     raw = arguments.get("instructions")
     if not isinstance(raw, list) or not raw:
         return "spawn_subagents requires a non-empty 'instructions' array"
+    elements = cast("list[object]", raw)
+    # Ahead of parsing the items, so an oversized array is refused without walking it and
+    # before a single task is stored or a single subagent placed.
+    if len(elements) > MAX_SPAWN_BATCH:
+        return _ERR_BATCH
     items: list[_SpawnItem] = []
-    for element in cast("list[object]", raw):
+    for element in elements:
         parsed = _parse_item(element, roster)
         if isinstance(parsed, str):
             return parsed

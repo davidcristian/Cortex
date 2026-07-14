@@ -589,18 +589,22 @@ Use-case:
 - `SpawnSubagentsTool(runner, store, clock, *, task_id_factory=<uuid4>)` is the built-in
   `spawn_subagents` tool (`SPAWN_TOOL_NAME`), the cortex's delegation primitive (ADR-0010/0018).
   Its `spec` is **derived from the runner's roster**: an instructions item is a bare string or
-  `{instruction, model?, context?}` (`anyOf`); the `model` enum lists every entry with its
+  `{instruction, model?, context?}` (`anyOf`), at most `MAX_SPAWN_BATCH` (8) of them per call
+  (advertised as the array's `maxItems` and in both descriptions, ADR-0010 batch-cap addendum);
+  the `model` enum lists every entry with its
   description and the ADR-0017 caveat, omitted entirely when the runner is tools-enabled or the
   roster has one entry (a knob that cannot do anything is not advertised). `invoke(call)`
-  validates items against the roster (bad input / unknown model → an `is_error` result, not a
-  raise); a string item that parses as a JSON object carrying an `instruction` key is diverted
+  validates items against the roster (bad input / unknown model / an over-cap batch → an
+  `is_error` result, not a raise; the batch check runs ahead of item parsing, so nothing is
+  stored or placed); a string item that parses as a JSON object carrying an `instruction` key is diverted
   into the object path (real models sometimes stringify the object form, per the ADR-0018 addendum;
   same validation either way). It persists one `SubagentTask` per item, each stamped with the
   requested `model`, the item's `context`, and the **call stamp's `tainted`** (the dispatcher's
   `TurnStamp`, ADR-0018/0027). It runs the `SubagentRunner`s
   **concurrently** (bounded by the scheduler), each handed the **call stamp's `budget`** so the
-  whole batch draws on the spawning turn's one pool (ADR-0009 turn-wide addendum) and an unbounded
-  `instructions` array can no longer buy unbounded external calls, and returns one aggregated
+  whole batch draws on the spawning turn's one pool (ADR-0009 turn-wide addendum) so a batch
+  cannot buy unbounded external calls (its unbounded *model runs* are what `MAX_SPAWN_BATCH`
+  bounds, the pool counting a different currency), and returns one aggregated
   `ToolResult`, with a
   `[subagent N] …` block per subtask, failures shown inline. The aggregate is `UNTRUSTED` iff any
   subagent was tainted, so a subagent that read a malicious file taints the cortex through the
