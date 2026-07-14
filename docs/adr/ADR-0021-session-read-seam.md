@@ -103,7 +103,8 @@ sessions newest-first, fetch each session's messages, call `summarize_session`.
 time is maintained on `append` (one `ZADD` alongside the existing `RPUSH`, score = the
 message's `at`; the last append wins, so the score tracks last-activity). `list_sessions` does
 `ZREVRANGE cortex:sessions 0 limit-1` for the newest ids, then one `LRANGE`+decode per id
-(reusing the existing record decoder) into `summarize_session`. Equal-timestamp ordering is
+(reusing the existing record decoder) into `summarize_session`. (That per-id read became a
+bounded two-ended one in 2026-07-14's addendum below.) Equal-timestamp ordering is
 unspecified (Redis orders equal scores lexicographically; the fake by insertion), but the switcher
 does not depend on it, and the contract test uses distinct timestamps.
 
@@ -176,7 +177,8 @@ one keystroke away. Auto-restoring the most-recent chat is a recorded deferral (
 - `list_sessions` costs one `ZREVRANGE` + N `LRANGE`s (N ≤ limit). For a personal system's
   recent list this is negligible; caching each session's first/last message and length in the
   index to drop the per-session reads is a **deferred** perf refinement behind the unchanged
-  port.
+  port. (Superseded 2026-07-14, bounded-reads addendum below: the per-session read is now the
+  chat's two ends, batched into one transaction, and the cache is rejected.)
 - Title/preview truncation lengths live in the core (`TITLE_MAX`/`PREVIEW_MAX`); the overlay's
   own live-title derivation (for a chat not yet persisted) uses the same rule. This is documented so
   the two do not drift. When the brain later generates summary titles ([overlay-ux.md §5](../design/overlay-ux.md)),
@@ -187,7 +189,9 @@ one keystroke away. Auto-restoring the most-recent chat is a recorded deferral (
 
 ### Deferred (recorded in the ROADMAP)
 
-- **Per-session first/last/length cache in the index** to drop `list_sessions`' N+1 reads.
+- **Per-session first/last/length cache in the index** to drop `list_sessions`' N+1 reads:
+  **rejected 2026-07-14** (bounded-reads addendum below) in favor of reading each chat's two
+  ends in one batch, which removes the N+1 without a second copy of the data.
 - **Auto-restore the most-recent chat on cold start** landed 2026-07-12 (addendum below).
 - **Brain-generated summary titles** replace `summarize_session`'s title behind the same
   `SessionSummary`.

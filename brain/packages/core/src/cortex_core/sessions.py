@@ -29,11 +29,16 @@ def _one_line(text: str, limit: int) -> str:
     return collapsed if len(collapsed) <= limit else f"{collapsed[:limit]}…"
 
 
-def summarize_session(session_id: str, messages: Sequence[Message]) -> SessionSummary:
-    """Derive a chat's summary from its persisted messages (ADR-0021)."""
+def summarize_ends(session_id: str, first: Message, last: Message) -> SessionSummary:
+    """Derive a chat's summary from its two end messages (ADR-0021)."""
     return SessionSummary(
         session_id=session_id,
-        title=_one_line(messages[0].text, TITLE_MAX),
-        preview=_one_line(messages[-1].text, PREVIEW_MAX),
-        last_activity=messages[-1].at,
+        title=_one_line(first.text, TITLE_MAX),
+        preview=_one_line(last.text, PREVIEW_MAX),
+        last_activity=last.at,
     )
+
+
+def summarize_session(session_id: str, messages: Sequence[Message]) -> SessionSummary:
+    """Derive a chat's summary from its persisted messages (ADR-0021)."""
+    return summarize_ends(session_id, messages[0], messages[-1])

@@ -48,10 +48,14 @@ Session listing (Slice 8.7, ADR-0021; `sessions.py`):
 - `SessionSummary` is a frozen dataclass: `session_id: str`, `title: str`, `preview: str`,
   `last_activity: datetime`. One recent chat as the overlay's switcher shows it; `title`/
   `preview` are already derived (one line, truncated), `last_activity` tz-aware.
-- `summarize_session(session_id, messages) -> SessionSummary` is the pure derivation both
-  `SessionStore` implementations share (so the rule never drifts): `title` from the first
-  message, `preview` from the last, `last_activity` from the last's `at`; each collapsed to
-  one line and truncated (`TITLE_MAX` / `PREVIEW_MAX`). Requires a non-empty history.
+- `summarize_ends(session_id, first, last) -> SessionSummary` is the pure derivation: `title`
+  from the first message, `preview` from the last, `last_activity` from the last's `at`; each
+  collapsed to one line and truncated (`TITLE_MAX` / `PREVIEW_MAX`). Taking just the two ends
+  states in the core that nothing between them is needed, which is what lets a store read only
+  those two records (ADR-0021 bounded-reads addendum).
+- `summarize_session(session_id, messages) -> SessionSummary` is the whole-history form, which
+  delegates to `summarize_ends`. Both `SessionStore` implementations derive summaries through
+  these (so the rule never drifts). Requires a non-empty history.
 
 Model management (Slice 4, ADR-0007):
 

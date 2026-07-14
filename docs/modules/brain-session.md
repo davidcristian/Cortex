@@ -17,10 +17,15 @@ Translators only: serialization, key layout, and error wrapping; no business log
   - `async history(session_id)` is LRANGE 0..-1, decoded in append order; an unknown
     session is an empty history, not an error.
   - `async list_sessions(*, limit)` builds the chat list (ADR-0021): ZREVRANGE the recency
-    index for at most `limit` session ids newest-active first, load each session's history
-    (reusing `history`), and derive its `SessionSummary` via the core `summarize_session`
-    (derivation is domain logic, since the adapter only enumerates and translates). A dangling
-    index entry (id present, message list gone) is skipped, not fatal.
+    index for at most `limit` session ids newest-active first, then read only what a summary
+    is derived from, each session's first record, last record, and length (`LRANGE 0 0`,
+    `LRANGE -1 -1`, `LLEN`), with every listed session's three reads batched into one
+    transactional pipeline, and derive its `SessionSummary` via the core `summarize_ends`
+    (derivation is domain logic, since the adapter only enumerates and translates). Two round
+    trips and two decoded records per chat, whatever the chat's length (ADR-0021 bounded-reads
+    addendum). A dangling index entry (id present, message list gone) is skipped, not fatal;
+    so is a corrupt record *between* the ends, which a listing never reads (`history` still
+    fails loudly on it, and a corrupt record at either end still fails the listing).
   - `async aclose()` closes the underlying client's connections.
 - `RedisTaskStore` implements the `TaskStore` port over redis-py asyncio (ADR-0010), same
   injected-client / `from_url` / `aclose` shape as above:
@@ -75,9 +80,12 @@ text, tz-aware timestamp (offset preserved, not normalized to UTC), and turn id.
 `v`/`kind` are the schema escape hatch for evolving persisted records. A sorted set
 `cortex:sessions` is the recency index for `list_sessions` (ADR-0021): `append` `ZADD`s the
 session id scored by the message's `at` (last append wins → the score is last-activity),
-and `list_sessions` reads it with `ZREVRANGE`. The N+1 reads it does (one `LRANGE` per
-listed session) are fine for a personal system's recent list; caching each session's
-first/last/length in the index is a deferred perf refinement behind the unchanged port.
+and `list_sessions` reads it with `ZREVRANGE`, then batches each listed session's two-ended
+read into one transactional pipeline (the `LLEN` rides along so the tail record keeps its true
+index in an error, and rides the same transaction so the length and the record it names are one
+snapshot). Measured 23.8 ms to 1.11 ms on 20 chats of 200 messages against real Redis; the
+first/last/length index cache this refinement replaced is rejected, not deferred (ADR-0021
+bounded-reads addendum).
 
 Task state uses two string keys per delegation: `cortex:task:{id}` (the `SubagentTask`) and
 `cortex:task:{id}:result` (the `SubagentResult`), each one JSON document written with a **1-hour
@@ -128,8 +136,10 @@ exception to fail-loud is the schedule **claim path**, where a corrupt record qu
 append→history order, multi-session isolation, roundtrip fidelity incl. timezone, and
 `list_sessions` recency-ordering + title/preview derivation) run against BOTH
 implementations (`InMemorySessionStore` and `RedisSessionStore` over fakeredis) plus
-fakeredis-injected failure tests for the error wrapping (append, history, list, close) and
-Redis-specific `list_sessions` edges (empty store, limit, dangling index entry). The
+fakeredis-injected failure tests for the error wrapping (append, history, list, close, plus a
+failure inside the batched end-reads) and Redis-specific `list_sessions` edges (empty store,
+limit, dangling index entry, a tolerated corrupt record between the ends, a fatal one at either
+end named by its true index). The
 `list_sessions` check filters the global list to the ids it created, so it is safe against
 a shared live server. `tests/task_contract.py`
 does the same for the `TaskStore` (missing→None, task/result round-trip, timezone fidelity) over

@@ -13,7 +13,7 @@ from cortex_core import (
     Role,
     SessionStoreError,
     SessionSummary,
-    summarize_session,
+    summarize_ends,
 )
 
 # The dictated connection default; deployments override via CORTEX_REDIS_URL, which is
@@ -23,6 +23,10 @@ DEFAULT_REDIS_URL = "redis://127.0.0.1:6379/0"
 # The recency index for `list_sessions` (ADR-0021): a sorted set of session ids scored
 # by last-activity unix time, maintained on `append` alongside the per-session list.
 _SESSIONS_KEY = "cortex:sessions"
+
+# What one listed session costs `list_sessions`: its first record, its last record, and
+# its length (the tail's index, so a corrupt tail is still named precisely).
+_ENDS_READS = 3
 
 # The record schema this writer emits and the ONLY combination this reader accepts.
 # Records missing the markers decode as this combination (pre-versioning writers).
@@ -71,6 +75,17 @@ def _decode(raw: bytes | str, index: int) -> Message:
         raise SessionStoreError(msg) from err
 
 
+def _summarize_ends(session_id: str, reads: Sequence[object], at: int) -> SessionSummary | None:
+    """Summarize the session listed at ``at`` from the batched ends read (None when gone)."""
+    base = at * _ENDS_READS
+    head = cast("list[bytes]", reads[base])
+    tail = cast("list[bytes]", reads[base + 1])
+    length = cast("int", reads[base + 2])
+    if not head:
+        return None
+    return summarize_ends(session_id, _decode(head[0], 0), _decode(tail[0], length - 1))
+
+
 class RedisSessionStore:
     """SessionStore adapter over redis-py asyncio (injected client or ``from_url``)."""
 
@@ -117,16 +132,20 @@ class RedisSessionStore:
             raw_ids = await self._client.zrevrange(  # pyright: ignore[reportUnknownMemberType]
                 _SESSIONS_KEY, 0, limit - 1
             )
+            # Members come back as bytes (this client leaves decode_responses off, as the
+            # message reads rely on); the cast pins that so decoding needs no type branch.
+            ids = [raw_id.decode("utf-8") for raw_id in cast("list[bytes]", raw_ids)]
+            async with self._client.pipeline(transaction=True) as pipe:
+                for session_id in ids:
+                    key = _key(session_id)
+                    pipe.lrange(key, 0, 0)
+                    pipe.lrange(key, -1, -1)
+                    pipe.llen(key)
+                reads = await pipe.execute()
         except RedisError as err:
             msg = "listing sessions failed"
             raise SessionStoreError(msg) from err
-        # Members come back as bytes (this client leaves decode_responses off, as the
-        # message reads below rely on); the cast pins that so decoding needs no type branch.
-        ids = cast("list[bytes]", raw_ids)
-        summaries: list[SessionSummary] = []
-        for raw_id in ids:
-            session_id = raw_id.decode("utf-8")
-            messages = await self.history(session_id)
-            if messages:
-                summaries.append(summarize_session(session_id, messages))
-        return tuple(summaries)
+        # Decoding sits outside the wrapping above: a corrupt record is a SessionStoreError
+        # already, named by _decode, and must not be relabelled as a listing failure.
+        summaries = (_summarize_ends(session_id, reads, at) for at, session_id in enumerate(ids))
+        return tuple(summary for summary in summaries if summary is not None)
