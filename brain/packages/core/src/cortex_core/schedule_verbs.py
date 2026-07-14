@@ -19,7 +19,7 @@ from cortex_core.errors import ScheduleStoreError
 from cortex_core.ports import Clock, ScheduleStore
 from cortex_core.schedule import ScheduleKind, ScheduleStatus
 from cortex_core.schedule_args import MIN_EVERY_SECONDS
-from cortex_core.schedule_calendar import DAY_NAMES
+from cortex_core.schedule_calendar import DAY_NAMES, MAX_MONTH_DAY
 from cortex_core.schedule_time import UTC_DISPLAY, DisplayZone
 from cortex_core.schedule_transitions import ScheduleEdit
 from cortex_core.schedule_verb_args import parse_edit, parse_for_seconds
@@ -189,7 +189,8 @@ class EditScheduledTool:
                 "Change a scheduled reminder or task by its id: set new 'text', and/or change "
                 "how it repeats with either 'every_seconds' (a fixed interval, 0 to stop "
                 f"repeating) or 'at_time' (a wall-clock time in {self._zone.name}, optionally "
-                "on given 'on_days'). An 'every_seconds' change leaves the next due time alone; "
+                "on given 'on_days' or 'on_month_days'). An 'every_seconds' change leaves the "
+                "next due time alone; "
                 "'at_time' moves it to that rule's next occurrence. Use the id from "
                 "list_scheduled."
             ),
@@ -217,6 +218,14 @@ class EditScheduledTool:
                         "items": {"type": "string", "enum": list(DAY_NAMES)},
                         "description": (
                             "Which weekdays 'at_time' repeats on (optional; default every day)."
+                        ),
+                    },
+                    "on_month_days": {
+                        "type": "array",
+                        "items": {"type": "integer", "minimum": 1, "maximum": MAX_MONTH_DAY},
+                        "description": (
+                            "Which days of the month 'at_time' repeats on (optional), e.g. [1]; "
+                            "[31] means each month's last day. Never with 'on_days'."
                         ),
                     },
                 },

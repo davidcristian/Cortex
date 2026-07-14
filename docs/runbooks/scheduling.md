@@ -55,11 +55,17 @@ There are two shapes, and an item takes exactly one (ADR-0025 calendar addendum)
 
 - `every_seconds` is a **fixed interval**, unchanged. It is the right shape for "every 90
   minutes"; across a DST transition it keeps its interval, so its wall-clock time shifts.
-- `at_time` (`HH:MM`, in `CORTEX_SCHEDULE_TZ`) with optional `on_days`
-  (`["mon","tue",...]`, omitted = every day) is a **wall-clock rule**. It is the right shape
-  for "every weekday at 09:00": it keeps the clock time across a DST transition, where a
-  86400-second interval would drift an hour. The first fire is computed from the rule, so
-  `at_time` replaces `at`/`in_seconds` rather than accompanying them.
+- `at_time` (`HH:MM`, in `CORTEX_SCHEDULE_TZ`) with an optional day selector is a **wall-clock
+  rule**. It is the right shape for "every weekday at 09:00": it keeps the clock time across a
+  DST transition, where a 86400-second interval would drift an hour. The first fire is computed
+  from the rule, so `at_time` replaces `at`/`in_seconds` rather than accompanying them. The
+  selector is at most one of:
+  - `on_days` (`["mon","tue",...]`, omitted = every day), the weekly window.
+  - `on_month_days` (`[1, 15]`, integers `1..31`), the monthly one (ADR-0025 monthly addendum).
+    A day a short month lacks fires on that month's **last** day rather than skipping the month,
+    so `[31]` is how to say "the last day of every month" and `[30, 31]` fires once in February.
+
+  Giving both selectors in one call is refused: a rule holds one of them.
 
 A calendar occurrence that lands in a spring-forward gap fires just past the gap (late, never
 skipped); one in a fall-back repeat fires once, on the earlier of the two readings. Because a
@@ -68,7 +74,8 @@ calendar schedules** to the new zone's 09:00, while interval and one-shot items 
 instants) only re-render. That is deliberate: a 09:00 reminder follows its user.
 
 `edit_scheduled` changes recurrence in place in either direction: `at_time` (with an optional
-`on_days`) sets or retimes a rule, `every_seconds` replaces one with an interval, and
+`on_days` or `on_month_days`, so a rule can also switch between weekly and monthly) sets or
+retimes a rule, `every_seconds` replaces one with an interval, and
 `every_seconds: 0` stops it repeating. The two forms are mutually exclusive in one call, since
 an item carries one recurrence shape. Retiming a rule **moves the next fire** to that rule's own
 next occurrence and reports it, unlike an interval change, which leaves the armed fire alone and

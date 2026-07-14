@@ -105,8 +105,11 @@ Schedule state (ADR-0025) is the durable retention class again: one record per s
 store's expiry would silently drop reminders) and the session store's `v`/`kind` markers +
 evolution policy. `anchor` and `rule` are **additive** keys read with `.get` and no version
 bump (a record predating either decodes as absent); `rule` is the nested
-`{"hour", "minute", "days"}` calendar recurrence, read strictly when present so a malformed
-one fails loudly rather than degrading to a one-shot. The fencing `claim` token and `claimed_at` are adapter mechanics persisted
+`{"hour", "minute"}` calendar recurrence plus its day selector, read strictly when present so a
+malformed one fails loudly rather than degrading to a one-shot. Which selector it carries is
+**which key is present**, not a discriminator: `days` (weekday numbers) for a weekly rule,
+`month_days` (calendar days) for a monthly one, so a record written before day-of-month
+selectors reads back as the weekly rule it was (ADR-0025 monthly addendum). The fencing `claim` token and `claimed_at` are adapter mechanics persisted
 inside the record; the domain `ScheduledItem` never carries them. Three ZSET indexes drive
 the ticker and delivery. They are `cortex:schedules:due` (score = due-at epoch),
 `cortex:schedules:firing` (score = claim epoch, the lease), `cortex:schedules:deliverable`
