@@ -7,10 +7,13 @@ from typing import Any, cast
 
 from cortex_core import (
     CalendarRule,
+    DaySelector,
+    MonthDays,
     ScheduledItem,
     ScheduleKind,
     ScheduleStatus,
     ScheduleStoreError,
+    Weekdays,
 )
 
 RECORD_KIND = "schedule"
@@ -18,20 +21,29 @@ RECORD_VERSION = 1
 
 
 def _encode_rule(rule: CalendarRule | None) -> dict[str, Any] | None:
-    """A calendar rule as a plain JSON object; ``days`` is sorted so records compare stably."""
+    """A calendar rule as a plain JSON object; day lists are sorted so records compare stably."""
     if rule is None:
         return None
-    return {"hour": rule.hour, "minute": rule.minute, "days": sorted(rule.days)}
+    key = "month_days" if isinstance(rule.on, MonthDays) else "days"
+    return {"hour": rule.hour, "minute": rule.minute, key: sorted(rule.on.days)}
 
 
 def _decode_rule(fields: dict[str, Any]) -> CalendarRule | None:
-    """The stored rule, or None. Absent on every record written before calendar recurrence."""
+    """The stored rule, or None. Absent on every record written before calendar recurrence.
+
+    ``month_days`` selects the monthly variant; anything else is the weekly one, so a record
+    predating day-of-month selectors reads back as the weekly rule it was written as.
+    """
     raw = cast("dict[str, Any] | None", fields.get("rule"))
     if raw is None:
         return None
-    return CalendarRule(
-        hour=raw["hour"], minute=raw["minute"], days=frozenset(cast("list[int]", raw["days"]))
+    month_days = cast("list[int] | None", raw.get("month_days"))
+    on: DaySelector = (
+        MonthDays(days=frozenset(month_days))
+        if month_days is not None
+        else Weekdays(days=frozenset(cast("list[int]", raw["days"])))
     )
+    return CalendarRule(hour=raw["hour"], minute=raw["minute"], on=on)
 
 
 @dataclass(frozen=True, slots=True)

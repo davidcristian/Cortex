@@ -169,12 +169,20 @@ here):
   for one-shots; a non-positive `every` raises `ValueError`. The ticker feeds it
   `recurrence_base(item)` (the `anchor` if set, else `due_at`), so a snoozed recurring item
   re-arms on its original grid, not `until + every`.
-- `CalendarRule(hour, minute, days: frozenset[int] = EVERY_DAY)` (`schedule_calendar.py`,
-  ADR-0025 calendar addendum) is a frozen wall-clock recurrence: `days` holds `date.weekday()`
-  numbers, is never empty (which is what bounds the occurrence search to one week), and
-  defaults to every day. `describe()` renders a listing phrase (`every mon, fri at 07:30`),
-  `wall_time` the zero-padded `HH:MM`. `DAY_NAMES` is the Monday-first name tuple whose index
-  is the weekday number. The rule carries no zone: the deployment's one `DisplayZone` is it.
+- `CalendarRule(hour, minute, on: DaySelector = DAILY)` (`schedule_calendar.py`, ADR-0025
+  calendar addendum) is a frozen wall-clock recurrence. `describe()` renders a listing phrase
+  (`every mon, fri at 07:30`), `wall_time` the zero-padded `HH:MM`. The rule carries no zone:
+  the deployment's one `DisplayZone` is it.
+- `DaySelector = Weekdays | MonthDays` (ADR-0025 monthly addendum) is which dates the wall time
+  lands on, a closed union so the codec can enumerate it and a rule holds exactly one selector
+  by shape rather than by cross-field check. `Weekdays(days: frozenset[int] = EVERY_DAY)` holds
+  `date.weekday()` numbers (`DAILY` is the every-day default; `DAY_NAMES` is the Monday-first
+  name tuple whose index is the weekday number). `MonthDays(days: frozenset[int])` holds
+  calendar days `1..MAX_MONTH_DAY`, and a day the month lacks **clamps to that month's last
+  day** rather than skipping the month, so `{31}` means "the last day of every month" and days
+  that clamp together fire once. Neither is ever empty, which is what bounds the occurrence
+  search; each answers `walk(start) -> (candidates, wrapped)`, the fallback being next week's
+  first listed weekday or next month's first listed day.
 - `next_calendar_due(rule, after, zone) -> datetime | None` is the pure wall-clock occurrence
   math: the rule's first occurrence strictly after `after`, resolved through
   `DisplayZone.resolve` so it follows daylight saving rather than drifting against it (a
@@ -624,11 +632,13 @@ Use-case:
   `SnoozeScheduledTool(store, clock, *, zone=UTC_DISPLAY)` / `EditScheduledTool(store)`
   (`schedule_verbs.py`, the
   line-cap split that also owns the shared result helpers; argument parsing in
-  `schedule_args.py`) are the built-in
+  `schedule_args.py` for creation, `schedule_verb_args.py` for the lifecycle verbs, and
+  `schedule_day_args.py` for the calendar-rule vocabulary both share) are the built-in
   `schedule_task` / `list_scheduled` / `cancel_scheduled` / `snooze_scheduled` /
   `edit_scheduled` tools, cortex-only like `spawn_subagents`, since a subagent cannot re-schedule
   (ADR-0025). `schedule_task` takes `{kind: reminder|task, text, at | in_seconds,
-  every_seconds? (≥ 60), model? (task-only)}`; its spec is rebuilt per `describe_tools` walk and
+  every_seconds? (≥ 60), model? (task-only)}`, or `at_time` (`HH:MM`) with at most one of
+  `on_days` (weekday names) / `on_month_days` (integers `1..31`) for a calendar rule; its spec is rebuilt per `describe_tools` walk and
   **carries the current time** from the `Clock` (the model cannot otherwise compute an
   absolute `at`), rendered in the display zone and labelled with its name,
   advertising `task`/`model` only when delegation is wired. Two creation bounds:
@@ -643,10 +653,10 @@ Use-case:
   reuses the recurrence-interval bounds `[60 s, ten-year]`, not the unbounded one-shot delay)
   and postpones the next fire; a recurring item moves only its next occurrence, the store
   pinning `anchor` so the series keeps its cadence (occurrence-snooze addendum).
-  `edit_scheduled` takes `{id, text?, every_seconds?, at_time?, on_days?}`
-  (a bounded interval sets recurrence, `0` stops it, omission leaves it; `at_time`/`on_days`
-  set a wall-clock rule instead, mutually exclusive with `every_seconds`; at least one change
-  required) and changes text/recurrence in place. An interval change never moves `due_at`; a
+  `edit_scheduled` takes `{id, text?, every_seconds?, at_time?, on_days?, on_month_days?}`
+  (a bounded interval sets recurrence, `0` stops it, omission leaves it; `at_time` plus at most
+  one day selector sets a wall-clock rule instead, mutually exclusive with `every_seconds`; at
+  least one change required) and changes text/recurrence in place. An interval change never moves `due_at`; a
   rule change re-derives it and reports the new time, since a rule is its own grid (rule-edit
   addendum); unlike cancel/snooze
   it ORs the editing turn's taint onto the item and refuses editing a *task* on a tainted turn

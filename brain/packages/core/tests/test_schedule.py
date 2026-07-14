@@ -13,6 +13,7 @@ from cortex_core import (
     ScheduleEdit,
     ScheduleKind,
     ScheduleStatus,
+    Weekdays,
     apply_edit,
     apply_snooze,
     next_due,
@@ -113,7 +114,7 @@ def test_apply_edit_setting_a_rule_moves_the_due_time_and_drops_the_interval() -
     """A rule is its own grid, so the next fire is re-derived rather than left where it was."""
     due = _NOW + timedelta(days=1)
     item = _item(due_at=_NOW, every=timedelta(hours=1), anchor=_NOW - timedelta(hours=5))
-    rule = CalendarRule(hour=9, minute=0, days=frozenset({0, 4}))
+    rule = CalendarRule(hour=9, minute=0, on=Weekdays(days=frozenset({0, 4})))
     edited = apply_edit(item, ScheduleEdit(rule=RuleChange(rule=rule, due_at=due)))
     assert edited.rule == rule
     assert edited.due_at == due  # unlike an interval re-recur, the timing moves

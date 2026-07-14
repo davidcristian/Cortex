@@ -1449,9 +1449,8 @@ behind the unchanged `ScheduleStore`/`BodyGateway`/seam shapes.
   that created "every weekday at 09:00" in `Europe/Bucharest`, fired it, and re-armed on the
   same wall-clock hour.
   It also forced the `cortex_core/__init__.py` barrel split (the entry above) and split
-  `schedule_verb_args.py` out of `schedule_args.py` at the cap. Remaining: **monthly / yearly /
-  day-of-month rules** (a wider candidate walk; today's is bounded to one week because the day
-  set is weekly), a **per-rule timezone** (today a rule means wall
+  `schedule_verb_args.py` out of `schedule_args.py` at the cap. Remaining: **yearly rules**
+  (the day-of-month half landed, its own entry below), a **per-rule timezone** (today a rule means wall
   time in the deployment's one `DisplayZone`, so changing `CORTEX_SCHEDULE_TZ` deliberately
   moves existing calendar schedules with it), and **cron expressions** if a rule this shape
   cannot express ever turns up.
@@ -1479,6 +1478,32 @@ behind the unchanged `ScheduleStore`/`BodyGateway`/seam shapes.
   new tests red), across the pure transitions, the verb's parse matrix, and the store contract
   suite on fake and fakeredis alike. No codec change, so no live-Redis run is owed beyond the
   contract suite's own leg.
+- **Monthly day-of-month rules landed 2026-07-14 ([ADR-0025 monthly
+  addendum](adr/ADR-0025-scheduling-reminders.md)).** The calendar rule named a wall time and a
+  set of **weekdays**, so its search was bounded to one week and "on the 1st of every month" had
+  no expression but a 30 day interval, which is the drift the rule shape exists to avoid. The
+  day set became a closed union (`DaySelector = Weekdays | MonthDays`) on `CalendarRule.on`,
+  model-facing as an `on_month_days` list of integers on both `schedule_task` and
+  `edit_scheduled`, refused alongside `on_days`. The cheaper-looking `month_days` field beside
+  the existing `days` was rejected because it makes a monthly rule carry a weekday set it
+  ignores (the type stating a falsehood, and "exactly one selector" demoted from a shape to a
+  cross-field check); the union is also where a **yearly** variant joins. **A day the month
+  lacks clamps to that month's last day rather than skipping the month**, which is not a new
+  policy but the one daylight saving already set here (an irregularity moves an occurrence and
+  never deletes one), decided on asymmetric failure modes: skipping means a monthly reminder
+  silently never fires in up to five months of the year. Two properties fell out rather than
+  being designed: `[31]` **is** "the last day of every month", so no separate last-day selector
+  is owed, and days that clamp together fire once, since the walk works in resolved dates. The
+  walk stays total by construction rather than by a cap (each selector answers
+  `walk(start) -> (candidates, wrapped)`, the fallback being later than any instant `start`
+  names), so `next_calendar_due` keeps one body and no unreachable branch. The codec
+  distinguishes the selectors by **which key is present** (`days` versus `month_days`), so
+  records predating this decode as weekly and a weekly rule still encodes byte-identically; no
+  version bump, no migration. `schedule_day_args.py` split out of `schedule_args.py` at the
+  300-line cap, shared by creation and the edit verb. CI-gated at 100% with the new guards
+  mutation-proven, DST and local-date cases on both sides of UTC, and the codec's
+  backward-compatible read tested against a hand-written pre-addendum record. Remaining:
+  **yearly rules**, the union's designed third variant.
 - **Occurrence history.** Coalesced single-slot deliverability keeps no per-fire records,
   and terminal cleanup deletes a one-shot task's outcome with its record; a history table
   would also cover unseen-toast recovery.
