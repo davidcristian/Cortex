@@ -112,7 +112,7 @@ from cortex_core.scope import (
     MemoryScope,
     SessionMemoryScope,
 )
-from cortex_core.sessions import SessionSummary, summarize_session
+from cortex_core.sessions import SessionSummary, summarize_ends, summarize_session
 from cortex_core.spawn import SPAWN_TOOL_NAME, SpawnSubagentsTool
 from cortex_core.subagents import SubagentResult, SubagentTask
 from cortex_core.tools import (
@@ -286,6 +286,7 @@ __all__ = [
     "recurrence_base",
     "route_turn",
     "security_preamble_message",
+    "summarize_ends",
     "summarize_session",
     "wrap_untrusted",
 ]
