@@ -1,4 +1,4 @@
-"""How much of the outside world one tool loop may touch: the budget, and what tools cost."""
+"""How much of the outside world one turn may touch: the budget, and what tools cost."""
 
 from collections.abc import Mapping
 from dataclasses import dataclass
@@ -37,3 +37,35 @@ class ToolCostPolicy:
 # The policy every dispatcher gets unless the composition root passes one: every tool costs
 # one, which is the plain call count the budget started as.
 UNIFORM_COST = ToolCostPolicy()
+
+
+class DispatchBudget:
+    """One turn's dispatch allowance, shared by every tool loop that turn runs (ADR-0009)."""
+
+    def __init__(self, limit: int = MAX_TOOL_DISPATCHES) -> None:
+        self._limit = limit
+        self._spent = 0
+        self._closed = False
+
+    @property
+    def limit(self) -> int:
+        """The total this pool may spend before it closes."""
+        return self._limit
+
+    @property
+    def spent(self) -> int:
+        """What has been charged so far, summed across every loop sharing this pool."""
+        return self._spent
+
+    @property
+    def closed(self) -> bool:
+        """Whether a call has already failed to fit, after which nothing else is admitted."""
+        return self._closed
+
+    def charge(self, cost: int) -> bool:
+        """Spend ``cost`` if it fits, reporting whether the call it prices may run."""
+        if self._closed or self._spent + cost > self._limit:
+            self._closed = True
+            return False
+        self._spent += cost
+        return True

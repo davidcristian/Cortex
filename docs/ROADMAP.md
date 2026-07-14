@@ -848,9 +848,38 @@ addendum adds `SkipUnavailableToolRegistry` + `CORTEX_TOOLS_ON_UNAVAILABLE=skip`
   contract. Verified green: ruff, ruff format, pyright strict, and the full brain suite at 100%.
 - **Salience policy on the tool loop.** Which calls *deserve* dispatching, as opposed to how
   many, is still open (ADR-0009 decision 3 / risks).
-- **A turn-wide dispatch budget spanning spawned subagents.** Each `stream_tool_loop` invocation
-  gets its own budget, so a cortex turn that spawns subagents can exceed 32 dispatches in
-  aggregate. Sharing one needs a counter that outlives a single loop invocation.
+- **The turn-wide dispatch budget landed 2026-07-14 ([ADR-0009 turn-wide
+  addendum](adr/ADR-0009-tools-mcp.md)).** Both budget addenda sold "one number answers how many
+  external calls one turn can make", and delegation made it false: `spent` was a local in
+  `stream_tool_loop` and the runner builds a fresh `ToolLoopContext` per task, so every subagent
+  started at zero. This entry's own "can exceed 32 in aggregate" understated it, because
+  `spawn_subagents` takes an **unbounded** `instructions` array: four batches (all the
+  `MAX_TOOL_DISPATCHES // 4` price allows) of fifty subagents was 6400 dispatches for a spend of
+  32, so the price bought bounded *batches* and unbounded *calls*. The counter is now a
+  `DispatchBudget` object in `tool_budget.py` (`charge(cost) -> bool`, which also moves "a call
+  that does not fit closes the budget" out of the loop and into the budget), and it reaches
+  spawned work on the **`TurnStamp`**, the channel the loop already stamps and
+  `spawn_subagents` already reads for taint, so no `dispatch()` keyword and no second field on
+  `ToolCall` were added. That is the stamp's first non-provenance field, a deliberate widening to
+  "what the dispatching turn hands work this call spawns" (`tainted` was already both), and the
+  handle is excluded from the stamp's equality (`compare=False`) since a shared resource is not
+  part of a value. One pool first-come-first-served, not a per-subagent share: dividing the
+  remainder has to guess how many of a batch will call tools at all, and it makes the answer a
+  function of fan-out again, which is the arithmetic being removed. Closure is turn-wide too, so
+  `BUDGET_EXHAUSTED_MSG`'s "this turn has reached its limit" is literally true. The spawn price
+  stays, because the two bounds count different things: the pool counts dispatches, and a
+  subagent that calls no tools spends nothing from it while still costing an admission slot, a
+  placement, and a model run. A root caller with no pool (the ticker's fire) still gets its own,
+  unchanged. CI-gated at 100% with six guards mutation-proven (each reverted individually turns
+  the new tests red). Remaining:
+- **The unbounded `instructions` array of `spawn_subagents`.** Now bounded in dispatches by the
+  shared pool, still unbounded in **model runs**: one call can ask for any number of subagents,
+  each an admission slot, a placement, and an inference. A per-call cap on the batch is the
+  obvious next bound and is a spawn-tool decision, not a budget one.
+- **A fair-share policy across a batch.** One greedy subagent can spend the turn's remaining pool
+  before its siblings charge anything. Starvation degrades an answer without breaching the bound
+  (the starved subagent reads the refusal and reports stopping short), so it stays deferred until
+  it shows up in practice.
 - **Connect-time sidecar tolerance / reconnect policy landed 2026-07-08
   ([ADR-0009 boot-tolerance addendum](adr/ADR-0009-tools-mcp.md)).** Skip mode covered a sidecar
   dying *after* connect; a sidecar down *at brain startup* still failed `McpToolRegistry.connect`

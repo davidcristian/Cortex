@@ -266,8 +266,9 @@ The service:
   Slice 3 turn path). The volume and schedule built-ins are ungated by default (reversible);
   a user gates any by name in `CORTEX_TOOLS_GATED` (the dispatcher's authoritative backstop)
   and prices any by name in `CORTEX_TOOLS_COSTS`. The cortex and subagent dispatchers get the
-  prices (both drive a `stream_tool_loop` with its own budget); the ticker's private spawn
-  dispatcher does not, since it dispatches one call directly and runs no loop.
+  prices (both drive a `stream_tool_loop`, and since ADR-0009's turn-wide addendum a spawned
+  subagent's loop spends the *spawning turn's* pool rather than one of its own); the ticker's
+  private spawn dispatcher does not, since it dispatches one call directly and runs no loop.
   `run_from_env` hands `serve` an **engine factory** (ADR-0022): each Converse
   stream's `SeamConfirmer` reaches its dispatcher through it, so an untainted gated call (e.g.
   the email sidecar's `send_email`, stamped by the `CORTEX_TOOLS_GATED` overlay in

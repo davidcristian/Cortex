@@ -1,10 +1,12 @@
 """Tool domain values: what a tool is, a call to one, its result, and the audit record."""
 
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from typing import Any
+
+from cortex_core.tool_budget import DispatchBudget
 
 
 class Trust(Enum):
@@ -26,10 +28,11 @@ class ToolSpec:
 
 @dataclass(frozen=True, slots=True)
 class TurnStamp:
-    """The dispatching turn's provenance, stamped onto every call at dispatch time (ADR-0027)."""
+    """What the dispatching turn hands the call, stamped on at dispatch time (ADR-0027)."""
 
     session_id: str = ""
     tainted: bool = False
+    budget: DispatchBudget | None = field(default=None, compare=False)
 
 
 # The unattributed default stamp: no originating session, no taint. A named constant

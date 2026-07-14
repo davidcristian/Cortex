@@ -9,6 +9,7 @@ from cortex_core.inference import JsonSchema
 from cortex_core.ports import Clock, InferenceBackend, TaskStore
 from cortex_core.roster import SubagentResources, SubagentRoster
 from cortex_core.subagents import SubagentResult, SubagentTask
+from cortex_core.tool_budget import DispatchBudget
 from cortex_core.tool_loop import ToolLoopContext, stream_tool_loop
 from cortex_core.untrusted import TaintLedger, new_nonce, security_preamble_message
 
@@ -74,7 +75,7 @@ class SubagentRunner:
         """Whether subagents hold tools (ADR-0017 rule 2b), structural at wiring time."""
         return self._tools is not None
 
-    async def run(self, task_id: str) -> SubagentResult:
+    async def run(self, task_id: str, *, budget: DispatchBudget | None = None) -> SubagentResult:
         """Load, resolve (ADR-0017), admit (CPU/RAM), place (VRAM), run, persist."""
         task = await self._store.get_task(task_id)
         if task is None:
@@ -88,12 +89,19 @@ class SubagentRunner:
         async with res.scheduler.admit(res.request):
             placement = res.placer.place(res.request)
             try:
-                return await self._run_placed(task, res, res.backends[placement.target])
+                return await self._run_placed(
+                    task, res, res.backends[placement.target], budget=budget
+                )
             finally:
                 res.placer.release(placement)
 
     async def _run_placed(
-        self, task: SubagentTask, res: SubagentResources, backend: InferenceBackend
+        self,
+        task: SubagentTask,
+        res: SubagentResources,
+        backend: InferenceBackend,
+        *,
+        budget: DispatchBudget | None,
     ) -> SubagentResult:
         """Stream the loaded task to a persisted result on the placed backend."""
         working = _task_messages(task)
@@ -115,6 +123,10 @@ class SubagentRunner:
             # (ADR-0027). The field grows onto the task when a consumer exists.
             session_id="",
             schema=_REPLY_ENVELOPE if constrain else None,
+            # The spawning turn's pool when there is one, so this run's dispatches count
+            # against the turn's total (ADR-0009 turn-wide addendum). A run with no spawning
+            # turn is its own root and gets the default allowance, as every run did before.
+            budget=DispatchBudget() if budget is None else budget,
         )
         parts: list[str] = []
         try:

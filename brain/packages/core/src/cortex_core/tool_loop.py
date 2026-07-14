@@ -1,14 +1,14 @@
 """The bounded infer↔tool loop, shared by the cortex turn and each subagent (ADR-0010/0013)."""
 
 from collections.abc import AsyncGenerator, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 
 from cortex_core.conversation import Message, Role
 from cortex_core.dispatch import ToolDispatcher
 from cortex_core.inference import JsonSchema, ReasoningChunk
 from cortex_core.ports import Clock, InferenceBackend
-from cortex_core.tool_budget import MAX_TOOL_DISPATCHES
+from cortex_core.tool_budget import DispatchBudget
 from cortex_core.tools import ToolCall, ToolResult, ToolSpec, Trust, TurnStamp
 from cortex_core.untrusted import TaintLedger, wrap_untrusted
 
@@ -62,7 +62,7 @@ class ToolLoopContext:
     nonce: str
     session_id: str
     schema: JsonSchema | None = None
-    dispatch_budget: int = MAX_TOOL_DISPATCHES
+    budget: DispatchBudget = field(default_factory=DispatchBudget)
 
 
 def _call_message(text: str, calls: Sequence[ToolCall], at: datetime, turn_id: str) -> Message:
@@ -97,8 +97,7 @@ async def stream_tool_loop(
     specs = await dispatcher.describe_tools() if dispatcher is not None else ()
     gated_by_name = {spec.name: spec.gated for spec in specs}
     spec_by_name = {spec.name: spec for spec in specs}
-    spent = 0
-    budget_closed = False
+    budget = context.budget
     for _step in range(MAX_TOOL_STEPS):
         calls: list[ToolCall] = []
         step_text: list[str] = []
@@ -123,17 +122,20 @@ async def stream_tool_loop(
             _call_message("".join(step_text), calls, context.clock.now(), context.turn_id)
         )
         for call in calls:
-            cost = dispatcher.cost_of(call.name)
-            budget_closed = budget_closed or spent + cost > context.dispatch_budget
-            if not budget_closed:
-                spent += cost
-                if (spec := spec_by_name.get(call.name)) is not None:
-                    yield ToolStep(tool_name=spec.name, summary=_step_summary(spec))
+            affordable = budget.charge(dispatcher.cost_of(call.name))
+            if affordable and (spec := spec_by_name.get(call.name)) is not None:
+                yield ToolStep(tool_name=spec.name, summary=_step_summary(spec))
             result = await dispatcher.dispatch(
                 call,
-                stamp=TurnStamp(session_id=context.session_id, tainted=context.taint.tainted),
+                stamp=TurnStamp(
+                    session_id=context.session_id,
+                    tainted=context.taint.tainted,
+                    # The pool travels to whatever this call spawns, so a subagent draws from
+                    # the turn's remaining allowance instead of starting a fresh one.
+                    budget=budget,
+                ),
                 gated=gated_by_name.get(call.name, False),
-                over_budget=budget_closed,
+                over_budget=not affordable,
             )
             context.taint.observe(result)
             working.append(

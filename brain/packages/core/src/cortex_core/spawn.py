@@ -220,7 +220,9 @@ class SpawnSubagentsTool:
         for task in tasks:
             await self._store.put_task(task)
         results: list[SubagentResult] = list(
-            await asyncio.gather(*(self._runner.run(task.id) for task in tasks))
+            await asyncio.gather(
+                *(self._runner.run(task.id, budget=call.stamp.budget) for task in tasks)
+            )
         )
         trust = Trust.UNTRUSTED if any(r.tainted for r in results) else Trust.TRUSTED
         return ToolResult(call_id=call.id, content=_format(results), trust=trust)

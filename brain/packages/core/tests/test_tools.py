@@ -14,7 +14,9 @@ from cortex_core import (
     ToolResult,
     ToolSpec,
     Trust,
+    TurnStamp,
 )
+from cortex_core.tool_budget import DispatchBudget
 
 _AT = datetime(2026, 7, 3, 12, 0, 0, tzinfo=UTC)
 
@@ -92,3 +94,12 @@ async def test_registry_invoke_runs_the_named_handler() -> None:
 async def test_registry_invoke_raises_tool_not_found_for_an_unknown_tool() -> None:
     with pytest.raises(ToolNotFoundError, match="unknown tool 'missing'"):
         await InMemoryToolRegistry({}).invoke(ToolCall(id="c", name="missing", arguments={}))
+
+
+def test_a_stamps_budget_is_carried_but_is_not_part_of_its_value() -> None:
+    pool = DispatchBudget(limit=4)
+    stamped = TurnStamp(session_id="s", tainted=True, budget=pool)
+    assert stamped == TurnStamp(session_id="s", tainted=True, budget=DispatchBudget(limit=9))
+    assert stamped == TurnStamp(session_id="s", tainted=True)
+    assert stamped != TurnStamp(session_id="other", tainted=True, budget=pool)
+    assert stamped.budget is pool
