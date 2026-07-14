@@ -87,8 +87,12 @@ async def edit_item(client: Redis, item_id: str, edit: ScheduleEdit) -> bool:
         item, _, _ = state
         if item.status is ScheduleStatus.FIRING:
             return False
+        updated = apply_edit(item, edit)
         pipe.multi()
-        pipe.set(record_key(item_id), encode(apply_edit(item, edit), claim=None, claimed_at=None))
+        pipe.set(record_key(item_id), encode(updated, claim=None, claimed_at=None))
+        if edit.rule is not None:
+            pipe.zrem(DELIVERABLE_KEY, item_id)
+            pipe.zadd(DUE_KEY, {item_id: updated.due_at.timestamp()})
         try:
             await pipe.execute()
         except WatchError:

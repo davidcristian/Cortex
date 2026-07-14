@@ -1,19 +1,29 @@
 """Argument parsing for the schedule *lifecycle* verbs (ADR-0025): validate, never raise."""
 
 from collections.abc import Mapping
-from datetime import timedelta
+from datetime import datetime, timedelta
 from typing import Any
 
-from cortex_core.schedule import ScheduleEdit
 from cortex_core.schedule_args import (
     BAD_TEXT,
+    DAYS_NEED_AT_TIME,
     MAX_EVERY_SECONDS,
     MIN_EVERY_SECONDS,
+    UNSCHEDULABLE_RULE,
+    parse_at_time,
     parse_number,
+    parse_on_days,
 )
+from cortex_core.schedule_calendar import CalendarRule, next_calendar_due
+from cortex_core.schedule_time import UTC_DISPLAY, DisplayZone
+from cortex_core.schedule_transitions import RuleChange, ScheduleEdit
 
 _BAD_FOR = f"'for_seconds' must be a number between {MIN_EVERY_SECONDS} and {MAX_EVERY_SECONDS}"
-_EDIT_NO_CHANGE = "provide 'text' and/or 'every_seconds' to change something"
+_EDIT_NO_CHANGE = "provide 'text', 'every_seconds', and/or 'at_time' to change something"
+_EDIT_EVERY_WITH_AT_TIME = (
+    "'at_time' already recurs on the wall clock; drop 'every_seconds', or give 'every_seconds' "
+    "on its own to switch this schedule back to a fixed interval"
+)
 _BAD_EDIT_EVERY = (
     f"'every_seconds' must be 0 (stop repeating) or between {MIN_EVERY_SECONDS} "
     f"and {MAX_EVERY_SECONDS}"
@@ -47,16 +57,45 @@ def _parse_edit_every(arguments: Mapping[str, Any]) -> tuple[bool, timedelta | N
     return (True, timedelta(seconds=seconds))
 
 
-def parse_edit(arguments: Mapping[str, Any]) -> ScheduleEdit | str:
+def _parse_edit_rule(
+    arguments: Mapping[str, Any], now: datetime, zone: DisplayZone
+) -> RuleChange | None | str:
+    """An edit's calendar rule: a ``RuleChange``, ``None`` when absent, or a correction."""
+    if arguments.get("at_time") is None:
+        return DAYS_NEED_AT_TIME if arguments.get("on_days") is not None else None
+    if arguments.get("every_seconds") is not None:
+        return _EDIT_EVERY_WITH_AT_TIME
+    wall = parse_at_time(arguments.get("at_time"))
+    if isinstance(wall, str):
+        return wall
+    days = parse_on_days(arguments.get("on_days"))
+    if isinstance(days, str):
+        return days
+    hour, minute = wall
+    rule = CalendarRule(hour=hour, minute=minute, days=days)
+    due_at = next_calendar_due(rule, now, zone)
+    if due_at is None:
+        return UNSCHEDULABLE_RULE
+    return RuleChange(rule=rule, due_at=due_at)
+
+
+def parse_edit(
+    arguments: Mapping[str, Any], *, now: datetime, zone: DisplayZone = UTC_DISPLAY
+) -> ScheduleEdit | str:
     """Validate one ``edit_scheduled`` call's changes; return a ScheduleEdit or a correction."""
     text = arguments.get("text")
     if text is not None and (not isinstance(text, str) or not text.strip()):
         return BAD_TEXT
+    new_text = text if isinstance(text, str) else None
+    rule = _parse_edit_rule(arguments, now, zone)
+    if isinstance(rule, str):
+        return rule
+    if rule is not None:
+        return ScheduleEdit(text=new_text, rule=rule)
     every = _parse_edit_every(arguments)
     if isinstance(every, str):
         return every
     set_every, interval = every
-    new_text = text if isinstance(text, str) else None
     if new_text is None and not set_every:
         return _EDIT_NO_CHANGE
     return ScheduleEdit(text=new_text, every=interval, set_every=set_every)

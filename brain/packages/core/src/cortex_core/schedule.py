@@ -1,6 +1,6 @@
 """Schedule value types + the pure recurrence math (ADR-0025): durable, swap-safe time."""
 
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 from enum import Enum
 
@@ -23,7 +23,7 @@ class ScheduleStatus(Enum):
     DONE = "done"
 
 
-def _require_aware(name: str, value: datetime) -> None:
+def require_aware(name: str, value: datetime) -> None:
     if value.tzinfo is None or value.tzinfo.utcoffset(value) is None:
         msg = f"{name} must be timezone-aware"
         raise ValueError(msg)
@@ -49,12 +49,12 @@ class ScheduledItem:
     last_outcome: str | None = None
 
     def __post_init__(self) -> None:
-        _require_aware("ScheduledItem.due_at", self.due_at)
-        _require_aware("ScheduledItem.created_at", self.created_at)
+        require_aware("ScheduledItem.due_at", self.due_at)
+        require_aware("ScheduledItem.created_at", self.created_at)
         if self.deliverable_since is not None:
-            _require_aware("ScheduledItem.deliverable_since", self.deliverable_since)
+            require_aware("ScheduledItem.deliverable_since", self.deliverable_since)
         if self.anchor is not None:
-            _require_aware("ScheduledItem.anchor", self.anchor)
+            require_aware("ScheduledItem.anchor", self.anchor)
         if self.every is not None and self.every <= timedelta(0):
             msg = "ScheduledItem.every must be a positive interval"
             raise ValueError(msg)
@@ -86,50 +86,9 @@ class FireOutcome:
     tainted: bool = False
 
     def __post_init__(self) -> None:
-        _require_aware("FireOutcome.fired_at", self.fired_at)
+        require_aware("FireOutcome.fired_at", self.fired_at)
         if self.next_due is not None:
-            _require_aware("FireOutcome.next_due", self.next_due)
-
-
-@dataclass(frozen=True, slots=True)
-class ScheduleEdit:
-    """A validated in-place change to a stored schedule: new text and/or recurrence (edit addendum).
-    """
-
-    text: str | None = None
-    every: timedelta | None = None
-    set_every: bool = False
-    tainted: bool = False
-
-    def __post_init__(self) -> None:
-        if self.every is not None and self.every <= timedelta(0):
-            msg = "ScheduleEdit.every must be a positive interval"
-            raise ValueError(msg)
-
-
-def apply_edit(item: ScheduledItem, edit: ScheduleEdit) -> ScheduledItem:
-    """Return ``item`` with ``edit`` applied: new text/recurrence, taint OR'd, timing kept."""
-    return replace(
-        item,
-        text=edit.text if edit.text is not None else item.text,
-        every=edit.every if edit.set_every else item.every,
-        rule=None if edit.set_every else item.rule,
-        tainted=item.tainted or edit.tainted,
-    )
-
-
-def apply_snooze(item: ScheduledItem, until: datetime) -> ScheduledItem:
-    """Return ``item`` postponed to ``until``: PENDING, off the deliverable index, grid kept."""
-    anchor = item.anchor
-    if item.every is not None and anchor is None:
-        anchor = item.due_at
-    return replace(
-        item,
-        status=ScheduleStatus.PENDING,
-        due_at=until,
-        deliverable_since=None,
-        anchor=anchor,
-    )
+            require_aware("FireOutcome.next_due", self.next_due)
 
 
 def recurrence_base(item: ScheduledItem) -> datetime:

@@ -71,7 +71,7 @@ def build_schedule_tools(
         ListScheduledTool(schedules, zone=zone),
         CancelScheduledTool(schedules),
         SnoozeScheduledTool(schedules, clock, zone=zone),
-        EditScheduledTool(schedules),
+        EditScheduledTool(schedules, clock, zone=zone),
     ]
 
 
