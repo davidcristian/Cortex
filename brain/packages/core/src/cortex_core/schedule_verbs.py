@@ -13,12 +13,13 @@ become ``is_error`` results, never exceptions.
 """
 
 from dataclasses import replace
-from datetime import UTC, datetime
+from datetime import datetime
 
 from cortex_core.errors import ScheduleStoreError
 from cortex_core.ports import Clock, ScheduleStore
 from cortex_core.schedule import ScheduleEdit, ScheduleKind, ScheduleStatus
 from cortex_core.schedule_args import MIN_EVERY_SECONDS, parse_edit, parse_for_seconds
+from cortex_core.schedule_time import UTC_DISPLAY, DisplayZone
 from cortex_core.tools import ToolCall, ToolResult, ToolSpec, Trust
 
 CANCEL_SCHEDULED_TOOL_NAME = "cancel_scheduled"
@@ -42,11 +43,6 @@ def store_down_result(call_id: str, err: ScheduleStoreError) -> ToolResult:
 def error_result(call_id: str, message: str) -> ToolResult:
     """A trusted correction the model can act on (shared with ``schedule_tools``)."""
     return ToolResult(call_id=call_id, content=message, is_error=True, trust=Trust.TRUSTED)
-
-
-def utc_str(moment: datetime) -> str:
-    """One canonical UTC rendering for specs and results (shared with ``schedule_tools``)."""
-    return moment.astimezone(UTC).isoformat(timespec="seconds")
 
 
 class CancelScheduledTool:
@@ -91,9 +87,12 @@ class SnoozeScheduledTool:
     the whole series. Only a FIRING item is refused (the in-flight fire settles first).
     """
 
-    def __init__(self, store: ScheduleStore, clock: Clock) -> None:
+    def __init__(
+        self, store: ScheduleStore, clock: Clock, *, zone: DisplayZone = UTC_DISPLAY
+    ) -> None:
         self._store = store
         self._clock = clock
+        self._zone = zone
 
     @property
     def spec(self) -> ToolSpec:
@@ -135,7 +134,7 @@ class SnoozeScheduledTool:
             return store_down_result(call.id, err)
         if correction is not None:
             return error_result(call.id, correction)
-        content = f"snoozed {item_id}: now due {utc_str(until)}"
+        content = f"snoozed {item_id}: now due {self._zone.render(until)}"
         return ToolResult(call_id=call.id, content=content, trust=Trust.TRUSTED)
 
     async def _snooze(self, item_id: str, until: datetime) -> str | None:

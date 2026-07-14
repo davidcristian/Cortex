@@ -24,7 +24,8 @@ from cortex_core.errors import ScheduleStoreError
 from cortex_core.ports import Clock, ScheduleStore
 from cortex_core.schedule import ScheduledItem, ScheduleKind, ScheduleStatus
 from cortex_core.schedule_args import MIN_EVERY_SECONDS, parse_schedule
-from cortex_core.schedule_verbs import error_result, store_down_result, utc_str
+from cortex_core.schedule_time import UTC_DISPLAY, DisplayZone
+from cortex_core.schedule_verbs import error_result, store_down_result
 from cortex_core.tools import ToolCall, ToolResult, ToolSpec, Trust
 
 SCHEDULE_TOOL_NAME = "schedule_task"
@@ -51,17 +52,19 @@ class ScheduleTaskTool:
         *,
         tasks_enabled: bool,
         max_active: int,
+        zone: DisplayZone = UTC_DISPLAY,
         item_id_factory: Callable[[], str] = _uuid4_id,
     ) -> None:
         self._store = store
         self._clock = clock
         self._tasks_enabled = tasks_enabled
         self._max_active = max_active
+        self._zone = zone
         self._item_id_factory = item_id_factory
 
     @property
     def spec(self) -> ToolSpec:
-        """Rebuilt per walk: carries the current UTC time and is honest about task wiring."""
+        """Rebuilt per walk: carries the current local time and is honest about task wiring."""
         what = "a reminder to deliver to the user"
         kinds = [ScheduleKind.REMINDER.value]
         properties: dict[str, Any] = {
@@ -73,7 +76,8 @@ class ScheduleTaskTool:
             "at": {
                 "type": "string",
                 "description": (
-                    "Absolute due time, ISO-8601 with a UTC offset, e.g. 2026-07-12T18:00:00+00:00."
+                    "Absolute due time, ISO-8601, e.g. 2026-07-12T18:00:00. An explicit offset "
+                    f"is honored; without one it is read as {self._zone.name} local time."
                 ),
             },
             "in_seconds": {
@@ -99,8 +103,9 @@ class ScheduleTaskTool:
             name=SCHEDULE_TOOL_NAME,
             description=(
                 f"Schedule {what} for later; it fires even after a restart. "
-                f"The current UTC date-time is {utc_str(self._clock.now())}. "
-                "Provide 'at' (ISO-8601 with offset) or 'in_seconds' (delay from now); "
+                f"The current date-time is {self._zone.render(self._clock.now())} "
+                f"({self._zone.name}). "
+                "Provide 'at' (ISO-8601) or 'in_seconds' (delay from now); "
                 "add 'every_seconds' to recur."
             ),
             parameters={"type": "object", "properties": properties, "required": ["kind", "text"]},
@@ -114,7 +119,9 @@ class ScheduleTaskTool:
         reaches a human (badged) and never an autonomous task (ADR-0025 decision 3).
         """
         now = self._clock.now()
-        parsed = parse_schedule(call.arguments, now=now, tasks_enabled=self._tasks_enabled)
+        parsed = parse_schedule(
+            call.arguments, now=now, tasks_enabled=self._tasks_enabled, zone=self._zone
+        )
         if isinstance(parsed, str):
             return error_result(call.id, parsed)
         if parsed.kind is ScheduleKind.TASK and call.stamp.tainted:
@@ -145,19 +152,20 @@ class ScheduleTaskTool:
             f", recurring every {int(parsed.every.total_seconds())}s" if parsed.every else ""
         )
         content = (
-            f"scheduled {parsed.kind.value} {item.id}: due {utc_str(parsed.due_at)}{recurring}"
+            f"scheduled {parsed.kind.value} {item.id}: "
+            f"due {self._zone.render(parsed.due_at)}{recurring}"
         )
         return ToolResult(call_id=call.id, content=content, trust=Trust.TRUSTED)
 
 
-def _describe(item: ScheduledItem) -> str:
+def _describe(item: ScheduledItem, zone: DisplayZone) -> str:
     """One listing line per item; the stored text rides at the end, provenance marked."""
     recurring = f", every {int(item.every.total_seconds())}s" if item.every else ""
     fired = ", fired awaiting delivery" if item.deliverable_since is not None else ""
     firing = ", firing now" if item.status is ScheduleStatus.FIRING else ""
     tainted = ", from untrusted content" if item.tainted else ""
     marks = f"{recurring}{firing}{fired}{tainted}"
-    line = f"[{item.id}] {item.kind.value} due {utc_str(item.due_at)}{marks}: {item.text}"
+    line = f"[{item.id}] {item.kind.value} due {zone.render(item.due_at)}{marks}: {item.text}"
     if item.last_outcome is not None:
         line += f"\n    last outcome: {item.last_outcome}"
     return line
@@ -166,8 +174,9 @@ def _describe(item: ScheduledItem) -> str:
 class ListScheduledTool:
     """Built-in ``list_scheduled``: the active schedules, ids included for cancelling."""
 
-    def __init__(self, store: ScheduleStore) -> None:
+    def __init__(self, store: ScheduleStore, *, zone: DisplayZone = UTC_DISPLAY) -> None:
         self._store = store
+        self._zone = zone
 
     @property
     def spec(self) -> ToolSpec:
@@ -175,8 +184,8 @@ class ListScheduledTool:
         return ToolSpec(
             name=LIST_SCHEDULED_TOOL_NAME,
             description=(
-                "List the active scheduled reminders and tasks: id, kind, due time (UTC), "
-                "recurrence, and status. Use the id with cancel_scheduled."
+                "List the active scheduled reminders and tasks: id, kind, due time "
+                f"({self._zone.name}), recurrence, and status. Use the id with cancel_scheduled."
             ),
             parameters={"type": "object", "properties": {}},
         )
@@ -195,5 +204,7 @@ class ListScheduledTool:
             return ToolResult(call_id=call.id, content="no scheduled items", trust=Trust.TRUSTED)
         trust = Trust.UNTRUSTED if any(item.tainted for item in items) else Trust.TRUSTED
         return ToolResult(
-            call_id=call.id, content="\n".join(_describe(item) for item in items), trust=trust
+            call_id=call.id,
+            content="\n".join(_describe(item, self._zone) for item in items),
+            trust=trust,
         )

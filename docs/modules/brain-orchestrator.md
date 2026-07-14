@@ -97,7 +97,12 @@ Config (pydantic-settings; explicit constructor arguments beat the environment):
   interval), `lease_s: float = 300.0` (how long a claimed fire may run before it is
   re-claimable, so keep it above the slowest expected task), `claim_limit: int = 8` (one pass's
   batch cap), `max_active: int = 32` (the `schedule_task` creation bound). All positive,
-  validated. The store dials `CORTEX_REDIS_URL` (BrainRuntimeConfig), with no second URL knob.
+  validated. `tz: str = "UTC"` is the IANA key model-facing schedule times render in
+  (ADR-0025 display addendum), field-validated at boot so a typo fails the process rather than
+  the first listing; `display_zone()` resolves it to the core's `DisplayZone` for
+  `build_schedule_tools` to thread into `schedule_task` / `list_scheduled` /
+  `snooze_scheduled`. `"UTC"` short-circuits to `UTC_DISPLAY` without touching the tz database.
+  The store dials `CORTEX_REDIS_URL` (BrainRuntimeConfig), with no second URL knob.
 
 The service:
 

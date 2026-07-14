@@ -658,3 +658,69 @@ succeeds and pins the grid), and a ticker test proving the re-arm follows the an
 backend. Remaining deferred (unchanged): local-time/cron recurrence and the occurrence-history
 table stay on the list; the anchor field is now the natural home for any future per-occurrence
 override.
+
+## Addendum (2026-07-14): a display timezone for model-facing schedule times
+
+v1 rendered every model-facing datetime as ISO-8601 UTC, so a reminder came back as
+`due 2026-07-22T18:00:00+00:00` to a user who thinks in local wall time. The deferral list
+carried this as "local-time / cron recurrence and a display-timezone knob"; the **display half
+lands here**, the recurrence half stays deferred (see the last decision). Decisions:
+
+- **`DisplayZone` is a pure core value; the IANA lookup lives at the composition root.**
+  `cortex_core/schedule_time.py` holds a frozen `DisplayZone(name: str, tz: tzinfo)` with
+  `render(moment)` (the one canonical rendering, replacing the module-level `utc_str` that
+  `schedule_verbs.py` shared) and `resolve(naive)` (the fold policy below). The core imports
+  `tzinfo` from `datetime` and **never `zoneinfo`**: resolving a name to a concrete zone reads
+  the system tz database, which is exactly the impure edge step adapters own. `UTC_DISPLAY` is
+  the default value, so the v1 contract is what an unconfigured deployment still gets.
+- **`CORTEX_SCHEDULE_TZ` is validated at boot, not at first render.** `ScheduleConfig.tz`
+  (default `"UTC"`) is field-validated by resolving it through `zoneinfo`, so a typo like
+  `Europe/Bucarest` fails the process at startup with the bad key named, rather than surviving
+  as a latent error that only fires when the model first asks for a listing. The builder
+  resolves the same validated name into the `DisplayZone` it threads into the three rendering
+  built-ins (`schedule_task`, `list_scheduled`, `snooze_scheduled`).
+- **The knob is passed through `docker-compose.yml`.** An env knob the container never receives
+  is inert while every test stays green, which is the failure mode that has bitten sibling
+  entries on this list. `CORTEX_SCHEDULE_TZ` joins the brain service's environment, and the
+  runtime image was checked to carry a tz database (`python:3.12-slim-trixie` resolves 486
+  zones), since `ZoneInfo` on a tzdata-less image would fail every non-UTC key.
+- **The two hardcoded `(UTC)` spec strings become the configured zone.** Both strings the model
+  reads are rebuilt per `describe_tools` walk: `schedule_task` advertises "the current date-time
+  is `<rendered>` (`<zone name>`)" and `list_scheduled` advertises "due time (`<zone name>`)".
+  Leaving these as literal `UTC` while the values rendered local would have been worse than no
+  knob at all: the model would have read correct numbers under a false label.
+- **The fold policy: a naive `at` now means display-zone wall time.** This is a **deliberate
+  behavior change**. `_parse_at` rejected an offset-less `at` (`_NAIVE_AT`), correctly, because
+  under a UTC-only render there was no defensible reading of a bare wall time. Once the model is
+  shown local times it will write local times back, and a rejection costs a correction round trip
+  the model may not recover from. So a naive `at` is now attached to the display zone, which is
+  by construction the user's zone. `fold=0` resolves the two irregular cases deterministically:
+  an ambiguous wall time (the hour repeated at a fall-back transition) takes the **earlier**
+  offset, and a nonexistent one (the hour skipped at a spring-forward transition) is read with
+  the **pre-transition** offset, landing just past the gap. An `at` that *does* carry an offset is
+  honored exactly as before, so the model can always be explicit.
+- **Both sides normalize to the instant, which implementation proved is not a no-op.**
+  `resolve` returns the resolved wall time converted to UTC, and `render` hops through UTC before
+  converting into the display zone. The second one looks redundant and is not: `datetime.astimezone`
+  returns `self` unchanged when the input already carries the target zone, so rendering a
+  freshly-resolved gap time printed `03:30+02:00`, a wall time that **never occurs**, while the
+  same instant read back from the store (UTC in the record) printed the canonical `04:30+03:00`.
+  The creation confirmation and a later `list_scheduled` would have disagreed about one item. With
+  both normalizations one instant renders one way everywhere, and the store keeps receiving plain
+  UTC instants exactly as it did before.
+- **Recurrence is untouched, and DST-aware recurrence stays deferred for a stated reason.**
+  Rendering is display-only: `ScheduledItem.due_at`/`anchor` remain UTC instants, the store,
+  the codec, the fenced transitions and the ticker's grid arithmetic are all unchanged, and
+  no migration exists because no record changed. The remaining half of the original entry is
+  **not** the small change that entry implied: "daily at 09:00 local" cannot ride
+  `ScheduledItem.every`, because `every` is a `timedelta` while a DST day is 23 or 25 hours
+  long, so a fixed interval drifts off the wall clock exactly when a user would notice. That
+  needs a new recurrence *shape* (a calendar rule beside the interval), not a knob, and it stays
+  deferred with the cost recorded honestly.
+
+CI-gated at 100% over the fakes: the renderer and the fold policy (including both DST
+irregularities, against a real `ZoneInfo`), the config validator (good key, bad key, default),
+the builder threading the configured zone into all three tools, and the tool-level assertions
+that the spec strings and every rendered due time carry the configured zone. The default path
+(`UTC`) keeps its existing assertions unchanged, which is the regression check that the knob is
+additive.
