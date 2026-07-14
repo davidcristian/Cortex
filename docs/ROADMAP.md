@@ -1288,9 +1288,29 @@ behind the unchanged `ScheduleStore`/`BodyGateway`/seam shapes.
   gaining the stamp when an audit consumer wants per-session queries.
 - **The Postgres durable twin** behind the unchanged port, when per-provenance queries or
   retention policies earn it (Redis AOF on a named volume is the sessions-grade v1 tier).
-- **Local-time / cron recurrence and a display-timezone knob.** v1 is UTC end-to-end with
-  fixed intervals; DST-aware daily/weekly and cron strings land behind the same `every`
-  field; `list_scheduled` renders ISO-8601 UTC until a `CORTEX_SCHEDULE_TZ` exists.
+- **The display-timezone knob landed 2026-07-14 ([ADR-0025 display
+  addendum](adr/ADR-0025-scheduling-reminders.md)).** `CORTEX_SCHEDULE_TZ` (an IANA key,
+  default `UTC`, passed through by `docker/docker-compose.yml` so it is not inert in the
+  container) is the zone `schedule_task` / `list_scheduled` / `snooze_scheduled` render in and
+  the zone an offset-less `at` is read as. A pure `DisplayZone(name, tz)` in the core carries
+  `render` + `resolve`; the IANA lookup stays at the composition root, so the core never
+  imports `zoneinfo`, and an unknown key fails the process at **boot** rather than at the first
+  listing. The two hardcoded `(UTC)` spec strings now name the configured zone, since correct
+  numbers under a false label would be worse than no knob. Two things implementation corrected
+  in this entry's own framing: reading a naive `at` as zone-local is a **deliberate behavior
+  change** (v1 rejected it, which was right only while everything rendered UTC), and rendering
+  needed a normalization hop through UTC, because `astimezone` returns `self` when the input
+  already carries the target zone and so printed a *nonexistent* wall time for a spring-forward
+  gap while the same instant read back from the store printed the canonical one. Display only:
+  stored `due_at`/`anchor` stay UTC instants, no record or codec changed, no migration.
+  Remaining:
+- **Local-time / cron recurrence.** The other half, and **not** the small change this entry
+  once implied. "Daily at 09:00 local" cannot ride `ScheduledItem.every`: `every` is a
+  `timedelta` while a DST day is 23 or 25 hours, so a fixed interval drifts off the wall clock
+  exactly when a user notices. It needs a new recurrence *shape* (a calendar rule beside the
+  interval) reaching the store, the codec, and the ticker's grid arithmetic, plus a policy for
+  an occurrence that falls in a DST gap. The `anchor` field is the natural home for the grid
+  origin it would need.
 - **Occurrence history.** Coalesced single-slot deliverability keeps no per-fire records,
   and terminal cleanup deletes a one-shot task's outcome with its record; a history table
   would also cover unseen-toast recovery.

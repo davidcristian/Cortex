@@ -13,12 +13,15 @@ from cortex_core import (
     PlacementRequest,
     PlacementTarget,
     ResourceBudgetScheduler,
+    ScheduledItem,
+    ScheduleKind,
     SpawnSubagentsTool,
     SubagentProfile,
     SubagentResources,
     SubagentRoster,
     SubagentRunner,
     SystemClock,
+    ToolCall,
     VramBudgetPlacer,
 )
 from cortex_orchestrator import (
@@ -194,3 +197,31 @@ async def test_log_ticker_death_covers_each_ending() -> None:
     cancelled.cancel()
     await asyncio.gather(cancelled, return_exceptions=True)
     _log_ticker_death(cancelled)  # cancelled: not a death, nothing logged
+
+
+async def test_the_configured_zone_reaches_every_rendering_builtin() -> None:
+    """CORTEX_SCHEDULE_TZ is inert unless the builder threads it, so assert all three."""
+    store = InMemoryScheduleStore()
+    await store.add(
+        ScheduledItem(
+            id="item-1",
+            kind=ScheduleKind.REMINDER,
+            text="tea",
+            session_id="",
+            due_at=_NOW + timedelta(minutes=5),
+            created_at=_NOW,
+        )
+    )
+    tools = build_schedule_tools(
+        ScheduleConfig(tz="Europe/Bucharest"), store, FixedClock(), tasks_enabled=True
+    )
+    specs = {tool.spec.name: tool.spec for tool in tools}
+    invoke = {tool.spec.name: tool.invoke for tool in tools}
+    assert "(Europe/Bucharest)" in specs["schedule_task"].description
+    assert "due time (Europe/Bucharest)" in specs["list_scheduled"].description
+    listed = await invoke["list_scheduled"](ToolCall(id="c1", name="list_scheduled", arguments={}))
+    assert "due 2026-07-12T15:05:00+03:00" in listed.content
+    snoozed = await invoke["snooze_scheduled"](
+        ToolCall(id="c2", name="snooze_scheduled", arguments={"id": "item-1", "for_seconds": 3600})
+    )
+    assert "now due 2026-07-12T16:00:00+03:00" in snoozed.content

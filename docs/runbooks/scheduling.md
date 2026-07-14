@@ -27,7 +27,29 @@ class the one hard rule already trusts. Knobs (all `CORTEX_SCHEDULE_*`): `POLL_S
 interval, default 5), `LEASE_S` (default 300, to be **kept above the slowest expected task
 fire**: a task outrunning its lease is re-claimed and runs twice, the documented
 at-least-once trade), `CLAIM_LIMIT` (batch cap per pass, default 8), `MAX_ACTIVE`
-(the `schedule_task` creation bound, default 32).
+(the `schedule_task` creation bound, default 32), `TZ` (the IANA zone model-facing times
+render in, default `UTC`).
+
+### Display timezone
+
+`CORTEX_SCHEDULE_TZ` (an IANA key such as `Europe/Bucharest`, passed through by the base
+compose file) sets the zone `schedule_task`, `list_scheduled`, and `snooze_scheduled` render
+in, and the zone an `at` without an offset is read as. It is **display only**: stored due
+times stay UTC instants, so changing the knob re-renders existing items and moves nothing.
+
+```
+CORTEX_SCHEDULE_BACKEND=redis CORTEX_SCHEDULE_TZ=Europe/Bucharest docker compose \
+  --project-directory . -f docker/docker-compose.yml up -d --build
+```
+
+An unknown key **fails the brain at startup** (a `ValidationError` naming it), by design: a
+silent fallback would render every time in the wrong zone. Check `docker compose logs brain`
+for `unknown timezone` if the container will not come up after changing it. An `at` that
+carries an explicit offset is always honored; a bare wall time reads as this zone, and the two
+DST irregularities resolve with `fold=0` (an ambiguous hour takes the earlier offset, a
+skipped one lands just past the gap). Recurrence is unaffected and stays a fixed interval, so
+a repeat spanning a DST transition keeps its interval rather than its wall-clock hour; the
+calendar-rule recurrence that would fix that is still deferred (see the ROADMAP).
 
 With subagents wired (`CORTEX_SUBAGENTS_BACKEND=llamacpp`) the tool also offers
 `kind: "task"`, which is an autonomous subagent run per fire, dispatched through the ticker's own

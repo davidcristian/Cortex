@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 from typing import Any
 
 from cortex_core.schedule import ScheduleEdit, ScheduleKind
+from cortex_core.schedule_time import UTC_DISPLAY, DisplayZone
 
 MIN_EVERY_SECONDS = 60
 # Ten years: nothing a personal reminder needs recurs slower, and the bound keeps every
@@ -16,9 +17,8 @@ MAX_EVERY_SECONDS = 315_360_000
 _BAD_KIND = '\'kind\' must be "reminder" or "task"'
 _TASKS_NOT_WIRED = "this deployment schedules reminders only; 'kind': \"task\" is not available"
 _BAD_TEXT = "'text' must be a non-empty string"
-_ONE_WHEN = "provide exactly one of 'at' (ISO-8601 with offset) or 'in_seconds'"
-_BAD_AT = "'at' must be an ISO-8601 date-time, e.g. 2026-07-12T18:00:00+00:00"
-_NAIVE_AT = "'at' must include a UTC offset, e.g. 2026-07-12T18:00:00+00:00"
+_ONE_WHEN = "provide exactly one of 'at' (ISO-8601) or 'in_seconds'"
+_BAD_AT = "'at' must be an ISO-8601 date-time, e.g. 2026-07-12T18:00:00"
 _BAD_IN_SECONDS = "'in_seconds' must be a positive number of seconds"
 _BAD_EVERY = f"'every_seconds' must be a number between {MIN_EVERY_SECONDS} and {MAX_EVERY_SECONDS}"
 _BAD_FOR = f"'for_seconds' must be a number between {MIN_EVERY_SECONDS} and {MAX_EVERY_SECONDS}"
@@ -62,8 +62,8 @@ def _parse_number(value: object) -> float | None:
         return None
 
 
-def _parse_at(at: object) -> datetime | str:
-    """An ISO-8601 instant carrying its UTC offset, or a correction string."""
+def _parse_at(at: object, zone: DisplayZone) -> datetime | str:
+    """An ISO-8601 instant, or a correction string; an offset-less one reads as zone-local."""
     if not isinstance(at, str):
         return _BAD_AT
     try:
@@ -71,7 +71,7 @@ def _parse_at(at: object) -> datetime | str:
     except ValueError:
         return _BAD_AT
     if parsed.tzinfo is None or parsed.tzinfo.utcoffset(parsed) is None:
-        return _NAIVE_AT
+        return zone.resolve(parsed.replace(tzinfo=None))
     return parsed
 
 
@@ -87,14 +87,14 @@ def _delay_from(now: datetime, in_seconds: object) -> datetime | str:
         return _BAD_IN_SECONDS
 
 
-def _parse_due_at(arguments: Mapping[str, Any], now: datetime) -> datetime | str:
+def _parse_due_at(arguments: Mapping[str, Any], now: datetime, zone: DisplayZone) -> datetime | str:
     """Exactly one of ``at``/``in_seconds``; both are validated, never raising."""
     at = arguments.get("at")
     in_seconds = arguments.get("in_seconds")
     if (at is None) == (in_seconds is None):
         return _ONE_WHEN
     if at is not None:
-        return _parse_at(at)
+        return _parse_at(at, zone)
     return _delay_from(now, in_seconds)
 
 
@@ -166,7 +166,11 @@ def parse_edit(arguments: Mapping[str, Any]) -> ScheduleEdit | str:
 
 
 def parse_schedule(
-    arguments: Mapping[str, Any], *, now: datetime, tasks_enabled: bool
+    arguments: Mapping[str, Any],
+    *,
+    now: datetime,
+    tasks_enabled: bool,
+    zone: DisplayZone = UTC_DISPLAY,
 ) -> ParsedSchedule | str:
     """Validate one ``schedule_task`` call; return the parsed request or a correction string."""
     kind = _parse_kind(arguments, tasks_enabled=tasks_enabled)
@@ -175,7 +179,7 @@ def parse_schedule(
     text_and_model = _parse_text_and_model(arguments, kind)
     if isinstance(text_and_model, str):
         return text_and_model
-    due_at = _parse_due_at(arguments, now)
+    due_at = _parse_due_at(arguments, now, zone)
     if isinstance(due_at, str):
         return due_at
     every = _parse_every(arguments)

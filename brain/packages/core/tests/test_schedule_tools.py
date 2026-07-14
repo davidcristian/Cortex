@@ -127,8 +127,9 @@ async def test_spec_is_rebuilt_per_walk_with_the_live_clock() -> None:
     first = await described()
     second = await described()
     assert first != second  # each walk re-read the clock; nothing cached the spec
-    assert "The current UTC date-time is 2026-07-12T12:0" in first
-    assert "The current UTC date-time is 2026-07-12T12:0" in second
+    assert "The current date-time is 2026-07-12T12:0" in first
+    assert "The current date-time is 2026-07-12T12:0" in second
+    assert "(UTC)" in first  # the default zone is named, not assumed
 
 
 def test_spec_advertises_tasks_and_model_only_when_wired() -> None:
@@ -294,7 +295,6 @@ async def test_the_active_items_cap_bounds_creation() -> None:
         ),
         ({"kind": "reminder", "text": "x", "at": 5}, "'at' must be an ISO-8601"),
         ({"kind": "reminder", "text": "x", "at": "tomorrowish"}, "'at' must be an ISO-8601"),
-        ({"kind": "reminder", "text": "x", "at": "2026-07-12T18:00:00"}, "UTC offset"),
         ({"kind": "reminder", "text": "x", "in_seconds": True}, "'in_seconds' must be"),
         ({"kind": "reminder", "text": "x", "in_seconds": "60"}, "'in_seconds' must be"),
         ({"kind": "reminder", "text": "x", "in_seconds": 0}, "'in_seconds' must be"),

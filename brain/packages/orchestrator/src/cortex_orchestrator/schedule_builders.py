@@ -59,13 +59,18 @@ def build_schedule_tools(
     """The five cortex-only built-ins, or nothing when scheduling is off (ADR-0025)."""
     if schedules is None:
         return []
+    zone = config.display_zone()
     return [
         ScheduleTaskTool(
-            schedules, clock, tasks_enabled=tasks_enabled, max_active=config.max_active
+            schedules,
+            clock,
+            tasks_enabled=tasks_enabled,
+            max_active=config.max_active,
+            zone=zone,
         ),
-        ListScheduledTool(schedules),
+        ListScheduledTool(schedules, zone=zone),
         CancelScheduledTool(schedules),
-        SnoozeScheduledTool(schedules, clock),
+        SnoozeScheduledTool(schedules, clock, zone=zone),
         EditScheduledTool(schedules),
     ]
 
