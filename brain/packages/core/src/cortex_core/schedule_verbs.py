@@ -18,8 +18,9 @@ from datetime import datetime
 from cortex_core.errors import ScheduleStoreError
 from cortex_core.ports import Clock, ScheduleStore
 from cortex_core.schedule import ScheduleEdit, ScheduleKind, ScheduleStatus
-from cortex_core.schedule_args import MIN_EVERY_SECONDS, parse_edit, parse_for_seconds
+from cortex_core.schedule_args import MIN_EVERY_SECONDS
 from cortex_core.schedule_time import UTC_DISPLAY, DisplayZone
+from cortex_core.schedule_verb_args import parse_edit, parse_for_seconds
 from cortex_core.tools import ToolCall, ToolResult, ToolSpec, Trust
 
 CANCEL_SCHEDULED_TOOL_NAME = "cancel_scheduled"

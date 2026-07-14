@@ -108,7 +108,12 @@ from cortex_core.schedule import ScheduleStatus as ScheduleStatus
 from cortex_core.schedule import apply_edit as apply_edit
 from cortex_core.schedule import apply_snooze as apply_snooze
 from cortex_core.schedule import next_due as next_due
+from cortex_core.schedule import next_occurrence as next_occurrence
 from cortex_core.schedule import recurrence_base as recurrence_base
+from cortex_core.schedule_calendar import DAY_NAMES as DAY_NAMES
+from cortex_core.schedule_calendar import EVERY_DAY as EVERY_DAY
+from cortex_core.schedule_calendar import CalendarRule as CalendarRule
+from cortex_core.schedule_calendar import next_calendar_due as next_calendar_due
 from cortex_core.schedule_time import UTC_DISPLAY as UTC_DISPLAY
 from cortex_core.schedule_time import UTC_ZONE_NAME as UTC_ZONE_NAME
 from cortex_core.schedule_time import DisplayZone as DisplayZone

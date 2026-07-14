@@ -6,10 +6,12 @@ The fenced claim→finish protocol is the point of this suite: stale finishes ar
 cancel sticks through an in-flight fire, terminal items are cleaned up, taint ORs forward.
 """
 
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta, timezone
 from uuid import uuid4
 
 from cortex_core import (
+    CalendarRule,
     FireOutcome,
     ScheduledItem,
     ScheduleEdit,
@@ -377,6 +379,39 @@ async def check_snooze_preserves_a_recurring_grid(store: ScheduleStore) -> None:
     assert claim.item.id == item.id
 
 
+async def check_a_calendar_rule_round_trips_and_needs_no_anchor(store: ScheduleStore) -> None:
+    """A wall-clock rule survives the store, and a snooze leaves it self-anchoring.
+
+    The Redis leg exercises the codec's additive ``rule`` key end to end (encode, store,
+    decode). Unlike an interval item, a snoozed calendar item takes NO anchor: its rule is
+    the recurrence grid, so nothing has to be pinned for the series to recover.
+    """
+    rule = CalendarRule(hour=9, minute=0, days=frozenset({0, 4}))
+    item = replace(make_item(_item_id()), rule=rule)
+    await store.add(item)
+    loaded = await store.get(item.id)
+    assert loaded is not None
+    assert loaded.rule == rule
+    assert loaded.every is None
+    until = _NOW + timedelta(minutes=30)
+    assert await store.snooze(item.id, until=until) is True
+    snoozed = await store.get(item.id)
+    assert snoozed is not None
+    assert snoozed.rule == rule
+    assert snoozed.anchor is None
+
+
+async def check_edit_replaces_a_calendar_rule_with_an_interval(store: ScheduleStore) -> None:
+    """One recurrence shape per item: setting an interval drops the rule in both stores."""
+    item = replace(make_item(_item_id()), rule=CalendarRule(hour=9, minute=0))
+    await store.add(item)
+    assert await store.edit(item.id, ScheduleEdit(every=timedelta(hours=2), set_every=True)) is True
+    loaded = await store.get(item.id)
+    assert loaded is not None
+    assert loaded.every == timedelta(hours=2)
+    assert loaded.rule is None
+
+
 async def check_snooze_refuses_firing_and_unknown(store: ScheduleStore) -> None:
     """A claimed (FIRING) item and an unknown id both answer False, state untouched."""
     assert await store.snooze(_item_id(), until=_NOW + timedelta(minutes=5)) is False
@@ -499,6 +534,8 @@ ALL_CHECKS = (
     check_snooze_moves_a_pending_one_shot,
     check_snooze_rearms_a_deliverable_reminder,
     check_snooze_preserves_a_recurring_grid,
+    check_a_calendar_rule_round_trips_and_needs_no_anchor,
+    check_edit_replaces_a_calendar_rule_with_an_interval,
     check_snooze_refuses_firing_and_unknown,
     check_snooze_then_cancel_still_sticks,
     check_edit_retexts_a_pending_item,

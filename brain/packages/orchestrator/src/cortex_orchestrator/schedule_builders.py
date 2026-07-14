@@ -128,6 +128,10 @@ def build_ticker(
         poll_s=config.poll_s,
         lease=timedelta(seconds=config.lease_s),
         claim_limit=config.claim_limit,
+        # The same configured zone the rendering built-ins get: a calendar item's re-arm is
+        # wall-clock arithmetic, so creating and firing must read one zone or a rule would
+        # fire somewhere other than where it was scheduled (ADR-0025 calendar addendum).
+        zone=config.display_zone(),
     )
     return ScheduleTicker(schedules, clock, settings, spawn=spawn, body=body)
 

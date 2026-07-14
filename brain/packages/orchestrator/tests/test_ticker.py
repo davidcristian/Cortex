@@ -4,10 +4,13 @@
 import asyncio
 from collections.abc import Sequence
 from datetime import UTC, datetime, timedelta
+from zoneinfo import ZoneInfo
 
 from cortex_core import (
     BodyGatewayError,
+    CalendarRule,
     CompositeToolRegistry,
+    DisplayZone,
     FireOutcome,
     InMemoryBodyGateway,
     InMemoryScheduleStore,
@@ -75,6 +78,7 @@ def _item(
     *,
     kind: ScheduleKind = ScheduleKind.REMINDER,
     every: timedelta | None = None,
+    rule: CalendarRule | None = None,
     model: str = "",
     tainted: bool = False,
 ) -> ScheduledItem:
@@ -86,6 +90,7 @@ def _item(
         due_at=_NOW,
         created_at=_NOW,
         every=every,
+        rule=rule,
         model=model,
         tainted=tainted,
     )
@@ -393,3 +398,51 @@ async def test_stop_before_any_pass_ends_the_loop_immediately() -> None:
     ticker = _ticker(InMemoryScheduleStore())
     ticker.stop()
     await asyncio.wait_for(ticker.run(), timeout=1.0)
+
+
+# --- calendar recurrence: the re-arm is wall-clock, in the configured zone -------------------
+
+_BUCHAREST = DisplayZone(name="Europe/Bucharest", tz=ZoneInfo("Europe/Bucharest"))
+
+
+async def test_a_calendar_item_re_arms_on_its_wall_clock_in_the_configured_zone() -> None:
+    """The ticker re-arms from the rule, not from ``due_at`` plus an interval.
+
+    _NOW is 12:00 UTC, which is 15:00 in Bucharest, so the next 09:00 local is the following
+    morning: 06:00 UTC, because July is +03:00 there. A UTC-configured ticker would have
+    picked 09:00 UTC, which is the bug this zone threading exists to prevent.
+    """
+    store = InMemoryScheduleStore()
+    await store.add(_item("cal-1", rule=CalendarRule(hour=9, minute=0)))
+    settings = TickerSettings(
+        poll_s=0.001, lease=timedelta(minutes=5), claim_limit=8, zone=_BUCHAREST
+    )
+    await ScheduleTicker(store, FixedClock(), settings).run_once()
+    (item,) = await store.list_active()
+    assert item.due_at == datetime(2026, 7, 13, 6, 0, tzinfo=UTC)
+    assert _BUCHAREST.render(item.due_at) == "2026-07-13T09:00:00+03:00"
+    assert item.rule == CalendarRule(hour=9, minute=0)  # the rule survives the fire
+
+
+async def test_a_calendar_task_re_arms_from_its_rule_too() -> None:
+    """The TASK fire path shares the re-arm, so both kinds follow the wall clock."""
+    store = InMemoryScheduleStore()
+    await store.add(_item("cal-2", kind=ScheduleKind.TASK, rule=CalendarRule(hour=9, minute=0)))
+    spawn = ToolDispatcher(
+        CompositeToolRegistry([FakeSpawnTool()]), RecordingAuditSink(), FixedClock()
+    )
+    settings = TickerSettings(
+        poll_s=0.001, lease=timedelta(minutes=5), claim_limit=8, zone=_BUCHAREST
+    )
+    await ScheduleTicker(store, FixedClock(), settings, spawn=spawn).run_once()
+    (item,) = await store.list_active()
+    assert item.due_at == datetime(2026, 7, 13, 6, 0, tzinfo=UTC)
+
+
+async def test_the_default_settings_zone_keeps_the_utc_behavior() -> None:
+    """An unconfigured deployment re-arms exactly where it did before the zone existed."""
+    store = InMemoryScheduleStore()
+    await store.add(_item("cal-3", rule=CalendarRule(hour=9, minute=0)))
+    await _ticker(store).run_once()
+    (item,) = await store.list_active()
+    assert item.due_at == datetime(2026, 7, 13, 9, 0, tzinfo=UTC)

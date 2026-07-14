@@ -6,6 +6,7 @@ from datetime import UTC, datetime, timedelta
 from fakeredis import FakeAsyncRedis, FakeServer
 
 from cortex_core import (
+    CalendarRule,
     EchoInferenceBackend,
     InMemoryBodyGateway,
     InMemoryScheduleStore,
@@ -225,3 +226,46 @@ async def test_the_configured_zone_reaches_every_rendering_builtin() -> None:
         ToolCall(id="c2", name="snooze_scheduled", arguments={"id": "item-1", "for_seconds": 3600})
     )
     assert "now due 2026-07-12T16:00:00+03:00" in snoozed.content
+
+
+async def _rearm_of_a_nine_am_rule(config: ScheduleConfig) -> datetime:
+    """Fire a 09:00 calendar reminder through a built ticker and report where it re-armed.
+
+    Asserted through behavior rather than by reading the ticker's settings: the zone matters
+    only because it moves the re-arm, so the re-arm is what the test should pin.
+    """
+    store = InMemoryScheduleStore()
+    await store.add(
+        ScheduledItem(
+            id="cal-1",
+            kind=ScheduleKind.REMINDER,
+            text="stretch",
+            session_id="",
+            due_at=_NOW,
+            created_at=_NOW,
+            rule=CalendarRule(hour=9, minute=0),
+        )
+    )
+    ticker = build_ticker(config, store, FixedClock(), spawn_tool=None, body=None)
+    assert ticker is not None
+    await ticker.run_once()
+    (item,) = await store.list_active()
+    return item.due_at
+
+
+async def test_build_ticker_threads_the_configured_zone_into_its_settings() -> None:
+    """Creating and firing must read one zone, or a rule fires somewhere it was not scheduled.
+
+    ``build_schedule_tools`` already gave the rendering built-ins ``CORTEX_SCHEDULE_TZ``; the
+    ticker needs the same value because a calendar re-arm is wall-clock arithmetic
+    (ADR-0025 calendar addendum). _NOW is 12:00 UTC, so the next 09:00 in Bucharest (+03:00 in
+    July) is the following morning at 06:00 UTC, three hours off the UTC reading.
+    """
+    config = ScheduleConfig(backend="redis", tz="Europe/Bucharest")
+    assert await _rearm_of_a_nine_am_rule(config) == datetime(2026, 7, 13, 6, 0, tzinfo=UTC)
+
+
+async def test_build_ticker_defaults_to_utc_like_the_built_ins() -> None:
+    assert await _rearm_of_a_nine_am_rule(ScheduleConfig(backend="redis")) == datetime(
+        2026, 7, 13, 9, 0, tzinfo=UTC
+    )

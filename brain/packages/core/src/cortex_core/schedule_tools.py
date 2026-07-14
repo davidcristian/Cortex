@@ -24,6 +24,7 @@ from cortex_core.errors import ScheduleStoreError
 from cortex_core.ports import Clock, ScheduleStore
 from cortex_core.schedule import ScheduledItem, ScheduleKind, ScheduleStatus
 from cortex_core.schedule_args import MIN_EVERY_SECONDS, parse_schedule
+from cortex_core.schedule_calendar import DAY_NAMES
 from cortex_core.schedule_time import UTC_DISPLAY, DisplayZone
 from cortex_core.schedule_verbs import error_result, store_down_result
 from cortex_core.tools import ToolCall, ToolResult, ToolSpec, Trust
@@ -91,6 +92,21 @@ class ScheduleTaskTool:
                     f"Repeat interval in seconds (min {MIN_EVERY_SECONDS}); omit for one-shot."
                 ),
             },
+            "at_time": {
+                "type": "string",
+                "description": (
+                    f"Recurring wall-clock time, 24-hour HH:MM in {self._zone.name}, e.g. 09:00. "
+                    "Use this for 'every day at 9' rather than 'every_seconds': it keeps the "
+                    "same clock time across daylight saving. Alternative to 'at'/'in_seconds'."
+                ),
+            },
+            "on_days": {
+                "type": "array",
+                "items": {"type": "string", "enum": list(DAY_NAMES)},
+                "description": (
+                    "Which weekdays 'at_time' fires on; omit for every day. Only with 'at_time'."
+                ),
+            },
         }
         if self._tasks_enabled:
             what = "a reminder to deliver to the user, or an autonomous task run by a subagent"
@@ -105,8 +121,9 @@ class ScheduleTaskTool:
                 f"Schedule {what} for later; it fires even after a restart. "
                 f"The current date-time is {self._zone.render(self._clock.now())} "
                 f"({self._zone.name}). "
-                "Provide 'at' (ISO-8601) or 'in_seconds' (delay from now); "
-                "add 'every_seconds' to recur."
+                "Provide 'at' (ISO-8601) or 'in_seconds' (delay from now), "
+                "and add 'every_seconds' to recur; or provide 'at_time' (HH:MM) with "
+                "optional 'on_days' to recur at a wall-clock time."
             ),
             parameters={"type": "object", "properties": properties, "required": ["kind", "text"]},
         )
@@ -142,25 +159,37 @@ class ScheduleTaskTool:
                 due_at=parsed.due_at,
                 created_at=now,
                 every=parsed.every,
+                rule=parsed.rule,
                 model=parsed.model,
                 tainted=call.stamp.tainted,
             )
             await self._store.add(item)
         except ScheduleStoreError as err:
             return store_down_result(call.id, err)
-        recurring = (
-            f", recurring every {int(parsed.every.total_seconds())}s" if parsed.every else ""
-        )
         content = (
             f"scheduled {parsed.kind.value} {item.id}: "
-            f"due {self._zone.render(parsed.due_at)}{recurring}"
+            f"due {self._zone.render(parsed.due_at)}{_recurrence(item)}"
         )
         return ToolResult(call_id=call.id, content=content, trust=Trust.TRUSTED)
 
 
+def _recurrence(item: ScheduledItem) -> str:
+    """How the item repeats, as a leading-comma phrase; empty for a one-shot.
+
+    Shared by the creation confirmation and the listing line so the two never describe the
+    same schedule differently. A calendar rule speaks wall-clock ("every mon, fri at 07:30")
+    rather than seconds, which is the whole point of carrying it as a rule.
+    """
+    if item.rule is not None:
+        return f", {item.rule.describe()}"
+    if item.every is not None:
+        return f", every {int(item.every.total_seconds())}s"
+    return ""
+
+
 def _describe(item: ScheduledItem, zone: DisplayZone) -> str:
     """One listing line per item; the stored text rides at the end, provenance marked."""
-    recurring = f", every {int(item.every.total_seconds())}s" if item.every else ""
+    recurring = _recurrence(item)
     fired = ", fired awaiting delivery" if item.deliverable_since is not None else ""
     firing = ", firing now" if item.status is ScheduleStatus.FIRING else ""
     tainted = ", from untrusted content" if item.tainted else ""

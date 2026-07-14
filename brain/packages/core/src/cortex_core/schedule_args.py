@@ -3,19 +3,27 @@
 Split from ``schedule_tools.py`` by responsibility (the 300-line cap): this module turns the
 model's raw JSON arguments into a typed ``ParsedSchedule`` or a correction message string, following
 the volume.py pattern (a str return becomes a trusted ``is_error`` result, so the model can
-fix its call). Storage stays UTC end-to-end; only the *reading* of an offset-less ``at`` is
-zone-aware (ADR-0025 display addendum): the spec renders the current time in the configured
+fix its call). Storage stays UTC end-to-end; only the *reading* of a wall time is zone-aware
+(ADR-0025 display addendum): the spec renders the current time in the configured
 ``DisplayZone``, so a bare wall time the model writes back means that zone's local time rather
 than a rejection. The 60 s recurrence floor is policy here, distinct from the value type's
 positivity invariant.
+
+Timing is validated as a whole by ``_parse_when`` rather than field by field, because the
+three forms interact: ``at``/``in_seconds`` name an instant and may carry ``every_seconds``,
+while ``at_time`` names a *wall clock* rule that carries ``on_days`` and derives its own first
+fire (ADR-0025 calendar addendum). That is what keeps the ``ScheduledItem`` invariant, an
+interval or a calendar rule and never both, true at the boundary. The lifecycle verbs'
+arguments live in ``schedule_verb_args.py``, which imports the shared bounds from here.
 """
 
 from collections.abc import Mapping
 from dataclasses import dataclass
-from datetime import datetime, timedelta
-from typing import Any
+from datetime import datetime, time, timedelta
+from typing import Any, cast
 
-from cortex_core.schedule import ScheduleEdit, ScheduleKind
+from cortex_core.schedule import ScheduleKind
+from cortex_core.schedule_calendar import DAY_NAMES, EVERY_DAY, CalendarRule, next_calendar_due
 from cortex_core.schedule_time import UTC_DISPLAY, DisplayZone
 
 MIN_EVERY_SECONDS = 60
@@ -26,19 +34,21 @@ MAX_EVERY_SECONDS = 315_360_000
 
 _BAD_KIND = '\'kind\' must be "reminder" or "task"'
 _TASKS_NOT_WIRED = "this deployment schedules reminders only; 'kind': \"task\" is not available"
-_BAD_TEXT = "'text' must be a non-empty string"
-_ONE_WHEN = "provide exactly one of 'at' (ISO-8601) or 'in_seconds'"
+BAD_TEXT = "'text' must be a non-empty string"
+_ONE_WHEN = "provide exactly one of 'at' (ISO-8601), 'in_seconds', or 'at_time' (HH:MM)"
 _BAD_AT = "'at' must be an ISO-8601 date-time, e.g. 2026-07-12T18:00:00"
+_BAD_AT_TIME = "'at_time' must be a 24-hour wall-clock time with no seconds, e.g. 09:00"
+_BAD_ON_DAYS = f"'on_days' must be a non-empty list of weekday names from {', '.join(DAY_NAMES)}"
+_DAYS_NEED_AT_TIME = "'on_days' applies only together with 'at_time'"
+_EVERY_WITH_AT_TIME = (
+    "'at_time' already recurs on the wall clock; drop 'every_seconds', or use 'at' with "
+    "'every_seconds' for a fixed interval instead"
+)
+_UNSCHEDULABLE_RULE = "'at_time' has no next occurrence that can be scheduled"
 _BAD_IN_SECONDS = "'in_seconds' must be a positive number of seconds"
 _BAD_EVERY = f"'every_seconds' must be a number between {MIN_EVERY_SECONDS} and {MAX_EVERY_SECONDS}"
-_BAD_FOR = f"'for_seconds' must be a number between {MIN_EVERY_SECONDS} and {MAX_EVERY_SECONDS}"
 _MODEL_NEEDS_TASK = "'model' applies only to 'kind': \"task\""
 _BAD_MODEL = "'model' must be a string"
-_EDIT_NO_CHANGE = "provide 'text' and/or 'every_seconds' to change something"
-_BAD_EDIT_EVERY = (
-    f"'every_seconds' must be 0 (stop repeating) or between {MIN_EVERY_SECONDS} "
-    f"and {MAX_EVERY_SECONDS}"
-)
 
 
 @dataclass(frozen=True, slots=True)
@@ -50,6 +60,23 @@ class ParsedSchedule:
     due_at: datetime
     every: timedelta | None
     model: str
+    rule: CalendarRule | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class _When:
+    """The validated timing of one request: the first fire, and at most one recurrence shape.
+
+    The three timing forms (``at``, ``in_seconds``, ``at_time``) and the two recurrence shapes
+    are validated together because their legality is joint, not per-field: ``on_days`` means
+    nothing without ``at_time``, and ``every_seconds`` contradicts it. One function deciding
+    all of it keeps the item invariant (an interval or a rule, never both) true by construction
+    rather than re-checked downstream.
+    """
+
+    due_at: datetime
+    every: timedelta | None
+    rule: CalendarRule | None
 
 
 def _parse_kind(arguments: Mapping[str, Any], *, tasks_enabled: bool) -> ScheduleKind | str:
@@ -61,7 +88,7 @@ def _parse_kind(arguments: Mapping[str, Any], *, tasks_enabled: bool) -> Schedul
     return _BAD_KIND
 
 
-def _parse_number(value: object) -> float | None:
+def parse_number(value: object) -> float | None:
     """A real JSON number, or None (a bool is not a number, since it subclasses int)."""
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         return None
@@ -93,7 +120,7 @@ def _parse_at(at: object, zone: DisplayZone) -> datetime | str:
 
 def _delay_from(now: datetime, in_seconds: object) -> datetime | str:
     """``now`` plus a positive number of seconds, or a correction string."""
-    delay = _parse_number(in_seconds)
+    delay = parse_number(in_seconds)
     if delay is None or delay <= 0:
         return _BAD_IN_SECONDS
     try:
@@ -114,11 +141,82 @@ def _parse_due_at(arguments: Mapping[str, Any], now: datetime, zone: DisplayZone
     return _delay_from(now, in_seconds)
 
 
+def _parse_at_time(value: object) -> tuple[int, int] | str:
+    """A bare ``HH:MM`` wall-clock time as ``(hour, minute)``, or a correction string."""
+    if not isinstance(value, str):
+        return _BAD_AT_TIME
+    try:
+        parsed = time.fromisoformat(value)
+    except ValueError:
+        return _BAD_AT_TIME
+    # A rule stores hour and minute only, so accepting finer precision would silently drop
+    # part of what the model wrote, and an offset would contradict the zone it is read in.
+    if parsed.second or parsed.microsecond or parsed.tzinfo is not None:
+        return _BAD_AT_TIME
+    return parsed.hour, parsed.minute
+
+
+def _parse_on_days(value: object) -> frozenset[int] | str:
+    """The weekday set for a calendar rule; absent means every day."""
+    if value is None:
+        return EVERY_DAY
+    if not isinstance(value, list) or not value:
+        return _BAD_ON_DAYS
+    days: set[int] = set()
+    for entry in cast("list[object]", value):
+        if not isinstance(entry, str) or entry.lower() not in DAY_NAMES:
+            return _BAD_ON_DAYS
+        days.add(DAY_NAMES.index(entry.lower()))
+    return frozenset(days)
+
+
+def _parse_calendar(
+    arguments: Mapping[str, Any], now: datetime, zone: DisplayZone
+) -> "_When | str":
+    """The ``at_time`` branch: a wall-clock rule, plus the first occurrence it implies.
+
+    The first fire is derived from the rule rather than asked for separately, so "every
+    weekday at 09:00" is one argument the model already knows how to write instead of a due
+    time it would have to compute and keep consistent with the recurrence.
+    """
+    if arguments.get("every_seconds") is not None:
+        return _EVERY_WITH_AT_TIME
+    wall = _parse_at_time(arguments.get("at_time"))
+    if isinstance(wall, str):
+        return wall
+    days = _parse_on_days(arguments.get("on_days"))
+    if isinstance(days, str):
+        return days
+    hour, minute = wall
+    rule = CalendarRule(hour=hour, minute=minute, days=days)
+    due_at = next_calendar_due(rule, now, zone)
+    if due_at is None:
+        return _UNSCHEDULABLE_RULE
+    return _When(due_at=due_at, every=None, rule=rule)
+
+
+def _parse_when(arguments: Mapping[str, Any], now: datetime, zone: DisplayZone) -> "_When | str":
+    """Validate the timing forms jointly: the calendar branch, or the instant-plus-interval one."""
+    if arguments.get("at_time") is not None:
+        if arguments.get("at") is not None or arguments.get("in_seconds") is not None:
+            return _ONE_WHEN
+        return _parse_calendar(arguments, now, zone)
+    if arguments.get("on_days") is not None:
+        return _DAYS_NEED_AT_TIME
+    due_at = _parse_due_at(arguments, now, zone)
+    if isinstance(due_at, str):
+        return due_at
+    every = _parse_every(arguments)
+    if isinstance(every, str):
+        return every
+    return _When(due_at=due_at, every=every, rule=None)
+
+
 def _parse_every(arguments: Mapping[str, Any]) -> timedelta | None | str:
     every_seconds = arguments.get("every_seconds")
     if every_seconds is None:
         return None
-    seconds = _parse_number(every_seconds)
+    seconds = parse_number(every_seconds)
     if seconds is None or not MIN_EVERY_SECONDS <= seconds <= MAX_EVERY_SECONDS:
         return _BAD_EVERY
     return timedelta(seconds=seconds)
@@ -130,65 +228,13 @@ def _parse_text_and_model(
     """The validated ``(text, model)`` pair, or a correction string."""
     text = arguments.get("text")
     if not isinstance(text, str) or not text.strip():
-        return _BAD_TEXT
+        return BAD_TEXT
     model = arguments.get("model", "")
     if not isinstance(model, str):
         return _BAD_MODEL
     if model and kind is not ScheduleKind.TASK:
         return _MODEL_NEEDS_TASK
     return text, model
-
-
-def parse_for_seconds(arguments: Mapping[str, Any]) -> timedelta | str:
-    """The validated ``snooze_scheduled`` delay, or a correction string (snooze addendum).
-
-    Snooze is relative by meaning ("from now"), so only ``for_seconds`` exists; its bounds
-    mirror the creation policy (the 60 s floor and the ten-year ceiling).
-    """
-    seconds = _parse_number(arguments.get("for_seconds"))
-    if seconds is None or not MIN_EVERY_SECONDS <= seconds <= MAX_EVERY_SECONDS:
-        return _BAD_FOR
-    return timedelta(seconds=seconds)
-
-
-def _parse_edit_every(arguments: Mapping[str, Any]) -> tuple[bool, timedelta | None] | str:
-    """The recurrence change for an edit: ``(set_every, every)`` or a correction string.
-
-    ``(False, None)`` when ``every_seconds`` is absent (leave recurrence alone); ``(True, None)``
-    on the ``0`` sentinel (stop repeating); ``(True, interval)`` on a bounded interval. The
-    tuple return disambiguates the two ``None`` outcomes from a bare error string.
-    """
-    raw = arguments.get("every_seconds")
-    if raw is None:
-        return (False, None)
-    seconds = _parse_number(raw)
-    if seconds is None:
-        return _BAD_EDIT_EVERY
-    if seconds == 0:
-        return (True, None)
-    if not MIN_EVERY_SECONDS <= seconds <= MAX_EVERY_SECONDS:
-        return _BAD_EDIT_EVERY
-    return (True, timedelta(seconds=seconds))
-
-
-def parse_edit(arguments: Mapping[str, Any]) -> ScheduleEdit | str:
-    """Validate one ``edit_scheduled`` call's changes; return a ScheduleEdit or a correction.
-
-    ``text`` (if given) is the new non-empty text; ``every_seconds`` is a new interval, or ``0``
-    to stop repeating; omitting a field leaves it. At least one change is required. ``tainted``
-    stays ``False`` here (the verb stamps it from the dispatcher, never the model).
-    """
-    text = arguments.get("text")
-    if text is not None and (not isinstance(text, str) or not text.strip()):
-        return _BAD_TEXT
-    every = _parse_edit_every(arguments)
-    if isinstance(every, str):
-        return every
-    set_every, interval = every
-    new_text = text if isinstance(text, str) else None
-    if new_text is None and not set_every:
-        return _EDIT_NO_CHANGE
-    return ScheduleEdit(text=new_text, every=interval, set_every=set_every)
 
 
 def parse_schedule(
@@ -205,11 +251,15 @@ def parse_schedule(
     text_and_model = _parse_text_and_model(arguments, kind)
     if isinstance(text_and_model, str):
         return text_and_model
-    due_at = _parse_due_at(arguments, now, zone)
-    if isinstance(due_at, str):
-        return due_at
-    every = _parse_every(arguments)
-    if isinstance(every, str):
-        return every
+    when = _parse_when(arguments, now, zone)
+    if isinstance(when, str):
+        return when
     text, model = text_and_model
-    return ParsedSchedule(kind=kind, text=text, due_at=due_at, every=every, model=model)
+    return ParsedSchedule(
+        kind=kind,
+        text=text,
+        due_at=when.due_at,
+        every=when.every,
+        model=model,
+        rule=when.rule,
+    )

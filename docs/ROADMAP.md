@@ -1373,13 +1373,39 @@ behind the unchanged `ScheduleStore`/`BodyGateway`/seam shapes.
   gap while the same instant read back from the store printed the canonical one. Display only:
   stored `due_at`/`anchor` stay UTC instants, no record or codec changed, no migration.
   Remaining:
-- **Local-time / cron recurrence.** The other half, and **not** the small change this entry
-  once implied. "Daily at 09:00 local" cannot ride `ScheduledItem.every`: `every` is a
-  `timedelta` while a DST day is 23 or 25 hours, so a fixed interval drifts off the wall clock
-  exactly when a user notices. It needs a new recurrence *shape* (a calendar rule beside the
-  interval) reaching the store, the codec, and the ticker's grid arithmetic, plus a policy for
-  an occurrence that falls in a DST gap. The `anchor` field is the natural home for the grid
-  origin it would need.
+- **Calendar recurrence landed 2026-07-14 ([ADR-0025 calendar
+  addendum](adr/ADR-0025-scheduling-reminders.md)).** The recurrence half of the original
+  entry, and the cost this entry predicted was right: a new recurrence *shape*, not a knob.
+  A pure `CalendarRule(hour, minute, days)` in the new `cortex_core/schedule_calendar.py`
+  sits **beside** `ScheduledItem.every` (at most one of the two, enforced in `__post_init__`),
+  `next_calendar_due` walks the rule's own weekdays resolving each candidate through the
+  existing `DisplayZone.resolve`, and one new `next_occurrence(item, now, zone)` is the single
+  entry point the ticker calls. Model-facing, that is `at_time: "09:00"` plus optional
+  `on_days: ["mon", ...]`, mutually exclusive with `at`/`in_seconds`/`every_seconds`, with the
+  first fire **derived from the rule** so no two-field consistency invariant reaches the model.
+  Cron was rejected (a parser dependency, and a syntax a small model gets subtly wrong in ways
+  that still validate). The DST policy the entry asked for is **inherited rather than
+  invented**: a gap occurrence fires just past the gap (late, never skipped) and a fall-back
+  repeat fires once, exactly as a naive `at` already resolved. Two corrections to this entry's
+  own framing: the `anchor` field is **not** the home for the grid origin, because a rule *is*
+  its own grid, so a snoozed calendar item needs no anchor and the snooze machinery was
+  untouched; and the store needed no change at all, only the codec (an additive `rule` key read
+  with `.get`, the `anchor` precedent, no version bump, no migration). The ticker takes the
+  configured zone on `TickerSettings` rather than a seventh constructor argument. CI-gated at
+  100% with all seven new guards mutation-proven, DST cases against real `ZoneInfo` zones on
+  both sides of UTC; the contract suite covers the new field on fake and fakeredis alike, and
+  because the codec changed, two real-stack runs back it: the live-Redis contract leg (itself
+  mutation-proven to exercise the new key) and an end-to-end pass inside `cortex-brain:latest`
+  that created "every weekday at 09:00" in `Europe/Bucharest`, fired it, and re-armed on the
+  same wall-clock hour.
+  It also forced the `cortex_core/__init__.py` barrel split (the entry above) and split
+  `schedule_verb_args.py` out of `schedule_args.py` at the cap. Remaining: **monthly / yearly /
+  day-of-month rules** (a wider candidate walk; today's is bounded to one week because the day
+  set is weekly), **setting or retiming a rule via `edit_scheduled`** (it can replace one with
+  an interval or stop it, not author one), a **per-rule timezone** (today a rule means wall
+  time in the deployment's one `DisplayZone`, so changing `CORTEX_SCHEDULE_TZ` deliberately
+  moves existing calendar schedules with it), and **cron expressions** if a rule this shape
+  cannot express ever turns up.
 - **Occurrence history.** Coalesced single-slot deliverability keeps no per-fire records,
   and terminal cleanup deletes a one-shot task's outcome with its record; a history table
   would also cover unseen-toast recovery.
