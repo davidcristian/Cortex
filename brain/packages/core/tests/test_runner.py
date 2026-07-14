@@ -4,6 +4,8 @@ from collections.abc import AsyncIterator, Mapping, Sequence
 from datetime import UTC, datetime
 
 from cortex_core import (
+    BUDGET_EXHAUSTED_MSG,
+    DispatchBudget,
     InferenceBackend,
     InferenceError,
     InferenceEvent,
@@ -234,6 +236,58 @@ async def test_tools_enabled_subagent_dispatches_and_audits_its_calls() -> None:
     # The subagent's own tool call went through the same audited dispatcher.
     (audit,) = sink.records
     assert (audit.name, audit.ok, audit.detail) == ("read", True, "read /x")
+
+
+def _reading_runner(
+    store: InMemoryTaskStore, backend: InferenceBackend, sink: RecordingAuditSink
+) -> SubagentRunner:
+    """A tools-enabled runner over one `read` tool, sharing the caller's audit sink."""
+    registry = InMemoryToolRegistry(
+        {"read": (ToolSpec(name="read", description="", parameters={}), _read_handler)}
+    )
+    return _runner(store, backend, tools=ToolDispatcher(registry, sink, FixedClock()))
+
+
+def _two_call_backend() -> ScriptedBackend:
+    """Two rounds of one tool call each, then a final answer."""
+    return ScriptedBackend(
+        [
+            [ToolCall(id="c1", name="read", arguments={"path": "/x"})],
+            [ToolCall(id="c2", name="read", arguments={"path": "/y"})],
+            [TextChunk("done")],
+        ]
+    )
+
+
+async def test_a_handed_budget_is_what_the_subagents_dispatches_come_out_of() -> None:
+    # The turn-wide property at the runner (ADR-0009 turn-wide addendum): a subagent spawned by
+    # a cortex turn spends that turn's pool, so its calls stop when the turn's allowance does
+    # rather than when a private count of its own would have.
+    store = InMemoryTaskStore()
+    await store.put_task(SubagentTask(id="t9", instruction="read x", context="", at=_AT))
+    sink = RecordingAuditSink()
+    pool = DispatchBudget(limit=1)
+    result = await _reading_runner(store, _two_call_backend(), sink).run("t9", budget=pool)
+    assert result.ok is True
+    assert pool.spent == 1  # charged against the caller's pool, not a private one
+    assert [record.ok for record in sink.records] == [True, False]
+    assert sink.records[1].detail == BUDGET_EXHAUSTED_MSG
+
+
+async def test_a_run_with_no_spawning_turn_gets_its_own_allowance() -> None:
+    # The ticker's fire (ADR-0025) dispatches spawn_subagents directly, outside any tool loop,
+    # so its stamp carries no pool. That run is its own root and must still be able to dispatch,
+    # while a run handed an exhausted pool must not: both branches of the same fallback.
+    store = InMemoryTaskStore()
+    await store.put_task(SubagentTask(id="rooted", instruction="read x", context="", at=_AT))
+    await store.put_task(SubagentTask(id="starved", instruction="read x", context="", at=_AT))
+    sink = RecordingAuditSink()
+    await _reading_runner(store, _two_call_backend(), sink).run("rooted")
+    dispatched_by_the_root = [record.ok for record in sink.records]
+    starved = _reading_runner(store, _two_call_backend(), sink)
+    await starved.run("starved", budget=DispatchBudget(limit=0))
+    assert dispatched_by_the_root == [True, True]  # its own allowance covered both calls
+    assert [record.ok for record in sink.records[2:]] == [False, False]
 
 
 _ENVELOPE: JsonSchema = {

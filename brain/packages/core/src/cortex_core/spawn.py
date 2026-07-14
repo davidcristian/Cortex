@@ -229,7 +229,8 @@ class SpawnSubagentsTool:
         """Persist each subtask, run the subagents concurrently, and aggregate their results.
 
         Each task carries the requested model and the spawning turn's taint (the dispatcher's
-        stamp on ``call``) so the runner resolves it safely from the store alone (ADR-0018).
+        stamp on ``call``) so the runner resolves it safely from the store alone (ADR-0018);
+        the same stamp carries the turn's dispatch budget, which every spawned run shares.
         The aggregate is UNTRUSTED iff any subagent consumed untrusted content, so a subagent
         that read a malicious file taints the cortex turn through the normal result path
         (ADR-0013); a bad-arguments error is our own message and stays trusted.
@@ -250,8 +251,15 @@ class SpawnSubagentsTool:
         ]
         for task in tasks:
             await self._store.put_task(task)
+        # Every subagent draws from the spawning turn's dispatch pool, carried on the stamp
+        # (ADR-0009 turn-wide addendum): a batch shares one allowance instead of each member
+        # starting a fresh one, so an unbounded `instructions` array can no longer buy an
+        # unbounded number of external calls. First come first served across the batch, which
+        # is safe under `gather` because charging never awaits.
         results: list[SubagentResult] = list(
-            await asyncio.gather(*(self._runner.run(task.id) for task in tasks))
+            await asyncio.gather(
+                *(self._runner.run(task.id, budget=call.stamp.budget) for task in tasks)
+            )
         )
         trust = Trust.UNTRUSTED if any(r.tainted for r in results) else Trust.TRUSTED
         return ToolResult(call_id=call.id, content=_format(results), trust=trust)

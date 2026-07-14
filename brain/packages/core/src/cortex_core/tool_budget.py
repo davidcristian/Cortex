@@ -1,8 +1,9 @@
-"""How much of the outside world one tool loop may touch: the budget, and what tools cost.
+"""How much of the outside world one turn may touch: the budget, and what tools cost.
 
 ``tool_loop.py`` owns how *long* a loop runs (``MAX_TOOL_STEPS`` rounds); this module owns how
 much it may *spend* doing so. The two are deliberately separate bounds (ADR-0009 budget
-addendum), and the spend side is a currency of its own: a total, and a price per tool.
+addendum), and the spend side is a currency of its own: a total, a price per tool, and the
+pool they are spent from.
 
 The budget the ADR-0009 budget addendum landed counted *calls*: thirty two filesystem reads and
 thirty two ``spawn_subagents`` batches spent it identically, though only one of those is thirty
@@ -20,12 +21,13 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from types import MappingProxyType
 
-# Upper bound on what one loop may spend on tool dispatches across ALL its rounds (ADR-0009
-# budget addendum). MAX_TOOL_STEPS bounds rounds, not calls: a single round dispatched every
-# call the model emitted, so the two bounds multiplied and neither answered "how many external
-# calls can one turn make?". This one does. Sized above plausible legitimate use (eight rounds
-# averaging four calls) and far below spam. Past it, calls are refused, audited, and reported
-# to the model, which is why the total is per loop rather than per round.
+# Upper bound on what one TURN may spend on tool dispatches, across every round of every loop
+# it runs (ADR-0009 budget addendum, widened from one loop to the turn by the turn-wide
+# addendum). MAX_TOOL_STEPS bounds rounds, not calls: a single round dispatched every call the
+# model emitted, so the two bounds multiplied and neither answered "how many external calls can
+# one turn make?". This one does. Sized above plausible legitimate use (eight rounds averaging
+# four calls) and far below spam. Past it, calls are refused, audited, and reported to the
+# model, which is why the total is a pool rather than a per-round cap.
 MAX_TOOL_DISPATCHES = 32
 
 # The empty price list, as an immutable mapping so it can be a shared field default.
@@ -65,3 +67,62 @@ class ToolCostPolicy:
 # The policy every dispatcher gets unless the composition root passes one: every tool costs
 # one, which is the plain call count the budget started as.
 UNIFORM_COST = ToolCostPolicy()
+
+
+class DispatchBudget:
+    """One turn's dispatch allowance, shared by every tool loop that turn runs (ADR-0009).
+
+    The budget started as an ``int`` on ``ToolLoopContext``, which made it per loop *invocation*:
+    a subagent's fresh context started a fresh count, so a turn that delegated spent the total
+    once for itself and again for every subagent. This is that counter made an object, so the
+    cortex loop and each spawned subagent can hold the *same* pool and the turn has one answer to
+    "how much of the outside world did this reach?".
+
+    Mutable and shared on purpose, which the rest of the core is not; it is a resource handle,
+    not a value, so it is compared by identity and the ``TurnStamp`` that carries it excludes it
+    from equality. Sharing is safe without a lock because ``charge`` never awaits: a batch of
+    subagents runs concurrently under ``asyncio.gather``, but on one event loop no two charges
+    can interleave.
+
+    Nothing here is persisted. The allowance bounds one turn's reach and dies with the turn, so
+    a model swap mid-turn costs a re-derived budget at worst, never a stuck one (the one hard
+    rule).
+    """
+
+    def __init__(self, limit: int = MAX_TOOL_DISPATCHES) -> None:
+        self._limit = limit
+        self._spent = 0
+        self._closed = False
+
+    @property
+    def limit(self) -> int:
+        """The total this pool may spend before it closes."""
+        return self._limit
+
+    @property
+    def spent(self) -> int:
+        """What has been charged so far, summed across every loop sharing this pool."""
+        return self._spent
+
+    @property
+    def closed(self) -> bool:
+        """Whether a call has already failed to fit, after which nothing else is admitted."""
+        return self._closed
+
+    def charge(self, cost: int) -> bool:
+        """Spend ``cost`` if it fits, reporting whether the call it prices may run.
+
+        A call that does not fit **closes** the pool for good rather than being stepped over so
+        cheaper calls trickle through behind it (ADR-0009 cost addendum, now at the turn's
+        scale). Two reasons, both of which get stronger once subagents share the pool: the
+        refusal the model reads tells it to stop calling tools entirely, which a pool that kept
+        admitting small calls would make a lie; and the turn's spend would otherwise depend on
+        the order the model emitted its calls in, and on which of a concurrent batch of
+        subagents happened to charge first. A refused call is charged nothing: closure, not the
+        arithmetic, is what makes the refusal stick.
+        """
+        if self._closed or self._spent + cost > self._limit:
+            self._closed = True
+            return False
+        self._spent += cost
+        return True

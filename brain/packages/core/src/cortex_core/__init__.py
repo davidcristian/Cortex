@@ -143,6 +143,7 @@ from cortex_core.subagents import SubagentResult as SubagentResult
 from cortex_core.subagents import SubagentTask as SubagentTask
 from cortex_core.tool_budget import MAX_TOOL_DISPATCHES as MAX_TOOL_DISPATCHES
 from cortex_core.tool_budget import UNIFORM_COST as UNIFORM_COST
+from cortex_core.tool_budget import DispatchBudget as DispatchBudget
 from cortex_core.tool_budget import ToolCostPolicy as ToolCostPolicy
 from cortex_core.tools import UNSTAMPED as UNSTAMPED
 from cortex_core.tools import ConfirmationRequest as ConfirmationRequest

@@ -1,13 +1,20 @@
-"""Behavior tests for the per-tool dispatch price policy (ADR-0009 cost addendum).
+"""Behavior tests for the dispatch budget: the pool, and the per-tool prices spent from it.
 
-The policy itself is a value: what a named tool costs, and what everything else costs. Its
-consumers are tested where they consume it (``test_dispatch.py`` for the dispatcher's lookup,
-``test_tool_loop.py`` for the loop actually spending it).
+The policy itself is a value: what a named tool costs, and what everything else costs. The pool
+is a handle. Their consumers are tested where they consume them (``test_dispatch.py`` for the
+dispatcher's lookup, ``test_tool_loop.py`` for the loop actually spending it, ``test_spawn.py``
+for a batch of subagents sharing one turn's pool).
 """
 
 import pytest
 
-from cortex_core.tool_budget import DEFAULT_TOOL_COST, UNIFORM_COST, ToolCostPolicy
+from cortex_core.tool_budget import (
+    DEFAULT_TOOL_COST,
+    MAX_TOOL_DISPATCHES,
+    UNIFORM_COST,
+    DispatchBudget,
+    ToolCostPolicy,
+)
 
 
 def test_a_priced_tool_costs_its_price_and_everything_else_costs_the_default() -> None:
@@ -50,3 +57,40 @@ def test_the_policy_does_not_alias_the_mapping_it_was_built_from() -> None:
     assert policy.cost_of("read_file") == DEFAULT_TOOL_COST
     with pytest.raises(TypeError):
         policy.costs["read_file"] = 99  # pyright: ignore[reportIndexIssue]
+
+
+def test_a_fresh_pool_starts_open_at_the_module_bound() -> None:
+    budget = DispatchBudget()
+    assert (budget.limit, budget.spent, budget.closed) == (MAX_TOOL_DISPATCHES, 0, False)
+
+
+def test_charging_spends_what_fits_and_reports_that_the_call_may_run() -> None:
+    budget = DispatchBudget(limit=5)
+    assert budget.charge(3) is True
+    assert budget.charge(2) is True  # exactly to the limit still fits
+    assert (budget.spent, budget.closed) == (5, False)
+
+
+def test_a_charge_that_does_not_fit_is_refused_and_costs_nothing() -> None:
+    # Refusals are free: closure, not the arithmetic, is what makes the refusal stick, so the
+    # spend a turn reports stays the spend it actually made.
+    budget = DispatchBudget(limit=4)
+    assert budget.charge(3) is True
+    assert budget.charge(2) is False
+    assert (budget.spent, budget.closed) == (3, True)
+
+
+def test_a_closed_pool_refuses_a_charge_that_would_still_have_fit() -> None:
+    # ADR-0009 cost addendum decision 3, now at the turn's scale: the trailing 1 fits in the
+    # unspent unit, and is refused anyway, because BUDGET_EXHAUSTED_MSG told the model to stop
+    # calling tools and a pool that kept admitting small calls would make that a lie.
+    budget = DispatchBudget(limit=4)
+    assert [budget.charge(3), budget.charge(3), budget.charge(1)] == [True, False, False]
+    assert budget.spent == 3
+
+
+def test_a_pool_is_a_handle_not_a_value_so_two_of_them_are_never_the_same_one() -> None:
+    # Identity comparison is the point: two turns holding equal-looking budgets must not be
+    # mistaken for two references to one pool, which is exactly the bug this object exists to
+    # prevent at a larger scale.
+    assert DispatchBudget(limit=3) != DispatchBudget(limit=3)

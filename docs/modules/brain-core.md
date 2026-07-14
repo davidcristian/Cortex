@@ -86,11 +86,15 @@ Tool domain (Slice 6, ADR-0009; untrusted-content fields Slice 6.5, ADR-0013):
   never interpreted by the core), `gated: bool = False` (an irreversible/outbound action that
   needs confirmation once the turn read untrusted content, but no tool sets it today). What a tool
   advertises.
-- `TurnStamp` is a frozen dataclass: `session_id: str = ""`, `tainted: bool = False`. The
-  dispatching turn's provenance (ADR-0027): its origin chat (`""` for a session-less caller)
-  and whether it had read untrusted content at dispatch time. One object rather than parallel
-  keywords, so future provenance facts (source URI, sender) join it and call sites ride along.
-  `UNSTAMPED` is the exported unattributed default.
+- `TurnStamp` is a frozen dataclass: `session_id: str = ""`, `tainted: bool = False`,
+  `budget: DispatchBudget | None = None` (`compare=False`). What the dispatching turn hands the
+  call (ADR-0027): its origin chat (`""` for a session-less caller), whether it had read
+  untrusted content at dispatch time, and the turn's shared dispatch pool (`None` for a caller
+  that runs no tool loop, e.g. the schedule ticker). One object rather than parallel keywords, so
+  future facts (source URI, sender) join it and call sites ride along. `budget` is the one field
+  that is a live handle rather than a value, so it is excluded from equality (ADR-0009 turn-wide
+  addendum): two dispatches of one turn stay comparable and no caller can read "same pool" out of
+  equality. `UNSTAMPED` is the exported unattributed default.
 - `ToolCall` is a frozen dataclass: `id: str`, `name: str`, `arguments: Mapping[str, Any]`,
   `stamp: TurnStamp = UNSTAMPED`. A model's request to run one tool; `id` correlates it with its
   `ToolResult`. `stamp` is never the model's to set: the dispatcher **overwrites** it at
@@ -250,13 +254,16 @@ Untrusted-content boundary (Slice 6.5, ADR-0013; the pure primitives in `untrust
   engine passes the live ledger straight to `OutputGuardrail.open`.
 - `ToolLoopContext` is a frozen bundle of a tool loop's per-invocation collaborators (`dispatcher`,
   `clock`, `turn_id`, `taint`, `nonce`, `session_id`, `schema=None`,
-  `dispatch_budget=MAX_TOOL_DISPATCHES`), keeping `stream_tool_loop`
+  `budget=DispatchBudget()` by default factory), keeping `stream_tool_loop`
   under its argument ceiling. `session_id` is the originating chat the loop stamps onto each
   dispatch (ADR-0027; `""` for a session-less caller, e.g. a subagent); `schema` (ADR-0028), when
   set, constrains the model's output to that JSON Schema (a constrained tool-less subagent
-  envelope; `None` for the cortex and every tool-enabled path); `dispatch_budget` (ADR-0009 budget
-  addendum) caps what the loop may spend dispatching across its rounds, per invocation so a caller
-  can run tighter than the default (neither current caller does, and each gets its own budget).
+  envelope; `None` for the cortex and every tool-enabled path); `budget` (ADR-0009 budget
+  addendum) caps what may be spent dispatching across the loop's rounds. It is the one
+  collaborator a caller may **share**: a context built without one gets its own pool, while a
+  subagent spawned from a cortex turn is handed that turn's (ADR-0009 turn-wide addendum), so
+  delegation cannot multiply the total. The default is a **factory**, never one instance, or
+  every turn in the process would spend from one pool.
   What a given call spends comes from the dispatcher's `ToolCostPolicy` (ADR-0009 cost addendum),
   so a tool's price travels with the gateway that runs it and is not restated per loop.
 
@@ -464,13 +471,16 @@ Use-case:
   call surfaces no step; the engine maps it to `ToolActivity`, a subagent drops it), mutating `working` in place with
   the tool-call and `Role.TOOL` result messages; ends on a tool-free step, a `None` dispatcher,
   or `MAX_TOOL_STEPS` (8) rounds. Two independent bounds apply (ADR-0009 budget addendum): rounds
-  cap how long the loop runs, and `context.dispatch_budget` (`MAX_TOOL_DISPATCHES`, 32) caps what
+  cap how long the loop runs, and `context.budget` (`MAX_TOOL_DISPATCHES`, 32) caps what
   it may *spend* dispatching across those rounds, since one round can carry unboundedly
   many calls. Each call is charged `dispatcher.cost_of(name)` (ADR-0009 cost addendum), 1 unless
   a user priced the tool, so with nothing priced the budget is a plain call count. A call that
-  no longer fits **closes** the budget for the rest of the loop rather than being stepped over so
+  no longer fits **closes** the budget rather than being stepped over so
   cheaper calls trickle through behind it: the refusal tells the model to stop calling tools, and
-  the turn's spend must not depend on the order the model emitted its calls in.
+  the turn's spend must not depend on the order the model emitted its calls in. Both the spend
+  and the closure are **turn-wide** when the pool is shared with spawned subagents (ADR-0009
+  turn-wide addendum), which is what keeps `BUDGET_EXHAUSTED_MSG`'s "this turn has reached its
+  limit" literally true.
   Past the budget each further call is still handed to the dispatcher, which refuses it
   as `BUDGET_EXHAUSTED_MSG` and audits it (skipping the dispatch would strand the round's
   `tool_calls` without their `Role.TOOL` answers and leave refusals unaudited), and it yields no
@@ -539,12 +549,24 @@ Use-case:
   lives on the dispatcher beside `gated_names` for the same reason: both are composition-root
   declarations *about* tools by name, so a sidecar's advertisement can claim neither. Frozen, and
   it copies the mapping it is built from, so the config object cannot edit prices afterwards.
-  `MAX_TOOL_DISPATCHES` (32) lives in the same module: `tool_budget.py` owns how much one loop may
-  *spend*, `tool_loop.py` (`MAX_TOOL_STEPS`) how *long* it runs, which is the split that keeps the
-  two deliberately independent bounds from reading as one.
+  `MAX_TOOL_DISPATCHES` (32) lives in the same module: `tool_budget.py` owns how much one turn may
+  *spend*, `tool_loop.py` (`MAX_TOOL_STEPS`) how *long* one loop runs, which is the split that
+  keeps the two deliberately independent bounds from reading as one.
+- `DispatchBudget(limit=MAX_TOOL_DISPATCHES)` (`tool_budget.py`, ADR-0009 turn-wide addendum) is
+  one turn's allowance: `limit` / `spent` / `closed` read it, and `charge(cost) -> bool` spends
+  what fits and permanently **closes** the pool when a call does not, so "closes rather than steps
+  over" is the budget's property and not a rule each loop reimplements. Mutable and shared on
+  purpose (the one such object in the core, compared by identity), because it must outlive a
+  single `stream_tool_loop` invocation: the cortex loop and every subagent it spawns hold the
+  same pool, reached over the dispatch `TurnStamp`. Safe without a lock because `charge` never
+  awaits, so a concurrent batch cannot interleave mid-charge. Never persisted: it bounds one
+  turn's reach and dies with the turn.
 - `SubagentRunner(store, roster, clock, *, tools=None, constrain_output=False)` is a subagent's
   body (ADR-0010/0012/0018),
-  a stateless function over the `TaskStore`. `run(task_id)` loads the `SubagentTask` **by id**
+  a stateless function over the `TaskStore`. `run(task_id, *, budget=None)` takes the spawning
+  turn's dispatch pool (ADR-0009 turn-wide addendum), so this run's tool calls come out of the
+  turn's allowance; `None` means the run is its own root (the ticker's fire) and it gets a fresh
+  one. It loads the `SubagentTask` **by id**
   (never from cortex memory, so a missing task is an `ok=False` "task not found" result),
   **resolves** the roster entry via `roster.resolve(task.model, tainted=task.tainted,
   tools_enabled=…)` (ADR-0017; an unknown model is an `ok=False` "unknown subagent model" result,
@@ -576,7 +598,10 @@ Use-case:
   same validation either way). It persists one `SubagentTask` per item, each stamped with the
   requested `model`, the item's `context`, and the **call stamp's `tainted`** (the dispatcher's
   `TurnStamp`, ADR-0018/0027). It runs the `SubagentRunner`s
-  **concurrently** (bounded by the scheduler), and returns one aggregated `ToolResult`, with a
+  **concurrently** (bounded by the scheduler), each handed the **call stamp's `budget`** so the
+  whole batch draws on the spawning turn's one pool (ADR-0009 turn-wide addendum) and an unbounded
+  `instructions` array can no longer buy unbounded external calls, and returns one aggregated
+  `ToolResult`, with a
   `[subagent N] …` block per subtask, failures shown inline. The aggregate is `UNTRUSTED` iff any
   subagent was tainted, so a subagent that read a malicious file taints the cortex through the
   normal result path (ADR-0013). A `BuiltinTool` (`.spec` + async `invoke`), registered in a
