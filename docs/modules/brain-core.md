@@ -6,7 +6,9 @@ subagent delegation live here now; handoff orchestration joins them in a later s
 ever. This is the hexagon's center. The bounded infer↔tool loop is one shared function
 (`tool_loop.stream_tool_loop`) that both the cortex turn and each subagent run (ADR-0010).
 
-**Public contract** (everything importable from `cortex_core`; `__all__` is the API):
+**Public contract** (everything importable from `cortex_core`; the barrel's re-exports are the
+API, declared with the typing spec's redundant-alias form `X as X` rather than an `__all__`
+list, so a public name costs one line there instead of two):
 
 Routing (Slice 1):
 

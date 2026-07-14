@@ -832,13 +832,20 @@ addendum adds `SkipUnavailableToolRegistry` + `CORTEX_TOOLS_ON_UNAVAILABLE=skip`
   `MAX_TOOL_DISPATCHES` into the new `tool_budget.py` beside the prices (one currency: that
   module owns how much a loop may *spend*, `tool_loop.py` how *long* it runs), which the line
   cap forced by failing at 302 on `cortex_core/__init__.py`. Remaining:
-- **`cortex_core/__init__.py` sits at exactly the 300-line cap.** The re-export barrel has no
-  headroom left, so the *next* public core name breaks the line-cap gate for whatever unrelated
-  change adds it. Deliberately not addressed here (the cost addendum would have had to redesign
-  the package's public surface to land a knob). The options when it next bites: split the public
-  API into sub-barrels re-exported by `__init__`, drop the "orchestrator imports package-level
-  only" convention for constants (already done for tests, which import `DEFAULT_TOOL_COST` from
-  `cortex_core.tool_budget`), or prune genuinely unused exports.
+- **`cortex_core/__init__.py`'s headroom returned 2026-07-14 (300 lines to 162).** The barrel sat
+  at exactly the cap, so the *next* public core name broke the line-cap gate for whatever
+  unrelated change added it. None of the three options this entry listed was taken, because each
+  treated the 151-name public surface as the cost when the surface was never the problem: the
+  file spent **two** lines per name, one to import it and one to restate it in `__all__`.
+  Re-export is now declared with the typing spec's redundant-alias form (`X as X`), which pyright
+  honors identically and which says it once, so the same 151 names cost 151 lines and a new one
+  costs a line instead of two. No consumer changed (every name still imports from `cortex_core`,
+  so the package-level convention stands), no export was pruned, and no sub-barrel was
+  introduced. Two things the implementation found: ruff **exempts `__init__.py` from PLC0414**
+  (useless-import-alias) precisely because the redundant alias is the re-export convention there,
+  so `select = ["ALL"]` needed no new ignore; and nothing in the tree read `cortex_core.__all__`
+  (only `cortex_seam`'s own facade test reads its package's list), so dropping it broke no
+  contract. Verified green: ruff, ruff format, pyright strict, and the full brain suite at 100%.
 - **Salience policy on the tool loop.** Which calls *deserve* dispatching, as opposed to how
   many, is still open (ADR-0009 decision 3 / risks).
 - **A turn-wide dispatch budget spanning spawned subagents.** Each `stream_tool_loop` invocation
