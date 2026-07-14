@@ -75,7 +75,8 @@ Config (pydantic-settings; explicit constructor arguments beat the environment):
   user's, because a nested-dict env key replaces the whole mapping, so a built-in kept as the
   field default would vanish the moment a user priced an unrelated tool. Built in is
   `spawn_subagents` at `DEFAULT_SPAWN_COST` (`MAX_TOOL_DISPATCHES // 4`, four delegations a
-  turn): it is the one wired tool whose single dispatch fans out into a batch of model runs and
+  turn, each of at most `MAX_SPAWN_BATCH` subtasks): it is the one wired tool whose single
+  dispatch fans out into a batch of model runs and
   the one with no confirmation gate ahead of it, whereas `send_email` is deliberately unpriced
   since its ADR-0022 confirmation is the tighter bound. A price outside `1..MAX_TOOL_DISPATCHES`
   fails at boot (free stops bounding the tool; unaffordable means it can never run).

@@ -137,6 +137,7 @@ from cortex_core.scope import SessionMemoryScope as SessionMemoryScope
 from cortex_core.sessions import SessionSummary as SessionSummary
 from cortex_core.sessions import summarize_ends as summarize_ends
 from cortex_core.sessions import summarize_session as summarize_session
+from cortex_core.spawn import MAX_SPAWN_BATCH as MAX_SPAWN_BATCH
 from cortex_core.spawn import SPAWN_TOOL_NAME as SPAWN_TOOL_NAME
 from cortex_core.spawn import SpawnSubagentsTool as SpawnSubagentsTool
 from cortex_core.subagents import SubagentResult as SubagentResult
