@@ -2,8 +2,10 @@
 
 Both the cortex ``TurnEngine`` and a ``SubagentRunner`` do the same thing: stream from a model
 with tools available; when the model emits tool calls, dispatch each through the audited
-``ToolDispatcher`` and feed the results back; repeat until a final text answer or
-``MAX_TOOL_STEPS``. That loop (inlined in ``handle_turn`` before Slice 7) lives here so both
+``ToolDispatcher`` and feed the results back; repeat until a final text answer, ``MAX_TOOL_STEPS``
+rounds, or ``MAX_TOOL_DISPATCHES`` calls (the two bounds are independent: rounds cap how long the
+loop runs, the budget caps how much of the outside world it may touch, ADR-0009 budget addendum).
+That loop (inlined in ``handle_turn`` before Slice 7) lives here so both
 callers reuse it verbatim: one loop, one bound, one audited dispatch path. The loop mutates the
 ``working`` message list in place (appending the tool-call and result messages) and yields each
 assistant reply delta (a ``str``), any ``ReasoningDelta`` a reasoning model streams (ADR-0020),
@@ -34,6 +36,14 @@ from cortex_core.untrusted import TaintLedger, wrap_untrusted
 # Upper bound on inference↔tool rounds in one loop (ADR-0009): a safety net against a model
 # that never stops calling tools. On exhaustion the loop ends with the text produced so far.
 MAX_TOOL_STEPS = 8
+
+# Upper bound on tool dispatches across ALL rounds of one loop (ADR-0009 budget addendum).
+# MAX_TOOL_STEPS bounds rounds, not calls: a single round dispatched every call the model
+# emitted, so the two bounds multiplied and neither answered "how many external calls can one
+# turn make?". This one does. Sized above plausible legitimate use (eight rounds averaging
+# four calls) and far below spam. Past it, calls are refused, audited, and reported to the
+# model, which is why the count is total rather than per round.
+MAX_TOOL_DISPATCHES = 32
 
 # Upper bound on a ToolStep summary: the chip is one slim line, and an advertised description
 # is sidecar-authored text of arbitrary length (ADR-0009 addendum).
@@ -87,8 +97,10 @@ class ToolLoopContext:
     those results; ``session_id`` is the originating chat the loop stamps onto each dispatch
     (ADR-0027; ``""`` for a session-less caller, e.g. a subagent); ``schema`` (ADR-0028), when
     set, constrains the model's output to that JSON Schema (a constrained tool-less subagent
-    envelope; ``None`` for the cortex and every tool-enabled path). Both the cortex turn and
-    each subagent build one per invocation.
+    envelope; ``None`` for the cortex and every tool-enabled path); ``dispatch_budget``
+    (ADR-0009 budget addendum) caps total dispatches across the loop's rounds, per invocation
+    so a caller can run tighter than the default. Both the cortex turn and each subagent build
+    one per invocation, and each gets its own budget.
     """
 
     dispatcher: ToolDispatcher | None
@@ -98,6 +110,7 @@ class ToolLoopContext:
     nonce: str
     session_id: str
     schema: JsonSchema | None = None
+    dispatch_budget: int = MAX_TOOL_DISPATCHES
 
 
 def _call_message(text: str, calls: Sequence[ToolCall], at: datetime, turn_id: str) -> Message:
@@ -130,7 +143,11 @@ async def stream_tool_loop(
 
     The loop advertises exactly the tools it can dispatch: the dispatcher's tools when present,
     none otherwise. With ``dispatcher`` None (or once the model stops calling tools) the loop
-    ends after one inference step. Each tool call is dispatched through the audited dispatcher, with
+    ends after one inference step. Two bounds apply: ``MAX_TOOL_STEPS`` rounds, and
+    ``context.dispatch_budget`` dispatches summed across them (ADR-0009 budget addendum). Past
+    the budget each further call is refused by the dispatcher and audited, and the rounds that
+    remain are how the model learns of it and still answers.
+    Each tool call is dispatched through the audited dispatcher, with
     gated calls confirmed against the turn's taint (ADR-0013). Its result marks the taint ledger
     and is fed back (fenced when untrusted) as a ``Role.TOOL`` message before re-inference.
     Reasoning deltas and tool steps are surfaced live but never join ``step_text``, so they are
@@ -140,6 +157,9 @@ async def stream_tool_loop(
     specs = await dispatcher.describe_tools() if dispatcher is not None else ()
     gated_by_name = {spec.name: spec.gated for spec in specs}
     spec_by_name = {spec.name: spec for spec in specs}
+    # Dispatches performed so far, counted across rounds against the budget (ADR-0009 budget
+    # addendum). Refused calls do not increment it: once spent, the budget stays spent.
+    dispatched = 0
     for _step in range(MAX_TOOL_STEPS):
         calls: list[ToolCall] = []
         step_text: list[str] = []
@@ -164,13 +184,22 @@ async def stream_tool_loop(
             _call_message("".join(step_text), calls, context.clock.now(), context.turn_id)
         )
         for call in calls:
-            # Surface activity only for a call that matched an advertised spec, so the chip's
-            # name and summary are both registry-authored (ADR-0009 addendum). A call to an
-            # unadvertised name (a model hallucination, or a tool skip-mode hid) still
-            # dispatches below and fails as its usual is_error result, but never renders a
-            # chip carrying the model's chosen string.
-            if (spec := spec_by_name.get(call.name)) is not None:
-                yield ToolStep(tool_name=spec.name, summary=_step_summary(spec))
+            # Past the budget the call is still handed to the dispatcher, which refuses it and
+            # audits the refusal (ADR-0009 budget addendum). Breaking out instead would strand
+            # this round's tool_calls without their Role.TOOL answers, so the next round's
+            # re-inference would send a malformed conversation, and would refuse dispatches
+            # that no audit record ever sees.
+            over_budget = dispatched >= context.dispatch_budget
+            if not over_budget:
+                dispatched += 1
+                # Surface activity only for a call that matched an advertised spec, so the
+                # chip's name and summary are both registry-authored (ADR-0009 addendum). A
+                # call to an unadvertised name (a model hallucination, or a tool skip-mode
+                # hid) still dispatches below and fails as its usual is_error result, but
+                # never renders a chip carrying the model's chosen string. A refused call
+                # renders no chip either: a chip means a tool is running now.
+                if (spec := spec_by_name.get(call.name)) is not None:
+                    yield ToolStep(tool_name=spec.name, summary=_step_summary(spec))
             # The advertised gated flag is a hint; the dispatcher OR-s it with its own
             # authoritative gated-name set, so a tool a flaky sidecar hid from this snapshot
             # (skip mode) and later recovered is still gated at dispatch (ADR-0022). The
@@ -180,6 +209,7 @@ async def stream_tool_loop(
                 call,
                 stamp=TurnStamp(session_id=context.session_id, tainted=context.taint.tainted),
                 gated=gated_by_name.get(call.name, False),
+                over_budget=over_budget,
             )
             context.taint.observe(result)
             working.append(

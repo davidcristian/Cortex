@@ -10,7 +10,7 @@ from cortex_core.aggregate import (
 from cortex_core.body import VolumeState
 from cortex_core.composite import BuiltinTool, CompositeToolRegistry
 from cortex_core.conversation import Message, Role
-from cortex_core.dispatch import ToolDispatcher
+from cortex_core.dispatch import BUDGET_EXHAUSTED_MSG, ToolDispatcher
 from cortex_core.engine import DEFAULT_CORTEX_MODEL, TurnCapabilities, TurnEngine
 from cortex_core.errors import (
     BodyGatewayError,
@@ -144,6 +144,7 @@ from cortex_core.volume import (
 from cortex_core.windowing import CharBudgetHistoryWindow, HistoryWindow
 
 __all__ = [
+    "BUDGET_EXHAUSTED_MSG",
     "CANCEL_SCHEDULED_TOOL_NAME",
     "DEFAULT_CORTEX_MODEL",
     "DENIED_MSG",
