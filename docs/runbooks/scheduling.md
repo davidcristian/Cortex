@@ -67,9 +67,13 @@ rule names a wall time rather than an instant, **changing `CORTEX_SCHEDULE_TZ` m
 calendar schedules** to the new zone's 09:00, while interval and one-shot items (stored as UTC
 instants) only re-render. That is deliberate: a 09:00 reminder follows its user.
 
-`edit_scheduled` can replace a rule with an interval, or stop it repeating with
-`every_seconds: 0`; setting or retiming a rule in place is not wired yet, so cancel and
-recreate for that.
+`edit_scheduled` changes recurrence in place in either direction: `at_time` (with an optional
+`on_days`) sets or retimes a rule, `every_seconds` replaces one with an interval, and
+`every_seconds: 0` stops it repeating. The two forms are mutually exclusive in one call, since
+an item carries one recurrence shape. Retiming a rule **moves the next fire** to that rule's own
+next occurrence and reports it, unlike an interval change, which leaves the armed fire alone and
+takes effect from the following one; a fired-but-undelivered reminder retimed this way re-arms
+and fires fresh rather than re-delivering the stale one (ADR-0025 rule-edit addendum).
 
 With subagents wired (`CORTEX_SUBAGENTS_BACKEND=llamacpp`) the tool also offers
 `kind: "task"`, which is an autonomous subagent run per fire, dispatched through the ticker's own

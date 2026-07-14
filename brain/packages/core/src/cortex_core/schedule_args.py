@@ -39,12 +39,12 @@ _ONE_WHEN = "provide exactly one of 'at' (ISO-8601), 'in_seconds', or 'at_time' 
 _BAD_AT = "'at' must be an ISO-8601 date-time, e.g. 2026-07-12T18:00:00"
 _BAD_AT_TIME = "'at_time' must be a 24-hour wall-clock time with no seconds, e.g. 09:00"
 _BAD_ON_DAYS = f"'on_days' must be a non-empty list of weekday names from {', '.join(DAY_NAMES)}"
-_DAYS_NEED_AT_TIME = "'on_days' applies only together with 'at_time'"
+DAYS_NEED_AT_TIME = "'on_days' applies only together with 'at_time'"
 _EVERY_WITH_AT_TIME = (
     "'at_time' already recurs on the wall clock; drop 'every_seconds', or use 'at' with "
     "'every_seconds' for a fixed interval instead"
 )
-_UNSCHEDULABLE_RULE = "'at_time' has no next occurrence that can be scheduled"
+UNSCHEDULABLE_RULE = "'at_time' has no next occurrence that can be scheduled"
 _BAD_IN_SECONDS = "'in_seconds' must be a positive number of seconds"
 _BAD_EVERY = f"'every_seconds' must be a number between {MIN_EVERY_SECONDS} and {MAX_EVERY_SECONDS}"
 _MODEL_NEEDS_TASK = "'model' applies only to 'kind': \"task\""
@@ -141,7 +141,7 @@ def _parse_due_at(arguments: Mapping[str, Any], now: datetime, zone: DisplayZone
     return _delay_from(now, in_seconds)
 
 
-def _parse_at_time(value: object) -> tuple[int, int] | str:
+def parse_at_time(value: object) -> tuple[int, int] | str:
     """A bare ``HH:MM`` wall-clock time as ``(hour, minute)``, or a correction string."""
     if not isinstance(value, str):
         return _BAD_AT_TIME
@@ -156,7 +156,7 @@ def _parse_at_time(value: object) -> tuple[int, int] | str:
     return parsed.hour, parsed.minute
 
 
-def _parse_on_days(value: object) -> frozenset[int] | str:
+def parse_on_days(value: object) -> frozenset[int] | str:
     """The weekday set for a calendar rule; absent means every day."""
     if value is None:
         return EVERY_DAY
@@ -181,17 +181,17 @@ def _parse_calendar(
     """
     if arguments.get("every_seconds") is not None:
         return _EVERY_WITH_AT_TIME
-    wall = _parse_at_time(arguments.get("at_time"))
+    wall = parse_at_time(arguments.get("at_time"))
     if isinstance(wall, str):
         return wall
-    days = _parse_on_days(arguments.get("on_days"))
+    days = parse_on_days(arguments.get("on_days"))
     if isinstance(days, str):
         return days
     hour, minute = wall
     rule = CalendarRule(hour=hour, minute=minute, days=days)
     due_at = next_calendar_due(rule, now, zone)
     if due_at is None:
-        return _UNSCHEDULABLE_RULE
+        return UNSCHEDULABLE_RULE
     return _When(due_at=due_at, every=None, rule=rule)
 
 
@@ -202,7 +202,7 @@ def _parse_when(arguments: Mapping[str, Any], now: datetime, zone: DisplayZone) 
             return _ONE_WHEN
         return _parse_calendar(arguments, now, zone)
     if arguments.get("on_days") is not None:
-        return _DAYS_NEED_AT_TIME
+        return DAYS_NEED_AT_TIME
     due_at = _parse_due_at(arguments, now, zone)
     if isinstance(due_at, str):
         return due_at

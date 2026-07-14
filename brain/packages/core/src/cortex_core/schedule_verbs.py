@@ -17,9 +17,11 @@ from datetime import datetime
 
 from cortex_core.errors import ScheduleStoreError
 from cortex_core.ports import Clock, ScheduleStore
-from cortex_core.schedule import ScheduleEdit, ScheduleKind, ScheduleStatus
+from cortex_core.schedule import ScheduleKind, ScheduleStatus
 from cortex_core.schedule_args import MIN_EVERY_SECONDS
+from cortex_core.schedule_calendar import DAY_NAMES
 from cortex_core.schedule_time import UTC_DISPLAY, DisplayZone
+from cortex_core.schedule_transitions import ScheduleEdit
 from cortex_core.schedule_verb_args import parse_edit, parse_for_seconds
 from cortex_core.tools import ToolCall, ToolResult, ToolSpec, Trust
 
@@ -162,14 +164,21 @@ class EditScheduledTool:
     """Built-in ``edit_scheduled``: change a schedule's text and/or recurrence in place.
 
     Retext (``text``) and re-recur (``every_seconds``: a new interval, or ``0`` to stop
-    repeating) without cancel-and-recreate. The next due time is left untouched, so re-recur
-    changes the cadence of future re-arms only. A FIRING item is refused (the in-flight fire
-    settles first); a tainted turn may edit a reminder (the item then becomes tainted) but not
-    a task (the creation-side refusal). No stored text ever rides the result.
+    repeating; or ``at_time``/``on_days``: a wall-clock rule) without cancel-and-recreate. An
+    interval change leaves the next due time untouched, so it alters the cadence of future
+    re-arms only; setting a **rule** re-derives the next occurrence from the rule itself, since
+    a rule is its own grid and a pinned due time would name a fire the rule does not
+    (ADR-0025 rule-edit addendum). A FIRING item is refused (the in-flight fire settles
+    first); a tainted turn may edit a reminder (the item then becomes tainted) but not a task
+    (the creation-side refusal). No stored text ever rides the result.
     """
 
-    def __init__(self, store: ScheduleStore) -> None:
+    def __init__(
+        self, store: ScheduleStore, clock: Clock, *, zone: DisplayZone = UTC_DISPLAY
+    ) -> None:
         self._store = store
+        self._clock = clock
+        self._zone = zone
 
     @property
     def spec(self) -> ToolSpec:
@@ -177,9 +186,12 @@ class EditScheduledTool:
         return ToolSpec(
             name=EDIT_SCHEDULED_TOOL_NAME,
             description=(
-                "Change a scheduled reminder or task by its id: set new 'text', and/or "
-                "'every_seconds' to change the repeat interval (0 to stop repeating). The "
-                "next due time is unchanged. Use the id from list_scheduled."
+                "Change a scheduled reminder or task by its id: set new 'text', and/or change "
+                "how it repeats with either 'every_seconds' (a fixed interval, 0 to stop "
+                f"repeating) or 'at_time' (a wall-clock time in {self._zone.name}, optionally "
+                "on given 'on_days'). An 'every_seconds' change leaves the next due time alone; "
+                "'at_time' moves it to that rule's next occurrence. Use the id from "
+                "list_scheduled."
             ),
             parameters={
                 "type": "object",
@@ -193,6 +205,20 @@ class EditScheduledTool:
                             "0 to stop repeating (optional)."
                         ),
                     },
+                    "at_time": {
+                        "type": "string",
+                        "description": (
+                            "New wall-clock repeat time as HH:MM (optional); replaces any "
+                            "'every_seconds' interval this schedule had."
+                        ),
+                    },
+                    "on_days": {
+                        "type": "array",
+                        "items": {"type": "string", "enum": list(DAY_NAMES)},
+                        "description": (
+                            "Which weekdays 'at_time' repeats on (optional; default every day)."
+                        ),
+                    },
                 },
                 "required": ["id"],
             },
@@ -203,7 +229,7 @@ class EditScheduledTool:
         item_id = call.arguments.get("id")
         if not isinstance(item_id, str) or not item_id:
             return error_result(call.id, "'id' must be a non-empty string")
-        parsed = parse_edit(call.arguments)
+        parsed = parse_edit(call.arguments, now=self._clock.now(), zone=self._zone)
         if isinstance(parsed, str):
             return error_result(call.id, parsed)
         edit = replace(parsed, tainted=call.stamp.tainted)
@@ -213,7 +239,11 @@ class EditScheduledTool:
             return store_down_result(call.id, err)
         if correction is not None:
             return error_result(call.id, correction)
-        return ToolResult(call_id=call.id, content=f"edited {item_id}", trust=Trust.TRUSTED)
+        content = f"edited {item_id}"
+        if edit.rule is not None:
+            # Only the rule branch moves the timing, so only it owes the new due time.
+            content = f"{content}: now due {self._zone.render(edit.rule.due_at)}"
+        return ToolResult(call_id=call.id, content=content, trust=Trust.TRUSTED)
 
     async def _edit(self, item_id: str, edit: ScheduleEdit) -> str | None:
         """Advisory guards (unknown / firing / tainted-task), then the fenced edit.

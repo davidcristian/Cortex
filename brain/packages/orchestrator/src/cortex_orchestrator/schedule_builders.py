@@ -71,8 +71,9 @@ def build_schedule_tools(
     ``tasks_enabled`` keys honest advertisement: without a spawn tool wired, the spec
     offers reminders only (and the fire path answers a stale TASK with an ok=False
     outcome should one outlive a reconfig). ``CORTEX_SCHEDULE_TZ`` becomes the
-    ``DisplayZone`` the three rendering built-ins share (ADR-0025 display addendum); the two
-    that render nothing (``cancel``/``edit``, whose results are ids) do not take one.
+    ``DisplayZone`` the rendering built-ins share (ADR-0025 display addendum); only ``cancel``
+    takes none, its result being an id. ``edit`` joined them when a calendar-rule edit gained a
+    new due time to report and a wall time to read (ADR-0025 rule-edit addendum).
     """
     if schedules is None:
         return []
@@ -88,7 +89,7 @@ def build_schedule_tools(
         ListScheduledTool(schedules, zone=zone),
         CancelScheduledTool(schedules),
         SnoozeScheduledTool(schedules, clock, zone=zone),
-        EditScheduledTool(schedules),
+        EditScheduledTool(schedules, clock, zone=zone),
     ]
 
 

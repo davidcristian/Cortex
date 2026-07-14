@@ -102,11 +102,8 @@ from cortex_core.runner import SubagentRunner as SubagentRunner
 from cortex_core.schedule import FireOutcome as FireOutcome
 from cortex_core.schedule import ScheduleClaim as ScheduleClaim
 from cortex_core.schedule import ScheduledItem as ScheduledItem
-from cortex_core.schedule import ScheduleEdit as ScheduleEdit
 from cortex_core.schedule import ScheduleKind as ScheduleKind
 from cortex_core.schedule import ScheduleStatus as ScheduleStatus
-from cortex_core.schedule import apply_edit as apply_edit
-from cortex_core.schedule import apply_snooze as apply_snooze
 from cortex_core.schedule import next_due as next_due
 from cortex_core.schedule import next_occurrence as next_occurrence
 from cortex_core.schedule import recurrence_base as recurrence_base
@@ -122,6 +119,10 @@ from cortex_core.schedule_tools import SCHEDULE_TOOL_NAME as SCHEDULE_TOOL_NAME
 from cortex_core.schedule_tools import TAINTED_TASK_MSG as TAINTED_TASK_MSG
 from cortex_core.schedule_tools import ListScheduledTool as ListScheduledTool
 from cortex_core.schedule_tools import ScheduleTaskTool as ScheduleTaskTool
+from cortex_core.schedule_transitions import RuleChange as RuleChange
+from cortex_core.schedule_transitions import ScheduleEdit as ScheduleEdit
+from cortex_core.schedule_transitions import apply_edit as apply_edit
+from cortex_core.schedule_transitions import apply_snooze as apply_snooze
 from cortex_core.schedule_verbs import CANCEL_SCHEDULED_TOOL_NAME as CANCEL_SCHEDULED_TOOL_NAME
 from cortex_core.schedule_verbs import EDIT_SCHEDULED_TOOL_NAME as EDIT_SCHEDULED_TOOL_NAME
 from cortex_core.schedule_verbs import SNOOZE_SCHEDULED_TOOL_NAME as SNOOZE_SCHEDULED_TOOL_NAME
