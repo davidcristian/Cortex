@@ -12,7 +12,8 @@ It is also the capability gate (ADR-0013, table revised by ADR-0022 decision 2):
 runs at all, the confirmer deliberately unconsulted: an action demanded by injected content
 must not be merely a confirm-away. Every block returns an error result **without invoking
 the tool** (``DENIED_MSG`` for the taint block, ``USER_DECLINED_MSG`` for a declined or
-unreachable confirmation, the fail-closed no-confirmer default included) and is audited.
+unreachable confirmation, the fail-closed no-confirmer default included, and
+``BUDGET_EXHAUSTED_MSG`` once the caller's dispatch budget is spent) and is audited.
 The approval is the human's, reached out of band, never the (possibly jailbroken) model's.
 """
 
@@ -35,6 +36,15 @@ from cortex_core.untrusted import DENIED_MSG, USER_DECLINED_MSG
 
 # Why confirmation is required, shown verbatim to the user by the overlay (ADR-0022).
 _GATE_REASON = "this action is outbound or irreversible and runs only with your approval"
+
+# The result content fed back when the caller's dispatch budget is spent (ADR-0009 budget
+# addendum). Phrased so the model stops calling tools and answers with what it already has,
+# rather than retrying the same call into a bound that cannot move within the loop.
+BUDGET_EXHAUSTED_MSG = (
+    "REFUSED: this turn has reached its limit on tool calls, so the tool was not run. Do not "
+    "retry this or any other tool call. Answer the user with the information you already have, "
+    "and say that you stopped short if the answer is incomplete."
+)
 
 
 class ToolDispatcher:
@@ -69,14 +79,25 @@ class ToolDispatcher:
         return await self._registry.describe_tools()
 
     async def dispatch(
-        self, call: ToolCall, *, stamp: TurnStamp = UNSTAMPED, gated: bool = False
+        self,
+        call: ToolCall,
+        *,
+        stamp: TurnStamp = UNSTAMPED,
+        gated: bool = False,
+        over_budget: bool = False,
     ) -> ToolResult:
         """Invoke ``call``, audit the outcome, and return the result the model consumes.
+
+        ``over_budget`` (ADR-0009 budget addendum) is the caller's statement that its dispatch
+        budget is spent; the refusal itself belongs here so it is audited like every other
+        dispatch, and it is checked **first**, ahead of the gate. Ordering it after would let a
+        model emitting hundreds of gated calls put a confirmation prompt in front of the user
+        for each one before the budget refused any, turning a spam bound into a flood.
 
         The gate (ADR-0022 decision 2): a gated tool on a tainted turn is blocked outright
         (``DENIED_MSG``, the confirmer never consulted); on an untainted turn it runs only
         with the user's approval (``USER_DECLINED_MSG`` otherwise, and a missing confirmer
-        denies, fail-closed). Both blocks return without invoking the tool. Otherwise a
+        denies, fail-closed). Every block returns without invoking the tool. Otherwise a
         ``ToolError`` from the registry (unknown tool, transport) is caught and returned as
         an ``is_error`` result. The loop keeps going and the model sees the failure.
         """
@@ -84,6 +105,14 @@ class ToolDispatcher:
         # that spawn further work, never authority. The gate below keeps using the explicit
         # ``stamp`` argument, so a model-forged stamp is discarded and feeds nothing.
         call = replace(call, stamp=stamp)
+        if over_budget:
+            refused = ToolResult(
+                call_id=call.id,
+                content=BUDGET_EXHAUSTED_MSG,
+                is_error=True,
+                trust=Trust.TRUSTED,
+            )
+            return await self._audited(call, refused)
         # The advertised flag OR the authoritative gated set (ADR-0022): a gated tool a flaky
         # sidecar hid from this turn's advertisement snapshot is still gated here.
         gated = gated or call.name in self._gated_names

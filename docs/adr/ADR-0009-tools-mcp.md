@@ -382,3 +382,62 @@ CI-gated end to end over the fakes (loop yield-before-dispatch order, engine pas
 registry-authored summary derivation with an unadvertised call surfacing no chip, runner drop,
 wire mapping); the overlay half was already browser-validated when the chips landed, and
 renders this event with no overlay change.
+
+## Addendum (2026-07-14): the dispatch budget bounds tool spam, which max-steps never did
+
+This ADR's risks claimed loop non-termination and tool spam were "bounded by the max-steps
+guard". Half of that was false, and the chip addendum's decision 4 repeated it ("emission is
+intrinsically bounded (`MAX_TOOL_STEPS` per turn)"). `MAX_TOOL_STEPS` bounds **inference
+rounds**. Within one round `stream_tool_loop` dispatched *every* call the model emitted, with
+no cap: one round of 500 `tool_calls` was 500 dispatches, and eight such rounds were 4000, on
+the only path that reaches external services. The audit trail made a runaway visible after the
+fact; nothing stopped it. This addendum lands the dispatch half of the deferred rate policy.
+
+1. **A per-loop total dispatch budget, counted across rounds.** `MAX_TOOL_DISPATCHES` (32,
+   a module constant beside `MAX_TOOL_STEPS`, and configurable per loop via the new
+   `ToolLoopContext.dispatch_budget`) caps how many calls one `stream_tool_loop` invocation
+   may dispatch in total. A total, not a per-round cap, is the property worth having: a
+   per-round cap of *n* still permits `MAX_TOOL_STEPS * n` external calls per turn, so the
+   number a user could actually name ("how many tool calls can one turn make?") would still
+   be a product of two constants. 32 sits above plausible legitimate use (eight rounds
+   averaging four calls) and far below spam.
+
+2. **An over-budget call is still dispatched, refused inside the dispatcher, and audited.**
+   The tempting implementation, breaking out of the loop when the count is reached, is wrong
+   twice. It would leave the assistant message's `tool_calls` without their matching
+   `Role.TOOL` results, so the next round's re-inference sends a malformed conversation (an
+   OpenAI-compatible backend requires one tool message per `tool_call_id`); and it would
+   produce dispatch refusals that no audit record ever sees, breaking this ADR's "every
+   dispatch writes exactly one audit record" contract at exactly the moment the audit trail
+   matters most. So the loop passes its decision down as a new `dispatch(..., over_budget=)`
+   keyword, mirroring how `gated` is passed: the caller states the fact, the dispatcher owns
+   the refusal, its message (`BUDGET_EXHAUSTED_MSG`), and the audit line. The model reads the
+   refusal as an ordinary `is_error` result and can wrap up in the rounds that remain.
+
+3. **The budget is checked before the gate, so it cannot be turned into a confirmation flood.**
+   Inside `dispatch`, `over_budget` short-circuits ahead of the tainted-turn block and ahead of
+   `_confirmed`. Ordering it after would mean a model emitting 500 gated calls put 500
+   confirmation prompts in front of the user before the budget refused any of them, which
+   turns a spam bound into a denial-of-service on the human. The gate's own semantics are
+   untouched: below the budget, the ADR-0022 decision-2 table still decides.
+
+4. **A refused call lights no activity chip.** The guard sits *above* the `ToolStep` yield, so
+   a chip still means what it says (a tool is running now). This also makes the chip addendum's
+   decision-4 claim true retroactively: chip emission is now genuinely bounded per turn,
+   because it is bounded by the budget rather than by a round count that multiplied.
+
+The outer loop deliberately keeps running once the budget is spent, rather than stopping: the
+remaining rounds are how the model learns of the refusal and produces a final answer instead of
+the empty text a hard stop yields (the `MAX_TOOL_STEPS` exhaustion behavior). Those rounds
+dispatch nothing external, so the bound holds.
+
+Remaining behind the same seam: the **salience** half of the deferred policy (which calls
+*deserve* dispatching, versus how many), a **per-tool or per-cost budget** (32 filesystem reads
+and 32 outbound emails are not the same risk), and the fact that a subagent's loop gets its
+**own** fresh budget, so a cortex turn that spawns subagents can still exceed 32 dispatches in
+aggregate; a turn-wide budget shared across spawned work needs a counter that outlives one
+`stream_tool_loop` invocation.
+
+CI-gated over the fakes: the total counted across rounds, the boundary call, the refusal
+audited with the tool never invoked, the ordering ahead of both the taint block and the
+confirmer, no chip for a refused call, and the loop's message shape staying well formed.
