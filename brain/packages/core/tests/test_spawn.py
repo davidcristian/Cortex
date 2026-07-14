@@ -1,12 +1,14 @@
 """Behavior tests for the spawn_subagents built-in tool (ADR-0010/0018)."""
 
-from collections.abc import AsyncIterator, Callable, Sequence
+from collections.abc import AsyncIterator, Callable, Mapping, Sequence
 from datetime import UTC, datetime
 from typing import Any, cast
 
 import pytest
 
 from cortex_core import (
+    BUDGET_EXHAUSTED_MSG,
+    DispatchBudget,
     EchoInferenceBackend,
     InferenceBackend,
     InferenceError,
@@ -19,6 +21,7 @@ from cortex_core import (
     PlacementTarget,
     RecordingAuditSink,
     ResourceBudgetScheduler,
+    Role,
     SpawnSubagentsTool,
     SubagentProfile,
     SubagentResources,
@@ -91,9 +94,85 @@ def _tool(store: InMemoryTaskStore, backend: InferenceBackend) -> SpawnSubagents
     )
 
 
-def _call(arguments: dict[str, object], *, tainted: bool = False) -> ToolCall:
-    stamp = TurnStamp(tainted=tainted)
+def _call(
+    arguments: dict[str, object],
+    *,
+    tainted: bool = False,
+    budget: DispatchBudget | None = None,
+) -> ToolCall:
+    stamp = TurnStamp(tainted=tainted, budget=budget)
     return ToolCall(id="c1", name="spawn_subagents", arguments=arguments, stamp=stamp)
+
+
+class OneToolCallBackend:
+    """Calls one tool on a subagent's first round, then answers. Stateless, so the whole batch
+    can share one instance and each concurrent run drives it independently: whether a round is
+    the first is read off the messages (a tool result present means the call already happened)
+    rather than off a counter that concurrency would scramble.
+    """
+
+    async def stream(
+        self,
+        model: str,
+        messages: Sequence[Message],
+        *,
+        tools: Sequence[ToolSpec] = (),
+        schema: JsonSchema | None = None,
+    ) -> AsyncIterator[InferenceEvent]:
+        del model, tools, schema
+        if any(message.role is Role.TOOL for message in messages):
+            yield TextChunk("done")
+            return
+        yield ToolCall(id="c1", name="read", arguments={"path": "/x"})
+
+
+def _delegating_tool(
+    store: InMemoryTaskStore, sink: RecordingAuditSink
+) -> tuple[SpawnSubagentsTool, SubagentRunner]:
+    """A spawn tool whose subagents hold one `read` tool, all auditing to ``sink``."""
+    registry = InMemoryToolRegistry(
+        {"read": (ToolSpec(name="read", description="", parameters={}), _read_handler)}
+    )
+    runner = _runner(
+        store,
+        OneToolCallBackend(),
+        "subagent",
+        tools=ToolDispatcher(registry, sink, FixedClock()),
+    )
+    return SpawnSubagentsTool(runner, store, FixedClock(), task_id_factory=_counter()), runner
+
+
+async def _read_handler(arguments: Mapping[str, object]) -> str:
+    return f"read {arguments['path']}"
+
+
+async def test_a_batch_shares_the_spawning_turns_pool_instead_of_one_each() -> None:
+    # The hole this closes (ADR-0009 turn-wide addendum): every subagent used to start a fresh
+    # budget, so an unbounded `instructions` array bought an unbounded number of external calls
+    # for the price of one spawn. Three subagents each wanting one dispatch, two units left in
+    # the turn's pool: two calls reach the outside world, not three.
+    store = InMemoryTaskStore()
+    sink = RecordingAuditSink()
+    tool, _ = _delegating_tool(store, sink)
+    pool = DispatchBudget(limit=2)
+    result = await tool.invoke(_call({"instructions": ["a", "b", "c"]}, budget=pool))
+    assert result.is_error is False
+    assert pool.spent == 2
+    assert len([record for record in sink.records if record.ok]) == 2
+    refused = [record for record in sink.records if not record.ok]
+    assert [record.detail for record in refused] == [BUDGET_EXHAUSTED_MSG]
+
+
+async def test_a_spawn_with_no_pool_on_its_stamp_leaves_each_subagent_its_own() -> None:
+    # The schedule ticker (ADR-0025) dispatches spawn_subagents directly, outside any tool loop,
+    # so its stamp carries no pool. Every subagent then runs on its own allowance, exactly as
+    # before this addendum: a fire is its own root, like a turn.
+    store = InMemoryTaskStore()
+    sink = RecordingAuditSink()
+    tool, _ = _delegating_tool(store, sink)
+    result = await tool.invoke(_call({"instructions": ["a", "b", "c"]}))
+    assert result.is_error is False
+    assert [record.ok for record in sink.records] == [True, True, True]
 
 
 async def test_spawns_run_concurrently_and_results_aggregate_in_order() -> None:

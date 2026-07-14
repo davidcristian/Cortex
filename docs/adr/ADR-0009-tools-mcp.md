@@ -505,3 +505,85 @@ out-of-range boot failure, and the built-in price surviving an unrelated one.
 Still remaining behind the same seam: the **salience** half (which calls *deserve* dispatching),
 and the **turn-wide** budget spanning spawned subagents, which is unchanged by this addendum,
 since pricing a call does not make one counter outlive one `stream_tool_loop` invocation.
+
+## Addendum (2026-07-14): the budget belongs to the turn, not to one loop
+
+Both addenda above sold the same property: one number answers "how many external calls can one
+turn make?". Delegation made that false, and the budget addendum's own closing paragraph named
+the hole without sizing it. `stream_tool_loop` kept `spent` as a **local**, and
+`SubagentRunner._run_placed` builds a **fresh** `ToolLoopContext` per task, so every subagent
+started at zero. The real arithmetic was worse than "32 plus 32 per subagent", because
+`spawn_subagents` takes an unbounded `instructions` array: four batches (all the cost addendum's
+price of `MAX_TOOL_DISPATCHES // 4` allows) of fifty subagents each was **6400** dispatches for a
+spend of 32, on the only path that reaches external services. The price bought a bounded number
+of *batches* and an unbounded number of *calls*. This addendum makes the budget one pool per
+turn.
+
+1. **The budget becomes an object that outlives a loop invocation.** `DispatchBudget`
+   (`tool_budget.py`, beside the prices it is spent at) replaces the `int` on
+   `ToolLoopContext.dispatch_budget` with a mutable handle carrying `limit`, `spent`, and
+   `closed`, and one method: `charge(cost) -> bool`, which spends when the call fits and
+   permanently closes when it does not. That folds the loop's two locals (`spent` and
+   `budget_closed`) into the budget itself, so the cost addendum's decision 3 ("a call that does
+   not fit closes the budget instead of being stepped over") is now a property of the budget
+   rather than a rule each loop has to re-implement identically. A caller that passes no budget
+   gets its own at `MAX_TOOL_DISPATCHES`, which is exactly the old per-loop behavior, so a root
+   caller needs no wiring.
+
+2. **It reaches spawned work on the `TurnStamp`, the channel that already exists.** The stamp is
+   built fresh per dispatch by the loop and overwritten by the dispatcher (ADR-0018/0027), and it
+   is already how `spawn_subagents` learns the spawning turn's taint. Adding a `budget` field
+   there means no new `dispatch()` keyword, no second channel on `ToolCall`, and no call site
+   changed: `SpawnSubagentsTool.invoke` reads `call.stamp.budget` and hands it to
+   `SubagentRunner.run`, which puts it on the subagent's context. This is the stamp's **first
+   non-provenance field**, and the widening is deliberate: the stamp's criterion is what the
+   dispatching turn hands to work that this call spawns, which `tainted` already satisfies twice
+   over (it is provenance *and* the input to the ADR-0017 model pin). The alternative,
+   parallel keywords on `dispatch` and a second field on `ToolCall`, is precisely what the stamp
+   was introduced to avoid. Because the handle is shared mutable state and a stamp is a value,
+   the field is excluded from the stamp's equality (`compare=False`): two dispatches of the same
+   turn still compare equal, and a caller cannot accidentally assert one pool equals another.
+
+3. **One pool, first come first served, not a per-subagent share.** Dividing the remainder
+   (`remaining // len(tasks)`) was rejected: it has to guess how many of a batch will call tools
+   at all, so it strands the allowance of every subagent that answers from its instruction alone,
+   and it reintroduces exactly the arithmetic this addendum removes (the answer becomes a
+   function of the fan-out again). Starvation under one pool degrades an answer without breaching
+   the bound, and it is visible: a starved subagent reads `BUDGET_EXHAUSTED_MSG` and reports
+   stopping short to the cortex, which reports it to the user.
+
+4. **Closure is turn-wide too.** A subagent whose call does not fit closes the pool for its
+   concurrent siblings **and** for the cortex's remaining rounds. That is decision 3 of the cost
+   addendum at the turn's scale, and it keeps the refusal message honest: "this turn has reached
+   its limit" would be a lie if the cortex could keep dispatching after a subagent read it.
+
+5. **`spawn_subagents` keeps its price, because the two bounds count different things.** The
+   budget counts **dispatches**; a subagent that calls no tools spends nothing from the pool
+   while still costing an admission slot, a placement, and a whole model run. So the batch price
+   stays the only bound on delegation fan-out, and it is not made redundant by the shared pool.
+   Neither bound alone is sufficient: without the price, one turn could spawn unbounded model
+   runs that each dispatch nothing; without the pool, four priced batches could dispatch without
+   limit.
+
+6. **A root caller without a budget gets a fresh one.** The ticker (ADR-0025) dispatches one
+   `spawn_subagents` call directly and runs no tool loop, so its stamp carries no budget and the
+   fired subagent gets its own allowance, unchanged from today. A fire is its own root, like a
+   turn; if one ever needs a tighter cap it passes a `DispatchBudget` on its stamp and nothing
+   else moves.
+
+Concurrency is not a hazard here even though a batch runs under `asyncio.gather`: `charge` is
+synchronous and contains no `await`, so on the single-threaded event loop no two charges can
+interleave, and the pool cannot be overspent by a race. Nothing about the budget is persisted,
+which is deliberate under the one hard rule: it bounds one turn's reach and dies with the turn,
+so a model swap mid-turn costs at most a re-derived allowance and never a stuck one.
+
+CI-gated over the fakes, each guard mutation-proven: the pool shared across two loops, a
+subagent's spend visible to the cortex loop that spawned it, a subagent closing the pool for its
+sibling, the stamp carrying the handle to the spawn tool, the runner falling back to its own
+budget when handed none, and the stamp's equality ignoring the handle.
+
+Still remaining behind the same seam: the **salience** half (which calls *deserve* dispatching);
+the **unbounded batch size** of `spawn_subagents` itself, now bounded in dispatches but still
+unbounded in model runs (a per-call cap on `instructions` is the obvious next bound, and it is a
+spawn-tool decision, not a budget one); and a **fair-share policy** if one greedy subagent
+starving its siblings ever shows up in practice.

@@ -22,9 +22,17 @@ from cortex_core import (
     TextChunk,
     ToolCall,
     ToolDispatcher,
+    ToolResult,
     ToolSpec,
+    Trust,
+    TurnStamp,
 )
-from cortex_core.tool_budget import MAX_TOOL_DISPATCHES, UNIFORM_COST, ToolCostPolicy
+from cortex_core.tool_budget import (
+    MAX_TOOL_DISPATCHES,
+    UNIFORM_COST,
+    DispatchBudget,
+    ToolCostPolicy,
+)
 from cortex_core.tool_loop import MAX_TOOL_STEPS, ToolLoopContext, ToolStep, stream_tool_loop
 
 _START = datetime(2026, 7, 22, 12, 0, 0, tzinfo=UTC)
@@ -92,14 +100,32 @@ class _ScriptedBackend(_MultiCallBackend):
             yield ToolCall(id=f"r{self.rounds}c{index}", name=name, arguments={})
 
 
+class _StampRecordingRegistry:
+    """A one-tool registry that keeps the stamp each invoked call arrived carrying."""
+
+    def __init__(self) -> None:
+        self.stamps: list[TurnStamp] = []
+
+    async def describe_tools(self) -> Sequence[ToolSpec]:
+        return [ToolSpec(name="noop", description="do nothing", parameters={})]
+
+    async def invoke(self, call: ToolCall) -> ToolResult:
+        self.stamps.append(call.stamp)
+        return ToolResult(call_id=call.id, content="ok", trust=Trust.TRUSTED)
+
+
 async def _noop_handler(arguments: Mapping[str, object]) -> str:
     del arguments
     return "ok"
 
 
 def _context(
-    sink: RecordingAuditSink, *, budget: int, costs: ToolCostPolicy = UNIFORM_COST
+    sink: RecordingAuditSink,
+    *,
+    budget: int | DispatchBudget,
+    costs: ToolCostPolicy = UNIFORM_COST,
 ) -> ToolLoopContext:
+    """A loop context over a two-tool registry; ``budget`` is a limit, or a pool to share."""
     registry = InMemoryToolRegistry(
         {
             name: (ToolSpec(name=name, description="do nothing", parameters={}), _noop_handler)
@@ -113,7 +139,7 @@ def _context(
         taint=TaintLedger(),
         nonce="n",
         session_id="s",
-        dispatch_budget=budget,
+        budget=DispatchBudget(budget) if isinstance(budget, int) else budget,
     )
 
 
@@ -214,10 +240,9 @@ async def test_an_unpriced_tool_still_costs_exactly_one() -> None:
     assert len([record for record in sink.records if record.ok]) == 3
 
 
-async def test_the_default_budget_is_the_module_bound() -> None:
-    # A context built without a budget gets MAX_TOOL_DISPATCHES, so the engine and each
-    # subagent (neither passes one) are bounded rather than silently unlimited.
-    context = ToolLoopContext(
+def _bare_context() -> ToolLoopContext:
+    """A context built without a budget, the shape every root caller uses."""
+    return ToolLoopContext(
         dispatcher=None,
         clock=_TickingClock(),
         turn_id="t-1",
@@ -225,4 +250,67 @@ async def test_the_default_budget_is_the_module_bound() -> None:
         nonce="n",
         session_id="s",
     )
-    assert context.dispatch_budget == MAX_TOOL_DISPATCHES
+
+
+async def test_the_default_budget_is_the_module_bound() -> None:
+    # A context built without a budget gets MAX_TOOL_DISPATCHES, so a root caller (the engine,
+    # a subagent run with no spawning turn) is bounded rather than silently unlimited.
+    assert _bare_context().budget.limit == MAX_TOOL_DISPATCHES
+
+
+async def test_each_context_built_without_one_gets_its_own_pool() -> None:
+    # The default has to be a factory, not one shared instance: a module-level default would
+    # make every turn in the process spend from the same pool, so the first busy turn after a
+    # restart would starve every turn after it, permanently.
+    first, second = _bare_context(), _bare_context()
+    assert first.budget.charge(MAX_TOOL_DISPATCHES) is True
+    assert second.budget.spent == 0
+
+
+async def test_one_pool_shared_by_two_loops_bounds_their_total_not_each_of_them() -> None:
+    # The turn-wide property (ADR-0009 turn-wide addendum), at the seam it is built on: the
+    # budget outlives one stream_tool_loop invocation, so a second loop handed the same pool
+    # starts where the first stopped. Per invocation, these two loops would have run six
+    # dispatches; sharing, they run four.
+    sink = RecordingAuditSink()
+    pool = DispatchBudget(limit=4)
+    await _run(_MultiCallBackend(per_round=3), _context(sink, budget=pool))
+    spent_by_the_first = pool.spent
+    await _run(_MultiCallBackend(per_round=3), _context(sink, budget=pool))
+    assert spent_by_the_first == 4  # the first loop alone could exhaust the shared pool
+    assert pool.spent == 4  # and the second one dispatched nothing on top
+    assert len([record for record in sink.records if record.ok]) == 4
+
+
+async def test_a_pool_closed_by_an_earlier_loop_stays_closed_for_a_later_one() -> None:
+    # Closure travels with the pool, so the second loop is refused from its very first call
+    # even though a cheap call would have fit in the unspent unit.
+    pool = DispatchBudget(limit=4)
+    costs = ToolCostPolicy({"big": 3})
+    first = RecordingAuditSink()
+    await _run(_ScriptedBackend(["big", "big"]), _context(first, budget=pool, costs=costs))
+    assert (pool.spent, pool.closed) == (3, True)
+    second = RecordingAuditSink()
+    await _run(_MultiCallBackend(per_round=1), _context(second, budget=pool, costs=costs))
+    assert [record.detail for record in second.records] == [BUDGET_EXHAUSTED_MSG] * MAX_TOOL_STEPS
+
+
+async def test_the_dispatch_stamp_carries_the_pool_to_whatever_the_call_spawns() -> None:
+    # How a subagent reaches the turn's pool at all: the loop stamps it onto the call, the
+    # dispatcher overwrites the model's stamp with that one, and the built-in reads it off the
+    # call it is invoked with (spawn_subagents does exactly this in test_spawn.py).
+    sink = RecordingAuditSink()
+    pool = DispatchBudget(limit=1)
+    registry = _StampRecordingRegistry()
+    context = ToolLoopContext(
+        dispatcher=ToolDispatcher(registry, sink, _TickingClock()),
+        clock=_TickingClock(),
+        turn_id="t-1",
+        taint=TaintLedger(),
+        nonce="n",
+        session_id="s",
+        budget=pool,
+    )
+    await _run(_MultiCallBackend(per_round=1), context)
+    assert registry.stamps  # the tool was reached, so the assertion below is not vacuous
+    assert all(stamp.budget is pool for stamp in registry.stamps)

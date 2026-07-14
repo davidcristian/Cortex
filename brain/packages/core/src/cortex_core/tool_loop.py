@@ -3,9 +3,11 @@
 Both the cortex ``TurnEngine`` and a ``SubagentRunner`` do the same thing: stream from a model
 with tools available; when the model emits tool calls, dispatch each through the audited
 ``ToolDispatcher`` and feed the results back; repeat until a final text answer, ``MAX_TOOL_STEPS``
-rounds, or ``MAX_TOOL_DISPATCHES`` calls (the two bounds are independent: rounds cap how long the
-loop runs, the budget caps how much of the outside world it may touch, ADR-0009 budget addendum).
-That loop (inlined in ``handle_turn`` before Slice 7) lives here so both
+rounds, or a spent ``DispatchBudget`` (the two bounds are independent: rounds cap how long the
+loop runs, the budget caps how much of the outside world it may touch, ADR-0009 budget addendum;
+and the budget is a pool the whole turn shares, so a spawned subagent draws from the same
+allowance rather than starting a fresh one). That loop (inlined in ``handle_turn`` before Slice 7)
+lives here so both
 callers reuse it verbatim: one loop, one bound, one audited dispatch path. The loop mutates the
 ``working`` message list in place (appending the tool-call and result messages) and yields each
 assistant reply delta (a ``str``), any ``ReasoningDelta`` a reasoning model streams (ADR-0020),
@@ -23,14 +25,14 @@ mechanism.
 """
 
 from collections.abc import AsyncGenerator, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 
 from cortex_core.conversation import Message, Role
 from cortex_core.dispatch import ToolDispatcher
 from cortex_core.inference import JsonSchema, ReasoningChunk
 from cortex_core.ports import Clock, InferenceBackend
-from cortex_core.tool_budget import MAX_TOOL_DISPATCHES
+from cortex_core.tool_budget import DispatchBudget
 from cortex_core.tools import ToolCall, ToolResult, ToolSpec, Trust, TurnStamp
 from cortex_core.untrusted import TaintLedger, wrap_untrusted
 
@@ -90,12 +92,15 @@ class ToolLoopContext:
     those results; ``session_id`` is the originating chat the loop stamps onto each dispatch
     (ADR-0027; ``""`` for a session-less caller, e.g. a subagent); ``schema`` (ADR-0028), when
     set, constrains the model's output to that JSON Schema (a constrained tool-less subagent
-    envelope; ``None`` for the cortex and every tool-enabled path); ``dispatch_budget``
-    (ADR-0009 budget addendum) caps what the loop may spend on dispatches across its rounds,
-    per invocation so a caller can run tighter than the default. What each call spends comes
-    from the dispatcher's ``ToolCostPolicy`` (ADR-0009 cost addendum), so the price of a tool
-    travels with the gateway that runs it rather than being restated here. Both the cortex turn
-    and each subagent build one context per invocation, and each gets its own budget.
+    envelope; ``None`` for the cortex and every tool-enabled path); ``budget`` (ADR-0009 budget
+    addendum) caps what may be spent on dispatches across the loop's rounds. What each call
+    spends comes from the dispatcher's ``ToolCostPolicy`` (ADR-0009 cost addendum), so the price
+    of a tool travels with the gateway that runs it rather than being restated here.
+
+    The budget is the one collaborator a caller may **share**: a context built without one gets
+    its own pool at ``MAX_TOOL_DISPATCHES``, while a subagent spawned from a cortex turn is
+    handed that turn's pool (via the dispatch ``TurnStamp``), so delegation cannot multiply the
+    total the way a per-invocation count did (ADR-0009 turn-wide addendum).
     """
 
     dispatcher: ToolDispatcher | None
@@ -105,7 +110,7 @@ class ToolLoopContext:
     nonce: str
     session_id: str
     schema: JsonSchema | None = None
-    dispatch_budget: int = MAX_TOOL_DISPATCHES
+    budget: DispatchBudget = field(default_factory=DispatchBudget)
 
 
 def _call_message(text: str, calls: Sequence[ToolCall], at: datetime, turn_id: str) -> Message:
@@ -139,10 +144,11 @@ async def stream_tool_loop(
     The loop advertises exactly the tools it can dispatch: the dispatcher's tools when present,
     none otherwise. With ``dispatcher`` None (or once the model stops calling tools) the loop
     ends after one inference step. Two bounds apply: ``MAX_TOOL_STEPS`` rounds, and
-    ``context.dispatch_budget`` summed across them (ADR-0009 budget addendum), each call
-    charged the dispatcher's price for it (ADR-0009 cost addendum). Once a call does not fit,
-    the budget closes: that call and every later one is refused by the dispatcher and audited,
-    and the rounds that remain are how the model learns of it and still answers.
+    ``context.budget`` summed across them (ADR-0009 budget addendum), each call charged the
+    dispatcher's price for it (ADR-0009 cost addendum). Once a call does not fit, the budget
+    closes: that call and every later one is refused by the dispatcher and audited, and the
+    rounds that remain are how the model learns of it and still answers. The budget may be a
+    pool shared with the loops of spawned subagents, in which case all of that is turn-wide.
     Each tool call is dispatched through the audited dispatcher, with
     gated calls confirmed against the turn's taint (ADR-0013). Its result marks the taint ledger
     and is fed back (fenced when untrusted) as a ``Role.TOOL`` message before re-inference.
@@ -153,12 +159,11 @@ async def stream_tool_loop(
     specs = await dispatcher.describe_tools() if dispatcher is not None else ()
     gated_by_name = {spec.name: spec.gated for spec in specs}
     spec_by_name = {spec.name: spec for spec in specs}
-    # Budget spent so far, summed across rounds (ADR-0009 budget addendum). A call is charged
-    # its policy cost rather than a flat one (ADR-0009 cost addendum), so a tool a user
-    # declared expensive exhausts the turn faster than a cheap one. Refused calls are charged
-    # nothing: `budget_closed` is what makes the refusal stick, not the arithmetic.
-    spent = 0
-    budget_closed = False
+    # The pool this loop spends from, summed across its rounds and shared with any subagent it
+    # spawns (ADR-0009 budget addendum + turn-wide addendum). A call is charged its policy cost
+    # rather than a flat one (ADR-0009 cost addendum), so a tool a user declared expensive
+    # exhausts the turn faster than a cheap one.
+    budget = context.budget
     for _step in range(MAX_TOOL_STEPS):
         calls: list[ToolCall] = []
         step_text: list[str] = []
@@ -188,24 +193,20 @@ async def stream_tool_loop(
             # this round's tool_calls without their Role.TOOL answers, so the next round's
             # re-inference would send a malformed conversation, and would refuse dispatches
             # that no audit record ever sees.
-            # A call that no longer fits closes the budget for the whole rest of the loop
-            # rather than being skipped over so cheaper calls can trickle through behind it
-            # (ADR-0009 cost addendum). Two reasons: the refusal the model reads tells it to
-            # stop calling tools entirely, which a budget that kept admitting small calls
-            # would make a lie; and "what did this turn spend?" keeps one answer instead of
-            # depending on the order the model happened to emit its calls in.
-            cost = dispatcher.cost_of(call.name)
-            budget_closed = budget_closed or spent + cost > context.dispatch_budget
-            if not budget_closed:
-                spent += cost
-                # Surface activity only for a call that matched an advertised spec, so the
-                # chip's name and summary are both registry-authored (ADR-0009 addendum). A
-                # call to an unadvertised name (a model hallucination, or a tool skip-mode
-                # hid) still dispatches below and fails as its usual is_error result, but
-                # never renders a chip carrying the model's chosen string. A refused call
-                # renders no chip either: a chip means a tool is running now.
-                if (spec := spec_by_name.get(call.name)) is not None:
-                    yield ToolStep(tool_name=spec.name, summary=_step_summary(spec))
+            # `charge` spends when the call fits and closes the pool for good when it does not,
+            # so a cheaper call behind an unaffordable one does not trickle through (ADR-0009
+            # cost addendum). Closing is turn-wide once a subagent shares the pool: a runaway
+            # delegate stops its siblings and the rest of this loop too, which is what keeps
+            # BUDGET_EXHAUSTED_MSG's "this turn has reached its limit" true.
+            affordable = budget.charge(dispatcher.cost_of(call.name))
+            # Surface activity only for an affordable call that matched an advertised spec, so
+            # the chip's name and summary are both registry-authored (ADR-0009 addendum). A call
+            # to an unadvertised name (a model hallucination, or a tool skip-mode hid) still
+            # dispatches below and fails as its usual is_error result, but never renders a chip
+            # carrying the model's chosen string. A refused call renders no chip either: a chip
+            # means a tool is running now.
+            if affordable and (spec := spec_by_name.get(call.name)) is not None:
+                yield ToolStep(tool_name=spec.name, summary=_step_summary(spec))
             # The advertised gated flag is a hint; the dispatcher OR-s it with its own
             # authoritative gated-name set, so a tool a flaky sidecar hid from this snapshot
             # (skip mode) and later recovered is still gated at dispatch (ADR-0022). The
@@ -213,9 +214,15 @@ async def stream_tool_loop(
             # flip mid-loop as untrusted results arrive.
             result = await dispatcher.dispatch(
                 call,
-                stamp=TurnStamp(session_id=context.session_id, tainted=context.taint.tainted),
+                stamp=TurnStamp(
+                    session_id=context.session_id,
+                    tainted=context.taint.tainted,
+                    # The pool travels to whatever this call spawns, so a subagent draws from
+                    # the turn's remaining allowance instead of starting a fresh one.
+                    budget=budget,
+                ),
                 gated=gated_by_name.get(call.name, False),
-                over_budget=budget_closed,
+                over_budget=not affordable,
             )
             context.taint.observe(result)
             working.append(

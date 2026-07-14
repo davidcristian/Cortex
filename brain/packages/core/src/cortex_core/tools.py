@@ -4,14 +4,18 @@ Pure data, no I/O and no ``ports`` import. That lets ``ports.py`` depend on thes
 cycle, exactly as ``memory.py`` is depended on. ``arguments``/``parameters`` carry arbitrary
 JSON (a tool's schema and a model's call args are open-shaped), so ``Any`` here is the
 justified kind: the boundary is genuinely dynamic and the value is round-tripped, never
-introspected by the core.
+introspected by the core. The one exception to "values only" is the ``DispatchBudget`` a
+``TurnStamp`` carries, which is a live handle rather than a value; ``tool_budget`` imports
+nothing but the standard library, so depending on it keeps this module port-free.
 """
 
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from typing import Any
+
+from cortex_core.tool_budget import DispatchBudget
 
 
 class Trust(Enum):
@@ -47,17 +51,25 @@ class ToolSpec:
 
 @dataclass(frozen=True, slots=True)
 class TurnStamp:
-    """The dispatching turn's provenance, stamped onto every call at dispatch time (ADR-0027).
+    """What the dispatching turn hands the call, stamped on at dispatch time (ADR-0027).
 
     ``session_id`` is the originating chat (``""`` when the dispatch has none: a subagent
     run, or an unattributed caller); ``tainted`` whether the turn had read untrusted content
-    at dispatch time. One frozen value rather than parallel keywords, so future provenance
-    facts (source URI, sender; the ADR-0013/0019 deferrals) join this object and every call
-    site rides along unchanged. A field joins only with a consumer.
+    at dispatch time; ``budget`` the turn's shared dispatch allowance (``None`` when the
+    caller runs no tool loop, e.g. the schedule ticker). One frozen value rather than parallel
+    keywords, so future facts (source URI, sender; the ADR-0013/0019 deferrals) join this
+    object and every call site rides along unchanged. A field joins only with a consumer.
+
+    Originally the turn's *provenance* alone. ``budget`` widened that to what the turn hands
+    down to work this call spawns, which ``tainted`` already was in practice (provenance, and
+    the input to the ADR-0017 model pin). It is the one field that is a live shared handle
+    rather than a value, so it is excluded from equality: two dispatches of the same turn stay
+    comparable, and no caller can mistake one pool for another (ADR-0009 turn-wide addendum).
     """
 
     session_id: str = ""
     tainted: bool = False
+    budget: DispatchBudget | None = field(default=None, compare=False)
 
 
 # The unattributed default stamp: no originating session, no taint. A named constant
