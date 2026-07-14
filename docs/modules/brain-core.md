@@ -122,8 +122,10 @@ Subagent domain (Slice 7, ADR-0010):
   marks a failure the cortex consumes as a value, mirroring `ToolResult.is_error`; `tainted` is
   set when the subagent read untrusted content, aggregated by the spawn tool (ADR-0013).
 
-Schedule domain (Slice 9.5, ADR-0025, in `schedule.py`; named `schedule`/`ScheduleTicker`
-throughout, never "Scheduler", which means resource *admission* here):
+Schedule domain (Slice 9.5, ADR-0025, in `schedule.py` for the value types and the recurrence
+math, `schedule_transitions.py` for the pure in-place transitions both stores apply; named
+`schedule`/`ScheduleTicker` throughout, never "Scheduler", which means resource *admission*
+here):
 
 - `DisplayZone(name, tz)` (`schedule_time.py`, ADR-0025 display addendum) is the frozen value
   every model-facing schedule datetime renders through: `render(moment)` is the one canonical
@@ -178,11 +180,20 @@ throughout, never "Scheduler", which means resource *admission* here):
   calls: a calendar item answers from its rule, an interval item from anchored `next_due`, a
   one-shot is terminal.
 - `apply_snooze(item, until) -> ScheduledItem` and `apply_edit(item, edit) -> ScheduledItem`
-  are the two pure transitions both stores share (the ports-before-adapters guarantee):
-  `apply_snooze` moves `due_at` to `until`, re-arms `PENDING`, clears deliverability, and pins
-  `anchor` to the pre-snooze `due_at` on a recurring item's first snooze (a one-shot and a
-  calendar item both keep `anchor` unset). `apply_edit` clears `rule` whenever it sets `every`,
-  keeping the one-shape invariant true.
+  (`schedule_transitions.py`) are the two pure transitions both stores share (the
+  ports-before-adapters guarantee): `apply_snooze` moves `due_at` to `until`, re-arms `PENDING`,
+  clears deliverability, and pins `anchor` to the pre-snooze `due_at` on a recurring item's first
+  snooze (a one-shot and a calendar item both keep `anchor` unset). `apply_edit` clears `rule`
+  whenever it sets `every`, keeping the one-shape invariant true, and leaves `due_at` where it
+  was. Setting a **rule** is its one timing-moving branch: the item takes the rule's own next
+  occurrence, drops `every` and `anchor`, and re-arms `PENDING` with deliverability cleared
+  exactly as `apply_snooze` does, so a fired reminder never reaches the due index still `DONE`
+  (ADR-0025 rule-edit addendum).
+- `RuleChange(rule, due_at)` (`schedule_transitions.py`) is what an edit carries to set a
+  calendar rule: the rule plus the first occurrence derived from it. They travel as one value
+  because `apply_edit` and both stores are clockless, so the derivation happens at the tool
+  boundary, and because binding them keeps `due_at` unreachable except as some rule's own
+  occurrence.
 
 Placement domain (Slice 8.5, ADR-0012):
 
@@ -378,9 +389,10 @@ Ports (`typing.Protocol`; failures cross them only as the typed errors below):
   deliverability cleared; FIRING and unknown answer `False`, fenced like the rest, ADR-0025
   occurrence-snooze addendum), and
   `async edit(item_id, edit) -> bool` (retexts / re-recurs a non-FIRING item via the pure
-  `apply_edit`, `due_at` untouched so only future re-arms take the new cadence; the editing
-  turn's taint ORs on; FIRING and unknown answer `False`, WATCH-fenced, ADR-0025 edit
-  addendum). A schedule outlives every model swap and restart, and the one hard rule is the
+  `apply_edit`; an interval change leaves `due_at` untouched so only future re-arms take the new
+  cadence, while a `RuleChange` moves it to the rule's next occurrence and re-arms; the editing
+  turn's taint ORs on; FIRING and unknown answer `False`, WATCH-fenced, ADR-0025 edit and
+  rule-edit addenda). A schedule outlives every model swap and restart, and the one hard rule is the
   reason this port exists.
 - `Clock` provides `now() -> datetime`, always tz-aware. The core's only time source.
 - `SessionStoreError` / `InferenceError` / `ModelManagerError` (+ its
@@ -602,9 +614,12 @@ Use-case:
   reuses the recurrence-interval bounds `[60 s, ten-year]`, not the unbounded one-shot delay)
   and postpones the next fire; a recurring item moves only its next occurrence, the store
   pinning `anchor` so the series keeps its cadence (occurrence-snooze addendum).
-  `edit_scheduled` takes `{id, text?, every_seconds?}`
-  (a bounded interval sets recurrence, `0` stops it, omission leaves it; at least one change
-  required) and changes text/recurrence in place without moving `due_at`; unlike cancel/snooze
+  `edit_scheduled` takes `{id, text?, every_seconds?, at_time?, on_days?}`
+  (a bounded interval sets recurrence, `0` stops it, omission leaves it; `at_time`/`on_days`
+  set a wall-clock rule instead, mutually exclusive with `every_seconds`; at least one change
+  required) and changes text/recurrence in place. An interval change never moves `due_at`; a
+  rule change re-derives it and reports the new time, since a rule is its own grid (rule-edit
+  addendum); unlike cancel/snooze
   it ORs the editing turn's taint onto the item and refuses editing a *task* on a tainted turn
   (the creation-side refusal, since a retext injects content), while a reminder edit on a
   tainted turn is allowed (edit addendum). All five ungated by default

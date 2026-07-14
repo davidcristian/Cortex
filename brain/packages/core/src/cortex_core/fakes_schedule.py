@@ -18,11 +18,9 @@ from cortex_core.schedule import (
     FireOutcome,
     ScheduleClaim,
     ScheduledItem,
-    ScheduleEdit,
     ScheduleStatus,
-    apply_edit,
-    apply_snooze,
 )
+from cortex_core.schedule_transitions import ScheduleEdit, apply_edit, apply_snooze
 
 
 def _uuid4_token() -> str:
@@ -87,8 +85,10 @@ class InMemoryScheduleStore:
     async def edit(self, item_id: str, edit: ScheduleEdit) -> bool:
         """Retext / re-recur a non-FIRING item via ``apply_edit``; FIRING/unknown answer False.
 
-        Only the record changes (``due_at`` is untouched), so the twin of the Redis fence is
-        a plain in-place replace here (ADR-0025 edit addendum).
+        The twin of the Redis fence is a plain in-place replace here (ADR-0025 edit addendum).
+        The index bookkeeping the fenced version owes on a rule change (a new due position, the
+        deliverable slot released) has no analogue: this store derives both from the record it
+        already replaced.
         """
         item = self._items.get(item_id)
         if item is None or item.status is ScheduleStatus.FIRING:

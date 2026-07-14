@@ -96,11 +96,16 @@ async def release_claim(client: Redis, claim: ScheduleClaim) -> bool:
 async def edit_item(client: Redis, item_id: str, edit: ScheduleEdit) -> bool:
     """Retext / re-recur a non-FIRING item under a WATCH fence; FIRING/unknown answer False.
 
-    Only the record changes: ``text``/``every``/``tainted`` live in it, not the indexes, and
-    ``due_at`` is left intact, so the due order and the fired slot are untouched and this
-    transition needs no ``zadd``/``zrem`` at all. ``apply_edit`` is the same pure function the
-    fake uses, so the two stores change an item identically. A ``cancel``/claim racing between
-    the guard read and the write fails the EXEC and answers ``False``, like every fenced
+    For a text or interval change only the record moves: those fields live in it, not the
+    indexes, and ``due_at`` is left intact, so the due order and the fired slot are untouched
+    and the transition is a bare watched ``SET``. A **calendar rule** change is the exception,
+    because it re-derives ``due_at``: the item takes its new due position and comes off the
+    deliverable index, which is exactly ``snooze``'s write set and for the same reason. Leaving
+    a fired reminder DONE on the deliverable index while adding it to the due index would put a
+    terminal record back in the claim path, where the staleness re-check does not stop it, and
+    it would fire twice (ADR-0025 rule-edit addendum). ``apply_edit`` is the same pure function
+    the fake uses, so the two stores change an item identically. A ``cancel``/claim racing
+    between the guard read and the write fails the EXEC and answers ``False``, like every fenced
     transition (ADR-0025 edit addendum).
     """
     async with client.pipeline(transaction=True) as pipe:
@@ -110,8 +115,12 @@ async def edit_item(client: Redis, item_id: str, edit: ScheduleEdit) -> bool:
         item, _, _ = state
         if item.status is ScheduleStatus.FIRING:
             return False
+        updated = apply_edit(item, edit)
         pipe.multi()
-        pipe.set(record_key(item_id), encode(apply_edit(item, edit), claim=None, claimed_at=None))
+        pipe.set(record_key(item_id), encode(updated, claim=None, claimed_at=None))
+        if edit.rule is not None:
+            pipe.zrem(DELIVERABLE_KEY, item_id)
+            pipe.zadd(DUE_KEY, {item_id: updated.due_at.timestamp()})
         try:
             await pipe.execute()
         except WatchError:

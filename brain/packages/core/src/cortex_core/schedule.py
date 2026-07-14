@@ -11,7 +11,7 @@ decision 1). Named ``schedule``/``ScheduleTicker`` throughout, never "Scheduler"
 means resource *admission* here (``SubagentScheduler``).
 """
 
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 from enum import Enum
 
@@ -39,7 +39,7 @@ class ScheduleStatus(Enum):
     DONE = "done"
 
 
-def _require_aware(name: str, value: datetime) -> None:
+def require_aware(name: str, value: datetime) -> None:
     if value.tzinfo is None or value.tzinfo.utcoffset(value) is None:
         msg = f"{name} must be timezone-aware"
         raise ValueError(msg)
@@ -84,12 +84,12 @@ class ScheduledItem:
     last_outcome: str | None = None
 
     def __post_init__(self) -> None:
-        _require_aware("ScheduledItem.due_at", self.due_at)
-        _require_aware("ScheduledItem.created_at", self.created_at)
+        require_aware("ScheduledItem.due_at", self.due_at)
+        require_aware("ScheduledItem.created_at", self.created_at)
         if self.deliverable_since is not None:
-            _require_aware("ScheduledItem.deliverable_since", self.deliverable_since)
+            require_aware("ScheduledItem.deliverable_since", self.deliverable_since)
         if self.anchor is not None:
-            _require_aware("ScheduledItem.anchor", self.anchor)
+            require_aware("ScheduledItem.anchor", self.anchor)
         if self.every is not None and self.every <= timedelta(0):
             msg = "ScheduledItem.every must be a positive interval"
             raise ValueError(msg)
@@ -128,81 +128,9 @@ class FireOutcome:
     tainted: bool = False
 
     def __post_init__(self) -> None:
-        _require_aware("FireOutcome.fired_at", self.fired_at)
+        require_aware("FireOutcome.fired_at", self.fired_at)
         if self.next_due is not None:
-            _require_aware("FireOutcome.next_due", self.next_due)
-
-
-@dataclass(frozen=True, slots=True)
-class ScheduleEdit:
-    """A validated in-place change to a stored schedule: new text and/or recurrence (edit addendum).
-
-    ``text=None`` leaves the text unchanged; ``every`` is applied only when ``set_every`` is
-    True (``every=None`` then clears recurrence, making the item a one-shot), so the three
-    cases unchanged / set / clear are all expressible without a sentinel interval. ``tainted``
-    is the editing turn's taint, OR'd onto the item and never clearing it, because a retext can
-    carry untrusted content forward. At least one of a text or a recurrence change is present
-    by construction (the verb refuses a no-op edit); ``due_at`` is deliberately not editable, so
-    the next occurrence stays anchored and only future re-arms take a new cadence.
-    """
-
-    text: str | None = None
-    every: timedelta | None = None
-    set_every: bool = False
-    tainted: bool = False
-
-    def __post_init__(self) -> None:
-        if self.every is not None and self.every <= timedelta(0):
-            msg = "ScheduleEdit.every must be a positive interval"
-            raise ValueError(msg)
-
-
-def apply_edit(item: ScheduledItem, edit: ScheduleEdit) -> ScheduledItem:
-    """Return ``item`` with ``edit`` applied: new text/recurrence, taint OR'd, timing kept.
-
-    Both store implementations apply an edit through this one pure function, so the fake and
-    the Redis adapter change an item identically (the ports-before-adapters guarantee). ``due_at``
-    stays put on purpose (re-recur changes the cadence of future re-arms, not the next fire), and
-    taint is monotone: OR'd, never cleared (ADR-0025 edit addendum).
-
-    Setting an interval **clears any calendar rule**, because the item holds at most one
-    recurrence shape: an edit that set ``every`` on a calendar item would otherwise have to
-    fail, and silently keeping the rule while reporting the new interval would be worse. The
-    ``0`` sentinel therefore stops repeating whichever shape the item had.
-    """
-    return replace(
-        item,
-        text=edit.text if edit.text is not None else item.text,
-        every=edit.every if edit.set_every else item.every,
-        rule=None if edit.set_every else item.rule,
-        tainted=item.tainted or edit.tainted,
-    )
-
-
-def apply_snooze(item: ScheduledItem, until: datetime) -> ScheduledItem:
-    """Return ``item`` postponed to ``until``: PENDING, off the deliverable index, grid kept.
-
-    Both stores snooze through this one pure function (the ``apply_edit`` precedent), so the
-    fake and the Redis adapter move an item identically. A recurring item keeps its original
-    cadence: only the single next occurrence moves to ``until``, while ``anchor`` pins the grid
-    origin (its existing anchor, or the pre-snooze ``due_at`` when this is the first snooze) so
-    the fire after the snooze re-arms on ``origin + k*every`` rather than ``until + every``. A
-    one-shot has no grid, so its anchor stays ``None`` (ADR-0025 occurrence-snooze addendum).
-
-    A **calendar** item needs no anchor and gets none: its rule is the grid, so
-    ``next_occurrence`` reads the rule rather than ``due_at`` and the series returns to its
-    wall-clock cadence after the snoozed fire for free (ADR-0025 calendar addendum).
-    """
-    anchor = item.anchor
-    if item.every is not None and anchor is None:
-        anchor = item.due_at
-    return replace(
-        item,
-        status=ScheduleStatus.PENDING,
-        due_at=until,
-        deliverable_since=None,
-        anchor=anchor,
-    )
+            require_aware("FireOutcome.next_due", self.next_due)
 
 
 def recurrence_base(item: ScheduledItem) -> datetime:

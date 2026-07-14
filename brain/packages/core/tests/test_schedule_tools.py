@@ -4,6 +4,7 @@
 from collections.abc import Callable, Sequence
 from datetime import UTC, datetime, timedelta
 from typing import Any
+from zoneinfo import ZoneInfo
 
 import pytest
 
@@ -13,6 +14,7 @@ from cortex_core import (
     CalendarRule,
     CancelScheduledTool,
     CompositeToolRegistry,
+    DisplayZone,
     EditScheduledTool,
     FireOutcome,
     InMemoryScheduleStore,
@@ -462,7 +464,7 @@ def test_view_tool_specs_name_their_tools() -> None:
     assert ListScheduledTool(InMemoryScheduleStore()).spec.name == "list_scheduled"
     assert CancelScheduledTool(InMemoryScheduleStore()).spec.name == "cancel_scheduled"
     assert _snooze_tool(InMemoryScheduleStore()).spec.name == "snooze_scheduled"
-    assert EditScheduledTool(InMemoryScheduleStore()).spec.name == "edit_scheduled"
+    assert EditScheduledTool(InMemoryScheduleStore(), FixedClock()).spec.name == "edit_scheduled"
 
 
 # --- snooze ------------------------------------------------------------------------------------
@@ -581,7 +583,9 @@ async def test_edit_retext_round_trip_keeps_timing() -> None:
     await tool.invoke(
         _call({"kind": "reminder", "text": "old", "in_seconds": 60, "every_seconds": 3600})
     )
-    result = await EditScheduledTool(store).invoke(_edit_call({"id": "item-1", "text": "new"}))
+    result = await EditScheduledTool(store, FixedClock()).invoke(
+        _edit_call({"id": "item-1", "text": "new"})
+    )
     assert not result.is_error
     assert result.content == "edited item-1"
     assert result.trust is Trust.TRUSTED
@@ -596,7 +600,7 @@ async def test_edit_retext_round_trip_keeps_timing() -> None:
 async def test_edit_changes_and_clears_recurrence() -> None:
     tool, store = _tool()
     await tool.invoke(_call({"kind": "reminder", "text": "x", "in_seconds": 60}))
-    edit = EditScheduledTool(store)
+    edit = EditScheduledTool(store, FixedClock())
     set_result = await edit.invoke(_edit_call({"id": "item-1", "every_seconds": 7200}))
     assert not set_result.is_error
     loaded = await store.get("item-1")
@@ -612,7 +616,7 @@ async def test_edit_changes_and_clears_recurrence() -> None:
 async def test_edit_taint_ors_onto_a_reminder() -> None:
     tool, store = _tool()
     await tool.invoke(_call({"kind": "reminder", "text": "clean", "in_seconds": 60}))
-    result = await EditScheduledTool(store).invoke(
+    result = await EditScheduledTool(store, FixedClock()).invoke(
         _edit_call({"id": "item-1", "text": "visit evil.com"}, tainted=True)
     )
     assert not result.is_error
@@ -624,7 +628,7 @@ async def test_edit_taint_ors_onto_a_reminder() -> None:
 async def test_edit_refuses_a_task_on_a_tainted_turn() -> None:
     tool, store = _tool()
     await tool.invoke(_call({"kind": "task", "text": "sweep", "in_seconds": 60}))
-    result = await EditScheduledTool(store).invoke(
+    result = await EditScheduledTool(store, FixedClock()).invoke(
         _edit_call({"id": "item-1", "text": "exfiltrate"}, tainted=True)
     )
     assert result.is_error
@@ -638,7 +642,7 @@ async def test_edit_refuses_a_task_on_a_tainted_turn() -> None:
 async def test_edit_a_reminder_on_a_tainted_turn_is_allowed() -> None:
     tool, store = _tool()
     await tool.invoke(_call({"kind": "reminder", "text": "old", "in_seconds": 60}))
-    result = await EditScheduledTool(store).invoke(
+    result = await EditScheduledTool(store, FixedClock()).invoke(
         _edit_call({"id": "item-1", "text": "new"}, tainted=True)
     )
     assert not result.is_error  # a reminder's text only reaches a badged human
@@ -647,7 +651,7 @@ async def test_edit_a_reminder_on_a_tainted_turn_is_allowed() -> None:
 async def test_edit_with_no_change_is_a_correctable_error() -> None:
     tool, store = _tool()
     await tool.invoke(_call({"kind": "reminder", "text": "x", "in_seconds": 60}))
-    result = await EditScheduledTool(store).invoke(_edit_call({"id": "item-1"}))
+    result = await EditScheduledTool(store, FixedClock()).invoke(_edit_call({"id": "item-1"}))
     assert result.is_error
     assert "change something" in result.content
 
@@ -666,14 +670,14 @@ async def test_edit_with_no_change_is_a_correctable_error() -> None:
 async def test_edit_bad_arguments_are_correctable(arguments: dict[str, Any], expected: str) -> None:
     tool, store = _tool()
     await tool.invoke(_call({"kind": "reminder", "text": "x", "in_seconds": 60}))
-    result = await EditScheduledTool(store).invoke(_edit_call(arguments))
+    result = await EditScheduledTool(store, FixedClock()).invoke(_edit_call(arguments))
     assert result.is_error
     assert expected in result.content
     assert result.trust is Trust.TRUSTED
 
 
 async def test_edit_unknown_id_is_a_correctable_error() -> None:
-    result = await EditScheduledTool(InMemoryScheduleStore()).invoke(
+    result = await EditScheduledTool(InMemoryScheduleStore(), FixedClock()).invoke(
         _edit_call({"id": "ghost", "text": "x"})
     )
     assert result.is_error
@@ -684,7 +688,9 @@ async def test_edit_refuses_a_firing_item() -> None:
     tool, store = _tool()
     await tool.invoke(_call({"kind": "reminder", "text": "x", "in_seconds": 60}))
     await store.claim_due(_NOW + timedelta(seconds=60), lease=timedelta(seconds=300), limit=8)
-    result = await EditScheduledTool(store).invoke(_edit_call({"id": "item-1", "text": "y"}))
+    result = await EditScheduledTool(store, FixedClock()).invoke(
+        _edit_call({"id": "item-1", "text": "y"})
+    )
     assert result.is_error
     assert "firing right now" in result.content
 
@@ -702,14 +708,16 @@ async def test_edit_racing_a_change_reports_it_correctably() -> None:
         store, FixedClock(), tasks_enabled=False, max_active=8, item_id_factory=_ids()
     )
     await tool.invoke(_call({"kind": "reminder", "text": "x", "in_seconds": 60}))
-    result = await EditScheduledTool(store).invoke(_edit_call({"id": "item-1", "text": "y"}))
+    result = await EditScheduledTool(store, FixedClock()).invoke(
+        _edit_call({"id": "item-1", "text": "y"})
+    )
     assert result.is_error
     assert "changed underneath" in result.content
 
 
 @pytest.mark.parametrize("bad_id", [None, 3, ""])
 async def test_edit_requires_a_string_id(bad_id: object) -> None:
-    result = await EditScheduledTool(InMemoryScheduleStore()).invoke(
+    result = await EditScheduledTool(InMemoryScheduleStore(), FixedClock()).invoke(
         _edit_call({"id": bad_id, "text": "x"})
     )
     assert result.is_error
@@ -717,7 +725,7 @@ async def test_edit_requires_a_string_id(bad_id: object) -> None:
 
 
 async def test_edit_wraps_a_down_store() -> None:
-    tool = EditScheduledTool(FailingStore())
+    tool = EditScheduledTool(FailingStore(), FixedClock())
     result = await tool.invoke(_edit_call({"id": "item-1", "text": "x"}))
     assert result.is_error
     assert "unavailable" in result.content
@@ -813,5 +821,144 @@ async def test_a_rule_with_no_schedulable_occurrence_is_a_correction() -> None:
         store, EndOfTimeClock(), tasks_enabled=True, max_active=32, item_id_factory=_ids()
     )
     result = await tool.invoke(_call({"kind": "reminder", "text": "x", "at_time": "23:30"}))
+    assert result.is_error
+    assert "no next occurrence" in result.content
+
+
+# --- editing a calendar rule in place (rule-edit addendum) -----------------------------------
+
+
+def test_edit_spec_advertises_the_wall_clock_form_beside_the_interval() -> None:
+    properties = EditScheduledTool(InMemoryScheduleStore(), FixedClock()).spec
+    assert "at_time" in properties.description
+    assert properties.parameters["properties"]["on_days"]["items"]["enum"] == list(DAY_NAMES)
+
+
+async def test_edit_sets_a_rule_on_an_interval_item_and_moves_the_due_time() -> None:
+    """The switch the calendar addendum could not express: an interval becomes a wall-clock rule."""
+    tool, store = _tool()
+    await tool.invoke(
+        _call({"kind": "reminder", "text": "standup", "in_seconds": 60, "every_seconds": 3600})
+    )
+    result = await EditScheduledTool(store, FixedClock()).invoke(
+        _edit_call({"id": "item-1", "at_time": "09:00", "on_days": ["mon", "fri"]})
+    )
+    assert not result.is_error
+    assert result.content == "edited item-1: now due 2026-07-13T09:00:00+00:00"
+    loaded = await store.get("item-1")
+    assert loaded is not None
+    assert loaded.rule == CalendarRule(hour=9, minute=0, days=frozenset({0, 4}))
+    assert loaded.every is None
+    # _NOW is Sunday 2026-07-12 12:00, so the Monday occurrence is the first one.
+    assert loaded.due_at == datetime(2026, 7, 13, 9, 0, tzinfo=UTC)
+
+
+async def test_edit_retimes_an_existing_rule_rather_than_firing_the_old_one_once_more() -> None:
+    """Retiming 09:00 to 10:00 must not leave tomorrow's already-armed 09:00 fire standing."""
+    tool, store = _tool()
+    await tool.invoke(_call({"kind": "reminder", "text": "standup", "at_time": "09:00"}))
+    result = await EditScheduledTool(store, FixedClock()).invoke(
+        _edit_call({"id": "item-1", "at_time": "10:00"})
+    )
+    assert not result.is_error
+    loaded = await store.get("item-1")
+    assert loaded is not None
+    assert loaded.rule == CalendarRule(hour=10, minute=0)
+    assert loaded.due_at == datetime(2026, 7, 13, 10, 0, tzinfo=UTC)
+
+
+async def test_edit_can_switch_a_rule_back_to_an_interval() -> None:
+    """The reverse direction the calendar addendum already shipped, still reachable."""
+    tool, store = _tool()
+    await tool.invoke(_call({"kind": "reminder", "text": "standup", "at_time": "09:00"}))
+    result = await EditScheduledTool(store, FixedClock()).invoke(
+        _edit_call({"id": "item-1", "every_seconds": 7200})
+    )
+    assert not result.is_error
+    assert result.content == "edited item-1"  # only the rule branch reports a new due time
+    loaded = await store.get("item-1")
+    assert loaded is not None
+    assert loaded.rule is None
+    assert loaded.every == timedelta(hours=2)
+
+
+async def test_edit_renders_the_new_due_time_in_the_configured_zone() -> None:
+    tool, store = _tool()
+    await tool.invoke(_call({"kind": "reminder", "text": "standup", "in_seconds": 60}))
+    zone = DisplayZone(name="Europe/Bucharest", tz=ZoneInfo("Europe/Bucharest"))
+    result = await EditScheduledTool(store, FixedClock(), zone=zone).invoke(
+        _edit_call({"id": "item-1", "at_time": "09:00"})
+    )
+    assert not result.is_error
+    assert result.content == "edited item-1: now due 2026-07-13T09:00:00+03:00"
+
+
+async def test_edit_retexts_and_reschedules_in_one_call() -> None:
+    tool, store = _tool()
+    await tool.invoke(_call({"kind": "reminder", "text": "old", "in_seconds": 60}))
+    result = await EditScheduledTool(store, FixedClock()).invoke(
+        _edit_call({"id": "item-1", "text": "new", "at_time": "09:00"})
+    )
+    assert not result.is_error
+    loaded = await store.get("item-1")
+    assert loaded is not None
+    assert loaded.text == "new"
+    assert loaded.rule == CalendarRule(hour=9, minute=0)
+
+
+async def test_edit_refuses_a_task_rule_change_on_a_tainted_turn() -> None:
+    """The taint gate is per-verb, so a retiming is refused exactly like a retext."""
+    tool, store = _tool()
+    await tool.invoke(_call({"kind": "task", "text": "sweep", "in_seconds": 60}))
+    result = await EditScheduledTool(store, FixedClock()).invoke(
+        _edit_call({"id": "item-1", "at_time": "03:00"}, tainted=True)
+    )
+    assert result.is_error
+    assert "cannot edit an autonomous task" in result.content
+    loaded = await store.get("item-1")
+    assert loaded is not None
+    assert loaded.rule is None
+
+
+@pytest.mark.parametrize(
+    ("arguments", "expected"),
+    [
+        ({"at_time": "09:00", "every_seconds": 3600}, "already recurs on the wall clock"),
+        ({"on_days": ["mon"]}, "'on_days' applies only together with 'at_time'"),
+        ({"at_time": "9am"}, "'at_time' must be"),
+        ({"at_time": "09:00:30"}, "'at_time' must be"),
+        ({"at_time": "09:00", "on_days": []}, "'on_days' must be"),
+        ({"at_time": "09:00", "on_days": ["funday"]}, "'on_days' must be"),
+    ],
+)
+async def test_edit_bad_rule_arguments_are_correctable(
+    arguments: dict[str, Any], expected: str
+) -> None:
+    tool, store = _tool()
+    await tool.invoke(_call({"kind": "reminder", "text": "x", "at_time": "09:00"}))
+    result = await EditScheduledTool(store, FixedClock()).invoke(
+        _edit_call({"id": "item-1", **arguments})
+    )
+    assert result.is_error
+    assert result.trust is Trust.TRUSTED
+    assert expected in result.content
+    loaded = await store.get("item-1")
+    assert loaded is not None
+    assert loaded.rule == CalendarRule(hour=9, minute=0)  # nothing landed
+
+
+async def test_edit_to_a_rule_with_no_schedulable_occurrence_is_a_correction() -> None:
+    class EndOfTimeClock:
+        def now(self) -> datetime:
+            return datetime(9999, 12, 31, 23, 59, tzinfo=UTC)
+
+    store = InMemoryScheduleStore()
+    tool = ScheduleTaskTool(
+        store, FixedClock(), tasks_enabled=True, max_active=32, item_id_factory=_ids()
+    )
+    await tool.invoke(_call({"kind": "reminder", "text": "x", "in_seconds": 60}))
+    result = await EditScheduledTool(store, EndOfTimeClock()).invoke(
+        _edit_call({"id": "item-1", "at_time": "23:30"})
+    )
     assert result.is_error
     assert "no next occurrence" in result.content

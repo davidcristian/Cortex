@@ -838,3 +838,62 @@ rule intact across the fire. Remaining behind the same shape:
   a `ScheduleEdit` that carries the third case.
 - **A per-rule timezone**, per the zone decision above.
 - **Cron expressions**, if a rule this shape cannot express ever turns up.
+
+## Addendum (2026-07-14): `edit_scheduled` authors and retimes a calendar rule
+
+The calendar addendum shipped a rule the model could create but never change: `edit_scheduled`
+could replace one with an interval or stop it repeating, and nothing more, so "move my 09:00
+standup to 10:00" meant cancel-and-recreate. `at_time`/`on_days` join the edit verb, behind the
+unchanged `ScheduleStore` port and with no codec or record change (the `rule` key already rides
+the record). Decisions:
+
+- **Setting a rule re-derives `due_at`; this is the one place the edit verb's "the next due
+  time is never moved" rule bends.** It bends because a rule *is* its own grid. The calendar
+  addendum made a calendar item's `due_at` an occurrence of its own rule by construction:
+  creation derives it and every fire re-derives it through `next_occurrence`. An edit that set
+  a new rule while pinning `due_at` would leave the item in a state neither creation nor firing
+  can produce, its next fire at a wall time the rule does not name, and it would be plainly
+  wrong to read: retiming a 09:00 standup on Tuesday afternoon would still fire at 09:00 on
+  Wednesday. The **interval** case is deliberately not revisited. An interval's occurrences are
+  `due_at + k*every`, anchored on `due_at`, so leaving it put is the definition of "future
+  re-arms only"; a rule has no such anchor and derives its occurrences from the wall clock
+  alone. The two shapes differ in the thing the original decision turned on.
+- **The derivation happens at the tool boundary, not in the store.** `apply_edit` is pure and
+  clockless and both stores share it, so handing it a `Clock` and a `DisplayZone` would push
+  time policy into the adapters. Instead the rule and the first occurrence it implies are
+  derived together at the verb (exactly as creation's `_parse_calendar` already does) and ride
+  the edit as one frozen `RuleChange(rule, due_at)` value. Binding the two fields into one
+  value is what keeps `due_at` from becoming the general "set the due time" knob this verb
+  refused: there is no way to express a bare due-time move, only a rule whose occurrence it is.
+  `EditScheduledTool` therefore gains the `Clock` and `DisplayZone` its snoozing sibling already
+  takes.
+- **A rule change re-arms the item exactly as `snooze` re-arms a fired reminder.** Naively
+  moving `due_at` would have been a live defect, not a refinement, and the audit that found it
+  is worth recording: a fired-but-undelivered reminder is `DONE` and sits on the deliverable
+  index, and today `DONE` items are **never** on the due index (`finish` only re-adds a
+  re-arming item). `ack` leans on that, deleting a `DONE` record with no `zrem` of the due
+  index. A rule edit that merely `ZADD`ed the due index would therefore have put a `DONE` item
+  back in the claim path, where `claim_one`'s staleness re-check (`PENDING and due_at > now`)
+  does not stop it, and the fired one-shot would fire a second time. The fix needs no new
+  concept, because `apply_snooze` already answers this exact situation: a rule change re-arms
+  `PENDING` at the derived occurrence and clears `deliverable_since`, so a fired reminder fires
+  fresh rather than re-delivering stale. It also clears `anchor`, which is interval-grid state a
+  rule has no use for and which would otherwise linger as dead data on a previously-snoozed item.
+- **`rule` and `set_every` are mutually exclusive on the edit, enforced in `__post_init__`.**
+  The item's one-shape invariant is kept true at the boundary the way `_parse_when` keeps it
+  true for creation, rather than re-checked inside `apply_edit`. Clearing a rule needs no third
+  case: `every_seconds: 0` already sets `set_every` with `every=None`, and `apply_edit` already
+  drops the rule alongside, so the sentinel keeps stopping whichever shape the item had.
+- **One index write joins the fenced transition.** The edit addendum called `edit_item` "the
+  lightest of the guarded writes, a bare watched `SET`", true only while `due_at` stayed put. The
+  rule branch now also `ZADD`s the due index and `ZREM`s the deliverable one, which is precisely
+  `snooze`'s write set, under the same WATCH fence and the same racing-cancel-answers-`False`
+  contract. The non-rule branches are untouched and still write only the record.
+- **The taint rule is per-verb, not per-field.** A rule change injects no text, but the editing
+  turn's taint still ORs onto the item and a task still cannot be edited under taint. One rule
+  for the verb is easier to reason about than a per-field taint policy, and marking more than
+  strictly necessary is the fail-closed direction. The result renders the new due time in the
+  display zone when a rule moved it (the `snooze` precedent), and still never echoes stored text.
+
+Remaining behind the same shape: **monthly / yearly / day-of-month rules**, **a per-rule
+timezone**, and **cron expressions**, all as the calendar addendum left them.

@@ -13,6 +13,7 @@ from uuid import uuid4
 from cortex_core import (
     CalendarRule,
     FireOutcome,
+    RuleChange,
     ScheduledItem,
     ScheduleEdit,
     ScheduleKind,
@@ -412,6 +413,58 @@ async def check_edit_replaces_a_calendar_rule_with_an_interval(store: ScheduleSt
     assert loaded.rule is None
 
 
+async def check_edit_sets_a_rule_and_moves_the_item_on_the_due_index(
+    store: ScheduleStore,
+) -> None:
+    """Setting a rule re-derives the next fire, so the item moves in the due order too.
+
+    The Redis leg is the one that owes real work here: unlike a text or interval edit, this
+    branch has to ``ZADD`` the new due position, so an unmoved index would leave the item
+    claimable at its old time (ADR-0025 rule-edit addendum).
+    """
+    rule = CalendarRule(hour=9, minute=0)
+    moved = replace(make_item(_item_id()), due_at=_NOW + timedelta(minutes=5))
+    other = replace(make_item(_item_id()), due_at=_NOW + timedelta(hours=1))
+    await store.add(moved)
+    await store.add(other)
+    due_at = _NOW + timedelta(days=3)
+    assert (
+        await store.edit(moved.id, ScheduleEdit(rule=RuleChange(rule=rule, due_at=due_at))) is True
+    )
+    loaded = await store.get(moved.id)
+    assert loaded is not None
+    assert loaded.rule == rule
+    assert loaded.due_at == due_at
+    # The listing orders by due time, so the retimed item is now the later of the two.
+    assert [item.id for item in await store.list_active()] == [other.id, moved.id]
+    # And it is no longer claimable at the time it used to be due.
+    assert await store.claim_due(_NOW + timedelta(minutes=10), lease=_LEASE, limit=10) == ()
+
+
+async def check_edit_setting_a_rule_rearms_a_deliverable_reminder(store: ScheduleStore) -> None:
+    """A fired one-shot given a rule re-arms PENDING and leaves the deliverable index.
+
+    Left DONE on the due index it would be claimed again and delivered twice, which is why
+    this branch borrows ``snooze``'s write set rather than only adding a due entry.
+    """
+    item = make_item(_item_id())
+    await store.add(item)
+    (claim,) = await store.claim_due(_NOW, lease=_LEASE, limit=1)
+    await store.finish(claim, FireOutcome(fired_at=_NOW, next_due=None, deliverable=True))
+    assert [fired.id for fired in await store.deliverable()] == [item.id]
+    due_at = _NOW + timedelta(days=1)
+    rule = RuleChange(rule=CalendarRule(hour=9, minute=0), due_at=due_at)
+    assert await store.edit(item.id, ScheduleEdit(rule=rule)) is True
+    assert await store.deliverable() == ()
+    loaded = await store.get(item.id)
+    assert loaded is not None
+    assert loaded.status is ScheduleStatus.PENDING
+    assert loaded.due_at == due_at
+    # It fires once, at its new time, rather than re-delivering the stale one.
+    claims = await store.claim_due(due_at, lease=_LEASE, limit=10)
+    assert [claimed.item.id for claimed in claims] == [item.id]
+
+
 async def check_snooze_refuses_firing_and_unknown(store: ScheduleStore) -> None:
     """A claimed (FIRING) item and an unknown id both answer False, state untouched."""
     assert await store.snooze(_item_id(), until=_NOW + timedelta(minutes=5)) is False
@@ -536,6 +589,8 @@ ALL_CHECKS = (
     check_snooze_preserves_a_recurring_grid,
     check_a_calendar_rule_round_trips_and_needs_no_anchor,
     check_edit_replaces_a_calendar_rule_with_an_interval,
+    check_edit_sets_a_rule_and_moves_the_item_on_the_due_index,
+    check_edit_setting_a_rule_rearms_a_deliverable_reminder,
     check_snooze_refuses_firing_and_unknown,
     check_snooze_then_cancel_still_sticks,
     check_edit_retexts_a_pending_item,

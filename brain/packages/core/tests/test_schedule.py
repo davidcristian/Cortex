@@ -8,6 +8,7 @@ from cortex_core import (
     UTC_DISPLAY,
     CalendarRule,
     FireOutcome,
+    RuleChange,
     ScheduledItem,
     ScheduleEdit,
     ScheduleKind,
@@ -94,6 +95,54 @@ def test_apply_edit_leaves_unset_fields_and_can_clear_recurrence() -> None:
     assert unchanged.tainted is True  # a tainted edit still marks it
     cleared = apply_edit(item, ScheduleEdit(set_every=True))
     assert cleared.every is None  # set_every with every=None makes it a one-shot
+
+
+def test_rule_change_requires_an_aware_due_at() -> None:
+    with pytest.raises(ValueError, match=r"RuleChange\.due_at must be timezone-aware"):
+        RuleChange(rule=CalendarRule(hour=9, minute=0), due_at=_NAIVE)
+
+
+def test_edit_refuses_a_rule_and_an_interval_change_together() -> None:
+    """The item's one-shape invariant, kept true at the boundary rather than in apply_edit."""
+    change = RuleChange(rule=CalendarRule(hour=9, minute=0), due_at=_NOW)
+    with pytest.raises(ValueError, match="an interval change or a calendar rule, never both"):
+        ScheduleEdit(rule=change, every=timedelta(hours=1), set_every=True)
+
+
+def test_apply_edit_setting_a_rule_moves_the_due_time_and_drops_the_interval() -> None:
+    """A rule is its own grid, so the next fire is re-derived rather than left where it was."""
+    due = _NOW + timedelta(days=1)
+    item = _item(due_at=_NOW, every=timedelta(hours=1), anchor=_NOW - timedelta(hours=5))
+    rule = CalendarRule(hour=9, minute=0, days=frozenset({0, 4}))
+    edited = apply_edit(item, ScheduleEdit(rule=RuleChange(rule=rule, due_at=due)))
+    assert edited.rule == rule
+    assert edited.due_at == due  # unlike an interval re-recur, the timing moves
+    assert edited.every is None  # the item carries one recurrence shape
+    assert edited.anchor is None  # an interval grid origin a rule has no use for
+
+
+def test_apply_edit_setting_a_rule_rearms_a_fired_reminder_off_the_deliverable_index() -> None:
+    """The ``apply_snooze`` precedent: a DONE item must never reach the due index still DONE.
+
+    Were it left DONE, the claim path's staleness re-check (which only guards PENDING) would
+    let the terminal record fire a second time.
+    """
+    item = _item(due_at=_NOW, status=ScheduleStatus.DONE, deliverable_since=_NOW)
+    due = _NOW + timedelta(days=1)
+    edited = apply_edit(
+        item, ScheduleEdit(rule=RuleChange(rule=CalendarRule(hour=9, minute=0), due_at=due))
+    )
+    assert edited.status is ScheduleStatus.PENDING
+    assert edited.deliverable_since is None
+
+
+def test_apply_edit_setting_a_rule_still_retexts_and_ors_taint() -> None:
+    item = _item(text="keep", tainted=False)
+    change = RuleChange(rule=CalendarRule(hour=7, minute=30), due_at=_NOW + timedelta(days=1))
+    assert apply_edit(item, ScheduleEdit(rule=change)).text == "keep"
+    retexted = apply_edit(item, ScheduleEdit(text="new", rule=change, tainted=True))
+    assert retexted.text == "new"
+    assert retexted.tainted is True
 
 
 def test_apply_snooze_rearms_a_delivered_one_shot_without_an_anchor() -> None:
