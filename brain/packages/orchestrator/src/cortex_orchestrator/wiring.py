@@ -79,10 +79,16 @@ async def run_from_env(
     body, close_body = await build_body_gateway(body_config, token=seam_config.token)
     # The subagent dispatcher is assembled here so the user's gated-name backstop
     # (CORTEX_TOOLS_GATED) covers subagents too, composing with the UngatedToolRegistry
-    # strip inside build_subagent_tools (ADR-0022).
+    # strip inside build_subagent_tools (ADR-0022), and so the tool prices
+    # (CORTEX_TOOLS_COSTS) charge delegated work at the same rate (ADR-0009 cost addendum).
     spawn_tool, close_subagents = await build_subagents(
         subagents_config,
-        build_subagent_tools(tool_registry, clock, gated_names=tools_config.gated),
+        build_subagent_tools(
+            tool_registry,
+            clock,
+            gated_names=tools_config.gated,
+            costs=tools_config.cost_policy,
+        ),
         runtime.redis_url,
         clock,
         placer=VramBudgetPlacer(
@@ -128,6 +134,7 @@ async def run_from_env(
                         clock,
                         confirmer=confirmer,
                         gated_names=tools_config.gated,
+                        costs=tools_config.cost_policy,
                     ),
                     window=build_history_window(runtime.history_char_budget),
                     guardrail=build_output_guardrail(runtime.output_guardrail),

@@ -24,13 +24,8 @@ from cortex_core import (
     ToolDispatcher,
     ToolSpec,
 )
-from cortex_core.tool_loop import (
-    MAX_TOOL_DISPATCHES,
-    MAX_TOOL_STEPS,
-    ToolLoopContext,
-    ToolStep,
-    stream_tool_loop,
-)
+from cortex_core.tool_budget import MAX_TOOL_DISPATCHES, UNIFORM_COST, ToolCostPolicy
+from cortex_core.tool_loop import MAX_TOOL_STEPS, ToolLoopContext, ToolStep, stream_tool_loop
 
 _START = datetime(2026, 7, 22, 12, 0, 0, tzinfo=UTC)
 
@@ -75,17 +70,44 @@ class _MultiCallBackend:
             yield ToolCall(id=f"r{self.rounds}c{index}", name="noop", arguments={})
 
 
+class _ScriptedBackend(_MultiCallBackend):
+    """Emits a fixed sequence of tool *names* every round, so a round can mix prices."""
+
+    def __init__(self, names: Sequence[str]) -> None:
+        super().__init__(per_round=len(names))
+        self._names = list(names)
+
+    async def stream(
+        self,
+        model: str,
+        messages: Sequence[Message],
+        *,
+        tools: Sequence[ToolSpec] = (),
+        schema: JsonSchema | None = None,
+    ) -> AsyncIterator[InferenceEvent]:
+        del model, tools, schema
+        self.rounds += 1
+        self.seen.append(list(messages))
+        for index, name in enumerate(self._names):
+            yield ToolCall(id=f"r{self.rounds}c{index}", name=name, arguments={})
+
+
 async def _noop_handler(arguments: Mapping[str, object]) -> str:
     del arguments
     return "ok"
 
 
-def _context(sink: RecordingAuditSink, *, budget: int) -> ToolLoopContext:
+def _context(
+    sink: RecordingAuditSink, *, budget: int, costs: ToolCostPolicy = UNIFORM_COST
+) -> ToolLoopContext:
     registry = InMemoryToolRegistry(
-        {"noop": (ToolSpec(name="noop", description="do nothing", parameters={}), _noop_handler)}
+        {
+            name: (ToolSpec(name=name, description="do nothing", parameters={}), _noop_handler)
+            for name in ("noop", "big")
+        }
     )
     return ToolLoopContext(
-        dispatcher=ToolDispatcher(registry, sink, _TickingClock()),
+        dispatcher=ToolDispatcher(registry, sink, _TickingClock(), costs=costs),
         clock=_TickingClock(),
         turn_id="t-1",
         taint=TaintLedger(),
@@ -158,6 +180,38 @@ async def test_every_refused_call_still_answers_its_tool_call_message() -> None:
     answered = [message.tool_call_id for message in last if message.role is Role.TOOL]
     assert called  # the round did emit calls, so the assertion below is not vacuous
     assert called == answered  # every call answered exactly once, in order
+
+
+async def test_an_expensive_tool_spends_its_price_not_one_call() -> None:
+    # The point of prices (ADR-0009 cost addendum): with a flat count all three calls fit in
+    # a budget of six, because three is less than six. Charged at three apiece, two fit.
+    sink = RecordingAuditSink()
+    costs = ToolCostPolicy({"big": 3})
+    await _run(_ScriptedBackend(["big", "big", "big"]), _context(sink, budget=6, costs=costs))
+    first_round = sink.records[:3]
+    assert [record.ok for record in first_round] == [True, True, False]
+    assert first_round[2].detail == BUDGET_EXHAUSTED_MSG
+
+
+async def test_a_call_that_does_not_fit_closes_the_budget_to_cheaper_calls_behind_it() -> None:
+    # The deliberate choice: the refusal tells the model to stop calling tools entirely, so
+    # letting a one-cost call through after a three-cost one was refused would make that
+    # instruction a lie, and would make the turn's spend depend on the order the model
+    # happened to emit its calls in. The trailing `noop` would have fit (3 + 1 <= 4).
+    sink = RecordingAuditSink()
+    costs = ToolCostPolicy({"big": 3})
+    await _run(_ScriptedBackend(["big", "big", "noop"]), _context(sink, budget=4, costs=costs))
+    first_round = sink.records[:3]
+    assert [record.ok for record in first_round] == [True, False, False]
+    assert [record.name for record in first_round] == ["big", "big", "noop"]
+    assert {record.detail for record in first_round[1:]} == {BUDGET_EXHAUSTED_MSG}
+
+
+async def test_an_unpriced_tool_still_costs_exactly_one() -> None:
+    # The compatibility property: with no tool priced, the budget is the call count it was.
+    sink = RecordingAuditSink()
+    await _run(_MultiCallBackend(per_round=5), _context(sink, budget=3, costs=UNIFORM_COST))
+    assert len([record for record in sink.records if record.ok]) == 3
 
 
 async def test_the_default_budget_is_the_module_bound() -> None:

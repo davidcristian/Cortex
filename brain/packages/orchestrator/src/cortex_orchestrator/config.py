@@ -5,7 +5,12 @@ from typing import Literal
 from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from cortex_core import DEFAULT_CORTEX_MODEL
+from cortex_core import (
+    DEFAULT_CORTEX_MODEL,
+    MAX_TOOL_DISPATCHES,
+    SPAWN_TOOL_NAME,
+    ToolCostPolicy,
+)
 from cortex_orchestrator.converse import DEFAULT_CONFIRM_TIMEOUT_S, DEFAULT_MAX_BUFFERED_EVENTS
 from cortex_session import DEFAULT_REDIS_URL
 
@@ -16,6 +21,14 @@ MemoryScopeName = Literal["global", "session"]
 MemoryRecallName = Literal["raw", "reranked", "mmr", "recency_mmr"]
 MemoryTaintPolicyName = Literal["skip", "record"]
 ToolsBackendName = Literal["none", "mcp"]
+
+# What one `spawn_subagents` dispatch spends of a loop's dispatch budget (ADR-0009 cost
+# addendum). A quarter of `MAX_TOOL_DISPATCHES`, so a turn may delegate four times: the tool
+# takes a *batch* of instructions, so four dispatches is ample fan-out, while the flat price
+# would have allowed thirty two batches of concurrent model runs from one turn. Priced here
+# rather than in the core because what a spawn costs is a property of this deployment's
+# hardware, not of the tool.
+DEFAULT_SPAWN_COST = MAX_TOOL_DISPATCHES // 4
 
 
 class SeamServerConfig(BaseSettings):
@@ -201,6 +214,14 @@ class ToolsConfig(BaseSettings):
     dispatcher's confirm gate covers them and subagents never see them. The default covers
     ``send_email``, so enabling the email sidecar's write path without touching gating
     config still gates it (fail-closed pairing); an empty list disables the overlay.
+    ``CORTEX_TOOLS_COSTS__<name>=<int>`` prices a tool against the loop's dispatch budget
+    (ADR-0009 cost addendum), one per key so layered compose overrides each contribute the
+    price of the tool they enable, and anything unpriced costs one. ``cost_policy`` is the
+    effective result: it merges the built-in prices under whatever the user set. Built in is
+    ``spawn_subagents``, the one wired tool whose single dispatch fans out into a batch of
+    model runs and which no confirmation gate bounds; ``send_email`` is deliberately unpriced,
+    because every send already needs the user's approval and a human saying yes thirty two
+    times is the tighter bound. A price outside ``1..MAX_TOOL_DISPATCHES`` fails at boot.
     """
 
     model_config = SettingsConfigDict(env_prefix="CORTEX_TOOLS_", env_nested_delimiter="__")
@@ -211,6 +232,7 @@ class ToolsConfig(BaseSettings):
     allow: dict[str, tuple[str, ...]] = {}
     on_unavailable: Literal["fail", "skip"] = "fail"
     gated: tuple[str, ...] = ("send_email",)
+    costs: dict[str, int] = {}
 
     @model_validator(mode="after")
     def _mcp_needs_unambiguous_endpoints(self) -> "ToolsConfig":
@@ -226,7 +248,27 @@ class ToolsConfig(BaseSettings):
         if unmatched := set(self.allow) - set(self.named_endpoints):
             msg = f"CORTEX_TOOLS_ALLOW names no configured endpoint: {sorted(unmatched)}"
             raise ValueError(msg)
+        # A price outside 1..budget is a misconfiguration that hides rather than announces
+        # itself: zero or less makes the tool free, so the budget stops bounding the one tool
+        # a user cared enough to configure; above the budget makes it permanently
+        # unaffordable, so it never runs and the first call closes the turn's budget. Both
+        # would surface as puzzling runtime behavior, so they fail at boot instead.
+        if bad := sorted(n for n, c in self.costs.items() if not 1 <= c <= MAX_TOOL_DISPATCHES):
+            msg = f"CORTEX_TOOLS_COSTS must be 1..{MAX_TOOL_DISPATCHES}: {bad}"
+            raise ValueError(msg)
         return self
+
+    @property
+    def cost_policy(self) -> ToolCostPolicy:
+        """The effective prices as the core's policy value (ADR-0009 cost addendum).
+
+        The built-in prices are merged **under** the user's, rather than being the field's
+        default, because a nested-dict env key replaces the whole mapping: pricing one
+        filesystem tool via `CORTEX_TOOLS_COSTS__READ_FILE` would otherwise silently drop
+        `spawn_subagents` back to one, un-pricing the fan-out tool as a side effect of an
+        unrelated knob. Restating a built-in price still overrides it, which is deliberate.
+        """
+        return ToolCostPolicy({SPAWN_TOOL_NAME: DEFAULT_SPAWN_COST} | self.costs)
 
     @property
     def named_endpoints(self) -> dict[str, str]:
