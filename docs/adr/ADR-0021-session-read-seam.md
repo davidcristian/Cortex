@@ -103,7 +103,8 @@ sessions newest-first, fetch each session's messages, call `summarize_session`.
 time is maintained on `append` (one `ZADD` alongside the existing `RPUSH`, score = the
 message's `at`; the last append wins, so the score tracks last-activity). `list_sessions` does
 `ZREVRANGE cortex:sessions 0 limit-1` for the newest ids, then one `LRANGE`+decode per id
-(reusing the existing record decoder) into `summarize_session`. Equal-timestamp ordering is
+(reusing the existing record decoder) into `summarize_session`. (That per-id read became a
+bounded two-ended one in 2026-07-14's addendum below.) Equal-timestamp ordering is
 unspecified (Redis orders equal scores lexicographically; the fake by insertion), but the switcher
 does not depend on it, and the contract test uses distinct timestamps.
 
@@ -176,7 +177,8 @@ one keystroke away. Auto-restoring the most-recent chat is a recorded deferral (
 - `list_sessions` costs one `ZREVRANGE` + N `LRANGE`s (N ≤ limit). For a personal system's
   recent list this is negligible; caching each session's first/last message and length in the
   index to drop the per-session reads is a **deferred** perf refinement behind the unchanged
-  port.
+  port. (Superseded 2026-07-14, bounded-reads addendum below: the per-session read is now the
+  chat's two ends, batched into one transaction, and the cache is rejected.)
 - Title/preview truncation lengths live in the core (`TITLE_MAX`/`PREVIEW_MAX`); the overlay's
   own live-title derivation (for a chat not yet persisted) uses the same rule. This is documented so
   the two do not drift. When the brain later generates summary titles ([overlay-ux.md §5](../design/overlay-ux.md)),
@@ -187,7 +189,9 @@ one keystroke away. Auto-restoring the most-recent chat is a recorded deferral (
 
 ### Deferred (recorded in the ROADMAP)
 
-- **Per-session first/last/length cache in the index** to drop `list_sessions`' N+1 reads.
+- **Per-session first/last/length cache in the index** to drop `list_sessions`' N+1 reads:
+  **rejected 2026-07-14** (bounded-reads addendum below) in favor of reading each chat's two
+  ends in one batch, which removes the N+1 without a second copy of the data.
 - **Auto-restore the most-recent chat on cold start** landed 2026-07-12 (addendum below).
 - **Brain-generated summary titles** replace `summarize_session`'s title behind the same
   `SessionSummary`.
@@ -241,3 +245,62 @@ rule). Gated at 100% through the existing FakeBridge harness (including the exac
 hijack scenario and the latch's fetch count); browser-validated against the demo bridge in
 both themes (launch lands in the restored chat, hidden until summoned). The real-bridge leg
 rides the unchanged `BrainBridge`, so nothing below the hook changed.
+
+## Addendum (2026-07-14): `list_sessions` reads only each chat's two ends
+
+The deferred perf refinement lands, but **not** as the cache this ADR proposed, because the
+cost it named was the smaller half of the real one.
+
+**What the cost actually was.** This ADR blamed the N round trips (`ZREVRANGE` + N `LRANGE`s)
+and proposed caching each session's first/last/length in the index to remove them. Profiling
+against real Redis says otherwise: the dominant cost was the read *size*, not the trip count.
+`list_sessions` reused `history()`, i.e. `LRANGE key 0 -1`, so listing 20 chats of 200 messages
+shipped and JSON-decoded 4000 records to use 40 of them, all to index `[0]` and `[-1]`.
+
+**Decision: bound the reads instead.** A summary is derived from a chat's two ends and nothing
+between them, so the adapter now fetches exactly that: per listed session `LRANGE key 0 0`,
+`LRANGE key -1 -1`, and `LLEN key`, with every listed session's three reads queued into **one
+transactional pipeline**. The whole listing is two round trips (the index, then the ends) and
+two decoded records per chat, so it removes the N+1 the deferral was about *and* the whole
+history read it did not name. That the derivation needs only the ends is stated in the core as
+`summarize_ends(session_id, first, last)`, with `summarize_session` delegating to it, so the
+rule that licenses the bounded read lives with the rule it implements and both stores still
+derive summaries through the core (the fake keeps calling `summarize_session`; nothing about
+the `SessionStore` port changes).
+
+The `LLEN` is not incidental: it gives the tail record its true index, so a corrupt last record
+is still named by its real position (`index 199`, not the position it landed at in the read).
+It rides the same transaction as the pair so the length and the record it names are one
+snapshot: unbatched, an append landing between the two reads would make the length describe a
+record the listing never saw.
+
+**The cache is rejected outright**, not deferred again. It would add a third write to `append`
+(after the `RPUSH` and the `ZADD`) that is not atomic with them, so a crash between them leaves
+a preview that is **permanently wrong** and self-heals only on the next message to that chat, a
+silent-wrong failure mode traded for a read that is already 1 ms. It also duplicates state the
+list itself holds, which is the kind of derived-copy invariant that rots. Bounded reads need no
+new state at all.
+
+**One deliberate behavior change.** A listing no longer decodes the middle of a chat, so a
+corrupt record between the ends can no longer take the whole chat list down; the affected chat
+still lists (with correct title and preview). `history` is untouched and still fails loudly on
+that record, so the guarantee that matters (the context a turn is built from is never silently
+truncated) is exactly where it was. A corrupt record at either **end** still fails the listing
+loudly, so this is a narrower blast radius, not a new tolerance for corruption. The dangling
+index entry (empty list) stays skipped, as before.
+
+**Evidence (agent, Docker + real Redis).**
+- Benchmark, 20 sessions of 200 messages against the containerized Redis: **23.8 ms to 1.11 ms**
+  (about 21x) for the same `list_sessions(limit=50)` call, comparing the shipped implementation
+  against a replica of the previous one on the same seeded data.
+- The live-Redis contract suite (`uv run pytest -m integration --no-cov packages/session`)
+  passes, so the recency ordering and title/preview derivation hold on real Redis, not only on
+  fakeredis.
+- CI-gated at 100% over fakeredis, with the three new guards mutation-proven (reverting each
+  individually turns exactly its test red): the tail index derived from `LLEN` (fixing it to the
+  read position mis-names the record), the wrapping covering the batched read (a `WRONGTYPE`
+  inside the pipeline escapes unwrapped when it does not), and the ends-only read itself (a
+  corrupt middle record fails the listing when the whole history is read).
+
+Remaining deferred here: nothing on this path. Paging (below) is still the answer if a *list*
+ever grows large, since the bound is per chat, not on the number of chats listed.

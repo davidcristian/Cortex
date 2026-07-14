@@ -78,6 +78,63 @@ async def test_connection_failure_on_list_sessions_wraps_the_cause() -> None:
     assert isinstance(excinfo.value.__cause__, redis_exceptions.ConnectionError)
 
 
+async def test_a_failure_reading_the_ends_wraps_the_cause() -> None:
+    """The batched end-reads are their own failure point, not just the index read.
+
+    A listed key that is not a list (a layout collision) fails inside the pipeline, after
+    the recency index has already answered, and still crosses the port as one wrapped
+    listing failure rather than a raw redis error.
+    """
+    client = FakeAsyncRedis(server=FakeServer())
+    await client.set("cortex:session:collided:messages", "not a list at all")
+    await client.zadd("cortex:sessions", {"collided": 1.0})
+    with pytest.raises(SessionStoreError, match="listing sessions") as excinfo:
+        await RedisSessionStore(client).list_sessions(limit=10)
+    assert isinstance(excinfo.value.__cause__, redis_exceptions.ResponseError)
+
+
+async def test_list_sessions_reads_only_the_ends_of_a_session() -> None:
+    """A corrupt record BETWEEN the ends cannot take the chat list down (ADR-0021).
+
+    The listing is bounded to each session's two ends, so it never decodes the middle.
+    `history` reads the whole list and still fails loudly on the same record, so the
+    context a turn is built from keeps its fail-loud guarantee.
+    """
+    client = FakeAsyncRedis(server=FakeServer())
+    store = RedisSessionStore(client)
+    await store.append("s", contract.make_message(Role.USER, "the first message"))
+    await client.rpush("cortex:session:s:messages", "not json at all")  # index 1
+    await store.append("s", contract.make_message(Role.ASSISTANT, "the last message"))
+    (summary,) = await store.list_sessions(limit=10)
+    assert (summary.title, summary.preview) == ("the first message", "the last message")
+    with pytest.raises(SessionStoreError, match="corrupt session record at index 1"):
+        await store.history("s")
+
+
+async def test_a_corrupt_end_record_still_fails_a_listing_at_its_true_index() -> None:
+    """The ends are decoded, so a bad one is fatal and named by its real position.
+
+    The tail's index comes from the session's length (read with the pair), not from the
+    position it lands at in the bounded read.
+    """
+    client = FakeAsyncRedis(server=FakeServer())
+    store = RedisSessionStore(client)
+    await store.append("s", contract.make_message(Role.USER, "hi"))
+    await client.rpush("cortex:session:s:messages", _record(text="middle"))  # index 1
+    await client.rpush("cortex:session:s:messages", _record(v=2))  # index 2, the tail
+    with pytest.raises(SessionStoreError, match=r"index 2: kind 'message' v 2"):
+        await store.list_sessions(limit=10)
+
+
+async def test_a_corrupt_first_record_fails_a_listing_at_index_zero() -> None:
+    """The head is decoded from position 0 of the list, whatever follows it."""
+    client = FakeAsyncRedis(server=FakeServer())
+    await client.rpush("cortex:session:s:messages", "not json at all", _record())
+    await client.zadd("cortex:sessions", {"s": 1.0})
+    with pytest.raises(SessionStoreError, match="corrupt session record at index 0"):
+        await RedisSessionStore(client).list_sessions(limit=10)
+
+
 def _disconnected_store() -> RedisSessionStore:
     server = FakeServer()
     server.connected = False

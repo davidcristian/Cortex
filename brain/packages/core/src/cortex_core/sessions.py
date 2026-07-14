@@ -3,8 +3,11 @@
 The session-read seam lists recent chats with a derived title and one-line preview.
 Deriving those is domain logic, so it lives here in the core and never in an adapter
 (the hexagonal invariant). Both the in-memory fake and the Redis ``SessionStore``
-build their summaries through ``summarize_session``, so the rule cannot drift between
-the fake and the real adapter, and the shared contract test pins it once.
+build their summaries here, so the rule cannot drift between the fake and the real
+adapter, and the shared contract test pins it once. ``summarize_ends`` is the rule
+itself (a summary is derived from a chat's two ends and nothing between them, which is
+what lets the Redis adapter read only those two records); ``summarize_session`` is the
+whole-history form the in-memory fake uses, delegating to it.
 """
 
 from collections.abc import Sequence
@@ -41,6 +44,22 @@ def _one_line(text: str, limit: int) -> str:
     return collapsed if len(collapsed) <= limit else f"{collapsed[:limit]}…"
 
 
+def summarize_ends(session_id: str, first: Message, last: Message) -> SessionSummary:
+    """Derive a chat's summary from its two end messages (ADR-0021).
+
+    A summary needs nothing between the ends, and saying so here (rather than leaving it
+    implicit in the indexing below) is what lets a store read only those two records
+    instead of a whole history. ``first`` and ``last`` are the same message for a
+    one-message session.
+    """
+    return SessionSummary(
+        session_id=session_id,
+        title=_one_line(first.text, TITLE_MAX),
+        preview=_one_line(last.text, PREVIEW_MAX),
+        last_activity=last.at,
+    )
+
+
 def summarize_session(session_id: str, messages: Sequence[Message]) -> SessionSummary:
     """Derive a chat's summary from its persisted messages (ADR-0021).
 
@@ -50,9 +69,4 @@ def summarize_session(session_id: str, messages: Sequence[Message]) -> SessionSu
     timestamp. Called only with a non-empty history (a session exists only once a turn has
     been appended), so the indexing is total.
     """
-    return SessionSummary(
-        session_id=session_id,
-        title=_one_line(messages[0].text, TITLE_MAX),
-        preview=_one_line(messages[-1].text, PREVIEW_MAX),
-        last_activity=messages[-1].at,
-    )
+    return summarize_ends(session_id, messages[0], messages[-1])
