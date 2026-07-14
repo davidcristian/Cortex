@@ -15,15 +15,18 @@ from typing import Any
 
 from cortex_core.schedule_args import (
     BAD_TEXT,
-    DAYS_NEED_AT_TIME,
     MAX_EVERY_SECONDS,
     MIN_EVERY_SECONDS,
     UNSCHEDULABLE_RULE,
-    parse_at_time,
     parse_number,
-    parse_on_days,
 )
 from cortex_core.schedule_calendar import CalendarRule, next_calendar_due
+from cortex_core.schedule_day_args import (
+    DAYS_NEED_AT_TIME,
+    has_day_selector,
+    parse_at_time,
+    parse_day_selector,
+)
 from cortex_core.schedule_time import UTC_DISPLAY, DisplayZone
 from cortex_core.schedule_transitions import RuleChange, ScheduleEdit
 
@@ -84,17 +87,17 @@ def _parse_edit_rule(
     calendar item back to an interval, which is what the correction points at.
     """
     if arguments.get("at_time") is None:
-        return DAYS_NEED_AT_TIME if arguments.get("on_days") is not None else None
+        return DAYS_NEED_AT_TIME if has_day_selector(arguments) else None
     if arguments.get("every_seconds") is not None:
         return _EDIT_EVERY_WITH_AT_TIME
     wall = parse_at_time(arguments.get("at_time"))
     if isinstance(wall, str):
         return wall
-    days = parse_on_days(arguments.get("on_days"))
-    if isinstance(days, str):
-        return days
+    on = parse_day_selector(arguments)
+    if isinstance(on, str):
+        return on
     hour, minute = wall
-    rule = CalendarRule(hour=hour, minute=minute, days=days)
+    rule = CalendarRule(hour=hour, minute=minute, on=on)
     due_at = next_calendar_due(rule, now, zone)
     if due_at is None:
         return UNSCHEDULABLE_RULE

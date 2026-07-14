@@ -11,19 +11,27 @@ positivity invariant.
 
 Timing is validated as a whole by ``_parse_when`` rather than field by field, because the
 three forms interact: ``at``/``in_seconds`` name an instant and may carry ``every_seconds``,
-while ``at_time`` names a *wall clock* rule that carries ``on_days`` and derives its own first
-fire (ADR-0025 calendar addendum). That is what keeps the ``ScheduledItem`` invariant, an
-interval or a calendar rule and never both, true at the boundary. The lifecycle verbs'
-arguments live in ``schedule_verb_args.py``, which imports the shared bounds from here.
+while ``at_time`` names a *wall clock* rule that carries a day selector and derives its own
+first fire (ADR-0025 calendar addendum). That is what keeps the ``ScheduledItem`` invariant, an
+interval or a calendar rule and never both, true at the boundary. The rule's own vocabulary
+(``at_time`` and the day selectors) is parsed by ``schedule_day_args.py``, shared with the edit
+verb; the lifecycle verbs' arguments live in ``schedule_verb_args.py``, which imports the
+shared bounds from here.
 """
 
 from collections.abc import Mapping
 from dataclasses import dataclass
-from datetime import datetime, time, timedelta
-from typing import Any, cast
+from datetime import datetime, timedelta
+from typing import Any
 
 from cortex_core.schedule import ScheduleKind
-from cortex_core.schedule_calendar import DAY_NAMES, EVERY_DAY, CalendarRule, next_calendar_due
+from cortex_core.schedule_calendar import CalendarRule, next_calendar_due
+from cortex_core.schedule_day_args import (
+    DAYS_NEED_AT_TIME,
+    has_day_selector,
+    parse_at_time,
+    parse_day_selector,
+)
 from cortex_core.schedule_time import UTC_DISPLAY, DisplayZone
 
 MIN_EVERY_SECONDS = 60
@@ -37,9 +45,6 @@ _TASKS_NOT_WIRED = "this deployment schedules reminders only; 'kind': \"task\" i
 BAD_TEXT = "'text' must be a non-empty string"
 _ONE_WHEN = "provide exactly one of 'at' (ISO-8601), 'in_seconds', or 'at_time' (HH:MM)"
 _BAD_AT = "'at' must be an ISO-8601 date-time, e.g. 2026-07-12T18:00:00"
-_BAD_AT_TIME = "'at_time' must be a 24-hour wall-clock time with no seconds, e.g. 09:00"
-_BAD_ON_DAYS = f"'on_days' must be a non-empty list of weekday names from {', '.join(DAY_NAMES)}"
-DAYS_NEED_AT_TIME = "'on_days' applies only together with 'at_time'"
 _EVERY_WITH_AT_TIME = (
     "'at_time' already recurs on the wall clock; drop 'every_seconds', or use 'at' with "
     "'every_seconds' for a fixed interval instead"
@@ -141,35 +146,6 @@ def _parse_due_at(arguments: Mapping[str, Any], now: datetime, zone: DisplayZone
     return _delay_from(now, in_seconds)
 
 
-def parse_at_time(value: object) -> tuple[int, int] | str:
-    """A bare ``HH:MM`` wall-clock time as ``(hour, minute)``, or a correction string."""
-    if not isinstance(value, str):
-        return _BAD_AT_TIME
-    try:
-        parsed = time.fromisoformat(value)
-    except ValueError:
-        return _BAD_AT_TIME
-    # A rule stores hour and minute only, so accepting finer precision would silently drop
-    # part of what the model wrote, and an offset would contradict the zone it is read in.
-    if parsed.second or parsed.microsecond or parsed.tzinfo is not None:
-        return _BAD_AT_TIME
-    return parsed.hour, parsed.minute
-
-
-def parse_on_days(value: object) -> frozenset[int] | str:
-    """The weekday set for a calendar rule; absent means every day."""
-    if value is None:
-        return EVERY_DAY
-    if not isinstance(value, list) or not value:
-        return _BAD_ON_DAYS
-    days: set[int] = set()
-    for entry in cast("list[object]", value):
-        if not isinstance(entry, str) or entry.lower() not in DAY_NAMES:
-            return _BAD_ON_DAYS
-        days.add(DAY_NAMES.index(entry.lower()))
-    return frozenset(days)
-
-
 def _parse_calendar(
     arguments: Mapping[str, Any], now: datetime, zone: DisplayZone
 ) -> "_When | str":
@@ -184,11 +160,11 @@ def _parse_calendar(
     wall = parse_at_time(arguments.get("at_time"))
     if isinstance(wall, str):
         return wall
-    days = parse_on_days(arguments.get("on_days"))
-    if isinstance(days, str):
-        return days
+    on = parse_day_selector(arguments)
+    if isinstance(on, str):
+        return on
     hour, minute = wall
-    rule = CalendarRule(hour=hour, minute=minute, days=days)
+    rule = CalendarRule(hour=hour, minute=minute, on=on)
     due_at = next_calendar_due(rule, now, zone)
     if due_at is None:
         return UNSCHEDULABLE_RULE
@@ -201,7 +177,7 @@ def _parse_when(arguments: Mapping[str, Any], now: datetime, zone: DisplayZone) 
         if arguments.get("at") is not None or arguments.get("in_seconds") is not None:
             return _ONE_WHEN
         return _parse_calendar(arguments, now, zone)
-    if arguments.get("on_days") is not None:
+    if has_day_selector(arguments):
         return DAYS_NEED_AT_TIME
     due_at = _parse_due_at(arguments, now, zone)
     if isinstance(due_at, str):

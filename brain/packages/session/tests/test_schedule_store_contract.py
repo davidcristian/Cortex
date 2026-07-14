@@ -17,6 +17,7 @@ from redis import exceptions as redis_exceptions
 from redis.asyncio import Redis
 
 from cortex_core import (
+    CalendarRule,
     FireOutcome,
     InMemoryScheduleStore,
     ScheduleClaim,
@@ -24,9 +25,16 @@ from cortex_core import (
     ScheduleStatus,
     ScheduleStore,
     ScheduleStoreError,
+    Weekdays,
 )
 from cortex_session import DEFAULT_REDIS_URL, DeadLetter, RedisScheduleStore, schedule_claims
-from cortex_session.schedule_codec import DEAD_KEY, DELIVERABLE_KEY, DUE_KEY, record_key
+from cortex_session.schedule_codec import (
+    DEAD_KEY,
+    DELIVERABLE_KEY,
+    DUE_KEY,
+    encode,
+    record_key,
+)
 
 _NOW = datetime(2026, 7, 12, 12, 0, 0, tzinfo=UTC)
 _LEASE = timedelta(minutes=5)
@@ -149,6 +157,24 @@ async def test_unknown_kind_or_version_fails_loudly_naming_the_reader() -> None:
     await _seed_raw(client, "vnext", json.dumps({"v": 2, "kind": "schedule"}))
     with pytest.raises(ScheduleStoreError, match="unreadable schedule record"):
         await store.get("vnext")
+
+
+async def test_a_rule_written_before_month_days_decodes_as_a_weekly_one() -> None:
+    """The additive-key contract: an old record carries ``days`` and no discriminator.
+
+    Written by hand rather than by the encoder, because the point is a record this build can
+    no longer produce: the shape every calendar rule had before day-of-month selectors landed
+    (ADR-0025 monthly addendum). It must still read back as the weekly rule it was.
+    """
+    client = FakeAsyncRedis(server=FakeServer())
+    store = RedisScheduleStore(client)
+    item = schedule_contract.make_item("legacy")
+    record = json.loads(encode(item, claim=None, claimed_at=None))
+    record["rule"] = {"hour": 9, "minute": 0, "days": [0, 4]}
+    await _seed_raw(client, "legacy", json.dumps(record))
+    loaded = await store.get("legacy")
+    assert loaded is not None
+    assert loaded.rule == CalendarRule(hour=9, minute=0, on=Weekdays(days=frozenset({0, 4})))
 
 
 async def test_corrupt_record_fails_loudly_on_list_active() -> None:

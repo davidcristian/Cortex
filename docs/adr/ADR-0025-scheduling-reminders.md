@@ -897,3 +897,60 @@ the record). Decisions:
 
 Remaining behind the same shape: **monthly / yearly / day-of-month rules**, **a per-rule
 timezone**, and **cron expressions**, all as the calendar addendum left them.
+
+## Addendum (2026-07-14): monthly day-of-month rules
+
+The calendar addendum's rule names a wall time and a set of **weekdays**, so its occurrence
+search is bounded to one week and "remind me on the 1st of every month" is unexpressible: the
+nearest a user can get is a 30 day interval, which is the drift the whole rule shape exists
+to avoid (it walks off the calendar by a day or three every month, and by a month every year).
+Day-of-month recurrence lands here, behind the unchanged `ScheduleStore` port, with no record
+version bump and no migration. Decisions:
+
+- **A day-selector union on the rule, not a second optional field beside `days`.**
+  `CalendarRule(hour, minute, on: DaySelector)` where `DaySelector = Weekdays | MonthDays`, both
+  frozen values in `schedule_calendar.py`, with `DAILY` (every weekday) the default. The
+  cheaper-looking alternative was `month_days: frozenset[int] | None` sitting beside the
+  existing `days`, and it was rejected because it makes the type state a falsehood: a monthly
+  rule would carry `days == EVERY_DAY`, a field it ignores, and a reader cannot tell an authored
+  weekly rule from a defaulted one. It also demotes "a rule has exactly one day selector" from a
+  shape to a cross-field check in `__post_init__`. The union makes the invariant structural, and
+  it is the seam a **yearly** rule joins as a third variant rather than as a fourth field
+  widening the same invariant.
+- **A day the month does not have clamps to that month's last day; it never skips the month.**
+  `on_month_days: [31]` fires on 28 February (29 in a leap year) and on 30 April. The competing
+  policy, skipping a month that lacks the day, was rejected on two counts. First, it is the same
+  question daylight saving already asked and this ADR already answered: an occurrence in a
+  spring-forward gap fires just past the gap, late but never skipped, so a calendar irregularity
+  **moves** an occurrence here and does not delete one. Second, the failure modes are not
+  symmetric. Skipping means a monthly reminder silently does not fire in up to five months of
+  the year, and a reminder that never arrives is the worst outcome this feature has, while
+  clamping fires it at the closest instant the month actually contains. One property falls out
+  rather than being designed: `on_month_days: [31]` **is** how a maintainer says "the last day of
+  every month", so no separate last-day selector is owed. Clamping can also collide (30 and 31
+  both land on 28 February), and the walk works in resolved dates, so a collision fires once.
+- **The walk stays total by the same construction the weekly one used, not by a cap.** Each
+  selector answers `walk(start) -> (candidates, wrapped)`: the dates from `start` onward that
+  its own window contains, plus one fallback that is unconditionally later than any instant
+  whose local date is `start`. For `MonthDays` that fallback is the earliest clamped day of the
+  **next** month, which is later by date and therefore later by instant in any zone, so
+  `next_calendar_due` keeps one body, dispatches once, and terminates by construction with no
+  defensive iteration cap and no unreachable branch to fake coverage over. A non-empty selector
+  stays load bearing for exactly the reason the calendar addendum gave.
+- **The model writes `on_month_days`, a list of integers, refused alongside `on_days`.** Not one
+  polymorphic `on_days` accepting either weekday names or numbers: the two selectors mean
+  different things and a small model asked to mix vocabularies in one field will, whereas two
+  named fields with an explicit mutual-exclusion correction are self-teaching. Both creation
+  (`schedule_task`) and the edit verb (`edit_scheduled`) take it, so a rule can be authored,
+  retimed, and switched between weekly and monthly in place. The parsing of the model's day
+  vocabulary moved to `schedule_day_args.py` at the 300 line cap, shared by both callers, which
+  is the same responsibility line `schedule_verb_args.py` already draws.
+- **The codec distinguishes the selectors by which key is present, not by a discriminator or a
+  version bump.** A weekly rule still writes `days`, a monthly one writes `month_days`. Records
+  written before this addendum decode as weekly (the additive-key precedent `anchor` and `rule`
+  both set), and a weekly rule written after it is byte-identical to one written before, so the
+  only records that change shape are the ones using the new capability.
+
+Remaining behind the same shape: **yearly rules** (a `YearDays` variant naming a month alongside
+its days, the union's designed third case), **a per-rule timezone**, and **cron expressions**,
+all as the calendar addendum left them.

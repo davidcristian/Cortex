@@ -13,12 +13,14 @@ from uuid import uuid4
 from cortex_core import (
     CalendarRule,
     FireOutcome,
+    MonthDays,
     RuleChange,
     ScheduledItem,
     ScheduleEdit,
     ScheduleKind,
     ScheduleStatus,
     ScheduleStore,
+    Weekdays,
 )
 
 _NOW = datetime(2026, 7, 12, 12, 0, 0, tzinfo=UTC)
@@ -387,7 +389,7 @@ async def check_a_calendar_rule_round_trips_and_needs_no_anchor(store: ScheduleS
     decode). Unlike an interval item, a snoozed calendar item takes NO anchor: its rule is
     the recurrence grid, so nothing has to be pinned for the series to recover.
     """
-    rule = CalendarRule(hour=9, minute=0, days=frozenset({0, 4}))
+    rule = CalendarRule(hour=9, minute=0, on=Weekdays(days=frozenset({0, 4})))
     item = replace(make_item(_item_id()), rule=rule)
     await store.add(item)
     loaded = await store.get(item.id)
@@ -400,6 +402,22 @@ async def check_a_calendar_rule_round_trips_and_needs_no_anchor(store: ScheduleS
     assert snoozed is not None
     assert snoozed.rule == rule
     assert snoozed.anchor is None
+
+
+async def check_a_month_day_rule_round_trips(store: ScheduleStore) -> None:
+    """The monthly selector survives the store, which is the codec's other rule shape.
+
+    The Redis leg is what this exists for: a monthly rule writes ``month_days`` where a weekly
+    one writes ``days``, so only a real encode/store/decode proves the two do not collapse
+    into each other (ADR-0025 monthly addendum).
+    """
+    rule = CalendarRule(hour=9, minute=0, on=MonthDays(days=frozenset({1, 15})))
+    item = replace(make_item(_item_id()), rule=rule)
+    await store.add(item)
+    loaded = await store.get(item.id)
+    assert loaded is not None
+    assert loaded.rule == rule
+    assert loaded.every is None
 
 
 async def check_edit_replaces_a_calendar_rule_with_an_interval(store: ScheduleStore) -> None:
@@ -588,6 +606,7 @@ ALL_CHECKS = (
     check_snooze_rearms_a_deliverable_reminder,
     check_snooze_preserves_a_recurring_grid,
     check_a_calendar_rule_round_trips_and_needs_no_anchor,
+    check_a_month_day_rule_round_trips,
     check_edit_replaces_a_calendar_rule_with_an_interval,
     check_edit_sets_a_rule_and_moves_the_item_on_the_due_index,
     check_edit_setting_a_rule_rearms_a_deliverable_reminder,
