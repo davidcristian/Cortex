@@ -8,6 +8,7 @@ import pytest
 
 from cortex_core import (
     BUDGET_EXHAUSTED_MSG,
+    MAX_SPAWN_BATCH,
     DispatchBudget,
     EchoInferenceBackend,
     InferenceBackend,
@@ -331,6 +332,7 @@ _BAD_ARGUMENTS: list[tuple[dict[str, object], str]] = [
         "unknown subagent model 'ghost'; options: subagent",
     ),
     ({"instructions": [{"instruction": "go", "context": 3}]}, "'context' of a subtask"),
+    ({"instructions": ["go"] * (MAX_SPAWN_BATCH + 1)}, f"at most {MAX_SPAWN_BATCH} subtasks"),
 ]
 
 
@@ -343,6 +345,18 @@ async def test_bad_arguments_are_an_error_result(
     assert result.is_error is True
     assert message in result.content
     assert await store.get_task("st-1") is None  # nothing was spawned
+
+
+async def test_a_batch_at_the_cap_still_runs_every_subtask() -> None:
+    # The boundary the refusal above sits one past: an over-cap batch is refused, a batch of
+    # exactly MAX_SPAWN_BATCH is ordinary work. Pins the comparison against an off-by-one that
+    # would quietly cost the cortex its largest legitimate delegation.
+    store = InMemoryTaskStore()
+    batch = [f"task {n}" for n in range(MAX_SPAWN_BATCH)]
+    result = await _tool(store, EchoInferenceBackend()).invoke(_call({"instructions": batch}))
+    assert result.is_error is False
+    assert result.content.count("[subagent ") == MAX_SPAWN_BATCH
+    assert await store.get_task(f"st-{MAX_SPAWN_BATCH}") is not None
 
 
 def _spec_of(runner: SubagentRunner) -> ToolSpec:
@@ -397,3 +411,15 @@ async def test_the_spec_omits_the_model_knob_for_a_single_entry_roster() -> None
     spec = _spec_of(_runner(store, EchoInferenceBackend(), "subagent"))
     assert _model_property(spec) is None
     assert "default subagent model" in spec.description
+
+
+async def test_the_spec_advertises_the_batch_cap() -> None:
+    # The cap is told to the model twice over (a schema bound a grammar can enforce, and prose
+    # for a model that reads only the description), so a refusal is a correction and not a
+    # surprise. The runtime check stays the authority; this is what keeps it from firing.
+    store = InMemoryTaskStore()
+    spec = _spec_of(_runner(store, EchoInferenceBackend(), "subagent"))
+    instructions = cast("dict[str, Any]", spec.parameters["properties"]["instructions"])
+    assert instructions["maxItems"] == MAX_SPAWN_BATCH
+    assert f"at most {MAX_SPAWN_BATCH}" in instructions["description"]
+    assert f"At most {MAX_SPAWN_BATCH} subtasks per call" in spec.description

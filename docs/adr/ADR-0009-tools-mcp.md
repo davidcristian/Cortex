@@ -583,7 +583,8 @@ sibling, the stamp carrying the handle to the spawn tool, the runner falling bac
 budget when handed none, and the stamp's equality ignoring the handle.
 
 Still remaining behind the same seam: the **salience** half (which calls *deserve* dispatching);
-the **unbounded batch size** of `spawn_subagents` itself, now bounded in dispatches but still
-unbounded in model runs (a per-call cap on `instructions` is the obvious next bound, and it is a
-spawn-tool decision, not a budget one); and a **fair-share policy** if one greedy subagent
-starving its siblings ever shows up in practice.
+and a **fair-share policy** if one greedy subagent starving its siblings ever shows up in
+practice. The **unbounded batch size** of `spawn_subagents` this addendum left open (bounded in
+dispatches, unbounded in model runs) was closed 2026-07-14 by the per-call cap in the
+[ADR-0010 batch-cap addendum](ADR-0010-subagents.md), as predicted a spawn-tool decision rather
+than a budget one: no pool grew a second currency.

@@ -14,6 +14,9 @@ tools-enabled, ADR-0017 pins every spawn to the robust default, so no ``model`` 
 advertised at all. Each task is stamped with the spawning turn's taint (the ``tainted`` bit of
 the dispatcher's ``TurnStamp`` on the call, ADR-0018/0027), which the runner's resolution
 needs. Enforcement itself lives in ``SubagentRoster.resolve``, not here.
+
+One call's batch is capped at ``MAX_SPAWN_BATCH`` (ADR-0010 batch-cap addendum): the turn's
+dispatch pool bounds what the batch may *reach*, never how much work it queues.
 """
 
 import asyncio
@@ -31,10 +34,21 @@ from cortex_core.tools import ToolCall, ToolResult, ToolSpec, Trust
 
 SPAWN_TOOL_NAME = "spawn_subagents"
 
+# Upper bound on the subtasks one call may ask for (ADR-0010 batch-cap addendum). The turn's
+# dispatch pool (ADR-0009 turn-wide addendum) bounds what a batch may *reach*, not how much work
+# it queues: a subagent that calls no tools spends nothing from that pool while still costing an
+# admission slot, a placement, and a model run, and admission *queues* rather than refuses, so an
+# array of fifty was fifty inferences the turn waited on. Sized above plausible delegation (two to
+# five parallel subtasks) and far below fan-out spam. The turn's total is then two deliberate
+# factors rather than an open end: a spawn costs a quarter of the dispatch pool, so a turn affords
+# four batches of at most this many.
+MAX_SPAWN_BATCH = 8
+
 _DESCRIPTION = (
     "Delegate one or more narrow subtasks to small subagents that run concurrently and "
     "return their results. Use for independent lookups or transforms worth parallelizing; "
-    "each instruction must be self-contained (subagents do not see this conversation)."
+    "each instruction must be self-contained (subagents do not see this conversation). "
+    f"At most {MAX_SPAWN_BATCH} subtasks per call."
 )
 # Appended when the wiring lets the cortex pick a model per subtask (tool-less subagents).
 # The inline example nudges the object form. A live cortex given only prose folded the pick
@@ -96,6 +110,7 @@ def _build_spec(roster: SubagentRoster, *, tools_enabled: bool) -> ToolSpec:
             "properties": {
                 "instructions": {
                     "type": "array",
+                    "maxItems": MAX_SPAWN_BATCH,
                     "items": {
                         "anyOf": [
                             {
@@ -111,7 +126,7 @@ def _build_spec(roster: SubagentRoster, *, tools_enabled: bool) -> ToolSpec:
                             },
                         ]
                     },
-                    "description": "One entry per subagent.",
+                    "description": f"One entry per subagent, at most {MAX_SPAWN_BATCH}.",
                 }
             },
             "required": ["instructions"],
@@ -126,6 +141,11 @@ def _uuid4_task_id() -> str:
 
 _ERR_INSTRUCTION = (
     "each instruction must be a non-empty string or an object with a non-empty 'instruction'"
+)
+# Refused, never truncated: silently dropping subtasks would hand the cortex an aggregate that
+# looks complete. An error the model can act on, so it re-delegates in batches that fit.
+_ERR_BATCH = (
+    f"spawn_subagents takes at most {MAX_SPAWN_BATCH} subtasks per call; delegate fewer at once"
 )
 
 
@@ -186,8 +206,13 @@ def _parse_instructions(
     raw = arguments.get("instructions")
     if not isinstance(raw, list) or not raw:
         return "spawn_subagents requires a non-empty 'instructions' array"
+    elements = cast("list[object]", raw)
+    # Ahead of parsing the items, so an oversized array is refused without walking it and
+    # before a single task is stored or a single subagent placed.
+    if len(elements) > MAX_SPAWN_BATCH:
+        return _ERR_BATCH
     items: list[_SpawnItem] = []
-    for element in cast("list[object]", raw):
+    for element in elements:
         parsed = _parse_item(element, roster)
         if isinstance(parsed, str):
             return parsed

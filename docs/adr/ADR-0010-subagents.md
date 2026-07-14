@@ -199,3 +199,54 @@ added when the 2026-07-02 slice audit (`audit/slice-7.md`, which was a review ar
 after remediation; in git history through commit `96463aa`) flagged the ROADMAP-only
 paper trail. No measurements were recorded beyond the closure itself. The
 machinery measurements live in the increment-4 addendum above.
+
+## Addendum (2026-07-14): one call's batch is capped at `MAX_SPAWN_BATCH`
+
+The [ADR-0009 turn-wide addendum](ADR-0009-tools-mcp.md) made a spawned batch draw on the
+spawning turn's one dispatch pool, so an `instructions` array could no longer buy an unbounded
+number of external calls. It left the array itself unbounded, and named the gap: bounded in
+dispatches, still unbounded in **model runs**.
+
+The two really are different currencies, which is why the pool could not close this on its own.
+A subagent that calls no tools spends nothing from the dispatch pool while still costing an
+admission slot, a placement, and an inference. And `ResourceBudgetScheduler.admit` **queues**
+rather than refuses (by design, ADR-0012: over budget, callers wait), so an array of fifty was
+never an error the cortex could see. It was fifty inferences the turn sat through, two at a time
+under the default CPU budget.
+
+**Decision: a per-call cap, `MAX_SPAWN_BATCH = 8` in `spawn.py`.** An oversized batch is
+**refused**, never truncated: silently dropping subtasks would hand the cortex an aggregate that
+reads as complete, whereas an `is_error` result (trusted, our own message, the existing
+bad-arguments contract) is something the model corrects by re-delegating in batches that fit. The
+check sits **ahead of item parsing**, so an oversized array is refused without walking it and
+before a single `SubagentTask` is stored or a single subagent placed. The cap is advertised
+twice, as `maxItems` on the array (a bound a constrained decoder can enforce structurally) and as
+prose in both descriptions (for a model that reads only those), so the runtime check is the
+backstop rather than the first the cortex hears of it.
+
+**Why per call, and not a turn-wide pool mirroring the dispatch budget.** The turn-wide addendum
+argued for one number over a product of two constants, and that argument does not carry here,
+because it was really about a factor that was *unbounded*: `MAX_TOOL_STEPS` multiplied by an
+uncapped per-round call count. Both factors are now deliberate. A spawn costs a quarter of the
+dispatch pool by default (`DEFAULT_SPAWN_COST`, ADR-0009 cost addendum), so a turn affords four
+batches, and the turn's ceiling is a statable four times this cap. A user who reprices
+`spawn_subagents` through `CORTEX_TOOLS_COSTS` moves that factor knowingly, which is the point of
+having priced it. A closing turn-wide pool would also be worse behaviour: the first
+oversized batch would end delegation for the rest of the turn, where a per-call refusal is
+correctable. One property falls out of the composition rather than being designed: a refused
+batch still costs its spawn price, because `stream_tool_loop` charges ahead of the dispatch, so
+retry spam is itself bounded at four attempts.
+
+**Why a code constant and not an env knob.** `CORTEX_SUBAGENTS_CPU_BUDGET` and friends tune what
+this host can run *concurrently*, which is a deployment fact. How many subtasks one call may
+*ask* for is a policy the composition root does not vary, so it lives beside `MAX_TOOL_DISPATCHES`
+as a constant. Eight sits above plausible delegation (two to five parallel subtasks in practice)
+and far below fan-out spam. A knob is recorded as deferred should a deployment ever want one.
+
+CI-gated over the fakes at 100%, with three guards mutation-proven (each reverted individually
+turns a distinct test red): the cap itself, its comparison (an off-by-one that would cost the
+cortex its largest legitimate batch), and the advertised `maxItems`.
+
+Remaining behind the same tool: a **`CORTEX_SUBAGENTS_MAX_BATCH` knob** if a host ever wants a
+different ceiling, and a **cost-aware batch** (a cap in placements or estimated VRAM rather than
+in items) if roster entries ever differ enough that eight of one is not eight of another.
