@@ -1,300 +1,162 @@
-"""Cortex brain pure core: typed logic and ports, no I/O."""
+"""Cortex brain pure core: typed logic and ports, no I/O.
 
-from cortex_core.aggregate import (
-    AggregateToolRegistry,
-    FilteredToolRegistry,
-    GatedToolRegistry,
-    SkipUnavailableToolRegistry,
-    UngatedToolRegistry,
-)
-from cortex_core.body import VolumeState
-from cortex_core.composite import BuiltinTool, CompositeToolRegistry
-from cortex_core.conversation import Message, Role
-from cortex_core.dispatch import BUDGET_EXHAUSTED_MSG, ToolDispatcher
-from cortex_core.engine import DEFAULT_CORTEX_MODEL, TurnCapabilities, TurnEngine
-from cortex_core.errors import (
-    BodyGatewayError,
-    EmbedderError,
-    InferenceError,
-    MemoryStoreError,
-    ModelManagerError,
-    ModelUnavailableError,
-    ScheduleStoreError,
-    SessionStoreError,
-    TaskStoreError,
-    ToolError,
-    ToolNotFoundError,
-)
-from cortex_core.events import StatusUpdate, TextDelta, ToolActivity, TurnCompleted, TurnEvent
-from cortex_core.fakes import (
-    EchoInferenceBackend,
-    HashEmbedder,
-    InMemoryMemoryStore,
-    InMemorySessionStore,
-    InMemoryTaskStore,
-    InMemoryToolRegistry,
-    RecordingAuditSink,
-    RecordingConfirmer,
-    SystemClock,
-)
-from cortex_core.fakes_body import InMemoryBodyGateway, SentNotification
-from cortex_core.fakes_schedule import InMemoryScheduleStore
-from cortex_core.guardrail import (
-    REDACTED_LINK,
-    OutputFilter,
-    OutputGuardrail,
-    StrictUrlRedactingGuardrail,
-    TaintView,
-    UrlRedactingGuardrail,
-)
-from cortex_core.inference import InferenceEvent, JsonSchema, ReasoningChunk, TextChunk
-from cortex_core.memory import GLOBAL_SCOPE, MemoryRecord, ScoredMemory
-from cortex_core.model import ModelLease, SingleResidentModelManager
-from cortex_core.placement import Placement, PlacementRequest, PlacementTarget
-from cortex_core.placer import VramBudgetPlacer
-from cortex_core.ports import (
-    BodyGateway,
-    Clock,
-    Confirmer,
-    Embedder,
-    InferenceBackend,
-    MemoryStore,
-    ModelManager,
-    ScheduleStore,
-    SessionStore,
-    SubagentPlacer,
-    SubagentScheduler,
-    TaskStore,
-    ToolAuditSink,
-    ToolRegistry,
-)
-from cortex_core.recall import MemoryRecaller
-from cortex_core.rerank import RAW_RECALL_POLICY, RawRecallPolicy, RecallPolicy
-from cortex_core.rerank_policies import (
-    MmrRecallPolicy,
-    RecencyMmrRecallPolicy,
-    RerankingRecallPolicy,
-)
-from cortex_core.roster import SubagentProfile, SubagentResources, SubagentRoster
-from cortex_core.routing import RoutingHints, Tier, route_turn
-from cortex_core.runner import SubagentRunner
-from cortex_core.schedule import (
-    FireOutcome,
-    ScheduleClaim,
-    ScheduledItem,
-    ScheduleEdit,
-    ScheduleKind,
-    ScheduleStatus,
-    apply_edit,
-    apply_snooze,
-    next_due,
-    recurrence_base,
-)
-from cortex_core.schedule_time import UTC_DISPLAY, UTC_ZONE_NAME, DisplayZone
-from cortex_core.schedule_tools import (
-    LIST_SCHEDULED_TOOL_NAME,
-    SCHEDULE_TOOL_NAME,
-    TAINTED_TASK_MSG,
-    ListScheduledTool,
-    ScheduleTaskTool,
-)
-from cortex_core.schedule_verbs import (
-    CANCEL_SCHEDULED_TOOL_NAME,
-    EDIT_SCHEDULED_TOOL_NAME,
-    SNOOZE_SCHEDULED_TOOL_NAME,
-    CancelScheduledTool,
-    EditScheduledTool,
-    SnoozeScheduledTool,
-)
-from cortex_core.scheduler import ResourceBudgetScheduler
-from cortex_core.scope import (
-    GLOBAL_MEMORY_SCOPE,
-    GlobalMemoryScope,
-    MemoryScope,
-    SessionMemoryScope,
-)
-from cortex_core.sessions import SessionSummary, summarize_ends, summarize_session
-from cortex_core.spawn import SPAWN_TOOL_NAME, SpawnSubagentsTool
-from cortex_core.subagents import SubagentResult, SubagentTask
-from cortex_core.tool_budget import MAX_TOOL_DISPATCHES, UNIFORM_COST, ToolCostPolicy
-from cortex_core.tools import (
-    UNSTAMPED,
-    ConfirmationRequest,
-    ToolCall,
-    ToolInvocation,
-    ToolResult,
-    ToolSpec,
-    Trust,
-    TurnStamp,
-)
-from cortex_core.untrusted import (
-    DENIED_MSG,
-    SECURITY_PREAMBLE,
-    USER_DECLINED_MSG,
-    TaintLedger,
-    new_nonce,
-    security_preamble_message,
-    wrap_untrusted,
-)
-from cortex_core.urls import extract_urls
-from cortex_core.volume import (
-    GET_VOLUME_TOOL_NAME,
-    SET_VOLUME_TOOL_NAME,
-    GetVolumeTool,
-    SetVolumeTool,
-)
-from cortex_core.windowing import CharBudgetHistoryWindow, HistoryWindow
+A re-export barrel and nothing else: every name below is defined in a sibling module and
+listed here so consumers import the core's public surface from one place. Re-export is
+declared with the typing spec's redundant-alias form (``X as X``) rather than an ``__all__``
+list, because the list restated all 151 names a second time and that duplication, not the
+surface itself, is what pushed this file onto the 300-line cap (ADR-0009 cost addendum's
+recorded deferral). Both forms mean the same thing to pyright; this one says it once, so
+adding a public name costs one line instead of two.
+"""
 
-__all__ = [
-    "BUDGET_EXHAUSTED_MSG",
-    "CANCEL_SCHEDULED_TOOL_NAME",
-    "DEFAULT_CORTEX_MODEL",
-    "DENIED_MSG",
-    "EDIT_SCHEDULED_TOOL_NAME",
-    "GET_VOLUME_TOOL_NAME",
-    "GLOBAL_MEMORY_SCOPE",
-    "GLOBAL_SCOPE",
-    "LIST_SCHEDULED_TOOL_NAME",
-    "MAX_TOOL_DISPATCHES",
-    "RAW_RECALL_POLICY",
-    "REDACTED_LINK",
-    "SCHEDULE_TOOL_NAME",
-    "SECURITY_PREAMBLE",
-    "SET_VOLUME_TOOL_NAME",
-    "SNOOZE_SCHEDULED_TOOL_NAME",
-    "SPAWN_TOOL_NAME",
-    "TAINTED_TASK_MSG",
-    "UNIFORM_COST",
-    "UNSTAMPED",
-    "USER_DECLINED_MSG",
-    "UTC_DISPLAY",
-    "UTC_ZONE_NAME",
-    "AggregateToolRegistry",
-    "BodyGateway",
-    "BodyGatewayError",
-    "BuiltinTool",
-    "CancelScheduledTool",
-    "CharBudgetHistoryWindow",
-    "Clock",
-    "CompositeToolRegistry",
-    "ConfirmationRequest",
-    "Confirmer",
-    "DisplayZone",
-    "EchoInferenceBackend",
-    "EditScheduledTool",
-    "Embedder",
-    "EmbedderError",
-    "FilteredToolRegistry",
-    "FireOutcome",
-    "GatedToolRegistry",
-    "GetVolumeTool",
-    "GlobalMemoryScope",
-    "HashEmbedder",
-    "HistoryWindow",
-    "InMemoryBodyGateway",
-    "InMemoryMemoryStore",
-    "InMemoryScheduleStore",
-    "InMemorySessionStore",
-    "InMemoryTaskStore",
-    "InMemoryToolRegistry",
-    "InferenceBackend",
-    "InferenceError",
-    "InferenceEvent",
-    "JsonSchema",
-    "ListScheduledTool",
-    "MemoryRecaller",
-    "MemoryRecord",
-    "MemoryScope",
-    "MemoryStore",
-    "MemoryStoreError",
-    "Message",
-    "MmrRecallPolicy",
-    "ModelLease",
-    "ModelManager",
-    "ModelManagerError",
-    "ModelUnavailableError",
-    "OutputFilter",
-    "OutputGuardrail",
-    "Placement",
-    "PlacementRequest",
-    "PlacementTarget",
-    "RawRecallPolicy",
-    "ReasoningChunk",
-    "RecallPolicy",
-    "RecencyMmrRecallPolicy",
-    "RecordingAuditSink",
-    "RecordingConfirmer",
-    "RerankingRecallPolicy",
-    "ResourceBudgetScheduler",
-    "Role",
-    "RoutingHints",
-    "ScheduleClaim",
-    "ScheduleEdit",
-    "ScheduleKind",
-    "ScheduleStatus",
-    "ScheduleStore",
-    "ScheduleStoreError",
-    "ScheduleTaskTool",
-    "ScheduledItem",
-    "ScoredMemory",
-    "SentNotification",
-    "SessionMemoryScope",
-    "SessionStore",
-    "SessionStoreError",
-    "SessionSummary",
-    "SetVolumeTool",
-    "SingleResidentModelManager",
-    "SkipUnavailableToolRegistry",
-    "SnoozeScheduledTool",
-    "SpawnSubagentsTool",
-    "StatusUpdate",
-    "StrictUrlRedactingGuardrail",
-    "SubagentPlacer",
-    "SubagentProfile",
-    "SubagentResources",
-    "SubagentResult",
-    "SubagentRoster",
-    "SubagentRunner",
-    "SubagentScheduler",
-    "SubagentTask",
-    "SystemClock",
-    "TaintLedger",
-    "TaintView",
-    "TaskStore",
-    "TaskStoreError",
-    "TextChunk",
-    "TextDelta",
-    "Tier",
-    "ToolActivity",
-    "ToolAuditSink",
-    "ToolCall",
-    "ToolCostPolicy",
-    "ToolDispatcher",
-    "ToolError",
-    "ToolInvocation",
-    "ToolNotFoundError",
-    "ToolRegistry",
-    "ToolResult",
-    "ToolSpec",
-    "Trust",
-    "TurnCapabilities",
-    "TurnCompleted",
-    "TurnEngine",
-    "TurnEvent",
-    "TurnStamp",
-    "UngatedToolRegistry",
-    "UrlRedactingGuardrail",
-    "VolumeState",
-    "VramBudgetPlacer",
-    "apply_edit",
-    "apply_snooze",
-    "extract_urls",
-    "new_nonce",
-    "next_due",
-    "recurrence_base",
-    "route_turn",
-    "security_preamble_message",
-    "summarize_ends",
-    "summarize_session",
-    "wrap_untrusted",
-]
+from cortex_core.aggregate import AggregateToolRegistry as AggregateToolRegistry
+from cortex_core.aggregate import FilteredToolRegistry as FilteredToolRegistry
+from cortex_core.aggregate import GatedToolRegistry as GatedToolRegistry
+from cortex_core.aggregate import SkipUnavailableToolRegistry as SkipUnavailableToolRegistry
+from cortex_core.aggregate import UngatedToolRegistry as UngatedToolRegistry
+from cortex_core.body import VolumeState as VolumeState
+from cortex_core.composite import BuiltinTool as BuiltinTool
+from cortex_core.composite import CompositeToolRegistry as CompositeToolRegistry
+from cortex_core.conversation import Message as Message
+from cortex_core.conversation import Role as Role
+from cortex_core.dispatch import BUDGET_EXHAUSTED_MSG as BUDGET_EXHAUSTED_MSG
+from cortex_core.dispatch import ToolDispatcher as ToolDispatcher
+from cortex_core.engine import DEFAULT_CORTEX_MODEL as DEFAULT_CORTEX_MODEL
+from cortex_core.engine import TurnCapabilities as TurnCapabilities
+from cortex_core.engine import TurnEngine as TurnEngine
+from cortex_core.errors import BodyGatewayError as BodyGatewayError
+from cortex_core.errors import EmbedderError as EmbedderError
+from cortex_core.errors import InferenceError as InferenceError
+from cortex_core.errors import MemoryStoreError as MemoryStoreError
+from cortex_core.errors import ModelManagerError as ModelManagerError
+from cortex_core.errors import ModelUnavailableError as ModelUnavailableError
+from cortex_core.errors import ScheduleStoreError as ScheduleStoreError
+from cortex_core.errors import SessionStoreError as SessionStoreError
+from cortex_core.errors import TaskStoreError as TaskStoreError
+from cortex_core.errors import ToolError as ToolError
+from cortex_core.errors import ToolNotFoundError as ToolNotFoundError
+from cortex_core.events import StatusUpdate as StatusUpdate
+from cortex_core.events import TextDelta as TextDelta
+from cortex_core.events import ToolActivity as ToolActivity
+from cortex_core.events import TurnCompleted as TurnCompleted
+from cortex_core.events import TurnEvent as TurnEvent
+from cortex_core.fakes import EchoInferenceBackend as EchoInferenceBackend
+from cortex_core.fakes import HashEmbedder as HashEmbedder
+from cortex_core.fakes import InMemoryMemoryStore as InMemoryMemoryStore
+from cortex_core.fakes import InMemorySessionStore as InMemorySessionStore
+from cortex_core.fakes import InMemoryTaskStore as InMemoryTaskStore
+from cortex_core.fakes import InMemoryToolRegistry as InMemoryToolRegistry
+from cortex_core.fakes import RecordingAuditSink as RecordingAuditSink
+from cortex_core.fakes import RecordingConfirmer as RecordingConfirmer
+from cortex_core.fakes import SystemClock as SystemClock
+from cortex_core.fakes_body import InMemoryBodyGateway as InMemoryBodyGateway
+from cortex_core.fakes_body import SentNotification as SentNotification
+from cortex_core.fakes_schedule import InMemoryScheduleStore as InMemoryScheduleStore
+from cortex_core.guardrail import REDACTED_LINK as REDACTED_LINK
+from cortex_core.guardrail import OutputFilter as OutputFilter
+from cortex_core.guardrail import OutputGuardrail as OutputGuardrail
+from cortex_core.guardrail import StrictUrlRedactingGuardrail as StrictUrlRedactingGuardrail
+from cortex_core.guardrail import TaintView as TaintView
+from cortex_core.guardrail import UrlRedactingGuardrail as UrlRedactingGuardrail
+from cortex_core.inference import InferenceEvent as InferenceEvent
+from cortex_core.inference import JsonSchema as JsonSchema
+from cortex_core.inference import ReasoningChunk as ReasoningChunk
+from cortex_core.inference import TextChunk as TextChunk
+from cortex_core.memory import GLOBAL_SCOPE as GLOBAL_SCOPE
+from cortex_core.memory import MemoryRecord as MemoryRecord
+from cortex_core.memory import ScoredMemory as ScoredMemory
+from cortex_core.model import ModelLease as ModelLease
+from cortex_core.model import SingleResidentModelManager as SingleResidentModelManager
+from cortex_core.placement import Placement as Placement
+from cortex_core.placement import PlacementRequest as PlacementRequest
+from cortex_core.placement import PlacementTarget as PlacementTarget
+from cortex_core.placer import VramBudgetPlacer as VramBudgetPlacer
+from cortex_core.ports import BodyGateway as BodyGateway
+from cortex_core.ports import Clock as Clock
+from cortex_core.ports import Confirmer as Confirmer
+from cortex_core.ports import Embedder as Embedder
+from cortex_core.ports import InferenceBackend as InferenceBackend
+from cortex_core.ports import MemoryStore as MemoryStore
+from cortex_core.ports import ModelManager as ModelManager
+from cortex_core.ports import ScheduleStore as ScheduleStore
+from cortex_core.ports import SessionStore as SessionStore
+from cortex_core.ports import SubagentPlacer as SubagentPlacer
+from cortex_core.ports import SubagentScheduler as SubagentScheduler
+from cortex_core.ports import TaskStore as TaskStore
+from cortex_core.ports import ToolAuditSink as ToolAuditSink
+from cortex_core.ports import ToolRegistry as ToolRegistry
+from cortex_core.recall import MemoryRecaller as MemoryRecaller
+from cortex_core.rerank import RAW_RECALL_POLICY as RAW_RECALL_POLICY
+from cortex_core.rerank import RawRecallPolicy as RawRecallPolicy
+from cortex_core.rerank import RecallPolicy as RecallPolicy
+from cortex_core.rerank_policies import MmrRecallPolicy as MmrRecallPolicy
+from cortex_core.rerank_policies import RecencyMmrRecallPolicy as RecencyMmrRecallPolicy
+from cortex_core.rerank_policies import RerankingRecallPolicy as RerankingRecallPolicy
+from cortex_core.roster import SubagentProfile as SubagentProfile
+from cortex_core.roster import SubagentResources as SubagentResources
+from cortex_core.roster import SubagentRoster as SubagentRoster
+from cortex_core.routing import RoutingHints as RoutingHints
+from cortex_core.routing import Tier as Tier
+from cortex_core.routing import route_turn as route_turn
+from cortex_core.runner import SubagentRunner as SubagentRunner
+from cortex_core.schedule import FireOutcome as FireOutcome
+from cortex_core.schedule import ScheduleClaim as ScheduleClaim
+from cortex_core.schedule import ScheduledItem as ScheduledItem
+from cortex_core.schedule import ScheduleEdit as ScheduleEdit
+from cortex_core.schedule import ScheduleKind as ScheduleKind
+from cortex_core.schedule import ScheduleStatus as ScheduleStatus
+from cortex_core.schedule import apply_edit as apply_edit
+from cortex_core.schedule import apply_snooze as apply_snooze
+from cortex_core.schedule import next_due as next_due
+from cortex_core.schedule import recurrence_base as recurrence_base
+from cortex_core.schedule_time import UTC_DISPLAY as UTC_DISPLAY
+from cortex_core.schedule_time import UTC_ZONE_NAME as UTC_ZONE_NAME
+from cortex_core.schedule_time import DisplayZone as DisplayZone
+from cortex_core.schedule_tools import LIST_SCHEDULED_TOOL_NAME as LIST_SCHEDULED_TOOL_NAME
+from cortex_core.schedule_tools import SCHEDULE_TOOL_NAME as SCHEDULE_TOOL_NAME
+from cortex_core.schedule_tools import TAINTED_TASK_MSG as TAINTED_TASK_MSG
+from cortex_core.schedule_tools import ListScheduledTool as ListScheduledTool
+from cortex_core.schedule_tools import ScheduleTaskTool as ScheduleTaskTool
+from cortex_core.schedule_verbs import CANCEL_SCHEDULED_TOOL_NAME as CANCEL_SCHEDULED_TOOL_NAME
+from cortex_core.schedule_verbs import EDIT_SCHEDULED_TOOL_NAME as EDIT_SCHEDULED_TOOL_NAME
+from cortex_core.schedule_verbs import SNOOZE_SCHEDULED_TOOL_NAME as SNOOZE_SCHEDULED_TOOL_NAME
+from cortex_core.schedule_verbs import CancelScheduledTool as CancelScheduledTool
+from cortex_core.schedule_verbs import EditScheduledTool as EditScheduledTool
+from cortex_core.schedule_verbs import SnoozeScheduledTool as SnoozeScheduledTool
+from cortex_core.scheduler import ResourceBudgetScheduler as ResourceBudgetScheduler
+from cortex_core.scope import GLOBAL_MEMORY_SCOPE as GLOBAL_MEMORY_SCOPE
+from cortex_core.scope import GlobalMemoryScope as GlobalMemoryScope
+from cortex_core.scope import MemoryScope as MemoryScope
+from cortex_core.scope import SessionMemoryScope as SessionMemoryScope
+from cortex_core.sessions import SessionSummary as SessionSummary
+from cortex_core.sessions import summarize_ends as summarize_ends
+from cortex_core.sessions import summarize_session as summarize_session
+from cortex_core.spawn import SPAWN_TOOL_NAME as SPAWN_TOOL_NAME
+from cortex_core.spawn import SpawnSubagentsTool as SpawnSubagentsTool
+from cortex_core.subagents import SubagentResult as SubagentResult
+from cortex_core.subagents import SubagentTask as SubagentTask
+from cortex_core.tool_budget import MAX_TOOL_DISPATCHES as MAX_TOOL_DISPATCHES
+from cortex_core.tool_budget import UNIFORM_COST as UNIFORM_COST
+from cortex_core.tool_budget import ToolCostPolicy as ToolCostPolicy
+from cortex_core.tools import UNSTAMPED as UNSTAMPED
+from cortex_core.tools import ConfirmationRequest as ConfirmationRequest
+from cortex_core.tools import ToolCall as ToolCall
+from cortex_core.tools import ToolInvocation as ToolInvocation
+from cortex_core.tools import ToolResult as ToolResult
+from cortex_core.tools import ToolSpec as ToolSpec
+from cortex_core.tools import Trust as Trust
+from cortex_core.tools import TurnStamp as TurnStamp
+from cortex_core.untrusted import DENIED_MSG as DENIED_MSG
+from cortex_core.untrusted import SECURITY_PREAMBLE as SECURITY_PREAMBLE
+from cortex_core.untrusted import USER_DECLINED_MSG as USER_DECLINED_MSG
+from cortex_core.untrusted import TaintLedger as TaintLedger
+from cortex_core.untrusted import new_nonce as new_nonce
+from cortex_core.untrusted import security_preamble_message as security_preamble_message
+from cortex_core.untrusted import wrap_untrusted as wrap_untrusted
+from cortex_core.urls import extract_urls as extract_urls
+from cortex_core.volume import GET_VOLUME_TOOL_NAME as GET_VOLUME_TOOL_NAME
+from cortex_core.volume import SET_VOLUME_TOOL_NAME as SET_VOLUME_TOOL_NAME
+from cortex_core.volume import GetVolumeTool as GetVolumeTool
+from cortex_core.volume import SetVolumeTool as SetVolumeTool
+from cortex_core.windowing import CharBudgetHistoryWindow as CharBudgetHistoryWindow
+from cortex_core.windowing import HistoryWindow as HistoryWindow
