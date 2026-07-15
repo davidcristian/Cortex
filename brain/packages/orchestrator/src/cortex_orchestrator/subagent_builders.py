@@ -1,12 +1,13 @@
 """Subagent wiring: the roster, the runner, and the spawn tool from config (ADR-0010/0012/0018)."""
 
-from collections.abc import Awaitable, Callable, Collection
+from collections.abc import Awaitable, Callable
 
 import httpx
 
 from cortex_core import (
-    UNIFORM_COST,
+    DEFAULT_DISPATCH_POLICY,
     Clock,
+    DispatchPolicy,
     PlacementRequest,
     PlacementTarget,
     ResourceBudgetScheduler,
@@ -18,7 +19,6 @@ from cortex_core import (
     SubagentRoster,
     SubagentRunner,
     SubagentScheduler,
-    ToolCostPolicy,
     ToolDispatcher,
     ToolRegistry,
     UngatedToolRegistry,
@@ -93,8 +93,7 @@ def build_subagent_tools(
     tool_registry: ToolRegistry | None,
     clock: Clock,
     *,
-    gated_names: Collection[str] = (),
-    costs: ToolCostPolicy = UNIFORM_COST,
+    policy: DispatchPolicy = DEFAULT_DISPATCH_POLICY,
 ) -> ToolDispatcher | None:
     """A subagent's audited dispatcher over the gated-stripped MCP subset, or None (ADR-0013)."""
     if tool_registry is None:
@@ -103,6 +102,5 @@ def build_subagent_tools(
         UngatedToolRegistry(tool_registry),
         LoggingAuditSink(),
         clock,
-        gated_names=gated_names,
-        costs=costs,
+        policy=policy,
     )

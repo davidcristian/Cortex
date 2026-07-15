@@ -1,14 +1,14 @@
 """Adapter builders for the composition root: pick each port's adapter from config."""
 
 import logging
-from collections.abc import Awaitable, Callable, Collection, Sequence
+from collections.abc import Awaitable, Callable, Sequence
 from functools import partial
 
 import httpx
 
 from cortex_body_client import GrpcBodyGateway
 from cortex_core import (
-    UNIFORM_COST,
+    DEFAULT_DISPATCH_POLICY,
     AggregateToolRegistry,
     BodyGateway,
     BuiltinTool,
@@ -16,6 +16,7 @@ from cortex_core import (
     Clock,
     CompositeToolRegistry,
     Confirmer,
+    DispatchPolicy,
     EchoInferenceBackend,
     FilteredToolRegistry,
     GatedToolRegistry,
@@ -26,18 +27,14 @@ from cortex_core import (
     SkipUnavailableToolRegistry,
     SpawnSubagentsTool,
     StrictUrlRedactingGuardrail,
-    ToolCostPolicy,
     ToolDispatcher,
     ToolError,
     ToolRegistry,
     UrlRedactingGuardrail,
 )
 from cortex_inference import LlamaCppBackend
-from cortex_orchestrator.config import (
-    BodyConfig,
-    InferenceConfig,
-    ToolsConfig,
-)
+from cortex_orchestrator.config import BodyConfig, InferenceConfig
+from cortex_orchestrator.config_tools import ToolsConfig
 from cortex_tools import (
     LoggingAuditSink,
     ReconnectingMcpToolRegistry,
@@ -147,8 +144,7 @@ def build_cortex_tools(
     clock: Clock,
     *,
     confirmer: Confirmer | None = None,
-    gated_names: Collection[str] = (),
-    costs: ToolCostPolicy = UNIFORM_COST,
+    policy: DispatchPolicy = DEFAULT_DISPATCH_POLICY,
 ) -> ToolDispatcher | None:
     """The cortex's audited dispatcher: the built-in set merged with the MCP tools."""
     if not builtins and tool_registry is None:
@@ -159,6 +155,5 @@ def build_cortex_tools(
         LoggingAuditSink(),
         clock,
         confirmer=confirmer,
-        gated_names=gated_names,
-        costs=costs,
+        policy=policy,
     )

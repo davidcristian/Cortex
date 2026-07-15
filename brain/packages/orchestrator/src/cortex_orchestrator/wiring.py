@@ -18,10 +18,10 @@ from cortex_orchestrator.config import (
     InferenceConfig,
     MemoryConfig,
     SeamServerConfig,
-    ToolsConfig,
 )
 from cortex_orchestrator.config_schedule import ScheduleConfig
 from cortex_orchestrator.config_subagents import SubagentsConfig
+from cortex_orchestrator.config_tools import ToolsConfig
 from cortex_orchestrator.memory_builders import build_memory
 from cortex_orchestrator.schedule_builders import (
     build_schedule,
@@ -59,8 +59,7 @@ async def run_from_env(
         build_subagent_tools(
             tool_registry,
             clock,
-            gated_names=tools_config.gated,
-            costs=tools_config.cost_policy,
+            policy=tools_config.dispatch_policy,
         ),
         runtime.redis_url,
         clock,
@@ -85,7 +84,7 @@ async def run_from_env(
         clock,
         spawn_tool=spawn_tool,
         body=body,
-        gated_names=tools_config.gated,
+        policy=tools_config.dispatch_policy,
     )
     ticker_task = start_ticker(ticker)
     try:
@@ -106,8 +105,7 @@ async def run_from_env(
                         builtins,
                         clock,
                         confirmer=confirmer,
-                        gated_names=tools_config.gated,
-                        costs=tools_config.cost_policy,
+                        policy=tools_config.dispatch_policy,
                     ),
                     window=build_history_window(runtime.history_char_budget),
                     guardrail=build_output_guardrail(runtime.output_guardrail),

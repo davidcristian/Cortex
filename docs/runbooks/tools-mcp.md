@@ -79,6 +79,12 @@ so skip mode covers a sidecar down at *any* time, including one down when the br
 (startup no longer fails). A recovered sidecar rejoins on its next call, **no brain
 restart needed**.
 
+A turn that repeats one call has it dispatched at most twice, and at most once per inference
+round (`CORTEX_TOOLS_SALIENCE`, default `repeat`, ADR-0009 salience addendum). The refusal is
+audited like any other dispatch, so the brain's logs show the repeat as a `tool.invoke` line
+whose detail is the refusal rather than a second sidecar call, and the sidecar sees nothing.
+Set `CORTEX_TOOLS_SALIENCE=off` to restore the unfiltered loop when comparing behavior.
+
 ## Teardown
 
 ```

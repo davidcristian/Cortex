@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 
 from cortex_core.conversation import Message, Role
-from cortex_core.dispatch import ToolDispatcher
+from cortex_core.dispatch import DispatchRefusal, ToolDispatcher
 from cortex_core.inference import JsonSchema, ReasoningChunk
 from cortex_core.ports import Clock, InferenceBackend
 from cortex_core.tool_budget import DispatchBudget
@@ -83,6 +83,20 @@ def _result_message(result: ToolResult, at: datetime, turn_id: str, *, nonce: st
     return Message(role=Role.TOOL, text=text, at=at, turn_id=turn_id, tool_call_id=result.call_id)
 
 
+def _refused_by(
+    call: ToolCall,
+    dispatcher: ToolDispatcher,
+    dispatched: Sequence[Sequence[ToolCall]],
+    budget: DispatchBudget,
+) -> DispatchRefusal | None:
+    """Which bound refuses this call before it can run, or ``None`` when it may go ahead."""
+    if not dispatcher.admits(call, dispatched):
+        return DispatchRefusal.REDUNDANT
+    if not budget.charge(dispatcher.cost_of(call.name)):
+        return DispatchRefusal.BUDGET
+    return None
+
+
 async def stream_tool_loop(
     backend: InferenceBackend,
     model: str,
@@ -98,6 +112,7 @@ async def stream_tool_loop(
     gated_by_name = {spec.name: spec.gated for spec in specs}
     spec_by_name = {spec.name: spec for spec in specs}
     budget = context.budget
+    dispatched: list[list[ToolCall]] = []
     for _step in range(MAX_TOOL_STEPS):
         calls: list[ToolCall] = []
         step_text: list[str] = []
@@ -121,9 +136,18 @@ async def stream_tool_loop(
         working.append(
             _call_message("".join(step_text), calls, context.clock.now(), context.turn_id)
         )
+        # This round's dispatched calls, appended to the loop's history before the round runs so
+        # the policy sees the round in progress as its last group (ADR-0009 salience addendum).
+        this_round: list[ToolCall] = []
+        dispatched.append(this_round)
         for call in calls:
-            affordable = budget.charge(dispatcher.cost_of(call.name))
-            if affordable and (spec := spec_by_name.get(call.name)) is not None:
+            refusal = _refused_by(call, dispatcher, dispatched, budget)
+            if refusal is None:
+                # Recorded when the call is handed over, not when it answers: a gate denial and
+                # a declined confirmation are `is_error` results too, so counting only successes
+                # would leave a declined gated call free to re-prompt the user every round.
+                this_round.append(call)
+            if refusal is None and (spec := spec_by_name.get(call.name)) is not None:
                 yield ToolStep(tool_name=spec.name, summary=_step_summary(spec))
             result = await dispatcher.dispatch(
                 call,
@@ -135,7 +159,7 @@ async def stream_tool_loop(
                     budget=budget,
                 ),
                 gated=gated_by_name.get(call.name, False),
-                over_budget=not affordable,
+                refusal=refusal,
             )
             context.taint.observe(result)
             working.append(

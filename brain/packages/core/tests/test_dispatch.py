@@ -8,9 +8,13 @@ from collections.abc import Mapping
 from datetime import UTC, datetime
 
 from cortex_core import (
+    ALWAYS_SALIENT,
     BUDGET_EXHAUSTED_MSG,
     DENIED_MSG,
+    REDUNDANT_MSG,
     USER_DECLINED_MSG,
+    DispatchPolicy,
+    DispatchRefusal,
     InMemoryToolRegistry,
     RecordingAuditSink,
     RecordingConfirmer,
@@ -273,7 +277,7 @@ async def test_gated_names_gate_a_call_the_snapshot_advertised_as_ungated() -> N
         sink,
         _FixedClock(),
         confirmer=confirmer,
-        gated_names={"send"},
+        policy=DispatchPolicy(gated_names={"send"}),
     )
     result = await dispatcher.dispatch(
         ToolCall(id="c", name="send", arguments={"path": "/p"}),
@@ -293,7 +297,7 @@ async def test_gated_names_deny_a_tainted_call_the_snapshot_advertised_as_ungate
         RecordingAuditSink(),
         _FixedClock(),
         confirmer=confirmer,
-        gated_names={"send"},
+        policy=DispatchPolicy(gated_names={"send"}),
     )
     result = await dispatcher.dispatch(
         ToolCall(id="c", name="send", arguments={"path": "/p"}),
@@ -310,7 +314,7 @@ async def test_a_name_outside_the_gated_set_stays_ungated() -> None:
         InMemoryToolRegistry({"read": (_spec("read"), _ran)}),
         RecordingAuditSink(),
         _FixedClock(),
-        gated_names={"send"},
+        policy=DispatchPolicy(gated_names={"send"}),
     )
     result = await dispatcher.dispatch(
         ToolCall(id="c", name="read", arguments={"path": "/p"}),
@@ -327,7 +331,7 @@ async def test_an_over_budget_call_is_refused_without_running_the_tool_and_is_au
     sink = RecordingAuditSink()
     result = await _outbound(sink, None).dispatch(
         ToolCall(id="c", name="send", arguments={"path": "/p"}),
-        over_budget=True,
+        refusal=DispatchRefusal.BUDGET,
     )
     assert result.is_error is True
     assert result.content == BUDGET_EXHAUSTED_MSG
@@ -345,7 +349,7 @@ async def test_an_over_budget_gated_call_never_reaches_the_confirmer() -> None:
         ToolCall(id="c", name="send", arguments={"path": "/p"}),
         stamp=TurnStamp(tainted=False),
         gated=True,
-        over_budget=True,
+        refusal=DispatchRefusal.BUDGET,
     )
     assert result.content == BUDGET_EXHAUSTED_MSG  # not USER_DECLINED_MSG, and it never ran
     assert confirmer.requests == ()  # never consulted
@@ -359,16 +363,16 @@ async def test_an_over_budget_gated_call_on_a_tainted_turn_reports_the_budget() 
         ToolCall(id="c", name="send", arguments={"path": "/p"}),
         stamp=TurnStamp(tainted=True),
         gated=True,
-        over_budget=True,
+        refusal=DispatchRefusal.BUDGET,
     )
     assert result.content == BUDGET_EXHAUSTED_MSG
 
 
 async def test_a_within_budget_call_is_unaffected() -> None:
-    # The default keeps every existing path byte-for-byte: over_budget=False is the old dispatch.
+    # The default keeps every existing path byte-for-byte: no refusal is the old dispatch.
     result = await _outbound(RecordingAuditSink(), None).dispatch(
         ToolCall(id="c", name="send", arguments={"path": "/p"}),
-        over_budget=False,
+        refusal=None,
     )
     assert result.content == "ran:/p"
 
@@ -380,7 +384,7 @@ def test_the_dispatcher_prices_a_call_from_the_policy_it_was_given() -> None:
         InMemoryToolRegistry({"send": (_spec("send"), _ran)}),
         RecordingAuditSink(),
         _FixedClock(),
-        costs=ToolCostPolicy({"send": 4}),
+        policy=DispatchPolicy(costs=ToolCostPolicy({"send": 4})),
     )
     assert dispatcher.cost_of("send") == 4
     # An unadvertised name is priced too, not free: it still reaches dispatch and still costs
@@ -393,3 +397,58 @@ def test_a_dispatcher_built_without_a_policy_prices_every_call_at_one() -> None:
         InMemoryToolRegistry({"read": (_spec("read"), _ran)}), RecordingAuditSink()
     )
     assert dispatcher.cost_of("read") == 1
+
+
+async def test_a_redundant_call_is_refused_without_running_the_tool_and_is_audited() -> None:
+    # The second refusal reason rides the same machinery as the first (ADR-0009 salience
+    # addendum): the caller decides, the dispatcher states it, and the audit trail sees it. A
+    # repeat the loop dropped on its own would be the one runaway shape no record could show.
+    sink = RecordingAuditSink()
+    result = await _outbound(sink, None).dispatch(
+        ToolCall(id="c", name="send", arguments={"path": "/p"}),
+        refusal=DispatchRefusal.REDUNDANT,
+    )
+    assert result.is_error is True
+    assert result.content == REDUNDANT_MSG
+    assert result.trust is Trust.TRUSTED  # our own message, so it neither fences nor taints
+    (record,) = sink.records
+    assert (record.name, record.ok, record.detail) == ("send", False, REDUNDANT_MSG)
+
+
+async def test_a_redundant_gated_call_never_reaches_the_confirmer() -> None:
+    # What caps confirmation spam: the gate consults the Confirmer per dispatch, so a model
+    # re-emitting a declined send would re-ask the user every round with only the budget of
+    # thirty two stopping it. Refusing ahead of the gate turns that into at most two cards.
+    confirmer = RecordingConfirmer(answer=True)
+    result = await _outbound(RecordingAuditSink(), confirmer).dispatch(
+        ToolCall(id="c", name="send", arguments={"path": "/p"}),
+        stamp=TurnStamp(tainted=False),
+        gated=True,
+        refusal=DispatchRefusal.REDUNDANT,
+    )
+    assert result.content == REDUNDANT_MSG  # not USER_DECLINED_MSG, and it never ran
+    assert confirmer.requests == ()  # never consulted
+
+
+def test_the_dispatcher_judges_salience_with_the_policy_it_was_given() -> None:
+    # The loop asks the dispatcher, as it does for a price, so all three declarations travel
+    # with the gateway. The history is the loop's, which is why it is an argument.
+    call = ToolCall(id="c2", name="send", arguments={"path": "/p"})
+    already = [[ToolCall(id="c1", name="send", arguments={"path": "/p"})]]
+    assert _outbound(RecordingAuditSink(), None).admits(call, already) is False
+    permissive = ToolDispatcher(
+        InMemoryToolRegistry({"send": (_spec("send"), _ran)}),
+        RecordingAuditSink(),
+        _FixedClock(),
+        policy=DispatchPolicy(salience=ALWAYS_SALIENT),
+    )
+    assert permissive.admits(call, already) is True
+
+
+def test_the_policy_freezes_the_gated_names_it_was_handed() -> None:
+    # A live set on the policy would let whoever built it keep editing the gate afterwards,
+    # which is the one declaration that must not move once the process is up.
+    names = {"send"}
+    policy = DispatchPolicy(gated_names=names)
+    names.add("read")
+    assert policy.gated_names == frozenset({"send"})

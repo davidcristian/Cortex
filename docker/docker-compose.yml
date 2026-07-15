@@ -20,6 +20,7 @@ services:
       # offset-less 'at' is read as (ADR-0025 display addendum). Display only: stored due
       # times stay UTC. An unknown key fails the brain at startup, by design.
       CORTEX_SCHEDULE_TZ: ${CORTEX_SCHEDULE_TZ:-UTC}
+      CORTEX_TOOLS_SALIENCE: ${CORTEX_TOOLS_SALIENCE:-repeat}
     ports:
       # Loopback-only publish for the single-user security posture (ROADMAP assumption 5):
       # nothing listens beyond 127.0.0.1 on the host.

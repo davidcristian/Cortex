@@ -1,16 +1,15 @@
-"""Orchestrator configuration: env-driven, read only at the composition root."""
+"""Orchestrator configuration: env-driven, read only at the composition root.
+
+Tool dispatch config lives in ``config_tools.py``, scheduling in ``config_schedule.py``, and
+subagents in ``config_subagents.py``, each split off at this module's line cap.
+"""
 
 from typing import Literal
 
 from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from cortex_core import (
-    DEFAULT_CORTEX_MODEL,
-    MAX_TOOL_DISPATCHES,
-    SPAWN_TOOL_NAME,
-    ToolCostPolicy,
-)
+from cortex_core import DEFAULT_CORTEX_MODEL
 from cortex_orchestrator.converse import DEFAULT_CONFIRM_TIMEOUT_S, DEFAULT_MAX_BUFFERED_EVENTS
 from cortex_session import DEFAULT_REDIS_URL
 
@@ -20,9 +19,6 @@ MemoryBackendName = Literal["none", "pgvector"]
 MemoryScopeName = Literal["global", "session"]
 MemoryRecallName = Literal["raw", "reranked", "mmr", "recency_mmr"]
 MemoryTaintPolicyName = Literal["skip", "record"]
-ToolsBackendName = Literal["none", "mcp"]
-
-DEFAULT_SPAWN_COST = MAX_TOOL_DISPATCHES // 4
 
 
 class SeamServerConfig(BaseSettings):
@@ -133,50 +129,3 @@ class MemoryConfig(BaseSettings):
             )
             raise ValueError(msg)
         return self
-
-
-class ToolsConfig(BaseSettings):
-    """Whether the cortex can call tools over MCP (ADR-0009, refinements addendum)."""
-
-    model_config = SettingsConfigDict(env_prefix="CORTEX_TOOLS_", env_nested_delimiter="__")
-
-    backend: ToolsBackendName = "none"
-    endpoint: str = ""
-    endpoints: dict[str, str] = {}
-    allow: dict[str, tuple[str, ...]] = {}
-    on_unavailable: Literal["fail", "skip"] = "fail"
-    gated: tuple[str, ...] = ("send_email",)
-    costs: dict[str, int] = {}
-
-    @model_validator(mode="after")
-    def _mcp_needs_unambiguous_endpoints(self) -> "ToolsConfig":
-        if self.backend == "mcp" and not (self.endpoint or self.endpoints):
-            msg = (
-                "CORTEX_TOOLS_ENDPOINT or CORTEX_TOOLS_ENDPOINTS__<name> is required "
-                "when CORTEX_TOOLS_BACKEND=mcp"
-            )
-            raise ValueError(msg)
-        if self.endpoint and self.endpoints:
-            msg = "set CORTEX_TOOLS_ENDPOINT or CORTEX_TOOLS_ENDPOINTS__<name>, not both"
-            raise ValueError(msg)
-        if unmatched := set(self.allow) - set(self.named_endpoints):
-            msg = f"CORTEX_TOOLS_ALLOW names no configured endpoint: {sorted(unmatched)}"
-            raise ValueError(msg)
-        if bad := sorted(n for n, c in self.costs.items() if not 1 <= c <= MAX_TOOL_DISPATCHES):
-            msg = f"CORTEX_TOOLS_COSTS must be 1..{MAX_TOOL_DISPATCHES}: {bad}"
-            raise ValueError(msg)
-        return self
-
-    @property
-    def cost_policy(self) -> ToolCostPolicy:
-        """The effective prices as the core's policy value (ADR-0009 cost addendum)."""
-        return ToolCostPolicy({SPAWN_TOOL_NAME: DEFAULT_SPAWN_COST} | self.costs)
-
-    @property
-    def named_endpoints(self) -> dict[str, str]:
-        """Every configured endpoint by name, sorted by name so precedence is deterministic."""
-        if self.endpoints:
-            return dict(sorted(self.endpoints.items()))
-        if self.endpoint:
-            return {"default": self.endpoint}
-        return {}

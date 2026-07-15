@@ -1,11 +1,13 @@
 """Dispatch one tool call and audit it. It is the only path a tool runs through (ADR-0009/0013)."""
 
 from collections.abc import Collection, Sequence
-from dataclasses import replace
+from dataclasses import dataclass, replace
+from enum import Enum
 
 from cortex_core.errors import ToolError
 from cortex_core.ports import Clock, Confirmer, ToolAuditSink, ToolRegistry
 from cortex_core.tool_budget import UNIFORM_COST, ToolCostPolicy
+from cortex_core.tool_salience import REPEAT_SALIENCE, SaliencePolicy
 from cortex_core.tools import (
     UNSTAMPED,
     ConfirmationRequest,
@@ -30,6 +32,42 @@ BUDGET_EXHAUSTED_MSG = (
     "and say that you stopped short if the answer is incomplete."
 )
 
+REDUNDANT_MSG = (
+    "REFUSED: this exact tool call has already run in this turn, so it was not run again. Its "
+    "result is already in this conversation above. Use that result, or call a different tool, "
+    "but do not repeat this call."
+)
+
+
+class DispatchRefusal(Enum):
+    """Why the caller refused a call before it could run, and what the model is told."""
+
+    BUDGET = BUDGET_EXHAUSTED_MSG
+    REDUNDANT = REDUNDANT_MSG
+
+    @property
+    def message(self) -> str:
+        """The refusal text fed back to the model as the call's result."""
+        return str(self.value)
+
+
+@dataclass(frozen=True, slots=True)
+class DispatchPolicy:
+    """What the composition root declares about dispatching, in one value."""
+
+    gated_names: Collection[str] = ()
+    costs: ToolCostPolicy = UNIFORM_COST
+    salience: SaliencePolicy = REPEAT_SALIENCE
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "gated_names", frozenset(self.gated_names))
+
+
+# The policy a dispatcher gets unless the composition root passes one: nothing gated, every tool
+# priced at one, and repeats refused. Only the last is a behavior the loop had to opt into
+# before; the other two are the pre-policy defaults restated.
+DEFAULT_DISPATCH_POLICY = DispatchPolicy()
+
 
 class ToolDispatcher:
     """Run a tool call through the registry, gating and recording one audit line per dispatch.
@@ -45,15 +83,13 @@ class ToolDispatcher:
         clock: Clock,
         *,
         confirmer: Confirmer | None = None,
-        gated_names: Collection[str] = (),
-        costs: ToolCostPolicy = UNIFORM_COST,
+        policy: DispatchPolicy = DEFAULT_DISPATCH_POLICY,
     ) -> None:
         self._registry = registry
         self._audit = audit
         self._clock = clock
         self._confirmer = confirmer
-        self._costs = costs
-        self._gated_names = frozenset(gated_names)
+        self._policy = policy
 
     async def describe_tools(self) -> Sequence[ToolSpec]:
         """The tools available to advertise to the model (delegates to the registry)."""
@@ -61,7 +97,11 @@ class ToolDispatcher:
 
     def cost_of(self, name: str) -> int:
         """What dispatching ``name`` spends of the caller's budget (ADR-0009 cost addendum)."""
-        return self._costs.cost_of(name)
+        return self._policy.costs.cost_of(name)
+
+    def admits(self, call: ToolCall, dispatched: Sequence[Sequence[ToolCall]]) -> bool:
+        """Whether ``call`` is worth dispatching, given what the caller has already run."""
+        return self._policy.salience.admits(call, dispatched)
 
     async def dispatch(
         self,
@@ -69,24 +109,24 @@ class ToolDispatcher:
         *,
         stamp: TurnStamp = UNSTAMPED,
         gated: bool = False,
-        over_budget: bool = False,
+        refusal: DispatchRefusal | None = None,
     ) -> ToolResult:
         """Invoke ``call``, audit the outcome, and return the result the model consumes."""
         # Overwrite the call's stamp with the turn's (ADR-0018/0027): provenance for built-ins
         # that spawn further work, never authority. The gate below keeps using the explicit
         # ``stamp`` argument, so a model-forged stamp is discarded and feeds nothing.
         call = replace(call, stamp=stamp)
-        if over_budget:
+        if refusal is not None:
             refused = ToolResult(
                 call_id=call.id,
-                content=BUDGET_EXHAUSTED_MSG,
+                content=refusal.message,
                 is_error=True,
                 trust=Trust.TRUSTED,
             )
             return await self._audited(call, refused)
         # The advertised flag OR the authoritative gated set (ADR-0022): a gated tool a flaky
         # sidecar hid from this turn's advertisement snapshot is still gated here.
-        gated = gated or call.name in self._gated_names
+        gated = gated or call.name in self._policy.gated_names
         if gated:
             if stamp.tainted:
                 blocked = ToolResult(

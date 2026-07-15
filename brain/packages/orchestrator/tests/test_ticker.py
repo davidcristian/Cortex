@@ -10,6 +10,7 @@ from cortex_core import (
     BodyGatewayError,
     CalendarRule,
     CompositeToolRegistry,
+    DispatchPolicy,
     DisplayZone,
     FireOutcome,
     InMemoryBodyGateway,
@@ -308,7 +309,7 @@ async def test_a_gated_spawn_is_hard_denied_on_the_autonomous_path() -> None:
         CompositeToolRegistry([spawn]),
         RecordingAuditSink(),
         FixedClock(),
-        gated_names={"spawn_subagents"},
+        policy=DispatchPolicy(gated_names={"spawn_subagents"}),
     )
     await store.add(_item("t1", kind=ScheduleKind.TASK, every=timedelta(hours=1)))
     await _ticker(store, spawn=gated).run_once()
