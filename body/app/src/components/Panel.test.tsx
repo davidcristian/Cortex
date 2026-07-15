@@ -152,6 +152,7 @@ describe("Panel", () => {
 
   it("shows the reminder stack only when something is due, above the scrolling history", () => {
     const onDismissReminder = vi.fn();
+    const onSelectSession = vi.fn();
     const { container, rerender } = render(<Panel {...panelProps({}, true, false)} />);
     expect(screen.queryByLabelText("Due reminders")).toBeNull();
 
@@ -164,13 +165,13 @@ describe("Panel", () => {
             firedAtUnixMs: 1000,
             recurring: false,
             tainted: false,
-            sessionId: "s1",
+            sessionId: "c9",
           },
         ],
       },
       true,
       false,
-      { onDismissReminder },
+      { onDismissReminder, onSelectSession },
     );
     rerender(<Panel {...props} />);
     const stack = screen.getByLabelText("Due reminders");
@@ -178,6 +179,9 @@ describe("Panel", () => {
     expect(container.querySelector(".history")?.contains(stack)).toBe(false);
     fireEvent.click(screen.getByLabelText("Dismiss reminder"));
     expect(onDismissReminder).toHaveBeenCalledWith("r-1");
+    // A reminder's origin opens through the switcher's own handler: same chat load, one path.
+    fireEvent.click(screen.getByText("open chat"));
+    expect(onSelectSession).toHaveBeenCalledWith("c9");
   });
 
   it("greets an empty chat with the mark and tappable example prompts that submit", () => {
