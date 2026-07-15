@@ -954,3 +954,68 @@ version bump and no migration. Decisions:
 Remaining behind the same shape: **yearly rules** (a `YearDays` variant naming a month alongside
 its days, the union's designed third case), **a per-rule timezone**, and **cron expressions**,
 all as the calendar addendum left them.
+
+## Addendum (2026-07-14): yearly rules, the day-selector union's third variant
+
+The weekly and monthly selectors bound their search to a week and to a month, so an annual
+occurrence ("every 25 December", "renew the domain on 3 March") has no expression but a
+365 day interval. That interval is worse here than anywhere else the rule shape has replaced
+one: it drifts a full day every leap year and never self-corrects, so a birthday reminder walks
+off its own date within a decade. `YearDays` lands as the third `DaySelector` variant the
+monthly addendum designed the union for, behind the unchanged `ScheduleStore` port, with no
+record version bump and no migration. Decisions:
+
+- **A set of month-and-day pairs, not a month alongside a day set.** The monthly addendum
+  predicted "a `YearDays` variant naming a month alongside its days", and implementing it
+  corrected that: a single `month` field with a day set expresses "the 1st and 15th of March"
+  but not "25 December and 1 January", which is the more common annual shape (holidays,
+  renewals, and birthdays cluster across months, not within one). `YearDays` therefore holds
+  `frozenset[MonthDay]`, `MonthDay(month, day)` being an ordered frozen pair whose natural sort
+  **is** chronological-within-the-year, which the walk and the codec both lean on. The
+  single-month form is the strictly weaker shape and is reachable anyway as pairs sharing a month.
+- **February 29 clamps to February 28 in a common year, by inheritance rather than by a new
+  decision.** This is the monthly addendum's clamp policy applied to the one date the year-long
+  window makes irregular, and it is the same policy daylight saving already set: an irregularity
+  **moves** an occurrence and never deletes one. Skipping would mean a 29 February reminder fires
+  in one year of four, which is the silent-never-fires failure mode that policy exists to refuse.
+  The clamp collapses `{02-29, 02-28}` to one fire in a common year and two in a leap year, the
+  same collision the monthly `{30, 31}` case already resolves in resolved dates.
+- **The walk stays total by the same `(candidates, wrapped)` construction.** `YearDays.walk`
+  answers this year's clamped dates from `start` onward plus the **next** year's earliest, which
+  is later by date and therefore later by instant in any zone. `next_calendar_due` keeps one
+  body and no cap. The one new failure mode is real and already handled: a rule walking past
+  `date.max` raises rather than looping, and `next_calendar_due` already answers `None` for an
+  occurrence it could not persist, so the recurrence ends instead of re-arming an impossible fire.
+  **Mutation testing corrected one belief about this contract**, and it applies to the existing
+  monthly selector too: the `>= start` filter inside `walk` is an optimization, not the
+  strictness guard. Removing it from either selector leaves the whole suite green, because an
+  earlier date can only resolve to an earlier instant (a daylight-saving fold moves an
+  occurrence by an hour, never across a day), so `next_calendar_due`'s `instant > after` is
+  what actually enforces "strictly after". Both filters stay, for a locally true `walk`
+  contract and fewer resolutions, but neither is claimed as a proven guard.
+- **The model writes `on_dates`, a list of `MM-DD` strings, refused alongside either sibling.**
+  Not `on_year_days`, despite the field-name symmetry with `on_days`/`on_month_days`, because
+  "year day" already means the ordinal 1..366 (`tm_yday`) and a small model that reads it that
+  way writes `[359]` for Christmas, which validates as nothing. `on_dates` names what the values
+  are. A full ISO date (`2026-12-25`) is **refused rather than truncated**, matching `at_time`'s
+  refusal of a seconds field or an offset: silently dropping the year would answer a different
+  question than the model asked, and the correction teaches the format in one round trip. All
+  three selectors stay mutually exclusive, refused at the parse boundary.
+- **The codec writes `year_dates`, the third present-key variant.** Records predating this
+  addendum decode as weekly or monthly exactly as before, and both existing variants still
+  encode byte-identically, so the only records whose shape changes are the ones using the new
+  capability. The pairs ride as two-element arrays, which is what `MonthDay`'s tuple-shaped
+  sort already produces.
+- **The three day-selector JSON-schema properties moved to `schedule_day_args.py`, beside the
+  parser that reads them.** `schedule_tools.py` and `schedule_verbs.py` each advertised their own
+  copy, so a third selector would have been a third divergence between two descriptions of one
+  vocabulary; the line cap made that concrete by leaving the edit verb too little headroom to
+  hold a third. The module that owns how a rule's dates are *written* now also owns how they are
+  *advertised*, one definition for both verbs. `at_time` stays with each caller, because its
+  meaning genuinely differs between them (an alternative to `at`/`in_seconds` on creation, a
+  replacement for `every_seconds` on an edit).
+
+Remaining behind the same shape: **a per-rule timezone** and **cron expressions**, as the
+calendar addendum left them. The union is now closed over the three cycles a wall-clock rule
+can name (week, month, year); a fourth variant would be a different kind of thing (an nth-weekday
+rule, "the second Tuesday"), which is why it is not owed by symmetry.
