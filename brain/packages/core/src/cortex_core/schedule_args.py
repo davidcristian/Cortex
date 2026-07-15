@@ -26,13 +26,8 @@ from typing import Any
 
 from cortex_core.schedule import ScheduleKind
 from cortex_core.schedule_calendar import CalendarRule, next_calendar_due
-from cortex_core.schedule_day_args import (
-    DAYS_NEED_AT_TIME,
-    has_day_selector,
-    parse_at_time,
-    parse_day_selector,
-)
-from cortex_core.schedule_time import UTC_DISPLAY, DisplayZone
+from cortex_core.schedule_day_args import misplaced_calendar_field, parse_calendar_rule
+from cortex_core.schedule_time import UTC_DISPLAY, UTC_ONLY_RESOLVER, DisplayZone, ZoneResolver
 
 MIN_EVERY_SECONDS = 60
 # Ten years: nothing a personal reminder needs recurs slower, and the bound keeps every
@@ -147,38 +142,38 @@ def _parse_due_at(arguments: Mapping[str, Any], now: datetime, zone: DisplayZone
 
 
 def _parse_calendar(
-    arguments: Mapping[str, Any], now: datetime, zone: DisplayZone
+    arguments: Mapping[str, Any], now: datetime, zone: DisplayZone, resolve_zone: ZoneResolver
 ) -> "_When | str":
     """The ``at_time`` branch: a wall-clock rule, plus the first occurrence it implies.
 
     The first fire is derived from the rule rather than asked for separately, so "every
     weekday at 09:00" is one argument the model already knows how to write instead of a due
-    time it would have to compute and keep consistent with the recurrence.
+    time it would have to compute and keep consistent with the recurrence. ``in_zone`` names the
+    zone that wall time is in; absent, the rule takes the deployment ``zone`` (ADR-0025 per-rule
+    addendum), and either way the first fire is derived in the rule's effective zone.
     """
     if arguments.get("every_seconds") is not None:
         return _EVERY_WITH_AT_TIME
-    wall = parse_at_time(arguments.get("at_time"))
-    if isinstance(wall, str):
-        return wall
-    on = parse_day_selector(arguments)
-    if isinstance(on, str):
-        return on
-    hour, minute = wall
-    rule = CalendarRule(hour=hour, minute=minute, on=on)
+    rule = parse_calendar_rule(arguments, resolve_zone)
+    if isinstance(rule, str):
+        return rule
     due_at = next_calendar_due(rule, now, zone)
     if due_at is None:
         return UNSCHEDULABLE_RULE
     return _When(due_at=due_at, every=None, rule=rule)
 
 
-def _parse_when(arguments: Mapping[str, Any], now: datetime, zone: DisplayZone) -> "_When | str":
+def _parse_when(
+    arguments: Mapping[str, Any], now: datetime, zone: DisplayZone, resolve_zone: ZoneResolver
+) -> "_When | str":
     """Validate the timing forms jointly: the calendar branch, or the instant-plus-interval one."""
     if arguments.get("at_time") is not None:
         if arguments.get("at") is not None or arguments.get("in_seconds") is not None:
             return _ONE_WHEN
-        return _parse_calendar(arguments, now, zone)
-    if has_day_selector(arguments):
-        return DAYS_NEED_AT_TIME
+        return _parse_calendar(arguments, now, zone, resolve_zone)
+    misplaced = misplaced_calendar_field(arguments)
+    if misplaced is not None:
+        return misplaced
     due_at = _parse_due_at(arguments, now, zone)
     if isinstance(due_at, str):
         return due_at
@@ -219,6 +214,7 @@ def parse_schedule(
     now: datetime,
     tasks_enabled: bool,
     zone: DisplayZone = UTC_DISPLAY,
+    resolve_zone: ZoneResolver = UTC_ONLY_RESOLVER,
 ) -> ParsedSchedule | str:
     """Validate one ``schedule_task`` call; return the parsed request or a correction string."""
     kind = _parse_kind(arguments, tasks_enabled=tasks_enabled)
@@ -227,7 +223,7 @@ def parse_schedule(
     text_and_model = _parse_text_and_model(arguments, kind)
     if isinstance(text_and_model, str):
         return text_and_model
-    when = _parse_when(arguments, now, zone)
+    when = _parse_when(arguments, now, zone, resolve_zone)
     if isinstance(when, str):
         return when
     text, model = text_and_model

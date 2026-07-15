@@ -464,3 +464,46 @@ def test_a_year_date_occurrence_past_the_representable_maximum_ends_the_recurren
     """The annual fallback reaches year 10000, which no date holds; the recurrence ends."""
     rule = CalendarRule(hour=23, minute=30, on=YearDays(days=frozenset({MonthDay(12, 31)})))
     assert next_calendar_due(rule, _utc(9999, 12, 31, 23, 59), UTC_DISPLAY) is None
+
+
+# --- Per-rule timezone (ADR-0025 per-rule addendum) ---
+
+
+def test_describe_names_a_per_rule_zone() -> None:
+    """A rule that carries a zone states it, so a bare wall time is never ambiguous."""
+    plain = CalendarRule(hour=9, minute=0)
+    zoned = CalendarRule(hour=9, minute=0, zone=_LOS_ANGELES)
+    assert plain.describe() == "every day at 09:00"
+    assert zoned.describe() == "every day at 09:00 (America/Los_Angeles)"
+
+
+def test_a_rule_with_its_own_zone_fires_at_that_zones_wall_clock() -> None:
+    """The rule's own zone governs, not the deployment zone the ticker passes.
+
+    At noon UTC on 12 July the Los Angeles wall clock reads 05:00, so a daily 09:00 rule in that
+    zone still fires later the same UTC day (09:00-07:00 = 16:00 UTC), where a zone-less rule read
+    against UTC would already have passed 09:00 and land on the 13th.
+    """
+    after = _utc(2026, 7, 12, 12, 0)
+    zoned = CalendarRule(hour=9, minute=0, zone=_LOS_ANGELES)
+    # The deployment zone is UTC, and it is ignored because the rule named its own.
+    assert next_calendar_due(zoned, after, UTC_DISPLAY) == _utc(2026, 7, 12, 16, 0)
+    # Identical to passing that zone as the deployment default for a zone-less rule.
+    plain = CalendarRule(hour=9, minute=0)
+    assert next_calendar_due(zoned, after, UTC_DISPLAY) == next_calendar_due(
+        plain, after, _LOS_ANGELES
+    )
+    # A zone-less rule under a UTC deployment lands on the next day instead.
+    assert next_calendar_due(plain, after, UTC_DISPLAY) == _utc(2026, 7, 13, 9, 0)
+
+
+def test_a_per_rule_zone_follows_daylight_saving_independently() -> None:
+    """The rule's zone drives the fold, so a per-zone rule keeps its wall time across a DST edge
+    that the deployment zone does not share."""
+    rule = CalendarRule(hour=3, minute=30, zone=_BUCHAREST)
+    # Just after 28 March's occurrence, so the next daily fire is 29 March, inside the gap.
+    due = next_calendar_due(rule, _utc(2026, 3, 28, 12, 0), UTC_DISPLAY)
+    assert due is not None
+    # Bucharest springs forward over 03:30 on 29 March 2026, so it fires just past the gap, even
+    # though the deployment zone (UTC) has no such transition.
+    assert _BUCHAREST.render(due) == "2026-03-29T04:30:00+03:00"

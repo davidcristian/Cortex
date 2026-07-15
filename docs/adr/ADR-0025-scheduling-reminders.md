@@ -1167,3 +1167,75 @@ The pass also settled the resting treatment, which is the same correction the ba
 at the meta row's own `--dim` the label read as a third piece of metadata, so it rests one
 step brighter (`--muted`) and grows the switcher's panel-tinted pill on hover. An action
 nobody can see before hovering it is not an action.
+
+## Addendum (2026-07-15): a per-rule timezone for calendar recurrence
+
+The calendar addendum shipped a rule whose wall time means the one zone
+`CORTEX_SCHEDULE_TZ` names, and recorded the per-rule zone as "the additive extension if a
+second zone ever exists: a new field on the same value, not a different shape". It lands here.
+The want is concrete for an assistant that travels: "remind me at 09:00 New York time" while
+the deployment renders Bucharest, or scheduling around a trip without moving every other
+reminder. A rule can now carry its own IANA zone; omitting one keeps the deployment default,
+so a zone-less rule is byte-for-byte what it was and still follows `CORTEX_SCHEDULE_TZ` (the
+"your 09:00 follows you" reading the calendar addendum chose). Decisions:
+
+- **The rule carries a resolved `DisplayZone`, and the record persists its name.** `CalendarRule`
+  gains `zone: DisplayZone | None = None` as its last field. In memory the rule holds the same
+  `DisplayZone` value the composition root already builds (an abstract `tzinfo`, so the core
+  stays `zoneinfo`-free), and everything downstream reads it for free: `next_calendar_due`
+  resolves each candidate against `rule.zone` when set and the passed deployment zone otherwise,
+  the renderers show a per-zone item in its own zone, and the ticker needs no change because it
+  reads the decoded rule. Only the IANA *name* is durable, encoded as an additive `zone` key
+  inside the existing `rule` object; a zone-less rule writes no key and so encodes exactly as
+  before, no version bump and no migration, the `anchor`/`rule` precedent again.
+- **A `ZoneResolver` seam, injected only where a rule is built from a name.** A per-rule zone is
+  an *open* set, so unlike the single deployment zone it cannot be pre-resolved once at boot: a
+  name reaches the system only as model input (creation, edit) or as a stored record (decode),
+  and each is where a name becomes a `DisplayZone`. The core defines a `ZoneResolver` (one
+  method, `resolve(name) -> DisplayZone | None`) and a `UTC_ONLY_RESOLVER` default that knows
+  only `UTC`, since resolving any other key reads the tz database, the impure edge step the core
+  never takes. `parse_schedule`/`parse_edit` and the two rendering tools take the resolver the
+  way they already take the deployment zone; the composition root injects the real,
+  `zoneinfo`-backed one.
+- **The codec self-resolves on decode; the store is untouched.** `decode` reconstructs
+  `rule.zone` from the stored name through a `zoneinfo`-backed resolver that lives in the session
+  adapter (deserialization of a durable value is adapter work, the same class as
+  `config_schedule` turning the env key into the deployment zone). This deliberately keeps the
+  resolver *out* of `RedisScheduleStore`: threading it through the store's constructor and its
+  five `decode` call sites would have pushed `schedules.py` past the 300-line cap for a value the
+  codec can supply itself, and the codec is exactly where a stored field becomes a typed value.
+  The resolver is a default parameter, so no `decode` caller changed.
+- **An unresolvable stored zone is a corrupt record, not a silent fallback.** Creation and edit
+  validate the zone (an unknown key returns a correction the model reads back), so a name is
+  never *stored* unresolvable; the only way a decode sees one is the tz database changing under a
+  durable record. Decode then fails loudly, naming the key and the zone, exactly as it does for
+  any other corrupt field, because the alternative (substituting the deployment zone) would fire
+  the rule at a wall time nobody asked for, the silent-wrong outcome the codec's whole policy
+  refuses. It is not attacker-reachable: the value is an IANA key the user's model wrote and the
+  boundary already accepted.
+- **A per-zone item renders in its own zone.** A rule that says "09:00 America/New_York" must
+  show `due 09:00-04:00`, not the same instant printed as `16:00+03:00` in the deployment zone,
+  or the confirmation and the listing would contradict the wall time the rule names. So the
+  creation confirmation, the listing line, and the edit result render a calendar item's `due_at`
+  in `rule.zone` when it has one and the deployment zone otherwise, and `CalendarRule.describe`
+  appends the zone name (`every day at 09:00 (America/New_York)`) so a listing states the zone a
+  bare wall time would leave ambiguous. Everything without a per-rule zone renders exactly as
+  before.
+- **`in_zone` is the model's vocabulary, valid only with `at_time`.** Both `schedule_task` and
+  `edit_scheduled` gain an optional `in_zone` (an IANA key like `America/New_York`), parsed by
+  the shared calendar-rule vocabulary in `schedule_day_args.py` so the two verbs cannot drift,
+  the `at_time`/day-selector precedent. It is meaningful only with `at_time` (an interval has no
+  wall clock to place in a zone) and refused otherwise with a message naming the reason, and an
+  unknown key is a correction rather than a giant enum on the spec, since the IANA set is large
+  and the resolver is the authority. Omitting it means the deployment zone, so the common single
+  zone case writes nothing new.
+
+CI-gated at 100% over the fakes and a `zoneinfo`-backed decode: the rule's zone-aware occurrence
+math against a real `ZoneInfo` (a rule in a zone the deployment does not use fires at its own
+wall time), `describe` naming the zone, the `in_zone` parse matrix on both verbs (resolved,
+unknown, without `at_time`), the two specs advertising it, the renderers picking the rule's zone,
+and the codec round-tripping the name plus failing loudly on an unresolvable stored zone and
+decoding a pre-addendum record (no `zone` key) as zone-less. The default path (no `in_zone`, no
+`zone` key) keeps its existing assertions unchanged, the regression check that the field is
+additive. Remaining: **cron expressions**, as every calendar addendum left them; the per-rule
+zone this entry closes needed a new field, never a new shape.

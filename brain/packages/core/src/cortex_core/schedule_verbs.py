@@ -19,8 +19,9 @@ from cortex_core.errors import ScheduleStoreError
 from cortex_core.ports import Clock, ScheduleStore
 from cortex_core.schedule import ScheduleKind, ScheduleStatus
 from cortex_core.schedule_args import MIN_EVERY_SECONDS
-from cortex_core.schedule_day_args import day_selector_properties
-from cortex_core.schedule_time import UTC_DISPLAY, DisplayZone
+from cortex_core.schedule_calendar import CalendarRule
+from cortex_core.schedule_day_args import day_selector_properties, in_zone_property
+from cortex_core.schedule_time import UTC_DISPLAY, UTC_ZONE_CONTEXT, DisplayZone, ZoneContext
 from cortex_core.schedule_transitions import ScheduleEdit
 from cortex_core.schedule_verb_args import parse_edit, parse_for_seconds
 from cortex_core.tools import ToolCall, ToolResult, ToolSpec, Trust
@@ -46,6 +47,17 @@ def store_down_result(call_id: str, err: ScheduleStoreError) -> ToolResult:
 def error_result(call_id: str, message: str) -> ToolResult:
     """A trusted correction the model can act on (shared with ``schedule_tools``)."""
     return ToolResult(call_id=call_id, content=message, is_error=True, trust=Trust.TRUSTED)
+
+
+def effective_zone(rule: CalendarRule | None, default_zone: DisplayZone) -> DisplayZone:
+    """The zone a calendar item's due time renders in: the rule's own if it has one, else the
+    deployment default (ADR-0025 per-rule addendum, shared with ``schedule_tools``).
+
+    A per-zone rule shows the wall time it names (``09:00-04:00``) rather than the same instant
+    printed in another zone (``16:00+03:00``), so a listing and the rule's ``describe`` agree.
+    An interval item or a zone-less rule renders in the deployment zone exactly as before.
+    """
+    return rule.zone if rule is not None and rule.zone is not None else default_zone
 
 
 class CancelScheduledTool:
@@ -174,11 +186,12 @@ class EditScheduledTool:
     """
 
     def __init__(
-        self, store: ScheduleStore, clock: Clock, *, zone: DisplayZone = UTC_DISPLAY
+        self, store: ScheduleStore, clock: Clock, *, zones: ZoneContext = UTC_ZONE_CONTEXT
     ) -> None:
         self._store = store
         self._clock = clock
-        self._zone = zone
+        self._zone = zones.default
+        self._resolve_zone = zones.resolver
 
     @property
     def spec(self) -> ToolSpec:
@@ -188,9 +201,9 @@ class EditScheduledTool:
             description=(
                 "Change a scheduled reminder or task by its id: set new 'text', and/or change "
                 "how it repeats with either 'every_seconds' (a fixed interval, 0 to stop "
-                f"repeating) or 'at_time' (a wall-clock time in {self._zone.name}, optionally "
-                "on given 'on_days', 'on_month_days', or 'on_dates'). An 'every_seconds' "
-                "change leaves the next due time alone; "
+                f"repeating) or 'at_time' (a wall-clock time in {self._zone.name}, or in "
+                "'in_zone', optionally on given 'on_days', 'on_month_days', or 'on_dates'). An "
+                "'every_seconds' change leaves the next due time alone; "
                 "'at_time' moves it to that rule's next occurrence. Use the id from "
                 "list_scheduled."
             ),
@@ -214,6 +227,7 @@ class EditScheduledTool:
                         ),
                     },
                     **day_selector_properties(),
+                    **in_zone_property(),
                 },
                 "required": ["id"],
             },
@@ -224,7 +238,9 @@ class EditScheduledTool:
         item_id = call.arguments.get("id")
         if not isinstance(item_id, str) or not item_id:
             return error_result(call.id, "'id' must be a non-empty string")
-        parsed = parse_edit(call.arguments, now=self._clock.now(), zone=self._zone)
+        parsed = parse_edit(
+            call.arguments, now=self._clock.now(), zone=self._zone, resolve_zone=self._resolve_zone
+        )
         if isinstance(parsed, str):
             return error_result(call.id, parsed)
         edit = replace(parsed, tainted=call.stamp.tainted)
@@ -236,8 +252,10 @@ class EditScheduledTool:
             return error_result(call.id, correction)
         content = f"edited {item_id}"
         if edit.rule is not None:
-            # Only the rule branch moves the timing, so only it owes the new due time.
-            content = f"{content}: now due {self._zone.render(edit.rule.due_at)}"
+            # Only the rule branch moves the timing, so only it owes the new due time, rendered in
+            # the rule's own zone when it named one (ADR-0025 per-rule addendum).
+            zone = effective_zone(edit.rule.rule, self._zone)
+            content = f"{content}: now due {zone.render(edit.rule.due_at)}"
         return ToolResult(call_id=call.id, content=content, trust=Trust.TRUSTED)
 
     async def _edit(self, item_id: str, edit: ScheduleEdit) -> str | None:

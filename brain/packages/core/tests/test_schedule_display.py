@@ -20,10 +20,12 @@ from cortex_core import (
     SnoozeScheduledTool,
     ToolCall,
     TurnStamp,
+    ZoneContext,
 )
 
 # +03:00 in July; the transitions themselves are exercised in test_schedule_time.py.
 _ZONE = DisplayZone(name="Europe/Bucharest", tz=ZoneInfo("Europe/Bucharest"))
+_ZONES = ZoneContext(default=_ZONE)
 _NOW = datetime(2026, 7, 12, 12, 0, 0, tzinfo=UTC)
 
 
@@ -47,7 +49,7 @@ def _schedule_tool(store: InMemoryScheduleStore) -> ScheduleTaskTool:
         FixedClock(),
         tasks_enabled=True,
         max_active=32,
-        zone=_ZONE,
+        zones=_ZONES,
         item_id_factory=lambda: "item-1",
     )
 

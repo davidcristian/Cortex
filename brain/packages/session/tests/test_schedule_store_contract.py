@@ -190,6 +190,51 @@ async def test_a_malformed_year_date_pair_fails_loudly_like_any_corrupt_field() 
         await store.get("bent")
 
 
+async def test_a_stored_unknown_zone_fails_loudly_naming_the_key() -> None:
+    """A per-rule zone the tz database no longer resolves is a corrupt record, not a fallback.
+
+    Creation validated the name, so this is only reachable if the tz database changed under a
+    durable record; substituting the deployment zone would fire the rule at a wall time nobody
+    asked for, so the codec fails loudly instead (ADR-0025 per-rule addendum).
+    """
+    client = FakeAsyncRedis(server=FakeServer())
+    store = RedisScheduleStore(client)
+    item = schedule_contract.make_item("gone-zone")
+    record = json.loads(encode(item, claim=None, claimed_at=None))
+    record["rule"] = {"hour": 9, "minute": 0, "days": [0], "zone": "Mars/Olympus"}
+    await _seed_raw(client, "gone-zone", json.dumps(record))
+    with pytest.raises(ScheduleStoreError, match="unknown timezone 'Mars/Olympus'"):
+        await store.get("gone-zone")
+
+
+async def test_a_stored_non_string_zone_fails_loudly() -> None:
+    """A stored zone that is not even a string is corruption, not a shape to guess at."""
+    client = FakeAsyncRedis(server=FakeServer())
+    store = RedisScheduleStore(client)
+    item = schedule_contract.make_item("bent-zone")
+    record = json.loads(encode(item, claim=None, claimed_at=None))
+    record["rule"] = {"hour": 9, "minute": 0, "days": [0], "zone": 5}
+    await _seed_raw(client, "bent-zone", json.dumps(record))
+    with pytest.raises(ScheduleStoreError, match="unknown timezone"):
+        await store.get("bent-zone")
+
+
+async def test_a_rule_written_before_per_rule_zones_decodes_as_zone_less() -> None:
+    """The additive-key contract: a rule record with no ``zone`` key reads back zone-less, so it
+    keeps taking the deployment zone exactly as it did before per-rule zones (per-rule addendum)."""
+    client = FakeAsyncRedis(server=FakeServer())
+    store = RedisScheduleStore(client)
+    item = schedule_contract.make_item("no-zone")
+    record = json.loads(encode(item, claim=None, claimed_at=None))
+    record["rule"] = {"hour": 9, "minute": 0, "days": [0, 4]}  # a pre-addendum rule: no zone key
+    await _seed_raw(client, "no-zone", json.dumps(record))
+    loaded = await store.get("no-zone")
+    assert loaded is not None
+    assert loaded.rule is not None
+    assert loaded.rule == CalendarRule(hour=9, minute=0, on=Weekdays(days=frozenset({0, 4})))
+    assert loaded.rule.zone is None
+
+
 async def test_a_rule_written_before_month_days_decodes_as_a_weekly_one() -> None:
     """The additive-key contract: an old record carries ``days`` and no discriminator.
 

@@ -30,17 +30,20 @@ from cortex_core.schedule_time import DisplayZone
 class CalendarRule:
     """A recurring wall-clock time: ``hour``/``minute`` on each date ``on`` selects.
 
-    The rule names a wall time, not an instant, and deliberately carries no zone of its own:
-    a deployment has exactly one ``DisplayZone`` by construction, so "09:00" means 09:00 as
-    this deployment renders time. Changing ``CORTEX_SCHEDULE_TZ`` therefore moves existing
-    calendar schedules with it, which is the reading a single-user assistant that travels
-    wants (your 09:00 follows you). A per-rule zone is the additive extension if a second
-    zone ever exists; it would be a new field here, not a different shape.
+    The rule names a wall time, not an instant. ``zone`` is the zone that wall time means: with
+    it set, the rule fires at ``hour``:``minute`` in ``zone`` regardless of the deployment's
+    ``CORTEX_SCHEDULE_TZ``, so a user in one place can pin a reminder to another (ADR-0025
+    per-rule addendum). Left ``None`` the rule takes the deployment zone the occurrence math is
+    handed, which is the default a single-user assistant that travels wants: changing
+    ``CORTEX_SCHEDULE_TZ`` moves a zone-less rule with it (your 09:00 follows you), while a rule
+    that named its own zone stays put. The rule holds the resolved ``DisplayZone``; only its
+    name is durable, so the codec stores the name and reconstructs the zone on decode.
     """
 
     hour: int
     minute: int
     on: DaySelector = DAILY
+    zone: DisplayZone | None = None
 
     def __post_init__(self) -> None:
         if not 0 <= self.hour <= 23:  # noqa: PLR2004 - the 24-hour clock, not a magic number
@@ -57,12 +60,18 @@ class CalendarRule:
 
     def describe(self) -> str:
         """One phrase for a listing line: ``every mon, fri at 07:30``, ``every month on the 1st
-        at 09:00``, ``every year on 25 dec at 09:00``."""
-        return f"{self.on.describe()} at {self.wall_time}"
+        at 09:00``, ``every year on 25 dec at 09:00``; a per-rule zone is named in parentheses
+        (``every day at 09:00 (America/New_York)``) so a bare wall time is never ambiguous."""
+        zone = f" ({self.zone.name})" if self.zone is not None else ""
+        return f"{self.on.describe()} at {self.wall_time}{zone}"
 
 
 def next_calendar_due(rule: CalendarRule, after: datetime, zone: DisplayZone) -> datetime | None:
     """The rule's first occurrence strictly after ``after``, as a UTC instant.
+
+    The rule's own ``zone`` governs when it has one, and the passed deployment ``zone`` otherwise
+    (ADR-0025 per-rule addendum): a rule that named a zone fires at that zone's wall clock no
+    matter where the deployment renders, while a zone-less rule follows ``CORTEX_SCHEDULE_TZ``.
 
     The search reads ``after`` as a local date and asks the rule's selector to walk from it:
     the candidates its window still holds (``after``'s own date leads them, since its wall time
@@ -77,16 +86,17 @@ def next_calendar_due(rule: CalendarRule, after: datetime, zone: DisplayZone) ->
     ``datetime.max``, matching ``next_due``: the recurrence ends rather than re-arming a fire
     that could never persist.
     """
+    effective = rule.zone if rule.zone is not None else zone
     try:
-        start = after.astimezone(zone.tz).date()
+        start = after.astimezone(effective.tz).date()
         wall = time(hour=rule.hour, minute=rule.minute)
         candidates, wrapped = rule.on.walk(start)
         for candidate in candidates:
-            instant = zone.resolve(datetime.combine(candidate, wall))
+            instant = effective.resolve(datetime.combine(candidate, wall))
             if instant > after:
                 return instant
         # Every candidate the window still held has passed, so the next occurrence is the
         # selector's fallback: next week's, next month's, or next year's first listed date.
-        return zone.resolve(datetime.combine(wrapped, wall))
+        return effective.resolve(datetime.combine(wrapped, wall))
     except (OverflowError, ValueError):
         return None

@@ -1606,11 +1606,33 @@ behind the unchanged `ScheduleStore`/`BodyGateway`/seam shapes.
   that created "every weekday at 09:00" in `Europe/Bucharest`, fired it, and re-armed on the
   same wall-clock hour.
   It also forced the `cortex_core/__init__.py` barrel split (the entry above) and split
-  `schedule_verb_args.py` out of `schedule_args.py` at the cap. Remaining: a **per-rule
-  timezone** (today a rule means wall time in the deployment's one `DisplayZone`, so changing
-  `CORTEX_SCHEDULE_TZ` deliberately moves existing calendar schedules with it), and **cron
-  expressions** if a rule this shape cannot express ever turns up. The day-of-month and yearly
-  halves both landed, in their own entries below.
+  `schedule_verb_args.py` out of `schedule_args.py` at the cap. The day-of-month and yearly
+  halves both landed, in their own entries below; the **per-rule timezone** landed 2026-07-15
+  (its own entry below). Remaining: **cron expressions** if a rule this shape cannot express
+  ever turns up.
+- **A per-rule timezone landed 2026-07-15 ([ADR-0025 per-rule
+  addendum](adr/ADR-0025-scheduling-reminders.md)).** The calendar addendum recorded this as the
+  additive extension it turned out to be: `CalendarRule` gains an optional `zone: DisplayZone |
+  None`, so a rule fires at its own wall clock (`in_zone: "America/New_York"`) regardless of
+  `CORTEX_SCHEDULE_TZ`, while a zone-less rule still follows the deployment zone (the "your 09:00
+  follows you" default, byte-for-byte unchanged and no migration, since a zone-less rule writes
+  no `zone` key). The cost the calendar addendum's one-line note understated is the **resolver
+  seam**: a per-rule zone is an *open* set, so unlike the single deployment zone it cannot be
+  pre-resolved once at boot, and a `ZoneResolver` port (UTC-only default in the core, the
+  `zoneinfo`-backed `ZoneInfoResolver` injected at the root) is needed wherever a name becomes a
+  zone. It reaches exactly three boundaries: creation and edit parsing (a bad `in_zone` is a
+  model correction), and the codec's decode, which **self-resolves** the stored name so the
+  `RedisScheduleStore` and its five `decode` call sites stayed untouched (threading a resolver
+  through would have pushed `schedules.py` past the 300-line cap). An unresolvable *stored* zone
+  is a corrupt record (fail loud, only reachable via a tz-database change, never model input),
+  and a per-zone item renders its `due_at` in its own zone so the shown wall time matches the
+  rule. Two ruff ceilings fell out (`PLR0911`/`PLR0913`), resolved by extracting a shared
+  `parse_calendar_rule` (which also deduped creation/edit rule parsing) and bundling the zone
+  config into a `ZoneContext`, the `TickerSettings` precedent. CI-gated at 100% with the two new
+  guards mutation-proven (rule-zone ignored, unresolvable-zone silently substituted; each turns a
+  distinct test red), the codec round-trip run on fake + fakeredis + the live-Redis contract leg.
+  Remaining: a **per-rule DST-policy override** is not owed (the fold policy is inherited), so
+  only **cron expressions** stay open, as every calendar entry left them.
 - **Setting and retiming a rule via `edit_scheduled` landed 2026-07-14 ([ADR-0025 rule-edit
   addendum](adr/ADR-0025-scheduling-reminders.md)).** `at_time`/`on_days` join the edit verb, so
   a rule can be authored on any item and retimed in place instead of cancelled and recreated;

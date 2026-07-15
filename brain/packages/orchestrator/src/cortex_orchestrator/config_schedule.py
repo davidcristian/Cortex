@@ -7,25 +7,29 @@ loop run schedule-free with the turn path byte-identical (every capability's pos
 """
 
 from typing import Literal
-from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from cortex_core import UTC_DISPLAY, UTC_ZONE_NAME, DisplayZone
+from cortex_core import UTC_ZONE_NAME, DisplayZone
+from cortex_session import ZONEINFO_RESOLVER
 
 ScheduleBackendName = Literal["none", "redis"]
 
 
 def _resolve(name: str) -> DisplayZone:
-    """An IANA key as the core's injectable value; this is the edge's tz-database lookup.
+    """An IANA key as the core's injectable value, via the shared ``zoneinfo`` resolver.
 
-    ``UTC`` short-circuits to the stdlib constant, so the default deployment resolves without
-    consulting a tz database at all (an image shipped without one still boots and renders).
+    The resolver answers ``None`` for an unknown key; this wrapper raises instead, so the config
+    validator fails the process at boot rather than let a bad ``CORTEX_SCHEDULE_TZ`` survive to the
+    first render. The model-facing schedule path takes the same resolver directly and turns
+    ``None`` into a correction: one lookup (``UTC`` short-circuit included), two contracts.
     """
-    if name == UTC_ZONE_NAME:
-        return UTC_DISPLAY
-    return DisplayZone(name=name, tz=ZoneInfo(name))
+    zone = ZONEINFO_RESOLVER.resolve(name)
+    if zone is None:
+        msg = f"unknown timezone {name!r}"
+        raise ValueError(msg)
+    return zone
 
 
 class ScheduleConfig(BaseSettings):
@@ -66,9 +70,8 @@ class ScheduleConfig(BaseSettings):
         """
         try:
             _resolve(value)
-        except (ZoneInfoNotFoundError, ValueError) as err:
-            msg = f"unknown timezone {value!r}: {err}"
-            raise ValueError(msg) from err
+        except ValueError as err:
+            raise ValueError(str(err)) from err
         return value
 
     def display_zone(self) -> DisplayZone:

@@ -20,14 +20,9 @@ from cortex_core.schedule_args import (
     UNSCHEDULABLE_RULE,
     parse_number,
 )
-from cortex_core.schedule_calendar import CalendarRule, next_calendar_due
-from cortex_core.schedule_day_args import (
-    DAYS_NEED_AT_TIME,
-    has_day_selector,
-    parse_at_time,
-    parse_day_selector,
-)
-from cortex_core.schedule_time import UTC_DISPLAY, DisplayZone
+from cortex_core.schedule_calendar import next_calendar_due
+from cortex_core.schedule_day_args import misplaced_calendar_field, parse_calendar_rule
+from cortex_core.schedule_time import UTC_DISPLAY, UTC_ONLY_RESOLVER, DisplayZone, ZoneResolver
 from cortex_core.schedule_transitions import RuleChange, ScheduleEdit
 
 _BAD_FOR = f"'for_seconds' must be a number between {MIN_EVERY_SECONDS} and {MAX_EVERY_SECONDS}"
@@ -75,7 +70,7 @@ def _parse_edit_every(arguments: Mapping[str, Any]) -> tuple[bool, timedelta | N
 
 
 def _parse_edit_rule(
-    arguments: Mapping[str, Any], now: datetime, zone: DisplayZone
+    arguments: Mapping[str, Any], now: datetime, zone: DisplayZone, resolve_zone: ZoneResolver
 ) -> RuleChange | None | str:
     """An edit's calendar rule: a ``RuleChange``, ``None`` when absent, or a correction.
 
@@ -84,20 +79,16 @@ def _parse_edit_rule(
     with the recurrence. That derivation is also why the pure ``apply_edit`` can stay clockless
     (ADR-0025 rule-edit addendum). ``every_seconds`` is refused alongside, keeping the item's
     one-recurrence-shape invariant true at the boundary; giving it *alone* still switches a
-    calendar item back to an interval, which is what the correction points at.
+    calendar item back to an interval, which is what the correction points at. ``in_zone`` names
+    the new rule's zone, refused without ``at_time`` the way a day selector is (per-rule addendum).
     """
     if arguments.get("at_time") is None:
-        return DAYS_NEED_AT_TIME if has_day_selector(arguments) else None
+        return misplaced_calendar_field(arguments)
     if arguments.get("every_seconds") is not None:
         return _EDIT_EVERY_WITH_AT_TIME
-    wall = parse_at_time(arguments.get("at_time"))
-    if isinstance(wall, str):
-        return wall
-    on = parse_day_selector(arguments)
-    if isinstance(on, str):
-        return on
-    hour, minute = wall
-    rule = CalendarRule(hour=hour, minute=minute, on=on)
+    rule = parse_calendar_rule(arguments, resolve_zone)
+    if isinstance(rule, str):
+        return rule
     due_at = next_calendar_due(rule, now, zone)
     if due_at is None:
         return UNSCHEDULABLE_RULE
@@ -105,7 +96,11 @@ def _parse_edit_rule(
 
 
 def parse_edit(
-    arguments: Mapping[str, Any], *, now: datetime, zone: DisplayZone = UTC_DISPLAY
+    arguments: Mapping[str, Any],
+    *,
+    now: datetime,
+    zone: DisplayZone = UTC_DISPLAY,
+    resolve_zone: ZoneResolver = UTC_ONLY_RESOLVER,
 ) -> ScheduleEdit | str:
     """Validate one ``edit_scheduled`` call's changes; return a ScheduleEdit or a correction.
 
@@ -122,7 +117,7 @@ def parse_edit(
     if text is not None and (not isinstance(text, str) or not text.strip()):
         return BAD_TEXT
     new_text = text if isinstance(text, str) else None
-    rule = _parse_edit_rule(arguments, now, zone)
+    rule = _parse_edit_rule(arguments, now, zone, resolve_zone)
     if isinstance(rule, str):
         return rule
     if rule is not None:
