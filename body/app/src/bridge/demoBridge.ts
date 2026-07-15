@@ -1,6 +1,7 @@
 import type {
   BrainBridge,
   Cancellation,
+  DueReminder,
   SessionMessage,
   SessionSummary,
   TurnSink,
@@ -113,6 +114,46 @@ export class DemoBridge implements BrainBridge {
         lastActivityUnixMs: Date.now() - 3 * 60 * 60 * 1000,
       },
     ]);
+  }
+
+  // Reminder pull delivery (ADR-0025). Three cards covering the shapes that render
+  // differently: a plain one, a recurring one, and one carrying untrusted provenance.
+  // Dismissing acks against the local table, so the stack empties as it would for real.
+  private due: readonly DueReminder[] = [
+    {
+      reminderId: "demo-r1",
+      text: "Stretch. You have been at this for an hour.",
+      firedAtUnixMs: Date.now() - 4 * 60 * 1000,
+      recurring: false,
+      tainted: false,
+      sessionId: "demo-1",
+    },
+    {
+      reminderId: "demo-r2",
+      text: "Stand-up in 10 minutes.",
+      firedAtUnixMs: Date.now() - 90 * 1000,
+      recurring: true,
+      tainted: false,
+      sessionId: "demo-2",
+    },
+    {
+      reminderId: "demo-r3",
+      text: "Confirm the invoice from the email thread before Friday.",
+      firedAtUnixMs: Date.now() - 40 * 60 * 1000,
+      recurring: false,
+      tainted: true,
+      sessionId: "demo-2",
+    },
+  ];
+
+  listDueReminders(): Promise<readonly DueReminder[]> {
+    return Promise.resolve(this.due);
+  }
+
+  ackReminder(reminderId: string): Promise<boolean> {
+    const before = this.due.length;
+    this.due = this.due.filter((reminder) => reminder.reminderId !== reminderId);
+    return Promise.resolve(this.due.length < before);
   }
 
   sessionMessages(sessionId: string): Promise<readonly SessionMessage[]> {

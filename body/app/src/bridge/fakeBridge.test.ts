@@ -1,6 +1,16 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { FakeBridge } from "./fakeBridge";
+import type { DueReminder } from "./types";
+
+const reminder = (reminderId: string): DueReminder => ({
+  reminderId,
+  text: `remember ${reminderId}`,
+  firedAtUnixMs: 1000,
+  recurring: false,
+  tainted: false,
+  sessionId: "s1",
+});
 
 describe("FakeBridge", () => {
   it("records the call and forwards events + errors to the sink", () => {
@@ -41,5 +51,32 @@ describe("FakeBridge", () => {
     bridge.confirmFails = true;
     await expect(bridge.respondConfirm("c-1", true)).rejects.toThrow("confirm failed");
     expect(bridge.confirms).toEqual([{ confirmId: "c-1", approved: true }]);
+  });
+
+  it("serves the due reminders it was given and counts the pulls", async () => {
+    const bridge = new FakeBridge();
+    bridge.reminders = [reminder("r-1")];
+    expect(await bridge.listDueReminders()).toEqual([reminder("r-1")]);
+    await bridge.listDueReminders();
+    expect(bridge.reminderListCalls).toBe(2);
+  });
+
+  it("acks a known id true and an unknown one false, recording both attempts", async () => {
+    const bridge = new FakeBridge();
+    bridge.reminders = [reminder("r-1")];
+    expect(await bridge.ackReminder("r-1")).toBe(true);
+    expect(await bridge.ackReminder("gone")).toBe(false);
+    expect(bridge.acks).toEqual(["r-1", "gone"]);
+  });
+
+  it("rejects the reminder calls when their failure flags are set", async () => {
+    const bridge = new FakeBridge();
+    bridge.remindersFail = true;
+    bridge.ackFails = true;
+    await expect(bridge.listDueReminders()).rejects.toThrow("reminders failed");
+    await expect(bridge.ackReminder("r-1")).rejects.toThrow("ack failed");
+    // The pull and the attempt are still recorded, so a test can assert a call that failed.
+    expect(bridge.reminderListCalls).toBe(1);
+    expect(bridge.acks).toEqual(["r-1"]);
   });
 });

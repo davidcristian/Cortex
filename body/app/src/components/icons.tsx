@@ -59,6 +59,26 @@ export function ShieldIcon() {
   );
 }
 
+/** A due reminder: a hollow bell, the one thing on screen the user did not just ask for. */
+export function BellIcon() {
+  return (
+    <Icon>
+      <path d="M6 9a6 6 0 0 1 12 0c0 3.5 .8 5.2 1.5 6h-15c.7 -.8 1.5 -2.5 1.5 -6" />
+      <path d="M10 18a2 2 0 0 0 4 0" />
+    </Icon>
+  );
+}
+
+/** Dismiss a reminder: a check for "got it", never an X. Acking is delivery, not cancellation:
+ *  a recurring series re-arms afterwards, so the glyph must not read as "delete this". */
+export function CheckIcon() {
+  return (
+    <Icon>
+      <path d="M5 12.5l4.5 4.5l9.5 -10" />
+    </Icon>
+  );
+}
+
 /** Send: an up arrow to submit the prompt. */
 export function SendIcon() {
   return (

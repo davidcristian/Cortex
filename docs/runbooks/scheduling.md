@@ -122,13 +122,17 @@ cd brain && uv run pytest -m integration --no-cov \
 - **The native toast** (the push half): the body-side `Notify` OS trait + the Tauri-shell
   implementation. Render `title`/`body` as **inert escaped text**, since reminder text can be
   attacker-influenced (`tainted` marks it on the wire) and toast templates are XML.
-- **The overlay reminder surface** (the pull half): fetch `ListDueReminders` on open,
-  show deliverables (badge `tainted` ones), `AckReminder` on dismiss. The Rust side of
-  this is done (2026-07-14): `BrainTransport::list_due_reminders`/`ack_reminder` reach the
-  brain through `BrainSeamClient`, so what remains is the overlay's own surface over the
-  bridge. Render the text inert there for the same reason as the toast.
+- **The overlay reminder surface** (the pull half) **landed 2026-07-14** and is CI-gated over
+  the fake bridge, so what remains here is looking at it on the real hotkey path: summon the
+  overlay with something due and the card stack sits above the history, each card carrying its
+  text, how long ago it fired, `repeats` on a recurring series, and a dashed, faintly red-tinted
+  `untrusted source` badge when `tainted`. Dismissing (the check button) acks it. Both themes and
+  the eleven-card scroll case were checked in headless Chromium against the demo bridge, so what
+  is genuinely host-side is the real hotkey path: whether the stack reads well over the live
+  window and whether killing the brain mid-session leaves the cards in place (it should: a failed
+  pull dispatches nothing) rather than emptying the surface.
 
-Both land behind the committed seam shapes; nothing brain-side changes.
+The toast lands behind the committed seam shapes; nothing brain-side changes.
 
 ## Troubleshooting
 

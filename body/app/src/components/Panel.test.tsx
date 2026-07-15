@@ -13,6 +13,7 @@ const state = (over: Partial<OverlayState> = {}): OverlayState => ({
   switcherOpen: false,
   sheetOpen: false,
   pendingConfirm: null,
+  reminders: [],
   seq: 0,
   touched: false,
   ...over,
@@ -49,6 +50,7 @@ interface Handlers {
   onToggleSheet?: () => void;
   onSelectSession?: (sessionId: string) => void;
   onRespondConfirm?: (confirmId: string, approved: boolean) => void;
+  onDismissReminder?: (reminderId: string) => void;
 }
 
 function panelProps(over: Partial<OverlayState>, open: boolean, dark: boolean, handlers: Handlers = {}) {
@@ -65,6 +67,7 @@ function panelProps(over: Partial<OverlayState>, open: boolean, dark: boolean, h
     onToggleSheet: handlers.onToggleSheet ?? vi.fn(),
     onSelectSession: handlers.onSelectSession ?? vi.fn(),
     onRespondConfirm: handlers.onRespondConfirm ?? vi.fn(),
+    onDismissReminder: handlers.onDismissReminder ?? vi.fn(),
   };
 }
 
@@ -145,6 +148,36 @@ describe("Panel", () => {
     );
     fireEvent.click(screen.getByText("First chat"));
     expect(onSelectSession).toHaveBeenCalledWith("c1");
+  });
+
+  it("shows the reminder stack only when something is due, above the scrolling history", () => {
+    const onDismissReminder = vi.fn();
+    const { container, rerender } = render(<Panel {...panelProps({}, true, false)} />);
+    expect(screen.queryByLabelText("Due reminders")).toBeNull();
+
+    const props = panelProps(
+      {
+        reminders: [
+          {
+            reminderId: "r-1",
+            text: "Stretch",
+            firedAtUnixMs: 1000,
+            recurring: false,
+            tainted: false,
+            sessionId: "s1",
+          },
+        ],
+      },
+      true,
+      false,
+      { onDismissReminder },
+    );
+    rerender(<Panel {...props} />);
+    const stack = screen.getByLabelText("Due reminders");
+    // Delivery is not conversation: the stack sits outside the log so it cannot scroll away.
+    expect(container.querySelector(".history")?.contains(stack)).toBe(false);
+    fireEvent.click(screen.getByLabelText("Dismiss reminder"));
+    expect(onDismissReminder).toHaveBeenCalledWith("r-1");
   });
 
   it("greets an empty chat with the mark and tappable example prompts that submit", () => {

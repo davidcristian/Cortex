@@ -774,3 +774,76 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+.reminders {
+  list-style: none;
+  margin: 0 12px 6px;
+  padding: 6px;
+  max-height: 30vh;
+  overflow-y: auto;
+  background: var(--control);
+  border: 1px solid var(--stroke);
+  border-radius: 16px;
+}
+.reminder {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 8px 9px;
+  border-radius: 12px;
+  animation: confirmin 0.3s var(--ease) both;
+}
+.reminder + .reminder {
+  border-top: 1px solid var(--stroke);
+}
+.reminder-mark {
+  flex: none;
+  display: flex;
+  margin-top: 1px;
+  color: var(--muted);
+}
+.reminder-body {
+  flex: 1;
+  min-width: 0;
+}
+.reminder-text {
+  display: block;
+  font-size: 13.5px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.reminder-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 3px;
+  font-size: 11.5px;
+  color: var(--dim);
+}
+.reminder-tag {
+  padding: 1px 8px;
+  border: 1px solid var(--stroke);
+  border-radius: 999px;
+}
+.reminder-tag.untrusted {
+  border-style: dashed;
+  border-color: rgba(226, 75, 107, 0.4);
+  background: rgba(226, 75, 107, 0.1);
+  color: var(--text);
+}
+.reminder-ack {
+  flex: none;
+  display: flex;
+  padding: 6px;
+  border: none;
+  border-radius: 10px;
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+  transition: background 0.16s var(--ease), color 0.16s var(--ease);
+}
+.reminder-ack:hover {
+  background: var(--panel);
+  color: var(--text);
+}

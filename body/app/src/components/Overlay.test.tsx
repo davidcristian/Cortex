@@ -20,6 +20,7 @@ function fakeController(
       switcherOpen: false,
       sheetOpen: false,
       pendingConfirm: null,
+      reminders: [],
       seq: 0,
       touched: false,
       ...extra,
@@ -36,6 +37,7 @@ function fakeController(
     toggleSheet: vi.fn(),
     previewHover: vi.fn(),
     respondConfirm: vi.fn(),
+    dismissReminder: vi.fn(),
   };
   return controller;
 }

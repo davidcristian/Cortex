@@ -27,6 +27,7 @@ export function Overlay({ controller, dark, onToggleTheme }: OverlayProps) {
     toggleSheet,
     previewHover,
     respondConfirm,
+    dismissReminder,
   } = controller;
 
   useEffect(() => {
@@ -74,6 +75,7 @@ export function Overlay({ controller, dark, onToggleTheme }: OverlayProps) {
         onToggleSheet={toggleSheet}
         onSelectSession={openSession}
         onRespondConfirm={respondConfirm}
+        onDismissReminder={dismissReminder}
       />
       {state.mode === "orb" ? <Orb onClick={open} /> : null}
       {state.mode === "preview" ? (
