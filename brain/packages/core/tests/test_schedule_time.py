@@ -9,7 +9,14 @@ the composition root know about the tz database.
 from datetime import UTC, datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
-from cortex_core import UTC_DISPLAY, UTC_ZONE_NAME, DisplayZone
+from cortex_core import (
+    UTC_DISPLAY,
+    UTC_ONLY_RESOLVER,
+    UTC_ZONE_CONTEXT,
+    UTC_ZONE_NAME,
+    DisplayZone,
+    ZoneContext,
+)
 
 # +02:00 in winter, +03:00 in summer, with both transitions inside 2026.
 _BUCHAREST = DisplayZone(name="Europe/Bucharest", tz=ZoneInfo("Europe/Bucharest"))
@@ -89,3 +96,27 @@ def test_rendering_never_prints_a_wall_time_that_does_not_exist() -> None:
 def test_the_zone_is_a_frozen_value() -> None:
     assert DisplayZone(name="UTC", tz=UTC) == UTC_DISPLAY
     assert hash(DisplayZone(name="UTC", tz=UTC)) == hash(UTC_DISPLAY)
+
+
+# --- ZoneResolver + ZoneContext (ADR-0025 per-rule addendum) ---
+
+
+def test_the_utc_only_resolver_knows_only_utc() -> None:
+    """The core default resolves the one zone it can without a tz-database lookup, and no other."""
+    assert UTC_ONLY_RESOLVER.resolve(UTC_ZONE_NAME) is UTC_DISPLAY
+    assert UTC_ONLY_RESOLVER.resolve("America/New_York") is None
+
+
+def test_the_default_zone_context_is_utc_render_and_utc_only_resolution() -> None:
+    """An unconfigured deployment renders UTC and resolves only UTC, so no per-rule zone slips in
+    without the real resolver wired."""
+    assert UTC_ZONE_CONTEXT.default is UTC_DISPLAY
+    assert UTC_ZONE_CONTEXT.resolver is UTC_ONLY_RESOLVER
+    assert ZoneContext() == UTC_ZONE_CONTEXT
+
+
+def test_a_zone_context_carries_its_own_default_and_resolver() -> None:
+    zone = DisplayZone(name="Europe/Bucharest", tz=ZoneInfo("Europe/Bucharest"))
+    context = ZoneContext(default=zone, resolver=UTC_ONLY_RESOLVER)
+    assert context.default is zone
+    assert context.resolver is UTC_ONLY_RESOLVER

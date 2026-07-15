@@ -24,9 +24,9 @@ from cortex_core.errors import ScheduleStoreError
 from cortex_core.ports import Clock, ScheduleStore
 from cortex_core.schedule import ScheduledItem, ScheduleKind, ScheduleStatus
 from cortex_core.schedule_args import MIN_EVERY_SECONDS, parse_schedule
-from cortex_core.schedule_day_args import day_selector_properties
-from cortex_core.schedule_time import UTC_DISPLAY, DisplayZone
-from cortex_core.schedule_verbs import error_result, store_down_result
+from cortex_core.schedule_day_args import day_selector_properties, in_zone_property
+from cortex_core.schedule_time import UTC_DISPLAY, UTC_ZONE_CONTEXT, DisplayZone, ZoneContext
+from cortex_core.schedule_verbs import effective_zone, error_result, store_down_result
 from cortex_core.tools import ToolCall, ToolResult, ToolSpec, Trust
 
 SCHEDULE_TOOL_NAME = "schedule_task"
@@ -53,14 +53,15 @@ class ScheduleTaskTool:
         *,
         tasks_enabled: bool,
         max_active: int,
-        zone: DisplayZone = UTC_DISPLAY,
+        zones: ZoneContext = UTC_ZONE_CONTEXT,
         item_id_factory: Callable[[], str] = _uuid4_id,
     ) -> None:
         self._store = store
         self._clock = clock
         self._tasks_enabled = tasks_enabled
         self._max_active = max_active
-        self._zone = zone
+        self._zone = zones.default
+        self._resolve_zone = zones.resolver
         self._item_id_factory = item_id_factory
 
     @property
@@ -95,12 +96,14 @@ class ScheduleTaskTool:
             "at_time": {
                 "type": "string",
                 "description": (
-                    f"Recurring wall-clock time, 24-hour HH:MM in {self._zone.name}, e.g. 09:00. "
-                    "Use this for 'every day at 9' rather than 'every_seconds': it keeps the "
-                    "same clock time across daylight saving. Alternative to 'at'/'in_seconds'."
+                    f"Recurring wall-clock time, 24-hour HH:MM in {self._zone.name} (or in "
+                    "'in_zone'), e.g. 09:00. Use this for 'every day at 9' rather than "
+                    "'every_seconds': it keeps the same clock time across daylight saving. "
+                    "Alternative to 'at'/'in_seconds'."
                 ),
             },
             **day_selector_properties(),
+            **in_zone_property(),
         }
         if self._tasks_enabled:
             what = "a reminder to deliver to the user, or an autonomous task run by a subagent"
@@ -117,7 +120,7 @@ class ScheduleTaskTool:
                 f"({self._zone.name}). "
                 "Provide 'at' (ISO-8601) or 'in_seconds' (delay from now), "
                 "and add 'every_seconds' to recur; or provide 'at_time' (HH:MM) with "
-                "optional 'on_days', 'on_month_days', or 'on_dates' to recur at a "
+                "optional 'on_days', 'on_month_days', 'on_dates', or 'in_zone' to recur at a "
                 "wall-clock time."
             ),
             parameters={"type": "object", "properties": properties, "required": ["kind", "text"]},
@@ -132,7 +135,11 @@ class ScheduleTaskTool:
         """
         now = self._clock.now()
         parsed = parse_schedule(
-            call.arguments, now=now, tasks_enabled=self._tasks_enabled, zone=self._zone
+            call.arguments,
+            now=now,
+            tasks_enabled=self._tasks_enabled,
+            zone=self._zone,
+            resolve_zone=self._resolve_zone,
         )
         if isinstance(parsed, str):
             return error_result(call.id, parsed)
@@ -161,9 +168,10 @@ class ScheduleTaskTool:
             await self._store.add(item)
         except ScheduleStoreError as err:
             return store_down_result(call.id, err)
+        zone = effective_zone(item.rule, self._zone)
         content = (
             f"scheduled {parsed.kind.value} {item.id}: "
-            f"due {self._zone.render(parsed.due_at)}{_recurrence(item)}"
+            f"due {zone.render(parsed.due_at)}{_recurrence(item)}"
         )
         return ToolResult(call_id=call.id, content=content, trust=Trust.TRUSTED)
 
@@ -189,7 +197,9 @@ def _describe(item: ScheduledItem, zone: DisplayZone) -> str:
     firing = ", firing now" if item.status is ScheduleStatus.FIRING else ""
     tainted = ", from untrusted content" if item.tainted else ""
     marks = f"{recurring}{firing}{fired}{tainted}"
-    line = f"[{item.id}] {item.kind.value} due {zone.render(item.due_at)}{marks}: {item.text}"
+    # A calendar item with its own zone shows the wall time it names (per-rule addendum).
+    due = effective_zone(item.rule, zone).render(item.due_at)
+    line = f"[{item.id}] {item.kind.value} due {due}{marks}: {item.text}"
     if item.last_outcome is not None:
         line += f"\n    last outcome: {item.last_outcome}"
     return line

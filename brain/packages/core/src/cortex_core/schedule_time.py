@@ -11,6 +11,7 @@ the default, so an unconfigured deployment renders exactly what v1 rendered.
 
 from dataclasses import dataclass
 from datetime import UTC, datetime, tzinfo
+from typing import Protocol
 
 UTC_ZONE_NAME = "UTC"
 
@@ -60,3 +61,56 @@ class DisplayZone:
 UTC_DISPLAY = DisplayZone(name=UTC_ZONE_NAME, tz=UTC)
 """The v1 contract as a value: what every deployment renders until ``CORTEX_SCHEDULE_TZ`` says
 otherwise."""
+
+
+class ZoneResolver(Protocol):
+    """Turn an IANA key into a ``DisplayZone``, or ``None`` when the key names no known zone.
+
+    A per-rule timezone (ADR-0025 per-rule addendum) is an *open* set of zones, so unlike the
+    single deployment zone it cannot be resolved once at boot: a name reaches the system only as
+    model input or as a stored record, and each is where a name becomes a zone. The lookup reads
+    the system tz database (the impure edge step the core never takes), so the core depends on
+    this abstract resolver and the composition root injects the ``zoneinfo``-backed one.
+
+    ``resolve(name)`` answers the zone ``name`` designates, or ``None`` for no known zone: a
+    caller turns ``None`` into a model correction, never an exception, so a bad key costs a round
+    trip and not a crash. One-line ``...`` body, the ``ports.py`` convention (contract, no
+    behavior).
+    """
+
+    def resolve(self, name: str) -> DisplayZone | None: ...
+
+
+class _UtcOnlyResolver:
+    """The core default: it knows only ``UTC``, since every other key reads the tz database.
+
+    A deployment that offers per-rule zones injects the real resolver; an unconfigured one (and
+    every pure-core test) resolves ``UTC`` to the stdlib constant and rejects the rest, so a rule
+    can still name the one zone the core carries without a tz-database lookup.
+    """
+
+    def resolve(self, name: str) -> DisplayZone | None:
+        return UTC_DISPLAY if name == UTC_ZONE_NAME else None
+
+
+UTC_ONLY_RESOLVER: ZoneResolver = _UtcOnlyResolver()
+"""The default ``ZoneResolver``: UTC only, so the core resolves no key it cannot without the tz
+database. The real, ``zoneinfo``-backed resolver is injected at the composition root."""
+
+
+@dataclass(frozen=True, slots=True)
+class ZoneContext:
+    """The deployment display zone plus the resolver a per-rule ``in_zone`` is validated against.
+
+    Bundled so a schedule tool that both renders times and resolves a per-rule zone takes one
+    collaborator, not two, staying under the constructor injection ceiling (ADR-0025 per-rule
+    addendum, the ``TickerSettings`` bundle's reasoning). ``default`` is the zone a zone-less
+    schedule renders in; ``resolver`` turns an ``in_zone`` key into its own zone or a correction.
+    """
+
+    default: DisplayZone = UTC_DISPLAY
+    resolver: ZoneResolver = UTC_ONLY_RESOLVER
+
+
+UTC_ZONE_CONTEXT = ZoneContext()
+"""The default zone context: UTC render, UTC-only resolver (the unconfigured deployment)."""

@@ -30,11 +30,12 @@ from cortex_core import (
     SnoozeScheduledTool,
     SpawnSubagentsTool,
     ToolDispatcher,
+    ZoneContext,
 )
 from cortex_orchestrator.builders import noop_aclose
 from cortex_orchestrator.config_schedule import ScheduleConfig
 from cortex_orchestrator.ticker import ScheduleTicker, TickerSettings
-from cortex_session import RedisScheduleStore
+from cortex_session import ZONEINFO_RESOLVER, RedisScheduleStore
 from cortex_tools import LoggingAuditSink
 
 # How long a graceful stop waits for the in-flight pass before the forced cancel; the
@@ -80,18 +81,22 @@ def build_schedule_tools(
     if schedules is None:
         return []
     zone = config.display_zone()
+    # The zoneinfo-backed resolver validates a per-rule ``in_zone`` at creation/edit; it is the
+    # same instance the codec decodes stored zones with (ADR-0025 per-rule addendum). It rides a
+    # ``ZoneContext`` beside the default zone so the two parsing tools take one collaborator.
+    zones = ZoneContext(default=zone, resolver=ZONEINFO_RESOLVER)
     return [
         ScheduleTaskTool(
             schedules,
             clock,
             tasks_enabled=tasks_enabled,
             max_active=config.max_active,
-            zone=zone,
+            zones=zones,
         ),
         ListScheduledTool(schedules, zone=zone),
         CancelScheduledTool(schedules),
         SnoozeScheduledTool(schedules, clock, zone=zone),
-        EditScheduledTool(schedules, clock, zone=zone),
+        EditScheduledTool(schedules, clock, zones=zones),
     ]
 
 

@@ -24,6 +24,7 @@ from collections.abc import Mapping
 from datetime import time
 from typing import Any, cast
 
+from cortex_core.schedule_calendar import CalendarRule
 from cortex_core.schedule_selectors import (
     DAILY,
     DAY_NAMES,
@@ -34,8 +35,11 @@ from cortex_core.schedule_selectors import (
     Weekdays,
     YearDays,
 )
+from cortex_core.schedule_time import DisplayZone, ZoneResolver
 
 BAD_AT_TIME = "'at_time' must be a 24-hour wall-clock time with no seconds, e.g. 09:00"
+BAD_IN_ZONE = "'in_zone' must be an IANA timezone name, e.g. America/New_York"
+IN_ZONE_NEEDS_AT_TIME = "'in_zone' names the zone of an 'at_time' wall clock; give 'at_time' too"
 _BAD_ON_DAYS = f"'on_days' must be a non-empty list of weekday names from {', '.join(DAY_NAMES)}"
 _BAD_ON_MONTH_DAYS = (
     f"'on_month_days' must be a non-empty list of month days between 1 and {MAX_MONTH_DAY}"
@@ -74,6 +78,29 @@ def parse_at_time(value: object) -> tuple[int, int] | str:
     if parsed.second or parsed.microsecond or parsed.tzinfo is not None:
         return BAD_AT_TIME
     return parsed.hour, parsed.minute
+
+
+def parse_in_zone(
+    arguments: Mapping[str, Any], resolve_zone: ZoneResolver
+) -> DisplayZone | None | str:
+    """The rule's own timezone from ``in_zone``, ``None`` for the deployment default, or a
+    correction string (ADR-0025 per-rule addendum).
+
+    ``None`` when ``in_zone`` is absent, so a rule that names only a time keeps taking the
+    deployment zone. A present key is resolved through the injected resolver: an unknown key is a
+    correction rather than an enum on the spec, since the IANA set is large and the resolver is
+    the authority. Only reached on the ``at_time`` branch; ``in_zone`` without ``at_time`` is
+    refused by the caller (``IN_ZONE_NEEDS_AT_TIME``) before this runs.
+    """
+    raw = arguments.get("in_zone")
+    if raw is None:
+        return None
+    if not isinstance(raw, str):
+        return BAD_IN_ZONE
+    zone = resolve_zone.resolve(raw)
+    if zone is None:
+        return f"'in_zone' names no known timezone: {raw!r}; use an IANA key like America/New_York"
+    return zone
 
 
 def parse_on_days(value: object) -> frozenset[int] | str:
@@ -137,6 +164,41 @@ def has_day_selector(arguments: Mapping[str, Any]) -> bool:
     return any(arguments.get(key) is not None for key in SELECTOR_KEYS)
 
 
+def misplaced_calendar_field(arguments: Mapping[str, Any]) -> str | None:
+    """A correction when a calendar-only field is given without ``at_time``, else ``None``.
+
+    ``in_zone`` and the day selectors each describe a wall-clock rule, so each is meaningless
+    without the ``at_time`` that anchors one. Shared by creation and edit so the two refuse the
+    same misplacement identically; ``in_zone`` is checked first only to give the more specific
+    message when both are present.
+    """
+    if arguments.get("in_zone") is not None:
+        return IN_ZONE_NEEDS_AT_TIME
+    if has_day_selector(arguments):
+        return DAYS_NEED_AT_TIME
+    return None
+
+
+def parse_calendar_rule(
+    arguments: Mapping[str, Any], resolve_zone: ZoneResolver
+) -> CalendarRule | str:
+    """A ``CalendarRule`` from ``at_time`` plus its day selector and optional ``in_zone``, or a
+    correction string. Shared by creation and edit so both read one wall-clock vocabulary; each
+    caller derives the rule's first occurrence itself, since only it holds the reference instant.
+    """
+    wall = parse_at_time(arguments.get("at_time"))
+    if isinstance(wall, str):
+        return wall
+    on = parse_day_selector(arguments)
+    if isinstance(on, str):
+        return on
+    zone = parse_in_zone(arguments, resolve_zone)
+    if isinstance(zone, str):
+        return zone
+    hour, minute = wall
+    return CalendarRule(hour=hour, minute=minute, on=on, zone=zone)
+
+
 def parse_day_selector(arguments: Mapping[str, Any]) -> DaySelector | str:
     """The rule's day selector, or a correction string; naming none means every day.
 
@@ -158,6 +220,23 @@ def parse_day_selector(arguments: Mapping[str, Any]) -> DaySelector | str:
         return month_days if isinstance(month_days, str) else MonthDays(days=month_days)
     weekdays = parse_on_days(arguments[key])
     return weekdays if isinstance(weekdays, str) else Weekdays(days=weekdays)
+
+
+def in_zone_property() -> dict[str, dict[str, Any]]:
+    """The ``in_zone`` JSON-schema property, one definition shared by both verbs.
+
+    Kept beside ``day_selector_properties`` and phrased to read on creation and edit alike, so
+    the calendar-rule vocabulary has one description the two specs cannot let drift.
+    """
+    return {
+        "in_zone": {
+            "type": "string",
+            "description": (
+                "IANA timezone the 'at_time' wall clock is in, e.g. 'America/New_York'. "
+                "Omit to use this schedule's default zone. Only with 'at_time'."
+            ),
+        },
+    }
 
 
 def day_selector_properties() -> dict[str, dict[str, Any]]:
