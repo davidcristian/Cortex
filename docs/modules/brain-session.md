@@ -160,9 +160,16 @@ the Redis adapter alone. The integration-marked tests in `tests/test_store_live.
 `tests/test_schedule_live.py` run the suites against real Redis at `CORTEX_REDIS_URL`
 (excluded from CI/coverage by the workspace addopts; run manually:
 `cd brain && uv run pytest -m integration --no-cov packages/session`. Here the `--no-cov`
-matters, the 100% gate in addopts would otherwise fail the run) and clean up the keys they
-create; the schedule live test additionally **skips when real schedules exist** (its checks
-assert exact global views and claim whatever is due, so it refuses to disturb them).
+matters, the 100% gate in addopts would otherwise fail the run). Both clean up after
+themselves the same way: every check works on ids prefixed `contract-`, and a `_sweep`
+helper removes records **and every index member** carrying that prefix, by pattern rather
+than by a list of ids the checks handed back. It runs after each check and again in a
+`finally`, so a check that FAILS is swept too. Sweeping the index is not optional bookkeeping:
+a `cortex:sessions` member outlives the message list it names, and enough of them push a
+check's own sessions out of the `limit=50` window it asserts over, so a single failed run
+used to poison every later one. The schedule live test additionally **skips when real
+schedules exist** (its checks assert exact global views and claim whatever is due, so it
+refuses to disturb them).
 
 **Invariants.**
 - State outlives every process: nothing is cached in the adapter; every read hits
