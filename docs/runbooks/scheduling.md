@@ -123,7 +123,10 @@ cd brain && uv run pytest -m integration --no-cov \
   implementation. Render `title`/`body` as **inert escaped text**, since reminder text can be
   attacker-influenced (`tainted` marks it on the wire) and toast templates are XML.
 - **The overlay reminder surface** (the pull half): fetch `ListDueReminders` on open,
-  show deliverables (badge `tainted` ones), `AckReminder` on dismiss.
+  show deliverables (badge `tainted` ones), `AckReminder` on dismiss. The Rust side of
+  this is done (2026-07-14): `BrainTransport::list_due_reminders`/`ack_reminder` reach the
+  brain through `BrainSeamClient`, so what remains is the overlay's own surface over the
+  bridge. Render the text inert there for the same reason as the toast.
 
 Both land behind the committed seam shapes; nothing brain-side changes.
 

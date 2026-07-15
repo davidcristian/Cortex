@@ -11,8 +11,8 @@
 //! gives it a reconnecting channel to retry over.
 
 use body_core::{
-    BrainTransport, ConfirmDecision, SeamHealth, SessionMessage, SessionSummary, TransportError,
-    TurnEvent,
+    BrainTransport, ConfirmDecision, DueReminder, SeamHealth, SessionMessage, SessionSummary,
+    TransportError, TurnEvent,
 };
 use futures_core::Stream;
 use tonic::metadata::{Ascii, MetadataValue};
@@ -182,5 +182,13 @@ impl BrainTransport for BrainSeamClient {
         session_id: &str,
     ) -> Result<Vec<SessionMessage>, TransportError> {
         crate::sessions::session_messages(self.inner.clone(), session_id.to_owned()).await
+    }
+
+    async fn list_due_reminders(&self) -> Result<Vec<DueReminder>, TransportError> {
+        crate::reminders::list_due_reminders(self.inner.clone()).await
+    }
+
+    async fn ack_reminder(&self, reminder_id: &str) -> Result<bool, TransportError> {
+        crate::reminders::ack_reminder(self.inner.clone(), reminder_id.to_owned()).await
     }
 }

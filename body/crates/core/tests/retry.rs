@@ -12,8 +12,9 @@ use std::sync::{Arc, Mutex, PoisonError};
 use std::time::Duration;
 
 use body_core::{
-    BrainTransport, ConfirmDecision, Randomness, RetryPolicy, RetryingTransport, SeamHealth,
-    SessionMessage, SessionSummary, Sleeper, TransportError, TurnEvent, is_transient, retry_with,
+    BrainTransport, ConfirmDecision, DueReminder, Randomness, RetryPolicy, RetryingTransport,
+    SeamHealth, SessionMessage, SessionSummary, Sleeper, TransportError, TurnEvent, is_transient,
+    retry_with,
 };
 use futures_core::Stream;
 use tokio_stream::StreamExt;
@@ -127,6 +128,23 @@ impl BrainTransport for FlakyTransport {
             turn_id: String::from("t"),
             at_unix_ms: 1,
         }])
+    }
+
+    async fn list_due_reminders(&self) -> Result<Vec<DueReminder>, TransportError> {
+        self.tick()?;
+        Ok(vec![DueReminder {
+            reminder_id: String::from("r1"),
+            text: String::from("stand up"),
+            fired_at_unix_ms: 1,
+            recurring: false,
+            tainted: false,
+            session_id: String::from("s1"),
+        }])
+    }
+
+    async fn ack_reminder(&self, reminder_id: &str) -> Result<bool, TransportError> {
+        self.tick()?;
+        Ok(reminder_id == "r1")
     }
 }
 
@@ -273,6 +291,36 @@ async fn retries_list_sessions_the_same_way() {
     assert_eq!(sessions[0].title, "limit 7"); // the argument survived the retry
     assert_eq!(flaky.call_count(), 2);
     assert_eq!(sleeper.delays().len(), 1);
+}
+
+#[tokio::test]
+async fn retries_list_due_reminders_the_same_way() {
+    let flaky = FlakyTransport::new(FailKind::Connection, 1);
+    let sleeper = FakeSleeper::default();
+    let transport = RetryingTransport::new(flaky.clone(), sleeper.clone(), policy(3));
+    let due = transport.list_due_reminders().await.unwrap();
+    assert_eq!(due.len(), 1);
+    assert_eq!(due[0].reminder_id, "r1");
+    assert_eq!(flaky.call_count(), 2);
+    assert_eq!(sleeper.delays().len(), 1);
+}
+
+#[tokio::test]
+async fn forwards_ack_reminder_without_retrying_it() {
+    // The write is a pass-through (ADR-0025): a transient failure surfaces on the first
+    // attempt rather than risking a repeat that answers false for an ack that landed.
+    let flaky = FlakyTransport::new(FailKind::Connection, 1);
+    let sleeper = FakeSleeper::default();
+    let transport = RetryingTransport::new(flaky.clone(), sleeper.clone(), policy(3));
+    assert_eq!(
+        transport.ack_reminder("r1").await.unwrap_err(),
+        TransportError::Connection(String::from("refused"))
+    );
+    assert_eq!(flaky.call_count(), 1); // no second attempt
+    assert!(sleeper.delays().is_empty());
+    // And a healthy ack still crosses the decorator with its argument intact.
+    assert!(transport.ack_reminder("r1").await.unwrap());
+    assert!(!transport.ack_reminder("other").await.unwrap());
 }
 
 #[tokio::test]

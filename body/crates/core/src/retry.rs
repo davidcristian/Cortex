@@ -14,9 +14,13 @@
 //! dialing/reconnecting is the inner transport's job (composed over a lazy channel).
 //! See [body-rpc.md](../../../docs/modules/body-rpc.md).
 //!
-//! What is retried: `health`, `list_sessions`, `session_messages`. All read-only, safe to repeat.
-//! What is not: `converse` is forwarded unchanged (non-idempotent, a one-shot `decisions`
-//! stream that cannot be replayed, and a failed turn is terminal by the overlay's contract).
+//! What is retried: `health`, `list_sessions`, `session_messages`, `list_due_reminders`. All
+//! read-only, safe to repeat. What is not: `converse` is forwarded unchanged (non-idempotent, a
+//! one-shot `decisions` stream that cannot be replayed, and a failed turn is terminal by the
+//! overlay's contract), and `ack_reminder` is forwarded too (ADR-0025): it is a write, and while
+//! repeating it is harmless brain-side, a retry that lands after a lost reply answers `false` for
+//! a reminder this call *did* clear, which reads as "nothing to ack" at the caller. Surfacing the
+//! transient failure keeps that ambiguity out of the answer; the overlay's next open re-lists.
 
 use std::future::Future;
 use std::time::Duration;
@@ -24,8 +28,8 @@ use std::time::Duration;
 use futures_core::Stream;
 
 use crate::transport::{
-    BrainTransport, ConfirmDecision, SeamHealth, SessionMessage, SessionSummary, TransportError,
-    TurnEvent,
+    BrainTransport, ConfirmDecision, DueReminder, SeamHealth, SessionMessage, SessionSummary,
+    TransportError, TurnEvent,
 };
 
 /// A timer effect: wait `duration` before resolving. The one seam the retry loop uses to
@@ -238,5 +242,15 @@ impl<T: BrainTransport, S: Sleeper, R: Randomness> BrainTransport for RetryingTr
         session_id: &str,
     ) -> Result<Vec<SessionMessage>, TransportError> {
         self.retry(|| self.inner.session_messages(session_id)).await
+    }
+
+    async fn list_due_reminders(&self) -> Result<Vec<DueReminder>, TransportError> {
+        self.retry(|| self.inner.list_due_reminders()).await
+    }
+
+    async fn ack_reminder(&self, reminder_id: &str) -> Result<bool, TransportError> {
+        // Pass-through: the one write on the port, unretried in v1 so a repeat cannot
+        // turn a landed ack into a `false` (module docs).
+        self.inner.ack_reminder(reminder_id).await
     }
 }

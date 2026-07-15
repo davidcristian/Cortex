@@ -138,6 +138,29 @@ pub struct SessionMessage {
     pub at_unix_ms: i64,
 }
 
+/// One fired-but-undelivered reminder awaiting the overlay (ADR-0025). This is the
+/// typed core mirror of the proto `DueReminder`.
+///
+/// `text` is user-authored in the ordinary case but may be attacker-influenced when
+/// `tainted` (a reminder scheduled out of untrusted content, ADR-0013), so a surface
+/// renders it as inert text and never as markup, a link, or an instruction. The
+/// provenance bit rides along so that surface can badge it rather than guess.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct DueReminder {
+    /// The reminder's id, which is what [`BrainTransport::ack_reminder`] acks.
+    pub reminder_id: String,
+    /// What to remind the user of; display-only, and inert (see the type docs).
+    pub text: String,
+    /// When it became deliverable, as unix-milliseconds.
+    pub fired_at_unix_ms: i64,
+    /// Whether the series recurs (a one-shot is gone once acked).
+    pub recurring: bool,
+    /// Untrusted provenance: the text came from content the brain does not trust.
+    pub tainted: bool,
+    /// The chat this reminder was created in; empty for a session-less caller.
+    pub session_id: String,
+}
+
 /// The body's typed async client port to the brain (`docs/ARCHITECTURE.md`,
 /// "Ports and traits").
 ///
@@ -209,4 +232,33 @@ pub trait BrainTransport: Send + Sync {
         &self,
         session_id: &str,
     ) -> impl Future<Output = Result<Vec<SessionMessage>, TransportError>> + Send;
+
+    /// Lists every reminder that has fired and is still awaiting delivery
+    /// (`BrainService.ListDueReminders`, ADR-0025), for the overlay to surface when
+    /// it opens. Read-only, all-sessions (one user has one set of reminders), and
+    /// empty rather than an error when the brain runs without a schedule backend:
+    /// a schedule-free brain is indistinguishable from one with nothing due.
+    ///
+    /// # Errors
+    ///
+    /// As [`BrainTransport::list_sessions`].
+    fn list_due_reminders(
+        &self,
+    ) -> impl Future<Output = Result<Vec<DueReminder>, TransportError>> + Send;
+
+    /// Marks one reminder delivered (`BrainService.AckReminder`, ADR-0025), which is
+    /// what the overlay calls when the user dismisses it. `true` means this call
+    /// cleared it; `false` means there was nothing to clear (an unknown id, or an
+    /// already-acked one), so the answer is a state report, not a failure.
+    ///
+    /// The one write on this port, and a narrow one: acking twice is a no-op, so a
+    /// caller that cannot tell whether its first attempt landed may repeat it.
+    ///
+    /// # Errors
+    ///
+    /// As [`BrainTransport::list_sessions`].
+    fn ack_reminder(
+        &self,
+        reminder_id: &str,
+    ) -> impl Future<Output = Result<bool, TransportError>> + Send;
 }
