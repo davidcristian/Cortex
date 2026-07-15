@@ -1285,6 +1285,21 @@ behind the unchanged `SessionStore.list_sessions` / `BrainTransport` / `BrainBri
   racing summon, submit, cycle, or explicit new-chat wins and StrictMode's double-fire is
   idempotent; the hook attempts once per mount and a failed history load leaves the fresh chat.
   Gated at 100%; browser-validated in both themes against the demo bridge.
+- **The live-Redis session suite sweeps the recency index 2026-07-14 ([ADR-0021 sweep
+  addendum](adr/ADR-0021-session-read-seam.md)).** Its `finally` deleted only
+  `cortex:session:{id}:messages` keys, leaving every run's `contract-<uuid>` ids as dangling
+  `cortex:sessions` members, and it recorded ids only from checks that RETURNED, so a failing
+  check leaked its keys too. Past 50 accumulated members,
+  `check_list_sessions_orders_and_summarizes` no longer found its own two sessions inside
+  `list_sessions(limit=50)` and failed with a bare `AssertionError`, blaming the adapter for the
+  test's residue (observed at 54 stale members). It now sweeps by key pattern plus the index,
+  scoped to the `contract-` prefix so real sessions are never touched, after each check and again
+  in a `finally`, matching `test_schedule_live.py`; a sweep before the first check heals a store a
+  killed run left dirty. The checks return `None`, since sweeping by pattern covers what a raising
+  check never reported. **Residual, and no sweep can reach it:** the check still asserts over a
+  fixed `limit=50` window with message timestamps fixed in the past, so a live Redis holding 50 or
+  more *real* sessions more recent than those crowds it out and fails identically. Fix when it
+  bites, by dating the check's messages from a clock or by reading a larger window.
 - **Brain-generated summary titles.** Titles derive from the first user message (`summarize_session`);
   a brain-generated summary title would replace that behind the unchanged `SessionSummary`. The
   overlay's own live-title `deriveTitle` stays for a not-yet-persisted chat.
