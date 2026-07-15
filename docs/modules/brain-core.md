@@ -484,10 +484,15 @@ Use-case:
   tool* (ADR-0009 addendum; both fields copied off the matched `ToolSpec`, so an unadvertised
   call surfaces no step; the engine maps it to `ToolActivity`, a subagent drops it), mutating `working` in place with
   the tool-call and `Role.TOOL` result messages; ends on a tool-free step, a `None` dispatcher,
-  or `MAX_TOOL_STEPS` (8) rounds. Two independent bounds apply (ADR-0009 budget addendum): rounds
-  cap how long the loop runs, and `context.budget` (`MAX_TOOL_DISPATCHES`, 32) caps what
+  or `MAX_TOOL_STEPS` (8) rounds. Three independent bounds apply (ADR-0009 budget addendum):
+  rounds cap how long the loop runs, `context.budget` (`MAX_TOOL_DISPATCHES`, 32) caps what
   it may *spend* dispatching across those rounds, since one round can carry unboundedly
-  many calls. Each call is charged `dispatcher.cost_of(name)` (ADR-0009 cost addendum), 1 unless
+  many calls, and the dispatcher's `SaliencePolicy` refuses a call this loop has already made
+  (salience addendum). The loop keeps its dispatched calls **grouped by round** and asks
+  `dispatcher.admits(call, dispatched)` **before** charging, so a refused repeat costs nothing;
+  the history is a loop local and deliberately not turn-wide like the pool, since a repeat is
+  redundant only against the `working` messages holding its answer, which a sibling subagent
+  cannot see. Each call is charged `dispatcher.cost_of(name)` (ADR-0009 cost addendum), 1 unless
   a user priced the tool, so with nothing priced the budget is a plain call count. A call that
   no longer fits **closes** the budget rather than being stepped over so
   cheaper calls trickle through behind it: the refusal tells the model to stop calling tools, and
@@ -535,17 +540,21 @@ Use-case:
   the recency blend rather than raw similarity, combining both axes. Selected at the composition root
   via `CORTEX_MEMORY_RECALL`; the reported `ScoredMemory.score` stays the raw cosine, only order and
   membership change.
-- `ToolDispatcher(registry, audit, clock, *, confirmer=None, gated_names=(), costs=UNIFORM_COST)`
+- `ToolDispatcher(registry, audit, clock, *, confirmer=None, policy=DEFAULT_DISPATCH_POLICY)`
   is the turn's tool gateway and
   capability gate (ADR-0009/0013). `dispatch(call, *, stamp=UNSTAMPED, gated=False,
-  over_budget=False)` runs `call`
+  refusal=None)` runs `call`
   through the `ToolRegistry`, writes exactly one `ToolInvocation` (with the result's `trust`) to
   the `ToolAuditSink`, and returns the `ToolResult`; a `ToolError` becomes a `TRUSTED` `is_error`
-  result (our own message, so it neither frames nor taints). `over_budget` (ADR-0009 budget
-  addendum) is the caller's statement that its dispatch budget is spent: it returns
-  `BUDGET_EXHAUSTED_MSG` without invoking, audited like any dispatch, and is checked **ahead of
-  the gate** so a model emitting hundreds of gated calls cannot flood the user with confirmation
-  prompts before the budget refuses any. The gate (ADR-0013, table revised by
+  result (our own message, so it neither frames nor taints). `refusal` (a `DispatchRefusal`) is
+  the caller's statement that the call must not run, either because its dispatch budget is spent
+  (`BUDGET`, ADR-0009 budget addendum) or because its salience policy recognized a repeat
+  (`REDUNDANT`, salience addendum): it returns that member's `message` without invoking, audited
+  like any dispatch, and is checked **ahead of the gate** so a model emitting hundreds of gated
+  calls cannot flood the user with confirmation prompts before either bound refuses any (which is
+  also what caps a declined-and-retried send at two approval cards). One reason rather than one
+  boolean per bound, so a third bound adds a member, not a keyword. The gate (ADR-0013, table
+  revised by
   ADR-0022): a `gated` call on a tainted turn (`stamp.tainted`) is blocked outright as
   `DENIED_MSG`, with the confirmer deliberately unconsulted; on an untainted turn it runs only
   when the `Confirmer` approves, else `USER_DECLINED_MSG` (the fail-closed `confirmer=None`
@@ -555,12 +564,31 @@ Use-case:
   stamp is overwritten. `describe_tools()` passes through to the registry. `cost_of(name)` answers
   what a call spends of the caller's budget (ADR-0009 cost addendum), from the `ToolCostPolicy` the
   composition root gave it; an unadvertised name is priced at the default rather than free.
-  Stateless over the ports; the loop drives it.
+  `admits(call, dispatched)` answers whether a call is worth running, from that policy's
+  `SaliencePolicy`. Stateless over the ports; the loop drives it and keeps the history.
+- `DispatchPolicy(gated_names=(), costs=UNIFORM_COST, salience=REPEAT_SALIENCE)` (`dispatch.py`,
+  ADR-0009 salience addendum) is what the composition root declares about dispatching, in one
+  value: the authoritative gate set, the prices, and the salience rule. Bundled because all three
+  are declarations *about* dispatching that a sidecar's own advertisement may claim none of, and
+  because ruff's argument ceiling left no room for a seventh parameter on the dispatcher or its
+  builders. It freezes `gated_names` at construction. `DEFAULT_DISPATCH_POLICY` is the default.
+- `SaliencePolicy` (`tool_salience.py`, ADR-0009 salience addendum) is the pure seam deciding
+  which calls deserve dispatching: `admits(call, dispatched) -> bool`, where `dispatched` is the
+  caller's calls **grouped by round**, last group being the round in progress (the grouping is
+  the port's, because whether a repeat can inform anything turns on whether the model has seen a
+  result since it last asked). `RepeatSalience(limit=MAX_IDENTICAL_DISPATCHES)` (the default
+  `REPEAT_SALIENCE`, limit 2) admits a call unless an identical one (same `name`, same
+  `arguments`; `id` and `stamp` excluded) already ran in this round, or already ran `limit` times
+  in this loop. Two rather than one because the failure modes are asymmetric: refusing at one
+  denies a legitimate retry or re-read, while allowing the second wastes at most one dispatch.
+  Attempts are counted, not answers, so a gate denial or declined confirmation counts too, which
+  is what bounds confirmation re-prompting. `AlwaysSalient` / `ALWAYS_SALIENT`
+  (`CORTEX_TOOLS_SALIENCE=off`) is the pre-policy loop exactly.
 - `ToolCostPolicy(costs={})` (`tool_budget.py`, ADR-0009 cost addendum) is the per-tool price list:
   `cost_of(name)` returns the named price or `DEFAULT_TOOL_COST` (1), and `UNIFORM_COST` is the
   empty policy every dispatcher gets by default (a budget of N is then N calls). Prices must be
   positive, rejected at construction, since a free tool is one the budget stops bounding. It
-  lives on the dispatcher beside `gated_names` for the same reason: both are composition-root
+  rides the `DispatchPolicy` beside `gated_names` for the same reason: both are composition-root
   declarations *about* tools by name, so a sidecar's advertisement can claim neither. Frozen, and
   it copies the mapping it is built from, so the config object cannot edit prices afterwards.
   `MAX_TOOL_DISPATCHES` (32) lives in the same module: `tool_budget.py` owns how much one turn may

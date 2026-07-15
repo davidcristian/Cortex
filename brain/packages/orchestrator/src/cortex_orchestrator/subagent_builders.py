@@ -20,13 +20,14 @@ composition root (the builtins-bundling precedent for the argument ceiling), whi
 `CORTEX_TOOLS_GATED` in as the authoritative gated-name backstop (ADR-0022).
 """
 
-from collections.abc import Awaitable, Callable, Collection
+from collections.abc import Awaitable, Callable
 
 import httpx
 
 from cortex_core import (
-    UNIFORM_COST,
+    DEFAULT_DISPATCH_POLICY,
     Clock,
+    DispatchPolicy,
     PlacementRequest,
     PlacementTarget,
     ResourceBudgetScheduler,
@@ -38,7 +39,6 @@ from cortex_core import (
     SubagentRoster,
     SubagentRunner,
     SubagentScheduler,
-    ToolCostPolicy,
     ToolDispatcher,
     ToolRegistry,
     UngatedToolRegistry,
@@ -127,8 +127,7 @@ def build_subagent_tools(
     tool_registry: ToolRegistry | None,
     clock: Clock,
     *,
-    gated_names: Collection[str] = (),
-    costs: ToolCostPolicy = UNIFORM_COST,
+    policy: DispatchPolicy = DEFAULT_DISPATCH_POLICY,
 ) -> ToolDispatcher | None:
     """A subagent's audited dispatcher over the gated-stripped MCP subset, or None (ADR-0013).
 
@@ -137,14 +136,17 @@ def build_subagent_tools(
     a gated tool added to the shared registry later simply does not exist for a subagent. There is
     nothing dangerous to call, not merely denied at the fail-closed gate (its dispatcher also
     keeps the `confirmer=None` default). The spawn tool is likewise absent (depth-1, ADR-0010).
-    `gated_names` is the authoritative gate backstop (ADR-0022): should the skip-mode
+    The policy's `gated_names` is the authoritative gate backstop (ADR-0022): should the skip-mode
     advertisement window ever let a stripped-then-recovered gated name through, the dispatcher
     still treats it as gated, and with `confirmer=None` that is a hard deny. The composition
     root passes `CORTEX_TOOLS_GATED` here, so the user's set covers subagents too.
 
-    `costs` (`CORTEX_TOOLS_COSTS`) is threaded for the same reason: each subagent's loop has
-    its own budget, so an MCP tool a user priced is priced in delegated work as well. That
-    is where it matters most, since fan-out is exactly what multiplies a cheap-looking call.
+    The policy's `costs` (`CORTEX_TOOLS_COSTS`) is threaded for the same reason: an MCP tool a
+    user priced is priced in delegated work as well, which is where it matters most, since
+    fan-out is exactly what multiplies a cheap-looking call. Its `salience` reaches subagents the
+    same way, and the per-loop scoping means a subagent's repeats are counted against its own
+    rounds, never against a sibling's, which is the point (ADR-0009 salience addendum): siblings
+    hold different message lists, so a read one of them already made is new to the others.
     """
     if tool_registry is None:
         return None
@@ -152,6 +154,5 @@ def build_subagent_tools(
         UngatedToolRegistry(tool_registry),
         LoggingAuditSink(),
         clock,
-        gated_names=gated_names,
-        costs=costs,
+        policy=policy,
     )

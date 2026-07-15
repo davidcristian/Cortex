@@ -25,14 +25,14 @@ releases it, so the root's shutdown path is uniform whatever was picked:
 """
 
 import logging
-from collections.abc import Awaitable, Callable, Collection, Sequence
+from collections.abc import Awaitable, Callable, Sequence
 from functools import partial
 
 import httpx
 
 from cortex_body_client import GrpcBodyGateway
 from cortex_core import (
-    UNIFORM_COST,
+    DEFAULT_DISPATCH_POLICY,
     AggregateToolRegistry,
     BodyGateway,
     BuiltinTool,
@@ -40,6 +40,7 @@ from cortex_core import (
     Clock,
     CompositeToolRegistry,
     Confirmer,
+    DispatchPolicy,
     EchoInferenceBackend,
     FilteredToolRegistry,
     GatedToolRegistry,
@@ -50,18 +51,14 @@ from cortex_core import (
     SkipUnavailableToolRegistry,
     SpawnSubagentsTool,
     StrictUrlRedactingGuardrail,
-    ToolCostPolicy,
     ToolDispatcher,
     ToolError,
     ToolRegistry,
     UrlRedactingGuardrail,
 )
 from cortex_inference import LlamaCppBackend
-from cortex_orchestrator.config import (
-    BodyConfig,
-    InferenceConfig,
-    ToolsConfig,
-)
+from cortex_orchestrator.config import BodyConfig, InferenceConfig
+from cortex_orchestrator.config_tools import ToolsConfig
 from cortex_tools import (
     LoggingAuditSink,
     ReconnectingMcpToolRegistry,
@@ -211,8 +208,7 @@ def build_cortex_tools(
     clock: Clock,
     *,
     confirmer: Confirmer | None = None,
-    gated_names: Collection[str] = (),
-    costs: ToolCostPolicy = UNIFORM_COST,
+    policy: DispatchPolicy = DEFAULT_DISPATCH_POLICY,
 ) -> ToolDispatcher | None:
     """The cortex's audited dispatcher: the built-in set merged with the MCP tools.
 
@@ -224,9 +220,11 @@ def build_cortex_tools(
     ADR-0013/0023/0025), wired in `build_subagents`, and always `confirmer=None`
     (ADR-0013): only the cortex's dispatcher gets the stream's real confirmer (ADR-0022),
     threaded per stream by the wiring's engine factory. A user gates any built-in by
-    naming it in `gated_names` (`CORTEX_TOOLS_GATED`), the dispatcher's backstop, and prices
-    any of them in `costs` (`CORTEX_TOOLS_COSTS`), which is what the cortex's tool loop
-    charges each dispatch against its budget (ADR-0009 cost addendum). This is the dispatcher
+    naming it in the policy's `gated_names` (`CORTEX_TOOLS_GATED`), the dispatcher's backstop,
+    and prices any of them in its `costs` (`CORTEX_TOOLS_COSTS`), which is what the cortex's tool
+    loop charges each dispatch against its budget (ADR-0009 cost addendum); the policy's third
+    declaration, `salience` (`CORTEX_TOOLS_SALIENCE`), is what refuses a call that loop has
+    already made (ADR-0009 salience addendum). This is the dispatcher
     the default `spawn_subagents` price applies to: built-ins are cortex-only, so the
     subagent and ticker dispatchers never advertise it.
     """
@@ -238,6 +236,5 @@ def build_cortex_tools(
         LoggingAuditSink(),
         clock,
         confirmer=confirmer,
-        gated_names=gated_names,
-        costs=costs,
+        policy=policy,
     )

@@ -11,13 +11,18 @@ from collections.abc import AsyncIterator, Mapping, Sequence
 from datetime import UTC, datetime, timedelta
 
 from cortex_core import (
+    ALWAYS_SALIENT,
     BUDGET_EXHAUSTED_MSG,
+    REDUNDANT_MSG,
+    REPEAT_SALIENCE,
+    DispatchPolicy,
     InferenceEvent,
     InMemoryToolRegistry,
     JsonSchema,
     Message,
     RecordingAuditSink,
     Role,
+    SaliencePolicy,
     TaintLedger,
     TextChunk,
     ToolCall,
@@ -75,7 +80,14 @@ class _MultiCallBackend:
         self.seen.append(list(messages))
         yield TextChunk("working ")
         for index in range(self._per_round):
-            yield ToolCall(id=f"r{self.rounds}c{index}", name="noop", arguments={})
+            yield ToolCall(
+                id=f"r{self.rounds}c{index}",
+                name="noop",
+                # Distinct per call and per round, so these budget fixtures exercise the
+                # budget alone: an identical repeat would be refused by the default salience
+                # policy first and never reach the pool (ADR-0009 salience addendum).
+                arguments={"call": f"r{self.rounds}c{index}"},
+            )
 
 
 class _ScriptedBackend(_MultiCallBackend):
@@ -97,7 +109,11 @@ class _ScriptedBackend(_MultiCallBackend):
         self.rounds += 1
         self.seen.append(list(messages))
         for index, name in enumerate(self._names):
-            yield ToolCall(id=f"r{self.rounds}c{index}", name=name, arguments={})
+            yield ToolCall(
+                id=f"r{self.rounds}c{index}",
+                name=name,
+                arguments={"call": f"r{self.rounds}c{index}"},
+            )
 
 
 class _StampRecordingRegistry:
@@ -124,6 +140,7 @@ def _context(
     *,
     budget: int | DispatchBudget,
     costs: ToolCostPolicy = UNIFORM_COST,
+    salience: SaliencePolicy = REPEAT_SALIENCE,
 ) -> ToolLoopContext:
     """A loop context over a two-tool registry; ``budget`` is a limit, or a pool to share."""
     registry = InMemoryToolRegistry(
@@ -133,7 +150,12 @@ def _context(
         }
     )
     return ToolLoopContext(
-        dispatcher=ToolDispatcher(registry, sink, _TickingClock(), costs=costs),
+        dispatcher=ToolDispatcher(
+            registry,
+            sink,
+            _TickingClock(),
+            policy=DispatchPolicy(costs=costs, salience=salience),
+        ),
         clock=_TickingClock(),
         turn_id="t-1",
         taint=TaintLedger(),
@@ -314,3 +336,100 @@ async def test_the_dispatch_stamp_carries_the_pool_to_whatever_the_call_spawns()
     await _run(_MultiCallBackend(per_round=1), context)
     assert registry.stamps  # the tool was reached, so the assertion below is not vacuous
     assert all(stamp.budget is pool for stamp in registry.stamps)
+
+
+class _RepeatBackend(_MultiCallBackend):
+    """Emits the *same* call over and over: one name, one argument set, every round.
+
+    The runaway shape salience exists for. The budget cannot tell this apart from a turn doing
+    real work, because every one of these is a well-formed call to an advertised tool.
+    """
+
+    async def stream(
+        self,
+        model: str,
+        messages: Sequence[Message],
+        *,
+        tools: Sequence[ToolSpec] = (),
+        schema: JsonSchema | None = None,
+    ) -> AsyncIterator[InferenceEvent]:
+        del model, tools, schema
+        self.rounds += 1
+        self.seen.append(list(messages))
+        for index in range(self._per_round):
+            yield ToolCall(id=f"r{self.rounds}c{index}", name="noop", arguments={"path": "a.txt"})
+
+
+async def test_an_identical_call_repeated_in_one_round_runs_once() -> None:
+    # The absolute clause: the model chose all three before seeing any result, so the second and
+    # third cannot inform anything the first did not.
+    sink = RecordingAuditSink()
+    await _run(_RepeatBackend(per_round=3), _context(sink, budget=MAX_TOOL_DISPATCHES))
+    first_round = sink.records[:3]
+    assert [record.ok for record in first_round] == [True, False, False]
+    assert {record.detail for record in first_round[1:]} == {REDUNDANT_MSG}
+
+
+async def test_a_repeat_runs_a_second_time_but_never_a_third() -> None:
+    # The cap, not a prohibition: one repeat is legitimate (a retry, or a re-read of something
+    # the turn changed), and the third identical attempt is the model spinning.
+    sink = RecordingAuditSink()
+    await _run(_RepeatBackend(per_round=1), _context(sink, budget=MAX_TOOL_DISPATCHES))
+    assert [record.ok for record in sink.records] == [True, True] + [False] * (MAX_TOOL_STEPS - 2)
+    assert {record.detail for record in sink.records[2:]} == {REDUNDANT_MSG}
+
+
+async def test_a_refused_repeat_is_never_charged_to_the_budget() -> None:
+    # The ordering that makes the policy worth having: salience is asked before the pool is
+    # charged, so the turn's reach is spent on calls that reach something. Five repeats a round
+    # over eight rounds is forty attempts, and this whole loop costs two.
+    sink = RecordingAuditSink()
+    pool = DispatchBudget(limit=2)
+    await _run(_RepeatBackend(per_round=5), _context(sink, budget=pool))
+    assert (pool.spent, pool.closed) == (2, False)
+    assert {record.detail for record in sink.records if not record.ok} == {REDUNDANT_MSG}
+
+
+async def test_the_same_fixture_spends_the_whole_pool_with_salience_off() -> None:
+    # The counterfactual for the test above, and the off switch's contract: CORTEX_TOOLS_SALIENCE
+    # =off is the pre-policy loop exactly, where those forty repeats do reach the pool and close
+    # it. Without this pair the saving above could be an artifact of the fixture.
+    sink = RecordingAuditSink()
+    pool = DispatchBudget(limit=2)
+    await _run(_RepeatBackend(per_round=5), _context(sink, budget=pool, salience=ALWAYS_SALIENT))
+    assert (pool.spent, pool.closed) == (2, True)
+    assert BUDGET_EXHAUSTED_MSG in {record.detail for record in sink.records}
+
+
+async def test_a_refused_repeat_renders_no_activity_chip() -> None:
+    # A chip means a tool is running now, so the salience guard sits above the ToolStep yield
+    # exactly as the budget guard does.
+    sink = RecordingAuditSink()
+    deltas = await _run(_RepeatBackend(per_round=4), _context(sink, budget=MAX_TOOL_DISPATCHES))
+    chips = [delta for delta in deltas if isinstance(delta, ToolStep)]
+    dispatched = [record for record in sink.records if record.ok]
+    assert len(chips) == len(dispatched) == 2
+
+
+async def test_every_refused_repeat_still_answers_its_tool_call_message() -> None:
+    # Refusing by dropping the call would strand this round's tool_calls without their Role.TOOL
+    # answers, so re-inference would send a malformed conversation.
+    sink = RecordingAuditSink()
+    backend = _RepeatBackend(per_round=3)
+    await _run(backend, _context(sink, budget=MAX_TOOL_DISPATCHES))
+    last = backend.seen[-1]
+    calls = [message for message in last if message.role is Role.ASSISTANT and message.tool_calls]
+    answers = [message for message in last if message.role is Role.TOOL]
+    assert len(answers) == sum(len(message.tool_calls) for message in calls)
+
+
+async def test_a_second_loop_counts_its_repeats_against_its_own_rounds() -> None:
+    # Per loop, not per turn, unlike the shared budget pool: a subagent holds a different message
+    # list, so a sibling's result is not an answer it can read, and refusing its read on the
+    # strength of one it cannot see would deny it information rather than save a dispatch. The
+    # policy object is shared by both loops here, so only the per-loop history makes this pass.
+    first, second = RecordingAuditSink(), RecordingAuditSink()
+    await _run(_RepeatBackend(per_round=1), _context(first, budget=MAX_TOOL_DISPATCHES))
+    await _run(_RepeatBackend(per_round=1), _context(second, budget=MAX_TOOL_DISPATCHES))
+    assert [record.ok for record in first.records].count(True) == 2
+    assert [record.ok for record in second.records].count(True) == 2

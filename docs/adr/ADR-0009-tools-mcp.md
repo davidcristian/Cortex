@@ -582,9 +582,142 @@ subagent's spend visible to the cortex loop that spawned it, a subagent closing 
 sibling, the stamp carrying the handle to the spawn tool, the runner falling back to its own
 budget when handed none, and the stamp's equality ignoring the handle.
 
-Still remaining behind the same seam: the **salience** half (which calls *deserve* dispatching);
-and a **fair-share policy** if one greedy subagent starving its siblings ever shows up in
-practice. The **unbounded batch size** of `spawn_subagents` this addendum left open (bounded in
+Still remaining behind the same seam: a **fair-share policy** if one greedy subagent starving its
+siblings ever shows up in practice. The **salience** half (which calls *deserve* dispatching)
+was closed 2026-07-14 by the addendum below, per loop rather than per turn, which is the opposite
+scoping to this pool and for a reason this addendum makes visible: reach is a shared resource,
+while redundancy is a property of one context. The **unbounded batch size** of `spawn_subagents`
+this addendum left open (bounded in
 dispatches, unbounded in model runs) was closed 2026-07-14 by the per-call cap in the
 [ADR-0010 batch-cap addendum](ADR-0010-subagents.md), as predicted a spawn-tool decision rather
 than a budget one: no pool grew a second currency.
+
+## Addendum (2026-07-14): salience refuses a call this loop has already made
+
+The three addenda above bound how *many* external calls a turn may make and how *much* each one
+costs. None of them asks whether a call is worth making at all, which is decision 3's open half
+and the last of this ADR's risks ("Salience/rate policy is a later refinement behind the port").
+`stream_tool_loop` dispatched every call the model emitted, repeats included, so three
+independent wastes were bounded only by the pool of 32:
+
+- **The same call twice in one round.** The model chooses every call in a round before seeing
+  any of that round's results, so an identical twin in the same `tool_calls` array cannot
+  possibly learn anything the first did not. It was two round trips for one answer.
+- **The same call every round.** A model that re-emitted `read_file(path=X)` after reading its
+  result spent a dispatch per round on an answer already sitting in its own context.
+- **A declined gated call, retried.** This is the one that mattered. The gate consults the
+  `Confirmer` per dispatch, so a model that re-emitted a declined `send_email` re-asked, and the
+  budget was the only thing stopping it: **up to 32 approval cards** for one refused action, each
+  one a real interruption. `send_email` is deliberately unpriced (the cost addendum), so nothing
+  made those retries expensive.
+
+1. **"Deserve" is answered from what this loop has already done, never from a prediction of
+   usefulness.** The tempting reading of decision 3, a policy that judges whether a call will
+   help, is rejected outright: that is precisely the model's job, and a pure core that guesses it
+   is a model judgment smuggled into deterministic code where it can neither be right nor be
+   corrected. The one thing the core knows with certainty is the set of calls it has already
+   dispatched, so that is the only thing the policy is allowed to read.
+
+2. **A call runs at most once per round and at most twice per loop.** `RepeatSalience`
+   (`tool_salience.py`), with identity taken as the call's `name` plus its `arguments`. The two
+   clauses read as one sentence but answer different questions. Within a round there is **no**
+   legitimate identical repeat, by the argument above, so the first clause is absolute. Across
+   rounds a repeat is legitimate, because the model saw a result and chose again: it may be
+   retrying a call that failed transiently, or re-observing something the turn itself changed
+   (`list_scheduled` after a `schedule_task`). The second clause allows exactly one such repeat
+   and calls the third identical attempt spinning.
+
+3. **The limit is two rather than one, chosen on which failure is benign.** A limit of one
+   **denies information**: the re-read after a write returns the stale listing and the model
+   answers from it. A limit of two **wastes one dispatch** out of 32. Preferring the benign
+   failure is the same asymmetry the ADR-0025 monthly clamp chose (an irregularity moves an
+   occurrence and never deletes one), and it is the reason this policy is a cap rather than a
+   prohibition.
+
+4. **Attempts are counted, not answers.** An earlier draft recorded only dispatches that came
+   back without `is_error`, reasoning that a call with no answer is worth asking again. That is
+   wrong in exactly the case this addendum exists for: a gate denial and a declined confirmation
+   are both `is_error` results, so the declined `send_email` would never have been recorded and
+   the card spam would have survived the policy untouched. Counting attempts also removes any
+   inspection of the result, so the loop records a call when it hands it to the dispatcher and
+   the rule holds uniformly over successes, tool errors, gate denials, and declined
+   confirmations. The refusal message says the call has already run, which stays true whatever
+   it returned.
+
+5. **A refused call is refused by the dispatcher, audited, never silently dropped**, exactly as
+   an over-budget call is. It is checked **before** the budget is charged, so a repeat costs
+   nothing (the cost addendum's "a refused call is charged nothing", applied to the second
+   reason); charging the pool for a call that reaches nothing would spend the turn's reach on the
+   model's own repetition. The consequence is deliberate: once the pool has closed, a redundant
+   call reports redundancy rather than exhaustion, which is the less useful of two true
+   statements and the price of not charging it. And like the budget it sits **ahead of the
+   gate**, because a bound that runs after the confirmer is not a bound on confirmation prompts
+   at all. That ordering is what turns "up to 32 cards" into "at most two".
+
+6. **`over_budget: bool` becomes `refusal: DispatchRefusal | None`.** A second boolean meaning
+   "refuse this and tell the model why" is the parallel-keyword shape the turn-wide addendum
+   already rejected once for the stamp. The enum's value **is** the model-facing message, so a
+   third reason cannot be added without writing one, and `dispatch` keeps one refusal branch
+   however many reasons appear.
+
+7. **Per loop, not per turn, which is the opposite of the budget and deliberately so.** The
+   budget bounds **reach**, a resource the whole turn shares, so it is one pool riding the
+   `TurnStamp` into spawned work. Salience bounds **redundancy against a context**: the loop
+   refuses a repeat because the answer is already in *its own* `working` messages. A subagent
+   holds a different message list and cannot see a sibling's result, so a sibling's read must
+   never refuse mine. This needs no enforcement to hold: the counted calls are a local of
+   `stream_tool_loop` and the policy itself is stateless, so per-loop scoping is what the shape
+   already gives.
+
+8. **The seam takes the dispatched calls grouped by round, not flat.** `SaliencePolicy.admits`
+   receives a sequence of rounds, the last being the one in progress. A flat list would satisfy
+   `RepeatSalience`'s second clause and make the first impossible, and the round boundary cannot
+   be recovered afterwards. Designing the seam to carry it is cheaper now than reshaping the port
+   later, which is the cost correction this repo keeps having to make.
+
+9. **The policy defaults on.** `AlwaysSalient` (`CORTEX_TOOLS_SALIENCE=off`) restores the
+   pre-policy behavior exactly, for a deployment that wants it. But `repeat` is the default,
+   because this is a bound and both existing bounds (`MAX_TOOL_STEPS`, the dispatch budget)
+   shipped on: a bound that ships off protects nobody, and its escape hatch is the knob.
+
+10. **`gated_names`, `costs`, and `salience` become one `DispatchPolicy`.** Forced, not chosen:
+    ruff's `max-args = 6` put `ToolDispatcher.__init__` and `build_cortex_tools` both exactly at
+    the ceiling, so a third declaration could not be a seventh parameter. Bundling only the two
+    cheapest would have left the ceiling reached again on the next one, so all three move,
+    which is also the honest grouping: each is a composition-root declaration about dispatching
+    that no sidecar may claim for itself, an argument the gated set and the prices already made
+    in their own comments. Behavior preserving, keyword-only, and defaulted, so the construction
+    sites that declare nothing are untouched.
+
+The complexity gate is what shaped the loop's own diff: adding the second bound put
+`stream_tool_loop` over ruff's branch and cyclomatic limits, so the decision moved into a named
+`_refused_by(call, dispatcher, dispatched, budget)`. That is a better home for it anyway, since
+the ordering between the two bounds is behavior (both calls have side effects) and now has one
+docstring rather than a comment block inside a `for`.
+
+CI-gated at 100% line and branch over the fakes, with twelve guards mutation-proven: reverting
+each individually turns a distinct test red (the same-round clause, the per-loop cap and its
+exact number, the empty-history guard, the non-positive-limit rejection, argument identity, the
+salience-before-budget ordering, recording attempts rather than answers, the suppressed activity
+chip, per-loop rather than shared history, the dispatcher's refusal branch, the policy freezing
+its gate set, and the config knob). The counterfactual is asserted as a pair: the fixture whose
+forty repeats cost a pool of two under the default policy spends and closes that same pool under
+`ALWAYS_SALIENT`, so the saving cannot be an artifact of the fixture.
+
+Still remaining behind the same seam:
+- **Argument identity is structural**, so two spellings of one intent (`a.txt` versus
+  `./a.txt`, an added default-valued key) are two different calls. Normalizing per tool would
+  need the advertised parameter schema at the policy, which the seam does not carry; the
+  direction is at least the safe one, since an unrecognized repeat is dispatched rather than an
+  unrelated call refused.
+- **A per-round cap on distinct calls.** One round may still emit unboundedly many *different*
+  calls, each appending a result or a refusal to `working`. Salience does not change that and
+  neither did the budget, which refuses past 32 but still appends. Naming it here because it is
+  the one shape both bounds leave open, and it is a context-growth problem rather than a reach
+  problem.
+- **A limit knob** (`CORTEX_TOOLS_SALIENCE_LIMIT`) if two ever proves wrong for a real
+  deployment; the policy already takes the number, so this is config, not design.
+- **Cross-loop salience** for a batch of subagents handed the same instruction. Deliberately not
+  shared today (decision 7), and it would need a different justification than this policy's,
+  since the argument here is "the answer is already in your context" and a sibling's is not.
+
