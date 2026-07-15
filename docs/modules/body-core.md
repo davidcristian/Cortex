@@ -5,9 +5,9 @@ OS-capability ports in `os` (`Hotkey` from Slice 8; `AudioControl`/`ScreenCaptur
 `InputControl` join in Slices 9-10). No OS calls, ever. Per-platform backends live in
 the `os_windows`/`os_linux`/`os_macos` crates (`docs/modules/body-os.md`). Currently: the
 typed global-hotkey chord, the `BrainTransport` port to the brain seam (`health` +
-streaming `converse`) with the `RetryingTransport` decorator + `Sleeper` port that add
-bounded-retry resilience over it (ADR-0024), and the `Hotkey` port with the `Accelerator`
-chord→code mapping.
+streaming `converse` + the session and reminder reads) with the `RetryingTransport`
+decorator + `Sleeper` port that add bounded-retry resilience over it (ADR-0024), and the
+`Hotkey` port with the `Accelerator` chord→code mapping.
 
 **Public contract.**
 
@@ -46,6 +46,13 @@ chord→code mapping.
   last_activity_unix_ms }` is one recent chat as the switcher shows it (title/preview already
   derived); `SessionMessage { role, text, turn_id, at_unix_ms }` is one persisted message
   (`role` is `"user"`/`"assistant"`).
+- `DueReminder` is the typed core mirror of the proto `DueReminder` (`Clone`, `Eq`,
+  `Debug`; ADR-0025): `{ reminder_id, text, fired_at_unix_ms, recurring, tainted,
+  session_id }`, one fired-but-undelivered reminder. `text` is display-only and **inert**:
+  a `tainted` one was scheduled out of content the brain does not trust, so a surface
+  renders it as text, never as markup, a link, or an instruction, and the bit rides along
+  so it can badge provenance instead of guessing. `session_id` is empty for a
+  session-less caller (the ticker's own fire).
 - `BrainTransport` is the body's typed async client port to the brain seam
   (`Send + Sync` supertraits):
   - `health(&self)` returns `impl Future<Output = Result<SeamHealth, TransportError>> +
@@ -65,6 +72,16 @@ chord→code mapping.
     newest-active first (at most `limit`; `0` = the brain default) and `Vec<SessionMessage>` in
     append order. Both `impl Future<... > + Send`; a store failure surfaces as
     `TransportError::Rpc` (`Unavailable`).
+  - `list_due_reminders(&self)` / `ack_reminder(&self, reminder_id)` (ADR-0025) are the
+    overlay's pull path: `Vec<DueReminder>` of everything fired and still awaiting
+    delivery (all sessions, since one user has one set of reminders), and the one
+    **write** on this port, marking one delivered when the user dismisses it. `ack`
+    answers `bool`: `false` is a state report (nothing to clear, because the id is
+    unknown or already acked), never a failure, so acking twice is a no-op. A brain
+    running with no schedule backend answers an empty list and `false` rather than an
+    error, so it is indistinguishable from one with nothing due (deliberate: an
+    `Unavailable` would be classified transient and turn every overlay open into a
+    retry storm).
   The gRPC adapter is `body/crates/rpc` (`docs/modules/body-rpc.md`); fakes implement
   the same trait for tests.
 
@@ -98,11 +115,16 @@ stays thin and the retry is exercised against a fake with no network or wall-clo
   not begun until the dial succeeds).
 - `RetryingTransport<T: BrainTransport, S: Sleeper, R: Randomness = FullDelay>` *is* a
   `BrainTransport`: wraps an inner transport and retries its **idempotent** methods (`health`,
-  `list_sessions`, `session_messages`) via `retry_with` on a transient failure per the policy,
-  sleeping via the `Sleeper` between tries. `converse` is forwarded **unchanged**, since it is
-  non-idempotent, its `decisions` stream is one-shot, and a failed turn is terminal by the
-  overlay's contract (ADR-0024 decision 2). `new(inner, sleeper, policy)` (no jitter, the v1
-  default) or `with_randomness(inner, sleeper, randomness, policy)` (jittered).
+  `list_sessions`, `session_messages`, `list_due_reminders`) via `retry_with` on a transient
+  failure per the policy, sleeping via the `Sleeper` between tries. `converse` is forwarded
+  **unchanged**, since it is non-idempotent, its `decisions` stream is one-shot, and a failed
+  turn is terminal by the overlay's contract (ADR-0024 decision 2). `ack_reminder` is forwarded
+  unchanged too (ADR-0025): repeating the write is harmless brain-side, but a retry that lands
+  after a lost reply answers `false` for a reminder this very call cleared, which reads at the
+  caller as "there was nothing to ack"; surfacing the transient failure keeps that ambiguity
+  out of the answer, and the next overlay open re-lists whatever is still due. `new(inner,
+  sleeper, policy)` (no jitter, the v1 default) or `with_randomness(inner, sleeper, randomness,
+  policy)` (jittered).
 
 OS-capability ports (`os` module) are the first portability seam (ADR-0011):
 

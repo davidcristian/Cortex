@@ -124,6 +124,24 @@ pub struct SessionMessage {
     pub at_unix_ms: i64,
 }
 
+/// One fired-but-undelivered reminder awaiting the overlay (ADR-0025). This is the
+/// typed core mirror of the proto `DueReminder`.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct DueReminder {
+    /// The reminder's id, which is what [`BrainTransport::ack_reminder`] acks.
+    pub reminder_id: String,
+    /// What to remind the user of; display-only, and inert (see the type docs).
+    pub text: String,
+    /// When it became deliverable, as unix-milliseconds.
+    pub fired_at_unix_ms: i64,
+    /// Whether the series recurs (a one-shot is gone once acked).
+    pub recurring: bool,
+    /// Untrusted provenance: the text came from content the brain does not trust.
+    pub tainted: bool,
+    /// The chat this reminder was created in; empty for a session-less caller.
+    pub session_id: String,
+}
+
 /// The body's typed async client port to the brain (`docs/ARCHITECTURE.md`,
 /// "Ports and traits").
 pub trait BrainTransport: Send + Sync {
@@ -155,4 +173,17 @@ pub trait BrainTransport: Send + Sync {
         &self,
         session_id: &str,
     ) -> impl Future<Output = Result<Vec<SessionMessage>, TransportError>> + Send;
+
+    /// Lists every reminder that has fired and is still awaiting delivery
+    /// (`BrainService.ListDueReminders`, ADR-0025), for the overlay to surface when it opens.
+    fn list_due_reminders(
+        &self,
+    ) -> impl Future<Output = Result<Vec<DueReminder>, TransportError>> + Send;
+
+    /// Marks one reminder delivered (`BrainService.AckReminder`, ADR-0025), which is what the
+    /// overlay calls when the user dismisses it.
+    fn ack_reminder(
+        &self,
+        reminder_id: &str,
+    ) -> impl Future<Output = Result<bool, TransportError>> + Send;
 }

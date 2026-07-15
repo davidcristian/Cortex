@@ -6,8 +6,8 @@ use std::time::Duration;
 use futures_core::Stream;
 
 use crate::transport::{
-    BrainTransport, ConfirmDecision, SeamHealth, SessionMessage, SessionSummary, TransportError,
-    TurnEvent,
+    BrainTransport, ConfirmDecision, DueReminder, SeamHealth, SessionMessage, SessionSummary,
+    TransportError, TurnEvent,
 };
 
 /// A timer effect: wait `duration` before resolving. The one seam the retry loop uses to
@@ -206,5 +206,15 @@ impl<T: BrainTransport, S: Sleeper, R: Randomness> BrainTransport for RetryingTr
         session_id: &str,
     ) -> Result<Vec<SessionMessage>, TransportError> {
         self.retry(|| self.inner.session_messages(session_id)).await
+    }
+
+    async fn list_due_reminders(&self) -> Result<Vec<DueReminder>, TransportError> {
+        self.retry(|| self.inner.list_due_reminders()).await
+    }
+
+    async fn ack_reminder(&self, reminder_id: &str) -> Result<bool, TransportError> {
+        // Pass-through: the one write on the port, unretried in v1 so a repeat cannot
+        // turn a landed ack into a `false` (module docs).
+        self.inner.ack_reminder(reminder_id).await
     }
 }

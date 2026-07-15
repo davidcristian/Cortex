@@ -57,6 +57,12 @@ line cap.
     `GetSessionMessages` mapping each reply row to a core `SessionSummary` / `SessionMessage`;
     a non-OK status reuses `status_to_error` → `Rpc`/`Connection` (a store failure is
     `Rpc{code:"Unavailable"}`). Kept in their own module so `client.rs` stays under the line cap.
+  - `list_due_reminders()` / `ack_reminder(reminder_id)` (the reminder pull path, ADR-0025;
+    `src/reminders.rs`, split for the same reason) are unary calls to
+    `BrainService.ListDueReminders` / `AckReminder`, mapping each reply row to a core
+    `DueReminder` and the ack reply to its `acked` bool. Same status mapping; nothing here
+    special-cases the schedule-free brain, which answers an empty list and `acked=false`
+    rather than a status.
   - Every `TransportError::Connection` message folds the error's full `source()` chain
     (e.g. `transport error: tcp connect error: Connection refused (os error 111)`), so
     tonic's opaque `"transport error"` `Display` still names the root cause.
@@ -146,7 +152,11 @@ Being ignored, they never run in CI and never count toward coverage.
   round-trip (ADR-0022): the fake emits `ConfirmRequest` mid-turn and asserts the
   echoed `ConfirmResponse` arrives on the still-open request stream (approve and
   deny, answered reactively over a channel), plus the half-close of an empty
-  decisions stream.
+  decisions stream. The reminder pull (ADR-0025) is covered the same way: two scripted
+  rows differing in every flag prove the row mapping (taint included), an ack of the
+  deliverable id answers `true` while an unknown id answers `false` (proving the id
+  crossed the wire and that "nothing to clear" is an answer, not an error), and a
+  scripted store failure maps both calls to `Rpc{code:"Unavailable"}`.
 - The `body_service` server (Slice 9) is contract-tested the same way, via a real loopback
   server over a fake `AudioControl`, to 100% line+region+branch: `get_volume`/`set_volume`
   happy paths, both `audio_error_to_status` arms, the `Unimplemented` handlers, and the

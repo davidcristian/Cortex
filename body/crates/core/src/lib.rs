@@ -14,6 +14,6 @@ pub use retry::{
     FullDelay, Randomness, RetryPolicy, RetryingTransport, Sleeper, is_transient, retry_with,
 };
 pub use transport::{
-    BrainTransport, ConfirmDecision, SeamHealth, SessionMessage, SessionSummary, TransportError,
-    TurnEvent,
+    BrainTransport, ConfirmDecision, DueReminder, SeamHealth, SessionMessage, SessionSummary,
+    TransportError, TurnEvent,
 };
