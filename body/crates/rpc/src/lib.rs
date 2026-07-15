@@ -10,6 +10,7 @@
 mod auth;
 mod client;
 mod converse;
+mod reminders;
 mod server;
 mod sessions;
 mod status;

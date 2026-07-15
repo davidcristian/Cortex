@@ -1019,3 +1019,40 @@ Remaining behind the same shape: **a per-rule timezone** and **cron expressions*
 calendar addendum left them. The union is now closed over the three cycles a wall-clock rule
 can name (week, month, year); a fourth variant would be a different kind of thing (an nth-weekday
 rule, "the second Tuesday"), which is why it is not owed by symmetry.
+
+## Addendum (2026-07-14): the Rust `BrainTransport` reminder methods
+
+The body-side half of decision 5 lands, closing the first of the three items the
+in-slice remainder named. `BrainTransport` grows `list_due_reminders()` and
+`ack_reminder(reminder_id)` (plus the `DueReminder` core mirror), `BrainSeamClient`
+translates both in a new `body/crates/rpc/src/reminders.rs`, and `RetryingTransport`
+forwards them under the split below. The overlay surface and the body-side `Notify`
+trait remain. Decisions:
+
+- **`ack` stays unretried, and for a sharper reason than "it is a write."** The original
+  decision noted that acking twice is harmless brain-side, which is true and is why the
+  method is safe to expose at all. What it does not survive is a **lost reply**: the
+  first attempt clears the reminder, the response never arrives, and the retry answers
+  `acked=false` for a reminder this very call cleared. The caller then reads "there was
+  nothing to ack" and cannot tell that apart from a stale dismissal. A surfaced transient
+  error is the honest answer, and the pull path already recovers by construction, since
+  the next overlay open re-lists whatever is still deliverable. So the split here is not
+  idempotent-vs-not, it is *whether a repeat can change the answer*.
+- **A `bool`, not a `Result<(), _>`.** `acked=false` is a state report (unknown id, or
+  already acked), never a failure, so it stays in the `Ok` channel; only a transport or
+  status failure is an `Err`. This mirrors the brain's own `ScheduleStore.ack`.
+- **Nothing in the adapter special-cases the schedule-free brain.** `CORTEX_SCHEDULE_BACKEND=none`
+  answers an empty list and `acked=false` at the brain (decision 5, deliberately not
+  `UNAVAILABLE`), which is exactly what a brain with nothing due answers, so the body needs
+  no mode of its own. Had the brain aborted instead, the body's own `is_transient`
+  classifier would have turned every overlay open into a retry-backoff storm, which is the
+  coupling that decision was protecting.
+- **The reminder translation is its own module.** `client.rs` holds the connection
+  lifecycle and the port impl; the row mapping lives beside the session reads' mapping
+  (`sessions.rs`), which is the split the line cap already forced once and the reason
+  neither file needed touching beyond four lines.
+
+CI-gated at 100% line+region+branch over the existing loopback fake brain, and
+mutation-proven: dropping the `list_due_reminders` retry, adding one to `ack_reminder`,
+and corrupting the row mapping (taint read off the wrong flag) or the ack answer each turn
+a distinct test red.

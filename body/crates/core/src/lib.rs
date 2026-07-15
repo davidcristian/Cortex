@@ -6,7 +6,8 @@
 //! port to the brain seam with `health` (Slice 2) plus a streaming `converse`
 //! turn yielding typed [`TurnEvent`]s (Slice 8, ADR-0011), along with the
 //! [`RetryingTransport`] decorator + [`Sleeper`] port that add bounded-retry
-//! resilience over it (ADR-0024); and the OS-capability ports (`os`): the
+//! resilience over it (ADR-0024), plus the reminder pull reads the overlay
+//! surfaces when it opens (Slice 9.5, ADR-0025); and the OS-capability ports (`os`): the
 //! [`Hotkey`] backend seam (Slice 8) and the [`AudioControl`] volume seam the
 //! brain drives over `BodyService` (Slice 9, ADR-0023).
 
@@ -24,6 +25,6 @@ pub use retry::{
     FullDelay, Randomness, RetryPolicy, RetryingTransport, Sleeper, is_transient, retry_with,
 };
 pub use transport::{
-    BrainTransport, ConfirmDecision, SeamHealth, SessionMessage, SessionSummary, TransportError,
-    TurnEvent,
+    BrainTransport, ConfirmDecision, DueReminder, SeamHealth, SessionMessage, SessionSummary,
+    TransportError, TurnEvent,
 };

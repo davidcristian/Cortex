@@ -3,8 +3,8 @@
 //! works as a generic bound with `Send` futures, exercised through a fake.
 
 use body_core::{
-    BrainTransport, ConfirmDecision, SeamHealth, SessionMessage, SessionSummary, TransportError,
-    TurnEvent,
+    BrainTransport, ConfirmDecision, DueReminder, SeamHealth, SessionMessage, SessionSummary,
+    TransportError, TurnEvent,
 };
 use futures_core::Stream;
 use tokio_stream::StreamExt;
@@ -72,6 +72,23 @@ impl BrainTransport for FakeTransport {
             turn_id: String::from("t"),
             at_unix_ms: 7,
         }])
+    }
+
+    async fn list_due_reminders(&self) -> Result<Vec<DueReminder>, TransportError> {
+        Ok(vec![DueReminder {
+            reminder_id: String::from("r1"),
+            text: String::from("stand up"),
+            fired_at_unix_ms: 9,
+            recurring: true,
+            tainted: false,
+            session_id: String::from("s1"),
+        }])
+    }
+
+    async fn ack_reminder(&self, reminder_id: &str) -> Result<bool, TransportError> {
+        // Only the id the canned listing offers is ackable, which is the brain's own
+        // contract in miniature: an unknown id clears nothing and answers false.
+        Ok(reminder_id == "r1")
     }
 }
 
@@ -388,6 +405,60 @@ async fn fake_transport_reads_session_messages_through_the_generic_bound() {
     assert_eq!(messages.len(), 1);
     assert_eq!(messages[0].role, "user");
     assert_eq!(messages[0].text, "chat-7");
+}
+
+#[tokio::test]
+async fn fake_transport_pulls_and_acks_reminders_through_the_generic_bound() {
+    async fn pull<T: BrainTransport>(t: &T) -> Vec<DueReminder> {
+        t.list_due_reminders().await.unwrap()
+    }
+    async fn ack<T: BrainTransport>(t: &T, reminder_id: &str) -> bool {
+        t.ack_reminder(reminder_id).await.unwrap()
+    }
+    let fake = FakeTransport {
+        script: Ok(SeamHealth {
+            ready: true,
+            detail: String::new(),
+        }),
+    };
+    let due = assert_send(pull(&fake)).await;
+    assert_eq!(due.len(), 1);
+    assert_eq!(due[0].text, "stand up");
+    assert!(due[0].recurring);
+    // A dismissal acks; anything the store no longer holds answers false, not an error.
+    assert!(assert_send(ack(&fake, &due[0].reminder_id)).await);
+    assert!(!ack(&fake, "gone").await);
+}
+
+#[test]
+fn due_reminder_is_clone_eq_and_debug() {
+    let reminder = DueReminder {
+        reminder_id: String::from("r1"),
+        text: String::from("call the vet"),
+        fired_at_unix_ms: 1000,
+        recurring: false,
+        tainted: true,
+        session_id: String::from("s1"),
+    };
+    assert_eq!(reminder.clone(), reminder);
+    assert_ne!(
+        reminder,
+        DueReminder {
+            tainted: false,
+            ..reminder.clone()
+        }
+    );
+    assert_ne!(
+        reminder,
+        DueReminder {
+            fired_at_unix_ms: 1001,
+            ..reminder.clone()
+        }
+    );
+    let debug = format!("{reminder:?}");
+    assert!(debug.contains("DueReminder"), "{debug}");
+    assert!(debug.contains("call the vet"), "{debug}");
+    assert!(debug.contains("tainted: true"), "{debug}");
 }
 
 #[test]

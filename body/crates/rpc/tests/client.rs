@@ -8,15 +8,17 @@
 use std::net::SocketAddr;
 use std::pin::Pin;
 
-use body_core::{BrainTransport, SeamHealth, SessionMessage, SessionSummary, TransportError};
+use body_core::{
+    BrainTransport, DueReminder, SeamHealth, SessionMessage, SessionSummary, TransportError,
+};
 use body_rpc::BrainSeamClient;
 use body_rpc::generated::brain_service_client::BrainServiceClient;
 use body_rpc::generated::brain_service_server::{BrainService, BrainServiceServer};
 use body_rpc::generated::{
-    AckReminderReply, AckReminderRequest, ClientEvent, GetSessionMessagesReply,
-    GetSessionMessagesRequest, HealthReply, HealthRequest, ListDueRemindersReply,
-    ListDueRemindersRequest, ListSessionsReply, ListSessionsRequest, ServerEvent,
-    SessionMessage as PbSessionMessage, SessionSummary as PbSessionSummary,
+    AckReminderReply, AckReminderRequest, ClientEvent, DueReminder as PbDueReminder,
+    GetSessionMessagesReply, GetSessionMessagesRequest, HealthReply, HealthRequest,
+    ListDueRemindersReply, ListDueRemindersRequest, ListSessionsReply, ListSessionsRequest,
+    ServerEvent, SessionMessage as PbSessionMessage, SessionSummary as PbSessionSummary,
 };
 use tokio::net::TcpListener;
 use tokio::sync::oneshot;
@@ -44,6 +46,10 @@ struct FakeBrain {
     /// When set, the read-only session RPCs (ADR-0021) fail `Unavailable` (a
     /// store-down abort); otherwise they answer with canned rows.
     sessions_fail: bool,
+    /// The same for the reminder RPCs (ADR-0025): a `ScheduleStoreError` aborts
+    /// `Unavailable`. Separate from `sessions_fail` because the two read different
+    /// stores, so a body sees one fail while the other answers.
+    reminders_fail: bool,
 }
 
 impl FakeBrain {
@@ -52,6 +58,7 @@ impl FakeBrain {
             script,
             expected_token: None,
             sessions_fail: false,
+            reminders_fail: false,
         }
     }
 }
@@ -141,20 +148,50 @@ impl BrainService for FakeBrain {
         }))
     }
 
-    // The reminder RPCs are unused by these transport tests until BrainTransport grows
-    // them (ADR-0025); they exist only to satisfy the generated server trait.
     async fn list_due_reminders(
         &self,
         _request: Request<ListDueRemindersRequest>,
     ) -> Result<Response<ListDueRemindersReply>, Status> {
-        Err(Status::unimplemented("not exercised here"))
+        if self.reminders_fail {
+            return Err(Status::unavailable("schedule store down"));
+        }
+        // Two rows, differing in every flag, so the mapping cannot pass by luck: a
+        // trusted recurring one and a tainted session-less one-shot.
+        Ok(Response::new(ListDueRemindersReply {
+            reminders: vec![
+                PbDueReminder {
+                    reminder_id: String::from("r1"),
+                    text: String::from("stand up"),
+                    fired_at_unix_ms: 2000,
+                    recurring: true,
+                    tainted: false,
+                    session_id: String::from("chat-1"),
+                },
+                PbDueReminder {
+                    reminder_id: String::from("r2"),
+                    text: String::from("read the flagged mail"),
+                    fired_at_unix_ms: 3000,
+                    recurring: false,
+                    tainted: true,
+                    session_id: String::new(),
+                },
+            ],
+        }))
     }
 
     async fn ack_reminder(
         &self,
-        _request: Request<AckReminderRequest>,
+        request: Request<AckReminderRequest>,
     ) -> Result<Response<AckReminderReply>, Status> {
-        Err(Status::unimplemented("not exercised here"))
+        if self.reminders_fail {
+            return Err(Status::unavailable("schedule store down"));
+        }
+        // Only the listed id is deliverable, mirroring the brain: acking anything else
+        // clears nothing and answers false. This also proves the id crossed the wire.
+        let reminder_id = request.into_inner().reminder_id;
+        Ok(Response::new(AckReminderReply {
+            acked: reminder_id == "r1",
+        }))
     }
 }
 
@@ -408,6 +445,68 @@ async fn session_messages_store_failure_maps_to_the_rpc_variant() {
             message: String::from("store down"),
         }
     );
+}
+
+#[tokio::test]
+async fn list_due_reminders_maps_every_field_in_order() {
+    let addr = spawn_fake_brain(FakeBrain::new(Script::Ready))
+        .await
+        .unwrap();
+    let client = BrainSeamClient::connect(&format!("http://{addr}"))
+        .await
+        .unwrap();
+    let due = client.list_due_reminders().await.unwrap();
+    assert_eq!(
+        due,
+        vec![
+            DueReminder {
+                reminder_id: String::from("r1"),
+                text: String::from("stand up"),
+                fired_at_unix_ms: 2000,
+                recurring: true,
+                tainted: false,
+                session_id: String::from("chat-1"),
+            },
+            DueReminder {
+                reminder_id: String::from("r2"),
+                text: String::from("read the flagged mail"),
+                fired_at_unix_ms: 3000,
+                recurring: false,
+                tainted: true, // the provenance bit survives the seam, so a surface can badge it
+                session_id: String::new(),
+            },
+        ]
+    );
+}
+
+#[tokio::test]
+async fn ack_reminder_reports_what_the_brain_cleared() {
+    let addr = spawn_fake_brain(FakeBrain::new(Script::Ready))
+        .await
+        .unwrap();
+    let client = BrainSeamClient::connect(&format!("http://{addr}"))
+        .await
+        .unwrap();
+    assert!(client.ack_reminder("r1").await.unwrap()); // the id crossed the wire
+    // Nothing to clear is a `false` answer, not an error: the overlay dismissing a
+    // reminder the brain already dropped is a no-op, not a failure to report.
+    assert!(!client.ack_reminder("r-gone").await.unwrap());
+}
+
+#[tokio::test]
+async fn reminder_store_failure_maps_to_the_rpc_variant() {
+    let mut fake = FakeBrain::new(Script::Ready);
+    fake.reminders_fail = true;
+    let addr = spawn_fake_brain(fake).await.unwrap();
+    let client = BrainSeamClient::connect(&format!("http://{addr}"))
+        .await
+        .unwrap();
+    let unavailable = TransportError::Rpc {
+        code: String::from("Unavailable"),
+        message: String::from("schedule store down"),
+    };
+    assert_eq!(client.list_due_reminders().await.unwrap_err(), unavailable);
+    assert_eq!(client.ack_reminder("r1").await.unwrap_err(), unavailable);
 }
 
 #[tokio::test]
