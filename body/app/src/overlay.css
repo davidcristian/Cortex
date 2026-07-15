@@ -786,3 +786,86 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+/* Due reminders (ADR-0025) sit between the header and the history: delivery, not conversation,
+   so they are outside the scrolling log and never scroll away with it. Resting chrome is
+   neutral like the switcher and the approval card (color stays reserved for activity, §1); the
+   stack scrolls itself if several fired while the overlay was away. The untrusted badge is
+   dashed rather than colored, since a provenance warning is not a working affordance. */
+.reminders {
+  list-style: none;
+  margin: 0 12px 6px;
+  padding: 6px;
+  max-height: 30vh;
+  overflow-y: auto;
+  background: var(--control);
+  border: 1px solid var(--stroke);
+  border-radius: 16px;
+}
+.reminder {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 8px 9px;
+  border-radius: 12px;
+  animation: confirmin 0.3s var(--ease) both;
+}
+.reminder + .reminder {
+  border-top: 1px solid var(--stroke);
+}
+.reminder-mark {
+  flex: none;
+  display: flex;
+  margin-top: 1px;
+  color: var(--muted);
+}
+.reminder-body {
+  flex: 1;
+  min-width: 0;
+}
+.reminder-text {
+  display: block;
+  font-size: 13.5px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.reminder-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 3px;
+  font-size: 11.5px;
+  color: var(--dim);
+}
+.reminder-tag {
+  padding: 1px 8px;
+  border: 1px solid var(--stroke);
+  border-radius: 999px;
+}
+/* Provenance, not decoration, and not an error either: it borrows the error bubble's tint (the
+   one non-accent "wait to be seen" colour the design has) at a lower alpha, and keeps the dashed
+   border so the signal survives without hue. A browser pass settled this: dashed alone read as
+   just another neutral pill beside `repeats`, which is not what an untrusted-source mark may
+   look like. */
+.reminder-tag.untrusted {
+  border-style: dashed;
+  border-color: rgba(226, 75, 107, 0.4);
+  background: rgba(226, 75, 107, 0.1);
+  color: var(--text);
+}
+.reminder-ack {
+  flex: none;
+  display: flex;
+  padding: 6px;
+  border: none;
+  border-radius: 10px;
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+  transition: background 0.16s var(--ease), color 0.16s var(--ease);
+}
+.reminder-ack:hover {
+  background: var(--panel);
+  color: var(--text);
+}

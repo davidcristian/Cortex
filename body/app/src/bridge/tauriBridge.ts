@@ -3,6 +3,7 @@ import { Channel, invoke } from "@tauri-apps/api/core";
 import type {
   BrainBridge,
   Cancellation,
+  DueReminder,
   SessionMessage,
   SessionSummary,
   TransportError,
@@ -56,6 +57,16 @@ export class TauriBridge implements BrainBridge {
 
   sessionMessages(sessionId: string): Promise<readonly SessionMessage[]> {
     return invoke<readonly SessionMessage[]>("session_messages", { sessionId });
+  }
+
+  // Reminder pull delivery (ADR-0025): the overlay reads what has fired when it opens and
+  // acks what the user dismisses. Both are unary commands over the same resilient transport.
+  listDueReminders(): Promise<readonly DueReminder[]> {
+    return invoke<readonly DueReminder[]>("list_due_reminders");
+  }
+
+  ackReminder(reminderId: string): Promise<boolean> {
+    return invoke<boolean>("ack_reminder", { reminderId });
   }
 
   // The confirm answer (ADR-0022): a fire-and-forget command that pushes the decision
