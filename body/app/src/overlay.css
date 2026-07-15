@@ -832,6 +832,21 @@
   background: rgba(226, 75, 107, 0.1);
   color: var(--text);
 }
+.reminder-open {
+  padding: 1px 8px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  cursor: pointer;
+  transition: background 0.16s var(--ease), border-color 0.16s var(--ease), color 0.16s var(--ease);
+}
+.reminder-open:hover {
+  border-color: var(--stroke);
+  background: var(--panel);
+  color: var(--text);
+}
 .reminder-ack {
   flex: none;
   display: flex;

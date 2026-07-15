@@ -47,7 +47,12 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
   unawaited, so a lost ack simply leaves the reminder deliverable for the next open, which is what
   makes the transport's unretried `ack_reminder` safe. A failed pull dispatches nothing, leaving
   the previous cards in place (the chat list's rule). `remindersLoaded` replaces the list
-  wholesale; the brain is the authority on each open.
+  wholesale; the brain is the authority on each open. A card also offers its **origin chat**
+  (ADR-0025 origin addendum): `DueReminder.sessionId` through `Panel`'s existing
+  `onSelectSession`, so a reminder and the switcher load a chat by the same path. Opening never
+  acks (an ack destroys the reminder, navigation does not), and the control is *absent* for a
+  session-less row (`""`) or for the chat already on screen, where it would cancel that chat's
+  running turn to arrive where it already is.
 - **The `converse` command** (`src-tauri/src/converse.rs`): `converse(session_id, text, channel)`.
   It serialises each `TurnEvent` / `TransportError` to a `WireMessage` (`{ event }` | `{ error }`)
   that matches the TS `WireMessage` in `tauriBridge.ts` field for field (tag `kind`, camelCase, so
@@ -110,7 +115,9 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
 - **Nothing the overlay displays is ever linkified**, and reminder text is why it matters: it is
   the one string on screen that no output guardrail inspected (ADR-0015 filters streamed replies,
   not store rows), so a URL in it has had no redaction pass. `DueReminder.tainted` badges the
-  untrusted ones; the text itself stays a plain text node.
+  untrusted ones; the text itself stays a plain text node. The card's controls are all app chrome
+  with fixed labels, sitting *beside* that text and never wrapping it, so nothing a stranger
+  wrote can become the label on a working button.
 - The shell stays thin. Every branchy decision (accelerator mapping, seam translation) lives in
   the gated `body_core` / `body_rpc`; the app holds wiring only, which is what keeps the coverage
   exclusion safe (ADR-0011 risk: coverage creep).
