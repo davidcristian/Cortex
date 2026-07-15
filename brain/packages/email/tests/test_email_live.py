@@ -8,10 +8,14 @@ never run in CI. Run per docs/runbooks/email-imap.md, e.g. with ~/.cortex/email.
 import os
 import time
 import uuid
+from email import message_from_bytes, policy
+from email.message import EmailMessage
+from typing import cast
 
 import pytest
 
 from cortex_email import (
+    EmailAttachment,
     EmailConfig,
     EmailDraft,
     EmailReader,
@@ -53,6 +57,8 @@ def test_send_round_trips_between_the_two_test_addresses() -> None:
     subject = f"cortex live send {stamp}"
     # Exercise the richer shapes on the real Bridge: an html alternative plus a cc back to the
     # sending account, so a live run validates cc/html composition end to end, not just plain.
+    # The attachment rides along for the same reason (ADR-0022 attachments addendum), and it is
+    # the shape a fake smtplib cannot prove: that a real server accepts the multipart/mixed.
     line = SmtpSender(smtp_config).send(
         EmailDraft(
             to,
@@ -60,6 +66,7 @@ def test_send_round_trips_between_the_two_test_addresses() -> None:
             "live round-trip (plain fallback)",
             cc=smtp_config.user,
             html="<p>live round-trip (rich)</p>",
+            attachments=(EmailAttachment("notes.md", f"# live {stamp}\n", "markdown"),),
         )
     )
     assert to in line
@@ -67,12 +74,26 @@ def test_send_round_trips_between_the_two_test_addresses() -> None:
     # Search server-side BY the unique stamp, not the oldest N of the folder: a populated
     # mailbox would never surface a just-arrived message in its oldest 20 (IMAP fetch is
     # ascending-UID). The subject is unique per run, so the IMAP SUBJECT filter finds exactly it.
-    reader = EmailReader(ImapMailbox(EmailConfig()))
+    mailbox = ImapMailbox(EmailConfig())
+    reader = EmailReader(mailbox)
     query = f'SUBJECT "{stamp}"'
     deadline = time.monotonic() + 60.0
     while time.monotonic() < deadline:
-        hits = [s for folder in ("INBOX", "Sent") for s in reader.search(folder, query, 5)]
-        if hits:
-            return
+        for folder in ("INBOX", "Sent"):
+            hits = list(reader.search(folder, query, 5))
+            if hits:
+                _assert_attachment_survived(mailbox, folder, hits[0].uid, stamp)
+                return
         time.sleep(3.0)
     pytest.fail(f"sent message {stamp!r} did not appear over IMAP within 60s")
+
+
+def _assert_attachment_survived(mailbox: ImapMailbox, folder: str, uid: str, stamp: str) -> None:
+    """Parse the delivered message and prove the attachment came back off the wire intact."""
+    raw = mailbox.fetch(folder, uid)
+    assert raw is not None
+    delivered = message_from_bytes(raw.raw, EmailMessage, policy=policy.default)
+    attachments = list(delivered.iter_attachments())
+    assert [part.get_filename() for part in attachments] == ["notes.md"]
+    assert attachments[0].get_content_type() == "text/markdown"
+    assert cast("str", attachments[0].get_content()).strip() == f"# live {stamp}"

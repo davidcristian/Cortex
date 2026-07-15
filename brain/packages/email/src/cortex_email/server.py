@@ -14,6 +14,7 @@ blocked. Brain-side, ``send_email`` is stamped ``gated`` at the composition root
 # pyright: reportUnusedFunction=false
 
 import asyncio
+from collections.abc import Sequence
 
 from mcp.server.fastmcp import FastMCP
 from mcp.types import ToolAnnotations
@@ -22,7 +23,7 @@ from cortex_email.config import EmailConfig, SmtpConfig
 from cortex_email.imap import ImapMailbox
 from cortex_email.reader import EmailReader
 from cortex_email.smtp import EmailSender, SmtpSender
-from cortex_email.values import EmailDraft
+from cortex_email.values import EmailAttachment, EmailDraft
 
 _SERVER_HOST = "0.0.0.0"  # noqa: S104 - the sidecar binds its container interface; compose publishes loopback-only
 _SERVER_PORT = 9100
@@ -73,20 +74,30 @@ def build_server(reader: EmailReader, sender: EmailSender | None = None) -> Fast
                 readOnlyHint=False, destructiveHint=True, openWorldHint=True
             )
         )
-        async def send_email(
+        # PLR0913's ceiling is a dependency-injection one (see ruff.toml): bundle collaborators
+        # before asking for a seventh. These are not collaborators, they are the draft's fields
+        # as the model sees them, and this signature IS the advertised JSON schema, so folding
+        # them into an object would rewrite a working tool contract to satisfy a lint rule.
+        async def send_email(  # noqa: PLR0913
             to: str,
             subject: str,
             body: str,
             cc: str = "",
             bcc: str = "",
             html: str = "",
+            attachments: Sequence[EmailAttachment] = (),
         ) -> str:
             """Send an email as the configured account (outbound, irreversible; it runs only
             with the user's explicit approval). ``to``/``cc``/``bcc`` are comma-separated
             address lists (``cc``/``bcc`` optional); ``body`` is the plain-text message; pass
-            ``html`` to add a rich alternative shown as the body where the reader supports it."""
+            ``html`` to add a rich alternative shown as the body where the reader supports it.
+            ``attachments`` attaches text you have written, as
+            ``{"filename": "notes.md", "content": "...", "subtype": "markdown"}`` objects
+            (``subtype`` is the text flavour: plain, markdown, csv, calendar; default plain).
+            Attachments carry text only, so a file on disk cannot be attached."""
             return await asyncio.to_thread(
-                sender.send, EmailDraft(to, subject, body, cc, bcc, html)
+                sender.send,
+                EmailDraft(to, subject, body, cc, bcc, html, tuple(attachments)),
             )
 
     return server

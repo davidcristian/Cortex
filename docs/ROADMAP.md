@@ -1380,12 +1380,39 @@ each behind the unchanged `Confirmer`/`ToolDispatcher`/`GatedToolRegistry`/seam 
   a bcc is stripped from the transmitted message by `send_message` (stdlib), and html composes a
   `multipart/alternative`. Entirely inside the sidecar behind the unchanged brain-side gate
   (still `send_email` in `CORTEX_TOOLS_GATED`, confirm card unchanged); CI-gated at 100% and the
-  live round-trip now exercises cc + html. Remaining behind the same `EmailDraft` seam:
-  **attachments**, deferred deliberately for their bytes-transport decision (a base64 blob that
-  bloats the tool call and audit line, versus a filesystem path, which is the more expensive
-  option than it sounds: `docker-compose.email.yml` has **no `volumes:` key at all**, so the path
-  form means adding a mount to the sidecar *and* a file-read capability to a service that
-  deliberately has neither). The field itself is one more `EmailDraft` entry.
+  live round-trip now exercises cc + html.
+- **Attachments landed 2026-07-15 ([ADR-0022 attachments
+  addendum](adr/ADR-0022-email-write-confirmer.md)), as authored text.** This entry framed the
+  open question as a bytes-transport choice (a base64 blob versus a filesystem path, the latter
+  needing a mount *and* a file-read capability on a sidecar that deliberately has neither). Both
+  candidates turn out to be disqualified by something cheaper to check than their cost: this
+  ADR's own **`arguments_json` is the executed contract** rule. A path puts a *name* on the
+  confirmation card and reads the bytes after the click, from a filesystem that can change in
+  between; base64 puts bytes on the card that no human can read. So an attachment is
+  `EmailAttachment(filename, content, subtype="plain")` on the draft, composed as one `text/*`
+  part each: the maintype is not a parameter (as `From` is not), which makes the capability one
+  sentence, namely the assistant attaches what it **wrote**. Transport-free (tool arguments
+  already arrive as JSON over MCP), so no new capability, no proto/port/gate/taint change, and
+  a draft without attachments is byte-for-byte the previous message. Refused rather than
+  truncated past five bounds in `SmtpSender._compose` (filename non-empty, CR/LF-free, ≤ 128
+  chars; subtype a MIME token; ≤ 8 attachments; ≤ 32768 characters of content in total), each
+  mutation-proven. Two costs the entry did not predict, both small: ruff's `max-args = 6` fires
+  on the **advertised tool signature**, where the ceiling's own rationale (bundle *collaborators*)
+  does not apply, so it takes an inline `noqa` with that reason rather than folding user-visible
+  draft fields into an object the model would have to learn; and driving the card in a browser
+  found two pre-existing gaps an attachment is the first value to reach, namely `.confirm-draft`
+  having no height bound (the first argument *meant* to be long pushed Approve and Deny out of
+  view; now `max-height: 42vh` and scrolls) and non-string values being rendered with
+  `JSON.stringify` (so a file's newlines reached the user as `\n` escapes; now a generic
+  `formatDraftValue`, which knows JSON shapes and nothing about `send_email`).
+  Remaining behind the same seam: **bytes the assistant did not author** (a real file), which
+  needs the capability grant *plus* a way for the card to bind approval to a payload the user
+  cannot read (a digest and size shown, the sidecar re-reading at send and refusing on mismatch);
+  and **per-field schema descriptions** inside the nested object. Verified over a real sidecar
+  rather than assumed: pydantic lifts the `EmailAttachment` **docstring** into the `$defs`
+  entry's `description`, so the model is already told what an attachment is and is not; only
+  per-field prose would need `Field(description=...)`, and that would put pydantic in the pure
+  values module to say what the type names already say.
 - **The structured confirm-resolution event landed 2026-07-14 ([ADR-0022 resolution
   addendum](adr/ADR-0022-email-write-confirmer.md)).** This entry's cost estimate was the
   understated kind the section warns about: it read as an overlay refinement, and it is a

@@ -305,6 +305,12 @@
 }
 .confirm-draft {
   margin: 9px 0 0;
+  /* What you approve is what runs, so every value stays on the card verbatim (ADR-0022).
+     An attachment is the first argument meant to be long, so the draft scrolls rather than
+     growing until Approve and Deny are pushed out of view. */
+  max-height: 42vh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 .confirm-row {
   display: flex;

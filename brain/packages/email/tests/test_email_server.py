@@ -14,7 +14,15 @@ import pytest
 from mcp.server.fastmcp import FastMCP
 
 import cortex_email.server as server_module
-from cortex_email import EmailDraft, EmailReader, RawEmail, SmtpSender, build_server, main
+from cortex_email import (
+    EmailAttachment,
+    EmailDraft,
+    EmailReader,
+    RawEmail,
+    SmtpSender,
+    build_server,
+    main,
+)
 
 if TYPE_CHECKING:
     from mcp.types import TextContent
@@ -146,6 +154,7 @@ async def test_send_email_tool_sends_and_reports() -> None:
     (draft,) = sender.sent
     assert (draft.to, draft.subject, draft.body) == ("you@example.com", "Hi", "hello")
     assert (draft.cc, draft.bcc, draft.html) == ("", "", "")  # omitted shapes default empty
+    assert draft.attachments == ()
 
 
 async def test_send_email_tool_forwards_cc_bcc_and_html() -> None:
@@ -166,6 +175,44 @@ async def test_send_email_tool_forwards_cc_bcc_and_html() -> None:
     assert text == "email sent to you@example.com"
     (draft,) = sender.sent
     assert (draft.cc, draft.bcc, draft.html) == ("c@example.com", "b@example.com", "<p>hi</p>")
+
+
+async def test_send_email_tool_forwards_attachments_as_values() -> None:
+    # The nested array-of-objects argument is the first of its shape in the repo: what this
+    # pins is that the JSON the model writes arrives as EmailAttachment values on the draft.
+    sender = FakeSender()
+    server = build_server(EmailReader(FakeMailbox()), sender)
+    text = await _text(
+        server,
+        "send_email",
+        {
+            "to": "you@example.com",
+            "subject": "Hi",
+            "body": "see attached",
+            "attachments": [
+                {"filename": "notes.md", "content": "# Notes", "subtype": "markdown"},
+                {"filename": "log.txt", "content": "line one"},  # subtype defaults to plain
+            ],
+        },
+    )
+    assert text == "email sent to you@example.com"
+    (draft,) = sender.sent
+    assert draft.attachments == (
+        EmailAttachment("notes.md", "# Notes", "markdown"),
+        EmailAttachment("log.txt", "line one"),
+    )
+
+
+async def test_the_send_tool_advertises_the_attachment_shape() -> None:
+    # The model can only fill a shape it is told about, and this schema is generated rather
+    # than written, so assert the nested object reaches the advertised parameters.
+    server = build_server(EmailReader(FakeMailbox()), FakeSender())
+    (tool,) = [t for t in await server.list_tools() if t.name == "send_email"]
+    attachments = tool.inputSchema["properties"]["attachments"]
+    assert attachments["type"] == "array"
+    definition = tool.inputSchema["$defs"]["EmailAttachment"]
+    assert set(definition["required"]) == {"filename", "content"}
+    assert definition["properties"]["subtype"]["default"] == "plain"
 
 
 def test_main_builds_the_server_and_runs_streamable_http(monkeypatch: pytest.MonkeyPatch) -> None:
