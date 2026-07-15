@@ -12,17 +12,19 @@ It is also the capability gate (ADR-0013, table revised by ADR-0022 decision 2):
 runs at all, the confirmer deliberately unconsulted: an action demanded by injected content
 must not be merely a confirm-away. Every block returns an error result **without invoking
 the tool** (``DENIED_MSG`` for the taint block, ``USER_DECLINED_MSG`` for a declined or
-unreachable confirmation, the fail-closed no-confirmer default included, and
-``BUDGET_EXHAUSTED_MSG`` once the caller's dispatch budget is spent) and is audited.
+unreachable confirmation, the fail-closed no-confirmer default included, and a
+``DispatchRefusal`` message when the caller refused the call before it got here) and is audited.
 The approval is the human's, reached out of band, never the (possibly jailbroken) model's.
 """
 
 from collections.abc import Collection, Sequence
-from dataclasses import replace
+from dataclasses import dataclass, replace
+from enum import Enum
 
 from cortex_core.errors import ToolError
 from cortex_core.ports import Clock, Confirmer, ToolAuditSink, ToolRegistry
 from cortex_core.tool_budget import UNIFORM_COST, ToolCostPolicy
+from cortex_core.tool_salience import REPEAT_SALIENCE, SaliencePolicy
 from cortex_core.tools import (
     UNSTAMPED,
     ConfirmationRequest,
@@ -47,6 +49,64 @@ BUDGET_EXHAUSTED_MSG = (
     "and say that you stopped short if the answer is incomplete."
 )
 
+# The result content fed back when the caller's salience policy recognized a repeat (ADR-0009
+# salience addendum). Unlike the budget message this one does **not** say to stop calling tools:
+# only this call is refused, and a different one is still welcome. It points at the earlier
+# result rather than describing it, since that result is already in the conversation above.
+REDUNDANT_MSG = (
+    "REFUSED: this exact tool call has already run in this turn, so it was not run again. Its "
+    "result is already in this conversation above. Use that result, or call a different tool, "
+    "but do not repeat this call."
+)
+
+
+class DispatchRefusal(Enum):
+    """Why the caller refused a call before it could run, and what the model is told.
+
+    The member's value **is** the model-facing message, so a new reason cannot be added without
+    writing one, and ``dispatch`` keeps a single refusal branch however many reasons appear. A
+    reason rather than one boolean per bound (ADR-0009 salience addendum): parallel keywords all
+    meaning "refuse this and say why" is the shape the ``TurnStamp`` widening already rejected.
+    """
+
+    BUDGET = BUDGET_EXHAUSTED_MSG
+    REDUNDANT = REDUNDANT_MSG
+
+    @property
+    def message(self) -> str:
+        """The refusal text fed back to the model as the call's result."""
+        return str(self.value)
+
+
+@dataclass(frozen=True, slots=True)
+class DispatchPolicy:
+    """What the composition root declares about dispatching, in one value.
+
+    Three declarations that a sidecar must never make about itself: which tools are ``gated``
+    (ADR-0022, the authoritative backstop the advertised flag is OR-ed with), what each one
+    ``costs`` against the caller's budget (ADR-0009 cost addendum), and which calls are worth
+    running at all (``salience``, ADR-0009 salience addendum). They travel together because they
+    are one category, and because ruff's argument ceiling left no room for a seventh parameter
+    on either the dispatcher or its builder: bundling only two would have reached the ceiling
+    again on the next declaration.
+
+    ``gated_names`` is frozen at construction like ``ToolCostPolicy`` freezes its prices, so
+    whoever built the policy cannot keep editing the gate set afterwards.
+    """
+
+    gated_names: Collection[str] = ()
+    costs: ToolCostPolicy = UNIFORM_COST
+    salience: SaliencePolicy = REPEAT_SALIENCE
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "gated_names", frozenset(self.gated_names))
+
+
+# The policy a dispatcher gets unless the composition root passes one: nothing gated, every tool
+# priced at one, and repeats refused. Only the last is a behavior the loop had to opt into
+# before; the other two are the pre-policy defaults restated.
+DEFAULT_DISPATCH_POLICY = DispatchPolicy()
+
 
 class ToolDispatcher:
     """Run a tool call through the registry, gating and recording one audit line per dispatch.
@@ -62,25 +122,20 @@ class ToolDispatcher:
         clock: Clock,
         *,
         confirmer: Confirmer | None = None,
-        gated_names: Collection[str] = (),
-        costs: ToolCostPolicy = UNIFORM_COST,
+        policy: DispatchPolicy = DEFAULT_DISPATCH_POLICY,
     ) -> None:
         self._registry = registry
         self._audit = audit
         self._clock = clock
         self._confirmer = confirmer
-        # What each tool spends of the caller's dispatch budget (ADR-0009 cost addendum). It
-        # sits here beside the gated set for the same reason: both are composition-root
-        # declarations *about* tools by name, so neither can be claimed by a sidecar's own
-        # advertisement. The dispatcher does not spend the budget (the loop counts and decides,
-        # then states its verdict as `over_budget`); it only prices the call.
-        self._costs = costs
-        # Names the composition root declares gated regardless of advertisement (ADR-0022):
-        # the caller passes each call's advertised `gated` flag, but that snapshot can miss a
-        # tool a flaky sidecar transiently hid (skip mode) and later recovered, meaning the gate's
-        # security decision never rests on the model-facing advertisement, only on this
-        # authoritative set plus the flag. Empty for a dispatcher with no gated tools.
-        self._gated_names = frozenset(gated_names)
+        # Everything the composition root declares about dispatching: the authoritative gated
+        # set (ADR-0022), what each tool spends of the caller's budget (ADR-0009 cost addendum),
+        # and which calls are worth running (ADR-0009 salience addendum). None of the three is
+        # ever read off a `ToolSpec`, so a sidecar can neither ungate, price, nor un-refuse
+        # itself. The dispatcher decides none of them either: the loop asks, then states its
+        # verdict as a `DispatchRefusal`, and the dispatcher's job is to make that verdict
+        # audited like any other outcome.
+        self._policy = policy
 
     async def describe_tools(self) -> Sequence[ToolSpec]:
         """The tools available to advertise to the model (delegates to the registry)."""
@@ -94,7 +149,18 @@ class ToolDispatcher:
         and still costs a round trip, so pricing it at the default rather than free keeps a
         model that invents names from dispatching without limit.
         """
-        return self._costs.cost_of(name)
+        return self._policy.costs.cost_of(name)
+
+    def admits(self, call: ToolCall, dispatched: Sequence[Sequence[ToolCall]]) -> bool:
+        """Whether ``call`` is worth dispatching, given what the caller has already run.
+
+        ``dispatched`` is the caller's own calls grouped by round (ADR-0009 salience addendum),
+        which is why the loop keeps it rather than the dispatcher: a repeat is redundant against
+        the message list that already holds its answer, and two loops sharing this dispatcher
+        (a subagent and the cortex that spawned it) hold different ones. The policy is stateless,
+        so sharing it costs nothing and per-loop scoping falls out.
+        """
+        return self._policy.salience.admits(call, dispatched)
 
     async def dispatch(
         self,
@@ -102,15 +168,16 @@ class ToolDispatcher:
         *,
         stamp: TurnStamp = UNSTAMPED,
         gated: bool = False,
-        over_budget: bool = False,
+        refusal: DispatchRefusal | None = None,
     ) -> ToolResult:
         """Invoke ``call``, audit the outcome, and return the result the model consumes.
 
-        ``over_budget`` (ADR-0009 budget addendum) is the caller's statement that its dispatch
-        budget is spent; the refusal itself belongs here so it is audited like every other
-        dispatch, and it is checked **first**, ahead of the gate. Ordering it after would let a
-        model emitting hundreds of gated calls put a confirmation prompt in front of the user
-        for each one before the budget refused any, turning a spam bound into a flood.
+        ``refusal`` is the caller's statement that the call must not run: its budget is spent
+        (ADR-0009 budget addendum) or its salience policy recognized a repeat (salience
+        addendum). The refusal itself belongs here so it is audited like every other dispatch,
+        and it is checked **first**, ahead of the gate. Ordering it after would let a model
+        emitting hundreds of gated calls put a confirmation prompt in front of the user for
+        each one before either bound refused any, turning a spam bound into a flood.
 
         The gate (ADR-0022 decision 2): a gated tool on a tainted turn is blocked outright
         (``DENIED_MSG``, the confirmer never consulted); on an untainted turn it runs only
@@ -123,17 +190,17 @@ class ToolDispatcher:
         # that spawn further work, never authority. The gate below keeps using the explicit
         # ``stamp`` argument, so a model-forged stamp is discarded and feeds nothing.
         call = replace(call, stamp=stamp)
-        if over_budget:
+        if refusal is not None:
             refused = ToolResult(
                 call_id=call.id,
-                content=BUDGET_EXHAUSTED_MSG,
+                content=refusal.message,
                 is_error=True,
                 trust=Trust.TRUSTED,
             )
             return await self._audited(call, refused)
         # The advertised flag OR the authoritative gated set (ADR-0022): a gated tool a flaky
         # sidecar hid from this turn's advertisement snapshot is still gated here.
-        gated = gated or call.name in self._gated_names
+        gated = gated or call.name in self._policy.gated_names
         if gated:
             if stamp.tainted:
                 blocked = ToolResult(

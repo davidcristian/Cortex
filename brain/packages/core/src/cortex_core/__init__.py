@@ -20,6 +20,10 @@ from cortex_core.composite import CompositeToolRegistry as CompositeToolRegistry
 from cortex_core.conversation import Message as Message
 from cortex_core.conversation import Role as Role
 from cortex_core.dispatch import BUDGET_EXHAUSTED_MSG as BUDGET_EXHAUSTED_MSG
+from cortex_core.dispatch import DEFAULT_DISPATCH_POLICY as DEFAULT_DISPATCH_POLICY
+from cortex_core.dispatch import REDUNDANT_MSG as REDUNDANT_MSG
+from cortex_core.dispatch import DispatchPolicy as DispatchPolicy
+from cortex_core.dispatch import DispatchRefusal as DispatchRefusal
 from cortex_core.dispatch import ToolDispatcher as ToolDispatcher
 from cortex_core.engine import DEFAULT_CORTEX_MODEL as DEFAULT_CORTEX_MODEL
 from cortex_core.engine import TurnCapabilities as TurnCapabilities
@@ -154,6 +158,12 @@ from cortex_core.tool_budget import MAX_TOOL_DISPATCHES as MAX_TOOL_DISPATCHES
 from cortex_core.tool_budget import UNIFORM_COST as UNIFORM_COST
 from cortex_core.tool_budget import DispatchBudget as DispatchBudget
 from cortex_core.tool_budget import ToolCostPolicy as ToolCostPolicy
+from cortex_core.tool_salience import ALWAYS_SALIENT as ALWAYS_SALIENT
+from cortex_core.tool_salience import MAX_IDENTICAL_DISPATCHES as MAX_IDENTICAL_DISPATCHES
+from cortex_core.tool_salience import REPEAT_SALIENCE as REPEAT_SALIENCE
+from cortex_core.tool_salience import AlwaysSalient as AlwaysSalient
+from cortex_core.tool_salience import RepeatSalience as RepeatSalience
+from cortex_core.tool_salience import SaliencePolicy as SaliencePolicy
 from cortex_core.tools import UNSTAMPED as UNSTAMPED
 from cortex_core.tools import ConfirmationRequest as ConfirmationRequest
 from cortex_core.tools import ToolCall as ToolCall

@@ -5,7 +5,12 @@ import os
 import pytest
 from pydantic import ValidationError
 
-from cortex_core import MAX_TOOL_DISPATCHES, SPAWN_TOOL_NAME
+from cortex_core import (
+    ALWAYS_SALIENT,
+    MAX_TOOL_DISPATCHES,
+    REPEAT_SALIENCE,
+    SPAWN_TOOL_NAME,
+)
 from cortex_core.tool_budget import DEFAULT_TOOL_COST
 from cortex_orchestrator import (
     BodyConfig,
@@ -17,7 +22,7 @@ from cortex_orchestrator import (
     SubagentsConfig,
     ToolsConfig,
 )
-from cortex_orchestrator.config import DEFAULT_SPAWN_COST
+from cortex_orchestrator.config_tools import DEFAULT_SPAWN_COST
 
 
 @pytest.fixture
@@ -525,3 +530,33 @@ def test_a_tool_cost_outside_the_budget_range_fails_at_boot(cost: int) -> None:
     expected = rf"CORTEX_TOOLS_COSTS must be 1\.\.{MAX_TOOL_DISPATCHES}: \['read_file'\]"
     with pytest.raises(ValidationError, match=expected):
         ToolsConfig(costs={"read_file": cost})
+
+
+def test_salience_defaults_to_refusing_a_repeat() -> None:
+    # A bound ships on, like the round cap and the dispatch budget before it: one that ships
+    # off protects nobody, and its escape hatch is the knob below.
+    assert ToolsConfig().salience_policy is REPEAT_SALIENCE
+
+
+def test_salience_off_restores_the_unfiltered_loop() -> None:
+    # The core takes a policy object; the composition root maps the string, the
+    # record_tainted_memory precedent.
+    assert ToolsConfig(salience="off").salience_policy is ALWAYS_SALIENT
+
+
+def test_an_unknown_salience_name_fails_at_boot() -> None:
+    # A typo would otherwise silently keep the default, which is the failure mode a knob whose
+    # whole purpose is to turn a bound off must not have.
+    with pytest.raises(ValidationError):
+        ToolsConfig(salience="sometimes")  # pyright: ignore[reportArgumentType]
+
+
+def test_the_dispatch_policy_carries_all_three_declarations() -> None:
+    # One value is what the dispatcher and both its builders take, so a declaration cannot
+    # reach the cortex and miss subagents (or the reverse) by being threaded separately.
+    policy = ToolsConfig(
+        gated=("send_email",), costs={"read_file": 3}, salience="off"
+    ).dispatch_policy
+    assert policy.gated_names == frozenset({"send_email"})
+    assert policy.costs.cost_of("read_file") == 3
+    assert policy.salience is ALWAYS_SALIENT

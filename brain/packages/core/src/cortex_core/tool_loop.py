@@ -3,10 +3,12 @@
 Both the cortex ``TurnEngine`` and a ``SubagentRunner`` do the same thing: stream from a model
 with tools available; when the model emits tool calls, dispatch each through the audited
 ``ToolDispatcher`` and feed the results back; repeat until a final text answer, ``MAX_TOOL_STEPS``
-rounds, or a spent ``DispatchBudget`` (the two bounds are independent: rounds cap how long the
-loop runs, the budget caps how much of the outside world it may touch, ADR-0009 budget addendum;
-and the budget is a pool the whole turn shares, so a spawned subagent draws from the same
-allowance rather than starting a fresh one). That loop (inlined in ``handle_turn`` before Slice 7)
+rounds, or a spent ``DispatchBudget`` (the three bounds are independent: rounds cap how long the
+loop runs, the budget caps how much of the outside world it may touch, ADR-0009 budget addendum,
+and the ``SaliencePolicy`` refuses a call this loop has already made, salience addendum; the
+budget is a pool the whole turn shares, so a spawned subagent draws from the same allowance
+rather than starting a fresh one, while salience is per loop, since a repeat is redundant only
+against the context that holds its answer). That loop (inlined in ``handle_turn`` before Slice 7)
 lives here so both
 callers reuse it verbatim: one loop, one bound, one audited dispatch path. The loop mutates the
 ``working`` message list in place (appending the tool-call and result messages) and yields each
@@ -29,7 +31,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 
 from cortex_core.conversation import Message, Role
-from cortex_core.dispatch import ToolDispatcher
+from cortex_core.dispatch import DispatchRefusal, ToolDispatcher
 from cortex_core.inference import JsonSchema, ReasoningChunk
 from cortex_core.ports import Clock, InferenceBackend
 from cortex_core.tool_budget import DispatchBudget
@@ -131,6 +133,33 @@ def _result_message(result: ToolResult, at: datetime, turn_id: str, *, nonce: st
     return Message(role=Role.TOOL, text=text, at=at, turn_id=turn_id, tool_call_id=result.call_id)
 
 
+def _refused_by(
+    call: ToolCall,
+    dispatcher: ToolDispatcher,
+    dispatched: Sequence[Sequence[ToolCall]],
+    budget: DispatchBudget,
+) -> DispatchRefusal | None:
+    """Which bound refuses this call before it can run, or ``None`` when it may go ahead.
+
+    Salience is asked first, and a call it refuses is never charged: the budget bounds reach
+    into the outside world and a repeat reaches nothing, so charging it would spend the turn's
+    allowance on the model's own repetition (ADR-0009 salience addendum). The order's one cost is
+    that a repeat emitted past a closed budget reports redundancy rather than exhaustion, the
+    less useful of two true statements.
+
+    ``charge`` spends when the call fits and closes the pool for good when it does not, so a
+    cheaper call behind an unaffordable one does not trickle through (ADR-0009 cost addendum).
+    Closing is turn-wide once a subagent shares the pool: a runaway delegate stops its siblings
+    and the rest of this loop too, which is what keeps ``BUDGET_EXHAUSTED_MSG``'s "this turn has
+    reached its limit" true. Both calls have side effects, so the order is behavior, not style.
+    """
+    if not dispatcher.admits(call, dispatched):
+        return DispatchRefusal.REDUNDANT
+    if not budget.charge(dispatcher.cost_of(call.name)):
+        return DispatchRefusal.BUDGET
+    return None
+
+
 async def stream_tool_loop(
     backend: InferenceBackend,
     model: str,
@@ -143,9 +172,11 @@ async def stream_tool_loop(
 
     The loop advertises exactly the tools it can dispatch: the dispatcher's tools when present,
     none otherwise. With ``dispatcher`` None (or once the model stops calling tools) the loop
-    ends after one inference step. Two bounds apply: ``MAX_TOOL_STEPS`` rounds, and
+    ends after one inference step. Three bounds apply: ``MAX_TOOL_STEPS`` rounds,
     ``context.budget`` summed across them (ADR-0009 budget addendum), each call charged the
-    dispatcher's price for it (ADR-0009 cost addendum). Once a call does not fit, the budget
+    dispatcher's price for it (ADR-0009 cost addendum), and the dispatcher's salience policy,
+    which refuses a call this loop has already made (salience addendum) before it is charged.
+    Once a call does not fit, the budget
     closes: that call and every later one is refused by the dispatcher and audited, and the
     rounds that remain are how the model learns of it and still answers. The budget may be a
     pool shared with the loops of spawned subagents, in which case all of that is turn-wide.
@@ -164,6 +195,12 @@ async def stream_tool_loop(
     # rather than a flat one (ADR-0009 cost addendum), so a tool a user declared expensive
     # exhausts the turn faster than a cheap one.
     budget = context.budget
+    # Every call this loop has dispatched, grouped by the round that emitted it, which is what
+    # the salience policy reads (ADR-0009 salience addendum). A local rather than shared state on
+    # the budget or the dispatcher, and deliberately not turn-wide the way the pool is: a repeat
+    # is redundant only against the `working` messages that already hold its answer, and a
+    # subagent's own loop can see neither this list nor a sibling's results.
+    dispatched: list[list[ToolCall]] = []
     for _step in range(MAX_TOOL_STEPS):
         calls: list[ToolCall] = []
         step_text: list[str] = []
@@ -187,25 +224,29 @@ async def stream_tool_loop(
         working.append(
             _call_message("".join(step_text), calls, context.clock.now(), context.turn_id)
         )
+        # This round's dispatched calls, appended to the loop's history before the round runs so
+        # the policy sees the round in progress as its last group (ADR-0009 salience addendum).
+        this_round: list[ToolCall] = []
+        dispatched.append(this_round)
         for call in calls:
-            # Past the budget the call is still handed to the dispatcher, which refuses it and
-            # audits the refusal (ADR-0009 budget addendum). Breaking out instead would strand
-            # this round's tool_calls without their Role.TOOL answers, so the next round's
+            # Refused by either bound, the call is still handed to the dispatcher, which refuses
+            # it and audits the refusal (ADR-0009 budget addendum). Breaking out instead would
+            # strand this round's tool_calls without their Role.TOOL answers, so the next round's
             # re-inference would send a malformed conversation, and would refuse dispatches
             # that no audit record ever sees.
-            # `charge` spends when the call fits and closes the pool for good when it does not,
-            # so a cheaper call behind an unaffordable one does not trickle through (ADR-0009
-            # cost addendum). Closing is turn-wide once a subagent shares the pool: a runaway
-            # delegate stops its siblings and the rest of this loop too, which is what keeps
-            # BUDGET_EXHAUSTED_MSG's "this turn has reached its limit" true.
-            affordable = budget.charge(dispatcher.cost_of(call.name))
-            # Surface activity only for an affordable call that matched an advertised spec, so
+            refusal = _refused_by(call, dispatcher, dispatched, budget)
+            if refusal is None:
+                # Recorded when the call is handed over, not when it answers: a gate denial and
+                # a declined confirmation are `is_error` results too, so counting only successes
+                # would leave a declined gated call free to re-prompt the user every round.
+                this_round.append(call)
+            # Surface activity only for a dispatched call that matched an advertised spec, so
             # the chip's name and summary are both registry-authored (ADR-0009 addendum). A call
             # to an unadvertised name (a model hallucination, or a tool skip-mode hid) still
             # dispatches below and fails as its usual is_error result, but never renders a chip
             # carrying the model's chosen string. A refused call renders no chip either: a chip
             # means a tool is running now.
-            if affordable and (spec := spec_by_name.get(call.name)) is not None:
+            if refusal is None and (spec := spec_by_name.get(call.name)) is not None:
                 yield ToolStep(tool_name=spec.name, summary=_step_summary(spec))
             # The advertised gated flag is a hint; the dispatcher OR-s it with its own
             # authoritative gated-name set, so a tool a flaky sidecar hid from this snapshot
@@ -222,7 +263,7 @@ async def stream_tool_loop(
                     budget=budget,
                 ),
                 gated=gated_by_name.get(call.name, False),
-                over_budget=not affordable,
+                refusal=refusal,
             )
             context.taint.observe(result)
             working.append(

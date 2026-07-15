@@ -30,6 +30,11 @@ services:
       # offset-less 'at' is read as (ADR-0025 display addendum). Display only: stored due
       # times stay UTC. An unknown key fails the brain at startup, by design.
       CORTEX_SCHEDULE_TZ: ${CORTEX_SCHEDULE_TZ:-UTC}
+      # Which tool calls a loop bothers dispatching (ADR-0009 salience addendum): the default
+      # 'repeat' refuses a call the loop has already made (once per round, twice per loop),
+      # 'off' restores the unfiltered loop. Listed here rather than in the tool overrides so
+      # the knob works whichever sidecar set is layered on, and is not silently inert.
+      CORTEX_TOOLS_SALIENCE: ${CORTEX_TOOLS_SALIENCE:-repeat}
     ports:
       # Loopback-only publish for the single-user security posture (ROADMAP assumption 5):
       # nothing listens beyond 127.0.0.1 on the host.

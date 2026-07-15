@@ -26,6 +26,7 @@ from cortex_core import (
     SET_VOLUME_TOOL_NAME,
     USER_DECLINED_MSG,
     CharBudgetHistoryWindow,
+    DispatchPolicy,
     EchoInferenceBackend,
     GlobalMemoryScope,
     InMemoryBodyGateway,
@@ -733,7 +734,7 @@ async def test_build_cortex_tools_gated_names_gate_a_name_the_registry_advertise
         (),
         SystemClock(),
         confirmer=RecordingConfirmer(answer=True),
-        gated_names={"send_email"},
+        policy=DispatchPolicy(gated_names={"send_email"}),
     )
     assert tools is not None
     # The registry never stamped it gated, yet a tainted turn's call is denied outright.
@@ -752,7 +753,9 @@ async def test_build_subagent_tools_gated_names_are_the_fail_closed_backstop() -
     registry = InMemoryToolRegistry(
         {"send_email": (ToolSpec(name="send_email", description="", parameters={}), _reply_ok)}
     )
-    tools = build_subagent_tools(registry, SystemClock(), gated_names={"send_email"})
+    tools = build_subagent_tools(
+        registry, SystemClock(), policy=DispatchPolicy(gated_names={"send_email"})
+    )
     assert tools is not None
     result = await tools.dispatch(
         ToolCall(id="c", name="send_email", arguments={}),
@@ -773,9 +776,9 @@ def test_the_configured_tool_prices_reach_both_tool_loop_dispatchers() -> None:
     registry = InMemoryToolRegistry(
         {"read_file": (ToolSpec(name="read_file", description="", parameters={}), _reply_ok)}
     )
-    costs = ToolsConfig(costs={"read_file": 5}).cost_policy
-    cortex = build_cortex_tools(registry, (), SystemClock(), costs=costs)
-    subagent = build_subagent_tools(registry, SystemClock(), costs=costs)
+    policy = ToolsConfig(costs={"read_file": 5}).dispatch_policy
+    cortex = build_cortex_tools(registry, (), SystemClock(), policy=policy)
+    subagent = build_subagent_tools(registry, SystemClock(), policy=policy)
     assert cortex is not None
     assert subagent is not None
     assert (cortex.cost_of("read_file"), subagent.cost_of("read_file")) == (5, 5)
@@ -842,3 +845,27 @@ async def test_run_from_env_with_scheduling_fires_and_shuts_down_cleanly(
     finally:
         task.cancel()
         await seeder.aclose()
+
+
+def test_the_configured_salience_policy_reaches_both_tool_loop_dispatchers() -> None:
+    """CORTEX_TOOLS_SALIENCE threads to the cortex and to subagents (salience addendum).
+
+    Both run a `stream_tool_loop`, so a repeat has to be refused in delegated work too: a
+    subagent spinning on one call is the same waste as the cortex doing it, and it is the
+    cheaper mistake for a small model to make.
+    """
+    registry = InMemoryToolRegistry(
+        {"read_file": (ToolSpec(name="read_file", description="", parameters={}), _reply_ok)}
+    )
+    policy = ToolsConfig(salience="off").dispatch_policy
+    cortex = build_cortex_tools(registry, (), SystemClock(), policy=policy)
+    subagent = build_subagent_tools(registry, SystemClock(), policy=policy)
+    assert cortex is not None
+    assert subagent is not None
+    call = ToolCall(id="c2", name="read_file", arguments={"path": "a"})
+    already = [[ToolCall(id="c1", name="read_file", arguments={"path": "a"})]]
+    assert (cortex.admits(call, already), subagent.admits(call, already)) == (True, True)
+    on = ToolsConfig().dispatch_policy
+    strict = build_cortex_tools(registry, (), SystemClock(), policy=on)
+    assert strict is not None
+    assert strict.admits(call, already) is False

@@ -52,7 +52,8 @@ Config (pydantic-settings; explicit constructor arguments beat the environment):
   `recall_pool_factor` (4), and `recall_mmr_lambda` (0.5, the MMR relevance-vs-diversity dial) tuning
   knobs (`recency_mmr` reuses the recency and lambda knobs). Validates that
   `pgvector` has both a DSN and an embedder endpoint. Set by `docker/docker-compose.memory.yml`.
-- `ToolsConfig` uses env prefix `CORTEX_TOOLS_`, nested delimiter `__` (ADR-0009 + refinements
+- `ToolsConfig` uses env prefix `CORTEX_TOOLS_`, nested delimiter `__` (`config_tools.py`, split
+  off at `config.py`'s line cap as the third dispatch declaration landed; ADR-0009 + refinements
   addendum): `backend: "none" | "mcp" = "none"` (`CORTEX_TOOLS_BACKEND`); endpoints in one of
   two forms, either the singular `endpoint: str = ""` (`CORTEX_TOOLS_ENDPOINT`, one streamable-http
   MCP URL) or per-sidecar `endpoints: dict[str, str]` (`CORTEX_TOOLS_ENDPOINTS__<name>=<url>`,
@@ -80,6 +81,12 @@ Config (pydantic-settings; explicit constructor arguments beat the environment):
   the one with no confirmation gate ahead of it, whereas `send_email` is deliberately unpriced
   since its ADR-0022 confirmation is the tighter bound. A price outside `1..MAX_TOOL_DISPATCHES`
   fails at boot (free stops bounding the tool; unaffordable means it can never run).
+  `salience: "repeat" | "off" = "repeat"` (`CORTEX_TOOLS_SALIENCE`, ADR-0009 salience addendum)
+  picks which calls a tool loop bothers dispatching: `repeat` refuses a call the loop has already
+  made (once per round, twice per loop), `off` is the unfiltered loop. `salience_policy` maps the
+  string to the core policy object (the `record_tainted_memory` precedent), and `dispatch_policy`
+  bundles all three declarations (`gated` + `cost_policy` + `salience_policy`) into the one
+  `DispatchPolicy` value every dispatcher in the process is built with.
 - `SubagentsConfig` uses env prefix `CORTEX_SUBAGENTS_` (ADR-0010, revised by ADR-0012/0018):
   `backend: "none" | "llamacpp" = "none"` (`CORTEX_SUBAGENTS_BACKEND`), `endpoint` (the CPU
   overflow `llama-server`) **and** `gpu_endpoint` (the GPU one), which are both required when
@@ -245,8 +252,7 @@ The service:
   ledger, per ADR-0012), a Redis `TaskStore`, GPU-first placement with CPU overflow,
   ADR-0010/0012; the runner enforces ADR-0017 via `roster.resolve`; `tools` is the subagent
   dispatcher, pre-assembled at the root by
-  `build_subagent_tools(tool_registry, clock, gated_names=CORTEX_TOOLS_GATED,
-  costs=CORTEX_TOOLS_COSTS)`: the shared
+  `build_subagent_tools(tool_registry, clock, policy=CORTEX_TOOLS_*)`: the shared
   registry wrapped in `UngatedToolRegistry`, so a subagent is never handed a gated/outbound
   tool (ADR-0013 subagent-exclusion addendum), with the user's gated names as the
   dispatcher's authoritative backstop, which `confirmer=None` turns into a hard deny even if
@@ -255,12 +261,13 @@ The service:
   and **schedules** (`build_schedule(config, redis_url, *, store_factory)`, in
   `schedule_builders.py`, ADR-0025, giving the durable `RedisScheduleStore` or `None`; its
   built-ins come from `build_schedule_tools(config, schedules, clock, tasks_enabled=...)`
-  and its firing loop from `build_ticker(config, schedules, clock, spawn_tool=..., body=...)`,
+  and its firing loop from `build_ticker(config, schedules, clock, spawn_tool=..., body=...,
+  policy=...)`,
   started beside `serve` via `start_ticker` (a named task with the death-logging callback)
   and stopped first in the `finally` via `stop_ticker`, with a graceful signal, then a
   `TICKER_STOP_GRACE_S` forced cancel the store's lease covers).
   The cortex's dispatcher is
-  `build_cortex_tools(registry, builtins, clock, confirmer=..., gated_names=..., costs=...)` over the
+  `build_cortex_tools(registry, builtins, clock, confirmer=..., policy=...)` over the
   built-in set `build_builtin_tools(spawn_tool, body, schedule_tools=...)` assembles **once**
   (the one-sequence bundling that keeps the builder under the six-argument ceiling as
   capabilities accumulate, ADR-0025 d7): delegation, the two volume built-ins when a
@@ -270,10 +277,13 @@ The service:
   with the MCP tools via a `CompositeToolRegistry`, or `None` when nothing is enabled (the
   Slice 3 turn path). The volume and schedule built-ins are ungated by default (reversible);
   a user gates any by name in `CORTEX_TOOLS_GATED` (the dispatcher's authoritative backstop)
-  and prices any by name in `CORTEX_TOOLS_COSTS`. The cortex and subagent dispatchers get the
-  prices (both drive a `stream_tool_loop`, and since ADR-0009's turn-wide addendum a spawned
-  subagent's loop spends the *spawning turn's* pool rather than one of its own); the ticker's
-  private spawn dispatcher does not, since it dispatches one call directly and runs no loop.
+  and prices any by name in `CORTEX_TOOLS_COSTS`. All three declarations travel as one
+  `DispatchPolicy`, so the cortex, the subagents, and the ticker are built from the same value
+  and no declaration can reach one and miss another. The prices and the salience rule matter on
+  the two that drive a `stream_tool_loop` (and since ADR-0009's turn-wide addendum a spawned
+  subagent's loop spends the *spawning turn's* pool rather than one of its own, while its
+  repeat history stays its own, per the salience addendum); on the ticker's private spawn
+  dispatcher both are inert, since it dispatches one call directly and runs no loop.
   `run_from_env` hands `serve` an **engine factory** (ADR-0022): each Converse
   stream's `SeamConfirmer` reaches its dispatcher through it, so an untainted gated call (e.g.
   the email sidecar's `send_email`, stamped by the `CORTEX_TOOLS_GATED` overlay in

@@ -16,10 +16,10 @@ from cortex_orchestrator.config import (
     InferenceConfig,
     MemoryConfig,
     SeamServerConfig,
-    ToolsConfig,
 )
 from cortex_orchestrator.config_schedule import ScheduleConfig
 from cortex_orchestrator.config_subagents import SubagentRosterEntry, SubagentsConfig
+from cortex_orchestrator.config_tools import ToolsConfig
 from cortex_orchestrator.confirm import SeamConfirmer
 from cortex_orchestrator.converse import (
     DEFAULT_CONFIRM_TIMEOUT_S,

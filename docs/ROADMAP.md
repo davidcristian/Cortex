@@ -846,8 +846,44 @@ addendum adds `SkipUnavailableToolRegistry` + `CORTEX_TOOLS_ON_UNAVAILABLE=skip`
   so `select = ["ALL"]` needed no new ignore; and nothing in the tree read `cortex_core.__all__`
   (only `cortex_seam`'s own facade test reads its package's list), so dropping it broke no
   contract. Verified green: ruff, ruff format, pyright strict, and the full brain suite at 100%.
-- **Salience policy on the tool loop.** Which calls *deserve* dispatching, as opposed to how
-  many, is still open (ADR-0009 decision 3 / risks).
+- **Salience on the tool loop landed 2026-07-14 ([ADR-0009 salience
+  addendum](adr/ADR-0009-tools-mcp.md)).** The third and last bound of decision 3's rate policy,
+  and the one that asks whether a call is worth making rather than how many or how much. Three
+  wastes were bounded only by the pool of 32: the same call twice in one round (the model chose
+  both before seeing either result, so the second cannot inform anything), the same call every
+  round, and, the one that mattered, **a declined gated call retried**, since the gate consults
+  the `Confirmer` per dispatch and nothing but the budget stopped a model re-emitting a refused
+  `send_email` from putting **up to 32 approval cards** in front of the user for one action.
+  `RepeatSalience` (a pure `SaliencePolicy` seam in `tool_salience.py`, the
+  `HistoryWindow`/`RecallPolicy` pattern) admits a call unless an identical one (same `name` and
+  `arguments`) already ran **in this round**, or already ran **twice in this loop**. The tempting
+  reading of "deserve", a policy that predicts whether a call will help, was rejected outright as
+  a model judgment smuggled into deterministic code. Two rather than one on the asymmetry of the
+  failures: refusing at one denies information (the re-read after a write returns the stale
+  listing), allowing two wastes at most one dispatch, and preferring the benign failure is the
+  ADR-0025 clamp's argument again. **Attempts are counted, not answers**, which an earlier draft
+  had backwards: a gate denial and a declined confirmation are `is_error` results too, so
+  counting successes would have left the card spam this entry exists for completely untouched.
+  The refusal rides the budget's own machinery (dispatcher-issued, audited, model-visible) and
+  is checked **before** the budget is charged, so a repeat costs nothing, and **ahead of the
+  gate**, which is what turns those 32 cards into at most two. **Per loop, not per turn, the
+  opposite of the budget and deliberately**: the pool bounds reach, a resource the turn's
+  subagents share, while a repeat is redundant only against the `working` messages holding its
+  answer, which a sibling cannot see. Two costs this entry did not predict, both real: the
+  ruff argument ceiling made a third declaration impossible as a seventh parameter, so
+  `gated_names`, `costs`, and `salience` became one `DispatchPolicy` (the honest grouping anyway,
+  and headroom for the next one), and `over_budget: bool` became `refusal: DispatchRefusal | None`
+  rather than growing a second parallel boolean. `CORTEX_TOOLS_SALIENCE=off` (`AlwaysSalient`) is
+  the pre-policy loop exactly, but the default is on, because a bound that ships off protects
+  nobody. CI-gated at 100% with twelve guards mutation-proven, including the counterfactual pair
+  (the fixture whose forty repeats cost a pool of two spends and closes that same pool with the
+  policy off). Remaining behind the same seam: **argument identity is structural**, so two
+  spellings of one intent are two calls (normalizing needs the advertised parameter schema at the
+  policy, and the direction is at least the safe one); **a per-round cap on distinct calls**,
+  the one shape neither bound closes, since a round may still append unboundedly many results or
+  refusals to `working` (a context-growth problem, not a reach one, and pre-existing); **a limit
+  knob** if two proves wrong; and **cross-loop salience** for a batch of subagents handed one
+  instruction, which would need a different justification than this policy's.
 - **The turn-wide dispatch budget landed 2026-07-14 ([ADR-0009 turn-wide
   addendum](adr/ADR-0009-tools-mcp.md)).** Both budget addenda sold "one number answers how many
   external calls one turn can make", and delegation made it false: `spent` was a local in
@@ -1389,8 +1425,11 @@ each behind the unchanged `Confirmer`/`ToolDispatcher`/`GatedToolRegistry`/seam 
   name fallback), never model-authored arguments (an argument echo would hand injected content a
   display channel the ADR-0015 guardrail never inspects). Remaining behind the same seams: a wire
   `phase` field if the chip ever needs completion states (a proto + both-stub-trees change);
-  subagent tool-step surfacing (the ADR-0010 progress deferral); and the dispatch rate/salience
-  policy (the ADR-0009 tools-block entry above), all unchanged.
+  and subagent tool-step surfacing (the ADR-0010 progress deferral), both unchanged. The
+  **dispatch rate/salience policy** this entry also listed is now complete: its rate half landed
+  as the budget and cost addenda, and its salience half 2026-07-14 (the ADR-0009 tools-block
+  entry above), which put a refused repeat above the `ToolStep` yield exactly as the budget did,
+  so the chip's "a tool is running now" reading survived a second refusal reason.
 - **The subagent-side authoritative gated-name backstop wired 2026-07-12
   ([ADR-0022 addendum](adr/ADR-0022-email-write-confirmer.md)).** `build_subagents` now receives
   its dispatcher pre-assembled: the composition root calls
