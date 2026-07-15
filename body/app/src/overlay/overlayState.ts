@@ -1,4 +1,10 @@
-import type { SessionMessage, SessionSummary, TransportError, TurnEvent } from "../bridge/types";
+import type {
+  DueReminder,
+  SessionMessage,
+  SessionSummary,
+  TransportError,
+  TurnEvent,
+} from "../bridge/types";
 import { NEW_CHAT_TITLE, adoptSession, deriveTitle, openSession } from "./sessionState";
 
 // The overlay's pure state + reducer (ADR-0011, design/overlay-ux.md §4). Kept out of React so
@@ -48,6 +54,8 @@ export interface OverlayState {
   readonly sheetOpen: boolean;
   /** The approval the current turn is paused on, if any (ADR-0022). */
   readonly pendingConfirm: PendingConfirm | null;
+  /** Fired reminders awaiting delivery, pulled on each open and acked on dismiss (ADR-0025). */
+  readonly reminders: readonly DueReminder[];
   readonly seq: number;
   /**
    * Whether the user has acted on this overlay since mount (opened it, typed, switched, or
@@ -79,6 +87,8 @@ export type Action =
       readonly sessionId: string;
       readonly messages: readonly SessionMessage[];
     }
+  | { readonly kind: "remindersLoaded"; readonly reminders: readonly DueReminder[] }
+  | { readonly kind: "reminderDismissed"; readonly reminderId: string }
   | { readonly kind: "toggleSwitcher" }
   | { readonly kind: "toggleSheet" };
 
@@ -93,6 +103,7 @@ export function createInitialState(sessionId: string): OverlayState {
     switcherOpen: false,
     sheetOpen: false,
     pendingConfirm: null,
+    reminders: [],
     seq: 0,
     touched: false,
   };
@@ -162,6 +173,18 @@ export function reduce(state: OverlayState, action: Action): OverlayState {
       return openSession(state, action.sessionId, action.messages);
     case "adoptSession":
       return adoptSession(state, action.sessionId, action.messages);
+    case "remindersLoaded":
+      // Each open re-reads: the brain is the authority on what is still deliverable, so the
+      // list is replaced wholesale rather than merged (a reminder acked elsewhere leaves).
+      return { ...state, reminders: action.reminders };
+    case "reminderDismissed":
+      // Optimistic: the card goes now and the ack rides the bridge. A lost ack means the
+      // brain still holds it, and the next open surfaces it again (ADR-0025). Filtering an
+      // unknown id is a no-op, so a double-click or a stale card cannot corrupt the list.
+      return {
+        ...state,
+        reminders: state.reminders.filter((r) => r.reminderId !== action.reminderId),
+      };
     case "toggleSwitcher":
       return { ...state, switcherOpen: !state.switcherOpen };
     case "toggleSheet":

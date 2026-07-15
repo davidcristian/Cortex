@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { SessionMessage, SessionSummary } from "../bridge/types";
+import type { DueReminder, SessionMessage, SessionSummary } from "../bridge/types";
 import type { Action } from "./overlayState";
 import { createInitialState, cycleTarget, initialState, isTurnActive, latestReply, reduce } from "./overlayState";
 
@@ -9,6 +9,15 @@ const summary = (sessionId: string): SessionSummary => ({
   title: `title ${sessionId}`,
   preview: `preview ${sessionId}`,
   lastActivityUnixMs: 1000,
+});
+
+const reminder = (reminderId: string): DueReminder => ({
+  reminderId,
+  text: `remember ${reminderId}`,
+  firedAtUnixMs: 1000,
+  recurring: false,
+  tainted: false,
+  sessionId: "s1",
 });
 
 const run = (actions: Action[]) => actions.reduce(reduce, initialState);
@@ -301,6 +310,36 @@ describe("overlayState reducer", () => {
 
   it("createInitialState seeds the session id", () => {
     expect(createInitialState("seed-1").sessionId).toBe("seed-1");
+  });
+
+  it("remindersLoaded replaces the list wholesale, so anything acked elsewhere leaves", () => {
+    const first = reduce(initialState, {
+      kind: "remindersLoaded",
+      reminders: [reminder("r-1"), reminder("r-2")],
+    });
+    expect(first.reminders.map((r) => r.reminderId)).toEqual(["r-1", "r-2"]);
+    const second = reduce(first, { kind: "remindersLoaded", reminders: [reminder("r-3")] });
+    expect(second.reminders.map((r) => r.reminderId)).toEqual(["r-3"]);
+  });
+
+  it("reminderDismissed drops just that card, and an unknown id is a no-op", () => {
+    const loaded = reduce(initialState, {
+      kind: "remindersLoaded",
+      reminders: [reminder("r-1"), reminder("r-2")],
+    });
+    const dismissed = reduce(loaded, { kind: "reminderDismissed", reminderId: "r-1" });
+    expect(dismissed.reminders.map((r) => r.reminderId)).toEqual(["r-2"]);
+    // A double-click or a stale card re-fires the same action; the list must not change.
+    const again = reduce(dismissed, { kind: "reminderDismissed", reminderId: "r-1" });
+    expect(again.reminders.map((r) => r.reminderId)).toEqual(["r-2"]);
+  });
+
+  it("reminders survive the turn and chat actions that clear other surfaces", () => {
+    const loaded = reduce(initialState, { kind: "remindersLoaded", reminders: [reminder("r-1")] });
+    // Delivery is not conversation: a new chat empties messages but keeps what is undelivered.
+    const fresh = reduce(loaded, { kind: "newChat", sessionId: "s2" });
+    expect(fresh.messages).toEqual([]);
+    expect(fresh.reminders.map((r) => r.reminderId)).toEqual(["r-1"]);
   });
 });
 

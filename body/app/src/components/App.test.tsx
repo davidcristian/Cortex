@@ -52,4 +52,31 @@ describe("App", () => {
     fireEvent.mouseDown(stage);
     expect(screen.getByRole("dialog", { hidden: true }).className).not.toContain("open");
   });
+
+  it("surfaces due reminders on summon and acks the one the user dismisses", async () => {
+    const bridge = new FakeBridge();
+    bridge.reminders = [
+      {
+        reminderId: "r-1",
+        text: "Stand-up in 10 minutes",
+        firedAtUnixMs: Date.now() - 60_000,
+        recurring: true,
+        tainted: false,
+        sessionId: "s1",
+      },
+    ];
+    await renderApp(bridge);
+    // Nothing is pulled into a window nobody is looking at (the body sits resident in the tray).
+    expect(bridge.reminderListCalls).toBe(0);
+
+    activate();
+    await act(async () => {});
+    expect(screen.getByText("Stand-up in 10 minutes")).toBeTruthy();
+    expect(screen.getByText("repeats")).toBeTruthy();
+
+    fireEvent.click(screen.getByLabelText("Dismiss reminder"));
+    await act(async () => {});
+    expect(bridge.acks).toEqual(["r-1"]);
+    expect(screen.queryByText("Stand-up in 10 minutes")).toBeNull();
+  });
 });

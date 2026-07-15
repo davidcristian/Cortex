@@ -1056,3 +1056,72 @@ CI-gated at 100% line+region+branch over the existing loopback fake brain, and
 mutation-proven: dropping the `list_due_reminders` retry, adding one to `ack_reminder`,
 and corrupting the row mapping (taint read off the wrong flag) or the ack answer each turn
 a distinct test red.
+
+## Addendum (2026-07-14): the overlay's reminders-on-open surface
+
+The second of the three items the in-slice remainder named, and the one that makes pull
+delivery real: `ListDueReminders`/`AckReminder` now have a consumer. The `BrainBridge` port
+grows `listDueReminders()` / `ackReminder(id)` (plus a `DueReminder` mirror of the wire row),
+two thin Tauri commands in `src-tauri/src/reminders.rs` implement them over the resilient
+transport, and the overlay fetches on open, renders a card stack above the history, and acks
+what the user dismisses. Only the body-side `Notify` OS trait (push delivery) remains.
+Decisions:
+
+- **The fetch fires on the rising edge of visibility, not on mount and not per turn.**
+  The body starts hidden in the tray and stays resident, so a mount-time fetch would deliver
+  reminders to a window nobody is looking at, and the ack-on-dismiss contract would then be
+  describing a card that was never seen. A latch on `mode !== "hidden"` that re-arms on hide
+  gives exactly one read per summon, which is what "surfaced when the overlay next opens"
+  (decision 5) says. Re-opening the panel from the orb mid-turn does not refetch, because the
+  overlay never became hidden in between.
+- **Dismissal is optimistic and a failed ack is never retried.** The card leaves the moment
+  the user dismisses it and the ack rides the bridge unawaited, so a slow or unreachable brain
+  cannot make the gesture feel stuck. If that ack is lost the reminder stays deliverable and
+  the next open surfaces it again, which is the bias this slice already chose (a repeated
+  reminder beats a lost one). This is also the layer that pays for the transport addendum's
+  decision to leave `ack_reminder` unretried: the recovery is a re-read on the next open
+  rather than a retry, so a lost reply can never be mistaken for a stale dismissal.
+- **The list lives in the reducer, not in component state.** A dismissal has to survive
+  re-renders and mode changes, and every branchy overlay decision is gated in `overlayState`
+  by construction (ADR-0011). Two actions cover it: `remindersLoaded` replaces the list
+  wholesale (the brain is the authority on each open) and `reminderDismissed` filters one id
+  out. Both are total: an unknown id is a no-op, so a double-click cannot corrupt the list.
+- **The pull loop is its own hook.** `useReminders(bridge, mode, dispatch)` owns the latch and
+  the ack; `useOverlay` composes it and re-exports `dismissReminder` on the controller. The
+  responsibility line is the same one `sessionState.ts` drew: `useOverlay` owns the turn and
+  the chat list, this owns the delivery loop, and the line cap was going to force the split at
+  the next overlay feature regardless.
+- **Reminder text is rendered inert, and deliberately never linkified.** It is a plain text
+  node with an `untrusted source` badge when `tainted` is set (the wire bit exists for exactly
+  this, decision 5); the browser pass corrected the badge's own treatment, since a dashed
+  neutral pill (the first attempt, reasoning that a provenance mark is not a working affordance
+  and so may not touch the accent) turned out to read as just another pill beside `repeats`. It
+  now also carries the error bubble's tint at a lower alpha, which is the one non-accent
+  "wait to be seen" colour the design already has, and keeps the dashed border so the signal
+  does not rest on hue alone. The badge is not decoration: reminder text is the one string the overlay
+  displays that **never passes the ADR-0015 output guardrail**, because it is not reply text and
+  never streams through an `OutputFilter`. A URL inside it has therefore had no redaction pass,
+  which is why nothing in the card may ever become a clickable link. The overlay renders no
+  markup anywhere today, so this costs no code; it is written down because the invariant is
+  invisible in the diff that would break it.
+- **A recurring reminder says so on its card.** Acking clears this occurrence and the series
+  re-arms (decision 2), so a card that looked identical to a one-shot would make dismissal read
+  as cancellation. The word `repeats` is the whole fix; cancelling a series stays a conversation
+  with the cortex (`cancel_scheduled`), never a button here, since this surface is delivery and
+  has no gated-write path.
+- **A failed list leaves the previous cards in place**, matching the chat list's rule exactly:
+  a transient brain outage should not silently empty a surface that says "you have things
+  waiting". The resilient transport (ADR-0024) has already retried the read with backoff by the
+  time this `.catch` runs.
+
+CI-gated at 100% over the fake bridge (fetch-on-open latch including the re-arm and the
+no-refetch-from-orb case, load failure, optimistic dismissal, failed ack, unknown-id no-op,
+taint badge, recurring hint, empty state), with ten guards mutation-proven. **Browser-validated
+2026-07-14** in headless Chromium against the demo bridge, both themes: the summon renders the
+stack, dismissing one card removes exactly it, a hide-and-re-summon re-pulls without the acked
+one (the latch and the ack round trip end to end), the cards contain **zero anchors** (the
+inert-text invariant, asserted in the live DOM rather than only in jsdom), and an eleven-card
+probe confirmed the stack scrolls itself at its `30vh` cap instead of pushing the composer out
+of the panel. The Tauri command pair is the ungated host glue (the `sessions.rs` precedent),
+type-checked on Linux but validated on Windows; the real hotkey to overlay path stays
+Host-Windows.

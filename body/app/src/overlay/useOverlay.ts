@@ -8,6 +8,7 @@ import {
   isTurnActive,
   reduce,
 } from "./overlayState";
+import { useReminders } from "./useReminders";
 
 const PREVIEW_MS = 6000;
 const SESSION_LIST_LIMIT = 50;
@@ -29,6 +30,8 @@ export interface OverlayController {
   previewHover(hovering: boolean): void;
   /** Answer the pending approval (ADR-0022); stale/duplicate answers are no-ops. */
   respondConfirm(confirmId: string, approved: boolean): void;
+  /** Dismiss a delivered reminder: the card leaves and the ack rides the bridge (ADR-0025). */
+  dismissReminder(reminderId: string): void;
 }
 
 /**
@@ -46,6 +49,8 @@ export function useOverlay(
   );
   const cancelRef = useRef<Cancellation | null>(null);
   const [previewHovered, setPreviewHovered] = useState(false);
+  // Reminder pull delivery rides its own hook over the same reducer (ADR-0025).
+  const dismissReminder = useReminders(bridge, state.mode, dispatch);
 
   const refreshSessions = useCallback(() => {
     bridge
@@ -217,5 +222,6 @@ export function useOverlay(
     toggleSheet,
     previewHover,
     respondConfirm,
+    dismissReminder,
   };
 }

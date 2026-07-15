@@ -5,6 +5,7 @@ import { Composer } from "./Composer";
 import { ConfirmCard } from "./ConfirmCard";
 import { ChatsIcon, DownArrowKey, PencilIcon, ReturnKey, ShiftKey, TuckIcon, UpArrowKey } from "./icons";
 import { Message } from "./Message";
+import { Reminders } from "./Reminders";
 import { RingMark } from "./RingMark";
 import { SessionList } from "./SessionList";
 import { ShortcutSheet } from "./ShortcutSheet";
@@ -23,6 +24,7 @@ interface PanelProps {
   readonly onToggleSheet: () => void;
   readonly onSelectSession: (sessionId: string) => void;
   readonly onRespondConfirm: (confirmId: string, approved: boolean) => void;
+  readonly onDismissReminder: (reminderId: string) => void;
 }
 
 /** How close to the bottom (px) still counts as "reading the tail" for auto-scroll. */
@@ -48,6 +50,7 @@ export function Panel({
   onToggleSheet,
   onSelectSession,
   onRespondConfirm,
+  onDismissReminder,
 }: PanelProps) {
   const closed = state.mode === "orb" ? " to-orb" : "";
   // The history is always mounted with the panel, so the ref is set before any effect runs.
@@ -98,6 +101,9 @@ export function Panel({
           currentId={state.sessionId}
           onSelect={onSelectSession}
         />
+      ) : null}
+      {state.reminders.length > 0 ? (
+        <Reminders reminders={state.reminders} onDismiss={onDismissReminder} />
       ) : null}
       <div className="history" ref={historyRef} onScroll={onHistoryScroll}>
         {state.messages.length === 0 ? (

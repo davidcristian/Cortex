@@ -1,6 +1,7 @@
 import type {
   BrainBridge,
   Cancellation,
+  DueReminder,
   SessionMessage,
   SessionSummary,
   TransportError,
@@ -30,6 +31,15 @@ export class FakeBridge implements BrainBridge {
   messagesFail = false;
   /** When set, `respondConfirm` rejects (a lost answer, so deny-by-timeout brain-side). */
   confirmFails = false;
+  /** What `listDueReminders` resolves with (assignable by a test; ADR-0025). */
+  reminders: readonly DueReminder[] = [];
+  /** How many times the overlay pulled the due list (proves the open latch fires once). */
+  reminderListCalls = 0;
+  /** Reminder ids acked so far, in order. */
+  readonly acks: string[] = [];
+  /** When set, the matching reminder call rejects (an unreachable brain). */
+  remindersFail = false;
+  ackFails = false;
 
   converse(sessionId: string, text: string, sink: TurnSink): Cancellation {
     this.calls.push({ sessionId, text });
@@ -52,6 +62,25 @@ export class FakeBridge implements BrainBridge {
       return Promise.reject(new Error("history failed"));
     }
     return Promise.resolve(this.messagesBySession[sessionId] ?? []);
+  }
+
+  listDueReminders(): Promise<readonly DueReminder[]> {
+    this.reminderListCalls += 1;
+    if (this.remindersFail) {
+      return Promise.reject(new Error("reminders failed"));
+    }
+    return Promise.resolve(this.reminders);
+  }
+
+  // Answers membership rather than a fixed `true`, so the fake reports "there was nothing to
+  // clear" exactly where the brain would (an unknown or already-dismissed id). The table is not
+  // mutated: what is still deliverable is the test's to say, as it is the brain's in production.
+  ackReminder(reminderId: string): Promise<boolean> {
+    this.acks.push(reminderId);
+    if (this.ackFails) {
+      return Promise.reject(new Error("ack failed"));
+    }
+    return Promise.resolve(this.reminders.some((r) => r.reminderId === reminderId));
   }
 
   respondConfirm(confirmId: string, approved: boolean): Promise<void> {
