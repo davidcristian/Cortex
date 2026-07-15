@@ -60,6 +60,7 @@ message ServerEvent {
     TurnComplete turn_complete = 4;
     SeamError error = 5;
     ConfirmRequest confirm_request = 6; // a gated tool call awaits user approval (ADR-0022)
+    ConfirmResolved confirm_resolved = 7; // the brain stopped waiting for an answer (ADR-0022)
   }
 }
 
@@ -83,6 +84,17 @@ message ConfirmRequest {
 message ConfirmResponse {
   string confirm_id = 1;      // echoes the request it answers
   bool approved = 2;
+}
+
+// A ConfirmRequest the brain stopped waiting on, so the overlay can close a card the
+// user can no longer answer (ADR-0022 resolution addendum). Emitted ONLY for endings
+// the client cannot already know: the confirm timeout, and client input half-closing.
+// Never for the user's own answer (the client authored it), never for a cancelled or
+// torn-down turn (its terminal event closes the card), and never for a call refused
+// after half-close (no request went out, so no card exists).
+message ConfirmResolved {
+  string confirm_id = 1;      // which ConfirmRequest ended
+  string outcome = 2;         // "timeout" | "unavailable"; explains, never authorizes
 }
 
 message HealthRequest {}

@@ -323,6 +323,7 @@ without a brain; `overlay-ux.md` gains the card's spec.
 - Richer send shapes behind the same tool name: **cc/bcc/HTML landed 2026-07-13** (addendum
   below); **attachments remain** (they need a bytes-transport decision, recorded there).
 - A structured confirm-resolution event so the overlay can close a stale card exactly.
+  **Landed 2026-07-14** (addendum below).
 - Trust (as opposed to gating) overlays for remote tools. Still nothing needs one.
 - Batching / per-tool session allowlists against confirmation fatigue.
 - Salience of `ToolActivity`: **landed 2026-07-12** end to end (the shared tool loop emits a
@@ -435,3 +436,90 @@ file-read capability to the email sidecar, versus a base64 blob in the JSON tool
 bloats the call and the audit line). Chosen deliberately as a separate increment so this slice
 stays a pure header/body composition change with no new capability surface. It lands as a new
 `EmailDraft` field behind this same seam.
+
+## Addendum (2026-07-14): the structured confirm-resolution event
+
+The deferred "structured confirm-resolution event so the overlay can close a stale card
+exactly" lands. Until now a `ConfirmRequest` had exactly one ending the overlay could see:
+the user answering it. The brain's *own* endings were invisible on the wire, so the card
+stayed interactive until the turn's terminal event cleared it. That is this ADR's
+approve-after-timeout risk seen from the overlay: at second 121 the user clicks Approve on a
+question the brain answered for them at second 120, the stale id is ignored, and the card
+leaves looking exactly as though the click did something.
+
+### 1. The event, and the two endings it reports
+
+```proto
+message ServerEvent { oneof event { … ConfirmResolved confirm_resolved = 7; } }
+
+message ConfirmResolved {
+  string confirm_id = 1;  // which ConfirmRequest ended
+  string outcome = 2;     // "timeout" | "unavailable"
+}
+```
+
+**It is emitted only for endings the client cannot already know**, which is what makes it a
+closing signal rather than a chatty echo:
+
+| how the confirm ended | emitted? | why |
+|---|---|---|
+| the user answered (approve or deny) | no | the client authored that fact and cleared its own card when it sent the answer |
+| `CORTEX_SEAM_CONFIRM_TIMEOUT_S` elapsed | **yes**, `"timeout"` | the whole gap: the brain denied and the card is now a lie |
+| client input half-closed (`close`) | **yes**, `"unavailable"` | no answer can ever arrive, so the question is void |
+| the turn was cancelled or the stream died | no | the turn is dying and its terminal event (or the stream's death) already closes the card; `endTurn` in the reducer has always done this |
+| `confirm` called after `close` | no | it emitted no request either, so there is no card to close |
+
+That table is the whole contract. The overlay needs no rule beyond "a resolution for the
+card I am showing closes it", and every path that does *not* emit is one the overlay already
+handles, so nothing regresses to a timeout-shaped hole.
+
+**`outcome` is a string, not a proto enum.** An enum would buy a typed value at the price of
+an unknown-value branch on both sides of any version skew, for a field whose only job is to
+explain. This seam already settled that trade the other way for `SeamError.code` and
+`StatusUpdate.state`, and the Rust mirror keeps `TurnEvent::Status{state}`'s shape: the
+vocabulary is documented at the message and passed through as text.
+
+**The overlay closes the card and renders nothing else.** The explanation surface already
+exists and is the model's own reply: `USER_DECLINED_MSG` tells the model to relay the
+declined action to the user, so a resolved card pinned beside that sentence would be a second
+account of one fact, which the overlay design language spends nothing on. `outcome`
+nonetheless rides the wire documented, so a later surface (a badge on the reply, an audit
+view) needs no seam change. That is the `DueReminder.session_id` precedent from ADR-0025,
+where the field shipped one slice before the control that used it.
+
+### 2. It rides the control path, for the request's reason
+
+The resolution is emitted from inside `SeamConfirmer`, while the turn task is still suspended
+inside `dispatch`, which is exactly where the request is emitted. So it takes the same control
+path (`put_nowait`, no data credit): acquiring a credit there could deadlock against a stalled
+consumer. The over-credit accounting in `_ConverseStream.events` therefore widens from one to
+at most two per confirmation, still bounded by "at most one confirmation is outstanding per
+stream" and still single digits of drift over a session, never unbounded.
+
+**Version skew is the `confirm_request` case unchanged** (decision 1): an old body drops the
+unknown oneof member, decodes an empty `ServerEvent`, and fails the turn with
+`TransportError::Protocol`. Both halves ship from one tree, and each commit keeps both green.
+
+### 3. The overlay: one reducer case, and a rename that pays for itself
+
+`{kind: "confirmResolved"}` was the reducer action for *the user answering*. It is now
+`confirmAnswered`, freeing `confirmResolved` for the brain's event and making both names say
+which side acted. The new case closes the card only when the id matches the one on screen; a
+resolution for anything else is a no-op, the same stale-id property every other confirm path
+has. Two behaviours then fall out of the card being gone rather than needing their own code:
+the ghost click cannot reach the bridge at all (`respondConfirm` already refuses an answer
+that is not the live question), and the explicit deny each turn-ending action sends
+(`stop` / `dismiss` / `newChat` / `openSession`) is skipped for a resolved confirm, keeping
+the answer the user never gave off the wire.
+
+### 4. Validation
+
+- **CI (100%):** the confirmer emits on timeout and on close, and stays silent for an
+  answered confirm, a never-asked one (post-`close`), and a cancelled one; `converse` carries
+  the resolution to the wire ahead of the turn's remaining deltas; the adapter maps
+  `ConfirmResolved` to a non-terminal `TurnEvent::ConfirmResolved` against the scripted fake
+  brain; the reducer closes on a matching id and no-ops otherwise.
+- **Agent, in a browser:** the demo bridge scripts a confirm that times out, so the card
+  closing on its own is drivable without a brain.
+- **User, Windows host:** unchanged. The Tauri IPC transport carries one more `WireEvent`
+  variant through the same serde mirror.

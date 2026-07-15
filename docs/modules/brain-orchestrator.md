@@ -157,7 +157,11 @@ The service:
   and awaits the matching `ConfirmResponse` under `timeout_s`. Timeout, `close()` (client
   half-close, so no answer can ever arrive), and cancellation (turn/stream death) all deny;
   unknown or repeated `confirm_id`s resolve nothing. Pending state is one awaiting coroutine, with
-  nothing persisted, nothing survives the turn (the one hard rule).
+  nothing persisted, nothing survives the turn (the one hard rule). The first two denials also
+  emit `ServerEvent.confirm_resolved` on the same control path (`OUTCOME_TIMEOUT` /
+  `OUTCOME_UNAVAILABLE`), so the overlay can close a card it can no longer answer; an answered
+  confirm, a cancelled one, and an ask refused after `close` (which emitted no request) emit
+  none (ADR-0022 resolution addendum).
 - `DEFAULT_MAX_BUFFERED_EVENTS = 256` is the default Converse buffer bound
   (`SeamServerConfig.converse_buffer` feeds the deployed value through `create_server`).
 - `DEFAULT_CONFIRM_TIMEOUT_S = 120.0` is the default confirm wait
@@ -313,7 +317,9 @@ The service:
 - **The confirm exchange** (ADR-0022): a gated call mid-turn emits `ConfirmRequest` and
   suspends inside the dispatcher until the pump routes the matching `confirm_response`
   client event, the timeout denies, or input ends (`SeamConfirmer.close()` denies pending
-  and future asks immediately, so a draining turn never hangs out the timeout).
+  and future asks immediately, so a draining turn never hangs out the timeout). A denial the
+  client did not author (timeout, input ended) is reported as `ConfirmResolved{confirm_id,
+  outcome}` before the turn resumes, so the card closes ahead of the declined reply.
 - **Bounded backpressure** (the Slice-3 deferral, landed 2026-07-03): at most
   `converse_buffer` events sit unread per stream. The turn's data path holds a credit
   per buffered event (returned on dequeue), so a consumer that stops reading suspends

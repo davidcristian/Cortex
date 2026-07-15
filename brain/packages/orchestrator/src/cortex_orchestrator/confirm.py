@@ -10,7 +10,13 @@ The request rides the stream's **control path** (the emit callback is the queue'
 the turn task is suspended *inside* the dispatcher awaiting the answer, so a credit-acquired
 put could deadlock against a stalled consumer. At most one confirmation is outstanding per
 stream (turns are sequential, the tool loop is sequential, subagents cannot confirm per
-ADR-0013), so the unbounded queue grows by at most one control event.
+ADR-0013), so the unbounded queue grows by at most two control events per confirmation.
+
+The second is ``ConfirmResolved`` (ADR-0022 resolution addendum), emitted on the same path
+for the two endings the overlay cannot see for itself: the timeout, and client input ending.
+An answered request emits none (the client authored that answer and closed its own card), a
+cancelled one emits none (the turn is dying, and its terminal event closes the card), and an
+ask refused after ``close`` emits none because it emitted no request either.
 """
 
 import asyncio
@@ -21,9 +27,16 @@ from collections.abc import Callable
 
 from cortex_core import ConfirmationRequest
 from cortex_seam import ConfirmRequest as ConfirmRequestPb
+from cortex_seam import ConfirmResolved as ConfirmResolvedPb
 from cortex_seam import ServerEvent
 
 _logger = logging.getLogger(__name__)
+
+# ConfirmResolved.outcome values: part of the seam contract, like SeamError.code.
+# The brain waited out its deadline and denied on the user's behalf:
+OUTCOME_TIMEOUT = "timeout"
+# Client input ended, so no answer could ever arrive and the question is void:
+OUTCOME_UNAVAILABLE = "unavailable"
 
 
 class SeamConfirmer:
@@ -67,6 +80,9 @@ class SeamConfirmer:
                 return await future
         except TimeoutError:
             _logger.info("confirmation timed out; denying", extra={"tool": request.tool_name})
+            # Tell the overlay before the turn resumes, so the card closes ahead of the
+            # model's "declined" reply instead of staying clickable behind it.
+            self._resolved(confirm_id, OUTCOME_TIMEOUT)
             return False
         finally:
             # Runs on answer, timeout, and cancellation alike: once deregistered, a late
@@ -86,9 +102,18 @@ class SeamConfirmer:
 
         Idempotent; called when the request stream half-closes or the pump dies, because
         no answer can ever arrive after that. A turn still draining afterwards sees its
-        gated calls declined instead of hanging out the timeout.
+        gated calls declined instead of hanging out the timeout. Each request that was
+        actually asked is resolved on the wire too: the half-close ends the client's
+        ability to answer, not the server's ability to report (the stream still drains).
         """
         self._closed = True
-        for future in self._pending.values():
+        for confirm_id, future in self._pending.items():
             if not future.done():
+                self._resolved(confirm_id, OUTCOME_UNAVAILABLE)
                 future.set_result(False)
+
+    def _resolved(self, confirm_id: str, outcome: str) -> None:
+        """Report an ending the client cannot see, so it can close the card (ADR-0022)."""
+        self._emit(
+            ServerEvent(confirm_resolved=ConfirmResolvedPb(confirm_id=confirm_id, outcome=outcome))
+        )

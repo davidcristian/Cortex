@@ -8,8 +8,10 @@
 //! confirm surface keeps the pre-confirm one-shot shape). The turn is terminal
 //! on `TurnComplete` (→ [`TurnEvent::Complete`]) or `SeamError` (→
 //! [`TurnEvent::Failed`] means the brain reported a turn error, the connection is
-//! fine); a mid-turn `ConfirmRequest` (→ [`TurnEvent::ConfirmRequest`]) is
-//! non-terminal. A stream that ends without a terminal event, or an empty
+//! fine); a mid-turn `ConfirmRequest` (→ [`TurnEvent::ConfirmRequest`]) and the
+//! `ConfirmResolved` that ends one the caller never answered (→
+//! [`TurnEvent::ConfirmResolved`]) are both non-terminal. A stream that ends
+//! without a terminal event, or an empty
 //! `ServerEvent`, is a [`TransportError::Protocol`]; a non-OK gRPC status maps
 //! the same way `health` does (via [`crate::status::status_to_error`]).
 
@@ -75,6 +77,13 @@ fn map_event(event: ServerEvent) -> (Result<TurnEvent, TransportError>, bool) {
                 tool_name: request.tool_name,
                 arguments_json: request.arguments_json,
                 reason: request.reason,
+            }),
+            false,
+        ),
+        Some(server_event::Event::ConfirmResolved(resolved)) => (
+            Ok(TurnEvent::ConfirmResolved {
+                confirm_id: resolved.confirm_id,
+                outcome: resolved.outcome,
             }),
             false,
         ),

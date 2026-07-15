@@ -95,6 +95,20 @@ pub enum TurnEvent {
         /// Why confirmation is required; shown to the user verbatim.
         reason: String,
     },
+    /// A [`TurnEvent::ConfirmRequest`] the brain stopped waiting on (proto
+    /// `ConfirmResolved`, ADR-0022 resolution addendum); **non-terminal**. It
+    /// arrives only for endings the caller cannot already know, namely the
+    /// brain's confirm timeout and its input stream half-closing, so a surface
+    /// showing the question can close it instead of leaving it answerable after
+    /// the brain has answered it. The user's own answer is never echoed back,
+    /// and a turn that dies is closed by its terminal event instead.
+    ConfirmResolved {
+        /// Which [`TurnEvent::ConfirmRequest`] ended.
+        confirm_id: String,
+        /// Why the wait ended: `"timeout"` or `"unavailable"`. It explains, and
+        /// never authorizes: every outcome here means the gated call did not run.
+        outcome: String,
+    },
     /// The turn finished successfully (proto `TurnComplete`); terminal.
     Complete {
         /// Server-assigned turn id.

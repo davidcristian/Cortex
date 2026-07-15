@@ -136,7 +136,9 @@ export function useOverlay(
   // the request stream in the Tauri embedding, so a mid-turn confirm would otherwise sit
   // pending brain-side until its timeout (a zombie turn). Every turn-ending action therefore
   // sends an explicit deny for a still-pending confirm first, resolving it immediately
-  // (fail-closed all the same, since the user did not approve). ADR-0022.
+  // (fail-closed all the same, since the user did not approve). A confirm the brain already
+  // resolved is no longer pending, so this sends nothing: the answer the user never gave
+  // stays off the wire. ADR-0022.
   const denyPendingConfirm = useCallback(() => {
     const pending = state.pendingConfirm;
     if (pending !== null) {
@@ -162,7 +164,7 @@ export function useOverlay(
       bridge.respondConfirm(confirmId, approved).catch(() => {
         // A lost answer is non-fatal. The brain denies by timeout (fail-closed).
       });
-      dispatch({ kind: "confirmResolved", approved });
+      dispatch({ kind: "confirmAnswered", approved });
     },
     [state.pendingConfirm, bridge],
   );

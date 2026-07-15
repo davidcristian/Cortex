@@ -41,6 +41,7 @@ enum WireEvent {
     ToolActivity { tool_name: String, summary: String },
     Status { state: String, detail: String },
     ConfirmRequest { confirm_id: String, tool_name: String, arguments_json: String, reason: String },
+    ConfirmResolved { confirm_id: String, outcome: String },
     Complete { turn_id: String },
     Failed { code: String, message: String },
 }
@@ -62,6 +63,9 @@ impl From<TurnEvent> for WireEvent {
             TurnEvent::Status { state, detail } => Self::Status { state, detail },
             TurnEvent::ConfirmRequest { confirm_id, tool_name, arguments_json, reason } => {
                 Self::ConfirmRequest { confirm_id, tool_name, arguments_json, reason }
+            }
+            TurnEvent::ConfirmResolved { confirm_id, outcome } => {
+                Self::ConfirmResolved { confirm_id, outcome }
             }
             TurnEvent::Complete { turn_id } => Self::Complete { turn_id },
             TurnEvent::Failed { code, message } => Self::Failed { code, message },

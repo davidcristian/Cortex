@@ -24,6 +24,8 @@ Stream contract (proto/body.proto `BrainService.Converse`):
 - A gated tool call mid-turn emits `ConfirmRequest` and suspends until the matching
   `ConfirmResponse` arrives (ADR-0022, `confirm.py`); timeout, half-close, `Cancel`,
   and stream teardown all resolve it as a denial. Fail-closed in every direction.
+  The two denials the client cannot see coming (timeout, half-close) also emit a
+  `ConfirmResolved`, so the overlay closes a card that can no longer be answered.
 - Engine/store failures become exactly one terminal `SeamError{code, message}`
   event, after which the stream ends cleanly. No exception ever escapes to gRPC.
 """
@@ -137,9 +139,11 @@ class _ConverseStream:
             while (event := await self._out.get()) is not None:
                 # Return the data credit on dequeue. Control events never acquired one, so
                 # this over-credits: by one terminally for a SeamError (harmless, as no
-                # further turn starts), and by one per ConfirmRequest on a live stream
-                # (accepted because at most one is outstanding at a time, so the buffer bound
-                # drifts by single digits over a session, never unbounded; ADR-0022).
+                # further turn starts), and by up to two per confirmation on a live stream
+                # (the ConfirmRequest, plus a ConfirmResolved when the brain ends the wait
+                # itself; accepted because at most one confirmation is outstanding at a time,
+                # so the buffer bound drifts by single digits over a session, never
+                # unbounded; ADR-0022).
                 self._credits.release()
                 yield event
         finally:
