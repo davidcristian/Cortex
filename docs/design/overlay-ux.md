@@ -176,7 +176,11 @@ appears. It is the working affordance that runs the action; Deny stays neutral. 
 user-declined result the model relays; either way the card leaves immediately (a second click is
 a no-op). Everything else is a deny by **fail-closed** construction: dismissing, stopping the
 turn, switching chats, or simply walking away all drop or abandon the question, and the brain
-denies on its own timeout. Nothing ever runs without an explicit Approve. Two rules carry over
+denies on its own timeout. **A question the brain has closed leaves the screen too**: when it
+stops waiting (its timeout, or its input stream ending) it says so, and the card goes without
+waiting for the turn to end, because a card that can no longer be answered is a lie and a click
+on it would look like it did something. The explanation is the reply itself, which resumes
+saying the action was not performed; the card does not linger to repeat it. Nothing ever runs without an explicit Approve. Two rules carry over
 from the machine above: a confirm arriving **while minimized** surfaces the preview exactly like
 a completed turn, but the preview **does not auto-fade** while the question is open ("errors wait
 to be seen" extends to questions, so the countdown starts once it resolves); and only a **live**

@@ -10,9 +10,11 @@
 //! (→ `Rpc`), and the confirm round-trip (ADR-0022): a mid-turn
 //! `ConfirmRequest` (→ non-terminal `TurnEvent::ConfirmRequest`) answered by a
 //! decision the client relays as a `confirm_response` on the still-open
-//! request stream (approve and deny), plus the half-close of an ended/empty
-//! decisions stream (the pre-8.8 one-shot shape). The `Connection` mapping is
-//! shared with `health` and covered in `tests/client.rs`.
+//! request stream (approve and deny), a `ConfirmResolved` for the confirm the
+//! caller never answered (→ non-terminal `TurnEvent::ConfirmResolved`), plus the
+//! half-close of an ended/empty decisions stream (the pre-8.8 one-shot shape).
+//! The `Connection` mapping is shared with `health` and covered in
+//! `tests/client.rs`.
 
 use std::net::SocketAddr;
 use std::pin::Pin;
@@ -21,10 +23,11 @@ use body_core::{BrainTransport, ConfirmDecision, TransportError, TurnEvent};
 use body_rpc::BrainSeamClient;
 use body_rpc::generated::brain_service_server::{BrainService, BrainServiceServer};
 use body_rpc::generated::{
-    AckReminderReply, AckReminderRequest, ClientEvent, ConfirmRequest, GetSessionMessagesReply,
-    GetSessionMessagesRequest, HealthReply, HealthRequest, ListDueRemindersReply,
-    ListDueRemindersRequest, ListSessionsReply, ListSessionsRequest, SeamError, ServerEvent,
-    StatusUpdate, TextDelta, ToolActivity, TurnComplete, client_event, server_event,
+    AckReminderReply, AckReminderRequest, ClientEvent, ConfirmRequest, ConfirmResolved,
+    GetSessionMessagesReply, GetSessionMessagesRequest, HealthReply, HealthRequest,
+    ListDueRemindersReply, ListDueRemindersRequest, ListSessionsReply, ListSessionsRequest,
+    SeamError, ServerEvent, StatusUpdate, TextDelta, ToolActivity, TurnComplete, client_event,
+    server_event,
 };
 use tokio::net::TcpListener;
 use tokio_stream::wrappers::TcpListenerStream;
@@ -53,6 +56,10 @@ enum Script {
     /// `approved` value, proving the client kept its sender open and relayed
     /// the caller's decision (ADR-0022). Then echo the verdict and complete.
     Confirm { approved: bool },
+    /// Read the user turn, emit a `ConfirmRequest`, then end the wait without any
+    /// answer, as the brain's confirm timeout does: `ConfirmResolved{timeout}`,
+    /// the declined turn's reply, and `TurnComplete` (ADR-0022 addendum).
+    ConfirmTimeout,
     /// Read the user turn, then assert the inbound stream half-closes (ends)
     /// in the pre-8.8 shape when the caller's decisions stream is empty, then
     /// complete normally.
@@ -190,6 +197,31 @@ impl BrainService for FakeBrain {
             Script::EmptyEvent => vec![Ok(ServerEvent { event: None })],
             Script::EarlyClose => vec![Ok(delta("hi"))],
             Script::MidStreamError => vec![Ok(delta("hi")), Err(Status::internal("boom"))],
+            Script::ConfirmTimeout => {
+                let _ = read_user_turn(&mut inbound).await?;
+                vec![
+                    Ok(ServerEvent {
+                        event: Some(server_event::Event::ConfirmRequest(ConfirmRequest {
+                            confirm_id: String::from("confirm-9"),
+                            tool_name: String::from("send_email"),
+                            arguments_json: String::from("{\"to\":\"x@y\"}"),
+                            reason: String::from("outbound and irreversible"),
+                        })),
+                    }),
+                    Ok(ServerEvent {
+                        event: Some(server_event::Event::ConfirmResolved(ConfirmResolved {
+                            confirm_id: String::from("confirm-9"),
+                            outcome: String::from("timeout"),
+                        })),
+                    }),
+                    Ok(delta("not sent")),
+                    Ok(ServerEvent {
+                        event: Some(server_event::Event::TurnComplete(TurnComplete {
+                            turn_id: String::from("turn-timeout"),
+                        })),
+                    }),
+                ]
+            }
             Script::HalfClose => {
                 let _ = read_user_turn(&mut inbound).await?;
                 match read_client_event(&mut inbound).await? {
@@ -461,6 +493,41 @@ async fn denied_confirm_round_trips_over_the_open_request_stream() {
             TurnEvent::Delta(String::from("verdict:false")),
             TurnEvent::Complete {
                 turn_id: String::from("turn-confirm"),
+            },
+        ],
+    );
+}
+
+#[tokio::test]
+async fn an_unanswered_confirm_resolves_mid_turn_without_ending_it() {
+    // The overlay's timeout case (ADR-0022 addendum): the brain answers for the user and
+    // says so, so the caller can close the card. The resolution is non-terminal, which is
+    // what this vector proves: the turn's reply and TurnComplete still arrive after it.
+    let events = run_turn(
+        Script::ConfirmTimeout,
+        "s",
+        "send it",
+        tokio_stream::empty(),
+    )
+    .await
+    .unwrap();
+    let events: Vec<TurnEvent> = events.into_iter().map(Result::unwrap).collect();
+    assert_eq!(
+        events,
+        vec![
+            TurnEvent::ConfirmRequest {
+                confirm_id: String::from("confirm-9"),
+                tool_name: String::from("send_email"),
+                arguments_json: String::from("{\"to\":\"x@y\"}"),
+                reason: String::from("outbound and irreversible"),
+            },
+            TurnEvent::ConfirmResolved {
+                confirm_id: String::from("confirm-9"),
+                outcome: String::from("timeout"),
+            },
+            TurnEvent::Delta(String::from("not sent")),
+            TurnEvent::Complete {
+                turn_id: String::from("turn-timeout"),
             },
         ],
     );

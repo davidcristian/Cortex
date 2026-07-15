@@ -36,7 +36,10 @@ decorator + `Sleeper` port that add bounded-retry resilience over it (ADR-0024),
   (`Clone`, `Eq`, `Debug`): `Delta(String)` (assistant text) | `ToolActivity { tool_name,
   summary }` | `Status { state, detail }` | `ConfirmRequest { confirm_id, tool_name,
   arguments_json, reason }` (a gated tool call awaits the user's approval, ADR-0022;
-  **non-terminal**, answered via the `decisions` stream) | `Complete { turn_id }` (terminal) |
+  **non-terminal**, answered via the `decisions` stream) | `ConfirmResolved { confirm_id,
+  outcome }` (the brain stopped waiting on one, so a surface showing it can close it;
+  **non-terminal**, and emitted only for endings the caller cannot know: `"timeout"` and
+  `"unavailable"`, never the caller's own answer) | `Complete { turn_id }` (terminal) |
   `Failed { code, message }` (brain-reported turn error; terminal, since the connection is fine).
 - `ConfirmDecision { confirm_id, approved }` is the user's answer to a `ConfirmRequest`
   (`Clone`, `Eq`, `Debug`; ADR-0022): fed into `converse`'s `decisions` stream, delivered

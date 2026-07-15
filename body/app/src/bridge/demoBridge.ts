@@ -24,6 +24,12 @@ const CONFIRM_DRAFT = JSON.stringify({
 });
 const CONFIRM_SENT = "Sent. Ada should have it in a moment. Anything else?";
 const CONFIRM_DENIED = "Okay. Not sent, and the draft is discarded.";
+// Say "timeout" in the prompt and the demo brain stops waiting after DEMO_CONFIRM_TIMEOUT_MS,
+// as the real one does at CORTEX_SEAM_CONFIRM_TIMEOUT_S: it emits `confirmResolved`, the card
+// closes on its own, and the declined reply resumes behind it (ADR-0022 resolution addendum).
+// Four seconds rather than two minutes, so the behaviour is drivable by hand.
+const DEMO_CONFIRM_TIMEOUT_MS = 4000;
+const CONFIRM_TIMED_OUT = "You did not answer in time, so nothing was sent. Ask again any time.";
 
 /** Stream `text` word by word into an in-progress reply; `lead` prefixes the first word. */
 function streamWords(sink: TurnSink, text: string, lead: string, onDone: () => void): Cancellation {
@@ -48,10 +54,12 @@ function streamWords(sink: TurnSink, text: string, lead: string, onDone: () => v
 export class DemoBridge implements BrainBridge {
   /** Resumes the paused confirm turn with the user's decision (null = none pending). */
   private pending: ((approved: boolean) => void) | null = null;
+  /** The demo brain's own deadline for that question, when the prompt asked for one. */
+  private expiry: ReturnType<typeof setTimeout> | null = null;
 
   converse(_sessionId: string, text: string, sink: TurnSink): Cancellation {
     if (/send|email/iu.test(text)) {
-      return this.confirmTurn(sink);
+      return this.confirmTurn(sink, /time\s?out/iu.test(text));
     }
     // Hold the bubble on the thinking shimmer, surface a status chip, then stream: the same
     // shape a real reasoning turn has (ADR-0020), so the working affordances are visible here.
@@ -71,14 +79,15 @@ export class DemoBridge implements BrainBridge {
     };
   }
 
-  private confirmTurn(sink: TurnSink): Cancellation {
+  private confirmTurn(sink: TurnSink, expires: boolean): Cancellation {
     let cancel = streamWords(sink, CONFIRM_PREAMBLE, "", () => {
-      // Park the continuation before asking, because respondConfirm may answer immediately.
-      this.pending = (approved) => {
-        cancel = streamWords(sink, approved ? CONFIRM_SENT : CONFIRM_DENIED, " ", () =>
+      const resume = (reply: string) => {
+        cancel = streamWords(sink, reply, " ", () =>
           sink.onEvent({ kind: "complete", turnId: "demo" }),
         );
       };
+      // Park the continuation before asking, because respondConfirm may answer immediately.
+      this.pending = (approved) => resume(approved ? CONFIRM_SENT : CONFIRM_DENIED);
       sink.onEvent({
         kind: "confirmRequest",
         confirmId: "demo-confirm",
@@ -86,17 +95,36 @@ export class DemoBridge implements BrainBridge {
         argumentsJson: CONFIRM_DRAFT,
         reason: CONFIRM_REASON,
       });
+      if (expires) {
+        this.expiry = setTimeout(() => {
+          // The brain answered for the user: drop the continuation first, so a click landing
+          // after the card closes resumes nothing (the stale-answer case, fail-closed).
+          this.pending = null;
+          sink.onEvent({ kind: "confirmResolved", confirmId: "demo-confirm", outcome: "timeout" });
+          resume(CONFIRM_TIMED_OUT);
+        }, DEMO_CONFIRM_TIMEOUT_MS);
+      }
     });
     return () => {
-      this.pending = null;
+      this.clearPending();
       cancel();
     };
   }
 
   respondConfirm(_confirmId: string, approved: boolean): Promise<void> {
-    this.pending?.(approved);
-    this.pending = null;
+    const resume = this.pending;
+    this.clearPending();
+    resume?.(approved);
     return Promise.resolve();
+  }
+
+  /** Forget the open question and its deadline, so neither path can resume the turn twice. */
+  private clearPending(): void {
+    this.pending = null;
+    if (this.expiry !== null) {
+      clearTimeout(this.expiry);
+      this.expiry = null;
+    }
   }
 
   listSessions(_limit: number): Promise<readonly SessionSummary[]> {

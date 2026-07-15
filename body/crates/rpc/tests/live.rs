@@ -133,6 +133,11 @@ async fn converse_round_trips_one_turn_over_the_live_seam() {
                 "unexpected confirm request for tool {tool} on session {session_id}",
                 tool = request.tool_name
             ),
+            // Likewise its resolution: with nothing asked, nothing can have been resolved.
+            Some(server_event::Event::ConfirmResolved(resolved)) => panic!(
+                "unexpected confirm resolution ({outcome}) on session {session_id}",
+                outcome = resolved.outcome
+            ),
             None => panic!("server sent an event with an empty oneof on session {session_id}"),
         }
     };
