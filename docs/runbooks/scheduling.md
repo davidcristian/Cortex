@@ -73,15 +73,25 @@ There are two shapes, and an item takes exactly one (ADR-0025 calendar addendum)
 
   Giving more than one selector in a single call is refused: a rule holds exactly one.
 
+  An optional `in_zone` (an IANA key such as `"America/New_York"`, ADR-0025 per-rule addendum)
+  names the zone the `at_time` wall clock is in, for a reminder that should fire on another zone's
+  clock ("09:00 New York time" while the deployment renders Bucharest). Omit it to use
+  `CORTEX_SCHEDULE_TZ`. It is meaningful only with `at_time` (an interval has no wall clock to
+  place), and an unknown key comes back as a correction. A per-zone item lists and confirms its
+  due time in its own zone, so the shown wall time matches the rule.
+
 A calendar occurrence that lands in a spring-forward gap fires just past the gap (late, never
-skipped); one in a fall-back repeat fires once, on the earlier of the two readings. Because a
-rule names a wall time rather than an instant, **changing `CORTEX_SCHEDULE_TZ` moves existing
-calendar schedules** to the new zone's 09:00, while interval and one-shot items (stored as UTC
-instants) only re-render. That is deliberate: a 09:00 reminder follows its user.
+skipped); one in a fall-back repeat fires once, on the earlier of the two readings, in whichever
+zone governs the rule (its own `in_zone`, else `CORTEX_SCHEDULE_TZ`). Because a rule names a wall
+time rather than an instant, **changing `CORTEX_SCHEDULE_TZ` moves existing calendar schedules
+that did not name their own `in_zone`** to the new zone's 09:00, while a rule that pinned an
+`in_zone`, and every interval and one-shot item (stored as UTC instants), only re-render. That is
+deliberate: a zone-less 09:00 reminder follows its user, a pinned one stays put.
 
 `edit_scheduled` changes recurrence in place in either direction: `at_time` (with an optional
 `on_days`, `on_month_days`, or `on_dates`, so a rule can also switch between weekly, monthly,
-and yearly) sets or retimes a rule, `every_seconds` replaces one with an interval, and
+and yearly, plus an optional `in_zone`) sets or retimes a rule, `every_seconds` replaces one with
+an interval, and
 `every_seconds: 0` stops it repeating. The two forms are mutually exclusive in one call, since
 an item carries one recurrence shape. Retiming a rule **moves the next fire** to that rule's own
 next occurrence and reports it, unlike an interval change, which leaves the armed fire alone and

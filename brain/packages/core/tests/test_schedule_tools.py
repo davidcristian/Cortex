@@ -35,6 +35,7 @@ from cortex_core import (
     TurnStamp,
     Weekdays,
     YearDays,
+    ZoneContext,
 )
 
 _NOW = datetime(2026, 7, 12, 12, 0, 0, tzinfo=UTC)
@@ -891,7 +892,7 @@ async def test_edit_renders_the_new_due_time_in_the_configured_zone() -> None:
     tool, store = _tool()
     await tool.invoke(_call({"kind": "reminder", "text": "standup", "in_seconds": 60}))
     zone = DisplayZone(name="Europe/Bucharest", tz=ZoneInfo("Europe/Bucharest"))
-    result = await EditScheduledTool(store, FixedClock(), zone=zone).invoke(
+    result = await EditScheduledTool(store, FixedClock(), zones=ZoneContext(default=zone)).invoke(
         _edit_call({"id": "item-1", "at_time": "09:00"})
     )
     assert not result.is_error
@@ -1195,3 +1196,151 @@ async def test_edit_switches_a_monthly_rule_to_a_yearly_one() -> None:
     assert loaded.rule == CalendarRule(
         hour=9, minute=0, on=YearDays(days=frozenset({MonthDay(12, 25)}))
     )
+
+
+# --- per-rule timezone: in_zone (ADR-0025 per-rule addendum) --------------------------------
+
+_NEW_YORK = DisplayZone(name="America/New_York", tz=ZoneInfo("America/New_York"))
+
+
+class _MapResolver:
+    """A ZoneResolver over a fixed name->zone map: the composition root's zoneinfo lookup, faked
+    so a core test can offer a per-rule zone without importing the session adapter."""
+
+    def __init__(self, zones: dict[str, DisplayZone]) -> None:
+        self._zones = zones
+
+    def resolve(self, name: str) -> DisplayZone | None:
+        return self._zones.get(name)
+
+
+_RESOLVER = _MapResolver({"America/New_York": _NEW_YORK})
+
+
+def _zoned_tool() -> tuple[ScheduleTaskTool, InMemoryScheduleStore]:
+    """A creation tool whose deployment zone stays UTC but whose resolver knows New York, so a
+    test can prove ``in_zone`` overrides the deployment zone rather than merely echoing it."""
+    store = InMemoryScheduleStore()
+    tool = ScheduleTaskTool(
+        store,
+        FixedClock(),
+        tasks_enabled=True,
+        max_active=32,
+        zones=ZoneContext(resolver=_RESOLVER),
+        item_id_factory=_ids(),
+    )
+    return tool, store
+
+
+def test_the_creation_spec_advertises_in_zone() -> None:
+    tool, _ = _tool()
+    properties = tool.spec.parameters["properties"]
+    assert "in_zone" in properties
+    assert "America/New_York" in properties["in_zone"]["description"]
+    assert "in_zone" in tool.spec.description
+
+
+async def test_creation_fires_persists_and_renders_a_per_rule_zone() -> None:
+    """At noon UTC, New York reads 08:00, so a daily 09:00 rule fires 13:00 UTC the same day; the
+    stored due time is that UTC instant while the model sees the 09:00 New York wall time."""
+    tool, store = _zoned_tool()
+    result = await tool.invoke(
+        _call(
+            {
+                "kind": "reminder",
+                "text": "standup",
+                "at_time": "09:00",
+                "in_zone": "America/New_York",
+            }
+        )
+    )
+    assert not result.is_error
+    assert result.content == (
+        "scheduled reminder item-1: due 2026-07-12T09:00:00-04:00, "
+        "every day at 09:00 (America/New_York)"
+    )
+    loaded = await store.get("item-1")
+    assert loaded is not None
+    assert loaded.due_at == datetime(2026, 7, 12, 13, 0, 0, tzinfo=UTC)  # stored as a UTC instant
+    assert loaded.rule == CalendarRule(hour=9, minute=0, zone=_NEW_YORK)
+
+
+async def test_listing_renders_a_per_rule_zone_in_its_own_zone() -> None:
+    """A calendar item with its own zone lists the wall time it names, not the same instant in the
+    deployment zone, so the listing and the rule's own phrase agree."""
+    tool, store = _zoned_tool()
+    await tool.invoke(
+        _call(
+            {
+                "kind": "reminder",
+                "text": "standup",
+                "at_time": "09:00",
+                "in_zone": "America/New_York",
+            }
+        )
+    )
+    listing = await ListScheduledTool(store).invoke(_call({}))  # deployment zone is UTC
+    assert not listing.is_error
+    assert "due 2026-07-12T09:00:00-04:00, every day at 09:00 (America/New_York)" in listing.content
+
+
+async def test_creation_rejects_an_unknown_in_zone() -> None:
+    tool, store = _zoned_tool()
+    result = await tool.invoke(
+        _call({"kind": "reminder", "text": "x", "at_time": "09:00", "in_zone": "Mars/Olympus"})
+    )
+    assert result.is_error
+    assert "no known timezone" in result.content
+    assert not await store.list_active()  # nothing persisted on a rejected zone
+
+
+async def test_creation_rejects_a_non_string_in_zone() -> None:
+    tool, _ = _zoned_tool()
+    result = await tool.invoke(
+        _call({"kind": "reminder", "text": "x", "at_time": "09:00", "in_zone": 5})
+    )
+    assert result.is_error
+    assert "'in_zone' must be an IANA timezone name" in result.content
+
+
+async def test_creation_rejects_in_zone_without_at_time() -> None:
+    """``in_zone`` names the zone of a wall clock, so it is meaningless without ``at_time``."""
+    tool, _ = _zoned_tool()
+    result = await tool.invoke(
+        _call({"kind": "reminder", "text": "x", "in_seconds": 60, "in_zone": "America/New_York"})
+    )
+    assert result.is_error
+    assert (
+        result.content == "'in_zone' names the zone of an 'at_time' wall clock; give 'at_time' too"
+    )
+
+
+def test_the_edit_spec_advertises_in_zone() -> None:
+    spec = EditScheduledTool(InMemoryScheduleStore(), FixedClock()).spec
+    assert "in_zone" in spec.parameters["properties"]
+    assert "in_zone" in spec.description
+
+
+async def test_edit_sets_a_per_rule_zone_and_renders_it() -> None:
+    tool, store = _zoned_tool()
+    await tool.invoke(_call({"kind": "reminder", "text": "standup", "in_seconds": 60}))
+    edit = EditScheduledTool(store, FixedClock(), zones=ZoneContext(resolver=_RESOLVER))
+    result = await edit.invoke(
+        _edit_call({"id": "item-1", "at_time": "09:00", "in_zone": "America/New_York"})
+    )
+    assert not result.is_error
+    assert result.content == "edited item-1: now due 2026-07-12T09:00:00-04:00"
+    loaded = await store.get("item-1")
+    assert loaded is not None
+    assert loaded.rule == CalendarRule(hour=9, minute=0, zone=_NEW_YORK)
+
+
+async def test_edit_rejects_an_unknown_in_zone() -> None:
+    tool, store = _zoned_tool()
+    await tool.invoke(_call({"kind": "reminder", "text": "standup", "in_seconds": 60}))
+    edit = EditScheduledTool(store, FixedClock(), zones=ZoneContext(resolver=_RESOLVER))
+    result = await edit.invoke(
+        _edit_call({"id": "item-1", "at_time": "09:00", "in_zone": "Mars/Olympus"})
+    )
+    assert result.is_error
+    assert "no known timezone" in result.content

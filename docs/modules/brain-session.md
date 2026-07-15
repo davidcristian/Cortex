@@ -109,7 +109,13 @@ bump (a record predating either decodes as absent); `rule` is the nested
 malformed one fails loudly rather than degrading to a one-shot. Which selector it carries is
 **which key is present**, not a discriminator: `days` (weekday numbers) for a weekly rule,
 `month_days` (calendar days) for a monthly one, so a record written before day-of-month
-selectors reads back as the weekly rule it was (ADR-0025 monthly addendum). The fencing `claim` token and `claimed_at` are adapter mechanics persisted
+selectors reads back as the weekly rule it was (ADR-0025 monthly addendum). A rule that named
+its own timezone carries an additive `zone` key (its IANA name); decode **self-resolves** it
+back to a `DisplayZone` through `ZoneInfoResolver` (`zone_resolver.py`, the `zoneinfo`-backed
+`ZoneResolver` the composition root also injects into the schedule tools), so the store's
+`decode` call sites stay untouched. A rule with no `zone` key decodes zone-less (the deployment
+zone governs); a stored name that no longer resolves is a **corrupt record**, failing loudly and
+naming the key, never silently substituting the deployment zone (ADR-0025 per-rule addendum). The fencing `claim` token and `claimed_at` are adapter mechanics persisted
 inside the record; the domain `ScheduledItem` never carries them. Three ZSET indexes drive
 the ticker and delivery. They are `cortex:schedules:due` (score = due-at epoch),
 `cortex:schedules:firing` (score = claim epoch, the lease), `cortex:schedules:deliverable`

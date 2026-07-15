@@ -8,6 +8,7 @@ from typing import Any, cast
 from cortex_core import (
     CalendarRule,
     DaySelector,
+    DisplayZone,
     MonthDay,
     MonthDays,
     ScheduledItem,
@@ -16,7 +17,9 @@ from cortex_core import (
     ScheduleStoreError,
     Weekdays,
     YearDays,
+    ZoneResolver,
 )
+from cortex_session.zone_resolver import ZONEINFO_RESOLVER
 
 RECORD_KIND = "schedule"
 RECORD_VERSION = 1
@@ -32,10 +35,15 @@ def _encode_days(on: DaySelector) -> dict[str, Any]:
 
 
 def _encode_rule(rule: CalendarRule | None) -> dict[str, Any] | None:
-    """A calendar rule as a plain JSON object: its wall time plus its one day-selector key."""
+    """A calendar rule as a plain JSON object: its wall time, its one day-selector key, and its
+    zone name if it named one. A zone-less rule writes no ``zone`` key, so it encodes exactly as a
+    rule did before the per-rule addendum (additive, no version bump)."""
     if rule is None:
         return None
-    return {"hour": rule.hour, "minute": rule.minute, **_encode_days(rule.on)}
+    encoded: dict[str, Any] = {"hour": rule.hour, "minute": rule.minute, **_encode_days(rule.on)}
+    if rule.zone is not None:
+        encoded["zone"] = rule.zone.name
+    return encoded
 
 
 def _decode_days(raw: dict[str, Any]) -> DaySelector:
@@ -53,12 +61,28 @@ def _decode_days(raw: dict[str, Any]) -> DaySelector:
     return Weekdays(days=frozenset(cast("list[int]", raw["days"])))
 
 
-def _decode_rule(fields: dict[str, Any]) -> CalendarRule | None:
+def _decode_zone(name: object, item_id: str, resolve_zone: ZoneResolver) -> DisplayZone | None:
+    """The rule's stored zone, or ``None`` when absent (a rule written before the per-rule
+    addendum, or one that took the deployment zone).
+    """
+    if name is None:
+        return None
+    zone = resolve_zone.resolve(name) if isinstance(name, str) else None
+    if zone is None:
+        msg = f"unknown timezone {name!r} in schedule record at {record_key(item_id)!r}"
+        raise ScheduleStoreError(msg)
+    return zone
+
+
+def _decode_rule(
+    fields: dict[str, Any], item_id: str, resolve_zone: ZoneResolver = ZONEINFO_RESOLVER
+) -> CalendarRule | None:
     """The stored rule, or None. Absent on every record written before calendar recurrence."""
     raw = cast("dict[str, Any] | None", fields.get("rule"))
     if raw is None:
         return None
-    return CalendarRule(hour=raw["hour"], minute=raw["minute"], on=_decode_days(raw))
+    zone = _decode_zone(raw.get("zone"), item_id, resolve_zone)
+    return CalendarRule(hour=raw["hour"], minute=raw["minute"], on=_decode_days(raw), zone=zone)
 
 
 @dataclass(frozen=True, slots=True)
@@ -133,7 +157,7 @@ def decode(raw: bytes | str, item_id: str) -> tuple[ScheduledItem, str | None, d
             due_at=datetime.fromisoformat(fields["due_at"]),
             created_at=datetime.fromisoformat(fields["created_at"]),
             every=timedelta(seconds=every_s) if every_s is not None else None,
-            rule=_decode_rule(fields),
+            rule=_decode_rule(fields, item_id),
             anchor=datetime.fromisoformat(anchor) if anchor is not None else None,
             model=fields["model"],
             tainted=fields["tainted"],

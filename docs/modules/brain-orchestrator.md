@@ -119,8 +119,12 @@ Config (pydantic-settings; explicit constructor arguments beat the environment):
   (ADR-0025 display addendum), field-validated at boot so a typo fails the process rather than
   the first listing; `display_zone()` resolves it to the core's `DisplayZone` for
   `build_schedule_tools` to thread into `schedule_task` / `list_scheduled` /
-  `snooze_scheduled`. `"UTC"` short-circuits to `UTC_DISPLAY` without touching the tz database.
-  The store dials `CORTEX_REDIS_URL` (BrainRuntimeConfig), with no second URL knob.
+  `snooze_scheduled`. Both `_resolve` (boot, raises) and the model-facing per-rule `in_zone`
+  path (runtime, returns `None`) go through the one `zoneinfo`-backed `ZoneInfoResolver`
+  (`cortex_session`); `build_schedule_tools` bundles it with the default zone into a
+  `ZoneContext` for the two rule-parsing tools, the same resolver the codec decodes stored zones
+  with (ADR-0025 per-rule addendum). `"UTC"` short-circuits to `UTC_DISPLAY` without touching the
+  tz database. The store dials `CORTEX_REDIS_URL` (BrainRuntimeConfig), with no second URL knob.
 
 The service:
 

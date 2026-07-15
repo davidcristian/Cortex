@@ -3,9 +3,11 @@
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta, timezone
 from uuid import uuid4
+from zoneinfo import ZoneInfo
 
 from cortex_core import (
     CalendarRule,
+    DisplayZone,
     FireOutcome,
     MonthDay,
     MonthDays,
@@ -418,6 +420,19 @@ async def check_a_year_date_rule_round_trips(store: ScheduleStore) -> None:
     assert loaded.every is None
 
 
+async def check_a_per_rule_zone_round_trips(store: ScheduleStore) -> None:
+    """A rule that named its own timezone survives the store with that zone intact."""
+    zone = DisplayZone(name="America/New_York", tz=ZoneInfo("America/New_York"))
+    rule = CalendarRule(hour=9, minute=0, zone=zone)
+    item = replace(make_item(_item_id()), rule=rule)
+    await store.add(item)
+    loaded = await store.get(item.id)
+    assert loaded is not None
+    assert loaded.rule == rule
+    assert loaded.rule is not None
+    assert loaded.rule.zone == zone
+
+
 async def check_edit_replaces_a_calendar_rule_with_an_interval(store: ScheduleStore) -> None:
     """One recurrence shape per item: setting an interval drops the rule in both stores."""
     item = replace(make_item(_item_id()), rule=CalendarRule(hour=9, minute=0))
@@ -601,6 +616,7 @@ ALL_CHECKS = (
     check_a_calendar_rule_round_trips_and_needs_no_anchor,
     check_a_month_day_rule_round_trips,
     check_a_year_date_rule_round_trips,
+    check_a_per_rule_zone_round_trips,
     check_edit_replaces_a_calendar_rule_with_an_interval,
     check_edit_sets_a_rule_and_moves_the_item_on_the_due_index,
     check_edit_setting_a_rule_rearms_a_deliverable_reminder,

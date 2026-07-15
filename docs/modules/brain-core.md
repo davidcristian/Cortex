@@ -142,6 +142,13 @@ here):
   The core never imports `zoneinfo`: turning `CORTEX_SCHEDULE_TZ` into a `tzinfo` reads the
   system tz database and so belongs to the composition root. **Display only:** stored `due_at`
   / `anchor` stay UTC instants, and no record, codec, or recurrence arithmetic is affected.
+- `ZoneResolver` (`schedule_time.py`, ADR-0025 per-rule addendum) is the port turning an IANA key
+  into a `DisplayZone | None` (`None` = no such zone, a correction not an exception), needed
+  because a per-rule zone is an *open* set the composition root cannot pre-resolve once at boot.
+  `UTC_ONLY_RESOLVER` is the core default (knows only `UTC`); the `zoneinfo`-backed resolver is
+  injected at the root. `ZoneContext(default=UTC_DISPLAY, resolver=UTC_ONLY_RESOLVER)` bundles the
+  two so a tool that both renders and resolves takes one collaborator (`UTC_ZONE_CONTEXT` is the
+  default), the `TickerSettings` injection-ceiling precedent.
 - `ScheduleKind` is an enum `REMINDER` / `TASK` (string values) whose firing means: deliver text
   to the user, or run an autonomous subagent.
 - `ScheduleStatus` is an enum `PENDING` / `FIRING` / `DONE`. No `CANCELLED`: cancel deletes the
@@ -169,12 +176,15 @@ here):
   for one-shots; a non-positive `every` raises `ValueError`. The ticker feeds it
   `recurrence_base(item)` (the `anchor` if set, else `due_at`), so a snoozed recurring item
   re-arms on its original grid, not `until + every`.
-- `CalendarRule(hour, minute, on: DaySelector = DAILY)` (`schedule_calendar.py`, ADR-0025
-  calendar addendum) is a frozen wall-clock recurrence. `describe()` renders a listing phrase
-  (`every mon, fri at 07:30`), `wall_time` the zero-padded `HH:MM`. The rule carries no zone:
-  the deployment's one `DisplayZone` is it. The module keeps the rule and the occurrence math;
-  the day selectors it dispatches to live in `schedule_selectors.py` (the yearly addendum's
-  line-cap split).
+- `CalendarRule(hour, minute, on: DaySelector = DAILY, zone: DisplayZone | None = None)`
+  (`schedule_calendar.py`, ADR-0025 calendar + per-rule addenda) is a frozen wall-clock
+  recurrence. `describe()` renders a listing phrase (`every mon, fri at 07:30`, with a
+  ` (America/New_York)` suffix when a zone is set), `wall_time` the zero-padded `HH:MM`. `zone`
+  is the zone the wall time means: set, the rule fires there regardless of `CORTEX_SCHEDULE_TZ`;
+  `None`, it takes the deployment `DisplayZone` the occurrence math is handed (a zone-less rule
+  follows the deployment zone, the "your 09:00 follows you" default). The module keeps the rule
+  and the occurrence math; the day selectors it dispatches to live in `schedule_selectors.py`
+  (the yearly addendum's line-cap split).
 - `DaySelector = Weekdays | MonthDays | YearDays` (`schedule_selectors.py`, ADR-0025 monthly +
   yearly addenda) is which dates the wall time lands on, a closed union so the codec can
   enumerate it and a rule holds exactly one selector by shape rather than by cross-field check.
@@ -190,7 +200,8 @@ here):
   the occurrence search; each answers `walk(start) -> (candidates, wrapped)`, the fallback being
   the next week's, month's, or year's first listed date.
 - `next_calendar_due(rule, after, zone) -> datetime | None` is the pure wall-clock occurrence
-  math: the rule's first occurrence strictly after `after`, resolved through
+  math: the rule's first occurrence strictly after `after`, resolved through the rule's own
+  `zone` when it has one and the passed deployment `zone` otherwise (per-rule addendum), via
   `DisplayZone.resolve` so it follows daylight saving rather than drifting against it (a
   spring-forward gap fires just past the gap, a fall-back repeat fires once); `None` past
   `datetime.max`, matching `next_due`.
@@ -659,23 +670,29 @@ Use-case:
   (host state, never taints the turn); bad arguments and a `BodyGatewayError` both become an
   `is_error` `TRUSTED` `ToolResult`, never a raise. `BuiltinTool`s, registered in the
   `CompositeToolRegistry`.
-- `ScheduleTaskTool(store, clock, *, tasks_enabled, max_active, zone=UTC_DISPLAY,
+- `ScheduleTaskTool(store, clock, *, tasks_enabled, max_active, zones=UTC_ZONE_CONTEXT,
   item_id_factory=<uuid4>)` /
   `ListScheduledTool(store, *, zone=UTC_DISPLAY)` (`schedule_tools.py`) and
   `CancelScheduledTool(store)` /
-  `SnoozeScheduledTool(store, clock, *, zone=UTC_DISPLAY)` / `EditScheduledTool(store)`
+  `SnoozeScheduledTool(store, clock, *, zone=UTC_DISPLAY)` /
+  `EditScheduledTool(store, clock, *, zones=UTC_ZONE_CONTEXT)`
   (`schedule_verbs.py`, the
-  line-cap split that also owns the shared result helpers; argument parsing in
+  line-cap split that also owns the shared result helpers plus `effective_zone` (a per-zone
+  calendar item renders its `due_at` in its own zone); argument parsing in
   `schedule_args.py` for creation, `schedule_verb_args.py` for the lifecycle verbs, and
   `schedule_day_args.py` for the calendar-rule vocabulary both share, which also owns how the
-  day selectors are **advertised**, `day_selector_properties()`, so one vocabulary has one
-  JSON-schema definition across both verbs) are the built-in
+  day selectors and `in_zone` are **advertised** (`day_selector_properties()` /
+  `in_zone_property()`) and `parse_calendar_rule` (the shared `at_time` + selector + `in_zone`
+  builder), so one vocabulary has one JSON-schema definition and one parser across both verbs)
+  are the built-in
   `schedule_task` / `list_scheduled` / `cancel_scheduled` / `snooze_scheduled` /
   `edit_scheduled` tools, cortex-only like `spawn_subagents`, since a subagent cannot re-schedule
-  (ADR-0025). `schedule_task` takes `{kind: reminder|task, text, at | in_seconds,
+  (ADR-0025). The two rule-parsing tools take a `ZoneContext` (default zone + resolver) rather
+  than a bare zone. `schedule_task` takes `{kind: reminder|task, text, at | in_seconds,
   every_seconds? (≥ 60), model? (task-only)}`, or `at_time` (`HH:MM`) with at most one of
   `on_days` (weekday names) / `on_month_days` (integers `1..31`) / `on_dates` (`MM-DD` strings)
-  for a calendar rule; its spec is rebuilt per `describe_tools` walk and
+  and an optional `in_zone` (an IANA key, per-rule addendum) for a calendar rule; its spec is
+  rebuilt per `describe_tools` walk and
   **carries the current time** from the `Clock` (the model cannot otherwise compute an
   absolute `at`), rendered in the display zone and labelled with its name,
   advertising `task`/`model` only when delegation is wired. Two creation bounds:
