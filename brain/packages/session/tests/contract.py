@@ -2,8 +2,8 @@
 
 Driven by the parametrized contract tests (in-memory fake + fakeredis-backed Redis
 adapter) and by the integration-marked live-Redis test. Each check generates its own
-session ids (safe against a shared live server) and returns them so live runs can
-clean up after themselves.
+session ids, all prefixed `contract-` (safe against a shared live server, and the prefix
+the live test sweeps by; see tests/test_store_live.py).
 """
 
 from datetime import UTC, datetime, timedelta, timezone
@@ -22,14 +22,13 @@ def make_message(role: Role, text: str, *, at: datetime = _AT, turn_id: str = "t
     return Message(role=role, text=text, at=at, turn_id=turn_id)
 
 
-async def check_empty_history(store: SessionStore) -> list[str]:
+async def check_empty_history(store: SessionStore) -> None:
     """An unknown session reads back as empty history, not an error."""
     session_id = _session_id()
     assert list(await store.history(session_id)) == []
-    return [session_id]
 
 
-async def check_append_then_history_order(store: SessionStore) -> list[str]:
+async def check_append_then_history_order(store: SessionStore) -> None:
     """History returns exactly what was appended, in append order."""
     session_id = _session_id()
     messages = [
@@ -40,10 +39,9 @@ async def check_append_then_history_order(store: SessionStore) -> list[str]:
     for message in messages:
         await store.append(session_id, message)
     assert list(await store.history(session_id)) == messages
-    return [session_id]
 
 
-async def check_multi_session_isolation(store: SessionStore) -> list[str]:
+async def check_multi_session_isolation(store: SessionStore) -> None:
     """Appends to one session never leak into another."""
     one, two = _session_id(), _session_id()
     await store.append(one, make_message(Role.USER, "for one"))
@@ -51,10 +49,9 @@ async def check_multi_session_isolation(store: SessionStore) -> list[str]:
     await store.append(one, make_message(Role.ASSISTANT, "reply for one"))
     assert [m.text for m in await store.history(one)] == ["for one", "reply for one"]
     assert [m.text for m in await store.history(two)] == ["for two"]
-    return [one, two]
 
 
-async def check_roundtrip_fidelity(store: SessionStore) -> list[str]:
+async def check_roundtrip_fidelity(store: SessionStore) -> None:
     """Every field survives the roundtrip exactly (including the timezone offset)."""
     session_id = _session_id()
     original = make_message(
@@ -74,15 +71,16 @@ async def check_roundtrip_fidelity(store: SessionStore) -> list[str]:
     # Aware-datetime equality compares instants; pin the offset separately so a
     # store that silently normalizes to UTC fails this check.
     assert loaded.at.utcoffset() == timedelta(hours=5, minutes=30)
-    return [session_id]
 
 
-async def check_list_sessions_orders_and_summarizes(store: SessionStore) -> list[str]:
+async def check_list_sessions_orders_and_summarizes(store: SessionStore) -> None:
     """list_sessions returns recent chats newest-active first, with a derived title/preview.
 
     Robust against a shared live server: it filters the global list down to the two sessions
-    it created, then asserts their relative order and summaries. Extra sessions never break
-    it (the filtered sublist of a sorted list is still sorted)."""
+    it created, then asserts their relative order and summaries, the filtered sublist of a
+    sorted list being sorted too. What DOES break it is being crowded out of the `limit=50`
+    window by 50 more-recent sessions, which is why the live test sweeps its own ids after
+    every check instead of letting them pile up (see tests/test_store_live.py)."""
     older, newer = _session_id(), _session_id()
     early = datetime(2026, 7, 3, 9, 0, tzinfo=UTC)
     late = datetime(2026, 7, 3, 10, 0, tzinfo=UTC)
@@ -100,7 +98,6 @@ async def check_list_sessions_orders_and_summarizes(store: SessionStore) -> list
     assert by_id[newer].title == "question about dogs"
     assert by_id[newer].preview == "question about dogs"
     assert by_id[newer].last_activity == late
-    return [older, newer]
 
 
 ALL_CHECKS = (

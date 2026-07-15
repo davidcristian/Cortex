@@ -304,3 +304,38 @@ index entry (empty list) stays skipped, as before.
 
 Remaining deferred here: nothing on this path. Paging (below) is still the answer if a *list*
 ever grows large, since the bound is per chat, not on the number of chats listed.
+
+## Addendum (2026-07-14): the live suite sweeps the recency index, per check
+
+The live-Redis suite polluted the store it validated. Its `finally` deleted only the
+`cortex:session:{id}:messages` keys, never the `cortex:sessions` members `append` writes
+alongside them, so every run left its `contract-<uuid>` ids as dangling index entries. It also
+collected ids from `used_session_ids += await check(store)`, which records them only once a
+check RETURNS, so a check that failed leaked its keys as well.
+
+Those two compound into a suite that breaks itself. `check_list_sessions_orders_and_summarizes`
+asserts over `list_sessions(limit=50)`, filtered to the two sessions it just created. Once the
+accumulated dangling members push past 50, its own sessions fall outside the window and the check
+fails with a bare `AssertionError`, blaming the adapter for the test's own residue. Observed with
+54 stale `contract-*` members; removing them by hand made the suite green, which is the tell.
+
+`tests/test_schedule_live.py` already had the right shape, so the fix is to match it: a `_sweep`
+that deletes by key pattern **and** removes prefix-matching members from the index, running after
+each check and again in a `finally`. Sweeping by pattern rather than by returned ids is the
+substance of it, since a pattern covers what a raising check never got to report. The checks now
+return `None`, no caller wanting the ids. A sweep also runs before the first check, so a run that
+was killed outright heals the store instead of poisoning the next run. Prefix scoping is what
+keeps this safe on a shared server: real sessions are never matched, so unlike the schedule suite
+this one still needs no skip.
+
+**Evidence (agent, Docker + real Redis).** Seeding 60 stale `contract-*` members reproduces the
+reported failure on the old code exactly (bare `AssertionError` on the ordering assert), and that
+failing run leaks 2 more message keys, confirming the second defect. The fixed suite passes
+against the same poisoned catalog and leaves 0 contract keys and 0 contract members behind, with
+the pre-existing real sessions untouched. Injecting a failure into a mid-suite check leaves the
+same 0 and 0.
+
+Remaining deferred here: the check still reads a fixed `limit=50` window with message timestamps
+fixed in the past, so a live Redis holding 50 or more *real* sessions more recent than those
+crowds it out and fails the same way. That needs the check to date its messages from a clock, or
+to read a larger window; it is not reachable by any sweep, which must leave real sessions alone.
