@@ -268,10 +268,36 @@ describe("overlayState reducer", () => {
     expect(s.pendingConfirm?.confirmId).toBe("c-1");
   });
 
-  it("confirmResolved clears the pending approval either way", () => {
+  it("confirmResolved closes the card the brain stopped waiting on", () => {
+    // The timeout case (ADR-0022): the brain denied on the user's behalf, so the question
+    // must leave before the user can click Approve on an answer that already happened.
+    const pending = run([{ kind: "open" }, submit("send it"), confirmRequest]);
+    const resolved = reduce(pending, {
+      kind: "event",
+      event: { kind: "confirmResolved", confirmId: "c-1", outcome: "timeout" },
+    });
+    expect(resolved.pendingConfirm).toBeNull();
+    // Non-terminal: the turn keeps streaming its declined reply behind the closed card.
+    expect(isTurnActive(resolved)).toBe(true);
+  });
+
+  it("confirmResolved for another id leaves the card alone", () => {
+    // A late resolution for a question already answered and replaced, or one this overlay
+    // never showed: the same stale-id rule the answer path has.
+    const pending = run([{ kind: "open" }, submit("send it"), confirmRequest]);
+    const other: Action = {
+      kind: "event",
+      event: { kind: "confirmResolved", confirmId: "c-other", outcome: "timeout" },
+    };
+    expect(reduce(pending, other)).toBe(pending);
+    const nothingPending = run([{ kind: "open" }, submit("send it")]);
+    expect(reduce(nothingPending, other)).toBe(nothingPending);
+  });
+
+  it("confirmAnswered clears the pending approval either way", () => {
     const pending = run([submit("send it"), confirmRequest]);
-    expect(reduce(pending, { kind: "confirmResolved", approved: true }).pendingConfirm).toBeNull();
-    expect(reduce(pending, { kind: "confirmResolved", approved: false }).pendingConfirm).toBeNull();
+    expect(reduce(pending, { kind: "confirmAnswered", approved: true }).pendingConfirm).toBeNull();
+    expect(reduce(pending, { kind: "confirmAnswered", approved: false }).pendingConfirm).toBeNull();
   });
 
   it("every turn-ending path drops the pending approval. The drop is the deny", () => {
@@ -295,7 +321,7 @@ describe("overlayState reducer", () => {
     expect(pending.mode).toBe("preview");
     expect(reduce(pending, { kind: "previewFade" })).toBe(pending); // a question waits to be seen
     // The user answers, but the turn is still streaming. The preview must not fade from under it.
-    const resolved = reduce(pending, { kind: "confirmResolved", approved: true });
+    const resolved = reduce(pending, { kind: "confirmAnswered", approved: true });
     expect(reduce(resolved, { kind: "previewFade" })).toBe(resolved);
     // Only once the turn completes does the fade apply.
     const done = reduce(resolved, { kind: "event", event: { kind: "complete", turnId: "t" } });

@@ -143,7 +143,7 @@ export function useOverlay(
       bridge.respondConfirm(confirmId, approved).catch(() => {
         // A lost answer is non-fatal. The brain denies by timeout (fail-closed).
       });
-      dispatch({ kind: "confirmResolved", approved });
+      dispatch({ kind: "confirmAnswered", approved });
     },
     [state.pendingConfirm, bridge],
   );

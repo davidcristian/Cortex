@@ -31,20 +31,22 @@ class Cancel(_message.Message):
     def __init__(self) -> None: ...
 
 class ServerEvent(_message.Message):
-    __slots__ = ("text_delta", "tool_activity", "status", "turn_complete", "error", "confirm_request")
+    __slots__ = ("text_delta", "tool_activity", "status", "turn_complete", "error", "confirm_request", "confirm_resolved")
     TEXT_DELTA_FIELD_NUMBER: _ClassVar[int]
     TOOL_ACTIVITY_FIELD_NUMBER: _ClassVar[int]
     STATUS_FIELD_NUMBER: _ClassVar[int]
     TURN_COMPLETE_FIELD_NUMBER: _ClassVar[int]
     ERROR_FIELD_NUMBER: _ClassVar[int]
     CONFIRM_REQUEST_FIELD_NUMBER: _ClassVar[int]
+    CONFIRM_RESOLVED_FIELD_NUMBER: _ClassVar[int]
     text_delta: TextDelta
     tool_activity: ToolActivity
     status: StatusUpdate
     turn_complete: TurnComplete
     error: SeamError
     confirm_request: ConfirmRequest
-    def __init__(self, text_delta: _Optional[_Union[TextDelta, _Mapping]] = ..., tool_activity: _Optional[_Union[ToolActivity, _Mapping]] = ..., status: _Optional[_Union[StatusUpdate, _Mapping]] = ..., turn_complete: _Optional[_Union[TurnComplete, _Mapping]] = ..., error: _Optional[_Union[SeamError, _Mapping]] = ..., confirm_request: _Optional[_Union[ConfirmRequest, _Mapping]] = ...) -> None: ...
+    confirm_resolved: ConfirmResolved
+    def __init__(self, text_delta: _Optional[_Union[TextDelta, _Mapping]] = ..., tool_activity: _Optional[_Union[ToolActivity, _Mapping]] = ..., status: _Optional[_Union[StatusUpdate, _Mapping]] = ..., turn_complete: _Optional[_Union[TurnComplete, _Mapping]] = ..., error: _Optional[_Union[SeamError, _Mapping]] = ..., confirm_request: _Optional[_Union[ConfirmRequest, _Mapping]] = ..., confirm_resolved: _Optional[_Union[ConfirmResolved, _Mapping]] = ...) -> None: ...
 
 class TextDelta(_message.Message):
     __slots__ = ("text",)
@@ -101,6 +103,14 @@ class ConfirmResponse(_message.Message):
     confirm_id: str
     approved: bool
     def __init__(self, confirm_id: _Optional[str] = ..., approved: _Optional[bool] = ...) -> None: ...
+
+class ConfirmResolved(_message.Message):
+    __slots__ = ("confirm_id", "outcome")
+    CONFIRM_ID_FIELD_NUMBER: _ClassVar[int]
+    OUTCOME_FIELD_NUMBER: _ClassVar[int]
+    confirm_id: str
+    outcome: str
+    def __init__(self, confirm_id: _Optional[str] = ..., outcome: _Optional[str] = ...) -> None: ...
 
 class HealthRequest(_message.Message):
     __slots__ = ()

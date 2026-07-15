@@ -109,9 +109,17 @@ def _answer(confirm_id: str, *, approved: bool) -> ClientEvent:
 
 
 async def _next_of(stream: AsyncIterator[ServerEvent], kind: str) -> ServerEvent:
-    async for event in stream:
-        if event.WhichOneof("event") == kind:
-            return event
+    """The next event of `kind`. Bounded, because these streams stay open by design: an
+    event that never arrives has to fail the test, not hang the suite (its absence is
+    exactly what a missing emit looks like)."""
+    try:
+        async with asyncio.timeout(5.0):
+            async for event in stream:
+                if event.WhichOneof("event") == kind:
+                    return event
+    except TimeoutError:
+        msg = f"no {kind} event arrived while the stream stayed open"
+        raise AssertionError(msg) from None
     msg = f"stream ended before a {kind} event"
     raise AssertionError(msg)
 
@@ -154,9 +162,10 @@ async def test_an_unanswered_confirm_times_out_as_a_denial() -> None:
     client = _LiveClient()
     stream = converse(_gated_send_factory(ran), client, confirm_timeout_s=0.05)
     client.send(_user_turn("send it"))
-    await _next_of(stream, "confirm_request")
-    # No answer and no half-close: the timeout alone must deny, and the turn completes
-    # (declined) while the client stream is still open.
+    request = (await _next_of(stream, "confirm_request")).confirm_request
+    resolved = (await _next_of(stream, "confirm_resolved")).confirm_resolved
+    assert resolved.confirm_id == request.confirm_id
+    assert resolved.outcome == "timeout"
     await _next_of(stream, "turn_complete")
     assert ran == []
     client.end()
@@ -186,6 +195,29 @@ async def test_input_ending_mid_confirm_denies_immediately() -> None:
         remaining = await _drain(stream)
     assert ran == []
     assert any(e.WhichOneof("event") == "turn_complete" for e in remaining)
+    # Input ended BEFORE the tool asked, so the ask was refused without ever emitting a
+    # request. No card was raised, so no resolution is owed (ADR-0022 addendum).
+    assert not any(e.WhichOneof("event") == "confirm_request" for e in remaining)
+    assert not any(e.WhichOneof("event") == "confirm_resolved" for e in remaining)
+
+
+async def test_input_ending_after_the_ask_resolves_the_card_as_unavailable() -> None:
+    # The other half-close shape: the question is already on screen when input ends. The
+    # client can no longer answer, but it is still reading (a half-close is not a
+    # disconnect), so the resolution is what tells it the card is void.
+    ran: list[str] = []
+    client = _LiveClient()
+    stream = converse(_gated_send_factory(ran), client, confirm_timeout_s=60.0)
+    client.send(_user_turn("send it"))
+    request = (await _next_of(stream, "confirm_request")).confirm_request
+    client.end()
+    async with asyncio.timeout(5.0):
+        remaining = await _drain(stream)
+    assert ran == []
+    resolved = [
+        e.confirm_resolved for e in remaining if e.WhichOneof("event") == "confirm_resolved"
+    ]
+    assert [(r.confirm_id, r.outcome) for r in resolved] == [(request.confirm_id, "unavailable")]
 
 
 async def test_stream_teardown_mid_confirm_cancels_the_turn_cleanly() -> None:

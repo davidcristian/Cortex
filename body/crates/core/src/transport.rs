@@ -81,6 +81,15 @@ pub enum TurnEvent {
         /// Why confirmation is required; shown to the user verbatim.
         reason: String,
     },
+    /// A [`TurnEvent::ConfirmRequest`] the brain stopped waiting on (proto `ConfirmResolved`,
+    /// ADR-0022 resolution addendum); **non-terminal**.
+    ConfirmResolved {
+        /// Which [`TurnEvent::ConfirmRequest`] ended.
+        confirm_id: String,
+        /// Why the wait ended: `"timeout"` or `"unavailable"`. It explains, and
+        /// never authorizes: every outcome here means the gated call did not run.
+        outcome: String,
+    },
     /// The turn finished successfully (proto `TurnComplete`); terminal.
     Complete {
         /// Server-assigned turn id.

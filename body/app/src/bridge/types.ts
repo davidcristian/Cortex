@@ -10,6 +10,11 @@ export type TurnEvent =
       readonly argumentsJson: string;
       readonly reason: string;
     }
+  /**
+   * A `confirmRequest` the brain stopped waiting on (ADR-0022), so the card can close before it
+   * becomes a lie.
+   */
+  | { readonly kind: "confirmResolved"; readonly confirmId: string; readonly outcome: string }
   | { readonly kind: "complete"; readonly turnId: string }
   | { readonly kind: "failed"; readonly code: string; readonly message: string };
 

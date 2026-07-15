@@ -47,7 +47,9 @@ line cap.
     empty stream keeps the pre-8.8 one-shot shape. Each streamed `ServerEvent` maps to a
     `TurnEvent`: `TextDelta`→`Delta`, `ToolActivity`→`ToolActivity`, `StatusUpdate`→`Status`,
     `ConfirmRequest`→`ConfirmRequest` (non-terminal, since the brain suspends the gated call and
-    denies it fail-closed if no matching decision ever arrives), `TurnComplete`→`Complete`
+    denies it fail-closed if no matching decision ever arrives),
+    `ConfirmResolved`→`ConfirmResolved` (non-terminal: the brain ended that wait itself, so the
+    caller closes the question and the turn streams on), `TurnComplete`→`Complete`
     (terminal), `SeamError`→`Failed` (terminal). A status raised at the call or mid-stream
     reuses the same origin split (`status_to_error`, shared with `health`) → `Rpc`/`Connection`;
     an empty `ServerEvent` or a stream that ends before `TurnComplete` → `Protocol`. The
@@ -151,8 +153,9 @@ Being ignored, they never run in CI and never count toward coverage.
   against a dead endpoint, bad URI, non-ASCII token); and the confirm
   round-trip (ADR-0022): the fake emits `ConfirmRequest` mid-turn and asserts the
   echoed `ConfirmResponse` arrives on the still-open request stream (approve and
-  deny, answered reactively over a channel), plus the half-close of an empty
-  decisions stream. The reminder pull (ADR-0025) is covered the same way: two scripted
+  deny, answered reactively over a channel), a `ConfirmResolved` for a confirm the caller
+  never answers (the brain's timeout, proven non-terminal because the reply and
+  `TurnComplete` still follow it), plus the half-close of an empty decisions stream. The reminder pull (ADR-0025) is covered the same way: two scripted
   rows differing in every flag prove the row mapping (taint included), an ack of the
   deliverable id answers `true` while an unknown id answers `false` (proving the id
   crossed the wire and that "nothing to clear" is an answer, not an error), and a

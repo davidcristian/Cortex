@@ -65,7 +65,7 @@ export type Action =
   | { readonly kind: "transportError"; readonly error: TransportError }
   | { readonly kind: "dismiss" }
   | { readonly kind: "stop" }
-  | { readonly kind: "confirmResolved"; readonly approved: boolean }
+  | { readonly kind: "confirmAnswered"; readonly approved: boolean }
   | { readonly kind: "previewFade" }
   | { readonly kind: "newChat"; readonly sessionId: string }
   | { readonly kind: "sessionsLoaded"; readonly sessions: readonly SessionSummary[] }
@@ -138,7 +138,7 @@ export function reduce(state: OverlayState, action: Action): OverlayState {
       // User cancelled the turn: end the streaming reply in place (keep the partial text,
       // no error) and stay in the panel. This differs from dismiss, which minimizes to the orb.
       return endTurn(state, null);
-    case "confirmResolved":
+    case "confirmAnswered":
       // The user answered (either way); the card leaves. The answer itself rides the bridge.
       return { ...state, pendingConfirm: null };
     case "previewFade":
@@ -212,6 +212,10 @@ function applyEvent(state: OverlayState, event: TurnEvent): OverlayState {
       return patchStreaming(state, (m) => ({ ...m, status: event.detail, statusState: event.state }));
     case "confirmRequest":
       return applyConfirmRequest(state, event);
+    case "confirmResolved":
+      return state.pendingConfirm?.confirmId === event.confirmId
+        ? { ...state, pendingConfirm: null }
+        : state;
     case "complete":
       return endTurn(state, null);
     case "failed":

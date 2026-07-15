@@ -1,4 +1,4 @@
-"""SeamConfirmer: the real ``Confirmer`` adapter over the Converse stream (ADR-0022)."""
+"""SeamConfirmer: the real ``Confirmer`` adapter over the Converse stream."""
 
 import asyncio
 import json
@@ -8,9 +8,13 @@ from collections.abc import Callable
 
 from cortex_core import ConfirmationRequest
 from cortex_seam import ConfirmRequest as ConfirmRequestPb
+from cortex_seam import ConfirmResolved as ConfirmResolvedPb
 from cortex_seam import ServerEvent
 
 _logger = logging.getLogger(__name__)
+
+OUTCOME_TIMEOUT = "timeout"
+OUTCOME_UNAVAILABLE = "unavailable"
 
 
 class SeamConfirmer:
@@ -35,8 +39,8 @@ class SeamConfirmer:
                     confirm_request=ConfirmRequestPb(
                         confirm_id=confirm_id,
                         tool_name=request.tool_name,
-                        # The draft shown is the draft executed (ADR-0022 risk note);
-                        # default=str keeps an exotic value displayable, never a crash.
+                        # The draft shown is the draft executed, and ``default=str`` keeps an
+                        # exotic value displayable rather than raising here.
                         arguments_json=json.dumps(
                             dict(request.arguments), ensure_ascii=False, default=str
                         ),
@@ -48,10 +52,13 @@ class SeamConfirmer:
                 return await future
         except TimeoutError:
             _logger.info("confirmation timed out; denying", extra={"tool": request.tool_name})
+            # Told before the turn resumes, so the card closes ahead of the model's declined
+            # reply instead of staying clickable behind it.
+            self._resolved(confirm_id, OUTCOME_TIMEOUT)
             return False
         finally:
-            # Runs on answer, timeout, and cancellation alike: once deregistered, a late
-            # answer is a stale id and resolves nothing (the denial already happened).
+            # Runs on an answer, a timeout and a cancellation alike: once deregistered, a late
+            # answer is a stale id and resolves nothing.
             self._pending.pop(confirm_id, None)
 
     def resolve(self, confirm_id: str, *, approved: bool) -> None:
@@ -63,8 +70,15 @@ class SeamConfirmer:
         future.set_result(approved)
 
     def close(self) -> None:
-        """Deny everything pending and every future ask. Client input has ended."""
+        """Deny everything pending and every future ask."""
         self._closed = True
-        for future in self._pending.values():
+        for confirm_id, future in self._pending.items():
             if not future.done():
+                self._resolved(confirm_id, OUTCOME_UNAVAILABLE)
                 future.set_result(False)
+
+    def _resolved(self, confirm_id: str, outcome: str) -> None:
+        """Report an ending the client cannot see, so it can close the card."""
+        self._emit(
+            ServerEvent(confirm_resolved=ConfirmResolvedPb(confirm_id=confirm_id, outcome=outcome))
+        )

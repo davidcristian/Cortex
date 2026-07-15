@@ -57,7 +57,8 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
   It serialises each `TurnEvent` / `TransportError` to a `WireMessage` (`{ event }` | `{ error }`)
   that matches the TS `WireMessage` in `tauriBridge.ts` field for field (tag `kind`, camelCase, so
   a mid-turn confirm request is `{ kind: "confirmRequest", confirmId, toolName, argumentsJson,
-  reason }`, ADR-0022). For the turn's duration it parks a decision sender in the managed
+  reason }` and the brain closing it unanswered is `{ kind: "confirmResolved", confirmId,
+  outcome }`, ADR-0022). For the turn's duration it parks a decision sender in the managed
   `ConfirmRoute` state (`src-tauri/src/confirm.rs`, one slot, as at most one turn runs at a time);
   the matching receiver stream feeds `BrainTransport::converse`'s `decisions` parameter and is
   cleared when the event loop ends.

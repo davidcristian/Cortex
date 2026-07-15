@@ -298,6 +298,21 @@ describe("useOverlay", () => {
     expect(bridge.confirms).toEqual([{ confirmId: "c-1", approved: true }]);
   });
 
+  it("a brain-resolved confirm closes the card and swallows the click that follows", async () => {
+    const bridge = new FakeBridge();
+    const { result } = renderHook(() => useOverlay(bridge, () => "s1"));
+    await flush();
+    act(() => result.current.submit("send it"));
+    act(() => bridge.emit(confirmRequest("c-1")));
+    act(() =>
+      bridge.emit({ kind: "confirmResolved", confirmId: "c-1", outcome: "timeout" }),
+    );
+    expect(result.current.state.pendingConfirm).toBeNull();
+    act(() => result.current.respondConfirm("c-1", true));
+    act(() => result.current.stop());
+    expect(bridge.confirms).toHaveLength(0);
+  });
+
   it("a lost confirm answer is non-fatal. The card still closes (deny-by-timeout brain-side)", async () => {
     const bridge = new FakeBridge();
     bridge.confirmFails = true;

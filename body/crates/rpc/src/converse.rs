@@ -65,6 +65,13 @@ fn map_event(event: ServerEvent) -> (Result<TurnEvent, TransportError>, bool) {
             }),
             false,
         ),
+        Some(server_event::Event::ConfirmResolved(resolved)) => (
+            Ok(TurnEvent::ConfirmResolved {
+                confirm_id: resolved.confirm_id,
+                outcome: resolved.outcome,
+            }),
+            false,
+        ),
         Some(server_event::Event::TurnComplete(complete)) => (
             Ok(TurnEvent::Complete {
                 turn_id: complete.turn_id,

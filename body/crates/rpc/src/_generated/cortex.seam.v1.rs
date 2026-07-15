@@ -33,7 +33,7 @@ pub struct UserTurn {
 pub struct Cancel {}
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct ServerEvent {
-    #[prost(oneof = "server_event::Event", tags = "1, 2, 3, 4, 5, 6")]
+    #[prost(oneof = "server_event::Event", tags = "1, 2, 3, 4, 5, 6, 7")]
     pub event: ::core::option::Option<server_event::Event>,
 }
 /// Nested message and enum types in `ServerEvent`.
@@ -56,6 +56,9 @@ pub mod server_event {
         /// a gated tool call awaits user approval (ADR-0022)
         #[prost(message, tag = "6")]
         ConfirmRequest(super::ConfirmRequest),
+        /// the brain stopped waiting for an answer (ADR-0022)
+        #[prost(message, tag = "7")]
+        ConfirmResolved(super::ConfirmResolved),
     }
 }
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
@@ -116,6 +119,21 @@ pub struct ConfirmResponse {
     pub confirm_id: ::prost::alloc::string::String,
     #[prost(bool, tag = "2")]
     pub approved: bool,
+}
+/// A ConfirmRequest the brain stopped waiting on, so the overlay can close a card the
+/// user can no longer answer (ADR-0022 resolution addendum). Emitted ONLY for endings
+/// the client cannot already know: the confirm timeout, and client input half-closing.
+/// Never for the user's own answer (the client authored it), never for a cancelled or
+/// torn-down turn (its terminal event closes the card), and never for a call refused
+/// after half-close (no request went out, so no card exists).
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct ConfirmResolved {
+    /// which ConfirmRequest ended
+    #[prost(string, tag = "1")]
+    pub confirm_id: ::prost::alloc::string::String,
+    /// "timeout" | "unavailable"; explains, never authorizes
+    #[prost(string, tag = "2")]
+    pub outcome: ::prost::alloc::string::String,
 }
 #[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct HealthRequest {}
