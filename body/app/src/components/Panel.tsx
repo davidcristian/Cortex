@@ -103,7 +103,12 @@ export function Panel({
         />
       ) : null}
       {state.reminders.length > 0 ? (
-        <Reminders reminders={state.reminders} onDismiss={onDismissReminder} />
+        <Reminders
+          reminders={state.reminders}
+          currentId={state.sessionId}
+          onDismiss={onDismissReminder}
+          onOpen={onSelectSession}
+        />
       ) : null}
       <div className="history" ref={historyRef} onScroll={onHistoryScroll}>
         {state.messages.length === 0 ? (

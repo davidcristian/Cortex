@@ -1125,3 +1125,45 @@ probe confirmed the stack scrolls itself at its `30vh` cap instead of pushing th
 of the panel. The Tauri command pair is the ungated host glue (the `sessions.rs` precedent),
 type-checked on Linux but validated on Windows; the real hotkey to overlay path stays
 Host-Windows.
+
+## Addendum (2026-07-14): the reminder card's origin chat
+
+A reminder arrives with none of the conversation that asked for it, so `Stand-up in 10
+minutes` is delivered without the thread where the standing meeting was being discussed.
+`session_id` has ridden every `DueReminder` since decision 5 and the overlay already loads a
+chat on demand, so the card now offers to open the one it came from. Overlay-only: no proto
+field, no transport method, no reducer action, no brain change. Decisions:
+
+- **The control is a sibling of the reminder text, never the text itself.** Making the card
+  body clickable was the obvious shape (the switcher's rows are exactly that) and is the one
+  thing this surface may not do. Reminder text is the string no output guardrail inspected,
+  so an attacker who lands a reminder writes the label on any control it becomes, and `Click
+  here to verify your account` as a real, working button teaches the habit that the inert-text
+  invariant exists to prevent. A separate control with a fixed app-authored label keeps the
+  clickable thing app chrome; what a stranger wrote stays a text node.
+- **Opening is not acking.** The two gestures stay separate because their failure modes are
+  not symmetric: an ack destroys the reminder and navigation does not, so a mis-click on the
+  way to the context may not silently clear what it came to explain. The card stays until it
+  is dismissed, which also lets the maintainer read the thread and *then* decide.
+- **No control when there is nothing to go to, or nowhere to go.** A session-less caller
+  sends `""` (the ticker's own fires, decision 5), and a card whose origin is the chat already
+  on screen would offer a navigation that changes nothing while *cancelling the turn running
+  in it*, since opening a chat abandons the current one exactly as the switcher does. Both are
+  rendered absent rather than disabled: a disabled control invites an explanation, and there
+  is none worth giving.
+- **It reuses the switcher's own handler.** `Panel` already receives `onSelectSession`
+  (`useOverlay.openSession`), so the card passes through it unchanged and no new prop crosses
+  `Overlay` → `Panel`. One chat-loading path, one set of semantics (deny a pending confirm,
+  cancel the stream, hydrate from the store), and a reminder cannot drift from the switcher.
+
+CI-gated at 100% with four guards mutation-proven (the empty-session check, the current-chat
+check, the id it opens with, and an ack folded into the open handler; each reverted
+individually turns a distinct test red). **Browser-validated 2026-07-14** in headless
+Chromium against the demo bridge, both themes: three cards render two controls, since the
+cold-start-adopted chat's own card correctly offers none; clicking one loads that chat
+(title and history both swap) while the stack keeps all three cards, proving open does not
+ack; and the freshly-current chat's remaining cards drop their controls in the same render.
+The pass also settled the resting treatment, which is the same correction the badge needed:
+at the meta row's own `--dim` the label read as a third piece of metadata, so it rests one
+step brighter (`--muted`) and grows the switcher's panel-tinted pill on hover. An action
+nobody can see before hovering it is not an action.

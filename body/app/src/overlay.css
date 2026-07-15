@@ -854,6 +854,27 @@
   background: rgba(226, 75, 107, 0.1);
   color: var(--text);
 }
+/* The one action in the meta row, so it must not rest as another pill: it carries no border
+   until hover, where it grows the same panel-tinted shape the switcher rows use. The tags say
+   what the reminder is, this does something, and only the second one lights up under the
+   pointer. It does rest one step brighter than the row around it (`--muted` against the
+   timestamp's `--dim`), which a browser pass settled: at the row's own weight it read as a
+   third piece of metadata, and an action nobody can see before hovering it is not an action. */
+.reminder-open {
+  padding: 1px 8px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  cursor: pointer;
+  transition: background 0.16s var(--ease), border-color 0.16s var(--ease), color 0.16s var(--ease);
+}
+.reminder-open:hover {
+  border-color: var(--stroke);
+  background: var(--panel);
+  color: var(--text);
+}
 .reminder-ack {
   flex: none;
   display: flex;
