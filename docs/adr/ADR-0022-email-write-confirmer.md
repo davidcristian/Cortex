@@ -520,6 +520,127 @@ the answer the user never gave off the wire.
   `ConfirmResolved` to a non-terminal `TurnEvent::ConfirmResolved` against the scripted fake
   brain; the reducer closes on a matching id and no-ops otherwise.
 - **Agent, in a browser:** the demo bridge scripts a confirm that times out, so the card
-  closing on its own is drivable without a brain.
+  closing on its own is drivable without a brain. Its draft also carries an attachment
+  (attachments addendum), which is how the card's two long-draft defects were found.
 - **User, Windows host:** unchanged. The Tauri IPC transport carries one more `WireEvent`
   variant through the same serde mirror.
+
+## Addendum (2026-07-15): attachments are authored text, inline in the approved draft
+
+The last deferred send shape lands. The open question was never the field (the richer-shapes
+addendum built `EmailDraft` to take it) but **where the bytes come from**, and what settles it
+is not a transport comparison. It is this ADR's own rule, from the Risks above:
+**`arguments_json` is the executed contract.** The confirm card renders the draft the
+dispatcher is holding, and approving it runs exactly that. Apply the rule to each candidate
+and the decision falls out.
+
+### 1. What an attachment is
+
+`EmailAttachment(filename, content, subtype="plain")`, a frozen value beside `EmailDraft`,
+carried as `EmailDraft.attachments: tuple[EmailAttachment, ...] = ()`. Each one composes a
+single `text/<subtype>` part through `EmailMessage.add_attachment`, so a draft with
+attachments is `multipart/mixed` (holding the existing single part or `multipart/alternative`
+unchanged, plus one part per attachment).
+
+**The maintype is not a parameter, exactly as `From` is not.** `text/*` is the entire
+vocabulary, which makes the capability statable in one sentence: the assistant can attach
+**what it wrote**, as a file (a report as `markdown`, a table as `csv`, an invite as
+`calendar`, a log as `plain`). It cannot attach a file it read, because it has none to read.
+
+### 2. Why the two candidates this deferral recorded were both wrong
+
+| candidate | what the card shows | what actually leaves |
+|---|---|---|
+| a filesystem path | the path | whatever that file holds **after** approval |
+| a base64 blob | roughly 1.4 KB of base64 per KB of payload | bytes no human can read off a card |
+| authored text (chosen) | the content, verbatim | the same content |
+
+Both rejected candidates fail the executed-contract rule, and that is the disqualifier, not
+their cost. A path is the worse of the two: the bytes are read after the click, from a
+filesystem that can change in between, so the approval is for a name rather than a payload.
+Their costs are real too and were the ROADMAP's warning: a path needs a `volumes:` mount
+**and** a file-read capability on a sidecar deliberately built with neither, re-opening the
+path-escape surface the filesystem sidecar is version-pinned against
+(CVE-2025-53109/53110); base64 spends the model's context, the audit line, and the card on a
+payload nobody reads.
+
+Inline authored text adds **no transport at all**: tool arguments already arrive at the
+sidecar as JSON over MCP, so the attachment rides the channel the subject and body already
+ride, with no new capability anywhere. No proto, port, orchestrator, gate, or taint change;
+`send_email` is still the one gated name, and the card still renders generic key/value rows.
+
+### 3. Refusals, and where they live
+
+`SmtpSender._compose` is where a send is refused, so the new rules join the CR/LF ones rather
+than starting a second refusal site. The split the existing comment draws is the one that
+decides each rule: **`filename` is a header value, `content` is a payload.**
+
+- **The filename gets header treatment:** non-empty (a nameless part cannot be saved),
+  CR/LF refused in code like every other header value (a laundered `\r\nBcc:` in a
+  `Content-Disposition` is the same attack), and bounded to `MAX_FILENAME_CHARS` (128), since
+  a header line is not a place to put a kilobyte.
+- **The subtype must be a MIME token** (`^[A-Za-z0-9][A-Za-z0-9!#$&^_.+-]{0,62}$`, no `/`), which is
+  what keeps `text/` a prefix the caller cannot escape: `subtype="plain\r\nX: y"` or
+  `subtype="html; boundary=..."` would otherwise be a header-injection channel of its own.
+- **`MAX_ATTACHMENTS` (8) refuses rather than truncates**, the spawn batch cap's argument
+  (ADR-0010): a silently dropped attachment is a send the user approved and did not get.
+- **`MAX_ATTACHMENT_CHARS` (32768, summed over all attachments)** bounds what one call can
+  put on the card, in the audit line, and on the wire. The number comes from the *authoring*
+  side rather than from SMTP (Proton's limit is three orders of magnitude higher): 32K of
+  text is already half the 16K-token context and two thirds of the default
+  `CORTEX_HISTORY_CHAR_BUDGET`, so past it an attachment is competing with the conversation
+  that produced it. It is counted in **characters**, matching the history budget and the
+  `content` the card shows, rather than in encoded bytes, which would make the same visible
+  draft fit or not fit depending on its accents.
+
+A refusal is a `ValueError`, which the sidecar returns as the tool's error string, so the
+model sees why and the message never reaches the wire.
+
+### 4. Two things the card got wrong, both found by driving it
+
+The feature is brain-side, but "the card shows the content, verbatim" is half the argument
+above, so the card was driven in a browser with an attachment on it. Both defects it exposed
+are pre-existing gaps that only an attachment makes reachable, and neither is chrome:
+
+- **The draft had no height bound.** An attachment is the first argument value *meant* to be
+  long, and a long draft grew the card until Approve and Deny were pushed out of the history's
+  view. `.confirm-draft` now caps at `42vh` and scrolls. Every byte stays on the card, which
+  is the point: a summary such as `notes.md (1.2 KB)` would break the rule this addendum
+  turns on.
+- **A non-string value was rendered with `JSON.stringify`,** which was invisible while every
+  argument was a string and is exactly wrong for the first one that is not: the payload
+  arrived as `{"content":"# Week 30\n- one"}`, so the user consents to a file through its
+  escapes. `formatDraftValue` (pure, beside the card) now renders structure as indented
+  `key: value` lines and leaves every string untouched, giving a multi-line value its own
+  line. It knows about JSON shapes and nothing about `send_email`: the card stays generic
+  over whatever gated tool the brain asks about.
+
+The demo bridge's scripted draft carries an attachment for the same reason, so the long-draft
+case stays drivable by hand on the host Windows shell too.
+
+### 5. Binary attachments stay deferred, with a named blocker
+
+Not "attachments" any more, but specifically **bytes the assistant did not author**. What
+would have to be true first: a way for the card to be honest about a payload the user cannot
+read (a digest plus size, with the sidecar re-reading at send and refusing on mismatch, so
+approval binds to bytes rather than to a path), on top of the capability grant the path form
+needs. Recorded in the ROADMAP.
+
+### 6. Validation
+
+- **CI (100%):** composition (a plain draft plus one attachment nests as `multipart/mixed`;
+  a `body`+`html`+attachment draft keeps the `multipart/alternative` intact inside it; the
+  subtype and filename reach the part), the five refusals each proven to keep the message off
+  the wire, and the MCP handler forwarding a nested `attachments` argument onto the draft.
+  Plus the regression that matters: a draft with no attachments is byte-for-byte the message
+  the richer-shapes addendum shipped.
+- **Agent, over Docker:** the nested array-of-objects schema is the first of its shape in the
+  repo, so it is validated where a fake cannot: the containerized sidecar advertises it through
+  the real `McpToolRegistry` (pydantic lifts `EmailAttachment`'s **docstring** into the `$defs`
+  description, so "what it wrote, not a file on disk" reaches the model without a `Field`), a
+  refusal comes back as a clean `is_error` carrying its reason, and a real model emits the
+  nested argument against the advertised schema.
+- **Agent, live Bridge:** the `integration`-marked round-trip sends a real attachment and
+  parses it back off IMAP by filename and content, so the whole path is proven, not just the
+  composition.
+- **User, Windows host:** unchanged. No seam, no IPC, no new event.

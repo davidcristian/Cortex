@@ -17,10 +17,23 @@ const ANSWER =
 // the reply continues (approve) or ends with a "not sent" line (deny).
 const CONFIRM_PREAMBLE = "Here's the draft. Sending is gated, so it needs your approval first.";
 const CONFIRM_REASON = "this action is outbound or irreversible and runs only with your approval";
+// The attachment is here so the long-draft case is drivable by hand: it is the one argument
+// meant to be long, and the card shows every value verbatim (ADR-0022 attachments addendum),
+// so this is what proves `.confirm-draft` scrolls instead of pushing the buttons out of view.
 const CONFIRM_DRAFT = JSON.stringify({
   to: "ada@example.com",
   subject: "Quick hello from Cortex",
   body: "Testing the send flow. Feel free to ignore this.",
+  attachments: [
+    {
+      filename: "notes.md",
+      subtype: "markdown",
+      content: Array.from(
+        { length: 24 },
+        (_unused, line) => `- line ${line + 1} of the attached notes`,
+      ).join("\n"),
+    },
+  ],
 });
 const CONFIRM_SENT = "Sent. Ada should have it in a moment. Anything else?";
 const CONFIRM_DENIED = "Okay. Not sent, and the draft is discarded.";

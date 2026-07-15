@@ -28,14 +28,21 @@ denied outright.
   self-signed cert. Defaults target a local Bridge (127.0.0.1:1143, STARTTLS).
 - `EmailSummary` / `EmailDetail` are frozen value types (a search hit; a full message).
 - `EmailDraft` is the frozen send-side value the user approves: `to`/`subject`/`body` plus
-  optional `cc`, `bcc`, and `html` (each defaulting to `""` = omitted). It is the seam's
-  extension point: a further shape (attachments) is a new field here, never a change to the
+  optional `cc`, `bcc`, `html` (each defaulting to `""` = omitted), and `attachments`. It is the
+  seam's extension point: a further shape is a new field here, never a change to the
   `EmailSender.send` signature.
+- `EmailAttachment(filename, content, subtype="plain")` is one attached file, composed as a
+  `text/<subtype>` part. The maintype is not a parameter, exactly as `From` is not: the tool
+  attaches text the assistant **wrote**, never bytes it read, which is what keeps the
+  confirmation card showing the payload rather than a name for it (ADR-0022 attachments
+  addendum).
 - `build_server(reader, sender=None) -> FastMCP` registers the three read tools always, and
-  `send_email(to, subject, body, cc="", bcc="", html="")` only when a sender is passed (with
-  advisory MCP `ToolAnnotations`: not read-only, destructive, open-world, and never authority;
-  the brain-side overlay is). `cc`/`bcc` are comma-separated address lists; `html` adds a rich
-  alternative. Covered in-process via `FastMCP.call_tool`. `main()` reads the env config,
+  `send_email(to, subject, body, cc="", bcc="", html="", attachments=())` only when a sender is
+  passed (with advisory MCP `ToolAnnotations`: not read-only, destructive, open-world, and never
+  authority; the brain-side overlay is). `cc`/`bcc` are comma-separated address lists; `html`
+  adds a rich alternative; `attachments` is an array of `{filename, content, subtype}` objects
+  (the one nested schema in the tool surface). Covered in-process via `FastMCP.call_tool`.
+  `main()` reads the env config,
   builds the imap-tools reader (and an `SmtpSender` only when `SmtpConfig.enabled`), and runs
   the server over streamable-http (`python -m cortex_email`).
 - `EmailSender` is the `Protocol` the send tool needs (`send(draft: EmailDraft) -> str`).
@@ -45,7 +52,11 @@ denied outright.
   (header injection, not left to the interpreter's patch level). A `bcc` rides the envelope but
   is stripped from the transmitted message by `send_message`, so it stays hidden from the To/Cc
   readers. An `html` draft composes a `multipart/alternative` (plain `body` fallback + HTML);
-  a plain draft stays a single `text/plain` part. Returns one readable confirmation line.
+  a plain draft stays a single `text/plain` part. Attachments wrap whatever the body shapes
+  built in a `multipart/mixed`, and are refused (never truncated) unless each filename is
+  non-empty, CR/LF-free, and at most `MAX_FILENAME_CHARS` (128), each `subtype` is a MIME
+  token, there are at most `MAX_ATTACHMENTS` (8), and their `content` totals at most
+  `MAX_ATTACHMENT_CHARS` (32768) characters. Returns one readable confirmation line.
 - `SmtpConfig` holds env-driven settings (`CORTEX_EMAIL_SMTP_*` + `CORTEX_EMAIL_SEND_ENABLED`):
   defaults target the Bridge SMTP loopback (127.0.0.1:1025, STARTTLS) with the same
   cert-verification escape hatches as IMAP; enabling send without credentials fails fast at

@@ -11,13 +11,27 @@ recipient, and a Bcc rides the envelope but is stripped from the transmitted mes
 selection over a fake smtplib, and the live round-trip is `test_email_live.py`.
 """
 
+import re
 import smtplib
 import ssl
 from email.message import EmailMessage
 from typing import Protocol
 
 from cortex_email.config import SmtpConfig
-from cortex_email.values import EmailDraft
+from cortex_email.values import EmailAttachment, EmailDraft
+
+# How many attachments one send may carry. Refused, never truncated: a silently dropped
+# attachment is a send the user approved and did not get (ADR-0010's batch-cap argument).
+MAX_ATTACHMENTS = 8
+# Characters summed across every attachment's content. The bound comes from the authoring
+# side, not from SMTP: 32K is already half the cortex's 16K-token context, so past it an
+# attachment competes with the conversation that wrote it (ADR-0022 attachments addendum).
+MAX_ATTACHMENT_CHARS = 32768
+# A filename rides a Content-Disposition header, and a header line is not a payload.
+MAX_FILENAME_CHARS = 128
+# A MIME subtype token: no "/" (so "text/" stays a prefix the caller cannot escape), no
+# space, no ";" that could open a parameter, and nothing a header value must not hold.
+_SUBTYPE_TOKEN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9!#$&^_.+-]{0,62}$")
 
 
 def _reject_header_injection(field: str, value: str) -> None:
@@ -25,6 +39,29 @@ def _reject_header_injection(field: str, value: str) -> None:
     if "\r" in value or "\n" in value:
         msg = f"{field} must not contain a newline (header-injection attempt)"
         raise ValueError(msg)
+
+
+def _reject_bad_attachments(attachments: tuple[EmailAttachment, ...]) -> None:
+    """Raise unless every attachment is nameable, typeable, and within the send's bounds."""
+    if len(attachments) > MAX_ATTACHMENTS:
+        msg = f"a message may carry at most {MAX_ATTACHMENTS} attachments"
+        raise ValueError(msg)
+    total = sum(len(attachment.content) for attachment in attachments)
+    if total > MAX_ATTACHMENT_CHARS:
+        msg = f"attachments must total at most {MAX_ATTACHMENT_CHARS} characters, not {total}"
+        raise ValueError(msg)
+    for attachment in attachments:
+        # The filename is a header value and gets header treatment; the content is a payload.
+        _reject_header_injection("attachment filename", attachment.filename)
+        if not attachment.filename:
+            msg = "attachment filename must not be empty"
+            raise ValueError(msg)
+        if len(attachment.filename) > MAX_FILENAME_CHARS:
+            msg = f"attachment filename must be at most {MAX_FILENAME_CHARS} characters"
+            raise ValueError(msg)
+        if not _SUBTYPE_TOKEN.match(attachment.subtype):
+            msg = f"attachment subtype {attachment.subtype!r} is not a MIME subtype token"
+            raise ValueError(msg)
 
 
 class EmailSender(Protocol):
@@ -54,6 +91,7 @@ class SmtpSender:
         _reject_header_injection("subject", draft.subject)
         _reject_header_injection("cc", draft.cc)
         _reject_header_injection("bcc", draft.bcc)
+        _reject_bad_attachments(draft.attachments)
         message = EmailMessage()
         message["From"] = self._config.user  # the authenticated identity, never a parameter
         message["To"] = draft.to
@@ -67,6 +105,14 @@ class SmtpSender:
         message.set_content(draft.body)
         if draft.html:
             message.add_alternative(draft.html, subtype="html")
+        for attachment in draft.attachments:
+            # The str payload keeps this a text/<subtype> part: add_attachment takes no
+            # maintype for a string, which is how "the assistant attaches what it wrote"
+            # stays true by construction rather than by a check. Adding one wraps whatever
+            # the body shapes built into a multipart/mixed, alternative and all (stdlib).
+            message.add_attachment(
+                attachment.content, subtype=attachment.subtype, filename=attachment.filename
+            )
         return message
 
     def send(self, draft: EmailDraft) -> str:
