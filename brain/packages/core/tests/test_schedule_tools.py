@@ -20,6 +20,7 @@ from cortex_core import (
     FireOutcome,
     InMemoryScheduleStore,
     ListScheduledTool,
+    MonthDay,
     MonthDays,
     RecordingAuditSink,
     ScheduledItem,
@@ -33,6 +34,7 @@ from cortex_core import (
     Trust,
     TurnStamp,
     Weekdays,
+    YearDays,
 )
 
 _NOW = datetime(2026, 7, 12, 12, 0, 0, tzinfo=UTC)
@@ -929,7 +931,7 @@ async def test_edit_refuses_a_task_rule_change_on_a_tainted_turn() -> None:
         ({"at_time": "09:00", "every_seconds": 3600}, "already recurs on the wall clock"),
         ({"on_days": ["mon"]}, "apply only together with 'at_time'"),
         ({"on_month_days": [1]}, "apply only together with 'at_time'"),
-        ({"at_time": "09:00", "on_days": ["mon"], "on_month_days": [1]}, "never both"),
+        ({"at_time": "09:00", "on_days": ["mon"], "on_month_days": [1]}, "never more than one"),
         ({"at_time": "09:00", "on_month_days": [0]}, "'on_month_days' must be"),
         ({"at_time": "9am"}, "'at_time' must be"),
         ({"at_time": "09:00:30"}, "'at_time' must be"),
@@ -1026,7 +1028,7 @@ async def test_a_listing_describes_a_monthly_item_in_calendar_terms() -> None:
         ({"at_time": "09:00", "on_month_days": [0]}, "'on_month_days' must be"),
         ({"at_time": "09:00", "on_month_days": [MAX_MONTH_DAY + 1]}, "'on_month_days' must be"),
         ({"in_seconds": 600, "on_month_days": [1]}, "only together with 'at_time'"),
-        ({"at_time": "09:00", "on_days": ["mon"], "on_month_days": [1]}, "never both"),
+        ({"at_time": "09:00", "on_days": ["mon"], "on_month_days": [1]}, "never more than one"),
     ],
 )
 async def test_a_bad_month_day_request_is_a_correction_not_an_exception(
@@ -1060,3 +1062,136 @@ async def test_edit_switches_a_weekly_rule_to_a_monthly_one() -> None:
     loaded = await store.get("item-1")
     assert loaded is not None
     assert loaded.rule == CalendarRule(hour=9, minute=0, on=MonthDays(days=frozenset({20})))
+
+
+# --- yearly calendar-date rules (ADR-0025 yearly addendum) -----------------------------------
+
+
+def test_spec_advertises_the_year_date_selector_with_its_format() -> None:
+    tool, _ = _tool()
+    on_dates = tool.spec.parameters["properties"]["on_dates"]
+    assert on_dates["items"] == {"type": "string", "pattern": "^[0-9]{1,2}-[0-9]{1,2}$"}
+    assert "MM-DD" in on_dates["description"]
+    assert "on_dates" in tool.spec.description
+
+
+def test_both_verbs_advertise_one_shared_day_selector_vocabulary() -> None:
+    """The three selector properties come from one definition, so they cannot drift apart."""
+    create = _tool()[0].spec.parameters["properties"]
+    edit = EditScheduledTool(InMemoryScheduleStore(), FixedClock()).spec.parameters["properties"]
+    for key in ("on_days", "on_month_days", "on_dates"):
+        assert create[key] == edit[key]
+
+
+async def test_on_dates_stores_a_yearly_rule_and_derives_the_first_fire() -> None:
+    """_NOW is 2026-07-12, so a 25 December rule fires first later in the same year."""
+    tool, store = _tool()
+    result = await tool.invoke(
+        _call({"kind": "reminder", "text": "gifts", "at_time": "09:00", "on_dates": ["12-25"]})
+    )
+    assert not result.is_error
+    item = (await store.list_active())[0]
+    assert item.rule == CalendarRule(
+        hour=9, minute=0, on=YearDays(days=frozenset({MonthDay(12, 25)}))
+    )
+    assert item.every is None
+    assert item.due_at == datetime(2026, 12, 25, 9, 0, tzinfo=UTC)
+    assert "every year on 25 dec at 09:00" in result.content
+
+
+async def test_a_date_already_past_this_year_first_fires_next_year() -> None:
+    tool, store = _tool()
+    await tool.invoke(
+        _call({"kind": "reminder", "text": "taxes", "at_time": "09:00", "on_dates": ["03-03"]})
+    )
+    item = (await store.list_active())[0]
+    assert item.due_at == datetime(2027, 3, 3, 9, 0, tzinfo=UTC)
+
+
+async def test_an_unpadded_date_is_accepted_since_it_is_not_ambiguous() -> None:
+    """A small model writes "1-5" as readily as "01-05"; neither can mean anything else."""
+    tool, store = _tool()
+    await tool.invoke(
+        _call({"kind": "reminder", "text": "x", "at_time": "09:00", "on_dates": ["1-5"]})
+    )
+    item = (await store.list_active())[0]
+    assert item.rule == CalendarRule(
+        hour=9, minute=0, on=YearDays(days=frozenset({MonthDay(1, 5)}))
+    )
+
+
+async def test_a_listing_describes_a_yearly_item_in_calendar_terms() -> None:
+    store = InMemoryScheduleStore()
+    tool, _ = _tool(store)
+    await tool.invoke(
+        _call({"kind": "reminder", "text": "x", "at_time": "09:00", "on_dates": ["12-25", "01-01"]})
+    )
+    listing = await ListScheduledTool(store).invoke(
+        ToolCall(id="c2", name="list_scheduled", arguments={})
+    )
+    assert "every year on 1 jan, 25 dec at 09:00" in listing.content
+
+
+@pytest.mark.parametrize(
+    ("arguments", "expected"),
+    [
+        ({"at_time": "09:00", "on_dates": "12-25"}, "'on_dates' must be"),
+        ({"at_time": "09:00", "on_dates": []}, "'on_dates' must be"),
+        ({"at_time": "09:00", "on_dates": [1225]}, "'on_dates' must be"),
+        ({"at_time": "09:00", "on_dates": ["25 december"]}, "'on_dates' must be"),
+        # A full ISO date is refused rather than truncated: dropping the year silently would
+        # answer a different question than the model asked.
+        ({"at_time": "09:00", "on_dates": ["2026-12-25"]}, "'on_dates' must be"),
+        ({"at_time": "09:00", "on_dates": ["13-01"]}, "'on_dates' must be"),  # no 13th month
+        ({"at_time": "09:00", "on_dates": ["02-30"]}, "'on_dates' must be"),  # no year has it
+        ({"in_seconds": 600, "on_dates": ["12-25"]}, "only together with 'at_time'"),
+        ({"at_time": "09:00", "on_days": ["mon"], "on_dates": ["12-25"]}, "never more than one"),
+        (
+            {"at_time": "09:00", "on_month_days": [1], "on_dates": ["12-25"]},
+            "never more than one",
+        ),
+    ],
+)
+async def test_a_bad_year_date_request_is_a_correction_not_an_exception(
+    arguments: dict[str, Any], expected: str
+) -> None:
+    tool, store = _tool()
+    result = await tool.invoke(_call({"kind": "reminder", "text": "x", **arguments}))
+    assert result.is_error
+    assert result.trust is Trust.TRUSTED
+    assert expected in result.content
+    assert not await store.list_active()
+
+
+async def test_the_leap_day_is_schedulable_and_clamps_in_a_common_year() -> None:
+    """29 February constructs (a real date) and fires every year rather than one in four."""
+    tool, store = _tool()
+    await tool.invoke(
+        _call({"kind": "reminder", "text": "x", "at_time": "09:00", "on_dates": ["02-29"]})
+    )
+    item = (await store.list_active())[0]
+    assert item.due_at == datetime(2027, 2, 28, 9, 0, tzinfo=UTC)  # 2027 is a common year
+
+
+def test_edit_spec_advertises_the_year_date_selector_too() -> None:
+    spec = EditScheduledTool(InMemoryScheduleStore(), FixedClock()).spec
+    assert spec.parameters["properties"]["on_dates"]["items"]["type"] == "string"
+    assert "on_dates" in spec.description
+
+
+async def test_edit_switches_a_monthly_rule_to_a_yearly_one() -> None:
+    """All three selectors reach the edit verb, so a rule changes shape without recreation."""
+    tool, store = _tool()
+    await tool.invoke(
+        _call({"kind": "reminder", "text": "rent", "at_time": "09:00", "on_month_days": [20]})
+    )
+    result = await EditScheduledTool(store, FixedClock()).invoke(
+        _edit_call({"id": "item-1", "at_time": "09:00", "on_dates": ["12-25"]})
+    )
+    assert not result.is_error
+    assert result.content == "edited item-1: now due 2026-12-25T09:00:00+00:00"
+    loaded = await store.get("item-1")
+    assert loaded is not None
+    assert loaded.rule == CalendarRule(
+        hour=9, minute=0, on=YearDays(days=frozenset({MonthDay(12, 25)}))
+    )

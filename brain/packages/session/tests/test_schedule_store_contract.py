@@ -20,6 +20,7 @@ from cortex_core import (
     CalendarRule,
     FireOutcome,
     InMemoryScheduleStore,
+    MonthDays,
     ScheduleClaim,
     ScheduleEdit,
     ScheduleStatus,
@@ -157,6 +158,36 @@ async def test_unknown_kind_or_version_fails_loudly_naming_the_reader() -> None:
     await _seed_raw(client, "vnext", json.dumps({"v": 2, "kind": "schedule"}))
     with pytest.raises(ScheduleStoreError, match="unreadable schedule record"):
         await store.get("vnext")
+
+
+async def test_a_monthly_rule_still_decodes_as_monthly_beside_the_yearly_key() -> None:
+    """The present-key contract holds for THREE variants, not just for the original two.
+
+    A yearly rule writes ``year_dates``, and the decoder checks it first. This proves that
+    check falls through rather than shadowing: a record carrying ``month_days`` and no
+    ``year_dates`` must still read back monthly (ADR-0025 yearly addendum).
+    """
+    client = FakeAsyncRedis(server=FakeServer())
+    store = RedisScheduleStore(client)
+    item = schedule_contract.make_item("monthly")
+    record = json.loads(encode(item, claim=None, claimed_at=None))
+    record["rule"] = {"hour": 9, "minute": 0, "month_days": [1, 15]}
+    await _seed_raw(client, "monthly", json.dumps(record))
+    loaded = await store.get("monthly")
+    assert loaded is not None
+    assert loaded.rule == CalendarRule(hour=9, minute=0, on=MonthDays(days=frozenset({1, 15})))
+
+
+async def test_a_malformed_year_date_pair_fails_loudly_like_any_corrupt_field() -> None:
+    """A stored pair that is not a pair is corruption, not a shape to guess at."""
+    client = FakeAsyncRedis(server=FakeServer())
+    store = RedisScheduleStore(client)
+    item = schedule_contract.make_item("bent")
+    record = json.loads(encode(item, claim=None, claimed_at=None))
+    record["rule"] = {"hour": 9, "minute": 0, "year_dates": [[12, 25, 2026]]}
+    await _seed_raw(client, "bent", json.dumps(record))
+    with pytest.raises(ScheduleStoreError, match="corrupt schedule record"):
+        await store.get("bent")
 
 
 async def test_a_rule_written_before_month_days_decodes_as_a_weekly_one() -> None:

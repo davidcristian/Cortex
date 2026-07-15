@@ -16,47 +16,64 @@ from typing import Any, cast
 from cortex_core import (
     CalendarRule,
     DaySelector,
+    MonthDay,
     MonthDays,
     ScheduledItem,
     ScheduleKind,
     ScheduleStatus,
     ScheduleStoreError,
     Weekdays,
+    YearDays,
 )
 
 RECORD_KIND = "schedule"
 RECORD_VERSION = 1
 
 
-def _encode_rule(rule: CalendarRule | None) -> dict[str, Any] | None:
-    """A calendar rule as a plain JSON object; day lists are sorted so records compare stably.
+def _encode_days(on: DaySelector) -> dict[str, Any]:
+    """The selector as its one JSON key; the day list is sorted so records compare stably.
 
-    The day selector rides as *which key is present*, not a discriminator: a weekly rule
-    writes ``days`` exactly as every record written before day-of-month selectors existed,
-    and only a monthly rule writes ``month_days`` (ADR-0025 monthly addendum).
+    The variant rides as *which key is present*, not a discriminator: a weekly rule writes
+    ``days`` exactly as every record written before day-of-month selectors existed, a monthly
+    one writes ``month_days`` (ADR-0025 monthly addendum), and a yearly one writes
+    ``year_dates`` as ``[month, day]`` pairs (ADR-0025 yearly addendum). Adding a variant
+    therefore leaves every earlier record byte-identical, so none needs a version bump.
     """
+    if isinstance(on, YearDays):
+        return {"year_dates": sorted([day.month, day.day] for day in on.days)}
+    if isinstance(on, MonthDays):
+        return {"month_days": sorted(on.days)}
+    return {"days": sorted(on.days)}
+
+
+def _encode_rule(rule: CalendarRule | None) -> dict[str, Any] | None:
+    """A calendar rule as a plain JSON object: its wall time plus its one day-selector key."""
     if rule is None:
         return None
-    key = "month_days" if isinstance(rule.on, MonthDays) else "days"
-    return {"hour": rule.hour, "minute": rule.minute, key: sorted(rule.on.days)}
+    return {"hour": rule.hour, "minute": rule.minute, **_encode_days(rule.on)}
+
+
+def _decode_days(raw: dict[str, Any]) -> DaySelector:
+    """The stored day selector, read by which key the record carries.
+
+    Checked most-recent-variant first, falling through to the weekly reading, so a record
+    predating either newer selector decodes as the weekly rule it was written as.
+    """
+    year_dates = cast("list[list[int]] | None", raw.get("year_dates"))
+    if year_dates is not None:
+        return YearDays(days=frozenset(MonthDay(month=m, day=d) for m, d in year_dates))
+    month_days = cast("list[int] | None", raw.get("month_days"))
+    if month_days is not None:
+        return MonthDays(days=frozenset(month_days))
+    return Weekdays(days=frozenset(cast("list[int]", raw["days"])))
 
 
 def _decode_rule(fields: dict[str, Any]) -> CalendarRule | None:
-    """The stored rule, or None. Absent on every record written before calendar recurrence.
-
-    ``month_days`` selects the monthly variant; anything else is the weekly one, so a record
-    predating day-of-month selectors reads back as the weekly rule it was written as.
-    """
+    """The stored rule, or None. Absent on every record written before calendar recurrence."""
     raw = cast("dict[str, Any] | None", fields.get("rule"))
     if raw is None:
         return None
-    month_days = cast("list[int] | None", raw.get("month_days"))
-    on: DaySelector = (
-        MonthDays(days=frozenset(month_days))
-        if month_days is not None
-        else Weekdays(days=frozenset(cast("list[int]", raw["days"])))
-    )
-    return CalendarRule(hour=raw["hour"], minute=raw["minute"], on=on)
+    return CalendarRule(hour=raw["hour"], minute=raw["minute"], on=_decode_days(raw))
 
 
 @dataclass(frozen=True, slots=True)

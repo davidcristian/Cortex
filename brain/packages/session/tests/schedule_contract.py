@@ -13,6 +13,7 @@ from uuid import uuid4
 from cortex_core import (
     CalendarRule,
     FireOutcome,
+    MonthDay,
     MonthDays,
     RuleChange,
     ScheduledItem,
@@ -21,6 +22,7 @@ from cortex_core import (
     ScheduleStatus,
     ScheduleStore,
     Weekdays,
+    YearDays,
 )
 
 _NOW = datetime(2026, 7, 12, 12, 0, 0, tzinfo=UTC)
@@ -420,6 +422,24 @@ async def check_a_month_day_rule_round_trips(store: ScheduleStore) -> None:
     assert loaded.every is None
 
 
+async def check_a_year_date_rule_round_trips(store: ScheduleStore) -> None:
+    """The yearly selector survives the store, the codec's third and last rule shape.
+
+    The Redis leg is what this exists for: a yearly rule writes ``year_dates`` as
+    ``[month, day]`` pairs where its two siblings write flat day lists, so only a real
+    encode/store/decode proves the pairs survive JSON and that the three keys do not
+    collapse into each other (ADR-0025 yearly addendum).
+    """
+    dates = frozenset({MonthDay(month=12, day=25), MonthDay(month=1, day=1)})
+    rule = CalendarRule(hour=9, minute=0, on=YearDays(days=dates))
+    item = replace(make_item(_item_id()), rule=rule)
+    await store.add(item)
+    loaded = await store.get(item.id)
+    assert loaded is not None
+    assert loaded.rule == rule
+    assert loaded.every is None
+
+
 async def check_edit_replaces_a_calendar_rule_with_an_interval(store: ScheduleStore) -> None:
     """One recurrence shape per item: setting an interval drops the rule in both stores."""
     item = replace(make_item(_item_id()), rule=CalendarRule(hour=9, minute=0))
@@ -607,6 +627,7 @@ ALL_CHECKS = (
     check_snooze_preserves_a_recurring_grid,
     check_a_calendar_rule_round_trips_and_needs_no_anchor,
     check_a_month_day_rule_round_trips,
+    check_a_year_date_rule_round_trips,
     check_edit_replaces_a_calendar_rule_with_an_interval,
     check_edit_sets_a_rule_and_moves_the_item_on_the_due_index,
     check_edit_setting_a_rule_rearms_a_deliverable_reminder,

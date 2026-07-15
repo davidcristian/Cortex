@@ -64,8 +64,14 @@ There are two shapes, and an item takes exactly one (ADR-0025 calendar addendum)
   - `on_month_days` (`[1, 15]`, integers `1..31`), the monthly one (ADR-0025 monthly addendum).
     A day a short month lacks fires on that month's **last** day rather than skipping the month,
     so `[31]` is how to say "the last day of every month" and `[30, 31]` fires once in February.
+  - `on_dates` (`["12-25", "01-01"]`, `MM-DD` strings with no year), the yearly one (ADR-0025
+    yearly addendum). Use it for anniversaries and renewals: a 365-second-based interval drifts
+    a day every leap year, which is exactly what the rule shape exists to avoid. `02-29` is
+    accepted and fires on the 28th in a common year (the same clamp policy), while a date no
+    year contains (`02-30`) and a full ISO date (`2026-12-25`, whose year would have to be
+    silently dropped) are both refused with a correction.
 
-  Giving both selectors in one call is refused: a rule holds one of them.
+  Giving more than one selector in a single call is refused: a rule holds exactly one.
 
 A calendar occurrence that lands in a spring-forward gap fires just past the gap (late, never
 skipped); one in a fall-back repeat fires once, on the earlier of the two readings. Because a
@@ -74,8 +80,8 @@ calendar schedules** to the new zone's 09:00, while interval and one-shot items 
 instants) only re-render. That is deliberate: a 09:00 reminder follows its user.
 
 `edit_scheduled` changes recurrence in place in either direction: `at_time` (with an optional
-`on_days` or `on_month_days`, so a rule can also switch between weekly and monthly) sets or
-retimes a rule, `every_seconds` replaces one with an interval, and
+`on_days`, `on_month_days`, or `on_dates`, so a rule can also switch between weekly, monthly,
+and yearly) sets or retimes a rule, `every_seconds` replaces one with an interval, and
 `every_seconds: 0` stops it repeating. The two forms are mutually exclusive in one call, since
 an item carries one recurrence shape. Retiming a rule **moves the next fire** to that rule's own
 next occurrence and reports it, unlike an interval change, which leaves the armed fire alone and

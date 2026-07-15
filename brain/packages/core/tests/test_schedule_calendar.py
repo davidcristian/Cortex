@@ -7,19 +7,22 @@ an interval gets wrong there. Europe/Bucharest is +02:00 in winter and +03:00 in
 both 2026 transitions landing on a 03:00-04:00 local window.
 """
 
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from zoneinfo import ZoneInfo
 
 import pytest
 
-from cortex_core import UTC_DISPLAY, CalendarRule, DisplayZone, MonthDays, Weekdays
-from cortex_core.schedule_calendar import (
-    DAILY,
-    DAY_NAMES,
-    EVERY_DAY,
-    MAX_MONTH_DAY,
-    next_calendar_due,
+from cortex_core import (
+    UTC_DISPLAY,
+    CalendarRule,
+    DisplayZone,
+    MonthDay,
+    MonthDays,
+    Weekdays,
+    YearDays,
 )
+from cortex_core.schedule_calendar import next_calendar_due
+from cortex_core.schedule_selectors import DAILY, DAY_NAMES, EVERY_DAY, MAX_MONTH_DAY
 
 _BUCHAREST = DisplayZone(name="Europe/Bucharest", tz=ZoneInfo("Europe/Bucharest"))
 # Behind UTC, so its local date can be a day *earlier* than the UTC one: the mirror of
@@ -313,4 +316,151 @@ def test_a_month_day_occurrence_inside_a_spring_forward_gap_fires_just_past_the_
 def test_a_month_day_occurrence_past_the_representable_maximum_ends_the_recurrence() -> None:
     """The monthly fallback overflows exactly as the weekly one does, and ends the same way."""
     rule = CalendarRule(hour=23, minute=30, on=MonthDays(days=frozenset({MAX_MONTH_DAY})))
+    assert next_calendar_due(rule, _utc(9999, 12, 31, 23, 59), UTC_DISPLAY) is None
+
+
+def test_a_month_day_rejects_a_month_off_the_calendar() -> None:
+    for month in (0, len(DAY_NAMES) + 6):  # 0 and 13: months are 1..12
+        with pytest.raises(ValueError, match=r"MonthDay\.month"):
+            MonthDay(month=month, day=1)
+
+
+@pytest.mark.parametrize(("month", "day"), [(1, 0), (1, 32), (2, 30), (4, 31)])
+def test_a_month_day_rejects_a_day_that_month_never_has(month: int, day: int) -> None:
+    """Bounded by the month's LEAP-year length, so 30 February is a mistake, not a clamp ask.
+
+    April really has no 31st either, unlike the monthly selector's ``[31]``, which means "the
+    last day of every month" precisely because it spans months. A yearly date names one month,
+    so there is no reading of 31 April that is not an error worth correcting.
+    """
+    with pytest.raises(ValueError, match=r"MonthDay\.day"):
+        MonthDay(month=month, day=day)
+
+
+def test_a_month_day_accepts_the_leap_day_and_resolves_it_per_year() -> None:
+    """29 February is a real date, so it constructs; which instant it names is the year's call."""
+    leap_day = MonthDay(month=2, day=29)
+    assert leap_day.resolve(2028) == date(2028, 2, 29)  # a leap year reaches it
+    assert leap_day.resolve(2026) == date(2026, 2, 28)  # a common year clamps back one day
+
+
+def test_dates_sort_chronologically_within_the_year() -> None:
+    """Month-first ordering is load bearing: the walk and the listing both read sorted order."""
+    assert sorted({MonthDay(month=12, day=25), MonthDay(month=1, day=1)}) == [
+        MonthDay(month=1, day=1),
+        MonthDay(month=12, day=25),
+    ]
+
+
+def test_a_year_date_selector_rejects_an_empty_date_set() -> None:
+    """Empty would make the occurrence search unbounded, exactly as for its two siblings."""
+    with pytest.raises(ValueError, match="YearDays"):
+        YearDays(days=frozenset[MonthDay]())
+
+
+def test_describe_names_year_dates_in_calendar_order() -> None:
+    rule = CalendarRule(
+        hour=9, minute=0, on=YearDays(days=frozenset({MonthDay(12, 25), MonthDay(1, 1)}))
+    )
+    assert rule.describe() == "every year on 1 jan, 25 dec at 09:00"
+
+
+def test_todays_year_date_occurrence_is_next_when_its_wall_time_is_still_ahead() -> None:
+    rule = CalendarRule(hour=9, minute=0, on=YearDays(days=frozenset({MonthDay(7, 20)})))
+    assert next_calendar_due(rule, _utc(2026, 7, 20, 6, 0), UTC_DISPLAY) == _utc(2026, 7, 20, 9)
+
+
+def test_the_year_search_moves_to_the_next_listed_date_of_the_same_year() -> None:
+    rule = CalendarRule(
+        hour=9, minute=0, on=YearDays(days=frozenset({MonthDay(3, 3), MonthDay(12, 25)}))
+    )
+    assert next_calendar_due(rule, _utc(2026, 7, 2, 12, 0), UTC_DISPLAY) == _utc(2026, 12, 25, 9)
+
+
+def test_the_year_search_wraps_into_the_following_year() -> None:
+    """A December rule asked after it has passed takes the fallback, next year's first date."""
+    rule = CalendarRule(hour=9, minute=0, on=YearDays(days=frozenset({MonthDay(12, 25)})))
+    assert next_calendar_due(rule, _utc(2026, 12, 26, 12, 0), UTC_DISPLAY) == _utc(2027, 12, 25, 9)
+
+
+def test_a_year_date_occurrence_is_strictly_after_so_firing_does_not_re_arm_in_place() -> None:
+    """The annual case of the property every selector owes: a fire lands on the NEXT year."""
+    rule = CalendarRule(hour=9, minute=0, on=YearDays(days=frozenset({MonthDay(12, 25)})))
+    fired_at = _utc(2026, 12, 25, 9, 0)
+    assert next_calendar_due(rule, fired_at, UTC_DISPLAY) == _utc(2027, 12, 25, 9)
+
+
+def test_an_annual_rule_does_not_drift_across_a_leap_year() -> None:
+    """The headline property, and the reason a 365 day interval is the wrong shape here.
+
+    Four consecutive occurrences of a 25 December rule stay on 25 December, spanning the 2028
+    leap year. An ``every=timedelta(days=365)`` item would have walked back to 24 December
+    after 2028 and kept walking, a day per leap year, silently.
+    """
+    rule = CalendarRule(hour=9, minute=0, on=YearDays(days=frozenset({MonthDay(12, 25)})))
+    due = _utc(2026, 12, 25, 9)
+    for year in (2027, 2028, 2029, 2030):
+        nxt = next_calendar_due(rule, due, UTC_DISPLAY)
+        assert nxt == _utc(year, 12, 25, 9)
+        assert nxt is not None
+        due = nxt
+
+
+def test_the_leap_day_clamps_to_february_28_in_a_common_year() -> None:
+    """The clamp policy inherited from the monthly selector: it fires every year, never one in
+    four. A 29 February reminder that arrives on the 28th beats one that silently does not."""
+    rule = CalendarRule(hour=9, minute=0, on=YearDays(days=frozenset({MonthDay(2, 29)})))
+    assert next_calendar_due(rule, _utc(2026, 1, 10, 12, 0), UTC_DISPLAY) == _utc(2026, 2, 28, 9)
+    assert next_calendar_due(rule, _utc(2028, 1, 10, 12, 0), UTC_DISPLAY) == _utc(2028, 2, 29, 9)
+
+
+def test_dates_that_clamp_together_fire_once_not_twice() -> None:
+    """28 and 29 February collide in a common year; the walk resolves dates, so it fires once."""
+    rule = CalendarRule(
+        hour=9, minute=0, on=YearDays(days=frozenset({MonthDay(2, 28), MonthDay(2, 29)}))
+    )
+    february = next_calendar_due(rule, _utc(2026, 1, 10, 12, 0), UTC_DISPLAY)
+    assert february is not None
+    assert february == _utc(2026, 2, 28, 9)
+    # The next occurrence leaves the year entirely rather than repeating the collided date.
+    assert next_calendar_due(rule, february, UTC_DISPLAY) == _utc(2027, 2, 28, 9)
+    # A leap year separates them again, so the same rule fires on both days there.
+    leap = next_calendar_due(rule, _utc(2028, 1, 10, 12, 0), UTC_DISPLAY)
+    assert leap == _utc(2028, 2, 28, 9)
+    assert next_calendar_due(rule, _utc(2028, 2, 28, 9), UTC_DISPLAY) == _utc(2028, 2, 29, 9)
+
+
+def test_a_year_date_rule_reads_its_own_local_date_west_of_utc() -> None:
+    """The direction that bites, for the annual window: it is still 25 December there.
+
+    At 2026-12-26T02:00Z it is 2026-12-25T18:00 in Los Angeles, so a 25 December 21:00 rule
+    fires in three hours. Reading the UTC date instead would see the 26th and push the
+    reminder a full YEAR out, which is the worst version of this bug the three selectors have.
+    """
+    rule = CalendarRule(hour=21, minute=0, on=YearDays(days=frozenset({MonthDay(12, 25)})))
+    after = _utc(2026, 12, 26, 2, 0)
+    assert after.astimezone(_LOS_ANGELES.tz).day == 25  # local 25 December, UTC the 26th
+    assert next_calendar_due(rule, after, _LOS_ANGELES) == _utc(2026, 12, 26, 5, 0)
+
+
+def test_a_year_date_rule_holds_its_wall_time_across_a_transition() -> None:
+    """Two consecutive occurrences of a summer date read 09:00 local on both sides of a year."""
+    rule = CalendarRule(hour=9, minute=0, on=YearDays(days=frozenset({MonthDay(7, 20)})))
+    summer = next_calendar_due(rule, _utc(2026, 1, 1, 0, 0), _BUCHAREST)
+    assert summer is not None
+    assert _BUCHAREST.render(summer) == "2026-07-20T09:00:00+03:00"
+    assert next_calendar_due(rule, summer, _BUCHAREST) == _utc(2027, 7, 20, 6, 0)
+
+
+def test_a_year_date_occurrence_inside_a_spring_forward_gap_fires_just_past_the_gap() -> None:
+    """The gap policy is inherited, not re-invented: identical to its two siblings'."""
+    rule = CalendarRule(hour=3, minute=30, on=YearDays(days=frozenset({MonthDay(3, 29)})))
+    due = next_calendar_due(rule, _utc(2026, 3, 20, 12, 0), _BUCHAREST)
+    assert due is not None
+    assert _BUCHAREST.render(due) == "2026-03-29T04:30:00+03:00"
+
+
+def test_a_year_date_occurrence_past_the_representable_maximum_ends_the_recurrence() -> None:
+    """The annual fallback reaches year 10000, which no date holds; the recurrence ends."""
+    rule = CalendarRule(hour=23, minute=30, on=YearDays(days=frozenset({MonthDay(12, 31)})))
     assert next_calendar_due(rule, _utc(9999, 12, 31, 23, 59), UTC_DISPLAY) is None

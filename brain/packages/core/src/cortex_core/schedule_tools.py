@@ -24,7 +24,7 @@ from cortex_core.errors import ScheduleStoreError
 from cortex_core.ports import Clock, ScheduleStore
 from cortex_core.schedule import ScheduledItem, ScheduleKind, ScheduleStatus
 from cortex_core.schedule_args import MIN_EVERY_SECONDS, parse_schedule
-from cortex_core.schedule_calendar import DAY_NAMES, MAX_MONTH_DAY
+from cortex_core.schedule_day_args import day_selector_properties
 from cortex_core.schedule_time import UTC_DISPLAY, DisplayZone
 from cortex_core.schedule_verbs import error_result, store_down_result
 from cortex_core.tools import ToolCall, ToolResult, ToolSpec, Trust
@@ -100,23 +100,7 @@ class ScheduleTaskTool:
                     "same clock time across daylight saving. Alternative to 'at'/'in_seconds'."
                 ),
             },
-            "on_days": {
-                "type": "array",
-                "items": {"type": "string", "enum": list(DAY_NAMES)},
-                "description": (
-                    "Which weekdays 'at_time' fires on; omit for every day. Only with 'at_time'."
-                ),
-            },
-            "on_month_days": {
-                "type": "array",
-                "items": {"type": "integer", "minimum": 1, "maximum": MAX_MONTH_DAY},
-                "description": (
-                    "Which days of the month 'at_time' fires on, e.g. [1] for the 1st of "
-                    "every month. A day a short month lacks fires on that month's last day, "
-                    "so [31] means the last day of every month. Only with 'at_time', and "
-                    "never together with 'on_days'."
-                ),
-            },
+            **day_selector_properties(),
         }
         if self._tasks_enabled:
             what = "a reminder to deliver to the user, or an autonomous task run by a subagent"
@@ -133,7 +117,8 @@ class ScheduleTaskTool:
                 f"({self._zone.name}). "
                 "Provide 'at' (ISO-8601) or 'in_seconds' (delay from now), "
                 "and add 'every_seconds' to recur; or provide 'at_time' (HH:MM) with "
-                "optional 'on_days' or 'on_month_days' to recur at a wall-clock time."
+                "optional 'on_days', 'on_month_days', or 'on_dates' to recur at a "
+                "wall-clock time."
             ),
             parameters={"type": "object", "properties": properties, "required": ["kind", "text"]},
         )
