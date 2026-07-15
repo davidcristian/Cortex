@@ -53,6 +53,13 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
   acks (an ack destroys the reminder, navigation does not), and the control is *absent* for a
   session-less row (`""`) or for the chat already on screen, where it would cancel that chat's
   running turn to arrive where it already is.
+- **The confirmation card** (`components/ConfirmCard.tsx` + `components/draftValue.ts`,
+  ADR-0022): the gated call's `argumentsJson` as key/value rows, shown verbatim because what is
+  approved is what runs (a malformed one falls back to the raw string). `formatDraftValue`
+  renders one value: a string is untouched, so newlines stay newlines; an object or array becomes
+  indented `key: value` lines, which is what lets an attachment's content read as a file instead
+  of as escaped JSON. It knows JSON shapes and never a tool's schema. The draft block caps at
+  `42vh` and scrolls, so a long draft cannot push Approve and Deny out of view.
 - **The `converse` command** (`src-tauri/src/converse.rs`): `converse(session_id, text, channel)`.
   It serialises each `TurnEvent` / `TransportError` to a `WireMessage` (`{ event }` | `{ error }`)
   that matches the TS `WireMessage` in `tauriBridge.ts` field for field (tag `kind`, camelCase, so

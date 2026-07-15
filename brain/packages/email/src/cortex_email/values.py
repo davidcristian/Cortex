@@ -26,8 +26,17 @@ class EmailDetail:
 
 
 @dataclass(frozen=True, slots=True)
+class EmailAttachment:
+    """One attached file the assistant authored: a ``text/<subtype>`` part named ``filename``."""
+
+    filename: str
+    content: str
+    subtype: str = "plain"
+
+
+@dataclass(frozen=True, slots=True)
 class EmailDraft:
-    """One outbound message the user approves: recipients, subject, and body shapes."""
+    """One outbound message the user approves: recipients, subject, body, and attachments."""
 
     to: str
     subject: str
@@ -35,3 +44,4 @@ class EmailDraft:
     cc: str = ""
     bcc: str = ""
     html: str = ""
+    attachments: tuple[EmailAttachment, ...] = ()

@@ -26,15 +26,24 @@ describe("ConfirmCard", () => {
     ).toBeInTheDocument();
   });
 
-  it("renders non-string values as their JSON. The draft shown is the draft that runs", () => {
-    render(
+  it("renders a structured value as readable lines. The draft shown is the draft that runs", () => {
+    const { container } = render(
       <ConfirmCard
-        confirm={confirm({ argumentsJson: '{"count":3,"tags":["a","b"]}' })}
+        confirm={{
+          ...confirm(),
+          argumentsJson: JSON.stringify({
+            count: 3,
+            attachments: [{ filename: "notes.md", content: "# Week 30\n- one" }],
+          }),
+        }}
         onRespond={vi.fn()}
       />,
     );
     expect(screen.getByText("3")).toBeInTheDocument();
-    expect(screen.getByText('["a","b"]')).toBeInTheDocument();
+    // Asserted off textContent rather than getByText, whose normalizer would collapse the
+    // newlines this is about: the payload the user consents to reads as itself, not escaped.
+    const values = [...container.querySelectorAll(".confirm-row dd")].map((n) => n.textContent);
+    expect(values).toContain("filename: notes.md\ncontent:\n# Week 30\n- one");
   });
 
   it("falls back to the raw string when the arguments are not valid JSON", () => {

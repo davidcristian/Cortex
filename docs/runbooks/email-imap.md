@@ -92,9 +92,19 @@ CORTEX_EMAIL_SMTP_PASSWORD=<bridge generated password>
 CORTEX_EMAIL_SMTP_TLS_INSECURE=true   # or CORTEX_EMAIL_SMTP_CA_CERT, as for IMAP
 ```
 
+A draft can carry `cc`/`bcc`, an `html` alternative, and `attachments`. An attachment is text
+the assistant wrote (`{"filename": "notes.md", "content": "...", "subtype": "markdown"}`,
+composed as a `text/<subtype>` part), never a file read off disk: the sidecar has no mount and
+no file-read capability, deliberately, so the confirmation card always shows the payload
+itself rather than a name for it (ADR-0022 attachments addendum). A send is refused with a
+readable error if a filename is empty, carries a newline, or exceeds 128 characters; if a
+subtype is not a MIME token; if there are more than 8 attachments; or if their content totals
+more than 32768 characters.
+
 The live round-trip test really sends one message between the two `example.com` test
-addresses and verifies arrival back over IMAP; point `CORTEX_EMAIL_LIVE_SEND_TO` at the
-second address and run the integration suite as above:
+addresses (with a cc, an HTML alternative, and an attachment it parses back off IMAP) and
+verifies arrival back over IMAP; point `CORTEX_EMAIL_LIVE_SEND_TO` at the second address and
+run the integration suite as above:
 
 ```
 set -a; . ~/.cortex/email.env; set +a

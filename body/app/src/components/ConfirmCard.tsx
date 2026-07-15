@@ -1,4 +1,5 @@
 import type { PendingConfirm } from "../overlay/overlayState";
+import { formatDraftValue } from "./draftValue";
 import { ShieldIcon } from "./icons";
 
 interface ConfirmCardProps {
@@ -16,9 +17,9 @@ function parseDraft(argumentsJson: string): readonly (readonly [string, string])
     if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
       return null;
     }
-    return Object.entries(parsed).map(([key, value]) => [
+    return Object.entries(parsed).map(([key, value]: [string, unknown]) => [
       key,
-      typeof value === "string" ? value : JSON.stringify(value),
+      formatDraftValue(value),
     ]);
   } catch {
     return null;
