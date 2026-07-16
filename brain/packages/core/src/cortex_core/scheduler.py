@@ -4,6 +4,7 @@ import asyncio
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
+from cortex_core.errors import SubagentAdmissionError
 from cortex_core.placement import PlacementRequest
 
 
@@ -35,7 +36,7 @@ class ResourceBudgetScheduler:
                 f"subagent charge (cpus={request.cpus}, memory_gb={request.memory_gb}) exceeds the "
                 f"whole budget (cpus={self._cpu_budget}, memory_gb={self._mem_budget_gb})"
             )
-            raise ValueError(msg)
+            raise SubagentAdmissionError(msg)
         async with self._budget:
             while not self._fits(request):
                 await self._budget.wait()

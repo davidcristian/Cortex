@@ -4,7 +4,7 @@ import json
 
 from cortex_core.conversation import Message, Role
 from cortex_core.dispatch import ToolDispatcher
-from cortex_core.errors import InferenceError
+from cortex_core.errors import InferenceError, SubagentAdmissionError
 from cortex_core.inference import JsonSchema
 from cortex_core.ports import Clock, InferenceBackend, TaskStore
 from cortex_core.roster import SubagentResources, SubagentRoster
@@ -24,6 +24,12 @@ _REPLY_ENVELOPE: JsonSchema = {
 }
 
 _MALFORMED_ENVELOPE_MSG = "subagent produced a malformed constrained reply"
+
+_REFUSED_TEMPLATE = (
+    "refused before running: {reason}. The subtask was never attempted and no retry can fit it, "
+    "since this is a resource-budget misconfiguration of the deployment; answer without delegating "
+    "this subtask, and say what you could not do."
+)
 
 
 def _task_messages(task: SubagentTask) -> list[Message]:
@@ -86,14 +92,17 @@ class SubagentRunner:
         if name is None:
             return await self._failed(task_id, f"unknown subagent model {task.model!r}")
         res = self._roster.entries[name].resources
-        async with res.scheduler.admit(res.request):
-            placement = res.placer.place(res.request)
-            try:
-                return await self._run_placed(
-                    task, res, res.backends[placement.target], budget=budget
-                )
-            finally:
-                res.placer.release(placement)
+        try:
+            async with res.scheduler.admit(res.request):
+                placement = res.placer.place(res.request)
+                try:
+                    return await self._run_placed(
+                        task, res, res.backends[placement.target], budget=budget
+                    )
+                finally:
+                    res.placer.release(placement)
+        except SubagentAdmissionError as err:
+            return await self._failed(task_id, _REFUSED_TEMPLATE.format(reason=err))
 
     async def _run_placed(
         self,

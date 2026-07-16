@@ -33,6 +33,10 @@ class TaskStoreError(Exception):
     """A TaskStore operation failed (task-store adapters wrap their backend's errors)."""
 
 
+class SubagentAdmissionError(Exception):
+    """A SubagentScheduler refused a spawn outright: no wait could ever admit this charge."""
+
+
 class BodyGatewayError(Exception):
     """A BodyGateway call failed. The body was unreachable or the OS action errored."""
 
