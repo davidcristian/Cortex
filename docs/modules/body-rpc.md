@@ -60,6 +60,9 @@ line cap.
     `GetSessionMessages` mapping each reply row to a core `SessionSummary` / `SessionMessage`;
     a non-OK status reuses `status_to_error` → `Rpc`/`Connection` (a store failure is
     `Rpc{code:"Unavailable"}`). Kept in their own module so `client.rs` stays under the line cap.
+  - `rename_session(session_id, title)` (the user-driven catalog write, ADR-0021 management
+    addendum; same `src/sessions.rs`) is a unary call to `BrainService.RenameSession`; the reply
+    is a bare ack, so success maps to `()` and a non-OK status maps the same way as the reads.
   - `list_due_reminders()` / `ack_reminder(reminder_id)` (the reminder pull path, ADR-0025;
     `src/reminders.rs`, split for the same reason) are unary calls to
     `BrainService.ListDueReminders` / `AckReminder`, mapping each reply row to a core

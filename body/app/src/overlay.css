@@ -828,9 +828,15 @@
   color: var(--muted);
   font-size: 13px;
 }
+.switcher-li {
+  display: flex;
+  align-items: stretch;
+  gap: 2px;
+}
 .switcher-item {
   display: block;
-  width: 100%;
+  flex: 1;
+  min-width: 0;
   padding: 9px 11px;
   border: none;
   border-radius: 12px;
@@ -843,6 +849,68 @@
 .switcher-item:hover,
 .switcher-item.current {
   background: var(--panel);
+}
+/* The pencil sits beside the row and only ink-reveals on hover/focus, so it never competes
+   with the title for attention (ADR-0021 management addendum). */
+.switcher-rename-btn {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  border: none;
+  border-radius: 12px;
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+  opacity: 0;
+  transition:
+    opacity 0.16s var(--ease),
+    background 0.16s var(--ease),
+    color 0.16s var(--ease);
+}
+.switcher-li:hover .switcher-rename-btn,
+.switcher-rename-btn:focus-visible {
+  opacity: 1;
+}
+.switcher-rename-btn:hover {
+  background: var(--panel);
+  color: var(--text);
+}
+.switcher-rename {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 7px;
+}
+.switcher-rename-input {
+  flex: 1;
+  min-width: 0;
+  padding: 5px 8px;
+  border: 1px solid var(--accent);
+  border-radius: 10px;
+  background: var(--panel);
+  color: var(--text);
+  font: inherit;
+  font-size: 13.5px;
+}
+.switcher-rename-save {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: none;
+  border-radius: 10px;
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+  transition: color 0.16s var(--ease);
+}
+.switcher-rename-save:hover {
+  color: var(--text);
 }
 .switcher-row {
   display: flex;

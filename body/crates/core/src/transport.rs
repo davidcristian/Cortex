@@ -275,4 +275,26 @@ pub trait BrainTransport: Send + Sync {
         &self,
         reminder_id: &str,
     ) -> impl Future<Output = Result<bool, TransportError>> + Send;
+
+    /// Renames one chat (`BrainService.RenameSession`, ADR-0021 management addendum): the
+    /// overlay's user-driven relabel of a chat in its list. `title` is the new display label;
+    /// `""` clears any custom/brain-generated title so the switcher falls back to the
+    /// first-message derivation. The brain re-bounds the label when listing.
+    ///
+    /// A **write**, and a user-only one. Unlike a gated `Converse` tool call (whose gate is the
+    /// mid-turn confirm card), this is reachable only from the overlay's own controls, never
+    /// from a model, tool, or tainted turn, so no injected content can drive it. It carries an
+    /// effect, so the resilient transport refuses to retry it (`SeamMethod::RenameSession` is
+    /// not repeatable): one attempt, and a transient failure surfaces rather than risking a
+    /// second write. Setting the same title twice is harmless, but a lost reply must not become
+    /// a silent second relabel of whatever the row holds by then.
+    ///
+    /// # Errors
+    ///
+    /// As [`BrainTransport::list_sessions`] (a store failure surfaces as `Unavailable`).
+    fn rename_session(
+        &self,
+        session_id: &str,
+        title: &str,
+    ) -> impl Future<Output = Result<(), TransportError>> + Send;
 }

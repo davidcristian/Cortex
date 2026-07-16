@@ -232,4 +232,14 @@ impl<T: BrainTransport, S: Sleeper, R: Randomness> BrainTransport for RetryingTr
         })
         .await
     }
+
+    async fn rename_session(&self, session_id: &str, title: &str) -> Result<(), TransportError> {
+        // A user-driven catalog write (ADR-0021). Like `ack_reminder` it carries an effect, so
+        // the plan refuses it and the same door grants exactly one attempt: a lost reply must
+        // not become a silent second relabel.
+        self.guarded(SeamMethod::RenameSession, || {
+            self.inner.rename_session(session_id, title)
+        })
+        .await
+    }
 }

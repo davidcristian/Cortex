@@ -278,4 +278,10 @@ export class DemoBridge implements BrainBridge {
       { role: "assistant", text: ANSWER, turnId: "t1", atUnixMs: 0 },
     ]);
   }
+
+  // The demo list is static, so a rename is a no-op that resolves; the browser-dev switcher
+  // just does not persist the relabel (the real bridge does, over the seam).
+  renameSession(_sessionId: string, _title: string): Promise<void> {
+    return Promise.resolve();
+  }
 }

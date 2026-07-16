@@ -99,6 +99,11 @@ impl BrainTransport for ScriptedTransport {
         self.touch_other();
         Ok(false)
     }
+
+    async fn rename_session(&self, _session_id: &str, _title: &str) -> Result<(), TransportError> {
+        self.touch_other();
+        Ok(())
+    }
 }
 
 /// Probes once and reports the status plus how many methods the probe touched.

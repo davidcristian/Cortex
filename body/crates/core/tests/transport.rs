@@ -90,6 +90,20 @@ impl BrainTransport for FakeTransport {
         // contract in miniature: an unknown id clears nothing and answers false.
         Ok(reminder_id == "r1")
     }
+
+    async fn rename_session(&self, session_id: &str, title: &str) -> Result<(), TransportError> {
+        // A user-only catalog write; the fake accepts any relabel and reports success. The
+        // real adapter's argument mapping is proven in body_rpc's contract tests. An empty
+        // session id stands in for a store failure so the error arm is exercisable here too.
+        if session_id.is_empty() {
+            return Err(TransportError::Rpc {
+                code: String::from("Unavailable"),
+                message: String::from("store down"),
+            });
+        }
+        let _ = title;
+        Ok(())
+    }
 }
 
 /// Uses the trait as a generic bound, the way application code will.
@@ -428,6 +442,37 @@ async fn fake_transport_pulls_and_acks_reminders_through_the_generic_bound() {
     // A dismissal acks; anything the store no longer holds answers false, not an error.
     assert!(assert_send(ack(&fake, &due[0].reminder_id)).await);
     assert!(!ack(&fake, "gone").await);
+}
+
+#[tokio::test]
+async fn fake_transport_renames_a_session_through_the_generic_bound() {
+    async fn rename<T: BrainTransport>(
+        t: &T,
+        session_id: &str,
+        title: &str,
+    ) -> Result<(), TransportError> {
+        t.rename_session(session_id, title).await
+    }
+    let fake = FakeTransport {
+        script: Ok(SeamHealth {
+            ready: true,
+            detail: String::new(),
+        }),
+    };
+    // A relabel and a clear-the-override both report success; a store failure surfaces.
+    assert!(
+        assert_send(rename(&fake, "s1", "Everything about cats"))
+            .await
+            .is_ok()
+    );
+    assert!(rename(&fake, "s1", "").await.is_ok());
+    assert_eq!(
+        rename(&fake, "", "x").await.unwrap_err(),
+        TransportError::Rpc {
+            code: String::from("Unavailable"),
+            message: String::from("store down"),
+        }
+    );
 }
 
 #[test]

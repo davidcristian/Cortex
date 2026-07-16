@@ -193,6 +193,19 @@ pub struct SessionMessage {
     #[prost(int64, tag = "4")]
     pub at_unix_ms: i64,
 }
+/// Rename one chat (ADR-0021 management addendum). `title` is the new display label; ""
+/// clears any custom/brain-generated title so the switcher falls back to the first-message
+/// derivation. The reply is a bare acknowledgement (the overlay re-lists to see the change);
+/// a store failure surfaces as an `UNAVAILABLE` RPC status, the session-read precedent.
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct RenameSessionRequest {
+    #[prost(string, tag = "1")]
+    pub session_id: ::prost::alloc::string::String,
+    #[prost(string, tag = "2")]
+    pub title: ::prost::alloc::string::String,
+}
+#[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct RenameSessionReply {}
 /// Reminder pull-delivery views (ADR-0025). All sessions are listed deliberately because
 /// a single-user assistant has one user to remind; session_id rides along so the
 /// overlay can later offer "open the conversation this came from" without a wire change.
@@ -571,6 +584,40 @@ pub mod brain_service_client {
                 .insert(GrpcMethod::new("cortex.seam.v1.BrainService", "AckReminder"));
             self.inner.unary(req, path, codec).await
         }
+        /// Rename a chat: a gated WRITE on the session catalog (ADR-0021 management addendum),
+        /// the overlay's user-driven relabel of one chat. Unlike Converse's model-initiated gated
+        /// tool calls, whose gate is the mid-turn Confirmer (ADR-0022), this RPC is reachable ONLY
+        /// from the overlay's own list controls, driven by the user. No model, tool, or tainted turn
+        /// reaches it: it is not a tool in any registry and is served directly off the store, never
+        /// through the turn engine. That structural user-only path IS its gate. It persists a derived
+        /// DISPLAY title only (never conversation content), so it cannot touch the one hard rule
+        /// beyond the title the store already holds for a brain-generated one, and an empty title
+        /// clears the override to restore the first-message derivation. The brain re-bounds the title
+        /// when listing, so a caller cannot store an unbounded or multi-line label.
+        pub async fn rename_session(
+            &mut self,
+            request: impl tonic::IntoRequest<super::RenameSessionRequest>,
+        ) -> std::result::Result<
+            tonic::Response<super::RenameSessionReply>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic_prost::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/cortex.seam.v1.BrainService/RenameSession",
+            );
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(GrpcMethod::new("cortex.seam.v1.BrainService", "RenameSession"));
+            self.inner.unary(req, path, codec).await
+        }
     }
 }
 /// Generated server implementations.
@@ -639,6 +686,23 @@ pub mod brain_service_server {
             request: tonic::Request<super::AckReminderRequest>,
         ) -> std::result::Result<
             tonic::Response<super::AckReminderReply>,
+            tonic::Status,
+        >;
+        /// Rename a chat: a gated WRITE on the session catalog (ADR-0021 management addendum),
+        /// the overlay's user-driven relabel of one chat. Unlike Converse's model-initiated gated
+        /// tool calls, whose gate is the mid-turn Confirmer (ADR-0022), this RPC is reachable ONLY
+        /// from the overlay's own list controls, driven by the user. No model, tool, or tainted turn
+        /// reaches it: it is not a tool in any registry and is served directly off the store, never
+        /// through the turn engine. That structural user-only path IS its gate. It persists a derived
+        /// DISPLAY title only (never conversation content), so it cannot touch the one hard rule
+        /// beyond the title the store already holds for a brain-generated one, and an empty title
+        /// clears the override to restore the first-message derivation. The brain re-bounds the title
+        /// when listing, so a caller cannot store an unbounded or multi-line label.
+        async fn rename_session(
+            &self,
+            request: tonic::Request<super::RenameSessionRequest>,
+        ) -> std::result::Result<
+            tonic::Response<super::RenameSessionReply>,
             tonic::Status,
         >;
     }
@@ -979,6 +1043,51 @@ pub mod brain_service_server {
                     let inner = self.inner.clone();
                     let fut = async move {
                         let method = AckReminderSvc(inner);
+                        let codec = tonic_prost::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            )
+                            .apply_max_message_size_config(
+                                max_decoding_message_size,
+                                max_encoding_message_size,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                "/cortex.seam.v1.BrainService/RenameSession" => {
+                    #[allow(non_camel_case_types)]
+                    struct RenameSessionSvc<T: BrainService>(pub Arc<T>);
+                    impl<
+                        T: BrainService,
+                    > tonic::server::UnaryService<super::RenameSessionRequest>
+                    for RenameSessionSvc<T> {
+                        type Response = super::RenameSessionReply;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::RenameSessionRequest>,
+                        ) -> Self::Future {
+                            let inner = Arc::clone(&self.0);
+                            let fut = async move {
+                                <T as BrainService>::rename_session(&inner, request).await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let max_decoding_message_size = self.max_decoding_message_size;
+                    let max_encoding_message_size = self.max_encoding_message_size;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let method = RenameSessionSvc(inner);
                         let codec = tonic_prost::ProstCodec::default();
                         let mut grpc = tonic::server::Grpc::new(codec)
                             .apply_compression_config(

@@ -46,6 +46,8 @@ pub enum SeamMethod {
     ListDueReminders,
     /// `BrainService.AckReminder`: marks one reminder delivered.
     AckReminder,
+    /// `BrainService.RenameSession`: the overlay's user-driven relabel of a chat.
+    RenameSession,
 }
 
 impl SeamMethod {
@@ -67,14 +69,16 @@ impl SeamMethod {
     ///   overlay's next open re-lists whatever is still due.
     ///
     /// A method is repeatable when a repeat cannot duplicate an effect *and* cannot change the
-    /// answer. `AckReminder` is the case that shows those are two different tests.
+    /// answer. `AckReminder` is the case that shows those are two different tests, and
+    /// `RenameSession` is a plainer write: it relabels a chat, so a repeat over a lost reply
+    /// could re-apply a stale label the user has since changed. One attempt, no retry.
     #[must_use]
     pub const fn repeatable(self) -> bool {
         match self {
             Self::Health | Self::ListSessions | Self::SessionMessages | Self::ListDueReminders => {
                 true
             }
-            Self::Converse | Self::AckReminder => false,
+            Self::Converse | Self::AckReminder | Self::RenameSession => false,
         }
     }
 }

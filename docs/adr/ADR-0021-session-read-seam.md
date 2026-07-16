@@ -431,3 +431,63 @@ Evidence (agent, Docker + real Redis + real GPU model): the live-Redis session c
 `:title` key overriding the listed title with the preview unchanged; and the two title-generation
 cases above ran against a real Qwen 2B `llama-server`. CI-gated at 100% over fakes, with the
 title-override, first-turn-only, empty-title, and reasoning-filter guards each mutation-proven.
+
+## Addendum (2026-07-16): session rename lands as a gated user-only write; pin and delete deferred
+
+The deferred management surface ("session deletion / rename / pinning") lands, but as **rename
+only**. The three verbs are not one change: rename is a reversible metadata write and reuses a
+catalog write that already exists; pin reshapes the read path; delete is destructive and cannot
+yet be honest about what it destroys. So this slice ships rename end to end and records pin and
+delete as their own deferrals with what blocks each.
+
+**What "gated" means here, and why it is not the Confirmer.** The backlog framed these as "gated
+write RPCs (Slice 6.5 gate + Slice 8.8 Confirmer)". Read against the code, the Confirmer does
+**not** fit a management RPC. The capability gate and the `SeamConfirmer` (ADR-0013/0022) exist to
+stop a possibly-jailbroken *model* from running an irreversible tool call **inside a turn**: the
+confirmer is bound one-per-`Converse`-stream, round-trips a card over that stream's control path,
+and a tainted turn's gated call is denied outright. A rename has none of that shape. It is
+triggered by the user clicking a control in the overlay, out of band from any turn, and the
+brain-side handler is **not a tool in any registry** and never runs through the turn engine. So no
+model, tool, or tainted turn can reach it. The correct gate for a user-initiated management action
+is therefore **structural user-only reachability**, not a confirm card, and that is the gate
+`RenameSession` has: it is a distinct `BrainService` method whose only caller is the overlay's
+`renameSession` bridge, served directly off the store like the read RPCs. Inventing a
+parallel confirm path for it would add a card the threat model does not call for.
+
+**Rename needed no new port method.** A user rename *is* setting the session's display title, which
+is exactly `SessionStore.set_title` (the catalog write the brain-generated-titles addendum above
+built and contract-tested). So the store layer was already done and gated; this slice adds only the
+seam RPC (`RenameSession`, proto), the orchestrator handler (`session_rpc.rename_session`, which
+bounds the label to `MAX_TITLE_INPUT` at the seam edge and reuses `set_title`), the body transport
+(`BrainTransport::rename_session`, classified **not repeatable** so the resilient transport makes
+one attempt and never re-labels on a lost reply), the `body_rpc` translation, and the overlay's
+switcher rename control + `BrainBridge.renameSession`. `""` clears the override, restoring the
+first-message derivation; `list_sessions` re-collapses and re-truncates the stored title to
+`TITLE_MAX` at read, and the overlay renders it as inert React text, so a user-supplied label is
+bounded and cannot inject markup or a multi-line row.
+
+**Deferred, each recorded in [session-read-seam.md](../refinements/session-read-seam.md):**
+
+- *Pinning.* A new `SessionStore.set_pinned` verb plus a `pinned` field on `SessionSummary` across
+  all four trees, but the real cost is a **read-path** decision the bounded two-round-trip listing
+  does not answer: whether a pinned chat escapes the recency `ZREVRANGE` window (the expected UX)
+  and so must be unioned in, reshaping the tuned `list_sessions`. It is a genuine design change, not
+  a drop-in, which is why it did not ride rename.
+- *Deletion.* Destructive and irreversible, and it cannot yet tell the truth about scope: a session
+  delete would remove the transcript and catalog entry, but **not** memories derived from that
+  session, because `MemoryStore` is `add`/`search` only (no delete verb, a separately blocked
+  backlog item). It also needs a tombstone-vs-hard-delete decision and an **overlay-local** confirm
+  ("are you sure"), since the `SeamConfirmer` above does not fit a unary management RPC. Landing it
+  half-honest (implying a cascade it cannot perform) was rejected in favour of designing it with the
+  memory delete verb and the confirm surface.
+
+**Evidence (agent, Docker + real Redis).** A direct `RedisSessionStore` run through the orchestrator
+rename path showed the derived title (`about cats`) replaced by the chosen label
+(`Everything about cats`) with the preview unchanged, an over-long label stored bounded to 200
+chars and displayed at 49 (one line, `TITLE_MAX`), and an empty rename clearing the override back to
+the derivation; the `:messages` and `:title` keys are durable (no TTL) and the session stays in the
+`cortex:sessions` recency index. The live-Redis session contract suite is green. CI-gated at 100%
+across all three trees, with the rename write mutation-proven in each: the brain drops the clamp
+(over-long test reddens) and the write itself (spy test reddens) and aborts `UNAVAILABLE` on a store
+failure; the body refuses to retry it (`SeamMethod::RenameSession` not repeatable, and the
+one-attempt decorator test); the overlay writes then re-lists, and swallows a failed write.

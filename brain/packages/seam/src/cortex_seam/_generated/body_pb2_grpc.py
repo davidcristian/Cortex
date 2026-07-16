@@ -67,6 +67,11 @@ class BrainServiceStub:
                 request_serializer=cortex__seam_dot___generated_dot_body__pb2.AckReminderRequest.SerializeToString,
                 response_deserializer=cortex__seam_dot___generated_dot_body__pb2.AckReminderReply.FromString,
                 _registered_method=True)
+        self.RenameSession = channel.unary_unary(
+                '/cortex.seam.v1.BrainService/RenameSession',
+                request_serializer=cortex__seam_dot___generated_dot_body__pb2.RenameSessionRequest.SerializeToString,
+                response_deserializer=cortex__seam_dot___generated_dot_body__pb2.RenameSessionReply.FromString,
+                _registered_method=True)
 
 
 class BrainServiceServicer:
@@ -124,6 +129,22 @@ class BrainServiceServicer:
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def RenameSession(self, request, context):
+        """Rename a chat: a gated WRITE on the session catalog (ADR-0021 management addendum),
+        the overlay's user-driven relabel of one chat. Unlike Converse's model-initiated gated
+        tool calls, whose gate is the mid-turn Confirmer (ADR-0022), this RPC is reachable ONLY
+        from the overlay's own list controls, driven by the user. No model, tool, or tainted turn
+        reaches it: it is not a tool in any registry and is served directly off the store, never
+        through the turn engine. That structural user-only path IS its gate. It persists a derived
+        DISPLAY title only (never conversation content), so it cannot touch the one hard rule
+        beyond the title the store already holds for a brain-generated one, and an empty title
+        clears the override to restore the first-message derivation. The brain re-bounds the title
+        when listing, so a caller cannot store an unbounded or multi-line label.
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
 
 def add_BrainServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
@@ -156,6 +177,11 @@ def add_BrainServiceServicer_to_server(servicer, server):
                     servicer.AckReminder,
                     request_deserializer=cortex__seam_dot___generated_dot_body__pb2.AckReminderRequest.FromString,
                     response_serializer=cortex__seam_dot___generated_dot_body__pb2.AckReminderReply.SerializeToString,
+            ),
+            'RenameSession': grpc.unary_unary_rpc_method_handler(
+                    servicer.RenameSession,
+                    request_deserializer=cortex__seam_dot___generated_dot_body__pb2.RenameSessionRequest.FromString,
+                    response_serializer=cortex__seam_dot___generated_dot_body__pb2.RenameSessionReply.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -323,6 +349,33 @@ class BrainService:
             '/cortex.seam.v1.BrainService/AckReminder',
             cortex__seam_dot___generated_dot_body__pb2.AckReminderRequest.SerializeToString,
             cortex__seam_dot___generated_dot_body__pb2.AckReminderReply.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def RenameSession(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/cortex.seam.v1.BrainService/RenameSession',
+            cortex__seam_dot___generated_dot_body__pb2.RenameSessionRequest.SerializeToString,
+            cortex__seam_dot___generated_dot_body__pb2.RenameSessionReply.FromString,
             options,
             channel_credentials,
             insecure,

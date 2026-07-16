@@ -74,3 +74,17 @@ pub async fn session_messages(session_id: String) -> Result<Vec<WireMessage>, St
         .map_err(|error| error.to_string())?;
     Ok(messages.into_iter().map(Into::into).collect())
 }
+
+/// Renames one chat (`BrainService.RenameSession`, ADR-0021 management addendum): the overlay's
+/// user-driven relabel of a chat in its list. `title` is the new display label; `""` clears any
+/// custom/brain-generated title so the switcher falls back to the derived one. A write, so the
+/// resilient transport makes exactly one attempt (`SeamMethod::RenameSession` is not repeatable);
+/// a transient failure surfaces to the overlay bridge's `.catch` rather than risking a re-label.
+#[tauri::command]
+pub async fn rename_session(session_id: String, title: String) -> Result<(), String> {
+    let client = crate::seam::connect()?;
+    client
+        .rename_session(&session_id, &title)
+        .await
+        .map_err(|error| error.to_string())
+}

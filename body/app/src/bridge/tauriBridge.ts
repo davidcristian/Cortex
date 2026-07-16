@@ -67,6 +67,10 @@ export class TauriBridge implements BrainBridge {
     return invoke<readonly SessionMessage[]>("session_messages", { sessionId });
   }
 
+  renameSession(sessionId: string, title: string): Promise<void> {
+    return invoke<void>("rename_session", { sessionId, title });
+  }
+
   // Reminder pull delivery (ADR-0025): the overlay reads what has fired when it opens and
   // acks what the user dismisses. Both are unary commands over the same resilient transport.
   listDueReminders(): Promise<readonly DueReminder[]> {

@@ -3,7 +3,7 @@
 Deferrals from the Slice 8.7 session listing and read seam, whose origin decision is
 [ADR-0021](../adr/ADR-0021-session-read-seam.md). Extracted from the ROADMAP's deferred-refinements section on 2026-07-15 with the entries kept verbatim; landed entries are the historical record of what each deferral became, and the index at [index.md](index.md) carries the recommended pickup order.
 
-**Open items:** live-suite fixed-window residual, open-chat header title consistency, session deletion / rename / pinning, paging / cursor
+**Open items:** live-suite fixed-window residual, open-chat header title consistency, session pinning, session deletion, paging / cursor
 
 **Chat history & sessions in Slice 8.7 ([ADR-0021](../adr/ADR-0021-session-read-seam.md)):** each
 behind the unchanged `SessionStore.list_sessions` / `BrainTransport` / `BrainBridge` seams.
@@ -86,6 +86,34 @@ behind the unchanged `SessionStore.list_sessions` / `BrainTransport` / `BrainBri
   without a proto change, but not cold-start adoption or cycling, which load by id.
 - **Session deletion / rename / pinning.** Write operations on the catalog, a later *gated* surface
   (Slice 6.5 gate + Slice 8.8 Confirmer), out of scope for this read-only slice.
+  **Rename landed 2026-07-16 ([ADR-0021 rename addendum](../adr/ADR-0021-session-read-seam.md)); pin
+  and delete deferred as the two entries below.** The entry's "gated ... Confirmer" framing was
+  wrong for a management RPC, read against the code: the `SeamConfirmer` (ADR-0022) gates a
+  possibly-jailbroken *model*'s tool call **inside a turn** (bound one-per-`Converse`-stream, a
+  mid-turn card, tainted turns denied outright); a rename is triggered by the user in the overlay,
+  out of band, and its handler is no tool in any registry and never runs through the turn engine, so
+  no model/tool/tainted turn can reach it. The gate that fits is **structural user-only
+  reachability**, which `RenameSession` has by being a distinct `BrainService` method served off the
+  store whose only caller is the overlay's `renameSession` bridge. Rename also needed **no new port
+  method**: a user rename *is* `SessionStore.set_title` (the write brain-generated titles built), so
+  the slice added only the seam RPC, a bounded handler (`session_rpc`), the not-repeatable body
+  transport call, and the switcher rename control. The three verbs were never one change: rename is a
+  reversible reuse of an existing write, while pin reshapes the read path and delete cannot yet be
+  honest about what it destroys, so the two remain open below.
+- **Session pinning.** A new `SessionStore.set_pinned` verb plus a `pinned` field on `SessionSummary`
+  across the wire and all four trees, but the real cost is a **read-path** decision the bounded
+  two-round-trip listing does not answer: whether a pinned chat escapes the recency `ZREVRANGE`
+  window (the expected UX) and so must be unioned into the listing, reshaping the tuned
+  `list_sessions`. A genuine design change, not a drop-in behind the write verb, which is why it did
+  not ride the rename that landed 2026-07-16.
+- **Session deletion.** Destructive and irreversible, and it cannot yet tell the truth about scope: a
+  session delete would remove the transcript and catalog entry (a `SessionStore.delete` verb, likely
+  a tombstone rather than a hard `DEL` so an in-flight read fails cleanly), but **not** memories
+  derived from that session, because `MemoryStore` is `add`/`search` only (no delete verb, the
+  separately blocked memory-verbs entry in [memory.md](memory.md)). It also needs an **overlay-local**
+  confirm ("are you sure"), since the `SeamConfirmer` gates in-turn tool calls, not a unary
+  management RPC (see the rename finding above). Deferred rather than shipped half-honest (implying a
+  memory cascade it cannot perform); design it with the memory delete verb and the confirm surface.
 - **Paging / cursor** on `ListSessions` / `GetSessionMessages` if a list or a single history ever
   grows large (a cursor field on the same RPCs); unary snapshots suffice at personal scale.
 - **A real connection indicator** and a **session-title refresh push** ride whichever slice first

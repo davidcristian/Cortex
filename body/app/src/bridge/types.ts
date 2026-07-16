@@ -103,6 +103,14 @@ export interface BrainBridge {
   listSessions(limit: number): Promise<readonly SessionSummary[]>;
   /** One session's persisted history, in append order. */
   sessionMessages(sessionId: string): Promise<readonly SessionMessage[]>;
+  /**
+   * Rename one chat (`BrainService.RenameSession`, ADR-0021 management addendum): the user's
+   * own relabel from the switcher. `title` is the new display label; `""` clears any custom
+   * title so the row falls back to its derived one. A user-only write (no model, tool, or
+   * tainted turn reaches it) and not retried, so a lost answer surfaces rather than re-labelling.
+   * The overlay re-lists after it resolves to show the change.
+   */
+  renameSession(sessionId: string, title: string): Promise<void>;
   /** Reminders that have fired and still await delivery, across every session (ADR-0025). */
   listDueReminders(): Promise<readonly DueReminder[]>;
   /**
