@@ -36,7 +36,7 @@ its signature.
 | [tools-mcp.md](tools-mcp.md) | Dispatch budget/cost/salience, spawn batch cap, MCP registries (ADR-0009/0010) | 7 |
 | [untrusted-content.md](untrusted-content.md) | Taint boundary, output guardrail, subagent model safety (ADR-0013/0015/0017/0019/0028) | 17 |
 | [memory.md](memory.md) | Store, scoping, rerank/MMR (ADR-0008) | 8 |
-| [inference-model-manager.md](inference-model-manager.md) | Model-manager lifecycle, MTP, reasoning status (ADR-0007/0020) | 5 |
+| [inference-model-manager.md](inference-model-manager.md) | Model-manager lifecycle, MTP, reasoning status (ADR-0007/0020) | 3 |
 | [subagents.md](subagents.md) | Progress reporting, spawn schema, heterogeneous roster (ADR-0010/0018) | 4 |
 | [body-overlay.md](body-overlay.md) | Overlay polish, connection indicator, proto Cancel (ADR-0011) | 3 |
 | [session-read-seam.md](session-read-seam.md) | Session listing/read seam (ADR-0021) | 4 |
@@ -110,7 +110,17 @@ added, a retryable-code table, whose trigger is named. Tools & MCP went 8 to 7 o
 the per-round cap on distinct calls landed: the entry, its ADR, and this index's own opening
 warning had all diagnosed it correctly for once (a context-growth problem, not a reach one), and
 it closed by dropping a round's calls past a cap rather than refusing them, since a refusal is
-appended to the context exactly as a result is. Nothing opened behind it.
+appended to the context exactly as a result is. Nothing opened behind it. Inference & model manager
+went 5 to 3 on 2026-07-16 when its actionable reasoning pair closed as two outcomes without a seam
+change, over the already-shipped `Message.statusState`: the collapsed "thoughts" section **landed**
+(the reducer now also concatenates every guardrail-scrubbed thinking delta into a new
+`Message.thoughts`, and the settled reply renders the trace as a collapsed disclosure above the
+bubble, the live chip's retrospective counterpart), while reasoning persistence/summarization was
+**declined** for want of a consumer, the same terminal test the day's other declines used: nothing
+reads a stored trace, and the two consumers that would (a `GetSessionMessages` reasoning field for
+reload re-display, a summarization feed that reverses the ADR's "never fed back") are both unbuilt,
+the second re-raising the non-reentrant GPU-lease sequencing the title generator navigates. The
+declined half moved to the dead-until-a-consumer list below.
 
 ## Recommended order
 
@@ -122,14 +132,11 @@ against the code (the warning above); the entry text tells you which seams it ex
 1. **Task-outcome delivery as a notification + the push retry policy**
    ([scheduling.md](scheduling.md)): unblocked on 2026-07-16, when the body's `Notify` trait
    landed and gave the port they both reuse a real backend.
-2. **Reasoning persistence/summarization + the collapsed "thoughts" section**
-   ([inference-model-manager.md](inference-model-manager.md)): a natural pair over the
-   already-shipped `Message.statusState`.
-3. **Summarizing a tainted exchange before recording**
+2. **Summarizing a tainted exchange before recording**
    ([untrusted-content.md](untrusted-content.md)).
-4. **Spawn-spec tuning + measured trade-off advertisement** ([subagents.md](subagents.md)):
+3. **Spawn-spec tuning + measured trade-off advertisement** ([subagents.md](subagents.md)):
    low stakes, wrong text misleads only the optimization.
-5. **`cargo fmt` and `cargo clippy` for the two ungated Rust trees**
+4. **`cargo fmt` and `cargo clippy` for the two ungated Rust trees**
    ([repo-gates.md](repo-gates.md)): last because it unblocks no capability, but it is the
    only entry here that stops a class of defect from recurring, and the format half is
    nearly free. Five clippy warnings and three unformatted files had accumulated in the
@@ -244,6 +251,16 @@ against the code (the warning above); the entry text tells you which seams it ex
   ADR rejected per-occurrence records for the same want of a reader. Declined 2026-07-16; reopens
   with a recovery surface, designed with the record, and likely reopening the Postgres durable twin
   a queryable history wants ([scheduling.md](scheduling.md))
+- Reasoning persistence / summarization: the live status and its landed collapsed "thoughts"
+  section are served entirely by the overlay's in-memory `Message.thoughts`; nothing reads a
+  *stored* trace. Re-display on session reload needs a reasoning field on the `GetSessionMessages`
+  read path (the path the open-chat title-consistency entry independently needs widened) plus the
+  store to keep the trace, a real storage-growth decision at the observed ~13,882-char single-turn
+  scale; summarization feeding future context reverses the ADR's "never persisted, never fed back"
+  and is another inference call with the title generator's non-reentrant GPU-lease sequencing.
+  Persisting reverses a deliberate ephemeral decision, so it is a design change, not a cheap
+  follow-on. Declined 2026-07-16; reopens the day a reload re-display or a summarization consumer
+  appears, designed with the record the reader needs ([inference-model-manager.md](inference-model-manager.md))
 - Provenance across the stores: `ScheduledItem` and `SubagentResult` each carry the taint bit
   and no sources, so a fired task's stamp and a subagent's own readings attribute nothing back
   ([untrusted-content.md](untrusted-content.md))

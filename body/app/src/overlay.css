@@ -277,6 +277,44 @@
   color: var(--accent);
 }
 
+.thoughts {
+  align-self: flex-start;
+  max-width: 82%;
+  font-size: 12px;
+}
+.thoughts-sum {
+  padding: 3px 2px;
+  color: var(--dim);
+  list-style: none;
+  cursor: pointer;
+  user-select: none;
+}
+.thoughts-sum::-webkit-details-marker {
+  display: none;
+}
+.thoughts-sum::before {
+  content: "›";
+  display: inline-block;
+  margin-right: 6px;
+  transition: transform 0.18s var(--ease);
+}
+.thoughts[open] .thoughts-sum::before {
+  transform: rotate(90deg);
+}
+.thoughts-sum:hover {
+  color: var(--muted);
+}
+.thoughts-body {
+  margin-top: 4px;
+  max-height: 28vh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  color: var(--muted);
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
 /* The empty state (design/overlay-ux.md §3): the mark, an invitation, and tappable example
    prompts. Resting chrome stays neutral; the mark carries the color. */
 .empty {

@@ -97,11 +97,13 @@ for the cortex. We surface it, not suppress it.
   displaying reasoning proves an exfiltration surface" condition came true.
 - **`state`-aware overlay treatment landed 2026-07-13** (third addendum below): a `"thinking"`
   status chip now reads distinctly (its dot bobs with the reasoning shimmer, its label leans on
-  the accent) from a generic status or tool chip. A collapsed "thoughts" section remains a
-  possible richer treatment behind the same reducer field.
+  the accent) from a generic status or tool chip. **The richer collapsed "thoughts" section landed
+  2026-07-16** (fourth addendum below), over the same reducer field.
 - **Disable-thinking / token-budget alternatives** stay available for the cortex behind the same
   seams if a runaway trace or latency floor argues for capping rather than only surfacing.
-- **Reasoning persistence / summarization.** Keeping a turn's reasoning for later inspection is a
-  separate concern from the ephemeral live status this ADR adds.
+- **Reasoning persistence / summarization declined 2026-07-16** (fourth addendum below): keeping a
+  turn's reasoning past the live status is a separate concern with no consumer yet, and reverses
+  this ADR's "never persisted, never fed back". It reopens the day a reload re-display or a
+  summarization consumer appears.
 - **Injection-harness run against the ~31B brain tier** is unchanged; still opt-in and tied to the
   Slice 11 brain pick (ADR-0013 harness addendum).

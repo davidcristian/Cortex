@@ -29,6 +29,7 @@ const userMsg: Message = {
   tool: null,
   status: null,
   statusState: null,
+  thoughts: "",
   error: null,
 };
 
@@ -40,6 +41,7 @@ const reply = (id: string): Message => ({
   tool: null,
   status: null,
   statusState: null,
+  thoughts: "",
   error: null,
 });
 

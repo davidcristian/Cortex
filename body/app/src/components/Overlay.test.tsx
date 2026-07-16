@@ -52,6 +52,7 @@ const reply: Message = {
   tool: null,
   status: null,
   statusState: null,
+  thoughts: "",
   error: null,
 };
 

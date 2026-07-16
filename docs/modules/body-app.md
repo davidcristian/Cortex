@@ -86,6 +86,17 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
   indented `key: value` lines, which is what lets an attachment's content read as a file instead
   of as escaped JSON. It knows JSON shapes and never a tool's schema. The draft block caps at
   `42vh` and scrolls, so a long draft cannot push Approve and Deny out of view.
+- **The reasoning surfaces** (`components/Message.tsx` + `overlay/overlayState.ts`, ADR-0020): a
+  reply's `"thinking"` statuses drive two affordances off the reducer's `statusState`. While the
+  turn streams, the live chip bobs (`chip-think`) with the latest reasoning delta; the reducer
+  also concatenates every thinking delta into `Message.thoughts`, so once the reply settles the
+  chip drops and a collapsed `<details>` "Thoughts" disclosure above the bubble holds the whole
+  trace (its `›` marker rotating open, resting chrome only since the thinking is done). Each delta
+  is already guardrail-scrubbed brain-side (ADR-0020 addendum), so the section shows nothing the
+  live chip did not and opens no channel the reply-side guardrail never inspected; like everything
+  else the overlay renders it is **never linkified** (a plain text node). `thoughts` is in-memory
+  only, dropped when the turn's message leaves `state.messages`: reasoning is never persisted
+  (ADR-0020), so `hydrate` gives a reloaded chat's replies `""` and no disclosure.
 - **The `converse` command** (`src-tauri/src/converse.rs`): `converse(session_id, text, channel)`.
   It serialises each `TurnEvent` / `TransportError` to a `WireMessage` (`{ event }` | `{ error }`)
   that matches the TS `WireMessage` in `tauriBridge.ts` field for field (tag `kind`, camelCase, so

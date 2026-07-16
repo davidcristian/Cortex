@@ -28,6 +28,12 @@ export function Message({ message }: { readonly message: MessageModel }) {
           <span className="chip-t">{message.status}</span>
         </span>
       ) : null}
+      {!message.streaming && message.thoughts !== "" ? (
+        <details className="thoughts">
+          <summary className="thoughts-sum">Thoughts</summary>
+          <div className="thoughts-body">{message.thoughts}</div>
+        </details>
+      ) : null}
       <div className={`bubble ${tone}${message.streaming ? " streaming" : ""}`}>
         {thinking ? (
           <span className="thinking" aria-label="Thinking">

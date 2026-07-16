@@ -32,6 +32,11 @@ export interface Message {
   /** The status event's `state` (e.g. "thinking"), so the chip can treat deliberation
    *  distinctly from a generic status; null until a status event lands (ADR-0020). */
   readonly statusState: string | null;
+  /**
+   * The reply's accumulated reasoning trace: every `"thinking"` status's detail, concatenated in
+   * order (each already guardrail-scrubbed brain-side, ADR-0020 addendum).
+   */
+  readonly thoughts: string;
   readonly error: string | null;
 }
 
@@ -237,8 +242,15 @@ function applyEvent(state: OverlayState, event: TurnEvent): OverlayState {
       return patchStreaming(state, (m) => ({ ...m, content: m.content + event.text }));
     case "toolActivity":
       return patchStreaming(state, (m) => ({ ...m, tool: `${event.toolName}: ${event.summary}` }));
-    case "status":
-      return patchStreaming(state, (m) => ({ ...m, status: event.detail, statusState: event.state }));
+    case "status": {
+      const thinking = event.state === "thinking";
+      return patchStreaming(state, (m) => ({
+        ...m,
+        status: event.detail,
+        statusState: event.state,
+        thoughts: thinking ? m.thoughts + event.detail : m.thoughts,
+      }));
+    }
     case "confirmRequest":
       return applyConfirmRequest(state, event);
     case "confirmResolved":
@@ -289,5 +301,6 @@ function patchStreaming(state: OverlayState, patch: (m: Message) => Message): Ov
 }
 
 function message(id: string, role: Message["role"], content: string, streaming: boolean): Message {
-  return { id, role, content, streaming, tool: null, status: null, statusState: null, error: null };
+  const base = { id, role, content, streaming, tool: null, status: null };
+  return { ...base, statusState: null, thoughts: "", error: null };
 }
