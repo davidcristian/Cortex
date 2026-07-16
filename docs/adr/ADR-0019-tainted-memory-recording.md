@@ -97,5 +97,6 @@ across turns (a recalled memory).
   the turn's gated tools, if taint-spread on tangential recall proves too blunt.
 - **Summarizing a tainted exchange before recording** is a lossy model pass to store only the safe
   gist; memory-summarization territory (ADR-0008/0014), distinct from this binary marker.
+  (**Declined 2026-07-16**; addendum below.)
 - **Per-scope / per-age eviction of tainted memories** is the memory-retention deferral (ADR-0008),
   which a tainted-provenance filter would compose with cleanly.
