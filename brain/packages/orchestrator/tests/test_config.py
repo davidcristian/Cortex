@@ -112,6 +112,7 @@ def test_runtime_defaults_match_the_dictated_contract() -> None:
     assert config.cortex_reservation_gb == 11.3  # gemma-4-12B footprint (ADR-0004 addendum)
     assert config.history_char_budget == 48_000  # ≈12K of the 16K-token context (ADR-0014)
     assert config.output_guardrail == "redact"  # the laundering defense ships on (ADR-0015)
+    assert config.generate_titles is False  # opt-in: an extra inference call per new session
 
 
 @pytest.mark.usefixtures("clean_env")
@@ -126,6 +127,12 @@ def test_runtime_rejects_a_negative_history_budget(monkeypatch: pytest.MonkeyPat
     monkeypatch.setenv("CORTEX_HISTORY_CHAR_BUDGET", "-1")
     with pytest.raises(ValidationError, match="history_char_budget"):
         BrainRuntimeConfig()
+
+
+@pytest.mark.usefixtures("clean_env")
+def test_runtime_env_enables_brain_generated_titles(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("CORTEX_GENERATE_TITLES", "true")
+    assert BrainRuntimeConfig().generate_titles is True
 
 
 @pytest.mark.usefixtures("clean_env")

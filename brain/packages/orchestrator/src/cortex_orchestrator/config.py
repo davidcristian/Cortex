@@ -68,6 +68,7 @@ class BrainRuntimeConfig(BaseSettings):
     )
     history_char_budget: int = Field(default=48_000, ge=0)
     output_guardrail: Literal["redact", "strict", "off"] = "redact"
+    generate_titles: bool = False
 
 
 class BodyConfig(BaseSettings):

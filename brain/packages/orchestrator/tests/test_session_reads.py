@@ -161,6 +161,9 @@ class FailingStore:
         msg = "redis is down"
         raise SessionStoreError(msg)
 
+    async def set_title(self, session_id: str, title: str) -> None:
+        del session_id, title
+
 
 async def test_list_sessions_store_failure_aborts_unavailable() -> None:
     server, address = await _serve(FailingStore())

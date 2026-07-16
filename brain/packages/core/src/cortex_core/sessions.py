@@ -29,16 +29,31 @@ def _one_line(text: str, limit: int) -> str:
     return collapsed if len(collapsed) <= limit else f"{collapsed[:limit]}…"
 
 
-def summarize_ends(session_id: str, first: Message, last: Message) -> SessionSummary:
+def _title(override: str | None, first_text: str) -> str:
+    """The switcher title: a stored ``override`` when one is set and non-blank, else the first
+    message's text.
+    """
+    if override is not None:
+        collapsed = _one_line(override, TITLE_MAX)
+        if collapsed:
+            return collapsed
+    return _one_line(first_text, TITLE_MAX)
+
+
+def summarize_ends(
+    session_id: str, first: Message, last: Message, *, title_override: str | None = None
+) -> SessionSummary:
     """Derive a chat's summary from its two end messages (ADR-0021)."""
     return SessionSummary(
         session_id=session_id,
-        title=_one_line(first.text, TITLE_MAX),
+        title=_title(title_override, first.text),
         preview=_one_line(last.text, PREVIEW_MAX),
         last_activity=last.at,
     )
 
 
-def summarize_session(session_id: str, messages: Sequence[Message]) -> SessionSummary:
+def summarize_session(
+    session_id: str, messages: Sequence[Message], *, title_override: str | None = None
+) -> SessionSummary:
     """Derive a chat's summary from its persisted messages (ADR-0021)."""
-    return summarize_ends(session_id, messages[0], messages[-1])
+    return summarize_ends(session_id, messages[0], messages[-1], title_override=title_override)

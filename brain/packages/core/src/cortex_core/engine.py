@@ -6,6 +6,7 @@ from uuid import uuid4
 
 from cortex_core.conversation import Message, Role
 from cortex_core.dispatch import ToolDispatcher
+from cortex_core.errors import InferenceError
 from cortex_core.events import TextDelta, ToolActivity, TurnCompleted, TurnEvent
 from cortex_core.guardrail import OutputGuardrail
 from cortex_core.memory import ScoredMemory
@@ -14,6 +15,7 @@ from cortex_core.ports import Clock, InferenceBackend, SessionStore
 from cortex_core.provenance import SourceKind, as_source
 from cortex_core.recall import MemoryRecaller
 from cortex_core.routing import RoutingHints, Tier, route_turn
+from cortex_core.session_title import build_title_messages, generate_title
 from cortex_core.tool_loop import ReasoningDelta, ToolLoopContext, ToolStep, stream_tool_loop
 from cortex_core.untrusted import (
     TaintLedger,
@@ -70,6 +72,7 @@ class TurnCapabilities:
     window: HistoryWindow | None = None
     guardrail: OutputGuardrail | None = None
     record_tainted_memory: bool = False
+    generate_titles: bool = False
 
 
 class TurnEngine:
@@ -160,7 +163,26 @@ class TurnEngine:
             await self._caps.memory.record(
                 _render_exchange(text, full_text), session_id=session_id, tainted=taint.tainted
             )
+        if self._caps.generate_titles and len(history) == 1:
+            await self._title_session(session_id, model, text, full_text, turn_id)
         yield TurnCompleted(turn_id=turn_id, full_text=full_text)
+
+    async def _title_session(
+        self, session_id: str, model: str, user_text: str, assistant_text: str, turn_id: str
+    ) -> None:
+        """Generate a switcher title from the opening exchange and persist it (ADR-0021)."""
+        try:
+            title = await generate_title(
+                self._backend,
+                model,
+                build_title_messages(
+                    user_text, assistant_text, at=self._clock.now(), turn_id=turn_id
+                ),
+            )
+        except InferenceError:
+            return
+        if title:
+            await self._store.set_title(session_id, title)
 
     async def _inference_messages(
         self, query: str, history: Sequence[Message], session_id: str, context: ToolLoopContext

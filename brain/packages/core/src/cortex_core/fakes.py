@@ -28,6 +28,7 @@ class InMemorySessionStore:
 
     def __init__(self) -> None:
         self._sessions: dict[str, list[Message]] = {}
+        self._titles: dict[str, str] = {}
 
     async def append(self, session_id: str, message: Message) -> None:
         """Persist one message at the end of the session's history."""
@@ -40,11 +41,15 @@ class InMemorySessionStore:
     async def list_sessions(self, *, limit: int) -> Sequence[SessionSummary]:
         """Return at most ``limit`` recent chats, most-recently-active first (ADR-0021)."""
         summaries = [
-            summarize_session(session_id, messages)
+            summarize_session(session_id, messages, title_override=self._titles.get(session_id))
             for session_id, messages in self._sessions.items()
         ]
         summaries.sort(key=lambda summary: summary.last_activity, reverse=True)
         return tuple(summaries[:limit])
+
+    async def set_title(self, session_id: str, title: str) -> None:
+        """Persist a brain-generated display title, preferred by ``list_sessions`` (ADR-0021)."""
+        self._titles[session_id] = title
 
 
 class EchoInferenceBackend:

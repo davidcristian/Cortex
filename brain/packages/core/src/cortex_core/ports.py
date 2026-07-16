@@ -31,6 +31,8 @@ class SessionStore(Protocol):
 
     async def list_sessions(self, *, limit: int) -> Sequence[SessionSummary]: ...
 
+    async def set_title(self, session_id: str, title: str) -> None: ...
+
 
 class InferenceBackend(Protocol):
     """One stateless streamed completion against a loaded model, with no sessions and no retries."""

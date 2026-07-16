@@ -3,7 +3,7 @@
 Deferrals from the Slice 8.7 session listing and read seam, whose origin decision is
 [ADR-0021](../adr/ADR-0021-session-read-seam.md). Extracted from the ROADMAP's deferred-refinements section on 2026-07-15 with the entries kept verbatim; landed entries are the historical record of what each deferral became, and the index at [index.md](index.md) carries the recommended pickup order.
 
-**Open items:** live-suite fixed-window residual, brain-generated summary titles, session deletion / rename / pinning, paging / cursor
+**Open items:** live-suite fixed-window residual, open-chat header title consistency, session deletion / rename / pinning, paging / cursor
 
 **Chat history & sessions in Slice 8.7 ([ADR-0021](../adr/ADR-0021-session-read-seam.md)):** each
 behind the unchanged `SessionStore.list_sessions` / `BrainTransport` / `BrainBridge` seams.
@@ -53,6 +53,37 @@ behind the unchanged `SessionStore.list_sessions` / `BrainTransport` / `BrainBri
 - **Brain-generated summary titles.** Titles derive from the first user message (`summarize_session`);
   a brain-generated summary title would replace that behind the unchanged `SessionSummary`. The
   overlay's own live-title `deriveTitle` stays for a not-yet-persisted chat.
+  **Landed 2026-07-16 ([ADR-0021 titles addendum](../adr/ADR-0021-session-read-seam.md)), and the
+  entry undersold the cost.** The wire/port value `SessionSummary` is unchanged, but "behind the
+  unchanged `SessionSummary`" hid four real costs (this backlog's own warning about this area,
+  again): a new `SessionStore.set_title` write method, a store-layout change (a
+  `cortex:session:{id}:title` string key), a list-read change (`summarize_ends` takes a
+  `title_override`, batched into the same pipeline as each chat's two ends), and a tier/timing
+  decision. The resident **cortex** generates it on a session's **first turn only**, from the
+  opening exchange, and it is persisted **before** `TurnCompleted`. That is what makes it
+  hazard-free and race-free: the reply's `stream` has released its GPU lease, so the title call is
+  a sequential acquire (never the re-entrant hazard that blocks the reranker), and it needs **no**
+  async-port widening (the engine already calls the async `InferenceBackend`); and because the
+  title is stored before completion, the overlay's turn-completion refresh already sees the final
+  title, so it never rewrites *after* the refresh, which is the race this entry inherited from the
+  summon-edge refresh above. A blank/absent title falls back to the first-message derivation, and
+  every title is re-bounded to `TITLE_MAX` at read time. Shipped **off by default**
+  (`CORTEX_GENERATE_TITLES`): it costs one inference call per new session, and, found live against
+  a real reasoning cortex (Qwen 2B), a reasoning model may emit only `reasoning_content` and no
+  reply (one case: 13,882 reasoning chars, zero content), so the generated title is empty and the
+  first-message title stands. The reasoning-filter and empty-fallback are proven correct by that;
+  the finding is that reliable *content* wants thinking disabled or a token cap, which
+  `InferenceBackend.stream` cannot yet express (it reopens as a consumer of the disable-thinking /
+  token-budget inference deferral, not as new title work). Gated at 100% with four guards
+  mutation-proven (title override, first-turn-only, empty title rejected, reasoning ignored).
+- **Open-chat header title consistency.** Opened 2026-07-16 behind the landed titles above. The
+  switcher now shows the brain title (`SessionSummary.title`), but opening that chat re-derives the
+  header from the loaded first user message (`deriveTitle`/`titleFor` in `sessionState.ts`), so the
+  header and the switcher row can disagree. `GetSessionMessages` carries messages, not a title, so
+  unifying them needs a `title` on that read path (a proto field + overlay plumbing), which a
+  brain-contained change cannot deliver. Note the smaller alternative first: the overlay could
+  carry the switcher's title into `openSession` when the user picks a row, covering the open path
+  without a proto change, but not cold-start adoption or cycling, which load by id.
 - **Session deletion / rename / pinning.** Write operations on the catalog, a later *gated* surface
   (Slice 6.5 gate + Slice 8.8 Confirmer), out of scope for this read-only slice.
 - **Paging / cursor** on `ListSessions` / `GetSessionMessages` if a list or a single history ever
