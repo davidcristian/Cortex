@@ -45,6 +45,9 @@ its signature.
 The counts are per area as extracted; a few threads appear in two areas (the cross-cutting
 "richer memory policies" line is covered by memory.md's items, and subagent tool-step
 surfacing appears in both email-confirmer.md and subagents.md as one piece of work).
+Scheduling's count holds at 10 rather than dropping: the body-side `Notify` trait closed on
+2026-07-16 and opened one entry behind it (toast activation routing), which is the backlog
+working as intended rather than a stalled area.
 
 ## Recommended order
 
@@ -53,31 +56,33 @@ against the code (the warning above); the entry text tells you which seams it ex
 
 ### Actionable now
 
-1. **Body-side `Notify` OS trait + Tauri toast** ([scheduling.md](scheduling.md)): the last
-   in-slice remainder of Slice 9.5; unlocks push delivery end to end, and the task-outcome
-   notification + push-retry deferrals ride on it. User validates the native toast at the end.
-2. **Structured provenance (source URI/sender) on the `TurnStamp`**
+1. **Structured provenance (source URI/sender) on the `TurnStamp`**
    ([untrusted-content.md](untrusted-content.md)): the designed convergence seam landed
    (ADR-0027); these fields unblock confirm-with-provenance and per-provenance eviction later.
-3. **Tainted-reminder badge: verify satisfied and close** ([scheduling.md](scheduling.md)): a
+2. **Tainted-reminder badge: verify satisfied and close** ([scheduling.md](scheduling.md)): a
    2026-07-14 read of the shipped overlay found the badge, the `repeats` tag, the inert-text
    rule, and the fixed-label open control already at the standard the deferral asks for.
    Confirm against the current tree and record the entry as satisfied rather than polishing
    without a named defect.
-4. **Real connection indicator** ([body-overlay.md](body-overlay.md)): the seam's `Health` RPC
+3. **Real connection indicator** ([body-overlay.md](body-overlay.md)): the seam's `Health` RPC
    exists and the `BrainBridge` does not carry it yet; absorbs the session-title refresh push
    deferral from [session-read-seam.md](session-read-seam.md).
-5. **Surface the blended recall relevance as a distinct field** ([memory.md](memory.md)): the
+4. **Surface the blended recall relevance as a distinct field** ([memory.md](memory.md)): the
    one reranker deferral genuinely behind the unchanged seam.
-6. **Placement-aware CPU charging + the hard budget wall**
+5. **Placement-aware CPU charging + the hard budget wall**
    ([resource-governance.md](resource-governance.md)): pure-core scheduler tweaks behind the
    unchanged `SubagentScheduler` port.
-7. **`spawn_blocking` for the sync OS call + `GetVolume` as an overlay volume indicator**
-   ([body-gateway.md](body-gateway.md)): small body-side pair behind unchanged seams.
+6. **`spawn_blocking` for the sync OS call + `GetVolume` as an overlay volume indicator**
+   ([body-gateway.md](body-gateway.md)): small body-side pair behind unchanged seams. The
+   `spawn_blocking` half now covers the toast backend too, which is the same shape of
+   synchronous OS call awaited inside an async handler.
+7. **Task-outcome delivery as a notification + the push retry policy**
+   ([scheduling.md](scheduling.md)): unblocked on 2026-07-16, when the body's `Notify` trait
+   landed and gave the port they both reuse a real backend.
 8. **Per-method / per-error-code retry policy** ([seam-transport.md](seam-transport.md)):
    behind the existing `BrainTransport`/`Sleeper` seams.
 9. **Per-round cap on distinct calls** ([tools-mcp.md](tools-mcp.md)): the one dispatch shape
-    neither the budget nor salience closes (context growth, not reach).
+   neither the budget nor salience closes (context growth, not reach).
 10. **Occurrence history table** ([scheduling.md](scheduling.md)): also covers unseen-toast
     recovery.
 11. **Brain-generated summary titles** ([session-read-seam.md](session-read-seam.md)): behind
@@ -121,6 +126,11 @@ against the code (the warning above); the entry text tells you which seams it ex
   capability grant on a sidecar that deliberately has none, plus a digest-bound approval card.
 - **Structural argument identity in salience** ([tools-mcp.md](tools-mcp.md)): normalizing
   needs the advertised parameter schema at the policy.
+- **Toast activation routing** ([scheduling.md](scheduling.md)): opened 2026-07-16 behind the
+  landed toast. Clicking a toast does nothing, and the obvious fix (open the origin chat, the
+  control the overlay's card already has) cannot be built as the seam stands: `NotifyRequest`
+  carries no `session_id`, unlike `DueReminder`. It also wants a COM activator on the Windows
+  side, so wait for a second consumer of toast interaction.
 - **Pointer-input injection** ([cross-cutting.md](cross-cutting.md)): extend the proto first.
 
 ### Blocked on Slice 11 (real model swap / GPU lifecycle)
@@ -135,6 +145,8 @@ against the code (the warning above); the entry text tells you which seams it ex
 ### Host-side Windows validation only
 
 - The real Core Audio "set volume to 30%" check ([body-gateway.md](body-gateway.md))
+- Whether a real reminder toast appears and reads well, the one half of the landed `Notify`
+  backend no gate can reach ([scheduling.md](scheduling.md))
 - Windows-native validation of the confirm card ([untrusted-content.md](untrusted-content.md))
 - The OS-window half of the overlay polish: transparent window + click-through, the morph to a
   real screen corner, hide-on-blur ([body-overlay.md](body-overlay.md))

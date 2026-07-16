@@ -9,29 +9,41 @@ OS backend and the home of the **stub coverage escape-hatch policy** the ROADMAP
 - **`os_windows`** (`os_windows`, `cfg(windows)`) is the real backend. *`WindowsHotkey`
   landed in Slice 8 increment 3;* wraps the `global-hotkey` crate to keep
   `unsafe_code = forbid`. *Slice 9 added `WindowsAudioControl`* over Core Audio
-  (`IMMDeviceEnumerator` → `IAudioEndpointVolume`). Real OS calls → a thin adapter,
+  (`IMMDeviceEnumerator` → `IAudioEndpointVolume`). *Slice 9.5 added `WindowsNotify`*, a
+  WinRT toast (`ToastNotificationManager` → `ToastNotifier`, rendering the `ToastGeneric`
+  template). Real OS calls → a thin adapter,
   **host/integration-validated, never in CI** (AGENTS.md gate 3): the coverage gate runs
   on Linux, where this crate compiles to nothing. The audio backend needs `unsafe` (COM),
   narrowly authorized by ADR-0023: `os_windows` is the **only** crate that opts out of the
   workspace `unsafe_code = forbid`, using its own `[lints.rust] unsafe_code = deny` plus a
   scoped `#![allow(unsafe_code)]` in the audio module (re-declaring the other workspace
-  lints); every other crate keeps `forbid`.
-- **`os_linux`** (`os_linux`) provides `LinuxHotkey` and `LinuxAudioControl`, `unimplemented!()`
-  stubs (Windows-first). Compiled and measured on Linux CI, so each stub method is
+  lints); every other crate keeps `forbid`. The toast module carries the same scoped allow for
+  one line: WinRT projections are safe, but activating a WinRT factory needs a
+  COM-initialized thread and the `BodyService` server runs on tokio workers that have none, so
+  it makes the same idempotent `CoInitializeEx` call the audio backend does.
+- **`os_linux`** (`os_linux`) provides `LinuxHotkey`, `LinuxAudioControl`, and `LinuxNotify`,
+  `unimplemented!()` stubs (Windows-first). Compiled and measured on Linux CI, so each stub method is
   `#[cfg_attr(coverage, coverage(off))]` with a reason. That is the escape hatch in action.
-- **`os_macos`** (`os_macos`) provides `MacosHotkey` and `MacosAudioControl`, the same stubs for
-  macOS.
+- **`os_macos`** (`os_macos`) provides `MacosHotkey`, `MacosAudioControl`, and `MacosNotify`,
+  the same stubs for macOS.
 
 **Public contract.** Each crate exposes one `Hotkey` implementor (`LinuxHotkey`,
-`MacosHotkey`, and `WindowsHotkey` from increment 3) and, from Slice 9, one `AudioControl`
-implementor (`Linux`/`Macos`/`WindowsAudioControl`); the app selects the platform's types by
-`cfg(target_os)`. `AudioControl: Send + Sync` (the `body_rpc` tonic `BodyService` server
-holds it), unlike the single-threaded `Hotkey`. The ports and pure values live in `body_core`
+`MacosHotkey`, and `WindowsHotkey` from increment 3), from Slice 9 one `AudioControl`
+implementor (`Linux`/`Macos`/`WindowsAudioControl`), and from Slice 9.5 one `Notify`
+implementor (`Linux`/`Macos`/`WindowsNotify`); the app selects the platform's types by
+`cfg(target_os)`. `AudioControl` and `Notify` are `Send + Sync` (the `body_rpc` tonic
+`BodyService` server holds both), unlike the single-threaded `Hotkey`. The ports and pure
+values live in `body_core`
 (`docs/modules/body-core.md`): `AudioControl` (`get_volume() -> VolumeState`,
 `set_volume(VolumeChange) -> VolumeState`), the value types `VolumeState { level, muted }`
 and `VolumeChange { level, mute }` (`VolumeChange::new` clamps a present `level` to `[0,1]`,
 `NaN → 0.0`, via the pure `clamp_level`, which is gated core logic), and `AudioError`
-(`NoEndpoint`/`Backend`). Screen/input backends join these crates in Slice 10.
+(`NoEndpoint`/`Backend`); `Notify` (`show(&Notification) -> Result<bool, NotifyError>`) with
+`Notification` (whose constructor applies the inert-text rule), `NotifyError`
+(`Unavailable`/`Backend`), and the `escape_xml` helper a markup renderer calls.
+`WindowsNotify::new(app_id)` takes the `AppUserModelID` the toast is attributed to, which an
+unpackaged app must own a Start Menu shortcut for (`CORTEX_TOAST_APP_ID` at the shell;
+`docs/runbooks/scheduling.md`). Screen/input backends join these crates in Slice 10.
 
 **The escape hatch (how the 100% gate stays honest).** `cargo llvm-cov` sets `cfg(coverage)`;
 each stub crate opts into the nightly attribute under it,
@@ -45,12 +57,14 @@ validated by host/integration runs instead, never by silencing coverage.
 
 **Invariants.**
 - Thin adapters only: translate `body_core` types to OS calls, no business logic (the
-  `clamp_level` clamp lives in `body_core`, not here).
+  `clamp_level` clamp lives in `body_core`, and so do the toast's inert-text rule, its taint
+  attribution, and its XML escaping, none of which this crate decides).
 - Stubs `unimplemented!()` with a reason; `coverage(off)` only on genuinely unreachable code.
 - The coverage gate is a **Linux-CI** gate; Windows/macOS backends are host-validated.
 - `unsafe` is `forbid` everywhere except `os_windows` (COM only, `deny` + scoped `allow`,
   ADR-0023).
 
-**Dependencies.** `body-core` (the ports). The real `os_windows` adds `global-hotkey` and, in
-Slice 9's `windows` crate (`0.58`, Core Audio), both under
+**Dependencies.** `body-core` (the ports). The real `os_windows` adds `global-hotkey` and the
+`windows` crate (`0.58`; Core Audio from Slice 9, plus the `UI_Notifications` / `Data_Xml_Dom`
+WinRT namespaces from Slice 9.5), both under
 `[target.'cfg(windows)'.dependencies]`, so they never build on Linux.

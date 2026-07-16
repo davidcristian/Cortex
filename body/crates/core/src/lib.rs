@@ -7,8 +7,8 @@ pub mod transport;
 
 pub use hotkey::{HotkeyChord, HotkeyParseError, Modifier};
 pub use os::{
-    Accelerator, AudioControl, AudioError, Hotkey, HotkeyCallback, HotkeyError, VolumeChange,
-    VolumeState,
+    Accelerator, AudioControl, AudioError, Hotkey, HotkeyCallback, HotkeyError, Notification,
+    Notify, NotifyError, VolumeChange, VolumeState,
 };
 pub use retry::{
     FullDelay, Randomness, RetryPolicy, RetryingTransport, Sleeper, is_transient, retry_with,

@@ -3,9 +3,13 @@
 #[cfg(windows)]
 mod audio;
 #[cfg(windows)]
+mod notify;
+#[cfg(windows)]
 mod windows;
 
 #[cfg(windows)]
 pub use audio::WindowsAudioControl;
+#[cfg(windows)]
+pub use notify::WindowsNotify;
 #[cfg(windows)]
 pub use windows::WindowsHotkey;

@@ -23,4 +23,4 @@ pub mod generated {
 
 pub use auth::SeamTokenValidator;
 pub use client::BrainSeamClient;
-pub use server::{VolumeService, body_service};
+pub use server::{OsService, body_service};

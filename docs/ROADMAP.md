@@ -614,9 +614,13 @@ refactor), then implemented in four commits, each 100% under `just check`, and
 the fenced-protocol contract suite against live Redis, and the end-to-end fire (seed →
 the brain's ticker → `ListDueReminders` → `AckReminder` → idempotent no-op) over the live
 seam against the rebuilt compose stack, with `just seam-health` confirming the rewired turn
-path still converses. Remaining in-slice, behind the committed seam shapes: the Rust
-`BrainTransport` reminder methods + retry forwarding, the overlay's reminders-on-open
-surface, and the body-side `Notify` trait + Tauri toast (host-validated). See
+path still converses. The three in-slice remainders then landed behind the committed seam
+shapes: the Rust `BrainTransport` reminder methods + retry forwarding and the overlay's
+reminders-on-open surface on 2026-07-14, and the body-side `Notify` OS trait + the native
+toast on 2026-07-16 ([ADR-0025 notify
+addendum](adr/ADR-0025-scheduling-reminders.md)), which makes push delivery real: the port
+plus the inert-text rule are gated in `body_core`, `WindowsNotify` renders a WinRT toast, and
+only the user's look at a real toast is left. See
 [runbooks/scheduling.md](runbooks/scheduling.md). Placed after Slice 9
 because proactive delivery rides the **brain→body** direction that slice establishes; the store-backed
 core could land earlier pull-only. Inserted as 9.5 (decimal insert, no renumber).

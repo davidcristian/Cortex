@@ -99,11 +99,13 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
   begun) while a turn that fails after its first event stays terminal (decision 2). It first runs
   the lazy constructor as a synchronous config gate, so a bad URI or non-ASCII token fails fast
   instead of being retried for the whole budget.
-- **The `body_server` module** (`src-tauri/src/body_server.rs`, ADR-0023): `start()` (`cfg(windows)`)
-  binds `CORTEX_BODY_ADDR` (default `127.0.0.1:50151`), reads `CORTEX_SEAM_TOKEN`, and serves
-  `body_rpc::body_service(WindowsAudioControl::new(), &token)` on Tauri's async runtime
+- **The `body_server` module** (`src-tauri/src/body_server.rs`, ADR-0023/0025): `start()` (`cfg(windows)`)
+  binds `CORTEX_BODY_ADDR` (default `127.0.0.1:50151`), reads `CORTEX_SEAM_TOKEN` and
+  `CORTEX_TOAST_APP_ID` (default `dev.cortex.body`, the app's Tauri identifier), and serves
+  `body_rpc::body_service(WindowsAudioControl::new(), WindowsNotify::new(&app_id), &token)` on
+  Tauri's async runtime
   (`tauri::async_runtime::spawn`); a non-windows stub logs and does nothing. Wired into `run()`'s
-  `.setup()`. All the coverable translation (`VolumeService` + the `SeamTokenValidator`) lives in
+  `.setup()`. All the coverable translation (`OsService` + the `SeamTokenValidator`) lives in
   the gated `body_rpc`; this module is thin un-gated glue, host-validated on Windows.
 - **The activate seam**: the hotkey and tray emit the `cortex:activate` Tauri event; `main.tsx`
   (in-shell only) re-dispatches it as the DOM event the overlay listens on. In a plain browser,
@@ -111,8 +113,10 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
 - **Config** (shell only): `CORTEX_HOTKEY` (chord, default `ctrl+alt+space`),
   `CORTEX_BRAIN_ADDR` (default `http://127.0.0.1:50051`), `CORTEX_BODY_ADDR` (the `BodyService`
   bind, default `127.0.0.1:50151`), `CORTEX_SEAM_TOKEN` (empty = the validator is a
-  pass-through), and the read-transport retry knobs (ADR-0024) `CORTEX_BRAIN_RETRY_ATTEMPTS`
-  (default 3), `_BASE_MS` (200), `_MULTIPLIER` (2), `_MAX_MS` (2000).
+  pass-through), `CORTEX_TOAST_APP_ID` (the `AppUserModelID` the reminder toast is attributed
+  to, default `dev.cortex.body`), and the read-transport retry knobs (ADR-0024)
+  `CORTEX_BRAIN_RETRY_ATTEMPTS` (default 3), `_BASE_MS` (200), `_MULTIPLIER` (2),
+  `_MAX_MS` (2000).
 
 **Invariants.**
 

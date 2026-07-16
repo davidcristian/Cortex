@@ -2,6 +2,12 @@
 //! ADR-0011). Pure traits and value types here; per-platform adapters live in
 //! the `os_windows` / `os_linux` / `os_macos` crates behind them.
 
+pub mod notify;
+
+pub use notify::{
+    MAX_TEXT_CHARS, Notification, Notify, NotifyError, UNTRUSTED_ATTRIBUTION, escape_xml,
+};
+
 use crate::hotkey::{HotkeyChord, Modifier};
 
 /// A callback a [`Hotkey`] backend invokes each time the chord is pressed. It

@@ -102,9 +102,9 @@ With subagents wired (`CORTEX_SUBAGENTS_BACKEND=llamacpp`) the tool also offers
 `kind: "task"`, which is an autonomous subagent run per fire, dispatched through the ticker's own
 audited `spawn_subagents` path (`confirmer=None`, so gated tools stay structurally
 unreachable; a tainted-created task is refused at creation outright). With the body wired
-(`CORTEX_BODY_BACKEND=grpc`) fired reminders also attempt a native-toast push; until the
-body's `Notify` trait lands its server answers `Unimplemented`, which the brain treats as
-any push failure. The pull path delivers.
+(`CORTEX_BODY_BACKEND=grpc`) fired reminders also attempt a native-toast push. A toast the host
+shows is delivery, so the ticker acks the reminder at once and the overlay will not show it
+again; a declined or failed push leaves it deliverable and the pull path delivers.
 
 **Turning the backend off strands stored deliverables** until re-enabled (the records
 persist; nothing lists or fires them).
@@ -129,9 +129,28 @@ cd brain && uv run pytest -m integration --no-cov \
 
 ## Host-only half on Windows
 
-- **The native toast** (the push half): the body-side `Notify` OS trait + the Tauri-shell
-  implementation. Render `title`/`body` as **inert escaped text**, since reminder text can be
-  attacker-influenced (`tainted` marks it on the wire) and toast templates are XML.
+- **The native toast** (the push half) **landed 2026-07-16** as the `body_core::os::Notify`
+  port with a real `WindowsNotify` WinRT backend (ADR-0025 notify addendum). The inert-text
+  rule, the untrusted-source attribution line, and the XML escaping are all CI-gated in the
+  core, so what is genuinely host-side is whether a toast **appears** and reads well:
+  1. Run the body with the brain wired for push, as in [body-volume.md](body-volume.md)
+     (`CORTEX_BODY_ADDR=0.0.0.0:50151` plus the shared `CORTEX_SEAM_TOKEN`, and the brain up
+     with `-f docker/docker-compose.body.yml` so `CORTEX_BODY_BACKEND=grpc`).
+  2. In a chat: *"remind me to stretch in one minute"*. When it fires, a toast should appear
+     carrying the reminder text, and summoning the overlay afterwards should show **no** card
+     for it (a shown toast is delivery, so the ticker acked it).
+  3. Check the hostile case with a reminder whose text is markup, e.g. one containing
+     `<b>bold</b> & "quotes"`. It must appear as those literal characters. A toast that never
+     appears for such a reminder means the escaping failed and the payload would not parse.
+  4. **If no toast ever appears**, the likely cause is the app identity rather than the code:
+     Windows attributes a toast to an `AppUserModelID` that an installed Start Menu shortcut
+     must carry, and a `npm run tauri dev` run has none. Set `CORTEX_TOAST_APP_ID` to an
+     already-registered identity to confirm (PowerShell's,
+     `{1AC14E77-02E7-4E5D-B744-2EB1AE5198B7}\WindowsPowerShell\v1.0\powershell.exe`, is the
+     usual borrowed one), or test from an installed build, whose shortcut carries
+     `dev.cortex.body`, the default.
+  Clicking the toast does nothing by design for now (deferred, see
+  [docs/refinements/scheduling.md](../refinements/scheduling.md)).
 - **The overlay reminder surface** (the pull half) **landed 2026-07-14** and is CI-gated over
   the fake bridge, so what remains here is looking at it on the real hotkey path: summon the
   overlay with something due and the card stack sits above the history, each card carrying its
@@ -142,7 +161,7 @@ cd brain && uv run pytest -m integration --no-cov \
   window and whether killing the brain mid-session leaves the cards in place (it should: a failed
   pull dispatches nothing) rather than emptying the surface.
 
-The toast lands behind the committed seam shapes; nothing brain-side changes.
+Both halves landed behind the committed seam shapes; nothing brain-side changed for either.
 
 ## Troubleshooting
 
