@@ -6,6 +6,7 @@ from datetime import datetime
 from enum import Enum
 from typing import Any
 
+from cortex_core.provenance import Provenance
 from cortex_core.tool_budget import DispatchBudget
 
 
@@ -32,6 +33,7 @@ class TurnStamp:
 
     session_id: str = ""
     tainted: bool = False
+    sources: tuple[Provenance, ...] = ()
     budget: DispatchBudget | None = field(default=None, compare=False)
 
 

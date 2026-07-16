@@ -8,6 +8,7 @@ from cortex_core.conversation import Message, Role
 from cortex_core.dispatch import DispatchRefusal, ToolDispatcher
 from cortex_core.inference import JsonSchema, ReasoningChunk
 from cortex_core.ports import Clock, InferenceBackend
+from cortex_core.provenance import SourceKind, as_source
 from cortex_core.tool_budget import DispatchBudget
 from cortex_core.tools import ToolCall, ToolResult, ToolSpec, Trust, TurnStamp
 from cortex_core.untrusted import TaintLedger, wrap_untrusted
@@ -141,19 +142,27 @@ async def stream_tool_loop(
         this_round: list[ToolCall] = []
         dispatched.append(this_round)
         for call in calls:
+            # The advertised spec this call matched, or None for a name no snapshot carried. It
+            # is both the chip's text and the call's provenance below, and using it rather than
+            # `call.name` is what keeps either from carrying a string the model authored.
+            spec = spec_by_name.get(call.name)
             refusal = _refused_by(call, dispatcher, dispatched, budget)
             if refusal is None:
                 # Recorded when the call is handed over, not when it answers: a gate denial and
                 # a declined confirmation are `is_error` results too, so counting only successes
                 # would leave a declined gated call free to re-prompt the user every round.
                 this_round.append(call)
-            if refusal is None and (spec := spec_by_name.get(call.name)) is not None:
+            if refusal is None and spec is not None:
                 yield ToolStep(tool_name=spec.name, summary=_step_summary(spec))
             result = await dispatcher.dispatch(
                 call,
                 stamp=TurnStamp(
                     session_id=context.session_id,
                     tainted=context.taint.tainted,
+                    # Where the taint bit came from, as live as the bit itself (ADR-0027
+                    # addendum): what the turn had read *before* this call, which is exactly
+                    # what a consumer deciding about this call may reason over.
+                    sources=context.taint.sources,
                     # The pool travels to whatever this call spawns, so a subagent draws from
                     # the turn's remaining allowance instead of starting a fresh one.
                     budget=budget,
@@ -161,7 +170,12 @@ async def stream_tool_loop(
                 gated=gated_by_name.get(call.name, False),
                 refusal=refusal,
             )
-            context.taint.observe(result)
+            # An untrusted result's source is the tool it came through, named by the registry's
+            # own advertisement. A call that matched no spec attributes nothing rather than
+            # falling back to the model's chosen name.
+            context.taint.observe(
+                result, source=as_source(SourceKind.TOOL, None if spec is None else spec.name)
+            )
             working.append(
                 _result_message(result, context.clock.now(), context.turn_id, nonce=context.nonce)
             )

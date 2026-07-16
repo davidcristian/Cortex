@@ -76,6 +76,29 @@ Memory domain (Slice 5, ADR-0008):
 - `ScoredMemory` is a frozen dataclass: `record: MemoryRecord`, `score: float`. A retrieval
   hit and its similarity (higher = closer).
 
+Structured provenance (ADR-0027 addendum; `provenance.py`, stdlib-only so `tools.py` may depend
+on it):
+
+- `SourceKind` is an enum `TOOL` / `MEMORY` / `SENDER` / `URI` (string values): what kind of
+  source untrusted content came from. `SourceKind.attested` is `True` for `TOOL`/`MEMORY`, whose
+  values the brain authored (a registry-advertised tool name, an id we minted), and `False` for
+  `SENDER`/`URI`, which are the content's own claim: a consumer renders an attested value as a
+  label and a claimed one as a quotation.
+- `Provenance` is a frozen dataclass: `kind: SourceKind`, `value: str`. One source, matched
+  exactly on both fields (so eviction by sender cannot sweep a URI spelling the same string).
+  **`value` is sanitized and bounded in `__post_init__`**, since a source string can be
+  attacker-chosen and there must be no constructor that skips the pass: category-`C` characters
+  dropped (whitespace exempted, so a newline collapses to a space instead of joining the words it
+  separated), whitespace runs collapsed, `<`/`>` removed so a value can never spell an
+  untrusted-fence marker, capped at `MAX_SOURCE_CHARS` with an overflow marker, idempotently. A
+  value that sanitizes away entirely raises `ValueError`.
+- `as_source(kind, raw: str | None) -> Provenance | None` is the tolerant capture form: `None`
+  input, or input that sanitizes away, yields no provenance rather than raising, so losing one
+  attribution never fails a turn. `MAX_SOURCE_CHARS` (per value) and `MAX_TURN_SOURCES` (per
+  turn, enforced by `TaintLedger`) are the two bounds, both exported.
+- Nothing the model authored is ever a source: capture sites use the advertised `ToolSpec.name`,
+  never `ToolCall.name` or an argument (the `ToolStep` rule, for the same reason).
+
 Tool domain (Slice 6, ADR-0009; untrusted-content fields Slice 6.5, ADR-0013):
 
 - `Trust` is an enum `TRUSTED` / `UNTRUSTED` (string values): the provenance of a tool result's
@@ -87,14 +110,16 @@ Tool domain (Slice 6, ADR-0009; untrusted-content fields Slice 6.5, ADR-0013):
   needs confirmation once the turn read untrusted content, but no tool sets it today). What a tool
   advertises.
 - `TurnStamp` is a frozen dataclass: `session_id: str = ""`, `tainted: bool = False`,
-  `budget: DispatchBudget | None = None` (`compare=False`). What the dispatching turn hands the
-  call (ADR-0027): its origin chat (`""` for a session-less caller), whether it had read
-  untrusted content at dispatch time, and the turn's shared dispatch pool (`None` for a caller
-  that runs no tool loop, e.g. the schedule ticker). One object rather than parallel keywords, so
-  future facts (source URI, sender) join it and call sites ride along. `budget` is the one field
+  `sources: tuple[Provenance, ...] = ()`, `budget: DispatchBudget | None = None` (`compare=False`).
+  What the dispatching turn hands the call (ADR-0027): its origin chat (`""` for a session-less
+  caller), whether it had read untrusted content at dispatch time, which sources that content
+  came from (ADR-0027 addendum), and the turn's shared dispatch pool (`None` for a caller
+  that runs no tool loop, e.g. the schedule ticker). One object rather than parallel keywords,
+  which is how `sources` landed without touching a call site. `budget` is the one field
   that is a live handle rather than a value, so it is excluded from equality (ADR-0009 turn-wide
   addendum): two dispatches of one turn stay comparable and no caller can read "same pool" out of
-  equality. `UNSTAMPED` is the exported unattributed default.
+  equality; `sources` is a fact about the turn, so it *is* compared. `UNSTAMPED` is the exported
+  unattributed default.
 - `ToolCall` is a frozen dataclass: `id: str`, `name: str`, `arguments: Mapping[str, Any]`,
   `stamp: TurnStamp = UNSTAMPED`. A model's request to run one tool; `id` correlates it with its
   `ToolResult`. `stamp` is never the model's to set: the dispatcher **overwrites** it at
@@ -270,11 +295,17 @@ Untrusted-content boundary (Slice 6.5, ADR-0013; the pure primitives in `untrust
   (ADR-0022: unconditional, never confirmable within the turn).
 - `USER_DECLINED_MSG` is the `is_error` result content for an **untainted** gated call the user
   declined (or no confirmer answered): the model relays "no", never retries (ADR-0022).
-- `TaintLedger` is mutable, turn-local: `tainted: bool = False` plus `untrusted_urls: set[str]`
-  (the laundering evidence, ADR-0015). `mark(trust)` flips `tainted` on the first `UNTRUSTED`
-  result; `observe(result)` (what the shared loop calls) marks AND collects an untrusted
-  result's URLs; `ingest_untrusted(content)` is the non-tool twin (ADR-0019). The engine calls it
-  for a recalled tainted memory so it taints and contributes URLs like a live untrusted result.
+- `TaintLedger` is mutable, turn-local: `tainted: bool = False`, `untrusted_urls: set[str]`
+  (the laundering evidence, ADR-0015), and `sources: tuple[Provenance, ...] = ()` (where that
+  content came from, ADR-0027 addendum). `mark(trust)` flips `tainted` on the first `UNTRUSTED`
+  result; `observe(result, *, source=None)` (what the shared loop calls) marks, collects an
+  untrusted result's URLs, AND notes its source; `ingest_untrusted(content, *, source=None)` is
+  the non-tool twin (ADR-0019). The engine calls it for a recalled tainted memory so it taints,
+  contributes URLs, and names its origin like a live untrusted result. `note_source(source)` is
+  the bounded accumulator both use: `None` and repeats record nothing, and past
+  `MAX_TURN_SOURCES` nothing more is kept, earliest first, so attacker-influenceable values
+  cannot grow the record nor push out the source the turn started from. A **trusted** result
+  contributes no source, since it is our own text.
   Reconstructed each turn, never persisted. Structurally satisfies `TaintView` (below), so the
   engine passes the live ledger straight to `OutputGuardrail.open`.
 - `ToolLoopContext` is a frozen bundle of a tool loop's per-invocation collaborators (`dispatcher`,
@@ -453,7 +484,9 @@ Use-case:
   them as a `Role.SYSTEM` message to the context the backend sees (ephemeral, never stored).
   A recalled memory carrying the `tainted` marker is **fenced** with the turn nonce and taints
   the turn (ADR-0019: `ingest_untrusted`), so it re-enters as data (never trusted context) and
-  the `SECURITY_PREAMBLE` is added even on a tool-less turn to explain the markers. After
+  the `SECURITY_PREAMBLE` is added even on a tool-less turn to explain the markers. It names its
+  own record id as the turn's source (`SourceKind.MEMORY`, ADR-0027 addendum), the honest locator
+  there: what originally tainted that memory is not stored beyond the bit. After
   completion it records the `User: …\nAssistant: …` exchange to memory, **unless the turn read
   untrusted content**, in which case nothing is recorded by default (ADR-0013). With
   `capabilities.record_tainted_memory` on (ADR-0019) a tainted turn is recorded instead with
@@ -518,8 +551,10 @@ Use-case:
   It draws the untrusted boundary (ADR-0013): each call is dispatched
   with the turn's `tainted` state and the tool's `gated` flag (the ADR-0022 gate: tainted denies
   outright, untainted confirms), its result is observed by `context.taint` (taint bit + the untrusted-URL
-  evidence the output guardrail reads, ADR-0015), and an `UNTRUSTED` result is fenced by
-  `wrap_untrusted` before it re-enters `working`. `MAX_TOOL_STEPS` and `ToolLoopContext` are here.
+  evidence the output guardrail reads, ADR-0015, + the advertised tool it came through as that
+  content's source, ADR-0027 addendum, which the next dispatch's stamp carries; a call matching no
+  advertised spec attributes nothing rather than falling back to the model's chosen name), and an
+  `UNTRUSTED` result is fenced by `wrap_untrusted` before it re-enters `working`. `MAX_TOOL_STEPS` and `ToolLoopContext` are here.
 - `DEFAULT_CORTEX_MODEL` is the logical id `"cortex"`. Deployments override it via
   `CORTEX_MODEL_CORTEX`, read by the composition root (orchestrator), never here.
 - `MemoryRecaller(store, embedder, clock, *, scope=GLOBAL_MEMORY_SCOPE, policy=RAW_RECALL_POLICY,
@@ -828,7 +863,9 @@ Reference implementations (pure, shipped in core; the runtime wiring until Slice
   and fenced on recall (ADR-0019)), so recall stays trustworthy either way; a URL sourced only from
   untrusted content never reaches the user when the guardrail is wired (ADR-0015), and the
   persisted reply equals the shown reply. Untrusted-derived content is fenced-and-tainting wherever
-  the model sees it, whether live from a tool or recalled from memory.
+  the model sees it, whether live from a tool or recalled from memory. Its *provenance* is inert by
+  construction (ADR-0027 addendum): a `Provenance` cannot hold unsanitized text, cannot spell a
+  fence marker, is capped per value and per turn, and never carries a string the model authored.
 - Fully typed (PEP 561 `py.typed` ships with the package); pyright strict clean.
 - 100% line+branch covered by behavior tests in `tests/` (cancellation and failure
   paths included).

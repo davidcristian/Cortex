@@ -5,6 +5,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 
 from cortex_core.conversation import Message, Role
+from cortex_core.provenance import MAX_TURN_SOURCES, Provenance
 from cortex_core.tools import ToolResult, Trust
 from cortex_core.urls import extract_urls
 
@@ -73,21 +74,32 @@ class TaintLedger:
 
     tainted: bool = False
     untrusted_urls: set[str] = field(default_factory=set[str])
+    sources: tuple[Provenance, ...] = ()
 
     def mark(self, trust: Trust) -> None:
         """Flip the ledger tainted once any untrusted result is observed."""
         if trust is Trust.UNTRUSTED:
             self.tainted = True
 
-    def observe(self, result: ToolResult) -> None:
-        """Record one dispatched result: mark taint, and collect an untrusted result's URLs."""
+    def note_source(self, source: Provenance | None) -> None:
+        """Record where untrusted content came from, deduped and bounded (ADR-0027 addendum)."""
+        if source is None or source in self.sources or len(self.sources) >= MAX_TURN_SOURCES:
+            return
+        self.sources = (*self.sources, source)
+
+    def observe(self, result: ToolResult, *, source: Provenance | None = None) -> None:
+        """Record one dispatched result: mark taint, collect an untrusted result's URLs, and note
+        where it came from.
+        """
         self.mark(result.trust)
         if result.trust is Trust.UNTRUSTED:
             self.untrusted_urls |= extract_urls(result.content)
+            self.note_source(source)
 
-    def ingest_untrusted(self, content: str) -> None:
-        """Taint the turn from a non-tool untrusted source: mark taint and collect ``content``'s
-        URLs.
+    def ingest_untrusted(self, content: str, *, source: Provenance | None = None) -> None:
+        """Taint the turn from a non-tool untrusted source: mark taint, collect ``content``'s URLs,
+        and note ``source``.
         """
         self.mark(Trust.UNTRUSTED)
         self.untrusted_urls |= extract_urls(content)
+        self.note_source(source)
