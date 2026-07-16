@@ -10,8 +10,8 @@
 #![cfg_attr(coverage, feature(coverage_attribute))]
 
 use body_core::{
-    AudioControl, AudioError, Hotkey, HotkeyCallback, HotkeyChord, HotkeyError, VolumeChange,
-    VolumeState,
+    AudioControl, AudioError, Hotkey, HotkeyCallback, HotkeyChord, HotkeyError, Notification,
+    Notify, NotifyError, VolumeChange, VolumeState,
 };
 
 /// The Linux [`Hotkey`] backend is not implemented (Slice 8 is Windows-first).
@@ -44,5 +44,15 @@ impl AudioControl for LinuxAudioControl {
         unimplemented!(
             "the Linux AudioControl backend is not implemented (Slice 9 is Windows-first)"
         )
+    }
+}
+
+/// The Linux [`Notify`] backend is not implemented (Slice 9.5 is Windows-first).
+pub struct LinuxNotify;
+
+impl Notify for LinuxNotify {
+    #[cfg_attr(coverage, coverage(off))]
+    fn show(&self, _notification: &Notification) -> Result<bool, NotifyError> {
+        unimplemented!("the Linux Notify backend is not implemented (Slice 9.5 is Windows-first)")
     }
 }

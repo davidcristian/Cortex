@@ -10,8 +10,8 @@
 #![cfg_attr(coverage, feature(coverage_attribute))]
 
 use body_core::{
-    AudioControl, AudioError, Hotkey, HotkeyCallback, HotkeyChord, HotkeyError, VolumeChange,
-    VolumeState,
+    AudioControl, AudioError, Hotkey, HotkeyCallback, HotkeyChord, HotkeyError, Notification,
+    Notify, NotifyError, VolumeChange, VolumeState,
 };
 
 /// The macOS [`Hotkey`] backend is not implemented (Slice 8 is Windows-first).
@@ -44,5 +44,15 @@ impl AudioControl for MacosAudioControl {
         unimplemented!(
             "the macOS AudioControl backend is not implemented (Slice 9 is Windows-first)"
         )
+    }
+}
+
+/// The macOS [`Notify`] backend is not implemented (Slice 9.5 is Windows-first).
+pub struct MacosNotify;
+
+impl Notify for MacosNotify {
+    #[cfg_attr(coverage, coverage(off))]
+    fn show(&self, _notification: &Notification) -> Result<bool, NotifyError> {
+        unimplemented!("the macOS Notify backend is not implemented (Slice 9.5 is Windows-first)")
     }
 }

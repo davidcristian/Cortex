@@ -4,7 +4,8 @@
 the single source of truth): the committed tonic/prost stubs for `cortex.seam.v1` plus the
 two directions of the seam, namely `BrainSeamClient`, the tonic implementation of the
 `body_core::BrainTransport` port (body→brain), and `body_service`, the `BodyService` server
-over the `body_core::AudioControl` port (brain→body, Slice 9, ADR-0023). Thin translation
+over the `body_core::AudioControl` port (brain→body, Slice 9, ADR-0023) and the
+`body_core::Notify` port (the reminder toast, Slice 9.5, ADR-0025). Thin translation
 only, with no business logic, and no retries *here*: bounded retry is composed over this adapter
 by `body_core`'s `RetryingTransport` decorator (ADR-0024), for which `connect_lazy_with_token`
 supplies a reconnecting channel. The status→error mapping is split into `status.rs`
@@ -68,17 +69,25 @@ line cap.
   - Every `TransportError::Connection` message folds the error's full `source()` chain
     (e.g. `transport error: tcp connect error: Connection refused (os error 111)`), so
     tonic's opaque `"transport error"` `Display` still names the root cause.
-- `body_service(audio: A, token: &str)` (Slice 9, ADR-0023; `src/server.rs`) is the
-  brain→body direction: builds the `BodyService` server over an `AudioControl` backend,
-  fronted by the seam-token validator. Its pieces:
-  - `VolumeService<A: AudioControl>` is the generated `BodyService` trait over an injected
-    backend. `get_volume`/`set_volume` map the wire messages onto the port (the level
-    clamp lives in `body_core::VolumeChange`, not here); `capture_screen`/`inject_input`
+- `body_service(audio: A, notifier: N, token: &str)` (Slice 9, ADR-0023; the notifier joined
+  in Slice 9.5, ADR-0025; `src/server.rs`) is the brain→body direction: builds the
+  `BodyService` server over an `AudioControl` backend and a `Notify` backend, fronted by the
+  seam-token validator. Its pieces:
+  - `OsService<A: AudioControl, N: Notify>` is the generated `BodyService` trait over the
+    injected backends (named `VolumeService` while volume was the only OS action).
+    `get_volume`/`set_volume` map the wire messages onto the volume port (the level
+    clamp lives in `body_core::VolumeChange`, not here); `notify` builds a
+    `body_core::Notification` from the wire values, which is where the inert-text rule is
+    applied, and answers `NotifyReply { shown }`; `capture_screen`/`inject_input`
     answer `Status::unimplemented` until their slices (10 / later). No state is held. Volume is
-    read from the OS on demand (the one hard rule).
+    read from the OS on demand and a notification is fire and forget (the one hard rule).
   - `audio_error_to_status(&AudioError) -> Status` is the inverse of
     `client::status_to_error`: `NoEndpoint`→`Unavailable` (transient, like a dead
-    backend), `Backend`→`Internal`.
+    backend), `Backend`→`Internal`. `notify_error_to_status(&NotifyError) -> Status` splits
+    the same way (`Unavailable`→`Unavailable`, `Backend`→`Internal`). A declined
+    notification is **not** an error: `shown=false` rides the reply, because the brain reads
+    it as "push did not happen" exactly like a status and the reminder stays deliverable
+    either way, so turning a user preference into a gRPC failure would only lie to the logs.
   - `SeamTokenValidator` (`src/auth.rs`) is a tonic server `Interceptor`, the mirror of the
     client `SeamTokenInterceptor` (ADR-0016, reversed for this direction). Rejects any
     call lacking a matching `x-cortex-seam-token` with `UNAUTHENTICATED` before any handler
@@ -161,10 +170,15 @@ Being ignored, they never run in CI and never count toward coverage.
   crossed the wire and that "nothing to clear" is an answer, not an error), and a
   scripted store failure maps both calls to `Rpc{code:"Unavailable"}`.
 - The `body_service` server (Slice 9) is contract-tested the same way, via a real loopback
-  server over a fake `AudioControl`, to 100% line+region+branch: `get_volume`/`set_volume`
+  server over a fake `AudioControl` and a fake `Notify`, to 100% line+region+branch:
+  `get_volume`/`set_volume`
   happy paths, both `audio_error_to_status` arms, the `Unimplemented` handlers, and the
   `SeamTokenValidator` pass-through (empty token) plus its accept/reject arms (matching,
-  wrong, and missing token).
+  wrong, and missing token). The push notification (ADR-0025) adds four: a shown toast whose
+  recorded `Notification` proves the wire text reached the backend already inert and badged
+  (the fake holds its record behind an `Arc`, so the test reads what actually crossed after
+  the fake moved into the server), a declined one answering `shown=false` rather than a
+  status, and both `notify_error_to_status` arms.
 
 **Dependencies.** `body-core` (the port), `tonic` + `tonic-prost` + `prost`, plus
 `async-stream` (builds the `converse` reply mapping), `tokio-stream` (chains the confirm

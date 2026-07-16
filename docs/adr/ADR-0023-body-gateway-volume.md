@@ -234,3 +234,14 @@ Assumption 3 (`host.docker.internal` reachability, here via the `host-gateway` m
 native WSL2 dockerd) holds. Remaining for the slice: only the **Host-Windows** half, the real
 `WindowsAudioControl` Core Audio backend and the spoken "set volume to 30%" end to end
 ([body-volume.md](../runbooks/body-volume.md)).
+
+## Addendum (2026-07-16): the `BodyService` server type was renamed
+
+When the reminder toast joined this direction of the seam
+([ADR-0025](ADR-0025-scheduling-reminders.md)), the server stopped answering one OS capability:
+`VolumeService<A: AudioControl>` is now `OsService<A: AudioControl, N: Notify>` and
+`body_service(audio, token)` is `body_service(audio, notifier, token)`. Nothing above changed
+in behavior, and the `unsafe` authorization this ADR scoped to Core Audio widened by one line,
+still COM only and still `os_windows` only: activating a WinRT factory needs a COM-initialized
+thread, so the toast module makes the same idempotent `CoInitializeEx` call the audio backend
+does. The text above is left as the record of what Slice 9 decided.

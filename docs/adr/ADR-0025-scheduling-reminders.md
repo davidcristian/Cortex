@@ -1239,3 +1239,96 @@ decoding a pre-addendum record (no `zone` key) as zone-less. The default path (n
 `zone` key) keeps its existing assertions unchanged, the regression check that the field is
 additive. Remaining: **cron expressions**, as every calendar addendum left them; the per-rule
 zone this entry closes needed a new field, never a new shape.
+
+## Addendum (2026-07-16): the body-side `Notify` OS trait and the native toast
+
+The last of the three in-slice remainders, so push delivery now exists end to end: the ticker's
+`BodyGateway.notify` call reaches a real handler instead of the shape-now `Unimplemented`. The
+port is `body_core::os::notify` (its own submodule, since `os.rs` sat at the line cap):
+`Notify::show(&Notification) -> Result<bool, NotifyError>`, `Send + Sync` like `AudioControl`
+because the server holds it across async tasks, with `Linux`/`MacosNotify` stubs behind the
+coverage escape hatch and the real `WindowsNotify` (a `ToastGeneric` WinRT toast) in
+`os_windows`. `body_rpc`'s `BodyService` server takes the second backend generic decision 6
+predicted. Decisions:
+
+- **Three corrections to decision 6's own framing, each found by reading the code.** (1) It
+  placed the Windows implementation in the **Tauri shell**; it lands in `os_windows` instead,
+  beside `WindowsHotkey` and `WindowsAudioControl`, because that crate already *is* the
+  per-platform backend home, is already `cfg(windows)` (so CI never builds or measures it), and
+  the shell's own module doc commits it to holding no branchy decision. The shell keeps exactly
+  what it kept for volume: which backend to construct, and from which env var. (2) The server
+  type could not stay `VolumeService`, since it now answers two unrelated OS capabilities; it is
+  `OsService<A: AudioControl, N: Notify>` (an `OsService::new` + `body_service(audio, notifier,
+  token)` rename, no behavior change, ADR-0023's text left as the record of what it was then).
+  (3) The `unsafe` authorization ADR-0023 scoped to Core Audio had to widen by one line: WinRT
+  projections are safe, but activating a WinRT factory needs a COM-initialized thread and the
+  server runs on tokio workers that have none, so the toast module makes the same idempotent
+  `CoInitializeEx` call the audio backend does. Still COM only, still `os_windows` only.
+- **The inert-text rule is a property of the value, applied at construction.** Decision 6 phrased
+  it as an instruction to the Windows implementation ("must render `title`/`body` as inert
+  escaped text"), which would have left the seam's data-not-instructions posture resting entirely
+  on the one file no gate ever sees. `Notification::new` therefore replaces every control
+  character with a space and bounds each line at 200 characters, in the pure core, at 100%. A
+  fired reminder is the one string the body renders that **no output guardrail inspected**
+  (ADR-0015 filters streamed replies, not store rows), so the guarantee has to hold for every
+  backend that will ever exist, not for the one that exists now.
+- **Escaping is the renderer's step, not the value's, and it still lives in the core.** These
+  pull apart on inspection: a toast template is XML, so `&` must become `&amp;` there, while a
+  future Linux backend would render through a markup-limited notification body where a
+  pre-escaped string displays the entity literally, and a backend that does its own escaping
+  would double-escape. So `Notification` carries plain inert text and `os::escape_xml` sits
+  beside it as a gated helper the XML-templating backend calls. Both halves are covered on Linux;
+  what remains untested here is only the call sequence into the OS.
+- **A control character is replaced, never dropped, and long text is truncated, never refused.**
+  Dropping fuses two words across a stripped newline; truncation with a trailing ellipsis keeps
+  the reminder rather than losing it to a payload the OS rejects whole. Both follow the bias this
+  slice has taken everywhere else, that an irregularity degrades an occurrence and never deletes
+  one (the daylight-saving fold, the month-length clamp, the leap-day clamp).
+- **`shown=false` is a state report, and the toast backend can actually produce one.** The wire
+  field would otherwise have been dead: a WinRT `Show` either succeeds or throws. But
+  `ToastNotifier.Setting` answers *before* showing whether notifications are switched off for
+  this app, this user, or by policy, which is a genuine "the host was reached and declined". That
+  answers `Ok(false)`, an error answers `Err`, and the brain treats both identically (the
+  reminder stays deliverable and the pull path shows it on the next open), so the split changes
+  nothing but the honesty of the body's own logs. `NotifyError` splits `Unavailable`/`Backend`
+  onto `Unavailable`/`Internal` exactly as `audio_error_to_status` does.
+- **The taint badge is body-authored, fixed text.** A tainted reminder renders one extra
+  attribution line reading `from an untrusted source`, decided in the core by
+  `Notification::attribution()`. It is a constant rather than anything derived from the reminder,
+  for the reason the overlay's card already learned: an attacker who lands a reminder writes the
+  text, so they may never write the label that describes it.
+- **The app identity is config, because an unpackaged app cannot invent one.** Windows attributes
+  a toast to an `AppUserModelID` that must be carried by an installed Start Menu shortcut, so
+  `WindowsNotify::new(app_id)` takes it and the shell reads `CORTEX_TOAST_APP_ID` (default
+  `dev.cortex.body`, the Tauri identifier). A `tauri dev` run has no such shortcut and can borrow
+  a registered identity through the same variable (runbook `docs/runbooks/scheduling.md`).
+
+CI-gated at 100% line+region+branch: the core's inert-text rule (control characters in both
+lines, the exact bound, the ellipsis past it, non-ASCII text kept whole), the attribution on both
+taint values, `escape_xml` over all five entities plus pass-through, the port through a generic
+bound over a fake (shown, declined, failed), and four new loopback contract tests on the real
+`BodyService` server proving the wire values reach the backend already inert and badged, that a
+declined toast answers `shown=false` rather than a status, and both error arms. **Mutation-proven**
+across nine reverted guards, each turning a test red: dropping the control-character
+replacement, the length bound, and the truncation mark; making every notification claim untrusted
+provenance; dropping the ampersand escape; reporting a declined toast as shown; mapping an
+unreachable notification service to `Internal`; and swapping title for body or dropping the taint
+bit on the way into the value. The two truncation mutations land on one test, as do the two
+mapping ones, which is recorded rather than papered over. Beyond the gate,
+`os_windows` and the Tauri shell were both type-checked and clippy-checked against the real
+`windows` crate for the `x86_64-pc-windows-msvc` target from Linux, which is a compile check and
+nothing more.
+
+**Host-Windows (host-only), unchanged from what this slice always owed:** whether a real toast
+appears, reads well, and renders a hostile reminder inertly. Fire a reminder with the body
+running and the brain wired (`CORTEX_BODY_BACKEND=grpc`); the toast should carry the text, badge
+an untrusted one, and the reminder should *not* still be waiting in the overlay afterwards, since
+a shown toast is delivery and the ticker acks it.
+
+**Deferred here, recorded in [docs/refinements/scheduling.md](../refinements/scheduling.md):**
+**toast activation** (clicking a toast does nothing today; routing it to summon the overlay on
+the origin chat needs an activation channel from the shell into the running app, and for an
+unpackaged app a registered COM activator, which is a larger piece of Windows plumbing than the
+delivery it would improve). The two deferrals that were blocked on this half, **task-outcome
+delivery as a notification** and a **push retry policy** beyond next-poll-pull, are now
+unblocked and stay deferred on their own merits.

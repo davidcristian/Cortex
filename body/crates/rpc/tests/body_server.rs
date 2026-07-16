@@ -1,18 +1,22 @@
-//! Contract tests for the `BodyService` server (ADR-0023): the `body_service` adapter over a
-//! fake `AudioControl` is served on loopback (127.0.0.1:0, CI-safe) and driven by the generated
-//! `BodyServiceClient` end to end, covering get/set with every optional-field combination, the two
-//! `AudioError` arms → their gRPC statuses, the not-yet-built RPCs → `Unimplemented`, and the
-//! seam-token validator (pass-through when unset; every rejection path when set).
+//! Contract tests for the `BodyService` server (ADR-0023, ADR-0025): the `body_service` adapter
+//! over a fake `AudioControl` + a fake `Notify` is served on loopback (127.0.0.1:0, CI-safe) and
+//! driven by the generated `BodyServiceClient` end to end, covering get/set with every
+//! optional-field combination, the two `AudioError` arms → their gRPC statuses, the push
+//! notification (shown, declined, and both `NotifyError` arms, plus the inert text that reaches
+//! the backend), the not-yet-built RPCs → `Unimplemented`, and the seam-token validator
+//! (pass-through when unset; every rejection path when set).
 
 use std::net::SocketAddr;
-use std::sync::{Mutex, PoisonError};
+use std::sync::{Arc, Mutex, PoisonError};
 
-use body_core::{AudioControl, AudioError, VolumeChange, VolumeState};
+use body_core::{
+    AudioControl, AudioError, Notification, Notify, NotifyError, VolumeChange, VolumeState,
+};
 use body_rpc::body_service;
 use body_rpc::generated::body_service_client::BodyServiceClient;
 use body_rpc::generated::{
-    CaptureScreenRequest, GetVolumeRequest, InjectInputRequest, NotifyRequest, SetVolumeRequest,
-    VolumeState as PbVolumeState,
+    CaptureScreenRequest, GetVolumeRequest, InjectInputRequest, NotifyReply, NotifyRequest,
+    SetVolumeRequest, VolumeState as PbVolumeState,
 };
 use tokio::net::TcpListener;
 use tokio_stream::wrappers::TcpListenerStream;
@@ -71,18 +75,86 @@ impl AudioControl for FakeAudio {
     }
 }
 
-/// Serves `fake` fronted by the seam-token validator on an ephemeral loopback port.
+/// A fake `Notify`: records every notification it is shown and answers a scripted verdict, or
+/// fails on every call. The record lives behind an `Arc` so a test can read what actually
+/// crossed the seam after the fake moved into the server task.
+#[derive(Clone)]
+struct FakeNotify {
+    shown: bool,
+    fail: Option<NotifyError>,
+    seen: Arc<Mutex<Vec<Notification>>>,
+}
+
+impl FakeNotify {
+    fn answering(shown: bool) -> Self {
+        Self {
+            shown,
+            fail: None,
+            seen: Arc::default(),
+        }
+    }
+
+    fn failing(error: NotifyError) -> Self {
+        Self {
+            shown: false,
+            fail: Some(error),
+            seen: Arc::default(),
+        }
+    }
+
+    fn seen(&self) -> Vec<Notification> {
+        self.seen
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .clone()
+    }
+}
+
+impl Notify for FakeNotify {
+    fn show(&self, notification: &Notification) -> Result<bool, NotifyError> {
+        if let Some(error) = &self.fail {
+            return Err(error.clone());
+        }
+        self.seen
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .push(notification.clone());
+        Ok(self.shown)
+    }
+}
+
+/// Serves `fake` (with a notification backend that always shows) fronted by the seam-token
+/// validator on an ephemeral loopback port.
 async fn spawn_body(fake: FakeAudio, token: &'static str) -> Result<SocketAddr, std::io::Error> {
+    spawn_with(fake, FakeNotify::answering(true), token).await
+}
+
+/// Serves both fakes fronted by the seam-token validator on an ephemeral loopback port.
+async fn spawn_with(
+    audio: FakeAudio,
+    notify: FakeNotify,
+    token: &'static str,
+) -> Result<SocketAddr, std::io::Error> {
     let listener = TcpListener::bind("127.0.0.1:0").await?;
     let addr = listener.local_addr()?;
     let incoming = TcpListenerStream::new(listener);
     tokio::spawn(async move {
         Server::builder()
-            .add_service(body_service(fake, token))
+            .add_service(body_service(audio, notify, token))
             .serve_with_incoming(incoming)
             .await
     });
     Ok(addr)
+}
+
+/// One reminder push, as the brain's ticker sends it.
+fn notify_request(body: &str, tainted: bool) -> NotifyRequest {
+    NotifyRequest {
+        title: String::from("Reminder"),
+        body: String::from(body),
+        reminder_id: String::from("r1"),
+        tainted,
+    }
 }
 
 async fn connect(addr: SocketAddr) -> Result<BodyServiceClient<Channel>, tonic::transport::Error> {
@@ -245,18 +317,85 @@ async fn capture_screen_and_inject_input_are_unimplemented() {
         .await
         .unwrap_err();
     assert_eq!(input.code(), Code::Unimplemented);
-    // Shape-now (ADR-0025): the brain treats Unimplemented like any push failure, so a
-    // reminder stays deliverable for the pull path until the body's Notify trait lands.
-    let notify = client
-        .notify(NotifyRequest {
-            title: "Reminder".into(),
-            body: "stretch".into(),
-            reminder_id: "r1".into(),
-            tainted: false,
-        })
+}
+
+#[tokio::test]
+async fn notify_shows_the_reminder_as_inert_text_and_reports_it() {
+    let notifier = FakeNotify::answering(true);
+    let addr = spawn_with(FakeAudio::new(0.5, false), notifier.clone(), "")
+        .await
+        .unwrap();
+    let reply = connect(addr)
+        .await
+        .unwrap()
+        .notify(notify_request("stretch\nnow <b>", true))
+        .await
+        .unwrap()
+        .into_inner();
+    assert_eq!(reply, NotifyReply { shown: true });
+
+    // The wire values reached the backend through `Notification`, so the newline is already
+    // a space and the taint carries its body-authored attribution. Markup characters stay:
+    // escaping is the renderer's step, and the value must not double-escape for it.
+    let shown = notifier.seen();
+    assert_eq!(shown.len(), 1);
+    assert_eq!(shown[0].title(), "Reminder");
+    assert_eq!(shown[0].body(), "stretch now <b>");
+    assert_eq!(shown[0].reminder_id(), "r1");
+    assert!(shown[0].attribution().is_some());
+}
+
+#[tokio::test]
+async fn a_declined_notification_answers_shown_false_rather_than_a_status() {
+    let addr = spawn_with(FakeAudio::new(0.5, false), FakeNotify::answering(false), "")
+        .await
+        .unwrap();
+    let reply = connect(addr)
+        .await
+        .unwrap()
+        .notify(notify_request("stretch", false))
+        .await
+        .unwrap()
+        .into_inner();
+    assert_eq!(reply, NotifyReply { shown: false });
+}
+
+#[tokio::test]
+async fn a_missing_notification_service_maps_to_unavailable() {
+    let addr = spawn_with(
+        FakeAudio::new(0.5, false),
+        FakeNotify::failing(NotifyError::Unavailable(String::from("no notifier"))),
+        "",
+    )
+    .await
+    .unwrap();
+    let status = connect(addr)
+        .await
+        .unwrap()
+        .notify(notify_request("stretch", false))
         .await
         .unwrap_err();
-    assert_eq!(notify.code(), Code::Unimplemented);
+    assert_eq!(status.code(), Code::Unavailable);
+    assert!(status.message().contains("no notifier"));
+}
+
+#[tokio::test]
+async fn a_notification_backend_failure_maps_to_internal() {
+    let addr = spawn_with(
+        FakeAudio::new(0.5, false),
+        FakeNotify::failing(NotifyError::Backend(String::from("HRESULT 0x1"))),
+        "",
+    )
+    .await
+    .unwrap();
+    let status = connect(addr)
+        .await
+        .unwrap()
+        .notify(notify_request("stretch", false))
+        .await
+        .unwrap_err();
+    assert_eq!(status.code(), Code::Internal);
+    assert!(status.message().contains("HRESULT 0x1"));
 }
 
 #[tokio::test]

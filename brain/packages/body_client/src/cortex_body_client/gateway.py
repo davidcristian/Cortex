@@ -90,10 +90,11 @@ class GrpcBodyGateway:
     ) -> bool:
         """Show a native notification over ``BodyService.Notify`` (ADR-0025).
 
-        Returns the body's ``shown`` verdict; every gRPC failure (including the body's
-        shape-now ``Unimplemented`` answer until its toast lands) becomes a
-        ``BodyGatewayError`` the ticker treats as push-failed (the reminder stays
-        deliverable for the pull path).
+        Returns the body's ``shown`` verdict, where ``False`` means the host was reached
+        and declined (notifications switched off). Every gRPC failure, including the
+        ``Unimplemented`` a body predating the toast answers, becomes a
+        ``BodyGatewayError``. The ticker treats a declined and a failed push alike: the
+        reminder stays deliverable for the pull path.
         """
         request = NotifyRequest(title=title, body=body, reminder_id=reminder_id, tainted=tainted)
         method = self._stub.Notify  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
