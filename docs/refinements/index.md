@@ -34,7 +34,7 @@ its signature.
 | [seam-auth.md](seam-auth.md) | Seam token auth (ADR-0016) | 1 |
 | [session-history.md](session-history.md) | Slice 3 history windowing and summarization | 1 |
 | [tools-mcp.md](tools-mcp.md) | Dispatch budget/cost/salience, spawn batch cap, MCP registries (ADR-0009/0010) | 7 |
-| [untrusted-content.md](untrusted-content.md) | Taint boundary, output guardrail, subagent model safety (ADR-0013/0015/0017/0019/0028) | 17 |
+| [untrusted-content.md](untrusted-content.md) | Taint boundary, output guardrail, subagent model safety (ADR-0013/0015/0017/0019/0028) | 16 |
 | [memory.md](memory.md) | Store, scoping, rerank/MMR (ADR-0008) | 8 |
 | [inference-model-manager.md](inference-model-manager.md) | Model-manager lifecycle, MTP, reasoning status (ADR-0007/0020) | 3 |
 | [subagents.md](subagents.md) | Progress reporting, spawn schema, heterogeneous roster (ADR-0010/0018) | 4 |
@@ -59,7 +59,12 @@ field took, since nothing reads a fired occurrence and the "you missed these" re
 would is unbuilt (the store keeping no per-fire record was verified live against the compose Redis). Untrusted content went 16 to 17 the same day for
 the same reason: structured provenance landed, and the two halves it could not honestly capture
 (a sidecar-declared sender, provenance across the stores) each became an entry naming what
-blocks it. Body & overlay held at 3 on 2026-07-16 when the connection indicator landed and
+blocks it. It then went back to 16 the same day when summarizing a tainted exchange before recording
+closed as declined, read against the write path: the raw untrusted payload is never persisted (only
+the framed, guardrail-scrubbed `User`/`Assistant` exchange is), and a recalled tainted memory is
+always re-fenced and re-taints, so a summarization pass would add a second injectable model call on
+the record path (`summarize this: {tainted}` makes the summarizer the target) for no safety the
+fence does not already give. Body & overlay held at 3 on 2026-07-16 when the connection indicator landed and
 opened the push half behind it (streamed brain status, blocked on a producer), while session
 read seam went 5 to 4 the same day: the two entries were one deferral written down twice, and
 the shared premise (wait for a slice that streams brain status) turned out to be wrong for both.
@@ -132,11 +137,9 @@ against the code (the warning above); the entry text tells you which seams it ex
 1. **Task-outcome delivery as a notification + the push retry policy**
    ([scheduling.md](scheduling.md)): unblocked on 2026-07-16, when the body's `Notify` trait
    landed and gave the port they both reuse a real backend.
-2. **Summarizing a tainted exchange before recording**
-   ([untrusted-content.md](untrusted-content.md)).
-3. **Spawn-spec tuning + measured trade-off advertisement** ([subagents.md](subagents.md)):
+2. **Spawn-spec tuning + measured trade-off advertisement** ([subagents.md](subagents.md)):
    low stakes, wrong text misleads only the optimization.
-4. **`cargo fmt` and `cargo clippy` for the two ungated Rust trees**
+3. **`cargo fmt` and `cargo clippy` for the two ungated Rust trees**
    ([repo-gates.md](repo-gates.md)): last because it unblocks no capability, but it is the
    only entry here that stops a class of defect from recurring, and the format half is
    nearly free. Five clippy warnings and three unformatted files had accumulated in the
@@ -264,6 +267,16 @@ against the code (the warning above); the entry text tells you which seams it ex
 - Provenance across the stores: `ScheduledItem` and `SubagentResult` each carry the taint bit
   and no sources, so a fired task's stamp and a subagent's own readings attribute nothing back
   ([untrusted-content.md](untrusted-content.md))
+- Summarizing a tainted exchange before recording: declined 2026-07-16 on two findings. **No
+  consumer reads a summarized gist differently from a fenced exchange:** recall already fences a
+  stored tainted memory and re-taints the turn, and the raw untrusted payload is never persisted
+  (only the framed, guardrail-scrubbed `User`/`Assistant` exchange), so nothing verbatim is left to
+  summarize away. **And summarization is not a safe mitigation:** `summarize this: {tainted}` makes
+  the summarizer the injection target on the small tier where framing is unreliable, and its output
+  is still untrusted-derived, so it stays `tainted=True` and re-fenced anyway, adding an inference
+  call on the record path for no safety gain. Reopens only inside a general memory-compaction
+  feature (ADR-0008/0014), and even there the summary stays tainted and its input is fenced to the
+  summarizer, not the safety win the entry imagined ([untrusted-content.md](untrusted-content.md))
 - The per-role escape hatch: unimplemented by design, no role justifies it
   ([subagents.md](subagents.md))
 - Per-task caller-supplied subagent schema: revisited only for a structured
