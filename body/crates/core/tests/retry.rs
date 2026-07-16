@@ -156,6 +156,12 @@ impl BrainTransport for FlakyTransport {
         let _ = (session_id, title);
         Ok(())
     }
+
+    async fn delete_session(&self, session_id: &str) -> Result<(), TransportError> {
+        self.tick()?;
+        let _ = session_id;
+        Ok(())
+    }
 }
 
 /// A `Sleeper` that records each requested delay and returns immediately (no real time). `Clone`
@@ -348,6 +354,24 @@ async fn forwards_rename_session_without_retrying_it() {
     assert!(sleeper.delays().is_empty());
     // And a healthy rename still crosses the decorator.
     assert!(transport.rename_session("s1", "Cats").await.is_ok());
+}
+
+#[tokio::test]
+async fn forwards_delete_session_without_retrying_it() {
+    // The destructive write is a pass-through (ADR-0021 management addendum): a transient failure
+    // surfaces on the first attempt rather than risking a silent retry that re-destroys a chat a
+    // still-streaming turn may have re-materialized.
+    let flaky = FlakyTransport::new(FailKind::Connection, 1);
+    let sleeper = FakeSleeper::default();
+    let transport = RetryingTransport::new(flaky.clone(), sleeper.clone(), policy(3));
+    assert_eq!(
+        transport.delete_session("s1").await.unwrap_err(),
+        TransportError::Connection(String::from("refused"))
+    );
+    assert_eq!(flaky.call_count(), 1); // no second attempt
+    assert!(sleeper.delays().is_empty());
+    // And a healthy delete still crosses the decorator.
+    assert!(transport.delete_session("s1").await.is_ok());
 }
 
 #[tokio::test]

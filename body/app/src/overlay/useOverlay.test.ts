@@ -365,6 +365,64 @@ describe("useOverlay", () => {
     );
   });
 
+  it("deleteSession removes another chat and re-lists so the switcher drops it", async () => {
+    const bridge = new FakeBridge();
+    bridge.sessions = [summary("a"), summary("b")];
+    const nextId = idFactory();
+    const { result } = renderHook(() => useOverlay(bridge, nextId));
+    await flush();
+    // Cold start adopts the most recent chat "a"; delete the OTHER chat "b".
+    expect(result.current.state.sessionId).toBe("a");
+    const listsBefore = bridge.listCalls;
+    act(() => result.current.deleteSession("b"));
+    await flush();
+    expect(bridge.deletes).toEqual(["b"]);
+    // The write returns nothing, so the overlay re-lists; the fake dropped the row.
+    expect(bridge.listCalls).toBe(listsBefore + 1);
+    expect(result.current.state.sessions.map((s) => s.sessionId)).toEqual(["a"]);
+    expect(result.current.state.sessionId).toBe("a"); // the open chat is untouched
+  });
+
+  it("deleteSession on the open chat denies a pending confirm, cancels its turn, and resets", async () => {
+    const bridge = new FakeBridge();
+    bridge.sessions = [summary("open")];
+    const nextId = idFactory();
+    const { result } = renderHook(() => useOverlay(bridge, nextId));
+    await flush();
+    expect(result.current.state.sessionId).toBe("open"); // adopted as the current chat
+    act(() => result.current.open());
+    act(() => result.current.submit("a question"));
+    act(() => bridge.emit(confirmRequest("c-9"))); // a gated call now awaits approval
+    expect(result.current.state.pendingConfirm?.confirmId).toBe("c-9");
+    act(() => result.current.deleteSession("open"));
+    await flush();
+    // Deleting the open chat denies the pending confirm (walking away is a deny) and deletes it.
+    expect(bridge.confirms).toEqual([{ confirmId: "c-9", approved: false }]);
+    expect(bridge.deletes).toEqual(["open"]);
+    // The panel reset to a fresh chat (the minted fallback id), never the deleted transcript.
+    expect(result.current.state.sessionId).not.toBe("open");
+    expect(result.current.state.messages).toEqual([]);
+    expect(result.current.state.pendingConfirm).toBeNull();
+    expect(isTurnActive(result.current.state)).toBe(false);
+  });
+
+  it("a failed delete is swallowed and leaves the chat and list unchanged", async () => {
+    const bridge = new FakeBridge();
+    bridge.sessions = [summary("a"), summary("b")];
+    bridge.deleteFails = true;
+    const nextId = idFactory();
+    const { result } = renderHook(() => useOverlay(bridge, nextId));
+    await flush();
+    const listsBefore = bridge.listCalls;
+    const sessionsBefore = result.current.state.sessions;
+    act(() => result.current.deleteSession("b"));
+    await flush();
+    expect(bridge.deletes).toEqual(["b"]);
+    // The rejection does not re-list or drop the row; the list is exactly as before.
+    expect(bridge.listCalls).toBe(listsBefore);
+    expect(result.current.state.sessions).toBe(sessionsBefore);
+  });
+
   it("cycles to newer/older chats and no-ops at the ends", async () => {
     const bridge = new FakeBridge();
     bridge.sessions = [summary("newest"), summary("oldest")];

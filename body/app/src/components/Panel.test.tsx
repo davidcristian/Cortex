@@ -54,6 +54,7 @@ interface Handlers {
   onToggleSheet?: () => void;
   onSelectSession?: (sessionId: string) => void;
   onRenameSession?: (sessionId: string, title: string) => void;
+  onDeleteSession?: (sessionId: string) => void;
   onRespondConfirm?: (confirmId: string, approved: boolean) => void;
   onDismissReminder?: (reminderId: string) => void;
 }
@@ -72,6 +73,7 @@ function panelProps(over: Partial<OverlayState>, open: boolean, dark: boolean, h
     onToggleSheet: handlers.onToggleSheet ?? vi.fn(),
     onSelectSession: handlers.onSelectSession ?? vi.fn(),
     onRenameSession: handlers.onRenameSession ?? vi.fn(),
+    onDeleteSession: handlers.onDeleteSession ?? vi.fn(),
     onRespondConfirm: handlers.onRespondConfirm ?? vi.fn(),
     onDismissReminder: handlers.onDismissReminder ?? vi.fn(),
   };
@@ -167,6 +169,24 @@ describe("Panel", () => {
     );
     fireEvent.click(screen.getByText("First chat"));
     expect(onSelectSession).toHaveBeenCalledWith("c1");
+  });
+
+  it("threads the delete handler to the switcher: confirming a row's trash deletes it", () => {
+    const onDeleteSession = vi.fn();
+    renderPanel(
+      {
+        switcherOpen: true,
+        sessions: [
+          { sessionId: "c1", title: "First chat", preview: "hello", lastActivityUnixMs: 1000 },
+        ],
+      },
+      true,
+      false,
+      { onDeleteSession },
+    );
+    fireEvent.click(screen.getByLabelText("Delete First chat"));
+    fireEvent.click(screen.getByLabelText("Confirm delete First chat"));
+    expect(onDeleteSession).toHaveBeenCalledWith("c1");
   });
 
   it("shows the reminder stack only when something is due, above the scrolling history", () => {

@@ -16,11 +16,11 @@ use body_rpc::BrainSeamClient;
 use body_rpc::generated::brain_service_client::BrainServiceClient;
 use body_rpc::generated::brain_service_server::{BrainService, BrainServiceServer};
 use body_rpc::generated::{
-    AckReminderReply, AckReminderRequest, ClientEvent, DueReminder as PbDueReminder,
-    GetSessionMessagesReply, GetSessionMessagesRequest, HealthReply, HealthRequest,
-    ListDueRemindersReply, ListDueRemindersRequest, ListSessionsReply, ListSessionsRequest,
-    RenameSessionReply, RenameSessionRequest, ServerEvent, SessionMessage as PbSessionMessage,
-    SessionSummary as PbSessionSummary,
+    AckReminderReply, AckReminderRequest, ClientEvent, DeleteSessionReply, DeleteSessionRequest,
+    DueReminder as PbDueReminder, GetSessionMessagesReply, GetSessionMessagesRequest, HealthReply,
+    HealthRequest, ListDueRemindersReply, ListDueRemindersRequest, ListSessionsReply,
+    ListSessionsRequest, RenameSessionReply, RenameSessionRequest, ServerEvent,
+    SessionMessage as PbSessionMessage, SessionSummary as PbSessionSummary,
 };
 use tokio::net::TcpListener;
 use tokio::sync::oneshot;
@@ -55,6 +55,9 @@ struct FakeBrain {
     /// Records each `RenameSession` write `(session_id, title)` the fake received, so a test
     /// can prove both fields crossed the wire (the reply is a bare ack, ADR-0021).
     renames: Arc<Mutex<Vec<(String, String)>>>,
+    /// Records each `DeleteSession` write's `session_id`, so a test can prove the id crossed the
+    /// wire (the reply is a bare ack, ADR-0021).
+    deletes: Arc<Mutex<Vec<String>>>,
 }
 
 impl FakeBrain {
@@ -65,6 +68,7 @@ impl FakeBrain {
             sessions_fail: false,
             reminders_fail: false,
             renames: Arc::new(Mutex::new(Vec::new())),
+            deletes: Arc::new(Mutex::new(Vec::new())),
         }
     }
 }
@@ -215,6 +219,22 @@ impl BrainService for FakeBrain {
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .push((req.session_id, req.title));
         Ok(Response::new(RenameSessionReply {}))
+    }
+
+    async fn delete_session(
+        &self,
+        request: Request<DeleteSessionRequest>,
+    ) -> Result<Response<DeleteSessionReply>, Status> {
+        // A store/memory-down abort behaves like the reads; otherwise record the deleted id so the
+        // test can prove it crossed the wire (the reply carries nothing to echo).
+        if self.sessions_fail {
+            return Err(Status::unavailable("store down"));
+        }
+        self.deletes
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .push(request.into_inner().session_id);
+        Ok(Response::new(DeleteSessionReply {}))
     }
 }
 
@@ -507,6 +527,37 @@ async fn rename_session_store_failure_maps_to_the_rpc_variant() {
         .unwrap();
     assert_eq!(
         client.rename_session("s", "x").await.unwrap_err(),
+        TransportError::Rpc {
+            code: String::from("Unavailable"),
+            message: String::from("store down"),
+        }
+    );
+}
+
+#[tokio::test]
+async fn delete_session_writes_the_session_id_across_the_wire() {
+    let recorder = Arc::new(Mutex::new(Vec::new()));
+    let mut fake = FakeBrain::new(Script::Ready);
+    fake.deletes = recorder.clone();
+    let addr = spawn_fake_brain(fake).await.unwrap();
+    let client = BrainSeamClient::connect(&format!("http://{addr}"))
+        .await
+        .unwrap();
+    client.delete_session("chat-9").await.unwrap();
+    // The target chat crossed the seam intact (the reply is a bare ack).
+    assert_eq!(*recorder.lock().unwrap(), vec![String::from("chat-9")]);
+}
+
+#[tokio::test]
+async fn delete_session_store_failure_maps_to_the_rpc_variant() {
+    let mut fake = FakeBrain::new(Script::Ready);
+    fake.sessions_fail = true;
+    let addr = spawn_fake_brain(fake).await.unwrap();
+    let client = BrainSeamClient::connect(&format!("http://{addr}"))
+        .await
+        .unwrap();
+    assert_eq!(
+        client.delete_session("s").await.unwrap_err(),
         TransportError::Rpc {
             code: String::from("Unavailable"),
             message: String::from("store down"),

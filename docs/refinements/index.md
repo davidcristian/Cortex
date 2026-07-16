@@ -39,7 +39,7 @@ its signature.
 | [inference-model-manager.md](inference-model-manager.md) | Model-manager lifecycle, MTP, reasoning status (ADR-0007/0020) | 3 |
 | [subagents.md](subagents.md) | Progress reporting, spawn schema, heterogeneous roster (ADR-0010/0018) | 1 |
 | [body-overlay.md](body-overlay.md) | Overlay polish, connection indicator, proto Cancel (ADR-0011) | 3 |
-| [session-read-seam.md](session-read-seam.md) | Session listing/read seam (ADR-0021) | 5 |
+| [session-read-seam.md](session-read-seam.md) | Session listing/read seam (ADR-0021) | 4 |
 | [resource-governance.md](resource-governance.md) | Scheduler/placer budgets, NPU, drain (ADR-0012) | 6 |
 | [email-confirmer.md](email-confirmer.md) | Email write, Confirmer, attachments, `ToolActivity` chip (ADR-0022) | 4 |
 | [body-gateway.md](body-gateway.md) | Body gateway, OS actions, hardened posture (ADR-0023) | 6 |
@@ -136,6 +136,19 @@ covers switcher-open, cycling, and adoption alike. The residual it opened is the
 authoritative title: a reminder deep-link to a chat outside the loaded window still derives locally,
 not user-visible (the switcher shows no row for an out-of-window chat to conflict with), dead until
 a consumer opens such a chat beside the switcher and earns the `GetSessionMessages` title field.
+Session read seam then went 5 to 4 the same day when session deletion landed end to end, opening
+nothing behind it. All three halves the entry bundled shipped together: a `SessionStore.delete` verb,
+a scope-aware memory cascade, and an overlay-local confirm. The entry's one wrong guess was the
+tombstone: read against the code the delete is a **hard** delete, since the reads are snapshots and an
+unknown session already reads as an empty history, so there is no in-flight id a tombstone would
+protect (the same-day `delete_scope` hard-delete reasoning), and a "forget this chat" privacy action
+wants true erasure. Its safety design is the point: the forget verb is kept **off** the turn-facing
+`MemoryRecaller` (a separate trusted `SessionMemoryCascade` the orchestrator wires into
+`DeleteSession` only), the cascade runs only under session scoping with a `GLOBAL_SCOPE` guard checked
+first so the shared space can never be swept (mutation-proven with a session literally named
+"global"), the gate is the same structural user-only reachability rename got (no tool, not repeatable),
+and the overlay handles deleting the currently-open chat by tearing down its turn and falling back to
+a fresh chat rather than rendering a deleted transcript.
 Repo gates went from 0 back to 1 the same day,
 when the two Rust trees `just check` never lints turned out to have been quietly collecting
 findings; that entry originates in [ADR-0011](../adr/ADR-0011-body-v1.md) rather than the
@@ -317,14 +330,6 @@ against the code (the warning above); the entry text tells you which seams it ex
   decision (does a pinned chat escape the recency window, so `list_sessions` must union it in?),
   which reshapes the tuned two-round-trip listing. Opened 2026-07-16 when rename landed and delete
   and pin were read as their own changes rather than one line with rename.
-- **Session deletion** ([session-read-seam.md](session-read-seam.md)): destructive; a
-  `SessionStore.delete` (likely a tombstone) plus an overlay-local confirm (the `SeamConfirmer`
-  gates in-turn tool calls, not a unary management RPC). The memory-cascade half is no longer blocked
-  on a missing verb: `MemoryStore.delete_scope` landed 2026-07-16 ([memory.md](memory.md)), so a
-  delete cascades to a session's derived memories by scope, but honestly only under session scoping
-  (`scope == session_id`); under global scope those memories are the shared space, so nothing
-  session-private cascades and `GLOBAL_SCOPE` must never be passed. Design the store verb, the
-  scope-aware cascade, and the confirm together.
 - **Session-history summarization + the model-based reranker**
   ([session-history.md](session-history.md), [memory.md](memory.md)): both blocked on a sync
   port going async (`HistoryWindow.select`, `RecallPolicy.select`) and both inherit the same

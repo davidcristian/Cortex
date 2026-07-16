@@ -35,6 +35,15 @@ Translators only: serialization, key layout, and error wrapping; no business log
     it so it survives a swap. This is the catalog write behind **both** the brain-generated title
     and the overlay's user-driven `RenameSession` (ADR-0021 management addendum); the store does
     not distinguish them, so no new port method was needed to add rename.
+  - `async delete(session_id)` HARD-deletes a whole chat: the message list (`:messages`), the
+    optional title (`:title`), and the `cortex:sessions` recency-index member, all in one
+    transactional pipeline so a listing never sees a half-deleted chat (ADR-0021 delete addendum).
+    The destructive "forget this chat" write. Hard, not a tombstone: reads are snapshots and an
+    unknown session already reads as an empty history, so a deleted chat degrades cleanly with no
+    in-flight id to protect (the memory `delete_scope` reasoning). It leaves no orphaned key or
+    dangling index entry, and is idempotent (`DEL`/`ZREM` on absent keys are no-ops), so a retry
+    after a failure heals. The memory half of the cascade is NOT here (memory is a separate store);
+    the orchestrator's `DeleteSession` composes this delete with `SessionMemoryCascade`.
   - `async aclose()` closes the underlying client's connections.
 - `RedisTaskStore` implements the `TaskStore` port over redis-py asyncio (ADR-0010), same
   injected-client / `from_url` / `aclose` shape as above:

@@ -169,6 +169,27 @@ class RedisSessionStore:
             msg = f"setting the title for session {session_id!r} failed"
             raise SessionStoreError(msg) from err
 
+    async def delete(self, session_id: str) -> None:
+        """Hard-delete a whole session: its messages, its title, its recency-index entry.
+
+        The destructive "forget this chat" write (ADR-0021 delete addendum). Every key `append`
+        and `set_title` can create for this id is removed in one transaction so a listing never
+        sees a half-deleted chat: the message list (`:messages`), the optional title (`:title`),
+        and the `cortex:sessions` recency-index member. Nothing is left orphaned, and no dangling
+        index entry remains to be skipped later. `DEL`/`ZREM` on absent keys/members are no-ops,
+        so deleting an unknown or already-deleted session is idempotent, and the next `history`
+        read of it is the benign empty history an unknown session already returns (no tombstone).
+        """
+        try:
+            async with self._client.pipeline(transaction=True) as pipe:
+                pipe.delete(_key(session_id))
+                pipe.delete(_title_key(session_id))
+                pipe.zrem(_SESSIONS_KEY, session_id)
+                await pipe.execute()
+        except RedisError as err:
+            msg = f"deleting session {session_id!r} failed"
+            raise SessionStoreError(msg) from err
+
     async def list_sessions(self, *, limit: int) -> Sequence[SessionSummary]:
         """Return at most ``limit`` recent chats, most-recently-active first (ADR-0021).
 

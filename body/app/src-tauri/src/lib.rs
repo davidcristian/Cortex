@@ -40,6 +40,7 @@ pub fn run() {
             sessions::list_sessions,
             sessions::session_messages,
             sessions::rename_session,
+            sessions::delete_session,
             reminders::list_due_reminders,
             reminders::ack_reminder,
             link::check_link

@@ -26,6 +26,9 @@ export interface OverlayController {
   openSession(sessionId: string): void;
   /** Rename a chat from the switcher (ADR-0021): write the label, then re-list to show it. */
   renameSession(sessionId: string, title: string): void;
+  /** Delete a chat from the switcher (ADR-0021): fire the destructive write after the row's local
+   *  confirm, then drop it and re-list; deleting the open chat falls back to a fresh new chat. */
+  deleteSession(sessionId: string): void;
   cyclePrev(): void;
   cycleNext(): void;
   toggleSwitcher(): void;
@@ -223,6 +226,32 @@ export function useOverlay(
     [bridge, refreshSessions],
   );
 
+  // A user-only DESTRUCTIVE catalog write (ADR-0021), fired only after the switcher row's own
+  // "are you sure" confirm. Deleting the currently-open chat first tears down its in-flight turn and
+  // denies any pending confirm, so a still-streaming reply cannot re-materialize the chat with a
+  // `store.append` after the delete lands (the current-session hazard). The row is dropped and the
+  // list refreshed only on success; a failed delete leaves the chat and list as they are, and the
+  // next refresh restores the row. On success, deleting the open chat resets the panel to a fresh
+  // chat (reducer), so a deleted transcript is never shown.
+  const deleteSession = useCallback(
+    (sessionId: string) => {
+      if (sessionId === state.sessionId) {
+        denyPendingConfirm();
+        cancelRef.current?.();
+      }
+      bridge
+        .deleteSession(sessionId)
+        .then(() => {
+          dispatch({ kind: "sessionDeleted", sessionId, fallbackSessionId: newSessionId() });
+          refreshSessions();
+        })
+        .catch(() => {
+          // A lost delete leaves the chat and the list unchanged; the brain still holds it.
+        });
+    },
+    [state.sessionId, denyPendingConfirm, bridge, refreshSessions, newSessionId],
+  );
+
   const cyclePrev = useCallback(() => {
     const target = cycleTarget(state.sessions, state.sessionId, -1);
     if (target !== null) {
@@ -246,6 +275,7 @@ export function useOverlay(
     newChat,
     openSession,
     renameSession,
+    deleteSession,
     cyclePrev,
     cycleNext,
     toggleSwitcher,

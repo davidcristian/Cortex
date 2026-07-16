@@ -88,3 +88,18 @@ pub async fn rename_session(session_id: String, title: String) -> Result<(), Str
         .await
         .map_err(|error| error.to_string())
 }
+
+/// Deletes one chat (`BrainService.DeleteSession`, ADR-0021 management addendum): the overlay's
+/// user-driven destructive removal, fired only after an overlay-local confirm. The brain
+/// hard-deletes the transcript and cascades to the chat's private memories. A destructive write, so
+/// the resilient transport makes exactly one attempt (`SeamMethod::DeleteSession` is not
+/// repeatable); a transient failure surfaces to the overlay bridge's `.catch` rather than risking a
+/// silent second destroy.
+#[tauri::command]
+pub async fn delete_session(session_id: String) -> Result<(), String> {
+    let client = crate::seam::connect()?;
+    client
+        .delete_session(&session_id)
+        .await
+        .map_err(|error| error.to_string())
+}

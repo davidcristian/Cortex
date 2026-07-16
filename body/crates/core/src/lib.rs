@@ -18,6 +18,7 @@ pub mod hotkey;
 pub mod link;
 pub mod os;
 pub mod retry;
+pub mod session_types;
 pub mod transport;
 
 pub use hotkey::{HotkeyChord, HotkeyParseError, Modifier};
@@ -30,7 +31,5 @@ pub use retry::{
     DEFAULT_PROBE_BUDGET, FullDelay, Randomness, RetryPlan, RetryPolicy, RetryingTransport,
     SeamMethod, Sleeper, is_transient, retry_with,
 };
-pub use transport::{
-    BrainTransport, ConfirmDecision, DueReminder, SeamHealth, SessionMessage, SessionSummary,
-    TransportError, TurnEvent,
-};
+pub use session_types::{DueReminder, SessionMessage, SessionSummary};
+pub use transport::{BrainTransport, ConfirmDecision, SeamHealth, TransportError, TurnEvent};

@@ -111,6 +111,14 @@ export interface BrainBridge {
    * The overlay re-lists after it resolves to show the change.
    */
   renameSession(sessionId: string, title: string): Promise<void>;
+  /**
+   * Delete one chat (`BrainService.DeleteSession`, ADR-0021 management addendum): the user's own
+   * destructive removal from the switcher, fired only after an overlay-local "are you sure" confirm.
+   * The brain hard-deletes the transcript and cascades to the chat's private memories. A user-only
+   * write (no model, tool, or tainted turn reaches it) and NOT retried, so a lost answer surfaces
+   * rather than silently re-issuing a destroy. The overlay drops the row and re-lists on success.
+   */
+  deleteSession(sessionId: string): Promise<void>;
   /** Reminders that have fired and still await delivery, across every session (ADR-0025). */
   listDueReminders(): Promise<readonly DueReminder[]>;
   /**

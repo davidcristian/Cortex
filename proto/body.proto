@@ -46,6 +46,19 @@ service BrainService {
   // clears the override to restore the first-message derivation. The brain re-bounds the title
   // when listing, so a caller cannot store an unbounded or multi-line label.
   rpc RenameSession(RenameSessionRequest) returns (RenameSessionReply);
+
+  // Delete a chat: a gated, DESTRUCTIVE, irreversible WRITE on the session catalog
+  // (ADR-0021 management addendum). It hard-deletes the whole transcript and catalog entry,
+  // and cascades to the session's derived memories, but only when those memories are private
+  // to the session (a session-scoped memory policy); under the shared global memory space
+  // nothing session-private cascades. Its gate is the SAME structural user-only reachability
+  // RenameSession has, not the mid-turn Confirmer: it is no tool in any registry and never runs
+  // through the turn engine, so no model, tool, or tainted turn reaches it. The user's intent is
+  // secured OUT of band, by an overlay-local "are you sure" confirm before this RPC is ever sent
+  // (the SeamConfirmer gates in-turn tool calls, not a unary management RPC). It carries a
+  // destructive effect, so the resilient body transport makes exactly ONE attempt and never
+  // retries it (a lost reply must not silently re-issue a destroy against a re-materialized id).
+  rpc DeleteSession(DeleteSessionRequest) returns (DeleteSessionReply);
 }
 
 message ClientEvent {
@@ -142,6 +155,16 @@ message RenameSessionRequest {
   string title = 2;
 }
 message RenameSessionReply {}
+
+// Delete one chat (ADR-0021 management addendum). Destructive and irreversible: the brain
+// hard-deletes the transcript and catalog entry and cascades to the session's private memories.
+// The reply is a bare acknowledgement (the overlay drops the row and re-lists); a store or memory
+// failure surfaces as an `UNAVAILABLE` RPC status, the session-read precedent, and the operation
+// is idempotent, so a retry after such a failure heals cleanly.
+message DeleteSessionRequest {
+  string session_id = 1;
+}
+message DeleteSessionReply {}
 
 // Reminder pull-delivery views (ADR-0025). All sessions are listed deliberately because
 // a single-user assistant has one user to remind; session_id rides along so the

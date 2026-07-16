@@ -184,6 +184,16 @@ class RenameSessionReply(_message.Message):
     __slots__ = ()
     def __init__(self) -> None: ...
 
+class DeleteSessionRequest(_message.Message):
+    __slots__ = ("session_id",)
+    SESSION_ID_FIELD_NUMBER: _ClassVar[int]
+    session_id: str
+    def __init__(self, session_id: _Optional[str] = ...) -> None: ...
+
+class DeleteSessionReply(_message.Message):
+    __slots__ = ()
+    def __init__(self) -> None: ...
+
 class ListDueRemindersRequest(_message.Message):
     __slots__ = ()
     def __init__(self) -> None: ...

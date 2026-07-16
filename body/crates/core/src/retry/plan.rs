@@ -48,6 +48,8 @@ pub enum SeamMethod {
     AckReminder,
     /// `BrainService.RenameSession`: the overlay's user-driven relabel of a chat.
     RenameSession,
+    /// `BrainService.DeleteSession`: the overlay's user-driven destructive removal of a chat.
+    DeleteSession,
 }
 
 impl SeamMethod {
@@ -72,13 +74,20 @@ impl SeamMethod {
     /// answer. `AckReminder` is the case that shows those are two different tests, and
     /// `RenameSession` is a plainer write: it relabels a chat, so a repeat over a lost reply
     /// could re-apply a stale label the user has since changed. One attempt, no retry.
+    ///
+    /// `DeleteSession` is the most conservative of all: a **destructive** write. In isolation it is
+    /// idempotent (a second delete of an absent chat removes nothing and returns a bare ack), but a
+    /// repeat can still duplicate an effect where it matters most: deleting the currently-open chat
+    /// while its turn still streams is a concurrent `append` that can re-materialize the id between
+    /// a lost reply and a retry, so a silent retry could destroy a transcript the user never
+    /// confirmed removing. A destroy is the last call to re-issue automatically, so one attempt.
     #[must_use]
     pub const fn repeatable(self) -> bool {
         match self {
             Self::Health | Self::ListSessions | Self::SessionMessages | Self::ListDueReminders => {
                 true
             }
-            Self::Converse | Self::AckReminder | Self::RenameSession => false,
+            Self::Converse | Self::AckReminder | Self::RenameSession | Self::DeleteSession => false,
         }
     }
 }

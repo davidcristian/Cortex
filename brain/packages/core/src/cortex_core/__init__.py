@@ -72,6 +72,7 @@ from cortex_core.inference import TextChunk as TextChunk
 from cortex_core.memory import GLOBAL_SCOPE as GLOBAL_SCOPE
 from cortex_core.memory import MemoryRecord as MemoryRecord
 from cortex_core.memory import ScoredMemory as ScoredMemory
+from cortex_core.memory_cascade import SessionMemoryCascade as SessionMemoryCascade
 from cortex_core.model import ModelLease as ModelLease
 from cortex_core.model import SingleResidentModelManager as SingleResidentModelManager
 from cortex_core.placement import Placement as Placement

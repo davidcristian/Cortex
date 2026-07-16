@@ -1,30 +1,46 @@
-"""Unit tests for the session-catalog RPC helpers (ADR-0021): the rename write and its clamp.
+"""Unit tests for the session-catalog RPC helpers (ADR-0021): the rename and delete writes.
 
 The end-to-end handler wiring is covered over a real loopback server in `test_session_reads.py`;
-these pin the two pieces that live below the seam: the seam-edge title bound, and that
-`rename_session` writes the *clamped* title through `SessionStore.set_title` (so the mutation
-that drops the clamp, or the one that never writes, each reddens exactly one test here).
+these pin the pieces that live below the seam: the seam-edge title bound, that `rename_session`
+writes the *clamped* title through `SessionStore.set_title`, and that `delete_session` deletes the
+chat and cascades to its memories in the right order (so the mutation that drops the clamp, never
+writes, skips the delete, or skips the cascade each reddens exactly one test here).
 """
 
+import inspect
 from collections.abc import Sequence
 
-from cortex_core import Message, SessionSummary
+from cortex_core import (
+    MemoryRecord,
+    Message,
+    ScoredMemory,
+    SessionMemoryCascade,
+    SessionMemoryScope,
+    SessionStore,
+    SessionSummary,
+    ToolRegistry,
+)
+from cortex_orchestrator import BrainService
 from cortex_orchestrator.session_rpc import (
     MAX_TITLE_INPUT,
     clamp_title,
+    delete_session,
     rename_session,
 )
-from cortex_seam import RenameSessionReply
+from cortex_seam import DeleteSessionReply, RenameSessionReply
 
 
 class RecordingStore:
-    """A SessionStore that records the last `set_title` it was asked to write.
+    """A SessionStore that records the `set_title` and `delete` writes it is asked to make.
 
-    Only `set_title` is exercised here; the reads satisfy the port but are never called.
+    Only the writes are exercised here; the reads satisfy the port but are never called. `events`
+    keeps a global order so a test can assert the session is deleted before the memory cascade runs.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, events: list[str] | None = None) -> None:
         self.set_title_calls: list[tuple[str, str]] = []
+        self.delete_calls: list[str] = []
+        self.events = events if events is not None else []
 
     async def append(self, session_id: str, message: Message) -> None:
         del session_id, message
@@ -39,6 +55,36 @@ class RecordingStore:
 
     async def set_title(self, session_id: str, title: str) -> None:
         self.set_title_calls.append((session_id, title))
+
+    async def delete(self, session_id: str) -> None:
+        self.delete_calls.append(session_id)
+        self.events.append(f"delete:{session_id}")
+
+
+class RecordingMemoryStore:
+    """A MemoryStore recording each `delete_scope`, so the real cascade's call is observable.
+
+    Only `delete_scope` is exercised; `add`/`search` satisfy the port but are never called. Wrapping
+    it in a real `SessionMemoryCascade` (rather than faking the cascade) keeps the scope guard live.
+    """
+
+    def __init__(self, events: list[str]) -> None:
+        self.deleted_scopes: list[str] = []
+        self.events = events
+
+    async def add(self, record: MemoryRecord) -> None:
+        del record
+
+    async def search(
+        self, embedding: Sequence[float], *, k: int, scopes: Sequence[str] | None = None
+    ) -> Sequence[ScoredMemory]:
+        del embedding, k, scopes
+        return ()
+
+    async def delete_scope(self, scope: str) -> int:
+        self.deleted_scopes.append(scope)
+        self.events.append(f"cascade:{scope}")
+        return 0
 
 
 def test_clamp_title_passes_a_short_title_through_unchanged() -> None:
@@ -66,3 +112,44 @@ async def test_rename_session_passes_an_empty_title_to_clear_the_override() -> N
     store = RecordingStore()
     await rename_session(store, "beta", "")
     assert store.set_title_calls == [("beta", "")]
+
+
+async def test_delete_session_deletes_the_chat_then_cascades_to_memory() -> None:
+    # The whole point of the slice: the visible chat is deleted first, then its private memories
+    # are forgotten. The shared `events` list pins that order (a mutation swapping them reddens).
+    # A real SessionMemoryCascade under session scoping deletes the chat's own scope ("gamma").
+    events: list[str] = []
+    store = RecordingStore(events)
+    mem = RecordingMemoryStore(events)
+    cascade = SessionMemoryCascade(mem, SessionMemoryScope())
+    reply = await delete_session(store, cascade, "gamma")
+    assert isinstance(reply, DeleteSessionReply)
+    assert store.delete_calls == ["gamma"]
+    assert mem.deleted_scopes == ["gamma"]  # the cascade forgot the session's own scope
+    assert events == ["delete:gamma", "cascade:gamma"]  # session first, then the cascade
+
+
+async def test_delete_session_skips_the_cascade_when_memory_is_off() -> None:
+    # No memory backend wired (`cascade is None`): the chat is deleted and nothing else is called,
+    # so a memory-less deployment deletes cleanly with no cascade to run.
+    store = RecordingStore()
+    reply = await delete_session(store, None, "delta")
+    assert isinstance(reply, DeleteSessionReply)
+    assert store.delete_calls == ["delta"]
+
+
+def test_session_deletion_is_a_user_only_seam_path_never_a_tool() -> None:
+    # Structural user-only gate (ADR-0021), the same as RenameSession. Session deletion is reached
+    # ONLY from the seam: the `SessionStore.delete` port verb, driven by `delete_session`
+    # (which takes store ports, never a ToolRegistry), driven by the `BrainService.DeleteSession`
+    # servicer method the overlay calls out of band behind the seam-token interceptor. A model's
+    # ENTIRE reach into the system is the ToolRegistry surface, which is exactly describe_tools/
+    # invoke and carries no delete verb; deletion is a store capability, not a tool, and never runs
+    # through the turn engine. So no model, tool, or tainted turn can delete a chat. If deletion is
+    # ever wired as a tool (a ToolRegistry verb, or `delete_session` taking one), this reddens.
+    assert callable(BrainService.DeleteSession)  # the user-only seam method exists
+    assert callable(SessionStore.delete)  # the store verb it drives, not a tool
+    tool_surface = {name for name in vars(ToolRegistry) if not name.startswith("_")}
+    assert tool_surface == {"describe_tools", "invoke"}  # a model can only describe/invoke tools
+    handler_params = set(inspect.signature(delete_session).parameters)
+    assert handler_params == {"store", "cascade", "session_id"}  # store ports, no ToolRegistry

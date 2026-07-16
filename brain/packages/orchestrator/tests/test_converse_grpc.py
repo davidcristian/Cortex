@@ -117,6 +117,9 @@ class FailingStore:
     async def set_title(self, session_id: str, title: str) -> None:
         del session_id, title
 
+    async def delete(self, session_id: str) -> None:
+        del session_id
+
 
 class BlockingFirstTurnBackend:
     """First call: one delta, then blocks until cancelled. Later calls: the echo script."""

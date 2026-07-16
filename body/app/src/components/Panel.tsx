@@ -25,6 +25,7 @@ interface PanelProps {
   readonly onToggleSheet: () => void;
   readonly onSelectSession: (sessionId: string) => void;
   readonly onRenameSession: (sessionId: string, title: string) => void;
+  readonly onDeleteSession: (sessionId: string) => void;
   readonly onRespondConfirm: (confirmId: string, approved: boolean) => void;
   readonly onDismissReminder: (reminderId: string) => void;
 }
@@ -52,6 +53,7 @@ export function Panel({
   onToggleSheet,
   onSelectSession,
   onRenameSession,
+  onDeleteSession,
   onRespondConfirm,
   onDismissReminder,
 }: PanelProps) {
@@ -105,6 +107,7 @@ export function Panel({
           currentId={state.sessionId}
           onSelect={onSelectSession}
           onRename={onRenameSession}
+          onDelete={onDeleteSession}
         />
       ) : null}
       {state.reminders.length > 0 ? (
