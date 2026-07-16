@@ -8,6 +8,8 @@ import pytest
 from cortex_core import (
     ConfirmationRequest,
     InMemoryToolRegistry,
+    Provenance,
+    SourceKind,
     ToolCall,
     ToolInvocation,
     ToolNotFoundError,
@@ -107,3 +109,11 @@ def test_a_stamps_budget_is_carried_but_is_not_part_of_its_value() -> None:
     assert stamped == TurnStamp(session_id="s", tainted=True)
     assert stamped != TurnStamp(session_id="other", tainted=True, budget=pool)
     assert stamped.budget is pool
+
+
+def test_a_stamps_sources_are_part_of_its_value() -> None:
+    # Provenance is a fact about the turn, not a live handle, so unlike the pool it is compared:
+    # a stamp that has read a source is not the same stamp as one that has read none.
+    source = Provenance(SourceKind.TOOL, "read_email")
+    assert TurnStamp(tainted=True, sources=(source,)) != TurnStamp(tainted=True)
+    assert TurnStamp(tainted=True, sources=(source,)) == TurnStamp(tainted=True, sources=(source,))

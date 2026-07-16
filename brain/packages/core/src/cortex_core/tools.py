@@ -5,8 +5,9 @@ cycle, exactly as ``memory.py`` is depended on. ``arguments``/``parameters`` car
 JSON (a tool's schema and a model's call args are open-shaped), so ``Any`` here is the
 justified kind: the boundary is genuinely dynamic and the value is round-tripped, never
 introspected by the core. The one exception to "values only" is the ``DispatchBudget`` a
-``TurnStamp`` carries, which is a live handle rather than a value; ``tool_budget`` imports
-nothing but the standard library, so depending on it keeps this module port-free.
+``TurnStamp`` carries, which is a live handle rather than a value; ``tool_budget`` and
+``provenance`` (the stamp's other collaborator) import nothing but the standard library, so
+depending on them keeps this module port-free.
 """
 
 from collections.abc import Mapping
@@ -15,6 +16,7 @@ from datetime import datetime
 from enum import Enum
 from typing import Any
 
+from cortex_core.provenance import Provenance
 from cortex_core.tool_budget import DispatchBudget
 
 
@@ -55,10 +57,13 @@ class TurnStamp:
 
     ``session_id`` is the originating chat (``""`` when the dispatch has none: a subagent
     run, or an unattributed caller); ``tainted`` whether the turn had read untrusted content
-    at dispatch time; ``budget`` the turn's shared dispatch allowance (``None`` when the
-    caller runs no tool loop, e.g. the schedule ticker). One frozen value rather than parallel
-    keywords, so future facts (source URI, sender; the ADR-0013/0019 deferrals) join this
-    object and every call site rides along unchanged. A field joins only with a consumer.
+    at dispatch time; ``sources`` which sources that content came from (ADR-0027 addendum),
+    the structured provenance behind the bit; ``budget`` the turn's shared dispatch allowance
+    (``None`` when the caller runs no tool loop, e.g. the schedule ticker). One frozen value
+    rather than parallel keywords, which is what let ``sources`` land without touching a single
+    call site. A field joins only with a consumer, or a designed one: ``sources`` is captured
+    live (the ledger dies with the turn) for consumers that are decisions of their own, a
+    confirmation card that names its source and per-provenance eviction.
 
     Originally the turn's *provenance* alone. ``budget`` widened that to what the turn hands
     down to work this call spawns, which ``tainted`` already was in practice (provenance, and
@@ -69,6 +74,7 @@ class TurnStamp:
 
     session_id: str = ""
     tainted: bool = False
+    sources: tuple[Provenance, ...] = ()
     budget: DispatchBudget | None = field(default=None, compare=False)
 
 

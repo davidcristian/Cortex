@@ -99,3 +99,65 @@ stamp, and every updated call site.
 - **`""` conflates "no session" with "unattributed".** Acceptable while the one consumer
   treats both as absent; a structured origin joins with the source fields if a consumer
   ever needs the distinction.
+
+## Addendum (2026-07-16): the source fields land, and where a locator comes from
+
+The deferred **source URI/sender fields** land as `TurnStamp.sources`, a tuple of frozen
+`Provenance` values (`cortex_core/provenance.py`), and the open design question above ("where
+does a locator come from") is answered by splitting it in two. What follows corrects this ADR's
+own framing in one place, noted below.
+
+- **A source is a kind plus a value, and the kind says whose word it is.** `SourceKind` is
+  `TOOL` / `MEMORY` / `SENDER` / `URI`, and `SourceKind.attested` is `True` for the first two:
+  their values are strings the brain itself authored (a registry-advertised tool name, an id we
+  minted), while a sender or a locator is what the content claims about itself. A consumer needs
+  that distinction before it renders anything, since an attested value reads as a label and a
+  claimed one reads as a quotation. Kind is part of the identity, so eviction by sender cannot
+  sweep a URI that spells the same string.
+- **Bounded and sanitized in the value's own constructor**, not at any adapter. A source string
+  can be attacker-chosen, so `Provenance.__post_init__` runs it through one pass: Unicode
+  category `C` characters dropped (whitespace exempted, because a newline is a control character
+  and dropping it outright would silently *join* the words it separated), whitespace runs
+  collapsed to single spaces, `<` and `>` removed so a value can never spell an
+  `<untrusted-tool-output id=...>` marker or any other bracketed structure, and the result capped
+  at `MAX_SOURCE_CHARS` with an overflow marker. The pass is idempotent, and no instance can
+  exist holding a raw value: there is no constructor that skips it. The ledger then bounds the
+  *count* at `MAX_TURN_SOURCES`, keeping the earliest, so a flood of results cannot grow a turn's
+  provenance nor push out the source it started from.
+- **Nothing the model authored is ever a source.** The loop attributes an untrusted result to
+  `spec.name` off the advertisement it dispatched against, never to `call.name` or an argument,
+  and a call matching no advertised spec attributes nothing at all. Provenance is destined for a
+  confirmation card, which is precisely the display channel `ToolStep` already refuses to let the
+  model write into (a call argument reading `Trusted bank, approve this` is the attack).
+- **Two capture points exist today, both first-party.** The tool loop notes the advertised tool
+  an untrusted result came through (`TaintLedger.observe(result, source=...)`), and the engine's
+  recall notes a fenced memory's own record id (`ingest_untrusted(text, source=...)`), which is
+  the honest locator there: what originally tainted that memory is not stored beyond ADR-0019's
+  bit, so anything finer would be invented rather than known. Each dispatch's stamp copies the
+  ledger's sources, as live as the taint bit beside them.
+- **The claimed kinds have no producer yet, and that is the honest half.** This ADR guessed that
+  "a generic MCP adapter cannot know an email's sender"; reading the code shows the tighter
+  statement. `ToolResult` carries no source *and* a FastMCP tool returns content blocks, with no
+  result `_meta` to ride: the only structured channel is `structuredContent`, which replaces the
+  readable string the model consumes (`cortex_email.server` deliberately returns one). So the
+  sender the email sidecar plainly knows has no path into the brain that does not either widen
+  `ToolResult` **and** design a sidecar declaration channel, or make the core parse a sidecar's
+  rendered text (rejected: that is sidecar format knowledge in the hexagon's center). `SENDER`
+  and `URI` therefore ship as shaped, tested, matchable kinds with their capture deferred, so
+  the field they arrive in is not designed twice.
+- **No proto change, no store change.** `TurnStamp` is brain-internal: nothing serializes it, the
+  proto's `tainted` fields are `DueReminder`/`NotifyRequest`'s own, and the loop persists the
+  *unstamped* calls. And no call site changed to gain the field, which was the point of deciding
+  the object form here rather than adding a keyword per fact.
+
+**Deferred (recorded in `docs/refinements/untrusted-content.md`):**
+
+- **A sidecar-declared sender/URI.** Needs the `ToolResult` widening plus a declaration channel
+  that does not disturb the model-facing text, per the paragraph above.
+- **Provenance across the stores.** `ScheduledItem` and `SubagentResult` each store the taint
+  bit only, so a fired task's stamp and a subagent's own readings attribute nothing back to the
+  turn that consumes them. Both wait on a consumer, alongside this ADR's `SubagentTask` and audit
+  line deferrals.
+- **The two named consumers stay deferred and unbuilt**, as this ADR already recorded:
+  confirm-with-provenance reverses a fail-closed posture (a decision, not plumbing) and
+  per-provenance eviction wants `MemoryRecord` provenance first.

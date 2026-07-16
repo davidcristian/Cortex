@@ -14,6 +14,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 
 from cortex_core.conversation import Message, Role
+from cortex_core.provenance import MAX_TURN_SOURCES, Provenance
 from cortex_core.tools import ToolResult, Trust
 from cortex_core.urls import extract_urls
 
@@ -93,34 +94,55 @@ class TaintLedger:
     the caller reads ``tainted`` mid-loop (to gate the next call) and after (to decide whether
     to record the exchange to memory), and the output guardrail reads ``untrusted_urls``. It is the
     laundering evidence, every URL untrusted content carried into the turn (ADR-0015).
+    ``sources`` is the structured provenance beyond that bit (ADR-0027 addendum): which sources the
+    turn actually read, in the order it read them, which the loop copies onto each dispatch stamp.
     Reconstructed each turn from the store + live tool results, never persisted, so a swap
     mid-turn rebuilds it as the loop replays.
     """
 
     tainted: bool = False
     untrusted_urls: set[str] = field(default_factory=set[str])
+    sources: tuple[Provenance, ...] = ()
 
     def mark(self, trust: Trust) -> None:
         """Flip the ledger tainted once any untrusted result is observed."""
         if trust is Trust.UNTRUSTED:
             self.tainted = True
 
-    def observe(self, result: ToolResult) -> None:
-        """Record one dispatched result: mark taint, and collect an untrusted result's URLs.
+    def note_source(self, source: Provenance | None) -> None:
+        """Record where untrusted content came from, deduped and bounded (ADR-0027 addendum).
+
+        ``None`` (an unattributable read) records nothing, a repeat of a source already held
+        records nothing, and past ``MAX_TURN_SOURCES`` nothing more is kept: the values are
+        attacker-influenceable, so the turn's provenance is a bounded set of facts rather than a
+        list that grows with whatever arrives. Keeping the earliest is deliberate, since a later
+        flood then cannot push the source the turn actually started from out of the record.
+        """
+        if source is None or source in self.sources or len(self.sources) >= MAX_TURN_SOURCES:
+            return
+        self.sources = (*self.sources, source)
+
+    def observe(self, result: ToolResult, *, source: Provenance | None = None) -> None:
+        """Record one dispatched result: mark taint, collect an untrusted result's URLs, and note
+        where it came from.
 
         Anything collected here can only have entered the turn through untrusted content, so
         its reappearance in the assistant's reply is laundering. The output guardrail redacts
-        it (ADR-0015). Trusted results contribute nothing.
+        it (ADR-0015). Trusted results contribute nothing, provenance included: a trusted result
+        is our own text, so it is not a source the turn read from the outside world.
         """
         self.mark(result.trust)
         if result.trust is Trust.UNTRUSTED:
             self.untrusted_urls |= extract_urls(result.content)
+            self.note_source(source)
 
-    def ingest_untrusted(self, content: str) -> None:
-        """Taint the turn from a non-tool untrusted source: mark taint and collect ``content``'s
-        URLs. The recall twin of ``observe`` on an UNTRUSTED result (ADR-0019). A memory recorded
-        from a tainted turn re-enters here as fenced data, so it taints and contributes laundering
-        evidence exactly as a live untrusted tool result does.
+    def ingest_untrusted(self, content: str, *, source: Provenance | None = None) -> None:
+        """Taint the turn from a non-tool untrusted source: mark taint, collect ``content``'s
+        URLs, and note ``source``. The recall twin of ``observe`` on an UNTRUSTED result
+        (ADR-0019). A memory recorded from a tainted turn re-enters here as fenced data, so it
+        taints, contributes laundering evidence, and names its origin exactly as a live untrusted
+        tool result does.
         """
         self.mark(Trust.UNTRUSTED)
         self.untrusted_urls |= extract_urls(content)
+        self.note_source(source)
