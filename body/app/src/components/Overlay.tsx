@@ -28,6 +28,7 @@ export function Overlay({ controller, dark, onToggleTheme }: OverlayProps) {
     openSession,
     renameSession,
     deleteSession,
+    setSessionPinned,
     cyclePrev,
     cycleNext,
     toggleSwitcher,
@@ -83,6 +84,7 @@ export function Overlay({ controller, dark, onToggleTheme }: OverlayProps) {
         onSelectSession={openSession}
         onRenameSession={renameSession}
         onDeleteSession={deleteSession}
+        onPinSession={setSessionPinned}
         onRespondConfirm={respondConfirm}
         onDismissReminder={dismissReminder}
       />

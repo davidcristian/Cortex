@@ -26,8 +26,9 @@ from cortex_orchestrator.session_rpc import (
     clamp_title,
     delete_session,
     rename_session,
+    set_session_pinned,
 )
-from cortex_seam import DeleteSessionReply, RenameSessionReply
+from cortex_seam import DeleteSessionReply, RenameSessionReply, SetSessionPinnedReply
 
 
 class RecordingStore:
@@ -40,6 +41,7 @@ class RecordingStore:
     def __init__(self, events: list[str] | None = None) -> None:
         self.set_title_calls: list[tuple[str, str]] = []
         self.delete_calls: list[str] = []
+        self.set_pinned_calls: list[tuple[str, bool]] = []
         self.events = events if events is not None else []
 
     async def append(self, session_id: str, message: Message) -> None:
@@ -59,6 +61,9 @@ class RecordingStore:
     async def delete(self, session_id: str) -> None:
         self.delete_calls.append(session_id)
         self.events.append(f"delete:{session_id}")
+
+    async def set_pinned(self, session_id: str, *, pinned: bool) -> None:
+        self.set_pinned_calls.append((session_id, pinned))
 
 
 class RecordingMemoryStore:
@@ -136,6 +141,27 @@ async def test_delete_session_skips_the_cascade_when_memory_is_off() -> None:
     reply = await delete_session(store, None, "delta")
     assert isinstance(reply, DeleteSessionReply)
     assert store.delete_calls == ["delta"]
+
+
+async def test_set_session_pinned_writes_the_pin_through_set_pinned() -> None:
+    # The handler forwards the target state straight to `SessionStore.set_pinned` (a mutation that
+    # drops the write, or inverts the flag, reddens here). Pinning then unpinning both cross.
+    store = RecordingStore()
+    pinned_reply = await set_session_pinned(store, "epsilon", pinned=True)
+    assert isinstance(pinned_reply, SetSessionPinnedReply)
+    await set_session_pinned(store, "epsilon", pinned=False)
+    assert store.set_pinned_calls == [("epsilon", True), ("epsilon", False)]
+
+
+def test_session_pinning_is_a_user_only_seam_path_never_a_tool() -> None:
+    # Structural user-only gate (ADR-0021 pinning addendum), the same as rename/delete: pinning is
+    # reached ONLY from the seam (`SessionStore.set_pinned`, driven by `set_session_pinned`,
+    # driven by the `BrainService.SetSessionPinned` servicer the overlay calls out of band). A
+    # model's whole reach is describe/invoke on the ToolRegistry, which carries no pin verb.
+    assert callable(BrainService.SetSessionPinned)  # the user-only seam method exists
+    assert callable(SessionStore.set_pinned)  # the store verb it drives, not a tool
+    handler_params = set(inspect.signature(set_session_pinned).parameters)
+    assert handler_params == {"store", "session_id", "pinned"}  # store port, no ToolRegistry
 
 
 def test_session_deletion_is_a_user_only_seam_path_never_a_tool() -> None:

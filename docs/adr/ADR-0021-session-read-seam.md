@@ -600,3 +600,58 @@ reducer test; making `DeleteSession` repeatable reddens the body's forward-witho
 (agent, Docker + real Redis + pgvector): a seeded chat with messages, a title, and derived memories
 deleted through the real store left zero `cortex:session:{id}:*` keys and no recency member, its
 session-scoped memories gone, while a `GLOBAL_SCOPE` memory was untouched.
+
+## Addendum (2026-07-16): session pinning unions the pinned set into the recency listing
+
+The last of the deferred management verbs lands, and the read-path decision the deferral flagged was
+the whole item, not the write verb or the wire field. Pinning exists so an important chat stays
+reachable after it falls out of the recency window, so the load-bearing question was whether a pinned
+chat escapes the recency `ZREVRANGE` window. It does, so `list_sessions` unions the pinned set in.
+
+**The read-path union, and it kept the tuned two-round-trip shape.** A new Redis set
+`cortex:sessions:pinned` holds the pinned ids. `list_sessions` round trip one now reads BOTH indexes
+in one transactional pipeline (`ZREVRANGE cortex:sessions 0 limit-1` AND `SMEMBERS
+cortex:sessions:pinned`); their union is the listed set, formed as the recency window first, then
+every pinned id outside it, deduplicated before any fetch. So a pinned chat OLDER than the window
+still lists (the point of pinning), and a chat both pinned and inside the window appears once. Round
+trip two is the same batched ends-read (`LRANGE 0 0`, `LRANGE -1 -1`, `LLEN`, `GET :title` per listed
+id), so the whole listing stays two round trips and two decoded records per chat. A new pure-core
+`merge_pinned(summaries)` is the one shared ordering rule (stable-sort by recency, then by
+`not pinned`, so pinned chats sort above the recency group and each group stays newest-active first);
+the in-memory fake and the Redis adapter each build the same deduplicated candidate set and hand it
+there, so the order cannot drift between them, pinned once by the shared contract check.
+
+**Costs the "verb + field" framing hid.** The union is additive, so a heavily-pinned catalog lists
+more than `limit` (bounded by the small pinned set, a handful by construction). `delete` must also
+`SREM` the pinned member in its transactional pipeline, or a deleted-then-pinned id lingers as a
+dangling pin that forces a ghost into every listing; the contract check re-creates a deleted id and
+asserts it lists unpinned to pin that. `set_pinned(session_id, *, pinned)` is keyword-only (the
+repo's boolean-argument convention). `SessionSummary` gains a `pinned: bool = False` field across the
+proto and both stubs, and `summarize_ends`/`summarize_session` a `pinned=` parameter.
+
+**The gate and the retry classification.** `SetSessionPinned` is a new `BrainService` unary write with
+the SAME structural user-only reachability rename and delete have: reachable only from the overlay's
+own controls, no tool in any registry, never through the turn engine, so no model, tool, or tainted
+turn reaches it. The body classifies `SeamMethod::SetSessionPinned` **not repeatable** even though the
+write is idempotent by value (setting the same pin twice is a no-op), because the catalog-write
+convention is uniform: a lost reply must not silently re-assert a pinned value the user's next toggle
+reversed, the retry loop being unable to see that later toggle. Reads are repeatable; every management
+write is one attempt. This is the case that shows "idempotent by value" is not sufficient for a retry.
+
+**The overlay.** The switcher row gains a pin toggle beside rename and delete: a filled-pin indicator
+on a pinned row that doubles as the state (`aria-pressed`), fired immediately (no confirm, unlike
+delete). The write re-lists, so the pinned group re-forms at the top. The overlay reads the one
+pinned-first `sessions` order the brain returns everywhere it already read the list, switcher,
+cycling, and cold-start adoption, which now adopts the top pinned chat when any is pinned (a coherent
+"pinned is most reachable" model, not a regression to hunt).
+
+**Evidence.** CI-gated at 100% across all four trees, with the union mutation-proven: the flagship
+contract check pins a chat older than a `limit=3` window and asserts it still lists above the recency
+group (removing the read-path union reddens `old in ids`); a pinned-and-recent chat is asserted to
+appear exactly once (removing the dedup reddens the count); over the raw keyspace, the pinned set
+holds and drops its member, the union lifts a pinned old chat past the window in the exact order
+`["old", "n3", "n2", "n1"]`, and a dangling pinned entry is skipped; and the user-only path is pinned
+by a no-tool structural test. The body proves `SeamMethod::SetSessionPinned` is refused a retry
+however patient the plan. Live-validated (agent, Docker + real Redis): four chats seeded with the
+oldest pinned and a `limit=3` listing returned the pinned old chat FIRST, above the three newer chats,
+exactly once, and unpinning dropped it back out of the window.

@@ -24,10 +24,13 @@ _PREFIX = "contract-"
 # lists, accumulate across runs, and eventually push a check's own sessions out of the
 # `limit=50` window it asserts over.
 _SESSIONS_KEY = "cortex:sessions"
+# The pinned set (store.py's `_PINNED_KEY`): a missed contract pin would linger as a dangling
+# pinned member across runs, and pinning forces its chat into every listing regardless of recency.
+_PINNED_KEY = "cortex:sessions:pinned"
 
 
 async def _sweep(cleanup: Redis) -> None:
-    """Remove every contract-created message list and recency-index member."""
+    """Remove every contract-created message list, recency-index member, and pinned member."""
     pattern = f"cortex:session:{_PREFIX}*"
     keys = cast("list[bytes]", await cleanup.keys(pattern))  # pyright: ignore[reportUnknownMemberType]
     if keys:
@@ -39,6 +42,10 @@ async def _sweep(cleanup: Redis) -> None:
     stale = [m for m in members if m.decode("utf-8").startswith(_PREFIX)]
     if stale:
         await cleanup.zrem(_SESSIONS_KEY, *stale)
+    pinned = cast("set[bytes]", await cleanup.smembers(_PINNED_KEY))  # pyright: ignore[reportUnknownMemberType]
+    stale_pins = [m for m in pinned if m.decode("utf-8").startswith(_PREFIX)]
+    if stale_pins:
+        await cleanup.srem(_PINNED_KEY, *stale_pins)
 
 
 @pytest.mark.integration

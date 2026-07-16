@@ -17,6 +17,10 @@ pub struct SessionSummary {
     pub preview: String,
     /// Last-activity time as unix-milliseconds, for a relative timestamp.
     pub last_activity_unix_ms: i64,
+    /// Whether the user pinned this chat (ADR-0021 pinning addendum). A pinned chat is
+    /// unioned into the listing regardless of recency and sorts above the recency group,
+    /// so the switcher renders it grouped at the top with a pin indicator.
+    pub pinned: bool,
 }
 
 /// One persisted message in a session's history. This is the typed core mirror of the

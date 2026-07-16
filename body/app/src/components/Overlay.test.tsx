@@ -35,6 +35,7 @@ function fakeController(
     openSession: vi.fn(),
     renameSession: vi.fn(),
     deleteSession: vi.fn(),
+    setSessionPinned: vi.fn(),
     cyclePrev: vi.fn(),
     cycleNext: vi.fn(),
     toggleSwitcher: vi.fn(),
@@ -147,7 +148,7 @@ describe("Overlay", () => {
     const controller = fakeController("panel", [], {
       switcherOpen: true,
       sessions: [
-        { sessionId: "c1", title: "First chat", preview: "hello", lastActivityUnixMs: 1000 },
+        { sessionId: "c1", title: "First chat", preview: "hello", lastActivityUnixMs: 1000, pinned: false },
       ],
     });
     renderOverlay(controller);

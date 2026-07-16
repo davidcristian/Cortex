@@ -26,17 +26,15 @@ class SessionStore(Protocol):
     """Source of truth for conversation state; survives model swaps and restarts.
 
     No conversation state may live anywhere else (AGENTS.md hard rule); a model process holds a
-    message only for the in-flight turn. ``append`` persists one message at the end of a session's
-    history; ``history`` returns that session's full history in append order (empty when unknown).
-    ``list_sessions`` returns at most ``limit`` recent chats, most-recently-active first,
-    as ``SessionSummary`` values (ADR-0021) for the overlay's chat list/switcher/cycling; a read
-    over the same state, no write path. ``set_title`` persists a brain-generated display title
-    (ADR-0021 titles addendum) that ``list_sessions`` prefers over the first-message derivation and
-    a later call overwrites; a derived display value, not conversation content, stored so it
-    survives a swap. ``delete`` HARD-deletes one session (its history, title, and recency-index
-    entry), the destructive "forget this chat" write (ADR-0021 delete addendum): it leaves no
-    orphaned key, is idempotent, and needs no tombstone since an unknown session already reads as
-    empty history. Failures surface as ``SessionStoreError``.
+    message only for the in-flight turn. ``append`` persists one message at a session's end;
+    ``history`` returns its full history in append order (empty when unknown). ``list_sessions``
+    returns recent chats most-recently-active first as ``SessionSummary`` values (ADR-0021) for the
+    overlay's chat list/switcher/cycling, unioning the newest ``limit`` with the pinned set so a
+    pinned chat lists regardless of recency (pinning addendum). ``set_title`` persists a display
+    title (titles addendum) ``list_sessions`` prefers over the first-message derivation.
+    ``set_pinned`` pins/unpins a chat (pinning addendum), in ``SessionSummary.pinned``, idempotent.
+    ``delete`` HARD-deletes a whole session (history, title, recency member, pin), the "forget"
+    write (delete addendum). Failures surface as ``SessionStoreError``.
     """
 
     async def append(self, session_id: str, message: Message) -> None: ...
@@ -48,6 +46,8 @@ class SessionStore(Protocol):
     async def set_title(self, session_id: str, title: str) -> None: ...
 
     async def delete(self, session_id: str) -> None: ...
+
+    async def set_pinned(self, session_id: str, *, pinned: bool) -> None: ...
 
 
 class InferenceBackend(Protocol):

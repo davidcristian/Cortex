@@ -26,6 +26,7 @@ interface PanelProps {
   readonly onSelectSession: (sessionId: string) => void;
   readonly onRenameSession: (sessionId: string, title: string) => void;
   readonly onDeleteSession: (sessionId: string) => void;
+  readonly onPinSession: (sessionId: string, pinned: boolean) => void;
   readonly onRespondConfirm: (confirmId: string, approved: boolean) => void;
   readonly onDismissReminder: (reminderId: string) => void;
 }
@@ -54,6 +55,7 @@ export function Panel({
   onSelectSession,
   onRenameSession,
   onDeleteSession,
+  onPinSession,
   onRespondConfirm,
   onDismissReminder,
 }: PanelProps) {
@@ -108,6 +110,7 @@ export function Panel({
           onSelect={onSelectSession}
           onRename={onRenameSession}
           onDelete={onDeleteSession}
+          onPin={onPinSession}
         />
       ) : null}
       {state.reminders.length > 0 ? (

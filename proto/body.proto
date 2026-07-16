@@ -59,6 +59,18 @@ service BrainService {
   // destructive effect, so the resilient body transport makes exactly ONE attempt and never
   // retries it (a lost reply must not silently re-issue a destroy against a re-materialized id).
   rpc DeleteSession(DeleteSessionRequest) returns (DeleteSessionReply);
+
+  // Pin or unpin a chat: a gated WRITE on the session catalog (ADR-0021 management addendum).
+  // Pinning keeps an important chat reachable after it falls out of the recency window: a pinned
+  // chat is unioned into ListSessions REGARDLESS of recency and sorted above the recency group,
+  // so pinning an old chat rescues it from ageing off the list. Its gate is the SAME structural
+  // user-only reachability RenameSession/DeleteSession have, not the mid-turn Confirmer: it is no
+  // tool in any registry and never runs through the turn engine, so no model, tool, or tainted
+  // turn reaches it. It carries a display-only effect (never conversation content), so it cannot
+  // touch the one hard rule. Setting the same pinned value twice is a no-op, but the body still
+  // makes exactly ONE attempt and never retries it (the catalog-write convention RenameSession
+  // set): a lost reply must not silently re-assert a pinned value the user's next toggle reversed.
+  rpc SetSessionPinned(SetSessionPinnedRequest) returns (SetSessionPinnedReply);
 }
 
 message ClientEvent {
@@ -134,6 +146,7 @@ message SessionSummary {
   string title = 2;                // derived: first user message, one line, truncated
   string preview = 3;              // derived: last message text, one line, truncated
   int64 last_activity_unix_ms = 4; // for a relative timestamp in the switcher
+  bool pinned = 5;                 // the user pinned this chat above the recency window (unioned in)
 }
 
 // One session's persisted history, in append order (ADR-0021).
@@ -165,6 +178,16 @@ message DeleteSessionRequest {
   string session_id = 1;
 }
 message DeleteSessionReply {}
+
+// Pin or unpin one chat (ADR-0021 management addendum). `pinned` is the target state (true pins,
+// false unpins); a pinned chat is always listed, above the recency group. The reply is a bare
+// acknowledgement (the overlay re-lists to reflect it); a store failure surfaces as an
+// `UNAVAILABLE` RPC status, the session-read precedent, and the write is idempotent by value.
+message SetSessionPinnedRequest {
+  string session_id = 1;
+  bool pinned = 2;
+}
+message SetSessionPinnedReply {}
 
 // Reminder pull-delivery views (ADR-0025). All sessions are listed deliberately because
 // a single-user assistant has one user to remind; session_id rides along so the

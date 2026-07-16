@@ -81,6 +81,21 @@ export function TrashIcon() {
   );
 }
 
+/** Pin a chat: a pushpin that keeps a chat reachable above the recency window (ADR-0021 pinning
+ *  addendum). `filled` inks the head solid for a currently-pinned row, so the one control both
+ *  toggles the pin and shows its state, the way the rename pencil and delete trash read. */
+export function PinIcon({ filled = false }: { readonly filled?: boolean }) {
+  return (
+    <Icon>
+      <path d="M12 17v4" />
+      <path
+        d="M9 3.5h6l-.6 5.2 2.4 2.1a1 1 0 0 1 .3.75V13H6v-1.45a1 1 0 0 1 .3-.75l2.4-2.1z"
+        fill={filled ? "currentColor" : "none"}
+      />
+    </Icon>
+  );
+}
+
 /** Cancel an inline action (an X): back out of the delete confirmation without deleting. */
 export function CloseIcon() {
   return (

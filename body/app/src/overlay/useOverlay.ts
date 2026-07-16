@@ -29,6 +29,9 @@ export interface OverlayController {
   /** Delete a chat from the switcher (ADR-0021): fire the destructive write after the row's local
    *  confirm, then drop it and re-list; deleting the open chat falls back to a fresh new chat. */
   deleteSession(sessionId: string): void;
+  /** Pin or unpin a chat from the switcher (ADR-0021 pinning addendum): write the target state,
+   *  then re-list so the switcher re-groups (a pinned chat lifts above the recency window). */
+  setSessionPinned(sessionId: string, pinned: boolean): void;
   cyclePrev(): void;
   cycleNext(): void;
   toggleSwitcher(): void;
@@ -113,9 +116,11 @@ export function useOverlay(
   // which the connection indicator beside it now explains.
   useSummonEffect(state.mode !== "hidden", refreshSessions);
 
-  // Cold-start restore (ADR-0021 refinement): when the first chat list arrives, adopt the
-  // most recent stored chat so summoning lands where the user left off instead of an empty
-  // fresh chat. One attempt per mount (the ref also absorbs StrictMode's double-fired effect,
+  // Cold-start restore (ADR-0021 refinement): when the first chat list arrives, adopt the top
+  // listed chat (`sessions[0]`) so summoning lands on it instead of an empty fresh chat. The list
+  // is pinned-first (pinning addendum), so this is the top pinned chat when any is pinned, else the
+  // most recent, the same one ordered surface the switcher and cycling read. One attempt per mount
+  // (the ref also absorbs StrictMode's double-fired effect,
   // and blocks re-adoption if a later list refresh moves `latestSessionId` while the chat is
   // still untouched); whether it applies is the reducer's `touched` guard, decided at dispatch
   // time, so a racing summon, submit, cycle, or explicit new chat always wins.
@@ -252,6 +257,21 @@ export function useOverlay(
     [state.sessionId, denyPendingConfirm, bridge, refreshSessions, newSessionId],
   );
 
+  // A user-only catalog write (ADR-0021 pinning addendum): set the chat's pin state, then re-list
+  // so the switcher re-groups (the brain unions a pinned chat into the listing above the recency
+  // window). A failed pin leaves the list unchanged; the switcher simply keeps its old grouping.
+  const setSessionPinned = useCallback(
+    (sessionId: string, pinned: boolean) => {
+      bridge
+        .setSessionPinned(sessionId, pinned)
+        .then(refreshSessions)
+        .catch(() => {
+          // A lost write leaves the list as it is; the switcher simply does not re-group.
+        });
+    },
+    [bridge, refreshSessions],
+  );
+
   const cyclePrev = useCallback(() => {
     const target = cycleTarget(state.sessions, state.sessionId, -1);
     if (target !== null) {
@@ -276,6 +296,7 @@ export function useOverlay(
     openSession,
     renameSession,
     deleteSession,
+    setSessionPinned,
     cyclePrev,
     cycleNext,
     toggleSwitcher,

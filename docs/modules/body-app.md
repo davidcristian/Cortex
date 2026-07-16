@@ -30,7 +30,11 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
   label), the user-driven DESTRUCTIVE `deleteSession(sessionId)` write (ADR-0021 delete addendum;
   fired only after the switcher row's local "are you sure" confirm, then `useOverlay` drops the row
   and re-lists on success; deleting the currently-open chat first tears down its in-flight turn and
-  then falls back to a fresh new chat so a deleted transcript is never rendered), plus the
+  then falls back to a fresh new chat so a deleted transcript is never rendered), the user-driven
+  `setSessionPinned(sessionId, pinned)` write (ADR-0021 pinning addendum; a per-row pin toggle
+  fires it, then `useOverlay` re-lists so the switcher re-groups, a pinned chat lifting above the
+  recency window with a filled-pin indicator; `SessionSummary` carries a `pinned` bool the brain
+  lists first), plus the
   `TurnEvent` / `TransportError` / `SessionSummary` / `SessionMessage` types, the
   TS mirror of the Rust `body_core` values. Three implementations: `TauriBridge` (real, over IPC),
   `DemoBridge` (canned stream + canned chats for `vite dev`), `FakeBridge` (tests). Only
@@ -125,9 +129,13 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
   timeout (fail-closed), making a late answer a harmless no-op.
 - **The session-read commands** (`src-tauri/src/sessions.rs`, ADR-0021): `list_sessions(limit)` and
   `session_messages(session_id)` are unary calls returning `Vec<WireSummary>` / `Vec<WireMessage>`
-  (camelCase, matching the TS `SessionSummary` / `SessionMessage`); a dial/RPC failure is the
-  command's `Err`, which the bridge's `.catch` handles. They dial through `seam::connect()` (below),
-  so a *transient* unreachable brain is retried with backoff before the error surfaces (ADR-0024).
+  (camelCase, matching the TS `SessionSummary` / `SessionMessage`; `WireSummary` carries `pinned`,
+  ADR-0021 pinning addendum). The session **writes** `rename_session`, `delete_session`, and
+  `set_session_pinned(session_id, pinned)` (pinning addendum) live here too, each a unary call
+  mapping success to `()`; a dial/RPC failure is the command's `Err`, which the bridge's `.catch`
+  handles. They dial through `seam::connect()` (below), so a *transient* unreachable brain is
+  retried with backoff before the error surfaces (ADR-0024), except the writes, which are not
+  repeatable and so make exactly one attempt.
 - **The `check_link` command** (`src-tauri/src/link.rs`, ADR-0011 addendum): dials
   `seam::connect()` and returns `body_core::probe_link`'s answer as `{ state, detail }`
   (the state names are `LinkState::as_str`). **Infallible on purpose**: an unreachable brain is

@@ -118,6 +118,7 @@ impl BrainTransport for FlakyTransport {
             title: format!("limit {limit}"),
             preview: String::from("p"),
             last_activity_unix_ms: 1,
+            pinned: false,
         }])
     }
 
@@ -160,6 +161,16 @@ impl BrainTransport for FlakyTransport {
     async fn delete_session(&self, session_id: &str) -> Result<(), TransportError> {
         self.tick()?;
         let _ = session_id;
+        Ok(())
+    }
+
+    async fn set_session_pinned(
+        &self,
+        session_id: &str,
+        pinned: bool,
+    ) -> Result<(), TransportError> {
+        self.tick()?;
+        let _ = (session_id, pinned);
         Ok(())
     }
 }
@@ -372,6 +383,24 @@ async fn forwards_delete_session_without_retrying_it() {
     assert!(sleeper.delays().is_empty());
     // And a healthy delete still crosses the decorator.
     assert!(transport.delete_session("s1").await.is_ok());
+}
+
+#[tokio::test]
+async fn forwards_set_session_pinned_without_retrying_it() {
+    // The pin toggle is idempotent by value yet still a pass-through (ADR-0021 pinning addendum):
+    // a transient failure surfaces on the first attempt rather than risking a retry that
+    // re-asserts a pinned value the user's next toggle reversed.
+    let flaky = FlakyTransport::new(FailKind::Connection, 1);
+    let sleeper = FakeSleeper::default();
+    let transport = RetryingTransport::new(flaky.clone(), sleeper.clone(), policy(3));
+    assert_eq!(
+        transport.set_session_pinned("s1", true).await.unwrap_err(),
+        TransportError::Connection(String::from("refused"))
+    );
+    assert_eq!(flaky.call_count(), 1); // no second attempt
+    assert!(sleeper.delays().is_empty());
+    // And a healthy pin toggle still crosses the decorator.
+    assert!(transport.set_session_pinned("s1", true).await.is_ok());
 }
 
 #[tokio::test]

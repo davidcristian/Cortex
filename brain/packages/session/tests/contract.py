@@ -127,14 +127,16 @@ async def check_delete_removes_the_session(store: SessionStore) -> None:
 
     The destructive "forget this chat" write (ADR-0021 delete addendum). After delete: its
     history reads empty (the unknown-session behavior), it is gone from ``list_sessions``, and a
-    stored title override no longer applies (a chat later re-created under the same id derives its
-    title from the first message, proving the ``:title`` key went too, not just the messages). A
-    second delete of the now-absent chat is a no-op, and an untouched sibling chat is unaffected.
+    stored title override AND a pin no longer apply (a chat later re-created under the same id
+    derives its title from the first message and lists unpinned, proving the ``:title`` key and the
+    pinned-set member went too, not just the messages). A second delete of the now-absent chat is a
+    no-op, and an untouched sibling chat is unaffected.
     """
     doomed, kept = _session_id(), _session_id()
     await store.append(doomed, make_message(Role.USER, "secret question", at=_AT, turn_id="d"))
     await store.append(doomed, make_message(Role.ASSISTANT, "secret answer", at=_AT, turn_id="d"))
     await store.set_title(doomed, "A private label")
+    await store.set_pinned(doomed, pinned=True)
     await store.append(kept, make_message(Role.USER, "an unrelated chat", at=_AT, turn_id="k"))
 
     await store.delete(doomed)
@@ -145,11 +147,84 @@ async def check_delete_removes_the_session(store: SessionStore) -> None:
     assert kept in listed  # a sibling chat is untouched
     await store.delete(doomed)  # deleting an already-gone chat is a no-op, not an error
 
-    # Re-create a chat under the same id: its title derives from the first message, so the old
-    # override did not survive the delete (its title key was removed, not just the messages).
+    # Re-create a chat under the same id: its title derives from the first message and it lists
+    # unpinned, so neither the old override nor the old pin survived the delete (both keys removed).
     await store.append(doomed, make_message(Role.USER, "a brand new topic", at=_AT, turn_id="n"))
     (reborn,) = [s for s in await store.list_sessions(limit=50) if s.session_id == doomed]
     assert reborn.title == "a brand new topic"
+    assert reborn.pinned is False
+
+
+async def check_set_pinned_marks_and_clears_the_summary(store: SessionStore) -> None:
+    """``set_pinned`` toggles ``SessionSummary.pinned``, idempotent by value (pinning addendum).
+
+    A chat lists unpinned by default; pinning marks it, pinning again is a no-op, and unpinning
+    clears it. Robust against a shared live server by filtering to its own id.
+    """
+    session_id = _session_id()
+    await store.append(session_id, make_message(Role.USER, "toggle my pin"))
+
+    async def is_pinned() -> bool:
+        (mine,) = [s for s in await store.list_sessions(limit=50) if s.session_id == session_id]
+        return mine.pinned
+
+    assert await is_pinned() is False  # unpinned by default
+    await store.set_pinned(session_id, pinned=True)
+    assert await is_pinned() is True
+    await store.set_pinned(session_id, pinned=True)  # idempotent: re-pinning is a no-op
+    assert await is_pinned() is True
+    await store.set_pinned(session_id, pinned=False)
+    assert await is_pinned() is False
+
+
+async def check_a_pinned_chat_escapes_the_recency_window(store: SessionStore) -> None:
+    """A pinned chat OLDER than the recency window still lists, above the recency group.
+
+    This is the whole point of pinning (ADR-0021 pinning addendum), and the flagship distrust-green
+    check: with a window of three and three newer chats, the old chat is crowded out of recency and
+    appears ONLY because it is pinned. Removing the read-path union (so ``list_sessions`` returns
+    just the recency window) reddens the ``old in ids`` assertion. Pinned sorts above every unpinned
+    chat, so the ordering assertion holds even on a shared live server carrying other recent chats.
+    """
+    old = _session_id()
+    newer = [_session_id() for _ in range(3)]
+    base = datetime(2026, 7, 3, 8, 0, tzinfo=UTC)
+    await store.append(old, make_message(Role.USER, "pinned old topic", at=base, turn_id="o"))
+    for offset, session_id in enumerate(newer, start=1):
+        at = base + timedelta(hours=offset)
+        await store.append(session_id, make_message(Role.USER, "recent", at=at, turn_id="n"))
+    await store.set_pinned(old, pinned=True)
+
+    listed = await store.list_sessions(limit=3)  # a window filled by the three newer chats
+
+    ids = [s.session_id for s in listed]
+    assert old in ids  # the pin rescued it from outside the recency window
+    assert ids.count(old) == 1  # and exactly once
+    by_id = {s.session_id: s for s in listed}
+    assert by_id[old].pinned is True
+    # It sorts above every unpinned chat present, the pinned-first grouping.
+    old_index = ids.index(old)
+    first_unpinned = next(i for i, s in enumerate(listed) if not s.pinned)
+    assert old_index < first_unpinned
+    # The newer chats list unpinned and newest-active first among themselves.
+    mine_newer = [s for s in listed if s.session_id in set(newer)]
+    assert [s.session_id for s in mine_newer] == list(reversed(newer))
+    assert all(s.pinned is False for s in mine_newer)
+
+
+async def check_a_pinned_recent_chat_is_not_duplicated(store: SessionStore) -> None:
+    """A chat both pinned AND inside the recency window appears exactly once (pinning addendum).
+
+    The union deduplicates ids before fetching, so a pinned-and-recent chat is one row, not two.
+    Removing the dedup (concatenating the window and the pinned set) reddens the count assertion.
+    """
+    session_id = _session_id()
+    await store.append(session_id, make_message(Role.USER, "pinned and recent"))
+    await store.set_pinned(session_id, pinned=True)
+    listed = await store.list_sessions(limit=50)  # a wide window, so the chat is also in recency
+    matches = [s for s in listed if s.session_id == session_id]
+    assert len(matches) == 1
+    assert matches[0].pinned is True
 
 
 ALL_CHECKS = (
@@ -160,4 +235,7 @@ ALL_CHECKS = (
     check_list_sessions_orders_and_summarizes,
     check_set_title_overrides_the_first_message,
     check_delete_removes_the_session,
+    check_set_pinned_marks_and_clears_the_summary,
+    check_a_pinned_chat_escapes_the_recency_window,
+    check_a_pinned_recent_chat_is_not_duplicated,
 )

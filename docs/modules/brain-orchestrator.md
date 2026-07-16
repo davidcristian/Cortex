@@ -166,8 +166,13 @@ The service:
     structural user-only gate as `RenameSession` (no model/tool/tainted turn reaches it); the
     user's intent is secured by an overlay-local confirm, not the Confirmer. A `SessionStoreError`
     **or** `MemoryStoreError` aborts `UNAVAILABLE`, and both steps are idempotent, so a retry heals.
-  - The four session RPCs are unary; a `SessionStoreError` aborts them `UNAVAILABLE` (the body
-    maps that to `TransportError::Rpc`). The mapping/clamp helpers and the rename/delete writes live
+  - `SetSessionPinned` → `SetSessionPinnedReply` (ADR-0021 pinning addendum): a gated, **user-only**
+    catalog write via `session_rpc.set_session_pinned`, forwarding `request.pinned` to
+    `store.set_pinned`. `list_sessions` unions the pinned set into every listing, so pinning lifts a
+    chat above the recency window. Same structural user-only gate as `RenameSession`/`DeleteSession`;
+    a `SessionStoreError` aborts `UNAVAILABLE`. Idempotent by value.
+  - The session RPCs are unary; a `SessionStoreError` aborts them `UNAVAILABLE` (the body
+    maps that to `TransportError::Rpc`). The mapping/clamp helpers and the rename/delete/pin writes live
     in `session_rpc.py` (the `reminders.py` pattern), so `server.py` stays a thin binding.
   - `ListDueReminders` / `AckReminder` (ADR-0025; policy + mapping in `reminders.py`): the
     pull pair over the injected `ScheduleStore`, covering every fired-but-undelivered item
@@ -182,7 +187,8 @@ The service:
     store's `ScheduleStoreError` does abort `UNAVAILABLE` (the session-reads precedent).
 - `DEFAULT_SESSION_LIST_LIMIT = 50` / `MAX_SESSION_LIST_LIMIT = 200` are the `ListSessions`
   limit default and hard cap; `MAX_TITLE_INPUT = 200` bounds an accepted `RenameSession` label.
-  All three, the wire mapping, and the rename/delete writes live in `session_rpc.py` (ADR-0021).
+  All three, the wire mapping (including `SessionSummary.pinned`), and the rename/delete/pin writes
+  live in `session_rpc.py` (ADR-0021).
 - `converse(make_engine, client_events, *, max_buffered_events=DEFAULT_MAX_BUFFERED_EVENTS,
   confirm_timeout_s=DEFAULT_CONFIRM_TIMEOUT_S) -> AsyncGenerator[ServerEvent, None]` is the loop
   itself, servicer-independent (what `BrainService.Converse` delegates to). `make_engine` is an

@@ -11,6 +11,7 @@ const summary = (sessionId: string): SessionSummary => ({
   title: `title ${sessionId}`,
   preview: `preview ${sessionId}`,
   lastActivityUnixMs: 1000,
+  pinned: false,
 });
 
 const confirmRequest = (confirmId: string) =>
@@ -238,7 +239,7 @@ describe("useOverlay", () => {
     // The switcher row for "recent" carries a renamed/generated title distinct from its first
     // message; the adopted header must match that row, not the locally re-derived first message.
     bridge.sessions = [
-      { sessionId: "recent", title: "Everything about cats", preview: "p", lastActivityUnixMs: 1000 },
+      { sessionId: "recent", title: "Everything about cats", preview: "p", lastActivityUnixMs: 1000, pinned: false },
       summary("older"),
     ];
     bridge.messagesBySession = {
@@ -419,6 +420,42 @@ describe("useOverlay", () => {
     await flush();
     expect(bridge.deletes).toEqual(["b"]);
     // The rejection does not re-list or drop the row; the list is exactly as before.
+    expect(bridge.listCalls).toBe(listsBefore);
+    expect(result.current.state.sessions).toBe(sessionsBefore);
+  });
+
+  it("setSessionPinned writes the pin and re-lists so the switcher re-groups pinned-first", async () => {
+    const bridge = new FakeBridge();
+    // "old" is older than "recent"; pinning it must lift it above "recent" on the re-list.
+    bridge.sessions = [
+      { ...summary("recent"), lastActivityUnixMs: 2000 },
+      { ...summary("old"), lastActivityUnixMs: 1000 },
+    ];
+    const { result } = renderHook(() => useOverlay(bridge, () => "s1"));
+    await flush();
+    const listsBefore = bridge.listCalls;
+    act(() => result.current.setSessionPinned("old", true));
+    await flush();
+    expect(bridge.pins).toEqual([{ sessionId: "old", pinned: true }]);
+    // The write returns nothing, so the overlay re-lists; the fake re-groups pinned-first.
+    expect(bridge.listCalls).toBe(listsBefore + 1);
+    const relisted = result.current.state.sessions;
+    expect(relisted.map((s) => s.sessionId)).toEqual(["old", "recent"]); // pinned sorts to the top
+    expect(relisted[0]?.pinned).toBe(true);
+  });
+
+  it("a failed pin is swallowed and leaves the chat list unchanged", async () => {
+    const bridge = new FakeBridge();
+    bridge.sessions = [summary("a")];
+    bridge.pinFails = true;
+    const { result } = renderHook(() => useOverlay(bridge, () => "s1"));
+    await flush();
+    const listsBefore = bridge.listCalls;
+    const sessionsBefore = result.current.state.sessions;
+    act(() => result.current.setSessionPinned("a", true));
+    await flush();
+    expect(bridge.pins).toEqual([{ sessionId: "a", pinned: true }]);
+    // The rejection does not re-list, so the switcher keeps its old grouping.
     expect(bridge.listCalls).toBe(listsBefore);
     expect(result.current.state.sessions).toBe(sessionsBefore);
   });

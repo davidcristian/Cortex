@@ -9,6 +9,7 @@ const summary = (sessionId: string): SessionSummary => ({
   title: `title ${sessionId}`,
   preview: `preview ${sessionId}`,
   lastActivityUnixMs: 1000,
+  pinned: false,
 });
 
 const reminder = (reminderId: string): DueReminder => ({
@@ -227,7 +228,7 @@ describe("overlayState reducer", () => {
     const listed = reduce(initialState, {
       kind: "sessionsLoaded",
       sessions: [
-        { sessionId: "chat-7", title: "Everything about cats", preview: "p", lastActivityUnixMs: 2 },
+        { sessionId: "chat-7", title: "Everything about cats", preview: "p", lastActivityUnixMs: 2, pinned: false },
       ],
     });
     const open = reduce(listed, { kind: "openSession", sessionId: "chat-7", messages });
@@ -244,7 +245,7 @@ describe("overlayState reducer", () => {
     const listed = reduce(initialState, {
       kind: "sessionsLoaded",
       sessions: [
-        { sessionId: "elsewhere", title: "unrelated chat", preview: "p", lastActivityUnixMs: 2 },
+        { sessionId: "elsewhere", title: "unrelated chat", preview: "p", lastActivityUnixMs: 2, pinned: false },
       ],
     });
     const open = reduce(listed, { kind: "openSession", sessionId: "chat-9", messages });
@@ -318,7 +319,7 @@ describe("overlayState reducer", () => {
     const listed = reduce(initialState, {
       kind: "sessionsLoaded",
       sessions: [
-        { sessionId: "chat-7", title: "Everything about cats", preview: "p", lastActivityUnixMs: 2 },
+        { sessionId: "chat-7", title: "Everything about cats", preview: "p", lastActivityUnixMs: 2, pinned: false },
       ],
     });
     const adopted = reduce(listed, { kind: "adoptSession", sessionId: "chat-7", messages });
