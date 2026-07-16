@@ -20,6 +20,30 @@ Deferred refinements from Slice 3's cortex chat and session work; the windowing 
   summary is cached on the session or recomputed per turn, and that `backend.py` holds the GPU
   lease for a generator's lifetime under a non-reentrant lock, so a summarizer stream abandoned
   mid-turn deadlocks the turn that spawned it.
+- **Session-history summarization, audited 2026-07-16 and kept deferred with the blocker
+  sharpened ([ADR-0014 summarization-audit addendum](../adr/ADR-0014-history-windowing.md)).** The
+  audit priced the async port change and re-derived the lease hazard from the lock code; both are
+  milder than the entry above reads, but a third cost binds, so it stays deferred. **The async
+  widening is clean and contained, not a call-chain migration.** `HistoryWindow.select` has one
+  production caller, `_inference_messages` (`engine.py`), already an `async` method, so widening
+  `select` to `async` adds one `await` and cascades no colour upward; the only implementer is
+  `CharBudgetHistoryWindow`. An `async def select` with a synchronous body is gate-clean here (the
+  `unused-async` lint, `RUF029`, is preview-only and this repo runs ruff without preview), so every
+  heuristic selector wraps its body unchanged. **The lease hazard is navigable, not structural.**
+  `SingleResidentModelManager` guards a non-reentrant `asyncio.Lock` (`model.py`) held for the whole
+  stream generator's lifetime (`backend.py`), but selection runs in `_inference_messages`, which
+  `handle_turn` awaits to completion **before** it opens the reply stream (`stream_tool_loop`), so at
+  selection time the turn does not yet hold the lease. A summarizer that fully drains its own model
+  call is a sequential acquire, exactly the discipline the title generator already uses
+  (`generate_title`, run at turn end). Verified against the real manager: a drained acquire then a
+  second acquire succeeds, while a summarizer stream held open across the reply's acquire deadlocks.
+  So the hazard is the abandoned-stream case this entry named, a discipline requirement on the future
+  selector, not the reply already holding the lease. **What stays deferred is the model pass
+  itself.** A summarizing window cannot be behavior-validated on the 8 GB dev GPU, where the cortex
+  tier (gemma-12B) does not fit, and the cache-versus-recompute-per-turn decision this entry named is
+  unresolved (a design choice, not a wrapper). So the honest slice waits for the model manager's real
+  GPU lifecycle to give user-tier hardware, and lands the async widening together with the
+  summarizer rather than the widening alone as an empty async layer.
 - **Bounded backpressure on the `Converse` output queue landed 2026-07-03.** The per-turn
   output queue (`converse.py`) is now credit-bounded (`CORTEX_SEAM_CONVERSE_BUFFER`, default
   256): a consumer that stops reading suspends generation at the bound, while the terminal
