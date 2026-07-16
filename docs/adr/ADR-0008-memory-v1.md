@@ -232,7 +232,8 @@ reranking is pure core, above the store).
 **Consciously deferred (behind the same `RecallPolicy` seam), recorded in the ROADMAP:** a
 **model-based reranker** (a cross-encoder or an LLM-judge `select`, the natural next policy once a
 deterministic blend proves too blunt); **surfacing the blended relevance** as a distinct field
-should a consumer ever need to display it (the store's cosine is kept today); and **maximal-marginal-
+should a consumer ever need to display it (the store's cosine is kept today; **declined 2026-07-16**,
+the last addendum below, because that condition is still unmet); and **maximal-marginal-
 relevance** diversity beyond threshold dedup (**landed 2026-07-13**, the addendum below). All are
 policy swaps, none a port change.
 
@@ -270,7 +271,8 @@ above the store); CI-gated end to end over the fakes at 100%.
 
 **Consciously deferred (behind the same `RecallPolicy` seam), recorded in the ROADMAP:** the
 **model-based reranker** and **surfacing the blended relevance** as a distinct field remain from the
-rerank addendum. The **recency-and-diversity** policy (MMR run over the reranker's recency-blended
+rerank addendum (the latter **declined 2026-07-16**, the last addendum below). The
+**recency-and-diversity** policy (MMR run over the reranker's recency-blended
 relevance) it also named **landed 2026-07-13**, the addendum below. All are policy swaps, none a
 port change.
 
@@ -304,7 +306,73 @@ core, above the store); CI-gated end to end over the fakes at 100%.
    core code reads env. `recall_policy_from_config` builds it.
 
 **Consciously deferred (behind the same `RecallPolicy` seam), recorded in the ROADMAP:** the
-**model-based reranker** and **surfacing the blended relevance** as a distinct field remain. One
+**model-based reranker** and **surfacing the blended relevance** as a distinct field remain (the
+latter **declined 2026-07-16**, the addendum below). One
 structural note: this landing split the three opt-in reranking policies and their shared math into
 `rerank_policies.py` at the 300-line cap; the port and the default `RawRecallPolicy` stay in
 `rerank.py`.
+
+## Addendum (2026-07-16): the blended-relevance field declined, no consumer reads a recall score
+
+The three addenda above each carried **surfacing the blended relevance as a distinct field** as the
+one reranker deferral behind the unchanged seam. That is a statement about its *cost*, and it had
+come to stand in for readiness. Read against the tree, the entry is **declined**: no behavior
+change, and the deferral moves to the backlog's dead-until-a-consumer list
+([docs/refinements/memory.md](../refinements/memory.md)). Two findings decide it.
+
+1. **Nothing reads a recall score.** `ScoredMemory.score` is produced by both store adapters
+   (`PgVectorMemoryStore._to_scored`, `InMemoryMemoryStore.search`) and consumed only by the recall
+   policies as an *input* and by tests. The one production consumer of a recall result,
+   `TurnEngine._render_memory_context` (`engine.py`), reads `record.text`, `record.tainted`, and
+   `record.id`, and never touches `score`: a recalled memory is rendered as a bullet of text, or
+   fenced as untrusted data. Nor is there anywhere else for a score to go. The seam declares no
+   memory message at all ([proto/body.proto](../../proto/body.proto)), so the overlay cannot display
+   one, and the recall path has neither logging nor an audit sink (the core has no logger; the only
+   observability port of this shape is `ToolAuditSink`, which memory has no analog of). The rerank
+   addendum's own wording made this the condition: "should a consumer ever need to display it".
+   Adding the field now would ship a value no code reads, which is what the backlog's
+   dead-until-a-consumer bucket exists to prevent.
+
+2. **There is no single blended relevance to surface.** The three opt-in policies rank by three
+   different quantities. `RerankingRecallPolicy` ranks by `_recency_blend`, a convex combination of
+   similarity and decay that is comparable across hits and order-independent. `MmrRecallPolicy` and
+   `RecencyMmrRecallPolicy` rank by an MMR objective whose redundancy term is measured against the
+   set already kept, so a hit's value depends on when it was picked and two hits in one result are
+   not comparable. A field named "relevance" would therefore mean three things, one of which cannot
+   be read as a ranking at all. `RawRecallPolicy` has no blend to report.
+
+**Cost correction.** The "behind the unchanged seam" reading holds only for the design this ADR
+warned against: adding the field to `ScoredMemory`, which is the *store's* output type, so both
+adapters would have to emit a blend no store computes and every consumer would carry a bimodal
+value. Keeping the raw cosine and a policy's rank key distinct, which is the point of the entry,
+means widening what `RecallPolicy.select` returns. That is the same signature the **model-based
+reranker** is blocked on widening to async, so the honest sequencing is to reopen both together and
+change `select` once, rather than twice.
+
+**What the tree keeps instead.** The invariant is now stated on the type a reader actually opens,
+rather than only in these addenda: `ScoredMemory`'s docstring records that its score is the store's
+raw cosine similarity in `[-1, 1]`, never the key a policy ranked by, so a reranked result's order
+is not explained by the field and no caller may infer a ranking from it
+([docs/modules/brain-core.md](../modules/brain-core.md)). It is a docstring, so behavior, coverage,
+and the wire are untouched.
+
+**Evidence, live against pgvector** (the memory compose override, real Postgres + pgvector 0.8.5,
+seeded probe rows). The adapter's score is cosine *similarity*: a row at distance 0.0002 came back
+as 0.9998. Under `CORTEX_MEMORY_RECALL=reranked` the emitted order carried scores 0.6000, 0.9998,
+0.7071, which the reported field does not explain, while the recency blend does (0.7131, 0.6999,
+0.5700); under `mmr` and `recency_mmr` neither the score nor the blend explains the order, which is
+the second finding observed rather than argued. Two mutations confirm the invariant is gated,
+not merely documented: making `RerankingRecallPolicy` emit its blend as the score fails
+`test_reranking_prefers_a_recent_hit_over_a_slightly_more_similar_stale_one`, and making the shared
+`_greedy_mmr` emit its objective fails the MMR and recency-MMR score assertions. A third, dropping
+the `1 -` from the adapter's `SELECT` so it reports distance, fails the live contract check against
+real pgvector, which is where "higher = closer" is anchored.
+
+**Newly deferred, recorded in [docs/refinements/memory.md](../refinements/memory.md): recall
+observability.** Answering the question this addendum answers took a throwaway script against the
+store, because the recall path emits nothing: no log line, no audit record, no way after the fact to
+see what a policy ranked by. That is a **new port plus a sink adapter** on the `ToolAuditSink`
+(ADR-0009) model, which is why it is not a cheap follow-on here, and it is also the consumer that
+would reopen the declined field, since a sink recording a hit's rank key is the first code that
+reads one. Fix when it bites: the first visibly wrong recall in a real session that cannot be
+inspected afterwards.

@@ -59,7 +59,12 @@ the shared premise (wait for a slice that streams brain status) turned out to be
 Repo gates went from 0 back to 1 the same day,
 when the two Rust trees `just check` never lints turned out to have been quietly collecting
 findings; that entry originates in [ADR-0011](../adr/ADR-0011-body-v1.md) rather than the
-ADR-0026 the area doc was extracted under.
+ADR-0026 the area doc was extracted under. Memory held at 8 on 2026-07-16 around the first entry
+here to close as **declined**: surfacing the blended recall relevance was read against the tree and
+no consumer for it exists, which its own origin addendum had made the condition, so cheapness had
+been standing in for readiness. It moved to the dead-until-a-consumer list below, and the pass that
+closed it opened one entry behind it, recall observability, which is both why the question was hard
+to answer and the consumer that would reopen the declined one.
 
 ## Recommended order
 
@@ -68,37 +73,35 @@ against the code (the warning above); the entry text tells you which seams it ex
 
 ### Actionable now
 
-1. **Surface the blended recall relevance as a distinct field** ([memory.md](memory.md)): the
-   one reranker deferral genuinely behind the unchanged seam.
-2. **Placement-aware CPU charging + the hard budget wall**
+1. **Placement-aware CPU charging + the hard budget wall**
    ([resource-governance.md](resource-governance.md)): pure-core scheduler tweaks behind the
    unchanged `SubagentScheduler` port.
-3. **`spawn_blocking` for the sync OS call + `GetVolume` as an overlay volume indicator**
+2. **`spawn_blocking` for the sync OS call + `GetVolume` as an overlay volume indicator**
    ([body-gateway.md](body-gateway.md)): small body-side pair behind unchanged seams. The
    `spawn_blocking` half now covers the toast backend too, which is the same shape of
    synchronous OS call awaited inside an async handler. The `GetVolume` half also has a place
    to live now: the header's connection dot is the first status chrome in that row.
-4. **Task-outcome delivery as a notification + the push retry policy**
+3. **Task-outcome delivery as a notification + the push retry policy**
    ([scheduling.md](scheduling.md)): unblocked on 2026-07-16, when the body's `Notify` trait
    landed and gave the port they both reuse a real backend.
-5. **Per-method / per-error-code retry policy** ([seam-transport.md](seam-transport.md)):
+4. **Per-method / per-error-code retry policy** ([seam-transport.md](seam-transport.md)):
    behind the existing `BrainTransport`/`Sleeper` seams.
-6. **Per-round cap on distinct calls** ([tools-mcp.md](tools-mcp.md)): the one dispatch shape
+5. **Per-round cap on distinct calls** ([tools-mcp.md](tools-mcp.md)): the one dispatch shape
    neither the budget nor salience closes (context growth, not reach).
-7. **Occurrence history table** ([scheduling.md](scheduling.md)): also covers unseen-toast
+6. **Occurrence history table** ([scheduling.md](scheduling.md)): also covers unseen-toast
    recovery.
-8. **Brain-generated summary titles** ([session-read-seam.md](session-read-seam.md)): behind
+7. **Brain-generated summary titles** ([session-read-seam.md](session-read-seam.md)): behind
    the unchanged `SessionSummary`. It now also inherits the one race the summon-edge list
    refresh cannot cover: a title the brain rewrites *after* the completing turn refreshed the
    list.
-9. **Reasoning persistence/summarization + the collapsed "thoughts" section**
+8. **Reasoning persistence/summarization + the collapsed "thoughts" section**
    ([inference-model-manager.md](inference-model-manager.md)): a natural pair over the
    already-shipped `Message.statusState`.
-10. **Summarizing a tainted exchange before recording**
-    ([untrusted-content.md](untrusted-content.md)).
-11. **Spawn-spec tuning + measured trade-off advertisement** ([subagents.md](subagents.md)):
+9. **Summarizing a tainted exchange before recording**
+   ([untrusted-content.md](untrusted-content.md)).
+10. **Spawn-spec tuning + measured trade-off advertisement** ([subagents.md](subagents.md)):
     low stakes, wrong text misleads only the optimization.
-12. **`cargo fmt` and `cargo clippy` for the two ungated Rust trees**
+11. **`cargo fmt` and `cargo clippy` for the two ungated Rust trees**
     ([repo-gates.md](repo-gates.md)): last because it unblocks no capability, but it is the
     only entry here that stops a class of defect from recurring, and the format half is
     nearly free. Five clippy warnings and three unformatted files had accumulated in the
@@ -120,7 +123,9 @@ against the code (the warning above); the entry text tells you which seams it ex
 - **Session-history summarization + the model-based reranker**
   ([session-history.md](session-history.md), [memory.md](memory.md)): both blocked on a sync
   port going async (`HistoryWindow.select`, `RecallPolicy.select`) and both inherit the same
-  non-reentrant GPU-lease hazard, so they are one design problem.
+  non-reentrant GPU-lease hazard, so they are one design problem. The declined blended-relevance
+  field widens the same `select` return, so a consumer for it reopens the work here rather than
+  on its own.
 - **Memory verbs: tiered/self-editing memory, write-salience, per-scope retention**
   ([memory.md](memory.md)): `MemoryStore` is `add` + `search` only; the missing verbs are the
   real cost.
@@ -178,6 +183,12 @@ against the code (the warning above); the entry text tells you which seams it ex
   ([untrusted-content.md](untrusted-content.md), [email-confirmer.md](email-confirmer.md))
 - Session+global union read policy and cross-scope recall ranking: nothing writes durable
   global facts under scoping yet ([memory.md](memory.md))
+- A distinct blended-relevance field on a recall hit: nothing reads `ScoredMemory.score` at all
+  (the turn renders a memory's text, the seam carries no memory, the recall path has no log or
+  audit sink), and the three opt-in policies rank by three different quantities, one of them
+  incomparable between hits. Declined 2026-07-16; when a consumer appears it is a
+  `RecallPolicy.select` change, so it reopens with the model-based reranker
+  ([memory.md](memory.md))
 - `SubagentTask` session attribution and the `ToolInvocation` audit-line stamp: no consumer
   reads either yet ([scheduling.md](scheduling.md))
 - Provenance across the stores: `ScheduledItem` and `SubagentResult` each carry the taint bit
@@ -201,7 +212,8 @@ hardened non-loopback posture, and a safe Core Audio wrapper
 ([session-read-seam.md](session-read-seam.md)); the Postgres durable twin, cron expressions,
 and automated dead-letter retention ([scheduling.md](scheduling.md)); MTP variants and the
 disable-thinking / token-budget caps ([inference-model-manager.md](inference-model-manager.md));
-the ANN index ([memory.md](memory.md)); the four guardrail tails (whitespace-split hosts, full
+the ANN index, and recall observability, whose trigger is a visibly wrong recall no one can inspect
+after the fact ([memory.md](memory.md)); the four guardrail tails (whitespace-split hosts, full
 UTS-39 confusables, further encodings, footer heuristics), the GBNF alternative, the
 fence-without-block recall mode, per-provenance eviction, and the screening subagent
 ([untrusted-content.md](untrusted-content.md)); per-field attachment schema descriptions and
