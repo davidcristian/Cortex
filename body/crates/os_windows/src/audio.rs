@@ -35,16 +35,20 @@ impl WindowsAudioControl {
 
     /// Resolves the default render endpoint's volume interface. COM is initialized on the
     /// calling thread (idempotent, multithreaded apartment, so any async worker may call).
-    fn endpoint(&self) -> Result<IAudioEndpointVolume, AudioError> {
+    /// Takes no `self`: the backend is stateless, so the lookup depends only on the OS.
+    fn endpoint() -> Result<IAudioEndpointVolume, AudioError> {
         unsafe {
             // Idempotent per thread; a prior initialization returns a non-fatal status we ignore.
             let _ = CoInitializeEx(None, COINIT_MULTITHREADED);
             let enumerator: IMMDeviceEnumerator =
-                CoCreateInstance(&MMDeviceEnumerator, None, CLSCTX_ALL).map_err(no_endpoint)?;
+                CoCreateInstance(&MMDeviceEnumerator, None, CLSCTX_ALL)
+                    .map_err(|error| no_endpoint(&error))?;
             let device = enumerator
                 .GetDefaultAudioEndpoint(eRender, eConsole)
-                .map_err(no_endpoint)?;
-            device.Activate(CLSCTX_ALL, None).map_err(backend)
+                .map_err(|error| no_endpoint(&error))?;
+            device
+                .Activate(CLSCTX_ALL, None)
+                .map_err(|error| backend(&error))
         }
     }
 }
@@ -57,20 +61,22 @@ impl Default for WindowsAudioControl {
 
 impl AudioControl for WindowsAudioControl {
     fn get_volume(&self) -> Result<VolumeState, AudioError> {
-        let endpoint = self.endpoint()?;
+        let endpoint = Self::endpoint()?;
         unsafe { read_state(&endpoint) }
     }
 
     fn set_volume(&self, change: VolumeChange) -> Result<VolumeState, AudioError> {
-        let endpoint = self.endpoint()?;
+        let endpoint = Self::endpoint()?;
         unsafe {
             if let Some(level) = change.level {
                 endpoint
                     .SetMasterVolumeLevelScalar(level, ptr::null())
-                    .map_err(backend)?;
+                    .map_err(|error| backend(&error))?;
             }
             if let Some(mute) = change.mute {
-                endpoint.SetMute(mute, ptr::null()).map_err(backend)?;
+                endpoint
+                    .SetMute(mute, ptr::null())
+                    .map_err(|error| backend(&error))?;
             }
             read_state(&endpoint)
         }
@@ -84,18 +90,23 @@ impl AudioControl for WindowsAudioControl {
 /// `endpoint` must be a live `IAudioEndpointVolume` from [`WindowsAudioControl::endpoint`].
 unsafe fn read_state(endpoint: &IAudioEndpointVolume) -> Result<VolumeState, AudioError> {
     unsafe {
-        let level = endpoint.GetMasterVolumeLevelScalar().map_err(backend)?;
-        let muted = endpoint.GetMute().map_err(backend)?.as_bool();
+        let level = endpoint
+            .GetMasterVolumeLevelScalar()
+            .map_err(|error| backend(&error))?;
+        let muted = endpoint
+            .GetMute()
+            .map_err(|error| backend(&error))?
+            .as_bool();
         Ok(VolumeState { level, muted })
     }
 }
 
 /// Maps a COM failure to acquire the endpoint to `NoEndpoint`.
-fn no_endpoint(error: WinError) -> AudioError {
+fn no_endpoint(error: &WinError) -> AudioError {
     AudioError::NoEndpoint(error.message())
 }
 
 /// Maps a COM failure operating the endpoint to `Backend`.
-fn backend(error: WinError) -> AudioError {
+fn backend(error: &WinError) -> AudioError {
     AudioError::Backend(error.message())
 }

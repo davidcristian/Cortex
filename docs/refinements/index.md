@@ -25,7 +25,7 @@ its signature.
 
 | Doc | Area | Open |
 | --- | --- | --- |
-| [repo-gates.md](repo-gates.md) | Line cap, dashcheck, coverage config (ADR-0026) | 0 |
+| [repo-gates.md](repo-gates.md) | Line cap, dashcheck, coverage config (ADR-0026), gate coverage of the ungated Rust trees (ADR-0011) | 1 |
 | [seam-transport.md](seam-transport.md) | `BrainTransport` retry/reconnect (ADR-0003/0024) | 3 |
 | [seam-auth.md](seam-auth.md) | Seam token auth (ADR-0016) | 1 |
 | [session-history.md](session-history.md) | Slice 3 history windowing and summarization | 1 |
@@ -47,7 +47,10 @@ The counts are per area as extracted; a few threads appear in two areas (the cro
 surfacing appears in both email-confirmer.md and subagents.md as one piece of work).
 Scheduling's count holds at 10 rather than dropping: the body-side `Notify` trait closed on
 2026-07-16 and opened one entry behind it (toast activation routing), which is the backlog
-working as intended rather than a stalled area.
+working as intended rather than a stalled area. Repo gates went from 0 back to 1 the same day,
+when the two Rust trees `just check` never lints turned out to have been quietly collecting
+findings; that entry originates in [ADR-0011](../adr/ADR-0011-body-v1.md) rather than the
+ADR-0026 the area doc was extracted under.
 
 ## Recommended order
 
@@ -94,6 +97,11 @@ against the code (the warning above); the entry text tells you which seams it ex
     ([untrusted-content.md](untrusted-content.md)).
 14. **Spawn-spec tuning + measured trade-off advertisement** ([subagents.md](subagents.md)):
     low stakes, wrong text misleads only the optimization.
+15. **`cargo fmt` and `cargo clippy` for the two ungated Rust trees**
+    ([repo-gates.md](repo-gates.md)): last because it unblocks no capability, but it is the
+    only entry here that stops a class of defect from recurring, and the format half is
+    nearly free. Five clippy warnings and three unformatted files had accumulated in the
+    Tauri shell and `os_windows` before anyone looked on 2026-07-16.
 
 ### Actionable, but a seam or port change comes first
 

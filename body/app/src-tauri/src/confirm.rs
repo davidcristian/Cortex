@@ -56,20 +56,22 @@ impl ConfirmRoute {
     /// ended); a stale turn whose slot was already reclaimed by a newer turn
     /// no-ops, leaving the live turn answerable.
     pub fn clear(&self, generation: u64) {
-        if let Ok(mut slot) = self.slot.lock() {
-            if slot.as_ref().is_some_and(|claim| claim.generation == generation) {
-                *slot = None;
-            }
+        if let Ok(mut slot) = self.slot.lock()
+            && slot
+                .as_ref()
+                .is_some_and(|claim| claim.generation == generation)
+        {
+            *slot = None;
         }
     }
 
     /// Sends one decision into the running turn, if any; send failures are
     /// ignored (closed route == no turn to answer, so it is fail-closed brain-side).
     fn send(&self, decision: ConfirmDecision) {
-        if let Ok(slot) = self.slot.lock() {
-            if let Some(claim) = slot.as_ref() {
-                let _ = claim.sender.send(decision);
-            }
+        if let Ok(slot) = self.slot.lock()
+            && let Some(claim) = slot.as_ref()
+        {
+            let _ = claim.sender.send(decision);
         }
     }
 }
