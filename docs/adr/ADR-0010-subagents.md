@@ -261,3 +261,51 @@ text was tuned to match the measurement; the full record and the residual (the n
 uptake, unverifiable on the 8 GB dev GPU) live at the
 [ADR-0018 addendum](ADR-0018-heterogeneous-subagents.md), the ADR that owns the roster and the
 per-item model choice. The tool's behavior (`asyncio.gather` over the batch) is unchanged.
+
+## Addendum (2026-07-16): subagent progress rides a `ProgressSink` side channel to the overlay
+
+The Risks section deferred surfacing per-subagent progress to the overlay ("Progress is reported
+to the overlay via the `Converse` status stream, a later refinement"). It lands now, together with
+the ADR-0022 "subagent tool-step surfacing" deferral, as **one side channel** that serves both.
+
+**Two facts the deferral named, both confirmed against the code first.** (1) While a spawn runs,
+the cortex turn's engine generator is suspended inside `await dispatcher.dispatch(...)` in
+`tool_loop.py`, so `handle_turn` cannot yield a progress event of its own. (2) `SpawnSubagentsTool`
+is built **once** (`build_subagents` in `wiring.run_from_env`, its `spawn_tool` folded into
+`builtins`, which every per-stream `make_engine` reuses), so it holds no per-stream state and had
+no way to address one turn's overlay. Both were verified in the tree before building.
+
+**The channel: a `ProgressSink` port carried per call on the `TurnStamp`.** Of the two options the
+deferral named (a per-stream tool, or carrying the stream's channel per call) this takes the
+second. A new pure-core `ProgressSink` (`progress.py`, port-free so `tools.py` may depend on it,
+`async emit(ToolActivity | StatusUpdate)`) rides the dispatch `TurnStamp` beside `budget` (another
+live handle, `compare=False`). The engine stamps its stream's sink onto each dispatch; the shared
+`SpawnSubagentsTool` reads it off `call.stamp.progress` per call and passes it to each
+`SubagentRunner.run`, so the one built-once tool serves every stream with **no per-stream field to
+leak across turns** (a test routes two sinks through one shared tool to prove the isolation).
+
+**What it surfaces, and why it needs no guardrail pass.** `SpawnSubagentsTool` emits a
+`StatusUpdate(state="delegating", "delegating N subtasks")` (the batch's scale) before the gather,
+and the `SubagentRunner` maps each subagent's `ToolStep` onto the sink as a `ToolActivity` (the
+prior deferral's "the subagent runner drops it" note becomes "maps it onto the sink when it has
+one"). Every field is registry-authored (the matched `ToolSpec`) or brain-authored (a count), never
+the model's call or untrusted content, so a tainted subagent's progress carries nothing injectable
+and needs no guardrail pass, exactly the argument the cortex's own `ToolActivity` makes. The wording
+is honest to the measured wiring (ADR-0012 admission-wall addendum): "delegating N subtasks", never
+a parallelism claim same-model spawns do not deliver.
+
+**The adapter is credit-balanced, not the confirmer's control path.** The real `SeamProgressSink`
+puts onto the stream's output queue taking a buffer credit only when one is free, else dropping the
+event (best-effort). A delegating turn emits many steps, so over-crediting like the confirmer would
+drift the buffer bound; taking-and-releasing a credit per event keeps it exact, and dropping under
+saturation never stalls the subagent behind a slow overlay. Event ordering is preserved because the
+turn task is suspended in `dispatch` and puts nothing itself while the subagents run.
+
+**No proto change.** The overlay already renders `ToolActivity` and `StatusUpdate` chips, so the
+seam and the overlay reducer are untouched; the wire nothing-shows trap is avoided because the
+consumer already exists. CI-gated at 100% over the fakes (`RecordingProgressSink`), with the
+routing, the runner emission, the taint containment, the two-sink isolation, and the sink's
+drop-under-saturation each mutation-proven; the end-to-end path (cortex spawns → subagent tool step
+→ wire `ToolActivity`) is exercised over a real `converse()` stream. The bundled backlog entries
+close in [subagents.md](../refinements/subagents.md) and
+[email-confirmer.md](../refinements/email-confirmer.md).

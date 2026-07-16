@@ -644,3 +644,22 @@ needs. Recorded in the ROADMAP.
   parses it back off IMAP by filename and content, so the whole path is proven, not just the
   composition.
 - **User, Windows host:** unchanged. No seam, no IPC, no new event.
+
+## Addendum (2026-07-16): subagent tool-step surfacing landed via the ADR-0010 progress sink
+
+The `ToolActivity` addendum above listed "subagent tool-step surfacing (the ADR-0010 progress
+deferral)" as remaining behind the same seams. It lands, in [ADR-0010](ADR-0010-subagents.md), as
+one side channel shared with that ADR's own progress-reporting deferral, and it reuses this chip
+wholesale rather than growing anything here.
+
+The `ToolStep`-to-`ToolActivity` mapping this addendum built for the cortex is exactly what a
+subagent needs; the only gap was that the subagent's `stream_tool_loop` runs inside
+`SubagentRunner`, whose steps this ADR's engine mapping never saw (the runner dropped them). The
+progress addendum adds a pure-core `ProgressSink` on the dispatch `TurnStamp`, so `SubagentRunner`
+now maps each `ToolStep` onto the spawning stream's sink as the same registry-authored
+`ToolActivity`. The chip's fields stay registry-authored (never the model's call or arguments, the
+laundering-surface guarantee this addendum turns on), so the overlay renders a subagent's step with
+**no wire or reducer change** and no new guardrail obligation. The `phase` field stays deferred (the
+chip still needs no completion states). Full record and validation live at the
+[ADR-0010 progress addendum](ADR-0010-subagents.md); the backlog closes in
+[email-confirmer.md](../refinements/email-confirmer.md).

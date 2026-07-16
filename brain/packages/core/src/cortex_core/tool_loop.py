@@ -36,6 +36,7 @@ from cortex_core.conversation import Message
 from cortex_core.dispatch import DispatchRefusal, ToolDispatcher
 from cortex_core.inference import JsonSchema, ReasoningChunk
 from cortex_core.ports import Clock, InferenceBackend
+from cortex_core.progress import ProgressSink
 from cortex_core.provenance import SourceKind, as_source
 from cortex_core.tool_budget import DispatchBudget
 from cortex_core.tool_round import call_message, plan_round, result_message
@@ -106,7 +107,12 @@ class ToolLoopContext:
     The budget is the one collaborator a caller may **share**: a context built without one gets
     its own pool at ``MAX_TOOL_DISPATCHES``, while a subagent spawned from a cortex turn is
     handed that turn's pool (via the dispatch ``TurnStamp``), so delegation cannot multiply the
-    total the way a per-invocation count did (ADR-0009 turn-wide addendum).
+    total the way a per-invocation count did (ADR-0009 turn-wide addendum). ``progress`` (ADR-0010
+    progress addendum) is the stream's side channel the loop stamps onto each dispatch, so a
+    built-in that spawns further work (``spawn_subagents``) can surface a subagent's steps onto
+    the overlay while the loop's own generator is suspended inside that dispatch; ``None`` (a
+    subagent's own inner loop, a session-less caller) leaves such work unsurfaced, keeping
+    delegation depth-1 in what reaches the overlay as it is in the tree.
     """
 
     dispatcher: ToolDispatcher | None
@@ -117,6 +123,7 @@ class ToolLoopContext:
     session_id: str
     schema: JsonSchema | None = None
     budget: DispatchBudget = field(default_factory=DispatchBudget)
+    progress: ProgressSink | None = None
 
 
 def _refused_by(
@@ -271,6 +278,10 @@ async def stream_tool_loop(
                     # The pool travels to whatever this call spawns, so a subagent draws from
                     # the turn's remaining allowance instead of starting a fresh one.
                     budget=budget,
+                    # And the stream's progress channel travels with it, so a built-in that
+                    # spawns subagents surfaces their steps onto this turn's overlay while the
+                    # loop is suspended inside the dispatch below (ADR-0010 progress addendum).
+                    progress=context.progress,
                 ),
                 gated=gated_by_name.get(call.name, False),
                 refusal=refusal,

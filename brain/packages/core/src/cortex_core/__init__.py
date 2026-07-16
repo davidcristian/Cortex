@@ -54,6 +54,7 @@ from cortex_core.fakes import InMemoryTaskStore as InMemoryTaskStore
 from cortex_core.fakes import InMemoryToolRegistry as InMemoryToolRegistry
 from cortex_core.fakes import RecordingAuditSink as RecordingAuditSink
 from cortex_core.fakes import RecordingConfirmer as RecordingConfirmer
+from cortex_core.fakes import RecordingProgressSink as RecordingProgressSink
 from cortex_core.fakes import SystemClock as SystemClock
 from cortex_core.fakes_body import InMemoryBodyGateway as InMemoryBodyGateway
 from cortex_core.fakes_body import SentNotification as SentNotification
@@ -91,6 +92,8 @@ from cortex_core.ports import SubagentScheduler as SubagentScheduler
 from cortex_core.ports import TaskStore as TaskStore
 from cortex_core.ports import ToolAuditSink as ToolAuditSink
 from cortex_core.ports import ToolRegistry as ToolRegistry
+from cortex_core.progress import ProgressEvent as ProgressEvent
+from cortex_core.progress import ProgressSink as ProgressSink
 from cortex_core.provenance import MAX_SOURCE_CHARS as MAX_SOURCE_CHARS
 from cortex_core.provenance import MAX_TURN_SOURCES as MAX_TURN_SOURCES
 from cortex_core.provenance import Provenance as Provenance
@@ -163,9 +166,10 @@ from cortex_core.session_title import generate_title as generate_title
 from cortex_core.sessions import SessionSummary as SessionSummary
 from cortex_core.sessions import summarize_ends as summarize_ends
 from cortex_core.sessions import summarize_session as summarize_session
-from cortex_core.spawn import MAX_SPAWN_BATCH as MAX_SPAWN_BATCH
-from cortex_core.spawn import SPAWN_TOOL_NAME as SPAWN_TOOL_NAME
+from cortex_core.spawn import SUBAGENT_PROGRESS_STATE as SUBAGENT_PROGRESS_STATE
 from cortex_core.spawn import SpawnSubagentsTool as SpawnSubagentsTool
+from cortex_core.spawn_spec import MAX_SPAWN_BATCH as MAX_SPAWN_BATCH
+from cortex_core.spawn_spec import SPAWN_TOOL_NAME as SPAWN_TOOL_NAME
 from cortex_core.subagents import SubagentResult as SubagentResult
 from cortex_core.subagents import SubagentTask as SubagentTask
 from cortex_core.tool_budget import MAX_TOOL_DISPATCHES as MAX_TOOL_DISPATCHES

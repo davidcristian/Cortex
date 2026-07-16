@@ -4,10 +4,11 @@ Pure data, no I/O and no ``ports`` import. That lets ``ports.py`` depend on thes
 cycle, exactly as ``memory.py`` is depended on. ``arguments``/``parameters`` carry arbitrary
 JSON (a tool's schema and a model's call args are open-shaped), so ``Any`` here is the
 justified kind: the boundary is genuinely dynamic and the value is round-tripped, never
-introspected by the core. The one exception to "values only" is the ``DispatchBudget`` a
-``TurnStamp`` carries, which is a live handle rather than a value; ``tool_budget`` and
-``provenance`` (the stamp's other collaborator) import nothing but the standard library, so
-depending on them keeps this module port-free.
+introspected by the core. The two exceptions to "values only" are the live handles a
+``TurnStamp`` carries, the ``DispatchBudget`` and the ``ProgressSink``, rather than values;
+``tool_budget``, ``provenance``, and ``progress`` (the stamp's collaborators) import nothing but
+the standard library (``progress`` transitively, through ``events``), so depending on them keeps
+this module port-free.
 """
 
 from collections.abc import Mapping
@@ -16,6 +17,7 @@ from datetime import datetime
 from enum import Enum
 from typing import Any
 
+from cortex_core.progress import ProgressSink
 from cortex_core.provenance import Provenance
 from cortex_core.tool_budget import DispatchBudget
 
@@ -59,23 +61,27 @@ class TurnStamp:
     run, or an unattributed caller); ``tainted`` whether the turn had read untrusted content
     at dispatch time; ``sources`` which sources that content came from (ADR-0027 addendum),
     the structured provenance behind the bit; ``budget`` the turn's shared dispatch allowance
-    (``None`` when the caller runs no tool loop, e.g. the schedule ticker). One frozen value
+    (``None`` when the caller runs no tool loop, e.g. the schedule ticker); ``progress`` the
+    stream's side channel for the ephemeral progress a suspended turn cannot yield (``None``
+    when the dispatch has no overlay stream, e.g. the ticker, ADR-0010). One frozen value
     rather than parallel keywords, which is what let ``sources`` land without touching a single
     call site. A field joins only with a consumer, or a designed one: ``sources`` is captured
     live (the ledger dies with the turn) for consumers that are decisions of their own, a
     confirmation card that names its source and per-provenance eviction.
 
     Originally the turn's *provenance* alone. ``budget`` widened that to what the turn hands
-    down to work this call spawns, which ``tainted`` already was in practice (provenance, and
-    the input to the ADR-0017 model pin). It is the one field that is a live shared handle
-    rather than a value, so it is excluded from equality: two dispatches of the same turn stay
-    comparable, and no caller can mistake one pool for another (ADR-0009 turn-wide addendum).
+    down to work this call spawns (which ``tainted`` already was in practice), and ``progress``
+    to where that spawned work surfaces its steps. Both are live shared handles rather than
+    values, so both are excluded from equality: two dispatches of the same turn stay comparable,
+    and no caller can mistake one pool (or one stream's sink) for another (ADR-0009 turn-wide
+    addendum, ADR-0010 progress addendum).
     """
 
     session_id: str = ""
     tainted: bool = False
     sources: tuple[Provenance, ...] = ()
     budget: DispatchBudget | None = field(default=None, compare=False)
+    progress: ProgressSink | None = field(default=None, compare=False)
 
 
 # The unattributed default stamp: no originating session, no taint. A named constant

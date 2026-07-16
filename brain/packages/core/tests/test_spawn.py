@@ -9,6 +9,7 @@ import pytest
 from cortex_core import (
     BUDGET_EXHAUSTED_MSG,
     MAX_SPAWN_BATCH,
+    SUBAGENT_PROGRESS_STATE,
     DispatchBudget,
     EchoInferenceBackend,
     InferenceBackend,
@@ -20,15 +21,19 @@ from cortex_core import (
     Message,
     PlacementRequest,
     PlacementTarget,
+    ProgressSink,
     RecordingAuditSink,
+    RecordingProgressSink,
     ResourceBudgetScheduler,
     Role,
     SpawnSubagentsTool,
+    StatusUpdate,
     SubagentProfile,
     SubagentResources,
     SubagentRoster,
     SubagentRunner,
     TextChunk,
+    ToolActivity,
     ToolCall,
     ToolDispatcher,
     ToolSpec,
@@ -100,8 +105,9 @@ def _call(
     *,
     tainted: bool = False,
     budget: DispatchBudget | None = None,
+    progress: ProgressSink | None = None,
 ) -> ToolCall:
-    stamp = TurnStamp(tainted=tainted, budget=budget)
+    stamp = TurnStamp(tainted=tainted, budget=budget, progress=progress)
     return ToolCall(id="c1", name="spawn_subagents", arguments=arguments, stamp=stamp)
 
 
@@ -239,6 +245,55 @@ async def test_a_refused_subagent_does_not_take_the_rest_of_the_batch_down() -> 
     first, second = result.content.split("\n\n")
     assert first.startswith("[subagent 1] FAILED: refused before running: subagent charge")
     assert second == "[subagent 2] reply 1: stay"
+
+
+async def test_a_delegating_batch_surfaces_its_scale_and_the_subagents_tool_steps() -> None:
+    # The two halves of the side channel (ADR-0010 progress addendum) over one call: a batch-start
+    # StatusUpdate carrying the brain-authored subtask count, then a ToolActivity per subagent's
+    # audited tool step. Both ride the sink off the call stamp while the cortex loop is suspended
+    # in this dispatch.
+    store = InMemoryTaskStore()
+    audit = RecordingAuditSink()
+    tool, _ = _delegating_tool(store, audit)
+    progress = RecordingProgressSink()
+    result = await tool.invoke(_call({"instructions": ["a", "b"]}, progress=progress))
+    assert result.is_error is False
+    events = progress.events
+    # The scale comes first, deterministically (emitted before the batch's gather):
+    assert events[0] == StatusUpdate(state=SUBAGENT_PROGRESS_STATE, detail="delegating 2 subtasks")
+    # Then a `read` step per subagent, both registry-authored (the matched ToolSpec's fields):
+    steps = [event for event in events if isinstance(event, ToolActivity)]
+    assert [step.tool_name for step in steps] == ["read", "read"]
+
+
+async def test_a_single_subtask_batch_status_is_singular() -> None:
+    # The count line is user-facing, so "1 subtask" is not "1 subtasks".
+    store = InMemoryTaskStore()
+    progress = RecordingProgressSink()
+    await _tool(store, EchoInferenceBackend()).invoke(
+        _call({"instructions": ["only one"]}, progress=progress)
+    )
+    assert list(progress.events) == [
+        StatusUpdate(state=SUBAGENT_PROGRESS_STATE, detail="delegating 1 subtask")
+    ]
+
+
+async def test_one_shared_tool_routes_each_calls_progress_to_its_own_sink() -> None:
+    # The built-once-shared SpawnSubagentsTool holds no per-stream state: the sink rides each
+    # call's stamp, so two streams' progress never crosses. A sink bound at construction (the
+    # naive per-stream fix) could not even express two sinks through one shared tool; here one
+    # tool routes call A to sink A and call B to sink B, proving the per-call isolation.
+    store = InMemoryTaskStore()
+    tool = _tool(store, EchoInferenceBackend())  # tool-less subagents: only the batch status
+    sink_a, sink_b = RecordingProgressSink(), RecordingProgressSink()
+    await tool.invoke(_call({"instructions": ["a"]}, progress=sink_a))
+    await tool.invoke(_call({"instructions": ["b", "c"]}, progress=sink_b))
+    assert list(sink_a.events) == [
+        StatusUpdate(state=SUBAGENT_PROGRESS_STATE, detail="delegating 1 subtask")
+    ]
+    assert list(sink_b.events) == [
+        StatusUpdate(state=SUBAGENT_PROGRESS_STATE, detail="delegating 2 subtasks")
+    ]
 
 
 async def test_object_items_carry_model_and_context_onto_the_task() -> None:

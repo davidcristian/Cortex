@@ -11,6 +11,7 @@ from collections.abc import AsyncIterator, Callable, Mapping, Sequence
 from datetime import UTC, datetime
 
 from cortex_core import (
+    SUBAGENT_PROGRESS_STATE,
     CompositeToolRegistry,
     EchoInferenceBackend,
     InferenceBackend,
@@ -23,14 +24,17 @@ from cortex_core import (
     PlacementRequest,
     PlacementTarget,
     RecordingAuditSink,
+    RecordingProgressSink,
     ResourceBudgetScheduler,
     Role,
     SpawnSubagentsTool,
+    StatusUpdate,
     SubagentProfile,
     SubagentResources,
     SubagentRoster,
     SubagentRunner,
     TextChunk,
+    ToolActivity,
     ToolCall,
     ToolDispatcher,
     ToolSpec,
@@ -166,6 +170,75 @@ async def _read_handler(arguments: Mapping[str, object]) -> str:
 
 
 _READ_SPEC = ToolSpec(name="read", description="", parameters={})
+
+
+class OneReadThenAnswer:
+    """Stateless subagent backend: read once, then answer. Whether the read already happened is
+    read off the messages (a TOOL result present), so concurrent subagents share one instance
+    without a counter that overlap would scramble (the test_spawn OneToolCallBackend pattern)."""
+
+    async def stream(
+        self,
+        model: str,
+        messages: Sequence[Message],
+        *,
+        tools: Sequence[ToolSpec] = (),
+        schema: JsonSchema | None = None,
+    ) -> AsyncIterator[InferenceEvent]:
+        del model, tools, schema
+        if any(message.role is Role.TOOL for message in messages):
+            yield TextChunk("done")
+            return
+        yield ToolCall(id="c1", name="read", arguments={"path": "/x"})
+
+
+async def test_delegation_surfaces_progress_to_the_stream_sink() -> None:
+    # The whole side channel over the fakes (ADR-0010 progress addendum): the cortex spawns two
+    # tool-using subagents, and the stream's ProgressSink (on TurnCapabilities) receives the
+    # batch's scale plus each subagent's audited read step, while the engine's own event stream
+    # carries only the cortex's own spawn_subagents chip. The engine generator is suspended inside
+    # the spawn dispatch when the subagents run, so their steps reach the overlay only off the sink.
+    task_store = InMemoryTaskStore()
+    read_spec = ToolSpec(name="read", description="Read a file", parameters={})
+    sub_tools = ToolDispatcher(
+        InMemoryToolRegistry({"read": (read_spec, _read_handler)}),
+        RecordingAuditSink(),
+        FixedClock(),
+    )
+    runner = SubagentRunner(
+        task_store, _single_roster(OneReadThenAnswer()), FixedClock(), tools=sub_tools
+    )
+    spawn = SpawnSubagentsTool(runner, task_store, FixedClock(), task_id_factory=_counter())
+    cortex_tools = ToolDispatcher(
+        CompositeToolRegistry([spawn]), RecordingAuditSink(), FixedClock()
+    )
+    cortex_backend = ScriptedCortexBackend(
+        [
+            [ToolCall(id="c1", name="spawn_subagents", arguments={"instructions": ["a", "b"]})],
+            [TextChunk("both done")],
+        ]
+    )
+    progress = RecordingProgressSink()
+    engine = TurnEngine(
+        InMemorySessionStore(),
+        cortex_backend,
+        FixedClock(),
+        capabilities=TurnCapabilities(tools=cortex_tools, progress=progress),
+        turn_id_factory=lambda: "t-1",
+    )
+    events = await _collect(engine.handle_turn("s", "do two things"))
+    assert events[-1] == TurnCompleted(turn_id="t-1", full_text="both done")
+    # The engine's OWN stream carries the cortex's spawn_subagents chip, never the subagents':
+    engine_activities = [event for event in events if isinstance(event, ToolActivity)]
+    assert [activity.tool_name for activity in engine_activities] == ["spawn_subagents"]
+    # The subagents' progress rode the side channel instead: scale first, then a step each.
+    surfaced = progress.events
+    assert surfaced[0] == StatusUpdate(
+        state=SUBAGENT_PROGRESS_STATE, detail="delegating 2 subtasks"
+    )
+    read_steps = [event for event in surfaced if isinstance(event, ToolActivity)]
+    assert [step.tool_name for step in read_steps] == ["read", "read"]
+    assert all(step.summary == "Read a file" for step in read_steps)
 
 
 async def test_a_subagent_reading_untrusted_content_taints_the_delegation_result() -> None:

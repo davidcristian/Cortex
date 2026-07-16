@@ -37,18 +37,19 @@ its signature.
 | [untrusted-content.md](untrusted-content.md) | Taint boundary, output guardrail, subagent model safety (ADR-0013/0015/0017/0019/0028) | 15 |
 | [memory.md](memory.md) | Store, scoping, rerank/MMR (ADR-0008) | 8 |
 | [inference-model-manager.md](inference-model-manager.md) | Model-manager lifecycle, MTP, reasoning status (ADR-0007/0020) | 3 |
-| [subagents.md](subagents.md) | Progress reporting, spawn schema, heterogeneous roster (ADR-0010/0018) | 2 |
+| [subagents.md](subagents.md) | Progress reporting, spawn schema, heterogeneous roster (ADR-0010/0018) | 1 |
 | [body-overlay.md](body-overlay.md) | Overlay polish, connection indicator, proto Cancel (ADR-0011) | 3 |
 | [session-read-seam.md](session-read-seam.md) | Session listing/read seam (ADR-0021) | 4 |
 | [resource-governance.md](resource-governance.md) | Scheduler/placer budgets, NPU, drain (ADR-0012) | 6 |
-| [email-confirmer.md](email-confirmer.md) | Email write, Confirmer, attachments, `ToolActivity` chip (ADR-0022) | 7 |
+| [email-confirmer.md](email-confirmer.md) | Email write, Confirmer, attachments, `ToolActivity` chip (ADR-0022) | 6 |
 | [body-gateway.md](body-gateway.md) | Body gateway, OS actions, hardened posture (ADR-0023) | 6 |
 | [scheduling.md](scheduling.md) | Scheduling and reminders, `TurnStamp` provenance (ADR-0025/0027) | 8 |
 | [cross-cutting.md](cross-cutting.md) | Pointer input, OS backends, more roles | 4 |
 
 The counts are per area as extracted; a few threads appear in two areas (the cross-cutting
 "richer memory policies" line is covered by memory.md's items, and subagent tool-step
-surfacing appears in both email-confirmer.md and subagents.md as one piece of work).
+surfacing appeared in both email-confirmer.md and subagents.md as one piece of work, closed
+2026-07-16 by landing one side channel that decremented both counts).
 Scheduling held at 10 on 2026-07-16 when the body-side `Notify` trait closed and opened one entry
 behind it (toast activation routing), which is the backlog working as intended rather than a
 stalled area; it then went to 9 the same day when the tainted-reminder badge entry was read
@@ -147,7 +148,19 @@ same-model subtasks serialize), which doubles as the spontaneous-pick nudge find
 entry's *other* reading, deriving the config description strings from numbers, stayed declined
 (deployment-specific text, safety deterministic), and the nudge's live uptake opened one
 fix-when-it-bites residual behind it, unverifiable on the 8 GB dev GPU where the cortex tier does
-not fit.
+not fit. Subagents then went 2 to 1, and email & confirmer 7 to 6, on 2026-07-16 together, when
+the two entries the index had flagged as one piece of work (subagent progress reporting in
+subagents.md, subagent tool-step chip surfacing in email-confirmer.md) **landed** as one side
+channel, decrementing both counts. Both halves of that entry's cost correction held against the
+code: the engine generator really is suspended inside the spawn `dispatch` (so it cannot yield
+progress), and `SpawnSubagentsTool` really is built once and shared by every stream. The fix took
+the "carry the channel per call" of the two options the entry named rather than a per-stream tool:
+a `ProgressSink` port rides the dispatch `TurnStamp` beside `budget`, so the shared tool reads the
+stream's sink per call and leaks no per-stream state (a test routes two sinks through one tool to
+prove it). It needed **no proto change** (the overlay already renders `ToolActivity`/`StatusUpdate`),
+and the real `SeamProgressSink` is credit-balanced rather than the confirmer's over-crediting
+control path, since a delegating turn emits many steps; the wording avoids a parallelism claim the
+same-day admission-wall measurement showed the wiring does not deliver.
 
 ## Recommended order
 
@@ -177,10 +190,6 @@ against the code (the warning above); the entry text tells you which seams it ex
   cold-start adoption or cycling.
 - **Session deletion / rename / pinning** ([session-read-seam.md](session-read-seam.md)): new
   gated write RPCs on the catalog (proto change + Slice 6.5 gate + Slice 8.8 Confirmer).
-- **Subagent progress reporting + subagent tool-step chip surfacing**
-  ([subagents.md](subagents.md), [email-confirmer.md](email-confirmer.md)): one side channel
-  into the `Converse` queue serves both, and `SpawnSubagentsTool` must stop being
-  built-once-shared-by-every-turn.
 - **Session-history summarization + the model-based reranker**
   ([session-history.md](session-history.md), [memory.md](memory.md)): both blocked on a sync
   port going async (`HistoryWindow.select`, `RecallPolicy.select`) and both inherit the same

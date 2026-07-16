@@ -43,7 +43,7 @@ def _free_loopback_port() -> int:
 def _engine_and_store() -> tuple[EngineFactory, InMemorySessionStore]:
     store = InMemorySessionStore()
     engine = TurnEngine(store, EchoInferenceBackend(), SystemClock())
-    return (lambda _confirmer: engine), store
+    return (lambda _confirmer, _progress: engine), store
 
 
 @pytest.fixture

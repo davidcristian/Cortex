@@ -35,6 +35,7 @@ from cortex_orchestrator.memory_builders import (
     memory_scope_from_name,
     recall_policy_from_config,
 )
+from cortex_orchestrator.progress import SeamProgressSink
 from cortex_orchestrator.schedule_builders import (
     TICKER_STOP_GRACE_S,
     build_schedule,
@@ -77,6 +78,7 @@ __all__ = [
     "ScheduleConfig",
     "ScheduleTicker",
     "SeamConfirmer",
+    "SeamProgressSink",
     "SeamServerConfig",
     "SeamTokenInterceptor",
     "SubagentRosterEntry",
