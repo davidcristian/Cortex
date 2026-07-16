@@ -38,7 +38,28 @@ function titleFor(messages: readonly SessionMessage[]): string {
   return firstUser ? deriveTitle(firstUser.text) : NEW_CHAT_TITLE;
 }
 
-/** Load a stored chat into the panel: hydrate its messages, derive the header title. */
+/**
+ * The header title for a chat being loaded into the panel (ADR-0021 titles addendum). When the
+ * chat is in the loaded switcher list, this is the switcher's own `SessionSummary.title` for it,
+ * so the open-chat header shows exactly the switcher row: the brain's authoritative title (a
+ * stored generated title, a user rename, or the brain-side first-message derivation, each bounded
+ * brain-side). Reading both surfaces off the one `sessions` snapshot makes them equal by
+ * construction, rather than re-deriving the header locally, which drifts from the switcher on a
+ * rename, on a longer brain-side truncation bound, or on a generated title. A chat not in the
+ * loaded list (reachable today only by a reminder deep-link to a chat outside the recency window,
+ * whose row the switcher cannot show either) has no summary in hand and falls back to the local
+ * first-message derivation.
+ */
+function headerTitle(
+  sessions: readonly SessionSummary[],
+  sessionId: string,
+  messages: readonly SessionMessage[],
+): string {
+  const summary = sessions.find((s) => s.sessionId === sessionId);
+  return summary ? summary.title : titleFor(messages);
+}
+
+/** Load a stored chat into the panel: hydrate its messages, carry the switcher's title. */
 export function openSession(
   state: OverlayState,
   sessionId: string,
@@ -50,7 +71,7 @@ export function openSession(
     mode: "panel",
     touched: true,
     sessionId,
-    title: titleFor(messages),
+    title: headerTitle(state.sessions, sessionId, messages),
     messages: loaded,
     switcherOpen: false,
     pendingConfirm: null,
@@ -79,7 +100,7 @@ export function adoptSession(
   return {
     ...state,
     sessionId,
-    title: titleFor(messages),
+    title: headerTitle(state.sessions, sessionId, messages),
     messages: loaded,
     seq: loaded.length,
   };
