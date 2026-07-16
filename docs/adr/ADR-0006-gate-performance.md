@@ -25,8 +25,11 @@ The decisions were revised same-day, pre-push, for open-source longevity.
    - **all:** `justfile`, `.python-version` (exact); `proto/`, `scripts/`,
      `.github/workflows/` (prefix);
    - **python:** `ruff.toml` (exact); `brain/` (prefix);
+   - **rust (shell carve-out):** `body/app/src-tauri/` (prefix) is the host-native Tauri
+     shell, which is Rust rather than node and is fmt-checked by `check-body` (ADR-0011),
+     so it is carved back to rust by a rule ordered BEFORE `body/app/`;
    - **overlay:** `body/app/` (prefix) is the React overlay tree; ordered BEFORE the
-     `body/` rule so overlay changes gate the node toolchain, not Rust (the app crate is
+     `body/` rule so overlay changes gate the node toolchain, not Rust (the overlay is
      excluded from the gated Rust workspace, ADR-0011);
    - **rust:** `body/` (prefix);
    - **neither:** `docs/`, `.claude/` (prefix); `.gitignore`,
@@ -102,3 +105,18 @@ consequences of that split, kept normative here with the rule list above:
   rust. The Tauri `src-tauri` shell lives in the same `body/app/` tree but is excluded
   from the gated Rust workspace and host-validated (ADR-0011 decision 5), so a change
   anywhere under `body/app/` gates the node toolchain in CI, never the Rust one.
+
+## Addendum (2026-07-16): the Tauri shell subtree is carved back to rust
+
+The rule above sent *every* `body/app/` change to the overlay (node) job, including the
+host-native Tauri shell at `body/app/src-tauri/`, which is Rust, not node. That was correct
+while nothing gated the shell's Rust, but `check-body` now fmt-checks the shell (ADR-0011),
+and a fmt gate is only real if the change that would dirty it triggers the job that runs it.
+So a fourth `body/app/` ordering was added: `body/app/src-tauri/` → **rust**, placed BEFORE
+the `body/app/` → overlay rule (first match wins). A shell `.rs` edit now gates the rust
+job (which runs `just check-body`, hence the shell fmt check), while the React overlay under
+`body/app/src/` stays overlay. The React tests use a fake bridge and never exercise the shell
+Rust, so routing a shell-only change away from the node job under-tests nothing; and a shell
+change re-running the full body coverage build is over-testing, the safe direction the
+classifier already prefers. `os_windows` needed no classifier change: it lives under `body/`
+and already gated the rust job; `check-body` just clippy-checks it on the windows target now.

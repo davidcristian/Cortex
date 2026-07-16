@@ -114,6 +114,10 @@ jobs:
         with:
           toolchain: stable
           components: rustfmt, clippy
+          # check-body clippies the cfg(windows) os_windows backend on this target (which the
+          # native workspace compiles to nothing); clippy never links, so no MSVC toolchain is
+          # needed. Shell fmt (body/app/src-tauri) needs only rustfmt, already present. ADR-0011.
+          targets: x86_64-pc-windows-msvc
       - uses: taiki-e/install-action@4684b8405694ae9dd42c9f39ba901a70ae83f4a3 # v2
         with:
           tool: cargo-llvm-cov,just
