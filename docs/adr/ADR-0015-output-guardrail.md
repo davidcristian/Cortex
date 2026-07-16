@@ -105,4 +105,6 @@ appending a link, plus any future model swap silently re-opening the gap.
 - **Footer/boilerplate heuristics** ("call this number", non-URL phishing payloads) are heuristic,
   so it must not ride in the deterministic layer; likely a screening-model job (ADR-0013).
 - **Structured redaction reporting** (a `Converse` status event alongside the inline marker)
-  when the overlay grows a place to show it.
+  when the overlay grows a place to show it. **Declined 2026-07-16 (addendum below):** the inline
+  marker already surfaces the redaction in context and durably, and the status-shaped event would
+  be ephemeral and consumed by nothing.
