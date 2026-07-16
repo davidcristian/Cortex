@@ -105,7 +105,9 @@ appending a link, plus any future model swap silently re-opening the gap.
 - **Footer/boilerplate heuristics** ("call this number", non-URL phishing payloads) are heuristic,
   so it must not ride in the deterministic layer; likely a screening-model job (ADR-0013).
 - **Structured redaction reporting** (a `Converse` status event alongside the inline marker)
-  when the overlay grows a place to show it.
+  when the overlay grows a place to show it. **Declined 2026-07-16 (addendum below):** the inline
+  marker already surfaces the redaction in context and durably, and the status-shaped event would
+  be ephemeral and consumed by nothing.
 
 ## Addendum (2026-07-06): strict mode + `mailto:` coverage
 
@@ -556,3 +558,44 @@ event** for the overlay (no proto change needed, as `StatusUpdate` and the overl
 already exist; its real cost is that `OutputFilter.feed` returns `str`, so no redaction signal
 reaches the engine). Safety stays deterministic: what is not matched is not redacted, never
 mis-instructed.
+
+## Addendum (2026-07-16): structured redaction reporting closes as declined
+
+The final deferral above, a `Converse` status event alongside the inline marker, closes
+**declined**, read against the shipped path rather than the deferral's own guess. The premise was
+that the overlay might want a redaction surfaced as something richer than the inline marker (a badge,
+a count, a distinct style). Reading the path end to end, the inline marker already meets that need,
+and meets it more durably than the proposed event could. This is a docs-only outcome; no code
+changed.
+
+**The marker is self-explanatory and in context.** A live run of the real `UrlRedactingGuardrail`
+over a laundered reply turned `Full report at https://evil.example/report for details.` into
+`Full report at [link removed: untrusted source] for details.` (`guardrail.py`, `REDACTED_LINK`). The
+user sees that a link was removed, where it stood, and why (untrusted source), with no second
+channel. That the marker suffices was the design intent recorded in `guardrail.py` from the start
+(`REDACTED_LINK` is "self-explanatory inline, so the overlay needs no extra event type").
+
+**It renders verbatim with no special handling.** The engine folds the scrubbed delta straight into
+`TextDelta` (`engine.py`), the orchestrator maps that onto the wire `TextDelta` (`converse.py`), and
+the overlay reducer appends delta text into the assistant bubble unconditionally (`overlayState.ts`,
+the `delta` case), confirmed live by feeding the exact marker string through the real reducer and
+reading back the bubble.
+
+**The marker is durable where the event would not be.** It is part of the persisted `full_text`
+(decision 5: the reply on record equals the reply shown), so a reloaded chat still shows it
+(`hydrate`, `sessionState.ts`). The proposed reporting reuses `StatusUpdate`, which is ephemeral by
+contract (never persisted, not part of the reply) and whose overlay chip drops when the turn settles,
+so a redaction badge driven by it would flash once and vanish, dead on reload. That is the same
+terminal test reasoning persistence was declined under: nothing consumes it, and nothing keeps it
+true across a reload.
+
+**A safe event could carry only a count, never the URL.** A redaction event that included the
+redacted link would reopen the very channel the guardrail exists to close, so the most it could
+honestly carry is a count, which adds nothing the visible inline markers do not already show.
+
+The change would still cost the `OutputFilter.feed` port widening (the `OutputFilter` protocol, both
+filter policies, the `ThinkingChannel`, the engine feed loop, and `open_output_channels`), all to
+drive a signal nothing in the overlay reads. Recorded in the backlog's dead-until-a-consumer list; it
+reopens only if the overlay grows a redaction surface the inline marker genuinely cannot serve (a
+persisted count badge, distinct styling), which would need a durable channel designed with its
+record, not the ephemeral status one this deferral imagined.
