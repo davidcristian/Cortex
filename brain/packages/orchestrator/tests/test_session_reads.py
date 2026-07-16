@@ -14,9 +14,15 @@ from grpc import aio
 
 from cortex_core import (
     EchoInferenceBackend,
+    InMemoryMemoryStore,
     InMemorySessionStore,
+    MemoryRecord,
+    MemoryStoreError,
     Message,
     Role,
+    ScoredMemory,
+    SessionMemoryCascade,
+    SessionMemoryScope,
     SessionStore,
     SessionStoreError,
     SessionSummary,
@@ -30,6 +36,8 @@ from cortex_orchestrator import (
 )
 from cortex_seam import (
     BrainServiceStub,
+    DeleteSessionReply,
+    DeleteSessionRequest,
     GetSessionMessagesReply,
     GetSessionMessagesRequest,
     ListSessionsReply,
@@ -66,11 +74,21 @@ async def _rename(stub: BrainServiceStub, session_id: str, title: str) -> Rename
     )
 
 
-async def _serve(store: SessionStore) -> tuple[aio.Server, str]:
-    """A BrainService over `store` on an ephemeral loopback port."""
+async def _delete(stub: BrainServiceStub, session_id: str) -> DeleteSessionReply:
+    method = stub.DeleteSession  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
+    return cast("DeleteSessionReply", await method(DeleteSessionRequest(session_id=session_id)))
+
+
+async def _serve(
+    store: SessionStore, *, cascade: SessionMemoryCascade | None = None
+) -> tuple[aio.Server, str]:
+    """A BrainService over `store` (and an optional delete cascade) on a loopback port."""
     engine = TurnEngine(store, EchoInferenceBackend(), SystemClock())
     server, port = create_server(
-        SeamServerConfig(host="127.0.0.1", port=0), lambda _confirmer, _progress: engine, store
+        SeamServerConfig(host="127.0.0.1", port=0),
+        lambda _confirmer, _progress: engine,
+        store,
+        memory_cascade=cascade,
     )
     await server.start()
     return server, f"127.0.0.1:{port}"
@@ -156,7 +174,7 @@ async def test_get_session_messages_for_an_unknown_session_is_empty() -> None:
 
 
 class FailingStore:
-    """A SessionStore whose reads and the rename write raise, to drive the handlers'
+    """A SessionStore whose reads and the rename/delete writes raise, to drive the handlers'
     UNAVAILABLE abort paths (ADR-0021)."""
 
     async def append(self, session_id: str, message: Message) -> None:
@@ -176,6 +194,33 @@ class FailingStore:
         del session_id, title
         msg = "redis is down"
         raise SessionStoreError(msg)
+
+    async def delete(self, session_id: str) -> None:
+        del session_id
+        msg = "redis is down"
+        raise SessionStoreError(msg)
+
+
+class FailingMemoryStore:
+    """A MemoryStore whose delete_scope raises, to drive DeleteSession's MemoryStoreError abort.
+
+    Wrapped in a real `SessionMemoryCascade` under session scoping so the cascade genuinely calls
+    `delete_scope` (rather than short-circuiting) and its failure crosses the port.
+    """
+
+    async def add(self, record: MemoryRecord) -> None:
+        del record
+
+    async def search(
+        self, embedding: Sequence[float], *, k: int, scopes: Sequence[str] | None = None
+    ) -> Sequence[ScoredMemory]:
+        del embedding, k, scopes
+        return ()
+
+    async def delete_scope(self, scope: str) -> int:
+        del scope
+        msg = "pgvector is down"
+        raise MemoryStoreError(msg)
 
 
 async def test_list_sessions_store_failure_aborts_unavailable() -> None:
@@ -243,3 +288,71 @@ async def test_rename_session_store_failure_aborts_unavailable() -> None:
         await server.stop(grace=None)
     assert excinfo.value.code() is grpc.StatusCode.UNAVAILABLE
     assert "redis is down" in (excinfo.value.details() or "")
+
+
+async def test_delete_session_removes_a_chat_from_the_listing_and_history() -> None:
+    # The destructive management write over the seam: after delete, the chat is gone from the
+    # switcher's listing and its history reads empty, while a sibling chat is untouched.
+    store = await _seeded_store()
+    server, address = await _serve(store)
+    try:
+        async with aio.insecure_channel(address) as channel:
+            stub = BrainServiceStub(channel)
+            await _delete(stub, "alpha")
+            listed = await _list(stub, limit=0)
+            gone = await _messages(stub, "alpha")
+    finally:
+        await server.stop(grace=None)
+    assert [s.session_id for s in listed.sessions] == ["beta"]  # alpha dropped, beta kept
+    assert list(gone.messages) == []  # its transcript is gone (the unknown-session behavior)
+
+
+async def test_delete_session_cascades_to_session_scoped_memories_but_spares_global() -> None:
+    # End-to-end cascade under session scoping: deleting a chat forgets its own-scope memories,
+    # while a global-scope memory (the shared cross-conversation space) is never swept.
+    store = await _seeded_store()
+    mem = InMemoryMemoryStore()
+    await mem.add(
+        MemoryRecord(id="a1", text="alpha secret", embedding=(1.0,), at=_T0, scope="alpha")
+    )
+    await mem.add(
+        MemoryRecord(id="g1", text="shared fact", embedding=(1.0,), at=_T0, scope="global")
+    )
+    cascade = SessionMemoryCascade(mem, SessionMemoryScope())
+    server, address = await _serve(store, cascade=cascade)
+    try:
+        async with aio.insecure_channel(address) as channel:
+            await _delete(BrainServiceStub(channel), "alpha")
+    finally:
+        await server.stop(grace=None)
+    assert list(await mem.search((1.0,), k=5, scopes=["alpha"])) == []  # alpha's memory forgotten
+    survived = await mem.search((1.0,), k=5, scopes=["global"])  # the shared space is intact
+    assert [hit.record.id for hit in survived] == ["g1"]
+
+
+async def test_delete_session_store_failure_aborts_unavailable() -> None:
+    server, address = await _serve(FailingStore())
+    try:
+        async with aio.insecure_channel(address) as channel:
+            with pytest.raises(aio.AioRpcError) as excinfo:
+                await _delete(BrainServiceStub(channel), "alpha")
+    finally:
+        await server.stop(grace=None)
+    assert excinfo.value.code() is grpc.StatusCode.UNAVAILABLE
+    assert "redis is down" in (excinfo.value.details() or "")
+
+
+async def test_delete_session_memory_cascade_failure_aborts_unavailable() -> None:
+    # The session delete succeeds, then the cascade raises MemoryStoreError; the handler surfaces it
+    # as UNAVAILABLE. The operation is idempotent, so a retry re-runs the cascade and heals.
+    store = await _seeded_store()
+    cascade = SessionMemoryCascade(FailingMemoryStore(), SessionMemoryScope())
+    server, address = await _serve(store, cascade=cascade)
+    try:
+        async with aio.insecure_channel(address) as channel:
+            with pytest.raises(aio.AioRpcError) as excinfo:
+                await _delete(BrainServiceStub(channel), "alpha")
+    finally:
+        await server.stop(grace=None)
+    assert excinfo.value.code() is grpc.StatusCode.UNAVAILABLE
+    assert "pgvector is down" in (excinfo.value.details() or "")

@@ -36,10 +36,8 @@ use std::time::Duration;
 
 use futures_core::Stream;
 
-use crate::transport::{
-    BrainTransport, ConfirmDecision, DueReminder, SeamHealth, SessionMessage, SessionSummary,
-    TransportError, TurnEvent,
-};
+use crate::session_types::{DueReminder, SessionMessage, SessionSummary};
+use crate::transport::{BrainTransport, ConfirmDecision, SeamHealth, TransportError, TurnEvent};
 
 /// A timer effect: wait `duration` before resolving. The one seam the retry loop uses to
 /// back off, so the *schedule* is testable with a fake that returns immediately (no real
@@ -239,6 +237,16 @@ impl<T: BrainTransport, S: Sleeper, R: Randomness> BrainTransport for RetryingTr
         // not become a silent second relabel.
         self.guarded(SeamMethod::RenameSession, || {
             self.inner.rename_session(session_id, title)
+        })
+        .await
+    }
+
+    async fn delete_session(&self, session_id: &str) -> Result<(), TransportError> {
+        // A user-driven DESTRUCTIVE write (ADR-0021). The plan refuses it too, so the same door
+        // grants exactly one attempt: a destroy is the last call to re-issue automatically, and a
+        // silent retry could remove a chat re-materialized by a still-streaming turn.
+        self.guarded(SeamMethod::DeleteSession, || {
+            self.inner.delete_session(session_id)
         })
         .await
     }

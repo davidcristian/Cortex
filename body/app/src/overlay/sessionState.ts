@@ -107,6 +107,35 @@ export function adoptSession(
 }
 
 /**
+ * Remove a deleted chat from the switcher list, handling the current-session hazard (ADR-0021
+ * delete addendum). Deleting any other chat only drops its row. Deleting the CURRENTLY OPEN chat
+ * must never leave a deleted transcript on screen, so the panel resets to a fresh empty chat in
+ * place (the panel stays open, the switcher stays as it was so the user can keep managing chats),
+ * taking `fallbackSessionId` for its identity: the reducer cannot mint ids, so the controller mints
+ * one and hands it in. Either way `touched` is set, since deleting is the user acting on the overlay.
+ */
+export function deleteSession(
+  state: OverlayState,
+  sessionId: string,
+  fallbackSessionId: string,
+): OverlayState {
+  const sessions = state.sessions.filter((s) => s.sessionId !== sessionId);
+  if (sessionId !== state.sessionId) {
+    return { ...state, sessions, touched: true };
+  }
+  return {
+    ...state,
+    sessions,
+    touched: true,
+    sessionId: fallbackSessionId,
+    title: NEW_CHAT_TITLE,
+    messages: [],
+    pendingConfirm: null,
+    seq: 0,
+  };
+}
+
+/**
  * The session id to switch to when cycling from `currentId` by `delta`
  * (-1 = newer / previous, +1 = older / next), or `null` for no move.
  * `sessions` is newest-first. A current chat not in the list (a fresh, unsaved

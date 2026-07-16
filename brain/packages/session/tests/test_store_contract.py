@@ -51,6 +51,41 @@ async def test_set_title_overrides_the_first_message(store: SessionStore) -> Non
     await contract.check_set_title_overrides_the_first_message(store)
 
 
+async def test_delete_removes_the_session(store: SessionStore) -> None:
+    await contract.check_delete_removes_the_session(store)
+
+
+async def test_delete_leaves_no_orphaned_redis_key_or_index_member() -> None:
+    """Distrust-green: inspect Redis directly and prove the delete leaves NOTHING behind.
+
+    The contract check drives the delete through the port; this asserts against the raw keyspace,
+    so it reddens if the messages key, the title key, or the recency-index member survives.
+    """
+    client = FakeAsyncRedis(server=FakeServer())
+    store = RedisSessionStore(client)
+    await store.append("s", contract.make_message(Role.USER, "hi"))
+    await store.set_title("s", "a title")
+
+    async def session_keys() -> list[bytes]:
+        # keys()'s return is a partially-Any union; this call only ever reads bytes members back.
+        raw = await client.keys("cortex:session:s:*")  # pyright: ignore[reportUnknownMemberType]
+        return cast("list[bytes]", raw)
+
+    assert await session_keys()  # both the messages and title keys exist before the delete
+    assert await client.zscore("cortex:sessions", "s") is not None  # indexed before
+
+    await store.delete("s")
+
+    assert await session_keys() == []  # messages AND title gone
+    assert await client.zscore("cortex:sessions", "s") is None  # index member gone
+
+
+async def test_connection_failure_on_delete_wraps_the_cause() -> None:
+    with pytest.raises(SessionStoreError, match="deleting session 's'") as excinfo:
+        await _disconnected_store().delete("s")
+    assert isinstance(excinfo.value.__cause__, redis_exceptions.ConnectionError)
+
+
 async def test_list_sessions_is_empty_for_a_store_with_no_sessions(store: SessionStore) -> None:
     assert list(await store.list_sessions(limit=10)) == []
 

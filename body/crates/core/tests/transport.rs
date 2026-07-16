@@ -104,6 +104,18 @@ impl BrainTransport for FakeTransport {
         let _ = title;
         Ok(())
     }
+
+    async fn delete_session(&self, session_id: &str) -> Result<(), TransportError> {
+        // A user-only destructive write; the fake accepts any delete and reports success, with an
+        // empty session id standing in for a store/memory failure so the error arm is exercisable.
+        if session_id.is_empty() {
+            return Err(TransportError::Rpc {
+                code: String::from("Unavailable"),
+                message: String::from("store down"),
+            });
+        }
+        Ok(())
+    }
 }
 
 /// Uses the trait as a generic bound, the way application code will.
@@ -468,6 +480,28 @@ async fn fake_transport_renames_a_session_through_the_generic_bound() {
     assert!(rename(&fake, "s1", "").await.is_ok());
     assert_eq!(
         rename(&fake, "", "x").await.unwrap_err(),
+        TransportError::Rpc {
+            code: String::from("Unavailable"),
+            message: String::from("store down"),
+        }
+    );
+}
+
+#[tokio::test]
+async fn fake_transport_deletes_a_session_through_the_generic_bound() {
+    async fn delete<T: BrainTransport>(t: &T, session_id: &str) -> Result<(), TransportError> {
+        t.delete_session(session_id).await
+    }
+    let fake = FakeTransport {
+        script: Ok(SeamHealth {
+            ready: true,
+            detail: String::new(),
+        }),
+    };
+    // A delete reports success; a store/memory failure surfaces rather than being swallowed.
+    assert!(assert_send(delete(&fake, "s1")).await.is_ok());
+    assert_eq!(
+        delete(&fake, "").await.unwrap_err(),
         TransportError::Rpc {
             code: String::from("Unavailable"),
             message: String::from("store down"),

@@ -24,10 +24,10 @@ use body_rpc::BrainSeamClient;
 use body_rpc::generated::brain_service_server::{BrainService, BrainServiceServer};
 use body_rpc::generated::{
     AckReminderReply, AckReminderRequest, ClientEvent, ConfirmRequest, ConfirmResolved,
-    GetSessionMessagesReply, GetSessionMessagesRequest, HealthReply, HealthRequest,
-    ListDueRemindersReply, ListDueRemindersRequest, ListSessionsReply, ListSessionsRequest,
-    RenameSessionReply, RenameSessionRequest, SeamError, ServerEvent, StatusUpdate, TextDelta,
-    ToolActivity, TurnComplete, client_event, server_event,
+    DeleteSessionReply, DeleteSessionRequest, GetSessionMessagesReply, GetSessionMessagesRequest,
+    HealthReply, HealthRequest, ListDueRemindersReply, ListDueRemindersRequest, ListSessionsReply,
+    ListSessionsRequest, RenameSessionReply, RenameSessionRequest, SeamError, ServerEvent,
+    StatusUpdate, TextDelta, ToolActivity, TurnComplete, client_event, server_event,
 };
 use tokio::net::TcpListener;
 use tokio_stream::wrappers::TcpListenerStream;
@@ -287,6 +287,13 @@ impl BrainService for FakeBrain {
         &self,
         _request: Request<RenameSessionRequest>,
     ) -> Result<Response<RenameSessionReply>, Status> {
+        Err(Status::unimplemented("not exercised here"))
+    }
+
+    async fn delete_session(
+        &self,
+        _request: Request<DeleteSessionRequest>,
+    ) -> Result<Response<DeleteSessionReply>, Status> {
         Err(Status::unimplemented("not exercised here"))
     }
 }

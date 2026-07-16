@@ -15,6 +15,7 @@ from cortex_core import (
     MemoryRecaller,
     MemoryRecord,
     ScoredMemory,
+    SessionMemoryCascade,
     SessionMemoryScope,
 )
 
@@ -124,6 +125,93 @@ def test_the_recaller_exposes_no_forget_verb_so_no_turn_can_delete_memory() -> N
     assert not hasattr(MemoryRecaller, "delete_scope")
     turn_facing = {name for name in vars(MemoryRecaller) if not name.startswith("_")}
     assert turn_facing == {"record", "recall"}
+
+
+class _SpyDeleteStore(InMemoryMemoryStore):
+    """An InMemoryMemoryStore that records every scope handed to ``delete_scope``.
+
+    Lets a cascade test prove not just the returned count but that ``GLOBAL_SCOPE`` is NEVER passed
+    at all, an invariant a bare "returns 0" could hide if the guard deleted a namespace that
+    happened to hold nothing.
+    """
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.deleted_scopes: list[str] = []
+
+    async def delete_scope(self, scope: str) -> int:
+        self.deleted_scopes.append(scope)
+        return await super().delete_scope(scope)
+
+
+class _FixedBucketScope:
+    """A MemoryScope writing every session to one shared bucket (neither global nor per-session).
+
+    Proves the cascade refuses a scope that is not the session's own private space even when it is
+    not ``GLOBAL_SCOPE`` (the ``scope != session_id`` guard branch).
+    """
+
+    def write_scope(self, session_id: str) -> str:
+        del session_id
+        return "shared-bucket"
+
+    def read_scopes(self, session_id: str) -> Sequence[str] | None:
+        del session_id
+        return ("shared-bucket",)
+
+
+async def test_cascade_forgets_a_session_scoped_chats_own_memories() -> None:
+    """Under session scoping the cascade deletes exactly the chat's own namespace and counts it."""
+    store = _SpyDeleteStore()
+    await store.add(_record("chat-a fact", (1.0, 0.0), record_id="a1", scope="chat-a"))
+    await store.add(_record("chat-a fact 2", (1.0, 0.0), record_id="a2", scope="chat-a"))
+    await store.add(_record("chat-b fact", (1.0, 0.0), record_id="b1", scope="chat-b"))
+    cascade = SessionMemoryCascade(store, SessionMemoryScope())
+    removed = await cascade.delete_session_memories("chat-a")
+    assert removed == 2  # both of chat-a's private memories
+    assert store.deleted_scopes == ["chat-a"]  # its own scope, and only it
+    assert await store.search([1.0, 0.0], k=5, scopes=["chat-a"]) == ()  # gone
+    kept = await store.search([1.0, 0.0], k=5, scopes=["chat-b"])
+    assert [hit.record.id for hit in kept] == ["b1"]  # another chat is untouched
+
+
+async def test_cascade_does_not_run_under_global_scoping() -> None:
+    """THE critical guard: under the shared global space nothing session-private cascades, and
+    ``GLOBAL_SCOPE`` is NEVER handed to ``delete_scope`` (which would erase every conversation)."""
+    store = _SpyDeleteStore()
+    await store.add(_record("a shared fact", (1.0, 0.0), record_id="g1", scope=GLOBAL_SCOPE))
+    cascade = SessionMemoryCascade(store, GlobalMemoryScope())
+    removed = await cascade.delete_session_memories("any-session")
+    assert removed == 0  # nothing session-private to forget
+    assert store.deleted_scopes == []  # delete_scope never called: GLOBAL_SCOPE never passed
+    survived = await store.search([1.0, 0.0], k=5)  # the shared space is fully intact
+    assert [hit.record.id for hit in survived] == ["g1"]
+
+
+async def test_cascade_never_passes_global_scope_even_for_a_session_named_global() -> None:
+    """A session whose id EQUALS ``GLOBAL_SCOPE`` under SESSION scoping still cannot sweep the
+    shared space: the ``GLOBAL_SCOPE`` guard is checked first, so ``write_scope == GLOBAL_SCOPE``
+    is refused before the ``scope == session_id`` test could ever admit it."""
+    store = _SpyDeleteStore()
+    await store.add(_record("a shared fact", (1.0, 0.0), record_id="g1", scope=GLOBAL_SCOPE))
+    cascade = SessionMemoryCascade(store, SessionMemoryScope())
+    removed = await cascade.delete_session_memories(GLOBAL_SCOPE)  # a session id of "global"
+    assert removed == 0
+    assert store.deleted_scopes == []  # GLOBAL_SCOPE never reached delete_scope
+    survived = await store.search([1.0, 0.0], k=5)
+    assert [hit.record.id for hit in survived] == ["g1"]  # the shared space survives
+
+
+async def test_cascade_refuses_a_shared_bucket_that_is_not_the_session_scope() -> None:
+    """A policy writing to a shared bucket (not global, not the session's own scope) is not swept:
+    the cascade runs only when the write scope IS the session id (``scope != session_id``)."""
+    store = _SpyDeleteStore()
+    await store.add(_record("bucket fact", (1.0, 0.0), record_id="k1", scope="shared-bucket"))
+    cascade = SessionMemoryCascade(store, _FixedBucketScope())
+    removed = await cascade.delete_session_memories("some-session")
+    assert removed == 0
+    assert store.deleted_scopes == []  # a shared-but-not-global bucket is left intact
+    assert len(await store.search([1.0, 0.0], k=5)) == 1
 
 
 async def test_record_builds_persists_and_returns_the_memory() -> None:

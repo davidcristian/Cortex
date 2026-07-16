@@ -545,3 +545,58 @@ cold-start-adoption hook. Live-validated (agent, Docker + real Redis): a `RedisS
 whose stored `:title` differs from its first message listed with the brain title, and opening it
 over the real `GetSessionMessages` + the overlay reducer showed that same brain title in the header;
 browser-validated against the demo bridge in both themes.
+
+## Addendum (2026-07-16): session deletion lands as a hard delete with a scope-aware memory cascade
+
+The last of the deferred management verbs lands, and the whole point is its safety design, not the
+plumbing. All three halves the deferral bundled shipped together: the store verb, the scope-aware
+memory cascade, and the confirm. The `DeleteSession` RPC is a new `BrainService` unary write.
+
+**Hard delete, not the tombstone the deferral guessed.** `SessionStore.delete(session_id)` HARD-
+deletes a chat: the `:messages` list, the optional `:title` string, and the `cortex:sessions`
+recency-index member, all in one transactional pipeline (nothing orphaned, no dangling index entry),
+and it is idempotent. The deferral proposed a tombstone "so an in-flight read fails cleanly", but
+read against the code that reason does not hold: the read RPCs are stateless snapshots and an unknown
+session already reads as an empty `history`, so a deleted chat degrades to exactly that, with no
+in-flight id to protect. It is the same reasoning the same-day `MemoryStore.delete_scope` hard delete
+turned on, and a privacy-motivated "forget this chat" wants true erasure over a hidden-but-kept
+transcript.
+
+**The cascade is off the turn path by construction.** The forget verb (`MemoryStore.delete_scope`)
+must never sit on the turn-facing `MemoryRecaller`, whose surface is record/recall so no tool or
+tainted turn can spell "forget everything" (pinned by
+`test_the_recaller_exposes_no_forget_verb...`). So the cascade is a separate trusted
+`SessionMemoryCascade(store, scope)` (`cortex_core.memory_cascade`), holding the same `MemoryStore` +
+`MemoryScope` the recaller uses but exposing only `delete_session_memories(session_id)`, wired by the
+composition root into `DeleteSession` and never into an engine. It targets `write_scope(session_id)`
+and cascades ONLY when that scope is the session's own private space (`scope == session_id`, session
+scoping). Under the default `GlobalMemoryScope` the memories are the shared cross-conversation space,
+so nothing session-private cascades. The `GLOBAL_SCOPE` guard is checked FIRST, so `GLOBAL_SCOPE` can
+never be handed to `delete_scope` (which would erase every conversation's memory) even for a session
+whose id happens to equal `GLOBAL_SCOPE`. The handler deletes the session first (the visible chat is
+the user's primary intent), then cascades; a `SessionStoreError`/`MemoryStoreError` aborts
+`UNAVAILABLE`, and both steps being idempotent, a retry after a failure heals.
+
+**The gate is structural user-only reachability, and the confirm is overlay-local.** Exactly as
+rename: `DeleteSession` is a `BrainService` method the overlay drives out of band, no tool in any
+registry, never through the turn engine, so no model, tool, or tainted turn reaches it. The
+`SeamConfirmer` gates in-turn tool calls, not a unary management RPC, so the "are you sure" is
+**overlay-local**: the switcher row's trash swaps in an inline confirm/cancel pair and the delete
+fires only on the second explicit click. The body classifies `SeamMethod::DeleteSession` **not
+repeatable**: a destroy is the last call to re-issue automatically, and a silent retry could destroy
+a chat a still-streaming turn re-materialized between a lost reply and the retry.
+
+**The current-session hazard is handled.** Deleting the currently-open chat tears down its in-flight
+turn first (denying any pending confirm and cancelling the stream, so a streaming reply cannot
+re-append the chat after the delete) and, on success, resets the panel to a fresh new chat, so a
+deleted transcript is never rendered; deleting any other chat only drops its switcher row.
+
+**Evidence.** CI-gated at 100% across all four trees, with the safety guards mutation-proven: the
+flagship one seeds a memory under `GLOBAL_SCOPE` and deletes a session named `GLOBAL_SCOPE` under
+session scoping, and dropping the first-checked `GLOBAL_SCOPE` guard reddens it (the shared memory is
+swept); dropping the cascade reddens the session-scoped forget test; dropping the `:title` removal
+leaves an orphan the raw-key test catches; making the current-chat branch skip its reset reddens the
+reducer test; making `DeleteSession` repeatable reddens the body's forward-without-retry test. Live
+(agent, Docker + real Redis + pgvector): a seeded chat with messages, a title, and derived memories
+deleted through the real store left zero `cortex:session:{id}:*` keys and no recency member, its
+session-scoped memories gone, while a `GLOBAL_SCOPE` memory was untouched.

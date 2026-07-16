@@ -10,6 +10,8 @@ use std::future::Future;
 
 use futures_core::Stream;
 
+use crate::session_types::{DueReminder, SessionMessage, SessionSummary};
+
 /// Result of a `BrainService.Health` probe over the seam.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct SeamHealth {
@@ -122,57 +124,6 @@ pub enum TurnEvent {
         /// Human-readable error message.
         message: String,
     },
-}
-
-/// One recent chat as the overlay's switcher shows it. This is the typed core mirror
-/// of the proto `SessionSummary` (ADR-0021).
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct SessionSummary {
-    /// The chat's session id (its identity for loading history / cycling).
-    pub session_id: String,
-    /// Derived title: the first user message, one line, truncated.
-    pub title: String,
-    /// Derived one-line preview: the last message's text, truncated.
-    pub preview: String,
-    /// Last-activity time as unix-milliseconds, for a relative timestamp.
-    pub last_activity_unix_ms: i64,
-}
-
-/// One persisted message in a session's history. This is the typed core mirror of the
-/// proto `SessionMessage` (ADR-0021).
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct SessionMessage {
-    /// `"user"` or `"assistant"` are the only persisted roles.
-    pub role: String,
-    /// The message text.
-    pub text: String,
-    /// The turn this message belongs to (user turn + its assistant reply share it).
-    pub turn_id: String,
-    /// Authoring time as unix-milliseconds.
-    pub at_unix_ms: i64,
-}
-
-/// One fired-but-undelivered reminder awaiting the overlay (ADR-0025). This is the
-/// typed core mirror of the proto `DueReminder`.
-///
-/// `text` is user-authored in the ordinary case but may be attacker-influenced when
-/// `tainted` (a reminder scheduled out of untrusted content, ADR-0013), so a surface
-/// renders it as inert text and never as markup, a link, or an instruction. The
-/// provenance bit rides along so that surface can badge it rather than guess.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct DueReminder {
-    /// The reminder's id, which is what [`BrainTransport::ack_reminder`] acks.
-    pub reminder_id: String,
-    /// What to remind the user of; display-only, and inert (see the type docs).
-    pub text: String,
-    /// When it became deliverable, as unix-milliseconds.
-    pub fired_at_unix_ms: i64,
-    /// Whether the series recurs (a one-shot is gone once acked).
-    pub recurring: bool,
-    /// Untrusted provenance: the text came from content the brain does not trust.
-    pub tainted: bool,
-    /// The chat this reminder was created in; empty for a session-less caller.
-    pub session_id: String,
 }
 
 /// The body's typed async client port to the brain (`docs/ARCHITECTURE.md`,
@@ -296,5 +247,29 @@ pub trait BrainTransport: Send + Sync {
         &self,
         session_id: &str,
         title: &str,
+    ) -> impl Future<Output = Result<(), TransportError>> + Send;
+
+    /// Deletes one chat (`BrainService.DeleteSession`, ADR-0021 management addendum): the
+    /// overlay's user-driven destructive removal of a chat and its derived memories. The brain
+    /// hard-deletes the transcript and catalog entry and cascades to the session's private
+    /// memories; the reply is a bare acknowledgement (the overlay drops the row and re-lists).
+    ///
+    /// A **destructive, irreversible write**, and a user-only one. Its gate is the same structural
+    /// user-only reachability `rename_session` has (never a model, tool, or tainted turn), and the
+    /// user's intent is secured OUT of band by an overlay-local confirm before this is ever called.
+    /// Because it carries a destructive effect, the resilient transport refuses to retry it
+    /// (`SeamMethod::DeleteSession` is not repeatable): one attempt, and a transient failure
+    /// surfaces rather than silently re-issuing a destroy. The delete is idempotent, so a repeat is
+    /// a no-op ONLY while nothing re-creates the id; but deleting the currently-open chat while its
+    /// turn still streams is exactly a concurrent `append` that can re-materialize it between a lost
+    /// reply and a retry, so a silent retry could destroy a transcript the user never confirmed
+    /// removing. The user, who confirmed once, retries deliberately instead.
+    ///
+    /// # Errors
+    ///
+    /// As [`BrainTransport::list_sessions`] (a store or memory failure surfaces as `Unavailable`).
+    fn delete_session(
+        &self,
+        session_id: &str,
     ) -> impl Future<Output = Result<(), TransportError>> + Send;
 }

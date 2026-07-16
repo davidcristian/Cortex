@@ -62,6 +62,11 @@ class InMemorySessionStore:
         """Persist a brain-generated display title, preferred by ``list_sessions`` (ADR-0021)."""
         self._titles[session_id] = title
 
+    async def delete(self, session_id: str) -> None:
+        """Hard-delete a session's history and title (ADR-0021 delete addendum), idempotently."""
+        self._sessions.pop(session_id, None)
+        self._titles.pop(session_id, None)
+
 
 class EchoInferenceBackend:
     """The scripted fake behind CI chat: deterministic, observable state survival.

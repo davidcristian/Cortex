@@ -196,4 +196,8 @@ impl BrainTransport for BrainSeamClient {
         crate::sessions::rename_session(self.inner.clone(), session_id.to_owned(), title.to_owned())
             .await
     }
+
+    async fn delete_session(&self, session_id: &str) -> Result<(), TransportError> {
+        crate::sessions::delete_session(self.inner.clone(), session_id.to_owned()).await
+    }
 }

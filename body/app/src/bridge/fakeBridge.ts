@@ -31,11 +31,15 @@ export class FakeBridge implements BrainBridge {
   messagesBySession: Record<string, readonly SessionMessage[]> = {};
   /** Rename writes received, in order (session id + new title), proving the args crossed. */
   readonly renames: { readonly sessionId: string; readonly title: string }[] = [];
+  /** Delete writes received, in order (session id), proving the destructive call crossed. */
+  readonly deletes: string[] = [];
   /** When set, the matching read rejects (the transport-failure path). */
   listFails = false;
   messagesFail = false;
   /** When set, `renameSession` rejects (a lost write, so the list is left unrelabelled). */
   renameFails = false;
+  /** When set, `deleteSession` rejects (a lost destructive write, so nothing is dropped). */
+  deleteFails = false;
   /** When set, `respondConfirm` rejects (a lost answer, so deny-by-timeout brain-side). */
   confirmFails = false;
   /** What `listDueReminders` resolves with (assignable by a test; ADR-0025). */
@@ -101,6 +105,17 @@ export class FakeBridge implements BrainBridge {
       return Promise.reject(new Error("rename failed"));
     }
     this.sessions = this.sessions.map((s) => (s.sessionId === sessionId ? { ...s, title } : s));
+    return Promise.resolve();
+  }
+
+  // Records the destructive write and, on success, drops the row from the injectable list so a
+  // subsequent re-list no longer offers it, exactly as the brain's hard delete would (ADR-0021).
+  deleteSession(sessionId: string): Promise<void> {
+    this.deletes.push(sessionId);
+    if (this.deleteFails) {
+      return Promise.reject(new Error("delete failed"));
+    }
+    this.sessions = this.sessions.filter((s) => s.sessionId !== sessionId);
     return Promise.resolve();
   }
 

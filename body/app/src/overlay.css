@@ -912,6 +912,74 @@
 .switcher-rename-save:hover {
   color: var(--text);
 }
+/* The trash sits beside the pencil, ink-revealing on hover/focus like it, but its hover is the
+   destructive red so the one irreversible control reads as removal (ADR-0021 delete addendum). */
+.switcher-delete-btn {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  border: none;
+  border-radius: 12px;
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+  opacity: 0;
+  transition:
+    opacity 0.16s var(--ease),
+    background 0.16s var(--ease),
+    color 0.16s var(--ease);
+}
+.switcher-li:hover .switcher-delete-btn,
+.switcher-delete-btn:focus-visible {
+  opacity: 1;
+}
+.switcher-delete-btn:hover {
+  background: rgba(226, 75, 107, 0.14);
+  color: rgb(226, 75, 107);
+}
+/* The per-row "are you sure": a destructive write never fires on a single click, so the trash
+   swaps the row for an explicit confirm/cancel pair before onDelete runs (ADR-0021). */
+.switcher-confirm-delete {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 11px;
+}
+.switcher-confirm-text {
+  flex: 1;
+  min-width: 0;
+  font-size: 13.5px;
+  color: var(--text);
+}
+.switcher-confirm-yes,
+.switcher-confirm-no {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: none;
+  border-radius: 10px;
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+  transition:
+    background 0.16s var(--ease),
+    color 0.16s var(--ease);
+}
+.switcher-confirm-yes {
+  color: rgb(226, 75, 107);
+}
+.switcher-confirm-yes:hover {
+  background: rgba(226, 75, 107, 0.14);
+}
+.switcher-confirm-no:hover {
+  color: var(--text);
+}
 .switcher-row {
   display: flex;
   align-items: baseline;

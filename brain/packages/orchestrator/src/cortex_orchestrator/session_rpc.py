@@ -18,8 +18,8 @@ precedent).
 
 from datetime import datetime
 
-from cortex_core import Message, SessionStore, SessionSummary
-from cortex_seam import RenameSessionReply
+from cortex_core import Message, SessionMemoryCascade, SessionStore, SessionSummary
+from cortex_seam import DeleteSessionReply, RenameSessionReply
 from cortex_seam import SessionMessage as SessionMessagePb
 from cortex_seam import SessionSummary as SessionSummaryPb
 
@@ -80,3 +80,22 @@ async def rename_session(store: SessionStore, session_id: str, title: str) -> Re
     """
     await store.set_title(session_id, clamp_title(title))
     return RenameSessionReply()
+
+
+async def delete_session(
+    store: SessionStore, cascade: SessionMemoryCascade | None, session_id: str
+) -> DeleteSessionReply:
+    """Delete one chat and cascade to its private memories (ADR-0021 delete addendum).
+
+    The session is hard-deleted FIRST (the visible chat is the user's primary intent), then the
+    scope-aware memory cascade runs when a memory backend is wired (`cascade is None` when memory
+    is off, so nothing to forget). Ordering session-first means a memory failure leaves the chat
+    gone (intent satisfied) with a self-healing retry cleaning the memories, rather than a visible
+    chat whose memories vanished. Both steps are idempotent, so a retry after any failure is safe.
+    A `SessionStoreError` or `MemoryStoreError` propagates for the servicer to abort `UNAVAILABLE`
+    (the session-read precedent).
+    """
+    await store.delete(session_id)
+    if cascade is not None:
+        await cascade.delete_session_memories(session_id)
+    return DeleteSessionReply()

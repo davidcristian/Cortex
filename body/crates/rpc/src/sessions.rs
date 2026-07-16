@@ -11,7 +11,9 @@ use body_core::{SessionMessage, SessionSummary, TransportError};
 
 use crate::client::SeamChannel;
 use crate::generated::brain_service_client::BrainServiceClient;
-use crate::generated::{GetSessionMessagesRequest, ListSessionsRequest, RenameSessionRequest};
+use crate::generated::{
+    DeleteSessionRequest, GetSessionMessagesRequest, ListSessionsRequest, RenameSessionRequest,
+};
 use crate::status::status_to_error;
 
 /// Lists recent chats newest-active first (`BrainService.ListSessions`). At most
@@ -71,6 +73,21 @@ pub(crate) async fn rename_session(
 ) -> Result<(), TransportError> {
     client
         .rename_session(RenameSessionRequest { session_id, title })
+        .await
+        .map_err(|status| status_to_error(&status))?;
+    Ok(())
+}
+
+/// Deletes one chat (`BrainService.DeleteSession`, ADR-0021 management addendum). A user-driven
+/// destructive write: the brain hard-deletes the transcript and cascades to the session's private
+/// memories. The reply is a bare acknowledgement, so on success there is nothing to map back; a
+/// non-OK gRPC status maps via [`status_to_error`] (a store/memory failure surfaces as `Unavailable`).
+pub(crate) async fn delete_session(
+    mut client: BrainServiceClient<SeamChannel>,
+    session_id: String,
+) -> Result<(), TransportError> {
+    client
+        .delete_session(DeleteSessionRequest { session_id })
         .await
         .map_err(|status| status_to_error(&status))?;
     Ok(())

@@ -21,6 +21,7 @@ describe("SessionList", () => {
         currentId="c2"
         onSelect={onSelect}
         onRename={vi.fn()}
+        onDelete={vi.fn()}
       />,
     );
     expect(screen.getByText("First chat")).toBeInTheDocument();
@@ -33,7 +34,15 @@ describe("SessionList", () => {
   });
 
   it("shows an empty-state line when there are no chats", () => {
-    render(<SessionList sessions={[]} currentId="c1" onSelect={vi.fn()} onRename={vi.fn()} />);
+    render(
+      <SessionList
+        sessions={[]}
+        currentId="c1"
+        onSelect={vi.fn()}
+        onRename={vi.fn()}
+        onDelete={vi.fn()}
+      />,
+    );
     expect(screen.getByText(/no other chats/iu)).toBeInTheDocument();
   });
 
@@ -45,6 +54,7 @@ describe("SessionList", () => {
         currentId="c1"
         onSelect={vi.fn()}
         onRename={onRename}
+        onDelete={vi.fn()}
       />,
     );
     fireEvent.click(screen.getByLabelText("Rename First chat"));
@@ -62,7 +72,13 @@ describe("SessionList", () => {
   it("submits an empty label to clear a custom title back to the derived one", () => {
     const onRename = vi.fn();
     render(
-      <SessionList sessions={[summary()]} currentId="c1" onSelect={vi.fn()} onRename={onRename} />,
+      <SessionList
+        sessions={[summary()]}
+        currentId="c1"
+        onSelect={vi.fn()}
+        onRename={onRename}
+        onDelete={vi.fn()}
+      />,
     );
     fireEvent.click(screen.getByLabelText("Rename First chat"));
     fireEvent.change(screen.getByLabelText("New chat name"), { target: { value: "   " } });
@@ -73,7 +89,13 @@ describe("SessionList", () => {
   it("cancels on Escape without renaming, and ignores other keys", () => {
     const onRename = vi.fn();
     render(
-      <SessionList sessions={[summary()]} currentId="c1" onSelect={vi.fn()} onRename={onRename} />,
+      <SessionList
+        sessions={[summary()]}
+        currentId="c1"
+        onSelect={vi.fn()}
+        onRename={onRename}
+        onDelete={vi.fn()}
+      />,
     );
     fireEvent.click(screen.getByLabelText("Rename First chat"));
     const input = screen.getByLabelText<HTMLInputElement>("New chat name");
@@ -82,5 +104,47 @@ describe("SessionList", () => {
     fireEvent.keyDown(input, { key: "Escape" });
     expect(screen.queryByLabelText("New chat name")).not.toBeInTheDocument();
     expect(onRename).not.toHaveBeenCalled();
+  });
+
+  it("deletes only after a per-row confirm, so a single trash click never deletes", () => {
+    const onDelete = vi.fn();
+    render(
+      <SessionList
+        sessions={[summary(), summary({ sessionId: "c2", title: "Second" })]}
+        currentId="c1"
+        onSelect={vi.fn()}
+        onRename={vi.fn()}
+        onDelete={onDelete}
+      />,
+    );
+    // One click on the trash asks, but does not delete: the confirm replaces the row.
+    fireEvent.click(screen.getByLabelText("Delete First chat"));
+    expect(onDelete).not.toHaveBeenCalled();
+    expect(screen.getByText("Delete this chat?")).toBeInTheDocument();
+    // The other row stays a normal, selectable item while one is confirming.
+    expect(screen.getByText("Second")).toBeInTheDocument();
+    // Confirming fires the destructive write and closes the confirm.
+    fireEvent.click(screen.getByLabelText("Confirm delete First chat"));
+    expect(onDelete).toHaveBeenCalledWith("c1");
+    expect(screen.queryByText("Delete this chat?")).not.toBeInTheDocument();
+  });
+
+  it("cancels the delete confirm without deleting", () => {
+    const onDelete = vi.fn();
+    render(
+      <SessionList
+        sessions={[summary()]}
+        currentId="c1"
+        onSelect={vi.fn()}
+        onRename={vi.fn()}
+        onDelete={onDelete}
+      />,
+    );
+    fireEvent.click(screen.getByLabelText("Delete First chat"));
+    fireEvent.click(screen.getByLabelText("Cancel delete"));
+    expect(onDelete).not.toHaveBeenCalled();
+    expect(screen.queryByText("Delete this chat?")).not.toBeInTheDocument();
+    // Back to a normal row: the trash is offered again.
+    expect(screen.getByLabelText("Delete First chat")).toBeInTheDocument();
   });
 });

@@ -28,6 +28,7 @@ from cortex_core import (
     RecallPolicy,
     RecencyMmrRecallPolicy,
     RerankingRecallPolicy,
+    SessionMemoryCascade,
     SessionMemoryScope,
 )
 from cortex_embedding import LlamaCppEmbedder
@@ -88,13 +89,16 @@ def recall_policy_from_config(config: MemoryConfig) -> RecallPolicy:
 
 async def build_memory(
     config: MemoryConfig, clock: Clock
-) -> tuple[MemoryRecaller | None, Callable[[], Awaitable[None]]]:
-    """Pick the memory backend from config; return the recaller (or None) with its closer.
+) -> tuple[MemoryRecaller | None, SessionMemoryCascade | None, Callable[[], Awaitable[None]]]:
+    """Pick the memory backend from config; return the recaller, the delete cascade, and a closer.
 
-    ``none`` disables memory. The DB-less default CI and the no-GPU dev loop run. ``pgvector``
-    connects an asyncpg pool and a CPU embedder client; the returned closer releases both. The
-    ``scope`` config selects the recaller's namespace policy (default global, ADR-0008 addendum) and
-    ``recall`` its reranking policy (default raw top-k cosine, ADR-0008 rerank addendum).
+    ``none`` disables memory (both are None). The DB-less default CI and the no-GPU dev loop run.
+    ``pgvector`` connects an asyncpg pool and a CPU embedder client; the returned closer releases
+    both. The ``scope`` config selects the recaller's namespace policy (default global, ADR-0008
+    addendum) and ``recall`` its reranking policy (default raw top-k cosine, ADR-0008 rerank
+    addendum). The ``SessionMemoryCascade`` shares that store and scope but exposes only the
+    scope-guarded session-delete forget (ADR-0021), the trusted out-of-band path the turn-facing
+    recaller must never carry; the server wires it into ``DeleteSession``, never into an engine.
     """
     if config.backend == "pgvector":
         client = httpx.AsyncClient(timeout=httpx.Timeout(_EMBEDDER_TIMEOUT_S))
@@ -107,5 +111,6 @@ async def build_memory(
 
         scope = memory_scope_from_name(config.scope)
         policy = recall_policy_from_config(config)
-        return MemoryRecaller(store, embedder, clock, scope=scope, policy=policy), close_memory
-    return None, noop_aclose
+        recaller = MemoryRecaller(store, embedder, clock, scope=scope, policy=policy)
+        return recaller, SessionMemoryCascade(store, scope), close_memory
+    return None, None, noop_aclose

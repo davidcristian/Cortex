@@ -251,6 +251,48 @@ describe("overlayState reducer", () => {
     expect(open.title).toBe("about dogs");
   });
 
+  it("sessionDeleted drops another chat's row without disturbing the open chat", () => {
+    // Deleting a chat that is not the current one only removes it from the switcher list; the
+    // panel, its session id, and its messages are untouched (the deleted chat was never on screen).
+    const started = run([{ kind: "open" }, submit("my question")]);
+    const listed = reduce(started, {
+      kind: "sessionsLoaded",
+      sessions: [summary(started.sessionId), summary("other")],
+    });
+    const after = reduce(listed, {
+      kind: "sessionDeleted",
+      sessionId: "other",
+      fallbackSessionId: "unused-fresh-id",
+    });
+    expect(after.sessions.map((s) => s.sessionId)).toEqual([started.sessionId]); // "other" gone
+    expect(after.sessionId).toBe(started.sessionId); // the open chat's identity is unchanged
+    expect(after.messages).toBe(started.messages); // its transcript is untouched
+    expect(after.touched).toBe(true);
+  });
+
+  it("sessionDeleted on the CURRENT chat falls back to a fresh empty chat, never a deleted one", () => {
+    // The current-session hazard: deleting the open chat must not leave its transcript on screen.
+    // The panel resets to a fresh empty chat under the minted fallback id (a new-chat in place),
+    // and the deleted row leaves the list. The panel stays open so the user keeps their place.
+    const started = run([{ kind: "open" }, submit("secret question")]);
+    const listed = reduce(started, {
+      kind: "sessionsLoaded",
+      sessions: [summary(started.sessionId), summary("keep")],
+    });
+    const after = reduce(listed, {
+      kind: "sessionDeleted",
+      sessionId: started.sessionId,
+      fallbackSessionId: "fresh-99",
+    });
+    expect(after.sessionId).toBe("fresh-99"); // a brand-new chat, not the deleted one
+    expect(after.title).toBe("New chat");
+    expect(after.messages).toEqual([]); // the deleted transcript is gone from the panel
+    expect(after.seq).toBe(0);
+    expect(after.mode).toBe("panel"); // the panel stays open
+    expect(after.sessions.map((s) => s.sessionId)).toEqual(["keep"]); // deleted row removed
+    expect(after.touched).toBe(true);
+  });
+
   it("adoptSession hydrates like openSession but keeps the overlay hidden", () => {
     const messages: SessionMessage[] = [
       { role: "user", text: "about cats", turnId: "t", atUnixMs: 1 },

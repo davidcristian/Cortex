@@ -14,8 +14,10 @@ import grpc
 from grpc import aio
 
 from cortex_core import (
+    MemoryStoreError,
     ScheduleStore,
     ScheduleStoreError,
+    SessionMemoryCascade,
     SessionStore,
     SessionStoreError,
 )
@@ -32,6 +34,7 @@ from cortex_orchestrator.session_rpc import (
     DEFAULT_SESSION_LIST_LIMIT,
     MAX_SESSION_LIST_LIMIT,
     clamp_limit,
+    delete_session,
     message_to_proto,
     rename_session,
     summary_to_proto,
@@ -41,6 +44,8 @@ from cortex_seam import (
     AckReminderRequest,
     BrainServiceServicer,
     ClientEvent,
+    DeleteSessionReply,
+    DeleteSessionRequest,
     GetSessionMessagesReply,
     GetSessionMessagesRequest,
     HealthReply,
@@ -93,12 +98,14 @@ class BrainService(BrainServiceServicer):
         store: SessionStore,
         *,
         schedules: ScheduleStore | None = None,
+        memory_cascade: SessionMemoryCascade | None = None,
         max_buffered_events: int = DEFAULT_MAX_BUFFERED_EVENTS,
         confirm_timeout_s: float = DEFAULT_CONFIRM_TIMEOUT_S,
     ) -> None:
         self._make_engine = make_engine
         self._store = store
         self._schedules = schedules
+        self._memory_cascade = memory_cascade
         self._max_buffered_events = max_buffered_events
         self._confirm_timeout_s = confirm_timeout_s
 
@@ -187,6 +194,21 @@ class BrainService(BrainServiceServicer):
         except SessionStoreError as err:
             await context.abort(grpc.StatusCode.UNAVAILABLE, str(err))
 
+    async def DeleteSession(  # noqa: N802 - method name is fixed by the gRPC codegen interface
+        self,
+        request: DeleteSessionRequest,
+        context: aio.ServicerContext[DeleteSessionRequest, DeleteSessionReply],
+    ) -> DeleteSessionReply:
+        """Delete a chat and cascade to its private memories (ADR-0021): a destructive user write.
+
+        Structural user-only gate like RenameSession; ordering and the scope-aware cascade live in
+        `session_rpc.delete_session`. A `SessionStoreError`/`MemoryStoreError` aborts `UNAVAILABLE`.
+        """
+        try:
+            return await delete_session(self._store, self._memory_cascade, request.session_id)
+        except (SessionStoreError, MemoryStoreError) as err:
+            await context.abort(grpc.StatusCode.UNAVAILABLE, str(err))
+
     async def ListDueReminders(  # noqa: N802 - method name is fixed by the gRPC codegen interface
         self,
         request: ListDueRemindersRequest,
@@ -221,15 +243,16 @@ def create_server(
     store: SessionStore,
     *,
     schedules: ScheduleStore | None = None,
+    memory_cascade: SessionMemoryCascade | None = None,
 ) -> tuple[aio.Server, int]:
     """Build the aio server over `make_engine`/`store` and bind it (not started).
 
     `store` is the same session store the engines write, injected so the read-only session
     RPCs (ADR-0021) serve it directly; `schedules` (ADR-0025, None when scheduling is off)
-    backs the reminder pull RPCs the same way. With `config.token` set, a
-    `SeamTokenInterceptor` fronts every RPC (ADR-0016). This is the shared-secret half of
-    assumption 5's posture; empty disables it (loopback-only remains the outer boundary).
-    Returns the server plus the actually-bound port (useful when config.port is 0).
+    backs the reminder pull RPCs the same way. `memory_cascade` (None when memory is off) lets
+    `DeleteSession` forget a deleted chat's private memories. With `config.token` set, a
+    `SeamTokenInterceptor` fronts every RPC (ADR-0016), the shared-secret half of assumption 5's
+    posture; empty disables it. Returns the server plus the actually-bound port (config.port 0).
     """
     interceptors = (SeamTokenInterceptor(config.token),) if config.token else ()
     server = aio.server(interceptors=interceptors)
@@ -237,6 +260,7 @@ def create_server(
         make_engine,
         store,
         schedules=schedules,
+        memory_cascade=memory_cascade,
         max_buffered_events=config.converse_buffer,
         confirm_timeout_s=config.confirm_timeout_s,
     )
@@ -251,6 +275,7 @@ async def serve(
     store: SessionStore,
     *,
     schedules: ScheduleStore | None = None,
+    memory_cascade: SessionMemoryCascade | None = None,
 ) -> None:
     """Run the seam server until SIGTERM/SIGINT or cancellation; always stop gracefully.
 
@@ -258,7 +283,9 @@ async def serve(
     removed on the way out; either signal (or cancelling this coroutine) drains in-flight
     RPCs for up to the shutdown grace period before the listener closes.
     """
-    server, bound_port = create_server(config, make_engine, store, schedules=schedules)
+    server, bound_port = create_server(
+        config, make_engine, store, schedules=schedules, memory_cascade=memory_cascade
+    )
     await server.start()
     _logger.info("seam server listening", extra={"host": config.host, "port": bound_port})
     loop = asyncio.get_running_loop()

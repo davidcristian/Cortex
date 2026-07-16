@@ -81,7 +81,7 @@ async def run_from_env(
     clock = SystemClock()
     store = store_factory(runtime.redis_url)
     backend, close_backend = build_inference_backend(inference, runtime.cortex_model)
-    memory, close_memory = await build_memory(memory_config, clock)
+    memory, memory_cascade, close_memory = await build_memory(memory_config, clock)
     tool_registry, close_tools = build_tool_registry(tools_config)
     body, close_body = await build_body_gateway(body_config, token=seam_config.token)
     # The subagent dispatcher is assembled here so the user's gated-name backstop
@@ -154,7 +154,9 @@ async def run_from_env(
                 ),
             )
 
-        await serve(seam_config, make_engine, store, schedules=schedules)
+        await serve(
+            seam_config, make_engine, store, schedules=schedules, memory_cascade=memory_cascade
+        )
     finally:
         await stop_ticker(ticker, ticker_task)
         await close_schedules()
