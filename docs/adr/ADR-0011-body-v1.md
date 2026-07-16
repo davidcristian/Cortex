@@ -352,3 +352,27 @@ CI for trees whose dependencies are otherwise never fetched. Coverage is explici
 part of it: this
 ADR excludes both trees from the coverage gate on purpose, and a cross-target clippy is a
 compile check rather than a run.
+
+## Addendum (2026-07-16, later): the recorded deferral partly lands
+
+The deferral just above landed except for one clippy residual. Reading it against the code
+sharpened "fmt plus clippy for both trees" into three real gaps and one non-gap:
+
+- **`os_windows` fmt was never a gap.** It is a `body` workspace member, and `cargo fmt --all
+  --check` (already in `check-body`) formats a member regardless of `cfg`, because rustfmt
+  follows the module tree syntactically and never evaluates `#[cfg(windows)]`. Injecting a fmt
+  violation into `os_windows/src/audio.rs` and watching the existing step flag it confirmed it,
+  which is why the eight findings included no `os_windows` fmt diff (its three were the shell).
+- **Shell fmt** folded into `check-body` (`cd body/app/src-tauri && cargo fmt --check`), and
+  `scripts/ci_paths.py` now classifies `body/app/src-tauri/` as **rust** rather than overlay,
+  so a shell change gates the job that fmt-checks it. A fmt gate the dirtying change cannot
+  trigger is not a gate (ADR-0006 addendum).
+- **`os_windows` clippy** folded into `check-body` as `cargo clippy --target
+  x86_64-pc-windows-msvc -p os-windows`, the CI rust job adding the target. Clippy never links,
+  so no MSVC toolchain; a `needless_return` proved invisible to native `--workspace` clippy and
+  caught by the windows-target clippy.
+- **Shell clippy stays deferred**, recorded in
+  [docs/refinements/repo-gates.md](../refinements/repo-gates.md): it needs the shell to compile
+  (Linux GTK/webkit/dbus dev packages and a cold Tauri build), too heavy for every `body/`
+  change, so it remains the one lint a shell change can dirty unseen. The toolchain-linked full
+  build of either tree stays host-side, as the Risks section says.

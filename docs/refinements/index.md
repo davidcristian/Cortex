@@ -78,7 +78,11 @@ needs neither the read-path GPU-lease hazard nor an async-port widening.
 Repo gates went from 0 back to 1 the same day,
 when the two Rust trees `just check` never lints turned out to have been quietly collecting
 findings; that entry originates in [ADR-0011](../adr/ADR-0011-body-v1.md) rather than the
-ADR-0026 the area doc was extracted under. Memory held at 8 on 2026-07-16 around the first entry
+ADR-0026 the area doc was extracted under. It held at 1 later the same day when its fmt half
+(both trees) and the `os_windows` windows-target clippy landed, leaving one residual, shell
+clippy in CI, blocked on the Linux GTK/webkit/dbus dev packages a cold Tauri build needs. The
+pass also found `os_windows` fmt had never been a gap: as a workspace member it is already
+caught by `check-body`'s `cargo fmt --all`, which formats a member regardless of `cfg`. Memory held at 8 on 2026-07-16 around the first entry
 here to close as **declined**: surfacing the blended recall relevance was read against the tree and
 no consumer for it exists, which its own origin addendum had made the condition, so cheapness had
 been standing in for readiness. It moved to the dead-until-a-consumer list below, and the pass that
@@ -148,11 +152,13 @@ against the code (the warning above); the entry text tells you which seams it ex
 1. **Task-outcome delivery as a notification + the push retry policy**
    ([scheduling.md](scheduling.md)): unblocked on 2026-07-16, when the body's `Notify` trait
    landed and gave the port they both reuse a real backend.
-2. **`cargo fmt` and `cargo clippy` for the two ungated Rust trees**
-   ([repo-gates.md](repo-gates.md)): last because it unblocks no capability, but it is the
-   only entry here that stops a class of defect from recurring, and the format half is
-   nearly free. Five clippy warnings and three unformatted files had accumulated in the
-   Tauri shell and `os_windows` before anyone looked on 2026-07-16.
+2. **`cargo clippy` for the Tauri shell in CI** ([repo-gates.md](repo-gates.md)): the residual
+   of the ungated-trees entry, whose fmt half (both trees) and `os_windows` windows-target
+   clippy landed 2026-07-16 in `check-body` (with `body/app/src-tauri/` reclassified to rust so
+   a shell change gates the job that fmt-checks it). Shell clippy still runs nowhere in CI
+   because, unlike shell fmt (parse only) and `os_windows` clippy (a target add, no link), it
+   needs the Linux GTK/webkit/dbus dev packages and a cold Tauri build. Last because it
+   unblocks no capability, but it is the one lint a shell change can still dirty unseen.
 
 ### Actionable, but a seam or port change comes first
 

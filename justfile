@@ -66,9 +66,19 @@ check-scripts:
 # Rust body workspace: fmt, clippy -D warnings, tests, then coverage at 100%
 # line+region+branch. Branch instrumentation needs nightly, and cargo-llvm-cov has no
 # --fail-under-branches, so the JSON export is checked by coverage_gate.py (ADR-0002).
+# Two ungated trees the workspace gate would otherwise miss are folded in here (ADR-0011):
+# the excluded Tauri shell (body/app/src-tauri) gets its own fmt --check (parse only, no
+# build, no extra dep), and the cfg(windows) os_windows backend gets a clippy on the
+# windows target, since the native --workspace clippy compiles that crate to nothing on
+# Linux. os_windows fmt is already caught by `cargo fmt --all` above (it is a workspace
+# member and rustfmt ignores cfg). The windows target must be installed (rustup target add
+# x86_64-pc-windows-msvc); clippy never links, so no MSVC toolchain is needed. Shell clippy
+# stays out (it needs the Linux GTK/webkit/dbus dev packages), recorded in docs/refinements.
 check-body:
     cd body && cargo fmt --all --check
+    cd body/app/src-tauri && cargo fmt --check
     cd body && cargo clippy --locked --workspace --all-targets -- -D warnings
+    cd body && cargo clippy --locked --target x86_64-pc-windows-msvc -p os-windows --all-targets -- -D warnings
     cd body && cargo test --locked --workspace
     cd body && cargo +nightly llvm-cov --locked --branch --workspace --all-targets --ignore-filename-regex '/_generated/' --fail-under-lines 100 --fail-under-regions 100 --json --summary-only --output-path coverage.json
     cd scripts && uv sync --locked

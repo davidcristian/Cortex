@@ -40,9 +40,11 @@ class Rule(NamedTuple):
 
 
 # Ordered, first match wins; this list is normative in ADR-0006 -- change them together.
-# `body/app/` (the React overlay + its host-only Tauri shell) is the OVERLAY tree; its
-# rule must sit BEFORE the broader `body/` -> RUST rule so overlay changes gate the node
-# toolchain, not the Rust one. The `.md` suffix rule sits last on purpose: files inside a
+# `body/app/` (the React overlay) is the OVERLAY tree, gating the node toolchain. Its
+# host-native Tauri shell lives beside it at `body/app/src-tauri/` but is Rust, not node:
+# `check-body` fmt-checks it (ADR-0011), so that subtree is carved back to RUST by a rule
+# ordered BEFORE `body/app/`. Both `body/app/*` rules sit BEFORE the broader `body/` -> RUST
+# rule (first match wins). The `.md` suffix rule sits last on purpose: files inside a
 # toolchain tree are never assumed inert (tests may read them as fixtures), so e.g.
 # brain/README.md is PYTHON.
 RULES: tuple[Rule, ...] = (
@@ -53,6 +55,7 @@ RULES: tuple[Rule, ...] = (
     Rule("prefix", ".github/workflows/", ALL),
     Rule("exact", "ruff.toml", PYTHON_ONLY),
     Rule("prefix", "brain/", PYTHON_ONLY),
+    Rule("prefix", "body/app/src-tauri/", RUST_ONLY),
     Rule("prefix", "body/app/", OVERLAY_ONLY),
     Rule("prefix", "body/", RUST_ONLY),
     Rule("prefix", "docs/", NEITHER),
