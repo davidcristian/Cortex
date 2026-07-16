@@ -150,6 +150,12 @@ impl BrainTransport for FlakyTransport {
         self.tick()?;
         Ok(reminder_id == "r1")
     }
+
+    async fn rename_session(&self, session_id: &str, title: &str) -> Result<(), TransportError> {
+        self.tick()?;
+        let _ = (session_id, title);
+        Ok(())
+    }
 }
 
 /// A `Sleeper` that records each requested delay and returns immediately (no real time). `Clone`
@@ -325,6 +331,23 @@ async fn forwards_ack_reminder_without_retrying_it() {
     // And a healthy ack still crosses the decorator with its argument intact.
     assert!(transport.ack_reminder("r1").await.unwrap());
     assert!(!transport.ack_reminder("other").await.unwrap());
+}
+
+#[tokio::test]
+async fn forwards_rename_session_without_retrying_it() {
+    // The catalog write is a pass-through (ADR-0021 management addendum): a transient failure
+    // surfaces on the first attempt rather than risking a repeat that re-applies a stale label.
+    let flaky = FlakyTransport::new(FailKind::Connection, 1);
+    let sleeper = FakeSleeper::default();
+    let transport = RetryingTransport::new(flaky.clone(), sleeper.clone(), policy(3));
+    assert_eq!(
+        transport.rename_session("s1", "Cats").await.unwrap_err(),
+        TransportError::Connection(String::from("refused"))
+    );
+    assert_eq!(flaky.call_count(), 1); // no second attempt
+    assert!(sleeper.delays().is_empty());
+    // And a healthy rename still crosses the decorator.
+    assert!(transport.rename_session("s1", "Cats").await.is_ok());
 }
 
 #[tokio::test]

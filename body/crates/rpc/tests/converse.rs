@@ -26,8 +26,8 @@ use body_rpc::generated::{
     AckReminderReply, AckReminderRequest, ClientEvent, ConfirmRequest, ConfirmResolved,
     GetSessionMessagesReply, GetSessionMessagesRequest, HealthReply, HealthRequest,
     ListDueRemindersReply, ListDueRemindersRequest, ListSessionsReply, ListSessionsRequest,
-    SeamError, ServerEvent, StatusUpdate, TextDelta, ToolActivity, TurnComplete, client_event,
-    server_event,
+    RenameSessionReply, RenameSessionRequest, SeamError, ServerEvent, StatusUpdate, TextDelta,
+    ToolActivity, TurnComplete, client_event, server_event,
 };
 use tokio::net::TcpListener;
 use tokio_stream::wrappers::TcpListenerStream;
@@ -280,6 +280,13 @@ impl BrainService for FakeBrain {
         &self,
         _request: Request<AckReminderRequest>,
     ) -> Result<Response<AckReminderReply>, Status> {
+        Err(Status::unimplemented("not exercised here"))
+    }
+
+    async fn rename_session(
+        &self,
+        _request: Request<RenameSessionRequest>,
+    ) -> Result<Response<RenameSessionReply>, Status> {
         Err(Status::unimplemented("not exercised here"))
     }
 }

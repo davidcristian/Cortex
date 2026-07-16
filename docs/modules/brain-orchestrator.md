@@ -148,8 +148,16 @@ The service:
     `DEFAULT_SESSION_LIST_LIMIT`, capped at `MAX_SESSION_LIST_LIMIT`).
   - `GetSessionMessages` → `GetSessionMessagesReply` (ADR-0021): one session's persisted
     history via `store.history`, each a wire `SessionMessage`; unknown session → empty.
-  - Both read RPCs are unary; a `SessionStoreError` aborts them `UNAVAILABLE` (the body maps
-    that to `TransportError::Rpc`). They add no write path, only reads over existing state.
+  - `RenameSession` → `RenameSessionReply` (ADR-0021 management addendum): a gated, **user-only**
+    catalog write via `session_rpc.rename_session`, which bounds the label (`clamp_title`,
+    `MAX_TITLE_INPUT`) and reuses `store.set_title` (the write the brain-generated titles built);
+    `request.title == ""` clears the override. Its gate is structural, not the mid-turn Confirmer:
+    it is no tool in any registry and never runs through the turn engine, so no model, tool, or
+    tainted turn can reach it, only the overlay's own controls. `list_sessions` re-bounds the
+    stored title at read, so a caller cannot store an unbounded or multi-line switcher label.
+  - The three session RPCs are unary; a `SessionStoreError` aborts them `UNAVAILABLE` (the body
+    maps that to `TransportError::Rpc`). The mapping/clamp helpers and the rename write live in
+    `session_rpc.py` (the `reminders.py` pattern), so `server.py` stays a thin binding.
   - `ListDueReminders` / `AckReminder` (ADR-0025; policy + mapping in `reminders.py`): the
     reminder pull pair over the injected `ScheduleStore`, covering fired-but-undelivered reminders
     (`DueReminder`: id, text, fired-at unix-ms, recurrence, the `tainted` provenance bit, the
@@ -159,7 +167,8 @@ The service:
     `RetryingTransport` would treat as transient and retry on every overlay open; a live
     store's `ScheduleStoreError` does abort `UNAVAILABLE` (the session-reads precedent).
 - `DEFAULT_SESSION_LIST_LIMIT = 50` / `MAX_SESSION_LIST_LIMIT = 200` are the `ListSessions`
-  limit default and hard cap (ADR-0021).
+  limit default and hard cap; `MAX_TITLE_INPUT = 200` bounds an accepted `RenameSession` label.
+  All three, the wire mapping, and the rename write live in `session_rpc.py` (ADR-0021).
 - `converse(make_engine, client_events, *, max_buffered_events=DEFAULT_MAX_BUFFERED_EVENTS,
   confirm_timeout_s=DEFAULT_CONFIRM_TIMEOUT_S) -> AsyncGenerator[ServerEvent, None]` is the loop
   itself, servicer-independent (what `BrainService.Converse` delegates to). `make_engine` is an

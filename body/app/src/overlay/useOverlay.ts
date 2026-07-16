@@ -24,6 +24,8 @@ export interface OverlayController {
   open(): void;
   newChat(): void;
   openSession(sessionId: string): void;
+  /** Rename a chat from the switcher (ADR-0021): write the label, then re-list to show it. */
+  renameSession(sessionId: string, title: string): void;
   cyclePrev(): void;
   cycleNext(): void;
   toggleSwitcher(): void;
@@ -207,6 +209,20 @@ export function useOverlay(
     [denyPendingConfirm, bridge],
   );
 
+  // A user-only catalog write (ADR-0021): relabel the chat, then re-list so the switcher shows
+  // the new title (the write does not return it). A failed rename leaves the list unchanged.
+  const renameSession = useCallback(
+    (sessionId: string, title: string) => {
+      bridge
+        .renameSession(sessionId, title)
+        .then(refreshSessions)
+        .catch(() => {
+          // A lost write leaves the list as it is; the switcher simply does not relabel.
+        });
+    },
+    [bridge, refreshSessions],
+  );
+
   const cyclePrev = useCallback(() => {
     const target = cycleTarget(state.sessions, state.sessionId, -1);
     if (target !== null) {
@@ -229,6 +245,7 @@ export function useOverlay(
     open,
     newChat,
     openSession,
+    renameSession,
     cyclePrev,
     cycleNext,
     toggleSwitcher,

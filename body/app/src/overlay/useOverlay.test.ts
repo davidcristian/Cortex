@@ -326,6 +326,40 @@ describe("useOverlay", () => {
     expect(result.current.state.sessionId).toBe("s1");
   });
 
+  it("renameSession writes the label and re-lists so the switcher shows the new title", async () => {
+    const bridge = new FakeBridge();
+    // Two chats, so the write relabels the target and leaves the other untouched.
+    bridge.sessions = [summary("chat-2"), summary("chat-3")];
+    const { result } = renderHook(() => useOverlay(bridge, () => "s1"));
+    await flush();
+    const listsBefore = bridge.listCalls;
+    act(() => result.current.renameSession("chat-2", "Everything about cats"));
+    await flush();
+    expect(bridge.renames).toEqual([{ sessionId: "chat-2", title: "Everything about cats" }]);
+    // The write returns no title, so the overlay re-lists; the fake reflects the new label.
+    expect(bridge.listCalls).toBe(listsBefore + 1);
+    const relisted = result.current.state.sessions;
+    expect(relisted.find((s) => s.sessionId === "chat-2")?.title).toBe("Everything about cats");
+    expect(relisted.find((s) => s.sessionId === "chat-3")?.title).toBe("title chat-3"); // untouched
+  });
+
+  it("a failed rename is swallowed and leaves the chat list unchanged", async () => {
+    const bridge = new FakeBridge();
+    bridge.sessions = [summary("chat-2")];
+    bridge.renameFails = true;
+    const { result } = renderHook(() => useOverlay(bridge, () => "s1"));
+    await flush();
+    const listsBefore = bridge.listCalls;
+    act(() => result.current.renameSession("chat-2", "new"));
+    await flush();
+    expect(bridge.renames).toEqual([{ sessionId: "chat-2", title: "new" }]);
+    // The rejection does not re-list, so the previously loaded title is untouched.
+    expect(bridge.listCalls).toBe(listsBefore);
+    expect(result.current.state.sessions.find((s) => s.sessionId === "chat-2")?.title).toBe(
+      "title chat-2",
+    );
+  });
+
   it("cycles to newer/older chats and no-ops at the ends", async () => {
     const bridge = new FakeBridge();
     bridge.sessions = [summary("newest"), summary("oldest")];

@@ -13,13 +13,14 @@ use body_core::{DEFAULT_PROBE_BUDGET, RetryPlan, RetryPolicy, SeamMethod, Transp
 /// Every variant, so the invariant below is checked over the whole port rather than a sample.
 /// A new variant makes `SeamMethod::repeatable`'s exhaustive match fail to compile, which is
 /// the reminder to classify it and add it here.
-const EVERY_METHOD: [SeamMethod; 6] = [
+const EVERY_METHOD: [SeamMethod; 7] = [
     SeamMethod::Health,
     SeamMethod::Converse,
     SeamMethod::ListSessions,
     SeamMethod::SessionMessages,
     SeamMethod::ListDueReminders,
     SeamMethod::AckReminder,
+    SeamMethod::RenameSession,
 ];
 
 /// A deliberately patient read schedule: 6 attempts, 500 ms base, ×2, 10 s cap, so its
@@ -46,6 +47,8 @@ fn repeatable_marks_exactly_the_calls_a_repeat_cannot_change() {
     // The ack's *effect* is idempotent brain-side; its *answer* is not, which is the case
     // that shows repeatability is two tests, not one.
     assert!(!SeamMethod::AckReminder.repeatable());
+    // The rename is a plain write: a repeat over a lost reply could re-apply a stale label.
+    assert!(!SeamMethod::RenameSession.repeatable());
 }
 
 #[test]
@@ -72,6 +75,7 @@ fn a_refused_method_gets_no_schedule_however_generous_the_plan() {
     };
     assert_eq!(generous.policy_for(SeamMethod::Converse), None);
     assert_eq!(generous.policy_for(SeamMethod::AckReminder), None);
+    assert_eq!(generous.policy_for(SeamMethod::RenameSession), None);
 }
 
 #[test]

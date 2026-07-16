@@ -1,17 +1,17 @@
-//! Session-read translation for `BrainSeamClient`, forming the unary half of the
+//! Session translation for `BrainSeamClient`, forming the unary session half of the
 //! `body_core::BrainTransport` port (ADR-0021).
 //!
-//! Two read-only calls backing the overlay's chat list / switcher / cycling:
-//! `ListSessions` and `GetSessionMessages`. Thin translation only. Map the
-//! request, await the unary reply, map each row to its typed core value; a
-//! non-OK gRPC status maps the same way `health` does (via
+//! Three calls backing the overlay's chat list / switcher / cycling and the list controls:
+//! the read-only `ListSessions` and `GetSessionMessages`, and the user-driven write
+//! `RenameSession`. Thin translation only. Map the request, await the unary reply, map each
+//! row to its typed core value; a non-OK gRPC status maps the same way `health` does (via
 //! [`crate::status::status_to_error`]).
 
 use body_core::{SessionMessage, SessionSummary, TransportError};
 
 use crate::client::SeamChannel;
 use crate::generated::brain_service_client::BrainServiceClient;
-use crate::generated::{GetSessionMessagesRequest, ListSessionsRequest};
+use crate::generated::{GetSessionMessagesRequest, ListSessionsRequest, RenameSessionRequest};
 use crate::status::status_to_error;
 
 /// Lists recent chats newest-active first (`BrainService.ListSessions`). At most
@@ -58,4 +58,20 @@ pub(crate) async fn session_messages(
             at_unix_ms: message.at_unix_ms,
         })
         .collect())
+}
+
+/// Renames one chat (`BrainService.RenameSession`, ADR-0021 management addendum). A user-driven
+/// catalog write: `title` is the new display label, `""` clears any override. The reply is a
+/// bare acknowledgement, so on success there is nothing to map back; a non-OK gRPC status maps
+/// via [`status_to_error`] (a store failure surfaces as `TransportError::Rpc` `Unavailable`).
+pub(crate) async fn rename_session(
+    mut client: BrainServiceClient<SeamChannel>,
+    session_id: String,
+    title: String,
+) -> Result<(), TransportError> {
+    client
+        .rename_session(RenameSessionRequest { session_id, title })
+        .await
+        .map_err(|status| status_to_error(&status))?;
+    Ok(())
 }

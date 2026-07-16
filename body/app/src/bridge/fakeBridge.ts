@@ -29,9 +29,13 @@ export class FakeBridge implements BrainBridge {
   listCalls = 0;
   /** What `sessionMessages` resolves with, keyed by session id. */
   messagesBySession: Record<string, readonly SessionMessage[]> = {};
+  /** Rename writes received, in order (session id + new title), proving the args crossed. */
+  readonly renames: { readonly sessionId: string; readonly title: string }[] = [];
   /** When set, the matching read rejects (the transport-failure path). */
   listFails = false;
   messagesFail = false;
+  /** When set, `renameSession` rejects (a lost write, so the list is left unrelabelled). */
+  renameFails = false;
   /** When set, `respondConfirm` rejects (a lost answer, so deny-by-timeout brain-side). */
   confirmFails = false;
   /** What `listDueReminders` resolves with (assignable by a test; ADR-0025). */
@@ -87,6 +91,17 @@ export class FakeBridge implements BrainBridge {
       return Promise.reject(new Error("history failed"));
     }
     return Promise.resolve(this.messagesBySession[sessionId] ?? []);
+  }
+
+  // Records the write and, on success, reflects it in the injectable list so a subsequent
+  // re-list shows the new label exactly as the brain's `set_title` would (ADR-0021).
+  renameSession(sessionId: string, title: string): Promise<void> {
+    this.renames.push({ sessionId, title });
+    if (this.renameFails) {
+      return Promise.reject(new Error("rename failed"));
+    }
+    this.sessions = this.sessions.map((s) => (s.sessionId === sessionId ? { ...s, title } : s));
+    return Promise.resolve();
   }
 
   listDueReminders(): Promise<readonly DueReminder[]> {

@@ -172,6 +172,18 @@ class SessionMessage(_message.Message):
     at_unix_ms: int
     def __init__(self, role: _Optional[str] = ..., text: _Optional[str] = ..., turn_id: _Optional[str] = ..., at_unix_ms: _Optional[int] = ...) -> None: ...
 
+class RenameSessionRequest(_message.Message):
+    __slots__ = ("session_id", "title")
+    SESSION_ID_FIELD_NUMBER: _ClassVar[int]
+    TITLE_FIELD_NUMBER: _ClassVar[int]
+    session_id: str
+    title: str
+    def __init__(self, session_id: _Optional[str] = ..., title: _Optional[str] = ...) -> None: ...
+
+class RenameSessionReply(_message.Message):
+    __slots__ = ()
+    def __init__(self) -> None: ...
+
 class ListDueRemindersRequest(_message.Message):
     __slots__ = ()
     def __init__(self) -> None: ...

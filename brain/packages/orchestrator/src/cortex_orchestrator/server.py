@@ -9,18 +9,15 @@ import asyncio
 import logging
 import signal
 from collections.abc import AsyncGenerator, AsyncIterator
-from datetime import datetime
 
 import grpc
 from grpc import aio
 
 from cortex_core import (
-    Message,
     ScheduleStore,
     ScheduleStoreError,
     SessionStore,
     SessionStoreError,
-    SessionSummary,
 )
 from cortex_orchestrator.auth import SeamTokenInterceptor
 from cortex_orchestrator.config import SeamServerConfig
@@ -31,6 +28,14 @@ from cortex_orchestrator.converse import (
     converse,
 )
 from cortex_orchestrator.reminders import ack_reminder, list_due_reminders
+from cortex_orchestrator.session_rpc import (
+    DEFAULT_SESSION_LIST_LIMIT,
+    MAX_SESSION_LIST_LIMIT,
+    clamp_limit,
+    message_to_proto,
+    rename_session,
+    summary_to_proto,
+)
 from cortex_seam import (
     AckReminderReply,
     AckReminderRequest,
@@ -44,54 +49,30 @@ from cortex_seam import (
     ListDueRemindersRequest,
     ListSessionsReply,
     ListSessionsRequest,
+    RenameSessionReply,
+    RenameSessionRequest,
     ServerEvent,
     add_BrainServiceServicer_to_server,
 )
-from cortex_seam import SessionMessage as SessionMessagePb
-from cortex_seam import SessionSummary as SessionSummaryPb
 
 ORCHESTRATOR_VERSION = "0.0.0"
 _SHUTDOWN_GRACE_SECONDS = 5.0
-# Default and hard cap for a ListSessions request's `limit` (ADR-0021); a request's 0
-# (or negative) means "server default", and no client can ask for an unbounded list.
-DEFAULT_SESSION_LIST_LIMIT = 50
-MAX_SESSION_LIST_LIMIT = 200
 # SIGTERM is what `docker compose down` delivers (via init); SIGINT covers Ctrl-C runs.
 # The brain only runs on dockerized Linux (AGENTS.md), so loop signal handlers always work.
 _HANDLED_SIGNALS = (signal.SIGTERM, signal.SIGINT)
 _logger = logging.getLogger(__name__)
 
-
-def _unix_ms(moment: datetime) -> int:
-    """A tz-aware instant as unix-milliseconds (the seam's timestamp form, ADR-0021)."""
-    return int(moment.timestamp() * 1000)
-
-
-def _summary_to_proto(summary: SessionSummary) -> SessionSummaryPb:
-    """Map a core `SessionSummary` to the wire message (ADR-0021)."""
-    return SessionSummaryPb(
-        session_id=summary.session_id,
-        title=summary.title,
-        preview=summary.preview,
-        last_activity_unix_ms=_unix_ms(summary.last_activity),
-    )
-
-
-def _message_to_proto(message: Message) -> SessionMessagePb:
-    """Map a persisted `Message` to the wire `SessionMessage` (ADR-0021)."""
-    return SessionMessagePb(
-        role=message.role.value,
-        text=message.text,
-        turn_id=message.turn_id,
-        at_unix_ms=_unix_ms(message.at),
-    )
-
-
-def _clamp_limit(limit: int) -> int:
-    """A ListSessions `limit`: 0/negative → the default, and never above the hard cap."""
-    if limit <= 0:
-        return DEFAULT_SESSION_LIST_LIMIT
-    return min(limit, MAX_SESSION_LIST_LIMIT)
+# Re-exported for the composition root and its tests; the definitions and the mapping/clamp
+# helpers moved to `session_rpc.py` to keep this shell thin (the two constants stay importable
+# from here for the seam's existing consumers).
+__all__ = [
+    "DEFAULT_SESSION_LIST_LIMIT",
+    "MAX_SESSION_LIST_LIMIT",
+    "ORCHESTRATOR_VERSION",
+    "BrainService",
+    "create_server",
+    "serve",
+]
 
 
 class BrainService(BrainServiceServicer):
@@ -166,10 +147,10 @@ class BrainService(BrainServiceServicer):
         `SessionStoreError` aborts the RPC `UNAVAILABLE` (abort raises, so nothing after runs).
         """
         try:
-            summaries = await self._store.list_sessions(limit=_clamp_limit(request.limit))
+            summaries = await self._store.list_sessions(limit=clamp_limit(request.limit))
         except SessionStoreError as err:
             await context.abort(grpc.StatusCode.UNAVAILABLE, str(err))
-        return ListSessionsReply(sessions=[_summary_to_proto(s) for s in summaries])
+        return ListSessionsReply(sessions=[summary_to_proto(s) for s in summaries])
 
     async def GetSessionMessages(  # noqa: N802 - method name is fixed by the gRPC codegen interface
         self,
@@ -185,7 +166,26 @@ class BrainService(BrainServiceServicer):
             messages = await self._store.history(request.session_id)
         except SessionStoreError as err:
             await context.abort(grpc.StatusCode.UNAVAILABLE, str(err))
-        return GetSessionMessagesReply(messages=[_message_to_proto(m) for m in messages])
+        return GetSessionMessagesReply(messages=[message_to_proto(m) for m in messages])
+
+    async def RenameSession(  # noqa: N802 - method name is fixed by the gRPC codegen interface
+        self,
+        request: RenameSessionRequest,
+        context: aio.ServicerContext[RenameSessionRequest, RenameSessionReply],
+    ) -> RenameSessionReply:
+        """Rename a chat (ADR-0021 management addendum): a gated, user-only catalog write.
+
+        The gate is structural, not the mid-turn Confirmer: this RPC is reachable only from the
+        overlay's user-driven list controls, never from a model, tool, or tainted turn (it is no
+        tool and never runs through the turn engine, so no injected content can trigger it). It
+        persists a display title via `SessionStore.set_title` (`session_rpc.rename_session`
+        bounds the label); `request.title == ""` clears the override. A `SessionStoreError`
+        aborts the RPC `UNAVAILABLE`, mirroring the read RPCs.
+        """
+        try:
+            return await rename_session(self._store, request.session_id, request.title)
+        except SessionStoreError as err:
+            await context.abort(grpc.StatusCode.UNAVAILABLE, str(err))
 
     async def ListDueReminders(  # noqa: N802 - method name is fixed by the gRPC codegen interface
         self,

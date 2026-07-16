@@ -191,4 +191,9 @@ impl BrainTransport for BrainSeamClient {
     async fn ack_reminder(&self, reminder_id: &str) -> Result<bool, TransportError> {
         crate::reminders::ack_reminder(self.inner.clone(), reminder_id.to_owned()).await
     }
+
+    async fn rename_session(&self, session_id: &str, title: &str) -> Result<(), TransportError> {
+        crate::sessions::rename_session(self.inner.clone(), session_id.to_owned(), title.to_owned())
+            .await
+    }
 }

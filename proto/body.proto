@@ -34,6 +34,18 @@ service BrainService {
   // a schedule-free brain is indistinguishable from one with nothing due.
   rpc ListDueReminders(ListDueRemindersRequest) returns (ListDueRemindersReply);
   rpc AckReminder(AckReminderRequest) returns (AckReminderReply);
+
+  // Rename a chat: a gated WRITE on the session catalog (ADR-0021 management addendum),
+  // the overlay's user-driven relabel of one chat. Unlike Converse's model-initiated gated
+  // tool calls, whose gate is the mid-turn Confirmer (ADR-0022), this RPC is reachable ONLY
+  // from the overlay's own list controls, driven by the user. No model, tool, or tainted turn
+  // reaches it: it is not a tool in any registry and is served directly off the store, never
+  // through the turn engine. That structural user-only path IS its gate. It persists a derived
+  // DISPLAY title only (never conversation content), so it cannot touch the one hard rule
+  // beyond the title the store already holds for a brain-generated one, and an empty title
+  // clears the override to restore the first-message derivation. The brain re-bounds the title
+  // when listing, so a caller cannot store an unbounded or multi-line label.
+  rpc RenameSession(RenameSessionRequest) returns (RenameSessionReply);
 }
 
 message ClientEvent {
@@ -120,6 +132,16 @@ message SessionMessage {
   string turn_id = 3;
   int64 at_unix_ms = 4;
 }
+
+// Rename one chat (ADR-0021 management addendum). `title` is the new display label; ""
+// clears any custom/brain-generated title so the switcher falls back to the first-message
+// derivation. The reply is a bare acknowledgement (the overlay re-lists to see the change);
+// a store failure surfaces as an `UNAVAILABLE` RPC status, the session-read precedent.
+message RenameSessionRequest {
+  string session_id = 1;
+  string title = 2;
+}
+message RenameSessionReply {}
 
 // Reminder pull-delivery views (ADR-0025). All sessions are listed deliberately because
 // a single-user assistant has one user to remind; session_id rides along so the

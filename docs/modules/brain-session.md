@@ -29,9 +29,12 @@ Translators only: serialization, key layout, and error wrapping; no business log
     session's stored title (a `GET` of its `:title` key) rides the same pipeline as a fourth
     read and is passed to `summarize_ends` as the `title_override` (ADR-0021 titles addendum).
   - `async set_title(session_id, title)` `SET`s a plain string at `cortex:session:{id}:title`
-    (a brain-generated display title, ADR-0021 titles addendum), which `list_sessions` prefers
-    over the first-message derivation; a later call overwrites it. Its own key, so it carries no
-    `v`/`kind` markers; not conversation content, but stored beside it so it survives a swap.
+    (a display title, ADR-0021 titles addendum), which `list_sessions` prefers over the
+    first-message derivation; a later call overwrites it, and `""` clears the override at read.
+    Its own key, so it carries no `v`/`kind` markers; not conversation content, but stored beside
+    it so it survives a swap. This is the catalog write behind **both** the brain-generated title
+    and the overlay's user-driven `RenameSession` (ADR-0021 management addendum); the store does
+    not distinguish them, so no new port method was needed to add rename.
   - `async aclose()` closes the underlying client's connections.
 - `RedisTaskStore` implements the `TaskStore` port over redis-py asyncio (ADR-0010), same
   injected-client / `from_url` / `aclose` shape as above:
