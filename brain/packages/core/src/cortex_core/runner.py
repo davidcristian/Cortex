@@ -5,12 +5,14 @@ import json
 from cortex_core.conversation import Message, Role
 from cortex_core.dispatch import ToolDispatcher
 from cortex_core.errors import InferenceError, SubagentAdmissionError
+from cortex_core.events import ToolActivity
 from cortex_core.inference import JsonSchema
 from cortex_core.ports import Clock, InferenceBackend, TaskStore
+from cortex_core.progress import ProgressSink
 from cortex_core.roster import SubagentResources, SubagentRoster
 from cortex_core.subagents import SubagentResult, SubagentTask
 from cortex_core.tool_budget import DispatchBudget
-from cortex_core.tool_loop import ToolLoopContext, stream_tool_loop
+from cortex_core.tool_loop import ToolLoopContext, ToolStep, stream_tool_loop
 from cortex_core.untrusted import TaintLedger, new_nonce, security_preamble_message
 
 # The fixed one-field reply envelope a constrained subagent is decoded into (ADR-0028): there is
@@ -81,7 +83,13 @@ class SubagentRunner:
         """Whether subagents hold tools (ADR-0017 rule 2b), structural at wiring time."""
         return self._tools is not None
 
-    async def run(self, task_id: str, *, budget: DispatchBudget | None = None) -> SubagentResult:
+    async def run(
+        self,
+        task_id: str,
+        *,
+        budget: DispatchBudget | None = None,
+        progress: ProgressSink | None = None,
+    ) -> SubagentResult:
         """Load, resolve (ADR-0017), admit (CPU/RAM), place (VRAM), run, persist."""
         task = await self._store.get_task(task_id)
         if task is None:
@@ -97,7 +105,11 @@ class SubagentRunner:
                 placement = res.placer.place(res.request)
                 try:
                     return await self._run_placed(
-                        task, res, res.backends[placement.target], budget=budget
+                        task,
+                        res,
+                        res.backends[placement.target],
+                        budget=budget,
+                        progress=progress,
                     )
                 finally:
                     res.placer.release(placement)
@@ -111,6 +123,7 @@ class SubagentRunner:
         backend: InferenceBackend,
         *,
         budget: DispatchBudget | None,
+        progress: ProgressSink | None,
     ) -> SubagentResult:
         """Stream the loaded task to a persisted result on the placed backend."""
         working = _task_messages(task)
@@ -141,7 +154,11 @@ class SubagentRunner:
         try:
             async for delta in stream_tool_loop(backend, res.request.model, working, context):
                 if isinstance(delta, str):
-                    parts.append(delta)  # noqa: PERF401
+                    parts.append(delta)
+                elif isinstance(delta, ToolStep) and progress is not None:
+                    await progress.emit(
+                        ToolActivity(tool_name=delta.tool_name, summary=delta.summary)
+                    )
         except InferenceError as err:
             return await self._persist(
                 SubagentResult(

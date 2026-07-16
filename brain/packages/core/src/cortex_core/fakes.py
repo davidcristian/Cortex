@@ -10,6 +10,7 @@ from cortex_core.conversation import Message, Role
 from cortex_core.errors import InferenceError, ToolNotFoundError
 from cortex_core.inference import InferenceEvent, JsonSchema, TextChunk
 from cortex_core.memory import MemoryRecord, ScoredMemory
+from cortex_core.progress import ProgressEvent
 from cortex_core.sessions import SessionSummary, summarize_session
 from cortex_core.subagents import SubagentResult, SubagentTask
 from cortex_core.tools import ConfirmationRequest, ToolCall, ToolInvocation, ToolResult, ToolSpec
@@ -203,6 +204,23 @@ class RecordingConfirmer:
     def requests(self) -> Sequence[ConfirmationRequest]:
         """The confirmation requests received so far, in order."""
         return tuple(self._requests)
+
+
+class RecordingProgressSink:
+    """ProgressSink that records emitted events so tests can assert what a turn surfaced (ADR-0010).
+    """
+
+    def __init__(self) -> None:
+        self._events: list[ProgressEvent] = []
+
+    async def emit(self, event: ProgressEvent) -> None:
+        """Record one emitted progress event."""
+        self._events.append(event)
+
+    @property
+    def events(self) -> Sequence[ProgressEvent]:
+        """The progress events emitted so far, in order."""
+        return tuple(self._events)
 
 
 class SystemClock:

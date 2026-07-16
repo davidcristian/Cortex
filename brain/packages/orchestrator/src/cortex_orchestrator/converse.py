@@ -8,6 +8,7 @@ from collections.abc import AsyncGenerator, AsyncIterator, Callable
 from cortex_core import (
     Confirmer,
     InferenceError,
+    ProgressSink,
     SessionStoreError,
     TurnEngine,
     TurnEvent,
@@ -16,15 +17,16 @@ from cortex_core import StatusUpdate as DomainStatusUpdate
 from cortex_core import TextDelta as DomainTextDelta
 from cortex_core import ToolActivity as DomainToolActivity
 from cortex_orchestrator.confirm import SeamConfirmer
+from cortex_orchestrator.progress import SeamProgressSink
 from cortex_seam import ClientEvent, SeamError, ServerEvent, TurnComplete
 from cortex_seam import StatusUpdate as WireStatusUpdate
 from cortex_seam import TextDelta as WireTextDelta
 from cortex_seam import ToolActivity as WireToolActivity
 
-# How the servicer builds one stream's engine (ADR-0022): a closure over the shared
-# adapters that wires THIS stream's confirmer into the dispatcher. Engines are stateless
-# functions over the store, so per-stream construction costs nothing.
-EngineFactory = Callable[[Confirmer], TurnEngine]
+# How the servicer builds one stream's engine (ADR-0022, ADR-0010): a closure over the shared
+# adapters that wires THIS stream's confirmer and progress sink into the dispatcher and the turn.
+# Engines are stateless functions over the store, so per-stream construction costs nothing.
+EngineFactory = Callable[[Confirmer, ProgressSink], TurnEngine]
 
 # SeamError.code values are part of the seam contract (the overlay switches on these).
 ERROR_CODE_SESSION_STORE_UNAVAILABLE = "session_store_unavailable"
@@ -74,7 +76,10 @@ class _ConverseStream:
         # This stream's confirmer rides the control path via put_nowait (see the class
         # docstring on credits); the factory wires it into the stream's own engine.
         self._confirmer = SeamConfirmer(self._out.put_nowait, timeout_s=confirm_timeout_s)
-        self._engine = make_engine(self._confirmer)
+        self._progress = SeamProgressSink(
+            self._out.put_nowait, self._credits, to_wire=_to_server_event
+        )
+        self._engine = make_engine(self._confirmer, self._progress)
         self._pending: deque[tuple[str, str]] = deque()
         self._turn: asyncio.Task[None] | None = None
         self._failed = False

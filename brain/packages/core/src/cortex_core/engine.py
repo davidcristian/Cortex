@@ -12,6 +12,7 @@ from cortex_core.guardrail import OutputGuardrail
 from cortex_core.memory import ScoredMemory
 from cortex_core.output_channels import open_output_channels
 from cortex_core.ports import Clock, InferenceBackend, SessionStore
+from cortex_core.progress import ProgressSink
 from cortex_core.provenance import SourceKind, as_source
 from cortex_core.recall import MemoryRecaller
 from cortex_core.routing import RoutingHints, Tier, route_turn
@@ -73,6 +74,7 @@ class TurnCapabilities:
     guardrail: OutputGuardrail | None = None
     record_tainted_memory: bool = False
     generate_titles: bool = False
+    progress: ProgressSink | None = None
 
 
 class TurnEngine:
@@ -117,6 +119,10 @@ class TurnEngine:
             taint=taint,
             nonce=new_nonce(),
             session_id=session_id,
+            # This stream's progress channel (ADR-0010): the loop stamps it onto each dispatch,
+            # so a spawned subagent surfaces its steps while handle_turn is suspended inside the
+            # spawn dispatch and cannot yield an event of its own.
+            progress=self._caps.progress,
         )
         working = list(await self._inference_messages(text, history, session_id, context))
         parts: list[str] = []

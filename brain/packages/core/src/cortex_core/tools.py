@@ -6,6 +6,7 @@ from datetime import datetime
 from enum import Enum
 from typing import Any
 
+from cortex_core.progress import ProgressSink
 from cortex_core.provenance import Provenance
 from cortex_core.tool_budget import DispatchBudget
 
@@ -35,6 +36,7 @@ class TurnStamp:
     tainted: bool = False
     sources: tuple[Provenance, ...] = ()
     budget: DispatchBudget | None = field(default=None, compare=False)
+    progress: ProgressSink | None = field(default=None, compare=False)
 
 
 # The unattributed default stamp: no originating session, no taint. A named constant

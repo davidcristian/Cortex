@@ -163,12 +163,22 @@ The service:
 - `converse(make_engine, client_events, *, max_buffered_events=DEFAULT_MAX_BUFFERED_EVENTS,
   confirm_timeout_s=DEFAULT_CONFIRM_TIMEOUT_S) -> AsyncGenerator[ServerEvent, None]` is the loop
   itself, servicer-independent (what `BrainService.Converse` delegates to). `make_engine` is an
-  `EngineFactory` (`Callable[[Confirmer], TurnEngine]`, ADR-0022): each stream builds one
-  `SeamConfirmer` bound to its own output queue and runs the engine the factory returns for it
-  (a bare engine wraps as `lambda _confirmer: engine`, leaving gated calls fail-closed).
-  Closing the generator tears down the stream's pump task, any in-flight turn, and the queue of
-  not-yet-started turns. Teardown completes even when it races a client `Cancel` whose turn is
-  still cleaning up, and even while the turn is blocked on a buffer credit.
+  `EngineFactory` (`Callable[[Confirmer, ProgressSink], TurnEngine]`, ADR-0022/0010): each stream
+  builds one `SeamConfirmer` and one `SeamProgressSink`, both bound to its own output queue, and
+  runs the engine the factory returns for it (a bare engine wraps as
+  `lambda _confirmer, _progress: engine`, leaving gated calls fail-closed and delegated work
+  unsurfaced). Closing the generator tears down the stream's pump task, any in-flight turn, and
+  the queue of not-yet-started turns. Teardown completes even when it races a client `Cancel` whose
+  turn is still cleaning up, and even while the turn is blocked on a buffer credit.
+- `SeamProgressSink(emit, credit_sem, *, to_wire)` (`progress.py`, ADR-0010 progress addendum) is
+  the real `ProgressSink` adapter: a spawned subagent surfaces the batch's scale (a `StatusUpdate`)
+  and its audited tool steps (a `ToolActivity`) onto the same output queue while the turn is
+  suspended inside the spawn dispatch. Unlike the confirmer's control path, `emit` is
+  **credit-balanced and best-effort**: it takes a buffer credit only when one is free right now
+  (`credit_sem.locked()` is False), else drops the event, so a delegating turn's many steps cannot
+  drift the bound the way an unconditional `put` would, and a stalled consumer loses cosmetic
+  progress rather than stalling the subagent. `to_wire` is `converse`'s own `_to_server_event`,
+  injected so this module never imports `converse`.
 - `SeamConfirmer(emit, *, timeout_s)` (`confirm.py`, ADR-0022) is the real `Confirmer` adapter:
   `confirm(request)` mints a `confirm_id`, emits `ServerEvent.confirm_request` (tool name, the
   draft as one JSON object, the reason, all shown verbatim) via the stream's **control path**
@@ -296,10 +306,11 @@ The service:
   subagent's loop spends the *spawning turn's* pool rather than one of its own, while its
   repeat history stays its own, per the salience addendum); on the ticker's private spawn
   dispatcher both are inert, since it dispatches one call directly and runs no loop.
-  `run_from_env` hands `serve` an **engine factory** (ADR-0022): each Converse
-  stream's `SeamConfirmer` reaches its dispatcher through it, so an untainted gated call (e.g.
-  the email sidecar's `send_email`, stamped by the `CORTEX_TOOLS_GATED` overlay in
-  `build_tool_registry`) prompts the overlay and a tainted one is denied outright. Subagent
+  `run_from_env` hands `serve` an **engine factory** (ADR-0022/0010): each Converse
+  stream's `SeamConfirmer` reaches its dispatcher and its `SeamProgressSink` reaches its turn
+  through it, so an untainted gated call (e.g. the email sidecar's `send_email`, stamped by the
+  `CORTEX_TOOLS_GATED` overlay in `build_tool_registry`) prompts the overlay, a tainted one is
+  denied outright, and a spawned subagent's progress reaches that stream's overlay. Subagent
   dispatchers keep `confirmer=None` (fail-closed, ADR-0013).
   **Echo is the default inference backend; llama.cpp is opt-in via
   `CORTEX_INFERENCE_BACKEND=llamacpp`** (ADR-0007), so the deterministic `"reply {n}: {text}"`
@@ -316,6 +327,11 @@ The service:
   (the echo script yields at least 3), a reasoning model's thinking as a `StatusUpdate`
   (ADR-0020, `state="thinking"`), each audited tool dispatch as a `ToolActivity` (ADR-0009
   addendum, the overlay's activity chip), followed by exactly one `TurnComplete{turn_id}`.
+  A turn that spawns subagents also surfaces their progress on the same stream through this
+  stream's `SeamProgressSink` (ADR-0010 progress addendum): a `StatusUpdate{state="delegating"}`
+  for the batch's scale and a `ToolActivity` per subagent tool step, ridden while the turn is
+  suspended inside the spawn dispatch (its generator cannot yield), best-effort and
+  credit-balanced so a stalled consumer drops them.
   `UserTurn.images` are **ignored in this slice**, because multimodal input arrives with
   vision (Slice 10).
 - Turns run one at a time per stream, but dispatch never blocks on the running turn:
@@ -347,7 +363,11 @@ The service:
   per buffered event (returned on dequeue), so a consumer that stops reading suspends
   generation at the bound instead of growing an unbounded buffer. The terminal
   `SeamError` and stream teardown bypass the credits: failure reporting never blocks
-  behind a full buffer, whatever the consumer does.
+  behind a full buffer, whatever the consumer does. `SeamProgressSink` rides the same
+  credits but non-blocking (ADR-0010 progress addendum): it takes one only when free and
+  drops otherwise, so subagent progress counts against the bound like a reply delta yet
+  never stalls the subagent, and the bound does not drift (unlike the confirmer's
+  control-path events, which over-credit by a documented, bounded amount).
 
 **Invariants.**
 - Conversation state lives ONLY in the session store: the service holds a turn's

@@ -7,36 +7,15 @@ from dataclasses import dataclass
 from typing import Any, cast
 from uuid import uuid4
 
+from cortex_core.events import StatusUpdate
 from cortex_core.ports import Clock, TaskStore
 from cortex_core.roster import SubagentRoster
 from cortex_core.runner import SubagentRunner
+from cortex_core.spawn_spec import MAX_SPAWN_BATCH, build_spawn_spec
 from cortex_core.subagents import SubagentResult, SubagentTask
 from cortex_core.tools import ToolCall, ToolResult, ToolSpec, Trust
 
-SPAWN_TOOL_NAME = "spawn_subagents"
-
-MAX_SPAWN_BATCH = 8
-
-_DESCRIPTION = (
-    "Delegate one or more narrow subtasks to small subagents that return their results. "
-    "Use for independent lookups or transforms; each instruction must be self-contained "
-    "(subagents do not see this conversation). "
-    f"At most {MAX_SPAWN_BATCH} subtasks per call."
-)
-_CHOICE_NOTE = (
-    " Each subtask may pick a 'model' by using an object item, e.g. "
-    '{"instruction": "...", "model": "<roster name>"}. Subtasks on distinct models run in '
-    "parallel, while subtasks that share one model run one after another (one backend each), so "
-    "spread independent subtasks across models to finish the batch sooner. On a turn that has "
-    "read untrusted external content the robust default model is enforced regardless of the pick."
-)
-# Tools-enabled or a one-entry roster: every spawn runs on the one default model (ADR-0017 rule
-# 2b pins it), so no knob is advertised and, sharing one backend lease, the subtasks serialize.
-_PINNED_NOTE = (
-    " Every subtask runs on the deployment's default subagent model, so subtasks share its one "
-    "backend and run one after another, a batch that groups independent subtasks rather than "
-    "running them in parallel."
-)
+SUBAGENT_PROGRESS_STATE = "delegating"
 
 
 @dataclass(frozen=True, slots=True)
@@ -46,68 +25,6 @@ class _SpawnItem:
     instruction: str
     model: str = ""
     context: str = ""
-
-
-def _model_property(roster: SubagentRoster) -> dict[str, Any]:
-    """The per-subtask ``model`` JSON-Schema property, listing every entry's trade-offs."""
-    options = "; ".join(
-        f"{name!r} ({roster.entries[name].description})"
-        if roster.entries[name].description
-        else f"{name!r}"
-        for name in sorted(roster.entries)
-    )
-    return {
-        "type": "string",
-        "enum": sorted(roster.entries),
-        "description": (
-            f"The subagent model for this subtask; omit for the default {roster.default!r}. "
-            f"Options: {options}."
-        ),
-    }
-
-
-def _build_spec(roster: SubagentRoster, *, tools_enabled: bool) -> ToolSpec:
-    """The advertised spec, built from the roster and honest about the wiring (ADR-0018)."""
-    item_properties: dict[str, Any] = {
-        "instruction": {"type": "string", "description": "The self-contained subtask."},
-        "context": {
-            "type": "string",
-            "description": "Optional material the subagent works from (it sees nothing else).",
-        },
-    }
-    with_choice = not tools_enabled and len(roster.entries) > 1
-    if with_choice:
-        item_properties["model"] = _model_property(roster)
-    return ToolSpec(
-        name=SPAWN_TOOL_NAME,
-        description=_DESCRIPTION + (_CHOICE_NOTE if with_choice else _PINNED_NOTE),
-        parameters={
-            "type": "object",
-            "properties": {
-                "instructions": {
-                    "type": "array",
-                    "maxItems": MAX_SPAWN_BATCH,
-                    "items": {
-                        "anyOf": [
-                            {
-                                "type": "string",
-                                "description": (
-                                    "A bare self-contained instruction (default model, no context)."
-                                ),
-                            },
-                            {
-                                "type": "object",
-                                "properties": item_properties,
-                                "required": ["instruction"],
-                            },
-                        ]
-                    },
-                    "description": f"One entry per subagent, at most {MAX_SPAWN_BATCH}.",
-                }
-            },
-            "required": ["instructions"],
-        },
-    )
 
 
 def _uuid4_task_id() -> str:
@@ -188,6 +105,11 @@ def _parse_instructions(
     return items
 
 
+def _progress_detail(count: int) -> str:
+    """The brain-authored batch-start line: how many subtasks, no model or subagent text."""
+    return f"delegating {count} subtask{'' if count == 1 else 's'}"
+
+
 def _format(results: Sequence[SubagentResult]) -> str:
     """Aggregate subagent outcomes into one readable block, one section per subagent."""
     lines = [
@@ -216,7 +138,7 @@ class SpawnSubagentsTool:
     @property
     def spec(self) -> ToolSpec:
         """The tool advertised to the cortex, derived from the runner it fronts (ADR-0018)."""
-        return _build_spec(self._runner.roster, tools_enabled=self._runner.tools_enabled)
+        return build_spawn_spec(self._runner.roster, tools_enabled=self._runner.tools_enabled)
 
     async def invoke(self, call: ToolCall) -> ToolResult:
         """Persist each subtask, run the subagents concurrently, and aggregate their results."""
@@ -236,9 +158,20 @@ class SpawnSubagentsTool:
         ]
         for task in tasks:
             await self._store.put_task(task)
+        progress = call.stamp.progress
+        if progress is not None:
+            # The batch's scale, brain-authored: the user learns delegation is running and to how
+            # many subtasks. Phrased without a parallelism claim the wiring does not deliver (the
+            # measured trade-off is same-model spawns serialize, ADR-0012 admission-wall addendum).
+            await progress.emit(
+                StatusUpdate(state=SUBAGENT_PROGRESS_STATE, detail=_progress_detail(len(tasks)))
+            )
         results: list[SubagentResult] = list(
             await asyncio.gather(
-                *(self._runner.run(task.id, budget=call.stamp.budget) for task in tasks)
+                *(
+                    self._runner.run(task.id, budget=call.stamp.budget, progress=progress)
+                    for task in tasks
+                )
             )
         )
         trust = Trust.UNTRUSTED if any(r.tainted for r in results) else Trust.TRUSTED

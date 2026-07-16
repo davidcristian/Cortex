@@ -122,15 +122,18 @@ Tool domain (Slice 6, ADR-0009; untrusted-content fields Slice 6.5, ADR-0013):
   needs confirmation once the turn read untrusted content, but no tool sets it today). What a tool
   advertises.
 - `TurnStamp` is a frozen dataclass: `session_id: str = ""`, `tainted: bool = False`,
-  `sources: tuple[Provenance, ...] = ()`, `budget: DispatchBudget | None = None` (`compare=False`).
+  `sources: tuple[Provenance, ...] = ()`, `budget: DispatchBudget | None = None` (`compare=False`),
+  `progress: ProgressSink | None = None` (`compare=False`).
   What the dispatching turn hands the call (ADR-0027): its origin chat (`""` for a session-less
   caller), whether it had read untrusted content at dispatch time, which sources that content
-  came from (ADR-0027 addendum), and the turn's shared dispatch pool (`None` for a caller
-  that runs no tool loop, e.g. the schedule ticker). One object rather than parallel keywords,
-  which is how `sources` landed without touching a call site. `budget` is the one field
-  that is a live handle rather than a value, so it is excluded from equality (ADR-0009 turn-wide
-  addendum): two dispatches of one turn stay comparable and no caller can read "same pool" out of
-  equality; `sources` is a fact about the turn, so it *is* compared. `UNSTAMPED` is the exported
+  came from (ADR-0027 addendum), the turn's shared dispatch pool (`None` for a caller
+  that runs no tool loop, e.g. the schedule ticker), and the stream's progress side channel
+  (`None` for a caller with no overlay stream, ADR-0010 progress addendum). One object rather than
+  parallel keywords, which is how `sources` landed without touching a call site. `budget` and
+  `progress` are the two fields that are live handles rather than values, so both are excluded
+  from equality (ADR-0009 turn-wide addendum, ADR-0010 progress addendum): two dispatches of one
+  turn stay comparable and no caller can read "same pool" or "same stream" out of equality;
+  `sources` is a fact about the turn, so it *is* compared. `UNSTAMPED` is the exported
   unattributed default.
 - `ToolCall` is a frozen dataclass: `id: str`, `name: str`, `arguments: Mapping[str, Any]`,
   `stamp: TurnStamp = UNSTAMPED`. A model's request to run one tool; `id` correlates it with its
@@ -322,7 +325,7 @@ Untrusted-content boundary (Slice 6.5, ADR-0013; the pure primitives in `untrust
   engine passes the live ledger straight to `OutputGuardrail.open`.
 - `ToolLoopContext` is a frozen bundle of a tool loop's per-invocation collaborators (`dispatcher`,
   `clock`, `turn_id`, `taint`, `nonce`, `session_id`, `schema=None`,
-  `budget=DispatchBudget()` by default factory), keeping `stream_tool_loop`
+  `budget=DispatchBudget()` by default factory, `progress=None`), keeping `stream_tool_loop`
   under its argument ceiling. `session_id` is the originating chat the loop stamps onto each
   dispatch (ADR-0027; `""` for a session-less caller, e.g. a subagent); `schema` (ADR-0028), when
   set, constrains the model's output to that JSON Schema (a constrained tool-less subagent
@@ -331,7 +334,11 @@ Untrusted-content boundary (Slice 6.5, ADR-0013; the pure primitives in `untrust
   collaborator a caller may **share**: a context built without one gets its own pool, while a
   subagent spawned from a cortex turn is handed that turn's (ADR-0009 turn-wide addendum), so
   delegation cannot multiply the total. The default is a **factory**, never one instance, or
-  every turn in the process would spend from one pool.
+  every turn in the process would spend from one pool. `progress` (ADR-0010 progress addendum) is
+  the stream's side channel the loop stamps onto each dispatch, so a built-in that spawns further
+  work (`spawn_subagents`) surfaces a subagent's steps onto the overlay while the loop's own
+  generator is suspended inside that dispatch; `None` (a subagent's own inner loop, a session-less
+  caller) leaves such work unsurfaced, keeping what reaches the overlay depth-1 as the tree is.
   What a given call spends comes from the dispatcher's `ToolCostPolicy` (ADR-0009 cost addendum),
   so a tool's price travels with the gateway that runs it and is not restated per loop.
 
@@ -433,6 +440,17 @@ Ports (`typing.Protocol`; failures cross them only as the typed errors below):
   denies a gated tool call out of band. The human's decision, never the model's; a missing
   confirmer denies (fail-closed). The real adapter is the orchestrator's `SeamConfirmer`
   (ADR-0022): the request rides the Converse stream to the overlay's approval card.
+- `ProgressSink` (in `progress.py`, a port-free module so `tools.py` may depend on it) has
+  `async emit(event: ProgressEvent) -> None`, where `ProgressEvent = ToolActivity | StatusUpdate`
+  (ADR-0010 progress addendum): a side channel for the ephemeral progress a suspended turn cannot
+  yield itself. While a spawned subagent runs, the cortex turn's generator is suspended inside the
+  spawn dispatch, so `SpawnSubagentsTool`/`SubagentRunner` surface the batch's scale (a
+  `StatusUpdate`) and each subagent's audited tool steps (a `ToolActivity`) onto this sink instead.
+  `emit` is best-effort and non-blocking (a saturated consumer drops rather than stalling the
+  subagent). Only registry- or brain-authored fields ride it, so it needs no guardrail pass, the
+  same argument the cortex's own `ToolActivity` makes. The real adapter is the orchestrator's
+  `SeamProgressSink`; `RecordingProgressSink` is the fake. Reaches the tool off `TurnStamp.progress`,
+  so the one shared spawn tool serves every stream without a per-stream field to leak across turns.
 - `TaskStore` has `async put_task(task) -> None`, `async get_task(task_id) -> SubagentTask | None`,
   `async put_result(result) -> None`, `async get_result(task_id) -> SubagentResult | None`. The
   hot store (Redis) a subagent is a stateless function over: task and result live here, never in
@@ -538,13 +556,16 @@ Use-case:
   generation `InferenceError` is absorbed and an empty title is not persisted, either leaving the
   first-message derivation in place, so a failed title never fails the turn.
 - `TurnCapabilities(memory=None, tools=None, window=None, guardrail=None,
-  record_tainted_memory=False, generate_titles=False)` is a frozen bundle of the optional per-turn
-  collaborators (a `MemoryRecaller`, a `ToolDispatcher`, a `HistoryWindow`, and an
-  `OutputGuardrail`) plus the tainted-turn recording policy (ADR-0019), keeping the engine within
-  its DI ceiling. The bool governs only writing. A stored tainted memory is always fenced on
-  recall regardless. `generate_titles` (ADR-0021 titles addendum), when `True`, generates a
+  record_tainted_memory=False, generate_titles=False, progress=None)` is a frozen bundle of the
+  optional per-turn collaborators (a `MemoryRecaller`, a `ToolDispatcher`, a `HistoryWindow`, and
+  an `OutputGuardrail`) plus the tainted-turn recording policy (ADR-0019), keeping the engine
+  within its DI ceiling. The bool governs only writing. A stored tainted memory is always fenced
+  on recall regardless. `generate_titles` (ADR-0021 titles addendum), when `True`, generates a
   switcher title on a session's first turn (see the engine's title step below); `False` (default)
-  keeps the first-message derivation.
+  keeps the first-message derivation. `progress` (ADR-0010 progress addendum) is this stream's
+  `ProgressSink`: the engine stamps it onto each dispatch so a spawned subagent's steps reach the
+  overlay while the turn's own generator is suspended inside the spawn dispatch; `None` (the
+  default, a stream-less turn) leaves delegated work unsurfaced.
 - `HistoryWindow` (protocol, `windowing.py`) / `CharBudgetHistoryWindow(max_chars)` are the
   session-history windowing seam and its shipped policy (ADR-0014). `select(history)`
   returns the slice one turn sends to the model: `CharBudgetHistoryWindow` keeps the newest
@@ -559,7 +580,10 @@ Use-case:
   async generator yielding assistant text deltas (`str`), `ReasoningDelta`s (ADR-0020), and a
   `ToolStep(tool_name, summary)` immediately before each audited dispatch *of an advertised
   tool* (ADR-0009 addendum; both fields copied off the matched `ToolSpec`, so an unadvertised
-  call surfaces no step; the engine maps it to `ToolActivity`, a subagent drops it), mutating `working` in place with
+  call surfaces no step; the engine maps it to `ToolActivity`, and a subagent maps it onto the
+  spawning stream's `ProgressSink` when it has one, else drops it, ADR-0010 progress addendum).
+  It stamps each dispatch with `context.progress`, so a built-in that spawns further work reaches
+  the overlay while this loop is suspended inside that dispatch. Mutates `working` in place with
   the tool-call and `Role.TOOL` result messages; ends on a tool-free step, a `None` dispatcher,
   or `MAX_TOOL_STEPS` (8) rounds. Four independent bounds apply (ADR-0009 budget addendum):
   rounds cap how long the loop runs, `context.budget` (`MAX_TOOL_DISPATCHES`, 32) caps what
@@ -706,10 +730,13 @@ Use-case:
   turn's reach and dies with the turn.
 - `SubagentRunner(store, roster, clock, *, tools=None, constrain_output=False)` is a subagent's
   body (ADR-0010/0012/0018),
-  a stateless function over the `TaskStore`. `run(task_id, *, budget=None)` takes the spawning
-  turn's dispatch pool (ADR-0009 turn-wide addendum), so this run's tool calls come out of the
-  turn's allowance; `None` means the run is its own root (the ticker's fire) and it gets a fresh
-  one. It loads the `SubagentTask` **by id**
+  a stateless function over the `TaskStore`. `run(task_id, *, budget=None, progress=None)` takes
+  the spawning turn's dispatch pool (ADR-0009 turn-wide addendum), so this run's tool calls come
+  out of the turn's allowance; `None` means the run is its own root (the ticker's fire) and it gets
+  a fresh one. `progress` is the spawning stream's `ProgressSink` (ADR-0010 progress addendum):
+  each audited tool step the subagent runs surfaces onto it as a registry-authored `ToolActivity`;
+  `None` (the ticker, a direct caller with no overlay) drops the steps. It loads the `SubagentTask`
+  **by id**
   (never from cortex memory, so a missing task is an `ok=False` "task not found" result),
   **resolves** the roster entry via `roster.resolve(task.model, tainted=task.tainted,
   tools_enabled=…)` (ADR-0017; an unknown model is an `ok=False` "unknown subagent model" result,
@@ -734,7 +761,9 @@ Use-case:
   depth-1.
 - `SpawnSubagentsTool(runner, store, clock, *, task_id_factory=<uuid4>)` is the built-in
   `spawn_subagents` tool (`SPAWN_TOOL_NAME`), the cortex's delegation primitive (ADR-0010/0018).
-  Its `spec` is **derived from the runner's roster**: an instructions item is a bare string or
+  Its `spec` is **derived from the runner's roster** (built by `build_spawn_spec` in `spawn_spec.py`,
+  which owns the advertisement after the 300-line split; `spawn.py` owns running one): an
+  instructions item is a bare string or
   `{instruction, model?, context?}` (`anyOf`), at most `MAX_SPAWN_BATCH` (8) of them per call
   (advertised as the array's `maxItems` and in both descriptions, ADR-0010 batch-cap addendum);
   the `model` enum lists every entry with its
@@ -752,7 +781,10 @@ Use-case:
   into the object path (real models sometimes stringify the object form, per the ADR-0018 addendum;
   same validation either way). It persists one `SubagentTask` per item, each stamped with the
   requested `model`, the item's `context`, and the **call stamp's `tainted`** (the dispatcher's
-  `TurnStamp`, ADR-0018/0027). It dispatches the `SubagentRunner`s
+  `TurnStamp`, ADR-0018/0027). When the **call stamp carries a `progress` sink** (ADR-0010 progress
+  addendum) it emits a `StatusUpdate(state="delegating", detail="delegating N subtask(s)")` (the
+  batch's scale, brain-authored) before running, and hands the same sink to each run so the
+  subagents' own tool steps surface too. It dispatches the `SubagentRunner`s
   **together** (bounded by the scheduler; genuine overlap needs distinct backends, per the
   measured trade-off above), each handed the **call stamp's `budget`** so the
   whole batch draws on the spawning turn's one pool (ADR-0009 turn-wide addendum) so a batch
@@ -891,6 +923,10 @@ Reference implementations (pure, shipped in core; the runtime wiring until Slice
   tests can assert the audit trail.
 - `RecordingConfirmer(*, answer)` is a `Confirmer` returning a fixed `answer` and recording each
   `ConfirmationRequest` in `.requests`, so gate tests can assert what was confirmed (ADR-0013).
+- `RecordingProgressSink` is a `ProgressSink` recording each emitted `ProgressEvent` in `.events`
+  (a tuple), so tests can assert the batch's scale and each subagent's tool steps a turn surfaced
+  (ADR-0010 progress addendum). Records unconditionally, where the real `SeamProgressSink` drops
+  on a saturated stream.
 - `InMemoryScheduleStore(*, token_factory=<uuid4>)` is a dict-backed `ScheduleStore` implementing
   the full fenced protocol (fresh token per claim, stale finish/release no-op `False`,
   cancel-deletes-outright, terminal cleanup, fire-time taint OR); contract twin of
