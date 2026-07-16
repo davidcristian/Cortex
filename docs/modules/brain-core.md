@@ -74,7 +74,11 @@ Memory domain (Slice 5, ADR-0008):
   exchange came from a turn that read untrusted content, so recall fences it as data. The caller
   fills every field, leaving the store a pure translator.
 - `ScoredMemory` is a frozen dataclass: `record: MemoryRecord`, `score: float`. A retrieval
-  hit and its similarity (higher = closer).
+  hit and its similarity (higher = closer). `score` is always the store's raw cosine similarity
+  in `[-1, 1]`, never the key a `RecallPolicy` ranked by, so a reranked result's order is not
+  explained by it and no caller may infer a ranking from it. A second field carrying the policy's
+  own blended relevance is declined while nothing reads a recall score (ADR-0008 relevance-field
+  addendum).
 
 Structured provenance (ADR-0027 addendum; `provenance.py`, stdlib-only so `tools.py` may depend
 on it):
