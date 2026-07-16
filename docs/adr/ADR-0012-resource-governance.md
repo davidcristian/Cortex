@@ -208,3 +208,107 @@ Config gains, at the composition root only: `CORTEX_VRAM_SOFT_CAP_GB`, `CORTEX_V
 - **Float drift.** Repeated `+=`/`-=` on `placed_gb`/`cpu_used` can leave a tiny residue; with coarse
   (0.1 GB) config values it never crosses a boundary. Fixed-precision rounding is a no-interface-impact
   fallback if it ever bites.
+
+## Addendum (2026-07-16): the admission wall refuses as a value; placement-aware charging declined
+
+Two deferrals recorded above closed together on the backlog pass that read them against the tree
+([docs/refinements/resource-governance.md](../refinements/resource-governance.md)): **a hard budget
+wall** and **placement-aware CPU charging**. Both entries described themselves as tweaks behind the
+same unchanged `SubagentScheduler` port. Neither was, for opposite reasons.
+
+### What the budget charges today, precisely
+
+`admit(request)` sums one number per dimension: `PlacementRequest.cpus` (fractional CPU shares,
+the per-container `--cpus`) and `memory_gb` (host RAM, the per-container `--memory`). Both are
+static per roster entry, read from config, identical for every spawn of that entry; nothing is
+measured. The budget bounds neither wall clock nor tokens nor VRAM (that is the placer's ledger),
+only how much simultaneous committed CPU/RAM the scheduler will vouch for. A CPU-placed spawn and a
+GPU-placed spawn are charged **the same**, and must be: `SubagentRunner.run` admits *before* it
+places (decision 5), so at charge time the target does not exist yet.
+
+Note what "soft" does and does not mean here, because the risk paragraph above blurs it. With
+respect to what it charges the budget is already **hard**: a waiting spawn holds none of it, and
+nothing is admitted past the targets. "Soft" means only that it binds nothing it did not admit
+(the cortex, the brain container, a mis-sized container cap), which is a statement about cgroups,
+not about this port.
+
+### Placement-aware CPU charging: declined
+
+1. **The port cannot express it.** `admit` takes a `PlacementRequest`, which carries no placement,
+   and is entered before `place` runs. A placement-aware charge therefore needs either a port
+   change (a target argument, or an `admit` that yields a re-chargeable handle) or the
+   admit/place inversion decision 5 exists to prevent: a GPU-placed spawn queuing for a CPU slot
+   would hold reserved VRAM while it waits, which is exactly the leak this ADR calls impossible by
+   construction. "Behind the same port" was wrong.
+2. **The discount would buy nothing.** Charging a GPU placement less admits more spawns at once.
+   Same-entry spawns cannot use that concurrency: each roster entry holds one `LlamaCppBackend`
+   per target, and `LlamaCppBackend.stream` holds its `SingleResidentModelManager` lock for the
+   whole stream, so they serialize there instead. Measured live on the CPU subagent server
+   (Qwen3.5-2B, `docker-compose.subagents.yml`): two concurrent spawns took 4.8 s through two
+   backend objects and 10.0 s through one shared object, a ratio of 2.08, which is full
+   serialization. A larger admission budget would move the queue from the scheduler to that lock.
+3. **There is nothing to discount in the shipped wiring.** `CORTEX_SUBAGENTS_VRAM_GB` is set to
+   5.5 deliberately above the GPU headroom, so every spawn overflows to CPU today; and at the
+   documented 14 GB cap minus roughly 11.3 GB of cortex, at most one subagent is ever GPU-placed.
+
+Recorded as declined rather than deferred: it reopens only with the Slice 11 GPU-placed runtime,
+which is also when a second GPU-capable executor could make the concurrency real, and it reopens
+as a port change, not a tweak.
+
+### The hard wall: the refusal that existed was delivered as a crash
+
+The entry's own words ("bounds only what the scheduler admits") describe hard enforcement over
+processes the scheduler never admitted. That is a cgroup/`.wslconfig` capability the user's
+locked constraint above rules out, and no implementation of a port that only sees admissions can
+supply it. Declined at that reading.
+
+At decision 4's reading ("over budget the spawn **waits** ... matching the user's soft budget, not
+a hard wall") the wall is refuse-instead-of-queue, and **one such refusal already existed**: a
+charge larger than the whole budget raises rather than waiting forever. Its boundary behaviour was
+the defect. It raised a bare `ValueError` out of `SubagentRunner.run`, through
+`SpawnSubagentsTool.invoke` and its `asyncio.gather` (taking every sibling subagent's answer with
+it), through `CompositeToolRegistry` and `ToolDispatcher`, which catches only `ToolError`, to
+`_turn_task`'s deliberately broad handler in `converse.py`, which fails the turn with
+`ERROR_CODE_INTERNAL`; and since `_start_next_turn` refuses to start anything once a stream has
+failed, the whole `Converse` stream ends there. `SubagentsConfig` never checked an ask against the
+budget either, so a deployment could reach that state from env alone. Of the four possible answers
+at the boundary, the code implemented the worst.
+
+**Decided, and now implemented:**
+
+- **A transient full budget still queues.** Unchanged, and deliberately so. The work runs seconds
+  later, depth-1 guarantees the queue drains, and refusing it would discard a subtask the user
+  asked for to save resources that a waiting spawn does not hold anyway. Overturning it is the
+  user's call, not a refinement's.
+- **An impossible charge is refused as a value.** `ResourceBudgetScheduler.admit` raises the typed
+  `SubagentAdmissionError` (documented on the port, so any Slice 11 adapter owes the same
+  contract), and `SubagentRunner` degrades exactly that error to an `ok=False` `SubagentResult`
+  whose `detail` says it was refused before running, that no retry can fit it, and that the cortex
+  should answer without this subtask. That joins "task not found" and "unknown subagent model" as
+  the runner's fail-closed outcomes, restoring its contract that every outcome is a persisted
+  value. A refused member no longer takes its batch down.
+- **The misconfiguration is refused at boot.** `SubagentsConfig` now rejects any roster entry
+  (the flat-field default included) whose `cpus`/`memory_gb` exceeds `cpu_budget`/`mem_budget_gb`,
+  with equality allowed since such an entry runs alone. A subagent the machine may never run is a
+  wiring error, and it belongs with the other two config guards rather than in a tool result.
+
+**Rejected at the boundary:** failing the turn (what the code did, and it discards good work for a
+config error); degrading the spawn to CPU (meaningless here, since a CPU placement costs *more*
+host CPU, and placement is not the scheduler's to decide); and refusing transiently, above.
+
+**Expressing the difference to the caller.** `SubagentResult` carries `ok` and `detail` only, and
+the spawn tool renders a failure as `FAILED: {detail}`, so "refused because full" is distinguished
+from "failed" **by its text**, phrased like the dispatcher's `BUDGET_EXHAUSTED_MSG`. A structured
+refusal kind on `SubagentResult` is **not** added: nothing would read it (the aggregate is prose
+the model consumes, and the seam carries no subagent result), which is the dead-until-a-consumer
+test the blended-relevance field failed the same day.
+
+**Neither half depends on measuring GPU utilization**, which this ADR establishes is unavailable on
+this stack. The wall counts config numbers; the declined discount would have too.
+
+**Deferred, with triggers, in the backlog:** a **bounded wait** (refuse after N seconds queued)
+if a real deployment ever shows a turn stalling in admission long enough to matter, which needs a
+timeout design and a `Clock`, not a policy flip; and a **read timeout on the subagent HTTP client**,
+which is the actual unbounded-wait hazard here, since `build_subagents` builds
+`httpx.Timeout(connect, read=None)` and one wedged `llama-server` stream would hold its admission
+forever while every queued peer waits behind it.

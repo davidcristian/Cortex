@@ -36,6 +36,7 @@ from cortex_core.errors import ModelManagerError as ModelManagerError
 from cortex_core.errors import ModelUnavailableError as ModelUnavailableError
 from cortex_core.errors import ScheduleStoreError as ScheduleStoreError
 from cortex_core.errors import SessionStoreError as SessionStoreError
+from cortex_core.errors import SubagentAdmissionError as SubagentAdmissionError
 from cortex_core.errors import TaskStoreError as TaskStoreError
 from cortex_core.errors import ToolError as ToolError
 from cortex_core.errors import ToolNotFoundError as ToolNotFoundError

@@ -388,6 +388,34 @@ async def test_an_overflowing_subagent_runs_on_the_cpu_backend() -> None:
     assert not gpu.seen
 
 
+async def test_a_spawn_the_scheduler_refuses_becomes_a_result_not_an_exception() -> None:
+    """The budget's wall reaches the cortex as a value (ADR-0012 admission-wall addendum).
+
+    An escaping exception would cross `SpawnSubagentsTool`, past which only `ToolError` is
+    caught, and fail the whole turn. The runner's contract is that every outcome is a persisted
+    `SubagentResult`, so the refusal joins "task not found" and "unknown subagent model".
+    """
+    store = InMemoryTaskStore()
+    await store.put_task(SubagentTask(id="t1", instruction="do", context="", at=_AT))
+    backend = TextBackend(["never runs"])
+    placer = VramBudgetPlacer(soft_cap_gb=14.0, cortex_reservation_gb=11.0)  # headroom 3.0
+    resources = SubagentResources(
+        backends={PlacementTarget.GPU: backend, PlacementTarget.CPU: backend},
+        scheduler=ResourceBudgetScheduler(4.0, 8.0),
+        placer=placer,
+        # 8 cpus against a whole budget of 4: no peer releasing anything could ever admit it.
+        request=PlacementRequest("subagent", vram_gb=2.0, cpus=8.0, memory_gb=2.0),
+    )
+    result = await SubagentRunner(store, _roster(resources), FixedClock()).run("t1")
+    assert (result.ok, result.output) == (False, "")
+    assert "refused before running" in result.detail
+    assert "exceeds the whole budget" in result.detail
+    assert not backend.seen  # refused before running means no inference was ever issued
+    assert await store.get_result("t1") == result  # the cortex reads it back from the store
+    # Placement is inside admission, so a refusal reserved no VRAM either: headroom is intact.
+    assert placer.place(PlacementRequest("subagent", 3.0, 1.0, 1.0)).target is PlacementTarget.GPU
+
+
 def _two_model_runner(
     store: InMemoryTaskStore,
     robust: InferenceBackend,

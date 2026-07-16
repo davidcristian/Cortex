@@ -15,7 +15,7 @@ import json
 
 from cortex_core.conversation import Message, Role
 from cortex_core.dispatch import ToolDispatcher
-from cortex_core.errors import InferenceError
+from cortex_core.errors import InferenceError, SubagentAdmissionError
 from cortex_core.inference import JsonSchema
 from cortex_core.ports import Clock, InferenceBackend, TaskStore
 from cortex_core.roster import SubagentResources, SubagentRoster
@@ -35,6 +35,16 @@ _REPLY_ENVELOPE: JsonSchema = {
 }
 
 _MALFORMED_ENVELOPE_MSG = "subagent produced a malformed constrained reply"
+
+# What the cortex reads when the scheduler refuses a spawn outright (ADR-0012 admission-wall
+# addendum). Phrased like the dispatcher's refusal messages: say it was refused rather than
+# attempted, say the retry is pointless, and say what to do instead. Only the *impossible* charge
+# reaches here; a transient full budget queues, so this never means "busy, try later".
+_REFUSED_TEMPLATE = (
+    "refused before running: {reason}. The subtask was never attempted and no retry can fit it, "
+    "since this is a resource-budget misconfiguration of the deployment; answer without delegating "
+    "this subtask, and say what you could not do."
+)
 
 
 def _task_messages(task: SubagentTask) -> list[Message]:
@@ -98,7 +108,8 @@ class SubagentRunner:
         Admission is outer and may wait; placement is inner, synchronous, and never blocks, so no
         VRAM is ever reserved while queuing. The "reserved VRAM then no CPU slot" leak is
         impossible. The placement's VRAM is always returned in the ``finally``. An unknown
-        requested model fails closed as an ``ok=False`` result, mirroring "task not found".
+        requested model fails closed as an ``ok=False`` result, mirroring "task not found", and so
+        does a spawn the scheduler refuses outright (a charge no budget could ever fit).
 
         ``budget`` is the spawning turn's dispatch pool (ADR-0009 turn-wide addendum), handed
         down by ``SpawnSubagentsTool`` off the dispatch stamp so this run's tool calls come out
@@ -114,14 +125,23 @@ class SubagentRunner:
         if name is None:
             return await self._failed(task_id, f"unknown subagent model {task.model!r}")
         res = self._roster.entries[name].resources
-        async with res.scheduler.admit(res.request):
-            placement = res.placer.place(res.request)
-            try:
-                return await self._run_placed(
-                    task, res, res.backends[placement.target], budget=budget
-                )
-            finally:
-                res.placer.release(placement)
+        try:
+            async with res.scheduler.admit(res.request):
+                placement = res.placer.place(res.request)
+                try:
+                    return await self._run_placed(
+                        task, res, res.backends[placement.target], budget=budget
+                    )
+                finally:
+                    res.placer.release(placement)
+        except SubagentAdmissionError as err:
+            # The budget's one wall (ADR-0012 admission-wall addendum). Only `admit` raises it
+            # (neither the placer nor the tool loop touches a scheduler), and it does so before
+            # yielding, so nothing was placed or run. Degrading it to a value here keeps the
+            # runner's contract that every outcome is a `SubagentResult`: an escaping exception
+            # would cross the spawn tool, which only `ToolError` is caught past, and fail the
+            # whole turn, discarding the batch's other subagents along with it.
+            return await self._failed(task_id, _REFUSED_TEMPLATE.format(reason=err))
 
     async def _run_placed(
         self,

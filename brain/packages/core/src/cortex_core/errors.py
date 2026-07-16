@@ -38,6 +38,19 @@ class TaskStoreError(Exception):
     """A TaskStore operation failed (task-store adapters wrap their backend's errors)."""
 
 
+class SubagentAdmissionError(Exception):
+    """A SubagentScheduler refused a spawn outright: no wait could ever admit this charge.
+
+    The budget's one hard refusal (ADR-0012 admission-wall addendum), distinct from queuing:
+    a charge within the budget always eventually fits as peers release, so it waits, while a
+    charge larger than the whole budget never does. Typed rather than a bare ``ValueError``
+    because ``SubagentRunner`` catches exactly this and degrades it to an ``ok=False``
+    ``SubagentResult``; catching ``ValueError`` there would swallow unrelated value errors.
+    Construction-time validation (a non-positive budget, a non-positive ask) stays ``ValueError``
+    like every other frozen value type's, since that is a bad *value*, not a refused request.
+    """
+
+
 class BodyGatewayError(Exception):
     """A BodyGateway call failed. The body was unreachable or the OS action errored.
 

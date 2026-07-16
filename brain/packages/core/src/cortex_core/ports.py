@@ -273,9 +273,12 @@ class SubagentScheduler(Protocol):
     ``memory_gb`` fit the remaining budget (summed admitted ``cpus`` ≤ cpu target AND summed
     ``memory_gb`` ≤ memory target) and releases both on exit; over budget, callers wait (depth-1
     delegation guarantees no spawn waits on another spawn, so this cannot deadlock). A charge larger
-    than the whole budget can never be admitted, so it raises ``ValueError`` rather than waiting
-    forever. This is a soft *budget*, not a hard wall (no ``.wslconfig``/parent cgroup, the user's
-    constraint); it is distinct from the ``ModelManager``'s GPU lease and the ``SubagentPlacer``'s
+    than the whole budget can never be admitted, so it raises ``SubagentAdmissionError`` rather than
+    waiting forever; that refusal is the budget's one wall, and any implementation owes it, since
+    ``SubagentRunner`` degrades exactly this error to an ``ok=False`` result instead of letting an
+    exception kill the turn (ADR-0012 admission-wall addendum). The budget binds nothing it did not
+    admit (no ``.wslconfig``/parent cgroup, the user's constraint), which is the sense in which it
+    is *soft*; it is distinct from the ``ModelManager``'s GPU lease and the ``SubagentPlacer``'s
     VRAM ledger. The three compose at the runner (ADR-0010 decision 6, ADR-0012).
     """
 

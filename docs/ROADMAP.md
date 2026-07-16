@@ -305,13 +305,17 @@ against `soft_cap − cortex_reservation − placed`, placing the whole model on
 fits or spilling to CPU (`-ngl 0`), with no straddle, no separate GPU-concurrency knob (the ledger
 bounds it). **`SubagentScheduler.admit(request)`** gains a soft two-dimensional CPU/RAM budget
 (`ResourceBudgetScheduler`, replacing `ConcurrencyScheduler`); over-budget spawns queue, an impossible
-charge raises. `SubagentRunner` composes admit (outer, waits) → place (inner, sync) → route to
+charge raises `SubagentAdmissionError`, which the runner degrades to an `ok=False` result and the
+config refuses at boot (ADR-0012 admission-wall addendum, 2026-07-16).
+`SubagentRunner` composes admit (outer, waits) → place (inner, sync) → route to
 `backends[target]` → release in a `finally`. Inference reaches the placed endpoint via two
 backends selected by target, so `InferenceBackend`/the proto are untouched. New env: `CORTEX_VRAM_*`
 and `CORTEX_SUBAGENTS_{GPU_ENDPOINT,VRAM_GB,CPUS,MEMORY_GB,CPU_BUDGET,MEM_BUDGET_GB}` (replacing
 `MAX_CONCURRENCY`). The ledgers are live-resource state rebuilt from zero, never the durable state
 the hard rule governs. **Deferred behind these unchanged ports:** the scheduler `drain()` and the
-CUDA-OOM→CPU re-place (Slice 11), placement-aware CPU charging, and the NPU as a third target.
+CUDA-OOM→CPU re-place (Slice 11), and the NPU as a third target. Placement-aware CPU charging is
+**not** behind them and was declined on 2026-07-16: `admit` runs before `place`, so no charge can
+see a target without a port change (see docs/refinements/resource-governance.md).
 
 Revise the `ModelManager` (ADR-0007) and `SubagentScheduler` (ADR-0010) **ports** while they are
 still small and pure and before the Slice 11 swap builds on them (retrofitting the swap's

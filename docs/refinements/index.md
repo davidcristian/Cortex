@@ -10,14 +10,18 @@ ADRs, which is why the entries are kept verbatim rather than summarized.
 
 **An entry's own cost estimate is a hypothesis, not a finding.** The ROADMAP section this
 backlog was extracted from used to open by asserting that every entry was "a small change
-behind an unchanged port". That was wrong often enough to mislead planning three times: the
+behind an unchanged port". That was wrong often enough to mislead planning four times: the
 tool-dispatch entry and its ADR both claimed tool spam was bounded by `MAX_TOOL_STEPS` (it was
 not, and one round could dispatch unboundedly; [tools-mcp.md](tools-mcp.md)), the
 `list_sessions` entry misdiagnosed its own cost *and* proposed a worse fix than the one that
-shipped ([session-read-seam.md](session-read-seam.md)), and the display-timezone entry bundled
+shipped ([session-read-seam.md](session-read-seam.md)), the display-timezone entry bundled
 a knob together with a recurrence change that no existing field can express
-([scheduling.md](scheduling.md)). Entries audited against the code carry their real cost
-inline, and the ones that need a **port or protocol change** say so. Treat any remaining
+([scheduling.md](scheduling.md)), and the resource-governance pair claimed two "pure-core scheduler
+tweaks behind the unchanged `SubagentScheduler` port" when one needs a port change to express at all
+and the other described a wall that port cannot build, while the wall it *could* build already
+existed ([resource-governance.md](resource-governance.md)). Entries audited against the code carry
+their real cost inline, and the ones that need a **port or protocol change** say so. Treat any
+remaining
 "behind the unchanged port" phrasing as unverified until you have opened the port and checked
 its signature.
 
@@ -64,7 +68,15 @@ here to close as **declined**: surfacing the blended recall relevance was read a
 no consumer for it exists, which its own origin addendum had made the condition, so cheapness had
 been standing in for readiness. It moved to the dead-until-a-consumer list below, and the pass that
 closed it opened one entry behind it, recall observability, which is both why the question was hard
-to answer and the consumer that would reopen the declined one.
+to answer and the consumer that would reopen the declined one. Resource governance held at 6 on
+2026-07-16 when its two-part first entry closed as two different outcomes, which is why an entry
+naming two things should be read as two. Placement-aware CPU charging was **declined**: `admit` is
+entered before `place` by design, so no charge can see a placement without a port change, and the
+one backend lock per roster entry means admitting more spawns cannot make them run at once
+(measured live, two concurrent spawns are exactly serial). The hard budget wall turned out to
+**already exist** and to be delivered as a turn-killing exception; making it refuse as a value, and
+refusing the misconfiguration at boot, opened the two entries behind it (a bounded admission wait,
+a read timeout on the subagent HTTP client) that name the waits nothing bounds.
 
 ## Recommended order
 
@@ -73,35 +85,32 @@ against the code (the warning above); the entry text tells you which seams it ex
 
 ### Actionable now
 
-1. **Placement-aware CPU charging + the hard budget wall**
-   ([resource-governance.md](resource-governance.md)): pure-core scheduler tweaks behind the
-   unchanged `SubagentScheduler` port.
-2. **`spawn_blocking` for the sync OS call + `GetVolume` as an overlay volume indicator**
+1. **`spawn_blocking` for the sync OS call + `GetVolume` as an overlay volume indicator**
    ([body-gateway.md](body-gateway.md)): small body-side pair behind unchanged seams. The
    `spawn_blocking` half now covers the toast backend too, which is the same shape of
    synchronous OS call awaited inside an async handler. The `GetVolume` half also has a place
    to live now: the header's connection dot is the first status chrome in that row.
-3. **Task-outcome delivery as a notification + the push retry policy**
+2. **Task-outcome delivery as a notification + the push retry policy**
    ([scheduling.md](scheduling.md)): unblocked on 2026-07-16, when the body's `Notify` trait
    landed and gave the port they both reuse a real backend.
-4. **Per-method / per-error-code retry policy** ([seam-transport.md](seam-transport.md)):
+3. **Per-method / per-error-code retry policy** ([seam-transport.md](seam-transport.md)):
    behind the existing `BrainTransport`/`Sleeper` seams.
-5. **Per-round cap on distinct calls** ([tools-mcp.md](tools-mcp.md)): the one dispatch shape
+4. **Per-round cap on distinct calls** ([tools-mcp.md](tools-mcp.md)): the one dispatch shape
    neither the budget nor salience closes (context growth, not reach).
-6. **Occurrence history table** ([scheduling.md](scheduling.md)): also covers unseen-toast
+5. **Occurrence history table** ([scheduling.md](scheduling.md)): also covers unseen-toast
    recovery.
-7. **Brain-generated summary titles** ([session-read-seam.md](session-read-seam.md)): behind
+6. **Brain-generated summary titles** ([session-read-seam.md](session-read-seam.md)): behind
    the unchanged `SessionSummary`. It now also inherits the one race the summon-edge list
    refresh cannot cover: a title the brain rewrites *after* the completing turn refreshed the
    list.
-8. **Reasoning persistence/summarization + the collapsed "thoughts" section**
+7. **Reasoning persistence/summarization + the collapsed "thoughts" section**
    ([inference-model-manager.md](inference-model-manager.md)): a natural pair over the
    already-shipped `Message.statusState`.
-9. **Summarizing a tainted exchange before recording**
+8. **Summarizing a tainted exchange before recording**
    ([untrusted-content.md](untrusted-content.md)).
-10. **Spawn-spec tuning + measured trade-off advertisement** ([subagents.md](subagents.md)):
-    low stakes, wrong text misleads only the optimization.
-11. **`cargo fmt` and `cargo clippy` for the two ungated Rust trees**
+9. **Spawn-spec tuning + measured trade-off advertisement** ([subagents.md](subagents.md)):
+   low stakes, wrong text misleads only the optimization.
+10. **`cargo fmt` and `cargo clippy` for the two ungated Rust trees**
     ([repo-gates.md](repo-gates.md)): last because it unblocks no capability, but it is the
     only entry here that stops a class of defect from recurring, and the format half is
     nearly free. Five clippy warnings and three unformatted files had accumulated in the
@@ -158,7 +167,10 @@ against the code (the warning above); the entry text tells you which seams it ex
 - Model-manager process lifecycle, co-residency, and the real swap
   ([inference-model-manager.md](inference-model-manager.md))
 - `SubagentScheduler.drain()`, CUDA-OOM re-place on CPU, and the real GPU-placed runtime
-  mechanism ([resource-governance.md](resource-governance.md))
+  mechanism ([resource-governance.md](resource-governance.md)). **Placement-aware CPU charging**
+  joined them on 2026-07-16, declined where it stood: `admit` is entered before `place`, so the
+  charge cannot see a target without a port change, and no spawn is GPU-placed in the shipped
+  wiring anyway. It reopens here, with the executors that would make the discount mean something.
 - Taint/provenance persistence across a mid-turn swap, and the ~31B brain-tier
   injection-harness run ([untrusted-content.md](untrusted-content.md))
 - **Streamed brain status** ([body-overlay.md](body-overlay.md)): the push half of the landed
@@ -218,7 +230,9 @@ UTS-39 confusables, further encodings, footer heuristics), the GBNF alternative,
 fence-without-block recall mode, per-provenance eviction, and the screening subagent
 ([untrusted-content.md](untrusted-content.md)); per-field attachment schema descriptions and
 send batching / session allowlists ([email-confirmer.md](email-confirmer.md)); the NPU as a
-third placement target, pending its feasibility pass
+third placement target pending its feasibility pass, plus the two the admission wall opened,
+a bounded admission wait and a read timeout on the subagent HTTP client, whose triggers are a
+turn observably stalled in admission and a wedged `llama-server` stream respectively
 ([resource-governance.md](resource-governance.md)).
 
 ### Feature breadth, on request
