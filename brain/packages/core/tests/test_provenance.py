@@ -2,7 +2,7 @@
 
 import pytest
 
-from cortex_core import MAX_SOURCE_CHARS, Provenance, SourceKind, as_source
+from cortex_core import MAX_SOURCE_CHARS, Provenance, SourceKind, as_source, claimed_source
 
 
 def test_an_attested_kind_is_a_value_the_brain_authored() -> None:
@@ -86,3 +86,33 @@ def test_constructing_a_provenance_with_an_empty_value_is_a_bug() -> None:
     # never stored or shown, so it is rejected rather than silently kept.
     with pytest.raises(ValueError, match="non-empty source"):
         Provenance(SourceKind.MEMORY, "\u200b \t")
+
+
+def test_a_sidecar_may_claim_a_sender_or_a_uri() -> None:
+    # The declaration channel's trust gate: a result may claim a source about its own content, and
+    # only the claimed kinds are declarable. The value is sanitized exactly like any other source.
+    assert claimed_source("sender", "Alice <alice@example.com>") == Provenance(
+        SourceKind.SENDER, "Alice alice@example.com"
+    )
+    assert claimed_source("uri", "https://site.example/page") == Provenance(
+        SourceKind.URI, "https://site.example/page"
+    )
+    assert not SourceKind.SENDER.attested
+    assert not SourceKind.URI.attested
+
+
+def test_a_sidecar_cannot_forge_an_attested_kind() -> None:
+    # An attested kind names a value the brain alone authors, so a sidecar declaring one would
+    # forge a trusted-looking label. A declared attested kind attributes nothing at all.
+    assert claimed_source("tool", "trusted_bank") is None
+    assert claimed_source("memory", "mem-1") is None
+
+
+def test_an_unparseable_declaration_is_dropped_never_raised() -> None:
+    # A declaration is attacker-influenceable and losing one must never fail a turn, so anything
+    # that is not a declarable-kind string with a non-empty string value is dropped to None.
+    assert claimed_source("phone", "+15550000") is None  # not a declarable kind
+    assert claimed_source("sender", 12345) is None  # a non-string value (from arbitrary JSON)
+    assert claimed_source(None, "alice@example.com") is None  # a null kind
+    assert claimed_source(["sender"], "x") is None  # a non-string (unhashable) kind: never .get()ed
+    assert claimed_source("sender", "  \u200b \t") is None  # a value that sanitizes away entirely

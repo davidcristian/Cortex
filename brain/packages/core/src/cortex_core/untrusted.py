@@ -124,17 +124,22 @@ class TaintLedger:
 
     def observe(self, result: ToolResult, *, source: Provenance | None = None) -> None:
         """Record one dispatched result: mark taint, collect an untrusted result's URLs, and note
-        where it came from.
+        where it came from, both the attested ``source`` the loop passes (the advertised tool the
+        content came through) and the claimed ``result.source`` the result declared for itself
+        (a sidecar-declared sender/locator, ADR-0027 addendum).
 
         Anything collected here can only have entered the turn through untrusted content, so
         its reappearance in the assistant's reply is laundering. The output guardrail redacts
-        it (ADR-0015). Trusted results contribute nothing, provenance included: a trusted result
-        is our own text, so it is not a source the turn read from the outside world.
+        it (ADR-0015). Trusted results contribute nothing, both provenances included: a trusted
+        result is our own text, so it is not a source the turn read from the outside world. Taint
+        is marked from ``result.trust`` alone and before any source is noted, so a declared source
+        can never flip a trusted result nor otherwise downgrade the turn.
         """
         self.mark(result.trust)
         if result.trust is Trust.UNTRUSTED:
             self.untrusted_urls |= extract_urls(result.content)
             self.note_source(source)
+            self.note_source(result.source)
 
     def ingest_untrusted(self, content: str, *, source: Provenance | None = None) -> None:
         """Taint the turn from a non-tool untrusted source: mark taint, collect ``content``'s

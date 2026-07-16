@@ -117,12 +117,21 @@ class ToolResult:
     result reaching the loop without an explicit stamp is framed as data. A generic registry
     (MCP, the in-memory twin) leaves the default; only a built-in returning system-generated
     bytes stamps ``TRUSTED``.
+
+    ``source`` is a source the *result* declared for its own ``content`` (ADR-0027 addendum): a
+    sidecar-declared sender or locator that the MCP adapter parsed from the result's ``_meta`` side
+    channel, ``None`` when it declared none (every result today but the email reader's). It is a
+    **claimed** ``Provenance`` (``SourceKind.attested`` is ``False``): the declaration is
+    attacker-influenceable, so the ledger notes it beside the attested tool source and it can only
+    ever annotate, never relax taint. It rides beside ``content``, not inside it, so a declaration
+    never disturbs the string the model reads.
     """
 
     call_id: str
     content: str
     is_error: bool = False
     trust: Trust = Trust.UNTRUSTED
+    source: Provenance | None = None
 
 
 @dataclass(frozen=True, slots=True)

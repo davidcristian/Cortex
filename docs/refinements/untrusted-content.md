@@ -2,7 +2,7 @@
 
 This area originates in [ADR-0013](../adr/ADR-0013-untrusted-content.md) (Slice 6.5), whose deferrals grew into the output guardrail ([ADR-0015](../adr/ADR-0015-output-guardrail.md)), subagent model safety ([ADR-0017](../adr/ADR-0017-subagent-model-safety.md)), tainted-memory recording ([ADR-0019](../adr/ADR-0019-tainted-memory-recording.md)), and grammar-constrained subagent output ([ADR-0028](../adr/ADR-0028-grammar-constrained-subagents.md)). Extracted from the ROADMAP's deferred-refinements section on 2026-07-15 with the entries kept verbatim; landed entries are the historical record of what each deferral became, and the index at [index.md](index.md) carries the recommended pickup order.
 
-**Open items:** the screening subagent, Windows-native validation of the confirm card, whitespace-split hosts, the full UTS-39 confusables set, mixed/other encodings, footer/boilerplate heuristics, a raw GBNF grammar alternative, a per-task caller-supplied schema, a sidecar-declared sender/URI source, provenance across the stores, a fence-without-block recall mode, per-provenance eviction, per-remote-tool trust/gating overrides, taint persistence across a mid-turn swap, the brain-tier injection-harness run
+**Open items:** the screening subagent, Windows-native validation of the confirm card, whitespace-split hosts, the full UTS-39 confusables set, mixed/other encodings, footer/boilerplate heuristics, a raw GBNF grammar alternative, a per-task caller-supplied schema, provenance across the stores, a fence-without-block recall mode, per-provenance eviction, per-remote-tool trust/gating overrides, taint persistence across a mid-turn swap, the brain-tier injection-harness run
 
 **Untrusted-content boundary in Slice 6.5 ([ADR-0013](../adr/ADR-0013-untrusted-content.md)):** each
 behind the unchanged `ToolRegistry`/`ToolDispatcher`/`stream_tool_loop` seams (or the new `Confirmer` port).
@@ -229,6 +229,37 @@ behind the unchanged `ToolRegistry`/`ToolDispatcher`/`stream_tool_loop` seams (o
   as sidecar format knowledge in the hexagon's center), and **provenance across the stores**
   (`ScheduledItem` and `SubagentResult` each store the taint bit only, so a fired task's stamp
   and a subagent's own readings attribute nothing back to the turn that consumes them).
+- **A sidecar-declared sender landed 2026-07-16 ([ADR-0027 sidecar addendum](../adr/ADR-0027-turn-provenance.md)),**
+  giving the claimed provenance kinds their first producer and refuting the reachability blocker the
+  entry above named. **The blocker was false.** Read against the shipped MCP SDK (1.28.1): a result's
+  `_meta` IS reachable through the very client the registry uses (`CallToolResult.meta` on
+  `mcp.ClientSession.call_tool`), and a FastMCP tool CAN set it by returning a `CallToolResult`
+  (the low-level `call_tool` handler passes a returned `CallToolResult` straight through, and FastMCP
+  types a `-> CallToolResult` tool as "return without output-schema validation"), which was proven by
+  an in-memory client/server round trip: result-level `_meta` survives to the client with the readable
+  string untouched in the content blocks. So the only true constraint was the ADR's own preferred
+  channel, `structuredContent` (which does replace the readable text); `_meta` was there the whole time.
+  **The transport half:** the email `read_email` tool returns a `CallToolResult` whose single text block
+  is the same readable message and whose `_meta["cortex/source"]` declares `{"kind": "sender", "value":
+  <From>}`; the registry (`McpToolRegistry.invoke`) reads that key into a new `ToolResult.source`
+  (`_declared_source`), and the loop's `TaintLedger.observe` notes it beside the attested `TOOL` source.
+  The `_meta` key is a cross-deployable wire contract, since the email sidecar deliberately cannot import
+  the core. **The trust half:** a declaration is attacker-influenceable (a `From` header is the sender's
+  to write), so the pure-core `claimed_source` is the gate: it admits only a **claimed** `SourceKind`
+  (`SENDER`/`URI`), dropping any attested kind a hostile sidecar might name to forge a trusted-looking
+  label, and sanitizes/bounds the value through `Provenance` exactly like any other source; `observe`
+  marks taint from `result.trust` before noting any source, so a declared source only ever annotates and
+  can never downgrade the turn (mutation-proven: reverting the claimed-only gate lets a forged attested
+  kind through, reverting `observe`'s note drops the sender). Validated live end to end against the real
+  email sidecar in Docker over ProtonMail Bridge. **The consumer is still thin, honestly:** nothing reads
+  `SENDER`/`URI` provenance today (confirm-with-provenance stays declined, since a producer alone does not
+  reverse the fail-closed decision; per-provenance eviction wants `MemoryRecord` provenance first), but
+  the provenance *fields* were built ahead of their consumers on the same logic, and this completes them
+  symmetrically for the claimed kinds and unblocks that future work. The `URI` kind rides the identical
+  channel; its producer arrives with a fetch tool, which does not exist yet (feature breadth, not a
+  separate deferral). *Original deferred entry, kept verbatim as the historical record:* "**A
+  sidecar-declared sender/URI.** Needs the `ToolResult` widening plus a declaration channel that does not
+  disturb the model-facing text, per the paragraph above."
 - **Per-remote-tool trust / gating overrides.** Trust is fail-closed `UNTRUSTED` and `gated` is
   per-`ToolSpec`; a genuinely trusted or gated *remote* MCP tool would need a composition-root
   overlay onto the spec. None exists now.

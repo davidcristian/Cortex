@@ -100,6 +100,7 @@ from cortex_core.provenance import MAX_TURN_SOURCES as MAX_TURN_SOURCES
 from cortex_core.provenance import Provenance as Provenance
 from cortex_core.provenance import SourceKind as SourceKind
 from cortex_core.provenance import as_source as as_source
+from cortex_core.provenance import claimed_source as claimed_source
 from cortex_core.recall import MemoryRecaller as MemoryRecaller
 from cortex_core.rerank import RAW_RECALL_POLICY as RAW_RECALL_POLICY
 from cortex_core.rerank import RawRecallPolicy as RawRecallPolicy

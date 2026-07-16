@@ -34,7 +34,7 @@ its signature.
 | [seam-auth.md](seam-auth.md) | Seam token auth (ADR-0016) | 1 |
 | [session-history.md](session-history.md) | Slice 3 history windowing and summarization | 1 |
 | [tools-mcp.md](tools-mcp.md) | Dispatch budget/cost/salience, spawn batch cap, MCP registries (ADR-0009/0010) | 6 |
-| [untrusted-content.md](untrusted-content.md) | Taint boundary, output guardrail, subagent model safety (ADR-0013/0015/0017/0019/0028) | 15 |
+| [untrusted-content.md](untrusted-content.md) | Taint boundary, output guardrail, subagent model safety (ADR-0013/0015/0017/0019/0028) | 14 |
 | [memory.md](memory.md) | Store, scoping, rerank/MMR (ADR-0008) | 8 |
 | [inference-model-manager.md](inference-model-manager.md) | Model-manager lifecycle, MTP, reasoning status (ADR-0007/0020) | 3 |
 | [subagents.md](subagents.md) | Progress reporting, spawn schema, heterogeneous roster (ADR-0010/0018) | 1 |
@@ -84,6 +84,22 @@ removed: untrusted source]` marker already tells the user a link was removed, in
 event would be ephemeral, dropped by the status chip on settle, and consumed by nothing, so its
 `OutputFilter.feed` port cost buys only polish, and a safe event could carry a count but never the
 redacted URL. Both halves were observed live over the real guardrail and the real overlay reducer.
+It then went 15 to 14 the same day when a sidecar-declared sender landed, giving the claimed
+provenance kinds their first producer and refuting the entry's own blocker. The entry (and this
+index) had it that a FastMCP tool "returns content blocks with no result `_meta`"; read against the
+shipped MCP SDK the opposite is true: `CallToolResult.meta` is reachable through the very client the
+registry uses, and a FastMCP tool sets it by returning a `CallToolResult`, proven by an in-memory
+round trip in which result `_meta` survived to the client with the readable string untouched. So the
+email `read_email` declares the message sender in `_meta["cortex/source"]`, the registry reads it into
+a new `ToolResult.source`, and the ledger notes it beside the attested tool source. The trust half is
+the pure-core `claimed_source`: it admits only a claimed `SENDER`/`URI` (dropping an attested kind a
+hostile sidecar might forge) and sanitizes the value, and `observe` marks taint before noting any
+source, so a declaration can only annotate, never downgrade, both mutation-proven and validated live
+against the real email sidecar in Docker. The consumer stays thin and is named as such (confirm-with-
+provenance remains declined, a producer alone not reversing the fail-closed decision; per-provenance
+eviction wants `MemoryRecord` provenance first), but the fields were built ahead of their consumers on
+the same logic and this completes them symmetrically for the claimed kinds; the `URI` producer rides
+the identical channel and arrives with a fetch tool that does not yet exist.
 Body & overlay held at 3 on 2026-07-16 when the connection indicator landed and
 opened the push half behind it (streamed brain status, blocked on a producer), while session
 read seam went 5 to 4 the same day: the two entries were one deferral written down twice, and
@@ -278,10 +294,11 @@ call on a tainted turn returns `DENIED_MSG` and never consults the confirmer (`d
 by an approving-confirmer test that stays unconsulted), so there is no card to add a source line to,
 and reversing the block reopens the path an injection aims for to save the one extra turn the
 turn-local flow already costs. The provenance actually captured is attested (`TOOL`/`MEMORY`), which
-names the user's own tool use rather than the attacker, while the `SENDER`/`URI` kinds that would
-name the attacker have no producer, so the change is doubly unfounded. It is the same fail-closed
-philosophy the tainted-summarization decline turned on, now protecting the user rather than the
-model. Email & confirmer then went 5 to 4 the same day when real-file attachments (bytes the
+names the user's own tool use rather than the attacker; the `SENDER` kind that would name the
+attacker gained a producer later the same day (the sidecar-declared sender), but a producer alone
+does not reverse the fail-closed decision, so the decline stands on its own merits. It is the same
+fail-closed philosophy the tainted-summarization decline turned on, now protecting the user rather
+than the model. Email & confirmer then went 5 to 4 the same day when real-file attachments (bytes the
 assistant did not author) closed as declined, the capability kept ungranted: send exists but
 attaches only authored text, the `mcp-email` sidecar has no `volumes:` to read from, and granting
 the one outbound sidecar file-read would fuse read-local with write-remote on the exfil path. The
@@ -349,12 +366,6 @@ against the code (the warning above); the entry text tells you which seams it ex
   model pass cannot be validated on the 8 GB dev GPU (the cortex tier does not fit) and that
   `select`'s widening should serve its three deferred consumers in one change, so this reopens with
   the real GPU lifecycle.
-- **A sidecar-declared sender or source URI**
-  ([untrusted-content.md](untrusted-content.md)): the two *claimed* provenance kinds ship shaped
-  and tested with no producer, because `ToolResult` carries no source and a FastMCP tool returns
-  content blocks with no result `_meta`, while `structuredContent` would replace the readable
-  string the model consumes. Needs both halves designed together; parsing a sidecar's rendered
-  text in the core is not the answer.
 - **Toast activation routing** ([scheduling.md](scheduling.md)): opened 2026-07-16 behind the
   landed toast. Clicking a toast does nothing, and the obvious fix (open the origin chat, the
   control the overlay's card already has) cannot be built as the seam stands: `NotifyRequest`
@@ -423,11 +434,12 @@ against the code (the warning above); the entry text tells you which seams it ex
   approving-confirmer test asserting it stays unconsulted), so there is no card to add a source
   line to; letting one reach the card reopens the path an injection aims for, to save the one extra
   turn the taint-is-turn-local flow already costs, which the ADR accepted. The only provenance
-  captured is attested (`TOOL`/`MEMORY`), which names the user's own tool use, not the attacker;
-  the `SENDER`/`URI` kinds that would name the attacker have no producer (the sidecar-declared
-  sender). Declined 2026-07-16; reopens only if the outbound-on-tainted decision is revisited with
-  evidence a card converts reflexive approval into scrutiny **and** a real `SENDER`/`URI` producer
-  exists, not on provenance plumbing alone ([email-confirmer.md](email-confirmer.md))
+  captured is attested (`TOOL`/`MEMORY`), which names the user's own tool use, not the attacker; a
+  `SENDER` producer that would name the attacker landed later the same day (the sidecar-declared
+  sender), so one of the two reopen conditions is now met, but the other is not. Declined 2026-07-16;
+  reopens only if the outbound-on-tainted decision is revisited with evidence a card converts
+  reflexive approval into scrutiny, now that a real `SENDER`/`URI` producer exists, not on provenance
+  plumbing alone ([email-confirmer.md](email-confirmer.md))
 - Session+global union read policy and cross-scope recall ranking: nothing writes durable
   global facts under scoping yet ([memory.md](memory.md))
 - Self-editing memory (`update` in place), tiered promote/demote/expire, write-salience, and the

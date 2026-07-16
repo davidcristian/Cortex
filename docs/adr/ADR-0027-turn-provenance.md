@@ -161,3 +161,45 @@ own framing in one place, noted below.
 - **The two named consumers stay deferred and unbuilt**, as this ADR already recorded:
   confirm-with-provenance reverses a fail-closed posture (a decision, not plumbing) and
   per-provenance eviction wants `MemoryRecord` provenance first.
+
+## Addendum (2026-07-16): the sidecar declaration channel exists, and the sender lands
+
+The **sidecar-declared sender/URI** deferred above lands as a sender producer, and in building it the
+source-fields addendum's reachability claim proved **false**. That addendum stated that a FastMCP tool
+"returns content blocks, with no result `_meta` to ride", so "the sender the email sidecar plainly
+knows has no path into the brain" without either `structuredContent` (which replaces the readable
+text) or parsing rendered text (rejected). Read against the shipped MCP SDK (1.28.1), the opposite is
+true, and it is the clean channel the addendum was looking for.
+
+- **Result `_meta` is reachable through the very client the registry uses.** `CallToolResult` extends
+  `Result`, which carries `meta: dict | None` (aliased `_meta`), so `mcp.ClientSession.call_tool`
+  returns it and `McpToolRegistry.invoke` can read `result.meta` with no SDK change.
+- **A FastMCP tool sets result `_meta` by returning a `CallToolResult`.** The low-level `call_tool`
+  handler returns a handler-produced `CallToolResult` straight through (`ServerResult(results)`), and
+  FastMCP types a `-> CallToolResult` tool as "return without output-schema validation", so it passes
+  the value through untouched, `_meta` and all, with no `structuredContent`. Proven by an in-memory
+  client/server round trip: result-level `_meta` survived to the client while the readable string
+  stayed in the content blocks, unchanged. The addendum's true constraint was only its own preferred
+  channel (`structuredContent`); `_meta` was there the whole time.
+- **The transport half.** `read_email` returns a `CallToolResult` whose single text block is the same
+  readable message and whose `_meta["cortex/source"]` declares `{"kind": "sender", "value": <From>}`.
+  `McpToolRegistry.invoke` reads that key (`_declared_source`) into a new `ToolResult.source`, and the
+  loop's `TaintLedger.observe` notes it beside the attested `TOOL` source. The `_meta` key is a
+  cross-deployable wire contract, since the email sidecar deliberately cannot import the core.
+- **The trust half.** A declaration is attacker-influenceable (a `From` is the sender's to write, and a
+  hostile sidecar could name anything), so the pure-core `claimed_source(kind, value)` is the gate: it
+  admits only a **claimed** `SourceKind` (`SENDER`/`URI`), dropping any attested kind that would forge a
+  trusted-looking label, and sanitizes/bounds the value through `Provenance` like every source. `observe`
+  marks taint from `result.trust` before noting any source, so a declared source only ever annotates and
+  can never downgrade the turn. The core owns which kinds are declarable and the sanitization; only the
+  `_meta` transport detail lives in the adapter.
+- **The consumer is thin, honestly.** Nothing reads `SENDER`/`URI` provenance today:
+  confirm-with-provenance stays declined (a producer alone does not reverse the fail-closed decision),
+  and per-provenance eviction wants `MemoryRecord` provenance first. The producer lands anyway to
+  complete the provenance design symmetrically for the claimed kinds, the same "build the field ahead of
+  its consumer" logic the source fields themselves landed on. The `URI` kind rides the identical channel;
+  its producer arrives with a fetch tool, which does not exist yet.
+
+**Still deferred (recorded in `docs/refinements/`):** provenance across the stores, per-provenance
+eviction, confirm-with-provenance (unchanged decision), and a `URI` producer (a fetch tool, feature
+breadth).

@@ -19,9 +19,9 @@ satisfies in CI (the MCP analog of the accepted MockTransport pattern). The beha
 contract against a real MCP server is the integration-marked `test_registry_live.py`.
 """
 
-from collections.abc import AsyncGenerator, Callable, Sequence
+from collections.abc import AsyncGenerator, Callable, Mapping, Sequence
 from contextlib import AbstractAsyncContextManager, asynccontextmanager
-from typing import Protocol
+from typing import Protocol, cast
 
 import httpx
 from mcp import ClientSession
@@ -29,7 +29,14 @@ from mcp.client.streamable_http import streamable_http_client
 from mcp.shared.exceptions import McpError
 from mcp.types import CallToolResult, ListToolsResult, TextContent
 
-from cortex_core import ToolCall, ToolError, ToolResult, ToolSpec
+from cortex_core import Provenance, ToolCall, ToolError, ToolResult, ToolSpec, claimed_source
+
+# The MCP result `_meta` key a sidecar declares a content source under (ADR-0027/0009). It rides
+# beside the readable content blocks, so a declaration never disturbs the string the model consumes
+# (unlike `structuredContent`). A cross-deployable wire contract: a sidecar (which cannot import the
+# core, e.g. the standalone email server) writes this key, and the core's `claimed_source` is the
+# trust gate, admitting only a claimed SENDER/URI and sanitizing its value.
+_SOURCE_META_KEY = "cortex/source"
 
 # McpError covers protocol-level failures; OSError covers socket-level transport failures.
 # Both cross the ToolRegistry port as ToolError with the cause chained.
@@ -40,6 +47,22 @@ _WRAPPED = (McpError, OSError)
 # the whole set crosses the port as ToolError so an outer SkipUnavailableToolRegistry can serve
 # around a dead sidecar (ADR-0009 boot-tolerance addendum).
 _OPEN_WRAPPED = (McpError, OSError, httpx.HTTPError)
+
+
+def _declared_source(result: CallToolResult) -> Provenance | None:
+    """The source a sidecar declared for this result, as a claimed ``Provenance`` (ADR-0027/0009).
+
+    Read from the result's MCP ``_meta`` side channel, so a declaration rides beside the readable
+    content blocks and never disturbs the string the model consumes. The core's ``claimed_source``
+    is the trust gate: a malformed or absent declaration, or one naming an attested kind a hostile
+    sidecar might forge, yields ``None``; only a sanitized, bounded, claimed SENDER/URI passes.
+    """
+    meta: Mapping[str, object] = result.meta or {}
+    declaration = meta.get(_SOURCE_META_KEY)
+    if not isinstance(declaration, Mapping):
+        return None
+    fields = cast("Mapping[str, object]", declaration)
+    return claimed_source(fields.get("kind"), fields.get("value"))
 
 
 class McpSession(Protocol):
@@ -92,14 +115,23 @@ class McpToolRegistry:
         ]
 
     async def invoke(self, call: ToolCall) -> ToolResult:
-        """Call one MCP tool; return its rendered text content, ``is_error`` set on failure."""
+        """Call one MCP tool; return its rendered text content, ``is_error`` set on failure.
+
+        A source the sidecar declared in the result's ``_meta`` (``_declared_source``) rides in as
+        ``ToolResult.source``, read from beside the content blocks so it never touches the text.
+        """
         try:
             result = await self._session.call_tool(call.name, dict(call.arguments))
         except _WRAPPED as err:
             msg = f"MCP tool {call.name!r} failed"
             raise ToolError(msg) from err
         text = "".join(block.text for block in result.content if isinstance(block, TextContent))
-        return ToolResult(call_id=call.id, content=text, is_error=bool(result.isError))
+        return ToolResult(
+            call_id=call.id,
+            content=text,
+            is_error=bool(result.isError),
+            source=_declared_source(result),
+        )
 
 
 class ReconnectingMcpToolRegistry:

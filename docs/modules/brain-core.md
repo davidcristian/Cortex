@@ -118,6 +118,14 @@ on it):
   input, or input that sanitizes away, yields no provenance rather than raising, so losing one
   attribution never fails a turn. `MAX_SOURCE_CHARS` (per value) and `MAX_TURN_SOURCES` (per
   turn, enforced by `TaintLedger`) are the two bounds, both exported.
+- `claimed_source(kind: object, value: object) -> Provenance | None` is the trust gate of the
+  sidecar declaration channel (ADR-0027 sidecar addendum): a tool result may declare a source for
+  its own content, but the declaration is attacker-influenceable, so this admits it only under a
+  **claimed** `SourceKind` (an attested `kind` a hostile sidecar might name is dropped, so it can
+  never forge a trusted-looking label), sanitizes the value via `as_source`, and yields `None` for
+  any malformed input (non-`str` kind/value, unknown kind, empty value) rather than raising. The MCP
+  `_meta` transport detail lives in the adapter (`cortex_tools`); the core owns only which kinds are
+  declarable and the sanitization.
 - Nothing the model authored is ever a source: capture sites use the advertised `ToolSpec.name`,
   never `ToolCall.name` or an argument (the `ToolStep` rule, for the same reason).
 
@@ -152,9 +160,14 @@ Tool domain (Slice 6, ADR-0009; untrusted-content fields Slice 6.5, ADR-0013):
   further work can propagate provenance, staying transient (the loop persists the unstamped calls)
   and never the gate's input (the gate uses the dispatcher's explicit argument).
 - `ToolResult` is a frozen dataclass: `call_id: str`, `content: str`, `is_error: bool = False`,
-  `trust: Trust = Trust.UNTRUSTED`. The outcome fed back to the model; `is_error` marks a tool
-  (or dispatch) failure; `trust` is the content's provenance (fail-closed default), read by the
-  loop to fence untrusted content and mark taint.
+  `trust: Trust = Trust.UNTRUSTED`, `source: Provenance | None = None`. The outcome fed back to the
+  model; `is_error` marks a tool (or dispatch) failure; `trust` is the content's provenance
+  (fail-closed default), read by the loop to fence untrusted content and mark taint. `source` is a
+  **claimed** source the result declared for its own content (a sidecar-declared sender/locator the
+  MCP adapter parsed from the result's `_meta`, ADR-0027 addendum), `None` for every result but the
+  email reader's today; it rides beside `content`, so a declaration never disturbs the model-facing
+  text, and the ledger notes it beside the attested tool source, only ever annotating, never
+  relaxing taint.
 - `ToolInvocation` is a frozen dataclass: `name`, `arguments`, `ok: bool`, `detail: str`,
   `at: datetime` (tz-aware, rejects naive), `trust: Trust = Trust.UNTRUSTED` (the provenance
   audit trail). One audit-trail line.
@@ -324,7 +337,11 @@ Untrusted-content boundary (Slice 6.5, ADR-0013; the pure primitives in `untrust
   (the laundering evidence, ADR-0015), and `sources: tuple[Provenance, ...] = ()` (where that
   content came from, ADR-0027 addendum). `mark(trust)` flips `tainted` on the first `UNTRUSTED`
   result; `observe(result, *, source=None)` (what the shared loop calls) marks, collects an
-  untrusted result's URLs, AND notes its source; `ingest_untrusted(content, *, source=None)` is
+  untrusted result's URLs, AND notes two sources: the attested `source` the loop passes (the
+  advertised tool the content came through) and the claimed `result.source` the result declared for
+  itself (a sidecar-declared sender/locator, ADR-0027 addendum). Taint is marked from `result.trust`
+  before any source is noted, so a declared source can never downgrade the turn.
+  `ingest_untrusted(content, *, source=None)` is
   the non-tool twin (ADR-0019). The engine calls it for a recalled tainted memory so it taints,
   contributes URLs, and names its origin like a live untrusted result. `note_source(source)` is
   the bounded accumulator both use: `None` and repeats record nothing, and past
