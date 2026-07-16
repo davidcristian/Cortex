@@ -796,3 +796,69 @@ produced one 25-call round, confirming the shape was real and not an artifact of
 Nothing remains behind this cap. The adjacent refinements (structural argument identity, the
 salience limit knob, cross-loop salience, all in the salience addendum's remaining list) are
 untouched by it.
+
+## Addendum (2026-07-16): structural argument identity in salience is declined, its threat already bounded
+
+The salience addendum's first remaining item read "argument identity is structural", so two
+spellings of one intent (`a.txt` versus `./a.txt`, an added default-valued key) are two different
+calls, and the deferred-refinements index predicted the fix "needs the advertised parameter
+schema at the policy". That index also warns that this very area misdiagnosed its own cost
+before, so the entry was read against the code first. It is declined, on the merits, on four
+findings.
+
+1. **The evasion the index named is already closed.** `RepeatSalience` identifies a call by
+   `_asks_the_same`: same `name`, and `arguments` compared with `Mapping.__eq__`. Python mapping
+   equality is deep and key-order-independent at every nesting level, so permuted keys (top level
+   and nested alike) already collapse to one call, JSON whitespace never survives into the parsed
+   `arguments` mapping, and Python-equal scalars (`1` and `1.0`, `True` and `1`) already collapse
+   too. A test pins the load-bearing half (`test_arguments_compare_structurally_rather_than_by_key_order`):
+   reverting `_asks_the_same` to a naive `json.dumps` without `sort_keys` turns it red. That same
+   experiment shows the shape a schema-free "canonicalization" would most naturally take is a
+   **regression** rather than an improvement, since unsorted serialization reopens the permuted-key
+   case and even sorted serialization splits `1` from `1.0` that equality collapses.
+
+2. **A schema-free canonical form closes nothing the equality does not.** Recursively sorting
+   object keys and comparing yields exactly the relation `Mapping.__eq__` already computes
+   (order-insensitive for objects, order-sensitive for arrays, which is correct, since a list
+   argument's order can be semantic). So the cheaper of the two directions the index posed is not
+   merely unnecessary, it is a no-op carrying a regression risk, and it is rejected.
+
+3. **The cases a schema would close are unsound to close and reverse this policy's chosen
+   direction.** The only genuinely open cases are value spelling (`a.txt` versus `./a.txt`), a
+   present-versus-omitted defaulted optional, and a cross-type scalar (`1` versus `"1"`). Value
+   spelling needs per-tool domain semantics (a path normalizer), which is the model judgment
+   decision 1 of the salience addendum rejected outright, and no parameter schema supplies it.
+   Folding a defaulted optional is the one case the advertised schema seems to enable, but JSON
+   Schema `default` is advisory documentation, not applied behaviour: a tool is free to treat an
+   absent key differently from an explicit default, so folding "omitted" onto "the schema's
+   default" can collapse two calls the tool would run differently, and the collapse **refuses a
+   legitimate call**. That is the non-benign failure decision 3 deliberately steered away from ("a
+   limit of two wastes one dispatch; a limit of one denies information"), reached now by a
+   false-positive identity rather than a tight cap. The safe direction the entry itself named (an
+   unrecognized repeat is dispatched, never an unrelated call refused) is a reason to keep the
+   identity conservative, not to widen it.
+
+4. **The residual the conservative identity leaves is already bounded twice over.** Not collapsing
+   two semantically-equal spellings costs at most a few extra dispatches, and those are capped by
+   `MAX_TOOL_DISPATCHES` (32 per turn) and `MAX_CALLS_PER_ROUND` (16 per round) whatever the
+   spellings are. The one consequence that mattered in the salience addendum, a declined gated call
+   re-prompting the user, is bounded independently of identity: a gated call on a **tainted** turn
+   is denied outright with no card at all (so injected content produces zero confirmation prompts
+   however it permutes arguments), and on an untainted turn the shared budget caps total dispatches
+   at 32. So the worst structural-identity evasion turns "at most two cards" into "at most the
+   budget's worth" for one action on a user's own untainted turn, a bounded UX degradation by a
+   confused (not attacker) model, never an unbounded flood and never a boundary breach.
+
+**Coherence with the round cap.** The round-cap addendum read "distinct" as *calls emitted*,
+explicitly independent of argument identity: it never asks whether two calls are the same, only
+how many were emitted, so it cannot disagree with salience about identity. Declining to widen
+salience's identity keeps that independence intact. Context growth stays bounded by the round cap
+and by the budget regardless of spelling, redundancy stays bounded by the conservative structural
+identity, and neither bound consults the other.
+
+**No code change.** The `SaliencePolicy.admits(call, dispatched)` seam is unchanged, no `ToolSpec`
+is threaded to the policy, and the entry stays verbatim in the deferred-refinements area doc as
+the historical record, annotated with this outcome and moved to its dead-until-a-real-gap list. It
+reopens only if a real wired tool exhibits a semantic-equivalence evasion that the budget, the
+round cap, and the tainted-turn block do not already bound, and even then the sound form is a
+per-tool domain normalizer (the rejected model judgment), not schema-`default` folding.
