@@ -320,6 +320,8 @@ without a brain; `overlay-ux.md` gains the card's spec.
 ## Deferred (recorded in the ROADMAP)
 
 - Confirm-with-provenance for tainted turns (needs structured provenance, ADR-0013/0019).
+  **Declined 2026-07-16** once the provenance landed (addendum below): reversing the fail-closed
+  block is rejected on the merits, and the useful `SENDER`/`URI` provenance has no producer anyway.
 - Richer send shapes behind the same tool name: **cc/bcc/HTML landed 2026-07-13** (addendum
   below); **attachments remain** (they need a bytes-transport decision, recorded there).
 - A structured confirm-resolution event so the overlay can close a stale card exactly.
@@ -663,3 +665,63 @@ laundering-surface guarantee this addendum turns on), so the overlay renders a s
 chip still needs no completion states). Full record and validation live at the
 [ADR-0010 progress addendum](ADR-0010-subagents.md); the backlog closes in
 [email-confirmer.md](../refinements/email-confirmer.md).
+
+## Addendum (2026-07-16): confirm-with-provenance for tainted turns is declined
+
+The structured provenance this deferral waited on landed (`TurnStamp.sources`, ADR-0027
+addendum), so the blocker the entry named is gone and the decision it always was can be made.
+The decision is to **keep the fail-closed tainted block**. Reversing it is rejected on the
+merits, and separately the provenance that would make a card useful does not exist yet. Both
+findings were read against the code, and the block was observed to fail closed.
+
+### 1. What a tainted turn reaching a gated call does today, in code
+
+`ToolDispatcher.dispatch` gates on the dispatcher's own `stamp.tainted`
+(`cortex_core/dispatch.py`): a gated call on a tainted turn returns `DENIED_MSG` and the
+confirmer is **never consulted** (the `if stamp.tainted:` branch returns before `_confirmed`
+runs). Two tests pin it, and both were run green this session:
+`test_gated_tool_on_a_tainted_turn_is_blocked_without_a_confirmer` and
+`test_gated_tool_on_a_tainted_turn_is_blocked_even_when_a_confirmer_would_approve`, the second
+asserting `confirmer.requests == ()` with an approving confirmer wired. So the posture is a
+hard block, not a confirm-without-provenance, and the entry's "reverses a fail-closed posture"
+framing is exactly right. There is no card on this path to add a source line to; building the
+entry means letting a tainted gated call reach the confirm card at all.
+
+### 2. Why reversing it is rejected, independent of provenance
+
+The tainted block is a **deterministic guarantee**, not a gap left by a missing source string:
+after a turn reads hostile bytes, the outbound surface is closed for the rest of the turn, full
+stop (decision 2, `DENIED_MSG` at `cortex_core/untrusted.py`). On a tainted turn the model's
+arguments may themselves be injection-authored, so a card showing that draft to a user
+conditioned to approve is not a boundary. A send demanded by injected content must never be
+merely a confirm-away, and a source line on the card does not change what the card asks the user
+to do. The posture is also **not over-broad**: the legitimate "read this email, then reply" flow
+still completes, in a fresh turn, because taint is turn-local and `DENIED_MSG` tells the model to
+have the user re-ask. Keeping the block costs one extra user turn, the cost decision 2 already
+weighed and accepted; reversing it reopens the exact path an injection attack aims for, to save
+that one turn. That trade is refused, consistent with the same-day decline of summarizing a
+tainted exchange (feeding attacker text through a model makes the model the target; a provenance
+card makes the **user** the target, worse, since the user is the authority the gate exists to
+protect).
+
+### 3. And the useful provenance is not captured anyway
+
+Even had the decision gone the other way, the change could not be built honestly. The only two
+`Provenance` producers in the brain are both **attested** (brain-authored): the tool loop notes
+the advertised tool name (`SourceKind.TOOL`, `cortex_core/tool_loop.py`) and recall notes a
+fenced memory's id (`SourceKind.MEMORY`, `cortex_core/engine.py`). A card built from those would
+say "this turn used the read tool" or "recalled memory abc123", which names the user's own action,
+not the attacker. The kinds that would identify the attacker, `SENDER` and `URI` (the content's
+own claim), ship shaped and tested with **no producer**, because `ToolResult` carries no source
+field (the sidecar-declared-sender deferral, ADR-0027 addendum). So the provenance actually
+present at the confirm point is precisely the unhelpful kind, and the helpful kind is a second,
+independent blocker.
+
+### 4. Outcome
+
+**Declined**, docs-only. The entry stays in [email-confirmer.md](../refinements/email-confirmer.md)
+verbatim as the historical record, annotated with this outcome, and moves to the backlog's
+dead-until-a-consumer list. It reopens only if the outbound-on-tainted decision is itself revisited
+with new evidence that a confirmation card converts reflexive approval into scrutiny, **and** a real
+`SENDER`/`URI` producer exists to name the source, not on provenance plumbing alone. Nothing in the
+seam, the proto, the confirmer, or the gate changed.

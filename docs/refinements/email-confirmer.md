@@ -3,7 +3,7 @@
 This area's deferrals originate in [ADR-0022](../adr/ADR-0022-email-write-confirmer.md), the
 email-write and Confirmer decision. Extracted from the ROADMAP's deferred-refinements section on 2026-07-15 with the entries kept verbatim; landed entries are the historical record of what each deferral became, and the index at [index.md](index.md) carries the recommended pickup order.
 
-**Open items:** confirm-with-provenance for tainted turns, real-file attachments (bytes the assistant did not author), per-field attachment schema descriptions, trust overlays for remote tools, batching / per-tool session allowlists, ToolActivity wire phase field. Subagent tool-step surfacing **landed 2026-07-16** as one side channel with the progress-reporting entry from [subagents.md](subagents.md) (annotated in place below).
+**Open items:** real-file attachments (bytes the assistant did not author), per-field attachment schema descriptions, trust overlays for remote tools, batching / per-tool session allowlists, ToolActivity wire phase field. Confirm-with-provenance for tainted turns was **declined 2026-07-16** (annotated in place below); subagent tool-step surfacing **landed 2026-07-16** as one side channel with the progress-reporting entry from [subagents.md](subagents.md) (annotated in place below).
 
 **Email-write & the Confirmer in Slice 8.8 ([ADR-0022](../adr/ADR-0022-email-write-confirmer.md)):**
 each behind the unchanged `Confirmer`/`ToolDispatcher`/`GatedToolRegistry`/seam shapes.
@@ -13,6 +13,32 @@ each behind the unchanged `Confirmer`/`ToolDispatcher`/`GatedToolRegistry`/seam 
   [ADR-0027](../adr/ADR-0027-turn-provenance.md), the source fields still pending). It also
   reverses a deliberate fail-closed posture, so it is revisited as a decision, never slipped
   in as plumbing. Until then, re-ask in a fresh turn.
+  **Declined 2026-07-16 ([ADR-0022 confirm-with-provenance addendum](../adr/ADR-0022-email-write-confirmer.md)).**
+  The source fields the entry waited on landed (`TurnStamp.sources`, [ADR-0027 addendum](../adr/ADR-0027-turn-provenance.md)),
+  so the decision it always was could finally be made, and it is a decision to keep the block.
+  Read against the code first: `ToolDispatcher.dispatch` (`cortex_core/dispatch.py`) returns
+  `DENIED_MSG` on a gated call whenever `stamp.tainted`, and the confirmer is **never consulted**
+  (`test_gated_tool_on_a_tainted_turn_is_blocked_even_when_a_confirmer_would_approve` asserts
+  `confirmer.requests == ()` with an approving confirmer, run green this session). So the posture
+  is a hard block, not a confirm-without-provenance, and there is no card on this path to add a
+  source line to. Reversing it is rejected for two independent reasons. **The block is a
+  deterministic guarantee, not a provenance gap:** after untrusted content enters a turn the
+  outbound surface is closed, full stop, because a tainted turn's arguments may be
+  injection-authored and a send demanded by injected content must never be merely a confirm-away
+  (`cortex_core/untrusted.py`); a source line does not change what the card asks a user conditioned
+  to approve to do, and at worst launders the action by implying the system vetted it. The posture
+  is **not over-broad**, since the legitimate read-then-reply flow still completes in a fresh turn
+  (taint is turn-local, `DENIED_MSG` says to re-ask), so keeping the block costs one extra turn, a
+  cost the ADR already accepted, while reversing it reopens the exact path an injection aims for.
+  **And the useful provenance is absent anyway:** the only two `Provenance` producers are attested
+  (`SourceKind.TOOL` in `cortex_core/tool_loop.py`, `SourceKind.MEMORY` in `cortex_core/engine.py`),
+  so a card built today would name the user's own tool use, not the attacker; the `SENDER`/`URI`
+  kinds that would name the attacker have no producer (the sidecar-declared-sender deferral in
+  [untrusted-content.md](untrusted-content.md)). This is the same fail-closed philosophy as the
+  same-day decline of summarizing a tainted exchange: a provenance card makes the **user** the
+  injection target, worse than the model. Reopens only if the outbound-on-tainted decision is
+  itself revisited with evidence that a card converts reflexive approval into scrutiny, **and** a
+  real `SENDER`/`URI` producer exists, not on provenance plumbing alone.
 - **Richer send shapes.** **cc/bcc/HTML landed 2026-07-13 ([ADR-0022 richer-send-shapes
   addendum](../adr/ADR-0022-email-write-confirmer.md)).** The `EmailSender.send` contract took a
   frozen `EmailDraft` value (to/subject/body + optional cc/bcc/html), so the addition rides a
