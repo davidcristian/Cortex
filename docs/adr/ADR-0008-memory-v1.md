@@ -376,3 +376,39 @@ see what a policy ranked by. That is a **new port plus a sink adapter** on the `
 would reopen the declined field, since a sink recording a hit's rank key is the first code that
 reads one. Fix when it bites: the first visibly wrong recall in a real session that cannot be
 inspected afterwards.
+
+## Addendum (2026-07-16): the model-based reranker audited, the async widening priced and the lease framing corrected
+
+The rerank, MMR, and recency-and-diversity addenda above each keep a **model-based reranker** (a
+cross-encoder or LLM-judge `select`) deferred behind two costs: the sync `RecallPolicy.select` must
+go async, and it inherits a non-reentrant GPU-lease hazard "when the reranker runs inside a turn that
+already holds the lease." Audited against the code, the first cost is bounded and the second is
+misframed, but the reranker stays deferred, now with a sharper blocker, alongside the summarization
+half it shares a design with ([ADR-0014 summarization-audit
+addendum](ADR-0014-history-windowing.md), [docs/refinements/session-history.md](../refinements/session-history.md)).
+
+**The async widening is clean and contained.** `RecallPolicy.select` has one production caller,
+`MemoryRecaller.recall` (`recall.py`), already an `async` method. Widening to `async` adds one `await`
+there and propagates no colour upward. The implementers are `RawRecallPolicy` plus the three opt-in
+policies (`RerankingRecallPolicy`, `MmrRecallPolicy`, `RecencyMmrRecallPolicy`), and none calls
+another's `select`; they compose through the shared `_greedy_mmr` and `_recency_blend` helpers, so no
+implementer's async-ness infects another. An `async def select` with a synchronous body is gate-clean
+(`RUF029` is preview-only, off here), so each policy wraps unchanged.
+
+**The lease hazard is navigable, and this entry's framing overstated it.** Recall runs inside
+`_inference_messages`, which `handle_turn` awaits to completion before the reply stream acquires the
+resident model's non-reentrant lock (`model.py`, held across the whole stream in `backend.py`). So at
+reranking time the turn does **not** yet hold the lease, and the phrase "inside a turn that already
+holds the lease" is imprecise: a reranker that fully drains its model call is a sequential acquire,
+the title generator's discipline, proven safe against the real manager (a drained acquire then the
+reply's acquire succeeds; a call held open across it deadlocks). The real hazard is an abandoned
+reranker stream, not nesting inside a held lease.
+
+**Why it still waits.** Beyond a model reranker's ordering being unverifiable on the 8 GB dev GPU,
+where the cortex tier does not fit, the blended-relevance decline above sequences this: the declined
+field and the recall-observability entry both resolve to a `RecallPolicy.select` widening, and the
+recorded guidance is to change `select` once for all its consumers (a model rank, a distinct blended
+field, an observability sink that reads a rank key) rather than twice. An async-only widening now
+would be that first of two changes. So the reranker reopens with the model manager's real GPU
+lifecycle, landing the async widening, the richer `select` return, and the model policy as one
+design. Recorded at [docs/refinements/memory.md](../refinements/memory.md).

@@ -190,6 +190,21 @@ names the user's own tool use rather than the attacker, while the `SENDER`/`URI`
 name the attacker have no producer, so the change is doubly unfounded. It is the same fail-closed
 philosophy the tainted-summarization decline turned on, now protecting the user rather than the
 model.
+Session history held at 1 and memory at 8 on 2026-07-16 when the summarization and
+model-based-reranker pair, which the recommended order lists as one design problem, was audited
+against the code and kept deferred with its blocker sharpened. The async `select` widening both wait
+on is mechanically clean and contained: `HistoryWindow.select` and `RecallPolicy.select` each have
+one production caller (`engine.py`'s `_inference_messages`, `recall.py`'s `MemoryRecaller.recall`),
+both already `async`, so the change adds one `await` apiece and cascades no colour upward, and an
+`async def` with a synchronous body is gate-clean under this repo's non-preview ruff. The
+non-reentrant GPU-lease hazard is navigable by the title generator's sequential-drain discipline
+(proven against the real manager: a drained acquire then the reply's acquire succeeds, a held-open
+call deadlocks), not the structural nesting the memory entry's "inside a turn that already holds the
+lease" implied, since selection completes before the reply stream acquires the lock. What binds is
+elsewhere: a model pass cannot be behavior-validated on the 8 GB dev GPU where the cortex tier does
+not fit, and `RecallPolicy.select`'s widening should serve its three deferred consumers (a model
+rank, the declined blended field, a recall-observability sink) in one change rather than go async
+alone now, so both reopen with the real GPU lifecycle.
 
 ## Recommended order
 
@@ -232,7 +247,13 @@ against the code (the warning above); the entry text tells you which seams it ex
   port going async (`HistoryWindow.select`, `RecallPolicy.select`) and both inherit the same
   non-reentrant GPU-lease hazard, so they are one design problem. The declined blended-relevance
   field widens the same `select` return, so a consumer for it reopens the work here rather than
-  on its own.
+  on its own. **Audited 2026-07-16:** the async widening is mechanically clean and contained (one
+  already-async caller each, no colour cascade, gate-clean under this repo's non-preview ruff) and
+  the lease hazard is navigable by the title generator's sequential-drain discipline (the reply's
+  lock is not yet held at selection time), so neither is the binding blocker; what binds is that a
+  model pass cannot be validated on the 8 GB dev GPU (the cortex tier does not fit) and that
+  `select`'s widening should serve its three deferred consumers in one change, so this reopens with
+  the real GPU lifecycle.
 - **Memory verbs: tiered/self-editing memory, write-salience, per-scope retention**
   ([memory.md](memory.md)): `MemoryStore` is `add` + `search` only; the missing verbs are the
   real cost.

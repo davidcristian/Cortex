@@ -75,3 +75,44 @@ current session only.
   unreachable in CI-sized tests, irrelevant on the real backend.
 - The seam invites exactly the follow-ons planned: summarization, or a tokenizer-backed
   exact window, each a drop-in `HistoryWindow` with no engine change.
+
+## Addendum (2026-07-16): summarization audited, the async widening priced and the lease hazard re-derived
+
+The **Summarization** alternative above and its refinement entry
+([docs/refinements/session-history.md](../refinements/session-history.md)) both defer a model pass
+in turn assembly behind two costs: the sync `HistoryWindow.select` must go async, and `backend.py`
+holds a non-reentrant GPU lease for a stream's lifetime. Audited against the code, both are milder
+than they read, but a third cost binds, so the entry stays deferred with a sharper blocker. This is
+one design problem with the **model-based reranker** ([ADR-0008 reranker-audit
+addendum](ADR-0008-memory-v1.md)): both wait on the same sync-to-async `select` change and the same
+lease discipline.
+
+**The async widening is clean and contained, not a call-chain migration.** `HistoryWindow.select`
+has exactly one production caller, `TurnEngine._inference_messages` (`engine.py`), which is already
+an `async` method awaited by `handle_turn`. Widening `select` to `async` therefore adds one `await`
+at that call site and propagates no async colour upward to any synchronous boundary; the only
+implementer is `CharBudgetHistoryWindow`. An `async def select` whose body stays synchronous is
+gate-clean here, because the `unused-async` lint (`RUF029`) is a preview-only rule and this repo runs
+ruff without preview, so every existing heuristic selector satisfies the async port by wrapping its
+body unchanged. The port change is real work (the protocol, the implementer, the fake, and the
+selection tests all move to `async`), but it is bounded and mechanical.
+
+**The lease hazard is navigable, not structural.** `SingleResidentModelManager` guards a
+non-reentrant `asyncio.Lock` (`model.py`) that the inference adapter holds across the whole stream
+generator (`backend.py`, the `async with acquire(...)` wraps the entire SSE read). But selection runs
+inside `_inference_messages`, which `handle_turn` awaits to completion **before** it opens the reply
+stream (`stream_tool_loop`), so at selection time the turn does not yet hold the lease. A summarizing
+window that fully drains its own model call therefore acquires and releases the lock sequentially,
+then the reply acquires it, exactly the discipline the title generator already uses (`generate_title`,
+run at turn end). Confirmed against the real manager: a drained acquire followed by a second acquire
+succeeds, while a summarizer call held open across the reply's acquire deadlocks. So the hazard is the
+abandoned-stream case the entry named, a discipline requirement on the future selector, not the reply
+already holding the lease.
+
+**What binds, and what unblocks it.** A summarizing window is a model pass, and it cannot be
+behavior-validated on the 8 GB dev GPU, where the cortex tier (gemma-12B) does not fit; the
+cache-versus-recompute-per-turn question the entry named is also unresolved and is a design choice,
+not a wrapper. So the honest slice waits for the model manager's real GPU lifecycle to give user-tier
+hardware, and lands the async widening together with the summarizer rather than the widening alone as
+an empty async layer. Recorded at
+[docs/refinements/session-history.md](../refinements/session-history.md).
