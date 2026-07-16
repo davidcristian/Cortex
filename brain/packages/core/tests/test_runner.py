@@ -17,6 +17,7 @@ from cortex_core import (
     PlacementTarget,
     ReasoningChunk,
     RecordingAuditSink,
+    RecordingProgressSink,
     ResourceBudgetScheduler,
     Role,
     SubagentPlacer,
@@ -26,6 +27,7 @@ from cortex_core import (
     SubagentRunner,
     SubagentTask,
     TextChunk,
+    ToolActivity,
     ToolCall,
     ToolDispatcher,
     ToolSpec,
@@ -236,6 +238,69 @@ async def test_tools_enabled_subagent_dispatches_and_audits_its_calls() -> None:
     # The subagent's own tool call went through the same audited dispatcher.
     (audit,) = sink.records
     assert (audit.name, audit.ok, audit.detail) == ("read", True, "read /x")
+
+
+_DESCRIBED_READ = ToolSpec(name="read", description="Read a file", parameters={})
+
+
+async def test_a_tools_enabled_subagents_tool_steps_reach_the_progress_sink() -> None:
+    # Each audited step the subagent runs surfaces onto the spawning stream's sink as a
+    # ToolActivity (ADR-0010 progress addendum), so the overlay's chip shows the delegated
+    # work. Both fields are the matched ToolSpec's, never the model's call or its arguments.
+    store = InMemoryTaskStore()
+    await store.put_task(SubagentTask(id="t", instruction="read x", context="", at=_AT))
+    backend = ScriptedBackend(
+        [
+            [ToolCall(id="c1", name="read", arguments={"path": "/x"})],
+            [TextChunk("done")],
+        ]
+    )
+    dispatcher = ToolDispatcher(
+        InMemoryToolRegistry({"read": (_DESCRIBED_READ, _read_handler)}),
+        RecordingAuditSink(),
+        FixedClock(),
+    )
+    progress = RecordingProgressSink()
+    result = await _runner(store, backend, tools=dispatcher).run("t", progress=progress)
+    assert result.ok is True
+    assert list(progress.events) == [ToolActivity(tool_name="read", summary="Read a file")]
+
+
+async def test_a_tainted_subagents_progress_carries_only_the_registry_summary() -> None:
+    # The read tool returns UNTRUSTED content, so the result taints, but the surfaced step is the
+    # spec's own name/description, never the untrusted bytes: the sink is not a laundering channel
+    # the ADR-0015 guardrail never inspects, the exact argument the cortex's ToolActivity makes.
+    store = InMemoryTaskStore()
+    await store.put_task(SubagentTask(id="t", instruction="read x", context="", at=_AT))
+    backend = ScriptedBackend(
+        [
+            [ToolCall(id="c1", name="read", arguments={"path": "/secret"})],
+            [TextChunk("done")],
+        ]
+    )
+    dispatcher = ToolDispatcher(
+        InMemoryToolRegistry({"read": (_DESCRIBED_READ, _read_handler)}),
+        RecordingAuditSink(),
+        FixedClock(),
+    )
+    progress = RecordingProgressSink()
+    result = await _runner(store, backend, tools=dispatcher).run("t", progress=progress)
+    assert result.tainted is True  # it consumed untrusted content
+    (step,) = progress.events
+    assert isinstance(step, ToolActivity)
+    assert step == ToolActivity(tool_name="read", summary="Read a file")
+    assert "secret" not in step.summary  # the untrusted result never reached the chip
+
+
+async def test_a_tool_less_subagent_emits_no_progress_even_with_a_sink() -> None:
+    # A tool-less subagent yields no ToolStep, so a handed sink stays empty: only real audited
+    # steps surface, never the reply text or a phantom activity.
+    store = InMemoryTaskStore()
+    await store.put_task(SubagentTask(id="t", instruction="go", context="", at=_AT))
+    progress = RecordingProgressSink()
+    result = await _runner(store, TextBackend(["plain"])).run("t", progress=progress)
+    assert (result.ok, result.output) == (True, "plain")
+    assert progress.events == ()
 
 
 def _reading_runner(

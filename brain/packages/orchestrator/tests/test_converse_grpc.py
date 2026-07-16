@@ -20,6 +20,7 @@ from cortex_core import (
     InMemoryToolRegistry,
     JsonSchema,
     Message,
+    ProgressSink,
     RecordingAuditSink,
     Role,
     SessionStore,
@@ -91,7 +92,7 @@ def _engine(store: SessionStore) -> TurnEngine:
 
 async def _start_server(engine: TurnEngine, store: SessionStore) -> tuple[aio.Server, str]:
     server, port = create_server(
-        SeamServerConfig(host="127.0.0.1", port=0), lambda _confirmer: engine, store
+        SeamServerConfig(host="127.0.0.1", port=0), lambda _confirmer, _progress: engine, store
     )
     await server.start()
     return server, f"127.0.0.1:{port}"
@@ -304,7 +305,7 @@ def _gated_engine_factory(ran: list[str]) -> EngineFactory:
         ran.append(str(arguments["to"]))
         return "sent"
 
-    def make(confirmer: Confirmer) -> TurnEngine:
+    def make(confirmer: Confirmer, _progress: ProgressSink) -> TurnEngine:
         registry = InMemoryToolRegistry(
             {"send": (ToolSpec(name="send", description="", parameters={}, gated=True), send)}
         )

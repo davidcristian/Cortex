@@ -53,7 +53,7 @@ async def _serve(schedules: ScheduleStore | None) -> tuple[aio.Server, str]:
     engine = TurnEngine(store, EchoInferenceBackend(), SystemClock())
     server, port = create_server(
         SeamServerConfig(host="127.0.0.1", port=0),
-        lambda _confirmer: engine,
+        lambda _confirmer, _progress: engine,
         store,
         schedules=schedules,
     )

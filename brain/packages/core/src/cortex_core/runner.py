@@ -16,12 +16,14 @@ import json
 from cortex_core.conversation import Message, Role
 from cortex_core.dispatch import ToolDispatcher
 from cortex_core.errors import InferenceError, SubagentAdmissionError
+from cortex_core.events import ToolActivity
 from cortex_core.inference import JsonSchema
 from cortex_core.ports import Clock, InferenceBackend, TaskStore
+from cortex_core.progress import ProgressSink
 from cortex_core.roster import SubagentResources, SubagentRoster
 from cortex_core.subagents import SubagentResult, SubagentTask
 from cortex_core.tool_budget import DispatchBudget
-from cortex_core.tool_loop import ToolLoopContext, stream_tool_loop
+from cortex_core.tool_loop import ToolLoopContext, ToolStep, stream_tool_loop
 from cortex_core.untrusted import TaintLedger, new_nonce, security_preamble_message
 
 # The fixed one-field reply envelope a constrained subagent is decoded into (ADR-0028): there is
@@ -102,7 +104,13 @@ class SubagentRunner:
         """Whether subagents hold tools (ADR-0017 rule 2b), structural at wiring time."""
         return self._tools is not None
 
-    async def run(self, task_id: str, *, budget: DispatchBudget | None = None) -> SubagentResult:
+    async def run(
+        self,
+        task_id: str,
+        *,
+        budget: DispatchBudget | None = None,
+        progress: ProgressSink | None = None,
+    ) -> SubagentResult:
         """Load, resolve (ADR-0017), admit (CPU/RAM), place (VRAM), run, persist.
 
         Admission is outer and may wait; placement is inner, synchronous, and never blocks, so no
@@ -114,7 +122,10 @@ class SubagentRunner:
         ``budget`` is the spawning turn's dispatch pool (ADR-0009 turn-wide addendum), handed
         down by ``SpawnSubagentsTool`` off the dispatch stamp so this run's tool calls come out
         of the turn's allowance rather than a fresh one. ``None`` means this run is its own root
-        (the schedule ticker's fire, a direct caller) and it gets its own pool.
+        (the schedule ticker's fire, a direct caller) and it gets its own pool. ``progress`` is
+        the spawning stream's side channel, also off the stamp: this run surfaces each of its
+        audited tool steps onto it (ADR-0010 progress addendum). ``None`` (the ticker, a direct
+        caller with no overlay) drops the steps, exactly as before this addendum.
         """
         task = await self._store.get_task(task_id)
         if task is None:
@@ -130,7 +141,11 @@ class SubagentRunner:
                 placement = res.placer.place(res.request)
                 try:
                     return await self._run_placed(
-                        task, res, res.backends[placement.target], budget=budget
+                        task,
+                        res,
+                        res.backends[placement.target],
+                        budget=budget,
+                        progress=progress,
                     )
                 finally:
                     res.placer.release(placement)
@@ -150,6 +165,7 @@ class SubagentRunner:
         backend: InferenceBackend,
         *,
         budget: DispatchBudget | None,
+        progress: ProgressSink | None,
     ) -> SubagentResult:
         """Stream the loaded task to a persisted result on the placed backend."""
         working = _task_messages(task)
@@ -183,14 +199,21 @@ class SubagentRunner:
         parts: list[str] = []
         try:
             async for delta in stream_tool_loop(backend, res.request.model, working, context):
-                # Only reply text joins the answer: a reasoning delta is ephemeral status (the
+                # Only reply text joins the answer. A reasoning delta is ephemeral status (the
                 # subagent tier runs thinking-off per ADR-0010, so none is expected, but drop one
-                # defensively) and a tool step is activity with no stream to ride (surfacing
-                # subagent progress is the ADR-0010 deferral). Append text incrementally (not a
-                # comprehension) so text produced before a mid-stream failure survives into the
-                # ok=False result below.
+                # defensively). A tool step is this subagent's audited dispatch about to run: it
+                # surfaces onto the spawning stream's progress sink so the overlay's chip shows
+                # the delegated work (ADR-0010 progress addendum), never joining the answer. Both
+                # of its fields are registry-authored (copied off the matched ToolSpec), so no
+                # untrusted-derived text ever rides the sink and it needs no guardrail pass, the
+                # same argument the cortex's own ToolActivity makes. Append text incrementally
+                # (not a comprehension) so text produced before a mid-stream failure survives.
                 if isinstance(delta, str):
-                    parts.append(delta)  # noqa: PERF401
+                    parts.append(delta)
+                elif isinstance(delta, ToolStep) and progress is not None:
+                    await progress.emit(
+                        ToolActivity(tool_name=delta.tool_name, summary=delta.summary)
+                    )
         except InferenceError as err:
             return await self._persist(
                 SubagentResult(

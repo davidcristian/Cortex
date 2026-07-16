@@ -4,22 +4,17 @@ The cortex calls this like any tool. Each instruction becomes a ``SubagentTask``
 ``TaskStore``; the ``SubagentRunner``s are dispatched together under the ``SubagentScheduler``'s
 CPU budget, and the aggregated results feed back to the cortex. The tool is given only to the
 cortex, never to a subagent, so delegation fan-out stays depth-1. Bad arguments become an
-``is_error`` result the model can correct rather than an exception.
-
-Slice 8.6 (ADR-0018): an instructions item is a bare string or ``{instruction, model?, context?}``
-so the cortex picks the subagent model per subtask from the runner's roster and hands it working
-material. The spec is built from that roster and is honest about the wiring: when subagents are
-tools-enabled, ADR-0017 pins every spawn to the robust default, so no ``model`` knob is
-advertised at all. It is also honest about the *measured* trade-off (ADR-0012 admission-wall
-addendum): each roster entry keeps its one backend's lease for the whole stream, so subtasks
-sharing a model serialize and only subtasks on **distinct** models overlap; the spec points the
-cortex at distinct-model spread as the wall-clock lever, not a blanket parallel speedup. Each task
-is stamped with the spawning turn's taint (the ``tainted`` bit of the dispatcher's ``TurnStamp``
-on the call, ADR-0018/0027), which the runner's resolution needs. Enforcement itself lives in
+``is_error`` result the model can correct rather than an exception. Each task is stamped with the
+spawning turn's taint (the ``tainted`` bit of the dispatcher's ``TurnStamp`` on the call,
+ADR-0018/0027), which the runner's resolution needs; enforcement itself lives in
 ``SubagentRoster.resolve``, not here.
 
-One call's batch is capped at ``MAX_SPAWN_BATCH`` (ADR-0010 batch-cap addendum): the turn's
-dispatch pool bounds what the batch may *reach*, never how much work it queues.
+The advertised spec (what the cortex is *told*, including the ADR-0018 model knob and the ADR-0010
+batch cap) lives in ``spawn_spec.py``; this module owns *running* one batch. A delegating turn also
+surfaces progress (ADR-0010 progress addendum): the batch's scale as a ``StatusUpdate`` and each
+subagent's audited tool steps as ``ToolActivity``, off the stream's ``ProgressSink`` carried on the
+call ``TurnStamp`` (``None`` for an overlay-less caller, e.g. the ticker), so the one shared tool
+serves every stream without a per-stream field.
 """
 
 import asyncio
@@ -29,48 +24,19 @@ from dataclasses import dataclass
 from typing import Any, cast
 from uuid import uuid4
 
+from cortex_core.events import StatusUpdate
 from cortex_core.ports import Clock, TaskStore
 from cortex_core.roster import SubagentRoster
 from cortex_core.runner import SubagentRunner
+from cortex_core.spawn_spec import MAX_SPAWN_BATCH, build_spawn_spec
 from cortex_core.subagents import SubagentResult, SubagentTask
 from cortex_core.tools import ToolCall, ToolResult, ToolSpec, Trust
 
-SPAWN_TOOL_NAME = "spawn_subagents"
-
-# Upper bound on the subtasks one call may ask for (ADR-0010 batch-cap addendum). The turn's
-# dispatch pool (ADR-0009 turn-wide addendum) bounds what a batch may *reach*, not how much work
-# it queues: a subagent that calls no tools spends nothing from that pool while still costing an
-# admission slot, a placement, and a model run, and admission *queues* rather than refuses, so an
-# array of fifty was fifty inferences the turn waited on. Sized above plausible delegation (two to
-# five parallel subtasks) and far below fan-out spam. The turn's total is then two deliberate
-# factors rather than an open end: a spawn costs a quarter of the dispatch pool, so a turn affords
-# four batches of at most this many.
-MAX_SPAWN_BATCH = 8
-
-_DESCRIPTION = (
-    "Delegate one or more narrow subtasks to small subagents that return their results. "
-    "Use for independent lookups or transforms; each instruction must be self-contained "
-    "(subagents do not see this conversation). "
-    f"At most {MAX_SPAWN_BATCH} subtasks per call."
-)
-# Appended for a tool-less multi-entry wiring. The inline example nudges the object form (given
-# only prose a live cortex folds the pick into the instruction, ADR-0018 addendum). The parallelism
-# line is the measured trade-off, not a claim (same-model 10.0 s vs 4.8 s across two backends,
-# ADR-0012 admission-wall addendum): it is honest and a reason for the knob beyond a directed pick.
-_CHOICE_NOTE = (
-    " Each subtask may pick a 'model' by using an object item, e.g. "
-    '{"instruction": "...", "model": "<roster name>"}. Subtasks on distinct models run in '
-    "parallel, while subtasks that share one model run one after another (one backend each), so "
-    "spread independent subtasks across models to finish the batch sooner. On a turn that has "
-    "read untrusted external content the robust default model is enforced regardless of the pick."
-)
-# Tools-enabled or a one-entry roster: every spawn runs on the one default model (ADR-0017 rule
-# 2b pins it), so no knob is advertised and, sharing one backend lease, the subtasks serialize.
-_PINNED_NOTE = (
-    " Every subtask runs on the deployment's default subagent model, so subtasks share its one "
-    "backend and run one after another, a batch that groups independent subtasks rather than "
-    "running them in parallel."
-)
+# The ``StatusUpdate.state`` a delegating turn surfaces (ADR-0010 progress addendum). Not
+# ``"thinking"`` (which the overlay folds into a reasoning trace, ADR-0020), so it drives the
+# live chip and nothing else. The detail is a brain-authored count, never model or subagent
+# text, so it needs no guardrail pass, exactly as the ``ToolActivity`` chip does not.
+SUBAGENT_PROGRESS_STATE = "delegating"
 
 
 @dataclass(frozen=True, slots=True)
@@ -80,68 +46,6 @@ class _SpawnItem:
     instruction: str
     model: str = ""
     context: str = ""
-
-
-def _model_property(roster: SubagentRoster) -> dict[str, Any]:
-    """The per-subtask ``model`` JSON-Schema property, listing every entry's trade-offs."""
-    options = "; ".join(
-        f"{name!r} ({roster.entries[name].description})"
-        if roster.entries[name].description
-        else f"{name!r}"
-        for name in sorted(roster.entries)
-    )
-    return {
-        "type": "string",
-        "enum": sorted(roster.entries),
-        "description": (
-            f"The subagent model for this subtask; omit for the default {roster.default!r}. "
-            f"Options: {options}."
-        ),
-    }
-
-
-def _build_spec(roster: SubagentRoster, *, tools_enabled: bool) -> ToolSpec:
-    """The advertised spec, built from the roster and honest about the wiring (ADR-0018)."""
-    item_properties: dict[str, Any] = {
-        "instruction": {"type": "string", "description": "The self-contained subtask."},
-        "context": {
-            "type": "string",
-            "description": "Optional material the subagent works from (it sees nothing else).",
-        },
-    }
-    with_choice = not tools_enabled and len(roster.entries) > 1
-    if with_choice:
-        item_properties["model"] = _model_property(roster)
-    return ToolSpec(
-        name=SPAWN_TOOL_NAME,
-        description=_DESCRIPTION + (_CHOICE_NOTE if with_choice else _PINNED_NOTE),
-        parameters={
-            "type": "object",
-            "properties": {
-                "instructions": {
-                    "type": "array",
-                    "maxItems": MAX_SPAWN_BATCH,
-                    "items": {
-                        "anyOf": [
-                            {
-                                "type": "string",
-                                "description": (
-                                    "A bare self-contained instruction (default model, no context)."
-                                ),
-                            },
-                            {
-                                "type": "object",
-                                "properties": item_properties,
-                                "required": ["instruction"],
-                            },
-                        ]
-                    },
-                    "description": f"One entry per subagent, at most {MAX_SPAWN_BATCH}.",
-                }
-            },
-            "required": ["instructions"],
-        },
-    )
 
 
 def _uuid4_task_id() -> str:
@@ -230,6 +134,11 @@ def _parse_instructions(
     return items
 
 
+def _progress_detail(count: int) -> str:
+    """The brain-authored batch-start line: how many subtasks, no model or subagent text."""
+    return f"delegating {count} subtask{'' if count == 1 else 's'}"
+
+
 def _format(results: Sequence[SubagentResult]) -> str:
     """Aggregate subagent outcomes into one readable block, one section per subagent."""
     lines = [
@@ -258,14 +167,18 @@ class SpawnSubagentsTool:
     @property
     def spec(self) -> ToolSpec:
         """The tool advertised to the cortex, derived from the runner it fronts (ADR-0018)."""
-        return _build_spec(self._runner.roster, tools_enabled=self._runner.tools_enabled)
+        return build_spawn_spec(self._runner.roster, tools_enabled=self._runner.tools_enabled)
 
     async def invoke(self, call: ToolCall) -> ToolResult:
         """Persist each subtask, run the subagents concurrently, and aggregate their results.
 
         Each task carries the requested model and the spawning turn's taint (the dispatcher's
         stamp on ``call``) so the runner resolves it safely from the store alone (ADR-0018);
-        the same stamp carries the turn's dispatch budget, which every spawned run shares.
+        the same stamp carries the turn's dispatch budget, which every spawned run shares, and
+        the stream's ``progress`` sink (``None`` off an overlay-less caller, e.g. the ticker),
+        which the batch's scale and each subagent's tool steps surface onto (ADR-0010 progress
+        addendum). The sink rides the stamp per call rather than an instance field, so this one
+        shared tool serves every stream without a per-stream slot to leak across turns.
         The aggregate is UNTRUSTED iff any subagent consumed untrusted content, so a subagent
         that read a malicious file taints the cortex turn through the normal result path
         (ADR-0013); a bad-arguments error is our own message and stays trusted.
@@ -286,14 +199,26 @@ class SpawnSubagentsTool:
         ]
         for task in tasks:
             await self._store.put_task(task)
+        progress = call.stamp.progress
+        if progress is not None:
+            # The batch's scale, brain-authored: the user learns delegation is running and to how
+            # many subtasks. Phrased without a parallelism claim the wiring does not deliver (the
+            # measured trade-off is same-model spawns serialize, ADR-0012 admission-wall addendum).
+            await progress.emit(
+                StatusUpdate(state=SUBAGENT_PROGRESS_STATE, detail=_progress_detail(len(tasks)))
+            )
         # Every subagent draws from the spawning turn's dispatch pool, carried on the stamp
         # (ADR-0009 turn-wide addendum): a batch shares one allowance instead of each member
         # starting a fresh one, so an unbounded `instructions` array can no longer buy an
         # unbounded number of external calls. First come first served across the batch, which
-        # is safe under `gather` because charging never awaits.
+        # is safe under `gather` because charging never awaits. Each run is also handed the same
+        # progress sink, so its own tool steps surface as they run (ADR-0010 progress addendum).
         results: list[SubagentResult] = list(
             await asyncio.gather(
-                *(self._runner.run(task.id, budget=call.stamp.budget) for task in tasks)
+                *(
+                    self._runner.run(task.id, budget=call.stamp.budget, progress=progress)
+                    for task in tasks
+                )
             )
         )
         trust = Trust.UNTRUSTED if any(r.tainted for r in results) else Trust.TRUSTED

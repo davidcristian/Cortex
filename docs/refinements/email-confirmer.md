@@ -3,7 +3,7 @@
 This area's deferrals originate in [ADR-0022](../adr/ADR-0022-email-write-confirmer.md), the
 email-write and Confirmer decision. Extracted from the ROADMAP's deferred-refinements section on 2026-07-15 with the entries kept verbatim; landed entries are the historical record of what each deferral became, and the index at [index.md](index.md) carries the recommended pickup order.
 
-**Open items:** confirm-with-provenance for tainted turns, real-file attachments (bytes the assistant did not author), per-field attachment schema descriptions, trust overlays for remote tools, batching / per-tool session allowlists, ToolActivity wire phase field, subagent tool-step surfacing
+**Open items:** confirm-with-provenance for tainted turns, real-file attachments (bytes the assistant did not author), per-field attachment schema descriptions, trust overlays for remote tools, batching / per-tool session allowlists, ToolActivity wire phase field. Subagent tool-step surfacing **landed 2026-07-16** as one side channel with the progress-reporting entry from [subagents.md](subagents.md) (annotated in place below).
 
 **Email-write & the Confirmer in Slice 8.8 ([ADR-0022](../adr/ADR-0022-email-write-confirmer.md)):**
 each behind the unchanged `Confirmer`/`ToolDispatcher`/`GatedToolRegistry`/seam shapes.
@@ -91,8 +91,14 @@ each behind the unchanged `Confirmer`/`ToolDispatcher`/`GatedToolRegistry`/seam 
   with no overlay change. The summary is registry-authored (spec description first line, capped,
   name fallback), never model-authored arguments (an argument echo would hand injected content a
   display channel the ADR-0015 guardrail never inspects). Remaining behind the same seams: a wire
-  `phase` field if the chip ever needs completion states (a proto + both-stub-trees change);
-  and subagent tool-step surfacing (the ADR-0010 progress deferral), both unchanged. The
+  `phase` field if the chip ever needs completion states (a proto + both-stub-trees change).
+  **Subagent tool-step surfacing landed 2026-07-16 ([ADR-0010 progress addendum](../adr/ADR-0010-subagents.md)),
+  the same `ToolStep`-to-`ToolActivity` mapping this chip already uses, now off the `SubagentRunner`
+  onto the spawning stream's new `ProgressSink` rather than dropped.** It shares the one side channel
+  with the ADR-0010 progress-reporting entry (both surface off the dispatch `TurnStamp`, full record
+  in [subagents.md](subagents.md)): the subagent's step is the same registry-authored chip, so the
+  overlay renders it with **no wire or reducer change** (the deferral's "the subagent runner drops
+  it" note is now "maps it onto the sink when it has one"). The
   **dispatch rate/salience policy** this entry also listed is now complete: its rate half landed
   as the budget and cost addenda, and its salience half 2026-07-14 (the ADR-0009 tools-block
   entry in [tools-mcp.md](tools-mcp.md)), which put a refused repeat above the `ToolStep` yield exactly as the budget did,

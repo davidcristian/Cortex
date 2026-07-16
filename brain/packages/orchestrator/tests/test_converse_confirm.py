@@ -16,6 +16,7 @@ from cortex_core import (
     InMemoryToolRegistry,
     JsonSchema,
     Message,
+    ProgressSink,
     RecordingAuditSink,
     SystemClock,
     TextChunk,
@@ -80,7 +81,7 @@ def _gated_send_factory(ran: list[str]) -> EngineFactory:
         ran.append(str(arguments["to"]))
         return "sent"
 
-    def make(confirmer: Confirmer) -> TurnEngine:
+    def make(confirmer: Confirmer, _progress: ProgressSink) -> TurnEngine:
         registry = InMemoryToolRegistry(
             {"send": (ToolSpec(name="send", description="", parameters={}, gated=True), send)}
         )

@@ -62,8 +62,9 @@ def _delta_texts(events: Sequence[ServerEvent]) -> list[str]:
 
 
 def _make(engine: TurnEngine) -> EngineFactory:
-    """A bare engine as an EngineFactory. These tests wire no confirmer (fail-closed)."""
-    return lambda _confirmer: engine
+    """A bare engine as an EngineFactory. These tests wire no confirmer (fail-closed) and no
+    progress sink (a delegating turn's steps go nowhere, which no test here exercises)."""
+    return lambda _confirmer, _progress: engine
 
 
 def _engine(store: InMemorySessionStore | None = None) -> TurnEngine:

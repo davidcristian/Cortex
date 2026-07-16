@@ -20,7 +20,14 @@ Everything below the edge receives ports, never settings objects or env access.
 
 from collections.abc import Callable
 
-from cortex_core import Confirmer, SystemClock, TurnCapabilities, TurnEngine, VramBudgetPlacer
+from cortex_core import (
+    Confirmer,
+    ProgressSink,
+    SystemClock,
+    TurnCapabilities,
+    TurnEngine,
+    VramBudgetPlacer,
+)
 from cortex_orchestrator.builders import (
     build_body_gateway,
     build_builtin_tools,
@@ -119,10 +126,11 @@ async def run_from_env(
     ticker_task = start_ticker(ticker)
     try:
 
-        def make_engine(confirmer: Confirmer) -> TurnEngine:
-            # One engine per Converse stream (ADR-0022): the stream's confirmer reaches the
-            # dispatcher, and everything else is the same shared adapters. Engines are
-            # stateless functions over the store, so per-stream construction costs nothing.
+        def make_engine(confirmer: Confirmer, progress: ProgressSink) -> TurnEngine:
+            # One engine per Converse stream (ADR-0022/0010): the stream's confirmer reaches the
+            # dispatcher and its progress sink reaches the turn (so a spawned subagent surfaces
+            # onto this stream's overlay), and everything else is the same shared adapters.
+            # Engines are stateless functions over the store, so per-stream construction is free.
             return TurnEngine(
                 store,
                 backend,
@@ -142,6 +150,7 @@ async def run_from_env(
                     # The core takes a bool; the composition root maps the string (ADR-0019).
                     record_tainted_memory=memory_config.on_tainted == "record",
                     generate_titles=runtime.generate_titles,
+                    progress=progress,
                 ),
             )
 

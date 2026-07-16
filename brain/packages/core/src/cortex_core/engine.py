@@ -21,6 +21,7 @@ from cortex_core.guardrail import OutputGuardrail
 from cortex_core.memory import ScoredMemory
 from cortex_core.output_channels import open_output_channels
 from cortex_core.ports import Clock, InferenceBackend, SessionStore
+from cortex_core.progress import ProgressSink
 from cortex_core.provenance import SourceKind, as_source
 from cortex_core.recall import MemoryRecaller
 from cortex_core.routing import RoutingHints, Tier, route_turn
@@ -99,6 +100,10 @@ class TurnCapabilities:
     ``generate_titles`` (ADR-0021 titles addendum), when ``True``, asks the model for a short
     switcher title from a session's opening exchange and persists it (``set_title``) on that
     session's first turn only; ``False`` (the default) keeps the first-message derivation.
+    ``progress`` (ADR-0010 progress addendum) is this stream's side channel: the engine stamps
+    it onto each dispatch so a spawned subagent's steps reach the overlay while the turn's own
+    generator is suspended inside the spawn dispatch. ``None`` (the default, a stream-less turn)
+    leaves delegated work unsurfaced, exactly as it was before this addendum.
     """
 
     memory: MemoryRecaller | None = None
@@ -107,6 +112,7 @@ class TurnCapabilities:
     guardrail: OutputGuardrail | None = None
     record_tainted_memory: bool = False
     generate_titles: bool = False
+    progress: ProgressSink | None = None
 
 
 class TurnEngine:
@@ -162,6 +168,10 @@ class TurnEngine:
             taint=taint,
             nonce=new_nonce(),
             session_id=session_id,
+            # This stream's progress channel (ADR-0010): the loop stamps it onto each dispatch,
+            # so a spawned subagent surfaces its steps while handle_turn is suspended inside the
+            # spawn dispatch and cannot yield an event of its own.
+            progress=self._caps.progress,
         )
         working = list(await self._inference_messages(text, history, session_id, context))
         parts: list[str] = []
