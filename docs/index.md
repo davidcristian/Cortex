@@ -7,8 +7,11 @@ Start here. Rules for working in this repo: [AGENTS.md](../AGENTS.md).
 - [ARCHITECTURE.md](ARCHITECTURE.md) covers components, boundaries, data flow, the swap rule,
   the body/brain split, ports & traits, the two portability seams.
 - [ROADMAP.md](ROADMAP.md) lists ordered vertical slices; which slice proves which gate; the
-  consolidated deferred-refinements backlog (every follow-up, by origin ADR); the Phase 0
-  assumptions & risks list.
+  Phase 0 assumptions & risks list.
+- [refinements/](refinements/index.md) is the consolidated deferred-refinements backlog (every
+  follow-up, one self-contained doc per area, by origin ADR), with an index carrying a blurb
+  per doc, the recommended pickup order, and what blocks each open item. Moved out of the
+  ROADMAP on 2026-07-15.
 
 ## Decisions (ADRs)
 

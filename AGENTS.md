@@ -78,10 +78,11 @@ Interfaces are designed around this rule from day one. Retrofitting it is a rewr
    rule, ADR-0006, so only the unconditional line-cap job sees them).
 4. **Doc-first Definition of Done.** Per slice: design doc/ADR → define or adjust the
    port → tests → implementation → module doc + runbook updates → **record every consciously
-   deferred refinement in the ROADMAP's "Deferred refinements & later work" section (and at its
-   origin ADR)**. A change that touches code but not docs is incomplete; a refinement knowingly
-   punted but not written down is a lost decision. That section is the one place none is lost, so
-   updating it is part of finishing a slice, not an afterthought. Every module has a short contract
+   deferred refinement in `docs/refinements/` (the area doc plus its line in
+   [docs/refinements/index.md](docs/refinements/index.md), and at its origin ADR)**. A change
+   that touches code but not docs is incomplete; a refinement knowingly punted but not written
+   down is a lost decision. That directory is the one place none is lost, so updating it is part
+   of finishing a slice, not an afterthought. Every module has a short contract
    doc in `docs/modules/` (purpose, public contract, invariants, dependencies) that lets a
    future agent work on it without reading the tree.
 5. **Types & quality.** Python: `ruff` (lint + format) clean; `pyright` in strict mode
@@ -150,7 +151,8 @@ Entries marked *(planned)* are target layout; docs/ROADMAP.md says which slice d
 
 ```
 proto/            body↔brain gRPC contract (source of truth for the seam)
-docs/             ARCHITECTURE.md, index.md, ROADMAP.md, adr/, modules/, runbooks/, assets/ (logo)
+docs/             ARCHITECTURE.md, index.md, ROADMAP.md, adr/, modules/, runbooks/,
+                  refinements/ (deferred-refinements backlog + ordered index), assets/ (logo)
 brain/            Python workspace (uv), dockerized (brain/Dockerfile)
   packages/       core (pure logic + ports), seam (committed gRPC stubs + typed facade),
                   orchestrator (hosts BrainService), session (Redis SessionStore +
