@@ -192,7 +192,18 @@ ADR-0026 the area doc was extracted under. It held at 1 later the same day when 
 (both trees) and the `os_windows` windows-target clippy landed, leaving one residual, shell
 clippy in CI, blocked on the Linux GTK/webkit/dbus dev packages a cold Tauri build needs. The
 pass also found `os_windows` fmt had never been a gap: as a workspace member it is already
-caught by `check-body`'s `cargo fmt --all`, which formats a member regardless of `cfg`. Memory held at 8 on 2026-07-16 around the first entry
+caught by `check-body`'s `cargo fmt --all`, which formats a member regardless of `cfg`. It held
+at 1 again the same day when that residual was read against what CI installs and moved to
+fix-when-it-bites rather than wired: the rust CI job provisions no system library at all, so
+shell clippy is not a marginal add but a new class of CI dependency (the 630-package Tauri
+webkit-dev apt closure, uncacheable per job, plus a cold roughly 150-crate Tauri-graph compile)
+for the occasional style lint on 881 lines of host-validated wiring, disproportionate at
+personal scale; a sharpened deferral is still open, so the count is unchanged, and its trigger
+is CI gaining the Tauri desktop stack for another reason (a future CI-side Tauri build or smoke
+job) so shell clippy rides along. It was confirmed clippy-clean live over a permissive
+`pkg-config` shim (this host lacks the stack and sudo, and clippy never links), a planted
+`useless_format` proving the declined check real by making the exact command fail. This closed
+the sweep's last actionable-now item. Memory held at 8 on 2026-07-16 around the first entry
 here to close as **declined**: surfacing the blended recall relevance was read against the tree and
 no consumer for it exists, which its own origin addendum had made the condition, so cheapness had
 been standing in for readiness. It moved to the dead-until-a-consumer list below, and the pass that
@@ -352,13 +363,13 @@ against the code (the warning above); the entry text tells you which seams it ex
 
 ### Actionable now
 
-1. **`cargo clippy` for the Tauri shell in CI** ([repo-gates.md](repo-gates.md)): the residual
-   of the ungated-trees entry, whose fmt half (both trees) and `os_windows` windows-target
-   clippy landed 2026-07-16 in `check-body` (with `body/app/src-tauri/` reclassified to rust so
-   a shell change gates the job that fmt-checks it). Shell clippy still runs nowhere in CI
-   because, unlike shell fmt (parse only) and `os_windows` clippy (a target add, no link), it
-   needs the Linux GTK/webkit/dbus dev packages and a cold Tauri build. Last because it
-   unblocks no capability, but it is the one lint a shell change can still dirty unseen.
+None. The last actionable-now item, `cargo clippy` for the Tauri shell in CI, moved to
+fix-when-it-bites on 2026-07-16 (see below) once reading what the rust CI job installs (no system
+library at all) showed it is not a marginal add but a new class of CI provisioning. Everything
+that remains is gated on a seam or port change, on the Slice 11 GPU lifecycle, on host-side
+Windows validation, on a consumer that does not yet exist, or is a bounded fix-when-it-bites
+contingency. That is the sweep working as intended: no item is left that is both worth doing now
+and free of a prior blocker.
 
 ### Actionable, but a seam or port change comes first
 
@@ -617,7 +628,15 @@ send batching / session allowlists ([email-confirmer.md](email-confirmer.md)); t
 third placement target pending its feasibility pass, plus the two the admission wall opened,
 a bounded admission wait and a read timeout on the subagent HTTP client, whose triggers are a
 turn observably stalled in admission and a wedged `llama-server` stream respectively
-([resource-governance.md](resource-governance.md)).
+([resource-governance.md](resource-governance.md)); shell `cargo clippy` in CI, moved here on
+2026-07-16 when reading what the rust CI job installs (no system library at all) showed it is
+not a marginal add but a new class of CI provisioning, the 630-package Tauri webkit-dev apt
+closure (uncacheable per job) plus a cold Tauri-graph compile, disproportionate to the
+occasional lint on 881 lines of host-validated thin wiring, whose trigger is CI gaining the
+Tauri desktop stack for another reason (a future CI-side Tauri build or smoke job) so shell
+clippy rides along, or shell findings outpacing the user's local checks; confirmed clippy-clean
+live over a `pkg-config` shim, with a planted lint proving the declined check real
+([repo-gates.md](repo-gates.md)).
 
 ### Feature breadth, on request
 

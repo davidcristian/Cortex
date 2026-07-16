@@ -7,8 +7,8 @@ deferred-refinements section on 2026-07-15 with the entries kept verbatim; lande
 entries are the historical record of what each deferral became, and the index at
 [index.md](index.md) carries the recommended pickup order.
 
-**Open items:** 1 (`cargo clippy` for the Tauri shell in CI; the rest landed 2026-07-16, see
-the outcome note below the verbatim entry)
+**Open items:** 1 (`cargo clippy` for the Tauri shell in CI, moved to fix-when-it-bites
+2026-07-16; the rest landed 2026-07-16, see the outcome note below the verbatim entry)
 
 **Gate coverage ([ADR-0011](../adr/ADR-0011-body-v1.md)):**
 - **`cargo fmt` and `cargo clippy` for the two ungated Rust trees.** `just check-body` runs
@@ -80,6 +80,38 @@ the outcome note below the verbatim entry)
   runs. It is the one half of this entry that still lets a shell clippy finding accumulate
   unseen (two `collapsible_if` did, in `confirm.rs`, before 2026-07-16). The toolchain-linked
   full build of either tree stays host-side, as ADR-0011 already notes.
+
+  **Reclassified 2026-07-16 to fix-when-it-bites, read against what CI installs and measured.**
+  The residual was listed as actionable, but reading what the CI rust job actually provisions
+  settled it against wiring. That job (`.github/workflows/ci.yml`) installs no system library
+  at all: rust nightly plus stable (rustfmt, clippy, the `x86_64-pc-windows-msvc` target),
+  `cargo-llvm-cov`, `just`, `uv`, and `rust-cache`, nothing more; the overlay job is node only
+  (its own comment says "npm + jsdom only"). So shell clippy is not a marginal add onto a
+  desktop toolchain CI already carries; it introduces a whole new class of CI provisioning. The
+  Tauri Linux dev stack (`libwebkit2gtk-4.1-dev` and its transitive deps) has a 630-package
+  recursive apt closure (measured with `apt-cache depends --recurse`), an uncacheable
+  `apt-get install` that re-runs every job (`rust-cache` caches compiled crates, not apt
+  packages), on top of a cold compile of the roughly 150-crate Tauri Rust graph (`wry`,
+  `webkit2gtk-sys`, the gtk-rs `-sys` crates, `tauri`). That whole cost lands on `check-body`,
+  which every `body/` change runs, to catch the occasional style lint on 881 lines (11 files) of
+  host-validated thin wiring. Disproportionate at personal, local-first scale, and the user
+  already catches shell clippy on the validation host (that is where the two `collapsible_if`
+  were fixed). It moves to fix-when-it-bites with its trigger: **CI gaining the Tauri desktop
+  stack for another reason** (a future CI-side Tauri build or smoke job), which drops the
+  marginal cost of shell clippy to near zero and lets it ride along; failing that, shell findings
+  accumulating faster than the user's local checks catch them, or the shell outgrowing the thin
+  wiring the coverage-creep guard already watches. This is a sharpened deferral, still open, so
+  the count is unchanged (the same bookkeeping the seam-transport and session-history sharpens
+  used), not a decline; the check itself is real, it is only too costly here.
+  **Confirmed clippy-clean now.** This host has neither `pkg-config` nor the webkit-dev stack
+  (only the `libgtk-3` runtime, no `-dev`, and no sudo), so a permissive `pkg-config` shim stood
+  in for it: the `-sys` build scripts consume only link flags, which clippy discards because it
+  never links, so a shim that answers every query and version check lets the whole Tauri graph
+  type-check. Under it `cargo clippy --all-targets -- -D warnings` on the shell exits 0, and a
+  planted `useless_format` makes that exact command exit 101, so the declined check is real
+  rather than vacuously green. The heavier note is that assembling even a shim for a one-off
+  local check mirrors the CI cost: the stack this host lacks is exactly the stack a CI runner
+  would have to install on every shell change.
 
 **Repo gates ([ADR-0026](../adr/ADR-0026-prose-style-gates.md)):**
 - **The fail-open `scripts/` gate config closed 2026-07-12

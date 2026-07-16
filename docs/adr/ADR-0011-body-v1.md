@@ -415,3 +415,33 @@ coupled, and its value trigger is Slice 11, so it stays deferred and moves to fi
   make the Tauri command abort its RPC on Stop (a body-local signal, no proto change), which the
   brain already tears down cleanly. Both that and the multi-turn+`Cancel` build live entirely in the
   ungated, host-validated Tauri shell + overlay glue, so neither is a gated slice today.
+
+## Addendum (2026-07-16, later still): the shell-clippy residual is deferred to fix-when-it-bites
+
+The "recorded deferral partly lands" addendum above left one residual: `cargo clippy` for the
+Tauri shell in CI. Reading it against what CI actually installs settled it against wiring, and it
+moves to fix-when-it-bites (recorded in
+[docs/refinements/repo-gates.md](../refinements/repo-gates.md)).
+
+- **What the rust CI job installs today.** Nothing at the system level. `.github/workflows/ci.yml`
+  gives the rust job rust nightly plus stable (rustfmt, clippy, the `x86_64-pc-windows-msvc`
+  target), `cargo-llvm-cov`, `just`, `uv`, and `rust-cache`, and no more; the overlay job is node
+  only ("npm + jsdom only"). Nothing in CI provisions the GTK/webkit/dbus stack.
+- **So shell clippy is not a marginal add; it is a new class of CI provisioning.** The shell
+  depends on `tauri` 2, whose Linux `-sys` build scripts need the webkit dev stack via pkg-config.
+  `libwebkit2gtk-4.1-dev` has a 630-package recursive apt closure (measured with `apt-cache
+  depends --recurse`), an uncacheable `apt-get install` re-run every job on top of a cold compile
+  of the roughly 150-crate Tauri Rust graph (`wry`, `webkit2gtk-sys`, gtk-rs, `tauri`). That cost
+  lands on `check-body`, which every `body/` change runs, to catch the occasional style lint on
+  881 lines of thin, host-validated wiring. Disproportionate at personal, local-first scale.
+- **The gate would be real, and the shell is currently clean.** With pkg-config and the webkit-dev
+  stack absent on the dev host (and no sudo), a permissive pkg-config shim satisfies the `-sys`
+  build scripts, since clippy never links and consumes only the discarded link flags. Under it
+  `cargo clippy --all-targets -- -D warnings` on the shell exits 0, and a planted `useless_format`
+  makes the exact command exit 101. So this is a cost decline, not a can't-fail gate.
+- **Trigger.** CI gaining the Tauri desktop stack for another reason (a future CI-side Tauri build
+  or smoke job) drops the marginal cost to near zero and lets shell clippy ride along; failing
+  that, shell findings outpacing the user's local checks, or the shell outgrowing the thin wiring
+  the coverage-creep guard watches. Until then the maintainer catches shell clippy on the validation
+  host, where the two `collapsible_if` were fixed. The classifier is unchanged: `body/app/src-tauri/`
+  stays carved to rust (ADR-0006), justified by the shell fmt gate it already feeds.

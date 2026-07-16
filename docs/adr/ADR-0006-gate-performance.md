@@ -120,3 +120,16 @@ Rust, so routing a shell-only change away from the node job under-tests nothing;
 change re-running the full body coverage build is over-testing, the safe direction the
 classifier already prefers. `os_windows` needed no classifier change: it lives under `body/`
 and already gated the rust job; `check-body` just clippy-checks it on the windows target now.
+
+## Addendum (2026-07-16, later): the shell-clippy residual closes with no classifier change
+
+The one gate the `body/app/src-tauri/` carve-out was added for (the shell fmt check) shipped; the
+sibling shell `cargo clippy` did not, and on 2026-07-16 it moved to fix-when-it-bites rather than
+into CI, because the rust job installs no system library and shell clippy would need the
+630-package Tauri webkit-dev apt stack plus a cold Tauri build (recorded in
+[ADR-0011](ADR-0011-body-v1.md) and
+[docs/refinements/repo-gates.md](../refinements/repo-gates.md)). This changes nothing here: the
+carve-out stands exactly as above, still justified by the fmt gate it feeds, and would already
+route a shell change to the rust job that runs shell clippy the day CI can afford it. No rule
+moved; the classifier over-tests a shell change (full body build) in the safe direction it always
+prefers.
