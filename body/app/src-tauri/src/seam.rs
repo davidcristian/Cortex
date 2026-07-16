@@ -4,7 +4,7 @@ use std::future::Future;
 use std::hash::{BuildHasher, Hasher};
 use std::time::Duration;
 
-use body_core::{Randomness, RetryPolicy, RetryingTransport, Sleeper};
+use body_core::{Randomness, RetryPlan, RetryPolicy, RetryingTransport, Sleeper};
 use body_rpc::BrainSeamClient;
 
 /// Default brain seam address (matches `body_rpc`); override with `CORTEX_BRAIN_ADDR`.
@@ -73,12 +73,23 @@ pub fn connect() -> Result<ResilientTransport, String> {
         client,
         TokioSleeper,
         ShellRandomness::from_env(),
-        policy_from_env(),
+        plan_from_env(),
     ))
 }
 
-/// The retry policy, each field overridable via `CORTEX_BRAIN_RETRY_*`; the ADR-0024 defaults
-/// (3 attempts / 200 ms base / ×2 / 2 s cap) otherwise.
+/// The per-method retry plan: the read schedule from `CORTEX_BRAIN_RETRY_*`, plus the ceiling
+/// on a `Health` probe's patience from `CORTEX_BRAIN_PROBE_BUDGET_MS` (default 1 s).
+pub fn plan_from_env() -> RetryPlan {
+    RetryPlan {
+        reads: policy_from_env(),
+        probe_budget: env_parse("CORTEX_BRAIN_PROBE_BUDGET_MS")
+            .map(Duration::from_millis)
+            .unwrap_or(RetryPlan::default().probe_budget),
+    }
+}
+
+/// The retry policy for the reads, each field overridable via `CORTEX_BRAIN_RETRY_*`; the ADR-0024
+/// defaults (3 attempts / 200 ms base / ×2 / 2 s cap) otherwise.
 pub fn policy_from_env() -> RetryPolicy {
     let default = RetryPolicy::default();
     RetryPolicy {

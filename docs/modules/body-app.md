@@ -126,7 +126,11 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
   one timer effect, and `ShellRandomness` the real `Randomness` (a `RandomState`-seeded jitter draw,
   `CORTEX_BRAIN_RETRY_JITTER=off` pinning it to the deterministic schedule), both kept in the
   un-gated shell so the retry *logic* stays gated in `body_core`. `policy_from_env()` (the shared
-  `RetryPolicy` builder) is `pub` so `converse` reuses it. The read commands use `connect()`;
+  `RetryPolicy` builder) is `pub` so `converse` reuses it for its dial, and `plan_from_env()`
+  wraps it in the `RetryPlan` `connect()` passes: the same read schedule, plus
+  `CORTEX_BRAIN_PROBE_BUDGET_MS` as the ceiling on a `Health` probe's patience. Which calls may
+  be retried at all is *not* configurable here and deliberately so; that is the gated
+  `RetryPlan` gate, decided by what each seam method does. The read commands use `connect()`;
   `converse` keeps its **eager** dial but wraps it in `retry_with` (ADR-0024 addendum), so a turn
   started against a briefly-down brain retries the *dial* (safe: the non-idempotent turn has not
   begun) while a turn that fails after its first event stays terminal (decision 2). It first runs
@@ -149,7 +153,9 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
   pass-through), `CORTEX_TOAST_APP_ID` (the `AppUserModelID` the reminder toast is attributed
   to, default `dev.cortex.body`), and the read-transport retry knobs (ADR-0024)
   `CORTEX_BRAIN_RETRY_ATTEMPTS` (default 3), `_BASE_MS` (200), `_MULTIPLIER` (2),
-  `_MAX_MS` (2000).
+  `_MAX_MS` (2000), plus `CORTEX_BRAIN_PROBE_BUDGET_MS` (1000), the ceiling the `Health`
+  probe's schedule is trimmed to so raising the read knobs cannot slow the connection
+  indicator's verdict. At the defaults it does not bind (the schedule's worst case is 600 ms).
 
 **Invariants.**
 

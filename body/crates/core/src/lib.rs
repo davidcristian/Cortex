@@ -13,7 +13,8 @@ pub use os::{
     Notify, NotifyError, VolumeChange, VolumeState,
 };
 pub use retry::{
-    FullDelay, Randomness, RetryPolicy, RetryingTransport, Sleeper, is_transient, retry_with,
+    DEFAULT_PROBE_BUDGET, FullDelay, Randomness, RetryPlan, RetryPolicy, RetryingTransport,
+    SeamMethod, Sleeper, is_transient, retry_with,
 };
 pub use transport::{
     BrainTransport, ConfirmDecision, DueReminder, SeamHealth, SessionMessage, SessionSummary,

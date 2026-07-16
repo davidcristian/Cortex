@@ -2,9 +2,12 @@
 //! Rust counterpart of ADR-0002 decision 8's `integration` marker): `#[ignore]`d so they never run
 //! in CI or count toward coverage.
 
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::future::Future;
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
-use body_core::{BrainTransport, LinkState, probe_link};
+use body_core::{
+    BrainTransport, LinkState, RetryPlan, RetryPolicy, RetryingTransport, Sleeper, probe_link,
+};
 use body_rpc::BrainSeamClient;
 use body_rpc::generated::brain_service_client::BrainServiceClient;
 use body_rpc::generated::{ClientEvent, UserTurn, client_event, server_event};
@@ -93,6 +96,131 @@ async fn the_link_probe_classifies_the_live_brain_and_a_dead_address() {
     assert!(
         !dead_status.detail.is_empty(),
         "a down probe should carry the dial failure"
+    );
+}
+
+/// The real `Sleeper` the shell composes, repeated here because the shell is un-gated and this
+/// suite cannot import it. Real time on purpose: these checks measure the wall clock the
+/// deterministic fakes deliberately avoid.
+struct RealSleeper;
+
+impl Sleeper for RealSleeper {
+    fn sleep(&self, duration: Duration) -> impl Future<Output = ()> + Send {
+        tokio::time::sleep(duration)
+    }
+}
+
+/// A patient read schedule, as someone tuning `CORTEX_BRAIN_RETRY_*` for a slow brain restart
+/// would set it: 5 attempts, 400 ms base, ×2, so the reads spend up to 6 s backing off.
+fn patient_reads() -> RetryPolicy {
+    RetryPolicy {
+        max_attempts: 5,
+        base_delay: Duration::from_millis(400),
+        multiplier: 2,
+        max_delay: Duration::from_secs(10),
+    }
+}
+
+#[tokio::test]
+#[ignore = "live seam check: needs a real brain at CORTEX_BRAIN_ADDR (run with -- --ignored)"]
+async fn the_probe_budget_bounds_a_down_verdict_against_a_dead_address() {
+    let dead = match BrainSeamClient::connect_lazy_with_token("http://127.0.0.1:1", None) {
+        Ok(client) => client,
+        Err(error) => panic!("cannot build a lazy client for the dead address: {error}"),
+    };
+    let transport = RetryingTransport::new(
+        dead,
+        RealSleeper,
+        RetryPlan {
+            reads: patient_reads(),
+            probe_budget: Duration::from_secs(1),
+        },
+    );
+
+    let started = Instant::now();
+    let status = probe_link(&transport).await;
+    let probe_took = started.elapsed();
+    assert_eq!(
+        status.state,
+        LinkState::Down,
+        "an unreachable address probed {state}: {detail}",
+        state = status.state.as_str(),
+        detail = status.detail
+    );
+    // Backoff of 400 + 800 ms overruns the 1 s budget, so the probe keeps two attempts and
+    // waits once. The upper bound is the honesty claim; the lower one proves it still retried.
+    assert!(
+        probe_took >= Duration::from_millis(400) && probe_took < Duration::from_secs(2),
+        "probe took {probe_took:?}, outside the one wait its 1 s budget allows"
+    );
+
+    let started = Instant::now();
+    let read = transport.list_sessions(1).await;
+    let read_took = started.elapsed();
+    assert!(read.is_err(), "a dead address should fail the read");
+    // Same transport, same failure, untrimmed schedule: 400 + 800 + 1600 + 3200 ms of waiting.
+    assert!(
+        read_took > probe_took * 2,
+        "the read ({read_took:?}) should stay far more patient than the probe ({probe_took:?})"
+    );
+}
+
+#[tokio::test]
+#[ignore = "live seam check: needs a TOKEN-PROTECTED brain (CORTEX_SEAM_TOKEN set on both sides)"]
+async fn a_rejected_seam_token_is_answered_at_once_and_never_retried() {
+    let addr = brain_addr();
+    let client = match BrainSeamClient::connect_lazy_with_token(&addr, Some("not-the-token")) {
+        Ok(client) => client,
+        Err(error) => panic!("cannot build a lazy client for {addr}: {error}"),
+    };
+    let transport = RetryingTransport::new(client, RealSleeper, patient_reads());
+    let started = Instant::now();
+    let status = probe_link(&transport).await;
+    let took = started.elapsed();
+    assert_ne!(
+        status.state,
+        LinkState::Ready,
+        "the brain at {addr} accepted a deliberately wrong token, so it is serving without \
+         auth: rerun the stack with CORTEX_SEAM_TOKEN set on both sides"
+    );
+    assert_eq!(
+        status.state,
+        LinkState::Degraded,
+        "a rejected token probed {state}: {detail}",
+        state = status.state.as_str(),
+        detail = status.detail
+    );
+    assert!(
+        status.detail.starts_with("Unauthenticated"),
+        "expected an Unauthenticated status in the detail, got: {}",
+        status.detail
+    );
+    // No wait was taken, so this is the dial plus one round trip on loopback.
+    assert!(
+        took < Duration::from_millis(400),
+        "a terminal status took {took:?}, so it was retried when it should not have been"
+    );
+}
+
+#[tokio::test]
+#[ignore = "live seam check: needs a real brain at CORTEX_BRAIN_ADDR (run with -- --ignored)"]
+async fn the_ack_write_is_answered_once_against_the_live_brain() {
+    let addr = brain_addr();
+    let token = seam_token();
+    let client = match BrainSeamClient::connect_lazy_with_token(&addr, token.as_deref()) {
+        Ok(client) => client,
+        Err(error) => panic!("cannot build a lazy client for {addr}: {error}"),
+    };
+    let transport = RetryingTransport::new(client, RealSleeper, patient_reads());
+    let started = Instant::now();
+    let acked = match transport.ack_reminder("live-no-such-reminder").await {
+        Ok(acked) => acked,
+        Err(error) => panic!("AckReminder at {addr} failed: {error}"),
+    };
+    assert!(!acked, "an unknown reminder id should not report as acked");
+    assert!(
+        started.elapsed() < Duration::from_millis(400),
+        "the unretried write should cost one round trip, not a backoff"
     );
 }
 

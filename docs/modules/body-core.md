@@ -104,31 +104,63 @@ stays thin and the retry is exercised against a fake with no network or wall-clo
   inject a scripted fake. A draw is sanitized (out-of-range clamped into `[0, 1]`, a
   non-finite draw treated as the full delay so `clamp` cannot pass a `NaN` to a panicking
   `mul_f64`), so a misbehaving source cannot panic the `Duration` math.
-- `RetryPolicy` (`Copy`, `Eq`, `Debug`) is a bounded exponential-backoff schedule: public
-  fields `max_attempts` (total tries incl. the first; `0`/`1` disable retry), `base_delay`,
-  `multiplier`, `max_delay` (cap). `delay(index)` = `min(base·multiplierⁱⁿᵈᵉˣ, max_delay)`
-  (saturating, so no overflow escapes the cap); `backoff(attempt, error)` returns the wait to
-  apply or `None` to give up (retry only while an attempt remains *and* the error is
-  transient). `Default` = 3 attempts / 200 ms / ×2 / 2 s cap.
+- `RetryPolicy` (`retry::policy`; `Copy`, `Eq`, `Debug`) is a bounded exponential-backoff
+  schedule: public fields `max_attempts` (total tries incl. the first; `0`/`1` disable retry),
+  `base_delay`, `multiplier`, `max_delay` (cap). `delay(index)` =
+  `min(base·multiplierⁱⁿᵈᵉˣ, max_delay)` (saturating, so no overflow escapes the cap);
+  `backoff(attempt, error)` returns the wait to apply or `None` to give up (retry only while an
+  attempt remains *and* the error is transient). `Default` = 3 attempts / 200 ms / ×2 / 2 s cap.
+  Two helpers serve the probe budget: `worst_case_backoff()` sums every wait the schedule can
+  spend before giving up (unjittered, since equal jitter only ever shortens a wait), and
+  `within(budget)` returns the schedule with its attempts trimmed until that sum fits `budget`,
+  leaving the delays themselves alone. One attempt always survives `within`, so a budget buys
+  back patience, never the call. `RetryPolicy::ONCE` is the schedule that cannot retry (one
+  attempt, no wait): what a refused method runs on, so a refusal is *executed* by the same loop
+  as a permission instead of by a second code path no test can enter.
 - `is_transient(&TransportError) -> bool` is the retryable classifier: `Connection` and
   `Rpc{code=="Unavailable"}` are transient; every other `Rpc` status and `Protocol` are not.
+  It is a **necessary** condition for a retry, never a sufficient one: a status says the brain
+  could not serve the call, never that the brain did not already run it.
+- `SeamMethod` (`retry::plan`; `Copy`, `Eq`, `Debug`) names every `BrainTransport` method, and
+  `repeatable()` is the safety property retry rests on: **repeating the call is observably the
+  same as making it once**. True for the four reads (each a view of a store the call does not
+  touch); false for `Converse` (a turn may append messages, run tools, and stream output before
+  it fails, and its `decisions` stream is one-shot) and for `AckReminder`, whose *effect* is
+  idempotent brain-side but whose *answer* is not (an ack whose reply was lost has already
+  cleared the reminder, so the repeat says `false` about a reminder this call dismissed).
+  `AckReminder` is the case that shows repeatability is two tests, not one: no duplicated
+  effect **and** no changed answer. The match is exhaustive, so a new variant does not compile
+  until it is classified.
+- `RetryPlan` (`retry::plan`; `Copy`, `Eq`, `Debug`) is which schedule each method runs under:
+  public fields `reads` (the `RetryPolicy` for the repeatable reads) and `probe_budget` (the
+  ceiling a `Health` probe's backoff is trimmed to, `DEFAULT_PROBE_BUDGET` = 1 s).
+  `policy_for(method)` is the **one door every retry decision goes through**, and it answers
+  `None` for a method that may not be repeated at all: the caller must then make exactly one
+  attempt and surface whatever comes back, however transient it looks. `From<RetryPolicy>`
+  reads a bare schedule as a plan governing the reads with the default budget, so a caller
+  with no opinion about the probe keeps passing one policy. The probe is split out because the
+  connection indicator renders its answer, so patience there is time the dot spends claiming a
+  state the seam has stopped proving; the default budget does not bind the default schedule
+  (600 ms worst case), so it changes nothing until the read knobs are turned up.
 - `retry_with(policy, sleeper, randomness, call)` is the bounded-retry loop over any fallible
   async factory (ADR-0024 addendum): re-issues `call()` each attempt, sleeping the jittered
-  delay while `backoff` says so. Public so patience composes around a non-transport factory,
-  which the shell uses to wrap its eager `converse` dial (safe: the non-idempotent turn has
-  not begun until the dial succeeds).
+  delay while `backoff` says so. It is the schedule **executor**, not the gate: it takes the
+  caller's word that repeating `call` is safe. Public so patience composes around a
+  non-transport factory, which the shell uses to wrap its eager `converse` dial (safe: the
+  non-idempotent turn has not begun until the dial succeeds, and a dial is not a seam method,
+  so it has no entry in the plan).
 - `RetryingTransport<T: BrainTransport, S: Sleeper, R: Randomness = FullDelay>` *is* a
-  `BrainTransport`: wraps an inner transport and retries its **idempotent** methods (`health`,
-  `list_sessions`, `session_messages`, `list_due_reminders`) via `retry_with` on a transient
-  failure per the policy, sleeping via the `Sleeper` between tries. `converse` is forwarded
-  **unchanged**, since it is non-idempotent, its `decisions` stream is one-shot, and a failed
-  turn is terminal by the overlay's contract (ADR-0024 decision 2). `ack_reminder` is forwarded
-  unchanged too (ADR-0025): repeating the write is harmless brain-side, but a retry that lands
-  after a lost reply answers `false` for a reminder this very call cleared, which reads at the
-  caller as "there was nothing to ack"; surfacing the transient failure keeps that ambiguity
-  out of the answer, and the next overlay open re-lists whatever is still due. `new(inner,
-  sleeper, policy)` (no jitter, the v1 default) or `with_randomness(inner, sleeper, randomness,
-  policy)` (jittered).
+  `BrainTransport`: wraps an inner transport and routes every unary call through the plan's
+  verdict for that `SeamMethod`, running `retry_with` on the resolved schedule when the method
+  is repeatable and on `RetryPolicy::ONCE` when the plan refuses it, so a refused call makes
+  **exactly one attempt** and takes no path a permitted one does not. So
+  `ack_reminder` is unretried by the gate rather than by bypassing it (ADR-0025), and no error
+  code, however transient, can promote a call with an effect into two of them. `converse` is
+  forwarded as the stream it is, the one method that cannot reach the gate at runtime (a
+  stream is not a future the loop could re-issue); it is classified all the same so the port's
+  methods are covered exhaustively (ADR-0024 decision 2). `new(inner, sleeper, plan)` (no
+  jitter, the v1 default) or `with_randomness(inner, sleeper, randomness, plan)` (jittered);
+  both take `impl Into<RetryPlan>`, so a bare `RetryPolicy` still works.
 
 Connection classification (`link` module, ADR-0011 addendum) is what the overlay's indicator
 draws. It is here, not in a component or the shell, because "what does this failure prove"
@@ -149,7 +181,10 @@ is domain logic:
 - `probe_link(&impl BrainTransport) -> LinkStatus` awaits `health` and classifies the outcome.
   **It never fails**: a failure is the answer, which is what lets a caller render a state
   instead of an error. Composed over `RetryingTransport` it is also the reconnect attempt,
-  since `health` is retried, so `Down` means the whole backoff budget failed to reach the brain.
+  since `health` is retried, so `Down` means the whole backoff budget failed to reach the
+  brain. That budget is bounded on purpose (`RetryPlan::probe_budget`): patience past the
+  point where the answer still matters is the indicator showing a state the seam stopped
+  proving, so the probe's schedule is trimmed to fit while the reads keep theirs.
 
 OS-capability ports (`os` module) are the first portability seam (ADR-0011):
 
