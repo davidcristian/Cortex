@@ -10,7 +10,7 @@ what lets the Redis adapter read only those two records); ``summarize_session`` 
 whole-history form the in-memory fake uses, delegating to it.
 """
 
-from collections.abc import Sequence
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from datetime import datetime
 
@@ -28,14 +28,17 @@ class SessionSummary:
     """One recent chat as the switcher shows it (ADR-0021).
 
     ``title`` and ``preview`` are already derived (one line, truncated); ``last_activity``
-    is tz-aware (the orchestrator maps it to unix-milliseconds at the seam edge). A pure
-    value (no I/O, immutable).
+    is tz-aware (the orchestrator maps it to unix-milliseconds at the seam edge). ``pinned``
+    is whether the user pinned this chat (ADR-0021 pinning addendum): a pinned chat is unioned
+    into a listing regardless of recency and sorts above the recency group (``merge_pinned``).
+    A pure value (no I/O, immutable).
     """
 
     session_id: str
     title: str
     preview: str
     last_activity: datetime
+    pinned: bool = False
 
 
 def _one_line(text: str, limit: int) -> str:
@@ -58,7 +61,12 @@ def _title(override: str | None, first_text: str) -> str:
 
 
 def summarize_ends(
-    session_id: str, first: Message, last: Message, *, title_override: str | None = None
+    session_id: str,
+    first: Message,
+    last: Message,
+    *,
+    title_override: str | None = None,
+    pinned: bool = False,
 ) -> SessionSummary:
     """Derive a chat's summary from its two end messages (ADR-0021).
 
@@ -67,26 +75,50 @@ def summarize_ends(
     instead of a whole history. ``first`` and ``last`` are the same message for a
     one-message session. ``title_override``, when a store holds a brain-generated title
     (ADR-0021 titles addendum), replaces the first-message title; the preview and last-activity
-    are always derived from the messages.
+    are always derived from the messages. ``pinned`` (ADR-0021 pinning addendum) marks a chat
+    the user pinned; a store passes it from its pinned set, and it drives ``merge_pinned``.
     """
     return SessionSummary(
         session_id=session_id,
         title=_title(title_override, first.text),
         preview=_one_line(last.text, PREVIEW_MAX),
         last_activity=last.at,
+        pinned=pinned,
     )
 
 
 def summarize_session(
-    session_id: str, messages: Sequence[Message], *, title_override: str | None = None
+    session_id: str,
+    messages: Sequence[Message],
+    *,
+    title_override: str | None = None,
+    pinned: bool = False,
 ) -> SessionSummary:
     """Derive a chat's summary from its persisted messages (ADR-0021).
 
     ``title`` comes from ``title_override`` when set (a brain-generated title, ADR-0021 titles
     addendum), else the first message's text. The engine appends the user turn first and only
     ``USER``/``ASSISTANT`` messages persist, so index 0 is that first user message; ``preview``
-    from the last message's text; ``last_activity`` from the last message's timestamp. Called
-    only with a non-empty history (a session exists only once a turn has been appended), so the
-    indexing is total.
+    from the last message's text; ``last_activity`` from the last message's timestamp. ``pinned``
+    rides through to the summary (ADR-0021 pinning addendum). Called only with a non-empty history
+    (a session exists only once a turn has been appended), so the indexing is total.
     """
-    return summarize_ends(session_id, messages[0], messages[-1], title_override=title_override)
+    return summarize_ends(
+        session_id, messages[0], messages[-1], title_override=title_override, pinned=pinned
+    )
+
+
+def merge_pinned(summaries: Iterable[SessionSummary]) -> tuple[SessionSummary, ...]:
+    """Order a listing's candidate summaries: pinned chats first, recency-descending in each group.
+
+    The one shared read-path rule for pinning (ADR-0021 pinning addendum), so the in-memory fake
+    and the Redis adapter cannot drift. Each store builds the SAME deduplicated candidate set (the
+    recency window unioned with the pinned set) and hands it here; this decides only the order. The
+    sort is stable, so sorting by recency first and then by ``not pinned`` yields pinned chats above
+    the recency group with each group still newest-active first. Deduplication is the caller's job
+    (a chat both pinned and inside the recency window must appear once, so a store unions ids before
+    fetching); this function reorders whatever set it is given and never adds or drops a member.
+    """
+    by_recency = sorted(summaries, key=lambda summary: summary.last_activity, reverse=True)
+    by_recency.sort(key=lambda summary: not summary.pinned)
+    return tuple(by_recency)

@@ -55,6 +55,18 @@ async def test_delete_removes_the_session(store: SessionStore) -> None:
     await contract.check_delete_removes_the_session(store)
 
 
+async def test_set_pinned_marks_and_clears_the_summary(store: SessionStore) -> None:
+    await contract.check_set_pinned_marks_and_clears_the_summary(store)
+
+
+async def test_a_pinned_chat_escapes_the_recency_window(store: SessionStore) -> None:
+    await contract.check_a_pinned_chat_escapes_the_recency_window(store)
+
+
+async def test_a_pinned_recent_chat_is_not_duplicated(store: SessionStore) -> None:
+    await contract.check_a_pinned_recent_chat_is_not_duplicated(store)
+
+
 async def test_delete_leaves_no_orphaned_redis_key_or_index_member() -> None:
     """Distrust-green: inspect Redis directly and prove the delete leaves NOTHING behind.
 
@@ -65,6 +77,7 @@ async def test_delete_leaves_no_orphaned_redis_key_or_index_member() -> None:
     store = RedisSessionStore(client)
     await store.append("s", contract.make_message(Role.USER, "hi"))
     await store.set_title("s", "a title")
+    await store.set_pinned("s", pinned=True)
 
     async def session_keys() -> list[bytes]:
         # keys()'s return is a partially-Any union; this call only ever reads bytes members back.
@@ -73,11 +86,13 @@ async def test_delete_leaves_no_orphaned_redis_key_or_index_member() -> None:
 
     assert await session_keys()  # both the messages and title keys exist before the delete
     assert await client.zscore("cortex:sessions", "s") is not None  # indexed before
+    assert await client.sismember("cortex:sessions:pinned", "s")  # pinned before
 
     await store.delete("s")
 
     assert await session_keys() == []  # messages AND title gone
     assert await client.zscore("cortex:sessions", "s") is None  # index member gone
+    assert not await client.sismember("cortex:sessions:pinned", "s")  # pinned member gone
 
 
 async def test_connection_failure_on_delete_wraps_the_cause() -> None:
@@ -128,6 +143,56 @@ async def test_set_title_persists_under_its_own_key_and_is_read_back_truncated()
 async def test_connection_failure_on_set_title_wraps_the_cause() -> None:
     with pytest.raises(SessionStoreError, match="setting the title for session 's'") as excinfo:
         await _disconnected_store().set_title("s", "a title")
+    assert isinstance(excinfo.value.__cause__, redis_exceptions.ConnectionError)
+
+
+async def test_set_pinned_persists_under_the_pinned_set_key() -> None:
+    """Distrust-green: pinning SADDs the id to `cortex:sessions:pinned`, unpinning SREMs it.
+
+    Asserted against the raw keyspace, so the summary's `pinned` flag cannot pass on a set the
+    listing merely computes: the membership itself must land in (and leave) the shared pinned set.
+    """
+    client = FakeAsyncRedis(server=FakeServer())
+    store = RedisSessionStore(client)
+    await store.set_pinned("s", pinned=True)
+    assert await client.sismember("cortex:sessions:pinned", "s")
+    await store.set_pinned("s", pinned=True)  # idempotent: SADD of a present member is a no-op
+    assert await client.scard("cortex:sessions:pinned") == 1
+    await store.set_pinned("s", pinned=False)
+    assert not await client.sismember("cortex:sessions:pinned", "s")
+
+
+async def test_list_sessions_unions_a_pinned_chat_older_than_the_window() -> None:
+    """Distrust-green over raw Redis: a pinned old chat is unioned in past the recency window.
+
+    Three newer chats fill a `limit=3` window; the pinned older chat is outside it and lists ONLY
+    through the union, sorted above the recency group. Removing the union reddens `old in ids`.
+    """
+    client = FakeAsyncRedis(server=FakeServer())
+    store = RedisSessionStore(client)
+    base = datetime(2026, 7, 3, 8, 0, tzinfo=UTC)
+    await store.append("old", contract.make_message(Role.USER, "old", at=base))
+    for offset, session_id in enumerate(("n1", "n2", "n3"), start=1):
+        at = datetime(2026, 7, 3, 8 + offset, tzinfo=UTC)
+        await store.append(session_id, contract.make_message(Role.USER, "new", at=at))
+    await store.set_pinned("old", pinned=True)
+    ids = [s.session_id for s in await store.list_sessions(limit=3)]
+    assert ids == ["old", "n3", "n2", "n1"]  # pinned first, then the recency window newest-first
+
+
+async def test_list_sessions_skips_a_dangling_pinned_entry() -> None:
+    """A pinned id whose message list is gone (e.g. a pin on a since-deleted chat) is skipped."""
+    client = FakeAsyncRedis(server=FakeServer())
+    store = RedisSessionStore(client)
+    await store.append("real", contract.make_message(Role.USER, "hi"))
+    await client.sadd("cortex:sessions:pinned", "ghost")  # pinned, but never had messages
+    summaries = await store.list_sessions(limit=10)
+    assert [s.session_id for s in summaries] == ["real"]
+
+
+async def test_connection_failure_on_set_pinned_wraps_the_cause() -> None:
+    with pytest.raises(SessionStoreError, match="setting the pin for session 's'") as excinfo:
+        await _disconnected_store().set_pinned("s", pinned=True)
     assert isinstance(excinfo.value.__cause__, redis_exceptions.ConnectionError)
 
 

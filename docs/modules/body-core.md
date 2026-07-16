@@ -47,9 +47,10 @@ classification behind the overlay's connection indicator (ADR-0011 addendum), an
   to the brain as a `ConfirmResponse` on the open `Converse` stream.
 - `SessionSummary` / `SessionMessage` are typed core mirrors of the proto session-read messages
   (`Clone`, `Eq`, `Debug`; ADR-0021). `SessionSummary { session_id, title, preview,
-  last_activity_unix_ms }` is one recent chat as the switcher shows it (title/preview already
-  derived); `SessionMessage { role, text, turn_id, at_unix_ms }` is one persisted message
-  (`role` is `"user"`/`"assistant"`).
+  last_activity_unix_ms, pinned }` is one recent chat as the switcher shows it (title/preview
+  already derived; `pinned` is whether the user pinned it, ADR-0021 pinning addendum, which the
+  brain lists first and above the recency window); `SessionMessage { role, text, turn_id,
+  at_unix_ms }` is one persisted message (`role` is `"user"`/`"assistant"`).
 - `DueReminder` is the typed core mirror of the proto `DueReminder` (`Clone`, `Eq`,
   `Debug`; ADR-0025): `{ reminder_id, text, fired_at_unix_ms, recurring, tainted,
   session_id }`, one fired-but-undelivered reminder. `text` is display-only and **inert**:
@@ -88,6 +89,13 @@ classification behind the overlay's connection indicator (ADR-0011 addendum), an
     (`SeamMethod::DeleteSession` is not repeatable), so a lost reply surfaces rather than silently
     re-issuing a destroy against a chat a still-streaming turn may have re-materialized; a store or
     memory failure surfaces as `TransportError::Rpc` (`Unavailable`).
+  - `set_session_pinned(&self, session_id, pinned)` (ADR-0021 pinning addendum) is the overlay's
+    user-driven pin toggle: the brain unions a pinned chat into `list_sessions` regardless of
+    recency, lifting it above the recency window. Reachable only from the overlay's own list
+    controls, never a model/tool/tainted turn. Idempotent by value, yet still not retried
+    (`SeamMethod::SetSessionPinned` is not repeatable, the uniform catalog-write convention), so a
+    lost reply surfaces rather than re-asserting a pinned value the user's next toggle reversed; a
+    store failure surfaces as `TransportError::Rpc` (`Unavailable`).
   - `list_due_reminders(&self)` / `ack_reminder(&self, reminder_id)` (ADR-0025) are the
     overlay's pull path: `Vec<DueReminder>` of everything fired and still awaiting
     delivery (all sessions, since one user has one set of reminders), and the one
@@ -141,9 +149,12 @@ stays thin and the retry is exercised against a fake with no network or wall-clo
   idempotent brain-side but whose *answer* is not (an ack whose reply was lost has already
   cleared the reminder, so the repeat says `false` about a reminder this call dismissed), and
   for `RenameSession`, a plain write a repeat could use to re-apply a stale label over one the
-  user has since changed, and for `DeleteSession`, a **destructive** write: idempotent in
+  user has since changed, for `DeleteSession`, a **destructive** write: idempotent in
   isolation, but a silent retry could destroy a chat re-materialized by a still-streaming turn
-  (a concurrent `append` between a lost reply and the retry), the last call to re-issue by machinery.
+  (a concurrent `append` between a lost reply and the retry), the last call to re-issue by machinery,
+  and for `SetSessionPinned`, the case where "idempotent by value" is strongest yet still one
+  attempt: setting the same pin twice is a no-op, but the uniform catalog-write convention refuses a
+  retry so a lost reply never re-asserts a pinned value the user's next toggle reversed.
   `AckReminder` is the case that shows repeatability is two tests, not one: no duplicated
   effect **and** no changed answer. The match is exhaustive, so a new variant does not compile
   until it is classified.

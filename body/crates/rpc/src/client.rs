@@ -200,4 +200,12 @@ impl BrainTransport for BrainSeamClient {
     async fn delete_session(&self, session_id: &str) -> Result<(), TransportError> {
         crate::sessions::delete_session(self.inner.clone(), session_id.to_owned()).await
     }
+
+    async fn set_session_pinned(
+        &self,
+        session_id: &str,
+        pinned: bool,
+    ) -> Result<(), TransportError> {
+        crate::sessions::set_session_pinned(self.inner.clone(), session_id.to_owned(), pinned).await
+    }
 }

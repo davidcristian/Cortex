@@ -20,7 +20,8 @@ use body_rpc::generated::{
     DueReminder as PbDueReminder, GetSessionMessagesReply, GetSessionMessagesRequest, HealthReply,
     HealthRequest, ListDueRemindersReply, ListDueRemindersRequest, ListSessionsReply,
     ListSessionsRequest, RenameSessionReply, RenameSessionRequest, ServerEvent,
-    SessionMessage as PbSessionMessage, SessionSummary as PbSessionSummary,
+    SessionMessage as PbSessionMessage, SessionSummary as PbSessionSummary, SetSessionPinnedReply,
+    SetSessionPinnedRequest,
 };
 use tokio::net::TcpListener;
 use tokio::sync::oneshot;
@@ -58,6 +59,9 @@ struct FakeBrain {
     /// Records each `DeleteSession` write's `session_id`, so a test can prove the id crossed the
     /// wire (the reply is a bare ack, ADR-0021).
     deletes: Arc<Mutex<Vec<String>>>,
+    /// Records each `SetSessionPinned` write `(session_id, pinned)`, so a test can prove both
+    /// fields crossed the wire (the reply is a bare ack, ADR-0021 pinning addendum).
+    pins: Arc<Mutex<Vec<(String, bool)>>>,
 }
 
 impl FakeBrain {
@@ -69,6 +73,7 @@ impl FakeBrain {
             reminders_fail: false,
             renames: Arc::new(Mutex::new(Vec::new())),
             deletes: Arc::new(Mutex::new(Vec::new())),
+            pins: Arc::new(Mutex::new(Vec::new())),
         }
     }
 }
@@ -115,17 +120,20 @@ impl BrainService for FakeBrain {
         let limit = request.into_inner().limit;
         Ok(Response::new(ListSessionsReply {
             sessions: vec![
+                // `beta` is pinned, so it also proves the `pinned` flag crosses the wire.
                 PbSessionSummary {
                     session_id: String::from("beta"),
                     title: format!("limit={limit}"),
                     preview: String::from("newest chat"),
                     last_activity_unix_ms: 2000,
+                    pinned: true,
                 },
                 PbSessionSummary {
                     session_id: String::from("alpha"),
                     title: String::from("older chat"),
                     preview: String::from("oldest chat"),
                     last_activity_unix_ms: 1000,
+                    pinned: false,
                 },
             ],
         }))
@@ -235,6 +243,23 @@ impl BrainService for FakeBrain {
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .push(request.into_inner().session_id);
         Ok(Response::new(DeleteSessionReply {}))
+    }
+
+    async fn set_session_pinned(
+        &self,
+        request: Request<SetSessionPinnedRequest>,
+    ) -> Result<Response<SetSessionPinnedReply>, Status> {
+        // A store-down abort behaves like the reads; otherwise record the write so the test can
+        // prove both fields crossed the wire (the reply carries nothing to echo).
+        if self.sessions_fail {
+            return Err(Status::unavailable("store down"));
+        }
+        let req = request.into_inner();
+        self.pins
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .push((req.session_id, req.pinned));
+        Ok(Response::new(SetSessionPinnedReply {}))
     }
 }
 
@@ -417,12 +442,14 @@ async fn list_sessions_maps_summaries_in_order() {
                 title: String::from("limit=7"), // the limit crossed the wire
                 preview: String::from("newest chat"),
                 last_activity_unix_ms: 2000,
+                pinned: true, // the pin flag crossed the wire
             },
             SessionSummary {
                 session_id: String::from("alpha"),
                 title: String::from("older chat"),
                 preview: String::from("oldest chat"),
                 last_activity_unix_ms: 1000,
+                pinned: false,
             },
         ]
     );
@@ -558,6 +585,43 @@ async fn delete_session_store_failure_maps_to_the_rpc_variant() {
         .unwrap();
     assert_eq!(
         client.delete_session("s").await.unwrap_err(),
+        TransportError::Rpc {
+            code: String::from("Unavailable"),
+            message: String::from("store down"),
+        }
+    );
+}
+
+#[tokio::test]
+async fn set_session_pinned_writes_both_fields_across_the_wire() {
+    let recorder = Arc::new(Mutex::new(Vec::new()));
+    let mut fake = FakeBrain::new(Script::Ready);
+    fake.pins = recorder.clone();
+    let addr = spawn_fake_brain(fake).await.unwrap();
+    let client = BrainSeamClient::connect(&format!("http://{addr}"))
+        .await
+        .unwrap();
+    client.set_session_pinned("chat-9", true).await.unwrap();
+    // The target chat and the pin state both crossed the seam intact (the reply is a bare ack).
+    assert_eq!(
+        *recorder.lock().unwrap(),
+        vec![(String::from("chat-9"), true)]
+    );
+    // Unpinning crosses just as faithfully.
+    client.set_session_pinned("chat-9", false).await.unwrap();
+    assert_eq!(recorder.lock().unwrap()[1], (String::from("chat-9"), false));
+}
+
+#[tokio::test]
+async fn set_session_pinned_store_failure_maps_to_the_rpc_variant() {
+    let mut fake = FakeBrain::new(Script::Ready);
+    fake.sessions_fail = true;
+    let addr = spawn_fake_brain(fake).await.unwrap();
+    let client = BrainSeamClient::connect(&format!("http://{addr}"))
+        .await
+        .unwrap();
+    assert_eq!(
+        client.set_session_pinned("s", true).await.unwrap_err(),
         TransportError::Rpc {
             code: String::from("Unavailable"),
             message: String::from("store down"),

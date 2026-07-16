@@ -272,4 +272,25 @@ pub trait BrainTransport: Send + Sync {
         &self,
         session_id: &str,
     ) -> impl Future<Output = Result<(), TransportError>> + Send;
+
+    /// Pins or unpins one chat (`BrainService.SetSessionPinned`, ADR-0021 pinning addendum): the
+    /// overlay's user-driven pin toggle. `pinned` is the target state; a pinned chat is unioned
+    /// into `list_sessions` regardless of recency and sorts above the recency group, so pinning
+    /// keeps an important chat reachable after it ages out of the recency window.
+    ///
+    /// A **write**, and a user-only one. Its gate is the same structural user-only reachability
+    /// `rename_session`/`delete_session` have (never a model, tool, or tainted turn). Setting the
+    /// same state twice is a no-op (idempotent by value), yet the resilient transport still refuses
+    /// to retry it (`SeamMethod::SetSessionPinned` is not repeatable), the catalog-write convention:
+    /// one attempt, so a lost reply never silently re-asserts a pinned value the user's next toggle
+    /// reversed. The overlay re-lists after it resolves to reflect the change.
+    ///
+    /// # Errors
+    ///
+    /// As [`BrainTransport::list_sessions`] (a store failure surfaces as `Unavailable`).
+    fn set_session_pinned(
+        &self,
+        session_id: &str,
+        pinned: bool,
+    ) -> impl Future<Output = Result<(), TransportError>> + Send;
 }

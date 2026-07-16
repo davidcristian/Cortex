@@ -137,16 +137,18 @@ class ListSessionsReply(_message.Message):
     def __init__(self, sessions: _Optional[_Iterable[_Union[SessionSummary, _Mapping]]] = ...) -> None: ...
 
 class SessionSummary(_message.Message):
-    __slots__ = ("session_id", "title", "preview", "last_activity_unix_ms")
+    __slots__ = ("session_id", "title", "preview", "last_activity_unix_ms", "pinned")
     SESSION_ID_FIELD_NUMBER: _ClassVar[int]
     TITLE_FIELD_NUMBER: _ClassVar[int]
     PREVIEW_FIELD_NUMBER: _ClassVar[int]
     LAST_ACTIVITY_UNIX_MS_FIELD_NUMBER: _ClassVar[int]
+    PINNED_FIELD_NUMBER: _ClassVar[int]
     session_id: str
     title: str
     preview: str
     last_activity_unix_ms: int
-    def __init__(self, session_id: _Optional[str] = ..., title: _Optional[str] = ..., preview: _Optional[str] = ..., last_activity_unix_ms: _Optional[int] = ...) -> None: ...
+    pinned: bool
+    def __init__(self, session_id: _Optional[str] = ..., title: _Optional[str] = ..., preview: _Optional[str] = ..., last_activity_unix_ms: _Optional[int] = ..., pinned: _Optional[bool] = ...) -> None: ...
 
 class GetSessionMessagesRequest(_message.Message):
     __slots__ = ("session_id",)
@@ -191,6 +193,18 @@ class DeleteSessionRequest(_message.Message):
     def __init__(self, session_id: _Optional[str] = ...) -> None: ...
 
 class DeleteSessionReply(_message.Message):
+    __slots__ = ()
+    def __init__(self) -> None: ...
+
+class SetSessionPinnedRequest(_message.Message):
+    __slots__ = ("session_id", "pinned")
+    SESSION_ID_FIELD_NUMBER: _ClassVar[int]
+    PINNED_FIELD_NUMBER: _ClassVar[int]
+    session_id: str
+    pinned: bool
+    def __init__(self, session_id: _Optional[str] = ..., pinned: _Optional[bool] = ...) -> None: ...
+
+class SetSessionPinnedReply(_message.Message):
     __slots__ = ()
     def __init__(self) -> None: ...
 

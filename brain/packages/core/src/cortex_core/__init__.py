@@ -49,7 +49,6 @@ from cortex_core.events import TurnEvent as TurnEvent
 from cortex_core.fakes import EchoInferenceBackend as EchoInferenceBackend
 from cortex_core.fakes import HashEmbedder as HashEmbedder
 from cortex_core.fakes import InMemoryMemoryStore as InMemoryMemoryStore
-from cortex_core.fakes import InMemorySessionStore as InMemorySessionStore
 from cortex_core.fakes import InMemoryTaskStore as InMemoryTaskStore
 from cortex_core.fakes import InMemoryToolRegistry as InMemoryToolRegistry
 from cortex_core.fakes import RecordingAuditSink as RecordingAuditSink
@@ -59,6 +58,7 @@ from cortex_core.fakes import SystemClock as SystemClock
 from cortex_core.fakes_body import InMemoryBodyGateway as InMemoryBodyGateway
 from cortex_core.fakes_body import SentNotification as SentNotification
 from cortex_core.fakes_schedule import InMemoryScheduleStore as InMemoryScheduleStore
+from cortex_core.fakes_session import InMemorySessionStore as InMemorySessionStore
 from cortex_core.guardrail import REDACTED_LINK as REDACTED_LINK
 from cortex_core.guardrail import OutputFilter as OutputFilter
 from cortex_core.guardrail import OutputGuardrail as OutputGuardrail
@@ -165,6 +165,7 @@ from cortex_core.session_title import build_title_messages as build_title_messag
 from cortex_core.session_title import clean_title as clean_title
 from cortex_core.session_title import generate_title as generate_title
 from cortex_core.sessions import SessionSummary as SessionSummary
+from cortex_core.sessions import merge_pinned as merge_pinned
 from cortex_core.sessions import summarize_ends as summarize_ends
 from cortex_core.sessions import summarize_session as summarize_session
 from cortex_core.spawn import SUBAGENT_PROGRESS_STATE as SUBAGENT_PROGRESS_STATE

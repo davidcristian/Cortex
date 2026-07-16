@@ -2,7 +2,9 @@
 
 Key layout is ``cortex:session:{session_id}:messages``, with RPUSH on append, LRANGE 0..-1
 on a history read (and a bounded two-ended read for a listing, see ``list_sessions``),
-one JSON document per message with an ISO-8601 timestamp. Records carry
+one JSON document per message with an ISO-8601 timestamp. A recency ZSET (``cortex:sessions``)
+and a pinned SET (``cortex:sessions:pinned``) index the catalog: a listing reads both, unions
+them, and returns pinned chats regardless of recency (ADR-0021 pinning addendum). Records carry
 ``"v"``/``"kind"`` as the schema escape hatch; the read policy (see ``_decode``) is:
 unknown EXTRA keys are ignored (forward-compatible additions), an unknown kind or
 unsupported version fails LOUDLY naming the record and is never a silent skip, which would
@@ -25,6 +27,7 @@ from cortex_core import (
     Role,
     SessionStoreError,
     SessionSummary,
+    merge_pinned,
     summarize_ends,
 )
 
@@ -35,6 +38,11 @@ DEFAULT_REDIS_URL = "redis://127.0.0.1:6379/0"
 # The recency index for `list_sessions` (ADR-0021): a sorted set of session ids scored
 # by last-activity unix time, maintained on `append` alongside the per-session list.
 _SESSIONS_KEY = "cortex:sessions"
+
+# The pinned set for `list_sessions` (ADR-0021 pinning addendum): the session ids the user
+# pinned. A listing unions these with the recency window so a pinned chat lists even after it
+# ages out of the top-N by recency; `set_pinned` maintains it and `delete` clears its member.
+_PINNED_KEY = "cortex:sessions:pinned"
 
 # What one listed session costs `list_sessions`: its first record, its last record, its
 # length (the tail's index, so a corrupt tail is still named precisely), and its stored
@@ -97,13 +105,17 @@ def _decode(raw: bytes | str, index: int) -> Message:
         raise SessionStoreError(msg) from err
 
 
-def _summarize_ends(session_id: str, reads: Sequence[object], at: int) -> SessionSummary | None:
+def _summarize_ends(
+    session_id: str, reads: Sequence[object], at: int, *, pinned: bool
+) -> SessionSummary | None:
     """Summarize the session listed at ``at`` from the batched ends read (None when gone).
 
     ``reads`` is the flat pipeline result: ``_ENDS_READS`` entries per listed session, in
     the order the reads were queued (head, tail, length, title). An empty head is a dangling
     index entry (the message list is gone), the one case a listing skips instead of failing.
     A stored title (``None`` when unset) overrides the first-message derivation (ADR-0021).
+    ``pinned`` (membership of the pinned set, read once for the whole listing) rides onto the
+    summary and drives the pinned-first ordering (ADR-0021 pinning addendum).
     """
     base = at * _ENDS_READS
     head = cast("list[bytes]", reads[base])
@@ -114,7 +126,11 @@ def _summarize_ends(session_id: str, reads: Sequence[object], at: int) -> Sessio
         return None
     title = cast("bytes", raw_title).decode("utf-8") if raw_title is not None else None
     return summarize_ends(
-        session_id, _decode(head[0], 0), _decode(tail[0], length - 1), title_override=title
+        session_id,
+        _decode(head[0], 0),
+        _decode(tail[0], length - 1),
+        title_override=title,
+        pinned=pinned,
     )
 
 
@@ -185,36 +201,62 @@ class RedisSessionStore:
                 pipe.delete(_key(session_id))
                 pipe.delete(_title_key(session_id))
                 pipe.zrem(_SESSIONS_KEY, session_id)
+                pipe.srem(_PINNED_KEY, session_id)
                 await pipe.execute()
         except RedisError as err:
             msg = f"deleting session {session_id!r} failed"
             raise SessionStoreError(msg) from err
 
-    async def list_sessions(self, *, limit: int) -> Sequence[SessionSummary]:
-        """Return at most ``limit`` recent chats, most-recently-active first (ADR-0021).
+    async def set_pinned(self, session_id: str, *, pinned: bool) -> None:
+        """Pin or unpin a chat by toggling its membership in the pinned set (pinning addendum).
 
-        Reads the recency index newest-first, then fetches only what a summary is derived
-        from: each listed session's FIRST and LAST record plus its length, every listed
-        session's three reads batched into one transaction. So the whole list costs two
-        round trips (index, then ends) and decodes two records per chat, not one round trip
-        per chat each decoding a whole history. The length is read with the pair (and
-        atomically with it) so a corrupt tail record still names its true index.
-
-        A session id whose list is empty (a dangling index entry, e.g. after a future
-        deletion) is skipped rather than crashing the whole list. Because the middle is
-        never read, one corrupt record between the ends no longer takes the chat list down
-        with it; `history` still fails loudly on it, so the context a turn is built from
-        keeps its fail-loud guarantee (ADR-0021 bounded-reads addendum).
+        `SADD` when pinning, `SREM` when unpinning, both idempotent by value, so setting the same
+        state twice is a no-op. Not conversation content but stored beside it so a pin survives a
+        swap. A pin on an unknown or already-deleted id is benign: the id becomes a pinned member
+        with no message list, which `list_sessions` skips like any dangling index entry.
         """
         try:
-            # zrevrange's return type is a partially-Any union (scores/without-scores
-            # overloads); this no-scores call yields members, cast to bytes below.
-            raw_ids = await self._client.zrevrange(  # pyright: ignore[reportUnknownMemberType]
-                _SESSIONS_KEY, 0, limit - 1
-            )
+            if pinned:
+                await self._client.sadd(_PINNED_KEY, session_id)
+            else:
+                await self._client.srem(_PINNED_KEY, session_id)
+        except RedisError as err:
+            msg = f"setting the pin for session {session_id!r} failed"
+            raise SessionStoreError(msg) from err
+
+    async def list_sessions(self, *, limit: int) -> Sequence[SessionSummary]:
+        """Return the newest ``limit`` chats unioned with every pinned chat, pinned-first.
+
+        Round trip one reads BOTH indexes in one transaction: the recency ZSET newest-first
+        (capped at ``limit``) and the pinned SET. Their union is the listed set, so a pinned chat
+        OLDER than the recency window still lists (the point of pinning); a chat both pinned and
+        inside the window appears once (the union deduplicates ids before any fetch). Round trip two
+        fetches only what a summary is derived from: each listed session's FIRST and LAST record,
+        its length, and its title, batched into one transaction. So the whole list still costs two
+        round trips and decodes two records per chat. `merge_pinned` then orders the union
+        pinned-first, recency-descending within each group (ADR-0021 pinning addendum).
+
+        The listed count is the window size plus the pinned chats outside it, so a heavily-pinned
+        catalog lists more than ``limit``; the pinned set is small by construction (a user pins a
+        handful), so the extra fetch is cheap. A session id whose list is empty (a dangling index
+        entry, e.g. a pin on a since-deleted id) is skipped rather than crashing the whole list.
+        Because the middle is never read, one corrupt record between the ends no longer takes the
+        chat list down with it; `history` still fails loudly on it (bounded-reads addendum).
+        """
+        try:
+            async with self._client.pipeline(transaction=True) as pipe:
+                # zrevrange's return type is a partially-Any union (scores/without-scores
+                # overloads); this no-scores call yields members, cast to bytes below.
+                pipe.zrevrange(_SESSIONS_KEY, 0, limit - 1)  # pyright: ignore[reportUnknownMemberType]
+                pipe.smembers(_PINNED_KEY)
+                recency_raw, pinned_raw = await pipe.execute()
             # Members come back as bytes (this client leaves decode_responses off, as the
-            # message reads rely on); the cast pins that so decoding needs no type branch.
-            ids = [raw_id.decode("utf-8") for raw_id in cast("list[bytes]", raw_ids)]
+            # message reads rely on); the casts pin that so decoding needs no type branch.
+            recency_ids = [raw.decode("utf-8") for raw in cast("list[bytes]", recency_raw)]
+            pinned_ids = {raw.decode("utf-8") for raw in cast("set[bytes]", pinned_raw)}
+            # The union: the recency window, then every pinned chat outside it (sorted for a
+            # deterministic fetch order; `merge_pinned` re-sorts, so the order only pins the index).
+            ids = recency_ids + sorted(pinned_ids - set(recency_ids))
             async with self._client.pipeline(transaction=True) as pipe:
                 for session_id in ids:
                     key = _key(session_id)
@@ -228,5 +270,8 @@ class RedisSessionStore:
             raise SessionStoreError(msg) from err
         # Decoding sits outside the wrapping above: a corrupt record is a SessionStoreError
         # already, named by _decode, and must not be relabelled as a listing failure.
-        summaries = (_summarize_ends(session_id, reads, at) for at, session_id in enumerate(ids))
-        return tuple(summary for summary in summaries if summary is not None)
+        summaries = (
+            _summarize_ends(session_id, reads, at, pinned=session_id in pinned_ids)
+            for at, session_id in enumerate(ids)
+        )
+        return merge_pinned(summary for summary in summaries if summary is not None)

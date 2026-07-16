@@ -16,18 +16,24 @@ Translators only: serialization, key layout, and error wrapping; no business log
     list.
   - `async history(session_id)` is LRANGE 0..-1, decoded in append order; an unknown
     session is an empty history, not an error.
-  - `async list_sessions(*, limit)` builds the chat list (ADR-0021): ZREVRANGE the recency
-    index for at most `limit` session ids newest-active first, then read only what a summary
-    is derived from, each session's first record, last record, and length (`LRANGE 0 0`,
-    `LRANGE -1 -1`, `LLEN`), with every listed session's three reads batched into one
-    transactional pipeline, and derive its `SessionSummary` via the core `summarize_ends`
-    (derivation is domain logic, since the adapter only enumerates and translates). Two round
-    trips and two decoded records per chat, whatever the chat's length (ADR-0021 bounded-reads
-    addendum). A dangling index entry (id present, message list gone) is skipped, not fatal;
-    so is a corrupt record *between* the ends, which a listing never reads (`history` still
-    fails loudly on it, and a corrupt record at either end still fails the listing). Each
-    session's stored title (a `GET` of its `:title` key) rides the same pipeline as a fourth
-    read and is passed to `summarize_ends` as the `title_override` (ADR-0021 titles addendum).
+  - `async list_sessions(*, limit)` builds the chat list (ADR-0021): round trip one reads BOTH
+    indexes in one transaction, ZREVRANGE the recency index for at most `limit` session ids
+    newest-active first AND SMEMBERS the pinned set (`cortex:sessions:pinned`, ADR-0021 pinning
+    addendum). Their UNION is the listed set (recency window first, then every pinned id outside
+    it, deduplicated), so a pinned chat OLDER than the recency window still lists, which is the
+    whole point of pinning; a chat both pinned and inside the window appears once. Round trip two
+    reads only what a summary is derived from, each listed session's first record, last record,
+    length, and title (`LRANGE 0 0`, `LRANGE -1 -1`, `LLEN`, `GET :title`), all batched into one
+    transactional pipeline, and derives its `SessionSummary` via the core `summarize_ends` with
+    `pinned=` set from the pinned-set membership (derivation is domain logic; the adapter only
+    enumerates and translates). The core `merge_pinned` then orders the union pinned-first,
+    recency-descending within each group. Still two round trips and two decoded records per chat,
+    whatever the chat's length (ADR-0021 bounded-reads addendum); the listed count is the window
+    plus the pinned chats outside it, and the pinned set is small by construction. A dangling
+    index entry (id present, message list gone, e.g. a pin on a since-deleted id) is skipped, not
+    fatal; so is a corrupt record *between* the ends, which a listing never reads (`history` still
+    fails loudly on it, and a corrupt record at either end still fails the listing). The
+    `title_override` is the stored title (ADR-0021 titles addendum).
   - `async set_title(session_id, title)` `SET`s a plain string at `cortex:session:{id}:title`
     (a display title, ADR-0021 titles addendum), which `list_sessions` prefers over the
     first-message derivation; a later call overwrites it, and `""` clears the override at read.
@@ -36,14 +42,22 @@ Translators only: serialization, key layout, and error wrapping; no business log
     and the overlay's user-driven `RenameSession` (ADR-0021 management addendum); the store does
     not distinguish them, so no new port method was needed to add rename.
   - `async delete(session_id)` HARD-deletes a whole chat: the message list (`:messages`), the
-    optional title (`:title`), and the `cortex:sessions` recency-index member, all in one
-    transactional pipeline so a listing never sees a half-deleted chat (ADR-0021 delete addendum).
-    The destructive "forget this chat" write. Hard, not a tombstone: reads are snapshots and an
-    unknown session already reads as an empty history, so a deleted chat degrades cleanly with no
-    in-flight id to protect (the memory `delete_scope` reasoning). It leaves no orphaned key or
-    dangling index entry, and is idempotent (`DEL`/`ZREM` on absent keys are no-ops), so a retry
-    after a failure heals. The memory half of the cascade is NOT here (memory is a separate store);
-    the orchestrator's `DeleteSession` composes this delete with `SessionMemoryCascade`.
+    optional title (`:title`), the `cortex:sessions` recency-index member, and the
+    `cortex:sessions:pinned` member (ADR-0021 pinning addendum), all in one transactional pipeline
+    so a listing never sees a half-deleted chat (ADR-0021 delete addendum). The destructive "forget
+    this chat" write. Hard, not a tombstone: reads are snapshots and an unknown session already
+    reads as an empty history, so a deleted chat degrades cleanly with no in-flight id to protect
+    (the memory `delete_scope` reasoning). It leaves no orphaned key, dangling index entry, or
+    dangling pin, and is idempotent (`DEL`/`ZREM`/`SREM` on absent keys/members are no-ops), so a
+    retry after a failure heals. The memory half of the cascade is NOT here (memory is a separate
+    store); the orchestrator's `DeleteSession` composes this delete with `SessionMemoryCascade`.
+  - `async set_pinned(session_id, *, pinned)` toggles the chat's membership in the pinned set
+    (ADR-0021 pinning addendum): `SADD cortex:sessions:pinned` when pinning, `SREM` when unpinning,
+    both idempotent by value. `list_sessions` unions the pinned set into every listing, so a pinned
+    chat lists regardless of recency. Not conversation content but stored beside it so a pin
+    survives a swap; a pin on an unknown or since-deleted id is benign (a pinned member with no
+    message list, which `list_sessions` skips like any dangling index entry). This is the catalog
+    write behind the overlay's user-driven `SetSessionPinned`.
   - `async aclose()` closes the underlying client's connections.
 - `RedisTaskStore` implements the `TaskStore` port over redis-py asyncio (ADR-0010), same
   injected-client / `from_url` / `aclose` shape as above:
@@ -106,7 +120,11 @@ snapshot; a `GET` of the session's `cortex:session:{id}:title` key rides along t
 brain-generated display title that overrides the first-message one when set, ADR-0021 titles
 addendum). Measured 23.8 ms to 1.11 ms on 20 chats of 200 messages against real Redis; the
 first/last/length index cache this refinement replaced is rejected, not deferred (ADR-0021
-bounded-reads addendum).
+bounded-reads addendum). A plain set `cortex:sessions:pinned` holds the pinned session ids
+(ADR-0021 pinning addendum): `set_pinned` maintains it (`SADD`/`SREM`), `delete` clears its
+member, and `list_sessions` reads it (`SMEMBERS`, batched with the `ZREVRANGE` so round trip one
+still reads both indexes at once) and unions it with the recency window so a pinned chat lists
+regardless of recency.
 
 Task state uses two string keys per delegation: `cortex:task:{id}` (the `SubagentTask`) and
 `cortex:task:{id}:result` (the `SubagentResult`), each one JSON document written with a **1-hour
@@ -167,15 +185,19 @@ exception to fail-loud is the schedule **claim path**, where a corrupt record qu
 
 **Contract tests.** `tests/contract.py` is one shared behavior suite (empty history,
 append→history order, multi-session isolation, roundtrip fidelity incl. timezone,
-`list_sessions` recency-ordering + title/preview derivation, and `set_title` overriding the
-first-message title, ADR-0021 titles addendum) run against BOTH implementations
-(`InMemorySessionStore` and `RedisSessionStore` over fakeredis) plus fakeredis-injected failure
-tests for the error wrapping (append, history, list, `set_title`, close, plus a failure inside the
-batched end-reads) and Redis-specific edges (`list_sessions` empty store, limit, dangling index
-entry, a tolerated corrupt record between the ends, a fatal one at either end named by its true
-index; and a stored title persisted under its own key and read back truncated). The
-`list_sessions` check filters the global list to the ids it created, so it is safe against
-a shared live server. `tests/task_contract.py`
+`list_sessions` recency-ordering + title/preview derivation, `set_title` overriding the
+first-message title (ADR-0021 titles addendum), and pinning: `set_pinned` marking/clearing the
+summary idempotently, a pinned chat older than the window escaping recency and sorting above the
+recency group, a pinned-and-recent chat not duplicated, and delete clearing the pin, ADR-0021
+pinning addendum) run against BOTH implementations (`InMemorySessionStore` and `RedisSessionStore`
+over fakeredis) plus fakeredis-injected failure tests for the error wrapping (append, history,
+list, `set_title`, `set_pinned`, close, plus a failure inside the batched end-reads) and
+Redis-specific edges (`list_sessions` empty store, limit, dangling index entry, a tolerated
+corrupt record between the ends, a fatal one at either end named by its true index; a stored
+title persisted under its own key and read back truncated; and, over the raw keyspace, the pinned
+set holding/dropping its member, the union lifting a pinned old chat past the window, and a
+dangling pinned entry skipped). The `list_sessions` check filters the global list to the ids it
+created, so it is safe against a shared live server. `tests/task_contract.py`
 does the same for the `TaskStore` (missing→None, task/result round-trip, timezone fidelity) over
 `InMemoryTaskStore` and `RedisTaskStore`, plus disconnected/corrupt-record failure tests.
 `tests/schedule_contract.py` does it for the `ScheduleStore`. The fenced protocol is the

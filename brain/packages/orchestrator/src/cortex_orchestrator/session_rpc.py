@@ -19,7 +19,7 @@ precedent).
 from datetime import datetime
 
 from cortex_core import Message, SessionMemoryCascade, SessionStore, SessionSummary
-from cortex_seam import DeleteSessionReply, RenameSessionReply
+from cortex_seam import DeleteSessionReply, RenameSessionReply, SetSessionPinnedReply
 from cortex_seam import SessionMessage as SessionMessagePb
 from cortex_seam import SessionSummary as SessionSummaryPb
 
@@ -46,6 +46,7 @@ def summary_to_proto(summary: SessionSummary) -> SessionSummaryPb:
         title=summary.title,
         preview=summary.preview,
         last_activity_unix_ms=unix_ms(summary.last_activity),
+        pinned=summary.pinned,
     )
 
 
@@ -99,3 +100,18 @@ async def delete_session(
     if cascade is not None:
         await cascade.delete_session_memories(session_id)
     return DeleteSessionReply()
+
+
+async def set_session_pinned(
+    store: SessionStore, session_id: str, *, pinned: bool
+) -> SetSessionPinnedReply:
+    """Pin or unpin one chat (ADR-0021 pinning addendum): a gated, user-only catalog write.
+
+    Same structural user-only gate as rename/delete (no tool, never through the turn engine). It
+    toggles the chat's membership in the store's pinned set via `SessionStore.set_pinned`, which
+    `list_sessions` unions into every listing so the chat lists regardless of recency. Setting the
+    same state twice is a no-op. A `SessionStoreError` propagates for the servicer to abort
+    `UNAVAILABLE` (the session-read precedent).
+    """
+    await store.set_pinned(session_id, pinned=pinned)
+    return SetSessionPinnedReply()

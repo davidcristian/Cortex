@@ -33,6 +33,8 @@ export class FakeBridge implements BrainBridge {
   readonly renames: { readonly sessionId: string; readonly title: string }[] = [];
   /** Delete writes received, in order (session id), proving the destructive call crossed. */
   readonly deletes: string[] = [];
+  /** Pin writes received, in order (session id + target state), proving the args crossed. */
+  readonly pins: { readonly sessionId: string; readonly pinned: boolean }[] = [];
   /** When set, the matching read rejects (the transport-failure path). */
   listFails = false;
   messagesFail = false;
@@ -40,6 +42,8 @@ export class FakeBridge implements BrainBridge {
   renameFails = false;
   /** When set, `deleteSession` rejects (a lost destructive write, so nothing is dropped). */
   deleteFails = false;
+  /** When set, `setSessionPinned` rejects (a lost write, so the list keeps its old grouping). */
+  pinFails = false;
   /** When set, `respondConfirm` rejects (a lost answer, so deny-by-timeout brain-side). */
   confirmFails = false;
   /** What `listDueReminders` resolves with (assignable by a test; ADR-0025). */
@@ -116,6 +120,20 @@ export class FakeBridge implements BrainBridge {
       return Promise.reject(new Error("delete failed"));
     }
     this.sessions = this.sessions.filter((s) => s.sessionId !== sessionId);
+    return Promise.resolve();
+  }
+
+  // Records the pin write and, on success, reflects the target state (and re-groups pinned-first)
+  // in the injectable list so a subsequent re-list shows the new grouping, as the brain would.
+  setSessionPinned(sessionId: string, pinned: boolean): Promise<void> {
+    this.pins.push({ sessionId, pinned });
+    if (this.pinFails) {
+      return Promise.reject(new Error("pin failed"));
+    }
+    const updated = this.sessions.map((s) => (s.sessionId === sessionId ? { ...s, pinned } : s));
+    // Stable-sort pinned-first, preserving the existing order within each group (the brain's
+    // `merge_pinned` rule, mirrored so the fake's re-list matches what the real listing returns).
+    this.sessions = [...updated].sort((a, b) => Number(b.pinned) - Number(a.pinned));
     return Promise.resolve();
   }
 

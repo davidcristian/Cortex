@@ -48,18 +48,28 @@ Conversation domain (Slice 3):
 Session listing (Slice 8.7, ADR-0021; `sessions.py`):
 
 - `SessionSummary` is a frozen dataclass: `session_id: str`, `title: str`, `preview: str`,
-  `last_activity: datetime`. One recent chat as the overlay's switcher shows it; `title`/
-  `preview` are already derived (one line, truncated), `last_activity` tz-aware.
-- `summarize_ends(session_id, first, last, *, title_override=None) -> SessionSummary` is the pure
-  derivation: `title` from the first message, `preview` from the last, `last_activity` from the
-  last's `at`; each collapsed to one line and truncated (`TITLE_MAX` / `PREVIEW_MAX`). Taking just
-  the two ends states in the core that nothing between them is needed, which is what lets a store
-  read only those two records (ADR-0021 bounded-reads addendum). A non-blank `title_override` (a
-  brain-generated title a store holds, ADR-0021 titles addendum) replaces the first-message title,
-  collapsed and truncated the same way; a blank/absent one falls back.
-- `summarize_session(session_id, messages, *, title_override=None) -> SessionSummary` is the
-  whole-history form, which delegates to `summarize_ends`. Both `SessionStore` implementations
-  derive summaries through these (so the rule never drifts). Requires a non-empty history.
+  `last_activity: datetime`, `pinned: bool = False`. One recent chat as the overlay's switcher
+  shows it; `title`/`preview` are already derived (one line, truncated), `last_activity` tz-aware,
+  `pinned` whether the user pinned it (ADR-0021 pinning addendum), which lifts it above the recency
+  window and drives `merge_pinned`.
+- `summarize_ends(session_id, first, last, *, title_override=None, pinned=False) -> SessionSummary`
+  is the pure derivation: `title` from the first message, `preview` from the last, `last_activity`
+  from the last's `at`; each collapsed to one line and truncated (`TITLE_MAX` / `PREVIEW_MAX`).
+  Taking just the two ends states in the core that nothing between them is needed, which is what
+  lets a store read only those two records (ADR-0021 bounded-reads addendum). A non-blank
+  `title_override` (a brain-generated title a store holds, ADR-0021 titles addendum) replaces the
+  first-message title, collapsed and truncated the same way; a blank/absent one falls back. `pinned`
+  (a store's pinned-set membership) rides onto the summary.
+- `summarize_session(session_id, messages, *, title_override=None, pinned=False) -> SessionSummary`
+  is the whole-history form, which delegates to `summarize_ends`. Both `SessionStore`
+  implementations derive summaries through these (so the rule never drifts). Requires a non-empty
+  history.
+- `merge_pinned(summaries) -> tuple[SessionSummary, ...]` (ADR-0021 pinning addendum) is the one
+  shared read-path ordering rule: given a listing's already-deduplicated candidate set (the recency
+  window unioned with the pinned set), it stable-sorts by recency then by `not pinned`, so pinned
+  chats sort above the recency group with each group still newest-active first. It only reorders,
+  never adds or drops; deduplication is the caller's job, so the fake and the Redis adapter share
+  the exact order and cannot drift.
 - `session_title.py` (ADR-0021 titles addendum) is brain-generated titling: `build_title_messages`
   builds the one-message prompt (instruction + opening exchange), `clean_title` collapses/strips/
   bounds a model reply to `TITLE_MAX` (empty when nothing usable), and `generate_title(backend,
@@ -411,11 +421,14 @@ Ports (`typing.Protocol`; failures cross them only as the typed errors below):
   first, at most `limit`; ADR-0021 adds a read over the same state, no write path),
   `async set_title(session_id, title) -> None` (persist a brain-generated display title that
   `list_sessions` prefers over the first-message derivation, ADR-0021 titles addendum; a derived
-  display value, overwritten by a later call, not conversation content), and
-  `async delete(session_id) -> None` (HARD-delete a whole chat, its history, title, and
-  recency-index entry, the destructive "forget this chat" write, ADR-0021 delete addendum;
+  display value, overwritten by a later call, not conversation content),
+  `async delete(session_id) -> None` (HARD-delete a whole chat, its history, title, recency-index
+  entry, and pinned membership, the destructive "forget this chat" write, ADR-0021 delete addendum;
   idempotent, leaves nothing orphaned, and needs no tombstone since an unknown session already
-  reads as empty history). The source of truth for conversation state; survives swaps and restarts.
+  reads as empty history), and `async set_pinned(session_id, *, pinned) -> None` (pin/unpin a chat,
+  ADR-0021 pinning addendum; a pinned chat is unioned into `list_sessions` regardless of recency and
+  sorts above the recency group via `SessionSummary.pinned`, idempotent by value). The source of
+  truth for conversation state; survives swaps and restarts.
 - `InferenceBackend` has `stream(model, messages, *, tools=(), schema=None) ->
   AsyncIterator[InferenceEvent]`: one stateless streamed completion, yielding `TextChunk` deltas
   interleaved with `ToolCall`s the model makes from the offered `tools` (ADR-0009). `model` is a
@@ -909,9 +922,12 @@ Use-case:
 
 Reference implementations (pure, shipped in core; the runtime wiring until Slice 4):
 
-- `InMemorySessionStore` is a dict-backed `SessionStore` (append/history/`list_sessions`/
-  `set_title`, the last kept in a second dict and preferred by `list_sessions`); contract-test
-  twin of the Redis adapter (`cortex_session`), intentionally does not survive a restart.
+- `InMemorySessionStore` (in `fakes_session.py`, split from `fakes.py` for the line cap, the
+  `fakes_body`/`fakes_schedule` precedent) is a dict/set-backed `SessionStore`
+  (append/history/`list_sessions`/`set_title`/`delete`/`set_pinned`; the title in a second dict
+  preferred by `list_sessions`, the pins in a set unioned into it the same pinned-first way the
+  Redis twin lists, ADR-0021 pinning addendum); contract-test twin of the Redis adapter
+  (`cortex_session`), intentionally does not survive a restart.
 - `EchoInferenceBackend` is the scripted fake: for a history with `n` user messages
   (including the current one, counted from the store-backed history alone) whose
   latest user text is `T`, streams exactly `"reply {n}: {T}"` as three `TextChunk`s

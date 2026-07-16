@@ -1,11 +1,11 @@
 //! Session translation for `BrainSeamClient`, forming the unary session half of the
 //! `body_core::BrainTransport` port (ADR-0021).
 //!
-//! Three calls backing the overlay's chat list / switcher / cycling and the list controls:
-//! the read-only `ListSessions` and `GetSessionMessages`, and the user-driven write
-//! `RenameSession`. Thin translation only. Map the request, await the unary reply, map each
-//! row to its typed core value; a non-OK gRPC status maps the same way `health` does (via
-//! [`crate::status::status_to_error`]).
+//! The calls backing the overlay's chat list / switcher / cycling and the list controls: the
+//! read-only `ListSessions` and `GetSessionMessages`, and the user-driven writes `RenameSession`,
+//! `DeleteSession`, and `SetSessionPinned`. Thin translation only. Map the request, await the unary
+//! reply, map each row to its typed core value; a non-OK gRPC status maps the same way `health`
+//! does (via [`crate::status::status_to_error`]).
 
 use body_core::{SessionMessage, SessionSummary, TransportError};
 
@@ -13,6 +13,7 @@ use crate::client::SeamChannel;
 use crate::generated::brain_service_client::BrainServiceClient;
 use crate::generated::{
     DeleteSessionRequest, GetSessionMessagesRequest, ListSessionsRequest, RenameSessionRequest,
+    SetSessionPinnedRequest,
 };
 use crate::status::status_to_error;
 
@@ -35,6 +36,7 @@ pub(crate) async fn list_sessions(
             title: summary.title,
             preview: summary.preview,
             last_activity_unix_ms: summary.last_activity_unix_ms,
+            pinned: summary.pinned,
         })
         .collect())
 }
@@ -88,6 +90,23 @@ pub(crate) async fn delete_session(
 ) -> Result<(), TransportError> {
     client
         .delete_session(DeleteSessionRequest { session_id })
+        .await
+        .map_err(|status| status_to_error(&status))?;
+    Ok(())
+}
+
+/// Pins or unpins one chat (`BrainService.SetSessionPinned`, ADR-0021 pinning addendum). A
+/// user-driven catalog write: `pinned` is the target state, and a pinned chat is unioned into
+/// `ListSessions` regardless of recency. The reply is a bare acknowledgement, so on success there
+/// is nothing to map back; a non-OK gRPC status maps via [`status_to_error`] (a store failure
+/// surfaces as `TransportError::Rpc` `Unavailable`).
+pub(crate) async fn set_session_pinned(
+    mut client: BrainServiceClient<SeamChannel>,
+    session_id: String,
+    pinned: bool,
+) -> Result<(), TransportError> {
+    client
+        .set_session_pinned(SetSessionPinnedRequest { session_id, pinned })
         .await
         .map_err(|status| status_to_error(&status))?;
     Ok(())

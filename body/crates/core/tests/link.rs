@@ -109,6 +109,15 @@ impl BrainTransport for ScriptedTransport {
         self.touch_other();
         Ok(())
     }
+
+    async fn set_session_pinned(
+        &self,
+        _session_id: &str,
+        _pinned: bool,
+    ) -> Result<(), TransportError> {
+        self.touch_other();
+        Ok(())
+    }
 }
 
 /// Probes once and reports the status plus how many methods the probe touched.

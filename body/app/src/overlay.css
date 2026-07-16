@@ -939,6 +939,43 @@
   background: rgba(226, 75, 107, 0.14);
   color: rgb(226, 75, 107);
 }
+/* The pin sits with the pencil and trash, ink-revealing on hover/focus like them (ADR-0021
+   pinning addendum). A PINNED row is the exception: its pin stays lit in the accent and the row
+   carries a thin accent rail, so the pinned group the brain lists first reads as grouped. */
+.switcher-pin-btn {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  border: none;
+  border-radius: 12px;
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+  opacity: 0;
+  transition:
+    opacity 0.16s var(--ease),
+    background 0.16s var(--ease),
+    color 0.16s var(--ease);
+}
+.switcher-li:hover .switcher-pin-btn,
+.switcher-pin-btn:focus-visible {
+  opacity: 1;
+}
+.switcher-pin-btn:hover {
+  background: var(--panel);
+  color: var(--text);
+}
+/* A pinned row's toggle stays visible and accented, doubling as the pin-state indicator. */
+.switcher-pin-btn.on {
+  opacity: 1;
+  color: var(--accent);
+}
+.switcher-li.pinned {
+  border-left: 2px solid var(--accent);
+  border-radius: 12px;
+}
 /* The per-row "are you sure": a destructive write never fires on a single click, so the trash
    swaps the row for an explicit confirm/cancel pair before onDelete runs (ADR-0021). */
 .switcher-confirm-delete {

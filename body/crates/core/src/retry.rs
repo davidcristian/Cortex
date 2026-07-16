@@ -250,4 +250,18 @@ impl<T: BrainTransport, S: Sleeper, R: Randomness> BrainTransport for RetryingTr
         })
         .await
     }
+
+    async fn set_session_pinned(
+        &self,
+        session_id: &str,
+        pinned: bool,
+    ) -> Result<(), TransportError> {
+        // A user-driven catalog write (ADR-0021 pinning addendum). Like rename it carries an
+        // effect, so the plan refuses it and the same door grants exactly one attempt: a lost
+        // reply must not silently re-assert a pinned value the user's next toggle reversed.
+        self.guarded(SeamMethod::SetSessionPinned, || {
+            self.inner.set_session_pinned(session_id, pinned)
+        })
+        .await
+    }
 }

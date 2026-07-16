@@ -1,7 +1,7 @@
 import { useState } from "react";
 
 import type { SessionSummary } from "../bridge/types";
-import { CheckIcon, CloseIcon, PencilIcon, TrashIcon } from "./icons";
+import { CheckIcon, CloseIcon, PencilIcon, PinIcon, TrashIcon } from "./icons";
 import { relativeTime } from "./relativeTime";
 
 interface SessionListProps {
@@ -14,13 +14,25 @@ interface SessionListProps {
   /** Delete a chat (ADR-0021 management addendum): a destructive, irreversible user-only write.
    *  Called ONLY after this row's local "are you sure" confirm, so a stray click cannot delete. */
   readonly onDelete: (sessionId: string) => void;
+  /** Pin or unpin a chat (ADR-0021 pinning addendum): a user-only write toggling `pinned`, so a
+   *  pinned chat stays listed above the recency window. Fires immediately (no confirm needed). */
+  readonly onPin: (sessionId: string, pinned: boolean) => void;
 }
 
 /** The switcher dropdown: recent chats with title, relative time, and a one-line preview, each
- *  with inline rename and delete affordances. Store-backed (ADR-0021); selecting one loads its
- *  history, renaming writes its display title, and deleting removes it (behind a per-row confirm,
- *  since it is destructive and irreversible), the overlay re-listing to reflect either write. */
-export function SessionList({ sessions, currentId, onSelect, onRename, onDelete }: SessionListProps) {
+ *  with inline pin, rename, and delete affordances. Store-backed (ADR-0021); selecting one loads
+ *  its history, pinning lifts it above the recency window, renaming writes its display title, and
+ *  deleting removes it (behind a per-row confirm), the overlay re-listing to reflect each write.
+ *  The brain returns pinned chats first (ADR-0021 pinning addendum), so the pinned group renders at
+ *  the top; each pinned row carries a filled pin indicator, making the grouping legible. */
+export function SessionList({
+  sessions,
+  currentId,
+  onSelect,
+  onRename,
+  onDelete,
+  onPin,
+}: SessionListProps) {
   const now = Date.now();
   // Which row is being renamed (at most one), and its in-progress label. Local UI state only:
   // the committed title lives in the store, and the switcher re-lists to reflect it.
@@ -103,7 +115,7 @@ export function SessionList({ sessions, currentId, onSelect, onRename, onDelete 
             );
           }
           return (
-            <li key={session.sessionId} className="switcher-li">
+            <li key={session.sessionId} className={`switcher-li${session.pinned ? " pinned" : ""}`}>
               <button
                 type="button"
                 className={`switcher-item${session.sessionId === currentId ? " current" : ""}`}
@@ -116,6 +128,15 @@ export function SessionList({ sessions, currentId, onSelect, onRename, onDelete 
                   </span>
                 </span>
                 <span className="switcher-preview">{session.preview}</span>
+              </button>
+              <button
+                type="button"
+                className={`switcher-pin-btn${session.pinned ? " on" : ""}`}
+                aria-label={session.pinned ? `Unpin ${session.title}` : `Pin ${session.title}`}
+                aria-pressed={session.pinned}
+                onClick={() => onPin(session.sessionId, !session.pinned)}
+              >
+                <PinIcon filled={session.pinned} />
               </button>
               <button
                 type="button"

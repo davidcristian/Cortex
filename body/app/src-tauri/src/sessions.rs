@@ -17,6 +17,7 @@ pub struct WireSummary {
     title: String,
     preview: String,
     last_activity_unix_ms: i64,
+    pinned: bool,
 }
 
 impl From<SessionSummary> for WireSummary {
@@ -26,6 +27,7 @@ impl From<SessionSummary> for WireSummary {
             title: summary.title,
             preview: summary.preview,
             last_activity_unix_ms: summary.last_activity_unix_ms,
+            pinned: summary.pinned,
         }
     }
 }
@@ -100,6 +102,20 @@ pub async fn delete_session(session_id: String) -> Result<(), String> {
     let client = crate::seam::connect()?;
     client
         .delete_session(&session_id)
+        .await
+        .map_err(|error| error.to_string())
+}
+
+/// Pins or unpins one chat (`BrainService.SetSessionPinned`, ADR-0021 pinning addendum): the
+/// overlay's user-driven pin toggle. A pinned chat is unioned into `ListSessions` regardless of
+/// recency. A write, so the resilient transport makes exactly one attempt
+/// (`SeamMethod::SetSessionPinned` is not repeatable); a transient failure surfaces to the overlay
+/// bridge's `.catch` rather than risking a silent second toggle.
+#[tauri::command]
+pub async fn set_session_pinned(session_id: String, pinned: bool) -> Result<(), String> {
+    let client = crate::seam::connect()?;
+    client
+        .set_session_pinned(&session_id, pinned)
         .await
         .map_err(|error| error.to_string())
 }

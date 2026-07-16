@@ -50,6 +50,8 @@ pub enum SeamMethod {
     RenameSession,
     /// `BrainService.DeleteSession`: the overlay's user-driven destructive removal of a chat.
     DeleteSession,
+    /// `BrainService.SetSessionPinned`: the overlay's user-driven pin toggle on a chat.
+    SetSessionPinned,
 }
 
 impl SeamMethod {
@@ -75,6 +77,13 @@ impl SeamMethod {
     /// `RenameSession` is a plainer write: it relabels a chat, so a repeat over a lost reply
     /// could re-apply a stale label the user has since changed. One attempt, no retry.
     ///
+    /// `SetSessionPinned` is the same write convention as `RenameSession`, and the one where the
+    /// "idempotent by value" temptation is strongest: setting the same pinned state twice truly is
+    /// a no-op, so a repeat cannot duplicate an effect. It is still not repeatable, because the
+    /// *catalog-write convention* is uniform: a lost reply must not silently re-assert a pinned
+    /// value the user's next toggle already reversed (the retry loop cannot see that later toggle).
+    /// The reads are repeatable; every management write is one attempt, and pinning follows rename.
+    ///
     /// `DeleteSession` is the most conservative of all: a **destructive** write. In isolation it is
     /// idempotent (a second delete of an absent chat removes nothing and returns a bare ack), but a
     /// repeat can still duplicate an effect where it matters most: deleting the currently-open chat
@@ -87,7 +96,11 @@ impl SeamMethod {
             Self::Health | Self::ListSessions | Self::SessionMessages | Self::ListDueReminders => {
                 true
             }
-            Self::Converse | Self::AckReminder | Self::RenameSession | Self::DeleteSession => false,
+            Self::Converse
+            | Self::AckReminder
+            | Self::RenameSession
+            | Self::DeleteSession
+            | Self::SetSessionPinned => false,
         }
     }
 }
