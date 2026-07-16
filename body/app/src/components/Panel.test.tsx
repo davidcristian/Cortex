@@ -55,6 +55,7 @@ interface Handlers {
   onSelectSession?: (sessionId: string) => void;
   onRenameSession?: (sessionId: string, title: string) => void;
   onDeleteSession?: (sessionId: string) => void;
+  onPinSession?: (sessionId: string, pinned: boolean) => void;
   onRespondConfirm?: (confirmId: string, approved: boolean) => void;
   onDismissReminder?: (reminderId: string) => void;
 }
@@ -74,6 +75,7 @@ function panelProps(over: Partial<OverlayState>, open: boolean, dark: boolean, h
     onSelectSession: handlers.onSelectSession ?? vi.fn(),
     onRenameSession: handlers.onRenameSession ?? vi.fn(),
     onDeleteSession: handlers.onDeleteSession ?? vi.fn(),
+    onPinSession: handlers.onPinSession ?? vi.fn(),
     onRespondConfirm: handlers.onRespondConfirm ?? vi.fn(),
     onDismissReminder: handlers.onDismissReminder ?? vi.fn(),
   };
@@ -160,7 +162,7 @@ describe("Panel", () => {
       {
         switcherOpen: true,
         sessions: [
-          { sessionId: "c1", title: "First chat", preview: "hello", lastActivityUnixMs: 1000 },
+          { sessionId: "c1", title: "First chat", preview: "hello", lastActivityUnixMs: 1000, pinned: false },
         ],
       },
       true,
@@ -177,7 +179,7 @@ describe("Panel", () => {
       {
         switcherOpen: true,
         sessions: [
-          { sessionId: "c1", title: "First chat", preview: "hello", lastActivityUnixMs: 1000 },
+          { sessionId: "c1", title: "First chat", preview: "hello", lastActivityUnixMs: 1000, pinned: false },
         ],
       },
       true,
@@ -187,6 +189,23 @@ describe("Panel", () => {
     fireEvent.click(screen.getByLabelText("Delete First chat"));
     fireEvent.click(screen.getByLabelText("Confirm delete First chat"));
     expect(onDeleteSession).toHaveBeenCalledWith("c1");
+  });
+
+  it("threads the pin handler to the switcher: clicking a row's pin toggles it", () => {
+    const onPinSession = vi.fn();
+    renderPanel(
+      {
+        switcherOpen: true,
+        sessions: [
+          { sessionId: "c1", title: "First chat", preview: "hello", lastActivityUnixMs: 1000, pinned: false },
+        ],
+      },
+      true,
+      false,
+      { onPinSession },
+    );
+    fireEvent.click(screen.getByLabelText("Pin First chat"));
+    expect(onPinSession).toHaveBeenCalledWith("c1", true);
   });
 
   it("shows the reminder stack only when something is due, above the scrolling history", () => {

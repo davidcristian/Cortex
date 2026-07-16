@@ -32,6 +32,7 @@ from cortex_orchestrator.session_rpc import (
     delete_session,
     message_to_proto,
     rename_session,
+    set_session_pinned,
     summary_to_proto,
 )
 from cortex_seam import (
@@ -52,6 +53,8 @@ from cortex_seam import (
     RenameSessionReply,
     RenameSessionRequest,
     ServerEvent,
+    SetSessionPinnedReply,
+    SetSessionPinnedRequest,
     add_BrainServiceServicer_to_server,
 )
 
@@ -134,11 +137,7 @@ class BrainService(BrainServiceServicer):
         request: ListSessionsRequest,
         context: aio.ServicerContext[ListSessionsRequest, ListSessionsReply],
     ) -> ListSessionsReply:
-        """Return recent chats, most-recently-active first (ADR-0021, `list_sessions`).
-
-        `request.limit` is clamped (0/negative → default, capped at the hard max). A
-        `SessionStoreError` aborts the RPC `UNAVAILABLE` (abort raises, so nothing after runs).
-        """
+        """Recent chats newest-first, pinned unioned in (ADR-0021); store error aborts."""
         try:
             summaries = await self._store.list_sessions(limit=clamp_limit(request.limit))
         except SessionStoreError as err:
@@ -150,11 +149,7 @@ class BrainService(BrainServiceServicer):
         request: GetSessionMessagesRequest,
         context: aio.ServicerContext[GetSessionMessagesRequest, GetSessionMessagesReply],
     ) -> GetSessionMessagesReply:
-        """Return one session's persisted history in append order (ADR-0021, `history`).
-
-        Only USER/ASSISTANT messages persist, so the reply is the clean dialogue; an unknown
-        session is an empty history. A `SessionStoreError` aborts the RPC `UNAVAILABLE`.
-        """
+        """One session's history in append order (ADR-0021); unknown is empty, error aborts."""
         try:
             messages = await self._store.history(request.session_id)
         except SessionStoreError as err:
@@ -166,7 +161,7 @@ class BrainService(BrainServiceServicer):
         request: RenameSessionRequest,
         context: aio.ServicerContext[RenameSessionRequest, RenameSessionReply],
     ) -> RenameSessionReply:
-        """Rename a chat (ADR-0021 management addendum): a gated, user-only catalog write."""
+        """Gated user-only rename via `session_rpc.rename_session` (ADR-0021); error aborts."""
         try:
             return await rename_session(self._store, request.session_id, request.title)
         except SessionStoreError as err:
@@ -177,14 +172,21 @@ class BrainService(BrainServiceServicer):
         request: DeleteSessionRequest,
         context: aio.ServicerContext[DeleteSessionRequest, DeleteSessionReply],
     ) -> DeleteSessionReply:
-        """Delete a chat and cascade to its private memories (ADR-0021): a destructive user write.
-
-        Structural user-only gate like RenameSession; ordering and the scope-aware cascade live in
-        `session_rpc.delete_session`. A `SessionStoreError`/`MemoryStoreError` aborts `UNAVAILABLE`.
-        """
+        """Gated user-only delete + memory cascade via `session_rpc.delete_session` (ADR-0021)."""
         try:
             return await delete_session(self._store, self._memory_cascade, request.session_id)
         except (SessionStoreError, MemoryStoreError) as err:
+            await context.abort(grpc.StatusCode.UNAVAILABLE, str(err))
+
+    async def SetSessionPinned(  # noqa: N802 - method name is fixed by the gRPC codegen interface
+        self,
+        request: SetSessionPinnedRequest,
+        context: aio.ServicerContext[SetSessionPinnedRequest, SetSessionPinnedReply],
+    ) -> SetSessionPinnedReply:
+        """Gated user-only pin toggle via `session_rpc.set_session_pinned` (ADR-0021 pinning)."""
+        try:
+            return await set_session_pinned(self._store, request.session_id, pinned=request.pinned)
+        except SessionStoreError as err:
             await context.abort(grpc.StatusCode.UNAVAILABLE, str(err))
 
     async def ListDueReminders(  # noqa: N802 - method name is fixed by the gRPC codegen interface

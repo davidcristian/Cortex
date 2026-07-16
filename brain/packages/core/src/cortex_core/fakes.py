@@ -11,51 +11,12 @@ from cortex_core.errors import InferenceError, ToolNotFoundError
 from cortex_core.inference import InferenceEvent, JsonSchema, TextChunk
 from cortex_core.memory import MemoryRecord, ScoredMemory
 from cortex_core.progress import ProgressEvent
-from cortex_core.sessions import SessionSummary, summarize_session
 from cortex_core.subagents import SubagentResult, SubagentTask
 from cortex_core.tools import ConfirmationRequest, ToolCall, ToolInvocation, ToolResult, ToolSpec
 
 # The fake embedder's default vector width. Small (< a sha256 digest) so distinct texts
 # get distinct vectors without cycling the digest; the real nomic model is 768-dim.
 _FAKE_EMBED_DIM = 16
-
-
-class InMemorySessionStore:
-    """SessionStore held in a dict and meant for tests and single-process experiments only.
-
-    It intentionally does NOT survive a process restart; the Redis adapter is the
-    runtime store precisely because this one cannot prove the hard rule.
-    """
-
-    def __init__(self) -> None:
-        self._sessions: dict[str, list[Message]] = {}
-        self._titles: dict[str, str] = {}
-
-    async def append(self, session_id: str, message: Message) -> None:
-        """Persist one message at the end of the session's history."""
-        self._sessions.setdefault(session_id, []).append(message)
-
-    async def history(self, session_id: str) -> Sequence[Message]:
-        """Return the session's full history in append order (empty when unknown)."""
-        return tuple(self._sessions.get(session_id, ()))
-
-    async def list_sessions(self, *, limit: int) -> Sequence[SessionSummary]:
-        """Return at most ``limit`` recent chats, most-recently-active first (ADR-0021)."""
-        summaries = [
-            summarize_session(session_id, messages, title_override=self._titles.get(session_id))
-            for session_id, messages in self._sessions.items()
-        ]
-        summaries.sort(key=lambda summary: summary.last_activity, reverse=True)
-        return tuple(summaries[:limit])
-
-    async def set_title(self, session_id: str, title: str) -> None:
-        """Persist a brain-generated display title, preferred by ``list_sessions`` (ADR-0021)."""
-        self._titles[session_id] = title
-
-    async def delete(self, session_id: str) -> None:
-        """Hard-delete a session's history and title (ADR-0021 delete addendum), idempotently."""
-        self._sessions.pop(session_id, None)
-        self._titles.pop(session_id, None)
 
 
 class EchoInferenceBackend:

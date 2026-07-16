@@ -29,6 +29,9 @@ export interface OverlayController {
   /** Delete a chat from the switcher (ADR-0021): fire the destructive write after the row's local
    *  confirm, then drop it and re-list; deleting the open chat falls back to a fresh new chat. */
   deleteSession(sessionId: string): void;
+  /** Pin or unpin a chat from the switcher (ADR-0021 pinning addendum): write the target state,
+   *  then re-list so the switcher re-groups (a pinned chat lifts above the recency window). */
+  setSessionPinned(sessionId: string, pinned: boolean): void;
   cyclePrev(): void;
   cycleNext(): void;
   toggleSwitcher(): void;
@@ -219,6 +222,21 @@ export function useOverlay(
     [state.sessionId, denyPendingConfirm, bridge, refreshSessions, newSessionId],
   );
 
+  // A user-only catalog write (ADR-0021 pinning addendum): set the chat's pin state, then re-list
+  // so the switcher re-groups (the brain unions a pinned chat into the listing above the recency
+  // window). A failed pin leaves the list unchanged; the switcher simply keeps its old grouping.
+  const setSessionPinned = useCallback(
+    (sessionId: string, pinned: boolean) => {
+      bridge
+        .setSessionPinned(sessionId, pinned)
+        .then(refreshSessions)
+        .catch(() => {
+          // A lost write leaves the list as it is; the switcher simply does not re-group.
+        });
+    },
+    [bridge, refreshSessions],
+  );
+
   const cyclePrev = useCallback(() => {
     const target = cycleTarget(state.sessions, state.sessionId, -1);
     if (target !== null) {
@@ -243,6 +261,7 @@ export function useOverlay(
     openSession,
     renameSession,
     deleteSession,
+    setSessionPinned,
     cyclePrev,
     cycleNext,
     toggleSwitcher,

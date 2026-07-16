@@ -103,6 +103,9 @@ class CountingFailingStore:
     async def delete(self, session_id: str) -> None:
         del session_id
 
+    async def set_pinned(self, session_id: str, *, pinned: bool) -> None:
+        del session_id, pinned
+
 
 class MidStreamFailingBackend:
     """Backend that yields one delta and then fails with the typed error."""

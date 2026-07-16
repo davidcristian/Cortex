@@ -39,7 +39,7 @@ its signature.
 | [inference-model-manager.md](inference-model-manager.md) | Model-manager lifecycle, MTP, reasoning status (ADR-0007/0020) | 3 |
 | [subagents.md](subagents.md) | Progress reporting, spawn schema, heterogeneous roster (ADR-0010/0018) | 1 |
 | [body-overlay.md](body-overlay.md) | Overlay polish, connection indicator, proto Cancel (ADR-0011) | 3 |
-| [session-read-seam.md](session-read-seam.md) | Session listing/read seam (ADR-0021) | 4 |
+| [session-read-seam.md](session-read-seam.md) | Session listing/read seam (ADR-0021) | 3 |
 | [resource-governance.md](resource-governance.md) | Scheduler/placer budgets, NPU, drain (ADR-0012) | 6 |
 | [email-confirmer.md](email-confirmer.md) | Email write, Confirmer, attachments, `ToolActivity` chip (ADR-0022) | 4 |
 | [body-gateway.md](body-gateway.md) | Body gateway, OS actions, hardened posture (ADR-0023) | 6 |
@@ -149,6 +149,18 @@ first so the shared space can never be swept (mutation-proven with a session lit
 "global"), the gate is the same structural user-only reachability rename got (no tool, not repeatable),
 and the overlay handles deleting the currently-open chat by tearing down its turn and falling back to
 a fresh chat rather than rendering a deleted transcript.
+Session read seam then went 4 to 3 the same day when session pinning landed end to end, the last of
+the three management-verb entries and the one whose crux the entry named exactly: the read-path union
+was the whole item, not the `set_pinned` verb or the `pinned` field. A pinned chat escapes the recency
+window, so `list_sessions` unions a new pinned set (`cortex:sessions:pinned`) into every listing; the
+tuned two-round-trip shape held because round trip one reads both indexes in one transaction
+(`ZREVRANGE` + `SMEMBERS`) and a pure-core `merge_pinned` gives the fake and the Redis adapter one
+shared pinned-first ordering so they cannot drift. The "verb + field across four trees" framing hid
+three costs: the union is additive (a pinned catalog lists past `limit`), `delete` must also `SREM`
+the pin or leave a dangling member, and the write RPC is **not repeatable** despite being idempotent
+by value (the uniform catalog-write convention: a lost reply must not re-assert a pin the user's next
+toggle reversed). The flagship distrust-green check pins a chat older than the window and proves it
+still lists above the recency group (dropping the union reddens it). It opened nothing behind it.
 Repo gates went from 0 back to 1 the same day,
 when the two Rust trees `just check` never lints turned out to have been quietly collecting
 findings; that entry originates in [ADR-0011](../adr/ADR-0011-body-v1.md) rather than the
@@ -325,11 +337,6 @@ against the code (the warning above); the entry text tells you which seams it ex
 
 ### Actionable, but a seam or port change comes first
 
-- **Session pinning** ([session-read-seam.md](session-read-seam.md)): a `SessionStore.set_pinned`
-  verb plus a `pinned` field across the wire and all four trees, but the real cost is the read-path
-  decision (does a pinned chat escape the recency window, so `list_sessions` must union it in?),
-  which reshapes the tuned two-round-trip listing. Opened 2026-07-16 when rename landed and delete
-  and pin were read as their own changes rather than one line with rename.
 - **Session-history summarization + the model-based reranker**
   ([session-history.md](session-history.md), [memory.md](memory.md)): both blocked on a sync
   port going async (`HistoryWindow.select`, `RecallPolicy.select`) and both inherit the same

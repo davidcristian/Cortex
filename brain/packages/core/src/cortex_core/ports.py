@@ -35,6 +35,8 @@ class SessionStore(Protocol):
 
     async def delete(self, session_id: str) -> None: ...
 
+    async def set_pinned(self, session_id: str, *, pinned: bool) -> None: ...
+
 
 class InferenceBackend(Protocol):
     """One stateless streamed completion against a loaded model, with no sessions and no retries."""

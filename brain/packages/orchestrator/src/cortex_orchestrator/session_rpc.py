@@ -1,36 +1,37 @@
-"""Session catalog RPCs (ADR-0021): store views onto the wire, plus the gated rename write."""
+"""Session catalog RPCs: store views onto the wire, plus the user-only rename write."""
 
 from datetime import datetime
 
 from cortex_core import Message, SessionMemoryCascade, SessionStore, SessionSummary
-from cortex_seam import DeleteSessionReply, RenameSessionReply
+from cortex_seam import DeleteSessionReply, RenameSessionReply, SetSessionPinnedReply
 from cortex_seam import SessionMessage as SessionMessagePb
 from cortex_seam import SessionSummary as SessionSummaryPb
 
-# Default and hard cap for a `ListSessions` request's `limit` (ADR-0021); a request's 0
-# (or negative) means "server default", and no client can ask for an unbounded list.
 DEFAULT_SESSION_LIST_LIMIT = 50
 MAX_SESSION_LIST_LIMIT = 200
+# A bound applied at the wire edge, so no unbounded label reaches the store. Generous on
+# purpose: the switcher re-collapses and re-truncates the display at read.
 MAX_TITLE_INPUT = 200
 
 
 def unix_ms(moment: datetime) -> int:
-    """A tz-aware instant as unix-milliseconds (the seam's timestamp form, ADR-0021)."""
+    """A tz-aware instant as unix-milliseconds, which is the wire's timestamp form."""
     return int(moment.timestamp() * 1000)
 
 
 def summary_to_proto(summary: SessionSummary) -> SessionSummaryPb:
-    """Map a core `SessionSummary` to the wire message (ADR-0021)."""
+    """Map a core `SessionSummary` to the wire message."""
     return SessionSummaryPb(
         session_id=summary.session_id,
         title=summary.title,
         preview=summary.preview,
         last_activity_unix_ms=unix_ms(summary.last_activity),
+        pinned=summary.pinned,
     )
 
 
 def message_to_proto(message: Message) -> SessionMessagePb:
-    """Map a persisted `Message` to the wire `SessionMessage` (ADR-0021)."""
+    """Map a persisted `Message` to the wire `SessionMessage`."""
     return SessionMessagePb(
         role=message.role.value,
         text=message.text,
@@ -47,12 +48,12 @@ def clamp_limit(limit: int) -> int:
 
 
 def clamp_title(title: str) -> str:
-    """Bound an accepted rename to `MAX_TITLE_INPUT` characters (a seam-edge write guard)."""
+    """Bound an accepted rename to `MAX_TITLE_INPUT` characters, at the wire edge."""
     return title[:MAX_TITLE_INPUT]
 
 
 async def rename_session(store: SessionStore, session_id: str, title: str) -> RenameSessionReply:
-    """Persist a user-chosen display title for one chat; `""` clears the override (ADR-0021)."""
+    """Persist a user-chosen display title for one chat; `""` clears the override."""
     await store.set_title(session_id, clamp_title(title))
     return RenameSessionReply()
 
@@ -60,8 +61,19 @@ async def rename_session(store: SessionStore, session_id: str, title: str) -> Re
 async def delete_session(
     store: SessionStore, cascade: SessionMemoryCascade | None, session_id: str
 ) -> DeleteSessionReply:
-    """Delete one chat and cascade to its private memories (ADR-0021 delete addendum)."""
+    """Delete one chat and cascade to its private memories."""
+    # The chat goes first, because that is the user's primary intent: a memory failure then
+    # leaves the chat gone with a retry cleaning the memories, rather than a visible chat whose
+    # memories vanished. Both steps are idempotent, so a retry after any failure is safe.
     await store.delete(session_id)
     if cascade is not None:
         await cascade.delete_session_memories(session_id)
     return DeleteSessionReply()
+
+
+async def set_session_pinned(
+    store: SessionStore, session_id: str, *, pinned: bool
+) -> SetSessionPinnedReply:
+    """Add or remove one chat from the `pinned` set: a user-only catalog write."""
+    await store.set_pinned(session_id, pinned=pinned)
+    return SetSessionPinnedReply()

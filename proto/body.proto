@@ -34,6 +34,9 @@ service BrainService {
   // Delete a chat: a gated, DESTRUCTIVE, irreversible WRITE on the session catalog (ADR-0021
   // management addendum).
   rpc DeleteSession(DeleteSessionRequest) returns (DeleteSessionReply);
+
+  // Pin or unpin a chat: a gated WRITE on the session catalog (ADR-0021 management addendum).
+  rpc SetSessionPinned(SetSessionPinnedRequest) returns (SetSessionPinnedReply);
 }
 
 message ClientEvent {
@@ -101,6 +104,7 @@ message SessionSummary {
   string title = 2;                // derived: first user message, one line, truncated
   string preview = 3;              // derived: last message text, one line, truncated
   int64 last_activity_unix_ms = 4; // for a relative timestamp in the switcher
+  bool pinned = 5;                 // the user pinned this chat above the recency window (unioned in)
 }
 
 // One session's persisted history, in append order (ADR-0021).
@@ -125,6 +129,13 @@ message DeleteSessionRequest {
   string session_id = 1;
 }
 message DeleteSessionReply {}
+
+// Pin or unpin one chat (ADR-0021 management addendum).
+message SetSessionPinnedRequest {
+  string session_id = 1;
+  bool pinned = 2;
+}
+message SetSessionPinnedReply {}
 
 // Reminder pull-delivery views (ADR-0025). All sessions are listed deliberately because
 // a single-user assistant has one user to remind; session_id rides along so the

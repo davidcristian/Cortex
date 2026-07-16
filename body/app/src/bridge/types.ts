@@ -40,6 +40,12 @@ export interface SessionSummary {
   readonly title: string;
   readonly preview: string;
   readonly lastActivityUnixMs: number;
+  /**
+   * Whether the user pinned this chat (ADR-0021 pinning addendum). The brain unions pinned chats
+   * into the listing regardless of recency and sorts them above the recency group, so the switcher
+   * receives them already grouped first and only has to render the pin indicator per row.
+   */
+  readonly pinned: boolean;
 }
 
 /** One persisted message in a session's history (mirror of the proto `SessionMessage`). */
@@ -105,6 +111,11 @@ export interface BrainBridge {
    * confirm.
    */
   deleteSession(sessionId: string): Promise<void>;
+  /**
+   * Pin or unpin one chat (`BrainService.SetSessionPinned`, ADR-0021 pinning addendum): the user's
+   * own pin toggle from the switcher.
+   */
+  setSessionPinned(sessionId: string, pinned: boolean): Promise<void>;
   /** Reminders that have fired and still await delivery, across every session (ADR-0025). */
   listDueReminders(): Promise<readonly DueReminder[]>;
   /**

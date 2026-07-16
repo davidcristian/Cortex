@@ -120,6 +120,9 @@ class FailingStore:
     async def delete(self, session_id: str) -> None:
         del session_id
 
+    async def set_pinned(self, session_id: str, *, pinned: bool) -> None:
+        del session_id, pinned
+
 
 class BlockingFirstTurnBackend:
     """First call: one delta, then blocks until cancelled. Later calls: the echo script."""

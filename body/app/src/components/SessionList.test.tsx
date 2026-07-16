@@ -9,6 +9,7 @@ const summary = (over: Partial<SessionSummary> = {}): SessionSummary => ({
   title: "First chat",
   preview: "hello there",
   lastActivityUnixMs: Date.now() - 5 * 60_000,
+  pinned: false,
   ...over,
 });
 
@@ -22,6 +23,7 @@ describe("SessionList", () => {
         onSelect={onSelect}
         onRename={vi.fn()}
         onDelete={vi.fn()}
+        onPin={vi.fn()}
       />,
     );
     expect(screen.getByText("First chat")).toBeInTheDocument();
@@ -41,6 +43,7 @@ describe("SessionList", () => {
         onSelect={vi.fn()}
         onRename={vi.fn()}
         onDelete={vi.fn()}
+        onPin={vi.fn()}
       />,
     );
     expect(screen.getByText(/no other chats/iu)).toBeInTheDocument();
@@ -55,6 +58,7 @@ describe("SessionList", () => {
         onSelect={vi.fn()}
         onRename={onRename}
         onDelete={vi.fn()}
+        onPin={vi.fn()}
       />,
     );
     fireEvent.click(screen.getByLabelText("Rename First chat"));
@@ -78,6 +82,7 @@ describe("SessionList", () => {
         onSelect={vi.fn()}
         onRename={onRename}
         onDelete={vi.fn()}
+        onPin={vi.fn()}
       />,
     );
     fireEvent.click(screen.getByLabelText("Rename First chat"));
@@ -95,6 +100,7 @@ describe("SessionList", () => {
         onSelect={vi.fn()}
         onRename={onRename}
         onDelete={vi.fn()}
+        onPin={vi.fn()}
       />,
     );
     fireEvent.click(screen.getByLabelText("Rename First chat"));
@@ -115,6 +121,7 @@ describe("SessionList", () => {
         onSelect={vi.fn()}
         onRename={vi.fn()}
         onDelete={onDelete}
+        onPin={vi.fn()}
       />,
     );
     // One click on the trash asks, but does not delete: the confirm replaces the row.
@@ -138,6 +145,7 @@ describe("SessionList", () => {
         onSelect={vi.fn()}
         onRename={vi.fn()}
         onDelete={onDelete}
+        onPin={vi.fn()}
       />,
     );
     fireEvent.click(screen.getByLabelText("Delete First chat"));
@@ -146,5 +154,49 @@ describe("SessionList", () => {
     expect(screen.queryByText("Delete this chat?")).not.toBeInTheDocument();
     // Back to a normal row: the trash is offered again.
     expect(screen.getByLabelText("Delete First chat")).toBeInTheDocument();
+  });
+
+  it("pins an unpinned chat: the toggle offers 'Pin' and fires onPin(true)", () => {
+    const onPin = vi.fn();
+    render(
+      <SessionList
+        sessions={[summary()]}
+        currentId="c1"
+        onSelect={vi.fn()}
+        onRename={vi.fn()}
+        onDelete={vi.fn()}
+        onPin={onPin}
+      />,
+    );
+    const toggle = screen.getByLabelText("Pin First chat");
+    expect(toggle).toHaveAttribute("aria-pressed", "false");
+    fireEvent.click(toggle);
+    expect(onPin).toHaveBeenCalledWith("c1", true); // pins the target chat
+  });
+
+  it("unpins a pinned chat: its row is grouped/marked and the toggle fires onPin(false)", () => {
+    const onPin = vi.fn();
+    render(
+      <SessionList
+        sessions={[
+          summary({ sessionId: "p1", title: "Pinned", pinned: true }),
+          summary({ sessionId: "r1", title: "Recent" }),
+        ]}
+        currentId="r1"
+        onSelect={vi.fn()}
+        onRename={vi.fn()}
+        onDelete={vi.fn()}
+        onPin={onPin}
+      />,
+    );
+    // The pinned row carries the pinned marker class and its toggle reads pressed + offers "Unpin".
+    const pinnedRow = screen.getByText("Pinned").closest("li");
+    expect(pinnedRow?.className).toContain("pinned");
+    const toggle = screen.getByLabelText("Unpin Pinned");
+    expect(toggle).toHaveAttribute("aria-pressed", "true");
+    // The unpinned row does not carry the pinned marker.
+    expect(screen.getByText("Recent").closest("li")?.className).not.toContain("pinned");
+    fireEvent.click(toggle);
+    expect(onPin).toHaveBeenCalledWith("p1", false); // unpins the target chat
   });
 });

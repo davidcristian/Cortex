@@ -169,6 +169,9 @@ pub struct SessionSummary {
     /// for a relative timestamp in the switcher
     #[prost(int64, tag = "4")]
     pub last_activity_unix_ms: i64,
+    /// the user pinned this chat above the recency window (unioned in)
+    #[prost(bool, tag = "5")]
+    pub pinned: bool,
 }
 /// One session's persisted history, in append order (ADR-0021).
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
@@ -218,6 +221,19 @@ pub struct DeleteSessionRequest {
 }
 #[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct DeleteSessionReply {}
+/// Pin or unpin one chat (ADR-0021 management addendum). `pinned` is the target state (true pins,
+/// false unpins); a pinned chat is always listed, above the recency group. The reply is a bare
+/// acknowledgement (the overlay re-lists to reflect it); a store failure surfaces as an
+/// `UNAVAILABLE` RPC status, the session-read precedent, and the write is idempotent by value.
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct SetSessionPinnedRequest {
+    #[prost(string, tag = "1")]
+    pub session_id: ::prost::alloc::string::String,
+    #[prost(bool, tag = "2")]
+    pub pinned: bool,
+}
+#[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct SetSessionPinnedReply {}
 /// Reminder pull-delivery views (ADR-0025). All sessions are listed deliberately because
 /// a single-user assistant has one user to remind; session_id rides along so the
 /// overlay can later offer "open the conversation this came from" without a wire change.
@@ -665,6 +681,42 @@ pub mod brain_service_client {
                 .insert(GrpcMethod::new("cortex.seam.v1.BrainService", "DeleteSession"));
             self.inner.unary(req, path, codec).await
         }
+        /// Pin or unpin a chat: a gated WRITE on the session catalog (ADR-0021 management addendum).
+        /// Pinning keeps an important chat reachable after it falls out of the recency window: a pinned
+        /// chat is unioned into ListSessions REGARDLESS of recency and sorted above the recency group,
+        /// so pinning an old chat rescues it from ageing off the list. Its gate is the SAME structural
+        /// user-only reachability RenameSession/DeleteSession have, not the mid-turn Confirmer: it is no
+        /// tool in any registry and never runs through the turn engine, so no model, tool, or tainted
+        /// turn reaches it. It carries a display-only effect (never conversation content), so it cannot
+        /// touch the one hard rule. Setting the same pinned value twice is a no-op, but the body still
+        /// makes exactly ONE attempt and never retries it (the catalog-write convention RenameSession
+        /// set): a lost reply must not silently re-assert a pinned value the user's next toggle reversed.
+        pub async fn set_session_pinned(
+            &mut self,
+            request: impl tonic::IntoRequest<super::SetSessionPinnedRequest>,
+        ) -> std::result::Result<
+            tonic::Response<super::SetSessionPinnedReply>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic_prost::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/cortex.seam.v1.BrainService/SetSessionPinned",
+            );
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(
+                    GrpcMethod::new("cortex.seam.v1.BrainService", "SetSessionPinned"),
+                );
+            self.inner.unary(req, path, codec).await
+        }
     }
 }
 /// Generated server implementations.
@@ -768,6 +820,23 @@ pub mod brain_service_server {
             request: tonic::Request<super::DeleteSessionRequest>,
         ) -> std::result::Result<
             tonic::Response<super::DeleteSessionReply>,
+            tonic::Status,
+        >;
+        /// Pin or unpin a chat: a gated WRITE on the session catalog (ADR-0021 management addendum).
+        /// Pinning keeps an important chat reachable after it falls out of the recency window: a pinned
+        /// chat is unioned into ListSessions REGARDLESS of recency and sorted above the recency group,
+        /// so pinning an old chat rescues it from ageing off the list. Its gate is the SAME structural
+        /// user-only reachability RenameSession/DeleteSession have, not the mid-turn Confirmer: it is no
+        /// tool in any registry and never runs through the turn engine, so no model, tool, or tainted
+        /// turn reaches it. It carries a display-only effect (never conversation content), so it cannot
+        /// touch the one hard rule. Setting the same pinned value twice is a no-op, but the body still
+        /// makes exactly ONE attempt and never retries it (the catalog-write convention RenameSession
+        /// set): a lost reply must not silently re-assert a pinned value the user's next toggle reversed.
+        async fn set_session_pinned(
+            &self,
+            request: tonic::Request<super::SetSessionPinnedRequest>,
+        ) -> std::result::Result<
+            tonic::Response<super::SetSessionPinnedReply>,
             tonic::Status,
         >;
     }
@@ -1198,6 +1267,52 @@ pub mod brain_service_server {
                     let inner = self.inner.clone();
                     let fut = async move {
                         let method = DeleteSessionSvc(inner);
+                        let codec = tonic_prost::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            )
+                            .apply_max_message_size_config(
+                                max_decoding_message_size,
+                                max_encoding_message_size,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                "/cortex.seam.v1.BrainService/SetSessionPinned" => {
+                    #[allow(non_camel_case_types)]
+                    struct SetSessionPinnedSvc<T: BrainService>(pub Arc<T>);
+                    impl<
+                        T: BrainService,
+                    > tonic::server::UnaryService<super::SetSessionPinnedRequest>
+                    for SetSessionPinnedSvc<T> {
+                        type Response = super::SetSessionPinnedReply;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::SetSessionPinnedRequest>,
+                        ) -> Self::Future {
+                            let inner = Arc::clone(&self.0);
+                            let fut = async move {
+                                <T as BrainService>::set_session_pinned(&inner, request)
+                                    .await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let max_decoding_message_size = self.max_decoding_message_size;
+                    let max_encoding_message_size = self.max_encoding_message_size;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let method = SetSessionPinnedSvc(inner);
                         let codec = tonic_prost::ProstCodec::default();
                         let mut grpc = tonic::server::Grpc::new(codec)
                             .apply_compression_config(

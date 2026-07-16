@@ -166,4 +166,12 @@ pub trait BrainTransport: Send + Sync {
         &self,
         session_id: &str,
     ) -> impl Future<Output = Result<(), TransportError>> + Send;
+
+    /// Pins or unpins one chat (`BrainService.SetSessionPinned`, ADR-0021 pinning addendum): the
+    /// overlay's user-driven pin toggle.
+    fn set_session_pinned(
+        &self,
+        session_id: &str,
+        pinned: bool,
+    ) -> impl Future<Output = Result<(), TransportError>> + Send;
 }

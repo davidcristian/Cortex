@@ -7,6 +7,7 @@ use crate::client::SeamChannel;
 use crate::generated::brain_service_client::BrainServiceClient;
 use crate::generated::{
     DeleteSessionRequest, GetSessionMessagesRequest, ListSessionsRequest, RenameSessionRequest,
+    SetSessionPinnedRequest,
 };
 use crate::status::status_to_error;
 
@@ -29,6 +30,7 @@ pub(crate) async fn list_sessions(
             title: summary.title,
             preview: summary.preview,
             last_activity_unix_ms: summary.last_activity_unix_ms,
+            pinned: summary.pinned,
         })
         .collect())
 }
@@ -76,6 +78,19 @@ pub(crate) async fn delete_session(
 ) -> Result<(), TransportError> {
     client
         .delete_session(DeleteSessionRequest { session_id })
+        .await
+        .map_err(|status| status_to_error(&status))?;
+    Ok(())
+}
+
+/// Pins or unpins one chat (`BrainService.SetSessionPinned`, ADR-0021 pinning addendum).
+pub(crate) async fn set_session_pinned(
+    mut client: BrainServiceClient<SeamChannel>,
+    session_id: String,
+    pinned: bool,
+) -> Result<(), TransportError> {
+    client
+        .set_session_pinned(SetSessionPinnedRequest { session_id, pinned })
         .await
         .map_err(|status| status_to_error(&status))?;
     Ok(())

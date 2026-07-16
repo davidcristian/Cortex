@@ -1,5 +1,5 @@
-//! The read-only session IPC commands (ADR-0021): list recent chats and load one
-//! chat's history for the overlay's switcher / cycling (`bridge/tauriBridge.ts`).
+//! The read-only session IPC commands: list recent chats and load one chat's history for
+//! the overlay's switcher / cycling (`bridge/tauriBridge.ts`).
 
 use body_core::{BrainTransport, SessionMessage, SessionSummary};
 use serde::Serialize;
@@ -12,6 +12,7 @@ pub struct WireSummary {
     title: String,
     preview: String,
     last_activity_unix_ms: i64,
+    pinned: bool,
 }
 
 impl From<SessionSummary> for WireSummary {
@@ -21,6 +22,7 @@ impl From<SessionSummary> for WireSummary {
             title: summary.title,
             preview: summary.preview,
             last_activity_unix_ms: summary.last_activity_unix_ms,
+            pinned: summary.pinned,
         }
     }
 }
@@ -46,9 +48,7 @@ impl From<SessionMessage> for WireMessage {
     }
 }
 
-/// Lists recent chats newest-active first (`BrainService.ListSessions`). A transient
-/// unreachable brain is retried with backoff by the resilient transport (ADR-0024) before
-/// the error surfaces to the overlay bridge's `.catch`.
+/// Lists recent chats newest-active first (`BrainService.ListSessions`).
 #[tauri::command]
 pub async fn list_sessions(limit: i32) -> Result<Vec<WireSummary>, String> {
     let client = crate::seam::connect()?;
@@ -70,8 +70,8 @@ pub async fn session_messages(session_id: String) -> Result<Vec<WireMessage>, St
     Ok(messages.into_iter().map(Into::into).collect())
 }
 
-/// Renames one chat (`BrainService.RenameSession`, ADR-0021 management addendum): the overlay's
-/// user-driven relabel of a chat in its list.
+/// Renames one chat (`BrainService.RenameSession`): the overlay's user-driven
+/// relabel of a chat in its list.
 #[tauri::command]
 pub async fn rename_session(session_id: String, title: String) -> Result<(), String> {
     let client = crate::seam::connect()?;
@@ -81,13 +81,23 @@ pub async fn rename_session(session_id: String, title: String) -> Result<(), Str
         .map_err(|error| error.to_string())
 }
 
-/// Deletes one chat (`BrainService.DeleteSession`, ADR-0021 management addendum): the overlay's
-/// user-driven destructive removal, fired only after an overlay-local confirm.
+/// Deletes one chat (`BrainService.DeleteSession`): the overlay's user-driven
+/// destructive removal, fired only after an overlay-local confirm.
 #[tauri::command]
 pub async fn delete_session(session_id: String) -> Result<(), String> {
     let client = crate::seam::connect()?;
     client
         .delete_session(&session_id)
+        .await
+        .map_err(|error| error.to_string())
+}
+
+/// Sets or clears the `pinned` mark on one chat, from the overlay's toggle.
+#[tauri::command]
+pub async fn set_session_pinned(session_id: String, pinned: bool) -> Result<(), String> {
+    let client = crate::seam::connect()?;
+    client
+        .set_session_pinned(&session_id, pinned)
         .await
         .map_err(|error| error.to_string())
 }

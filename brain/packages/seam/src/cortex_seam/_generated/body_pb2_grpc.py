@@ -77,6 +77,11 @@ class BrainServiceStub:
                 request_serializer=cortex__seam_dot___generated_dot_body__pb2.DeleteSessionRequest.SerializeToString,
                 response_deserializer=cortex__seam_dot___generated_dot_body__pb2.DeleteSessionReply.FromString,
                 _registered_method=True)
+        self.SetSessionPinned = channel.unary_unary(
+                '/cortex.seam.v1.BrainService/SetSessionPinned',
+                request_serializer=cortex__seam_dot___generated_dot_body__pb2.SetSessionPinnedRequest.SerializeToString,
+                response_deserializer=cortex__seam_dot___generated_dot_body__pb2.SetSessionPinnedReply.FromString,
+                _registered_method=True)
 
 
 class BrainServiceServicer:
@@ -167,6 +172,22 @@ class BrainServiceServicer:
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def SetSessionPinned(self, request, context):
+        """Pin or unpin a chat: a gated WRITE on the session catalog (ADR-0021 management addendum).
+        Pinning keeps an important chat reachable after it falls out of the recency window: a pinned
+        chat is unioned into ListSessions REGARDLESS of recency and sorted above the recency group,
+        so pinning an old chat rescues it from ageing off the list. Its gate is the SAME structural
+        user-only reachability RenameSession/DeleteSession have, not the mid-turn Confirmer: it is no
+        tool in any registry and never runs through the turn engine, so no model, tool, or tainted
+        turn reaches it. It carries a display-only effect (never conversation content), so it cannot
+        touch the one hard rule. Setting the same pinned value twice is a no-op, but the body still
+        makes exactly ONE attempt and never retries it (the catalog-write convention RenameSession
+        set): a lost reply must not silently re-assert a pinned value the user's next toggle reversed.
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
 
 def add_BrainServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
@@ -209,6 +230,11 @@ def add_BrainServiceServicer_to_server(servicer, server):
                     servicer.DeleteSession,
                     request_deserializer=cortex__seam_dot___generated_dot_body__pb2.DeleteSessionRequest.FromString,
                     response_serializer=cortex__seam_dot___generated_dot_body__pb2.DeleteSessionReply.SerializeToString,
+            ),
+            'SetSessionPinned': grpc.unary_unary_rpc_method_handler(
+                    servicer.SetSessionPinned,
+                    request_deserializer=cortex__seam_dot___generated_dot_body__pb2.SetSessionPinnedRequest.FromString,
+                    response_serializer=cortex__seam_dot___generated_dot_body__pb2.SetSessionPinnedReply.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -430,6 +456,33 @@ class BrainService:
             '/cortex.seam.v1.BrainService/DeleteSession',
             cortex__seam_dot___generated_dot_body__pb2.DeleteSessionRequest.SerializeToString,
             cortex__seam_dot___generated_dot_body__pb2.DeleteSessionReply.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def SetSessionPinned(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/cortex.seam.v1.BrainService/SetSessionPinned',
+            cortex__seam_dot___generated_dot_body__pb2.SetSessionPinnedRequest.SerializeToString,
+            cortex__seam_dot___generated_dot_body__pb2.SetSessionPinnedReply.FromString,
             options,
             channel_credentials,
             insecure,

@@ -57,9 +57,10 @@ line cap.
     reply mapping is built with `async-stream`, the request chain with `tokio-stream`.
   - `list_sessions(limit)` / `session_messages(session_id)` (the read-only session views,
     ADR-0021; `src/sessions.rs`) are unary calls to `BrainService.ListSessions` /
-    `GetSessionMessages` mapping each reply row to a core `SessionSummary` / `SessionMessage`;
-    a non-OK status reuses `status_to_error` → `Rpc`/`Connection` (a store failure is
-    `Rpc{code:"Unavailable"}`). Kept in their own module so `client.rs` stays under the line cap.
+    `GetSessionMessages` mapping each reply row to a core `SessionSummary` (including its `pinned`
+    flag, ADR-0021 pinning addendum) / `SessionMessage`; a non-OK status reuses `status_to_error` →
+    `Rpc`/`Connection` (a store failure is `Rpc{code:"Unavailable"}`). Kept in their own module so
+    `client.rs` stays under the line cap.
   - `rename_session(session_id, title)` (the user-driven catalog write, ADR-0021 management
     addendum; same `src/sessions.rs`) is a unary call to `BrainService.RenameSession`; the reply
     is a bare ack, so success maps to `()` and a non-OK status maps the same way as the reads.
@@ -67,6 +68,10 @@ line cap.
     addendum; same `src/sessions.rs`) is a unary call to `BrainService.DeleteSession`; the reply
     is a bare ack, so success maps to `()` and a non-OK status maps the same way (a store or
     memory failure is `Rpc{code:"Unavailable"}`).
+  - `set_session_pinned(session_id, pinned)` (the user-driven pin toggle, ADR-0021 pinning
+    addendum; same `src/sessions.rs`) is a unary call to `BrainService.SetSessionPinned`; the reply
+    is a bare ack, so success maps to `()` and a non-OK status maps the same way (a store failure is
+    `Rpc{code:"Unavailable"}`).
   - `list_due_reminders()` / `ack_reminder(reminder_id)` (the reminder pull path, ADR-0025;
     `src/reminders.rs`, split for the same reason) are unary calls to
     `BrainService.ListDueReminders` / `AckReminder`, mapping each reply row to a core

@@ -31,6 +31,8 @@ pub enum SeamMethod {
     RenameSession,
     /// `BrainService.DeleteSession`: the overlay's user-driven destructive removal of a chat.
     DeleteSession,
+    /// `BrainService.SetSessionPinned`: the overlay's user-driven pin toggle on a chat.
+    SetSessionPinned,
 }
 
 impl SeamMethod {
@@ -43,7 +45,11 @@ impl SeamMethod {
             Self::Health | Self::ListSessions | Self::SessionMessages | Self::ListDueReminders => {
                 true
             }
-            Self::Converse | Self::AckReminder | Self::RenameSession | Self::DeleteSession => false,
+            Self::Converse
+            | Self::AckReminder
+            | Self::RenameSession
+            | Self::DeleteSession
+            | Self::SetSessionPinned => false,
         }
     }
 }

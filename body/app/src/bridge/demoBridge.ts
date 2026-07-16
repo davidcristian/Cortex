@@ -199,16 +199,21 @@ export class DemoBridge implements BrainBridge {
   listSessions(_limit: number): Promise<readonly SessionSummary[]> {
     return Promise.resolve([
       {
-        sessionId: "demo-1",
-        title: "Everything about model swaps",
-        preview: "The cortex is evicted and the brain loads…",
-        lastActivityUnixMs: Date.now() - 5 * 60 * 1000,
-      },
-      {
+        // Pinned, and the OLDER of the two by activity, so it demonstrates pinning by hand: it
+        // sorts ABOVE the newer chat in the switcher and carries the pin indicator, exactly the
+        // read-path union the brain applies (ADR-0021 pinning addendum).
         sessionId: "demo-2",
         title: "Summarize my unread email",
         preview: "You have three unread threads…",
         lastActivityUnixMs: Date.now() - 3 * 60 * 60 * 1000,
+        pinned: true,
+      },
+      {
+        sessionId: "demo-1",
+        title: "Everything about model swaps",
+        preview: "The cortex is evicted and the brain loads…",
+        lastActivityUnixMs: Date.now() - 5 * 60 * 1000,
+        pinned: false,
       },
     ]);
   }
@@ -280,6 +285,12 @@ export class DemoBridge implements BrainBridge {
   // Likewise a delete is a no-op that resolves: the demo list is static, so the browser-dev
   // switcher shows the row leave optimistically but does not persist it (the real bridge does).
   deleteSession(_sessionId: string): Promise<void> {
+    return Promise.resolve();
+  }
+
+  // A pin toggle is a no-op that resolves too: the demo list is static, so the browser-dev
+  // switcher re-lists to its canned pinned-first order (the real bridge persists over the seam).
+  setSessionPinned(_sessionId: string, _pinned: boolean): Promise<void> {
     return Promise.resolve();
   }
 }
