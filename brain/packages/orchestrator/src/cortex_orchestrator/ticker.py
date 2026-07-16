@@ -28,8 +28,11 @@ from cortex_core import (
 
 _logger = logging.getLogger(__name__)
 
-# The toast's title; the body renders it (and the reminder text) as inert escaped text.
+# The toast titles; the body renders a title (and the reminder text or task outcome) as inert
+# escaped text. A task's outcome delivers under its own title so the toast is honest about which
+# it is (ADR-0025 task-outcome addendum).
 REMINDER_TITLE = "Cortex reminder"
+TASK_TITLE = "Cortex task"
 _NO_RUNNER_OUTCOME = "FAILED: subagent delegation is not wired"
 
 
@@ -126,39 +129,40 @@ class ScheduleTicker:
             deliverable=True,
         )
         if await self._store.finish(claim, outcome):
-            await self._push(item)
+            await self._deliver(item.id, title=REMINDER_TITLE, body=item.text, tainted=item.tainted)
 
-    async def _push(self, item: ScheduledItem) -> None:
-        """Best-effort push; any failure means the pull path delivers instead."""
+    async def _deliver(self, item_id: str, *, title: str, body: str, tainted: bool) -> None:
+        """Best-effort push of one fired item; any failure means the pull path delivers instead."""
         if self._body is None:
             return
         try:
             shown = await self._body.notify(
-                title=REMINDER_TITLE, body=item.text, reminder_id=item.id, tainted=item.tainted
+                title=title, body=body, reminder_id=item_id, tainted=tainted
             )
         except BodyGatewayError as err:
             _logger.info(
-                "reminder push failed; pull will deliver",
-                extra={"reminder_id": item.id, "error": str(err)},
+                "push failed; pull will deliver",
+                extra={"reminder_id": item_id, "error": str(err)},
             )
             return
         if shown:
-            await self._store.ack(item.id)
+            await self._store.ack(item_id)
 
     async def _fire_task(self, claim: ScheduleClaim, item: ScheduledItem) -> None:
-        """Run the task as an audited spawn dispatch and persist its outcome + fire taint."""
+        """Run the task, persist its outcome deliverable, then deliver the outcome as a toast."""
         outcome_text, fire_tainted = await self._run_task(item)
         fired_at = self._clock.now()
-        await self._store.finish(
-            claim,
-            FireOutcome(
-                fired_at=fired_at,
-                next_due=next_occurrence(item, fired_at, self._settings.zone),
-                deliverable=False,
-                outcome=outcome_text,
-                tainted=fire_tainted,
-            ),
+        outcome = FireOutcome(
+            fired_at=fired_at,
+            next_due=next_occurrence(item, fired_at, self._settings.zone),
+            deliverable=True,
+            outcome=outcome_text,
+            tainted=fire_tainted,
         )
+        if await self._store.finish(claim, outcome):
+            await self._deliver(
+                item.id, title=TASK_TITLE, body=outcome_text, tainted=item.tainted or fire_tainted
+            )
 
     async def _run_task(self, item: ScheduledItem) -> tuple[str, bool]:
         """One subagent run via ``spawn_subagents``; failures become outcomes, never raises."""

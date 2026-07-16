@@ -28,7 +28,7 @@ from cortex_core import (
     Trust,
     TurnStamp,
 )
-from cortex_orchestrator import REMINDER_TITLE, ScheduleTicker, TickerSettings
+from cortex_orchestrator import REMINDER_TITLE, TASK_TITLE, ScheduleTicker, TickerSettings
 
 _NOW = datetime(2026, 7, 12, 12, 0, 0, tzinfo=UTC)
 _SETTINGS = TickerSettings(poll_s=0.001, lease=timedelta(minutes=5), claim_limit=8)
@@ -273,12 +273,74 @@ async def test_task_without_delegation_wired_fails_cleanly() -> None:
     assert loaded.due_at == _NOW + timedelta(hours=1)  # recurring: re-armed, not cycling
 
 
-async def test_one_shot_task_is_cleaned_up_after_its_fire() -> None:
+async def test_a_shown_one_shot_task_is_delivered_then_cleaned_up() -> None:
+    # The outcome delivers as a toast; the shown push acks it, and terminal cleanup then runs at
+    # ack time rather than at finish (the outcome is no longer discarded before anyone sees it).
     store = InMemoryScheduleStore()
+    body = InMemoryBodyGateway(shown=True)
     spawn = FakeSpawnTool()
     await store.add(_item("t1", kind=ScheduleKind.TASK))
+    await _ticker(store, spawn=_dispatcher(spawn), body=body).run_once()
+    assert await store.get("t1") is None
+
+
+# --- tasks: the outcome delivers through the reminder push/pull ladder ---------------------------
+
+
+async def test_task_outcome_is_pushed_as_a_notification_and_acked() -> None:
+    """The delivery fires on finish (the outcome, under the task title) and a shown push acks it."""
+    store = InMemoryScheduleStore()
+    body = InMemoryBodyGateway(shown=True)
+    spawn = FakeSpawnTool(content="[subagent 1] 3 emails need replies")
+    await store.add(_item("t1", kind=ScheduleKind.TASK))
+    await _ticker(store, spawn=_dispatcher(spawn), body=body).run_once()
+    (toast,) = body.notifications
+    assert toast.title == TASK_TITLE
+    assert toast.body == "[subagent 1] 3 emails need replies"  # the outcome, not the instruction
+    assert toast.reminder_id == "t1"
+    assert await store.deliverable() == ()  # shown push acked it; pull will not re-deliver
+
+
+async def test_task_outcome_stays_deliverable_when_the_push_fails() -> None:
+    """A body-down fire is recovered by pull, not lost: the outcome waits in the store."""
+    store = InMemoryScheduleStore()
+    body = InMemoryBodyGateway(fail=BodyGatewayError("unreachable"))
+    spawn = FakeSpawnTool(content="[subagent 1] done")
+    await store.add(_item("t1", kind=ScheduleKind.TASK))
+    await _ticker(store, spawn=_dispatcher(spawn), body=body).run_once()
+    (due,) = await store.deliverable()
+    assert due.id == "t1"
+    assert due.last_outcome == "[subagent 1] done"
+
+
+async def test_task_outcome_is_deliverable_without_a_body() -> None:
+    # Push-less deployment (or a one-shot before any overlay open): the outcome survives its fire
+    # for the pull path instead of being deleted at finish.
+    store = InMemoryScheduleStore()
+    spawn = FakeSpawnTool(content="[subagent 1] done")
+    await store.add(_item("t1", kind=ScheduleKind.TASK))
     await _ticker(store, spawn=_dispatcher(spawn)).run_once()
-    assert await store.get("t1") is None  # terminal cleanup (outcome history is deferred)
+    (due,) = await store.deliverable()
+    assert due.id == "t1"
+
+
+async def test_a_tainted_task_outcome_badges_the_toast() -> None:
+    store = InMemoryScheduleStore()
+    body = InMemoryBodyGateway(shown=True)
+    spawn = FakeSpawnTool(content="the email said hi", trust=Trust.UNTRUSTED)
+    await store.add(_item("t1", kind=ScheduleKind.TASK))
+    await _ticker(store, spawn=_dispatcher(spawn), body=body).run_once()
+    (toast,) = body.notifications
+    assert toast.tainted is True  # fire-time taint rides the delivery as it does the listing
+
+
+async def test_a_fenced_off_task_finish_delivers_nothing() -> None:
+    store = _CancelRacingStore()
+    body = InMemoryBodyGateway(shown=True)
+    spawn = FakeSpawnTool()
+    await store.add(_item("t1", kind=ScheduleKind.TASK))
+    await _ticker(store, spawn=_dispatcher(spawn), body=body).run_once()
+    assert body.notifications == ()  # cancel stuck; the dead fire delivered nothing
 
 
 async def test_a_hung_fire_is_cancelled_at_the_lease_and_released() -> None:

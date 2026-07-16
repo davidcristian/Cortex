@@ -101,10 +101,19 @@ and fires fresh rather than re-delivering the stale one (ADR-0025 rule-edit adde
 With subagents wired (`CORTEX_SUBAGENTS_BACKEND=llamacpp`) the tool also offers
 `kind: "task"`, which is an autonomous subagent run per fire, dispatched through the ticker's own
 audited `spawn_subagents` path (`confirmer=None`, so gated tools stay structurally
-unreachable; a tainted-created task is refused at creation outright). With the body wired
-(`CORTEX_BODY_BACKEND=grpc`) fired reminders also attempt a native-toast push. A toast the host
-shows is delivery, so the ticker acks the reminder at once and the overlay will not show it
-again; a declined or failed push leaves it deliverable and the pull path delivers.
+unreachable; a tainted-created task is refused at creation outright). A finished task's
+**outcome delivers as a notification** the same way a reminder's text does (ADR-0025 task-outcome
+addendum): the outcome (not the standing instruction) becomes the toast body under a `Cortex task`
+title and, if the push does not land, waits in the store for the overlay's next pull. So a one-shot
+task's result now survives its fire instead of being deleted with the record, and a task that
+finishes while the body is down is recovered, not lost.
+
+With the body wired (`CORTEX_BODY_BACKEND=grpc`) fired reminders and task outcomes both attempt a
+native-toast push. A toast the host shows is delivery, so the ticker acks the item at once and the
+overlay will not show it again; a declined or failed push leaves it deliverable and the pull path
+delivers. There is no proactive re-push beyond that next pull (a re-push without a per-fire
+delivery id would double-deliver; deferred, see
+[docs/refinements/scheduling.md](../refinements/scheduling.md)).
 
 **Turning the backend off strands stored deliverables** until re-enabled (the records
 persist; nothing lists or fires them).
