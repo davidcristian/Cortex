@@ -1,11 +1,10 @@
 //! System-tray wiring: a tray icon whose menu shows the overlay or quits.
 
+use tauri::AppHandle;
 use tauri::menu::{Menu, MenuItem};
 use tauri::tray::TrayIconBuilder;
-use tauri::AppHandle;
 
-/// Builds the tray icon and its menu. Errors propagate to `setup`. A tray is
-/// part of the app's contract.
+/// Builds the tray icon and its menu.
 pub fn build(handle: &AppHandle) -> tauri::Result<()> {
     let show = MenuItem::with_id(handle, "show", "Show overlay", true, None::<&str>)?;
     let quit = MenuItem::with_id(handle, "quit", "Quit Cortex", true, None::<&str>)?;
