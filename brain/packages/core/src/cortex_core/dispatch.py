@@ -24,6 +24,7 @@ from enum import Enum
 from cortex_core.errors import ToolError
 from cortex_core.ports import Clock, Confirmer, ToolAuditSink, ToolRegistry
 from cortex_core.tool_budget import UNIFORM_COST, ToolCostPolicy
+from cortex_core.tool_round import MAX_CALLS_PER_ROUND
 from cortex_core.tool_salience import REPEAT_SALIENCE, SaliencePolicy
 from cortex_core.tools import (
     UNSTAMPED,
@@ -59,6 +60,17 @@ REDUNDANT_MSG = (
     "but do not repeat this call."
 )
 
+# The result content fed back on the one slot a truncated round keeps (ADR-0009 round-cap
+# addendum). It names the cap, as the spawn batch cap's error does, because a bound the model
+# can restate is one it can obey; and it invites the next reply rather than ending tool use,
+# since the calls it dropped may be work the turn still needs.
+ROUND_OVERSIZED_MSG = (
+    f"REFUSED: one reply may ask for at most {MAX_CALLS_PER_ROUND} tool calls at once. This "
+    "reply asked for more, so this call and every call after it were dropped without running. "
+    "The calls before it did run, and their results are in this conversation above. Ask for "
+    "whatever you still need in your next reply, a few calls at a time."
+)
+
 
 class DispatchRefusal(Enum):
     """Why the caller refused a call before it could run, and what the model is told.
@@ -71,6 +83,7 @@ class DispatchRefusal(Enum):
 
     BUDGET = BUDGET_EXHAUSTED_MSG
     REDUNDANT = REDUNDANT_MSG
+    ROUND_OVERSIZED = ROUND_OVERSIZED_MSG
 
     @property
     def message(self) -> str:

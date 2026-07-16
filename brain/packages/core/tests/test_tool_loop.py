@@ -1,10 +1,10 @@
-"""Behavior tests for the tool loop's dispatch budget (ADR-0009 budget addendum).
+"""Behavior tests for the tool loop's bounds: the dispatch budget, salience, and the round cap.
 
 ``MAX_TOOL_STEPS`` bounds inference *rounds*; within one round the loop used to dispatch every
 call the model emitted, uncapped, on the only path that reaches external services. These tests
 drive ``stream_tool_loop`` directly (the engine and each subagent share it) so the budget can be
 set small and its exact boundary asserted. The rest of the loop's behavior is covered through
-the engine in ``test_engine.py``.
+the engine in ``test_engine.py``, and the round cap's pure arithmetic in ``test_tool_round.py``.
 """
 
 from collections.abc import AsyncIterator, Mapping, Sequence
@@ -13,8 +13,10 @@ from datetime import UTC, datetime, timedelta
 from cortex_core import (
     ALWAYS_SALIENT,
     BUDGET_EXHAUSTED_MSG,
+    MAX_CALLS_PER_ROUND,
     REDUNDANT_MSG,
     REPEAT_SALIENCE,
+    ROUND_OVERSIZED_MSG,
     DispatchPolicy,
     InferenceEvent,
     InMemoryToolRegistry,
@@ -476,3 +478,122 @@ async def test_a_second_loop_counts_its_repeats_against_its_own_rounds() -> None
     await _run(_RepeatBackend(per_round=1), _context(second, budget=MAX_TOOL_DISPATCHES))
     assert [record.ok for record in first.records].count(True) == 2
     assert [record.ok for record in second.records].count(True) == 2
+
+
+# How much wider than the cap a runaway round is in these fixtures. Large enough that the
+# unbounded shape is unmistakable, small enough that eight rounds of it stay a fast test.
+_RUNAWAY = 200
+
+
+def _appended_by_the_first_round(backend: _MultiCallBackend) -> int:
+    """How many messages the first round added to `working`, read off the next round's context."""
+    return len(backend.seen[1]) - len(backend.seen[0])
+
+
+async def test_a_round_wider_than_the_cap_appends_a_bounded_number_of_messages() -> None:
+    # The shape neither the pool nor salience closes (ADR-0009 round-cap addendum). Every call a
+    # round emits costs an appended Role.TOOL message whether it runs or is refused, so before
+    # the cap a round of 200 was 201 messages fed straight back into the next inference, and
+    # eight such rounds were 1608. Now the round's whole footprint is a number: the assistant
+    # message, the cap's worth of results, and the one refusal that says the rest were dropped.
+    sink = RecordingAuditSink()
+    backend = _MultiCallBackend(per_round=_RUNAWAY)
+    await _run(backend, _context(sink, budget=MAX_TOOL_DISPATCHES))
+    assert backend.rounds == MAX_TOOL_STEPS  # the round bound still applies, independently
+    assert _appended_by_the_first_round(backend) == MAX_CALLS_PER_ROUND + 2
+    assert len(sink.records) == (MAX_CALLS_PER_ROUND + 1) * MAX_TOOL_STEPS
+
+
+async def test_the_calls_past_the_overflow_slot_are_dropped_rather_than_refused() -> None:
+    # Why refusing each excess call would have bounded nothing: the refusal is appended too, so
+    # 200 refusals grow the context exactly as much as 200 results. The dropped calls leave no
+    # trace at all, which is only sound because the one slot that is kept says so.
+    sink = RecordingAuditSink()
+    backend = _MultiCallBackend(per_round=_RUNAWAY)
+    await _run(backend, _context(sink, budget=MAX_TOOL_DISPATCHES))
+    first_round = sink.records[: MAX_CALLS_PER_ROUND + 1]
+    assert len(first_round) == MAX_CALLS_PER_ROUND + 1  # not 200: the rest never reached dispatch
+    assert [record.ok for record in first_round] == [True] * MAX_CALLS_PER_ROUND + [False]
+    assert first_round[-1].detail == ROUND_OVERSIZED_MSG
+
+
+async def test_the_model_can_tell_a_truncated_round_from_a_short_one() -> None:
+    # A truncation the model cannot observe is the failure mode a cap must not create: it would
+    # re-emit the dropped calls every round, believing they were never asked, until the round
+    # bound ran out. So the kept slot's refusal names the cap and invites the next reply.
+    sink = RecordingAuditSink()
+    backend = _MultiCallBackend(per_round=_RUNAWAY)
+    await _run(backend, _context(sink, budget=MAX_TOOL_DISPATCHES))
+    second_round_context = backend.seen[1]
+    notices = [
+        message
+        for message in second_round_context
+        if message.role is Role.TOOL and message.text == ROUND_OVERSIZED_MSG
+    ]
+    assert len(notices) == 1  # exactly one notice, not one per dropped call
+    assert str(MAX_CALLS_PER_ROUND) in ROUND_OVERSIZED_MSG
+
+
+async def test_a_truncated_round_still_answers_every_call_it_recorded() -> None:
+    # The well-formedness the budget addendum's refusals exist to preserve, now that the round's
+    # assistant message is truncated as well: an OpenAI-compatible backend requires one
+    # Role.TOOL message per tool_call_id, so dropping a call means dropping it from there too.
+    sink = RecordingAuditSink()
+    backend = _MultiCallBackend(per_round=_RUNAWAY)
+    await _run(backend, _context(sink, budget=MAX_TOOL_DISPATCHES))
+    last = backend.seen[-1]
+    called = [call.id for message in last for call in message.tool_calls]
+    answered = [message.tool_call_id for message in last if message.role is Role.TOOL]
+    assert called  # the round did record calls, so the assertion below is not vacuous
+    assert called == answered
+
+
+async def test_the_overflow_slot_is_charged_nothing_and_renders_no_chip() -> None:
+    # It reaches nothing, so it is refused ahead of both other bounds: charging it would spend
+    # the turn's reach on the model's own overproduction, and a chip means a tool is running now.
+    # Eight rounds of the cap is 128, not 136, which is the whole assertion.
+    sink = RecordingAuditSink()
+    pool = DispatchBudget(limit=1000)
+    deltas = await _run(_MultiCallBackend(per_round=_RUNAWAY), _context(sink, budget=pool))
+    assert pool.spent == MAX_CALLS_PER_ROUND * MAX_TOOL_STEPS
+    chips = [delta for delta in deltas if isinstance(delta, ToolStep)]
+    assert len(chips) == MAX_CALLS_PER_ROUND * MAX_TOOL_STEPS
+
+
+async def test_two_rounds_at_the_cap_exhaust_the_default_pool() -> None:
+    # Why the cap is half of MAX_TOOL_DISPATCHES: a model chooses a round's calls before seeing
+    # any of that round's results, so a blind burst that could spend the turn's whole reach is
+    # strictly worse than one that must stop and read halfway.
+    sink = RecordingAuditSink()
+    pool = DispatchBudget()
+    await _run(_MultiCallBackend(per_round=_RUNAWAY), _context(sink, budget=pool))
+    assert pool.spent == MAX_TOOL_DISPATCHES
+    assert len([record for record in sink.records if record.ok]) == MAX_CALLS_PER_ROUND * 2
+
+
+async def test_a_round_of_identical_spam_is_bounded_though_it_costs_the_pool_nothing() -> None:
+    # The case that decides what "distinct" had to mean here. Salience refuses every twin in a
+    # round absolutely, so 200 identical calls reach the outside world once and spend one unit:
+    # the pool is untouched and the reach bound is intact, and the context still grew by 201
+    # messages of refusal. Growth is driven by calls emitted, distinct or not, so the cap counts
+    # emitted calls and needs no notion of argument identity at all.
+    sink = RecordingAuditSink()
+    pool = DispatchBudget()
+    backend = _RepeatBackend(per_round=_RUNAWAY)
+    await _run(backend, _context(sink, budget=pool))
+    assert pool.spent == 2  # the whole eight-round loop reached a tool exactly twice
+    assert _appended_by_the_first_round(backend) == MAX_CALLS_PER_ROUND + 2
+    assert {record.detail for record in sink.records[1:MAX_CALLS_PER_ROUND]} == {REDUNDANT_MSG}
+    assert sink.records[MAX_CALLS_PER_ROUND].detail == ROUND_OVERSIZED_MSG
+
+
+async def test_a_round_at_the_cap_is_left_exactly_as_it_was() -> None:
+    # The counterfactual for the fixtures above: the same loop one call narrower dispatches every
+    # call it emitted, appends no notice, and is indistinguishable from the pre-cap loop. Without
+    # this the bound could be refusing a round it should have let through.
+    sink = RecordingAuditSink()
+    backend = _MultiCallBackend(per_round=MAX_CALLS_PER_ROUND)
+    await _run(backend, _context(sink, budget=DispatchBudget(limit=1000)))
+    assert _appended_by_the_first_round(backend) == MAX_CALLS_PER_ROUND + 1
+    assert all(record.ok for record in sink.records)
+    assert ROUND_OVERSIZED_MSG not in {record.detail for record in sink.records}
