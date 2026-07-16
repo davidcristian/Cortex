@@ -323,7 +323,9 @@ without a brain; `overlay-ux.md` gains the card's spec.
   **Declined 2026-07-16** once the provenance landed (addendum below): reversing the fail-closed
   block is rejected on the merits, and the useful `SENDER`/`URI` provenance has no producer anyway.
 - Richer send shapes behind the same tool name: **cc/bcc/HTML landed 2026-07-13** (addendum
-  below); **attachments remain** (they need a bytes-transport decision, recorded there).
+  below); **authored-text attachments landed 2026-07-15** and **real-file attachments (bytes the
+  assistant did not author) were declined 2026-07-16** (addenda below), the capability kept
+  ungranted on the outbound sidecar.
 - A structured confirm-resolution event so the overlay can close a stale card exactly.
   **Landed 2026-07-14** (addendum below).
 - Trust (as opposed to gating) overlays for remote tools. Still nothing needs one.
@@ -725,3 +727,98 @@ dead-until-a-consumer list. It reopens only if the outbound-on-tainted decision 
 with new evidence that a confirmation card converts reflexive approval into scrutiny, **and** a real
 `SENDER`/`URI` producer exists to name the source, not on provenance plumbing alone. Nothing in the
 seam, the proto, the confirmer, or the gate changed.
+
+## Addendum (2026-07-16): real-file attachments (bytes the assistant did not author) are declined
+
+The attachments addendum above landed authored text and named the one remaining shape as "bytes
+the assistant did not author (a real file)", blocked on two things at once: a file-read capability
+on a sidecar built with none, and a card that could bind approval to a payload the user cannot
+read. Both were read against the code before deciding. The decision is to **keep the capability
+ungranted**: the email sidecar stays with no filesystem access, and `send_email` keeps attaching
+only what the assistant wrote. This is a security decision, not deferred plumbing, and the
+reasoning is recorded so a future consumer reopens it with the constraints already known.
+
+### 1. What exists today, in code
+
+Send exists, and it attaches authored text only. `send_email` takes an `attachments` array of
+`EmailAttachment(filename, content, subtype)` (`cortex_email/server.py`, `cortex_email/values.py`),
+where `content` is a `str` the model wrote; `SmtpSender._compose` adds each as one `text/<subtype>`
+part via `message.add_attachment(attachment.content, ...)` (`cortex_email/smtp.py`). The tool's own
+docstring states the boundary to the model: "Attachments carry text only, so a file on disk cannot
+be attached." The bytes ride the JSON tool argument over MCP, the same channel the subject and body
+ride, so the current shape has no transport and no capability behind it.
+
+The sidecar has no filesystem access to grant from. The `mcp-email` service declares no `volumes:`
+at all in `docker/docker-compose.email.yml`, unlike `docker/docker-compose.tools.yml`'s
+`mcp-filesystem`, which is a separate container holding a single read-only bind mount scoped to
+`/projects` and version-pinned against the EscapeRoute path-escape CVEs. So "a real file" means
+granting the network-egress sidecar a brand new power: reading local disk.
+
+### 2. The exfiltration threat that grant creates
+
+The email sidecar is the outbound path: it authenticates to the Bridge and sends mail off the
+machine over SMTP. Giving that one process the power to read local files fuses read-local and
+write-remote in the single component whose whole reason to exist is to leave the machine. A send
+driven by injected content could then attach and exfiltrate an arbitrary local file. This is the
+exfil-via-`send_email` case the untrusted-content posture is built against (ADR-0013 harness,
+decision 2's tainted block), and it is why the architecture invariant keeps email read-only and
+lets "only tools reach external services". A personal, local-first assistant has no present need
+that pays for opening this surface.
+
+### 3. The taint boundary already closes the useful path, which is the deep finding
+
+Reading a file's bytes into the turn cannot coexist with sending in that turn, by construction. A
+tool result defaults to `Trust.UNTRUSTED` (`cortex_core/tools.py`), the MCP registry builds read
+results with that default (`cortex_tools/registry.py`), the tool loop's `TaintLedger.mark` flips
+the turn `tainted` on any untrusted result (`cortex_core/untrusted.py`), and a gated call on a
+tainted turn is blocked outright with `DENIED_MSG`, the confirmer never consulted
+(`cortex_core/dispatch.py`). So "read this file, then attach and send it" is already denied: the
+read taints the turn and the send is closed for the rest of it.
+
+That is what makes a real-file attachment genuinely hard rather than merely capability-gated. To be
+*useful* it must get the bytes to the sidecar **without** them passing through the model's context,
+so the turn stays untainted and the send is allowed. But a channel that moves bytes the model never
+reads is exactly the arbitrary-file exfiltration channel: the file is chosen by a path or handle
+the model emits, and on a turn poisoned earlier the model's arguments may be injection-authored.
+The digest-bound card the entry proposed binds approval to the *bytes* (it catches a swap between
+approval and send, a TOCTOU on content), but it never binds the file *choice*, and the choice is
+the thing an injection controls. A card reading "attach id_rsa (sha256 abc..., 3.2 KB)" is honest
+about the bytes and still asks a user conditioned to approve to approve an exfiltration. That is the
+same failure that declined confirm-with-provenance for tainted turns the same day: a card can make
+the **user** the injection target, which is worse than the model, because the user is the authority
+the gate exists to protect.
+
+### 4. The safe design, if a real consumer ever appears
+
+Recorded so the work is not lost and reopens with its constraints known. A defensible build is
+**not** "grant the email sidecar a path and let it read arbitrary disk". It is all of:
+
+- **A narrowly-scoped source, never an arbitrary path.** Either a dedicated outbox directory the
+  sidecar may read (a single read-only mount, the filesystem sidecar's containment pattern, never
+  the home directory), or a caller-provided opaque handle to bytes already admitted by a trusted
+  path, so the string the model emits can name only things inside an allowlist and can never select
+  `~/.ssh/id_rsa`.
+- **The file choice gated by taint, not by the model alone.** Because a path is chosen text, the
+  same tainted-turn block that guards the send must guard the *selection*: an attachment whose
+  source was named on a turn that read untrusted content is refused, so injected content cannot pick
+  the file even when the bytes bypass the model's context.
+- **A digest-bound card.** The card shows the filename, size, and a content digest; the sidecar
+  re-reads at send and refuses on a digest mismatch, so approval binds to bytes and a swap between
+  the click and the send fails closed. This closes TOCTOU but, per finding 3, is not sufficient on
+  its own: it must sit on top of the scoped source and the taint gate, which together bound the
+  *choice*.
+
+Its cost is a new capability surface (a mount plus file-read on the egress sidecar, or a brain-side
+bytes-admission port and handle plumbing), a proto and card change to carry the digest and size,
+taint rules extended to the attachment source, and tests proving both a digest mismatch and an
+injection-chosen source fail closed. That is a slice, not a follow-on, and it is the right shape
+only when something needs it.
+
+### 5. Trigger and outcome
+
+**Declined**, docs-only, the capability ungranted. It reopens on a real consumer that must attach
+bytes the assistant did not author (a saved PDF, an image, a downloaded report), and even then it
+is built to the finding 4 shape, not by handing the egress sidecar a path. The entry stays verbatim
+in [email-confirmer.md](../refinements/email-confirmer.md) as the historical record, annotated with
+this outcome, and moves to the backlog's dead-until-a-consumer list. Nothing in the seam, the proto,
+the sidecar, or the gate changed.
