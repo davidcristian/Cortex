@@ -10,6 +10,9 @@ async-stream.workspace = true
 body-core.workspace = true
 futures-core.workspace = true
 prost.workspace = true
+# "rt" only: the `BodyService` handlers hand their synchronous OS calls to
+# `spawn_blocking` so no async worker is parked on COM (ADR-0023).
+tokio = { workspace = true, features = ["rt"] }
 # Promoted from dev-dependencies for the confirm round-trip (ADR-0022): the
 # converse request stream chains the caller's decision stream onto the user
 # turn with tokio-stream's once/chain/map combinators.

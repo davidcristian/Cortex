@@ -1,6 +1,8 @@
 //! The body-side `BodyService` server: the brain's OS-action calls, translated to the
 //! `body_core` OS ports (ADR-0023) in the first brain→body direction of the seam.
 
+use std::sync::Arc;
+
 use body_core::{AudioControl, AudioError, Notification, Notify, NotifyError, VolumeChange};
 use tonic::service::interceptor::InterceptedService;
 use tonic::{Request, Response, Status};
@@ -15,15 +17,18 @@ use crate::generated::{
 
 /// The `BodyService` implementation over the host's OS backends.
 pub struct OsService<A: AudioControl, N: Notify> {
-    audio: A,
-    notifier: N,
+    audio: Arc<A>,
+    notifier: Arc<N>,
 }
 
 impl<A: AudioControl, N: Notify> OsService<A, N> {
     /// Wraps `audio` and `notifier` as the `BodyService` handlers.
     #[must_use]
-    pub const fn new(audio: A, notifier: N) -> Self {
-        Self { audio, notifier }
+    pub fn new(audio: A, notifier: N) -> Self {
+        Self {
+            audio: Arc::new(audio),
+            notifier: Arc::new(notifier),
+        }
     }
 }
 
@@ -33,10 +38,8 @@ impl<A: AudioControl + 'static, N: Notify + 'static> BodyService for OsService<A
         &self,
         _request: Request<GetVolumeRequest>,
     ) -> Result<Response<PbVolumeState>, Status> {
-        let state = self
-            .audio
-            .get_volume()
-            .map_err(|error| audio_error_to_status(&error))?;
+        let audio = Arc::clone(&self.audio);
+        let state = off_worker(move || audio.get_volume(), audio_error_to_status).await?;
         Ok(Response::new(PbVolumeState {
             level: state.level,
             muted: state.muted,
@@ -48,10 +51,9 @@ impl<A: AudioControl + 'static, N: Notify + 'static> BodyService for OsService<A
         request: Request<SetVolumeRequest>,
     ) -> Result<Response<PbVolumeState>, Status> {
         let SetVolumeRequest { level, mute } = request.into_inner();
-        let state = self
-            .audio
-            .set_volume(VolumeChange::new(level, mute))
-            .map_err(|error| audio_error_to_status(&error))?;
+        let change = VolumeChange::new(level, mute);
+        let audio = Arc::clone(&self.audio);
+        let state = off_worker(move || audio.set_volume(change), audio_error_to_status).await?;
         Ok(Response::new(PbVolumeState {
             level: state.level,
             muted: state.muted,
@@ -87,11 +89,28 @@ impl<A: AudioControl + 'static, N: Notify + 'static> BodyService for OsService<A
             reminder_id,
             tainted,
         } = request.into_inner();
-        let shown = self
-            .notifier
-            .show(&Notification::new(&title, &body, &reminder_id, tainted))
-            .map_err(|error| notify_error_to_status(&error))?;
+        let notification = Notification::new(&title, &body, &reminder_id, tainted);
+        let notifier = Arc::clone(&self.notifier);
+        let shown =
+            off_worker(move || notifier.show(&notification), notify_error_to_status).await?;
         Ok(Response::new(NotifyReply { shown }))
+    }
+}
+
+/// Runs one synchronous OS call on tokio's blocking pool and awaits its answer, mapping a
+/// backend failure with `to_status` (ADR-0023's deferred `spawn_blocking`).
+async fn off_worker<T, E>(
+    call: impl FnOnce() -> Result<T, E> + Send + 'static,
+    to_status: impl FnOnce(&E) -> Status,
+) -> Result<T, Status>
+where
+    T: Send + 'static,
+    E: Send + 'static,
+{
+    match tokio::task::spawn_blocking(call).await {
+        Ok(Ok(value)) => Ok(value),
+        Ok(Err(error)) => Err(to_status(&error)),
+        Err(join) => Err(Status::internal(format!("the OS call failed: {join}"))),
     }
 }
 

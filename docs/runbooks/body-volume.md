@@ -11,8 +11,9 @@ and the host-only Windows validation with real Core Audio.
 - The brain reads `CORTEX_BODY_BACKEND=grpc` + `CORTEX_BODY_ENDPOINT` (default
   `host.docker.internal:50151`) and builds a `GrpcBodyGateway` (`cortex_body_client`).
 - The body binds `CORTEX_BODY_ADDR` (default `127.0.0.1:50151`) and serves
-  `body_rpc::body_service(WindowsAudioControl, token)`, the `BodyService` server fronted by the
-  `SeamTokenValidator`.
+  `body_rpc::body_service(WindowsAudioControl::new(), WindowsNotify::new(&app_id), &token)`, the
+  `BodyService` server fronted by the `SeamTokenValidator`. Each handler runs its synchronous OS
+  call on a blocking thread, so a slow endpoint never parks the runtime.
 - The seam token is the **same** shared `CORTEX_SEAM_TOKEN` as the `BrainService` direction: the
   brain client attaches `x-cortex-seam-token`, the body server checks it (ADR-0016, mirrored).
   Empty disables auth both ways.

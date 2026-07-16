@@ -81,6 +81,19 @@ line cap.
     applied, and answers `NotifyReply { shown }`; `capture_screen`/`inject_input`
     answer `Status::unimplemented` until their slices (10 / later). No state is held. Volume is
     read from the OS on demand and a notification is fire and forget (the one hard rule).
+  - `off_worker(call, to_status)` is where every handler's **one synchronous OS call**
+    actually runs: `tokio::task::spawn_blocking`, not inline (the ADR-0023 deferral, closed
+    2026-07-16). Both OS ports are sync because the OS is (Core Audio and the toast manager
+    are COM, which has no async form), and a COM call parks its thread for as long as the
+    audio stack or the notification service takes; inline that would park an **async worker**
+    of the runtime the overlay's own seam calls share. The backends therefore sit behind an
+    `Arc` inside `OsService`, purely so a handler can lend one to the blocking thread; the
+    service still holds no state. Nothing COM-shaped crosses a thread, which is what makes
+    this safe rather than a bug: `WindowsAudioControl` is a unit struct and `WindowsNotify` an
+    app-id string, and each resolves its own interface *inside* the closure, so every COM
+    pointer is created and dropped on the one thread that uses it. A backend that panics
+    mid-call arrives as a join failure and answers `Internal`, because letting the panic
+    escape the handler would cost the brain the whole connection instead of one call.
   - `audio_error_to_status(&AudioError) -> Status` is the inverse of
     `client::status_to_error`: `NoEndpoint`→`Unavailable` (transient, like a dead
     backend), `Backend`→`Internal`. `notify_error_to_status(&NotifyError) -> Status` splits
@@ -183,10 +196,17 @@ Being ignored, they never run in CI and never count toward coverage.
   recorded `Notification` proves the wire text reached the backend already inert and badged
   (the fake holds its record behind an `Arc`, so the test reads what actually crossed after
   the fake moved into the server), a declined one answering `shown=false` rather than a
-  status, and both `notify_error_to_status` arms.
+  status, and both `notify_error_to_status` arms. `off_worker` adds three more: both fakes
+  record **which thread** each call ran on, and since `#[tokio::test]` is a current-thread
+  runtime (the whole server runs on the test's own thread), a backend reporting a different
+  thread is the proof the call left the async worker; a panicking audio backend answers
+  `Internal` twice over the *same* channel, proving the connection survives it; a panicking
+  notification backend answers the same way.
 
 **Dependencies.** `body-core` (the port), `tonic` + `tonic-prost` + `prost`, plus
 `async-stream` (builds the `converse` reply mapping), `tokio-stream` (chains the confirm
-decisions onto the request stream, promoted from dev-only in Slice 8.8, ADR-0022) and
-`futures-core` (the `Stream` trait); build-dependency `tonic-prost-build` (idle unless
-`CORTEX_REGEN_PROTO=1`); dev-only `tokio`.
+decisions onto the request stream, promoted from dev-only in Slice 8.8, ADR-0022),
+`futures-core` (the `Stream` trait) and `tokio` with `rt` only (`spawn_blocking` for the
+synchronous OS calls); build-dependency `tonic-prost-build` (idle unless
+`CORTEX_REGEN_PROTO=1`); dev-only `tokio` features (`macros`, `net`, `rt-multi-thread`,
+`sync`).
