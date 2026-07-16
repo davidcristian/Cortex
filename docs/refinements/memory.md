@@ -2,7 +2,7 @@
 
 Deferred refinements from the Slice 5 memory work under [ADR-0008](../adr/ADR-0008-memory-v1.md): the memory store, its scoping seam, and the pure-core recall policies. Extracted from the ROADMAP's deferred-refinements section on 2026-07-15 with the entries kept verbatim; landed entries are the historical record of what each deferral became, and the index at [index.md](index.md) carries the recommended pickup order.
 
-**Open items:** session+global union read policy, per-scope retention/eviction, cross-scope recall ranking, tiered / self-editing memory + summarization, model-based reranker, surfacing the blended relevance, write-salience policy, ANN index
+**Open items:** session+global union read policy, per-scope retention/eviction, cross-scope recall ranking, tiered / self-editing memory + summarization, model-based reranker, write-salience policy, recall observability, ANN index
 
 **Memory in Slice 5 ([ADR-0008](../adr/ADR-0008-memory-v1.md)):**
 - **Per-session / namespaced scoping landed 2026-07-06 ([ADR-0008 scoping addendum](../adr/ADR-0008-memory-v1.md)).**
@@ -73,11 +73,47 @@ Deferred refinements from the Slice 5 memory work under [ADR-0008](../adr/ADR-00
   blended relevance**, which is behind the unchanged seam. The opt-in policies and their shared math were split into
   `rerank_policies.py` (the port and the default `RawRecallPolicy` stay in `rerank.py`) at the
   300-line cap as this landed.
+- **Surfacing the blended relevance as a distinct field closed 2026-07-16 as declined, no consumer
+  ([ADR-0008 relevance-field addendum](../adr/ADR-0008-memory-v1.md)).** The three rerank entries
+  above each carried it as the one reranker deferral behind the unchanged seam. That is true of its
+  *cost* and had been read as readiness; two findings closed it instead. **Nothing reads a recall
+  score.** `ScoredMemory.score` is written by both store adapters and consumed only by the policies
+  themselves (as an input) and by tests. The single production consumer of a recall result,
+  `TurnEngine._render_memory_context` (`engine.py`), reads `record.text`, `record.tainted`, and
+  `record.id`, and never touches `score`. The seam carries no memory at all (`proto/body.proto` has
+  no memory message), the recall path has no logging and no audit sink, and the origin addendum
+  itself conditioned the entry on "should a consumer ever need to display it". **And there is no
+  single blend to surface.** The opt-in policies rank by three different quantities:
+  `RerankingRecallPolicy` by the recency blend (comparable across hits), while `MmrRecallPolicy` and
+  `RecencyMmrRecallPolicy` rank by an MMR objective computed against the kept set at pick time,
+  which is order-dependent and therefore not comparable between hits in one result. **Cost
+  correction:** the "unchanged seam" reading holds only for the design the addendum warns against,
+  adding the field to `ScoredMemory` itself, the store's own output type, which would then have to
+  carry a blend no store computes. Keeping the two quantities distinct means widening
+  `RecallPolicy.select`'s return, the same signature the model-based reranker is blocked on widening
+  to async, so a consumer should reopen both at once rather than change `select` twice. Verified
+  live against pgvector: the adapter reports cosine similarity (a probe row at distance 0.0002 came
+  back as score 0.9998), and under `reranked` the emitted order was scores 0.6000, 0.9998, 0.7071,
+  which the reported field does not explain while the blend (0.7131, 0.6999, 0.5700) does. What the
+  close keeps instead is the invariant, stated on the type a reader actually opens: `ScoredMemory`
+  now documents that its score is the store's raw cosine and never a policy's rank key, which is
+  what stops the two quantities being confused in the meantime. **Reopens** the first time
+  a surface displays or logs a recall hit's ranking, and it is then a `select` change, not a field.
 - **Write-salience policy.** v1 records the raw exchange text every turn; deciding what
   *deserves* remembering (salience filtering at record time) is a later policy (ADR-0008 risks).
   Its summarization half is adjacent to the tiered-memory entry above. **Cost correction:** a
   policy that can decline to record does not fit the current shape, because
   `MemoryRecaller.record` returns a **non-optional** `MemoryRecord`; the return has to widen
   (or the decision move to the caller) before anything can drop a write.
+- **Recall observability, opened 2026-07-16 by the blended-relevance close.** Answering "why did
+  recall return these?" today means writing a throwaway script against the store, which is exactly
+  what that close's live check had to do: the recall path emits nothing. The core has no logger at
+  all, and the only observability port of this shape is `ToolAuditSink` (ADR-0009), which memory has
+  no analog of, so this is a **new port plus a sink adapter**, not a field on `ScoredMemory`, and
+  that is why it is not a cheap follow-on to the close that named it. It is also the consumer that
+  would **reopen** the declined field: a sink recording a hit's rank key is the first code that
+  reads one, and it should then arrive as a `RecallPolicy.select` widening rather than a second
+  field on the store's own output type. **Fix when it bites:** the first time a real session recalls
+  something visibly wrong and the ranking cannot be inspected after the fact.
 - **ANN index.** Exact cosine now; an approximate index would need a migration, per
   [ADR-0004](../adr/ADR-0004-model-lineup.md).
