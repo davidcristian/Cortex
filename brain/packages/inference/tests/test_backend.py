@@ -1,7 +1,8 @@
 """Behavior tests for LlamaCppBackend: SSE streaming, message mapping, error mapping."""
 
+import asyncio
 import json
-from collections.abc import Callable
+from collections.abc import AsyncIterator, Callable
 from datetime import UTC, datetime
 
 import httpx
@@ -330,3 +331,53 @@ async def test_malformed_tool_call_arguments_raise_inference_error() -> None:
     stream = _backend(handler).stream("cortex", _messages(), tools=[_read_spec()])
     with pytest.raises(InferenceError, match="malformed tool-call arguments"):
         [event async for event in stream]
+
+
+class _BlockingStream(httpx.AsyncByteStream):
+    """A response body that yields one SSE line, then suspends forever (until cancelled)."""
+
+    def __init__(self, first: bytes, streaming: asyncio.Event, release: asyncio.Event) -> None:
+        self._first = first
+        self._streaming = streaming
+        self._release = release
+
+    async def __aiter__(self) -> AsyncIterator[bytes]:
+        yield self._first
+        # Reached only when httpx pulls the body a SECOND time, which the backend does only
+        # after it has surfaced the first line's TextChunk. So `streaming` being set proves
+        # inference was genuinely in flight (a delta emitted) before the block below suspends.
+        self._streaming.set()
+        await self._release.wait()  # never set: suspend mid-stream, lease held, until cancel
+
+    async def aclose(self) -> None:
+        return None
+
+
+async def test_cancelling_mid_stream_frees_the_model_lease() -> None:
+    """Cancelling a turn task mid-inference must release the GPU lease so the next turn runs."""
+    manager = SingleResidentModelManager("cortex", _ENDPOINT)
+    streaming = asyncio.Event()  # set once the body has streamed its first line (lease held)
+    release = asyncio.Event()  # never set: the body blocks here until the consumer is cancelled
+    first = _sse(_chunk({"content": "partial"}))
+
+    def handler(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, stream=_BlockingStream(first, streaming, release))
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    backend = LlamaCppBackend(manager, client)
+
+    async def consume() -> None:
+        async for _event in backend.stream("cortex", _messages()):
+            pass  # drain: the body suspends after the first delta, holding the lease
+
+    task = asyncio.create_task(consume())
+    async with asyncio.timeout(5.0):
+        await streaming.wait()  # a delta was surfaced; the task is now suspended, lease held
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+    # The lease must be free: a fresh acquire returns at once. A leaked lock deadlocks here.
+    async with asyncio.timeout(5.0):
+        async with manager.acquire("cortex") as lease:
+            assert lease.endpoint == _ENDPOINT
+    await client.aclose()
