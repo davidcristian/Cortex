@@ -3,7 +3,7 @@
 This area's deferrals originate in [ADR-0022](../adr/ADR-0022-email-write-confirmer.md), the
 email-write and Confirmer decision. Extracted from the ROADMAP's deferred-refinements section on 2026-07-15 with the entries kept verbatim; landed entries are the historical record of what each deferral became, and the index at [index.md](index.md) carries the recommended pickup order.
 
-**Open items:** real-file attachments (bytes the assistant did not author), per-field attachment schema descriptions, trust overlays for remote tools, batching / per-tool session allowlists, ToolActivity wire phase field. Confirm-with-provenance for tainted turns was **declined 2026-07-16** (annotated in place below); subagent tool-step surfacing **landed 2026-07-16** as one side channel with the progress-reporting entry from [subagents.md](subagents.md) (annotated in place below).
+**Open items:** per-field attachment schema descriptions, trust overlays for remote tools, batching / per-tool session allowlists, ToolActivity wire phase field. Real-file attachments (bytes the assistant did not author) was **declined 2026-07-16** (the capability kept ungranted, annotated in place below); confirm-with-provenance for tainted turns was **declined 2026-07-16** (annotated in place below); subagent tool-step surfacing **landed 2026-07-16** as one side channel with the progress-reporting entry from [subagents.md](subagents.md) (annotated in place below).
 
 **Email-write & the Confirmer in Slice 8.8 ([ADR-0022](../adr/ADR-0022-email-write-confirmer.md)):**
 each behind the unchanged `Confirmer`/`ToolDispatcher`/`GatedToolRegistry`/seam shapes.
@@ -79,6 +79,27 @@ each behind the unchanged `Confirmer`/`ToolDispatcher`/`GatedToolRegistry`/seam 
   entry's `description`, so the model is already told what an attachment is and is not; only
   per-field prose would need `Field(description=...)`, and that would put pydantic in the pure
   values module to say what the type names already say.
+  **Real-file attachments (bytes the assistant did not author) declined 2026-07-16 ([ADR-0022
+  real-file addendum](../adr/ADR-0022-email-write-confirmer.md)).** The capability stays ungranted:
+  the email sidecar keeps no filesystem access and `send_email` keeps attaching only authored text.
+  Read against the code first. Send exists and attaches text the model wrote (`EmailAttachment.content`
+  is a `str` composed as a `text/<subtype>` part in `cortex_email/smtp.py`, the tool docstring
+  telling the model "a file on disk cannot be attached"); the `mcp-email` service declares no
+  `volumes:` in `docker/docker-compose.email.yml`, so "a real file" means granting the one outbound
+  sidecar the new power to read local disk. That fuses read-local with write-remote in the process
+  whose job is to leave the machine, the exfil-via-`send_email` surface the tainted block
+  (`cortex_core/dispatch.py`) exists to deny. The deeper finding is that the taint boundary already
+  closes the *useful* path: reading a file's bytes into the turn taints it (`ToolResult` defaults
+  `UNTRUSTED`, `TaintLedger.mark` flips the turn, a gated call on a tainted turn is `DENIED_MSG` with
+  the confirmer unconsulted), so a real-file attachment is only useful if the bytes reach the sidecar
+  without entering the model's context, which is exactly the arbitrary-file exfiltration channel. A
+  digest-bound card binds approval to the *bytes* (catching a swap between click and send) but never
+  to the file *choice*, and the choice is what an injection controls, the same "the card makes the
+  user the target" failure that declined confirm-with-provenance the same day. The safe design, if a
+  consumer ever needs it, is recorded at the ADR addendum: a narrowly-scoped source (an allowlisted
+  outbox mount or an opaque handle, never an arbitrary path), the file choice gated by taint so
+  injected content cannot pick it, and the digest-bound card on top, which is a slice and the right
+  shape only when something needs it. Moves to the index's dead-until-a-consumer list.
 - **The structured confirm-resolution event landed 2026-07-14 ([ADR-0022 resolution
   addendum](../adr/ADR-0022-email-write-confirmer.md)).** This entry's cost estimate was the
   understated kind the section warns about: it read as an overlay refinement, and it is a
