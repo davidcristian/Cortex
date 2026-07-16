@@ -12,8 +12,8 @@ use body_core::{BrainTransport, ConfirmDecision, TransportError, TurnEvent, retr
 use body_rpc::BrainSeamClient;
 use futures_util::{StreamExt, pin_mut};
 use serde::Serialize;
-use tauri::ipc::Channel;
 use tauri::State;
+use tauri::ipc::Channel;
 use tokio_stream::wrappers::UnboundedReceiverStream;
 
 use crate::confirm::ConfirmRoute;
@@ -35,15 +35,40 @@ pub struct WireMessage {
 
 /// The `TurnEvent` mirror sent to the overlay (matches `TurnEvent` in types.ts).
 #[derive(Serialize)]
-#[serde(tag = "kind", rename_all = "camelCase", rename_all_fields = "camelCase")]
+#[serde(
+    tag = "kind",
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase"
+)]
 enum WireEvent {
-    Delta { text: String },
-    ToolActivity { tool_name: String, summary: String },
-    Status { state: String, detail: String },
-    ConfirmRequest { confirm_id: String, tool_name: String, arguments_json: String, reason: String },
-    ConfirmResolved { confirm_id: String, outcome: String },
-    Complete { turn_id: String },
-    Failed { code: String, message: String },
+    Delta {
+        text: String,
+    },
+    ToolActivity {
+        tool_name: String,
+        summary: String,
+    },
+    Status {
+        state: String,
+        detail: String,
+    },
+    ConfirmRequest {
+        confirm_id: String,
+        tool_name: String,
+        arguments_json: String,
+        reason: String,
+    },
+    ConfirmResolved {
+        confirm_id: String,
+        outcome: String,
+    },
+    Complete {
+        turn_id: String,
+    },
+    Failed {
+        code: String,
+        message: String,
+    },
 }
 
 /// The `TransportError` mirror (matches `TransportError` in types.ts).
@@ -61,12 +86,24 @@ impl From<TurnEvent> for WireEvent {
                 Self::ToolActivity { tool_name, summary }
             }
             TurnEvent::Status { state, detail } => Self::Status { state, detail },
-            TurnEvent::ConfirmRequest { confirm_id, tool_name, arguments_json, reason } => {
-                Self::ConfirmRequest { confirm_id, tool_name, arguments_json, reason }
-            }
-            TurnEvent::ConfirmResolved { confirm_id, outcome } => {
-                Self::ConfirmResolved { confirm_id, outcome }
-            }
+            TurnEvent::ConfirmRequest {
+                confirm_id,
+                tool_name,
+                arguments_json,
+                reason,
+            } => Self::ConfirmRequest {
+                confirm_id,
+                tool_name,
+                arguments_json,
+                reason,
+            },
+            TurnEvent::ConfirmResolved {
+                confirm_id,
+                outcome,
+            } => Self::ConfirmResolved {
+                confirm_id,
+                outcome,
+            },
             TurnEvent::Complete { turn_id } => Self::Complete { turn_id },
             TurnEvent::Failed { code, message } => Self::Failed { code, message },
         }
@@ -76,22 +113,35 @@ impl From<TurnEvent> for WireEvent {
 impl From<TransportError> for WireError {
     fn from(error: TransportError) -> Self {
         match error {
-            TransportError::Connection(message) => Self { kind: "connection", message },
-            TransportError::Rpc { code, message } => {
-                Self { kind: "rpc", message: format!("{code}: {message}") }
-            }
-            TransportError::Protocol(message) => Self { kind: "protocol", message },
+            TransportError::Connection(message) => Self {
+                kind: "connection",
+                message,
+            },
+            TransportError::Rpc { code, message } => Self {
+                kind: "rpc",
+                message: format!("{code}: {message}"),
+            },
+            TransportError::Protocol(message) => Self {
+                kind: "protocol",
+                message,
+            },
         }
     }
 }
 
 impl WireMessage {
     fn event(event: TurnEvent) -> Self {
-        Self { event: Some(event.into()), error: None }
+        Self {
+            event: Some(event.into()),
+            error: None,
+        }
     }
 
     fn error(error: TransportError) -> Self {
-        Self { event: None, error: Some(error.into()) }
+        Self {
+            event: None,
+            error: Some(error.into()),
+        }
     }
 }
 

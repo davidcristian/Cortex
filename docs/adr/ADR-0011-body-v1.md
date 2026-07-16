@@ -245,3 +245,29 @@ backdrop-filter bounds the backdrop root and a child's blur cannot reach the his
 it, so the sheet layers the panel tint over the solid ground instead; and the demo bridge
 gained a short thinking pause plus a status event before streaming, so the new working
 affordances are visible (and hand-verifiable) in plain browser dev.
+
+## Addendum (2026-07-16): the "not CI-checked" risk came due, and is now a recorded deferral
+
+The Risks section above accepted that the Windows backend is not fmt/clippy/build checked in
+CI, and decision 5 put the Tauri shell outside the gated workspace for the same kind of
+reason. Both remain right. What neither said is that no signal reports the consequence, so
+findings accumulate in the two trees until somebody happens to look. On 2026-07-16 somebody
+did: five clippy warnings and three files rustfmt would rewrite, none of them a regression
+from the work in flight. Two `clippy::collapsible_if` in the shell's `confirm.rs`, three
+pedantic findings in `os_windows/src/audio.rs` (one `unused_self`, two
+`needless_pass_by_value`), and `cargo fmt` diffs in `confirm.rs`, `converse.rs`, and
+`tray.rs`, the last only an import order the 2024 style edition reversed. They were
+fixed on the spot, and both trees were then verified clean from Linux: the shell against a
+userspace `libdbus-1-dev` prefix with a `pkg-config` shim, `os_windows` against the real
+`windows` crate on the `x86_64-pc-windows-msvc` target, which clippy can type-check without
+an MSVC toolchain because it never links.
+
+**Deferred here, recorded in [docs/refinements/repo-gates.md](../refinements/repo-gates.md):**
+**folding `cargo fmt --check` and `cargo clippy` for both trees into `just check`.** The
+format half is nearly free (rustfmt only parses, and it alone would have caught three of the
+eight); the lint half costs a `rustup target add` plus a `windows`-crate fetch for
+`os_windows`, the Linux GTK/webkit/dbus dev packages for the shell, and a cold Rust build in
+CI for trees whose dependencies are otherwise never fetched. Coverage is explicitly **not**
+part of it: this
+ADR excludes both trees from the coverage gate on purpose, and a cross-target clippy is a
+compile check rather than a run.
