@@ -215,6 +215,38 @@ describe("overlayState reducer", () => {
     expect(open.messages).toEqual([]);
   });
 
+  it("openSession shows the switcher's authoritative title, not a locally re-derived one", () => {
+    const messages: SessionMessage[] = [
+      { role: "user", text: "about cats", turnId: "t", atUnixMs: 1 },
+      { role: "assistant", text: "cats are great", turnId: "t", atUnixMs: 2 },
+    ];
+    const listed = reduce(initialState, {
+      kind: "sessionsLoaded",
+      sessions: [
+        { sessionId: "chat-7", title: "Everything about cats", preview: "p", lastActivityUnixMs: 2 },
+      ],
+    });
+    const open = reduce(listed, { kind: "openSession", sessionId: "chat-7", messages });
+    expect(open.title).toBe("Everything about cats");
+  });
+
+  it("openSession falls back to the local derivation for a chat absent from the list", () => {
+    // A reminder deep-link can open a chat outside the loaded recency window: no summary is in
+    // hand, so the first-message derivation stands (the recorded residual of this fix, whose
+    // disagreement the switcher cannot show anyway, having no row for the out-of-window chat).
+    const messages: SessionMessage[] = [
+      { role: "user", text: "about dogs", turnId: "t", atUnixMs: 1 },
+    ];
+    const listed = reduce(initialState, {
+      kind: "sessionsLoaded",
+      sessions: [
+        { sessionId: "elsewhere", title: "unrelated chat", preview: "p", lastActivityUnixMs: 2 },
+      ],
+    });
+    const open = reduce(listed, { kind: "openSession", sessionId: "chat-9", messages });
+    expect(open.title).toBe("about dogs");
+  });
+
   it("adoptSession hydrates like openSession but keeps the overlay hidden", () => {
     const messages: SessionMessage[] = [
       { role: "user", text: "about cats", turnId: "t", atUnixMs: 1 },
@@ -229,6 +261,22 @@ describe("overlayState reducer", () => {
       ["user", "about cats", false],
       ["assistant", "cats are great", false],
     ]);
+  });
+
+  it("adoptSession shows the most recent chat's switcher title, not a re-derived one", () => {
+    // Cold-start adoption targets `sessions[0]`, always in the loaded list, so it too carries
+    // the authoritative title: summoning lands on a header that matches the switcher's top row.
+    const messages: SessionMessage[] = [
+      { role: "user", text: "about cats", turnId: "t", atUnixMs: 1 },
+    ];
+    const listed = reduce(initialState, {
+      kind: "sessionsLoaded",
+      sessions: [
+        { sessionId: "chat-7", title: "Everything about cats", preview: "p", lastActivityUnixMs: 2 },
+      ],
+    });
+    const adopted = reduce(listed, { kind: "adoptSession", sessionId: "chat-7", messages });
+    expect(adopted.title).toBe("Everything about cats");
   });
 
   it("adoptSession is a no-op once the overlay was summoned", () => {

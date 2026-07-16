@@ -33,7 +33,13 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
   `tauriBridge.ts`, `demoBridge.ts`, and `main.tsx` are coverage-excluded (the un-gated glue);
   everything else is 100% line + branch. `useOverlay` owns the `session_id` (minted per new chat)
   and the store-backed chat list (loaded on mount + after each turn; a chat's history loads on
-  select/cycle). On cold start the first list arrival adopts the most recent chat into the
+  select/cycle). The open-chat **header title** is the switcher's own `SessionSummary.title` for
+  that chat, read from the loaded `state.sessions` by `openSession`/`adoptSession` (`headerTitle` in
+  `sessionState.ts`), so the header and the switcher row agree by construction (a stored generated
+  title, a user rename, or the brain-side truncation bound, ADR-0021 header-title addendum) instead
+  of re-deriving the header locally; only a chat absent from the loaded list (a reminder deep-link
+  past the recency window) falls back to the local `deriveTitle`. On cold start the first list
+  arrival adopts the most recent chat into the
   still-hidden overlay (ADR-0021 addendum): the `adoptSession` reducer action hydrates like
   `openSession` but preserves `mode` and no-ops unless the overlay's `touched` flag is still
   false (set by open/submit/new-chat/cycle, so a racing user action wins; a `seq`/`messages`

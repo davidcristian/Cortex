@@ -32,7 +32,17 @@ function titleFor(messages: readonly SessionMessage[]): string {
   return firstUser ? deriveTitle(firstUser.text) : NEW_CHAT_TITLE;
 }
 
-/** Load a stored chat into the panel: hydrate its messages, derive the header title. */
+/** The header title for a chat being loaded into the panel (ADR-0021 titles addendum). */
+function headerTitle(
+  sessions: readonly SessionSummary[],
+  sessionId: string,
+  messages: readonly SessionMessage[],
+): string {
+  const summary = sessions.find((s) => s.sessionId === sessionId);
+  return summary ? summary.title : titleFor(messages);
+}
+
+/** Load a stored chat into the panel: hydrate its messages, carry the switcher's title. */
 export function openSession(
   state: OverlayState,
   sessionId: string,
@@ -44,7 +54,7 @@ export function openSession(
     mode: "panel",
     touched: true,
     sessionId,
-    title: titleFor(messages),
+    title: headerTitle(state.sessions, sessionId, messages),
     messages: loaded,
     switcherOpen: false,
     pendingConfirm: null,
@@ -68,7 +78,7 @@ export function adoptSession(
   return {
     ...state,
     sessionId,
-    title: titleFor(messages),
+    title: headerTitle(state.sessions, sessionId, messages),
     messages: loaded,
     seq: loaded.length,
   };

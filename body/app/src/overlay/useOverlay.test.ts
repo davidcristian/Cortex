@@ -233,16 +233,21 @@ describe("useOverlay", () => {
     expect(result.current.state.sessions).toEqual([]);
   });
 
-  it("adopts the most recent chat on cold start, staying hidden", async () => {
+  it("adopts the most recent chat on cold start, staying hidden, with its switcher title", async () => {
     const bridge = new FakeBridge();
-    bridge.sessions = [summary("recent"), summary("older")];
+    // The switcher row for "recent" carries a renamed/generated title distinct from its first
+    // message; the adopted header must match that row, not the locally re-derived first message.
+    bridge.sessions = [
+      { sessionId: "recent", title: "Everything about cats", preview: "p", lastActivityUnixMs: 1000 },
+      summary("older"),
+    ];
     bridge.messagesBySession = {
       recent: [{ role: "user", text: "where we left off", turnId: "t", atUnixMs: 1 }],
     };
     const { result } = renderHook(() => useOverlay(bridge, () => "s1"));
     await flush();
     expect(result.current.state.sessionId).toBe("recent");
-    expect(result.current.state.title).toBe("where we left off");
+    expect(result.current.state.title).toBe("Everything about cats");
     expect(result.current.state.mode).toBe("hidden");
   });
 

@@ -200,7 +200,7 @@ export class DemoBridge implements BrainBridge {
     return Promise.resolve([
       {
         sessionId: "demo-1",
-        title: "How does the model swap work?",
+        title: "Everything about model swaps",
         preview: "The cortex is evicted and the brain loads…",
         lastActivityUnixMs: Date.now() - 5 * 60 * 1000,
       },

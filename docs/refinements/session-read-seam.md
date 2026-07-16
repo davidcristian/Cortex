@@ -3,7 +3,7 @@
 Deferrals from the Slice 8.7 session listing and read seam, whose origin decision is
 [ADR-0021](../adr/ADR-0021-session-read-seam.md). Extracted from the ROADMAP's deferred-refinements section on 2026-07-15 with the entries kept verbatim; landed entries are the historical record of what each deferral became, and the index at [index.md](index.md) carries the recommended pickup order.
 
-**Open items:** live-suite fixed-window residual, open-chat header title consistency, session pinning, session deletion, paging / cursor
+**Open items:** live-suite fixed-window residual, out-of-window authoritative title, session pinning, session deletion, paging / cursor
 
 **Chat history & sessions in Slice 8.7 ([ADR-0021](../adr/ADR-0021-session-read-seam.md)):** each
 behind the unchanged `SessionStore.list_sessions` / `BrainTransport` / `BrainBridge` seams.
@@ -84,6 +84,37 @@ behind the unchanged `SessionStore.list_sessions` / `BrainTransport` / `BrainBri
   brain-contained change cannot deliver. Note the smaller alternative first: the overlay could
   carry the switcher's title into `openSession` when the user picks a row, covering the open path
   without a proto change, but not cold-start adoption or cycling, which load by id.
+  **Landed 2026-07-16 as the overlay-only carry ([ADR-0021 header-title addendum](../adr/ADR-0021-session-read-seam.md)),
+  and both this entry and the index undersold that option.** The header no longer re-derives
+  locally: `openSession` and `adoptSession` read the chat's title from the already-loaded
+  `state.sessions` (the same `SessionSummary.title` the switcher row renders) when the chat is in
+  the list, falling back to the first-message derivation only when it is not (`headerTitle` in
+  `sessionState.ts`). Header and switcher now read one `sessions` snapshot, so they are equal by
+  construction, a stronger guarantee than the proto field: a `title` on `GetSessionMessages` is a
+  second read that a title change between it and `ListSessions` could desync, and it is more surface
+  across four trees for a case the user cannot see (below). The carry closes three disagreements the
+  entry named only one of: a user **rename** (default on, always visible, landed the same day) whose
+  label the header ignored; a **truncation-length** gap (the brain bounds to `TITLE_MAX` 48, the
+  overlay's `deriveTitle` to 32, so a 33-to-48-char first message read longer in the switcher than
+  the header); and a **generated title** (behind `CORTEX_GENERATE_TITLES`). The entry's claim that
+  the carry misses "cold-start adoption or cycling, which load by id" is wrong read against the code:
+  adoption targets `sessions[0]` and cycling targets `cycleTarget(state.sessions, ...)`, so both
+  already target a session in `state.sessions`; doing the lookup in the reducer (not threading the
+  clicked row's title through the click handler, the narrower shape the entry imagined) covers
+  switcher-open, cycling, and adoption alike. Gated at 100% over fakes, with the carry
+  mutation-proven (reverting `headerTitle` to the local derivation reddens the switcher-title tests
+  in `openSession`, `adoptSession`, and the cold-start hook); browser-validated against the demo
+  bridge, live-validated against real Redis (below).
+- **Out-of-window authoritative title.** Opened 2026-07-16 behind the header-title carry above. The
+  carry reads the title from `state.sessions`, so a chat **not** in the loaded recency window still
+  derives its header locally. The only path today that opens a chat absent from that window is a
+  reminder deep-link (`Reminders.tsx` "open chat") to a chat that has fallen outside the loaded
+  `listSessions(50)`; the switcher shows no row for such a chat either, so the disagreement is not
+  user-visible, which is exactly why the overlay-only carry was preferred over the proto field. The
+  authoritative closure is the `title` field on `GetSessionMessages` the entry above named (the same
+  read path the reasoning-persistence entry independently wants widened), dead until a consumer that
+  opens an out-of-window chat beside the switcher exists (toast activation routing once
+  `NotifyRequest` carries a `session_id`, or a search / deep-link by id).
 - **Session deletion / rename / pinning.** Write operations on the catalog, a later *gated* surface
   (Slice 6.5 gate + Slice 8.8 Confirmer), out of scope for this read-only slice.
   **Rename landed 2026-07-16 ([ADR-0021 rename addendum](../adr/ADR-0021-session-read-seam.md)); pin

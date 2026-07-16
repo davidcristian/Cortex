@@ -122,6 +122,20 @@ in-turn tool call, while a rename is user-triggered out of band and reaches no t
 structural user-only reachability, not a card. Pin reshapes the tuned read path (does a pin escape
 the recency window?) and delete could not then cascade to memory (`MemoryStore` had no delete verb,
 since landed the same day as `delete_scope`), so neither could ride rename.
+Session read seam then held at 5 again the same day when the open-chat header-consistency item
+landed as the **overlay-only carry** and opened one entry behind it, the backlog working as intended.
+The carry reads the header title from the already-loaded `state.sessions` (the switcher's own
+`SessionSummary.title`) instead of re-deriving it locally, so the header and the switcher read one
+snapshot and agree by construction (a stronger guarantee than the `GetSessionMessages` title field,
+a second read a change between the two could desync). It closed three disagreements the entry named
+only one of: a default-on user rename the header ignored, a 48-vs-32 truncation gap, and the
+generated title. The entry (and this index) undersold the carry by claiming it misses adoption and
+cycling "which load by id"; read against the code both target a session already in `state.sessions`
+(adoption is `sessions[0]`, cycling is `cycleTarget(state.sessions, ...)`), so a reducer lookup
+covers switcher-open, cycling, and adoption alike. The residual it opened is the out-of-window
+authoritative title: a reminder deep-link to a chat outside the loaded window still derives locally,
+not user-visible (the switcher shows no row for an out-of-window chat to conflict with), dead until
+a consumer opens such a chat beside the switcher and earns the `GetSessionMessages` title field.
 Repo gates went from 0 back to 1 the same day,
 when the two Rust trees `just check` never lints turned out to have been quietly collecting
 findings; that entry originates in [ADR-0011](../adr/ADR-0011-body-v1.md) rather than the
@@ -298,12 +312,6 @@ against the code (the warning above); the entry text tells you which seams it ex
 
 ### Actionable, but a seam or port change comes first
 
-- **Open-chat header title consistency** ([session-read-seam.md](session-read-seam.md)): opened
-  2026-07-16 behind the landed brain-generated titles. The switcher shows the brain title, but the
-  open-chat header re-derives locally, so they can disagree; unifying them needs a `title` on the
-  `GetSessionMessages` read path (a proto field + overlay plumbing). A smaller overlay-only
-  alternative (carry the switcher's title into `openSession`) covers the open path but not
-  cold-start adoption or cycling.
 - **Session pinning** ([session-read-seam.md](session-read-seam.md)): a `SessionStore.set_pinned`
   verb plus a `pinned` field across the wire and all four trees, but the real cost is the read-path
   decision (does a pinned chat escape the recency window, so `list_sessions` must union it in?),
@@ -478,6 +486,16 @@ against the code (the warning above); the entry text tells you which seams it ex
   Persisting reverses a deliberate ephemeral decision, so it is a design change, not a cheap
   follow-on. Declined 2026-07-16; reopens the day a reload re-display or a summarization consumer
   appears, designed with the record the reader needs ([inference-model-manager.md](inference-model-manager.md))
+- **Out-of-window authoritative title**: opened 2026-07-16 behind the overlay-only header-title
+  carry that closed the open-chat consistency item. The carry reads the header title from the loaded
+  `state.sessions`, so a chat outside the loaded recency window (reachable today only by a reminder
+  deep-link to a chat past `listSessions(50)`) still derives its header locally. Not user-visible:
+  the switcher has no row for an out-of-window chat, so no header/switcher disagreement can be seen,
+  which is why the overlay-only carry was preferred over the proto field. The closure is the `title`
+  field on `GetSessionMessages` the consistency entry named, the same read path the reasoning-persistence
+  entry above independently wants widened; reopens with a consumer that opens an out-of-window chat
+  beside the switcher (toast activation routing once `NotifyRequest` carries a `session_id`, or a
+  search / deep-link by id) ([session-read-seam.md](session-read-seam.md))
 - Provenance across the stores: `ScheduledItem` and `SubagentResult` each carry the taint bit
   and no sources, so a fired task's stamp and a subagent's own readings attribute nothing back
   ([untrusted-content.md](untrusted-content.md))
