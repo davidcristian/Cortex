@@ -255,7 +255,7 @@ The reasoning behind each seam is recorded in [docs/adr/](docs/adr/).
 cross-tree consistency scans, run identically by CI, by the pre-commit hook, and
 locally. Design decisions land as ADRs in [docs/adr/](docs/adr/), every module keeps a
 short contract doc in [docs/modules/](docs/modules/), and a refinement that is
-consciously deferred is written down in `docs/refinements/`
+consciously deferred is written down in [docs/refinements/](docs/refinements/index.md)
 instead of lost. Code that touches a real GPU, OS, or network lives in thin adapters
 whose live tests are integration-marked and run by hand on the host; CI runs without a
 GPU. The full working agreement is [AGENTS.md](AGENTS.md).
@@ -295,6 +295,7 @@ GPU. The full working agreement is [AGENTS.md](AGENTS.md).
 | [docs/modules/](docs/modules/) | One short contract doc per module |
 | [docs/runbooks/](docs/runbooks/) | How to bring up and validate each subsystem live |
 | [docs/design/overlay-ux.md](docs/design/overlay-ux.md) | The overlay's UX and visual language |
+| [docs/refinements/](docs/refinements/index.md) | Every consciously deferred refinement, with a pickup order |
 | [docs/ROADMAP.md](docs/ROADMAP.md) | The ordered vertical slices |
 | [AGENTS.md](AGENTS.md) | The rules every change in this repo is held to |
 
