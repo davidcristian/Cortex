@@ -4,6 +4,7 @@ import { type OverlayState, isTurnActive } from "../overlay/overlayState";
 import { Composer } from "./Composer";
 import { ConfirmCard } from "./ConfirmCard";
 import { ChatsIcon, DownArrowKey, PencilIcon, ReturnKey, ShiftKey, TuckIcon, UpArrowKey } from "./icons";
+import { LinkDot } from "./LinkDot";
 import { Message } from "./Message";
 import { Reminders } from "./Reminders";
 import { RingMark } from "./RingMark";
@@ -75,6 +76,7 @@ export function Panel({
   return (
     <div className={`panel${open ? " open" : closed}`} role="dialog" aria-label="Cortex" aria-hidden={!open}>
       <header className="head">
+        <LinkDot link={state.link} />
         <span className="title">{state.title}</span>
         <button
           className="hbtn"

@@ -246,6 +246,87 @@ it, so the sheet layers the panel tint over the solid ground instead; and the de
 gained a short thinking pause plus a status event before streaming, so the new working
 affordances are visible (and hand-verifiable) in plain browser dev.
 
+## Addendum (2026-07-16): the connection indicator ships, derived rather than polled
+
+The 2026-07-03 pass removed the always-green header dot because it was decoration, and the
+2026-07-03 correction recorded that no connection surface existed at all: the `BrainBridge` was
+`converse` only. The bridge has since grown the session reads, the reminder pull, the confirm
+answer, and a resilient transport under all of them. The indicator now lands on top of that, and
+the design decision worth recording is **where the signal comes from**, since the obvious answer
+is the wrong one.
+
+**Rejected: a `Health` poll on a timer.** It spends a request every interval for the entire
+uptime of a tray-resident app, almost always while the overlay is hidden and nobody can see the
+answer, and it is still stale between ticks, which is precisely the window that matters (the
+brain dies one second after a tick and the dot stays green for the rest of the interval).
+
+**Chosen: the freshest fact the overlay already has, plus a probe at the two moments it can be
+stale.** Three sources, in order of how much they cost:
+
+1. **The turn itself.** Every `TurnEvent` is proof the brain is serving, and every
+   `TransportError` on the stream is proof it is not; both already reach the reducer. While
+   anything is happening the indicator is exact and costs nothing.
+2. **One probe per summon**, latched on the rising edge of visibility (the same
+   `useSummonEffect` latch the reminder pull established). The dot is only visible when the
+   overlay is, so that edge is when its truth starts to matter.
+3. **A recovery re-check every 5 s, only while the overlay is visible *and* the link is not
+   ready.** Zero requests in the steady state. This is the one thing the other two cannot do:
+   nothing streams while an open panel sits idle, and a red dot that can only go green by
+   dismissing and re-summoning is a worse lie than no dot. It stops the instant the brain
+   answers ready. The interval is a constant, not an env knob: it is the recovery cadence of a
+   supervised local process, and no operator needs a dial for it. It is also not the whole
+   wait, because the probe underneath is itself patient (see below).
+
+**Four states, because two lie and three are not quite enough.** The seam can report three
+(`body_core::link::LinkState`), and the overlay adds a fourth for what it has not asked yet:
+
+- `ready` (green): the brain answered and reports itself ready.
+- `degraded` (amber): the brain **answered**, and is not serving. That covers `Health` replying
+  `ready = false` (the model-swap case the field exists for), any non-OK gRPC status (a rejected
+  seam token is `Unauthenticated`, a store abort is `Unavailable`), and a reply this side cannot
+  read (`Protocol`). Reporting these as "cannot reach the brain" would send the user to the
+  wrong machine; the brain is right there, refusing.
+- `down` (red): `TransportError::Connection`, which is the only failure that means nothing
+  answered.
+- `unknown` (neutral): nothing has been asked yet. The v1 dot's sin was claiming a state it had
+  not earned, so this one is a real state with its own colour.
+
+**"Connecting" is a modifier, not a state.** Whether a probe is in flight is the overlay's own
+fact and never the seam's, so it rides alongside (`LinkView.probing`) instead of replacing what
+was last proven: the dot keeps its colour and pulses. A reconnect therefore neither flashes
+green nor forgets that it was red, and the routine summon probe on an already-ready link is not
+allowed to look busy at all (the steady state of a working system must not blink). The probe
+also *is* the reconnect attempt, because it runs through the `RetryingTransport` decorator
+(ADR-0024) and `health` is one of the retried idempotent calls: a single probe already spans the
+whole backoff budget before it answers `down`.
+
+**Shape.** `body_core::link` is pure and gated: `LinkStatus::from_health` / `from_error`
+classify, and `probe_link(&transport)` awaits `BrainTransport::health` and never fails (a
+failure *is* the answer, which is what lets the overlay render a state instead of an error). The
+shell's `check_link` command is a lookup over that, infallible for the same reason, mapping even
+a bad `CORTEX_BRAIN_ADDR` to `down` with the reason attached. The overlay grows
+`BrainBridge.checkLink()`, the reducer grows `state.link`, and `components/LinkDot.tsx` renders
+tone + label (a colour alone is not an explanation, so the label is the tooltip *and* the
+accessible name). Themes grow an `ok`/`warn`/`bad` trio drawn from the user's own eight-hue
+ring palette, deepened for the light theme; this is the second sanctioned use of colour in the
+overlay after activity, and it is meaning rather than decoration.
+
+**One thing this proves and one it does not.** A gate caught the interesting failure: chaining
+the recovery re-check off each answer (a `setTimeout` re-armed when `probing` goes false) dies
+silently after a single retry whenever the probe answers inside one React batch, because the
+flip is never rendered and the effect's dependencies never change. It is an interval keyed on
+"visible and unhealthy" for that reason, with an in-flight guard so a slow probe cannot overlap
+a tick. What is *not* proven is readiness beyond liveness: the brain's `Health` returns
+`ready = True` unconditionally today (`server.py`), so "answered any call" and "ready" are the
+same fact, which is why a streamed turn event is allowed to set green.
+
+**Deferred, recorded in [docs/refinements/body-overlay.md](../refinements/body-overlay.md):**
+**streamed brain status**, the push half this deferral originally assumed. It stays unbuilt
+because nothing produces a status the overlay cannot ask for: `Health` has no not-ready path,
+and a mid-turn `StatusUpdate` already reaches the overlay on the stream. When the model manager
+lands (Slice 11) and a swap can make the brain not-ready *between* turns, both halves want
+revisiting together: the push channel, and the rule that any successful call means ready.
+
 ## Addendum (2026-07-16): the "not CI-checked" risk came due, and is now a recorded deferral
 
 The Risks section above accepted that the Windows backend is not fmt/clippy/build checked in

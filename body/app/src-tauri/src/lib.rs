@@ -10,6 +10,7 @@ mod body_server;
 mod confirm;
 mod converse;
 mod hotkey;
+mod link;
 mod reminders;
 mod seam;
 mod sessions;
@@ -39,7 +40,8 @@ pub fn run() {
             sessions::list_sessions,
             sessions::session_messages,
             reminders::list_due_reminders,
-            reminders::ack_reminder
+            reminders::ack_reminder,
+            link::check_link
         ])
         .run(tauri::generate_context!())
         .expect("error while running the Cortex body");

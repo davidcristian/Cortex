@@ -1,10 +1,20 @@
 import type {
   DueReminder,
+  LinkStatus,
   SessionMessage,
   SessionSummary,
   TransportError,
   TurnEvent,
 } from "../bridge/types";
+import {
+  INITIAL_LINK,
+  type LinkView,
+  linkFailed,
+  linkObserved,
+  linkProbeEnded,
+  linkProbing,
+  linkServing,
+} from "./linkState";
 import { NEW_CHAT_TITLE, adoptSession, deriveTitle, openSession } from "./sessionState";
 
 // The overlay's pure state + reducer (ADR-0011, design/overlay-ux.md §4). Kept out of React so
@@ -56,6 +66,8 @@ export interface OverlayState {
   readonly pendingConfirm: PendingConfirm | null;
   /** Fired reminders awaiting delivery, pulled on each open and acked on dismiss (ADR-0025). */
   readonly reminders: readonly DueReminder[];
+  /** What the overlay knows about the brain connection, for the header indicator (`linkState`). */
+  readonly link: LinkView;
   readonly seq: number;
   /**
    * Whether the user has acted on this overlay since mount (opened it, typed, switched, or
@@ -89,6 +101,9 @@ export type Action =
     }
   | { readonly kind: "remindersLoaded"; readonly reminders: readonly DueReminder[] }
   | { readonly kind: "reminderDismissed"; readonly reminderId: string }
+  | { readonly kind: "linkProbing" }
+  | { readonly kind: "linkObserved"; readonly status: LinkStatus }
+  | { readonly kind: "linkProbeEnded" }
   | { readonly kind: "toggleSwitcher" }
   | { readonly kind: "toggleSheet" };
 
@@ -104,6 +119,7 @@ export function createInitialState(sessionId: string): OverlayState {
     sheetOpen: false,
     pendingConfirm: null,
     reminders: [],
+    link: INITIAL_LINK,
     seq: 0,
     touched: false,
   };
@@ -128,10 +144,23 @@ export function reduce(state: OverlayState, action: Action): OverlayState {
       return { ...state, mode: "panel", touched: true };
     case "submit":
       return submit(state, action.text);
-    case "event":
-      return applyEvent(state, action.event);
+    case "event": {
+      // Any event at all is the brain serving, so the turn keeps the indicator honest for free:
+      // no probe fires while a stream is arriving. The identity check keeps a no-op event a
+      // no-op (a late confirm request on a dead turn must not resurrect anything).
+      const next = applyEvent(state, action.event);
+      const link = linkServing(state.link);
+      return link === state.link ? next : { ...next, link };
+    }
     case "transportError":
-      return endTurn(state, action.error.message);
+      // The turn ends *and* the indicator learns: this is the failure the user is looking at.
+      return { ...endTurn(state, action.error.message), link: linkFailed(state.link, action.error) };
+    case "linkProbing":
+      return { ...state, link: linkProbing(state.link) };
+    case "linkObserved":
+      return { ...state, link: linkObserved(action.status) };
+    case "linkProbeEnded":
+      return { ...state, link: linkProbeEnded(state.link) };
     case "dismiss":
       // Dismissing drops any pending approval with it (walking away is a deny, since the brain
       // fails closed by timeout, ADR-0022); the turn itself keeps streaming to the store. The

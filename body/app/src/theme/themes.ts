@@ -1,7 +1,9 @@
 // The overlay's plug-and-play theme system (ADR-0011, design/overlay-ux.md). A theme is a named
 // set of design tokens; adding one to THEMES makes it selectable (no other code changes). Per the
-// design, `accent`/`spark` are the only colorful tokens and are used *only* on working affordances
-// (thinking, streaming, the orb); everything else is a chosen neutral, light or dark.
+// design, `accent`/`spark` are the colorful tokens of *activity* and are used only on working
+// affordances (thinking, streaming, the orb). The status trio (`ok`/`warn`/`bad`) is the one
+// other sanctioned use of colour: the connection indicator, where green/amber/red is the
+// meaning itself rather than decoration. Everything else is a chosen neutral, light or dark.
 
 export type Scheme = "light" | "dark";
 
@@ -19,6 +21,9 @@ export interface ThemeTokens {
   readonly control: string;
   readonly accent: string; // a gradient for activity only (thinking / streaming / orb)
   readonly spark: string; // the "alive" solid accent
+  readonly ok: string; // status: the brain is ready
+  readonly warn: string; // status: reachable, not serving
+  readonly bad: string; // status: unreachable
 }
 
 export interface Theme {
@@ -46,6 +51,12 @@ export const MIDNIGHT: Theme = {
     bubbleAi: "rgba(255, 255, 255, 0.045)",
     field: "rgba(255, 255, 255, 0.06)",
     control: "rgba(255, 255, 255, 0.05)",
+    // The status trio is drawn from the user's own eight-hue palette (the rings' gradient
+    // stops), so the indicator belongs to the design language instead of importing a
+    // traffic-light green from nowhere.
+    ok: "#43D675",
+    warn: "#FFB347",
+    bad: "#FF5F6D",
     ...ACTIVITY,
   },
 };
@@ -64,6 +75,11 @@ export const DAYLIGHT: Theme = {
     bubbleAi: "rgba(20, 16, 40, 0.03)",
     field: "rgba(20, 16, 40, 0.04)",
     control: "rgba(20, 16, 40, 0.05)",
+    // The same three hues, deepened: the palette's own values are tuned for a dark ground and
+    // wash out on a light panel, and a status colour that cannot be read is not a status.
+    ok: "#1EA95C",
+    warn: "#C07408",
+    bad: "#D93B4A",
     ...ACTIVITY,
   },
 };
@@ -101,6 +117,9 @@ export function toCssVars(theme: Theme): Record<string, string> {
     "--control": t.control,
     "--accent": t.accent,
     "--spark": t.spark,
+    "--ok": t.ok,
+    "--warn": t.warn,
+    "--bad": t.bad,
   };
 }
 

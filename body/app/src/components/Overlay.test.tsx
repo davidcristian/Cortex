@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
+import { INITIAL_LINK } from "../overlay/linkState";
 import type { Message, OverlayState } from "../overlay/overlayState";
 import type { OverlayController } from "../overlay/useOverlay";
 import { Overlay } from "./Overlay";
@@ -21,6 +22,7 @@ function fakeController(
       sheetOpen: false,
       pendingConfirm: null,
       reminders: [],
+      link: INITIAL_LINK,
       seq: 0,
       touched: false,
       ...extra,

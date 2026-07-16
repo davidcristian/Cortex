@@ -8,7 +8,9 @@ import {
   isTurnActive,
   reduce,
 } from "./overlayState";
+import { useLink } from "./useLink";
 import { useReminders } from "./useReminders";
+import { useSummonEffect } from "./useSummonEffect";
 
 const PREVIEW_MS = 6000;
 const SESSION_LIST_LIMIT = 50;
@@ -49,8 +51,10 @@ export function useOverlay(
   );
   const cancelRef = useRef<Cancellation | null>(null);
   const [previewHovered, setPreviewHovered] = useState(false);
-  // Reminder pull delivery rides its own hook over the same reducer (ADR-0025).
+  // Reminder pull delivery rides its own hook over the same reducer (ADR-0025), and the
+  // connection indicator its own (ADR-0011 addendum); both are effects over `dispatch` only.
   const dismissReminder = useReminders(bridge, state.mode, dispatch);
+  useLink(bridge, state.mode, state.link, dispatch);
 
   const refreshSessions = useCallback(() => {
     bridge
@@ -96,6 +100,13 @@ export function useOverlay(
       refreshSessions();
     }
   }, [turnActive, refreshSessions]);
+
+  // Refresh it on each summon too (ADR-0021 refresh deferral). Both other triggers can be
+  // arbitrarily old by the time anyone looks: mount happens once for a tray-resident body, and
+  // the last turn may have been days ago. This is also how a list that failed to load (the
+  // brain was down, and the `.catch` above left the switcher empty) fills in once it is back,
+  // which the connection indicator beside it now explains.
+  useSummonEffect(state.mode !== "hidden", refreshSessions);
 
   // Cold-start restore (ADR-0021 refinement): when the first chat list arrives, adopt the
   // most recent stored chat so summoning lands where the user left off instead of an empty

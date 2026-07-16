@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
+import { INITIAL_LINK } from "../overlay/linkState";
 import type { Message, OverlayState } from "../overlay/overlayState";
 import { Panel } from "./Panel";
 
@@ -14,6 +15,7 @@ const state = (over: Partial<OverlayState> = {}): OverlayState => ({
   sheetOpen: false,
   pendingConfirm: null,
   reminders: [],
+  link: INITIAL_LINK,
   seq: 0,
   touched: false,
   ...over,
@@ -95,6 +97,19 @@ describe("Panel", () => {
     expect(onNewChat).toHaveBeenCalledOnce();
     expect(onDismiss).toHaveBeenCalledOnce();
     expect(onToggleSwitcher).toHaveBeenCalledOnce();
+  });
+
+  it("leads the header with the connection indicator, reading the state it was given", () => {
+    renderPanel(
+      { link: { state: "degraded", detail: "store down", probing: false } },
+      true,
+      false,
+    );
+    const dot = screen.getByRole("status");
+    expect(dot.className).toBe("linkdot warn");
+    expect(dot).toHaveAccessibleName("The brain is not serving: store down");
+    // It leads the row: the title reads as the brain's, not the other way round.
+    expect(dot.nextElementSibling?.textContent).toBe("My chat");
   });
 
   it("marks the theme icon dark, is not open when closed, and renders its messages", () => {

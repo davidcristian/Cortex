@@ -4,6 +4,7 @@ import type {
   BrainBridge,
   Cancellation,
   DueReminder,
+  LinkStatus,
   SessionMessage,
   SessionSummary,
   TransportError,
@@ -47,6 +48,13 @@ export class TauriBridge implements BrainBridge {
     return () => {
       live = false;
     };
+  }
+
+  // The connection probe (ADR-0011 addendum). The Rust command is infallible: an unreachable
+  // brain comes back as `{ state: "down", detail }`, not as a rejected promise, so the overlay
+  // never has to guess what a rejection meant.
+  checkLink(): Promise<LinkStatus> {
+    return invoke<LinkStatus>("check_link");
   }
 
   // The read-only session views (ADR-0021): simple request/response Tauri commands

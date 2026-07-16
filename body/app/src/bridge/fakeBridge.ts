@@ -2,6 +2,7 @@ import type {
   BrainBridge,
   Cancellation,
   DueReminder,
+  LinkStatus,
   SessionMessage,
   SessionSummary,
   TransportError,
@@ -24,6 +25,8 @@ export class FakeBridge implements BrainBridge {
   readonly confirms: { readonly confirmId: string; readonly approved: boolean }[] = [];
   /** What `listSessions` resolves with (assignable by a test). */
   sessions: readonly SessionSummary[] = [];
+  /** How many times the chat list was read (proves the mount, turn, and summon triggers). */
+  listCalls = 0;
   /** What `sessionMessages` resolves with, keyed by session id. */
   messagesBySession: Record<string, readonly SessionMessage[]> = {};
   /** When set, the matching read rejects (the transport-failure path). */
@@ -40,6 +43,14 @@ export class FakeBridge implements BrainBridge {
   /** When set, the matching reminder call rejects (an unreachable brain). */
   remindersFail = false;
   ackFails = false;
+  /** What `checkLink` resolves with (assignable by a test; ADR-0011 addendum). */
+  link: LinkStatus = { state: "ready", detail: "fake brain" };
+  /** How many probes the overlay has fired (proves the summon latch + recovery cadence). */
+  linkCalls = 0;
+  /** When set, `checkLink` rejects: the IPC failed, which says nothing about the brain. */
+  linkFails = false;
+  /** When set, `checkLink` never settles, so a test can hold a probe in flight. */
+  linkHangs = false;
 
   converse(sessionId: string, text: string, sink: TurnSink): Cancellation {
     this.calls.push({ sessionId, text });
@@ -49,7 +60,21 @@ export class FakeBridge implements BrainBridge {
     };
   }
 
+  // The real command answers a state even for an unreachable brain, so the fake's default is a
+  // resolved status; `linkFails` is the narrower case of the IPC itself failing.
+  checkLink(): Promise<LinkStatus> {
+    this.linkCalls += 1;
+    if (this.linkHangs) {
+      return new Promise<LinkStatus>(() => undefined);
+    }
+    if (this.linkFails) {
+      return Promise.reject(new Error("probe failed"));
+    }
+    return Promise.resolve(this.link);
+  }
+
   listSessions(_limit: number): Promise<readonly SessionSummary[]> {
+    this.listCalls += 1;
     if (this.listFails) {
       return Promise.reject(new Error("list failed"));
     }

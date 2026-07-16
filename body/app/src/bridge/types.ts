@@ -75,9 +75,30 @@ export interface DueReminder {
   readonly sessionId: string;
 }
 
+/**
+ * What the last seam answer proved about the brain (mirror of the Rust `body_core::LinkState`,
+ * ADR-0011 addendum): `ready` = it answered and reports itself serving, `degraded` = it answered
+ * and is not serving (not ready, a non-OK status, an unreadable reply), `down` = it could not be
+ * reached at all. The overlay adds its own `unknown` for "not asked yet"; the seam never does,
+ * because every probe answers.
+ */
+export type LinkState = "ready" | "degraded" | "down";
+
+/** One classified seam answer: the state plus a display-only line of detail (never parsed). */
+export interface LinkStatus {
+  readonly state: LinkState;
+  readonly detail: string;
+}
+
 /** The overlay's port to the brain. Implemented over Tauri IPC (real) or a fake. */
 export interface BrainBridge {
   converse(sessionId: string, text: string, sink: TurnSink): Cancellation;
+  /**
+   * Probe the seam once for the connection indicator. Resolves with a state even when the
+   * brain is unreachable: a failed probe is an answer about the brain, not an error. The
+   * probe rides the resilient transport, so it is also the reconnect attempt (ADR-0024).
+   */
+  checkLink(): Promise<LinkStatus>;
   /** Recent chats, newest-active first (at most `limit`; `0` = the brain default). */
   listSessions(limit: number): Promise<readonly SessionSummary[]>;
   /** One session's persisted history, in append order. */

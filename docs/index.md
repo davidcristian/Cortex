@@ -209,7 +209,7 @@ New non-obvious decision → add `adr/ADR-XXXX-<slug>.md`, link it here.
   - [brain-orchestrator.md](modules/brain-orchestrator.md) covers `cortex_orchestrator`:
     the gRPC service hosting `BrainService`.
   - [body-core.md](modules/body-core.md) covers `body_core`: pure host types + ports
-    (hotkey chord, `BrainTransport`).
+    (hotkey chord, `BrainTransport`, the `link` connection classification).
   - [body-rpc.md](modules/body-rpc.md) covers `body_rpc`: tonic adapter for `BrainTransport`.
   - [body-os.md](modules/body-os.md) covers `os_windows`/`os_linux`/`os_macos`: per-platform OS
     backends (the `Hotkey` seam; real Windows, cfg-gated stubs elsewhere).

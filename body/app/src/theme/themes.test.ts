@@ -34,11 +34,26 @@ describe("themes", () => {
     }
   });
 
+  it("gives every theme its own status trio, since a status must be readable on its ground", () => {
+    for (const theme of THEMES) {
+      for (const token of [theme.tokens.ok, theme.tokens.warn, theme.tokens.bad]) {
+        expect(token).toMatch(/^#[0-9A-F]{6}$/u);
+      }
+      // Three distinct hues, because the indicator's whole job is telling them apart.
+      expect(new Set([theme.tokens.ok, theme.tokens.warn, theme.tokens.bad]).size).toBe(3);
+    }
+    // Light and dark do not share them: the palette's own values wash out on a light panel.
+    expect(DAYLIGHT.tokens.ok).not.toBe(MIDNIGHT.tokens.ok);
+  });
+
   it("maps tokens to CSS custom properties", () => {
     const vars = toCssVars(MIDNIGHT);
     expect(vars["--bg"]).toBe("#0C0A12");
     expect(vars["--bubble-user"]).toBe(MIDNIGHT.tokens.bubbleUser);
     expect(vars["--accent"]).toBe(MIDNIGHT.tokens.accent);
+    expect(vars["--ok"]).toBe(MIDNIGHT.tokens.ok);
+    expect(vars["--warn"]).toBe(MIDNIGHT.tokens.warn);
+    expect(vars["--bad"]).toBe(MIDNIGHT.tokens.bad);
   });
 
   it("applies a theme's variables and scheme to an element", () => {
