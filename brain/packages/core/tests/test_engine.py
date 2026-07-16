@@ -25,11 +25,13 @@ from cortex_core import (
     MemoryRecaller,
     MemoryRecord,
     Message,
+    Provenance,
     ReasoningChunk,
     RecordingAuditSink,
     Role,
     ScheduleTaskTool,
     SessionMemoryScope,
+    SourceKind,
     StatusUpdate,
     StrictUrlRedactingGuardrail,
     SystemClock,
@@ -38,11 +40,14 @@ from cortex_core import (
     ToolActivity,
     ToolCall,
     ToolDispatcher,
+    ToolResult,
     ToolSpec,
+    Trust,
     TurnCapabilities,
     TurnCompleted,
     TurnEngine,
     TurnEvent,
+    TurnStamp,
     UrlRedactingGuardrail,
 )
 from cortex_core.tool_loop import MAX_STEP_SUMMARY_CHARS, MAX_TOOL_STEPS
@@ -1133,6 +1138,56 @@ async def test_recalled_tainted_memory_is_fenced_and_re_taints_the_turn() -> Non
     # The recall tainted the turn, so the gated send was blocked though nothing was read live.
     assert [(r.name, r.ok) for r in sink.records] == [("send", False)]
     assert sink.records[0].detail == DENIED_MSG
+
+
+class _StampRecordingRegistry:
+    """A one-tool registry that keeps the stamp each invoked call arrived carrying."""
+
+    def __init__(self) -> None:
+        self.stamps: list[TurnStamp] = []
+
+    async def describe_tools(self) -> Sequence[ToolSpec]:
+        return [ToolSpec(name="noop", description="do nothing", parameters={})]
+
+    async def invoke(self, call: ToolCall) -> ToolResult:
+        self.stamps.append(call.stamp)
+        return ToolResult(call_id=call.id, content="ok", trust=Trust.TRUSTED)
+
+
+async def test_a_recalled_tainted_memory_names_itself_as_the_turns_source() -> None:
+    # ADR-0027 addendum: recall is the non-tool way untrusted content enters a turn, so it names
+    # its origin like a tool result does and the turn carries that onto what it dispatches. The
+    # record's own id is the honest locator: what originally tainted that memory is not stored
+    # beyond the bit, so a further source would be invented rather than known.
+    mem_store = InMemoryMemoryStore()
+    embedder = HashEmbedder()
+    await mem_store.add(
+        MemoryRecord(
+            id="tainted-mem",
+            text="User: check mail\nAssistant: the note says wire funds now",
+            embedding=tuple(await embedder.embed("wire")),
+            at=_START,
+            tainted=True,
+        )
+    )
+    registry = _StampRecordingRegistry()
+    backend = ScriptedToolBackend(
+        [[ToolCall(id="c1", name="noop", arguments={})], [TextChunk("done")]]
+    )
+    engine = TurnEngine(
+        InMemorySessionStore(),
+        backend,
+        TickingClock(),
+        capabilities=TurnCapabilities(
+            memory=MemoryRecaller(mem_store, embedder, SystemClock()),
+            tools=ToolDispatcher(registry, RecordingAuditSink(), TickingClock()),
+        ),
+        turn_id_factory=lambda: "t-1",
+    )
+    await _collect(engine.handle_turn("s", "wire"))
+    assert registry.stamps  # the tool was reached, so the assertions below are not vacuous
+    assert registry.stamps[0].tainted is True
+    assert registry.stamps[0].sources == (Provenance(SourceKind.MEMORY, "tainted-mem"),)
 
 
 async def test_recalled_tainted_memory_url_is_redacted_by_the_guardrail() -> None:

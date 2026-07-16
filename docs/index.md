@@ -160,10 +160,13 @@ Start here. Rules for working in this repo: [AGENTS.md](../AGENTS.md).
   hash that really is a commit is flagged. Escape hatch: `dashcheck: allow` plus a reason.
 - [ADR-0027: Structured turn provenance](adr/ADR-0027-turn-provenance.md): the convergence seam
   for four provenance deferrals (ADR-0013/0019/0022/0025). One frozen `TurnStamp`
-  (`session_id` + `tainted`, future source fields join it) replaces the loose taint keyword:
+  (`session_id` + `tainted` + `sources`) replaces the loose taint keyword:
   the dispatcher stamps every call, discarding a model-forged stamp; the engine threads the
   turn's session through `ToolLoopContext`; the ticker stamps a fired item's stored provenance.
   First consumer: `schedule_task` fills `ScheduledItem.session_id`, closing session attribution.
+  The source fields landed with the addendum: kind-tagged `Provenance` values, sanitized and
+  bounded in the pure core so attacker-chosen text is inert, captured from the advertised tool an
+  untrusted result came through and from a recalled tainted memory's id.
 - [ADR-0028: Grammar-constrained subagent output](adr/ADR-0028-grammar-constrained-subagents.md):
   the ADR-0017 option (c) hardening pass. An additive `schema` keyword on the unchanged
   `InferenceBackend` (mapped to a llama.cpp `response_format` `json_schema`) lets the

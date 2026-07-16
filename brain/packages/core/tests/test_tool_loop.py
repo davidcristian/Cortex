@@ -20,9 +20,11 @@ from cortex_core import (
     InMemoryToolRegistry,
     JsonSchema,
     Message,
+    Provenance,
     RecordingAuditSink,
     Role,
     SaliencePolicy,
+    SourceKind,
     TaintLedger,
     TextChunk,
     ToolCall,
@@ -117,17 +119,22 @@ class _ScriptedBackend(_MultiCallBackend):
 
 
 class _StampRecordingRegistry:
-    """A one-tool registry that keeps the stamp each invoked call arrived carrying."""
+    """A one-tool registry that keeps the stamp each invoked call arrived carrying.
 
-    def __init__(self) -> None:
+    ``trust`` is what every result comes back as: ``UNTRUSTED`` makes it stand in for a tool
+    that reads external content, which is what taints the turn and gives it a source.
+    """
+
+    def __init__(self, trust: Trust = Trust.TRUSTED) -> None:
         self.stamps: list[TurnStamp] = []
+        self._trust = trust
 
     async def describe_tools(self) -> Sequence[ToolSpec]:
         return [ToolSpec(name="noop", description="do nothing", parameters={})]
 
     async def invoke(self, call: ToolCall) -> ToolResult:
         self.stamps.append(call.stamp)
-        return ToolResult(call_id=call.id, content="ok", trust=Trust.TRUSTED)
+        return ToolResult(call_id=call.id, content="ok", trust=self._trust)
 
 
 async def _noop_handler(arguments: Mapping[str, object]) -> str:
@@ -336,6 +343,42 @@ async def test_the_dispatch_stamp_carries_the_pool_to_whatever_the_call_spawns()
     await _run(_MultiCallBackend(per_round=1), context)
     assert registry.stamps  # the tool was reached, so the assertion below is not vacuous
     assert all(stamp.budget is pool for stamp in registry.stamps)
+
+
+def _stamp_context(registry: _StampRecordingRegistry) -> ToolLoopContext:
+    """A loop context over a stamp-recording registry, with a fresh ledger and pool."""
+    return ToolLoopContext(
+        dispatcher=ToolDispatcher(registry, RecordingAuditSink(), _TickingClock()),
+        clock=_TickingClock(),
+        turn_id="t-1",
+        taint=TaintLedger(),
+        nonce="n",
+        session_id="s",
+    )
+
+
+async def test_the_dispatch_stamp_carries_the_sources_the_turn_has_read() -> None:
+    # The structured provenance behind the taint bit (ADR-0027 addendum), as live as the bit: the
+    # first dispatch has read nothing, and every later one carries the tool the content came
+    # through, named by the registry's advertisement rather than by the model's call string.
+    registry = _StampRecordingRegistry(trust=Trust.UNTRUSTED)
+    await _run(_MultiCallBackend(per_round=1), _stamp_context(registry))
+    assert len(registry.stamps) == MAX_TOOL_STEPS
+    assert registry.stamps[0] == TurnStamp(session_id="s", tainted=False, sources=())
+    via_noop = (Provenance(SourceKind.TOOL, "noop"),)
+    assert all(stamp.sources == via_noop for stamp in registry.stamps[1:])
+
+
+async def test_a_call_matching_no_advertised_spec_attributes_no_source() -> None:
+    # A name no advertisement snapshot carried (a hallucination, or a tool skip mode hid) can still
+    # reach a live registry. It taints the turn like any untrusted read, but it names no source:
+    # the fallback would be the model's own string, which is exactly what must never be stored.
+    registry = _StampRecordingRegistry(trust=Trust.UNTRUSTED)
+    context = _stamp_context(registry)
+    await _run(_ScriptedBackend(["ghost", "ghost"]), context)
+    assert registry.stamps  # the hidden tool really was invoked
+    assert context.taint.tainted is True
+    assert all(stamp.sources == () for stamp in registry.stamps)
 
 
 class _RepeatBackend(_MultiCallBackend):

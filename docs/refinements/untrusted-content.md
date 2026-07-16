@@ -2,7 +2,7 @@
 
 This area originates in [ADR-0013](../adr/ADR-0013-untrusted-content.md) (Slice 6.5), whose deferrals grew into the output guardrail ([ADR-0015](../adr/ADR-0015-output-guardrail.md)), subagent model safety ([ADR-0017](../adr/ADR-0017-subagent-model-safety.md)), tainted-memory recording ([ADR-0019](../adr/ADR-0019-tainted-memory-recording.md)), and grammar-constrained subagent output ([ADR-0028](../adr/ADR-0028-grammar-constrained-subagents.md)). Extracted from the ROADMAP's deferred-refinements section on 2026-07-15 with the entries kept verbatim; landed entries are the historical record of what each deferral became, and the index at [index.md](index.md) carries the recommended pickup order.
 
-**Open items:** the screening subagent, Windows-native validation of the confirm card, whitespace-split hosts, the full UTS-39 confusables set, mixed/other encodings, footer/boilerplate heuristics, a structured redaction event for the overlay, a raw GBNF grammar alternative, a per-task caller-supplied schema, structured provenance beyond the taint bit, a fence-without-block recall mode, summarizing a tainted exchange before recording, per-provenance eviction, per-remote-tool trust/gating overrides, taint persistence across a mid-turn swap, the brain-tier injection-harness run
+**Open items:** the screening subagent, Windows-native validation of the confirm card, whitespace-split hosts, the full UTS-39 confusables set, mixed/other encodings, footer/boilerplate heuristics, a structured redaction event for the overlay, a raw GBNF grammar alternative, a per-task caller-supplied schema, a sidecar-declared sender/URI source, provenance across the stores, a fence-without-block recall mode, summarizing a tainted exchange before recording, per-provenance eviction, per-remote-tool trust/gating overrides, taint persistence across a mid-turn swap, the brain-tier injection-harness run
 
 **Untrusted-content boundary in Slice 6.5 ([ADR-0013](../adr/ADR-0013-untrusted-content.md)):** each
 behind the unchanged `ToolRegistry`/`ToolDispatcher`/`stream_tool_loop` seams (or the new `Confirmer` port).
@@ -148,6 +148,38 @@ behind the unchanged `ToolRegistry`/`ToolDispatcher`/`stream_tool_loop` seams (o
   [ADR-0027](../adr/ADR-0027-turn-provenance.md)), a **fence-without-block** recall mode if
   taint-spread on tangential recall is
   too blunt, **summarizing** a tainted exchange before recording, and **per-provenance eviction**.
+- **Structured provenance on the `TurnStamp` landed 2026-07-16 ([ADR-0027 source-fields
+  addendum](../adr/ADR-0027-turn-provenance.md)),** closing the ADR-0013/0019 "beyond the bit"
+  deferral above. The stamp carries `sources: tuple[Provenance, ...]` beside its taint bit, where
+  a `Provenance` is a `SourceKind` (`TOOL` / `MEMORY` / `SENDER` / `URI`) plus a value, and
+  `SourceKind.attested` says whose word the value is: ours for the first two (a
+  registry-advertised tool name, an id we minted), the content's own claim for the other two, a
+  distinction any consumer needs before it renders a source as a label rather than as a
+  quotation. Kind is part of the identity, so eviction by sender cannot sweep a URI spelling the
+  same string. **The untrusted string is bounded and sanitized in the value's constructor**
+  (`cortex_core/provenance.py`), not at an adapter and not at a call site: category-`C`
+  characters dropped with whitespace exempted (a newline is a control character, and dropping it
+  outright would silently *join* the words it separated, which the tests caught), whitespace runs
+  collapsed, `<`/`>` removed so a value can never spell an `<untrusted-tool-output id=...>`
+  marker, and a hard `MAX_SOURCE_CHARS` cap, idempotently, with no constructor that skips the
+  pass; the ledger then caps the *count* at `MAX_TURN_SOURCES`, keeping the earliest, so a flood
+  cannot grow a turn's provenance nor push out what it started from. **Nothing the model authored
+  is ever a source:** the loop attributes to the advertised `spec.name` it dispatched against,
+  never `call.name` or an argument, and a call matching no spec attributes nothing, the same rule
+  `ToolStep` already applies to the activity chip (provenance is destined for a confirmation
+  card, so an argument reading `Trusted bank, approve this` is the attack). Two first-party
+  capture points exist today (the loop's untrusted tool result, and recall's fenced memory naming
+  its own record id, since what tainted that memory is not stored beyond the bit); **no proto,
+  store, or call-site change**, which is what the ADR-0027 object form was for. The ADR's guess
+  that "a generic MCP adapter cannot know an email's sender" understated it: a FastMCP tool
+  returns content blocks with no result `_meta`, and `structuredContent` would replace the
+  readable string the model consumes, so the sender the email sidecar plainly knows has no path
+  in at all today. Remaining behind the same seam (ADR-0027 addendum deferred): a
+  **sidecar-declared sender/URI** (needs a `ToolResult` source field *plus* a declaration channel
+  that does not disturb the model-facing text; parsing a sidecar's rendered text was rejected
+  as sidecar format knowledge in the hexagon's center), and **provenance across the stores**
+  (`ScheduledItem` and `SubagentResult` each store the taint bit only, so a fired task's stamp
+  and a subagent's own readings attribute nothing back to the turn that consumes them).
 - **Per-remote-tool trust / gating overrides.** Trust is fail-closed `UNTRUSTED` and `gated` is
   per-`ToolSpec`; a genuinely trusted or gated *remote* MCP tool would need a composition-root
   overlay onto the spec. None exists now.

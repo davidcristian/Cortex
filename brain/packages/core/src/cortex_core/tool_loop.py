@@ -19,11 +19,12 @@ as activity, a subagent drops both).
 
 The loop is also where the untrusted-content boundary is drawn (ADR-0013): an UNTRUSTED result
 is fenced by ``wrap_untrusted`` before it re-enters the context, the per-turn ``TaintLedger``
-observes every result, marking taint so a later gated call is confirmed, and collecting the
-URLs untrusted content carried so the output guardrail can redact a laundered one (ADR-0015)
-and the ledger + nonce ride in the ``ToolLoopContext`` bundle (keeping the loop within its
-argument ceiling). Both callers construct the ledger, so both accumulate taint by the same
-mechanism.
+observes every result, marking taint so a later gated call is confirmed, collecting the
+URLs untrusted content carried so the output guardrail can redact a laundered one (ADR-0015),
+and noting the advertised tool it came through as that content's provenance (ADR-0027
+addendum), which the next dispatch's stamp carries; the ledger + nonce ride in the
+``ToolLoopContext`` bundle (keeping the loop within its argument ceiling). Both callers
+construct the ledger, so both accumulate taint by the same mechanism.
 """
 
 from collections.abc import AsyncGenerator, Sequence
@@ -34,6 +35,7 @@ from cortex_core.conversation import Message, Role
 from cortex_core.dispatch import DispatchRefusal, ToolDispatcher
 from cortex_core.inference import JsonSchema, ReasoningChunk
 from cortex_core.ports import Clock, InferenceBackend
+from cortex_core.provenance import SourceKind, as_source
 from cortex_core.tool_budget import DispatchBudget
 from cortex_core.tools import ToolCall, ToolResult, ToolSpec, Trust, TurnStamp
 from cortex_core.untrusted import TaintLedger, wrap_untrusted
@@ -229,6 +231,10 @@ async def stream_tool_loop(
         this_round: list[ToolCall] = []
         dispatched.append(this_round)
         for call in calls:
+            # The advertised spec this call matched, or None for a name no snapshot carried. It
+            # is both the chip's text and the call's provenance below, and using it rather than
+            # `call.name` is what keeps either from carrying a string the model authored.
+            spec = spec_by_name.get(call.name)
             # Refused by either bound, the call is still handed to the dispatcher, which refuses
             # it and audits the refusal (ADR-0009 budget addendum). Breaking out instead would
             # strand this round's tool_calls without their Role.TOOL answers, so the next round's
@@ -246,7 +252,7 @@ async def stream_tool_loop(
             # dispatches below and fails as its usual is_error result, but never renders a chip
             # carrying the model's chosen string. A refused call renders no chip either: a chip
             # means a tool is running now.
-            if refusal is None and (spec := spec_by_name.get(call.name)) is not None:
+            if refusal is None and spec is not None:
                 yield ToolStep(tool_name=spec.name, summary=_step_summary(spec))
             # The advertised gated flag is a hint; the dispatcher OR-s it with its own
             # authoritative gated-name set, so a tool a flaky sidecar hid from this snapshot
@@ -258,6 +264,10 @@ async def stream_tool_loop(
                 stamp=TurnStamp(
                     session_id=context.session_id,
                     tainted=context.taint.tainted,
+                    # Where the taint bit came from, as live as the bit itself (ADR-0027
+                    # addendum): what the turn had read *before* this call, which is exactly
+                    # what a consumer deciding about this call may reason over.
+                    sources=context.taint.sources,
                     # The pool travels to whatever this call spawns, so a subagent draws from
                     # the turn's remaining allowance instead of starting a fresh one.
                     budget=budget,
@@ -265,7 +275,12 @@ async def stream_tool_loop(
                 gated=gated_by_name.get(call.name, False),
                 refusal=refusal,
             )
-            context.taint.observe(result)
+            # An untrusted result's source is the tool it came through, named by the registry's
+            # own advertisement. A call that matched no spec attributes nothing rather than
+            # falling back to the model's chosen name.
+            context.taint.observe(
+                result, source=as_source(SourceKind.TOOL, None if spec is None else spec.name)
+            )
             working.append(
                 _result_message(result, context.clock.now(), context.turn_id, nonce=context.nonce)
             )

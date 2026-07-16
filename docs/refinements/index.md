@@ -30,7 +30,7 @@ its signature.
 | [seam-auth.md](seam-auth.md) | Seam token auth (ADR-0016) | 1 |
 | [session-history.md](session-history.md) | Slice 3 history windowing and summarization | 1 |
 | [tools-mcp.md](tools-mcp.md) | Dispatch budget/cost/salience, spawn batch cap, MCP registries (ADR-0009/0010) | 8 |
-| [untrusted-content.md](untrusted-content.md) | Taint boundary, output guardrail, subagent model safety (ADR-0013/0015/0017/0019/0028) | 16 |
+| [untrusted-content.md](untrusted-content.md) | Taint boundary, output guardrail, subagent model safety (ADR-0013/0015/0017/0019/0028) | 17 |
 | [memory.md](memory.md) | Store, scoping, rerank/MMR (ADR-0008) | 8 |
 | [inference-model-manager.md](inference-model-manager.md) | Model-manager lifecycle, MTP, reasoning status (ADR-0007/0020) | 5 |
 | [subagents.md](subagents.md) | Progress reporting, spawn schema, heterogeneous roster (ADR-0010/0018) | 4 |
@@ -47,7 +47,10 @@ The counts are per area as extracted; a few threads appear in two areas (the cro
 surfacing appears in both email-confirmer.md and subagents.md as one piece of work).
 Scheduling's count holds at 10 rather than dropping: the body-side `Notify` trait closed on
 2026-07-16 and opened one entry behind it (toast activation routing), which is the backlog
-working as intended rather than a stalled area. Repo gates went from 0 back to 1 the same day,
+working as intended rather than a stalled area. Untrusted content went 16 to 17 the same day for
+the same reason: structured provenance landed, and the two halves it could not honestly capture
+(a sidecar-declared sender, provenance across the stores) each became an entry naming what
+blocks it. Repo gates went from 0 back to 1 the same day,
 when the two Rust trees `just check` never lints turned out to have been quietly collecting
 findings; that entry originates in [ADR-0011](../adr/ADR-0011-body-v1.md) rather than the
 ADR-0026 the area doc was extracted under.
@@ -59,45 +62,42 @@ against the code (the warning above); the entry text tells you which seams it ex
 
 ### Actionable now
 
-1. **Structured provenance (source URI/sender) on the `TurnStamp`**
-   ([untrusted-content.md](untrusted-content.md)): the designed convergence seam landed
-   (ADR-0027); these fields unblock confirm-with-provenance and per-provenance eviction later.
-2. **Tainted-reminder badge: verify satisfied and close** ([scheduling.md](scheduling.md)): a
+1. **Tainted-reminder badge: verify satisfied and close** ([scheduling.md](scheduling.md)): a
    2026-07-14 read of the shipped overlay found the badge, the `repeats` tag, the inert-text
    rule, and the fixed-label open control already at the standard the deferral asks for.
    Confirm against the current tree and record the entry as satisfied rather than polishing
    without a named defect.
-3. **Real connection indicator** ([body-overlay.md](body-overlay.md)): the seam's `Health` RPC
+2. **Real connection indicator** ([body-overlay.md](body-overlay.md)): the seam's `Health` RPC
    exists and the `BrainBridge` does not carry it yet; absorbs the session-title refresh push
    deferral from [session-read-seam.md](session-read-seam.md).
-4. **Surface the blended recall relevance as a distinct field** ([memory.md](memory.md)): the
+3. **Surface the blended recall relevance as a distinct field** ([memory.md](memory.md)): the
    one reranker deferral genuinely behind the unchanged seam.
-5. **Placement-aware CPU charging + the hard budget wall**
+4. **Placement-aware CPU charging + the hard budget wall**
    ([resource-governance.md](resource-governance.md)): pure-core scheduler tweaks behind the
    unchanged `SubagentScheduler` port.
-6. **`spawn_blocking` for the sync OS call + `GetVolume` as an overlay volume indicator**
+5. **`spawn_blocking` for the sync OS call + `GetVolume` as an overlay volume indicator**
    ([body-gateway.md](body-gateway.md)): small body-side pair behind unchanged seams. The
    `spawn_blocking` half now covers the toast backend too, which is the same shape of
    synchronous OS call awaited inside an async handler.
-7. **Task-outcome delivery as a notification + the push retry policy**
+6. **Task-outcome delivery as a notification + the push retry policy**
    ([scheduling.md](scheduling.md)): unblocked on 2026-07-16, when the body's `Notify` trait
    landed and gave the port they both reuse a real backend.
-8. **Per-method / per-error-code retry policy** ([seam-transport.md](seam-transport.md)):
+7. **Per-method / per-error-code retry policy** ([seam-transport.md](seam-transport.md)):
    behind the existing `BrainTransport`/`Sleeper` seams.
-9. **Per-round cap on distinct calls** ([tools-mcp.md](tools-mcp.md)): the one dispatch shape
+8. **Per-round cap on distinct calls** ([tools-mcp.md](tools-mcp.md)): the one dispatch shape
    neither the budget nor salience closes (context growth, not reach).
-10. **Occurrence history table** ([scheduling.md](scheduling.md)): also covers unseen-toast
-    recovery.
-11. **Brain-generated summary titles** ([session-read-seam.md](session-read-seam.md)): behind
+9. **Occurrence history table** ([scheduling.md](scheduling.md)): also covers unseen-toast
+   recovery.
+10. **Brain-generated summary titles** ([session-read-seam.md](session-read-seam.md)): behind
     the unchanged `SessionSummary`.
-12. **Reasoning persistence/summarization + the collapsed "thoughts" section**
+11. **Reasoning persistence/summarization + the collapsed "thoughts" section**
     ([inference-model-manager.md](inference-model-manager.md)): a natural pair over the
     already-shipped `Message.statusState`.
-13. **Summarizing a tainted exchange before recording**
+12. **Summarizing a tainted exchange before recording**
     ([untrusted-content.md](untrusted-content.md)).
-14. **Spawn-spec tuning + measured trade-off advertisement** ([subagents.md](subagents.md)):
+13. **Spawn-spec tuning + measured trade-off advertisement** ([subagents.md](subagents.md)):
     low stakes, wrong text misleads only the optimization.
-15. **`cargo fmt` and `cargo clippy` for the two ungated Rust trees**
+14. **`cargo fmt` and `cargo clippy` for the two ungated Rust trees**
     ([repo-gates.md](repo-gates.md)): last because it unblocks no capability, but it is the
     only entry here that stops a class of defect from recurring, and the format half is
     nearly free. Five clippy warnings and three unformatted files had accumulated in the
@@ -127,9 +127,15 @@ against the code (the warning above); the entry text tells you which seams it ex
   ([seam-transport.md](seam-transport.md)): needs a replayable request and a signature change.
 - **Multi-turn-within-one-stream + an explicit proto `Cancel`**
   ([body-overlay.md](body-overlay.md)): per-turn confirm keying is the known knock-on.
-- **Confirm-with-provenance for tainted turns** ([email-confirmer.md](email-confirmer.md)):
-  needs the structured-provenance fields above first, and it reverses a deliberate fail-closed
-  posture, so it is a decision before it is plumbing.
+- **Confirm-with-provenance for tainted turns** ([email-confirmer.md](email-confirmer.md)): the
+  structured-provenance fields it waited on landed 2026-07-16, so what remains is the decision:
+  it reverses a deliberate fail-closed posture, and is that before it is plumbing.
+- **A sidecar-declared sender or source URI**
+  ([untrusted-content.md](untrusted-content.md)): the two *claimed* provenance kinds ship shaped
+  and tested with no producer, because `ToolResult` carries no source and a FastMCP tool returns
+  content blocks with no result `_meta`, while `structuredContent` would replace the readable
+  string the model consumes. Needs both halves designed together; parsing a sidecar's rendered
+  text in the core is not the answer.
 - **Real-file email attachments** ([email-confirmer.md](email-confirmer.md)): needs a
   capability grant on a sidecar that deliberately has none, plus a digest-bound approval card.
 - **Structural argument identity in salience** ([tools-mcp.md](tools-mcp.md)): normalizing
@@ -168,6 +174,9 @@ against the code (the warning above); the entry text tells you which seams it ex
   global facts under scoping yet ([memory.md](memory.md))
 - `SubagentTask` session attribution and the `ToolInvocation` audit-line stamp: no consumer
   reads either yet ([scheduling.md](scheduling.md))
+- Provenance across the stores: `ScheduledItem` and `SubagentResult` each carry the taint bit
+  and no sources, so a fired task's stamp and a subagent's own readings attribute nothing back
+  ([untrusted-content.md](untrusted-content.md))
 - The per-role escape hatch: unimplemented by design, no role justifies it
   ([subagents.md](subagents.md))
 - Per-task caller-supplied subagent schema: revisited only for a structured
