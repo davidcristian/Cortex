@@ -34,7 +34,7 @@ its signature.
 | [seam-auth.md](seam-auth.md) | Seam token auth (ADR-0016) | 1 |
 | [session-history.md](session-history.md) | Slice 3 history windowing and summarization | 1 |
 | [tools-mcp.md](tools-mcp.md) | Dispatch budget/cost/salience, spawn batch cap, MCP registries (ADR-0009/0010) | 7 |
-| [untrusted-content.md](untrusted-content.md) | Taint boundary, output guardrail, subagent model safety (ADR-0013/0015/0017/0019/0028) | 16 |
+| [untrusted-content.md](untrusted-content.md) | Taint boundary, output guardrail, subagent model safety (ADR-0013/0015/0017/0019/0028) | 15 |
 | [memory.md](memory.md) | Store, scoping, rerank/MMR (ADR-0008) | 8 |
 | [inference-model-manager.md](inference-model-manager.md) | Model-manager lifecycle, MTP, reasoning status (ADR-0007/0020) | 3 |
 | [subagents.md](subagents.md) | Progress reporting, spawn schema, heterogeneous roster (ADR-0010/0018) | 2 |
@@ -64,7 +64,14 @@ closed as declined, read against the write path: the raw untrusted payload is ne
 the framed, guardrail-scrubbed `User`/`Assistant` exchange is), and a recalled tainted memory is
 always re-fenced and re-taints, so a summarization pass would add a second injectable model call on
 the record path (`summarize this: {tainted}` makes the summarizer the target) for no safety the
-fence does not already give. Body & overlay held at 3 on 2026-07-16 when the connection indicator landed and
+fence does not already give. It then went 16 to 15 the same day when the structured redaction event
+for the overlay closed as declined, read against the shipped path: the guardrail's inline `[link
+removed: untrusted source]` marker already tells the user a link was removed, in context and durably
+(it is part of the persisted reply and survives reload), while the proposed `StatusUpdate`-shaped
+event would be ephemeral, dropped by the status chip on settle, and consumed by nothing, so its
+`OutputFilter.feed` port cost buys only polish, and a safe event could carry a count but never the
+redacted URL. Both halves were observed live over the real guardrail and the real overlay reducer.
+Body & overlay held at 3 on 2026-07-16 when the connection indicator landed and
 opened the push half behind it (streamed brain status, blocked on a producer), while session
 read seam went 5 to 4 the same day: the two entries were one deferral written down twice, and
 the shared premise (wait for a slice that streams brain status) turned out to be wrong for both.
@@ -170,11 +177,6 @@ against the code (the warning above); the entry text tells you which seams it ex
   cold-start adoption or cycling.
 - **Session deletion / rename / pinning** ([session-read-seam.md](session-read-seam.md)): new
   gated write RPCs on the catalog (proto change + Slice 6.5 gate + Slice 8.8 Confirmer).
-- **Structured redaction event for the overlay**
-  ([untrusted-content.md](untrusted-content.md)): `OutputFilter.feed` returns `str`, so a
-  redaction signal has no channel until that shape widens. Note the in-code counterargument
-  first: the guardrail's inline `[link removed: untrusted source]` marker was written so the
-  overlay needs no extra event (`guardrail.py`), so this may close as declined.
 - **Subagent progress reporting + subagent tool-step chip surfacing**
   ([subagents.md](subagents.md), [email-confirmer.md](email-confirmer.md)): one side channel
   into the `Converse` queue serves both, and `SpawnSubagentsTool` must stop being
@@ -282,6 +284,16 @@ against the code (the warning above); the entry text tells you which seams it ex
 - Provenance across the stores: `ScheduledItem` and `SubagentResult` each carry the taint bit
   and no sources, so a fired task's stamp and a subagent's own readings attribute nothing back
   ([untrusted-content.md](untrusted-content.md))
+- Structured redaction event for the overlay: the guardrail's inline `[link removed: untrusted
+  source]` marker already surfaces the redaction in context and durably (it is part of the persisted
+  reply, so it survives reload), whereas the proposed `StatusUpdate`-shaped event is ephemeral by
+  contract and the status chip drops on settle, so it would be dead on reload and nothing in the
+  overlay consumes it; a safe event could carry a count but never the redacted URL, and the count
+  adds nothing the visible markers do not. Its real cost is the `OutputFilter.feed` port widening.
+  Both the marker in the guardrail output and the overlay rendering it verbatim were observed live.
+  Declined 2026-07-16; reopens only if the overlay grows a redaction surface the inline marker cannot
+  serve (a persisted count badge, distinct styling), which needs a durable channel designed with its
+  record, not the ephemeral status one ([untrusted-content.md](untrusted-content.md))
 - Summarizing a tainted exchange before recording: declined 2026-07-16 on two findings. **No
   consumer reads a summarized gist differently from a fenced exchange:** recall already fences a
   stored tainted memory and re-taints the turn, and the raw untrusted payload is never persisted
