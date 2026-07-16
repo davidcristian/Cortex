@@ -207,8 +207,12 @@ export class DemoBridge implements BrainBridge {
   listSessions(_limit: number): Promise<readonly SessionSummary[]> {
     return Promise.resolve([
       {
+        // A title deliberately unlike this chat's first message ("How does the model swap
+        // work?"), standing in for a rename or a brain-generated title: opening the chat shows
+        // this switcher title in the header, not the first message re-derived (ADR-0021
+        // header-title addendum), so the consistency is visible by hand in browser dev.
         sessionId: "demo-1",
-        title: "How does the model swap work?",
+        title: "Everything about model swaps",
         preview: "The cortex is evicted and the brain loads…",
         lastActivityUnixMs: Date.now() - 5 * 60 * 1000,
       },

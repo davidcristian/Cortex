@@ -491,3 +491,57 @@ across all three trees, with the rename write mutation-proven in each: the brain
 (over-long test reddens) and the write itself (spy test reddens) and aborts `UNAVAILABLE` on a store
 failure; the body refuses to retry it (`SeamMethod::RenameSession` not repeatable, and the
 one-attempt decorator test); the overlay writes then re-lists, and swallows a failed write.
+
+## Addendum (2026-07-16): the open-chat header carries the switcher's title, no proto change
+
+The brain-generated-titles addendum recorded a deferral: the switcher shows `SessionSummary.title`
+(a generated title, a user rename, or the brain-side first-message derivation), but opening that
+chat re-derived the header locally from the first user message, so the two could disagree. It lands
+as the **overlay-only carry**, not the `GetSessionMessages` title field the deferral named as the
+full fix, because the carry removes the user-visible inconsistency more cheaply **and** more
+strongly.
+
+**What changed.** `openSession` and `adoptSession` (`sessionState.ts`) now set the header title via
+`headerTitle(state.sessions, sessionId, messages)`: when the opened chat is present in the loaded
+switcher list, the header takes that row's `SessionSummary.title` verbatim; only a chat absent from
+the list falls back to the local `deriveTitle` of the first user message. The switcher and the
+header therefore read the **one** `state.sessions` snapshot, so they are equal by construction. No
+proto, brain, or Rust change: `GetSessionMessages` still carries messages, and the fix is contained
+to the overlay reducer.
+
+**Why the carry, not the proto title field.**
+
+- *It is a single source of truth, not a second read to keep in sync.* A `title` on
+  `GetSessionMessages` would be a second server read alongside `ListSessions`; a title change (a
+  rename, a late generated title) landing between the two would desync the header from the switcher
+  row again. Reading both surfaces off `state.sessions` cannot desync, because there is only one
+  value.
+- *The deferral (and the backlog index) undersold the carry.* Both said the overlay-only option
+  covers "the open path but not cold-start adoption or cycling, which load by id". Read against the
+  code that is wrong: cold-start adoption targets `sessions[0]` and cycling targets
+  `cycleTarget(state.sessions, ...)`, so both already target a session **in** `state.sessions`.
+  Doing the lookup in the reducer from `state.sessions` (rather than threading the clicked row's
+  title through the switcher's click handler, the narrower shape the deferral imagined) covers
+  switcher-open, cycling, **and** cold-start adoption alike.
+- *It closes three disagreements, not one.* Beyond a generated title (behind
+  `CORTEX_GENERATE_TITLES`), the carry fixes a **user rename** (default on, always visible, landed
+  the same day) whose custom label the header ignored, and a **truncation-length** gap: the brain
+  bounds a title to `TITLE_MAX` 48 while the overlay's `deriveTitle` bounds to 32, so a first
+  message of 33 to 48 characters read longer in the switcher than in the header even with generation
+  off.
+
+**Recorded residual (see [session-read-seam.md](../refinements/session-read-seam.md)).** Reading the
+title from `state.sessions` leaves a chat **not** in the loaded recency window deriving its header
+locally. The only path today that opens such a chat is a reminder deep-link (`Reminders.tsx`) to a
+chat past `listSessions(50)`, and there the switcher shows no row for that chat either, so no
+header/switcher disagreement is user-visible. The `GetSessionMessages` title field remains the
+authoritative closure for that path (the same read path the reasoning-persistence deferral
+independently wants widened), deferred until a consumer that opens an out-of-window chat beside the
+switcher exists.
+
+**Evidence.** Gated at 100% over fakes, the carry mutation-proven: reverting `headerTitle` to the
+local derivation reddens exactly the switcher-title tests in `openSession`, `adoptSession`, and the
+cold-start-adoption hook. Live-validated (agent, Docker + real Redis): a `RedisSessionStore` session
+whose stored `:title` differs from its first message listed with the brain title, and opening it
+over the real `GetSessionMessages` + the overlay reducer showed that same brain title in the header;
+browser-validated against the demo bridge in both themes.
