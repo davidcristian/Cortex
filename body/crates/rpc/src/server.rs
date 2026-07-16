@@ -11,6 +11,13 @@
 //! forget (the one hard rule). The bind/serve lifecycle lives in the ungated Tauri shell;
 //! this crate holds only the coverable translation plus the seam-token validator
 //! ([`crate::auth`]).
+//!
+//! Both OS ports are **synchronous** (they are COM on Windows, and COM has no async form), so
+//! every handler hands its one call to [`off_worker`] rather than making it inline: an async
+//! worker thread must never be parked on the OS. See that function for why the backends are
+//! held behind an `Arc`.
+
+use std::sync::Arc;
 
 use body_core::{AudioControl, AudioError, Notification, Notify, NotifyError, VolumeChange};
 use tonic::service::interceptor::InterceptedService;
@@ -25,16 +32,23 @@ use crate::generated::{
 };
 
 /// The `BodyService` implementation over the host's OS backends.
+///
+/// Each backend is held behind an [`Arc`] purely so a handler can lend it to the blocking
+/// thread that runs its synchronous call ([`off_worker`]); nothing is shared beyond that, and
+/// the service still holds no state.
 pub struct OsService<A: AudioControl, N: Notify> {
-    audio: A,
-    notifier: N,
+    audio: Arc<A>,
+    notifier: Arc<N>,
 }
 
 impl<A: AudioControl, N: Notify> OsService<A, N> {
     /// Wraps `audio` and `notifier` as the `BodyService` handlers.
     #[must_use]
-    pub const fn new(audio: A, notifier: N) -> Self {
-        Self { audio, notifier }
+    pub fn new(audio: A, notifier: N) -> Self {
+        Self {
+            audio: Arc::new(audio),
+            notifier: Arc::new(notifier),
+        }
     }
 }
 
@@ -44,10 +58,8 @@ impl<A: AudioControl + 'static, N: Notify + 'static> BodyService for OsService<A
         &self,
         _request: Request<GetVolumeRequest>,
     ) -> Result<Response<PbVolumeState>, Status> {
-        let state = self
-            .audio
-            .get_volume()
-            .map_err(|error| audio_error_to_status(&error))?;
+        let audio = Arc::clone(&self.audio);
+        let state = off_worker(move || audio.get_volume(), audio_error_to_status).await?;
         Ok(Response::new(PbVolumeState {
             level: state.level,
             muted: state.muted,
@@ -59,10 +71,9 @@ impl<A: AudioControl + 'static, N: Notify + 'static> BodyService for OsService<A
         request: Request<SetVolumeRequest>,
     ) -> Result<Response<PbVolumeState>, Status> {
         let SetVolumeRequest { level, mute } = request.into_inner();
-        let state = self
-            .audio
-            .set_volume(VolumeChange::new(level, mute))
-            .map_err(|error| audio_error_to_status(&error))?;
+        let change = VolumeChange::new(level, mute);
+        let audio = Arc::clone(&self.audio);
+        let state = off_worker(move || audio.set_volume(change), audio_error_to_status).await?;
         Ok(Response::new(PbVolumeState {
             level: state.level,
             muted: state.muted,
@@ -98,11 +109,44 @@ impl<A: AudioControl + 'static, N: Notify + 'static> BodyService for OsService<A
             reminder_id,
             tainted,
         } = request.into_inner();
-        let shown = self
-            .notifier
-            .show(&Notification::new(&title, &body, &reminder_id, tainted))
-            .map_err(|error| notify_error_to_status(&error))?;
+        let notification = Notification::new(&title, &body, &reminder_id, tainted);
+        let notifier = Arc::clone(&self.notifier);
+        let shown =
+            off_worker(move || notifier.show(&notification), notify_error_to_status).await?;
         Ok(Response::new(NotifyReply { shown }))
+    }
+}
+
+/// Runs one synchronous OS call on tokio's blocking pool and awaits its answer, mapping a
+/// backend failure with `to_status` (ADR-0023's deferred `spawn_blocking`).
+///
+/// Both OS ports are sync because the OS is: Core Audio and the toast manager are COM, which
+/// has no async form, and a COM call can park its thread for as long as the audio stack or the
+/// notification service takes. Called inline, that parks an **async worker**, and the runtime
+/// serving `BodyService` is the same one the overlay's own seam calls run on, so one slow
+/// endpoint would stall work that has nothing to do with it. Handing the call to the blocking
+/// pool costs a thread hop and buys back the guarantee that nothing else waits on the OS.
+///
+/// The closure must own what it touches (`'static`), which is why the backends live behind an
+/// `Arc` the handler clones. Nothing COM-shaped crosses a thread: the real backends are a unit
+/// struct and an app-id string, and each resolves its own interface *inside* the closure, so
+/// the COM pointers are created and dropped on the one thread that uses them.
+///
+/// A panicking backend arrives here as a join failure rather than a value. It answers
+/// `Internal` like any other backend fault, because the alternative (letting the panic escape
+/// the handler) tears down the connection the brain is holding.
+async fn off_worker<T, E>(
+    call: impl FnOnce() -> Result<T, E> + Send + 'static,
+    to_status: impl FnOnce(&E) -> Status,
+) -> Result<T, Status>
+where
+    T: Send + 'static,
+    E: Send + 'static,
+{
+    match tokio::task::spawn_blocking(call).await {
+        Ok(Ok(value)) => Ok(value),
+        Ok(Err(error)) => Err(to_status(&error)),
+        Err(join) => Err(Status::internal(format!("the OS call failed: {join}"))),
     }
 }
 

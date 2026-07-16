@@ -245,3 +245,54 @@ in behavior, and the `unsafe` authorization this ADR scoped to Core Audio widene
 still COM only and still `os_windows` only: activating a WinRT factory needs a COM-initialized
 thread, so the toast module makes the same idempotent `CoInitializeEx` call the audio backend
 does. The text above is left as the record of what Slice 9 decided.
+
+## Addendum (2026-07-16): the sync OS calls moved off the async worker; the overlay volume indicator is declined
+
+Two of this ADR's deferrals came due together and closed as opposite outcomes.
+
+**`spawn_blocking` landed, for a better reason than the deferral gave.** The deferral called
+the inline call "fine at personal scale, as it is a fast COM call", which measures the wrong
+thing. The cost is not the call's latency; it is that the `BodyService` server shares its
+runtime with the overlay's own seam calls, so parking an async worker on Core Audio delays work
+that has nothing to do with audio. `body_rpc::server::off_worker` now hands each handler's one
+synchronous call to `tokio::task::spawn_blocking`, and the deferral's "the sync OS call"
+(singular) is three: the reminder toast (ADR-0025) is the same shape, and it is the slower
+backend, since activating the WinRT factory and reading `ToastNotifier.Setting` both cross to
+the notification service.
+
+**The safety question was answered from the types before the change was made**, because a
+`spawn_blocking` that moves a `!Send` COM object across threads is a bug, not a fix. Neither
+backend holds one: `WindowsAudioControl` is a unit struct that resolves its
+`IAudioEndpointVolume` per call, `WindowsNotify` holds only an app-id `String`, and decision 3
+had already made both ports `Send + Sync`. Every COM pointer is therefore created, used, and
+dropped inside one closure on one thread. `OsService` holds each backend behind an `Arc` purely
+to lend it to that thread, and still holds no state. One behaviour improved on the way: a
+backend that panics mid-call used to cost the brain the connection (`Cancelled`), and now
+answers `Internal` like any other backend fault. The proof is behavioural rather than
+structural: the contract fakes record which thread each call ran on, and `#[tokio::test]`'s
+current-thread runtime makes an inline call observable as "the test's own thread".
+
+**`GetVolume` as overlay state is declined.** The deferral assumed the overlay could surface
+the RPC, but the body *serves* `GetVolume`; the overlay lives inside the body and would never
+call it. It would need a new Tauri command over `AudioControl` and a new overlay port, since
+`BrainBridge` is the overlay's port to the brain and a host-local fact does not belong on it.
+Past that, nothing in the overlay reads or changes volume, and the summon-edge latch that keeps
+the connection dot honest cannot keep a volume number honest: volume changes from hardware keys
+and other applications with nothing to tell the overlay, next to an OS tray icon that is always
+right. That is the always-green dot ADR-0011 removed, in another form. It reopens with a real
+consumer (an overlay control that changes volume) or a real producer (a host-side change event
+such as `IAudioEndpointVolumeCallback`). The rest of that entry, `CaptureScreen` and
+`InjectInput`, stays deferred to its slices.
+
+**One deferral opened behind the change:** both Windows backends still call `CoInitializeEx`
+per call without a matching `CoUninitialize`, which was already true on the async workers but
+now applies to blocking-pool threads tokio reaps after an idle timeout. Recorded in
+[docs/refinements/body-gateway.md](../refinements/body-gateway.md) as fix-when-it-bites, the fix
+being one dedicated COM-initialized thread for the OS calls.
+
+**Validated:** `just check` (both trees, 100%); the brain's own `GrpcBodyGateway` dialling the
+real Rust `BodyService` over loopback, tokened round-trip passing and untokened still
+`UNAUTHENTICATED`, with the server log showing all three OS calls on a blocking-pool thread;
+and `cargo clippy --target x86_64-pc-windows-msvc` over the whole workspace, so the real Core
+Audio and toast backends are known to still satisfy the bounds. Unchanged and still host-side:
+the real "set volume to 30%" on Windows.
