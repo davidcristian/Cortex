@@ -538,11 +538,19 @@ Use-case:
   tool* (ADR-0009 addendum; both fields copied off the matched `ToolSpec`, so an unadvertised
   call surfaces no step; the engine maps it to `ToolActivity`, a subagent drops it), mutating `working` in place with
   the tool-call and `Role.TOOL` result messages; ends on a tool-free step, a `None` dispatcher,
-  or `MAX_TOOL_STEPS` (8) rounds. Three independent bounds apply (ADR-0009 budget addendum):
+  or `MAX_TOOL_STEPS` (8) rounds. Four independent bounds apply (ADR-0009 budget addendum):
   rounds cap how long the loop runs, `context.budget` (`MAX_TOOL_DISPATCHES`, 32) caps what
-  it may *spend* dispatching across those rounds, since one round can carry unboundedly
-  many calls, and the dispatcher's `SaliencePolicy` refuses a call this loop has already made
-  (salience addendum). The loop keeps its dispatched calls **grouped by round** and asks
+  it may *spend* dispatching across those rounds, the dispatcher's `SaliencePolicy` refuses a
+  call this loop has already made (salience addendum), and `plan_round` (`tool_round.py`, ADR-0009
+  round-cap addendum) caps how *wide* one round may be at `MAX_CALLS_PER_ROUND` (16): the budget
+  and salience both leave context growth open, since a round appends a `Role.TOOL` message per
+  call whether it ran or was refused, so the cap **drops** the calls a round emits past the limit
+  (the assistant message's own `tool_calls` truncated with them, so the conversation stays well
+  formed) and keeps one slot past the cap that the dispatcher refuses as `ROUND_OVERSIZED_MSG`,
+  which is how the model reads that its round was truncated rather than re-emitting the dropped
+  calls forever. Distinctness never enters it: growth is driven by calls *emitted*, so the cap
+  counts emitted calls and needs no notion of argument identity (that is the separate structural
+  salience refinement). The loop keeps its dispatched calls **grouped by round** and asks
   `dispatcher.admits(call, dispatched)` **before** charging, so a refused repeat costs nothing;
   the history is a loop local and deliberately not turn-wide like the pool, since a repeat is
   redundant only against the `working` messages holding its answer, which a sibling subagent
@@ -565,6 +573,19 @@ Use-case:
   content's source, ADR-0027 addendum, which the next dispatch's stamp carries; a call matching no
   advertised spec attributes nothing rather than falling back to the model's chosen name), and an
   `UNTRUSTED` result is fenced by `wrap_untrusted` before it re-enters `working`. `MAX_TOOL_STEPS` and `ToolLoopContext` are here.
+- `plan_round(calls) -> RoundPlan` (`tool_round.py`, ADR-0009 round-cap addendum) is the pure
+  per-round cap the loop calls before dispatching a round: a round at or under `MAX_CALLS_PER_ROUND`
+  (16) passes through untouched, a wider one is cut to the cap plus one **overflow slot**, and
+  everything past that is dropped (not refused, not audited, since a refusal appended would be the
+  very context growth being bounded). `RoundPlan(calls, overflowed)` carries the kept calls and
+  whether the last is the overflow slot; `RoundPlan.answered()` yields each `(call, is_overflow)`
+  pair the loop iterates, refusing the overflow one as `ROUND_OVERSIZED` ahead of every other
+  bound. This module also owns the two messages a round appends, since the cap is a cap on exactly
+  them: `call_message(text, calls, at, turn_id)` (the assistant's `tool_calls` step, given the
+  **plan's** calls so a recorded call is always answered) and `result_message(result, at, turn_id,
+  *, nonce)` (one `Role.TOOL` result, `wrap_untrusted`-fenced when the result is `UNTRUSTED`,
+  ADR-0013). `MAX_CALLS_PER_ROUND` is half of `MAX_TOOL_DISPATCHES` on purpose, so no blind
+  round can spend the whole turn's reach before the model sees a result.
 - `DEFAULT_CORTEX_MODEL` is the logical id `"cortex"`. Deployments override it via
   `CORTEX_MODEL_CORTEX`, read by the composition root (orchestrator), never here.
 - `MemoryRecaller(store, embedder, clock, *, scope=GLOBAL_MEMORY_SCOPE, policy=RAW_RECALL_POLICY,
@@ -603,13 +624,14 @@ Use-case:
   through the `ToolRegistry`, writes exactly one `ToolInvocation` (with the result's `trust`) to
   the `ToolAuditSink`, and returns the `ToolResult`; a `ToolError` becomes a `TRUSTED` `is_error`
   result (our own message, so it neither frames nor taints). `refusal` (a `DispatchRefusal`) is
-  the caller's statement that the call must not run, either because its dispatch budget is spent
-  (`BUDGET`, ADR-0009 budget addendum) or because its salience policy recognized a repeat
-  (`REDUNDANT`, salience addendum): it returns that member's `message` without invoking, audited
-  like any dispatch, and is checked **ahead of the gate** so a model emitting hundreds of gated
-  calls cannot flood the user with confirmation prompts before either bound refuses any (which is
+  the caller's statement that the call must not run, because its dispatch budget is spent
+  (`BUDGET`, ADR-0009 budget addendum), because its salience policy recognized a repeat
+  (`REDUNDANT`, salience addendum), or because it is a truncated round's overflow slot
+  (`ROUND_OVERSIZED`, round-cap addendum): it returns that member's `message` without invoking,
+  audited like any dispatch, and is checked **ahead of the gate** so a model emitting hundreds of
+  gated calls cannot flood the user with confirmation prompts before any bound refuses (which is
   also what caps a declined-and-retried send at two approval cards). One reason rather than one
-  boolean per bound, so a third bound adds a member, not a keyword. The gate (ADR-0013, table
+  boolean per bound is what let the round cap land as a third member rather than a keyword. The gate (ADR-0013, table
   revised by
   ADR-0022): a `gated` call on a tainted turn (`stamp.tainted`) is blocked outright as
   `DENIED_MSG`, with the confirmer deliberately unconsulted; on an untainted turn it runs only

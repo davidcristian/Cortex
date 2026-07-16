@@ -22,6 +22,7 @@ from cortex_core.conversation import Role as Role
 from cortex_core.dispatch import BUDGET_EXHAUSTED_MSG as BUDGET_EXHAUSTED_MSG
 from cortex_core.dispatch import DEFAULT_DISPATCH_POLICY as DEFAULT_DISPATCH_POLICY
 from cortex_core.dispatch import REDUNDANT_MSG as REDUNDANT_MSG
+from cortex_core.dispatch import ROUND_OVERSIZED_MSG as ROUND_OVERSIZED_MSG
 from cortex_core.dispatch import DispatchPolicy as DispatchPolicy
 from cortex_core.dispatch import DispatchRefusal as DispatchRefusal
 from cortex_core.dispatch import ToolDispatcher as ToolDispatcher
@@ -168,6 +169,11 @@ from cortex_core.tool_budget import MAX_TOOL_DISPATCHES as MAX_TOOL_DISPATCHES
 from cortex_core.tool_budget import UNIFORM_COST as UNIFORM_COST
 from cortex_core.tool_budget import DispatchBudget as DispatchBudget
 from cortex_core.tool_budget import ToolCostPolicy as ToolCostPolicy
+from cortex_core.tool_round import MAX_CALLS_PER_ROUND as MAX_CALLS_PER_ROUND
+from cortex_core.tool_round import RoundPlan as RoundPlan
+from cortex_core.tool_round import call_message as call_message
+from cortex_core.tool_round import plan_round as plan_round
+from cortex_core.tool_round import result_message as result_message
 from cortex_core.tool_salience import ALWAYS_SALIENT as ALWAYS_SALIENT
 from cortex_core.tool_salience import MAX_IDENTICAL_DISPATCHES as MAX_IDENTICAL_DISPATCHES
 from cortex_core.tool_salience import REPEAT_SALIENCE as REPEAT_SALIENCE

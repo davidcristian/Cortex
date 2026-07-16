@@ -3,12 +3,14 @@
 Both the cortex ``TurnEngine`` and a ``SubagentRunner`` do the same thing: stream from a model
 with tools available; when the model emits tool calls, dispatch each through the audited
 ``ToolDispatcher`` and feed the results back; repeat until a final text answer, ``MAX_TOOL_STEPS``
-rounds, or a spent ``DispatchBudget`` (the three bounds are independent: rounds cap how long the
+rounds, or a spent ``DispatchBudget`` (the four bounds are independent: rounds cap how long the
 loop runs, the budget caps how much of the outside world it may touch, ADR-0009 budget addendum,
-and the ``SaliencePolicy`` refuses a call this loop has already made, salience addendum; the
+the ``SaliencePolicy`` refuses a call this loop has already made, salience addendum, and
+``plan_round`` caps how wide one round may be, round-cap addendum; the
 budget is a pool the whole turn shares, so a spawned subagent draws from the same allowance
-rather than starting a fresh one, while salience is per loop, since a repeat is redundant only
-against the context that holds its answer). That loop (inlined in ``handle_turn`` before Slice 7)
+rather than starting a fresh one, while salience and the round cap are per loop and per round,
+since a repeat is redundant only against the context that holds its answer and a round is only
+as wide as the model made it). That loop (inlined in ``handle_turn`` before Slice 7)
 lives here so both
 callers reuse it verbatim: one loop, one bound, one audited dispatch path. The loop mutates the
 ``working`` message list in place (appending the tool-call and result messages) and yields each
@@ -29,16 +31,16 @@ construct the ledger, so both accumulate taint by the same mechanism.
 
 from collections.abc import AsyncGenerator, Sequence
 from dataclasses import dataclass, field
-from datetime import datetime
 
-from cortex_core.conversation import Message, Role
+from cortex_core.conversation import Message
 from cortex_core.dispatch import DispatchRefusal, ToolDispatcher
 from cortex_core.inference import JsonSchema, ReasoningChunk
 from cortex_core.ports import Clock, InferenceBackend
 from cortex_core.provenance import SourceKind, as_source
 from cortex_core.tool_budget import DispatchBudget
-from cortex_core.tools import ToolCall, ToolResult, ToolSpec, Trust, TurnStamp
-from cortex_core.untrusted import TaintLedger, wrap_untrusted
+from cortex_core.tool_round import call_message, plan_round, result_message
+from cortex_core.tools import ToolCall, ToolSpec, TurnStamp
+from cortex_core.untrusted import TaintLedger
 
 # Upper bound on inference↔tool rounds in one loop (ADR-0009): a safety net against a model
 # that never stops calling tools. On exhaustion the loop ends with the text produced so far.
@@ -117,33 +119,22 @@ class ToolLoopContext:
     budget: DispatchBudget = field(default_factory=DispatchBudget)
 
 
-def _call_message(text: str, calls: Sequence[ToolCall], at: datetime, turn_id: str) -> Message:
-    """The assistant's tool-calling step, carrying its native ``tool_calls`` for re-inference."""
-    return Message(role=Role.ASSISTANT, text=text, at=at, turn_id=turn_id, tool_calls=tuple(calls))
-
-
-def _result_message(result: ToolResult, at: datetime, turn_id: str, *, nonce: str) -> Message:
-    """One tool result fed back to the model, keyed to the call it answers.
-
-    UNTRUSTED content is fenced as inert data (ADR-0013); TRUSTED content passes through verbatim.
-    """
-    text = (
-        result.content
-        if result.trust is Trust.TRUSTED
-        else wrap_untrusted(result.content, nonce=nonce)
-    )
-    return Message(role=Role.TOOL, text=text, at=at, turn_id=turn_id, tool_call_id=result.call_id)
-
-
 def _refused_by(
     call: ToolCall,
     dispatcher: ToolDispatcher,
     dispatched: Sequence[Sequence[ToolCall]],
     budget: DispatchBudget,
+    *,
+    oversized: bool,
 ) -> DispatchRefusal | None:
     """Which bound refuses this call before it can run, or ``None`` when it may go ahead.
 
-    Salience is asked first, and a call it refuses is never charged: the budget bounds reach
+    The overflow slot of a truncated round is refused first (ADR-0009 round-cap addendum),
+    ahead of both the other bounds and for the same reason salience precedes the budget: it
+    reaches nothing, so neither the turn's allowance nor this loop's repeat count should record
+    it. It is a fact about the round's shape, settled before anything about the call itself.
+
+    Salience is asked next, and a call it refuses is never charged: the budget bounds reach
     into the outside world and a repeat reaches nothing, so charging it would spend the turn's
     allowance on the model's own repetition (ADR-0009 salience addendum). The order's one cost is
     that a repeat emitted past a closed budget reports redundancy rather than exhaustion, the
@@ -155,6 +146,8 @@ def _refused_by(
     and the rest of this loop too, which is what keeps ``BUDGET_EXHAUSTED_MSG``'s "this turn has
     reached its limit" true. Both calls have side effects, so the order is behavior, not style.
     """
+    if oversized:
+        return DispatchRefusal.ROUND_OVERSIZED
     if not dispatcher.admits(call, dispatched):
         return DispatchRefusal.REDUNDANT
     if not budget.charge(dispatcher.cost_of(call.name)):
@@ -174,11 +167,13 @@ async def stream_tool_loop(
 
     The loop advertises exactly the tools it can dispatch: the dispatcher's tools when present,
     none otherwise. With ``dispatcher`` None (or once the model stops calling tools) the loop
-    ends after one inference step. Three bounds apply: ``MAX_TOOL_STEPS`` rounds,
+    ends after one inference step. Four bounds apply: ``MAX_TOOL_STEPS`` rounds,
     ``context.budget`` summed across them (ADR-0009 budget addendum), each call charged the
-    dispatcher's price for it (ADR-0009 cost addendum), and the dispatcher's salience policy,
-    which refuses a call this loop has already made (salience addendum) before it is charged.
-    Once a call does not fit, the budget
+    dispatcher's price for it (ADR-0009 cost addendum), the dispatcher's salience policy,
+    which refuses a call this loop has already made (salience addendum) before it is charged,
+    and ``plan_round``, which drops the calls one round emits past ``MAX_CALLS_PER_ROUND`` and
+    refuses the one slot it keeps past the cap so the model reads what happened (round-cap
+    addendum). Once a call does not fit, the budget
     closes: that call and every later one is refused by the dispatcher and audited, and the
     rounds that remain are how the model learns of it and still answers. The budget may be a
     pool shared with the loops of spawned subagents, in which case all of that is turn-wide.
@@ -223,24 +218,29 @@ async def stream_tool_loop(
                 await deltas.aclose()
         if not calls or dispatcher is None:
             break
+        # How wide this round is allowed to be (ADR-0009 round-cap addendum). Everything past
+        # the cap is dropped here, the assistant message's own tool_calls included, so it
+        # appends nothing at all; a per-call refusal would have grown the context exactly as
+        # much as the calls it refused.
+        plan = plan_round(calls)
         working.append(
-            _call_message("".join(step_text), calls, context.clock.now(), context.turn_id)
+            call_message("".join(step_text), plan.calls, context.clock.now(), context.turn_id)
         )
         # This round's dispatched calls, appended to the loop's history before the round runs so
         # the policy sees the round in progress as its last group (ADR-0009 salience addendum).
         this_round: list[ToolCall] = []
         dispatched.append(this_round)
-        for call in calls:
+        for call, oversized in plan.answered():
             # The advertised spec this call matched, or None for a name no snapshot carried. It
             # is both the chip's text and the call's provenance below, and using it rather than
             # `call.name` is what keeps either from carrying a string the model authored.
             spec = spec_by_name.get(call.name)
-            # Refused by either bound, the call is still handed to the dispatcher, which refuses
+            # Refused by any bound, the call is still handed to the dispatcher, which refuses
             # it and audits the refusal (ADR-0009 budget addendum). Breaking out instead would
             # strand this round's tool_calls without their Role.TOOL answers, so the next round's
             # re-inference would send a malformed conversation, and would refuse dispatches
             # that no audit record ever sees.
-            refusal = _refused_by(call, dispatcher, dispatched, budget)
+            refusal = _refused_by(call, dispatcher, dispatched, budget, oversized=oversized)
             if refusal is None:
                 # Recorded when the call is handed over, not when it answers: a gate denial and
                 # a declined confirmation are `is_error` results too, so counting only successes
@@ -282,5 +282,5 @@ async def stream_tool_loop(
                 result, source=as_source(SourceKind.TOOL, None if spec is None else spec.name)
             )
             working.append(
-                _result_message(result, context.clock.now(), context.turn_id, nonce=context.nonce)
+                result_message(result, context.clock.now(), context.turn_id, nonce=context.nonce)
             )

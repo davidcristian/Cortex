@@ -721,3 +721,78 @@ Still remaining behind the same seam:
   shared today (decision 7), and it would need a different justification than this policy's,
   since the argument here is "the answer is already in your context" and a sibling's is not.
 
+
+## Addendum (2026-07-16): a per-round cap bounds the one shape neither the pool nor salience closes
+
+The salience addendum named the last shape both the dispatch budget and salience leave open:
+one round may emit unboundedly many *different* calls, and every one of them appends a
+`Role.TOOL` message to `working` whether it ran, was refused as a repeat, or was refused past a
+closed pool. So the loop's context could still grow without bound at a cost of one dispatch (when
+the calls were identical, salience refuses the twins) or of nothing at all (once the pool has
+closed, the budget refuses each call and still appends its refusal). This addendum lands the cap.
+The entry, this ADR, and the deferred-refinements index all had the diagnosis right for once,
+which the index notes explicitly: it is a **context-growth** problem, not a reach one.
+
+1. **The cap drops calls, it does not refuse them.** A cap on the calls a round may *dispatch*
+   would have bounded nothing here, because the refusal is appended to the context exactly as a
+   result is: 200 refusals grow `working` as much as 200 results. So `plan_round` (a new pure-core
+   `tool_round.py`) **drops** the calls a round emits past `MAX_CALLS_PER_ROUND`, and the
+   assistant message's own `tool_calls` are truncated to match, so the conversation stays well
+   formed (an OpenAI-compatible backend requires one `Role.TOOL` answer per `tool_call_id`, the
+   same invariant the budget addendum's refusals exist to preserve). The dropped calls append
+   nothing at all: not refused, not audited, not answered.
+
+2. **One overflow slot is kept and refused, so the truncation is observable.** The round is cut
+   to the cap **plus one** slot, and that slot is refused as `ROUND_OVERSIZED_MSG`. A silent
+   truncation is the one boundary behaviour a cap must not have: a model that cannot tell its
+   round was cut re-emits the dropped calls every round until `MAX_TOOL_STEPS` runs out. The
+   message names the cap (as the ADR-0010 batch-cap error does, so the bound is one the model can
+   restate and obey) and invites the next reply rather than ending tool use, since the dropped
+   calls may be work the turn still needs. Three alternatives were rejected: refusing the whole
+   round (drops work the model may still need, and grows the context by a refusal per call, which
+   is the growth being bounded); truncating silently (the retry-forever failure); and returning a
+   refusal result per excess call (bounds the reach the pool already bounds, not the growth).
+
+3. **"Distinct" means calls *emitted*, not distinct names or `(name, arguments)` pairs.** Context
+   growth is driven by emission regardless of identity: a round of 200 identical calls still
+   appended 201 messages even though salience let exactly one through to a tool. So the cap counts
+   emitted calls, which makes it independent of the still-deferred *structural argument identity*
+   refinement by construction: it needs no notion of when two spellings are one call, because it
+   never asks whether two calls are the same, only how many were emitted.
+
+4. **The cap is `MAX_CALLS_PER_ROUND` (16), half of `MAX_TOOL_DISPATCHES`.** A model chooses a
+   round's calls before seeing any of that round's results, so a blind burst that could spend the
+   whole turn's reach in one breath is strictly worse than one that must stop and read halfway;
+   half the pool means two rounds at the cap exhaust the default budget. Sixteen is also four
+   times the "eight rounds averaging four calls" the pool was sized against, so a legitimate
+   fan-out fits without truncation.
+
+5. **The overflow slot is refused ahead of every other bound, charged nothing, and lights no
+   chip.** It reaches nothing, so charging the turn's pool for it or counting it against this
+   loop's repeat history would both be wrong for the reason salience precedes the budget: a
+   refusal spends no reach. `_refused_by` checks it first, then salience, then the budget. Like
+   both other refusals it rides the dispatcher's machinery (dispatcher-issued as a new
+   `DispatchRefusal.ROUND_OVERSIZED`, audited, model-visible), and sits above the `ToolStep`
+   yield, so a chip still means a tool is running now.
+
+`tool_round.py` also takes ownership of the two functions that build a round's appended messages
+(`call_message`, `result_message`, moved from `tool_loop.py`), because the cap is a cap on
+exactly those: how wide a round's footprint in the context may be, and what that footprint is made
+of, are one responsibility, and `call_message` must be handed the **plan's** calls so a recorded
+call is always answered.
+
+CI-gated at 100% line and branch over the fakes, the pure arithmetic tested with no I/O in
+`test_tool_round.py` and the loop's use of it through `stream_tool_loop`. Mutation-proven:
+reverting each guard individually turns a distinct test red (the truncation itself, the kept
+overflow slot, the exact boundary at the cap, the overflow flag pointing at the right slot, the
+slot's refusal, its ordering ahead of the budget, and the assistant message's truncation).
+Live-validated on the host 2026-07-16: a real Qwen3.5-4B on the GPU, asked over the reference
+filesystem MCP sidecar to read more files than the cap in a single reply, emitted an oversized
+round (25 calls); the loop ran the cap's worth, refused the one overflow slot, and the model read
+the refusal and fetched the remaining files over two further rounds, exactly the recovery the
+observable-refusal decision is for. With the cap raised out of the way the same model and prompt
+produced one 25-call round, confirming the shape was real and not an artifact of the harness.
+
+Nothing remains behind this cap. The adjacent refinements (structural argument identity, the
+salience limit knob, cross-loop salience, all in the salience addendum's remaining list) are
+untouched by it.
