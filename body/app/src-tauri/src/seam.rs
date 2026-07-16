@@ -9,12 +9,17 @@
 //! (decision 2), while the dial before it may be patiently retried. Ungated shell glue. The
 //! retry *logic* is gated in `body_core`; this only composes it with the real `tokio::time`
 //! sleeper, the `RandomState`-seeded jitter source, and env config.
+//!
+//! Which calls may be retried at all is not configurable here, and deliberately so: that is
+//! the `RetryPlan` gate in `body_core`, decided by what each seam method does. What env
+//! supplies is the *schedule*, per method: the reads' backoff and the `Health` probe's
+//! ceiling, which the connection indicator depends on staying short.
 
 use std::future::Future;
 use std::hash::{BuildHasher, Hasher};
 use std::time::Duration;
 
-use body_core::{Randomness, RetryPolicy, RetryingTransport, Sleeper};
+use body_core::{Randomness, RetryPlan, RetryPolicy, RetryingTransport, Sleeper};
 use body_rpc::BrainSeamClient;
 
 /// Default brain seam address (matches `body_rpc`); override with `CORTEX_BRAIN_ADDR`.
@@ -86,12 +91,31 @@ pub fn connect() -> Result<ResilientTransport, String> {
         client,
         TokioSleeper,
         ShellRandomness::from_env(),
-        policy_from_env(),
+        plan_from_env(),
     ))
 }
 
-/// The retry policy, each field overridable via `CORTEX_BRAIN_RETRY_*`; the ADR-0024 defaults
-/// (3 attempts / 200 ms base / ×2 / 2 s cap) otherwise.
+/// The per-method retry plan: the read schedule from `CORTEX_BRAIN_RETRY_*`, plus the ceiling
+/// on a `Health` probe's patience from `CORTEX_BRAIN_PROBE_BUDGET_MS` (default 1 s).
+///
+/// The probe is separate because the connection indicator renders its answer: patience there
+/// is time the dot spends claiming a state the seam has stopped proving. Turning the read
+/// knobs up therefore buys a session read more patience without ever buying the indicator a
+/// longer lie. With the shipped defaults the budget does not bind (the schedule's worst case
+/// is 600 ms), so this changes nothing until someone configures it to.
+pub fn plan_from_env() -> RetryPlan {
+    RetryPlan {
+        reads: policy_from_env(),
+        probe_budget: env_parse("CORTEX_BRAIN_PROBE_BUDGET_MS")
+            .map(Duration::from_millis)
+            .unwrap_or(RetryPlan::default().probe_budget),
+    }
+}
+
+/// The retry policy for the reads, each field overridable via `CORTEX_BRAIN_RETRY_*`; the
+/// ADR-0024 defaults (3 attempts / 200 ms base / ×2 / 2 s cap) otherwise. Also the schedule
+/// the `converse` dial is retried on (`converse.rs`), which is not a seam method and so has no
+/// entry in the plan: it is a dial, made before the non-idempotent turn begins.
 pub fn policy_from_env() -> RetryPolicy {
     let default = RetryPolicy::default();
     RetryPolicy {

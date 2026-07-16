@@ -146,3 +146,88 @@ never baked in.
 
 Still deferred (ROADMAP ledger): safe `converse` reconnect-before-first-event, the
 per-method / per-error-code policy, and the retry budget / circuit breaker.
+
+## Addendum (2026-07-16): the per-method policy lands, and the per-error-code half is audited
+
+The remaining deferral was written as one item, and reading it against the code found two
+halves of very different weight. Both are answered here, behind the unchanged
+`BrainTransport` / `Sleeper` / `Randomness` seams, which the entry's "behind the existing
+seams" claim predicted correctly.
+
+**First, the audit, because it decides what is worth building.** Every RPC on `BrainService`
+was classified by whether repeating it can duplicate a side effect or change the answer:
+`Health`, `ListSessions`, `GetSessionMessages` and `ListDueReminders` are reads (verified
+brain-side: each is a view of a store the handler does not touch, and `list_due_reminders`
+maps `ScheduleStore.deliverable()` without marking anything delivered); `Converse` runs a
+turn; `AckReminder` writes. Decisions 2 and ADR-0025 already had it right, so **nothing
+non-idempotent was being retried**, and the defect this entry might have exposed does not
+exist. What did not exist was any *enforcement*: the split was two hand-written `impl`
+bodies, and a seventh method added by copying a retried one would have been retried silently.
+The backlog already queues write RPCs for this port (session deletion / rename / pinning), so
+the copy was going to be made.
+
+The error-code half turned out to have nothing to configure. The brain emits exactly three
+statuses on this service: `UNAVAILABLE` (a store or schedule failure, from `server.py`),
+`UNAUTHENTICATED` (the seam-token interceptor, ADR-0016), and the `UNIMPLEMENTED` of the
+generated servicer's default, which no implemented method can reach. `is_transient` already
+classifies all three correctly, and a configurable retryable-code table would have exactly one
+live entry. It is declined for want of a producer and recorded as fix-when-it-bites, with the
+trigger named: a brain that starts answering `RESOURCE_EXHAUSTED` or `ABORTED`.
+
+**Decisions.**
+
+1. **Repeatability is a named, exhaustive property of the method** (`retry::plan`).
+   `SeamMethod` names all six port calls and `repeatable()` classifies each in one exhaustive
+   `match`, so a new variant does not compile until someone decides. `AckReminder` is the
+   instructive case and its `false` is unchanged in effect but now carries its reason: the
+   brain's `ack` is idempotent, so a repeat does no damage, but an ack whose reply was lost
+   has already cleared the reminder, so the retry answers `false` about a reminder this very
+   call dismissed. Repeatability is therefore two tests, not one: no duplicated effect **and**
+   no changed answer.
+
+2. **`RetryPlan::policy_for` is the one door, and it can say no.** It returns
+   `Option<RetryPolicy>`: a schedule for a repeatable method, `None` otherwise. The decorator
+   routes every unary call through it, running the retry loop on the resolved schedule or on
+   `RetryPolicy::ONCE` (one attempt, no wait) for a `None`, so `ack_reminder` is now unretried
+   *by the gate* rather than by bypassing the retry path. A refusal deliberately runs the same
+   loop a permission does rather than short-circuiting past it: the first shape of this change
+   branched to a direct call on `None`, which left the loop monomorphized for the ack's return
+   type and never executed, an uncovered path reachable only by a refused call. A refused call
+   must not take a route only a refused call can reach. The
+   order of the two questions is the point: repeatability (a fact about the call) is asked
+   before transience (a fact about the failure). A status says the brain could not serve the
+   call; it never says the brain did not already run it, which is why `is_transient` is
+   documented as necessary and never sufficient. `converse` still cannot reach the gate at
+   runtime (a stream is not a future the loop can re-issue) and is classified anyway.
+
+3. **The schedule is per method, because the `Health` probe has a different consumer.**
+   The connection indicator (ADR-0011 addendum) renders a probe's answer, and the probe *is*
+   the reconnect attempt, so patience there is time the dot spends claiming a state the seam
+   has stopped proving. `RetryPlan` therefore carries `reads: RetryPolicy` plus a
+   `probe_budget: Duration`, and the probe runs `reads.within(probe_budget)`: the same delays
+   with the attempts trimmed until the total fits. Trimming rather than rescaling keeps the
+   early waits long enough for a restarting brain; what it drops is a tail the indicator could
+   not spend honestly. One attempt always survives, so a budget buys back patience, never the
+   call. `CORTEX_BRAIN_PROBE_BUDGET_MS` (default 1 s) configures it, and at the shipped
+   defaults it does not bind (worst case 600 ms), so **behaviour is unchanged out of the box**;
+   what it removes is the ability to make the indicator lie by raising
+   `CORTEX_BRAIN_RETRY_ATTEMPTS` for the reads' sake.
+
+**Consequences.**
+
+- The overlay's indicator now has a bound, not a hope. Whatever the read knobs say, `Down`
+  arrives within `probe_budget` of the probe starting, and the states themselves are
+  unchanged: a refused dial is still `Down`, an answered `Unauthenticated` still `Degraded`
+  and still immediately, since it is not transient and never enters the loop.
+- `RetryingTransport::new` / `with_randomness` take `impl Into<RetryPlan>`, so every existing
+  composition that passes a `RetryPolicy` keeps compiling and keeps its behaviour.
+- The gate is only as strong as the enum: adding a port method does not *force* a `SeamMethod`
+  variant, it forces the author to pass one, and picking a wrong existing variant is a lie
+  rather than an accident. That is the realistic ceiling without a macro over the trait.
+- The `converse` dial keeps using `retry_with` directly with the read policy. A dial is not a
+  seam method and has no plan entry: it is retried because the turn has not begun, which is
+  decision 2's own reasoning, not the gate's.
+
+Still deferred: safe `converse` reconnect-before-first-event (unchanged: it needs a replayable
+request and a signature change), the retry budget / circuit breaker, and now the retryable-code
+table above, all recorded in `docs/refinements/seam-transport.md`.

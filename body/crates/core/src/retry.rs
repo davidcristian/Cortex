@@ -4,7 +4,7 @@
 //! blinks out (restarting after a model swap, a momentary loopback drop) and a read the
 //! overlay makes fails hard when a retry a beat later would succeed. This module adds that
 //! retry as a **decorator over the port**, not code in the adapter: `RetryingTransport` *is* a
-//! [`BrainTransport`] that wraps an inner one and loops the idempotent calls on a transient
+//! [`BrainTransport`] that wraps an inner one and loops the repeatable calls on a transient
 //! failure, so `body_rpc`'s `BrainSeamClient` stays the thin translation it was (AGENTS.md).
 //!
 //! Three effects are kept out of this pure crate behind seams: the backoff *wait* is a
@@ -14,13 +14,22 @@
 //! dialing/reconnecting is the inner transport's job (composed over a lazy channel).
 //! See [body-rpc.md](../../../docs/modules/body-rpc.md).
 //!
-//! What is retried: `health`, `list_sessions`, `session_messages`, `list_due_reminders`. All
-//! read-only, safe to repeat. What is not: `converse` is forwarded unchanged (non-idempotent, a
-//! one-shot `decisions` stream that cannot be replayed, and a failed turn is terminal by the
-//! overlay's contract), and `ack_reminder` is forwarded too (ADR-0025): it is a write, and while
-//! repeating it is harmless brain-side, a retry that lands after a lost reply answers `false` for
-//! a reminder this call *did* clear, which reads as "nothing to ack" at the caller. Surfacing the
-//! transient failure keeps that ambiguity out of the answer; the overlay's next open re-lists.
+//! **Every retry decision goes through one door**, [`RetryPlan::policy_for`], and it is asked
+//! about the *method* before anything is asked about the error ([`plan`]): `health`,
+//! `list_sessions`, `session_messages` and `list_due_reminders` are repeatable and get a
+//! schedule; `converse` and `ack_reminder` get `None`, which runs the same loop on
+//! [`RetryPolicy::ONCE`], so a refused call makes exactly one attempt without taking a path a
+//! permitted one does not.
+//! [`RetryPolicy`] and [`is_transient`] ([`policy`]) then decide whether *this* failure earns
+//! one of the attempts the gate allowed. `converse` never reaches the gate at runtime, since a
+//! stream cannot be re-issued the way a future can, but it is classified all the same so the
+//! port's methods are covered exhaustively.
+
+pub mod plan;
+pub mod policy;
+
+pub use plan::{DEFAULT_PROBE_BUDGET, RetryPlan, SeamMethod};
+pub use policy::{RetryPolicy, is_transient};
 
 use std::future::Future;
 use std::time::Duration;
@@ -77,75 +86,15 @@ fn jittered(delay: Duration, randomness: &impl Randomness) -> Duration {
     delay.mul_f64(0.5 + 0.5 * scale)
 }
 
-/// Whether a failed seam call is worth retrying: transient reachability/backend conditions
-/// (`Connection`, and the gRPC-conventional `Rpc{Unavailable}`) are; a genuine application
-/// answer (any other `Rpc` status) or uninterpretable wire data (`Protocol`) is not. A repeat
-/// would return the same thing (ADR-0024 decision 3).
-#[must_use]
-pub fn is_transient(error: &TransportError) -> bool {
-    match error {
-        TransportError::Connection(_) => true,
-        TransportError::Rpc { code, .. } => code == "Unavailable",
-        TransportError::Protocol(_) => false,
-    }
-}
-
-/// A bounded exponential-backoff schedule (pure, `Copy`): the number of tries and the growing,
-/// capped delay between them (ADR-0024 decision 4). No jitter in v1. A single supervised local
-/// peer has no thundering herd to spread.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct RetryPolicy {
-    /// Total attempts including the first; `0` or `1` disables retry (one try only).
-    pub max_attempts: u32,
-    /// The wait before the first retry; each subsequent wait multiplies it.
-    pub base_delay: Duration,
-    /// The exponential growth factor applied per retry.
-    pub multiplier: u32,
-    /// The ceiling every computed delay is clamped to.
-    pub max_delay: Duration,
-}
-
-impl Default for RetryPolicy {
-    /// 3 attempts (2 retries), 200 ms base, ×2 growth, capped at 2 s. This is the shell default.
-    fn default() -> Self {
-        Self {
-            max_attempts: 3,
-            base_delay: Duration::from_millis(200),
-            multiplier: 2,
-            max_delay: Duration::from_secs(2),
-        }
-    }
-}
-
-impl RetryPolicy {
-    /// The wait before retry `index` (0-based): `min(base · multiplierⁱⁿᵈᵉˣ, max_delay)`,
-    /// grown by saturating multiply and clamped every step so no overflow escapes the cap.
-    #[must_use]
-    pub fn delay(&self, index: u32) -> Duration {
-        let mut delay = self.base_delay.min(self.max_delay);
-        for _ in 0..index {
-            delay = delay.saturating_mul(self.multiplier).min(self.max_delay);
-        }
-        delay
-    }
-
-    /// The backoff to apply after `attempt` failures (0-based), or `None` to give up: retry
-    /// only while an attempt remains *and* the error is [`is_transient`].
-    #[must_use]
-    pub fn backoff(&self, attempt: u32, error: &TransportError) -> Option<Duration> {
-        if attempt + 1 < self.max_attempts && is_transient(error) {
-            Some(self.delay(attempt))
-        } else {
-            None
-        }
-    }
-}
-
 /// Runs `call` and retries it while [`RetryPolicy::backoff`] says so, sleeping the (jittered)
 /// delay between tries. The retry loop itself, public so patience can be composed around any
 /// fallible async factory, not only a wrapped transport: the shell's turn path wraps its eager
 /// dial in it (ADR-0024 addendum), which is safe because the non-idempotent turn has not begun
 /// until the dial succeeds. `call` re-issues a fresh future per attempt.
+///
+/// This is the schedule executor, not the gate. It takes the caller's word that repeating
+/// `call` is safe, which is why every *seam method* reaches it only through
+/// [`RetryPlan::policy_for`]; a direct caller (the dial) is asserting that safety itself.
 ///
 /// # Errors
 ///
@@ -175,51 +124,70 @@ where
     }
 }
 
-/// A [`BrainTransport`] that wraps an inner one and retries its idempotent calls on a transient
-/// failure, backing off per [`RetryPolicy`] (jittered through its [`Randomness`]) and waiting
-/// via a [`Sleeper`] (ADR-0024). `converse` is forwarded unchanged. It is non-idempotent, so
-/// never retried.
+/// A [`BrainTransport`] that wraps an inner one and retries its repeatable calls on a transient
+/// failure, backing off per the [`RetryPlan`]'s schedule for that method (jittered through its
+/// [`Randomness`]) and waiting via a [`Sleeper`] (ADR-0024). A method the plan refuses gets
+/// exactly one attempt, and `converse` is forwarded as the stream it is.
 pub struct RetryingTransport<T, S, R = FullDelay> {
     inner: T,
     sleeper: S,
     randomness: R,
-    policy: RetryPolicy,
+    plan: RetryPlan,
 }
 
 impl<T, S> RetryingTransport<T, S, FullDelay> {
-    /// Wraps `inner`, waiting via `sleeper` on the `policy`'s deterministic schedule
-    /// ([`FullDelay`]: no jitter, the v1 behavior).
-    pub fn new(inner: T, sleeper: S, policy: RetryPolicy) -> Self {
-        Self::with_randomness(inner, sleeper, FullDelay, policy)
+    /// Wraps `inner`, waiting via `sleeper` on the `plan`'s deterministic schedule
+    /// ([`FullDelay`]: no jitter, the v1 behavior). A bare [`RetryPolicy`] converts into a
+    /// plan that governs the reads and leaves the probe budget at its default.
+    pub fn new(inner: T, sleeper: S, plan: impl Into<RetryPlan>) -> Self {
+        Self::with_randomness(inner, sleeper, FullDelay, plan)
     }
 }
 
 impl<T, S, R> RetryingTransport<T, S, R> {
-    /// Wraps `inner`, waiting via `sleeper` on the `policy`'s schedule with each delay
+    /// Wraps `inner`, waiting via `sleeper` on the `plan`'s schedule with each delay
     /// equal-jittered through `randomness` (ADR-0024 addendum).
-    pub fn with_randomness(inner: T, sleeper: S, randomness: R, policy: RetryPolicy) -> Self {
+    pub fn with_randomness(
+        inner: T,
+        sleeper: S,
+        randomness: R,
+        plan: impl Into<RetryPlan>,
+    ) -> Self {
         Self {
             inner,
             sleeper,
             randomness,
-            policy,
+            plan: plan.into(),
         }
     }
 }
 
 impl<T: BrainTransport, S: Sleeper, R: Randomness> RetryingTransport<T, S, R> {
-    /// The shared per-method loop: [`retry_with`] over this transport's own collaborators.
-    async fn retry<Out, Fut>(&self, call: impl FnMut() -> Fut) -> Result<Out, TransportError>
+    /// Runs `call` under the plan's verdict for `method`: [`retry_with`] on the resolved
+    /// schedule when the method is repeatable, and on [`RetryPolicy::ONCE`] when the plan
+    /// refuses it, which makes exactly one attempt and never waits.
+    ///
+    /// The refusal is not an optimization. It is where the decorator declines to turn a call
+    /// with an effect into two of them, no matter how transient the failure looks. It runs
+    /// through the same loop as a permission on purpose: a refused call must not take a code
+    /// path that only a refused call can reach.
+    async fn guarded<Out, Fut>(
+        &self,
+        method: SeamMethod,
+        call: impl FnMut() -> Fut,
+    ) -> Result<Out, TransportError>
     where
         Fut: Future<Output = Result<Out, TransportError>> + Send,
     {
-        retry_with(self.policy, &self.sleeper, &self.randomness, call).await
+        let policy = self.plan.policy_for(method).unwrap_or(RetryPolicy::ONCE);
+        retry_with(policy, &self.sleeper, &self.randomness, call).await
     }
 }
 
 impl<T: BrainTransport, S: Sleeper, R: Randomness> BrainTransport for RetryingTransport<T, S, R> {
     async fn health(&self) -> Result<SeamHealth, TransportError> {
-        self.retry(|| self.inner.health()).await
+        self.guarded(SeamMethod::Health, || self.inner.health())
+            .await
     }
 
     fn converse(
@@ -228,29 +196,40 @@ impl<T: BrainTransport, S: Sleeper, R: Randomness> BrainTransport for RetryingTr
         text: &str,
         decisions: impl Stream<Item = ConfirmDecision> + Send + 'static,
     ) -> impl Stream<Item = Result<TurnEvent, TransportError>> + Send {
-        // Pass-through: a turn is non-idempotent and its decisions stream is one-shot, so the
-        // decorator never retries it. A failed turn is terminal (ADR-0024 decision 2).
+        // Pass-through, and the one method that cannot even reach the gate: a stream is not a
+        // future the loop could re-issue. `SeamMethod::Converse` is refused all the same, so
+        // the classification stays exhaustive over the port (ADR-0024 decision 2).
         self.inner.converse(session_id, text, decisions)
     }
 
     async fn list_sessions(&self, limit: i32) -> Result<Vec<SessionSummary>, TransportError> {
-        self.retry(|| self.inner.list_sessions(limit)).await
+        self.guarded(SeamMethod::ListSessions, || self.inner.list_sessions(limit))
+            .await
     }
 
     async fn session_messages(
         &self,
         session_id: &str,
     ) -> Result<Vec<SessionMessage>, TransportError> {
-        self.retry(|| self.inner.session_messages(session_id)).await
+        self.guarded(SeamMethod::SessionMessages, || {
+            self.inner.session_messages(session_id)
+        })
+        .await
     }
 
     async fn list_due_reminders(&self) -> Result<Vec<DueReminder>, TransportError> {
-        self.retry(|| self.inner.list_due_reminders()).await
+        self.guarded(SeamMethod::ListDueReminders, || {
+            self.inner.list_due_reminders()
+        })
+        .await
     }
 
     async fn ack_reminder(&self, reminder_id: &str) -> Result<bool, TransportError> {
-        // Pass-through: the one write on the port, unretried in v1 so a repeat cannot
-        // turn a landed ack into a `false` (module docs).
-        self.inner.ack_reminder(reminder_id).await
+        // The one write on the port. It goes through the same door as the reads and the plan
+        // refuses it, so the single attempt is the gate's answer rather than a bypass.
+        self.guarded(SeamMethod::AckReminder, || {
+            self.inner.ack_reminder(reminder_id)
+        })
+        .await
     }
 }
