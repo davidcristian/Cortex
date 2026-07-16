@@ -1332,3 +1332,36 @@ unpackaged app a registered COM activator, which is a larger piece of Windows pl
 delivery it would improve). The two deferrals that were blocked on this half, **task-outcome
 delivery as a notification** and a **push retry policy** beyond next-poll-pull, are now
 unblocked and stay deferred on their own merits.
+
+## Addendum (2026-07-16): the tainted-reminder badge deferral closes as satisfied
+
+The Consequences list above defers "overlay badge/UX polish for tainted reminders", written when
+no overlay reminder surface existed and therefore naming a badge nobody had built yet. The
+overlay addendum built it, and its browser pass then corrected the badge's own treatment, so the
+polish this deferral asks for was paid inside the slice that created the thing to polish. Read
+against the tree today it is **satisfied, and closes with no code change**; the outcome is
+recorded in [docs/refinements/scheduling.md](../refinements/scheduling.md). What was checked:
+
+- **The wire bit is consumed, not merely carried.** `DueReminder.tainted` (decision 5) reaches
+  `Reminders.tsx` through the transport, the Tauri command, the bridge mirror, and the reducer,
+  and a `tainted` row renders an `untrusted source` tag in the card's meta row while a plain row
+  renders none. The label is fixed app chrome; nothing in it derives from the reminder, which is
+  the same rule the toast's attribution states body-side.
+- **The badge is distinguishable from the neutral tag beside it.** `repeats` and the taint mark
+  would otherwise be two pills of one weight. The badge carries the error bubble's tint at a
+  lower alpha and keeps a dashed border, so it separates from `repeats` and the separation
+  survives without hue. That treatment is the browser pass's own correction, not a first guess.
+- **Reminder text stays inert.** Every field is a plain text node and the card linkifies nothing,
+  which matters because a fired reminder is the one string the overlay shows that no ADR-0015
+  output guardrail inspected. A hostile-text test asserts the card holds no anchor element, and
+  the origin-chat control is a sibling of the text with an app-authored label, so what a stranger
+  wrote never becomes the label on a working affordance.
+- **Neither same-day landing reopens it.** The native toast badges a tainted reminder with its
+  own fixed attribution line, so push delivery is not an unbadged path around the badged card.
+  ADR-0027's structured provenance widened the *turn* stamp only: `ScheduledItem` stores the
+  taint bit with no sources and `DueReminder` has no source field, so a card cannot yet name
+  *which* source tainted it. Displaying that is the separately recorded deferral on provenance
+  across the stores, and is a store plus proto change rather than badge polish.
+
+Reopening this needs a named defect in the rendered card. The likeliest source is the user's
+Windows pass on the real overlay, which stays owed and is the one look no gate reaches.
