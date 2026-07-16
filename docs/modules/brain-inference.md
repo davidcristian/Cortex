@@ -45,6 +45,13 @@ with the cause chained:
 **Invariants.**
 - Stateless per call: nothing about a turn outlives `stream`; no KV or context is held
   here (the one hard rule). The adapter holds only its injected manager + client.
+- Lease released on cancellation. The GPU lease is a non-reentrant lock held across the whole
+  streaming block (`async with manager.acquire(model)` wrapping the HTTP stream), so a
+  `CancelledError` raised mid-inference (a user Stop, a client `Cancel`, or an RPC teardown)
+  propagates out through that `async with` and frees the lock before the next turn leases it.
+  A Stop that freed the holder task but left the lock taken would wedge every later turn behind
+  a lease no one can reclaim, so `test_cancelling_mid_stream_frees_the_model_lease` pins it (it
+  cancels a turn suspended mid-stream and asserts a fresh acquire returns at once).
 - Adapter-only: real network I/O lives here, never in the core (AGENTS.md gate 3).
 - Fully typed, pyright strict clean; 100% line+branch via `httpx.MockTransport` + the
   pure `SingleResidentModelManager`, with no GPU and no network. Live streaming against a real

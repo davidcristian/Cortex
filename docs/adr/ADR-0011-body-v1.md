@@ -376,3 +376,42 @@ sharpened "fmt plus clippy for both trees" into three real gaps and one non-gap:
   (Linux GTK/webkit/dbus dev packages and a cold Tauri build), too heavy for every `body/`
   change, so it remains the one lint a shell change can dirty unseen. The toolchain-linked full
   build of either tree stays host-side, as the Risks section says.
+
+## Addendum (2026-07-16, later still): multi-turn-within-one-stream + proto `Cancel`, read against the code and sharpened
+
+Decision 1 deferred both multi-turn-within-one-stream and the explicit proto `Cancel`, with
+drop-to-cancel covering v1. Reading that deferral against the code today shows the proto and the
+whole server half are already built and proven; what remains is body-side only, its two parts are
+coupled, and its value trigger is Slice 11, so it stays deferred and moves to fix-when-it-bites
+(recorded in [docs/refinements/body-overlay.md](../refinements/body-overlay.md)).
+
+- **The proto `Cancel` exists** (`proto/body.proto` `Cancel cancel = 3`, in the seam since the
+  first proto commit) and round-trips (`test_client_event_oneof_carries_a_cancel`).
+- **The server carries multiple turns per stream and handles `Cancel` end to end.** A `UserTurn`
+  arriving mid-turn is queued and starts when the running turn finishes; a `Cancel` stops the
+  in-flight turn, drops the queue, keeps the stream open, and drops the partial reply. Pinned by
+  `test_cancel_behind_a_queued_turn_stops_current_and_drops_queued` and
+  `test_cancel_mid_confirm_drops_the_turn_and_the_stream_stays_open`.
+- **The lease-cancellation crux is clean and now has a dedicated proof.** The GPU lease is a
+  non-reentrant `asyncio.Lock` held across the streaming block; a `CancelledError` mid-inference
+  propagates out through `async with manager.acquire(...)` and frees it before the next turn
+  leases. `test_cancelling_mid_stream_frees_the_model_lease` suspends a turn with the lease held,
+  cancels it, and asserts a fresh acquire returns at once; releasing the lock outside a `finally`
+  reddens it. No partial reply is persisted on cancel (the engine's generator is closed).
+- **What remains is body-side and coupled.** The `BrainTransport::converse` port is one turn per
+  call, and the overlay opens a fresh `Converse` per submit. A client-sent `Cancel` cannot cleanly
+  precede body multi-turn: on the one-turn-per-call body, `Cancel` then a half-close ends the body
+  stream with no terminal event, which the adapter maps to `TransportError::Protocol`. So client
+  `Cancel` needs either multi-turn-within-one-stream (the case it earns its keep, carrying the
+  per-turn-confirm-keying knock-on decision 1's follow-up already names) or a new terminal
+  cancelled-ack.
+- **Today's Stop is UI-only in the Tauri embedding, and that sets the trigger.** The overlay's Stop
+  denies a pending confirm and mutes the JS sink, but does not half-close or abort the RPC, so the
+  brain streams the turn to completion and persists the full reply while the overlay may show a
+  truncated one. Drop-to-cancel is "stop showing me", not "abort the compute". A real abort (release
+  the lease, drop the partial, keep the store consistent) earns its keep only when Slice 11's model
+  swap makes mid-turn compute expensive and evictable, the same trigger the reconnect and streamed-
+  brain-status deferrals wait on. The clean v1 fix for one-turn-per-call is a real drop-to-cancel:
+  make the Tauri command abort its RPC on Stop (a body-local signal, no proto change), which the
+  brain already tears down cleanly. Both that and the multi-turn+`Cancel` build live entirely in the
+  ungated, host-validated Tauri shell + overlay glue, so neither is a gated slice today.
