@@ -296,3 +296,46 @@ real Rust `BodyService` over loopback, tokened round-trip passing and untokened 
 and `cargo clippy --target x86_64-pc-windows-msvc` over the whole workspace, so the real Core
 Audio and toast backends are known to still satisfy the bounds. Unchanged and still host-side:
 the real "set volume to 30%" on Windows.
+
+## Addendum (2026-07-16): pointer-input injection is declined, dead until a consumer
+
+The last of this ADR's `InjectInput` deferrals to be triaged is the cross-cutting backlog's
+**pointer-input injection** entry, and it closes as declined, dead until a consumer, on the evidence
+rather than the entry's cost estimate.
+
+The entry framed pointer as a small increment over an existing text/keyboard input-injection
+capability, needing only a proto extension for a pointer event. Read against the tree, no input
+injection exists at any tier. `proto/body.proto` has carried the `InjectInput` RPC and its
+`TypeText`/`KeyChord` messages since Slice 2, but as a forward-looking stub beside `CaptureScreen`,
+decision 3 above having wired only volume; there is no input trait in `body_core` (only `Hotkey`,
+`AudioControl`, `Notify`), no `os_windows` adapter, the `BodyService` server answers `inject_input`
+with `Status::unimplemented` (the state this ADR set and a test pins), the brain's `BodyGateway` port
+carries no inject method, and no built-in tool drives it. So pointer is not one level over a built
+base; it is part of the whole input-injection slice this ADR defers ("`InjectInput` comes later").
+
+Two things make declining it the honest call rather than building the clean seam and adapter slice
+the entry imagined. First, no consumer: nothing in the brain or the overlay asks the body to move the
+pointer, so the capability would be shipped ahead of any use, and its permanent seam shape (coordinate
+space, button identity, press/release/click, scroll axis and delta) cannot be designed correctly
+against a use that does not exist. Second, and unlike volume, it is the highest-harm OS action.
+Decision 4 makes a side-effectful OS action safe only by being a `gated=True` audited tool that
+inherits the confirmer and the tainted-turn denial (a gated call on a tainted turn returns
+`DENIED_MSG` and never reaches the confirmer). That gate lives on the brain's tool dispatch, not on
+`BodyService`, whose only guard is the seam token. Building the Windows `SendInput` adapter and wiring
+the server handler ahead of that tool would let the body move the real mouse for anyone holding the
+seam token, shipping an irreversible machine-control primitive (click "OK", approve a dialog, drag a
+file) without the front door that would gate it. That is the same fail-closed reasoning the
+`GetVolume` and real-file-attachment declines turned on, on the most dangerous surface in this
+catalogue.
+
+It reopens the day a real feature drives input injection, built then as one slice rather than a
+pointer increment: the whole InputInjector trait (text, keyboard, and pointer, since the server
+dispatches the whole `oneof`) behind one `gated=True` audited tool inheriting the confirmer and taint
+block, one Windows `SendInput` adapter under a **new `unsafe` authorization** (this ADR scoped
+`unsafe` in `os_windows` to Core Audio and, later, the toast; `SendInput` is a third COM/FFI `unsafe`
+site that needs its own ADR line, per AGENTS.md gate 5), and one proto pointer extension designed with
+that consumer. `CaptureScreen` (Slice 10) is unaffected.
+
+No code changed. The seam, the OS traits, the `BodyGateway` port, and the tool dispatch are untouched;
+this is a backlog decision recorded at its origin
+([docs/refinements/cross-cutting.md](../refinements/cross-cutting.md)).
