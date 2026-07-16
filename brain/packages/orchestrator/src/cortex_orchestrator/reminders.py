@@ -12,7 +12,7 @@ transient). A live store's `ScheduleStoreError` propagates for the servicer to a
 
 from datetime import datetime
 
-from cortex_core import ScheduledItem, ScheduleStore
+from cortex_core import ScheduledItem, ScheduleKind, ScheduleStore
 from cortex_seam import AckReminderReply, DueReminder, ListDueRemindersReply
 
 
@@ -25,13 +25,20 @@ def reminder_to_proto(item: ScheduledItem) -> DueReminder:
     """Map a deliverable `ScheduledItem` to the wire `DueReminder` (ADR-0025).
 
     `fired_at` is when the item became deliverable (`deliverable_since`; a deliverable
-    item always carries it, with `due_at` as the defensive fallback). `tainted` rides so the
-    overlay can badge untrusted provenance; `session_id` is the origin chat.
+    item always carries it, with `due_at` as the defensive fallback). The delivered `text` is a
+    reminder's own text, or, for a **task**, the fire's `last_outcome`: the result the user is
+    being notified of, never the standing instruction, since the task-outcome addendum reuses this
+    reminder surface to deliver an outcome (the ticker always records one, so the `text` fallback
+    only guards the pure mapping's totality). `tainted` rides so the overlay can badge untrusted
+    provenance; `session_id` is the origin chat.
     """
     fired_at = item.deliverable_since if item.deliverable_since is not None else item.due_at
+    body = item.text
+    if item.kind is ScheduleKind.TASK and item.last_outcome is not None:
+        body = item.last_outcome
     return DueReminder(
         reminder_id=item.id,
-        text=item.text,
+        text=body,
         fired_at_unix_ms=_unix_ms(fired_at),
         recurring=item.every is not None,
         tainted=item.tainted,

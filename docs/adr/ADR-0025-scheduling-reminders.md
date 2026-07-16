@@ -1405,3 +1405,54 @@ backlog's dead-until-a-consumer list. What was checked:
 Reopening this needs a surface that reads a fired occurrence (a recovery view, or an audit sink for
 what fired). It is then the record and that surface designed as one piece, arriving as a store read
 plus a seam RPC rather than a log built ahead of its reader.
+
+## Addendum (2026-07-16): task-outcome delivery, and the push retry policy sharpened
+
+The two deferrals this ADR listed as "task-outcome delivery as a notification" and "a push retry
+policy beyond next-poll-pull" came due once the `Notify` backend landed. They decomposed into one
+thing to build and one to sharpen.
+
+- **What a finished task delivered before.** The ticker's `_fire_task` finished with
+  `deliverable=False`, so a task's result went only to the single `last_outcome` slot, read by
+  nothing but `list_scheduled`; a one-shot task was deleted at `finish` (terminal cleanup), taking
+  its outcome with it. Nothing proactively told the user a scheduled task had run, and its result
+  could vanish before anyone saw it. That was the one-shot-task half of the occurrence-history gap.
+
+- **Task-outcome delivery landed by reusing the reminder ladder.** The reminder path already
+  finishes `deliverable=True` and pushes over `BodyGateway.notify`, acking on a shown toast and
+  staying deliverable for pull otherwise, and the deliverable/ack machinery is **kind-agnostic** end
+  to end (`ScheduleStore.deliverable()` and the Redis `DELIVERABLE_KEY` index filter nothing by
+  kind; `list_due_reminders`/`Reminders.tsx` render whatever the store yields). So `_fire_task` now
+  finishes `deliverable=True` and delivers through the same shared `_deliver` helper (renamed from
+  `_push`, generalized to a title and body), pushing the **outcome** (never the standing
+  instruction) under a `TASK_TITLE` toast, and `reminder_to_proto` maps a task's `last_outcome` onto
+  `DueReminder.text` so the pull recovery shows the result. This needed **no store, proto, or
+  overlay change**. A one-shot task's outcome now survives its fire (DONE-while-deliverable until
+  acked), closing the one-shot-task half of the occurrence-history gap. The reuse leaves a task
+  outcome undistinguished from a reminder on the shared pull card (`DueReminder` has no `kind`),
+  recorded as its own deferral.
+
+- **Double-delivery is barred by the same ack, not a resend timer.** A shown push acks (pull will
+  not re-show), a failed or declined push stays deliverable (pull shows once, dismissal acks), so
+  exactly one of push and pull ever clears the deliverable slot. Mutation-proven: dropping the task
+  delivery reddens the delivery tests, dropping the ack reddens the acked-not-deliverable tests, and
+  dropping the outcome mapping reddens the pull test. Validated live against the compose Redis (a
+  one-shot task fired, pushed, acked, and left no `cortex:*` key; a body-down fire left the outcome
+  on the deliverable index for pull).
+
+- **The push retry policy is deferred, sharpened, and moved to fix-when-it-bites.** The safe retry
+  today *is* the deliverable-until-acked pull; a proactive re-push beyond it double-delivers.
+  `NotifyRequest.reminder_id` is the item id, stable across a recurring item's re-fires, so the body
+  cannot tell a retry of fire N from the legitimate fire N+1, and the `BodyGatewayError` a down body
+  raises is indistinguishable from a shown-toast-with-a-lost-reply (the lost-reply idempotency hole
+  the ack-retry split already turned on). A genuinely-safe re-push needs a **per-fire delivery id**
+  the body dedups on, which is exactly the per-occurrence record the occurrence-history entry
+  declined for want of a consumer, so the two reopen together. The trigger: a body that reconnects
+  between a failed push and the next overlay open often enough that an outcome stuck-until-open is a
+  real gap.
+
+CI-gated at 100% line+branch over the fakes (the task fire delivering the outcome, the shown-push
+ack, the body-down deliverable recovery, the no-body deliverable, the tainted-outcome toast badge,
+the fenced-off no-delivery, and the pull mapping of a task outcome plus its instruction fallback).
+Host-Windows validation is unchanged from what the `Notify` backend already owed: whether a real
+toast appears and reads well.

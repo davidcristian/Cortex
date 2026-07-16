@@ -2,7 +2,7 @@
 
 These deferrals originate at [ADR-0025](../adr/ADR-0025-scheduling-reminders.md), the Slice 9.5 scheduling and reminders decision, joined by [ADR-0027](../adr/ADR-0027-turn-provenance.md) for the `TurnStamp` turn-provenance seam. Extracted from the ROADMAP's deferred-refinements section on 2026-07-15 with the entries kept verbatim; landed entries are the historical record of what each deferral became, and the index at [index.md](index.md) carries the recommended pickup order.
 
-**Open items:** toast activation routing, `SubagentTask` session attribution, `ToolInvocation` audit-line stamp, Postgres durable twin, cron expressions, automated dead-letter retention, task-outcome delivery notification, push retry policy
+**Open items:** toast activation routing, `SubagentTask` session attribution, `ToolInvocation` audit-line stamp, Postgres durable twin, cron expressions, automated dead-letter retention, push retry policy (sharpened to fix-when-it-bites), task/reminder distinction on the pull surface
 
 **Scheduling & reminders in Slice 9.5 ([ADR-0025](../adr/ADR-0025-scheduling-reminders.md)):** each
 behind the unchanged `ScheduleStore`/`BodyGateway`/seam shapes.
@@ -397,3 +397,47 @@ behind the unchanged `ScheduleStore`/`BodyGateway`/seam shapes.
   and are unblocked since the toast landed, since the `Notify` port a task outcome would reuse
   now has a real backend). The overlay badge/UX polish for tainted reminders that this line used
   to name closed as satisfied on 2026-07-16 (its own entry above).
+- **Task-outcome delivery landed 2026-07-16, and the push retry policy sharpened behind it
+  ([ADR-0025 task-outcome addendum](../adr/ADR-0025-scheduling-reminders.md)).** The entry above
+  read true against the tree, and it decomposed into one thing to build and one to sharpen.
+  **What a finished task delivered before:** the ticker's `_fire_task` finished with
+  `deliverable=False`, so the outcome went only to the single `last_outcome` slot, read by nothing
+  but `list_scheduled` (`schedule_tools.py`), and a one-shot task was deleted at `finish` (terminal
+  cleanup) taking its outcome with it, the gap the declined occurrence-history entry named. Nothing
+  proactively told the user their scheduled task had run. **What the reminder path already
+  provided:** `_fire_reminder` finishes `deliverable=True` then pushes over `BodyGateway.notify`,
+  acking on a shown toast (so pull will not re-show) and staying deliverable on a declined/failed
+  push (so the pull path delivers), and the deliverable/ack machinery is **kind-agnostic** end to
+  end, `ScheduleStore.deliverable()` and the Redis `DELIVERABLE_KEY` index filter nothing by kind,
+  and `list_due_reminders`/`Reminders.tsx` render whatever `DueReminder`s the store yields. So a
+  task outcome could reuse the whole ladder with **no store, no proto, and no overlay change**.
+  **What landed:** `_fire_task` now finishes `deliverable=True` and calls the shared `_deliver`
+  (renamed from `_push`, generalized to a title+body) with the *outcome* under a `TASK_TITLE`
+  toast, never the standing instruction; `reminder_to_proto` maps a task's `last_outcome` into
+  `DueReminder.text` so the pull recovery shows the result, not the instruction. A one-shot task's
+  outcome now survives its fire (DONE-while-deliverable until acked), closing the one-shot half of
+  the occurrence-history gap for tasks. **Double-delivery is prevented by the same ack the reminder
+  path uses, not a resend timer:** a shown push acks (pull will not re-show), a failed push stays
+  deliverable (pull shows once, dismissal acks), so exactly one of push and pull ever clears the
+  slot; mutation-proven (dropping the task delivery reddens the delivery tests, dropping the ack
+  reddens the acked-not-deliverable tests, dropping the outcome mapping reddens the pull test).
+  Live against the compose Redis a one-shot task fired, pushed, acked, and left no `cortex:*` key,
+  while a body-down fire left the outcome on the deliverable index for pull. **The push retry
+  policy is deferred, sharpened, and moved to fix-when-it-bites:** the safe retry today *is* the
+  deliverable-until-acked pull, and a proactive re-push beyond it double-delivers, because
+  `NotifyRequest.reminder_id` is the item id, stable across a recurring item's re-fires, so the
+  body cannot tell a retry of fire N from the legitimate fire N+1, and the `BodyGatewayError` a
+  down body raises is indistinguishable from a shown-toast-with-a-lost-reply (the same lost-reply
+  idempotency hole the ack-retry split and the `converse` reconnect sharpen turned on). A
+  genuinely-safe re-push needs a **per-fire delivery id** the body dedups on, which is exactly the
+  per-occurrence record the occurrence-history entry declined for want of a consumer, so the two
+  reopen together. Its trigger: a body that reconnects between a failed push and the next overlay
+  open often enough that an outcome stuck-until-open is a real gap, built then with the per-fire id.
+- **A task/reminder distinction on the pull surface (opened 2026-07-16 behind the landing).** A
+  fired task now rides the same `DueReminder`/`Reminders.tsx` card as a reminder, undistinguished:
+  `DueReminder` carries no `kind`, the overlay labels the stack "Due reminders" with a bell icon,
+  and the same taint/inert-text posture holds (a task outcome is a store row no output guardrail
+  saw, badged if tainted, nothing linkified), so the reuse is safe but a task outcome reads as a
+  reminder. Telling them apart wants a `kind` (or a distinct field) on `DueReminder` plus overlay
+  rendering, a proto + four-tree + overlay change. Deferred until the surface must distinguish them
+  (a different icon, a "task ran" label, a task-only action), not built speculatively.
