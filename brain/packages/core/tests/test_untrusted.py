@@ -128,6 +128,43 @@ def test_observe_notes_nothing_for_a_trusted_result() -> None:
     assert ledger.sources == ()
 
 
+def test_observe_notes_a_results_own_declared_source_beside_the_attested_tool() -> None:
+    # The sidecar-declared source rides on the result (ADR-0027 addendum); it is noted after the
+    # attested tool source the loop passes, so a turn's provenance names both the tool the content
+    # came through and the sender the content claims for itself.
+    ledger = TaintLedger()
+    tool = Provenance(SourceKind.TOOL, "read_email")
+    declared = Provenance(SourceKind.SENDER, "attacker@evil.example")
+    ledger.observe(ToolResult(call_id="c", content="hi", source=declared), source=tool)
+    assert ledger.sources == (tool, declared)
+
+
+def test_a_declared_source_is_claimed_and_cannot_downgrade_taint() -> None:
+    # A declared source can only ever annotate. An untrusted result carrying one is still tainted,
+    # and every declared source stays claimed (attested False), never trusted to relax the boundary.
+    ledger = TaintLedger()
+    declared = Provenance(SourceKind.SENDER, "attacker@evil.example")
+    ledger.observe(ToolResult(call_id="c", content="hi", trust=Trust.UNTRUSTED, source=declared))
+    assert ledger.tainted is True
+    assert ledger.sources == (declared,)
+    assert all(not source.kind.attested for source in ledger.sources)
+
+
+def test_a_trusted_result_notes_neither_its_declared_source_nor_a_caller_one() -> None:
+    # A trusted result contributes no source at all, its own declaration included: it is our text.
+    ledger = TaintLedger()
+    ledger.observe(
+        ToolResult(
+            call_id="c",
+            content="ok",
+            trust=Trust.TRUSTED,
+            source=Provenance(SourceKind.SENDER, "a@b.example"),
+        ),
+    )
+    assert ledger.tainted is False
+    assert ledger.sources == ()
+
+
 def test_an_unattributable_read_notes_nothing() -> None:
     # A call that matched no advertised spec still taints the turn; it just names no source,
     # rather than falling back to a string the model authored.

@@ -21,7 +21,7 @@ from mcp.types import (
 )
 
 import cortex_tools.registry as registry_module
-from cortex_core import ToolCall, ToolError, ToolResult
+from cortex_core import Provenance, SourceKind, ToolCall, ToolError, ToolResult
 from cortex_tools import (
     McpSession,
     McpToolRegistry,
@@ -88,6 +88,51 @@ async def test_invoke_renders_text_content_and_skips_non_text() -> None:
     )
     assert out == ToolResult(call_id="c1", content="line1\nline2", is_error=False)
     assert session.calls == [("read", {"path": "/etc/hosts"})]
+
+
+async def test_invoke_reads_a_sidecar_declared_sender_from_result_meta() -> None:
+    # The declaration channel (ADR-0027/0009): a source in the result `_meta` rides in as a CLAIMED
+    # ToolResult.source, sanitized, while the readable content the model consumes is untouched.
+    result = CallToolResult(
+        content=[TextContent(type="text", text="From: A <a@x.com>\n\nbody")],
+        _meta={"cortex/source": {"kind": "sender", "value": "A <a@x.com>"}},
+    )
+    out = await McpToolRegistry(FakeSession(result=result)).invoke(
+        ToolCall(id="c", name="read_email", arguments={})
+    )
+    assert out.content == "From: A <a@x.com>\n\nbody"  # the model-facing text is not disturbed
+    assert out.source is not None
+    assert out.source == Provenance(SourceKind.SENDER, "A a@x.com")  # sanitized, brackets dropped
+    assert out.source.kind.attested is False  # a claim, never a trusted label
+
+
+async def test_invoke_refuses_a_sidecar_forged_attested_source() -> None:
+    # A hostile sidecar declaring an attested kind (which the brain alone authors) is refused, so a
+    # declaration can never masquerade as a trusted tool/memory label.
+    result = CallToolResult(
+        content=[TextContent(type="text", text="x")],
+        _meta={"cortex/source": {"kind": "tool", "value": "trusted_bank"}},
+    )
+    out = await McpToolRegistry(FakeSession(result=result)).invoke(
+        ToolCall(id="c", name="read", arguments={})
+    )
+    assert out.source is None
+
+
+async def test_invoke_ignores_absent_or_malformed_source_meta() -> None:
+    # No `_meta`, an empty `_meta`, a non-mapping declaration, and a differently-keyed one all yield
+    # no source rather than raising: an unparseable declaration attributes nothing.
+    for meta in (
+        None,
+        {},
+        {"cortex/source": "not-a-mapping"},
+        {"other-key": {"kind": "sender", "value": "x"}},
+    ):
+        result = CallToolResult(content=[TextContent(type="text", text="x")], _meta=meta)
+        out = await McpToolRegistry(FakeSession(result=result)).invoke(
+            ToolCall(id="c", name="read", arguments={})
+        )
+        assert out.source is None
 
 
 async def test_invoke_marks_a_tool_reported_error() -> None:

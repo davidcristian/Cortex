@@ -16,7 +16,12 @@ source of audited, model-callable tools.
     composition root's `GatedToolRegistry` overlay (`CORTEX_TOOLS_GATED`, ADR-0022).
   - `invoke(call)` → `call_tool(name, arguments)`, joining the result's text content blocks
     into `ToolResult.content` (non-text blocks skipped) and setting `is_error` from the
-    server's `isError`.
+    server's `isError`. A source a sidecar declared in the result's MCP `_meta` (under
+    `_SOURCE_META_KEY`, `"cortex/source"`) is read into `ToolResult.source` (`_declared_source`):
+    it rides beside the content blocks, so the model-facing text is untouched, and the core's
+    `claimed_source` is the trust gate, admitting only a sanitized, claimed SENDER/URI and dropping
+    an attested kind a hostile sidecar might forge (ADR-0027 sidecar addendum). The key is a
+    cross-deployable wire contract with the standalone email sidecar, which writes the same shape.
 - `streamable_http_session(url)` is an `@asynccontextmanager` opening a **structured, same-task**
   streamable-http MCP session (`streamable_http_client` + `ClientSession` + `initialize`), yielded
   for the scope of one `async with`. Replaces the old `connect` classmethod, which held the

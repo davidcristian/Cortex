@@ -30,15 +30,16 @@ each behind the unchanged `Confirmer`/`ToolDispatcher`/`GatedToolRegistry`/seam 
   is **not over-broad**, since the legitimate read-then-reply flow still completes in a fresh turn
   (taint is turn-local, `DENIED_MSG` says to re-ask), so keeping the block costs one extra turn, a
   cost the ADR already accepted, while reversing it reopens the exact path an injection aims for.
-  **And the useful provenance is absent anyway:** the only two `Provenance` producers are attested
-  (`SourceKind.TOOL` in `cortex_core/tool_loop.py`, `SourceKind.MEMORY` in `cortex_core/engine.py`),
-  so a card built today would name the user's own tool use, not the attacker; the `SENDER`/`URI`
-  kinds that would name the attacker have no producer (the sidecar-declared-sender deferral in
-  [untrusted-content.md](untrusted-content.md)). This is the same fail-closed philosophy as the
-  same-day decline of summarizing a tainted exchange: a provenance card makes the **user** the
-  injection target, worse than the model. Reopens only if the outbound-on-tainted decision is
-  itself revisited with evidence that a card converts reflexive approval into scrutiny, **and** a
-  real `SENDER`/`URI` producer exists, not on provenance plumbing alone.
+  **And the useful provenance was absent when the decision was made:** at the time only the two
+  attested producers existed (`SourceKind.TOOL` in `cortex_core/tool_loop.py`, `SourceKind.MEMORY` in
+  `cortex_core/engine.py`), so a card built then would name the user's own tool use, not the attacker.
+  A `SENDER` producer that would name the attacker landed later the same day (the sidecar-declared
+  sender in [untrusted-content.md](untrusted-content.md)), but a producer alone does not reverse a
+  fail-closed decision. This is the same fail-closed philosophy as the same-day decline of summarizing
+  a tainted exchange: a provenance card makes the **user** the injection target, worse than the model.
+  Reopens only if the outbound-on-tainted decision is itself revisited with evidence that a card
+  converts reflexive approval into scrutiny, now that a real `SENDER`/`URI` producer exists, not on
+  provenance plumbing alone.
 - **Richer send shapes.** **cc/bcc/HTML landed 2026-07-13 ([ADR-0022 richer-send-shapes
   addendum](../adr/ADR-0022-email-write-confirmer.md)).** The `EmailSender.send` contract took a
   frozen `EmailDraft` value (to/subject/body + optional cc/bcc/html), so the addition rides a

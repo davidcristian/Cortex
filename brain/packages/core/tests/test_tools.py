@@ -41,6 +41,14 @@ def test_tool_result_defaults_to_untrusted() -> None:
     assert ToolResult(call_id="c-1", content="hi").trust is Trust.UNTRUSTED
 
 
+def test_tool_result_declares_no_source_by_default() -> None:
+    # Most results declare no source (ADR-0027 addendum); a sidecar-declared claimed sender/locator
+    # is the exception the email reader produces, carried beside content, never inside it.
+    assert ToolResult(call_id="c-1", content="hi").source is None
+    declared = Provenance(SourceKind.SENDER, "a@b.example")
+    assert ToolResult(call_id="c-1", content="hi", source=declared).source == declared
+
+
 def test_tool_spec_defaults_to_ungated() -> None:
     assert _spec("read").gated is False
 

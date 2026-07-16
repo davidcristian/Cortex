@@ -8,10 +8,11 @@ and thus the model, actually receives), not on FastMCP's structured side-channel
 # pyright: reportUnusedFunction=false
 
 from collections.abc import Sequence
-from typing import TYPE_CHECKING, cast
+from typing import cast
 
 import pytest
 from mcp.server.fastmcp import FastMCP
+from mcp.types import CallToolResult, TextContent
 
 import cortex_email.server as server_module
 from cortex_email import (
@@ -24,13 +25,13 @@ from cortex_email import (
     main,
 )
 
-if TYPE_CHECKING:
-    from mcp.types import TextContent
-
 _SIMPLE = (
     b"From: A <a@x.com>\r\nSubject: Hi\r\n"
     b"Date: Fri, 03 Jul 2026 12:00:00 +0000\r\n\r\nbody text\r\n"
 )
+
+# A message with no From header: read_email declares no sender source for it.
+_NO_SENDER = b"Subject: Hi\r\nDate: Fri, 03 Jul 2026 12:00:00 +0000\r\n\r\nbody text\r\n"
 
 
 _SMTP_ENV = (
@@ -74,9 +75,14 @@ class FakeMailbox:
 
 
 async def _text(server: FastMCP, name: str, args: dict[str, object]) -> str:
-    result = await server.call_tool(name, args)
-    blocks = cast("tuple[Sequence[TextContent], object]", result)[0]
-    return "".join(block.text for block in blocks)
+    # read_email returns a CallToolResult (it declares a source, below); the string-returning tools
+    # come back as FastMCP's (unstructured, structured) pair. Both reduce to the readable text.
+    result: object = await server.call_tool(name, args)
+    if isinstance(result, CallToolResult):
+        blocks: Sequence[object] = result.content
+    else:
+        blocks = cast("tuple[Sequence[TextContent], object]", result)[0]
+    return "".join(block.text for block in blocks if isinstance(block, TextContent))
 
 
 async def test_list_folders_tool() -> None:
@@ -109,6 +115,34 @@ async def test_read_email_tool_reports_not_found() -> None:
     server = build_server(EmailReader(FakeMailbox(one=None)))
     text = await _text(server, "read_email", {"folder": "INBOX", "uid": "999"})
     assert text == "message 999 not found in INBOX"
+
+
+async def test_read_email_declares_the_message_sender_as_a_source() -> None:
+    # The producer half of the sidecar declaration channel (ADR-0027): the sender rides in the
+    # result `_meta`, beside (never inside) the readable string the model consumes. The brain's
+    # tool registry reads this key and, being the trust gate, admits it only as a claimed source.
+    server = build_server(EmailReader(FakeMailbox(one=RawEmail("7", _SIMPLE))))
+    result = cast(
+        "CallToolResult", await server.call_tool("read_email", {"folder": "x", "uid": "7"})
+    )
+    assert result.meta == {"cortex/source": {"kind": "sender", "value": "A <a@x.com>"}}
+    text = "".join(b.text for b in result.content if isinstance(b, TextContent))
+    assert text.startswith("From: A <a@x.com>")  # the declaration left the content untouched
+
+
+async def test_read_email_declares_no_source_without_a_sender_or_when_not_found() -> None:
+    # A message with no From header, and a missing message, both declare nothing rather than an
+    # empty sender: the wire carries a source only when there is one.
+    no_sender = build_server(EmailReader(FakeMailbox(one=RawEmail("8", _NO_SENDER))))
+    found = cast(
+        "CallToolResult", await no_sender.call_tool("read_email", {"folder": "x", "uid": "8"})
+    )
+    assert found.meta is None
+    missing_server = build_server(EmailReader(FakeMailbox(one=None)))
+    missing = cast(
+        "CallToolResult", await missing_server.call_tool("read_email", {"folder": "x", "uid": "9"})
+    )
+    assert missing.meta is None
 
 
 class FakeSender:

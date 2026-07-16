@@ -64,6 +64,7 @@ class ToolResult:
     content: str
     is_error: bool = False
     trust: Trust = Trust.UNTRUSTED
+    source: Provenance | None = None
 
 
 @dataclass(frozen=True, slots=True)

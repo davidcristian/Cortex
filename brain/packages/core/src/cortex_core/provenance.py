@@ -65,3 +65,16 @@ def as_source(kind: SourceKind, raw: str | None) -> Provenance | None:
     if raw is None or not _inert(raw):
         return None
     return Provenance(kind=kind, value=raw)
+
+
+_DECLARABLE_KINDS = {kind.value: kind for kind in SourceKind if not kind.attested}
+
+
+def claimed_source(kind: object, value: object) -> Provenance | None:
+    """A sidecar's declared source as a *claimed* ``Provenance``, or ``None`` when undeclarable."""
+    if not isinstance(kind, str) or not isinstance(value, str):
+        return None
+    declared = _DECLARABLE_KINDS.get(kind)
+    if declared is None:
+        return None
+    return as_source(declared, value)

@@ -7,7 +7,7 @@ import asyncio
 from collections.abc import Sequence
 
 from mcp.server.fastmcp import FastMCP
-from mcp.types import ToolAnnotations
+from mcp.types import CallToolResult, TextContent, ToolAnnotations
 
 from cortex_email.config import EmailConfig, SmtpConfig
 from cortex_email.imap import ImapMailbox
@@ -18,6 +18,17 @@ from cortex_email.values import EmailAttachment, EmailDraft
 _SERVER_HOST = "0.0.0.0"  # noqa: S104 - the sidecar binds its container interface; compose publishes loopback-only
 _SERVER_PORT = 9100
 _DEFAULT_SEARCH_LIMIT = 20
+
+_SOURCE_META_KEY = "cortex/source"
+
+
+def _sender_source(sender: str) -> dict[str, dict[str, str]] | None:
+    """The result ``_meta`` declaring ``sender`` as the message's source, or ``None`` when absent.
+
+    A message with no ``From`` header declares nothing rather than an empty sender; the brain drops
+    an empty value anyway, so this keeps the wire clean.
+    """
+    return {_SOURCE_META_KEY: {"kind": "sender", "value": sender}} if sender else None
 
 
 def build_server(reader: EmailReader, sender: EmailSender | None = None) -> FastMCP:
@@ -40,14 +51,18 @@ def build_server(reader: EmailReader, sender: EmailSender | None = None) -> Fast
         return "\n".join(f"[{s.uid}] {s.date} | {s.sender} | {s.subject}" for s in summaries)
 
     @server.tool()
-    async def read_email(folder: str, uid: str) -> str:
+    async def read_email(folder: str, uid: str) -> CallToolResult:
         """Read one message in full (headers + plain-text body) by its uid."""
         detail = await asyncio.to_thread(reader.read, folder, uid)
         if detail is None:
-            return f"message {uid} not found in {folder}"
-        return (
+            text = f"message {uid} not found in {folder}"
+            return CallToolResult(content=[TextContent(type="text", text=text)])
+        text = (
             f"From: {detail.sender}\nTo: {detail.recipients}\n"
             f"Date: {detail.date}\nSubject: {detail.subject}\n\n{detail.body}"
+        )
+        return CallToolResult(
+            content=[TextContent(type="text", text=text)], _meta=_sender_source(detail.sender)
         )
 
     if sender is not None:
