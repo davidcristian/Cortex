@@ -41,7 +41,7 @@ its signature.
 | [body-overlay.md](body-overlay.md) | Overlay polish, connection indicator, proto Cancel (ADR-0011) | 3 |
 | [session-read-seam.md](session-read-seam.md) | Session listing/read seam (ADR-0021) | 4 |
 | [resource-governance.md](resource-governance.md) | Scheduler/placer budgets, NPU, drain (ADR-0012) | 6 |
-| [email-confirmer.md](email-confirmer.md) | Email write, Confirmer, attachments, `ToolActivity` chip (ADR-0022) | 6 |
+| [email-confirmer.md](email-confirmer.md) | Email write, Confirmer, attachments, `ToolActivity` chip (ADR-0022) | 5 |
 | [body-gateway.md](body-gateway.md) | Body gateway, OS actions, hardened posture (ADR-0023) | 6 |
 | [scheduling.md](scheduling.md) | Scheduling and reminders, `TurnStamp` provenance (ADR-0025/0027) | 8 |
 | [cross-cutting.md](cross-cutting.md) | Pointer input, OS backends, more roles | 4 |
@@ -160,7 +160,17 @@ stream's sink per call and leaks no per-stream state (a test routes two sinks th
 prove it). It needed **no proto change** (the overlay already renders `ToolActivity`/`StatusUpdate`),
 and the real `SeamProgressSink` is credit-balanced rather than the confirmer's over-crediting
 control path, since a delegating turn emits many steps; the wording avoids a parallelism claim the
-same-day admission-wall measurement showed the wiring does not deliver.
+same-day admission-wall measurement showed the wiring does not deliver. Email & confirmer then went
+6 to 5 the same day when confirm-with-provenance for tainted turns closed as **declined**, the first
+entry the landed structured provenance unblocked and the decision went against building: a gated
+call on a tainted turn returns `DENIED_MSG` and never consults the confirmer (`dispatch.py`, pinned
+by an approving-confirmer test that stays unconsulted), so there is no card to add a source line to,
+and reversing the block reopens the path an injection aims for to save the one extra turn the
+turn-local flow already costs. The provenance actually captured is attested (`TOOL`/`MEMORY`), which
+names the user's own tool use rather than the attacker, while the `SENDER`/`URI` kinds that would
+name the attacker have no producer, so the change is doubly unfounded. It is the same fail-closed
+philosophy the tainted-summarization decline turned on, now protecting the user rather than the
+model.
 
 ## Recommended order
 
@@ -203,9 +213,6 @@ against the code (the warning above); the entry text tells you which seams it ex
   ([seam-transport.md](seam-transport.md)): needs a replayable request and a signature change.
 - **Multi-turn-within-one-stream + an explicit proto `Cancel`**
   ([body-overlay.md](body-overlay.md)): per-turn confirm keying is the known knock-on.
-- **Confirm-with-provenance for tainted turns** ([email-confirmer.md](email-confirmer.md)): the
-  structured-provenance fields it waited on landed 2026-07-16, so what remains is the decision:
-  it reverses a deliberate fail-closed posture, and is that before it is plumbing.
 - **A sidecar-declared sender or source URI**
   ([untrusted-content.md](untrusted-content.md)): the two *claimed* provenance kinds ship shaped
   and tested with no producer, because `ToolResult` carries no source and a FastMCP tool returns
@@ -254,6 +261,17 @@ against the code (the warning above); the entry text tells you which seams it ex
 - Token rotation / multiple tokens: needs a second seam client ([seam-auth.md](seam-auth.md))
 - Trust/gating overrides for remote tools: no trusted remote tool exists
   ([untrusted-content.md](untrusted-content.md), [email-confirmer.md](email-confirmer.md))
+- Confirm-with-provenance for tainted turns: the provenance it waited on landed, so the decision
+  it always was got made, and it is to keep the fail-closed block. A gated call on a tainted turn
+  returns `DENIED_MSG` and never consults the confirmer (observed in `dispatch.py`, with an
+  approving-confirmer test asserting it stays unconsulted), so there is no card to add a source
+  line to; letting one reach the card reopens the path an injection aims for, to save the one extra
+  turn the taint-is-turn-local flow already costs, which the ADR accepted. The only provenance
+  captured is attested (`TOOL`/`MEMORY`), which names the user's own tool use, not the attacker;
+  the `SENDER`/`URI` kinds that would name the attacker have no producer (the sidecar-declared
+  sender). Declined 2026-07-16; reopens only if the outbound-on-tainted decision is revisited with
+  evidence a card converts reflexive approval into scrutiny **and** a real `SENDER`/`URI` producer
+  exists, not on provenance plumbing alone ([email-confirmer.md](email-confirmer.md))
 - Session+global union read policy and cross-scope recall ranking: nothing writes durable
   global facts under scoping yet ([memory.md](memory.md))
 - A distinct blended-relevance field on a recall hit: nothing reads `ScoredMemory.score` at all

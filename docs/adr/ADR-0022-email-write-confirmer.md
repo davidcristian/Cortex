@@ -320,6 +320,8 @@ without a brain; `overlay-ux.md` gains the card's spec.
 ## Deferred (recorded in the ROADMAP)
 
 - Confirm-with-provenance for tainted turns (needs structured provenance, ADR-0013/0019).
+  **Declined 2026-07-16** once the provenance landed (addendum below): reversing the fail-closed
+  block is rejected on the merits, and the useful `SENDER`/`URI` provenance has no producer anyway.
 - Richer send shapes behind the same tool name: **cc/bcc/HTML landed 2026-07-13** (addendum
   below); **attachments remain** (they need a bytes-transport decision, recorded there).
 - A structured confirm-resolution event so the overlay can close a stale card exactly.
