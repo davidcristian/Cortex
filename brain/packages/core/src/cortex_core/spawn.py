@@ -1,19 +1,22 @@
 """The ``spawn_subagents`` built-in tool: delegate subtasks concurrently (ADR-0010/0018).
 
 The cortex calls this like any tool. Each instruction becomes a ``SubagentTask`` persisted to the
-``TaskStore``; the ``SubagentRunner``s run **concurrently**, bounded by the ``SubagentScheduler``'s
-CPU budget; the aggregated results feed back to the cortex. A batch (not one-per-call) is what
-makes the concurrency budget meaningful. The tool is given only to the cortex, never to a
-subagent, so delegation fan-out stays depth-1. Bad arguments become an ``is_error`` result the
-model can correct rather than an exception.
+``TaskStore``; the ``SubagentRunner``s are dispatched together under the ``SubagentScheduler``'s
+CPU budget, and the aggregated results feed back to the cortex. The tool is given only to the
+cortex, never to a subagent, so delegation fan-out stays depth-1. Bad arguments become an
+``is_error`` result the model can correct rather than an exception.
 
 Slice 8.6 (ADR-0018): an instructions item is a bare string or ``{instruction, model?, context?}``
 so the cortex picks the subagent model per subtask from the runner's roster and hands it working
 material. The spec is built from that roster and is honest about the wiring: when subagents are
 tools-enabled, ADR-0017 pins every spawn to the robust default, so no ``model`` knob is
-advertised at all. Each task is stamped with the spawning turn's taint (the ``tainted`` bit of
-the dispatcher's ``TurnStamp`` on the call, ADR-0018/0027), which the runner's resolution
-needs. Enforcement itself lives in ``SubagentRoster.resolve``, not here.
+advertised at all. It is also honest about the *measured* trade-off (ADR-0012 admission-wall
+addendum): each roster entry keeps its one backend's lease for the whole stream, so subtasks
+sharing a model serialize and only subtasks on **distinct** models overlap; the spec points the
+cortex at distinct-model spread as the wall-clock lever, not a blanket parallel speedup. Each task
+is stamped with the spawning turn's taint (the ``tainted`` bit of the dispatcher's ``TurnStamp``
+on the call, ADR-0018/0027), which the runner's resolution needs. Enforcement itself lives in
+``SubagentRoster.resolve``, not here.
 
 One call's batch is capped at ``MAX_SPAWN_BATCH`` (ADR-0010 batch-cap addendum): the turn's
 dispatch pool bounds what the batch may *reach*, never how much work it queues.
@@ -45,22 +48,29 @@ SPAWN_TOOL_NAME = "spawn_subagents"
 MAX_SPAWN_BATCH = 8
 
 _DESCRIPTION = (
-    "Delegate one or more narrow subtasks to small subagents that run concurrently and "
-    "return their results. Use for independent lookups or transforms worth parallelizing; "
-    "each instruction must be self-contained (subagents do not see this conversation). "
+    "Delegate one or more narrow subtasks to small subagents that return their results. "
+    "Use for independent lookups or transforms; each instruction must be self-contained "
+    "(subagents do not see this conversation). "
     f"At most {MAX_SPAWN_BATCH} subtasks per call."
 )
-# Appended when the wiring lets the cortex pick a model per subtask (tool-less subagents).
-# The inline example nudges the object form. A live cortex given only prose folded the pick
-# into the instruction text (ADR-0018 addendum).
+# Appended for a tool-less multi-entry wiring. The inline example nudges the object form (given
+# only prose a live cortex folds the pick into the instruction, ADR-0018 addendum). The parallelism
+# line is the measured trade-off, not a claim (same-model 10.0 s vs 4.8 s across two backends,
+# ADR-0012 admission-wall addendum): it is honest and a reason for the knob beyond a directed pick.
 _CHOICE_NOTE = (
     " Each subtask may pick a 'model' by using an object item, e.g. "
-    '{"instruction": "...", "model": "<roster name>"}; on a turn that has read untrusted '
-    "external content the robust default model is enforced regardless of the pick."
+    '{"instruction": "...", "model": "<roster name>"}. Subtasks on distinct models run in '
+    "parallel, while subtasks that share one model run one after another (one backend each), so "
+    "spread independent subtasks across models to finish the batch sooner. On a turn that has "
+    "read untrusted external content the robust default model is enforced regardless of the pick."
 )
-# Appended when subagents are tools-enabled: ADR-0017 rule 2b pins every spawn, so the spec
-# advertises no knob that cannot do anything.
-_PINNED_NOTE = " Every subtask runs on the deployment's default subagent model."
+# Tools-enabled or a one-entry roster: every spawn runs on the one default model (ADR-0017 rule
+# 2b pins it), so no knob is advertised and, sharing one backend lease, the subtasks serialize.
+_PINNED_NOTE = (
+    " Every subtask runs on the deployment's default subagent model, so subtasks share its one "
+    "backend and run one after another, a batch that groups independent subtasks rather than "
+    "running them in parallel."
+)
 
 
 @dataclass(frozen=True, slots=True)

@@ -419,6 +419,12 @@ async def test_the_spec_advertises_the_roster_to_a_tool_less_wiring() -> None:
     assert "'subagent' (the robust default)" in model["description"]
     assert "default 'subagent'" in model["description"]
     assert "untrusted external content" in spec.description  # the ADR-0017 caveat is advertised
+    # The measured trade-off is advertised, not a blanket parallel claim (ADR-0012 addendum):
+    # distinct models overlap, same model serializes, so spreading is the wall-clock lever.
+    assert "on distinct models run in parallel" in spec.description
+    assert "share one model run one after another" in spec.description
+    assert "spread independent subtasks across models" in spec.description
+    assert "worth parallelizing" not in spec.description  # the old blanket overclaim is gone
 
 
 async def test_the_spec_omits_the_model_knob_when_subagents_hold_tools() -> None:
@@ -436,6 +442,10 @@ async def test_the_spec_omits_the_model_knob_when_subagents_hold_tools() -> None
     spec = _spec_of(SubagentRunner(store, roster, FixedClock(), tools=dispatcher))
     assert _model_property(spec) is None
     assert "default subagent model" in spec.description
+    # One model available means the subtasks share its backend and serialize; the note says so
+    # rather than leaving the blanket parallel impression (ADR-0012 addendum).
+    assert "run one after another" in spec.description
+    assert "rather than running them in parallel" in spec.description
 
 
 async def test_the_spec_omits_the_model_knob_for_a_single_entry_roster() -> None:
@@ -444,6 +454,7 @@ async def test_the_spec_omits_the_model_knob_for_a_single_entry_roster() -> None
     spec = _spec_of(_runner(store, EchoInferenceBackend(), "subagent"))
     assert _model_property(spec) is None
     assert "default subagent model" in spec.description
+    assert "run one after another" in spec.description  # single entry serializes too
 
 
 async def test_the_spec_advertises_the_batch_cap() -> None:
