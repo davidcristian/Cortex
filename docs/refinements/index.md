@@ -33,7 +33,7 @@ its signature.
 | [seam-transport.md](seam-transport.md) | `BrainTransport` retry/reconnect (ADR-0003/0024) | 3 |
 | [seam-auth.md](seam-auth.md) | Seam token auth (ADR-0016) | 1 |
 | [session-history.md](session-history.md) | Slice 3 history windowing and summarization | 1 |
-| [tools-mcp.md](tools-mcp.md) | Dispatch budget/cost/salience, spawn batch cap, MCP registries (ADR-0009/0010) | 7 |
+| [tools-mcp.md](tools-mcp.md) | Dispatch budget/cost/salience, spawn batch cap, MCP registries (ADR-0009/0010) | 6 |
 | [untrusted-content.md](untrusted-content.md) | Taint boundary, output guardrail, subagent model safety (ADR-0013/0015/0017/0019/0028) | 15 |
 | [memory.md](memory.md) | Store, scoping, rerank/MMR (ADR-0008) | 8 |
 | [inference-model-manager.md](inference-model-manager.md) | Model-manager lifecycle, MTP, reasoning status (ADR-0007/0020) | 3 |
@@ -127,7 +127,17 @@ added, a retryable-code table, whose trigger is named. Tools & MCP went 8 to 7 o
 the per-round cap on distinct calls landed: the entry, its ADR, and this index's own opening
 warning had all diagnosed it correctly for once (a context-growth problem, not a reach one), and
 it closed by dropping a round's calls past a cap rather than refusing them, since a refusal is
-appended to the context exactly as a result is. Nothing opened behind it. Inference & model manager
+appended to the context exactly as a result is. Nothing opened behind it. It then went 7 to 6 the
+same day when structural argument identity in salience closed as declined, read against the code:
+the permuted-key evasion it was filed against is already closed by `Mapping.__eq__` (deep and
+key-order-independent, pinned by a test that reddens under an unsorted serialization), a schema-free
+canonical form closes nothing more and its serialized shape regresses (unsorted reopens permuted
+keys, sorted splits `1` from `1.0`), and the only cases a schema would fold are unsound to fold
+(JSON Schema `default` is advisory, so folding an omitted optional can refuse a legitimate call)
+with a residual the dispatch budget, the round cap, and the tainted-turn denial already bound. It
+closes as declined-on-merits, the same terminal outcome the day's other reads-against-the-code
+reached, this one turning on a fix that is a no-op at best and unsound at worst rather than on a
+missing consumer. Inference & model manager
 went 5 to 3 on 2026-07-16 when its actionable reasoning pair closed as two outcomes without a seam
 change, over the already-shipped `Message.statusState`: the collapsed "thoughts" section **landed**
 (the reducer now also concatenates every guardrail-scrubbed thinking delta into a new
@@ -221,8 +231,6 @@ against the code (the warning above); the entry text tells you which seams it ex
   text in the core is not the answer.
 - **Real-file email attachments** ([email-confirmer.md](email-confirmer.md)): needs a
   capability grant on a sidecar that deliberately has none, plus a digest-bound approval card.
-- **Structural argument identity in salience** ([tools-mcp.md](tools-mcp.md)): normalizing
-  needs the advertised parameter schema at the policy.
 - **Toast activation routing** ([scheduling.md](scheduling.md)): opened 2026-07-16 behind the
   landed toast. Clicking a toast does nothing, and the obvious fix (open the origin chat, the
   control the overlay's card already has) cannot be built as the seam stands: `NotifyRequest`
@@ -258,6 +266,19 @@ against the code (the warning above); the entry text tells you which seams it ex
 
 ### Dead until a consumer exists
 
+- Structural argument identity in salience: the permuted-key evasion it was filed against is
+  already closed by `Mapping.__eq__` (key-order-independent at every nesting level, pinned by
+  `test_arguments_compare_structurally_rather_than_by_key_order`, which reddens under an unsorted
+  serialization). A schema-free canonical form closes nothing more and its serialized shape
+  regresses (unsorted reopens permuted keys, sorted splits `1` from `1.0`), and the cases a schema
+  would fold are unsound to fold: JSON Schema `default` is advisory, so folding an omitted optional
+  onto it can collapse two calls a tool runs differently and refuse a legitimate call, the
+  non-benign failure the two-not-one salience cap avoids. The residual is bounded by
+  `MAX_TOOL_DISPATCHES` (32), `MAX_CALLS_PER_ROUND` (16), and the tainted-turn denial (a gated call
+  on a tainted turn gets no card whatever its spelling), so no spelling evasion becomes a flood or a
+  breach. Declined 2026-07-16; reopens only if a real wired tool shows a semantic-equivalence
+  evasion those bounds do not cover, and even then the sound fix is a per-tool domain normalizer
+  (the model judgment the ADR rejected), not schema folding ([tools-mcp.md](tools-mcp.md))
 - Token rotation / multiple tokens: needs a second seam client ([seam-auth.md](seam-auth.md))
 - Trust/gating overrides for remote tools: no trusted remote tool exists
   ([untrusted-content.md](untrusted-content.md), [email-confirmer.md](email-confirmer.md))
