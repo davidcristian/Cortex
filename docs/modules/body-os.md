@@ -19,8 +19,14 @@ OS backend and the home of the **stub coverage escape-hatch policy** the ROADMAP
   scoped `#![allow(unsafe_code)]` in the audio module (re-declaring the other workspace
   lints); every other crate keeps `forbid`. The toast module carries the same scoped allow for
   one line: WinRT projections are safe, but activating a WinRT factory needs a
-  COM-initialized thread and the `BodyService` server runs on tokio workers that have none, so
+  COM-initialized thread and the `BodyService` server's threads have none, so
   it makes the same idempotent `CoInitializeEx` call the audio backend does.
+  Since 2026-07-16 that thread is a **tokio blocking-pool** thread rather than an async
+  worker (`body_rpc::off_worker`), which is what makes both backends' shape load-bearing:
+  each resolves its own COM interface inside the call and holds none across calls, so nothing
+  `!Send` is ever moved between threads and a per-call `CoInitializeEx` is all either needs.
+  Neither balances it with `CoUninitialize`, which is deliberate and recorded
+  (`docs/refinements/body-gateway.md`).
 - **`os_linux`** (`os_linux`) provides `LinuxHotkey`, `LinuxAudioControl`, and `LinuxNotify`,
   `unimplemented!()` stubs (Windows-first). Compiled and measured on Linux CI, so each stub method is
   `#[cfg_attr(coverage, coverage(off))]` with a reason. That is the escape hatch in action.
@@ -32,7 +38,10 @@ OS backend and the home of the **stub coverage escape-hatch policy** the ROADMAP
 implementor (`Linux`/`Macos`/`WindowsAudioControl`), and from Slice 9.5 one `Notify`
 implementor (`Linux`/`Macos`/`WindowsNotify`); the app selects the platform's types by
 `cfg(target_os)`. `AudioControl` and `Notify` are `Send + Sync` (the `body_rpc` tonic
-`BodyService` server holds both), unlike the single-threaded `Hotkey`. The ports and pure
+`BodyService` server holds both, and lends each to a blocking thread per call), unlike the
+single-threaded `Hotkey`. Both ports stay **synchronous** on purpose: the OS they wrap is,
+and an async signature would only wrap a blocking call in a lie. Getting it off the async
+worker is the server's job, not the port's. The ports and pure
 values live in `body_core`
 (`docs/modules/body-core.md`): `AudioControl` (`get_volume() -> VolumeState`,
 `set_volume(VolumeChange) -> VolumeState`), the value types `VolumeState { level, muted }`

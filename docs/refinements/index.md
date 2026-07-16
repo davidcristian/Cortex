@@ -76,7 +76,16 @@ one backend lock per roster entry means admitting more spawns cannot make them r
 (measured live, two concurrent spawns are exactly serial). The hard budget wall turned out to
 **already exist** and to be delivered as a turn-killing exception; making it refuse as a value, and
 refusing the misconfiguration at boot, opened the two entries behind it (a bounded admission wait,
-a read timeout on the subagent HTTP client) that name the waits nothing bounds.
+a read timeout on the subagent HTTP client) that name the waits nothing bounds. Body gateway held
+at 6 on 2026-07-16 when its two-part first entry closed as two different outcomes, the second area
+in one day to show that an entry naming two things is two entries. `spawn_blocking` **landed** and
+grew: the reminder toast is the same shape of synchronous OS call, so it covers three handlers, and
+the safety question (a `spawn_blocking` that moves a `!Send` COM object is a bug, not a fix) was
+answered from the backends' types before the change was made. `GetVolume` as an overlay volume
+indicator was **declined** on the sharper of the two tests the day's other declines used: not only
+does nothing read it, nothing could keep it true, since volume changes with nothing to tell the
+overlay. It also named the wrong seam, being an RPC the body *serves*. The pass opened one entry
+behind it, unbalanced COM initialization now that the calls run on an ephemeral thread pool.
 
 ## Recommended order
 
@@ -85,36 +94,31 @@ against the code (the warning above); the entry text tells you which seams it ex
 
 ### Actionable now
 
-1. **`spawn_blocking` for the sync OS call + `GetVolume` as an overlay volume indicator**
-   ([body-gateway.md](body-gateway.md)): small body-side pair behind unchanged seams. The
-   `spawn_blocking` half now covers the toast backend too, which is the same shape of
-   synchronous OS call awaited inside an async handler. The `GetVolume` half also has a place
-   to live now: the header's connection dot is the first status chrome in that row.
-2. **Task-outcome delivery as a notification + the push retry policy**
+1. **Task-outcome delivery as a notification + the push retry policy**
    ([scheduling.md](scheduling.md)): unblocked on 2026-07-16, when the body's `Notify` trait
    landed and gave the port they both reuse a real backend.
-3. **Per-method / per-error-code retry policy** ([seam-transport.md](seam-transport.md)):
+2. **Per-method / per-error-code retry policy** ([seam-transport.md](seam-transport.md)):
    behind the existing `BrainTransport`/`Sleeper` seams.
-4. **Per-round cap on distinct calls** ([tools-mcp.md](tools-mcp.md)): the one dispatch shape
+3. **Per-round cap on distinct calls** ([tools-mcp.md](tools-mcp.md)): the one dispatch shape
    neither the budget nor salience closes (context growth, not reach).
-5. **Occurrence history table** ([scheduling.md](scheduling.md)): also covers unseen-toast
+4. **Occurrence history table** ([scheduling.md](scheduling.md)): also covers unseen-toast
    recovery.
-6. **Brain-generated summary titles** ([session-read-seam.md](session-read-seam.md)): behind
+5. **Brain-generated summary titles** ([session-read-seam.md](session-read-seam.md)): behind
    the unchanged `SessionSummary`. It now also inherits the one race the summon-edge list
    refresh cannot cover: a title the brain rewrites *after* the completing turn refreshed the
    list.
-7. **Reasoning persistence/summarization + the collapsed "thoughts" section**
+6. **Reasoning persistence/summarization + the collapsed "thoughts" section**
    ([inference-model-manager.md](inference-model-manager.md)): a natural pair over the
    already-shipped `Message.statusState`.
-8. **Summarizing a tainted exchange before recording**
+7. **Summarizing a tainted exchange before recording**
    ([untrusted-content.md](untrusted-content.md)).
-9. **Spawn-spec tuning + measured trade-off advertisement** ([subagents.md](subagents.md)):
+8. **Spawn-spec tuning + measured trade-off advertisement** ([subagents.md](subagents.md)):
    low stakes, wrong text misleads only the optimization.
-10. **`cargo fmt` and `cargo clippy` for the two ungated Rust trees**
-    ([repo-gates.md](repo-gates.md)): last because it unblocks no capability, but it is the
-    only entry here that stops a class of defect from recurring, and the format half is
-    nearly free. Five clippy warnings and three unformatted files had accumulated in the
-    Tauri shell and `os_windows` before anyone looked on 2026-07-16.
+9. **`cargo fmt` and `cargo clippy` for the two ungated Rust trees**
+   ([repo-gates.md](repo-gates.md)): last because it unblocks no capability, but it is the
+   only entry here that stops a class of defect from recurring, and the format half is
+   nearly free. Five clippy warnings and three unformatted files had accumulated in the
+   Tauri shell and `os_windows` before anyone looked on 2026-07-16.
 
 ### Actionable, but a seam or port change comes first
 
@@ -201,6 +205,13 @@ against the code (the warning above); the entry text tells you which seams it ex
   incomparable between hits. Declined 2026-07-16; when a consumer appears it is a
   `RecallPolicy.select` change, so it reopens with the model-based reranker
   ([memory.md](memory.md))
+- `GetVolume` as an overlay volume indicator: nothing in the overlay reads or changes volume,
+  and nothing could keep the number true, since it changes from hardware keys and other apps
+  with nothing to tell the overlay, beside an OS tray icon that is always right. Declined
+  2026-07-16; it also named the wrong seam (`GetVolume` is an RPC the body *serves*, so the
+  overlay would need a new body-local port, not `BrainBridge`). Reopens with an overlay control
+  that *changes* volume, or a host-side change event to push it
+  ([body-gateway.md](body-gateway.md))
 - `SubagentTask` session attribution and the `ToolInvocation` audit-line stamp: no consumer
   reads either yet ([scheduling.md](scheduling.md))
 - Provenance across the stores: `ScheduledItem` and `SubagentResult` each carry the taint bit
@@ -219,7 +230,9 @@ Bounded contingencies, each named in its doc with the condition that would activ
 salience limit knob, cross-loop salience, the `CORTEX_SUBAGENTS_MAX_BATCH` knob, the
 cost-aware batch cap, the fair-share policy, and the sidecar session cache/pool, whose own entry calls the per-call handshake acceptable at personal scale ([tools-mcp.md](tools-mcp.md)); the retry
 budget / circuit-breaker ([seam-transport.md](seam-transport.md)); the tunnel fallback, the
-hardened non-loopback posture, and a safe Core Audio wrapper
+hardened non-loopback posture, a safe Core Audio wrapper, and the unbalanced COM
+initialization the blocking-pool hop made visible, whose trigger is a COM failure or thread
+growth on Windows after a long session
 ([body-gateway.md](body-gateway.md)); paging/cursor and the live-suite fixed-window residual
 ([session-read-seam.md](session-read-seam.md)); the Postgres durable twin, cron expressions,
 and automated dead-letter retention ([scheduling.md](scheduling.md)); MTP variants and the
