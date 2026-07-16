@@ -26,6 +26,10 @@ service BrainService {
   // opens and acks what it showed.
   rpc ListDueReminders(ListDueRemindersRequest) returns (ListDueRemindersReply);
   rpc AckReminder(AckReminderRequest) returns (AckReminderReply);
+
+  // Rename a chat: a gated WRITE on the session catalog (ADR-0021 management addendum), the
+  // overlay's user-driven relabel of one chat.
+  rpc RenameSession(RenameSessionRequest) returns (RenameSessionReply);
 }
 
 message ClientEvent {
@@ -104,6 +108,13 @@ message SessionMessage {
   string turn_id = 3;
   int64 at_unix_ms = 4;
 }
+
+// Rename one chat (ADR-0021 management addendum).
+message RenameSessionRequest {
+  string session_id = 1;
+  string title = 2;
+}
+message RenameSessionReply {}
 
 // Reminder pull-delivery views (ADR-0025). All sessions are listed deliberately because
 // a single-user assistant has one user to remind; session_id rides along so the

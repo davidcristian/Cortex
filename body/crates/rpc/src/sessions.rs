@@ -1,11 +1,11 @@
-//! Session-read translation for `BrainSeamClient`, forming the unary half of the
+//! Session translation for `BrainSeamClient`, forming the unary session half of the
 //! `body_core::BrainTransport` port (ADR-0021).
 
 use body_core::{SessionMessage, SessionSummary, TransportError};
 
 use crate::client::SeamChannel;
 use crate::generated::brain_service_client::BrainServiceClient;
-use crate::generated::{GetSessionMessagesRequest, ListSessionsRequest};
+use crate::generated::{GetSessionMessagesRequest, ListSessionsRequest, RenameSessionRequest};
 use crate::status::status_to_error;
 
 /// Lists recent chats newest-active first (`BrainService.ListSessions`). At most
@@ -52,4 +52,17 @@ pub(crate) async fn session_messages(
             at_unix_ms: message.at_unix_ms,
         })
         .collect())
+}
+
+/// Renames one chat (`BrainService.RenameSession`, ADR-0021 management addendum).
+pub(crate) async fn rename_session(
+    mut client: BrainServiceClient<SeamChannel>,
+    session_id: String,
+    title: String,
+) -> Result<(), TransportError> {
+    client
+        .rename_session(RenameSessionRequest { session_id, title })
+        .await
+        .map_err(|status| status_to_error(&status))?;
+    Ok(())
 }

@@ -27,6 +27,8 @@ pub enum SeamMethod {
     ListDueReminders,
     /// `BrainService.AckReminder`: marks one reminder delivered.
     AckReminder,
+    /// `BrainService.RenameSession`: the overlay's user-driven relabel of a chat.
+    RenameSession,
 }
 
 impl SeamMethod {
@@ -39,7 +41,7 @@ impl SeamMethod {
             Self::Health | Self::ListSessions | Self::SessionMessages | Self::ListDueReminders => {
                 true
             }
-            Self::Converse | Self::AckReminder => false,
+            Self::Converse | Self::AckReminder | Self::RenameSession => false,
         }
     }
 }

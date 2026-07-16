@@ -33,6 +33,7 @@ pub fn run() {
             confirm::confirm_response,
             sessions::list_sessions,
             sessions::session_messages,
+            sessions::rename_session,
             reminders::list_due_reminders,
             reminders::ack_reminder,
             link::check_link

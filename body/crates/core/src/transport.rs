@@ -195,4 +195,12 @@ pub trait BrainTransport: Send + Sync {
         &self,
         reminder_id: &str,
     ) -> impl Future<Output = Result<bool, TransportError>> + Send;
+
+    /// Renames one chat (`BrainService.RenameSession`, ADR-0021 management addendum): the overlay's
+    /// user-driven relabel of a chat in its list.
+    fn rename_session(
+        &self,
+        session_id: &str,
+        title: &str,
+    ) -> impl Future<Output = Result<(), TransportError>> + Send;
 }

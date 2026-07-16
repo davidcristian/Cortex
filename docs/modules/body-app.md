@@ -25,8 +25,10 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
 
 - **The `BrainBridge` port** (`src/bridge/types.ts`): `converse(sessionId, text, sink) →
   Cancellation`, the read-only `listSessions(limit)` / `sessionMessages(sessionId)` (ADR-0021),
-  plus the `TurnEvent` / `TransportError` / `SessionSummary` / `SessionMessage` types, the TS
-  mirror of the Rust `body_core` values. Three implementations: `TauriBridge` (real, over IPC),
+  the user-driven `renameSession(sessionId, title)` write (ADR-0021 management addendum; `""`
+  clears the override, and `useOverlay` re-lists after it resolves so the switcher shows the new
+  label), plus the `TurnEvent` / `TransportError` / `SessionSummary` / `SessionMessage` types, the
+  TS mirror of the Rust `body_core` values. Three implementations: `TauriBridge` (real, over IPC),
   `DemoBridge` (canned stream + canned chats for `vite dev`), `FakeBridge` (tests). Only
   `tauriBridge.ts`, `demoBridge.ts`, and `main.tsx` are coverage-excluded (the un-gated glue);
   everything else is 100% line + branch. `useOverlay` owns the `session_id` (minted per new chat)

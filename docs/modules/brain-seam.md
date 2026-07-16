@@ -12,7 +12,9 @@ imports seam names from `cortex_seam` and never from `cortex_seam._generated` di
   exchange and the brain-side end of an unanswered one, ADR-0022),
   `HealthRequest`, `HealthReply`, `ListSessionsRequest`, `ListSessionsReply`,
   `SessionSummary`, `GetSessionMessagesRequest`, `GetSessionMessagesReply`,
-  `SessionMessage` (the read-only session views, ADR-0021), `CaptureScreenRequest`,
+  `SessionMessage` (the read-only session views, ADR-0021), `RenameSessionRequest`,
+  `RenameSessionReply` (the gated user-only rename write on the catalog, ADR-0021 management
+  addendum), `CaptureScreenRequest`,
   `CaptureScreenReply`, `ImageBlob`, `GetVolumeRequest`, `SetVolumeRequest`,
   `VolumeState`, `InjectInputRequest`, `TypeText`, `KeyChord`, `InjectInputReply`.
 - `BrainServiceServicer` (base class to implement), `BrainServiceStub` (client), and

@@ -39,7 +39,7 @@ its signature.
 | [inference-model-manager.md](inference-model-manager.md) | Model-manager lifecycle, MTP, reasoning status (ADR-0007/0020) | 3 |
 | [subagents.md](subagents.md) | Progress reporting, spawn schema, heterogeneous roster (ADR-0010/0018) | 1 |
 | [body-overlay.md](body-overlay.md) | Overlay polish, connection indicator, proto Cancel (ADR-0011) | 3 |
-| [session-read-seam.md](session-read-seam.md) | Session listing/read seam (ADR-0021) | 4 |
+| [session-read-seam.md](session-read-seam.md) | Session listing/read seam (ADR-0021) | 5 |
 | [resource-governance.md](resource-governance.md) | Scheduler/placer budgets, NPU, drain (ADR-0012) | 6 |
 | [email-confirmer.md](email-confirmer.md) | Email write, Confirmer, attachments, `ToolActivity` chip (ADR-0022) | 5 |
 | [body-gateway.md](body-gateway.md) | Body gateway, OS actions, hardened posture (ADR-0023) | 6 |
@@ -82,7 +82,16 @@ open-chat header still derives locally, and unifying them wants a title on the `
 read path. The titles entry is another that undersold its cost ("behind the unchanged
 `SessionSummary`"): the value type held, but the honest build added a `set_title` write method, a
 store-layout change, a list-read change, and a tier/timing policy, generated at turn end so it
-needs neither the read-path GPU-lease hazard nor an async-port widening.
+needs neither the read-path GPU-lease hazard nor an async-port widening. It then went 4 to 5 the
+same day when the session deletion/rename/pinning entry was read as three changes, not one: rename
+**landed** end to end (a gated user-only write reusing the `set_title` the titles work built, so no
+new port method), and pin and delete opened as their own entries. The "gated ... Confirmer" framing
+was wrong for a management RPC, the second reads-against-the-code correction of a Confirmer premise
+that day (the tainted-turn confirm decline was the first): the `SeamConfirmer` gates a model's
+in-turn tool call, while a rename is user-triggered out of band and reaches no tool, so its gate is
+structural user-only reachability, not a card. Pin reshapes the tuned read path (does a pin escape
+the recency window?) and delete cannot cascade to memory (`MemoryStore` has no delete verb), so
+neither could ride rename.
 Repo gates went from 0 back to 1 the same day,
 when the two Rust trees `just check` never lints turned out to have been quietly collecting
 findings; that entry originates in [ADR-0011](../adr/ADR-0011-body-v1.md) rather than the
@@ -208,8 +217,16 @@ against the code (the warning above); the entry text tells you which seams it ex
   `GetSessionMessages` read path (a proto field + overlay plumbing). A smaller overlay-only
   alternative (carry the switcher's title into `openSession`) covers the open path but not
   cold-start adoption or cycling.
-- **Session deletion / rename / pinning** ([session-read-seam.md](session-read-seam.md)): new
-  gated write RPCs on the catalog (proto change + Slice 6.5 gate + Slice 8.8 Confirmer).
+- **Session pinning** ([session-read-seam.md](session-read-seam.md)): a `SessionStore.set_pinned`
+  verb plus a `pinned` field across the wire and all four trees, but the real cost is the read-path
+  decision (does a pinned chat escape the recency window, so `list_sessions` must union it in?),
+  which reshapes the tuned two-round-trip listing. Opened 2026-07-16 when rename landed and delete
+  and pin were read as their own changes rather than one line with rename.
+- **Session deletion** ([session-read-seam.md](session-read-seam.md)): destructive; a
+  `SessionStore.delete` (likely a tombstone) plus an overlay-local confirm (the `SeamConfirmer`
+  gates in-turn tool calls, not a unary management RPC), and it cannot cascade to memories derived
+  from the session because `MemoryStore` has no delete verb (the blocked memory-verbs entry). Design
+  it with those, not half-honest.
 - **Session-history summarization + the model-based reranker**
   ([session-history.md](session-history.md), [memory.md](memory.md)): both blocked on a sync
   port going async (`HistoryWindow.select`, `RecallPolicy.select`) and both inherit the same

@@ -94,6 +94,11 @@ export interface BrainBridge {
   listSessions(limit: number): Promise<readonly SessionSummary[]>;
   /** One session's persisted history, in append order. */
   sessionMessages(sessionId: string): Promise<readonly SessionMessage[]>;
+  /**
+   * Rename one chat (`BrainService.RenameSession`, ADR-0021 management addendum): the user's own
+   * relabel from the switcher.
+   */
+  renameSession(sessionId: string, title: string): Promise<void>;
   /** Reminders that have fired and still await delivery, across every session (ADR-0025). */
   listDueReminders(): Promise<readonly DueReminder[]>;
   /**

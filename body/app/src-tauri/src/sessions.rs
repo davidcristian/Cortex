@@ -69,3 +69,14 @@ pub async fn session_messages(session_id: String) -> Result<Vec<WireMessage>, St
         .map_err(|error| error.to_string())?;
     Ok(messages.into_iter().map(Into::into).collect())
 }
+
+/// Renames one chat (`BrainService.RenameSession`, ADR-0021 management addendum): the overlay's
+/// user-driven relabel of a chat in its list.
+#[tauri::command]
+pub async fn rename_session(session_id: String, title: String) -> Result<(), String> {
+    let client = crate::seam::connect()?;
+    client
+        .rename_session(&session_id, &title)
+        .await
+        .map_err(|error| error.to_string())
+}

@@ -34,6 +34,8 @@ from cortex_seam import (
     GetSessionMessagesRequest,
     ListSessionsReply,
     ListSessionsRequest,
+    RenameSessionReply,
+    RenameSessionRequest,
 )
 
 _T0 = datetime(2026, 7, 8, 9, 0, tzinfo=UTC)
@@ -53,6 +55,14 @@ async def _messages(stub: BrainServiceStub, session_id: str) -> GetSessionMessag
     return cast(
         "GetSessionMessagesReply",
         await method(GetSessionMessagesRequest(session_id=session_id)),
+    )
+
+
+async def _rename(stub: BrainServiceStub, session_id: str, title: str) -> RenameSessionReply:
+    method = stub.RenameSession  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
+    return cast(
+        "RenameSessionReply",
+        await method(RenameSessionRequest(session_id=session_id, title=title)),
     )
 
 
@@ -146,7 +156,8 @@ async def test_get_session_messages_for_an_unknown_session_is_empty() -> None:
 
 
 class FailingStore:
-    """A SessionStore whose reads raise, to drive the handlers' UNAVAILABLE abort path."""
+    """A SessionStore whose reads and the rename write raise, to drive the handlers'
+    UNAVAILABLE abort paths (ADR-0021)."""
 
     async def append(self, session_id: str, message: Message) -> None:
         del session_id, message
@@ -163,6 +174,8 @@ class FailingStore:
 
     async def set_title(self, session_id: str, title: str) -> None:
         del session_id, title
+        msg = "redis is down"
+        raise SessionStoreError(msg)
 
 
 async def test_list_sessions_store_failure_aborts_unavailable() -> None:
@@ -186,3 +199,47 @@ async def test_get_session_messages_store_failure_aborts_unavailable() -> None:
     finally:
         await server.stop(grace=None)
     assert excinfo.value.code() is grpc.StatusCode.UNAVAILABLE
+
+
+async def test_rename_session_sets_a_title_visible_in_the_listing() -> None:
+    # The user-driven rename write: the switcher shows the chosen label, not the derivation.
+    store = await _seeded_store()
+    server, address = await _serve(store)
+    try:
+        async with aio.insecure_channel(address) as channel:
+            stub = BrainServiceStub(channel)
+            await _rename(stub, "alpha", "Everything about cats")
+            reply = await _list(stub, limit=0)
+    finally:
+        await server.stop(grace=None)
+    alpha = next(s for s in reply.sessions if s.session_id == "alpha")
+    assert alpha.title == "Everything about cats"
+    assert alpha.preview == "cats are great"  # the preview still derives from the last message
+
+
+async def test_rename_session_with_empty_title_restores_the_derivation() -> None:
+    # "" clears the override, so the switcher falls back to the first-message title.
+    store = await _seeded_store()
+    server, address = await _serve(store)
+    try:
+        async with aio.insecure_channel(address) as channel:
+            stub = BrainServiceStub(channel)
+            await _rename(stub, "alpha", "A custom label")
+            await _rename(stub, "alpha", "")
+            reply = await _list(stub, limit=0)
+    finally:
+        await server.stop(grace=None)
+    alpha = next(s for s in reply.sessions if s.session_id == "alpha")
+    assert alpha.title == "about cats"  # the first-message derivation is back
+
+
+async def test_rename_session_store_failure_aborts_unavailable() -> None:
+    server, address = await _serve(FailingStore())
+    try:
+        async with aio.insecure_channel(address) as channel:
+            with pytest.raises(aio.AioRpcError) as excinfo:
+                await _rename(BrainServiceStub(channel), "alpha", "new title")
+    finally:
+        await server.stop(grace=None)
+    assert excinfo.value.code() is grpc.StatusCode.UNAVAILABLE
+    assert "redis is down" in (excinfo.value.details() or "")

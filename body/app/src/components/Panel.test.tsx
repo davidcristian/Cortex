@@ -53,6 +53,7 @@ interface Handlers {
   onToggleSwitcher?: () => void;
   onToggleSheet?: () => void;
   onSelectSession?: (sessionId: string) => void;
+  onRenameSession?: (sessionId: string, title: string) => void;
   onRespondConfirm?: (confirmId: string, approved: boolean) => void;
   onDismissReminder?: (reminderId: string) => void;
 }
@@ -70,6 +71,7 @@ function panelProps(over: Partial<OverlayState>, open: boolean, dark: boolean, h
     onToggleSwitcher: handlers.onToggleSwitcher ?? vi.fn(),
     onToggleSheet: handlers.onToggleSheet ?? vi.fn(),
     onSelectSession: handlers.onSelectSession ?? vi.fn(),
+    onRenameSession: handlers.onRenameSession ?? vi.fn(),
     onRespondConfirm: handlers.onRespondConfirm ?? vi.fn(),
     onDismissReminder: handlers.onDismissReminder ?? vi.fn(),
   };
