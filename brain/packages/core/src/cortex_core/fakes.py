@@ -153,6 +153,17 @@ class InMemoryMemoryStore:
         scored.sort(key=lambda hit: hit.score, reverse=True)
         return tuple(scored[:k])
 
+    async def delete_scope(self, scope: str) -> int:
+        """Hard-delete every memory in ``scope``; return how many were removed (0 if none).
+
+        The in-memory twin of the pgvector ``DELETE FROM memories WHERE scope = $1`` (ADR-0008
+        delete-scope addendum): a removed memory simply stops being a search candidate.
+        """
+        kept = [record for record in self._records if record.scope != scope]
+        removed = len(self._records) - len(kept)
+        self._records = kept
+        return removed
+
 
 class InMemoryTaskStore:
     """TaskStore held in dicts as the contract twin of the Redis adapter (ADR-0010).

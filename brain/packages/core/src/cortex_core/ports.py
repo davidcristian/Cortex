@@ -112,14 +112,19 @@ class Embedder(Protocol):
 
 
 class MemoryStore(Protocol):
-    """Durable, cross-session memory: append one record, retrieve the top-k by similarity.
+    """Durable, cross-session memory: append one record, retrieve the top-k, forget a namespace.
 
     ``add`` persists one ``MemoryRecord`` that the caller builds (id, timestamp, embedding,
     scope), so the store only translates, as ``SessionStore.append`` does. ``search`` returns
     the ``k`` records whose embeddings are most similar to ``embedding``, most-similar first;
     ``scopes`` restricts the candidate set to those namespaces (ADR-0008 scoping addendum) and
-    defaults to ``None``, which ranks over ALL memories, the global-space v1 behavior. Failures
-    surface as ``MemoryStoreError``.
+    defaults to ``None``, which ranks over ALL memories, the global-space v1 behavior.
+    ``delete_scope`` hard-deletes every memory in one namespace and returns how many it removed
+    (0 when empty), the forget primitive a session-delete cascade and a per-scope eviction policy
+    each named (ADR-0008 delete-scope addendum). It takes a single required scope and no wildcard,
+    so a namespace is dropped only when named; a caller must never hand it ``GLOBAL_SCOPE``,
+    which would erase the shared space every conversation writes. Failures surface as
+    ``MemoryStoreError``.
     """
 
     async def add(self, record: MemoryRecord) -> None: ...
@@ -127,6 +132,8 @@ class MemoryStore(Protocol):
     async def search(
         self, embedding: Sequence[float], *, k: int, scopes: Sequence[str] | None = None
     ) -> Sequence[ScoredMemory]: ...
+
+    async def delete_scope(self, scope: str) -> int: ...
 
 
 class Clock(Protocol):
