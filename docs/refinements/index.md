@@ -86,6 +86,17 @@ indicator was **declined** on the sharper of the two tests the day's other decli
 does nothing read it, nothing could keep it true, since volume changes with nothing to tell the
 overlay. It also named the wrong seam, being an RPC the body *serves*. The pass opened one entry
 behind it, unbalanced COM initialization now that the calls run on an ephemeral thread pool.
+Seam transport held at 3 on 2026-07-16, the third area in two days whose first entry named two
+things and closed as two outcomes. Its "behind the existing seams" claim was the rare one that
+held exactly. The **per-method policy landed**: the audit it began with found that nothing
+non-idempotent was ever retried, so the defect it might have exposed does not exist, but the
+split was enforced only by two hand-written `impl` bodies, and this backlog already queues write
+RPCs for that port, so the silent copy was coming. The gate is now a single door that can answer
+`None`, and the `Health` probe got a budget, so raising the reads' retry knobs can no longer slow
+what the connection indicator claims. The **per-error-code half was declined** for want of a
+producer, the same test that closed blended relevance and `GetVolume`: the brain emits three
+statuses and all three are already classified correctly. It reopens as the one entry this pass
+added, a retryable-code table, whose trigger is named.
 
 ## Recommended order
 
@@ -97,24 +108,22 @@ against the code (the warning above); the entry text tells you which seams it ex
 1. **Task-outcome delivery as a notification + the push retry policy**
    ([scheduling.md](scheduling.md)): unblocked on 2026-07-16, when the body's `Notify` trait
    landed and gave the port they both reuse a real backend.
-2. **Per-method / per-error-code retry policy** ([seam-transport.md](seam-transport.md)):
-   behind the existing `BrainTransport`/`Sleeper` seams.
-3. **Per-round cap on distinct calls** ([tools-mcp.md](tools-mcp.md)): the one dispatch shape
+2. **Per-round cap on distinct calls** ([tools-mcp.md](tools-mcp.md)): the one dispatch shape
    neither the budget nor salience closes (context growth, not reach).
-4. **Occurrence history table** ([scheduling.md](scheduling.md)): also covers unseen-toast
+3. **Occurrence history table** ([scheduling.md](scheduling.md)): also covers unseen-toast
    recovery.
-5. **Brain-generated summary titles** ([session-read-seam.md](session-read-seam.md)): behind
+4. **Brain-generated summary titles** ([session-read-seam.md](session-read-seam.md)): behind
    the unchanged `SessionSummary`. It now also inherits the one race the summon-edge list
    refresh cannot cover: a title the brain rewrites *after* the completing turn refreshed the
    list.
-6. **Reasoning persistence/summarization + the collapsed "thoughts" section**
+5. **Reasoning persistence/summarization + the collapsed "thoughts" section**
    ([inference-model-manager.md](inference-model-manager.md)): a natural pair over the
    already-shipped `Message.statusState`.
-7. **Summarizing a tainted exchange before recording**
+6. **Summarizing a tainted exchange before recording**
    ([untrusted-content.md](untrusted-content.md)).
-8. **Spawn-spec tuning + measured trade-off advertisement** ([subagents.md](subagents.md)):
+7. **Spawn-spec tuning + measured trade-off advertisement** ([subagents.md](subagents.md)):
    low stakes, wrong text misleads only the optimization.
-9. **`cargo fmt` and `cargo clippy` for the two ungated Rust trees**
+8. **`cargo fmt` and `cargo clippy` for the two ungated Rust trees**
    ([repo-gates.md](repo-gates.md)): last because it unblocks no capability, but it is the
    only entry here that stops a class of defect from recurring, and the format half is
    nearly free. Five clippy warnings and three unformatted files had accumulated in the
@@ -229,7 +238,9 @@ against the code (the warning above); the entry text tells you which seams it ex
 Bounded contingencies, each named in its doc with the condition that would activate it: the
 salience limit knob, cross-loop salience, the `CORTEX_SUBAGENTS_MAX_BATCH` knob, the
 cost-aware batch cap, the fair-share policy, and the sidecar session cache/pool, whose own entry calls the per-call handshake acceptable at personal scale ([tools-mcp.md](tools-mcp.md)); the retry
-budget / circuit-breaker ([seam-transport.md](seam-transport.md)); the tunnel fallback, the
+budget / circuit-breaker, joined on 2026-07-16 by a retryable-code table beyond `Unavailable`,
+whose trigger is a brain that starts answering `RESOURCE_EXHAUSTED` or `ABORTED`
+([seam-transport.md](seam-transport.md)); the tunnel fallback, the
 hardened non-loopback posture, a safe Core Audio wrapper, and the unbalanced COM
 initialization the blocking-pool hop made visible, whose trigger is a COM failure or thread
 growth on Windows after a long session

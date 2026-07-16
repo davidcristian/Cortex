@@ -5,6 +5,10 @@
 //! before succeeding (and counts every inner call), and a `FakeSleeper` records the backoff
 //! *schedule* while returning instantly, so no wall-clock elapses. Both share their state via
 //! `Arc` so the test can inspect them after they are moved into the decorator.
+//!
+//! The gate itself (`SeamMethod`, `RetryPlan`) is pure data and is tested in `retry_plan.rs`;
+//! what this file adds is what the decorator *does* under one: a refused method makes one
+//! call, and the probe budget shortens the probe without touching the reads.
 
 use std::future::Future;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -12,9 +16,9 @@ use std::sync::{Arc, Mutex, PoisonError};
 use std::time::Duration;
 
 use body_core::{
-    BrainTransport, ConfirmDecision, DueReminder, Randomness, RetryPolicy, RetryingTransport,
-    SeamHealth, SessionMessage, SessionSummary, Sleeper, TransportError, TurnEvent, is_transient,
-    retry_with,
+    BrainTransport, ConfirmDecision, DueReminder, Randomness, RetryPlan, RetryPolicy,
+    RetryingTransport, SeamHealth, SessionMessage, SessionSummary, Sleeper, TransportError,
+    TurnEvent, is_transient, retry_with,
 };
 use futures_core::Stream;
 use tokio_stream::StreamExt;
@@ -506,6 +510,81 @@ async fn out_of_range_and_non_finite_draws_are_sanitized_not_panicked() {
             Duration::from_millis(100), // 2.0 clamps to 1.0: full first delay
             Duration::from_millis(100), // -3.0 clamps to 0.0: the half-delay floor of 200
             Duration::from_millis(400), // NaN -> full: the third delay (base*4) whole
+        ]
+    );
+}
+
+/// A patient read schedule (as `retry_plan.rs` uses): 6 attempts, 100 ms base, ×2, no cap in
+/// play, so its backoffs are 100/200/400/800/1600 ms and its worst case is 3.1 s.
+fn patient_reads() -> RetryPolicy {
+    policy(6)
+}
+
+#[tokio::test]
+async fn an_unavailable_write_is_still_not_retried() {
+    // The sharpest form of the gate: `Unavailable` is *the* retryable gRPC status, and the
+    // plan still refuses, because retryability is decided by what the call does, not by what
+    // the failure is called. A status saying the brain could not serve the ack never says the
+    // brain did not already clear the reminder.
+    let flaky = FlakyTransport::new(FailKind::Unavailable, 1);
+    let sleeper = FakeSleeper::default();
+    let transport = RetryingTransport::new(flaky.clone(), sleeper.clone(), patient_reads());
+    assert_eq!(
+        transport.ack_reminder("r1").await.unwrap_err(),
+        TransportError::Rpc {
+            code: String::from("Unavailable"),
+            message: String::from("store down"),
+        }
+    );
+    assert_eq!(flaky.call_count(), 1);
+    assert!(sleeper.delays().is_empty());
+}
+
+#[tokio::test]
+async fn the_probe_budget_shortens_the_health_probe() {
+    // The connection indicator renders this probe's answer, so its patience is time the dot
+    // spends claiming a state the seam has stopped proving. With a 250 ms budget the 100 ms
+    // wait fits and 100 + 200 does not, so the probe reports Down after two attempts instead
+    // of burning the reads' whole 3.1 s.
+    let flaky = FlakyTransport::new(FailKind::Connection, 9);
+    let sleeper = FakeSleeper::default();
+    let transport = RetryingTransport::new(
+        flaky.clone(),
+        sleeper.clone(),
+        RetryPlan {
+            reads: patient_reads(),
+            probe_budget: Duration::from_millis(250),
+        },
+    );
+    assert!(transport.health().await.is_err());
+    assert_eq!(flaky.call_count(), 2);
+    assert_eq!(sleeper.delays(), vec![Duration::from_millis(100)]);
+}
+
+#[tokio::test]
+async fn the_same_plan_leaves_the_session_read_patient() {
+    // The other half of the pair: trimming the probe must not trim the reads. Same plan,
+    // same failure, and `list_sessions` still spends every attempt it was configured for.
+    let flaky = FlakyTransport::new(FailKind::Connection, 9);
+    let sleeper = FakeSleeper::default();
+    let transport = RetryingTransport::new(
+        flaky.clone(),
+        sleeper.clone(),
+        RetryPlan {
+            reads: patient_reads(),
+            probe_budget: Duration::from_millis(250),
+        },
+    );
+    assert!(transport.list_sessions(5).await.is_err());
+    assert_eq!(flaky.call_count(), 6);
+    assert_eq!(
+        sleeper.delays(),
+        vec![
+            Duration::from_millis(100),
+            Duration::from_millis(200),
+            Duration::from_millis(400),
+            Duration::from_millis(800),
+            Duration::from_millis(1600),
         ]
     );
 }

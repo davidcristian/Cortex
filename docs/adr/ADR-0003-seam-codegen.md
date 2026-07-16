@@ -63,4 +63,9 @@ ROADMAP deferred-refinements ledger and [body-rpc.md](../modules/body-rpc.md) bu
 this, its origin ADR. Added when the 2026-07-02 audit flagged the missing ADR-side half of
 the AGENTS.md gate-4 record. **Landed 2026-07-08 as [ADR-0024](ADR-0024-transport-retry.md)**
 with a `RetryingTransport` decorator + `Sleeper` port + lazy `connect_lazy_with_token` channel,
-all behind the unchanged `BrainTransport` port.
+all behind the unchanged `BrainTransport` port. Jitter and a patient eager dial followed on
+2026-07-13, and the per-method policy on 2026-07-16 (a `RetryPlan` gate that answers which
+calls may be repeated at all, plus a bounded `Health` probe), each behind the same unchanged
+port; see that ADR's addenda. What remains open from this deferral is `converse` resilience,
+which is the one part no decorator over this port can deliver: reconnecting a turn before its
+first event needs a replayable request and so a different signature.
