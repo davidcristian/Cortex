@@ -41,7 +41,7 @@ its signature.
 | [body-overlay.md](body-overlay.md) | Overlay polish, connection indicator, proto Cancel (ADR-0011) | 3 |
 | [session-read-seam.md](session-read-seam.md) | Session listing/read seam (ADR-0021) | 5 |
 | [resource-governance.md](resource-governance.md) | Scheduler/placer budgets, NPU, drain (ADR-0012) | 6 |
-| [email-confirmer.md](email-confirmer.md) | Email write, Confirmer, attachments, `ToolActivity` chip (ADR-0022) | 5 |
+| [email-confirmer.md](email-confirmer.md) | Email write, Confirmer, attachments, `ToolActivity` chip (ADR-0022) | 4 |
 | [body-gateway.md](body-gateway.md) | Body gateway, OS actions, hardened posture (ADR-0023) | 6 |
 | [scheduling.md](scheduling.md) | Scheduling and reminders, `TurnStamp` provenance (ADR-0025/0027) | 8 |
 | [cross-cutting.md](cross-cutting.md) | Pointer input, OS backends, more roles | 4 |
@@ -230,7 +230,15 @@ turn-local flow already costs. The provenance actually captured is attested (`TO
 names the user's own tool use rather than the attacker, while the `SENDER`/`URI` kinds that would
 name the attacker have no producer, so the change is doubly unfounded. It is the same fail-closed
 philosophy the tainted-summarization decline turned on, now protecting the user rather than the
-model.
+model. Email & confirmer then went 5 to 4 the same day when real-file attachments (bytes the
+assistant did not author) closed as declined, the capability kept ungranted: send exists but
+attaches only authored text, the `mcp-email` sidecar has no `volumes:` to read from, and granting
+the one outbound sidecar file-read would fuse read-local with write-remote on the exfil path. The
+deeper reason it stays closed is that the taint boundary already denies the useful flow (reading a
+file's bytes taints the turn and a tainted gated send is blocked), so a useful real-file attachment
+must bypass taint, which is the exfiltration channel, while a digest-bound card binds the bytes but
+never the file choice an injection controls. The safe design (a scoped source, the file choice gated
+by taint, the digest-bound card on top) is recorded for the consumer that reopens it.
 Session history held at 1 and memory at 8 on 2026-07-16 when the summarization and
 model-based-reranker pair, which the recommended order lists as one design problem, was audited
 against the code and kept deferred with its blocker sharpened. The async `select` widening both wait
@@ -304,8 +312,6 @@ against the code (the warning above); the entry text tells you which seams it ex
   content blocks with no result `_meta`, while `structuredContent` would replace the readable
   string the model consumes. Needs both halves designed together; parsing a sidecar's rendered
   text in the core is not the answer.
-- **Real-file email attachments** ([email-confirmer.md](email-confirmer.md)): needs a
-  capability grant on a sidecar that deliberately has none, plus a digest-bound approval card.
 - **Toast activation routing** ([scheduling.md](scheduling.md)): opened 2026-07-16 behind the
   landed toast. Clicking a toast does nothing, and the obvious fix (open the origin chat, the
   control the overlay's card already has) cannot be built as the seam stands: `NotifyRequest`
@@ -357,6 +363,18 @@ against the code (the warning above); the entry text tells you which seams it ex
 - Token rotation / multiple tokens: needs a second seam client ([seam-auth.md](seam-auth.md))
 - Trust/gating overrides for remote tools: no trusted remote tool exists
   ([untrusted-content.md](untrusted-content.md), [email-confirmer.md](email-confirmer.md))
+- Real-file email attachments (bytes the assistant did not author): declined 2026-07-16, the
+  capability kept ungranted. Send exists and attaches only authored text
+  (`EmailAttachment.content` is a string composed as a `text/<subtype>` part); the `mcp-email`
+  sidecar declares no `volumes:`, so a real file means granting the one outbound sidecar the power to
+  read local disk, fusing read-local with write-remote in the process built to leave the machine.
+  And the taint boundary already closes the useful path: reading a file's bytes taints the turn and a
+  tainted gated send is `DENIED_MSG`, so a useful real-file attachment must bypass taint, which is
+  the exfiltration channel itself; a digest-bound card binds the bytes but never the file *choice*,
+  which is what an injection controls. Reopens on a real consumer that must attach bytes the
+  assistant did not author, built then to the ADR-0022 real-file addendum's scoped-source,
+  taint-gated-choice, and digest-bound-card shape, never by handing the egress sidecar a path
+  ([email-confirmer.md](email-confirmer.md))
 - Confirm-with-provenance for tainted turns: the provenance it waited on landed, so the decision
   it always was got made, and it is to keep the fail-closed block. A gated call on a tainted turn
   returns `DENIED_MSG` and never consults the confirmer (observed in `dispatch.py`, with an

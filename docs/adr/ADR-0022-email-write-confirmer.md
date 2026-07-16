@@ -323,7 +323,9 @@ without a brain; `overlay-ux.md` gains the card's spec.
   **Declined 2026-07-16** once the provenance landed (addendum below): reversing the fail-closed
   block is rejected on the merits, and the useful `SENDER`/`URI` provenance has no producer anyway.
 - Richer send shapes behind the same tool name: **cc/bcc/HTML landed 2026-07-13** (addendum
-  below); **attachments remain** (they need a bytes-transport decision, recorded there).
+  below); **authored-text attachments landed 2026-07-15** and **real-file attachments (bytes the
+  assistant did not author) were declined 2026-07-16** (addenda below), the capability kept
+  ungranted on the outbound sidecar.
 - A structured confirm-resolution event so the overlay can close a stale card exactly.
   **Landed 2026-07-14** (addendum below).
 - Trust (as opposed to gating) overlays for remote tools. Still nothing needs one.
