@@ -5,7 +5,8 @@
 //! [`BrainSeamClient`] (the body→brain `BrainService` client behind the
 //! `body_core::BrainTransport` port), and [`body_service`] (the brain→body
 //! `BodyService` server over the `body_core::AudioControl` port, Slice 9,
-//! ADR-0023). No business logic lives here.
+//! ADR-0023, joined by the `body_core::Notify` port, Slice 9.5, ADR-0025). No
+//! business logic lives here.
 
 mod auth;
 mod client;
@@ -36,4 +37,4 @@ pub mod generated {
 
 pub use auth::SeamTokenValidator;
 pub use client::BrainSeamClient;
-pub use server::{VolumeService, body_service};
+pub use server::{OsService, body_service};

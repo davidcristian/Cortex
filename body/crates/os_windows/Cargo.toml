@@ -3,7 +3,7 @@ name = "os-windows"
 version.workspace = true
 edition.workspace = true
 publish.workspace = true
-description = "Windows OS backends for the Cortex body, hotkey (Slice 8) + audio (Slice 9) (lib name: os_windows)"
+description = "Windows OS backends for the Cortex body: hotkey, audio, toast (lib name: os_windows)"
 
 # Everything here is `cfg(windows)`: the real backends make Windows OS calls and
 # cannot compile elsewhere. On Linux CI the crate builds to nothing (no deps, no
@@ -12,9 +12,13 @@ description = "Windows OS backends for the Cortex body, hotkey (Slice 8) + audio
 [target.'cfg(windows)'.dependencies]
 body-core.workspace = true
 global-hotkey = "0.8"
-# Core Audio (IAudioEndpointVolume) for the volume backend (ADR-0023). COM calls are
-# `unsafe`, authorized narrowly for this crate (see the `[lints]` note below).
+# Core Audio (IAudioEndpointVolume) for the volume backend (ADR-0023) and the WinRT toast
+# for the notification backend (ADR-0025). COM calls are `unsafe`, authorized narrowly for
+# this crate (see the `[lints]` note below); the WinRT projections themselves are safe.
 windows = { version = "0.58", features = [
+  "Data_Xml_Dom",
+  "Foundation",
+  "UI_Notifications",
   "Win32_Foundation",
   "Win32_Media_Audio",
   "Win32_Media_Audio_Endpoints",

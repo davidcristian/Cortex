@@ -132,7 +132,8 @@ Start here. Rules for working in this repo: [AGENTS.md](../AGENTS.md).
   are internal tools over a `BodyGateway` port, not MCP) and Q3 (the brain dials the host body via
   `host.docker.internal`; the abstract port keeps the tunnel fallback an adapter swap). Adds the
   `BodyGateway` port + `GrpcBodyGateway` adapter (`cortex_body_client`) on the brain, the
-  `AudioControl` OS trait + real Core Audio `WindowsAudioControl` on the body, and `VolumeService`
+  `AudioControl` OS trait + real Core Audio `WindowsAudioControl` on the body, and the
+  `BodyService` server (`OsService`, named `VolumeService` until the reminder toast joined it)
   + the reversed seam-token validator in `body_rpc`. Volume is ungated (reversible); `set_volume`
   is opt-in-gatable via `CORTEX_TOOLS_GATED`. `unsafe` for Core Audio is authorized narrowly to
   `os_windows`; `SEAM_TOKEN_HEADER` is lifted to `cortex_seam`.

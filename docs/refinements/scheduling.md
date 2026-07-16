@@ -2,7 +2,7 @@
 
 These deferrals originate at [ADR-0025](../adr/ADR-0025-scheduling-reminders.md), the Slice 9.5 scheduling and reminders decision, joined by [ADR-0027](../adr/ADR-0027-turn-provenance.md) for the `TurnStamp` turn-provenance seam. Extracted from the ROADMAP's deferred-refinements section on 2026-07-15 with the entries kept verbatim; landed entries are the historical record of what each deferral became, and the index at [index.md](index.md) carries the recommended pickup order.
 
-**Open items:** body-side `Notify` OS trait + Tauri toast, overlay badge/UX polish for tainted reminders, `SubagentTask` session attribution, `ToolInvocation` audit-line stamp, Postgres durable twin, cron expressions, occurrence history, automated dead-letter retention, task-outcome delivery notification, push retry policy
+**Open items:** toast activation routing, overlay badge/UX polish for tainted reminders, `SubagentTask` session attribution, `ToolInvocation` audit-line stamp, Postgres durable twin, cron expressions, occurrence history, automated dead-letter retention, task-outcome delivery notification, push retry policy
 
 **Scheduling & reminders in Slice 9.5 ([ADR-0025](../adr/ADR-0025-scheduling-reminders.md)):** each
 behind the unchanged `ScheduleStore`/`BodyGateway`/seam shapes.
@@ -66,6 +66,58 @@ behind the unchanged `ScheduleStore`/`BodyGateway`/seam shapes.
   now-current chat's cards drop their controls in the same render). The pass also settled the
   resting treatment, the same correction the taint badge needed: at the meta row's `--dim` the
   label read as more metadata, so it rests at `--muted` and grows the switcher's pill on hover.
+- **The body-side `Notify` OS trait + Tauri toast landed 2026-07-16 ([ADR-0025 notify
+  addendum](../adr/ADR-0025-scheduling-reminders.md)).** The last of the three in-slice
+  remainders, so push delivery exists end to end: the ticker's `notify` call reaches a real
+  handler instead of the shape-now `Unimplemented`. `body_core::os::notify` holds the port
+  (`Notify::show(&Notification) -> Result<bool, NotifyError>`, `Send + Sync` like
+  `AudioControl`, in its own submodule because `os.rs` was at the line cap), `os_linux`/
+  `os_macos` get the stubs behind the coverage escape hatch, `os_windows` gets the real
+  `WindowsNotify` (a `ToastGeneric` WinRT toast), and `body_rpc`'s server takes the second
+  backend generic the ADR predicted. **Three corrections to that ADR's own framing, each found
+  by reading the code:** (1) it placed the Windows implementation in the **Tauri shell**, but
+  the shell's own contract is that it holds no branchy decision, and `os_windows` already is
+  the per-platform backend home and already `cfg(windows)`, so the backend lands there and the
+  shell keeps only which backend to build and from which env var; (2) `VolumeService` could not
+  keep its name once the server answered two unrelated capabilities, so it is
+  `OsService<A: AudioControl, N: Notify>` (a rename, no behavior change); (3) the ADR-0023
+  `unsafe` authorization widened by one line, still COM only and still `os_windows` only,
+  because WinRT projections are safe but activating a WinRT factory needs a COM-initialized
+  thread the tokio workers do not have. The load-bearing decision is **where the inert-text rule
+  lives**: the ADR phrased it as an instruction to the Windows file, which would have rested the
+  whole data-not-instructions posture on the one file no gate ever sees, so `Notification::new`
+  applies it in the pure core instead (control characters replaced by spaces, never dropped, so
+  words cannot fuse; each line bounded at 200 characters with a trailing ellipsis, so an
+  oversized payload degrades a reminder rather than losing it, the same bias as the
+  daylight-saving fold and the month-length clamp). **Escaping split off from sanitizing** once
+  the two were examined: a toast template is XML, but a future Linux backend renders through
+  markup-limited text where a pre-escaped string would show the entity literally, and a backend
+  that escapes for itself would double-escape, so `escape_xml` is a gated helper the renderer
+  calls rather than something the value bakes in. `shown=false` turned out to be a real answer
+  rather than a dead wire field, because `ToastNotifier.Setting` reports *before* showing that
+  notifications are off for this app, user, or policy, which is a decline and not a failure; the
+  brain treats it exactly like an error either way, so the split buys only honest logs. The
+  taint badge is a fixed body-authored `from an untrusted source` line, for the reason the
+  overlay's card already learned (whoever writes the reminder must never write the label that
+  describes it). CI-gated at 100% line+region+branch with nine guards mutation-proven (the
+  control-character replacement, the length bound, the truncation mark, the taint-conditional
+  attribution, the ampersand escape, the declined verdict, the unavailable status mapping, and
+  the title/body and taint mapping into the value), plus a compile-only cross-check: both
+  `os_windows` and the ungated Tauri shell were type-checked and clippy-checked against the real
+  `windows` crate for the `x86_64-pc-windows-msvc` target from Linux. Remaining, and unchanged
+  from what this slice always owed: the **Host-Windows** look at a real toast (runbook
+  [scheduling.md](../runbooks/scheduling.md)). Newly deferred behind it: **toast activation
+  routing** (its own entry below). Unblocked by it, and still deferred on their own merits: the
+  **task-outcome delivery notification** and the **push retry policy**.
+- **Toast activation routing.** A shown toast is inert: clicking it does nothing, while the
+  overlay's reminder card offers "open the conversation this came from". Closing that asymmetry
+  is **not behind an unchanged seam**, which is why it is recorded rather than folded in:
+  `NotifyRequest` carries `title`/`body`/`reminder_id`/`tainted` and **no `session_id`** (unlike
+  `DueReminder`, which has carried one since the seam was designed), so the body cannot resolve
+  the origin chat at all today. It also needs an activation channel from the toast back into the
+  running app, and for an unpackaged Win32 app that means a registered COM activator, which is
+  more Windows plumbing than the delivery it improves. Wait for a second consumer of toast
+  interaction (snooze-from-the-toast would be the other one) before spending it.
 - **Session attribution landed 2026-07-13 ([ADR-0027](../adr/ADR-0027-turn-provenance.md)).**
   The dispatcher's per-call stamp widened from the lone taint bool to a frozen `TurnStamp`
   (`session_id` + `tainted`), built fresh per dispatch from the engine-threaded
@@ -286,5 +338,6 @@ behind the unchanged `ScheduleStore`/`BodyGateway`/seam shapes.
   fake + fakeredis + the live Redis suite, plus pure `apply_snooze`/`recurrence_base` units, the
   tool test, and a ticker test proving the anchor-grid re-arm, at 100%.
 - **The remaining scheduling deferrals** stay: **task-outcome delivery** as a notification and a
-  **push retry policy** beyond next-poll-pull (both blocked on the body half of this slice); and
-  overlay badge/UX polish for tainted reminders.
+  **push retry policy** beyond next-poll-pull (both were blocked on the body half of this slice
+  and are unblocked since the toast landed, since the `Notify` port a task outcome would reuse
+  now has a real backend); and overlay badge/UX polish for tainted reminders.

@@ -1,8 +1,8 @@
 # body/crates/core (`body_core`)
 
 **Purpose.** The body's pure core: host-side domain types and ports, including the
-OS-capability ports in `os` (`Hotkey` from Slice 8; `AudioControl`/`ScreenCapture`/
-`InputControl` join in Slices 9-10). No OS calls, ever. Per-platform backends live in
+OS-capability ports in `os` (`Hotkey` from Slice 8; `AudioControl` and `Notify` from
+Slices 9/9.5; `ScreenCapture`/`InputControl` join in Slice 10). No OS calls, ever. Per-platform backends live in
 the `os_windows`/`os_linux`/`os_macos` crates (`docs/modules/body-os.md`). Currently: the
 typed global-hotkey chord, the `BrainTransport` port to the brain seam (`health` +
 streaming `converse` + the session and reminder reads) with the `RetryingTransport`
@@ -146,6 +146,40 @@ OS-capability ports (`os` module) are the first portability seam (ADR-0011):
   `F1`…`F24`, and a small named set (space, enter/return, escape/esc, tab, backspace,
   arrows); anything else is `UnsupportedKey`. Pure and fully tested, covering the key-mapping logic
   the backend would otherwise hold untested.
+
+The `AudioControl` volume port (ADR-0023) is documented with its adapters in
+`docs/modules/body-os.md`. The notification port (`os::notify`, ADR-0025) is the push half of
+reminder delivery:
+
+- `Notify` is the notification-backend port: `show(&self, &Notification) -> Result<bool,
+  NotifyError>`, `Send + Sync` for the same reason as `AudioControl` (the `BodyService`
+  server holds it across async tasks). `Ok(false)` is a **state report**, not a failure: the
+  host was reached and declined, typically because notifications are switched off. The brain
+  treats `false` and an error identically (the reminder stays deliverable and the overlay's
+  pull path shows it on the next open), so the split exists to keep the body's own logs
+  honest, not to change the outcome.
+- `NotifyError` (thiserror, `Clone`) is `Unavailable(String)` (no notification service
+  reachable) | `Backend(String)` (the backend refused or failed), the same transient/fault
+  split as `AudioError`.
+- `Notification` is the value a backend renders, built only by `Notification::new(title,
+  body, reminder_id, tainted)`, which is where the **inert-text rule** lives: every control
+  character becomes a space (replaced, not dropped, so words never fuse across a stripped
+  newline, and a raw control byte can never make a backend's document unparseable) and each
+  line is bounded at `MAX_TEXT_CHARS` (200) with a trailing ellipsis marking the cut, because
+  an oversized payload is refused by the OS as a whole, which would turn a long reminder into
+  no reminder. Accessors `title()`, `body()`, `reminder_id()`, `tainted()`, and
+  `attribution()`, which answers the fixed `UNTRUSTED_ATTRIBUTION` line
+  (`"from an untrusted source"`) for a tainted reminder and `None` otherwise: the badge that
+  describes untrusted text is body-authored so it can never be written by that text. The
+  value sanitizes rather than each backend because a fired reminder is the one string the
+  body renders that **no output guardrail inspected** (ADR-0015 filters streamed replies, not
+  store rows).
+- `os::escape_xml(&str) -> String` escapes the five predefined XML entities, for a backend
+  whose renderer is a markup template (the Windows toast). It is *not* applied by
+  `Notification`, since the right escape differs per renderer and a value that pre-escaped
+  would double-escape at one that does its own. It lives here, gated, because the only caller
+  is `cfg(windows)` and never measured in CI: leaving the escape there would rest the seam's
+  data-not-instructions posture on untested code.
 
 **Invariants.**
 - Pure: no OS/network calls; `unsafe_code = "forbid"`; no `unwrap`/`expect` outside

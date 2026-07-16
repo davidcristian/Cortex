@@ -3,11 +3,19 @@
 //! the `os_windows` / `os_linux` / `os_macos` crates behind them.
 //!
 //! Slice 8 introduces [`Hotkey`] (the global-hotkey backend); Slice 9 adds
-//! [`AudioControl`] (the first OS action the brain drives over `BodyService`);
+//! [`AudioControl`] (the first OS action the brain drives over `BodyService`), joined by
+//! [`Notify`] for proactive reminder delivery (Slice 9.5, ADR-0025, in the [`notify`]
+//! submodule since this file is at the line cap);
 //! the screen and input traits join in Slice 10 and later. The overlay is summoned by a global
 //! hotkey whose chord is a [`HotkeyChord`]; a backend registers that chord with
 //! the OS and calls back on each press. Mapping a chord to the OS key identifier
 //! is pure and lives here ([`Accelerator`]); touching the OS is the adapter's job.
+
+pub mod notify;
+
+pub use notify::{
+    MAX_TEXT_CHARS, Notification, Notify, NotifyError, UNTRUSTED_ATTRIBUTION, escape_xml,
+};
 
 use crate::hotkey::{HotkeyChord, Modifier};
 

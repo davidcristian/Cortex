@@ -1,15 +1,18 @@
 //! The body-side `BodyService` server: the brain's OS-action calls, translated to the
 //! `body_core` OS ports (ADR-0023) in the first brain→body direction of the seam.
 //!
-//! A thin adapter (AGENTS.md): [`VolumeService`] implements the generated `BodyService` trait
-//! over an injected [`AudioControl`] backend. `get_volume`/`set_volume` map the wire messages
-//! onto the port (the clamp lives in `body_core::VolumeChange`); `capture_screen`/`inject_input`
-//! answer `Unimplemented` until their slices. No business logic, no state: volume is read from
-//! the OS on demand (the one hard rule). The bind/serve lifecycle lives in the ungated Tauri
-//! shell; this crate holds only the coverable translation plus the seam-token validator
+//! A thin adapter (AGENTS.md): [`OsService`] implements the generated `BodyService` trait over
+//! an injected [`AudioControl`] backend and an injected [`Notify`] backend (ADR-0025).
+//! `get_volume`/`set_volume` map the wire messages onto the volume port (the clamp lives in
+//! `body_core::VolumeChange`); `notify` builds a `body_core::Notification` (which is where the
+//! inert-text rule lives) and reports whether the host displayed it;
+//! `capture_screen`/`inject_input` answer `Unimplemented` until their slices. No business
+//! logic, no state: volume is read from the OS on demand and a notification is fire and
+//! forget (the one hard rule). The bind/serve lifecycle lives in the ungated Tauri shell;
+//! this crate holds only the coverable translation plus the seam-token validator
 //! ([`crate::auth`]).
 
-use body_core::{AudioControl, AudioError, VolumeChange};
+use body_core::{AudioControl, AudioError, Notification, Notify, NotifyError, VolumeChange};
 use tonic::service::interceptor::InterceptedService;
 use tonic::{Request, Response, Status};
 
@@ -21,21 +24,22 @@ use crate::generated::{
     InjectInputRequest, NotifyReply, NotifyRequest, SetVolumeRequest,
 };
 
-/// The `BodyService` implementation over an [`AudioControl`] backend.
-pub struct VolumeService<A: AudioControl> {
+/// The `BodyService` implementation over the host's OS backends.
+pub struct OsService<A: AudioControl, N: Notify> {
     audio: A,
+    notifier: N,
 }
 
-impl<A: AudioControl> VolumeService<A> {
-    /// Wraps `audio` as the `BodyService` volume handlers.
+impl<A: AudioControl, N: Notify> OsService<A, N> {
+    /// Wraps `audio` and `notifier` as the `BodyService` handlers.
     #[must_use]
-    pub const fn new(audio: A) -> Self {
-        Self { audio }
+    pub const fn new(audio: A, notifier: N) -> Self {
+        Self { audio, notifier }
     }
 }
 
 #[tonic::async_trait]
-impl<A: AudioControl + 'static> BodyService for VolumeService<A> {
+impl<A: AudioControl + 'static, N: Notify + 'static> BodyService for OsService<A, N> {
     async fn get_volume(
         &self,
         _request: Request<GetVolumeRequest>,
@@ -81,16 +85,24 @@ impl<A: AudioControl + 'static> BodyService for VolumeService<A> {
         ))
     }
 
+    /// Shows a fired reminder on the host (ADR-0025 decision 6). `shown=false` is a state
+    /// report the brain reads exactly like a failure (the reminder stays deliverable for the
+    /// overlay's pull path), so it stays in the reply rather than becoming a status.
     async fn notify(
         &self,
-        _request: Request<NotifyRequest>,
+        request: Request<NotifyRequest>,
     ) -> Result<Response<NotifyReply>, Status> {
-        // Shape-now (ADR-0025 decision 6): the brain treats Unimplemented like any push
-        // failure. The reminder stays deliverable for the pull path. The real handler
-        // lands with the body-side `Notify` OS trait.
-        Err(Status::unimplemented(
-            "the native toast lands with the body-side Notify trait (ADR-0025)",
-        ))
+        let NotifyRequest {
+            title,
+            body,
+            reminder_id,
+            tainted,
+        } = request.into_inner();
+        let shown = self
+            .notifier
+            .show(&Notification::new(&title, &body, &reminder_id, tainted))
+            .map_err(|error| notify_error_to_status(&error))?;
+        Ok(Response::new(NotifyReply { shown }))
     }
 }
 
@@ -106,12 +118,32 @@ fn audio_error_to_status(error: &AudioError) -> Status {
     }
 }
 
-/// Builds the `BodyService` server over `audio`, fronted by the seam-token validator
-/// (ADR-0016/0023): an empty `token` makes the validator a pass-through, so a tokenless
-/// deployment is byte-for-byte the tokenless server. The ungated Tauri shell serves the result.
-pub fn body_service<A: AudioControl + 'static>(
+/// Maps a [`NotifyError`] to the outbound gRPC [`Status`], on the same split as the volume
+/// mapping: a missing notification service is `Unavailable` (transient), a backend failure is
+/// `Internal`. Either way the brain treats the push as failed and leaves the reminder
+/// deliverable, so the mapping costs it nothing to read but keeps its logs honest.
+fn notify_error_to_status(error: &NotifyError) -> Status {
+    match error {
+        NotifyError::Unavailable(detail) => {
+            Status::unavailable(format!("no notification service: {detail}"))
+        }
+        NotifyError::Backend(detail) => {
+            Status::internal(format!("notification backend error: {detail}"))
+        }
+    }
+}
+
+/// Builds the `BodyService` server over `audio` and `notifier`, fronted by the seam-token
+/// validator (ADR-0016/0023): an empty `token` makes the validator a pass-through, so a
+/// tokenless deployment is byte-for-byte the tokenless server. The ungated Tauri shell serves
+/// the result.
+pub fn body_service<A: AudioControl + 'static, N: Notify + 'static>(
     audio: A,
+    notifier: N,
     token: &str,
-) -> InterceptedService<BodyServiceServer<VolumeService<A>>, SeamTokenValidator> {
-    BodyServiceServer::with_interceptor(VolumeService::new(audio), SeamTokenValidator::new(token))
+) -> InterceptedService<BodyServiceServer<OsService<A, N>>, SeamTokenValidator> {
+    BodyServiceServer::with_interceptor(
+        OsService::new(audio, notifier),
+        SeamTokenValidator::new(token),
+    )
 }
