@@ -76,6 +76,24 @@ Body & overlay held at 3 on 2026-07-16 when the connection indicator landed and
 opened the push half behind it (streamed brain status, blocked on a producer), while session
 read seam went 5 to 4 the same day: the two entries were one deferral written down twice, and
 the shared premise (wait for a slice that streams brain status) turned out to be wrong for both.
+Body & overlay held at 3 again the same day when multi-turn-within-one-stream plus proto `Cancel`
+was read against the code and sharpened rather than built. The entry's framing was outdated: the
+proto `Cancel` has existed since the first proto commit, and the server already carries multiple
+turns per stream and handles `Cancel` end to end (queue a mid-turn `UserTurn`, stop the in-flight
+turn and drop the queue, keep the stream open, drop the partial reply), all proven. The lease-
+cancellation crux the entry flagged is clean and got a dedicated proof: the GPU lease is a
+non-reentrant lock held across the streaming block, and a mid-inference cancel propagates out
+through `async with manager.acquire(...)` and frees it, pinned by a test that suspends a turn with
+the lease held, cancels it, and asserts a fresh acquire returns at once (reddened by releasing the
+lock outside a `finally`). What remains is body-side only and coupled: the port is one turn per
+call, and a client-sent `Cancel` cannot cleanly precede body multi-turn (on the one-turn-per-call
+body it ends the stream on a `Protocol` error, so it needs either multi-turn-within-one-stream, which
+carries the per-turn-confirm-keying knock-on, or a new terminal cancelled-ack). Today's Stop is
+UI-only in the Tauri embedding (it mutes the JS sink without aborting the RPC, so the brain finishes
+and persists the full reply), adequate at loopback personal scale and worth a real abort only when
+Slice 11's model swap makes mid-turn compute expensive, the same trigger the reconnect and streamed-
+status deferrals wait on, so it moved to fix-when-it-bites; a sharpened deferral is still open, so the
+count is unchanged.
 Session read seam then held at 4 the same day when brain-generated titles landed and opened the
 open-chat header-consistency item behind them: the switcher shows the model's title, but the
 open-chat header still derives locally, and unifying them wants a title on the `GetSessionMessages`
@@ -280,8 +298,6 @@ against the code (the warning above); the entry text tells you which seams it ex
   model pass cannot be validated on the 8 GB dev GPU (the cortex tier does not fit) and that
   `select`'s widening should serve its three deferred consumers in one change, so this reopens with
   the real GPU lifecycle.
-- **Multi-turn-within-one-stream + an explicit proto `Cancel`**
-  ([body-overlay.md](body-overlay.md)): per-turn confirm keying is the known knock-on.
 - **A sidecar-declared sender or source URI**
   ([untrusted-content.md](untrusted-content.md)): the two *claimed* provenance kinds ship shaped
   and tested with no producer, because `ToolResult` carries no source and a FastMCP tool returns
@@ -439,7 +455,16 @@ budget / circuit-breaker, joined on 2026-07-16 by a retryable-code table beyond 
 day, by safe `converse` reconnect-before-first-event (sharpened from "a replayable request and a
 signature change" into the store-backed dedup/resume protocol a no-double-run version would need,
 whose trigger is routine mid-turn evictions once the real model swap lands plus turns costly enough
-that a silent re-run beats paying for dedup) ([seam-transport.md](seam-transport.md)); the tunnel
+that a silent re-run beats paying for dedup) ([seam-transport.md](seam-transport.md)); multi-turn-within-one-stream
+plus a client-sent `Cancel`, moved here on 2026-07-16 when the entry was read against the code and
+found proto-and-server complete (the proto `Cancel` and the whole multi-turn+cancel server path exist
+and are proven, lease release on mid-inference cancel included), leaving only body-side glue whose two
+parts are coupled (a client `Cancel` on the one-turn-per-call body ends the stream on a `Protocol`
+error, so it cannot cleanly precede body multi-turn, which itself carries the per-turn-confirm-keying
+knock-on), and whose trigger is the same Slice 11 model swap: today's Stop mutes the sink without
+aborting the RPC, so the brain finishes the turn and persists the full reply, adequate while compute is
+cheap and worth a real abort only when a swap makes mid-turn compute expensive
+([body-overlay.md](body-overlay.md)); the tunnel
 fallback, the
 hardened non-loopback posture, a safe Core Audio wrapper, and the unbalanced COM
 initialization the blocking-pool hop made visible, whose trigger is a COM failure or thread
