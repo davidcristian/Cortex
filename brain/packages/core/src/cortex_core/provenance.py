@@ -126,3 +126,31 @@ def as_source(kind: SourceKind, raw: str | None) -> Provenance | None:
     if raw is None or not _inert(raw):
         return None
     return Provenance(kind=kind, value=raw)
+
+
+# The kinds a sidecar may *declare* on a result it returns: the claimed ones only, derived from
+# ``attested`` so the two stay in step. An attested kind names a value the brain itself authored, so
+# letting a sidecar declare one would let it forge a trusted-looking label; a sidecar may only claim
+# a source its own content is entitled to claim about itself (a sender it states, a locator it was
+# fetched from), which a consumer then renders as a quotation, never a label.
+_DECLARABLE_KINDS = {kind.value: kind for kind in SourceKind if not kind.attested}
+
+
+def claimed_source(kind: object, value: object) -> Provenance | None:
+    """A sidecar's declared source as a *claimed* ``Provenance``, or ``None`` when undeclarable.
+
+    The trust half of the sidecar declaration channel (ADR-0027/0009): a tool result may declare
+    the sender or locator its content came from, but that declaration is attacker-influenceable (an
+    email's ``From`` is a header its sender wrote, and a hostile sidecar could put anything there),
+    so it is admitted only under a claimed ``SourceKind`` and its ``value`` is sanitized and bounded
+    by ``Provenance`` exactly like every other source. A ``kind`` that is not a declarable kind's
+    string, or a non-``str`` / empty ``value``, is dropped to ``None`` rather than raising: an
+    unparseable or attested-forging declaration attributes nothing, never fails the turn, and can
+    never downgrade taint, since all it could ever do is add one more claimed, inert annotation.
+    """
+    if not isinstance(kind, str) or not isinstance(value, str):
+        return None
+    declared = _DECLARABLE_KINDS.get(kind)
+    if declared is None:
+        return None
+    return as_source(declared, value)

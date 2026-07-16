@@ -41,8 +41,15 @@ denied outright.
   passed (with advisory MCP `ToolAnnotations`: not read-only, destructive, open-world, and never
   authority; the brain-side overlay is). `cc`/`bcc` are comma-separated address lists; `html`
   adds a rich alternative; `attachments` is an array of `{filename, content, subtype}` objects
-  (the one nested schema in the tool surface). Covered in-process via `FastMCP.call_tool`.
-  `main()` reads the env config,
+  (the one nested schema in the tool surface). Each tool returns a single readable string, with
+  one exception: `read_email` returns a `CallToolResult` wrapping that same text block plus a
+  result `_meta` (`_SOURCE_META_KEY`, `"cortex/source"`) declaring the message sender
+  (`{"kind": "sender", "value": <From>}`, `_sender_source`, omitted when there is no `From`). The
+  `_meta` rides beside the text, so the model-facing content is unchanged; the brain's tool
+  registry reads the key and decides trust (a claimed, sanitized source, never a label). This is
+  the producer half of the sidecar declaration channel (ADR-0027 sidecar addendum), a
+  cross-deployable wire contract with `cortex_tools` that this standalone sidecar cannot import.
+  Covered in-process via `FastMCP.call_tool`. `main()` reads the env config,
   builds the imap-tools reader (and an `SmtpSender` only when `SmtpConfig.enabled`), and runs
   the server over streamable-http (`python -m cortex_email`).
 - `EmailSender` is the `Protocol` the send tool needs (`send(draft: EmailDraft) -> str`).

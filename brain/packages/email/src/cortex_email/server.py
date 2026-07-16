@@ -17,7 +17,7 @@ import asyncio
 from collections.abc import Sequence
 
 from mcp.server.fastmcp import FastMCP
-from mcp.types import ToolAnnotations
+from mcp.types import CallToolResult, TextContent, ToolAnnotations
 
 from cortex_email.config import EmailConfig, SmtpConfig
 from cortex_email.imap import ImapMailbox
@@ -29,13 +29,33 @@ _SERVER_HOST = "0.0.0.0"  # noqa: S104 - the sidecar binds its container interfa
 _SERVER_PORT = 9100
 _DEFAULT_SEARCH_LIMIT = 20
 
+# The MCP result `_meta` key the brain's tool registry reads a declared source from (ADR-0027).
+# A cross-deployable wire contract with the brain's `cortex_tools` (this sidecar deliberately
+# cannot import the core): `read_email` declares the message sender here so the turn's provenance
+# names *who* the content came from, not merely the tool it came through. It rides in `_meta`, never
+# in the readable content, so the string the model reads is untouched; the brain alone decides trust
+# (admitting it only as a claimed, sanitized source, never a trusted label).
+_SOURCE_META_KEY = "cortex/source"
+
+
+def _sender_source(sender: str) -> dict[str, dict[str, str]] | None:
+    """The result ``_meta`` declaring ``sender`` as the message's source, or ``None`` when absent.
+
+    A message with no ``From`` header declares nothing rather than an empty sender; the brain drops
+    an empty value anyway, so this keeps the wire clean.
+    """
+    return {_SOURCE_META_KEY: {"kind": "sender", "value": sender}} if sender else None
+
 
 def build_server(reader: EmailReader, sender: EmailSender | None = None) -> FastMCP:
     """Register the email tools on a FastMCP server: reads always, send only with a sender.
 
     Each tool returns a single readable string: the model consumes tool results as text, and
     a list/dict return would be split into per-item content blocks a text client cannot
-    reassemble. One string keeps the result clean end to end.
+    reassemble. One string keeps the result clean end to end. ``read_email`` is the one
+    exception: it returns a ``CallToolResult`` wrapping that same single text block plus a result
+    ``_meta`` declaring the message sender (``_SOURCE_META_KEY``), which rides beside the text and
+    so leaves what the model reads unchanged.
     """
     server = FastMCP(
         "cortex-email", host=_SERVER_HOST, port=_SERVER_PORT, streamable_http_path="/mcp"
@@ -55,14 +75,18 @@ def build_server(reader: EmailReader, sender: EmailSender | None = None) -> Fast
         return "\n".join(f"[{s.uid}] {s.date} | {s.sender} | {s.subject}" for s in summaries)
 
     @server.tool()
-    async def read_email(folder: str, uid: str) -> str:
+    async def read_email(folder: str, uid: str) -> CallToolResult:
         """Read one message in full (headers + plain-text body) by its uid."""
         detail = await asyncio.to_thread(reader.read, folder, uid)
         if detail is None:
-            return f"message {uid} not found in {folder}"
-        return (
+            text = f"message {uid} not found in {folder}"
+            return CallToolResult(content=[TextContent(type="text", text=text)])
+        text = (
             f"From: {detail.sender}\nTo: {detail.recipients}\n"
             f"Date: {detail.date}\nSubject: {detail.subject}\n\n{detail.body}"
+        )
+        return CallToolResult(
+            content=[TextContent(type="text", text=text)], _meta=_sender_source(detail.sender)
         )
 
     if sender is not None:
