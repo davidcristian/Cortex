@@ -6,9 +6,8 @@ ROADMAP's deferred-refinements section on 2026-07-15 with the entries kept verba
 entries are the historical record of what each deferral became, and the index at
 [index.md](index.md) carries the recommended pickup order.
 
-**Open items:** structural argument identity in salience,
-salience limit knob, cross-loop salience, `CORTEX_SUBAGENTS_MAX_BATCH` knob, cost-aware
-batch cap, fair-share policy across a batch, sidecar session cache/pool
+**Open items:** salience limit knob, cross-loop salience, `CORTEX_SUBAGENTS_MAX_BATCH` knob,
+cost-aware batch cap, fair-share policy across a batch, sidecar session cache/pool
 
 **Tools in Slice 6 ([ADR-0009](../adr/ADR-0009-tools-mcp.md)):** multi-server aggregation,
 advertised-tool filtering, and readable-text-from-HTML extraction **landed 2026-07-03**
@@ -142,6 +141,29 @@ addendum adds `SkipUnavailableToolRegistry` + `CORTEX_TOOLS_ON_UNAVAILABLE=skip`
   refusal to fetch the rest over further rounds. Nothing behind this one; the adjacent
   refinements (structural argument identity, the salience limit knob, cross-loop salience) stay as
   listed above.
+- **Structural argument identity in salience is declined 2026-07-16 ([ADR-0009 structural-identity
+  addendum](../adr/ADR-0009-tools-mcp.md)).** The salience addendum's first remaining item, and the
+  index warned this very area had misdiagnosed its own cost before, so it was read against the code
+  first. The threat it carried, that permuted keys and other spellings evade a per-argument dedup,
+  is **already closed** for the case that motivated it: `RepeatSalience` compares `arguments` with
+  `Mapping.__eq__`, which is deep and key-order-independent at every nesting level, so permuted keys
+  already collapse to one call (`test_arguments_compare_structurally_rather_than_by_key_order` pins
+  it, and turns red the moment identity switches to an unsorted serialization), JSON whitespace
+  never survives into the parsed mapping, and Python-equal scalars (`1` and `1.0`) collapse too. A
+  **schema-free** canonical form (recursively sort keys) closes nothing equality does not, and its
+  natural serialized shape is a regression: unsorted reopens permuted keys, sorted splits `1` from
+  `1.0`. The only cases a **schema** would close (a present-versus-omitted defaulted optional, a
+  cross-type scalar, and the entry's own `a.txt` versus `./a.txt`, which no schema reaches) are
+  unsound to fold: JSON Schema `default` is advisory, not applied, so folding an omitted key onto it
+  can collapse two calls a tool runs differently and **refuse a legitimate call**, the non-benign
+  failure this policy's "limit is two, not one" decision deliberately avoids. And the residual is
+  bounded anyway: extra dispatches are capped by `MAX_TOOL_DISPATCHES` (32) and `MAX_CALLS_PER_ROUND`
+  (16), and the card-spam case is bounded independently of spelling, since a gated call on a tainted
+  turn is denied outright with no card and an untainted turn's budget caps dispatches at 32. Docs
+  only, no seam change; the entry above stays verbatim as the historical record. It reopens only if
+  a real wired tool shows a semantic-equivalence evasion those three bounds do not cover, and even
+  then the sound fix is a per-tool domain normalizer (the model judgment the ADR rejected), not
+  schema folding. Nothing opened behind it.
 - **The turn-wide dispatch budget landed 2026-07-14 ([ADR-0009 turn-wide
   addendum](../adr/ADR-0009-tools-mcp.md)).** Both budget addenda sold "one number answers how many
   external calls one turn can make", and delegation made it false: `spent` was a local in
