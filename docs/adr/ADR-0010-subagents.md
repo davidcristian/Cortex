@@ -250,3 +250,14 @@ cortex its largest legitimate batch), and the advertised `maxItems`.
 Remaining behind the same tool: a **`CORTEX_SUBAGENTS_MAX_BATCH` knob** if a host ever wants a
 different ceiling, and a **cost-aware batch** (a cap in placements or estimated VRAM rather than
 in items) if roster entries ever differ enough that eight of one is not eight of another.
+
+## Addendum (2026-07-16): the "run concurrently" advertisement now states the measured trade-off
+
+This ADR introduced the spawn tool's description, which told the cortex subagents "run
+concurrently" and delegation was "worth parallelizing". The same-day admission-wall measurement
+(ADR-0012) showed that framing overstates the wiring: same-model spawns serialize on the entry's
+one backend lease, and only spreading across distinct roster models overlaps them. The advertised
+text was tuned to match the measurement; the full record and the residual (the nudge's live
+uptake, unverifiable on the 8 GB dev GPU) live at the
+[ADR-0018 addendum](ADR-0018-heterogeneous-subagents.md), the ADR that owns the roster and the
+per-item model choice. The tool's behavior (`asyncio.gather` over the batch) is unchanged.

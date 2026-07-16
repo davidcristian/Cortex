@@ -181,3 +181,40 @@ mechanism and the invariant are unchanged with the rename applied: the dispatche
 overwrites the call's stamp with its own argument, a model-forged stamp still feeds
 nothing, and the gate still decides on the dispatcher's argument (`stamp.tainted`), never
 the call field. The spawn tool reads `call.stamp.tainted`.
+
+## Addendum (2026-07-16): the advertised trade-off now matches the measured hardware
+
+The "advertised descriptions are config-authored, not measured" note above (Risks) framed the
+deferred measurement work as *deriving the per-entry `description` strings from latency/robustness
+numbers*. Reading it against the code found a sharper, measurable target the note missed. The
+`description` strings are deployment-specific config and stay config-authored (deriving them in
+code is declined; safety is deterministic in `SubagentRoster.resolve` regardless). But `spawn.py`
+also advertised a *structural* trade-off independent of config: the tool description told the
+cortex subagents "run concurrently" and delegation was "worth parallelizing", a blanket parallel
+claim.
+
+That claim was contradicted by the same-day measurement recorded in the
+[ADR-0012 admission-wall addendum](ADR-0012-resource-governance.md): each roster entry holds one
+`LlamaCppBackend` per target whose `SingleResidentModelManager` lock is held for the whole stream,
+so **same-model** spawns serialize on that lease and only **distinct-model** spawns overlap
+(measured live on the Qwen-2B CPU override: two concurrent same-model spawns 10.0 s vs 4.8 s
+across two backend objects, ratio 2.08, full serialization).
+
+**Landed:** the spawn spec's description now states this measured trade-off. The base description
+drops the blanket "concurrently"/"worth parallelizing" wording; the model-choice note points the
+cortex at spreading independent subtasks across distinct roster models as the wall-clock lever;
+the pinned/single-entry note says a batch on the one model groups independent work rather than
+speeding it up. Decision 8 (advertisement honest about the wiring) now extends to being honest
+about the wiring's *timing*, not just its safety pins. This also delivers the "spontaneous model
+picks" nudge finding 1 wanted, since the parallelism line gives the model knob a concrete reason
+(a faster batch) to reach for beyond a directed pick. The behavior is unchanged: `invoke` still
+dispatches the runs together via `asyncio.gather`; only the advertised text changed, guarded by
+spec-description assertions in `test_spawn.py` (mutation-proven: reverting the text reddens them).
+
+The measurement is reused from the same-day admission-wall work, cited as prior rather than
+re-run; the mechanism (`asyncio.Lock` per entry, held for the stream) is confirmed in `model.py`.
+**Residual (fix when it bites):** whether a live cortex now reaches for distinct models unprompted
+cannot be validated on the 8 GB dev GPU (gemma-12B, the cortex tier, does not fit, and the
+cortex-only spawn tool cannot be proxied on the small subagents, which do not respect prompt
+framing the same way). The trigger is a live cortex on user-tier hardware still under-reaching;
+the fix is stronger nudging behind the same spec seam, never a schema change.

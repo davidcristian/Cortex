@@ -739,15 +739,22 @@ Use-case:
   (advertised as the array's `maxItems` and in both descriptions, ADR-0010 batch-cap addendum);
   the `model` enum lists every entry with its
   description and the ADR-0017 caveat, omitted entirely when the runner is tools-enabled or the
-  roster has one entry (a knob that cannot do anything is not advertised). `invoke(call)`
+  roster has one entry (a knob that cannot do anything is not advertised). The description is
+  honest about the **measured** trade-off, not a blanket parallel claim (ADR-0012 admission-wall
+  addendum): each roster entry holds one backend that keeps its lease for the whole stream, so
+  same-model subtasks serialize and only distinct-model subtasks overlap. The choice note points
+  the cortex at distinct-model spread as the wall-clock lever (and gives the model knob a reason
+  to reach for beyond a directed pick); the pinned/single-entry note says the batch groups
+  independent work rather than speeding it up. `invoke(call)`
   validates items against the roster (bad input / unknown model / an over-cap batch → an
   `is_error` result, not a raise; the batch check runs ahead of item parsing, so nothing is
   stored or placed); a string item that parses as a JSON object carrying an `instruction` key is diverted
   into the object path (real models sometimes stringify the object form, per the ADR-0018 addendum;
   same validation either way). It persists one `SubagentTask` per item, each stamped with the
   requested `model`, the item's `context`, and the **call stamp's `tainted`** (the dispatcher's
-  `TurnStamp`, ADR-0018/0027). It runs the `SubagentRunner`s
-  **concurrently** (bounded by the scheduler), each handed the **call stamp's `budget`** so the
+  `TurnStamp`, ADR-0018/0027). It dispatches the `SubagentRunner`s
+  **together** (bounded by the scheduler; genuine overlap needs distinct backends, per the
+  measured trade-off above), each handed the **call stamp's `budget`** so the
   whole batch draws on the spawning turn's one pool (ADR-0009 turn-wide addendum) so a batch
   cannot buy unbounded external calls (its unbounded *model runs* are what `MAX_SPAWN_BATCH`
   bounds, the pool counting a different currency), and returns one aggregated
