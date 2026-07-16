@@ -12,6 +12,7 @@ const msg = (over: Partial<MessageModel>): MessageModel => ({
   tool: null,
   status: null,
   statusState: null,
+  thoughts: "",
   error: null,
   ...over,
 });
@@ -92,5 +93,29 @@ describe("Message", () => {
       />,
     );
     expect(container.querySelector(".chip")).toBeNull();
+  });
+
+  it("offers a collapsed thoughts disclosure on a settled reply that reasoned", () => {
+    const { container } = render(
+      <Message message={msg({ content: "done", streaming: false, thoughts: "step one\nstep two" })} />,
+    );
+    const details = container.querySelector("details.thoughts");
+    expect(details).not.toBeNull();
+    expect(details?.hasAttribute("open")).toBe(false); // collapsed by default
+    expect(container.querySelector(".thoughts-body")?.textContent).toBe("step one\nstep two");
+  });
+
+  it("hides the thoughts disclosure while streaming (the live chip owns deliberation then)", () => {
+    const { container } = render(
+      <Message message={msg({ content: "x", streaming: true, thoughts: "partial reasoning" })} />,
+    );
+    expect(container.querySelector("details.thoughts")).toBeNull();
+  });
+
+  it("shows no thoughts disclosure on a settled reply that never reasoned", () => {
+    const { container } = render(
+      <Message message={msg({ content: "done", streaming: false, thoughts: "" })} />,
+    );
+    expect(container.querySelector("details.thoughts")).toBeNull();
   });
 });

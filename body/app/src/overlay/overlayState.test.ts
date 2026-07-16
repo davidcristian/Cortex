@@ -87,6 +87,8 @@ describe("overlayState reducer", () => {
       status: "swapping",
       statusState: "load",
     });
+    // A non-thinking status drives the chip only; it never joins the reasoning trace.
+    expect(assistant(s)?.thoughts).toBe("");
   });
 
   it("folds a thinking status's state so the chip can treat it distinctly", () => {
@@ -96,6 +98,15 @@ describe("overlayState reducer", () => {
       event: { kind: "status", state: "thinking", detail: "reasoning" },
     });
     expect(assistant(s)).toMatchObject({ status: "reasoning", statusState: "thinking" });
+  });
+
+  it("accumulates every thinking status's detail into the collapsed thoughts trace", () => {
+    let s = run([submit("q")]);
+    s = reduce(s, { kind: "event", event: { kind: "status", state: "thinking", detail: "first" } });
+    s = reduce(s, { kind: "event", event: { kind: "status", state: "thinking", detail: " second" } });
+    // `status` holds only the latest delta; `thoughts` retains the whole scrubbed trace in order.
+    expect(assistant(s)).toMatchObject({ status: " second", statusState: "thinking" });
+    expect(assistant(s)?.thoughts).toBe("first second");
   });
 
   it("complete ends the turn and stays in the panel", () => {

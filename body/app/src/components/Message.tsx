@@ -5,8 +5,11 @@ import type { Message as MessageModel } from "../overlay/overlayState";
 // first token arrives, a thinking shimmer holds the bubble; live tool/status activity renders as
 // slim inline chips above it, between bubbles (design/overlay-ux.md §3), gone on completion. A
 // "thinking" status reads as deliberation, not action, so its chip bobs (chip-think) rather than
-// carrying the steady tool pulse (ADR-0020 state-aware chip). Errors render as an alert. Color
-// lives only in the working/error states.
+// carrying the steady tool pulse (ADR-0020 state-aware chip). Once a reply that reasoned settles,
+// the live chip drops and the accumulated trace stays available as a collapsed "Thoughts"
+// disclosure above the bubble (ADR-0020 addendum): the settled counterpart of the chip, resting
+// chrome only since the thinking is done. Errors render as an alert. Color lives only in the
+// working/error states.
 export function Message({ message }: { readonly message: MessageModel }) {
   const tone = message.role === "user" ? "b-user" : "b-ai";
 
@@ -34,6 +37,12 @@ export function Message({ message }: { readonly message: MessageModel }) {
         >
           <span className="chip-t">{message.status}</span>
         </span>
+      ) : null}
+      {!message.streaming && message.thoughts !== "" ? (
+        <details className="thoughts">
+          <summary className="thoughts-sum">Thoughts</summary>
+          <div className="thoughts-body">{message.thoughts}</div>
+        </details>
       ) : null}
       <div className={`bubble ${tone}${message.streaming ? " streaming" : ""}`}>
         {thinking ? (

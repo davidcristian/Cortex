@@ -7,7 +7,7 @@ deferred-refinements section on 2026-07-15 with the entries kept verbatim; lande
 historical record of what each deferral became, and the index at [index.md](index.md) carries the
 recommended pickup order.
 
-**Open items:** model-manager process lifecycle, co-residency, and real swap; MTP model variants, disable-thinking / token-budget capping, reasoning persistence/summarization, collapsed "thoughts" overlay section
+**Open items:** model-manager process lifecycle, co-residency, and real swap; MTP model variants, disable-thinking / token-budget capping
 
 **Inference / Model Manager in Slice 4 ([ADR-0007](../adr/ADR-0007-model-manager-inference.md)):**
 - **`cortex_model_manager` process lifecycle, co-residency, real swap.** The pure
@@ -46,4 +46,15 @@ recommended pickup order.
   distinctly (a `chip-think` modifier: the reasoning bob on its dot, an accent label, an aria
   label) from a generic status or tool chip, entirely in the CI-gated overlay tree with no seam
   change (the `state` field already rode the wire). A richer collapsed "thoughts" section stays
-  open behind the same field.
+  open behind the same field. **The collapsed "thoughts" section landed and reasoning
+  persistence/summarization was declined on 2026-07-16, both without a seam change ([ADR-0020
+  fourth addendum](../adr/ADR-0020-reasoning-status.md)):** the reducer now also concatenates every
+  scrubbed thinking delta into a new `Message.thoughts`, and the settled reply renders it as a
+  collapsed `<details>` disclosure above the bubble, the chip's retrospective counterpart
+  (`overlayState.ts` + `Message.tsx`, gated + browser-validated in both themes). Persisting or
+  summarizing the trace stays **declined for want of a consumer**: nothing reads a stored trace,
+  re-display on reload needs a `GetSessionMessages` reasoning field (the read path the open-chat
+  title-consistency entry independently needs widened) and the store to grow by the observed
+  ~13,882-char single-turn scale, and summarization reverses this ADR's "never fed back" while
+  re-raising the non-reentrant GPU-lease sequencing the title generator navigates. It moves to
+  this backlog's dead-until-a-consumer list and reopens the day either consumer appears.

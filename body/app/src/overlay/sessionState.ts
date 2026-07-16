@@ -15,7 +15,9 @@ export function deriveTitle(text: string): string {
   return oneLine.length > TITLE_MAX ? `${oneLine.slice(0, TITLE_MAX)}…` : oneLine;
 }
 
-/** Stored history as overlay messages (nothing streams; ids restart per hydration). */
+/** Stored history as overlay messages (nothing streams; ids restart per hydration). A reloaded
+ *  reply carries no `thoughts`: reasoning is never persisted (ADR-0020), so its collapsed
+ *  retrospective is a live-turn affordance only, gone once a chat is reloaded. */
 function hydrate(messages: readonly SessionMessage[]): Message[] {
   return messages.map((m, index) => ({
     id: `m${index}`,
@@ -25,6 +27,7 @@ function hydrate(messages: readonly SessionMessage[]): Message[] {
     tool: null,
     status: null,
     statusState: null,
+    thoughts: "",
     error: null,
   }));
 }

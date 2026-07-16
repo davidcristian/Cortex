@@ -97,12 +97,14 @@ for the cortex. We surface it, not suppress it.
   displaying reasoning proves an exfiltration surface" condition came true.
 - **`state`-aware overlay treatment landed 2026-07-13** (third addendum below): a `"thinking"`
   status chip now reads distinctly (its dot bobs with the reasoning shimmer, its label leans on
-  the accent) from a generic status or tool chip. A collapsed "thoughts" section remains a
-  possible richer treatment behind the same reducer field.
+  the accent) from a generic status or tool chip. **The richer collapsed "thoughts" section landed
+  2026-07-16** (fourth addendum below), over the same reducer field.
 - **Disable-thinking / token-budget alternatives** stay available for the cortex behind the same
   seams if a runaway trace or latency floor argues for capping rather than only surfacing.
-- **Reasoning persistence / summarization.** Keeping a turn's reasoning for later inspection is a
-  separate concern from the ephemeral live status this ADR adds.
+- **Reasoning persistence / summarization declined 2026-07-16** (fourth addendum below): keeping a
+  turn's reasoning past the live status is a separate concern with no consumer yet, and reverses
+  this ADR's "never persisted, never fed back". It reopens the day a reload re-display or a
+  summarization consumer appears.
 - **Injection-harness run against the ~31B brain tier** is unchanged; still opt-in and tied to the
   Slice 11 brain pick (ADR-0013 harness addendum).
 
@@ -193,3 +195,40 @@ remains open behind the same `statusState` field. CI-gated at 100% over the over
 reducer folds `statusState`, the thinking chip carries `chip-think` + the label, a non-thinking
 status stays plain); the pixel-level look rides the same browser/user validation as the rest of
 the overlay design language.
+
+## Addendum (2026-07-16): the collapsed thoughts section landed; reasoning persistence declined
+
+The two remaining reasoning deferrals closed as two different outcomes, entirely without a seam
+change. The richer collapsed section is now the settled counterpart of the live chip; keeping the
+reasoning past the turn (persisting or summarizing it) was **declined** for want of a consumer.
+
+- **The collapsed "thoughts" section landed** (overlay only, gated, `overlayState.ts` +
+  `Message.tsx`). The reducer already folded a thinking status's latest `detail` into `status` and
+  dropped it when the turn settled; it now also concatenates every `"thinking"` delta, in order,
+  into a new `Message.thoughts`. While the reply streams the live `chip-think` still shows the
+  latest delta; once it settles, the chip drops and a collapsed `<details>` "Thoughts" disclosure
+  above the bubble holds the whole trace, so "what it was thinking" survives the turn as a
+  retrospective the user opens on demand. One reasoning affordance at a time: the chip owns the
+  live phase, the disclosure the settled one, so the section renders only when
+  `!streaming && thoughts !== ""`. The `state` field already rode the wire, so the proto, body,
+  brain, and Rust are all untouched. **Privacy holds by construction:** each `detail` was already
+  scrubbed by the `ThinkingChannel`'s `OutputFilter` (second addendum), so the section retains and
+  re-shows only guardrail-passed text the chip already rendered, opening no new laundering channel;
+  it is a plain text node, never linkified. Live-validated in headless Chromium (light + dark): the
+  disclosure is absent while streaming, appears collapsed once settled with the chip gone, expands
+  to the full scrubbed trace, and holds zero anchors.
+
+- **Reasoning persistence / summarization was declined for want of a consumer.** The collapsed
+  section is served entirely by the in-memory `thoughts` accumulation; nothing reads a *stored*
+  reasoning trace. The two candidate consumers each cost more than an unchanged port and neither
+  exists yet: **re-display on session reload** would need a reasoning field on the
+  `GetSessionMessages` read path (a proto change plus store plumbing, the same read path the
+  open-chat title-consistency entry independently needs widened) and the store to keep the trace,
+  which the observed 13,882-char single-turn deliberation makes a real storage-growth decision;
+  **summarization feeding future context** would reverse this ADR's deliberate "never fed back",
+  and it is another inference call with the same non-reentrant GPU-lease sequencing the session
+  title generator navigates (run at turn end after the lease releases, never on a read path).
+  Persisting reverses decision 2's "reasoning is ephemeral, never persisted"; that is a design
+  change, not a cheap follow-on, and nothing today would read the result. It moves to the backlog's
+  dead-until-a-consumer list and reopens the day a reload re-display or a summarization consumer
+  appears, designed with the record the reader needs (`docs/refinements/inference-model-manager.md`).
