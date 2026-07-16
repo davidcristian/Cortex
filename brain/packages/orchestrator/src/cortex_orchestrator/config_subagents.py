@@ -99,6 +99,27 @@ class SubagentsConfig(BaseSettings):
             raise ValueError(msg)
         return self
 
+    @model_validator(mode="after")
+    def _every_ask_must_fit_the_whole_budget(self) -> "SubagentsConfig":
+        """Refuse at boot an entry the scheduler could only ever refuse (ADR-0012 addendum).
+
+        ``ResourceBudgetScheduler.admit`` waits while a charge merely does not fit *right now*,
+        but raises when it exceeds the whole budget, since no peer releasing anything could
+        admit it. Left to runtime that is a spawn refused on every attempt, discovered only when
+        the cortex delegates and visible only inside a subagent result. It is a wiring error, so
+        it belongs here with the other two: the deployment cannot start describing a subagent
+        the machine it configures may never run. Equality passes (such an entry runs alone).
+        """
+        for name, entry in self.named_roster.items():
+            if entry.cpus > self.cpu_budget or entry.memory_gb > self.mem_budget_gb:
+                msg = (
+                    f"subagent {name!r} asks for cpus={entry.cpus}, memory_gb={entry.memory_gb}, "
+                    f"which exceeds the whole admission budget (cpu_budget={self.cpu_budget}, "
+                    f"mem_budget_gb={self.mem_budget_gb}); no spawn of it could ever be admitted"
+                )
+                raise ValueError(msg)
+        return self
+
     @property
     def named_roster(self) -> dict[str, SubagentRosterEntry]:
         """Every roster entry by name, with the flat-field default first and alternates sorted.

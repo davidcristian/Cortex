@@ -208,6 +208,39 @@ async def test_a_failed_subagent_is_reported_not_raised() -> None:
     assert result.content == "[subagent 1] FAILED: boom"
 
 
+async def test_a_refused_subagent_does_not_take_the_rest_of_the_batch_down() -> None:
+    """The scheduler's wall is one member's outcome, never the batch's (ADR-0012 addendum).
+
+    `asyncio.gather` propagates the first exception, so a refusal that stayed an exception would
+    lose every sibling's answer and fail the turn. As a value it is one `FAILED:` section.
+    """
+    store = InMemoryTaskStore()
+    backend = EchoInferenceBackend()
+    oversized = SubagentProfile(
+        resources=SubagentResources(
+            backends={PlacementTarget.GPU: backend, PlacementTarget.CPU: backend},
+            scheduler=ResourceBudgetScheduler(8.0, 8.0),
+            placer=VramBudgetPlacer(soft_cap_gb=14.0, cortex_reservation_gb=11.0),
+            # 16 cpus against a whole budget of 8: refused on every attempt, never queued.
+            request=PlacementRequest("toobig", vram_gb=2.0, cpus=16.0, memory_gb=2.0),
+        )
+    )
+    roster = SubagentRoster(
+        entries={"subagent": _profile(backend, "subagent"), "toobig": oversized},
+        default="subagent",
+    )
+    tool = SpawnSubagentsTool(
+        SubagentRunner(store, roster, FixedClock()), store, FixedClock(), task_id_factory=_counter()
+    )
+    result = await tool.invoke(
+        _call({"instructions": [{"instruction": "go", "model": "toobig"}, "stay"]})
+    )
+    assert result.is_error is False
+    first, second = result.content.split("\n\n")
+    assert first.startswith("[subagent 1] FAILED: refused before running: subagent charge")
+    assert second == "[subagent 2] reply 1: stay"
+
+
 async def test_object_items_carry_model_and_context_onto_the_task() -> None:
     store = InMemoryTaskStore()
     tool = SpawnSubagentsTool(

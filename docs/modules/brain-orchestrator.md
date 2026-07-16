@@ -101,7 +101,11 @@ Config (pydantic-settings; explicit constructor arguments beat the environment):
   per-entry `vram_gb`/`cpus`/`memory_gb`; `description` advertised verbatim, per ADR-0018, set
   by `docker/docker-compose.subagents-roster.yml`). A key naming the default is rejected.
   `named_roster` (property) synthesizes the ready-to-dial mapping, with the flat-field default
-  first, alternates sorted, fallbacks applied; empty unless `backend="llamacpp"`.
+  first, alternates sorted, fallbacks applied; empty unless `backend="llamacpp"`. Every entry in
+  it must fit the whole budget (`cpus <= cpu_budget` and `memory_gb <= mem_budget_gb`, equality
+  allowed since such an entry runs alone), else construction fails: the scheduler could only ever
+  refuse that spawn, and a subagent the machine may never run is a wiring error, not a runtime
+  result (ADR-0012 admission-wall addendum).
 - `BodyConfig` uses env prefix `CORTEX_BODY_` (ADR-0023, Slice 9 brings the first brain→body seam
   direction, the brain as gRPC client of the host body's `BodyService`): `backend: "none" |
   "grpc" = "none"` (`CORTEX_BODY_BACKEND`), `endpoint: str = ""` (`CORTEX_BODY_ENDPOINT`, the

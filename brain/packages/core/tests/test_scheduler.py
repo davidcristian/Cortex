@@ -4,7 +4,12 @@ import asyncio
 
 import pytest
 
-from cortex_core import PlacementRequest, ResourceBudgetScheduler, SubagentScheduler
+from cortex_core import (
+    PlacementRequest,
+    ResourceBudgetScheduler,
+    SubagentAdmissionError,
+    SubagentScheduler,
+)
 
 
 def _request(cpus: float, memory_gb: float) -> PlacementRequest:
@@ -41,10 +46,28 @@ def test_rejects_nonpositive_budget(cpu_budget: float, mem_budget: float) -> Non
     [(5.0, 1.0), (1.0, 9.0)],  # cpus over the whole cpu budget; memory over the whole mem budget
 )
 async def test_a_charge_over_the_whole_budget_is_rejected(cpus: float, memory_gb: float) -> None:
+    """The budget's one wall: refused outright, not queued, and typed so the runner can catch it."""
     scheduler = ResourceBudgetScheduler(4.0, 8.0)
-    with pytest.raises(ValueError, match="exceeds the whole budget"):
+    with pytest.raises(SubagentAdmissionError, match="exceeds the whole budget"):
         async with scheduler.admit(_request(cpus, memory_gb)):
             pass  # pragma: no cover - admit raises before the body runs
+
+
+async def test_a_charge_equal_to_the_whole_budget_is_admitted() -> None:
+    """The wall is strictly "larger than", so the biggest admissible spawn runs (alone)."""
+    scheduler = ResourceBudgetScheduler(4.0, 8.0)
+    async with scheduler.admit(_request(4.0, 8.0)):
+        pass
+
+
+async def test_a_refused_charge_reserves_nothing() -> None:
+    """The wall refuses before charging, so it cannot leak budget the refused spawn never got."""
+    scheduler = ResourceBudgetScheduler(4.0, 8.0)
+    with pytest.raises(SubagentAdmissionError):
+        async with scheduler.admit(_request(5.0, 1.0)):
+            pass  # pragma: no cover - admit raises before the body runs
+    async with scheduler.admit(_request(4.0, 8.0)):  # the whole budget is still free
+        pass
 
 
 async def _blocks_until_first_releases(

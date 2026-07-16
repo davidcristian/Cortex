@@ -448,6 +448,54 @@ def test_subagents_roster_key_naming_the_default_is_rejected(
 
 
 @pytest.mark.usefixtures("clean_env")
+@pytest.mark.parametrize(
+    ("knob", "value"),
+    [("CORTEX_SUBAGENTS_CPUS", "8.0"), ("CORTEX_SUBAGENTS_MEMORY_GB", "16.0")],
+)
+def test_subagents_reject_a_default_ask_larger_than_the_whole_budget(
+    monkeypatch: pytest.MonkeyPatch, knob: str, value: str
+) -> None:
+    """A spawn the scheduler could only ever refuse is a wiring error, caught at boot."""
+    _llamacpp_env(monkeypatch)
+    monkeypatch.setenv(knob, value)  # against the 4.0 cpu / 8.0 GB budget defaults
+    with pytest.raises(ValidationError, match="no spawn of it could ever be admitted"):
+        SubagentsConfig()
+
+
+@pytest.mark.usefixtures("clean_env")
+def test_subagents_reject_a_roster_alternate_larger_than_the_whole_budget(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Every entry is checked, not just the flat-field default: an alternate carries its own ask."""
+    _llamacpp_env(monkeypatch)
+    monkeypatch.setenv(
+        "CORTEX_SUBAGENTS_ROSTER__QWEN", '{"endpoint": "http://qwen:8083", "cpus": 9.0}'
+    )
+    with pytest.raises(ValidationError, match="subagent 'qwen' asks for"):
+        SubagentsConfig()
+
+
+@pytest.mark.usefixtures("clean_env")
+def test_subagents_accept_an_ask_equal_to_the_whole_budget(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The scheduler admits an exactly-budget charge (alone), so the boot check must too."""
+    _llamacpp_env(monkeypatch)
+    monkeypatch.setenv("CORTEX_SUBAGENTS_CPUS", "4.0")
+    monkeypatch.setenv("CORTEX_SUBAGENTS_MEMORY_GB", "8.0")
+    assert SubagentsConfig().named_roster["subagent"].cpus == 4.0
+
+
+@pytest.mark.usefixtures("clean_env")
+def test_subagents_ignore_the_budget_check_while_delegation_is_disabled(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """With backend=none no scheduler exists, so a stale ask blocks nothing (empty roster)."""
+    monkeypatch.setenv("CORTEX_SUBAGENTS_CPUS", "99.0")
+    assert SubagentsConfig().named_roster == {}
+
+
+@pytest.mark.usefixtures("clean_env")
 @pytest.mark.parametrize("entry", ['{"description": "no endpoint"}', '{"endpoint": ""}'])
 def test_subagents_roster_entry_requires_an_endpoint(
     monkeypatch: pytest.MonkeyPatch, entry: str

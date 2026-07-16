@@ -433,8 +433,11 @@ Ports (`typing.Protocol`; failures cross them only as the typed errors below):
   budget. The three compose at `SubagentRunner`.
 - `SubagentScheduler` (`admit(request) -> AbstractAsyncContextManager[None]`): a soft two-dimensional
   CPU/RAM budget for spawns (yields once the request's `cpus`/`memory_gb` fit the summed targets,
-  queues over budget, releases both on exit). A charge larger than the whole budget raises
-  `ValueError`. A counting budget, not the GPU lease (ADR-0012, revising ADR-0010).
+  queues over budget, releases both on exit). A charge larger than the whole budget can never be
+  admitted, so it raises `SubagentAdmissionError`: the budget's one wall, owed by any
+  implementation, since `SubagentRunner` catches exactly it (ADR-0012 admission-wall addendum). The
+  charge is placement-blind by construction, because `admit` is entered before `place` decides a
+  target. A counting budget, not the GPU lease (ADR-0012, revising ADR-0010).
 - `BodyGateway` provides `async get_volume() -> VolumeState`,
   `async set_volume(*, level=None, mute=None) -> VolumeState` (ADR-0023): the brain-side handle on
   the host body's OS actions. It is the first brain→body seam direction (the brain dials the body's
@@ -466,6 +469,9 @@ Ports (`typing.Protocol`; failures cross them only as the typed errors below):
   `ModelUnavailableError`) / `MemoryStoreError` / `EmbedderError` / `ToolError` (+ its
   `ToolNotFoundError`) / `TaskStoreError` / `BodyGatewayError` / `ScheduleStoreError` are typed
   errors; adapters wrap their backend's failures into these with the cause chained.
+  `SubagentAdmissionError` is the one raised by pure-core policy rather than an adapter: a
+  `SubagentScheduler` refusing a spawn outright (ADR-0012 admission-wall addendum). Bad *values*
+  stay `ValueError` (a non-positive budget or ask, an empty roster), as everywhere else.
 
 Use-case:
 
@@ -662,7 +668,10 @@ Use-case:
   (never from cortex memory, so a missing task is an `ok=False` "task not found" result),
   **resolves** the roster entry via `roster.resolve(task.model, tainted=task.tainted,
   tools_enabled=…)` (ADR-0017; an unknown model is an `ok=False` "unknown subagent model" result,
-  fail closed), **admits** against that entry's scheduler CPU/RAM budget (outer, may wait),
+  fail closed), **admits** against that entry's scheduler CPU/RAM budget (outer, may wait; a
+  `SubagentAdmissionError`, meaning a charge no budget could ever fit, is caught and becomes an
+  `ok=False` "refused before running" result rather than an exception that would cross the spawn
+  tool's `gather` and fail the turn, ADR-0012 admission-wall addendum),
   **places** on GPU or CPU against the VRAM budget (inner, synchronous), routes to the entry's
   `backends[placement.target]`, runs `stream_tool_loop` on the entry's `request.model` with its
   optional tool subset (instruction as the user ask, `context` as a `Role.SYSTEM` message; a

@@ -32,7 +32,17 @@ curl http://127.0.0.1:8082/health   # -> {"status":"ok"}
 subagents can function-call); `--parallel` (`CORTEX_SUBAGENTS_PARALLEL`, default 2) gives each
 scheduler-admitted subagent a server slot, so keep it ≈ `CORTEX_SUBAGENTS_CPU_BUDGET /
 CORTEX_SUBAGENTS_CPUS`, the effective admission concurrency under the ADR-0012 soft budget
-(which replaced the pre-8.5 `CORTEX_SUBAGENTS_MAX_CONCURRENCY` knob).
+(which replaced the pre-8.5 `CORTEX_SUBAGENTS_MAX_CONCURRENCY` knob). Set the ask no larger than
+the budget: an entry that could never be admitted now fails the brain at startup rather than at
+delegation time (ADR-0012 admission-wall addendum).
+
+> **Admitted is not the same as concurrent.** Each roster entry holds one `LlamaCppBackend` per
+> placement target, and a backend holds its model lease for the whole stream, so two spawns of the
+> *same* entry on the same target run one after the other however many the budget admits. Measured
+> here on the Qwen-2B override: two concurrent spawns took 4.8 s through two backend objects and
+> 10.0 s through one, exactly serial. Raising `CPU_BUDGET` alone therefore buys queue depth, not
+> throughput; real parallelism needs distinct entries (the roster override) or the Slice 11
+> per-placement executors.
 
 > **Reasoning is disabled** on the subagent server (`--chat-template-kwargs
 > '{"enable_thinking": false}'`, baked into the compose command). Both lineup families
