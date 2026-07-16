@@ -14,6 +14,13 @@ const ANSWER =
   "needs help. GPU-first when there's headroom, CPU otherwise. Nothing is lost on a model swap, " +
   "because every turn's state lives in the store, not the model.";
 
+// A short reasoning trace streamed as thinking statuses before the reply, so the live chip and the
+// settled collapsed "Thoughts" disclosure both have real content to show in browser dev (ADR-0020).
+const REASONING =
+  "The question is about where conversation state lives across a model swap. The invariant is that " +
+  "no state sits in a model process, so the answer must ground itself in the external store rather " +
+  "than the KV cache. Let me phrase that plainly.";
+
 // The scripted confirm round (ADR-0022): a prompt that looks like a send walks the gated-tool
 // path. First a short preamble, then a confirmRequest whose draft/reason mirror the brain's, then
 // the reply continues (approve) or ends with a "not sent" line (deny).
@@ -54,8 +61,16 @@ const DEMO_READY_DETAIL = "cortex-orchestrator demo";
 const DEMO_DOWN_DETAIL = "tcp connect error: connection refused";
 const DEMO_DEGRADED_DETAIL = "Unavailable: the session store is down";
 
-/** Stream `text` word by word into an in-progress reply; `lead` prefixes the first word. */
-function streamWords(sink: TurnSink, text: string, lead: string, onDone: () => void): Cancellation {
+/** Stream `text` word by word; `lead` prefixes the first word. By default each word is a reply
+ *  `delta`; pass `emit` to route the words elsewhere (the reasoning burst sends them as thinking
+ *  statuses instead), keeping the same paced-word shape for both surfaces. */
+function streamWords(
+  sink: TurnSink,
+  text: string,
+  lead: string,
+  onDone: () => void,
+  emit: (delta: string) => void = (delta) => sink.onEvent({ kind: "delta", text: delta }),
+): Cancellation {
   const words = text.split(" ");
   let index = 0;
   const timer = setInterval(() => {
@@ -65,7 +80,7 @@ function streamWords(sink: TurnSink, text: string, lead: string, onDone: () => v
       onDone();
       return;
     }
-    sink.onEvent({ kind: "delta", text: index === 0 ? lead + word : ` ${word}` });
+    emit(index === 0 ? lead + word : ` ${word}`);
     index += 1;
   }, 55);
   return () => clearInterval(timer);
@@ -92,20 +107,26 @@ export class DemoBridge implements BrainBridge {
     if (/send|email/iu.test(text)) {
       return this.confirmTurn(sink, /time\s?out/iu.test(text));
     }
-    // Hold the bubble on the thinking shimmer, surface a status chip, then stream: the same
-    // shape a real reasoning turn has (ADR-0020), so the working affordances are visible here.
+    // Hold the bubble on the thinking shimmer, surface a reasoning burst as thinking statuses,
+    // then stream: the same shape a real reasoning turn has (ADR-0020). Several deltas so the
+    // accumulated trace is real, both as the live bobbing chip and, once the reply settles, as the
+    // collapsed "Thoughts" disclosure the deltas fold into (ADR-0020 addendum).
     let cancelStream: Cancellation = () => undefined;
     const status = setTimeout(() => {
-      sink.onEvent({ kind: "status", state: "thinking", detail: "planning the answer" });
-    }, 450);
-    const start = setTimeout(() => {
-      cancelStream = streamWords(sink, ANSWER, "", () =>
-        sink.onEvent({ kind: "complete", turnId: "demo" }),
+      cancelStream = streamWords(
+        sink,
+        REASONING,
+        "",
+        () => {
+          cancelStream = streamWords(sink, ANSWER, "", () =>
+            sink.onEvent({ kind: "complete", turnId: "demo" }),
+          );
+        },
+        (delta) => sink.onEvent({ kind: "status", state: "thinking", detail: delta }),
       );
-    }, 1100);
+    }, 450);
     return () => {
       clearTimeout(status);
-      clearTimeout(start);
       cancelStream();
     };
   }
