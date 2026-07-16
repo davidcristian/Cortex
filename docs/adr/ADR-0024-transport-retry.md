@@ -231,3 +231,63 @@ trigger named: a brain that starts answering `RESOURCE_EXHAUSTED` or `ABORTED`.
 Still deferred: safe `converse` reconnect-before-first-event (unchanged: it needs a replayable
 request and a signature change), the retry budget / circuit breaker, and now the retryable-code
 table above, all recorded in `docs/refinements/seam-transport.md`.
+
+## Addendum (2026-07-16): safe `converse` reconnect-before-first-event, sharpened and deferred
+
+The last capability this deferral names, resilience for `converse` itself, was audited against
+both sides of the seam and kept deferred, now with its blocker and its trigger named rather than
+left as "a replayable request and a signature change".
+
+**The effect timeline, read against the code.** A `converse` turn begins its durable side effect
+before the client can observe any event, and independently of whether the client reads one. On the
+brain a `UserTurn` client event is pumped straight into an independent turn task (`converse.py`:
+`_pump` calls `_enqueue_turn`, which calls `_start_next_turn`, which creates `_turn_task`), whose
+events land on an internal queue the consumer drains separately, so the turn advances whether or
+not the client is reading. That task runs `TurnEngine.handle_turn`, whose first statement after
+minting a server-side `turn_id` is `await self._store.append(session_id, user)` (`engine.py`): the
+user message is persisted before inference starts and before the loop yields its first `TextDelta`,
+`ToolActivity`, or `StatusUpdate`. Persisting the user turn before inference is a deliberate
+contract (`test_backend_failure_surfaces_typed_after_user_was_persisted` pins it), not an accident
+to reorder. So "the client observed no event" never implies "the brain did no work": by the time a
+first event could arrive, the user message is stored and a tool the model asked for first may
+already have run.
+
+**No request identity exists on the wire today.** `ClientEvent` and `UserTurn` (`proto/body.proto`)
+carry a `session_id`, text, and images, and nothing else: no request id, no client turn id, no
+idempotency key. The `turn_id` is minted server-side (`engine.py`, `self._turn_id_factory()`), so
+two `converse` calls with the same `session_id` and text are two independent turns. A naive
+reconnect-before-first-event that re-issues the request therefore double-runs the turn: a second
+`store.append` of the same user message (verified live over the real engine, a resend leaves two
+identical user messages under two distinct server-minted turn ids) plus a second full inference pass
+that re-dispatches any tools the first pass already ran. That is a correctness regression, worse
+than the missing feature, which is why the retry gate classifies `SeamMethod::Converse` as not
+repeatable and forwards the stream unretried.
+
+**Why "before the first event" does not rescue it.** The window the entry hoped was safe (request
+sent, no event seen) is exactly the window in which the append has already happened. Making the
+append observably not-yet-done would mean delaying it past the first event, which reverses the
+"persist the user message before inference" contract and still would not cover a tool that runs
+before the first text delta. There is no cheap reordering that makes an unkeyed resend safe.
+
+**The exact protocol change a safe version needs.** Either a client-generated request id (a new
+field on `UserTurn` or `ClientEvent`, a proto change regenerating both stubs) that the brain dedups
+on, or a resumable stream cursor the client presents on reconnect. Both require server-side state
+that must survive a brain restart or model swap (the one hard rule), so the dedup or resume registry
+lives in the hot store (Redis) keyed by `(session_id, request_id)`, recording each turn's lifecycle
+(begun, streaming, complete) and either replaying a completed turn's terminal outcome or
+re-attaching a reconnecting client to an in-flight turn's output. Re-attaching means the emitted
+events themselves must be buffered in a store both connections can read, a second store-backed
+structure. This is a turn-lifecycle state machine plus an idempotency store plus an event replay or
+rejoin path: a multi-part protocol and state change, and it reverses the deliberate design that an
+in-flight turn is disposable and its partial reply is dropped (`converse.py` and `engine.py`
+docstrings both state it).
+
+**Decision: fix when it bites, with the trigger named.** At personal scale the client and brain
+share one machine over loopback, reconnects are rare, and the overlay already treats a dropped turn
+as terminal (the user resends), so the cost of the safe mechanism is disproportionate to the value.
+The trigger that would justify building it: mid-turn brain evictions becoming routine once the real
+model swap lands (the model-manager work), and turns long or expensive enough that silently
+re-running one on resend is worse than paying for dedup. Until then `converse` stays unretried and
+the sharpened entry moves to fix-when-it-bites in `docs/refinements/seam-transport.md`.
+`SeamMethod::Converse` is unchanged: this is not a path that flips it to repeatable, it is the
+reason it is not.
