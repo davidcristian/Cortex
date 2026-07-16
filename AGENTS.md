@@ -169,7 +169,7 @@ body/             Rust/Tauri workspace, host-native
                   os_windows (real global-hotkey + Core Audio backends, cfg(windows)) +
                   os_linux/os_macos (cfg-gated stubs)
   app/            React+Vite overlay (gated 100%) + its host-native Tauri src-tauri
-                  shell (ungated, host-validated) named cortex-body, its own workspace
+                  shell (fmt-checked in CI, else host-validated) named cortex-body, own workspace
 scripts/          repo gates: linecap.py (300-line cap), dashcheck.py (no dash as
                   punctuation), coverage_gate.py (Rust branches), ci_paths.py (CI path
                   classifier), commitlint.py (commit-message style)

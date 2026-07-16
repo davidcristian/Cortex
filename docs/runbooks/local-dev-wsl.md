@@ -10,6 +10,10 @@ config contract in [ADR-0003](../adr/ADR-0003-seam-codegen.md).
 - **uv** runs every Python project (the `brain/` workspace and `scripts/`).
 - **rustup** with **stable** (default) plus **nightly** for branch coverage only
   (ADR-0002 d1): `rustup toolchain install nightly --component llvm-tools-preview`.
+- **The `x86_64-pc-windows-msvc` target** on stable, so `check-body` can clippy the
+  `cfg(windows)` `os_windows` backend the native workspace compiles to nothing (ADR-0011):
+  `rustup target add x86_64-pc-windows-msvc`. Clippy never links, so no MSVC toolchain is
+  needed; on a Windows host this target is already the native one.
 - **cargo-llvm-cov** installs via `cargo install cargo-llvm-cov`.
 - **just** provides `just check`, THE gate (AGENTS.md gate 6); run it before calling
   anything done.

@@ -38,6 +38,7 @@ RULES: tuple[Rule, ...] = (
     Rule("prefix", ".github/workflows/", ALL),
     Rule("exact", "ruff.toml", PYTHON_ONLY),
     Rule("prefix", "brain/", PYTHON_ONLY),
+    Rule("prefix", "body/app/src-tauri/", RUST_ONLY),
     Rule("prefix", "body/app/", OVERLAY_ONLY),
     Rule("prefix", "body/", RUST_ONLY),
     Rule("prefix", "docs/", NEITHER),

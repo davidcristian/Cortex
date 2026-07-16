@@ -25,8 +25,11 @@ The decisions were revised same-day, pre-push, for open-source longevity.
    - **all:** `justfile`, `.python-version` (exact); `proto/`, `scripts/`,
      `.github/workflows/` (prefix);
    - **python:** `ruff.toml` (exact); `brain/` (prefix);
+   - **rust (shell carve-out):** `body/app/src-tauri/` (prefix) is the host-native Tauri
+     shell, which is Rust rather than node and is fmt-checked by `check-body` (ADR-0011),
+     so it is carved back to rust by a rule ordered BEFORE `body/app/`;
    - **overlay:** `body/app/` (prefix) is the React overlay tree; ordered BEFORE the
-     `body/` rule so overlay changes gate the node toolchain, not Rust (the app crate is
+     `body/` rule so overlay changes gate the node toolchain, not Rust (the overlay is
      excluded from the gated Rust workspace, ADR-0011);
    - **rust:** `body/` (prefix);
    - **neither:** `docs/`, `.claude/` (prefix); `.gitignore`,

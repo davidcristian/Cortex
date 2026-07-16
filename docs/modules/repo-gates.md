@@ -44,7 +44,8 @@ core function).
   ordered rules, first match wins (the normative rule list lives in ADR-0006); the
   result is the union over all paths. Writes exactly three `GITHUB_OUTPUT`-format lines
   to stdout, in order: `python=true|false`, `rust=true|false`, then `overlay=true|false`
-  (the overlay = the `body/app/` React tree, gated by `check-overlay`), and nothing else.
+  (the overlay = the `body/app/` React tree, gated by `check-overlay`; its Tauri shell
+  subtree `body/app/src-tauri/` is Rust and is carved back to `rust`), and nothing else.
   Logs one `ci-paths: PATH -> VERDICT` line per path to stderr so CI logs show why a job
   ran. Empty input yields all three `false`. Unmatched paths fail closed to ALL three
   (unknown means over-test, never under-test). Always exits 0, because classification has no

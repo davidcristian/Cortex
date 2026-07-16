@@ -15,10 +15,11 @@ EVERY_RULE_CASES: list[tuple[str, ci_paths.Verdict]] = [
     # PYTHON only.
     ("ruff.toml", ci_paths.PYTHON_ONLY),
     ("brain/packages/core/src/cortex_core/ports.py", ci_paths.PYTHON_ONLY),
-    # OVERLAY only: the React overlay + its host-only Tauri shell under body/app/.
+    # OVERLAY only: the React overlay under body/app/ (its Tauri shell is RUST, below).
     ("body/app/src/components/App.tsx", ci_paths.OVERLAY_ONLY),
-    # RUST only.
+    # RUST only, including the host-native Tauri shell subtree body/app/src-tauri/.
     ("body/crates/core/src/lib.rs", ci_paths.RUST_ONLY),
+    ("body/app/src-tauri/src/tray.rs", ci_paths.RUST_ONLY),
     # NEITHER: neutral files no toolchain job reads.
     ("docs/index.md", ci_paths.NEITHER),
     (".claude/settings.json", ci_paths.NEITHER),
@@ -42,10 +43,13 @@ PRECEDENCE_CASES: list[tuple[str, ci_paths.Verdict]] = [
     ("body/README.md", ci_paths.RUST_ONLY),
     ("scripts/README.md", ci_paths.ALL),
     ("proto/README.md", ci_paths.ALL),
-    # `body/app/` is the OVERLAY tree and must win over the broader `body/` -> RUST rule
-    # (the app crate is excluded from the gated Rust workspace; ADR-0011) and over `.md`.
-    ("body/app/src-tauri/Cargo.toml", ci_paths.OVERLAY_ONLY),
+    # `body/app/` is the OVERLAY (node) tree and must win over the broader `body/` -> RUST
+    # rule and over `.md`. But its Tauri shell subtree `body/app/src-tauri/` is Rust, carved
+    # back to RUST by a rule ordered before `body/app/`, and it too beats `.md` (ADR-0011).
+    ("body/app/src/main.tsx", ci_paths.OVERLAY_ONLY),
     ("body/app/README.md", ci_paths.OVERLAY_ONLY),
+    ("body/app/src-tauri/Cargo.toml", ci_paths.RUST_ONLY),
+    ("body/app/src-tauri/README.md", ci_paths.RUST_ONLY),
     # The workflows prefix beats the `.md`/unmatched fallthroughs.
     (".github/workflows/release.yml", ci_paths.ALL),
     # ...but the dependabot exact rule keeps that one .github file neutral.

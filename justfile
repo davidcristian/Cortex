@@ -59,12 +59,11 @@ check-scripts:
     cd scripts && uv run pyright
     cd scripts && uv run pytest
 
-# Rust body workspace: fmt, clippy -D warnings, tests, then coverage at 100%
-# line+region+branch. Branch instrumentation needs nightly, and cargo-llvm-cov has no
-# --fail-under-branches, so the JSON export is checked by coverage_gate.py (ADR-0002).
 check-body:
     cd body && cargo fmt --all --check
+    cd body/app/src-tauri && cargo fmt --check
     cd body && cargo clippy --locked --workspace --all-targets -- -D warnings
+    cd body && cargo clippy --locked --target x86_64-pc-windows-msvc -p os-windows --all-targets -- -D warnings
     cd body && cargo test --locked --workspace
     cd body && cargo +nightly llvm-cov --locked --branch --workspace --all-targets --ignore-filename-regex '/_generated/' --fail-under-lines 100 --fail-under-regions 100 --json --summary-only --output-path coverage.json
     cd scripts && uv sync --locked
