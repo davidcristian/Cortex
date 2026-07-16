@@ -14,6 +14,7 @@ import pytest
 from grpc import aio
 
 from cortex_core import (
+    CalendarRule,
     EchoInferenceBackend,
     FireOutcome,
     InMemoryScheduleStore,
@@ -150,6 +151,33 @@ def test_reminder_to_proto_falls_back_to_text_without_a_task_outcome() -> None:
         last_outcome=None,
     )
     assert reminder_to_proto(item).text == "instruction of t1"
+
+
+@pytest.mark.parametrize(
+    ("every", "rule", "expected"),
+    [
+        (None, None, False),  # one-shot: neither recurrence shape set
+        (timedelta(hours=1), None, True),  # fixed interval
+        (None, CalendarRule(hour=9, minute=0), True),  # wall-clock calendar rule
+    ],
+)
+def test_reminder_to_proto_recurs_by_either_mechanism(
+    *, every: timedelta | None, rule: CalendarRule | None, expected: bool
+) -> None:
+    """`recurring` reflects a calendar rule as well as an interval, so a day-of-month/weekday/
+    annual item still shows the overlay's repeats badge (it would drop with only `every`)."""
+    item = ScheduledItem(
+        id="r1",
+        kind=ScheduleKind.REMINDER,
+        text="text of r1",
+        session_id="chat-1",
+        due_at=_NOW,
+        created_at=_NOW,
+        every=every,
+        rule=rule,
+        deliverable_since=_NOW,
+    )
+    assert reminder_to_proto(item).recurring is expected
 
 
 async def test_ack_reminder_clears_the_slot_and_is_idempotent() -> None:

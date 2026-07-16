@@ -40,7 +40,7 @@ def reminder_to_proto(item: ScheduledItem) -> DueReminder:
         reminder_id=item.id,
         text=body,
         fired_at_unix_ms=_unix_ms(fired_at),
-        recurring=item.every is not None,
+        recurring=item.every is not None or item.rule is not None,
         tainted=item.tainted,
         session_id=item.session_id,
     )
