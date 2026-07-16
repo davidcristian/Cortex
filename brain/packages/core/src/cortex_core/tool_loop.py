@@ -2,16 +2,16 @@
 
 from collections.abc import AsyncGenerator, Sequence
 from dataclasses import dataclass, field
-from datetime import datetime
 
-from cortex_core.conversation import Message, Role
+from cortex_core.conversation import Message
 from cortex_core.dispatch import DispatchRefusal, ToolDispatcher
 from cortex_core.inference import JsonSchema, ReasoningChunk
 from cortex_core.ports import Clock, InferenceBackend
 from cortex_core.provenance import SourceKind, as_source
 from cortex_core.tool_budget import DispatchBudget
-from cortex_core.tools import ToolCall, ToolResult, ToolSpec, Trust, TurnStamp
-from cortex_core.untrusted import TaintLedger, wrap_untrusted
+from cortex_core.tool_round import call_message, plan_round, result_message
+from cortex_core.tools import ToolCall, ToolSpec, TurnStamp
+from cortex_core.untrusted import TaintLedger
 
 # Upper bound on inference↔tool rounds in one loop (ADR-0009): a safety net against a model
 # that never stops calling tools. On exhaustion the loop ends with the text produced so far.
@@ -66,31 +66,17 @@ class ToolLoopContext:
     budget: DispatchBudget = field(default_factory=DispatchBudget)
 
 
-def _call_message(text: str, calls: Sequence[ToolCall], at: datetime, turn_id: str) -> Message:
-    """The assistant's tool-calling step, carrying its native ``tool_calls`` for re-inference."""
-    return Message(role=Role.ASSISTANT, text=text, at=at, turn_id=turn_id, tool_calls=tuple(calls))
-
-
-def _result_message(result: ToolResult, at: datetime, turn_id: str, *, nonce: str) -> Message:
-    """One tool result fed back to the model, keyed to the call it answers.
-
-    UNTRUSTED content is fenced as inert data (ADR-0013); TRUSTED content passes through verbatim.
-    """
-    text = (
-        result.content
-        if result.trust is Trust.TRUSTED
-        else wrap_untrusted(result.content, nonce=nonce)
-    )
-    return Message(role=Role.TOOL, text=text, at=at, turn_id=turn_id, tool_call_id=result.call_id)
-
-
 def _refused_by(
     call: ToolCall,
     dispatcher: ToolDispatcher,
     dispatched: Sequence[Sequence[ToolCall]],
     budget: DispatchBudget,
+    *,
+    oversized: bool,
 ) -> DispatchRefusal | None:
     """Which bound refuses this call before it can run, or ``None`` when it may go ahead."""
+    if oversized:
+        return DispatchRefusal.ROUND_OVERSIZED
     if not dispatcher.admits(call, dispatched):
         return DispatchRefusal.REDUNDANT
     if not budget.charge(dispatcher.cost_of(call.name)):
@@ -134,19 +120,20 @@ async def stream_tool_loop(
                 await deltas.aclose()
         if not calls or dispatcher is None:
             break
+        plan = plan_round(calls)
         working.append(
-            _call_message("".join(step_text), calls, context.clock.now(), context.turn_id)
+            call_message("".join(step_text), plan.calls, context.clock.now(), context.turn_id)
         )
         # This round's dispatched calls, appended to the loop's history before the round runs so
         # the policy sees the round in progress as its last group (ADR-0009 salience addendum).
         this_round: list[ToolCall] = []
         dispatched.append(this_round)
-        for call in calls:
+        for call, oversized in plan.answered():
             # The advertised spec this call matched, or None for a name no snapshot carried. It
             # is both the chip's text and the call's provenance below, and using it rather than
             # `call.name` is what keeps either from carrying a string the model authored.
             spec = spec_by_name.get(call.name)
-            refusal = _refused_by(call, dispatcher, dispatched, budget)
+            refusal = _refused_by(call, dispatcher, dispatched, budget, oversized=oversized)
             if refusal is None:
                 # Recorded when the call is handed over, not when it answers: a gate denial and
                 # a declined confirmation are `is_error` results too, so counting only successes
@@ -177,5 +164,5 @@ async def stream_tool_loop(
                 result, source=as_source(SourceKind.TOOL, None if spec is None else spec.name)
             )
             working.append(
-                _result_message(result, context.clock.now(), context.turn_id, nonce=context.nonce)
+                result_message(result, context.clock.now(), context.turn_id, nonce=context.nonce)
             )

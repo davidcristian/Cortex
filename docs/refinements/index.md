@@ -33,7 +33,7 @@ its signature.
 | [seam-transport.md](seam-transport.md) | `BrainTransport` retry/reconnect (ADR-0003/0024) | 3 |
 | [seam-auth.md](seam-auth.md) | Seam token auth (ADR-0016) | 1 |
 | [session-history.md](session-history.md) | Slice 3 history windowing and summarization | 1 |
-| [tools-mcp.md](tools-mcp.md) | Dispatch budget/cost/salience, spawn batch cap, MCP registries (ADR-0009/0010) | 8 |
+| [tools-mcp.md](tools-mcp.md) | Dispatch budget/cost/salience, spawn batch cap, MCP registries (ADR-0009/0010) | 7 |
 | [untrusted-content.md](untrusted-content.md) | Taint boundary, output guardrail, subagent model safety (ADR-0013/0015/0017/0019/0028) | 17 |
 | [memory.md](memory.md) | Store, scoping, rerank/MMR (ADR-0008) | 8 |
 | [inference-model-manager.md](inference-model-manager.md) | Model-manager lifecycle, MTP, reasoning status (ADR-0007/0020) | 5 |
@@ -96,7 +96,11 @@ RPCs for that port, so the silent copy was coming. The gate is now a single door
 what the connection indicator claims. The **per-error-code half was declined** for want of a
 producer, the same test that closed blended relevance and `GetVolume`: the brain emits three
 statuses and all three are already classified correctly. It reopens as the one entry this pass
-added, a retryable-code table, whose trigger is named.
+added, a retryable-code table, whose trigger is named. Tools & MCP went 8 to 7 on 2026-07-16 when
+the per-round cap on distinct calls landed: the entry, its ADR, and this index's own opening
+warning had all diagnosed it correctly for once (a context-growth problem, not a reach one), and
+it closed by dropping a round's calls past a cap rather than refusing them, since a refusal is
+appended to the context exactly as a result is. Nothing opened behind it.
 
 ## Recommended order
 
@@ -108,22 +112,20 @@ against the code (the warning above); the entry text tells you which seams it ex
 1. **Task-outcome delivery as a notification + the push retry policy**
    ([scheduling.md](scheduling.md)): unblocked on 2026-07-16, when the body's `Notify` trait
    landed and gave the port they both reuse a real backend.
-2. **Per-round cap on distinct calls** ([tools-mcp.md](tools-mcp.md)): the one dispatch shape
-   neither the budget nor salience closes (context growth, not reach).
-3. **Occurrence history table** ([scheduling.md](scheduling.md)): also covers unseen-toast
+2. **Occurrence history table** ([scheduling.md](scheduling.md)): also covers unseen-toast
    recovery.
-4. **Brain-generated summary titles** ([session-read-seam.md](session-read-seam.md)): behind
+3. **Brain-generated summary titles** ([session-read-seam.md](session-read-seam.md)): behind
    the unchanged `SessionSummary`. It now also inherits the one race the summon-edge list
    refresh cannot cover: a title the brain rewrites *after* the completing turn refreshed the
    list.
-5. **Reasoning persistence/summarization + the collapsed "thoughts" section**
+4. **Reasoning persistence/summarization + the collapsed "thoughts" section**
    ([inference-model-manager.md](inference-model-manager.md)): a natural pair over the
    already-shipped `Message.statusState`.
-6. **Summarizing a tainted exchange before recording**
+5. **Summarizing a tainted exchange before recording**
    ([untrusted-content.md](untrusted-content.md)).
-7. **Spawn-spec tuning + measured trade-off advertisement** ([subagents.md](subagents.md)):
+6. **Spawn-spec tuning + measured trade-off advertisement** ([subagents.md](subagents.md)):
    low stakes, wrong text misleads only the optimization.
-8. **`cargo fmt` and `cargo clippy` for the two ungated Rust trees**
+7. **`cargo fmt` and `cargo clippy` for the two ungated Rust trees**
    ([repo-gates.md](repo-gates.md)): last because it unblocks no capability, but it is the
    only entry here that stops a class of defect from recurring, and the format half is
    nearly free. Five clippy warnings and three unformatted files had accumulated in the
