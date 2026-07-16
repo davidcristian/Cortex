@@ -1365,3 +1365,43 @@ recorded in [docs/refinements/scheduling.md](../refinements/scheduling.md). What
 
 Reopening this needs a named defect in the rendered card. The likeliest source is the user's
 Windows pass on the real overlay, which stays owed and is the one look no gate reaches.
+
+## Addendum (2026-07-16): the occurrence-history table declined, no consumer reads a fired occurrence
+
+The Deferrals list above carries "occurrence history (coalesced single-slot deliverability keeps no
+per-fire records, and terminal cleanup deletes a one-shot task's outcome with the record)", and the
+Risks list ties unseen-toast recovery to it ("a toast shown while the user is away still acks ...
+unseen-toast recovery (history) is the deferred occurrence-history item"). Read against the tree
+today it is **declined, with no code change**; the outcome is recorded in
+[docs/refinements/scheduling.md](../refinements/scheduling.md), and the deferral moves to the
+backlog's dead-until-a-consumer list. What was checked:
+
+- **The store keeps no per-fire record, exactly as the entry said, confirmed live.** A fired
+  reminder sets the single `deliverable_since` slot, which `ack` clears and a re-fire overwrites
+  (coalesced, one slot); a task overwrites the single `last_outcome`; a terminal one-shot is deleted
+  at `finish` (`next_due=None`, not deliverable) with its outcome; and a one-shot reminder the body
+  reports `shown` is `ack`ed by the ticker at once, so `RedisScheduleStore.ack` deletes its DONE
+  record. A pass against the compose Redis showed each: after a one-shot fired and was acked no
+  `cortex:*` key remained, a recurring item survived the fire with `deliverable_since`/`last_outcome`
+  both back to `None` (no trace it had fired), and a one-shot task's outcome vanished with its
+  record. The unseen-toast gap is therefore real: a one-shot reminder firing to an empty room is
+  delivered by a toast nobody saw and then vanishes, and the next overlay open reads nothing back.
+- **Nothing reads a fired occurrence.** The seam exposes only `ListDueReminders`, which maps the
+  `deliverable()` awaiting-ack slot, and `AckReminder` ([proto/body.proto](../../proto/body.proto)).
+  `Reminders.tsx` renders that slot, and acking removes a row by contract, so it cannot double as a
+  history view without breaking the ack it is. `list_scheduled` reads `last_outcome`, but only the
+  single last line of a still-active item, never a history. A "recently fired"/"you missed these"
+  recovery surface, the entry's own consumer, does not exist.
+- **Building it is a full stack the reader does not yet justify.** A durable occurrence log needs a
+  new store read the in-memory fake must also answer, a growth or retention policy on an otherwise
+  unbounded write-only key, a new `BrainService` RPC, a `BrainTransport`/`BrainBridge` method with
+  its Rust and Tauri adapters, and a new overlay component. This ADR's own "Per-occurrence delivery
+  records" rejection turned on the same point ("a second entity and a growth policy, to preserve
+  duplicate fires nobody reads at personal scale"), so shipping the record now would ship the growth
+  policy it warned against with nothing to shape it. A real durable history wants queries and
+  retention, which is the deferred Postgres durable twin rather than the Redis this would grow
+  unbounded, so the two reopen together.
+
+Reopening this needs a surface that reads a fired occurrence (a recovery view, or an audit sink for
+what fired). It is then the record and that surface designed as one piece, arriving as a store read
+plus a seam RPC rather than a log built ahead of its reader.

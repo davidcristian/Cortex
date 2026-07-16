@@ -43,7 +43,7 @@ its signature.
 | [resource-governance.md](resource-governance.md) | Scheduler/placer budgets, NPU, drain (ADR-0012) | 6 |
 | [email-confirmer.md](email-confirmer.md) | Email write, Confirmer, attachments, `ToolActivity` chip (ADR-0022) | 7 |
 | [body-gateway.md](body-gateway.md) | Body gateway, OS actions, hardened posture (ADR-0023) | 6 |
-| [scheduling.md](scheduling.md) | Scheduling and reminders, `TurnStamp` provenance (ADR-0025/0027) | 9 |
+| [scheduling.md](scheduling.md) | Scheduling and reminders, `TurnStamp` provenance (ADR-0025/0027) | 8 |
 | [cross-cutting.md](cross-cutting.md) | Pointer input, OS backends, more roles | 4 |
 
 The counts are per area as extracted; a few threads appear in two areas (the cross-cutting
@@ -53,7 +53,10 @@ Scheduling held at 10 on 2026-07-16 when the body-side `Notify` trait closed and
 behind it (toast activation routing), which is the backlog working as intended rather than a
 stalled area; it then went to 9 the same day when the tainted-reminder badge entry was read
 against the tree and closed as satisfied with no code change, the first entry here to close that
-way rather than by landing something. Untrusted content went 16 to 17 the same day for
+way rather than by landing something; it then went to 8 the same day when the occurrence-history
+table closed as declined for want of a consumer, the same terminal outcome the blended-relevance
+field took, since nothing reads a fired occurrence and the "you missed these" recovery view that
+would is unbuilt (the store keeping no per-fire record was verified live against the compose Redis). Untrusted content went 16 to 17 the same day for
 the same reason: structured provenance landed, and the two halves it could not honestly capture
 (a sidecar-declared sender, provenance across the stores) each became an entry naming what
 blocks it. Body & overlay held at 3 on 2026-07-16 when the connection indicator landed and
@@ -112,20 +115,18 @@ against the code (the warning above); the entry text tells you which seams it ex
 1. **Task-outcome delivery as a notification + the push retry policy**
    ([scheduling.md](scheduling.md)): unblocked on 2026-07-16, when the body's `Notify` trait
    landed and gave the port they both reuse a real backend.
-2. **Occurrence history table** ([scheduling.md](scheduling.md)): also covers unseen-toast
-   recovery.
-3. **Brain-generated summary titles** ([session-read-seam.md](session-read-seam.md)): behind
+2. **Brain-generated summary titles** ([session-read-seam.md](session-read-seam.md)): behind
    the unchanged `SessionSummary`. It now also inherits the one race the summon-edge list
    refresh cannot cover: a title the brain rewrites *after* the completing turn refreshed the
    list.
-4. **Reasoning persistence/summarization + the collapsed "thoughts" section**
+3. **Reasoning persistence/summarization + the collapsed "thoughts" section**
    ([inference-model-manager.md](inference-model-manager.md)): a natural pair over the
    already-shipped `Message.statusState`.
-5. **Summarizing a tainted exchange before recording**
+4. **Summarizing a tainted exchange before recording**
    ([untrusted-content.md](untrusted-content.md)).
-6. **Spawn-spec tuning + measured trade-off advertisement** ([subagents.md](subagents.md)):
+5. **Spawn-spec tuning + measured trade-off advertisement** ([subagents.md](subagents.md)):
    low stakes, wrong text misleads only the optimization.
-7. **`cargo fmt` and `cargo clippy` for the two ungated Rust trees**
+6. **`cargo fmt` and `cargo clippy` for the two ungated Rust trees**
    ([repo-gates.md](repo-gates.md)): last because it unblocks no capability, but it is the
    only entry here that stops a class of defect from recurring, and the format half is
    nearly free. Five clippy warnings and three unformatted files had accumulated in the
@@ -225,6 +226,15 @@ against the code (the warning above); the entry text tells you which seams it ex
   ([body-gateway.md](body-gateway.md))
 - `SubagentTask` session attribution and the `ToolInvocation` audit-line stamp: no consumer
   reads either yet ([scheduling.md](scheduling.md))
+- Occurrence history / unseen-toast recovery: nothing reads a fired occurrence. The store keeps
+  only a transient `deliverable_since` slot (cleared at `ack`, coalesced on a re-fire) and a single
+  `last_outcome`; a terminal one-shot is deleted at `finish`, and a pushed one-shot reminder is
+  acked-and-deleted on a toast the user may never have seen (verified live: after such a fire the
+  record left no `cortex:*` key). The seam exposes no history view, and a "recently fired"/"you
+  missed these" surface is a full store-read + RPC + overlay stack that does not exist. The origin
+  ADR rejected per-occurrence records for the same want of a reader. Declined 2026-07-16; reopens
+  with a recovery surface, designed with the record, and likely reopening the Postgres durable twin
+  a queryable history wants ([scheduling.md](scheduling.md))
 - Provenance across the stores: `ScheduledItem` and `SubagentResult` each carry the taint bit
   and no sources, so a fired task's stamp and a subagent's own readings attribute nothing back
   ([untrusted-content.md](untrusted-content.md))

@@ -2,7 +2,7 @@
 
 These deferrals originate at [ADR-0025](../adr/ADR-0025-scheduling-reminders.md), the Slice 9.5 scheduling and reminders decision, joined by [ADR-0027](../adr/ADR-0027-turn-provenance.md) for the `TurnStamp` turn-provenance seam. Extracted from the ROADMAP's deferred-refinements section on 2026-07-15 with the entries kept verbatim; landed entries are the historical record of what each deferral became, and the index at [index.md](index.md) carries the recommended pickup order.
 
-**Open items:** toast activation routing, `SubagentTask` session attribution, `ToolInvocation` audit-line stamp, Postgres durable twin, cron expressions, occurrence history, automated dead-letter retention, task-outcome delivery notification, push retry policy
+**Open items:** toast activation routing, `SubagentTask` session attribution, `ToolInvocation` audit-line stamp, Postgres durable twin, cron expressions, automated dead-letter retention, task-outcome delivery notification, push retry policy
 
 **Scheduling & reminders in Slice 9.5 ([ADR-0025](../adr/ADR-0025-scheduling-reminders.md)):** each
 behind the unchanged `ScheduleStore`/`BodyGateway`/seam shapes.
@@ -325,6 +325,35 @@ behind the unchanged `ScheduleStore`/`BodyGateway`/seam shapes.
 - **Occurrence history.** Coalesced single-slot deliverability keeps no per-fire records,
   and terminal cleanup deletes a one-shot task's outcome with its record; a history table
   would also cover unseen-toast recovery.
+- **Occurrence history closed 2026-07-16 as declined, no consumer reads a fired occurrence
+  ([ADR-0025 occurrence-history addendum](../adr/ADR-0025-scheduling-reminders.md)).** The entry
+  above reads true against the tree: the store keeps no per-fire record, verified live against the
+  compose Redis. A fired reminder sets the single `deliverable_since` slot (cleared at `ack`,
+  overwritten if it re-fires before the ack, so coalesced); a task overwrites the single
+  `last_outcome`; a terminal one-shot is deleted at `finish` (`next_due=None`, not deliverable) and
+  takes its outcome with it; and a one-shot reminder the body reports `shown` is `ack`ed by the
+  ticker at once, so `RedisScheduleStore.ack` deletes its DONE record. The live pass showed each:
+  after a one-shot fired and was acked there were **zero `cortex:*` keys left**, a recurring item
+  survived the fire with `deliverable_since=None`/`last_outcome=None` (no trace it had fired), and a
+  one-shot task's `ran: 3 emails` outcome was gone with its record. So the unseen-toast gap the
+  entry names is real: a one-shot reminder firing to an empty room is delivered by a toast nobody
+  saw and then vanishes, and the next overlay open reads nothing back. **What closed it is that
+  nothing reads a fired occurrence.** The seam exposes only `ListDueReminders` (which maps the
+  `deliverable()` awaiting-ack slot) and `AckReminder` (`proto/body.proto`); `Reminders.tsx`
+  renders that slot and acking removes a row by contract, so it cannot double as a history view
+  without breaking the ack it is. `list_scheduled` reads `last_outcome`, but only the single last
+  line of a still-active item, never a series. A recovery surface (a "recently fired"/"you missed
+  these" view), the entry's own consumer, does not exist, and building it is a full stack: a new
+  store read the in-memory fake must also answer, a growth or retention policy on an otherwise
+  unbounded write-only log, a new `BrainService` RPC, a `BrainTransport`/`BrainBridge` method with
+  its Rust and Tauri adapters, and a new overlay component. The origin ADR rejected per-occurrence
+  records for exactly this ("duplicate fires nobody reads at personal scale"), so building the
+  record blind now would ship the growth policy it warned against with nothing to shape it. **Store
+  note:** a real durable history wants queries and retention, which is the deferred **Postgres
+  durable twin** rather than the Redis this would grow unbounded, so the two reopen together. Moves
+  to the backlog's dead-until-a-consumer list; it **reopens** the first time a surface reads a fired
+  occurrence, arriving then as the record and that surface designed as one piece, not a log built
+  ahead of its reader.
 - **Snooze landed 2026-07-12 ([ADR-0025 snooze addendum](../adr/ADR-0025-scheduling-reminders.md)).**
   A new fenced `ScheduleStore.snooze(item_id, until)` transition (WATCH-fenced like
   finish/release/ack, contract-tested across fake + fakeredis + the live suite) plus the
