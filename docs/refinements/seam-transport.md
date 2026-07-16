@@ -77,3 +77,26 @@ The deferrals here originate at [ADR-0003](../adr/ADR-0003-seam-codegen.md), whi
   first exactly as `Unavailable` now is. Until one exists, widening the set widens only the
   configuration surface. `DEADLINE_EXCEEDED` is not on that list and is a separate question:
   nothing on this seam sets a deadline.
+- **Safe `converse` reconnect-before-first-event: sharpened and moved to fix-when-it-bites
+  2026-07-16 ([ADR-0024 addendum](../adr/ADR-0024-transport-retry.md)).** Its one-line cost ("a
+  replayable request and a signature change") was right about the shape and silent about the size.
+  Read against both sides of the seam: a `converse` turn's first durable effect is
+  `await self._store.append(session_id, user)` in `TurnEngine.handle_turn` (`engine.py`), run
+  before inference and before the first yielded event, on an independent turn task that advances
+  whether or not the client reads (`converse.py`, a `UserTurn` starts `_turn_task` and its events
+  land on a queue the consumer drains separately). So "the client saw no event" never means "the
+  brain did nothing": by then the user message is stored and a tool the model asked for first may
+  have run. And nothing carries request identity: `ClientEvent` and `UserTurn` hold `session_id`,
+  text, and images, no request id or idempotency key, and the `turn_id` is minted server-side, so a
+  reconnect that re-issues the request double-runs the turn (verified live over the real engine, an
+  identical resend leaves two user messages under two distinct turn ids). A provably-safe version
+  needs a client-generated request id (a proto field, both stubs regenerated) or a resumable cursor,
+  plus a Redis-backed idempotency/resume registry keyed by `(session_id, request_id)` that survives
+  a model swap (the one hard rule) and either replays a completed turn's outcome or re-attaches to
+  an in-flight turn's buffered events. That is a turn-lifecycle state machine, an idempotency store,
+  and an event-replay path, and it reverses the deliberate "an in-flight turn is disposable, its
+  partial reply dropped" design. Disproportionate at personal loopback scale where reconnects are
+  rare and a dropped turn is already terminal (the user resends), so it waits for a trigger: routine
+  mid-turn evictions once the real model swap lands, and turns costly enough that a silent re-run
+  beats paying for dedup. `converse` stays unretried (`SeamMethod::Converse` is not repeatable);
+  this sharpen is why, not a change to it.

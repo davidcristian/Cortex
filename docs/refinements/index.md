@@ -143,7 +143,19 @@ RPCs for that port, so the silent copy was coming. The gate is now a single door
 what the connection indicator claims. The **per-error-code half was declined** for want of a
 producer, the same test that closed blended relevance and `GetVolume`: the brain emits three
 statuses and all three are already classified correctly. It reopens as the one entry this pass
-added, a retryable-code table, whose trigger is named. Tools & MCP went 8 to 7 on 2026-07-16 when
+added, a retryable-code table, whose trigger is named. Seam transport then held at 3 again the same
+day when safe `converse` reconnect-before-first-event was audited against both sides of the seam and
+sharpened rather than built: a turn's first durable effect (the user-message `store.append` in
+`handle_turn`) runs before inference and before the first event, on a turn task decoupled from
+client reading, and nothing on the wire carries request identity (`ClientEvent`/`UserTurn` have no
+request id, the `turn_id` is server-minted), so a reconnect that re-issues the request double-runs
+the turn, verified live over the real engine as two user messages under two distinct turn ids. A
+provably-safe version needs a client request id or a resumable cursor plus a Redis-backed
+dedup/resume registry that survives a model swap, a turn-lifecycle state machine reversing the
+disposable-in-flight-turn design, disproportionate at loopback personal scale. It moved to
+fix-when-it-bites with its trigger (routine mid-turn evictions once the real swap lands, and turns
+costly enough to make a silent re-run worse than dedup), so the count is unchanged: a sharpened
+deferral is still open, the same bookkeeping the session-history and reranker sharpen used. Tools & MCP went 8 to 7 on 2026-07-16 when
 the per-round cap on distinct calls landed: the entry, its ADR, and this index's own opening
 warning had all diagnosed it correctly for once (a context-growth problem, not a reach one), and
 it closed by dropping a round's calls past a cap rather than refusing them, since a refusal is
@@ -268,8 +280,6 @@ against the code (the warning above); the entry text tells you which seams it ex
   model pass cannot be validated on the 8 GB dev GPU (the cortex tier does not fit) and that
   `select`'s widening should serve its three deferred consumers in one change, so this reopens with
   the real GPU lifecycle.
-- **Safe `converse` reconnect-before-first-event**
-  ([seam-transport.md](seam-transport.md)): needs a replayable request and a signature change.
 - **Multi-turn-within-one-stream + an explicit proto `Cancel`**
   ([body-overlay.md](body-overlay.md)): per-turn confirm keying is the known knock-on.
 - **A sidecar-declared sender or source URI**
@@ -424,9 +434,13 @@ spontaneous-pick nudge's live uptake, joined on 2026-07-16 when the measured tra
 advertisement landed, whose trigger is a live cortex on user-tier hardware still under-reaching
 for distinct models and whose fix is stronger nudging behind the same spec seam
 ([subagents.md](subagents.md)); the retry
-budget / circuit-breaker, joined on 2026-07-16 by a retryable-code table beyond `Unavailable`,
-whose trigger is a brain that starts answering `RESOURCE_EXHAUSTED` or `ABORTED`
-([seam-transport.md](seam-transport.md)); the tunnel fallback, the
+budget / circuit-breaker, joined on 2026-07-16 by a retryable-code table beyond `Unavailable`
+(whose trigger is a brain that starts answering `RESOURCE_EXHAUSTED` or `ABORTED`) and, the same
+day, by safe `converse` reconnect-before-first-event (sharpened from "a replayable request and a
+signature change" into the store-backed dedup/resume protocol a no-double-run version would need,
+whose trigger is routine mid-turn evictions once the real model swap lands plus turns costly enough
+that a silent re-run beats paying for dedup) ([seam-transport.md](seam-transport.md)); the tunnel
+fallback, the
 hardened non-loopback posture, a safe Core Audio wrapper, and the unbalanced COM
 initialization the blocking-pool hop made visible, whose trigger is a COM failure or thread
 growth on Windows after a long session
