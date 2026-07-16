@@ -82,6 +82,15 @@ class BrainRuntimeConfig(BaseSettings):
     # from untrusted tool results in the reply the user sees; `strict` (ADR-0015 addendum)
     # redacts every non-user URL on a tainted turn; `off` restores the unguarded stream.
     output_guardrail: Literal["redact", "strict", "off"] = "redact"
+    # env CORTEX_GENERATE_TITLES turns on brain-generated switcher titles (ADR-0021 titles
+    # addendum): on a session's first turn the resident model writes a short title from the
+    # opening exchange, which `list_sessions` prefers over the first-message derivation. Default
+    # off, since it adds one inference call per new session on the shared GPU, so a deployment
+    # opts in; the generated title is persisted, so it survives a model swap. A reasoning cortex
+    # can spend its whole budget thinking and emit no title, in which case the first-message
+    # derivation stands (reliable content wants thinking disabled, which the inference port does
+    # not yet express; ADR-0021 titles addendum).
+    generate_titles: bool = False
 
 
 class BodyConfig(BaseSettings):

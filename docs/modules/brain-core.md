@@ -50,14 +50,22 @@ Session listing (Slice 8.7, ADR-0021; `sessions.py`):
 - `SessionSummary` is a frozen dataclass: `session_id: str`, `title: str`, `preview: str`,
   `last_activity: datetime`. One recent chat as the overlay's switcher shows it; `title`/
   `preview` are already derived (one line, truncated), `last_activity` tz-aware.
-- `summarize_ends(session_id, first, last) -> SessionSummary` is the pure derivation: `title`
-  from the first message, `preview` from the last, `last_activity` from the last's `at`; each
-  collapsed to one line and truncated (`TITLE_MAX` / `PREVIEW_MAX`). Taking just the two ends
-  states in the core that nothing between them is needed, which is what lets a store read only
-  those two records (ADR-0021 bounded-reads addendum).
-- `summarize_session(session_id, messages) -> SessionSummary` is the whole-history form, which
-  delegates to `summarize_ends`. Both `SessionStore` implementations derive summaries through
-  these (so the rule never drifts). Requires a non-empty history.
+- `summarize_ends(session_id, first, last, *, title_override=None) -> SessionSummary` is the pure
+  derivation: `title` from the first message, `preview` from the last, `last_activity` from the
+  last's `at`; each collapsed to one line and truncated (`TITLE_MAX` / `PREVIEW_MAX`). Taking just
+  the two ends states in the core that nothing between them is needed, which is what lets a store
+  read only those two records (ADR-0021 bounded-reads addendum). A non-blank `title_override` (a
+  brain-generated title a store holds, ADR-0021 titles addendum) replaces the first-message title,
+  collapsed and truncated the same way; a blank/absent one falls back.
+- `summarize_session(session_id, messages, *, title_override=None) -> SessionSummary` is the
+  whole-history form, which delegates to `summarize_ends`. Both `SessionStore` implementations
+  derive summaries through these (so the rule never drifts). Requires a non-empty history.
+- `session_title.py` (ADR-0021 titles addendum) is brain-generated titling: `build_title_messages`
+  builds the one-message prompt (instruction + opening exchange), `clean_title` collapses/strips/
+  bounds a model reply to `TITLE_MAX` (empty when nothing usable), and `generate_title(backend,
+  model, messages)` runs one tool-less completion and returns the cleaned title, keeping only
+  `TextChunk` (a reasoning model's `ReasoningChunk` and any `ToolCall` are ignored) and letting
+  `InferenceError` propagate for the caller to absorb.
 
 Model management (Slice 4, ADR-0007):
 
@@ -393,7 +401,10 @@ Ports (`typing.Protocol`; failures cross them only as the typed errors below):
 - `SessionStore` provides `async append(session_id, message) -> None`,
   `async history(session_id) -> Sequence[Message]` (append order; empty when unknown),
   `async list_sessions(*, limit) -> Sequence[SessionSummary]` (recent chats newest-active
-  first, at most `limit`; ADR-0021 adds a read over the same state, no write path).
+  first, at most `limit`; ADR-0021 adds a read over the same state, no write path), and
+  `async set_title(session_id, title) -> None` (persist a brain-generated display title that
+  `list_sessions` prefers over the first-message derivation, ADR-0021 titles addendum; a derived
+  display value, overwritten by a later call, not conversation content).
   The source of truth for conversation state; survives swaps and restarts.
 - `InferenceBackend` has `stream(model, messages, *, tools=(), schema=None) ->
   AsyncIterator[InferenceEvent]`: one stateless streamed completion, yielding `TextChunk` deltas
@@ -517,11 +528,23 @@ Use-case:
   and the scrubbed carry is released once at end of stream, so the thinking surface carries
   the same laundering guarantee as the reply. With a bare `TurnCapabilities()` (the default)
   the turn behaves exactly as Slice 3.
+  Title generation (optional, ADR-0021 titles addendum): when `capabilities.generate_titles` is set
+  and this is the session's first turn (the pre-turn history held exactly the just-appended user
+  message), after persisting the reply the engine generates a switcher title from the opening
+  exchange (`generate_title`) and persists it (`set_title`) **before** yielding `TurnCompleted`.
+  It runs after the reply's own stream closed, so the GPU lease is a sequential acquire (never the
+  reranker's re-entrant hazard) and it never touches the read/list path; persisting before
+  completion means the overlay's turn-completion refresh already sees the final title (no race). A
+  generation `InferenceError` is absorbed and an empty title is not persisted, either leaving the
+  first-message derivation in place, so a failed title never fails the turn.
 - `TurnCapabilities(memory=None, tools=None, window=None, guardrail=None,
-  record_tainted_memory=False)` is a frozen bundle of the optional per-turn collaborators (a
-  `MemoryRecaller`, a `ToolDispatcher`, a `HistoryWindow`, and an `OutputGuardrail`) plus the
-  tainted-turn recording policy (ADR-0019), keeping the engine within its DI ceiling. The bool
-  governs only writing. A stored tainted memory is always fenced on recall regardless.
+  record_tainted_memory=False, generate_titles=False)` is a frozen bundle of the optional per-turn
+  collaborators (a `MemoryRecaller`, a `ToolDispatcher`, a `HistoryWindow`, and an
+  `OutputGuardrail`) plus the tainted-turn recording policy (ADR-0019), keeping the engine within
+  its DI ceiling. The bool governs only writing. A stored tainted memory is always fenced on
+  recall regardless. `generate_titles` (ADR-0021 titles addendum), when `True`, generates a
+  switcher title on a session's first turn (see the engine's title step below); `False` (default)
+  keeps the first-message derivation.
 - `HistoryWindow` (protocol, `windowing.py`) / `CharBudgetHistoryWindow(max_chars)` are the
   session-history windowing seam and its shipped policy (ADR-0014). `select(history)`
   returns the slice one turn sends to the model: `CharBudgetHistoryWindow` keeps the newest
@@ -830,9 +853,9 @@ Use-case:
 
 Reference implementations (pure, shipped in core; the runtime wiring until Slice 4):
 
-- `InMemorySessionStore` is a dict-backed `SessionStore` (append/history/`list_sessions`);
-  contract-test twin of the Redis adapter (`cortex_session`), intentionally does not
-  survive a restart.
+- `InMemorySessionStore` is a dict-backed `SessionStore` (append/history/`list_sessions`/
+  `set_title`, the last kept in a second dict and preferred by `list_sessions`); contract-test
+  twin of the Redis adapter (`cortex_session`), intentionally does not survive a restart.
 - `EchoInferenceBackend` is the scripted fake: for a history with `n` user messages
   (including the current one, counted from the store-backed history alone) whose
   latest user text is `T`, streams exactly `"reply {n}: {T}"` as three `TextChunk`s

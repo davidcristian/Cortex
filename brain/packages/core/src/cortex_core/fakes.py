@@ -33,6 +33,7 @@ class InMemorySessionStore:
 
     def __init__(self) -> None:
         self._sessions: dict[str, list[Message]] = {}
+        self._titles: dict[str, str] = {}
 
     async def append(self, session_id: str, message: Message) -> None:
         """Persist one message at the end of the session's history."""
@@ -46,14 +47,19 @@ class InMemorySessionStore:
         """Return at most ``limit`` recent chats, most-recently-active first (ADR-0021).
 
         Every stored session has at least one message (a key exists only after an append),
-        so each summarizes; ties on ``last_activity`` keep insertion order (unspecified, as
-        for the Redis twin, since the contract test uses distinct timestamps)."""
+        so each summarizes; a stored title (``set_title``) overrides the first-message one.
+        Ties on ``last_activity`` keep insertion order (unspecified, as for the Redis twin,
+        since the contract test uses distinct timestamps)."""
         summaries = [
-            summarize_session(session_id, messages)
+            summarize_session(session_id, messages, title_override=self._titles.get(session_id))
             for session_id, messages in self._sessions.items()
         ]
         summaries.sort(key=lambda summary: summary.last_activity, reverse=True)
         return tuple(summaries[:limit])
+
+    async def set_title(self, session_id: str, title: str) -> None:
+        """Persist a brain-generated display title, preferred by ``list_sessions`` (ADR-0021)."""
+        self._titles[session_id] = title
 
 
 class EchoInferenceBackend:

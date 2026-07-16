@@ -113,6 +113,9 @@ class FailingStore:
         del limit
         return ()
 
+    async def set_title(self, session_id: str, title: str) -> None:
+        del session_id, title
+
 
 class BlockingFirstTurnBackend:
     """First call: one delta, then blocks until cancelled. Later calls: the echo script."""

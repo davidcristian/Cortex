@@ -36,9 +36,10 @@ DEFAULT_REDIS_URL = "redis://127.0.0.1:6379/0"
 # by last-activity unix time, maintained on `append` alongside the per-session list.
 _SESSIONS_KEY = "cortex:sessions"
 
-# What one listed session costs `list_sessions`: its first record, its last record, and
-# its length (the tail's index, so a corrupt tail is still named precisely).
-_ENDS_READS = 3
+# What one listed session costs `list_sessions`: its first record, its last record, its
+# length (the tail's index, so a corrupt tail is still named precisely), and its stored
+# title (a brain-generated override, or absent for the first-message derivation).
+_ENDS_READS = 4
 
 # The record schema this writer emits and the ONLY combination this reader accepts.
 # Records missing the markers decode as this combination (pre-versioning writers).
@@ -48,6 +49,10 @@ _RECORD_VERSION = 1
 
 def _key(session_id: str) -> str:
     return f"cortex:session:{session_id}:messages"
+
+
+def _title_key(session_id: str) -> str:
+    return f"cortex:session:{session_id}:title"
 
 
 def _encode(message: Message) -> str:
@@ -96,16 +101,21 @@ def _summarize_ends(session_id: str, reads: Sequence[object], at: int) -> Sessio
     """Summarize the session listed at ``at`` from the batched ends read (None when gone).
 
     ``reads`` is the flat pipeline result: ``_ENDS_READS`` entries per listed session, in
-    the order the reads were queued. An empty head is a dangling index entry (the message
-    list is gone), the one case a listing skips instead of failing.
+    the order the reads were queued (head, tail, length, title). An empty head is a dangling
+    index entry (the message list is gone), the one case a listing skips instead of failing.
+    A stored title (``None`` when unset) overrides the first-message derivation (ADR-0021).
     """
     base = at * _ENDS_READS
     head = cast("list[bytes]", reads[base])
     tail = cast("list[bytes]", reads[base + 1])
     length = cast("int", reads[base + 2])
+    raw_title = reads[base + 3]
     if not head:
         return None
-    return summarize_ends(session_id, _decode(head[0], 0), _decode(tail[0], length - 1))
+    title = cast("bytes", raw_title).decode("utf-8") if raw_title is not None else None
+    return summarize_ends(
+        session_id, _decode(head[0], 0), _decode(tail[0], length - 1), title_override=title
+    )
 
 
 class RedisSessionStore:
@@ -146,6 +156,19 @@ class RedisSessionStore:
             raise SessionStoreError(msg) from err
         return tuple(_decode(item, index) for index, item in enumerate(raw))
 
+    async def set_title(self, session_id: str, title: str) -> None:
+        """Persist a brain-generated display title under the session's title key (ADR-0021).
+
+        A plain string value (its own key, never a message record), so it carries no schema
+        markers and `list_sessions` prefers it over the first-message derivation; a later call
+        overwrites it. Not conversation content, but stored beside it so it survives a swap.
+        """
+        try:
+            await self._client.set(_title_key(session_id), title)
+        except RedisError as err:
+            msg = f"setting the title for session {session_id!r} failed"
+            raise SessionStoreError(msg) from err
+
     async def list_sessions(self, *, limit: int) -> Sequence[SessionSummary]:
         """Return at most ``limit`` recent chats, most-recently-active first (ADR-0021).
 
@@ -177,6 +200,7 @@ class RedisSessionStore:
                     pipe.lrange(key, 0, 0)
                     pipe.lrange(key, -1, -1)
                     pipe.llen(key)
+                    pipe.get(_title_key(session_id))
                 reads = await pipe.execute()
         except RedisError as err:
             msg = "listing sessions failed"

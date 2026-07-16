@@ -35,7 +35,11 @@ Config (pydantic-settings; explicit constructor arguments beat the environment):
   `output_guardrail: "redact" | "strict" | "off" = "redact"` (`CORTEX_OUTPUT_GUARDRAIL`,
   ADR-0015) is the model-independent laundering defense: `redact` (default) scrubs
   verbatim-untrusted-sourced URLs from the reply the user sees, `strict` (addendum) scrubs
-  every non-user URL on a tainted turn, `off` restores the unguarded stream.
+  every non-user URL on a tainted turn, `off` restores the unguarded stream;
+  `generate_titles: bool = False` (`CORTEX_GENERATE_TITLES`, ADR-0021 titles addendum) opts a
+  deployment into brain-generated switcher titles (one extra inference call per new session; a
+  reasoning cortex may emit no title and the first-message derivation stands), threaded into
+  `TurnCapabilities.generate_titles`.
 - `InferenceConfig` uses env prefix `CORTEX_INFERENCE_`: which backend answers turns
   (ADR-0007 d4). `backend: "echo" | "llamacpp" = "echo"` (`CORTEX_INFERENCE_BACKEND`) and
   `endpoint: str = ""` (`CORTEX_INFERENCE_ENDPOINT`, the resident `llama-server` base

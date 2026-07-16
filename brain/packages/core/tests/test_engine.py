@@ -1247,3 +1247,109 @@ async def test_recall_renders_trusted_and_tainted_memories_in_separate_sections(
     assert "derived from untrusted external content" in memory_msg.text
     assert "untrusted-tool-output id=" in memory_msg.text  # the tainted memory is fenced
     assert "hostile note" in memory_msg.text
+
+
+class ScriptedTurnBackend:
+    """Per-call scripted reply text; the reply is call 1, a generated title is call 2.
+
+    A str entry is streamed as one `TextChunk`; an `InferenceError` entry is raised instead
+    (to exercise the engine absorbing a failed title). The last entry repeats if called again.
+    """
+
+    def __init__(self, scripts: Sequence[str | InferenceError]) -> None:
+        self._scripts = list(scripts)
+        self.calls = 0
+
+    async def stream(
+        self,
+        model: str,
+        messages: Sequence[Message],
+        *,
+        tools: Sequence[ToolSpec] = (),
+        schema: JsonSchema | None = None,
+    ) -> AsyncIterator[InferenceEvent]:
+        del model, messages, tools, schema
+        script = self._scripts[min(self.calls, len(self._scripts) - 1)]
+        self.calls += 1
+        if isinstance(script, InferenceError):
+            raise script
+        yield TextChunk(script)
+
+
+async def _title_of(store: InMemorySessionStore, session_id: str) -> str:
+    (summary,) = await store.list_sessions(limit=1)
+    assert summary.session_id == session_id
+    return summary.title
+
+
+async def test_first_turn_generates_and_persists_a_switcher_title() -> None:
+    store = InMemorySessionStore()
+    backend = ScriptedTurnBackend(["hello reply", "  A Nice Title  "])
+    engine = TurnEngine(
+        store,
+        backend,
+        TickingClock(),
+        capabilities=TurnCapabilities(generate_titles=True),
+        turn_id_factory=lambda: "t-1",
+    )
+    await _collect(engine.handle_turn("s", "the opening question"))
+    assert backend.calls == 2  # one for the reply, one for the title
+    assert await _title_of(store, "s") == "A Nice Title"  # cleaned, overriding the first message
+
+
+async def test_titles_are_off_by_default() -> None:
+    store = InMemorySessionStore()
+    backend = ScriptedTurnBackend(["hello reply", "unused title"])
+    engine = TurnEngine(store, backend, TickingClock(), turn_id_factory=lambda: "t-1")
+    await _collect(engine.handle_turn("s", "the opening question"))
+    assert backend.calls == 1  # no title call
+    assert await _title_of(store, "s") == "the opening question"  # first-message derivation
+
+
+async def test_later_turns_do_not_regenerate_the_title() -> None:
+    store = InMemorySessionStore()
+    backend = ScriptedTurnBackend(["reply one", "First Title", "reply two", "Second Title"])
+    ids = _sequential_turn_ids()
+    engine = TurnEngine(
+        store,
+        backend,
+        TickingClock(),
+        capabilities=TurnCapabilities(generate_titles=True),
+        turn_id_factory=lambda: ids.pop(0),
+    )
+    await _collect(engine.handle_turn("s", "first message"))
+    await _collect(engine.handle_turn("s", "second message"))
+    # Turn 1: reply + title (2 calls). Turn 2: reply only, history is no longer length 1 (3rd call).
+    assert backend.calls == 3
+    assert await _title_of(store, "s") == "First Title"  # unchanged by the second turn
+
+
+async def test_a_failed_title_generation_falls_back_to_the_first_message() -> None:
+    store = InMemorySessionStore()
+    backend = ScriptedTurnBackend(["hello reply", InferenceError("title model down")])
+    events = await _collect(
+        TurnEngine(
+            store,
+            backend,
+            TickingClock(),
+            capabilities=TurnCapabilities(generate_titles=True),
+            turn_id_factory=lambda: "t-1",
+        ).handle_turn("s", "the opening question")
+    )
+    # The turn still completes; only the title write is skipped.
+    assert isinstance(events[-1], TurnCompleted)
+    assert await _title_of(store, "s") == "the opening question"
+
+
+async def test_an_empty_generated_title_is_not_persisted() -> None:
+    store = InMemorySessionStore()
+    backend = ScriptedTurnBackend(["hello reply", "   \n  "])  # cleans to empty
+    engine = TurnEngine(
+        store,
+        backend,
+        TickingClock(),
+        capabilities=TurnCapabilities(generate_titles=True),
+        turn_id_factory=lambda: "t-1",
+    )
+    await _collect(engine.handle_turn("s", "the opening question"))
+    assert await _title_of(store, "s") == "the opening question"  # empty title rejected

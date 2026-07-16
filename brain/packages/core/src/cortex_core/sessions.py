@@ -44,29 +44,49 @@ def _one_line(text: str, limit: int) -> str:
     return collapsed if len(collapsed) <= limit else f"{collapsed[:limit]}…"
 
 
-def summarize_ends(session_id: str, first: Message, last: Message) -> SessionSummary:
+def _title(override: str | None, first_text: str) -> str:
+    """The switcher title: a stored ``override`` when one is set and non-blank, else the first
+    message's text. Both are collapsed and truncated the same way, so a brain-generated title
+    (ADR-0021 titles addendum) can never exceed the switcher width however the model replied,
+    and a blank override falls back rather than blanking the row.
+    """
+    if override is not None:
+        collapsed = _one_line(override, TITLE_MAX)
+        if collapsed:
+            return collapsed
+    return _one_line(first_text, TITLE_MAX)
+
+
+def summarize_ends(
+    session_id: str, first: Message, last: Message, *, title_override: str | None = None
+) -> SessionSummary:
     """Derive a chat's summary from its two end messages (ADR-0021).
 
     A summary needs nothing between the ends, and saying so here (rather than leaving it
     implicit in the indexing below) is what lets a store read only those two records
     instead of a whole history. ``first`` and ``last`` are the same message for a
-    one-message session.
+    one-message session. ``title_override``, when a store holds a brain-generated title
+    (ADR-0021 titles addendum), replaces the first-message title; the preview and last-activity
+    are always derived from the messages.
     """
     return SessionSummary(
         session_id=session_id,
-        title=_one_line(first.text, TITLE_MAX),
+        title=_title(title_override, first.text),
         preview=_one_line(last.text, PREVIEW_MAX),
         last_activity=last.at,
     )
 
 
-def summarize_session(session_id: str, messages: Sequence[Message]) -> SessionSummary:
+def summarize_session(
+    session_id: str, messages: Sequence[Message], *, title_override: str | None = None
+) -> SessionSummary:
     """Derive a chat's summary from its persisted messages (ADR-0021).
 
-    ``title`` comes from the first message's text. The engine appends the user turn first
-    and only ``USER``/``ASSISTANT`` messages persist, so index 0 is that first user message;
-    ``preview`` from the last message's text; ``last_activity`` from the last message's
-    timestamp. Called only with a non-empty history (a session exists only once a turn has
-    been appended), so the indexing is total.
+    ``title`` comes from ``title_override`` when set (a brain-generated title, ADR-0021 titles
+    addendum), else the first message's text. The engine appends the user turn first and only
+    ``USER``/``ASSISTANT`` messages persist, so index 0 is that first user message; ``preview``
+    from the last message's text; ``last_activity`` from the last message's timestamp. Called
+    only with a non-empty history (a session exists only once a turn has been appended), so the
+    indexing is total.
     """
-    return summarize_ends(session_id, messages[0], messages[-1])
+    return summarize_ends(session_id, messages[0], messages[-1], title_override=title_override)
