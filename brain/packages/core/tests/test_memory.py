@@ -95,6 +95,37 @@ async def test_a_zero_vector_memory_scores_zero_and_ranks_last() -> None:
     assert hits[1].score == 0.0
 
 
+async def test_delete_scope_removes_only_its_namespace_and_counts() -> None:
+    store = InMemoryMemoryStore()
+    await store.add(_record("a1", (1.0, 0.0), record_id="a1", scope="conv-a"))
+    await store.add(_record("a2", (1.0, 0.0), record_id="a2", scope="conv-a"))
+    await store.add(_record("b1", (1.0, 0.0), record_id="b1", scope="conv-b"))
+    removed = await store.delete_scope("conv-a")
+    assert removed == 2  # both conv-a memories, and only those
+    assert await store.search([1.0, 0.0], k=5, scopes=["conv-a"]) == ()  # the scope is empty now
+    kept = await store.search([1.0, 0.0], k=5, scopes=["conv-b"])
+    assert [hit.record.id for hit in kept] == ["b1"]  # conv-b survives
+
+
+async def test_delete_scope_without_matches_returns_zero() -> None:
+    store = InMemoryMemoryStore()
+    await store.add(_record("a1", (1.0, 0.0), record_id="a1", scope="conv-a"))
+    assert await store.delete_scope("conv-x") == 0  # nothing matched, no error
+    assert len(await store.search([1.0, 0.0], k=5)) == 1  # the store is untouched
+
+
+def test_the_recaller_exposes_no_forget_verb_so_no_turn_can_delete_memory() -> None:
+    # Data-loss safety for the new delete verb (ADR-0008 delete-scope addendum). ``delete_scope``
+    # lives on the ``MemoryStore`` port for out-of-band trusted callers (a session-delete cascade,
+    # an eviction policy). A turn reaches memory only through the ``MemoryRecaller`` handed to the
+    # engine as ``caps.memory``, which exposes record/recall and nothing else, and memory is not a
+    # tool in any registry, so no tool call, tainted or not, can spell "forget everything". If a
+    # delete method is ever added here, this reddens so the taint path is reconsidered first.
+    assert not hasattr(MemoryRecaller, "delete_scope")
+    turn_facing = {name for name in vars(MemoryRecaller) if not name.startswith("_")}
+    assert turn_facing == {"record", "recall"}
+
+
 async def test_record_builds_persists_and_returns_the_memory() -> None:
     store = InMemoryMemoryStore()
     embedder = HashEmbedder()

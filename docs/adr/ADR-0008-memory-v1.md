@@ -412,3 +412,64 @@ field, an observability sink that reads a rank key) rather than twice. An async-
 would be that first of two changes. So the reranker reopens with the model manager's real GPU
 lifecycle, landing the async widening, the richer `select` return, and the model policy as one
 design. Recorded at [docs/refinements/memory.md](../refinements/memory.md).
+
+## Addendum (2026-07-16): the delete/forget verb lands (`delete_scope`), the policies stay deferred
+
+Decision 2 shipped `MemoryStore` as `add` + `search` only. The tiered/self-editing entry's cost
+correction ([docs/refinements/memory.md](../refinements/memory.md)) had found that every richer
+memory idea (tiering, self-editing, retention, eviction) needs verbs the port lacks. This addendum
+lands the **one** of those verbs with recorded consumers already waiting on it, and keeps the rest
+deferred, additively, behind an otherwise unchanged port.
+
+1. **`MemoryStore.delete_scope(scope: str) -> int`.** It hard-deletes every memory in one namespace
+   and returns how many rows it removed (0 when the scope holds none). It is the forget primitive two
+   backlog entries named as their shared missing verb: the **session-delete cascade** (a session
+   delete could not honestly remove a session's derived memories, [session-read-seam.md](../refinements/session-read-seam.md))
+   and **per-scope eviction** (the scoping addendum's deferred retention/eviction policy).
+
+2. **By scope, not by id, because the scope _is_ the session-to-memory link.** A memory carries no
+   session id; the only thing tying it to the conversation that wrote it is its `scope`, which
+   `SessionMemoryScope` sets to the `session_id` (scoping addendum). So a cascade is `delete_scope(
+   session_id)`, and under the default `GlobalMemoryScope` (where a session's memories land in the
+   shared `GLOBAL_SCOPE` on purpose) there is correctly nothing session-private to cascade. The verb
+   takes a single required scope and offers no wildcard, unlike `search`'s `scopes=None`, so a
+   namespace is dropped only when named and no call can erase everything by omission; a caller that
+   maps a session onto `GLOBAL_SCOPE` must never pass it here.
+
+3. **A hard delete, not a tombstone.** `SessionStore.delete` will likely tombstone a transcript so an
+   in-flight read fails cleanly, but memory is different: `search` is a stateless top-k scan with no
+   in-flight read of a specific id, so a removed row simply drops from the candidate pool with
+   nothing to fail cleanly. The pgvector adapter issues `DELETE FROM memories WHERE scope = $1`,
+   parsing the row count from asyncpg's `DELETE n` command tag (a malformed tag wraps as
+   `MemoryStoreError`, the malformed-response path `search` already guards for a row). **No schema
+   change:** the existing `memories_scope_idx` btree serves the equality.
+
+4. **Data-loss-safe by construction.** A delete triggered by untrusted content ("forget everything")
+   is the obvious injection worry. It is foreclosed structurally, not by a runtime check. Memory is
+   **not a tool** in any registry, so a model, jailbroken or not, has no call that reaches the store;
+   and the `MemoryRecaller` a turn is handed as `caps.memory` exposes only `record` and `recall`, so
+   even the engine cannot delete. `delete_scope` lives on the port for out-of-band trusted callers
+   (session management, an eviction policy), never on the turn path. A structural test pins the
+   recaller's turn-facing surface, so adding a delete there later reddens and forces a taint review.
+   This is the same fail-closed stance as the tainted-turn confirm decline (ADR-0022), stronger here
+   because there is no tool at all rather than a denied one.
+
+**Consciously deferred (recorded in [docs/refinements/memory.md](../refinements/memory.md)), each
+for want of a consumer and no longer for a missing verb:** self-editing memory (**update** in
+place), **tiered** promote/demote/expire, **write-salience** (whose separate entry also needs
+`MemoryRecaller.record`'s non-optional return to widen), and the **per-scope retention _policy_**
+(the eviction verb now exists; a scheduler deciding what to evict when does not, and nothing drives
+one). **Per-provenance eviction** ([docs/refinements/untrusted-content.md](../refinements/untrusted-content.md))
+is not served by `delete_scope`: a memory record stores only the `tainted` bit, not the ADR-0027
+structured provenance, so eviction by sender/URI wants a different filter and stays fix-when-it-bites.
+
+**Evidence.** CI-gated at 100% over the fake (`InMemoryMemoryStore`, bespoke core tests) and the
+pgvector adapter (canned-row `Database` fake: SQL, count parsing, error and malformed-tag wrapping);
+the shared behavioral contract (`memory_contract.ALL_CHECKS`) gained a delete check and runs against
+real pgvector in the host `integration` test. Host-validated live against real Postgres + pgvector:
+seeded two scopes (3 rows and 2 rows), `delete_scope` of the first returned 3 and left the table at 0
+and 2, `search` of the deleted scope returned nothing while the other scope was untouched, and a
+no-match scope returned 0. Distrust-green: a no-op fake delete fails the core deletion test on the
+search-after assertion (the count alone still passes, proving the test asserts real mutation), a
+by-id adapter SQL fails the adapter's SQL assertion, and a `WHERE scope = $1 AND false` neutered
+adapter fails the live contract's `removed == 2`, each turned red before being reverted.

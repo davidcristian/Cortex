@@ -93,10 +93,34 @@ async def check_scope_filter_isolates_and_unions(store: MemoryStore) -> list[str
     return [a.id, b.id]
 
 
+async def check_delete_scope_removes_a_namespace(store: MemoryStore) -> list[str]:
+    """``delete_scope`` hard-deletes exactly its namespace, counts it, and spares the rest."""
+    scope = f"contract-del-{uuid4()}"
+    other = f"contract-keep-{uuid4()}"
+    doomed = [make_record(f"doomed {i}", (1.0, 0.0, 0.0), scope=scope) for i in range(2)]
+    survivor = make_record("survivor", (1.0, 0.0, 0.0), scope=other)
+    for record in (*doomed, survivor):
+        await store.add(record)
+    removed = await store.delete_scope(scope)
+    assert removed == 2  # both memories in the scope, and only those
+    assert list(await store.search((1.0, 0.0, 0.0), k=10, scopes=[scope])) == []  # gone
+    kept = await store.search((1.0, 0.0, 0.0), k=10, scopes=[other])
+    assert [hit.record.id for hit in kept] == [survivor.id]  # the other namespace is untouched
+    return [survivor.id]
+
+
+async def check_delete_scope_without_matches_returns_zero(store: MemoryStore) -> list[str]:
+    """Deleting a namespace that holds nothing removes nothing and returns 0, not an error."""
+    assert await store.delete_scope(f"contract-empty-{uuid4()}") == 0
+    return []
+
+
 ALL_CHECKS = (
     check_empty_search,
     check_ranks_by_similarity,
     check_top_k_truncates,
     check_roundtrip_fidelity,
     check_scope_filter_isolates_and_unions,
+    check_delete_scope_removes_a_namespace,
+    check_delete_scope_without_matches_returns_zero,
 )

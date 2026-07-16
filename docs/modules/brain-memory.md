@@ -18,6 +18,12 @@ pool (the one hard rule).
     `embedding::text`, so no driver-side vector-type registration is needed. A non-`None` `scopes`
     adds `WHERE scope = ANY($3)` to filter candidates to those namespaces before ranking (ADR-0008
     scoping addendum); `None` ranks over every memory.
+  - `delete_scope(scope)` → `DELETE FROM memories WHERE scope = $1` (the `memories_scope_idx` btree
+    serves the equality, so no schema change), returning the row count parsed from asyncpg's `DELETE
+    n` command tag (0 when the scope holds none, a malformed tag wrapped as `MemoryStoreError`). A
+    hard delete, not a tombstone: `search` is a stateless top-k scan with no in-flight read of one id
+    to fail cleanly, so a removed row simply drops from the candidate pool (ADR-0008 delete-scope
+    addendum). The forget primitive a session-delete cascade and per-scope eviction each named.
   - `aclose()` → releases the pool.
   - `PgVectorMemoryStore.connect(dsn)` (classmethod) → builds a store owning a fresh asyncpg
     pool for `dsn`.
