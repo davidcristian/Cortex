@@ -64,9 +64,46 @@
   gap: 10px;
   padding: 15px 16px 9px;
 }
+/* Connection indicator: a small dot leading the title, coloured by what the seam last proved
+   and pulsing while a probe is out (components/LinkDot.tsx). It is deliberately tiny: the
+   healthy case is the common one and should read as a quiet full stop, not a status light. */
+.linkdot {
+  width: 7px;
+  height: 7px;
+  flex: none;
+  margin-left: 6px;
+  border-radius: 50%;
+  background: var(--dim);
+  transition: background 0.35s var(--ease);
+}
+.linkdot.ok {
+  background: var(--ok);
+}
+.linkdot.warn {
+  background: var(--warn);
+}
+.linkdot.bad {
+  background: var(--bad);
+}
+/* Mid-check: the last known colour stays and breathes, so a reconnect neither flashes green
+   nor forgets it was red. The global reduced-motion rule collapses this to a still dot. */
+.linkdot.busy {
+  animation: linkcheck 1.2s var(--ease) infinite;
+}
+@keyframes linkcheck {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.28;
+  }
+}
+
+/* The 6px optical left margin the header opens with now belongs to the dot, which leads the
+   row; the title follows it on the header's own 10px rhythm. */
 .title {
   flex: 1;
-  padding-left: 6px;
   font-size: 13.5px;
   font-weight: 500;
   white-space: nowrap;

@@ -17,7 +17,10 @@ The page mounts with `DemoBridge` (a canned streamed reply) and dispatches `cort
 so the design is visible immediately. This is the loop for iterating on look/feel
 ([overlay-ux.md](../design/overlay-ux.md)). A prompt containing "send" or "email" walks the
 scripted **confirm round** (ADR-0022): the reply pauses on the approval card, and Approve/Deny
-steers how the canned turn ends. The gate is the same code path:
+steers how the canned turn ends. A prompt containing "offline" (or "degraded") scripts a
+**connection outage** for the header dot (ADR-0011 addendum): the demo brain reports that state
+for 12 s, so red/amber, the pulse while a probe is out, and the recovery re-check flipping back
+to green are all drivable by hand. The gate is the same code path:
 
 ```bash
 just check-overlay     # npm ci + tsc --noEmit + Vitest at 100% line+branch
@@ -69,6 +72,13 @@ Then validate the loop end to end:
    A confirm arriving while minimized surfaces the preview, which must **not** auto-fade while
    the question is open.
 
+5. **The connection indicator** (ADR-0011 addendum): the header dot is green on summon while the
+   brain is up. Stop the brain (`just down`), summon again: it turns red within the retry budget
+   and stays red, re-checking every 5 s while the panel is open. Start the brain again and the
+   dot goes green on its own, without a re-summon, and the chat list fills in with it. Point
+   `CORTEX_BRAIN_ADDR` at a live brain with the **wrong** `CORTEX_SEAM_TOKEN` to see amber
+   instead of red: the brain answered `Unauthenticated`, so it is reachable and refusing.
+
 Override the seam address or chord as needed:
 
 ```powershell
@@ -90,8 +100,10 @@ $env:CORTEX_SEAM_TOKEN = "<the same secret the brain serves with>"
 - **What's proven vs. the user's to confirm.** The frontend (prompt → stream → render, the mode
   machine, theming) is browser-validated here and 100%-gated. **Still the user's to confirm on
   Windows:** the `os_windows` `global-hotkey` registration, the tray, window show/hide, the
-  real `converse` command streaming a live brain turn to the webview, and the `confirm_response`
-  command carrying an approval back into the open turn (ADR-0022).
+  real `converse` command streaming a live brain turn to the webview, the `confirm_response`
+  command carrying an approval back into the open turn (ADR-0022), and the `check_link` command
+  behind the indicator (its classification is gated in `body_core::link` and checked against a
+  real brain by the `body-rpc` live suite, so what Windows adds is the IPC hop).
 - **v1 window behaviour.** A fixed 640×720 frameless **opaque** always-on-top window; the hotkey
   **toggles** it (no hide-on-blur, so validation is predictable). Deferred to a later overlay-polish
   pass (all together): a **transparent** window so only the panel floats (a first attempt bled

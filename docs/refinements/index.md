@@ -35,7 +35,7 @@ its signature.
 | [inference-model-manager.md](inference-model-manager.md) | Model-manager lifecycle, MTP, reasoning status (ADR-0007/0020) | 5 |
 | [subagents.md](subagents.md) | Progress reporting, spawn schema, heterogeneous roster (ADR-0010/0018) | 4 |
 | [body-overlay.md](body-overlay.md) | Overlay polish, connection indicator, proto Cancel (ADR-0011) | 3 |
-| [session-read-seam.md](session-read-seam.md) | Session listing/read seam (ADR-0021) | 5 |
+| [session-read-seam.md](session-read-seam.md) | Session listing/read seam (ADR-0021) | 4 |
 | [resource-governance.md](resource-governance.md) | Scheduler/placer budgets, NPU, drain (ADR-0012) | 6 |
 | [email-confirmer.md](email-confirmer.md) | Email write, Confirmer, attachments, `ToolActivity` chip (ADR-0022) | 7 |
 | [body-gateway.md](body-gateway.md) | Body gateway, OS actions, hardened posture (ADR-0023) | 6 |
@@ -52,7 +52,11 @@ against the tree and closed as satisfied with no code change, the first entry he
 way rather than by landing something. Untrusted content went 16 to 17 the same day for
 the same reason: structured provenance landed, and the two halves it could not honestly capture
 (a sidecar-declared sender, provenance across the stores) each became an entry naming what
-blocks it. Repo gates went from 0 back to 1 the same day,
+blocks it. Body & overlay held at 3 on 2026-07-16 when the connection indicator landed and
+opened the push half behind it (streamed brain status, blocked on a producer), while session
+read seam went 5 to 4 the same day: the two entries were one deferral written down twice, and
+the shared premise (wait for a slice that streams brain status) turned out to be wrong for both.
+Repo gates went from 0 back to 1 the same day,
 when the two Rust trees `just check` never lints turned out to have been quietly collecting
 findings; that entry originates in [ADR-0011](../adr/ADR-0011-body-v1.md) rather than the
 ADR-0026 the area doc was extracted under.
@@ -64,37 +68,37 @@ against the code (the warning above); the entry text tells you which seams it ex
 
 ### Actionable now
 
-1. **Real connection indicator** ([body-overlay.md](body-overlay.md)): the seam's `Health` RPC
-   exists and the `BrainBridge` does not carry it yet; absorbs the session-title refresh push
-   deferral from [session-read-seam.md](session-read-seam.md).
-2. **Surface the blended recall relevance as a distinct field** ([memory.md](memory.md)): the
+1. **Surface the blended recall relevance as a distinct field** ([memory.md](memory.md)): the
    one reranker deferral genuinely behind the unchanged seam.
-3. **Placement-aware CPU charging + the hard budget wall**
+2. **Placement-aware CPU charging + the hard budget wall**
    ([resource-governance.md](resource-governance.md)): pure-core scheduler tweaks behind the
    unchanged `SubagentScheduler` port.
-4. **`spawn_blocking` for the sync OS call + `GetVolume` as an overlay volume indicator**
+3. **`spawn_blocking` for the sync OS call + `GetVolume` as an overlay volume indicator**
    ([body-gateway.md](body-gateway.md)): small body-side pair behind unchanged seams. The
    `spawn_blocking` half now covers the toast backend too, which is the same shape of
-   synchronous OS call awaited inside an async handler.
-5. **Task-outcome delivery as a notification + the push retry policy**
+   synchronous OS call awaited inside an async handler. The `GetVolume` half also has a place
+   to live now: the header's connection dot is the first status chrome in that row.
+4. **Task-outcome delivery as a notification + the push retry policy**
    ([scheduling.md](scheduling.md)): unblocked on 2026-07-16, when the body's `Notify` trait
    landed and gave the port they both reuse a real backend.
-6. **Per-method / per-error-code retry policy** ([seam-transport.md](seam-transport.md)):
+5. **Per-method / per-error-code retry policy** ([seam-transport.md](seam-transport.md)):
    behind the existing `BrainTransport`/`Sleeper` seams.
-7. **Per-round cap on distinct calls** ([tools-mcp.md](tools-mcp.md)): the one dispatch shape
+6. **Per-round cap on distinct calls** ([tools-mcp.md](tools-mcp.md)): the one dispatch shape
    neither the budget nor salience closes (context growth, not reach).
-8. **Occurrence history table** ([scheduling.md](scheduling.md)): also covers unseen-toast
+7. **Occurrence history table** ([scheduling.md](scheduling.md)): also covers unseen-toast
    recovery.
-9. **Brain-generated summary titles** ([session-read-seam.md](session-read-seam.md)): behind
-   the unchanged `SessionSummary`.
-10. **Reasoning persistence/summarization + the collapsed "thoughts" section**
-    ([inference-model-manager.md](inference-model-manager.md)): a natural pair over the
-    already-shipped `Message.statusState`.
-11. **Summarizing a tainted exchange before recording**
+8. **Brain-generated summary titles** ([session-read-seam.md](session-read-seam.md)): behind
+   the unchanged `SessionSummary`. It now also inherits the one race the summon-edge list
+   refresh cannot cover: a title the brain rewrites *after* the completing turn refreshed the
+   list.
+9. **Reasoning persistence/summarization + the collapsed "thoughts" section**
+   ([inference-model-manager.md](inference-model-manager.md)): a natural pair over the
+   already-shipped `Message.statusState`.
+10. **Summarizing a tainted exchange before recording**
     ([untrusted-content.md](untrusted-content.md)).
-12. **Spawn-spec tuning + measured trade-off advertisement** ([subagents.md](subagents.md)):
+11. **Spawn-spec tuning + measured trade-off advertisement** ([subagents.md](subagents.md)):
     low stakes, wrong text misleads only the optimization.
-13. **`cargo fmt` and `cargo clippy` for the two ungated Rust trees**
+12. **`cargo fmt` and `cargo clippy` for the two ungated Rust trees**
     ([repo-gates.md](repo-gates.md)): last because it unblocks no capability, but it is the
     only entry here that stops a class of defect from recurring, and the format half is
     nearly free. Five clippy warnings and three unformatted files had accumulated in the
@@ -152,6 +156,11 @@ against the code (the warning above); the entry text tells you which seams it ex
   mechanism ([resource-governance.md](resource-governance.md))
 - Taint/provenance persistence across a mid-turn swap, and the ~31B brain-tier
   injection-harness run ([untrusted-content.md](untrusted-content.md))
+- **Streamed brain status** ([body-overlay.md](body-overlay.md)): the push half of the landed
+  connection indicator. It waits on a *producer*, not a consumer: `Health` answers ready
+  unconditionally today, so nothing can report a state the overlay cannot ask for, and a swap
+  that makes the brain not-ready between turns is what would create one. The rule that any
+  successful call means the brain is ready expires at the same moment.
 
 ### Host-side Windows validation only
 

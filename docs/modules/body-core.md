@@ -6,7 +6,8 @@ Slices 9/9.5; `ScreenCapture`/`InputControl` join in Slice 10). No OS calls, eve
 the `os_windows`/`os_linux`/`os_macos` crates (`docs/modules/body-os.md`). Currently: the
 typed global-hotkey chord, the `BrainTransport` port to the brain seam (`health` +
 streaming `converse` + the session and reminder reads) with the `RetryingTransport`
-decorator + `Sleeper` port that add bounded-retry resilience over it (ADR-0024), and the
+decorator + `Sleeper` port that add bounded-retry resilience over it (ADR-0024), the `link`
+classification behind the overlay's connection indicator (ADR-0011 addendum), and the
 `Hotkey` port with the `Accelerator` chord→code mapping.
 
 **Public contract.**
@@ -128,6 +129,27 @@ stays thin and the retry is exercised against a fake with no network or wall-clo
   out of the answer, and the next overlay open re-lists whatever is still due. `new(inner,
   sleeper, policy)` (no jitter, the v1 default) or `with_randomness(inner, sleeper, randomness,
   policy)` (jittered).
+
+Connection classification (`link` module, ADR-0011 addendum) is what the overlay's indicator
+draws. It is here, not in a component or the shell, because "what does this failure prove"
+is domain logic:
+
+- `LinkState` (`Copy`, `Eq`, `Debug`) is `Ready | Degraded | Down`, with `as_str()` giving the
+  stable names the overlay's own `LinkState` union uses (`ready`/`degraded`/`down`).
+  **`Degraded` means the brain answered and is not serving**; only `Down` means nothing
+  answered. The overlay adds its own `unknown` for "not asked yet"; the seam never reports it.
+- `LinkStatus { state, detail }` (`Clone`, `Eq`, `Debug`) is one classified answer, `detail`
+  being display-only text (never parsed, rendered inert).
+  - `from_health(&SeamHealth)`: `ready` → `Ready`, else `Degraded`, carrying the brain's own
+    detail. The brain's readiness verdict wins over mere reachability.
+  - `from_error(&TransportError)`: `Connection` → `Down` (nothing answered) with the dial
+    failure; `Rpc { code, message }` → `Degraded` as `"{code}: {message}"` (the brain answered,
+    e.g. `Unauthenticated` for a rejected seam token); `Protocol` → `Degraded` as
+    `"unreadable reply: …"`.
+- `probe_link(&impl BrainTransport) -> LinkStatus` awaits `health` and classifies the outcome.
+  **It never fails**: a failure is the answer, which is what lets a caller render a state
+  instead of an error. Composed over `RetryingTransport` it is also the reconnect attempt,
+  since `health` is retried, so `Down` means the whole backoff budget failed to reach the brain.
 
 OS-capability ports (`os` module) are the first portability seam (ADR-0011):
 

@@ -133,6 +133,98 @@ describe("useOverlay", () => {
     expect(result.current.state.sessions).toEqual([summary("a"), summary("b")]);
   });
 
+  it("refreshes the chat list on each summon, so a list that failed while hidden fills in", async () => {
+    // The other two triggers can both be arbitrarily old by the time anyone looks: mount
+    // happens once for a tray-resident body, and the last turn may have been days ago. This
+    // is also the recovery path for a list that could not load while the brain was down.
+    const bridge = new FakeBridge();
+    bridge.listFails = true;
+    const { result } = renderHook(() => useOverlay(bridge, () => "s1"));
+    await flush();
+    expect(result.current.state.sessions).toEqual([]);
+    expect(bridge.listCalls).toBe(1);
+
+    bridge.listFails = false;
+    bridge.sessions = [summary("a")];
+    act(() => result.current.open());
+    await flush();
+    expect(bridge.listCalls).toBe(2);
+    expect(result.current.state.sessions).toEqual([summary("a")]);
+  });
+
+  it("does not re-list while the overlay stays visible, and lists again on the next summon", async () => {
+    const bridge = new FakeBridge();
+    const { result } = renderHook(() => useOverlay(bridge, () => "s1"));
+    await flush();
+    act(() => result.current.open());
+    await flush();
+    expect(bridge.listCalls).toBe(2);
+
+    // Mid-turn dismiss parks the overlay as the orb, and tapping it reopens the panel. The
+    // overlay never hid, so neither is a summon.
+    act(() => result.current.submit("q"));
+    act(() => result.current.dismiss());
+    expect(result.current.state.mode).toBe("orb");
+    act(() => result.current.open());
+    await flush();
+    expect(bridge.listCalls).toBe(2);
+
+    // Hiding for real re-arms the latch. (Ending the turn refreshes on its own, which is the
+    // pre-existing trigger, so the summon is asserted as the increment on top of it.)
+    act(() => result.current.stop());
+    await flush();
+    const afterTurn = bridge.listCalls;
+    act(() => result.current.dismiss());
+    expect(result.current.state.mode).toBe("hidden");
+    act(() => result.current.open());
+    await flush();
+    expect(bridge.listCalls).toBe(afterTurn + 1);
+  });
+
+  it("probes the brain connection on summon, and not while hidden", async () => {
+    const bridge = new FakeBridge();
+    bridge.link = { state: "degraded", detail: "store down" };
+    const { result } = renderHook(() => useOverlay(bridge, () => "s1"));
+    await flush();
+    // Nothing is on screen to be honest about yet, so nothing is claimed.
+    expect(result.current.state.link).toEqual({ state: "unknown", detail: "", probing: false });
+    expect(bridge.linkCalls).toBe(0);
+
+    act(() => result.current.open());
+    await flush();
+    expect(result.current.state.link).toEqual({
+      state: "degraded",
+      detail: "store down",
+      probing: false,
+    });
+  });
+
+  it("keeps the indicator current from the turn itself, with no probe", async () => {
+    const bridge = new FakeBridge();
+    bridge.link = { state: "down", detail: "refused" };
+    const { result } = renderHook(() => useOverlay(bridge, () => "s1"));
+    act(() => result.current.open());
+    await flush();
+    expect(result.current.state.link.state).toBe("down");
+    const probes = bridge.linkCalls;
+
+    // A streamed event is proof the brain is serving: the dot goes green without asking.
+    act(() => result.current.submit("q"));
+    act(() => bridge.emit({ kind: "delta", text: "hi" }));
+    expect(result.current.state.link).toEqual({ state: "ready", detail: "", probing: false });
+    expect(bridge.linkCalls).toBe(probes);
+
+    // And a turn that dies at the transport is the failure the user is watching, so the
+    // indicator learns it at the same moment the reply does.
+    act(() => bridge.fail({ kind: "connection", message: "brain went away" }));
+    expect(result.current.state.link).toEqual({
+      state: "down",
+      detail: "brain went away",
+      probing: false,
+    });
+    expect(bridge.linkCalls).toBe(probes);
+  });
+
   it("a failed session list leaves the current list untouched", async () => {
     const bridge = new FakeBridge();
     bridge.listFails = true;

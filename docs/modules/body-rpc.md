@@ -139,6 +139,11 @@ live brain is token-protected (ADR-0016), `CORTEX_SEAM_TOKEN`:
   interleaved `ToolActivity`/`StatusUpdate`, failing on `SeamError`), and asserts at
   least one delta arrived, the concatenated text is non-empty, and `TurnComplete`
   carries a non-empty `turn_id`.
+- `the_link_probe_classifies_the_live_brain_and_a_dead_address` (ADR-0011 addendum) runs what
+  the overlay's connection indicator runs, `body_core::probe_link`, over a **lazy** client: the
+  live brain must classify `Ready` with a non-empty detail, and `http://127.0.0.1:1` must
+  classify `Down` with the dial failure rather than raising. Lazy on both, since an eager
+  connect would fail before the probe could classify anything.
 - `session_reads_round_trip_over_the_live_seam` (Slice 8.7, ADR-0021) seeds one turn over
   the raw `Converse` to persist a session, then reads it back over the typed
   `BrainTransport`: `list_sessions(50)` must return the chat with its derived title (the

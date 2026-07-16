@@ -8,7 +8,9 @@ import {
   isTurnActive,
   reduce,
 } from "./overlayState";
+import { useLink } from "./useLink";
 import { useReminders } from "./useReminders";
+import { useSummonEffect } from "./useSummonEffect";
 
 const PREVIEW_MS = 6000;
 const SESSION_LIST_LIMIT = 50;
@@ -47,8 +49,10 @@ export function useOverlay(
   );
   const cancelRef = useRef<Cancellation | null>(null);
   const [previewHovered, setPreviewHovered] = useState(false);
-  // Reminder pull delivery rides its own hook over the same reducer (ADR-0025).
+  // Reminder pull delivery rides its own hook over the same reducer (ADR-0025), and the
+  // connection indicator its own (ADR-0011 addendum); both are effects over `dispatch` only.
   const dismissReminder = useReminders(bridge, state.mode, dispatch);
+  useLink(bridge, state.mode, state.link, dispatch);
 
   const refreshSessions = useCallback(() => {
     bridge
@@ -88,6 +92,8 @@ export function useOverlay(
       refreshSessions();
     }
   }, [turnActive, refreshSessions]);
+
+  useSummonEffect(state.mode !== "hidden", refreshSessions);
 
   const adoptAttempted = useRef(false);
   const latestSessionId = state.sessions[0]?.sessionId;

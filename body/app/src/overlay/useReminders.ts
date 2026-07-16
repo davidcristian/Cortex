@@ -1,7 +1,8 @@
-import { type Dispatch, useCallback, useEffect, useRef } from "react";
+import { type Dispatch, useCallback } from "react";
 
 import type { BrainBridge } from "../bridge/types";
 import type { Action, Mode } from "./overlayState";
+import { useSummonEffect } from "./useSummonEffect";
 
 /** Pulls fired-but-undelivered reminders each time the overlay opens and returns the dismisser. */
 export function useReminders(
@@ -9,18 +10,7 @@ export function useReminders(
   mode: Mode,
   dispatch: Dispatch<Action>,
 ): (reminderId: string) => void {
-  const pulled = useRef(false);
-  const visible = mode !== "hidden";
-
-  useEffect(() => {
-    if (!visible) {
-      pulled.current = false;
-      return;
-    }
-    if (pulled.current) {
-      return;
-    }
-    pulled.current = true;
+  const pull = useCallback(() => {
     bridge
       .listDueReminders()
       .then((reminders) => dispatch({ kind: "remindersLoaded", reminders }))
@@ -29,7 +19,8 @@ export function useReminders(
         // outage must not silently empty a surface that says something is waiting. The
         // resilient transport has already retried this read with backoff (ADR-0024).
       });
-  }, [visible, bridge, dispatch]);
+  }, [bridge, dispatch]);
+  useSummonEffect(mode !== "hidden", pull);
 
   return useCallback(
     (reminderId: string) => {

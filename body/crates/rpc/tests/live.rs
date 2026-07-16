@@ -4,7 +4,7 @@
 
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use body_core::BrainTransport;
+use body_core::{BrainTransport, LinkState, probe_link};
 use body_rpc::BrainSeamClient;
 use body_rpc::generated::brain_service_client::BrainServiceClient;
 use body_rpc::generated::{ClientEvent, UserTurn, client_event, server_event};
@@ -51,6 +51,48 @@ async fn brain_reports_ready_over_the_live_seam() {
         health.ready,
         "brain at {addr} is not ready: {}",
         health.detail
+    );
+}
+
+#[tokio::test]
+#[ignore = "live seam check: needs a real brain at CORTEX_BRAIN_ADDR (run with -- --ignored)"]
+async fn the_link_probe_classifies_the_live_brain_and_a_dead_address() {
+    let addr = brain_addr();
+    let token = seam_token();
+    let client = match BrainSeamClient::connect_lazy_with_token(&addr, token.as_deref()) {
+        Ok(client) => client,
+        Err(error) => panic!("cannot build a lazy client for {addr}: {error}"),
+    };
+    let status = probe_link(&client).await;
+    assert_eq!(
+        status.state,
+        LinkState::Ready,
+        "the brain at {addr} probed {state}: {detail}",
+        state = status.state.as_str(),
+        detail = status.detail
+    );
+    assert!(
+        !status.detail.is_empty(),
+        "a ready brain should name itself in the probe detail"
+    );
+
+    // A loopback port with nothing behind it: the dial is refused, so the probe is Down and
+    // says why. Lazy again, since an eager connect would fail before the probe could classify.
+    let dead = match BrainSeamClient::connect_lazy_with_token("http://127.0.0.1:1", None) {
+        Ok(client) => client,
+        Err(error) => panic!("cannot build a lazy client for the dead address: {error}"),
+    };
+    let dead_status = probe_link(&dead).await;
+    assert_eq!(
+        dead_status.state,
+        LinkState::Down,
+        "an unreachable address probed {state}: {detail}",
+        state = dead_status.state.as_str(),
+        detail = dead_status.detail
+    );
+    assert!(
+        !dead_status.detail.is_empty(),
+        "a down probe should carry the dial failure"
     );
 }
 

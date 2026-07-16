@@ -74,10 +74,18 @@ Top-to-bottom, the summoned panel is:
    crescent, as the two forms cross-fade and spin, the rays retract; never a glyph swap); a **new
    chat** (pencil for "compose a new one"); and **dismiss** (a downward "tuck-away" chevron, since
    dismissing only hides; the chat is saved and re-summoning restores it, so the glyph tells the
-   truth, not an `×`). A **connection indicator**
-   (green = brain ready, amber = model loading/status, red = unreachable) joins the header only
-   when a real health signal crosses the bridge: v1 shipped it as an always-green decoration and
-   the 2026-07-03 pass removed it. Chrome earns its place by meaning something.
+   truth, not an `×`). A **connection indicator** leads the row (landed 2026-07-16): a 7px dot,
+   green when the brain answered ready, **amber when it answered and is not serving** (a non-OK
+   status, an unreadable reply, or a future not-ready health reply), red when nothing answered,
+   and neutral before anything has been asked. While a probe is out it keeps the last known
+   colour and pulses, so a reconnect neither flashes green nor forgets it was red; a routine
+   probe on a healthy link does not pulse at all. Its label is both the tooltip and the
+   accessible name, because a colour alone explains nothing. v1 shipped this as an always-green
+   decoration and the 2026-07-03 pass removed it: chrome earns its place by meaning something,
+   and the difference now is that the signal is real (ADR-0011 addendum: derived from the turn's
+   own events, a probe per summon, and a recovery re-check only while an unhealthy link is on
+   screen, never a poll on a timer). The three status hues come from the rings' own palette,
+   deepened in the light theme; they are the only colour in the overlay that is not activity.
 2. **History** is the scrollable conversation: alternating user/assistant bubbles, newest at the
    bottom, auto-scrolling as tokens stream (but *not* if the user has scrolled up to read;
    landed 2026-07-12). Tool-activity and status appear as slim inline chips between bubbles
