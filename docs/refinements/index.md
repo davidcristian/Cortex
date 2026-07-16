@@ -69,6 +69,14 @@ distinction on that pull surface, which the reuse leaves undistinguished; and it
 the push retry policy beyond next-poll-pull, sharpened to fix-when-it-bites rather than landing,
 because a proactive re-push double-delivers on a lost reply without a per-fire delivery id (the
 declined occurrence-history record), so the safe retry stays the deliverable-until-acked pull.
+Scheduling held at 8 again on 2026-07-16 when toast activation routing was read against the tree
+and sharpened rather than built: the `session_id` its obvious fix wants on `NotifyRequest` has no
+reader but the host-side `cfg(windows)` toast render until a COM activator exists to act on a
+click, so adding it now would be the dead wire the day's other declines refused, and it moved from
+actionable-with-a-seam-change to dead-until-a-consumer with its two-part design (the proto field
+plus its `launch` embedding, and the COM `INotificationActivationCallback` with a shell-to-overlay
+activation channel) and trigger (a second toast-interaction consumer such as snooze-from-the-toast)
+recorded. A sharpened deferral is still open, so the count is unchanged.
 Untrusted content went 16 to 17 the same day for
 the same reason: structured provenance landed, and the two halves it could not honestly capture
 (a sidecar-declared sender, provenance across the stores) each became an entry naming what
@@ -366,11 +374,6 @@ against the code (the warning above); the entry text tells you which seams it ex
   model pass cannot be validated on the 8 GB dev GPU (the cortex tier does not fit) and that
   `select`'s widening should serve its three deferred consumers in one change, so this reopens with
   the real GPU lifecycle.
-- **Toast activation routing** ([scheduling.md](scheduling.md)): opened 2026-07-16 behind the
-  landed toast. Clicking a toast does nothing, and the obvious fix (open the origin chat, the
-  control the overlay's card already has) cannot be built as the seam stands: `NotifyRequest`
-  carries no `session_id`, unlike `DueReminder`. It also wants a COM activator on the Windows
-  side, so wait for a second consumer of toast interaction.
 
 ### Blocked on Slice 11 (real model swap / GPU lifecycle)
 
@@ -500,6 +503,23 @@ against the code (the warning above); the entry text tells you which seams it ex
   apart is a `kind` (or distinct field) on `DueReminder` plus overlay rendering, a proto + four-tree
   + overlay change. Dead until the surface must distinguish them (a task icon, a "task ran" label, a
   task-only action), not built speculatively ([scheduling.md](scheduling.md))
+- **Toast activation routing**: sharpened 2026-07-16, dead until a second consumer of toast
+  interaction. Clicking a toast does nothing, and the obvious fix (route the overlay to the
+  reminder's origin chat) has no reader but a host-side Windows one, so adding the `session_id` it
+  wants to `NotifyRequest` now would be the dead wire this sweep declined repeatedly. The push path
+  is fire and forget: `_deliver` reads only `shown` (`ticker.py`), the gateway returns only
+  `reply.shown`, the body's `OsService.notify` builds a `Notification` and discards all but `shown`
+  (`body/crates/rpc/src/server.rs`), `WindowsNotify.show` renders a fire-and-forget toast read back
+  by nothing (`body/crates/os_windows/src/notify.rs`), the Linux/macOS backends are
+  `unimplemented!()`, and the overlay never sees the call (it is a `BrainService` client, while
+  `Notify` is a `BodyService` RPC the body serves, so nothing under `body/app/src` references it).
+  The only reader of any toast payload beyond `shown` is the `cfg(windows)` `toast_xml`, never
+  measured in CI, and the only thing that could act on a clicked toast is a COM activator that does
+  not exist. The two-part design (the `NotifyRequest` `session_id` plus its `launch` embedding, and
+  the COM `INotificationActivationCallback` with a shell-to-overlay activation channel) and the
+  trigger (a second toast-interaction consumer, snooze-from-the-toast, that shares the COM cost, the
+  field then designed with its reader) are recorded in the area doc and its origin ADR
+  ([scheduling.md](scheduling.md))
 - Reasoning persistence / summarization: the live status and its landed collapsed "thoughts"
   section are served entirely by the overlay's in-memory `Message.thoughts`; nothing reads a
   *stored* trace. Re-display on session reload needs a reasoning field on the `GetSessionMessages`
