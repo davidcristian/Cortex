@@ -25,7 +25,13 @@ Translators only: serialization, key layout, and error wrapping; no business log
     trips and two decoded records per chat, whatever the chat's length (ADR-0021 bounded-reads
     addendum). A dangling index entry (id present, message list gone) is skipped, not fatal;
     so is a corrupt record *between* the ends, which a listing never reads (`history` still
-    fails loudly on it, and a corrupt record at either end still fails the listing).
+    fails loudly on it, and a corrupt record at either end still fails the listing). Each
+    session's stored title (a `GET` of its `:title` key) rides the same pipeline as a fourth
+    read and is passed to `summarize_ends` as the `title_override` (ADR-0021 titles addendum).
+  - `async set_title(session_id, title)` `SET`s a plain string at `cortex:session:{id}:title`
+    (a brain-generated display title, ADR-0021 titles addendum), which `list_sessions` prefers
+    over the first-message derivation; a later call overwrites it. Its own key, so it carries no
+    `v`/`kind` markers; not conversation content, but stored beside it so it survives a swap.
   - `async aclose()` closes the underlying client's connections.
 - `RedisTaskStore` implements the `TaskStore` port over redis-py asyncio (ADR-0010), same
   injected-client / `from_url` / `aclose` shape as above:
@@ -84,7 +90,9 @@ session id scored by the message's `at` (last append wins → the score is last-
 and `list_sessions` reads it with `ZREVRANGE`, then batches each listed session's two-ended
 read into one transactional pipeline (the `LLEN` rides along so the tail record keeps its true
 index in an error, and rides the same transaction so the length and the record it names are one
-snapshot). Measured 23.8 ms to 1.11 ms on 20 chats of 200 messages against real Redis; the
+snapshot; a `GET` of the session's `cortex:session:{id}:title` key rides along too, a
+brain-generated display title that overrides the first-message one when set, ADR-0021 titles
+addendum). Measured 23.8 ms to 1.11 ms on 20 chats of 200 messages against real Redis; the
 first/last/length index cache this refinement replaced is rejected, not deferred (ADR-0021
 bounded-reads addendum).
 
@@ -146,13 +154,14 @@ exception to fail-loud is the schedule **claim path**, where a corrupt record qu
 (ADR-0025's poison-pill defense) rather than raising.
 
 **Contract tests.** `tests/contract.py` is one shared behavior suite (empty history,
-append→history order, multi-session isolation, roundtrip fidelity incl. timezone, and
-`list_sessions` recency-ordering + title/preview derivation) run against BOTH
-implementations (`InMemorySessionStore` and `RedisSessionStore` over fakeredis) plus
-fakeredis-injected failure tests for the error wrapping (append, history, list, close, plus a
-failure inside the batched end-reads) and Redis-specific `list_sessions` edges (empty store,
-limit, dangling index entry, a tolerated corrupt record between the ends, a fatal one at either
-end named by its true index). The
+append→history order, multi-session isolation, roundtrip fidelity incl. timezone,
+`list_sessions` recency-ordering + title/preview derivation, and `set_title` overriding the
+first-message title, ADR-0021 titles addendum) run against BOTH implementations
+(`InMemorySessionStore` and `RedisSessionStore` over fakeredis) plus fakeredis-injected failure
+tests for the error wrapping (append, history, list, `set_title`, close, plus a failure inside the
+batched end-reads) and Redis-specific edges (`list_sessions` empty store, limit, dangling index
+entry, a tolerated corrupt record between the ends, a fatal one at either end named by its true
+index; and a stored title persisted under its own key and read back truncated). The
 `list_sessions` check filters the global list to the ids it created, so it is safe against
 a shared live server. `tests/task_contract.py`
 does the same for the `TaskStore` (missing→None, task/result round-trip, timezone fidelity) over

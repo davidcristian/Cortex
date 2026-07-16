@@ -366,3 +366,68 @@ cannot occur.
 above) would let a title change *after* the completing turn refreshed the list, which is a real
 race and is that entry's problem to solve when it lands. A background writer of session history,
 if one ever exists, would be the other trigger.
+
+## Addendum (2026-07-16): brain-generated titles land, generated at turn end and persisted
+
+The deferral above lands as a real capability, but the entry's "behind the unchanged
+`SessionSummary`" framing understated the cost, exactly as this backlog area warns about itself.
+The wire/port *value* `SessionSummary` is indeed unchanged, but an honest title needs a new
+`SessionStore` write method, a store-layout change, a list-read change, and a decision about which
+tier generates it and when. All four landed.
+
+**Which tier, and when.** The resident cortex generates it (the tier a turn already holds), on a
+session's **first turn only**, from the opening exchange, and the title is persisted **before**
+`TurnCompleted` is yielded. That placement is deliberate:
+
+- *Not on the read/list path.* Generating a title inside `list_sessions` would make listing block
+  on inference and contend for the GPU lease, the same non-reentrant hazard that blocks the
+  model-based reranker and history summarization (whose sync `select` ports would have to go
+  async). Generation runs at turn end instead, after the reply's own `stream` has released its
+  lease, so the title call is a **sequential** acquire, never a re-entrant one. It needs **no
+  async-port widening**: the engine is already async and already calls the async
+  `InferenceBackend`, so this reuses the existing seam rather than the blocked one.
+- *No race with the summon-edge refresh.* The refresh addendum above closed the push half on the
+  premise that "nothing can produce" an out-of-band session-summary change, and named
+  brain-generated titles as the one thing that would. Persisting the title before `TurnCompleted`
+  keeps it inside the turn the overlay itself ran, so the overlay's turn-completion refresh
+  already sees the final title. There is no rewrite *after* the refresh, so the race that entry
+  worried about does not occur. (An asynchronous or scheduled generator *would* reintroduce it and
+  would need the deferred status push; turn-end generation is chosen precisely to avoid both.)
+
+**Storage.** `SessionStore` gains `set_title(session_id, title)`; the Redis adapter writes a plain
+string at `cortex:session:{id}:title` (no schema markers, its own key) and `list_sessions` reads
+it in the same batched pipeline as each chat's two ends, passing it to the pure
+`summarize_ends(..., title_override=)`. A stored title overrides the first-message derivation; a
+blank or absent one falls back; either way the title is collapsed and re-bounded to `TITLE_MAX` at
+read time, so a stored title can never exceed the switcher width. The generated title is state in
+the store, so it survives a model swap (the one hard rule). The overlay is unchanged: the switcher
+already renders `SessionSummary.title`.
+
+**Shipped off by default** (`CORTEX_GENERATE_TITLES`, default `false`), for two reasons, one of
+them found live. It adds one inference call per new session on the shared GPU, so a deployment opts
+in. And validated against a real small **reasoning** model (Qwen 2B on the 8 GB card), a reasoning
+cortex can spend its whole generation budget thinking and emit **no** content: one live case
+produced 13,882 characters of `reasoning_content` and zero reply, so `generate_title` (which keeps
+only `TextChunk`, never `ReasoningChunk`) returned empty and the first-message derivation stood; a
+second case produced a clean `"Quick Vegetarian Dinner"`. The empty-fallback and the
+reasoning-filter are therefore proven correct live, and the finding is honest: reliable title
+*content* from a reasoning cortex wants thinking disabled or a small token budget for this one
+call, which `InferenceBackend.stream` cannot yet express (no thinking-control or `max_tokens`
+param). That reopens as a consumer of the existing disable-thinking/token-budget inference
+deferral, not as new title work.
+
+**Recorded deferrals (see [session-read-seam.md](../refinements/session-read-seam.md)).**
+
+- *Open-chat header consistency.* The **switcher** shows the brain title; the open-chat **header**
+  still derives locally from the loaded first user message (`deriveTitle`/`titleFor`), because
+  `GetSessionMessages` carries messages, not a title. Unifying the two needs a `title` on that
+  read path (a proto field + overlay plumbing), out of scope for a change contained to the brain;
+  recorded as the entry opened behind this one.
+- *Reliable content on a reasoning cortex*, as above: waits on the inference port exposing a
+  thinking/token control.
+
+Evidence (agent, Docker + real Redis + real GPU model): the live-Redis session contract suite
+(now including the `set_title` override check) is green; a direct real-Redis run showed the stored
+`:title` key overriding the listed title with the preview unchanged; and the two title-generation
+cases above ran against a real Qwen 2B `llama-server`. CI-gated at 100% over fakes, with the
+title-override, first-turn-only, empty-title, and reasoning-filter guards each mutation-proven.

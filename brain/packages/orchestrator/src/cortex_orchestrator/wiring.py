@@ -141,6 +141,7 @@ async def run_from_env(
                     guardrail=build_output_guardrail(runtime.output_guardrail),
                     # The core takes a bool; the composition root maps the string (ADR-0019).
                     record_tainted_memory=memory_config.on_tainted == "record",
+                    generate_titles=runtime.generate_titles,
                 ),
             )
 

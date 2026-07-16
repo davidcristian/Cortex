@@ -6,6 +6,7 @@ interchangeable behind the port. That is this slice's ports-before-adapters gate
 
 import json
 from datetime import UTC, datetime
+from typing import cast
 
 import contract
 import pytest
@@ -14,6 +15,7 @@ from redis import exceptions as redis_exceptions
 from redis.asyncio import Redis
 
 from cortex_core import InMemorySessionStore, Role, SessionStore, SessionStoreError
+from cortex_core.sessions import TITLE_MAX
 from cortex_session import DEFAULT_REDIS_URL, RedisSessionStore
 
 
@@ -45,6 +47,10 @@ async def test_list_sessions_orders_and_summarizes(store: SessionStore) -> None:
     await contract.check_list_sessions_orders_and_summarizes(store)
 
 
+async def test_set_title_overrides_the_first_message(store: SessionStore) -> None:
+    await contract.check_set_title_overrides_the_first_message(store)
+
+
 async def test_list_sessions_is_empty_for_a_store_with_no_sessions(store: SessionStore) -> None:
     assert list(await store.list_sessions(limit=10)) == []
 
@@ -70,6 +76,24 @@ async def test_list_sessions_skips_a_dangling_index_entry() -> None:
     await client.zadd("cortex:sessions", {"ghost": 9999999999.0})  # indexed, but no messages
     summaries = await store.list_sessions(limit=10)
     assert [s.session_id for s in summaries] == ["real"]
+
+
+async def test_set_title_persists_under_its_own_key_and_is_read_back_truncated() -> None:
+    """The title is a plain string under `:title`, and an over-wide one is bounded at read time."""
+    client = FakeAsyncRedis(server=FakeServer())
+    store = RedisSessionStore(client)
+    await store.append("s", contract.make_message(Role.USER, "first user message"))
+    await store.set_title("s", "T" * (TITLE_MAX + 20))
+    stored = cast("bytes", await client.get("cortex:session:s:title"))
+    assert stored.decode("utf-8") == "T" * (TITLE_MAX + 20)  # stored verbatim, bounded on read
+    (summary,) = await store.list_sessions(limit=10)
+    assert summary.title == "T" * TITLE_MAX + "…"
+
+
+async def test_connection_failure_on_set_title_wraps_the_cause() -> None:
+    with pytest.raises(SessionStoreError, match="setting the title for session 's'") as excinfo:
+        await _disconnected_store().set_title("s", "a title")
+    assert isinstance(excinfo.value.__cause__, redis_exceptions.ConnectionError)
 
 
 async def test_connection_failure_on_list_sessions_wraps_the_cause() -> None:

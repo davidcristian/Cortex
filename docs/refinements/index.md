@@ -63,6 +63,13 @@ blocks it. Body & overlay held at 3 on 2026-07-16 when the connection indicator 
 opened the push half behind it (streamed brain status, blocked on a producer), while session
 read seam went 5 to 4 the same day: the two entries were one deferral written down twice, and
 the shared premise (wait for a slice that streams brain status) turned out to be wrong for both.
+Session read seam then held at 4 the same day when brain-generated titles landed and opened the
+open-chat header-consistency item behind them: the switcher shows the model's title, but the
+open-chat header still derives locally, and unifying them wants a title on the `GetSessionMessages`
+read path. The titles entry is another that undersold its cost ("behind the unchanged
+`SessionSummary`"): the value type held, but the honest build added a `set_title` write method, a
+store-layout change, a list-read change, and a tier/timing policy, generated at turn end so it
+needs neither the read-path GPU-lease hazard nor an async-port widening.
 Repo gates went from 0 back to 1 the same day,
 when the two Rust trees `just check` never lints turned out to have been quietly collecting
 findings; that entry originates in [ADR-0011](../adr/ADR-0011-body-v1.md) rather than the
@@ -115,18 +122,14 @@ against the code (the warning above); the entry text tells you which seams it ex
 1. **Task-outcome delivery as a notification + the push retry policy**
    ([scheduling.md](scheduling.md)): unblocked on 2026-07-16, when the body's `Notify` trait
    landed and gave the port they both reuse a real backend.
-2. **Brain-generated summary titles** ([session-read-seam.md](session-read-seam.md)): behind
-   the unchanged `SessionSummary`. It now also inherits the one race the summon-edge list
-   refresh cannot cover: a title the brain rewrites *after* the completing turn refreshed the
-   list.
-3. **Reasoning persistence/summarization + the collapsed "thoughts" section**
+2. **Reasoning persistence/summarization + the collapsed "thoughts" section**
    ([inference-model-manager.md](inference-model-manager.md)): a natural pair over the
    already-shipped `Message.statusState`.
-4. **Summarizing a tainted exchange before recording**
+3. **Summarizing a tainted exchange before recording**
    ([untrusted-content.md](untrusted-content.md)).
-5. **Spawn-spec tuning + measured trade-off advertisement** ([subagents.md](subagents.md)):
+4. **Spawn-spec tuning + measured trade-off advertisement** ([subagents.md](subagents.md)):
    low stakes, wrong text misleads only the optimization.
-6. **`cargo fmt` and `cargo clippy` for the two ungated Rust trees**
+5. **`cargo fmt` and `cargo clippy` for the two ungated Rust trees**
    ([repo-gates.md](repo-gates.md)): last because it unblocks no capability, but it is the
    only entry here that stops a class of defect from recurring, and the format half is
    nearly free. Five clippy warnings and three unformatted files had accumulated in the
@@ -134,6 +137,12 @@ against the code (the warning above); the entry text tells you which seams it ex
 
 ### Actionable, but a seam or port change comes first
 
+- **Open-chat header title consistency** ([session-read-seam.md](session-read-seam.md)): opened
+  2026-07-16 behind the landed brain-generated titles. The switcher shows the brain title, but the
+  open-chat header re-derives locally, so they can disagree; unifying them needs a `title` on the
+  `GetSessionMessages` read path (a proto field + overlay plumbing). A smaller overlay-only
+  alternative (carry the switcher's title into `openSession`) covers the open path but not
+  cold-start adoption or cycling.
 - **Session deletion / rename / pinning** ([session-read-seam.md](session-read-seam.md)): new
   gated write RPCs on the catalog (proto change + Slice 6.5 gate + Slice 8.8 Confirmer).
 - **Structured redaction event for the overlay**

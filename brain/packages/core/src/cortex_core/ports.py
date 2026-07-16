@@ -31,8 +31,11 @@ class SessionStore(Protocol):
     returns that session's full history in append order (empty when unknown).
     ``list_sessions`` returns at most ``limit`` recent chats, most-recently-active first,
     as ``SessionSummary`` values (ADR-0021) for the overlay's chat list/switcher/cycling;
-    it is a read over the same state, adding no write path. Failures surface as
-    ``SessionStoreError``.
+    it is a read over the same state, adding no write path. ``set_title`` persists a
+    brain-generated display title for a session (ADR-0021 titles addendum), which
+    ``list_sessions`` prefers over the first-message derivation and a later call overwrites;
+    it writes only a derived display value, never conversation content, and lives in the store
+    like the rest so it survives a model swap. Failures surface as ``SessionStoreError``.
     """
 
     async def append(self, session_id: str, message: Message) -> None: ...
@@ -40,6 +43,8 @@ class SessionStore(Protocol):
     async def history(self, session_id: str) -> Sequence[Message]: ...
 
     async def list_sessions(self, *, limit: int) -> Sequence[SessionSummary]: ...
+
+    async def set_title(self, session_id: str, title: str) -> None: ...
 
 
 class InferenceBackend(Protocol):

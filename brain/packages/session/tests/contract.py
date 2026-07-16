@@ -100,10 +100,33 @@ async def check_list_sessions_orders_and_summarizes(store: SessionStore) -> None
     assert by_id[newer].last_activity == late
 
 
+async def check_set_title_overrides_the_first_message(store: SessionStore) -> None:
+    """A stored title wins over the first-message derivation; the preview is unaffected.
+
+    Proves both stores honor ``set_title`` behind the port (ADR-0021 titles addendum): the
+    override replaces only the title, a later call overwrites it, and it survives being read
+    back through ``list_sessions``. Robust against a shared live server by filtering to its id.
+    """
+    session_id = _session_id()
+    await store.append(session_id, make_message(Role.USER, "a rambly first question about cats"))
+    await store.append(session_id, make_message(Role.ASSISTANT, "cats sleep a lot"))
+
+    async def title_and_preview() -> tuple[str, str]:
+        (mine,) = [s for s in await store.list_sessions(limit=50) if s.session_id == session_id]
+        return mine.title, mine.preview
+
+    assert await title_and_preview() == ("a rambly first question about cats", "cats sleep a lot")
+    await store.set_title(session_id, "Cat sleep habits")
+    assert await title_and_preview() == ("Cat sleep habits", "cats sleep a lot")
+    await store.set_title(session_id, "Feline naps")  # a later title overwrites the earlier one
+    assert await title_and_preview() == ("Feline naps", "cats sleep a lot")
+
+
 ALL_CHECKS = (
     check_empty_history,
     check_append_then_history_order,
     check_multi_session_isolation,
     check_roundtrip_fidelity,
     check_list_sessions_orders_and_summarizes,
+    check_set_title_overrides_the_first_message,
 )
