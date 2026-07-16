@@ -339,3 +339,30 @@ Remaining deferred here: the check still reads a fixed `limit=50` window with me
 fixed in the past, so a live Redis holding 50 or more *real* sessions more recent than those
 crowds it out and fails the same way. That needs the check to date its messages from a clock, or
 to read a larger window; it is not reachable by any sweep, which must leave real sessions alone.
+
+## Addendum (2026-07-16): the chat list refreshes on summon, and the push half closes
+
+The deferral above paired **a real connection indicator** with a **session-title refresh push**
+and sent both to "whichever slice first streams brain status to the overlay". The indicator
+landed instead by deriving the signal rather than streaming it
+([ADR-0011 addendum](ADR-0011-body-v1.md)), which leaves this half to be settled on its own
+terms rather than inherited.
+
+**Settled without a push.** The list had two triggers, mount and turn completion, and both can
+be arbitrarily old by the time anyone looks: the body is resident in the tray, so mount happens
+once and may be days back, and the last turn may be older still. It now also refreshes on the
+**rising edge of visibility**, sharing the `useSummonEffect` latch with the reminder pull and
+the connection probe: one re-list per summon, none while the overlay merely changes shape, none
+while it is hidden. That is what a push would have been for, at the moment it can be seen.
+
+**Why the push itself is not deferred again: nothing can produce it.** Session history has
+exactly one writer, `ConversationEngine` inside a turn (`engine.py`); the schedule ticker
+dispatches a task as a `spawn_subagents` call and writes to the task store, never to a session.
+So no title or preview can change while the overlay watches, except through a turn the overlay
+itself ran, which already refreshes on completion. A push channel today would carry events that
+cannot occur.
+
+**What would reopen it**, and where it belongs: brain-generated summary titles (still deferred
+above) would let a title change *after* the completing turn refreshed the list, which is a real
+race and is that entry's problem to solve when it lands. A background writer of session history,
+if one ever exists, would be the other trigger.

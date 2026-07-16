@@ -2,6 +2,8 @@ import type {
   BrainBridge,
   Cancellation,
   DueReminder,
+  LinkState,
+  LinkStatus,
   SessionMessage,
   SessionSummary,
   TurnSink,
@@ -44,6 +46,14 @@ const CONFIRM_DENIED = "Okay. Not sent, and the draft is discarded.";
 const DEMO_CONFIRM_TIMEOUT_MS = 4000;
 const CONFIRM_TIMED_OUT = "You did not answer in time, so nothing was sent. Ask again any time.";
 
+// The connection indicator is hand-drivable too (ADR-0011 addendum): say "offline" or
+// "degraded" in a prompt and the demo brain reports that for a while, so amber, red, the
+// pulse while a probe is out, and the recovery re-check are all visible in plain browser dev.
+const DEMO_OUTAGE_MS = 12000;
+const DEMO_READY_DETAIL = "cortex-orchestrator demo";
+const DEMO_DOWN_DETAIL = "tcp connect error: connection refused";
+const DEMO_DEGRADED_DETAIL = "Unavailable: the session store is down";
+
 /** Stream `text` word by word into an in-progress reply; `lead` prefixes the first word. */
 function streamWords(sink: TurnSink, text: string, lead: string, onDone: () => void): Cancellation {
   const words = text.split(" ");
@@ -69,8 +79,16 @@ export class DemoBridge implements BrainBridge {
   private pending: ((approved: boolean) => void) | null = null;
   /** The demo brain's own deadline for that question, when the prompt asked for one. */
   private expiry: ReturnType<typeof setTimeout> | null = null;
+  /** What the next probe reports, and when the scripted outage heals (0 = never went down). */
+  private link: LinkState = "ready";
+  private healsAt = 0;
 
   converse(_sessionId: string, text: string, sink: TurnSink): Cancellation {
+    if (/offline|unreachable/iu.test(text)) {
+      this.fail("down");
+    } else if (/degraded|not ready/iu.test(text)) {
+      this.fail("degraded");
+    }
     if (/send|email/iu.test(text)) {
       return this.confirmTurn(sink, /time\s?out/iu.test(text));
     }
@@ -138,6 +156,31 @@ export class DemoBridge implements BrainBridge {
       clearTimeout(this.expiry);
       this.expiry = null;
     }
+  }
+
+  /** Script an outage that heals on its own, so the recovery re-check has something to find. */
+  private fail(state: LinkState): void {
+    this.link = state;
+    this.healsAt = Date.now() + DEMO_OUTAGE_MS;
+  }
+
+  checkLink(): Promise<LinkStatus> {
+    if (this.healsAt !== 0 && Date.now() >= this.healsAt) {
+      this.link = "ready";
+      this.healsAt = 0;
+    }
+    const detail =
+      this.link === "ready"
+        ? DEMO_READY_DETAIL
+        : this.link === "degraded"
+          ? DEMO_DEGRADED_DETAIL
+          : DEMO_DOWN_DETAIL;
+    // A real probe rides the retrying transport, so a down brain answers slowly. Delay the
+    // unhappy answers a little so the "checking" pulse is actually visible by hand.
+    const delay = this.link === "ready" ? 120 : 900;
+    return new Promise((resolve) =>
+      setTimeout(() => resolve({ state: this.link, detail }), delay),
+    );
   }
 
   listSessions(_limit: number): Promise<readonly SessionSummary[]> {

@@ -21,6 +21,12 @@ const reminder = (reminderId: string): DueReminder => ({
 });
 
 const run = (actions: Action[]) => actions.reduce(reduce, initialState);
+/**
+ * Everything an event can change *about the turn*. An arriving event also proves the brain is
+ * serving, so it legitimately refreshes the connection view (ADR-0011 addendum); the no-op
+ * assertions below are about the turn, and compare this instead of whole-object identity.
+ */
+const turnOf = ({ link: _link, ...rest }: ReturnType<typeof run>) => rest;
 const assistant = (s: ReturnType<typeof run>) => s.messages.find((m) => m.role === "assistant");
 const submit = (text: string): Action => ({ kind: "submit", text });
 const complete: Action = { kind: "event", event: { kind: "complete", turnId: "t-1" } };
@@ -259,7 +265,11 @@ describe("overlayState reducer", () => {
   it("confirmRequest on a dead turn is a no-op. A cancelled turn must not resurrect UI state", () => {
     expect(initialState.pendingConfirm).toBeNull();
     const stopped = run([{ kind: "open" }, submit("q"), { kind: "stop" }]);
-    expect(reduce(stopped, confirmRequest)).toBe(stopped);
+    const after = reduce(stopped, confirmRequest);
+    expect(turnOf(after)).toEqual(turnOf(stopped));
+    // Identity on the collections too: nothing was rebuilt, so nothing could have been revived.
+    expect(after.messages).toBe(stopped.messages);
+    expect(after.pendingConfirm).toBeNull();
   });
 
   it("confirmRequest while minimized surfaces the preview, like a completed turn", () => {
@@ -289,9 +299,10 @@ describe("overlayState reducer", () => {
       kind: "event",
       event: { kind: "confirmResolved", confirmId: "c-other", outcome: "timeout" },
     };
-    expect(reduce(pending, other)).toBe(pending);
+    expect(turnOf(reduce(pending, other))).toEqual(turnOf(pending));
+    expect(reduce(pending, other).pendingConfirm).toBe(pending.pendingConfirm);
     const nothingPending = run([{ kind: "open" }, submit("send it")]);
-    expect(reduce(nothingPending, other)).toBe(nothingPending);
+    expect(turnOf(reduce(nothingPending, other))).toEqual(turnOf(nothingPending));
   });
 
   it("confirmAnswered clears the pending approval either way", () => {

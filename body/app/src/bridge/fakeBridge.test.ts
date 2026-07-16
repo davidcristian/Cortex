@@ -69,6 +69,32 @@ describe("FakeBridge", () => {
     expect(bridge.acks).toEqual(["r-1", "gone"]);
   });
 
+  it("answers a link status by default, counting the probes", async () => {
+    // The real command answers a state even for a dead brain, so the fake resolves by default
+    // and only the `linkFails` flag models the narrower "the IPC itself broke".
+    const bridge = new FakeBridge();
+    expect(await bridge.checkLink()).toEqual({ state: "ready", detail: "fake brain" });
+    bridge.link = { state: "down", detail: "refused" };
+    expect(await bridge.checkLink()).toEqual({ state: "down", detail: "refused" });
+    expect(bridge.linkCalls).toBe(2);
+  });
+
+  it("rejects a probe when the flag is set, and hangs one when asked to", async () => {
+    const bridge = new FakeBridge();
+    bridge.linkFails = true;
+    await expect(bridge.checkLink()).rejects.toThrow("probe failed");
+
+    bridge.linkHangs = true;
+    let settled = false;
+    void bridge.checkLink().then(() => {
+      settled = true;
+    });
+    await Promise.resolve();
+    expect(settled).toBe(false);
+    // Hanging wins over failing: it is the more specific instruction.
+    expect(bridge.linkCalls).toBe(2);
+  });
+
   it("rejects the reminder calls when their failure flags are set", async () => {
     const bridge = new FakeBridge();
     bridge.remindersFail = true;

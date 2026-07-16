@@ -1,7 +1,8 @@
-import { type Dispatch, useCallback, useEffect, useRef } from "react";
+import { type Dispatch, useCallback } from "react";
 
 import type { BrainBridge } from "../bridge/types";
 import type { Action, Mode } from "./overlayState";
+import { useSummonEffect } from "./useSummonEffect";
 
 // The reminder pull loop (ADR-0025), split from `useOverlay` so the delivery path is its own
 // responsibility: that hook owns a turn and the chat list, this owns what fired while nobody
@@ -11,29 +12,19 @@ import type { Action, Mode } from "./overlayState";
 /**
  * Pulls fired-but-undelivered reminders each time the overlay opens and returns the dismisser.
  *
- * The fetch is latched on the rising edge of visibility, not on mount: the body lives resident
- * in the tray, so a mount-time read would deliver into a window nobody is looking at and the
- * ack-on-dismiss contract would describe a card that was never seen. The latch re-arms on hide,
- * giving exactly one read per summon, and absorbs StrictMode's double-fired mount effect.
- * Re-opening the panel from the orb mid-turn does not refetch, since the overlay never hid.
+ * The fetch is latched on the rising edge of visibility, not on mount (`useSummonEffect`): the
+ * body lives resident in the tray, so a mount-time read would deliver into a window nobody is
+ * looking at and the ack-on-dismiss contract would describe a card that was never seen. The
+ * latch re-arms on hide, giving exactly one read per summon, and absorbs StrictMode's
+ * double-fired mount effect. Re-opening the panel from the orb mid-turn does not refetch, since
+ * the overlay never hid.
  */
 export function useReminders(
   bridge: BrainBridge,
   mode: Mode,
   dispatch: Dispatch<Action>,
 ): (reminderId: string) => void {
-  const pulled = useRef(false);
-  const visible = mode !== "hidden";
-
-  useEffect(() => {
-    if (!visible) {
-      pulled.current = false;
-      return;
-    }
-    if (pulled.current) {
-      return;
-    }
-    pulled.current = true;
+  const pull = useCallback(() => {
     bridge
       .listDueReminders()
       .then((reminders) => dispatch({ kind: "remindersLoaded", reminders }))
@@ -42,7 +33,8 @@ export function useReminders(
         // outage must not silently empty a surface that says something is waiting. The
         // resilient transport has already retried this read with backoff (ADR-0024).
       });
-  }, [visible, bridge, dispatch]);
+  }, [bridge, dispatch]);
+  useSummonEffect(mode !== "hidden", pull);
 
   // Dismissal is optimistic: the card leaves now and the ack rides the bridge unawaited, so an
   // unreachable brain cannot make the gesture feel stuck. A lost ack leaves the reminder
