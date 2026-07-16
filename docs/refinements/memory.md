@@ -20,6 +20,26 @@ Deferred refinements from the Slice 5 memory work under [ADR-0008](../adr/ADR-00
   place), and any retention or eviction policy all need verbs the port does not have, plus the
   pgvector adapter and a fake to implement them. Per-scope retention and per-provenance eviction
   are blocked on the same missing verbs.
+  **The delete/forget verb landed 2026-07-16 ([ADR-0008 delete-scope
+  addendum](../adr/ADR-0008-memory-v1.md)); the policies stay deferred.**
+  `MemoryStore.delete_scope(scope) -> int` hard-deletes one namespace and returns the row count, the
+  one verb of the several this entry named that has recorded consumers already waiting on it: a
+  **session-delete cascade** (which could not honestly delete a session's derived memories,
+  [session-read-seam.md](session-read-seam.md)) and **per-scope eviction**. It is by-scope, not
+  by-id, because the only link from a session to its memories is the `scope` (`SessionMemoryScope`
+  writes `scope == session_id`), and it takes a single required scope with no wildcard so a namespace
+  is dropped only when named (a caller mapping a session to `GLOBAL_SCOPE` under global scoping must
+  never pass it). Port + contract test + fake + pgvector adapter, CI-gated at 100%, the real DELETE
+  host-validated against pgvector (rows 3 to 0, count 3, other scopes spared, a no-match scope
+  returns 0). Data-loss-safe by construction: memory is not a tool in any registry, and the
+  `MemoryRecaller` a turn is handed exposes only record/recall, so no tool call, tainted or not, can
+  spell "forget everything" (a structural test pins that surface). **Still deferred, each for want of
+  a consumer and not a missing verb now:** self-editing (**update** in place), **tiered**
+  promote/demote/expire, **write-salience** (its own entry below), and the **per-scope retention
+  _policy_** (the eviction verb exists; a retention scheduler deciding what to evict when does not,
+  and nothing drives one). **Per-provenance eviction** ([untrusted-content.md](untrusted-content.md))
+  wants a different filter, since a memory record stores only the `tainted` bit, not the ADR-0027
+  structured provenance, so `delete_scope` does not serve it and it stays fix-when-it-bites.
 - **Recency-weighted reranking + near-duplicate dedup landed 2026-07-13 ([ADR-0008 rerank
   addendum](../adr/ADR-0008-memory-v1.md)).** v1 recall was raw top-k cosine with no reranking,
   recency weighting, or dedup. A new pure-core `RecallPolicy` seam (`rerank.py`, the

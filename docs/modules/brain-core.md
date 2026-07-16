@@ -425,10 +425,14 @@ Ports (`typing.Protocol`; failures cross them only as the typed errors below):
 - `Embedder` provides `async embed(text) -> Sequence[float]`: one stateless call, text to vector.
   Dimension is fixed by the deployment's model (ADR-0008); the core assumes no value.
 - `MemoryStore` provides `async add(record) -> None`, `async search(embedding, *, k, scopes=None) ->
-  Sequence[ScoredMemory]` (top-`k` by similarity, most-similar first). `scopes` restricts the
-  candidate set to those namespaces (ADR-0008 scoping addendum); `None` (the default) ranks over
-  ALL memories (the global-space behavior). Durable, cross-session; the caller builds each record
-  (including its `scope`).
+  Sequence[ScoredMemory]` (top-`k` by similarity, most-similar first), and `async delete_scope(scope)
+  -> int`. `scopes` restricts the candidate set to those namespaces (ADR-0008 scoping addendum);
+  `None` (the default) ranks over ALL memories (the global-space behavior). `delete_scope` hard-deletes
+  every memory in one namespace and returns how many it removed (0 when empty), the forget primitive a
+  session-delete cascade and a per-scope eviction policy each named (ADR-0008 delete-scope addendum);
+  it takes a single required scope and no wildcard, so a namespace is dropped only when named, and a
+  caller mapping a session to `GLOBAL_SCOPE` under global scoping must never pass it (that would erase
+  the shared space). Durable, cross-session; the caller builds each record (including its `scope`).
 - `ToolRegistry` has `async describe_tools() -> Sequence[ToolSpec]` (advertise the tools),
   `async invoke(call) -> ToolResult` (run one call; `is_error` reflects a tool-level
   failure). An unknown tool or a transport failure raises `ToolError`

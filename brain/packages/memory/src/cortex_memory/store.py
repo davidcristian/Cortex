@@ -24,6 +24,9 @@ _SELECT = (
 )
 _SEARCH_ALL = f"{_SELECT} ORDER BY embedding <=> $1::vector LIMIT $2"
 _SEARCH_SCOPED = f"{_SELECT} WHERE scope = ANY($3) ORDER BY embedding <=> $1::vector LIMIT $2"
+# The forget primitive (ADR-0008 delete-scope addendum): drop one whole namespace. The
+# ``memories_scope_idx`` btree serves the equality, so no schema change is owed.
+_DELETE_SCOPE = "DELETE FROM memories WHERE scope = $1"
 
 
 class Row(Protocol):
@@ -55,6 +58,11 @@ def _from_literal(text: str) -> tuple[float, ...]:
     """
     inner = text.strip().strip("[]")
     return tuple(float(part) for part in inner.split(","))
+
+
+def _deleted_count(status: object) -> int:
+    """Parse asyncpg's ``DELETE n`` command tag into the number of rows removed."""
+    return int(str(status).rsplit(" ", 1)[-1])
 
 
 def _to_scored(row: Row) -> ScoredMemory:
@@ -126,4 +134,16 @@ class PgVectorMemoryStore:
             raise MemoryStoreError(msg) from err
         except (KeyError, IndexError, TypeError, ValueError) as err:
             msg = "malformed memory row in search result"
+            raise MemoryStoreError(msg) from err
+
+    async def delete_scope(self, scope: str) -> int:
+        """Hard-delete every memory in ``scope``; return how many rows were removed."""
+        try:
+            status = await self._db.execute(_DELETE_SCOPE, scope)
+            return _deleted_count(status)
+        except _WRAPPED as err:
+            msg = f"deleting memory scope {scope!r} failed"
+            raise MemoryStoreError(msg) from err
+        except ValueError as err:
+            msg = "malformed delete status from the memory store"
             raise MemoryStoreError(msg) from err

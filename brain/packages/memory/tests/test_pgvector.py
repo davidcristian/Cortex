@@ -20,10 +20,15 @@ class FakeDatabase:
     """A Database that records calls and returns canned rows (or raises a canned error)."""
 
     def __init__(
-        self, rows: Sequence[Mapping[str, object]] = (), *, fail: Exception | None = None
+        self,
+        rows: Sequence[Mapping[str, object]] = (),
+        *,
+        fail: Exception | None = None,
+        status: str = "INSERT 0 1",
     ) -> None:
         self._rows = rows
         self._fail = fail
+        self._status = status
         self.calls: list[tuple[str, tuple[object, ...]]] = []
         self.closed = False
 
@@ -31,7 +36,7 @@ class FakeDatabase:
         if self._fail is not None:
             raise self._fail
         self.calls.append((sql, args))
-        return "INSERT 0 1"
+        return self._status
 
     async def fetch(self, sql: str, /, *args: object) -> Sequence[Mapping[str, object]]:
         if self._fail is not None:
@@ -127,6 +132,34 @@ async def test_search_wraps_a_malformed_row() -> None:
     rows: list[dict[str, object]] = [{"id": "a", "text": "alpha"}]  # missing embedding/score/at
     with pytest.raises(MemoryStoreError, match="malformed memory row"):
         await PgVectorMemoryStore(FakeDatabase(rows=rows)).search((1.0,), k=1)
+
+
+async def test_delete_scope_executes_delete_and_returns_the_row_count() -> None:
+    db = FakeDatabase(status="DELETE 3")
+    removed = await PgVectorMemoryStore(db).delete_scope("conv-a")
+    assert removed == 3  # the count parsed out of asyncpg's command tag
+    sql, args = db.calls[0]
+    assert sql == "DELETE FROM memories WHERE scope = $1"
+    assert args == ("conv-a",)  # a single named scope, never a wildcard
+
+
+async def test_delete_scope_without_matches_returns_zero() -> None:
+    db = FakeDatabase(status="DELETE 0")
+    assert await PgVectorMemoryStore(db).delete_scope("empty") == 0
+
+
+async def test_delete_scope_wraps_a_backend_error() -> None:
+    db = FakeDatabase(fail=asyncpg.PostgresError("boom"))
+    with pytest.raises(MemoryStoreError, match="deleting memory scope 'conv-a'") as excinfo:
+        await PgVectorMemoryStore(db).delete_scope("conv-a")
+    assert isinstance(excinfo.value.__cause__, asyncpg.PostgresError)
+
+
+async def test_delete_scope_wraps_a_malformed_status() -> None:
+    db = FakeDatabase(status="DELETE not-a-count")
+    with pytest.raises(MemoryStoreError, match="malformed delete status") as excinfo:
+        await PgVectorMemoryStore(db).delete_scope("conv-a")
+    assert isinstance(excinfo.value.__cause__, ValueError)
 
 
 async def test_aclose_closes_the_pool() -> None:

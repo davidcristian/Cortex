@@ -90,8 +90,8 @@ was wrong for a management RPC, the second reads-against-the-code correction of 
 that day (the tainted-turn confirm decline was the first): the `SeamConfirmer` gates a model's
 in-turn tool call, while a rename is user-triggered out of band and reaches no tool, so its gate is
 structural user-only reachability, not a card. Pin reshapes the tuned read path (does a pin escape
-the recency window?) and delete cannot cascade to memory (`MemoryStore` has no delete verb), so
-neither could ride rename.
+the recency window?) and delete could not then cascade to memory (`MemoryStore` had no delete verb,
+since landed the same day as `delete_scope`), so neither could ride rename.
 Repo gates went from 0 back to 1 the same day,
 when the two Rust trees `just check` never lints turned out to have been quietly collecting
 findings; that entry originates in [ADR-0011](../adr/ADR-0011-body-v1.md) rather than the
@@ -104,7 +104,18 @@ here to close as **declined**: surfacing the blended recall relevance was read a
 no consumer for it exists, which its own origin addendum had made the condition, so cheapness had
 been standing in for readiness. It moved to the dead-until-a-consumer list below, and the pass that
 closed it opened one entry behind it, recall observability, which is both why the question was hard
-to answer and the consumer that would reopen the declined one. Resource governance held at 6 on
+to answer and the consumer that would reopen the declined one. Memory then held at 8 again on
+2026-07-16 when the delete/forget verb landed: `MemoryStore.delete_scope(scope)` is the one memory
+verb with recorded consumers already waiting on it (a session-delete cascade, per-scope eviction),
+by scope because the only link from a session to its memories is the scope, and a hard delete
+because search is a stateless top-k scan with no in-flight id to protect. It closed no open item,
+since the policies the missing verbs were bundled with (self-editing/update, tiered promote/demote/
+expire, write-salience, the per-scope retention policy) stay deferred for want of a consumer, so the
+"Memory verbs" actionable-with-a-port-change line moved to dead-until-a-consumer (the port change it
+waited on is done) and the residual is policy, not seam. Data-loss-safe by construction (memory is
+not a tool in any registry, and the turn-facing recaller exposes only record/recall), and the real
+DELETE was host-validated against pgvector (rows 3 to 0, count 3, other scopes spared, a no-match
+scope returns 0). Resource governance held at 6 on
 2026-07-16 when its two-part first entry closed as two different outcomes, which is why an entry
 naming two things should be read as two. Placement-aware CPU charging was **declined**: `admit` is
 entered before `place` by design, so no charge can see a placement without a port change, and the
@@ -239,9 +250,12 @@ against the code (the warning above); the entry text tells you which seams it ex
   and pin were read as their own changes rather than one line with rename.
 - **Session deletion** ([session-read-seam.md](session-read-seam.md)): destructive; a
   `SessionStore.delete` (likely a tombstone) plus an overlay-local confirm (the `SeamConfirmer`
-  gates in-turn tool calls, not a unary management RPC), and it cannot cascade to memories derived
-  from the session because `MemoryStore` has no delete verb (the blocked memory-verbs entry). Design
-  it with those, not half-honest.
+  gates in-turn tool calls, not a unary management RPC). The memory-cascade half is no longer blocked
+  on a missing verb: `MemoryStore.delete_scope` landed 2026-07-16 ([memory.md](memory.md)), so a
+  delete cascades to a session's derived memories by scope, but honestly only under session scoping
+  (`scope == session_id`); under global scope those memories are the shared space, so nothing
+  session-private cascades and `GLOBAL_SCOPE` must never be passed. Design the store verb, the
+  scope-aware cascade, and the confirm together.
 - **Session-history summarization + the model-based reranker**
   ([session-history.md](session-history.md), [memory.md](memory.md)): both blocked on a sync
   port going async (`HistoryWindow.select`, `RecallPolicy.select`) and both inherit the same
@@ -254,9 +268,6 @@ against the code (the warning above); the entry text tells you which seams it ex
   model pass cannot be validated on the 8 GB dev GPU (the cortex tier does not fit) and that
   `select`'s widening should serve its three deferred consumers in one change, so this reopens with
   the real GPU lifecycle.
-- **Memory verbs: tiered/self-editing memory, write-salience, per-scope retention**
-  ([memory.md](memory.md)): `MemoryStore` is `add` + `search` only; the missing verbs are the
-  real cost.
 - **Safe `converse` reconnect-before-first-event**
   ([seam-transport.md](seam-transport.md)): needs a replayable request and a signature change.
 - **Multi-turn-within-one-stream + an explicit proto `Cancel`**
@@ -333,6 +344,13 @@ against the code (the warning above); the entry text tells you which seams it ex
   exists, not on provenance plumbing alone ([email-confirmer.md](email-confirmer.md))
 - Session+global union read policy and cross-scope recall ranking: nothing writes durable
   global facts under scoping yet ([memory.md](memory.md))
+- Self-editing memory (`update` in place), tiered promote/demote/expire, write-salience, and the
+  per-scope retention *policy*: the delete/forget verb these were bundled with as their shared
+  missing seam landed 2026-07-16 (`MemoryStore.delete_scope`, [memory.md](memory.md),
+  [ADR-0008](../adr/ADR-0008-memory-v1.md)), so what remains is policy with no consumer, not a port
+  change. Per-provenance eviction wants a different filter (a record stores only the taint bit, not
+  ADR-0027 structured provenance), so it stays fix-when-it-bites, not here. Reopens when a
+  memory-compaction or self-editing feature needs them ([memory.md](memory.md))
 - A distinct blended-relevance field on a recall hit: nothing reads `ScoredMemory.score` at all
   (the turn renders a memory's text, the seam carries no memory, the recall path has no log or
   audit sink), and the three opt-in policies rank by three different quantities, one of them

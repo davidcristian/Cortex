@@ -106,14 +106,18 @@ behind the unchanged `SessionStore.list_sessions` / `BrainTransport` / `BrainBri
   window (the expected UX) and so must be unioned into the listing, reshaping the tuned
   `list_sessions`. A genuine design change, not a drop-in behind the write verb, which is why it did
   not ride the rename that landed 2026-07-16.
-- **Session deletion.** Destructive and irreversible, and it cannot yet tell the truth about scope: a
-  session delete would remove the transcript and catalog entry (a `SessionStore.delete` verb, likely
-  a tombstone rather than a hard `DEL` so an in-flight read fails cleanly), but **not** memories
-  derived from that session, because `MemoryStore` is `add`/`search` only (no delete verb, the
-  separately blocked memory-verbs entry in [memory.md](memory.md)). It also needs an **overlay-local**
-  confirm ("are you sure"), since the `SeamConfirmer` gates in-turn tool calls, not a unary
-  management RPC (see the rename finding above). Deferred rather than shipped half-honest (implying a
-  memory cascade it cannot perform); design it with the memory delete verb and the confirm surface.
+- **Session deletion.** Destructive and irreversible: a session delete would remove the transcript
+  and catalog entry (a `SessionStore.delete` verb, likely a tombstone rather than a hard `DEL` so an
+  in-flight read fails cleanly). The memory-cascade half is **no longer blocked on a missing verb**:
+  it landed 2026-07-16 as `MemoryStore.delete_scope(scope)` ([memory.md](memory.md),
+  [ADR-0008](../adr/ADR-0008-memory-v1.md)), so a delete can cascade to a session's derived memories
+  by their scope. It cascades honestly **only under session scoping** (`SessionMemoryScope`, where
+  `scope == session_id`); under the default global scope a session's memories are the shared
+  cross-conversation space, so there is nothing session-private to cascade and the cascade must
+  **not** pass `GLOBAL_SCOPE`. The entry still needs an **overlay-local** confirm ("are you sure"),
+  since the `SeamConfirmer` gates in-turn tool calls, not a unary management RPC (see the rename
+  finding above). Still deferred: design the `SessionStore.delete` verb, the scope-aware cascade, and
+  the confirm surface together.
 - **Paging / cursor** on `ListSessions` / `GetSessionMessages` if a list or a single history ever
   grows large (a cursor field on the same RPCs); unary snapshots suffice at personal scale.
 - **A real connection indicator** and a **session-title refresh push** ride whichever slice first

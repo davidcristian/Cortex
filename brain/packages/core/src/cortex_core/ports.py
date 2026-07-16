@@ -72,13 +72,15 @@ class Embedder(Protocol):
 
 
 class MemoryStore(Protocol):
-    """Durable, cross-session memory: append one record, retrieve the top-k by similarity."""
+    """Durable, cross-session memory: append one record, retrieve the top-k, forget a namespace."""
 
     async def add(self, record: MemoryRecord) -> None: ...
 
     async def search(
         self, embedding: Sequence[float], *, k: int, scopes: Sequence[str] | None = None
     ) -> Sequence[ScoredMemory]: ...
+
+    async def delete_scope(self, scope: str) -> int: ...
 
 
 class Clock(Protocol):
