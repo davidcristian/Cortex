@@ -44,7 +44,7 @@ its signature.
 | [email-confirmer.md](email-confirmer.md) | Email write, Confirmer, attachments, `ToolActivity` chip (ADR-0022) | 4 |
 | [body-gateway.md](body-gateway.md) | Body gateway, OS actions, hardened posture (ADR-0023) | 6 |
 | [scheduling.md](scheduling.md) | Scheduling and reminders, `TurnStamp` provenance (ADR-0025/0027) | 8 |
-| [cross-cutting.md](cross-cutting.md) | Pointer input, OS backends, more roles | 4 |
+| [cross-cutting.md](cross-cutting.md) | Pointer input, OS backends, more roles | 3 |
 
 The counts are per area as extracted; a few threads appear in two areas (the cross-cutting
 "richer memory policies" line is covered by memory.md's items, and subagent tool-step
@@ -254,6 +254,20 @@ elsewhere: a model pass cannot be behavior-validated on the 8 GB dev GPU where t
 not fit, and `RecallPolicy.select`'s widening should serve its three deferred consumers (a model
 rank, the declined blended field, a recall-observability sink) in one change rather than go async
 alone now, so both reopen with the real GPU lifecycle.
+Cross-cutting went 4 to 3 on 2026-07-16 when pointer-input injection closed as declined, dead until
+a consumer, the entry whose premise the tree contradicted most sharply. It read as a small pointer
+increment over an existing text/keyboard input-injection capability needing only a proto extension,
+but no input injection exists at any tier (no `body_core` trait, no `os_windows` adapter, the body
+server answers `inject_input` with `Status::unimplemented`, the brain `BodyGateway` has no inject
+method, and no tool drives it), so pointer is not a refinement one level over a built base but part
+of the whole unbuilt input-injection slice ADR-0023 defers. It declines on the same want-of-a-consumer
+test the day's other declines used, sharpened by being the highest-harm OS action: a model-driven
+pointer is irreversible machine control whose gate is a `gated=True` tool inheriting the tainted-turn
+denial, so building the `SendInput` adapter ahead of that tool would ship the machine-control
+primitive gated only by the seam token. It reopens as one slice (the whole InputInjector trait, text
+plus keyboard plus pointer, behind one gated tool, one `SendInput` adapter under a new `unsafe`
+authorization, and one proto pointer extension designed with the consumer), the first cross-cutting
+entry to close since the extraction.
 
 ## Recommended order
 
@@ -317,7 +331,6 @@ against the code (the warning above); the entry text tells you which seams it ex
   control the overlay's card already has) cannot be built as the seam stands: `NotifyRequest`
   carries no `session_id`, unlike `DueReminder`. It also wants a COM activator on the Windows
   side, so wait for a second consumer of toast interaction.
-- **Pointer-input injection** ([cross-cutting.md](cross-cutting.md)): extend the proto first.
 
 ### Blocked on Slice 11 (real model swap / GPU lifecycle)
 
@@ -408,6 +421,22 @@ against the code (the warning above); the entry text tells you which seams it ex
   overlay would need a new body-local port, not `BrainBridge`). Reopens with an overlay control
   that *changes* volume, or a host-side change event to push it
   ([body-gateway.md](body-gateway.md))
+- **Pointer-input injection**: declined 2026-07-16, dead until a consumer. The entry read as a
+  small pointer increment over an existing text/keyboard input-injection capability, needing only a
+  proto extension, but input injection is unbuilt at every tier: the `InjectInput` RPC and its
+  `TypeText`/`KeyChord` messages are Slice 2 forward-looking stubs (like `CaptureScreen`), there is
+  no `body_core` input trait (only `Hotkey`/`AudioControl`/`Notify`), no `os_windows` adapter, the
+  body server answers `inject_input` with `Status::unimplemented` (pinned by
+  `capture_screen_and_inject_input_are_unimplemented`), the brain's `BodyGateway` carries no inject
+  method, and no tool drives it. So pointer is part of the whole input-injection slice ADR-0023
+  defers, not a refinement over a built base, and it is the highest-harm OS action to ship
+  speculatively: a model-driven pointer is irreversible machine control whose gate is a `gated=True`
+  audited tool inheriting the tainted-turn denial (`dispatch.py`), so building the Windows
+  `SendInput` adapter ahead of that tool would let the body move the real mouse for anyone holding
+  the seam token. Reopens with a real consumer, built then as one slice (the whole InputInjector
+  trait, text plus keyboard plus pointer, behind one gated tool, one `SendInput` adapter under a new
+  `unsafe` authorization, and one proto pointer extension whose coordinate space, buttons, and
+  scroll are designed against that use) ([cross-cutting.md](cross-cutting.md))
 - `SubagentTask` session attribution and the `ToolInvocation` audit-line stamp: no consumer
   reads either yet ([scheduling.md](scheduling.md))
 - Occurrence history / unseen-toast recovery: nothing reads a fired occurrence. The store keeps
