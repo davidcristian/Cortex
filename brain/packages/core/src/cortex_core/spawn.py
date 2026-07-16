@@ -18,22 +18,25 @@ SPAWN_TOOL_NAME = "spawn_subagents"
 MAX_SPAWN_BATCH = 8
 
 _DESCRIPTION = (
-    "Delegate one or more narrow subtasks to small subagents that run concurrently and "
-    "return their results. Use for independent lookups or transforms worth parallelizing; "
-    "each instruction must be self-contained (subagents do not see this conversation). "
+    "Delegate one or more narrow subtasks to small subagents that return their results. "
+    "Use for independent lookups or transforms; each instruction must be self-contained "
+    "(subagents do not see this conversation). "
     f"At most {MAX_SPAWN_BATCH} subtasks per call."
 )
-# Appended when the wiring lets the cortex pick a model per subtask (tool-less subagents).
-# The inline example nudges the object form. A live cortex given only prose folded the pick
-# into the instruction text (ADR-0018 addendum).
 _CHOICE_NOTE = (
     " Each subtask may pick a 'model' by using an object item, e.g. "
-    '{"instruction": "...", "model": "<roster name>"}; on a turn that has read untrusted '
-    "external content the robust default model is enforced regardless of the pick."
+    '{"instruction": "...", "model": "<roster name>"}. Subtasks on distinct models run in '
+    "parallel, while subtasks that share one model run one after another (one backend each), so "
+    "spread independent subtasks across models to finish the batch sooner. On a turn that has "
+    "read untrusted external content the robust default model is enforced regardless of the pick."
 )
-# Appended when subagents are tools-enabled: ADR-0017 rule 2b pins every spawn, so the spec
-# advertises no knob that cannot do anything.
-_PINNED_NOTE = " Every subtask runs on the deployment's default subagent model."
+# Tools-enabled or a one-entry roster: every spawn runs on the one default model (ADR-0017 rule
+# 2b pins it), so no knob is advertised and, sharing one backend lease, the subtasks serialize.
+_PINNED_NOTE = (
+    " Every subtask runs on the deployment's default subagent model, so subtasks share its one "
+    "backend and run one after another, a batch that groups independent subtasks rather than "
+    "running them in parallel."
+)
 
 
 @dataclass(frozen=True, slots=True)

@@ -37,7 +37,7 @@ its signature.
 | [untrusted-content.md](untrusted-content.md) | Taint boundary, output guardrail, subagent model safety (ADR-0013/0015/0017/0019/0028) | 16 |
 | [memory.md](memory.md) | Store, scoping, rerank/MMR (ADR-0008) | 8 |
 | [inference-model-manager.md](inference-model-manager.md) | Model-manager lifecycle, MTP, reasoning status (ADR-0007/0020) | 3 |
-| [subagents.md](subagents.md) | Progress reporting, spawn schema, heterogeneous roster (ADR-0010/0018) | 4 |
+| [subagents.md](subagents.md) | Progress reporting, spawn schema, heterogeneous roster (ADR-0010/0018) | 2 |
 | [body-overlay.md](body-overlay.md) | Overlay polish, connection indicator, proto Cancel (ADR-0011) | 3 |
 | [session-read-seam.md](session-read-seam.md) | Session listing/read seam (ADR-0021) | 4 |
 | [resource-governance.md](resource-governance.md) | Scheduler/placer budgets, NPU, drain (ADR-0012) | 6 |
@@ -125,7 +125,18 @@ bubble, the live chip's retrospective counterpart), while reasoning persistence/
 reads a stored trace, and the two consumers that would (a `GetSessionMessages` reasoning field for
 reload re-display, a summarization feed that reverses the ADR's "never fed back") are both unbuilt,
 the second re-raising the non-reentrant GPU-lease sequencing the title generator navigates. The
-declined half moved to the dead-until-a-consumer list below.
+declined half moved to the dead-until-a-consumer list below. Subagents went 4 to 2 on 2026-07-16
+when its bundled actionable item (spawn-spec tuning plus measured trade-off advertisement)
+**landed** as one prose change: the spawn tool advertised that subagents "run concurrently" and
+delegation was "worth parallelizing", a blanket parallel claim the same-day admission-wall
+measurement had already contradicted (each roster entry holds one backend whose lease serializes
+same-model spawns, so two same-model spawns took 10.0 s against 4.8 s across two backends). The
+description now names the measured trade-off (distinct-model spread is the wall-clock lever,
+same-model subtasks serialize), which doubles as the spontaneous-pick nudge finding 1 wanted. The
+entry's *other* reading, deriving the config description strings from numbers, stayed declined
+(deployment-specific text, safety deterministic), and the nudge's live uptake opened one
+fix-when-it-bites residual behind it, unverifiable on the 8 GB dev GPU where the cortex tier does
+not fit.
 
 ## Recommended order
 
@@ -137,9 +148,7 @@ against the code (the warning above); the entry text tells you which seams it ex
 1. **Task-outcome delivery as a notification + the push retry policy**
    ([scheduling.md](scheduling.md)): unblocked on 2026-07-16, when the body's `Notify` trait
    landed and gave the port they both reuse a real backend.
-2. **Spawn-spec tuning + measured trade-off advertisement** ([subagents.md](subagents.md)):
-   low stakes, wrong text misleads only the optimization.
-3. **`cargo fmt` and `cargo clippy` for the two ungated Rust trees**
+2. **`cargo fmt` and `cargo clippy` for the two ungated Rust trees**
    ([repo-gates.md](repo-gates.md)): last because it unblocks no capability, but it is the
    only entry here that stops a class of defect from recurring, and the format half is
    nearly free. Five clippy warnings and three unformatted files had accumulated in the
@@ -288,7 +297,11 @@ against the code (the warning above); the entry text tells you which seams it ex
 
 Bounded contingencies, each named in its doc with the condition that would activate it: the
 salience limit knob, cross-loop salience, the `CORTEX_SUBAGENTS_MAX_BATCH` knob, the
-cost-aware batch cap, the fair-share policy, and the sidecar session cache/pool, whose own entry calls the per-call handshake acceptable at personal scale ([tools-mcp.md](tools-mcp.md)); the retry
+cost-aware batch cap, the fair-share policy, and the sidecar session cache/pool, whose own entry calls the per-call handshake acceptable at personal scale ([tools-mcp.md](tools-mcp.md)); the
+spontaneous-pick nudge's live uptake, joined on 2026-07-16 when the measured trade-off
+advertisement landed, whose trigger is a live cortex on user-tier hardware still under-reaching
+for distinct models and whose fix is stronger nudging behind the same spec seam
+([subagents.md](subagents.md)); the retry
 budget / circuit-breaker, joined on 2026-07-16 by a retryable-code table beyond `Unavailable`,
 whose trigger is a brain that starts answering `RESOURCE_EXHAUSTED` or `ABORTED`
 ([seam-transport.md](seam-transport.md)); the tunnel fallback, the
