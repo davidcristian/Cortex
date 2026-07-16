@@ -4,6 +4,8 @@ use std::future::Future;
 
 use futures_core::Stream;
 
+use crate::session_types::{DueReminder, SessionMessage, SessionSummary};
+
 /// Result of a `BrainService.Health` probe over the seam.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct SeamHealth {
@@ -105,52 +107,6 @@ pub enum TurnEvent {
     },
 }
 
-/// One recent chat as the overlay's switcher shows it. This is the typed core mirror
-/// of the proto `SessionSummary` (ADR-0021).
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct SessionSummary {
-    /// The chat's session id (its identity for loading history / cycling).
-    pub session_id: String,
-    /// Derived title: the first user message, one line, truncated.
-    pub title: String,
-    /// Derived one-line preview: the last message's text, truncated.
-    pub preview: String,
-    /// Last-activity time as unix-milliseconds, for a relative timestamp.
-    pub last_activity_unix_ms: i64,
-}
-
-/// One persisted message in a session's history. This is the typed core mirror of the
-/// proto `SessionMessage` (ADR-0021).
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct SessionMessage {
-    /// `"user"` or `"assistant"` are the only persisted roles.
-    pub role: String,
-    /// The message text.
-    pub text: String,
-    /// The turn this message belongs to (user turn + its assistant reply share it).
-    pub turn_id: String,
-    /// Authoring time as unix-milliseconds.
-    pub at_unix_ms: i64,
-}
-
-/// One fired-but-undelivered reminder awaiting the overlay (ADR-0025). This is the
-/// typed core mirror of the proto `DueReminder`.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct DueReminder {
-    /// The reminder's id, which is what [`BrainTransport::ack_reminder`] acks.
-    pub reminder_id: String,
-    /// What to remind the user of; display-only, and inert (see the type docs).
-    pub text: String,
-    /// When it became deliverable, as unix-milliseconds.
-    pub fired_at_unix_ms: i64,
-    /// Whether the series recurs (a one-shot is gone once acked).
-    pub recurring: bool,
-    /// Untrusted provenance: the text came from content the brain does not trust.
-    pub tainted: bool,
-    /// The chat this reminder was created in; empty for a session-less caller.
-    pub session_id: String,
-}
-
 /// The body's typed async client port to the brain (`docs/ARCHITECTURE.md`,
 /// "Ports and traits").
 pub trait BrainTransport: Send + Sync {
@@ -202,5 +158,12 @@ pub trait BrainTransport: Send + Sync {
         &self,
         session_id: &str,
         title: &str,
+    ) -> impl Future<Output = Result<(), TransportError>> + Send;
+
+    /// Deletes one chat (`BrainService.DeleteSession`, ADR-0021 management addendum): the overlay's
+    /// user-driven destructive removal of a chat and its derived memories.
+    fn delete_session(
+        &self,
+        session_id: &str,
     ) -> impl Future<Output = Result<(), TransportError>> + Send;
 }

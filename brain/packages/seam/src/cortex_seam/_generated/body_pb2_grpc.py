@@ -72,6 +72,11 @@ class BrainServiceStub:
                 request_serializer=cortex__seam_dot___generated_dot_body__pb2.RenameSessionRequest.SerializeToString,
                 response_deserializer=cortex__seam_dot___generated_dot_body__pb2.RenameSessionReply.FromString,
                 _registered_method=True)
+        self.DeleteSession = channel.unary_unary(
+                '/cortex.seam.v1.BrainService/DeleteSession',
+                request_serializer=cortex__seam_dot___generated_dot_body__pb2.DeleteSessionRequest.SerializeToString,
+                response_deserializer=cortex__seam_dot___generated_dot_body__pb2.DeleteSessionReply.FromString,
+                _registered_method=True)
 
 
 class BrainServiceServicer:
@@ -145,6 +150,23 @@ class BrainServiceServicer:
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def DeleteSession(self, request, context):
+        """Delete a chat: a gated, DESTRUCTIVE, irreversible WRITE on the session catalog
+        (ADR-0021 management addendum). It hard-deletes the whole transcript and catalog entry,
+        and cascades to the session's derived memories, but only when those memories are private
+        to the session (a session-scoped memory policy); under the shared global memory space
+        nothing session-private cascades. Its gate is the SAME structural user-only reachability
+        RenameSession has, not the mid-turn Confirmer: it is no tool in any registry and never runs
+        through the turn engine, so no model, tool, or tainted turn reaches it. The user's intent is
+        secured OUT of band, by an overlay-local "are you sure" confirm before this RPC is ever sent
+        (the SeamConfirmer gates in-turn tool calls, not a unary management RPC). It carries a
+        destructive effect, so the resilient body transport makes exactly ONE attempt and never
+        retries it (a lost reply must not silently re-issue a destroy against a re-materialized id).
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
 
 def add_BrainServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
@@ -182,6 +204,11 @@ def add_BrainServiceServicer_to_server(servicer, server):
                     servicer.RenameSession,
                     request_deserializer=cortex__seam_dot___generated_dot_body__pb2.RenameSessionRequest.FromString,
                     response_serializer=cortex__seam_dot___generated_dot_body__pb2.RenameSessionReply.SerializeToString,
+            ),
+            'DeleteSession': grpc.unary_unary_rpc_method_handler(
+                    servicer.DeleteSession,
+                    request_deserializer=cortex__seam_dot___generated_dot_body__pb2.DeleteSessionRequest.FromString,
+                    response_serializer=cortex__seam_dot___generated_dot_body__pb2.DeleteSessionReply.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -376,6 +403,33 @@ class BrainService:
             '/cortex.seam.v1.BrainService/RenameSession',
             cortex__seam_dot___generated_dot_body__pb2.RenameSessionRequest.SerializeToString,
             cortex__seam_dot___generated_dot_body__pb2.RenameSessionReply.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def DeleteSession(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/cortex.seam.v1.BrainService/DeleteSession',
+            cortex__seam_dot___generated_dot_body__pb2.DeleteSessionRequest.SerializeToString,
+            cortex__seam_dot___generated_dot_body__pb2.DeleteSessionReply.FromString,
             options,
             channel_credentials,
             insecure,

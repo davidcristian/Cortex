@@ -26,6 +26,9 @@ export interface OverlayController {
   openSession(sessionId: string): void;
   /** Rename a chat from the switcher (ADR-0021): write the label, then re-list to show it. */
   renameSession(sessionId: string, title: string): void;
+  /** Delete a chat from the switcher (ADR-0021): fire the destructive write after the row's local
+   *  confirm, then drop it and re-list; deleting the open chat falls back to a fresh new chat. */
+  deleteSession(sessionId: string): void;
   cyclePrev(): void;
   cycleNext(): void;
   toggleSwitcher(): void;
@@ -197,6 +200,25 @@ export function useOverlay(
     [bridge, refreshSessions],
   );
 
+  const deleteSession = useCallback(
+    (sessionId: string) => {
+      if (sessionId === state.sessionId) {
+        denyPendingConfirm();
+        cancelRef.current?.();
+      }
+      bridge
+        .deleteSession(sessionId)
+        .then(() => {
+          dispatch({ kind: "sessionDeleted", sessionId, fallbackSessionId: newSessionId() });
+          refreshSessions();
+        })
+        .catch(() => {
+          // A lost delete leaves the chat and the list unchanged; the brain still holds it.
+        });
+    },
+    [state.sessionId, denyPendingConfirm, bridge, refreshSessions, newSessionId],
+  );
+
   const cyclePrev = useCallback(() => {
     const target = cycleTarget(state.sessions, state.sessionId, -1);
     if (target !== null) {
@@ -220,6 +242,7 @@ export function useOverlay(
     newChat,
     openSession,
     renameSession,
+    deleteSession,
     cyclePrev,
     cycleNext,
     toggleSwitcher,

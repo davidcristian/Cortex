@@ -136,10 +136,13 @@ Config (pydantic-settings; explicit constructor arguments beat the environment):
 
 The service:
 
-- `BrainService(engine: TurnEngine, store: SessionStore, *, max_buffered_events: int = 256)`
-  is the `BrainServiceServicer` implementation; the engine and the session store are injected
-  (DI at the edge), the service holds no state. `store` is the same instance the engine
-  writes, so the read-only session RPCs serve exactly what turns persist.
+- `BrainService(engine: TurnEngine, store: SessionStore, *, schedules=None,
+  memory_cascade: SessionMemoryCascade | None = None, max_buffered_events: int = 256)`
+  is the `BrainServiceServicer` implementation; the engine, the session store, and (optional)
+  the delete cascade are injected (DI at the edge), the service holds no state. `store` is the
+  same instance the engine writes, so the read-only session RPCs serve exactly what turns persist;
+  `memory_cascade` (`None` when memory is off, the same store+scope the recaller uses) is what
+  `DeleteSession` forgets a deleted chat's private memories through.
   - `Health` → `HealthReply(ready=True, detail="cortex-orchestrator <version>")`.
   - `Converse` is the conversation loop (contract below).
   - `ListSessions` → `ListSessionsReply` (ADR-0021): recent chats newest-active first via
@@ -155,9 +158,17 @@ The service:
     it is no tool in any registry and never runs through the turn engine, so no model, tool, or
     tainted turn can reach it, only the overlay's own controls. `list_sessions` re-bounds the
     stored title at read, so a caller cannot store an unbounded or multi-line switcher label.
-  - The three session RPCs are unary; a `SessionStoreError` aborts them `UNAVAILABLE` (the body
-    maps that to `TransportError::Rpc`). The mapping/clamp helpers and the rename write live in
-    `session_rpc.py` (the `reminders.py` pattern), so `server.py` stays a thin binding.
+  - `DeleteSession` → `DeleteSessionReply` (ADR-0021 delete addendum): a gated, **user-only**,
+    DESTRUCTIVE catalog write via `session_rpc.delete_session`. It `store.delete`s the chat FIRST
+    (the visible transcript is the user's primary intent), then, when a memory backend is wired,
+    runs the injected `SessionMemoryCascade` (`None` when memory is off) to forget the chat's
+    private memories, but only under session scoping and never passing `GLOBAL_SCOPE`. Same
+    structural user-only gate as `RenameSession` (no model/tool/tainted turn reaches it); the
+    user's intent is secured by an overlay-local confirm, not the Confirmer. A `SessionStoreError`
+    **or** `MemoryStoreError` aborts `UNAVAILABLE`, and both steps are idempotent, so a retry heals.
+  - The four session RPCs are unary; a `SessionStoreError` aborts them `UNAVAILABLE` (the body
+    maps that to `TransportError::Rpc`). The mapping/clamp helpers and the rename/delete writes live
+    in `session_rpc.py` (the `reminders.py` pattern), so `server.py` stays a thin binding.
   - `ListDueReminders` / `AckReminder` (ADR-0025; policy + mapping in `reminders.py`): the
     pull pair over the injected `ScheduleStore`, covering every fired-but-undelivered item
     (`DueReminder`: id, `text`, fired-at unix-ms, recurrence, the `tainted` provenance bit, the
@@ -171,7 +182,7 @@ The service:
     store's `ScheduleStoreError` does abort `UNAVAILABLE` (the session-reads precedent).
 - `DEFAULT_SESSION_LIST_LIMIT = 50` / `MAX_SESSION_LIST_LIMIT = 200` are the `ListSessions`
   limit default and hard cap; `MAX_TITLE_INPUT = 200` bounds an accepted `RenameSession` label.
-  All three, the wire mapping, and the rename write live in `session_rpc.py` (ADR-0021).
+  All three, the wire mapping, and the rename/delete writes live in `session_rpc.py` (ADR-0021).
 - `converse(make_engine, client_events, *, max_buffered_events=DEFAULT_MAX_BUFFERED_EVENTS,
   confirm_timeout_s=DEFAULT_CONFIRM_TIMEOUT_S) -> AsyncGenerator[ServerEvent, None]` is the loop
   itself, servicer-independent (what `BrainService.Converse` delegates to). `make_engine` is an
@@ -273,7 +284,9 @@ The service:
   (`build_output_guardrail`, ADR-0015),
   and four opt-in adapters, each disabled by default so CI and the no-GPU dev loop stay
   external-service-free: **memory** (`build_memory`, in `memory_builders.py` split from
-  `builders.py`, ADR-0008), **tools** (`build_tool_registry`
+  `builders.py`, ADR-0008; returns the `MemoryRecaller` for the engine, a `SessionMemoryCascade`
+  for `DeleteSession` over the same store+scope, and the closer, all `None`/no-op when off),
+  **tools** (`build_tool_registry`
   builds the MCP `ToolRegistry` shared by cortex and subagents, ADR-0009: one lazy
   `ReconnectingMcpToolRegistry` per configured endpoint (dialed on first use, not at startup, so
   boot-tolerant, ADR-0009 boot-tolerance addendum), wrapped in a `FilteredToolRegistry` where an

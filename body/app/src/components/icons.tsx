@@ -69,6 +69,28 @@ export function BellIcon() {
   );
 }
 
+/** Delete a chat: an outline trash can. The one destructive control, so it reads as removal, not
+ *  the dismiss chevron (which tucks a saved chat away) or the check (which acks, never deletes). */
+export function TrashIcon() {
+  return (
+    <Icon>
+      <path d="M5 7h14" />
+      <path d="M9 7V5.5a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1V7" />
+      <path d="M6.5 7l.8 11a1 1 0 0 0 1 1h7.4a1 1 0 0 0 1 -1l.8 -11" />
+    </Icon>
+  );
+}
+
+/** Cancel an inline action (an X): back out of the delete confirmation without deleting. */
+export function CloseIcon() {
+  return (
+    <Icon>
+      <path d="M7 7l10 10" />
+      <path d="M17 7l-10 10" />
+    </Icon>
+  );
+}
+
 /** Dismiss a reminder: a check for "got it", never an X. Acking is delivery, not cancellation:
  *  a recurring series re-arms afterwards, so the glyph must not read as "delete this". */
 export function CheckIcon() {

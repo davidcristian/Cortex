@@ -80,3 +80,14 @@ pub async fn rename_session(session_id: String, title: String) -> Result<(), Str
         .await
         .map_err(|error| error.to_string())
 }
+
+/// Deletes one chat (`BrainService.DeleteSession`, ADR-0021 management addendum): the overlay's
+/// user-driven destructive removal, fired only after an overlay-local confirm.
+#[tauri::command]
+pub async fn delete_session(session_id: String) -> Result<(), String> {
+    let client = crate::seam::connect()?;
+    client
+        .delete_session(&session_id)
+        .await
+        .map_err(|error| error.to_string())
+}

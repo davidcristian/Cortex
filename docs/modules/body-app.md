@@ -27,7 +27,11 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
   Cancellation`, the read-only `listSessions(limit)` / `sessionMessages(sessionId)` (ADR-0021),
   the user-driven `renameSession(sessionId, title)` write (ADR-0021 management addendum; `""`
   clears the override, and `useOverlay` re-lists after it resolves so the switcher shows the new
-  label), plus the `TurnEvent` / `TransportError` / `SessionSummary` / `SessionMessage` types, the
+  label), the user-driven DESTRUCTIVE `deleteSession(sessionId)` write (ADR-0021 delete addendum;
+  fired only after the switcher row's local "are you sure" confirm, then `useOverlay` drops the row
+  and re-lists on success; deleting the currently-open chat first tears down its in-flight turn and
+  then falls back to a fresh new chat so a deleted transcript is never rendered), plus the
+  `TurnEvent` / `TransportError` / `SessionSummary` / `SessionMessage` types, the
   TS mirror of the Rust `body_core` values. Three implementations: `TauriBridge` (real, over IPC),
   `DemoBridge` (canned stream + canned chats for `vite dev`), `FakeBridge` (tests). Only
   `tauriBridge.ts`, `demoBridge.ts`, and `main.tsx` are coverage-excluded (the un-gated glue);

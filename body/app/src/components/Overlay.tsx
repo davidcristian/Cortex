@@ -22,6 +22,7 @@ export function Overlay({ controller, dark, onToggleTheme }: OverlayProps) {
     newChat,
     openSession,
     renameSession,
+    deleteSession,
     cyclePrev,
     cycleNext,
     toggleSwitcher,
@@ -76,6 +77,7 @@ export function Overlay({ controller, dark, onToggleTheme }: OverlayProps) {
         onToggleSheet={toggleSheet}
         onSelectSession={openSession}
         onRenameSession={renameSession}
+        onDeleteSession={deleteSession}
         onRespondConfirm={respondConfirm}
         onDismissReminder={dismissReminder}
       />

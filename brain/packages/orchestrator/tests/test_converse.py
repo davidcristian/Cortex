@@ -100,6 +100,9 @@ class CountingFailingStore:
     async def set_title(self, session_id: str, title: str) -> None:
         del session_id, title
 
+    async def delete(self, session_id: str) -> None:
+        del session_id
+
 
 class MidStreamFailingBackend:
     """Backend that yields one delta and then fails with the typed error."""

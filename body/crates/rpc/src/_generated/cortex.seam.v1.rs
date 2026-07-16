@@ -206,6 +206,18 @@ pub struct RenameSessionRequest {
 }
 #[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct RenameSessionReply {}
+/// Delete one chat (ADR-0021 management addendum). Destructive and irreversible: the brain
+/// hard-deletes the transcript and catalog entry and cascades to the session's private memories.
+/// The reply is a bare acknowledgement (the overlay drops the row and re-lists); a store or memory
+/// failure surfaces as an `UNAVAILABLE` RPC status, the session-read precedent, and the operation
+/// is idempotent, so a retry after such a failure heals cleanly.
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct DeleteSessionRequest {
+    #[prost(string, tag = "1")]
+    pub session_id: ::prost::alloc::string::String,
+}
+#[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct DeleteSessionReply {}
 /// Reminder pull-delivery views (ADR-0025). All sessions are listed deliberately because
 /// a single-user assistant has one user to remind; session_id rides along so the
 /// overlay can later offer "open the conversation this came from" without a wire change.
@@ -618,6 +630,41 @@ pub mod brain_service_client {
                 .insert(GrpcMethod::new("cortex.seam.v1.BrainService", "RenameSession"));
             self.inner.unary(req, path, codec).await
         }
+        /// Delete a chat: a gated, DESTRUCTIVE, irreversible WRITE on the session catalog
+        /// (ADR-0021 management addendum). It hard-deletes the whole transcript and catalog entry,
+        /// and cascades to the session's derived memories, but only when those memories are private
+        /// to the session (a session-scoped memory policy); under the shared global memory space
+        /// nothing session-private cascades. Its gate is the SAME structural user-only reachability
+        /// RenameSession has, not the mid-turn Confirmer: it is no tool in any registry and never runs
+        /// through the turn engine, so no model, tool, or tainted turn reaches it. The user's intent is
+        /// secured OUT of band, by an overlay-local "are you sure" confirm before this RPC is ever sent
+        /// (the SeamConfirmer gates in-turn tool calls, not a unary management RPC). It carries a
+        /// destructive effect, so the resilient body transport makes exactly ONE attempt and never
+        /// retries it (a lost reply must not silently re-issue a destroy against a re-materialized id).
+        pub async fn delete_session(
+            &mut self,
+            request: impl tonic::IntoRequest<super::DeleteSessionRequest>,
+        ) -> std::result::Result<
+            tonic::Response<super::DeleteSessionReply>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic_prost::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/cortex.seam.v1.BrainService/DeleteSession",
+            );
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(GrpcMethod::new("cortex.seam.v1.BrainService", "DeleteSession"));
+            self.inner.unary(req, path, codec).await
+        }
     }
 }
 /// Generated server implementations.
@@ -703,6 +750,24 @@ pub mod brain_service_server {
             request: tonic::Request<super::RenameSessionRequest>,
         ) -> std::result::Result<
             tonic::Response<super::RenameSessionReply>,
+            tonic::Status,
+        >;
+        /// Delete a chat: a gated, DESTRUCTIVE, irreversible WRITE on the session catalog
+        /// (ADR-0021 management addendum). It hard-deletes the whole transcript and catalog entry,
+        /// and cascades to the session's derived memories, but only when those memories are private
+        /// to the session (a session-scoped memory policy); under the shared global memory space
+        /// nothing session-private cascades. Its gate is the SAME structural user-only reachability
+        /// RenameSession has, not the mid-turn Confirmer: it is no tool in any registry and never runs
+        /// through the turn engine, so no model, tool, or tainted turn reaches it. The user's intent is
+        /// secured OUT of band, by an overlay-local "are you sure" confirm before this RPC is ever sent
+        /// (the SeamConfirmer gates in-turn tool calls, not a unary management RPC). It carries a
+        /// destructive effect, so the resilient body transport makes exactly ONE attempt and never
+        /// retries it (a lost reply must not silently re-issue a destroy against a re-materialized id).
+        async fn delete_session(
+            &self,
+            request: tonic::Request<super::DeleteSessionRequest>,
+        ) -> std::result::Result<
+            tonic::Response<super::DeleteSessionReply>,
             tonic::Status,
         >;
     }
@@ -1088,6 +1153,51 @@ pub mod brain_service_server {
                     let inner = self.inner.clone();
                     let fut = async move {
                         let method = RenameSessionSvc(inner);
+                        let codec = tonic_prost::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            )
+                            .apply_max_message_size_config(
+                                max_decoding_message_size,
+                                max_encoding_message_size,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                "/cortex.seam.v1.BrainService/DeleteSession" => {
+                    #[allow(non_camel_case_types)]
+                    struct DeleteSessionSvc<T: BrainService>(pub Arc<T>);
+                    impl<
+                        T: BrainService,
+                    > tonic::server::UnaryService<super::DeleteSessionRequest>
+                    for DeleteSessionSvc<T> {
+                        type Response = super::DeleteSessionReply;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::DeleteSessionRequest>,
+                        ) -> Self::Future {
+                            let inner = Arc::clone(&self.0);
+                            let fut = async move {
+                                <T as BrainService>::delete_session(&inner, request).await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let max_decoding_message_size = self.max_decoding_message_size;
+                    let max_encoding_message_size = self.max_encoding_message_size;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let method = DeleteSessionSvc(inner);
                         let codec = tonic_prost::ProstCodec::default();
                         let mut grpc = tonic::server::Grpc::new(codec)
                             .apply_compression_config(

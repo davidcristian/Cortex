@@ -3,7 +3,7 @@
 Deferrals from the Slice 8.7 session listing and read seam, whose origin decision is
 [ADR-0021](../adr/ADR-0021-session-read-seam.md). Extracted from the ROADMAP's deferred-refinements section on 2026-07-15 with the entries kept verbatim; landed entries are the historical record of what each deferral became, and the index at [index.md](index.md) carries the recommended pickup order.
 
-**Open items:** live-suite fixed-window residual, out-of-window authoritative title, session pinning, session deletion, paging / cursor
+**Open items:** live-suite fixed-window residual, out-of-window authoritative title, session pinning, paging / cursor
 
 **Chat history & sessions in Slice 8.7 ([ADR-0021](../adr/ADR-0021-session-read-seam.md)):** each
 behind the unchanged `SessionStore.list_sessions` / `BrainTransport` / `BrainBridge` seams.
@@ -149,6 +149,32 @@ behind the unchanged `SessionStore.list_sessions` / `BrainTransport` / `BrainBri
   since the `SeamConfirmer` gates in-turn tool calls, not a unary management RPC (see the rename
   finding above). Still deferred: design the `SessionStore.delete` verb, the scope-aware cascade, and
   the confirm surface together.
+  **Landed 2026-07-16 ([ADR-0021 delete addendum](../adr/ADR-0021-session-read-seam.md)), and the
+  entry's one guess it got wrong was the tombstone.** All three halves shipped together as the entry
+  asked. The `SessionStore.delete(session_id)` verb is a **hard** delete, not a tombstone: read
+  against the code, the reads are stateless snapshots and an unknown session already reads as an
+  empty `history`, so a deleted chat degrades cleanly with **no** in-flight id to protect (the same
+  reasoning the same-day `delete_scope` hard delete turned on), and a privacy-motivated "forget this
+  chat" wants true erasure, not a hidden-but-kept transcript. The Redis adapter drops all three keys
+  a chat can hold, the `:messages` list, the `:title` string, and the `cortex:sessions` recency-index
+  member, in one transactional pipeline, leaving nothing orphaned, and is idempotent. The scope-aware
+  cascade is **not** on the turn-facing `MemoryRecaller` (that would put a forget verb on the turn,
+  which `test_the_recaller_exposes_no_forget_verb...` forbids) but on a separate trusted
+  `SessionMemoryCascade(store, scope)` the orchestrator wires into `DeleteSession` only. It targets
+  `write_scope(session_id)` and cascades **only** when that scope is the session's own private space
+  (`scope == session_id`); the `GLOBAL_SCOPE` guard is checked **first**, so `GLOBAL_SCOPE` can never
+  reach `delete_scope` even for a session whose id equals `GLOBAL_SCOPE` (the flagship distrust-green
+  test seeds exactly that and reddens when the guard is dropped). The confirm is **overlay-local** as
+  the entry said: the switcher row's trash swaps in an inline "Delete this chat?" confirm/cancel pair,
+  and `onDelete` fires only on the second, explicit click. The gate is the **same structural
+  user-only reachability** rename got: `DeleteSession` is a `BrainService` method the overlay drives,
+  no tool in any registry, never through the turn engine (`SeamMethod::DeleteSession` classified NOT
+  repeatable, the body making exactly one attempt at a destroy). The overlay also handles the
+  **current-session hazard**: deleting the open chat tears down its in-flight turn (so a streaming
+  reply cannot re-materialize the chat with a post-delete `append`) and falls back to a fresh new
+  chat, never rendering a deleted transcript. Gated at 100% across all four trees; live-validated
+  against real Redis + pgvector (every key gone, the recency member gone, session-scoped memories
+  gone, a global-scoped memory spared).
 - **Paging / cursor** on `ListSessions` / `GetSessionMessages` if a list or a single history ever
   grows large (a cursor field on the same RPCs); unary snapshots suffice at personal scale.
 - **A real connection indicator** and a **session-title refresh push** ride whichever slice first

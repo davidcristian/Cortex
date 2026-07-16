@@ -30,6 +30,10 @@ service BrainService {
   // Rename a chat: a gated WRITE on the session catalog (ADR-0021 management addendum), the
   // overlay's user-driven relabel of one chat.
   rpc RenameSession(RenameSessionRequest) returns (RenameSessionReply);
+
+  // Delete a chat: a gated, DESTRUCTIVE, irreversible WRITE on the session catalog (ADR-0021
+  // management addendum).
+  rpc DeleteSession(DeleteSessionRequest) returns (DeleteSessionReply);
 }
 
 message ClientEvent {
@@ -115,6 +119,12 @@ message RenameSessionRequest {
   string title = 2;
 }
 message RenameSessionReply {}
+
+// Delete one chat (ADR-0021 management addendum).
+message DeleteSessionRequest {
+  string session_id = 1;
+}
+message DeleteSessionReply {}
 
 // Reminder pull-delivery views (ADR-0025). All sessions are listed deliberately because
 // a single-user assistant has one user to remind; session_id rides along so the

@@ -105,6 +105,29 @@ async def check_set_title_overrides_the_first_message(store: SessionStore) -> No
     assert await title_and_preview() == ("Feline naps", "cats sleep a lot")
 
 
+async def check_delete_removes_the_session(store: SessionStore) -> None:
+    """Deleting a chat forgets every trace of it, is idempotent, and spares other chats."""
+    doomed, kept = _session_id(), _session_id()
+    await store.append(doomed, make_message(Role.USER, "secret question", at=_AT, turn_id="d"))
+    await store.append(doomed, make_message(Role.ASSISTANT, "secret answer", at=_AT, turn_id="d"))
+    await store.set_title(doomed, "A private label")
+    await store.append(kept, make_message(Role.USER, "an unrelated chat", at=_AT, turn_id="k"))
+
+    await store.delete(doomed)
+
+    assert list(await store.history(doomed)) == []  # the transcript is gone
+    listed = {s.session_id for s in await store.list_sessions(limit=50)}
+    assert doomed not in listed  # dropped from the recency index
+    assert kept in listed  # a sibling chat is untouched
+    await store.delete(doomed)  # deleting an already-gone chat is a no-op, not an error
+
+    # Re-create a chat under the same id: its title derives from the first message, so the old
+    # override did not survive the delete (its title key was removed, not just the messages).
+    await store.append(doomed, make_message(Role.USER, "a brand new topic", at=_AT, turn_id="n"))
+    (reborn,) = [s for s in await store.list_sessions(limit=50) if s.session_id == doomed]
+    assert reborn.title == "a brand new topic"
+
+
 ALL_CHECKS = (
     check_empty_history,
     check_append_then_history_order,
@@ -112,4 +135,5 @@ ALL_CHECKS = (
     check_roundtrip_fidelity,
     check_list_sessions_orders_and_summarizes,
     check_set_title_overrides_the_first_message,
+    check_delete_removes_the_session,
 )

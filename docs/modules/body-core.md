@@ -81,6 +81,13 @@ classification behind the overlay's connection indicator (ADR-0011 addendum), an
     override. Reachable only from the overlay's own list controls, never a model/tool/tainted
     turn. Not retried (`SeamMethod::RenameSession` is not repeatable), so a lost reply surfaces
     rather than re-labelling; a store failure surfaces as `TransportError::Rpc` (`Unavailable`).
+  - `delete_session(&self, session_id)` (ADR-0021 delete addendum) is the overlay's user-driven
+    DESTRUCTIVE removal of a chat (fired only after an overlay-local confirm): the brain hard-
+    deletes the transcript and cascades to the chat's private memories. Reachable only from the
+    overlay's own list controls, never a model/tool/tainted turn. Not retried
+    (`SeamMethod::DeleteSession` is not repeatable), so a lost reply surfaces rather than silently
+    re-issuing a destroy against a chat a still-streaming turn may have re-materialized; a store or
+    memory failure surfaces as `TransportError::Rpc` (`Unavailable`).
   - `list_due_reminders(&self)` / `ack_reminder(&self, reminder_id)` (ADR-0025) are the
     overlay's pull path: `Vec<DueReminder>` of everything fired and still awaiting
     delivery (all sessions, since one user has one set of reminders), and the one
@@ -134,7 +141,9 @@ stays thin and the retry is exercised against a fake with no network or wall-clo
   idempotent brain-side but whose *answer* is not (an ack whose reply was lost has already
   cleared the reminder, so the repeat says `false` about a reminder this call dismissed), and
   for `RenameSession`, a plain write a repeat could use to re-apply a stale label over one the
-  user has since changed.
+  user has since changed, and for `DeleteSession`, a **destructive** write: idempotent in
+  isolation, but a silent retry could destroy a chat re-materialized by a still-streaming turn
+  (a concurrent `append` between a lost reply and the retry), the last call to re-issue by machinery.
   `AckReminder` is the case that shows repeatability is two tests, not one: no duplicated
   effect **and** no changed answer. The match is exhaustive, so a new variant does not compile
   until it is classified.

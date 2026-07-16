@@ -42,6 +42,7 @@ from cortex_core import (
     ResourceBudgetScheduler,
     ScheduledItem,
     ScheduleKind,
+    SessionMemoryCascade,
     SessionMemoryScope,
     SpawnSubagentsTool,
     StrictUrlRedactingGuardrail,
@@ -192,16 +193,17 @@ async def test_build_inference_backend_selects_llamacpp_and_returns_a_closer() -
 
 
 async def test_build_memory_defaults_to_disabled() -> None:
-    """The DB-less default: no recaller, and a closer that is a clean no-op."""
-    memory, close = await build_memory(MemoryConfig(backend="none"), SystemClock())
+    """The DB-less default: no recaller, no cascade, and a closer that is a clean no-op."""
+    memory, cascade, close = await build_memory(MemoryConfig(backend="none"), SystemClock())
     assert memory is None
+    assert cascade is None  # nothing to forget with no backend, so DeleteSession skips the cascade
     await close()  # no resources to release; must not raise
 
 
 async def test_build_memory_selects_pgvector_and_returns_a_closer(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """The opt-in path: a recaller over the pgvector store, whose closer releases the pool."""
+    """The opt-in path: a recaller and a delete cascade over the pgvector store, closer frees it."""
     closed: list[str] = []
     seen_dsn: list[str] = []
 
@@ -219,8 +221,9 @@ async def test_build_memory_selects_pgvector_and_returns_a_closer(
         dsn="postgresql://cortex@db/cortex",
         embedder_endpoint="http://llama-embed:8081",
     )
-    memory, close = await build_memory(config, SystemClock())
+    memory, cascade, close = await build_memory(config, SystemClock())
     assert isinstance(memory, MemoryRecaller)
+    assert isinstance(cascade, SessionMemoryCascade)  # DeleteSession's out-of-band forget path
     assert seen_dsn == ["postgresql://cortex@db/cortex"]
     await close()  # releases the pool and the embedder client
     assert closed == ["store"]

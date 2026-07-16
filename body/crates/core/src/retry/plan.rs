@@ -29,6 +29,8 @@ pub enum SeamMethod {
     AckReminder,
     /// `BrainService.RenameSession`: the overlay's user-driven relabel of a chat.
     RenameSession,
+    /// `BrainService.DeleteSession`: the overlay's user-driven destructive removal of a chat.
+    DeleteSession,
 }
 
 impl SeamMethod {
@@ -41,7 +43,7 @@ impl SeamMethod {
             Self::Health | Self::ListSessions | Self::SessionMessages | Self::ListDueReminders => {
                 true
             }
-            Self::Converse | Self::AckReminder | Self::RenameSession => false,
+            Self::Converse | Self::AckReminder | Self::RenameSession | Self::DeleteSession => false,
         }
     }
 }

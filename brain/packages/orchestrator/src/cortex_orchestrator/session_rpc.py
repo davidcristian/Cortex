@@ -2,8 +2,8 @@
 
 from datetime import datetime
 
-from cortex_core import Message, SessionStore, SessionSummary
-from cortex_seam import RenameSessionReply
+from cortex_core import Message, SessionMemoryCascade, SessionStore, SessionSummary
+from cortex_seam import DeleteSessionReply, RenameSessionReply
 from cortex_seam import SessionMessage as SessionMessagePb
 from cortex_seam import SessionSummary as SessionSummaryPb
 
@@ -55,3 +55,13 @@ async def rename_session(store: SessionStore, session_id: str, title: str) -> Re
     """Persist a user-chosen display title for one chat; `""` clears the override (ADR-0021)."""
     await store.set_title(session_id, clamp_title(title))
     return RenameSessionReply()
+
+
+async def delete_session(
+    store: SessionStore, cascade: SessionMemoryCascade | None, session_id: str
+) -> DeleteSessionReply:
+    """Delete one chat and cascade to its private memories (ADR-0021 delete addendum)."""
+    await store.delete(session_id)
+    if cascade is not None:
+        await cascade.delete_session_memories(session_id)
+    return DeleteSessionReply()

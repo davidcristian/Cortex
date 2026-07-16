@@ -14,6 +14,7 @@ from cortex_core import (
     RecallPolicy,
     RecencyMmrRecallPolicy,
     RerankingRecallPolicy,
+    SessionMemoryCascade,
     SessionMemoryScope,
 )
 from cortex_embedding import LlamaCppEmbedder
@@ -61,8 +62,9 @@ def recall_policy_from_config(config: MemoryConfig) -> RecallPolicy:
 
 async def build_memory(
     config: MemoryConfig, clock: Clock
-) -> tuple[MemoryRecaller | None, Callable[[], Awaitable[None]]]:
-    """Pick the memory backend from config; return the recaller (or None) with its closer."""
+) -> tuple[MemoryRecaller | None, SessionMemoryCascade | None, Callable[[], Awaitable[None]]]:
+    """Pick the memory backend from config; return the recaller, the delete cascade, and a closer.
+    """
     if config.backend == "pgvector":
         client = httpx.AsyncClient(timeout=httpx.Timeout(_EMBEDDER_TIMEOUT_S))
         embedder = LlamaCppEmbedder(client, config.embedder_endpoint, model=config.embedder_model)
@@ -74,5 +76,6 @@ async def build_memory(
 
         scope = memory_scope_from_name(config.scope)
         policy = recall_policy_from_config(config)
-        return MemoryRecaller(store, embedder, clock, scope=scope, policy=policy), close_memory
-    return None, noop_aclose
+        recaller = MemoryRecaller(store, embedder, clock, scope=scope, policy=policy)
+        return recaller, SessionMemoryCascade(store, scope), close_memory
+    return None, None, noop_aclose

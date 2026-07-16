@@ -85,6 +85,31 @@ export function adoptSession(
 }
 
 /**
+ * Remove a deleted chat from the switcher list, handling the current-session hazard (ADR-0021
+ * delete addendum).
+ */
+export function deleteSession(
+  state: OverlayState,
+  sessionId: string,
+  fallbackSessionId: string,
+): OverlayState {
+  const sessions = state.sessions.filter((s) => s.sessionId !== sessionId);
+  if (sessionId !== state.sessionId) {
+    return { ...state, sessions, touched: true };
+  }
+  return {
+    ...state,
+    sessions,
+    touched: true,
+    sessionId: fallbackSessionId,
+    title: NEW_CHAT_TITLE,
+    messages: [],
+    pendingConfirm: null,
+    seq: 0,
+  };
+}
+
+/**
  * The session id to switch to when cycling from `currentId` by `delta` (-1 = newer / previous, +1
  * = older / next), or `null` for no move.
  */

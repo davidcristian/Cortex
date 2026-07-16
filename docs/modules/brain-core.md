@@ -408,11 +408,14 @@ Ports (`typing.Protocol`; failures cross them only as the typed errors below):
 - `SessionStore` provides `async append(session_id, message) -> None`,
   `async history(session_id) -> Sequence[Message]` (append order; empty when unknown),
   `async list_sessions(*, limit) -> Sequence[SessionSummary]` (recent chats newest-active
-  first, at most `limit`; ADR-0021 adds a read over the same state, no write path), and
+  first, at most `limit`; ADR-0021 adds a read over the same state, no write path),
   `async set_title(session_id, title) -> None` (persist a brain-generated display title that
   `list_sessions` prefers over the first-message derivation, ADR-0021 titles addendum; a derived
-  display value, overwritten by a later call, not conversation content).
-  The source of truth for conversation state; survives swaps and restarts.
+  display value, overwritten by a later call, not conversation content), and
+  `async delete(session_id) -> None` (HARD-delete a whole chat, its history, title, and
+  recency-index entry, the destructive "forget this chat" write, ADR-0021 delete addendum;
+  idempotent, leaves nothing orphaned, and needs no tombstone since an unknown session already
+  reads as empty history). The source of truth for conversation state; survives swaps and restarts.
 - `InferenceBackend` has `stream(model, messages, *, tools=(), schema=None) ->
   AsyncIterator[InferenceEvent]`: one stateless streamed completion, yielding `TextChunk` deltas
   interleaved with `ToolCall`s the model makes from the offered `tools` (ADR-0009). `model` is a
@@ -655,6 +658,16 @@ Use-case:
   default) writes `GLOBAL_SCOPE` and reads `None` (all), keeping recall cross-session;
   `SessionMemoryScope` writes/reads the `session_id`, isolating a conversation's memory to itself.
   Selected at the composition root via `CORTEX_MEMORY_SCOPE`; the store filters, the policy decides.
+- `SessionMemoryCascade(store, scope)` (`memory_cascade.py`, ADR-0021 delete addendum) is the
+  scope-aware forget behind a session delete, deliberately SEPARATE from `MemoryRecaller`: the
+  turn-facing recaller exposes only record/recall so no tool or tainted turn can reach a forget verb
+  (pinned by `test_the_recaller_exposes_no_forget_verb...`), while this trusted out-of-band caller
+  holds the same `MemoryStore` + `MemoryScope` and exposes only `delete_session_memories(session_id)
+  -> int`. It targets `write_scope(session_id)` and cascades ONLY when that scope is the session's
+  own private space (`scope == session_id`, session scoping); the `GLOBAL_SCOPE` guard is checked
+  FIRST, so `GLOBAL_SCOPE` can never reach `delete_scope` (which would erase the shared cross-
+  conversation space) even for a session whose id equals `GLOBAL_SCOPE`. Wired into `DeleteSession`,
+  never into an engine.
 - `RecallPolicy` (port, `rerank.py`) turns an over-fetched candidate pool into the final `k` hits
   (the `MemoryScope` / `HistoryWindow` pattern): `candidate_k(k)` sizes the pool the recaller fetches,
   `select(hits, *, now, k)` reranks and prunes it. The port and the default `RawRecallPolicy` (its

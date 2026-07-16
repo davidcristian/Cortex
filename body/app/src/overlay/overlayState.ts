@@ -15,7 +15,13 @@ import {
   linkProbing,
   linkServing,
 } from "./linkState";
-import { NEW_CHAT_TITLE, adoptSession, deriveTitle, openSession } from "./sessionState";
+import {
+  NEW_CHAT_TITLE,
+  adoptSession,
+  deleteSession,
+  deriveTitle,
+  openSession,
+} from "./sessionState";
 
 export { cycleTarget } from "./sessionState";
 
@@ -95,6 +101,12 @@ export type Action =
       readonly kind: "adoptSession";
       readonly sessionId: string;
       readonly messages: readonly SessionMessage[];
+    }
+  | {
+      readonly kind: "sessionDeleted";
+      readonly sessionId: string;
+      /** A fresh id for the fallback chat when the deleted one was the currently-open chat. */
+      readonly fallbackSessionId: string;
     }
   | { readonly kind: "remindersLoaded"; readonly reminders: readonly DueReminder[] }
   | { readonly kind: "reminderDismissed"; readonly reminderId: string }
@@ -199,6 +211,8 @@ export function reduce(state: OverlayState, action: Action): OverlayState {
       return openSession(state, action.sessionId, action.messages);
     case "adoptSession":
       return adoptSession(state, action.sessionId, action.messages);
+    case "sessionDeleted":
+      return deleteSession(state, action.sessionId, action.fallbackSessionId);
     case "remindersLoaded":
       // Each open re-reads: the brain is the authority on what is still deliverable, so the
       // list is replaced wholesale rather than merged (a reminder acked elsewhere leaves).

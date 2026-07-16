@@ -63,6 +63,10 @@ line cap.
   - `rename_session(session_id, title)` (the user-driven catalog write, ADR-0021 management
     addendum; same `src/sessions.rs`) is a unary call to `BrainService.RenameSession`; the reply
     is a bare ack, so success maps to `()` and a non-OK status maps the same way as the reads.
+  - `delete_session(session_id)` (the user-driven DESTRUCTIVE catalog write, ADR-0021 delete
+    addendum; same `src/sessions.rs`) is a unary call to `BrainService.DeleteSession`; the reply
+    is a bare ack, so success maps to `()` and a non-OK status maps the same way (a store or
+    memory failure is `Rpc{code:"Unavailable"}`).
   - `list_due_reminders()` / `ack_reminder(reminder_id)` (the reminder pull path, ADR-0025;
     `src/reminders.rs`, split for the same reason) are unary calls to
     `BrainService.ListDueReminders` / `AckReminder`, mapping each reply row to a core
