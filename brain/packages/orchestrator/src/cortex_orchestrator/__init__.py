@@ -53,7 +53,12 @@ from cortex_orchestrator.server import (
     serve,
 )
 from cortex_orchestrator.subagent_builders import build_subagent_tools, build_subagents
-from cortex_orchestrator.ticker import REMINDER_TITLE, ScheduleTicker, TickerSettings
+from cortex_orchestrator.ticker import (
+    REMINDER_TITLE,
+    TASK_TITLE,
+    ScheduleTicker,
+    TickerSettings,
+)
 from cortex_orchestrator.wiring import run_from_env
 from cortex_seam import SEAM_TOKEN_HEADER
 
@@ -68,6 +73,7 @@ __all__ = [
     "ORCHESTRATOR_VERSION",
     "REMINDER_TITLE",
     "SEAM_TOKEN_HEADER",
+    "TASK_TITLE",
     "TICKER_STOP_GRACE_S",
     "BodyConfig",
     "BrainRuntimeConfig",

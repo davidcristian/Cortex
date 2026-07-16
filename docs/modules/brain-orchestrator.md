@@ -159,10 +159,13 @@ The service:
     maps that to `TransportError::Rpc`). The mapping/clamp helpers and the rename write live in
     `session_rpc.py` (the `reminders.py` pattern), so `server.py` stays a thin binding.
   - `ListDueReminders` / `AckReminder` (ADR-0025; policy + mapping in `reminders.py`): the
-    reminder pull pair over the injected `ScheduleStore`, covering fired-but-undelivered reminders
-    (`DueReminder`: id, text, fired-at unix-ms, recurrence, the `tainted` provenance bit, the
+    pull pair over the injected `ScheduleStore`, covering every fired-but-undelivered item
+    (`DueReminder`: id, `text`, fired-at unix-ms, recurrence, the `tainted` provenance bit, the
     origin `session_id`) and the one narrow idempotent write (`acked=false` for an unknown or
-    already-delivered id, so a retried ack is harmless). **With no store wired (the default)
+    already-delivered id, so a retried ack is harmless). `text` is a reminder's own text, or, for a
+    fired **task**, its `last_outcome` (the result the user is notified of, never the standing
+    instruction; the task-outcome addendum reuses this pull surface, so a task outcome and a
+    reminder ride the same wire message and overlay card, undistinguished for now). **With no store wired (the default)
     both answer benignly (empty / `acked=false`, never `UNAVAILABLE`)**, which the body's
     `RetryingTransport` would treat as transient and retry on every overlay open; a live
     store's `ScheduleStoreError` does abort `UNAVAILABLE` (the session-reads precedent).
@@ -247,16 +250,20 @@ The service:
   (`CORTEX_SCHEDULE_TZ`, defaulting to `UTC_DISPLAY`): a wall-clock re-arm is zone arithmetic,
   so creation and firing must read one zone (ADR-0025 calendar addendum). Each `run_once` pass claims what is due each `run_once` pass claims what is due
   (under the fencing lease), fires the batch concurrently, and persists each outcome; the
-  ticker holds nothing but its loop (the one hard rule, live). A `REMINDER` finishes
-  deliverable then attempts the push (`REMINDER_TITLE` toast via `BodyGateway.notify`; shown →
-  acked at once, declined/failed/absent body → the pull path delivers); a fenced-off finish
-  (cancel or re-claim won) pushes nothing. A `TASK` dispatches a synthetic `spawn_subagents`
+  ticker holds nothing but its loop (the one hard rule, live). Both kinds deliver through one
+  best-effort `_deliver` ladder (`BodyGateway.notify`; shown → acked at once so pull will not
+  re-show it, declined/failed/absent body → the item stays deliverable and the pull path delivers,
+  and exactly one of the two ever clears the slot, the double-delivery defense). A `REMINDER`
+  finishes deliverable then delivers its text under `REMINDER_TITLE`; a fenced-off finish (cancel
+  or re-claim won) delivers nothing. A `TASK` dispatches a synthetic `spawn_subagents`
   call through `spawn`, the ticker's own audited dispatcher (`confirmer=None`, fail-closed;
   the dispatch's `TurnStamp` carries `item.tainted` → ADR-0017 pinning, plus the item's origin
   `session_id` (provenance on the dispatch, unconsumed until the ADR-0027 SubagentTask
-  deferral lands); the result's trust becomes the
-  fire-time taint the store ORs onto the item); no `spawn` wired → an `ok=False` outcome, so a
-  stale TASK neither crashes nor lease-cycles. `run` wraps each pass in a logged catch-all and
+  deferral lands); the result's trust becomes the fire-time taint the store ORs onto the item),
+  then finishes deliverable and delivers its **outcome** (not the standing instruction) under
+  `TASK_TITLE`, so a task's result reaches the user as a notification and survives a body-down
+  fire in the store rather than being lost (ADR-0025 task-outcome addendum); no `spawn` wired →
+  an `ok=False` outcome delivered the same way, so a stale TASK neither crashes nor lease-cycles. `run` wraps each pass in a logged catch-all and
   paces on an `asyncio.Event` (`stop()` wakes it, so the graceful path completes in-flight fires
   and strands no claims); unfinished claims are `release`d best-effort, the lease covering the
   rest. Every fire failure is logged, never fatal.

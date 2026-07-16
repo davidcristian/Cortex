@@ -57,7 +57,19 @@ against the tree and closed as satisfied with no code change, the first entry he
 way rather than by landing something; it then went to 8 the same day when the occurrence-history
 table closed as declined for want of a consumer, the same terminal outcome the blended-relevance
 field took, since nothing reads a fired occurrence and the "you missed these" recovery view that
-would is unbuilt (the store keeping no per-fire record was verified live against the compose Redis). Untrusted content went 16 to 17 the same day for
+would is unbuilt (the store keeping no per-fire record was verified live against the compose
+Redis). It then held at 8 again the same day when task-outcome delivery landed and opened one entry
+behind it, the backlog working as intended: a finished task's outcome now delivers as a
+notification through the very deliverable/ack ladder a reminder already uses (`_fire_task` finishes
+deliverable and pushes the outcome under a `TASK_TITLE` toast, `reminder_to_proto` maps the task's
+`last_outcome` onto the pull card), reusing it with no store, proto, or overlay change and
+double-delivery barred by the same ack (exactly one of push and pull ever clears the slot, mutation
+proven, and confirmed live against the compose Redis). The entry it opened is a task/reminder
+distinction on that pull surface, which the reuse leaves undistinguished; and its two-part sibling,
+the push retry policy beyond next-poll-pull, sharpened to fix-when-it-bites rather than landing,
+because a proactive re-push double-delivers on a lost reply without a per-fire delivery id (the
+declined occurrence-history record), so the safe retry stays the deliverable-until-acked pull.
+Untrusted content went 16 to 17 the same day for
 the same reason: structured provenance landed, and the two halves it could not honestly capture
 (a sidecar-declared sender, provenance across the stores) each became an entry naming what
 blocks it. It then went back to 16 the same day when summarizing a tainted exchange before recording
@@ -276,10 +288,7 @@ against the code (the warning above); the entry text tells you which seams it ex
 
 ### Actionable now
 
-1. **Task-outcome delivery as a notification + the push retry policy**
-   ([scheduling.md](scheduling.md)): unblocked on 2026-07-16, when the body's `Notify` trait
-   landed and gave the port they both reuse a real backend.
-2. **`cargo clippy` for the Tauri shell in CI** ([repo-gates.md](repo-gates.md)): the residual
+1. **`cargo clippy` for the Tauri shell in CI** ([repo-gates.md](repo-gates.md)): the residual
    of the ungated-trees entry, whose fmt half (both trees) and `os_windows` windows-target
    clippy landed 2026-07-16 in `check-body` (with `body/app/src-tauri/` reclassified to rust so
    a shell change gates the job that fmt-checks it). Shell clippy still runs nowhere in CI
@@ -447,7 +456,18 @@ against the code (the warning above); the entry text tells you which seams it ex
   missed these" surface is a full store-read + RPC + overlay stack that does not exist. The origin
   ADR rejected per-occurrence records for the same want of a reader. Declined 2026-07-16; reopens
   with a recovery surface, designed with the record, and likely reopening the Postgres durable twin
-  a queryable history wants ([scheduling.md](scheduling.md))
+  a queryable history wants. **Its one-shot-*task* half narrowed 2026-07-16** when task-outcome
+  delivery landed: a fired task now finishes deliverable, so its outcome survives its fire (until
+  acked) instead of being deleted with the record; the reminder-side unseen-toast gap and the
+  queryable series history stay open ([scheduling.md](scheduling.md))
+- A task/reminder distinction on the pull surface: opened 2026-07-16 behind the landed task-outcome
+  delivery, which reused the `DueReminder`/`Reminders.tsx` reminder card for a task's outcome with
+  no wire change. The reuse is safe (a task outcome is a store row no guardrail saw, badged if
+  tainted, nothing linkified, the reminder card's own posture), but the outcome reads as a reminder:
+  `DueReminder` carries no `kind` and the overlay labels the stack "Due reminders". Telling them
+  apart is a `kind` (or distinct field) on `DueReminder` plus overlay rendering, a proto + four-tree
+  + overlay change. Dead until the surface must distinguish them (a task icon, a "task ran" label, a
+  task-only action), not built speculatively ([scheduling.md](scheduling.md))
 - Reasoning persistence / summarization: the live status and its landed collapsed "thoughts"
   section are served entirely by the overlay's in-memory `Message.thoughts`; nothing reads a
   *stored* trace. Re-display on session reload needs a reasoning field on the `GetSessionMessages`
@@ -518,7 +538,13 @@ initialization the blocking-pool hop made visible, whose trigger is a COM failur
 growth on Windows after a long session
 ([body-gateway.md](body-gateway.md)); paging/cursor and the live-suite fixed-window residual
 ([session-read-seam.md](session-read-seam.md)); the Postgres durable twin, cron expressions,
-and automated dead-letter retention ([scheduling.md](scheduling.md)); MTP variants and the
+and automated dead-letter retention, joined on 2026-07-16 by the push retry policy beyond
+next-poll-pull (sharpened when task-outcome delivery landed: the safe retry is the
+deliverable-until-acked pull, and a proactive re-push double-delivers because a stable
+`reminder_id` cannot tell a retry from a legitimate re-fire, so it wants the per-fire delivery id
+the declined occurrence-history record would carry; its trigger is a body reconnecting between a
+failed push and the next overlay open often enough that a stuck-until-open outcome is a real gap)
+([scheduling.md](scheduling.md)); MTP variants and the
 disable-thinking / token-budget caps ([inference-model-manager.md](inference-model-manager.md));
 the ANN index, and recall observability, whose trigger is a visibly wrong recall no one can inspect
 after the fact ([memory.md](memory.md)); the four guardrail tails (whitespace-split hosts, full

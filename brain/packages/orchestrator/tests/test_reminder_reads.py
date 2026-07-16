@@ -26,6 +26,7 @@ from cortex_core import (
     TurnEngine,
 )
 from cortex_orchestrator import SeamServerConfig, create_server
+from cortex_orchestrator.reminders import reminder_to_proto
 from cortex_seam import (
     AckReminderReply,
     AckReminderRequest,
@@ -84,6 +85,23 @@ async def _fired_reminder(
     assert await store.finish(claim, outcome) is True
 
 
+async def _fired_task(store: InMemoryScheduleStore, item_id: str, *, outcome: str) -> None:
+    """Seed one task and fire it to deliverable with an outcome, the way the ticker would."""
+    await store.add(
+        ScheduledItem(
+            id=item_id,
+            kind=ScheduleKind.TASK,
+            text=f"instruction of {item_id}",
+            session_id="chat-1",
+            due_at=_NOW,
+            created_at=_NOW,
+        )
+    )
+    (claim,) = await store.claim_due(_NOW, lease=timedelta(minutes=5), limit=8)
+    fired = FireOutcome(fired_at=_NOW, next_due=None, deliverable=True, outcome=outcome)
+    assert await store.finish(claim, fired) is True
+
+
 async def test_list_due_reminders_maps_the_deliverable_view() -> None:
     schedules = InMemoryScheduleStore()
     await _fired_reminder(schedules, "r1", tainted=True, recurring=True)
@@ -100,6 +118,38 @@ async def test_list_due_reminders_maps_the_deliverable_view() -> None:
     assert reminder.recurring is True
     assert reminder.tainted is True
     assert reminder.session_id == "chat-1"
+
+
+async def test_list_due_reminders_maps_a_task_outcome() -> None:
+    """A deliverable task surfaces on the same pull path, carrying its outcome as the wire text."""
+    schedules = InMemoryScheduleStore()
+    await _fired_task(schedules, "t1", outcome="[subagent 1] 3 emails need replies")
+    server, address = await _serve(schedules)
+    try:
+        async with aio.insecure_channel(address) as channel:
+            reply = await _list(BrainServiceStub(channel))
+    finally:
+        await server.stop(grace=None)
+    (notice,) = reply.reminders
+    assert notice.reminder_id == "t1"
+    assert notice.text == "[subagent 1] 3 emails need replies"  # the outcome, not the instruction
+    assert notice.session_id == "chat-1"
+
+
+def test_reminder_to_proto_falls_back_to_text_without_a_task_outcome() -> None:
+    """A deliverable task with no recorded outcome maps its instruction, so the wire body is
+    never null (the ticker always records one; this guards the pure mapping's totality)."""
+    item = ScheduledItem(
+        id="t1",
+        kind=ScheduleKind.TASK,
+        text="instruction of t1",
+        session_id="chat-1",
+        due_at=_NOW,
+        created_at=_NOW,
+        deliverable_since=_NOW,
+        last_outcome=None,
+    )
+    assert reminder_to_proto(item).text == "instruction of t1"
 
 
 async def test_ack_reminder_clears_the_slot_and_is_idempotent() -> None:

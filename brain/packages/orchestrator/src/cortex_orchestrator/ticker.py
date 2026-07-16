@@ -6,7 +6,9 @@ loses at most an in-flight fire, which the store's lease recovers (the one hard 
 A ``REMINDER`` becomes deliverable and gets a push attempt (a failed push is just "pull will
 deliver"); a ``TASK`` is dispatched as a synthetic ``spawn_subagents`` call through the
 ticker's own audited dispatcher, giving the audit line, taint stamp (→ ADR-0017 roster pinning), and
-the fail-closed ``confirmer=None`` gate all for free. Every pass is wrapped in a logged
+the fail-closed ``confirmer=None`` gate all for free, and its *outcome* then delivers as a
+notification the same way a reminder's text does (ADR-0025 task-outcome addendum: finish
+deliverable, push the outcome, let pull recover a body-down fire). Every pass is wrapped in a logged
 catch-all (an unenumerated bug degrades to a skipped pass, never a silently dead ticker),
 and shutdown is a stop signal, not a cancellation, so an in-flight pass finishes its fires
 before the loop exits (``run_from_env`` keeps a bounded-grace forced cancel as the backstop).
@@ -40,8 +42,11 @@ from cortex_core import (
 
 _logger = logging.getLogger(__name__)
 
-# The toast's title; the body renders it (and the reminder text) as inert escaped text.
+# The toast titles; the body renders a title (and the reminder text or task outcome) as inert
+# escaped text. A task's outcome delivers under its own title so the toast is honest about which
+# it is (ADR-0025 task-outcome addendum).
 REMINDER_TITLE = "Cortex reminder"
+TASK_TITLE = "Cortex task"
 _NO_RUNNER_OUTCOME = "FAILED: subagent delegation is not wired"
 
 
@@ -164,39 +169,58 @@ class ScheduleTicker:
             deliverable=True,
         )
         if await self._store.finish(claim, outcome):
-            await self._push(item)
+            await self._deliver(item.id, title=REMINDER_TITLE, body=item.text, tainted=item.tainted)
 
-    async def _push(self, item: ScheduledItem) -> None:
-        """Best-effort push; any failure means the pull path delivers instead."""
+    async def _deliver(self, item_id: str, *, title: str, body: str, tainted: bool) -> None:
+        """Best-effort push of one fired item; any failure means the pull path delivers instead.
+
+        The one ladder both kinds deliver through: a reminder pushes its text, a task its outcome.
+        A push the body confirms ``shown`` is acked at once (a native toast IS delivery), so the
+        pull surface will not show it again; a declined or failed push leaves the item deliverable
+        for the next overlay open. That ack-or-stay-deliverable choice is the whole double-delivery
+        defense on the happy path: exactly one of push and pull ever clears the deliverable slot,
+        and the item survives a body-down fire (and a brain restart) in the store until it does
+        (the one hard rule). A proactive re-push beyond this next-poll-pull is deferred: without a
+        per-fire delivery id the body cannot tell a retry from a legitimate re-fire, so a re-push
+        would turn the rare at-least-once duplicate into a common one (ADR-0025 retry addendum).
+        """
         if self._body is None:
             return
         try:
             shown = await self._body.notify(
-                title=REMINDER_TITLE, body=item.text, reminder_id=item.id, tainted=item.tainted
+                title=title, body=body, reminder_id=item_id, tainted=tainted
             )
         except BodyGatewayError as err:
             _logger.info(
-                "reminder push failed; pull will deliver",
-                extra={"reminder_id": item.id, "error": str(err)},
+                "push failed; pull will deliver",
+                extra={"reminder_id": item_id, "error": str(err)},
             )
             return
         if shown:
-            await self._store.ack(item.id)
+            await self._store.ack(item_id)
 
     async def _fire_task(self, claim: ScheduleClaim, item: ScheduledItem) -> None:
-        """Run the task as an audited spawn dispatch and persist its outcome + fire taint."""
+        """Run the task, persist its outcome deliverable, then deliver the outcome as a toast.
+
+        A finished task's outcome delivers as a notification exactly as a reminder does: ``finish``
+        stamps it deliverable (so a body-down fire is recovered by pull, not lost, and a one-shot
+        task's outcome now survives its fire instead of being deleted with the record), and the
+        push carries the *outcome*, never the standing instruction. A fenced-off finish (cancel or
+        re-claim won) delivers nothing, the reminder path's rule.
+        """
         outcome_text, fire_tainted = await self._run_task(item)
         fired_at = self._clock.now()
-        await self._store.finish(
-            claim,
-            FireOutcome(
-                fired_at=fired_at,
-                next_due=next_occurrence(item, fired_at, self._settings.zone),
-                deliverable=False,
-                outcome=outcome_text,
-                tainted=fire_tainted,
-            ),
+        outcome = FireOutcome(
+            fired_at=fired_at,
+            next_due=next_occurrence(item, fired_at, self._settings.zone),
+            deliverable=True,
+            outcome=outcome_text,
+            tainted=fire_tainted,
         )
+        if await self._store.finish(claim, outcome):
+            await self._deliver(
+                item.id, title=TASK_TITLE, body=outcome_text, tainted=item.tainted or fire_tainted
+            )
 
     async def _run_task(self, item: ScheduledItem) -> tuple[str, bool]:
         """One subagent run via ``spawn_subagents``; failures become outcomes, never raises.
