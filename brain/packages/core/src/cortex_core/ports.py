@@ -8,13 +8,14 @@ in ``ports_models.py``; both sets are re-exported here, so
 ``from cortex_core.ports import SessionStore`` keeps resolving.
 """
 
-from collections.abc import AsyncIterator, Sequence
+from collections.abc import AsyncGenerator, AsyncIterator, Sequence
 from contextlib import AbstractAsyncContextManager
 from datetime import datetime
 from typing import Protocol
 
 from cortex_core.body import VolumeState
 from cortex_core.conversation import Message
+from cortex_core.events import TurnEvent
 from cortex_core.inference import InferenceEvent, JsonSchema
 from cortex_core.model import ModelLease
 from cortex_core.placement import Placement, PlacementRequest
@@ -51,6 +52,7 @@ __all__ = [
     "TaskStore",
     "ToolAuditSink",
     "ToolRegistry",
+    "TurnRunner",
 ]
 
 
@@ -138,6 +140,21 @@ class Sleeper(Protocol):
     """
 
     async def sleep(self, seconds: float) -> None: ...
+
+
+class TurnRunner(Protocol):
+    """Runs one user turn as a stream of domain events: what a ``Converse`` stream drives.
+
+    The seam between the orchestrator's stream plumbing and whichever engine serves a turn.
+    ``TurnEngine`` is the plain implementation; ``EscalatingTurnEngine`` wraps it to carry a
+    brain handoff inside the same turn (ADR-0030 decision 5/6), which is why the servicer's
+    engine factory is typed to this protocol rather than to the concrete engine. The event
+    contract is the engine's: zero or more ``TextDelta``/``StatusUpdate``/``ToolActivity``,
+    then exactly one ``TurnCompleted``, and closing the returned generator tears the turn down
+    (the user message stays persisted, a partial reply is dropped).
+    """
+
+    def handle_turn(self, session_id: str, text: str) -> AsyncGenerator[TurnEvent, None]: ...
 
 
 class ToolRegistry(Protocol):

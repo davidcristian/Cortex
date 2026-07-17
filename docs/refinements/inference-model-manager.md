@@ -7,12 +7,26 @@ deferred-refinements section on 2026-07-15 with the entries kept verbatim; lande
 historical record of what each deferral became, and the index at [index.md](index.md) carries the
 recommended pickup order.
 
-**Open items:** model-manager process lifecycle, co-residency, and real swap; MTP model variants, disable-thinking / token-budget capping
+**Open items:** model-manager process lifecycle, co-residency, and real swap; resume a crashed
+handoff from its record; MTP model variants, disable-thinking / token-budget capping
 
 **Inference / Model Manager in Slice 4 ([ADR-0007](../adr/ADR-0007-model-manager-inference.md)):**
 - **`cortex_model_manager` process lifecycle, co-residency, real swap.** The pure
   single-resident manager exists now; process I/O and swap land in **Slice 11** behind the
   unchanged `ModelManager` port (consequences).
+- **Resume a crashed handoff from its record, instead of failing it.** Opened 2026-07-17 with the
+  brain-handoff conductor sub-slice ([ADR-0030](../adr/ADR-0030-brain-handoff.md) decision 4),
+  which names it as the recorded refinement. Boot recovery marks any handoff a crash interrupted
+  `FAILED` and converges the GPU back onto the cortex; it deliberately does **not** re-run the
+  deep model's phase, even though the record holds everything needed to (that is the point of the
+  record). Replaying it would risk double-running side-effectful work, because nothing carries
+  request identity: the tail may contain tool calls whose results were fed back but whose effects
+  are not idempotent, and the deep phase's own dispatches would run again. Unlocked by the same
+  dedup design the seam-transport reconnect entry needs (a request id plus an
+  idempotency/resume registry keyed by it), after which resuming is a small addition to
+  `recover_handoffs`: read the record, re-enter the residency scope, and run `BrainPhase` against
+  it, which is exactly what the conductor already does. Until then the honest failure is the
+  cheaper one, and the user simply asks again.
 - **MTP (multi-token-prediction) model variants.** Deferred until they earn their keep, per
   [ADR-0004](../adr/ADR-0004-model-lineup.md).
 - **The cortex reasoning trace is surfaced as a thinking status. This landed 2026-07-06

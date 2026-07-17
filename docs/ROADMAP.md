@@ -742,6 +742,17 @@ cortex resumes from the store. Includes a chaos test (kill a model mid-handoff; 
 resumes from the store) and runbook `docs/runbooks/model-swap.md`.
 **Gate proven:** THE hard rule, end to end.
 
+Designed in [ADR-0030](adr/ADR-0030-brain-handoff.md), which slices it; the record, the drain,
+the escalation trigger, and the conductor have landed (2026-07-17). The hard rule is **CI-proven
+over fakes** as of the conductor: a parameterized chaos suite kills a handoff at every step
+boundary of the swap sequence and asserts convergence back to a serving cortex, an intact store,
+a terminal record, and an honest stream. What remains is the real process lifecycle (the
+supervisor sidecar behind the `ModelHost` port), the honesty surfaces (`Health` between turns),
+and the host-side capstone on the 24 GB machine: the brain pick, the tier-scale swap, measured
+timings, the runbook, and the injection-harness run. The ADR states plainly why the last of those
+cannot move here: CI has no GPU and the dev GPU cannot hold the cortex beside a ~31B brain, so
+the swap's mechanism is agent-validated over fakes and its VRAM arithmetic is host-validated.
+
 ## Deferred refinements & later work
 
 Moved to [docs/refinements/](refinements/index.md) on 2026-07-15: one self-contained doc per

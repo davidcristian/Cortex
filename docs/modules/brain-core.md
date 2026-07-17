@@ -2,8 +2,8 @@
 
 **Purpose.** The brain's pure core: domain types, ports, and application logic. Routing,
 the "handle a user turn" use-case, the memory remember/recall use-case, tool dispatch, and
-subagent delegation live here now; handoff orchestration joins them in a later slice. No I/O,
-ever. This is the hexagon's center. The bounded infer↔tool loop is one shared function
+subagent delegation live here now, and so does the brain handoff (the swap conductor, the deep
+model's phase, and the escalating turn wrapper, ADR-0030). No I/O, ever. This is the hexagon's center. The bounded infer↔tool loop is one shared function
 (`tool_loop.stream_tool_loop`) that both the cortex turn and each subagent run (ADR-0010).
 
 **Public contract** (everything importable from `cortex_core`; the barrel's re-exports are the
@@ -217,8 +217,8 @@ Subagent domain (Slice 7, ADR-0010):
   set when the subagent read untrusted content, aggregated by the spawn tool (ADR-0013).
 
 Brain-handoff domain (ADR-0030, in `handoff.py`; the value half of the model swap; the
-`escalate_to_brain` tool that fills the slot lives in `escalate.py` below, and the conductor
-that snapshots and swaps joins in a later slice):
+`escalate_to_brain` tool that fills the slot lives in `escalate.py` below, and `SwapConductor`
+under "Use-case" is what snapshots it and runs the swap):
 
 - `HandoffState` is an enum `PENDING` / `READY` / `BRAIN_ACTIVE` / `DONE` / `FAILED` (string
   values); `terminal` is `True` for the last two, the store-facing distinction (a terminal
@@ -541,6 +541,12 @@ unchanged):
   restore that fails even after its one retry raises `ResidencyRestoreError` from the exit,
   loudly logged. While a scope is active, `acquire` of any other model **waits** rather than
   raising; at most one scope exists at a time, there being one GPU.
+- `TurnRunner` provides
+  `handle_turn(session_id, text) -> AsyncGenerator[TurnEvent, None]`: one user turn as a stream
+  of domain events. The seam between the orchestrator's stream plumbing and whichever engine
+  serves a turn (`TurnEngine`, or `EscalatingTurnEngine` when a turn may hand itself to the deep
+  model, ADR-0030), which is why the servicer's engine factory is typed to it rather than to the
+  concrete engine.
 - `Sleeper` provides `async sleep(seconds) -> None`: the only way core code may wait for
   wall-clock time (ADR-0030). `Clock` says what time it is, which bounds a wait but cannot
   perform one, and the core may not reach for `asyncio.sleep` itself, or every test of a poll
@@ -706,6 +712,52 @@ Use-case:
   completion means the overlay's turn-completion refresh already sees the final title (no race). A
   generation `InferenceError` is absorbed and an empty title is not persisted, either leaving the
   first-message derivation in place, so a failed title never fails the turn.
+  Its output half (mapping the loop's deltas onto events, flushing the guarded channels, and
+  recording the exchange under the taint policy) lives in `turn_output.py`, shared verbatim
+  with the deep model's `BrainPhase` so the two cannot diverge (ADR-0030).
+- `stream_turn_events(loop, channels, parts)` / `flush_channels(channels, parts)` /
+  `record_exchange(caps, taint, *, session_id, query, reply)` / `render_exchange(user, assistant)`
+  (`turn_output.py`) are that shared output half. `stream_turn_events` maps one tool loop's
+  deltas onto `TextDelta` / `StatusUpdate` (a reasoning trace) / `ToolActivity`, accumulating
+  only reply text into `parts`, closes the loop in a `finally`, and flushes the channels on a
+  clean end; `flush_channels` is that flush on its own, for a caller that has to persist a
+  partial reply after a mid-stream failure. `record_exchange` applies the one tainted-memory
+  policy (ADR-0013/0019) both phases share.
+- `SwapConductor(handoffs, residency, brain_phase, plan, clock, scheduler=None)` (ADR-0030
+  decision 4, `swap_conductor.py`) runs one brain handoff end to end as a stream of turn events:
+  `run_handoff(slot, *, session_id, turn_id)` refuses a second concurrent handoff, snapshots the
+  slot into a `READY` record, drains the subagent pool (bounded by `plan.drain_timeout_s`;
+  a timeout **aborts before anything is evicted**), enters the residency scope, marks the record
+  `BRAIN_ACTIVE` only once the deep model is actually serving, streams `BrainPhase`, and settles
+  the record `DONE` (then deletes it) or `FAILED`. `undrain` is owed in a `finally` on every
+  path, swap-back and abort alike; every failure, cancellation, and stream teardown leaves the
+  record terminal and the cortex serving, and says what happened on the turn's own stream.
+  `scheduler=None` is a deployment with no subagent pool: there is nothing to quiesce.
+- `BrainPhase(store, backend, clock, brain_model, capabilities)` (`brain_phase.py`) is the deep
+  model's half: it rehydrates from the stores and the record alone (history from `SessionStore`,
+  the working set as preamble + recalled context + history + the record's `loop_tail`, the
+  `TaintLedger` and fence nonce from the record, the dispatch budget resumed at its carried
+  position), runs the shared `stream_tool_loop` against the brain model with a **fresh rounds
+  allowance and no escalation slot** (it cannot escalate to itself), then persists its reply as
+  a second assistant message under the same `turn_id` and records the exchange under the same
+  taint policy. A mid-work `InferenceError` persists the partial text with an honest note and
+  re-raises, so the conductor fails the record and converges.
+- `EscalatingTurnEngine(make_inner, conductor)` (`escalating_engine.py`) is the `TurnRunner` a
+  deployment with escalation enabled serves turns through (ADR-0030 decisions 5/6). Per turn it
+  builds an `EscalationSlot`, constructs the inner engine around it, passes every event through,
+  **suppresses the inner `TurnCompleted`**, and, only if the cortex actually asked to escalate,
+  runs the conductor's phase on the same stream before emitting one real `TurnCompleted` whose
+  text is the whole turn's. With no escalation requested it is transparent, completion included.
+- `recover_handoffs(handoffs, host, plan, *, clock, sleeper)` and
+  `converge_residency(host, plan, *, clock, sleeper)` (`swap_recovery.py`) are boot recovery: the
+  composition root calls the first once at startup, and it marks any non-terminal record `FAILED`
+  (a handoff cannot outlive its process; a live record would otherwise refuse every later
+  escalation) and converges the GPU back onto the cortex. It deliberately does not resume a deep
+  phase, and it never raises: a dead host or store is logged loudly and served around.
+- `SWAPPING_STATE` plus the swap window's detail and note texts (`swap_notes.py`) are every
+  app-authored string a handoff can put on a turn's stream. Status details are ephemeral
+  progress; notes are reply text, streamed but not persisted, except `BRAIN_FAILED_NOTE`, which
+  is appended to the deep model's partial reply and persisted with it.
 - `TurnCapabilities(memory=None, tools=None, window=None, guardrail=None,
   record_tainted_memory=False, generate_titles=False, progress=None, escalation=None)` is a
   frozen bundle of the
@@ -904,8 +956,10 @@ Use-case:
   purpose (the one such object in the core, compared by identity), because it must outlive a
   single `stream_tool_loop` invocation: the cortex loop and every subagent it spawns hold the
   same pool, reached over the dispatch `TurnStamp`. Safe without a lock because `charge` never
-  awaits, so a concurrent batch cannot interleave mid-charge. Never persisted: it bounds one
-  turn's reach and dies with the turn.
+  awaits, so a concurrent batch cannot interleave mid-charge. The pool itself is never
+  persisted, but its *position* is: `DispatchBudget.resume(*, remaining, closed)` rebuilds one
+  from a handoff record (ADR-0030), so the deep model continues on what the turn had left and a
+  swap can never refill the allowance, and a pool that had already closed stays closed.
 - `SubagentRunner(store, roster, clock, *, tools=None, constrain_output=False)` is a subagent's
   body (ADR-0010/0012/0018),
   a stateless function over the `TaskStore`. `run(task_id, *, budget=None, progress=None)` takes

@@ -27,6 +27,7 @@ import pytest
 
 from cortex_core import (
     DEFAULT_HEALTH_POLL_INTERVAL_S,
+    DEFAULT_SWAP_DRAIN_TIMEOUT_S,
     DEFAULT_SWAP_LOAD_TIMEOUT_S,
     AsyncioSleeper,
     Clock,
@@ -92,7 +93,9 @@ class _LoadingThenReady:
 
 
 def test_the_plan_rejects_bounds_that_could_not_govern_a_swap() -> None:
-    """A negative load bound and a non-positive poll interval are boot-time misconfigurations."""
+    """Bounds a swap could not be governed by are boot-time misconfigurations, not surprises."""
+    with pytest.raises(ValueError, match="drain_timeout_s must be >= 0"):
+        _plan(drain_timeout_s=-1.0)
     with pytest.raises(ValueError, match="load_timeout_s must be >= 0"):
         _plan(load_timeout_s=-1.0)
     with pytest.raises(ValueError, match="poll_interval_s must be > 0"):
@@ -108,6 +111,7 @@ def test_the_plan_defaults_its_bounds_to_the_documented_values() -> None:
         DEFAULT_SWAP_LOAD_TIMEOUT_S,
     )
     assert ResidencyPlan("c", "b").poll_interval_s == DEFAULT_HEALTH_POLL_INTERVAL_S
+    assert ResidencyPlan("c", "b").drain_timeout_s == DEFAULT_SWAP_DRAIN_TIMEOUT_S
 
 
 async def test_the_scripted_host_starts_stops_and_reports_idempotently() -> None:
