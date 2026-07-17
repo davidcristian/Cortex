@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 from typing import Protocol
 
 from cortex_core.conversation import Message
+from cortex_core.handoff import HandoffRecord, HandoffState
 from cortex_core.memory import MemoryRecord, ScoredMemory
 from cortex_core.schedule import FireOutcome, ScheduleClaim, ScheduledItem
 from cortex_core.schedule_transitions import ScheduleEdit
@@ -78,3 +79,17 @@ class ScheduleStore(Protocol):
     async def deliverable(self) -> Sequence[ScheduledItem]: ...
 
     async def ack(self, item_id: str) -> bool: ...
+
+
+class HandoffStore(Protocol):
+    """Hot store for the one in-flight brain handoff (Redis; ADR-0030)."""
+
+    async def put(self, record: HandoffRecord) -> None: ...
+
+    async def get(self, handoff_id: str) -> HandoffRecord | None: ...
+
+    async def transition(self, handoff_id: str, state: HandoffState) -> bool: ...
+
+    async def delete(self, handoff_id: str) -> None: ...
+
+    async def active(self) -> HandoffRecord | None: ...

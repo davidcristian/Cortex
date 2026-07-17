@@ -2,7 +2,7 @@
 
 This area originates in [ADR-0013](../adr/ADR-0013-untrusted-content.md) (Slice 6.5), whose deferrals grew into the output guardrail ([ADR-0015](../adr/ADR-0015-output-guardrail.md)), subagent model safety ([ADR-0017](../adr/ADR-0017-subagent-model-safety.md)), tainted-memory recording ([ADR-0019](../adr/ADR-0019-tainted-memory-recording.md)), and grammar-constrained subagent output ([ADR-0028](../adr/ADR-0028-grammar-constrained-subagents.md)). Extracted from the ROADMAP's deferred-refinements section on 2026-07-15 with the entries kept verbatim; landed entries are the historical record of what each deferral became, and the index at [index.md](index.md) carries the recommended pickup order.
 
-**Open items:** the screening subagent, Windows-native validation of the confirm card, whitespace-split hosts, the full UTS-39 confusables set, mixed/other encodings, footer/boilerplate heuristics, a raw GBNF grammar alternative, a per-task caller-supplied schema, provenance across the stores, a fence-without-block recall mode, per-provenance eviction, per-remote-tool trust/gating overrides, taint persistence across a mid-turn swap, the brain-tier injection-harness run
+**Open items:** the screening subagent, Windows-native validation of the confirm card, whitespace-split hosts, the full UTS-39 confusables set, mixed/other encodings, footer/boilerplate heuristics, a raw GBNF grammar alternative, a per-task caller-supplied schema, provenance across the stores, a fence-without-block recall mode, per-provenance eviction, per-remote-tool trust/gating overrides, the brain-tier injection-harness run
 
 **Untrusted-content boundary in Slice 6.5 ([ADR-0013](../adr/ADR-0013-untrusted-content.md)):** each
 behind the unchanged `ToolRegistry`/`ToolDispatcher`/`stream_tool_loop` seams (or the new `Confirmer` port).
@@ -263,10 +263,32 @@ behind the unchanged `ToolRegistry`/`ToolDispatcher`/`stream_tool_loop` seams (o
 - **Per-remote-tool trust / gating overrides.** Trust is fail-closed `UNTRUSTED` and `gated` is
   per-`ToolSpec`; a genuinely trusted or gated *remote* MCP tool would need a composition-root
   overlay onto the spec. None exists now.
-- **Persisting taint / provenance across a mid-turn swap.** Taint is turn-local and reconstructed;
-  once **Slice 11** serializes the tool-step context, provenance rides on the stored `Role.TOOL`
-  messages. Flagged for that schema. Structured provenance beyond the binary (source URI, sender)
-  joins here if the confirmation UI needs to display a source.
+- **Taint/provenance persistence across a mid-turn swap landed 2026-07-17 as the brain-handoff
+  record's schema ([ADR-0030](../adr/ADR-0030-brain-handoff.md) decision 2, the record sub-slice).**
+  The schema this entry flagged for now exists and carries the WHOLE ledger, not just the bit: the
+  frozen `HandoffRecord` (`cortex_core/handoff.py`) serializes `tainted`, the ordered ADR-0027
+  `sources` (attested and claimed kinds alike, values already sanitized at `Provenance`
+  construction), and the ADR-0015 `untrusted_urls` laundering evidence, beside the escalation
+  brief, the turn's fence nonce, the dispatch-budget position, and the never-persisted tool-loop
+  tail (the stored `Role.TOOL` messages this entry predicted provenance would ride). It lives
+  behind the new `HandoffStore` port (`put`/`get`/`transition`/`delete`/`active`, with an
+  in-memory fake and the Redis adapter in `cortex_session/handoffs.py` passing one contract
+  suite; a live record carries no TTL so boot recovery can find it, terminal ones expire after a
+  diagnosis hour). The load-bearing check is the pinned round trip the ADR named: a ledger built
+  through the real `TaintLedger` API comes back from the store bit-, order-, and set-exact via
+  `HandoffRecord.taint_ledger()` (claimed sources still claimed, kinds intact), mutation-proven
+  (dropping `sources` or `untrusted_urls` from the codec, or the ledger copy from the slot
+  snapshot, each reddens it) and observed live against the compose Redis. One correction to the
+  entry's guess: provenance rides the record *beside* the tail as the serialized ledger, not "on
+  the stored `Role.TOOL` messages" themselves, since the brain phase needs the ledger whole
+  rather than re-derived per message. Honest residue, held by the entries that already own it:
+  nothing writes a record mid-turn yet (the escalate tool and the conductor are the ADR's later
+  sub-slices, where the live cross-swap exercise arrives), and the harness-run entry below stays
+  open. *Original deferred entry, kept verbatim as the historical record:* "**Persisting taint /
+  provenance across a mid-turn swap.** Taint is turn-local and reconstructed; once **Slice 11**
+  serializes the tool-step context, provenance rides on the stored `Role.TOOL` messages. Flagged
+  for that schema. Structured provenance beyond the binary (source URI, sender) joins here if
+  the confirmation UI needs to display a source."
 - **Injection-harness run against the ~31B brain tier.** The harness's brain tier is **opt-in and
   not yet run** (`CORTEX_PROBE_BRAIN=1`, as the VRAM cost needs the others evicted; ADR-0013 harness
   addendum + [ADR-0004](../adr/ADR-0004-model-lineup.md) injection addendum). Run it when the brain

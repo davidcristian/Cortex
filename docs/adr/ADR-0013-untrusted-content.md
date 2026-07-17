@@ -244,5 +244,7 @@ Docker-validatable by the agent; the Windows overlay is the user's.
   tool via a composition-root overlay when one first exists; none does now.
 - **Persisting taint/provenance across a mid-turn swap** is irrelevant until Slice 11
   serializes the tool-step context; provenance then rides on the stored `Role.TOOL` messages.
+  **Landed 2026-07-17 as the brain-handoff record's schema (the 2026-07-17 addendum below;
+  [ADR-0030](ADR-0030-brain-handoff.md) decision 2).**
 - **Structured provenance beyond the binary** (source URI, sender) is a boolean now; richer
   provenance if the confirmation UI needs to display a source.

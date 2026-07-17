@@ -34,7 +34,7 @@ its signature.
 | [seam-auth.md](seam-auth.md) | Seam token auth (ADR-0016) | 1 |
 | [session-history.md](session-history.md) | Slice 3 history windowing and summarization | 1 |
 | [tools-mcp.md](tools-mcp.md) | Dispatch budget/cost/salience, spawn batch cap, MCP registries (ADR-0009/0010) | 6 |
-| [untrusted-content.md](untrusted-content.md) | Taint boundary, output guardrail, subagent model safety (ADR-0013/0015/0017/0019/0028) | 14 |
+| [untrusted-content.md](untrusted-content.md) | Taint boundary, output guardrail, subagent model safety (ADR-0013/0015/0017/0019/0028) | 13 |
 | [memory.md](memory.md) | Store, scoping, rerank/MMR (ADR-0008) | 8 |
 | [inference-model-manager.md](inference-model-manager.md) | Model-manager lifecycle, MTP, reasoning status (ADR-0007/0020) | 3 |
 | [subagents.md](subagents.md) | Progress reporting, spawn schema, heterogeneous roster (ADR-0010/0018) | 1 |
@@ -108,6 +108,16 @@ provenance remains declined, a producer alone not reversing the fail-closed deci
 eviction wants `MemoryRecord` provenance first), but the fields were built ahead of their consumers on
 the same logic and this completes them symmetrically for the claimed kinds; the `URI` producer rides
 the identical channel and arrives with a fetch tool that does not yet exist.
+Untrusted content then went 14 to 13 on 2026-07-17 when taint/provenance persistence across a
+mid-turn swap landed as the brain-handoff record's schema (ADR-0030 decision 2, delivered by the
+record sub-slice exactly as the ADR's mapping said it would): the `HandoffRecord` carries the whole
+`TaintLedger` (bit, ordered sources, laundering-evidence URL set) behind a new `HandoffStore` port
+with a fake and a Redis adapter passing one contract suite, whose pinned check round-trips a
+real-API-built tainted ledger bit-, order-, and set-exact, mutation-proven and observed live
+against the compose Redis; the ledger rides the record beside the tool-loop tail rather than "on
+the stored `Role.TOOL` messages" the entry guessed, the escalate tool and conductor that will
+write a record mid-turn are the ADR's later sub-slices, and the harness-run sibling stays open
+below.
 Body & overlay held at 3 on 2026-07-16 when the connection indicator landed and
 opened the push half behind it (streamed brain status, blocked on a producer), while session
 read seam went 5 to 4 the same day: the two entries were one deferral written down twice, and
@@ -395,8 +405,10 @@ and free of a prior blocker.
   joined them on 2026-07-16, declined where it stood: `admit` is entered before `place`, so the
   charge cannot see a target without a port change, and no spawn is GPU-placed in the shipped
   wiring anyway. It reopens here, with the executors that would make the discount mean something.
-- Taint/provenance persistence across a mid-turn swap, and the ~31B brain-tier
-  injection-harness run ([untrusted-content.md](untrusted-content.md))
+- The ~31B brain-tier injection-harness run ([untrusted-content.md](untrusted-content.md)).
+  Its taint/provenance-persistence sibling **landed 2026-07-17** as the brain-handoff record's
+  schema and pinned tainted-ledger round trip (ADR-0030); the live cross-swap exercise of that
+  schema arrives with the conductor sub-slices the same ADR sequences.
 - **Streamed brain status** ([body-overlay.md](body-overlay.md)): the push half of the landed
   connection indicator. It waits on a *producer*, not a consumer: `Health` answers ready
   unconditionally today, so nothing can report a state the overlay cannot ask for, and a swap

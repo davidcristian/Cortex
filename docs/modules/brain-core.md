@@ -189,6 +189,33 @@ Subagent domain (Slice 7, ADR-0010):
   marks a failure the cortex consumes as a value, mirroring `ToolResult.is_error`; `tainted` is
   set when the subagent read untrusted content, aggregated by the spawn tool (ADR-0013).
 
+Brain-handoff domain (ADR-0030, in `handoff.py`; the value half of the model swap, landed ahead
+of the escalate tool and conductor that will produce it):
+
+- `HandoffState` is an enum `PENDING` / `READY` / `BRAIN_ACTIVE` / `DONE` / `FAILED` (string
+  values); `terminal` is `True` for the last two, the store-facing distinction (a terminal
+  record stops being `active()` and may expire). Boot recovery marks any non-terminal record
+  `FAILED`; the full transition sequence belongs to the conductor, not a store.
+- `HandoffRecord` is a frozen dataclass: `handoff_id` (= the escalating `turn_id`),
+  `session_id`, `requested_at` (tz-aware, rejects naive), `state`, `brief` (the cortex's
+  escalation ask), `nonce` (the turn's fence id, so the tail's fenced blocks stay explained),
+  `tainted` / `sources` / `untrusted_urls: frozenset[str]` (the whole serialized `TaintLedger`;
+  taint that did not survive the swap would fail open, and the URL set is the guardrail's
+  laundering evidence), `budget_remaining` / `budget_closed` (the turn-wide dispatch pool's
+  position, so a swap never refills the allowance), `rounds_used`, and
+  `loop_tail: tuple[Message, ...]` (every message the tool loop appended this turn, in order;
+  tool-call stamps are transient live handles and are never persisted, so a re-read tail
+  carries `UNSTAMPED` calls). Per the one hard rule it carries ONLY what is not already in a
+  store. `taint_ledger()` reconstructs an exact, detached `TaintLedger` for the brain phase
+  (bit, sources order, URL set), the round trip the contract test pins.
+- `EscalationSlot` is the mutable turn-local handle through which in-flight state reaches the
+  serializer: references to the live `working` list, `taint` ledger, `nonce`, and shared
+  `budget`, plus `base_len` (how many messages `working` held when the loop began, so
+  everything past it is the tail) and `brief` (`None` until the escalate tool, a later handoff
+  slice, writes it). `snapshot(*, turn_id, session_id, requested_at)` freezes it into a `READY`
+  record (copies, not references; `rounds_used` derived as one `Role.ASSISTANT` tool-call
+  message per dispatched round) and raises `ValueError` on a slot no tool filled.
+
 Schedule domain (Slice 9.5, ADR-0025, in `schedule.py` for the value types and the recurrence
 math, `schedule_transitions.py` for the pure in-place transitions both stores apply; named
 `schedule`/`ScheduleTicker` throughout, never "Scheduler", which means resource *admission*
@@ -430,10 +457,11 @@ the two having split at the line cap as the seventh addendum landed):
   and `release()` drains the scrubbed carry exactly once, at end of stream. With no guardrail both
   channels pass text through unchanged (an empty delta emits no event on either path).
 
-Ports (`typing.Protocol`; failures cross them only as the typed errors below; the four
-state-store ports `SessionStore` / `MemoryStore` / `TaskStore` / `ScheduleStore` live in
-`ports_stores.py` and are re-exported from `ports.py`, a line-cap split, so every
-`from cortex_core.ports import ...` and the `cortex_core` barrel are unchanged):
+Ports (`typing.Protocol`; failures cross them only as the typed errors below; the five
+state-store ports `SessionStore` / `MemoryStore` / `TaskStore` / `ScheduleStore` /
+`HandoffStore` live in `ports_stores.py` and are re-exported from `ports.py`, a line-cap
+split, so every `from cortex_core.ports import ...` and the `cortex_core` barrel are
+unchanged):
 
 - `SessionStore` provides `async append(session_id, message) -> None`,
   `async history(session_id) -> Sequence[Message]` (append order; empty when unknown),
@@ -495,6 +523,17 @@ state-store ports `SessionStore` / `MemoryStore` / `TaskStore` / `ScheduleStore`
   `async put_result(result) -> None`, `async get_result(task_id) -> SubagentResult | None`. The
   hot store (Redis) a subagent is a stateless function over: task and result live here, never in
   a model process (ADR-0010). Unknown ids return `None`.
+- `HandoffStore` holds the one in-flight brain handoff (ADR-0030): `async put(record) -> None`
+  (persist a `HandoffRecord` snapshot), `async get(handoff_id) -> HandoffRecord | None`,
+  `async transition(handoff_id, state) -> bool` (rewrite just the state; `False` for an
+  unknown/expired id, never an error), `async delete(handoff_id) -> None` (idempotent), and
+  `async active() -> HandoffRecord | None` (the one non-terminal record; at most one handoff is
+  in flight at a time, one GPU). The record is the mid-turn state the swap must not lose (brief,
+  nonce, taint ledger, budget position, tool-loop tail); everything else is already in the other
+  stores, so the swap protocol is a stateless function over this one. The conductor checks
+  `active()` before snapshotting, and boot recovery reads it to mark a crash-stranded handoff
+  `FAILED`; terminal records are never `active` and the adapter expires them after a diagnosis
+  window.
 - `SubagentPlacer` has `place(request) -> Placement`, `release(placement) -> None` (both sync): the
   VRAM-budget accountant (ADR-0012). `place` fit-tests `request.vram_gb` against the live headroom
   (`soft_cap − cortex_reservation − placed`), reserving it on GPU or spilling to CPU; `release`
@@ -536,7 +575,8 @@ state-store ports `SessionStore` / `MemoryStore` / `TaskStore` / `ScheduleStore`
 - `Clock` provides `now() -> datetime`, always tz-aware. The core's only time source.
 - `SessionStoreError` / `InferenceError` / `ModelManagerError` (+ its
   `ModelUnavailableError`) / `MemoryStoreError` / `EmbedderError` / `ToolError` (+ its
-  `ToolNotFoundError`) / `TaskStoreError` / `BodyGatewayError` / `ScheduleStoreError` are typed
+  `ToolNotFoundError`) / `TaskStoreError` / `HandoffStoreError` / `BodyGatewayError` /
+  `ScheduleStoreError` are typed
   errors; adapters wrap their backend's failures into these with the cause chained.
   `SubagentAdmissionError` is the one raised by pure-core policy rather than an adapter: a
   `SubagentScheduler` refusing a spawn outright (ADR-0012 admission-wall addendum). Bad *values*
@@ -991,6 +1031,12 @@ Reference implementations (pure, shipped in core; the runtime wiring until Slice
   `GrpcBodyGateway`, no live body.
 - `InMemoryTaskStore` is a dict-backed `TaskStore`; contract twin of the Redis adapter (Slice 7
   CI half). Unknown ids return `None`. Does not survive a restart, by design.
+- `InMemoryHandoffStore` is a dict-backed `HandoffStore` plus the single active-handoff pointer;
+  contract twin of `RedisHandoffStore` (ADR-0030). Lives in `fakes_handoff.py` (the
+  `fakes_schedule`/`fakes_session` line-cap precedent). A non-terminal `put` claims the pointer,
+  a terminal write releases it, `delete` clears it when it names the deleted record; terminal
+  records stay readable (no TTL to expire them) but are never `active`. Does not survive a
+  restart, by design; the Redis adapter is what proves a handoff outlives the swap.
 - `VramBudgetPlacer(*, soft_cap_gb, cortex_reservation_gb)` is the `SubagentPlacer` v1 (ADR-0012):
   pure GPU-first policy, no I/O. `place` returns a GPU `Placement` (reserving `vram_gb`) when the ask
   fits `soft_cap − cortex_reservation − placed`, else a CPU one (reserving nothing); `release` credits

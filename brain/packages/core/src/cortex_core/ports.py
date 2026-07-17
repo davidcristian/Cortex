@@ -10,10 +10,16 @@ from cortex_core.conversation import Message
 from cortex_core.inference import InferenceEvent, JsonSchema
 from cortex_core.model import ModelLease
 from cortex_core.placement import Placement, PlacementRequest
-from cortex_core.ports_stores import MemoryStore, ScheduleStore, SessionStore, TaskStore
+from cortex_core.ports_stores import (
+    HandoffStore,
+    MemoryStore,
+    ScheduleStore,
+    SessionStore,
+    TaskStore,
+)
 from cortex_core.tools import ConfirmationRequest, ToolCall, ToolInvocation, ToolResult, ToolSpec
 
-# The four state-store ports live in ``ports_stores.py`` (a line-cap split); the explicit export
+# The five state-store ports live in ``ports_stores.py`` (a line-cap split); the explicit export
 # list re-exports them alongside the ports defined here, so every existing
 # ``from cortex_core.ports import ...`` and the ``cortex_core`` barrel keep resolving unchanged.
 __all__ = [
@@ -21,6 +27,7 @@ __all__ = [
     "Clock",
     "Confirmer",
     "Embedder",
+    "HandoffStore",
     "InferenceBackend",
     "MemoryStore",
     "ModelManager",
