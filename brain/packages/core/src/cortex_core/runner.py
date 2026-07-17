@@ -28,9 +28,8 @@ _REPLY_ENVELOPE: JsonSchema = {
 _MALFORMED_ENVELOPE_MSG = "subagent produced a malformed constrained reply"
 
 _REFUSED_TEMPLATE = (
-    "refused before running: {reason}. The subtask was never attempted and no retry can fit it, "
-    "since this is a resource-budget misconfiguration of the deployment; answer without delegating "
-    "this subtask, and say what you could not do."
+    "refused before running: {reason}. The subtask was never attempted; answer without "
+    "delegating this subtask, and say what you could not do."
 )
 
 

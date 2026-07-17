@@ -539,13 +539,23 @@ unchanged):
   (`soft_cap − cortex_reservation − placed`), reserving it on GPU or spilling to CPU; `release`
   frees it. The GPU/VRAM contract, separate from `ModelManager`'s lease and `SubagentScheduler`'s
   budget. The three compose at `SubagentRunner`.
-- `SubagentScheduler` (`admit(request) -> AbstractAsyncContextManager[None]`): a soft two-dimensional
+- `SubagentScheduler` (`admit(request) -> AbstractAsyncContextManager[None]`,
+  `async drain(*, timeout_s) -> bool`, `undrain()`): a soft two-dimensional
   CPU/RAM budget for spawns (yields once the request's `cpus`/`memory_gb` fit the summed targets,
   queues over budget, releases both on exit). A charge larger than the whole budget can never be
-  admitted, so it raises `SubagentAdmissionError`: the budget's one wall, owed by any
+  admitted, so it raises `SubagentAdmissionError`: a wall owed by any
   implementation, since `SubagentRunner` catches exactly it (ADR-0012 admission-wall addendum). The
   charge is placement-blind by construction, because `admit` is entered before `place` decides a
-  target. A counting budget, not the GPU lease (ADR-0012, revising ADR-0010).
+  target. A counting budget, not the GPU lease (ADR-0012, revising ADR-0010). `drain` quiesces the
+  pool for a model handoff (ADR-0030 decision 4, the additive method ADR-0012 deferred): it stops
+  admission at once and waits, bounded by `timeout_s` seconds, for in-flight admissions to release.
+  From the call until `undrain`, every `admit` refuses with the same typed error instead of queuing
+  (a brain-phase spawn queued against its own drain would deadlock the turn against its own swap),
+  and a caller already waiting on a full budget is woken so it refuses rather than sleeps through
+  the swap. True means drained clean; False means the bound elapsed with work still in flight and
+  nothing killed (v1 never kills a subagent mid-stream), so the swap conductor must abort the
+  handoff before evicting anything. `undrain` reverses the window; the conductor owes it in a
+  `finally` (swap-back and abort alike), so admission always resumes. Both are idempotent.
 - `BodyGateway` provides `async get_volume() -> VolumeState`,
   `async set_volume(*, level=None, mute=None) -> VolumeState` (ADR-0023): the brain-side handle on
   the host body's OS actions. It is the first brain→body seam direction (the brain dials the body's
@@ -1037,6 +1047,12 @@ Reference implementations (pure, shipped in core; the runtime wiring until Slice
   a terminal write releases it, `delete` clears it when it names the deleted record; terminal
   records stay readable (no TTL to expire them) but are never `active`. Does not survive a
   restart, by design; the Redis adapter is what proves a handoff outlives the swap.
+- `AdmitAllScheduler` is the in-memory `SubagentScheduler` twin (ADR-0030), in `fakes_scheduler.py`
+  (line-cap split): every `admit` is granted at once with no budget arithmetic, recorded in order
+  on its public `admitted` list, while the drain contract stays real (refuse while draining, a
+  bounded wait on the in-flight count, reversible via `undrain`). It passes the same drain
+  contract suite as `ResourceBudgetScheduler` (`test_scheduler_drain.py`), and exists so the swap
+  conductor's composition tests can stage admission without staging budgets.
 - `VramBudgetPlacer(*, soft_cap_gb, cortex_reservation_gb)` is the `SubagentPlacer` v1 (ADR-0012):
   pure GPU-first policy, no I/O. `place` returns a GPU `Placement` (reserving `vram_gb`) when the ask
   fits `soft_cap − cortex_reservation − placed`, else a CPU one (reserving nothing); `release` credits
@@ -1045,7 +1061,13 @@ Reference implementations (pure, shipped in core; the runtime wiring until Slice
 - `ResourceBudgetScheduler(cpu_budget, mem_budget_gb)` is `SubagentScheduler` v2 (ADR-0012): pure
   policy over an `asyncio.Condition`. `admit(request)` reserves the request's `cpus`/`memory_gb` while
   both summed reservations stay within targets, queuing (with `notify_all` on release) otherwise; a
-  non-positive budget or a charge exceeding the whole budget raises `ValueError`. Replaces Slice 7's
+  non-positive budget raises `ValueError`, a charge exceeding the whole budget the typed
+  `SubagentAdmissionError` (the admission-wall addendum), and so does any admit inside a drain
+  window, with `POOL_DRAINING_MSG` naming the transient cause. `drain(timeout_s=...)` implements
+  the port's swap-time quiesce (ADR-0030): it flags the window, `notify_all`s so budget waiters
+  wake and refuse, then waits for the int in-flight count (never the float residue) to reach zero
+  under `asyncio.timeout`; `undrain()` is a synchronous idempotent flag flip, safe because no
+  admit can be asleep during the window. Replaces Slice 7's
   `ConcurrencyScheduler` (the bare counting semaphore), which the two-dimensional budget subsumes.
 - `SystemClock` provides tz-aware UTC `now()`.
 

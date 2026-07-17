@@ -40,7 +40,7 @@ its signature.
 | [subagents.md](subagents.md) | Progress reporting, spawn schema, heterogeneous roster (ADR-0010/0018) | 1 |
 | [body-overlay.md](body-overlay.md) | Overlay polish, connection indicator, proto Cancel (ADR-0011) | 3 |
 | [session-read-seam.md](session-read-seam.md) | Session listing/read seam (ADR-0021) | 3 |
-| [resource-governance.md](resource-governance.md) | Scheduler/placer budgets, NPU, drain (ADR-0012) | 6 |
+| [resource-governance.md](resource-governance.md) | Scheduler/placer budgets, NPU, drain (ADR-0012) | 5 |
 | [email-confirmer.md](email-confirmer.md) | Email write, Confirmer, attachments, `ToolActivity` chip (ADR-0022) | 4 |
 | [body-gateway.md](body-gateway.md) | Body gateway, OS actions, hardened posture (ADR-0023) | 6 |
 | [scheduling.md](scheduling.md) | Scheduling and reminders, `TurnStamp` provenance (ADR-0025/0027) | 8 |
@@ -365,6 +365,25 @@ primitive gated only by the seam token. It reopens as one slice (the whole Input
 plus keyboard plus pointer, behind one gated tool, one `SendInput` adapter under a new `unsafe`
 authorization, and one proto pointer extension designed with the consumer), the first cross-cutting
 entry to close since the extraction.
+Resource governance went 6 to 5 on 2026-07-17 when `SubagentScheduler.drain()` landed with the
+brain-handoff drain sub-slice, the first of this area's "Blocked on Slice 11" trio to clear now
+that its blocker is being built (ADR-0030 decision 4 designed the semantics; the outcome is
+recorded at the ADR-0012 drain addendum). It landed exactly as the entry said, an additive port
+method composed at the swap orchestrator, plus the reversal verb the entry never named:
+`drain(*, timeout_s) -> bool` bounds the wait for in-flight admissions and reports not-clean on
+timeout with nothing killed (v1 never kills a subagent mid-stream, so the conductor aborts the
+swap before evicting anything), and `undrain()` releases the window in the conductor's `finally`
+on swap-back and abort alike. The window refuses instead of queuing, deliberately diverging from
+the admission wall's queue-on-transient-fullness philosophy, because a brain-phase spawn queued
+against its own drain would deadlock the turn against its own swap; the crux interleaving, a
+spawn already waiting on a full budget when the drain begins, is woken and refused rather than
+left to sleep through the handoff (mutation-proven, and the drain-resolves-on-release path was
+also observed live around a real streaming generation on the compose CPU `llama-server`). The
+refusal rides the existing typed `SubagentAdmissionError` the runner already degrades to an
+`ok=False` result, which surfaced one text fix: the runner's wrapper claimed every admission
+refusal was a permanent misconfiguration, false once a transient drain window exists, so the
+cause-specific guidance moved into each raise site's message. CUDA-OOM re-place and the real
+GPU-placed runtime stay open below for the model-host sub-slice, per the ADR's mapping.
 
 ## Recommended order
 
@@ -400,11 +419,15 @@ and free of a prior blocker.
 
 - Model-manager process lifecycle, co-residency, and the real swap
   ([inference-model-manager.md](inference-model-manager.md))
-- `SubagentScheduler.drain()`, CUDA-OOM re-place on CPU, and the real GPU-placed runtime
-  mechanism ([resource-governance.md](resource-governance.md)). **Placement-aware CPU charging**
-  joined them on 2026-07-16, declined where it stood: `admit` is entered before `place`, so the
-  charge cannot see a target without a port change, and no spawn is GPU-placed in the shipped
-  wiring anyway. It reopens here, with the executors that would make the discount mean something.
+- CUDA-OOM re-place on CPU and the real GPU-placed runtime mechanism, both waiting on the
+  model-host sub-slice ([resource-governance.md](resource-governance.md)). Their sibling
+  `SubagentScheduler.drain()` **landed 2026-07-17** with the brain-handoff drain sub-slice
+  (refuse-not-queue for the handoff window, a bounded wait that kills nothing, reversible via
+  `undrain`; see the narrative above and the ADR-0012 drain addendum). **Placement-aware CPU
+  charging** joined them on 2026-07-16, declined where it stood: `admit` is entered before
+  `place`, so the charge cannot see a target without a port change, and no spawn is GPU-placed
+  in the shipped wiring anyway. It reopens here, with the executors that would make the
+  discount mean something.
 - The ~31B brain-tier injection-harness run ([untrusted-content.md](untrusted-content.md)).
   Its taint/provenance-persistence sibling **landed 2026-07-17** as the brain-handoff record's
   schema and pinned tainted-ledger round trip (ADR-0030); the live cross-swap exercise of that
