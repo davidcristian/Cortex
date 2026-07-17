@@ -5,15 +5,15 @@ from uuid import uuid4
 
 from cortex_core.conversation import Message, Role
 from cortex_core.errors import InferenceError
-from cortex_core.events import TextDelta, ToolActivity, TurnCompleted, TurnEvent
+from cortex_core.events import TurnCompleted, TurnEvent
 from cortex_core.handoff import EscalationRefs
-from cortex_core.loop_events import ReasoningDelta, ToolStep
 from cortex_core.output_channels import open_output_channels
 from cortex_core.ports import Clock, InferenceBackend, SessionStore
 from cortex_core.routing import RoutingHints, Tier, route_turn
 from cortex_core.session_title import build_title_messages, generate_title
 from cortex_core.tool_loop import ToolLoopContext, stream_tool_loop
 from cortex_core.turn_context import TurnCapabilities, assemble_inference_messages
+from cortex_core.turn_output import record_exchange, stream_turn_events
 from cortex_core.untrusted import TaintLedger, new_nonce
 
 # The logical id of the resident cortex model (ADR-0004: logical ids, never paths).
@@ -25,11 +25,6 @@ DEFAULT_CORTEX_MODEL = "cortex"
 def _uuid4_turn_id() -> str:
     """Default turn-id factory; injectable so tests can pin ids."""
     return str(uuid4())
-
-
-def _render_exchange(user_text: str, assistant_text: str) -> str:
-    """Render one completed turn as the memory recorded at turn end (ADR-0008)."""
-    return f"User: {user_text}\nAssistant: {assistant_text}"
 
 
 def _arm_escalation(
@@ -104,49 +99,23 @@ class TurnEngine:
         # Arm the escalation slot, if any, at the loop boundary's start (ADR-0030 decision 2).
         _arm_escalation(self._caps, working, context)
         parts: list[str] = []
-        guard, thinking = open_output_channels(self._caps.guardrail, taint, text)
+        channels = open_output_channels(self._caps.guardrail, taint, text)
         loop = stream_tool_loop(self._backend, model, working, context)
+        # The loop's deltas become this turn's events through the shared mapping the brain
+        # phase reuses after a swap (`turn_output.py`), closed deterministically so a consumer
+        # that closes this generator mid-turn leaves nothing half-suspended.
+        events = stream_turn_events(loop, channels, parts)
         try:
-            async for delta in loop:
-                if isinstance(delta, ReasoningDelta):
-                    if (status := thinking.feed(delta.text)) is not None:
-                        yield status
-                    continue
-                if isinstance(delta, ToolStep):
-                    # An audited dispatch about to run (ADR-0009 addendum): surfaced as ephemeral
-                    # activity for the overlay chip, with the same non-reply treatment.
-                    yield ToolActivity(tool_name=delta.tool_name, summary=delta.summary)
-                    continue
-                shown = delta if guard is None else guard.feed(delta)
-                if not shown:
-                    continue
-                parts.append(shown)
-                yield TextDelta(text=shown)
+            async for event in events:
+                yield event
         finally:
-            # A consumer that closes this generator mid-turn must not leave the shared loop
-            # (and the backend stream it holds) half-suspended. Close it deterministically.
-            await loop.aclose()
-        if (status := thinking.release()) is not None:
-            # The trace's one flush: end of stream releases the scrubbed thinking carry,
-            # which deliberately survived any burst boundaries (see ThinkingChannel).
-            yield status
-        if guard is not None and (tail := guard.flush()):
-            parts.append(tail)
-            yield TextDelta(text=tail)
+            await events.aclose()
         full_text = "".join(parts)
         assistant = Message(
             role=Role.ASSISTANT, text=full_text, at=self._clock.now(), turn_id=turn_id
         )
         await self._store.append(session_id, assistant)
-        # A turn that read untrusted content is dropped from memory by default (ADR-0013), so every
-        # stored memory comes from an untainted turn. With record_tainted_memory on (ADR-0019) it is
-        # recorded instead with the untrusted-provenance marker, so recall fences it as data.
-        if self._caps.memory is not None and (
-            not taint.tainted or self._caps.record_tainted_memory
-        ):
-            await self._caps.memory.record(
-                _render_exchange(text, full_text), session_id=session_id, tainted=taint.tainted
-            )
+        await record_exchange(self._caps, taint, session_id=session_id, query=text, reply=full_text)
         if self._caps.generate_titles and len(history) == 1:
             await self._title_session(session_id, model, text, full_text, turn_id)
         yield TurnCompleted(turn_id=turn_id, full_text=full_text)

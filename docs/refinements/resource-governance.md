@@ -7,7 +7,8 @@ historical record of what each deferral became, and the index at [index.md](inde
 recommended pickup order.
 
 **Open items:** CUDA-OOM re-place on CPU, the real GPU-placed runtime mechanism, the Intel NPU as
-a third placement target, a bounded admission wait, a read timeout on the subagent HTTP client
+a third placement target, a bounded admission wait, a read timeout on the subagent HTTP client,
+the drain bound against a fired task's lease
 
 **Resource governance in Slice 8.5 ([ADR-0012](../adr/ADR-0012-resource-governance.md)):** each behind
 the unchanged `SubagentPlacer`/`SubagentScheduler`/`ModelManager` ports.
@@ -77,6 +78,18 @@ the unchanged `SubagentPlacer`/`SubagentScheduler`/`ModelManager` ports.
   `MAX_SPAWN_BATCH` bounds one call, so nothing is unbounded in practice today. The trigger is a
   real deployment showing a turn stalled in admission long enough to matter; the fix is a timeout
   design over a `Clock`, refusing with the same typed error, not a policy flip.
+- **The drain bound is shorter than a fired task's lease, so a task in flight aborts a handoff.**
+  *Fix when it bites.* Opened 2026-07-17 by the brain-handoff conductor sub-slice, which wired
+  `CORTEX_SWAP_DRAIN_TIMEOUT_S` (default 60 s) as the bound on quiescing the pool before anything
+  is evicted. A ticker-fired task holds its admission for up to the schedule lease
+  (`CORTEX_SCHEDULE_LEASE_S`, default 300 s), so a handoff requested while one is running drains
+  to a timeout and correctly aborts before evicting anything: the user is told, the cortex keeps
+  serving, and nothing is lost. That is the designed direction, but with the shipped defaults it
+  makes an escalation during a scheduled task systematically impossible rather than occasionally
+  unlucky. The knobs already exist (raise the drain bound above the lease, or lower the lease), so
+  the fix is a defaults decision informed by real usage, not a design change; the trigger is a
+  deployment where scheduled work and escalation collide often enough to notice. Killing a
+  subagent mid-stream to make the drain succeed stays refused (v1 never does).
 - **A read timeout on the subagent HTTP client.** *Fix when it bites.* The actual unbounded-wait
   hazard under the admission budget: `build_subagents` builds
   `httpx.Timeout(LLAMACPP_CONNECT_TIMEOUT_S, read=None)`, so one wedged `llama-server` stream holds

@@ -19,6 +19,7 @@ from cortex_orchestrator.config import (
 )
 from cortex_orchestrator.config_schedule import ScheduleConfig
 from cortex_orchestrator.config_subagents import SubagentRosterEntry, SubagentsConfig
+from cortex_orchestrator.config_swap import DEFAULT_BRAIN_MODEL, SwapConfig
 from cortex_orchestrator.config_tools import ToolsConfig
 from cortex_orchestrator.confirm import SeamConfirmer
 from cortex_orchestrator.converse import (
@@ -53,6 +54,7 @@ from cortex_orchestrator.server import (
     serve,
 )
 from cortex_orchestrator.subagent_builders import build_subagent_tools, build_subagents
+from cortex_orchestrator.swap_builders import SwapRuntime, build_swap_runtime, swap_closer
 from cortex_orchestrator.ticker import (
     REMINDER_TITLE,
     TASK_TITLE,
@@ -63,6 +65,7 @@ from cortex_orchestrator.wiring import run_from_env
 from cortex_seam import SEAM_TOKEN_HEADER
 
 __all__ = [
+    "DEFAULT_BRAIN_MODEL",
     "DEFAULT_CONFIRM_TIMEOUT_S",
     "DEFAULT_MAX_BUFFERED_EVENTS",
     "DEFAULT_SESSION_LIST_LIMIT",
@@ -89,6 +92,8 @@ __all__ = [
     "SeamTokenInterceptor",
     "SubagentRosterEntry",
     "SubagentsConfig",
+    "SwapConfig",
+    "SwapRuntime",
     "TickerSettings",
     "ToolsConfig",
     "build_body_gateway",
@@ -102,6 +107,7 @@ __all__ = [
     "build_schedule_tools",
     "build_subagent_tools",
     "build_subagents",
+    "build_swap_runtime",
     "build_ticker",
     "build_tool_registry",
     "converse",
@@ -112,4 +118,5 @@ __all__ = [
     "serve",
     "start_ticker",
     "stop_ticker",
+    "swap_closer",
 ]

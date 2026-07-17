@@ -1,12 +1,13 @@
 """Ports of the pure core (typing.Protocol): adapters implement, the core orchestrates."""
 
-from collections.abc import AsyncIterator, Sequence
+from collections.abc import AsyncGenerator, AsyncIterator, Sequence
 from contextlib import AbstractAsyncContextManager
 from datetime import datetime
 from typing import Protocol
 
 from cortex_core.body import VolumeState
 from cortex_core.conversation import Message
+from cortex_core.events import TurnEvent
 from cortex_core.inference import InferenceEvent, JsonSchema
 from cortex_core.model import ModelLease
 from cortex_core.placement import Placement, PlacementRequest
@@ -39,6 +40,7 @@ __all__ = [
     "TaskStore",
     "ToolAuditSink",
     "ToolRegistry",
+    "TurnRunner",
 ]
 
 
@@ -89,6 +91,12 @@ class Sleeper(Protocol):
     """The only way core code may wait for wall-clock time to pass (ADR-0030 decision 4)."""
 
     async def sleep(self, seconds: float) -> None: ...
+
+
+class TurnRunner(Protocol):
+    """Runs one user turn as a stream of domain events: what a ``Converse`` stream drives."""
+
+    def handle_turn(self, session_id: str, text: str) -> AsyncGenerator[TurnEvent, None]: ...
 
 
 class ToolRegistry(Protocol):

@@ -6,12 +6,8 @@ from types import MappingProxyType
 
 MAX_TOOL_DISPATCHES = 32
 
-# The empty price list, as an immutable mapping so it can be a shared field default.
 _NO_COSTS: Mapping[str, int] = MappingProxyType({})
 
-# What a call costs when the policy prices it by name. One, so a budget of N is N calls for
-# every unpriced tool: the count semantics the budget shipped with remain the default, and a
-# deployment opts into weighting one tool at a time rather than restating the whole tool set.
 DEFAULT_TOOL_COST = 1
 
 
@@ -25,8 +21,6 @@ class ToolCostPolicy:
         if bad := sorted(name for name, cost in self.costs.items() if cost < 1):
             msg = f"tool costs must be positive: {bad}"
             raise ValueError(msg)
-        # Freeze the caller's mapping into the policy: a frozen dataclass holding a live dict
-        # would let whoever built it keep editing prices after the fact.
         object.__setattr__(self, "costs", MappingProxyType(dict(self.costs)))
 
     def cost_of(self, name: str) -> int:
@@ -34,18 +28,21 @@ class ToolCostPolicy:
         return self.costs.get(name, DEFAULT_TOOL_COST)
 
 
-# The policy every dispatcher gets unless the composition root passes one: every tool costs
-# one, which is the plain call count the budget started as.
 UNIFORM_COST = ToolCostPolicy()
 
 
 class DispatchBudget:
-    """One turn's dispatch allowance, shared by every tool loop that turn runs (ADR-0009)."""
+    """One turn's dispatch allowance, shared by every tool loop that turn runs."""
 
-    def __init__(self, limit: int = MAX_TOOL_DISPATCHES) -> None:
+    def __init__(self, limit: int = MAX_TOOL_DISPATCHES, *, closed: bool = False) -> None:
         self._limit = limit
         self._spent = 0
-        self._closed = False
+        self._closed = closed
+
+    @classmethod
+    def resume(cls, *, remaining: int, closed: bool) -> "DispatchBudget":
+        """Rebuild a pool at a persisted position: the brain phase after a swap."""
+        return cls(remaining, closed=closed)
 
     @property
     def limit(self) -> int:
@@ -64,6 +61,9 @@ class DispatchBudget:
 
     def charge(self, cost: int) -> bool:
         """Spend ``cost`` if it fits, reporting whether the call it prices may run."""
+        # A call that does not fit closes the pool rather than being skipped so cheaper calls
+        # behind it get through, so what a turn spends does not depend on the order the model
+        # emitted its calls in, nor on which of a concurrent batch of subagents charged first.
         if self._closed or self._spent + cost > self._limit:
             self._closed = True
             return False

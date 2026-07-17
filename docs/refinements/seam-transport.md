@@ -100,3 +100,17 @@ The deferrals here originate at [ADR-0003](../adr/ADR-0003-seam-codegen.md), whi
   mid-turn evictions once the real model swap lands, and turns costly enough that a silent re-run
   beats paying for dedup. `converse` stays unretried (`SeamMethod::Converse` is not repeatable);
   this sharpen is why, not a change to it.
+- **A disconnect mid handoff blocks the stream's teardown until the cortex is back.** *Fix when
+  it bites.* Opened 2026-07-17 by the brain-handoff conductor sub-slice
+  ([ADR-0030](../adr/ADR-0030-brain-handoff.md) decision 5). The swap back is the recovery path,
+  so `swap_scope`'s restore now runs as its own shielded task and a cancellation **waits** for it
+  before propagating: without that, a client that disconnected while the cortex was coming back
+  left the process with no resident model and every later turn failing (found by the chaos suite,
+  and fixed there). The cost is on the other side: `converse`'s `_cancel_turn` awaits the turn
+  task, so a `Cancel` or a disconnect during a handoff holds the RPC's teardown for as long as the
+  restore takes, which is seconds against the scripted host and minutes against real weights. The
+  alternative is to detach the restore (fire it, return, and let boot recovery be the backstop),
+  which trades a bounded wait for a window where the process believes nothing is resident while a
+  restore it no longer tracks is still running. The trigger is a real deployment where a
+  disconnect during a swap holds a teardown long enough to matter; the fix belongs with the
+  in-flight-turn lifecycle above, not on its own.

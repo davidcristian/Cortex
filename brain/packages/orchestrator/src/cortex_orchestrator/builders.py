@@ -18,10 +18,12 @@ from cortex_core import (
     Confirmer,
     DispatchPolicy,
     EchoInferenceBackend,
+    EscalateToBrainTool,
     FilteredToolRegistry,
     GatedToolRegistry,
     GetVolumeTool,
     InferenceBackend,
+    ModelManager,
     SetVolumeTool,
     SingleResidentModelManager,
     SkipUnavailableToolRegistry,
@@ -63,17 +65,17 @@ async def noop_aclose() -> None:
 
 
 def build_inference_backend(
-    config: InferenceConfig, cortex_model: str
+    config: InferenceConfig, cortex_model: str, *, manager: ModelManager | None = None
 ) -> tuple[InferenceBackend, Callable[[], Awaitable[None]]]:
-    """Pick the backend from config; return it with the coroutine that releases it.
-
-    Returns the no-op closer for Echo (no resources) and the HTTP client's ``aclose`` for
-    llama.cpp, so the caller's shutdown path is uniform regardless of which backend ran.
-    """
+    """Pick the backend from config; return it with the coroutine that releases it."""
     if config.backend == "llamacpp":
         client = httpx.AsyncClient(timeout=httpx.Timeout(LLAMACPP_CONNECT_TIMEOUT_S, read=None))
-        manager = SingleResidentModelManager(cortex_model, config.endpoint)
-        return LlamaCppBackend(manager, client), client.aclose
+        leases = (
+            manager
+            if manager is not None
+            else SingleResidentModelManager(cortex_model, config.endpoint)
+        )
+        return LlamaCppBackend(leases, client), client.aclose
     return EchoInferenceBackend(), noop_aclose
 
 
@@ -128,12 +130,16 @@ def build_builtin_tools(
     spawn_tool: SpawnSubagentsTool | None,
     body: BodyGateway | None,
     schedule_tools: Sequence[BuiltinTool] = (),
+    *,
+    escalation: bool = False,
 ) -> list[BuiltinTool]:
     """The cortex's built-in set, assembled once by the wiring (ADR-0025 decision 7)."""
     builtins: list[BuiltinTool] = [spawn_tool] if spawn_tool is not None else []
     if body is not None:
         builtins.append(GetVolumeTool(body))
         builtins.append(SetVolumeTool(body))
+    if escalation:
+        builtins.append(EscalateToBrainTool())
     builtins.extend(schedule_tools)
     return builtins
 

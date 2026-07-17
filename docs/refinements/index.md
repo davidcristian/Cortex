@@ -30,17 +30,17 @@ its signature.
 | Doc | Area | Open |
 | --- | --- | --- |
 | [repo-gates.md](repo-gates.md) | Line cap, dashcheck, coverage config (ADR-0026), gate coverage of the ungated Rust trees (ADR-0011) | 1 |
-| [seam-transport.md](seam-transport.md) | `BrainTransport` retry/reconnect (ADR-0003/0024) | 3 |
+| [seam-transport.md](seam-transport.md) | `BrainTransport` retry/reconnect (ADR-0003/0024) | 4 |
 | [seam-auth.md](seam-auth.md) | Seam token auth (ADR-0016) | 1 |
 | [session-history.md](session-history.md) | Slice 3 history windowing and summarization | 1 |
 | [tools-mcp.md](tools-mcp.md) | Dispatch budget/cost/salience, spawn batch cap, MCP registries (ADR-0009/0010) | 6 |
 | [untrusted-content.md](untrusted-content.md) | Taint boundary, output guardrail, subagent model safety (ADR-0013/0015/0017/0019/0028) | 14 |
 | [memory.md](memory.md) | Store, scoping, rerank/MMR (ADR-0008) | 8 |
-| [inference-model-manager.md](inference-model-manager.md) | Model-manager lifecycle, MTP, reasoning status (ADR-0007/0020) | 3 |
+| [inference-model-manager.md](inference-model-manager.md) | Model-manager lifecycle, MTP, reasoning status (ADR-0007/0020) | 4 |
 | [subagents.md](subagents.md) | Progress reporting, spawn schema, heterogeneous roster (ADR-0010/0018) | 1 |
 | [body-overlay.md](body-overlay.md) | Overlay polish, connection indicator, proto Cancel (ADR-0011) | 3 |
 | [session-read-seam.md](session-read-seam.md) | Session listing/read seam (ADR-0021) | 3 |
-| [resource-governance.md](resource-governance.md) | Scheduler/placer budgets, NPU, drain (ADR-0012) | 5 |
+| [resource-governance.md](resource-governance.md) | Scheduler/placer budgets, NPU, drain (ADR-0012) | 6 |
 | [email-confirmer.md](email-confirmer.md) | Email write, Confirmer, attachments, `ToolActivity` chip (ADR-0022) | 4 |
 | [body-gateway.md](body-gateway.md) | Body gateway, OS actions, hardened posture (ADR-0023) | 6 |
 | [scheduling.md](scheduling.md) | Scheduling and reminders, `TurnStamp` provenance (ADR-0025/0027) | 8 |
@@ -394,6 +394,19 @@ refusal rides the existing typed `SubagentAdmissionError` the runner already deg
 refusal was a permanent misconfiguration, false once a transient drain window exists, so the
 cause-specific guidance moved into each raise site's message. CUDA-OOM re-place and the real
 GPU-placed runtime stay open below for the model-host sub-slice, per the ADR's mapping.
+Three areas each gained one entry on 2026-07-17 from the brain-handoff conductor sub-slice, which
+is the backlog working as intended rather than scope leaking: the capability landed, and the
+three things it consciously did not do were written down. Inference and model manager went 3 to 4
+with **resuming a crashed handoff from its record**, which ADR-0030 names as its recorded
+refinement and which is blocked on the same request-identity design the seam-transport reconnect
+entry needs, since replaying a deep phase without one risks double-running side-effectful work.
+Seam transport went 3 to 4 with **a disconnect mid handoff blocking the stream's teardown**: the
+restore is now uninterruptible (a cancellation waits for it) because the chaos suite found that
+abandoning it midway left the process with no resident model at all, and the bounded wait that
+buys is the deliberate trade, revisited with the in-flight-turn lifecycle. Resource governance
+went 5 to 6 with **the drain bound against a fired task's lease**: the shipped defaults make a
+handoff requested during a scheduled task abort every time (correctly, before evicting anything),
+which is a defaults decision to make against real usage rather than a design change.
 
 ## Recommended order
 
@@ -435,7 +448,14 @@ and free of a prior blocker.
 ### Blocked on Slice 11 (real model swap / GPU lifecycle)
 
 - Model-manager process lifecycle, co-residency, and the real swap
-  ([inference-model-manager.md](inference-model-manager.md))
+  ([inference-model-manager.md](inference-model-manager.md)). The **pure half landed 2026-07-17**
+  with the brain-handoff conductor sub-slice: the `ModelHost` port and its scriptable twin, the
+  `SwappingModelManager` with its segregated residency scope, the `SwapConductor`, the deep
+  model's phase, boot recovery, and the escalating turn wrapper, all proven over fakes by a
+  chaos suite that kills a handoff at every step boundary. What stays open here is the **real
+  process lifecycle** (the supervisor sidecar behind the same port, which is what makes a swap
+  move actual weights) and **co-residency**, which ADR-0030 decision 8 keeps deferred with the
+  brain-runs-alone rule.
 - CUDA-OOM re-place on CPU and the real GPU-placed runtime mechanism, both waiting on the
   model-host sub-slice ([resource-governance.md](resource-governance.md)). Their sibling
   `SubagentScheduler.drain()` **landed 2026-07-17** with the brain-handoff drain sub-slice
@@ -447,13 +467,21 @@ and free of a prior blocker.
   discount mean something.
 - The ~31B brain-tier injection-harness run ([untrusted-content.md](untrusted-content.md)).
   Its taint/provenance-persistence sibling **landed 2026-07-17** as the brain-handoff record's
-  schema and pinned tainted-ledger round trip (ADR-0030); the live cross-swap exercise of that
-  schema arrives with the conductor sub-slices the same ADR sequences.
+  schema and pinned tainted-ledger round trip (ADR-0030), and the conductor sub-slice then
+  exercised that schema across a swap the same day: the deep model's phase rebuilds the ledger
+  from the record, so a tainted turn stays tainted and the output guardrail opens over the URL
+  evidence the cortex collected (mutation-proven). Only the harness run itself, which needs the
+  real ~31B tier, remains here.
 - **Streamed brain status** ([body-overlay.md](body-overlay.md)): the push half of the landed
   connection indicator. It waits on a *producer*, not a consumer: `Health` answers ready
   unconditionally today, so nothing can report a state the overlay cannot ask for, and a swap
   that makes the brain not-ready between turns is what would create one. The rule that any
-  successful call means the brain is ready expires at the same moment.
+  successful call means the brain is ready expires at the same moment. Half of that producer
+  arrived on 2026-07-17: an escalating turn now streams `StatusUpdate(state="swapping")` through
+  drain, load, work, and restore on the stream the user already holds (no proto change, the
+  overlay renders it as a chip today). The entry stays blocked on the other half, `Health`
+  answering `ready=false` with a truthful detail **between** turns, which ADR-0030 keeps in its
+  honesty-surfaces sub-slice.
 
 ### Host-side Windows validation only
 

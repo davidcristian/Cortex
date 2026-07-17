@@ -308,6 +308,30 @@ async def test_cancelling_the_scope_still_restores_the_cortex() -> None:
     assert ("start", "cortex") in host.calls
 
 
+async def test_a_cancelled_scope_cannot_abandon_the_restore_halfway() -> None:
+    """The swap back is the recovery path, so a cancellation waits for it instead of aborting.
+
+    Killing the turn while the cortex is coming back would otherwise leave the GPU serving
+    nothing this process can lease again, and every later turn would fail until a restart.
+    """
+    host = ScriptedModelHost(running=["cortex"], pause_at=[("start", "cortex")])
+    manager = _manager(host)
+    scope = _OpenScope(manager)
+    await scope.start()
+    scope.leave.set()
+    async with asyncio.timeout(5.0):
+        await host.reached[("start", "cortex")].wait()
+    scope.task.cancel()
+    host.release[("start", "cortex")].set()
+    with pytest.raises(asyncio.CancelledError):
+        await scope.task
+    assert host.running == {"cortex"}
+    # And the manager knows it: the next turn leases the cortex rather than being told that
+    # nothing is resident.
+    async with asyncio.timeout(5.0):
+        assert await _lease(manager, "cortex") == _CORTEX_URL
+
+
 async def test_a_restore_that_fails_once_retries_and_succeeds(
     caplog: pytest.LogCaptureFixture,
 ) -> None:

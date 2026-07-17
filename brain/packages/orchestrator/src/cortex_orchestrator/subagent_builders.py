@@ -64,10 +64,10 @@ async def build_subagents(
     *,
     placer: SubagentPlacer,
     task_store_factory: Callable[[str], RedisTaskStore] = RedisTaskStore.from_url,
-) -> tuple[SpawnSubagentsTool | None, Callable[[], Awaitable[None]]]:
+) -> tuple[SpawnSubagentsTool | None, SubagentScheduler | None, Callable[[], Awaitable[None]]]:
     """The `spawn_subagents` tool, or None when delegation is disabled (ADR-0010/0012/0018)."""
     if config.backend == "none":
-        return None, noop_aclose
+        return None, None, noop_aclose
     client = httpx.AsyncClient(timeout=httpx.Timeout(LLAMACPP_CONNECT_TIMEOUT_S, read=None))
     scheduler = ResourceBudgetScheduler(config.cpu_budget, config.mem_budget_gb)
     roster = SubagentRoster(
@@ -86,7 +86,7 @@ async def build_subagents(
         await store.aclose()
         await client.aclose()
 
-    return SpawnSubagentsTool(runner, store, clock), close_subagents
+    return SpawnSubagentsTool(runner, store, clock), scheduler, close_subagents
 
 
 def build_subagent_tools(

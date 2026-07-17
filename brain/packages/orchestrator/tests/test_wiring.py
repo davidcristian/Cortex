@@ -397,7 +397,7 @@ def test_build_tool_registry_tolerates_a_sidecar_down_at_build_time(
 
 async def test_build_subagents_defaults_to_disabled() -> None:
     """The default: no spawn tool, and a closer that is a clean no-op."""
-    spawn, close = await build_subagents(
+    spawn, scheduler, close = await build_subagents(
         SubagentsConfig(backend="none"),
         None,
         "redis://x:6379/0",
@@ -405,6 +405,8 @@ async def test_build_subagents_defaults_to_disabled() -> None:
         placer=VramBudgetPlacer(soft_cap_gb=14.0, cortex_reservation_gb=11.3),
     )
     assert spawn is None
+    # Nothing to quiesce, so the swap conductor is handed no pool rather than an idle one.
+    assert scheduler is None
     await close()  # no resources to release; must not raise
 
 
@@ -426,7 +428,7 @@ async def test_build_subagents_selects_llamacpp_and_returns_a_closer(
         endpoint="http://llama-subagent-cpu:8082",
         gpu_endpoint="http://llama-subagent-gpu:8083",
     )
-    spawn, close = await build_subagents(
+    spawn, scheduler, close = await build_subagents(
         config,
         build_subagent_tools(registry, SystemClock()),
         "redis://sub:6379/0",
@@ -435,6 +437,8 @@ async def test_build_subagents_selects_llamacpp_and_returns_a_closer(
         task_store_factory=factory,
     )
     assert isinstance(spawn, SpawnSubagentsTool)
+    # The one pool object the swap conductor drains before a handoff evicts anything.
+    assert isinstance(scheduler, ResourceBudgetScheduler)
     assert seen_url == ["redis://sub:6379/0"]
     await close()  # releases the fake task store + the httpx client
 
@@ -470,7 +474,7 @@ def _roster_config() -> SubagentsConfig:
 
 async def test_build_subagents_builds_the_config_roster_and_advertises_it() -> None:
     """A tool-less wiring with an alternate entry: the spec offers the choice (ADR-0018)."""
-    spawn, close = await build_subagents(
+    spawn, _scheduler, close = await build_subagents(
         _roster_config(),
         None,  # tool-less subagents -> the model knob is advertised
         "redis://sub:6379/0",
@@ -490,7 +494,7 @@ async def test_build_subagents_builds_the_config_roster_and_advertises_it() -> N
 
 async def test_build_subagents_with_tools_pins_the_spec_to_the_default() -> None:
     """Tools-enabled subagents: ADR-0017 rule 2b pins every spawn, so no knob is advertised."""
-    spawn, close = await build_subagents(
+    spawn, _scheduler, close = await build_subagents(
         _roster_config(),
         build_subagent_tools(_read_registry(), SystemClock()),
         "redis://sub:6379/0",

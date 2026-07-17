@@ -101,6 +101,20 @@ Config (pydantic-settings; explicit constructor arguments beat the environment):
   bundles all four declarations (`gated` + `cost_policy` + `salience_policy` +
   `gate_reason_map`) into the one
   `DispatchPolicy` value every dispatcher in the process is built with.
+- `SwapConfig` uses env prefix `CORTEX_` (`config_swap.py`, ADR-0030), the brain handoff's one
+  switch and the topology it enables: `escalation: bool = False` (`CORTEX_ESCALATION`) gates the
+  whole capability, so CI and the GPU-less loop are byte for byte what they were without it;
+  `modelhost_backend: "none" | "scripted" = "none"` (`CORTEX_MODELHOST_BACKEND`) says who owns
+  the model processes, where `scripted` is the in-core `ScriptedModelHost` (honest residency,
+  no process started, no weights moved) and the real supervisor sidecar arrives as a further
+  value; `brain_model` (`CORTEX_MODEL_BRAIN`, default `brain`) and `brain_endpoint`
+  (`CORTEX_BRAIN_ENDPOINT`) are the deep tier's logical id and base URL; `evict_models`
+  (`CORTEX_SWAP_EVICT_MODELS`) names further hosted tiers a swap must stop first (while the deep
+  model is resident it is alone on the GPU); `swap_drain_timeout_s` (60 s) and
+  `swap_load_timeout_s` (300 s) are the swap's two bounds. Enabling escalation without a model
+  host or without a brain endpoint **fails at boot**, rather than advertising a tool that could
+  only refuse. `residency_plan(cortex_model)` is the one `ResidencyPlan` the manager, the
+  conductor, and boot recovery all read.
 - `SubagentsConfig` uses env prefix `CORTEX_SUBAGENTS_` (ADR-0010, revised by ADR-0012/0018):
   `backend: "none" | "llamacpp" = "none"` (`CORTEX_SUBAGENTS_BACKEND`), `endpoint` (the CPU
   overflow `llama-server`) **and** `gpu_endpoint` (the GPU one), which are both required when
@@ -204,7 +218,9 @@ The service:
 - `converse(make_engine, client_events, *, max_buffered_events=DEFAULT_MAX_BUFFERED_EVENTS,
   confirm_timeout_s=DEFAULT_CONFIRM_TIMEOUT_S) -> AsyncGenerator[ServerEvent, None]` is the loop
   itself, servicer-independent (what `BrainService.Converse` delegates to). `make_engine` is an
-  `EngineFactory` (`Callable[[Confirmer, ProgressSink], TurnEngine]`, ADR-0022/0010): each stream
+  `EngineFactory` (`Callable[[Confirmer, ProgressSink], TurnRunner]`, ADR-0022/0010, widened to
+  the `TurnRunner` port by ADR-0030 so a deployment with escalation enabled can serve turns
+  through the wrapper that carries a model handoff inside one turn): each stream
   builds one `SeamConfirmer` and one `SeamProgressSink`, both bound to its own output queue, and
   runs the engine the factory returns for it (a bare engine wraps as
   `lambda _confirmer, _progress: engine`, leaving gated calls fail-closed and delegated work
@@ -335,14 +351,30 @@ The service:
   started beside `serve` via `start_ticker` (a named task with the death-logging callback)
   and stopped first in the `finally` via `stop_ticker`, with a graceful signal, then a
   `TICKER_STOP_GRACE_S` forced cancel the store's lease covers).
+  The sixth opt-in adapter is the **brain handoff** (`build_swap_runtime(swap, runtime,
+  inference, clock, sleeper, handoff_store_factory)` in `swap_builders.py`, ADR-0030), which
+  returns `None` unless `CORTEX_ESCALATION` is set and otherwise builds the process-wide half:
+  the `ScriptedModelHost`, the `SwappingModelManager` that is BOTH the GPU lease the inference
+  backend leases through (hence `build_inference_backend(..., manager=...)`) and the residency
+  scope the conductor drives, the Redis `HandoffStore`, and the `ResidencyPlan`. With it wired,
+  `run_from_env` runs `recover_handoffs` before serving (a handoff cannot outlive its process),
+  registers `escalate_to_brain`, and returns an `EscalatingTurnEngine` from `make_engine`: a
+  fresh slot and inner engine per turn, and a `SwapConductor` over THIS stream's dispatcher, so
+  the deep model's phase runs the same audited tools the cortex phase did, with no slot of its
+  own. `swap_closer(swap)` releases the handoff store in the shutdown `finally`, or is a clean
+  no-op when nothing was built. `build_subagents` returns its `ResourceBudgetScheduler` alongside
+  the spawn tool for the same reason: the conductor must quiesce that very pool before a swap
+  evicts anything, and a second budget object would admit past the drain.
   The cortex's dispatcher is
   `build_cortex_tools(registry, builtins, clock, confirmer=..., policy=...)` over the
-  built-in set `build_builtin_tools(spawn_tool, body, schedule_tools=...)` assembles **once**
+  built-in set `build_builtin_tools(spawn_tool, body, schedule_tools=..., escalation=...)`
+  assembles **once**
   (the one-sequence bundling that keeps the builder under the six-argument ceiling as
   capabilities accumulate, ADR-0025 d7): delegation, the two volume built-ins when a
   `BodyGateway` is threaded in (ADR-0023), and the five schedule built-ins
   (`schedule_task`/`list_scheduled`/`cancel_scheduled`/`snooze_scheduled`/`edit_scheduled`,
-  ADR-0025), all merged
+  ADR-0025), plus `escalate_to_brain` when (and only when) a handoff can actually run
+  (ADR-0030), all merged
   with the MCP tools via a `CompositeToolRegistry`, or `None` when nothing is enabled (the
   Slice 3 turn path). The volume and schedule built-ins are ungated by default (reversible);
   a user gates any by name in `CORTEX_TOOLS_GATED` (the dispatcher's authoritative backstop)

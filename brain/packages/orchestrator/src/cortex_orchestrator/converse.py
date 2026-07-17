@@ -10,8 +10,8 @@ from cortex_core import (
     InferenceError,
     ProgressSink,
     SessionStoreError,
-    TurnEngine,
     TurnEvent,
+    TurnRunner,
 )
 from cortex_core import StatusUpdate as DomainStatusUpdate
 from cortex_core import TextDelta as DomainTextDelta
@@ -23,10 +23,7 @@ from cortex_seam import StatusUpdate as WireStatusUpdate
 from cortex_seam import TextDelta as WireTextDelta
 from cortex_seam import ToolActivity as WireToolActivity
 
-# How the servicer builds one stream's engine (ADR-0022, ADR-0010): a closure over the shared
-# adapters that wires THIS stream's confirmer and progress sink into the dispatcher and the turn.
-# Engines are stateless functions over the store, so per-stream construction costs nothing.
-EngineFactory = Callable[[Confirmer, ProgressSink], TurnEngine]
+EngineFactory = Callable[[Confirmer, ProgressSink], TurnRunner]
 
 # SeamError.code values are part of the seam contract (the overlay switches on these).
 ERROR_CODE_SESSION_STORE_UNAVAILABLE = "session_store_unavailable"
