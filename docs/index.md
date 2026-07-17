@@ -183,6 +183,18 @@ Start here. Rules for working in this repo: [AGENTS.md](../AGENTS.md).
   boundary is deterministic: always UNTRUSTED, a new turn-local `opaque` bit escalating the
   guardrail to strict redaction and blocking durable memory, a body-authored capture receipt, a
   fail-closed host kill switch, and the overlay excluding itself to break the self-injection loop.
+- [ADR-0030: Brain handoff (the real model swap)](adr/ADR-0030-brain-handoff.md): the Slice 11
+  capstone design, **proposed, pending maintainer review**. An explicit gated `escalate_to_brain`
+  built-in triggers a within-turn handoff: the turn's not-yet-stored remainder (brief, taint
+  ledger with sources and URLs, nonce, tool-loop tail, dispatch budget) serializes into a
+  `HandoffRecord` behind a new `HandoffStore` port; a core `SwapConductor` drains subagents,
+  swaps `llama-server` processes through a new `ModelHost` port (a supervisor sidecar starting
+  and stopping one process per model, ADR-0005 made literal), health-gates, rehydrates the
+  brain from the stores, persists, and converges back to a serving cortex on every exit path.
+  `ModelManager.acquire` stays unchanged (ADR-0012); residency moves under an additive swap
+  scope so eviction never preempts a mid-stream round. `Health` finally earns an honest
+  `ready=false`. The CI gate is a parameterized chaos test over the fake host (kill at every
+  step boundary, converge with no state loss); tier-scale swap validation is host-side.
 
 New non-obvious decision → add `adr/ADR-XXXX-<slug>.md`, link it here.
 
