@@ -244,6 +244,8 @@ Docker-validatable by the agent; the Windows overlay is the user's.
   tool via a composition-root overlay when one first exists; none does now.
 - **Persisting taint/provenance across a mid-turn swap** is irrelevant until Slice 11
   serializes the tool-step context; provenance then rides on the stored `Role.TOOL` messages.
+  **Landed 2026-07-17 as the brain-handoff record's schema (the 2026-07-17 addendum below;
+  [ADR-0030](ADR-0030-brain-handoff.md) decision 2).**
 - **Structured provenance beyond the binary** (source URI, sender) is a boolean now; richer
   provenance if the confirmation UI needs to display a source.
 
@@ -440,3 +442,19 @@ The frozen collaborator bundle introduced here (`turn_id`, `taint`, `nonce`) gai
 required `session_id`, which the loop stamps onto every dispatch as part of the ADR-0027
 `TurnStamp`. The boundary semantics this ADR decided (taint marking, fencing, the gate)
 are untouched; the new field is provenance only.
+
+## Addendum (2026-07-17): taint/provenance persistence lands with the handoff record (ADR-0030)
+
+The deferred "persisting taint/provenance across a mid-turn swap" above is now real, delivered
+by [ADR-0030](ADR-0030-brain-handoff.md) decision 2's record sub-slice. The `HandoffRecord`
+(`cortex_core/handoff.py`, behind the new `HandoffStore` port with an in-memory fake and a Redis
+adapter in `cortex_session`) serializes the WHOLE `TaintLedger`: the tainted bit, the ordered
+ADR-0027 `sources` (attested and claimed kinds alike), and the ADR-0015 `untrusted_urls`
+laundering evidence, beside the escalation brief, the fence nonce, the budget position, and the
+tool-loop tail. One correction to the deferral's guess: the ledger rides the record *beside*
+the stored tool-step messages rather than on them, since the brain phase rehydrates it whole via
+`HandoffRecord.taint_ledger()`. The contract suite pins the exact round trip (bit, sources
+order, URL set) against fake and Redis adapter alike, mutation-proven and verified against live
+Redis. The boundary semantics decided here are untouched; the escalate tool and swap conductor
+that will write a record mid-turn (and the tainted-escalation denial that keeps injected content
+from forcing an eviction) are ADR-0030's later sub-slices.

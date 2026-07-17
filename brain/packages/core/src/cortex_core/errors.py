@@ -38,6 +38,10 @@ class TaskStoreError(Exception):
     """A TaskStore operation failed (task-store adapters wrap their backend's errors)."""
 
 
+class HandoffStoreError(Exception):
+    """A HandoffStore operation failed (handoff adapters wrap their backend's errors)."""
+
+
 class SubagentAdmissionError(Exception):
     """A SubagentScheduler refused a spawn outright: no wait could ever admit this charge.
 
