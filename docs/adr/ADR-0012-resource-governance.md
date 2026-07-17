@@ -312,3 +312,45 @@ timeout design and a `Clock`, not a policy flip; and a **read timeout on the sub
 which is the actual unbounded-wait hazard here, since `build_subagents` builds
 `httpx.Timeout(connect, read=None)` and one wedged `llama-server` stream would hold its admission
 forever while every queued peer waits behind it.
+
+## Addendum (2026-07-17): `drain()` landed with the brain handoff
+
+The consequences above deferred `SubagentScheduler.drain()` to Slice 11; ADR-0030 decision 4
+designed its semantics and its drain sub-slice has now landed it, additive on the port exactly as
+pinned here (composed at the swap conductor, never merging the ports; `admit`'s signature and the
+queue-on-transient-fullness policy untouched). What landed, and where it sharpens this ADR's
+sketch:
+
+- **`async drain(*, timeout_s) -> bool` plus `undrain()`**, implemented by
+  `ResourceBudgetScheduler` and by the new `AdmitAllScheduler` fake, both passing one drain
+  contract suite (`test_scheduler_drain.py`). The reversal verb, which neither this ADR nor
+  ADR-0030 named, is `undrain`: synchronous and idempotent, owed by the conductor in a `finally`
+  on swap-back and aborted handoff alike, which is what makes ADR-0030's chaos criterion ("the
+  scheduler is admitting again, drain always released") satisfiable.
+- **Refuse, not queue, for the whole window.** From `drain` until `undrain`, every `admit`
+  raises the typed `SubagentAdmissionError` with `POOL_DRAINING_MSG` instead of queuing, a
+  deliberate divergence from the admission wall's queue-on-transient-fullness philosophy: a
+  brain-phase spawn queued against its own drain would deadlock the turn against its own swap.
+  A spawn already *waiting* on a full budget when the drain begins is woken and refused rather
+  than left to sleep through the handoff and admit into the brain phase on wake (drain
+  `notify_all`s the same condition the budget queues on; mutation-proven).
+- **The bounded wait reports, it never kills.** `drain` waits for the in-flight count (an int
+  beside the float ledgers, so drain-complete detection never trusts float residue) to reach
+  zero under `asyncio.timeout`; the conductor passes `CORTEX_SWAP_DRAIN_TIMEOUT_S` (default
+  60 s, ADR-0030 config, arriving with the conductor's wiring). On timeout it returns False
+  with nothing killed, since v1 never kills a subagent mid-stream: the conductor must abort
+  the handoff before anything is evicted, and the window still holds until `undrain`.
+- **The runner's refusal text stopped overclaiming.** Its wrapper used to assert every
+  admission refusal was a permanent resource-budget misconfiguration, which the drain window
+  falsifies; the cause-specific guidance now travels in each raise site's message (the
+  impossible charge keeps the misconfiguration diagnosis, the drain window says delegation
+  resumes when the handoff ends) under a neutral "refused before running" wrapper.
+
+Validated live as well as over the contract suite: a `ResourceBudgetScheduler.drain` issued
+while a real admission held a streaming generation against the compose CPU `llama-server`
+(gemma-4-E4B) stayed pending until the stream finished, then resolved clean, with an admit
+issued mid-window refused as `POOL_DRAINING_MSG` and admission resuming after `undrain`.
+
+Of this ADR's Slice 11 deferrals, CUDA-OOM re-place and the real GPU-placed runtime stay open
+for the model-host sub-slice per ADR-0030's mapping; placement-aware charging stays declined
+per the addendum above.

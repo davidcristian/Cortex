@@ -194,12 +194,28 @@ class SubagentScheduler(Protocol):
     ``memory_gb`` ≤ memory target) and releases both on exit; over budget, callers wait (depth-1
     delegation guarantees no spawn waits on another spawn, so this cannot deadlock). A charge larger
     than the whole budget can never be admitted, so it raises ``SubagentAdmissionError`` rather than
-    waiting forever; that refusal is the budget's one wall, and any implementation owes it, since
-    ``SubagentRunner`` degrades exactly this error to an ``ok=False`` result instead of letting an
-    exception kill the turn (ADR-0012 admission-wall addendum). The budget binds nothing it did not
-    admit (no ``.wslconfig``/parent cgroup, the user's constraint), which is the sense in which it
-    is *soft*; it is distinct from the ``ModelManager``'s GPU lease and the ``SubagentPlacer``'s
-    VRAM ledger. The three compose at the runner (ADR-0010 decision 6, ADR-0012).
+    waiting forever; any implementation owes that refusal, since ``SubagentRunner`` degrades exactly
+    this error to an ``ok=False`` result instead of letting an exception kill the turn (ADR-0012
+    admission-wall addendum). The budget binds nothing it did not admit (no ``.wslconfig``/parent
+    cgroup, the user's constraint), which is the sense in which it is *soft*; it is distinct from
+    the ``ModelManager``'s GPU lease and the ``SubagentPlacer``'s VRAM ledger. The three compose at
+    the runner (ADR-0010 decision 6, ADR-0012).
+
+    ``drain(timeout_s=...)`` quiesces the pool for a model handoff (ADR-0030 decision 4, the
+    additive method ADR-0012 deferred): it stops admission at once and waits, bounded by
+    ``timeout_s`` seconds, for in-flight admissions to release. From the call until ``undrain``,
+    every ``admit`` refuses with the same typed ``SubagentAdmissionError`` instead of queuing
+    (a brain-phase spawn queued against its own drain would deadlock the turn against its own
+    swap), and a caller already waiting on a full budget is woken so it refuses rather than
+    sleeps through the swap. True means the pool drained clean; False means the bound elapsed
+    with work still in flight, and nothing was killed (v1 never kills a subagent mid-stream),
+    so the swap conductor must abort the handoff before evicting anything. ``undrain()``
+    reverses the window, resuming normal admission; the conductor owes it in a ``finally``
+    (swap-back and aborted handoff alike), so admission always resumes. Both are idempotent.
     """
 
     def admit(self, request: PlacementRequest) -> AbstractAsyncContextManager[None]: ...
+
+    async def drain(self, *, timeout_s: float) -> bool: ...
+
+    def undrain(self) -> None: ...
