@@ -4,11 +4,14 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from cortex_core.progress import ProgressSink
 from cortex_core.provenance import Provenance
 from cortex_core.tool_budget import DispatchBudget
+
+if TYPE_CHECKING:
+    from cortex_core.handoff import EscalationSlot
 
 
 class Trust(Enum):
@@ -37,6 +40,7 @@ class TurnStamp:
     sources: tuple[Provenance, ...] = ()
     budget: DispatchBudget | None = field(default=None, compare=False)
     progress: ProgressSink | None = field(default=None, compare=False)
+    escalation: "EscalationSlot | None" = field(default=None, compare=False)
 
 
 # The unattributed default stamp: no originating session, no taint. A named constant

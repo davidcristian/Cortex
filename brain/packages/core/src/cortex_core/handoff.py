@@ -63,15 +63,22 @@ class HandoffRecord:
         )
 
 
-@dataclass(slots=True)
-class EscalationSlot:
-    """The turn-local handle through which in-flight state reaches the handoff serializer."""
+@dataclass(frozen=True, slots=True)
+class EscalationRefs:
+    """The live turn-local state the engine arms an ``EscalationSlot`` with at turn start."""
 
     working: list[Message]
     taint: TaintLedger
     nonce: str
     budget: DispatchBudget
     base_len: int
+
+
+@dataclass(slots=True)
+class EscalationSlot:
+    """The turn-local handle through which in-flight state reaches the handoff serializer."""
+
+    refs: EscalationRefs | None = None
     brief: str | None = None
 
     def snapshot(self, *, turn_id: str, session_id: str, requested_at: datetime) -> HandoffRecord:
@@ -79,19 +86,22 @@ class EscalationSlot:
         if self.brief is None:
             msg = "EscalationSlot.snapshot requires a brief (no escalation was requested)"
             raise ValueError(msg)
-        tail = tuple(self.working[self.base_len :])
+        if self.refs is None:
+            msg = "EscalationSlot.snapshot requires an armed slot (no turn ever filled refs)"
+            raise ValueError(msg)
+        tail = tuple(self.refs.working[self.refs.base_len :])
         return HandoffRecord(
             handoff_id=turn_id,
             session_id=session_id,
             requested_at=requested_at,
             state=HandoffState.READY,
             brief=self.brief,
-            nonce=self.nonce,
-            tainted=self.taint.tainted,
-            sources=self.taint.sources,
-            untrusted_urls=frozenset(self.taint.untrusted_urls),
-            budget_remaining=self.budget.limit - self.budget.spent,
-            budget_closed=self.budget.closed,
+            nonce=self.refs.nonce,
+            tainted=self.refs.taint.tainted,
+            sources=self.refs.taint.sources,
+            untrusted_urls=frozenset(self.refs.taint.untrusted_urls),
+            budget_remaining=self.refs.budget.limit - self.refs.budget.spent,
+            budget_closed=self.refs.budget.closed,
             rounds_used=sum(1 for message in tail if message.role is Role.ASSISTANT),
             loop_tail=tail,
         )

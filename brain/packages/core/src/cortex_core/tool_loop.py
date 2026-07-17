@@ -5,50 +5,20 @@ from dataclasses import dataclass, field
 
 from cortex_core.conversation import Message
 from cortex_core.dispatch import DispatchRefusal, ToolDispatcher
+from cortex_core.handoff import EscalationSlot
 from cortex_core.inference import JsonSchema, ReasoningChunk
+from cortex_core.loop_events import ReasoningDelta, ToolStep, step_summary
 from cortex_core.ports import Clock, InferenceBackend
 from cortex_core.progress import ProgressSink
 from cortex_core.provenance import SourceKind, as_source
 from cortex_core.tool_budget import DispatchBudget
 from cortex_core.tool_round import call_message, plan_round, result_message
-from cortex_core.tools import ToolCall, ToolSpec, TurnStamp
+from cortex_core.tools import ToolCall, TurnStamp
 from cortex_core.untrusted import TaintLedger
 
 # Upper bound on inference↔tool rounds in one loop (ADR-0009): a safety net against a model
 # that never stops calling tools. On exhaustion the loop ends with the text produced so far.
 MAX_TOOL_STEPS = 8
-
-# Upper bound on a ToolStep summary: the chip is one slim line, and an advertised description
-# is sidecar-authored text of arbitrary length (ADR-0009 addendum).
-MAX_STEP_SUMMARY_CHARS = 120
-
-
-@dataclass(frozen=True, slots=True)
-class ReasoningDelta:
-    """A delta of the model's reasoning trace, surfaced by the loop distinctly from reply text
-    (ADR-0020).
-    """
-
-    text: str
-
-
-@dataclass(frozen=True, slots=True)
-class ToolStep:
-    """One audited tool dispatch about to run, yielded by the loop immediately before the dispatch
-    so a consumer can surface it while the tool works (ADR-0009 addendum).
-    """
-
-    tool_name: str
-    summary: str
-
-
-def _step_summary(spec: ToolSpec) -> str:
-    """The chip text for one dispatch: the advertised description's first line, capped, with
-    the advertised name as the fallback when the description is empty.
-    """
-    description = spec.description.strip()
-    line = description.splitlines()[0] if description else spec.name
-    return line[:MAX_STEP_SUMMARY_CHARS]
 
 
 @dataclass(frozen=True, slots=True)
@@ -66,6 +36,7 @@ class ToolLoopContext:
     schema: JsonSchema | None = None
     budget: DispatchBudget = field(default_factory=DispatchBudget)
     progress: ProgressSink | None = None
+    escalation: EscalationSlot | None = None
 
 
 def _refused_by(
@@ -142,7 +113,7 @@ async def stream_tool_loop(
                 # would leave a declined gated call free to re-prompt the user every round.
                 this_round.append(call)
             if refusal is None and spec is not None:
-                yield ToolStep(tool_name=spec.name, summary=_step_summary(spec))
+                yield ToolStep(tool_name=spec.name, summary=step_summary(spec))
             result = await dispatcher.dispatch(
                 call,
                 stamp=TurnStamp(
@@ -159,6 +130,10 @@ async def stream_tool_loop(
                     # spawns subagents surfaces their steps onto this turn's overlay while the
                     # loop is suspended inside the dispatch below (ADR-0010 progress addendum).
                     progress=context.progress,
+                    # And the turn's handoff slot (ADR-0030): the escalate built-in writes its
+                    # brief here, per call off the stamp, so one shared tool instance never
+                    # holds a turn's slot as state.
+                    escalation=context.escalation,
                 ),
                 gated=gated_by_name.get(call.name, False),
                 refusal=refusal,

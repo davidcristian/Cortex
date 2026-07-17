@@ -7,6 +7,8 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from cortex_core import (
     ALWAYS_SALIENT,
+    ESCALATE_GATE_REASON,
+    ESCALATE_TOOL_NAME,
     MAX_TOOL_DISPATCHES,
     REPEAT_SALIENCE,
     SPAWN_TOOL_NAME,
@@ -31,7 +33,8 @@ class ToolsConfig(BaseSettings):
     endpoints: dict[str, str] = {}
     allow: dict[str, tuple[str, ...]] = {}
     on_unavailable: Literal["fail", "skip"] = "fail"
-    gated: tuple[str, ...] = ("send_email",)
+    gated: tuple[str, ...] = (ESCALATE_TOOL_NAME, "send_email")
+    gate_reasons: dict[str, str] = {}
     costs: dict[str, int] = {}
     salience: ToolsSalienceName = "repeat"
 
@@ -52,12 +55,22 @@ class ToolsConfig(BaseSettings):
         if bad := sorted(n for n, c in self.costs.items() if not 1 <= c <= MAX_TOOL_DISPATCHES):
             msg = f"CORTEX_TOOLS_COSTS must be 1..{MAX_TOOL_DISPATCHES}: {bad}"
             raise ValueError(msg)
+        # A blank gate reason would render an empty confirm card line, a consent surface that
+        # no longer says what is being approved. Misconfiguration fails at boot, not on screen.
+        if blank := sorted(n for n, r in self.gate_reasons.items() if not r.strip()):
+            msg = f"CORTEX_TOOLS_GATE_REASONS must be non-empty text: {blank}"
+            raise ValueError(msg)
         return self
 
     @property
     def cost_policy(self) -> ToolCostPolicy:
         """The effective prices as the core's policy value (ADR-0009 cost addendum)."""
         return ToolCostPolicy({SPAWN_TOOL_NAME: DEFAULT_SPAWN_COST} | self.costs)
+
+    @property
+    def gate_reason_map(self) -> dict[str, str]:
+        """The effective per-tool confirm-card reasons (ADR-0030 decision 1)."""
+        return {ESCALATE_TOOL_NAME: ESCALATE_GATE_REASON} | self.gate_reasons
 
     @property
     def salience_policy(self) -> SaliencePolicy:
@@ -70,11 +83,12 @@ class ToolsConfig(BaseSettings):
 
     @property
     def dispatch_policy(self) -> DispatchPolicy:
-        """The three composition-root declarations about dispatching, as one value."""
+        """The four composition-root declarations about dispatching, as one value."""
         return DispatchPolicy(
             gated_names=self.gated,
             costs=self.cost_policy,
             salience=self.salience_policy,
+            gate_reasons=self.gate_reason_map,
         )
 
     @property

@@ -1,8 +1,9 @@
 """Dispatch one tool call and audit it. It is the only path a tool runs through (ADR-0009/0013)."""
 
-from collections.abc import Collection, Sequence
-from dataclasses import dataclass, replace
+from collections.abc import Collection, Mapping, Sequence
+from dataclasses import dataclass, field, replace
 from enum import Enum
+from types import MappingProxyType
 
 from cortex_core.errors import ToolError
 from cortex_core.ports import Clock, Confirmer, ToolAuditSink, ToolRegistry
@@ -21,7 +22,9 @@ from cortex_core.tools import (
 )
 from cortex_core.untrusted import DENIED_MSG, USER_DECLINED_MSG
 
-# Why confirmation is required, shown verbatim to the user by the overlay (ADR-0022).
+# Why confirmation is required, shown verbatim to the user by the overlay (ADR-0022). The
+# default when the policy names no per-tool reason (ADR-0030 decision 1): true for the outbound
+# and irreversible tools, and overridden where it would be false (the escalate card).
 _GATE_REASON = "this action is outbound or irreversible and runs only with your approval"
 
 # The result content fed back when the caller's dispatch budget is spent (ADR-0009 budget
@@ -67,9 +70,11 @@ class DispatchPolicy:
     gated_names: Collection[str] = ()
     costs: ToolCostPolicy = UNIFORM_COST
     salience: SaliencePolicy = REPEAT_SALIENCE
+    gate_reasons: Mapping[str, str] = field(default_factory=dict[str, str])
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "gated_names", frozenset(self.gated_names))
+        object.__setattr__(self, "gate_reasons", MappingProxyType(dict(self.gate_reasons)))
 
 
 # The policy a dispatcher gets unless the composition root passes one: nothing gated, every tool
@@ -162,7 +167,9 @@ class ToolDispatcher:
         if self._confirmer is None:
             return False
         request = ConfirmationRequest(
-            tool_name=call.name, arguments=call.arguments, reason=_GATE_REASON
+            tool_name=call.name,
+            arguments=call.arguments,
+            reason=self._policy.gate_reasons.get(call.name, _GATE_REASON),
         )
         return await self._confirmer.confirm(request)
 

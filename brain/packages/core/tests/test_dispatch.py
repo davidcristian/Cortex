@@ -452,3 +452,52 @@ def test_the_policy_freezes_the_gated_names_it_was_handed() -> None:
     policy = DispatchPolicy(gated_names=names)
     names.add("read")
     assert policy.gated_names == frozenset({"send"})
+
+
+async def test_the_confirm_reason_is_the_policy_per_tool_text_when_declared() -> None:
+    # ADR-0030 decision 1: the generic "outbound or irreversible" line would be false on some
+    # cards (the escalate card above all), so a policy may declare what one tool's card says.
+    confirmer = RecordingConfirmer(answer=True)
+    dispatcher = ToolDispatcher(
+        InMemoryToolRegistry({"send": (_spec("send"), _ran)}),
+        RecordingAuditSink(),
+        _FixedClock(),
+        confirmer=confirmer,
+        policy=DispatchPolicy(gate_reasons={"send": "this hands your words to a stranger"}),
+    )
+    await dispatcher.dispatch(
+        ToolCall(id="c", name="send", arguments={"path": "/p"}),
+        stamp=TurnStamp(tainted=False),
+        gated=True,
+    )
+    (request,) = confirmer.requests
+    assert request.reason == "this hands your words to a stranger"
+
+
+async def test_a_tool_without_a_declared_reason_keeps_the_generic_gate_text() -> None:
+    # The per-tool map is an overlay, not a replacement: unnamed tools keep the generic
+    # reason, so declaring one card's text cannot blank another's.
+    confirmer = RecordingConfirmer(answer=True)
+    dispatcher = ToolDispatcher(
+        InMemoryToolRegistry({"send": (_spec("send"), _ran)}),
+        RecordingAuditSink(),
+        _FixedClock(),
+        confirmer=confirmer,
+        policy=DispatchPolicy(gate_reasons={"other_tool": "unrelated"}),
+    )
+    await dispatcher.dispatch(
+        ToolCall(id="c", name="send", arguments={"path": "/p"}),
+        stamp=TurnStamp(tainted=False),
+        gated=True,
+    )
+    (request,) = confirmer.requests
+    assert "outbound or irreversible" in request.reason
+
+
+def test_the_policy_freezes_the_gate_reasons_it_was_handed() -> None:
+    # Same argument as the gated names: card text is a consent surface, and whoever built the
+    # policy must not be able to rewrite what the user is told after the process is up.
+    reasons = {"send": "before"}
+    policy = DispatchPolicy(gate_reasons=reasons)
+    reasons["send"] = "after"
+    assert policy.gate_reasons["send"] == "before"

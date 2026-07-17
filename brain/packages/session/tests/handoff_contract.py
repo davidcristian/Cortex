@@ -6,6 +6,7 @@ from uuid import uuid4
 
 from cortex_core import (
     DispatchBudget,
+    EscalationRefs,
     EscalationSlot,
     HandoffRecord,
     HandoffState,
@@ -80,11 +81,13 @@ def make_record(
         ),
     ]
     slot = EscalationSlot(
-        working=working,
-        taint=ledger,
-        nonce=_NONCE,
-        budget=budget,
-        base_len=1,
+        refs=EscalationRefs(
+            working=working,
+            taint=ledger,
+            nonce=_NONCE,
+            budget=budget,
+            base_len=1,
+        ),
         brief="reason deeply over the mail thread; the sender's claims need checking",
     )
     record = slot.snapshot(

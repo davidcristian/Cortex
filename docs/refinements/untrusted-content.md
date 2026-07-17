@@ -2,7 +2,7 @@
 
 This area originates in [ADR-0013](../adr/ADR-0013-untrusted-content.md) (Slice 6.5), whose deferrals grew into the output guardrail ([ADR-0015](../adr/ADR-0015-output-guardrail.md)), subagent model safety ([ADR-0017](../adr/ADR-0017-subagent-model-safety.md)), tainted-memory recording ([ADR-0019](../adr/ADR-0019-tainted-memory-recording.md)), and grammar-constrained subagent output ([ADR-0028](../adr/ADR-0028-grammar-constrained-subagents.md)). Extracted from the ROADMAP's deferred-refinements section on 2026-07-15 with the entries kept verbatim; landed entries are the historical record of what each deferral became, and the index at [index.md](index.md) carries the recommended pickup order.
 
-**Open items:** the screening subagent, Windows-native validation of the confirm card, whitespace-split hosts, the full UTS-39 confusables set, mixed/other encodings, footer/boilerplate heuristics, a raw GBNF grammar alternative, a per-task caller-supplied schema, provenance across the stores, a fence-without-block recall mode, per-provenance eviction, per-remote-tool trust/gating overrides, the brain-tier injection-harness run
+**Open items:** the screening subagent, Windows-native validation of the confirm card, whitespace-split hosts, the full UTS-39 confusables set, mixed/other encodings, footer/boilerplate heuristics, a raw GBNF grammar alternative, a per-task caller-supplied schema, provenance across the stores, a fence-without-block recall mode, per-provenance eviction, per-remote-tool trust/gating overrides, the brain-tier injection-harness run, the opaque-turn escalation refusal
 
 **Untrusted-content boundary in Slice 6.5 ([ADR-0013](../adr/ADR-0013-untrusted-content.md)):** each
 behind the unchanged `ToolRegistry`/`ToolDispatcher`/`stream_tool_loop` seams (or the new `Confirmer` port).
@@ -289,6 +289,26 @@ behind the unchanged `ToolRegistry`/`ToolDispatcher`/`stream_tool_loop` seams (o
   serializes the tool-step context, provenance rides on the stored `Role.TOOL` messages. Flagged
   for that schema. Structured provenance beyond the binary (source URI, sender) joins here if
   the confirmation UI needs to display a source."
+- **The tainted-escalation hard-deny went live 2026-07-17 with the gated `escalate_to_brain`
+  built-in ([ADR-0030](../adr/ADR-0030-brain-handoff.md) decision 1, the trigger sub-slice).**
+  The escalation trigger is a `gated=True` built-in (`cortex_core/escalate.py`), so both existing
+  protections cover the most disruptive action in the system at zero new mechanism: on an
+  untainted turn the ADR-0022 card asks first (with a per-tool reason saying what is true, that
+  the deep model takes over and the machine is busy for minutes, since the generic
+  outbound/irreversible line would be false), and on a tainted turn the dispatcher's existing
+  hard-deny blocks the call with the confirmer never consulted, so injected content can never
+  force the eviction (pinned by an approving-confirmer test, mutation-proven by weakening the
+  gate check). The model-authored `brief` is bounded (`MAX_BRIEF_CHARS`, refused whole, never
+  truncated) before it can enter the handoff record, and it rides WITH the record's serialized
+  taint ledger, never instead of it. **One piece of the ADR's trigger sub-slice is consciously
+  deferred: the opaque-turn refusal.** ADR-0030 assumed the vision slice (ADR-0029) lands first
+  ("this slice lands after the vision slice"), but the repo sequenced the handoff sub-slices
+  ahead of it: ADR-0029 is designed and unimplemented, `Message` carries no pixels and no
+  `opaque` bit exists, so a refusal keyed on them has nothing to check and faking one would be a
+  gate that cannot fail. It lands with (or immediately after) the vision slice's pixel-taint
+  increment, as a typed refusal in `escalate.py` telling the model to ask the user to retry in a
+  fresh message, keeping escalation from quietly widening pixel persistence (the ADR-0029 store
+  invariant the handoff record already honors).
 - **Injection-harness run against the ~31B brain tier.** The harness's brain tier is **opt-in and
   not yet run** (`CORTEX_PROBE_BRAIN=1`, as the VRAM cost needs the others evicted; ADR-0013 harness
   addendum + [ADR-0004](../adr/ADR-0004-model-lineup.md) injection addendum). Run it when the brain
