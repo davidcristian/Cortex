@@ -173,6 +173,16 @@ Start here. Rules for working in this repo: [AGENTS.md](../AGENTS.md).
   `SubagentRunner` decode a tool-less subagent's reply into a fixed `{"reply": …}` envelope,
   killing format-laundering on the weak-model niche with no grammatical position for an appended
   footer or link. Gated to the tool-less path so the JSON grammar never fights tool-calling.
+- [ADR-0029: Vision (screen capture)](adr/ADR-0029-vision-screen-capture.md): Slice 10 gives the
+  cortex eyes through a model-initiated `capture_screen` built-in over the unchanged
+  `BodyGateway`, a `ScreenCapture` OS trait returning raw pixels with all downscale/encode/byte
+  policy in pure `body_core`, a GDI backend under its own `unsafe` line, and the image riding
+  `ToolResult.images` onto the `Role.TOOL` message (measured accepted by the real cortex plus
+  projector) with `InferenceBackend.stream` unchanged. Pixels are turn-local, enforced by a
+  `Message` invariant plus a loud store rejection. Since no nonce can bracket an image, the
+  boundary is deterministic: always UNTRUSTED, a new turn-local `opaque` bit escalating the
+  guardrail to strict redaction and blocking durable memory, a body-authored capture receipt, a
+  fail-closed host kill switch, and the overlay excluding itself to break the self-injection loop.
 
 New non-obvious decision → add `adr/ADR-XXXX-<slug>.md`, link it here.
 
