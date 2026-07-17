@@ -430,7 +430,10 @@ the two having split at the line cap as the seventh addendum landed):
   and `release()` drains the scrubbed carry exactly once, at end of stream. With no guardrail both
   channels pass text through unchanged (an empty delta emits no event on either path).
 
-Ports (`typing.Protocol`; failures cross them only as the typed errors below):
+Ports (`typing.Protocol`; failures cross them only as the typed errors below; the four
+state-store ports `SessionStore` / `MemoryStore` / `TaskStore` / `ScheduleStore` live in
+`ports_stores.py` and are re-exported from `ports.py`, a line-cap split, so every
+`from cortex_core.ports import ...` and the `cortex_core` barrel are unchanged):
 
 - `SessionStore` provides `async append(session_id, message) -> None`,
   `async history(session_id) -> Sequence[Message]` (append order; empty when unknown),
