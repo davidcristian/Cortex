@@ -1,0 +1,65 @@
+"""What a model process can be doing, and the plan one GPU's residency swap follows (ADR-0030).
+
+Pure values, shared by the three objects the swap composes: ``SwappingModelManager`` (which
+performs the process swap inside its residency scope), the boot-recovery convergence, and the
+readiness gate in ``health_gate.py``. Deliberately free of port imports so the ``ModelHost``
+protocol can name ``ModelHostState`` without a cycle.
+
+A logical model id (ADR-0004) is the only identifier that crosses any of these seams: artifact
+paths, ports, ``-ngl`` and context flags belong to whatever supervises the processes, never here.
+"""
+
+from dataclasses import dataclass
+from enum import Enum
+
+# How long a swap waits for the model it started to report READY (ADR-0030 decision 4 step 3).
+# An 18 GB GGUF read off the drvfs model mount at the measured ~150-180 MB/s is minutes, so the
+# default is generous; the deployment overrides it with CORTEX_SWAP_LOAD_TIMEOUT_S.
+DEFAULT_SWAP_LOAD_TIMEOUT_S = 300.0
+
+# How long the readiness gate waits between two ``status`` polls. A load takes minutes, so a
+# second-scale poll costs nothing and keeps the gate's own latency below the noise floor.
+DEFAULT_HEALTH_POLL_INTERVAL_S = 1.0
+
+
+class ModelHostState(Enum):
+    """What one logical model's process is doing, as its host reports it (ADR-0030 decision 3).
+
+    ``STOPPED`` (no process), ``LOADING`` (started, weights not served yet), ``READY`` (serving,
+    which is what the compose healthcheck means today), ``FAILED`` (the process died or could not
+    load). ``start`` only *begins* loading, so readiness is observed here and nowhere else, which
+    is why the swap has an explicit health gate rather than trusting a returned ``start``.
+    """
+
+    STOPPED = "stopped"
+    LOADING = "loading"
+    READY = "ready"
+    FAILED = "failed"
+
+
+@dataclass(frozen=True, slots=True)
+class ResidencyPlan:
+    """Which models share the one GPU, and the bounds a swap between them respects (ADR-0030).
+
+    ``cortex_model`` is the standing resident every exit path converges back to;
+    ``brain_model`` is the deep model a handoff swaps in. ``evict_models`` names the other
+    hosted models a swap must stop first (the GPU-placed subagent, when one is hosted), because
+    while the brain is resident it is alone on the GPU (ADR-0030 decision 8). ``load_timeout_s``
+    bounds the readiness gate after a start, and ``poll_interval_s`` is the wait between two
+    status polls. Composition-root config, handed down as one value so the manager, the
+    conductor, and boot recovery cannot disagree about the topology.
+    """
+
+    cortex_model: str
+    brain_model: str
+    evict_models: tuple[str, ...] = ()
+    load_timeout_s: float = DEFAULT_SWAP_LOAD_TIMEOUT_S
+    poll_interval_s: float = DEFAULT_HEALTH_POLL_INTERVAL_S
+
+    def __post_init__(self) -> None:
+        if self.load_timeout_s < 0:
+            msg = f"ResidencyPlan.load_timeout_s must be >= 0, got {self.load_timeout_s}"
+            raise ValueError(msg)
+        if self.poll_interval_s <= 0:
+            msg = f"ResidencyPlan.poll_interval_s must be > 0, got {self.poll_interval_s}"
+            raise ValueError(msg)

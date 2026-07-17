@@ -33,11 +33,14 @@ from cortex_core.errors import EmbedderError as EmbedderError
 from cortex_core.errors import HandoffStoreError as HandoffStoreError
 from cortex_core.errors import InferenceError as InferenceError
 from cortex_core.errors import MemoryStoreError as MemoryStoreError
+from cortex_core.errors import ModelHostError as ModelHostError
 from cortex_core.errors import ModelManagerError as ModelManagerError
 from cortex_core.errors import ModelUnavailableError as ModelUnavailableError
+from cortex_core.errors import ResidencyRestoreError as ResidencyRestoreError
 from cortex_core.errors import ScheduleStoreError as ScheduleStoreError
 from cortex_core.errors import SessionStoreError as SessionStoreError
 from cortex_core.errors import SubagentAdmissionError as SubagentAdmissionError
+from cortex_core.errors import SwapFailedError as SwapFailedError
 from cortex_core.errors import TaskStoreError as TaskStoreError
 from cortex_core.errors import ToolError as ToolError
 from cortex_core.errors import ToolNotFoundError as ToolNotFoundError
@@ -63,9 +66,12 @@ from cortex_core.fakes import SystemClock as SystemClock
 from cortex_core.fakes_body import InMemoryBodyGateway as InMemoryBodyGateway
 from cortex_core.fakes_body import SentNotification as SentNotification
 from cortex_core.fakes_handoff import InMemoryHandoffStore as InMemoryHandoffStore
+from cortex_core.fakes_model_host import ScriptedModelHost as ScriptedModelHost
 from cortex_core.fakes_schedule import InMemoryScheduleStore as InMemoryScheduleStore
 from cortex_core.fakes_scheduler import AdmitAllScheduler as AdmitAllScheduler
 from cortex_core.fakes_session import InMemorySessionStore as InMemorySessionStore
+from cortex_core.fakes_sleeper import AsyncioSleeper as AsyncioSleeper
+from cortex_core.fakes_sleeper import RecordingSleeper as RecordingSleeper
 from cortex_core.guardrail import REDACTED_LINK as REDACTED_LINK
 from cortex_core.guardrail import OutputFilter as OutputFilter
 from cortex_core.guardrail import OutputGuardrail as OutputGuardrail
@@ -76,6 +82,7 @@ from cortex_core.handoff import EscalationRefs as EscalationRefs
 from cortex_core.handoff import EscalationSlot as EscalationSlot
 from cortex_core.handoff import HandoffRecord as HandoffRecord
 from cortex_core.handoff import HandoffState as HandoffState
+from cortex_core.health_gate import await_model_ready as await_model_ready
 from cortex_core.inference import InferenceEvent as InferenceEvent
 from cortex_core.inference import JsonSchema as JsonSchema
 from cortex_core.inference import ReasoningChunk as ReasoningChunk
@@ -86,6 +93,10 @@ from cortex_core.memory import ScoredMemory as ScoredMemory
 from cortex_core.memory_cascade import SessionMemoryCascade as SessionMemoryCascade
 from cortex_core.model import ModelLease as ModelLease
 from cortex_core.model import SingleResidentModelManager as SingleResidentModelManager
+from cortex_core.model_host import DEFAULT_HEALTH_POLL_INTERVAL_S as DEFAULT_HEALTH_POLL_INTERVAL_S
+from cortex_core.model_host import DEFAULT_SWAP_LOAD_TIMEOUT_S as DEFAULT_SWAP_LOAD_TIMEOUT_S
+from cortex_core.model_host import ModelHostState as ModelHostState
+from cortex_core.model_host import ResidencyPlan as ResidencyPlan
 from cortex_core.placement import Placement as Placement
 from cortex_core.placement import PlacementRequest as PlacementRequest
 from cortex_core.placement import PlacementTarget as PlacementTarget
@@ -97,9 +108,12 @@ from cortex_core.ports import Embedder as Embedder
 from cortex_core.ports import HandoffStore as HandoffStore
 from cortex_core.ports import InferenceBackend as InferenceBackend
 from cortex_core.ports import MemoryStore as MemoryStore
+from cortex_core.ports import ModelHost as ModelHost
 from cortex_core.ports import ModelManager as ModelManager
+from cortex_core.ports import ResidencyController as ResidencyController
 from cortex_core.ports import ScheduleStore as ScheduleStore
 from cortex_core.ports import SessionStore as SessionStore
+from cortex_core.ports import Sleeper as Sleeper
 from cortex_core.ports import SubagentPlacer as SubagentPlacer
 from cortex_core.ports import SubagentScheduler as SubagentScheduler
 from cortex_core.ports import TaskStore as TaskStore
@@ -120,6 +134,7 @@ from cortex_core.rerank import RecallPolicy as RecallPolicy
 from cortex_core.rerank_policies import MmrRecallPolicy as MmrRecallPolicy
 from cortex_core.rerank_policies import RecencyMmrRecallPolicy as RecencyMmrRecallPolicy
 from cortex_core.rerank_policies import RerankingRecallPolicy as RerankingRecallPolicy
+from cortex_core.residency import SwappingModelManager as SwappingModelManager
 from cortex_core.roster import SubagentProfile as SubagentProfile
 from cortex_core.roster import SubagentResources as SubagentResources
 from cortex_core.roster import SubagentRoster as SubagentRoster
