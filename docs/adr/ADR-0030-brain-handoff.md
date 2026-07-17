@@ -1,6 +1,6 @@
 # ADR-0030: Brain handoff (the real model swap)
 
-- **Status:** Proposed (pending maintainer review; design only, nothing here is implemented)
+- **Status:** Accepted (2026-07-17)
 - **Date:** 2026-07-17
 
 ## Context
