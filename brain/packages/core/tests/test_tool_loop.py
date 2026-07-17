@@ -18,6 +18,7 @@ from cortex_core import (
     REPEAT_SALIENCE,
     ROUND_OVERSIZED_MSG,
     DispatchPolicy,
+    EscalationSlot,
     InferenceEvent,
     InMemoryToolRegistry,
     JsonSchema,
@@ -36,13 +37,14 @@ from cortex_core import (
     Trust,
     TurnStamp,
 )
+from cortex_core.loop_events import ToolStep
 from cortex_core.tool_budget import (
     MAX_TOOL_DISPATCHES,
     UNIFORM_COST,
     DispatchBudget,
     ToolCostPolicy,
 )
-from cortex_core.tool_loop import MAX_TOOL_STEPS, ToolLoopContext, ToolStep, stream_tool_loop
+from cortex_core.tool_loop import MAX_TOOL_STEPS, ToolLoopContext, stream_tool_loop
 
 _START = datetime(2026, 7, 22, 12, 0, 0, tzinfo=UTC)
 
@@ -369,6 +371,36 @@ async def test_the_dispatch_stamp_carries_the_sources_the_turn_has_read() -> Non
     assert registry.stamps[0] == TurnStamp(session_id="s", tainted=False, sources=())
     via_noop = (Provenance(SourceKind.TOOL, "noop"),)
     assert all(stamp.sources == via_noop for stamp in registry.stamps[1:])
+
+
+async def test_the_dispatch_stamp_carries_the_turns_escalation_slot() -> None:
+    # How the escalate built-in reaches the turn's handoff slot at all (ADR-0030 decision 2):
+    # exactly the budget/progress path. The loop stamps `context.escalation` onto every
+    # dispatch, so the one shared tool reads it per call and never holds it as state.
+    registry = _StampRecordingRegistry()
+    slot = EscalationSlot()
+    context = _stamp_context(registry)
+    context = ToolLoopContext(
+        dispatcher=context.dispatcher,
+        clock=context.clock,
+        turn_id=context.turn_id,
+        taint=context.taint,
+        nonce=context.nonce,
+        session_id=context.session_id,
+        escalation=slot,
+    )
+    await _run(_MultiCallBackend(per_round=1), context)
+    assert registry.stamps  # the tool was reached, so the assertion below is not vacuous
+    assert all(stamp.escalation is slot for stamp in registry.stamps)
+
+
+async def test_an_escalation_less_context_stamps_no_slot() -> None:
+    # The default is None end to end: a subagent's inner loop and every escalation-less caller
+    # dispatch with no slot, which is what makes the escalate tool refuse honestly there.
+    registry = _StampRecordingRegistry()
+    await _run(_MultiCallBackend(per_round=1), _stamp_context(registry))
+    assert registry.stamps
+    assert all(stamp.escalation is None for stamp in registry.stamps)
 
 
 async def test_a_call_matching_no_advertised_spec_attributes_no_source() -> None:

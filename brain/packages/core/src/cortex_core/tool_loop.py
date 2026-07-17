@@ -34,61 +34,20 @@ from dataclasses import dataclass, field
 
 from cortex_core.conversation import Message
 from cortex_core.dispatch import DispatchRefusal, ToolDispatcher
+from cortex_core.handoff import EscalationSlot
 from cortex_core.inference import JsonSchema, ReasoningChunk
+from cortex_core.loop_events import ReasoningDelta, ToolStep, step_summary
 from cortex_core.ports import Clock, InferenceBackend
 from cortex_core.progress import ProgressSink
 from cortex_core.provenance import SourceKind, as_source
 from cortex_core.tool_budget import DispatchBudget
 from cortex_core.tool_round import call_message, plan_round, result_message
-from cortex_core.tools import ToolCall, ToolSpec, TurnStamp
+from cortex_core.tools import ToolCall, TurnStamp
 from cortex_core.untrusted import TaintLedger
 
 # Upper bound on inference↔tool rounds in one loop (ADR-0009): a safety net against a model
 # that never stops calling tools. On exhaustion the loop ends with the text produced so far.
 MAX_TOOL_STEPS = 8
-
-# Upper bound on a ToolStep summary: the chip is one slim line, and an advertised description
-# is sidecar-authored text of arbitrary length (ADR-0009 addendum).
-MAX_STEP_SUMMARY_CHARS = 120
-
-
-@dataclass(frozen=True, slots=True)
-class ReasoningDelta:
-    """A delta of the model's reasoning trace, surfaced by the loop distinctly from reply text
-    (ADR-0020). The loop's yield vocabulary is ``str`` (reply text), ``ReasoningDelta``, or
-    ``ToolStep``: reply text accumulates into the answer and is persisted, a reasoning delta is
-    ephemeral status and is never added to the assistant message nor fed back into the context.
-    """
-
-    text: str
-
-
-@dataclass(frozen=True, slots=True)
-class ToolStep:
-    """One audited tool dispatch about to run, yielded by the loop immediately before the
-    dispatch so a consumer can surface it while the tool works (ADR-0009 addendum). Ephemeral
-    like ``ReasoningDelta``: the cortex engine maps it to the domain ``ToolActivity`` event,
-    a subagent drops it. Both fields are copied straight off the advertised ``ToolSpec``
-    (``tool_name`` is ``spec.name``, ``summary`` is ``_step_summary``): nothing the model
-    authored, neither the call name nor its arguments, ever rides this event.
-    """
-
-    tool_name: str
-    summary: str
-
-
-def _step_summary(spec: ToolSpec) -> str:
-    """The chip text for one dispatch: the advertised description's first line, capped, with
-    the advertised name as the fallback when the description is empty.
-
-    Registry-authored by construction, because a ``ToolStep`` is only yielded for a call that
-    matched an advertised spec (``stream_tool_loop``). The model's call name and arguments
-    never reach it: a value the model authored would be a display channel the reply-side
-    guardrail (ADR-0015) never inspects, exactly the laundering surface this event must not open.
-    """
-    description = spec.description.strip()
-    line = description.splitlines()[0] if description else spec.name
-    return line[:MAX_STEP_SUMMARY_CHARS]
 
 
 @dataclass(frozen=True, slots=True)
@@ -112,7 +71,10 @@ class ToolLoopContext:
     built-in that spawns further work (``spawn_subagents``) can surface a subagent's steps onto
     the overlay while the loop's own generator is suspended inside that dispatch; ``None`` (a
     subagent's own inner loop, a session-less caller) leaves such work unsurfaced, keeping
-    delegation depth-1 in what reaches the overlay as it is in the tree.
+    delegation depth-1 in what reaches the overlay as it is in the tree. ``escalation``
+    (ADR-0030) is the turn's handoff slot, threaded exactly like ``progress`` so the
+    ``escalate_to_brain`` built-in reads it off each dispatch's stamp; ``None`` (the default,
+    every escalation-less caller) leaves the tool refusing honestly.
     """
 
     dispatcher: ToolDispatcher | None
@@ -124,6 +86,7 @@ class ToolLoopContext:
     schema: JsonSchema | None = None
     budget: DispatchBudget = field(default_factory=DispatchBudget)
     progress: ProgressSink | None = None
+    escalation: EscalationSlot | None = None
 
 
 def _refused_by(
@@ -260,7 +223,7 @@ async def stream_tool_loop(
             # carrying the model's chosen string. A refused call renders no chip either: a chip
             # means a tool is running now.
             if refusal is None and spec is not None:
-                yield ToolStep(tool_name=spec.name, summary=_step_summary(spec))
+                yield ToolStep(tool_name=spec.name, summary=step_summary(spec))
             # The advertised gated flag is a hint; the dispatcher OR-s it with its own
             # authoritative gated-name set, so a tool a flaky sidecar hid from this snapshot
             # (skip mode) and later recovered is still gated at dispatch (ADR-0022). The
@@ -282,6 +245,10 @@ async def stream_tool_loop(
                     # spawns subagents surfaces their steps onto this turn's overlay while the
                     # loop is suspended inside the dispatch below (ADR-0010 progress addendum).
                     progress=context.progress,
+                    # And the turn's handoff slot (ADR-0030): the escalate built-in writes its
+                    # brief here, per call off the stamp, so one shared tool instance never
+                    # holds a turn's slot as state.
+                    escalation=context.escalation,
                 ),
                 gated=gated_by_name.get(call.name, False),
                 refusal=refusal,

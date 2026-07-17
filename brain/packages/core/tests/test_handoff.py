@@ -11,6 +11,7 @@ import pytest
 
 from cortex_core import (
     DispatchBudget,
+    EscalationRefs,
     EscalationSlot,
     HandoffRecord,
     HandoffState,
@@ -35,11 +36,13 @@ def _ledger() -> TaintLedger:
 
 def _slot(working: list[Message], *, budget: DispatchBudget, base_len: int) -> EscalationSlot:
     return EscalationSlot(
-        working=working,
-        taint=_ledger(),
-        nonce="cafe0123beef4567",
-        budget=budget,
-        base_len=base_len,
+        refs=EscalationRefs(
+            working=working,
+            taint=_ledger(),
+            nonce="cafe0123beef4567",
+            budget=budget,
+            base_len=base_len,
+        ),
         brief="go deep on this",
     )
 
@@ -104,15 +107,25 @@ def test_snapshot_without_a_brief_is_a_caller_bug() -> None:
         slot.snapshot(turn_id="t1", session_id="s1", requested_at=_AT)
 
 
+def test_snapshot_of_an_unarmed_slot_is_a_caller_bug() -> None:
+    # The wrapper builds the slot empty and the engine arms it at turn start (ADR-0030
+    # decision 5); a snapshot before any turn armed it has no state to serialize.
+    slot = EscalationSlot(brief="go deep on this")
+    with pytest.raises(ValueError, match="armed"):
+        slot.snapshot(turn_id="t1", session_id="s1", requested_at=_AT)
+
+
 def test_snapshot_detaches_from_the_live_ledger_and_working_list() -> None:
     ledger = _ledger()
     working = [*_tail("t1")]
     slot = EscalationSlot(
-        working=working,
-        taint=ledger,
-        nonce="cafe0123beef4567",
-        budget=DispatchBudget(),
-        base_len=0,
+        refs=EscalationRefs(
+            working=working,
+            taint=ledger,
+            nonce="cafe0123beef4567",
+            budget=DispatchBudget(),
+            base_len=0,
+        ),
         brief="go",
     )
     record = slot.snapshot(turn_id="t1", session_id="s1", requested_at=_AT)

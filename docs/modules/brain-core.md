@@ -145,12 +145,16 @@ Tool domain (Slice 6, ADR-0009; untrusted-content fields Slice 6.5, ADR-0013):
   What the dispatching turn hands the call (ADR-0027): its origin chat (`""` for a session-less
   caller), whether it had read untrusted content at dispatch time, which sources that content
   came from (ADR-0027 addendum), the turn's shared dispatch pool (`None` for a caller
-  that runs no tool loop, e.g. the schedule ticker), and the stream's progress side channel
-  (`None` for a caller with no overlay stream, ADR-0010 progress addendum). One object rather than
-  parallel keywords, which is how `sources` landed without touching a call site. `budget` and
-  `progress` are the two fields that are live handles rather than values, so both are excluded
-  from equality (ADR-0009 turn-wide addendum, ADR-0010 progress addendum): two dispatches of one
-  turn stay comparable and no caller can read "same pool" or "same stream" out of equality;
+  that runs no tool loop, e.g. the schedule ticker), the stream's progress side channel
+  (`None` for a caller with no overlay stream, ADR-0010 progress addendum), and the turn's
+  `escalation` handoff slot (`None` for every escalation-less caller, ADR-0030; the type is
+  imported under `TYPE_CHECKING` only, keeping `tools.py` cycle-free at runtime since
+  `handoff` reaches `untrusted`, which depends on `tools`). One object rather than
+  parallel keywords, which is how `sources` landed without touching a call site. `budget`,
+  `progress`, and `escalation` are the fields that are live handles rather than values, so all
+  are excluded from equality (ADR-0009 turn-wide addendum, ADR-0010 progress addendum,
+  ADR-0030): two dispatches of one turn stay comparable and no caller can read "same pool",
+  "same stream", or "same slot" out of equality;
   `sources` is a fact about the turn, so it *is* compared. `UNSTAMPED` is the exported
   unattributed default.
 - `ToolCall` is a frozen dataclass: `id: str`, `name: str`, `arguments: Mapping[str, Any]`,
@@ -189,8 +193,9 @@ Subagent domain (Slice 7, ADR-0010):
   marks a failure the cortex consumes as a value, mirroring `ToolResult.is_error`; `tainted` is
   set when the subagent read untrusted content, aggregated by the spawn tool (ADR-0013).
 
-Brain-handoff domain (ADR-0030, in `handoff.py`; the value half of the model swap, landed ahead
-of the escalate tool and conductor that will produce it):
+Brain-handoff domain (ADR-0030, in `handoff.py`; the value half of the model swap; the
+`escalate_to_brain` tool that fills the slot lives in `escalate.py` below, and the conductor
+that snapshots and swaps joins in a later slice):
 
 - `HandoffState` is an enum `PENDING` / `READY` / `BRAIN_ACTIVE` / `DONE` / `FAILED` (string
   values); `terminal` is `True` for the last two, the store-facing distinction (a terminal
@@ -208,13 +213,17 @@ of the escalate tool and conductor that will produce it):
   carries `UNSTAMPED` calls). Per the one hard rule it carries ONLY what is not already in a
   store. `taint_ledger()` reconstructs an exact, detached `TaintLedger` for the brain phase
   (bit, sources order, URL set), the round trip the contract test pins.
-- `EscalationSlot` is the mutable turn-local handle through which in-flight state reaches the
-  serializer: references to the live `working` list, `taint` ledger, `nonce`, and shared
-  `budget`, plus `base_len` (how many messages `working` held when the loop began, so
-  everything past it is the tail) and `brief` (`None` until the escalate tool, a later handoff
-  slice, writes it). `snapshot(*, turn_id, session_id, requested_at)` freezes it into a `READY`
+- `EscalationSlot(refs=None, brief=None)` is the mutable turn-local handle through which
+  in-flight state reaches the serializer. Built **empty** by whoever orchestrates the turn (the
+  escalating engine wrapper, ADR-0030 decision 5, so it can hold the slot across the delegated
+  turn; one slot serves exactly one turn, the builder's contract); the engine **arms** `refs`
+  at turn start with an `EscalationRefs` (frozen: references to the live `working` list,
+  `taint` ledger, `nonce`, shared `budget`, and `base_len`, how many messages `working` held
+  when the loop began, so everything past it is the tail); the `escalate_to_brain` tool writes
+  only `brief`. `snapshot(*, turn_id, session_id, requested_at)` freezes it into a `READY`
   record (copies, not references; `rounds_used` derived as one `Role.ASSISTANT` tool-call
-  message per dispatched round) and raises `ValueError` on a slot no tool filled.
+  message per dispatched round) and raises `ValueError` on a slot no tool filled or no engine
+  armed.
 
 Schedule domain (Slice 9.5, ADR-0025, in `schedule.py` for the value types and the recurrence
 math, `schedule_transitions.py` for the pure in-place transitions both stores apply; named
@@ -379,7 +388,8 @@ Untrusted-content boundary (Slice 6.5, ADR-0013; the pure primitives in `untrust
   engine passes the live ledger straight to `OutputGuardrail.open`.
 - `ToolLoopContext` is a frozen bundle of a tool loop's per-invocation collaborators (`dispatcher`,
   `clock`, `turn_id`, `taint`, `nonce`, `session_id`, `schema=None`,
-  `budget=DispatchBudget()` by default factory, `progress=None`), keeping `stream_tool_loop`
+  `budget=DispatchBudget()` by default factory, `progress=None`, `escalation=None`), keeping
+  `stream_tool_loop`
   under its argument ceiling. `session_id` is the originating chat the loop stamps onto each
   dispatch (ADR-0027; `""` for a session-less caller, e.g. a subagent); `schema` (ADR-0028), when
   set, constrains the model's output to that JSON Schema (a constrained tool-less subagent
@@ -393,6 +403,9 @@ Untrusted-content boundary (Slice 6.5, ADR-0013; the pure primitives in `untrust
   work (`spawn_subagents`) surfaces a subagent's steps onto the overlay while the loop's own
   generator is suspended inside that dispatch; `None` (a subagent's own inner loop, a session-less
   caller) leaves such work unsurfaced, keeping what reaches the overlay depth-1 as the tree is.
+  `escalation` (ADR-0030) is the turn's handoff slot, threaded exactly like `progress` so the
+  `escalate_to_brain` built-in reads it off each dispatch's stamp; `None` (the default, every
+  escalation-less caller) leaves that tool refusing honestly.
   What a given call spends comes from the dispatcher's `ToolCostPolicy` (ADR-0009 cost addendum),
   so a tool's price travels with the gateway that runs it and is not restated per loop.
 
@@ -646,7 +659,8 @@ Use-case:
   generation `InferenceError` is absorbed and an empty title is not persisted, either leaving the
   first-message derivation in place, so a failed title never fails the turn.
 - `TurnCapabilities(memory=None, tools=None, window=None, guardrail=None,
-  record_tainted_memory=False, generate_titles=False, progress=None)` is a frozen bundle of the
+  record_tainted_memory=False, generate_titles=False, progress=None, escalation=None)` is a
+  frozen bundle of the
   optional per-turn collaborators (a `MemoryRecaller`, a `ToolDispatcher`, a `HistoryWindow`, and
   an `OutputGuardrail`) plus the tainted-turn recording policy (ADR-0019), keeping the engine
   within its DI ceiling. The bool governs only writing. A stored tainted memory is always fenced
@@ -655,7 +669,14 @@ Use-case:
   keeps the first-message derivation. `progress` (ADR-0010 progress addendum) is this stream's
   `ProgressSink`: the engine stamps it onto each dispatch so a spawned subagent's steps reach the
   overlay while the turn's own generator is suspended inside the spawn dispatch; `None` (the
-  default, a stream-less turn) leaves delegated work unsurfaced.
+  default, a stream-less turn) leaves delegated work unsurfaced. `escalation` (ADR-0030) is the
+  turn's `EscalationSlot`: the engine arms its refs at turn start (live working list, ledger,
+  budget, nonce, pre-loop `base_len`) and stamps it onto each dispatch so `escalate_to_brain`
+  can write the brief; unlike the stream-lived `progress`, a slot serves exactly ONE turn (the
+  escalating wrapper constructs a fresh inner engine, and slot, per turn); `None` (the default)
+  is every escalation-less deployment. It lives in `turn_context.py` (with the turn-context
+  assembly `assemble_inference_messages`, the mechanical split out of `engine.py` that ADR-0029
+  decision 15 planned), re-exported unchanged from the barrel.
 - `HistoryWindow` (protocol, `windowing.py`) / `CharBudgetHistoryWindow(max_chars)` are the
   session-history windowing seam and its shipped policy (ADR-0014). `select(history)`
   returns the slice one turn sends to the model: `CharBudgetHistoryWindow` keeps the newest
@@ -672,8 +693,12 @@ Use-case:
   tool* (ADR-0009 addendum; both fields copied off the matched `ToolSpec`, so an unadvertised
   call surfaces no step; the engine maps it to `ToolActivity`, and a subagent maps it onto the
   spawning stream's `ProgressSink` when it has one, else drops it, ADR-0010 progress addendum).
+  The yield vocabulary (`ReasoningDelta`, `ToolStep`, `step_summary`, `MAX_STEP_SUMMARY_CHARS`)
+  lives in `loop_events.py`, the line-cap split made when the escalation threading landed.
   It stamps each dispatch with `context.progress`, so a built-in that spawns further work reaches
-  the overlay while this loop is suspended inside that dispatch. Mutates `working` in place with
+  the overlay while this loop is suspended inside that dispatch, and with `context.escalation`
+  (ADR-0030), so the escalate built-in reads the turn's handoff slot per call. Mutates
+  `working` in place with
   the tool-call and `Role.TOOL` result messages; ends on a tool-free step, a `None` dispatcher,
   or `MAX_TOOL_STEPS` (8) rounds. Four independent bounds apply (ADR-0009 budget addendum):
   rounds cap how long the loop runs, `context.budget` (`MAX_TOOL_DISPATCHES`, 32) caps what
@@ -791,12 +816,17 @@ Use-case:
   composition root gave it; an unadvertised name is priced at the default rather than free.
   `admits(call, dispatched)` answers whether a call is worth running, from that policy's
   `SaliencePolicy`. Stateless over the ports; the loop drives it and keeps the history.
-- `DispatchPolicy(gated_names=(), costs=UNIFORM_COST, salience=REPEAT_SALIENCE)` (`dispatch.py`,
-  ADR-0009 salience addendum) is what the composition root declares about dispatching, in one
-  value: the authoritative gate set, the prices, and the salience rule. Bundled because all three
-  are declarations *about* dispatching that a sidecar's own advertisement may claim none of, and
-  because ruff's argument ceiling left no room for a seventh parameter on the dispatcher or its
-  builders. It freezes `gated_names` at construction. `DEFAULT_DISPATCH_POLICY` is the default.
+- `DispatchPolicy(gated_names=(), costs=UNIFORM_COST, salience=REPEAT_SALIENCE,
+  gate_reasons={})` (`dispatch.py`, ADR-0009 salience addendum) is what the composition root
+  declares about dispatching, in one value: the authoritative gate set, the prices, the salience
+  rule, and the per-tool confirm-card reasons (ADR-0030 decision 1: `gate_reasons[name]`
+  replaces the generic "outbound or irreversible" line in `ConfirmationRequest.reason` for that
+  tool only, so the escalate card can say what is actually approved, the model swap; unnamed
+  tools keep the generic reason). Bundled because all four are declarations *about* dispatching
+  that a sidecar's own advertisement may claim none of, and because ruff's argument ceiling left
+  no room for a seventh parameter on the dispatcher or its builders. It freezes `gated_names`
+  and copies `gate_reasons` into a read-only proxy at construction. `DEFAULT_DISPATCH_POLICY`
+  is the default.
 - `SaliencePolicy` (`tool_salience.py`, ADR-0009 salience addendum) is the pure seam deciding
   which calls deserve dispatching: `admits(call, dispatched) -> bool`, where `dispatched` is the
   caller's calls **grouped by round**, last group being the round in progress (the grouping is
@@ -902,6 +932,22 @@ Use-case:
   (host state, never taints the turn); bad arguments and a `BodyGatewayError` both become an
   `is_error` `TRUSTED` `ToolResult`, never a raise. `BuiltinTool`s, registered in the
   `CompositeToolRegistry`.
+- `EscalateToBrainTool()` (`escalate.py`) is the built-in `escalate_to_brain` tool (ADR-0030
+  decision 1): the cortex's mid-turn request for the deep-model handoff, cortex-only like every
+  built-in. Stateless and dependency-free: it reads the turn's `EscalationSlot` off each
+  dispatch's `TurnStamp` (the `spawn_subagents` progress-sink isolation discipline, so one
+  shared instance serves every stream), validates the model-authored `brief` (non-empty string,
+  stripped, at most `MAX_BRIEF_CHARS` = 4000; refused whole, never truncated, since a cut-off
+  handover would look complete to the deep model), writes `slot.brief`, and answers
+  `ESCALATION_QUEUED_MSG` (wrap up, no more tools; the swap itself happens at the loop
+  boundary, the conductor's job). Its spec is `gated=True` (its own flag, OR-ed with the
+  `CORTEX_TOOLS_GATED` backstop), which buys both existing protections at zero new mechanism:
+  the ADR-0022 confirm card on an untainted turn (with the per-tool `ESCALATE_GATE_REASON`
+  card text, since the generic gate line would be false about a swap) and the dispatcher's
+  tainted-turn hard-deny, so injected content can never force an eviction. A missing slot, a
+  bad or over-long brief, and a second escalation in one turn are all trusted `is_error`
+  results, never a raise. The opaque-turn (screen-capture pixels) refusal is deferred with the
+  vision slice: `Message` carries no pixels yet (`docs/refinements/untrusted-content.md`).
 - `ScheduleTaskTool(store, clock, *, tasks_enabled, max_active, zones=UTC_ZONE_CONTEXT,
   item_id_factory=<uuid4>)` /
   `ListScheduledTool(store, *, zone=UTC_DISPLAY)` (`schedule_tools.py`) and

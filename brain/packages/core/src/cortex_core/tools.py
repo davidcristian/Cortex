@@ -4,22 +4,26 @@ Pure data, no I/O and no ``ports`` import. That lets ``ports.py`` depend on thes
 cycle, exactly as ``memory.py`` is depended on. ``arguments``/``parameters`` carry arbitrary
 JSON (a tool's schema and a model's call args are open-shaped), so ``Any`` here is the
 justified kind: the boundary is genuinely dynamic and the value is round-tripped, never
-introspected by the core. The two exceptions to "values only" are the live handles a
-``TurnStamp`` carries, the ``DispatchBudget`` and the ``ProgressSink``, rather than values;
-``tool_budget``, ``provenance``, and ``progress`` (the stamp's collaborators) import nothing but
-the standard library (``progress`` transitively, through ``events``), so depending on them keeps
-this module port-free.
+introspected by the core. The exceptions to "values only" are the live handles a
+``TurnStamp`` carries (the ``DispatchBudget``, the ``ProgressSink``, and the ``EscalationSlot``)
+rather than values; ``tool_budget``, ``provenance``, and ``progress`` (the stamp's collaborators)
+import nothing but the standard library (``progress`` transitively, through ``events``), and the
+slot's type is imported for typing only (``handoff`` reaches ``untrusted``, which depends on this
+module), so depending on them keeps this module port-free and cycle-free at runtime.
 """
 
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from cortex_core.progress import ProgressSink
 from cortex_core.provenance import Provenance
 from cortex_core.tool_budget import DispatchBudget
+
+if TYPE_CHECKING:
+    from cortex_core.handoff import EscalationSlot
 
 
 class Trust(Enum):
@@ -70,11 +74,14 @@ class TurnStamp:
     confirmation card that names its source and per-provenance eviction.
 
     Originally the turn's *provenance* alone. ``budget`` widened that to what the turn hands
-    down to work this call spawns (which ``tainted`` already was in practice), and ``progress``
-    to where that spawned work surfaces its steps. Both are live shared handles rather than
-    values, so both are excluded from equality: two dispatches of the same turn stay comparable,
-    and no caller can mistake one pool (or one stream's sink) for another (ADR-0009 turn-wide
-    addendum, ADR-0010 progress addendum).
+    down to work this call spawns (which ``tainted`` already was in practice), ``progress``
+    to where that spawned work surfaces its steps, and ``escalation`` (ADR-0030) to the turn's
+    handoff slot, which the ``escalate_to_brain`` built-in writes its brief into (``None`` for
+    an escalation-less turn or a turn-less caller like the ticker). All three are live shared
+    handles rather than values, so all are excluded from equality: two dispatches of the same
+    turn stay comparable, and no caller can mistake one pool (or one stream's sink, or one
+    turn's slot) for another (ADR-0009 turn-wide addendum, ADR-0010 progress addendum,
+    ADR-0030 decision 2).
     """
 
     session_id: str = ""
@@ -82,6 +89,7 @@ class TurnStamp:
     sources: tuple[Provenance, ...] = ()
     budget: DispatchBudget | None = field(default=None, compare=False)
     progress: ProgressSink | None = field(default=None, compare=False)
+    escalation: "EscalationSlot | None" = field(default=None, compare=False)
 
 
 # The unattributed default stamp: no originating session, no taint. A named constant

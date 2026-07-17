@@ -27,7 +27,6 @@ from cortex_core.dispatch import DispatchPolicy as DispatchPolicy
 from cortex_core.dispatch import DispatchRefusal as DispatchRefusal
 from cortex_core.dispatch import ToolDispatcher as ToolDispatcher
 from cortex_core.engine import DEFAULT_CORTEX_MODEL as DEFAULT_CORTEX_MODEL
-from cortex_core.engine import TurnCapabilities as TurnCapabilities
 from cortex_core.engine import TurnEngine as TurnEngine
 from cortex_core.errors import BodyGatewayError as BodyGatewayError
 from cortex_core.errors import EmbedderError as EmbedderError
@@ -42,6 +41,11 @@ from cortex_core.errors import SubagentAdmissionError as SubagentAdmissionError
 from cortex_core.errors import TaskStoreError as TaskStoreError
 from cortex_core.errors import ToolError as ToolError
 from cortex_core.errors import ToolNotFoundError as ToolNotFoundError
+from cortex_core.escalate import ESCALATE_GATE_REASON as ESCALATE_GATE_REASON
+from cortex_core.escalate import ESCALATE_TOOL_NAME as ESCALATE_TOOL_NAME
+from cortex_core.escalate import ESCALATION_QUEUED_MSG as ESCALATION_QUEUED_MSG
+from cortex_core.escalate import MAX_BRIEF_CHARS as MAX_BRIEF_CHARS
+from cortex_core.escalate import EscalateToBrainTool as EscalateToBrainTool
 from cortex_core.events import StatusUpdate as StatusUpdate
 from cortex_core.events import TextDelta as TextDelta
 from cortex_core.events import ToolActivity as ToolActivity
@@ -68,6 +72,7 @@ from cortex_core.guardrail import OutputGuardrail as OutputGuardrail
 from cortex_core.guardrail import StrictUrlRedactingGuardrail as StrictUrlRedactingGuardrail
 from cortex_core.guardrail import TaintView as TaintView
 from cortex_core.guardrail import UrlRedactingGuardrail as UrlRedactingGuardrail
+from cortex_core.handoff import EscalationRefs as EscalationRefs
 from cortex_core.handoff import EscalationSlot as EscalationSlot
 from cortex_core.handoff import HandoffRecord as HandoffRecord
 from cortex_core.handoff import HandoffState as HandoffState
@@ -206,6 +211,7 @@ from cortex_core.tools import ToolResult as ToolResult
 from cortex_core.tools import ToolSpec as ToolSpec
 from cortex_core.tools import Trust as Trust
 from cortex_core.tools import TurnStamp as TurnStamp
+from cortex_core.turn_context import TurnCapabilities as TurnCapabilities
 from cortex_core.untrusted import DENIED_MSG as DENIED_MSG
 from cortex_core.untrusted import SECURITY_PREAMBLE as SECURITY_PREAMBLE
 from cortex_core.untrusted import USER_DECLINED_MSG as USER_DECLINED_MSG

@@ -7,6 +7,8 @@ from pydantic import ValidationError
 
 from cortex_core import (
     ALWAYS_SALIENT,
+    ESCALATE_GATE_REASON,
+    ESCALATE_TOOL_NAME,
     MAX_TOOL_DISPATCHES,
     REPEAT_SALIENCE,
     SPAWN_TOOL_NAME,
@@ -528,10 +530,11 @@ def test_seam_rejects_a_non_positive_confirm_timeout(monkeypatch: pytest.MonkeyP
         SeamServerConfig()
 
 
-def test_tools_gated_defaults_to_send_email() -> None:
+def test_tools_gated_defaults_to_escalate_and_send_email() -> None:
     # The fail-closed pairing (ADR-0022): enabling the email sidecar's write path without
-    # touching gating config still gates it.
-    assert ToolsConfig().gated == ("send_email",)
+    # touching gating config still gates it. The escalate built-in joins as the dispatcher's
+    # backstop behind its own always-gated advertised flag (ADR-0030 decision 1).
+    assert ToolsConfig().gated == (ESCALATE_TOOL_NAME, "send_email")
 
 
 def test_tools_env_overrides_the_gated_names(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -542,6 +545,43 @@ def test_tools_env_overrides_the_gated_names(monkeypatch: pytest.MonkeyPatch) ->
 def test_tools_env_empties_the_gated_names(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("CORTEX_TOOLS_GATED", "[]")
     assert ToolsConfig().gated == ()
+
+
+def test_gate_reasons_default_to_the_escalate_card_text() -> None:
+    # The one per-tool reason wired out of the box (ADR-0030 decision 1): the generic
+    # "outbound or irreversible" line is false about a model swap, so the escalate card says
+    # what is actually being approved; every other gated tool keeps the generic reason.
+    policy = ToolsConfig().dispatch_policy
+    assert policy.gate_reasons == {ESCALATE_TOOL_NAME: ESCALATE_GATE_REASON}
+
+
+def test_gate_reasons_env_sets_one_tool_per_key(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("CORTEX_TOOLS_GATE_REASONS__SEND_EMAIL", "this sends email as you")
+    assert ToolsConfig().gate_reason_map == {
+        ESCALATE_TOOL_NAME: ESCALATE_GATE_REASON,
+        "send_email": "this sends email as you",
+    }
+
+
+def test_setting_one_gate_reason_does_not_silently_drop_the_escalate_one() -> None:
+    # Same merge argument as cost_policy: a nested-dict env key replaces the whole mapping,
+    # so the built-in escalate reason is merged under the user's, never kept as the default.
+    merged = ToolsConfig(gate_reasons={"send_email": "sends as you"}).gate_reason_map
+    assert merged[ESCALATE_TOOL_NAME] == ESCALATE_GATE_REASON
+    assert merged["send_email"] == "sends as you"
+
+
+def test_restating_the_escalate_gate_reason_overrides_it() -> None:
+    # The merge is a floor, not a lock: a user who names the tool explicitly means it.
+    merged = ToolsConfig(gate_reasons={ESCALATE_TOOL_NAME: "my own words"}).gate_reason_map
+    assert merged[ESCALATE_TOOL_NAME] == "my own words"
+
+
+def test_a_blank_gate_reason_fails_at_boot() -> None:
+    # A blank reason would render an empty confirm-card line: a consent surface that no
+    # longer says what is being approved fails loudly at boot, not silently on screen.
+    with pytest.raises(ValidationError, match=r"GATE_REASONS must be non-empty.*send_email"):
+        ToolsConfig(gate_reasons={"send_email": "   "})
 
 
 def test_tools_costs_price_only_the_fan_out_tool_by_default() -> None:

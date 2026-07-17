@@ -9,11 +9,13 @@ its own store. The tail is text-only by the same invariant the session stores en
 (ADR-0029): ``Message`` carries no pixels today, and the day it can, the handoff record refuses
 image-bearing messages the way those stores do rather than quietly widening pixel persistence.
 
-``EscalationSlot`` is how the in-flight state reaches the serializer: a mutable turn-local
-object created next to the ledger and nonce, holding references to the live ``working`` list,
-ledger, nonce, and budget. The escalate tool (a later handoff slice) writes only ``brief``; the
-conductor snapshots everything else at the loop boundary, after the cortex phase's generator
-has finished, so nothing is copied mid-flight. Pure data and pure functions, no I/O.
+``EscalationSlot`` is how the in-flight state reaches the serializer. Whoever orchestrates the
+turn (the escalating engine wrapper, ADR-0030 decision 5) builds the empty slot before the turn
+exists; the engine **arms** it at turn start by filling ``refs`` (an ``EscalationRefs`` holding
+references to the live ``working`` list, ledger, nonce, and budget, created next to the ledger
+and nonce); the ``escalate_to_brain`` tool writes only ``brief``; the conductor snapshots
+everything else at the loop boundary, after the cortex phase's generator has finished, so
+nothing is copied mid-flight. Pure data and pure functions, no I/O.
 """
 
 from dataclasses import dataclass
@@ -107,17 +109,15 @@ class HandoffRecord:
         )
 
 
-@dataclass(slots=True)
-class EscalationSlot:
-    """The turn-local handle through which in-flight state reaches the handoff serializer.
+@dataclass(frozen=True, slots=True)
+class EscalationRefs:
+    """The live turn-local state the engine arms an ``EscalationSlot`` with at turn start.
 
-    Created next to the ledger and nonce, holding references (not copies) to the live
-    ``working`` list, ``taint`` ledger, and shared ``budget``; ``base_len`` is how many
-    messages ``working`` held when the tool loop began, so everything past it is the loop's
-    appended tail. The escalate tool writes only ``brief`` (``None`` = no escalation this
-    turn); the conductor calls ``snapshot`` at the loop boundary, once the cortex phase's
-    generator has finished. Mutable and turn-local on purpose, like the ledger it rides
-    beside: it dies with the turn, and only its snapshot is persisted.
+    References (not copies) to the turn's ``working`` list, ``taint`` ledger, and shared
+    ``budget``, plus the fence ``nonce``; ``base_len`` is how many messages ``working`` held
+    when the tool loop began, so everything past it is the loop's appended tail. A frozen
+    bundle: the referenced objects stay live and mutable (that is the point), but which
+    objects one turn armed is not revisable mid-turn.
     """
 
     working: list[Message]
@@ -125,32 +125,53 @@ class EscalationSlot:
     nonce: str
     budget: DispatchBudget
     base_len: int
+
+
+@dataclass(slots=True)
+class EscalationSlot:
+    """The turn-local handle through which in-flight state reaches the handoff serializer.
+
+    Built empty by whoever orchestrates the turn (the escalating engine wrapper, ADR-0030
+    decision 5) so it can hold the slot across the delegated turn; the engine arms ``refs``
+    next to the ledger and nonce at turn start; the ``escalate_to_brain`` tool writes only
+    ``brief`` (``None`` = no escalation this turn); the conductor calls ``snapshot`` at the
+    loop boundary, once the cortex phase's generator has finished. Mutable and turn-local on
+    purpose, like the ledger it rides beside: one slot serves exactly one turn (a fresh slot
+    per turn is the builder's contract), it dies with that turn, and only its snapshot is
+    persisted.
+    """
+
+    refs: EscalationRefs | None = None
     brief: str | None = None
 
     def snapshot(self, *, turn_id: str, session_id: str, requested_at: datetime) -> HandoffRecord:
         """Serialize the slot into a ``READY`` ``HandoffRecord`` (ADR-0030 decision 4 step 1).
 
         Snapshotting a slot no tool ever filled is a caller bug, so a ``None`` ``brief``
-        raises rather than persisting an empty escalation. ``rounds_used`` is derived from the
-        tail: the loop appends exactly one ``Role.ASSISTANT`` tool-call message per round that
-        dispatched, and a final text-only round appends nothing.
+        raises rather than persisting an empty escalation; so is snapshotting a slot no
+        engine ever armed. ``rounds_used`` is derived from the tail: the loop appends exactly
+        one ``Role.ASSISTANT`` tool-call message per round that dispatched, and a final
+        text-only round appends nothing.
         """
         if self.brief is None:
             msg = "EscalationSlot.snapshot requires a brief (no escalation was requested)"
             raise ValueError(msg)
-        tail = tuple(self.working[self.base_len :])
+        if self.refs is None:
+            msg = "EscalationSlot.snapshot requires an armed slot (no turn ever filled refs)"
+            raise ValueError(msg)
+        tail = tuple(self.refs.working[self.refs.base_len :])
         return HandoffRecord(
             handoff_id=turn_id,
             session_id=session_id,
             requested_at=requested_at,
             state=HandoffState.READY,
             brief=self.brief,
-            nonce=self.nonce,
-            tainted=self.taint.tainted,
-            sources=self.taint.sources,
-            untrusted_urls=frozenset(self.taint.untrusted_urls),
-            budget_remaining=self.budget.limit - self.budget.spent,
-            budget_closed=self.budget.closed,
+            nonce=self.refs.nonce,
+            tainted=self.refs.taint.tainted,
+            sources=self.refs.taint.sources,
+            untrusted_urls=frozenset(self.refs.taint.untrusted_urls),
+            budget_remaining=self.refs.budget.limit - self.refs.budget.spent,
+            budget_closed=self.refs.budget.closed,
             rounds_used=sum(1 for message in tail if message.role is Role.ASSISTANT),
             loop_tail=tail,
         )
