@@ -17,9 +17,10 @@ unreachable confirmation, the fail-closed no-confirmer default included, and a
 The approval is the human's, reached out of band, never the (possibly jailbroken) model's.
 """
 
-from collections.abc import Collection, Sequence
-from dataclasses import dataclass, replace
+from collections.abc import Collection, Mapping, Sequence
+from dataclasses import dataclass, field, replace
 from enum import Enum
+from types import MappingProxyType
 
 from cortex_core.errors import ToolError
 from cortex_core.ports import Clock, Confirmer, ToolAuditSink, ToolRegistry
@@ -38,7 +39,9 @@ from cortex_core.tools import (
 )
 from cortex_core.untrusted import DENIED_MSG, USER_DECLINED_MSG
 
-# Why confirmation is required, shown verbatim to the user by the overlay (ADR-0022).
+# Why confirmation is required, shown verbatim to the user by the overlay (ADR-0022). The
+# default when the policy names no per-tool reason (ADR-0030 decision 1): true for the outbound
+# and irreversible tools, and overridden where it would be false (the escalate card).
 _GATE_REASON = "this action is outbound or irreversible and runs only with your approval"
 
 # The result content fed back when the caller's dispatch budget is spent (ADR-0009 budget
@@ -95,24 +98,30 @@ class DispatchRefusal(Enum):
 class DispatchPolicy:
     """What the composition root declares about dispatching, in one value.
 
-    Three declarations that a sidecar must never make about itself: which tools are ``gated``
+    Four declarations that a sidecar must never make about itself: which tools are ``gated``
     (ADR-0022, the authoritative backstop the advertised flag is OR-ed with), what each one
-    ``costs`` against the caller's budget (ADR-0009 cost addendum), and which calls are worth
-    running at all (``salience``, ADR-0009 salience addendum). They travel together because they
-    are one category, and because ruff's argument ceiling left no room for a seventh parameter
-    on either the dispatcher or its builder: bundling only two would have reached the ceiling
-    again on the next declaration.
+    ``costs`` against the caller's budget (ADR-0009 cost addendum), which calls are worth
+    running at all (``salience``, ADR-0009 salience addendum), and what a gated tool's confirm
+    card tells the user (``gate_reasons``, ADR-0030 decision 1: a per-tool reason for the card
+    where the generic "outbound or irreversible" text would be false, e.g. the escalate card
+    naming the model swap; unnamed tools keep the generic reason). They travel together because
+    they are one category, and because ruff's argument ceiling left no room for a seventh
+    parameter on either the dispatcher or its builder: bundling only two would have reached the
+    ceiling again on the next declaration.
 
-    ``gated_names`` is frozen at construction like ``ToolCostPolicy`` freezes its prices, so
-    whoever built the policy cannot keep editing the gate set afterwards.
+    ``gated_names`` is frozen at construction like ``ToolCostPolicy`` freezes its prices, and
+    ``gate_reasons`` is copied into a read-only proxy for the same reason: whoever built the
+    policy cannot keep editing the gate set or the card text afterwards.
     """
 
     gated_names: Collection[str] = ()
     costs: ToolCostPolicy = UNIFORM_COST
     salience: SaliencePolicy = REPEAT_SALIENCE
+    gate_reasons: Mapping[str, str] = field(default_factory=dict[str, str])
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "gated_names", frozenset(self.gated_names))
+        object.__setattr__(self, "gate_reasons", MappingProxyType(dict(self.gate_reasons)))
 
 
 # The policy a dispatcher gets unless the composition root passes one: nothing gated, every tool
@@ -236,11 +245,18 @@ class ToolDispatcher:
         return await self._audited(call, result)
 
     async def _confirmed(self, call: ToolCall) -> bool:
-        """Ask the confirmer to approve a gated call; a missing confirmer denies (fail-closed)."""
+        """Ask the confirmer to approve a gated call; a missing confirmer denies (fail-closed).
+
+        The reason shown on the card is the policy's per-tool text when one is declared
+        (ADR-0030 decision 1) and the generic gate reason otherwise, so the card never states
+        "outbound or irreversible" about an action where that would be false.
+        """
         if self._confirmer is None:
             return False
         request = ConfirmationRequest(
-            tool_name=call.name, arguments=call.arguments, reason=_GATE_REASON
+            tool_name=call.name,
+            arguments=call.arguments,
+            reason=self._policy.gate_reasons.get(call.name, _GATE_REASON),
         )
         return await self._confirmer.confirm(request)
 

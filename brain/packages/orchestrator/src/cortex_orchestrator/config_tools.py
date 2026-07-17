@@ -14,6 +14,8 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from cortex_core import (
     ALWAYS_SALIENT,
+    ESCALATE_GATE_REASON,
+    ESCALATE_TOOL_NAME,
     MAX_TOOL_DISPATCHES,
     REPEAT_SALIENCE,
     SPAWN_TOOL_NAME,
@@ -47,11 +49,18 @@ class ToolsConfig(BaseSettings):
     ``CORTEX_TOOLS_ON_UNAVAILABLE`` picks the dead-sidecar policy: ``fail`` (the default)
     fails tool listing loudly; ``skip`` serves the healthy sidecars and logs the dead one
     on every walk (ADR-0009 degraded-mode addendum), degraded but never silent.
-    ``CORTEX_TOOLS_GATED`` (a JSON name list, ADR-0022) names the remote tools the brain
-    declares outbound/irreversible: the composition root stamps them ``gated``, so the
+    ``CORTEX_TOOLS_GATED`` (a JSON name list, ADR-0022) names the tools the brain declares
+    outbound/irreversible/disruptive: the composition root stamps remote ones ``gated``, so the
     dispatcher's confirm gate covers them and subagents never see them. The default covers
     ``send_email``, so enabling the email sidecar's write path without touching gating
-    config still gates it (fail-closed pairing); an empty list disables the overlay.
+    config still gates it (fail-closed pairing), and ``escalate_to_brain`` (ADR-0030), the
+    dispatcher-side backstop behind that built-in's own always-gated advertised flag; an
+    empty list disables the overlay (the escalate spec stays gated regardless).
+    ``CORTEX_TOOLS_GATE_REASONS__<name>=<text>`` (ADR-0030 decision 1) sets the confirm card's
+    reason for one gated tool, where the generic "outbound or irreversible" line would be
+    false; unnamed tools keep the generic reason, a blank text fails at boot, and
+    ``gate_reason_map`` merges the built-in ``escalate_to_brain`` reason (the app-authored
+    model-swap text) under whatever the user set, the ``cost_policy`` merge precedent.
     ``CORTEX_TOOLS_COSTS__<name>=<int>`` prices a tool against the loop's dispatch budget
     (ADR-0009 cost addendum), one per key so layered compose overrides each contribute the
     price of the tool they enable, and anything unpriced costs one. ``cost_policy`` is the
@@ -73,7 +82,8 @@ class ToolsConfig(BaseSettings):
     endpoints: dict[str, str] = {}
     allow: dict[str, tuple[str, ...]] = {}
     on_unavailable: Literal["fail", "skip"] = "fail"
-    gated: tuple[str, ...] = ("send_email",)
+    gated: tuple[str, ...] = (ESCALATE_TOOL_NAME, "send_email")
+    gate_reasons: dict[str, str] = {}
     costs: dict[str, int] = {}
     salience: ToolsSalienceName = "repeat"
 
@@ -99,6 +109,11 @@ class ToolsConfig(BaseSettings):
         if bad := sorted(n for n, c in self.costs.items() if not 1 <= c <= MAX_TOOL_DISPATCHES):
             msg = f"CORTEX_TOOLS_COSTS must be 1..{MAX_TOOL_DISPATCHES}: {bad}"
             raise ValueError(msg)
+        # A blank gate reason would render an empty confirm card line, a consent surface that
+        # no longer says what is being approved. Misconfiguration fails at boot, not on screen.
+        if blank := sorted(n for n, r in self.gate_reasons.items() if not r.strip()):
+            msg = f"CORTEX_TOOLS_GATE_REASONS must be non-empty text: {blank}"
+            raise ValueError(msg)
         return self
 
     @property
@@ -114,6 +129,18 @@ class ToolsConfig(BaseSettings):
         return ToolCostPolicy({SPAWN_TOOL_NAME: DEFAULT_SPAWN_COST} | self.costs)
 
     @property
+    def gate_reason_map(self) -> dict[str, str]:
+        """The effective per-tool confirm-card reasons (ADR-0030 decision 1).
+
+        The built-in ``escalate_to_brain`` reason is merged **under** the user's for the same
+        reason ``cost_policy`` merges: a nested-dict env key replaces the whole mapping, so
+        setting a reason for one tool must not silently drop the escalate card back to the
+        generic "outbound or irreversible" text, which is false for a model swap. Restating
+        the built-in still overrides it, which is deliberate.
+        """
+        return {ESCALATE_TOOL_NAME: ESCALATE_GATE_REASON} | self.gate_reasons
+
+    @property
     def salience_policy(self) -> SaliencePolicy:
         """The core policy deciding which calls a tool loop dispatches (salience addendum).
 
@@ -124,17 +151,18 @@ class ToolsConfig(BaseSettings):
 
     @property
     def dispatch_policy(self) -> DispatchPolicy:
-        """The three composition-root declarations about dispatching, as one value.
+        """The four composition-root declarations about dispatching, as one value.
 
         What every `ToolDispatcher` in the process is built with: the gate backstop, the prices,
-        and the salience rule (ADR-0009 salience addendum decision 10). Bundled because ruff's
-        argument ceiling left no room for a seventh builder parameter, and because a sidecar may
-        claim none of the three for itself.
+        the salience rule (ADR-0009 salience addendum decision 10), and the per-tool confirm-card
+        reasons (ADR-0030 decision 1). Bundled because ruff's argument ceiling left no room for a
+        seventh builder parameter, and because a sidecar may claim none of the four for itself.
         """
         return DispatchPolicy(
             gated_names=self.gated,
             costs=self.cost_policy,
             salience=self.salience_policy,
+            gate_reasons=self.gate_reason_map,
         )
 
     @property

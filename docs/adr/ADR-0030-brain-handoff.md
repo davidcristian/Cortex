@@ -482,3 +482,38 @@ fix-when-it-bites with their triggers now live.
 5. **Brain-phase tools carry the cortex's dispatcher unchanged**, including spawn (which
    drain refuses for the window). If the user prefers a tool-less or narrower brain phase
    for v1, it is a wiring choice at the composition root, not a design change.
+
+## Addendum (2026-07-17): the trigger sub-slice landed; the opaque-turn refusal moved to the vision slice
+
+The escalation trigger landed as designed with one sequencing correction. This ADR's context
+said "this slice lands after the vision slice", but the repo sequenced the handoff sub-slices
+ahead of ADR-0029, which remains designed and unimplemented: `Message` carries no pixels and no
+`opaque` bit exists. The trigger sub-slice's opaque-turn refusal therefore has nothing to check
+today, and a stand-in check would be a gate that cannot fail (AGENTS.md, distrust green). It is
+recorded as a deferred refinement in `docs/refinements/untrusted-content.md` (indexed under
+"actionable, but a seam change comes first") and lands with the vision slice's pixel-taint
+increment, as decision 1 specifies: the handoff record already refuses what the session stores
+refuse, and the tool then answers an image-bearing turn with a typed refusal telling the model
+to ask the user to retry in a fresh message.
+
+What landed, versus this ADR's shape, with no other deviation:
+
+- `escalate_to_brain` (`cortex_core/escalate.py`) is a stateless gated built-in; the slot rides
+  each dispatch's `TurnStamp` (the spawn progress-sink isolation discipline), the tool writes
+  only `slot.brief` (stripped, bounded at `MAX_BRIEF_CHARS` 4000, refused whole rather than
+  truncated), and its success text tells the model the handoff is queued for the loop boundary
+  and to wrap up without further tools, which is exactly decision 6's cortex wrap-up phase.
+- `EscalationSlot` grew the armable shape decisions 2 and 5 jointly require: the wrapper builds
+  it empty before the turn exists, and the engine arms `refs` (an `EscalationRefs` bundle:
+  working list, ledger, nonce, shared budget, pre-loop `base_len`) at turn start, threaded via
+  `TurnCapabilities.escalation` and `ToolLoopContext`/`TurnStamp`. `snapshot()` refuses an
+  unarmed or unfilled slot. The conductor sub-slice consumes this seam unchanged.
+- The per-tool gate reason landed as `DispatchPolicy.gate_reasons` flowing into
+  `ConfirmationRequest.reason`, with the config knob (`CORTEX_TOOLS_GATE_REASONS__<name>`)
+  beside `CORTEX_TOOLS_GATED` as decision 1 specified, the built-in escalate card text merged
+  under the user's (the cost-policy merge precedent), and `escalate_to_brain` added to the
+  default gated backstop (the `send_email` fail-closed pairing).
+- The tool is deliberately not yet registered in the wiring's built-in set: without the
+  escalating wrapper (the conductor sub-slice, which builds the per-turn slot and is gated by
+  `CORTEX_ESCALATION`), an advertised escalate tool could only ever refuse, a dishonest
+  advertisement. Registration arrives with that wrapper.

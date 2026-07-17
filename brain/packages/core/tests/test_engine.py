@@ -9,14 +9,19 @@ import pytest
 from cortex_core import (
     DEFAULT_CORTEX_MODEL,
     DENIED_MSG,
+    ESCALATE_TOOL_NAME,
     REDACTED_LINK,
     SECURITY_PREAMBLE,
     CharBudgetHistoryWindow,
     CompositeToolRegistry,
     EchoInferenceBackend,
+    EscalateToBrainTool,
+    EscalationSlot,
+    HandoffState,
     HashEmbedder,
     InferenceError,
     InferenceEvent,
+    InMemoryHandoffStore,
     InMemoryMemoryStore,
     InMemoryScheduleStore,
     InMemorySessionStore,
@@ -28,6 +33,7 @@ from cortex_core import (
     Provenance,
     ReasoningChunk,
     RecordingAuditSink,
+    RecordingConfirmer,
     Role,
     ScheduleTaskTool,
     SessionMemoryScope,
@@ -50,7 +56,8 @@ from cortex_core import (
     TurnStamp,
     UrlRedactingGuardrail,
 )
-from cortex_core.tool_loop import MAX_STEP_SUMMARY_CHARS, MAX_TOOL_STEPS
+from cortex_core.loop_events import MAX_STEP_SUMMARY_CHARS
+from cortex_core.tool_loop import MAX_TOOL_STEPS
 
 _START = datetime(2026, 7, 3, 12, 0, 0, tzinfo=UTC)
 
@@ -1353,3 +1360,71 @@ async def test_an_empty_generated_title_is_not_persisted() -> None:
     )
     await _collect(engine.handle_turn("s", "the opening question"))
     assert await _title_of(store, "s") == "the opening question"  # empty title rejected
+
+
+async def test_an_armed_escalation_slot_captures_exactly_the_turns_loop_tail() -> None:
+    # The engine arms the slot at turn start (ADR-0030 decision 2): references to the live
+    # working list and ledger plus the pre-loop length, so everything past `base_len` is
+    # exactly what this turn's loop appended and nothing that came before it.
+    slot = EscalationSlot()
+    backend = ScriptedToolBackend(
+        [
+            [ToolCall(id="c1", name="read", arguments={"path": "/etc/hosts"})],
+            [TextChunk("done")],
+        ]
+    )
+    engine = TurnEngine(
+        InMemorySessionStore(),
+        backend,
+        TickingClock(),
+        capabilities=TurnCapabilities(
+            tools=_read_dispatcher(RecordingAuditSink()), escalation=slot
+        ),
+        turn_id_factory=lambda: "t-1",
+    )
+    await _collect(engine.handle_turn("s", "show hosts"))
+    refs = slot.refs
+    assert refs is not None
+    assert refs.base_len == 2  # the security preamble + the user message, nothing of the tail
+    tail = refs.working[refs.base_len :]
+    assert [message.role for message in tail] == [Role.ASSISTANT, Role.TOOL]
+    assert refs.nonce  # the turn's fence id rode along, so the tail's markers stay explained
+    assert slot.brief is None  # armed but never filled: no escalate call ran this turn
+
+
+async def test_an_approved_escalation_snapshots_to_a_ready_record_in_the_store() -> None:
+    # The S11.c seam the swap conductor will drive (ADR-0030 decisions 2 and 4 step 1):
+    # invoke the gated tool under an approving user, then slot → snapshot() → HandoffStore.put
+    # produces the one READY record, brief and loop tail included. Until the conductor lands,
+    # this test stands at exactly its call site: the loop boundary, after the turn finished.
+    slot = EscalationSlot()
+    dispatcher = ToolDispatcher(
+        CompositeToolRegistry([EscalateToBrainTool()]),
+        RecordingAuditSink(),
+        TickingClock(),
+        confirmer=RecordingConfirmer(answer=True),
+    )
+    backend = ScriptedToolBackend(
+        [
+            [ToolCall(id="c1", name=ESCALATE_TOOL_NAME, arguments={"brief": "audit it deeply"})],
+            [TextChunk("handing off")],
+        ]
+    )
+    engine = TurnEngine(
+        InMemorySessionStore(),
+        backend,
+        TickingClock(),
+        capabilities=TurnCapabilities(tools=dispatcher, escalation=slot),
+        turn_id_factory=lambda: "t-1",
+    )
+    await _collect(engine.handle_turn("s", "solve this properly"))
+    assert slot.brief == "audit it deeply"
+    store = InMemoryHandoffStore()
+    record = slot.snapshot(turn_id="t-1", session_id="s", requested_at=_START)
+    await store.put(record)
+    assert await store.active() == record
+    assert record.state is HandoffState.READY
+    assert record.brief == "audit it deeply"
+    assert record.rounds_used == 1
+    assert [message.role for message in record.loop_tail] == [Role.ASSISTANT, Role.TOOL]
+    assert record.tainted is False  # the escalate result is our own trusted text

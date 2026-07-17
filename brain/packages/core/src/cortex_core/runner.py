@@ -18,12 +18,13 @@ from cortex_core.dispatch import ToolDispatcher
 from cortex_core.errors import InferenceError, SubagentAdmissionError
 from cortex_core.events import ToolActivity
 from cortex_core.inference import JsonSchema
+from cortex_core.loop_events import ToolStep
 from cortex_core.ports import Clock, InferenceBackend, TaskStore
 from cortex_core.progress import ProgressSink
 from cortex_core.roster import SubagentResources, SubagentRoster
 from cortex_core.subagents import SubagentResult, SubagentTask
 from cortex_core.tool_budget import DispatchBudget
-from cortex_core.tool_loop import ToolLoopContext, ToolStep, stream_tool_loop
+from cortex_core.tool_loop import ToolLoopContext, stream_tool_loop
 from cortex_core.untrusted import TaintLedger, new_nonce, security_preamble_message
 
 # The fixed one-field reply envelope a constrained subagent is decoded into (ADR-0028): there is

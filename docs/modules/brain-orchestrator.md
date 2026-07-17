@@ -88,8 +88,18 @@ Config (pydantic-settings; explicit constructor arguments beat the environment):
   `salience: "repeat" | "off" = "repeat"` (`CORTEX_TOOLS_SALIENCE`, ADR-0009 salience addendum)
   picks which calls a tool loop bothers dispatching: `repeat` refuses a call the loop has already
   made (once per round, twice per loop), `off` is the unfiltered loop. `salience_policy` maps the
-  string to the core policy object (the `record_tainted_memory` precedent), and `dispatch_policy`
-  bundles all three declarations (`gated` + `cost_policy` + `salience_policy`) into the one
+  string to the core policy object (the `record_tainted_memory` precedent).
+  `gated: tuple[str, ...]` (`CORTEX_TOOLS_GATED`, ADR-0022) defaults to
+  `(ESCALATE_TOOL_NAME, "send_email")`: the email fail-closed pairing, plus the escalate
+  built-in as the dispatcher-side backstop behind that tool's own always-gated advertised flag
+  (ADR-0030; emptying the list does not ungate the escalate spec itself).
+  `gate_reasons: dict[str, str]` (`CORTEX_TOOLS_GATE_REASONS__<name>=<text>`, ADR-0030
+  decision 1) sets one gated tool's confirm-card reason where the generic
+  outbound/irreversible line would be false; a blank text fails at boot, and `gate_reason_map`
+  merges the built-in `escalate_to_brain` swap reason (`ESCALATE_GATE_REASON`) **under** the
+  user's, the `cost_policy` merge argument exactly. `dispatch_policy`
+  bundles all four declarations (`gated` + `cost_policy` + `salience_policy` +
+  `gate_reason_map`) into the one
   `DispatchPolicy` value every dispatcher in the process is built with.
 - `SubagentsConfig` uses env prefix `CORTEX_SUBAGENTS_` (ADR-0010, revised by ADR-0012/0018):
   `backend: "none" | "llamacpp" = "none"` (`CORTEX_SUBAGENTS_BACKEND`), `endpoint` (the CPU

@@ -34,7 +34,7 @@ its signature.
 | [seam-auth.md](seam-auth.md) | Seam token auth (ADR-0016) | 1 |
 | [session-history.md](session-history.md) | Slice 3 history windowing and summarization | 1 |
 | [tools-mcp.md](tools-mcp.md) | Dispatch budget/cost/salience, spawn batch cap, MCP registries (ADR-0009/0010) | 6 |
-| [untrusted-content.md](untrusted-content.md) | Taint boundary, output guardrail, subagent model safety (ADR-0013/0015/0017/0019/0028) | 13 |
+| [untrusted-content.md](untrusted-content.md) | Taint boundary, output guardrail, subagent model safety (ADR-0013/0015/0017/0019/0028) | 14 |
 | [memory.md](memory.md) | Store, scoping, rerank/MMR (ADR-0008) | 8 |
 | [inference-model-manager.md](inference-model-manager.md) | Model-manager lifecycle, MTP, reasoning status (ADR-0007/0020) | 3 |
 | [subagents.md](subagents.md) | Progress reporting, spawn schema, heterogeneous roster (ADR-0010/0018) | 1 |
@@ -118,6 +118,16 @@ against the compose Redis; the ledger rides the record beside the tool-loop tail
 the stored `Role.TOOL` messages" the entry guessed, the escalate tool and conductor that will
 write a record mid-turn are the ADR's later sub-slices, and the harness-run sibling stays open
 below.
+Untrusted content then went 13 to 14 on 2026-07-17 when the gated `escalate_to_brain` trigger
+sub-slice landed and opened one entry behind it, the backlog working as intended. The landing
+put the tainted-escalation hard-deny live (the gate the ADR-0030 design leaned on now covers
+the most disruptive action in the system, approving-confirmer-proof and mutation-proven) and
+gave the confirm card its first per-tool reason (`CORTEX_TOOLS_GATE_REASONS`, since the generic
+outbound/irreversible line is false about a model swap). The entry it opened is the opaque-turn
+escalation refusal: ADR-0030 slotted it into this sub-slice on the assumption that the vision
+slice lands first, but ADR-0029 is designed and unimplemented, `Message` carries no pixels and
+no `opaque` bit exists, so the refusal has nothing to check yet and faking one would be a gate
+that cannot fail; it lands with the vision slice's pixel-taint increment instead.
 Body & overlay held at 3 on 2026-07-16 when the connection indicator landed and
 opened the push half behind it (streamed brain status, blocked on a producer), while session
 read seam went 5 to 4 the same day: the two entries were one deferral written down twice, and
@@ -402,6 +412,13 @@ and free of a prior blocker.
 
 ### Actionable, but a seam or port change comes first
 
+- **The opaque-turn escalation refusal** ([untrusted-content.md](untrusted-content.md)): the one
+  consciously deferred piece of ADR-0030's escalation trigger sub-slice (landed 2026-07-17). The
+  refusal is keyed on image-bearing messages and the `opaque` bit, both of which arrive with the
+  designed-but-unimplemented vision slice (ADR-0029), so today it has nothing to check and a
+  stand-in check would be a gate that cannot fail. Lands with (or immediately after) the vision
+  slice's pixel-taint increment: a typed refusal in `escalate.py` telling the model to ask the
+  user to retry in a fresh message, so escalation never widens pixel persistence.
 - **Session-history summarization + the model-based reranker**
   ([session-history.md](session-history.md), [memory.md](memory.md)): both blocked on a sync
   port going async (`HistoryWindow.select`, `RecallPolicy.select`) and both inherit the same
