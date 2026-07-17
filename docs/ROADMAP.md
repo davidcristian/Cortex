@@ -697,6 +697,39 @@ state that survives a swap; the brain acting on its own initiative.
 
 ## Slice 10 (Vision): "see my screen"
 
+**Status:** design landed 2026-07-17 ([ADR-0029](adr/ADR-0029-vision-screen-capture.md));
+implementation not started. Produced by a multi-lens design pass (six mapping agents over the
+affected subsystems, four independent designs from an architecture, security, systems, and
+delivery lens, then a synthesizing judge), then **measured against the real cortex artifact
+before any decision was fixed**: the projector loads beside `gemma-4-12b-it-qat-q4_0.gguf` and
+`/props` reports `modalities.vision`; a `role: "tool"` message carrying an OpenAI content-parts
+array with a `data:image/png;base64,` URI is accepted inside a full tool-calling exchange and
+answered correctly, so the image rides the message that answers the tool call; an image costs
+106 tokens at 640x360 and **exactly 266 at 1280x720, 1600x900, and 3840x2160**, saturating from
+720p up; two captures across two tool rounds coexist and are correctly diffed; a worst-case
+incompressible screen PNG-encodes to 4.33 MB at 1600x900 and 24.90 MB at 4K, against an
+unconfigured 4 MiB gRPC receive default on both image directions; and an injection painted into
+the pixels was **not obeyed but was transcribed verbatim, with and without a hardened preamble
+carrying an explicit pixel clause**, which is why the boundary is deterministic rather than
+prompt-shaped.
+
+The shape: a model-initiated built-in `capture_screen` tool over the unchanged `BodyGateway`
+(the volume precedent, so it inherits audit, the dispatch budget, taint marking, and cortex-only
+reachability), a `ScreenCapture` OS trait returning **raw pixels** with all downscale, encode,
+and byte-bounding policy in pure `body_core` (the `escape_xml` precedent, since `cfg(windows)`
+code is invisible to the coverage gate), a GDI `BitBlt` Windows backend under its own `unsafe`
+authorization, and the image riding `ToolResult.images` onto the `Role.TOOL` message with
+`InferenceBackend.stream` unchanged. **Pixels are turn-local**, enforced as an invariant rather
+than a convention: a `Message` invariant refuses images on a persistable role and both session
+stores raise on an image-bearing append, pinned by a shared contract check, so the later
+attachment slice must design persistence deliberately instead of half inheriting it. Since no
+nonce can bracket an image, the boundary is taint (a capture is always UNTRUSTED, closing every
+gated tool for the turn), a new turn-local `opaque` bit escalating the output guardrail to
+strict URL redaction and blocking durable memory outright, a body-authored notification receipt
+a compromised brain cannot suppress, a host-side kill switch that fails closed, and the overlay
+excluding itself from capture to break the self-injection loop. The user-attached
+`UserTurn.images` path is deliberately **not** in this slice.
+
 `ScreenCapture` Windows backend; capture flows brain-ward over the seam into the
 multimodal cortex; "what's on my screen?" answered in the overlay.
 
