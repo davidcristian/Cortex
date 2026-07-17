@@ -2,52 +2,42 @@
 
 Method bodies are one-line ``...`` stubs. Protocols carry contracts, never behavior.
 Failures cross these boundaries exclusively as the typed errors in ``errors.py``.
+The four state-store ports (session, memory, task, schedule) live in ``ports_stores.py``
+and are re-exported here, so ``from cortex_core.ports import SessionStore`` keeps resolving.
 """
 
 from collections.abc import AsyncIterator, Sequence
 from contextlib import AbstractAsyncContextManager
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Protocol
 
 from cortex_core.body import VolumeState
 from cortex_core.conversation import Message
 from cortex_core.inference import InferenceEvent, JsonSchema
-from cortex_core.memory import MemoryRecord, ScoredMemory
 from cortex_core.model import ModelLease
 from cortex_core.placement import Placement, PlacementRequest
-from cortex_core.schedule import FireOutcome, ScheduleClaim, ScheduledItem
-from cortex_core.schedule_transitions import ScheduleEdit
-from cortex_core.sessions import SessionSummary
-from cortex_core.subagents import SubagentResult, SubagentTask
+from cortex_core.ports_stores import MemoryStore, ScheduleStore, SessionStore, TaskStore
 from cortex_core.tools import ConfirmationRequest, ToolCall, ToolInvocation, ToolResult, ToolSpec
 
-
-class SessionStore(Protocol):
-    """Source of truth for conversation state; survives model swaps and restarts.
-
-    No conversation state may live anywhere else (AGENTS.md hard rule); a model process holds a
-    message only for the in-flight turn. ``append`` persists one message at a session's end;
-    ``history`` returns its full history in append order (empty when unknown). ``list_sessions``
-    returns recent chats most-recently-active first as ``SessionSummary`` values (ADR-0021) for the
-    overlay's chat list/switcher/cycling, unioning the newest ``limit`` with the pinned set so a
-    pinned chat lists regardless of recency (pinning addendum). ``set_title`` persists a display
-    title (titles addendum) ``list_sessions`` prefers over the first-message derivation.
-    ``set_pinned`` pins/unpins a chat (pinning addendum), in ``SessionSummary.pinned``, idempotent.
-    ``delete`` HARD-deletes a whole session (history, title, recency member, pin), the "forget"
-    write (delete addendum). Failures surface as ``SessionStoreError``.
-    """
-
-    async def append(self, session_id: str, message: Message) -> None: ...
-
-    async def history(self, session_id: str) -> Sequence[Message]: ...
-
-    async def list_sessions(self, *, limit: int) -> Sequence[SessionSummary]: ...
-
-    async def set_title(self, session_id: str, title: str) -> None: ...
-
-    async def delete(self, session_id: str) -> None: ...
-
-    async def set_pinned(self, session_id: str, *, pinned: bool) -> None: ...
+# The four state-store ports live in ``ports_stores.py`` (a line-cap split); the explicit export
+# list re-exports them alongside the ports defined here, so every existing
+# ``from cortex_core.ports import ...`` and the ``cortex_core`` barrel keep resolving unchanged.
+__all__ = [
+    "BodyGateway",
+    "Clock",
+    "Confirmer",
+    "Embedder",
+    "InferenceBackend",
+    "MemoryStore",
+    "ModelManager",
+    "ScheduleStore",
+    "SessionStore",
+    "SubagentPlacer",
+    "SubagentScheduler",
+    "TaskStore",
+    "ToolAuditSink",
+    "ToolRegistry",
+]
 
 
 class InferenceBackend(Protocol):
@@ -114,31 +104,6 @@ class Embedder(Protocol):
     async def embed(self, text: str) -> Sequence[float]: ...
 
 
-class MemoryStore(Protocol):
-    """Durable, cross-session memory: append one record, retrieve the top-k, forget a namespace.
-
-    ``add`` persists one ``MemoryRecord`` that the caller builds (id, timestamp, embedding,
-    scope), so the store only translates, as ``SessionStore.append`` does. ``search`` returns
-    the ``k`` records whose embeddings are most similar to ``embedding``, most-similar first;
-    ``scopes`` restricts the candidate set to those namespaces (ADR-0008 scoping addendum) and
-    defaults to ``None``, which ranks over ALL memories, the global-space v1 behavior.
-    ``delete_scope`` hard-deletes every memory in one namespace and returns how many it removed
-    (0 when empty), the forget primitive a session-delete cascade and a per-scope eviction policy
-    each named (ADR-0008 delete-scope addendum). It takes a single required scope and no wildcard,
-    so a namespace is dropped only when named; a caller must never hand it ``GLOBAL_SCOPE``,
-    which would erase the shared space every conversation writes. Failures surface as
-    ``MemoryStoreError``.
-    """
-
-    async def add(self, record: MemoryRecord) -> None: ...
-
-    async def search(
-        self, embedding: Sequence[float], *, k: int, scopes: Sequence[str] | None = None
-    ) -> Sequence[ScoredMemory]: ...
-
-    async def delete_scope(self, scope: str) -> int: ...
-
-
 class Clock(Protocol):
     """The only time source the core may use; ``now()`` is always timezone-aware."""
 
@@ -184,74 +149,6 @@ class Confirmer(Protocol):
     """
 
     async def confirm(self, request: ConfirmationRequest) -> bool: ...
-
-
-class TaskStore(Protocol):
-    """Hot store for in-flight subagent tasks and their results (Redis; ADR-0010).
-
-    A subagent is a stateless function over this store: ``put_task`` persists the delegated
-    task, ``get_task`` loads it by id (the runner reads only the store, never cortex memory),
-    ``put_result`` persists the outcome, and ``get_result`` returns it for the cortex to read
-    (``None`` until the subagent has finished). Task state lives here, never in a model process, per
-    the one hard rule, for delegation. Failures surface as ``TaskStoreError``.
-    """
-
-    async def put_task(self, task: SubagentTask) -> None: ...
-
-    async def get_task(self, task_id: str) -> SubagentTask | None: ...
-
-    async def put_result(self, result: SubagentResult) -> None: ...
-
-    async def get_result(self, task_id: str) -> SubagentResult | None: ...
-
-
-class ScheduleStore(Protocol):
-    """Durable schedules with a fenced claim→finish protocol (ADR-0025).
-
-    A schedule outlives every model swap and restart (the one hard rule), so items live
-    only here. ``claim_due`` claims items due at ``now``, plus FIRING items whose
-    ``lease`` expired (a crash or overrun mid-fire), taken oldest-due-first, at most ``limit``,
-    each under a fresh fencing token: firing is at-least-once, and a record that fails to
-    decode on this path is quarantined (dead-lettered, logged loudly), never a poison pill
-    that halts the pass. ``finish`` persists one fire (fire-time taint ORs onto the item;
-    ``next_due`` re-arms, ``None`` is terminal and the item is deleted unless deliverable) and
-    ``release`` un-claims (FIRING → PENDING, due unchanged); both apply only under the
-    claim's token and no-op ``False`` for a stale claimant. ``cancel`` deletes outright, and
-    it sticks through an in-flight fire, returning ``False`` only for an unknown id.
-    ``snooze`` postpones a one-shot to ``until``; a fired-but-undelivered reminder re-arms
-    with deliverability cleared, while a recurring, FIRING, or unknown item answers
-    ``False``, and the transition is fenced like the rest (ADR-0025 snooze addendum).
-    ``edit`` retexts / re-recurs a non-FIRING item in place (``due_at`` untouched, so the next
-    occurrence is unchanged and only future re-arms take the new cadence); the editing turn's
-    taint ORs onto the item, and a FIRING or unknown item answers ``False`` (edit addendum).
-    ``deliverable`` lists fired reminders awaiting ``ack`` (which clears the slot and
-    deletes a DONE one-shot). ``list_active`` is PENDING/FIRING plus deliverable, due
-    order. Failures surface as ``ScheduleStoreError``.
-    """
-
-    async def add(self, item: ScheduledItem) -> None: ...
-
-    async def get(self, item_id: str) -> ScheduledItem | None: ...
-
-    async def list_active(self) -> Sequence[ScheduledItem]: ...
-
-    async def cancel(self, item_id: str) -> bool: ...
-
-    async def snooze(self, item_id: str, *, until: datetime) -> bool: ...
-
-    async def edit(self, item_id: str, edit: ScheduleEdit) -> bool: ...
-
-    async def claim_due(
-        self, now: datetime, *, lease: timedelta, limit: int
-    ) -> Sequence[ScheduleClaim]: ...
-
-    async def finish(self, claim: ScheduleClaim, outcome: FireOutcome) -> bool: ...
-
-    async def release(self, claim: ScheduleClaim) -> bool: ...
-
-    async def deliverable(self) -> Sequence[ScheduledItem]: ...
-
-    async def ack(self, item_id: str) -> bool: ...
 
 
 class BodyGateway(Protocol):
