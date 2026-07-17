@@ -517,3 +517,83 @@ What landed, versus this ADR's shape, with no other deviation:
   escalating wrapper (the conductor sub-slice, which builds the per-turn slot and is gated by
   `CORTEX_ESCALATION`), an advertised escalate tool could only ever refuse, a dishonest
   advertisement. Registration arrives with that wrapper.
+
+## Addendum (2026-07-17): the conductor sub-slice landed; what it decided where this ADR was silent
+
+The conductor sub-slice (decision 9 item 4) landed as designed: the `ModelHost` port and its
+scriptable twin, `SwappingModelManager` with the segregated `ResidencyController`, the
+`SwapConductor` running decision 4's sequence, the deep model's phase, boot recovery, and the
+`EscalatingTurnEngine` behind `CORTEX_ESCALATION`, plus the full chaos suite of decision 7. The
+hard rule is now CI-proven before any real process exists, which is what this sub-slice was for.
+Stated plainly, because the ADR already says it and it stays true: **no real model swap has been
+validated.** Everything here runs over the scripted host, which starts no process and moves no
+weights, and the dev GPU (8 GB) cannot hold the 12B cortex beside a ~31B brain, so tier-scale
+validation remains host-side and the real supervisor adapter remains the next sub-slice.
+
+Decision 4's sequence, decision 5's three objects, and decision 6's one-turn shape landed
+unchanged. What follows is the decisions this ADR left open, made here rather than left to
+whoever reads the code next.
+
+**Two additions to the ports.** A `Sleeper` port (`async sleep(seconds)`) joins `Clock`, because
+decision 4's health gate polls and `Clock` can bound a wait but cannot perform one; the core may
+not reach for `asyncio.sleep` itself, or every test of the gate would be a real-time test. The
+body side has had the same port since the transport's retry backoff, so this is a seam the repo
+already speaks. And `EngineFactory` widens from the concrete `TurnEngine` to a new `TurnRunner`
+port, because the escalating wrapper is the other implementation; the alternative was subclassing
+the engine, which would have made a wrapper pretend to be the thing it wraps.
+
+**One additive change to a landed value type.** `DispatchBudget.resume(*, remaining, closed)`
+rebuilds a pool at a persisted position, which decision 4 step 4 requires ("resume the carried
+budget") and the constructor could not express. What was already spent is deliberately not
+carried as a number: nothing reads it, since a refusal depends only on whether the next call fits
+and whether the pool is closed.
+
+**Where the sequence's collaborators live.** Decision 5 lists the conductor's collaborators, but
+steps 4 and 5 need more than that list (a session store, a backend, the audited dispatcher, the
+window, the guardrail, the recaller). They are bundled into a `BrainPhase` use-case the conductor
+drives, built per stream at the composition root so the deep model runs THIS stream's dispatcher.
+The engine's output half (delta-to-event mapping, channel flushing, the tainted-memory policy)
+moved into a shared `turn_output.py` that both phases use, so the two cannot drift apart.
+
+**Six interpretations, each chosen for the fail-safe direction.** A second concurrent handoff is
+refused with an honest note and no eviction (decision 2 makes `active()` checkable; one GPU means
+one handoff). The deep phase carries **no** escalation slot, so the deep model cannot escalate to
+itself and the built-in refuses honestly. The outer `TurnCompleted` carries the whole turn's text
+(cortex wrap-up plus deep answer), which nothing on the wire reads but which is the only honest
+answer for an in-process consumer. Failure notes are streamed but not persisted as messages of
+their own, with one exception: the deep model's partial text and its failure note are persisted
+together, because there the note explains text the user can see in their history. A clean handoff
+ends `DONE` then deleted, every failure ends `FAILED` and is kept under the store's TTL, so "the
+record is terminal, never live" is asserted as `active() is None` plus a terminal last write. And
+`HandoffState.PENDING` still has no producer: `snapshot()` emits `READY` directly, and inventing
+a `PENDING` write to exercise the enum would have been a test that proves nothing.
+
+**The model-host backend is named for what it is.** Enabling `CORTEX_ESCALATION` requires
+`CORTEX_MODELHOST_BACKEND` and `CORTEX_BRAIN_ENDPOINT`, or boot fails: without a host nothing can
+evict or load a model, so the escalate tool could only ever refuse, which is the same dishonest
+advertisement the trigger sub-slice withheld registration over. Today the only backend is
+`scripted`, the in-core fake, documented as starting no process; the real supervisor adapter
+arrives as a second value. `CORTEX_SWAP_EVICT_MODELS` exists but is empty by default, since no
+GPU-placed subagent is hosted until that same sub-slice.
+
+**Two defects the chaos suite found before anything shipped**, which is what it is for. A kill
+during the record's first write stranded a live record, and `active()` would then have refused
+every later handoff until a restart; the record's failure guard now covers that write too. And a
+cancellation during the swap back abandoned the restore midway, leaving the process with no
+resident model and every later turn failing; the restore now runs as a shielded task that a
+cancellation waits for, because the swap back is the recovery path and not an optimization. The
+cost of that fix (a disconnect mid handoff holds the stream's teardown until the cortex is back)
+is recorded in `docs/refinements/seam-transport.md`.
+
+**Slicing correction, and one deferral this creates.** Decision 9 item 6 bundles the swapping
+`StatusUpdate`s with the honest `Health` into the honesty-surfaces sub-slice, but decision 6
+describes the wrapper yielding them and decision 7 asks the stream to say what happened, so they
+landed here: they need no proto change and the alternative was a swap window that says nothing.
+The `Health` half is untouched (the servicer still answers `ready=true` unconditionally), which
+is what that sub-slice now delivers on its own; decision 4 step 3's "surface `ready=false` with a
+loud log" is therefore the loud log alone for now. The streamed-brain-status backlog entry is
+updated to say exactly that. Two further deferrals are recorded with it: resuming a crashed
+handoff from its record (`docs/refinements/inference-model-manager.md`), which this ADR names and
+which needs the request-identity design the reconnect entry also needs, and the drain bound
+sitting below a fired task's schedule lease (`docs/refinements/resource-governance.md`), which
+makes an escalation during scheduled work abort every time under the shipped defaults.

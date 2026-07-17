@@ -42,10 +42,12 @@ from cortex_core import (
     Confirmer,
     DispatchPolicy,
     EchoInferenceBackend,
+    EscalateToBrainTool,
     FilteredToolRegistry,
     GatedToolRegistry,
     GetVolumeTool,
     InferenceBackend,
+    ModelManager,
     SetVolumeTool,
     SingleResidentModelManager,
     SkipUnavailableToolRegistry,
@@ -87,17 +89,24 @@ async def noop_aclose() -> None:
 
 
 def build_inference_backend(
-    config: InferenceConfig, cortex_model: str
+    config: InferenceConfig, cortex_model: str, *, manager: ModelManager | None = None
 ) -> tuple[InferenceBackend, Callable[[], Awaitable[None]]]:
     """Pick the backend from config; return it with the coroutine that releases it.
 
     Returns the no-op closer for Echo (no resources) and the HTTP client's ``aclose`` for
     llama.cpp, so the caller's shutdown path is uniform regardless of which backend ran.
+    ``manager`` overrides the single-resident lease with the swapping one when a handoff is
+    wired (ADR-0030): the backend must lease through the very object the residency scope
+    swaps under, or a swap could preempt a live round.
     """
     if config.backend == "llamacpp":
         client = httpx.AsyncClient(timeout=httpx.Timeout(LLAMACPP_CONNECT_TIMEOUT_S, read=None))
-        manager = SingleResidentModelManager(cortex_model, config.endpoint)
-        return LlamaCppBackend(manager, client), client.aclose
+        leases = (
+            manager
+            if manager is not None
+            else SingleResidentModelManager(cortex_model, config.endpoint)
+        )
+        return LlamaCppBackend(leases, client), client.aclose
     return EchoInferenceBackend(), noop_aclose
 
 
@@ -186,6 +195,8 @@ def build_builtin_tools(
     spawn_tool: SpawnSubagentsTool | None,
     body: BodyGateway | None,
     schedule_tools: Sequence[BuiltinTool] = (),
+    *,
+    escalation: bool = False,
 ) -> list[BuiltinTool]:
     """The cortex's built-in set, assembled once by the wiring (ADR-0025 decision 7).
 
@@ -193,11 +204,19 @@ def build_builtin_tools(
     capabilities accumulate: delegation (ADR-0010), the volume pair when the body is wired
     (ADR-0023), and the schedule tools (`build_schedule_tools`, ADR-0025). Built-ins are
     cortex-only by construction, so subagents never see any of these (ADR-0013).
+
+    `escalation` (ADR-0030) advertises `escalate_to_brain` only when a handoff can actually be
+    run: the wrapper, the conductor, and a model host all exist behind `CORTEX_ESCALATION`.
+    Advertising it otherwise would offer the model a tool that could only refuse, the same
+    honesty rule that keeps the volume pair out without a body and task scheduling out without
+    delegation.
     """
     builtins: list[BuiltinTool] = [spawn_tool] if spawn_tool is not None else []
     if body is not None:
         builtins.append(GetVolumeTool(body))
         builtins.append(SetVolumeTool(body))
+    if escalation:
+        builtins.append(EscalateToBrainTool())
     builtins.extend(schedule_tools)
     return builtins
 

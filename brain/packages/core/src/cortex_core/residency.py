@@ -105,9 +105,28 @@ class SwappingModelManager:
             yield
         finally:
             try:
-                await self._restore(model)
+                await self._restore_uninterruptibly(model)
             finally:
                 await self._end_scope()
+
+    async def _restore_uninterruptibly(self, model: str) -> None:
+        """Run the restore to completion even while this caller is being cancelled.
+
+        The swap back is the recovery path, so it is the one thing a cancelled turn must not be
+        able to abandon: a client that disconnects mid handoff would otherwise leave the deep
+        model resident and the GPU serving nothing this process can lease again. It therefore
+        runs as its own task behind a shield, and a cancellation waits for that task before it
+        propagates, which keeps the ordering the scope promises (restored, then released).
+        """
+        restore = asyncio.create_task(self._restore(model))
+        try:
+            await asyncio.shield(restore)
+        except asyncio.CancelledError:
+            await asyncio.wait([restore])
+            # Retrieved so asyncio does not warn about it; a restore failure has already been
+            # logged loudly inside, and the cancellation is what the caller must see.
+            restore.exception()
+            raise
 
     async def _claim(self, model: str) -> str:
         """The endpoint ``model`` may be leased from, once any active scope has ended."""

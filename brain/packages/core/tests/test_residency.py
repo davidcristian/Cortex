@@ -18,6 +18,8 @@ Distrust-green proofs (each mutation reddened the named test, then was restored)
   ``test_the_swap_waits_for_the_in_flight_round_to_fall_free``, and taking the lease for the
   stops but not for the restore reddens
   ``test_the_restore_waits_for_the_new_resident_s_own_round``;
+- awaiting the restore directly instead of shielding it (so a cancellation abandons it midway)
+  reddens ``test_a_cancelled_scope_cannot_abandon_the_restore_halfway``;
 - making ``_claim`` raise for a non-scope model instead of waiting reddens
   ``test_an_acquire_of_another_model_waits_out_the_scope_instead_of_failing``;
 - dropping ``_end_scope``'s ``notify_all`` leaves a queued acquire asleep whenever the restore
@@ -337,6 +339,30 @@ async def test_cancelling_the_scope_still_restores_the_cortex() -> None:
         await scope.task
     assert host.running == {"cortex"}
     assert ("start", "cortex") in host.calls
+
+
+async def test_a_cancelled_scope_cannot_abandon_the_restore_halfway() -> None:
+    """The swap back is the recovery path, so a cancellation waits for it instead of aborting.
+
+    Killing the turn while the cortex is coming back would otherwise leave the GPU serving
+    nothing this process can lease again, and every later turn would fail until a restart.
+    """
+    host = ScriptedModelHost(running=["cortex"], pause_at=[("start", "cortex")])
+    manager = _manager(host)
+    scope = _OpenScope(manager)
+    await scope.start()
+    scope.leave.set()
+    async with asyncio.timeout(5.0):
+        await host.reached[("start", "cortex")].wait()
+    scope.task.cancel()
+    host.release[("start", "cortex")].set()
+    with pytest.raises(asyncio.CancelledError):
+        await scope.task
+    assert host.running == {"cortex"}
+    # And the manager knows it: the next turn leases the cortex rather than being told that
+    # nothing is resident.
+    async with asyncio.timeout(5.0):
+        assert await _lease(manager, "cortex") == _CORTEX_URL
 
 
 async def test_a_restore_that_fails_once_retries_and_succeeds(

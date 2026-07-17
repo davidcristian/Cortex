@@ -84,7 +84,7 @@ async def build_subagents(
     *,
     placer: SubagentPlacer,
     task_store_factory: Callable[[str], RedisTaskStore] = RedisTaskStore.from_url,
-) -> tuple[SpawnSubagentsTool | None, Callable[[], Awaitable[None]]]:
+) -> tuple[SpawnSubagentsTool | None, SubagentScheduler | None, Callable[[], Awaitable[None]]]:
     """The `spawn_subagents` tool, or None when delegation is disabled (ADR-0010/0012/0018).
 
     Enabled: `config.named_roster` becomes a `SubagentRoster` holding the flat-env default entry
@@ -99,9 +99,13 @@ async def build_subagents(
     runner, so a tool-less subagent's reply is decoded into the fixed envelope (ADR-0028). The
     returned closer releases the shared backend client and the task store; the shared MCP
     session is released by `build_tool_registry`, not here.
+
+    The scheduler is returned alongside the tool because the swap conductor has to quiesce this
+    very pool before a model handoff evicts anything (ADR-0030 decision 4): one budget object,
+    composed at the root, never a second one that would admit past the drain.
     """
     if config.backend == "none":
-        return None, noop_aclose
+        return None, None, noop_aclose
     client = httpx.AsyncClient(timeout=httpx.Timeout(LLAMACPP_CONNECT_TIMEOUT_S, read=None))
     scheduler = ResourceBudgetScheduler(config.cpu_budget, config.mem_budget_gb)
     roster = SubagentRoster(
@@ -120,7 +124,7 @@ async def build_subagents(
         await store.aclose()
         await client.aclose()
 
-    return SpawnSubagentsTool(runner, store, clock), close_subagents
+    return SpawnSubagentsTool(runner, store, clock), scheduler, close_subagents
 
 
 def build_subagent_tools(

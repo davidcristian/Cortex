@@ -17,6 +17,12 @@ from enum import Enum
 # default is generous; the deployment overrides it with CORTEX_SWAP_LOAD_TIMEOUT_S.
 DEFAULT_SWAP_LOAD_TIMEOUT_S = 300.0
 
+# How long a swap waits for the subagent pool to quiesce before it evicts anything (ADR-0030
+# decision 4 step 2). Generous enough for a normal delegated run to finish, short enough that a
+# wedged one does not hold the user's handoff open for minutes; the deployment overrides it with
+# CORTEX_SWAP_DRAIN_TIMEOUT_S.
+DEFAULT_SWAP_DRAIN_TIMEOUT_S = 60.0
+
 # How long the readiness gate waits between two ``status`` polls. A load takes minutes, so a
 # second-scale poll costs nothing and keeps the gate's own latency below the noise floor.
 DEFAULT_HEALTH_POLL_INTERVAL_S = 1.0
@@ -53,10 +59,14 @@ class ResidencyPlan:
     cortex_model: str
     brain_model: str
     evict_models: tuple[str, ...] = ()
+    drain_timeout_s: float = DEFAULT_SWAP_DRAIN_TIMEOUT_S
     load_timeout_s: float = DEFAULT_SWAP_LOAD_TIMEOUT_S
     poll_interval_s: float = DEFAULT_HEALTH_POLL_INTERVAL_S
 
     def __post_init__(self) -> None:
+        if self.drain_timeout_s < 0:
+            msg = f"ResidencyPlan.drain_timeout_s must be >= 0, got {self.drain_timeout_s}"
+            raise ValueError(msg)
         if self.load_timeout_s < 0:
             msg = f"ResidencyPlan.load_timeout_s must be >= 0, got {self.load_timeout_s}"
             raise ValueError(msg)

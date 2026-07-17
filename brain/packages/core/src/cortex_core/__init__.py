@@ -15,6 +15,7 @@ from cortex_core.aggregate import GatedToolRegistry as GatedToolRegistry
 from cortex_core.aggregate import SkipUnavailableToolRegistry as SkipUnavailableToolRegistry
 from cortex_core.aggregate import UngatedToolRegistry as UngatedToolRegistry
 from cortex_core.body import VolumeState as VolumeState
+from cortex_core.brain_phase import BrainPhase as BrainPhase
 from cortex_core.composite import BuiltinTool as BuiltinTool
 from cortex_core.composite import CompositeToolRegistry as CompositeToolRegistry
 from cortex_core.conversation import Message as Message
@@ -49,6 +50,7 @@ from cortex_core.escalate import ESCALATE_TOOL_NAME as ESCALATE_TOOL_NAME
 from cortex_core.escalate import ESCALATION_QUEUED_MSG as ESCALATION_QUEUED_MSG
 from cortex_core.escalate import MAX_BRIEF_CHARS as MAX_BRIEF_CHARS
 from cortex_core.escalate import EscalateToBrainTool as EscalateToBrainTool
+from cortex_core.escalating_engine import EscalatingTurnEngine as EscalatingTurnEngine
 from cortex_core.events import StatusUpdate as StatusUpdate
 from cortex_core.events import TextDelta as TextDelta
 from cortex_core.events import ToolActivity as ToolActivity
@@ -94,6 +96,7 @@ from cortex_core.memory_cascade import SessionMemoryCascade as SessionMemoryCasc
 from cortex_core.model import ModelLease as ModelLease
 from cortex_core.model import SingleResidentModelManager as SingleResidentModelManager
 from cortex_core.model_host import DEFAULT_HEALTH_POLL_INTERVAL_S as DEFAULT_HEALTH_POLL_INTERVAL_S
+from cortex_core.model_host import DEFAULT_SWAP_DRAIN_TIMEOUT_S as DEFAULT_SWAP_DRAIN_TIMEOUT_S
 from cortex_core.model_host import DEFAULT_SWAP_LOAD_TIMEOUT_S as DEFAULT_SWAP_LOAD_TIMEOUT_S
 from cortex_core.model_host import ModelHostState as ModelHostState
 from cortex_core.model_host import ResidencyPlan as ResidencyPlan
@@ -119,6 +122,7 @@ from cortex_core.ports import SubagentScheduler as SubagentScheduler
 from cortex_core.ports import TaskStore as TaskStore
 from cortex_core.ports import ToolAuditSink as ToolAuditSink
 from cortex_core.ports import ToolRegistry as ToolRegistry
+from cortex_core.ports import TurnRunner as TurnRunner
 from cortex_core.progress import ProgressEvent as ProgressEvent
 from cortex_core.progress import ProgressSink as ProgressSink
 from cortex_core.provenance import MAX_SOURCE_CHARS as MAX_SOURCE_CHARS
@@ -203,6 +207,16 @@ from cortex_core.spawn_spec import MAX_SPAWN_BATCH as MAX_SPAWN_BATCH
 from cortex_core.spawn_spec import SPAWN_TOOL_NAME as SPAWN_TOOL_NAME
 from cortex_core.subagents import SubagentResult as SubagentResult
 from cortex_core.subagents import SubagentTask as SubagentTask
+from cortex_core.swap_conductor import SwapConductor as SwapConductor
+from cortex_core.swap_notes import ALREADY_ACTIVE_NOTE as ALREADY_ACTIVE_NOTE
+from cortex_core.swap_notes import BRAIN_FAILED_NOTE as BRAIN_FAILED_NOTE
+from cortex_core.swap_notes import DRAIN_TIMEOUT_NOTE as DRAIN_TIMEOUT_NOTE
+from cortex_core.swap_notes import RESTORE_FAILED_NOTE as RESTORE_FAILED_NOTE
+from cortex_core.swap_notes import STORE_FAILED_NOTE as STORE_FAILED_NOTE
+from cortex_core.swap_notes import SWAP_FAILED_NOTE as SWAP_FAILED_NOTE
+from cortex_core.swap_notes import SWAPPING_STATE as SWAPPING_STATE
+from cortex_core.swap_recovery import converge_residency as converge_residency
+from cortex_core.swap_recovery import recover_handoffs as recover_handoffs
 from cortex_core.tool_budget import MAX_TOOL_DISPATCHES as MAX_TOOL_DISPATCHES
 from cortex_core.tool_budget import UNIFORM_COST as UNIFORM_COST
 from cortex_core.tool_budget import DispatchBudget as DispatchBudget
@@ -227,6 +241,8 @@ from cortex_core.tools import ToolSpec as ToolSpec
 from cortex_core.tools import Trust as Trust
 from cortex_core.tools import TurnStamp as TurnStamp
 from cortex_core.turn_context import TurnCapabilities as TurnCapabilities
+from cortex_core.turn_output import record_exchange as record_exchange
+from cortex_core.turn_output import render_exchange as render_exchange
 from cortex_core.untrusted import DENIED_MSG as DENIED_MSG
 from cortex_core.untrusted import SECURITY_PREAMBLE as SECURITY_PREAMBLE
 from cortex_core.untrusted import USER_DECLINED_MSG as USER_DECLINED_MSG

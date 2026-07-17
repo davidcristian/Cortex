@@ -19,14 +19,21 @@ Everything below the edge receives ports, never settings objects or env access.
 """
 
 from collections.abc import Callable
+from dataclasses import replace
 
 from cortex_core import (
+    AsyncioSleeper,
+    BrainPhase,
     Confirmer,
+    EscalatingTurnEngine,
     ProgressSink,
+    SwapConductor,
     SystemClock,
     TurnCapabilities,
     TurnEngine,
+    TurnRunner,
     VramBudgetPlacer,
+    recover_handoffs,
 )
 from cortex_orchestrator.builders import (
     build_body_gateway,
@@ -46,6 +53,7 @@ from cortex_orchestrator.config import (
 )
 from cortex_orchestrator.config_schedule import ScheduleConfig
 from cortex_orchestrator.config_subagents import SubagentsConfig
+from cortex_orchestrator.config_swap import SwapConfig
 from cortex_orchestrator.config_tools import ToolsConfig
 from cortex_orchestrator.memory_builders import build_memory
 from cortex_orchestrator.schedule_builders import (
@@ -57,6 +65,7 @@ from cortex_orchestrator.schedule_builders import (
 )
 from cortex_orchestrator.server import serve
 from cortex_orchestrator.subagent_builders import build_subagent_tools, build_subagents
+from cortex_orchestrator.swap_builders import build_swap_runtime, swap_closer
 from cortex_session import RedisSessionStore
 
 
@@ -78,9 +87,17 @@ async def run_from_env(
     body_config = BodyConfig()
     subagents_config = SubagentsConfig()
     schedule_config = ScheduleConfig()
+    swap_config = SwapConfig()
     clock = SystemClock()
     store = store_factory(runtime.redis_url)
-    backend, close_backend = build_inference_backend(inference, runtime.cortex_model)
+    # The handoff's process-wide half (ADR-0030), or None when CORTEX_ESCALATION is off, which
+    # is the default: nothing below changes shape for a deployment that never escalates. When it
+    # is on, the inference backend must lease through the very manager the residency scope swaps
+    # under, so it is built first and handed in.
+    swap = build_swap_runtime(swap_config, runtime, inference, clock, AsyncioSleeper())
+    backend, close_backend = build_inference_backend(
+        inference, runtime.cortex_model, manager=None if swap is None else swap.manager
+    )
     memory, memory_cascade, close_memory = await build_memory(memory_config, clock)
     tool_registry, close_tools = build_tool_registry(tools_config)
     body, close_body = await build_body_gateway(body_config, token=seam_config.token)
@@ -91,7 +108,7 @@ async def run_from_env(
     # the salience rule (CORTEX_TOOLS_SALIENCE) refuses a delegate's repeats the way it refuses
     # the cortex's, each against its own rounds (ADR-0009 salience addendum). One policy value
     # carries all three, which is also what keeps these builders under the argument ceiling.
-    spawn_tool, close_subagents = await build_subagents(
+    spawn_tool, scheduler, close_subagents = await build_subagents(
         subagents_config,
         build_subagent_tools(
             tool_registry,
@@ -114,6 +131,7 @@ async def run_from_env(
         schedule_tools=build_schedule_tools(
             schedule_config, schedules, clock, tasks_enabled=spawn_tool is not None
         ),
+        escalation=swap is not None,
     )
     ticker = build_ticker(
         schedule_config,
@@ -124,34 +142,64 @@ async def run_from_env(
         policy=tools_config.dispatch_policy,
     )
     ticker_task = start_ticker(ticker)
+    if swap is not None:
+        # Boot recovery (ADR-0030 decision 4): a handoff cannot outlive its process, so any
+        # record a crash left behind is failed and the GPU is converged back onto the cortex
+        # before the seam serves its first turn.
+        await recover_handoffs(
+            swap.handoffs, swap.host, swap.plan, clock=clock, sleeper=AsyncioSleeper()
+        )
     try:
 
-        def make_engine(confirmer: Confirmer, progress: ProgressSink) -> TurnEngine:
-            # One engine per Converse stream (ADR-0022/0010): the stream's confirmer reaches the
-            # dispatcher and its progress sink reaches the turn (so a spawned subagent surfaces
-            # onto this stream's overlay), and everything else is the same shared adapters.
-            # Engines are stateless functions over the store, so per-stream construction is free.
-            return TurnEngine(
-                store,
-                backend,
-                clock,
-                cortex_model=runtime.cortex_model,
-                capabilities=TurnCapabilities(
-                    memory=memory,
-                    tools=build_cortex_tools(
-                        tool_registry,
-                        builtins,
-                        clock,
-                        confirmer=confirmer,
-                        policy=tools_config.dispatch_policy,
-                    ),
-                    window=build_history_window(runtime.history_char_budget),
-                    guardrail=build_output_guardrail(runtime.output_guardrail),
-                    # The core takes a bool; the composition root maps the string (ADR-0019).
-                    record_tainted_memory=memory_config.on_tainted == "record",
-                    generate_titles=runtime.generate_titles,
-                    progress=progress,
+        def capabilities(confirmer: Confirmer, progress: ProgressSink) -> TurnCapabilities:
+            # One capability bundle per Converse stream (ADR-0022/0010): the stream's confirmer
+            # reaches the dispatcher and its progress sink reaches the turn (so a spawned
+            # subagent surfaces onto this stream's overlay), everything else being the same
+            # shared adapters.
+            return TurnCapabilities(
+                memory=memory,
+                tools=build_cortex_tools(
+                    tool_registry,
+                    builtins,
+                    clock,
+                    confirmer=confirmer,
+                    policy=tools_config.dispatch_policy,
                 ),
+                window=build_history_window(runtime.history_char_budget),
+                guardrail=build_output_guardrail(runtime.output_guardrail),
+                # The core takes a bool; the composition root maps the string (ADR-0019).
+                record_tainted_memory=memory_config.on_tainted == "record",
+                generate_titles=runtime.generate_titles,
+                progress=progress,
+            )
+
+        def make_turn_engine(caps: TurnCapabilities) -> TurnEngine:
+            # Engines are stateless functions over the store, so per-stream (and, when a turn
+            # escalates, per-turn) construction is free.
+            return TurnEngine(
+                store, backend, clock, cortex_model=runtime.cortex_model, capabilities=caps
+            )
+
+        def make_engine(confirmer: Confirmer, progress: ProgressSink) -> TurnRunner:
+            caps = capabilities(confirmer, progress)
+            if swap is None:
+                return make_turn_engine(caps)
+            # The escalating wrapper (ADR-0030 decision 5): a fresh slot and inner engine per
+            # turn, and a conductor over THIS stream's dispatcher, so the deep model's phase
+            # runs the same audited tools the cortex phase did. The deep phase carries no slot:
+            # it cannot escalate to itself.
+            conductor = SwapConductor(
+                swap.handoffs,
+                swap.manager,
+                BrainPhase(
+                    store, backend, clock, swap.plan.brain_model, replace(caps, escalation=None)
+                ),
+                swap.plan,
+                clock,
+                scheduler,
+            )
+            return EscalatingTurnEngine(
+                lambda slot: make_turn_engine(replace(caps, escalation=slot)), conductor
             )
 
         await serve(
@@ -159,6 +207,7 @@ async def run_from_env(
         )
     finally:
         await stop_ticker(ticker, ticker_task)
+        await swap_closer(swap)()
         await close_schedules()
         await close_body()
         await close_subagents()

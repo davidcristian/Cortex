@@ -84,15 +84,28 @@ class DispatchBudget:
     subagents runs concurrently under ``asyncio.gather``, but on one event loop no two charges
     can interleave.
 
-    Nothing here is persisted. The allowance bounds one turn's reach and dies with the turn, so
-    a model swap mid-turn costs a re-derived budget at worst, never a stuck one (the one hard
-    rule).
+    The pool itself is never persisted, but its *position* is: a handoff record carries what is
+    left and whether the pool closed (ADR-0030 decision 2), and ``resume`` rebuilds a pool from
+    that. The allowance bounds one turn's reach across the swap too, so a swap can never refill
+    it (the one hard rule is about not losing state, which includes state that is a limit).
     """
 
-    def __init__(self, limit: int = MAX_TOOL_DISPATCHES) -> None:
+    def __init__(self, limit: int = MAX_TOOL_DISPATCHES, *, closed: bool = False) -> None:
         self._limit = limit
         self._spent = 0
-        self._closed = False
+        self._closed = closed
+
+    @classmethod
+    def resume(cls, *, remaining: int, closed: bool) -> "DispatchBudget":
+        """Rebuild a pool at a persisted position: the brain phase after a swap (ADR-0030).
+
+        The new pool's ``limit`` is what was *left*, spending nothing yet, which is the same
+        bound the turn had when it escalated; a pool that had already closed stays closed, so a
+        swap cannot hand a runaway turn a fresh allowance. What was already spent is not carried
+        as a number because nothing reads it: the refusal the model gets depends only on whether
+        the next call fits and on whether the pool is closed.
+        """
+        return cls(remaining, closed=closed)
 
     @property
     def limit(self) -> int:
