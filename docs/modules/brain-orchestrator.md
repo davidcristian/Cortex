@@ -172,8 +172,10 @@ The service:
     chat above the recency window. Same structural user-only gate as `RenameSession`/`DeleteSession`;
     a `SessionStoreError` aborts `UNAVAILABLE`. Idempotent by value.
   - The session RPCs are unary; a `SessionStoreError` aborts them `UNAVAILABLE` (the body
-    maps that to `TransportError::Rpc`). The mapping/clamp helpers and the rename/delete/pin writes live
-    in `session_rpc.py` (the `reminders.py` pattern), so `server.py` stays a thin binding.
+    maps that to `TransportError::Rpc`). Their servicer method bodies live in
+    `session_servicer.SessionRpcMixin` (mixed into `BrainService`), and the mapping/clamp helpers
+    and the rename/delete/pin writes in `session_rpc.py` (the `reminders.py` pattern), so
+    `server.py` stays a thin binding.
   - `ListDueReminders` / `AckReminder` (ADR-0025; policy + mapping in `reminders.py`): the
     pull pair over the injected `ScheduleStore`, covering every fired-but-undelivered item
     (`DueReminder`: id, `text`, fired-at unix-ms, recurrence, the `tainted` provenance bit, the

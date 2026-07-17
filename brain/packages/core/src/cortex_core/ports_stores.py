@@ -1,0 +1,80 @@
+"""State-store ports (typing.Protocol): the durable and hot stores the one hard rule protects."""
+
+from collections.abc import Sequence
+from datetime import datetime, timedelta
+from typing import Protocol
+
+from cortex_core.conversation import Message
+from cortex_core.memory import MemoryRecord, ScoredMemory
+from cortex_core.schedule import FireOutcome, ScheduleClaim, ScheduledItem
+from cortex_core.schedule_transitions import ScheduleEdit
+from cortex_core.sessions import SessionSummary
+from cortex_core.subagents import SubagentResult, SubagentTask
+
+
+class SessionStore(Protocol):
+    """Source of truth for conversation state; survives model swaps and restarts."""
+
+    async def append(self, session_id: str, message: Message) -> None: ...
+
+    async def history(self, session_id: str) -> Sequence[Message]: ...
+
+    async def list_sessions(self, *, limit: int) -> Sequence[SessionSummary]: ...
+
+    async def set_title(self, session_id: str, title: str) -> None: ...
+
+    async def delete(self, session_id: str) -> None: ...
+
+    async def set_pinned(self, session_id: str, *, pinned: bool) -> None: ...
+
+
+class MemoryStore(Protocol):
+    """Durable, cross-session memory: append one record, retrieve the top-k, forget a namespace."""
+
+    async def add(self, record: MemoryRecord) -> None: ...
+
+    async def search(
+        self, embedding: Sequence[float], *, k: int, scopes: Sequence[str] | None = None
+    ) -> Sequence[ScoredMemory]: ...
+
+    async def delete_scope(self, scope: str) -> int: ...
+
+
+class TaskStore(Protocol):
+    """Hot store for in-flight subagent tasks and their results (Redis; ADR-0010)."""
+
+    async def put_task(self, task: SubagentTask) -> None: ...
+
+    async def get_task(self, task_id: str) -> SubagentTask | None: ...
+
+    async def put_result(self, result: SubagentResult) -> None: ...
+
+    async def get_result(self, task_id: str) -> SubagentResult | None: ...
+
+
+class ScheduleStore(Protocol):
+    """Durable schedules with a fenced claim→finish protocol (ADR-0025)."""
+
+    async def add(self, item: ScheduledItem) -> None: ...
+
+    async def get(self, item_id: str) -> ScheduledItem | None: ...
+
+    async def list_active(self) -> Sequence[ScheduledItem]: ...
+
+    async def cancel(self, item_id: str) -> bool: ...
+
+    async def snooze(self, item_id: str, *, until: datetime) -> bool: ...
+
+    async def edit(self, item_id: str, edit: ScheduleEdit) -> bool: ...
+
+    async def claim_due(
+        self, now: datetime, *, lease: timedelta, limit: int
+    ) -> Sequence[ScheduleClaim]: ...
+
+    async def finish(self, claim: ScheduleClaim, outcome: FireOutcome) -> bool: ...
+
+    async def release(self, claim: ScheduleClaim) -> bool: ...
+
+    async def deliverable(self) -> Sequence[ScheduledItem]: ...
+
+    async def ack(self, item_id: str) -> bool: ...

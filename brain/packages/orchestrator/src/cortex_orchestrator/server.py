@@ -9,12 +9,10 @@ import grpc
 from grpc import aio
 
 from cortex_core import (
-    MemoryStoreError,
     ScheduleStore,
     ScheduleStoreError,
     SessionMemoryCascade,
     SessionStore,
-    SessionStoreError,
 )
 from cortex_orchestrator.auth import SeamTokenInterceptor
 from cortex_orchestrator.config import SeamServerConfig
@@ -25,36 +23,18 @@ from cortex_orchestrator.converse import (
     converse,
 )
 from cortex_orchestrator.reminders import ack_reminder, list_due_reminders
-from cortex_orchestrator.session_rpc import (
-    DEFAULT_SESSION_LIST_LIMIT,
-    MAX_SESSION_LIST_LIMIT,
-    clamp_limit,
-    delete_session,
-    message_to_proto,
-    rename_session,
-    set_session_pinned,
-    summary_to_proto,
-)
+from cortex_orchestrator.session_rpc import DEFAULT_SESSION_LIST_LIMIT, MAX_SESSION_LIST_LIMIT
+from cortex_orchestrator.session_servicer import SessionRpcMixin
 from cortex_seam import (
     AckReminderReply,
     AckReminderRequest,
     BrainServiceServicer,
     ClientEvent,
-    DeleteSessionReply,
-    DeleteSessionRequest,
-    GetSessionMessagesReply,
-    GetSessionMessagesRequest,
     HealthReply,
     HealthRequest,
     ListDueRemindersReply,
     ListDueRemindersRequest,
-    ListSessionsReply,
-    ListSessionsRequest,
-    RenameSessionReply,
-    RenameSessionRequest,
     ServerEvent,
-    SetSessionPinnedReply,
-    SetSessionPinnedRequest,
     add_BrainServiceServicer_to_server,
 )
 
@@ -65,9 +45,9 @@ _SHUTDOWN_GRACE_SECONDS = 5.0
 _HANDLED_SIGNALS = (signal.SIGTERM, signal.SIGINT)
 _logger = logging.getLogger(__name__)
 
-# Re-exported for the composition root and its tests; the definitions and the mapping/clamp
-# helpers moved to `session_rpc.py` to keep this shell thin (the two constants stay importable
-# from here for the seam's existing consumers).
+# Re-exported for the composition root and its tests; the session RPC bodies live in
+# `session_servicer.SessionRpcMixin`, and the mapping/clamp/write helpers in `session_rpc.py`, to
+# keep this shell thin (the two limit constants stay importable from here for the seam's consumers).
 __all__ = [
     "DEFAULT_SESSION_LIST_LIMIT",
     "MAX_SESSION_LIST_LIMIT",
@@ -78,7 +58,7 @@ __all__ = [
 ]
 
 
-class BrainService(BrainServiceServicer):
+class BrainService(SessionRpcMixin, BrainServiceServicer):
     """The brain's side of the seam (proto/body.proto BrainService)."""
 
     def __init__(
@@ -131,63 +111,6 @@ class BrainService(BrainServiceServicer):
             # Runs on normal end, RPC cancel, and client disconnect alike: closing the
             # stream tears down its pump task and any in-flight turn deterministically.
             await events.aclose()
-
-    async def ListSessions(  # noqa: N802 - method name is fixed by the gRPC codegen interface
-        self,
-        request: ListSessionsRequest,
-        context: aio.ServicerContext[ListSessionsRequest, ListSessionsReply],
-    ) -> ListSessionsReply:
-        """Recent chats newest-first, pinned unioned in (ADR-0021); store error aborts."""
-        try:
-            summaries = await self._store.list_sessions(limit=clamp_limit(request.limit))
-        except SessionStoreError as err:
-            await context.abort(grpc.StatusCode.UNAVAILABLE, str(err))
-        return ListSessionsReply(sessions=[summary_to_proto(s) for s in summaries])
-
-    async def GetSessionMessages(  # noqa: N802 - method name is fixed by the gRPC codegen interface
-        self,
-        request: GetSessionMessagesRequest,
-        context: aio.ServicerContext[GetSessionMessagesRequest, GetSessionMessagesReply],
-    ) -> GetSessionMessagesReply:
-        """One session's history in append order (ADR-0021); unknown is empty, error aborts."""
-        try:
-            messages = await self._store.history(request.session_id)
-        except SessionStoreError as err:
-            await context.abort(grpc.StatusCode.UNAVAILABLE, str(err))
-        return GetSessionMessagesReply(messages=[message_to_proto(m) for m in messages])
-
-    async def RenameSession(  # noqa: N802 - method name is fixed by the gRPC codegen interface
-        self,
-        request: RenameSessionRequest,
-        context: aio.ServicerContext[RenameSessionRequest, RenameSessionReply],
-    ) -> RenameSessionReply:
-        """Gated user-only rename via `session_rpc.rename_session` (ADR-0021); error aborts."""
-        try:
-            return await rename_session(self._store, request.session_id, request.title)
-        except SessionStoreError as err:
-            await context.abort(grpc.StatusCode.UNAVAILABLE, str(err))
-
-    async def DeleteSession(  # noqa: N802 - method name is fixed by the gRPC codegen interface
-        self,
-        request: DeleteSessionRequest,
-        context: aio.ServicerContext[DeleteSessionRequest, DeleteSessionReply],
-    ) -> DeleteSessionReply:
-        """Gated user-only delete + memory cascade via `session_rpc.delete_session` (ADR-0021)."""
-        try:
-            return await delete_session(self._store, self._memory_cascade, request.session_id)
-        except (SessionStoreError, MemoryStoreError) as err:
-            await context.abort(grpc.StatusCode.UNAVAILABLE, str(err))
-
-    async def SetSessionPinned(  # noqa: N802 - method name is fixed by the gRPC codegen interface
-        self,
-        request: SetSessionPinnedRequest,
-        context: aio.ServicerContext[SetSessionPinnedRequest, SetSessionPinnedReply],
-    ) -> SetSessionPinnedReply:
-        """Gated user-only pin toggle via `session_rpc.set_session_pinned` (ADR-0021 pinning)."""
-        try:
-            return await set_session_pinned(self._store, request.session_id, pinned=request.pinned)
-        except SessionStoreError as err:
-            await context.abort(grpc.StatusCode.UNAVAILABLE, str(err))
 
     async def ListDueReminders(  # noqa: N802 - method name is fixed by the gRPC codegen interface
         self,

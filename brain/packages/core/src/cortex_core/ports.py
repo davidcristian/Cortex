@@ -1,41 +1,37 @@
-"""Ports of the pure core (typing.Protocol): adapters implement, the core orchestrates.
-
-Method bodies are one-line ``...`` stubs. Protocols carry contracts, never behavior.
-Failures cross these boundaries exclusively as the typed errors in ``errors.py``.
-"""
+"""Ports of the pure core (typing.Protocol): adapters implement, the core orchestrates."""
 
 from collections.abc import AsyncIterator, Sequence
 from contextlib import AbstractAsyncContextManager
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Protocol
 
 from cortex_core.body import VolumeState
 from cortex_core.conversation import Message
 from cortex_core.inference import InferenceEvent, JsonSchema
-from cortex_core.memory import MemoryRecord, ScoredMemory
 from cortex_core.model import ModelLease
 from cortex_core.placement import Placement, PlacementRequest
-from cortex_core.schedule import FireOutcome, ScheduleClaim, ScheduledItem
-from cortex_core.schedule_transitions import ScheduleEdit
-from cortex_core.sessions import SessionSummary
-from cortex_core.subagents import SubagentResult, SubagentTask
+from cortex_core.ports_stores import MemoryStore, ScheduleStore, SessionStore, TaskStore
 from cortex_core.tools import ConfirmationRequest, ToolCall, ToolInvocation, ToolResult, ToolSpec
 
-
-class SessionStore(Protocol):
-    """Source of truth for conversation state; survives model swaps and restarts."""
-
-    async def append(self, session_id: str, message: Message) -> None: ...
-
-    async def history(self, session_id: str) -> Sequence[Message]: ...
-
-    async def list_sessions(self, *, limit: int) -> Sequence[SessionSummary]: ...
-
-    async def set_title(self, session_id: str, title: str) -> None: ...
-
-    async def delete(self, session_id: str) -> None: ...
-
-    async def set_pinned(self, session_id: str, *, pinned: bool) -> None: ...
+# The four state-store ports live in ``ports_stores.py`` (a line-cap split); the explicit export
+# list re-exports them alongside the ports defined here, so every existing
+# ``from cortex_core.ports import ...`` and the ``cortex_core`` barrel keep resolving unchanged.
+__all__ = [
+    "BodyGateway",
+    "Clock",
+    "Confirmer",
+    "Embedder",
+    "InferenceBackend",
+    "MemoryStore",
+    "ModelManager",
+    "ScheduleStore",
+    "SessionStore",
+    "SubagentPlacer",
+    "SubagentScheduler",
+    "TaskStore",
+    "ToolAuditSink",
+    "ToolRegistry",
+]
 
 
 class InferenceBackend(Protocol):
@@ -75,18 +71,6 @@ class Embedder(Protocol):
     async def embed(self, text: str) -> Sequence[float]: ...
 
 
-class MemoryStore(Protocol):
-    """Durable, cross-session memory: append one record, retrieve the top-k, forget a namespace."""
-
-    async def add(self, record: MemoryRecord) -> None: ...
-
-    async def search(
-        self, embedding: Sequence[float], *, k: int, scopes: Sequence[str] | None = None
-    ) -> Sequence[ScoredMemory]: ...
-
-    async def delete_scope(self, scope: str) -> int: ...
-
-
 class Clock(Protocol):
     """The only time source the core may use; ``now()`` is always timezone-aware."""
 
@@ -113,46 +97,6 @@ class Confirmer(Protocol):
     """
 
     async def confirm(self, request: ConfirmationRequest) -> bool: ...
-
-
-class TaskStore(Protocol):
-    """Hot store for in-flight subagent tasks and their results (Redis; ADR-0010)."""
-
-    async def put_task(self, task: SubagentTask) -> None: ...
-
-    async def get_task(self, task_id: str) -> SubagentTask | None: ...
-
-    async def put_result(self, result: SubagentResult) -> None: ...
-
-    async def get_result(self, task_id: str) -> SubagentResult | None: ...
-
-
-class ScheduleStore(Protocol):
-    """Durable schedules with a fenced claim→finish protocol (ADR-0025)."""
-
-    async def add(self, item: ScheduledItem) -> None: ...
-
-    async def get(self, item_id: str) -> ScheduledItem | None: ...
-
-    async def list_active(self) -> Sequence[ScheduledItem]: ...
-
-    async def cancel(self, item_id: str) -> bool: ...
-
-    async def snooze(self, item_id: str, *, until: datetime) -> bool: ...
-
-    async def edit(self, item_id: str, edit: ScheduleEdit) -> bool: ...
-
-    async def claim_due(
-        self, now: datetime, *, lease: timedelta, limit: int
-    ) -> Sequence[ScheduleClaim]: ...
-
-    async def finish(self, claim: ScheduleClaim, outcome: FireOutcome) -> bool: ...
-
-    async def release(self, claim: ScheduleClaim) -> bool: ...
-
-    async def deliverable(self) -> Sequence[ScheduledItem]: ...
-
-    async def ack(self, item_id: str) -> bool: ...
 
 
 class BodyGateway(Protocol):
