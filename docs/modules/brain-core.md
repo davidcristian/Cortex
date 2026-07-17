@@ -77,11 +77,34 @@ Session listing (Slice 8.7, ADR-0021; `sessions.py`):
   `TextChunk` (a reasoning model's `ReasoningChunk` and any `ToolCall` are ignored) and letting
   `InferenceError` propagate for the caller to absorb.
 
-Model management (Slice 4, ADR-0007):
+Model management (Slice 4, ADR-0007; the swap's value half is ADR-0030, in `model_host.py`):
 
 - `ModelLease` is a frozen dataclass: `endpoint: str`. A live claim on the GPU for one
   model, valid only inside the `acquire(...)` block that yields it; `endpoint` is the
   base URL of that model's `llama-server`.
+- `ModelHostState` is an enum `STOPPED` / `LOADING` / `READY` / `FAILED` (string values): what
+  one logical model's process is doing, as its host reports it. `start` only *begins* loading,
+  so readiness is observed here and nowhere else, which is why every swap health-gates rather
+  than trusting a returned `start`.
+- `ResidencyPlan(cortex_model, brain_model, evict_models=(), load_timeout_s=300.0,
+  poll_interval_s=1.0)` is the frozen composition-root value the manager, the conductor, and
+  boot recovery all read, so they cannot disagree about the topology: which model is the
+  standing resident every exit path converges back to, which one a handoff swaps in, which
+  other hosted tiers a swap must stop first (the GPU-placed subagent; while the brain is
+  resident it is alone on the GPU, ADR-0030 decision 8), and the swap's two bounds. A negative
+  load bound or a non-positive poll interval raises `ValueError` at construction.
+  `DEFAULT_SWAP_LOAD_TIMEOUT_S` (300 s, an 18 GB GGUF off the drvfs mount is minutes) and
+  `DEFAULT_HEALTH_POLL_INTERVAL_S` (1 s) are the exported defaults.
+- `await_model_ready(host, model, *, clock, sleeper, plan) -> ModelHostState` (in
+  `health_gate.py`) is the one readiness gate: poll `status(model)` until it settles or
+  `plan.load_timeout_s` elapses on the injected `Clock`, waiting `plan.poll_interval_s` through
+  the injected `Sleeper` between polls. Returns `READY`/`FAILED` as soon as either is observed,
+  else the last state seen when the bound elapses (`LOADING` for a load still grinding,
+  `STOPPED` for a start that never took), so a caller can say which happened; a `ModelHostError`
+  from `status` propagates rather than being guessed at. The deadline is taken once, before the
+  first poll, so a zero bound is already expired: that is how the swap suite drives the timeout
+  path with no wall-clock sleep. Shared by the residency scope's swap-in, its restore, and boot
+  recovery, so all three agree on what "ready" means.
 
 Memory domain (Slice 5, ADR-0008):
 
@@ -499,6 +522,30 @@ unchanged):
 - `ModelManager` provides `acquire(model) -> AbstractAsyncContextManager[ModelLease]`: owns the
   GPU, queues for access, yields a `ModelLease`; leaving the block releases it to the
   next waiter. Consumed by the inference adapter (and, later, the handoff use-case).
+  **Unchanged by the swap** (ADR-0030 decision 5 / ADR-0012 decision 1): residency is a
+  separate, segregated port rather than a widened `acquire`.
+- `ModelHost` (in `ports_models.py`, re-exported here) provides `async start(model)`,
+  `async stop(model)`, `async status(model) -> ModelHostState` (ADR-0030 decision 3): the
+  process-lifecycle half ADR-0007 deferred. Both verbs are idempotent and `start` only *begins*
+  loading, so readiness is observed only through `status`. `model` is a logical id (ADR-0004):
+  artifact paths, ports, `-ngl`, and context flags never cross it, so a deployment re-points a
+  tier without touching the core. Failures surface as `ModelHostError`. `ScriptedModelHost` is
+  the twin CI and the chaos suite drive; the real supervisor adapter's live tests are
+  `integration`-marked.
+- `ResidencyController` (same module) provides
+  `swap_scope(model) -> AbstractAsyncContextManager[None]` (ADR-0030 decision 5): waits for the
+  GPU lease to fall free (v1 never preempts a mid-stream round), performs the process swap
+  through `ModelHost`, serves `model` for the scope's duration, and **in a `finally`** restores
+  the cortex, because the swap back is the recovery path and not an optimization. Entering may
+  raise `SwapFailedError` (the cortex having already been restored by that same `finally`); a
+  restore that fails even after its one retry raises `ResidencyRestoreError` from the exit,
+  loudly logged. While a scope is active, `acquire` of any other model **waits** rather than
+  raising; at most one scope exists at a time, there being one GPU.
+- `Sleeper` provides `async sleep(seconds) -> None`: the only way core code may wait for
+  wall-clock time (ADR-0030). `Clock` says what time it is, which bounds a wait but cannot
+  perform one, and the core may not reach for `asyncio.sleep` itself, or every test of a poll
+  loop would be a real-time test. The body side has had the same port since the transport's
+  retry backoff. Real adapter `AsyncioSleeper`; twin `RecordingSleeper`.
 - `Embedder` provides `async embed(text) -> Sequence[float]`: one stateless call, text to vector.
   Dimension is fixed by the deployment's model (ADR-0008); the core assumes no value.
 - `MemoryStore` provides `async add(record) -> None`, `async search(embedding, *, k, scopes=None) ->
@@ -597,9 +644,10 @@ unchanged):
   reason this port exists.
 - `Clock` provides `now() -> datetime`, always tz-aware. The core's only time source.
 - `SessionStoreError` / `InferenceError` / `ModelManagerError` (+ its
-  `ModelUnavailableError`) / `MemoryStoreError` / `EmbedderError` / `ToolError` (+ its
-  `ToolNotFoundError`) / `TaskStoreError` / `HandoffStoreError` / `BodyGatewayError` /
-  `ScheduleStoreError` are typed
+  `ModelUnavailableError`, `SwapFailedError`, and `ResidencyRestoreError`, the two swap
+  failures, ADR-0030) / `MemoryStoreError` / `EmbedderError` / `ToolError` (+ its
+  `ToolNotFoundError`) / `TaskStoreError` / `HandoffStoreError` / `ModelHostError` /
+  `BodyGatewayError` / `ScheduleStoreError` are typed
   errors; adapters wrap their backend's failures into these with the cause chained.
   `SubagentAdmissionError` is the one raised by pure-core policy rather than an adapter: a
   `SubagentScheduler` refusing a spawn outright (ADR-0012 admission-wall addendum). Bad *values*
@@ -1056,7 +1104,34 @@ Reference implementations (pure, shipped in core; the runtime wiring until Slice
   `endpoint`; acquiring any model other than `resident_model` raises
   `ModelUnavailableError` (v1 performs no swap, since that lands in Slice 11). Lives in the
   core because it does no I/O; the process-lifecycle adapter arrives later behind the
-  same port.
+  same port. Still the wiring for a deployment that never escalates.
+- `SwappingModelManager(host, endpoints, plan, clock, sleeper)` is `ModelManager` v2
+  (ADR-0030 decision 5), in `residency.py`: still pure policy with no I/O of its own, it
+  implements the unchanged lease port AND `ResidencyController`. `acquire` keeps v1's
+  one-lock-per-GPU discipline over `endpoints` (logical id to base URL, composition-root
+  config); `swap_scope(model)` claims the one scope (a second raises `SwapFailedError`), takes
+  the lease so the swap waits out any in-flight round, stops the cortex and every
+  `plan.evict_models` tier, starts `model`, health-gates it, and serves it with the lease free
+  so the brain's own rounds can lease normally. Its `finally` stops `model`, starts the cortex,
+  and gates it, retrying once before raising `ResidencyRestoreError` with a loud log; while a
+  swap or restore is in flight nothing is resident, so an `acquire` racing it says so rather
+  than leasing a dead endpoint. Why a scope rather than a swapping `acquire`: the brain's tool
+  loop re-acquires once per round, so a swapping `acquire` would thrash minutes each way
+  whenever a queued cortex turn interleaved.
+- `ScriptedModelHost(*, running=(), status_override=None, fail=None, fail_once=None,
+  pause_at=())` is the `ModelHost` twin (ADR-0030 decision 3, in `fakes_model_host.py`): a set
+  of running models plus exactly the scripting the swap's named failure modes need.
+  `status_override` is what a *running* model reports instead of `READY` (a load that never
+  finishes, a model that died at load); `fail` raises `ModelHostError` for an `(op, model)`
+  pair every time and `fail_once` for its first occurrence only (the restore's retry);
+  `pause_at` blocks an operation at its boundary **after** its effect lands, firing
+  `reached[key]` and resuming on `release[key]`, which is how a test kills the conductor at a
+  named step. `calls` is the op log, which is what proves a swap requested the right things in
+  the right order and at most once.
+- `AsyncioSleeper` is the real `Sleeper` (production wiring, the `SystemClock` precedent);
+  `RecordingSleeper` is its twin, recording every requested wait in `.waits` and yielding the
+  loop instead of consuming time, so a poll loop's *schedule* is asserted rather than its
+  elapsed time. Both live in `fakes_sleeper.py`.
 - `InMemoryMemoryStore` is a list-backed `MemoryStore` ranking by cosine similarity in Python;
   behavioral twin of the pgvector adapter (Slice 5 host half) behind the same contract. A
   zero-magnitude vector scores 0.0; `scopes` filters candidates by namespace before ranking
