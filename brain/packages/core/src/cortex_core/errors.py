@@ -78,4 +78,32 @@ class ModelManagerError(Exception):
 
 
 class ModelUnavailableError(ModelManagerError):
-    """acquire() was asked for a model that is not the resident one (no swap in v1)."""
+    """acquire() was asked for a model that is not resident, and no scope will make it so."""
+
+
+class SwapFailedError(ModelManagerError):
+    """A residency scope could not swap its model in, so the handoff is off (ADR-0030).
+
+    Raised on scope ENTRY: the model failed to start, its readiness gate reported ``FAILED``, or
+    the gate's bound elapsed. The scope's own ``finally`` has already restored the cortex by the
+    time this surfaces, so a caller catching it is back on a serving cortex and owes the user an
+    honest note, never a retry loop.
+    """
+
+
+class ResidencyRestoreError(ModelManagerError):
+    """The cortex could not be restored after a swap, even on the retry (ADR-0030 decision 4).
+
+    The one failure the design cannot recover from in code: the GPU holds nothing servable, so
+    the scope logs loudly and raises this from its exit. The runbook owns manual recovery, and
+    the compose ``restart`` policy plus boot recovery converge a revived host on the next start.
+    """
+
+
+class ModelHostError(Exception):
+    """A ModelHost operation failed: a model process could not be started, stopped, or probed.
+
+    The typed boundary of the process-lifecycle port (ADR-0030 decision 3). The swap turns it
+    into a ``SwapFailedError`` or an aborted restore rather than letting an adapter's transport
+    failure reach a turn.
+    """

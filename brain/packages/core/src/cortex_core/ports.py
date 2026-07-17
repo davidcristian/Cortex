@@ -3,8 +3,9 @@
 Method bodies are one-line ``...`` stubs. Protocols carry contracts, never behavior.
 Failures cross these boundaries exclusively as the typed errors in ``errors.py``.
 The five state-store ports (session, memory, task, schedule, handoff) live in
-``ports_stores.py`` and are re-exported here, so ``from cortex_core.ports import SessionStore``
-keeps resolving.
+``ports_stores.py`` and the two model-lifecycle ports (``ModelHost``, ``ResidencyController``)
+in ``ports_models.py``; both sets are re-exported here, so
+``from cortex_core.ports import SessionStore`` keeps resolving.
 """
 
 from collections.abc import AsyncIterator, Sequence
@@ -17,6 +18,7 @@ from cortex_core.conversation import Message
 from cortex_core.inference import InferenceEvent, JsonSchema
 from cortex_core.model import ModelLease
 from cortex_core.placement import Placement, PlacementRequest
+from cortex_core.ports_models import ModelHost, ResidencyController
 from cortex_core.ports_stores import (
     HandoffStore,
     MemoryStore,
@@ -26,9 +28,10 @@ from cortex_core.ports_stores import (
 )
 from cortex_core.tools import ConfirmationRequest, ToolCall, ToolInvocation, ToolResult, ToolSpec
 
-# The five state-store ports live in ``ports_stores.py`` (a line-cap split); the explicit export
-# list re-exports them alongside the ports defined here, so every existing
-# ``from cortex_core.ports import ...`` and the ``cortex_core`` barrel keep resolving unchanged.
+# The five state-store ports live in ``ports_stores.py`` and the two model-lifecycle ports in
+# ``ports_models.py`` (line-cap splits); the explicit export list re-exports them alongside the
+# ports defined here, so every existing ``from cortex_core.ports import ...`` and the
+# ``cortex_core`` barrel keep resolving unchanged.
 __all__ = [
     "BodyGateway",
     "Clock",
@@ -37,9 +40,12 @@ __all__ = [
     "HandoffStore",
     "InferenceBackend",
     "MemoryStore",
+    "ModelHost",
     "ModelManager",
+    "ResidencyController",
     "ScheduleStore",
     "SessionStore",
+    "Sleeper",
     "SubagentPlacer",
     "SubagentScheduler",
     "TaskStore",
@@ -116,6 +122,22 @@ class Clock(Protocol):
     """The only time source the core may use; ``now()`` is always timezone-aware."""
 
     def now(self) -> datetime: ...
+
+
+class Sleeper(Protocol):
+    """The only way core code may wait for wall-clock time to pass (ADR-0030 decision 4).
+
+    ``Clock`` answers what time it is, which bounds a wait but cannot perform one, and the core
+    may not reach for ``asyncio.sleep`` itself: a poll loop that did would make every test of it
+    a real-time test. So waiting is a port, exactly as it already is on the body side (the Rust
+    ``Sleeper`` trait behind the transport's retry backoff). The real adapter is
+    ``AsyncioSleeper``; the twin records what was asked for and yields the loop instead of
+    waiting, which is what keeps the swap suite free of wall-clock sleeps.
+
+    First consumer: the swap's readiness gate, which polls ``ModelHost.status`` between waits.
+    """
+
+    async def sleep(self, seconds: float) -> None: ...
 
 
 class ToolRegistry(Protocol):
