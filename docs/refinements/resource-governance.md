@@ -6,15 +6,28 @@ deferred-refinements section on 2026-07-15 with the entries kept verbatim; lande
 historical record of what each deferral became, and the index at [index.md](index.md) carries the
 recommended pickup order.
 
-**Open items:** `SubagentScheduler.drain()` for a swap, CUDA-OOM re-place on CPU, the real
-GPU-placed runtime mechanism, the Intel NPU as a third placement target, a bounded admission wait,
-a read timeout on the subagent HTTP client
+**Open items:** CUDA-OOM re-place on CPU, the real GPU-placed runtime mechanism, the Intel NPU as
+a third placement target, a bounded admission wait, a read timeout on the subagent HTTP client
 
 **Resource governance in Slice 8.5 ([ADR-0012](../adr/ADR-0012-resource-governance.md)):** each behind
 the unchanged `SubagentPlacer`/`SubagentScheduler`/`ModelManager` ports.
-- **`SubagentScheduler.drain()` for a swap.** Quiesce the subagent pool (evict → load brain → swap
-  back). An additive method delivered in **Slice 11**, composed with `release`/`acquire` at the swap
-  orchestrator, never merging the ports.
+- **`SubagentScheduler.drain()` for a swap landed 2026-07-17 with the brain-handoff drain
+  sub-slice ([ADR-0030](../adr/ADR-0030-brain-handoff.md) decision 4, recorded at the
+  [ADR-0012 drain addendum](../adr/ADR-0012-resource-governance.md)).** The entry read: "Quiesce
+  the subagent pool (evict → load brain → swap back). An additive method delivered in **Slice
+  11**, composed with `release`/`acquire` at the swap orchestrator, never merging the ports."
+  It landed exactly there: `drain(*, timeout_s) -> bool` plus its reversal `undrain()` on the
+  port, implemented by `ResourceBudgetScheduler` and the new `AdmitAllScheduler` fake under one
+  contract suite. The semantics the original one-liner could not carry: entering drain refuses
+  every `admit` (typed `SubagentAdmissionError`, `POOL_DRAINING_MSG`) instead of queuing, since
+  a brain-phase spawn queued against its own drain would deadlock the turn against its own swap;
+  a spawn already waiting on a full budget is woken and refused, not left to sleep through the
+  handoff; the wait for in-flight admissions is bounded by the conductor-passed timeout
+  (`CORTEX_SWAP_DRAIN_TIMEOUT_S`, default 60 s, arriving with the conductor's wiring) and a
+  timeout reports not-clean with nothing killed, so the swap aborts before anything is evicted;
+  and the window holds until `undrain`, which the conductor owes in a `finally` on swap-back and
+  abort alike. The swap conductor that calls it is the ADR-0030 conductor sub-slice, which
+  consumes this verb as landed.
 - **CUDA-OOM → re-place on CPU.** `place` is optimistic; a real CUDA OOM surfaces as `ok=False` today.
   Auto-recovery (re-issue a CPU-forced request) needs a real GPU to exercise, so it lands in **Slice
   11** / the host half, not the pure core (simulating it would be vacuous coverage).

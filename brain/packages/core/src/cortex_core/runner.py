@@ -38,14 +38,15 @@ _REPLY_ENVELOPE: JsonSchema = {
 
 _MALFORMED_ENVELOPE_MSG = "subagent produced a malformed constrained reply"
 
-# What the cortex reads when the scheduler refuses a spawn outright (ADR-0012 admission-wall
-# addendum). Phrased like the dispatcher's refusal messages: say it was refused rather than
-# attempted, say the retry is pointless, and say what to do instead. Only the *impossible* charge
-# reaches here; a transient full budget queues, so this never means "busy, try later".
+# What the cortex reads when the scheduler refuses a spawn outright. Phrased like the
+# dispatcher's refusal messages: say it was refused rather than attempted, and say what to do
+# instead. Two causes reach here, and the reason carries which: the impossible charge (permanent,
+# a resource-budget misconfiguration, ADR-0012 admission-wall addendum) and the drain window
+# (transient, a model handoff quiescing the pool, ADR-0030). A transient full budget still
+# queues, so this never means "busy, try later".
 _REFUSED_TEMPLATE = (
-    "refused before running: {reason}. The subtask was never attempted and no retry can fit it, "
-    "since this is a resource-budget misconfiguration of the deployment; answer without delegating "
-    "this subtask, and say what you could not do."
+    "refused before running: {reason}. The subtask was never attempted; answer without "
+    "delegating this subtask, and say what you could not do."
 )
 
 
@@ -117,7 +118,8 @@ class SubagentRunner:
         VRAM is ever reserved while queuing. The "reserved VRAM then no CPU slot" leak is
         impossible. The placement's VRAM is always returned in the ``finally``. An unknown
         requested model fails closed as an ``ok=False`` result, mirroring "task not found", and so
-        does a spawn the scheduler refuses outright (a charge no budget could ever fit).
+        does a spawn the scheduler refuses outright (a charge no budget could ever fit, or a pool
+        draining for a model handoff, ADR-0030).
 
         ``budget`` is the spawning turn's dispatch pool (ADR-0009 turn-wide addendum), handed
         down by ``SpawnSubagentsTool`` off the dispatch stamp so this run's tool calls come out
@@ -150,7 +152,8 @@ class SubagentRunner:
                 finally:
                     res.placer.release(placement)
         except SubagentAdmissionError as err:
-            # The budget's one wall (ADR-0012 admission-wall addendum). Only `admit` raises it
+            # The scheduler's refusals: the impossible charge (ADR-0012 admission-wall addendum)
+            # and the drain window of a model handoff (ADR-0030). Only `admit` raises it
             # (neither the placer nor the tool loop touches a scheduler), and it does so before
             # yielding, so nothing was placed or run. Degrading it to a value here keeps the
             # runner's contract that every outcome is a `SubagentResult`: an escaping exception
