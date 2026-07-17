@@ -31,6 +31,7 @@ from cortex_core.engine import TurnCapabilities as TurnCapabilities
 from cortex_core.engine import TurnEngine as TurnEngine
 from cortex_core.errors import BodyGatewayError as BodyGatewayError
 from cortex_core.errors import EmbedderError as EmbedderError
+from cortex_core.errors import HandoffStoreError as HandoffStoreError
 from cortex_core.errors import InferenceError as InferenceError
 from cortex_core.errors import MemoryStoreError as MemoryStoreError
 from cortex_core.errors import ModelManagerError as ModelManagerError
@@ -57,6 +58,7 @@ from cortex_core.fakes import RecordingProgressSink as RecordingProgressSink
 from cortex_core.fakes import SystemClock as SystemClock
 from cortex_core.fakes_body import InMemoryBodyGateway as InMemoryBodyGateway
 from cortex_core.fakes_body import SentNotification as SentNotification
+from cortex_core.fakes_handoff import InMemoryHandoffStore as InMemoryHandoffStore
 from cortex_core.fakes_schedule import InMemoryScheduleStore as InMemoryScheduleStore
 from cortex_core.fakes_session import InMemorySessionStore as InMemorySessionStore
 from cortex_core.guardrail import REDACTED_LINK as REDACTED_LINK
@@ -65,6 +67,9 @@ from cortex_core.guardrail import OutputGuardrail as OutputGuardrail
 from cortex_core.guardrail import StrictUrlRedactingGuardrail as StrictUrlRedactingGuardrail
 from cortex_core.guardrail import TaintView as TaintView
 from cortex_core.guardrail import UrlRedactingGuardrail as UrlRedactingGuardrail
+from cortex_core.handoff import EscalationSlot as EscalationSlot
+from cortex_core.handoff import HandoffRecord as HandoffRecord
+from cortex_core.handoff import HandoffState as HandoffState
 from cortex_core.inference import InferenceEvent as InferenceEvent
 from cortex_core.inference import JsonSchema as JsonSchema
 from cortex_core.inference import ReasoningChunk as ReasoningChunk
@@ -83,6 +88,7 @@ from cortex_core.ports import BodyGateway as BodyGateway
 from cortex_core.ports import Clock as Clock
 from cortex_core.ports import Confirmer as Confirmer
 from cortex_core.ports import Embedder as Embedder
+from cortex_core.ports import HandoffStore as HandoffStore
 from cortex_core.ports import InferenceBackend as InferenceBackend
 from cortex_core.ports import MemoryStore as MemoryStore
 from cortex_core.ports import ModelManager as ModelManager

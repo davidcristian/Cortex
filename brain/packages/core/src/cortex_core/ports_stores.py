@@ -1,10 +1,11 @@
 """State-store ports (typing.Protocol): the durable and hot stores the one hard rule protects.
 
-Split from ``ports.py`` for the line cap; ``ports`` re-exports these four, so every existing
-``from cortex_core.ports import ...`` keeps resolving. Conversation, memory, subagent-task, and
-schedule state each lives only behind one of these ports (AGENTS.md hard rule): no such state may
-sit inside a model process, so a model swap is survivable. Method bodies are one-line ``...``
-stubs; failures cross these boundaries exclusively as the typed errors in ``errors.py``.
+Split from ``ports.py`` for the line cap; ``ports`` re-exports these five, so every existing
+``from cortex_core.ports import ...`` keeps resolving. Conversation, memory, subagent-task,
+schedule, and mid-turn handoff state each lives only behind one of these ports (AGENTS.md hard
+rule): no such state may sit inside a model process, so a model swap is survivable. Method bodies
+are one-line ``...`` stubs; failures cross these boundaries exclusively as the typed errors in
+``errors.py``.
 """
 
 from collections.abc import Sequence
@@ -12,6 +13,7 @@ from datetime import datetime, timedelta
 from typing import Protocol
 
 from cortex_core.conversation import Message
+from cortex_core.handoff import HandoffRecord, HandoffState
 from cortex_core.memory import MemoryRecord, ScoredMemory
 from cortex_core.schedule import FireOutcome, ScheduleClaim, ScheduledItem
 from cortex_core.schedule_transitions import ScheduleEdit
@@ -138,3 +140,30 @@ class ScheduleStore(Protocol):
     async def deliverable(self) -> Sequence[ScheduledItem]: ...
 
     async def ack(self, item_id: str) -> bool: ...
+
+
+class HandoffStore(Protocol):
+    """Hot store for the one in-flight brain handoff (Redis; ADR-0030).
+
+    The ``HandoffRecord`` is the mid-turn state the swap must not lose (brief, nonce, taint
+    ledger, budget position, tool-loop tail); everything else already lives in the other
+    stores, so the swap protocol is a stateless function over this one. ``put`` persists a
+    snapshot and ``get`` reads it back (``None`` when unknown or expired); ``transition``
+    rewrites just the state, answering ``False`` for an unknown id (a stale claimant is a
+    no-op, never an error). ``delete`` removes a record outright, idempotently. ``active``
+    returns the one non-terminal record, or ``None``: at most one handoff is in flight at a
+    time (one GPU), the conductor checks that here before snapshotting, and boot recovery
+    reads it to mark a crash-stranded handoff ``FAILED`` (ADR-0030 decision 4). Terminal
+    records are kept briefly for diagnosis (the adapter expires them) and are never
+    ``active``. Failures surface as ``HandoffStoreError``.
+    """
+
+    async def put(self, record: HandoffRecord) -> None: ...
+
+    async def get(self, handoff_id: str) -> HandoffRecord | None: ...
+
+    async def transition(self, handoff_id: str, state: HandoffState) -> bool: ...
+
+    async def delete(self, handoff_id: str) -> None: ...
+
+    async def active(self) -> HandoffRecord | None: ...

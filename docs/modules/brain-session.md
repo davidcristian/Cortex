@@ -1,8 +1,9 @@
 # brain/packages/session (`cortex_session`)
 
 **Purpose.** The Redis adapters for the core's stateful ports, `SessionStore` (conversation
-history), `TaskStore` (subagent tasks + results), and `ScheduleStore` (durable schedules,
-ADR-0025), the state that survives orchestrator restarts and model swaps (the one hard rule).
+history), `TaskStore` (subagent tasks + results), `ScheduleStore` (durable schedules,
+ADR-0025), and `HandoffStore` (the in-flight brain handoff, ADR-0030), the state that survives
+orchestrator restarts and model swaps (the one hard rule).
 Translators only: serialization, key layout, and error wrapping; no business logic.
 
 **Public contract** (everything importable from `cortex_session`; `__all__` is the API):
@@ -102,6 +103,26 @@ Translators only: serialization, key layout, and error wrapping; no business log
     methods: the fake can never quarantine, and no core path or model tool consumes them);
     `DeadLetter(item_id, raw)` renders bytes with replacement characters so corrupt content
     stays inspectable (ADR-0025 dead-letter addendum, runbook recipe in scheduling.md).
+- `RedisHandoffStore` implements the `HandoffStore` port over redis-py asyncio (ADR-0030),
+  same injected-client / `from_url` / `aclose` shape as above (codec split into
+  `handoff_codec.py` for the line cap):
+  - `async put(record)` SETs one `HandoffRecord` JSON document and keeps the single
+    active-handoff pointer true to its state in the same transactional pipeline: a
+    non-terminal record is written with **no TTL** (boot recovery must find a crash-stranded
+    handoff) and claims the pointer; a terminal one is written under a 1-hour diagnosis TTL
+    and releases the pointer when it holds this id.
+  - `async get(handoff_id)` GET/decodes one record (unknown/expired id → `None`); a corrupt
+    record fails loudly naming its key, since silently defaulting the taint fields would fail
+    open after the swap.
+  - `async transition(handoff_id, state)` is a read-modify-write through `put`, so a terminal
+    transition inherits its TTL and pointer release atomically with the state change; an
+    unknown id no-ops `False`.
+  - `async delete(handoff_id)` DELs the record and the pointer when it names it, idempotently.
+  - `async active()` follows the pointer to the one in-flight record (`None` when free); a
+    dangling pointer or a hand-crafted terminal record behind it reads as no active handoff,
+    read-only (nothing is mutated on the read path). The read-then-write verbs are not fenced
+    against a concurrent writer: the conductor is the store's one writer by construction
+    (`active()` is how it checks that), unlike the multi-claimant schedule store.
 - `DEFAULT_REDIS_URL` is `"redis://127.0.0.1:6379/0"`. Deployments override via
   `CORTEX_REDIS_URL`, read by the composition root (orchestrator settings), never by
   this adapter.
@@ -135,6 +156,20 @@ round-trips, with a task's `model`/`tainted` and a result's `tainted` included (
 resolution inputs and the taint verdict are exactly what must survive a restart or swap
 mid-delegation (taint that did not would fail open), and both decode strictly (a missing key is
 a corrupt record, no legacy paths, since ephemeral records need none).
+
+Handoff state (ADR-0030) is hot like task state: one record at `cortex:handoff:{id}` (one JSON
+document, no `v`/`kind` markers, written and read back within one handoff by one deployment,
+the task-store precedent) plus the pointer key `cortex:handoff:active` holding the in-flight
+record's id (one GPU, at most one swap at a time). The document carries the escalation `brief`,
+the turn's fence `nonce`, the whole taint ledger (`tainted`, `sources` as ordered
+`{"kind", "value"}` pairs, `untrusted_urls` stored sorted and read back as a set), the budget
+position (`budget_remaining`/`budget_closed`), `rounds_used`, and `loop_tail` (each message
+with its `tool_calls` as `{"id", "name", "arguments"}`; the transient dispatch stamp is never
+persisted, per the core's `ToolCall` contract). Timestamps preserve their offset as
+everywhere. Non-terminal records carry **no TTL**; terminal (`done`/`failed`) records expire
+after an hour, kept only for diagnosis. Decode is strict (a missing key is a corrupt record,
+no legacy paths): taint fields that silently defaulted would fail open after the swap, which
+is the exact laundering/taint gap the contract round trip pins shut.
 
 Schedule state (ADR-0025) is the durable retention class again: one record per schedule at
 `cortex:schedule:{id}` storing `{"v": 1, "kind": "schedule", "id", "item_kind", "text",
@@ -176,10 +211,11 @@ from its indexes.
   that would invisibly corrupt the context of a future handoff.
 
 **Error contract.** Every Redis/connection failure and every corrupt or unreadable stored
-record is raised as the core's `SessionStoreError` (session), `TaskStoreError` (task), or
-`ScheduleStoreError` (schedule); backend failures carry the original exception chained as
+record is raised as the core's `SessionStoreError` (session), `TaskStoreError` (task),
+`ScheduleStoreError` (schedule), or `HandoffStoreError` (handoff); backend failures carry the
+original exception chained as
 `__cause__`, decode failures name the offending record (session: list index + kind/version;
-task/schedule: the key); no `redis.exceptions.*` type ever crosses the port. The one
+task/schedule/handoff: the key); no `redis.exceptions.*` type ever crosses the port. The one
 exception to fail-loud is the schedule **claim path**, where a corrupt record quarantines
 (ADR-0025's poison-pill defense) rather than raising.
 
@@ -205,20 +241,32 @@ point of that suite (stale finish rejected, cancel-during-fire sticks, lease-exp
 under a fresh token, terminal cleanup, fire-time taint OR, delivery lifecycle), and it runs over
 `InMemoryScheduleStore` and `RedisScheduleStore`, with adapter-only mechanics (error wrapping
 per operation, codec policy, quarantine, dangling-id tolerance, surplus release) tested against
-the Redis adapter alone. The integration-marked tests in `tests/test_store_live.py` and
+the Redis adapter alone. `tests/handoff_contract.py` does it for the `HandoffStore` over
+`InMemoryHandoffStore` and `RedisHandoffStore` (ADR-0030); its load-bearing check is the
+tainted-ledger round trip (a ledger built through the real `TaintLedger` API with attested and
+claimed sources comes back bit-, order-, and set-exact via `HandoffRecord.taint_ledger()`),
+beside the lifecycle checks (active-slot claim/release across put/transition/delete, terminal
+records readable but never active, unknown-id no-ops, timezone fidelity on the record and its
+tool-bearing tail), with adapter-only mechanics (error wrapping per operation, strict corrupt-
+record policy including a dropped taint field and a forged provenance kind, terminal-only TTL,
+dangling/terminal pointer self-healing) against the Redis adapter alone. The
+integration-marked tests in `tests/test_store_live.py`, `tests/test_handoff_live.py`, and
 `tests/test_schedule_live.py` run the suites against real Redis at `CORTEX_REDIS_URL`
 (excluded from CI/coverage by the workspace addopts; run manually:
 `cd brain && uv run pytest -m integration --no-cov packages/session`. Here the `--no-cov`
-matters, the 100% gate in addopts would otherwise fail the run). Both clean up after
+matters, the 100% gate in addopts would otherwise fail the run). All three clean up after
 themselves the same way: every check works on ids prefixed `contract-`, and a `_sweep`
 helper removes records **and every index member** carrying that prefix, by pattern rather
-than by a list of ids the checks handed back. It runs after each check and again in a
+than by a list of ids the checks handed back (the handoff sweep also releases the
+`cortex:handoff:active` pointer when a contract id claims it). It runs after each check and
+again in a
 `finally`, so a check that FAILS is swept too. Sweeping the index is not optional bookkeeping:
 a `cortex:sessions` member outlives the message list it names, and enough of them push a
 check's own sessions out of the `limit=50` window it asserts over, so a single failed run
 used to poison every later one. The schedule live test additionally **skips when real
 schedules exist** (its checks assert exact global views and claim whatever is due, so it
-refuses to disturb them).
+refuses to disturb them), and the handoff live test skips when a real (non-contract) handoff
+is active, for the same reason.
 
 **Invariants.**
 - State outlives every process: nothing is cached in the adapter; every read hits
