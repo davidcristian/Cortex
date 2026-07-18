@@ -29,7 +29,7 @@ its signature.
 
 | Doc | Area | Open |
 | --- | --- | --- |
-| [repo-gates.md](repo-gates.md) | Line cap, dashcheck, coverage config (ADR-0026), gate coverage of the ungated Rust trees (ADR-0011), test-runner mechanics (ADR-0002) | 2 |
+| [repo-gates.md](repo-gates.md) | Line cap, dashcheck, coverage config (ADR-0026), gate coverage of the ungated Rust trees (ADR-0011), test-runner mechanics (ADR-0002) | 3 |
 | [seam-transport.md](seam-transport.md) | `BrainTransport` retry/reconnect (ADR-0003/0024) | 4 |
 | [seam-auth.md](seam-auth.md) | Seam token auth (ADR-0016) | 1 |
 | [session-history.md](session-history.md) | Slice 3 history windowing and summarization | 1 |
@@ -515,6 +515,22 @@ residency when the sidecar restarts under it** still has nothing to compare a bo
 gained a second way to go stale: an operator who fixes the GPU by hand leaves the report saying the
 usual assistant could not be reloaded until the brain restarts, which the runbook's recovery already
 ends with). Both say so in their own entries now.
+The audit round on that sub-slice, still 2026-07-18, moved one count and closed a hole this
+backlog never held. The hole first: `Health` had been made honest about every window a *swap*
+goes through and none that a *boot* does, so a brain whose boot recovery could not settle the
+cortex logged "the cortex is not serving" and then answered ready from the same process, which
+is the one machine state where a green dot is reached through the runbook's own mandatory
+restart. Boot recovery now answers whether it observed the cortex serving and the composition
+root publishes that, which is a repair rather than a deferral and so decrements nothing. What it
+does change here is the shape of the sidecar-restart entry two paragraphs up: the report now has
+a second writer, and a second, opposite staleness (an amber that outlives a GPU which came good
+on its own), both recorded there because one fix closes them.
+Repo gates went 2 to 3 with **checking the commit body's 72-column wrap**, measured rather than
+assumed: `scripts/commitlint.py` gates the header length only, and every one of the seven most
+recent commits at that moment had body lines past 72, the worst at 77. It is recorded rather
+than fixed because the two-line version would be wrong: a URL, a pasted command, a code fence
+and a `BREAKING CHANGE:` footer must all survive a hard wrap, so the exceptions are the design
+and the drift is cosmetic until something reads a message in a narrow pager.
 
 ## Recommended order
 
@@ -790,7 +806,11 @@ for distinct models and whose fix is stronger nudging behind the same spec seam
 deadline instead of only documenting the pairing, joined on 2026-07-18 with the audit round that
 found the pairing had a third term and added the `GET /health` reporting that would make the check
 possible, whose trigger is either side's timing being tuned or a handoff aborting on an eviction
-that in fact completed ([inference-model-manager.md](inference-model-manager.md)); the retry
+that in fact completed ([inference-model-manager.md](inference-model-manager.md)); checking the commit body's
+72-column wrap rather than the header's length alone, joined on 2026-07-18 by the audit that
+measured every recent commit exceeding it, whose trigger is the first time an over-wide body
+costs something or a deliberate reflow pass that the gate would then keep
+([repo-gates.md](repo-gates.md)); the retry
 budget / circuit-breaker, joined on 2026-07-16 by a retryable-code table beyond `Unavailable`
 (whose trigger is a brain that starts answering `RESOURCE_EXHAUSTED` or `ABORTED`) and, the same
 day, by safe `converse` reconnect-before-first-event (sharpened from "a replayable request and a

@@ -99,11 +99,19 @@ variants, disable-thinking / token-budget capping
   somewhere other than startup). That is a wire addition plus a caller, not a port change. The
   residency state that landed on 2026-07-18 is where the answer would be published, but it did
   **not** close any of this: `ResidencyReport` says what the GPU is serving in one line for a human,
-  carries no generation to compare a boot id against, and is still written only by the swap itself.
-  The same landing added a second way for it to go stale, with the same fix: after a restore that
-  gave up, an operator who brings the cortex back by hand (`docs/runbooks/model-swap.md` step 2)
-  leaves the report saying the usual assistant could not be reloaded until the brain restarts, which
-  is why that runbook's recovery ends by restarting it.
+  and carries no generation to compare a boot id against. Its writers are the swap itself and, from
+  that day's audit repair, boot recovery publishing what it observed (`publish_boot_residency`),
+  which is a *startup* observation and so still leaves nothing that re-reads the machine while the
+  process runs. The same landing added two ways for the report to go stale, both with this same
+  fix. After a restore that gave up, an operator who brings the cortex back by hand
+  (`docs/runbooks/model-swap.md` step 2) leaves the report saying the usual assistant could not be
+  reloaded until the brain restarts, which is why that runbook's recovery ends by restarting it.
+  And a boot whose recovery could not confirm the cortex publishes `RESIDENCY_BOOT_FAILED`, which
+  is honest at the instant it is written and stays amber even if the cortex comes up a minute
+  later on its own: deliberately a false amber rather than a false green, and deliberately not
+  paid for with a probe per `Health` (the ADR priced that at up to 5.80 s against a 5 s recheck).
+  The lease is untouched by that publish, so a machine that is in fact serving still answers turns
+  while the dot is wrong.
   **Trigger:** a sidecar that restarts (an OOM kill, a crash, an operator's `docker compose restart
   model-host`) while a handoff is in flight over the supervisor backend, seen more than once.
 - **Check the sidecar's stop bounds against the brain's control deadline, instead of only

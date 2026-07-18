@@ -121,3 +121,28 @@ Proven to fail before being trusted, per the repo's distrust-green rule: a probe
 (an untested, untyped function added to no list) dropped total coverage to 98.62% and
 failed pytest, and raised two strict-mode pyright errors; with the probe removed,
 `just check-scripts` passes at 100%.
+
+## Addendum (2026-07-18): the commit body's wrap is convention, not gate, and now says so
+
+An audit of a `Health` repair measured what this ADR's own gate does not cover.
+[AGENTS.md](../../AGENTS.md) states one width rule for a commit message, "the body explains what
+and why, wrapped at 72", and `scripts/commitlint.py` checks `MAX_HEADER_LENGTH = 72` against the
+header alone. The body is walked line by line for dashes and volatile references and its width is
+never read. The drift that follows is exactly what an unenforced rule looks like: over the seven
+most recent commits at the time of the audit, every single one had body lines past 72, the worst
+at 77, spread across authors and slices rather than concentrated in one change.
+
+**Not fixed here, and the reason is the exceptions rather than the check.** Adding a width test to
+the walker that already reads every line is two lines; deciding what a hard wrap may not touch is
+the actual design. A URL, a pasted command, a fenced code block, and a `BREAKING CHANGE:` footer
+can each legitimately exceed 72 and must not be reflowed, so a naive gate would fail correct
+messages and push authors toward mangling them. The cost of leaving it is cosmetic (`git log` in a
+narrow pager wraps long lines, it does not truncate them), which is why this is recorded with a
+trigger rather than built.
+
+It is a deferral in the ordinary sense and is recorded in all three places this repo requires: the
+entry lives in [docs/refinements/repo-gates.md](../refinements/repo-gates.md) beside this ADR's
+other prose-style items, its line is in [docs/refinements/index.md](../refinements/index.md) under
+fix-when-it-bites, and this addendum is the origin record. Until it lands, the 72-column body wrap
+stands as convention exactly the way imperative mood does under this ADR's decision: stated in
+AGENTS.md, checked by nobody, and now honestly labelled as such rather than cited as a gate.

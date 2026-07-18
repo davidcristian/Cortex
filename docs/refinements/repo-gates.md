@@ -8,9 +8,29 @@ deferred-refinements section on 2026-07-15 with the entries kept verbatim; lande
 entries are the historical record of what each deferral became, and the index at
 [index.md](index.md) carries the recommended pickup order.
 
-**Open items:** 2 (`cargo clippy` for the Tauri shell in CI, moved to fix-when-it-bites
+**Open items:** 3 (`cargo clippy` for the Tauri shell in CI, moved to fix-when-it-bites
 2026-07-16; standing test-order randomization, opened as fix-when-it-bites 2026-07-18; the
+commit-body wrap gate, opened as fix-when-it-bites 2026-07-18; the
 rest landed 2026-07-16, see the outcome note below the verbatim entry)
+
+**Prose style ([ADR-0026](../adr/ADR-0026-prose-style-gates.md)):**
+- **Check the commit body's 72-column wrap, not only the header's length.** Opened 2026-07-18,
+  fix-when-it-bites, by an audit that measured the drift rather than assumed it.
+  [AGENTS.md](../../AGENTS.md) states one width rule for a commit message ("the body explains what
+  and why, wrapped at 72"), and `scripts/commitlint.py` enforces `MAX_HEADER_LENGTH = 72` on the
+  header alone; nothing looks at the body. Measured over the seven most recent commits at the time:
+  every one has body lines past 72, the worst at 77, so the drift is endemic to the tree rather
+  than introduced by any one change, which is exactly what an unenforced rule looks like. It is
+  cosmetic (`git log` in an 80-column terminal wraps them, it does not truncate) and that is why
+  it waits. **What would close it:** one more check in the same walker that already reads every
+  line for dashes and volatile references, plus a decision on the exceptions a hard wrap needs,
+  which is the whole reason this is not a two-line patch: a URL, a pasted command, a code fence,
+  or a `BREAKING CHANGE:` footer can all legitimately exceed 72 and must not be reflowed, and a
+  gate that fails on them would be rewriting messages rather than checking them. **Trigger:** the
+  first time an over-wide body actually costs something (a message read in a narrow pager or a
+  release-note extraction that assumes the wrap), or a deliberate reflow pass over the history,
+  after which the gate is what keeps it reflowed. Until then the rule stands as convention, the
+  way imperative mood does, and this entry is the record that it is convention rather than gate.
 
 **Test-runner mechanics ([ADR-0002](../adr/ADR-0002-toolchain-gates.md)):**
 - **Standing test-order randomization.** Opened 2026-07-18, fix-when-it-bites, by a review that
