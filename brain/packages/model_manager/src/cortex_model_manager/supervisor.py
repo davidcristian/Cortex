@@ -34,9 +34,14 @@ from cortex_model_manager.children import ChildProcess, ChildProcesses
 from cortex_model_manager.probe import HealthProbe
 from cortex_model_manager.spec import ModelSpec
 
-# How long a child gets to exit on SIGTERM before it is killed. Measured on the dev GPU with a
-# small model resident: llama-server exits 0 in 0.14 s to 0.38 s, so seconds are generous; a
-# tier-scale model is the user's to re-measure (docs/runbooks/model-swap.md).
+# How long a child gets to exit on SIGTERM before it is killed. Measured on the dev GPU, and the
+# two cases are nothing like each other: an **idle** llama-server exits 0 in 0.14 s to 0.40 s,
+# while one with a request **in flight** does not honour SIGTERM at all (it logs "cleaning up
+# before exit" and then blocks on the generation, the shipped tiers running --parallel 1), so it is
+# killed and the whole grace is paid: 10.09 s and 10.90 s end to end on the stand-ins. So this is
+# not slack that a fast idle stop makes generous; it is the real cost of evicting a busy tier, and
+# tuning it down on the strength of the idle number would SIGKILL a model mid answer. A tier-scale
+# model is the user's to re-measure (docs/runbooks/model-swap.md).
 DEFAULT_STOP_GRACE_S = 10.0
 
 # How long a SIGKILLed child gets to be reaped before the stop is reported as failed. A killed

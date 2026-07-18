@@ -28,12 +28,15 @@ DEFAULT_BRAIN_MODEL = "brain"
 
 # The control plane's own deadline, and the one timeout in the brain that must NOT be short. A
 # supervisor's ``stop`` answers only once the child is reaped, so it can legitimately take that
-# sidecar's SIGTERM grace plus its SIGKILL reap bound (10 s + 30 s under the shipped defaults)
-# before it replies. This must stay above their sum, or a slow-but-correct eviction would be read
-# as a dead sidecar and abort a handoff that was working; the sidecar's knobs are its own env, so
-# the pairing is documented in docs/runbooks/model-swap.md rather than validated here. It is still
-# a real deadline, unlike the generation clients' deliberate ``read=None`` (builders.py): a hung
-# control call would hang a swap step under no bound at all.
+# sidecar's SIGTERM grace plus its SIGKILL reap bound, and, because a ``status`` queued on the same
+# per-model lock probes inside it, that sidecar's probe timeout as well: 5 s + 10 s + 30 s = 45 s
+# under the shipped defaults, all three measured. This must stay above that sum, or a
+# slow-but-correct eviction would be read as a dead sidecar and abort a handoff that was working;
+# the sidecar's knobs are its own env, so the pairing is documented in
+# docs/runbooks/model-swap.md rather than validated here (its ``GET /health`` reports the two stop
+# bounds it was actually given). It is still a real deadline, unlike the generation clients'
+# deliberate ``read=None`` (builders.py): a hung control call would hang a swap step under no
+# bound at all.
 DEFAULT_MODELHOST_TIMEOUT_S = 60.0
 
 ModelHostBackendName = Literal["none", "scripted", "supervisor"]
