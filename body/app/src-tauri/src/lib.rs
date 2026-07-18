@@ -31,7 +31,13 @@ pub fn run() {
         .setup(|app| {
             tray::build(app.handle())?;
             hotkey::register(app.handle());
-            body_server::start();
+            // The overlay must exclude itself from every screen capture before any capture can
+            // happen (ADR-0029). Without it the model receives a picture of an always-on-top
+            // opaque window covering the content, containing the user's own prompt and the
+            // prior reply: a self-injection loop, laundering model output back into untrusted
+            // model input. It fails closed, so a shell that could not exclude itself serves a
+            // refusing capture backend rather than a leaking one.
+            body_server::start(body_server::exclude_overlay(app.handle()));
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![

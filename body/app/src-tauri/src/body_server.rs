@@ -21,18 +21,21 @@ const DEFAULT_TOAST_APP_ID: &str = "dev.cortex.body";
 /// container can reach it via `host.docker.internal`; the seam token + host firewall are the
 /// boundary when the bind is not pure loopback (ADR-0023, assumption 5).
 ///
-/// Screen capture is wired to `DeniedScreenCapture` here: the real GDI backend and its
-/// `CORTEX_HOST_CAPTURE` kill switch land with the Windows capture work (ADR-0029), and until
-/// then this host answers `PermissionDenied` to every `CaptureScreen`, which is the same
-/// answer a user who never opts in will get. `CORTEX_HOST_CAPTURE_NOTIFY=0` turns off the
-/// body-authored receipt a successful capture shows; it defaults on.
+/// Screen capture is **off unless the user opts in** (ADR-0029): the real GDI backend is
+/// wired only when `CORTEX_HOST_CAPTURE=1` **and** `excluded` says the overlay successfully hid
+/// itself from capture. Otherwise the host serves `DeniedScreenCapture` and answers
+/// `PermissionDenied` to every `CaptureScreen`, which is the same answer a user who never
+/// opts in gets. Both conditions are required and it fails closed on either, because a capture
+/// that includes the overlay is a self-injection loop rather than a degraded picture.
+/// `CORTEX_HOST_CAPTURE_NOTIFY=0` turns off the body-authored receipt a successful capture
+/// shows; it defaults on.
 #[cfg(windows)]
-pub fn start() {
+pub fn start(excluded: bool) {
     use std::net::{Ipv4Addr, SocketAddr};
 
     use body_core::DeniedScreenCapture;
     use body_rpc::body_service;
-    use os_windows::{WindowsAudioControl, WindowsNotify};
+    use os_windows::{WindowsAudioControl, WindowsNotify, WindowsScreenCapture};
     use tokio::net::TcpListener;
     use tokio_stream::wrappers::TcpListenerStream;
     use tonic::transport::Server;
@@ -45,6 +48,10 @@ pub fn start() {
     let app_id =
         std::env::var("CORTEX_TOAST_APP_ID").unwrap_or_else(|_| String::from(DEFAULT_TOAST_APP_ID));
     let receipts = std::env::var("CORTEX_HOST_CAPTURE_NOTIFY").as_deref() != Ok("0");
+    let capture = excluded && std::env::var("CORTEX_HOST_CAPTURE").as_deref() == Ok("1");
+    if !capture {
+        eprintln!("cortex: screen capture is off (CORTEX_HOST_CAPTURE=1 and overlay exclusion)");
+    }
     tauri::async_runtime::spawn(async move {
         let listener = match TcpListener::bind(addr).await {
             Ok(listener) => listener,
@@ -54,25 +61,56 @@ pub fn start() {
             }
         };
         let incoming = TcpListenerStream::new(listener);
-        let service = body_service(
-            WindowsAudioControl::new(),
-            WindowsNotify::new(&app_id),
-            DeniedScreenCapture,
-            receipts,
-            &token,
-        );
-        if let Err(error) = Server::builder()
-            .add_service(service)
-            .serve_with_incoming(incoming)
-            .await
-        {
+        let audio = WindowsAudioControl::new();
+        let notify = WindowsNotify::new(&app_id);
+        // The two arms differ only in which backend answers CaptureScreen, and the service type
+        // differs with it, so the serve call is written twice rather than behind a generic whose
+        // tower bounds this ungated shell could not have checked anywhere.
+        let served = if capture {
+            let service =
+                body_service(audio, notify, WindowsScreenCapture::new(), receipts, &token);
+            Server::builder()
+                .add_service(service)
+                .serve_with_incoming(incoming)
+                .await
+        } else {
+            let service = body_service(audio, notify, DeniedScreenCapture, receipts, &token);
+            Server::builder()
+                .add_service(service)
+                .serve_with_incoming(incoming)
+                .await
+        };
+        if let Err(error) = served {
             eprintln!("cortex: BodyService stopped: {error}");
         }
     });
 }
 
+/// Hides the overlay window from every screen capture on the machine, answering whether it
+/// worked (ADR-0029). A `false` keeps capture off entirely: the alternative is a model that
+/// reads its own prior replies back out of the picture.
+#[cfg(windows)]
+#[must_use]
+pub fn exclude_overlay(handle: &tauri::AppHandle) -> bool {
+    use tauri::Manager;
+
+    let Some(window) = handle.get_webview_window(crate::OVERLAY_LABEL) else {
+        return false;
+    };
+    match window.hwnd() {
+        Ok(hwnd) => os_windows::exclude_from_capture(hwnd.0 as isize),
+        Err(_) => false,
+    }
+}
+
 /// Non-Windows stub: no OS-action backend yet, so the body server is not started.
 #[cfg(not(windows))]
-pub fn start() {
+pub fn start(_excluded: bool) {
     eprintln!("cortex: BodyService is not available on this platform yet");
+}
+
+/// Non-Windows stub: nothing to exclude, and nothing that could capture it.
+#[cfg(not(windows))]
+pub fn exclude_overlay(_handle: &tauri::AppHandle) -> bool {
+    false
 }
