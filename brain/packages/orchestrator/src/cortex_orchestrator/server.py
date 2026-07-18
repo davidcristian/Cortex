@@ -112,11 +112,7 @@ class BrainService(SessionRpcMixin, BrainServiceServicer):
         request_iterator: AsyncIterator[ClientEvent],
         context: aio.ServicerContext[ClientEvent, ServerEvent],
     ) -> AsyncGenerator[ServerEvent, None]:
-        """Stream the conversation loop; contract and cancel semantics: `converse.py`.
-
-        `UserTurn.images` are ignored in this slice (multimodal arrives with vision,
-        Slice 10). Failures surface as a terminal SeamError event, never as an RPC error.
-        """
+        """Stream the conversation loop; contract and cancel semantics: `converse.py`."""
         del context  # RPC cancellation/disconnect arrive as generator close, not via context
         events = converse(
             self._make_engine,

@@ -21,6 +21,7 @@ behind the unchanged `BodyGateway`/`AudioControl`/`BodyService` seams.
   `spawn_blocking` is a body-side tweak behind the unchanged trait.
 - **`GetVolume` surfaced as overlay state** (a real volume indicator), and the remaining
   `BodyService` RPCs, `CaptureScreen` (Slice 10) and `InjectInput` (later), behind the same seam.
+  (The "same seam" half of this line is wrong for `CaptureScreen`; see the dated closure below.)
 - **A safe Core Audio wrapper.** `WindowsAudioControl` uses the ADR-0023-scoped `unsafe` over the
   `windows` crate's COM API; a fully-safe wrapper crate (à la `global-hotkey` for the hotkey) would
   retire the exception if one matures.
@@ -51,7 +52,16 @@ behind the unchanged `BodyGateway`/`AudioControl`/`BodyService` seams.
 - **`GetVolume` as an overlay volume indicator closed 2026-07-16 as declined, no consumer and no
   refresh story ([ADR-0023 addendum](../adr/ADR-0023-body-gateway-volume.md)).** The remaining
   `BodyService` RPCs in this entry (`CaptureScreen`, `InjectInput`) stay open with their slices;
-  only the overlay half is declined. Three findings, in the order they killed it. **The entry
+  only the overlay half is declined. **`CaptureScreen` closed 2026-07-18 with the vision slice
+  ([ADR-0029](../adr/ADR-0029-vision-screen-capture.md)), and the entry's own cost estimate was
+  wrong in the way this index warns about:** it promised the remaining RPCs "behind the same
+  seam", and the seam changed. `proto/body.proto` gained five fields, `CaptureScreenRequest.
+  max_edge` and `max_bytes` plus `ImageBlob.source_width`, `source_height` and
+  `captured_at_unix_ms`, and the brain-side port grew a method returning a new pure-core value.
+  Two of those were not in the design either: `max_bytes` exists because a fixed byte ceiling made
+  the shrink ladder's give-up arm unreachable, and putting the budget on the request is what makes
+  the brain's bound and the body's ceiling one number rather than two constants coupled by prose.
+  `InjectInput` stays open, and is now the only unbuilt `BodyService` RPC. Three findings, in the order they killed it. **The entry
   names the wrong seam.** `GetVolume` is a `BodyService` RPC, and the body is its *server*: the
   overlay is inside the body, so it would never call that RPC. Surfacing volume there means a
   new Tauri command over `AudioControl` plus a new overlay port, since `BrainBridge` is by its

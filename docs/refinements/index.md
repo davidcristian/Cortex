@@ -42,8 +42,9 @@ its signature.
 | [session-read-seam.md](session-read-seam.md) | Session listing/read seam (ADR-0021) | 3 |
 | [resource-governance.md](resource-governance.md) | Scheduler/placer budgets, NPU, drain (ADR-0012) | 5 |
 | [email-confirmer.md](email-confirmer.md) | Email write, Confirmer, attachments, `ToolActivity` chip (ADR-0022) | 4 |
-| [body-gateway.md](body-gateway.md) | Body gateway, OS actions, hardened posture (ADR-0023) | 6 |
+| [body-gateway.md](body-gateway.md) | Body gateway, OS actions, hardened posture (ADR-0023) | 5 |
 | [scheduling.md](scheduling.md) | Scheduling and reminders, `TurnStamp` provenance (ADR-0025/0027) | 8 |
+| [vision.md](vision.md) | Screen capture, images, the pixel boundary (ADR-0029) | 15 |
 | [cross-cutting.md](cross-cutting.md) | Pointer input, OS backends, more roles | 3 |
 
 The counts are per area as extracted; a few threads appear in two areas (the cross-cutting
@@ -555,6 +556,20 @@ and free of a prior blocker.
 
 ### Actionable, but a seam or port change comes first
 
+- **Region or window capture** ([vision.md](vision.md)): the fix for the vision slice's headline
+  risk, which is that a 4K desktop downscaled to 1600 px may render small text unreadable. The
+  **first** mitigation needs no code at all (llama.cpp's `--image-max-tokens` is a deployment
+  flag), which is why this sits behind it; the real fix needs the `display_index`/`region` proto
+  fields ADR-0029 deliberately refused to add without a consumer, so it is a seam change with a
+  design attached rather than an increment. Take the env var first and measure before spending
+  the fields.
+- **A cross-language check on the byte ceiling** ([vision.md](vision.md)): the body's
+  `MAX_CAPTURE_BYTES` and the brain's `MAX_IMAGE_BYTES` are the same 6 MiB, each pinned to the
+  literal in its own toolchain, with **nothing mechanical coupling them**: an edit to one leaves
+  both suites green. Not a seam change but a **gate** change, a small scan beside `linecap.py`
+  and `dashcheck.py`. The wire's `max_bytes` hint already means a disagreement tightens rather
+  than breaks, which is why this is the cheapest honest item in the area rather than the most
+  urgent.
 - **Streamed brain status** ([body-overlay.md](body-overlay.md)): the push half of the landed
   connection indicator, unblocked on 2026-07-18 and now waiting on a seam change plus a consumer
   rather than on a producer. Both halves of the producer exist: the escalating turn streams
