@@ -61,6 +61,10 @@ class SwapFailedError(ModelManagerError):
     """A residency scope could not swap its model in, so the handoff is off (ADR-0030)."""
 
 
+class HandoffInProgressError(ModelManagerError):
+    """Another handoff already owns the swap, so this one never started (ADR-0030)."""
+
+
 class ResidencyRestoreError(ModelManagerError):
     """The cortex could not be restored after a swap, even on the retry (ADR-0030 decision 4)."""
 

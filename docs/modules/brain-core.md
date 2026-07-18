@@ -536,11 +536,22 @@ unchanged):
   `swap_scope(model) -> AbstractAsyncContextManager[None]` (ADR-0030 decision 5): waits for the
   GPU lease to fall free (v1 never preempts a mid-stream round), performs the process swap
   through `ModelHost`, serves `model` for the scope's duration, and **in a `finally`** restores
-  the cortex, because the swap back is the recovery path and not an optimization. Entering may
+  the **standing residency**, because the swap back is the recovery path and not an
+  optimization. Standing residency is the cortex plus every `plan.evict_models` tier the swap
+  in stopped, so a subagent tier is running again by the time admission reopens. Entering may
   raise `SwapFailedError` (the cortex having already been restored by that same `finally`); a
   restore that fails even after its one retry raises `ResidencyRestoreError` from the exit,
   loudly logged. While a scope is active, `acquire` of any other model **waits** rather than
-  raising; at most one scope exists at a time, there being one GPU.
+  raising; at most one scope exists at a time, there being one GPU, and a second entry raises
+  `HandoffInProgressError`.
+- Same port, `handoff_claim() -> AbstractAsyncContextManager[None]`: the one-GPU-one-handoff
+  rule taken **before** anything is drained or evicted. Entering claims the whole swap sequence
+  for its block or raises `HandoffInProgressError` at once (refuse, never queue). The check and
+  the claim happen with nothing awaited between them, which is what makes it a claim and not a
+  read: a precondition read from a store and acted on a later await is a race two escalating
+  turns on separate streams both pass, after which the loser drains the pool and reopens it in
+  its own `finally` while the winner's deep model is resident. The claim does not queue other
+  acquires the way a scope does, because the cortex is still serving throughout the drain.
 - `TurnRunner` provides
   `handle_turn(session_id, text) -> AsyncGenerator[TurnEvent, None]`: one user turn as a stream
   of domain events. The seam between the orchestrator's stream plumbing and whichever engine
@@ -650,8 +661,11 @@ unchanged):
   reason this port exists.
 - `Clock` provides `now() -> datetime`, always tz-aware. The core's only time source.
 - `SessionStoreError` / `InferenceError` / `ModelManagerError` (+ its
-  `ModelUnavailableError`, `SwapFailedError`, and `ResidencyRestoreError`, the two swap
-  failures, ADR-0030) / `MemoryStoreError` / `EmbedderError` / `ToolError` (+ its
+  `ModelUnavailableError`, `SwapFailedError`, `ResidencyRestoreError`, and
+  `HandoffInProgressError`, ADR-0030: the two swap failures, plus the refusal that is not a
+  failure at all, since it means the deep model IS loaded and working on another turn, which is
+  the opposite of what a failed swap means and so owes the user the opposite note) /
+  `MemoryStoreError` / `EmbedderError` / `ToolError` (+ its
   `ToolNotFoundError`) / `TaskStoreError` / `HandoffStoreError` / `ModelHostError` /
   `BodyGatewayError` / `ScheduleStoreError` are typed
   errors; adapters wrap their backend's failures into these with the cause chained.
@@ -725,13 +739,19 @@ Use-case:
   policy (ADR-0013/0019) both phases share.
 - `SwapConductor(handoffs, residency, brain_phase, plan, clock, scheduler=None)` (ADR-0030
   decision 4, `swap_conductor.py`) runs one brain handoff end to end as a stream of turn events:
-  `run_handoff(slot, *, session_id, turn_id)` refuses a second concurrent handoff, snapshots the
+  `run_handoff(slot, *, session_id, turn_id)` takes the residency `handoff_claim` **first**, so
+  a concurrent handoff is refused with the honest note before anything is read, written,
+  drained, or evicted (the store's `active()` check stays as the second line, for a record the
+  store still holds); then it snapshots the
   slot into a `READY` record, drains the subagent pool (bounded by `plan.drain_timeout_s`;
   a timeout **aborts before anything is evicted**), enters the residency scope, marks the record
   `BRAIN_ACTIVE` only once the deep model is actually serving, streams `BrainPhase`, and settles
   the record `DONE` (then deletes it) or `FAILED`. `undrain` is owed in a `finally` on every
   path, swap-back and abort alike; every failure, cancellation, and stream teardown leaves the
-  record terminal and the cortex serving, and says what happened on the turn's own stream.
+  record terminal and the standing residency back, and says what happened on the turn's own
+  stream. Every nested generator is `aclose`d in a `finally`, because a consumer that closes
+  the stream (which is how the seam tears a turn down when the client goes away, rather than
+  by cancelling) must unwind the residency scope rather than leave it to the collector.
   `scheduler=None` is a deployment with no subagent pool: there is nothing to quiesce.
 - `BrainPhase(store, backend, clock, brain_model, capabilities)` (`brain_phase.py`) is the deep
   model's half: it rehydrates from the stores and the record alone (history from `SessionStore`,
@@ -752,7 +772,11 @@ Use-case:
   `converge_residency(host, plan, *, clock, sleeper)` (`swap_recovery.py`) are boot recovery: the
   composition root calls the first once at startup, and it marks any non-terminal record `FAILED`
   (a handoff cannot outlive its process; a live record would otherwise refuse every later
-  escalation) and converges the GPU back onto the cortex. It deliberately does not resume a deep
+  escalation) and converges the GPU back onto the standing residency. Convergence is the
+  conductor's own order: clear the GPU (stop every `plan.evict_models` tier, since a crash can
+  leave one holding VRAM the cortex needs, then the deep model), settle the cortex to `READY`,
+  and start the evicted tiers back, so a boot leaves the machine where the scope's `finally`
+  would have. It deliberately does not resume a deep
   phase, and it never raises: a dead host or store is logged loudly and served around.
 - `SWAPPING_STATE` plus the swap window's detail and note texts (`swap_notes.py`) are every
   app-authored string a handoff can put on a turn's stream. Status details are ephemeral
@@ -1163,15 +1187,23 @@ Reference implementations (pure, shipped in core; the runtime wiring until Slice
   (ADR-0030 decision 5), in `residency.py`: still pure policy with no I/O of its own, it
   implements the unchanged lease port AND `ResidencyController`. `acquire` keeps v1's
   one-lock-per-GPU discipline over `endpoints` (logical id to base URL, composition-root
-  config); `swap_scope(model)` claims the one scope (a second raises `SwapFailedError`), takes
+  config); `handoff_claim()` claims the whole swap sequence non-blockingly (a second holder
+  raises `HandoffInProgressError` with nothing touched), and `swap_scope(model)` claims the one
+  residency scope (a second entry raises the same error), takes
   the lease so the swap waits out any in-flight round, stops the cortex and every
   `plan.evict_models` tier, starts `model`, health-gates it, and serves it with the lease free
   so the brain's own rounds can lease normally. Its `finally` stops `model`, starts the cortex,
-  and gates it, retrying once before raising `ResidencyRestoreError` with a loud log; while a
+  gates it, and starts every evicted tier back (best effort, after the gate: a tier that will
+  not come back must not be reported as the cortex being gone), retrying the whole attempt once
+  before raising `ResidencyRestoreError` with a loud log; while a
   swap or restore is in flight nothing is resident, so an `acquire` racing it says so rather
   than leasing a dead endpoint. Why a scope rather than a swapping `acquire`: the brain's tool
   loop re-acquires once per round, so a swapping `acquire` would thrash minutes each way
-  whenever a queued cortex turn interleaved.
+  whenever a queued cortex turn interleaved. The two host-facing moves themselves (evict and
+  start; stop and restore the standing residency) live in `residency_moves.py`, split off for
+  the line cap along the seam the manager already draws: it owns *when* and *who may*, they own
+  *what the host is asked to do*, with opposite failure directions (the swap in raises
+  `SwapFailedError`, the restore answers a bool because its caller retries it).
 - `ScriptedModelHost(*, running=(), status_override=None, fail=None, fail_once=None,
   pause_at=())` is the `ModelHost` twin (ADR-0030 decision 3, in `fakes_model_host.py`): a set
   of running models plus exactly the scripting the swap's named failure modes need.

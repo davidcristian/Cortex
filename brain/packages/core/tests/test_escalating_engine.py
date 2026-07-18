@@ -8,6 +8,7 @@ import swap_harness as harness
 from swap_harness import build_harness
 
 from cortex_core import (
+    WORKING_DETAIL,
     DispatchBudget,
     EscalatingTurnEngine,
     EscalationRefs,
@@ -157,6 +158,26 @@ async def test_closing_the_stream_mid_cortex_phase_tears_the_inner_turn_down() -
     await stream.aclose()
     assert built[0].closed is True
     assert live.host.calls == []
+
+
+async def test_closing_the_stream_mid_handoff_unwinds_the_swap_at_the_wrapper_too() -> None:
+    """The conductor's stream is owed the same deterministic close the inner turn already gets."""
+    live = build_harness()
+    await live.seed_session()
+    engine, _built = _wrapper(
+        live.conductor,
+        events=(TextDelta(text=harness.CORTEX_TEXT), TurnCompleted(harness.TURN, "cortex text")),
+        brief=harness.BRIEF,
+    )
+    stream = engine.handle_turn(harness.SESSION, harness.USER_TEXT)
+    async for event in stream:
+        if isinstance(event, StatusUpdate) and event.detail == WORKING_DETAIL:
+            break
+    assert live.host.running == {"brain"}  # the swap really is in flight
+    await stream.aclose()
+    # No cancellation and no settling: the close itself is what owes the swap back.
+    assert live.host.running == {"cortex"}
+    assert await live.handoffs.active() is None
 
 
 async def test_an_inner_turn_that_never_completes_hands_nothing_off() -> None:

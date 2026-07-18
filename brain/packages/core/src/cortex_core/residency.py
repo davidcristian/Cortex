@@ -6,15 +6,15 @@ from collections.abc import AsyncGenerator, Mapping
 from contextlib import asynccontextmanager
 
 from cortex_core.errors import (
-    ModelHostError,
+    HandoffInProgressError,
     ModelUnavailableError,
     ResidencyRestoreError,
-    SwapFailedError,
 )
 from cortex_core.health_gate import await_model_ready
 from cortex_core.model import ModelLease
 from cortex_core.model_host import ModelHostState, ResidencyPlan
 from cortex_core.ports import Clock, ModelHost, Sleeper
+from cortex_core.residency_moves import restore_standing, swap_in
 
 # How many times the scope's exit tries to bring the cortex back before it gives up loudly: the
 # first attempt plus the one retry ADR-0030 decision 4 step 3 specifies. A third would not be a
@@ -48,6 +48,10 @@ class SwappingModelManager:
         self._residency = asyncio.Condition()
         self._resident: str | None = plan.cortex_model
         self._scope_model: str | None = None
+        # Whether a handoff already owns the whole swap sequence, claimed before anything is
+        # drained. Separate from the scope: a claim is held through the drain, while the cortex
+        # is still serving and must still be leasable, so it must not queue other acquires.
+        self._handoff_claimed = False
 
     @asynccontextmanager
     async def acquire(self, model: str) -> AsyncGenerator[ModelLease, None]:
@@ -55,6 +59,22 @@ class SwappingModelManager:
         endpoint = await self._claim(model)
         async with self._lock:
             yield ModelLease(endpoint=endpoint)
+
+    @asynccontextmanager
+    async def handoff_claim(self) -> AsyncGenerator[None, None]:
+        """Own the whole swap sequence for this block, or refuse at once because someone does."""
+        async with self._residency:
+            if self._handoff_claimed:
+                msg = (
+                    "a brain handoff is already in flight, so this one was not started (there "
+                    "is one GPU)"
+                )
+                raise HandoffInProgressError(msg)
+            self._handoff_claimed = True
+        try:
+            yield
+        finally:
+            self._handoff_claimed = False
 
     @asynccontextmanager
     async def swap_scope(self, model: str) -> AsyncGenerator[None, None]:
@@ -106,7 +126,7 @@ class SwappingModelManager:
                     f"a residency scope for {self._scope_model!r} is already active, so "
                     f"{model!r} cannot be swapped in (there is one GPU)"
                 )
-                raise SwapFailedError(msg)
+                raise HandoffInProgressError(msg)
             self._scope_model = model
 
     async def _end_scope(self) -> None:
@@ -122,21 +142,14 @@ class SwappingModelManager:
             self._residency.notify_all()
 
     async def _swap_in(self, model: str) -> None:
-        """Wait out the in-flight round, evict, start ``model``, and gate it to READY."""
+        """Wait out the in-flight round, then make ``model`` the resident (moves, then bookkeeping).
+
+        The lease is taken first and held across the whole move, which is what "swaps happen
+        only at lease-free boundaries" means in code: v1 never preempts a round in flight.
+        """
         async with self._lock:
             await self._set_resident(None)
-            try:
-                await self._host.stop(self._plan.cortex_model)
-                for evicted in self._plan.evict_models:
-                    await self._host.stop(evicted)
-                await self._host.start(model)
-                state = await self._gate(model)
-            except ModelHostError as err:
-                msg = f"the model host failed while swapping in {model!r}: {err}"
-                raise SwapFailedError(msg) from err
-            if state is not ModelHostState.READY:
-                msg = f"model {model!r} did not become ready in time (last state: {state.value})"
-                raise SwapFailedError(msg)
+            await swap_in(self._host, self._plan, model, self._gate)
             await self._set_resident(model)
 
     async def _restore(self, model: str) -> None:
@@ -149,7 +162,7 @@ class SwappingModelManager:
         async with self._lock:
             await self._set_resident(None)
             for attempt in range(1, _RESTORE_ATTEMPTS + 1):
-                if await self._try_restore(model):
+                if await restore_standing(self._host, self._plan, model, self._gate):
                     await self._set_resident(cortex)
                     return
                 _logger.warning(
@@ -165,17 +178,6 @@ class SwappingModelManager:
                 "recovery is needed (see the model-swap runbook)"
             )
             raise ResidencyRestoreError(msg)
-
-    async def _try_restore(self, model: str) -> bool:
-        """One restore attempt: stop ``model``, start the cortex, and gate it. True when up."""
-        try:
-            await self._host.stop(model)
-            await self._host.start(self._plan.cortex_model)
-            state = await self._gate(self._plan.cortex_model)
-        except ModelHostError:
-            _logger.exception("the model host failed while restoring the cortex")
-            return False
-        return state is ModelHostState.READY
 
     async def _gate(self, model: str) -> ModelHostState:
         """This manager's readiness gate: poll ``model`` until it settles or the bound elapses."""

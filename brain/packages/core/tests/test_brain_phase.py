@@ -1,5 +1,6 @@
 """The deep model's phase: what it rebuilds from the stores, and what it leaves behind."""
 
+import re
 from collections.abc import AsyncGenerator, Mapping, Sequence
 from datetime import UTC, datetime
 
@@ -29,6 +30,7 @@ from cortex_core import (
     TurnEvent,
     UrlRedactingGuardrail,
     as_source,
+    wrap_untrusted,
 )
 from cortex_core.brain_phase import BrainPhase
 from cortex_core.memory import MemoryRecord
@@ -155,7 +157,7 @@ async def test_the_carried_budget_bounds_the_deep_phase_too() -> None:
     audit = RecordingAuditSink()
     dispatcher = ToolDispatcher(_registry(), audit, SystemClock())
     backend = ScriptedBrainBackend(
-        chunks=("done",), tool_call=ToolCall(id="c1", name="read", arguments={})
+        chunks=("done",), tool_calls=(ToolCall(id="c1", name="read", arguments={}),)
     )
     slot = harness.armed_slot(budget=_spent_budget())
     record = slot.snapshot(
@@ -248,6 +250,51 @@ async def test_a_deep_model_that_dies_persists_its_partial_text_with_the_note() 
     assert "".join(collected) == "half an " + BRAIN_FAILED_NOTE
     persisted = [message.text for message in await sessions.history(harness.SESSION)]
     assert persisted[-1] == "half an " + BRAIN_FAILED_NOTE
+
+
+async def test_the_deep_phase_fences_under_the_record_s_own_nonce() -> None:
+    """The fence id survives the swap, or the preamble stops explaining the tail's markers."""
+    before = wrap_untrusted("whatever the cortex read", nonce=harness.NONCE)
+    tail = (
+        Message(
+            role=Role.ASSISTANT,
+            text="",
+            at=_AT,
+            turn_id=harness.TURN,
+            tool_calls=(ToolCall(id="c0", name="read", arguments={}),),
+        ),
+        Message(role=Role.TOOL, text=before, at=_AT, turn_id=harness.TURN, tool_call_id="c0"),
+    )
+    backend = ScriptedBrainBackend(
+        chunks=("done",), tool_calls=(ToolCall(id="c1", name="read", arguments={}),)
+    )
+    _phase, _backend, _sessions, _texts = await _drive(
+        backend=backend,
+        tail=tail,
+        capabilities=TurnCapabilities(
+            tools=ToolDispatcher(_registry(), RecordingAuditSink(), SystemClock())
+        ),
+    )
+    fenced = [message.text for message in backend.seen if message.role is Role.TOOL]
+    assert len(fenced) == 2  # the tail's block, and the one this phase's own round added
+    # One id across both, and it is the record's: the swap changed the weights, not the turn.
+    assert set(re.findall(r"id=([0-9a-f]+)>", "".join(fenced))) == {harness.NONCE}
+
+
+async def test_closing_the_deep_phase_mid_stream_tears_its_loop_down() -> None:
+    """A consumer that walks away must not leave the deep model's round half suspended."""
+    backend = ScriptedBrainBackend(chunks=("first ", "second"))
+    sessions = InMemorySessionStore()
+    phase = BrainPhase(sessions, backend, TickingClock(), "brain", TurnCapabilities())
+    record = harness.armed_slot().snapshot(
+        turn_id=harness.TURN, session_id=harness.SESSION, requested_at=SystemClock().now()
+    )
+    events = phase.run(record)
+    assert await anext(events) == TextDelta(text="first ")
+    await events.aclose()
+    assert backend.closed is True
+    # And a torn-down phase persists nothing: there is no finished answer to keep.
+    assert list(await sessions.history(harness.SESSION)) == []
 
 
 def _spent_budget() -> DispatchBudget:

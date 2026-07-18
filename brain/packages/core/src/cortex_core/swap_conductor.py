@@ -5,6 +5,7 @@ from collections.abc import AsyncGenerator
 
 from cortex_core.brain_phase import BrainPhase
 from cortex_core.errors import (
+    HandoffInProgressError,
     HandoffStoreError,
     InferenceError,
     ModelManagerError,
@@ -58,6 +59,26 @@ class SwapConductor:
         self, slot: EscalationSlot, *, session_id: str, turn_id: str
     ) -> AsyncGenerator[TurnEvent, None]:
         """Run the whole sequence for one filled slot, streaming status, text, and notes."""
+        try:
+            async with self._residency.handoff_claim():
+                run = self._run_claimed(slot, session_id=session_id, turn_id=turn_id)
+                try:
+                    async for event in run:
+                        yield event
+                finally:
+                    # Same deterministic teardown as every other generator here: a consumer
+                    # that walks away must unwind the sequence, not leave it to the collector.
+                    await run.aclose()
+        except HandoffInProgressError:
+            _logger.warning(
+                "refusing a handoff while another one holds the swap", extra={"turn": turn_id}
+            )
+            yield TextDelta(text=ALREADY_ACTIVE_NOTE)
+
+    async def _run_claimed(
+        self, slot: EscalationSlot, *, session_id: str, turn_id: str
+    ) -> AsyncGenerator[TurnEvent, None]:
+        """The sequence itself, run by the one turn that holds the claim."""
         prepared = await self._prepare(slot, session_id=session_id, turn_id=turn_id)
         if isinstance(prepared, str):
             yield TextDelta(text=prepared)
@@ -93,8 +114,11 @@ class SwapConductor:
         """Serialize the slot into a ``READY`` record, or the note saying why there is none."""
         try:
             if (active := await self._handoffs.active()) is not None:
+                # The claim already refused anything racing this turn in this process, so a
+                # record still live here is one the store kept: a settle that never landed, or
+                # a handoff another process owns. Either way this turn evicts nothing.
                 _logger.warning(
-                    "refusing a second concurrent handoff",
+                    "refusing a handoff while the store still has one in flight",
                     extra={"active_handoff": active.handoff_id, "turn": turn_id},
                 )
                 return ALREADY_ACTIVE_NOTE

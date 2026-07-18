@@ -2,7 +2,7 @@
 
 import asyncio
 from collections.abc import AsyncIterator, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import UTC, datetime, timedelta
 
 from cortex_core import (
@@ -12,11 +12,14 @@ from cortex_core import (
     EscalationSlot,
     HandoffRecord,
     HandoffState,
+    HashEmbedder,
     InferenceError,
     InferenceEvent,
     InMemoryHandoffStore,
+    InMemoryMemoryStore,
     InMemorySessionStore,
     JsonSchema,
+    MemoryRecaller,
     Message,
     PlacementRequest,
     RecordingSleeper,
@@ -33,6 +36,7 @@ from cortex_core import (
     TurnEvent,
 )
 from cortex_core.brain_phase import BrainPhase
+from cortex_core.memory import MemoryRecord
 
 SESSION = "s-handoff"
 TURN = "t-handoff"
@@ -122,16 +126,17 @@ class ScriptedBrainBackend:
         gate: Gate | None = None,
         gate_after: int = 1,
         fail_after: int | None = None,
-        tool_call: ToolCall | None = None,
+        tool_calls: Sequence[ToolCall] = (),
     ) -> None:
         self.calls = 0
+        self.closed = False
         self.seen: list[Message] = []
         self.models: list[str] = []
         self._chunks = list(chunks)
         self._gate = gate
         self._gate_after = gate_after
         self._fail_after = fail_after
-        self._tool_call = tool_call
+        self._tool_calls = list(tool_calls)
 
     async def stream(
         self,
@@ -145,18 +150,20 @@ class ScriptedBrainBackend:
         self.calls += 1
         self.models.append(model)
         self.seen = list(messages)
-        if self._tool_call is not None and self.calls == 1:
-            # One round asking for a tool, then the reply on the next: enough to watch what the
-            # deep phase's dispatcher does with the budget it resumed.
-            yield self._tool_call
+        if self.calls <= len(self._tool_calls):
+            # A round asking for a tool, with the reply on whichever round runs out of them.
+            yield self._tool_calls[self.calls - 1]
             return
-        for index, chunk in enumerate(self._chunks):
-            if self._fail_after is not None and index == self._fail_after:
-                msg = "the deep model's server died mid-stream"
-                raise InferenceError(msg)
-            if self._gate is not None and index == self._gate_after:
-                await self._gate.pause()
-            yield TextChunk(chunk)
+        try:
+            for index, chunk in enumerate(self._chunks):
+                if self._fail_after is not None and index == self._fail_after:
+                    msg = "the deep model's server died mid-stream"
+                    raise InferenceError(msg)
+                if self._gate is not None and index == self._gate_after:
+                    await self._gate.pause()
+                yield TextChunk(chunk)
+        finally:
+            self.closed = True
 
 
 def request() -> PlacementRequest:
@@ -208,6 +215,22 @@ class Fakes:
     backend: ScriptedBrainBackend | None = None
 
 
+def recaller() -> MemoryRecaller:
+    """The durable half of "the stores are intact": a real recaller over in-memory adapters.
+
+    Wired into every harness by default, because a ``TurnCapabilities`` without memory makes
+    the deep phase's memory write a no-op and the invariant it is supposed to cover vacuous.
+    """
+    minted = 0
+
+    def next_id() -> str:
+        nonlocal minted
+        minted += 1
+        return f"m{minted}"
+
+    return MemoryRecaller(InMemoryMemoryStore(), HashEmbedder(), TickingClock(), id_factory=next_id)
+
+
 @dataclass(slots=True)
 class Harness:
     """One fully composed handoff, plus the fakes a test scripts and asserts against."""
@@ -220,6 +243,7 @@ class Harness:
     backend: ScriptedBrainBackend
     conductor: SwapConductor
     residency: ResidencyPlan
+    memory: MemoryRecaller
 
     async def seed_session(self) -> None:
         """Persist what the cortex phase already persisted before it escalated."""
@@ -229,6 +253,11 @@ class Harness:
         await self.sessions.append(
             SESSION, Message(role=Role.ASSISTANT, text=CORTEX_TEXT, at=_AT, turn_id=TURN)
         )
+
+    async def remembered(self) -> list[MemoryRecord]:
+        """Every exchange this handoff wrote to durable memory, recalled back out of it."""
+        hits = await self.memory.recall(USER_TEXT, k=5, session_id=SESSION)
+        return [hit.record for hit in hits]
 
 
 def build_harness(
@@ -259,7 +288,10 @@ def build_harness(
         RecordingSleeper(),
     )
     pool = scheduler if scheduler is not None else AdmitAllScheduler()
-    caps = capabilities if capabilities is not None else TurnCapabilities()
+    # Memory is wired in whatever else a test scripts, so "the stores are intact" covers the
+    # durable store too; a caller's own capabilities keep everything but that.
+    memory = recaller()
+    caps = replace(capabilities if capabilities is not None else TurnCapabilities(), memory=memory)
     return Harness(
         host=used_host,
         manager=manager,
@@ -268,6 +300,7 @@ def build_harness(
         scheduler=pool,
         backend=used_backend,
         residency=used_plan,
+        memory=memory,
         conductor=SwapConductor(
             used_handoffs,
             manager,
