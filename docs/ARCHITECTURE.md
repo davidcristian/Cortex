@@ -93,7 +93,7 @@ Host-side traits (Rust, in `body/crates/core`):
 
 | Trait | Contract (one line) |
 |---|---|
-| `ScreenCapture` | Capture a screen/window into encoded image bytes + metadata. |
+| `ScreenCapture` | Read the primary display as **raw BGRA pixels**; all downscale, encode and byte-ceiling policy is pure core beside it, never in the backend (ADR-0029). |
 | `AudioControl` | Get/set master volume in [0.0, 1.0]; mute/unmute. |
 | `InputControl` | Inject keyboard text/chords (pointer actions deferred until they land in the proto). |
 | `Hotkey` | Register configurable global hotkeys; emit press events on a channel. |
