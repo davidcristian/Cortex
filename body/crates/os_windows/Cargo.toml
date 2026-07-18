@@ -12,9 +12,11 @@ description = "Windows OS backends for the Cortex body: hotkey, audio, toast (li
 [target.'cfg(windows)'.dependencies]
 body-core.workspace = true
 global-hotkey = "0.8"
-# Core Audio (IAudioEndpointVolume) for the volume backend (ADR-0023) and the WinRT toast
-# for the notification backend (ADR-0025). COM calls are `unsafe`, authorized narrowly for
-# this crate (see the `[lints]` note below); the WinRT projections themselves are safe.
+# Core Audio (IAudioEndpointVolume) for the volume backend (ADR-0023), the WinRT toast for the
+# notification backend (ADR-0025), and GDI plus the window-affinity call for the screen-capture
+# backend and the overlay's capture self-exclusion (ADR-0029). Those calls are `unsafe`,
+# authorized narrowly for this crate (see the `[lints]` note below); the WinRT projections
+# themselves are safe.
 windows = { version = "0.58", features = [
   "Data_Xml_Dom",
   "Foundation",
@@ -23,6 +25,8 @@ windows = { version = "0.58", features = [
   "Win32_Media_Audio",
   "Win32_Media_Audio_Endpoints",
   "Win32_System_Com",
+  "Win32_Graphics_Gdi",
+  "Win32_UI_WindowsAndMessaging",
 ] }
 
 # os_windows opts OUT of the workspace `unsafe_code = "forbid"` for Core Audio COM
