@@ -17,11 +17,14 @@ up rather than pretending anything already swapped. The brief is model-authored 
 conversation's own trust domain; it is bounded here before it can enter the handoff record,
 and it rides WITH the record's serialized taint ledger, never instead of it.
 
-Deferred with the vision slice (ADR-0029, designed but not landed): the opaque-turn refusal.
-``Message`` carries no pixels today, so there is nothing to refuse yet; when the vision slice
-lands image-bearing messages and the ``opaque`` bit, this tool refuses to escalate a turn
-carrying screen-capture pixels (ADR-0030 decision 1), recorded in
-``docs/refinements/untrusted-content.md``.
+An **opaque** turn cannot escalate at all (ADR-0030 decision 1, landed with ADR-0029). Pixels
+are turn-local by design: no session store persists them and the handoff record refuses them
+too, so a swap would carry a loop tail whose tool message says "the picture is attached to this
+message" with no picture attached, and the deep model would answer about an image it never saw.
+The refusal reads the turn's ``opaque`` bit rather than looking for images in the tail, which is
+deliberate: the bit is the fact that pixels entered this turn, and it stays true even where the
+pixels themselves cannot travel. No brain-tier candidate carries a projector anyway, so a
+replayed image would be unreadable even if it survived.
 """
 
 from cortex_core.tools import ToolCall, ToolResult, ToolSpec, Trust
@@ -67,6 +70,11 @@ _ERR_BRIEF_TOO_LONG = (
 _ERR_ALREADY_REQUESTED = (
     "REFUSED: a handoff to the deep model is already requested for this turn, so it was not "
     "requested again. Finish your reply; the deep model takes over when you are done."
+)
+_ERR_OPAQUE_TURN = (
+    "REFUSED: this turn looked at the user's screen, and a picture cannot be handed to the deep "
+    "model, so no handoff was requested. Answer what you can yourself, and tell the user to ask "
+    "again in a fresh message if they still want the deep model."
 )
 
 # Honest about the cost (the spawn spec's measured-trade-off precedent): the swap is disruptive
@@ -117,6 +125,10 @@ class EscalateToBrainTool:
             # No slot was armed for this dispatch: an escalation-less wiring, or a caller with
             # no turn (the ticker). Refusing is honest; nothing could consume a brief here.
             return _refusal(call, _NO_SLOT_MSG)
+        if slot.refs is not None and slot.refs.taint.opaque:
+            # Checked ahead of the brief, so a turn that looked at the screen is refused on what
+            # it read rather than on what the model wrote.
+            return _refusal(call, _ERR_OPAQUE_TURN)
         brief = call.arguments.get("brief")
         if not isinstance(brief, str) or not brief.strip():
             return _refusal(call, _ERR_BRIEF)

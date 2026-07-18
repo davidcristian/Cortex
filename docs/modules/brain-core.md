@@ -258,7 +258,10 @@ under "Use-case" is what snapshots it and runs the swap):
   only `brief`. `snapshot(*, turn_id, session_id, requested_at)` freezes it into a `READY`
   record (copies, not references; `rounds_used` derived as one `Role.ASSISTANT` tool-call
   message per dispatched round) and raises `ValueError` on a slot no tool filled or no engine
-  armed.
+  armed, **or on a loop tail carrying images** (ADR-0029: the record is durable and its schema
+  has no field for pixels, so accepting one would drop the picture in silence; the same rule
+  both session stores enforce, and the structural backstop behind `escalate_to_brain`'s own
+  opaque-turn refusal).
 
 Schedule domain (Slice 9.5, ADR-0025, in `schedule.py` for the value types and the recurrence
 math, `schedule_transitions.py` for the pure in-place transitions both stores apply; named
@@ -428,9 +431,13 @@ Untrusted-content boundary (Slice 6.5, ADR-0013; the pure primitives in `untrust
   (ADR-0022: unconditional, never confirmable within the turn).
 - `USER_DECLINED_MSG` is the `is_error` result content for an **untainted** gated call the user
   declined (or no confirmer answered): the model relays "no", never retries (ADR-0022).
-- `TaintLedger` is mutable, turn-local: `tainted: bool = False`, `untrusted_urls: set[str]`
+- `TaintLedger` is mutable, turn-local: `tainted: bool = False`, `opaque: bool = False`,
+  `untrusted_urls: set[str]`
   (the laundering evidence, ADR-0015), and `sources: tuple[Provenance, ...] = ()` (where that
-  content came from, ADR-0027 addendum). `mark(trust)` flips `tainted` on the first `UNTRUSTED`
+  content came from, ADR-0027 addendum). `opaque` (ADR-0029) is set by `observe` when an
+  UNTRUSTED result carries images, and answers a different question from `tainted`: not "did
+  untrusted content enter" but "was some of it **unfenceable**". It is a separate bit because
+  the ordinary taint response assumes a fence exists, and for a picture it does not. `mark(trust)` flips `tainted` on the first `UNTRUSTED`
   result; `observe(result, *, source=None)` (what the shared loop calls) marks, collects an
   untrusted result's URLs, AND notes two sources: the attested `source` the loop passes (the
   advertised tool the content came through) and the claimed `result.source` the result declared for
@@ -502,7 +509,8 @@ the two having split at the line cap as the seventh addendum landed):
   out (they would over-redact prose or need a dependency): bare addresses/domains, whitespace-split
   defang (`evil dot com`), and the *full* UTS-39 confusables set.
 - `TaintView` (protocol) exposes the **live** taint signals the guardrail reads at scan time
-  (`tainted: bool`, `untrusted_urls: AbstractSet[str]`); the turn's `TaintLedger` already
+  (`tainted: bool`, `opaque: bool`, `untrusted_urls: AbstractSet[str]`); the turn's
+  `TaintLedger` already
   satisfies it structurally (guardrail cannot import `untrusted`, which imports it).
 - `OutputGuardrail` (protocol) has `open(taint, *, allow) -> OutputFilter`: one turn's filter over
   the turn's live `TaintView` (both fields grow as results arrive) and the URLs the user's own
@@ -514,6 +522,11 @@ the two having split at the line cap as the seventh addendum landed):
   `taint.untrusted_urls − allow` (collected *verbatim* from untrusted content) is replaced with
   `REDACTED_LINK` (`"[link removed: untrusted source]"`, trailing prose punctuation preserved);
   every other byte passes through. A clean turn (nothing collected) is untouched.
+  **An opaque turn escalates to strict redaction under this default policy** (ADR-0029): the
+  default redacts URLs collected from untrusted result *text*, and a URL painted into pixels is
+  never in that text, so the collected set is empty and the default is structurally a no-op for
+  exactly the laundering case vision introduces. Measured: the model transcribes an attacker URL
+  out of an image verbatim, framed or not.
 - `StrictUrlRedactingGuardrail` (ADR-0015 addendum) is the opt-in policy: on a **tainted** turn
   (`taint.tainted`), redact *every* URL outside `allow`, not just the verbatim-collected ones,
   the answer to a model that transforms or reconstructs a laundered link. An untainted turn is
@@ -802,7 +815,10 @@ Use-case:
   only reply text into `parts`, closes the loop in a `finally`, and flushes the channels on a
   clean end; `flush_channels` is that flush on its own, for a caller that has to persist a
   partial reply after a mid-stream failure. `record_exchange` applies the one tainted-memory
-  policy (ADR-0013/0019) both phases share.
+  policy (ADR-0013/0019) both phases share, and **drops an opaque turn outright whatever
+  `record_tainted_memory` says** (ADR-0029): the licence for recording a tainted turn rested on
+  the raw untrusted payload never being persisted, and a capture turn's assistant reply *is* a
+  transcription of the screen.
 - `SwapConductor(handoffs, residency, brain_phase, plan, clock, scheduler=None)` (ADR-0030
   decision 4, `swap_conductor.py`) runs one brain handoff end to end as a stream of turn events:
   `run_handoff(slot, *, session_id, turn_id)` takes the residency `handoff_claim` **first**, so
@@ -1188,7 +1204,12 @@ Use-case:
   decision 1): the cortex's mid-turn request for the deep-model handoff, cortex-only like every
   built-in. Stateless and dependency-free: it reads the turn's `EscalationSlot` off each
   dispatch's `TurnStamp` (the `spawn_subagents` progress-sink isolation discipline, so one
-  shared instance serves every stream), validates the model-authored `brief` (non-empty string,
+  shared instance serves every stream), **refuses an opaque turn outright** ahead of every other
+  validation (ADR-0029/ADR-0030: pixels are turn-local, so a swap would hand the deep model a
+  tool message saying a picture is attached with no picture attached; the check reads the
+  ledger's `opaque` bit rather than hunting for images in the loop tail, because the handoff
+  codec enumerates message fields by name and the images are the one thing that could not
+  survive the trip), validates the model-authored `brief` (non-empty string,
   stripped, at most `MAX_BRIEF_CHARS` = 4000; refused whole, never truncated, since a cut-off
   handover would look complete to the deep model), writes `slot.brief`, and answers
   `ESCALATION_QUEUED_MSG` (wrap up, no more tools; the swap itself happens at the loop

@@ -496,6 +496,14 @@ increment, as decision 1 specifies: the handoff record already refuses what the 
 refuse, and the tool then answers an image-bearing turn with a typed refusal telling the model
 to ask the user to retry in a fresh message.
 
+**Closed 2026-07-18** with the vision slice's pixel-taint increment. `TaintLedger` carries an
+`opaque` bit, `EscalateToBrainTool` refuses an opaque turn ahead of every other validation, and
+`EscalationSlot.snapshot` raises on an image-bearing loop tail exactly as both session stores
+do. One correction to what this ADR's decision 1 assumed: the refusal keys on the bit rather
+than on image-bearing messages, because the handoff record's message codec enumerates fields by
+name and would have dropped `Message.images` on encode, so a check that hunted for images in the
+tail would have been checking the one thing that cannot survive a swap.
+
 What landed, versus this ADR's shape, with no other deviation:
 
 - `escalate_to_brain` (`cortex_core/escalate.py`) is a stateless gated built-in; the slot rides

@@ -15,6 +15,7 @@ from cortex_core import (
     EscalationSlot,
     HandoffRecord,
     HandoffState,
+    ImagePart,
     Message,
     Provenance,
     Role,
@@ -156,3 +157,25 @@ def test_taint_ledger_reconstruction_is_exact_and_detached() -> None:
     assert restored == ledger
     restored.untrusted_urls.add("http://evil.example/later")
     assert record.untrusted_urls == frozenset({"http://evil.example/a"})
+
+
+def test_a_snapshot_refuses_a_loop_tail_carrying_pixels() -> None:
+    """The same rule the session stores enforce (ADR-0029). A handoff record is durable and its
+    schema has no field for an image, so accepting one would drop the picture in silence and
+    hand the deep model a caption with nothing attached. ``escalate_to_brain`` refuses an opaque
+    turn before it can reach here; this is the structural backstop."""
+    picture = ImagePart(data=b"\x89PNG", mime_type="image/png", width=8, height=8)
+    working = [
+        Message(role=Role.USER, text="what is on my screen?", at=_AT, turn_id="t-1"),
+        Message(
+            role=Role.TOOL,
+            text="screen capture",
+            at=_AT,
+            turn_id="t-1",
+            tool_call_id="c1",
+            images=(picture,),
+        ),
+    ]
+    slot = _slot(working, budget=DispatchBudget(8), base_len=1)
+    with pytest.raises(ValueError, match="never persists images"):
+        slot.snapshot(turn_id="t-1", session_id="s-1", requested_at=_AT)

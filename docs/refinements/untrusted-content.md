@@ -2,7 +2,7 @@
 
 This area originates in [ADR-0013](../adr/ADR-0013-untrusted-content.md) (Slice 6.5), whose deferrals grew into the output guardrail ([ADR-0015](../adr/ADR-0015-output-guardrail.md)), subagent model safety ([ADR-0017](../adr/ADR-0017-subagent-model-safety.md)), tainted-memory recording ([ADR-0019](../adr/ADR-0019-tainted-memory-recording.md)), and grammar-constrained subagent output ([ADR-0028](../adr/ADR-0028-grammar-constrained-subagents.md)). Extracted from the ROADMAP's deferred-refinements section on 2026-07-15 with the entries kept verbatim; landed entries are the historical record of what each deferral became, and the index at [index.md](index.md) carries the recommended pickup order.
 
-**Open items:** the screening subagent, Windows-native validation of the confirm card, whitespace-split hosts, the full UTS-39 confusables set, mixed/other encodings, footer/boilerplate heuristics, a raw GBNF grammar alternative, a per-task caller-supplied schema, provenance across the stores, a fence-without-block recall mode, per-provenance eviction, per-remote-tool trust/gating overrides, the brain-tier injection-harness run, the opaque-turn escalation refusal
+**Open items:** the screening subagent, Windows-native validation of the confirm card, whitespace-split hosts, the full UTS-39 confusables set, mixed/other encodings, footer/boilerplate heuristics, a raw GBNF grammar alternative, a per-task caller-supplied schema, provenance across the stores, a fence-without-block recall mode, per-provenance eviction, per-remote-tool trust/gating overrides, the brain-tier injection-harness run
 
 **Untrusted-content boundary in Slice 6.5 ([ADR-0013](../adr/ADR-0013-untrusted-content.md)):** each
 behind the unchanged `ToolRegistry`/`ToolDispatcher`/`stream_tool_loop` seams (or the new `Confirmer` port).
@@ -309,6 +309,21 @@ behind the unchanged `ToolRegistry`/`ToolDispatcher`/`stream_tool_loop` seams (o
   increment, as a typed refusal in `escalate.py` telling the model to ask the user to retry in a
   fresh message, keeping escalation from quietly widening pixel persistence (the ADR-0029 store
   invariant the handoff record already honors).
+
+  **Closed 2026-07-18 with the vision slice's pixel-taint increment
+  ([ADR-0029](../adr/ADR-0029-vision-screen-capture.md)).** `TaintLedger` gained the `opaque`
+  bit, set by `observe` when an UNTRUSTED result carries images, and `EscalateToBrainTool`
+  refuses an opaque turn ahead of every other validation with a typed message telling the model
+  to answer what it can and ask the user to retry in a fresh message. Two corrections to what
+  the entry expected. **The refusal keys on the bit, not on image-bearing messages**, and that
+  is load-bearing rather than cosmetic: the handoff record's message codec enumerates fields by
+  name, so a `Message.images` would have been silently dropped on encode, and a refusal that
+  hunted for images in the loop tail would therefore have been checking the one thing that
+  cannot survive the trip. The bit stays true exactly where the pixels cannot travel. **The
+  structural backstop landed with it**: `EscalationSlot.snapshot` now raises on an image-bearing
+  loop tail, the same rule both session stores enforce, so even a caller that bypassed the tool
+  cannot persist a caption whose picture is gone. The refusal is pinned against its literal text
+  with a transparent-tainted control arm, so it measures the opaque bit and not taint.
 - **Injection-harness run against the ~31B brain tier.** The harness's brain tier is **opt-in and
   not yet run** (`CORTEX_PROBE_BRAIN=1`, as the VRAM cost needs the others evicted; ADR-0013 harness
   addendum + [ADR-0004](../adr/ADR-0004-model-lineup.md) injection addendum). Run it when the brain

@@ -46,11 +46,15 @@ class TaintView(Protocol):
     cannot import ``untrusted`` (which imports this module), so it reads the ledger through this
     protocol instead of by type. Both fields grow as tool results arrive; the filter reads them
     live, never a snapshot. ``tainted`` is set once any untrusted content enters the turn (even
-    with no URLs); ``untrusted_urls`` is every URL that content carried.
+    with no URLs); ``untrusted_urls`` is every URL that content carried; ``opaque`` is set when
+    some of that content was unfenceable, which today means an image (ADR-0029).
     """
 
     @property
     def tainted(self) -> bool: ...
+
+    @property
+    def opaque(self) -> bool: ...
 
     @property
     def untrusted_urls(self) -> AbstractSet[str]: ...
@@ -130,8 +134,15 @@ class _UrlRedactingFilter:
         Nothing is flagged (so nothing is scanned) until untrusted content is in play: a
         clean redact-mode turn (nothing collected) and an untainted strict-mode turn both
         short-circuit to the text unchanged.
+
+        An **opaque** turn is scanned strictly whatever the configured policy (ADR-0029). The
+        default policy redacts URLs *collected from untrusted result text*, and a URL painted
+        into pixels is never in that text, so ``untrusted_urls`` is empty and the default is
+        structurally a no-op for exactly the laundering case vision introduces. Measured: the
+        model transcribes an attacker URL out of an image verbatim, framed or not. Strict
+        redaction, which flags every URL the user did not send, is the policy that catches it.
         """
-        if self._strict:
+        if self._strict or self._taint.opaque:
             if not self._taint.tainted:
                 return text
             flagged = None  # strict: any URL the user did not send is flagged
