@@ -2,7 +2,8 @@
 
 The state a schedule outlives every model swap and brain restart through (the one hard rule);
 key layout + codec policy in ``schedule_codec.py``, the claim path + WATCH-fenced transition
-helpers in ``schedule_claims.py``, full contract in ``docs/modules/brain-session.md``. The
+helpers in ``schedule_claims.py``, the post-fire settle/deliver/ack path in
+``schedule_delivery.py``, full contract in ``docs/modules/brain-session.md``. The
 adapter only translates: the fenced claim→finish semantics live at the port; **every guarded
 transition is optimistically atomic** (WATCH→MULTI/EXEC, so a racing ``cancel``/``ack``/claim
 makes the write's EXEC fail as ``WatchError``, answered like a stale token, post-review
@@ -12,7 +13,6 @@ defense) while targeted reads fail loudly naming the key.
 """
 
 from collections.abc import Sequence
-from dataclasses import replace
 from datetime import datetime, timedelta
 
 from redis.asyncio import Redis
@@ -45,6 +45,7 @@ from cortex_session.schedule_codec import (
     encode,
     record_key,
 )
+from cortex_session.schedule_delivery import ack_item, deliverable_items, finish_claim
 from cortex_session.store import DEFAULT_REDIS_URL
 
 
@@ -177,50 +178,12 @@ class RedisScheduleStore:
             raise ScheduleStoreError(msg) from err
 
     async def finish(self, claim: ScheduleClaim, outcome: FireOutcome) -> bool:
-        """Persist one fire under the claim's token; a stale or raced claimant no-ops False.
-
-        Fire-time taint ORs onto the item; ``next_due`` re-arms PENDING, ``None`` is
-        terminal, meaning DONE while deliverable, deleted otherwise (terminal cleanup). The guard
-        and the write share one WATCH transaction: a cancel/ack landing between them makes
-        the EXEC fail, so nothing a user was told is undone (post-review hardening).
-        """
+        """Persist one fire under the claim's token (``schedule_delivery.finish_claim``)."""
         try:
-            async with self._client.pipeline(transaction=True) as pipe:
-                state = await watched_state(pipe, claim.item.id)
-                if state is None:
-                    return False
-                item, live_token, _ = state
-                if item.status is not ScheduleStatus.FIRING or live_token != claim.token:
-                    return False
-                since = outcome.fired_at if outcome.deliverable else item.deliverable_since
-                rearmed = outcome.next_due is not None
-                updated = replace(
-                    item,
-                    status=ScheduleStatus.PENDING if rearmed else ScheduleStatus.DONE,
-                    due_at=outcome.next_due if outcome.next_due is not None else item.due_at,
-                    tainted=item.tainted or outcome.tainted,
-                    deliverable_since=since,
-                    last_outcome=outcome.outcome,
-                )
-                pipe.multi()
-                pipe.zrem(FIRING_KEY, claim.item.id)
-                if since is not None:
-                    pipe.zadd(DELIVERABLE_KEY, {claim.item.id: since.timestamp()})
-                if outcome.next_due is not None:
-                    pipe.set(record_key(item.id), encode(updated, claim=None, claimed_at=None))
-                    pipe.zadd(DUE_KEY, {item.id: outcome.next_due.timestamp()})
-                elif since is not None:
-                    pipe.set(record_key(item.id), encode(updated, claim=None, claimed_at=None))
-                else:
-                    pipe.delete(record_key(item.id))
-                try:
-                    await pipe.execute()
-                except WatchError:
-                    return False
+            return await finish_claim(self._client, claim, outcome)
         except RedisError as err:
             msg = f"finish of schedule {claim.item.id!r} failed"
             raise ScheduleStoreError(msg) from err
-        return True
 
     async def release(self, claim: ScheduleClaim) -> bool:
         """Un-claim (FIRING → PENDING, due unchanged); WATCH-fenced like ``finish``."""
@@ -252,48 +215,17 @@ class RedisScheduleStore:
             raise ScheduleStoreError(msg) from err
 
     async def deliverable(self) -> Sequence[ScheduledItem]:
-        """Fired reminders awaiting ack, oldest-fired-first (dangling ids skipped)."""
+        """Fired reminders awaiting ack (``schedule_delivery.deliverable_items``)."""
         try:
-            items: list[ScheduledItem] = []
-            for item_id in await ids(self._client, DELIVERABLE_KEY):
-                raw = await self._client.get(record_key(item_id))
-                if raw is not None:
-                    item, _, _ = decode(raw, item_id)
-                    items.append(item)
+            return await deliverable_items(self._client)
         except RedisError as err:
             msg = "listing deliverable reminders failed"
             raise ScheduleStoreError(msg) from err
-        return tuple(items)
 
     async def ack(self, item_id: str) -> bool:
-        """Clear deliverability; a DONE one-shot is deleted. False when not deliverable.
-
-        WATCH-fenced: an ack racing a re-claim (or cancel) fails its EXEC instead of
-        writing back the stale claim state it read (post-review hardening).
-        """
+        """Clear one fired reminder's delivery slot (``schedule_delivery.ack_item``)."""
         try:
-            async with self._client.pipeline(transaction=True) as pipe:
-                state = await watched_state(pipe, item_id)
-                if state is None:
-                    return False
-                item, live_claim, claimed_at = state
-                if item.deliverable_since is None:
-                    return False
-                pipe.multi()
-                pipe.zrem(DELIVERABLE_KEY, item_id)
-                if item.status is ScheduleStatus.DONE:
-                    pipe.delete(record_key(item_id))
-                else:
-                    cleared = replace(item, deliverable_since=None)
-                    pipe.set(
-                        record_key(item_id),
-                        encode(cleared, claim=live_claim, claimed_at=claimed_at),
-                    )
-                try:
-                    await pipe.execute()
-                except WatchError:
-                    return False
+            return await ack_item(self._client, item_id)
         except RedisError as err:
             msg = f"ack of reminder {item_id!r} failed"
             raise ScheduleStoreError(msg) from err
-        return True
