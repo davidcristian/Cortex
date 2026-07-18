@@ -55,3 +55,28 @@ decisions the spec left open; this ADR records them so no future agent re-derive
   the schema check fails loudly (typed errors) if the format shifts.
 - `select = ["ALL"]` means new ruff releases can introduce new failures; fixing or
   narrowly ignoring them (with a reason) is part of routine maintenance.
+
+## Addendum (2026-07-18): test-order randomization is not installed, so it is not a gate
+
+A review of the brain-handoff work found several repair reports citing `-p no:randomly` on the
+commands they ran, as evidence that ordering had been controlled for. It is not evidence of
+anything here: `pytest-randomly` is **not** a dependency of the brain workspace (nor of
+`scripts/`), so `-p no:randomly` disables a plugin that was never loaded and every suite has
+always run in collection order. A flag naming an absent plugin reads exactly like a gate that
+cannot fail, which is why this is written down rather than quietly dropped.
+
+**What was done instead of citing it.** The plugin was supplied for the run only, with
+`uv run --with pytest-randomly pytest -p randomly --randomly-seed=N`, and the suites were
+actually shuffled: three seeds over `packages/core` (990 tests each) and one over the whole brain
+workspace (1642 tests), all green, with `--collect-only` confirming the collected order really
+differs between seeds, so the shuffle was doing something. That is the measurement the
+determinism claim now rests on, and the chaos suite's own docstring says so.
+
+**Why it is not being added to `just check`.** Making it standing would change what the gate
+does on every run: the order becomes different each invocation, so a failure is reproducible only
+by reading the seed out of the log, and the plugin also reseeds `random` per test, which is a
+behaviour change for any test that draws. Both are defensible, but they are a gate-policy
+decision with a real cost at personal scale, and the measured shuffles above found nothing for
+them to catch. Recorded as a fix-when-it-bites deferral in
+[docs/refinements/repo-gates.md](../refinements/repo-gates.md) with its trigger: a test that
+passes alone and fails in a suite, or any order-dependent flake.

@@ -50,10 +50,12 @@ class ResidencyPlan:
     ``cortex_model`` is the standing resident every exit path converges back to;
     ``brain_model`` is the deep model a handoff swaps in. ``evict_models`` names the other
     hosted models a swap must stop first (the GPU-placed subagent, when one is hosted), because
-    while the brain is resident it is alone on the GPU (ADR-0030 decision 8). ``load_timeout_s``
-    bounds the readiness gate after a start, and ``poll_interval_s`` is the wait between two
-    status polls. Composition-root config, handed down as one value so the manager, the
-    conductor, and boot recovery cannot disagree about the topology.
+    while the brain is resident it is alone on the GPU (ADR-0030 decision 8).
+    ``drain_timeout_s`` bounds the wait for the subagent pool to quiesce, which happens before
+    anything is evicted, so exceeding it aborts the swap rather than killing a subagent;
+    ``load_timeout_s`` bounds the readiness gate after a start, and ``poll_interval_s`` is the
+    wait between two status polls. Composition-root config, handed down as one value so the
+    manager, the conductor, and boot recovery cannot disagree about the topology.
     """
 
     cortex_model: str

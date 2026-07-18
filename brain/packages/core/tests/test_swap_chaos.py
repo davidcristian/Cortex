@@ -28,6 +28,15 @@ can discriminate the conductor's own deterministic teardown.
 Determinism: every boundary is an ``asyncio.Event`` pair, every elapsed bound is passed as zero
 (already expired), and ``_settle`` yields the loop a few turns. No test sleeps wall-clock.
 
+Order independence is a **separate** claim from that one, and it was measured rather than
+assumed. Nothing shuffles tests here: this environment has no test-ordering plugin installed, so
+a ``-p no:randomly`` on a command line is inert and citing it establishes nothing. What
+establishes it is a real shuffled run, done on 2026-07-18 with the plugin supplied for the run
+only (``uv run --with pytest-randomly pytest -p randomly --randomly-seed=N``): three seeds over
+``packages/core`` and one over the whole brain workspace, all green, with the collected order
+confirmed to differ between seeds so the shuffle was doing something. Repeat that command rather
+than a flag that names a plugin nothing installed.
+
 Distrust-green proofs (each mutation was applied alone, reddened exactly the cases named, and
 was then restored):
 - restoring the cortex only on the scope's success path (no ``finally``) reddens
