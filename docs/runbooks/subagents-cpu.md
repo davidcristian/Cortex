@@ -2,10 +2,13 @@
 
 Bring up the subagent `llama-server` and validate delegation end to end. This is the
 host-only half of Slice 7. CI stays subagent-free (subagents are opt-in, `CORTEX_SUBAGENTS_*`).
-Placement is **GPU-first with CPU overflow** (ADR-0012), but until Slice 11 lands the real GPU
-sidecar (the recorded ADR-0012 host-half deferral) the compose runs **one CPU server** and
-points both placement targets at it. A GPU-*placed* subagent still *executes* on CPU. So this
-needs **no GPU** and runs alongside `docker/docker-compose.gpu.yml`.
+Placement is **GPU-first with CPU overflow** (ADR-0012), and by default the compose runs **one CPU
+server** with both placement targets pointed at it, so a GPU-*placed* subagent still *executes* on
+CPU and this needs **no GPU**. A real GPU-placed executor does exist now, as an opt-in tier of the
+`model-host` supervisor sidecar (`CORTEX_MODEL_FILE_SUBAGENT_GPU`, `-ngl 99` on `:8083`,
+[model-swap.md](model-swap.md)); routing to it is the separate step of setting
+`CORTEX_SUBAGENTS_GPU_ENDPOINT=http://model-host:8083`. This runbook stays the CPU path and runs
+alongside `docker/docker-compose.gpu.yml`.
 
 ## Prerequisites
 
@@ -41,8 +44,8 @@ delegation time (ADR-0012 admission-wall addendum).
 > *same* entry on the same target run one after the other however many the budget admits. Measured
 > here on the Qwen-2B override: two concurrent spawns took 4.8 s through two backend objects and
 > 10.0 s through one, exactly serial. Raising `CPU_BUDGET` alone therefore buys queue depth, not
-> throughput; real parallelism needs distinct entries (the roster override) or the Slice 11
-> per-placement executors.
+> throughput; real parallelism needs distinct entries (the roster override) or a **second**
+> GPU-capable executor, which the one hosted GPU tier is not.
 
 > **Reasoning is disabled** on the subagent server (`--chat-template-kwargs
 > '{"enable_thinking": false}'`, baked into the compose command). Both lineup families
@@ -93,7 +96,8 @@ docker logs cortex-llama-subagent-qwen-1 2>&1 | grep -c "prompt eval time"
 Layer all three overrides so the resident cortex can *decide* to delegate. Give subagents tools
 too by adding the tools override. The wiring hands them the MCP subset without the spawn tool
 (depth-1). The override bakes in both required endpoints (`CORTEX_SUBAGENTS_ENDPOINT` and
-`CORTEX_SUBAGENTS_GPU_ENDPOINT`, ADR-0012, where both resolve to the one CPU server until Slice 11)
+`CORTEX_SUBAGENTS_GPU_ENDPOINT`, ADR-0012, where both resolve to the one CPU server unless the
+GPU-placed tier is opted into and routed at)
 and passes through the ask/budget knobs (`CORTEX_SUBAGENTS_{CPUS,MEMORY_GB,VRAM_GB,CPU_BUDGET,MEM_BUDGET_GB}`):
 
 ```powershell
