@@ -103,10 +103,14 @@ The deferrals here originate at [ADR-0003](../adr/ADR-0003-seam-codegen.md), whi
 - **A disconnect mid handoff blocks the stream's teardown until the cortex is back.** *Fix when
   it bites.* Opened 2026-07-17 by the brain-handoff conductor sub-slice
   ([ADR-0030](../adr/ADR-0030-brain-handoff.md) decision 5). The swap back is the recovery path,
-  so `swap_scope`'s restore now runs as its own shielded task and a cancellation **waits** for it
-  before propagating: without that, a client that disconnected while the cortex was coming back
+  so `swap_scope`'s restore now runs as its own shielded task and **every** cancellation waits for
+  it before propagating: without that, a client that disconnected while the cortex was coming back
   left the process with no resident model and every later turn failing (found by the chaos suite,
-  and fixed there). The cost is on the other side: the Converse stream's `_cancel_turn` awaits the
+  and fixed there). Every one and not just the first, because this stream delivers two whenever a
+  client `Cancel` is followed by the stream's own teardown (`_cancel_turn` from the pump, then
+  again from `events()`'s `finally`), and a single shielded wait is abandoned by the second, which
+  put the drain window back up while the GPU was still empty. The cost is on the other side: the
+  Converse stream's `_cancel_turn` awaits the
   turn task, so a `Cancel` or a disconnect during a handoff holds the RPC's teardown for as long as the
   restore takes, which is seconds against the scripted host and minutes against real weights. The
   alternative is to detach the restore (fire it, return, and let boot recovery be the backstop),

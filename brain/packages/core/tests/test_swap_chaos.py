@@ -7,14 +7,17 @@ of the swap sequence, and every case asserts the same four invariants:
 
 1. **the standing residency is back**: the exit path asked for the cortex back whenever
    anything was evicted, and the host ends running the cortex plus every tier the swap evicts;
-2. **the pool admits again**: the drain window is released whatever ended the handoff;
+2. **the pool admits again, and not one moment earlier**: the drain window is released whatever
+   ended the handoff, and every release is witnessed against the residency that was running when
+   it happened, because a window reopened halfway through a swap back looks identical afterwards;
 3. **the stores are intact**: the user message and the cortex's reply are still there, no
    partial deep answer is persisted as a completed one, the durable memory holds this turn's
    exchange or nothing at all (never a half-written or invented one), no handoff is left live,
    and the record reached a terminal state (which a clean handoff then deletes, so it is the
    write log that proves it);
-4. **the stream ended honestly**: every event it emitted was true when it was emitted, and
-   the next turn still works.
+4. **the stream ended honestly**: every event it emitted was true when it was emitted, which is
+   asserted per status against the work that status announces (the swap window's own witness,
+   in the harness) and not merely against the order of the other three; and the next turn works.
 
 Three kinds of kill. A **scripted failure** (a host that refuses, a model that never loads, a
 server that dies mid-answer, a store that refuses the write which ends the handoff) exercises
@@ -62,8 +65,28 @@ was then restored):
 - dropping the conductor's ``aclose`` on its swap generator reddens
   ``test_closing_the_stream_mid_handoff_unwinds_the_swap_rather_than_abandoning_it``, and
   nothing else here, because every other case cancels;
-- yielding the "working on this" status above the residency scope reddens every case that
-  never reached the deep model, through ``assert_stream_ended_honestly``'s witness;
+- each of the swap window's four statuses, moved off the work it announces, reddens through the
+  harness's per-status witness. None of the four changes the ORDER the details arrive in, which
+  is what the old assertion read and why it caught none of them. Each reddens the cases that got
+  far enough to emit the status in question: "draining" moved after the drain reddens every case
+  whose drain returned; "loading" moved inside the residency scope reddens every case whose deep
+  model actually loaded; "working on this" moved above that scope reddens every case that entered
+  the swap at all (it used to redden only the cases that never reached the deep model, which is
+  why the witness replaced the old check); "restoring" moved below the scope reddens every case
+  whose deep model answered;
+- one shielded wait for the restore instead of one per cancellation (which is what the seam
+  actually delivers: ``ConverseStream`` cancels the turn from its pump, then again from
+  ``events()``'s teardown) reddens
+  ``test_a_second_cancellation_during_the_swap_back_still_holds_the_drain_window_shut`` and
+  nothing else, that being the only case that cancels twice;
+- hoisting the conductor's ``undrain`` above the ``aclose`` that unwinds the swap reddens
+  ``test_closing_the_stream_mid_handoff_unwinds_the_swap_rather_than_abandoning_it`` and nothing
+  else, for the same reason as the ``aclose`` mutation above: every other case cancels, and a
+  cancellation has already unwound the scope by the time the conductor's ``finally`` runs;
+- dropping the ``aclose`` on the DEEP MODEL's own round (the innermost of the three teardowns)
+  reddens that same close case and nothing else. Only the round's own witness can see it: the
+  swap back and the drain window are both intact under this mutation, so every other assertion
+  in the suite, including the two the close case made before, passes;
 - restarting nothing after the cortex comes back reddens
   ``test_a_tier_evicted_for_the_handoff_is_running_again_when_it_ends``;
 - pausing the mid-drain case before the refusal window opens (which is where it used to
@@ -88,19 +111,16 @@ from swap_harness import (
     RecordingHandoffStore,
     RecordingSessionStore,
     ScriptedBrainBackend,
+    WitnessingScheduler,
+    assert_the_window_announced_real_progress,
     build_harness,
 )
 
 from cortex_core import (
     ALREADY_ACTIVE_NOTE,
     BRAIN_FAILED_NOTE,
-    DRAINING_DETAIL,
-    LOADING_DETAIL,
-    RESTORING_DETAIL,
     SWAP_FAILED_NOTE,
     SWAPPING_STATE,
-    WORKING_DETAIL,
-    AdmitAllScheduler,
     HandoffRecord,
     HandoffState,
     ModelHostState,
@@ -125,10 +145,6 @@ _EVICTED = (("stop", "cortex"),)
 _SWAPPED_IN = (*_EVICTED, ("start", "brain"))
 _SWAPPED_BACK = (*_SWAPPED_IN, ("stop", "brain"), ("start", "cortex"))
 
-# The swap window's four steps, in the only order they can honestly happen. Every case's status
-# details are a PREFIX of this: a handoff that stopped early says less, never something else.
-_SWAP_WINDOW = [DRAINING_DETAIL, LOADING_DETAIL, WORKING_DETAIL, RESTORING_DETAIL]
-
 # The turn id of the escalation that comes AFTER a broken one, which is what proves a handoff
 # the store could not settle did not wedge the escalation path for the rest of the process.
 _LATER_TURN = "t-later"
@@ -145,7 +161,7 @@ async def _settle(turns: int = 5) -> None:
         await asyncio.sleep(0)
 
 
-class _PausingScheduler(AdmitAllScheduler):
+class _PausingScheduler(WitnessingScheduler):
     """A pool that pauses the handoff at a drain boundary: inside the window, or once drained.
 
     ``mid`` is the ADR's mid-drain kill point and it has to land where its name says, so the
@@ -235,7 +251,7 @@ async def _consume(live: Harness, events: list[TurnEvent], *, turn_id: str = har
     )
     try:
         async for event in stream:
-            events.append(event)  # noqa: PERF401 - a live stream, read one event at a time
+            events.append(live.observe(event))  # noqa: PERF401 - a live stream, one at a time
     finally:
         await stream.aclose()
 
@@ -252,13 +268,23 @@ async def assert_converged_on_cortex(live: Harness) -> None:
     Standing residency is the cortex AND every tier the swap evicts for the deep model's sake:
     ``undrain`` reopens the pool to spawns the moment a handoff ends, so a subagent tier left
     stopped would take delegated work on a server nothing ever restarted.
+
+    Which is why the window's release is asserted at the moment it happened and not only at the
+    end. "The pool admits again" is true of a handoff that reopened admission halfway through
+    its own swap back, and by the time anything can be asked afterwards the restore has caught
+    up and erased the difference. So every reopening is witnessed against the residency that was
+    actually running when it happened.
     """
     if ("stop", live.residency.cortex_model) in live.host.calls:
         # Anything that evicted the cortex owes the restore; the scope's finally is what pays.
         assert ("start", live.residency.cortex_model) in live.host.calls
-    assert live.host.running == {live.residency.cortex_model, *live.residency.evict_models}
+    standing = {live.residency.cortex_model, *live.residency.evict_models}
+    assert live.host.running == standing
     assert live.host.calls.count(("start", live.residency.brain_model)) <= 1  # nothing double-ran
     assert live.backend.calls <= 1  # the deep model answered at most once
+    if live.scheduler.drains:  # a handoff torn down before the drain never opened a window
+        assert live.scheduler.reopened
+    assert all(running == standing for running in live.scheduler.reopened)
     await _admit(live)
 
 
@@ -305,11 +331,11 @@ async def assert_stores_intact(
 def assert_stream_ended_honestly(live: Harness, events: list[TurnEvent], *, killed: bool) -> None:
     """Invariant 4: no event claimed progress the machine had not actually made.
 
-    The status details are asserted as an ordered prefix of the swap window rather than
-    counted, so a step cannot be reordered, duplicated, or invented. The one that asserts a
-    fact about the GPU, "the deep model is working on this", is checked against the record and
-    the host's own op log as well, because a status yielded before the residency scope was
-    entered is still a plausible-looking prefix and is exactly the lie a count cannot see.
+    Each status is checked against the work it announces, not merely against the other statuses
+    (``assert_the_window_announced_real_progress`` holds that contract and says why an order
+    among the four strings constrains almost nothing on its own). What is left here is the
+    shape of the stream itself: nothing but swap-window statuses and reply text crosses it, and
+    every status rides the one state the overlay renders as a chip.
 
     A handoff that ran to an end always says something too: a deep answer, or the note that
     explains why there is none. A **killed** one may not have got a word out, because the kill
@@ -318,16 +344,15 @@ def assert_stream_ended_honestly(live: Harness, events: list[TurnEvent], *, kill
     the client: that is the seam's contract, it is tested at the seam, and it is not observable
     from here, where the cancellation simply propagates to the caller.
     """
-    states: list[str] = []
+    details: list[str] = []
     for event in events:
         assert isinstance(event, StatusUpdate | TextDelta)
         if isinstance(event, StatusUpdate):
             assert event.state == SWAPPING_STATE
-            states.append(event.detail)
-    assert states == _SWAP_WINDOW[: len(states)]
-    if WORKING_DETAIL in states:
-        assert HandoffState.BRAIN_ACTIVE in live.handoffs.states
-        assert ("start", live.residency.brain_model) in live.host.calls
+            details.append(event.detail)
+    # The witnesses are what the assertions below run on, so they must be this stream's own.
+    assert [witness.detail for witness in live.statuses] == details
+    assert_the_window_announced_real_progress(live)
     if not killed:
         assert any(isinstance(event, TextDelta) for event in events)
 
@@ -661,6 +686,11 @@ async def test_closing_the_stream_mid_handoff_unwinds_the_swap_rather_than_aband
     Every other case here cancels, and a cancellation unwinds the inner generators inline, so
     nothing else in the suite can tell a conductor that closes its swap deterministically from
     one that leaves the deep model resident and the cortex evicted until the collector runs.
+
+    It is closed with the deep model mid-answer, which is the only place all three teardowns
+    the conductor owes are outstanding at once: the deep model's own round, the residency
+    scope, and the drain window. Each is asserted on its own witness below, because the swap
+    back alone would pass while a round was left suspended for the collector to finalize.
     """
     live = build_harness()
     await live.seed_session()
@@ -669,15 +699,61 @@ async def test_closing_the_stream_mid_handoff_unwinds_the_swap_rather_than_aband
     )
     events: list[TurnEvent] = []
     async for event in stream:
-        events.append(event)
-        if isinstance(event, StatusUpdate) and event.detail == WORKING_DETAIL:
-            break
+        events.append(live.observe(event))
+        if isinstance(event, TextDelta):
+            break  # the deep model is mid-answer: its round is open and so is the scope
     assert live.host.running == {"brain"}  # the swap really is in flight
+    assert live.backend.closed is False
     await stream.aclose()
-    # No settling and no cancellation: closing the stream is itself what owes the swap back.
+    # No settling and no cancellation: closing the stream is itself what owes the swap back,
+    # the deep model's round, and (only once both are done) the drain window.
     assert live.host.running == {"cortex"}
+    assert live.backend.closed is True  # the innermost teardown, which nothing else can see
     await assert_converged_on_cortex(live)
     await assert_stores_intact(live, killed=True)
+    assert_stream_ended_honestly(live, events, killed=True)
+    await assert_the_next_turn_still_works(live)
+
+
+async def test_a_second_cancellation_during_the_swap_back_still_holds_the_drain_window_shut() -> (
+    None
+):
+    """Two cancellations, which is what the seam actually delivers, must not free the pool early.
+
+    ``ConverseStream`` cancels the in-flight turn from its pump when the client asks to stop,
+    and again from ``events()``'s own teardown when the stream then goes away; both land on the
+    same task, and a swap back takes minutes, so the second one arrives while the first is still
+    unwinding the restore. The restore is shielded precisely so a cancellation waits for it, but
+    ONE shielded wait is abandoned by the next delivery, and the conductor reopens subagent
+    admission the moment the scope returns. That is the harm: the window lifts onto a cortex
+    that is still stopped and a tier nothing has restarted, and every other assertion in this
+    suite is made after the abandoned restore has quietly finished in the background.
+
+    The evicted tier is what makes it visible: it is restarted last, so it is the last thing a
+    prematurely reopened window can be pointed at.
+    """
+    gate = Gate()
+    host = ScriptedModelHost(running=["cortex", "subagent-gpu"])
+    _arm(host, "start", "cortex", gate)  # the swap back, held open mid-restore
+    live = build_harness(Fakes(host=host), residency=harness.plan(evict_models=("subagent-gpu",)))
+    await live.seed_session()
+    events: list[TurnEvent] = []
+    task = asyncio.create_task(_consume(live, events))
+    await gate.arrived()
+    # Mid-restore: the deep model is gone, the cortex is coming up, the tier is still stopped
+    # (it is started back only after the cortex gates ready).
+    assert live.host.running == {"cortex"}
+    task.cancel()
+    await _settle()  # the first cancellation reaches the shielded wait
+    task.cancel()  # and here comes the one that used to abandon it
+    await _settle()
+    assert not live.scheduler.reopened  # nothing may have reopened while the GPU is empty
+    gate.release.set()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+    await _settle()
+    await assert_converged_on_cortex(live)
+    await assert_stores_intact(live, deep_reply="a deep answer", killed=True)
     assert_stream_ended_honestly(live, events, killed=True)
     await assert_the_next_turn_still_works(live)
 

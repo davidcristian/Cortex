@@ -747,3 +747,47 @@ case, and `_prepare` calls the claim instead of `active()`, keeping the refusal 
 same Redis, or a supervisor sidecar that performs swaps itself. Recorded in
 [docs/refinements/inference-model-manager.md](../refinements/inference-model-manager.md) and its
 [index](../refinements/index.md).
+
+## Addendum (2026-07-18): the swap back is uninterruptible, and a status is pinned to its work
+
+A settling pass found one live defect and two places where the gate agreed with the code instead
+of constraining it. Nothing about decisions 1 to 9 changes. **Still no real model swap has been
+validated:** the scripted host starts no process, and the dev GPU cannot hold these tiers.
+
+**One shielded wait is not "a cancellation waits for the restore".** The previous addendum
+decided that the swap back runs as a shielded task a cancellation waits for, because the restore
+is the recovery path. The implementation waited for exactly one delivery: it caught the first
+`CancelledError`, awaited the restore, and re-raised. A second delivery lands on that await and
+abandons the restore mid flight, which returns the residency scope while the cortex is still
+stopped, and the conductor's `finally` then reopens subagent admission onto a GPU with nothing on
+it and a subagent tier nobody has restarted. Two deliveries are what the seam actually produces:
+`ConverseStream` cancels the in-flight turn from its pump when the client asks to stop, and again
+from `events()`'s own teardown when the stream goes away, and a swap back takes minutes, so the
+second arrives while the first is still unwinding. The contract is now what it always said:
+`_restore_uninterruptibly` waits **per cancellation**, remembering the first and re-raising it
+once the restore is genuinely done, so the ordering the scope promises (restored, then released)
+holds however many times the turn is cancelled. The bound is the restore itself, not the number
+of cancellations, and the cost is the one already recorded in
+[seam-transport.md](../refinements/seam-transport.md): a teardown mid handoff waits for the
+cortex. The conductor's `undrain` keeps its single `finally`, which already runs after the swap
+generator's `aclose` and therefore after the restore; what was missing was never that ordering
+but the guarantee underneath it, and the gate now holds both (hoisting the `undrain` above that
+`aclose` reddens the close case).
+
+**An order among four strings is not four true statements.** The window's statuses were asserted
+as an ordered prefix of the four, which constrains them only against each other: three of them
+could be emitted at any moment relative to the work they name and the suite stayed green, while
+the helper's own docstring claimed a step could not be reordered. Each status now carries a
+witness taken at the yield (the drains asked for, the host's op log, the record's written states,
+the deep model's call count), and each is checked against the work it announces: the drain is
+announced before the pool is quiesced, the load before the deep model is started, "working on
+this" only after the health gate passed and the record reached `BRAIN_ACTIVE` and before the
+model has been asked anything, and the restore after the deep model answered and before the
+cortex is asked back. All four misplacements redden, in both swap suites; none of them changes
+the order the old assertion read.
+
+**The innermost teardown had no witness at all.** The conductor closes three generators on a
+consumer that walks away, and the case named for that teardown asserted only the outermost two.
+The deep model's own round is now asserted through the backend's `closed` flag, and the close
+case runs with the deep model mid answer so all three are outstanding at once. Dropping that
+`aclose` reddens it and nothing else in the suite.
