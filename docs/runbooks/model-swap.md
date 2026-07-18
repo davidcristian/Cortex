@@ -5,17 +5,22 @@ rationale: [ADR-0030](../adr/ADR-0030-brain-handoff.md). Ops loop and the compos
 [local-dev-wsl.md](local-dev-wsl.md); the cortex `llama-server` itself:
 [llamacpp-gpu.md](llamacpp-gpu.md).
 
-**Scope today.** This is the manual-recovery half only. The wired model host is the
-**scripted** one (`CORTEX_MODELHOST_BACKEND=scripted`, `swap_builders.py`): it tracks residency
-and readiness honestly, so the whole path runs end to end, but it **starts no process and moves
-no weights**. The real supervisor backend, the procedure for a live swap, and the measured
-timings ADR-0030 expects here all arrive with that sub-slice, and this file grows them then.
-No real model swap has been validated yet.
+**Scope today.** This is the manual-recovery half only. Two model hosts can be wired
+(`CORTEX_MODELHOST_BACKEND`, `swap_builders.py`): the **scripted** one, which tracks residency
+and readiness honestly so the whole path runs end to end but **starts no process and moves no
+weights**, and the **supervisor** one, the real `HttpModelHost` over the `model-host` sidecar's
+control API. The sidecar's own contract is
+[brain-model-manager.md](../modules/brain-model-manager.md). What does not exist yet is the
+compose service that runs it, so no deployment can select `supervisor` and reach anything: the
+container image, the GPU-placed runtime, and the live-swap procedure with its measured timings
+arrive with that revision, and this file grows them then. No real model swap has been validated
+yet.
 
 ## Is the capability even on?
 
 Escalation is **off by default**. It is on only when `CORTEX_ESCALATION` is set, and then the
-deployment must also set `CORTEX_MODELHOST_BACKEND` (`scripted` today) and
+deployment must also set `CORTEX_MODELHOST_BACKEND` (`scripted`, or `supervisor` with a
+`CORTEX_MODELHOST_ENDPOINT`) and
 `CORTEX_BRAIN_ENDPOINT`, or the brain refuses to boot (`config_swap.py`). With escalation off,
 nothing below can happen: no `escalate_to_brain` tool, no conductor, no boot recovery.
 
