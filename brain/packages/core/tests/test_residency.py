@@ -7,6 +7,11 @@ from datetime import UTC, datetime
 import pytest
 
 from cortex_core import (
+    RESIDENCY_DEEP,
+    RESIDENCY_LOADING,
+    RESIDENCY_LOST,
+    RESIDENCY_RESTORING,
+    RESIDENCY_SERVING,
     HandoffInProgressError,
     ModelHost,
     ModelHostState,
@@ -15,6 +20,7 @@ from cortex_core import (
     RecordingSleeper,
     ResidencyController,
     ResidencyPlan,
+    ResidencyReporter,
     ResidencyRestoreError,
     ScriptedModelHost,
     SwapFailedError,
@@ -443,9 +449,86 @@ async def test_a_restore_whose_gate_never_reports_ready_also_gives_up() -> None:
     assert host.calls.count(("start", "cortex")) == 2
 
 
-def test_the_manager_satisfies_both_ports() -> None:
-    """One object, two segregated protocols: the lease port is unchanged, residency is new."""
+async def test_the_report_tracks_the_swap_window_from_load_to_deep_work_and_back() -> None:
+    """What ``Health`` shows a human, read at each boundary the swap actually crosses.
+
+    The load is observed from inside the host's own paused ``start``, so the reported state is
+    the one the manager published on its way there rather than one this test arranged.
+    """
+    host = ScriptedModelHost(running=["cortex"], pause_at=[("start", "brain")])
+    manager = _manager(host)
+    assert manager.residency() == RESIDENCY_SERVING
+    scope = _OpenScope(manager)
+    async with asyncio.timeout(5.0):
+        await host.reached[("start", "brain")].wait()
+    assert manager.residency() == RESIDENCY_LOADING
+    host.release[("start", "brain")].set()
+    await scope.start()
+    assert manager.residency() == RESIDENCY_DEEP
+    await scope.finish()
+    assert manager.residency() == RESIDENCY_SERVING
+
+
+async def test_the_report_says_the_usual_assistant_is_coming_back_while_it_restores() -> None:
+    """The swap back is its own answer: nothing is resident either way, and they read apart."""
+    host = ScriptedModelHost(running=["cortex"], pause_at=[("start", "cortex")])
+    manager = _manager(host)
+    scope = _OpenScope(manager)
+    await scope.start()
+    scope.leave.set()
+    async with asyncio.timeout(5.0):
+        await host.reached[("start", "cortex")].wait()
+    assert manager.residency() == RESIDENCY_RESTORING
+    host.release[("start", "cortex")].set()
+    await scope.task
+    assert manager.residency() == RESIDENCY_SERVING
+
+
+async def test_a_restore_that_gave_up_stops_claiming_it_is_still_restoring() -> None:
+    """The one honest answer that outlives its turn: nothing is resident and no retry is left.
+
+    Reporting the restore as still under way would tell the user to wait for a thing that
+    already stopped happening, and the runbook's manual recovery is what clears it.
+    """
+    host = ScriptedModelHost(running=["cortex"], fail={("start", "cortex"): "no such device"})
+    manager = _manager(host)
+    with pytest.raises(ResidencyRestoreError):
+        async with manager.swap_scope("brain"):
+            pass
+    assert manager.residency() == RESIDENCY_LOST
+
+
+async def test_the_report_answers_at_an_instant_when_the_gpu_cannot_be_leased() -> None:
+    """A probe must not queue behind the swap it reports on (ADR-0030 decision 6)."""
+    host = ScriptedModelHost(running=["cortex"], pause_at=[("start", "brain")])
+    manager = _manager(host)
+    scope = _OpenScope(manager)
+    async with asyncio.timeout(5.0):
+        await host.reached[("start", "brain")].wait()
+    waiting = asyncio.create_task(_lease(manager, "cortex"))
+    await _settle()
+    assert not waiting.done()
+    assert manager.residency() == RESIDENCY_LOADING
+    host.release[("start", "brain")].set()
+    await scope.start()
+    await scope.finish()
+    async with asyncio.timeout(5.0):
+        assert await waiting == _CORTEX_URL
+
+
+async def test_a_claimed_handoff_still_reports_serving_because_the_cortex_still_serves() -> None:
+    """The drain window is deliberately green: nothing is unloaded and turns still run."""
+    manager = _manager(ScriptedModelHost(running=["cortex"]))
+    async with manager.handoff_claim():
+        assert manager.residency() == RESIDENCY_SERVING
+        async with manager.acquire("cortex") as lease:  # and it really is still leasable
+            assert lease.endpoint == _CORTEX_URL
+
+
+def test_the_manager_satisfies_every_port_it_is_composed_behind() -> None:
+    """One object, three segregated protocols: the lease is unchanged, residency and its report."""
     manager = _manager(ScriptedModelHost(running=["cortex"]))
     leasing: ModelManager = manager
     residency: ResidencyController = manager
-    assert leasing is residency
+    reporting: ResidencyReporter = manager
+    assert leasing is residency is reporting

@@ -15,6 +15,15 @@ from cortex_core.model import ModelLease
 from cortex_core.model_host import ModelHostState, ResidencyPlan
 from cortex_core.ports import Clock, ModelHost, Sleeper
 from cortex_core.residency_moves import restore_standing, swap_in
+from cortex_core.residency_restore import restore_uninterruptibly
+from cortex_core.residency_state import (
+    RESIDENCY_DEEP,
+    RESIDENCY_LOADING,
+    RESIDENCY_LOST,
+    RESIDENCY_RESTORING,
+    RESIDENCY_SERVING,
+    ResidencyReport,
+)
 
 # How many times the scope's exit tries to bring the cortex back before it gives up loudly: the
 # first attempt plus the one retry ADR-0030 decision 4 step 3 specifies. A third would not be a
@@ -47,6 +56,10 @@ class SwappingModelManager:
         # lease, or a swap (which takes the lease first) would deadlock against it.
         self._residency = asyncio.Condition()
         self._resident: str | None = plan.cortex_model
+        # What ``residency()`` answers. Written by the same setter that writes ``_resident``,
+        # under the same condition and with nothing awaited between them, so the seam's report
+        # and the lease's own view of the GPU cannot drift apart.
+        self._report: ResidencyReport = RESIDENCY_SERVING
         self._scope_model: str | None = None
         # Whether a handoff already owns the whole swap sequence, claimed before anything is
         # drained. Separate from the scope: a claim is held through the drain, while the cortex
@@ -76,6 +89,10 @@ class SwappingModelManager:
         finally:
             self._handoff_claimed = False
 
+    def residency(self) -> ResidencyReport:
+        """What the GPU is serving right now, answered synchronously and without I/O."""
+        return self._report
+
     @asynccontextmanager
     async def swap_scope(self, model: str) -> AsyncGenerator[None, None]:
         """Make ``model`` the resident for this block, and restore the cortex on the way out."""
@@ -85,29 +102,11 @@ class SwappingModelManager:
             yield
         finally:
             try:
-                await self._restore_uninterruptibly(model)
+                # Uninterruptible by contract (``residency_restore.py``): a cancelled turn must
+                # not be able to abandon the recovery path halfway.
+                await restore_uninterruptibly(self._restore(model))
             finally:
                 await self._end_scope()
-
-    async def _restore_uninterruptibly(self, model: str) -> None:
-        """Run the restore to completion even while this caller is being cancelled."""
-        restore = asyncio.create_task(self._restore(model))
-        cancelled: asyncio.CancelledError | None = None
-        while not restore.done():
-            try:
-                await asyncio.shield(restore)
-            except asyncio.CancelledError as err:
-                cancelled = err
-            except ResidencyRestoreError:
-                # Raised below instead, so that a cancellation delivered first still wins: the
-                # caller is being torn down and that is the graver thing to tell it about.
-                pass
-        if cancelled is not None:
-            # Retrieved so asyncio does not warn about it; a restore failure has already been
-            # logged loudly inside, and the cancellation is what the caller must see.
-            restore.exception()
-            raise cancelled
-        await restore
 
     async def _claim(self, model: str) -> str:
         """The endpoint ``model`` may be leased from, once any active scope has ended."""
@@ -143,10 +142,15 @@ class SwappingModelManager:
             self._scope_model = None
             self._residency.notify_all()
 
-    async def _set_resident(self, model: str | None) -> None:
-        """Publish which model the GPU now serves (``None`` while a swap is in flight)."""
+    async def _set_resident(self, model: str | None, report: ResidencyReport) -> None:
+        """Publish which model the GPU serves (``None`` mid swap), and what to tell a human.
+
+        The report is the one thing the resident cannot express on its own: a swap in and a swap
+        back both leave nothing resident, so the direction is published rather than inferred.
+        """
         async with self._residency:
             self._resident = model
+            self._report = report
             self._residency.notify_all()
 
     async def _swap_in(self, model: str) -> None:
@@ -156,9 +160,9 @@ class SwappingModelManager:
         only at lease-free boundaries" means in code: v1 never preempts a round in flight.
         """
         async with self._lock:
-            await self._set_resident(None)
+            await self._set_resident(None, RESIDENCY_LOADING)
             await swap_in(self._host, self._plan, model, self._gate)
-            await self._set_resident(model)
+            await self._set_resident(model, RESIDENCY_DEEP)
 
     async def _restore(self, model: str) -> None:
         """Bring the cortex back, retrying once; give up loudly rather than silently.
@@ -168,15 +172,18 @@ class SwappingModelManager:
         """
         cortex = self._plan.cortex_model
         async with self._lock:
-            await self._set_resident(None)
+            await self._set_resident(None, RESIDENCY_RESTORING)
             for attempt in range(1, _RESTORE_ATTEMPTS + 1):
                 if await restore_standing(self._host, self._plan, model, self._gate):
-                    await self._set_resident(cortex)
+                    await self._set_resident(cortex, RESIDENCY_SERVING)
                     return
                 _logger.warning(
                     "restoring the cortex failed; retrying",
                     extra={"model": cortex, "attempt": attempt},
                 )
+            # Nothing is resident and no retry is left, so the report stops claiming a restore is
+            # under way: Health goes on saying so until boot recovery converges residency again.
+            await self._set_resident(None, RESIDENCY_LOST)
             _logger.error(
                 "could not restore the cortex after a model swap; the GPU serves nothing",
                 extra={"model": cortex, "attempts": _RESTORE_ATTEMPTS},

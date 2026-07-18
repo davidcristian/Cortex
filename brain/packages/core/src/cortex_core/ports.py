@@ -11,7 +11,7 @@ from cortex_core.events import TurnEvent
 from cortex_core.inference import InferenceEvent, JsonSchema
 from cortex_core.model import ModelLease
 from cortex_core.placement import Placement, PlacementRequest
-from cortex_core.ports_models import ModelHost, ResidencyController
+from cortex_core.ports_models import ModelHost, ResidencyController, ResidencyReporter
 from cortex_core.ports_stores import (
     HandoffStore,
     MemoryStore,
@@ -32,6 +32,7 @@ __all__ = [
     "ModelHost",
     "ModelManager",
     "ResidencyController",
+    "ResidencyReporter",
     "ScheduleStore",
     "SessionStore",
     "Sleeper",

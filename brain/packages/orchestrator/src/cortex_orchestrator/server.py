@@ -4,11 +4,13 @@ import asyncio
 import logging
 import signal
 from collections.abc import AsyncGenerator, AsyncIterator
+from dataclasses import dataclass
 
 import grpc
 from grpc import aio
 
 from cortex_core import (
+    ResidencyReporter,
     ScheduleStore,
     ScheduleStoreError,
     SessionMemoryCascade,
@@ -53,9 +55,24 @@ __all__ = [
     "MAX_SESSION_LIST_LIMIT",
     "ORCHESTRATOR_VERSION",
     "BrainService",
+    "SeamPorts",
     "create_server",
     "serve",
 ]
+
+
+@dataclass(frozen=True, slots=True)
+class SeamPorts:
+    """The optional ports the seam serves *beyond* a turn, bundled as one dependency."""
+
+    schedules: ScheduleStore | None = None
+    memory_cascade: SessionMemoryCascade | None = None
+    residency: ResidencyReporter | None = None
+
+
+# The "nothing beyond a turn" bundle, shared because it is frozen: the default for a service
+# built with no optional capability at all (every seam test that only converses).
+_NO_SEAM_PORTS = SeamPorts()
 
 
 class BrainService(SessionRpcMixin, BrainServiceServicer):
@@ -66,15 +83,15 @@ class BrainService(SessionRpcMixin, BrainServiceServicer):
         make_engine: EngineFactory,
         store: SessionStore,
         *,
-        schedules: ScheduleStore | None = None,
-        memory_cascade: SessionMemoryCascade | None = None,
+        ports: SeamPorts = _NO_SEAM_PORTS,
         max_buffered_events: int = DEFAULT_MAX_BUFFERED_EVENTS,
         confirm_timeout_s: float = DEFAULT_CONFIRM_TIMEOUT_S,
     ) -> None:
         self._make_engine = make_engine
         self._store = store
-        self._schedules = schedules
-        self._memory_cascade = memory_cascade
+        self._schedules = ports.schedules
+        self._memory_cascade = ports.memory_cascade
+        self._residency = ports.residency
         self._max_buffered_events = max_buffered_events
         self._confirm_timeout_s = confirm_timeout_s
 
@@ -85,6 +102,9 @@ class BrainService(SessionRpcMixin, BrainServiceServicer):
     ) -> HealthReply:
         """Report readiness so the overlay can display connection state."""
         del request, context  # part of the generated servicer signature; unused here
+        report = None if self._residency is None else self._residency.residency()
+        if report is not None and not report.serving:
+            return HealthReply(ready=False, detail=report.detail)
         return HealthReply(ready=True, detail=f"cortex-orchestrator {ORCHESTRATOR_VERSION}")
 
     async def Converse(  # noqa: N802 - method name is fixed by the gRPC codegen interface
@@ -147,6 +167,7 @@ def create_server(
     *,
     schedules: ScheduleStore | None = None,
     memory_cascade: SessionMemoryCascade | None = None,
+    residency: ResidencyReporter | None = None,
 ) -> tuple[aio.Server, int]:
     """Build the aio server over `make_engine`/`store` and bind it (not started)."""
     interceptors = (SeamTokenInterceptor(config.token),) if config.token else ()
@@ -154,8 +175,7 @@ def create_server(
     service = BrainService(
         make_engine,
         store,
-        schedules=schedules,
-        memory_cascade=memory_cascade,
+        ports=SeamPorts(schedules=schedules, memory_cascade=memory_cascade, residency=residency),
         max_buffered_events=config.converse_buffer,
         confirm_timeout_s=config.confirm_timeout_s,
     )
@@ -171,10 +191,16 @@ async def serve(
     *,
     schedules: ScheduleStore | None = None,
     memory_cascade: SessionMemoryCascade | None = None,
+    residency: ResidencyReporter | None = None,
 ) -> None:
     """Run the seam server until SIGTERM/SIGINT or cancellation; always stop gracefully."""
     server, bound_port = create_server(
-        config, make_engine, store, schedules=schedules, memory_cascade=memory_cascade
+        config,
+        make_engine,
+        store,
+        schedules=schedules,
+        memory_cascade=memory_cascade,
+        residency=residency,
     )
     await server.start()
     _logger.info("seam server listening", extra={"host": config.host, "port": bound_port})

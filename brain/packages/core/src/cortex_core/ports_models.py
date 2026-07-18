@@ -4,6 +4,7 @@ from contextlib import AbstractAsyncContextManager
 from typing import Protocol
 
 from cortex_core.model_host import ModelHostState
+from cortex_core.residency_state import ResidencyReport
 
 
 class ModelHost(Protocol):
@@ -22,3 +23,9 @@ class ResidencyController(Protocol):
     def swap_scope(self, model: str) -> AbstractAsyncContextManager[None]: ...
 
     def handoff_claim(self) -> AbstractAsyncContextManager[None]: ...
+
+
+class ResidencyReporter(Protocol):
+    """Reads what the GPU is serving right now, for the seam to answer with (ADR-0030 d6)."""
+
+    def residency(self) -> ResidencyReport: ...

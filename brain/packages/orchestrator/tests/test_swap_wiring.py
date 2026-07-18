@@ -15,10 +15,13 @@ from redis.asyncio import Redis
 
 from cortex_core import (
     ESCALATE_TOOL_NAME,
+    RESIDENCY_DEEP,
     AsyncioSleeper,
+    Clock,
     InMemoryBodyGateway,
     ModelHostState,
     ScriptedModelHost,
+    Sleeper,
     SwappingModelManager,
     SystemClock,
 )
@@ -33,8 +36,16 @@ from cortex_orchestrator import (
     run_from_env,
     swap_builders,
     swap_closer,
+    wiring,
 )
-from cortex_seam import BrainServiceStub, ClientEvent, ServerEvent, UserTurn
+from cortex_seam import (
+    BrainServiceStub,
+    ClientEvent,
+    HealthReply,
+    HealthRequest,
+    ServerEvent,
+    UserTurn,
+)
 from cortex_session import RedisHandoffStore, RedisSessionStore
 
 
@@ -275,6 +286,62 @@ async def test_run_from_env_serves_with_the_handoff_wired(
         await asyncio.wait_for(task, timeout=10)
     finally:
         task.cancel()
+
+
+async def test_health_tells_the_truth_about_residency_through_the_whole_wiring(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The reporter reaches the servicer: with the wired manager mid handoff, Health says so."""
+    port = _free_loopback_port()
+    monkeypatch.setenv("CORTEX_SEAM_HOST", "127.0.0.1")
+    monkeypatch.setenv("CORTEX_SEAM_PORT", str(port))
+    monkeypatch.setenv("CORTEX_ESCALATION", "1")
+    monkeypatch.setenv("CORTEX_MODELHOST_BACKEND", "scripted")
+    monkeypatch.setenv("CORTEX_BRAIN_ENDPOINT", "http://llama-brain:8081")
+    server = FakeServer()
+
+    def fake_from_url(url: str) -> Redis:
+        del url
+        return FakeAsyncRedis(server=server)
+
+    monkeypatch.setattr(Redis, "from_url", fake_from_url)
+    built: list[SwapRuntime] = []
+    real = build_swap_runtime
+
+    def recording(
+        swap: SwapConfig,
+        runtime: BrainRuntimeConfig,
+        inference: InferenceConfig,
+        clock: Clock,
+        sleeper: Sleeper,
+    ) -> SwapRuntime | None:
+        made = real(swap, runtime, inference, clock, sleeper)
+        assert made is not None  # escalation is on in this test's env
+        built.append(made)
+        return made
+
+    monkeypatch.setattr(wiring, "build_swap_runtime", recording)
+    task = asyncio.create_task(run_from_env(store_factory=lambda _url: _session_store(server)))
+    try:
+        async with aio.insecure_channel(f"127.0.0.1:{port}") as channel:
+            await asyncio.wait_for(channel.channel_ready(), timeout=10)
+            stub = BrainServiceStub(channel)
+            assert (await _health(stub)).ready is True
+            swap = built[0]
+            async with swap.manager.swap_scope(swap.plan.brain_model):
+                mid_handoff = await asyncio.wait_for(_health(stub), timeout=5.0)
+            assert mid_handoff.ready is False
+            assert mid_handoff.detail == RESIDENCY_DEEP.detail
+            assert (await _health(stub)).ready is True  # the swap back turns the dot green again
+        os.kill(os.getpid(), signal.SIGTERM)
+        await asyncio.wait_for(task, timeout=10)
+    finally:
+        task.cancel()
+
+
+async def _health(stub: BrainServiceStub) -> HealthReply:
+    health = stub.Health  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
+    return cast("HealthReply", await health(HealthRequest()))
 
 
 def _session_store(server: FakeServer) -> RedisSessionStore:

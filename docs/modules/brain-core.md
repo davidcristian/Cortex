@@ -546,6 +546,25 @@ unchanged):
   loudly logged. While a scope is active, `acquire` of any other model **waits** rather than
   raising; at most one scope exists at a time, there being one GPU, and a second entry raises
   `HandoffInProgressError`.
+- `ResidencyReporter` (same module) provides `residency() -> ResidencyReport` (ADR-0030
+  decision 6): what the GPU is serving right now, for the seam's `Health` to answer with.
+  Segregated from `ResidencyController` for the opposite reason that port is segregated from
+  `ModelManager`: its holder is a readiness RPC that must only ever **look**, so it cannot reach
+  a swap through the dependency it is given. **Synchronous and free of I/O by contract**, which
+  is the point of the port rather than an implementation detail: a probe arrives every few
+  seconds precisely while a swap is in flight, and one that queued behind the GPU lease would
+  hang for the whole load (minutes at tier scale) at exactly the moment the honest answer
+  matters. An implementation publishes residency as it changes and answers from that cache; it
+  never asks a model host and never waits on a lock a swap can hold.
+- `ResidencyReport(serving: bool, detail: str)` and the five values a swap publishes live in
+  `residency_state.py`: `RESIDENCY_SERVING` (the standing residency, `detail` empty, what a
+  fresh manager reports), `RESIDENCY_LOADING` (the swap in, eviction included, nothing serving),
+  `RESIDENCY_DEEP` (the deep model resident and working), `RESIDENCY_RESTORING` (the swap back),
+  and `RESIDENCY_LOST` (a restore that gave up: the GPU serves nothing until boot recovery runs
+  again). All app-authored like `swap_notes.py`, and kept apart from it because a `StatusUpdate`
+  is progress on one turn while a report answers a probe any client may make between turns. The
+  **drain** is deliberately `RESIDENCY_SERVING`: the cortex is resident and answering turns
+  while delegated work quiesces, so not-ready is keyed on something actually being unloaded.
 - Same port, `handoff_claim() -> AbstractAsyncContextManager[None]`: the one-GPU-one-handoff
   rule taken **before** anything is drained or evicted. Entering claims the whole swap sequence
   for its block or raises `HandoffInProgressError` at once (refuse, never queue). The check and
@@ -1226,7 +1245,8 @@ Reference implementations (pure, shipped in core; the runtime wiring until Slice
   same port. Still the wiring for a deployment that never escalates.
 - `SwappingModelManager(host, endpoints, plan, clock, sleeper)` is `ModelManager` v2
   (ADR-0030 decision 5), in `residency.py`: still pure policy with no I/O of its own, it
-  implements the unchanged lease port AND `ResidencyController`. `acquire` keeps v1's
+  implements the unchanged lease port AND `ResidencyController` AND `ResidencyReporter`.
+  `acquire` keeps v1's
   one-lock-per-GPU discipline over `endpoints` (logical id to base URL, composition-root
   config); `handoff_claim()` claims the whole swap sequence non-blockingly (a second holder
   raises `HandoffInProgressError` with nothing touched), and `swap_scope(model)` claims the one
@@ -1244,11 +1264,17 @@ Reference implementations (pure, shipped in core; the runtime wiring until Slice
   second, which would return the scope while the cortex was still stopped and let the conductor
   reopen subagent admission onto it. Why a scope rather than a swapping `acquire`: the brain's tool
   loop re-acquires once per round, so a swapping `acquire` would thrash minutes each way
-  whenever a queued cortex turn interleaved. The two host-facing moves themselves (evict and
-  start; stop and restore the standing residency) live in `residency_moves.py`, split off for
+  whenever a queued cortex turn interleaved. `residency()` answers the `ResidencyReport` above
+  from a cache one setter publishes with the resident itself, under the same condition and with
+  nothing awaited between the two writes, so the seam's answer and the lease's own view of the
+  GPU cannot drift; a swap in and a swap back both leave nothing resident, which is why the
+  direction is published rather than inferred. The two host-facing moves themselves (evict and
+  start; stop and restore the standing residency) live in `residency_moves.py`, and the swap
+  back's uninterruptible wait in `residency_restore.py`, both split off for
   the line cap along the seam the manager already draws: it owns *when* and *who may*, they own
-  *what the host is asked to do*, with opposite failure directions (the swap in raises
-  `SwapFailedError`, the restore answers a bool because its caller retries it).
+  *what the host is asked to do* and *what a cancellation may not abandon*, with opposite failure
+  directions (the swap in raises `SwapFailedError`, the restore answers a bool because its caller
+  retries it).
 - `ScriptedModelHost(*, running=(), status_override=None, fail=None, fail_once=None,
   pause_at=())` is the `ModelHost` twin (ADR-0030 decision 3, in `fakes_model_host.py`): a set
   of running models plus exactly the scripting the swap's named failure modes need.
