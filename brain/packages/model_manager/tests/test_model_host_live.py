@@ -13,6 +13,7 @@ from cortex_core import (
     AsyncioSleeper,
     ModelHostState,
     ResidencyPlan,
+    SwappingModelManager,
     await_model_ready,
 )
 from cortex_model_manager import (
@@ -29,6 +30,9 @@ _MODEL = "stand-in"
 _GRACE_S = 0.5
 # How long the trapping shell gets to arm itself before the test gives up rather than hanging.
 _ARM_TIMEOUT_S = 5.0
+# The control plane's own deadline, matching the brain's CORTEX_MODELHOST_TIMEOUT_S default: a stop
+# answers only once the child is reaped, so this must clear the sidecar's grace plus reap bounds.
+_CONTROL_TIMEOUT_S = 60.0
 
 
 class _SystemClock:
@@ -103,7 +107,7 @@ async def test_the_real_adapter_starts_health_gates_and_stops_a_real_model() -> 
     if not endpoint:
         pytest.skip("set CORTEX_MODELHOST_ENDPOINT to a running model-host sidecar")
     model = os.environ.get("CORTEX_MODELHOST_LIVE_MODEL", "cortex")
-    client = httpx.AsyncClient(timeout=httpx.Timeout(30.0))
+    client = httpx.AsyncClient(timeout=httpx.Timeout(_CONTROL_TIMEOUT_S))
     host = HttpModelHost(endpoint, client)
     plan = ResidencyPlan(cortex_model=model, brain_model=model, load_timeout_s=300.0)
     try:
@@ -120,4 +124,40 @@ async def test_the_real_adapter_starts_health_gates_and_stops_a_real_model() -> 
         # Leave the tier this ran against loaded, which is the sidecar's boot default when the
         # model is the standing resident (the default) and is the caller's to undo when it is not.
         await host.start(model)
+        await client.aclose()
+
+
+@pytest.mark.integration
+async def test_a_residency_scope_really_evicts_one_model_and_loads_another() -> None:
+    """The swap, over real weights: the closest thing to a handoff that fits the dev GPU."""
+    endpoint = os.environ.get("CORTEX_MODELHOST_ENDPOINT")
+    if not endpoint:
+        pytest.skip("set CORTEX_MODELHOST_ENDPOINT to a running model-host sidecar")
+    standing = os.environ.get("CORTEX_MODEL_CORTEX", "cortex")
+    deep = os.environ.get("CORTEX_MODEL_BRAIN", "brain")
+    client = httpx.AsyncClient(timeout=httpx.Timeout(_CONTROL_TIMEOUT_S))
+    host = HttpModelHost(endpoint, client)
+    plan = ResidencyPlan(cortex_model=standing, brain_model=deep, load_timeout_s=300.0)
+    manager = SwappingModelManager(
+        host,
+        {standing: "http://127.0.0.1:8080", deep: "http://127.0.0.1:8081"},
+        plan,
+        _SystemClock(),
+        AsyncioSleeper(),
+    )
+    try:
+        if await host.status(deep) is ModelHostState.FAILED:
+            pytest.skip(f"the deep tier {deep!r} is not hosted (no artifact named for it)")
+        await host.start(standing)
+        async with manager.swap_scope(deep):
+            # The gate inside swap_scope already waited for READY; what is asserted here is the
+            # eviction half, which nothing else would catch: a swap that loaded the deep model
+            # without stopping the standing one would leave both processes alive.
+            assert await host.status(deep) is ModelHostState.READY
+            assert await host.status(standing) is ModelHostState.STOPPED
+            async with manager.acquire(deep) as lease:
+                assert lease.endpoint == "http://127.0.0.1:8081"
+        assert await host.status(standing) is ModelHostState.READY
+        assert await host.status(deep) is ModelHostState.STOPPED
+    finally:
         await client.aclose()

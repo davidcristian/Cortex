@@ -86,6 +86,7 @@ Every number is one observation on this card, not a benchmark.
 | load | `POST /models/brain/start` | answered in **0.007 s**, which is a spawn and not a load; `loading` immediately after |
 | health gate | poll `GET /models/brain` | `ready` **18.0 s** after the start; `/v1/models` on 8081 named the 2B path; exactly one `llama-server` in `ps`; cortex still `stopped`; VRAM 3952 MiB |
 | swap back | `POST /models/brain/stop` then `POST /models/cortex/start` | stop answered in **0.10 s**; cortex `ready` **11.3 s** later, serving the 0.8B path again; deep tier `stopped` |
+| the scope | `SwappingModelManager.swap_scope(deep)` over the real adapter (`just brain-modelhost-live`) | inside the scope the deep tier was READY and the standing one STOPPED, and the endpoint the lease handed out was the deep tier's; after it, the reverse. Deleting the eviction from `swap_in` reddens it with both tiers READY at once |
 | end to end | one `Converse` turn through the brain container | `Health` ready, `text_delta`s, `turn_complete`; the reply came off the supervised child over `http://model-host:8080` |
 
 Tier scale will be minutes rather than seconds on both halves: an 18 GB GGUF off the model mount at
