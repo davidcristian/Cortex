@@ -149,8 +149,12 @@ class BrainService(SessionRpcMixin, BrainServiceServicer):
     ) -> AsyncGenerator[ServerEvent, None]:
         """Stream the conversation loop; contract and cancel semantics: `converse.py`.
 
-        `UserTurn.images` are ignored in this slice (multimodal arrives with vision,
-        Slice 10). Failures surface as a terminal SeamError event, never as an RPC error.
+        `UserTurn.images` are still ignored. The vision slice (ADR-0029) gave the cortex eyes
+        through a model-initiated capture instead, and deliberately left the **user-attached**
+        image path out: it is a different seam, a different limit, and the first path where
+        Cortex would decode a foreign image. Recorded as a deferral
+        (`docs/refinements/vision.md`), not as a promise about the next slice. Failures surface
+        as a terminal SeamError event, never as an RPC error.
         """
         del context  # RPC cancellation/disconnect arrive as generator close, not via context
         events = converse(

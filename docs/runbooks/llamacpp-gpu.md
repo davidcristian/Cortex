@@ -23,6 +23,7 @@ design, AGENTS.md gate 3).
 |---|---|---|
 | `CORTEX_MODELS_DIR` | host dir holding the GGUFs, mounted read-only | `./models` |
 | `CORTEX_MODEL_FILE_CORTEX` | cortex GGUF path **relative to that dir** (LM Studio nests it under `publisher/repo/`); default is the gemma-4-12B pick | `google/gemma-4-12B-it-qat-q4_0-gguf/gemma-4-12b-it-qat-q4_0.gguf` |
+| `CORTEX_MMPROJ_FILE_CORTEX` | the multimodal projector, relative to the same dir. Setting it adds llama.cpp's `--mmproj` pair to the cortex tier's argv, which is what makes `GET /props` report `modalities.vision` and therefore what makes the brain advertise `capture_screen` (ADR-0029). Empty (the default) starts text-only. See `docs/runbooks/vision.md` | `google/gemma-4-12B-it-qat-q4_0-gguf/mmproj-gemma-4-12b-it-qat-q4_0.gguf` |
 | `CORTEX_CTX_SIZE` | context window (KV size); **set it**. The model default (262144) alone eats ~8 GB | `16384` |
 | `CORTEX_NGL` | GPU layers to offload: `99` = all, `0` = CPU-only, partial = hybrid (ADR-0004 addendum) | `99` |
 
