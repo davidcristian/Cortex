@@ -39,7 +39,7 @@ Four routes and no more:
 
 | Route | Meaning |
 |---|---|
-| `GET /health` | the daemon is up, plus the roster it serves (`{"status": "ok", "models": [...]}`). The compose healthcheck and an operator's first question. |
+| `GET /health` | the daemon is up, the roster it serves, and the stop bounds it was wired with (`{"status": "ok", "models": [...], "stop_grace_s": 10.0, "reap_timeout_s": 30.0}`). An operator's first question, and the only way to read what a running daemon actually got, since the pairing rule below is enforced nowhere. |
 | `GET /models/{id}` | `{"model", "state", "detail"}`, `state` being `stopped`/`loading`/`ready`/`failed`. |
 | `POST /models/{id}/start` | begin loading it (idempotent), answering the state it left behind. |
 | `POST /models/{id}/stop` | end it, returning once the child is reaped (idempotent). |
@@ -50,12 +50,16 @@ An id outside the roster is **404**; a supervisor failure is **503**. Both becom
 **The supervisor.** `ModelSupervisor(roster, processes, probe, *, stop_grace_s, reap_timeout_s)`
 over the two seams `ChildProcesses` (`spawn(argv) -> ChildProcess`) and `HealthProbe`
 (`serving(url) -> bool`), with `AsyncioChildProcesses` and `HttpHealthProbe` as the real adapters
-and `ModelStatus(model, state, detail)` as its answer. `stop_all()` is the shutdown sweep.
+and `ModelStatus(model, state, detail)` as its answer. `stop_all()` is the shutdown sweep, and
+`stop_bounds` is the `StopBounds(stop_grace_s, reap_timeout_s)` it was wired with, which `GET
+/health` reports.
 
 **The roster.** `ModelHostConfig` (env-only) builds `TierArgs` values, `tier_spec` turns each into
 a `ModelSpec(model, port, argv)` via `llama_server_argv`, and `build_roster` indexes them.
-`RosterError` is a boot-time misconfiguration. `build_model_host(config)` is the composition root
-and `main()` serves it (`python -m cortex_model_manager`).
+`RosterError` is a boot-time misconfiguration. `build_supervisor(config)` wires the supervisor and
+the probe client it owns (the three timing knobs are read off those two objects by a gated test,
+because nothing else in the process observes them), `build_model_host(config)` is the composition
+root, and `main()` serves it (`python -m cortex_model_manager`).
 
 ## Invariants
 

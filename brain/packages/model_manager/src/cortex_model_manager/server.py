@@ -25,20 +25,31 @@ from cortex_model_manager.supervisor import ModelSupervisor
 _logger = logging.getLogger(__name__)
 
 
-def build_model_host(config: ModelHostConfig) -> Starlette:
-    """The ASGI app for this deployment's roster, with the probe's client closed on shutdown."""
-    roster = config.roster()
+def build_supervisor(config: ModelHostConfig) -> tuple[ModelSupervisor, httpx.AsyncClient]:
+    """The supervisor and the probe client it reads readiness through, both wired from env.
+
+    Split out of ``build_model_host`` so all three timing knobs are readable off the objects that
+    were handed them: nothing else in this process observes them, so a knob dropped here would
+    silently change how long an eviction may take by tens of seconds while the runbook's pairing
+    rule went on being reasoned about the configured numbers.
+    """
     client = httpx.AsyncClient(timeout=httpx.Timeout(config.probe_timeout_s))
     supervisor = ModelSupervisor(
-        roster,
+        config.roster(),
         AsyncioChildProcesses(),
         HttpHealthProbe(client),
         stop_grace_s=config.stop_grace_s,
         reap_timeout_s=config.reap_timeout_s,
     )
+    return supervisor, client
+
+
+def build_model_host(config: ModelHostConfig) -> Starlette:
+    """The ASGI app for this deployment's roster, with the probe's client closed on shutdown."""
+    supervisor, client = build_supervisor(config)
     _logger.info(
         "model host configured",
-        extra={"models": list(roster), "boot_model": config.cortex_model},
+        extra={"models": list(supervisor.models), "boot_model": config.cortex_model},
     )
     return build_app(supervisor, boot_model=config.cortex_model, close=client.aclose)
 
