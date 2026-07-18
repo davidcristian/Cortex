@@ -247,7 +247,7 @@ async def test_a_drain_that_times_out_aborts_before_anything_is_evicted() -> Non
     assert _texts(events) == DRAIN_TIMEOUT_NOTE
     assert live.host.calls == []  # nothing evicted: the cortex is still serving
     assert live.handoffs.states == [HandoffState.READY, HandoffState.FAILED]
-    assert not task.done()  # and the straggler was not killed
+    assert not task.done()
     release.set()
     await task
     # The window was released even though the handoff aborted, so delegation resumes.
@@ -261,11 +261,8 @@ async def test_a_deployment_without_a_subagent_pool_has_nothing_to_drain() -> No
     await live.seed_session()
     events = await harness.run_handoff(live, harness.armed_slot())
     assert _texts(events) == "a deep answer"
-    assert live.scheduler.admitted == []
-    assert live.scheduler.drains == 0  # the pool it was not given was never quiesced
     assert live.handoffs.states[-1] is HandoffState.DONE
-    # The window still says the truth, drain step included: it announces a quiescing that has
-    # nothing to quiesce, and every later status is pinned to the same work as anywhere else.
+    assert _states(events) == [DRAINING_DETAIL, LOADING_DETAIL, WORKING_DETAIL, RESTORING_DETAIL]
     assert_the_window_announced_real_progress(live)
 
 

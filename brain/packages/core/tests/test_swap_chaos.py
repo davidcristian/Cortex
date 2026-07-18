@@ -431,11 +431,14 @@ async def test_the_mid_drain_kill_lands_while_the_pool_is_actually_quiescing() -
     events: list[TurnEvent] = []
     task = asyncio.create_task(_consume(live, events))
     await gate.arrived()
+    assert scheduler.straggler is not None  # the premise, restated so the boundary cannot
+    assert not scheduler.straggler.done()  # degrade unnoticed into a drained-pool pause
     assert scheduler.draining is True  # the refusal window is open
     with pytest.raises(SubagentAdmissionError):
         await _admit(live)
-    assert scheduler.straggler is not None
-    assert not scheduler.straggler.done()  # and work really is still in flight
+    # And the pool was touched only once the handoff was safe to abandon: the record is written
+    # and READY before the drain begins, so a kill here costs a handoff and nothing else.
+    assert live.handoffs.states == [HandoffState.READY]
     assert live.host.calls == []  # while nothing at all has been evicted
     task.cancel()
     gate.release.set()
