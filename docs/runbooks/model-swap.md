@@ -103,6 +103,8 @@ Every number is one observation on this card, not a benchmark.
 | health gate | poll `GET /models/brain` | `ready` **18.0 s** after the start; `/v1/models` on 8081 named the 2B path; exactly one `llama-server` in `ps`; cortex still `stopped`; VRAM 3952 MiB |
 | swap back | `POST /models/brain/stop` then `POST /models/cortex/start` | stop answered in **0.10 s** with the child idle; cortex `ready` **11.3 s** later, serving the 0.8B path again; deep tier `stopped` |
 | the scope | `SwappingModelManager.swap_scope(deep)` over the real adapter (`just brain-modelhost-live`) | inside the scope the deep tier was READY and the standing one STOPPED, and the endpoint the lease handed out was the deep tier's; after it, the reverse. Deleting the eviction from `swap_in` reddens it with both tiers READY at once |
+| what the seam would say | `manager.residency()` read at those same instants | "a deep task is in progress" inside the scope, the serving report before and after, checked against the sidecar's own reads rather than beside them. A report that always claims serving reddens it |
+| the brain's own healthcheck | `docker inspect cortex-brain-1` after the predicate change | **healthy**; the same command against a port with no server exits 1, so the check still catches the broken gRPC server it exists for |
 | end to end | one `Converse` turn through the brain container | `Health` ready, `text_delta`s, `turn_complete`; the reply came off the supervised child over `http://model-host:8080` |
 
 Tier scale will be minutes rather than seconds on both halves: an 18 GB GGUF off the model mount at
@@ -208,7 +210,17 @@ stranded record `FAILED` and escalation works again.
    which a tier-scale load can exceed. Anything that gates on health (`up -d --wait`, a monitor)
    must therefore not be pointed at a handoff window. Measured on the dev GPU with the small
    stand-ins: cortex stopped and the deep tier READY reads **healthy**; both stopped, or the deep
-   tier still loading, reads unhealthy. Logs for either:
+   tier still loading, reads unhealthy.
+
+   `brain` is different, and deliberately: its check asks only that the `Health` RPC **answered**,
+   not that the reply says ready. Since `Health` earned an honest readiness it answers
+   `ready=false` for the whole swap window and for good after a restore that gave up, and a
+   container that read unhealthy then would send you to fix a machine that is working. So a red
+   `brain` means the gRPC server is broken or the process is gone, never that a handoff is
+   running. **Residency is read from the overlay's connection dot** (amber, with the brain's own
+   line: "swapping to the deep model", "a deep task is in progress", "bringing the usual
+   assistant back", or "could not be reloaded after a deep task"), or from the logs below.
+   Logs for either:
    `docker compose logs model-host` (the daemon and every child, interleaved, each daemon line
    naming its tier and pid) or `docker compose logs brain`. Which tier is up, precisely:
 
@@ -248,6 +260,11 @@ stranded record `FAILED` and escalation works again.
    That is what clears both the dead residency state and a record that would otherwise refuse
    the next handoff. Conversation state lives in redis, so the restart loses no chat (the same
    check [local-dev-wsl.md](local-dev-wsl.md) documents).
+
+   **This step is not optional once a restore has given up.** The brain's residency is in-process
+   bookkeeping the swap publishes, so a manager that stopped trying goes on answering `Health`
+   with "the usual assistant could not be reloaded" (an amber dot) even after step 2 put the
+   cortex back by hand. Restarting is what re-reads the machine; nothing else does.
 
 4. **Confirm.** Run one ordinary turn. It must answer normally; escalation is only worth
    retrying after that.

@@ -2,6 +2,24 @@
 
 Converse behavior lives in test_converse.py (unit) and test_converse_grpc.py (wire);
 this file covers Health, binding, and graceful shutdown.
+
+The Health cases below run against a **real** ``SwappingModelManager`` driven through a real
+residency scope over the scripted host, never a stand-in reporter: a fake would answer whatever
+this file handed it, which would constrain nothing about what the seam publishes.
+
+Distrust-green proofs (each mutation applied to production code alone with the whole brain
+workspace re-run, then restored, so the counts are measured rather than aimed at):
+- answering ``ready=True`` unconditionally again (dropping the report branch in ``Health``)
+  reddens 3 and nothing else: ``test_health_reports_the_swap_window_it_is_in``,
+  ``test_health_answers_while_a_stalled_swap_holds_the_gpu``, and
+  ``test_health_tells_the_truth_about_residency_through_the_whole_wiring`` in test_swap_wiring.py;
+- reading the manager's own ``_resident`` instead of the report it publishes (the wrong source:
+  it calls the deep model "serving") reddens 5, the first and third of those plus three cases in
+  the core's test_residency.py. It does not reach the stalled-load case, nothing being resident
+  there either way;
+- making the report a coroutine that takes the GPU lease fails
+  ``test_health_answers_while_a_stalled_swap_holds_the_gpu`` with ``TimeoutError`` rather than
+  hanging the suite, which is the point of bounding the RPC there.
 """
 
 import asyncio
@@ -14,7 +32,18 @@ from typing import cast
 import pytest
 from grpc import aio
 
-from cortex_core import EchoInferenceBackend, InMemorySessionStore, SystemClock, TurnEngine
+from cortex_core import (
+    RESIDENCY_DEEP,
+    RESIDENCY_LOADING,
+    AsyncioSleeper,
+    EchoInferenceBackend,
+    InMemorySessionStore,
+    ResidencyPlan,
+    ScriptedModelHost,
+    SwappingModelManager,
+    SystemClock,
+    TurnEngine,
+)
 from cortex_orchestrator import (
     ORCHESTRATOR_VERSION,
     EngineFactory,
@@ -56,10 +85,79 @@ async def running_server() -> AsyncIterator[str]:
 
 
 async def test_health_reports_ready_with_version(running_server: str) -> None:
+    """With escalation off there is no residency to read, so readiness is unconditional."""
     async with aio.insecure_channel(running_server) as channel:
         reply = await _health(BrainServiceStub(channel))
     assert reply.ready is True
     assert reply.detail == f"cortex-orchestrator {ORCHESTRATOR_VERSION}"
+
+
+def _swapping_manager(host: ScriptedModelHost) -> SwappingModelManager:
+    """A real ModelManager v2 over the scripted host: the reporter production wires into Health."""
+    return SwappingModelManager(
+        host,
+        {"cortex": "http://llama-cortex:8080", "brain": "http://llama-brain:8081"},
+        ResidencyPlan(cortex_model="cortex", brain_model="brain"),
+        SystemClock(),
+        AsyncioSleeper(),
+    )
+
+
+async def _serving(manager: SwappingModelManager) -> tuple[aio.Server, str]:
+    """A bound server whose Health reads this manager, exactly as the composition root wires it."""
+    server, port = create_server(
+        SeamServerConfig(host="127.0.0.1", port=0), *_engine_and_store(), residency=manager
+    )
+    await server.start()
+    return server, f"127.0.0.1:{port}"
+
+
+async def test_health_reports_the_swap_window_it_is_in() -> None:
+    """Not-ready between turns in the residency's own words, and green again after the swap back."""
+    manager = _swapping_manager(ScriptedModelHost(running=["cortex"]))
+    server, address = await _serving(manager)
+    try:
+        async with aio.insecure_channel(address) as channel:
+            stub = BrainServiceStub(channel)
+            assert (await _health(stub)).ready is True
+            async with manager.swap_scope("brain"):
+                deep = await _health(stub)
+            restored = await _health(stub)
+        assert deep.ready is False
+        assert deep.detail == RESIDENCY_DEEP.detail
+        assert restored.ready is True
+        assert restored.detail == f"cortex-orchestrator {ORCHESTRATOR_VERSION}"
+    finally:
+        await server.stop(grace=None)
+
+
+async def test_health_answers_while_a_stalled_swap_holds_the_gpu() -> None:
+    """The probe must not queue behind the load it is reporting on (ADR-0030 decision 6).
+
+    The swap is paused inside the host's ``start``, which is where the manager holds the GPU
+    lease across the whole move, minutes at tier scale. The RPC is bounded, so a Health that
+    waited on that lease fails this case on its own timeout instead of hanging the suite.
+    """
+    host = ScriptedModelHost(running=["cortex"], pause_at=[("start", "brain")])
+    manager = _swapping_manager(host)
+    server, address = await _serving(manager)
+    scope = asyncio.create_task(_hold_scope(manager))
+    try:
+        async with asyncio.timeout(10.0):
+            await host.reached[("start", "brain")].wait()
+        async with aio.insecure_channel(address) as channel:
+            reply = await asyncio.wait_for(_health(BrainServiceStub(channel)), timeout=5.0)
+        assert reply.ready is False
+        assert reply.detail == RESIDENCY_LOADING.detail
+    finally:
+        host.release[("start", "brain")].set()
+        await scope
+        await server.stop(grace=None)
+
+
+async def _hold_scope(manager: SwappingModelManager) -> None:
+    async with manager.swap_scope("brain"):
+        pass
 
 
 async def test_create_server_binds_the_configured_port() -> None:

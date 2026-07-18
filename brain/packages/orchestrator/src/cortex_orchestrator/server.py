@@ -10,11 +10,13 @@ import asyncio
 import logging
 import signal
 from collections.abc import AsyncGenerator, AsyncIterator
+from dataclasses import dataclass
 
 import grpc
 from grpc import aio
 
 from cortex_core import (
+    ResidencyReporter,
     ScheduleStore,
     ScheduleStoreError,
     SessionMemoryCascade,
@@ -59,9 +61,32 @@ __all__ = [
     "MAX_SESSION_LIST_LIMIT",
     "ORCHESTRATOR_VERSION",
     "BrainService",
+    "SeamPorts",
     "create_server",
     "serve",
 ]
+
+
+@dataclass(frozen=True, slots=True)
+class SeamPorts:
+    """The optional ports the seam serves *beyond* a turn, bundled as one dependency.
+
+    Each is `None` when its capability is off, which is the shipped default for all three:
+    `schedules` (ADR-0025) backs the reminder pull RPCs, `memory_cascade` is what
+    `DeleteSession` forgets a chat's private memories through, and `residency` (ADR-0030) is
+    what makes `Health` honest while a model handoff holds the GPU. Bundled rather than passed
+    one by one because the dependency ceiling is a design rule (ruff.toml): optional
+    collaborators travel together, exactly as `TurnCapabilities` does for a turn.
+    """
+
+    schedules: ScheduleStore | None = None
+    memory_cascade: SessionMemoryCascade | None = None
+    residency: ResidencyReporter | None = None
+
+
+# The "nothing beyond a turn" bundle, shared because it is frozen: the default for a service
+# built with no optional capability at all (every seam test that only converses).
+_NO_SEAM_PORTS = SeamPorts()
 
 
 class BrainService(SessionRpcMixin, BrainServiceServicer):
@@ -81,15 +106,15 @@ class BrainService(SessionRpcMixin, BrainServiceServicer):
         make_engine: EngineFactory,
         store: SessionStore,
         *,
-        schedules: ScheduleStore | None = None,
-        memory_cascade: SessionMemoryCascade | None = None,
+        ports: SeamPorts = _NO_SEAM_PORTS,
         max_buffered_events: int = DEFAULT_MAX_BUFFERED_EVENTS,
         confirm_timeout_s: float = DEFAULT_CONFIRM_TIMEOUT_S,
     ) -> None:
         self._make_engine = make_engine
         self._store = store
-        self._schedules = schedules
-        self._memory_cascade = memory_cascade
+        self._schedules = ports.schedules
+        self._memory_cascade = ports.memory_cascade
+        self._residency = ports.residency
         self._max_buffered_events = max_buffered_events
         self._confirm_timeout_s = confirm_timeout_s
 
@@ -98,8 +123,23 @@ class BrainService(SessionRpcMixin, BrainServiceServicer):
         request: HealthRequest,
         context: aio.ServicerContext[HealthRequest, HealthReply],
     ) -> HealthReply:
-        """Report readiness so the overlay can display connection state."""
+        """Report readiness so the overlay can display connection state.
+
+        Honest about a model handoff (ADR-0030 decision 6): while the GPU is being handed to the
+        deep model, working under it, or being handed back, the brain is up and **not serving
+        turns**, so this answers `ready=false` with the residency's own app-authored detail and
+        the overlay's indicator reads amber with that line. A handoff's drain is deliberately
+        still ready: the cortex is resident and answering throughout it.
+
+        The read is synchronous and lock-free by the port's contract, because a probe must not
+        queue behind the swap it is reporting on. With no residency wired (escalation off, the
+        default) nothing can make the brain not-ready and the answer is the unconditional ready
+        it has always been.
+        """
         del request, context  # part of the generated servicer signature; unused here
+        report = None if self._residency is None else self._residency.residency()
+        if report is not None and not report.serving:
+            return HealthReply(ready=False, detail=report.detail)
         return HealthReply(ready=True, detail=f"cortex-orchestrator {ORCHESTRATOR_VERSION}")
 
     async def Converse(  # noqa: N802 - method name is fixed by the gRPC codegen interface
@@ -162,13 +202,16 @@ def create_server(
     *,
     schedules: ScheduleStore | None = None,
     memory_cascade: SessionMemoryCascade | None = None,
+    residency: ResidencyReporter | None = None,
 ) -> tuple[aio.Server, int]:
     """Build the aio server over `make_engine`/`store` and bind it (not started).
 
     `store` is the same session store the engines write, injected so the read-only session
     RPCs (ADR-0021) serve it directly; `schedules` (ADR-0025, None when scheduling is off)
     backs the reminder pull RPCs the same way. `memory_cascade` (None when memory is off) lets
-    `DeleteSession` forget a deleted chat's private memories. With `config.token` set, a
+    `DeleteSession` forget a deleted chat's private memories. `residency` (None when escalation
+    is off) is what makes `Health` honest during a model handoff (ADR-0030). With `config.token`
+    set, a
     `SeamTokenInterceptor` fronts every RPC (ADR-0016), the shared-secret half of assumption 5's
     posture; empty disables it. Returns the server plus the actually-bound port (config.port 0).
     """
@@ -177,8 +220,7 @@ def create_server(
     service = BrainService(
         make_engine,
         store,
-        schedules=schedules,
-        memory_cascade=memory_cascade,
+        ports=SeamPorts(schedules=schedules, memory_cascade=memory_cascade, residency=residency),
         max_buffered_events=config.converse_buffer,
         confirm_timeout_s=config.confirm_timeout_s,
     )
@@ -194,6 +236,7 @@ async def serve(
     *,
     schedules: ScheduleStore | None = None,
     memory_cascade: SessionMemoryCascade | None = None,
+    residency: ResidencyReporter | None = None,
 ) -> None:
     """Run the seam server until SIGTERM/SIGINT or cancellation; always stop gracefully.
 
@@ -202,7 +245,12 @@ async def serve(
     RPCs for up to the shutdown grace period before the listener closes.
     """
     server, bound_port = create_server(
-        config, make_engine, store, schedules=schedules, memory_cascade=memory_cascade
+        config,
+        make_engine,
+        store,
+        schedules=schedules,
+        memory_cascade=memory_cascade,
+        residency=residency,
     )
     await server.start()
     _logger.info("seam server listening", extra={"host": config.host, "port": bound_port})
