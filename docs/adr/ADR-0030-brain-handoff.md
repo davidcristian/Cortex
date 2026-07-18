@@ -1039,7 +1039,8 @@ running it is what found it; the child now writes a marker when it is armed and 
 that, under a timeout so a poll cannot become a hang.
 
 What remains of decision 9: the honesty surfaces (item 6) and the host-side capstone (item 7,
-which now also owns the tier-scale swap, its chaos kill, and the deep-model pick).
+which now also owns the tier-scale swap, its chaos kill, and the deep-model pick). The first of
+those landed later the same day; the last addendum below is what it decided.
 
 ## Addendum (2026-07-18): the audit round on the real model host, and what it corrected
 
@@ -1135,3 +1136,92 @@ named the real process lifecycle as outstanding and the swap's mechanism as vali
 fakes. The subagents override and its runbook still called the GPU sidecar and the cgroup caps
 pending, in the file that carries those caps. None of that changes a decision; all of it was a
 reader being told the opposite of the tree.
+
+## Addendum (2026-07-18): `Health` tells the truth about residency, and the last producer is whole
+
+Decision 9 item 6's remaining half has landed: the servicer answers `ready=false` with a truthful
+detail whenever the standing residency is not serving. The swapping `StatusUpdate`s landed with the
+conductor (the slicing correction two addenda above), so the honesty surfaces are now complete and
+**the overlay was not touched**, exactly as decision 6 says: the landed indicator classifies a
+not-ready reply as amber `Degraded`, shows the brain's own line verbatim, and its
+visible-and-unhealthy recheck turns it green again on its own. No proto change either;
+`HealthReply` has carried `ready` and `detail` since the first proto commit. **Tier scale is still
+not validated and cannot be here**, for the reason every addendum above gives.
+
+**The source of truth is the manager's own published residency, and the alternatives lose for
+reasons worth keeping.** The `HandoffStore` record survives a restart, which this does not, but it
+answers a different question: it is live through the drain, while the cortex is still resident and
+still answering turns, so a probe reading it would call a working machine not-ready. It is also
+Redis I/O on a probe that arrives every 5 s while a swap runs, and it is already the conductor's
+own precondition, so reading it here would make two answers to one question. `ModelHost.status` is
+ground truth and restart-proof, and it is the worst of the three for this: it is an HTTP call per
+probe into the supervisor's per-model lock, measured at up to 5.80 s under contention against a
+5 s recheck. So the report is in-process, published by the one object that changes residency, and
+its staleness is recorded rather than hidden (below).
+
+**Five decisions this ADR left open, made here.**
+
+- **The direction of a swap is published, not inferred.** Decision 6 names three details, but a
+  swap in and a swap back both leave nothing resident, so no reading of `_resident` can tell them
+  apart. `_set_resident` therefore writes the resident and a `ResidencyReport` together, under the
+  same condition and with nothing awaited between them, and the five values are the states a swap
+  can actually be in: serving, loading the deep model (eviction included, nothing serving for
+  either), the deep task in progress, bringing the usual assistant back, and one this ADR's
+  decision 4 step 3 demanded but never named, a restore that **gave up**. That last one is why the
+  report is not merely three strings: without it the manager would go on announcing a restore that
+  stopped happening, which is the one lie the honesty surface exists to prevent. That also retires
+  the conductor addendum's "the loud log alone for now": step 3 now surfaces both halves.
+- **The drain window stays ready.** Decision 6 keys not-ready on the cortex not serving, and
+  through the drain it is resident and leasable; the claim is taken before anything is unloaded.
+  So the dot is green while the stream's own "pausing delegated work" chip is showing. That
+  asymmetry is deliberate and pinned by a test, because it looks like a bug to anyone who assumes
+  a handoff and a not-ready brain are the same window.
+- **The reader is a port, not the concrete manager.** `ResidencyReporter` (`residency()`) joins
+  `ModelHost` and `ResidencyController` in `ports_models.py`, segregated for the opposite reason
+  the controller is: its holder is a readiness RPC that must only ever look, so it cannot reach a
+  swap through what it is given. It is **synchronous by contract**, and that is the port's whole
+  content: a coroutine that took the GPU lease would hang the indicator for the entire load, which
+  is precisely when the honest answer matters, so the signature makes that unrepresentable rather
+  than merely discouraged. The strings live beside the value in `residency_state.py` rather than in
+  `swap_notes.py`, whose stated scope is the escalating turn's own stream: a `StatusUpdate` is
+  progress on one turn, while a report answers a probe any client may make between turns.
+- **The ready detail is unchanged** (`cortex-orchestrator <version>`), so nothing that asserts it
+  moved, and the brain's optional residency is `None` with escalation off, where the plain manager
+  holds no residency state and readiness stays unconditional.
+- **The brain container's compose healthcheck now asserts that the RPC answered, not that the
+  reply says ready.** An honest `ready=false` under the old predicate would have marked the
+  container unhealthy after about 90 s of any handoff and permanently after a failed restore,
+  which is the identical defect the model-host check was corrected for on this same slice, and the
+  runbook's own step 1 told the operator both containers should read healthy. The check's purpose
+  is catching a broken gRPC server, which a successful reply of either kind disproves. Verified
+  live on the dev GPU: the real container reads healthy under the new predicate, and the same
+  command against a port with no server exits 1. What that costs is real and recorded: a
+  permanently not-ready brain (a restore that gave up) no longer shows in `docker compose ps`, so
+  the runbook now points at the overlay's dot and the logs for residency, which is where it
+  belongs. Nothing in compose gates on `brain` being healthy, so no automated behaviour changed.
+
+**What this deliberately did not build, and the two entries that were about to imply otherwise.**
+The state is one report about what the GPU is serving. It carries no per-tier health and no
+staleness generation, so neither **admission reopening onto a tier that would not restart**
+(resource-governance.md) nor **reconverging the brain's residency when the sidecar restarts under
+it** (inference-model-manager.md) is closed by it; both entries said the fix wanted "the residency
+state the honesty-surfaces sub-slice introduces", and both now say what actually landed instead.
+The second gained a sibling case with the same fix: after a restore that gave up, an operator who
+brings the cortex back by hand leaves the report saying it could not be reloaded until the brain
+restarts, which is the one place the honest answer can outlive the truth. It is accepted rather
+than papered over, because boot recovery is what re-reads the machine and the runbook's manual
+recovery already ends by restarting the brain; the runbook now says why that step is not optional.
+
+**What the gate holds, proven by mutation** (each applied to production code alone with the whole
+brain workspace re-run): answering ready unconditionally again reddens three cases and nothing
+else, two at the seam and one through the whole composition root; reading `_resident` instead of
+the published report reddens five; dropping the give-up report reddens one; dropping `residency=`
+from the root's `serve` call reddens exactly the wiring case, which is what keeps the knob from
+being silently droppable; publishing not-ready at the claim reddens the drain-window case; and
+making the report a coroutine that takes the lease fails the stalled-swap case by its own timeout
+rather than hanging the suite. The last of those is the non-blocking proof: the case pauses a swap
+inside the host's `start`, where the lease is held for the whole move, and requires a bounded
+`Health` RPC to answer `loading` anyway. Agent-validated in Docker as well, over the real
+supervisor and two small stand-ins: inside a real residency scope the deep child was READY, the
+standing one STOPPED, and the report at that instant said a deep task was in progress, with a
+report that always claims serving reddening it.

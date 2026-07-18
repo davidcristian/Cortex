@@ -750,7 +750,11 @@ boundary of the swap sequence and asserts convergence back to a serving cortex, 
 a terminal record, and an honest stream. The **real process lifecycle landed 2026-07-18**: the
 `model-host` supervisor sidecar behind that same `ModelHost` port, one `llama-server` child per
 tier, its HTTP adapter, the compose revision that retires `llama-cortex`, and the ADR-0012 host
-half. What remains is the honesty surfaces (`Health` between turns) and the host-side capstone on
+half. The **honesty surfaces are complete as of 2026-07-18**: the swap window's `StatusUpdate`s
+landed with the conductor, and `Health` now reads the swapping manager's published residency and
+answers `ready=false` with a truthful detail between turns, which lights the overlay's landed
+connection dot amber with no overlay change and closes the last backlog entry that was blocked on
+a producer. What remains is the host-side capstone on
 the 24 GB machine: the brain pick, the tier-scale swap, measured timings, the runbook, and the
 injection-harness run. The ADR states plainly why the last of those cannot move here: CI has no GPU
 and the dev GPU cannot hold the cortex beside a ~31B brain, so the swap's **mechanism** is

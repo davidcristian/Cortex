@@ -184,7 +184,8 @@ Start here. Rules for working in this repo: [AGENTS.md](../AGENTS.md).
   guardrail to strict redaction and blocking durable memory, a body-authored capture receipt, a
   fail-closed host kill switch, and the overlay excluding itself to break the self-injection loop.
 - [ADR-0030: Brain handoff (the real model swap)](adr/ADR-0030-brain-handoff.md): the Slice 11
-  capstone design, **proposed, pending maintainer review**. An explicit gated `escalate_to_brain`
+  capstone design, **accepted**; every engineering sub-slice has landed and the host-side
+  capstone (the deep-model pick, the tier-scale swap) remains. An explicit gated `escalate_to_brain`
   built-in triggers a within-turn handoff: the turn's not-yet-stored remainder (brief, taint
   ledger with sources and URLs, nonce, tool-loop tail, dispatch budget) serializes into a
   `HandoffRecord` behind a new `HandoffStore` port; a core `SwapConductor` drains subagents,
@@ -192,9 +193,10 @@ Start here. Rules for working in this repo: [AGENTS.md](../AGENTS.md).
   and stopping one process per model, ADR-0005 made literal), health-gates, rehydrates the
   brain from the stores, persists, and converges back to a serving cortex on every exit path.
   `ModelManager.acquire` stays unchanged (ADR-0012); residency moves under an additive swap
-  scope so eviction never preempts a mid-stream round. `Health` finally earns an honest
-  `ready=false`. The CI gate is a parameterized chaos test over the fake host (kill at every
-  step boundary, converge with no state loss); tier-scale swap validation is host-side.
+  scope so eviction never preempts a mid-stream round, and `Health` answers an honest
+  `ready=false` from it while the deep model holds the GPU. The CI gate is a parameterized chaos
+  test over the fake host (kill at every step boundary, converge with no state loss); tier-scale
+  swap validation is host-side.
 
 New non-obvious decision → add `adr/ADR-XXXX-<slug>.md`, link it here.
 

@@ -6,7 +6,8 @@ deferred-refinements section on 2026-07-15 with the entries kept verbatim; lande
 are the historical record of what each deferral became, and the index at
 [index.md](index.md) carries the recommended pickup order.
 
-**Open items:** multi-turn-within-one-stream + proto `Cancel`, deferred overlay polish, streamed brain status
+**Open items:** multi-turn-within-one-stream + proto `Cancel`, deferred overlay polish, streamed
+brain status (its producer landed 2026-07-18; only the push RPC remains)
 
 **Body / overlay in Slice 8 ([ADR-0011](../adr/ADR-0011-body-v1.md)):**
 - **Multi-turn-within-one-stream + an explicit proto `Cancel` event.** One turn per `Converse`
@@ -115,10 +116,22 @@ are the historical record of what each deferral became, and the index at
   ([ADR-0030](../adr/ADR-0030-brain-handoff.md) decisions 6 and 7).** An escalating turn now
   streams `StatusUpdate(state="swapping")` through drain, load, work, and restore on the
   `Converse` stream the user already holds, so the swap window says what it is doing, with no
-  proto change (the overlay renders it as a chip today). The entry stays open on the other half:
-  `Health` still answers `ready = True` unconditionally, and it earning `ready=false` with a
-  truthful detail **between** turns is what ADR-0030 keeps in its honesty-surfaces sub-slice.
-  The push RPC itself stays deferred beyond that, a seam change to be designed with its consumer.
+  proto change (the overlay renders it as a chip today).
+  **The producer is whole as of 2026-07-18** (the honesty-surfaces sub-slice, ADR-0030 decision
+  6): `Health` reads the swapping manager's published residency and answers `ready=false` with a
+  truthful detail while the deep model is loading, working, or being swapped back, and after a
+  restore that gave up. The blocker this entry named is therefore met and the entry is **no
+  longer blocked**, with **zero overlay change**, exactly as designed: the landed indicator
+  already classifies a not-ready reply as amber `Degraded` and shows the brain's line verbatim,
+  and the 5 s recheck (visible-and-unhealthy) turns it green again on its own when the cortex is
+  back. Two limits worth knowing before the push half is designed against them. The amber shows
+  **between** turns only: the reducer folds every streamed event as proof of serving, so during
+  the escalating turn's own stream the dot is green and the chips carry the story instead. And a
+  handoff's **drain** is deliberately still ready, the cortex being resident and answering
+  throughout it. What remains deferred is only the **push** itself: a server-streamed status RPC
+  is a seam change (proto + both stubs + a consumer), and probe-on-summon plus the escalating
+  stream's own chips cover personal scale, so it waits for a consumer that needs the brain to
+  speak first.
 - **Design-doc interaction gaps closed 2026-07-12 ([ADR-0011 addendum](../adr/ADR-0011-body-v1.md)).**
   All nine items surfaced by the 2026-07-03 browser pass landed behind the unchanged
   `BrainBridge` port / reducer, CI-gated at 100% and browser-validated in both themes: history
