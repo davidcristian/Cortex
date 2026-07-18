@@ -1304,6 +1304,13 @@ rather than after tripping the 300-line cap: 277 lines plus the boot publish wou
 headroom on the file every swap feature grows. Dropping the claim's refusal reddens 2, its own
 case and the chaos suite's race, so the move is proven behaviour-preserving where it matters.
 
-**Still not validated at tier scale, for the reason every addendum above gives.** The dev GPU is
-8 GB; the repair's live path is the same one already exercised over the real supervisor with small
-stand-ins, and nothing here claims otherwise.
+**Validated live in Docker, and the boot path needs no GPU to be real.** The brain container was
+brought up with escalation on and `CORTEX_MODELHOST_BACKEND=supervisor` pointed at a port nothing
+listens on, which is the unreachable-host branch through the real `HttpModelHost` adapter rather
+than a fake. `Health` over the real seam answered `ready=false` with "the usual assistant did not
+come up at startup; the model host needs attention", the boot-recovery ERROR was in the container's
+own log, and the container still read **healthy**, which is the corrected predicate doing its job
+(the RPC answered). Restoring the base stack, where escalation is off and no residency is wired,
+answered `ready=true` with the version detail, so the check discriminates rather than always
+reddening. **Tier scale is still not validated and cannot be here**, for the reason every addendum
+above gives: the dev GPU is 8 GB.
