@@ -754,7 +754,9 @@ half. The **honesty surfaces are complete as of 2026-07-18**: the swap window's 
 landed with the conductor, and `Health` now reads the swapping manager's published residency and
 answers `ready=false` with a truthful detail between turns, which lights the overlay's landed
 connection dot amber with no overlay change and closes the last backlog entry that was blocked on
-a producer. What remains is the host-side capstone on
+a producer. An audit round the same day extended that to the one machine state it still called
+ready, a boot whose recovery could not settle the cortex, which the composition root now publishes
+from what recovery observed rather than from the manager's optimistic seed. What remains is the host-side capstone on
 the 24 GB machine: the brain pick, the tier-scale swap, measured timings, the runbook, and the
 injection-harness run. The ADR states plainly why the last of those cannot move here: CI has no GPU
 and the dev GPU cannot hold the cortex beside a ~31B brain, so the swap's **mechanism** is

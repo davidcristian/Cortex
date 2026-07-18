@@ -1225,3 +1225,85 @@ inside the host's `start`, where the lease is held for the whole move, and requi
 supervisor and two small stand-ins: inside a real residency scope the deep child was READY, the
 standing one STOPPED, and the report at that instant said a deep task was in progress, with a
 report that always claims serving reddening it.
+
+## Addendum (2026-07-18): the audit round on the honest `Health`, and the boot it still lied about
+
+Two adversarial passes over the sub-slice above. No decision changed; one real hole was closed,
+two proof holes were filled, and one prose defect was corrected. What follows is what was
+measured, because three of the four looked correct on the page.
+
+**The hole: decision 6 keys not-ready on "the cortex is not the serving resident", and a failed
+boot is exactly that.** `SwappingModelManager` seeds its report `RESIDENCY_SERVING` in the
+constructor, which is unavoidable (a constructor cannot see a GPU), and only a swap ever wrote it
+afterwards. Boot recovery is the code that actually looks, and it is deliberately allowed to fail
+without raising: an unreachable model host is caught and logged, and a cortex that never gates
+`READY` inside the load bound is logged too. Neither told anyone. So a brain whose cortex could
+not be brought up logged "the cortex is not serving after boot recovery; turns will fail until it
+is" and then answered `ready=true` from the same process, for as long as it ran. Reproduced
+before fixing, over the real objects in the composition root's own order: with the host refusing
+to start the cortex, `Health` answered ready with the cortex `STOPPED`; with the cortex stuck
+loading, ready again with it `LOADING`. This is reachable through the runbook's own mandatory
+step: a `docker compose restart brain` after a restore gave up does not re-evaluate the GPU
+override's `depends_on`, so in precisely the case that step exists for (the cortex will not load,
+which is why the restore gave up twice) the restart converted a truthful amber into a green lie,
+on the one surface the same sub-slice had just designated for residency after taking `reply.ready`
+out of the brain's compose healthcheck.
+
+**The fix, and the one thing it deliberately does not do.** `converge_residency` and
+`recover_handoffs` now answer whether the cortex was **observed** `READY`, and the composition
+root publishes that with `publish_boot_residency(serving=…)` before `serve`. A sixth published
+value, `RESIDENCY_BOOT_FAILED`, carries it, distinct from `RESIDENCY_LOST` because no deep task
+need have happened and the wording must not claim one. That publish is the only writer that
+touches the report **without** touching `_resident`, which is a deliberate exception to the
+otherwise absolute "the two are written together" rule of the sub-slice above, and the reason is
+that failing to confirm is not the same as knowing: an unreachable supervisor says nothing about
+the process it supervises, and a load that outran its bound may finish a minute later. Clearing
+the resident would have turned one unanswered probe into a brain that refuses every turn until
+someone restarts it, which is worse than the amber dot it would have justified. So the lease keeps
+the forgiving posture boot recovery has always had, the report goes amber, and the cost is a false
+amber rather than a false green: a cortex that comes good on its own leaves the dot wrong until a
+swap or a restart re-reads the machine. That staleness is the same shape as the hand-fixed-GPU one
+the previous addendum recorded, it has the same fix (a generation the manager can compare), and it
+is filed with it rather than invented as a new entry.
+
+**The proof holes, both measured rather than argued.** First: the `serving` flag of
+`RESIDENCY_RESTORING` and `RESIDENCY_LOST` was pinned by nothing. Flipping either constant to
+`serving=True` left the entire brain workspace green while `Health` answered ready for the whole
+swap-back window and, after a restore gave up, permanently. The cases covering those two windows
+compared `manager.residency()` against production's own constant, which proves which value was
+published and nothing whatsoever about what that value claims; the two windows that *were* pinned
+were pinned only incidentally, by seam cases that happen to read `reply.ready is False` as a
+literal. Second, the same species: every not-serving `detail` could be blanked with the workspace
+still green, and blanking them also collapsed four distinct reports into one equal value, so the
+case named for tracking the swap's direction could no longer tell its direction apart. Both are
+now pinned by one case that compares all six published values against literal `ResidencyReport`s,
+which is where the user-facing strings live under the gate, plus two new seam cases that drive the
+restoring and gave-up windows through `BrainService.Health` and assert `ready is False` as the
+literal it has to be.
+
+**Measured mutations for the repair** (each applied to production code alone, whole brain
+workspace re-run, then restored): `serving=True` on `RESIDENCY_RESTORING` reddens 2, the constants
+case plus the seam's swap-back case; the same on `RESIDENCY_LOST` reddens the constants case plus
+the seam's gave-up case; on `RESIDENCY_BOOT_FAILED`, the constants case plus the composition
+root's boot case. Blanking all five not-serving details reddens exactly 1, the constants case.
+Dropping the root's `publish_boot_residency` call reddens exactly 1, and passing it a constant
+`serving=True` reddens the same one, so neither half of that knob is silently droppable. Making
+`converge_residency` return `True` unconditionally reddens 3, both recovery cases that observe a
+cortex which is not serving plus that same root case. Dropping the not-serving branch of the
+publish reddens 2. Clearing `_resident` inside it reddens exactly 1, the case that pins a
+still-leasable cortex, which is the guard on the exception described above. `Health` answering
+ready unconditionally now reddens 6 where it reddened 3 before this round.
+
+**Two smaller corrections.** `create_server` and `serve` were threading the three optional seam
+ports one keyword at a time and had reached `max-args = 6`, the dependency ceiling ruff.toml sets,
+while the constructor one layer down had already bundled them as `SeamPorts`; both now take the
+bundle, which drops them to 4 and removes the second place that must learn about every new
+optional port. And `SwappingModelManager`'s handoff claim moved to `residency_claim.py` as
+`HandoffClaim` over the same condition, a pure move made **before** adding to `residency.py`
+rather than after tripping the 300-line cap: 277 lines plus the boot publish would have left 8 of
+headroom on the file every swap feature grows. Dropping the claim's refusal reddens 2, its own
+case and the chaos suite's race, so the move is proven behaviour-preserving where it matters.
+
+**Still not validated at tier scale, for the reason every addendum above gives.** The dev GPU is
+8 GB; the repair's live path is the same one already exercised over the real supervisor with small
+stand-ins, and nothing here claims otherwise.

@@ -557,12 +557,18 @@ unchanged):
   matters. An implementation publishes residency as it changes and answers from that cache; it
   never asks a model host and never waits on a lock a swap can hold.
 - `ResidencyReport(serving: bool, detail: str)` and the five values a swap publishes live in
-  `residency_state.py`: `RESIDENCY_SERVING` (the standing residency, `detail` empty, what a
-  fresh manager reports), `RESIDENCY_LOADING` (the swap in, eviction included, nothing serving),
-  `RESIDENCY_DEEP` (the deep model resident and working), `RESIDENCY_RESTORING` (the swap back),
-  and `RESIDENCY_LOST` (a restore that gave up: the GPU serves nothing until boot recovery runs
-  again). All app-authored like `swap_notes.py`, and kept apart from it because a `StatusUpdate`
-  is progress on one turn while a report answers a probe any client may make between turns. The
+  `residency_state.py`: `RESIDENCY_SERVING` (the standing residency, `detail` empty, and the
+  seed a fresh manager starts from), `RESIDENCY_LOADING` (the swap in, eviction included, nothing
+  serving), `RESIDENCY_DEEP` (the deep model resident and working), `RESIDENCY_RESTORING` (the
+  swap back), `RESIDENCY_LOST` (a restore that gave up: the GPU serves nothing until boot
+  recovery converges it and republishes), and `RESIDENCY_BOOT_FAILED` (boot recovery ran and did
+  **not** leave the cortex serving, whether the host was unreachable or the cortex never gated
+  ready; distinct from the one before it because no deep task need have happened). Their
+  `serving` flags and their exact `detail` strings are pinned against literals in one test:
+  every other case compares a published report to the constant that names it, which cannot
+  catch an edit to the constant itself. All app-authored like `swap_notes.py`, and kept apart
+  from it because a `StatusUpdate` is progress on one turn while a report answers a probe any
+  client may make between turns. The
   **drain** is deliberately `RESIDENCY_SERVING`: the cortex is resident and answering turns
   while delegated work quiesces, so not-ready is keyed on something actually being unloaded.
 - Same port, `handoff_claim() -> AbstractAsyncContextManager[None]`: the one-GPU-one-handoff
@@ -801,16 +807,21 @@ Use-case:
   **suppresses the inner `TurnCompleted`**, and, only if the cortex actually asked to escalate,
   runs the conductor's phase on the same stream before emitting one real `TurnCompleted` whose
   text is the whole turn's. With no escalation requested it is transparent, completion included.
-- `recover_handoffs(handoffs, host, plan, *, clock, sleeper)` and
-  `converge_residency(host, plan, *, clock, sleeper)` (`swap_recovery.py`) are boot recovery: the
-  composition root calls the first once at startup, and it marks any non-terminal record `FAILED`
+- `recover_handoffs(handoffs, host, plan, *, clock, sleeper) -> bool` and
+  `converge_residency(host, plan, *, clock, sleeper) -> bool` (`swap_recovery.py`) are boot
+  recovery: the composition root calls the first once at startup, and it marks any non-terminal
+  record `FAILED`
   (a handoff cannot outlive its process; a live record would otherwise refuse every later
   escalation) and converges the GPU back onto the standing residency. Convergence is the
   conductor's own order: clear the GPU (stop every `plan.evict_models` tier, since a crash can
   leave one holding VRAM the cortex needs, then the deep model), settle the cortex to `READY`,
   and start the evicted tiers back, so a boot leaves the machine where the scope's `finally`
   would have. It deliberately does not resume a deep
-  phase, and it never raises: a dead host or store is logged loudly and served around.
+  phase, and it never raises: a dead host or store is logged loudly and served around. What it
+  **returns** is whether the cortex was observed `READY` when it finished (`False` also for an
+  unreachable host, which observed nothing), and the composition root publishes that onto the
+  manager: without it a boot that could not settle the cortex logs the failure and then answers
+  `Health` ready off the manager's seed, which is a green dot over a GPU serving nothing.
 - `SWAPPING_STATE` plus the swap window's detail and note texts (`swap_notes.py`) are every
   app-authored string a handoff can put on a turn's stream. Status details are ephemeral
   progress; notes are reply text, streamed but not persisted, except `BRAIN_FAILED_NOTE`, which
@@ -1249,7 +1260,9 @@ Reference implementations (pure, shipped in core; the runtime wiring until Slice
   `acquire` keeps v1's
   one-lock-per-GPU discipline over `endpoints` (logical id to base URL, composition-root
   config); `handoff_claim()` claims the whole swap sequence non-blockingly (a second holder
-  raises `HandoffInProgressError` with nothing touched), and `swap_scope(model)` claims the one
+  raises `HandoffInProgressError` with nothing touched; the rule itself is `HandoffClaim` in
+  `residency_claim.py`, split off for the line cap because it guards a different flag than the
+  scope does over the same condition), and `swap_scope(model)` claims the one
   residency scope (a second entry raises the same error), takes
   the lease so the swap waits out any in-flight round, stops the cortex and every
   `plan.evict_models` tier, starts `model`, health-gates it, and serves it with the lease free
@@ -1268,7 +1281,13 @@ Reference implementations (pure, shipped in core; the runtime wiring until Slice
   from a cache one setter publishes with the resident itself, under the same condition and with
   nothing awaited between the two writes, so the seam's answer and the lease's own view of the
   GPU cannot drift; a swap in and a swap back both leave nothing resident, which is why the
-  direction is published rather than inferred. The two host-facing moves themselves (evict and
+  direction is published rather than inferred. `publish_boot_residency(*, serving)` is the one
+  writer that touches the report alone: the composition root calls it once with boot recovery's
+  observation, before the seam serves, and it deliberately leaves `_resident` alone, because
+  recovery failing to confirm the cortex is not the same as knowing it is gone (an unreachable
+  host says nothing about the process it supervises) and clearing the resident would refuse every
+  turn on a machine that may be serving. The report is display only; the lease stays forgiving.
+  The two host-facing moves themselves (evict and
   start; stop and restore the standing residency) live in `residency_moves.py`, and the swap
   back's uninterruptible wait in `residency_restore.py`, both split off for
   the line cap along the seam the manager already draws: it owns *when* and *who may*, they own

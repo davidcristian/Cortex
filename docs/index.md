@@ -194,7 +194,8 @@ Start here. Rules for working in this repo: [AGENTS.md](../AGENTS.md).
   brain from the stores, persists, and converges back to a serving cortex on every exit path.
   `ModelManager.acquire` stays unchanged (ADR-0012); residency moves under an additive swap
   scope so eviction never preempts a mid-stream round, and `Health` answers an honest
-  `ready=false` from it while the deep model holds the GPU. The CI gate is a parameterized chaos
+  `ready=false` from it while the deep model holds the GPU, or while a boot recovery that could
+  not settle the cortex stands. The CI gate is a parameterized chaos
   test over the fake host (kill at every step boundary, converge with no state loss); tier-scale
   swap validation is host-side.
 
