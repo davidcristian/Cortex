@@ -16,6 +16,7 @@ const state = (over: Partial<OverlayState> = {}): OverlayState => ({
   pendingConfirm: null,
   reminders: [],
   link: INITIAL_LINK,
+  capturing: false,
   seq: 0,
   touched: false,
   ...over,

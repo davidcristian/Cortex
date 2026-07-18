@@ -100,6 +100,16 @@
   }
 }
 
+.capturedot {
+  width: 7px;
+  height: 7px;
+  flex: none;
+  margin-left: 6px;
+  border-radius: 50%;
+  border: 1.5px solid var(--warn);
+  box-sizing: border-box;
+}
+
 /* The 6px optical left margin the header opens with now belongs to the dot, which leads the
    row; the title follows it on the header's own 10px rhythm. */
 .title {
