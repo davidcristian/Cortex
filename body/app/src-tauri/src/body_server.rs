@@ -8,12 +8,12 @@ const DEFAULT_TOAST_APP_ID: &str = "dev.cortex.body";
 /// shared `CORTEX_SEAM_TOKEN` (ADR-0016), on Tauri's runtime. Best-effort: a bind failure is
 /// logged, not fatal. The overlay still works, only OS actions are unavailable.
 #[cfg(windows)]
-pub fn start() {
+pub fn start(excluded: bool) {
     use std::net::{Ipv4Addr, SocketAddr};
 
     use body_core::DeniedScreenCapture;
     use body_rpc::body_service;
-    use os_windows::{WindowsAudioControl, WindowsNotify};
+    use os_windows::{WindowsAudioControl, WindowsNotify, WindowsScreenCapture};
     use tokio::net::TcpListener;
     use tokio_stream::wrappers::TcpListenerStream;
     use tonic::transport::Server;
@@ -26,6 +26,10 @@ pub fn start() {
     let app_id =
         std::env::var("CORTEX_TOAST_APP_ID").unwrap_or_else(|_| String::from(DEFAULT_TOAST_APP_ID));
     let receipts = std::env::var("CORTEX_HOST_CAPTURE_NOTIFY").as_deref() != Ok("0");
+    let capture = excluded && std::env::var("CORTEX_HOST_CAPTURE").as_deref() == Ok("1");
+    if !capture {
+        eprintln!("cortex: screen capture is off (CORTEX_HOST_CAPTURE=1 and overlay exclusion)");
+    }
     tauri::async_runtime::spawn(async move {
         let listener = match TcpListener::bind(addr).await {
             Ok(listener) => listener,
@@ -35,25 +39,56 @@ pub fn start() {
             }
         };
         let incoming = TcpListenerStream::new(listener);
-        let service = body_service(
-            WindowsAudioControl::new(),
-            WindowsNotify::new(&app_id),
-            DeniedScreenCapture,
-            receipts,
-            &token,
-        );
-        if let Err(error) = Server::builder()
-            .add_service(service)
-            .serve_with_incoming(incoming)
-            .await
-        {
+        let audio = WindowsAudioControl::new();
+        let notify = WindowsNotify::new(&app_id);
+        // The two arms differ only in which backend answers CaptureScreen, and the service type
+        // differs with it, so the serve call is written twice rather than behind a generic whose
+        // tower bounds this ungated shell could not have checked anywhere.
+        let served = if capture {
+            let service =
+                body_service(audio, notify, WindowsScreenCapture::new(), receipts, &token);
+            Server::builder()
+                .add_service(service)
+                .serve_with_incoming(incoming)
+                .await
+        } else {
+            let service = body_service(audio, notify, DeniedScreenCapture, receipts, &token);
+            Server::builder()
+                .add_service(service)
+                .serve_with_incoming(incoming)
+                .await
+        };
+        if let Err(error) = served {
             eprintln!("cortex: BodyService stopped: {error}");
         }
     });
 }
 
+/// Hides the overlay window from every screen capture on the machine, answering whether it
+/// worked (ADR-0029). A `false` keeps capture off entirely: the alternative is a model that
+/// reads its own prior replies back out of the picture.
+#[cfg(windows)]
+#[must_use]
+pub fn exclude_overlay(handle: &tauri::AppHandle) -> bool {
+    use tauri::Manager;
+
+    let Some(window) = handle.get_webview_window(crate::OVERLAY_LABEL) else {
+        return false;
+    };
+    match window.hwnd() {
+        Ok(hwnd) => os_windows::exclude_from_capture(hwnd.0 as isize),
+        Err(_) => false,
+    }
+}
+
 /// Non-Windows stub: no OS-action backend yet, so the body server is not started.
 #[cfg(not(windows))]
-pub fn start() {
+pub fn start(_excluded: bool) {
     eprintln!("cortex: BodyService is not available on this platform yet");
+}
+
+/// Non-Windows stub: nothing to exclude, and nothing that could capture it.
+#[cfg(not(windows))]
+pub fn exclude_overlay(_handle: &tauri::AppHandle) -> bool {
+    false
 }

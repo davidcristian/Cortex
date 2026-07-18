@@ -56,6 +56,16 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
   `ackReminder(reminderId)` plus the `DueReminder` mirror, and the connection probe
   (ADR-0011 addendum): `checkLink()` plus the `LinkState` / `LinkStatus` mirrors of
   `body_core::link`.
+- **The capture switch and the overlay's self-exclusion** (`body_server.rs`, ADR-0029). The
+  shell wires the real `WindowsScreenCapture` only when `CORTEX_HOST_CAPTURE=1` **and** the
+  setup call to `exclude_from_capture` on the overlay's own window succeeded; on either failure
+  it wires `DeniedScreenCapture`, which answers `PermissionDenied` to every `CaptureScreen`.
+  Both conditions are required because a capture that includes the overlay is not a degraded
+  picture but a **self-injection loop**: the overlay is always-on-top and opaque, so its
+  contents (the user's prompt, the prior reply, any confirm card) would be re-ingested as screen
+  content on the next capture, laundering model output back into untrusted model input.
+  `CORTEX_HOST_CAPTURE_NOTIFY=0` silences the body-authored receipt. Host-validated; see
+  `docs/runbooks/vision.md`.
 - **The screen-capture indicator** (`state.capturing` + `components/CaptureDot.tsx`,
   ADR-0029). The reducer sets `capturing` when a `toolActivity` event names
   `CAPTURE_SCREEN_TOOL` (`"capture_screen"`, matched by name because the event already carries

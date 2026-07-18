@@ -25,7 +25,7 @@ pub fn run() {
         .setup(|app| {
             tray::build(app.handle())?;
             hotkey::register(app.handle());
-            body_server::start();
+            body_server::start(body_server::exclude_overlay(app.handle()));
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![

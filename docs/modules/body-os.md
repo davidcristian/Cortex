@@ -11,13 +11,25 @@ OS backend and the home of the **stub coverage escape-hatch policy** the ROADMAP
   `unsafe_code = forbid`. *Slice 9 added `WindowsAudioControl`* over Core Audio
   (`IMMDeviceEnumerator` → `IAudioEndpointVolume`). *Slice 9.5 added `WindowsNotify`*, a
   WinRT toast (`ToastNotificationManager` → `ToastNotifier`, rendering the `ToastGeneric`
-  template). Real OS calls → a thin adapter,
+  template). *Slice 10 added `WindowsScreenCapture`*, a GDI `BitBlt` of the primary display
+  (`GetDC` → `CreateCompatibleDC` → `CreateCompatibleBitmap` → `SelectObject` → `BitBlt` with
+  `SRCCOPY | CAPTUREBLT` → `GetDIBits` with a **negative** header height, which is what asks for
+  top-down rows), plus `exclude_from_capture(hwnd)`, the overlay's own
+  `SetWindowDisplayAffinity(WDA_EXCLUDEFROMCAPTURE)` call. It hands back raw BGRA and no policy:
+  every size decision is in `body_core` where the coverage gate can see it. GDI was chosen over
+  DXGI Desktop Duplication and `Windows.Graphics.Capture` because it needs no COM apartment
+  (so it does not deepen the recorded unbalanced-`CoUninitialize` entry), holds no persistent
+  device (so it satisfies the blocking pool's `FnOnce + Send + 'static`), and has the smallest
+  `unsafe` surface; the cost is that it renders hardware-overlay and DRM-protected surfaces
+  **black, silently**. Real OS calls → a thin adapter,
   **host/integration-validated, never in CI** (AGENTS.md gate 3): the coverage gate runs
   on Linux, where this crate compiles to nothing. The audio backend needs `unsafe` (COM),
   narrowly authorized by ADR-0023: `os_windows` is the **only** crate that opts out of the
   workspace `unsafe_code = forbid`, using its own `[lints.rust] unsafe_code = deny` plus a
-  scoped `#![allow(unsafe_code)]` in the audio module (re-declaring the other workspace
-  lints); every other crate keeps `forbid`. The toast module carries the same scoped allow for
+  scoped `#![allow(unsafe_code)]` per module (re-declaring the other workspace
+  lints); every other crate keeps `forbid`. There are three such modules now, each with its own
+  authorization line naming its own ADR: `audio` (Core Audio, ADR-0023), `notify` (one apartment
+  initialization, ADR-0025), and `screen` (GDI plus the display-affinity call, ADR-0029). The toast module carries the same scoped allow for
   one line: WinRT projections are safe, but activating a WinRT factory needs a
   COM-initialized thread and the `BodyService` server's threads have none, so
   it makes the same idempotent `CoInitializeEx` call the audio backend does.

@@ -698,8 +698,11 @@ state that survives a swap; the brain acting on its own initiative.
 
 ## Slice 10 (Vision): "see my screen"
 
-**Status:** design landed 2026-07-17 ([ADR-0029](adr/ADR-0029-vision-screen-capture.md));
-implementation not started. Produced by a multi-lens design pass (six mapping agents over the
+**Status:** landed 2026-07-18 ([ADR-0029](adr/ADR-0029-vision-screen-capture.md)), except the
+host-only Windows validation: the GDI backend is authored, cross-compiled for
+`x86_64-pc-windows-msvc` and clippy-linted, and has never captured a real pixel. Everything else
+is green under `just check` and agent-validated against the real cortex plus its projector; see
+`docs/runbooks/vision.md` for both halves. The design was produced by a multi-lens design pass (six mapping agents over the
 affected subsystems, four independent designs from an architecture, security, systems, and
 delivery lens, then a synthesizing judge), then **measured against the real cortex artifact
 before any decision was fixed**: the projector loads beside `gemma-4-12b-it-qat-q4_0.gguf` and
@@ -733,6 +736,17 @@ excluding itself from capture to break the self-injection loop. The user-attache
 
 `ScreenCapture` Windows backend; capture flows brain-ward over the seam into the
 multimodal cortex; "what's on my screen?" answered in the overlay.
+**Gate proven:** a seam that carries a payload stays bounded at both ends, and unfenceable
+content gets a deterministic boundary rather than a prompt-shaped one.
+
+Three things the implementation corrected against the design, each recorded as an ADR addendum.
+The ladder's give-up arm was unreachable with a fixed ceiling (two halvings from a 4096 edge
+always land under 6 MiB), so the byte budget rides the request, which also makes the brain's
+`CORTEX_BODY_MAX_IMAGE_BYTES` and the body's ceiling one number instead of two constants coupled
+by prose; that added a fifth proto field, `max_bytes`, with a consumer landing in the slice. The
+`--mmproj` pair goes through the model host's tier argv rather than a compose `command` block,
+which no longer exists. And the preparatory engine split the design asked for had already landed
+with the handoff work.
 
 ## Slice 11 (Brain handoff): the swap rule, for real (capstone)
 
