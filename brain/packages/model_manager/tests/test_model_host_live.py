@@ -40,6 +40,7 @@ import pytest
 
 from cortex_core import (
     AsyncioSleeper,
+    ModelHostError,
     ModelHostState,
     ResidencyPlan,
     SwappingModelManager,
@@ -174,8 +175,11 @@ async def test_a_residency_scope_really_evicts_one_model_and_loads_another() -> 
     gone, and after it the reverse.
 
     Needs two tiers in the roster (name a ``CORTEX_MODEL_FILE_BRAIN`` artifact) and enough VRAM for
-    whichever pair the deployment configured; on the dev GPU that means small stand-ins, and it is
-    skipped rather than failed when the deep tier is not hosted.
+    whichever pair the deployment configured; on the dev GPU that means small stand-ins. On the
+    shipped defaults no deep artifact is named, so the tier is not in the roster at all and the
+    sidecar answers **404** for it: that is a ``ModelHostError`` from the adapter, never
+    ``ModelHostState.FAILED``, which means "a hosted tier whose child died". Both are skips here,
+    for different reasons, and the 404 one is the case a stock stack actually hits.
     """
     endpoint = os.environ.get("CORTEX_MODELHOST_ENDPOINT")
     if not endpoint:
@@ -193,8 +197,12 @@ async def test_a_residency_scope_really_evicts_one_model_and_loads_another() -> 
         AsyncioSleeper(),
     )
     try:
-        if await host.status(deep) is ModelHostState.FAILED:
-            pytest.skip(f"the deep tier {deep!r} is not hosted (no artifact named for it)")
+        try:
+            deep_state = await host.status(deep)
+        except ModelHostError as err:
+            pytest.skip(f"the sidecar does not host a deep tier {deep!r}: {err}")
+        if deep_state is ModelHostState.FAILED:
+            pytest.skip(f"the deep tier {deep!r} has a dead child; fix it before swapping onto it")
         await host.start(standing)
         async with manager.swap_scope(deep):
             # The gate inside swap_scope already waited for READY; what is asserted here is the

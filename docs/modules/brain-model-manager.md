@@ -72,7 +72,10 @@ root, and `main()` serves it (`python -m cortex_model_manager`).
   pick exists yet (ADR-0004) and the GPU-placed subagent is opt-in, so a stock host answers 404 for
   them rather than spawning a doomed process. Two tiers sharing a port is refused at boot.
 - **`start` and `stop` are idempotent**, because a swap re-issues either without checking first.
-  A start whose spawn fails leaves nothing behind, so the model still reads `STOPPED`.
+  A start whose spawn fails adds nothing, so a tier that never ran still reads `STOPPED`; it also
+  removes nothing, so a tier whose child had already died goes on reporting that child's exit code
+  (`FAILED`) rather than being erased by the replacement that could not start. The spawn failure
+  itself is what the `start` answers with, and the next successful start replaces the corpse.
 - **`start` returns long before the model is ready.** It is a spawn and nothing more; the swap's
   health gate (`await_model_ready`) is the only thing that decides readiness. Blocking would put a
   minutes-long load at the mercy of an HTTP client's timeout instead of the plan's bound.
