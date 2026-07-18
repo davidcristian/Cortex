@@ -36,7 +36,7 @@ its signature.
 | [tools-mcp.md](tools-mcp.md) | Dispatch budget/cost/salience, spawn batch cap, MCP registries (ADR-0009/0010) | 6 |
 | [untrusted-content.md](untrusted-content.md) | Taint boundary, output guardrail, subagent model safety (ADR-0013/0015/0017/0019/0028) | 14 |
 | [memory.md](memory.md) | Store, scoping, rerank/MMR (ADR-0008) | 8 |
-| [inference-model-manager.md](inference-model-manager.md) | Model-manager lifecycle, MTP, reasoning status (ADR-0007/0020) | 6 |
+| [inference-model-manager.md](inference-model-manager.md) | Model-manager lifecycle, MTP, reasoning status (ADR-0007/0020) | 7 |
 | [subagents.md](subagents.md) | Progress reporting, spawn schema, heterogeneous roster (ADR-0010/0018) | 1 |
 | [body-overlay.md](body-overlay.md) | Overlay polish, connection indicator, proto Cancel (ADR-0011) | 3 |
 | [session-read-seam.md](session-read-seam.md) | Session listing/read seam (ADR-0021) | 3 |
@@ -489,6 +489,14 @@ deferral paragraph reaches. And the entry's claim that `CORTEX_SUBAGENTS_GPU_END
 hosted tier was false: that variable still defaults to the CPU server, deliberately, so hosting the
 tier and routing to it are two settings and the entry now says so, with the three-setting opt-in
 written in the gpu override's checklist and the subagents runbook.
+That round also opened one entry, so inference and model manager went 6 to 7: **checking the
+sidecar's stop bounds against the brain's control deadline** rather than only documenting the
+pairing. The pairing turned out to have a third term (a `status` queued on the same per-model lock
+probes inside it, so the probe timeout is added to a stop), the shipped defaults clear the deadline
+with 15 s to spare, and the repair added `GET /health` reporting of the two stop bounds, which is
+the half that makes enforcement newly possible. Enforcing it is deferred with its trigger, because
+the brain would then have to depend on the sidecar answering at wiring time, which today it
+deliberately does not.
 
 ## Recommended order
 
@@ -756,7 +764,11 @@ cost-aware batch cap, the fair-share policy, and the sidecar session cache/pool,
 spontaneous-pick nudge's live uptake, joined on 2026-07-16 when the measured trade-off
 advertisement landed, whose trigger is a live cortex on user-tier hardware still under-reaching
 for distinct models and whose fix is stronger nudging behind the same spec seam
-([subagents.md](subagents.md)); the retry
+([subagents.md](subagents.md)); checking the sidecar's stop bounds against the brain's control
+deadline instead of only documenting the pairing, joined on 2026-07-18 with the audit round that
+found the pairing had a third term and added the `GET /health` reporting that would make the check
+possible, whose trigger is either side's timing being tuned or a handoff aborting on an eviction
+that in fact completed ([inference-model-manager.md](inference-model-manager.md)); the retry
 budget / circuit-breaker, joined on 2026-07-16 by a retryable-code table beyond `Unavailable`
 (whose trigger is a brain that starts answering `RESOURCE_EXHAUSTED` or `ABORTED`) and, the same
 day, by safe `converse` reconnect-before-first-event (sharpened from "a replayable request and a

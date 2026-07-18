@@ -1115,6 +1115,18 @@ settings together (`CORTEX_MODEL_FILE_SUBAGENT_GPU`,
 [docs/runbooks/subagents-cpu.md](../runbooks/subagents-cpu.md), and in the backlog entry that had
 claimed the wiring existed.
 
+**One deferral opened, with its three records.** The timeout pairing stays **documented rather
+than enforced**, which is what the landing addendum already said, but the reason is now weaker in
+one direction: `GET /health` reports the two stop bounds the daemon was actually given, so the
+brain could read them at wiring time and refuse to boot when its own deadline does not clear their
+sum plus the probe timeout. Closing it needs the probe timeout on that same body (it belongs to the
+health probe's client, not to the supervisor) and a fail-closed check in `build_control_client`,
+and it costs the brain a wiring-time dependency on the sidecar answering, which today it
+deliberately does not have. **Trigger:** a user tuning either side's timing, or any report of a
+handoff aborting with `ModelHostError` on an eviction that in fact completed. Recorded in
+[docs/refinements/inference-model-manager.md](../refinements/inference-model-manager.md) and its
+[index](../refinements/index.md).
+
 **And the records the landing left stale, now correct.** ADR-0012's host half was declared landed
 with two of its three required places (the area doc and the backlog index, both pointing here for the
 decision that relocated it) while its own origin ADR got nothing, unlike the `drain()` and re-place
