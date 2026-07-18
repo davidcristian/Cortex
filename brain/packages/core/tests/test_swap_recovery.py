@@ -10,6 +10,8 @@ Distrust-green proofs (each mutation reddened the named test, then was restored)
   ``test_a_stranded_record_is_failed_so_the_next_handoff_is_not_refused``;
 - skipping the stop of a still-running deep model reddens
   ``test_a_deep_model_left_resident_by_a_crash_is_stopped``;
+- leaving an evicted tier stopped instead of restoring it reddens
+  ``test_an_evictable_tier_is_cleared_off_the_gpu_and_then_put_back``;
 - letting a ``ModelHostError`` escape reddens ``test_an_unreachable_host_does_not_fail_the_boot``.
 """
 
@@ -81,8 +83,12 @@ async def test_a_deep_model_left_resident_by_a_crash_is_stopped() -> None:
     assert ("start", "cortex") in host.calls
 
 
-async def test_an_evictable_tier_is_stopped_before_the_cortex_is_settled() -> None:
-    """Nothing shares the GPU with the cortex on the way back up, in a fixed order."""
+async def test_an_evictable_tier_is_cleared_off_the_gpu_and_then_put_back() -> None:
+    """The order is the conductor's: clear the GPU, settle the cortex, restore the rest.
+
+    A crash can leave a tier holding VRAM the cortex needs, so it goes first; but the standing
+    residency includes it, so a boot that left it stopped would silently shrink the machine.
+    """
     host = ScriptedModelHost(running=["subagent-gpu", "brain", "cortex"])
     await converge_residency(
         host,
@@ -90,9 +96,12 @@ async def test_an_evictable_tier_is_stopped_before_the_cortex_is_settled() -> No
         clock=TickingClock(),
         sleeper=RecordingSleeper(),
     )
-    stops = [call for call in host.calls if call[0] == "stop"]
-    assert stops == [("stop", "subagent-gpu"), ("stop", "brain")]
-    assert host.running == {"cortex"}
+    assert [call for call in host.calls if call[0] != "status"] == [
+        ("stop", "subagent-gpu"),
+        ("stop", "brain"),
+        ("start", "subagent-gpu"),
+    ]
+    assert host.running == {"cortex", "subagent-gpu"}
 
 
 async def test_a_cortex_that_will_not_come_back_is_reported_loudly(

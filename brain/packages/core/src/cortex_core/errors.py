@@ -91,6 +91,18 @@ class SwapFailedError(ModelManagerError):
     """
 
 
+class HandoffInProgressError(ModelManagerError):
+    """Another handoff already owns the swap, so this one never started (ADR-0030).
+
+    There is one GPU, so there is one handoff. Raised by the residency claim the conductor
+    takes **before** it drains or evicts anything, and by a second scope entry, so the losing
+    caller is refused while the machine is still untouched. Deliberately not a
+    ``SwapFailedError``: the two say opposite things about what is true now. A failed swap
+    leaves the cortex serving and nothing loaded; this one means the deep model IS loaded and
+    is working on somebody else's turn, so the note owed to the user is the other one.
+    """
+
+
 class ResidencyRestoreError(ModelManagerError):
     """The cortex could not be restored after a swap, even on the retry (ADR-0030 decision 4).
 

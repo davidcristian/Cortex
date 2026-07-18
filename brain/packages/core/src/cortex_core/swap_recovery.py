@@ -57,11 +57,14 @@ async def _fail_stranded_handoff(handoffs: HandoffStore) -> None:
 async def converge_residency(
     host: ModelHost, plan: ResidencyPlan, *, clock: Clock, sleeper: Sleeper
 ) -> None:
-    """Stop everything the cortex must not share the GPU with, then make sure it is serving.
+    """Clear the GPU, settle the cortex on it, and put the standing residency back.
 
     Idempotent and boring on a clean boot: the deep model is already stopped, the cortex is
     already ``READY``, and nothing is touched. After a crash mid-handoff it is what puts the
-    machine back where the conductor's ``finally`` would have left it.
+    machine back where the conductor's ``finally`` would have left it, which is the same
+    standing residency that ``finally`` restores: the cortex, and beside it every tier a swap
+    evicts. The evictable tiers are stopped first and started last, because a crash can leave
+    one holding VRAM the cortex needs before the cortex is the one thing that must come up.
     """
     try:
         for model in (*plan.evict_models, plan.brain_model):
@@ -71,16 +74,25 @@ async def converge_residency(
                     extra={"model": model},
                 )
                 await host.stop(model)
-        if await host.status(plan.cortex_model) is ModelHostState.READY:
-            return
-        await host.start(plan.cortex_model)
-        state = await await_model_ready(
-            host, plan.cortex_model, clock=clock, sleeper=sleeper, plan=plan
-        )
-        if state is not ModelHostState.READY:
-            _logger.error(
-                "the cortex is not serving after boot recovery; turns will fail until it is",
-                extra={"model": plan.cortex_model, "state": state.value},
-            )
+        await _settle_cortex(host, plan, clock=clock, sleeper=sleeper)
+        for model in plan.evict_models:
+            await host.start(model)
     except ModelHostError:
         _logger.exception("the model host was unreachable during boot recovery")
+
+
+async def _settle_cortex(
+    host: ModelHost, plan: ResidencyPlan, *, clock: Clock, sleeper: Sleeper
+) -> None:
+    """Make sure the cortex is serving, and say so loudly when it will not be."""
+    if await host.status(plan.cortex_model) is ModelHostState.READY:
+        return
+    await host.start(plan.cortex_model)
+    state = await await_model_ready(
+        host, plan.cortex_model, clock=clock, sleeper=sleeper, plan=plan
+    )
+    if state is not ModelHostState.READY:
+        _logger.error(
+            "the cortex is not serving after boot recovery; turns will fail until it is",
+            extra={"model": plan.cortex_model, "state": state.value},
+        )

@@ -25,7 +25,11 @@ Distrust-green proofs (each mutation reddened the named test, then was restored)
 - dropping ``_end_scope``'s ``notify_all`` leaves a queued acquire asleep whenever the restore
   did not itself publish a residency change, which reddens
   ``test_a_queued_acquire_is_woken_even_when_the_swap_back_failed`` by timeout (the
-  happy-path test alone does NOT discriminate it, which is why that second test exists).
+  happy-path test alone does NOT discriminate it, which is why that second test exists);
+- reading the claim and setting it two statements apart (an await between them) reddens the
+  chaos suite's ``test_two_escalating_turns_racing_for_the_gpu_leave_one_of_them_untouched``;
+- restarting nothing after the cortex comes back reddens
+  ``test_the_scope_swaps_in_evicts_everything_else_and_restores_all_of_it``.
 """
 
 import asyncio
@@ -35,6 +39,7 @@ from datetime import UTC, datetime
 import pytest
 
 from cortex_core import (
+    HandoffInProgressError,
     ModelHost,
     ModelHostState,
     ModelManager,
@@ -64,7 +69,6 @@ def _plan(**overrides: object) -> ResidencyPlan:
     fields: dict[str, object] = {
         "cortex_model": "cortex",
         "brain_model": "brain",
-        "evict_models": ("subagent-gpu",),
         "load_timeout_s": 60.0,
     }
     return ResidencyPlan(**(fields | overrides))  # pyright: ignore[reportArgumentType]
@@ -184,10 +188,15 @@ async def test_acquire_serializes_callers_on_the_one_gpu() -> None:
     assert await second == _CORTEX_URL
 
 
-async def test_the_scope_swaps_in_evicts_everything_else_and_serves_the_new_resident() -> None:
-    """Decision 4 step 3's ordering, read straight off the host's op log."""
+async def test_the_scope_swaps_in_evicts_everything_else_and_restores_all_of_it() -> None:
+    """Decision 4 step 3's ordering, read straight off the host's op log.
+
+    The exit's job is the STANDING residency, not the cortex alone: the evicted subagent tier
+    is put back too, after the cortex is gated, or the conductor would reopen admission to a
+    tier the swap killed and nothing would ever restart.
+    """
     host = ScriptedModelHost(running=["cortex", "subagent-gpu"])
-    manager = _manager(host)
+    manager = _manager(host, _plan(evict_models=("subagent-gpu",)))
     async with manager.swap_scope("brain"):
         assert host.running == {"brain"}  # while the brain is resident it is alone on the GPU
         async with manager.acquire("brain") as lease:
@@ -200,9 +209,34 @@ async def test_the_scope_swaps_in_evicts_everything_else_and_serves_the_new_resi
         ("stop", "brain"),
         ("start", "cortex"),
         ("status", "cortex"),
+        ("start", "subagent-gpu"),
     ]
-    assert host.running == {"cortex"}
+    assert host.running == {"cortex", "subagent-gpu"}
     async with manager.acquire("cortex") as lease:  # the cortex serves again, unchanged
+        assert lease.endpoint == _CORTEX_URL
+
+
+async def test_a_tier_that_will_not_restart_does_not_make_the_cortex_look_gone(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """The evicted tier's restart is best effort, because the note for a failed restore lies here.
+
+    Telling the user "the usual assistant could not be reloaded" when the cortex is serving and
+    only the delegation tier is down would be the opposite of honest, so the failure is loud in
+    the log and invisible to the turn.
+    """
+    host = ScriptedModelHost(
+        running=["cortex", "subagent-gpu"], fail={("start", "subagent-gpu"): "no such device"}
+    )
+    manager = _manager(host, _plan(evict_models=("subagent-gpu",)))
+    with caplog.at_level(logging.ERROR, logger="cortex_core.residency_moves"):
+        async with manager.swap_scope("brain"):
+            pass
+    assert host.running == {"cortex"}
+    assert [record.message for record in caplog.records] == [
+        "a tier evicted for the handoff could not be restarted"
+    ]
+    async with manager.acquire("cortex") as lease:
         assert lease.endpoint == _CORTEX_URL
 
 
@@ -273,13 +307,56 @@ async def test_the_restore_waits_for_the_new_resident_s_own_round() -> None:
 
 
 async def test_a_second_scope_is_refused_because_there_is_one_gpu() -> None:
+    """And refused as a handoff already in flight, never as a swap that broke.
+
+    The distinction is what the user is told: a broken swap means nothing is loaded and the
+    cortex is back, which is the opposite of what is true while another handoff holds the GPU.
+    """
     manager = _manager(ScriptedModelHost(running=["cortex"]))
     scope = _OpenScope(manager)
     await scope.start()
-    with pytest.raises(SwapFailedError, match="already active"):
+    with pytest.raises(HandoffInProgressError, match="already active"):
         async with manager.swap_scope("brain"):
             pass  # pragma: no cover - entering raises before the body runs
     await scope.finish()
+
+
+async def test_the_handoff_claim_refuses_a_second_holder_without_touching_the_host() -> None:
+    """The claim is taken before anything is drained, so losing it costs nothing at all."""
+    host = ScriptedModelHost(running=["cortex"])
+    manager = _manager(host)
+    async with manager.handoff_claim():
+        with pytest.raises(HandoffInProgressError, match="one GPU"):
+            async with manager.handoff_claim():
+                pass  # pragma: no cover - entering raises before the body runs
+        # The cortex is untouched and still leasable: a refused claim is not a swap window.
+        assert host.calls == []
+        async with manager.acquire("cortex") as lease:
+            assert lease.endpoint == _CORTEX_URL
+    # And the claim is released on the way out, so the next handoff can take it.
+    async with manager.handoff_claim():
+        pass
+
+
+async def test_a_claim_is_released_even_when_its_holder_is_cancelled() -> None:
+    """A killed turn must not leave the machine unable to escalate ever again."""
+    manager = _manager(ScriptedModelHost(running=["cortex"]))
+    holding = asyncio.Event()
+    release = asyncio.Event()
+
+    async def hold() -> None:
+        async with manager.handoff_claim():
+            holding.set()
+            await release.wait()
+
+    task = asyncio.create_task(hold())
+    async with asyncio.timeout(5.0):
+        await holding.wait()
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+    async with manager.handoff_claim():
+        pass
 
 
 async def test_a_failed_swap_in_still_restores_the_cortex() -> None:

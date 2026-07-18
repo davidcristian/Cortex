@@ -597,3 +597,65 @@ handoff from its record (`docs/refinements/inference-model-manager.md`), which t
 which needs the request-identity design the reconnect entry also needs, and the drain bound
 sitting below a fired task's schedule lease (`docs/refinements/resource-governance.md`), which
 makes an escalation during scheduled work abort every time under the shipped defaults.
+
+## Addendum (2026-07-18): what the chaos proof was not proving, and the two contracts that fixes
+
+An adversarial review of the landed conductor found the proof weaker than its own docstring
+claimed, and one real concurrency defect behind it. Nothing about decisions 1 to 9 changes; what
+follows is the two places this ADR was silent, decided here rather than left to the next reader,
+plus the holes closed in the gate itself. **Still no real model swap has been validated:**
+everything below runs over the scripted host on an 8 GB dev GPU, exactly as the previous
+addendum says, and tier-scale validation remains host-side.
+
+**The single-handoff precondition is a claim, not a read.** Decision 2 makes `active()`
+checkable and the previous addendum said a second concurrent handoff is refused with an honest
+note. The conductor implemented that as a store read followed, two awaits later, by a write.
+Over a store whose verbs suspend (Redis's do; the in-memory fake structurally cannot exhibit it)
+two escalating turns on separate streams both pass, and the loser then runs the drain prologue
+and reopens subagent admission in its own `finally` while the winner's deep model is resident,
+contradicting decision 4 step 2 and decision 8 at once. The rule therefore moves to where the
+GPU's other invariants already live: `ResidencyController` gains `handoff_claim()`, a
+non-blocking claim the conductor takes **before** anything is read, written, drained, or
+evicted, whose check and set have nothing awaited between them. The store check stays as the
+second line of defence, for a record the store still holds after a failed settle or from
+another process. Losing the claim is not a swap failure and must not be reported as one: the
+new `HandoffInProgressError` (a `ModelManagerError`, raised by the claim and by a second scope
+entry, which previously raised `SwapFailedError`) carries the note that says a handoff is
+already running, because at that moment the deep model IS loaded and the usual assistant is
+NOT back, which is the opposite of what the swap-failure note asserts.
+
+**Convergence means the standing residency, not the cortex alone.** Decision 8 has a swap evict
+the cortex and every other hosted tier, and decision 4 step 6 restores "the cortex". Nothing
+restarted the evicted tiers, ever, while `undrain` reopened the pool to spawns that would be
+placed on them. The contract is now explicit and pinned: the standing residency is the cortex
+plus every `evict_models` tier, the residency scope's `finally` restores all of it (the cortex
+gated first, the tiers started back after, best effort, since a tier that will not come back
+must not be reported as the cortex being gone), and boot recovery converges the same way,
+clearing the GPU first and starting the tiers back last. This changes no shipped deployment,
+`CORTEX_SWAP_EVICT_MODELS` being empty until the real lifecycle sub-slice, which is exactly why
+it had to be decided now rather than discovered then.
+
+**What the gate was not proving**, each now closed and each proven fallible by mutation:
+
+- the "mid-drain" kill point never killed during a drain: it paused before the refusal window
+  opened, so it tested the same system state as "after-snapshot". It now parks an admission,
+  opens the real window, and pauses inside it, with a separate case asserting the boundary
+  (admission refused, work in flight, nothing evicted) so it cannot silently regress again;
+- the fourth invariant ("the stream ended honestly") asserted nothing at all for a cancelled
+  case, and justified that with a citation to a cancellation proof that does not exist. Status
+  details are now asserted as an ordered prefix of the swap window, with "the deep model is
+  working on this" witnessed against the record and the host's op log, so a status yielded
+  before the residency scope is entered reddens; the false citation is replaced by a plain
+  statement of what a cancelled case does not prove;
+- "the stores are intact" never covered durable memory (the harness's capabilities carried no
+  recaller, so the memory write was a no-op in every case). It does now, strictly for a
+  completed handoff and as "either the exchange or nothing" for a killed one;
+- teardown by **closing** the stream, which is how the seam tears a turn down when a client
+  goes away, was untested at three of its four sites, all of which a cancellation-only suite
+  cannot discriminate. There is now a close case at the conductor, at the wrapper, and at the
+  deep phase;
+- the rehydrated fence nonce, the resumed budget, and the carried taint ledger are now asserted
+  on what the run did rather than on values recomputed beside it;
+- the swap window's four status strings were asserted by a count; they are asserted in order;
+- taint through a swap, and the lease-free swap boundary, are now inside the chaos suite rather
+  than only in unit tests elsewhere.

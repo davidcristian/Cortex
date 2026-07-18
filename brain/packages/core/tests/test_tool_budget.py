@@ -94,3 +94,19 @@ def test_a_pool_is_a_handle_not_a_value_so_two_of_them_are_never_the_same_one() 
     # mistaken for two references to one pool, which is exactly the bug this object exists to
     # prevent at a larger scale.
     assert DispatchBudget(limit=3) != DispatchBudget(limit=3)
+
+
+def test_a_pool_resumed_at_a_persisted_position_carries_what_was_left_and_nothing_more() -> None:
+    # The swap's requirement (ADR-0030 decision 4 step 4): the deep model gets the allowance
+    # the escalating turn had left, so a handoff cannot refill a turn's spend.
+    resumed = DispatchBudget.resume(remaining=1, closed=False)
+    assert (resumed.limit, resumed.spent, resumed.closed) == (1, 0, False)
+    assert [resumed.charge(1), resumed.charge(1)] == [True, False]
+
+
+def test_a_pool_that_had_already_closed_stays_closed_when_it_is_resumed() -> None:
+    # Otherwise a turn that ran itself out of tools would be handed a fresh licence by the very
+    # act of swapping models, which is the one thing the carried position exists to prevent.
+    resumed = DispatchBudget.resume(remaining=0, closed=True)
+    assert resumed.closed is True
+    assert resumed.charge(1) is False

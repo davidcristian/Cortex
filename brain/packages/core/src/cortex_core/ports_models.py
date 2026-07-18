@@ -53,7 +53,19 @@ class ResidencyController(Protocol):
     raising, so a queued cortex turn on another stream blocks until restoration instead of
     failing; outside any scope, a non-resident acquire raises ``ModelUnavailableError`` exactly
     as v1 does. At most one scope is active at a time (there is one GPU): a second entry raises
-    ``SwapFailedError`` rather than interleaving two swaps.
+    ``HandoffInProgressError`` rather than interleaving two swaps.
+
+    ``handoff_claim()`` is the same one-GPU-one-handoff rule taken **earlier**, before anything
+    is drained or evicted. Entering it either claims the whole swap sequence for its block or
+    raises ``HandoffInProgressError`` at once (refuse, never queue: a queued handoff would
+    hold a user's turn open for the length of somebody else's). The check and the claim happen
+    with nothing awaited between them, which is what makes it a claim rather than a read: the
+    conductor's own precondition would otherwise be a check-then-act race, and the loser would
+    run the drain prologue and then release the drain window while the winner's deep model was
+    still resident. Entering a swap scope inside a claim is the normal composition; the scope's
+    own guard stays as the backstop for anything that swaps without claiming first.
     """
 
     def swap_scope(self, model: str) -> AbstractAsyncContextManager[None]: ...
+
+    def handoff_claim(self) -> AbstractAsyncContextManager[None]: ...

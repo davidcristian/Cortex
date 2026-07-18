@@ -31,6 +31,7 @@ from cortex_core.engine import DEFAULT_CORTEX_MODEL as DEFAULT_CORTEX_MODEL
 from cortex_core.engine import TurnEngine as TurnEngine
 from cortex_core.errors import BodyGatewayError as BodyGatewayError
 from cortex_core.errors import EmbedderError as EmbedderError
+from cortex_core.errors import HandoffInProgressError as HandoffInProgressError
 from cortex_core.errors import HandoffStoreError as HandoffStoreError
 from cortex_core.errors import InferenceError as InferenceError
 from cortex_core.errors import MemoryStoreError as MemoryStoreError
@@ -211,10 +212,14 @@ from cortex_core.swap_conductor import SwapConductor as SwapConductor
 from cortex_core.swap_notes import ALREADY_ACTIVE_NOTE as ALREADY_ACTIVE_NOTE
 from cortex_core.swap_notes import BRAIN_FAILED_NOTE as BRAIN_FAILED_NOTE
 from cortex_core.swap_notes import DRAIN_TIMEOUT_NOTE as DRAIN_TIMEOUT_NOTE
+from cortex_core.swap_notes import DRAINING_DETAIL as DRAINING_DETAIL
+from cortex_core.swap_notes import LOADING_DETAIL as LOADING_DETAIL
 from cortex_core.swap_notes import RESTORE_FAILED_NOTE as RESTORE_FAILED_NOTE
+from cortex_core.swap_notes import RESTORING_DETAIL as RESTORING_DETAIL
 from cortex_core.swap_notes import STORE_FAILED_NOTE as STORE_FAILED_NOTE
 from cortex_core.swap_notes import SWAP_FAILED_NOTE as SWAP_FAILED_NOTE
 from cortex_core.swap_notes import SWAPPING_STATE as SWAPPING_STATE
+from cortex_core.swap_notes import WORKING_DETAIL as WORKING_DETAIL
 from cortex_core.swap_recovery import converge_residency as converge_residency
 from cortex_core.swap_recovery import recover_handoffs as recover_handoffs
 from cortex_core.tool_budget import MAX_TOOL_DISPATCHES as MAX_TOOL_DISPATCHES
