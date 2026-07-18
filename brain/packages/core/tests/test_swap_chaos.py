@@ -121,7 +121,14 @@ says "every case that ...", read it as every case that also checks the window.
   to, both mid-drain cases pass under it (measured the same way);
 - releasing the record's claim only when the settling write landed reddens both cases of
   ``test_a_store_that_refuses_the_settling_write_still_frees_the_next_handoff``, with the
-  conductor suite's two store-failure cases [4].
+  conductor suite's two store-failure cases [4];
+- persisting the snapshot AFTER the pool is drained rather than before it reddens 20 cases here
+  and the conductor suite's two window cases [22], nearly all of them on the record states a
+  case reads once its handoff has ended. One reddens on the ordering itself, while the drain is
+  still running: ``test_the_mid_drain_kill_lands_while_the_pool_is_actually_quiescing``, at its
+  own record assertion, that boundary being the only place the store is looked at mid-drain
+  (measured with the reordering made well formed, so the case fails on the ordering and not on a
+  mutation that cannot bind its own record; without that assertion it passes under this one).
 """
 
 import asyncio
@@ -637,9 +644,15 @@ async def test_the_mid_drain_kill_lands_while_the_pool_is_actually_quiescing() -
     """The mid-drain boundary is a different system state from after-snapshot, and this pins it.
 
     Without this the case degrades silently into a second kill-before-anything-happened, which
-    is what it used to be: the ADR's point is a kill while the pool is QUIESCING, so its
-    boundary owes admission already refused, an admitted request still in flight, and nothing
-    evicted. All three are asserted here, at the same gate the parameterized case cancels at.
+    is what it used to be: the ADR's point is a kill while the pool is QUIESCING. What the
+    conductor owes at that boundary is asserted below on state it wrote itself: admission is
+    already refused, the record is already safe, and nothing has been evicted.
+
+    The other thing the boundary needs, an admitted request still in flight, is this harness's
+    own straggler. ``_PausingScheduler`` admits it and holds it at the gate, and nothing the
+    conductor could do would release it (v1 kills no subagent mid-stream), so the two lines that
+    check it are the premise that puts the pause inside ``drain`` rather than after it, not a
+    finding about the code under test.
     """
     gate = Gate()
     scheduler = _PausingScheduler(mid=gate)
@@ -648,11 +661,14 @@ async def test_the_mid_drain_kill_lands_while_the_pool_is_actually_quiescing() -
     events: list[TurnEvent] = []
     task = asyncio.create_task(_consume(live, events))
     await gate.arrived()
+    assert scheduler.straggler is not None  # the premise, restated so the boundary cannot
+    assert not scheduler.straggler.done()  # degrade unnoticed into a drained-pool pause
     assert scheduler.draining is True  # the refusal window is open
     with pytest.raises(SubagentAdmissionError):
         await _admit(live)
-    assert scheduler.straggler is not None
-    assert not scheduler.straggler.done()  # and work really is still in flight
+    # And the pool was touched only once the handoff was safe to abandon: the record is written
+    # and READY before the drain begins, so a kill here costs a handoff and nothing else.
+    assert live.handoffs.states == [HandoffState.READY]
     assert live.host.calls == []  # while nothing at all has been evicted
     task.cancel()
     gate.release.set()

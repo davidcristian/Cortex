@@ -92,7 +92,10 @@ the unchanged `SubagentPlacer`/`SubagentScheduler`/`ModelManager` ports.
   deployment where scheduled work and escalation collide often enough to notice. Killing a
   subagent mid-stream to make the drain succeed stays refused (v1 never does).
 - **Admission reopens even onto a tier the swap back could not restart.** *Fix when it bites.*
-  Opened 2026-07-18 by the pass that made the drain window wait for the standing residency. The
+  Opened 2026-07-18 by the pass that made the drain window wait for the standing residency, and
+  recorded at the [ADR-0030 reopening addendum](../adr/ADR-0030-brain-handoff.md), that ADR owning
+  both halves that create it (the best-effort tier restart and the reopening that follows the
+  restore) while this port stays unchanged. The
   window now lifts only after the residency scope has restored the cortex and restarted every
   `evict_models` tier, and every reopening is witnessed against what was actually running. But
   the tier restart is deliberately best effort ([ADR-0030](../adr/ADR-0030-brain-handoff.md)
