@@ -12,8 +12,14 @@ Fail-safe direction throughout: **every exit path converges back to a serving co
 every one of them leaves the record in a terminal state and tells the user what happened. The
 ordering is load-bearing and each step's failure has a direction:
 
-1. **Snapshot.** Refuse a second concurrent handoff, then persist the record ``READY``. Nothing
-   has been stopped, so a failure here costs nothing but the handoff.
+0. **Claim.** Take the one-handoff claim on the residency controller, before anything at all.
+   It is a claim and not a read because the check and the act must not be two awaits apart: a
+   second escalating turn that slipped through would drain the pool, be refused at the swap,
+   and then reopen admission in its own ``finally`` while the winner's deep model was still
+   resident. Losing the claim costs nothing: nothing has been read, written, drained or
+   evicted, and the user is told the truthful thing, that a handoff is already running.
+1. **Snapshot.** Refuse a handoff the store still thinks is live, then persist the record
+   ``READY``. Nothing has been stopped, so a failure here costs nothing but the handoff.
 2. **Drain.** Quiesce the subagent pool, bounded. A timeout **aborts before anything is
    evicted**: v1 never kills a subagent mid-stream, so a straggler means the swap does not
    happen, not that the machine is left half-swapped. ``undrain`` is owed in a ``finally``,
@@ -31,6 +37,7 @@ from collections.abc import AsyncGenerator
 
 from cortex_core.brain_phase import BrainPhase
 from cortex_core.errors import (
+    HandoffInProgressError,
     HandoffStoreError,
     InferenceError,
     ModelManagerError,
@@ -94,7 +101,30 @@ class SwapConductor:
         generator already closed, so no GPU lease is held and nothing is copied mid-flight.
         Yields nothing but events: whether the handoff happened is told on the stream, never
         raised at the caller, except when the turn itself is being torn down.
+
+        The claim wraps everything, so a handoff that loses it has drained nothing and evicted
+        nothing, and the whole sequence below runs only for the one turn that owns the GPU.
         """
+        try:
+            async with self._residency.handoff_claim():
+                run = self._run_claimed(slot, session_id=session_id, turn_id=turn_id)
+                try:
+                    async for event in run:
+                        yield event
+                finally:
+                    # Same deterministic teardown as every other generator here: a consumer
+                    # that walks away must unwind the sequence, not leave it to the collector.
+                    await run.aclose()
+        except HandoffInProgressError:
+            _logger.warning(
+                "refusing a handoff while another one holds the swap", extra={"turn": turn_id}
+            )
+            yield TextDelta(text=ALREADY_ACTIVE_NOTE)
+
+    async def _run_claimed(
+        self, slot: EscalationSlot, *, session_id: str, turn_id: str
+    ) -> AsyncGenerator[TurnEvent, None]:
+        """The sequence itself, run by the one turn that holds the claim."""
         prepared = await self._prepare(slot, session_id=session_id, turn_id=turn_id)
         if isinstance(prepared, str):
             yield TextDelta(text=prepared)
@@ -130,8 +160,11 @@ class SwapConductor:
         """Serialize the slot into a ``READY`` record, or the note saying why there is none."""
         try:
             if (active := await self._handoffs.active()) is not None:
+                # The claim already refused anything racing this turn in this process, so a
+                # record still live here is one the store kept: a settle that never landed, or
+                # a handoff another process owns. Either way this turn evicts nothing.
                 _logger.warning(
-                    "refusing a second concurrent handoff",
+                    "refusing a handoff while the store still has one in flight",
                     extra={"active_handoff": active.handoff_id, "turn": turn_id},
                 )
                 return ALREADY_ACTIVE_NOTE

@@ -5,20 +5,24 @@ same real composition the conductor suite drives (real conductor, real residency
 drain, real deep phase, over the scripted host and in-memory stores) is killed at each boundary
 of the swap sequence, and every case asserts the same four invariants:
 
-1. **the cortex serves again**: the exit path asked for it back whenever anything was evicted,
-   and the host ends with the cortex as its only running model;
+1. **the standing residency is back**: the exit path asked for the cortex back whenever
+   anything was evicted, and the host ends running the cortex plus every tier the swap evicts;
 2. **the pool admits again**: the drain window is released whatever ended the handoff;
 3. **the stores are intact**: the user message and the cortex's reply are still there, no
-   partial deep answer is persisted as a completed one, no handoff is left live, and the record
-   reached a terminal state (which a clean handoff then deletes, so it is the write log that
-   proves it);
-4. **the stream ended honestly**: the events say what happened, and the next turn still works.
+   partial deep answer is persisted as a completed one, the durable memory holds this turn's
+   exchange or nothing at all (never a half-written or invented one), no handoff is left live,
+   and the record reached a terminal state (which a clean handoff then deletes, so it is the
+   write log that proves it);
+4. **the stream ended honestly**: every event it emitted was true when it was emitted, and
+   the next turn still works.
 
-Two kinds of kill, both from the ADR's list. A **scripted failure** (a host that refuses, a
-model that never loads, a server that dies mid-answer) exercises the conductor's own error
-paths. A **cancellation** at an armed boundary is the process-death analogue on the consumer
-side: the task running the handoff is cancelled exactly there, which is what a killed turn, a
-disconnected client, or a stopped stream does.
+Three kinds of kill. A **scripted failure** (a host that refuses, a model that never loads, a
+server that dies mid-answer) exercises the conductor's own error paths. A **cancellation** at
+an armed boundary is the process-death analogue on the consumer side: the task running the
+handoff is cancelled exactly there, which is what a killed turn does. A **close** is the third
+and it is not the same thing: production tears a stream down by closing the generator, not by
+cancelling its task, and a cancellation unwinds the inner generators inline, so only a close
+can discriminate the conductor's own deterministic teardown.
 
 Determinism: every boundary is an ``asyncio.Event`` pair, every elapsed bound is passed as zero
 (already expired), and ``_settle`` yields the loop a few turns. No test sleeps wall-clock.
@@ -41,7 +45,20 @@ was then restored):
 - a drain that reports clean on timeout reddens that same drain-timeout case;
 - skipping the stranded-record failure, or the stop of a still-running deep model, in boot
   recovery reddens
-  ``test_boot_recovery_fails_a_stranded_record_and_converges_without_double_running``.
+  ``test_boot_recovery_fails_a_stranded_record_and_converges_without_double_running``;
+- taking the single-handoff precondition as a store read rather than as the residency claim
+  reddens ``test_two_escalating_turns_racing_for_the_gpu_leave_one_of_them_untouched``, which
+  the in-memory store alone cannot do (hence ``_YieldingHandoffStore``);
+- dropping the conductor's ``aclose`` on its swap generator reddens
+  ``test_closing_the_stream_mid_handoff_unwinds_the_swap_rather_than_abandoning_it``, and
+  nothing else here, because every other case cancels;
+- yielding the "working on this" status above the residency scope reddens every case that
+  never reached the deep model, through ``assert_stream_ended_honestly``'s witness;
+- restarting nothing after the cortex comes back reddens
+  ``test_a_tier_evicted_for_the_handoff_is_running_again_when_it_ends``;
+- pausing the mid-drain case before the refusal window opens (which is where it used to
+  pause, making it a duplicate of ``after-snapshot``) reddens
+  ``test_the_mid_drain_kill_lands_while_the_pool_is_actually_quiescing``.
 """
 
 import asyncio
@@ -60,17 +77,30 @@ from swap_harness import (
 )
 
 from cortex_core import (
+    ALREADY_ACTIVE_NOTE,
     BRAIN_FAILED_NOTE,
+    DRAINING_DETAIL,
+    LOADING_DETAIL,
+    RESTORING_DETAIL,
     SWAPPING_STATE,
+    WORKING_DETAIL,
     AdmitAllScheduler,
+    HandoffRecord,
     HandoffState,
     ModelHostState,
     RecordingSleeper,
     ScriptedModelHost,
+    SourceKind,
     StatusUpdate,
+    SubagentAdmissionError,
+    TaintLedger,
     TextDelta,
+    TurnCapabilities,
     TurnEvent,
+    UrlRedactingGuardrail,
+    as_source,
     recover_handoffs,
+    render_exchange,
 )
 
 # How far the host has been driven at each boundary, ignoring readiness polls: the eviction, the
@@ -78,6 +108,10 @@ from cortex_core import (
 _EVICTED = (("stop", "cortex"),)
 _SWAPPED_IN = (*_EVICTED, ("start", "brain"))
 _SWAPPED_BACK = (*_SWAPPED_IN, ("stop", "brain"), ("start", "cortex"))
+
+# The swap window's four steps, in the only order they can honestly happen. Every case's status
+# details are a PREFIX of this: a handoff that stopped early says less, never something else.
+_SWAP_WINDOW = [DRAINING_DETAIL, LOADING_DETAIL, WORKING_DETAIL, RESTORING_DETAIL]
 
 
 async def _settle(turns: int = 5) -> None:
@@ -87,26 +121,82 @@ async def _settle(turns: int = 5) -> None:
 
 
 class _PausingScheduler(AdmitAllScheduler):
-    """A pool that pauses the handoff at a drain boundary: while draining, or once drained."""
+    """A pool that pauses the handoff at a drain boundary: inside the window, or once drained.
+
+    ``mid`` is the ADR's mid-drain kill point and it has to land where its name says. So the
+    pool parks one admission of its own, opens the real refusal window, and only THEN pauses:
+    a kill there happens while the pool is quiescing with work still in flight, rather than at
+    the same system state as ``after-snapshot``, which is what a pause before the window would
+    have been. ``after`` pauses once the pool has fully drained, the other edge.
+    """
 
     def __init__(self, *, mid: Gate | None = None, after: Gate | None = None) -> None:
         super().__init__()
+        self.straggler: asyncio.Task[None] | None = None
         self._mid = mid
         self._after = after
+        self._parked = asyncio.Event()
+
+    @property
+    def draining(self) -> bool:
+        """Whether the refusal window is open, which is what "mid drain" has to mean."""
+        return self._draining
 
     async def drain(self, *, timeout_s: float) -> bool:
         if self._mid is not None:
+            await self._open_the_window(self._mid)
             await self._mid.pause()
         drained = await super().drain(timeout_s=timeout_s)
         if self._after is not None:
             await self._after.pause()
         return drained
 
+    async def _open_the_window(self, gate: Gate) -> None:
+        """Park one admission, then open the refusal window exactly as the real drain opens it."""
+        self.straggler = asyncio.create_task(self._park(gate))
+        async with asyncio.timeout(5.0):
+            await self._parked.wait()
+        async with self._pool:
+            self._draining = True
+            self._pool.notify_all()
 
-async def _consume(live: Harness, events: list[TurnEvent]) -> None:
+    async def _park(self, gate: Gate) -> None:
+        """One admitted request that outlives the window's opening: the straggler."""
+        async with self.admit(harness.request()):
+            self._parked.set()
+            await gate.release.wait()
+
+
+class _YieldingHandoffStore(RecordingHandoffStore):
+    """A store whose verbs suspend, as a real network store's do; the in-memory twin never does.
+
+    The single-handoff precondition is a read followed by a write. Over a store that cannot
+    suspend between them two concurrent handoffs can never interleave there, so the in-memory
+    fake structurally cannot exhibit the race the residency claim exists to close, and a suite
+    built only on it would call the defect green. This one can: every verb yields the loop
+    first, and the first ``put`` is held at a gate, which is precisely the window a second
+    escalating turn would slip through.
+    """
+
+    def __init__(self, *, hold_first_put: Gate | None = None) -> None:
+        super().__init__()
+        self._hold_first_put = hold_first_put
+
+    async def active(self) -> HandoffRecord | None:
+        await asyncio.sleep(0)
+        return await super().active()
+
+    async def put(self, record: HandoffRecord) -> None:
+        gate, self._hold_first_put = self._hold_first_put, None
+        if gate is not None:
+            await gate.pause()
+        await super().put(record)
+
+
+async def _consume(live: Harness, events: list[TurnEvent], *, turn_id: str = harness.TURN) -> None:
     """Run one handoff, collecting its events; the task a chaos case cancels."""
     stream = live.conductor.run_handoff(
-        harness.armed_slot(), session_id=harness.SESSION, turn_id=harness.TURN
+        harness.armed_slot(), session_id=harness.SESSION, turn_id=turn_id
     )
     try:
         async for event in stream:
@@ -115,20 +205,32 @@ async def _consume(live: Harness, events: list[TurnEvent]) -> None:
         await stream.aclose()
 
 
-async def assert_converged_on_cortex(live: Harness) -> None:
-    """Invariants 1 and 2: the cortex serves again and the subagent pool admits again."""
-    if ("stop", live.residency.cortex_model) in live.host.calls:
-        # Anything that evicted the cortex owes the restore; the scope's finally is what pays.
-        assert ("start", live.residency.cortex_model) in live.host.calls
-    assert live.host.running == {live.residency.cortex_model}
-    assert live.host.calls.count(("start", live.residency.brain_model)) <= 1  # nothing double-ran
-    assert live.backend.calls <= 1  # the deep model answered at most once
+async def _admit(live: Harness) -> None:
+    """One subagent admission, so a refusal can be asserted without leaving a block hanging."""
     async with live.scheduler.admit(harness.request()):
         pass
 
 
-async def assert_stores_intact(live: Harness, *, deep_reply: str | None = None) -> None:
-    """Invariant 3: nothing the cortex phase persisted is lost, and no handoff stays live."""
+async def assert_converged_on_cortex(live: Harness) -> None:
+    """Invariants 1 and 2: the standing residency is back and the pool admits again.
+
+    Standing residency is the cortex AND every tier the swap evicts for the deep model's sake:
+    ``undrain`` reopens the pool to spawns the moment a handoff ends, so a subagent tier left
+    stopped would take delegated work on a server nothing ever restarted.
+    """
+    if ("stop", live.residency.cortex_model) in live.host.calls:
+        # Anything that evicted the cortex owes the restore; the scope's finally is what pays.
+        assert ("start", live.residency.cortex_model) in live.host.calls
+    assert live.host.running == {live.residency.cortex_model, *live.residency.evict_models}
+    assert live.host.calls.count(("start", live.residency.brain_model)) <= 1  # nothing double-ran
+    assert live.backend.calls <= 1  # the deep model answered at most once
+    await _admit(live)
+
+
+async def assert_stores_intact(
+    live: Harness, *, deep_reply: str | None = None, killed: bool = False
+) -> None:
+    """Invariant 3: nothing either phase persisted is lost, and no handoff stays live."""
     assert await live.handoffs.active() is None
     record = await live.handoffs.get(harness.TURN)
     assert record is None or record.state.terminal
@@ -142,22 +244,44 @@ async def assert_stores_intact(live: Harness, *, deep_reply: str | None = None) 
     if deep_reply is not None:
         expected.append(("assistant", deep_reply))
     assert history == expected
+    # The durable store too, which a memory-less capabilities bundle would have made vacuous: a
+    # deep phase that finished records exactly its own exchange, and nothing else ever records
+    # anything at all. A kill can land between the reply's append and the memory write, so a
+    # killed case may be missing it; what neither case may be is half written or invented.
+    remembered = [memory.text for memory in await live.remembered()]
+    written = [] if deep_reply is None else [render_exchange(harness.USER_TEXT, deep_reply)]
+    if killed:
+        assert remembered in ([], written)
+    else:
+        assert remembered == written
 
 
-def assert_stream_ended_honestly(events: list[TurnEvent], *, killed: bool) -> None:
-    """Invariant 4: nothing on the stream claimed more than the machine actually did.
+def assert_stream_ended_honestly(live: Harness, events: list[TurnEvent], *, killed: bool) -> None:
+    """Invariant 4: no event claimed progress the machine had not actually made.
 
-    A handoff that runs to an end always says something: a deep answer, or the note explaining
-    why there is none. A **killed** one may not have got a word out, because the kill can land
-    before the first status; the ending the caller then sees is the cancellation itself, which
-    the seam turns into a terminal error rather than silence (proven end to end over the real
-    stream in the orchestrator's ``test_converse_handoff.py``). What must never happen either
-    way is an event claiming progress that did not happen.
+    The status details are asserted as an ordered prefix of the swap window rather than
+    counted, so a step cannot be reordered, duplicated, or invented. The one that asserts a
+    fact about the GPU, "the deep model is working on this", is checked against the record and
+    the host's own op log as well, because a status yielded before the residency scope was
+    entered is still a plausible-looking prefix and is exactly the lie a count cannot see.
+
+    A handoff that ran to an end always says something too: a deep answer, or the note that
+    explains why there is none. A **killed** one may not have got a word out, because the kill
+    can land before the first status; what it still owes is that whatever DID reach the stream
+    was true. What a cancelled case deliberately does NOT prove is how the RPC then ends for
+    the client: that is the seam's contract, it is tested at the seam, and it is not observable
+    from here, where the cancellation simply propagates to the caller.
     """
+    states: list[str] = []
     for event in events:
         assert isinstance(event, StatusUpdate | TextDelta)
         if isinstance(event, StatusUpdate):
             assert event.state == SWAPPING_STATE
+            states.append(event.detail)
+    assert states == _SWAP_WINDOW[: len(states)]
+    if WORKING_DETAIL in states:
+        assert HandoffState.BRAIN_ACTIVE in live.handoffs.states
+        assert ("start", live.residency.brain_model) in live.host.calls
     if not killed:
         assert any(isinstance(event, TextDelta) for event in events)
 
@@ -228,7 +352,7 @@ async def test_a_scripted_failure_converges_and_tells_the_user(
     events = await harness.run_handoff(live, harness.armed_slot())
     await assert_converged_on_cortex(live)
     await assert_stores_intact(live, deep_reply=deep_reply)
-    assert_stream_ended_honestly(events, killed=False)
+    assert_stream_ended_honestly(live, events, killed=False)
     await assert_the_next_turn_still_works(live)
 
 
@@ -248,7 +372,12 @@ async def test_a_drain_that_times_out_converges_without_evicting_anything() -> N
     assert live.host.calls == []  # the whole point: nothing was evicted
     await assert_converged_on_cortex(live)
     await assert_stores_intact(live)
-    assert_stream_ended_honestly(events, killed=False)
+    assert_stream_ended_honestly(live, events, killed=False)
+    # The fourth invariant this case owed and did not check: the lease is free again while the
+    # straggler that aborted the handoff is STILL running, so the next turn is not held behind
+    # a swap that never happened.
+    await assert_the_next_turn_still_works(live)
+    assert not task.done()
     held.release.set()
     await task
 
@@ -330,9 +459,198 @@ async def test_a_kill_at_a_step_boundary_converges_back_onto_the_cortex(
         await task
     await _settle()
     await assert_converged_on_cortex(live)
-    await assert_stores_intact(live, deep_reply=deep_reply)
-    assert_stream_ended_honestly(events, killed=True)
+    await assert_stores_intact(live, deep_reply=deep_reply, killed=True)
+    assert_stream_ended_honestly(live, events, killed=True)
     await assert_the_next_turn_still_works(live)
+
+
+async def test_the_mid_drain_kill_lands_while_the_pool_is_actually_quiescing() -> None:
+    """The mid-drain boundary is a different system state from after-snapshot, and this pins it.
+
+    Without this the case degrades silently into a second kill-before-anything-happened, which
+    is what it used to be: the ADR's point is a kill while the pool is QUIESCING, so its
+    boundary owes admission already refused, an admitted request still in flight, and nothing
+    evicted. All three are asserted here, at the same gate the parameterized case cancels at.
+    """
+    gate = Gate()
+    scheduler = _PausingScheduler(mid=gate)
+    live = build_harness(scheduler=scheduler)
+    await live.seed_session()
+    events: list[TurnEvent] = []
+    task = asyncio.create_task(_consume(live, events))
+    await gate.arrived()
+    assert scheduler.draining is True  # the refusal window is open
+    with pytest.raises(SubagentAdmissionError):
+        await _admit(live)
+    assert scheduler.straggler is not None
+    assert not scheduler.straggler.done()  # and work really is still in flight
+    assert live.host.calls == []  # while nothing at all has been evicted
+    task.cancel()
+    gate.release.set()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+    await _settle()
+    await assert_converged_on_cortex(live)
+
+
+async def test_two_escalating_turns_racing_for_the_gpu_leave_one_of_them_untouched() -> None:
+    """One GPU means one handoff, and the loser must not have run the prologue at all.
+
+    The precondition cannot be a store read acted on two awaits later. Over a store whose
+    verbs suspend (Redis's do), both escalating turns see no active handoff, both write a
+    record, and the loser then drains the pool and reopens it in its own ``finally`` while the
+    winner's deep model is resident, contradicting both "while draining and for the whole
+    handoff, admit refuses" and "while the brain is resident it is alone on the GPU". So the
+    claim is taken first, and the loser is told the one thing that is true: a handoff is
+    already running, and nothing was unloaded for this one.
+
+    One conductor drives both turns because a conductor holds no per-handoff state; what two
+    streams genuinely share is the manager and the stores, and those are shared here.
+    """
+    put_gate, working = Gate(), Gate()
+    live = build_harness(
+        Fakes(
+            handoffs=_YieldingHandoffStore(hold_first_put=put_gate),
+            backend=ScriptedBrainBackend(gate=working, gate_after=1),
+        )
+    )
+    await live.seed_session()
+    won: list[TurnEvent] = []
+    lost: list[TurnEvent] = []
+    # Both turns are started before either can finish claiming, which is the interleaving that
+    # matters: a claim read in one step and taken in another would let both of them through.
+    winner = asyncio.create_task(_consume(live, won))
+    loser = asyncio.create_task(_consume(live, lost, turn_id="t-loser"))
+    await put_gate.arrived()  # the winner is between its own check and its first write
+    await _settle()
+
+    assert loser.done()  # refused at once, with nothing to wait for
+    await loser
+    assert lost == [TextDelta(text=ALREADY_ACTIVE_NOTE)]
+    assert await live.handoffs.get("t-loser") is None  # it never even wrote a record
+    put_gate.release.set()
+    await working.arrived()
+    # With the winner mid handoff the drain window is still shut. This is the assertion the
+    # defect broke: the loser's own ``finally`` reopened it under the resident deep model.
+    with pytest.raises(SubagentAdmissionError):
+        await _admit(live)
+    working.release.set()
+    await winner
+
+    assert live.host.calls.count(("start", "brain")) == 1
+    assert live.backend.calls == 1
+    await assert_converged_on_cortex(live)
+    await assert_stores_intact(live, deep_reply="a deep answer")
+    assert_stream_ended_honestly(live, won, killed=False)
+    await assert_the_next_turn_still_works(live)
+
+
+async def test_closing_the_stream_mid_handoff_unwinds_the_swap_rather_than_abandoning_it() -> None:
+    """A consumer that walks away is not a cancellation, and it must converge just the same.
+
+    This is the production teardown shape: ``converse`` closes the engine's stream when the
+    client goes away, which closes this generator rather than cancelling the task running it.
+    Every other case here cancels, and a cancellation unwinds the inner generators inline, so
+    nothing else in the suite can tell a conductor that closes its swap deterministically from
+    one that leaves the deep model resident and the cortex evicted until the collector runs.
+    """
+    live = build_harness()
+    await live.seed_session()
+    stream = live.conductor.run_handoff(
+        harness.armed_slot(), session_id=harness.SESSION, turn_id=harness.TURN
+    )
+    events: list[TurnEvent] = []
+    async for event in stream:
+        events.append(event)
+        if isinstance(event, StatusUpdate) and event.detail == WORKING_DETAIL:
+            break
+    assert live.host.running == {"brain"}  # the swap really is in flight
+    await stream.aclose()
+    # No settling and no cancellation: closing the stream is itself what owes the swap back.
+    assert live.host.running == {"cortex"}
+    await assert_converged_on_cortex(live)
+    await assert_stores_intact(live, killed=True)
+    assert_stream_ended_honestly(live, events, killed=True)
+    await assert_the_next_turn_still_works(live)
+
+
+async def test_a_tier_evicted_for_the_handoff_is_running_again_when_it_ends() -> None:
+    """Convergence means the standing residency, not the cortex alone.
+
+    The pool starts admitting again the instant the handoff ends, so a GPU-placed subagent
+    tier that the swap stopped and nothing restarted would be handed delegated work on a dead
+    server. The exit that restores the cortex restores it too.
+    """
+    host = ScriptedModelHost(running=["cortex", "subagent-gpu"])
+    live = build_harness(Fakes(host=host), residency=harness.plan(evict_models=("subagent-gpu",)))
+    await live.seed_session()
+    events = await harness.run_handoff(live, harness.armed_slot())
+    assert ("stop", "subagent-gpu") in host.calls  # it really was evicted for the deep model
+    assert host.running == {"cortex", "subagent-gpu"}
+    await assert_converged_on_cortex(live)
+    await assert_stores_intact(live, deep_reply="a deep answer")
+    assert_stream_ended_honestly(live, events, killed=False)
+    await assert_the_next_turn_still_works(live)
+
+
+async def test_taint_and_its_evidence_survive_the_swap_and_still_bind_the_deep_model() -> None:
+    """The other half of the hard rule, inside the artifact that claims to prove it end to end.
+
+    Taint that did not survive would fail open on the far side of the swap: the deep model
+    holds the same tools and the same outbound surface, and the laundering evidence is what
+    stops it completing an exfiltration the cortex was already refused.
+    """
+    ledger = TaintLedger()
+    ledger.ingest_untrusted(
+        "read http://evil.test/x", source=as_source(SourceKind.TOOL, "read_page")
+    )
+    live = build_harness(
+        Fakes(backend=ScriptedBrainBackend(chunks=("visit http://evil.test/x now",))),
+        capabilities=TurnCapabilities(guardrail=UrlRedactingGuardrail()),
+    )
+    await live.seed_session()
+    events = await harness.run_handoff(live, harness.armed_slot(taint=ledger))
+    shown = "".join(event.text for event in events if isinstance(event, TextDelta))
+    assert shown  # it did answer; the redaction below is not just an empty stream
+    # The guardrail on the far side opened over the RECORD's evidence, not a fresh empty set.
+    assert "http://evil.test/x" not in shown
+    persisted = [message.text for message in await live.sessions.history(harness.SESSION)]
+    assert "http://evil.test/x" not in persisted[-1]
+    # And the same taint policy the cortex phase applies kept it out of durable memory.
+    assert await live.remembered() == []
+    await assert_converged_on_cortex(live)
+    await assert_the_next_turn_still_works(live)
+
+
+async def test_the_swap_waits_for_an_in_flight_cortex_round_to_fall_free() -> None:
+    """Swaps happen only at lease-free boundaries, which the end-to-end artifact owes too.
+
+    v1 never preempts a round in flight, so a handoff that starts while the cortex is
+    mid-answer on another stream evicts nothing at all until that round releases the GPU.
+    """
+    live = build_harness()
+    await live.seed_session()
+    holding, release = asyncio.Event(), asyncio.Event()
+
+    async def in_flight_round() -> None:
+        async with live.manager.acquire(live.residency.cortex_model):
+            holding.set()
+            await release.wait()
+
+    round_task = asyncio.create_task(in_flight_round())
+    async with asyncio.timeout(5.0):
+        await holding.wait()
+    events: list[TurnEvent] = []
+    handoff = asyncio.create_task(_consume(live, events))
+    await _settle()
+    assert live.host.calls == []  # queued behind the round, not preempting it
+    release.set()
+    await round_task
+    await handoff
+    assert ("stop", "cortex") in live.host.calls
+    await assert_converged_on_cortex(live)
+    await assert_stores_intact(live, deep_reply="a deep answer")
+    assert_stream_ended_honestly(live, events, killed=False)
 
 
 async def test_the_record_reaches_brain_active_only_once_the_deep_model_serves() -> None:

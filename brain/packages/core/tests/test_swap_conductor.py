@@ -23,7 +23,7 @@ Distrust-green proofs (each mutation reddened the named test, then was restored)
 
 import asyncio
 import logging
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 
 import pytest
 import swap_harness as harness
@@ -32,12 +32,17 @@ from swap_harness import Fakes, RecordingHandoffStore, ScriptedBrainBackend, bui
 from cortex_core import (
     ALREADY_ACTIVE_NOTE,
     BRAIN_FAILED_NOTE,
+    BUDGET_EXHAUSTED_MSG,
     DRAIN_TIMEOUT_NOTE,
+    DRAINING_DETAIL,
     ESCALATE_TOOL_NAME,
+    LOADING_DETAIL,
     RESTORE_FAILED_NOTE,
+    RESTORING_DETAIL,
     STORE_FAILED_NOTE,
     SWAP_FAILED_NOTE,
     SWAPPING_STATE,
+    WORKING_DETAIL,
     DispatchBudget,
     EscalateToBrainTool,
     EscalationSlot,
@@ -54,8 +59,10 @@ from cortex_core import (
     TextDelta,
     ToolCall,
     ToolDispatcher,
+    ToolSpec,
     TurnCapabilities,
     TurnEvent,
+    UrlRedactingGuardrail,
 )
 from cortex_core.composite import CompositeToolRegistry
 
@@ -66,6 +73,18 @@ def _texts(events: Sequence[TurnEvent]) -> str:
 
 def _states(events: Sequence[TurnEvent]) -> list[str]:
     return [event.detail for event in events if isinstance(event, StatusUpdate)]
+
+
+def _reading_registry() -> InMemoryToolRegistry:
+    """One tool the deep model can spend its carried budget on."""
+
+    async def handler(arguments: Mapping[str, object]) -> str:
+        del arguments
+        return "what the tool read"
+
+    return InMemoryToolRegistry(
+        {"read": (ToolSpec(name="read", description="read a thing", parameters={}), handler)}
+    )
 
 
 async def test_a_clean_handoff_walks_the_record_through_its_states() -> None:
@@ -92,8 +111,10 @@ async def test_a_clean_handoff_walks_the_record_through_its_states() -> None:
     assert live.host.running == {"cortex"}
     assert _texts(events) == "a deep answer"
     assert {event.state for event in events if isinstance(event, StatusUpdate)} == {SWAPPING_STATE}
-    # The user is told what the machine is doing through the whole window, in order.
-    assert len(_states(events)) == 4
+    # The user is told what the machine is doing through the whole window, in order, and the
+    # strings themselves are the assertion: a count cannot tell a reordered or mislabelled
+    # window from a truthful one, and these four are the only thing the user sees for minutes.
+    assert _states(events) == [DRAINING_DETAIL, LOADING_DETAIL, WORKING_DETAIL, RESTORING_DETAIL]
 
 
 async def test_the_deep_model_answers_from_the_store_and_persists_a_second_message() -> None:
@@ -119,29 +140,43 @@ async def test_the_deep_model_answers_from_the_store_and_persists_a_second_messa
 
 
 async def test_the_deep_phase_resumes_the_carried_budget_and_taint() -> None:
-    """A swap must not refill the turn's allowance, nor forget what it read."""
+    """A swap must not refill the turn's allowance, nor forget what it read.
+
+    Both are asserted on what the run DID, not on values recomputed beside it: the deep model
+    asks for two tools and the pool the record carried has room for exactly one, so the second
+    is refused as exhausted; and the ledger it ran under is watched through the guardrail that
+    ledger's own laundering evidence opens.
+    """
     spent = DispatchBudget(limit=4)
-    assert spent.charge(3) is True
+    assert spent.charge(3) is True  # one dispatch left when the cortex escalated
     ledger = TaintLedger()
     ledger.ingest_untrusted("see http://evil.test/x", source=None)
-    live = build_harness()
+    audit = RecordingAuditSink()
+    live = build_harness(
+        Fakes(
+            backend=ScriptedBrainBackend(
+                chunks=("go to http://evil.test/x",),
+                tool_calls=(
+                    ToolCall(id="c1", name="read", arguments={}),
+                    ToolCall(id="c2", name="read", arguments={}),
+                ),
+            )
+        ),
+        capabilities=TurnCapabilities(
+            tools=ToolDispatcher(_reading_registry(), audit, SystemClock()),
+            guardrail=UrlRedactingGuardrail(),
+        ),
+    )
     await live.seed_session()
-    slot = harness.armed_slot(taint=ledger, budget=spent)
-    await harness.run_handoff(live, slot)
-    record = await live.handoffs.get(harness.TURN)
-    assert record is None  # a clean handoff deletes it; the position rode the record
-    # What the deep phase rebuilt is what the record carried: one dispatch left, and a ledger
-    # that still knows the turn is tainted and which URL it laundered.
-    resumed = DispatchBudget.resume(remaining=1, closed=False)
-    assert (resumed.limit, resumed.spent, resumed.closed) == (1, 0, False)
-    assert resumed.charge(1) is True
-    assert resumed.charge(1) is False
-
-
-async def test_a_closed_budget_stays_closed_across_the_swap() -> None:
-    resumed = DispatchBudget.resume(remaining=0, closed=True)
-    assert resumed.closed is True
-    assert resumed.charge(1) is False
+    events = await harness.run_handoff(live, harness.armed_slot(taint=ledger, budget=spent))
+    # The carried position bound the deep phase: the first call fits the one remaining
+    # allowance and the second is refused, which a refilled pool would have granted.
+    assert [invocation.ok for invocation in audit.records] == [True, False]
+    assert audit.records[-1].detail == BUDGET_EXHAUSTED_MSG
+    # And the ledger arrived tainted with its evidence, so the guardrail still scrubs the URL
+    # the cortex laundered into the turn before the swap.
+    assert "http://evil.test/x" not in _texts(events)
+    assert await live.handoffs.get(harness.TURN) is None  # a clean handoff deletes the record
 
 
 async def test_a_second_concurrent_handoff_is_refused_without_evicting_anything(
@@ -160,7 +195,9 @@ async def test_a_second_concurrent_handoff_is_refused_without_evicting_anything(
     assert _texts(events) == ALREADY_ACTIVE_NOTE
     assert live.host.calls == []  # nothing was stopped, so the cortex never stopped serving
     assert live.backend.calls == 0
-    assert [record.message for record in caplog.records] == ["refusing a second concurrent handoff"]
+    assert [record.message for record in caplog.records] == [
+        "refusing a handoff while the store still has one in flight"
+    ]
 
 
 async def test_a_handoff_store_that_cannot_record_the_snapshot_changes_nothing() -> None:
@@ -332,8 +369,10 @@ async def test_the_deep_phase_cannot_escalate_to_itself() -> None:
         Fakes(
             backend=ScriptedBrainBackend(
                 chunks=("thinking",),
-                tool_call=ToolCall(
-                    id="c1", name=ESCALATE_TOOL_NAME, arguments={"brief": "go deeper still"}
+                tool_calls=(
+                    ToolCall(
+                        id="c1", name=ESCALATE_TOOL_NAME, arguments={"brief": "go deeper still"}
+                    ),
                 ),
             )
         ),
