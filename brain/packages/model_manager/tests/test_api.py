@@ -162,4 +162,7 @@ async def test_a_boot_start_that_fails_is_logged_and_the_api_still_serves(
         await client.aclose()
     assert response.status_code == HTTPStatus.OK
     assert processes.spawned == []
-    assert "could not be started" in caplog.text
+    # Names the tier it failed on: the boot default is configurable, so "a model" is not an answer.
+    assert "the boot-default model could not be started; serving without it: model=ghost" in (
+        caplog.text
+    )

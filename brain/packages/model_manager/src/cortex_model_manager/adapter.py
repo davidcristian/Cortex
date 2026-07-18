@@ -58,7 +58,10 @@ class HttpModelHost:
         payload = await self._request("POST", f"{self._model_path(model)}/{verb}", model)
         state = self._read(model, payload)
         _logger.info(
-            "asked the model host for a lifecycle change",
+            "asked the model host for a lifecycle change: model=%s verb=%s state=%s",
+            model,
+            verb,
+            state.value,
             extra={"model": model, "verb": verb, "state": state.value},
         )
 
@@ -98,8 +101,11 @@ class HttpModelHost:
             msg = f"the model host reported state {raw!r} for model {model!r}, which is not known"
             raise ModelHostError(msg) from err
         if state is ModelHostState.FAILED:
+            detail = str(payload.get("detail", ""))
             _logger.error(
-                "a hosted model process has failed",
-                extra={"model": model, "detail": str(payload.get("detail", ""))},
+                "a hosted model process has failed: model=%s detail=%s",
+                model,
+                detail,
+                extra={"model": model, "detail": detail},
             )
         return state

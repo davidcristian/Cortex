@@ -91,6 +91,13 @@ root, and `main()` serves it (`python -m cortex_model_manager`).
   `detail`) until the next `start`, which replaces it.
 - **One lock per logical model** serializes its three verbs, because a stop racing a start is what
   produces that bind failure.
+- **The daemon configures the root logger, and every line names its subject.** `uvicorn.run`
+  configures uvicorn's own loggers and leaves root alone, so `main` calls `logging.basicConfig` at
+  `CORTEX_MODELHOST_LOG_LEVEL`; without it every INFO lifecycle record is dropped and the one
+  WARNING that escapes goes through logging's last-resort handler. A plain stdlib formatter renders
+  no `extra`, so each line carries its tier, pid and port **in the message** as well as in `extra`
+  (the `LoggingAuditSink` pattern), because `docker logs model-host` is where the runbook sends an
+  operator mid swap.
 - **Children inherit the daemon's stdout/stderr and its process group.** No pipe means nothing can
   wedge when llama.cpp's loading log outruns a buffer nobody drains, and `docker logs model-host`
   shows the daemon and every child together. No new session means a container the runtime tears
