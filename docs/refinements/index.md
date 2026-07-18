@@ -40,7 +40,7 @@ its signature.
 | [subagents.md](subagents.md) | Progress reporting, spawn schema, heterogeneous roster (ADR-0010/0018) | 1 |
 | [body-overlay.md](body-overlay.md) | Overlay polish, connection indicator, proto Cancel (ADR-0011) | 3 |
 | [session-read-seam.md](session-read-seam.md) | Session listing/read seam (ADR-0021) | 3 |
-| [resource-governance.md](resource-governance.md) | Scheduler/placer budgets, NPU, drain (ADR-0012) | 7 |
+| [resource-governance.md](resource-governance.md) | Scheduler/placer budgets, NPU, drain (ADR-0012) | 6 |
 | [email-confirmer.md](email-confirmer.md) | Email write, Confirmer, attachments, `ToolActivity` chip (ADR-0022) | 4 |
 | [body-gateway.md](body-gateway.md) | Body gateway, OS actions, hardened posture (ADR-0023) | 6 |
 | [scheduling.md](scheduling.md) | Scheduling and reminders, `TurnStamp` provenance (ADR-0025/0027) | 8 |
@@ -435,6 +435,20 @@ not restart**. It is unreachable today (no deployment evicts a tier yet) and its
 the residency state the honesty-surfaces sub-slice introduces, so it is recorded rather than
 built. The defect behind the pass was real and is fixed, not deferred: the shielded restore waited
 for one cancellation, and the seam delivers two.
+Resource governance went 7 to 6 on 2026-07-18 when **CUDA-OOM re-place on CPU** landed with the
+model-host sub-slice, the second of this area's "Blocked on Slice 11" trio to clear. It is the first
+entry here to land while contradicting its own stated premise: the entry (and ADR-0012) said a real
+CUDA OOM fails loudly at process start and that a real GPU was needed to trigger it, and the recon
+for this sub-slice measured the opposite on the dev GPU, where a 14.4 GB model pinned to `-ngl 99`
+on an 8 GB card spills to shared system memory under WSL2 and serves 177 s later. A branch keyed on
+an OOM would therefore have been unfireable on this hardware, which is the same vacuous-coverage
+defect the entry was written to avoid, so the trigger became any GPU-placed attempt whose backend
+did not answer. That widening is not a consolation prize: it is exactly the mitigation the sibling
+entry two paragraphs up needs, since a tier the swap back could not restart makes every spawn placed
+on it fail at its backend. What stays out of it is deliberate and pinned by mutation (a malformed
+constrained reply is not re-placed, the GPU reservation is released before the re-run, and the second
+attempt spends the same admission and the same dispatch budget), and the two attempts' taint is
+unioned because under-reporting taint costs safety rather than precision.
 
 ## Recommended order
 
@@ -484,9 +498,13 @@ and free of a prior blocker.
   process lifecycle** (the supervisor sidecar behind the same port, which is what makes a swap
   move actual weights) and **co-residency**, which ADR-0030 decision 8 keeps deferred with the
   brain-runs-alone rule.
-- CUDA-OOM re-place on CPU and the real GPU-placed runtime mechanism, both waiting on the
-  model-host sub-slice ([resource-governance.md](resource-governance.md)). Their sibling
-  `SubagentScheduler.drain()` **landed 2026-07-17** with the brain-handoff drain sub-slice
+- The real GPU-placed runtime mechanism, waiting on the model-host sub-slice
+  ([resource-governance.md](resource-governance.md)). Its sibling **CUDA-OOM re-place on CPU landed
+  2026-07-18** with that sub-slice's runner half, though not as a CUDA-OOM check: on this stack an
+  over-committed GPU-placed model spills to shared memory and serves rather than failing, so the
+  re-run is keyed on any GPU-placed attempt whose backend did not answer (see the narrative above
+  and the ADR-0012 re-place addendum). The third sibling,
+  `SubagentScheduler.drain()`, **landed 2026-07-17** with the brain-handoff drain sub-slice
   (refuse-not-queue for the handoff window, a bounded wait that kills nothing, reversible via
   `undrain`; see the narrative above and the ADR-0012 drain addendum). **Placement-aware CPU
   charging** joined them on 2026-07-16, declined where it stood: `admit` is entered before
