@@ -1,6 +1,7 @@
 """The supervisor's own rules, beyond what the shared port contract can observe."""
 
 import asyncio
+import logging
 
 import pytest
 from model_host_contract import CORTEX, DEEP
@@ -86,6 +87,23 @@ async def test_a_spawn_that_fails_over_a_dead_child_keeps_reporting_that_childs_
     assert await supervisor.status(CORTEX) == ModelStatus(
         CORTEX, ModelHostState.FAILED, "the process exited with code 7"
     )
+
+
+async def test_the_lifecycle_log_lines_name_the_tier_and_the_pid_they_are_about(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """The identifying fields have to be in the message: a stdlib formatter renders no ``extra``."""
+    supervisor, processes, _ = _supervisor()
+    with caplog.at_level(logging.INFO):
+        await supervisor.start(CORTEX)
+        await supervisor.stop(CORTEX)
+    pid = processes.spawned[0].pid
+    port = contract_roster()[CORTEX].port
+    assert [record.getMessage() for record in caplog.records] == [
+        f"started a model process: model={CORTEX} pid={pid} port={port}",
+        f"stopped a model process: model={CORTEX} pid={pid}",
+    ]
+    assert [record.__dict__["model"] for record in caplog.records] == [CORTEX, CORTEX]
 
 
 async def test_status_reads_the_exit_code_without_asking_the_probe_at_all() -> None:

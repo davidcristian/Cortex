@@ -1,5 +1,6 @@
 """The sidecar's composition root: what ``python -m cortex_model_manager`` actually wires."""
 
+import logging
 from http import HTTPStatus
 from typing import Any, cast
 
@@ -46,16 +47,25 @@ async def test_the_wiring_hands_over_every_timing_knob_it_reads(
         await client.aclose()
 
 
-def test_main_serves_the_configured_interface_and_port(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_main_serves_the_configured_interface_and_port_and_configures_the_root_logger(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The root logger is the sidecar's whole diagnosis surface, and nothing else configures it."""
     served: list[tuple[str, int, str]] = []
+    configured: list[str] = []
 
     def fake_run(app: Starlette, *, host: str, port: int, log_level: str) -> None:
         assert isinstance(app, Starlette)
         served.append((host, port, log_level))
 
+    def fake_basic_config(*, level: str) -> None:
+        configured.append(level)
+
     monkeypatch.setattr(uvicorn, "run", fake_run)
+    monkeypatch.setattr(logging, "basicConfig", fake_basic_config)
     monkeypatch.setenv("CORTEX_MODELHOST_BIND_HOST", "127.0.0.1")
     monkeypatch.setenv("CORTEX_MODELHOST_BIND_PORT", "9999")
     monkeypatch.setenv("CORTEX_MODELHOST_LOG_LEVEL", "warning")
     main()
     assert served == [("127.0.0.1", 9999, "warning")]
+    assert configured == ["WARNING"]

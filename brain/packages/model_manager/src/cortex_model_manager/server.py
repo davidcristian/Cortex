@@ -32,7 +32,9 @@ def build_model_host(config: ModelHostConfig) -> Starlette:
     """The ASGI app for this deployment's roster, with the probe's client closed on shutdown."""
     supervisor, client = build_supervisor(config)
     _logger.info(
-        "model host configured",
+        "model host configured: models=%s boot_model=%s",
+        list(supervisor.models),
+        config.cortex_model,
         extra={"models": list(supervisor.models), "boot_model": config.cortex_model},
     )
     return build_app(supervisor, boot_model=config.cortex_model, close=client.aclose)
@@ -41,5 +43,9 @@ def build_model_host(config: ModelHostConfig) -> Starlette:
 def main() -> None:
     """Serve the control API until the container stops. Config errors fail here, loudly."""
     config = ModelHostConfig()
+    # Handler config belongs only at a process entry, and this is the sidecar's: the lifecycle
+    # trail is the whole diagnosis of a swap that went wrong, so a dropped INFO record is a
+    # missing answer rather than missing noise.
+    logging.basicConfig(level=config.log_level.upper())
     app = build_model_host(config)
     uvicorn.run(app, host=config.bind_host, port=config.bind_port, log_level=config.log_level)

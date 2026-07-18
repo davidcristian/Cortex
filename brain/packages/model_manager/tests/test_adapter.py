@@ -69,7 +69,12 @@ async def test_a_failed_state_is_a_normal_answer_and_is_logged_with_its_detail(
     host = _host(_answer("failed", "the process exited with code 1"))
     assert await host.status("brain") is ModelHostState.FAILED
     record = caplog.records[-1]
-    assert (record.levelno, record.message) == (logging.ERROR, "a hosted model process has failed")
+    assert record.levelno == logging.ERROR
+    # The rendered text, not just the attributes: the brain's own formatter shows no ``extra``, so
+    # a message that did not name the tier and the exit code would carry the diagnosis nowhere.
+    assert record.getMessage() == (
+        "a hosted model process has failed: model=brain detail=the process exited with code 1"
+    )
     assert record.__dict__["detail"] == "the process exited with code 1"
 
 
