@@ -27,11 +27,12 @@ OS backend and the home of the **stub coverage escape-hatch policy** the ROADMAP
   `!Send` is ever moved between threads and a per-call `CoInitializeEx` is all either needs.
   Neither balances it with `CoUninitialize`, which is deliberate and recorded
   (`docs/refinements/body-gateway.md`).
-- **`os_linux`** (`os_linux`) provides `LinuxHotkey`, `LinuxAudioControl`, and `LinuxNotify`,
+- **`os_linux`** (`os_linux`) provides `LinuxHotkey`, `LinuxAudioControl`, `LinuxNotify`, and
+  `LinuxScreenCapture`,
   `unimplemented!()` stubs (Windows-first). Compiled and measured on Linux CI, so each stub method is
   `#[cfg_attr(coverage, coverage(off))]` with a reason. That is the escape hatch in action.
-- **`os_macos`** (`os_macos`) provides `MacosHotkey`, `MacosAudioControl`, and `MacosNotify`,
-  the same stubs for macOS.
+- **`os_macos`** (`os_macos`) provides `MacosHotkey`, `MacosAudioControl`, `MacosNotify`, and
+  `MacosScreenCapture`, the same stubs for macOS.
 
 **Public contract.** Each crate exposes one `Hotkey` implementor (`LinuxHotkey`,
 `MacosHotkey`, and `WindowsHotkey` from increment 3), from Slice 9 one `AudioControl`
@@ -52,7 +53,18 @@ and `VolumeChange { level, mute }` (`VolumeChange::new` clamps a present `level`
 (`Unavailable`/`Backend`), and the `escape_xml` helper a markup renderer calls.
 `WindowsNotify::new(app_id)` takes the `AppUserModelID` the toast is attributed to, which an
 unpackaged app must own a Start Menu shortcut for (`CORTEX_TOAST_APP_ID` at the shell;
-`docs/runbooks/scheduling.md`). Screen/input backends join these crates in Slice 10.
+`docs/runbooks/scheduling.md`).
+
+Slice 10 adds a third port, `ScreenCapture` (ADR-0029), also `Send + Sync` and also
+synchronous. Its shape is deliberately unlike the other two: `capture(&CaptureRequest) ->
+Result<RawFrame, CaptureError>` hands back **raw BGRA pixels and no policy at all**. Every
+size decision (downscale, PNG encode, the byte ceiling and its shrink ladder) lives in pure
+`body_core`, because a `cfg(windows)` backend is invisible to the coverage gate and the seam's
+size guarantee may not rest on code CI never measures. That is the `escape_xml` argument
+verbatim. `CaptureError` is `NoDisplay`/`Disabled`/`Backend`/`TooLarge`, and
+`DeniedScreenCapture` (in `body_core`, not in a platform crate) is the real, gated backend a
+host wires when capture is switched off: refusing is a capability, not a missing platform.
+Input backends join later.
 
 **The escape hatch (how the 100% gate stays honest).** `cargo llvm-cov` sets `cfg(coverage)`;
 each stub crate opts into the nightly attribute under it,

@@ -49,6 +49,15 @@ pointer, since the server dispatches the whole `oneof`), its Windows `SendInput`
 together. That is the deferred input-injection slice, not a small refinement behind a
 mostly-unchanged seam.
 
+**Correction 2026-07-18: the `CaptureScreen` half of the premise is no longer true.** This entry
+reads `CaptureScreen` and `InjectInput` as one pair of forward-looking stubs. The vision slice
+(ADR-0029) built the capture half: `body_core` has a `ScreenCapture` port with its whole size
+policy, `os_windows` gains a GDI backend, and the body answers the RPC for real. The reasoning
+above is unaffected, because it turns on input injection having no trait, no adapter, no gated
+tool, and no consumer, all of which still hold; only the stub the entry stood beside has moved.
+The Rust pin it names, `capture_screen_and_inject_input_are_unimplemented`, is now
+`inject_input_is_unimplemented`.
+
 **Declined and moved to dead-until-a-consumer.** It reopens the day a real feature drives input
 injection, and is built then as one slice: the whole InputInjector trait (text plus keyboard plus
 pointer) behind one gated audited tool that inherits the confirmer and taint block, one Windows

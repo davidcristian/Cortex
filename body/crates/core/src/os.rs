@@ -3,9 +3,20 @@
 //! the `os_windows` / `os_linux` / `os_macos` crates behind them.
 
 pub mod notify;
+pub mod screen;
+mod screen_image;
+pub mod screen_policy;
 
 pub use notify::{
     MAX_TEXT_CHARS, Notification, Notify, NotifyError, UNTRUSTED_ATTRIBUTION, escape_xml,
+};
+pub use screen::{
+    CAPTURE_RECEIPT_BODY, CAPTURE_RECEIPT_ID, CAPTURE_RECEIPT_TITLE, CaptureError,
+    DeniedScreenCapture, RawFrame, ScreenCapture,
+};
+pub use screen_policy::{
+    CAPTURE_MIME, Capture, CaptureRequest, DEFAULT_MAX_EDGE, MAX_CAPTURE_BYTES, MAX_EDGE_CEILING,
+    MAX_SHRINK_ATTEMPTS, encode_png,
 };
 
 use crate::hotkey::{HotkeyChord, Modifier};

@@ -2,7 +2,7 @@
 
 **Purpose.** The body's pure core: host-side domain types and ports, including the
 OS-capability ports in `os` (`Hotkey` from Slice 8; `AudioControl` and `Notify` from
-Slices 9/9.5; `ScreenCapture`/`InputControl` join in Slice 10). No OS calls, ever. Per-platform backends live in
+Slices 9/9.5; `ScreenCapture` from Slice 10, with `InputControl` still to come). No OS calls, ever. Per-platform backends live in
 the `os_windows`/`os_linux`/`os_macos` crates (`docs/modules/body-os.md`). Currently: the
 typed global-hotkey chord, the `BrainTransport` port to the brain seam (`health` +
 streaming `converse` + the session and reminder reads) with the `RetryingTransport`
@@ -261,6 +261,51 @@ reminder delivery:
   value sanitizes rather than each backend because a fired reminder is the one string the
   body renders that **no output guardrail inspected** (ADR-0015 filters streamed replies, not
   store rows).
+The screen-capture port (`os::screen` + `os::screen_image`, ADR-0029) is the third OS
+capability the brain drives, and the first whose return value is a payload. Unlike the other
+two, the port carries **no policy**: it hands back raw pixels and the pure core decides what
+crosses the seam.
+
+- `ScreenCapture` is the backend port: `capture(&self, &CaptureRequest) -> Result<RawFrame,
+  CaptureError>`, `Send + Sync` and synchronous for the same reasons as `AudioControl`.
+- `RawFrame::new(width, height, pixels) -> Result<RawFrame, CaptureError>` is BGRA straight
+  from the OS, four bytes per pixel, top-down. It rejects a zero dimension or a buffer that is
+  not `width * height * 4` bytes. The fourth byte is deliberately unspecified (GDI leaves it
+  undefined), and the encoder drops it.
+- `CaptureRequest::bounded(max_edge, max_bytes)` resolves both proto3 hints: a zero edge
+  becomes `DEFAULT_MAX_EDGE` (1600) and a zero ceiling becomes `MAX_CAPTURE_BYTES` (6 MiB,
+  `6 * 1024 * 1024`); an edge above `MAX_EDGE_CEILING` (4096) and a ceiling above
+  `MAX_CAPTURE_BYTES` are clamped down. A caller can therefore only tighten this seam's
+  bounds, never loosen them. `CaptureRequest::new(max_edge)` is the same with the seam's own
+  ceiling.
+- `Capture::from_bgra(&RawFrame, &CaptureRequest) -> Result<Capture, CaptureError>` is the
+  whole policy: downscale so the long edge is at most `max_edge`, PNG-encode, and while the
+  result is over `max_bytes` halve the edge **that was actually reached** and retry, up to
+  `MAX_SHRINK_ATTEMPTS` (2) times, then answer `CaptureError::TooLarge(bytes)`. Verifying
+  after encoding is the only honest order: a flat desktop is kilobytes at 1600x900 and a
+  photograph is megabytes. A `Capture` exposes `data`, `mime_type` (always `CAPTURE_MIME`,
+  `image/png`), `width`/`height` after the downscale, and `source_width`/`source_height`
+  before it.
+- `encode_png(width, height, rgb) -> Result<Vec<u8>, CaptureError>` is the encoder, public so
+  its two rejects (a zero dimension, a buffer that is not `width * height * 3` bytes) can be
+  provoked by a caller. The downscaler is a box filter with a separate identity arm, so a
+  screen already inside the bound crosses pixel for pixel; averaging rather than dropping
+  pixels is what keeps thin strokes, which is to say text, legible after a shrink.
+- `CaptureError` (thiserror, `Clone`) is `NoDisplay(String)`, `Disabled`, `Backend(String)`,
+  `TooLarge(usize)`. `DeniedScreenCapture` is the unit backend that always answers `Disabled`;
+  it is real gated code on every platform rather than a stub, because a host that switched
+  capture off has to keep answering "no" under test.
+- `CAPTURE_RECEIPT_TITLE` / `CAPTURE_RECEIPT_BODY` / `CAPTURE_RECEIPT_ID` are the fixed,
+  body-owned strings of the notification a successful capture shows. They live here, beside
+  `UNTRUSTED_ATTRIBUTION`, for the same reason: the notice that tells the user their screen
+  was read may never be built from anything the brain sent.
+
+**Invariant (the byte ceiling).** `MAX_CAPTURE_BYTES` and the brain's
+`CORTEX_BODY_MAX_IMAGE_BYTES` are the same number, 6 MiB. Nothing mechanical couples the two
+constants across the language boundary; each is pinned to the literal `6291456` by a test in
+its own toolchain, and the wire's `max_bytes` hint is what lets the brain hold the body to its
+own budget rather than to a duplicated constant.
+
 - `os::escape_xml(&str) -> String` escapes the five predefined XML entities, for a backend
   whose renderer is a markup template (the Windows toast). It is *not* applied by
   `Notification`, since the right escape differs per renderer and a value that pre-escaped

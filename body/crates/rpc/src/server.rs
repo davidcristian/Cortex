@@ -3,7 +3,9 @@
 
 use std::sync::Arc;
 
-use body_core::{AudioControl, AudioError, Notification, Notify, NotifyError, VolumeChange};
+use body_core::{
+    AudioControl, AudioError, Notification, Notify, NotifyError, ScreenCapture, VolumeChange,
+};
 use tonic::service::interceptor::InterceptedService;
 use tonic::{Request, Response, Status};
 
@@ -16,24 +18,33 @@ use crate::generated::{
 };
 
 /// The `BodyService` implementation over the host's OS backends.
-pub struct OsService<A: AudioControl, N: Notify> {
+pub struct OsService<A: AudioControl, N: Notify, S: ScreenCapture> {
     audio: Arc<A>,
     notifier: Arc<N>,
+    screen: Arc<S>,
+    receipts: bool,
 }
 
-impl<A: AudioControl, N: Notify> OsService<A, N> {
-    /// Wraps `audio` and `notifier` as the `BodyService` handlers.
+impl<A: AudioControl, N: Notify, S: ScreenCapture> OsService<A, N, S> {
+    /// Wraps `audio`, `notifier`, and `screen` as the `BodyService` handlers.
+    ///
+    /// `receipts` is the host's `CORTEX_HOST_CAPTURE_NOTIFY` switch, resolved by the shell:
+    /// with it on (the default) every successful capture shows a body-authored notice.
     #[must_use]
-    pub fn new(audio: A, notifier: N) -> Self {
+    pub fn new(audio: A, notifier: N, screen: S, receipts: bool) -> Self {
         Self {
             audio: Arc::new(audio),
             notifier: Arc::new(notifier),
+            screen: Arc::new(screen),
+            receipts,
         }
     }
 }
 
 #[tonic::async_trait]
-impl<A: AudioControl + 'static, N: Notify + 'static> BodyService for OsService<A, N> {
+impl<A: AudioControl + 'static, N: Notify + 'static, S: ScreenCapture + 'static> BodyService
+    for OsService<A, N, S>
+{
     async fn get_volume(
         &self,
         _request: Request<GetVolumeRequest>,
@@ -60,11 +71,26 @@ impl<A: AudioControl + 'static, N: Notify + 'static> BodyService for OsService<A
         }))
     }
 
+    /// Reads the primary display for the cortex (ADR-0029). The pixels never touch this file:
+    /// the whole downscale, encode, and byte-ceiling policy is pure core, and the receipt that
+    /// tells the user it happened is body-authored.
     async fn capture_screen(
         &self,
-        _request: Request<CaptureScreenRequest>,
+        request: Request<CaptureScreenRequest>,
     ) -> Result<Response<CaptureScreenReply>, Status> {
-        Err(Status::unimplemented("screen capture lands in Slice 10"))
+        let CaptureScreenRequest {
+            max_edge,
+            max_bytes,
+        } = request.into_inner();
+        let reply = crate::screen::capture(
+            &self.screen,
+            &self.notifier,
+            max_edge,
+            max_bytes,
+            self.receipts,
+        )
+        .await?;
+        Ok(Response::new(reply))
     }
 
     async fn inject_input(
@@ -99,7 +125,7 @@ impl<A: AudioControl + 'static, N: Notify + 'static> BodyService for OsService<A
 
 /// Runs one synchronous OS call on tokio's blocking pool and awaits its answer, mapping a
 /// backend failure with `to_status` (ADR-0023's deferred `spawn_blocking`).
-async fn off_worker<T, E>(
+pub(crate) async fn off_worker<T, E>(
     call: impl FnOnce() -> Result<T, E> + Send + 'static,
     to_status: impl FnOnce(&E) -> Status,
 ) -> Result<T, Status>
@@ -139,16 +165,18 @@ fn notify_error_to_status(error: &NotifyError) -> Status {
     }
 }
 
-/// Builds the `BodyService` server over `audio` and `notifier`, fronted by the seam-token validator
-/// (ADR-0016/0023): an empty `token` makes the validator a pass-through, so a tokenless deployment
-/// is byte-for-byte the tokenless server.
-pub fn body_service<A: AudioControl + 'static, N: Notify + 'static>(
+/// Builds the `BodyService` server over `audio`, `notifier`, and `screen`, fronted by the
+/// seam-token validator (ADR-0016/0023): an empty `token` makes the validator a pass-through, so a
+/// tokenless deployment is byte-for-byte the tokenless server.
+pub fn body_service<A: AudioControl + 'static, N: Notify + 'static, S: ScreenCapture + 'static>(
     audio: A,
     notifier: N,
+    screen: S,
+    receipts: bool,
     token: &str,
-) -> InterceptedService<BodyServiceServer<OsService<A, N>>, SeamTokenValidator> {
+) -> InterceptedService<BodyServiceServer<OsService<A, N, S>>, SeamTokenValidator> {
     BodyServiceServer::with_interceptor(
-        OsService::new(audio, notifier),
+        OsService::new(audio, notifier, screen, receipts),
         SeamTokenValidator::new(token),
     )
 }
