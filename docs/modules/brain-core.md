@@ -1020,21 +1020,42 @@ Use-case:
   `SubagentAdmissionError`, meaning a charge no budget could ever fit, is caught and becomes an
   `ok=False` "refused before running" result rather than an exception that would cross the spawn
   tool's `gather` and fail the turn, ADR-0012 admission-wall addendum),
-  **places** on GPU or CPU against the VRAM budget (inner, synchronous), routes to the entry's
-  `backends[placement.target]`, runs `stream_tool_loop` on the entry's `request.model` with its
-  optional tool subset (instruction as the user ask, `context` as a `Role.SYSTEM` message; a
-  tools-enabled subagent also gets the `SECURITY_PREAMBLE` and its own `TaintLedger`, ADR-0013),
-  persists + returns a `SubagentResult` carrying `tainted` from that ledger, and always releases
-  the VRAM in a `finally`. A mid-stream `InferenceError` becomes an `ok=False` result carrying
-  the partial text. With `constrain_output` on **and** the tool-less path (`tools is None`, the
-  ADR-0028 niche where a weak model is reachable), the loop's `schema` is the fixed reply
-  envelope, so the reply is constrained JSON the runner unwraps to the `reply` string before
-  persisting (a malformed envelope degrades to an `ok=False` result whose `output` keeps the raw
-  text and whose `detail` is a fixed message, so the raw text stays in the store, not the cortex);
-  a tools-enabled subagent is never constrained (the JSON grammar would fight tool-calling).
+  **places** on GPU or CPU against the VRAM budget (inner, synchronous), runs the attempt on the
+  entry's `backends[placement.target]`, persists + returns a `SubagentResult`, and always releases
+  the VRAM in a `finally`.
   Exposes `roster`/`tools_enabled` (read-only) so the spawn tool advertises
   exactly what it will honor. Tools-enabled but not given the delegation tool, so fan-out is
   depth-1.
+- **The re-place** (`runner._placed`, ADR-0012's deferred CUDA-OOM entry as ADR-0030 schedules it):
+  a **GPU**-placed attempt whose failure is `AttemptFailure.INFERENCE` is re-run **once** on
+  `backends[PlacementTarget.CPU]`, and the outcome's `detail` records that it happened ("the GPU
+  attempt failed (…); re-ran on the CPU, which answered", or "… the CPU re-run failed too (…)").
+  Four properties, each pinned by a test proven fallible by mutation: only that failure kind
+  retries (a malformed constrained reply is a property of the model, not of where it ran, so
+  re-loading it elsewhere would be told the same thing); only a GPU placement retries (a CPU one
+  has nowhere better to go); the GPU reservation is released **before** the re-run, in the
+  `finally` that already existed, so a re-run never misreports headroom to a concurrent spawn; and
+  the re-run re-uses the same admission and the same `DispatchBudget`, so it buys no second CPU/RAM
+  charge and cannot spend past the turn's allowance. The re-run's text and failure win and the
+  first attempt's partial text is dropped with the context that produced it, but the **taint is
+  the union** of both ledgers, since an attempt that read untrusted content before its backend
+  died did consume it. The core cannot tell whether a deployment serves both targets from one
+  `llama-server` (no port carries an endpoint), so one that does gets a second attempt at that
+  same server.
+- `subagent_attempt.py` holds one attempt: `PlacedAttempt(clock, tools, *, constrain_output)`,
+  whose `run(task, model, backend, *, budget, progress)` streams `stream_tool_loop` on an
+  already-placed backend and returns an `AttemptOutcome(text, failure, detail, tainted)` instead of
+  storing anything (instruction as the user ask, `context` as a `Role.SYSTEM` message; a
+  tools-enabled subagent also gets the `SECURITY_PREAMBLE` and its own `TaintLedger`, ADR-0013).
+  Every attempt is a fresh function over the task: its own working set, ledger and fence nonce, the
+  shared `budget` being the deliberate exception. A mid-stream `InferenceError` is an
+  `AttemptFailure.INFERENCE` outcome carrying the partial text. With `constrain_output` on **and**
+  the tool-less path (`tools is None`, the ADR-0028 niche where a weak model is reachable), the
+  loop's `schema` is `REPLY_ENVELOPE`, so the reply is constrained JSON unwrapped to the `reply`
+  string (a malformed envelope is an `AttemptFailure.MALFORMED` outcome whose text keeps the raw
+  JSON and whose detail is `MALFORMED_ENVELOPE_MSG`, so the raw text stays in the store, not the
+  cortex); a tools-enabled subagent is never constrained (the JSON grammar would fight
+  tool-calling). `reran_on_cpu(first, retried)` is the pure fold the runner's re-place uses.
 - `SpawnSubagentsTool(runner, store, clock, *, task_id_factory=<uuid4>)` is the built-in
   `spawn_subagents` tool (`SPAWN_TOOL_NAME`), the cortex's delegation primitive (ADR-0010/0018).
   Its `spec` is **derived from the runner's roster** (built by `build_spawn_spec` in `spawn_spec.py`,
