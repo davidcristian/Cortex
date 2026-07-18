@@ -41,6 +41,7 @@ services:
       CORTEX_SUBAGENTS_PARALLEL: "${CORTEX_SUBAGENTS_PARALLEL:-2}"
       CORTEX_MODELHOST_STOP_GRACE_S: "${CORTEX_MODELHOST_STOP_GRACE_S:-10}"
       CORTEX_MODELHOST_REAP_TIMEOUT_S: "${CORTEX_MODELHOST_REAP_TIMEOUT_S:-30}"
+      CORTEX_MODELHOST_PROBE_TIMEOUT_S: "${CORTEX_MODELHOST_PROBE_TIMEOUT_S:-5}"
     volumes:
       # Models stay on the Windows drive, mounted read-only (ADR-0004 d3). Forward slashes
       # work in Docker Desktop on Windows; override the source with CORTEX_MODELS_DIR.
@@ -51,7 +52,7 @@ services:
     ports:
       - "127.0.0.1:8080:8080"
     restart: unless-stopped
-    stop_grace_period: 30s
+    stop_grace_period: 45s
     healthcheck:
       test:
         - "CMD-SHELL"

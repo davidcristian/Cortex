@@ -10,9 +10,6 @@ from cortex_model_manager.children import ChildProcess, ChildProcesses
 from cortex_model_manager.probe import HealthProbe
 from cortex_model_manager.spec import ModelSpec
 
-# How long a child gets to exit on SIGTERM before it is killed. Measured on the dev GPU with a
-# small model resident: llama-server exits 0 in 0.14 s to 0.38 s, so seconds are generous; a
-# tier-scale model is the user's to re-measure (docs/runbooks/model-swap.md).
 DEFAULT_STOP_GRACE_S = 10.0
 
 # How long a SIGKILLed child gets to be reaped before the stop is reported as failed. A killed
