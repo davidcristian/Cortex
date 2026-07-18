@@ -34,7 +34,7 @@ its signature.
 | [seam-auth.md](seam-auth.md) | Seam token auth (ADR-0016) | 1 |
 | [session-history.md](session-history.md) | Slice 3 history windowing and summarization | 1 |
 | [tools-mcp.md](tools-mcp.md) | Dispatch budget/cost/salience, spawn batch cap, MCP registries (ADR-0009/0010) | 6 |
-| [untrusted-content.md](untrusted-content.md) | Taint boundary, output guardrail, subagent model safety (ADR-0013/0015/0017/0019/0028) | 14 |
+| [untrusted-content.md](untrusted-content.md) | Taint boundary, output guardrail, subagent model safety (ADR-0013/0015/0017/0019/0028) | 13 |
 | [memory.md](memory.md) | Store, scoping, rerank/MMR (ADR-0008) | 8 |
 | [inference-model-manager.md](inference-model-manager.md) | Model-manager lifecycle, MTP, reasoning status (ADR-0007/0020) | 7 |
 | [subagents.md](subagents.md) | Progress reporting, spawn schema, heterogeneous roster (ADR-0010/0018) | 1 |
@@ -128,6 +128,12 @@ escalation refusal: ADR-0030 slotted it into this sub-slice on the assumption th
 slice lands first, but ADR-0029 is designed and unimplemented, `Message` carries no pixels and
 no `opaque` bit exists, so the refusal has nothing to check yet and faking one would be a gate
 that cannot fail; it lands with the vision slice's pixel-taint increment instead.
+That entry closed on 2026-07-18 with that very increment, taking untrusted content back to 13:
+the `opaque` bit landed, `escalate_to_brain` refuses an opaque turn, and the handoff record
+refuses an image-bearing loop tail the way both session stores do. The entry's own expectation
+needed one correction, which is the usual lesson: it assumed the refusal would key on
+image-bearing messages, but the handoff codec enumerates message fields by name and would have
+dropped `Message.images` silently, so the only signal that survives the trip is the bit.
 Body & overlay held at 3 on 2026-07-16 when the connection indicator landed and
 opened the push half behind it (streamed brain status, blocked on a producer), while session
 read seam went 5 to 4 the same day: the two entries were one deferral written down twice, and
@@ -549,13 +555,6 @@ and free of a prior blocker.
 
 ### Actionable, but a seam or port change comes first
 
-- **The opaque-turn escalation refusal** ([untrusted-content.md](untrusted-content.md)): the one
-  consciously deferred piece of ADR-0030's escalation trigger sub-slice (landed 2026-07-17). The
-  refusal is keyed on image-bearing messages and the `opaque` bit, both of which arrive with the
-  designed-but-unimplemented vision slice (ADR-0029), so today it has nothing to check and a
-  stand-in check would be a gate that cannot fail. Lands with (or immediately after) the vision
-  slice's pixel-taint increment: a typed refusal in `escalate.py` telling the model to ask the
-  user to retry in a fresh message, so escalation never widens pixel persistence.
 - **Streamed brain status** ([body-overlay.md](body-overlay.md)): the push half of the landed
   connection indicator, unblocked on 2026-07-18 and now waiting on a seam change plus a consumer
   rather than on a producer. Both halves of the producer exist: the escalating turn streams

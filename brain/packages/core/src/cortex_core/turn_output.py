@@ -59,6 +59,8 @@ async def record_exchange(
     caps: TurnCapabilities, taint: TaintLedger, *, session_id: str, query: str, reply: str
 ) -> None:
     """Record the completed exchange to memory under the turn's taint policy (ADR-0013/0019)."""
+    if taint.opaque:
+        return
     if caps.memory is not None and (not taint.tainted or caps.record_tainted_memory):
         await caps.memory.record(
             render_exchange(query, reply), session_id=session_id, tainted=taint.tainted

@@ -90,6 +90,9 @@ class EscalationSlot:
             msg = "EscalationSlot.snapshot requires an armed slot (no turn ever filled refs)"
             raise ValueError(msg)
         tail = tuple(self.refs.working[self.refs.base_len :])
+        if any(message.images for message in tail):
+            msg = "a handoff record never persists images: pixels are turn-local"
+            raise ValueError(msg)
         return HandoffRecord(
             handoff_id=turn_id,
             session_id=session_id,

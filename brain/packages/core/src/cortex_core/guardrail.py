@@ -30,6 +30,9 @@ class TaintView(Protocol):
     def tainted(self) -> bool: ...
 
     @property
+    def opaque(self) -> bool: ...
+
+    @property
     def untrusted_urls(self) -> AbstractSet[str]: ...
 
 
@@ -81,7 +84,7 @@ class _UrlRedactingFilter:
 
     def _scrub(self, text: str) -> str:
         """Replace every URL this turn flags; leave all other text alone."""
-        if self._strict:
+        if self._strict or self._taint.opaque:
             if not self._taint.tainted:
                 return text
             flagged = None  # strict: any URL the user did not send is flagged
