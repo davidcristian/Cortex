@@ -9,7 +9,8 @@ recommended pickup order.
 
 **Open items:** model-manager co-residency; resume a crashed handoff from its record; fence the
 single-handoff claim across processes; reconverge the brain's residency when the sidecar restarts
-under it; MTP model variants, disable-thinking / token-budget capping
+under it; check the sidecar's stop bounds against the brain's control deadline; MTP model
+variants, disable-thinking / token-budget capping
 
 **Inference / Model Manager in Slice 4 ([ADR-0007](../adr/ADR-0007-model-manager-inference.md)):**
 - **`cortex_model_manager` process lifecycle and the real swap landed 2026-07-17 and 2026-07-18
@@ -97,6 +98,26 @@ under it; MTP model variants, disable-thinking / token-budget capping
   place to keep "what is actually resident" that is not an attribute nobody revisits.
   **Trigger:** a sidecar that restarts (an OOM kill, a crash, an operator's `docker compose restart
   model-host`) while a handoff is in flight over the supervisor backend, seen more than once.
+- **Check the sidecar's stop bounds against the brain's control deadline, instead of only
+  documenting the pairing.** *Fix when it bites.* Opened 2026-07-18 by the audit round on the
+  model-host sub-slice. A supervisor `stop` answers only once the child is reaped, so it can
+  legitimately take `probe_timeout_s + stop_grace_s + reap_timeout_s`, and if that sum reaches the
+  brain's `CORTEX_MODELHOST_TIMEOUT_S` the control client times out, `swap_in` raises
+  `ModelHostError`, and a handoff whose eviction was working aborts. The shipped defaults are safe
+  (5 + 10 + 30 = 45 below 60, all three measured), and the rule is now written in three places
+  (the runbook, the compose override's comment, and the `DEFAULT_MODELHOST_TIMEOUT_S` comment), so
+  what is deferred is **enforcement**, not the knowledge. It was left unenforced because the two
+  sides are separate processes' env and neither can read the other's, which is the reason the
+  original landing gave. That reason is now weaker in one direction: `GET /health` reports the two
+  stop bounds the daemon was actually given, so the brain **could** read them at wiring time and
+  refuse to boot (or log loudly) when its own deadline does not clear their sum plus the probe
+  timeout. **What would close it:** the probe timeout on that same body (it belongs to the health
+  probe's client rather than to the supervisor, so it needs a small widening of what the daemon
+  reports), and a check in `swap_builders.build_control_client` that fails closed exactly as the
+  endpoint validator does. The cost is that the brain would then depend on the sidecar answering
+  at wiring time, which today it deliberately does not. **Trigger:** a user tuning either side's
+  timing, or a second deployment shape where the defaults do not hold, and any report of a handoff
+  aborting with `ModelHostError` on an eviction that in fact completed.
 - **MTP (multi-token-prediction) model variants.** Deferred until they earn their keep, per
   [ADR-0004](../adr/ADR-0004-model-lineup.md).
 - **The cortex reasoning trace is surfaced as a thinking status. This landed 2026-07-06
