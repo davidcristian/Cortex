@@ -75,6 +75,19 @@ async def test_a_spawn_that_fails_starts_nothing_and_raises_a_typed_error() -> N
     assert status == ModelStatus(CORTEX, ModelHostState.STOPPED, "no process is running")
 
 
+async def test_a_spawn_that_fails_over_a_dead_child_keeps_reporting_that_childs_exit_code() -> None:
+    """A failed replacement does not erase the corpse: this tier's last process really did die."""
+    supervisor, processes, _ = _supervisor()
+    await supervisor.start(CORTEX)
+    processes.spawned[0].exit(7)
+    processes.error = OSError("no such file or directory")
+    with pytest.raises(SupervisorError, match="could not start 'cortex'"):
+        await supervisor.start(CORTEX)
+    assert await supervisor.status(CORTEX) == ModelStatus(
+        CORTEX, ModelHostState.FAILED, "the process exited with code 7"
+    )
+
+
 async def test_status_reads_the_exit_code_without_asking_the_probe_at_all() -> None:
     """The probe is never consulted for a dead child: the witness is that it was not called.
 

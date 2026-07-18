@@ -11,14 +11,10 @@ from cortex_model_manager import AsyncioChild, AsyncioChildProcesses, HttpHealth
 
 
 class _StandInProcess:
-    """What ``asyncio.create_subprocess_exec`` hands back, minus the process.
+    """What ``asyncio.create_subprocess_exec`` hands back, minus the process."""
 
-    ``lookup_error`` is the one real race the wrapper exists to absorb: a child that exited between
-    the status read and the signal, which the OS reports as ``ProcessLookupError``.
-    """
-
-    def __init__(self, *, lookup_error: bool = False) -> None:
-        self.pid = 4242
+    def __init__(self, pid: int, *, lookup_error: bool = False) -> None:
+        self.pid = pid
         self.returncode: int | None = None
         self.calls: list[str] = []
         self._lookup_error = lookup_error
@@ -46,9 +42,9 @@ def _wrapped(process: _StandInProcess) -> AsyncioChild:
 
 
 async def test_the_wrapper_passes_the_process_through_verbatim() -> None:
-    process = _StandInProcess()
+    process = _StandInProcess(pid=4242)
     child = _wrapped(process)
-    assert (child.pid, child.returncode) == (4242, None)
+    assert (child.pid, child.returncode) == (process.pid, None)
     child.terminate()
     child.kill()
     assert await child.wait() == 0
@@ -58,7 +54,7 @@ async def test_the_wrapper_passes_the_process_through_verbatim() -> None:
 @pytest.mark.parametrize("signal_name", ["terminate", "kill"])
 async def test_signalling_a_child_that_already_exited_is_not_a_failure(signal_name: str) -> None:
     """Ending a process that ended itself is the outcome the caller wanted, not an error."""
-    process = _StandInProcess(lookup_error=True)
+    process = _StandInProcess(pid=4242, lookup_error=True)
     getattr(_wrapped(process), signal_name)()
     assert process.calls == [signal_name]
 
@@ -66,16 +62,19 @@ async def test_signalling_a_child_that_already_exited_is_not_a_failure(signal_na
 async def test_the_spawner_execs_the_argv_it_is_given(monkeypatch: pytest.MonkeyPatch) -> None:
     """The one real OS write, asserted as the argv that reached ``create_subprocess_exec``."""
     seen: list[tuple[str, ...]] = []
+    spawned: list[_StandInProcess] = []
 
     async def fake_exec(*argv: str) -> _StandInProcess:
         seen.append(argv)
-        return _StandInProcess()
+        # A different pid from the other test's, so the wrapper cannot pass both on a literal.
+        spawned.append(_StandInProcess(pid=4243))
+        return spawned[-1]
 
     monkeypatch.setattr(asyncio, "create_subprocess_exec", fake_exec)
     argv = ("/app/llama-server", "--port", "8080")
     child = await AsyncioChildProcesses().spawn(argv)
     assert seen == [argv]
-    assert child.pid == 4242
+    assert child.pid == spawned[0].pid == 4243
 
 
 def _probe(handler: httpx.MockTransport) -> HttpHealthProbe:

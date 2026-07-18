@@ -11,6 +11,7 @@ import pytest
 
 from cortex_core import (
     AsyncioSleeper,
+    ModelHostError,
     ModelHostState,
     ResidencyPlan,
     SwappingModelManager,
@@ -146,8 +147,12 @@ async def test_a_residency_scope_really_evicts_one_model_and_loads_another() -> 
         AsyncioSleeper(),
     )
     try:
-        if await host.status(deep) is ModelHostState.FAILED:
-            pytest.skip(f"the deep tier {deep!r} is not hosted (no artifact named for it)")
+        try:
+            deep_state = await host.status(deep)
+        except ModelHostError as err:
+            pytest.skip(f"the sidecar does not host a deep tier {deep!r}: {err}")
+        if deep_state is ModelHostState.FAILED:
+            pytest.skip(f"the deep tier {deep!r} has a dead child; fix it before swapping onto it")
         await host.start(standing)
         async with manager.swap_scope(deep):
             # The gate inside swap_scope already waited for READY; what is asserted here is the
