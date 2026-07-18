@@ -659,3 +659,49 @@ it had to be decided now rather than discovered then.
 - the swap window's four status strings were asserted by a count; they are asserted in order;
 - taint through a swap, and the lease-free swap boundary, are now inside the chaos suite rather
   than only in unit tests elsewhere.
+
+## Addendum (2026-07-18): settling a handoff and releasing its claim are two different writes
+
+A second adversarial pass over the repaired conductor found three defects, two of them in the
+places the previous addendum had just declared fixed. Nothing about decisions 1 to 9 changes.
+**Still no real model swap has been validated**, for the same reason as before: the scripted
+host starts no process, and the dev GPU cannot hold these tiers.
+
+**The honest note was only half wired, and the docs were the half that lied.** The previous
+addendum decided that `HandoffInProgressError` carries the note saying a handoff is already
+running, and the error's own docstring, the port, and the module doc all said so. The
+conductor's mapping did not: it answered the swap-failure note for everything that was not a
+failed restore. So the one path that error can still reach, the residency scope's backstop guard
+for a caller that swapped without claiming first, told the user that the deep model could not be
+loaded and the usual assistant was back, at the exact moment when the deep model WAS loaded and
+the cortex was NOT back. Both halves of that sentence were false. The mapping now names the
+refusal, and it moved to `swap_notes.note_for` so it lives beside the strings it chooses
+between; the test drives the backstop path itself (a scope held open while a handoff runs)
+rather than asserting the mapping in isolation.
+
+**The claim's release is not conditional on the settling write landing.** The store's active
+pointer is taken by the `READY` write and given back by the settling write or by a delete, and
+the conductor did both inside one `try`. One transient refusal of the write that settles a
+finished handoff therefore skipped the delete, and the finished handoff went on holding the
+pointer: `active()` answered it, and every later escalation in that process was refused with a
+note claiming a handoff was in flight when none was, until a restart. Non-terminal records carry
+no TTL by design (boot recovery must find them), so nothing expired it either. The contract is
+now explicit: a **terminal** state the store refuses is followed by deleting the record, because
+a diagnosis copy the store would not update is worth less than the escalation path it wedges,
+and the refusal is logged loudly with the handoff id and state, which is where that diagnosis
+now lives. A refused **intermediate** write keeps its record, the handoff being genuinely still
+live there, and boot recovery settles it. When the delete is refused as well, nothing in the
+process can free the pointer, so the log says exactly that and `docs/runbooks/model-swap.md`
+carries the recovery. The chaos suite gained the kill point it had at no boundary at all, a
+store that fails, at both settles, and its last assertion is the one that catches the wedge: a
+LATER escalation still runs.
+
+**A kill point the harness opened for itself.** The mid-drain case parked an admission and then
+set the pool's own draining flag by hand before pausing, and the case's headline assertion read
+that same flag back. It constrained nothing: with the pool's `drain` mutated to stop opening the
+refusal window at all, the case still passed. The straggler now waits on the pool's condition
+until the real `drain` closes admission around it, and only then fires the gate, so the handoff
+is suspended inside the real drain and every assertion at that boundary reads state the pool set.
+The same mutation now reddens both mid-drain cases. This is the third instance in this sub-slice
+of an assertion satisfied by its own harness, which is worth naming as a species: a kill point
+whose boundary is staged rather than reached proves nothing about the code that reaches it.

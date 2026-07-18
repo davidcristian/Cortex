@@ -42,6 +42,22 @@ so `llama-cortex` is exactly where compose left it; what is broken is the brain'
 bookkeeping (or the host it was talking to). Check the containers anyway, because a cortex
 that really is down produces the same user-visible symptom.
 
+## The other error that sends you here
+
+```
+could not release the finished handoff; escalation stays refused until a restart
+```
+
+Logged by the conductor (`swap_conductor.py`) when the handoff store refused **both** the write
+that settles a finished handoff and the delete that would drop it. The turn itself converged
+(the deep model's answer stands, the cortex is serving, subagent admission reopened), but the
+record is still readable as a handoff in flight, so every later escalation in that process is
+refused with "a handoff to the deep model is already running" while none is. One refused
+settling write on its own does not do this: the conductor then drops the record instead, which
+is what frees the store's active pointer. Only a store that refuses that too gets stuck. So the
+thing to fix is redis, and then step 3 below is the whole recovery: boot recovery marks the
+stranded record `FAILED` and escalation works again.
+
 ## Manual recovery
 
 1. **See what is actually running.**

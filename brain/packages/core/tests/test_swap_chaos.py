@@ -17,7 +17,8 @@ of the swap sequence, and every case asserts the same four invariants:
    the next turn still works.
 
 Three kinds of kill. A **scripted failure** (a host that refuses, a model that never loads, a
-server that dies mid-answer) exercises the conductor's own error paths. A **cancellation** at
+server that dies mid-answer, a store that refuses the write which ends the handoff) exercises
+the conductor's own error paths. A **cancellation** at
 an armed boundary is the process-death analogue on the consumer side: the task running the
 handoff is cancelled exactly there, which is what a killed turn does. A **close** is the third
 and it is not the same thing: production tears a stream down by closing the generator, not by
@@ -58,7 +59,12 @@ was then restored):
   ``test_a_tier_evicted_for_the_handoff_is_running_again_when_it_ends``;
 - pausing the mid-drain case before the refusal window opens (which is where it used to
   pause, making it a duplicate of ``after-snapshot``) reddens
-  ``test_the_mid_drain_kill_lands_while_the_pool_is_actually_quiescing``.
+  ``test_the_mid_drain_kill_lands_while_the_pool_is_actually_quiescing``;
+- the pool's own ``drain`` no longer opening the refusal window at all reddens ``mid-drain``
+  and that same boundary case, which is the mutation that proves the boundary is REACHED
+  rather than staged: while the harness set the draining flag itself, this mutation passed;
+- releasing the record's claim only when the settling write landed reddens both cases of
+  ``test_a_store_that_refuses_the_settling_write_still_frees_the_next_handoff``.
 """
 
 import asyncio
@@ -82,6 +88,7 @@ from cortex_core import (
     DRAINING_DETAIL,
     LOADING_DETAIL,
     RESTORING_DETAIL,
+    SWAP_FAILED_NOTE,
     SWAPPING_STATE,
     WORKING_DETAIL,
     AdmitAllScheduler,
@@ -113,6 +120,15 @@ _SWAPPED_BACK = (*_SWAPPED_IN, ("stop", "brain"), ("start", "cortex"))
 # details are a PREFIX of this: a handoff that stopped early says less, never something else.
 _SWAP_WINDOW = [DRAINING_DETAIL, LOADING_DETAIL, WORKING_DETAIL, RESTORING_DETAIL]
 
+# The turn id of the escalation that comes AFTER a broken one, which is what proves a handoff
+# the store could not settle did not wedge the escalation path for the rest of the process.
+_LATER_TURN = "t-later"
+
+
+def _texts(events: list[TurnEvent]) -> str:
+    """Everything the turn's stream actually said, as the user would read it."""
+    return "".join(event.text for event in events if isinstance(event, TextDelta))
+
 
 async def _settle(turns: int = 5) -> None:
     """Yield the event loop a few turns so spawned tasks reach their next suspension point."""
@@ -123,11 +139,18 @@ async def _settle(turns: int = 5) -> None:
 class _PausingScheduler(AdmitAllScheduler):
     """A pool that pauses the handoff at a drain boundary: inside the window, or once drained.
 
-    ``mid`` is the ADR's mid-drain kill point and it has to land where its name says. So the
-    pool parks one admission of its own, opens the real refusal window, and only THEN pauses:
-    a kill there happens while the pool is quiescing with work still in flight, rather than at
-    the same system state as ``after-snapshot``, which is what a pause before the window would
-    have been. ``after`` pauses once the pool has fully drained, the other edge.
+    ``mid`` is the ADR's mid-drain kill point and it has to land where its name says, so the
+    window it pauses inside must be opened by the POOL's own ``drain`` and never by this
+    harness. A harness that opened it itself would hold the handoff at a boundary the pool had
+    not reached, and every assertion about that boundary would then be satisfied by the harness
+    rather than by the code under test, which is the defect this case exists to rule out.
+
+    So the straggler does the waiting. It is admitted before the drain begins, it watches the
+    pool's own condition until ``drain`` raises the refusal window around it, and only then
+    does it fire the gate, holding the admission the whole time. The handoff is therefore
+    suspended inside the real ``drain``, quiescing, with work genuinely in flight, rather than
+    at the same system state as ``after-snapshot``. ``after`` pauses once the pool has fully
+    drained, the other edge.
     """
 
     def __init__(self, *, mid: Gate | None = None, after: Gate | None = None) -> None:
@@ -139,32 +162,35 @@ class _PausingScheduler(AdmitAllScheduler):
 
     @property
     def draining(self) -> bool:
-        """Whether the refusal window is open, which is what "mid drain" has to mean."""
+        """Whether the refusal window is open, as the pool's own ``drain`` left it."""
         return self._draining
 
     async def drain(self, *, timeout_s: float) -> bool:
         if self._mid is not None:
-            await self._open_the_window(self._mid)
-            await self._mid.pause()
+            await self._park_a_straggler(self._mid)
         drained = await super().drain(timeout_s=timeout_s)
         if self._after is not None:
             await self._after.pause()
         return drained
 
-    async def _open_the_window(self, gate: Gate) -> None:
-        """Park one admission, then open the refusal window exactly as the real drain opens it."""
+    async def _park_a_straggler(self, gate: Gate) -> None:
+        """Admit one request that will outlive the window's opening, and wait until it holds."""
         self.straggler = asyncio.create_task(self._park(gate))
         async with asyncio.timeout(5.0):
             await self._parked.wait()
-        async with self._pool:
-            self._draining = True
-            self._pool.notify_all()
 
     async def _park(self, gate: Gate) -> None:
-        """One admitted request that outlives the window's opening: the straggler."""
+        """The straggler: admitted first, then holding the drain open at the gate."""
         async with self.admit(harness.request()):
             self._parked.set()
-            await gate.release.wait()
+            await self._the_pool_closes_around_it()
+            await gate.pause()
+
+    async def _the_pool_closes_around_it(self) -> None:
+        """Wait for the pool's own ``drain`` to shut admission with this request still in flight."""
+        async with self._pool:
+            while not self._draining:
+                await self._pool.wait()
 
 
 class _YieldingHandoffStore(RecordingHandoffStore):
@@ -228,14 +254,25 @@ async def assert_converged_on_cortex(live: Harness) -> None:
 
 
 async def assert_stores_intact(
-    live: Harness, *, deep_reply: str | None = None, killed: bool = False
+    live: Harness,
+    *,
+    deep_reply: str | None = None,
+    killed: bool = False,
+    settled: bool = True,
 ) -> None:
     """Invariant 3: nothing either phase persisted is lost, and no handoff stays live."""
     assert await live.handoffs.active() is None
     record = await live.handoffs.get(harness.TURN)
     assert record is None or record.state.terminal
     assert live.handoffs.states  # the record existed at all
-    assert live.handoffs.states[-1].terminal  # and its last written state ended it
+    if settled:
+        assert live.handoffs.states[-1].terminal  # and its last written state ended it
+    else:
+        # ``settled=False`` is the store that refused the settling write itself, so no terminal
+        # state could ever be written. What the conductor owes there is the stronger thing: the
+        # record is GONE, so nothing can go on reading it as a handoff still in flight.
+        assert record is None
+        assert live.handoffs.deleted == [harness.TURN]
     history = [
         (message.role.value, message.text)
         for message in await live.sessions.history(harness.SESSION)
@@ -380,6 +417,68 @@ async def test_a_drain_that_times_out_converges_without_evicting_anything() -> N
     assert not task.done()
     held.release.set()
     await task
+
+
+def _settle_of_a_clean_handoff_is_refused() -> Harness:
+    return build_harness(Fakes(handoffs=RecordingHandoffStore(fail_settle=HandoffState.DONE)))
+
+
+def _settle_of_an_aborted_handoff_is_refused() -> Harness:
+    return build_harness(
+        Fakes(
+            host=ScriptedModelHost(running=["cortex"], fail={("start", "brain"): "CUDA OOM"}),
+            handoffs=RecordingHandoffStore(fail_settle=HandoffState.FAILED),
+        )
+    )
+
+
+@pytest.mark.parametrize(
+    ("case", "make", "deep_reply", "later_text"),
+    [
+        (
+            "settle-done-refused",
+            _settle_of_a_clean_handoff_is_refused,
+            "a deep answer",
+            "a deep answer",
+        ),
+        ("settle-failed-refused", _settle_of_an_aborted_handoff_is_refused, None, SWAP_FAILED_NOTE),
+    ],
+)
+async def test_a_store_that_refuses_the_settling_write_still_frees_the_next_handoff(
+    case: str, make: Callable[[], Harness], deep_reply: str | None, later_text: str
+) -> None:
+    """The kill point the suite had at no boundary at all: the store, on the write that ends it.
+
+    Nothing is drained or evicted differently here, so the state that matters is the store's
+    own active pointer: the ``READY`` write claims it and the settling write releases it. One
+    transient refusal of that settling write therefore used to leave a FINISHED handoff holding
+    the pointer, after which ``active()`` refused every later escalation in this process with a
+    note saying a handoff was in flight when none was, until a restart. Both settles are
+    covered, the clean one and the aborted one, because they release the pointer by different
+    means (a delete after ``DONE``, the terminal write itself for ``FAILED``).
+
+    The last block is the assertion that catches the wedge, and it is why one case is not
+    enough: converging this turn says nothing about whether the NEXT one can still escalate.
+    """
+    del case  # named for the parametrize id
+    live = make()
+    await live.seed_session()
+    events = await harness.run_handoff(live, harness.armed_slot())
+    await assert_converged_on_cortex(live)
+    await assert_stores_intact(live, deep_reply=deep_reply, settled=False)
+    assert_stream_ended_honestly(live, events, killed=False)
+    await assert_the_next_turn_still_works(live)
+
+    later = await harness.run_handoff(live, harness.armed_slot(), turn_id=_LATER_TURN)
+    # It ran: it answered, or it failed at the swap the way this harness's host makes every
+    # handoff fail. What it must NOT say is that another handoff is already running.
+    assert _texts(later) == later_text
+    assert ALREADY_ACTIVE_NOTE not in _texts(later)
+    assert await live.handoffs.active() is None
+    stranded = await live.handoffs.get(_LATER_TURN)
+    assert stranded is None or stranded.state.terminal
+    assert live.host.running == {"cortex"}
+    await _admit(live)
 
 
 # ---------------------------------------------------------------------------------------------

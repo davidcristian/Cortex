@@ -24,6 +24,7 @@ from cortex_core import (
     EscalationSlot,
     HandoffRecord,
     HandoffState,
+    HandoffStoreError,
     HashEmbedder,
     InferenceError,
     InferenceEvent,
@@ -98,12 +99,19 @@ class RecordingHandoffStore(InMemoryHandoffStore):
     each state exactly once.
     """
 
-    def __init__(self, *, put_gate: Gate | None = None, fail: Exception | None = None) -> None:
+    def __init__(
+        self,
+        *,
+        put_gate: Gate | None = None,
+        fail: Exception | None = None,
+        fail_settle: HandoffState | None = None,
+    ) -> None:
         super().__init__()
         self.states: list[HandoffState] = []
         self.deleted: list[str] = []
         self._put_gate = put_gate
         self._fail = fail
+        self._fail_settle = fail_settle
 
     async def put(self, record: HandoffRecord) -> None:
         if self._fail is not None:
@@ -112,6 +120,19 @@ class RecordingHandoffStore(InMemoryHandoffStore):
         await super().put(record)
         if self._put_gate is not None:
             await self._put_gate.pause()
+
+    async def transition(self, handoff_id: str, state: HandoffState) -> bool:
+        """As the in-memory twin, except that ``fail_settle`` refuses that state exactly once.
+
+        One transient hiccup on the write that ends a handoff, which is the failure that used to
+        strand the store's active pointer: the settling state never lands, so nothing releases
+        the claim the READY write took.
+        """
+        if state is self._fail_settle:
+            self._fail_settle = None
+            msg = f"redis refused the {state.value} write"
+            raise HandoffStoreError(msg)
+        return await super().transition(handoff_id, state)
 
     async def delete(self, handoff_id: str) -> None:
         self.deleted.append(handoff_id)
@@ -336,10 +357,12 @@ def build_harness(
     )
 
 
-async def run_handoff(harness: Harness, slot: EscalationSlot) -> list[TurnEvent]:
+async def run_handoff(
+    harness: Harness, slot: EscalationSlot, *, turn_id: str = TURN
+) -> list[TurnEvent]:
     """Drive one handoff to the end, collecting every event it put on the turn's stream."""
     events: list[TurnEvent] = []
-    stream = harness.conductor.run_handoff(slot, session_id=SESSION, turn_id=TURN)
+    stream = harness.conductor.run_handoff(slot, session_id=SESSION, turn_id=turn_id)
     try:
         async for event in stream:
             events.append(event)  # noqa: PERF401 - a bounded stream, read one event at a time
