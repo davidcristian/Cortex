@@ -162,7 +162,8 @@ brain/            Python workspace (uv), dockerized (brain/Dockerfile)
                   MCP server over ProtonMail Bridge), body_client (BodyGateway gRPC client of the
                   body's BodyService, which is the brain→body seam, ADR-0023);
                   subagents live in core (runner, scheduler, spawn tool) + session (task store);
-                  (planned) model_manager (Slice 11), shared
+                  model_manager (the model-host supervisor sidecar that runs one llama-server per
+                  logical model + the ModelHost HTTP adapter, ADR-0030); (planned) shared
 body/             Rust/Tauri workspace, host-native
   crates/         core (pure logic + OS traits [Hotkey, AudioControl] + BrainTransport port),
                   rpc (tonic adapter, committed stubs; BrainService client + BodyService server),

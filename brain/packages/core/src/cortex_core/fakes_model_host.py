@@ -31,6 +31,13 @@ class ScriptedModelHost:
         self._fail = dict(fail or {})
         self._fail_once = dict(fail_once or {})
 
+    def set_status(self, model: str, state: ModelHostState | None) -> None:
+        """Change what a **running** ``model`` reports, or clear the override with ``None``."""
+        if state is None:
+            self._override.pop(model, None)
+            return
+        self._override[model] = state
+
     async def start(self, model: str) -> None:
         """Begin loading ``model`` (idempotent); the model reports its scripted state after."""
         self._check("start", model)

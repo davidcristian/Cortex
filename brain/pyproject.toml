@@ -13,6 +13,7 @@ dependencies = [
   "cortex-embedding",
   "cortex-inference",
   "cortex-memory",
+  "cortex-model-manager",
   "cortex-orchestrator",
   "cortex-seam",
   "cortex-session",
@@ -26,6 +27,7 @@ cortex-email = { workspace = true }
 cortex-embedding = { workspace = true }
 cortex-inference = { workspace = true }
 cortex-memory = { workspace = true }
+cortex-model-manager = { workspace = true }
 cortex-orchestrator = { workspace = true }
 cortex-seam = { workspace = true }
 cortex-session = { workspace = true }
