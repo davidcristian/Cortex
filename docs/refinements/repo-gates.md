@@ -1,14 +1,33 @@
 # Repo gates
 
 Deferred refinements for the repo's cross-tree gates, originating in
-[ADR-0026](../adr/ADR-0026-prose-style-gates.md) and, for the two Rust trees that no gate
-lints, in [ADR-0011](../adr/ADR-0011-body-v1.md). Extracted from the ROADMAP's
+[ADR-0026](../adr/ADR-0026-prose-style-gates.md), for the two Rust trees that no gate
+lints, in [ADR-0011](../adr/ADR-0011-body-v1.md), and for the test-runner mechanics in
+[ADR-0002](../adr/ADR-0002-toolchain-gates.md). Extracted from the ROADMAP's
 deferred-refinements section on 2026-07-15 with the entries kept verbatim; landed
 entries are the historical record of what each deferral became, and the index at
 [index.md](index.md) carries the recommended pickup order.
 
-**Open items:** 1 (`cargo clippy` for the Tauri shell in CI, moved to fix-when-it-bites
-2026-07-16; the rest landed 2026-07-16, see the outcome note below the verbatim entry)
+**Open items:** 2 (`cargo clippy` for the Tauri shell in CI, moved to fix-when-it-bites
+2026-07-16; standing test-order randomization, opened as fix-when-it-bites 2026-07-18; the
+rest landed 2026-07-16, see the outcome note below the verbatim entry)
+
+**Test-runner mechanics ([ADR-0002](../adr/ADR-0002-toolchain-gates.md)):**
+- **Standing test-order randomization.** Opened 2026-07-18, fix-when-it-bites, by a review that
+  found repair reports citing `-p no:randomly` as if it controlled for ordering. `pytest-randomly`
+  is not a dependency of the brain workspace or of `scripts/`, so that flag suppresses a plugin
+  that was never loaded and every suite has always run in collection order; the citation was a
+  gate that could not fail. What replaced it is a real measurement rather than a standing gate:
+  the plugin supplied for the run only (`uv run --with pytest-randomly pytest -p randomly
+  --randomly-seed=N`), three seeds over `packages/core` (990 tests) plus one over the whole brain
+  workspace (1642 tests), all green, with `--collect-only` proving the order genuinely differs
+  between seeds. Making it standing is a gate-policy change with real cost: every run would use a
+  different order, so reproducing a failure means recovering the seed from the log, and the plugin
+  reseeds `random` per test, which changes behaviour for any test that draws. **Trigger:** a test
+  that passes alone and fails inside a suite, or any order-dependent flake; the fix is then adding
+  `pytest-randomly` to the brain (and `scripts/`) dev dependencies with the seed printed by the
+  header it already emits. The `just check` recipes are unchanged for now
+  ([ADR-0002 addendum](../adr/ADR-0002-toolchain-gates.md)).
 
 **Gate coverage ([ADR-0011](../adr/ADR-0011-body-v1.md)):**
 - **`cargo fmt` and `cargo clippy` for the two ungated Rust trees.** `just check-body` runs
