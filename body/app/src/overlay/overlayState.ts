@@ -31,6 +31,13 @@ import {
 
 export { cycleTarget } from "./sessionState";
 
+/**
+ * The brain-side name of the screen-capture built-in (ADR-0029). Matched by name rather than by
+ * a new event field: the tool activity the brain already streams carries it, and a second seam
+ * field would be one more place the two ends could disagree about the same fact.
+ */
+export const CAPTURE_SCREEN_TOOL = "capture_screen";
+
 /** Where the overlay is on screen. */
 export type Mode = "hidden" | "panel" | "orb" | "preview";
 
@@ -80,6 +87,14 @@ export interface OverlayState {
   readonly reminders: readonly DueReminder[];
   /** What the overlay knows about the brain connection, for the header indicator (`linkState`). */
   readonly link: LinkView;
+  /**
+   * Whether the assistant has looked at the user's screen during the turn in flight
+   * (ADR-0029). Set by the `capture_screen` tool activity and cleared only when the turn ends,
+   * so the indicator stays lit for the rest of the turn rather than blinking past with the
+   * chip. This is a **consent surface**, which is part of why the capture tool ships without an
+   * approval card: the user is told plainly, by the app, that a picture was taken.
+   */
+  readonly capturing: boolean;
   readonly seq: number;
   /**
    * Whether the user has acted on this overlay since mount (opened it, typed, switched, or
@@ -138,6 +153,7 @@ export function createInitialState(sessionId: string): OverlayState {
     pendingConfirm: null,
     reminders: [],
     link: INITIAL_LINK,
+    capturing: false,
     seq: 0,
     touched: false,
   };
@@ -263,8 +279,14 @@ function applyEvent(state: OverlayState, event: TurnEvent): OverlayState {
   switch (event.kind) {
     case "delta":
       return patchStreaming(state, (m) => ({ ...m, content: m.content + event.text }));
-    case "toolActivity":
-      return patchStreaming(state, (m) => ({ ...m, tool: `${event.toolName}: ${event.summary}` }));
+    case "toolActivity": {
+      const lit = state.capturing || event.toolName === CAPTURE_SCREEN_TOOL;
+      const chipped = patchStreaming(state, (m) => ({
+        ...m,
+        tool: `${event.toolName}: ${event.summary}`,
+      }));
+      return { ...chipped, capturing: lit };
+    }
     case "status": {
       // A "thinking" status is one reasoning-trace delta (ADR-0020), already guardrail-scrubbed
       // brain-side, so accumulate it into `thoughts` for the settled reply's collapsed
@@ -321,7 +343,14 @@ function applyConfirmRequest(
  *  approval dies with its turn. The stream is gone, and stream-death is the deny (ADR-0022). */
 function endTurn(state: OverlayState, error: string | null): OverlayState {
   const ended = patchStreaming(state, (m) => ({ ...m, streaming: false, error }));
-  return { ...ended, mode: state.mode === "orb" ? "preview" : state.mode, pendingConfirm: null };
+  return {
+    ...ended,
+    mode: state.mode === "orb" ? "preview" : state.mode,
+    pendingConfirm: null,
+    // The turn is over, so the picture it took is out of context: the indicator goes out with
+    // it rather than persisting into a turn that never looked at anything.
+    capturing: false,
+  };
 }
 
 function patchStreaming(state: OverlayState, patch: (m: Message) => Message): OverlayState {

@@ -23,6 +23,7 @@ function fakeController(
       pendingConfirm: null,
       reminders: [],
       link: INITIAL_LINK,
+      capturing: false,
       seq: 0,
       touched: false,
       ...extra,
