@@ -2,8 +2,8 @@
 //!
 //! The body talks to the dockerized brain only over the gRPC seam declared in
 //! `proto/body.proto` (AGENTS.md). This module is the pure side of that seam:
-//! the port trait plus its result and error types. No tonic, no network. That is the
-//! concrete gRPC adapter lives in `body/crates/rpc` and must pass the same
+//! the port trait plus its result and error types. No tonic, no network. That is
+//! why the concrete gRPC adapter lives in `body/crates/rpc` and must pass the same
 //! contract shape as any fake implementing this trait.
 //!
 //! The *turn* vocabulary a `converse` call carries ([`TurnEvent`] and [`ConfirmDecision`])

@@ -40,63 +40,88 @@ only (``uv run --with pytest-randomly pytest -p randomly --randomly-seed=N``): t
 confirmed to differ between seeds so the shuffle was doing something. Repeat that command rather
 than a flag that names a plugin nothing installed.
 
-Distrust-green proofs (each mutation was applied alone, reddened exactly the cases named, and
-was then restored):
+Distrust-green proofs. Every mutation below was applied on its own, measured against the whole
+``packages/core`` suite, and then restored, on 2026-07-18. Each bullet names the cases **in this
+file** that it reddens and then, in brackets, the package-wide failure count, because a mutation
+to production code reddens the other suites over that same code too (the conductor, residency,
+recovery and drain-contract ones); "and nothing else" therefore means nothing else in the
+package. Four cases here can never be reddened by a swap-window mutation, asserting other
+invariants and never calling ``assert_stream_ended_honestly``: the taint case, the boot-recovery
+case, the BRAIN_ACTIVE ordering case and the mid-drain boundary case. Where a status bullet below
+says "every case that ...", read it as every case that also checks the window.
+
 - restoring the cortex only on the scope's success path (no ``finally``) reddens
-  ``after-cortex-stop``, ``mid-brain-stream`` and ``after-brain-persist`` here, plus every
-  scripted-failure case in the conductor suite;
+  ``after-cortex-stop``, ``mid-brain-stream``, ``after-brain-persist``, the three scripted
+  failures whose swap really breaks (``brain-start-fails``, ``health-gate-times-out``,
+  ``mid-brain-stream-server-death``), ``settle-failed-refused`` and the close case [17];
 - moving the record's BRAIN_ACTIVE transition ahead of the residency scope reddens
-  ``test_the_record_reaches_brain_active_only_once_the_deep_model_serves``;
+  ``test_the_record_reaches_brain_active_only_once_the_deep_model_serves`` [3];
 - dropping the conductor's ``except`` that fails the record on teardown reddens ``mid-drain``,
-  ``after-drain``, ``after-cortex-stop``, ``mid-brain-stream``, ``after-brain-persist`` and
-  ``during-swap-back``; ``after-snapshot`` is reddened by dropping the same guard around the
-  record's first write instead, which is a separate mutation and a separate defect (one this
-  suite found: a kill there used to strand a live record that refused every later handoff);
-- dropping ``undrain`` from the conductor's ``finally`` reddens every case that got as far as
-  draining (``after-drain`` onwards) plus
-  ``test_a_drain_that_times_out_converges_without_evicting_anything``;
-- a drain that reports clean on timeout reddens that same drain-timeout case;
-- skipping the stranded-record failure, or the stop of a still-running deep model, in boot
-  recovery reddens
-  ``test_boot_recovery_fails_a_stranded_record_and_converges_without_double_running``;
+  ``after-drain``, ``after-cortex-stop``, ``mid-brain-stream``, ``after-brain-persist``,
+  ``during-swap-back``, the close case, the second-cancellation case and
+  ``test_the_record_reaches_brain_active_only_once_the_deep_model_serves`` [10];
+  ``after-snapshot`` is reddened by dropping the same guard around the record's first write
+  instead, which is a separate mutation and a separate defect (one this suite found: a kill there
+  used to strand a live record that refused every later handoff), and that one reddens
+  ``after-snapshot`` and nothing else [1];
+- dropping ``undrain`` from the conductor's ``finally`` reddens every case here that got as far
+  as the drain, ``mid-drain`` included, plus the conductor suite's own drain-timeout case [22].
+  Two cases here survive it: ``after-snapshot``, killed before the window was ever opened, and
+  the BRAIN_ACTIVE ordering case, which asserts the record and nothing about the pool;
+- a drain that reports clean on timeout reddens
+  ``test_a_drain_that_times_out_converges_without_evicting_anything``, together with the
+  conductor suite's abort case and the pool's own drain contract [3];
+- skipping the stranded-record failure in boot recovery [2], or the stop of a still-running deep
+  model [3], reddens
+  ``test_boot_recovery_fails_a_stranded_record_and_lets_the_next_handoff_run``; the rest of each
+  count is the recovery suite's unit cases;
+- refusing a handoff because the store still holds a record under that turn id, rather than
+  because one is still live, reddens that same boot-recovery case [3], which is the only place
+  the suite escalates a turn whose record a crash left behind;
 - taking the single-handoff precondition as a store read rather than as the residency claim
-  reddens ``test_two_escalating_turns_racing_for_the_gpu_leave_one_of_them_untouched``, which
-  the in-memory store alone cannot do (hence ``_YieldingHandoffStore``);
+  reddens ``test_two_escalating_turns_racing_for_the_gpu_leave_one_of_them_untouched`` and
+  nothing else [1], which the in-memory store alone cannot do (hence ``_YieldingHandoffStore``);
 - dropping the conductor's ``aclose`` on its swap generator reddens
   ``test_closing_the_stream_mid_handoff_unwinds_the_swap_rather_than_abandoning_it``, and
-  nothing else here, because every other case cancels;
+  nothing else here, because every other case cancels; the second failure is that same close
+  driven through the escalating wrapper [2];
 - each of the swap window's four statuses, moved off the work it announces, reddens through the
   harness's per-status witness. None of the four changes the ORDER the details arrive in, which
-  is what the old assertion read and why it caught none of them. Each reddens the cases that got
-  far enough to emit the status in question: "draining" moved after the drain reddens every case
-  whose drain returned; "loading" moved inside the residency scope reddens every case whose deep
-  model actually loaded; "working on this" moved above that scope reddens every case that entered
-  the swap at all (it used to redden only the cases that never reached the deep model, which is
-  why the witness replaced the old check); "restoring" moved below the scope reddens every case
-  whose deep model answered;
+  is what the old assertion read and why it caught none of them. "draining" moved after the drain
+  reddens every case that got PAST the drain [16] (an aborted drain emits no status at all under
+  that mutation, so the drain-timeout cases stay green); "loading" moved inside the residency
+  scope reddens every case whose deep model actually loaded [13]; "working on this" moved above
+  that scope reddens every case that entered the swap at all [18] (it used to redden only the
+  cases that never reached the deep model, which is why the witness replaced the old check);
+  "restoring" moved below the scope reddens every case whose stream got as far as that status
+  [7], which is fewer than the cases whose model answered: a kill can land in between;
 - one shielded wait for the restore instead of one per cancellation (which is what the seam
   actually delivers: ``ConverseStream`` cancels the turn from its pump, then again from
   ``events()``'s teardown) reddens
   ``test_a_second_cancellation_during_the_swap_back_still_holds_the_drain_window_shut`` and
-  nothing else, that being the only case that cancels twice;
+  nothing else [1], that being the only case that cancels twice;
 - hoisting the conductor's ``undrain`` above the ``aclose`` that unwinds the swap reddens
   ``test_closing_the_stream_mid_handoff_unwinds_the_swap_rather_than_abandoning_it`` and nothing
-  else, for the same reason as the ``aclose`` mutation above: every other case cancels, and a
+  else [1], for the same reason as the ``aclose`` mutation above: every other case cancels, and a
   cancellation has already unwound the scope by the time the conductor's ``finally`` runs;
 - dropping the ``aclose`` on the DEEP MODEL's own round (the innermost of the three teardowns)
-  reddens that same close case and nothing else. Only the round's own witness can see it: the
+  reddens that same close case and nothing else [1]. Only the round's own witness can see it: the
   swap back and the drain window are both intact under this mutation, so every other assertion
   in the suite, including the two the close case made before, passes;
 - restarting nothing after the cortex comes back reddens
-  ``test_a_tier_evicted_for_the_handoff_is_running_again_when_it_ends``;
-- pausing the mid-drain case before the refusal window opens (which is where it used to
-  pause, making it a duplicate of ``after-snapshot``) reddens
-  ``test_the_mid_drain_kill_lands_while_the_pool_is_actually_quiescing``;
-- the pool's own ``drain`` no longer opening the refusal window at all reddens ``mid-drain``
-  and that same boundary case, which is the mutation that proves the boundary is REACHED
-  rather than staged: while the harness set the draining flag itself, this mutation passed;
+  ``test_a_tier_evicted_for_the_handoff_is_running_again_when_it_ends`` and the
+  second-cancellation case, the two here that evict a tier at all [4];
+- pausing the mid-drain case before the pool's own ``drain`` opens the refusal window (which is
+  where it used to pause, making it a duplicate of ``after-snapshot``) reddens
+  ``test_the_mid_drain_kill_lands_while_the_pool_is_actually_quiescing`` and nothing else [1];
+- the pool's own ``drain`` no longer opening the refusal window at all reddens ``mid-drain``,
+  that same boundary case and the racing case [8], the other five being the drain contract this
+  fake shares with the real pool. It is the mutation that proves the boundary is REACHED rather
+  than staged: with the straggler setting the draining flag itself instead, as the harness used
+  to, both mid-drain cases pass under it (measured the same way);
 - releasing the record's claim only when the settling write landed reddens both cases of
-  ``test_a_store_that_refuses_the_settling_write_still_frees_the_next_handoff``.
+  ``test_a_store_that_refuses_the_settling_write_still_frees_the_next_handoff``, with the
+  conductor suite's two store-failure cases [4].
 """
 
 import asyncio
@@ -176,6 +201,13 @@ class _PausingScheduler(WitnessingScheduler):
     suspended inside the real ``drain``, quiescing, with work genuinely in flight, rather than
     at the same system state as ``after-snapshot``. ``after`` pauses once the pool has fully
     drained, the other edge.
+
+    Worth knowing before trusting it: what every assertion downstream reads is where the
+    HANDOFF is suspended, and no assertion pins this straggler's own wait. Dropping
+    ``_the_pool_closes_around_it`` leaves the whole suite green, because the loop resumes the
+    handoff into ``drain`` before this test gets to look either way. The wait is here so the
+    boundary is deterministic rather than true by ready-queue order, which is not the same
+    thing as being proven.
     """
 
     def __init__(self, *, mid: Gate | None = None, after: Gate | None = None) -> None:
@@ -446,7 +478,9 @@ async def test_a_drain_that_times_out_converges_without_evicting_anything() -> N
     assert_stream_ended_honestly(live, events, killed=False)
     # The fourth invariant this case owed and did not check: the lease is free again while the
     # straggler that aborted the handoff is STILL running, so the next turn is not held behind
-    # a swap that never happened.
+    # a swap that never happened. The line below is the premise of that sentence rather than a
+    # second claim about the conductor: this test's own gate is what holds the straggler open,
+    # and nothing in the conductor could release it, v1 killing no subagent mid-stream.
     await assert_the_next_turn_still_works(live)
     assert not task.done()
     held.release.set()
@@ -505,9 +539,11 @@ async def test_a_store_that_refuses_the_settling_write_still_frees_the_next_hand
 
     later = await harness.run_handoff(live, harness.armed_slot(), turn_id=_LATER_TURN)
     # It ran: it answered, or it failed at the swap the way this harness's host makes every
-    # handoff fail. What it must NOT say is that another handoff is already running.
+    # handoff fail. What it must NOT say is that another handoff is already running, and this
+    # equality is what rules that out, both expected texts being constants the note is not. A
+    # separate ``ALREADY_ACTIVE_NOTE not in`` on the same value would only look like a check:
+    # the line above has already pinned it whole, so nothing could make that one fail.
     assert _texts(later) == later_text
-    assert ALREADY_ACTIVE_NOTE not in _texts(later)
     assert await live.handoffs.active() is None
     stranded = await live.handoffs.get(_LATER_TURN)
     assert stranded is None or stranded.state.terminal
@@ -853,13 +889,21 @@ async def test_the_record_reaches_brain_active_only_once_the_deep_model_serves()
     assert live.backend.calls == 0  # and the deep model was never asked anything
 
 
-async def test_boot_recovery_fails_a_stranded_record_and_converges_without_double_running() -> None:
+async def test_boot_recovery_fails_a_stranded_record_and_lets_the_next_handoff_run() -> None:
     """The kill no conductor can clean up after: the process itself died mid-handoff.
 
     Nothing else could have run, so the state is built as a crash would have left it: a live
     BRAIN_ACTIVE record and the deep model resident. Recovery fails the record and puts the
     cortex back, and deliberately does NOT resume the deep phase, since replaying it without a
     request-identity design risks double-running side-effectful work.
+
+    That non-resumption is structural, not something this case could catch: ``recover_handoffs``
+    is handed the store, the host and the plan, and nothing it could run a turn with, so an
+    assertion here that the deep model went unasked during recovery would pass whatever recovery
+    did. What the wreckage really threatens is the NEXT escalation, and that can fail, so it is
+    what is asserted: a record left live would refuse the next handoff outright, a deep model
+    left resident would have it swapping onto an occupied GPU. So one is run for real, and it
+    must answer, having asked the deep model exactly once.
     """
     host = ScriptedModelHost(running=["brain"])
     live = build_harness(Fakes(host=host))
@@ -884,9 +928,13 @@ async def test_boot_recovery_fails_a_stranded_record_and_converges_without_doubl
     assert failed is not None
     assert failed.state is HandoffState.FAILED
     assert host.running == {"cortex"}
-    assert live.backend.calls == 0  # nothing was resumed, so nothing double-ran
-    assert [m.text for m in await live.sessions.history(harness.SESSION)] == [
-        harness.USER_TEXT,
-        harness.CORTEX_TEXT,
-    ]
     await assert_the_next_turn_still_works(live)
+
+    # Escalating again is the same turn's user asking again, so it carries the same id: the
+    # FAILED record recovery left as its diagnosis must not refuse the retry of the very turn
+    # it describes, which is the wedge a record kept but never settled would cause.
+    later = await harness.run_handoff(live, harness.armed_slot())
+    assert _texts(later) == "a deep answer"
+    assert live.backend.calls == 1  # asked once, by this turn, and never by recovery
+    await assert_converged_on_cortex(live)
+    await assert_stores_intact(live, deep_reply="a deep answer")
