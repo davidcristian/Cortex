@@ -9,7 +9,15 @@ and maps every gRPC failure (the body unreachable, a non-OK status) to ``BodyGat
 with the cause chained. No orchestration, no state: the composition root owns the channel's
 lifecycle (``connect`` returns the closer), exactly as ``LlamaCppBackend`` injects its client.
 
-The generated gRPC stub ships no ``.pyi`` (wire code is gate-exempt, ADR-0002 d4), so the two
+``capture_screen`` (ADR-0029) is the first call on this seam that carries a **deadline** and the
+reason the channel raises its receive limit. It is the first that can genuinely park a thread (a
+4K blit plus a downscale plus a PNG encode), and with no deadline a wedged backend hangs the tool
+call, which hangs the turn, forever; the volume and notify calls keep their live-validated
+no-deadline behaviour, since changing what works is not a change this slice earned. It is also
+**never retried**: a repeat photographs a different screen and fires a second host receipt for
+one user intent.
+
+The generated gRPC stub ships no ``.pyi`` (wire code is gate-exempt, ADR-0002 d4), so the
 stub-method accesses carry the same narrow, justified ignores the seam's other consumers use.
 """
 
@@ -18,10 +26,19 @@ from typing import cast
 
 from grpc import aio
 
-from cortex_core import BodyGatewayError, VolumeState
+from cortex_core import (
+    BodyGatewayError,
+    ImageError,
+    ImagePart,
+    ScreenCapture,
+    VolumeState,
+    captured_at_from_unix_ms,
+)
 from cortex_seam import (
     SEAM_TOKEN_HEADER,
     BodyServiceStub,
+    CaptureScreenReply,
+    CaptureScreenRequest,
     GetVolumeRequest,
     NotifyReply,
     NotifyRequest,
@@ -31,19 +48,32 @@ from cortex_seam import VolumeState as VolumeStatePb
 
 _Metadata = tuple[tuple[str, str], ...]
 
+# The most bytes one inbound gRPC message may carry on this channel, 16 MiB.
+#
+# grpc's own default is 4 MiB, which a legitimate capture can exceed: the body's ceiling is
+# 6 MiB and a worst-case incompressible screen encodes to 4.33 MB at the default edge. The
+# limit sits well above both ceilings rather than at one of them, so a reply that breaks the
+# *domain* budget is refused by the domain, with a message the cortex can read, instead of
+# being killed by the transport with a message nobody can act on. Only this direction is
+# raised; nothing else on this seam carries a payload.
+MAX_RECEIVE_BYTES = 16 * 1024 * 1024
+
 
 class GrpcBodyGateway:
     """BodyGateway over a ``BodyService`` gRPC channel (the ``LlamaCppBackend`` of OS actions)."""
 
-    def __init__(self, channel: aio.Channel, *, token: str = "") -> None:
+    def __init__(
+        self, channel: aio.Channel, *, token: str = "", capture_timeout_s: float = 10.0
+    ) -> None:
         self._stub = BodyServiceStub(channel)
+        self._capture_timeout_s = capture_timeout_s
         # Attach the token on every call when configured; empty token = no metadata, matching
         # the tokenless body server (ADR-0016). Built once because the metadata never changes.
         self._metadata: _Metadata = ((SEAM_TOKEN_HEADER, token),) if token else ()
 
     @classmethod
     async def connect(
-        cls, endpoint: str, *, token: str = ""
+        cls, endpoint: str, *, token: str = "", capture_timeout_s: float = 10.0
     ) -> tuple["GrpcBodyGateway", Callable[[], Awaitable[None]]]:
         """Open an insecure channel to the body at ``endpoint`` (e.g. ``host:50151``).
 
@@ -51,12 +81,14 @@ class GrpcBodyGateway:
         root's shutdown path is uniform with the other builders. The channel connects lazily, so
         an unreachable body surfaces as ``BodyGatewayError`` on the first call, not here.
         """
-        channel = aio.insecure_channel(endpoint)
+        channel = aio.insecure_channel(
+            endpoint, options=[("grpc.max_receive_message_length", MAX_RECEIVE_BYTES)]
+        )
 
         async def close() -> None:
             await channel.close()
 
-        return cls(channel, token=token), close
+        return cls(channel, token=token, capture_timeout_s=capture_timeout_s), close
 
     async def get_volume(self) -> VolumeState:
         """Read the host volume over ``BodyService.GetVolume``."""
@@ -104,3 +136,56 @@ class GrpcBodyGateway:
             msg = f"body notify failed: {err.details()}"
             raise BodyGatewayError(msg) from err
         return reply.shown
+
+    async def capture_screen(self, *, max_edge: int = 0, max_bytes: int = 0) -> ScreenCapture:
+        """Read the host's primary display over ``BodyService.CaptureScreen`` (ADR-0029).
+
+        ``max_edge``/``max_bytes`` are hints: a zero leaves the body's own defaults, and under
+        proto3 an older body ignores both entirely, which is exactly why the reply is verified
+        here rather than assumed. ``ImagePart`` re-checks the mime, the declared size, and the
+        byte count, so a body that answered full resolution is refused by the domain bound
+        instead of quietly costing the turn megabytes.
+
+        Attempted exactly once, with ``timeout`` seconds of patience. Every failure, including
+        a reply this side refuses, becomes ``BodyGatewayError``.
+        """
+        request = CaptureScreenRequest(max_edge=max_edge, max_bytes=max_bytes)
+        method = self._stub.CaptureScreen  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
+        try:
+            reply = cast(
+                "CaptureScreenReply",
+                await method(request, metadata=self._metadata, timeout=self._capture_timeout_s),
+            )
+        except aio.AioRpcError as err:
+            msg = f"body capture_screen failed: {err.details()}"
+            raise BodyGatewayError(msg) from err
+        return _to_capture(reply)
+
+
+def _to_capture(reply: CaptureScreenReply) -> ScreenCapture:
+    """Translate the wire reply into the domain value, refusing anything it will not vouch for.
+
+    A body that answers ``CaptureScreenReply()`` with no blob at all is a body that answered
+    OK to a capture it did not take, which is a worse failure than an error status because the
+    caller would otherwise read zeros as a real screen.
+    """
+    if not reply.HasField("image"):
+        msg = "body capture_screen returned no image"
+        raise BodyGatewayError(msg)
+    blob = reply.image
+    try:
+        image = ImagePart(
+            data=blob.data,
+            mime_type=blob.mime_type,
+            width=blob.width,
+            height=blob.height,
+        )
+    except ImageError as err:
+        msg = f"body capture_screen returned an unusable image: {err}"
+        raise BodyGatewayError(msg) from err
+    return ScreenCapture(
+        image=image,
+        source_width=blob.source_width or blob.width,
+        source_height=blob.source_height or blob.height,
+        captured_at=captured_at_from_unix_ms(blob.captured_at_unix_ms),
+    )

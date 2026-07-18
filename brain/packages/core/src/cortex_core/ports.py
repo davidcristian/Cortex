@@ -13,7 +13,7 @@ from contextlib import AbstractAsyncContextManager
 from datetime import datetime
 from typing import Protocol
 
-from cortex_core.body import VolumeState
+from cortex_core.body import ScreenCapture, VolumeState
 from cortex_core.conversation import Message
 from cortex_core.events import TurnEvent
 from cortex_core.inference import InferenceEvent, JsonSchema
@@ -209,10 +209,20 @@ class BodyGateway(Protocol):
     type crosses this boundary. ``notify`` (ADR-0025) shows a native notification (the push
     half of reminder delivery), returning whether the body displayed it (``False`` or an error
     leaves the reminder deliverable for the pull path; ``tainted`` marks attacker-influenced
-    text so the body can badge it and must render it inert). Failures (the body unreachable,
+    text so the body can badge it and must render it inert). ``capture_screen`` (ADR-0029)
+    reads the host's primary display and returns a domain ``ScreenCapture``; ``max_edge`` and
+    ``max_bytes`` are hints the body clamps and may ignore, so the caller re-verifies the reply
+    it gets. Failures (the body unreachable,
     an OS error, an unimplemented capability) surface as ``BodyGatewayError``, which callers
     turn into recoverable outcomes. The port is deliberately abstract so the connectivity
     fallback (a body-initiated tunnel, ADR-0001 Q3) is a later adapter, not a seam change.
+
+    **A capture is attempted exactly once and never retried.** This is a decision, not an
+    omission. A repeat would photograph a *different* screen, possibly after the user switched
+    windows, so it neither reproduces the answer nor leaves the world unchanged, and it would
+    fire a second host receipt for one user intent. Nothing in the brain retries a body call
+    today, so the correct posture already holds; it is written down here so a future retry
+    decorator has to exclude this method deliberately.
     """
 
     async def get_volume(self) -> VolumeState: ...
@@ -224,6 +234,8 @@ class BodyGateway(Protocol):
     async def notify(
         self, *, title: str, body: str, reminder_id: str, tainted: bool = False
     ) -> bool: ...
+
+    async def capture_screen(self, *, max_edge: int = 0, max_bytes: int = 0) -> ScreenCapture: ...
 
 
 class SubagentScheduler(Protocol):
