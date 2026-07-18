@@ -18,7 +18,10 @@ Distrust-green proofs, measured across ``packages/model_manager`` one mutation a
 - defaulting an unknown state word to ``LOADING`` instead of raising reddens 3, the whole
   parameterization of ``test_a_state_word_this_version_does_not_know_is_a_failure_not_a_guess``;
 - reporting READY whatever the sidecar said reddens 11, of which 4 are here and 7 are the shared
-  contract suite's supervisor cases.
+  contract suite's supervisor cases;
+- dropping the tier and the exit code from the FAILED log line's own message (leaving them in
+  ``extra``, which no stdlib formatter renders) reddens exactly 1,
+  ``test_a_failed_state_is_a_normal_answer_and_is_logged_with_its_detail``.
 """
 
 import logging
@@ -90,7 +93,12 @@ async def test_a_failed_state_is_a_normal_answer_and_is_logged_with_its_detail(
     host = _host(_answer("failed", "the process exited with code 1"))
     assert await host.status("brain") is ModelHostState.FAILED
     record = caplog.records[-1]
-    assert (record.levelno, record.message) == (logging.ERROR, "a hosted model process has failed")
+    assert record.levelno == logging.ERROR
+    # The rendered text, not just the attributes: the brain's own formatter shows no ``extra``, so
+    # a message that did not name the tier and the exit code would carry the diagnosis nowhere.
+    assert record.getMessage() == (
+        "a hosted model process has failed: model=brain detail=the process exited with code 1"
+    )
     assert record.__dict__["detail"] == "the process exited with code 1"
 
 
