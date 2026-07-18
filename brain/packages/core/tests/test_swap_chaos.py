@@ -287,9 +287,6 @@ async def test_a_drain_that_times_out_converges_without_evicting_anything() -> N
     await assert_converged_on_cortex(live)
     await assert_stores_intact(live)
     assert_stream_ended_honestly(live, events, killed=False)
-    # The fourth invariant this case owed and did not check: the lease is free again while the
-    # straggler that aborted the handoff is STILL running, so the next turn is not held behind
-    # a swap that never happened.
     await assert_the_next_turn_still_works(live)
     assert not task.done()
     held.release.set()
@@ -335,10 +332,7 @@ async def test_a_store_that_refuses_the_settling_write_still_frees_the_next_hand
     await assert_the_next_turn_still_works(live)
 
     later = await harness.run_handoff(live, harness.armed_slot(), turn_id=_LATER_TURN)
-    # It ran: it answered, or it failed at the swap the way this harness's host makes every
-    # handoff fail. What it must NOT say is that another handoff is already running.
     assert _texts(later) == later_text
-    assert ALREADY_ACTIVE_NOTE not in _texts(later)
     assert await live.handoffs.active() is None
     stranded = await live.handoffs.get(_LATER_TURN)
     assert stranded is None or stranded.state.terminal
@@ -631,7 +625,7 @@ async def test_the_record_reaches_brain_active_only_once_the_deep_model_serves()
     assert live.backend.calls == 0  # and the deep model was never asked anything
 
 
-async def test_boot_recovery_fails_a_stranded_record_and_converges_without_double_running() -> None:
+async def test_boot_recovery_fails_a_stranded_record_and_lets_the_next_handoff_run() -> None:
     """The kill no conductor can clean up after: the process itself died mid-handoff."""
     host = ScriptedModelHost(running=["brain"])
     live = build_harness(Fakes(host=host))
@@ -656,9 +650,13 @@ async def test_boot_recovery_fails_a_stranded_record_and_converges_without_doubl
     assert failed is not None
     assert failed.state is HandoffState.FAILED
     assert host.running == {"cortex"}
-    assert live.backend.calls == 0  # nothing was resumed, so nothing double-ran
-    assert [m.text for m in await live.sessions.history(harness.SESSION)] == [
-        harness.USER_TEXT,
-        harness.CORTEX_TEXT,
-    ]
     await assert_the_next_turn_still_works(live)
+
+    # Escalating again is the same turn's user asking again, so it carries the same id: the
+    # FAILED record recovery left as its diagnosis must not refuse the retry of the very turn
+    # it describes, which is the wedge a record kept but never settled would cause.
+    later = await harness.run_handoff(live, harness.armed_slot())
+    assert _texts(later) == "a deep answer"
+    assert live.backend.calls == 1  # asked once, by this turn, and never by recovery
+    await assert_converged_on_cortex(live)
+    await assert_stores_intact(live, deep_reply="a deep answer")
