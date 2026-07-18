@@ -1,0 +1,45 @@
+# syntax=docker/dockerfile:1
+# The model-host sidecar, the one container allowed to start and stop a model process. It needs
+# the Python workspace and the llama-server binary in one image, so llama.cpp's CUDA server image
+# is the base and uv is copied in as the static binary it is. The build context is brain/.
+
+FROM ghcr.io/ggml-org/llama.cpp:server-cuda AS builder
+
+# Replace this mutable tag with a digest once one is chosen. It provides the CUDA runtime and the
+# server binary the sidecar starts.
+COPY --from=ghcr.io/astral-sh/uv:0.11-python3.12-trixie-slim /usr/local/bin/uv /usr/local/bin/uv
+
+# Never a uv-managed interpreter: the virtual environment must run on the base image's own python3,
+# whose path exists in the runtime stage. Transplanting the brain image's prebuilt environment does
+# not work, because it points at a path this base image does not have.
+ENV UV_PYTHON_DOWNLOADS=never \
+    UV_COMPILE_BYTECODE=1 \
+    UV_LINK_MODE=copy
+
+# Not /app: that is where the base image keeps llama-server, which the supervisor starts by path.
+WORKDIR /srv/brain
+
+COPY . .
+
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --locked --no-dev --no-editable --python /usr/bin/python3
+
+FROM ghcr.io/ggml-org/llama.cpp:server-cuda
+
+# Non-root: the supervisor starts children and probes loopback, neither of which needs root, and
+# the GPU reaches a non-root process through the container toolkit.
+RUN useradd --create-home --uid 10001 --shell /usr/sbin/nologin cortex
+
+COPY --from=builder /srv/brain/.venv /srv/brain/.venv
+
+ENV PATH="/srv/brain/.venv/bin:$PATH" \
+    PYTHONUNBUFFERED=1
+
+USER cortex
+
+# The control API's port. The per-model child ports are documented in the compose override.
+EXPOSE 9300
+
+# The base image's entrypoint is llama-server itself, which this image is not.
+ENTRYPOINT []
+CMD ["python", "-m", "cortex_model_manager"]

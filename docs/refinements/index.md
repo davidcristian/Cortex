@@ -36,11 +36,11 @@ its signature.
 | [tools-mcp.md](tools-mcp.md) | Dispatch budget/cost/salience, spawn batch cap, MCP registries (ADR-0009/0010) | 6 |
 | [untrusted-content.md](untrusted-content.md) | Taint boundary, output guardrail, subagent model safety (ADR-0013/0015/0017/0019/0028) | 14 |
 | [memory.md](memory.md) | Store, scoping, rerank/MMR (ADR-0008) | 8 |
-| [inference-model-manager.md](inference-model-manager.md) | Model-manager lifecycle, MTP, reasoning status (ADR-0007/0020) | 5 |
+| [inference-model-manager.md](inference-model-manager.md) | Model-manager lifecycle, MTP, reasoning status (ADR-0007/0020) | 6 |
 | [subagents.md](subagents.md) | Progress reporting, spawn schema, heterogeneous roster (ADR-0010/0018) | 1 |
 | [body-overlay.md](body-overlay.md) | Overlay polish, connection indicator, proto Cancel (ADR-0011) | 3 |
 | [session-read-seam.md](session-read-seam.md) | Session listing/read seam (ADR-0021) | 3 |
-| [resource-governance.md](resource-governance.md) | Scheduler/placer budgets, NPU, drain (ADR-0012) | 6 |
+| [resource-governance.md](resource-governance.md) | Scheduler/placer budgets, NPU, drain (ADR-0012) | 5 |
 | [email-confirmer.md](email-confirmer.md) | Email write, Confirmer, attachments, `ToolActivity` chip (ADR-0022) | 4 |
 | [body-gateway.md](body-gateway.md) | Body gateway, OS actions, hardened posture (ADR-0023) | 6 |
 | [scheduling.md](scheduling.md) | Scheduling and reminders, `TurnStamp` provenance (ADR-0025/0027) | 8 |
@@ -449,6 +449,37 @@ on it fail at its backend. What stays out of it is deliberate and pinned by muta
 constrained reply is not re-placed, the GPU reservation is released before the re-run, and the second
 attempt spends the same admission and the same dispatch budget), and the two attempts' taint is
 unioned because under-reporting taint costs safety rather than precision.
+Two more areas moved later on 2026-07-18 when the rest of that sub-slice landed, the real
+`model-host` supervisor sidecar and its compose revision. Resource governance went 6 to 5 with **the
+real GPU-placed runtime mechanism**, the last of that area's "Blocked on Slice 11" trio: the GPU
+subagent is a hosted tier inside the supervisor container rather than a second sidecar in the
+subagents override (ADR-0030 decision 3 relocated it), and the per-container `--cpus`/`--memory`/
+`--memory-swap` caps landed on that container and on the CPU one, verified applied by the runtime.
+The interpretation that costs something is recorded with it: three tiers in one cgroup means no
+per-model cap, only one cap set covering all three, which the security argument buys (a per-model
+cap wants a container per model, which wants a controller that can start containers, which is the
+docker-socket shape decision 3 rejected). Inference and model manager did **not** decrement, even
+though the process-lifecycle half of its oldest entry landed with the same sub-slice, because
+co-residency is the other half of that one entry and stays deferred with ADR-0030 decision 8's
+brain-runs-alone rule; it went 5 to 6 instead, with **reconverging the brain's residency when the
+sidecar restarts under it**. That one was observed rather than reasoned about: killing the daemon
+ends its container and takes every child's VRAM with it, `restart: unless-stopped` revives it and its
+boot default reconverges, but nothing tells the brain, whose residency bookkeeping is instance state
+revisited only at startup. It is invisible with escalation off (the default manager holds no
+residency state, confirmed live by a turn answered straight after a restart) and self-limiting with
+it on (the handoff fails honestly and releases its claim), so it is recorded with the wire addition
+that would close it: a boot id the manager can compare, and `converge_residency` called from
+somewhere other than startup.
+Two entries elsewhere had claims corrected rather than counts changed, which the sub-slice's own
+arrival falsified. **Placement-aware CPU charging** said it reopened with the Slice 11 GPU-placed
+runtime; the runtime arrived and did not reopen it, because one hosted GPU tier is still one backend
+object per target and the measured serialization argument is unchanged, so the entry now names the
+condition ADR-0030 decision 8 actually gives it, a second GPU-capable executor. And **admission
+reopening onto a tier that would not restart** said nothing was at stake because no deployment
+evicts a tier; a deployment can now name a GPU subagent artifact and list that tier in
+`CORTEX_SWAP_EVICT_MODELS`, so it is reachable by configuration for the first time (the shipped
+defaults still leave both empty), while its cost fell in the same sub-slice, a spawn placed on a
+dead tier now re-running once on the CPU rather than only reporting.
 
 ## Recommended order
 
@@ -489,28 +520,29 @@ and free of a prior blocker.
 
 ### Blocked on Slice 11 (real model swap / GPU lifecycle)
 
-- Model-manager process lifecycle, co-residency, and the real swap
+- Co-residency, the open half of model-manager process lifecycle, co-residency, and the real swap
   ([inference-model-manager.md](inference-model-manager.md)). The **pure half landed 2026-07-17**
-  with the brain-handoff conductor sub-slice: the `ModelHost` port and its scriptable twin, the
+  with the brain-handoff conductor sub-slice (the `ModelHost` port and its scriptable twin, the
   `SwappingModelManager` with its segregated residency scope, the `SwapConductor`, the deep
   model's phase, boot recovery, and the escalating turn wrapper, all proven over fakes by a
-  chaos suite that kills a handoff at every step boundary. What stays open here is the **real
-  process lifecycle** (the supervisor sidecar behind the same port, which is what makes a swap
-  move actual weights) and **co-residency**, which ADR-0030 decision 8 keeps deferred with the
-  brain-runs-alone rule.
-- The real GPU-placed runtime mechanism, waiting on the model-host sub-slice
-  ([resource-governance.md](resource-governance.md)). Its sibling **CUDA-OOM re-place on CPU landed
-  2026-07-18** with that sub-slice's runner half, though not as a CUDA-OOM check: on this stack an
-  over-committed GPU-placed model spills to shared memory and serves rather than failing, so the
-  re-run is keyed on any GPU-placed attempt whose backend did not answer (see the narrative above
-  and the ADR-0012 re-place addendum). The third sibling,
-  `SubagentScheduler.drain()`, **landed 2026-07-17** with the brain-handoff drain sub-slice
+  chaos suite that kills a handoff at every step boundary) and the **real process lifecycle landed
+  2026-07-18** with the model-host sub-slice: the supervisor sidecar behind that same port, one
+  `llama-server` child per tier, mechanism-validated in Docker on the dev GPU with two small
+  artifacts (tier scale stays host-side). What stays open is **co-residency**, which ADR-0030
+  decision 8 keeps deferred with the brain-runs-alone rule, now exercisable for the first time on
+  hardware that fits the tiers it would keep alive.
+- Nothing of this area's trio remains here ([resource-governance.md](resource-governance.md)):
+  `SubagentScheduler.drain()` **landed 2026-07-17** with the brain-handoff drain sub-slice
   (refuse-not-queue for the handoff window, a bounded wait that kills nothing, reversible via
-  `undrain`; see the narrative above and the ADR-0012 drain addendum). **Placement-aware CPU
-  charging** joined them on 2026-07-16, declined where it stood: `admit` is entered before
-  `place`, so the charge cannot see a target without a port change, and no spawn is GPU-placed
-  in the shipped wiring anyway. It reopens here, with the executors that would make the
-  discount mean something.
+  `undrain`; see the ADR-0012 drain addendum), and **CUDA-OOM re-place on CPU** and **the real
+  GPU-placed runtime mechanism** both **landed 2026-07-18** with the model-host sub-slice, the
+  re-place not as a CUDA-OOM check (on this stack an over-committed GPU-placed model spills to
+  shared memory and serves rather than failing) and the runtime inside the supervisor container
+  rather than as a second subagents sidecar. **Placement-aware CPU charging** joined them on
+  2026-07-16, declined where it stood: `admit` is entered before `place`, so the charge cannot see a
+  target without a port change, and no spawn is GPU-placed in the shipped wiring anyway. It used to
+  say it reopened with that runtime; the runtime landed and did not reopen it, so its condition is
+  now the one ADR-0030 decision 8 gives it, a **second** GPU-capable executor.
 - The ~31B brain-tier injection-harness run ([untrusted-content.md](untrusted-content.md)).
   Its taint/provenance-persistence sibling **landed 2026-07-17** as the brain-handoff record's
   schema and pinned tainted-ledger round trip (ADR-0030), and the conductor sub-slice then

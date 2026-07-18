@@ -7,14 +7,33 @@ deferred-refinements section on 2026-07-15 with the entries kept verbatim; lande
 historical record of what each deferral became, and the index at [index.md](index.md) carries the
 recommended pickup order.
 
-**Open items:** model-manager process lifecycle, co-residency, and real swap; resume a crashed
-handoff from its record; fence the single-handoff claim across processes; MTP model variants,
-disable-thinking / token-budget capping
+**Open items:** model-manager co-residency; resume a crashed handoff from its record; fence the
+single-handoff claim across processes; reconverge the brain's residency when the sidecar restarts
+under it; MTP model variants, disable-thinking / token-budget capping
 
 **Inference / Model Manager in Slice 4 ([ADR-0007](../adr/ADR-0007-model-manager-inference.md)):**
-- **`cortex_model_manager` process lifecycle, co-residency, real swap.** The pure
-  single-resident manager exists now; process I/O and swap land in **Slice 11** behind the
-  unchanged `ModelManager` port (consequences).
+- **`cortex_model_manager` process lifecycle and the real swap landed 2026-07-17 and 2026-07-18
+  across the brain-handoff sub-slices ([ADR-0030](../adr/ADR-0030-brain-handoff.md) decisions 3 to
+  5); co-residency stays deferred.** The entry read: "**`cortex_model_manager` process lifecycle,
+  co-residency, real swap.** The pure single-resident manager exists now; process I/O and swap land
+  in **Slice 11** behind the unchanged `ModelManager` port (consequences)." It landed behind that
+  port exactly as written, `acquire(model) -> ModelLease` untouched: the process half went behind a
+  **new, segregated** `ModelHost` port rather than into `ModelManager`, and the swap behind a
+  `ResidencyController` that only `SwappingModelManager` implements, which is what kept the
+  original port unchanged rather than merely compatible. The real half is the `model-host`
+  supervisor sidecar: one `llama-server` child per logical tier, an HTTP control API whose requests
+  carry a logical id and nothing else, and the `HttpModelHost` adapter, all passing the same
+  contract suite as the in-core scriptable twin. The mechanism is agent-validated in Docker on the
+  8 GB dev GPU with two small artifacts standing in for the tiers (real processes started,
+  health-gated, evicted, swapped, killed, restarted; see
+  [runbooks/model-swap.md](../runbooks/model-swap.md)); **tier scale stays host-side**, the dev
+  card being unable to hold the real cortex beside a deep model. **Co-residency remains open**, and
+  its shape is now recorded rather than sketched: ADR-0030 decision 8's v1 rule is that while the
+  deep model is resident it is **alone** on the GPU, since no candidate fits beside the ~11.3 GB
+  cortex in 24 GB, so keeping CPU subagents serving through a swap, or a tiny GPU subagent beside
+  the deep model on a larger card, is the thing still deferred. What this landing changes about it:
+  the tiers it would need to keep alive are now real hosted models rather than hypothetical ones,
+  so the deferral is exercisable for the first time on hardware that fits them.
 - **Resume a crashed handoff from its record, instead of failing it.** Opened 2026-07-17 with the
   brain-handoff conductor sub-slice ([ADR-0030](../adr/ADR-0030-brain-handoff.md) decision 4),
   which names it as the recorded refinement. Boot recovery marks any handoff a crash interrupted
@@ -49,6 +68,35 @@ disable-thinking / token-budget capping
   same semantics, the contract suite gains a two-concurrent-claimants case, and `_prepare` calls
   the claim instead of `active()`. **Trigger:** a second process that can swap (a second brain
   replica, a CLI or worker sharing the Redis, or a supervisor sidecar that swaps itself).
+  **Still not met as of 2026-07-18**, now that the supervisor sidecar exists: it performs no swap of
+  its own. The brain drives it through the port, its control API can only start, stop and report the
+  tiers its own env declares, and it holds no handoff state at all, so it is not a second claimant.
+- **Reconverge the brain's residency when the model-host sidecar restarts under it.** *Fix when it
+  bites.* Opened 2026-07-18 by the model-host sub-slice, and observed live rather than reasoned
+  about: `kill -9` on the supervisor daemon ended its container (both `llama-server` children died
+  with it and VRAM returned to baseline), `restart: unless-stopped` revived it, and its boot default
+  started the cortex again from a clean slate. That direction reconverges by construction. The other
+  one does not. `SwappingModelManager` holds `_resident`, `_scope_model` and `_handoff_claimed` as
+  instance attributes ([residency.py](../../brain/packages/core/src/cortex_core/residency.py)), and
+  `recover_handoffs` runs **only** at brain startup
+  ([wiring.py](../../brain/packages/orchestrator/src/cortex_orchestrator/wiring.py)), so a sidecar
+  that restarts mid handoff leaves the brain believing the deep model is resident and holding a
+  claim while the fresh sidecar serves the cortex. The turn then fails at the backend (the deep
+  tier's endpoint answers nothing), the swap back's `stop`/`start` are idempotent and harmless
+  against a sidecar that already did both, and the claim is released in the conductor's `finally`,
+  so the failure is honest and self-limiting; what is lost is that one handoff, plus a window where
+  `Health` would misreport residency once the honesty-surfaces sub-slice makes it read residency at
+  all. **Nothing is at stake with escalation off** (the default), because the plain
+  `SingleResidentModelManager` holds no residency state: a sidecar restart is then invisible to the
+  brain, which was confirmed live (a turn answered normally straight after the restart).
+  **What would close it:** the daemon exposing a boot id or generation counter on `GET /health`, the
+  adapter carrying it, and the manager treating a change in it as "everything I believe about
+  residency is stale, converge again" (which is `converge_residency`, already written, called from
+  somewhere other than startup). That is a wire addition plus a caller, not a port change. It pairs
+  naturally with the residency state the honesty-surfaces sub-slice introduces, since both want a
+  place to keep "what is actually resident" that is not an attribute nobody revisits.
+  **Trigger:** a sidecar that restarts (an OOM kill, a crash, an operator's `docker compose restart
+  model-host`) while a handoff is in flight over the supervisor backend, seen more than once.
 - **MTP (multi-token-prediction) model variants.** Deferred until they earn their keep, per
   [ADR-0004](../adr/ADR-0004-model-lineup.md).
 - **The cortex reasoning trace is surfaced as a thinking status. This landed 2026-07-06

@@ -4,36 +4,43 @@ services:
     environment:
       # Opt into the real adapter; without this the base image runs Echo (ADR-0007 d4).
       CORTEX_INFERENCE_BACKEND: "llamacpp"
-      # In-network address of the llama-server below (NOT the host-published port).
-      CORTEX_INFERENCE_ENDPOINT: "http://llama-cortex:8080"
+      # In-network addresses of the supervised children and of the control API (NOT the
+      # host-published ports). The cortex tier is a child process now, not a service.
+      CORTEX_INFERENCE_ENDPOINT: "http://model-host:8080"
+      # Where the ModelHost adapter sends a start/stop/status. Harmless while escalation is off
+      # (nothing builds the adapter), and required the moment CORTEX_MODELHOST_BACKEND=supervisor.
+      CORTEX_MODELHOST_ENDPOINT: "http://model-host:9300"
     depends_on:
-      llama-cortex:
+      model-host:
         condition: service_healthy
 
-  llama-cortex:
-    # OpenAI-compatible CUDA server build of llama.cpp (ADR-0005). Pin to a digest on the
-    # host once chosen. Mutable tags are a supply-chain risk (ADR-0006).
-    image: "ghcr.io/ggml-org/llama.cpp:server-cuda"
-    # The resident cortex model: gemma-4-12B (QAT Q4, ADR-0004 addendum pick). Text-only for
-    # now; the vision projector (--mmproj) is added with Slice 10. -ngl 99 = all on the GPU.
-    command:
-      - "--model"
-      - "/models/${CORTEX_MODEL_FILE_CORTEX:-google/gemma-4-12B-it-qat-q4_0-gguf/gemma-4-12b-it-qat-q4_0.gguf}"
-      - "--host"
-      - "0.0.0.0"
-      - "--port"
-      - "8080"
-      # -ngl 99 = all layers on the GPU. Set CORTEX_NGL=0 for CPU-only, or a lower number
-      # for hybrid offload with per-process placement (ADR-0004 addendum), no core change.
-      - "-ngl"
-      - "${CORTEX_NGL:-99}"
-      # Explicit context: the model default (262144) pre-allocates a huge KV cache that
-      # blows the VRAM envelope. Single slot. The Model Manager serializes turns anyway.
-      - "--ctx-size"
-      - "${CORTEX_CTX_SIZE:-16384}"
-      - "--parallel"
-      - "1"
-      - "--jinja"
+  model-host:
+    build:
+      context: ./brain
+      dockerfile: Dockerfile.modelhost
+    image: "cortex-model-host"
+    init: true
+    environment:
+      # The control API's bind address: the compose network reaches it by service name.
+      CORTEX_MODELHOST_BIND_HOST: "0.0.0.0"
+      CORTEX_MODELHOST_BIND_PORT: "9300"
+      CORTEX_MODEL_FILE_CORTEX: "${CORTEX_MODEL_FILE_CORTEX:-google/gemma-4-12B-it-qat-q4_0-gguf/gemma-4-12b-it-qat-q4_0.gguf}"
+      CORTEX_NGL: "${CORTEX_NGL:-99}"
+      CORTEX_CTX_SIZE: "${CORTEX_CTX_SIZE:-16384}"
+      # The logical ids, which must match the brain's own (the endpoint map is static config on
+      # both sides, since no port carries a path, a layer count, or a URL).
+      CORTEX_MODEL_CORTEX: "${CORTEX_MODEL_CORTEX:-cortex}"
+      CORTEX_MODEL_BRAIN: "${CORTEX_MODEL_BRAIN:-brain}"
+      # A tier is in the roster only when a file is named for it, so these are empty by default:
+      # there is no deep-model pick yet, and the GPU-placed subagent tier is opt-in.
+      CORTEX_MODEL_FILE_BRAIN: "${CORTEX_MODEL_FILE_BRAIN:-}"
+      CORTEX_NGL_BRAIN: "${CORTEX_NGL_BRAIN:-99}"
+      CORTEX_CTX_SIZE_BRAIN: "${CORTEX_CTX_SIZE_BRAIN:-8192}"
+      CORTEX_MODEL_FILE_SUBAGENT_GPU: "${CORTEX_MODEL_FILE_SUBAGENT_GPU:-}"
+      CORTEX_SUBAGENT_CTX_SIZE: "${CORTEX_SUBAGENT_CTX_SIZE:-8192}"
+      CORTEX_SUBAGENTS_PARALLEL: "${CORTEX_SUBAGENTS_PARALLEL:-2}"
+      CORTEX_MODELHOST_STOP_GRACE_S: "${CORTEX_MODELHOST_STOP_GRACE_S:-10}"
+      CORTEX_MODELHOST_REAP_TIMEOUT_S: "${CORTEX_MODELHOST_REAP_TIMEOUT_S:-30}"
     volumes:
       # Models stay on the Windows drive, mounted read-only (ADR-0004 d3). Forward slashes
       # work in Docker Desktop on Windows; override the source with CORTEX_MODELS_DIR.
@@ -42,20 +49,21 @@ services:
         target: /models
         read_only: true
     ports:
-      # Loopback-only publish so host-side integration tests can reach it (assumption 5);
-      # the brain uses the in-network address above, not this one.
       - "127.0.0.1:8080:8080"
     restart: unless-stopped
+    stop_grace_period: 30s
     healthcheck:
-      # llama-server serves /health once the model finishes loading; the generous
-      # start_period covers loading a multi-GB GGUF off the bind mount (ROADMAP
-      # assumption 2). If this image ships without curl, swap in the runbook's alternative.
-      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8080/health"]
+      test:
+        - "CMD-SHELL"
+        - 'curl -fsS http://127.0.0.1:9300/models/${CORTEX_MODEL_CORTEX:-cortex} | grep -q ''"state":"ready"'''
       interval: 30s
       timeout: 5s
       retries: 5
       start_period: 180s
       start_interval: 2s
+    cpus: "${CORTEX_MODELHOST_CPUS:-8.0}"
+    mem_limit: "${CORTEX_MODELHOST_MEMORY:-24g}"
+    memswap_limit: "${CORTEX_MODELHOST_MEMSWAP:-24g}"
     deploy:
       resources:
         reservations:

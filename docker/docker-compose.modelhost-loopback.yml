@@ -1,0 +1,13 @@
+# Opt-in host access to the model-host sidecar, for live tests only: its control API can start and
+# stop processes on the container holding the GPU and the models mount. The two extra tiers take
+# different host ports, since :8081 is published by llama-embed and :8083 by llama-subagent-qwen.
+
+services:
+  model-host:
+    ports:
+      # The control API. Everything else in the repo reaches it as http://model-host:9300.
+      - "127.0.0.1:9300:9300"
+      # The deep model's tier, shifted off :8081 to clear llama-embed.
+      - "127.0.0.1:9081:8081"
+      # The GPU-placed subagent tier, shifted off :8083 to clear llama-subagent-qwen.
+      - "127.0.0.1:9083:8083"

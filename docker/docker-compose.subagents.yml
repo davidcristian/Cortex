@@ -60,3 +60,6 @@ services:
       retries: 5
       start_period: 90s
       start_interval: 2s
+    cpus: "${CORTEX_SUBAGENTS_CPU_BUDGET:-4.0}"
+    mem_limit: "${CORTEX_SUBAGENTS_MEM_BUDGET_GB:-8}g"
+    memswap_limit: "${CORTEX_SUBAGENTS_MEM_BUDGET_GB:-8}g"

@@ -178,7 +178,9 @@ scripts/          repo gates: linecap.py (300-line cap), dashcheck.py (no dash a
 justfile          `just check` + check-*; proto, up/down, brain-serve, seam-health
 docker/           Compose stack (run via `just up`/`up-gpu`, or `docker compose --project-directory .
                   -f docker/docker-compose.yml …`): docker-compose.yml (brain + redis, loopback-only)
-                  + overrides: gpu (llama.cpp server + read-only model mount, ADR-0005/0007), memory
+                  + overrides: gpu (the model-host supervisor sidecar, one llama-server child per
+                  model tier, + read-only model mount, ADR-0005/0007/0030) + modelhost-loopback
+                  (opt-in host access to that sidecar's control API), memory
                   (Postgres+pgvector + CPU embedder, ADR-0008), tools + email (MCP sidecars: filesystem,
                   read-only email, ADR-0009), subagents (CPU llama-server, ADR-0010) + subagents-roster
                   (a second CPU model as an ADR-0018 roster alternate), body (points the brain at the
