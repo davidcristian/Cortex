@@ -1,4 +1,26 @@
-"""Behavior tests for SubagentRunner: a stateless function over the TaskStore (ADR-0010/0018)."""
+"""Behavior tests for SubagentRunner: a stateless function over the TaskStore (ADR-0010/0018).
+
+Distrust-green proofs for the CPU re-place (ADR-0012's deferred entry as ADR-0030 schedules it),
+each mutation applied to production code alone with the whole ``packages`` suite re-run, so the
+counts are measured rather than aimed at:
+
+- removing the retry entirely reddens 6: the five re-place cases at the end of this file plus
+  ``test_spawn.py::test_a_failed_subagent_is_reported_not_raised``, which reads the recorded detail
+  as the cortex does;
+- retrying whatever the placement was reddens exactly 1,
+  ``test_a_cpu_placed_failure_is_not_re_run_because_there_is_nowhere_better``;
+- retrying on any failure rather than only an unanswered backend reddens exactly 1,
+  ``test_a_malformed_constrained_reply_is_not_re_placed``;
+- retrying a second time when the re-run also fails reddens exactly 1,
+  ``test_the_cpu_re_run_happens_exactly_once_and_both_failures_are_recorded``;
+- holding the GPU reservation across the re-run reddens exactly 1,
+  ``test_the_gpu_reservation_is_released_before_the_cpu_re_run``;
+- handing the re-run a fresh dispatch budget reddens exactly 1,
+  ``test_both_attempts_spend_from_the_spawning_turns_one_pool``;
+- taking only the re-run's taint rather than the union reddens exactly 1,
+  ``test_the_taint_a_failed_gpu_attempt_read_survives_into_the_re_run_result``;
+- recording only the re-run's own reason in the detail reddens 3, two here and the spawn case.
+"""
 
 from collections.abc import AsyncIterator, Mapping, Sequence
 from datetime import UTC, datetime
@@ -563,3 +585,210 @@ async def test_the_runner_exposes_its_roster_and_tool_enablement() -> None:
     assert runner.tools_enabled is False
     dispatcher = ToolDispatcher(InMemoryToolRegistry({}), RecordingAuditSink(), FixedClock())
     assert _runner(store, TextBackend(["x"]), tools=dispatcher).tools_enabled is True
+
+
+class CountingFailure:
+    """Fails every call with the typed inference error, counting how often it was asked.
+
+    The count is what makes "one re-run, never a loop" observable: a retry the runner repeated
+    would show as a third call on the same object.
+    """
+
+    def __init__(self, reason: str) -> None:
+        self.calls = 0
+        self._reason = reason
+
+    async def stream(
+        self,
+        model: str,
+        messages: Sequence[Message],
+        *,
+        tools: Sequence[ToolSpec] = (),
+        schema: JsonSchema | None = None,
+    ) -> AsyncIterator[InferenceEvent]:
+        del model, messages, tools, schema
+        self.calls += 1
+        yield TextChunk("partial ")
+        raise InferenceError(self._reason)
+
+
+class ToolThenFailBackend:
+    """Dispatches one tool call, then dies on the next round: taint read before the backend went.
+
+    The shape a real GPU-placed failure takes mid task rather than at load: the subagent already
+    consumed an untrusted tool result when its ``llama-server`` stopped answering.
+    """
+
+    def __init__(self) -> None:
+        self.calls = 0
+
+    async def stream(
+        self,
+        model: str,
+        messages: Sequence[Message],
+        *,
+        tools: Sequence[ToolSpec] = (),
+        schema: JsonSchema | None = None,
+    ) -> AsyncIterator[InferenceEvent]:
+        del model, messages, tools, schema
+        self.calls += 1
+        if self.calls == 1:
+            yield ToolCall(id="c1", name="read", arguments={"path": "/x"})
+            return
+        msg = "the gpu stream died"
+        raise InferenceError(msg)
+
+
+class HeadroomProbingBackend:
+    """Answers, and records the headroom the placer had while it was answering.
+
+    The witness for "the GPU reservation is released before the re-run": the probe is a real
+    ``place`` call made from inside the CPU attempt, so it reads the ledger production code left,
+    not a number the test computed.
+    """
+
+    def __init__(self, placer: SubagentPlacer) -> None:
+        self._placer = placer
+        self.probes: list[PlacementTarget] = []
+
+    async def stream(
+        self,
+        model: str,
+        messages: Sequence[Message],
+        *,
+        tools: Sequence[ToolSpec] = (),
+        schema: JsonSchema | None = None,
+    ) -> AsyncIterator[InferenceEvent]:
+        del model, messages, tools, schema
+        probe = self._placer.place(PlacementRequest("probe", vram_gb=3.0, cpus=1.0, memory_gb=1.0))
+        self.probes.append(probe.target)
+        self._placer.release(probe)
+        yield TextChunk("on-cpu")
+
+
+def _gpu_placer() -> VramBudgetPlacer:
+    """Headroom 3.0 against the 2.0 GB request, so every spawn lands on the GPU."""
+    return VramBudgetPlacer(soft_cap_gb=14.0, cortex_reservation_gb=11.0)
+
+
+async def test_a_gpu_placed_backend_that_did_not_answer_is_re_run_once_on_the_cpu() -> None:
+    """ADR-0012's deferred re-place: one CPU re-run, and the detail records that it happened.
+
+    The GPU attempt's partial text is dropped with the context that produced it, so the answer
+    the cortex reads is the re-run's alone.
+    """
+    store = InMemoryTaskStore()
+    await store.put_task(SubagentTask(id="g", instruction="hi", context="", at=_AT))
+    gpu, cpu = CountingFailure("the gpu server is down"), TextBackend(["on-cpu"])
+    result = await _routed_runner(store, gpu, cpu, _gpu_placer()).run("g")
+    assert (result.ok, result.output) == (True, "on-cpu")
+    assert (gpu.calls, len(cpu.seen)) == (1, 1)
+    assert result.detail == (
+        "the GPU attempt failed (the gpu server is down); re-ran on the CPU, which answered"
+    )
+    assert await store.get_result("g") == result
+
+
+async def test_the_cpu_re_run_happens_exactly_once_and_both_failures_are_recorded() -> None:
+    """One re-run, never a loop: the same backend on both targets is asked exactly twice."""
+    store = InMemoryTaskStore()
+    await store.put_task(SubagentTask(id="g", instruction="hi", context="", at=_AT))
+    backend = CountingFailure("nothing is serving")
+    runner = SubagentRunner(
+        store, _roster(_resources(backend, backend, _gpu_placer())), FixedClock()
+    )
+    result = await runner.run("g")
+    assert backend.calls == 2
+    assert result.ok is False
+    assert result.output == "partial "  # the re-run's own parts-so-far, per the runner's discipline
+    assert result.detail == (
+        "the GPU attempt failed (nothing is serving); the CPU re-run failed too "
+        "(nothing is serving)"
+    )
+
+
+async def test_a_cpu_placed_failure_is_not_re_run_because_there_is_nowhere_better() -> None:
+    """A re-place only means something from the GPU: the GPU backend is never asked here."""
+    store = InMemoryTaskStore()
+    await store.put_task(SubagentTask(id="c", instruction="hi", context="", at=_AT))
+    gpu, cpu = TextBackend(["on-gpu"]), CountingFailure("the cpu server is down")
+    placer = VramBudgetPlacer(soft_cap_gb=11.0, cortex_reservation_gb=11.0)  # headroom 0.0
+    result = await _routed_runner(store, gpu, cpu, placer).run("c")
+    assert (cpu.calls, gpu.seen) == (1, [])
+    assert result.ok is False
+    assert result.detail == "the cpu server is down"
+
+
+async def test_a_malformed_constrained_reply_is_not_re_placed() -> None:
+    """Re-loading the model elsewhere would be told the same thing (ADR-0028's envelope).
+
+    The failure is the model answering outside its grammar, which is a property of the model and
+    the prompt, not of where it ran, so the one backend is asked exactly once.
+    """
+    store = InMemoryTaskStore()
+    await store.put_task(SubagentTask(id="m", instruction="go", context="", at=_AT))
+    backend = TextBackend(["not json at all"])
+    result = await _runner(store, backend, constrain_output=True).run("m")
+    assert len(backend.seen) == 1
+    assert result.ok is False
+    assert result.detail == "subagent produced a malformed constrained reply"
+
+
+async def test_the_gpu_reservation_is_released_before_the_cpu_re_run() -> None:
+    """Holding it across the re-run would misreport headroom to a concurrent spawn.
+
+    The ledger is a live-resource count (ADR-0012 decision 7), so the probe taken from inside the
+    CPU attempt lands on the GPU only if the failed attempt's 2 GB is genuinely back.
+    """
+    store = InMemoryTaskStore()
+    await store.put_task(SubagentTask(id="g", instruction="hi", context="", at=_AT))
+    placer = _gpu_placer()
+    cpu = HeadroomProbingBackend(placer)
+    result = await _routed_runner(store, CountingFailure("gone"), cpu, placer).run("g")
+    assert result.output == "on-cpu"
+    assert cpu.probes == [PlacementTarget.GPU]
+
+
+async def test_the_taint_a_failed_gpu_attempt_read_survives_into_the_re_run_result() -> None:
+    """Under-reporting taint costs safety, so the two attempts' ledgers are unioned (ADR-0013).
+
+    The GPU attempt read an untrusted tool result and then lost its backend; the CPU re-run
+    answers from a fresh ledger of its own and would report no taint on its own.
+    """
+    store = InMemoryTaskStore()
+    await store.put_task(SubagentTask(id="g", instruction="read x", context="", at=_AT))
+    dispatcher = ToolDispatcher(
+        InMemoryToolRegistry({"read": (_DESCRIBED_READ, _read_handler)}),
+        RecordingAuditSink(),
+        FixedClock(),
+    )
+    gpu, cpu = ToolThenFailBackend(), TextBackend(["clean answer"])
+    runner = SubagentRunner(
+        store, _roster(_resources(gpu, cpu, _gpu_placer())), FixedClock(), tools=dispatcher
+    )
+    result = await runner.run("g")
+    assert (result.ok, result.output) == (True, "clean answer")
+    assert result.tainted is True
+
+
+async def test_both_attempts_spend_from_the_spawning_turns_one_pool() -> None:
+    """A re-run that reset the budget would hand a turn a second allowance per failed placement."""
+    store = InMemoryTaskStore()
+    await store.put_task(SubagentTask(id="g", instruction="read x", context="", at=_AT))
+    dispatcher = ToolDispatcher(
+        InMemoryToolRegistry({"read": (_DESCRIBED_READ, _read_handler)}),
+        RecordingAuditSink(),
+        FixedClock(),
+    )
+    gpu = ToolThenFailBackend()
+    cpu = ScriptedBackend(
+        [[ToolCall(id="c2", name="read", arguments={"path": "/y"})], [TextChunk("done")]]
+    )
+    runner = SubagentRunner(
+        store, _roster(_resources(gpu, cpu, _gpu_placer())), FixedClock(), tools=dispatcher
+    )
+    budget = DispatchBudget()
+    result = await runner.run("g", budget=budget)
+    assert result.output == "done"
+    # One dispatch in the attempt that died, one in the re-run, charged to the same pool.
+    assert budget.spent == 2

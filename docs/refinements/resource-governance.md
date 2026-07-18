@@ -6,10 +6,9 @@ deferred-refinements section on 2026-07-15 with the entries kept verbatim; lande
 historical record of what each deferral became, and the index at [index.md](index.md) carries the
 recommended pickup order.
 
-**Open items:** CUDA-OOM re-place on CPU, the real GPU-placed runtime mechanism, the Intel NPU as
-a third placement target, a bounded admission wait, a read timeout on the subagent HTTP client,
-the drain bound against a fired task's lease, admission reopening onto a tier that would not
-restart
+**Open items:** the real GPU-placed runtime mechanism, the Intel NPU as a third placement target,
+a bounded admission wait, a read timeout on the subagent HTTP client, the drain bound against a
+fired task's lease, admission reopening onto a tier that would not restart
 
 **Resource governance in Slice 8.5 ([ADR-0012](../adr/ADR-0012-resource-governance.md)):** each behind
 the unchanged `SubagentPlacer`/`SubagentScheduler`/`ModelManager` ports.
@@ -30,9 +29,25 @@ the unchanged `SubagentPlacer`/`SubagentScheduler`/`ModelManager` ports.
   and the window holds until `undrain`, which the conductor owes in a `finally` on swap-back and
   abort alike. The swap conductor that calls it is the ADR-0030 conductor sub-slice, which
   consumes this verb as landed.
-- **CUDA-OOM → re-place on CPU.** `place` is optimistic; a real CUDA OOM surfaces as `ok=False` today.
-  Auto-recovery (re-issue a CPU-forced request) needs a real GPU to exercise, so it lands in **Slice
-  11** / the host half, not the pure core (simulating it would be vacuous coverage).
+- **CUDA-OOM re-place on CPU landed 2026-07-18 with the model-host sub-slice
+  ([ADR-0012 re-place addendum](../adr/ADR-0012-resource-governance.md)).** The entry read:
+  "**CUDA-OOM → re-place on CPU.** `place` is optimistic; a real CUDA OOM surfaces as `ok=False`
+  today. Auto-recovery (re-issue a CPU-forced request) needs a real GPU to exercise, so it lands in
+  **Slice 11** / the host half, not the pure core (simulating it would be vacuous coverage)."
+  It landed as one CPU re-run after a GPU-placed failure with the re-place recorded in the result's
+  `detail`, which is what ADR-0030's mapping asked for, but **not** keyed on a CUDA OOM: measured on
+  the dev GPU, a 14.4 GB model started with `-ngl 99` on the 8 GB card does not fail at all, it
+  spills to shared system memory under WSL2 and serves 177 s later, so a branch keyed on an OOM
+  would have been unfireable here. The trigger is any GPU-placed attempt whose backend did not
+  answer, which is reachable and which also mitigates the sibling entry below (admission reopening
+  onto a tier that would not restart: every spawn placed on that tier fails at its backend, and now
+  re-runs on the CPU instead of only reporting). The retry does **not** fire on a malformed
+  constrained reply (a property of the model, not of where it ran), releases the GPU reservation
+  before the re-run so headroom is never misreported to a concurrent spawn, re-uses the same
+  admission and dispatch budget so it buys no second charge, and unions the two attempts' taint.
+  The entry's own worry about vacuous coverage held up and is answered: the branch is proven by
+  behaviour (a failing GPU backend, an answering CPU one) rather than by a simulated OOM, and each
+  of its properties reddens a named test under mutation.
 - **The real GPU-placed runtime mechanism.** Two live `llama-server` sidecars (GPU `-ngl 99` + CPU
   `-ngl 0`) in `docker/docker-compose.subagents.yml` + per-container `--cpus`/`--memory` cgroup caps + real
   GPU-placed-subagent validation lands with the **Slice 11** lifecycle behind the corrected ports.

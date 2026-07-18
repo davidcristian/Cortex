@@ -211,7 +211,12 @@ async def test_a_failed_subagent_is_reported_not_raised() -> None:
     store = InMemoryTaskStore()
     result = await _tool(store, FailingBackend()).invoke(_call({"instructions": ["go"]}))
     assert result.is_error is False  # the tool ran; the subagent's failure is content
-    assert result.content == "[subagent 1] FAILED: boom"
+    # This harness places on the GPU and serves both targets from the one backend, so the runner's
+    # single CPU re-run (ADR-0012's re-place) fires and fails too, and the detail it records is
+    # what the cortex reads back. Two attempts of one subtask is the honest thing to tell it.
+    assert result.content == (
+        "[subagent 1] FAILED: the GPU attempt failed (boom); the CPU re-run failed too (boom)"
+    )
 
 
 async def test_a_refused_subagent_does_not_take_the_rest_of_the_batch_down() -> None:

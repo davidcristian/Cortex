@@ -354,3 +354,56 @@ issued mid-window refused as `POOL_DRAINING_MSG` and admission resuming after `u
 Of this ADR's Slice 11 deferrals, CUDA-OOM re-place and the real GPU-placed runtime stay open
 for the model-host sub-slice per ADR-0030's mapping; placement-aware charging stays declined
 per the addendum above.
+
+## Addendum (2026-07-18): the re-place landed, and it does not sniff for a CUDA OOM
+
+The consequences above deferred **CUDA-OOM re-place on CPU** to Slice 11 with an explicit
+reason: "a real GPU is needed to trigger it; simulating one in the pure core to cover a retry
+branch would be the vacuous coverage AGENTS.md forbids." ADR-0030's mapping schedules it into the
+model-host sub-slice as "a single CPU re-run after a GPU-placed failure, recorded in the result's
+detail", and it has now landed there. Two things this ADR assumed turned out to be wrong, so the
+shape differs from the one-liner and the difference is the whole content of this note.
+
+**The trigger is not a CUDA OOM, because on this stack there may not be one.** This ADR says "a
+real CUDA OOM fails loudly at process start". Measured on the dev GPU (8 GB card, 8188 MiB)
+during this sub-slice's recon: a 14.4 GB GGUF started with `-ngl 99` did **not** fail. llama.cpp
+logged `failed to fit params to free device memory: n_gpu_layers already set by user to 99, abort`
+and then loaded anyway, reaching a serving `/health` in 176.9 s with 7762 MiB of dedicated VRAM in
+use and the remainder spilling to shared system memory, which is WDDM GPU-memory oversubscription
+under WSL2. So an over-committed GPU-placed model here loads slowly and serves rather than dying,
+and a branch keyed on an OOM would have been a branch that cannot fire: exactly the defect this
+ADR was trying to avoid, arrived from the other direction.
+
+**What the retry keys on instead.** Any `AttemptFailure.INFERENCE` from a **GPU** placement, which
+is the honest reading of "a GPU-placed failure": the placed backend did not answer. That is
+reachable, and reachable for a reason this repo already has written down: ADR-0030's last addendum
+records that the swap back restarts each evicted tier best effort, so admission can reopen onto a
+GPU subagent server that did not come back, and every spawn placed there fails at its backend.
+The re-place is that case's mitigation as well as the OOM's. Sniffing llama-server's text for "out
+of memory" was rejected: it is untestable without the real message, and it would narrow a working
+recovery to one cause of it.
+
+**The three properties that keep it a re-place rather than a retry loop**, each pinned by a named
+test proven fallible by mutation (`test_runner.py` records the measured counts): a malformed
+constrained reply does **not** retry, being a property of the model and the prompt rather than of
+where it ran; the GPU reservation is released **before** the re-run, in the `finally` that already
+existed, so a re-run never misreports headroom to a concurrent spawn (decision 7's ledger is a
+live-resource count); and the re-run re-uses the same admission and the same `DispatchBudget`, so
+it buys no second CPU/RAM charge (the charge is target independent by design, "a CPU-placed spawn
+and a GPU-placed spawn are charged the same, and must be") and cannot spend past the turn's
+allowance.
+
+**Two interpretations recorded rather than left to the next reader.** The taint of the two attempts
+is **unioned**, because an attempt that read untrusted content before its backend died did consume
+it and under-reporting taint costs safety rather than precision. And the core cannot tell whether a
+deployment serves both placement targets from one `llama-server`: no port carries an endpoint, by
+design, and `CORTEX_SUBAGENTS_GPU_ENDPOINT` still defaults to the CPU server. A deployment that
+leaves that default therefore gets a second attempt at the same server, one wasted load on an
+already failing path, which is a configuration answer rather than a reason to teach the placement
+port about topology.
+
+The refactor this needed is recorded because it changed no behaviour: the streaming half of the
+runner moved to `subagent_attempt.py` (`PlacedAttempt`, returning an `AttemptOutcome` instead of
+persisting a result), leaving `runner.py` holding the composition. Two attempts of one task cannot
+be expressed while "run it" and "store it" are one function, and both files sit well inside the
+line cap where one would not have.
