@@ -5,7 +5,7 @@ from datetime import UTC, datetime, timedelta, timezone, tzinfo
 
 import pytest
 
-from cortex_core import Message, Role, ToolCall
+from cortex_core import ImagePart, Message, Role, ToolCall
 
 _AT = datetime(2026, 7, 3, 12, 0, 0, tzinfo=UTC)
 
@@ -72,3 +72,30 @@ def test_non_utc_timezone_is_accepted() -> None:
     at = datetime(2026, 7, 3, 12, 0, 0, tzinfo=timezone(timedelta(hours=5, minutes=30)))
     message = Message(role=Role.ASSISTANT, text="ok", at=at, turn_id="t-2")
     assert message.at.utcoffset() == timedelta(hours=5, minutes=30)
+
+
+def test_a_tool_message_may_carry_images() -> None:
+    picture = ImagePart(data=b"\x89PNG", mime_type="image/png", width=8, height=8)
+    message = Message(
+        role=Role.TOOL, text="capture", at=_AT, turn_id="t1", tool_call_id="c1", images=(picture,)
+    )
+    assert message.images == (picture,)
+
+
+@pytest.mark.parametrize("role", [Role.USER, Role.ASSISTANT])
+def test_a_persistable_role_may_never_carry_images(role: Role) -> None:
+    # Pixels are turn-local. The invariant lives on the value so it holds even for a code path
+    # that never touches a store, and it is checked before any store is asked to refuse it.
+    picture = ImagePart(data=b"\x89PNG", mime_type="image/png", width=8, height=8)
+    with pytest.raises(ValueError, match="may not carry images: pixels are turn-local"):
+        Message(role=role, text="hi", at=_AT, turn_id="t1", images=(picture,))
+
+
+def test_a_system_message_may_carry_images_since_it_is_never_persisted() -> None:
+    picture = ImagePart(data=b"\x89PNG", mime_type="image/png", width=8, height=8)
+    message = Message(role=Role.SYSTEM, text="context", at=_AT, turn_id="t1", images=(picture,))
+    assert message.images == (picture,)
+
+
+def test_an_image_free_persistable_message_is_untouched() -> None:
+    assert Message(role=Role.USER, text="hi", at=_AT, turn_id="t1").images == ()

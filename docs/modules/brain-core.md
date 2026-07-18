@@ -27,9 +27,14 @@ Conversation domain (Slice 3):
   turn and handed only to the model, never persisted to a session's history in v1.
 - `Message` is a frozen dataclass: `role: Role`, `text: str`, `at: datetime`, `turn_id: str`,
   plus the optional tool fields `tool_calls: tuple[ToolCall, ...] = ()` (set on an assistant
-  message that asked to run tools) and `tool_call_id: str | None = None` (set on a `TOOL`
-  result). Rejects naive `at` with `ValueError`, since externalized state must carry its
+  message that asked to run tools), `tool_call_id: str | None = None` (set on a `TOOL`
+  result), and `images: tuple[ImagePart, ...] = ()` (pixels a tool returned, ADR-0029).
+  Rejects naive `at` with `ValueError`, since externalized state must carry its
   timezone. `turn_id` ties a user message to the assistant reply it produced.
+  **Rejects images on a persistable role** (`USER`/`ASSISTANT`) with `ValueError`: pixels are
+  turn-local, so they live on the `Role.TOOL` message in the tool loop's working list and die
+  with the turn. The invariant is on the value, not only in the stores, so it holds for a code
+  path that never touches a store.
 - `TextDelta(text)` / `StatusUpdate(state, detail)` / `ToolActivity(tool_name, summary)` /
   `TurnCompleted(turn_id, full_text)` are frozen domain events; `TurnEvent` is their union (the
   orchestrator maps them onto the proto's `ServerEvent`). `StatusUpdate` is ephemeral mid-turn
@@ -189,7 +194,12 @@ Tool domain (Slice 6, ADR-0009; untrusted-content fields Slice 6.5, ADR-0013):
   further work can propagate provenance, staying transient (the loop persists the unstamped calls)
   and never the gate's input (the gate uses the dispatcher's explicit argument).
 - `ToolResult` is a frozen dataclass: `call_id: str`, `content: str`, `is_error: bool = False`,
-  `trust: Trust = Trust.UNTRUSTED`, `source: Provenance | None = None`. The outcome fed back to the
+  `trust: Trust = Trust.UNTRUSTED`, `source: Provenance | None = None`,
+  `images: tuple[ImagePart, ...] = ()` (ADR-0029; `tool_round.result_message` copies them onto
+  the `Role.TOOL` message it builds, and they ride **beside** `content` for the same reason
+  `source` does: `content` is what the audit sink logs verbatim, what URL extraction scans, and
+  what the untrusted fence wraps, so keeping all three text-only means a failed capture can
+  never put megabytes of image into the audit log). The outcome fed back to the
   model; `is_error` marks a tool (or dispatch) failure; `trust` is the content's provenance
   (fail-closed default), read by the loop to fence untrusted content and mark taint. `source` is a
   **claimed** source the result declared for its own content (a sidecar-declared sender/locator the
@@ -1158,6 +1168,22 @@ Use-case:
   (host state, never taints the turn); bad arguments and a `BodyGatewayError` both become an
   `is_error` `TRUSTED` `ToolResult`, never a raise. `BuiltinTool`s, registered in the
   `CompositeToolRegistry`.
+- `CaptureScreenTool(body, *, max_edge=0, max_bytes=0)` is the built-in `capture_screen` tool
+  (`screen_tool.py`, `CAPTURE_SCREEN_TOOL_NAME`), the cortex's eyes over a `BodyGateway`
+  (ADR-0029), cortex-only like every built-in. That structure matters more here than for
+  volume: no subagent model on the mount carries a vision projector, and an image-bearing MCP
+  result would arrive as an empty non-error string. The spec takes **no arguments**, which is
+  also what bounds captures per turn for free, since `RepeatSalience` keys on name plus
+  arguments and caps identical dispatches at `MAX_IDENTICAL_DISPATCHES` (2).
+  `gated=False` by default, with `CORTEX_TOOLS_GATED=send_email,capture_screen` as the
+  documented zero-code user opt-in.
+  **Success is `Trust.UNTRUSTED` and carries the picture**, so the turn is tainted through the
+  ordinary ledger with no special case; the content is a brain-authored stand-in of integers and
+  a timestamp (`describe`), deliberately naming no window title, which is attacker-chosen text.
+  **Every failure is `Trust.TRUSTED, is_error=True` with no images**: nothing untrusted arrived,
+  so tainting on a dead body would gratuitously close the user's gated tools for the rest of a
+  turn in which nothing was read. `CaptureBounds(max_edge, max_bytes)` is what the composition
+  root passes when vision is available at all; its absence is how "no vision" is expressed.
 - `EscalateToBrainTool()` (`escalate.py`) is the built-in `escalate_to_brain` tool (ADR-0030
   decision 1): the cortex's mid-turn request for the deep-model handoff, cortex-only like every
   built-in. Stateless and dependency-free: it reads the turn's `EscalationSlot` off each

@@ -96,10 +96,24 @@ def result_message(result: ToolResult, at: datetime, turn_id: str, *, nonce: str
     """One tool result fed back to the model, keyed to the call it answers.
 
     UNTRUSTED content is fenced as inert data (ADR-0013); TRUSTED content passes through verbatim.
+
+    Any images the result carried ride onto the same message (ADR-0029). They have to live on a
+    ``Message`` rather than on an inference keyword because the tool loop re-sends the whole
+    working list every round, so a picture that arrived in round one must still be expressible
+    in round three without the caller re-threading it. No fence wraps them: a nonce can bracket
+    text and cannot bracket a picture, which is why the boundary for pixels is taint rather than
+    framing.
     """
     text = (
         result.content
         if result.trust is Trust.TRUSTED
         else wrap_untrusted(result.content, nonce=nonce)
     )
-    return Message(role=Role.TOOL, text=text, at=at, turn_id=turn_id, tool_call_id=result.call_id)
+    return Message(
+        role=Role.TOOL,
+        text=text,
+        at=at,
+        turn_id=turn_id,
+        tool_call_id=result.call_id,
+        images=result.images,
+    )

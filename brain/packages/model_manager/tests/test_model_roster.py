@@ -150,3 +150,29 @@ def test_the_models_root_is_joined_without_doubling_a_separator(
     monkeypatch.setenv("CORTEX_MODELHOST_MODELS_ROOT", "/mnt/models/")
     monkeypatch.setenv("CORTEX_MODEL_FILE_CORTEX", "a/b.gguf")
     assert "/mnt/models/a/b.gguf" in ModelHostConfig().roster()["cortex"].argv
+
+
+def test_naming_a_projector_gives_the_cortex_tier_eyes(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The vision projector rides the cortex tier's argv (ADR-0029), not a compose command
+    block: the model host has owned llama-server's flags since it replaced the always-on
+    service. The brain then discovers the capability from the running server's /props rather
+    than from a second flag here that could disagree with it."""
+    monkeypatch.setenv("CORTEX_MMPROJ_FILE_CORTEX", "google/gemma-4-12B/mmproj.gguf")
+    argv = ModelHostConfig().roster()["cortex"].argv
+    assert argv[-2:] == ("--mmproj", "/models/google/gemma-4-12B/mmproj.gguf")
+
+
+def test_a_deployment_that_names_no_projector_stays_text_only(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("CORTEX_MMPROJ_FILE_CORTEX", raising=False)
+    assert "--mmproj" not in ModelHostConfig().roster()["cortex"].argv
+
+
+def test_the_projector_is_resolved_under_the_read_only_models_mount(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("CORTEX_MODELHOST_MODELS_ROOT", "/srv/models")
+    monkeypatch.setenv("CORTEX_MMPROJ_FILE_CORTEX", "mmproj.gguf")
+    argv = ModelHostConfig().roster()["cortex"].argv
+    assert "/srv/models/mmproj.gguf" in argv
