@@ -203,7 +203,15 @@ async def run_from_env(
             )
 
         await serve(
-            seam_config, make_engine, store, schedules=schedules, memory_cascade=memory_cascade
+            seam_config,
+            make_engine,
+            store,
+            schedules=schedules,
+            memory_cascade=memory_cascade,
+            # The manager is the seam's residency reporter too (ADR-0030 decision 6): Health
+            # reads it synchronously, so a probe between turns says what the GPU is really
+            # doing. Absent with escalation off, where nothing can make the brain not-ready.
+            residency=None if swap is None else swap.manager,
         )
     finally:
         await stop_ticker(ticker, ticker_task)

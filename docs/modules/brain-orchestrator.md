@@ -167,14 +167,28 @@ Config (pydantic-settings; explicit constructor arguments beat the environment):
 
 The service:
 
-- `BrainService(engine: TurnEngine, store: SessionStore, *, schedules=None,
-  memory_cascade: SessionMemoryCascade | None = None, max_buffered_events: int = 256)`
-  is the `BrainServiceServicer` implementation; the engine, the session store, and (optional)
-  the delete cascade are injected (DI at the edge), the service holds no state. `store` is the
-  same instance the engine writes, so the read-only session RPCs serve exactly what turns persist;
-  `memory_cascade` (`None` when memory is off, the same store+scope the recaller uses) is what
-  `DeleteSession` forgets a deleted chat's private memories through.
-  - `Health` → `HealthReply(ready=True, detail="cortex-orchestrator <version>")`.
+- `BrainService(engine: TurnEngine, store: SessionStore, *, ports: SeamPorts = SeamPorts(),
+  max_buffered_events: int = 256, confirm_timeout_s: float = …)`
+  is the `BrainServiceServicer` implementation; the engine, the session store, and the optional
+  `SeamPorts` are injected (DI at the edge), the service holds no state. `store` is the
+  same instance the engine writes, so the read-only session RPCs serve exactly what turns persist.
+  `SeamPorts(schedules=None, memory_cascade=None, residency=None)` is the frozen bundle of what
+  the seam serves **beyond** a turn, each absent when its capability is off: `schedules` backs
+  the reminder RPCs, `memory_cascade` (the same store+scope the recaller uses) is what
+  `DeleteSession` forgets a deleted chat's private memories through, and `residency` is the
+  `ResidencyReporter` `Health` reads. They travel as one value because the dependency ceiling
+  (ruff.toml) asks optional collaborators to be bundled, as `TurnCapabilities` is for a turn.
+  - `Health` → `HealthReply(ready=True, detail="cortex-orchestrator <version>")` whenever the
+    standing residency is serving, **and `HealthReply(ready=False, detail=<the residency's own
+    line>)` while a model handoff holds the GPU** (ADR-0030 decision 6): loading the deep model,
+    the deep task itself, the swap back, and a restore that gave up. The read is
+    `ResidencyReporter.residency()`, synchronous and lock-free by that port's contract, because
+    a probe arrives every few seconds precisely while a swap is in flight and one that queued on
+    the GPU lease would hang for the whole load. With no `residency` wired (escalation off, the
+    default) nothing can make the brain not-ready and the answer is unconditional, as it always
+    was. The **drain** before an eviction is deliberately still ready: the cortex is resident and
+    answering turns throughout it. The overlay classifies not-ready as amber `Degraded` and shows
+    the detail verbatim, with no overlay change (body-core.md, body-app.md).
   - `Converse` is the conversation loop (contract below).
   - `ListSessions` → `ListSessionsReply` (ADR-0021): recent chats newest-active first via
     `store.list_sessions`, each a `SessionSummary` (title/preview/last_activity mapped to the
@@ -268,16 +282,18 @@ The service:
   `ERROR_CODE_INTERNAL` are the `SeamError.code` values (`"session_store_unavailable"`,
   `"inference_failed"`, `"internal"`).
 - `create_server(config: SeamServerConfig, make_engine: EngineFactory, store: SessionStore, *,
-  schedules: ScheduleStore | None = None) -> tuple[grpc.aio.Server, int]`
-  builds the aio server, registers `BrainService(make_engine, store, schedules=schedules)`
-  (the reminder pull RPCs' store, `None` = scheduling off), binds `config.bind_address`;
+  schedules=None, memory_cascade=None, residency=None) -> tuple[grpc.aio.Server, int]`
+  builds the aio server, bundles its three optional ports into the `SeamPorts` it registers
+  `BrainService` with (`schedules` = the reminder pull RPCs' store, `residency` = what makes
+  `Health` honest during a handoff; `None` each = that capability off), binds `config.bind_address`;
   returns the not-yet-started server plus the actually-bound port (the OS pick when
   `port=0`; gRPC reports 0 if the bind failed). With `config.token` set it registers the
   `SeamTokenInterceptor` (ADR-0016, `auth.py`): every RPC, unary and streaming, current
   and future, must carry the matching `x-cortex-seam-token` metadata (`SEAM_TOKEN_HEADER`)
   or is aborted `UNAUTHENTICATED` before the servicer runs (constant-time compare, rejection
   shaped to the method). Empty token = no interceptor, the previous server byte for byte.
-- `serve(config: SeamServerConfig, engine: TurnEngine, store: SessionStore) -> None` (async)
+- `serve(config: SeamServerConfig, engine: TurnEngine, store: SessionStore, *, schedules=None,
+  memory_cascade=None, residency=None) -> None` (async), the composition root's one call: it
   starts the server and blocks until SIGTERM/SIGINT or task cancellation; handlers for both signals
   are installed on the running loop for the server's lifetime (removed on exit) and
   trigger the same graceful stop as cancellation: in-flight RPCs drain for up to the 5 s
@@ -372,7 +388,9 @@ The service:
   backend leases through (hence `build_inference_backend(..., manager=...)`) and the residency
   scope the conductor drives, the Redis `HandoffStore`, and the `ResidencyPlan`. With it wired,
   `run_from_env` runs `recover_handoffs` before serving (a handoff cannot outlive its process),
-  registers `escalate_to_brain`, and returns an `EscalatingTurnEngine` from `make_engine`: a
+  registers `escalate_to_brain`, hands that same manager to `serve` as the seam's
+  `residency=` reporter (which is what makes `Health` honest mid handoff, ADR-0030 decision 6),
+  and returns an `EscalatingTurnEngine` from `make_engine`: a
   fresh slot and inner engine per turn, and a `SwapConductor` over THIS stream's dispatcher, so
   the deep model's phase runs the same audited tools the cortex phase did, with no slot of its
   own. `swap_closer(swap)` releases the handoff store **and** the control client in the shutdown

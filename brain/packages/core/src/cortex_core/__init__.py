@@ -115,6 +115,7 @@ from cortex_core.ports import MemoryStore as MemoryStore
 from cortex_core.ports import ModelHost as ModelHost
 from cortex_core.ports import ModelManager as ModelManager
 from cortex_core.ports import ResidencyController as ResidencyController
+from cortex_core.ports import ResidencyReporter as ResidencyReporter
 from cortex_core.ports import ScheduleStore as ScheduleStore
 from cortex_core.ports import SessionStore as SessionStore
 from cortex_core.ports import Sleeper as Sleeper
@@ -140,6 +141,12 @@ from cortex_core.rerank_policies import MmrRecallPolicy as MmrRecallPolicy
 from cortex_core.rerank_policies import RecencyMmrRecallPolicy as RecencyMmrRecallPolicy
 from cortex_core.rerank_policies import RerankingRecallPolicy as RerankingRecallPolicy
 from cortex_core.residency import SwappingModelManager as SwappingModelManager
+from cortex_core.residency_state import RESIDENCY_DEEP as RESIDENCY_DEEP
+from cortex_core.residency_state import RESIDENCY_LOADING as RESIDENCY_LOADING
+from cortex_core.residency_state import RESIDENCY_LOST as RESIDENCY_LOST
+from cortex_core.residency_state import RESIDENCY_RESTORING as RESIDENCY_RESTORING
+from cortex_core.residency_state import RESIDENCY_SERVING as RESIDENCY_SERVING
+from cortex_core.residency_state import ResidencyReport as ResidencyReport
 from cortex_core.roster import SubagentProfile as SubagentProfile
 from cortex_core.roster import SubagentResources as SubagentResources
 from cortex_core.roster import SubagentRoster as SubagentRoster

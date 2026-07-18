@@ -3,8 +3,8 @@
 Method bodies are one-line ``...`` stubs. Protocols carry contracts, never behavior.
 Failures cross these boundaries exclusively as the typed errors in ``errors.py``.
 The five state-store ports (session, memory, task, schedule, handoff) live in
-``ports_stores.py`` and the two model-lifecycle ports (``ModelHost``, ``ResidencyController``)
-in ``ports_models.py``; both sets are re-exported here, so
+``ports_stores.py`` and the three model-lifecycle ports (``ModelHost``, ``ResidencyController``,
+``ResidencyReporter``) in ``ports_models.py``; both sets are re-exported here, so
 ``from cortex_core.ports import SessionStore`` keeps resolving.
 """
 
@@ -19,7 +19,7 @@ from cortex_core.events import TurnEvent
 from cortex_core.inference import InferenceEvent, JsonSchema
 from cortex_core.model import ModelLease
 from cortex_core.placement import Placement, PlacementRequest
-from cortex_core.ports_models import ModelHost, ResidencyController
+from cortex_core.ports_models import ModelHost, ResidencyController, ResidencyReporter
 from cortex_core.ports_stores import (
     HandoffStore,
     MemoryStore,
@@ -29,7 +29,7 @@ from cortex_core.ports_stores import (
 )
 from cortex_core.tools import ConfirmationRequest, ToolCall, ToolInvocation, ToolResult, ToolSpec
 
-# The five state-store ports live in ``ports_stores.py`` and the two model-lifecycle ports in
+# The five state-store ports live in ``ports_stores.py`` and the three model-lifecycle ports in
 # ``ports_models.py`` (line-cap splits); the explicit export list re-exports them alongside the
 # ports defined here, so every existing ``from cortex_core.ports import ...`` and the
 # ``cortex_core`` barrel keep resolving unchanged.
@@ -44,6 +44,7 @@ __all__ = [
     "ModelHost",
     "ModelManager",
     "ResidencyController",
+    "ResidencyReporter",
     "ScheduleStore",
     "SessionStore",
     "Sleeper",

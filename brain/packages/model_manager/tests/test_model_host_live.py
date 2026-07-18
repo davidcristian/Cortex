@@ -39,6 +39,8 @@ import httpx
 import pytest
 
 from cortex_core import (
+    RESIDENCY_DEEP,
+    RESIDENCY_SERVING,
     AsyncioSleeper,
     ModelHostError,
     ModelHostState,
@@ -169,10 +171,14 @@ async def test_a_residency_scope_really_evicts_one_model_and_loads_another() -> 
 
     Drives the shipped ``SwappingModelManager`` (the same object the conductor drives) over the
     real adapter, so entering the scope runs the real eviction, the real spawn and the real health
-    gate against two ``llama-server`` processes, and leaving it runs the real restore. What it
-    asserts is read back from the sidecar through the port, never from the manager's own
+    gate against two ``llama-server`` processes, and leaving it runs the real restore. The swap
+    itself is asserted by reading the sidecar back through the port, never from the manager's own
     bookkeeping: inside the scope the deep tier's process is READY and the standing resident's is
     gone, and after it the reverse.
+
+    The residency report the seam answers ``Health`` with is then checked **against** those reads,
+    which is the only place that pairing is made over real processes: the brain claiming a deep
+    task is in progress is worth exactly as much as the deep child really being the one alive.
 
     Needs two tiers in the roster (name a ``CORTEX_MODEL_FILE_BRAIN`` artifact) and enough VRAM for
     whichever pair the deployment configured; on the dev GPU that means small stand-ins. On the
@@ -204,15 +210,19 @@ async def test_a_residency_scope_really_evicts_one_model_and_loads_another() -> 
         if deep_state is ModelHostState.FAILED:
             pytest.skip(f"the deep tier {deep!r} has a dead child; fix it before swapping onto it")
         await host.start(standing)
+        assert manager.residency() == RESIDENCY_SERVING
         async with manager.swap_scope(deep):
             # The gate inside swap_scope already waited for READY; what is asserted here is the
             # eviction half, which nothing else would catch: a swap that loaded the deep model
             # without stopping the standing one would leave both processes alive.
             assert await host.status(deep) is ModelHostState.READY
             assert await host.status(standing) is ModelHostState.STOPPED
+            # And what the seam would tell a probing overlay right now matches those two reads.
+            assert manager.residency() == RESIDENCY_DEEP
             async with manager.acquire(deep) as lease:
                 assert lease.endpoint == "http://127.0.0.1:8081"
         assert await host.status(standing) is ModelHostState.READY
         assert await host.status(deep) is ModelHostState.STOPPED
+        assert manager.residency() == RESIDENCY_SERVING
     finally:
         await client.aclose()

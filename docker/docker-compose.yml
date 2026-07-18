@@ -49,12 +49,19 @@ services:
       # The real BrainService.Health RPC via the installed cortex_seam package, since
       # a bare TCP poke could pass while the gRPC server is broken. Attaches the
       # seam token when one is configured (ADR-0016), or the check would flap.
+      # The predicate is "the RPC answered", NOT `reply.ready`: since the handoff
+      # earned an honest readiness (ADR-0030), `ready=false` is the brain telling the
+      # truth about a working model swap, and a container that read unhealthy for the
+      # minutes a swap takes would send an operator to fix a machine that is fine (the
+      # model-host check was corrected for exactly that). A reply of either kind
+      # disproves the broken gRPC server this check exists to catch; which model is
+      # resident is the overlay's dot and `docker compose logs brain`, not this.
       test:
         [
           "CMD",
           "python",
           "-c",
-          "import os, grpc, cortex_seam as seam; token = os.environ.get('CORTEX_SEAM_TOKEN', ''); metadata = (('x-cortex-seam-token', token),) if token else None; reply = seam.BrainServiceStub(grpc.insecure_channel('127.0.0.1:50051')).Health(seam.HealthRequest(), timeout=2, metadata=metadata); raise SystemExit(0 if reply.ready else 1)",
+          "import os, grpc, cortex_seam as seam; token = os.environ.get('CORTEX_SEAM_TOKEN', ''); metadata = (('x-cortex-seam-token', token),) if token else None; seam.BrainServiceStub(grpc.insecure_channel('127.0.0.1:50051')).Health(seam.HealthRequest(), timeout=2, metadata=metadata)",
         ]
       interval: 30s
       timeout: 5s

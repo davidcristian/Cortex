@@ -13,6 +13,7 @@ from contextlib import AbstractAsyncContextManager
 from typing import Protocol
 
 from cortex_core.model_host import ModelHostState
+from cortex_core.residency_state import ResidencyReport
 
 
 class ModelHost(Protocol):
@@ -69,3 +70,22 @@ class ResidencyController(Protocol):
     def swap_scope(self, model: str) -> AbstractAsyncContextManager[None]: ...
 
     def handoff_claim(self) -> AbstractAsyncContextManager[None]: ...
+
+
+class ResidencyReporter(Protocol):
+    """Reads what the GPU is serving right now, for the seam to answer with (ADR-0030 d6).
+
+    Segregated from ``ResidencyController`` on purpose, and for the opposite reason: that port
+    is held by the one caller allowed to *change* residency, while this one is held by a
+    readiness RPC that must only ever look. The seam therefore cannot reach a swap through the
+    dependency it is given, and a deployment with escalation off simply has none to give.
+
+    ``residency()`` is **synchronous and free of I/O by contract**, which is the whole point of
+    the port rather than an implementation detail: a probe arrives every few seconds precisely
+    while a swap is in flight, and one that queued behind the GPU lease would hang for the whole
+    load (minutes at tier scale) at exactly the moment the honest answer matters. An
+    implementation therefore publishes residency as it changes and answers from that cache; it
+    never asks a model host, and never waits for a lock a swap can hold.
+    """
+
+    def residency(self) -> ResidencyReport: ...

@@ -28,6 +28,11 @@ of them reaches outside this file, the backend name being read in exactly one pl
   exactly 1, ``test_a_store_that_will_not_close_still_releases_the_control_client``;
 - dropping the endpoint clause from the config validator reddens exactly 1,
   ``test_the_real_backend_without_its_endpoint_fails_at_boot``.
+
+And one for the seam's residency reporter, measured the same way: dropping ``residency=`` from
+the composition root's ``serve`` call reddens exactly 1,
+``test_health_tells_the_truth_about_residency_through_the_whole_wiring``, which is why that case
+holds the manager the root really built rather than one of its own.
 """
 
 import asyncio
@@ -45,10 +50,13 @@ from redis.asyncio import Redis
 
 from cortex_core import (
     ESCALATE_TOOL_NAME,
+    RESIDENCY_DEEP,
     AsyncioSleeper,
+    Clock,
     InMemoryBodyGateway,
     ModelHostState,
     ScriptedModelHost,
+    Sleeper,
     SwappingModelManager,
     SystemClock,
 )
@@ -63,8 +71,16 @@ from cortex_orchestrator import (
     run_from_env,
     swap_builders,
     swap_closer,
+    wiring,
 )
-from cortex_seam import BrainServiceStub, ClientEvent, ServerEvent, UserTurn
+from cortex_seam import (
+    BrainServiceStub,
+    ClientEvent,
+    HealthReply,
+    HealthRequest,
+    ServerEvent,
+    UserTurn,
+)
 from cortex_session import RedisHandoffStore, RedisSessionStore
 
 
@@ -315,6 +331,67 @@ async def test_run_from_env_serves_with_the_handoff_wired(
         await asyncio.wait_for(task, timeout=10)
     finally:
         task.cancel()
+
+
+async def test_health_tells_the_truth_about_residency_through_the_whole_wiring(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The reporter reaches the servicer: with the wired manager mid handoff, Health says so.
+
+    The manager under test is the one the composition root built, captured on its way out of the
+    builder rather than constructed beside it, so this is what pins the plumbing: dropping
+    ``residency=`` from the ``serve`` call leaves the seam answering ready through a handoff.
+    """
+    port = _free_loopback_port()
+    monkeypatch.setenv("CORTEX_SEAM_HOST", "127.0.0.1")
+    monkeypatch.setenv("CORTEX_SEAM_PORT", str(port))
+    monkeypatch.setenv("CORTEX_ESCALATION", "1")
+    monkeypatch.setenv("CORTEX_MODELHOST_BACKEND", "scripted")
+    monkeypatch.setenv("CORTEX_BRAIN_ENDPOINT", "http://llama-brain:8081")
+    server = FakeServer()
+
+    def fake_from_url(url: str) -> Redis:
+        del url
+        return FakeAsyncRedis(server=server)
+
+    monkeypatch.setattr(Redis, "from_url", fake_from_url)
+    built: list[SwapRuntime] = []
+    real = build_swap_runtime
+
+    def recording(
+        swap: SwapConfig,
+        runtime: BrainRuntimeConfig,
+        inference: InferenceConfig,
+        clock: Clock,
+        sleeper: Sleeper,
+    ) -> SwapRuntime | None:
+        made = real(swap, runtime, inference, clock, sleeper)
+        assert made is not None  # escalation is on in this test's env
+        built.append(made)
+        return made
+
+    monkeypatch.setattr(wiring, "build_swap_runtime", recording)
+    task = asyncio.create_task(run_from_env(store_factory=lambda _url: _session_store(server)))
+    try:
+        async with aio.insecure_channel(f"127.0.0.1:{port}") as channel:
+            await asyncio.wait_for(channel.channel_ready(), timeout=10)
+            stub = BrainServiceStub(channel)
+            assert (await _health(stub)).ready is True
+            swap = built[0]
+            async with swap.manager.swap_scope(swap.plan.brain_model):
+                mid_handoff = await asyncio.wait_for(_health(stub), timeout=5.0)
+            assert mid_handoff.ready is False
+            assert mid_handoff.detail == RESIDENCY_DEEP.detail
+            assert (await _health(stub)).ready is True  # the swap back turns the dot green again
+        os.kill(os.getpid(), signal.SIGTERM)
+        await asyncio.wait_for(task, timeout=10)
+    finally:
+        task.cancel()
+
+
+async def _health(stub: BrainServiceStub) -> HealthReply:
+    health = stub.Health  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
+    return cast("HealthReply", await health(HealthRequest()))
 
 
 def _session_store(server: FakeServer) -> RedisSessionStore:
