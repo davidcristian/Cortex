@@ -12,6 +12,6 @@
 **/tests
 
 # Docker plumbing itself.
-Dockerfile
+Dockerfile*
 .dockerignore
 .gitignore

@@ -1,0 +1,59 @@
+# syntax=docker/dockerfile:1
+# The model-host supervisor sidecar (ADR-0030 decision 3): the one container that may spawn or
+# kill a model process. It needs BOTH halves in one image, which is why it cannot reuse either
+# existing one: the brain image (python:3.12-slim-trixie) has the Python workspace but no CUDA and
+# no llama-server, and llama.cpp:server-cuda has /app/llama-server and a system python3 but no pip,
+# no ensurepip and no uv, so nothing there can install a package.
+#
+# So the CUDA server image is the base and uv is copied in as the static binary it is (verified:
+# `ldd` reports "not a dynamic executable"), then the workspace is installed against the image's
+# OWN interpreter. Transplanting the brain image's prebuilt venv instead does not work and is worth
+# stating so nobody retries it: that venv points at /usr/local/bin/python3.12, a path Ubuntu 24.04
+# does not have.
+#
+# The build context is brain/ (the uv workspace), the same context the email sidecar builds from.
+#     docker compose --project-directory . -f docker/docker-compose.yml \
+#       -f docker/docker-compose.gpu.yml build model-host
+
+FROM ghcr.io/ggml-org/llama.cpp:server-cuda AS builder
+
+# Pin to a digest on the host once chosen; mutable tags are a supply-chain risk (ADR-0006), and
+# this base carries the CUDA runtime and the server binary the sidecar spawns.
+COPY --from=ghcr.io/astral-sh/uv:0.11-python3.12-trixie-slim /usr/local/bin/uv /usr/local/bin/uv
+
+# Never a uv-managed interpreter download: the venv must run on the base image's own python3, whose
+# path exists in the runtime stage. Precompile for a fast cold start, and copy out of the cache
+# mount rather than hardlinking across filesystems.
+ENV UV_PYTHON_DOWNLOADS=never \
+    UV_COMPILE_BYTECODE=1 \
+    UV_LINK_MODE=copy
+
+# NOT /app: that is where the base image keeps llama-server, and the supervisor spawns it by path.
+WORKDIR /srv/brain
+
+COPY . .
+
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --locked --no-dev --no-editable --python /usr/bin/python3
+
+FROM ghcr.io/ggml-org/llama.cpp:server-cuda
+
+# Non-root: the supervisor spawns children and probes loopback, neither of which needs root, and
+# the GPU reaches a non-root process fine through the container toolkit. The read-only models mount
+# is world-readable on the host side (a drvfs bind), so a plain user can load a GGUF.
+RUN useradd --create-home --uid 10001 --shell /usr/sbin/nologin cortex
+
+COPY --from=builder /srv/brain/.venv /srv/brain/.venv
+
+ENV PATH="/srv/brain/.venv/bin:$PATH" \
+    PYTHONUNBUFFERED=1
+
+USER cortex
+
+# The control API's port (CORTEX_MODELHOST_BIND_PORT). The per-model child ports (8080/8081/8083)
+# are the supervisor's own business and are documented in the compose override, not here.
+EXPOSE 9300
+
+# The base image's entrypoint is llama-server itself, which this image is not.
+ENTRYPOINT []
+CMD ["python", "-m", "cortex_model_manager"]

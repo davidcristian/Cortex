@@ -96,6 +96,45 @@ and `main()` serves it (`python -m cortex_model_manager`).
 - **A boot start that fails is logged and the API still serves.** Failing to come up would
   crash-loop under compose's restart policy and hide the cause.
 
+## Deployment
+
+The daemon runs as the `model-host` service in `docker/docker-compose.gpu.yml`, which it took over
+from the always-on `llama-cortex` service: that service could not be stopped and started by a swap,
+which is the whole point of decision 3. The consequences worth knowing before changing it:
+
+- **Its own image, `brain/Dockerfile.modelhost`.** No existing image has both halves: the brain
+  image has the workspace but no CUDA and no `llama-server`, and `llama.cpp:server-cuda` has the
+  binary and a system `python3` but no pip, no ensurepip and no uv. So the CUDA server image is the
+  base, `uv` is copied in as the static binary it is, and the workspace is installed against the
+  image's **own** interpreter. Transplanting the brain image's prebuilt venv does not work: it
+  points at `/usr/local/bin/python3.12`, which Ubuntu 24.04 does not have. `WORKDIR` is `/srv/brain`
+  and not `/app`, because `/app` is where the base keeps the binary the supervisor spawns. Runs as
+  uid 10001, and the base image's `llama-server` entrypoint is cleared.
+- **The brain image still ships this package** (it imports `HttpModelHost`) and therefore ships the
+  daemon's modules too, which nothing there runs. That costs nothing and breaks no argument: the
+  blast radius of decision 3 is about the GPU reservation, the models mount, and the `llama-server`
+  binary, none of which the brain container has.
+- **The control API is not published.** ADR-0030 says compose-network-only, and on WSL2 a
+  `127.0.0.1` publish is reachable from Windows' own localhost as well, so the default publishes
+  only the cortex tier's `127.0.0.1:8080` (exactly as the old service did, keeping
+  `just brain-inference-live` and the GPU runbook unchanged).
+  `docker/docker-compose.modelhost-loopback.yml` is the opt-in override for host-side live tests,
+  and it maps the two extra tiers to **different** host ports (9081, 9083) because their container
+  ports are already published by `llama-embed` and `llama-subagent-qwen`.
+- **The compose healthcheck asserts the boot resident is READY**, not merely that the daemon
+  answers, because `brain` gates on it: a control API answering while the cortex is still loading
+  would let the brain serve a turn that fails at the backend.
+- **The cgroup caps are per container, so they are per supervisor and not per model.** ADR-0012
+  asked for `--cpus`/`--memory`/`--memory-swap` on two `llama-server` sidecars; ADR-0030 collapsed
+  the GPU one in here, so the cortex, the deep model and the GPU subagent are processes in ONE
+  cgroup and no per-model CPU or RAM cap exists (`CORTEX_MODELHOST_{CPUS,MEMORY,MEMSWAP}` cap all
+  three collectively). The values are user-tunable placeholders; note that llama.cpp mmaps the
+  GGUF, so mapped model pages count against the memory cap and a cap below the artifact size makes
+  a load thrash rather than fail.
+- **`stop_grace_period` is 30 s**, above docker's default 10 s, so the graceful shutdown sweep can
+  finish unloading a tier-scale model. The ungraceful backstop is the runtime, which kills a child
+  whose container is gone (measured), so nothing leaks either way.
+
 ## Testing
 
 - The shared `ModelHost` contract suite (`tests/model_host_contract.py`, `ALL_CHECKS`) runs over
@@ -109,10 +148,15 @@ and `main()` serves it (`python -m cortex_model_manager`).
 - 100% line + branch, with no process spawned and no socket opened. Every distrust-green mutation
   is recorded with its **measured** package-wide failure count in the suites' own docstrings.
 - `integration`-marked live tests (`tests/test_model_host_live.py`, excluded from CI and the
-  coverage gate): the real signal escalation against real child processes (a `sleep`, and one that
-  traps SIGTERM), and the whole mechanism against a running sidecar at
-  `CORTEX_MODELHOST_ENDPOINT`. Procedure and measured timings:
-  [runbooks/model-swap.md](../runbooks/model-swap.md).
+  coverage gate, run by `just brain-modelhost-live`): the real signal escalation against real child
+  processes (a `sleep`, and one that traps SIGTERM), and the whole mechanism against a running
+  sidecar at `CORTEX_MODELHOST_ENDPOINT`. **The mechanism is validated**, agent-side in Docker on
+  the dev GPU with two small artifacts standing in for the tiers: real processes started,
+  health-gated, evicted, swapped, killed under the daemon, and restarted over their own corpses,
+  with the exact commands, timings and VRAM readings in
+  [runbooks/model-swap.md](../runbooks/model-swap.md). **Tier scale is not and cannot be validated
+  here** (the 8 GB dev GPU cannot hold the real cortex beside a deep model), so that half stays
+  host-side.
 
 ## Dependencies
 

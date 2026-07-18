@@ -23,9 +23,11 @@ arithmetic or tier scale: the dev GPU cannot hold the real cortex beside a real 
 that half is host-side by design.
 """
 
+import asyncio
 import os
 from collections.abc import Sequence
 from datetime import UTC, datetime
+from pathlib import Path
 
 import httpx
 import pytest
@@ -48,6 +50,8 @@ from cortex_model_manager.probe import HttpHealthProbe
 
 _MODEL = "stand-in"
 _GRACE_S = 0.5
+# How long the trapping shell gets to arm itself before the test gives up rather than hanging.
+_ARM_TIMEOUT_S = 5.0
 
 
 class _SystemClock:
@@ -99,10 +103,22 @@ async def test_a_real_child_is_started_signalled_and_reaped() -> None:
 
 
 @pytest.mark.integration
-async def test_a_real_child_that_ignores_sigterm_is_killed_after_the_grace() -> None:
-    """The bounded escalation, against a process that genuinely traps the signal."""
-    supervisor, processes = _supervisor('trap "" TERM; sleep 30')
+async def test_a_real_child_that_ignores_sigterm_is_killed_after_the_grace(tmp_path: Path) -> None:
+    """The bounded escalation, against a process that genuinely traps the signal.
+
+    The wait for the marker is not padding: ``start`` returns as soon as the process exists, which
+    is before the shell has run ``trap``, and a SIGTERM delivered in that window lands on the
+    default disposition and the child dies with -15. That would pass a weaker assertion while
+    testing the opposite case, so the child says when it is armed and the test waits for it.
+    """
+    armed = tmp_path / "armed"
+    supervisor, processes = _supervisor(f'trap "" TERM; : > {armed}; sleep 30')
     await supervisor.start(_MODEL)
+    async with asyncio.timeout(_ARM_TIMEOUT_S):
+        # The suppressed rule wants an asyncio.Event, which cannot observe a file that another
+        # process creates; the enclosing timeout is what keeps the poll from becoming a hang.
+        while not armed.exists():  # noqa: ASYNC110
+            await asyncio.sleep(0.01)
     child = processes.children[0]
     await supervisor.stop(_MODEL)
     assert child.returncode == -9
@@ -130,6 +146,7 @@ async def test_the_real_adapter_starts_health_gates_and_stops_a_real_model() -> 
         await host.stop(model)
         assert await host.status(model) is ModelHostState.STOPPED
     finally:
-        # Leave the sidecar as its boot default has it: the standing resident serving.
+        # Leave the tier this ran against loaded, which is the sidecar's boot default when the
+        # model is the standing resident (the default) and is the caller's to undo when it is not.
         await host.start(model)
         await client.aclose()

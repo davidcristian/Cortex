@@ -27,7 +27,9 @@ design, AGENTS.md gate 3).
 | `CORTEX_NGL` | GPU layers to offload: `99` = all, `0` = CPU-only, partial = hybrid (ADR-0004 addendum) | `99` |
 
 The brain-side logical id stays `CORTEX_MODEL_CORTEX=cortex` (ADR-0004); the adapter never
-sees the filename. Only the compose `llama-cortex` service does.
+sees the filename. Only the `model-host` sidecar does, which is where these variables are read
+now that the cortex is a supervised child process rather than a compose service of its own
+([model-swap.md](model-swap.md), [brain-model-manager.md](../modules/brain-model-manager.md)).
 
 ## Running from WSL (when automount/interop are off)
 
@@ -71,14 +73,19 @@ dev distro is set), two one-time steps are needed:
 docker compose --project-directory . -f docker/docker-compose.yml -f docker/docker-compose.gpu.yml up --build
 ```
 
-This starts `llama-cortex` (one `llama-server`, all layers on the GPU via `-ngl 99`) and
-flips the brain to `CORTEX_INFERENCE_BACKEND=llamacpp` pointed at `http://llama-cortex:8080`
-(ADR-0007 d4/d5). The brain waits for the model to finish loading (the service healthcheck).
+This starts `model-host` (the supervisor sidecar, which spawns one `llama-server` child for the
+cortex tier with all layers on the GPU via `-ngl 99`) and flips the brain to
+`CORTEX_INFERENCE_BACKEND=llamacpp` pointed at `http://model-host:8080` (ADR-0007 d4/d5). The brain
+waits for the model to finish loading (the service healthcheck). The sidecar replaced the always-on
+`llama-cortex` service so that a swap can stop the cortex and start the deep model, which nothing
+in a compose service can do (ADR-0030 decision 3); the child's argv is the old service's `command`
+block flag for flag, so this file's variables and timings are unchanged.
 
-- **Healthcheck:** the current `server-cuda` image ships `curl` (not `wget`), so the
-  compose healthcheck works as-is; it goes healthy once the model finishes loading. If a
-  future image drops `curl`, swap the test for a `python -c` poke or watch
-  `docker compose logs llama-cortex` for the `listening on http` line.
+- **Healthcheck:** the `server-cuda` image ships `curl` (not `wget`), and the sidecar's check uses
+  it to assert the **cortex tier is READY** rather than merely that the daemon answers, which is
+  what the old service's check meant. It goes healthy once the model finishes loading. Watch
+  `docker compose logs model-host` for the `listening on http` line: children inherit the daemon's
+  streams, so its log carries both.
 - **Sanity poke from the host** (loopback publish is on `127.0.0.1:8080`):
   `curl -s http://127.0.0.1:8080/v1/models`.
 
@@ -111,7 +118,7 @@ addendum, though at probe time it still needed a scratch override):
 
 ```
 docker compose --project-directory . -f docker/docker-compose.yml -f docker/docker-compose.gpu.yml \
-  up -d llama-cortex     # 127.0.0.1:8080, ~9.8 GB VRAM, healthy in ~10 s
+  up -d model-host     # cortex child on 127.0.0.1:8080, ~9.8 GB VRAM, healthy in ~10 s
 ```
 
 Then probe `/v1/chat/completions` directly, building messages with the **shipped** constants
@@ -135,7 +142,7 @@ independent, load/throughput are not. Full detail + placement strategy in the
 | **Cortex (pick)** | **gemma-4-12B** | q4_0 (QAT) | 11.0 GB | 11.3 GB (small proj) | ~38-52 s |
 | Cortex (alt) | Qwen3.5-9B | Q4_K_M | 9.2 GB | 11.0 GB (F32 proj) | ~32-42 s |
 | Subagent | _tbd (Slice 7, CPU)_ | | | | |
-| Brain | _tbd (Slice 11)_ | | | | |
+| Brain | _tbd (host-side pick)_ | | | | |
 | Embedder | _tbd (Slice 5, CPU)_ | | | | |
 
 - **Cortex = gemma-4-12B** (stronger chat model + QAT). Both candidates ≈ 11 GB, so VRAM
@@ -147,8 +154,11 @@ independent, load/throughput are not. Full detail + placement strategy in the
   subagents → CPU (a dynamic pool the cortex sizes within budget), brain → hybrid if it
   doesn't fit. All per-`llama-server` flags, no core change (ADR-0004 addendum).
 - **Swap latency (ROADMAP assumption 2):** load is ~mount-read bound (~150-180 MB/s off
-  the Windows bind mount). If it dominates once swap lands (Slice 11), mirror hot models
-  into a WSL-side/volume cache and re-measure.
+  the Windows bind mount). Measured through the real supervisor at small scale on the 8 GB dev
+  card, a 0.8B stand-in health-gates in ~11 s and a 2B in ~18 s, while the eviction half is
+  sub-second (SIGTERM to reaped in 0.1 to 0.4 s), so the load dominates exactly as assumed and the
+  tier-scale figure is a host measurement ([model-swap.md](model-swap.md)). If it dominates
+  once real tiers swap, mirror hot models into a WSL-side/volume cache and re-measure.
 - **Remaining picks:** cortex is settled (gemma-4-12B, the compose default). Subagent sizes
   (Slice 7), brain (Slice 11), and embedder quant (Slice 5) follow, recorded in
   [ADR-0004](../adr/ADR-0004-model-lineup.md) as each lands.

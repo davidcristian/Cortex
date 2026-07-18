@@ -893,3 +893,150 @@ had not been asked for, that the record is written and `READY` before anything t
 sees the ordering while the drain is still running), and the straggler lines stay as the stated
 premise of the boundary rather than as a finding about the code. The conductor suite's drain-timeout
 case has the same premise line and now says so too.
+
+## Addendum (2026-07-18): the real model host landed, and the swap mechanism is validated
+
+The last engineering sub-slice of decision 9 item 5 has landed: the `model-host` supervisor sidecar,
+the `HttpModelHost` adapter, the compose revision that retires `llama-cortex`, the ADR-0012 host
+half, and the CUDA-OOM re-place (recorded at ADR-0012, whose entry it closes). The sentence every
+addendum above ends with changes, and this is the only place it may:
+
+**The swap mechanism is validated. Tier scale is not, and cannot be here.** Real `llama-server`
+processes were started, health-gated, evicted, swapped, killed under the daemon and restarted over
+their own corpses, in Docker on the dev GPU, with two small artifacts standing in for the tiers
+(`Qwen3.5-0.8B-Q8_0` as the cortex tier, `Qwen3.5-2B-Q4_K_M` as the deep one, both at
+`--ctx-size 4096`), which is exactly what decision 7 authorizes and no more. The eviction half is
+sub-second (SIGTERM to reaped in 0.10 to 0.40 s, VRAM back to baseline within the sampling
+resolution), the load half is the whole cost (11.3 s and 18.0 s for those two artifacts), and one
+`Converse` turn streamed its reply off the supervised child through the brain container. gemma-4-12B
+alone takes 7715 of this card's 8188 MiB, so the real cortex and any deep candidate cannot be
+swapped between here; that half, and the deep-model pick itself, stay host-side. Commands, timings
+and failure modes: [docs/runbooks/model-swap.md](../runbooks/model-swap.md).
+
+Decision 3's shape landed as written, with the fixed per-model ports, the roster from the daemon's
+own env, requests carrying a logical id and nothing else, and the cortex started at boot. What
+follows is where this ADR was silent or wrong, decided here rather than left to the next reader.
+
+**`status` proxying the child's `/health` is not enough, and this is the sub-slice's
+highest-value correction.** Decision 3 says "`status` proxies the child's `/health`, so READY means
+what the compose healthcheck means today". Taken literally that defeats the swap. Measured: a second
+`llama-server` on a port an incumbent still holds dies in 0.24 s with exit code 1 and
+`couldn't bind HTTP server socket`, while `/health` on that port keeps answering
+`200 {"status":"ok"}` from the incumbent. A status that only probed would report the dead start
+READY, the health gate would pass, and the previous weights would go on serving under the new
+model's name, which is the hard rule's premise silently broken. So the supervisor reads the child's
+**exit code first** and only probes a process it knows is alive; a child that exited unasked is
+FAILED with its code in `detail` until the next `start` replaces it. `build_roster` closes the same
+hole at boot by refusing two tiers on one port, where an operator can still fix it. Both halves are
+pinned by tests that redden under mutation, and the FAILED case was observed live twice (a missing
+artifact, exit code 1; a `kill -9`, code -9).
+
+**The control API is not published to the host, and that cost a second override file.** Decision 3
+says compose-network-only; every other sidecar publishes `127.0.0.1:<port>` so host-side integration
+tests can reach it. This API starts and stops processes on the container holding the GPU and the
+models mount, and on WSL2 a `127.0.0.1` publish is reachable from Windows' own localhost too, so the
+security argument outranks the convenience precedent. The gpu override publishes only the cortex
+tier's `127.0.0.1:8080`, exactly as the service it replaces did, which keeps
+`just brain-inference-live` and the GPU runbook working unchanged.
+`docker/docker-compose.modelhost-loopback.yml` is the opt-in override that adds the control API and
+the two other tiers, and it maps them to **different** host ports (9300, 9081, 9083) because this
+ADR's chosen container ports collide with two existing publishes: `:8081` is `llama-embed` and
+`:8083` is `llama-subagent-qwen`, so a stack layering memory or subagents-roster with an
+equal-ports publish would fail to start. In-network nothing changes and this ADR's port assignment
+stands.
+
+**The healthcheck asserts the boot resident is READY, not that the daemon answers.** The obvious
+reading (a healthcheck on the control API) would let `brain`'s `depends_on: service_healthy` pass
+while the cortex was still loading, so the first turn would fail at the backend, where today's
+`llama-cortex` check means "the model serves". The check therefore reads
+`GET /models/{cortex}` and greps for `ready`, preserving that meaning exactly.
+
+**The image, and one shortcut that does not work.** `brain/Dockerfile.modelhost` bases on
+`ghcr.io/ggml-org/llama.cpp:server-cuda` and copies `uv` in as the static binary it is, installing
+the workspace against the image's own `/usr/bin/python3`. Transplanting the brain image's prebuilt
+venv fails: it points at `/usr/local/bin/python3.12`, which Ubuntu 24.04 does not have. `WORKDIR` is
+`/srv/brain`, because `/app` is where the base keeps the binary the supervisor spawns, and the base
+image's `llama-server` entrypoint is cleared. The brain image ships this package too (it imports the
+adapter) and therefore ships the daemon's modules, which nothing there runs; that breaks no part of
+decision 3's argument, whose blast radius is the GPU reservation, the models mount and the
+`llama-server` binary, none of which the brain container has.
+
+**One package, not two.** `cortex_model_manager` holds both halves even though they run in different
+containers and never import each other, because this ADR names one package. The adapter imports
+`cortex_core` (the four state words and the typed error), which is what keeps the wire's vocabulary
+from drifting between the two sides.
+
+**The cgroup caps are per supervisor, not per model, and that is a real loss.** ADR-0012's host half
+asked for `--cpus`/`--memory`/`--memory-swap` on two `llama-server` sidecars; decision 3 collapsed
+the GPU one into this container, so the cortex, the deep model and the GPU subagent are **processes
+in one cgroup** and no per-model CPU or RAM cap exists, only one cap set covering all three
+(`CORTEX_MODELHOST_{CPUS,MEMORY,MEMSWAP}`), plus a separate set on the CPU subagent container whose
+defaults are the hard twin of the brain's soft admission budgets. This ADR wins as the later and
+more specific decision, and its own security argument is what buys it: a per-model cap wants a
+container per model, which wants something that can start containers, which is the docker-socket
+shape decision 3 rejected. The values ship as user-tunable placeholders, because the 8 GB dev GPU
+cannot hold a real tier pair; note that llama.cpp mmaps the GGUF, so mapped model pages count
+against the memory cap and a cap below the artifact size makes a load thrash rather than fail.
+
+**The other decisions this ADR left open, each with the reason.** The SIGTERM grace is 10 s and the
+post-SIGKILL reap bound 30 s, both env knobs, and `stop` does not return until the child is reaped
+because `swap_in` starts the next model with nothing in between; a still-dying cortex holding
+~11.3 GB would CUDA-OOM the load. Their sum must stay below the brain's new
+`CORTEX_MODELHOST_TIMEOUT_S` (60 s), which is a **real** deadline unlike the generation clients'
+deliberate `read=None`, since a hung control call would hang a swap step under no bound at all; the
+pairing is documented in the runbook rather than validated in code, the two sides being separate
+processes' env. A momentarily unreachable supervisor raises `ModelHostError` with no retry, so the
+swap fails safe and the scope restores. The new backend value is `supervisor`, and selecting it
+requires `CORTEX_MODELHOST_ENDPOINT` or boot fails, mirroring the fail-closed validator this ADR's
+previous addendum added. `SwapRuntime.close` widened to release the control client as well as the
+handoff store, the client even when the store's own release raises. And the GPU subagent tier is
+opt-in behind `CORTEX_MODEL_FILE_SUBAGENT_GPU`, with `CORTEX_SWAP_EVICT_MODELS` still empty by
+default: a tier with no artifact file is not in the roster at all, so a stock stack answers 404 for
+it rather than spawning a doomed process.
+
+**Every process hazard the recon for this sub-slice enumerated, and where each went.** A start that
+has not finished loading is LOADING and the health gate is the only readiness authority (`start`
+returns in ~7 ms, a spawn and not a load). A stop racing a start is serialized by one lock per
+logical model. Zombie reaping needs no collector: asyncio's child watcher reaps on its own, which is
+what makes `returncode` authoritative for a child nobody awaited. Orphans cannot outlive the
+container: children inherit the daemon's process group, and killing the daemon was observed to end
+the container, kill both children and return VRAM to baseline. VRAM not freeing instantly is why
+`stop` waits for the reap, and at this scale no lag was observable; at tier scale it is the user's
+to re-measure. Children inherit the daemon's stdout and stderr rather than a pipe, so nothing can
+wedge when llama.cpp's loading log outruns a buffer nobody drains, at the cost of a failed child's
+reason living in `docker logs` while the API's `detail` carries the exit code.
+
+**One deferral opened, with its three records.** A restarted sidecar reconverges itself (its boot
+default starts the cortex) but **nothing reconverges the brain**: `SwappingModelManager` keeps
+`_resident`, `_scope_model` and `_handoff_claimed` as instance attributes and `recover_handoffs`
+runs only at startup, so a sidecar restart mid handoff leaves the brain believing the deep model is
+resident while the fresh sidecar serves the cortex. It is invisible with escalation off (the plain
+`SingleResidentModelManager` holds no residency state, confirmed live by a turn answered straight
+after a restart) and self-limiting with it on (the handoff fails at the backend and releases its
+claim in the conductor's `finally`). Closing it is a wire addition plus a caller, not a port change:
+a boot id or generation counter on `GET /health` that the manager compares, and `converge_residency`
+called from somewhere other than startup, which pairs naturally with the residency state the
+honesty-surfaces sub-slice introduces. **Trigger:** a sidecar that restarts under a live handoff more
+than once. Recorded in
+[docs/refinements/inference-model-manager.md](../refinements/inference-model-manager.md) and its
+[index](../refinements/index.md).
+
+**Two claims elsewhere that this landing falsified, corrected rather than left.**
+Placement-aware CPU charging said it reopened with the GPU-placed runtime; the runtime is here and
+did not reopen it, because one hosted GPU tier is still one backend object per target per roster
+entry and the measured serialization argument stands, so its condition is now decision 8's own, a
+**second** GPU-capable executor. And admission reopening onto a tier that would not restart said
+nothing was at stake because no deployment evicts a tier; a deployment can now name a GPU subagent
+artifact and list that tier in `CORTEX_SWAP_EVICT_MODELS`, so it is reachable by configuration for
+the first time, though the shipped defaults still leave both empty and its cost fell with the
+re-place (a spawn on a dead tier re-runs on the CPU rather than only reporting).
+
+**One defect found in the previous sub-slice's own work, by running its live suite.** The
+integration-marked test for the SIGTERM-then-SIGKILL escalation signalled the child before the
+trapping shell had installed its trap, so the child died on the default disposition with -15 and the
+case tested the opposite of its name. It never ran in the gate by design (`integration`-marked), and
+running it is what found it; the child now writes a marker when it is armed and the test waits for
+that, under a timeout so a poll cannot become a hang.
+
+What remains of decision 9: the honesty surfaces (item 6) and the host-side capstone (item 7,
+which now also owns the tier-scale swap, its chaos kill, and the deep-model pick).

@@ -112,3 +112,13 @@ services:
       retries: 5
       start_period: 90s
       start_interval: 2s
+    # ADR-0012's per-container caps for the CPU half (the GPU half lives in the model-host
+    # container now, ADR-0030 decision 3). The defaults are the hard twin of the brain's SOFT
+    # admission budgets above (CPU_BUDGET 4.0, MEM_BUDGET_GB 8.0), which is what makes those
+    # budgets more than an honour system: the scheduler stops admitting at the soft sum, and the
+    # cgroup is what happens if anything ever admits past it. Keep the pairs equal when retuning
+    # either. memswap == memory disables swap for the container, the "--memory-swap" half of that
+    # deferral: a subagent that swapped would take minutes per token and look like a hang.
+    cpus: "${CORTEX_SUBAGENTS_CPU_BUDGET:-4.0}"
+    mem_limit: "${CORTEX_SUBAGENTS_MEM_BUDGET_GB:-8}g"
+    memswap_limit: "${CORTEX_SUBAGENTS_MEM_BUDGET_GB:-8}g"
