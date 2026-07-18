@@ -3,7 +3,7 @@
 Four routes and no more, because this API can start and stop processes on the container that
 holds the GPU and the models mount, and its client is the brain, which runs model-influenced code:
 
-    GET  /health                  the daemon is up, and the roster it serves
+    GET  /health                  the daemon is up, the roster it serves, and its stop bounds
     GET  /models/{id}             one model's state (stopped | loading | ready | failed)
     POST /models/{id}/start       begin loading it (idempotent)
     POST /models/{id}/stop        end it, returning once it is reaped (idempotent)
@@ -54,7 +54,15 @@ def build_app(
 
     async def health(request: Request) -> Response:
         del request
-        return JSONResponse({"status": "ok", "models": list(supervisor.models)})
+        bounds = supervisor.stop_bounds
+        return JSONResponse(
+            {
+                "status": "ok",
+                "models": list(supervisor.models),
+                "stop_grace_s": bounds.stop_grace_s,
+                "reap_timeout_s": bounds.reap_timeout_s,
+            }
+        )
 
     async def status(request: Request) -> Response:
         return await _answer(supervisor.status, request)

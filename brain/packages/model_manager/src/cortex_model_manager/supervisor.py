@@ -53,6 +53,20 @@ class UnknownModelError(SupervisorError):
 
 
 @dataclass(frozen=True, slots=True)
+class StopBounds:
+    """How long a stop may legitimately take: the SIGTERM grace, then the post-SIGKILL reap bound.
+
+    Reported on ``GET /health`` because the pairing a user has to keep (these two plus the probe
+    timeout, all three below the brain's ``CORTEX_MODELHOST_TIMEOUT_S``) is enforced nowhere in
+    code, the two sides being separate processes' env. What a running daemon was actually given is
+    therefore an operator's question, not an implementation detail.
+    """
+
+    stop_grace_s: float
+    reap_timeout_s: float
+
+
+@dataclass(frozen=True, slots=True)
 class ModelStatus:
     """What one logical model is doing, plus the human half the control API returns.
 
@@ -93,6 +107,11 @@ class ModelSupervisor:
     def models(self) -> tuple[str, ...]:
         """The logical ids this daemon serves, in roster order. Nothing can add to them."""
         return tuple(self._roster)
+
+    @property
+    def stop_bounds(self) -> StopBounds:
+        """The stop timing this daemon was wired with, as ``GET /health`` reports it."""
+        return StopBounds(self._stop_grace_s, self._reap_timeout_s)
 
     async def start(self, model: str) -> None:
         """Begin loading ``model``; return as soon as the process exists, ready or not."""

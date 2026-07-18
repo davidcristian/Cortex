@@ -10,13 +10,14 @@ from cortex_model_manager.children import (
 )
 from cortex_model_manager.config import ModelHostConfig
 from cortex_model_manager.probe import HealthProbe, HttpHealthProbe
-from cortex_model_manager.server import build_model_host, main
+from cortex_model_manager.server import build_model_host, build_supervisor, main
 from cortex_model_manager.spec import ModelSpec, RosterError, build_roster
 from cortex_model_manager.supervisor import (
     DEFAULT_REAP_TIMEOUT_S,
     DEFAULT_STOP_GRACE_S,
     ModelStatus,
     ModelSupervisor,
+    StopBounds,
     SupervisorError,
     UnknownModelError,
 )
@@ -37,12 +38,14 @@ __all__ = [
     "ModelStatus",
     "ModelSupervisor",
     "RosterError",
+    "StopBounds",
     "SupervisorError",
     "TierArgs",
     "UnknownModelError",
     "build_app",
     "build_model_host",
     "build_roster",
+    "build_supervisor",
     "llama_server_argv",
     "main",
     "model_host_lifespan",

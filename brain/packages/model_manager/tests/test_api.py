@@ -11,7 +11,9 @@ Distrust-green proofs, measured across ``packages/model_manager`` one mutation a
 - dropping ``stop_all`` from the lifespan's ``finally`` reddens exactly 1,
   ``test_the_lifespan_starts_the_boot_model_and_stops_everything_on_the_way_down``;
 - swallowing a failed boot start without logging it reddens exactly 1,
-  ``test_a_boot_start_that_fails_is_logged_and_the_api_still_serves``.
+  ``test_a_boot_start_that_fails_is_logged_and_the_api_still_serves``;
+- answering ``/health`` with the shipped default bounds instead of the supervisor's own reddens
+  exactly 1, ``test_health_reports_the_daemon_the_roster_and_the_bounds_it_was_wired_with``.
 """
 
 import logging
@@ -33,6 +35,9 @@ from cortex_model_manager import (
 )
 
 _TINY = 0.05
+# Deliberately different from the grace, so an app that reported the two bounds in the wrong order
+# would be caught rather than pass on a coincidence.
+_TINY_REAP = 0.07
 
 
 def _wired(
@@ -41,7 +46,7 @@ def _wired(
     children = processes or FakeChildProcesses()
     probe = FakeProbe()
     supervisor = ModelSupervisor(
-        contract_roster(), children, probe, stop_grace_s=_TINY, reap_timeout_s=_TINY
+        contract_roster(), children, probe, stop_grace_s=_TINY, reap_timeout_s=_TINY_REAP
     )
     app = build_app(supervisor, boot_model=CORTEX)
     client = httpx.AsyncClient(transport=httpx.ASGITransport(app), base_url="http://model-host")
@@ -52,15 +57,26 @@ def _body(response: httpx.Response) -> dict[str, Any]:
     return cast("dict[str, Any]", response.json())
 
 
-async def test_health_reports_the_daemon_and_the_roster_it_serves() -> None:
-    """The compose healthcheck's route, and the first thing an operator asks the sidecar."""
+async def test_health_reports_the_daemon_the_roster_and_the_bounds_it_was_wired_with() -> None:
+    """The compose healthcheck's route, and the first thing an operator asks the sidecar.
+
+    The two bounds are on it because the pairing rule (their sum plus the probe timeout below the
+    brain's control-call deadline) is enforced nowhere, so what a running daemon actually got has
+    to be answerable without reading its container's env. They are read off the supervisor rather
+    than restated here, so a supervisor built with other numbers reports the other numbers.
+    """
     client, _, _ = _wired()
     try:
         response = await client.get("/health")
     finally:
         await client.aclose()
     assert response.status_code == HTTPStatus.OK
-    assert _body(response) == {"status": "ok", "models": [CORTEX, DEEP]}
+    assert _body(response) == {
+        "status": "ok",
+        "models": [CORTEX, DEEP],
+        "stop_grace_s": _TINY,
+        "reap_timeout_s": _TINY_REAP,
+    }
 
 
 async def test_start_then_status_then_stop_answer_the_state_each_left_behind() -> None:
