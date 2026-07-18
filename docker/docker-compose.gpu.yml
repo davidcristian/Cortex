@@ -110,13 +110,22 @@ services:
     # way; this only buys the clean path.
     stop_grace_period: 30s
     healthcheck:
-      # Deliberately not just "the daemon answers": it asserts the boot resident is READY, which is
-      # what the llama-cortex healthcheck meant and what `brain`'s depends_on needs. A control API
-      # that answers while the cortex is still loading would let the brain serve a turn that fails
-      # at the backend. The generous start_period covers loading a multi-GB GGUF off the bind mount.
+      # Deliberately not just "the daemon answers": it asserts a model that can serve a turn is
+      # READY, which is what the llama-cortex healthcheck meant and what `brain`'s depends_on
+      # needs. A control API that answers while the cortex is still loading would let the brain
+      # serve a turn that fails at the backend.
+      #
+      # "The cortex tier OR the deep tier", not the cortex alone, because a handoff deliberately
+      # stops the cortex: with the cortex alone in the predicate a WORKING escalation marked this
+      # container unhealthy for as long as it ran, and the runbook then read that as "the model is
+      # not serving" and had the operator start the cortex onto a GPU the deep model was already
+      # resident on. At cold boot the daemon starts only the cortex, so depends_on still gates on
+      # exactly what it gated on before. The second curl drops -S because a stock deployment names
+      # no deep artifact, so that tier is a 404 by design and its noise is not a diagnosis.
+      # The generous start_period covers loading a multi-GB GGUF off the bind mount.
       test:
         - "CMD-SHELL"
-        - 'curl -fsS http://127.0.0.1:9300/models/${CORTEX_MODEL_CORTEX:-cortex} | grep -q ''"state":"ready"'''
+        - 'curl -fsS http://127.0.0.1:9300/models/${CORTEX_MODEL_CORTEX:-cortex} | grep -q ''"state":"ready"'' || curl -fs http://127.0.0.1:9300/models/${CORTEX_MODEL_BRAIN:-brain} | grep -q ''"state":"ready"'''
       interval: 30s
       timeout: 5s
       retries: 5

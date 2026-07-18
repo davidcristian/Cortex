@@ -1040,3 +1040,24 @@ that, under a timeout so a poll cannot become a hang.
 
 What remains of decision 9: the honesty surfaces (item 6) and the host-side capstone (item 7,
 which now also owns the tier-scale swap, its chaos kill, and the deep-model pick).
+
+## Addendum (2026-07-18): the audit round on the real model host, and what it corrected
+
+Three adversarial audits of the sub-slice above found real defects. The repairs are recorded here
+because two of them change what this ADR's previous addendum says, and one of them corrects a
+measurement that addendum publishes.
+
+**The healthcheck asserts the cortex tier OR the deep tier is READY, not the cortex alone.** The
+addendum above says the check "reads `GET /models/{cortex}` and greps for `ready`, preserving that
+meaning exactly". That reading is what a handoff breaks: `swap_in` stops the cortex first, so a
+**working** escalation marked the container unhealthy for as long as it ran (`interval: 30s` times
+`retries: 5`, about 150 s, against a 300 s load bound), and the runbook's own diagnosis line then
+read that as "the model is not serving" and sent the operator to start the cortex onto a GPU the
+deep model was already resident on. Nothing in compose acts on unhealthy, so the harm was the
+scripted human action rather than an automated one, which is why it is a docs-and-predicate fix
+rather than a redesign. The predicate now accepts either tier. `brain`'s `depends_on:
+service_healthy` is unchanged in effect, because at cold boot the daemon starts only the cortex.
+Measured on the dev GPU with the small stand-ins, watching docker's own `State.Health.Status`:
+cortex stopped with the deep tier READY reads **healthy** (it read unhealthy before), both stopped
+reads unhealthy, and the deep model's load window still reads unhealthy because nothing is serving
+then, which the runbook now states as expected rather than as a fault.

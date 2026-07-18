@@ -135,9 +135,13 @@ which is the whole point of decision 3. The consequences worth knowing before ch
   `docker/docker-compose.modelhost-loopback.yml` is the opt-in override for host-side live tests,
   and it maps the two extra tiers to **different** host ports (9081, 9083) because their container
   ports are already published by `llama-embed` and `llama-subagent-qwen`.
-- **The compose healthcheck asserts the boot resident is READY**, not merely that the daemon
-  answers, because `brain` gates on it: a control API answering while the cortex is still loading
-  would let the brain serve a turn that fails at the backend.
+- **The compose healthcheck asserts a tier that can serve a turn is READY**, not merely that the
+  daemon answers, because `brain` gates on it: a control API answering while the cortex is still
+  loading would let the brain serve a turn that fails at the backend. It accepts the cortex tier
+  **or** the deep tier, because a handoff deliberately stops the cortex, and asserting the cortex
+  alone marked a working escalation unhealthy for its whole duration. At cold boot only the cortex
+  is started, so `depends_on` gates on exactly what it did before. The deep model's load window
+  still reads unhealthy (nothing is serving then), which the runbook states as expected.
 - **The cgroup caps are per container, so they are per supervisor and not per model.** ADR-0012
   asked for `--cpus`/`--memory`/`--memory-swap` on two `llama-server` sidecars; ADR-0030 collapsed
   the GPU one in here, so the cortex, the deep model and the GPU subagent are processes in ONE
