@@ -93,7 +93,15 @@ async def record_exchange(
     memory comes from an untainted turn; with ``record_tainted_memory`` on (ADR-0019) it is
     recorded instead with the untrusted-provenance marker, so recall fences it as data. One
     policy, applied identically by the cortex phase and by the brain phase after a swap.
+
+    An **opaque** turn is never recorded, whatever that setting says (ADR-0029). The licence for
+    recording a tainted turn rested on the raw untrusted payload never being persisted, and that
+    is false for vision: a capture turn's assistant reply *is* a transcription of the screen. A
+    user who switched recording on did not ask for their password manager to be summarized into
+    Postgres.
     """
+    if taint.opaque:
+        return
     if caps.memory is not None and (not taint.tainted or caps.record_tainted_memory):
         await caps.memory.record(
             render_exchange(query, reply), session_id=session_id, tainted=taint.tainted

@@ -19,6 +19,7 @@ from cortex_core import (
     EscalationSlot,
     HandoffState,
     HashEmbedder,
+    ImagePart,
     InferenceError,
     InferenceEvent,
     InMemoryHandoffStore,
@@ -1428,3 +1429,75 @@ async def test_an_approved_escalation_snapshots_to_a_ready_record_in_the_store()
     assert record.rounds_used == 1
     assert [message.role for message in record.loop_tail] == [Role.ASSISTANT, Role.TOOL]
     assert record.tainted is False  # the escalate result is our own trusted text
+
+
+class _CapturingRegistry:
+    """A one-tool registry standing in for the capture built-in: untrusted, with a picture."""
+
+    async def describe_tools(self) -> Sequence[ToolSpec]:
+        return [ToolSpec(name="look", description="look", parameters={})]
+
+    async def invoke(self, call: ToolCall) -> ToolResult:
+        picture = ImagePart(data=b"\x89PNG", mime_type="image/png", width=8, height=8)
+        return ToolResult(
+            call_id=call.id,
+            content="screen capture of the primary display",
+            trust=Trust.UNTRUSTED,
+            images=(picture,),
+        )
+
+
+def _capture_dispatcher(sink: RecordingAuditSink) -> ToolDispatcher:
+    return ToolDispatcher(_CapturingRegistry(), sink, TickingClock())
+
+
+async def test_a_turn_that_looked_at_the_screen_is_never_recorded_to_memory() -> None:
+    """Through the whole engine, with recording explicitly switched on. The ADR-0019 licence for
+    recording a tainted turn rested on the raw untrusted payload never being persisted, and a
+    capture turn's assistant reply IS a transcription of the screen."""
+    mem_store = InMemoryMemoryStore()
+    recaller = MemoryRecaller(mem_store, HashEmbedder(), SystemClock())
+    backend = ScriptedToolBackend(
+        [
+            [ToolCall(id="c1", name="look", arguments={})],
+            [TextChunk("your screen shows an invoice for 4200 euros")],
+        ]
+    )
+    engine = TurnEngine(
+        InMemorySessionStore(),
+        backend,
+        TickingClock(),
+        capabilities=TurnCapabilities(
+            memory=recaller,
+            tools=_capture_dispatcher(RecordingAuditSink()),
+            record_tainted_memory=True,
+        ),
+        turn_id_factory=lambda: "t-1",
+    )
+    await _collect(engine.handle_turn("s", "what is on my screen?"))
+    assert list(await recaller.recall("invoice", k=1, session_id="s")) == []
+
+
+async def test_a_turn_that_read_untrusted_text_is_still_recorded_with_the_flag_on() -> None:
+    """The control arm for the drop above: it is the opaque bit and not a tightening of taint."""
+    mem_store = InMemoryMemoryStore()
+    recaller = MemoryRecaller(mem_store, HashEmbedder(), SystemClock())
+    backend = ScriptedToolBackend(
+        [
+            [ToolCall(id="c1", name="read", arguments={"path": "/x"})],
+            [TextChunk("here is the summary")],
+        ]
+    )
+    engine = TurnEngine(
+        InMemorySessionStore(),
+        backend,
+        TickingClock(),
+        capabilities=TurnCapabilities(
+            memory=recaller,
+            tools=_read_dispatcher(RecordingAuditSink()),
+            record_tainted_memory=True,
+        ),
+        turn_id_factory=lambda: "t-1",
+    )
+    await _collect(engine.handle_turn("s", "summarize /x"))
+    assert len(await recaller.recall("summarize /x", k=1, session_id="s")) == 1

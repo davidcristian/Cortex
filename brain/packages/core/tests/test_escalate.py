@@ -24,11 +24,14 @@ from cortex_core import (
     MAX_BRIEF_CHARS,
     USER_DECLINED_MSG,
     CompositeToolRegistry,
+    DispatchBudget,
     DispatchPolicy,
     EscalateToBrainTool,
+    EscalationRefs,
     EscalationSlot,
     RecordingAuditSink,
     RecordingConfirmer,
+    TaintLedger,
     ToolCall,
     ToolDispatcher,
     Trust,
@@ -205,3 +208,56 @@ async def test_the_config_backstop_gates_escalation_even_if_the_flag_is_lost() -
     )
     assert result.content == USER_DECLINED_MSG
     assert slot.brief is None
+
+
+def _opaque_slot(*, opaque: bool) -> EscalationSlot:
+    """An armed slot whose turn did (or did not) look at the screen."""
+    return EscalationSlot(
+        refs=EscalationRefs(
+            working=[],
+            taint=TaintLedger(tainted=opaque, opaque=opaque),
+            nonce="cafe0123beef4567",
+            budget=DispatchBudget(8),
+            base_len=0,
+        )
+    )
+
+
+async def test_a_turn_that_looked_at_the_screen_cannot_escalate() -> None:
+    """Pixels are turn-local: no store persists them and the handoff record refuses them, so a
+    swap would hand the deep model a tool message saying a picture is attached with no picture
+    attached. The refusal reads the turn's opaque bit rather than hunting for images in the
+    tail, because the bit stays true exactly where the pixels cannot travel."""
+    slot = _opaque_slot(opaque=True)
+    result = await EscalateToBrainTool().invoke(
+        ToolCall(
+            id="c1",
+            name=ESCALATE_TOOL_NAME,
+            arguments={"brief": "go deep"},
+            stamp=TurnStamp(escalation=slot),
+        )
+    )
+    assert result.is_error is True
+    assert result.trust is Trust.TRUSTED
+    assert result.content == (
+        "REFUSED: this turn looked at the user's screen, and a picture cannot be handed to the "
+        "deep model, so no handoff was requested. Answer what you can yourself, and tell the "
+        "user to ask again in a fresh message if they still want the deep model."
+    )
+    assert slot.brief is None, "a refused escalation must not arm the slot"
+
+
+async def test_a_transparent_tainted_turn_still_escalates() -> None:
+    """The control arm: taint alone does not block the tool here (the dispatcher's gate handles
+    that), so the refusal above is measuring the opaque bit and nothing else."""
+    slot = _opaque_slot(opaque=False)
+    result = await EscalateToBrainTool().invoke(
+        ToolCall(
+            id="c1",
+            name=ESCALATE_TOOL_NAME,
+            arguments={"brief": "go deep"},
+            stamp=TurnStamp(escalation=slot),
+        )
+    )
+    assert result.is_error is False
+    assert slot.brief == "go deep"

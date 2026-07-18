@@ -15,10 +15,12 @@ EVIL = "https://evil.example/report"
 
 @dataclass
 class _Taint:
-    """A fake live ``TaintView``: the guardrail reads ``.tainted`` and ``.untrusted_urls`` at scan
-    time. Both are mutable so a test can grow them mid-stream, exactly as the real ledger does."""
+    """A fake live ``TaintView``: the guardrail reads ``.tainted``, ``.opaque`` and
+    ``.untrusted_urls`` at scan time. All are mutable so a test can grow them mid-stream,
+    exactly as the real ledger does."""
 
     tainted: bool = False
+    opaque: bool = False
     untrusted_urls: set[str] = field(default_factory=set[str])
 
 
@@ -698,3 +700,31 @@ def test_a_round_bracket_defang_separator_is_redacted() -> None:
 def test_a_bare_bracketed_colon_in_prose_is_not_a_url() -> None:
     # The separator only counts behind a scheme word, so ratio/emoticon prose is untouched.
     assert extract_urls("the ratio (:) here") == frozenset()
+
+
+def test_an_opaque_turn_is_scanned_strictly_under_the_default_policy() -> None:
+    """The default policy redacts URLs collected from untrusted result *text*. A URL painted
+    into pixels is never in that text, so the collected set is empty and the default is
+    structurally a no-op for exactly the laundering case vision introduces. Measured: the model
+    transcribes the attacker URL out of the image verbatim, framed or not."""
+    taint = _Taint(tainted=True, opaque=True)
+    guard = UrlRedactingGuardrail().open(taint, allow=frozenset())
+    fed = guard.feed(f"the screen says {EVIL} ") + guard.flush()
+    assert EVIL not in fed
+    assert REDACTED_LINK in fed
+
+
+def test_a_tainted_but_transparent_turn_keeps_the_default_policy() -> None:
+    """The control arm: without the opaque bit the same turn redacts only what it collected, so
+    the escalation above is the bit and not some blanket tightening."""
+    taint = _Taint(tainted=True, opaque=False)
+    guard = UrlRedactingGuardrail().open(taint, allow=frozenset())
+    fed = guard.feed(f"the page says {EVIL} ") + guard.flush()
+    assert fed == f"the page says {EVIL} "
+
+
+def test_an_opaque_turn_still_lets_a_url_the_user_sent_through() -> None:
+    taint = _Taint(tainted=True, opaque=True)
+    guard = UrlRedactingGuardrail().open(taint, allow=frozenset({EVIL}))
+    fed = guard.feed(f"you asked about {EVIL} ") + guard.flush()
+    assert fed == f"you asked about {EVIL} "

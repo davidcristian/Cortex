@@ -160,6 +160,14 @@ class EscalationSlot:
             msg = "EscalationSlot.snapshot requires an armed slot (no turn ever filled refs)"
             raise ValueError(msg)
         tail = tuple(self.refs.working[self.refs.base_len :])
+        if any(message.images for message in tail):
+            # The same rule the session stores enforce (ADR-0029): a handoff record is durable,
+            # and the record schema has no field for pixels, so accepting one would drop the
+            # picture in silence and hand the deep model a caption with nothing attached.
+            # ``escalate_to_brain`` refuses an opaque turn before it can reach here, so this is
+            # the structural backstop rather than the user-facing answer.
+            msg = "a handoff record never persists images: pixels are turn-local"
+            raise ValueError(msg)
         return HandoffRecord(
             handoff_id=turn_id,
             session_id=session_id,
