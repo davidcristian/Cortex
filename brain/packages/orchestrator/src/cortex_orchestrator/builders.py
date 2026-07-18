@@ -12,6 +12,8 @@ from cortex_core import (
     AggregateToolRegistry,
     BodyGateway,
     BuiltinTool,
+    CaptureBounds,
+    CaptureScreenTool,
     CharBudgetHistoryWindow,
     Clock,
     CompositeToolRegistry,
@@ -134,12 +136,17 @@ def build_builtin_tools(
     schedule_tools: Sequence[BuiltinTool] = (),
     *,
     escalation: bool = False,
+    vision: CaptureBounds | None = None,
 ) -> list[BuiltinTool]:
     """The cortex's built-in set, assembled once by the wiring (ADR-0025 decision 7)."""
     builtins: list[BuiltinTool] = [spawn_tool] if spawn_tool is not None else []
     if body is not None:
         builtins.append(GetVolumeTool(body))
         builtins.append(SetVolumeTool(body))
+        if vision is not None:
+            builtins.append(
+                CaptureScreenTool(body, max_edge=vision.max_edge, max_bytes=vision.max_bytes)
+            )
     if escalation:
         builtins.append(EscalateToBrainTool())
     builtins.extend(schedule_tools)

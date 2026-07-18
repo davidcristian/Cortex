@@ -62,6 +62,13 @@ def _encode(message: Message) -> str:
     )
 
 
+def _refuse_images(message: Message) -> None:
+    """Raise if ``message`` carries pixels. See ``append``."""
+    if message.images:
+        msg = "a session store never persists images: pixels are turn-local"
+        raise SessionStoreError(msg)
+
+
 def _decode(raw: bytes | str, index: int) -> Message:
     """Decode the record at ``index``; every failure names that record precisely."""
     try:
@@ -129,6 +136,7 @@ class RedisSessionStore:
 
     async def append(self, session_id: str, message: Message) -> None:
         """Persist one message and refresh the session's recency-index score (ADR-0021)."""
+        _refuse_images(message)
         try:
             await self._client.rpush(_key(session_id), _encode(message))
             await self._client.zadd(_SESSIONS_KEY, {session_id: message.at.timestamp()})

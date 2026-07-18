@@ -20,11 +20,13 @@ from redis.asyncio import Redis
 import cortex_orchestrator.builders as builders_module
 from cortex_body_client import GrpcBodyGateway
 from cortex_core import (
+    CAPTURE_SCREEN_TOOL_NAME,
     DENIED_MSG,
     GET_VOLUME_TOOL_NAME,
     RAW_RECALL_POLICY,
     SET_VOLUME_TOOL_NAME,
     USER_DECLINED_MSG,
+    CaptureBounds,
     CharBudgetHistoryWindow,
     DispatchPolicy,
     EchoInferenceBackend,
@@ -653,6 +655,45 @@ async def test_build_cortex_tools_adds_volume_tools_when_body_is_wired() -> None
     assert isinstance(tools, ToolDispatcher)
     advertised = {spec.name for spec in await tools.describe_tools()}
     assert advertised == {GET_VOLUME_TOOL_NAME, SET_VOLUME_TOOL_NAME}
+
+
+async def test_capture_screen_is_advertised_only_when_vision_is_available() -> None:
+    """It needs a body to take the picture and a model that can see it. Advertising it without
+    both spends the whole privacy cost of a screen read on an image nothing can read."""
+    without = build_builtin_tools(None, InMemoryBodyGateway())
+    assert [tool.spec.name for tool in without] == [GET_VOLUME_TOOL_NAME, SET_VOLUME_TOOL_NAME]
+
+    with_vision = build_builtin_tools(None, InMemoryBodyGateway(), vision=CaptureBounds())
+    assert [tool.spec.name for tool in with_vision] == [
+        GET_VOLUME_TOOL_NAME,
+        SET_VOLUME_TOOL_NAME,
+        CAPTURE_SCREEN_TOOL_NAME,
+    ]
+
+    assert build_builtin_tools(None, None, vision=CaptureBounds()) == []
+
+
+async def test_the_capture_bounds_reach_the_body_through_the_built_tool() -> None:
+    """A knob the composition root drops leaves the suite green and the bound unenforced, so
+    the plumbing is asserted at the far end: what the body was actually asked for."""
+    body = InMemoryBodyGateway()
+    builtins = build_builtin_tools(
+        None, body, vision=CaptureBounds(max_edge=1280, max_bytes=4_000_000)
+    )
+    capture = next(tool for tool in builtins if tool.spec.name == CAPTURE_SCREEN_TOOL_NAME)
+    await capture.invoke(ToolCall(id="c1", name=CAPTURE_SCREEN_TOOL_NAME, arguments={}))
+    assert [(ask.max_edge, ask.max_bytes) for ask in body.captures] == [(1280, 4_000_000)]
+
+
+async def test_capture_screen_is_ungated_by_default() -> None:
+    tools = build_cortex_tools(
+        None,
+        build_builtin_tools(None, InMemoryBodyGateway(), vision=CaptureBounds()),
+        SystemClock(),
+    )
+    assert isinstance(tools, ToolDispatcher)
+    gated = {spec.name: spec.gated for spec in await tools.describe_tools()}
+    assert gated[CAPTURE_SCREEN_TOOL_NAME] is False
 
 
 async def test_build_cortex_tools_volume_is_ungated_by_default() -> None:

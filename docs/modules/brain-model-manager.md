@@ -56,6 +56,11 @@ and `ModelStatus(model, state, detail)` as its answer. `stop_all()` is the shutd
 
 **The roster.** `ModelHostConfig` (env-only) builds `TierArgs` values, `tier_spec` turns each into
 a `ModelSpec(model, port, argv)` via `llama_server_argv`, and `build_roster` indexes them.
+`CORTEX_MMPROJ_FILE_CORTEX` (ADR-0029) adds llama.cpp's `--mmproj` pair to the **cortex** tier's
+argv, which is the whole of the vision wiring on this side: the projector loads beside the model,
+and the brain then discovers the capability from the running server's `/props` rather than from a
+second flag here that could disagree with it. Empty (the default) starts the tier text-only. The
+projector ships under the same read-only models mount, so no extra bind is needed.
 `RosterError` is a boot-time misconfiguration. `build_supervisor(config)` wires the supervisor and
 the probe client it owns (the three timing knobs are read off those two objects by a gated test,
 because nothing else in the process observes them), `build_model_host(config)` is the composition

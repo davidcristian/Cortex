@@ -6,6 +6,7 @@ from datetime import datetime
 from enum import Enum
 from typing import TYPE_CHECKING, Any
 
+from cortex_core.images import ImagePart
 from cortex_core.progress import ProgressSink
 from cortex_core.provenance import Provenance
 from cortex_core.tool_budget import DispatchBudget
@@ -69,6 +70,7 @@ class ToolResult:
     is_error: bool = False
     trust: Trust = Trust.UNTRUSTED
     source: Provenance | None = None
+    images: tuple[ImagePart, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)

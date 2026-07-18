@@ -14,7 +14,11 @@ Translators only: serialization, key layout, and error wrapping; no business log
   - `RedisSessionStore.from_url(url: str = DEFAULT_REDIS_URL)` builds and owns a
     client for `url`; release it via `aclose()` at composition-root shutdown.
   - `async append(session_id, message)` RPUSHes one JSON document onto the session's
-    list.
+    list. **Raises `SessionStoreError` on an image-bearing message** (ADR-0029): pixels are
+    turn-local, the record schema has no field for them, and accepting one would silently drop
+    the picture rather than store it. `InMemorySessionStore` refuses it identically, and the
+    shared contract suite runs the check against both, so a fake that accepted what the real
+    store rejects cannot let the invariant pass CI and fail in production.
   - `async history(session_id)` is LRANGE 0..-1, decoded in append order; an unknown
     session is an empty history, not an error.
   - `async list_sessions(*, limit)` builds the chat list (ADR-0021): round trip one reads BOTH

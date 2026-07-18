@@ -8,6 +8,8 @@ from cortex_core.conversation import Message, Role
 from cortex_core.tools import ToolCall, ToolResult, Trust
 from cortex_core.untrusted import wrap_untrusted
 
+# Half of ``MAX_TOOL_DISPATCHES``, so one round cannot spend a whole turn's reach before the
+# model has read any of that round's results.
 MAX_CALLS_PER_ROUND = 16
 
 
@@ -26,25 +28,32 @@ class RoundPlan:
 
 
 def plan_round(calls: Sequence[ToolCall]) -> RoundPlan:
-    """Which of a round's emitted calls reach the context (ADR-0009 round-cap addendum)."""
+    """Which of a round's emitted calls reach the context."""
+    # One call past the cap is kept and later refused, which is how the model learns the round
+    # was cut. Everything beyond that is dropped without being refused, audited or answered,
+    # because a refusal it could read would itself be the context growth this bounds.
     if len(calls) <= MAX_CALLS_PER_ROUND:
         return RoundPlan(tuple(calls), overflowed=False)
     return RoundPlan(tuple(calls[: MAX_CALLS_PER_ROUND + 1]), overflowed=True)
 
 
 def call_message(text: str, calls: Sequence[ToolCall], at: datetime, turn_id: str) -> Message:
-    """The assistant's tool-calling step, carrying its native ``tool_calls`` for re-inference."""
+    """The assistant's tool-calling step, with its native ``tool_calls`` for re-inference."""
     return Message(role=Role.ASSISTANT, text=text, at=at, turn_id=turn_id, tool_calls=tuple(calls))
 
 
 def result_message(result: ToolResult, at: datetime, turn_id: str, *, nonce: str) -> Message:
-    """One tool result fed back to the model, keyed to the call it answers.
-
-    UNTRUSTED content is fenced as inert data (ADR-0013); TRUSTED content passes through verbatim.
-    """
+    """One tool result fed back to the model, keyed to the call it answers."""
     text = (
         result.content
         if result.trust is Trust.TRUSTED
         else wrap_untrusted(result.content, nonce=nonce)
     )
-    return Message(role=Role.TOOL, text=text, at=at, turn_id=turn_id, tool_call_id=result.call_id)
+    return Message(
+        role=Role.TOOL,
+        text=text,
+        at=at,
+        turn_id=turn_id,
+        tool_call_id=result.call_id,
+        images=result.images,
+    )

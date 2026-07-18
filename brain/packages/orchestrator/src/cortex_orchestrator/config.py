@@ -15,6 +15,7 @@ from cortex_session import DEFAULT_REDIS_URL
 
 BodyBackendName = Literal["none", "grpc"]
 InferenceBackendName = Literal["echo", "llamacpp"]
+VisionMode = Literal["auto", "on", "off"]
 MemoryBackendName = Literal["none", "pgvector"]
 MemoryScopeName = Literal["global", "session"]
 MemoryRecallName = Literal["raw", "reranked", "mmr", "recency_mmr"]
@@ -97,6 +98,7 @@ class InferenceConfig(BaseSettings):
 
     backend: InferenceBackendName = "echo"
     endpoint: str = ""
+    vision: VisionMode = Field(default="auto", validation_alias="CORTEX_VISION")
 
     @model_validator(mode="after")
     def _llamacpp_needs_an_endpoint(self) -> "InferenceConfig":

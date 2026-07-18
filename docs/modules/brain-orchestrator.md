@@ -45,6 +45,10 @@ Config (pydantic-settings; explicit constructor arguments beat the environment):
   `endpoint: str = ""` (`CORTEX_INFERENCE_ENDPOINT`, the resident `llama-server` base
   URL). Validates that `llamacpp` has a non-empty `endpoint`. Echo is the GPU-less
   default (CI + no-GPU dev); `llamacpp` is opt-in, set by `docker/docker-compose.gpu.yml`.
+  `vision: "auto" | "on" | "off" = "auto"` (`CORTEX_VISION`, note the bare name rather than the
+  prefix, ADR-0029) decides whether `capture_screen` is advertised: `auto` probes the running
+  server, `on`/`off` fix the answer for CI, for a deterministic test, and for a user who
+  wants capture off without editing compose.
 - `MemoryConfig` uses env prefix `CORTEX_MEMORY_` (ADR-0008): `backend: "none" | "pgvector" =
   "none"` (`CORTEX_MEMORY_BACKEND`), `dsn: str = ""` (`CORTEX_MEMORY_DSN`),
   `embedder_endpoint: str = ""` (`CORTEX_MEMORY_EMBEDDER_ENDPOINT`), `embedder_model: str`
@@ -144,7 +148,12 @@ Config (pydantic-settings; explicit constructor arguments beat the environment):
 - `BodyConfig` uses env prefix `CORTEX_BODY_` (ADR-0023, Slice 9 brings the first brain→body seam
   direction, the brain as gRPC client of the host body's `BodyService`): `backend: "none" |
   "grpc" = "none"` (`CORTEX_BODY_BACKEND`), `endpoint: str = ""` (`CORTEX_BODY_ENDPOINT`, the
-  host body's bind, `host.docker.internal:50151` from the dockerized brain). Validates that
+  host body's bind, `host.docker.internal:50151` from the dockerized brain), plus three
+  screen-capture knobs (ADR-0029): `capture_max_edge: int = 0` and `max_image_bytes: int =
+  MAX_IMAGE_BYTES` (6 MiB) are what the brain asks the body for **and** holds the reply to,
+  since the body clamps both and an older body ignores both; `capture_timeout_s: float = 10.0`
+  is the only deadline on this seam, because a blit plus an encode is the only call that can
+  park a host thread. Validates that
   `grpc` has a non-empty `endpoint`. Off by default (CI + no-GPU dev never dial a host body);
   the shared `CORTEX_SEAM_TOKEN` (SeamServerConfig, not a `CORTEX_BODY_` var) authenticates the
   dial.
@@ -318,6 +327,15 @@ The service:
   `x-cortex-seam-token` metadata (empty = none), and returns it with its channel closer; `none`
   (default) returns `(None, no-op closer)`. Off by default so CI and the no-GPU dev loop never
   reach for a host body. The uniform closer keeps `run_from_env`'s shutdown backend-agnostic.
+- `vision_enabled(mode, endpoint, *, client=None) -> bool` (`vision.py`, ADR-0029) resolves
+  `CORTEX_VISION`: `on`/`off` answer without touching the network, `auto` calls `probe_vision`,
+  which does one `GET {endpoint}/props` and reads `modalities.vision`. The running server is
+  believed rather than a brain-side declaration, because the two can disagree and both
+  directions are bad: advertising vision the server lacks spends the whole privacy cost of a
+  screen read on an image nothing can read, and hiding vision the server has silently removes
+  the capability. Every failure (unreachable, non-2xx, unparseable, an unexpected `/props`
+  shape) counts as **no vision** and logs a structured warning. The probe is startup-only, so a
+  `llama-server` restarted without `--mmproj` mid-session leaves the tool advertised.
 - `ScheduleTicker(store, clock, settings: TickerSettings, *, spawn=None, body=None)`
   (`ticker.py`, ADR-0025) is the stateless firing loop. `TickerSettings` carries the pacing
   (`poll_s`, `lease`, `claim_limit`) plus the `zone: DisplayZone` a calendar item re-arms on
@@ -403,16 +421,24 @@ The service:
   evicts anything, and a second budget object would admit past the drain.
   The cortex's dispatcher is
   `build_cortex_tools(registry, builtins, clock, confirmer=..., policy=...)` over the
-  built-in set `build_builtin_tools(spawn_tool, body, schedule_tools=..., escalation=...)`
+  built-in set
+  `build_builtin_tools(spawn_tool, body, schedule_tools=..., escalation=..., vision=...)`
   assembles **once**
   (the one-sequence bundling that keeps the builder under the six-argument ceiling as
   capabilities accumulate, ADR-0025 d7): delegation, the two volume built-ins when a
-  `BodyGateway` is threaded in (ADR-0023), and the five schedule built-ins
+  `BodyGateway` is threaded in (ADR-0023), `capture_screen` when a body is threaded in **and**
+  the composition root confirmed the running model can see (a `CaptureBounds`, ADR-0029; its
+  absence is how "no vision" is expressed, and offering the tool without both would spend the
+  whole privacy cost of a screen read on an unreadable image), and the five schedule built-ins
   (`schedule_task`/`list_scheduled`/`cancel_scheduled`/`snooze_scheduled`/`edit_scheduled`,
   ADR-0025), plus `escalate_to_brain` when (and only when) a handoff can actually run
   (ADR-0030), all merged
   with the MCP tools via a `CompositeToolRegistry`, or `None` when nothing is enabled (the
-  Slice 3 turn path). The volume and schedule built-ins are ungated by default (reversible);
+  Slice 3 turn path). The volume, capture, and schedule built-ins are ungated by default
+  (`capture_screen` because a screen read is neither outbound nor irreversible, the confirm card
+  could not describe what it will capture since the call takes no arguments, and a gated call on
+  a tainted turn is hard-denied with the confirmer never consulted, which would make "read this
+  email, then look at my screen" structurally impossible);
   a user gates any by name in `CORTEX_TOOLS_GATED` (the dispatcher's authoritative backstop)
   and prices any by name in `CORTEX_TOOLS_COSTS`. All three declarations travel as one
   `DispatchPolicy`, so the cortex, the subagents, and the ticker are built from the same value

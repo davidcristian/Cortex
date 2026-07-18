@@ -16,12 +16,29 @@ from cortex_core import (
     TextChunk,
     ToolCall,
     ToolSpec,
+    data_uri,
 )
 from cortex_core.inference import InferenceEvent, JsonSchema
 
 _CHAT_COMPLETIONS_PATH = "/v1/chat/completions"
 _SSE_DATA_PREFIX = "data:"
 _SSE_DONE = "[DONE]"
+
+# How much of llama-server's error body to quote back. Long enough for its own message (a
+# missing multimodal projector reads as its own hint rather than a bare 500) and short enough
+# that a server which answers HTML never floods the log.
+_ERROR_EXCERPT_CHARS = 300
+
+
+async def _raise_for_status(response: httpx.Response, model: str) -> None:
+    """Raise on a non-2xx, quoting a bounded excerpt of the body."""
+    if not response.is_error:
+        return
+    body = (await response.aread()).decode("utf-8", errors="replace").strip()
+    excerpt = body[:_ERROR_EXCERPT_CHARS]
+    detail = f": {excerpt}" if excerpt else ""
+    msg = f"llama-server answered {response.status_code} for model {model!r}{detail}"
+    raise InferenceError(msg)
 
 
 @dataclass
@@ -33,10 +50,25 @@ class _PendingCall:
     arguments: str = ""
 
 
+def _tool_content(message: Message) -> object:
+    """The ``content`` of a tool message: a plain string, or a content-parts array with images."""
+    if not message.images:
+        return message.text
+    parts: list[dict[str, object]] = [{"type": "text", "text": message.text}]
+    parts.extend(
+        {"type": "image_url", "image_url": {"url": data_uri(image)}} for image in message.images
+    )
+    return parts
+
+
 def _to_openai_message(message: Message) -> dict[str, object]:
     """Map one core ``Message`` onto an OpenAI chat message, tool structure included."""
     if message.role is Role.TOOL:
-        return {"role": "tool", "tool_call_id": message.tool_call_id, "content": message.text}
+        return {
+            "role": "tool",
+            "tool_call_id": message.tool_call_id,
+            "content": _tool_content(message),
+        }
     if message.tool_calls:
         return {
             "role": message.role.value,
@@ -160,7 +192,7 @@ class LlamaCppBackend:
             async with self._manager.acquire(model) as lease:
                 url = f"{lease.endpoint}{_CHAT_COMPLETIONS_PATH}"
                 async with self._client.stream("POST", url, json=payload) as response:
-                    response.raise_for_status()
+                    await _raise_for_status(response, model)
                     async for line in response.aiter_lines():
                         stripped = line.strip()
                         if not stripped.startswith(_SSE_DATA_PREFIX):

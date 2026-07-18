@@ -6,6 +6,7 @@ from dataclasses import replace
 from cortex_core import (
     AsyncioSleeper,
     BrainPhase,
+    CaptureBounds,
     Confirmer,
     EscalatingTurnEngine,
     ProgressSink,
@@ -48,6 +49,7 @@ from cortex_orchestrator.schedule_builders import (
 from cortex_orchestrator.server import SeamPorts, serve
 from cortex_orchestrator.subagent_builders import build_subagent_tools, build_subagents
 from cortex_orchestrator.swap_builders import build_swap_runtime, swap_closer
+from cortex_orchestrator.vision import vision_enabled
 from cortex_session import RedisSessionStore
 
 
@@ -89,8 +91,11 @@ async def run_from_env(
         ),
     )
     schedules, close_schedules = build_schedule(schedule_config, runtime.redis_url)
-    # The built-in set is confirmer-independent, so it is assembled once (ADR-0025 d7);
-    # the ticker fires beside `serve` and is stopped before its store closes.
+    capture = (
+        CaptureBounds(max_edge=body_config.capture_max_edge, max_bytes=body_config.max_image_bytes)
+        if body is not None and await vision_enabled(inference.vision, inference.endpoint)
+        else None
+    )
     builtins = build_builtin_tools(
         spawn_tool,
         body,
@@ -98,6 +103,7 @@ async def run_from_env(
             schedule_config, schedules, clock, tasks_enabled=spawn_tool is not None
         ),
         escalation=swap is not None,
+        vision=capture,
     )
     ticker = build_ticker(
         schedule_config,
