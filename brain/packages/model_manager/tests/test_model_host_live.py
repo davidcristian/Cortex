@@ -10,17 +10,23 @@ the real signal escalation against processes that actually exist, which is the h
 cannot prove (that SIGTERM reaches a real process, that a process ignoring it is killed, and that
 ``stop`` does not return until the OS has reaped it).
 
-The second test needs the ``model-host`` sidecar up with a small model in its roster:
+The remaining two need the ``model-host`` sidecar up with the control API reachable:
 
-    just up-gpu     # or the modelhost stack of docs/runbooks/model-swap.md
-    CORTEX_MODELHOST_ENDPOINT=http://127.0.0.1:9300 \
-    CORTEX_MODELHOST_LIVE_MODEL=cortex \
-    uv run pytest -m integration --no-cov packages/model_manager
+    just up-modelhost-loopback
+    just brain-modelhost-live
 
-It starts, health-gates, and stops one real ``llama-server``, through the real adapter and the
-real health gate, and leaves the sidecar as it found it. It never asserts anything about VRAM
-arithmetic or tier scale: the dev GPU cannot hold the real cortex beside a real deep model, so
-that half is host-side by design.
+The first of those starts, health-gates and stops one real ``llama-server`` through the real
+adapter and the real health gate. The second is the swap itself: a real ``SwappingModelManager``
+residency scope over the real adapter, so entering the scope genuinely evicts one model's process
+and loads another's, and leaving it genuinely restores the first. Both leave the sidecar as they
+found it, and neither asserts anything about VRAM arithmetic or tier scale: the dev GPU cannot
+hold the real cortex beside a real deep model, so that half is host-side by design
+(``docs/runbooks/model-swap.md``).
+
+Distrust-green, measured against the running sidecar rather than argued: deleting
+``residency_moves.swap_in``'s ``stop`` of the standing resident reddens
+``test_a_residency_scope_really_evicts_one_model_and_loads_another`` with both tiers reporting READY
+at once, which is the eviction half nothing else here would catch.
 """
 
 import asyncio
@@ -36,6 +42,7 @@ from cortex_core import (
     AsyncioSleeper,
     ModelHostState,
     ResidencyPlan,
+    SwappingModelManager,
     await_model_ready,
 )
 from cortex_model_manager import (
@@ -52,6 +59,9 @@ _MODEL = "stand-in"
 _GRACE_S = 0.5
 # How long the trapping shell gets to arm itself before the test gives up rather than hanging.
 _ARM_TIMEOUT_S = 5.0
+# The control plane's own deadline, matching the brain's CORTEX_MODELHOST_TIMEOUT_S default: a stop
+# answers only once the child is reaped, so this must clear the sidecar's grace plus reap bounds.
+_CONTROL_TIMEOUT_S = 60.0
 
 
 class _SystemClock:
@@ -132,7 +142,7 @@ async def test_the_real_adapter_starts_health_gates_and_stops_a_real_model() -> 
     if not endpoint:
         pytest.skip("set CORTEX_MODELHOST_ENDPOINT to a running model-host sidecar")
     model = os.environ.get("CORTEX_MODELHOST_LIVE_MODEL", "cortex")
-    client = httpx.AsyncClient(timeout=httpx.Timeout(30.0))
+    client = httpx.AsyncClient(timeout=httpx.Timeout(_CONTROL_TIMEOUT_S))
     host = HttpModelHost(endpoint, client)
     plan = ResidencyPlan(cortex_model=model, brain_model=model, load_timeout_s=300.0)
     try:
@@ -149,4 +159,52 @@ async def test_the_real_adapter_starts_health_gates_and_stops_a_real_model() -> 
         # Leave the tier this ran against loaded, which is the sidecar's boot default when the
         # model is the standing resident (the default) and is the caller's to undo when it is not.
         await host.start(model)
+        await client.aclose()
+
+
+@pytest.mark.integration
+async def test_a_residency_scope_really_evicts_one_model_and_loads_another() -> None:
+    """The swap, over real weights: the closest thing to a handoff that fits the dev GPU.
+
+    Drives the shipped ``SwappingModelManager`` (the same object the conductor drives) over the
+    real adapter, so entering the scope runs the real eviction, the real spawn and the real health
+    gate against two ``llama-server`` processes, and leaving it runs the real restore. What it
+    asserts is read back from the sidecar through the port, never from the manager's own
+    bookkeeping: inside the scope the deep tier's process is READY and the standing resident's is
+    gone, and after it the reverse.
+
+    Needs two tiers in the roster (name a ``CORTEX_MODEL_FILE_BRAIN`` artifact) and enough VRAM for
+    whichever pair the deployment configured; on the dev GPU that means small stand-ins, and it is
+    skipped rather than failed when the deep tier is not hosted.
+    """
+    endpoint = os.environ.get("CORTEX_MODELHOST_ENDPOINT")
+    if not endpoint:
+        pytest.skip("set CORTEX_MODELHOST_ENDPOINT to a running model-host sidecar")
+    standing = os.environ.get("CORTEX_MODEL_CORTEX", "cortex")
+    deep = os.environ.get("CORTEX_MODEL_BRAIN", "brain")
+    client = httpx.AsyncClient(timeout=httpx.Timeout(_CONTROL_TIMEOUT_S))
+    host = HttpModelHost(endpoint, client)
+    plan = ResidencyPlan(cortex_model=standing, brain_model=deep, load_timeout_s=300.0)
+    manager = SwappingModelManager(
+        host,
+        {standing: "http://127.0.0.1:8080", deep: "http://127.0.0.1:8081"},
+        plan,
+        _SystemClock(),
+        AsyncioSleeper(),
+    )
+    try:
+        if await host.status(deep) is ModelHostState.FAILED:
+            pytest.skip(f"the deep tier {deep!r} is not hosted (no artifact named for it)")
+        await host.start(standing)
+        async with manager.swap_scope(deep):
+            # The gate inside swap_scope already waited for READY; what is asserted here is the
+            # eviction half, which nothing else would catch: a swap that loaded the deep model
+            # without stopping the standing one would leave both processes alive.
+            assert await host.status(deep) is ModelHostState.READY
+            assert await host.status(standing) is ModelHostState.STOPPED
+            async with manager.acquire(deep) as lease:
+                assert lease.endpoint == "http://127.0.0.1:8081"
+        assert await host.status(standing) is ModelHostState.READY
+        assert await host.status(deep) is ModelHostState.STOPPED
+    finally:
         await client.aclose()
