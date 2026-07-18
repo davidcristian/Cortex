@@ -14,7 +14,9 @@ from cortex_core.aggregate import FilteredToolRegistry as FilteredToolRegistry
 from cortex_core.aggregate import GatedToolRegistry as GatedToolRegistry
 from cortex_core.aggregate import SkipUnavailableToolRegistry as SkipUnavailableToolRegistry
 from cortex_core.aggregate import UngatedToolRegistry as UngatedToolRegistry
+from cortex_core.body import ScreenCapture as ScreenCapture
 from cortex_core.body import VolumeState as VolumeState
+from cortex_core.body import captured_at_from_unix_ms as captured_at_from_unix_ms
 from cortex_core.brain_phase import BrainPhase as BrainPhase
 from cortex_core.composite import BuiltinTool as BuiltinTool
 from cortex_core.composite import CompositeToolRegistry as CompositeToolRegistry
@@ -66,8 +68,10 @@ from cortex_core.fakes import RecordingAuditSink as RecordingAuditSink
 from cortex_core.fakes import RecordingConfirmer as RecordingConfirmer
 from cortex_core.fakes import RecordingProgressSink as RecordingProgressSink
 from cortex_core.fakes import SystemClock as SystemClock
+from cortex_core.fakes_body import CaptureAsk as CaptureAsk
 from cortex_core.fakes_body import InMemoryBodyGateway as InMemoryBodyGateway
 from cortex_core.fakes_body import SentNotification as SentNotification
+from cortex_core.fakes_body import default_capture as default_capture
 from cortex_core.fakes_handoff import InMemoryHandoffStore as InMemoryHandoffStore
 from cortex_core.fakes_model_host import ScriptedModelHost as ScriptedModelHost
 from cortex_core.fakes_schedule import InMemoryScheduleStore as InMemoryScheduleStore
@@ -86,6 +90,12 @@ from cortex_core.handoff import EscalationSlot as EscalationSlot
 from cortex_core.handoff import HandoffRecord as HandoffRecord
 from cortex_core.handoff import HandoffState as HandoffState
 from cortex_core.health_gate import await_model_ready as await_model_ready
+from cortex_core.images import ALLOWED_MIME_TYPES as ALLOWED_MIME_TYPES
+from cortex_core.images import MAX_IMAGE_BYTES as MAX_IMAGE_BYTES
+from cortex_core.images import MAX_IMAGE_EDGE as MAX_IMAGE_EDGE
+from cortex_core.images import ImageError as ImageError
+from cortex_core.images import ImagePart as ImagePart
+from cortex_core.images import data_uri as data_uri
 from cortex_core.inference import InferenceEvent as InferenceEvent
 from cortex_core.inference import JsonSchema as JsonSchema
 from cortex_core.inference import ReasoningChunk as ReasoningChunk

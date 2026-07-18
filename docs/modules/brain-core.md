@@ -376,10 +376,34 @@ Roster domain (Slice 8.6, ADR-0018; in `roster.py`):
   entry (`""` = default); an unknown name on a clean tool-less path → `None` (the runner fails
   it closed).
 
-Body-gateway domain (Slice 9, ADR-0023; in `body.py`):
+Body-gateway domain (Slice 9, ADR-0023; Slice 10, ADR-0029; in `body.py`):
 
 - `VolumeState` is a frozen value: `level: float` (0-1), `muted: bool`. One reading of the host's
   system volume (the shape both `get_volume` and `set_volume` return across the brain→body seam).
+- `ScreenCapture` is a frozen value: `image: ImagePart`, `source_width`/`source_height: int`,
+  `captured_at: datetime`, plus a `downscaled` property. One picture of the host's primary
+  display. The image size is what arrived *after* the body's downscale and the source size is
+  the display's own, which is what lets the capture tool tell the model it is looking at a
+  shrunk view rather than leaving it to guess why small text is illegible. The name matches the
+  body's Rust `ScreenCapture` trait on purpose: they are the two ends of one capability.
+- `captured_at_from_unix_ms(ms)` reads the seam's epoch milliseconds as an aware UTC datetime.
+
+Images (Slice 10, ADR-0029; in `images.py`, which imports only the standard library so
+`tools.py`, `conversation.py`, and `body.py` may all depend on it):
+
+- `ImagePart(data, mime_type, width, height)` is a frozen value whose `__post_init__` raises
+  `ImageError` on empty bytes, a mime outside `ALLOWED_MIME_TYPES`
+  (`image/png`, `image/jpeg`, `image/webp`), a dimension outside `1..MAX_IMAGE_EDGE` (8192), or
+  more than `MAX_IMAGE_BYTES` (6 MiB, `6291456`) of data.
+- `data_uri(part)` renders the `data:<mime>;base64,<payload>` form an OpenAI content-parts array
+  takes, using stdlib `base64` only.
+- **The core never decodes an image.** Everything here checks declarations and encodes; no
+  attacker-controlled bytes reach a decoder inside the process that holds the memory store.
+- `MAX_IMAGE_BYTES` is the domain half of a ceiling the body enforces too (its
+  `MAX_CAPTURE_BYTES` is the same number). Nothing mechanical couples the two constants across
+  the language boundary, so each is pinned to the literal in its own toolchain, and the brain
+  sends this number to the body as the capture request's `max_bytes` rather than trusting the
+  body to hold an equal constant.
 
 Untrusted-content boundary (Slice 6.5, ADR-0013; the pure primitives in `untrusted.py`):
 
@@ -661,8 +685,13 @@ unchanged):
   handoff before evicting anything. `undrain` reverses the window; the conductor owes it in a
   `finally` (swap-back and abort alike), so admission always resumes. Both are idempotent.
 - `BodyGateway` provides `async get_volume() -> VolumeState`,
-  `async set_volume(*, level=None, mute=None) -> VolumeState` (ADR-0023): the brain-side handle on
-  the host body's OS actions. It is the first brain→body seam direction (the brain dials the body's
+  `async set_volume(*, level=None, mute=None) -> VolumeState` (ADR-0023),
+  `async notify(...) -> bool` (ADR-0025), and
+  `async capture_screen(*, max_edge=0, max_bytes=0) -> ScreenCapture` (ADR-0029, where both
+  arguments are hints the body clamps and an older body ignores, so the adapter re-verifies the
+  reply): the brain-side handle on
+  the host body's OS actions. A capture is attempted **exactly once and never retried**, because
+  a repeat photographs a different screen and fires a second host receipt for one user intent. It is the first brain→body seam direction (the brain dials the body's
   `BodyService`). Absent kwargs leave that field alone; an unreachable body surfaces as
   `BodyGatewayError`. The real adapter is `cortex_body_client`'s `GrpcBodyGateway` over the gRPC
   seam, opt-in and off by default (wired at the composition root, not here).
@@ -1333,7 +1362,10 @@ Reference implementations (pure, shipped in core; the runtime wiring until Slice
   `RedisScheduleStore` (ADR-0025). Lives in `fakes_schedule.py` (`fakes.py` is at its line-cap
   budget). Does not survive a restart, by design. The Redis adapter proves the hard rule.
 - `InMemoryBodyGateway` fakes `BodyGateway` in memory: `get_volume` returns the held `VolumeState`
-  and `set_volume` clamps a present `level` to `[0,1]` before applying the given fields; a `fail`
+  and `set_volume` clamps a present `level` to `[0,1]` before applying the given fields;
+  `capture_screen` records the hints it was sent as a `CaptureAsk` and answers the `capture`
+  kwarg or `default_capture()` (a 1x1 view of a 2x2 screen, so the downscaled branch is
+  exercised by default); a `fail`
   kwarg scripts an unreachable body (`BodyGatewayError`). Contract twin of `cortex_body_client`'s
   `GrpcBodyGateway`, no live body.
 - `InMemoryTaskStore` is a dict-backed `TaskStore`; contract twin of the Redis adapter (Slice 7

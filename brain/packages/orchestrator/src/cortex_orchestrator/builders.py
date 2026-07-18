@@ -184,11 +184,14 @@ async def build_body_gateway(
     volume tools are never registered. ``grpc`` opens a channel to the host body's ``BodyService``
     and attaches the shared seam ``token`` (ADR-0016) on every call; the returned closer closes
     the channel. The channel connects lazily, so an unreachable body fails a volume call (a
-    recoverable ``is_error`` result), never brain startup.
+    recoverable ``is_error`` result), never brain startup. ``capture_timeout_s`` becomes the
+    deadline on the one call that can park a host thread (ADR-0029).
     """
     if config.backend != "grpc":
         return None, noop_aclose
-    return await GrpcBodyGateway.connect(config.endpoint, token=token)
+    return await GrpcBodyGateway.connect(
+        config.endpoint, token=token, capture_timeout_s=config.capture_timeout_s
+    )
 
 
 def build_builtin_tools(
