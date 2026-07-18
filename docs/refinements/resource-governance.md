@@ -8,7 +8,8 @@ recommended pickup order.
 
 **Open items:** CUDA-OOM re-place on CPU, the real GPU-placed runtime mechanism, the Intel NPU as
 a third placement target, a bounded admission wait, a read timeout on the subagent HTTP client,
-the drain bound against a fired task's lease
+the drain bound against a fired task's lease, admission reopening onto a tier that would not
+restart
 
 **Resource governance in Slice 8.5 ([ADR-0012](../adr/ADR-0012-resource-governance.md)):** each behind
 the unchanged `SubagentPlacer`/`SubagentScheduler`/`ModelManager` ports.
@@ -90,6 +91,21 @@ the unchanged `SubagentPlacer`/`SubagentScheduler`/`ModelManager` ports.
   the fix is a defaults decision informed by real usage, not a design change; the trigger is a
   deployment where scheduled work and escalation collide often enough to notice. Killing a
   subagent mid-stream to make the drain succeed stays refused (v1 never does).
+- **Admission reopens even onto a tier the swap back could not restart.** *Fix when it bites.*
+  Opened 2026-07-18 by the pass that made the drain window wait for the standing residency. The
+  window now lifts only after the residency scope has restored the cortex and restarted every
+  `evict_models` tier, and every reopening is witnessed against what was actually running. But
+  the tier restart is deliberately best effort ([ADR-0030](../adr/ADR-0030-brain-handoff.md)
+  decision 4: a tier that will not come back must not be reported as the cortex being gone), so a
+  `ModelHostError` on that start is logged and swallowed, and `undrain` then reopens admission
+  onto a subagent server that is not running. The next delegated run fails at its backend and
+  degrades to an `ok=False` result, which is honest but wasteful, and nothing retries the tier
+  until the next handoff or a restart. Nothing is at stake today: `CORTEX_SWAP_EVICT_MODELS` is
+  empty until the real lifecycle sub-slice, so no tier is ever evicted. The fix wants the residency
+  state the honesty-surfaces sub-slice introduces (a tier known to be down, so the placer skips it
+  and something retries the start) rather than a scheduler change, which is why it is recorded
+  here and not built: keeping the pool drained instead would be worse, since it would trade every
+  delegated run for the ones that would have been placed on that one tier.
 - **A read timeout on the subagent HTTP client.** *Fix when it bites.* The actual unbounded-wait
   hazard under the admission budget: `build_subagents` builds
   `httpx.Timeout(LLAMACPP_CONNECT_TIMEOUT_S, read=None)`, so one wedged `llama-server` stream holds

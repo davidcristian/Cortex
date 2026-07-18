@@ -12,19 +12,16 @@ from swap_harness import (
     RecordingHandoffStore,
     RecordingSessionStore,
     ScriptedBrainBackend,
+    WitnessingScheduler,
+    assert_the_window_announced_real_progress,
     build_harness,
 )
 
 from cortex_core import (
     ALREADY_ACTIVE_NOTE,
     BRAIN_FAILED_NOTE,
-    DRAINING_DETAIL,
-    LOADING_DETAIL,
-    RESTORING_DETAIL,
     SWAP_FAILED_NOTE,
     SWAPPING_STATE,
-    WORKING_DETAIL,
-    AdmitAllScheduler,
     HandoffRecord,
     HandoffState,
     ModelHostState,
@@ -49,10 +46,6 @@ _EVICTED = (("stop", "cortex"),)
 _SWAPPED_IN = (*_EVICTED, ("start", "brain"))
 _SWAPPED_BACK = (*_SWAPPED_IN, ("stop", "brain"), ("start", "cortex"))
 
-# The swap window's four steps, in the only order they can honestly happen. Every case's status
-# details are a PREFIX of this: a handoff that stopped early says less, never something else.
-_SWAP_WINDOW = [DRAINING_DETAIL, LOADING_DETAIL, WORKING_DETAIL, RESTORING_DETAIL]
-
 # The turn id of the escalation that comes AFTER a broken one, which is what proves a handoff
 # the store could not settle did not wedge the escalation path for the rest of the process.
 _LATER_TURN = "t-later"
@@ -69,7 +62,7 @@ async def _settle(turns: int = 5) -> None:
         await asyncio.sleep(0)
 
 
-class _PausingScheduler(AdmitAllScheduler):
+class _PausingScheduler(WitnessingScheduler):
     """A pool that pauses the handoff at a drain boundary: inside the window, or once drained."""
 
     def __init__(self, *, mid: Gate | None = None, after: Gate | None = None) -> None:
@@ -137,7 +130,7 @@ async def _consume(live: Harness, events: list[TurnEvent], *, turn_id: str = har
     )
     try:
         async for event in stream:
-            events.append(event)  # noqa: PERF401 - a live stream, read one event at a time
+            events.append(live.observe(event))  # noqa: PERF401 - a live stream, one at a time
     finally:
         await stream.aclose()
 
@@ -153,9 +146,13 @@ async def assert_converged_on_cortex(live: Harness) -> None:
     if ("stop", live.residency.cortex_model) in live.host.calls:
         # Anything that evicted the cortex owes the restore; the scope's finally is what pays.
         assert ("start", live.residency.cortex_model) in live.host.calls
-    assert live.host.running == {live.residency.cortex_model, *live.residency.evict_models}
+    standing = {live.residency.cortex_model, *live.residency.evict_models}
+    assert live.host.running == standing
     assert live.host.calls.count(("start", live.residency.brain_model)) <= 1  # nothing double-ran
     assert live.backend.calls <= 1  # the deep model answered at most once
+    if live.scheduler.drains:  # a handoff torn down before the drain never opened a window
+        assert live.scheduler.reopened
+    assert all(running == standing for running in live.scheduler.reopened)
     await _admit(live)
 
 
@@ -197,16 +194,15 @@ async def assert_stores_intact(
 
 def assert_stream_ended_honestly(live: Harness, events: list[TurnEvent], *, killed: bool) -> None:
     """Invariant 4: no event claimed progress the machine had not actually made."""
-    states: list[str] = []
+    details: list[str] = []
     for event in events:
         assert isinstance(event, StatusUpdate | TextDelta)
         if isinstance(event, StatusUpdate):
             assert event.state == SWAPPING_STATE
-            states.append(event.detail)
-    assert states == _SWAP_WINDOW[: len(states)]
-    if WORKING_DETAIL in states:
-        assert HandoffState.BRAIN_ACTIVE in live.handoffs.states
-        assert ("start", live.residency.brain_model) in live.host.calls
+            details.append(event.detail)
+    # The witnesses are what the assertions below run on, so they must be this stream's own.
+    assert [witness.detail for witness in live.statuses] == details
+    assert_the_window_announced_real_progress(live)
     if not killed:
         assert any(isinstance(event, TextDelta) for event in events)
 
@@ -504,15 +500,48 @@ async def test_closing_the_stream_mid_handoff_unwinds_the_swap_rather_than_aband
     )
     events: list[TurnEvent] = []
     async for event in stream:
-        events.append(event)
-        if isinstance(event, StatusUpdate) and event.detail == WORKING_DETAIL:
-            break
+        events.append(live.observe(event))
+        if isinstance(event, TextDelta):
+            break  # the deep model is mid-answer: its round is open and so is the scope
     assert live.host.running == {"brain"}  # the swap really is in flight
+    assert live.backend.closed is False
     await stream.aclose()
-    # No settling and no cancellation: closing the stream is itself what owes the swap back.
+    # No settling and no cancellation: closing the stream is itself what owes the swap back,
+    # the deep model's round, and (only once both are done) the drain window.
     assert live.host.running == {"cortex"}
+    assert live.backend.closed is True  # the innermost teardown, which nothing else can see
     await assert_converged_on_cortex(live)
     await assert_stores_intact(live, killed=True)
+    assert_stream_ended_honestly(live, events, killed=True)
+    await assert_the_next_turn_still_works(live)
+
+
+async def test_a_second_cancellation_during_the_swap_back_still_holds_the_drain_window_shut() -> (
+    None
+):
+    """Two cancellations, which is what the seam actually delivers, must not free the pool early."""
+    gate = Gate()
+    host = ScriptedModelHost(running=["cortex", "subagent-gpu"])
+    _arm(host, "start", "cortex", gate)  # the swap back, held open mid-restore
+    live = build_harness(Fakes(host=host), residency=harness.plan(evict_models=("subagent-gpu",)))
+    await live.seed_session()
+    events: list[TurnEvent] = []
+    task = asyncio.create_task(_consume(live, events))
+    await gate.arrived()
+    # Mid-restore: the deep model is gone, the cortex is coming up, the tier is still stopped
+    # (it is started back only after the cortex gates ready).
+    assert live.host.running == {"cortex"}
+    task.cancel()
+    await _settle()  # the first cancellation reaches the shielded wait
+    task.cancel()  # and here comes the one that used to abandon it
+    await _settle()
+    assert not live.scheduler.reopened  # nothing may have reopened while the GPU is empty
+    gate.release.set()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+    await _settle()
+    await assert_converged_on_cortex(live)
+    await assert_stores_intact(live, deep_reply="a deep answer", killed=True)
     assert_stream_ended_honestly(live, events, killed=True)
     await assert_the_next_turn_still_works(live)
 

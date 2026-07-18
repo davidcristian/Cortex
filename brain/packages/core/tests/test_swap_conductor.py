@@ -7,7 +7,13 @@ from collections.abc import Mapping, Sequence
 
 import pytest
 import swap_harness as harness
-from swap_harness import Fakes, RecordingHandoffStore, ScriptedBrainBackend, build_harness
+from swap_harness import (
+    Fakes,
+    RecordingHandoffStore,
+    ScriptedBrainBackend,
+    assert_the_window_announced_real_progress,
+    build_harness,
+)
 
 from cortex_core import (
     ALREADY_ACTIVE_NOTE,
@@ -95,6 +101,10 @@ async def test_a_clean_handoff_walks_the_record_through_its_states() -> None:
     # strings themselves are the assertion: a count cannot tell a reordered or mislabelled
     # window from a truthful one, and these four are the only thing the user sees for minutes.
     assert _states(events) == [DRAINING_DETAIL, LOADING_DETAIL, WORKING_DETAIL, RESTORING_DETAIL]
+    # And each of them was true when it crossed. An order among the four strings is satisfied
+    # by four strings emitted at any four moments, so the work each one announces is what
+    # actually pins it (the harness holds that contract, and the chaos suite runs it too).
+    assert_the_window_announced_real_progress(live)
 
 
 async def test_the_deep_model_answers_from_the_store_and_persists_a_second_message() -> None:
@@ -252,7 +262,11 @@ async def test_a_deployment_without_a_subagent_pool_has_nothing_to_drain() -> No
     events = await harness.run_handoff(live, harness.armed_slot())
     assert _texts(events) == "a deep answer"
     assert live.scheduler.admitted == []
+    assert live.scheduler.drains == 0  # the pool it was not given was never quiesced
     assert live.handoffs.states[-1] is HandoffState.DONE
+    # The window still says the truth, drain step included: it announces a quiescing that has
+    # nothing to quiesce, and every later status is pinned to the same work as anywhere else.
+    assert_the_window_announced_real_progress(live)
 
 
 async def test_a_deep_model_that_will_not_load_ends_the_turn_honestly() -> None:

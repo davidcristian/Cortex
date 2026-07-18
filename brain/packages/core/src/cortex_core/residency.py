@@ -92,14 +92,22 @@ class SwappingModelManager:
     async def _restore_uninterruptibly(self, model: str) -> None:
         """Run the restore to completion even while this caller is being cancelled."""
         restore = asyncio.create_task(self._restore(model))
-        try:
-            await asyncio.shield(restore)
-        except asyncio.CancelledError:
-            await asyncio.wait([restore])
+        cancelled: asyncio.CancelledError | None = None
+        while not restore.done():
+            try:
+                await asyncio.shield(restore)
+            except asyncio.CancelledError as err:
+                cancelled = err
+            except ResidencyRestoreError:
+                # Raised below instead, so that a cancellation delivered first still wins: the
+                # caller is being torn down and that is the graver thing to tell it about.
+                pass
+        if cancelled is not None:
             # Retrieved so asyncio does not warn about it; a restore failure has already been
             # logged loudly inside, and the cancellation is what the caller must see.
             restore.exception()
-            raise
+            raise cancelled
+        await restore
 
     async def _claim(self, model: str) -> str:
         """The endpoint ``model`` may be leased from, once any active scope has ended."""

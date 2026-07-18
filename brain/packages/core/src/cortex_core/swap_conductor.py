@@ -94,8 +94,6 @@ class SwapConductor:
                 async for event in swap:
                     yield event
             finally:
-                # Deterministic teardown of the inner generator: a consumer that closes this
-                # one must unwind the residency scope, not abandon it to the garbage collector.
                 await swap.aclose()
         except BaseException:
             # Cancellation and stream teardown included: a handoff that stops being run is a

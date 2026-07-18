@@ -426,6 +426,15 @@ that was never loaded. The claim was replaced with a measurement rather than an 
 plugin supplied for the run only, three seeds over `packages/core` and one over the whole brain
 workspace, all green, with the collected order proven to differ between seeds), and making the
 shuffle standing was deferred with its trigger.
+Resource governance went 6 to 7 later on 2026-07-18, from the pass that made the drain window wait
+for the standing residency rather than for the enclosing `finally` to get there first. Closing the
+swap generator is what restores the cortex and restarts every evicted tier, and `undrain` runs
+after it, so admission cannot reopen mid swap back; what the same reading exposed is that the tier
+half of that restore is best effort by design, so **admission reopens even onto a tier that would
+not restart**. It is unreachable today (no deployment evicts a tier yet) and its fix belongs with
+the residency state the honesty-surfaces sub-slice introduces, so it is recorded rather than
+built. The defect behind the pass was real and is fixed, not deferred: the shielded restore waited
+for one cancellation, and the seam delivers two.
 
 ## Recommended order
 
@@ -726,7 +735,12 @@ fence-without-block recall mode, per-provenance eviction, and the screening suba
 send batching / session allowlists ([email-confirmer.md](email-confirmer.md)); the NPU as a
 third placement target pending its feasibility pass, plus the two the admission wall opened,
 a bounded admission wait and a read timeout on the subagent HTTP client, whose triggers are a
-turn observably stalled in admission and a wedged `llama-server` stream respectively
+turn observably stalled in admission and a wedged `llama-server` stream respectively, joined on
+2026-07-18 by admission reopening onto a tier the swap back could not restart (the drain window
+now waits for the standing residency, but restarting an evicted tier is deliberately best effort,
+so a tier that refuses to come back is logged and admission reopens onto it anyway; nothing is at
+stake until `CORTEX_SWAP_EVICT_MODELS` is non-empty, and the fix wants residency state the placer
+can skip a downed tier by, not a scheduler change)
 ([resource-governance.md](resource-governance.md)); fencing the single-handoff claim across
 processes, opened here on 2026-07-18 because today's deployment runs one brain process, so the
 in-process claim covers every claimant there is and the racy store check backstops nothing that
