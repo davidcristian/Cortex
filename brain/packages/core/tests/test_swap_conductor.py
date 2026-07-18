@@ -31,7 +31,11 @@ Distrust-green proofs (each mutation reddened the named test, then was restored)
   ``test_a_clean_handoff_walks_the_record_through_its_states`` and
   ``test_a_deployment_without_a_subagent_pool_has_nothing_to_drain``, through the window
   witness the harness takes at each yield. The plain order assertion beside it catches none of
-  the four, which is why the witness exists.
+  the four, which is why the witness exists;
+- dropping the last of those four statuses entirely, rather than moving it, reddens those same
+  two cases and nothing else in the package (measured 2026-07-18 over ``packages/core``), at
+  the four-string equality in each and not at the witness: the witness reads the details as a
+  PREFIX of the window, so a window that simply stopped early satisfies it.
 """
 
 import asyncio
@@ -294,7 +298,11 @@ async def test_a_drain_that_times_out_aborts_before_anything_is_evicted() -> Non
     assert _texts(events) == DRAIN_TIMEOUT_NOTE
     assert live.host.calls == []  # nothing evicted: the cortex is still serving
     assert live.handoffs.states == [HandoffState.READY, HandoffState.FAILED]
-    assert not task.done()  # and the straggler was not killed
+    # Premise rather than claim, as in the chaos suite's twin of this case: this test's own
+    # event is what holds the straggler, and nothing in the conductor could release it, v1
+    # killing no subagent mid-stream. What it buys is that the abort above really did happen
+    # with work still in flight.
+    assert not task.done()
     release.set()
     await task
     # The window was released even though the handoff aborted, so delegation resumes.
@@ -303,16 +311,25 @@ async def test_a_drain_that_times_out_aborts_before_anything_is_evicted() -> Non
 
 
 async def test_a_deployment_without_a_subagent_pool_has_nothing_to_drain() -> None:
-    """No pool, no drain step: the handoff runs with the scheduler simply absent."""
+    """No pool, no drain step: the handoff runs with the scheduler simply absent.
+
+    Nothing here reads the harness's unused pool. The conductor was handed ``None``, so that
+    object records nothing whatever the conductor does, and a line asserting it stayed empty
+    would be satisfied by this test rather than by the code. What a pool-less deployment really
+    constrains is asserted instead: the sequence runs through to a deep answer and a ``DONE``
+    record, which is the drain step answering "nothing to quiesce" rather than aborting and the
+    reopening it never owes passing harmlessly through the ``finally``.
+    """
     live = build_harness(with_scheduler=False)
     await live.seed_session()
     events = await harness.run_handoff(live, harness.armed_slot())
     assert _texts(events) == "a deep answer"
-    assert live.scheduler.admitted == []
-    assert live.scheduler.drains == 0  # the pool it was not given was never quiesced
     assert live.handoffs.states[-1] is HandoffState.DONE
-    # The window still says the truth, drain step included: it announces a quiescing that has
-    # nothing to quiesce, and every later status is pinned to the same work as anywhere else.
+    # And the window still says the truth, drain step included: it announces a quiescing that
+    # has nothing to quiesce. All four details, whole, because the witness below reads them as a
+    # PREFIX and a window that simply stopped early satisfies that; here the announcement of a
+    # drain this deployment never performs is the whole point.
+    assert _states(events) == [DRAINING_DETAIL, LOADING_DETAIL, WORKING_DETAIL, RESTORING_DETAIL]
     assert_the_window_announced_real_progress(live)
 
 

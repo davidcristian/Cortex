@@ -834,3 +834,62 @@ condition until the real `drain` closes admission around it. Removing that wait 
 suite green, because the loop resumes the handoff into `drain` before the case can look either
 way. It stays, a boundary that holds only by ready-queue order being no boundary, but its
 docstring now says plainly that it is scaffolding rather than something the assertions pin.
+
+## Addendum (2026-07-18): the reopening deferral is recorded where it was created
+
+A closing pass over the conductor sub-slice. No production behaviour changed with this note,
+nothing about decisions 1 to 9 changes, and **still no real model swap has been validated**, for
+the reason every addendum above gives.
+
+**A deferral with two of its three records is a gate violation.** The doc-first Definition of Done
+asks for three: the area doc under `docs/refinements/`, its line in the refinements index, and a
+dated addendum at the origin ADR. The last deferral this sub-slice opened, **admission reopening
+even onto a tier the best-effort restart could not bring back**, had the first two and not the
+third. It belongs here and not at ADR-0012 because both halves that create it are decisions of
+this ADR: decision 4 makes restarting each `CORTEX_SWAP_EVICT_MODELS` tier deliberately best
+effort, since a tier that will not come back must not be reported as the cortex being gone, so a
+`ModelHostError` on that start is logged and swallowed; and the same decision's ordering runs
+`undrain` after the swap generator's `aclose`, so admission reopens the moment the restore
+returns, whether or not the tier came back with it. The `SubagentScheduler` port is untouched by
+either half (`drain` and `undrain` behave exactly as the ADR-0012 addendum landed them) and the
+fix below is residency state rather than a scheduler change. The sibling deferral this sub-slice
+opened into the same area doc, the drain bound sitting under a fired task's schedule lease, is
+recorded at this ADR for the same reason.
+
+**What is actually true.** The drain window now lifts only after the residency scope has restored
+the cortex and asked every evicted tier back, and each reopening is witnessed in the chaos suite
+against what the host was really running at that instant. What the best-effort restart leaves is
+the narrower case: the cortex is back, one tier is not, its failure is in the log, and the pool
+starts admitting delegated work onto a subagent server that is not running. That run then fails at
+its backend and degrades to an `ok=False` "refused before running" result, which is honest but
+wasteful, and nothing retries the tier until the next handoff or a restart.
+
+**Why nothing is at stake today.** `CORTEX_SWAP_EVICT_MODELS` is empty by default and no
+GPU-placed subagent tier is hosted until the model-host sub-slice, so no tier is ever evicted and
+there is nothing that can fail to come back.
+
+**What would close it.** Not keeping the pool drained after a failed restart, which trades every
+delegated run for the ones that would have gone to that one tier. It wants the residency state the
+honesty-surfaces sub-slice introduces: a tier known to be down, so the placer skips it while
+something retries the start, after which `undrain` can reopen unconditionally because admission no
+longer implies that every tier is serving. **Trigger:** a deployment that evicts a tier at all
+(`CORTEX_SWAP_EVICT_MODELS` non-empty over the real model host) and sees one refuse to restart.
+Recorded in [docs/refinements/resource-governance.md](../refinements/resource-governance.md) and
+its [index](../refinements/index.md).
+
+**Two more assertions that could not fail, and one comment that read as a claim.** The species this
+sub-slice kept producing, an assertion satisfied by the harness rather than by the code, cost two
+more lines. The pool-less deployment case asserted that the harness's scheduler had admitted
+nothing and drained nothing, over a conductor constructed with `scheduler=None`, so no
+implementation could have moved either number. What that deployment really constrains is asserted
+instead: the sequence still reaches a deep answer and a `DONE` record, which is the drain step
+answering "nothing to quiesce" rather than aborting, and the window still announces the quiescing
+it has nothing to perform, as all four details whole rather than as the prefix the per-status
+witness checks (dropping the last status reddens that case and the clean one, and nothing else in
+the package). The mid-drain boundary case asserted that its straggler task was still running, which
+its own harness holds at a gate; the case now asserts what the conductor owes at that boundary and
+had not been asked for, that the record is written and `READY` before anything touches the pool
+(persisting the snapshot after the drain instead reddens it there, and nothing else in the suite
+sees the ordering while the drain is still running), and the straggler lines stay as the stated
+premise of the boundary rather than as a finding about the code. The conductor suite's drain-timeout
+case has the same premise line and now says so too.
