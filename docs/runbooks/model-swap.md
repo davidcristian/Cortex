@@ -36,9 +36,22 @@ Other knobs: `CORTEX_MODEL_BRAIN` (the deep tier's logical id, default `brain`),
 
 **One pairing to keep, because nothing validates it for you.** The sidecar's `stop` answers only
 once the child is dead and reaped, so it can legitimately take `CORTEX_MODELHOST_STOP_GRACE_S`
-(10 s) plus `CORTEX_MODELHOST_REAP_TIMEOUT_S` (30 s) before replying. Keep their sum **below**
-the brain's `CORTEX_MODELHOST_TIMEOUT_S`, or a slow-but-correct eviction reads as a dead sidecar
-and aborts a handoff that was working.
+(10 s) plus `CORTEX_MODELHOST_REAP_TIMEOUT_S` (30 s) before replying, **plus**
+`CORTEX_MODELHOST_PROBE_TIMEOUT_S` (5 s) when a `status` got the tier's lock first: `status` holds
+the same per-model lock as `stop` and probes the child's `/health` inside it, and the compose
+healthcheck asks for a status every 30 s, so a queued one is the normal case, not a corner. So the
+rule is
+
+    probe_timeout_s + stop_grace_s + reap_timeout_s  <  CORTEX_MODELHOST_TIMEOUT_S
+
+which the shipped defaults satisfy (5 + 10 + 30 = 45 < 60). Measured against a SIGSTOPped child on
+the shipped grace: a stop whose lock was free took **10.89 s**, and the same stop issued 0.2 s
+behind a `GET /models/cortex` took **15.70 s**, that status itself taking **5.80 s**, which is the
+probe timeout plus its request overhead. Both stops ended correctly (`stopped`, no `llama-server`
+left). Tuning by the grace and the reap alone (say 20 and 35, a compliant sum of 55) reaches 60 s,
+the control client times out, and the handoff aborts although the eviction was working.
+`GET /health` reports the two stop bounds the daemon actually got, which is how you check a running
+container rather than its env.
 
 ## Bringing the real host up
 
@@ -84,15 +97,20 @@ Every number is one observation on this card, not a benchmark.
 |---|---|---|
 | boot | `up -d model-host` | control API answering at once; cortex child spawned, `{"state":"loading","detail":"pid 9 is not serving yet"}`; compose healthcheck went `healthy` when it turned ready |
 | resident | `GET /models/cortex` | `{"state":"ready","detail":"serving on port 8080"}`; `/v1/models` on 8080 named the 0.8B path; VRAM 3501 MiB (about 985 MiB for the model) |
-| evict | `POST /models/cortex/stop` | answered in **0.40 s**; no `llama-server` in `ps`; 8080 refused connections; VRAM back to **2513 MiB** |
+| evict, idle child | `POST /models/cortex/stop` | answered in **0.40 s**; no `llama-server` in `ps`; 8080 refused connections; VRAM back to **2513 MiB** |
+| evict, child mid answer | `POST /models/cortex/stop` with a stream in flight | answered in **10.09 s** (**10.90 s** in a second run): llama-server logged `cleaning up before exit` and then did **not** exit, so the full `CORTEX_MODELHOST_STOP_GRACE_S` (10 s) was paid, it was SIGKILLed, and the reap plus the HTTP round trip account for the rest. The shipped tiers run `--parallel 1`, so one in-flight request blocks the graceful exit. This is the eviction cost to plan for, not the idle number |
 | load | `POST /models/brain/start` | answered in **0.007 s**, which is a spawn and not a load; `loading` immediately after |
 | health gate | poll `GET /models/brain` | `ready` **18.0 s** after the start; `/v1/models` on 8081 named the 2B path; exactly one `llama-server` in `ps`; cortex still `stopped`; VRAM 3952 MiB |
-| swap back | `POST /models/brain/stop` then `POST /models/cortex/start` | stop answered in **0.10 s**; cortex `ready` **11.3 s** later, serving the 0.8B path again; deep tier `stopped` |
+| swap back | `POST /models/brain/stop` then `POST /models/cortex/start` | stop answered in **0.10 s** with the child idle; cortex `ready` **11.3 s** later, serving the 0.8B path again; deep tier `stopped` |
 | the scope | `SwappingModelManager.swap_scope(deep)` over the real adapter (`just brain-modelhost-live`) | inside the scope the deep tier was READY and the standing one STOPPED, and the endpoint the lease handed out was the deep tier's; after it, the reverse. Deleting the eviction from `swap_in` reddens it with both tiers READY at once |
 | end to end | one `Converse` turn through the brain container | `Health` ready, `text_delta`s, `turn_complete`; the reply came off the supervised child over `http://model-host:8080` |
 
 Tier scale will be minutes rather than seconds on both halves: an 18 GB GGUF off the model mount at
-the measured mount read rate is what `CORTEX_SWAP_LOAD_TIMEOUT_S` (300 s) exists for.
+the measured mount read rate is what `CORTEX_SWAP_LOAD_TIMEOUT_S` (300 s) exists for. The eviction
+half is sub-second only while the child is **idle**; every path that evicts a tier which was
+answering (the cancellation restore, and the shutdown sweep) pays the whole grace per busy tier,
+which is what `stop_grace_period: 45s` on the container is sized for (3 tiers x 10 s plus slack,
+the sweep being sequential).
 
 ## Failure modes, each observed rather than reasoned about
 

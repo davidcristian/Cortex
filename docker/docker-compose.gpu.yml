@@ -80,10 +80,15 @@ services:
       CORTEX_SUBAGENTS_PARALLEL: "${CORTEX_SUBAGENTS_PARALLEL:-2}"
       # How long a child gets on SIGTERM before it is killed, and how long a killed one gets to be
       # reaped. `stop` does not answer until the child is gone, because a swap starts the next
-      # model immediately after. Keep their sum BELOW the brain's CORTEX_MODELHOST_TIMEOUT_S
-      # (60 s), or a slow-but-correct eviction reads as a dead sidecar.
+      # model immediately after. Keep the sum of these two AND the probe timeout (5 s, which a
+      # status queued on the same per-model lock can add to a stop) BELOW the brain's
+      # CORTEX_MODELHOST_TIMEOUT_S (60 s), or a slow-but-correct eviction reads as a dead sidecar.
+      # The grace is not slack: measured, an idle llama-server exits in ~0.14 s but one with a
+      # request in flight ignores SIGTERM and is killed after the full grace, so this is what
+      # evicting a busy tier really costs. GET /health reports the two the daemon was given.
       CORTEX_MODELHOST_STOP_GRACE_S: "${CORTEX_MODELHOST_STOP_GRACE_S:-10}"
       CORTEX_MODELHOST_REAP_TIMEOUT_S: "${CORTEX_MODELHOST_REAP_TIMEOUT_S:-30}"
+      CORTEX_MODELHOST_PROBE_TIMEOUT_S: "${CORTEX_MODELHOST_PROBE_TIMEOUT_S:-5}"
     volumes:
       # Models stay on the Windows drive, mounted read-only (ADR-0004 d3). Forward slashes
       # work in Docker Desktop on Windows; override the source with CORTEX_MODELS_DIR.
@@ -104,11 +109,14 @@ services:
       # a live test is the opt-in docker-compose.modelhost-loopback.yml override.
       - "127.0.0.1:8080:8080"
     restart: unless-stopped
-    # The graceful shutdown sweep stops every child before the daemon exits; docker's default 10 s
-    # would cut it short while a tier-scale model was still unloading. The ungraceful backstop is
-    # the runtime, which kills a child whose container is gone (measured), so nothing leaks either
-    # way; this only buys the clean path.
-    stop_grace_period: 30s
+    # The graceful shutdown sweep stops every child before the daemon exits, one tier at a time, so
+    # size this by the sum and not by one stop: a child with a request in flight pays the whole
+    # SIGTERM grace (measured 10.09 s, it does not honour the signal), and the roster holds up to
+    # three tiers, so 3 x 10 s plus slack. Docker's default 10 s would cut the first tier short.
+    # A child that survives even SIGKILL is deliberately outside this: the runtime then kills the
+    # container, which takes its children with it (measured), so nothing leaks either way and this
+    # only buys the clean path.
+    stop_grace_period: 45s
     healthcheck:
       # Deliberately not just "the daemon answers": it asserts a model that can serve a turn is
       # READY, which is what the llama-cortex healthcheck meant and what `brain`'s depends_on

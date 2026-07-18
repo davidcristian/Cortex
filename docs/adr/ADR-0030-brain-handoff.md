@@ -1061,3 +1061,44 @@ Measured on the dev GPU with the small stand-ins, watching docker's own `State.H
 cortex stopped with the deep tier READY reads **healthy** (it read unhealthy before), both stopped
 reads unhealthy, and the deep model's load window still reads unhealthy because nothing is serving
 then, which the runbook now states as expected rather than as a fault.
+
+**The eviction half is sub-second only while the child is idle, and the addendum above overstates
+it.** That addendum says "the eviction half is sub-second (SIGTERM to reaped in 0.10 to 0.40 s)".
+Re-measured on the dev GPU with a stream in flight against the stand-in: `llama-server` logs
+`cleaning up before exit` and then does **not** exit, because the shipped tiers run `--parallel 1`
+and one in-flight request blocks the graceful exit, so the whole `CORTEX_MODELHOST_STOP_GRACE_S` is
+paid and the child is SIGKILLed: **10.09 s** end to end, and 10.90 s in a second run. The idle
+number (0.40 s) is real and is what a swap-back eviction of a quiet tier costs; the busy number is
+what the paths that evict a tier which was answering cost (the cancellation restore, and the
+shutdown sweep). Nothing is unsafe, since 10 s of grace plus 30 s of reap still clears the brain's
+60 s control deadline, but two things followed from it: the grace must not be tuned down on the
+strength of the idle number, and the container's `stop_grace_period` was sized by one stop rather
+than by the sequential sweep, so it is now 45 s (three tiers times the grace, plus slack) instead
+of 30 s. A sweep cut short is not a leak either way, because the runtime's kill of the container
+takes the children with it.
+
+**The timeout pairing has three terms, not two.** The addendum above states the rule as the SIGTERM
+grace plus the reap bound below `CORTEX_MODELHOST_TIMEOUT_S`. It omits `probe_timeout_s`:
+`ModelSupervisor.status` takes the **same per-model lock** as `stop` and probes the child inside it,
+and the compose healthcheck asks for a status every 30 s on exactly the tier `swap_in` stops first,
+so a stop queued behind a status is the normal case. Measured against a SIGSTOPped child on the
+shipped grace: the stop took 10.89 s with the lock free and 15.70 s when issued 0.2 s behind a
+status, the status itself taking 5.80 s. The shipped defaults are safe (5 + 10 + 30 = 45 < 60), but
+a user tuning by the two-term rule to a compliant-looking 20 + 35 would reach the deadline and
+abort a working handoff, so the rule is now written with all three terms in the runbook and at
+`DEFAULT_MODELHOST_TIMEOUT_S`. Moving the probe out from under the lock was rejected: a status that
+read the child, released the lock, then probed could report READY for a tier a concurrent stop had
+already ended, which is the readiness lie the lock exists to prevent. `GET /health` now reports the
+two stop bounds the daemon was actually given, so the pairing can be checked against a running
+container rather than against its env.
+
+**The daemon's own log was empty, which mattered more than it looks.** `uvicorn.run` configures
+uvicorn's loggers and leaves root alone, so every INFO lifecycle line the sidecar logged was
+dropped and the one WARNING that escaped went through logging's last-resort handler. Measured in
+the image before the fix: twenty start and stop calls produced twenty access-log lines and not one
+line naming which tier was started or stopped. This ADR's own decision 3 tradeoff (children inherit
+the daemon's streams, so a failed child's reason lives in `docker logs` rather than in the API's
+`detail`) and the runbook's diagnosis step both depend on that log, so the trail was the diagnosis
+and it was not there. `main` now configures the root logger, and each line carries its tier, pid and
+port in the message as well as in `extra`, because a plain stdlib formatter renders no `extra`
+(the tool audit sink documents the same pattern).

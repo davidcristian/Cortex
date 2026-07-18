@@ -149,9 +149,13 @@ which is the whole point of decision 3. The consequences worth knowing before ch
   three collectively). The values are user-tunable placeholders; note that llama.cpp mmaps the
   GGUF, so mapped model pages count against the memory cap and a cap below the artifact size makes
   a load thrash rather than fail.
-- **`stop_grace_period` is 30 s**, above docker's default 10 s, so the graceful shutdown sweep can
-  finish unloading a tier-scale model. The ungraceful backstop is the runtime, which kills a child
-  whose container is gone (measured), so nothing leaks either way.
+- **`stop_grace_period` is 45 s**, above docker's default 10 s, because the shutdown sweep stops
+  the tiers **one at a time** and a child with a request in flight pays the whole SIGTERM grace
+  (measured: an idle `llama-server` exits in ~0.14 s, a busy one does not honour SIGTERM at all and
+  is killed after the grace, 10.09 s end to end). Three tiers times a 10 s grace plus slack is the
+  arithmetic. A child that survives even SIGKILL is deliberately outside it: the runtime then kills
+  the container, which takes its children with it (measured), so nothing leaks either way and the
+  period only buys the clean path.
 
 ## Testing
 
