@@ -497,6 +497,24 @@ with 15 s to spare, and the repair added `GET /health` reporting of the two stop
 the half that makes enforcement newly possible. Enforcing it is deferred with its trigger, because
 the brain would then have to depend on the sidecar answering at wiring time, which today it
 deliberately does not.
+Body & overlay held at 3 on 2026-07-18 when the honesty-surfaces sub-slice made `Health` read
+residency, which is not a count change but is the biggest movement of the day: **streamed brain
+status** was the last entry in this backlog blocked on a *producer*, and it is not any more.
+The rule the connection indicator shipped on ("any successful call means the brain is ready") has
+expired exactly where the entry predicted it would, and the amber Degraded path it shipped shaped
+and tested finally has something to show, with zero overlay change. The entry moved from "blocked
+on Slice 11" to "actionable, but a seam or port change comes first", where what it now waits on is
+honest: a push RPC is proto plus both stubs plus a consumer that needs the brain to speak first,
+which probe-on-summon and the escalating stream's own chips do not yet make anyone want.
+Two adjacent entries were re-read against what actually landed rather than left to imply their own
+blockers cleared, since both name "the residency state the honesty-surfaces sub-slice introduces".
+Neither cleared: the state that landed is one published report about what the GPU is serving, with
+no per-tier down-ness (so **admission reopening onto a tier that would not restart** still has
+nothing to skip a dead tier by) and no staleness generation (so **reconverging the brain's
+residency when the sidecar restarts under it** still has nothing to compare a boot id against, and
+gained a second way to go stale: an operator who fixes the GPU by hand leaves the report saying the
+usual assistant could not be reloaded until the brain restarts, which the runbook's recovery already
+ends with). Both say so in their own entries now.
 
 ## Recommended order
 
@@ -522,6 +540,17 @@ and free of a prior blocker.
   stand-in check would be a gate that cannot fail. Lands with (or immediately after) the vision
   slice's pixel-taint increment: a typed refusal in `escalate.py` telling the model to ask the
   user to retry in a fresh message, so escalation never widens pixel persistence.
+- **Streamed brain status** ([body-overlay.md](body-overlay.md)): the push half of the landed
+  connection indicator, unblocked on 2026-07-18 and now waiting on a seam change plus a consumer
+  rather than on a producer. Both halves of the producer exist: the escalating turn streams
+  `StatusUpdate(state="swapping")` through drain, load, work and restore (2026-07-17), and
+  `Health` now answers `ready=false` with a truthful residency detail **between** turns
+  (2026-07-18, ADR-0030 decision 6), which lit the landed indicator amber with zero overlay
+  change. So the rule that any successful call means the brain is ready has expired, as this
+  entry predicted, and what is left is the push itself: a server-streamed status RPC is
+  proto + both stubs + a consumer, and probe-on-summon plus the stream's own chips cover personal
+  scale. Pick it up when something needs the brain to speak first (a status the overlay cannot
+  ask for at the moment it changes, rather than on its next 5 s recheck).
 - **Session-history summarization + the model-based reranker**
   ([session-history.md](session-history.md), [memory.md](memory.md)): both blocked on a sync
   port going async (`HistoryWindow.select`, `RecallPolicy.select`) and both inherit the same
@@ -567,16 +596,9 @@ and free of a prior blocker.
   from the record, so a tainted turn stays tainted and the output guardrail opens over the URL
   evidence the cortex collected (mutation-proven). Only the harness run itself, which needs the
   real ~31B tier, remains here.
-- **Streamed brain status** ([body-overlay.md](body-overlay.md)): the push half of the landed
-  connection indicator. It waits on a *producer*, not a consumer: `Health` answers ready
-  unconditionally today, so nothing can report a state the overlay cannot ask for, and a swap
-  that makes the brain not-ready between turns is what would create one. The rule that any
-  successful call means the brain is ready expires at the same moment. Half of that producer
-  arrived on 2026-07-17: an escalating turn now streams `StatusUpdate(state="swapping")` through
-  drain, load, work, and restore on the stream the user already holds (no proto change, the
-  overlay renders it as a chip today). The entry stays blocked on the other half, `Health`
-  answering `ready=false` with a truthful detail **between** turns, which ADR-0030 keeps in its
-  honesty-surfaces sub-slice.
+- Nothing of the overlay's streamed-brain-status entry remains here: its producer became whole on
+  2026-07-18 and the entry moved up to "actionable, but a seam or port change comes first"
+  ([body-overlay.md](body-overlay.md)).
 
 ### Host-side Windows validation only
 

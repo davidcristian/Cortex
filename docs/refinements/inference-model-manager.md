@@ -86,16 +86,24 @@ variants, disable-thinking / token-budget capping
   tier's endpoint answers nothing), the swap back's `stop`/`start` are idempotent and harmless
   against a sidecar that already did both, and the claim is released in the conductor's `finally`,
   so the failure is honest and self-limiting; what is lost is that one handoff, plus a window where
-  `Health` would misreport residency once the honesty-surfaces sub-slice makes it read residency at
-  all. **Nothing is at stake with escalation off** (the default), because the plain
+  `Health` misreports residency. That last half stopped being a prediction on 2026-07-18: the
+  honesty-surfaces sub-slice made `Health` answer from the manager's published report, so a brain
+  whose beliefs a sidecar restart invalidated now shows an amber dot naming a swap that is not
+  happening (or a green one over a GPU that lost its model), until the handoff fails and the scope
+  restores. **Nothing is at stake with escalation off** (the default), because the plain
   `SingleResidentModelManager` holds no residency state: a sidecar restart is then invisible to the
   brain, which was confirmed live (a turn answered normally straight after the restart).
   **What would close it:** the daemon exposing a boot id or generation counter on `GET /health`, the
   adapter carrying it, and the manager treating a change in it as "everything I believe about
   residency is stale, converge again" (which is `converge_residency`, already written, called from
-  somewhere other than startup). That is a wire addition plus a caller, not a port change. It pairs
-  naturally with the residency state the honesty-surfaces sub-slice introduces, since both want a
-  place to keep "what is actually resident" that is not an attribute nobody revisits.
+  somewhere other than startup). That is a wire addition plus a caller, not a port change. The
+  residency state that landed on 2026-07-18 is where the answer would be published, but it did
+  **not** close any of this: `ResidencyReport` says what the GPU is serving in one line for a human,
+  carries no generation to compare a boot id against, and is still written only by the swap itself.
+  The same landing added a second way for it to go stale, with the same fix: after a restore that
+  gave up, an operator who brings the cortex back by hand (`docs/runbooks/model-swap.md` step 2)
+  leaves the report saying the usual assistant could not be reloaded until the brain restarts, which
+  is why that runbook's recovery ends by restarting it.
   **Trigger:** a sidecar that restarts (an OOM kill, a crash, an operator's `docker compose restart
   model-host`) while a handoff is in flight over the supervisor backend, seen more than once.
 - **Check the sidecar's stop bounds against the brain's control deadline, instead of only

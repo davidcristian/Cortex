@@ -163,11 +163,16 @@ the unchanged `SubagentPlacer`/`SubagentScheduler`/`ModelManager` ports.
   **shipped defaults** (both of those are empty), and its cost fell in the same sub-slice: a spawn
   placed on a tier that did not restart now re-runs once on the CPU rather than only reporting, so
   what is left is a wasted GPU attempt per spawn instead of a lost one. Still recorded rather than
-  built, for the same reason. The fix wants the residency
-  state the honesty-surfaces sub-slice introduces (a tier known to be down, so the placer skips it
-  and something retries the start) rather than a scheduler change, which is why it is recorded
+  built, for the same reason. The fix wants a residency
+  state that knows a tier is down, so the placer skips it while something retries the start,
+  rather than a scheduler change, which is why it is recorded
   here and not built: keeping the pool drained instead would be worse, since it would trade every
   delegated run for the ones that would have been placed on that one tier.
+  **The honesty-surfaces sub-slice landed on 2026-07-18 and did NOT clear this**, which this entry
+  used to imply it would. What that sub-slice introduced is one published `ResidencyReport` about
+  what the GPU is serving, for the seam's `Health` to answer with (`residency_state.py`), and it is
+  deliberately narrow: it carries no per-tier state at all, so there is still nothing for a placer
+  to read. Widening it is the same shape of change it always was, now with a place to put it.
 - **A read timeout on the subagent HTTP client.** *Fix when it bites.* The actual unbounded-wait
   hazard under the admission budget: `build_subagents` builds
   `httpx.Timeout(LLAMACPP_CONNECT_TIMEOUT_S, read=None)`, so one wedged `llama-server` stream holds
