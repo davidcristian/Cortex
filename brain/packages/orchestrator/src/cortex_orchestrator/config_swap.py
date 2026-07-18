@@ -15,7 +15,9 @@ from cortex_core import (
 # CORTEX_MODEL_BRAIN exactly as the cortex tier's id is.
 DEFAULT_BRAIN_MODEL = "brain"
 
-ModelHostBackendName = Literal["none", "scripted"]
+DEFAULT_MODELHOST_TIMEOUT_S = 60.0
+
+ModelHostBackendName = Literal["none", "scripted", "supervisor"]
 
 
 class SwapConfig(BaseSettings):
@@ -25,6 +27,8 @@ class SwapConfig(BaseSettings):
 
     escalation: bool = False
     modelhost_backend: ModelHostBackendName = "none"
+    modelhost_endpoint: str = ""
+    modelhost_timeout_s: float = Field(default=DEFAULT_MODELHOST_TIMEOUT_S, gt=0)
     # The dictated env names break the prefix pattern, hence the explicit aliases.
     brain_model: str = Field(default=DEFAULT_BRAIN_MODEL, validation_alias="CORTEX_MODEL_BRAIN")
     brain_endpoint: str = ""
@@ -45,6 +49,13 @@ class SwapConfig(BaseSettings):
             raise ValueError(msg)
         if not self.brain_endpoint:
             msg = "CORTEX_BRAIN_ENDPOINT is required when CORTEX_ESCALATION=1"
+            raise ValueError(msg)
+        if self.modelhost_backend == "supervisor" and not self.modelhost_endpoint:
+            msg = (
+                "CORTEX_MODELHOST_ENDPOINT is required when "
+                "CORTEX_MODELHOST_BACKEND=supervisor: the adapter would have nowhere to send a "
+                "start or a stop, so every swap would fail at its first step"
+            )
             raise ValueError(msg)
         return self
 

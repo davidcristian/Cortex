@@ -9,10 +9,11 @@ dependencies = [
   "cortex-embedding",
   "cortex-inference",
   "cortex-memory",
+  "cortex-model-manager",
   "cortex-seam",
   "cortex-session",
   "cortex-tools",
-  # Floor tracks the committed gencode's import-time minimum; bump on every regen (ADR-0003).
+  # The minimum the committed generated code needs to import; raise it on every regeneration.
   "grpcio>=1.81.1",
   "httpx>=0.27",
   "pydantic>=2.11",
@@ -25,6 +26,7 @@ cortex-core = { workspace = true }
 cortex-embedding = { workspace = true }
 cortex-inference = { workspace = true }
 cortex-memory = { workspace = true }
+cortex-model-manager = { workspace = true }
 cortex-seam = { workspace = true }
 cortex-session = { workspace = true }
 cortex-tools = { workspace = true }
