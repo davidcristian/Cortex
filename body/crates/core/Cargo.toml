@@ -7,9 +7,16 @@ description = "Pure, I/O-free core logic for the Cortex body (lib name: body_cor
 
 [dependencies]
 futures-core.workspace = true
+# The core's first algorithmic dependency (ADR-0029): the screen-capture policy PNG-encodes
+# in pure core, not in the `cfg(windows)` backend, so the coverage gate can see the byte
+# ceiling. Pure data in, data out; no I/O, no OS API, so hexagonal purity holds.
+png.workspace = true
 thiserror.workspace = true
 
 [dev-dependencies]
+# The capture tests decode the PNGs the policy produces, so a size claim is read back out
+# of the bytes that cross the seam rather than out of the value that wrote them.
+png.workspace = true
 tokio = { workspace = true, features = ["macros", "rt"] }
 # The converse contract test builds a fake TurnEvent stream and drains it.
 tokio-stream.workspace = true

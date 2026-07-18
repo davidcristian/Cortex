@@ -5,13 +5,14 @@
 //! [`BrainSeamClient`] (the body→brain `BrainService` client behind the
 //! `body_core::BrainTransport` port), and [`body_service`] (the brain→body
 //! `BodyService` server over the `body_core::AudioControl` port, Slice 9,
-//! ADR-0023, joined by the `body_core::Notify` port, Slice 9.5, ADR-0025). No
-//! business logic lives here.
+//! ADR-0023, joined by the `body_core::Notify` port, Slice 9.5, ADR-0025, and the
+//! `body_core::ScreenCapture` port, Slice 10, ADR-0029). No business logic lives here.
 
 mod auth;
 mod client;
 mod converse;
 mod reminders;
+mod screen;
 mod server;
 mod sessions;
 mod status;

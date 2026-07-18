@@ -10,8 +10,9 @@
 #![cfg_attr(coverage, feature(coverage_attribute))]
 
 use body_core::{
-    AudioControl, AudioError, Hotkey, HotkeyCallback, HotkeyChord, HotkeyError, Notification,
-    Notify, NotifyError, VolumeChange, VolumeState,
+    AudioControl, AudioError, CaptureError, CaptureRequest, Hotkey, HotkeyCallback, HotkeyChord,
+    HotkeyError, Notification, Notify, NotifyError, RawFrame, ScreenCapture, VolumeChange,
+    VolumeState,
 };
 
 /// The Linux [`Hotkey`] backend is not implemented (Slice 8 is Windows-first).
@@ -54,5 +55,17 @@ impl Notify for LinuxNotify {
     #[cfg_attr(coverage, coverage(off))]
     fn show(&self, _notification: &Notification) -> Result<bool, NotifyError> {
         unimplemented!("the Linux Notify backend is not implemented (Slice 9.5 is Windows-first)")
+    }
+}
+
+/// The Linux [`ScreenCapture`] backend is not implemented (Slice 10 is Windows-first).
+pub struct LinuxScreenCapture;
+
+impl ScreenCapture for LinuxScreenCapture {
+    #[cfg_attr(coverage, coverage(off))]
+    fn capture(&self, _request: &CaptureRequest) -> Result<RawFrame, CaptureError> {
+        unimplemented!(
+            "the Linux ScreenCapture backend is not implemented (Slice 10 is Windows-first)"
+        )
     }
 }

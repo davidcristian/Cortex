@@ -272,9 +272,23 @@ pub struct AckReminderReply {
     #[prost(bool, tag = "1")]
     pub acked: bool,
 }
-/// Empty = primary display; later: display index / window handle.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
-pub struct CaptureScreenRequest {}
+pub struct CaptureScreenRequest {
+    /// Longest edge of the returned image, in physical pixels. 0 means "the body's
+    /// default" (1600). The body clamps it and, being proto3, may ignore it entirely,
+    /// so it is a hint the brain re-verifies on receipt, never a guarantee (ADR-0029).
+    #[prost(uint32, tag = "1")]
+    pub max_edge: u32,
+    /// Field 2 is reserved for a display index once anything enumerates monitors;
+    /// v1 is the primary display only.
+    /// The most bytes the caller will accept, so the brain's own image budget and the
+    /// body's ceiling are one number instead of two constants coupled by prose. 0 means
+    /// "the body's own ceiling", and the body clamps anything larger down to it: this can
+    /// only tighten the bound, never loosen it. Like max_edge it is a hint the brain
+    /// re-verifies on receipt, because an older body ignores it (ADR-0029).
+    #[prost(uint32, tag = "3")]
+    pub max_bytes: u32,
+}
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct CaptureScreenReply {
     #[prost(message, optional, tag = "1")]
@@ -287,10 +301,20 @@ pub struct ImageBlob {
     /// e.g. image/png
     #[prost(string, tag = "2")]
     pub mime_type: ::prost::alloc::string::String,
+    /// physical pixels, after the body's downscale
     #[prost(uint32, tag = "3")]
     pub width: u32,
     #[prost(uint32, tag = "4")]
     pub height: u32,
+    /// The display's own size before the downscale, so the model can say "that text
+    /// is too small for me to read" instead of guessing (ADR-0029).
+    #[prost(uint32, tag = "5")]
+    pub source_width: u32,
+    #[prost(uint32, tag = "6")]
+    pub source_height: u32,
+    /// When the pixels were read, so a multi-round turn can reason about staleness.
+    #[prost(int64, tag = "7")]
+    pub captured_at_unix_ms: i64,
 }
 #[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct GetVolumeRequest {}

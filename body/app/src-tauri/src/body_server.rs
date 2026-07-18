@@ -20,10 +20,17 @@ const DEFAULT_TOAST_APP_ID: &str = "dev.cortex.body";
 /// For the real dockerized-brain path the user sets `CORTEX_BODY_ADDR=0.0.0.0:50151` so the
 /// container can reach it via `host.docker.internal`; the seam token + host firewall are the
 /// boundary when the bind is not pure loopback (ADR-0023, assumption 5).
+///
+/// Screen capture is wired to `DeniedScreenCapture` here: the real GDI backend and its
+/// `CORTEX_HOST_CAPTURE` kill switch land with the Windows capture work (ADR-0029), and until
+/// then this host answers `PermissionDenied` to every `CaptureScreen`, which is the same
+/// answer a user who never opts in will get. `CORTEX_HOST_CAPTURE_NOTIFY=0` turns off the
+/// body-authored receipt a successful capture shows; it defaults on.
 #[cfg(windows)]
 pub fn start() {
     use std::net::{Ipv4Addr, SocketAddr};
 
+    use body_core::DeniedScreenCapture;
     use body_rpc::body_service;
     use os_windows::{WindowsAudioControl, WindowsNotify};
     use tokio::net::TcpListener;
@@ -37,6 +44,7 @@ pub fn start() {
     let token = std::env::var("CORTEX_SEAM_TOKEN").unwrap_or_default();
     let app_id =
         std::env::var("CORTEX_TOAST_APP_ID").unwrap_or_else(|_| String::from(DEFAULT_TOAST_APP_ID));
+    let receipts = std::env::var("CORTEX_HOST_CAPTURE_NOTIFY").as_deref() != Ok("0");
     tauri::async_runtime::spawn(async move {
         let listener = match TcpListener::bind(addr).await {
             Ok(listener) => listener,
@@ -49,6 +57,8 @@ pub fn start() {
         let service = body_service(
             WindowsAudioControl::new(),
             WindowsNotify::new(&app_id),
+            DeniedScreenCapture,
+            receipts,
             &token,
         );
         if let Err(error) = Server::builder()

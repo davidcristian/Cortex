@@ -83,16 +83,28 @@ line cap.
     tonic's opaque `"transport error"` `Display` still names the root cause.
 - `body_service(audio: A, notifier: N, token: &str)` (Slice 9, ADR-0023; the notifier joined
   in Slice 9.5, ADR-0025; `src/server.rs`) is the brain→body direction: builds the
-  `BodyService` server over an `AudioControl` backend and a `Notify` backend, fronted by the
-  seam-token validator. Its pieces:
-  - `OsService<A: AudioControl, N: Notify>` is the generated `BodyService` trait over the
-    injected backends (named `VolumeService` while volume was the only OS action).
+  `BodyService` server over an `AudioControl` backend, a `Notify` backend, and a
+  `ScreenCapture` backend, fronted by the seam-token validator. Its pieces:
+  - `OsService<A: AudioControl, N: Notify, S: ScreenCapture>` is the generated `BodyService`
+    trait over the injected backends (named `VolumeService` while volume was the only OS
+    action).
     `get_volume`/`set_volume` map the wire messages onto the volume port (the level
     clamp lives in `body_core::VolumeChange`, not here); `notify` builds a
     `body_core::Notification` from the wire values, which is where the inert-text rule is
-    applied, and answers `NotifyReply { shown }`; `capture_screen`/`inject_input`
-    answer `Status::unimplemented` until their slices (10 / later). No state is held. Volume is
-    read from the OS on demand and a notification is fire and forget (the one hard rule).
+    applied, and answers `NotifyReply { shown }`; `capture_screen` delegates to `src/screen.rs`;
+    `inject_input` answers `Status::unimplemented` until its slice. No state is held. Volume is
+    read from the OS on demand, a notification is fire and forget, and a capture's pixels live
+    only for the call that returns them (the one hard rule).
+  - `screen::capture(...)` (Slice 10, ADR-0029) owns the capture translation: it resolves the
+    wire's `max_edge`/`max_bytes` hints into a `body_core::CaptureRequest`, runs the blit, the
+    pure-core `Capture::from_bgra` policy, the clock read, and the receipt inside **one**
+    `off_worker` hop, then maps the `Capture` onto `ImageBlob` (including `source_width`/
+    `source_height` and `captured_at_unix_ms`). Error mapping: `NoDisplay -> Unavailable`,
+    `Disabled -> PermissionDenied`, `Backend`/`TooLarge -> Internal`. The receipt is a
+    `body_core::Notification` built from the fixed body-owned `CAPTURE_RECEIPT_*` strings and
+    is **best effort**: by the time it runs the pixels have been read, so a dead notification
+    service must not also cost the capability. `receipts` (the host's
+    `CORTEX_HOST_CAPTURE_NOTIFY` switch, resolved by the shell) turns it off.
   - `off_worker(call, to_status)` is where every handler's **one synchronous OS call**
     actually runs: `tokio::task::spawn_blocking`, not inline (the ADR-0023 deferral, closed
     2026-07-16). Both OS ports are sync because the OS is (Core Audio and the toast manager

@@ -11,8 +11,14 @@
 //! connection indicator shows (`link`, ADR-0011 addendum), plus the reminder pull reads
 //! the overlay surfaces when it opens (Slice 9.5, ADR-0025); and the OS-capability ports (`os`): the
 //! [`Hotkey`] backend seam (Slice 8), the [`AudioControl`] volume seam the
-//! brain drives over `BodyService` (Slice 9, ADR-0023), and the [`Notify`] seam that
-//! delivers a fired reminder as a native notification (Slice 9.5, ADR-0025).
+//! brain drives over `BodyService` (Slice 9, ADR-0023), the [`Notify`] seam that
+//! delivers a fired reminder as a native notification (Slice 9.5, ADR-0025), and the
+//! [`ScreenCapture`] seam that gives the cortex eyes (Slice 10, ADR-0029) along with the
+//! whole downscale, encode, and byte-ceiling policy that bounds what it may send.
+//!
+//! One escape hatch is declared here (AGENTS.md gate 2): the capture ladder's encode step,
+//! whose error arm no input can reach. Its reason is inline at the site.
+#![cfg_attr(coverage, feature(coverage_attribute))]
 
 pub mod hotkey;
 pub mod link;
@@ -24,8 +30,9 @@ pub mod transport;
 pub use hotkey::{HotkeyChord, HotkeyParseError, Modifier};
 pub use link::{LinkState, LinkStatus, probe_link};
 pub use os::{
-    Accelerator, AudioControl, AudioError, Hotkey, HotkeyCallback, HotkeyError, Notification,
-    Notify, NotifyError, VolumeChange, VolumeState,
+    Accelerator, AudioControl, AudioError, Capture, CaptureError, CaptureRequest,
+    DeniedScreenCapture, Hotkey, HotkeyCallback, HotkeyError, Notification, Notify, NotifyError,
+    RawFrame, ScreenCapture, VolumeChange, VolumeState,
 };
 pub use retry::{
     DEFAULT_PROBE_BUDGET, FullDelay, Randomness, RetryPlan, RetryPolicy, RetryingTransport,

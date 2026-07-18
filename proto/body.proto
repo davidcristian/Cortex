@@ -225,15 +225,32 @@ service BodyService {
 }
 
 message CaptureScreenRequest {
-  // Empty = primary display; later: display index / window handle.
+  // Longest edge of the returned image, in physical pixels. 0 means "the body's
+  // default" (1600). The body clamps it and, being proto3, may ignore it entirely,
+  // so it is a hint the brain re-verifies on receipt, never a guarantee (ADR-0029).
+  uint32 max_edge = 1;
+  // Field 2 is reserved for a display index once anything enumerates monitors;
+  // v1 is the primary display only.
+  // The most bytes the caller will accept, so the brain's own image budget and the
+  // body's ceiling are one number instead of two constants coupled by prose. 0 means
+  // "the body's own ceiling", and the body clamps anything larger down to it: this can
+  // only tighten the bound, never loosen it. Like max_edge it is a hint the brain
+  // re-verifies on receipt, because an older body ignores it (ADR-0029).
+  uint32 max_bytes = 3;
 }
 message CaptureScreenReply { ImageBlob image = 1; }
 
 message ImageBlob {
   bytes data = 1;
   string mime_type = 2; // e.g. image/png
-  uint32 width = 3;
+  uint32 width = 3;     // physical pixels, after the body's downscale
   uint32 height = 4;
+  // The display's own size before the downscale, so the model can say "that text
+  // is too small for me to read" instead of guessing (ADR-0029).
+  uint32 source_width = 5;
+  uint32 source_height = 6;
+  // When the pixels were read, so a multi-round turn can reason about staleness.
+  int64 captured_at_unix_ms = 7;
 }
 
 message GetVolumeRequest {}
