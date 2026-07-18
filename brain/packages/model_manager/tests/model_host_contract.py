@@ -4,8 +4,14 @@ This is the ports-before-adapters gate for the process-lifecycle port (AGENTS.md
 must pass the same contract test as the fake). It is driven twice by
 ``test_model_host_contract.py``: over the core's ``ScriptedModelHost``, and over the real
 ``HttpModelHost`` talking to a real ``ModelSupervisor`` through a real Starlette app, with only the
-OS spawn and the health socket faked. Nothing in a check reads a value the harness wrote: every
-assertion is on what ``status`` answered after the implementation under test did its own work.
+OS spawn and the health socket faked. Every assertion is on what ``status`` answered after the
+implementation under test did its own work, and the two legs are held to different depths on
+purpose. On the **supervisor** leg the answer is derived rather than echoed (the exit code read
+before the probe, the slot kept or replaced, the port a spec names), which is why the mutations
+recorded in ``test_model_host_contract.py`` redden supervisor cases and no scripted ones. On the
+**scripted** leg a state word the fixture handed the twin comes back verbatim, so what those
+assertions pin is that the twin honours the world-condition it was given: that is what a fake owes
+the contract, and it is the reason the real adapter is driven through the same script.
 
 The port's own vocabulary needs two conditions of the world that no verb can create, so each
 implementation supplies them as knobs on ``HostUnderTest``: whether a started model's server

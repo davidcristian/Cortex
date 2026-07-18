@@ -6,7 +6,10 @@ kept here, and each one costs a specific rule:
 
 - **Both verbs are idempotent**, because a swap re-issues either without checking first
   (``residency_moves.py``): starting a running model is a no-op, stopping an absent one is a
-  no-op, and a start whose spawn fails leaves nothing behind.
+  no-op, and a start whose spawn fails adds nothing. A failed spawn also **removes** nothing: a
+  tier whose previous child had died goes on reporting that child's exit code rather than being
+  erased by the replacement that could not be started, since the spawn's own failure is what the
+  ``start`` raises and the exit code is what the runbook reads.
 - **``start`` returns long before the model is ready.** A start is a spawn and nothing more, so
   the swap's health gate is the only thing that ever decides readiness. Blocking here would put a
   minutes-long load at the mercy of an HTTP client's timeout instead of the plan's bound.
