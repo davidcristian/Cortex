@@ -2,7 +2,7 @@
 
 The deferrals here originate at [ADR-0003](../adr/ADR-0003-seam-codegen.md), which defined the seam codegen and left transport hardening for later, and were largely resolved by [ADR-0024](../adr/ADR-0024-transport-retry.md). Extracted from the ROADMAP's deferred-refinements section on 2026-07-15 with the entries kept verbatim; landed entries are the historical record of what each deferral became, and the index at [index.md](index.md) carries the recommended pickup order.
 
-**Open items:** safe `converse` reconnect-before-first-event, retry budget / circuit-breaker, a retryable-code table beyond `Unavailable`
+**Open items:** safe `converse` reconnect-before-first-event, retry budget / circuit-breaker, a retryable-code table beyond `Unavailable`, a disconnect mid handoff blocking the stream's teardown
 
 **Seam / transport in Slice 2 ([ADR-0003](../adr/ADR-0003-seam-codegen.md)):**
 - **Transport retry / reconnect policy landed 2026-07-08 ([ADR-0024](../adr/ADR-0024-transport-retry.md)).**
@@ -83,8 +83,8 @@ The deferrals here originate at [ADR-0003](../adr/ADR-0003-seam-codegen.md), whi
   Read against both sides of the seam: a `converse` turn's first durable effect is
   `await self._store.append(session_id, user)` in `TurnEngine.handle_turn` (`engine.py`), run
   before inference and before the first yielded event, on an independent turn task that advances
-  whether or not the client reads (`converse.py`, a `UserTurn` starts `_turn_task` and its events
-  land on a queue the consumer drains separately). So "the client saw no event" never means "the
+  whether or not the client reads (`converse_stream.py`, a `UserTurn` starts `_turn_task` and its
+  events land on a queue the consumer drains separately). So "the client saw no event" never means "the
   brain did nothing": by then the user message is stored and a tool the model asked for first may
   have run. And nothing carries request identity: `ClientEvent` and `UserTurn` hold `session_id`,
   text, and images, no request id or idempotency key, and the `turn_id` is minted server-side, so a
@@ -106,8 +106,8 @@ The deferrals here originate at [ADR-0003](../adr/ADR-0003-seam-codegen.md), whi
   so `swap_scope`'s restore now runs as its own shielded task and a cancellation **waits** for it
   before propagating: without that, a client that disconnected while the cortex was coming back
   left the process with no resident model and every later turn failing (found by the chaos suite,
-  and fixed there). The cost is on the other side: `converse`'s `_cancel_turn` awaits the turn
-  task, so a `Cancel` or a disconnect during a handoff holds the RPC's teardown for as long as the
+  and fixed there). The cost is on the other side: the Converse stream's `_cancel_turn` awaits the
+  turn task, so a `Cancel` or a disconnect during a handoff holds the RPC's teardown for as long as the
   restore takes, which is seconds against the scripted host and minutes against real weights. The
   alternative is to detach the restore (fire it, return, and let boot recovery be the backstop),
   which trades a bounded wait for a window where the process believes nothing is resident while a

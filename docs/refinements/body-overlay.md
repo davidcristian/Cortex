@@ -111,6 +111,14 @@ are the historical record of what each deferral became, and the index at
   while that holds. Both change together when the model manager (Slice 11) can make the brain
   not-ready *between* turns: that is when a push earns its keep and when "any success means
   ready" stops being true.
+  **Half the producer landed 2026-07-17 with the brain-handoff conductor
+  ([ADR-0030](../adr/ADR-0030-brain-handoff.md) decisions 6 and 7).** An escalating turn now
+  streams `StatusUpdate(state="swapping")` through drain, load, work, and restore on the
+  `Converse` stream the user already holds, so the swap window says what it is doing, with no
+  proto change (the overlay renders it as a chip today). The entry stays open on the other half:
+  `Health` still answers `ready = True` unconditionally, and it earning `ready=false` with a
+  truthful detail **between** turns is what ADR-0030 keeps in its honesty-surfaces sub-slice.
+  The push RPC itself stays deferred beyond that, a seam change to be designed with its consumer.
 - **Design-doc interaction gaps closed 2026-07-12 ([ADR-0011 addendum](../adr/ADR-0011-body-v1.md)).**
   All nine items surfaced by the 2026-07-03 browser pass landed behind the unchanged
   `BrainBridge` port / reducer, CI-gated at 100% and browser-validated in both themes: history

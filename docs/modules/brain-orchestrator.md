@@ -228,6 +228,11 @@ The service:
   unsurfaced). Closing the generator tears down the stream's pump task, any in-flight turn, and
   the queue of not-yet-started turns. Teardown completes even when it races a client `Cancel` whose
   turn is still cleaning up, and even while the turn is blocked on a buffer credit.
+  `converse.py` owns this entry point and the contract above; one stream's machinery (the
+  `ConverseStream` pump, its credit-bounded output queue, turn scheduling, teardown, plus
+  `to_server_event` and the knobs and error codes below) lives in `converse_stream.py`, a line-cap
+  split that `converse.py` re-exports from, so every `from cortex_orchestrator.converse import ...`
+  and the `cortex_orchestrator` barrel keep resolving unchanged.
 - `SeamProgressSink(emit, credit_sem, *, to_wire)` (`progress.py`, ADR-0010 progress addendum) is
   the real `ProgressSink` adapter: a spawned subagent surfaces the batch's scale (a `StatusUpdate`)
   and its audited tool steps (a `ToolActivity`) onto the same output queue while the turn is
@@ -235,8 +240,8 @@ The service:
   **credit-balanced and best-effort**: it takes a buffer credit only when one is free right now
   (`credit_sem.locked()` is False), else drops the event, so a delegating turn's many steps cannot
   drift the bound the way an unconditional `put` would, and a stalled consumer loses cosmetic
-  progress rather than stalling the subagent. `to_wire` is `converse`'s own `_to_server_event`,
-  injected so this module never imports `converse`.
+  progress rather than stalling the subagent. `to_wire` is the stream's own `to_server_event`
+  (`converse_stream.py`), injected so this module never imports the stream.
 - `SeamConfirmer(emit, *, timeout_s)` (`confirm.py`, ADR-0022) is the real `Confirmer` adapter:
   `confirm(request)` mints a `confirm_id`, emits `ServerEvent.confirm_request` (tool name, the
   draft as one JSON object, the reason, all shown verbatim) via the stream's **control path**
