@@ -129,3 +129,14 @@ seam-health:
 # stack up (`just up-gpu`); integration-marked, never in CI/coverage (ADR-0007).
 brain-inference-live:
     cd brain && CORTEX_INFERENCE_ENDPOINT=http://127.0.0.1:8080 uv run pytest -m integration --no-cov packages/inference
+
+# The gpu stack PLUS a loopback publish of the model-host control API, which the base gpu override
+# deliberately withholds (it can start and stop GPU processes, ADR-0030 d3). For live tests only;
+# `just down-gpu` takes it down. Procedure: docs/runbooks/model-swap.md.
+up-modelhost-loopback:
+    docker compose --project-directory . -f docker/docker-compose.yml -f docker/docker-compose.gpu.yml -f docker/docker-compose.modelhost-loopback.yml up -d --build
+
+# Live model-host check: starts, health-gates and stops a real llama-server through the real
+# ModelHost adapter. Needs `just up-modelhost-loopback`; integration-marked, never in CI/coverage.
+brain-modelhost-live:
+    cd brain && CORTEX_MODELHOST_ENDPOINT=http://127.0.0.1:9300 uv run pytest -m integration --no-cov packages/model_manager

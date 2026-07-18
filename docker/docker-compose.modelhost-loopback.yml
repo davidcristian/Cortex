@@ -1,0 +1,30 @@
+# Opt-in host-side access to the model-host sidecar. Layer it ON TOP of the base + gpu files:
+#     docker compose -f docker-compose.yml -f docker-compose.gpu.yml \
+#       -f docker-compose.modelhost-loopback.yml up
+#
+# Why this is a separate file rather than three more lines in the gpu override: the control API can
+# start and stop processes on the container that holds the GPU and the read-only models mount, and
+# ADR-0030 decision 3 says it is reachable only on the compose network. Publishing it is a widening,
+# so it is opt-in, and on WSL2 it is wider than it looks (Windows' own localhost reaches a WSL
+# 127.0.0.1 publish). Layer this when a host-side live test needs it, and take it down after.
+#
+# What it buys: the `integration`-marked live suites can drive the real adapter and the real health
+# gate from the host, which is how this sub-slice's mechanism validation was run.
+#
+#     CORTEX_MODELHOST_ENDPOINT=http://127.0.0.1:9300 \
+#     CORTEX_MODELHOST_LIVE_MODEL=cortex \
+#     cd brain && uv run pytest -m integration --no-cov packages/model_manager
+#
+# The host-side ports are deliberately NOT equal to the container ports for the two extra tiers:
+# :8081 is already published by llama-embed and :8083 by llama-subagent-qwen, so a stack that
+# layered memory or subagents-roster with this file would fail to start.
+
+services:
+  model-host:
+    ports:
+      # The control API. Everything else in the repo reaches it as http://model-host:9300.
+      - "127.0.0.1:9300:9300"
+      # The deep model's tier, shifted off :8081 to clear llama-embed.
+      - "127.0.0.1:9081:8081"
+      # The GPU-placed subagent tier, shifted off :8083 to clear llama-subagent-qwen.
+      - "127.0.0.1:9083:8083"

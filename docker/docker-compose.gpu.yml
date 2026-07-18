@@ -1,54 +1,89 @@
-# GPU override for the brain (Slice 4 with the ADR-0005 engine, ADR-0007 wiring). Layer it ON
-# TOP of the base file:
+# GPU override for the brain (the ADR-0005 engine, ADR-0007 wiring, ADR-0030 process lifecycle).
+# Layer it ON TOP of the base file:
 #     docker compose -f docker-compose.yml -f docker-compose.gpu.yml up
-# It adds one llama-server (the resident cortex model) and flips the brain from the Echo
-# fake to the real llama.cpp adapter pointed at it. CI never runs this file, since CI is
-# GPU-less by design (AGENTS.md gate 3). Everything marked "validate on host" is
-# measured/finalized in docs/runbooks/llamacpp-gpu.md and ADR-0004 (final model picks).
+# It adds the `model-host` supervisor sidecar, which runs one llama-server child per logical model
+# (the resident cortex on :8080, and, when a deployment names artifacts for them, the deep model on
+# :8081 and a GPU-placed subagent tier on :8083), and flips the brain from the Echo fake to the real
+# llama.cpp adapter pointed at that container. CI never runs this file, since CI is GPU-less by
+# design (AGENTS.md gate 3). Everything marked "validate on host" is measured/finalized in
+# docs/runbooks/llamacpp-gpu.md and ADR-0004 (final model picks).
+#
+# The sidecar replaces the always-on `llama-cortex` service it grew out of (ADR-0030 decision 3): a
+# swap has to be able to stop the cortex and start the deep model, and nothing in a compose service
+# can do that. A stack that never escalates behaves as the old one did, because the daemon starts
+# the cortex at boot with argv copied flag for flag from that service's `command`
+# (docs/modules/brain-model-manager.md).
 #
 # Set these on the host (a .env at the repo root works):
 #   CORTEX_MODELS_DIR      host dir holding the GGUFs (default ./models, ADR-0004)
 #   CORTEX_MODEL_FILE_CORTEX  cortex GGUF path under that dir (default: the gemma-4-12B pick)
+#   CORTEX_MODELHOST_{CPUS,MEMORY,MEMSWAP}  the container's cgroup caps (ADR-0012 host half).
+#                          Placeholders: the maintainer measures real numbers on the 24 GB machine.
+#
+# To turn the brain handoff on (off by default, and there is no deep-model pick yet, ADR-0004),
+# a deployment additionally sets, in the `brain` environment below:
+#   CORTEX_ESCALATION=1, CORTEX_MODELHOST_BACKEND=supervisor,
+#   CORTEX_BRAIN_ENDPOINT=http://model-host:8081
+# and, in the `model-host` environment, CORTEX_MODEL_FILE_BRAIN (plus CORTEX_NGL_BRAIN /
+# CORTEX_CTX_SIZE_BRAIN to fit it). A tier with no artifact file is not in the roster at all, so
+# without that file the deep model answers 404 rather than spawning a doomed process.
+# Procedure and failure modes: docs/runbooks/model-swap.md.
 
 services:
   brain:
     environment:
       # Opt into the real adapter; without this the base image runs Echo (ADR-0007 d4).
       CORTEX_INFERENCE_BACKEND: "llamacpp"
-      # In-network address of the llama-server below (NOT the host-published port).
-      CORTEX_INFERENCE_ENDPOINT: "http://llama-cortex:8080"
+      # In-network addresses of the supervised children and of the control API (NOT the
+      # host-published ports). The cortex tier is a child process now, not a service.
+      CORTEX_INFERENCE_ENDPOINT: "http://model-host:8080"
+      # Where the ModelHost adapter sends a start/stop/status. Harmless while escalation is off
+      # (nothing builds the adapter), and required the moment CORTEX_MODELHOST_BACKEND=supervisor.
+      CORTEX_MODELHOST_ENDPOINT: "http://model-host:9300"
     depends_on:
-      llama-cortex:
+      model-host:
         condition: service_healthy
 
-  llama-cortex:
-    # OpenAI-compatible CUDA server build of llama.cpp (ADR-0005). Pin to a digest on the
-    # host once chosen. Mutable tags are a supply-chain risk (ADR-0006).
-    image: "ghcr.io/ggml-org/llama.cpp:server-cuda"
-    # The resident cortex model: gemma-4-12B (QAT Q4, ADR-0004 addendum pick). Text-only for
-    # now; the vision projector (--mmproj) is added with Slice 10. -ngl 99 = all on the GPU.
-    command:
-      - "--model"
-      - "/models/${CORTEX_MODEL_FILE_CORTEX:-google/gemma-4-12B-it-qat-q4_0-gguf/gemma-4-12b-it-qat-q4_0.gguf}"
-      - "--host"
-      - "0.0.0.0"
-      - "--port"
-      - "8080"
-      # -ngl 99 = all layers on the GPU. Set CORTEX_NGL=0 for CPU-only, or a lower number
-      # for hybrid offload with per-process placement (ADR-0004 addendum), no core change.
-      - "-ngl"
-      - "${CORTEX_NGL:-99}"
-      # Explicit context: the model default (262144) pre-allocates a huge KV cache that
-      # blows the VRAM envelope. Single slot. The Model Manager serializes turns anyway.
-      - "--ctx-size"
-      - "${CORTEX_CTX_SIZE:-16384}"
-      - "--parallel"
-      - "1"
-      # Tool-capable chat template so the cortex can native-function-call (ADR-0009).
-      # Committed once the live cortex tool path was validated end to end (2026-07-06,
-      # ADR-0009 addendum): the resident model natively emitted a tool call through the
-      # audited loop against the MCP filesystem sidecar.
-      - "--jinja"
+  model-host:
+    # Built from the uv workspace onto llama.cpp's CUDA server image: it needs the Python daemon
+    # and the llama-server binary in ONE image, and no existing image has both (brain/Dockerfile
+    # .modelhost says why the obvious shortcut does not work).
+    # The context is relative to the project directory (always the repo root, `--project-directory
+    # .`), which is why it reads ./brain and not ../brain: the same form the email sidecar uses.
+    build:
+      context: ./brain
+      dockerfile: Dockerfile.modelhost
+    image: "cortex-model-host"
+    init: true
+    environment:
+      # The control API's bind address: the compose network reaches it by service name.
+      CORTEX_MODELHOST_BIND_HOST: "0.0.0.0"
+      CORTEX_MODELHOST_BIND_PORT: "9300"
+      # The resident cortex model: gemma-4-12B (QAT Q4, ADR-0004 addendum pick). Text-only for
+      # now; the vision projector (--mmproj) is added with the vision slice. -ngl 99 = all on GPU,
+      # and an explicit --ctx-size because llama.cpp's own default (262144) pre-allocates a KV
+      # cache that blows the VRAM envelope. These are the same knobs the old service read.
+      CORTEX_MODEL_FILE_CORTEX: "${CORTEX_MODEL_FILE_CORTEX:-google/gemma-4-12B-it-qat-q4_0-gguf/gemma-4-12b-it-qat-q4_0.gguf}"
+      CORTEX_NGL: "${CORTEX_NGL:-99}"
+      CORTEX_CTX_SIZE: "${CORTEX_CTX_SIZE:-16384}"
+      # The logical ids, which must match the brain's own (the endpoint map is static config on
+      # both sides, since no port carries a path, a layer count, or a URL).
+      CORTEX_MODEL_CORTEX: "${CORTEX_MODEL_CORTEX:-cortex}"
+      CORTEX_MODEL_BRAIN: "${CORTEX_MODEL_BRAIN:-brain}"
+      # A tier is in the roster only when a file is named for it, so these are empty by default:
+      # there is no deep-model pick yet, and the GPU-placed subagent tier is opt-in.
+      CORTEX_MODEL_FILE_BRAIN: "${CORTEX_MODEL_FILE_BRAIN:-}"
+      CORTEX_NGL_BRAIN: "${CORTEX_NGL_BRAIN:-99}"
+      CORTEX_CTX_SIZE_BRAIN: "${CORTEX_CTX_SIZE_BRAIN:-8192}"
+      CORTEX_MODEL_FILE_SUBAGENT_GPU: "${CORTEX_MODEL_FILE_SUBAGENT_GPU:-}"
+      CORTEX_SUBAGENT_CTX_SIZE: "${CORTEX_SUBAGENT_CTX_SIZE:-8192}"
+      CORTEX_SUBAGENTS_PARALLEL: "${CORTEX_SUBAGENTS_PARALLEL:-2}"
+      # How long a child gets on SIGTERM before it is killed, and how long a killed one gets to be
+      # reaped. `stop` does not answer until the child is gone, because a swap starts the next
+      # model immediately after. Keep their sum BELOW the brain's CORTEX_MODELHOST_TIMEOUT_S
+      # (60 s), or a slow-but-correct eviction reads as a dead sidecar.
+      CORTEX_MODELHOST_STOP_GRACE_S: "${CORTEX_MODELHOST_STOP_GRACE_S:-10}"
+      CORTEX_MODELHOST_REAP_TIMEOUT_S: "${CORTEX_MODELHOST_REAP_TIMEOUT_S:-30}"
     volumes:
       # Models stay on the Windows drive, mounted read-only (ADR-0004 d3). Forward slashes
       # work in Docker Desktop on Windows; override the source with CORTEX_MODELS_DIR.
@@ -57,20 +92,47 @@ services:
         target: /models
         read_only: true
     ports:
-      # Loopback-only publish so host-side integration tests can reach it (assumption 5);
-      # the brain uses the in-network address above, not this one.
+      # The cortex tier's own port, loopback-only, exactly as the service it replaces published it,
+      # so `just brain-inference-live` and docs/runbooks/llamacpp-gpu.md keep working unchanged.
+      #
+      # Deliberately NOT published: the control API (:9300) and the other tiers' ports. The control
+      # API can start and stop processes on the container that holds the GPU and the models mount,
+      # and ADR-0030 decision 3 says it is reachable only on the compose network; on WSL2 a
+      # 127.0.0.1 publish is also reachable from Windows' own localhost, which is a wider door than
+      # this API should have. The other tiers' container ports collide with existing loopback
+      # publishes anyway (:8081 is llama-embed, :8083 is llama-subagent-qwen). Host-side access for
+      # a live test is the opt-in docker-compose.modelhost-loopback.yml override.
       - "127.0.0.1:8080:8080"
     restart: unless-stopped
+    # The graceful shutdown sweep stops every child before the daemon exits; docker's default 10 s
+    # would cut it short while a tier-scale model was still unloading. The ungraceful backstop is
+    # the runtime, which kills a child whose container is gone (measured), so nothing leaks either
+    # way; this only buys the clean path.
+    stop_grace_period: 30s
     healthcheck:
-      # llama-server serves /health once the model finishes loading; the generous
-      # start_period covers loading a multi-GB GGUF off the bind mount (ROADMAP
-      # assumption 2). If this image ships without curl, swap in the runbook's alternative.
-      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8080/health"]
+      # Deliberately not just "the daemon answers": it asserts the boot resident is READY, which is
+      # what the llama-cortex healthcheck meant and what `brain`'s depends_on needs. A control API
+      # that answers while the cortex is still loading would let the brain serve a turn that fails
+      # at the backend. The generous start_period covers loading a multi-GB GGUF off the bind mount.
+      test:
+        - "CMD-SHELL"
+        - 'curl -fsS http://127.0.0.1:9300/models/${CORTEX_MODEL_CORTEX:-cortex} | grep -q ''"state":"ready"'''
       interval: 30s
       timeout: 5s
       retries: 5
       start_period: 180s
       start_interval: 2s
+    # ADR-0012's per-container caps, landing here rather than on two llama-server sidecars because
+    # ADR-0030 collapsed the GPU one into this container. The consequence is deliberate and
+    # recorded: the cortex, the deep model, and the GPU subagent are PROCESSES in one cgroup, so
+    # these cap all three collectively and no per-model CPU or RAM cap exists. Values are
+    # placeholders the maintainer measures (the 8 GB dev GPU cannot hold a real tier pair). Note the
+    # hazard: llama.cpp mmaps the GGUF, so mapped model pages count against the memory cap, and a
+    # cap below the artifact size makes a load thrash rather than fail. memswap == memory disables
+    # swap for the container, which is the "--memory-swap" half of that deferral.
+    cpus: "${CORTEX_MODELHOST_CPUS:-8.0}"
+    mem_limit: "${CORTEX_MODELHOST_MEMORY:-24g}"
+    memswap_limit: "${CORTEX_MODELHOST_MEMSWAP:-24g}"
     deploy:
       resources:
         reservations:

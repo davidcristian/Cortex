@@ -6,9 +6,9 @@ deferred-refinements section on 2026-07-15 with the entries kept verbatim; lande
 historical record of what each deferral became, and the index at [index.md](index.md) carries the
 recommended pickup order.
 
-**Open items:** the real GPU-placed runtime mechanism, the Intel NPU as a third placement target,
-a bounded admission wait, a read timeout on the subagent HTTP client, the drain bound against a
-fired task's lease, admission reopening onto a tier that would not restart
+**Open items:** the Intel NPU as a third placement target, a bounded admission wait, a read
+timeout on the subagent HTTP client, the drain bound against a fired task's lease, admission
+reopening onto a tier that would not restart
 
 **Resource governance in Slice 8.5 ([ADR-0012](../adr/ADR-0012-resource-governance.md)):** each behind
 the unchanged `SubagentPlacer`/`SubagentScheduler`/`ModelManager` ports.
@@ -48,9 +48,30 @@ the unchanged `SubagentPlacer`/`SubagentScheduler`/`ModelManager` ports.
   The entry's own worry about vacuous coverage held up and is answered: the branch is proven by
   behaviour (a failing GPU backend, an answering CPU one) rather than by a simulated OOM, and each
   of its properties reddens a named test under mutation.
-- **The real GPU-placed runtime mechanism.** Two live `llama-server` sidecars (GPU `-ngl 99` + CPU
-  `-ngl 0`) in `docker/docker-compose.subagents.yml` + per-container `--cpus`/`--memory` cgroup caps + real
-  GPU-placed-subagent validation lands with the **Slice 11** lifecycle behind the corrected ports.
+- **The real GPU-placed runtime mechanism landed 2026-07-18 with the model-host sub-slice, in a
+  different container than this entry expected ([ADR-0030 model-host addendum](../adr/ADR-0030-brain-handoff.md)).**
+  The entry read: "**The real GPU-placed runtime mechanism.** Two live `llama-server` sidecars (GPU
+  `-ngl 99` + CPU `-ngl 0`) in `docker/docker-compose.subagents.yml` + per-container
+  `--cpus`/`--memory` cgroup caps + real GPU-placed-subagent validation lands with the **Slice 11**
+  lifecycle behind the corrected ports." Two of the three landed as written and one moved.
+  ADR-0030 decision 3 relocated the GPU sidecar into the `model-host` supervisor container (the one
+  holding the GPU reservation and the models mount), so the GPU-placed subagent is a **hosted tier**
+  on :8083 with `-ngl 99` that `CORTEX_SUBAGENTS_GPU_ENDPOINT` points at, opt-in behind
+  `CORTEX_MODEL_FILE_SUBAGENT_GPU`, rather than a second service in the subagents override; the CPU
+  `-ngl 0` sidecar stays its own container as described. The caps landed on both containers
+  (`cpus`/`mem_limit`/`memswap_limit`, verified applied by the runtime as `NanoCpus`/`Memory`/
+  `MemorySwap`), with the CPU one's defaults set to the hard twin of the brain's soft admission
+  budgets, which is what makes those budgets more than an honour system. **The granularity this
+  costs is the interpretation to know about:** the cortex, the deep model and the GPU subagent are
+  now processes in ONE cgroup, so no per-model CPU or RAM cap exists, only one cap set covering all
+  three. ADR-0030 wins as the later and more specific decision, and its security argument is what
+  buys it (a per-model cap would want a container per model, which is a controller that can start
+  containers, which is the docker-socket shape decision 3 rejected). The numbers themselves are
+  user-tunable placeholders: the 8 GB dev GPU cannot hold a real tier pair, so what was validated
+  here is the mechanism, not the arithmetic. Real GPU-placed-**subagent** validation is the one
+  piece still owed, and it is host-side for the same reason: a GPU-placed subagent only happens
+  when `CORTEX_SUBAGENTS_VRAM_GB` fits under the soft cap minus the resident cortex, which needs a
+  card that holds the cortex first.
 - **Placement-aware CPU charging closed 2026-07-16 as declined, wrong premise and no gain
   ([ADR-0012 admission-wall addendum](../adr/ADR-0012-resource-governance.md)).** The entry read:
   "`admit` charges every spawn its full `cpus`/`memory_gb` regardless of placement (conservative);
@@ -65,7 +86,15 @@ the unchanged `SubagentPlacer`/`SubagentScheduler`/`ModelManager` ports.
   (measured live on the Qwen-2B override: two concurrent spawns took 4.8 s through two backend
   objects, 10.0 s through one, a ratio of 2.08). And there is nothing to discount today, since
   `CORTEX_SUBAGENTS_VRAM_GB=5.5` sits deliberately above the GPU headroom, so every spawn overflows
-  to CPU. **Reopens** with the Slice 11 GPU-placed runtime, as a port change rather than a tweak.
+  to CPU. **Reopens** with a second GPU-capable executor, as a port change rather than a tweak.
+  **The GPU-placed runtime arrived on 2026-07-18 and did not reopen it**, which is worth stating
+  because this entry used to name that runtime as the condition. One hosted GPU subagent tier is
+  still one `LlamaCppBackend` per target per roster entry, so the measured serialization above is
+  unchanged and the discount would still buy nothing; and the shipped `CORTEX_SUBAGENTS_VRAM_GB=5.5`
+  still sits above the headroom, so there is still nothing to discount. What would reopen it is what
+  ADR-0030 decision 8's addendum already says: a **second** GPU-capable executor, so that two
+  GPU-placed spawns can actually run at once and a placement-aware charge changes how many are
+  admitted.
 - **The Intel NPU as a third placement target.** A future OpenVINO `InferenceBackend` adapter + a
   `PlacementTarget.NPU`, pending a feasibility pass (reachability from the dockerized WSL2 brain).
 - **A hard budget wall closed 2026-07-16: the wall existed and now refuses as a value
@@ -118,8 +147,15 @@ the unchanged `SubagentPlacer`/`SubagentScheduler`/`ModelManager` ports.
   `ModelHostError` on that start is logged and swallowed, and `undrain` then reopens admission
   onto a subagent server that is not running. The next delegated run fails at its backend and
   degrades to an `ok=False` result, which is honest but wasteful, and nothing retries the tier
-  until the next handoff or a restart. Nothing is at stake today: `CORTEX_SWAP_EVICT_MODELS` is
-  empty until the real lifecycle sub-slice, so no tier is ever evicted. The fix wants the residency
+  until the next handoff or a restart. **Reachable by configuration since 2026-07-18**, which
+  replaces this entry's original "nothing is at stake today, `CORTEX_SWAP_EVICT_MODELS` is empty
+  until the real lifecycle sub-slice, so no tier is ever evicted": that sub-slice has landed, so a
+  deployment that names a GPU subagent artifact and lists that tier in `CORTEX_SWAP_EVICT_MODELS`
+  now really does evict it and can really see it refuse to come back. It stays unreachable in the
+  **shipped defaults** (both of those are empty), and its cost fell in the same sub-slice: a spawn
+  placed on a tier that did not restart now re-runs once on the CPU rather than only reporting, so
+  what is left is a wasted GPU attempt per spawn instead of a lost one. Still recorded rather than
+  built, for the same reason. The fix wants the residency
   state the honesty-surfaces sub-slice introduces (a tier known to be down, so the placer skips it
   and something retries the start) rather than a scheduler change, which is why it is recorded
   here and not built: keeping the pool drained instead would be worse, since it would trade every
