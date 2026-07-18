@@ -56,6 +56,17 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
   `ackReminder(reminderId)` plus the `DueReminder` mirror, and the connection probe
   (ADR-0011 addendum): `checkLink()` plus the `LinkState` / `LinkStatus` mirrors of
   `body_core::link`.
+- **The screen-capture indicator** (`state.capturing` + `components/CaptureDot.tsx`,
+  ADR-0029). The reducer sets `capturing` when a `toolActivity` event names
+  `CAPTURE_SCREEN_TOOL` (`"capture_screen"`, matched by name because the event already carries
+  it and a second seam field would be one more place the two ends could disagree), and clears it
+  only when the turn ends, on completion or failure alike. It therefore stays lit for the rest
+  of the turn rather than blinking past with the tool chip, because the fact the user is owed is
+  "the assistant looked at my screen during this reply", not "a tool ran for a moment". This is
+  a **consent surface** and part of why the capture tool ships without an approval card: the
+  dot renders only when it means something and carries a fixed accessible label saying exactly
+  that. The body fires its own OS notification independently; this is the half the user is
+  already looking at.
 - **The connection indicator** (`overlay/linkState.ts` + `overlay/useLink.ts` +
   `components/LinkDot.tsx`, ADR-0011 addendum). `state.link` is a `LinkView { state, detail,
   probing }`: `state` is the last thing the brain **proved** (`ready` | `degraded` | `down`,

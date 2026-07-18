@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { DueReminder, SessionMessage, SessionSummary } from "../bridge/types";
-import type { Action } from "./overlayState";
+import type { Action, OverlayState } from "./overlayState";
 import { createInitialState, cycleTarget, initialState, isTurnActive, latestReply, reduce } from "./overlayState";
 
 const summary = (sessionId: string): SessionSummary => ({
@@ -507,5 +507,67 @@ describe("cycleTarget", () => {
   it("an unsaved current chat enters the list only when going older", () => {
     expect(cycleTarget(sessions, "unsaved", 1)).toBe("newest");
     expect(cycleTarget(sessions, "unsaved", -1)).toBeNull();
+  });
+});
+
+describe("the screen-capture indicator", () => {
+  const streaming = (): OverlayState =>
+    reduce(reduce(createInitialState("s1"), { kind: "open" }), {
+      kind: "submit",
+      text: "what is on my screen?",
+    });
+
+  it("lights when the assistant looks at the screen", () => {
+    const before = streaming();
+    expect(before.capturing).toBe(false);
+    const after = reduce(before, {
+      kind: "event",
+      event: { kind: "toolActivity", toolName: "capture_screen", summary: "primary display" },
+    });
+    expect(after.capturing).toBe(true);
+  });
+
+  it("stays lit for the rest of the turn, past later tool activity", () => {
+    // The fact the user is owed is "the assistant looked at my screen during this reply", not
+    // "a tool ran for a moment", so a later chip must not put the indicator out.
+    const looked = reduce(streaming(), {
+      kind: "event",
+      event: { kind: "toolActivity", toolName: "capture_screen", summary: "primary display" },
+    });
+    const later = reduce(looked, {
+      kind: "event",
+      event: { kind: "toolActivity", toolName: "get_volume", summary: "reading" },
+    });
+    expect(later.capturing).toBe(true);
+    expect(later.messages.at(-1)?.tool).toBe("get_volume: reading");
+  });
+
+  it("stays dark for a turn that only ran other tools", () => {
+    const after = reduce(streaming(), {
+      kind: "event",
+      event: { kind: "toolActivity", toolName: "get_volume", summary: "reading" },
+    });
+    expect(after.capturing).toBe(false);
+  });
+
+  it("goes out when the turn completes", () => {
+    const looked = reduce(streaming(), {
+      kind: "event",
+      event: { kind: "toolActivity", toolName: "capture_screen", summary: "primary display" },
+    });
+    const done = reduce(looked, { kind: "event", event: { kind: "complete", turnId: "t1" } });
+    expect(done.capturing).toBe(false);
+  });
+
+  it("goes out when the turn fails", () => {
+    const looked = reduce(streaming(), {
+      kind: "event",
+      event: { kind: "toolActivity", toolName: "capture_screen", summary: "primary display" },
+    });
+    const dead = reduce(looked, {
+      kind: "event",
+      event: { kind: "failed", code: "INTERNAL", message: "boom" },
+    });
+    expect(dead.capturing).toBe(false);
   });
 });

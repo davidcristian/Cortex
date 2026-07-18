@@ -100,6 +100,21 @@
   }
 }
 
+/* The screen-capture indicator (ADR-0029): a small open ring beside the connection dot, lit
+   from the moment the assistant looks at the screen until the turn ends. Open rather than
+   filled, and the same size as the link dot, so the header reads as one row of state and this
+   one is legible as "an eye was on your screen" rather than as a second connection colour. It
+   renders only while it means something, so it takes no space on an ordinary turn. */
+.capturedot {
+  width: 7px;
+  height: 7px;
+  flex: none;
+  margin-left: 6px;
+  border-radius: 50%;
+  border: 1.5px solid var(--warn);
+  box-sizing: border-box;
+}
+
 /* The 6px optical left margin the header opens with now belongs to the dot, which leads the
    row; the title follows it on the header's own 10px rhythm. */
 .title {
