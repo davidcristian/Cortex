@@ -791,3 +791,46 @@ consumer that walks away, and the case named for that teardown asserted only the
 The deep model's own round is now asserted through the backend's `closed` flag, and the close
 case runs with the deep model mid answer so all three are outstanding at once. Dropping that
 `aclose` reddens it and nothing else in the suite.
+
+## Addendum (2026-07-18): the proof claims only what was measured
+
+A pass over the settled conductor for honesty rather than correctness. No production behaviour
+changed with this note, nothing about decisions 1 to 9 changes, and **still no real model swap has
+been validated**, for the reason every addendum above gives.
+
+**Two assertions that could not fail.** The boot-recovery case asserted that recovery had neither
+asked the deep model anything nor appended to the session, over a `recover_handoffs` that is
+handed the store, the host and the plan and nothing at all it could run a turn with. No
+implementation of that function could have made either line fail, so the "without double running"
+half of the case's name was unbacked. Non-resumption is a property of the signature, recorded
+here and in the refinement that would undo it, not something a runtime assertion adds to. What
+the case proves instead is the consequence a crash-stranded record really threatens and that can
+fail: it now escalates the same turn again after recovery and requires it to answer, having asked
+the deep model exactly once, which reddens under a conductor that refuses a handoff because the
+store still holds a record under that turn id. The case is renamed for that. The second assertion
+was decorative, a `not in` on a value the preceding line had already pinned whole by equality to a
+constant that does not contain it; the equality is what rules the note out, and the comment says
+so rather than a line that cannot fail.
+
+**A preamble that claimed more precision than it had.** The chaos suite's distrust-green block
+said each mutation "reddened exactly the cases named". Re-measured one mutation at a time across
+the whole `packages/core` suite, nine of the bullets understated, reddening cases they did not
+name, either elsewhere in the chaos suite or in the conductor, residency, recovery and
+drain-contract suites over the same production code; two of the four swap-window sub-claims
+overstated instead, naming a wider population than actually reddens (a drain that timed out emits
+no status at all under the "draining" mutation, a case killed between the deep model's answer and
+the "restoring" status never emits that one, and four cases in the suite never check the window
+at all). No proof is weaker than it was cited for, every
+mutation still reddening the case it exists to pin, but "exactly" would have told a future agent
+that a case is unconstrained when it is not. Each bullet now carries its measured package-wide
+failure count and names the cases in its own file, and "and nothing else" where it appears was
+measured across the package. Two counts had also drifted with the repairs above: dropping
+`undrain` now reddens the mid-drain kill as well, the window's release being witnessed against
+the residency running at that instant, and restarting nothing after the cortex comes back now
+reddens the second-cancellation case too, that case evicting a tier.
+
+**One piece of harness the suite does not pin.** The mid-drain straggler waits on the pool's own
+condition until the real `drain` closes admission around it. Removing that wait leaves the whole
+suite green, because the loop resumes the handoff into `drain` before the case can look either
+way. It stays, a boundary that holds only by ready-queue order being no boundary, but its
+docstring now says plainly that it is scaffolding rather than something the assertions pin.
