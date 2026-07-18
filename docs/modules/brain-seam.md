@@ -19,8 +19,11 @@ imports seam names from `cortex_seam` and never from `cortex_seam._generated` di
   delete write, which hard-deletes a chat and cascades to its private memories, ADR-0021
   delete addendum), `SetSessionPinnedRequest`, `SetSessionPinnedReply` (the gated user-only pin
   toggle on the catalog, which lifts a chat above the recency window, ADR-0021 pinning addendum),
-  `CaptureScreenRequest`,
-  `CaptureScreenReply`, `ImageBlob`, `GetVolumeRequest`, `SetVolumeRequest`,
+  `CaptureScreenRequest` (Slice 10, ADR-0029: `max_edge` and `max_bytes`, both proto3 hints
+  the body clamps and the brain re-verifies on receipt; field 2 is reserved for a display
+  index),
+  `CaptureScreenReply`, `ImageBlob` (`data`, `mime_type`, `width`, `height`, plus
+  `source_width`/`source_height` before the body's downscale and `captured_at_unix_ms`), `GetVolumeRequest`, `SetVolumeRequest`,
   `VolumeState`, `InjectInputRequest`, `TypeText`, `KeyChord`, `InjectInputReply`.
 - `BrainServiceServicer` (base class to implement), `BrainServiceStub` (client), and
   `add_BrainServiceServicer_to_server` belong to `BrainService`, hosted by the brain

@@ -247,8 +247,12 @@ class AckReminderReply(_message.Message):
     def __init__(self, acked: _Optional[bool] = ...) -> None: ...
 
 class CaptureScreenRequest(_message.Message):
-    __slots__ = ()
-    def __init__(self) -> None: ...
+    __slots__ = ("max_edge", "max_bytes")
+    MAX_EDGE_FIELD_NUMBER: _ClassVar[int]
+    MAX_BYTES_FIELD_NUMBER: _ClassVar[int]
+    max_edge: int
+    max_bytes: int
+    def __init__(self, max_edge: _Optional[int] = ..., max_bytes: _Optional[int] = ...) -> None: ...
 
 class CaptureScreenReply(_message.Message):
     __slots__ = ("image",)
@@ -257,16 +261,22 @@ class CaptureScreenReply(_message.Message):
     def __init__(self, image: _Optional[_Union[ImageBlob, _Mapping]] = ...) -> None: ...
 
 class ImageBlob(_message.Message):
-    __slots__ = ("data", "mime_type", "width", "height")
+    __slots__ = ("data", "mime_type", "width", "height", "source_width", "source_height", "captured_at_unix_ms")
     DATA_FIELD_NUMBER: _ClassVar[int]
     MIME_TYPE_FIELD_NUMBER: _ClassVar[int]
     WIDTH_FIELD_NUMBER: _ClassVar[int]
     HEIGHT_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_WIDTH_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_HEIGHT_FIELD_NUMBER: _ClassVar[int]
+    CAPTURED_AT_UNIX_MS_FIELD_NUMBER: _ClassVar[int]
     data: bytes
     mime_type: str
     width: int
     height: int
-    def __init__(self, data: _Optional[bytes] = ..., mime_type: _Optional[str] = ..., width: _Optional[int] = ..., height: _Optional[int] = ...) -> None: ...
+    source_width: int
+    source_height: int
+    captured_at_unix_ms: int
+    def __init__(self, data: _Optional[bytes] = ..., mime_type: _Optional[str] = ..., width: _Optional[int] = ..., height: _Optional[int] = ..., source_width: _Optional[int] = ..., source_height: _Optional[int] = ..., captured_at_unix_ms: _Optional[int] = ...) -> None: ...
 
 class GetVolumeRequest(_message.Message):
     __slots__ = ()

@@ -10,8 +10,9 @@
 #![cfg_attr(coverage, feature(coverage_attribute))]
 
 use body_core::{
-    AudioControl, AudioError, Hotkey, HotkeyCallback, HotkeyChord, HotkeyError, Notification,
-    Notify, NotifyError, VolumeChange, VolumeState,
+    AudioControl, AudioError, CaptureError, CaptureRequest, Hotkey, HotkeyCallback, HotkeyChord,
+    HotkeyError, Notification, Notify, NotifyError, RawFrame, ScreenCapture, VolumeChange,
+    VolumeState,
 };
 
 /// The macOS [`Hotkey`] backend is not implemented (Slice 8 is Windows-first).
@@ -54,5 +55,17 @@ impl Notify for MacosNotify {
     #[cfg_attr(coverage, coverage(off))]
     fn show(&self, _notification: &Notification) -> Result<bool, NotifyError> {
         unimplemented!("the macOS Notify backend is not implemented (Slice 9.5 is Windows-first)")
+    }
+}
+
+/// The macOS [`ScreenCapture`] backend is not implemented (Slice 10 is Windows-first).
+pub struct MacosScreenCapture;
+
+impl ScreenCapture for MacosScreenCapture {
+    #[cfg_attr(coverage, coverage(off))]
+    fn capture(&self, _request: &CaptureRequest) -> Result<RawFrame, CaptureError> {
+        unimplemented!(
+            "the macOS ScreenCapture backend is not implemented (Slice 10 is Windows-first)"
+        )
     }
 }

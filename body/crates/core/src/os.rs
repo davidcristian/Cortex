@@ -5,16 +5,29 @@
 //! Slice 8 introduces [`Hotkey`] (the global-hotkey backend); Slice 9 adds
 //! [`AudioControl`] (the first OS action the brain drives over `BodyService`), joined by
 //! [`Notify`] for proactive reminder delivery (Slice 9.5, ADR-0025, in the [`notify`]
-//! submodule since this file is at the line cap);
-//! the screen and input traits join in Slice 10 and later. The overlay is summoned by a global
+//! submodule since this file is at the line cap); Slice 10 adds [`ScreenCapture`], the first
+//! OS capability whose return value is a payload rather than a status, split across the
+//! [`screen`] port, the [`screen_policy`] that bounds what may cross the seam (ADR-0029), and
+//! the private pixel arithmetic behind it; the input trait joins later. The overlay is summoned by a global
 //! hotkey whose chord is a [`HotkeyChord`]; a backend registers that chord with
 //! the OS and calls back on each press. Mapping a chord to the OS key identifier
 //! is pure and lives here ([`Accelerator`]); touching the OS is the adapter's job.
 
 pub mod notify;
+pub mod screen;
+mod screen_image;
+pub mod screen_policy;
 
 pub use notify::{
     MAX_TEXT_CHARS, Notification, Notify, NotifyError, UNTRUSTED_ATTRIBUTION, escape_xml,
+};
+pub use screen::{
+    CAPTURE_RECEIPT_BODY, CAPTURE_RECEIPT_ID, CAPTURE_RECEIPT_TITLE, CaptureError,
+    DeniedScreenCapture, RawFrame, ScreenCapture,
+};
+pub use screen_policy::{
+    CAPTURE_MIME, Capture, CaptureRequest, DEFAULT_MAX_EDGE, MAX_CAPTURE_BYTES, MAX_EDGE_CEILING,
+    MAX_SHRINK_ATTEMPTS, encode_png,
 };
 
 use crate::hotkey::{HotkeyChord, Modifier};

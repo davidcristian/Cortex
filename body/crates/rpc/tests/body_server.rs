@@ -3,8 +3,10 @@
 //! driven by the generated `BodyServiceClient` end to end, covering get/set with every
 //! optional-field combination, the two `AudioError` arms → their gRPC statuses, the push
 //! notification (shown, declined, and both `NotifyError` arms, plus the inert text that reaches
-//! the backend), the not-yet-built RPCs → `Unimplemented`, and the seam-token validator
-//! (pass-through when unset; every rejection path when set).
+//! the backend), the screen capture (a real PNG produced by pure core from a fake frame source,
+//! the body-authored receipt, and every `CaptureError` arm → its gRPC status), the
+//! not-yet-built RPC → `Unimplemented`, and the seam-token validator (pass-through when unset;
+//! every rejection path when set).
 //!
 //! The fakes also record **which thread** each call ran on, because where the synchronous OS
 //! call happens is part of the contract now (it must not park an async worker), and a
@@ -15,13 +17,14 @@ use std::sync::{Arc, Mutex, PoisonError};
 use std::thread::{self, ThreadId};
 
 use body_core::{
-    AudioControl, AudioError, Notification, Notify, NotifyError, VolumeChange, VolumeState,
+    AudioControl, AudioError, Capture, CaptureError, CaptureRequest, DeniedScreenCapture,
+    Notification, Notify, NotifyError, RawFrame, ScreenCapture, VolumeChange, VolumeState,
 };
 use body_rpc::body_service;
 use body_rpc::generated::body_service_client::BodyServiceClient;
 use body_rpc::generated::{
-    CaptureScreenRequest, GetVolumeRequest, InjectInputRequest, NotifyReply, NotifyRequest,
-    SetVolumeRequest, VolumeState as PbVolumeState,
+    CaptureScreenRequest, GetVolumeRequest, ImageBlob, InjectInputRequest, NotifyReply,
+    NotifyRequest, SetVolumeRequest, VolumeState as PbVolumeState,
 };
 use tokio::net::TcpListener;
 use tokio_stream::wrappers::TcpListenerStream;
@@ -199,10 +202,31 @@ async fn spawn_body(fake: FakeAudio, token: &'static str) -> Result<SocketAddr, 
     spawn_with(fake, FakeNotify::answering(true), token).await
 }
 
-/// Serves both fakes fronted by the seam-token validator on an ephemeral loopback port.
+/// Serves the audio and notification fakes with capture switched off (the host default),
+/// fronted by the seam-token validator on an ephemeral loopback port.
 async fn spawn_with(
     audio: FakeAudio,
     notify: FakeNotify,
+    token: &'static str,
+) -> Result<SocketAddr, std::io::Error> {
+    serve(audio, notify, DeniedScreenCapture, true, token).await
+}
+
+/// Serves a capture backend alongside the audio and notification fakes.
+async fn spawn_screen(
+    screen: FakeScreen,
+    notify: FakeNotify,
+    receipts: bool,
+) -> Result<SocketAddr, std::io::Error> {
+    serve(FakeAudio::new(0.5, false), notify, screen, receipts, "").await
+}
+
+/// Serves every fake fronted by the seam-token validator on an ephemeral loopback port.
+async fn serve<S: ScreenCapture + 'static>(
+    audio: FakeAudio,
+    notify: FakeNotify,
+    screen: S,
+    receipts: bool,
     token: &'static str,
 ) -> Result<SocketAddr, std::io::Error> {
     let listener = TcpListener::bind("127.0.0.1:0").await?;
@@ -210,7 +234,7 @@ async fn spawn_with(
     let incoming = TcpListenerStream::new(listener);
     tokio::spawn(async move {
         Server::builder()
-            .add_service(body_service(audio, notify, token))
+            .add_service(body_service(audio, notify, screen, receipts, token))
             .serve_with_incoming(incoming)
             .await
     });
@@ -374,15 +398,11 @@ async fn backend_failure_maps_to_internal() {
 }
 
 #[tokio::test]
-async fn capture_screen_and_inject_input_are_unimplemented() {
+async fn inject_input_is_unimplemented() {
     let addr = spawn_body(FakeAudio::new(0.5, false), "").await.unwrap();
-    let mut client = connect(addr).await.unwrap();
-    let screen = client
-        .capture_screen(CaptureScreenRequest {})
+    let input = connect(addr)
         .await
-        .unwrap_err();
-    assert_eq!(screen.code(), Code::Unimplemented);
-    let input = client
+        .unwrap()
         .inject_input(InjectInputRequest { input: None })
         .await
         .unwrap_err();
@@ -608,4 +628,340 @@ async fn a_wrong_length_token_is_unauthenticated() {
         .await
         .unwrap_err();
     assert_eq!(status.code(), Code::Unauthenticated);
+}
+
+/// A fake `ScreenCapture`: answers a scripted frame or failure, records the resolved requests
+/// it was handed and the thread each ran on.
+struct FakeScreen {
+    frame: Result<RawFrame, CaptureError>,
+    seen: Arc<Mutex<Vec<CaptureRequest>>>,
+    threads: Threads,
+}
+
+impl FakeScreen {
+    fn answering(frame: RawFrame) -> Self {
+        Self {
+            frame: Ok(frame),
+            seen: Arc::default(),
+            threads: Threads::default(),
+        }
+    }
+
+    fn failing(error: CaptureError) -> Self {
+        Self {
+            frame: Err(error),
+            seen: Arc::default(),
+            threads: Threads::default(),
+        }
+    }
+
+    /// A handle on the requests, taken before the fake moves into the server.
+    fn requests(&self) -> Arc<Mutex<Vec<CaptureRequest>>> {
+        Arc::clone(&self.seen)
+    }
+
+    /// A handle on the call sites, taken before the fake moves into the server.
+    fn threads(&self) -> Threads {
+        Arc::clone(&self.threads)
+    }
+}
+
+impl ScreenCapture for FakeScreen {
+    fn capture(&self, request: &CaptureRequest) -> Result<RawFrame, CaptureError> {
+        record(&self.threads, thread::current().id());
+        self.seen
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .push(*request);
+        self.frame.clone()
+    }
+}
+
+/// A flat BGRA frame of the given size.
+fn frame(width: u32, height: u32) -> RawFrame {
+    let pixels = [0x10, 0x20, 0x30, 0x00].repeat((width * height) as usize);
+    RawFrame::new(width, height, pixels)
+        .unwrap_or_else(|error| panic!("the fixture frame is malformed: {error}"))
+}
+
+/// Wall-clock milliseconds, read independently of the server so a timestamp assertion is not
+/// checking production against a value production produced.
+fn now_millis() -> i64 {
+    let since_epoch = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default();
+    i64::try_from(since_epoch.as_millis()).unwrap_or(i64::MAX)
+}
+
+/// Runs one capture, returning the blob the seam carried.
+async fn capture_once(addr: SocketAddr, max_edge: u32) -> Result<ImageBlob, tonic::Status> {
+    capture_bounded(addr, max_edge, 0).await
+}
+
+/// Runs one capture that names its own byte ceiling.
+async fn capture_bounded(
+    addr: SocketAddr,
+    max_edge: u32,
+    max_bytes: u32,
+) -> Result<ImageBlob, tonic::Status> {
+    let mut client = connect(addr)
+        .await
+        .unwrap_or_else(|error| panic!("could not reach the body: {error}"));
+    let reply = client
+        .capture_screen(CaptureScreenRequest {
+            max_edge,
+            max_bytes,
+        })
+        .await?
+        .into_inner();
+    Ok(reply
+        .image
+        .unwrap_or_else(|| panic!("the reply carried no image")))
+}
+
+#[tokio::test]
+async fn capture_screen_returns_a_real_downscaled_png_with_its_source_size() {
+    let screen = FakeScreen::answering(frame(400, 200));
+    let requests = screen.requests();
+    let before = now_millis();
+    let addr = spawn_screen(screen, FakeNotify::answering(true), true)
+        .await
+        .unwrap();
+
+    let blob = capture_once(addr, 100).await.unwrap();
+    let after = now_millis();
+
+    assert_eq!(blob.mime_type, "image/png");
+    assert_eq!(&blob.data[..8], &[0x89, b'P', b'N', b'G', 13, 10, 26, 10]);
+    assert_eq!((blob.width, blob.height), (100, 50));
+    assert_eq!((blob.source_width, blob.source_height), (400, 200));
+    assert!(
+        (before..=after).contains(&blob.captured_at_unix_ms),
+        "{} is not between {before} and {after}",
+        blob.captured_at_unix_ms
+    );
+
+    let seen = requests
+        .lock()
+        .unwrap_or_else(PoisonError::into_inner)
+        .clone();
+    assert_eq!(seen, vec![CaptureRequest::new(100)]);
+}
+
+#[tokio::test]
+async fn an_unset_max_edge_reaches_the_backend_as_the_body_default() {
+    let screen = FakeScreen::answering(frame(4, 4));
+    let requests = screen.requests();
+    let addr = spawn_screen(screen, FakeNotify::answering(true), true)
+        .await
+        .unwrap();
+
+    let blob = capture_once(addr, 0).await.unwrap();
+    assert_eq!((blob.width, blob.height), (4, 4));
+
+    let seen = requests
+        .lock()
+        .unwrap_or_else(PoisonError::into_inner)
+        .clone();
+    assert_eq!(seen.len(), 1);
+    assert_eq!(seen[0].max_edge(), 1600);
+}
+
+#[tokio::test]
+async fn a_successful_capture_shows_the_body_authored_receipt() {
+    let notifier = FakeNotify::answering(true);
+    let addr = spawn_screen(FakeScreen::answering(frame(4, 4)), notifier.clone(), true)
+        .await
+        .unwrap();
+
+    capture_once(addr, 0).await.unwrap();
+
+    let seen = notifier.seen();
+    assert_eq!(seen.len(), 1);
+    assert_eq!(seen[0].title(), "Screen captured");
+    assert_eq!(
+        seen[0].body(),
+        "A picture of your screen was sent to the assistant."
+    );
+    assert_eq!(seen[0].reminder_id(), "screen-capture");
+    assert!(!seen[0].tainted());
+    assert_eq!(seen[0].attribution(), None);
+}
+
+#[tokio::test]
+async fn the_receipt_can_be_switched_off_without_losing_the_capture() {
+    let notifier = FakeNotify::answering(true);
+    let addr = spawn_screen(FakeScreen::answering(frame(4, 4)), notifier.clone(), false)
+        .await
+        .unwrap();
+
+    let blob = capture_once(addr, 0).await.unwrap();
+
+    assert_eq!((blob.width, blob.height), (4, 4));
+    assert!(notifier.seen().is_empty(), "the receipt must not fire");
+}
+
+#[tokio::test]
+async fn a_failed_receipt_does_not_lose_the_capture() {
+    // The pixels have already been read by the time the receipt runs, so refusing to answer
+    // would cost the capability and buy no privacy back.
+    let notifier = FakeNotify::failing(NotifyError::Unavailable(String::from("no service")));
+    let addr = spawn_screen(FakeScreen::answering(frame(4, 4)), notifier, true)
+        .await
+        .unwrap();
+
+    let blob = capture_once(addr, 0).await.unwrap();
+    assert_eq!((blob.width, blob.height), (4, 4));
+}
+
+#[tokio::test]
+async fn a_capture_runs_off_the_async_worker() {
+    let screen = FakeScreen::answering(frame(4, 4));
+    let threads = screen.threads();
+    let addr = spawn_screen(screen, FakeNotify::answering(true), true)
+        .await
+        .unwrap();
+
+    capture_once(addr, 0).await.unwrap();
+
+    let calls = recorded(&threads);
+    assert_eq!(calls.len(), 1);
+    assert_ne!(
+        calls[0],
+        thread::current().id(),
+        "the blit must not run on an async worker"
+    );
+}
+
+#[tokio::test]
+async fn each_capture_failure_maps_to_its_own_status() {
+    for (error, code, fragment) in [
+        (
+            CaptureError::NoDisplay(String::from("lid shut")),
+            Code::Unavailable,
+            "no display: lid shut",
+        ),
+        (
+            CaptureError::Disabled,
+            Code::PermissionDenied,
+            "screen capture is disabled on this host",
+        ),
+        (
+            CaptureError::Backend(String::from("BitBlt 0x2")),
+            Code::Internal,
+            "screen capture backend error: BitBlt 0x2",
+        ),
+    ] {
+        let addr = spawn_screen(
+            FakeScreen::failing(error),
+            FakeNotify::answering(true),
+            true,
+        )
+        .await
+        .unwrap();
+        let status = capture_once(addr, 0).await.unwrap_err();
+        assert_eq!(status.code(), code);
+        assert_eq!(status.message(), fragment);
+    }
+}
+
+#[tokio::test]
+async fn a_failed_capture_shows_no_receipt() {
+    let notifier = FakeNotify::answering(true);
+    let addr = spawn_screen(
+        FakeScreen::failing(CaptureError::Disabled),
+        notifier.clone(),
+        true,
+    )
+    .await
+    .unwrap();
+
+    capture_once(addr, 0).await.unwrap_err();
+    assert!(
+        notifier.seen().is_empty(),
+        "nothing was captured, so nothing may be announced"
+    );
+}
+
+#[tokio::test]
+async fn a_host_with_capture_switched_off_refuses_every_request() {
+    let addr = spawn_body(FakeAudio::new(0.5, false), "").await.unwrap();
+    let status = capture_once(addr, 0).await.unwrap_err();
+    assert_eq!(status.code(), Code::PermissionDenied);
+}
+
+#[tokio::test]
+async fn a_frame_the_policy_cannot_encode_is_a_backend_error() {
+    // A backend that miscounts its own buffer is caught by the pure-core frame check, and the
+    // failure has to reach the brain as a backend fault rather than a panic.
+    let screen = FakeScreen::failing(CaptureError::Backend(String::from(
+        "the frame is 2x2 but carries 15 bytes, not 16",
+    )));
+    let addr = spawn_screen(screen, FakeNotify::answering(true), true)
+        .await
+        .unwrap();
+    let status = capture_once(addr, 0).await.unwrap_err();
+    assert_eq!(status.code(), Code::Internal);
+    assert!(status.message().contains("not 16"));
+}
+
+/// The pure-core capture value is what the handler maps, so a `Capture` built here and the
+/// blob the seam carried must agree byte for byte.
+#[tokio::test]
+async fn the_blob_carries_exactly_what_the_core_encoded() {
+    let source = frame(30, 12);
+    let expected = Capture::from_bgra(&source, &CaptureRequest::new(10)).unwrap();
+    let addr = spawn_screen(
+        FakeScreen::answering(source),
+        FakeNotify::answering(true),
+        true,
+    )
+    .await
+    .unwrap();
+
+    let blob = capture_once(addr, 10).await.unwrap();
+    assert_eq!(blob.data, expected.data());
+    assert_eq!(blob.width, expected.width());
+    assert_eq!(blob.height, expected.height());
+}
+
+#[tokio::test]
+async fn a_ceiling_the_ladder_cannot_meet_is_refused_as_too_large() {
+    // The brain names a ceiling no PNG can fit under, so all three rungs overshoot and the
+    // body refuses rather than sending a picture the caller already said it would not take.
+    let addr = spawn_screen(
+        FakeScreen::answering(frame(32, 32)),
+        FakeNotify::answering(true),
+        true,
+    )
+    .await
+    .unwrap();
+
+    let status = capture_bounded(addr, 32, 40).await.unwrap_err();
+    assert_eq!(status.code(), Code::Internal);
+    assert!(
+        status
+            .message()
+            .starts_with("the capture is too large for the seam: "),
+        "{}",
+        status.message()
+    );
+}
+
+#[tokio::test]
+async fn a_ceiling_the_ladder_can_meet_is_honoured() {
+    let notifier = FakeNotify::answering(true);
+    let addr = spawn_screen(
+        FakeScreen::answering(frame(400, 400)),
+        notifier.clone(),
+        true,
+    )
+    .await
+    .unwrap();
+
+    // 400x400 flat colour encodes tiny, so a 4 KiB ceiling is met on the first rung.
+    let blob = capture_bounded(addr, 400, 4096).await.unwrap();
+    assert_eq!((blob.width, blob.height), (400, 400));
+    assert!(blob.data.len() <= 4096, "{} bytes", blob.data.len());
+    assert_eq!(notifier.seen().len(), 1);
 }

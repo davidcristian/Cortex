@@ -1,0 +1,366 @@
+//! Behavioral tests for `body_core::os::screen` and its `screen_policy` sibling: the request resolution `CaptureRequest`
+//! applies to a proto3 hint, the frame validation `RawFrame` enforces, the downscale/encode/
+//! bound ladder `Capture::from_bgra` runs (identity, box-filtered, and the `TooLarge` rung),
+//! the encoder's own rejects, `DeniedScreenCapture`, and a contract-style check that
+//! `ScreenCapture` works as a generic bound through a fake.
+//!
+//! Every size claim is checked by decoding the produced PNG back with an independent decoder
+//! rather than by trusting the value's own accessors, because the accessors are what the
+//! policy writes and the bytes are what the seam ships.
+
+use std::fmt::Debug;
+use std::sync::{Mutex, PoisonError};
+
+use body_core::os::screen::{CAPTURE_RECEIPT_BODY, CAPTURE_RECEIPT_ID, CAPTURE_RECEIPT_TITLE};
+use body_core::os::screen_policy::{
+    CAPTURE_MIME, DEFAULT_MAX_EDGE, MAX_CAPTURE_BYTES, MAX_EDGE_CEILING, MAX_SHRINK_ATTEMPTS,
+    encode_png,
+};
+use body_core::{
+    Capture, CaptureError, CaptureRequest, DeniedScreenCapture, RawFrame, ScreenCapture,
+};
+
+/// Unwraps a fixture's result. `unwrap` itself is denied outside `#[test]` bodies, and these
+/// helpers run outside one.
+fn ok<T, E: Debug>(result: Result<T, E>) -> T {
+    result.unwrap_or_else(|error| panic!("the fixture failed: {error:?}"))
+}
+
+/// A fake `ScreenCapture` backend: answers a scripted frame or failure and records the
+/// requests it was handed (the port is `Send + Sync`, so the interior mutability is a `Mutex`).
+struct FakeScreen {
+    frame: Result<RawFrame, CaptureError>,
+    seen: Mutex<Vec<CaptureRequest>>,
+}
+
+impl FakeScreen {
+    fn answering(frame: RawFrame) -> Self {
+        Self {
+            frame: Ok(frame),
+            seen: Mutex::new(Vec::new()),
+        }
+    }
+
+    fn failing(error: CaptureError) -> Self {
+        Self {
+            frame: Err(error),
+            seen: Mutex::new(Vec::new()),
+        }
+    }
+
+    fn seen(&self) -> Vec<CaptureRequest> {
+        self.seen
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .clone()
+    }
+}
+
+impl ScreenCapture for FakeScreen {
+    fn capture(&self, request: &CaptureRequest) -> Result<RawFrame, CaptureError> {
+        self.seen
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .push(*request);
+        self.frame.clone()
+    }
+}
+
+/// Captures through a generic bound, the way the `BodyService` server does.
+fn capture_via<S: ScreenCapture>(
+    backend: &S,
+    request: &CaptureRequest,
+) -> Result<RawFrame, CaptureError> {
+    backend.capture(request)
+}
+
+/// A frame whose pixels are a deterministic function of position, so an averaged output pixel
+/// has a value a test can predict.
+fn gradient(width: u32, height: u32) -> RawFrame {
+    let mut pixels = Vec::with_capacity((width * height * 4) as usize);
+    for y in 0..height {
+        for x in 0..width {
+            let blue = u8::try_from((x + y) % 256).unwrap_or(0);
+            pixels.extend_from_slice(&[blue, 0x20, 0x40, 0x00]);
+        }
+    }
+    ok(RawFrame::new(width, height, pixels))
+}
+
+/// A frame of one flat colour, in BGRA order.
+fn flat(width: u32, height: u32, blue: u8, green: u8, red: u8) -> RawFrame {
+    let pixels = [blue, green, red, 0x00].repeat((width * height) as usize);
+    ok(RawFrame::new(width, height, pixels))
+}
+
+/// A frame of incompressible noise, which is what a photographic or video-filled screen costs.
+fn noise(width: u32, height: u32) -> RawFrame {
+    let mut state = 0x2545_F491_4F6C_DD1D_u64;
+    let mut pixels = Vec::with_capacity((width * height * 4) as usize);
+    for _ in 0..(width * height) {
+        state ^= state << 13;
+        state ^= state >> 7;
+        state ^= state << 17;
+        pixels.extend_from_slice(&state.to_le_bytes()[..4]);
+    }
+    ok(RawFrame::new(width, height, pixels))
+}
+
+/// Decodes a PNG back to `(width, height, rgb bytes)` with the decoder half of the same crate,
+/// so a test never reads a dimension out of the value that produced it.
+fn decode(data: &[u8]) -> (u32, u32, Vec<u8>) {
+    let decoder = png::Decoder::new(std::io::Cursor::new(data));
+    let mut reader = ok(decoder.read_info());
+    let size = reader
+        .output_buffer_size()
+        .unwrap_or_else(|| panic!("the decoder reported no buffer size"));
+    let mut buffer = vec![0; size];
+    let info = ok(reader.next_frame(&mut buffer));
+    assert_eq!(info.color_type, png::ColorType::Rgb);
+    assert_eq!(info.bit_depth, png::BitDepth::Eight);
+    buffer.truncate(info.buffer_size());
+    (info.width, info.height, buffer)
+}
+
+#[test]
+fn a_zero_max_edge_means_the_default_and_a_huge_one_is_clamped() {
+    assert_eq!(CaptureRequest::new(0).max_edge(), 1600);
+    assert_eq!(CaptureRequest::new(0).max_edge(), DEFAULT_MAX_EDGE);
+    assert_eq!(CaptureRequest::new(640).max_edge(), 640);
+    assert_eq!(CaptureRequest::new(u32::MAX).max_edge(), 4096);
+    assert_eq!(CaptureRequest::new(u32::MAX).max_edge(), MAX_EDGE_CEILING);
+    assert_eq!(CaptureRequest::new(MAX_EDGE_CEILING).max_edge(), 4096);
+}
+
+#[test]
+fn the_byte_ceiling_is_six_mebibytes_and_the_ladder_has_two_rungs() {
+    assert_eq!(MAX_CAPTURE_BYTES, 6_291_456);
+    assert_eq!(MAX_SHRINK_ATTEMPTS, 2);
+    assert_eq!(CAPTURE_MIME, "image/png");
+}
+
+#[test]
+fn the_capture_receipt_strings_are_fixed_and_body_authored() {
+    assert_eq!(CAPTURE_RECEIPT_TITLE, "Screen captured");
+    assert_eq!(
+        CAPTURE_RECEIPT_BODY,
+        "A picture of your screen was sent to the assistant."
+    );
+    assert_eq!(CAPTURE_RECEIPT_ID, "screen-capture");
+}
+
+#[test]
+fn a_frame_with_no_pixels_is_refused() {
+    let error = RawFrame::new(0, 4, vec![0; 0]).unwrap_err();
+    assert_eq!(
+        error,
+        CaptureError::Backend(String::from("the frame is 0x4, which has no pixels"))
+    );
+    let error = RawFrame::new(4, 0, vec![0; 0]).unwrap_err();
+    assert_eq!(
+        error,
+        CaptureError::Backend(String::from("the frame is 4x0, which has no pixels"))
+    );
+}
+
+#[test]
+fn a_frame_whose_buffer_is_the_wrong_size_is_refused() {
+    let error = RawFrame::new(2, 2, vec![0; 15]).unwrap_err();
+    assert_eq!(
+        error,
+        CaptureError::Backend(String::from(
+            "the frame is 2x2 but carries 15 bytes, not 16"
+        ))
+    );
+}
+
+#[test]
+fn a_frame_keeps_the_pixels_it_was_given() {
+    let frame = flat(2, 3, 0x11, 0x22, 0x33);
+    assert_eq!((frame.width(), frame.height()), (2, 3));
+    assert_eq!(frame.pixels().len(), 24);
+    assert_eq!(&frame.pixels()[..4], &[0x11, 0x22, 0x33, 0x00]);
+}
+
+#[test]
+fn a_frame_inside_the_bound_crosses_unscaled_with_its_colours_intact() {
+    let frame = flat(8, 5, 0x11, 0x22, 0x33);
+    let capture = Capture::from_bgra(&frame, &CaptureRequest::new(1600)).unwrap();
+
+    assert_eq!(capture.mime_type(), "image/png");
+    assert_eq!((capture.width(), capture.height()), (8, 5));
+    assert_eq!((capture.source_width(), capture.source_height()), (8, 5));
+    assert_eq!(
+        &capture.data()[..8],
+        &[0x89, b'P', b'N', b'G', 13, 10, 26, 10]
+    );
+
+    let (width, height, rgb) = decode(capture.data());
+    assert_eq!((width, height), (8, 5));
+    // BGRA in, RGB out: the alpha byte is dropped and the channels are reordered.
+    assert_eq!(&rgb[..3], &[0x33, 0x22, 0x11]);
+    assert_eq!(rgb.len(), 8 * 5 * 3);
+}
+
+#[test]
+fn an_oversized_frame_is_box_filtered_down_to_the_requested_edge() {
+    let frame = gradient(40, 20);
+    let capture = Capture::from_bgra(&frame, &CaptureRequest::new(10)).unwrap();
+
+    assert_eq!((capture.width(), capture.height()), (10, 5));
+    assert_eq!((capture.source_width(), capture.source_height()), (40, 20));
+
+    let (width, height, rgb) = decode(capture.data());
+    assert_eq!((width, height), (10, 5));
+    // The top-left output pixel averages the source 4x4 block whose blue values are
+    // (x + y) for x,y in 0..4: mean 3. Green and red are flat.
+    assert_eq!(&rgb[..3], &[0x40, 0x20, 3]);
+    // The second output column covers x in 4..8, so its blue mean is 3 + 4.
+    assert_eq!(&rgb[3..6], &[0x40, 0x20, 7]);
+}
+
+#[test]
+fn a_tall_frame_keeps_its_aspect_ratio_and_never_loses_an_edge() {
+    let frame = gradient(3, 300);
+    let capture = Capture::from_bgra(&frame, &CaptureRequest::new(30)).unwrap();
+    let (width, height, _) = decode(capture.data());
+    // 3 * 30 / 300 floors to zero, and an image with no width is not an image.
+    assert_eq!((width, height), (1, 30));
+    assert_eq!((capture.width(), capture.height()), (1, 30));
+}
+
+#[test]
+fn a_capture_that_stays_over_its_ceiling_is_refused_after_the_ladder_runs_out() {
+    // A ceiling no PNG header can fit under, so all three rungs (32, 16, 8) overshoot.
+    let frame = noise(32, 32);
+    let error = Capture::from_bgra(&frame, &CaptureRequest::bounded(32, 40)).unwrap_err();
+    let CaptureError::TooLarge(bytes) = error else {
+        panic!("expected the ladder to give up, got {error:?}");
+    };
+    // The reported size is the last rung reached, which is the smallest of the three.
+    let smallest = encode_png(8, 8, &[0x40; 8 * 8 * 3]).unwrap().len();
+    assert!(bytes > 40, "reported {bytes} bytes");
+    assert!(
+        bytes < smallest * 4,
+        "reported {bytes} bytes, which is not the last rung"
+    );
+}
+
+#[test]
+fn a_caller_may_tighten_the_byte_ceiling_but_never_loosen_it() {
+    assert_eq!(CaptureRequest::new(0).max_bytes(), MAX_CAPTURE_BYTES);
+    assert_eq!(CaptureRequest::bounded(0, 0).max_bytes(), MAX_CAPTURE_BYTES);
+    assert_eq!(CaptureRequest::bounded(0, 99).max_bytes(), 99);
+    assert_eq!(
+        CaptureRequest::bounded(0, u32::MAX).max_bytes(),
+        MAX_CAPTURE_BYTES,
+        "a caller asking for more than the seam allows gets the seam's own ceiling"
+    );
+}
+
+#[test]
+fn a_one_pixel_wide_frame_keeps_its_only_column_while_its_height_shrinks() {
+    // The width is already 1 and cannot shrink, so only one of the two identity conditions
+    // holds and the box filter still has to run.
+    let frame = gradient(1, 40);
+    let capture = Capture::from_bgra(&frame, &CaptureRequest::new(10)).unwrap();
+    let (width, height, rgb) = decode(capture.data());
+    assert_eq!((width, height), (1, 10));
+    assert_eq!(rgb.len(), 30);
+    // The first output row averages source rows 0..4, whose blue values are 0, 1, 2, 3.
+    assert_eq!(&rgb[..3], &[0x40, 0x20, 1]);
+}
+
+#[test]
+fn the_ladder_shrinks_until_the_encoding_fits() {
+    // 1800x1800 of noise is over the ceiling; 900x900 is not. The ladder must return the
+    // second rung rather than the first or an error.
+    let frame = noise(1800, 1800);
+    let capture = Capture::from_bgra(&frame, &CaptureRequest::new(1800)).unwrap();
+    assert_eq!((capture.width(), capture.height()), (900, 900));
+    assert_eq!(
+        (capture.source_width(), capture.source_height()),
+        (1800, 1800)
+    );
+    assert!(
+        capture.data().len() <= MAX_CAPTURE_BYTES,
+        "the ladder returned {} bytes",
+        capture.data().len()
+    );
+    let (width, height, _) = decode(capture.data());
+    assert_eq!((width, height), (900, 900));
+}
+
+#[test]
+fn the_encoder_refuses_a_buffer_that_is_not_the_image() {
+    let error = encode_png(2, 2, &[0; 11]).unwrap_err();
+    let CaptureError::Backend(detail) = error else {
+        panic!("expected a backend error");
+    };
+    assert!(detail.starts_with("PNG encoding failed: "), "{detail}");
+}
+
+#[test]
+fn the_encoder_refuses_an_image_with_no_pixels() {
+    let error = encode_png(0, 1, &[]).unwrap_err();
+    let CaptureError::Backend(detail) = error else {
+        panic!("expected a backend error");
+    };
+    assert!(detail.starts_with("PNG encoding failed: "), "{detail}");
+}
+
+#[test]
+fn a_denied_backend_answers_disabled_whatever_it_is_asked() {
+    let request = CaptureRequest::new(0);
+    assert_eq!(
+        capture_via(&DeniedScreenCapture, &request).unwrap_err(),
+        CaptureError::Disabled
+    );
+    assert_eq!(
+        DeniedScreenCapture
+            .capture(&CaptureRequest::new(4096))
+            .unwrap_err(),
+        CaptureError::Disabled
+    );
+}
+
+#[test]
+fn a_backend_receives_the_resolved_request_through_the_port() {
+    let backend = FakeScreen::answering(flat(4, 4, 1, 2, 3));
+    let frame = capture_via(&backend, &CaptureRequest::new(0)).unwrap();
+    assert_eq!((frame.width(), frame.height()), (4, 4));
+    assert_eq!(
+        backend.seen(),
+        vec![CaptureRequest::new(DEFAULT_MAX_EDGE)],
+        "the backend must see the resolved edge, not the raw zero"
+    );
+}
+
+#[test]
+fn a_failing_backend_reports_its_reason_through_the_port() {
+    let backend = FakeScreen::failing(CaptureError::NoDisplay(String::from("lid shut")));
+    assert_eq!(
+        capture_via(&backend, &CaptureRequest::new(0)).unwrap_err(),
+        CaptureError::NoDisplay(String::from("lid shut"))
+    );
+}
+
+#[test]
+fn every_capture_error_reads_as_itself() {
+    assert_eq!(
+        CaptureError::NoDisplay(String::from("none")).to_string(),
+        "no display is available to capture: none"
+    );
+    assert_eq!(
+        CaptureError::Disabled.to_string(),
+        "screen capture is disabled on this host"
+    );
+    assert_eq!(
+        CaptureError::Backend(String::from("gdi")).to_string(),
+        "the screen-capture backend failed: gdi"
+    );
+    assert_eq!(
+        CaptureError::TooLarge(7).to_string(),
+        "the capture is too large for the seam even downscaled: 7 bytes"
+    );
+}
