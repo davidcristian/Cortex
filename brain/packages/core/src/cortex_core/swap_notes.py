@@ -1,5 +1,11 @@
 """What the user is told while a model swap happens, or fails to (ADR-0030 decision 6)."""
 
+from cortex_core.errors import (
+    HandoffInProgressError,
+    ModelManagerError,
+    ResidencyRestoreError,
+)
+
 # The StatusUpdate.state a handoff's progress rides under. Part of the seam contract (the
 # overlay renders any state's detail as a chip today, and may switch on the value later).
 SWAPPING_STATE = "swapping"
@@ -33,3 +39,12 @@ RESTORE_FAILED_NOTE = (
     "\n\n(The usual assistant could not be reloaded after the handoff, so the next message may "
     "fail until the machine recovers.)"
 )
+
+
+def note_for(error: ModelManagerError) -> str:
+    """The note for each way a swap can end: what is true of the GPU right now."""
+    if isinstance(error, ResidencyRestoreError):
+        return RESTORE_FAILED_NOTE
+    if isinstance(error, HandoffInProgressError):
+        return ALREADY_ACTIVE_NOTE
+    return SWAP_FAILED_NOTE

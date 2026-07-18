@@ -9,7 +9,6 @@ from cortex_core.errors import (
     HandoffStoreError,
     InferenceError,
     ModelManagerError,
-    ResidencyRestoreError,
 )
 from cortex_core.events import StatusUpdate, TextDelta, TurnEvent
 from cortex_core.handoff import EscalationSlot, HandoffRecord, HandoffState
@@ -20,12 +19,11 @@ from cortex_core.swap_notes import (
     DRAIN_TIMEOUT_NOTE,
     DRAINING_DETAIL,
     LOADING_DETAIL,
-    RESTORE_FAILED_NOTE,
     RESTORING_DETAIL,
     STORE_FAILED_NOTE,
-    SWAP_FAILED_NOTE,
     SWAPPING_STATE,
     WORKING_DETAIL,
+    note_for,
 )
 
 _logger = logging.getLogger(__name__)
@@ -166,7 +164,7 @@ class SwapConductor:
             return
         except ModelManagerError as err:
             await self._advance(record, HandoffState.FAILED)
-            yield TextDelta(text=_note_for(err))
+            yield TextDelta(text=note_for(err))
             return
         await self._advance(record, HandoffState.DONE)
 
@@ -182,28 +180,31 @@ class SwapConductor:
             self._scheduler.undrain()
 
     async def _advance(self, record: HandoffRecord, state: HandoffState) -> None:
-        """Move the record to ``state``, deleting a completed one; never raises.
+        """Move the record to ``state``, and free the store's claim once it is settled."""
+        written = await self._write_state(record.handoff_id, state)
+        if state is HandoffState.DONE or (state.terminal and not written):
+            await self._release_claim(record.handoff_id)
 
-        A store that fails here must not turn a converged swap into a crash, so the failure is
-        logged and left to boot recovery, which marks any non-terminal record ``FAILED``.
-        """
+    async def _write_state(self, handoff_id: str, state: HandoffState) -> bool:
+        """Write one state onto the record; False when the store refused it."""
         try:
-            await self._handoffs.transition(record.handoff_id, state)
-            if state is HandoffState.DONE:
-                await self._handoffs.delete(record.handoff_id)
+            await self._handoffs.transition(handoff_id, state)
         except HandoffStoreError:
             _logger.exception(
                 "could not record the handoff's state",
-                extra={"handoff": record.handoff_id, "state": state.value},
+                extra={"handoff": handoff_id, "state": state.value},
             )
+            return False
+        return True
 
-
-def _note_for(error: ModelManagerError) -> str:
-    """The honest note for a swap that broke: the GPU serves nothing, or it serves the cortex.
-
-    A failed restore is the graver statement (the next turn may fail too), and it wins even
-    when it happened while unwinding some other failure, because it is what is true now.
-    """
-    if isinstance(error, ResidencyRestoreError):
-        return RESTORE_FAILED_NOTE
-    return SWAP_FAILED_NOTE
+    async def _release_claim(self, handoff_id: str) -> None:
+        """Delete the finished record, so nothing later reads it as a handoff in flight."""
+        try:
+            await self._handoffs.delete(handoff_id)
+        except HandoffStoreError:
+            # Nothing else this process can do: the record stays live until boot recovery, and
+            # escalation stays refused until then, which is the failure the log has to name.
+            _logger.exception(
+                "could not release the finished handoff; escalation stays refused until a restart",
+                extra={"handoff": handoff_id},
+            )
