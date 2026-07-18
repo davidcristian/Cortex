@@ -8,7 +8,13 @@ import pytest
 import uvicorn
 from starlette.applications import Starlette
 
-from cortex_model_manager import ModelHostConfig, build_model_host, main
+from cortex_model_manager import (
+    ModelHostConfig,
+    StopBounds,
+    build_model_host,
+    build_supervisor,
+    main,
+)
 
 
 async def test_the_wired_app_serves_the_roster_its_env_declared(
@@ -23,6 +29,21 @@ async def test_the_wired_app_serves_the_roster_its_env_declared(
         await client.aclose()
     assert response.status_code == HTTPStatus.OK
     assert cast("dict[str, Any]", response.json())["models"] == ["cortex", "brain"]
+
+
+async def test_the_wiring_hands_over_every_timing_knob_it_reads(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Distinctive values, read back off the two objects the root actually handed them to."""
+    monkeypatch.setenv("CORTEX_MODELHOST_STOP_GRACE_S", "7.5")
+    monkeypatch.setenv("CORTEX_MODELHOST_REAP_TIMEOUT_S", "11.25")
+    monkeypatch.setenv("CORTEX_MODELHOST_PROBE_TIMEOUT_S", "3.25")
+    supervisor, client = build_supervisor(ModelHostConfig())
+    try:
+        assert supervisor.stop_bounds == StopBounds(stop_grace_s=7.5, reap_timeout_s=11.25)
+        assert client.timeout == httpx.Timeout(3.25)
+    finally:
+        await client.aclose()
 
 
 def test_main_serves_the_configured_interface_and_port(monkeypatch: pytest.MonkeyPatch) -> None:

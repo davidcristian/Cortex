@@ -36,7 +36,15 @@ def build_app(
 
     async def health(request: Request) -> Response:
         del request
-        return JSONResponse({"status": "ok", "models": list(supervisor.models)})
+        bounds = supervisor.stop_bounds
+        return JSONResponse(
+            {
+                "status": "ok",
+                "models": list(supervisor.models),
+                "stop_grace_s": bounds.stop_grace_s,
+                "reap_timeout_s": bounds.reap_timeout_s,
+            }
+        )
 
     async def status(request: Request) -> Response:
         return await _answer(supervisor.status, request)
