@@ -56,6 +56,20 @@ class ScriptedModelHost:
         self._fail = dict(fail or {})
         self._fail_once = dict(fail_once or {})
 
+    def set_status(self, model: str, state: ModelHostState | None) -> None:
+        """Change what a **running** ``model`` reports, or clear the override with ``None``.
+
+        The constructor's ``status_override`` says what a model reports from the start; this says
+        it later, which is what the shared ``ModelHost`` contract suite needs to drive both this
+        twin and the real supervisor adapter through the same script. A load that has not finished
+        (``LOADING``) and a process that died unasked (``FAILED``) are conditions of the world,
+        not of the port, so the suite arranges them here and asserts what ``status`` then answers.
+        """
+        if state is None:
+            self._override.pop(model, None)
+            return
+        self._override[model] = state
+
     async def start(self, model: str) -> None:
         """Begin loading ``model`` (idempotent); the model reports its scripted state after."""
         self._check("start", model)

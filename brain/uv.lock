@@ -17,6 +17,7 @@ members = [
     "cortex-embedding",
     "cortex-inference",
     "cortex-memory",
+    "cortex-model-manager",
     "cortex-orchestrator",
     "cortex-seam",
     "cortex-session",
@@ -118,6 +119,7 @@ dependencies = [
     { name = "cortex-embedding" },
     { name = "cortex-inference" },
     { name = "cortex-memory" },
+    { name = "cortex-model-manager" },
     { name = "cortex-orchestrator" },
     { name = "cortex-seam" },
     { name = "cortex-session" },
@@ -145,6 +147,7 @@ requires-dist = [
     { name = "cortex-embedding", editable = "packages/embedding" },
     { name = "cortex-inference", editable = "packages/inference" },
     { name = "cortex-memory", editable = "packages/memory" },
+    { name = "cortex-model-manager", editable = "packages/model_manager" },
     { name = "cortex-orchestrator", editable = "packages/orchestrator" },
     { name = "cortex-seam", editable = "packages/seam" },
     { name = "cortex-session", editable = "packages/session" },
@@ -335,6 +338,27 @@ dependencies = [
 requires-dist = [
     { name = "asyncpg", specifier = ">=0.30" },
     { name = "cortex-core", editable = "packages/core" },
+]
+
+[[package]]
+name = "cortex-model-manager"
+version = "0.0.0"
+source = { editable = "packages/model_manager" }
+dependencies = [
+    { name = "cortex-core" },
+    { name = "httpx" },
+    { name = "pydantic-settings" },
+    { name = "starlette" },
+    { name = "uvicorn" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "cortex-core", editable = "packages/core" },
+    { name = "httpx", specifier = ">=0.27" },
+    { name = "pydantic-settings", specifier = ">=2.6" },
+    { name = "starlette", specifier = ">=1.0" },
+    { name = "uvicorn", specifier = ">=0.30" },
 ]
 
 [[package]]
