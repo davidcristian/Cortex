@@ -407,3 +407,41 @@ runner moved to `subagent_attempt.py` (`PlacedAttempt`, returning an `AttemptOut
 persisting a result), leaving `runner.py` holding the composition. Two attempts of one task cannot
 be expressed while "run it" and "store it" are one function, and both files sit well inside the
 line cap where one would not have.
+
+## Addendum (2026-07-18): the host half landed, relocated, and its per-model caps are gone
+
+The consequences above deferred a **host half** to the user: "two real `llama-server` sidecars (GPU
+`-ngl 99` + CPU `-ngl 0`) in `docker/docker-compose.subagents.yml`; the per-container
+`--cpus`/`--memory`/`--memory-swap` caps; the measured `vram_gb`/`cortex_reservation_gb`/budget
+numbers; real GPU-placed-subagent validation; the runbook update." Most of it landed with the
+model-host sub-slice, and it landed **somewhere else**, which is the content of this note.
+
+**The GPU sidecar is a tier of the model-host supervisor, not a service.** ADR-0030 decision 3 put
+the one container that may spawn a model process where the GPU reservation and the models mount
+already are, so the GPU-placed subagent executor is a hosted tier on `:8083` with `-ngl 99`, opt-in
+behind `CORTEX_MODEL_FILE_SUBAGENT_GPU`. The CPU `-ngl 0` sidecar stays its own container exactly as
+this ADR described. Routing is a **separate** setting from hosting:
+`CORTEX_SUBAGENTS_GPU_ENDPOINT` still defaults to the CPU server, deliberately, because a
+deployment that has named no GPU artifact would otherwise point GPU-placed spawns at a tier that
+answers nothing. So opting in is three settings together (the artifact, the endpoint, and the tier's
+id in `CORTEX_SWAP_EVICT_MODELS`), written in the gpu override's checklist rather than left implied.
+
+**The caps landed, and they are per container, so they are per supervisor and not per model.** Both
+containers carry `cpus`/`mem_limit`/`memswap_limit` (verified applied by the runtime as
+`NanoCpus`/`Memory`/`MemorySwap`), and on the CPU subagent container the defaults are the hard twin
+of this ADR's soft admission budgets, which is what makes those budgets more than an honour system.
+The loss to know about: the cortex, the deep model and the GPU subagent are now **processes in one
+cgroup**, so no per-model CPU or RAM cap exists. ADR-0030 wins as the later and more specific
+decision, and its own security argument is what buys it, since a per-model cap wants a container per
+model, which wants a controller that can start containers, which is the docker-socket shape that
+ADR rejected. The values ship as user-tunable placeholders: the 8 GB dev GPU cannot hold a real
+tier pair, so what was validated is the mechanism and not the arithmetic. Note that llama.cpp mmaps
+the GGUF, so mapped model pages count against the memory cap and a cap below the artifact size makes
+a load thrash rather than fail.
+
+**What stays host-side is real GPU-placed-*subagent* validation**, for this ADR's own reason: a
+subagent is only ever placed on the GPU when `CORTEX_SUBAGENTS_VRAM_GB` fits under the soft cap
+minus the resident cortex, which needs a card that holds the cortex first. The measured `vram_gb`
+and budget numbers stay host-side with it. Recorded in
+[docs/refinements/resource-governance.md](../refinements/resource-governance.md) and its
+[index](../refinements/index.md).

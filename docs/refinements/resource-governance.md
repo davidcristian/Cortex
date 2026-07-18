@@ -49,16 +49,24 @@ the unchanged `SubagentPlacer`/`SubagentScheduler`/`ModelManager` ports.
   behaviour (a failing GPU backend, an answering CPU one) rather than by a simulated OOM, and each
   of its properties reddens a named test under mutation.
 - **The real GPU-placed runtime mechanism landed 2026-07-18 with the model-host sub-slice, in a
-  different container than this entry expected ([ADR-0030 model-host addendum](../adr/ADR-0030-brain-handoff.md)).**
+  different container than this entry expected ([ADR-0012 host-half addendum](../adr/ADR-0012-resource-governance.md),
+  [ADR-0030 model-host addendum](../adr/ADR-0030-brain-handoff.md)).**
   The entry read: "**The real GPU-placed runtime mechanism.** Two live `llama-server` sidecars (GPU
   `-ngl 99` + CPU `-ngl 0`) in `docker/docker-compose.subagents.yml` + per-container
   `--cpus`/`--memory` cgroup caps + real GPU-placed-subagent validation lands with the **Slice 11**
   lifecycle behind the corrected ports." Two of the three landed as written and one moved.
   ADR-0030 decision 3 relocated the GPU sidecar into the `model-host` supervisor container (the one
   holding the GPU reservation and the models mount), so the GPU-placed subagent is a **hosted tier**
-  on :8083 with `-ngl 99` that `CORTEX_SUBAGENTS_GPU_ENDPOINT` points at, opt-in behind
-  `CORTEX_MODEL_FILE_SUBAGENT_GPU`, rather than a second service in the subagents override; the CPU
-  `-ngl 0` sidecar stays its own container as described. The caps landed on both containers
+  on :8083 with `-ngl 99`, opt-in behind `CORTEX_MODEL_FILE_SUBAGENT_GPU`, rather than a second
+  service in the subagents override; the CPU `-ngl 0` sidecar stays its own container as described.
+  **The tier is not what `CORTEX_SUBAGENTS_GPU_ENDPOINT` points at by default, and saying it was
+  is the one wrong claim this entry shipped with (corrected 2026-07-18).** That variable still
+  defaults to the CPU server (`docker-compose.subagents.yml`), which is the safe default, since a
+  deployment that has not named a GPU subagent artifact would otherwise route GPU-placed spawns at
+  a tier that answers nothing. Opting in is therefore three settings together, now written in the
+  gpu override's own checklist and in [subagents-cpu.md](../runbooks/subagents-cpu.md): the
+  artifact file, `CORTEX_SUBAGENTS_GPU_ENDPOINT=http://model-host:8083`, and the tier's id in
+  `CORTEX_SWAP_EVICT_MODELS` so a handoff stops it first. The caps landed on both containers
   (`cpus`/`mem_limit`/`memswap_limit`, verified applied by the runtime as `NanoCpus`/`Memory`/
   `MemorySwap`), with the CPU one's defaults set to the hard twin of the brain's soft admission
   budgets, which is what makes those budgets more than an honour system. **The granularity this

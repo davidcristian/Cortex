@@ -28,6 +28,13 @@
 # CORTEX_CTX_SIZE_BRAIN to fit it). A tier with no artifact file is not in the roster at all, so
 # without that file the deep model answers 404 rather than spawning a doomed process.
 # Procedure and failure modes: docs/runbooks/model-swap.md.
+#
+# The GPU-placed SUBAGENT tier is opt-in the same way, and takes three settings together, not one:
+#   CORTEX_MODEL_FILE_SUBAGENT_GPU   puts the tier in this sidecar's roster (-ngl 99 on :8083)
+#   CORTEX_SUBAGENTS_GPU_ENDPOINT=http://model-host:8083   routes GPU-placed spawns to it. The
+#                          subagents override defaults this to the CPU server, so WITHOUT this
+#                          line the tier runs and nothing reaches it.
+#   CORTEX_SWAP_EVICT_MODELS   lists it so a handoff stops it first (the deep model runs alone).
 
 services:
   brain:
