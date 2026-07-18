@@ -47,8 +47,10 @@ CORTEX_MODELS_DIR=/srv/models just up-gpu
 ```
 
 That is the whole thing: the GPU override runs `model-host` instead of `llama-cortex`, and the
-brain waits on its healthcheck, which asserts the **cortex tier is READY** rather than merely that
-the daemon answers. Ask it what it is doing from inside the network:
+brain waits on its healthcheck, which asserts that **a tier that can serve a turn is READY** (the
+cortex tier, or the deep one) rather than merely that the daemon answers. At cold boot the daemon
+starts only the cortex, so what `depends_on` waits for is the cortex serving, exactly as it was
+with `llama-cortex`. Ask it what it is doing from inside the network:
 
 ```
 docker compose --project-directory . -f docker/docker-compose.yml \
@@ -180,10 +182,17 @@ stranded record `FAILED` and escalation works again.
      -f docker/docker-compose.gpu.yml ps
    ```
 
-   `brain` and `model-host` should both read healthy; `model-host` is healthy only when the cortex
-   tier is READY, so an unhealthy one already tells you the model is not serving. Logs for either:
-   `docker compose logs model-host` (the daemon and every child, interleaved) or
-   `docker compose logs brain`. Which tier is up, precisely:
+   `brain` and `model-host` should both read healthy. `model-host` is healthy when the cortex tier
+   **or** the deep tier is READY, so an unhealthy one says no model is serving, not which one is
+   missing. **A handoff in progress is not a fault, and one state of it does read unhealthy:** while
+   the deep model is loading (up to `CORTEX_SWAP_LOAD_TIMEOUT_S`, 300 s) neither tier serves, and
+   at `interval: 30s` with `retries: 5` the container turns unhealthy after about 150 s of that,
+   which a tier-scale load can exceed. Anything that gates on health (`up -d --wait`, a monitor)
+   must therefore not be pointed at a handoff window. Measured on the dev GPU with the small
+   stand-ins: cortex stopped and the deep tier READY reads **healthy**; both stopped, or the deep
+   tier still loading, reads unhealthy. Logs for either:
+   `docker compose logs model-host` (the daemon and every child, interleaved, each daemon line
+   naming its tier and pid) or `docker compose logs brain`. Which tier is up, precisely:
 
    ```
    docker compose --project-directory . -f docker/docker-compose.yml \
@@ -191,7 +200,11 @@ stranded record `FAILED` and escalation works again.
      curl -s http://127.0.0.1:9300/models/cortex
    ```
 
-2. **Bring the cortex model back if it is not serving.** Ask the sidecar, which needs no restart:
+2. **Ask which tier is up before you start anything.** If the deep tier is READY, a handoff is
+   running and there is nothing to fix: starting the cortex now would put a second model on a GPU
+   the deep model is already resident on, which on a 24 GB card is how a working handoff becomes a
+   CUDA OOM. Wait for it, or fail it by stopping the deep tier first. Only when **no** tier is
+   serving, bring the cortex model back. Ask the sidecar, which needs no restart:
 
    ```
    docker compose --project-directory . -f docker/docker-compose.yml \
