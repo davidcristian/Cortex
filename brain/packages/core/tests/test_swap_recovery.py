@@ -18,8 +18,8 @@ from cortex_core import (
 )
 
 
-async def _recover(handoffs: RecordingHandoffStore, host: ScriptedModelHost) -> None:
-    await recover_handoffs(
+async def _recover(handoffs: RecordingHandoffStore, host: ScriptedModelHost) -> bool:
+    return await recover_handoffs(
         handoffs, host, harness.plan(), clock=TickingClock(), sleeper=RecordingSleeper()
     )
 
@@ -35,7 +35,7 @@ async def test_a_clean_boot_touches_nothing(caplog: pytest.LogCaptureFixture) ->
     host = ScriptedModelHost(running=["cortex"])
     handoffs = RecordingHandoffStore()
     with caplog.at_level(logging.WARNING, logger="cortex_core.swap_recovery"):
-        await _recover(handoffs, host)
+        assert await _recover(handoffs, host) is True  # what the seam then publishes as ready
     assert [call for call in host.calls if call[0] != "status"] == []
     assert host.running == {"cortex"}
     assert caplog.records == []
@@ -62,7 +62,7 @@ async def test_a_stranded_record_is_failed_so_the_next_handoff_is_not_refused(
 async def test_a_deep_model_left_resident_by_a_crash_is_stopped() -> None:
     """The GPU is converged to where the conductor's finally would have left it."""
     host = ScriptedModelHost(running=["brain"])
-    await _recover(RecordingHandoffStore(), host)
+    assert await _recover(RecordingHandoffStore(), host) is True
     assert host.running == {"cortex"}
     assert ("stop", "brain") in host.calls
     assert ("start", "cortex") in host.calls
@@ -75,12 +75,13 @@ async def test_an_evictable_tier_is_cleared_off_the_gpu_and_then_put_back() -> N
     residency includes it, so a boot that left it stopped would silently shrink the machine.
     """
     host = ScriptedModelHost(running=["subagent-gpu", "brain", "cortex"])
-    await converge_residency(
+    settled = await converge_residency(
         host,
         harness.plan(evict_models=("subagent-gpu",)),
         clock=TickingClock(),
         sleeper=RecordingSleeper(),
     )
+    assert settled is True
     assert [call for call in host.calls if call[0] != "status"] == [
         ("stop", "subagent-gpu"),
         ("stop", "brain"),
@@ -95,13 +96,14 @@ async def test_a_cortex_that_will_not_come_back_is_reported_loudly(
     """Recovery cannot fix a host that will not serve, so it says so instead of pretending."""
     host = ScriptedModelHost(status_override={"cortex": ModelHostState.LOADING})
     with caplog.at_level(logging.ERROR, logger="cortex_core.swap_recovery"):
-        await recover_handoffs(
+        settled = await recover_handoffs(
             RecordingHandoffStore(),
             host,
             harness.plan(load_timeout_s=0.0),
             clock=TickingClock(),
             sleeper=RecordingSleeper(),
         )
+    assert settled is False  # the answer the composition root turns into an amber dot
     assert [record.message for record in caplog.records] == [
         "the cortex is not serving after boot recovery; turns will fail until it is"
     ]
@@ -113,7 +115,9 @@ async def test_an_unreachable_host_does_not_fail_the_boot(
     """A dead supervisor is logged and served around: the brain still starts and answers RPCs."""
     host = ScriptedModelHost(fail={("status", "brain"): "supervisor unreachable"})
     with caplog.at_level(logging.ERROR, logger="cortex_core.swap_recovery"):
-        await _recover(RecordingHandoffStore(), host)
+        settled = await _recover(RecordingHandoffStore(), host)
+    # Nothing was observed about the cortex, and the honest report of an unobserved GPU is amber.
+    assert settled is False
     assert [record.message for record in caplog.records] == [
         "the model host was unreachable during boot recovery"
     ]
@@ -131,7 +135,7 @@ async def test_an_unreadable_handoff_store_does_not_fail_the_boot(
 
     host = ScriptedModelHost(running=["cortex"])
     with caplog.at_level(logging.ERROR, logger="cortex_core.swap_recovery"):
-        await _recover(_Unreadable(), host)
+        assert await _recover(_Unreadable(), host) is True  # the GPU is fine; only redis was not
     assert [record.message for record in caplog.records] == [
         "could not read or fail a stranded handoff at startup"
     ]

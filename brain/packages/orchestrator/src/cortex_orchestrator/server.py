@@ -164,10 +164,7 @@ def create_server(
     config: SeamServerConfig,
     make_engine: EngineFactory,
     store: SessionStore,
-    *,
-    schedules: ScheduleStore | None = None,
-    memory_cascade: SessionMemoryCascade | None = None,
-    residency: ResidencyReporter | None = None,
+    ports: SeamPorts = _NO_SEAM_PORTS,
 ) -> tuple[aio.Server, int]:
     """Build the aio server over `make_engine`/`store` and bind it (not started)."""
     interceptors = (SeamTokenInterceptor(config.token),) if config.token else ()
@@ -175,7 +172,7 @@ def create_server(
     service = BrainService(
         make_engine,
         store,
-        ports=SeamPorts(schedules=schedules, memory_cascade=memory_cascade, residency=residency),
+        ports=ports,
         max_buffered_events=config.converse_buffer,
         confirm_timeout_s=config.confirm_timeout_s,
     )
@@ -188,20 +185,10 @@ async def serve(
     config: SeamServerConfig,
     make_engine: EngineFactory,
     store: SessionStore,
-    *,
-    schedules: ScheduleStore | None = None,
-    memory_cascade: SessionMemoryCascade | None = None,
-    residency: ResidencyReporter | None = None,
+    ports: SeamPorts = _NO_SEAM_PORTS,
 ) -> None:
     """Run the seam server until SIGTERM/SIGINT or cancellation; always stop gracefully."""
-    server, bound_port = create_server(
-        config,
-        make_engine,
-        store,
-        schedules=schedules,
-        memory_cascade=memory_cascade,
-        residency=residency,
-    )
+    server, bound_port = create_server(config, make_engine, store, ports)
     await server.start()
     _logger.info("seam server listening", extra={"host": config.host, "port": bound_port})
     loop = asyncio.get_running_loop()

@@ -7,6 +7,7 @@ from datetime import UTC, datetime
 import pytest
 
 from cortex_core import (
+    RESIDENCY_BOOT_FAILED,
     RESIDENCY_DEEP,
     RESIDENCY_LOADING,
     RESIDENCY_LOST,
@@ -20,6 +21,7 @@ from cortex_core import (
     RecordingSleeper,
     ResidencyController,
     ResidencyPlan,
+    ResidencyReport,
     ResidencyReporter,
     ResidencyRestoreError,
     ScriptedModelHost,
@@ -523,6 +525,53 @@ async def test_a_claimed_handoff_still_reports_serving_because_the_cortex_still_
         assert manager.residency() == RESIDENCY_SERVING
         async with manager.acquire("cortex") as lease:  # and it really is still leasable
             assert lease.endpoint == _CORTEX_URL
+
+
+def test_every_published_report_says_what_the_seam_and_the_human_actually_read() -> None:
+    """The two fields, pinned against literals, because every case above pins them to themselves."""
+    published = [
+        RESIDENCY_SERVING,
+        RESIDENCY_LOADING,
+        RESIDENCY_DEEP,
+        RESIDENCY_RESTORING,
+        RESIDENCY_LOST,
+        RESIDENCY_BOOT_FAILED,
+    ]
+    assert published == [
+        ResidencyReport(serving=True, detail=""),
+        ResidencyReport(
+            serving=False, detail="swapping to the deep model; this takes a few minutes"
+        ),
+        ResidencyReport(serving=False, detail="a deep task is in progress"),
+        ResidencyReport(serving=False, detail="bringing the usual assistant back"),
+        ResidencyReport(
+            serving=False,
+            detail="the usual assistant could not be reloaded after a deep task; recovery is "
+            "manual",
+        ),
+        ResidencyReport(
+            serving=False,
+            detail="the usual assistant did not come up at startup; the model host needs attention",
+        ),
+    ]
+
+
+async def test_boot_recovery_s_observation_replaces_the_seed_a_fresh_manager_started_with() -> None:
+    """A constructor cannot know what is on the GPU, so the first probe answers what recovery saw.
+    """
+    manager = _manager(ScriptedModelHost(running=["cortex"]))
+    await manager.publish_boot_residency(serving=False)
+    assert manager.residency() == RESIDENCY_BOOT_FAILED
+    await manager.publish_boot_residency(serving=True)
+    assert manager.residency() == RESIDENCY_SERVING
+
+
+async def test_a_boot_that_could_not_confirm_the_cortex_still_leases_a_working_one() -> None:
+    """The boot report is display only: it must not refuse turns on a GPU that may be fine."""
+    manager = _manager(ScriptedModelHost(running=["cortex"]))
+    await manager.publish_boot_residency(serving=False)
+    async with manager.acquire("cortex") as lease:
+        assert lease.endpoint == _CORTEX_URL
 
 
 def test_the_manager_satisfies_every_port_it_is_composed_behind() -> None:

@@ -13,10 +13,13 @@ from grpc import aio
 from cortex_core import (
     RESIDENCY_DEEP,
     RESIDENCY_LOADING,
+    RESIDENCY_LOST,
+    RESIDENCY_RESTORING,
     AsyncioSleeper,
     EchoInferenceBackend,
     InMemorySessionStore,
     ResidencyPlan,
+    ResidencyRestoreError,
     ScriptedModelHost,
     SwappingModelManager,
     SystemClock,
@@ -25,6 +28,7 @@ from cortex_core import (
 from cortex_orchestrator import (
     ORCHESTRATOR_VERSION,
     EngineFactory,
+    SeamPorts,
     SeamServerConfig,
     create_server,
     serve,
@@ -84,7 +88,9 @@ def _swapping_manager(host: ScriptedModelHost) -> SwappingModelManager:
 async def _serving(manager: SwappingModelManager) -> tuple[aio.Server, str]:
     """A bound server whose Health reads this manager, exactly as the composition root wires it."""
     server, port = create_server(
-        SeamServerConfig(host="127.0.0.1", port=0), *_engine_and_store(), residency=manager
+        SeamServerConfig(host="127.0.0.1", port=0),
+        *_engine_and_store(),
+        SeamPorts(residency=manager),
     )
     await server.start()
     return server, f"127.0.0.1:{port}"
@@ -125,6 +131,42 @@ async def test_health_answers_while_a_stalled_swap_holds_the_gpu() -> None:
     finally:
         host.release[("start", "brain")].set()
         await scope
+        await server.stop(grace=None)
+
+
+async def test_health_stays_not_ready_through_the_swap_back() -> None:
+    """The restoring window answered at the seam, with ``ready`` read as the literal it is."""
+    host = ScriptedModelHost(running=["cortex"], pause_at=[("start", "cortex")])
+    manager = _swapping_manager(host)
+    server, address = await _serving(manager)
+    scope = asyncio.create_task(_hold_scope(manager))
+    try:
+        async with asyncio.timeout(10.0):
+            await host.reached[("start", "cortex")].wait()
+        async with aio.insecure_channel(address) as channel:
+            reply = await asyncio.wait_for(_health(BrainServiceStub(channel)), timeout=5.0)
+        assert reply.ready is False
+        assert reply.detail == RESIDENCY_RESTORING.detail
+    finally:
+        host.release[("start", "cortex")].set()
+        await scope
+        await server.stop(grace=None)
+
+
+async def test_health_stays_not_ready_after_a_restore_that_gave_up() -> None:
+    """The one not-ready that outlives its turn, and the loudest thing the seam can say."""
+    host = ScriptedModelHost(running=["cortex"], fail={("start", "cortex"): "no such device"})
+    manager = _swapping_manager(host)
+    server, address = await _serving(manager)
+    try:
+        with pytest.raises(ResidencyRestoreError):
+            async with manager.swap_scope("brain"):
+                pass
+        async with aio.insecure_channel(address) as channel:
+            reply = await _health(BrainServiceStub(channel))
+        assert reply.ready is False
+        assert reply.detail == RESIDENCY_LOST.detail
+    finally:
         await server.stop(grace=None)
 
 

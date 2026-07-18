@@ -31,6 +31,7 @@ from cortex_core import (
 )
 from cortex_orchestrator import (
     DEFAULT_SESSION_LIST_LIMIT,
+    SeamPorts,
     SeamServerConfig,
     create_server,
 )
@@ -100,7 +101,7 @@ async def _serve(
         SeamServerConfig(host="127.0.0.1", port=0),
         lambda _confirmer, _progress: engine,
         store,
-        memory_cascade=cascade,
+        SeamPorts(memory_cascade=cascade),
     )
     await server.start()
     return server, f"127.0.0.1:{port}"

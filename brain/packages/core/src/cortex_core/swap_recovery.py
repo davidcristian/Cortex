@@ -13,14 +13,10 @@ _logger = logging.getLogger(__name__)
 
 async def recover_handoffs(
     handoffs: HandoffStore, host: ModelHost, plan: ResidencyPlan, *, clock: Clock, sleeper: Sleeper
-) -> None:
-    """Fail a crash-stranded handoff and converge the GPU back onto the cortex.
-
-    Called once at startup, before the seam serves, and only when escalation is enabled: a
-    deployment that cannot escalate can have no stranded handoff and hosts nothing to converge.
-    """
+) -> bool:
+    """Fail a crash-stranded handoff, converge the GPU, and answer whether the cortex serves."""
     await _fail_stranded_handoff(handoffs)
-    await converge_residency(host, plan, clock=clock, sleeper=sleeper)
+    return await converge_residency(host, plan, clock=clock, sleeper=sleeper)
 
 
 async def _fail_stranded_handoff(handoffs: HandoffStore) -> None:
@@ -40,8 +36,8 @@ async def _fail_stranded_handoff(handoffs: HandoffStore) -> None:
 
 async def converge_residency(
     host: ModelHost, plan: ResidencyPlan, *, clock: Clock, sleeper: Sleeper
-) -> None:
-    """Clear the GPU, settle the cortex on it, and put the standing residency back."""
+) -> bool:
+    """Clear the GPU, settle the cortex on it, put the standing residency back, and report."""
     try:
         for model in (*plan.evict_models, plan.brain_model):
             if await host.status(model) is not ModelHostState.STOPPED:
@@ -50,19 +46,21 @@ async def converge_residency(
                     extra={"model": model},
                 )
                 await host.stop(model)
-        await _settle_cortex(host, plan, clock=clock, sleeper=sleeper)
+        settled = await _settle_cortex(host, plan, clock=clock, sleeper=sleeper)
         for model in plan.evict_models:
             await host.start(model)
     except ModelHostError:
         _logger.exception("the model host was unreachable during boot recovery")
+        return False
+    return settled
 
 
 async def _settle_cortex(
     host: ModelHost, plan: ResidencyPlan, *, clock: Clock, sleeper: Sleeper
-) -> None:
-    """Make sure the cortex is serving, and say so loudly when it will not be."""
+) -> bool:
+    """Make sure the cortex is serving, say so loudly when it will not be, and answer which."""
     if await host.status(plan.cortex_model) is ModelHostState.READY:
-        return
+        return True
     await host.start(plan.cortex_model)
     state = await await_model_ready(
         host, plan.cortex_model, clock=clock, sleeper=sleeper, plan=plan
@@ -72,3 +70,5 @@ async def _settle_cortex(
             "the cortex is not serving after boot recovery; turns will fail until it is",
             extra={"model": plan.cortex_model, "state": state.value},
         )
+        return False
+    return True

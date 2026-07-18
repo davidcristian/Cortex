@@ -3,7 +3,7 @@
 import asyncio
 import logging
 from collections.abc import AsyncGenerator, Mapping
-from contextlib import asynccontextmanager
+from contextlib import AbstractAsyncContextManager, asynccontextmanager
 
 from cortex_core.errors import (
     HandoffInProgressError,
@@ -14,9 +14,11 @@ from cortex_core.health_gate import await_model_ready
 from cortex_core.model import ModelLease
 from cortex_core.model_host import ModelHostState, ResidencyPlan
 from cortex_core.ports import Clock, ModelHost, Sleeper
+from cortex_core.residency_claim import HandoffClaim
 from cortex_core.residency_moves import restore_standing, swap_in
 from cortex_core.residency_restore import restore_uninterruptibly
 from cortex_core.residency_state import (
+    RESIDENCY_BOOT_FAILED,
     RESIDENCY_DEEP,
     RESIDENCY_LOADING,
     RESIDENCY_LOST,
@@ -61,10 +63,7 @@ class SwappingModelManager:
         # and the lease's own view of the GPU cannot drift apart.
         self._report: ResidencyReport = RESIDENCY_SERVING
         self._scope_model: str | None = None
-        # Whether a handoff already owns the whole swap sequence, claimed before anything is
-        # drained. Separate from the scope: a claim is held through the drain, while the cortex
-        # is still serving and must still be leasable, so it must not queue other acquires.
-        self._handoff_claimed = False
+        self._handoff_claim = HandoffClaim(self._residency)
 
     @asynccontextmanager
     async def acquire(self, model: str) -> AsyncGenerator[ModelLease, None]:
@@ -73,21 +72,14 @@ class SwappingModelManager:
         async with self._lock:
             yield ModelLease(endpoint=endpoint)
 
-    @asynccontextmanager
-    async def handoff_claim(self) -> AsyncGenerator[None, None]:
-        """Own the whole swap sequence for this block, or refuse at once because someone does."""
+    def handoff_claim(self) -> AbstractAsyncContextManager[None]:
+        """Own the whole swap sequence for this block, or refuse at once (``residency_claim``)."""
+        return self._handoff_claim.held()
+
+    async def publish_boot_residency(self, *, serving: bool) -> None:
+        """Replace the constructor's seed with what boot recovery actually observed."""
         async with self._residency:
-            if self._handoff_claimed:
-                msg = (
-                    "a brain handoff is already in flight, so this one was not started (there "
-                    "is one GPU)"
-                )
-                raise HandoffInProgressError(msg)
-            self._handoff_claimed = True
-        try:
-            yield
-        finally:
-            self._handoff_claimed = False
+            self._report = RESIDENCY_SERVING if serving else RESIDENCY_BOOT_FAILED
 
     def residency(self) -> ResidencyReport:
         """What the GPU is serving right now, answered synchronously and without I/O."""

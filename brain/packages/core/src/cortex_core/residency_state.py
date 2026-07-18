@@ -11,8 +11,9 @@ class ResidencyReport:
     detail: str
 
 
-# The standing residency: the cortex is up and turns run normally. Also what a fresh manager
-# reports, matching the boot convergence that runs before the seam serves anything.
+# The standing residency: the cortex is up and turns run normally. A fresh manager seeds this
+# too, and the seed is only ever an assumption, so boot convergence republishes it (or does not)
+# from what it actually observed, before the seam serves anything.
 RESIDENCY_SERVING = ResidencyReport(serving=True, detail="")
 
 # The swap in, from the moment the lease is taken to the moment the deep model gates ready. It
@@ -34,4 +35,12 @@ RESIDENCY_RESTORING = ResidencyReport(serving=False, detail="bringing the usual 
 RESIDENCY_LOST = ResidencyReport(
     serving=False,
     detail="the usual assistant could not be reloaded after a deep task; recovery is manual",
+)
+
+# Boot recovery ran and did not leave the cortex serving: the model host was unreachable, or the
+# cortex never reported ready inside the load bound. Distinct from the one above because no deep
+# task need have happened; this is the state a brain starts in when the GPU is already wrong.
+RESIDENCY_BOOT_FAILED = ResidencyReport(
+    serving=False,
+    detail="the usual assistant did not come up at startup; the model host needs attention",
 )
