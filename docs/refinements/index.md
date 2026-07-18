@@ -29,14 +29,14 @@ its signature.
 
 | Doc | Area | Open |
 | --- | --- | --- |
-| [repo-gates.md](repo-gates.md) | Line cap, dashcheck, coverage config (ADR-0026), gate coverage of the ungated Rust trees (ADR-0011) | 1 |
+| [repo-gates.md](repo-gates.md) | Line cap, dashcheck, coverage config (ADR-0026), gate coverage of the ungated Rust trees (ADR-0011), test-runner mechanics (ADR-0002) | 2 |
 | [seam-transport.md](seam-transport.md) | `BrainTransport` retry/reconnect (ADR-0003/0024) | 4 |
 | [seam-auth.md](seam-auth.md) | Seam token auth (ADR-0016) | 1 |
 | [session-history.md](session-history.md) | Slice 3 history windowing and summarization | 1 |
 | [tools-mcp.md](tools-mcp.md) | Dispatch budget/cost/salience, spawn batch cap, MCP registries (ADR-0009/0010) | 6 |
 | [untrusted-content.md](untrusted-content.md) | Taint boundary, output guardrail, subagent model safety (ADR-0013/0015/0017/0019/0028) | 14 |
 | [memory.md](memory.md) | Store, scoping, rerank/MMR (ADR-0008) | 8 |
-| [inference-model-manager.md](inference-model-manager.md) | Model-manager lifecycle, MTP, reasoning status (ADR-0007/0020) | 4 |
+| [inference-model-manager.md](inference-model-manager.md) | Model-manager lifecycle, MTP, reasoning status (ADR-0007/0020) | 5 |
 | [subagents.md](subagents.md) | Progress reporting, spawn schema, heterogeneous roster (ADR-0010/0018) | 1 |
 | [body-overlay.md](body-overlay.md) | Overlay polish, connection indicator, proto Cancel (ADR-0011) | 3 |
 | [session-read-seam.md](session-read-seam.md) | Session listing/read seam (ADR-0021) | 3 |
@@ -407,6 +407,25 @@ buys is the deliberate trade, revisited with the in-flight-turn lifecycle. Resou
 went 5 to 6 with **the drain bound against a fired task's lease**: the shipped defaults make a
 handoff requested during a scheduled task abort every time (correctly, before evicting anything),
 which is a defaults decision to make against real usage rather than a design change.
+Two more areas each gained one entry on 2026-07-18, both from a verification pass over that same
+conductor that found no new correctness defect but two deferrals nobody had written down, which
+under the doc-first Definition of Done is itself the violation. Inference and model manager went 4
+to 5 with **fencing the single-handoff claim across processes**: the rule is enforced by
+`SwappingModelManager.handoff_claim`, whose state is one instance attribute, so it binds one
+process, while the store-side guard ADR-0030 calls the cross-process backstop is an `active()`
+read and a write two awaits later, a check followed by an act. It is not a live defect (the
+deployment declares one `brain` service, so the in-process claim is the whole population of
+claimants) and it is not cheap either: `put` cannot express "only if no handoff is active", so it
+wants a fenced claim verb on the port, an atomic `SET ... NX` under it, and a lease or user id so
+a dead holder cannot wedge everyone else, which is a fourth entry whose "behind the unchanged
+port" reading would have been wrong. Repo gates went 1 to 2 with **standing test-order
+randomization**, the rarer kind of finding: not a defect in the code but in what was claimed about
+it. Several repair reports cited `-p no:randomly` as evidence that ordering was controlled for,
+and `pytest-randomly` is not installed in either Python workspace, so the flag suppressed a plugin
+that was never loaded. The claim was replaced with a measurement rather than an argument (the
+plugin supplied for the run only, three seeds over `packages/core` and one over the whole brain
+workspace, all green, with the collected order proven to differ between seeds), and making the
+shuffle standing was deferred with its trigger.
 
 ## Recommended order
 
@@ -708,7 +727,15 @@ send batching / session allowlists ([email-confirmer.md](email-confirmer.md)); t
 third placement target pending its feasibility pass, plus the two the admission wall opened,
 a bounded admission wait and a read timeout on the subagent HTTP client, whose triggers are a
 turn observably stalled in admission and a wedged `llama-server` stream respectively
-([resource-governance.md](resource-governance.md)); shell `cargo clippy` in CI, moved here on
+([resource-governance.md](resource-governance.md)); fencing the single-handoff claim across
+processes, opened here on 2026-07-18 because today's deployment runs one brain process, so the
+in-process claim covers every claimant there is and the racy store check backstops nothing that
+exists, whose trigger is a second process able to swap (a replica, a worker sharing the Redis, or
+a swapping supervisor sidecar) and whose fix is a fenced claim verb on `HandoffStore` with a lease
+([inference-model-manager.md](inference-model-manager.md)); standing test-order randomization,
+opened here the same day when `-p no:randomly` turned out to name a plugin neither Python
+workspace installs, whose trigger is a test that passes alone and fails in a suite and whose fix
+is adding `pytest-randomly` as a dev dependency ([repo-gates.md](repo-gates.md)); shell `cargo clippy` in CI, moved here on
 2026-07-16 when reading what the rust CI job installs (no system library at all) showed it is
 not a marginal add but a new class of CI provisioning, the 630-package Tauri webkit-dev apt
 closure (uncacheable per job) plus a cold Tauri-graph compile, disproportionate to the

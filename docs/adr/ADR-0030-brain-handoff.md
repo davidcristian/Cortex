@@ -705,3 +705,45 @@ is suspended inside the real drain and every assertion at that boundary reads st
 The same mutation now reddens both mid-drain cases. This is the third instance in this sub-slice
 of an assertion satisfied by its own harness, which is worth naming as a species: a kill point
 whose boundary is staged rather than reached proves nothing about the code that reaches it.
+
+## Addendum (2026-07-18): the single-handoff claim binds one process, and that is now recorded
+
+A verification pass over the repaired conductor found no new correctness defect but did find an
+undocumented deferral, which under the doc-first Definition of Done is itself a gate violation.
+Nothing about decisions 1 to 9 changes, no behaviour changed with this note, and **still no real
+model swap has been validated**.
+
+**What is actually true.** The one-handoff rule the previous addenda lean on is
+`SwappingModelManager.handoff_claim`, and its state is `self._handoff_claimed`, an attribute on
+one manager instance; `_begin_scope`'s backstop is the same object's `_scope_model`. Both
+therefore bind exactly one process. The store-side check this ADR describes as the cross-process
+guard is `active()` read in `SwapConductor._prepare` and the record written by `_persist_snapshot`
+two awaits later, which is a check followed by an act, not a claim: two brain processes sharing
+one Redis could both read "no handoff in flight" and both proceed to evict the cortex. The Redis
+adapter says as much in its own module docstring (the read-then-write verbs are unfenced
+"because the conductor is the store's one writer by construction"), so the design knew; the
+backlog did not, and that is what is fixed here.
+
+**Why it is not a live defect.** The deployment runs exactly one brain process (one `brain`
+service in `docker/docker-compose.yml`, no replicas) holding one manager, so the in-process claim
+covers the entire population of claimants and the store check is a backstop for a second process
+that does not exist yet. Every consequence of losing either guard also stays honest: the loser is
+refused before anything is drained or evicted, and it is told a handoff is already running rather
+than that the swap broke.
+
+**What would close it**, and it is not a small change behind the unchanged port. `put` cannot
+express "write this record only if no handoff is active", so the port gains a fenced claim verb
+answering whether it took the pointer. The Redis side is an atomic `SET cortex:handoff:active
+<id> NX`, issued before the record write or as a Lua script, because a MULTI/EXEC transaction
+cannot branch on an intermediate reply. It also needs an expiry story: a fenced claim held by a
+process that then dies would wedge every other process's escalation until someone cleared the key
+by hand, where today a stranded non-terminal record is deliberately TTL-free and settled by the
+next boot recovery. So the claim wants a lease (a TTL plus a heartbeat while the handoff runs) or
+a user id that lets recovery tell its own strand from another process's live handoff. Then the
+in-memory fake carries the same semantics, the contract suite gains a two-concurrent-claimants
+case, and `_prepare` calls the claim instead of `active()`, keeping the refusal note it has now.
+
+**Trigger:** a second process that can swap. A second brain replica, a CLI or worker sharing the
+same Redis, or a supervisor sidecar that performs swaps itself. Recorded in
+[docs/refinements/inference-model-manager.md](../refinements/inference-model-manager.md) and its
+[index](../refinements/index.md).
