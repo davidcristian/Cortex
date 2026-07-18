@@ -219,7 +219,8 @@ stranded record `FAILED` and escalation works again.
    `brain` means the gRPC server is broken or the process is gone, never that a handoff is
    running. **Residency is read from the overlay's connection dot** (amber, with the brain's own
    line: "swapping to the deep model", "a deep task is in progress", "bringing the usual
-   assistant back", or "could not be reloaded after a deep task"), or from the logs below.
+   assistant back", "could not be reloaded after a deep task", or, when the brain started against
+   a GPU it could not settle, "did not come up at startup"), or from the logs below.
    Logs for either:
    `docker compose logs model-host` (the daemon and every child, interleaved, each daemon line
    naming its tier and pid) or `docker compose logs brain`. Which tier is up, precisely:
@@ -265,6 +266,12 @@ stranded record `FAILED` and escalation works again.
    bookkeeping the swap publishes, so a manager that stopped trying goes on answering `Health`
    with "the usual assistant could not be reloaded" (an amber dot) even after step 2 put the
    cortex back by hand. Restarting is what re-reads the machine; nothing else does.
+
+   **Do step 2 first, and check the dot afterwards.** `restart` does not re-evaluate the GPU
+   override's `depends_on`, so a brain restarted while the cortex still will not load comes back
+   with recovery having failed. It says so rather than lying: the dot stays amber reading "did
+   not come up at startup". A green dot after this step is the confirmation that recovery
+   actually settled the cortex, which is why step 4 is still worth running.
 
 4. **Confirm.** Run one ordinary turn. It must answer normally; escalation is only worth
    retrying after that.

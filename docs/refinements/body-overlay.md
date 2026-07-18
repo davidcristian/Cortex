@@ -119,8 +119,10 @@ brain status (its producer landed 2026-07-18; only the push RPC remains)
   proto change (the overlay renders it as a chip today).
   **The producer is whole as of 2026-07-18** (the honesty-surfaces sub-slice, ADR-0030 decision
   6): `Health` reads the swapping manager's published residency and answers `ready=false` with a
-  truthful detail while the deep model is loading, working, or being swapped back, and after a
-  restore that gave up. The blocker this entry named is therefore met and the entry is **no
+  truthful detail while the deep model is loading, working, or being swapped back, after a
+  restore that gave up, and (from the 2026-07-18 audit repair) after a boot whose recovery could
+  not settle the cortex, which was the one machine state the first landing still called ready.
+  The blocker this entry named is therefore met and the entry is **no
   longer blocked**, with **zero overlay change**, exactly as designed: the landed indicator
   already classifies a not-ready reply as amber `Degraded` and shows the brain's line verbatim,
   and the 5 s recheck (visible-and-unhealthy) turns it green again on its own when the cortex is
