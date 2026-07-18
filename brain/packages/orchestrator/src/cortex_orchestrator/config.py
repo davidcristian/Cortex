@@ -9,7 +9,7 @@ from typing import Literal
 from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from cortex_core import DEFAULT_CORTEX_MODEL
+from cortex_core import DEFAULT_CORTEX_MODEL, MAX_IMAGE_BYTES
 from cortex_orchestrator.converse import DEFAULT_CONFIRM_TIMEOUT_S, DEFAULT_MAX_BUFFERED_EVENTS
 from cortex_session import DEFAULT_REDIS_URL
 
@@ -78,6 +78,9 @@ class BodyConfig(BaseSettings):
 
     backend: BodyBackendName = "none"
     endpoint: str = ""
+    capture_max_edge: int = 0
+    max_image_bytes: int = MAX_IMAGE_BYTES
+    capture_timeout_s: float = 10.0
 
     @model_validator(mode="after")
     def _grpc_needs_an_endpoint(self) -> "BodyConfig":

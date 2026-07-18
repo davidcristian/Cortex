@@ -123,7 +123,9 @@ async def build_body_gateway(
     """
     if config.backend != "grpc":
         return None, noop_aclose
-    return await GrpcBodyGateway.connect(config.endpoint, token=token)
+    return await GrpcBodyGateway.connect(
+        config.endpoint, token=token, capture_timeout_s=config.capture_timeout_s
+    )
 
 
 def build_builtin_tools(

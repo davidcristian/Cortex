@@ -5,7 +5,7 @@ from contextlib import AbstractAsyncContextManager
 from datetime import datetime
 from typing import Protocol
 
-from cortex_core.body import VolumeState
+from cortex_core.body import ScreenCapture, VolumeState
 from cortex_core.conversation import Message
 from cortex_core.events import TurnEvent
 from cortex_core.inference import InferenceEvent, JsonSchema
@@ -134,6 +134,8 @@ class BodyGateway(Protocol):
     async def notify(
         self, *, title: str, body: str, reminder_id: str, tainted: bool = False
     ) -> bool: ...
+
+    async def capture_screen(self, *, max_edge: int = 0, max_bytes: int = 0) -> ScreenCapture: ...
 
 
 class SubagentScheduler(Protocol):
