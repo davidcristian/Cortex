@@ -748,7 +748,12 @@ Use-case:
   slot into a `READY` record, drains the subagent pool (bounded by `plan.drain_timeout_s`;
   a timeout **aborts before anything is evicted**), enters the residency scope, marks the record
   `BRAIN_ACTIVE` only once the deep model is actually serving, streams `BrainPhase`, and settles
-  the record `DONE` (then deletes it) or `FAILED`. `undrain` is owed in a `finally` on every
+  the record `DONE` (then deletes it) or `FAILED`. Settling is also what releases the store's
+  active pointer, so a settling write the store **refuses** is followed by deleting the record
+  anyway: a finished handoff left holding that pointer would make `active()` refuse every later
+  escalation in the process, with a note saying a handoff is in flight when none is, until a
+  restart. A refused *intermediate* write keeps its record, the handoff being genuinely live
+  there, and boot recovery settles it. `undrain` is owed in a `finally` on every
   path, swap-back and abort alike; every failure, cancellation, and stream teardown leaves the
   record terminal and the standing residency back, and says what happened on the turn's own
   stream. Every nested generator is `aclose`d in a `finally`, because a consumer that closes
@@ -783,7 +788,13 @@ Use-case:
 - `SWAPPING_STATE` plus the swap window's detail and note texts (`swap_notes.py`) are every
   app-authored string a handoff can put on a turn's stream. Status details are ephemeral
   progress; notes are reply text, streamed but not persisted, except `BRAIN_FAILED_NOTE`, which
-  is appended to the deep model's partial reply and persisted with it.
+  is appended to the deep model's partial reply and persisted with it. `note_for(error)` is the
+  same module's mapping from a `ModelManagerError` to the note that is true of the GPU at that
+  moment: `ResidencyRestoreError` wins over everything (it is the graver statement, and true
+  even when it happened while unwinding another failure); `HandoffInProgressError` (the scope's
+  backstop guard, for a caller that swapped without claiming) says a handoff is already running,
+  because the deep model IS loaded and the cortex is NOT back, which is the opposite of what the
+  swap-failure note asserts; anything else is a swap that genuinely broke.
 - `TurnCapabilities(memory=None, tools=None, window=None, guardrail=None,
   record_tainted_memory=False, generate_titles=False, progress=None, escalation=None)` is a
   frozen bundle of the

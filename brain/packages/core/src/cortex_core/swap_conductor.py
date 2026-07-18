@@ -28,6 +28,8 @@ ordering is load-bearing and each step's failure has a direction:
    the deep model is actually serving, then stream its phase onto this turn's own stream.
 4. **Swap back.** The scope's ``finally``. A clean handoff then marks the record ``DONE`` and
    deletes it; every failure marks it ``FAILED`` and keeps it under the store's diagnosis TTL.
+   A settling write the store refuses drops the record instead of keeping it, because that
+   delete is also what releases the store's claim (``_advance`` has the whole argument).
 
 Boot recovery, the other half of the rule, lives in ``swap_recovery.py``.
 """
@@ -41,7 +43,6 @@ from cortex_core.errors import (
     HandoffStoreError,
     InferenceError,
     ModelManagerError,
-    ResidencyRestoreError,
 )
 from cortex_core.events import StatusUpdate, TextDelta, TurnEvent
 from cortex_core.handoff import EscalationSlot, HandoffRecord, HandoffState
@@ -52,12 +53,11 @@ from cortex_core.swap_notes import (
     DRAIN_TIMEOUT_NOTE,
     DRAINING_DETAIL,
     LOADING_DETAIL,
-    RESTORE_FAILED_NOTE,
     RESTORING_DETAIL,
     STORE_FAILED_NOTE,
-    SWAP_FAILED_NOTE,
     SWAPPING_STATE,
     WORKING_DETAIL,
+    note_for,
 )
 
 _logger = logging.getLogger(__name__)
@@ -218,7 +218,7 @@ class SwapConductor:
             return
         except ModelManagerError as err:
             await self._advance(record, HandoffState.FAILED)
-            yield TextDelta(text=_note_for(err))
+            yield TextDelta(text=note_for(err))
             return
         await self._advance(record, HandoffState.DONE)
 
@@ -234,28 +234,44 @@ class SwapConductor:
             self._scheduler.undrain()
 
     async def _advance(self, record: HandoffRecord, state: HandoffState) -> None:
-        """Move the record to ``state``, deleting a completed one; never raises.
+        """Move the record to ``state``, and free the store's claim once it is settled.
 
-        A store that fails here must not turn a converged swap into a crash, so the failure is
-        logged and left to boot recovery, which marks any non-terminal record ``FAILED``.
+        Never raises: a store that fails here must not turn a converged swap into a crash. But
+        the release is **not** conditional on the write landing, and that is the point. The
+        store's active pointer is held by whichever non-terminal record was last written, and
+        only the settling write or a delete releases it. A settle that failed would therefore
+        leave a finished handoff holding the pointer, and ``active()`` would refuse every later
+        escalation in this process with a note saying a handoff is in flight when none is, until
+        the next restart. So a terminal state that could not be written is followed by deleting
+        the record instead: a diagnosis copy the store refused to update is worth less than the
+        escalation path it would otherwise wedge, and the same failure is logged loudly with the
+        handoff's id either way. A failed **intermediate** write keeps the record, because the
+        handoff really is still live there and boot recovery is what settles it.
         """
+        written = await self._write_state(record.handoff_id, state)
+        if state is HandoffState.DONE or (state.terminal and not written):
+            await self._release_claim(record.handoff_id)
+
+    async def _write_state(self, handoff_id: str, state: HandoffState) -> bool:
+        """Write one state onto the record; False when the store refused it."""
         try:
-            await self._handoffs.transition(record.handoff_id, state)
-            if state is HandoffState.DONE:
-                await self._handoffs.delete(record.handoff_id)
+            await self._handoffs.transition(handoff_id, state)
         except HandoffStoreError:
             _logger.exception(
                 "could not record the handoff's state",
-                extra={"handoff": record.handoff_id, "state": state.value},
+                extra={"handoff": handoff_id, "state": state.value},
             )
+            return False
+        return True
 
-
-def _note_for(error: ModelManagerError) -> str:
-    """The honest note for a swap that broke: the GPU serves nothing, or it serves the cortex.
-
-    A failed restore is the graver statement (the next turn may fail too), and it wins even
-    when it happened while unwinding some other failure, because it is what is true now.
-    """
-    if isinstance(error, ResidencyRestoreError):
-        return RESTORE_FAILED_NOTE
-    return SWAP_FAILED_NOTE
+    async def _release_claim(self, handoff_id: str) -> None:
+        """Delete the finished record, so nothing later reads it as a handoff in flight."""
+        try:
+            await self._handoffs.delete(handoff_id)
+        except HandoffStoreError:
+            # Nothing else this process can do: the record stays live until boot recovery, and
+            # escalation stays refused until then, which is the failure the log has to name.
+            _logger.exception(
+                "could not release the finished handoff; escalation stays refused until a restart",
+                extra={"handoff": handoff_id},
+            )

@@ -13,7 +13,15 @@ exception, ``BRAIN_FAILED_NOTE``, which is appended to the deep model's partial 
 persisted with it, because there the note explains text the user can see in their history.
 
 Honesty over reassurance: every failure note says what did not happen and what is true now.
+``note_for`` is that rule as code: it maps each way a swap can end to the note that describes
+the GPU as it stands at that moment, which is why the mapping lives beside the strings.
 """
+
+from cortex_core.errors import (
+    HandoffInProgressError,
+    ModelManagerError,
+    ResidencyRestoreError,
+)
 
 # The StatusUpdate.state a handoff's progress rides under. Part of the seam contract (the
 # overlay renders any state's detail as a chip today, and may switch on the value later).
@@ -48,3 +56,19 @@ RESTORE_FAILED_NOTE = (
     "\n\n(The usual assistant could not be reloaded after the handoff, so the next message may "
     "fail until the machine recovers.)"
 )
+
+
+def note_for(error: ModelManagerError) -> str:
+    """The note for each way a swap can end: what is true of the GPU right now.
+
+    A failed restore is the graver statement (the next turn may fail too), and it wins even when
+    it happened while unwinding some other failure, because it is what is true now. A refused
+    claim is not a failure at all: the deep model IS loaded and the usual assistant is NOT back,
+    the opposite of what the swap-failure note asserts, so it owes the other note. Only a swap
+    that genuinely broke leaves the cortex serving with nothing else loaded.
+    """
+    if isinstance(error, ResidencyRestoreError):
+        return RESTORE_FAILED_NOTE
+    if isinstance(error, HandoffInProgressError):
+        return ALREADY_ACTIVE_NOTE
+    return SWAP_FAILED_NOTE

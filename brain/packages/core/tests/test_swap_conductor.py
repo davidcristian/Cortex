@@ -18,7 +18,13 @@ Distrust-green proofs (each mutation reddened the named test, then was restored)
 - skipping the ``active()`` precondition reddens
   ``test_a_second_concurrent_handoff_is_refused_without_evicting_anything``;
 - dropping the ``escalation=None`` on the deep phase's context reddens
-  ``test_the_deep_phase_cannot_escalate_to_itself``.
+  ``test_the_deep_phase_cannot_escalate_to_itself``;
+- answering the swap-failure note for a refused claim (which is what the note mapping did
+  while every doc said otherwise) reddens
+  ``test_a_swap_that_finds_the_gpu_already_handed_over_says_so_and_not_that_it_broke``;
+- releasing the record's claim only when the settling write landed reddens
+  ``test_a_store_that_fails_while_settling_the_record_does_not_fail_the_turn`` and
+  ``test_a_store_that_cannot_even_drop_the_record_says_what_is_now_stuck``.
 """
 
 import asyncio
@@ -200,6 +206,30 @@ async def test_a_second_concurrent_handoff_is_refused_without_evicting_anything(
     ]
 
 
+async def test_a_swap_that_finds_the_gpu_already_handed_over_says_so_and_not_that_it_broke() -> (
+    None
+):
+    """The scope's backstop refusal is not a swap failure, and the user must not be told it is.
+
+    ``handoff_claim`` refuses every second handoff that goes through a conductor, so this is the
+    other door the same rule guards: something entered the residency scope without claiming
+    first (the port keeps the guard for exactly that), and the swap then finds the GPU already
+    handed over. At that moment the deep model IS loaded and the usual assistant is NOT back,
+    which is the opposite of what the swap-failure note asserts, so the honest note is the one
+    that says a handoff is already running and nothing was unloaded for this one.
+    """
+    live = build_harness()
+    await live.seed_session()
+    async with live.manager.swap_scope(live.residency.brain_model):
+        assert live.host.running == {"brain"}  # the GPU really is somebody else's
+        events = await harness.run_handoff(live, harness.armed_slot())
+    assert _texts(events) == ALREADY_ACTIVE_NOTE
+    assert live.handoffs.states == [HandoffState.READY, HandoffState.FAILED]
+    assert live.backend.calls == 0  # it never reached the deep model
+    assert live.host.calls.count(("start", "brain")) == 1  # and never swapped a second time
+    assert live.host.running == {"cortex"}  # the scope it lost to put the cortex back
+
+
 async def test_a_handoff_store_that_cannot_record_the_snapshot_changes_nothing() -> None:
     """A failure before anything is evicted costs the handoff and nothing else."""
     live = build_harness(
@@ -325,17 +355,25 @@ async def test_a_cortex_that_cannot_be_restored_says_so_on_the_stream() -> None:
     assert live.host.calls.count(("start", "cortex")) == 2  # it tried, then retried
 
 
+class _FailsLate(RecordingHandoffStore):
+    """A store that goes away after the snapshot: every state written from then on is refused."""
+
+    async def transition(self, handoff_id: str, state: HandoffState) -> bool:
+        del handoff_id, state
+        msg = "redis went away mid-handoff"
+        raise HandoffStoreError(msg)
+
+
 async def test_a_store_that_fails_while_settling_the_record_does_not_fail_the_turn(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """Boot recovery is the backstop for a store that dies late, so the turn still converges."""
+    """A store that dies late costs the record, never the turn, and never the NEXT handoff.
 
-    class _FailsLate(RecordingHandoffStore):
-        async def transition(self, handoff_id: str, state: HandoffState) -> bool:
-            del handoff_id, state
-            msg = "redis went away mid-handoff"
-            raise HandoffStoreError(msg)
-
+    The settling write is what releases the store's active pointer, so a refused settle used to
+    leave the finished handoff holding it and every later escalation refused as a second
+    concurrent one. The record is dropped instead, which is the release, and the log is where
+    the diagnosis copy that could not be written now lives.
+    """
     live = build_harness(Fakes(handoffs=_FailsLate()))
     await live.seed_session()
     with caplog.at_level(logging.ERROR, logger="cortex_core.swap_conductor"):
@@ -346,6 +384,35 @@ async def test_a_store_that_fails_while_settling_the_record_does_not_fail_the_tu
         "could not record the handoff's state",
         "could not record the handoff's state",
     ]
+    assert live.handoffs.deleted == [harness.TURN]  # the claim is released by dropping it
+    assert await live.handoffs.active() is None  # so nothing reads a finished handoff as live
+
+
+async def test_a_store_that_cannot_even_drop_the_record_says_what_is_now_stuck(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """The end of the line: the release fails too, so the log has to name what that costs.
+
+    Nothing in this process can free the pointer now, and boot recovery is the only backstop
+    left. What the conductor still owes is that the turn itself converged: the deep model's
+    answer stands and the cortex is serving.
+    """
+
+    class _AlsoRefusesTheDelete(_FailsLate):
+        async def delete(self, handoff_id: str) -> None:
+            del handoff_id
+            msg = "redis is still gone"
+            raise HandoffStoreError(msg)
+
+    live = build_harness(Fakes(handoffs=_AlsoRefusesTheDelete()))
+    await live.seed_session()
+    with caplog.at_level(logging.ERROR, logger="cortex_core.swap_conductor"):
+        events = await harness.run_handoff(live, harness.armed_slot())
+    assert _texts(events) == "a deep answer"
+    assert live.host.running == {"cortex"}
+    assert [record.message for record in caplog.records][-1] == (
+        "could not release the finished handoff; escalation stays refused until a restart"
+    )
 
 
 async def test_the_deep_phase_cannot_escalate_to_itself() -> None:
