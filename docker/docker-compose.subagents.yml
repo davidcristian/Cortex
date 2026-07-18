@@ -10,10 +10,13 @@
 #
 # Placement is GPU-first with CPU overflow (ADR-0012): the brain fit-tests each spawn against
 # the VRAM headroom (CORTEX_VRAM_SOFT_CAP_GB − CORTEX_VRAM_CORTEX_GB − placed) and routes it
-# to the GPU or the CPU backend. INTERIM until Slice 11 lands the real GPU sidecar + cgroup
-# caps (the recorded ADR-0012 host-half deferral): this override runs only the CPU server and
-# points BOTH endpoints at it, so a GPU-placed subagent still executes on CPU. It therefore
-# needs NO GPU and runs alongside docker-compose.gpu.yml. To give subagents tools, ALSO layer
+# to the GPU or the CPU backend. The cgroup caps are at the bottom of this file, and the real
+# GPU-placed executor now exists as an OPT-IN tier of the model-host supervisor sidecar
+# (docker-compose.gpu.yml, behind CORTEX_MODEL_FILE_SUBAGENT_GPU, -ngl 99 on :8083). What is
+# still CPU-only by DEFAULT is the routing: this file points BOTH endpoints at the one CPU
+# server, so a GPU-placed subagent executes on CPU unless a deployment sets
+# CORTEX_SUBAGENTS_GPU_ENDPOINT=http://model-host:8083 as well. It therefore needs NO GPU and
+# runs alongside docker-compose.gpu.yml. To give subagents tools, ALSO layer
 # the tools/email overrides. The wiring hands them the MCP subset without the spawn tool
 # (depth-1):
 #     docker compose -f docker-compose.yml -f docker-compose.tools.yml -f docker-compose.subagents.yml up
@@ -34,8 +37,10 @@ services:
       # Opt into delegation; without this the base image runs subagents=none (ADR-0010).
       CORTEX_SUBAGENTS_BACKEND: "llamacpp"
       # In-network addresses of the llama-server(s) below (NOT the host-published port).
-      # Both placement targets resolve to the one CPU server until Slice 11 delivers the
-      # real GPU sidecar (ADR-0012 deferral); override GPU_ENDPOINT to test a real one.
+      # Both placement targets resolve to the one CPU server by default. The real GPU-placed
+      # executor is the model-host sidecar's opt-in subagent tier, so a deployment that names
+      # CORTEX_MODEL_FILE_SUBAGENT_GPU should set CORTEX_SUBAGENTS_GPU_ENDPOINT to
+      # http://model-host:8083 in the same step, or the tier it started routes nothing.
       CORTEX_SUBAGENTS_ENDPOINT: "http://llama-subagent:8082"
       CORTEX_SUBAGENTS_GPU_ENDPOINT: "${CORTEX_SUBAGENTS_GPU_ENDPOINT:-http://llama-subagent:8082}"
       # Per-subagent ask + soft admission budgets (ADR-0012). The ask reflects the measured
@@ -75,8 +80,8 @@ services:
       - "0.0.0.0"
       - "--port"
       - "8082"
-      # CPU only: this server is the interim executor for BOTH placement targets; the real
-      # GPU sidecar (-ngl 99) lands with Slice 11 (ADR-0012 host-half deferral).
+      # CPU only: this server is the default executor for BOTH placement targets. The GPU one
+      # (-ngl 99) is the model-host sidecar's opt-in subagent tier, not a service here.
       - "-ngl"
       - "0"
       - "--jinja"
@@ -113,7 +118,7 @@ services:
       start_period: 90s
       start_interval: 2s
     # ADR-0012's per-container caps for the CPU half (the GPU half lives in the model-host
-    # container now, ADR-0030 decision 3). The defaults are the hard twin of the brain's SOFT
+    # container now, ADR-0030 decision 3, where one cap set covers all three of its tiers). The defaults are the hard twin of the brain's SOFT
     # admission budgets above (CPU_BUDGET 4.0, MEM_BUDGET_GB 8.0), which is what makes those
     # budgets more than an honour system: the scheduler stops admitting at the soft sum, and the
     # cgroup is what happens if anything ever admits past it. Keep the pairs equal when retuning

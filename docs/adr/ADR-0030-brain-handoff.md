@@ -1102,3 +1102,24 @@ the daemon's streams, so a failed child's reason lives in `docker logs` rather t
 and it was not there. `main` now configures the root logger, and each line carries its tier, pid and
 port in the message as well as in `extra`, because a plain stdlib formatter renders no `extra`
 (the tool audit sink documents the same pattern).
+
+**Hosting the GPU subagent tier and routing to it are two settings, and decision 3 above says
+otherwise.** That decision reads "the real GPU subagent `llama-server` (`-ngl 99`) becomes a hosted
+model, `CORTEX_SUBAGENTS_GPU_ENDPOINT` points at it". The tier landed; the variable does not point
+at it. It still defaults to the CPU subagent server, which is the safe default and the one ADR-0012's
+re-place addendum already described: a deployment that has named no GPU subagent artifact would
+otherwise route every GPU-placed spawn at a tier that answers nothing. So opting in is three
+settings together (`CORTEX_MODEL_FILE_SUBAGENT_GPU`,
+`CORTEX_SUBAGENTS_GPU_ENDPOINT=http://model-host:8083`, and the tier's id in
+`CORTEX_SWAP_EVICT_MODELS`), now written in the gpu override's own checklist, in
+[docs/runbooks/subagents-cpu.md](../runbooks/subagents-cpu.md), and in the backlog entry that had
+claimed the wiring existed.
+
+**And the records the landing left stale, now correct.** ADR-0012's host half was declared landed
+with two of its three required places (the area doc and the backlog index, both pointing here for the
+decision that relocated it) while its own origin ADR got nothing, unlike the `drain()` and re-place
+landings in that same file; it now has a dated host-half addendum there. `docs/ROADMAP.md` still
+named the real process lifecycle as outstanding and the swap's mechanism as validated only over
+fakes. The subagents override and its runbook still called the GPU sidecar and the cgroup caps
+pending, in the file that carries those caps. None of that changes a decision; all of it was a
+reader being told the opposite of the tree.

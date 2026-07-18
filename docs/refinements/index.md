@@ -480,6 +480,15 @@ evicts a tier; a deployment can now name a GPU subagent artifact and list that t
 `CORTEX_SWAP_EVICT_MODELS`, so it is reachable by configuration for the first time (the shipped
 defaults still leave both empty), while its cost fell in the same sub-slice, a spawn placed on a
 dead tier now re-running once on the CPU rather than only reporting.
+The audit round on that sub-slice, later on 2026-07-18, moved no counts and corrected two records.
+The **real GPU-placed runtime mechanism** had been declared landed with two of its three required
+records, the area doc and this index, pointing at ADR-0030 for the decision that relocated it; its
+own origin ADR got nothing, while the same file's `drain()` and re-place landings both did. It now
+has an ADR-0012 host-half addendum, which is the third place and the one a reader of that ADR's
+deferral paragraph reaches. And the entry's claim that `CORTEX_SUBAGENTS_GPU_ENDPOINT` points at the
+hosted tier was false: that variable still defaults to the CPU server, deliberately, so hosting the
+tier and routing to it are two settings and the entry now says so, with the three-setting opt-in
+written in the gpu override's checklist and the subagents runbook.
 
 ## Recommended order
 
@@ -520,7 +529,7 @@ and free of a prior blocker.
 
 ### Blocked on Slice 11 (real model swap / GPU lifecycle)
 
-- Co-residency, the open half of model-manager process lifecycle, co-residency, and the real swap
+- Co-residency, the open half of the model-manager process-lifecycle entry
   ([inference-model-manager.md](inference-model-manager.md)). The **pure half landed 2026-07-17**
   with the brain-handoff conductor sub-slice (the `ModelHost` port and its scriptable twin, the
   `SwappingModelManager` with its segregated residency scope, the `SwapConductor`, the deep

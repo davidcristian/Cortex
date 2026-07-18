@@ -75,8 +75,9 @@ the `cortex_inference` llama.cpp adapter behind the unchanged `InferenceBackend`
 VRAM measured, and the cortex pick locked to gemma-4-12B. See
 [docs/runbooks/llamacpp-gpu.md](runbooks/llamacpp-gpu.md) and the
 [ADR-0004 addendum](adr/ADR-0004-model-lineup.md). The Model Manager v1 is pure
-and lives in `cortex_core`; the `cortex_model_manager` package (process lifecycle) is
-deferred to Slice 11, when swap gives it real I/O.
+and lives in `cortex_core`; the `cortex_model_manager` package (process lifecycle) was
+deferred to Slice 11, which has since landed it as the `model-host` supervisor sidecar plus
+its `ModelHost` adapter.
 
 ## Slice 5 (Memory v1): retrieval that grows
 
@@ -746,12 +747,16 @@ Designed in [ADR-0030](adr/ADR-0030-brain-handoff.md), which slices it; the reco
 the escalation trigger, and the conductor have landed (2026-07-17). The hard rule is **CI-proven
 over fakes** as of the conductor: a parameterized chaos suite kills a handoff at every step
 boundary of the swap sequence and asserts convergence back to a serving cortex, an intact store,
-a terminal record, and an honest stream. What remains is the real process lifecycle (the
-supervisor sidecar behind the `ModelHost` port), the honesty surfaces (`Health` between turns),
-and the host-side capstone on the 24 GB machine: the brain pick, the tier-scale swap, measured
-timings, the runbook, and the injection-harness run. The ADR states plainly why the last of those
-cannot move here: CI has no GPU and the dev GPU cannot hold the cortex beside a ~31B brain, so
-the swap's mechanism is agent-validated over fakes and its VRAM arithmetic is host-validated.
+a terminal record, and an honest stream. The **real process lifecycle landed 2026-07-18**: the
+`model-host` supervisor sidecar behind that same `ModelHost` port, one `llama-server` child per
+tier, its HTTP adapter, the compose revision that retires `llama-cortex`, and the ADR-0012 host
+half. What remains is the honesty surfaces (`Health` between turns) and the host-side capstone on
+the 24 GB machine: the brain pick, the tier-scale swap, measured timings, the runbook, and the
+injection-harness run. The ADR states plainly why the last of those cannot move here: CI has no GPU
+and the dev GPU cannot hold the cortex beside a ~31B brain, so the swap's **mechanism** is
+agent-validated against real `llama-server` processes with two small stand-ins (started,
+health-gated, evicted, swapped, killed under the daemon, and restarted over their own corpses) while
+**tier scale and its VRAM arithmetic** stay host-validated.
 
 ## Deferred refinements & later work
 
