@@ -107,8 +107,9 @@ class ResidencyRestoreError(ModelManagerError):
     """The cortex could not be restored after a swap, even on the retry (ADR-0030 decision 4).
 
     The one failure the design cannot recover from in code: the GPU holds nothing servable, so
-    the scope logs loudly and raises this from its exit. The runbook owns manual recovery, and
-    the compose ``restart`` policy plus boot recovery converge a revived host on the next start.
+    the scope logs loudly and raises this from its exit. ``docs/runbooks/model-swap.md`` owns
+    manual recovery, and the compose ``restart`` policy plus boot recovery converge a revived
+    host on the next start.
     """
 
 

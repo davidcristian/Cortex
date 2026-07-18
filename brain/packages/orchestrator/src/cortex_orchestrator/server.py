@@ -1,7 +1,8 @@
 """BrainService hosted on grpc.aio: Health plus the Converse conversation loop.
 
 A thin service shell per AGENTS.md. Turn logic lives in cortex_core's TurnEngine
-and the stream mechanics in `converse.py`; this module only binds them to the wire.
+and the stream mechanics in `converse.py` / `converse_stream.py`; this module only
+binds them to the wire.
 State never lives in this process beyond the in-flight turn (the one hard rule).
 """
 

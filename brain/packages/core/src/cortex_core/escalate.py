@@ -11,7 +11,7 @@ tainted turn the dispatcher hard-denies the call with the confirmer never consul
 The tool holds no per-stream state: it reads the turn's ``EscalationSlot`` off the dispatch
 ``TurnStamp`` per call (the ``spawn_subagents`` progress-sink discipline), writes only
 ``slot.brief``, and returns. The swap itself happens at the loop boundary, after this turn's
-generator finishes: the conductor (a later handoff slice) snapshots the armed slot into a
+generator finishes: the conductor (``swap_conductor.py``) snapshots the armed slot into a
 ``READY`` ``HandoffRecord`` and runs the swap, so the success result tells the model to wrap
 up rather than pretending anything already swapped. The brief is model-authored text in the
 conversation's own trust domain; it is bounded here before it can enter the handoff record,
