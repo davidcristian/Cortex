@@ -26,7 +26,7 @@ from cortex_core import (
     SystemClock,
     TurnEngine,
 )
-from cortex_orchestrator import SeamServerConfig, create_server
+from cortex_orchestrator import SeamPorts, SeamServerConfig, create_server
 from cortex_orchestrator.reminders import reminder_to_proto
 from cortex_seam import (
     AckReminderReply,
@@ -57,7 +57,7 @@ async def _serve(schedules: ScheduleStore | None) -> tuple[aio.Server, str]:
         SeamServerConfig(host="127.0.0.1", port=0),
         lambda _confirmer, _progress: engine,
         store,
-        schedules=schedules,
+        SeamPorts(schedules=schedules),
     )
     await server.start()
     return server, f"127.0.0.1:{port}"

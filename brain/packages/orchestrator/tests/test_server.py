@@ -20,6 +20,14 @@ workspace re-run, then restored, so the counts are measured rather than aimed at
 - making the report a coroutine that takes the GPU lease fails
   ``test_health_answers_while_a_stalled_swap_holds_the_gpu`` with ``TimeoutError`` rather than
   hanging the suite, which is the point of bounding the RPC there.
+
+The last two cases exist because an audit measured that the core's own restoring and gave-up
+cases pin only which report was published: flipping ``RESIDENCY_RESTORING.serving`` or
+``RESIDENCY_LOST.serving`` to ``True`` left the whole workspace green while the seam answered
+ready for the entire swap back and, after a restore gave up, for good. Both now read ``ready``
+as the literal ``False`` it has to be, and each of those two mutations reddens its own case here
+(plus the core's constants case, and nothing else). Answering ready unconditionally now reddens
+6 rather than 3.
 """
 
 import asyncio
@@ -35,10 +43,13 @@ from grpc import aio
 from cortex_core import (
     RESIDENCY_DEEP,
     RESIDENCY_LOADING,
+    RESIDENCY_LOST,
+    RESIDENCY_RESTORING,
     AsyncioSleeper,
     EchoInferenceBackend,
     InMemorySessionStore,
     ResidencyPlan,
+    ResidencyRestoreError,
     ScriptedModelHost,
     SwappingModelManager,
     SystemClock,
@@ -47,6 +58,7 @@ from cortex_core import (
 from cortex_orchestrator import (
     ORCHESTRATOR_VERSION,
     EngineFactory,
+    SeamPorts,
     SeamServerConfig,
     create_server,
     serve,
@@ -106,7 +118,9 @@ def _swapping_manager(host: ScriptedModelHost) -> SwappingModelManager:
 async def _serving(manager: SwappingModelManager) -> tuple[aio.Server, str]:
     """A bound server whose Health reads this manager, exactly as the composition root wires it."""
     server, port = create_server(
-        SeamServerConfig(host="127.0.0.1", port=0), *_engine_and_store(), residency=manager
+        SeamServerConfig(host="127.0.0.1", port=0),
+        *_engine_and_store(),
+        SeamPorts(residency=manager),
     )
     await server.start()
     return server, f"127.0.0.1:{port}"
@@ -152,6 +166,55 @@ async def test_health_answers_while_a_stalled_swap_holds_the_gpu() -> None:
     finally:
         host.release[("start", "brain")].set()
         await scope
+        await server.stop(grace=None)
+
+
+async def test_health_stays_not_ready_through_the_swap_back() -> None:
+    """The restoring window answered at the seam, with ``ready`` read as the literal it is.
+
+    The core's own case for this window compares the report to the constant that names it, which
+    says nothing about what that constant claims: with ``RESIDENCY_RESTORING.serving`` flipped it
+    stays green while the seam tells the overlay the brain is fine for the minutes a swap back
+    takes. This drives the window through ``Health`` instead, paused inside the host's ``start``
+    of the cortex, which is where the swap back genuinely is.
+    """
+    host = ScriptedModelHost(running=["cortex"], pause_at=[("start", "cortex")])
+    manager = _swapping_manager(host)
+    server, address = await _serving(manager)
+    scope = asyncio.create_task(_hold_scope(manager))
+    try:
+        async with asyncio.timeout(10.0):
+            await host.reached[("start", "cortex")].wait()
+        async with aio.insecure_channel(address) as channel:
+            reply = await asyncio.wait_for(_health(BrainServiceStub(channel)), timeout=5.0)
+        assert reply.ready is False
+        assert reply.detail == RESIDENCY_RESTORING.detail
+    finally:
+        host.release[("start", "cortex")].set()
+        await scope
+        await server.stop(grace=None)
+
+
+async def test_health_stays_not_ready_after_a_restore_that_gave_up() -> None:
+    """The one not-ready that outlives its turn, and the loudest thing the seam can say.
+
+    Nothing is resident, no retry is left, and the runbook's manual recovery is what clears it,
+    so a ``Health`` that answered ready here would put a green dot over a GPU serving nothing for
+    as long as the process lives. Read at the seam and asserted as a literal, because the core's
+    case for it can only compare the report to the constant whose readiness is in question.
+    """
+    host = ScriptedModelHost(running=["cortex"], fail={("start", "cortex"): "no such device"})
+    manager = _swapping_manager(host)
+    server, address = await _serving(manager)
+    try:
+        with pytest.raises(ResidencyRestoreError):
+            async with manager.swap_scope("brain"):
+                pass
+        async with aio.insecure_channel(address) as channel:
+            reply = await _health(BrainServiceStub(channel))
+        assert reply.ready is False
+        assert reply.detail == RESIDENCY_LOST.detail
+    finally:
         await server.stop(grace=None)
 
 

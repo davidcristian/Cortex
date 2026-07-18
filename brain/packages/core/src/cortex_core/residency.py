@@ -19,20 +19,20 @@ and on cancellation alike. It is the recovery path, not an optimization. Standin
 the cortex plus every tier the swap evicted for the deep model's sake, so the exit puts all of
 it back rather than the cortex alone.
 
-The one-handoff rule is here too, and it is a *claim*, not a check: ``handoff_claim`` is taken
-before the conductor drains anything and refuses a concurrent handoff on the spot, because a
-precondition read from a store and acted on later is a race that lets two handoffs into the
-prologue and lets the loser reopen the drain window under the winner.
+The one-handoff rule is exposed here and lives in ``residency_claim.py``: ``handoff_claim`` is
+taken before the conductor drains anything and refuses a concurrent handoff on the spot, over
+this object's own condition so a claim and a scope never decide about the same GPU at once.
 
 This is also where the seam's honesty about residency comes from: ``residency()`` answers what
 the GPU is serving right now, synchronously and without touching the lease, which is what lets
-``Health`` say ``ready=false`` for the minutes a handoff takes (ADR-0030 decision 6).
+``Health`` say ``ready=false`` for the minutes a handoff takes (ADR-0030 decision 6), and
+``publish_boot_residency`` is what makes that first answer an observation rather than a seed.
 """
 
 import asyncio
 import logging
 from collections.abc import AsyncGenerator, Mapping
-from contextlib import asynccontextmanager
+from contextlib import AbstractAsyncContextManager, asynccontextmanager
 
 from cortex_core.errors import (
     HandoffInProgressError,
@@ -43,9 +43,11 @@ from cortex_core.health_gate import await_model_ready
 from cortex_core.model import ModelLease
 from cortex_core.model_host import ModelHostState, ResidencyPlan
 from cortex_core.ports import Clock, ModelHost, Sleeper
+from cortex_core.residency_claim import HandoffClaim
 from cortex_core.residency_moves import restore_standing, swap_in
 from cortex_core.residency_restore import restore_uninterruptibly
 from cortex_core.residency_state import (
+    RESIDENCY_BOOT_FAILED,
     RESIDENCY_DEEP,
     RESIDENCY_LOADING,
     RESIDENCY_LOST,
@@ -96,9 +98,10 @@ class SwappingModelManager:
         self._report: ResidencyReport = RESIDENCY_SERVING
         self._scope_model: str | None = None
         # Whether a handoff already owns the whole swap sequence, claimed before anything is
-        # drained. Separate from the scope: a claim is held through the drain, while the cortex
-        # is still serving and must still be leasable, so it must not queue other acquires.
-        self._handoff_claimed = False
+        # drained. Its own object (``residency_claim.py``) over this same condition: a claim is
+        # held through the drain, while the cortex is still serving and must still be leasable,
+        # so it guards a different flag and must not queue other acquires.
+        self._handoff_claim = HandoffClaim(self._residency)
 
     @asynccontextmanager
     async def acquire(self, model: str) -> AsyncGenerator[ModelLease, None]:
@@ -118,32 +121,28 @@ class SwappingModelManager:
         async with self._lock:
             yield ModelLease(endpoint=endpoint)
 
-    @asynccontextmanager
-    async def handoff_claim(self) -> AsyncGenerator[None, None]:
-        """Own the whole swap sequence for this block, or refuse at once because someone does.
+    def handoff_claim(self) -> AbstractAsyncContextManager[None]:
+        """Own the whole swap sequence for this block, or refuse at once (``residency_claim``).
 
-        The one-GPU-one-handoff rule, taken **before** the conductor drains or evicts anything
-        rather than checked in a store and acted on two awaits later. Check and claim happen
-        under this object's own condition with nothing awaited between them, so two escalating
-        turns racing on separate streams cannot both pass: the loser is refused while the
-        machine is untouched, which is what lets it be told the honest thing (a handoff is
-        running) instead of the swap-failure note.
+        Taken **before** the conductor drains or evicts anything, which is why it is a claim and
+        not a check, and why it does not queue other acquires the way a scope does: the cortex is
+        still resident and still leasable throughout the drain it covers.
+        """
+        return self._handoff_claim.held()
 
-        Releasing is a bare assignment on the way out, deliberately taking no lock: the release
-        is owed even to a cancelled caller, and nothing waits on this claim to be woken.
+    async def publish_boot_residency(self, *, serving: bool) -> None:
+        """Replace the constructor's seed with what boot recovery actually observed.
+
+        Called once by the composition root, before the seam serves, so the first probe of the
+        process answers an observation. Deliberately the one writer that touches the report
+        **alone** and leaves ``_resident`` where it is: recovery failing to confirm the cortex is
+        not the same as knowing it is gone (an unreachable host says nothing about the process it
+        supervises, and a load that outran its bound may still finish), so clearing the resident
+        would refuse every turn on a machine that may well be serving. The report is display
+        only; the lease keeps the forgiving posture boot recovery has always had.
         """
         async with self._residency:
-            if self._handoff_claimed:
-                msg = (
-                    "a brain handoff is already in flight, so this one was not started (there "
-                    "is one GPU)"
-                )
-                raise HandoffInProgressError(msg)
-            self._handoff_claimed = True
-        try:
-            yield
-        finally:
-            self._handoff_claimed = False
+            self._report = RESIDENCY_SERVING if serving else RESIDENCY_BOOT_FAILED
 
     def residency(self) -> ResidencyReport:
         """What the GPU is serving right now, answered synchronously and without I/O.

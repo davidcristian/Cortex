@@ -141,6 +141,7 @@ from cortex_core.rerank_policies import MmrRecallPolicy as MmrRecallPolicy
 from cortex_core.rerank_policies import RecencyMmrRecallPolicy as RecencyMmrRecallPolicy
 from cortex_core.rerank_policies import RerankingRecallPolicy as RerankingRecallPolicy
 from cortex_core.residency import SwappingModelManager as SwappingModelManager
+from cortex_core.residency_state import RESIDENCY_BOOT_FAILED as RESIDENCY_BOOT_FAILED
 from cortex_core.residency_state import RESIDENCY_DEEP as RESIDENCY_DEEP
 from cortex_core.residency_state import RESIDENCY_LOADING as RESIDENCY_LOADING
 from cortex_core.residency_state import RESIDENCY_LOST as RESIDENCY_LOST

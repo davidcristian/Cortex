@@ -50,6 +50,7 @@ from cortex_orchestrator.server import (
     MAX_SESSION_LIST_LIMIT,
     ORCHESTRATOR_VERSION,
     BrainService,
+    SeamPorts,
     create_server,
     serve,
 )
@@ -87,6 +88,7 @@ __all__ = [
     "ScheduleConfig",
     "ScheduleTicker",
     "SeamConfirmer",
+    "SeamPorts",
     "SeamProgressSink",
     "SeamServerConfig",
     "SeamTokenInterceptor",

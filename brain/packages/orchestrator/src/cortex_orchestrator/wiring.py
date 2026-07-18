@@ -63,7 +63,7 @@ from cortex_orchestrator.schedule_builders import (
     start_ticker,
     stop_ticker,
 )
-from cortex_orchestrator.server import serve
+from cortex_orchestrator.server import SeamPorts, serve
 from cortex_orchestrator.subagent_builders import build_subagent_tools, build_subagents
 from cortex_orchestrator.swap_builders import build_swap_runtime, swap_closer
 from cortex_session import RedisSessionStore
@@ -145,10 +145,13 @@ async def run_from_env(
     if swap is not None:
         # Boot recovery (ADR-0030 decision 4): a handoff cannot outlive its process, so any
         # record a crash left behind is failed and the GPU is converged back onto the cortex
-        # before the seam serves its first turn.
-        await recover_handoffs(
+        # before the seam serves its first turn. What it observed is published onto the manager
+        # (decision 6), because a boot that could not settle the cortex must not leave the seam
+        # answering ready off the manager's optimistic seed while every turn fails.
+        converged = await recover_handoffs(
             swap.handoffs, swap.host, swap.plan, clock=clock, sleeper=AsyncioSleeper()
         )
+        await swap.manager.publish_boot_residency(serving=converged)
     try:
 
         def capabilities(confirmer: Confirmer, progress: ProgressSink) -> TurnCapabilities:
@@ -206,12 +209,14 @@ async def run_from_env(
             seam_config,
             make_engine,
             store,
-            schedules=schedules,
-            memory_cascade=memory_cascade,
-            # The manager is the seam's residency reporter too (ADR-0030 decision 6): Health
-            # reads it synchronously, so a probe between turns says what the GPU is really
-            # doing. Absent with escalation off, where nothing can make the brain not-ready.
-            residency=None if swap is None else swap.manager,
+            SeamPorts(
+                schedules=schedules,
+                memory_cascade=memory_cascade,
+                # The manager is the seam's residency reporter too (ADR-0030 decision 6): Health
+                # reads it synchronously, so a probe between turns says what the GPU is really
+                # doing. Absent with escalation off, where nothing can make the brain not-ready.
+                residency=None if swap is None else swap.manager,
+            ),
         )
     finally:
         await stop_ticker(ticker, ticker_task)

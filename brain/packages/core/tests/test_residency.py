@@ -27,7 +27,9 @@ Distrust-green proofs (each mutation reddened the named test, then was restored)
   ``test_a_queued_acquire_is_woken_even_when_the_swap_back_failed`` by timeout (the
   happy-path test alone does NOT discriminate it, which is why that second test exists);
 - reading the claim and setting it two statements apart (an await between them) reddens the
-  chaos suite's ``test_two_escalating_turns_racing_for_the_gpu_leave_one_of_them_untouched``;
+  chaos suite's ``test_two_escalating_turns_racing_for_the_gpu_leave_one_of_them_untouched``, and
+  dropping the refusal outright (``residency_claim.py``, where the rule now lives) reddens that
+  case plus ``test_the_handoff_claim_refuses_a_second_holder_without_touching_the_host``;
 - restarting nothing after the cortex comes back reddens
   ``test_the_scope_swaps_in_evicts_everything_else_and_restores_all_of_it``.
 
@@ -44,6 +46,24 @@ with the whole brain workspace re-run, so the counts are what actually reddened:
   reddens exactly 1, ``test_a_restore_that_gave_up_stops_claiming_it_is_still_restoring``;
 - publishing not-ready as soon as a handoff is claimed reddens exactly 1,
   ``test_a_claimed_handoff_still_reports_serving_because_the_cortex_still_serves``.
+
+Four more, added because the three above pin only *which* value was published and nothing about
+what it says: an audit measured that flipping ``RESIDENCY_RESTORING.serving`` or
+``RESIDENCY_LOST.serving`` to ``True``, or blanking every not-serving ``detail``, left the whole
+workspace green. Each below was applied to production code alone and the workspace re-run:
+
+- ``serving=True`` on ``RESIDENCY_RESTORING`` reddens 2,
+  ``test_every_published_report_says_what_the_seam_and_the_human_actually_read`` plus the seam's
+  ``test_health_stays_not_ready_through_the_swap_back``; the same edit to ``RESIDENCY_LOST``
+  reddens that first case plus ``test_health_stays_not_ready_after_a_restore_that_gave_up``, and
+  to ``RESIDENCY_BOOT_FAILED`` that first case plus the composition root's boot case;
+- blanking all five not-serving details reddens exactly 1, that same first case, which is also
+  what keeps the four swap windows from collapsing into one indistinguishable report;
+- dropping the not-serving branch of ``publish_boot_residency`` reddens 2,
+  ``test_boot_recovery_s_observation_replaces_the_seed_a_fresh_manager_started_with`` and the
+  composition root's boot case;
+- clearing ``_resident`` in that publish (treating an unconfirmed boot as a known-dead GPU)
+  reddens exactly 1, ``test_a_boot_that_could_not_confirm_the_cortex_still_leases_a_working_one``.
 """
 
 import asyncio
@@ -53,6 +73,7 @@ from datetime import UTC, datetime
 import pytest
 
 from cortex_core import (
+    RESIDENCY_BOOT_FAILED,
     RESIDENCY_DEEP,
     RESIDENCY_LOADING,
     RESIDENCY_LOST,
@@ -66,6 +87,7 @@ from cortex_core import (
     RecordingSleeper,
     ResidencyController,
     ResidencyPlan,
+    ResidencyReport,
     ResidencyReporter,
     ResidencyRestoreError,
     ScriptedModelHost,
@@ -596,6 +618,74 @@ async def test_a_claimed_handoff_still_reports_serving_because_the_cortex_still_
         assert manager.residency() == RESIDENCY_SERVING
         async with manager.acquire("cortex") as lease:  # and it really is still leasable
             assert lease.endpoint == _CORTEX_URL
+
+
+def test_every_published_report_says_what_the_seam_and_the_human_actually_read() -> None:
+    """The two fields, pinned against literals, because every case above pins them to themselves.
+
+    ``assert manager.residency() == RESIDENCY_RESTORING`` proves the manager published *that*
+    value and nothing whatsoever about what the value says, so flipping a ``serving`` or blanking
+    a ``detail`` leaves every one of them green while ``Health`` answers ready through the swap
+    back and the overlay renders "The brain is not serving" with no reason after it. ``serving``
+    is the whole verdict the seam maps to ``ready``; ``detail`` is the line the overlay shows
+    verbatim, so it is app-authored user-facing text and belongs under the same gate as any
+    other. Distinctness comes for free from pinning all six at once: identical blank details would
+    collapse the swap windows into one report the tests above could no longer tell apart.
+    """
+    published = [
+        RESIDENCY_SERVING,
+        RESIDENCY_LOADING,
+        RESIDENCY_DEEP,
+        RESIDENCY_RESTORING,
+        RESIDENCY_LOST,
+        RESIDENCY_BOOT_FAILED,
+    ]
+    assert published == [
+        ResidencyReport(serving=True, detail=""),
+        ResidencyReport(
+            serving=False, detail="swapping to the deep model; this takes a few minutes"
+        ),
+        ResidencyReport(serving=False, detail="a deep task is in progress"),
+        ResidencyReport(serving=False, detail="bringing the usual assistant back"),
+        ResidencyReport(
+            serving=False,
+            detail="the usual assistant could not be reloaded after a deep task; recovery is "
+            "manual",
+        ),
+        ResidencyReport(
+            serving=False,
+            detail="the usual assistant did not come up at startup; the model host needs attention",
+        ),
+    ]
+
+
+async def test_boot_recovery_s_observation_replaces_the_seed_a_fresh_manager_started_with() -> None:
+    """A constructor cannot know what is on the GPU, so the first probe answers what recovery saw.
+
+    Both directions matter: a boot that could not settle the cortex must stop the seam claiming
+    readiness over a machine that serves nothing, and one that did settle it must publish that
+    too rather than rely on the seed having been right by luck.
+    """
+    manager = _manager(ScriptedModelHost(running=["cortex"]))
+    await manager.publish_boot_residency(serving=False)
+    assert manager.residency() == RESIDENCY_BOOT_FAILED
+    await manager.publish_boot_residency(serving=True)
+    assert manager.residency() == RESIDENCY_SERVING
+
+
+async def test_a_boot_that_could_not_confirm_the_cortex_still_leases_a_working_one() -> None:
+    """The boot report is display only: it must not refuse turns on a GPU that may be fine.
+
+    Recovery failing to confirm the cortex is not the same as knowing it is gone. An unreachable
+    supervisor says nothing about the process it supervises, and a load that outran its bound may
+    still finish, so the lease keeps the forgiving posture boot recovery has always had while the
+    dot goes amber. Clearing the resident here would turn one unanswered probe into a brain that
+    refuses every turn until someone restarts it.
+    """
+    manager = _manager(ScriptedModelHost(running=["cortex"]))
+    await manager.publish_boot_residency(serving=False)
+    async with manager.acquire("cortex") as lease:
+        assert lease.endpoint == _CORTEX_URL
 
 
 def test_the_manager_satisfies_every_port_it_is_composed_behind() -> None:
