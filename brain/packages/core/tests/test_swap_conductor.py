@@ -24,7 +24,14 @@ Distrust-green proofs (each mutation reddened the named test, then was restored)
   ``test_a_swap_that_finds_the_gpu_already_handed_over_says_so_and_not_that_it_broke``;
 - releasing the record's claim only when the settling write landed reddens
   ``test_a_store_that_fails_while_settling_the_record_does_not_fail_the_turn`` and
-  ``test_a_store_that_cannot_even_drop_the_record_says_what_is_now_stuck``.
+  ``test_a_store_that_cannot_even_drop_the_record_says_what_is_now_stuck``;
+- moving any of the swap window's four statuses off the work it announces (the draining one
+  after the drain, the loading one inside the residency scope, the working one above that
+  scope, the restoring one below it) reddens
+  ``test_a_clean_handoff_walks_the_record_through_its_states`` and
+  ``test_a_deployment_without_a_subagent_pool_has_nothing_to_drain``, through the window
+  witness the harness takes at each yield. The plain order assertion beside it catches none of
+  the four, which is why the witness exists.
 """
 
 import asyncio
@@ -33,7 +40,13 @@ from collections.abc import Mapping, Sequence
 
 import pytest
 import swap_harness as harness
-from swap_harness import Fakes, RecordingHandoffStore, ScriptedBrainBackend, build_harness
+from swap_harness import (
+    Fakes,
+    RecordingHandoffStore,
+    ScriptedBrainBackend,
+    assert_the_window_announced_real_progress,
+    build_harness,
+)
 
 from cortex_core import (
     ALREADY_ACTIVE_NOTE,
@@ -121,6 +134,10 @@ async def test_a_clean_handoff_walks_the_record_through_its_states() -> None:
     # strings themselves are the assertion: a count cannot tell a reordered or mislabelled
     # window from a truthful one, and these four are the only thing the user sees for minutes.
     assert _states(events) == [DRAINING_DETAIL, LOADING_DETAIL, WORKING_DETAIL, RESTORING_DETAIL]
+    # And each of them was true when it crossed. An order among the four strings is satisfied
+    # by four strings emitted at any four moments, so the work each one announces is what
+    # actually pins it (the harness holds that contract, and the chaos suite runs it too).
+    assert_the_window_announced_real_progress(live)
 
 
 async def test_the_deep_model_answers_from_the_store_and_persists_a_second_message() -> None:
@@ -292,7 +309,11 @@ async def test_a_deployment_without_a_subagent_pool_has_nothing_to_drain() -> No
     events = await harness.run_handoff(live, harness.armed_slot())
     assert _texts(events) == "a deep answer"
     assert live.scheduler.admitted == []
+    assert live.scheduler.drains == 0  # the pool it was not given was never quiesced
     assert live.handoffs.states[-1] is HandoffState.DONE
+    # The window still says the truth, drain step included: it announces a quiescing that has
+    # nothing to quiesce, and every later status is pinned to the same work as anywhere else.
+    assert_the_window_announced_real_progress(live)
 
 
 async def test_a_deep_model_that_will_not_load_ends_the_turn_honestly() -> None:

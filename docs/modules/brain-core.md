@@ -754,11 +754,18 @@ Use-case:
   escalation in the process, with a note saying a handoff is in flight when none is, until a
   restart. A refused *intermediate* write keeps its record, the handoff being genuinely live
   there, and boot recovery settles it. `undrain` is owed in a `finally` on every
-  path, swap-back and abort alike; every failure, cancellation, and stream teardown leaves the
+  path, swap-back and abort alike, and **after** the swap generator's teardown, never beside it:
+  closing that generator is what restores the standing residency, and admission reopens onto the
+  subagent tier, so a window lifted first would hand delegated work to a server nothing has
+  restarted yet. Every failure, cancellation, and stream teardown leaves the
   record terminal and the standing residency back, and says what happened on the turn's own
-  stream. Every nested generator is `aclose`d in a `finally`, because a consumer that closes
-  the stream (which is how the seam tears a turn down when the client goes away, rather than
-  by cancelling) must unwind the residency scope rather than leave it to the collector.
+  stream. Every nested generator is `aclose`d in a `finally`, the deep model's own round
+  included, because a consumer that closes the stream (which is how the seam tears a turn down
+  when the client goes away, rather than by cancelling) must unwind all three teardowns rather
+  than leave any of them to the collector. The window's four `StatusUpdate`s are each emitted
+  where they are true: the drain is announced before it starts, the load before the deep model
+  is started, "working on this" only once the health gate has passed and the record says
+  `BRAIN_ACTIVE`, and the restore before the cortex is asked back.
   `scheduler=None` is a deployment with no subagent pool: there is nothing to quiesce.
 - `BrainPhase(store, backend, clock, brain_model, capabilities)` (`brain_phase.py`) is the deep
   model's half: it rehydrates from the stores and the record alone (history from `SessionStore`,
@@ -1210,7 +1217,11 @@ Reference implementations (pure, shipped in core; the runtime wiring until Slice
   not come back must not be reported as the cortex being gone), retrying the whole attempt once
   before raising `ResidencyRestoreError` with a loud log; while a
   swap or restore is in flight nothing is resident, so an `acquire` racing it says so rather
-  than leasing a dead endpoint. Why a scope rather than a swapping `acquire`: the brain's tool
+  than leasing a dead endpoint. That restore runs as its own shielded task and **every**
+  cancellation waits for it, not merely the first: the seam delivers two whenever a client
+  `Cancel` is followed by the stream's own teardown, and one shielded wait is abandoned by the
+  second, which would return the scope while the cortex was still stopped and let the conductor
+  reopen subagent admission onto it. Why a scope rather than a swapping `acquire`: the brain's tool
   loop re-acquires once per round, so a swapping `acquire` would thrash minutes each way
   whenever a queued cortex turn interleaved. The two host-facing moves themselves (evict and
   start; stop and restore the standing residency) live in `residency_moves.py`, split off for

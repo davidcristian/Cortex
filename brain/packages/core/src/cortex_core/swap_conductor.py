@@ -23,7 +23,10 @@ ordering is load-bearing and each step's failure has a direction:
 2. **Drain.** Quiesce the subagent pool, bounded. A timeout **aborts before anything is
    evicted**: v1 never kills a subagent mid-stream, so a straggler means the swap does not
    happen, not that the machine is left half-swapped. ``undrain`` is owed in a ``finally``,
-   swap-back and abort alike, so admission always resumes.
+   swap-back and abort alike, so admission always resumes, and it is owed **after** the swap
+   generator is closed, since closing it is what restores the standing residency: a window
+   reopened while the evicted tier is still stopped would place delegated work on a server
+   nothing has restarted yet.
 3. **Swap in and run.** Inside the residency scope, mark the record ``BRAIN_ACTIVE`` only once
    the deep model is actually serving, then stream its phase onto this turn's own stream.
 4. **Swap back.** The scope's ``finally``. A clean handoff then marks the record ``DONE`` and
@@ -144,6 +147,10 @@ class SwapConductor:
             finally:
                 # Deterministic teardown of the inner generator: a consumer that closes this
                 # one must unwind the residency scope, not abandon it to the garbage collector.
+                # This is also what keeps the drain window shut across the swap back, since it
+                # is nested INSIDE the undrain's ``finally``: closing the swap restores the
+                # standing residency, and only then may admission reopen. Hoisting the undrain
+                # above this line would hand delegated work to a tier still stopped.
                 await swap.aclose()
         except BaseException:
             # Cancellation and stream teardown included: a handoff that stops being run is a
@@ -152,6 +159,10 @@ class SwapConductor:
             await self._advance(prepared, HandoffState.FAILED)
             raise
         finally:
+            # Admission reopens here and nowhere else, so this is the line the drain window's
+            # whole lifetime hangs off: it runs on every path (a drain that timed out, a swap
+            # that failed, a clean handoff, a teardown) and it runs LAST, after the swap
+            # generator above has been closed and has therefore restored the standing residency.
             self._undrain()
 
     async def _prepare(

@@ -10,14 +10,30 @@ itself would prove nothing.
 ``Gate`` is the one pausing primitive: a fake sets ``reached`` when the code gets to a named
 boundary and blocks on ``release`` until the test lets go, so a test cancels the handoff exactly
 there. Nothing here sleeps wall-clock.
+
+Two witnesses live here because both suites need them and neither can reconstruct them
+afterwards, a finished handoff having erased the state that would prove the ordering:
+
+- ``StatusWitness``, one snapshot per swap-window status, taken by the collector the instant the
+  event crosses the stream. It is what lets a status be checked against **the work it announces**
+  rather than against the other statuses: an order among four strings is satisfied by four
+  strings emitted at any four moments. Resuming a generator hands control straight to its
+  consumer with no loop tick in between, so the snapshot is the machine state at the yield.
+- ``WitnessingScheduler.reopened``, what the host was running each time admission reopened. The
+  drain window must stay shut until the standing residency is back, and afterwards nothing can
+  tell a window that reopened too early from one that reopened on time.
 """
 
 import asyncio
-from collections.abc import AsyncIterator, Sequence
-from dataclasses import dataclass, replace
+from collections.abc import AsyncIterator, Callable, Sequence
+from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime, timedelta
 
 from cortex_core import (
+    DRAINING_DETAIL,
+    LOADING_DETAIL,
+    RESTORING_DETAIL,
+    WORKING_DETAIL,
     AdmitAllScheduler,
     DispatchBudget,
     EscalationRefs,
@@ -39,6 +55,7 @@ from cortex_core import (
     ResidencyPlan,
     Role,
     ScriptedModelHost,
+    StatusUpdate,
     SwapConductor,
     SwappingModelManager,
     TaintLedger,
@@ -60,6 +77,10 @@ BRIEF = "check the induction step; the base case holds"
 CORTEX_URL = "http://llama-cortex:8080"
 BRAIN_URL = "http://llama-brain:8081"
 _AT = datetime(2026, 7, 25, 12, 0, tzinfo=UTC)
+
+# The swap window's four steps, in the only order they can honestly happen. Every handoff's
+# status details are a PREFIX of this: one that stopped early says less, never something else.
+SWAP_WINDOW = [DRAINING_DETAIL, LOADING_DETAIL, WORKING_DETAIL, RESTORING_DETAIL]
 
 
 class TickingClock:
@@ -88,6 +109,45 @@ class Gate:
         """Wait for the boundary to be reached; a bound, so a miss fails instead of hanging."""
         async with asyncio.timeout(5.0):
             await self.reached.wait()
+
+
+class WitnessingScheduler(AdmitAllScheduler):
+    """The pool, plus the two things about the drain window nothing else can observe after.
+
+    ``drains`` counts the quiescings the conductor actually asked for, which is what pins a
+    status announcing the drain to a moment before the drain rather than after it. ``reopened``
+    records what the model host was running each time ``undrain`` reopened admission, which is
+    the ordering the standing residency depends on: the pool starts taking delegated work the
+    instant the window lifts, so a window lifted while an evicted tier is still stopped hands
+    that work to a server nothing has restarted. Both are gone by the time a handoff ends.
+    """
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.drains = 0
+        self.reopened: list[frozenset[str]] = []
+        # Set by ``build_harness``; the pool is composed before the host it watches exists.
+        self.host: ScriptedModelHost | None = None
+
+    async def drain(self, *, timeout_s: float) -> bool:
+        self.drains += 1
+        return await super().drain(timeout_s=timeout_s)
+
+    def undrain(self) -> None:
+        if self.host is not None:
+            self.reopened.append(frozenset(self.host.running))
+        super().undrain()
+
+
+@dataclass(frozen=True, slots=True)
+class StatusWitness:
+    """What the machine had actually done at the instant one swap-window status was emitted."""
+
+    detail: str
+    drains: int
+    host_ops: tuple[tuple[str, str], ...]
+    record_states: tuple[HandoffState, ...]
+    deep_calls: int
 
 
 class RecordingHandoffStore(InMemoryHandoffStore):
@@ -284,11 +344,32 @@ class Harness:
     manager: SwappingModelManager
     handoffs: RecordingHandoffStore
     sessions: RecordingSessionStore
-    scheduler: AdmitAllScheduler
+    scheduler: WitnessingScheduler
     backend: ScriptedBrainBackend
     conductor: SwapConductor
     residency: ResidencyPlan
     memory: MemoryRecaller
+    pooled: bool
+    statuses: list[StatusWitness] = field(default_factory=list[StatusWitness])
+
+    def observe(self, event: TurnEvent) -> TurnEvent:
+        """Snapshot the machine behind a status the instant it crosses, and pass the event on.
+
+        Every collector calls this, so no case can quietly opt out of the witness. Taken here
+        rather than inside the conductor because the point is to read what the code under test
+        did, from outside it.
+        """
+        if isinstance(event, StatusUpdate):
+            self.statuses.append(
+                StatusWitness(
+                    detail=event.detail,
+                    drains=self.scheduler.drains,
+                    host_ops=tuple(self.host.calls),
+                    record_states=tuple(self.handoffs.states),
+                    deep_calls=self.backend.calls,
+                )
+            )
+        return event
 
     async def seed_session(self) -> None:
         """Persist what the cortex phase already persisted before it escalated."""
@@ -310,7 +391,7 @@ def build_harness(
     *,
     residency: ResidencyPlan | None = None,
     capabilities: TurnCapabilities | None = None,
-    scheduler: AdmitAllScheduler | None = None,
+    scheduler: WitnessingScheduler | None = None,
     with_scheduler: bool = True,
 ) -> Harness:
     """Compose the real conductor over fakes, exactly as the composition root composes it."""
@@ -332,7 +413,8 @@ def build_harness(
         clock,
         RecordingSleeper(),
     )
-    pool = scheduler if scheduler is not None else AdmitAllScheduler()
+    pool = scheduler if scheduler is not None else WitnessingScheduler()
+    pool.host = used_host
     # Memory is wired in whatever else a test scripts, so "the stores are intact" covers the
     # durable store too; a caller's own capabilities keep everything but that.
     memory = recaller()
@@ -346,6 +428,7 @@ def build_harness(
         backend=used_backend,
         residency=used_plan,
         memory=memory,
+        pooled=with_scheduler,
         conductor=SwapConductor(
             used_handoffs,
             manager,
@@ -365,7 +448,67 @@ async def run_handoff(
     stream = harness.conductor.run_handoff(slot, session_id=SESSION, turn_id=turn_id)
     try:
         async for event in stream:
-            events.append(event)  # noqa: PERF401 - a bounded stream, read one event at a time
+            events.append(harness.observe(event))  # noqa: PERF401 - one event at a time
     finally:
         await stream.aclose()
     return events
+
+
+def assert_the_window_announced_real_progress(live: Harness) -> None:
+    """Every swap-window status, checked against the work IT announces (ADR-0030 decision 6).
+
+    The order among the four details is the weaker half and it is asserted first: a handoff that
+    stopped early says less, never something else. The half that matters is below it, because
+    four strings in the right order relative to each other are satisfied by four strings emitted
+    at any four moments, and three of them assert facts about the GPU that only a witness taken
+    at the yield can check. So each status is pinned to the state of the machine when it
+    crossed: announced work must not have happened yet, and claimed work must already have.
+
+    Reads ``live.statuses``, which is one handoff's window (every caller asserts a handoff before
+    running another on the same harness).
+    """
+    seen = [witness.detail for witness in live.statuses]
+    assert seen == SWAP_WINDOW[: len(seen)]
+    for witness in live.statuses:
+        _WINDOW_CHECKS[witness.detail](live, witness)
+
+
+def _draining_was_true(live: Harness, seen: StatusWitness) -> None:
+    """ "Quiescing the subagent pool": said before the quiescing, with the record already safe."""
+    del live  # this boundary is witnessed entirely by the snapshot
+    assert seen.drains == 0  # announced ahead of the drain it names, not after it
+    assert seen.host_ops == ()  # and nothing is evicted while subagents are still finishing
+    assert seen.record_states[-1] is HandoffState.READY
+    assert seen.deep_calls == 0
+
+
+def _loading_was_true(live: Harness, seen: StatusWitness) -> None:
+    """ "Loading the deep model": said once the pool is quiet and before the model is loaded."""
+    assert seen.drains == (1 if live.pooled else 0)
+    assert ("start", live.residency.brain_model) not in seen.host_ops
+    assert ("stop", live.residency.cortex_model) not in seen.host_ops
+    assert seen.record_states[-1] is HandoffState.READY
+
+
+def _working_was_true(live: Harness, seen: StatusWitness) -> None:
+    """ "The deep model is working on this": the one claim about the GPU, so witnessed hardest."""
+    assert ("start", live.residency.brain_model) in seen.host_ops
+    assert ("status", live.residency.brain_model) in seen.host_ops  # it health-gated, too
+    assert seen.record_states[-1] is HandoffState.BRAIN_ACTIVE
+    assert seen.deep_calls == 0  # about to work; a claim of work already done would be a lie
+
+
+def _restoring_was_true(live: Harness, seen: StatusWitness) -> None:
+    """ "Restoring the usual assistant": said after the deep model ran and before it is stopped."""
+    assert seen.deep_calls >= 1
+    assert ("stop", live.residency.brain_model) not in seen.host_ops
+    assert ("start", live.residency.cortex_model) not in seen.host_ops
+    assert seen.record_states[-1] is HandoffState.BRAIN_ACTIVE
+
+
+_WINDOW_CHECKS: dict[str, Callable[[Harness, StatusWitness], None]] = {
+    DRAINING_DETAIL: _draining_was_true,
+    LOADING_DETAIL: _loading_was_true,
+    WORKING_DETAIL: _working_was_true,
+    RESTORING_DETAIL: _restoring_was_true,
+}
