@@ -1,11 +1,11 @@
 """SeamProgressSink: the real ``ProgressSink`` over one Converse stream's queue (ADR-0010).
 
-One instance per ``_ConverseStream``, bound to that stream's output queue and its credit
+One instance per ``ConverseStream``, bound to that stream's output queue and its credit
 semaphore. It is the side channel a spawned subagent surfaces its progress onto while the turn
 task is suspended inside ``dispatch`` and its own generator cannot yield: the batch's scale (a
 ``StatusUpdate``) and each subagent's audited tool steps (a ``ToolActivity``), mapped onto the
-wire by the same ``_to_server_event`` the turn's own events use (injected, so this module never
-imports ``converse``).
+wire by the same ``to_server_event`` the turn's own events use (injected, so this module never
+imports ``converse_stream``).
 
 Unlike the confirmer, which must always deliver its request, progress is **best-effort and
 credit-balanced**: ``emit`` takes a buffer credit only when one is free right now (the same

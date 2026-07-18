@@ -1,6 +1,6 @@
 """SeamConfirmer: the real ``Confirmer`` adapter over the Converse stream (ADR-0022).
 
-One instance per ``_ConverseStream``, bound to that stream's output queue. That way a pending
+One instance per ``ConverseStream``, bound to that stream's output queue. That way a pending
 confirmation is turn-local by construction: it lives only in the awaiting coroutine, is
 denied on timeout, and dies (as a denial) with the stream. Nothing is persisted and nothing
 survives the turn; re-asking is the recovery from any interruption (the one hard rule).

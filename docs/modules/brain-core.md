@@ -86,14 +86,16 @@ Model management (Slice 4, ADR-0007; the swap's value half is ADR-0030, in `mode
   one logical model's process is doing, as its host reports it. `start` only *begins* loading,
   so readiness is observed here and nowhere else, which is why every swap health-gates rather
   than trusting a returned `start`.
-- `ResidencyPlan(cortex_model, brain_model, evict_models=(), load_timeout_s=300.0,
-  poll_interval_s=1.0)` is the frozen composition-root value the manager, the conductor, and
-  boot recovery all read, so they cannot disagree about the topology: which model is the
-  standing resident every exit path converges back to, which one a handoff swaps in, which
-  other hosted tiers a swap must stop first (the GPU-placed subagent; while the brain is
-  resident it is alone on the GPU, ADR-0030 decision 8), and the swap's two bounds. A negative
-  load bound or a non-positive poll interval raises `ValueError` at construction.
-  `DEFAULT_SWAP_LOAD_TIMEOUT_S` (300 s, an 18 GB GGUF off the drvfs mount is minutes) and
+- `ResidencyPlan(cortex_model, brain_model, evict_models=(), drain_timeout_s=60.0,
+  load_timeout_s=300.0, poll_interval_s=1.0)` is the frozen composition-root value the manager,
+  the conductor, and boot recovery all read, so they cannot disagree about the topology: which
+  model is the standing resident every exit path converges back to, which one a handoff swaps in,
+  which other hosted tiers a swap must stop first (the GPU-placed subagent; while the brain is
+  resident it is alone on the GPU, ADR-0030 decision 8), and the swap's three bounds. A negative
+  drain bound, a negative load bound, or a non-positive poll interval raises `ValueError` at
+  construction. `DEFAULT_SWAP_DRAIN_TIMEOUT_S` (60 s, long enough for a normal delegated run to
+  finish and short enough that a wedged one does not hold the handoff open for minutes),
+  `DEFAULT_SWAP_LOAD_TIMEOUT_S` (300 s, an 18 GB GGUF off the drvfs mount is minutes), and
   `DEFAULT_HEALTH_POLL_INTERVAL_S` (1 s) are the exported defaults.
 - `await_model_ready(host, model, *, clock, sleeper, plan) -> ModelHostState` (in
   `health_gate.py`) is the one readiness gate: poll `status(model)` until it settles or

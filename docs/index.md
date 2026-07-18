@@ -265,4 +265,7 @@ New non-obvious decision → add `adr/ADR-XXXX-<slug>.md`, link it here.
   the host-only Windows Core Audio validation ("set volume to 30%").
 - [runbooks/body-overlay.md](runbooks/body-overlay.md) covers Slice 8: run the overlay in a browser
   (fake bridge) or as the real Tauri app on Windows (hotkey → overlay → live brain).
-- Expected as later slices land: `model-swap.md` (Slice 11).
+- [runbooks/model-swap.md](runbooks/model-swap.md) covers the brain handoff's manual-recovery
+  half: what `ResidencyRestoreError` means with today's scripted model host, and the compose
+  steps that put residency back. The live-swap procedure and its timings arrive with the real
+  model host.

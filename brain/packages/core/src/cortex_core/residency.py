@@ -245,7 +245,7 @@ class SwappingModelManager:
             )
             msg = (
                 f"could not restore {cortex!r} after {_RESTORE_ATTEMPTS} attempts; manual "
-                "recovery is needed (see the model-swap runbook)"
+                "recovery is needed (docs/runbooks/model-swap.md)"
             )
             raise ResidencyRestoreError(msg)
 

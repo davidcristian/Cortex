@@ -3,8 +3,9 @@
 The sink rides the reply's own buffer credits rather than the confirmer's control path, so a
 delegating turn's many steps cannot drift the buffer bound: an emitted event takes a credit that
 `events()` releases on dequeue, exactly like a reply delta, and a saturated buffer drops the event
-rather than blocking the subagent behind it. (The real wire mapping is `converse`'s and is proven
-end to end in test_converse_progress.py; this file's `_to_wire` twin keeps the unit isolated.)
+rather than blocking the subagent behind it. (The real wire mapping belongs to `converse_stream`
+and is proven end to end in test_converse_progress.py; this file's `_to_wire` twin keeps the unit
+isolated.)
 """
 
 import asyncio
