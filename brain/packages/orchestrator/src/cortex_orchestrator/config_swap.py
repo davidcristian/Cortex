@@ -26,7 +26,17 @@ from cortex_core import (
 # CORTEX_MODEL_BRAIN exactly as the cortex tier's id is.
 DEFAULT_BRAIN_MODEL = "brain"
 
-ModelHostBackendName = Literal["none", "scripted"]
+# The control plane's own deadline, and the one timeout in the brain that must NOT be short. A
+# supervisor's ``stop`` answers only once the child is reaped, so it can legitimately take that
+# sidecar's SIGTERM grace plus its SIGKILL reap bound (10 s + 30 s under the shipped defaults)
+# before it replies. This must stay above their sum, or a slow-but-correct eviction would be read
+# as a dead sidecar and abort a handoff that was working; the sidecar's knobs are its own env, so
+# the pairing is documented in docs/runbooks/model-swap.md rather than validated here. It is still
+# a real deadline, unlike the generation clients' deliberate ``read=None`` (builders.py): a hung
+# control call would hang a swap step under no bound at all.
+DEFAULT_MODELHOST_TIMEOUT_S = 60.0
+
+ModelHostBackendName = Literal["none", "scripted", "supervisor"]
 
 
 class SwapConfig(BaseSettings):
@@ -40,8 +50,10 @@ class SwapConfig(BaseSettings):
     ``scripted`` runs the in-core ``ScriptedModelHost``: it tracks residency honestly but starts
     no process, so the whole path (record, drain, scope, deep phase, swap back, recovery) runs
     end to end against whatever inference backend is configured. It is the dev and CI backend,
-    named for what it is; the real supervisor sidecar arrives as a further backend value and is
-    what makes the swap move actual weights.
+    named for what it is. ``supervisor`` is the real one: the ``HttpModelHost`` adapter driving
+    the ``model-host`` sidecar's control API at ``CORTEX_MODELHOST_ENDPOINT``, which really does
+    start and stop ``llama-server`` processes, and which is therefore required with it.
+    ``CORTEX_MODELHOST_TIMEOUT_S`` bounds one control call.
 
     ``CORTEX_MODEL_BRAIN`` and ``CORTEX_BRAIN_ENDPOINT`` are the deep tier's logical id and the
     base URL that serves it (required when escalation is on: a residency scope must be able to
@@ -57,6 +69,8 @@ class SwapConfig(BaseSettings):
 
     escalation: bool = False
     modelhost_backend: ModelHostBackendName = "none"
+    modelhost_endpoint: str = ""
+    modelhost_timeout_s: float = Field(default=DEFAULT_MODELHOST_TIMEOUT_S, gt=0)
     # The dictated env names break the prefix pattern, hence the explicit aliases.
     brain_model: str = Field(default=DEFAULT_BRAIN_MODEL, validation_alias="CORTEX_MODEL_BRAIN")
     brain_endpoint: str = ""
@@ -77,6 +91,13 @@ class SwapConfig(BaseSettings):
             raise ValueError(msg)
         if not self.brain_endpoint:
             msg = "CORTEX_BRAIN_ENDPOINT is required when CORTEX_ESCALATION=1"
+            raise ValueError(msg)
+        if self.modelhost_backend == "supervisor" and not self.modelhost_endpoint:
+            msg = (
+                "CORTEX_MODELHOST_ENDPOINT is required when "
+                "CORTEX_MODELHOST_BACKEND=supervisor: the adapter would have nowhere to send a "
+                "start or a stop, so every swap would fail at its first step"
+            )
             raise ValueError(msg)
         return self
 

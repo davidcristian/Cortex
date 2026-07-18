@@ -104,10 +104,16 @@ Config (pydantic-settings; explicit constructor arguments beat the environment):
 - `SwapConfig` uses env prefix `CORTEX_` (`config_swap.py`, ADR-0030), the brain handoff's one
   switch and the topology it enables: `escalation: bool = False` (`CORTEX_ESCALATION`) gates the
   whole capability, so CI and the GPU-less loop are byte for byte what they were without it;
-  `modelhost_backend: "none" | "scripted" = "none"` (`CORTEX_MODELHOST_BACKEND`) says who owns
-  the model processes, where `scripted` is the in-core `ScriptedModelHost` (honest residency,
-  no process started, no weights moved) and the real supervisor sidecar arrives as a further
-  value; `brain_model` (`CORTEX_MODEL_BRAIN`, default `brain`) and `brain_endpoint`
+  `modelhost_backend: "none" | "scripted" | "supervisor" = "none"`
+  (`CORTEX_MODELHOST_BACKEND`) says who owns the model processes, where `scripted` is the in-core
+  `ScriptedModelHost` (honest residency, no process started, no weights moved) and `supervisor`
+  is the real `HttpModelHost` over the `model-host` sidecar's control API at
+  `CORTEX_MODELHOST_ENDPOINT` (required with it, and the one thing that makes a swap move actual
+  weights, [brain-model-manager.md](brain-model-manager.md)); `modelhost_timeout_s`
+  (`CORTEX_MODELHOST_TIMEOUT_S`, 60 s) bounds one control call and must stay **above** the
+  sidecar's own `stop` worst case (its SIGTERM grace plus its SIGKILL reap bound), since a stop
+  answers only once the child is reaped; `brain_model` (`CORTEX_MODEL_BRAIN`, default `brain`) and
+  `brain_endpoint`
   (`CORTEX_BRAIN_ENDPOINT`) are the deep tier's logical id and base URL; `evict_models`
   (`CORTEX_SWAP_EVICT_MODELS`) names further hosted tiers a swap must stop first (while the deep
   model is resident it is alone on the GPU) and start again on the way back, since those tiers
@@ -360,15 +366,18 @@ The service:
   The sixth opt-in adapter is the **brain handoff** (`build_swap_runtime(swap, runtime,
   inference, clock, sleeper, handoff_store_factory)` in `swap_builders.py`, ADR-0030), which
   returns `None` unless `CORTEX_ESCALATION` is set and otherwise builds the process-wide half:
-  the `ScriptedModelHost`, the `SwappingModelManager` that is BOTH the GPU lease the inference
+  the model host the backend name picks (the `ScriptedModelHost`, or the real `HttpModelHost` over
+  a bounded control client from `build_control_client`), the `SwappingModelManager` that is BOTH
+  the GPU lease the inference
   backend leases through (hence `build_inference_backend(..., manager=...)`) and the residency
   scope the conductor drives, the Redis `HandoffStore`, and the `ResidencyPlan`. With it wired,
   `run_from_env` runs `recover_handoffs` before serving (a handoff cannot outlive its process),
   registers `escalate_to_brain`, and returns an `EscalatingTurnEngine` from `make_engine`: a
   fresh slot and inner engine per turn, and a `SwapConductor` over THIS stream's dispatcher, so
   the deep model's phase runs the same audited tools the cortex phase did, with no slot of its
-  own. `swap_closer(swap)` releases the handoff store in the shutdown `finally`, or is a clean
-  no-op when nothing was built. `build_subagents` returns its `ResourceBudgetScheduler` alongside
+  own. `swap_closer(swap)` releases the handoff store **and** the control client in the shutdown
+  `finally` (the client even when the store's own release raises, so one refused close cannot leak
+  the other resource), or is a clean no-op when nothing was built. `build_subagents` returns its `ResourceBudgetScheduler` alongside
   the spawn tool for the same reason: the conductor must quiesce that very pool before a swap
   evicts anything, and a second budget object would admit past the drain.
   The cortex's dispatcher is
