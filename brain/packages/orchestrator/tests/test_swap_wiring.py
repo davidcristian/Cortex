@@ -29,16 +29,20 @@ of them reaches outside this file, the backend name being read in exactly one pl
 - dropping the endpoint clause from the config validator reddens exactly 1,
   ``test_the_real_backend_without_its_endpoint_fails_at_boot``.
 
-And one for the seam's residency reporter, measured the same way: dropping ``residency=`` from
-the composition root's ``serve`` call reddens exactly 1,
-``test_health_tells_the_truth_about_residency_through_the_whole_wiring``, which is why that case
-holds the manager the root really built rather than one of its own.
+Two for the seam's residency reporter, measured the same way. Dropping ``residency=`` from the
+``SeamPorts`` the composition root serves with reddens 2, both cases here that probe ``Health``
+through the wiring, which is why the first of them holds the manager the root really built rather
+than one of its own. Dropping the root's ``publish_boot_residency`` call reddens exactly 1,
+``test_a_boot_that_could_not_settle_the_cortex_leaves_the_seam_saying_so``, and so does passing
+it a constant ``serving=True``: that argument is the knob turning boot recovery's own observation
+into the seam's first answer, and neither half of it can be dropped silently.
 """
 
 import asyncio
 import os
 import signal
 import socket
+from dataclasses import replace
 from http import HTTPStatus
 from typing import cast
 
@@ -50,6 +54,7 @@ from redis.asyncio import Redis
 
 from cortex_core import (
     ESCALATE_TOOL_NAME,
+    RESIDENCY_BOOT_FAILED,
     RESIDENCY_DEEP,
     AsyncioSleeper,
     Clock,
@@ -383,6 +388,60 @@ async def test_health_tells_the_truth_about_residency_through_the_whole_wiring(
             assert mid_handoff.ready is False
             assert mid_handoff.detail == RESIDENCY_DEEP.detail
             assert (await _health(stub)).ready is True  # the swap back turns the dot green again
+        os.kill(os.getpid(), signal.SIGTERM)
+        await asyncio.wait_for(task, timeout=10)
+    finally:
+        task.cancel()
+
+
+async def test_a_boot_that_could_not_settle_the_cortex_leaves_the_seam_saying_so(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Boot recovery's own observation reaches the report, or the first probe is a lie.
+
+    A manager seeds its report optimistically, because a constructor cannot know what is on the
+    GPU. Recovery is what looks, and it is allowed to fail without raising, so a brain whose
+    cortex never came up used to log the failure loudly and then answer ``ready=true`` from the
+    same boot. The model host here reports the cortex stuck ``LOADING`` past a zero bound, which
+    is the shape of the case the runbook's manual recovery exists for.
+    """
+    port = _free_loopback_port()
+    monkeypatch.setenv("CORTEX_SEAM_HOST", "127.0.0.1")
+    monkeypatch.setenv("CORTEX_SEAM_PORT", str(port))
+    monkeypatch.setenv("CORTEX_ESCALATION", "1")
+    monkeypatch.setenv("CORTEX_MODELHOST_BACKEND", "scripted")
+    monkeypatch.setenv("CORTEX_BRAIN_ENDPOINT", "http://llama-brain:8081")
+    server = FakeServer()
+
+    def fake_from_url(url: str) -> Redis:
+        del url
+        return FakeAsyncRedis(server=server)
+
+    monkeypatch.setattr(Redis, "from_url", fake_from_url)
+    real = build_swap_runtime
+
+    def stuck(
+        swap: SwapConfig,
+        runtime: BrainRuntimeConfig,
+        inference: InferenceConfig,
+        clock: Clock,
+        sleeper: Sleeper,
+    ) -> SwapRuntime | None:
+        made = real(swap, runtime, inference, clock, sleeper)
+        assert made is not None  # escalation is on in this test's env
+        never_ready = ScriptedModelHost(
+            status_override={made.plan.cortex_model: ModelHostState.LOADING}
+        )
+        return replace(made, host=never_ready, plan=replace(made.plan, load_timeout_s=0.0))
+
+    monkeypatch.setattr(wiring, "build_swap_runtime", stuck)
+    task = asyncio.create_task(run_from_env(store_factory=lambda _url: _session_store(server)))
+    try:
+        async with aio.insecure_channel(f"127.0.0.1:{port}") as channel:
+            await asyncio.wait_for(channel.channel_ready(), timeout=10)
+            reply = await asyncio.wait_for(_health(BrainServiceStub(channel)), timeout=5.0)
+        assert reply.ready is False
+        assert reply.detail == RESIDENCY_BOOT_FAILED.detail
         os.kill(os.getpid(), signal.SIGTERM)
         await asyncio.wait_for(task, timeout=10)
     finally:

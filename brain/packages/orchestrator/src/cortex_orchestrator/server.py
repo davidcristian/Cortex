@@ -199,18 +199,17 @@ def create_server(
     config: SeamServerConfig,
     make_engine: EngineFactory,
     store: SessionStore,
-    *,
-    schedules: ScheduleStore | None = None,
-    memory_cascade: SessionMemoryCascade | None = None,
-    residency: ResidencyReporter | None = None,
+    ports: SeamPorts = _NO_SEAM_PORTS,
 ) -> tuple[aio.Server, int]:
     """Build the aio server over `make_engine`/`store` and bind it (not started).
 
     `store` is the same session store the engines write, injected so the read-only session
-    RPCs (ADR-0021) serve it directly; `schedules` (ADR-0025, None when scheduling is off)
-    backs the reminder pull RPCs the same way. `memory_cascade` (None when memory is off) lets
-    `DeleteSession` forget a deleted chat's private memories. `residency` (None when escalation
-    is off) is what makes `Health` honest during a model handoff (ADR-0030). With `config.token`
+    RPCs (ADR-0021) serve it directly. `ports` carries the capabilities that are optional at this
+    edge, each `None` when its capability is off: the reminder pull RPCs' `ScheduleStore`, the
+    `SessionMemoryCascade` `DeleteSession` forgets a chat's private memories through, and the
+    `ResidencyReporter` that makes `Health` honest during a model handoff. They travel as one
+    value rather than three keywords because the composition root already holds them together and
+    the dependency ceiling is a design rule (ruff.toml). With `config.token`
     set, a
     `SeamTokenInterceptor` fronts every RPC (ADR-0016), the shared-secret half of assumption 5's
     posture; empty disables it. Returns the server plus the actually-bound port (config.port 0).
@@ -220,7 +219,7 @@ def create_server(
     service = BrainService(
         make_engine,
         store,
-        ports=SeamPorts(schedules=schedules, memory_cascade=memory_cascade, residency=residency),
+        ports=ports,
         max_buffered_events=config.converse_buffer,
         confirm_timeout_s=config.confirm_timeout_s,
     )
@@ -233,10 +232,7 @@ async def serve(
     config: SeamServerConfig,
     make_engine: EngineFactory,
     store: SessionStore,
-    *,
-    schedules: ScheduleStore | None = None,
-    memory_cascade: SessionMemoryCascade | None = None,
-    residency: ResidencyReporter | None = None,
+    ports: SeamPorts = _NO_SEAM_PORTS,
 ) -> None:
     """Run the seam server until SIGTERM/SIGINT or cancellation; always stop gracefully.
 
@@ -244,14 +240,7 @@ async def serve(
     removed on the way out; either signal (or cancelling this coroutine) drains in-flight
     RPCs for up to the shutdown grace period before the listener closes.
     """
-    server, bound_port = create_server(
-        config,
-        make_engine,
-        store,
-        schedules=schedules,
-        memory_cascade=memory_cascade,
-        residency=residency,
-    )
+    server, bound_port = create_server(config, make_engine, store, ports)
     await server.start()
     _logger.info("seam server listening", extra={"host": config.host, "port": bound_port})
     loop = asyncio.get_running_loop()

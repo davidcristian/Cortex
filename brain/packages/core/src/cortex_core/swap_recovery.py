@@ -13,7 +13,10 @@ record is the recorded refinement, unlocked by that same dedup design.
 Nothing here raises: a boot that cannot reach the model host or the handoff store still serves.
 Both failures are logged loudly, and both are visible the moment a turn actually needs the GPU,
 which is more honest than refusing to start at all (the compose ``restart`` policy revives a
-dead sidecar whose own boot default is cortex-up).
+dead sidecar whose own boot default is cortex-up). What convergence does answer is whether the
+cortex was **observed** serving when it finished, which the composition root publishes onto the
+residency report: a log line nobody is reading is not a readiness surface, and the seam's very
+first answer of the process must be that observation rather than an assumption (ADR-0030 d6).
 """
 
 import logging
@@ -29,14 +32,16 @@ _logger = logging.getLogger(__name__)
 
 async def recover_handoffs(
     handoffs: HandoffStore, host: ModelHost, plan: ResidencyPlan, *, clock: Clock, sleeper: Sleeper
-) -> None:
-    """Fail a crash-stranded handoff and converge the GPU back onto the cortex.
+) -> bool:
+    """Fail a crash-stranded handoff, converge the GPU, and answer whether the cortex serves.
 
     Called once at startup, before the seam serves, and only when escalation is enabled: a
     deployment that cannot escalate can have no stranded handoff and hosts nothing to converge.
+    The bool is what the composition root publishes onto the residency report, so the seam's
+    first answer of the process is an observation rather than the manager's optimistic seed.
     """
     await _fail_stranded_handoff(handoffs)
-    await converge_residency(host, plan, clock=clock, sleeper=sleeper)
+    return await converge_residency(host, plan, clock=clock, sleeper=sleeper)
 
 
 async def _fail_stranded_handoff(handoffs: HandoffStore) -> None:
@@ -56,8 +61,8 @@ async def _fail_stranded_handoff(handoffs: HandoffStore) -> None:
 
 async def converge_residency(
     host: ModelHost, plan: ResidencyPlan, *, clock: Clock, sleeper: Sleeper
-) -> None:
-    """Clear the GPU, settle the cortex on it, and put the standing residency back.
+) -> bool:
+    """Clear the GPU, settle the cortex on it, put the standing residency back, and report.
 
     Idempotent and boring on a clean boot: the deep model is already stopped, the cortex is
     already ``READY``, and nothing is touched. After a crash mid-handoff it is what puts the
@@ -65,6 +70,12 @@ async def converge_residency(
     standing residency that ``finally`` restores: the cortex, and beside it every tier a swap
     evicts. The evictable tiers are stopped first and started last, because a crash can leave
     one holding VRAM the cortex needs before the cortex is the one thing that must come up.
+
+    ``True`` only when the cortex was **observed** ``READY``, which is the whole point of
+    answering at all: the caller publishes it, and a boot that could not confirm the cortex must
+    not leave the seam claiming readiness. An unreachable host answers ``False`` for the same
+    reason it is logged rather than raised: nothing was observed, and the honest report of an
+    unobserved GPU is not a green one.
     """
     try:
         for model in (*plan.evict_models, plan.brain_model):
@@ -74,19 +85,21 @@ async def converge_residency(
                     extra={"model": model},
                 )
                 await host.stop(model)
-        await _settle_cortex(host, plan, clock=clock, sleeper=sleeper)
+        settled = await _settle_cortex(host, plan, clock=clock, sleeper=sleeper)
         for model in plan.evict_models:
             await host.start(model)
     except ModelHostError:
         _logger.exception("the model host was unreachable during boot recovery")
+        return False
+    return settled
 
 
 async def _settle_cortex(
     host: ModelHost, plan: ResidencyPlan, *, clock: Clock, sleeper: Sleeper
-) -> None:
-    """Make sure the cortex is serving, and say so loudly when it will not be."""
+) -> bool:
+    """Make sure the cortex is serving, say so loudly when it will not be, and answer which."""
     if await host.status(plan.cortex_model) is ModelHostState.READY:
-        return
+        return True
     await host.start(plan.cortex_model)
     state = await await_model_ready(
         host, plan.cortex_model, clock=clock, sleeper=sleeper, plan=plan
@@ -96,3 +109,5 @@ async def _settle_cortex(
             "the cortex is not serving after boot recovery; turns will fail until it is",
             extra={"model": plan.cortex_model, "state": state.value},
         )
+        return False
+    return True
