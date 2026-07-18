@@ -19,6 +19,7 @@ from cortex_core import (
     ROUND_OVERSIZED_MSG,
     DispatchPolicy,
     EscalationSlot,
+    ImagePart,
     InferenceEvent,
     InMemoryToolRegistry,
     JsonSchema,
@@ -629,3 +630,93 @@ async def test_a_round_at_the_cap_is_left_exactly_as_it_was() -> None:
     assert _appended_by_the_first_round(backend) == MAX_CALLS_PER_ROUND + 1
     assert all(record.ok for record in sink.records)
     assert ROUND_OVERSIZED_MSG not in {record.detail for record in sink.records}
+
+
+class _ImageReturningRegistry:
+    """A one-tool registry standing in for the capture built-in: one untrusted result with a
+    picture on it, in the shape the real tool returns."""
+
+    picture = ImagePart(data=b"\x89PNG", mime_type="image/png", width=1600, height=900)
+
+    async def describe_tools(self) -> Sequence[ToolSpec]:
+        return [ToolSpec(name="capture_screen", description="look", parameters={})]
+
+    async def invoke(self, call: ToolCall) -> ToolResult:
+        return ToolResult(
+            call_id=call.id,
+            content="screen capture of the primary display",
+            trust=Trust.UNTRUSTED,
+            images=(self.picture,),
+        )
+
+
+class _OneCaptureThenAnswer(_MultiCallBackend):
+    """Asks for one capture in round one, then answers, recording the message list each round.
+
+    This is what makes the picture's whole journey observable: the loop re-sends ``working``
+    every round, so round two's list is where the image has to still be.
+    """
+
+    def __init__(self) -> None:
+        super().__init__(per_round=1)
+
+    async def stream(
+        self,
+        model: str,
+        messages: Sequence[Message],
+        *,
+        tools: Sequence[ToolSpec] = (),
+        schema: JsonSchema | None = None,
+    ) -> AsyncIterator[InferenceEvent]:
+        del model, tools, schema
+        self.rounds += 1
+        self.seen.append(list(messages))
+        if self.rounds == 1:
+            yield ToolCall(id="c1", name="capture_screen", arguments={})
+            return
+        yield TextChunk("your screen shows an invoice")
+
+
+async def test_a_captures_picture_reaches_the_next_rounds_context() -> None:
+    """End to end through the loop: the picture a tool returned is on the TOOL message the
+    second inference round is given. The loop re-sends the whole working list every round, so
+    this is also what lets an image from round one still be there in round three."""
+    sink = RecordingAuditSink()
+    context = ToolLoopContext(
+        dispatcher=ToolDispatcher(_ImageReturningRegistry(), sink, _TickingClock()),
+        clock=_TickingClock(),
+        turn_id="t-1",
+        taint=TaintLedger(),
+        nonce="n",
+        session_id="s",
+        budget=DispatchBudget(MAX_TOOL_DISPATCHES),
+    )
+    backend = _OneCaptureThenAnswer()
+
+    deltas = await _run(backend, context)
+
+    assert [delta for delta in deltas if isinstance(delta, str)] == ["your screen shows an invoice"]
+    second_round = backend.seen[1]
+    tool_messages = [message for message in second_round if message.role is Role.TOOL]
+    assert [message.images for message in tool_messages] == [(_ImageReturningRegistry.picture,)]
+    # And the turn is tainted by the very value that carried the pixels.
+    assert context.taint.tainted is True
+
+
+async def test_a_captures_bytes_never_reach_the_audit_line() -> None:
+    """The audit sink logs ``result.content`` verbatim, so pixels riding beside it (rather than
+    inside it) is what keeps megabytes out of the trail on every path."""
+    sink = RecordingAuditSink()
+    context = ToolLoopContext(
+        dispatcher=ToolDispatcher(_ImageReturningRegistry(), sink, _TickingClock()),
+        clock=_TickingClock(),
+        turn_id="t-1",
+        taint=TaintLedger(),
+        nonce="n",
+        session_id="s",
+        budget=DispatchBudget(MAX_TOOL_DISPATCHES),
+    )
+    await _run(_OneCaptureThenAnswer(), context)
+
+    assert [record.detail for record in sink.records] == ["screen capture of the primary display"]
+    assert b"\x89PNG" not in b"".join(record.detail.encode() for record in sink.records)

@@ -9,11 +9,13 @@ import asyncio
 import json
 from collections.abc import AsyncIterator, Callable
 from datetime import UTC, datetime
+from typing import cast
 
 import httpx
 import pytest
 
 from cortex_core import (
+    ImagePart,
     InferenceError,
     Message,
     ModelUnavailableError,
@@ -159,13 +161,38 @@ async def test_non_string_reasoning_content_raises_inference_error() -> None:
         await _collect(_backend(handler))
 
 
-async def test_http_error_status_wraps_into_inference_error() -> None:
+async def test_http_error_status_quotes_the_server_body() -> None:
+    # The body is what turns "500" into a diagnosis. A vision request to a llama-server started
+    # without its projector is the case this exists for; without the excerpt it is
+    # indistinguishable from any other failure.
     def handler(_request: httpx.Request) -> httpx.Response:
         return httpx.Response(503, json={"error": "overloaded"})
 
-    with pytest.raises(InferenceError, match=r"request failed for model 'cortex'") as excinfo:
+    with pytest.raises(InferenceError) as excinfo:
         await _collect(_backend(handler))
-    assert isinstance(excinfo.value.__cause__, httpx.HTTPStatusError)
+    assert str(excinfo.value) == (
+        'llama-server answered 503 for model \'cortex\': {"error":"overloaded"}'
+    )
+
+
+async def test_an_error_body_is_quoted_only_up_to_the_excerpt_bound() -> None:
+    def handler(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(500, content=b"x" * 5000)
+
+    with pytest.raises(InferenceError) as excinfo:
+        await _collect(_backend(handler))
+    message = str(excinfo.value)
+    assert message.startswith("llama-server answered 500 for model 'cortex': ")
+    assert message.endswith("x" * 300)
+    assert len(message) - len("llama-server answered 500 for model 'cortex': ") == 300
+
+
+async def test_an_empty_error_body_still_names_the_status() -> None:
+    def handler(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(502)
+
+    with pytest.raises(InferenceError, match=r"^llama-server answered 502 for model 'cortex'$"):
+        await _collect(_backend(handler))
 
 
 async def test_transport_error_wraps_into_inference_error() -> None:
@@ -400,3 +427,88 @@ async def test_cancelling_mid_stream_frees_the_model_lease() -> None:
         async with manager.acquire("cortex") as lease:
             assert lease.endpoint == _ENDPOINT
     await client.aclose()
+
+
+async def test_a_tool_message_with_an_image_becomes_a_content_parts_array() -> None:
+    # Measured against the real cortex: a role "tool" message whose content is a parts array
+    # carrying a data: URI is accepted inside a full tool-calling exchange and answered.
+    sent: list[dict[str, object]] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        sent.append(json.loads(request.content))
+        return httpx.Response(200, content=_sse('{"choices":[{"delta":{"content":"ok"}}]}'))
+
+    picture = ImagePart(data=b"\x89PNG", mime_type="image/png", width=1600, height=900)
+    messages = [
+        Message(role=Role.USER, text="what is on my screen?", at=_AT, turn_id="t1"),
+        Message(
+            role=Role.TOOL,
+            text="screen capture of the primary display: 1600x900 image/png",
+            at=_AT,
+            turn_id="t1",
+            tool_call_id="c1",
+            images=(picture,),
+        ),
+    ]
+    stream = _backend(handler).stream("cortex", messages)
+    assert [event async for event in stream] == [TextChunk("ok")]
+
+    assert sent[0]["messages"] == [
+        {"role": "user", "content": "what is on my screen?"},
+        {
+            "role": "tool",
+            "tool_call_id": "c1",
+            "content": [
+                {
+                    "type": "text",
+                    "text": "screen capture of the primary display: 1600x900 image/png",
+                },
+                {
+                    "type": "image_url",
+                    "image_url": {"url": "data:image/png;base64,iVBORw=="},
+                },
+            ],
+        },
+    ]
+
+
+async def test_a_tool_message_without_images_is_byte_identical_to_before() -> None:
+    # The images-absent request must not change at all: every text-only deployment pays nothing
+    # for vision, and a regression here would be invisible without pinning the exact shape.
+    sent: list[dict[str, object]] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        sent.append(json.loads(request.content))
+        return httpx.Response(200, content=_sse('{"choices":[{"delta":{"content":"ok"}}]}'))
+
+    messages = [
+        Message(role=Role.TOOL, text="volume is at 30%", at=_AT, turn_id="t1", tool_call_id="c1"),
+    ]
+    stream = _backend(handler).stream("cortex", messages)
+    assert [event async for event in stream] == [TextChunk("ok")]
+
+    assert sent[0]["messages"] == [
+        {"role": "tool", "tool_call_id": "c1", "content": "volume is at 30%"}
+    ]
+
+
+async def test_several_images_on_one_message_all_ride_the_same_parts_array() -> None:
+    sent: list[dict[str, object]] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        sent.append(json.loads(request.content))
+        return httpx.Response(200, content=_sse('{"choices":[{"delta":{"content":"ok"}}]}'))
+
+    parts = tuple(
+        ImagePart(data=b"\x89PNG" + bytes([n]), mime_type="image/png", width=8, height=8)
+        for n in range(2)
+    )
+    messages = [
+        Message(role=Role.TOOL, text="two", at=_AT, turn_id="t1", tool_call_id="c1", images=parts)
+    ]
+    stream = _backend(handler).stream("cortex", messages)
+    assert [event async for event in stream] == [TextChunk("ok")]
+
+    sent_messages = cast("list[dict[str, object]]", sent[0]["messages"])
+    content = cast("list[dict[str, object]]", sent_messages[0]["content"])
+    assert [part["type"] for part in content] == ["text", "image_url", "image_url"]

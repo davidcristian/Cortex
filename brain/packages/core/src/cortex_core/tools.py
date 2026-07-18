@@ -18,6 +18,7 @@ from datetime import datetime
 from enum import Enum
 from typing import TYPE_CHECKING, Any
 
+from cortex_core.images import ImagePart
 from cortex_core.progress import ProgressSink
 from cortex_core.provenance import Provenance
 from cortex_core.tool_budget import DispatchBudget
@@ -133,6 +134,12 @@ class ToolResult:
     attacker-influenceable, so the ledger notes it beside the attested tool source and it can only
     ever annotate, never relax taint. It rides beside ``content``, not inside it, so a declaration
     never disturbs the string the model reads.
+
+    ``images`` (ADR-0029) carries pixels a tool produced, and rides **beside** ``content``
+    rather than inside it for the same reason ``source`` does, only more so: ``content`` is what
+    the audit sink logs verbatim on failure, what URL extraction scans, and what the untrusted
+    fence wraps. Keeping all three text-only means a failed capture can never put megabytes of
+    image into the audit log, and no fence is ever asked to bracket something it cannot.
     """
 
     call_id: str
@@ -140,6 +147,7 @@ class ToolResult:
     is_error: bool = False
     trust: Trust = Trust.UNTRUSTED
     source: Provenance | None = None
+    images: tuple[ImagePart, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)

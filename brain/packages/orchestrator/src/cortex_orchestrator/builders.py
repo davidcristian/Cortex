@@ -36,6 +36,8 @@ from cortex_core import (
     AggregateToolRegistry,
     BodyGateway,
     BuiltinTool,
+    CaptureBounds,
+    CaptureScreenTool,
     CharBudgetHistoryWindow,
     Clock,
     CompositeToolRegistry,
@@ -200,6 +202,7 @@ def build_builtin_tools(
     schedule_tools: Sequence[BuiltinTool] = (),
     *,
     escalation: bool = False,
+    vision: CaptureBounds | None = None,
 ) -> list[BuiltinTool]:
     """The cortex's built-in set, assembled once by the wiring (ADR-0025 decision 7).
 
@@ -213,11 +216,20 @@ def build_builtin_tools(
     Advertising it otherwise would offer the model a tool that could only refuse, the same
     honesty rule that keeps the volume pair out without a body and task scheduling out without
     delegation.
+
+    `vision` (ADR-0029) is that same rule for `capture_screen`: it needs a body to take the
+    picture *and* a model that can see it, so it is advertised only when the composition root
+    has confirmed both. Offering it otherwise would spend the whole privacy cost of a screen
+    read (the capture taken, the user notified, the turn tainted) on an image nothing can read.
     """
     builtins: list[BuiltinTool] = [spawn_tool] if spawn_tool is not None else []
     if body is not None:
         builtins.append(GetVolumeTool(body))
         builtins.append(SetVolumeTool(body))
+        if vision is not None:
+            builtins.append(
+                CaptureScreenTool(body, max_edge=vision.max_edge, max_bytes=vision.max_bytes)
+            )
     if escalation:
         builtins.append(EscalateToBrainTool())
     builtins.extend(schedule_tools)

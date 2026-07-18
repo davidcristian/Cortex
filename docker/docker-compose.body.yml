@@ -25,6 +25,19 @@ services:
       # Where the host body's BodyService listens, as seen from the container. 50151 is the
       # body's port (50051 is the brain's BrainService). Override the port to match the host bind.
       CORTEX_BODY_ENDPOINT: "${CORTEX_BODY_ENDPOINT:-host.docker.internal:50151}"
+      # Screen capture (ADR-0029). The brain asks the body for at most this long an edge and
+      # this many bytes, and holds the reply to the same numbers on receipt, since an older
+      # body may ignore both. The byte budget defaults to the body's own 6 MiB ceiling, so the
+      # two ends of the seam agree by construction rather than by two constants staying equal.
+      # 0 leaves the body's default edge (1600 px). The deadline is the only one on this seam:
+      # a blit plus an encode is the only call that can park a host thread.
+      CORTEX_BODY_CAPTURE_MAX_EDGE: "${CORTEX_BODY_CAPTURE_MAX_EDGE:-0}"
+      CORTEX_BODY_MAX_IMAGE_BYTES: "${CORTEX_BODY_MAX_IMAGE_BYTES:-6291456}"
+      CORTEX_BODY_CAPTURE_TIMEOUT_S: "${CORTEX_BODY_CAPTURE_TIMEOUT_S:-10.0}"
+      # auto probes the running llama-server's /props once at startup and advertises
+      # capture_screen only when it reports a vision tower; on and off fix the answer. The
+      # capture tool also needs the host to allow capture at all (CORTEX_HOST_CAPTURE).
+      CORTEX_VISION: "${CORTEX_VISION:-auto}"
     # Reach the Windows-host body; host.docker.internal is automatic on Docker Desktop,
     # host-gateway is the portable fallback (ROADMAP assumption 3).
     extra_hosts:

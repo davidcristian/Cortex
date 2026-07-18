@@ -11,6 +11,7 @@ port.
 from collections.abc import Sequence
 
 from cortex_core.conversation import Message
+from cortex_core.errors import SessionStoreError
 from cortex_core.sessions import SessionSummary, merge_pinned, summarize_session
 
 
@@ -27,7 +28,15 @@ class InMemorySessionStore:
         self._pinned: set[str] = set()
 
     async def append(self, session_id: str, message: Message) -> None:
-        """Persist one message at the end of the session's history."""
+        """Persist one message at the end of the session's history.
+
+        Refuses an image-bearing message, exactly as the Redis adapter does (ADR-0029): a fake
+        that accepted what the real store rejects would let the turn-local invariant pass CI
+        and fail in production.
+        """
+        if message.images:
+            msg = "a session store never persists images: pixels are turn-local"
+            raise SessionStoreError(msg)
         self._sessions.setdefault(session_id, []).append(message)
 
     async def history(self, session_id: str) -> Sequence[Message]:

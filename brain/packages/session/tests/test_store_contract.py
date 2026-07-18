@@ -67,6 +67,10 @@ async def test_a_pinned_recent_chat_is_not_duplicated(store: SessionStore) -> No
     await contract.check_a_pinned_recent_chat_is_not_duplicated(store)
 
 
+async def test_append_refuses_an_image_bearing_message(store: SessionStore) -> None:
+    await contract.check_append_refuses_an_image_bearing_message(store)
+
+
 async def test_delete_leaves_no_orphaned_redis_key_or_index_member() -> None:
     """Distrust-green: inspect Redis directly and prove the delete leaves NOTHING behind.
 

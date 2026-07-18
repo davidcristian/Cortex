@@ -20,8 +20,16 @@ No orchestration, no session state (the one hard rule). The core keeps talking o
      `{lease.endpoint}/v1/chat/completions`, mapping each `Message` to an OpenAI message:
      `USER`/`SYSTEM`/`ASSISTANT`→`{role, content}`, an assistant with `tool_calls`→the
      OpenAI `tool_calls` array, and a `TOOL` result→`{role: "tool", tool_call_id, content}`.
+     A `TOOL` message carrying `images` (ADR-0029) emits `content` as an OpenAI
+     **content-parts array** instead: one `{type: "text"}` part followed by one
+     `{type: "image_url", image_url: {url: "data:<mime>;base64,…"}}` part per image. Measured
+     against the real cortex: a `role: "tool"` message in that form is accepted inside a full
+     tool-calling exchange and answered correctly, so the picture rides the message that
+     *answers* the tool call and no user turn has to be forged. A message with no images emits
+     the byte-identical plain string it always did, so a text-only deployment pays nothing.
      Native tool calling needs the server started with `--jinja` and a tool-capable chat
-     template (gemma-4 ships one).
+     template (gemma-4 ships one); vision additionally needs `--mmproj`, which the model host
+     adds when `CORTEX_MMPROJ_FILE_CORTEX` names a projector.
   3. Parses the SSE `data:` lines: yields each `choices[0].delta.content` as a `TextChunk`,
      reassembles streamed `delta.tool_calls` fragments (id/name/arguments accumulated by
      index) and yields them as `ToolCall`s once the stream ends, and stops at
@@ -30,6 +38,13 @@ No orchestration, no session state (the one hard rule). The core keeps talking o
   - The injected `http_client` owns timeouts/transport (the adapter sets none itself because a
     generation may legitimately stream for a long time; the composition root gives it a
     short connect timeout and no read deadline).
+
+**A non-2xx quotes the server.** `raise_for_status` alone would report a bare status, because
+the response is streamed and its body is never read, which makes the most likely
+misconfiguration on this path (a vision request to a server started without its projector)
+indistinguishable from any other failure. The adapter reads the body on a non-2xx only, quotes
+at most 300 characters of it, and raises `InferenceError` with the status and that excerpt.
+Reading it there is safe precisely because the request has already failed.
 
 **Error contract.** Every failure crosses the `InferenceBackend` port as `InferenceError`
 with the cause chained:

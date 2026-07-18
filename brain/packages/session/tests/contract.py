@@ -9,7 +9,9 @@ the live test sweeps by; see tests/test_store_live.py).
 from datetime import UTC, datetime, timedelta, timezone
 from uuid import uuid4
 
-from cortex_core import Message, Role, SessionStore
+import pytest
+
+from cortex_core import ImagePart, Message, Role, SessionStore, SessionStoreError
 
 _AT = datetime(2026, 7, 3, 12, 0, 0, tzinfo=UTC)
 
@@ -227,6 +229,29 @@ async def check_a_pinned_recent_chat_is_not_duplicated(store: SessionStore) -> N
     assert matches[0].pinned is True
 
 
+async def check_append_refuses_an_image_bearing_message(store: SessionStore) -> None:
+    """No store ever persists pixels (ADR-0029): they are turn-local and die with the turn.
+
+    ``Message`` already refuses images on a persistable role, so the message this check builds
+    is the one a caller could plausibly reach a store with: the ``Role.TOOL`` message the tool
+    loop puts a capture on. The store has to refuse it loudly, because the record schema has no
+    field for an image and would otherwise drop the picture in silence.
+    """
+    session_id = _session_id()
+    picture = ImagePart(data=b"\x89PNG", mime_type="image/png", width=8, height=8)
+    message = Message(
+        role=Role.TOOL,
+        text="screen capture",
+        at=_AT,
+        turn_id="t-1",
+        tool_call_id="c-1",
+        images=(picture,),
+    )
+    with pytest.raises(SessionStoreError, match="never persists images"):
+        await store.append(session_id, message)
+    assert list(await store.history(session_id)) == []
+
+
 ALL_CHECKS = (
     check_empty_history,
     check_append_then_history_order,
@@ -238,4 +263,5 @@ ALL_CHECKS = (
     check_set_pinned_marks_and_clears_the_summary,
     check_a_pinned_chat_escapes_the_recency_window,
     check_a_pinned_recent_chat_is_not_duplicated,
+    check_append_refuses_an_image_bearing_message,
 )

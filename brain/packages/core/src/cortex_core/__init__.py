@@ -213,6 +213,9 @@ from cortex_core.scope import GLOBAL_MEMORY_SCOPE as GLOBAL_MEMORY_SCOPE
 from cortex_core.scope import GlobalMemoryScope as GlobalMemoryScope
 from cortex_core.scope import MemoryScope as MemoryScope
 from cortex_core.scope import SessionMemoryScope as SessionMemoryScope
+from cortex_core.screen_tool import CAPTURE_SCREEN_TOOL_NAME as CAPTURE_SCREEN_TOOL_NAME
+from cortex_core.screen_tool import CaptureBounds as CaptureBounds
+from cortex_core.screen_tool import CaptureScreenTool as CaptureScreenTool
 from cortex_core.session_title import build_title_messages as build_title_messages
 from cortex_core.session_title import clean_title as clean_title
 from cortex_core.session_title import generate_title as generate_title

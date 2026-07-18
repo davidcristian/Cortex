@@ -65,6 +65,11 @@ class ModelHostConfig(BaseSettings):
     cortex_file: str = Field(
         default=DEFAULT_CORTEX_FILE, validation_alias="CORTEX_MODEL_FILE_CORTEX"
     )
+    # The multimodal projector that gives the cortex eyes (ADR-0029). Empty (the default)
+    # starts the tier text-only, which is what a deployment without vision wants and what CI
+    # runs; naming a file adds llama.cpp's --mmproj pair, and the brain then discovers the
+    # capability from the running server's /props rather than from a second flag here.
+    cortex_mmproj_file: str = Field(default="", validation_alias="CORTEX_MMPROJ_FILE_CORTEX")
     cortex_ngl: int = Field(default=99, validation_alias="CORTEX_NGL")
     cortex_ctx_size: int = Field(default=16384, gt=0, validation_alias="CORTEX_CTX_SIZE")
     cortex_port: int = Field(default=8080, gt=0, le=65535)
@@ -98,6 +103,7 @@ class ModelHostConfig(BaseSettings):
                 ngl=self.cortex_ngl,
                 ctx_size=self.cortex_ctx_size,
                 parallel=1,
+                extra=self._mmproj(),
             ),
             TierArgs(
                 model=self.brain_model,
@@ -122,6 +128,11 @@ class ModelHostConfig(BaseSettings):
     def roster(self) -> dict[str, ModelSpec]:
         """The fixed set of logical ids this daemon will ever run, keyed by id."""
         return build_roster(tier_spec(self.llama_bin, tier) for tier in self.tiers())
+
+    def _mmproj(self) -> tuple[str, ...]:
+        """llama.cpp's projector flag pair for the cortex tier, or nothing when none is named."""
+        path = self._path(self.cortex_mmproj_file)
+        return ("--mmproj", path) if path else ()
 
     def _path(self, file: str) -> str:
         """An artifact path under the read-only mount, or empty for a tier with no file."""
