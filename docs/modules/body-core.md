@@ -33,6 +33,9 @@ classification behind the overlay's connection indicator (ADR-0011 addendum), an
   wire data is uninterpretable: an empty `ServerEvent`, or a `Converse` stream that ended
   before `TurnComplete`, a `converse`-only variant, distinct from a brain-*reported* turn
   error, which is `TurnEvent::Failed`).
+- `TurnEvent` and `ConfirmDecision` are the turn vocabulary a `converse` call carries, and they
+  live in the `transport::turn` submodule (split out for the line cap) re-exported from
+  `transport`, so `body_core::TurnEvent` and `body_core::transport::TurnEvent` both still resolve.
 - `TurnEvent` is the typed core mirror of the proto `ServerEvent`, streamed by `converse`
   (`Clone`, `Eq`, `Debug`): `Delta(String)` (assistant text) | `ToolActivity { tool_name,
   summary }` | `Status { state, detail }` | `ConfirmRequest { confirm_id, tool_name,

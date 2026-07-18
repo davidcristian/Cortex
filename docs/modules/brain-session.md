@@ -73,7 +73,8 @@ Translators only: serialization, key layout, and error wrapping; no business log
   deleted unless deliverable); this adapter translates them onto the key layout below.
   **Every guarded transition is optimistically atomic** (post-review hardening): the
   guard read and the state write share one WATCH→MULTI/EXEC transaction (the helpers in
-  `schedule_claims.py`, split out for the line cap), so a `cancel`/`ack`/re-claim racing
+  `schedule_claims.py` up to and including the claim, `schedule_delivery.py` for everything
+  after the fire, both split out for the line cap), so a `cancel`/`ack`/re-claim racing
   the window makes the write's EXEC fail as `WatchError`, which is answered like a stale token,
   never silently overwritten:
   - `async add(item)` / `async get(item_id)` handle one versioned JSON record per schedule.
