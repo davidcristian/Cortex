@@ -225,6 +225,9 @@ New non-obvious decision → add `adr/ADR-XXXX-<slug>.md`, link it here.
     `ToolRegistry` port + the logging audit sink (ADR-0009).
   - [brain-email.md](modules/brain-email.md) covers `cortex_email`: standalone read-only IMAP MCP
     server over ProtonMail Bridge (ADR-0009).
+  - [brain-model-manager.md](modules/brain-model-manager.md) covers `cortex_model_manager`: the
+    model-host supervisor sidecar (one `llama-server` child per logical model) plus the
+    `ModelHost` HTTP adapter the brain swaps with (ADR-0030).
   - [brain-seam.md](modules/brain-seam.md) covers `cortex_seam`: committed wire stubs + facade.
   - [brain-body-client.md](modules/brain-body-client.md) covers `cortex_body_client`: gRPC client
     adapter for the `BodyGateway` port (the brain calls the body's `BodyService`, ADR-0023).

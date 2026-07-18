@@ -11,6 +11,7 @@ src = [
   "brain/packages/embedding/src",
   "brain/packages/inference/src",
   "brain/packages/memory/src",
+  "brain/packages/model_manager/src",
   "brain/packages/orchestrator/src",
   "brain/packages/seam/src",
   "brain/packages/session/src",
