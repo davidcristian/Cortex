@@ -66,8 +66,11 @@ class InferenceBackend(Protocol):
     only, exactly as before. ``model`` is a logical id (ADR-0004), never a file path.
     ``schema`` (ADR-0028), when set, constrains decoding so every emitted token conforms to
     that JSON Schema; ``None`` (the default, every caller but a constrained tool-less subagent)
-    leaves output unconstrained. Multimodal input arrives in a later slice; failures surface
-    as ``InferenceError``.
+    leaves output unconstrained. **Images ride the messages**, not this signature (ADR-0029): a
+    ``Message`` may carry ``images``, and an adapter that supports them serialises the pair
+    together. A per-request keyword could not express "the image from round one" in round three
+    without the caller re-threading it, which is why the port did not have to change at all.
+    Failures surface as ``InferenceError``.
     """
 
     def stream(

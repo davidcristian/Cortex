@@ -136,3 +136,25 @@ handles it safely; nothing reads a summarized gist differently from a fenced exc
 only inside a general memory-compaction feature (ADR-0008/0014 territory), and even there a tainted
 exchange's summary stays `tainted=True` and its input is fenced to the summarizer, which is not the
 safety win the entry imagined. Docs-only close; no code changed.
+
+## Addendum (2026-07-18): the `record` licence does not extend to pixels
+
+This ADR licensed `CORTEX_MEMORY_ON_TAINTED=record` on the premise that **the raw untrusted
+payload is never persisted**: what reaches Postgres is the assistant's own reply, marked with
+untrusted provenance so recall fences it as data.
+
+The vision slice ([ADR-0029](ADR-0029-vision-screen-capture.md)) makes that premise false for one
+class of turn. A capture turn's assistant reply **is** a transcription of the screen, so recording
+it persists the untrusted payload in the one form that survives: prose. Measured against the real
+cortex, the model transcribes what it sees faithfully, including text painted into pixels it was
+told to treat as data.
+
+`record_exchange` therefore drops an **opaque** turn outright, whatever this setting says. The
+condition is the turn-local `opaque` bit (untrusted content arrived that could not be fenced,
+which today means an image), not taint, so nothing about this ADR's text-channel behaviour
+changes: a tainted turn that read an email body is still recorded under `record`, with its
+provenance marker, exactly as designed. A user who switched recording on did not ask for their
+password manager to be summarized into Postgres.
+
+A per-source policy that could record a vision turn deliberately is recorded as a deferral in
+`docs/refinements/vision.md`.

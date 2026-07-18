@@ -473,8 +473,9 @@ The service:
   for the batch's scale and a `ToolActivity` per subagent tool step, ridden while the turn is
   suspended inside the spawn dispatch (its generator cannot yield), best-effort and
   credit-balanced so a stalled consumer drops them.
-  `UserTurn.images` are **ignored in this slice**, because multimodal input arrives with
-  vision (Slice 10).
+  `UserTurn.images` are **still ignored**: vision arrived as a model-initiated capture
+  (ADR-0029), and the user-attached image path is a recorded deferral
+  (`docs/refinements/vision.md`) rather than a promise about a coming slice.
 - Turns run one at a time per stream, but dispatch never blocks on the running turn:
   a `UserTurn` arriving mid-turn is queued and starts when the in-flight turn
   finishes, while later client events (a `Cancel` above all) are still acted on

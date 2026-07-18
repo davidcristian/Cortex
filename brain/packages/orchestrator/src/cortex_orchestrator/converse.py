@@ -16,7 +16,8 @@ Stream contract (proto/body.proto `BrainService.Converse`):
   `TextDelta` per streamed reply delta, a `StatusUpdate` per reasoning delta
   (ADR-0020, `state="thinking"`), a `ToolActivity` per audited tool dispatch
   (ADR-0009 addendum), then `TurnComplete{turn_id}`. `UserTurn.images`
-  are ignored in this slice. Multimodal input arrives with vision (Slice 10).
+  are still ignored: vision arrived as a model-initiated capture (ADR-0029), and the
+  user-attached image path is a recorded deferral rather than a coming slice.
   A turn that spawns subagents also surfaces their progress on the same stream,
   through this stream's `SeamProgressSink`: a `StatusUpdate{state="delegating"}`
   for the batch's scale and a `ToolActivity` per subagent tool step (ADR-0010).

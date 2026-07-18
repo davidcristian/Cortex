@@ -640,3 +640,108 @@ which is the only side that knows what is on screen.
    `CaptureError` to distinguish it from a genuinely dark screen.
 6. **The vision surcharge is a second inference pass**, not the body. A capture turn costs a
    full extra prefill plus decode over a text turn, which is the latency the user will notice.
+
+## Addendum (2026-07-18): what landed, and the five places the design was wrong
+
+Every increment landed and is green under `just check`, except increment 6's live behaviour: the
+GDI backend is authored, cross-compiled for `x86_64-pc-windows-msvc` and clippy-linted from
+Linux, and **has never captured a real pixel**. Runbook: `docs/runbooks/vision.md`.
+
+### Corrections to this ADR
+
+1. **Increment 0 was already done.** The preparatory engine split this ADR asked to land "first
+   and alone" landed with the handoff work, which sequenced ahead of vision:
+   `cortex_core/turn_context.py` exists and credits decision 15 by name. Every headroom figure in
+   the context section is stale with it (`engine.py` is 183 lines, not 299; `tool_loop.py` 264,
+   not 297; `converse.py` 90, not 293; `transport.rs` 223, not 296). Nothing in the touched set
+   was within 12 lines of the cap.
+2. **The shrink ladder's give-up arm was unreachable, so the byte ceiling moved onto the
+   request.** With a fixed `MAX_CAPTURE_BYTES` and a 4096 edge clamp, two halvings always land
+   under 6 MiB (the third rung is at most 1024 px, so at most 3.15 MB of RGB), which makes
+   `CaptureError::TooLarge` a branch nothing can take: a gate that cannot fail. `CaptureRequest`
+   therefore carries `max_bytes` as well as `max_edge`, resolved and clamped the same way, and
+   the ladder checks against it. This is a better design independently of coverage: it makes
+   decision 7's "one ceiling, two enforcers" a **mechanism** instead of a comment, because the
+   brain now sends its own `CORTEX_BODY_MAX_IMAGE_BYTES` and the body clamps it to its own
+   ceiling, so the two ends can only ever agree or tighten.
+3. **Five proto fields, not four** (decision 11). `CaptureScreenRequest.max_bytes = 3` is the
+   fifth, added for the reason above and read by `CaptureRequest::bounded` plus set by
+   `GrpcBodyGateway.capture_screen` from config, so ADR-0027's every-field-has-a-consumer rule
+   holds. It is not the kind of field decision 11 rejected: `format`, `display_index` and
+   `region` were refused because a v1 body would silently ignore them, and this one the v1 body
+   honours.
+4. **The `--mmproj` pair does not go in `docker-compose.gpu.yml`** (decision 13). That file no
+   longer carries `llama-server` argv; the model-host supervisor took it over. The projector is a
+   new `ModelHostConfig` field (`CORTEX_MMPROJ_FILE_CORTEX`) flowing into the cortex tier's
+   `TierArgs.extra`, and compose only passes the env var through. Fully gated Python as a result,
+   which the compose block would not have been.
+5. **The opaque-turn escalation refusal keys on the bit, not on image-bearing messages.** This
+   closes ADR-0030's recorded deferral. The handoff record's message codec enumerates fields by
+   name, so a `Message.images` would have been dropped silently on encode, and a refusal that
+   hunted for images in the loop tail would have been checking the one thing that cannot survive
+   a swap. `EscalationSlot.snapshot` additionally raises on an image-bearing tail, the same rule
+   both session stores enforce, as the structural backstop behind the tool's answer.
+
+### Interpretations recorded where the design was silent
+
+- **"6 MB" is read as 6 MiB**, `6291456`, in both toolchains. Each side pins the literal in its
+  own test; nothing mechanical couples them, which is recorded as a deferral.
+- **The `/props` probe uses `CORTEX_INFERENCE_ENDPOINT`**, and is skipped entirely without a body
+  (no body, no capture, so no reason to ask). Startup-only staleness is risk 4, unchanged.
+- **The non-2xx excerpt is bounded at 300 characters**, enough for `llama-server`'s own message
+  and short enough that a server answering HTML cannot flood the log.
+- **The capture receipt is best effort.** By the time it fires the pixels have been read, so
+  refusing to answer because the notification service is down would not un-take the picture; it
+  would trade a working capability for no privacy gain, on a host that still has the kill switch
+  and the overlay indicator.
+- **One coverage escape**, on a three-line wrapper around the ladder's encode step: `encode_png`
+  rejects exactly a zero dimension and a wrong-length buffer, and `downscale` can produce
+  neither. It answers with no bytes rather than an error so the ladder carries no untakeable
+  branch, and an empty blob is refused by the brain's own image validation, so the impossible
+  case would surface at the next gate rather than becoming a picture of nothing.
+
+### Agent-validated (2026-07-18, real cortex plus projector on the 8 GB card)
+
+The projector loaded through the model host's tier argv, and `GET /props` answered
+`modalities: {'vision': True, 'video': True, 'audio': True}`, so decision 13's probe reads a real
+capability rather than a declaration.
+
+The whole brain path was then driven with nothing stubbed on its side: a synthetic 2560x1440 BGRA
+"screen" (a card with blocky glyphs) through the **shipped** `Capture::from_bgra`, which produced
+a real 1600x900 PNG of 6842 bytes; that exact byte string became an `ImagePart`, rode a real
+`Role.TOOL` message built by `result_message`, and was serialised by the real `LlamaCppBackend`
+onto the real server. The reply: *"Your screen displays a white rectangular box with a
+salmon-colored header and the word 'INOVOCE' written in large, pixelated black letters. Below the
+text, there are two horizontal lines."* It read the glyphs exactly as drawn, reproducing a typo
+in the fixture's own glyph table, which is a stronger result than a clean read: it transcribed
+rather than guessed.
+
+**The control arm is the most useful number here.** The same scaffold with the image part removed
+and the stand-in text kept did not fail and did not say it could not see: it **fabricated a whole
+desktop**, describing a browser showing "a search results page for 'how to bake a chocolate
+cake'" and a Notepad window. That is decision 13's justification measured rather than argued: a
+turn where the projector is missing does not error, it invents, so discovering the capability
+from the running server is not an optimisation.
+
+**The injection arm reproduces this ADR's measurement 6 on the shipped payload.** With an
+instruction-shaped region painted into the pixels, the reply described the screen and ended
+*"followed by the words 'PWNED THEPI'"*: not obeyed, transcribed. The boundary stays taint, the
+gate, the opaque escalation and the memory block, exactly as decision 4 states.
+
+**Worst-case bytes through the shipped policy**, incompressible noise, confirming measurement 5
+within rounding: 4.32 MB at 1600x900, and 4.28 MB and 3.99 MB for 2560x1440 and 3840x2160 screens
+downscaled to the 1600 default. Two things follow. A legitimate capture really does exceed gRPC's
+unconfigured 4 MiB receive default (4,194,304 bytes), so the raised channel option is
+load-bearing rather than precautionary. And a 4K screen at the **4096** edge clamp encodes to
+5.89 MB, which clears the 6 MiB ceiling by only 0.4 MB: that narrow margin is exactly why the
+ladder exists, and it is the number to re-measure if either constant moves.
+
+### Still host-only
+
+The real GDI blit of a live desktop; `WDA_EXCLUDEFROMCAPTURE` verified by capturing while the
+overlay is visible and confirming it is absent, which is the one check nothing else can stand in
+for; per-monitor DPI behaviour; the receipt appearing; GDI's black-rectangle behaviour on
+hardware-overlay and DRM-protected surfaces; and hotkey-to-answer latency with its vision
+surcharge.
+
+Deferrals are recorded in `docs/refinements/vision.md` with their index lines.
