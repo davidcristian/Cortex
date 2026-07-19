@@ -30,9 +30,9 @@ The other knobs, all optional:
 | Variable | Side | Default | Meaning |
 | --- | --- | --- | --- |
 | `CORTEX_HOST_CAPTURE_NOTIFY` | host | on | `0` silences the body-authored OS notification a successful capture shows. |
-| `CORTEX_BODY_CAPTURE_MAX_EDGE` | brain | `0` | Longest edge to ask the body for, in physical pixels. `0` leaves the body's own default (1600). |
-| `CORTEX_BODY_MAX_IMAGE_BYTES` | brain | `6291456` | The byte budget, sent to the body **and** re-verified on receipt. 6 MiB, the same number as the body's own `MAX_CAPTURE_BYTES`. |
-| `CORTEX_BODY_CAPTURE_TIMEOUT_S` | brain | `10.0` | The deadline on the capture call, the only one on this seam. |
+| `CORTEX_BODY_CAPTURE_MAX_EDGE` | brain | `0` | Longest edge to ask the body for, in physical pixels, **and** the edge the reply is held to on receipt. `0` leaves the body's own default (1600) and holds the reply to the 8192 px domain ceiling alone. Outside `0..8192` the brain refuses to boot. |
+| `CORTEX_BODY_MAX_IMAGE_BYTES` | brain | `6291456` | The byte budget, sent to the body **and** re-verified on receipt. 6 MiB, the same number as the body's own `MAX_CAPTURE_BYTES`. It may only tighten: outside `1..6291456` the brain refuses to boot, since the body clamps to its own ceiling anyway. |
+| `CORTEX_BODY_CAPTURE_TIMEOUT_S` | brain | `10.0` | The deadline on the capture call, the only one on this seam. Must be positive. |
 | `CORTEX_TOOLS_GATED` | brain | `escalate_to_brain,send_email` | Adding `capture_screen` here puts an approval card in front of every capture. See "if you want it gated" below. |
 
 ## Agent half (Docker, a real projector and a real image)

@@ -712,8 +712,10 @@ unchanged):
   `async set_volume(*, level=None, mute=None) -> VolumeState` (ADR-0023),
   `async notify(...) -> bool` (ADR-0025), and
   `async capture_screen(*, max_edge=0, max_bytes=0) -> ScreenCapture` (ADR-0029, where both
-  arguments are hints the body clamps and an older body ignores, so the adapter re-verifies the
-  reply): the brain-side handle on
+  arguments are hints on the wire and bounds on the reply: the body clamps both, an older body
+  ignores both, so the adapter verifies the declared edge and the byte count against what it
+  asked for, a zero meaning "the body's own default" and holding it to the domain ceiling
+  alone): the brain-side handle on
   the host body's OS actions. A capture is attempted **exactly once and never retried**, because
   a repeat photographs a different screen and fires a second host receipt for one user intent. It is the first brain→body seam direction (the brain dials the body's
   `BodyService`). Absent kwargs leave that field alone; an unreachable body surfaces as

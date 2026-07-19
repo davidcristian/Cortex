@@ -27,8 +27,10 @@ services:
       CORTEX_BODY_ENDPOINT: "${CORTEX_BODY_ENDPOINT:-host.docker.internal:50151}"
       # Screen capture (ADR-0029). The brain asks the body for at most this long an edge and
       # this many bytes, and holds the reply to the same numbers on receipt, since an older
-      # body may ignore both. The byte budget defaults to the body's own 6 MiB ceiling, so the
-      # two ends of the seam agree by construction rather than by two constants staying equal.
+      # body may ignore both: a reply over either is refused with a message the model can read.
+      # The byte budget defaults to the body's own 6 MiB ceiling, so the two ends of the seam
+      # agree by construction rather than by two constants staying equal, and it may only be
+      # tightened; a value outside either seam bound refuses to boot rather than failing a turn.
       # 0 leaves the body's default edge (1600 px). The deadline is the only one on this seam:
       # a blit plus an encode is the only call that can park a host thread.
       CORTEX_BODY_CAPTURE_MAX_EDGE: "${CORTEX_BODY_CAPTURE_MAX_EDGE:-0}"

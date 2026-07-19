@@ -319,6 +319,51 @@ async def test_a_blob_with_an_impossible_size_is_refused() -> None:
             await gateway.capture_screen()
 
 
+async def test_a_body_that_ignores_the_edge_hint_is_refused_on_receipt() -> None:
+    """The hint is an optimization; the bound is what the receiver checks.
+
+    Under proto3 an older body ignores ``max_edge`` entirely and answers full resolution, so a
+    deployment that asked for 1280 px would otherwise be handed a 4K screen and pay for it in
+    bytes and in base64 inflation every later round of the turn. The domain constants cannot
+    catch this: 3840 is inside ``MAX_IMAGE_EDGE`` and the blob is inside 6 MiB.
+    """
+    fake = FakeBody(blob=_blob(width=3840, height=2160))
+    async with _gateway(fake) as gateway:
+        with pytest.raises(
+            BodyGatewayError, match="answered 3840x2160, over the 1280 px edge it was asked for"
+        ):
+            await gateway.capture_screen(max_edge=1280, max_bytes=MAX_IMAGE_BYTES)
+
+
+async def test_a_body_that_ignores_the_byte_hint_is_refused_on_receipt() -> None:
+    """The same for the byte budget: a reply inside the 6 MiB domain ceiling but over the number
+    this deployment configured is a bound the body did not honour, and the brain holds it."""
+    fake = FakeBody(blob=_blob(data_size=2_000_000))
+    async with _gateway(fake) as gateway:
+        with pytest.raises(
+            BodyGatewayError, match="answered 2000000 bytes, over the 1000000 byte budget"
+        ):
+            await gateway.capture_screen(max_edge=1600, max_bytes=1_000_000)
+
+
+async def test_asking_for_no_bounds_holds_the_reply_to_the_domain_ceiling_alone() -> None:
+    """The control arm, and the reason the check reads the request rather than a constant: a zero
+    asked for the body's own default, so the very same full-resolution reply is legitimate."""
+    fake = FakeBody(blob=_blob(width=3840, height=2160, data_size=2_000_000))
+    async with _gateway(fake) as gateway:
+        capture = await gateway.capture_screen()
+    assert (capture.image.width, capture.image.height) == (3840, 2160)
+
+
+async def test_a_bound_the_wire_cannot_carry_fails_the_capture_rather_than_the_turn() -> None:
+    """``BodyGatewayError`` is this port's only failure channel, and the request is built inside
+    it: a bound outside uint32 used to escape as a bare ``ValueError``, which neither the tool
+    nor the dispatcher catches, so a misconfigured deployment killed the whole stream."""
+    async with _gateway(FakeBody(blob=_blob())) as gateway:
+        with pytest.raises(BodyGatewayError, match="a bound the wire cannot carry"):
+            await gateway.capture_screen(max_edge=-1)
+
+
 async def test_a_capture_error_maps_to_body_gateway_error() -> None:
     async with _gateway(FakeBody(fail=grpc.StatusCode.PERMISSION_DENIED)) as gateway:
         with pytest.raises(BodyGatewayError, match="capture failed"):
