@@ -51,6 +51,10 @@ def clean_env(monkeypatch: pytest.MonkeyPatch) -> None:
         "CORTEX_SUBAGENTS_MAX_CONCURRENCY",
         "CORTEX_BODY_BACKEND",
         "CORTEX_BODY_ENDPOINT",
+        "CORTEX_BODY_CAPTURE_MAX_EDGE",
+        "CORTEX_BODY_MAX_IMAGE_BYTES",
+        "CORTEX_BODY_CAPTURE_TIMEOUT_S",
+        "CORTEX_VISION",
     ):
         monkeypatch.delenv(name, raising=False)
     # The per-sidecar tool vars are open-ended (one per <name>); sweep by prefix.
@@ -184,6 +188,19 @@ def test_inference_defaults_to_echo_without_an_endpoint() -> None:
     config = InferenceConfig()
     assert config.backend == "echo"
     assert config.endpoint == ""
+    # Vision is discovered rather than declared, so the default has to be the probing mode: an
+    # `off` default would silently cost every deployment the capability, and `on` would advertise
+    # a screen read to a model that cannot see. Pinned to the literal for that reason.
+    assert config.vision == "auto"
+
+
+@pytest.mark.usefixtures("clean_env")
+@pytest.mark.parametrize("mode", ["on", "off", "auto"])
+def test_the_vision_mode_is_settable_to_each_of_its_three_answers(
+    monkeypatch: pytest.MonkeyPatch, mode: str
+) -> None:
+    monkeypatch.setenv("CORTEX_VISION", mode)
+    assert InferenceConfig().vision == mode
 
 
 @pytest.mark.usefixtures("clean_env")

@@ -14,6 +14,7 @@ from cortex_core import (
     DENIED_MSG,
     MAX_IDENTICAL_DISPATCHES,
     BodyGatewayError,
+    CaptureBounds,
     CaptureScreenTool,
     DispatchPolicy,
     ImagePart,
@@ -130,6 +131,14 @@ async def test_a_capture_taints_the_turn_through_the_ordinary_ledger() -> None:
     assert ledger.tainted is False
     ledger.observe(result)
     assert ledger.tainted is True
+
+
+def test_the_default_bounds_ask_the_body_for_its_own_defaults() -> None:
+    # Zero is not "no bound", it is "your default" on the wire (proto3 cannot tell an unset
+    # uint32 from an explicit zero), and the brain then holds the reply to the domain ceiling
+    # alone. Pinned against literals: a default quietly moved to 640 or to a byte budget would
+    # otherwise change what every deployment asks for with nothing red.
+    assert (CaptureBounds().max_edge, CaptureBounds().max_bytes) == (0, 0)
 
 
 async def test_a_failed_capture_leaves_the_turn_clean() -> None:
