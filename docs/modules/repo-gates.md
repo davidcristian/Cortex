@@ -55,7 +55,13 @@ core function).
   header (first non-comment line): ≤ 72 chars, lowercase subject, no trailing period. A
   header that is not Conventional-Commits-shaped passes silently (structure errors are the
   other hook's to report); `Merge `/`fixup! `/`squash! `/`amend! ` headers are exempt, body
-  rules included, because that wording is git's and not the author's. Across the WHOLE
+  rules included, because that wording is git's and not the author's. Every line BELOW the
+  header must wrap at 72 (`MAX_BODY_WIDTH`, the same number the header is capped at, checked
+  separately so one long subject is one complaint): a line past it that could have been wrapped
+  fails, and `too_wide` exempts one whose longest word alone is over the wrap, since a URL, a
+  path, or a long identifier has nowhere to break and demanding a rewrite that cannot exist
+  would train authors to ignore the gate. Four 73-character lines reached master before this
+  landed, which is what it was added for. Across the WHOLE
   message (subject and body) it also bans a dash used as punctuation (em dash, en dash,
   spaced ASCII `--`, since a message is pure prose) and volatile references: a slice
   number, a decision-record number, the roadmap, or a numbered assumption/increment/gate/
