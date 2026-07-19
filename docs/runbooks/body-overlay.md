@@ -10,7 +10,7 @@ webview and a real OS event loop, so it is built and validated on the host, neve
 ```bash
 cd body/app
 npm ci
-npm run dev            # vite on http://localhost:5173; the overlay self-summons
+npm run dev            # vite on http://localhost:5173; the overlay self-summons on load
 ```
 
 The page mounts with `DemoBridge` (a canned streamed reply) and dispatches `cortex:activate` once,

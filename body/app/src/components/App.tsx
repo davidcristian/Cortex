@@ -2,6 +2,7 @@ import { type MouseEvent, useEffect } from "react";
 
 import type { BrainBridge } from "../bridge/types";
 import { resolveMark } from "../mark/marks";
+import { ACTIVATE_EVENT, takePendingActivation } from "../overlay/activation";
 import { useOverlay } from "../overlay/useOverlay";
 import { usePreferences } from "../overlay/usePreferences";
 import { applyTheme, resolveTheme } from "../theme/themes";
@@ -29,11 +30,16 @@ export function App({ bridge, newSessionId }: AppProps) {
     applyTheme(theme, document.documentElement);
   }, [theme]);
 
-  // The host (the Tauri global hotkey) summons the overlay via a window event.
   useEffect(() => {
-    const summon = () => controller.open();
-    window.addEventListener("cortex:activate", summon);
-    return () => window.removeEventListener("cortex:activate", summon);
+    const summon = () => {
+      takePendingActivation();
+      controller.open();
+    };
+    window.addEventListener(ACTIVATE_EVENT, summon);
+    if (takePendingActivation()) {
+      controller.open();
+    }
+    return () => window.removeEventListener(ACTIVATE_EVENT, summon);
   }, [controller.open]);
 
   // The header's quick flip names the opposite theme outright, so it always lands somewhere
