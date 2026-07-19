@@ -214,17 +214,16 @@ impl Capture {
 
 /// Encodes one rung of the ladder, or nothing at all if the encoder somehow refuses it.
 ///
-/// Coverage escape (AGENTS.md gate 2): [`encode_png`] rejects exactly two things, a zero
-/// dimension and a buffer that is not `width * height * 3` bytes, and `downscale` can produce
-/// neither, so the failing arm is genuinely unreachable. The escape sits on this three-line
-/// wrapper rather than on the ladder, which stays fully measured, and `encode_png`'s own
-/// rejects stay gated where a caller can provoke them.
+/// [`encode_png`] rejects exactly two things, a zero dimension and a buffer that is not
+/// `width * height * 3` bytes, and `downscale` can produce neither, so the `Err` arm of that
+/// call is unreachable from here. It needs no coverage escape: the unreachable arm lives inside
+/// `Result::unwrap_or_default`, which is std's line and not a region of this function, and
+/// `encode_png`'s own rejects stay gated where a caller can provoke them.
 ///
 /// Answering with no bytes rather than an error keeps the ladder free of a branch nothing can
 /// take, and it does not swallow the impossible case: an empty blob is refused by the brain's
 /// own image validation with a message the model can read, so the failure would surface at the
 /// next gate instead of becoming a picture of nothing.
-#[cfg_attr(coverage, coverage(off))]
 fn encode_rung(image: &Rgb) -> Vec<u8> {
     encode_png(image.width(), image.height(), image.pixels()).unwrap_or_default()
 }

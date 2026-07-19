@@ -694,11 +694,18 @@ Linux, and **has never captured a real pixel**. Runbook: `docs/runbooks/vision.m
   refusing to answer because the notification service is down would not un-take the picture; it
   would trade a working capability for no privacy gain, on a host that still has the kill switch
   and the overlay indicator.
-- **One coverage escape**, on a three-line wrapper around the ladder's encode step: `encode_png`
-  rejects exactly a zero dimension and a wrong-length buffer, and `downscale` can produce
-  neither. It answers with no bytes rather than an error so the ladder carries no untakeable
-  branch, and an empty blob is refused by the brain's own image validation, so the impossible
-  case would surface at the next gate rather than becoming a picture of nothing.
+- **No coverage escape** on the ladder's encode step, which is a correction to what this slice
+  first shipped. `encode_png` rejects exactly a zero dimension and a wrong-length buffer, and
+  `downscale` can produce neither, so the wrapper answers with no bytes rather than an error and
+  the ladder carries no untakeable branch (an empty blob is refused by the brain's own image
+  validation, so the impossible case would surface at the next gate rather than becoming a
+  picture of nothing). The unreachable arm, though, lives inside `Result::unwrap_or_default`,
+  which is std's line and not a region of this function: the `#[cfg_attr(coverage,
+  coverage(off))]` hid nine fully covered regions of the size policy and would have hidden
+  anything later added to them. Removed on 2026-07-19, with the gate re-run at 100% lines,
+  regions and branches and the measured region count rising 1404 to 1413. This crate now
+  declares no escape at all, which is the honest end state for the argument that put the size
+  policy in pure core in the first place.
 
 ### Agent-validated (2026-07-18, real cortex plus projector on the 8 GB card)
 
