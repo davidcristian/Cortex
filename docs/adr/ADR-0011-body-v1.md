@@ -445,3 +445,33 @@ moves to fix-when-it-bites (recorded in
   the coverage-creep guard watches. Until then the maintainer catches shell clippy on the validation
   host, where the two `collapsible_if` were fixed. The classifier is unchanged: `body/app/src-tauri/`
   stays carved to rust (ADR-0006), justified by the shell fmt gate it already feeds.
+
+## Addendum (2026-07-19): this ADR's Host-Windows line, stated once and in one place
+
+The body is the ADR with the most host-side surface, and until now that surface was scattered
+across a slice status, a runbook's notes, a refinements entry, and a risk paragraph. It is now
+collected in [docs/host/](../host/index.md), one doc per sitting, wording kept verbatim. Nothing
+about the work changed; what changed is that it can be found.
+
+**Host-Windows (host-only) for this ADR**, adopting the explicit-line convention ADR-0028 already
+uses (which is worth keeping precisely because an ADR that names none makes a missing one visible):
+
+- The `os_windows` `global-hotkey` registration, the tray, and window show/hide.
+- The real `converse` command streaming a live brain turn to the webview.
+- The `confirm_response` command carrying an approval back into an open turn (ADR-0022).
+- The `list_sessions` / `session_messages` commands (ADR-0021).
+- The `check_link` command behind the connection indicator. The classification itself is pure and
+  gated in `body_core::link` and is checked against a real brain by the `body-rpc` live suite, so
+  what Windows adds is the IPC hop and nothing else. That is why this one had lived only in a
+  runbook paragraph: it is a thin thing to check, and a thin thing to lose.
+- The **overlay polish pass**, which is the one item in that whole directory that is authoring
+  rather than validation: a transparent window with click-through margins (done together, since a
+  first attempt bled through the panel and left a border), the morph to a real screen corner,
+  hide-on-blur, and a tighter CSP. Its design source stays at
+  [docs/design/overlay-ux.md](../design/overlay-ux.md) section 4.
+- The **toolchain-linked full build** of `os_windows` and the Tauri shell, which is a standing
+  per-change obligation rather than a one-time check: CI format-checks both trees and cross-target
+  clippy type-checks `os_windows` without linking, and only a Windows build links them. That is
+  the "build" third of the risk this ADR named, and it stays host-side by construction.
+
+No code changed here; this is a records correction at the origin ADR.

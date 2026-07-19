@@ -444,4 +444,7 @@ subagent is only ever placed on the GPU when `CORTEX_SUBAGENTS_VRAM_GB` fits und
 minus the resident cortex, which needs a card that holds the cortex first. The measured `vram_gb`
 and budget numbers stay host-side with it. Recorded in
 [docs/refinements/resource-governance.md](../refinements/resource-governance.md) and its
-[index](../refinements/index.md).
+[index](../refinements/index.md) until 2026-07-19, when host-side work was extracted into its own
+directory; both this validation and the placeholder cap numbers now live in
+[docs/host/gpu-tier-scale.md](../host/gpu-tier-scale.md), with the sentences above kept verbatim
+there and pointer stubs left behind.

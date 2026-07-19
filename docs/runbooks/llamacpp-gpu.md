@@ -142,9 +142,9 @@ independent, load/throughput are not. Full detail + placement strategy in the
 |---|---|---|---|---|---|
 | **Cortex (pick)** | **gemma-4-12B** | q4_0 (QAT) | 11.0 GB | 11.3 GB (small proj) | ~38-52 s |
 | Cortex (alt) | Qwen3.5-9B | Q4_K_M | 9.2 GB | 11.0 GB (F32 proj) | ~32-42 s |
-| Subagent | _tbd (Slice 7, CPU)_ | | | | |
+| Subagent (pick) | **Qwen3.5-2B** (CPU) | Q4_K_M | CPU, ~893 MiB RSS | n/a | ~14.5 s |
 | Brain | _tbd (host-side pick)_ | | | | |
-| Embedder | _tbd (Slice 5, CPU)_ | | | | |
+| Embedder (pick) | **nomic-embed-text-v1.5** (CPU) | Q8_0 | CPU | n/a | |
 
 - **Cortex = gemma-4-12B** (stronger chat model + QAT). Both candidates ≈ 11 GB, so VRAM
   didn't decide it. The budget is a **deliberate 14 GB soft cap** (env
@@ -160,9 +160,13 @@ independent, load/throughput are not. Full detail + placement strategy in the
   sub-second (SIGTERM to reaped in 0.1 to 0.4 s), so the load dominates exactly as assumed and the
   tier-scale figure is a host measurement ([model-swap.md](model-swap.md)). If it dominates
   once real tiers swap, mirror hot models into a WSL-side/volume cache and re-measure.
-- **Remaining picks:** cortex is settled (gemma-4-12B, the compose default). Subagent sizes
-  (Slice 7), brain (Slice 11), and embedder quant (Slice 5) follow, recorded in
-  [ADR-0004](../adr/ADR-0004-model-lineup.md) as each lands.
+- **Remaining picks:** only the **brain** tier. Cortex (gemma-4-12B, the compose default),
+  subagent (Qwen3.5-2B Q4_K_M on CPU) and embedder (nomic-embed-text-v1.5 Q8_0 on CPU) are all
+  settled and recorded in [ADR-0004](../adr/ADR-0004-model-lineup.md). The brain row above stays
+  `tbd` because it needs a card this half of the repo does not have; it is the item that blocks
+  the rest of the tier-scale work in
+  [docs/host/gpu-tier-scale.md](../host/gpu-tier-scale.md), and ADR-0004 gains its addendum when
+  it lands.
 - **Pin the image:** replace the `ghcr.io/ggml-org/llama.cpp:server-cuda` tag in
   `docker/docker-compose.gpu.yml` with a digest once a working version is settled (ADR-0006:
   mutable tags are a supply-chain risk).

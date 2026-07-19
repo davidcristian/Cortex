@@ -138,6 +138,8 @@ cd brain && uv run pytest -m integration --no-cov \
 
 ## Host-only half on Windows
 
+What these close and where to record them: [docs/host/windows-desktop.md](../host/windows-desktop.md).
+
 - **The native toast** (the push half) **landed 2026-07-16** as the `body_core::os::Notify`
   port with a real `WindowsNotify` WinRT backend (ADR-0025 notify addendum). The inert-text
   rule, the untrusted-source attribution line, and the XML escaping are all CI-gated in the
