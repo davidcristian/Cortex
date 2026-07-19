@@ -1,11 +1,15 @@
 # The Windows desktop sitting (tag W)
 
-Six checks that share one bring-up, plus two standing items that never close. Everything here is
+Seven checks that share one bring-up, plus two standing items that never close. Everything here is
 OS native: a real Win32 window, real COM and WinRT calls, and a real Tauri IPC hop. The dev machine is
 Linux under WSL2, so none of it can be stood in for; see [index.md](index.md) for why that is the
 only thing these have in common.
 
-**The bring-up, once, for all six.** Prerequisites are in [index.md](index.md). Then:
+The seventh is numbered **0**, because it is the bring-up itself and every other check rides on it.
+It was added on 2026-07-19 and the numbering of the rest is deliberately untouched, since ADRs cite
+these by number.
+
+**The bring-up, once, for all seven.** Prerequisites are in [index.md](index.md). Then:
 
 ```powershell
 $env:CORTEX_SEAM_TOKEN = "<the same secret the brain serves with>"
@@ -18,9 +22,53 @@ with the brain up beside it. Add `-f docker/docker-compose.body.yml` to the comp
 brain can dial back (`CORTEX_BODY_BACKEND=grpc`), and `-f docker/docker-compose.gpu.yml` for the
 real cortex. Full procedure: [runbooks/body-overlay.md](../runbooks/body-overlay.md) section B.
 
-Order inside the sitting: volume and the toast first (they exercise the brain to body direction and
-the firewall crossing, so a failure there explains failures later), then the confirm card, then the
-three read surfaces.
+Order inside the sitting: check 0 (it is the bring-up), then volume and the toast (they exercise
+the brain to body direction and the firewall crossing, so a failure there explains failures later),
+then the confirm card, then the three read surfaces.
+
+---
+
+## 0. The bring-up itself: the hotkey, the tray, show and hide, and one streamed turn
+
+**Status: never attempted.** Tag **W**.
+
+**What only this proves.** That `os_windows` really registers a system-wide hotkey on a live Win32
+desktop, that the tray item and window show/hide work, and that the `converse` Tauri command
+streams a live brain turn into the webview across the real IPC hop. Everything under it is gated:
+the chord parser is pure and 100% covered in `body_core`, and the overlay's streaming reducer is
+covered in `body/app`. What no gate reaches is a real registration against a real desktop that
+other software is also competing for.
+
+**Why it is a numbered check and not just a heading.**
+[ADR-0011](../adr/ADR-0011-body-v1.md)'s Host-Windows addendum names "the `os_windows`
+`global-hotkey` registration, the tray, and window show/hide" and "the real `converse` command
+streaming a live brain turn to the webview" as two of its six lines, and until 2026-07-19 neither
+had a check here. [AGENTS.md](../../AGENTS.md)'s three-records rule held forward from every item in
+this directory and failed backward from that ADR. This is the fix, and the reason it reads as
+obvious work is the reason it went missing: it is what you do before the checks, so nobody wrote
+it down as one.
+
+**Do.** [runbooks/body-overlay.md](../runbooks/body-overlay.md) section B, validation steps 1 to 3.
+Press **Ctrl+Alt+Space** from some other foreground application; press it again to hide. Use the
+tray's **Show overlay**. Type a prompt, watch the reply stream, then send a follow-up that depends
+on the first (the session is shared across turns).
+
+**Pass.** The overlay appears from any foreground app and toggles away again; the tray item does
+the same; a typed turn streams token by token rather than arriving whole, and a follow-up keeps
+context.
+
+**Fail, and what each failure means.**
+- The hotkey never fires: something else owns the chord. It is configurable (`CORTEX_HOTKEY`,
+  default `ctrl+alt+space`, parsed by `body/app/src-tauri/src/hotkey.rs`, which falls back to the
+  default and prints on an unparseable value), so try another chord before calling it a defect.
+- The overlay appears but no text arrives: the seam, not the desktop. `UNAUTHENTICATED` means the
+  shell and the brain disagree on `CORTEX_SEAM_TOKEN`; a red connection dot means the brain is not
+  reachable at `CORTEX_BRAIN_ADDR`.
+- The whole reply arrives at once: the stream is being buffered somewhere, which is a finding about
+  the IPC hop rather than about the brain, since the brain's deltas are gated on both sides.
+
+**Record it.** A dated addendum to [ADR-0011](../adr/ADR-0011-body-v1.md) against the two lines
+named above; then delete this section.
 
 ---
 
@@ -34,7 +82,11 @@ firewall**. The agent proved the container to host dial on 2026-07-08, but again
 server under WSL2 native dockerd; the Windows crossing is the untested half of ROADMAP assumption
 3. Nothing in CI builds this backend at all.
 
-Kept verbatim from the ROADMAP's Slice 9 status:
+The two paragraphs below were the ROADMAP's status for this work. They were **preserved here when
+the ROADMAP was slimmed on 2026-07-19** and are no longer in that file, so this doc is their only
+home; the live statement of the same obligation is
+[ADR-0023](../adr/ADR-0023-body-gateway-volume.md)'s "Host-Windows (host-only)" paragraph and its
+2026-07-08 addendum ("Remaining for the slice: only the **Host-Windows** half").
 
 > **Host-authored (host-validated on Windows, never in CI).** The real `WindowsAudioControl`
 > (Core Audio, `cfg(windows)`, the `windows` crate; `unsafe` for COM authorized narrowly to
@@ -132,13 +184,15 @@ command carry an answer back into a **live** turn over the real IPC transport. T
 validated in Chrome on 2026-07-08 (approve, deny, multi-turn) and the confirm exchange was proven
 over a real loopback gRPC wire on both answers; neither reaches the Tauri IPC hop.
 
-Kept verbatim from the ROADMAP's Slice 8.8 status:
+The ROADMAP said this in a slice status that was slimmed away on 2026-07-19; the wording that is
+still live is [ADR-0022](../adr/ADR-0022-email-write-confirmer.md)'s 2026-07-08 addendum:
 
-> **Only the Windows Tauri confirm-card** (hotkey → gated send → card → approve/deny through the
-> real IPC) remains, genuinely OS-native and host-only
-> ([body-overlay.md](../runbooks/body-overlay.md)).
+> **Still pending (genuinely OS-native, host-only):** the **Windows Tauri confirm-card**
+> validation (hotkey → gated send → card → approve/deny through the real IPC transport). It is the
+> one piece Chrome/Docker can't reach, exactly as ADR-0013 predicted.
 
-and from [refinements/untrusted-content.md](../refinements/untrusted-content.md):
+The runbook for it is [body-overlay.md](../runbooks/body-overlay.md). The same obligation is
+stated once more in [refinements/untrusted-content.md](../refinements/untrusted-content.md):
 
 > Only the Windows-native validation of the card remains host-side.
 
@@ -174,7 +228,10 @@ both of them prose, and one of them was about to be cleaned.**
 hop. Both ends are already proven: the brain half was Docker-validated against real Redis on
 2026-07-07, and the overlay reducer is gated at 100%.
 
-Kept verbatim from the ROADMAP's Slice 8.7 status:
+The paragraph below was the ROADMAP's status for that slice; it was **preserved here when the
+ROADMAP was slimmed on 2026-07-19** and is no longer in that file. The live one-line form is
+[ADR-0021](../adr/ADR-0021-session-read-seam.md)'s 2026-07-07 addendum, "the Windows-native Tauri
+`list_sessions`/`session_messages` commands remain host validation":
 
 > **Host half (host-validated on Windows):** the `list_sessions`/`session_messages` Tauri commands
 > (`src-tauri/src/sessions.rs`), the same ungated-glue class as the `converse` command. **Cold

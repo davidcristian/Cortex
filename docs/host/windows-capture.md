@@ -7,10 +7,15 @@ this repo can stand in for.
 
 **Status: never attempted.** The backend has never captured a real pixel.
 
-Kept verbatim from the ROADMAP's Slice 10 status:
+The same sentence lives in two places that are still current, and the wording below is
+[ADR-0029](../adr/ADR-0029-vision-screen-capture.md)'s 2026-07-18 addendum, its opening paragraph
+(the ROADMAP carried it too until that file was slimmed on 2026-07-19):
 
-> the GDI backend is authored, cross-compiled for `x86_64-pc-windows-msvc` and clippy-linted, and
-> has never captured a real pixel
+> the GDI backend is authored, cross-compiled for `x86_64-pc-windows-msvc` and clippy-linted from
+> Linux, and **has never captured a real pixel**
+
+[runbooks/vision.md](../runbooks/vision.md) opens with the same statement, which is the other place
+to correct when this check finally runs.
 
 ## Why this one is different
 
