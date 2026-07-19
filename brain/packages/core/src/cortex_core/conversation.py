@@ -19,9 +19,7 @@ class Role(Enum):
     TOOL = "tool"
 
 
-# The roles whose messages a session store persists. Anything else is derived per turn and
-# dies with it, which is what makes an image on a TOOL message turn-local by construction.
-_PERSISTABLE = frozenset({Role.USER, Role.ASSISTANT})
+_IMAGE_BEARING_ROLE = Role.TOOL
 
 
 @dataclass(frozen=True, slots=True)
@@ -40,6 +38,9 @@ class Message:
         if self.at.tzinfo is None or self.at.tzinfo.utcoffset(self.at) is None:
             msg = "Message.at must be timezone-aware"
             raise ValueError(msg)
-        if self.images and self.role in _PERSISTABLE:
-            msg = f"a {self.role.value} message may not carry images: pixels are turn-local"
+        if self.images and self.role is not _IMAGE_BEARING_ROLE:
+            msg = (
+                f"a {self.role.value} message may not carry images: pixels are turn-local and "
+                "ride the tool result they arrived on"
+            )
             raise ValueError(msg)
