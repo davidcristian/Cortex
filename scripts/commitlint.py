@@ -9,6 +9,10 @@ from pathlib import Path
 
 MAX_HEADER_LENGTH = 72
 
+# The width AGENTS.md wraps a commit body at. Same number as the header cap, checked separately
+# because the header has its own message and reporting one mistake twice is noise.
+MAX_BODY_WIDTH = 72
+
 _HEADER = re.compile(r"^[a-z]+(?:\([^)]*\))?!?: (?P<subject>.+)$")
 # Git-generated or rebase-tooling headers that are exempt from subject style.
 _EXEMPT_PREFIXES = ("Merge ", "fixup! ", "squash! ", "amend! ")
@@ -75,10 +79,24 @@ def commit_exists(token: str, repo: Path) -> bool:
     return result.returncode == 0
 
 
+def too_wide(line: str) -> bool:
+    """Whether ``line`` is past the wrap **and** could have been wrapped."""
+    if len(line) <= MAX_BODY_WIDTH:
+        return False
+    words = line.split()
+    return len(words) > 1 and max(len(word) for word in words) <= MAX_BODY_WIDTH
+
+
 def check_body_lines(lines: list[str], repo: Path) -> list[str]:
-    """Return the dash, volatile-reference, and dangling-hash violations across a message."""
+    """Return the width, dash, volatile-reference, and dangling-hash violations in a message."""
     problems: list[str] = []
     for number, line in enumerate(lines, start=1):
+        # The header carries its own cap and its own message (``check_header``), so the width
+        # rule starts at the line after it rather than reporting one subject twice.
+        if number > 1 and too_wide(line):
+            problems.append(
+                f"line {number} is {len(line)} chars; AGENTS.md wraps the body at {MAX_BODY_WIDTH}"
+            )
         for pattern, label in _DASHES:
             if pattern.search(line):
                 problems.append(f"line {number} uses {label}; restructure the sentence")

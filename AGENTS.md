@@ -103,7 +103,10 @@ commit-msg hooks (conventional-pre-commit validates the type/format; `scripts/co
 the subject style). Imperative mood is the one convention no machine checks:
 
 - Format: `type(scope)?: subject`, in imperative mood, lowercase subject, no trailing
-  period, subject ≤ 72 chars. The body explains what and why, wrapped at 72.
+  period, subject ≤ 72 chars. The body explains what and why, wrapped at 72, which
+  `scripts/commitlint.py` now checks: a line past 72 that could have been wrapped fails, and one
+  whose longest word alone is over the wrap (a URL, a path, a long identifier) is exempt, having
+  nowhere to break.
 - Types: `feat`, `fix`, `docs`, `test`, `refactor`, `perf`, `build`, `ci`, `chore`,
   `revert`. Breaking change: `!` after type/scope plus a `BREAKING CHANGE:` footer.
 - Scopes (optional, only when the change is contained to one area): `brain`, `body`,
