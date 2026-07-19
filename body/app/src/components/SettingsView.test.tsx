@@ -3,9 +3,9 @@ import { describe, expect, it, vi } from "vitest";
 
 import { FOAM, WOBBLE } from "../mark/marks";
 import { THEMES } from "../theme/themes";
-import { SettingsSheet } from "./SettingsSheet";
+import { SettingsView } from "./SettingsView";
 
-function renderSheet(
+function renderView(
   over: {
     themeName?: string | null;
     onPickTheme?: (name: string | null) => void;
@@ -14,7 +14,7 @@ function renderSheet(
   } = {},
 ) {
   return render(
-    <SettingsSheet
+    <SettingsView
       themeName={over.themeName === undefined ? null : over.themeName}
       mark={WOBBLE}
       animated={false}
@@ -25,16 +25,16 @@ function renderSheet(
   );
 }
 
-describe("SettingsSheet", () => {
+describe("SettingsView", () => {
   it("offers Auto plus every registered theme, with Auto checked when nothing is chosen", () => {
-    renderSheet();
+    renderView();
     const options = screen.getAllByRole("radio", { name: /auto|midnight|daylight/iu });
     expect(options).toHaveLength(THEMES.length + 1);
     expect(screen.getByRole("radio", { name: "Auto" })).toHaveAttribute("aria-checked", "true");
   });
 
   it("checks the chosen theme instead of Auto once one is picked", () => {
-    renderSheet({ themeName: "daylight" });
+    renderView({ themeName: "daylight" });
     expect(screen.getByRole("radio", { name: "Auto" })).toHaveAttribute("aria-checked", "false");
     expect(screen.getByRole("radio", { name: "daylight" })).toHaveAttribute(
       "aria-checked",
@@ -44,7 +44,7 @@ describe("SettingsSheet", () => {
 
   it("picks a theme by name, and Auto as a null choice the toggle cannot express", () => {
     const onPickTheme = vi.fn();
-    renderSheet({ themeName: "midnight", onPickTheme });
+    renderView({ themeName: "midnight", onPickTheme });
     fireEvent.click(screen.getByRole("radio", { name: "daylight" }));
     expect(onPickTheme).toHaveBeenCalledWith("daylight");
     fireEvent.click(screen.getByRole("radio", { name: "Auto" }));
@@ -53,22 +53,22 @@ describe("SettingsSheet", () => {
 
   it("draws every mark style live, with the current one checked, and picks by name", () => {
     const onPickMark = vi.fn();
-    const { container } = renderSheet({ onPickMark });
-    expect(container.querySelectorAll(".markopt svg.mark")).toHaveLength(4);
-    expect(screen.getByRole("radio", { name: /Wobble/u })).toHaveAttribute("aria-checked", "true");
-    fireEvent.click(screen.getByRole("radio", { name: /Foam/u }));
+    const { container } = renderView({ onPickMark });
+    expect(container.querySelectorAll(".seg-mark svg.mark")).toHaveLength(4);
+    expect(screen.getByRole("radio", { name: "Wobble" })).toHaveAttribute("aria-checked", "true");
+    fireEvent.click(screen.getByRole("radio", { name: "Foam" }));
     expect(onPickMark).toHaveBeenCalledWith(FOAM.name);
   });
 
-  it("closes on a click outside its card, but a click on the card itself never closes it", () => {
+  it("is a region of the panel with one way back, not a sheet laid over it", () => {
     const onClose = vi.fn();
-    const { container } = renderSheet({ onClose });
-    fireEvent.click(screen.getByRole("dialog", { name: "Settings" }));
-    expect(onClose).toHaveBeenCalledOnce();
-    // Choosing a setting must not dismiss the sheet under the user mid-comparison.
-    const card = container.querySelector(".set-card");
-    expect(card).not.toBeNull();
-    fireEvent.click(card as Element);
+    const { container } = renderView({ onClose });
+    expect(screen.getByRole("region", { name: "Settings" })).toBeInTheDocument();
+    // Nothing here is a backdrop, so choosing a setting cannot dismiss the view out from under
+    // the user mid-comparison; leaving is the one control that says so.
+    fireEvent.click(container.querySelector(".rows") as Element);
+    expect(onClose).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByLabelText("Back to chat"));
     expect(onClose).toHaveBeenCalledOnce();
   });
 });

@@ -12,7 +12,9 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
   (`mark/`: `bubble.ts` is the pure geometry, `marks.ts` the style registry, `useMarkClock.ts` the
   frame clock, ADR-0031), the appearance record (`overlay/usePreferences.ts`: hydrates the theme
   and mark from the brain once and writes each change back optimistically, ADR-0032), the panel's
-  size animation (`overlay/useGrowthAnimation.ts`, ADR-0033), the overlay state
+  vertical geometry and the motion into it (`overlay/usePanelMotion.ts` owns `bottom` and
+  `max-height` as inline styles; `overlay/useViewTransition.ts` names the view being left behind
+  long enough to fade it, ADR-0033/ADR-0034), the overlay state
   machine (`overlay/overlayState.ts` is a pure reducer over a `Mode` = hidden/panel/orb/preview,
   with the session-switching helpers split into `overlay/sessionState.ts` for the line cap),
   and the controller hook (`overlay/useOverlay.ts`). Components (`components/`) depend only on the
@@ -136,6 +138,18 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
   acks (an ack destroys the reminder, navigation does not), and the control is *absent* for a
   session-less row (`""`) or for the chat already on screen, where it would cancel that chat's
   running turn to arrive where it already is.
+- **The panel's views** (`components/Panel.tsx` + `ChatView.tsx` + `PanelView.tsx` +
+  `SettingsView.tsx` + `ShortcutsView.tsx`, ADR-0034): `Panel` is a router over three views of one
+  window, not a window with sheets over it. Only the active view is in the layout flow, so it alone
+  decides the height the panel eases to; the view being left is held for one morph, lifted out of
+  flow, and faded out over the one arriving; the chat is never unmounted (a half-typed draft and the
+  history's scroll position survive a trip to settings). `usePanelMotion` re-centres on a view change
+  and pins the bottom edge in between, so growth inside the chat leaves the composer alone.
+  `components/Collapse.tsx` gives the switcher list and the reminder stack their own height
+  animation. The two-part contract between it and the panel is `overlay/morph.ts`: `data-morphing`
+  on the section makes the panel leave the height alone, and a bubbling `cortex:morphend` when it
+  clears is the panel's only word that a section rolling *open* has finished, since that changes no
+  state and so triggers no render of its own.
 - **The confirmation card** (`components/ConfirmCard.tsx` + `components/draftValue.ts`,
   ADR-0022): the gated call's `argumentsJson` as key/value rows, shown verbatim because what is
   approved is what runs (a malformed one falls back to the raw string). `formatDraftValue`

@@ -9,8 +9,8 @@ are the historical record of what each deferral became, and the index at
 [index.md](index.md) carries the recommended pickup order.
 
 **Open items:** multi-turn-within-one-stream + proto `Cancel`, streamed
-brain status (its producer landed 2026-07-18; only the push RPC remains), exit animations for
-sections leaving the panel
+brain status (its producer landed 2026-07-18; only the push RPC remains), a per-row exit for the
+reminder stack, the two unpicked directions for the settings and shortcuts views
 
 **Body / overlay in Slice 8 ([ADR-0011](../adr/ADR-0011-body-v1.md)):**
 - **Multi-turn-within-one-stream + an explicit proto `Cancel` event.** One turn per `Converse`
@@ -180,11 +180,29 @@ sections leaving the panel
   the choices live.
 
 **The panel's size ([ADR-0033](../adr/ADR-0033-panel-growth.md), 2026-07-19):**
-- **Sections do not animate out.** The panel's size change eases in both directions, so closing
-  the switcher or dismissing the last reminder collapses the panel smoothly, but the section
-  itself vanishes on the first frame instead of sliding out: React unmounts a removed child
-  immediately, and the growth animation only sees the height that is left behind. Animating an
-  exit means keeping the element mounted through it (a leaving flag in the reducer, or a
-  transition library), which is a real change to how the panel renders its sections rather than a
-  CSS addition. Deferred because the asymmetry is barely visible at the durations in use: the
-  collapse the eye follows is the panel's, and it is animated.
+- **Sections do not animate out.** *Landed 2026-07-19*
+  ([ADR-0034](../adr/ADR-0034-panel-views.md) decision 4.) The deferral read: the panel's size
+  change eases in both directions, but the section itself vanishes on the first frame because
+  React unmounts a removed child immediately, and animating an exit means keeping the element
+  mounted through it. That is exactly what shipped, and the guess about the cost was right and
+  the guess about the symptom was wrong. It cost one component (`components/Collapse.tsx`, which
+  holds its children through the close and animates its own height) and no reducer change at all.
+  But the asymmetry was not "barely visible": the section's rows vanished, everything below them
+  snapped up into the hole, and the panel eased down afterwards, which the user reported as the
+  animation feeling wrong. Two lessons for the next entry of this shape. A defect described as
+  cosmetic deserves one look at the actual frames before it is sized, and "the collapse the eye
+  follows is the panel's" was an assumption about what the eye follows, made without watching it.
+
+**The panel's views ([ADR-0034](../adr/ADR-0034-panel-views.md), 2026-07-19):**
+- **A single reminder leaving the stack still goes in one frame.** `Collapse` wraps the whole
+  stack, so the stack rolls shut when the last reminder is acked, but acking one of three just
+  deletes that row. Nothing else moves when it does (the history absorbs the slack and the
+  composer holds still), so what is left is one row's worth of instant against a smooth panel.
+  Fixing it properly is a `usePresence(items, key)` hook that keeps a removed item rendered until
+  its own roll finishes, which the switcher's rows would want too. Deferred as genuinely small,
+  not as invisible: it is one row, and the surrounding motion no longer amplifies it.
+- **Two richer directions for the settings and shortcuts views are open.** What shipped is the
+  plainest of three pitched to the user: rows, hairlines, one way back. The other two (theme
+  choices as thumbnails of the panel wearing them, and one tabbed console instead of two
+  destinations) are inner markup on the same plumbing, so whichever the user picks is a
+  component change and not a motion change.

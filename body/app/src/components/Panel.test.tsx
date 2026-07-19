@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { WOBBLE } from "../mark/marks";
@@ -263,15 +263,37 @@ describe("Panel", () => {
     expect(onToggleSettings).toHaveBeenCalledTimes(2);
   });
 
-  it("covers the panel with the settings sheet when it is open, and wires its choices", () => {
+  it("becomes the settings view when it is open, wiring its choices and the way back", () => {
     const onPickMark = vi.fn();
     const onPickTheme = vi.fn();
-    renderPanel({ settingsOpen: true }, true, false, { onPickMark, onPickTheme });
-    expect(screen.getByRole("dialog", { name: "Settings" })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("radio", { name: /Foam/u }));
+    const onToggleSettings = vi.fn();
+    const { container } = renderPanel({ settingsOpen: true }, true, false, {
+      onPickMark,
+      onPickTheme,
+      onToggleSettings,
+    });
+    expect(screen.getByRole("region", { name: "Settings" })).toBeInTheDocument();
+    // The chat is still mounted (a half-typed draft survives the trip) but out of the flow, so
+    // the panel is only as tall as the two settings rows.
+    expect(container.querySelector(".view.gone")).not.toBeNull();
+    fireEvent.click(screen.getByRole("radio", { name: "Foam" }));
     expect(onPickMark).toHaveBeenCalledWith("foam");
     fireEvent.click(screen.getByRole("radio", { name: "daylight" }));
     expect(onPickTheme).toHaveBeenCalledWith("daylight");
+    fireEvent.click(screen.getByLabelText("Back to chat"));
+    expect(onToggleSettings).toHaveBeenCalledOnce();
+  });
+
+  it("holds the view it is leaving on screen for one morph, out of the flow", () => {
+    const props = (over: Partial<OverlayState>) => panelProps(over, true, false);
+    const view = render(<Panel {...props({ sheetOpen: true })} />);
+    expect(view.container.querySelector(".view.out")).toBeNull();
+    // Back to the chat: the shortcuts list stays, lifted out of flow so it cannot define the
+    // height the panel is easing to, and fades out over the chat arriving underneath it.
+    view.rerender(<Panel {...props({})} />);
+    const leaving = view.container.querySelector(".view.out");
+    expect(leaving?.textContent).toContain("Chat switcher");
+    expect(screen.getByLabelText("Recent chats")).toBeInTheDocument();
   });
 
   it("greets an empty chat with the mark and tappable example prompts that submit", () => {
@@ -309,14 +331,16 @@ describe("Panel", () => {
     expect(el.scrollTop).toBe(500);
   });
 
-  it("opens the shortcut sheet from the hint strip's ? and closes it on a sheet click", () => {
+  it("opens the shortcuts view from the hint strip's ? and comes back from it", () => {
     const onToggleSheet = vi.fn();
     renderPanel({}, true, false, { onToggleSheet });
-    expect(screen.queryByRole("dialog", { name: "Keyboard shortcuts" })).toBeNull();
+    expect(screen.queryByRole("region", { name: "Shortcuts" })).toBeNull();
     fireEvent.click(screen.getByLabelText("Shortcuts"));
     expect(onToggleSheet).toHaveBeenCalledOnce();
+    cleanup();
     renderPanel({ sheetOpen: true }, true, false, { onToggleSheet });
-    fireEvent.click(screen.getByRole("dialog", { name: "Keyboard shortcuts" }));
+    expect(screen.getByRole("region", { name: "Shortcuts" })).toBeInTheDocument();
+    fireEvent.click(screen.getByLabelText("Back to chat"));
     expect(onToggleSheet).toHaveBeenCalledTimes(2);
   });
 });

@@ -44,7 +44,7 @@ its signature.
 | [memory.md](memory.md) | Store, scoping, rerank/MMR (ADR-0008) | 8 |
 | [inference-model-manager.md](inference-model-manager.md) | Model-manager lifecycle, MTP, reasoning status (ADR-0007/0020) | 7 |
 | [subagents.md](subagents.md) | Progress reporting, spawn schema, heterogeneous roster (ADR-0010/0018) | 2 |
-| [body-overlay.md](body-overlay.md) | Overlay polish, connection indicator, proto Cancel (ADR-0011), section exit animations (ADR-0033) | 3 |
+| [body-overlay.md](body-overlay.md) | Overlay polish, connection indicator, proto Cancel (ADR-0011), per-row reminder exit and the unpicked view directions (ADR-0034) | 4 |
 | [session-read-seam.md](session-read-seam.md) | Session listing/read seam (ADR-0021) | 3 |
 | [resource-governance.md](resource-governance.md) | Scheduler/placer budgets, NPU, drain (ADR-0012) | 5 |
 | [email-confirmer.md](email-confirmer.md) | Email write, Confirmer, attachments, `ToolActivity` chip (ADR-0022) | 4 |
@@ -680,12 +680,16 @@ against the code (the warning above); the entry text tells you which seams it ex
   CPU roster up, given a prose-only ask carrying independent subtasks, either reaches for distinct
   roster models or does not. Listed here because the entry said for three days that no card
   available to the agent could answer it.
-- **Animating a section out of the panel** ([body-overlay.md](body-overlay.md)), joined
-  2026-07-19 when the panel's size animation landed and made the asymmetry visible: growth and
-  collapse both ease, but a removed switcher list or reminder stack vanishes on the first frame
-  because React unmounts it immediately. Nothing blocks the code; what it needs is a decision
-  about how the panel renders a leaving child (a flag in the reducer versus a transition
-  library), which is why it is here rather than filed as a CSS tweak.
+- **A per-row exit for the reminder stack** ([body-overlay.md](body-overlay.md)), joined
+  2026-07-19 when the panel's views landed. Sections now roll shut instead of vanishing, but the
+  wrapper is around the stack, so acking one reminder of three still deletes that row in a frame.
+  Nothing blocks the code; what it wants is a `usePresence` hook that holds a removed item until
+  its own roll ends, which the switcher's rows would share. Small, and listed because the
+  entry it replaces was sized as invisible and turned out to be the thing the maintainer noticed.
+- **The two unpicked directions for the settings and shortcuts views**
+  ([body-overlay.md](body-overlay.md)), open from 2026-07-19: three were pitched, the plainest
+  shipped, and the user's answer decides whether either of the others is built. Inner markup on
+  plumbing that already exists, so the cost is a component and not a motion change.
 
 Everything else that remains is gated on a seam or port change, on hardware that fits two model
 tiers, on a consumer that does not yet exist, or is a bounded fix-when-it-bites contingency. The
