@@ -10,8 +10,10 @@ index at [index.md](index.md) carries the recommended pickup order.
 cross-language check on the byte ceiling, a live-probe refresh, JPEG or WebP for photographic
 screens, an `AttachmentStore` for accountability, an image arm of the injection harness,
 per-source memory rules, a Windows.Graphics.Capture backend, multi-monitor and DPI reporting,
-Linux and macOS backends, a uniform per-call deadline, `RESOURCE_EXHAUSTED` classification, and
-pixel screening in the body.
+Linux and macOS backends, a uniform per-call deadline, `RESOURCE_EXHAUSTED` classification,
+pixel screening in the body, carrying a picture (or at least the `opaque` bit) across a model
+swap, an outcome-driven capture indicator, and the host-side Windows validation of the whole
+capture path.
 
 ## Vision in Slice 10 ([ADR-0029](../adr/ADR-0029-vision-screen-capture.md))
 
@@ -86,6 +88,34 @@ pixel screening in the body.
   is honest but coarse: the brain cannot tell "your screen is too complex to send" from "the
   backend broke". A distinct status (and a distinct message the cortex could relay) is a small
   mapping change on both sides.
+- **Carrying a picture, or at least the `opaque` bit, across a model swap.** Named in ADR-0029's
+  own Deferred paragraph and written down here on 2026-07-19, having been missed when the slice
+  closed. Nothing persists an in-turn image: no session store, and no handoff record either, whose
+  codec enumerates message fields by name so a `Message.images` would have been dropped in
+  silence. The **user-visible** consequence is live: a turn that looked at the screen cannot hand
+  over to the deep model at all, and the conductor ends it with a note telling the user to ask
+  again in a fresh message. `HandoffRecord` does not carry the `opaque` bit either, so
+  `taint_ledger()` rebuilds it at `False`; that is sound only because no opaque turn can reach a
+  record (the conductor refuses first), and carrying the bit as defence in depth is the cheap half
+  of this entry. The expensive half is pixels themselves, which wants the `AttachmentStore` above,
+  and a capability argument still says no: no brain-tier candidate on the mount has a projector,
+  so a replayed picture would be unreadable even if it survived.
+- **An outcome-driven capture indicator.** The overlay's dot is lit by the `ToolActivity` chip,
+  which the brain emits just *before* the dispatch, so it means "the assistant asked to look at
+  your screen" and its label says exactly that. It cannot say the screen was read, because no
+  outcome crosses the seam: the host kill switch, a self-exclusion that failed closed, an
+  unreachable body, and a declined gated capture all produce the same event. A stronger surface
+  (the one consent surface that would then match the body's own OS receipt) needs a post-dispatch
+  signal on the `Converse` stream, which is a proto field plus a reducer arm plus a tool-loop
+  emission point, so it is a seam change rather than an increment.
+- **Host-side Windows validation of the whole capture path.** The one part of this slice no gate
+  can reach, and the only one on the ADR's host-only list without a backlog line until
+  2026-07-19. In order: the real GDI blit of a live desktop; **capturing while the overlay is
+  visible, to prove `WDA_EXCLUDEFROMCAPTURE` held**, which is the check nothing else can stand in
+  for (if it silently fails, the self-injection loop is live); per-monitor DPI behaviour; the
+  body-authored receipt appearing and reading well; GDI's black-rectangle behaviour on
+  hardware-overlay and DRM-protected surfaces; and hotkey-to-answer latency with its vision
+  surcharge. Runbook: [../runbooks/vision.md](../runbooks/vision.md).
 - **Pixel-level screening in the body.** The body is the only side that knows what is on the
   screen before it crosses the seam, so it is the only side that could redact a region (a
   password field, a specific window) rather than refuse a whole capture. Nothing in the design

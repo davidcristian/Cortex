@@ -173,7 +173,8 @@ Start here. Rules for working in this repo: [AGENTS.md](../AGENTS.md).
   `SubagentRunner` decode a tool-less subagent's reply into a fixed `{"reply": …}` envelope,
   killing format-laundering on the weak-model niche with no grammatical position for an appended
   footer or link. Gated to the tool-less path so the JSON grammar never fights tool-calling.
-- [ADR-0029: Vision (screen capture)](adr/ADR-0029-vision-screen-capture.md): **landed**, except
+- [ADR-0029: Vision (screen capture)](adr/ADR-0029-vision-screen-capture.md): **landed** and
+  audit-repaired (its 2026-07-19 addendum), except
   the host-only Windows validation of the GDI blit (authored and cross-compiled, never run
   against a real screen). Slice 10 gives the
   cortex eyes through a model-initiated `capture_screen` built-in over the unchanged

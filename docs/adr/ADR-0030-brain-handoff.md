@@ -97,10 +97,10 @@ ADR-0029 used against gating capture; the gate therefore grows an optional per-t
 change, and the escalate card says what is true: the deep model will take over and the machine
 will be busy for a while. Second, a turn carrying screen-capture pixels cannot escalate:
 pixels are turn-local by ADR-0029's store invariant, the handoff record refuses image-bearing
-messages the same way the session stores do, and the tool answers with a typed refusal telling
-the model to ask the user to retry in a fresh message. Escalating an `opaque` turn would
-otherwise quietly widen pixel persistence, which that ADR explicitly reserved as its own
-deliberate decision.
+messages the same way the session stores do, and the user is told to ask again in a fresh message.
+Escalating an `opaque` turn would otherwise quietly widen pixel persistence, which that ADR
+explicitly reserved as its own deliberate decision. (Where that refusal belongs was corrected on
+2026-07-19; see this ADR's addendum. It is the gate plus the conductor, not the tool.)
 
 Smarter policies slot in later without new seams: `route_turn` already accepts
 `needs_deep_reasoning` and `explicit_tier` (routing.py:16), so a pre-turn heuristic or a

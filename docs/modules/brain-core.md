@@ -861,7 +861,9 @@ Use-case:
   the working set as preamble + recalled context + history + the record's `loop_tail`, the
   `TaintLedger` and fence nonce from the record, the dispatch budget resumed at its carried
   position), runs the shared `stream_tool_loop` against the brain model with a **fresh rounds
-  allowance and no escalation slot** (it cannot escalate to itself), then persists its reply as
+  allowance, no escalation slot** (it cannot escalate to itself) **and no `capture_screen`** (the
+  composition root builds the deep tier's dispatcher from a built-in set without it, ADR-0029:
+  that tier carries no vision projector), then persists its reply as
   a second assistant message under the same `turn_id` and records the exchange under the same
   taint policy. A mid-work `InferenceError` persists the partial text with an honest note and
   re-raises, so the conductor fails the record and converges.
