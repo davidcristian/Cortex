@@ -309,3 +309,14 @@ drop-under-saturation each mutation-proven; the end-to-end path (cortex spawns â
 â†’ wire `ToolActivity`) is exercised over a real `converse()` stream. The bundled backlog entries
 close in [subagents.md](../refinements/subagents.md) and
 [email-confirmer.md](../refinements/email-confirmer.md).
+
+## Addendum (2026-07-19): the nudge residual's "unverifiable on the 8 GB dev GPU" is struck
+
+The 2026-07-16 addendum above hands the spontaneous-pick residual to
+[ADR-0018](ADR-0018-heterogeneous-subagents.md) and describes it in passing as "unverifiable on the
+8 GB dev GPU". That card runs the real cortex (`-ngl 99 --ctx-size 4096 --parallel 1`, projector
+loaded, 7715 of 8188 MiB, [ADR-0029](ADR-0029-vision-screen-capture.md) on 2026-07-17), so the
+uptake probe is agent-side work rather than host work. The full correction, and what stays
+host-side, is at the ADR-0018 addendum of the same date.
+
+No code changed here; this is a records correction at the origin ADR.

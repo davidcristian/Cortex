@@ -218,3 +218,25 @@ cannot be validated on the 8 GB dev GPU (gemma-12B, the cortex tier, does not fi
 cortex-only spawn tool cannot be proxied on the small subagents, which do not respect prompt
 framing the same way). The trigger is a live cortex on user-tier hardware still under-reaching;
 the fix is stronger nudging behind the same spec seam, never a schema change.
+
+## Addendum (2026-07-19): the nudge's uptake is measurable on the dev GPU
+
+The residual above says whether a live cortex reaches for distinct models unprompted "cannot be
+validated on the 8 GB dev GPU (gemma-12B, the cortex tier, does not fit ...)" and puts its trigger
+on "user-tier hardware". The parenthetical is false.
+[ADR-0029](ADR-0029-vision-screen-capture.md) ran `gemma-4-12b-it-qat-q4_0.gguf` on that card on
+2026-07-17 at `-ngl 99 --ctx-size 4096 --parallel 1` with its vision projector loaded, 7715 of
+8188 MiB, and drove a real vision turn through the shipped inference adapter on 2026-07-18. The rest of the
+parenthetical stands and is the part that matters for design: the spawn tool is cortex-only and the
+small subagents do not respect prompt framing the way the cortex does, so no subagent-tier proxy
+tests this.
+
+**What this changes.** The probe becomes agent-side work: a resident cortex at 4K, the roster up on
+its CPU sidecars, which contend for no VRAM, and a prose-only ask carrying independent subtasks. It
+is listed as actionable now in [docs/refinements/index.md](../refinements/index.md), with the entry
+itself at [docs/refinements/subagents.md](../refinements/subagents.md). The fix stays
+fix-when-it-bites, unchanged, and the same question at the production 16K context with more than
+one slot stays host-side. The pointer at
+[ADR-0010](ADR-0010-subagents.md) repeats the false clause and is corrected there.
+
+No code changed here; this is a records correction at the origin ADR.

@@ -448,3 +448,34 @@ and budget numbers stay host-side with it. Recorded in
 directory; both this validation and the placeholder cap numbers now live in
 [docs/host/gpu-tier-scale.md](../host/gpu-tier-scale.md), with the sentences above kept verbatim
 there and pointer stubs left behind.
+
+## Addendum (2026-07-19): the GPU-placed-subagent validation splits, mechanism here and arithmetic host-side
+
+The host-half addendum above says "**What stays host-side is real GPU-placed-*subagent*
+validation**, for this ADR's own reason: a subagent is only ever placed on the GPU when
+`CORTEX_SUBAGENTS_VRAM_GB` fits under the soft cap minus the resident cortex, which needs a card
+that holds the cortex first." The last clause asserts that the dev GPU does not hold the cortex.
+It does: [ADR-0029](ADR-0029-vision-screen-capture.md) measured `gemma-4-12b-it-qat-q4_0.gguf`
+resident on the 8 GB card on 2026-07-17 at `-ngl 99 --ctx-size 4096 --parallel 1` **with its
+vision projector**, 7715 of 8188 MiB.
+
+**What is true instead, and it is narrower.** The card holds the cortex with roughly 470 MiB to
+spare, so nothing multi-GB fits *beside* it. A GPU placement **beside a resident cortex**, which is
+the arithmetic this ADR budgets for, therefore stays host-side and stays item 6 of
+[docs/host/gpu-tier-scale.md](../host/gpu-tier-scale.md), with the measured `vram_gb` and budget
+numbers. The cgroup cap placeholders are unaffected and stay host-side for their own reason, which
+is the tier pair.
+
+**What comes back to the agent.** The `VramBudgetPlacer`'s GPU arm has never fired against a real
+placement, and firing it needs no resident cortex: the budget is three env values
+(`CORTEX_VRAM_SOFT_CAP_GB`, `CORTEX_VRAM_CORTEX_GB`, `CORTEX_SUBAGENTS_VRAM_GB`), the tier is one
+small artifact behind `CORTEX_MODEL_FILE_SUBAGENT_GPU` on the supervisor's `:8083`, and
+`CORTEX_SUBAGENTS_GPU_ENDPOINT` has to be pointed at it because it defaults to the CPU server. What
+that proves is the route from a GPU verdict to an `-ngl 99` process plus the ledger that accounts
+for it, which is the same mechanism-versus-tier-scale split the model swap already runs on
+([ADR-0030](ADR-0030-brain-handoff.md)). It is recorded as actionable now in
+[docs/refinements/index.md](../refinements/index.md), with the reasoning in
+[docs/refinements/resource-governance.md](../refinements/resource-governance.md). Nobody has run it
+yet, so the "never fired against a real placement" sentence above stays true until somebody does.
+
+No code changed here; this is a records correction at the origin ADR.
