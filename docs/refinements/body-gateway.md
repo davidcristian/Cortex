@@ -63,7 +63,13 @@ behind the unchanged `BodyGateway`/`AudioControl`/`BodyService` seams.
   the brain's bound and the body's ceiling one number rather than two constants coupled by prose.
   `InjectInput` stays open, and is now the only unbuilt `BodyService` RPC, which is why the index
   **holds this area at 6** rather than decrementing it: half an entry closing does not close the
-  entry, and a count moved for a half-closed one is how an open deferral gets lost. Three findings, in the order they killed it. **The entry
+  entry, and a count moved for a half-closed one is how an open deferral gets lost.
+  **Recorded at its origin ADR on 2026-07-19, closing a two-of-three gap
+  ([ADR-0023 capture-closure addendum](../adr/ADR-0023-body-gateway-volume.md)).** The closure and
+  the wrong cost claim had been written here and on the index while ADR-0023 still listed
+  `CaptureScreen` as deferred to its slice in three separate paragraphs, which is the ADR a reader
+  of that deferral reaches first. The same pass gave `InjectInput` its own line in the index's
+  dead-until-a-consumer bucket, where it had been counted since the extraction but never placed. Three findings, in the order they killed it. **The entry
   names the wrong seam.** `GetVolume` is a `BodyService` RPC, and the body is its *server*: the
   overlay is inside the body, so it would never call that RPC. Surfacing volume there means a
   new Tauri command over `AudioControl` plus a new overlay port, since `BrainBridge` is by its

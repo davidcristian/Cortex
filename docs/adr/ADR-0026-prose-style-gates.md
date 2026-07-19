@@ -146,3 +146,46 @@ other prose-style items, its line is in [docs/refinements/index.md](../refinemen
 fix-when-it-bites, and this addendum is the origin record. Until it lands, the 72-column body wrap
 stands as convention exactly the way imperative mood does under this ADR's decision: stated in
 AGENTS.md, checked by nobody, and now honestly labelled as such rather than cited as a gate.
+*Superseded by the 2026-07-19 addendum below: the check landed, and one of the four exceptions
+above landed with it.*
+
+## Addendum (2026-07-19): the body wrap is a gate now, and three of its four exceptions are not
+
+The deferral above is closed. `scripts/commitlint.py` gained `MAX_BODY_WIDTH = 72` and now measures
+every line **below** the header inside the walk that already read each line for dashes and volatile
+references, which is exactly the "one more check in the same walker" the entry predicted. The
+header keeps its own cap in `check_header`, so one long subject draws one complaint rather than
+two. The rule this ADR called convention is therefore a gate, and the sentence above about it being
+"checked by nobody" no longer describes the repo.
+
+**One exception shipped, and it is a word-width rule rather than a line-kind rule.** `too_wide`
+exempts a line past the wrap whose **longest word alone** exceeds it, on the reasoning that a URL,
+a path, or a long identifier has nowhere to break, so demanding a rewrite that cannot exist would
+train authors to ignore the gate. That covers the first of the four classes named above. It does
+not cover the other three, and the difference is structural rather than an oversight in the
+wording: a pasted command and a fenced code block are built out of ordinary short words, so the
+longest-word test sees nothing unusual about them.
+
+**Measured against the shipped gate on 2026-07-19, rather than argued.** One message carrying an
+indented `docker compose --project-directory . -f docker/docker-compose.yml ... up -d` line (108
+chars, longest word 29), a fenced `uv run pytest packages/core --cov ...` line (82 chars), and a
+`BREAKING CHANGE:` footer of short words (118 chars) produced three complaints and exit 1. The
+footer is the sharpest of the three in principle, because [AGENTS.md](../../AGENTS.md) mandates
+that footer for a breaking change, so the gate as it stands can refuse a message the commit rules
+themselves require; it is also the easiest to live with, since a footer is prose and its value may
+carry newlines, so wrapping it costs nothing. A pasted command and a fenced block cannot be
+reflowed without changing what they say, which is the "rewriting messages rather than checking
+them" failure the deferral named.
+
+Closing that gap wants a **line-kind** exemption rather than a word-width one: a fence toggle
+carried through the walk, a heuristic for a pasted command (a leading indent, a shell prompt), and
+a decision on whether a footer is exempt at all or simply wrapped like any other prose. That is
+recorded as its own deferral in the three places this repo requires, replacing its parent: the
+entry in [docs/refinements/repo-gates.md](../refinements/repo-gates.md), its line in
+[docs/refinements/index.md](../refinements/index.md) under fix-when-it-bites, and this addendum.
+
+**Why this addendum exists at all is worth stating.** The landing changed a gate's behaviour, and
+updated AGENTS.md and the repo-gates module doc, while touching no deferral record: the entry, the
+index and this ADR all went on saying the rule was ungated. It is the only commit in the last fifty
+to move a gate without moving a record, which is precisely what the doc-first Definition of Done
+exists to prevent, and it is why the correction is three edits rather than one.

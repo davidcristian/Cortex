@@ -37,20 +37,25 @@ its signature.
 | [untrusted-content.md](untrusted-content.md) | Taint boundary, output guardrail, subagent model safety (ADR-0013/0015/0017/0019/0028) | 13 |
 | [memory.md](memory.md) | Store, scoping, rerank/MMR (ADR-0008) | 8 |
 | [inference-model-manager.md](inference-model-manager.md) | Model-manager lifecycle, MTP, reasoning status (ADR-0007/0020) | 7 |
-| [subagents.md](subagents.md) | Progress reporting, spawn schema, heterogeneous roster (ADR-0010/0018) | 1 |
+| [subagents.md](subagents.md) | Progress reporting, spawn schema, heterogeneous roster (ADR-0010/0018) | 2 |
 | [body-overlay.md](body-overlay.md) | Overlay polish, connection indicator, proto Cancel (ADR-0011) | 3 |
 | [session-read-seam.md](session-read-seam.md) | Session listing/read seam (ADR-0021) | 3 |
 | [resource-governance.md](resource-governance.md) | Scheduler/placer budgets, NPU, drain (ADR-0012) | 5 |
 | [email-confirmer.md](email-confirmer.md) | Email write, Confirmer, attachments, `ToolActivity` chip (ADR-0022) | 4 |
 | [body-gateway.md](body-gateway.md) | Body gateway, OS actions, hardened posture (ADR-0023) | 6 |
 | [scheduling.md](scheduling.md) | Scheduling and reminders, `TurnStamp` provenance (ADR-0025/0027) | 8 |
-| [vision.md](vision.md) | Screen capture, images, the pixel boundary (ADR-0029) | 18 |
+| [vision.md](vision.md) | Screen capture, images, the pixel boundary (ADR-0029) | 19 |
 | [cross-cutting.md](cross-cutting.md) | Pointer input, OS backends, more roles | 3 |
 
 The counts are per area as extracted; a few threads appear in two areas (the cross-cutting
 "richer memory policies" line is covered by memory.md's items, and subagent tool-step
 surfacing appeared in both email-confirmer.md and subagents.md as one piece of work, closed
-2026-07-16 by landing one side channel that decremented both counts).
+2026-07-16 by landing one side channel that decremented both counts). A third such thread was
+found on 2026-07-19 and is noted here rather than decremented, the same treatment the other two
+get: **per-remote-tool trust and gating overrides** is counted in untrusted-content.md and again
+as "trust overlays for remote tools" in email-confirmer.md, one piece of work waiting on one thing
+(no trusted remote tool exists), and the bucket below points at both docs for it. Until it lands
+or is declined, the sum over the table counts it twice.
 Scheduling held at 10 on 2026-07-16 when the body-side `Notify` trait closed and opened one entry
 behind it (toast activation routing), which is the backlog working as intended rather than a
 stalled area; it then went to 9 the same day when the tainted-reminder badge entry was read
@@ -562,6 +567,62 @@ recent commits at that moment had body lines past 72, the worst at 77. It is rec
 than fixed because the two-line version would be wrong: a URL, a pasted command, a code fence
 and a `BREAKING CHANGE:` footer must all survive a hard wrap, so the exceptions are the design
 and the drift is cosmetic until something reads a message in a narrow pager.
+Repo gates held at 3 on 2026-07-19 when that very entry landed and opened one behind it, the
+backlog working as intended: `scripts/commitlint.py` now measures every line below the header
+against `MAX_BODY_WIDTH = 72` in the walker that already read each line for dashes and volatile
+references. What opened is the rest of the exception design the entry called "the whole reason
+this is not a two-line patch". Four classes were named and one shipped, because the exemption that
+landed is a property of the longest **word** (a URL, a path, a long identifier has nowhere to
+break) rather than of the line's **kind**, and a pasted command or a fenced line is made of
+ordinary short words. Measured against the shipped gate rather than assumed: an indented
+`docker compose ... up -d` line at 108 chars, a fenced `uv run pytest ...` line at 82, and a
+`BREAKING CHANGE:` footer of short words at 118 draw three complaints and exit 1. The footer is
+the one that bites hardest in principle, since [AGENTS.md](../../AGENTS.md) mandates it for a
+breaking change, so the gate can refuse a message the commit rules require; it is also the one
+that can simply be wrapped, while a command and a fence cannot be reflowed without changing what
+they say. That landing also cost this file a record: the same commit changed a gate's behaviour
+and touched no deferral record at all, the first in fifty to do so, which is what the doc-first
+rule exists to prevent and why three records moved on 2026-07-19 rather than one.
+Subagents went 1 to 2 on 2026-07-19, an **arithmetic correction rather than new work**. The
+spontaneous-pick nudge's live uptake opened on 2026-07-16 as a fix-when-it-bites residual, is
+written up in its area doc, and is listed in the fix-when-it-bites bucket below, but the cell
+never counted it: the narrative above shows the slip, two entries closing and one opening moved
+the count 4 to 2 rather than 4 to 3, and the following decrement then took it to 1 instead of 2.
+Every other area counts its fix-when-it-bites entries, so this was a slip and not a convention. A
+count that fails to move for a newly opened deferral loses an open item exactly the way a count
+moved for a half-closed one does.
+Vision went 18 to 19 the same day with **the two agent-Docker validations the slice listed as
+still to run and nothing tracked**. ADR-0029 named four when it was accepted; two ran and are
+recorded in its 2026-07-18 agent-validation section (the real `LlamaCppBackend` path, the
+injection arm on the shipped payload), and two did not: whether thinking needs disabling on a
+vision turn under the shipped parts payload, and `llama-server`'s `mmproj`-less error body text,
+which that ADR also carries as an assumption because the bounded 300-character non-2xx excerpt was
+built to surface it. They are **agent-side, not host-side**: the same 8 GB dev GPU that ran the
+2026-07-18 validation holds the cortex beside its projector, so they are work owed here rather
+than a user list item. The same pass settled a naming question this area had been carrying
+silently: its Open items line reached 18 names by splitting one bullet (region and window capture,
+legibility at 4K) into two and dropping another (the accepted residual the guardrail cannot
+catch). Both are now stated in the area doc, and the residual is **deliberately not counted**,
+because an accepted limitation with no fix on offer would sit forever in a backlog that must be
+empty before the README ships; it stays as the record of what was accepted, the role a declined
+entry plays.
+Body gateway held at 6 on 2026-07-19 while gaining the third of its three records. Its
+`CaptureScreen` half closing with the vision slice, and the entry's own "behind the same seam"
+cost claim being wrong (five proto fields plus a new port method), had been written here and in
+the area doc while [ADR-0023](../adr/ADR-0023-body-gateway-volume.md) still listed the RPC as
+deferred to its slice in three places. That is the same two-of-three species the ADR-0012 host-half
+miss was caught for, and it is now closed by a dated ADR-0023 addendum. No count moves: `InjectInput`
+is still the unbuilt half of that entry.
+Resource governance held at 5 the same day with one sentence corrected rather than a count moved.
+Its bucket line below read "Nothing of this area's trio remains here", which is true of the trio's
+*entries* (all three landed) but read as if nothing at all were owed, while the area doc says
+plainly that real GPU-placed **subagent** validation "is the one piece still owed, and it is
+host-side". The bucket now says both. That item is not counted, and neither is the Host-Windows
+look at a real toast in scheduling.md, while four other areas do count their host-side validation
+item (body gateway's volume check, vision's capture path, untrusted content's confirm card, body
+and overlay's window polish). The inconsistency is recorded rather than resolved here: adding two
+cells now and removing six later would be churn, and where host-side validation is tracked is a
+decision this pass deliberately did not make.
 
 ## Recommended order
 
@@ -570,13 +631,24 @@ against the code (the warning above); the entry text tells you which seams it ex
 
 ### Actionable now
 
-None. The last actionable-now item, `cargo clippy` for the Tauri shell in CI, moved to
-fix-when-it-bites on 2026-07-16 (see below) once reading what the rust CI job installs (no system
-library at all) showed it is not a marginal add but a new class of CI provisioning. Everything
-that remains is gated on a seam or port change, on the Slice 11 GPU lifecycle, on host-side
-Windows validation, on a consumer that does not yet exist, or is a bounded fix-when-it-bites
-contingency. That is the sweep working as intended: no item is left that is both worth doing now
-and free of a prior blocker.
+- **The vision measurements this repo owes itself** ([vision.md](vision.md)): an image arm of the
+  injection-defence harness against a rendered-payload corpus, plus the two agent-Docker checks
+  ADR-0029 listed as still to run and nothing tracked until 2026-07-19 (whether thinking needs
+  disabling on a vision turn under the shipped parts payload, and `llama-server`'s `mmproj`-less
+  error body text, which the bounded 300-character non-2xx excerpt was built to surface). Nothing
+  blocks any of the three. They are agent-side under [AGENTS.md](../../AGENTS.md)'s rule that "on
+  the host" includes the agent, and the same 8 GB dev GPU that drove the real cortex beside its
+  projector on 2026-07-18 is enough for all of them. The hand-run injection arm in that ADR's
+  closeout is one corpus of one, which is exactly why the harness arm is still owed and why its
+  number gets published whatever it says.
+
+Everything else that remains is gated on a seam or port change, on the GPU lifecycle at tier
+scale, on host-side Windows validation, on a consumer that does not yet exist, or is a bounded
+fix-when-it-bites contingency. This section read "None" from 2026-07-16, when the last item then
+listed (`cargo clippy` for the Tauri shell in CI) moved to fix-when-it-bites once reading what the
+rust CI job installs (no system library at all) showed it is not a marginal add but a new class of
+CI provisioning, until 2026-07-19. What changed is worth stating plainly rather than quietly: it
+was not that new work appeared, but that three actionable things had never been written down.
 
 ### Actionable, but a seam or port change comes first
 
@@ -608,6 +680,15 @@ and free of a prior blocker.
   URL redaction, the durable-memory block) would open for the deep phase. Unreachable today only
   because the conductor refuses an opaque turn before any record exists, which makes this defence
   in depth: a record field, a codec line, and the store contract's round trip.
+- **A live-probe refresh** ([vision.md](vision.md)): the `/props` vision probe runs **once at
+  startup**, so a `llama-server` restarted without `--mmproj` mid-session leaves `capture_screen`
+  advertised, and the next capture pays the full privacy cost (a screen read, a notified user, a
+  tainted turn) for an image the model cannot read. Re-probing per turn was refused because it
+  makes the inference adapter stateful; the cheap version re-probes when a swap changes residency,
+  since that is the only thing in the system that restarts a model server, and it needs the
+  conductor's residency change to reach the adapter, which is a wire that does not exist. Placed
+  here for the first time on 2026-07-19, and it is no longer hypothetical: the real swap restarts
+  model servers, so the staleness this describes is reachable.
 - **Streamed brain status** ([body-overlay.md](body-overlay.md)): the push half of the landed
   connection indicator, unblocked on 2026-07-18 and now waiting on a seam change plus a consumer
   rather than on a producer. Both halves of the producer exist: the escalating turn streams
@@ -645,7 +726,8 @@ and free of a prior blocker.
   artifacts (tier scale stays host-side). What stays open is **co-residency**, which ADR-0030
   decision 8 keeps deferred with the brain-runs-alone rule, now exercisable for the first time on
   hardware that fits the tiers it would keep alive.
-- Nothing of this area's trio remains here ([resource-governance.md](resource-governance.md)):
+- Nothing of this area's trio remains here as an **entry**, though one piece of the third is still
+  owed and is host-side ([resource-governance.md](resource-governance.md)):
   `SubagentScheduler.drain()` **landed 2026-07-17** with the brain-handoff drain sub-slice
   (refuse-not-queue for the handoff window, a bounded wait that kills nothing, reversible via
   `undrain`; see the ADR-0012 drain addendum), and **CUDA-OOM re-place on CPU** and **the real
@@ -656,7 +738,15 @@ and free of a prior blocker.
   2026-07-16, declined where it stood: `admit` is entered before `place`, so the charge cannot see a
   target without a port change, and no spawn is GPU-placed in the shipped wiring anyway. It used to
   say it reopened with that runtime; the runtime landed and did not reopen it, so its condition is
-  now the one ADR-0030 decision 8 gives it, a **second** GPU-capable executor.
+  now the one ADR-0030 decision 8 gives it, a **second** GPU-capable executor. **Corrected
+  2026-07-19:** this line used to stop at "nothing remains", which the area doc contradicts. The
+  runtime's **mechanism** was validated in Docker on the dev GPU with two small artifacts; real
+  GPU-placed **subagent** validation was not, and cannot be here, because a GPU placement only
+  happens when `CORTEX_SUBAGENTS_VRAM_GB` fits under the soft cap minus a resident cortex, which
+  needs a card that holds the cortex first. So the `VramBudgetPlacer`'s GPU arm has never fired
+  against a real placement, and the shipped cgroup numbers are user-tunable placeholders for the
+  same reason. Both are host-side hardware work rather than deferred design, which is why they
+  carry no count here.
 - The ~31B brain-tier injection-harness run ([untrusted-content.md](untrusted-content.md)).
   Its taint/provenance-persistence sibling **landed 2026-07-17** as the brain-handoff record's
   schema and pinned tainted-ledger round trip (ADR-0030), and the conductor sub-slice then
@@ -763,6 +853,24 @@ and free of a prior blocker.
   trait, text plus keyboard plus pointer, behind one gated tool, one `SendInput` adapter under a new
   `unsafe` authorization, and one proto pointer extension whose coordinate space, buttons, and
   scroll are designed against that use) ([cross-cutting.md](cross-cutting.md))
+- **`InjectInput`, the last unbuilt `BodyService` RPC** ([body-gateway.md](body-gateway.md)):
+  counted in that area since the extraction and never given a line of its own here until
+  2026-07-19, surfacing only inside the pointer-input decline above. Same blocker and same shape:
+  input injection is unbuilt at every tier, so the RPC reopens with its consumer as one slice
+  rather than as a wired handler waiting for the gated tool that would make it safe. Its sibling
+  `CaptureScreen` closed with the vision slice on 2026-07-18, which is what leaves this one alone
+  in the entry and why the area holds at 6 rather than decrementing
+- **Three vision surfaces nothing reads** ([vision.md](vision.md)), placed here 2026-07-19: a
+  content-addressed **`AttachmentStore`**, since a reopened chat shows no evidence of what the
+  assistant saw and the audit line keeps dimensions, a byte count and a timestamp only, which is a
+  deliberate cost and reopens only if accountability outweighs zero retention (it is also the
+  expensive half of carrying a picture across a swap, and the capability argument still says no,
+  because no brain-tier candidate on the mount has a projector); **multi-monitor and DPI
+  reporting**, where nothing enumerates monitors, which is exactly why `CaptureScreenRequest` left
+  field 2 unassigned, so its consumer is the one region capture is already waiting for; and
+  **pixel-level screening in the body**, the only side that knows what is on the screen before it
+  crosses the seam and so the only side that could redact a region rather than refuse a whole
+  capture, with nothing yet asking it to
 - `SubagentTask` session attribution and the `ToolInvocation` audit-line stamp: no consumer
   reads either yet ([scheduling.md](scheduling.md))
 - Occurrence history / unseen-toast recovery: nothing reads a fired occurrence. The store keeps
@@ -864,11 +972,13 @@ for distinct models and whose fix is stronger nudging behind the same spec seam
 deadline instead of only documenting the pairing, joined on 2026-07-18 with the audit round that
 found the pairing had a third term and added the `GET /health` reporting that would make the check
 possible, whose trigger is either side's timing being tuned or a handoff aborting on an eviction
-that in fact completed ([inference-model-manager.md](inference-model-manager.md)); checking the commit body's
-72-column wrap rather than the header's length alone, joined on 2026-07-18 by the audit that
-measured every recent commit exceeding it, whose trigger is the first time an over-wide body
-costs something or a deliberate reflow pass that the gate would then keep
-([repo-gates.md](repo-gates.md)); the retry
+that in fact completed ([inference-model-manager.md](inference-model-manager.md)); the three exceptions the commit-body
+wrap gate did not ship, which replaced their own parent here on 2026-07-19 when the wrap check
+itself landed, because the exemption that shipped is a property of the longest **word** rather
+than of the line's **kind**, so a pasted command, a fenced code block, and a `BREAKING CHANGE:`
+footer of short words are all rejected (measured against the shipped gate: three complaints and
+exit 1), and closing it wants a line-kind exemption, whose trigger is the first commit that
+genuinely needs a command or a block in its body ([repo-gates.md](repo-gates.md)); the retry
 budget / circuit-breaker, joined on 2026-07-16 by a retryable-code table beyond `Unavailable`
 (whose trigger is a brain that starts answering `RESOURCE_EXHAUSTED` or `ABORTED`) and, the same
 day, by safe `converse` reconnect-before-first-event (sharpened from "a replayable request and a
@@ -930,7 +1040,57 @@ clippy rides along, or shell findings outpacing the user's local checks; confirm
 live over a `pkg-config` shim, with a planted lint proving the declined check real
 ([repo-gates.md](repo-gates.md)).
 
+Four entries opened by the brain-handoff sub-slices were written up in their area docs and in the
+narrative above but had no line here until 2026-07-19, so nothing said when to pick them up.
+**Resuming a crashed handoff from its record** instead of failing it, which waits on the same
+request-identity and dedup design the `converse` reconnect entry needs, since replaying a deep
+phase without one risks double-running side-effectful tool work, and after which resuming is a
+small addition to `recover_handoffs` ([inference-model-manager.md](inference-model-manager.md)).
+**Reconverging the brain's residency when the model-host sidecar restarts under it**, which labels
+itself fix-when-it-bites and whose fix is a boot id on `GET /health` plus a caller for the
+already-written `converge_residency`: invisible with escalation off (the default manager holds no
+residency state) and self-limiting with it on (the handoff fails honestly and releases its claim),
+its trigger being a sidecar that restarts under a running brain
+([inference-model-manager.md](inference-model-manager.md)). **A disconnect mid handoff blocking
+the stream's teardown** until the cortex is back, the deliberate other side of making the restore
+uninterruptible after the chaos suite found an abandoned restore left the process with no resident
+model at all, its trigger being a deployment where that wait holds a teardown long enough to
+matter ([seam-transport.md](seam-transport.md)). And **the drain bound sitting below a fired
+task's lease**, so with the shipped defaults an escalation during a scheduled task aborts every
+time, correctly and before anything is evicted, which makes it a defaults decision against real
+usage rather than a design change ([resource-governance.md](resource-governance.md)).
+
+Four vision entries joined on the same day, each with the trigger its own entry implies
+([vision.md](vision.md)). **JPEG or WebP for a photographic screen**, a body-side swap behind an
+unchanged seam (measured at roughly a quarter of PNG's bytes on incompressible content), whose
+trigger is bytes on the wire starting to matter, which they do not while PNG's losslessness is
+worth more than the open legibility risk. **Per-source memory rules**, so a vision turn can be
+remembered deliberately rather than dropped from durable memory outright, which rides the
+per-provenance eviction entry above rather than standing alone. **A uniform per-call deadline on
+`BodyService`**, where capture is the first call to carry one because a blit plus an encode is the
+first that can park a host thread, and changing the three live-validated no-deadline calls is not
+a change that slice earned, so the trigger is a second call that can park a thread. And
+**`RESOURCE_EXHAUSTED` classification**, a small mapping change on both sides whose absence leaves
+a capture the ladder refuses indistinguishable from a broken backend, triggered the first time
+that coarseness sends a reader to the wrong place.
+
 ### Feature breadth, on request
 
 - macOS/Linux OS backends behind the existing traits ([cross-cutting.md](cross-cutting.md))
 - More subagent roles ([cross-cutting.md](cross-cutting.md))
+- **The user-attached image path** (`UserTurn.images`, [vision.md](vision.md)): the proto field has
+  existed since Slice 2 and is still ignored, and it is a genuinely different design rather than a
+  smaller version of capture. A different seam direction, a different transport limit in a
+  different package, the first path where Cortex would **decode a foreign image**, a four-layer
+  TypeScript bridge change, and a persistence answer the capture path deliberately refused to give
+  (pixels there are turn-local). Nothing blocks it but scope: it lands with its own design. Placed
+  here 2026-07-19
+- **The remaining `ScreenCapture` backends** ([vision.md](vision.md)), placed here 2026-07-19:
+  Linux and macOS carry `unimplemented!()` stubs that satisfy the trait like every other OS port,
+  and are the same ask as the line above them. `Windows.Graphics.Capture` is the one that buys
+  something GDI cannot, since GDI renders hardware-overlay and DRM-protected surfaces **black,
+  silently**, with no `CaptureError` to tell that from a genuinely dark screen, and WGC brings a
+  free yellow OS capture border, the best privacy affordance on offer and the one thing
+  consciously given up. It costs async frame arrival against a deliberately synchronous port,
+  WinRT interop, a D3D11 staging copy, and a Windows 11 22H2 floor to control the border, behind
+  the unchanged trait either way
