@@ -22,7 +22,16 @@ state (the one hard rule). The composition root owns the channel's lifecycle.
     body that answers OK to a capture it did not take would otherwise read as a screen of
     zeros. A body that leaves `source_width`/`source_height` at their proto3 zeros (an older
     body) reports the image's own size, so nothing tells the model it is looking at a shrunk
-    view of nothing.
+    view of nothing. **Both arguments are also bounds on the reply, verified after receipt**
+    (ADR-0029 decision 7, which rejects `max_edge` as the sole size defense): a non-zero
+    `max_edge` refuses a longer declared edge and a non-zero `max_bytes` refuses more bytes,
+    each naming the number the body broke, because under proto3 an older body ignores both and
+    answers full resolution, and `ImagePart`'s own 6 MiB / 8192 px are the domain ceiling rather
+    than the number this deployment chose. A **zero** asked for the body's own default, so there
+    is nothing to hold it to and only that ceiling applies. A bound outside uint32 (which the
+    config's own `ge`/`le` refuse at boot) fails as a `BodyGatewayError` too, since the request
+    is built inside the mapping: this port promises one failure channel, and a bare `ValueError`
+    from the wire types would kill the turn instead of the capture.
   - All attach the seam token as `x-cortex-seam-token` metadata when `token` is non-empty
     (built once at construction; ADR-0016, mirrored for this direction), and no metadata when
     empty, which matches the tokenless body server.

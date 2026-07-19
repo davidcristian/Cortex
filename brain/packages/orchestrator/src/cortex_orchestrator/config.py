@@ -9,7 +9,7 @@ from typing import Literal
 from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from cortex_core import DEFAULT_CORTEX_MODEL, MAX_IMAGE_BYTES
+from cortex_core import DEFAULT_CORTEX_MODEL, MAX_IMAGE_BYTES, MAX_IMAGE_EDGE
 from cortex_orchestrator.converse import DEFAULT_CONFIRM_TIMEOUT_S, DEFAULT_MAX_BUFFERED_EVENTS
 from cortex_session import DEFAULT_REDIS_URL
 
@@ -111,15 +111,23 @@ class BodyConfig(BaseSettings):
     of sending it rather than trusting two constants to stay equal. ``capture_timeout_s`` is the
     only deadline on this seam, because a blit plus an encode is the only call that can park a
     host thread.
+
+    All three are **bounded here so a misconfiguration fails at boot**, the way the model host's
+    ports and context sizes do. Both capture bounds ride uint32 proto fields, so a negative or
+    over-wide value is a request that cannot be built at all, and unbounded they turned every
+    capture of that deployment into a turn-killing exception rather than a startup refusal.
+    ``max_image_bytes`` may only tighten the domain ceiling (the body clamps to its own anyway,
+    so a looser number is a bound nothing would honour), and ``capture_max_edge`` may not exceed
+    the largest edge an ``ImagePart`` would accept, which the reply is checked against too.
     """
 
     model_config = SettingsConfigDict(env_prefix="CORTEX_BODY_")
 
     backend: BodyBackendName = "none"
     endpoint: str = ""
-    capture_max_edge: int = 0
-    max_image_bytes: int = MAX_IMAGE_BYTES
-    capture_timeout_s: float = 10.0
+    capture_max_edge: int = Field(default=0, ge=0, le=MAX_IMAGE_EDGE)
+    max_image_bytes: int = Field(default=MAX_IMAGE_BYTES, gt=0, le=MAX_IMAGE_BYTES)
+    capture_timeout_s: float = Field(default=10.0, gt=0)
 
     @model_validator(mode="after")
     def _grpc_needs_an_endpoint(self) -> "BodyConfig":

@@ -207,6 +207,54 @@ def test_body_defaults_to_disabled() -> None:
     config = BodyConfig()
     assert config.backend == "none"
     assert config.endpoint == ""
+    # The capture knobs, against literals rather than against the constants production reads:
+    # comparing a default to the very name it was assigned from proves which value was published
+    # and nothing about what it is. 0 means "the body's own default edge", 6291456 is the 6 MiB
+    # domain ceiling this side enforces, and 10 seconds is the only deadline on this seam.
+    assert (config.capture_max_edge, config.max_image_bytes, config.capture_timeout_s) == (
+        0,
+        6291456,
+        10.0,
+    )
+
+
+@pytest.mark.usefixtures("clean_env")
+@pytest.mark.parametrize(
+    ("name", "value"),
+    [
+        # Both bounds ride uint32 proto fields, so these are values no request could carry; the
+        # byte budget may also only tighten the domain ceiling, never loosen it.
+        ("CORTEX_BODY_CAPTURE_MAX_EDGE", "-1"),
+        ("CORTEX_BODY_CAPTURE_MAX_EDGE", "8193"),
+        ("CORTEX_BODY_MAX_IMAGE_BYTES", "0"),
+        ("CORTEX_BODY_MAX_IMAGE_BYTES", "6291457"),
+        ("CORTEX_BODY_MAX_IMAGE_BYTES", "5000000000"),
+        ("CORTEX_BODY_CAPTURE_TIMEOUT_S", "0"),
+        ("CORTEX_BODY_CAPTURE_TIMEOUT_S", "-3"),
+    ],
+)
+def test_a_capture_bound_outside_the_seam_fails_at_boot(
+    monkeypatch: pytest.MonkeyPatch, name: str, value: str
+) -> None:
+    """Unbounded, each of these turned every capture into a turn-killing exception instead: the
+    request could not be built, and neither the tool nor the dispatcher catches a ValueError."""
+    monkeypatch.setenv(name, value)
+    with pytest.raises(ValidationError):
+        BodyConfig()
+
+
+@pytest.mark.usefixtures("clean_env")
+def test_a_tightened_capture_bound_is_accepted(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The control arm: the same knobs inside the seam's own limits are ordinary configuration."""
+    monkeypatch.setenv("CORTEX_BODY_CAPTURE_MAX_EDGE", "1280")
+    monkeypatch.setenv("CORTEX_BODY_MAX_IMAGE_BYTES", "2000000")
+    monkeypatch.setenv("CORTEX_BODY_CAPTURE_TIMEOUT_S", "2.5")
+    config = BodyConfig()
+    assert (config.capture_max_edge, config.max_image_bytes, config.capture_timeout_s) == (
+        1280,
+        2_000_000,
+        2.5,
+    )
 
 
 @pytest.mark.usefixtures("clean_env")
