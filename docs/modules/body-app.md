@@ -17,7 +17,11 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
   with the session-switching helpers split into `overlay/sessionState.ts` for the line cap),
   and the controller hook (`overlay/useOverlay.ts`). Components (`components/`) depend only on the
   `BrainBridge` port and a `cortex:activate` DOM event (never on Tauri), so they run and test in a
-  plain browser. Look and feel is [overlay-ux.md](../design/overlay-ux.md) (colour = activity,
+  plain browser. That activation is a **pending request, not a moment** (`overlay/activation.ts`):
+  it is recorded before it is announced, and the app takes any outstanding one when its listener
+  attaches. Passive effects flush after paint, so both the browser self-summon and a hotkey press
+  during a cold start land before anything is listening; measured at 2ms early on load, which is
+  why `npm run dev` used to come up to an empty stage. Look and feel is [overlay-ux.md](../design/overlay-ux.md) (colour = activity,
   sleek at rest, light + dark).
 - **Tauri shell** (`src-tauri/`, host-validated). Tray + hidden always-on-top window; the global
   hotkey (`os_windows`) toggles the window and emits `cortex:activate`; the `converse` command

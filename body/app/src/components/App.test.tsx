@@ -2,6 +2,7 @@ import { act, fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
 import { FakeBridge } from "../bridge/fakeBridge";
+import { requestActivation, takePendingActivation } from "../overlay/activation";
 import { App } from "./App";
 
 const activate = () => {
@@ -17,6 +18,24 @@ async function renderApp(bridge: FakeBridge) {
 }
 
 describe("App", () => {
+  it("opens for an activation that arrived before it had a listener", async () => {
+    // The real ordering on both paths: the browser build self-summons on load and the host can
+    // emit the hotkey while the webview is still mounting, both before React flushes the passive
+    // effect that listens. The request waits rather than being dropped.
+    const bridge = new FakeBridge();
+    requestActivation();
+    await renderApp(bridge);
+    expect(screen.getByRole("dialog").className).toContain("open");
+    // …and it was consumed, so a remount does not summon a second time.
+    expect(takePendingActivation()).toBe(false);
+  });
+
+  it("leaves the overlay hidden when nothing asked for it", async () => {
+    takePendingActivation();
+    await renderApp(new FakeBridge());
+    expect(screen.getByRole("dialog", { hidden: true }).className).not.toContain("open");
+  });
+
   it("applies a theme, toggles it, and summons the overlay on the host activate event", async () => {
     await renderApp(new FakeBridge());
     expect(document.documentElement.dataset.theme).toBe("light");
