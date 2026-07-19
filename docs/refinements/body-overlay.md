@@ -1,13 +1,16 @@
 # Body & overlay
 
 These deferrals originate in [ADR-0011](../adr/ADR-0011-body-v1.md), the Slice 8 body v1
-decision covering the host-native shell and the overlay UI. Extracted from the ROADMAP's
+decision covering the host-native shell and the overlay UI, and in
+[ADR-0031](../adr/ADR-0031-bubble-mark.md), the bubble mark that replaced its living rings.
+Extracted from the ROADMAP's
 deferred-refinements section on 2026-07-15 with the entries kept verbatim; landed entries
 are the historical record of what each deferral became, and the index at
 [index.md](index.md) carries the recommended pickup order.
 
 **Open items:** multi-turn-within-one-stream + proto `Cancel`, streamed
-brain status (its producer landed 2026-07-18; only the push RPC remains)
+brain status (its producer landed 2026-07-18; only the push RPC remains), appearance choices
+not surviving a restart, the mark picker's affordances
 
 **Body / overlay in Slice 8 ([ADR-0011](../adr/ADR-0011-body-v1.md)):**
 - **Multi-turn-within-one-stream + an explicit proto `Cancel` event.** One turn per `Converse`
@@ -153,3 +156,23 @@ brain status (its producer landed 2026-07-18; only the push RPC remains)
   (a `stop` reducer action drops the stream via the bridge `Cancellation` and ends the reply in
   place); browser-verified. The header/composer glyphs were also unified onto one outline icon set
   (`components/icons.tsx`) the same day.
+
+**The bubble mark ([ADR-0031](../adr/ADR-0031-bubble-mark.md), 2026-07-19):**
+- **Appearance choices do not survive a restart.** The chosen theme and the chosen mark style are
+  both `useState` in `components/App.tsx`, so a restart returns to the system scheme and to
+  Wobble. This predates the mark: the theme has worked this way since Slice 8, and the mark simply
+  joined it rather than inventing a second story. The fix is one small store (the overlay has no
+  persistence layer at all today, so the choice is `localStorage` in the webview versus a real
+  preferences record the brain owns) plus a read of it at mount. Deliberately not decided here:
+  the second option is the one that survives a reinstall and reaches other surfaces, and picking
+  it is a design decision, not a code change. Recorded rather than fixed because nothing else in
+  the overlay persists yet and inventing the first store for a mark style is the wrong order.
+- **The mark picker has no click-away close and no other route in.** Clicking the empty state's
+  mark opens the styles; choosing one closes it, and clicking the mark again closes it, but a
+  click anywhere else leaves it open, and there is no way to reach it once a chat has messages
+  (the empty state is gone). Both are the same missing thing: the overlay has **no settings
+  surface**, and the picker is deliberately squatting on the mark because a fifth header button
+  would put the accent palette on resting chrome (ADR-0031 decision 5). When a settings surface
+  exists (the design doc's `Ctrl+K` command palette is the likeliest host, §2-3), the picker
+  belongs in it, and the mark can keep its click as the shortcut. Until then the discoverability
+  cost is real and knowingly taken: the user is the only user, and the maintainer picked the four.

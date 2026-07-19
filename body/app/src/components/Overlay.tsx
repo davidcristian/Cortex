@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 
+import type { MarkStyle } from "../mark/marks";
 import { latestReply } from "../overlay/overlayState";
 import type { OverlayController } from "../overlay/useOverlay";
 import { Orb } from "./Orb";
@@ -14,10 +15,12 @@ import { Preview } from "./Preview";
 interface OverlayProps {
   readonly controller: OverlayController;
   readonly dark: boolean;
+  readonly mark: MarkStyle;
+  readonly onPickMark: (name: string) => void;
   readonly onToggleTheme: () => void;
 }
 
-export function Overlay({ controller, dark, onToggleTheme }: OverlayProps) {
+export function Overlay({ controller, dark, mark, onPickMark, onToggleTheme }: OverlayProps) {
   const {
     state,
     submit,
@@ -74,6 +77,8 @@ export function Overlay({ controller, dark, onToggleTheme }: OverlayProps) {
         state={state}
         open={state.mode === "panel"}
         dark={dark}
+        mark={mark}
+        onPickMark={onPickMark}
         onToggleTheme={onToggleTheme}
         onSubmit={submit}
         onStop={stop}
@@ -88,7 +93,7 @@ export function Overlay({ controller, dark, onToggleTheme }: OverlayProps) {
         onRespondConfirm={respondConfirm}
         onDismissReminder={dismissReminder}
       />
-      {state.mode === "orb" ? <Orb onClick={open} /> : null}
+      {state.mode === "orb" ? <Orb style={mark} onClick={open} /> : null}
       {state.mode === "preview" ? (
         <Preview reply={latestReply(state)} onClick={open} onHover={previewHover} />
       ) : null}

@@ -191,7 +191,8 @@ overlay components are built against.
 Maintainer review of the running overlay reshaped the resting chrome. The design source of truth updated
 with it ([overlay-ux.md](../design/overlay-ux.md) §2-§4): the corner orb became the **living
 rings** (two wavy gradient bands; a pure `wavyRingPath` helper + a shared `RingMark` component,
-fully gated), the always-green header dot was **removed** (it was decoration; a real indicator
+fully gated; **superseded 2026-07-19 by the bubble mark**, [ADR-0031](ADR-0031-bubble-mark.md),
+which kept this palette and replaced the silhouette and the motion), the always-green header dot was **removed** (it was decoration; a real indicator
 waits on a health signal over the bridge, per the ROADMAP ledger), the theme toggle became a
 **sun↔crescent SVG morph** (CSS-transitioned geometry, no glyph swap), and the hint strip
 centered. A same-day motion refinement (maintainer review of the running rings): the mark **spins as

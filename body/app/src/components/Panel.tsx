@@ -6,9 +6,10 @@ import { ConfirmCard } from "./ConfirmCard";
 import { ChatsIcon, DownArrowKey, PencilIcon, ReturnKey, ShiftKey, TuckIcon, UpArrowKey } from "./icons";
 import { CaptureDot } from "./CaptureDot";
 import { LinkDot } from "./LinkDot";
+import type { MarkStyle } from "../mark/marks";
+import { MarkPicker } from "./MarkPicker";
 import { Message } from "./Message";
 import { Reminders } from "./Reminders";
-import { RingMark } from "./RingMark";
 import { SessionList } from "./SessionList";
 import { ShortcutSheet } from "./ShortcutSheet";
 import { ThemeIcon } from "./ThemeIcon";
@@ -17,6 +18,8 @@ interface PanelProps {
   readonly state: OverlayState;
   readonly open: boolean;
   readonly dark: boolean;
+  readonly mark: MarkStyle;
+  readonly onPickMark: (name: string) => void;
   readonly onToggleTheme: () => void;
   readonly onSubmit: (text: string) => void;
   readonly onStop: () => void;
@@ -46,6 +49,8 @@ export function Panel({
   state,
   open,
   dark,
+  mark,
+  onPickMark,
   onToggleTheme,
   onSubmit,
   onStop,
@@ -126,7 +131,7 @@ export function Panel({
       <div className="history" ref={historyRef} onScroll={onHistoryScroll}>
         {state.messages.length === 0 ? (
           <div className="empty">
-            <RingMark size={54} idPrefix="empty" strokeWidth={2} animated={!reduced} />
+            <MarkPicker style={mark} animated={!reduced} onPick={onPickMark} />
             <p className="empty-line">Ask me anything</p>
             <div className="empty-chips">
               {EXAMPLE_PROMPTS.map((prompt) => (
