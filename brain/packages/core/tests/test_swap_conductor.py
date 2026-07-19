@@ -19,6 +19,7 @@ from cortex_core import (
     ALREADY_ACTIVE_NOTE,
     BRAIN_FAILED_NOTE,
     BUDGET_EXHAUSTED_MSG,
+    CAPTURE_SCREEN_TOOL_NAME,
     DRAIN_TIMEOUT_NOTE,
     DRAINING_DETAIL,
     ESCALATE_TOOL_NAME,
@@ -29,11 +30,13 @@ from cortex_core import (
     SWAP_FAILED_NOTE,
     SWAPPING_STATE,
     WORKING_DETAIL,
+    CaptureScreenTool,
     DispatchBudget,
     EscalateToBrainTool,
     EscalationSlot,
     HandoffState,
     HandoffStoreError,
+    InMemoryBodyGateway,
     InMemoryToolRegistry,
     ModelHostState,
     RecordingAuditSink,
@@ -51,6 +54,7 @@ from cortex_core import (
     UrlRedactingGuardrail,
 )
 from cortex_core.composite import CompositeToolRegistry
+from cortex_core.tool_loop import ToolLoopContext, stream_tool_loop
 
 
 def _texts(events: Sequence[TurnEvent]) -> str:
@@ -373,6 +377,56 @@ async def test_a_store_that_cannot_even_drop_the_record_says_what_is_now_stuck(
     assert [record.message for record in caplog.records][-1] == (
         "could not release the finished handoff; escalation stays refused until a restart"
     )
+
+
+async def test_a_turn_that_looked_at_the_screen_after_escalating_ends_with_a_note() -> None:
+    """The ordering the escalation tool cannot see, driven through the real loop end to end."""
+    audit = RecordingAuditSink()
+    dispatcher = ToolDispatcher(
+        CompositeToolRegistry([EscalateToBrainTool(), CaptureScreenTool(InMemoryBodyGateway())]),
+        audit,
+        SystemClock(),
+        confirmer=RecordingConfirmer(answer=True),  # the user approved the handoff
+    )
+    slot = harness.armed_slot(brief=None)
+    assert slot.refs is not None
+    working = slot.refs.working
+    cortex = ScriptedBrainBackend(
+        chunks=("handing this over",),
+        tool_calls=(
+            ToolCall(id="c1", name=ESCALATE_TOOL_NAME, arguments={"brief": harness.BRIEF}),
+            ToolCall(id="c2", name=CAPTURE_SCREEN_TOOL_NAME, arguments={}),
+        ),
+    )
+    context = ToolLoopContext(
+        dispatcher=dispatcher,
+        clock=SystemClock(),
+        turn_id=harness.TURN,
+        taint=slot.refs.taint,
+        nonce=slot.refs.nonce,
+        session_id=harness.SESSION,
+        escalation=slot,
+    )
+    async for _delta in stream_tool_loop(cortex, "cortex", working, context):
+        pass
+
+    assert slot.brief == harness.BRIEF, "the escalation really was queued before the capture"
+    assert [line.name for line in audit.records] == [ESCALATE_TOOL_NAME, CAPTURE_SCREEN_TOOL_NAME]
+    assert [len(message.images) for message in working[slot.refs.base_len :]].count(1) == 1
+
+    live = build_harness()
+    await live.seed_session()
+    events = await harness.run_handoff(live, slot)
+
+    assert _texts(events) == (
+        "\n\n(This turn looked at your screen, and a picture cannot be handed to the deep model, "
+        "so the handoff was not started. Nothing was unloaded. Ask again in a new message if you "
+        "still want the deep model.)"
+    )
+    assert _states(events) == [], "nothing was announced, because nothing was done"
+    assert live.host.calls == []  # the cortex never stopped serving
+    assert live.backend.calls == 0  # the deep model was never asked anything
+    assert live.handoffs.states == []  # and no record was written to be settled
 
 
 async def test_the_deep_phase_cannot_escalate_to_itself() -> None:

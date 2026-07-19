@@ -39,12 +39,6 @@ _ERR_ALREADY_REQUESTED = (
     "REFUSED: a handoff to the deep model is already requested for this turn, so it was not "
     "requested again. Finish your reply; the deep model takes over when you are done."
 )
-_ERR_OPAQUE_TURN = (
-    "REFUSED: this turn looked at the user's screen, and a picture cannot be handed to the deep "
-    "model, so no handoff was requested. Answer what you can yourself, and tell the user to ask "
-    "again in a fresh message if they still want the deep model."
-)
-
 # Honest about the cost (the spawn spec's measured-trade-off precedent): the swap is disruptive
 # and slow, so the description says so plainly instead of selling a free upgrade.
 _DESCRIPTION = (
@@ -88,10 +82,6 @@ class EscalateToBrainTool:
             # No slot was armed for this dispatch: an escalation-less wiring, or a caller with
             # no turn (the ticker). Refusing is honest; nothing could consume a brief here.
             return _refusal(call, _NO_SLOT_MSG)
-        if slot.refs is not None and slot.refs.taint.opaque:
-            # Checked ahead of the brief, so a turn that looked at the screen is refused on what
-            # it read rather than on what the model wrote.
-            return _refusal(call, _ERR_OPAQUE_TURN)
         brief = call.arguments.get("brief")
         if not isinstance(brief, str) or not brief.strip():
             return _refusal(call, _ERR_BRIEF)

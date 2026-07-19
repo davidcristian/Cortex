@@ -260,8 +260,9 @@ under "Use-case" is what snapshots it and runs the swap):
   message per dispatched round) and raises `ValueError` on a slot no tool filled or no engine
   armed, **or on a loop tail carrying images** (ADR-0029: the record is durable and its schema
   has no field for pixels, so accepting one would drop the picture in silence; the same rule
-  both session stores enforce, and the structural backstop behind `escalate_to_brain`'s own
-  opaque-turn refusal).
+  both session stores enforce). That last raise is an unreachable invariant, like `Message`'s own
+  persistable-role check: the conductor refuses an opaque turn before it snapshots, which is
+  where the user-facing answer lives.
 
 Schedule domain (Slice 9.5, ADR-0025, in `schedule.py` for the value types and the recurrence
 math, `schedule_transitions.py` for the pure in-place transitions both stores apply; named
@@ -824,7 +825,10 @@ Use-case:
   `run_handoff(slot, *, session_id, turn_id)` takes the residency `handoff_claim` **first**, so
   a concurrent handoff is refused with the honest note before anything is read, written,
   drained, or evicted (the store's `active()` check stays as the second line, for a record the
-  store still holds); then it snapshots the
+  store still holds); **refuses a turn whose ledger is `opaque`** with `OPAQUE_TURN_NOTE`
+  (ADR-0029: pixels are turn-local, so the deep model would get a tool message promising a
+  picture with none attached, and the capture may have happened *after* the handoff was approved,
+  which is why this refusal is here and not in the tool); then it snapshots the
   slot into a `READY` record, drains the subagent pool (bounded by `plan.drain_timeout_s`;
   a timeout **aborts before anything is evicted**), enters the residency scope, marks the record
   `BRAIN_ACTIVE` only once the deep model is actually serving, streams `BrainPhase`, and settles
@@ -1204,12 +1208,7 @@ Use-case:
   decision 1): the cortex's mid-turn request for the deep-model handoff, cortex-only like every
   built-in. Stateless and dependency-free: it reads the turn's `EscalationSlot` off each
   dispatch's `TurnStamp` (the `spawn_subagents` progress-sink isolation discipline, so one
-  shared instance serves every stream), **refuses an opaque turn outright** ahead of every other
-  validation (ADR-0029/ADR-0030: pixels are turn-local, so a swap would hand the deep model a
-  tool message saying a picture is attached with no picture attached; the check reads the
-  ledger's `opaque` bit rather than hunting for images in the loop tail, because the handoff
-  codec enumerates message fields by name and the images are the one thing that could not
-  survive the trip), validates the model-authored `brief` (non-empty string,
+  shared instance serves every stream), validates the model-authored `brief` (non-empty string,
   stripped, at most `MAX_BRIEF_CHARS` = 4000; refused whole, never truncated, since a cut-off
   handover would look complete to the deep model), writes `slot.brief`, and answers
   `ESCALATION_QUEUED_MSG` (wrap up, no more tools; the swap itself happens at the loop
@@ -1219,8 +1218,11 @@ Use-case:
   card text, since the generic gate line would be false about a swap) and the dispatcher's
   tainted-turn hard-deny, so injected content can never force an eviction. A missing slot, a
   bad or over-long brief, and a second escalation in one turn are all trusted `is_error`
-  results, never a raise. The opaque-turn (screen-capture pixels) refusal is deferred with the
-  vision slice: `Message` carries no pixels yet (`docs/refinements/untrusted-content.md`).
+  results, never a raise. **There is deliberately no opaque-turn check here** (ADR-0029): a
+  capture always taints, and this spec is gated, so the dispatcher's hard-deny already answers
+  every escalation that follows one, and a branch here could never fire. The reverse ordering
+  (escalate approved, capture afterwards) is refused by the conductor, the first place that sees
+  the whole turn.
 - `ScheduleTaskTool(store, clock, *, tasks_enabled, max_active, zones=UTC_ZONE_CONTEXT,
   item_id_factory=<uuid4>)` /
   `ListScheduledTool(store, *, zone=UTC_DISPLAY)` (`schedule_tools.py`) and

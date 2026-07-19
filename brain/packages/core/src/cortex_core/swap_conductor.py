@@ -19,6 +19,7 @@ from cortex_core.swap_notes import (
     DRAIN_TIMEOUT_NOTE,
     DRAINING_DETAIL,
     LOADING_DETAIL,
+    OPAQUE_TURN_NOTE,
     RESTORING_DETAIL,
     STORE_FAILED_NOTE,
     SWAPPING_STATE,
@@ -108,6 +109,14 @@ class SwapConductor:
         self, slot: EscalationSlot, *, session_id: str, turn_id: str
     ) -> HandoffRecord | str:
         """Serialize the slot into a ``READY`` record, or the note saying why there is none."""
+        if slot.refs is not None and slot.refs.taint.opaque:
+            # Pixels are turn-local (ADR-0029 decision 6): no store persists them, so the deep
+            # model would get a tool message promising a picture with none attached. Keyed on
+            # the ``opaque`` bit, the fact that stays true where the pixels cannot travel.
+            _logger.warning(
+                "refusing a handoff for a turn that read the screen", extra={"turn": turn_id}
+            )
+            return OPAQUE_TURN_NOTE
         try:
             if (active := await self._handoffs.active()) is not None:
                 # The claim already refused anything racing this turn in this process, so a

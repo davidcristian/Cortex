@@ -239,7 +239,7 @@ def plan(**overrides: object) -> ResidencyPlan:
 
 def armed_slot(
     *,
-    brief: str = BRIEF,
+    brief: str | None = BRIEF,
     taint: TaintLedger | None = None,
     tail: Sequence[Message] = (),
     budget: DispatchBudget | None = None,
