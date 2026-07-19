@@ -189,6 +189,14 @@ describe("overlayState reducer", () => {
     expect(reduce(opened, { kind: "dismiss" }).sheetOpen).toBe(false);
   });
 
+  it("toggleSettings flips the settings sheet open then shut, and dismiss closes it too", () => {
+    const opened = reduce(reduce(initialState, { kind: "open" }), { kind: "toggleSettings" });
+    expect(opened.settingsOpen).toBe(true);
+    expect(reduce(opened, { kind: "toggleSettings" }).settingsOpen).toBe(false);
+    // A dismissed panel comes back to the chat, not to settings.
+    expect(reduce(opened, { kind: "dismiss" }).settingsOpen).toBe(false);
+  });
+
   it("openSession hydrates a stored chat: messages, derived title, session id, closed switcher", () => {
     const messages: SessionMessage[] = [
       { role: "user", text: "about cats", turnId: "t", atUnixMs: 1 },

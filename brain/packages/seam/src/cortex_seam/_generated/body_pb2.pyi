@@ -208,6 +208,36 @@ class SetSessionPinnedReply(_message.Message):
     __slots__ = ()
     def __init__(self) -> None: ...
 
+class Preference(_message.Message):
+    __slots__ = ("key", "value")
+    KEY_FIELD_NUMBER: _ClassVar[int]
+    VALUE_FIELD_NUMBER: _ClassVar[int]
+    key: str
+    value: str
+    def __init__(self, key: _Optional[str] = ..., value: _Optional[str] = ...) -> None: ...
+
+class GetPreferencesRequest(_message.Message):
+    __slots__ = ()
+    def __init__(self) -> None: ...
+
+class GetPreferencesReply(_message.Message):
+    __slots__ = ("preferences",)
+    PREFERENCES_FIELD_NUMBER: _ClassVar[int]
+    preferences: _containers.RepeatedCompositeFieldContainer[Preference]
+    def __init__(self, preferences: _Optional[_Iterable[_Union[Preference, _Mapping]]] = ...) -> None: ...
+
+class SetPreferenceRequest(_message.Message):
+    __slots__ = ("key", "value")
+    KEY_FIELD_NUMBER: _ClassVar[int]
+    VALUE_FIELD_NUMBER: _ClassVar[int]
+    key: str
+    value: str
+    def __init__(self, key: _Optional[str] = ..., value: _Optional[str] = ...) -> None: ...
+
+class SetPreferenceReply(_message.Message):
+    __slots__ = ()
+    def __init__(self) -> None: ...
+
 class ListDueRemindersRequest(_message.Message):
     __slots__ = ()
     def __init__(self) -> None: ...

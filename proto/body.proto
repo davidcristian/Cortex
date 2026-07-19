@@ -37,6 +37,12 @@ service BrainService {
 
   // Pin or unpin a chat: a gated WRITE on the session catalog (ADR-0021 management addendum).
   rpc SetSessionPinned(SetSessionPinnedRequest) returns (SetSessionPinnedReply);
+
+  // The user's own settings: a durable key/value record the BRAIN owns, so a choice survives a body
+  // restart or a body reinstall and is readable by any surface rather than trapped in the one that
+  // set it.
+  rpc GetPreferences(GetPreferencesRequest) returns (GetPreferencesReply);
+  rpc SetPreference(SetPreferenceRequest) returns (SetPreferenceReply);
 }
 
 message ClientEvent {
@@ -136,6 +142,20 @@ message SetSessionPinnedRequest {
   bool pinned = 2;
 }
 message SetSessionPinnedReply {}
+
+// The user's settings record. One pair is one setting; the brain stores and returns them
+// verbatim and never parses a value, so adding a preference costs no wire change.
+message Preference {
+  string key = 1;
+  string value = 2;
+}
+message GetPreferencesRequest {}
+message GetPreferencesReply { repeated Preference preferences = 1; }
+message SetPreferenceRequest {
+  string key = 1;
+  string value = 2;
+}
+message SetPreferenceReply {}
 
 // Reminder pull-delivery views (ADR-0025). All sessions are listed deliberately because
 // a single-user assistant has one user to remind; session_id rides along so the

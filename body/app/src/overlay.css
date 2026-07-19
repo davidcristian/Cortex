@@ -25,18 +25,17 @@
     color 0.4s var(--ease);
 }
 
-/* Sleek at rest: neutral glass, no gradient, a soft neutral shadow. Closed = scaled at center
-   (summon/dismiss pop from the middle); .to-orb parks the closed panel at the corner instead so
-   minimize-to-orb / reopen-from-orb are a real travel. */
 .panel {
   position: fixed;
   left: 50%;
-  top: 46%;
+  bottom: 15vh;
   width: min(560px, 92vw);
+  height: auto;
   max-height: 76vh;
   z-index: 10;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
   background: var(--panel);
   backdrop-filter: blur(30px) saturate(140%);
   border: 1px solid var(--stroke);
@@ -44,18 +43,19 @@
   box-shadow: 0 34px 90px -26px rgba(0, 0, 0, 0.55);
   opacity: 0;
   pointer-events: none;
-  transform: translate(-50%, -50%) scale(0.92);
+  transform: translate(-50%, 0) scale(0.92);
+  transform-origin: 50% 100%;
   transition:
     transform 0.44s var(--spring),
     opacity 0.3s var(--ease);
 }
 .panel.to-orb {
-  transform: translate(calc(-50% + 32vw), calc(-50% + 30vh)) scale(0.2);
+  transform: translate(calc(-50% + 34vw), 11vh) scale(0.18);
 }
 .panel.open {
   opacity: 1;
   pointer-events: auto;
-  transform: translate(-50%, -50%) scale(1);
+  transform: translate(-50%, 0) scale(1);
 }
 
 .head {
@@ -706,6 +706,71 @@
   color: var(--dim);
 }
 
+.set-sheet {
+  cursor: default;
+}
+.set-card {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+.set-row {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+.set-label {
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+}
+.set-hint {
+  font-weight: 400;
+  font-size: 12px;
+  color: var(--dim);
+}
+.set-choices {
+  display: flex;
+}
+.set-seg {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  background: var(--control);
+  border: 1px solid var(--stroke);
+  border-radius: 999px;
+}
+.set-opt {
+  padding: 6px 15px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: none;
+  color: var(--muted);
+  font-family: var(--font);
+  font-size: 12.5px;
+  text-transform: capitalize;
+  cursor: pointer;
+  transition: 0.18s var(--ease);
+}
+.set-opt:hover {
+  color: var(--text);
+  background: var(--field);
+}
+.set-opt.on {
+  color: var(--text);
+  background: var(--field);
+  border-color: var(--stroke);
+}
+/* The sheet's own foot sits under the card's content, not floated to the bottom of the panel:
+   the settings rows are short and a foot stranded 300px below them reads as a different sheet. */
+.set-card .sheet-foot {
+  margin-top: auto;
+}
+
 .orb {
   position: fixed;
   right: 26px;
@@ -815,6 +880,17 @@
     transform: none;
   }
 }
+/* A section revealed inside the growing panel: it rises into the space the panel just made. */
+@keyframes sectionin {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
 @keyframes drain {
   from {
     transform: scaleX(1);
@@ -833,8 +909,10 @@
 }
 
 /* Chat switcher (ADR-0021) is a slim store-backed list under the header. Resting chrome:
-   neutral, no accent (color stays reserved for working affordances, §1). */
+   neutral, no accent (color stays reserved for working affordances, §1). It slides in as the
+   panel grows to make room for it, so the two motions read as one. */
 .switcher {
+  animation: sectionin 0.32s var(--ease) both;
   list-style: none;
   margin: 0 12px 6px;
   padding: 6px;
@@ -1068,6 +1146,7 @@
 }
 
 .reminders {
+  animation: sectionin 0.32s var(--ease) both;
   list-style: none;
   margin: 0 12px 6px;
   padding: 6px;

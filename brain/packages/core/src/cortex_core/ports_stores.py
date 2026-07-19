@@ -1,6 +1,6 @@
 """State-store ports (typing.Protocol): the durable and hot stores the one hard rule protects."""
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from datetime import datetime, timedelta
 from typing import Protocol
 
@@ -93,3 +93,11 @@ class HandoffStore(Protocol):
     async def delete(self, handoff_id: str) -> None: ...
 
     async def active(self) -> HandoffRecord | None: ...
+
+
+class PreferenceStore(Protocol):
+    """Durable store for the user's own settings: opaque key/value pairs the brain never reads."""
+
+    async def all(self) -> Mapping[str, str]: ...
+
+    async def set(self, key: str, value: str) -> None: ...

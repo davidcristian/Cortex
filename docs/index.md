@@ -220,6 +220,20 @@ Start here. Rules for working in this repo: [AGENTS.md](../AGENTS.md).
   own mark rather than a fifth header button; the motion left CSS and SMIL for a frame clock, so
   reduced motion schedules no frames at all.
 
+- [ADR-0032: The user's preference record](adr/ADR-0032-preference-record.md): appearance
+  choices made durable, **landed**. Opaque key/value pairs the brain stores and never parses
+  (`GetPreferences`/`SetPreference`, a `PreferenceStore` port adapted to the same Redis the
+  conversation state uses), so a new setting costs no seam change and a choice outlives a body
+  reinstall. An empty value clears a key, which is how the overlay expresses "follow the system"
+  without a magic value. Reads retry, writes do not; the write is optimistic and its failure costs
+  only durability. Its surface is a settings sheet holding the theme and the mark, which also gave
+  the mark picker a route in from a chat that already has messages.
+- [ADR-0033: The panel grows upward](adr/ADR-0033-panel-growth.md): the overlay panel anchored by
+  its bottom edge so the composer never moves, with size changes eased through the Web Animations
+  API, **landed**. The CSS-only version is documented there as measured-and-rejected: a
+  `transition: height` cannot fire between two content-driven `auto` heights, and
+  `interpolate-size` does not change that.
+
 New non-obvious decision → add `adr/ADR-XXXX-<slug>.md`, link it here.
 
 ## Design

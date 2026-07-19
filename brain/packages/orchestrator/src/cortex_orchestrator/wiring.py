@@ -47,15 +47,17 @@ from cortex_orchestrator.schedule_builders import (
     stop_ticker,
 )
 from cortex_orchestrator.server import SeamPorts, serve
+from cortex_orchestrator.stores import RedisStores
 from cortex_orchestrator.subagent_builders import build_subagent_tools, build_subagents
 from cortex_orchestrator.swap_builders import build_swap_runtime, swap_closer
 from cortex_orchestrator.vision import vision_enabled
-from cortex_session import RedisSessionStore
+from cortex_session import RedisPreferenceStore, RedisSessionStore
 
 
 async def run_from_env(
     *,
     store_factory: Callable[[str], RedisSessionStore] = RedisSessionStore.from_url,
+    preference_factory: Callable[[str], RedisPreferenceStore] = RedisPreferenceStore.from_url,
 ) -> None:
     """Compose the brain from the environment and serve until shutdown."""
     seam_config = SeamServerConfig()
@@ -68,7 +70,9 @@ async def run_from_env(
     schedule_config = ScheduleConfig()
     swap_config = SwapConfig()
     clock = SystemClock()
-    store = store_factory(runtime.redis_url)
+    # The settings record rides the same Redis the conversation state does: durable for the same
+    # reason (append-only + a named volume), so a choice outlives a body reinstall.
+    stores = RedisStores.open(runtime.redis_url, store_factory, preference_factory)
     swap = build_swap_runtime(swap_config, runtime, inference, clock, AsyncioSleeper())
     backend, close_backend = build_inference_backend(
         inference, runtime.cortex_model, manager=None if swap is None else swap.manager
@@ -151,7 +155,11 @@ async def run_from_env(
             # Engines are stateless functions over the store, so per-stream (and, when a turn
             # escalates, per-turn) construction is free.
             return TurnEngine(
-                store, backend, clock, cortex_model=runtime.cortex_model, capabilities=caps
+                stores.sessions,
+                backend,
+                clock,
+                cortex_model=runtime.cortex_model,
+                capabilities=caps,
             )
 
         def make_engine(confirmer: Confirmer, progress: ProgressSink) -> TurnRunner:
@@ -172,7 +180,7 @@ async def run_from_env(
             conductor = SwapConductor(
                 swap.handoffs,
                 swap.manager,
-                BrainPhase(store, backend, clock, swap.plan.brain_model, deep),
+                BrainPhase(stores.sessions, backend, clock, swap.plan.brain_model, deep),
                 swap.plan,
                 clock,
                 scheduler,
@@ -184,7 +192,7 @@ async def run_from_env(
         await serve(
             seam_config,
             make_engine,
-            store,
+            stores.sessions,
             SeamPorts(
                 schedules=schedules,
                 memory_cascade=memory_cascade,
@@ -192,6 +200,7 @@ async def run_from_env(
                 # reads it synchronously, so a probe between turns says what the GPU is really
                 # doing. Absent with escalation off, where nothing can make the brain not-ready.
                 residency=None if swap is None else swap.manager,
+                preferences=stores.preferences,
             ),
         )
     finally:
@@ -203,4 +212,4 @@ async def run_from_env(
         await close_tools()
         await close_memory()
         await close_backend()
-        await store.aclose()
+        await stores.aclose()

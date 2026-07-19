@@ -33,6 +33,10 @@ pub enum SeamMethod {
     DeleteSession,
     /// `BrainService.SetSessionPinned`: the overlay's user-driven pin toggle on a chat.
     SetSessionPinned,
+    /// `BrainService.GetPreferences`: the user's settings record, read whole.
+    GetPreferences,
+    /// `BrainService.SetPreference`: one setting written by the user.
+    SetPreference,
 }
 
 impl SeamMethod {
@@ -42,14 +46,17 @@ impl SeamMethod {
     #[must_use]
     pub const fn repeatable(self) -> bool {
         match self {
-            Self::Health | Self::ListSessions | Self::SessionMessages | Self::ListDueReminders => {
-                true
-            }
+            Self::Health
+            | Self::ListSessions
+            | Self::SessionMessages
+            | Self::ListDueReminders
+            | Self::GetPreferences => true,
             Self::Converse
             | Self::AckReminder
             | Self::RenameSession
             | Self::DeleteSession
-            | Self::SetSessionPinned => false,
+            | Self::SetSessionPinned
+            | Self::SetPreference => false,
         }
     }
 }

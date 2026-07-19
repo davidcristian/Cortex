@@ -21,6 +21,7 @@ function fakeController(
       sessions: [],
       switcherOpen: false,
       sheetOpen: false,
+      settingsOpen: false,
       pendingConfirm: null,
       reminders: [],
       link: INITIAL_LINK,
@@ -42,6 +43,7 @@ function fakeController(
     cycleNext: vi.fn(),
     toggleSwitcher: vi.fn(),
     toggleSheet: vi.fn(),
+    toggleSettings: vi.fn(),
     previewHover: vi.fn(),
     respondConfirm: vi.fn(),
     dismissReminder: vi.fn(),
@@ -67,6 +69,8 @@ function renderOverlay(controller: OverlayController, onToggleTheme: () => void 
       controller={controller}
       dark={false}
       mark={WOBBLE}
+      themeName={null}
+      onPickTheme={vi.fn()}
       onPickMark={vi.fn()}
       onToggleTheme={onToggleTheme}
     />,
@@ -181,6 +185,15 @@ describe("Overlay", () => {
     renderOverlay(controller);
     fireEvent.keyDown(document.body, { key: "Escape" });
     expect(controller.toggleSheet).toHaveBeenCalledOnce();
+    expect(controller.dismiss).not.toHaveBeenCalled();
+  });
+
+  it("Escape closes the settings sheet first, before the shortcut sheet or the panel", () => {
+    const controller = fakeController("panel", [], { settingsOpen: true, sheetOpen: true });
+    renderOverlay(controller);
+    fireEvent.keyDown(document.body, { key: "Escape" });
+    expect(controller.toggleSettings).toHaveBeenCalledOnce();
+    expect(controller.toggleSheet).not.toHaveBeenCalled();
     expect(controller.dismiss).not.toHaveBeenCalled();
   });
 

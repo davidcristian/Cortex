@@ -72,6 +72,11 @@ line cap.
     addendum; same `src/sessions.rs`) is a unary call to `BrainService.SetSessionPinned`; the reply
     is a bare ack, so success maps to `()` and a non-OK status maps the same way (a store failure is
     `Rpc{code:"Unavailable"}`).
+  - `get_preferences()` / `set_preference(key, value)` (the user's settings record, ADR-0032;
+    `src/preferences.rs`) are unary calls to `BrainService.GetPreferences` / `SetPreference`,
+    mapping the reply rows to plain `(key, value)` tuples and the write's bare ack to `()`. Same
+    status mapping; nothing special-cases a brain with no preference store, which answers an empty
+    record and accepts a write silently rather than a status.
   - `list_due_reminders()` / `ack_reminder(reminder_id)` (the reminder pull path, ADR-0025;
     `src/reminders.rs`, split for the same reason) are unary calls to
     `BrainService.ListDueReminders` / `AckReminder`, mapping each reply row to a core

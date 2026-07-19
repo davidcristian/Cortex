@@ -15,6 +15,7 @@ from cortex_core.ports_models import ModelHost, ResidencyController, ResidencyRe
 from cortex_core.ports_stores import (
     HandoffStore,
     MemoryStore,
+    PreferenceStore,
     ScheduleStore,
     SessionStore,
     TaskStore,
@@ -31,6 +32,7 @@ __all__ = [
     "MemoryStore",
     "ModelHost",
     "ModelManager",
+    "PreferenceStore",
     "ResidencyController",
     "ResidencyReporter",
     "ScheduleStore",

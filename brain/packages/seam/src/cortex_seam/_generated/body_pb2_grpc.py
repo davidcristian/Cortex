@@ -82,6 +82,16 @@ class BrainServiceStub:
                 request_serializer=cortex__seam_dot___generated_dot_body__pb2.SetSessionPinnedRequest.SerializeToString,
                 response_deserializer=cortex__seam_dot___generated_dot_body__pb2.SetSessionPinnedReply.FromString,
                 _registered_method=True)
+        self.GetPreferences = channel.unary_unary(
+                '/cortex.seam.v1.BrainService/GetPreferences',
+                request_serializer=cortex__seam_dot___generated_dot_body__pb2.GetPreferencesRequest.SerializeToString,
+                response_deserializer=cortex__seam_dot___generated_dot_body__pb2.GetPreferencesReply.FromString,
+                _registered_method=True)
+        self.SetPreference = channel.unary_unary(
+                '/cortex.seam.v1.BrainService/SetPreference',
+                request_serializer=cortex__seam_dot___generated_dot_body__pb2.SetPreferenceRequest.SerializeToString,
+                response_deserializer=cortex__seam_dot___generated_dot_body__pb2.SetPreferenceReply.FromString,
+                _registered_method=True)
 
 
 class BrainServiceServicer:
@@ -188,6 +198,32 @@ class BrainServiceServicer:
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def GetPreferences(self, request, context):
+        """The user's own settings: a durable key/value record the BRAIN owns, so a choice survives a
+        body restart or a body reinstall and is readable by any surface rather than trapped in the
+        one that set it. Keys are namespaced strings the caller owns ("overlay.theme",
+        "overlay.mark"); values are short opaque strings the brain never interprets, which is what
+        keeps a new preference from being a seam change. GetPreferences returns every set key.
+        SetPreference is idempotent (last write wins) and an EMPTY value CLEARS the key, restoring
+        whatever default the reader applies, exactly as RenameSession's empty title clears an
+        override. Their gate is the SAME structural user-only reachability RenameSession has: no tool
+        in any registry, never through the turn engine, so no model, tool, or tainted turn reaches
+        them. They carry display preferences only, never conversation content, so they cannot touch
+        the one hard rule. SetPreference carries an effect, so the body makes exactly ONE attempt and
+        never retries it (the catalog-write convention): a lost reply must not silently re-assert a
+        value the user's next change reversed. GetPreferences is a read and retries like the other
+        read-only views.
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def SetPreference(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
 
 def add_BrainServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
@@ -235,6 +271,16 @@ def add_BrainServiceServicer_to_server(servicer, server):
                     servicer.SetSessionPinned,
                     request_deserializer=cortex__seam_dot___generated_dot_body__pb2.SetSessionPinnedRequest.FromString,
                     response_serializer=cortex__seam_dot___generated_dot_body__pb2.SetSessionPinnedReply.SerializeToString,
+            ),
+            'GetPreferences': grpc.unary_unary_rpc_method_handler(
+                    servicer.GetPreferences,
+                    request_deserializer=cortex__seam_dot___generated_dot_body__pb2.GetPreferencesRequest.FromString,
+                    response_serializer=cortex__seam_dot___generated_dot_body__pb2.GetPreferencesReply.SerializeToString,
+            ),
+            'SetPreference': grpc.unary_unary_rpc_method_handler(
+                    servicer.SetPreference,
+                    request_deserializer=cortex__seam_dot___generated_dot_body__pb2.SetPreferenceRequest.FromString,
+                    response_serializer=cortex__seam_dot___generated_dot_body__pb2.SetPreferenceReply.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -483,6 +529,60 @@ class BrainService:
             '/cortex.seam.v1.BrainService/SetSessionPinned',
             cortex__seam_dot___generated_dot_body__pb2.SetSessionPinnedRequest.SerializeToString,
             cortex__seam_dot___generated_dot_body__pb2.SetSessionPinnedReply.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def GetPreferences(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/cortex.seam.v1.BrainService/GetPreferences',
+            cortex__seam_dot___generated_dot_body__pb2.GetPreferencesRequest.SerializeToString,
+            cortex__seam_dot___generated_dot_body__pb2.GetPreferencesReply.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def SetPreference(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/cortex.seam.v1.BrainService/SetPreference',
+            cortex__seam_dot___generated_dot_body__pb2.SetPreferenceRequest.SerializeToString,
+            cortex__seam_dot___generated_dot_body__pb2.SetPreferenceReply.FromString,
             options,
             channel_credentials,
             insecure,

@@ -87,6 +87,13 @@ export interface LinkStatus {
   readonly detail: string;
 }
 
+/** One stored setting (mirror of the proto `Preference`, ADR-0032). Values are opaque strings:
+ *  the brain never parses one, and the overlay parses only the keys it owns. */
+export interface Preference {
+  readonly key: string;
+  readonly value: string;
+}
+
 /** The overlay's port to the brain. Implemented over Tauri IPC (real) or a fake. */
 export interface BrainBridge {
   converse(sessionId: string, text: string, sink: TurnSink): Cancellation;
@@ -129,4 +136,12 @@ export interface BrainBridge {
    * unanswered confirmation denies by timeout brain-side (fail-closed).
    */
   respondConfirm(confirmId: string, approved: boolean): Promise<void>;
+  /**
+   * The user's settings record, read whole (`BrainService.GetPreferences`, ADR-0032). The
+   * overlay asks once at startup and applies the keys it knows; an unrecognised key belongs to
+   * some other surface and is ignored, never an error. An empty record is the normal first run.
+   */
+  getPreferences(): Promise<readonly Preference[]>;
+  /** Write one setting (`BrainService.SetPreference`, ADR-0032). */
+  setPreference(key: string, value: string): Promise<void>;
 }

@@ -232,6 +232,10 @@ The service:
     a `SessionStoreError` aborts `UNAVAILABLE`. Idempotent by value.
   - The session RPCs are unary; a `SessionStoreError` aborts them `UNAVAILABLE` (the body
     maps that to `TransportError::Rpc`). Their servicer method bodies live in
+    `preference_servicer.PreferenceRpcMixin` (the two settings RPCs, ADR-0032; empty reads and
+    dropped writes when no store is wired, the `ScheduleStore` precedent), `stores.RedisStores`
+    (the session + preference stores the composition root opens from one URL and closes as a
+    pair, lifted out of `wiring.py` to keep it under the line cap),
     `session_servicer.SessionRpcMixin` (mixed into `BrainService`), and the mapping/clamp helpers
     and the rename/delete/pin writes in `session_rpc.py` (the `reminders.py` pattern), so
     `server.py` stays a thin binding.

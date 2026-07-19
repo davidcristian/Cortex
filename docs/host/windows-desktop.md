@@ -263,6 +263,36 @@ it, so search for the sentence rather than reading the file's end); then delete 
 
 ---
 
+## 4b. The preference Tauri commands, and the appearance that outlives a restart
+
+**Status: never attempted.** Tag **W**. Added 2026-07-19 with the preference record
+([ADR-0032](../adr/ADR-0032-preference-record.md)).
+
+**What only this proves.** That the two ungated glue commands (`src-tauri/src/preferences.rs`)
+carry the settings record across the real IPC hop, and that the appearance the user picks is
+still there after the app restarts. Everything either side of that hop is already proven:
+the brain half was Docker-validated on 2026-07-19 against real Redis (written, both containers
+restarted, read back intact, a cleared key still cleared), the Rust client is covered against a
+fake brain, and `usePreferences` is gated at 100% including the hydrate-does-not-clobber race.
+
+**Do.** Summon the overlay. Open **settings** from the sliders button in the hint strip (or by
+clicking the mark on an empty chat). Pick a mark other than Wobble and a theme other than the one
+showing. Close the sheet, then quit the app and start it again.
+
+**Pass.** The overlay comes back with the chosen mark and theme already applied, without a flash
+of the defaults long enough to read. Picking **Auto** for the theme and restarting comes back
+following the system scheme.
+
+**Fail.** Defaults after a restart with a healthy brain means the read command or its hydration;
+the choice not applying at all means the write command. The two are independent, so say which.
+A brain that was down at launch is expected to show defaults: hydration is once per mount, and
+that limit is recorded in the ADR's consequences.
+
+**Record it.** A dated addendum to [ADR-0032](../adr/ADR-0032-preference-record.md); then delete
+this section.
+
+---
+
 ## 5. The reminder pull surface on the live hotkey path
 
 **Status: never attempted.** Tag **W**. **Until 2026-07-19 it had no backlog line**, though it was

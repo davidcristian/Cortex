@@ -548,7 +548,7 @@ the two having split at the line cap as the seventh addendum landed):
 
 Ports (`typing.Protocol`; failures cross them only as the typed errors below; the five
 state-store ports `SessionStore` / `MemoryStore` / `TaskStore` / `ScheduleStore` /
-`HandoffStore` live in `ports_stores.py` and are re-exported from `ports.py`, a line-cap
+`HandoffStore` / `PreferenceStore` live in `ports_stores.py` and are re-exported from `ports.py`, a line-cap
 split, so every `from cortex_core.ports import ...` and the `cortex_core` barrel are
 unchanged):
 
@@ -674,6 +674,12 @@ unchanged):
   same argument the cortex's own `ToolActivity` makes. The real adapter is the orchestrator's
   `SeamProgressSink`; `RecordingProgressSink` is the fake. Reaches the tool off `TurnStamp.progress`,
   so the one shared spawn tool serves every stream without a per-stream field to leak across turns.
+- `PreferenceStore` has `async all() -> Mapping[str, str]` and `async set(key, value) -> None`
+  (ADR-0032): the user's settings, as opaque pairs this side never parses. An empty value CLEARS
+  the key so the reader falls back to its default (the `set_title` convention). It holds no
+  conversation content, so it sits outside the one hard rule rather than being an exception to
+  it; `InMemoryPreferenceStore` (`fakes_preferences.py`) is its contract twin and carries a
+  `fail_with` arm so callers can prove their error paths against the real typed error.
 - `TaskStore` has `async put_task(task) -> None`, `async get_task(task_id) -> SubagentTask | None`,
   `async put_result(result) -> None`, `async get_result(task_id) -> SubagentResult | None`. The
   hot store (Redis) a subagent is a stateless function over: task and result live here, never in
