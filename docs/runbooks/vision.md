@@ -65,9 +65,11 @@ subagent headroom is unchanged. An image costs 266 prompt tokens at any size fro
    ```
    The shell prints `screen capture is off (...)` when either condition failed, which is the
    first thing to check if every capture answers `PermissionDenied`.
-2. Ask the assistant "what's on my screen?". Expect, in order: the tool chip, the OS
-   notification ("Screen captured"), the overlay's capture indicator lighting for the rest of
-   the turn, and a reply describing the display.
+2. Ask the assistant "what's on my screen?". Expect, in order: the tool chip, the overlay's
+   capture indicator lighting for the rest of the turn (its label says the assistant *asked* to
+   look, which is all the seam proves; the OS receipt is what proves a picture was taken), the OS
+   notification ("Screen captured"), and a reply describing the display. If the indicator lights
+   and no notification appears, the capture failed or was refused, and the reply should say so.
 3. **Verify the self-exclusion**, which is the one check that cannot be inferred: capture while
    the overlay is visible and confirm the assistant does **not** describe the overlay. If it
    does, the exclusion silently failed and the loop it prevents is live (a line an attacker gets
@@ -85,10 +87,17 @@ Worth knowing before the first surprise, because it is all deliberate:
 - The turn becomes **tainted**, so every gated tool (`send_email`, `escalate_to_brain`) is
   hard-denied for the rest of it, with no confirmation offered. "Read this email, then look at
   my screen, then mail me a summary" will refuse the last step. Ask again in a fresh message.
+- **What taint does not close is the capture itself.** `capture_screen` is ungated, and the taint
+  gate closes only gated tools, so an injected tool result can drive a capture **in the same turn
+  it arrived in**, with the injection live in the context that decides to capture. That is the
+  deliberate consequence of shipping ungated, and it is the paragraph to weigh before overruling
+  it below. What still holds on that turn: every outbound gated tool is denied, URL redaction goes
+  strict, and nothing reaches durable memory.
 - The turn becomes **opaque**, which additionally: escalates the output guardrail to strict
   redaction (every URL the user did not send is removed from the reply), blocks the exchange
   from durable memory whatever `CORTEX_MEMORY_ON_TAINTED` says, and refuses a deep-model
-  handoff outright.
+  handoff outright: the swap conductor ends the turn with a note saying so, since a picture cannot
+  be handed to the deep model and no brain-tier model could read one anyway.
 - **Nothing is retained.** The picture dies with the turn: no session store, no handoff record,
   no memory. A reopened chat shows the reply and no evidence of what was seen, and the audit
   line records dimensions, a byte count and a timestamp only. A later dispute about what a

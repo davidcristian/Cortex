@@ -62,10 +62,12 @@ def _user_query(history: Sequence[Message], record: HandoffRecord) -> str:
 class BrainPhase:
     """Runs one handoff record on the deep model and persists what it produced.
 
-    ``capabilities`` is the same bundle the cortex turn uses, with the escalation slot left
-    out at the composition root: same audited dispatcher, same guardrail, same window, same
-    memory policy. The deep model is not a different kind of citizen; it is the same turn,
-    continued on other weights.
+    ``capabilities`` is the bundle the cortex turn uses, with two things taken out at the
+    composition root: the escalation slot (it cannot escalate to itself) and ``capture_screen``
+    (ADR-0029: the tier that swaps in has no vision projector, and offering it eyes would spend
+    the whole privacy cost of a screen read on a picture it cannot read). Same audit sink, same
+    guardrail, same window, same memory policy otherwise. The deep model is not a different kind
+    of citizen; it is the same turn, continued on other weights.
     """
 
     def __init__(

@@ -167,7 +167,7 @@ class RedisSessionStore:
         Refuses an image-bearing message outright (ADR-0029): pixels are turn-local, and the
         record schema has no field for them, so accepting one would silently drop the picture
         rather than store it. Raising is the loud half of that invariant; ``Message`` itself
-        already refuses images on a persistable role, so this is what catches a caller that
+        already refuses images on any role but ``TOOL``, so this is what catches a caller that
         reached the store with a TOOL message.
         """
         _refuse_images(message)

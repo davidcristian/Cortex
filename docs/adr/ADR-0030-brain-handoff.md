@@ -97,10 +97,10 @@ ADR-0029 used against gating capture; the gate therefore grows an optional per-t
 change, and the escalate card says what is true: the deep model will take over and the machine
 will be busy for a while. Second, a turn carrying screen-capture pixels cannot escalate:
 pixels are turn-local by ADR-0029's store invariant, the handoff record refuses image-bearing
-messages the same way the session stores do, and the tool answers with a typed refusal telling
-the model to ask the user to retry in a fresh message. Escalating an `opaque` turn would
-otherwise quietly widen pixel persistence, which that ADR explicitly reserved as its own
-deliberate decision.
+messages the same way the session stores do, and the user is told to ask again in a fresh message.
+Escalating an `opaque` turn would otherwise quietly widen pixel persistence, which that ADR
+explicitly reserved as its own deliberate decision. (Where that refusal belongs was corrected on
+2026-07-19; see this ADR's addendum. It is the gate plus the conductor, not the tool.)
 
 Smarter policies slot in later without new seams: `route_turn` already accepts
 `needs_deep_reasoning` and `explicit_tier` (routing.py:16), so a pre-turn heuristic or a
@@ -497,12 +497,32 @@ refuse, and the tool then answers an image-bearing turn with a typed refusal tel
 to ask the user to retry in a fresh message.
 
 **Closed 2026-07-18** with the vision slice's pixel-taint increment. `TaintLedger` carries an
-`opaque` bit, `EscalateToBrainTool` refuses an opaque turn ahead of every other validation, and
-`EscalationSlot.snapshot` raises on an image-bearing loop tail exactly as both session stores
-do. One correction to what this ADR's decision 1 assumed: the refusal keys on the bit rather
-than on image-bearing messages, because the handoff record's message codec enumerates fields by
-name and would have dropped `Message.images` on encode, so a check that hunted for images in the
-tail would have been checking the one thing that cannot survive a swap.
+`opaque` bit, and `EscalationSlot.snapshot` raises on an image-bearing loop tail exactly as both
+session stores do. One correction to what this ADR's decision 1 assumed: the refusal keys on the
+bit rather than on image-bearing messages, because the handoff record's message codec enumerates
+fields by name and would have dropped `Message.images` on encode, so a check that hunted for
+images in the tail would have been checking the one thing that cannot survive a swap.
+
+**Corrected 2026-07-19** by the vision slice's audit, because the refusal had been put in the
+wrong place and closed the deferral with the very defect it was recorded to avoid. Inside
+`EscalateToBrainTool` it could never fire: `TaintLedger.observe` cannot mark a turn opaque without
+marking it tainted, this spec is `gated=True`, and the dispatcher hard-denies a gated call on a
+tainted turn before `invoke` runs, so **the taint gate this ADR already leaned on is what closes
+the capture-then-escalate ordering**, with `DENIED_MSG` and the confirmer unconsulted. The
+ordering nothing handled was the reverse one, which is reachable and was not: the handoff is
+approved while the turn is still clean and the ungated capture lands afterwards, so the tail
+carried an image by the time `snapshot` ran and the invariant's `ValueError` escaped
+`SwapConductor._prepare`, propagated through `run_handoff` and the escalating engine, and killed
+the Converse stream with no record written and nothing in a terminal state. The refusal now lives
+in the conductor, on the same bit, answering `OPAQUE_TURN_NOTE` beside `ALREADY_ACTIVE_NOTE` and
+`STORE_FAILED_NOTE`, so the turn ends with an honest sentence and a serving cortex; the dead check
+in the tool is gone, and the snapshot raise is documented as the unreachable invariant behind it
+rather than as a mechanism. The refusal is pinned end to end through the real tool loop, the real
+tools and the real conductor, and deleting it (or moving a word of the note) reddens that test.
+What the record still does **not** carry is the `opaque` bit itself, so `taint_ledger()` rebuilds
+it at `False`: sound only because no opaque turn can reach a record now, and recorded as a
+deferral in `docs/refinements/vision.md` with its index line, beside the pixels-across-a-swap
+entry this ADR's sibling named.
 
 What landed, versus this ADR's shape, with no other deviation:
 

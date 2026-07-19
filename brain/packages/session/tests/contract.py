@@ -232,7 +232,7 @@ async def check_a_pinned_recent_chat_is_not_duplicated(store: SessionStore) -> N
 async def check_append_refuses_an_image_bearing_message(store: SessionStore) -> None:
     """No store ever persists pixels (ADR-0029): they are turn-local and die with the turn.
 
-    ``Message`` already refuses images on a persistable role, so the message this check builds
+    ``Message`` already refuses images on every role but ``TOOL``, so the message this check builds
     is the one a caller could plausibly reach a store with: the ``Role.TOOL`` message the tool
     loop puts a capture on. The store has to refuse it loudly, because the record schema has no
     field for an image and would otherwise drop the picture in silence.

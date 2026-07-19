@@ -2,7 +2,7 @@
 
 These deferrals originate at [ADR-0023](../adr/ADR-0023-body-gateway-volume.md), which established the body gateway and its first OS action (volume) across the brain→body seam. Extracted from the ROADMAP's deferred-refinements section on 2026-07-15 with the entries kept verbatim; landed entries are the historical record of what each deferral became, and the index at [index.md](index.md) carries the recommended pickup order.
 
-**Open items:** Host-Windows volume validation, body-initiated-stream tunnel fallback, hardened non-loopback posture, remaining BodyService RPCs, safe Core Audio wrapper, unbalanced COM initialization on the blocking pool
+**Open items:** Host-Windows volume validation, body-initiated-stream tunnel fallback, hardened non-loopback posture, the `InjectInput` RPC (the last unbuilt one, `CaptureScreen` having closed with the vision slice), safe Core Audio wrapper, unbalanced COM initialization on the blocking pool
 
 **Body gateway & OS actions in Slice 9 ([ADR-0023](../adr/ADR-0023-body-gateway-volume.md)):** each
 behind the unchanged `BodyGateway`/`AudioControl`/`BodyService` seams.
@@ -61,7 +61,9 @@ behind the unchanged `BodyGateway`/`AudioControl`/`BodyService` seams.
   Two of those were not in the design either: `max_bytes` exists because a fixed byte ceiling made
   the shrink ladder's give-up arm unreachable, and putting the budget on the request is what makes
   the brain's bound and the body's ceiling one number rather than two constants coupled by prose.
-  `InjectInput` stays open, and is now the only unbuilt `BodyService` RPC. Three findings, in the order they killed it. **The entry
+  `InjectInput` stays open, and is now the only unbuilt `BodyService` RPC, which is why the index
+  **holds this area at 6** rather than decrementing it: half an entry closing does not close the
+  entry, and a count moved for a half-closed one is how an open deferral gets lost. Three findings, in the order they killed it. **The entry
   names the wrong seam.** `GetVolume` is a `BodyService` RPC, and the body is its *server*: the
   overlay is inside the body, so it would never call that RPC. Surfacing volume there means a
   new Tauri command over `AudioControl` plus a new overlay port, since `BrainBridge` is by its
