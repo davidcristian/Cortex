@@ -134,8 +134,9 @@ behind the unchanged `ScheduleStore`/`BodyGateway`/seam shapes.
   from what this slice always owed: the **Host-Windows** look at a real toast (runbook
   [scheduling.md](../runbooks/scheduling.md)), which **moved to
   [docs/host/windows-desktop.md](../host/windows-desktop.md) on 2026-07-19** with that sentence
-  kept verbatim, joined there by the pull surface's own user check, which until that day was
-  written down in the runbook and nowhere else. Neither was ever counted in this area, so no
+  kept verbatim, joined there by the pull surface's own user check, which until that day had no
+  line in any backlog although ADR-0025's host line and the runbook both named it. Neither was
+  ever counted in this area, so no
   count moves. Newly deferred behind it: **toast activation
   routing** (its own entry below). Unblocked by it, and still deferred on their own merits: the
   **task-outcome delivery notification** and the **push retry policy**.
