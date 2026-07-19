@@ -662,8 +662,11 @@ against the code (the warning above); the entry text tells you which seams it ex
   number gets published whatever it says.
 
 Everything else that remains is gated on a seam or port change, on the GPU lifecycle at tier
-scale, on host-side Windows validation, on a consumer that does not yet exist, or is a bounded
-fix-when-it-bites contingency. This section read "None" from 2026-07-16, when the last item then
+scale, on a consumer that does not yet exist, or is a bounded fix-when-it-bites contingency. The
+list used to end with "on host-side Windows validation" too; since 2026-07-19 that class lives in
+[docs/host/](../host/index.md) and what stays here is the handful of entries whose cost is code
+even though only the user can observe the trigger. This section read "None" from 2026-07-16, when
+the last item then
 listed (`cargo clippy` for the Tauri shell in CI) moved to fix-when-it-bites once reading what the
 rust CI job installs (no system library at all) showed it is not a marginal add but a new class of
 CI provisioning, until 2026-07-19. What changed is worth stating plainly rather than quietly: it
@@ -745,8 +748,8 @@ was not that new work appeared, but that three actionable things had never been 
   artifacts (tier scale stays host-side). What stays open is **co-residency**, which ADR-0030
   decision 8 keeps deferred with the brain-runs-alone rule, now exercisable for the first time on
   hardware that fits the tiers it would keep alive.
-- Nothing of this area's trio remains here as an **entry**, though one piece of the third is still
-  owed and is host-side ([resource-governance.md](resource-governance.md)):
+- Nothing of this area's trio remains here as an **entry**, though two pieces of the third are
+  still owed and are host-side ([resource-governance.md](resource-governance.md)):
   `SubagentScheduler.drain()` **landed 2026-07-17** with the brain-handoff drain sub-slice
   (refuse-not-queue for the handoff window, a bounded wait that kills nothing, reversible via
   `undrain`; see the ADR-0012 drain addendum), and **CUDA-OOM re-place on CPU** and **the real
@@ -758,14 +761,11 @@ was not that new work appeared, but that three actionable things had never been 
   target without a port change, and no spawn is GPU-placed in the shipped wiring anyway. It used to
   say it reopened with that runtime; the runtime landed and did not reopen it, so its condition is
   now the one ADR-0030 decision 8 gives it, a **second** GPU-capable executor. **Corrected
-  2026-07-19:** this line used to stop at "nothing remains", which the area doc contradicts. The
-  runtime's **mechanism** was validated in Docker on the dev GPU with two small artifacts; real
-  GPU-placed **subagent** validation was not, and cannot be here, because a GPU placement only
-  happens when `CORTEX_SUBAGENTS_VRAM_GB` fits under the soft cap minus a resident cortex, which
-  needs a card that holds the cortex first. So the `VramBudgetPlacer`'s GPU arm has never fired
-  against a real placement, and the shipped cgroup numbers are user-tunable placeholders for the
-  same reason. Both are host-side hardware work rather than deferred design, which is why they
-  carry no count here.
+  2026-07-19:** this line used to stop at "nothing remains", which the area doc contradicts. What
+  was validated is the runtime's **mechanism**, in Docker on the dev GPU with two small artifacts;
+  real GPU-placed **subagent** validation and the placeholder cgroup numbers were not, and both
+  **moved to [docs/host/gpu-tier-scale.md](../host/gpu-tier-scale.md) the same day** as items 6
+  and 7 there, which is where their reasoning now lives. Neither ever carried a count here.
 - The ~31B brain-tier injection-harness run **moved to
   [docs/host/gpu-tier-scale.md](../host/gpu-tier-scale.md) on 2026-07-19**, where it sits behind
   the deep-model pick with the other four capstone items
@@ -798,7 +798,7 @@ uncounted residuals went, listed here so nothing has to be re-derived:
 - The ~31B injection-harness run (was [untrusted-content.md](untrusted-content.md), counted)
 - Whether a real reminder toast appears and reads well (was inside a landed entry in
   [scheduling.md](scheduling.md), never counted), joined there by the pull surface's own check,
-  which lived only in a runbook
+  which had no backlog line although ADR-0025's host line and the runbook both named it
 - Real GPU-placed subagent validation and the placeholder cgroup numbers (were inside a landed
   entry in [resource-governance.md](resource-governance.md), never counted)
 

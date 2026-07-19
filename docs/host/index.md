@@ -23,13 +23,21 @@ Every item below carries one of two tags, and mixing them wastes a sitting:
 | --- | --- | --- |
 | **W** | A real Win32 desktop session, where the body runs natively | The dev machine is Linux under WSL2. Nothing OS native (COM, WinRT, GDI, a real Tauri IPC hop, a real window) exists to exercise. |
 | **G** | A card that holds the real model tiers (24 GB) | The dev GPU is an 8 GB card. The cortex alone takes 7715 of 8188 MiB with `gemma-4-12b-it-qat-q4_0.gguf` loaded, so no tier pair, no ~31B model, and no GPU-placed subagent beside a resident cortex is reachable. |
-| **W+G** | Both at once, in one session | Two items only: the end-to-end answer on the capture path, and a fully cortex-driven `set_volume`. |
+
+**There is no W+G tag, corrected 2026-07-19.** This table shipped with one, claiming that a fully
+cortex-driven `set_volume` and the end-to-end answer on the capture path each need both at once.
+That rested on an older sentence saying the 12B cortex does not fit 8 GB, which
+[ADR-0029](../adr/ADR-0029-vision-screen-capture.md) had already measured false on 2026-07-17: at
+`--ctx-size 4096 --parallel 1` the cortex fits the dev GPU **beside its projector**, which is the
+harder of the two cases, and it drove a real vision turn there on 2026-07-18. Both items are
+therefore **W**. The tag mattered: a W+G item is one the user must not start until both
+capabilities are in the room, and if the Windows host and the 24 GB card turn out to be two
+machines, the wrong tag costs exactly the trip the tagging exists to prevent.
 
 **Tagged by capability, not by machine name, deliberately.** The repo's own evidence says the
 Windows host and the 24 GB card are one laptop: [ARCHITECTURE.md](../ARCHITECTURE.md) says "Three
-tiers share one 24 GB GPU", [ADR-0004](../adr/ADR-0004-model-lineup.md) says
-"First real bring-up on the 24 GB card", and the 2026-07-01 Windows Tauri
-validation ran "with the GPU brain up (`just up-gpu`, gemma-4-12B)", which does not fit 8 GB. But
+tiers share one 24 GB GPU" and [ADR-0004](../adr/ADR-0004-model-lineup.md) says
+"First real bring-up on the 24 GB card". But
 **no document states it**, so the layout does not assume it. A capability tag is correct whether
 that is one desk or two, and if it turns out to be two, only the tags need rereading and not the
 directory. Settling this in writing is worth one sentence in an ADR the next time one is opened.
@@ -39,7 +47,7 @@ directory. Settling this in writing is worth one sentence in an ADR the next tim
 | Doc | Tag | What one bring-up buys | Open |
 | --- | --- | --- | --- |
 | [windows-desktop.md](windows-desktop.md) | W | One `npm run tauri dev` beside a running brain: volume, the toast, the confirm card, the session commands, the reminder surface, the connection dot | 6 checks + 1 optional + 2 standing |
-| [windows-capture.md](windows-capture.md) | W (one step W+G) | The screen-capture path, which needs its own switch, its own receipts, and its own expectations. Carries the single highest-consequence check in the repo | 1 check, 6 observations |
+| [windows-capture.md](windows-capture.md) | W | The screen-capture path, which needs its own switch, its own receipts, and its own expectations. Carries the single highest-consequence check in the repo | 1 check, 6 observations |
 | [overlay-polish.md](overlay-polish.md) | W | The one item here that is **authoring, not validation**: the OS-window half of the overlay | 1 build (4 parts) + 1 design decision |
 | [gpu-tier-scale.md](gpu-tier-scale.md) | G | The 24 GB machine: the deep-model pick and everything the pick unblocks, plus the measurements the placer and the caps ship without | 8 items |
 
@@ -52,7 +60,8 @@ Three splits were considered and rejected before this one:
 
 - **By machine.** Rejected for the reason above: no document says there are two, and the layout
   would encode an unverified premise where it is expensive to correct rather than in a tag where
-  it is cheap. Two W+G items would also need duplicating or cross-referencing across the boundary.
+  it is cheap. The correction above is the argument's own evidence: two items changed tag on the
+  day the directory landed, and only a table cell moved.
 - **By slice.** Slices are a historical ordering and the ROADMAP is the thing being cleaned. User
   work accumulates per surface, not per slice: six different slices all end in "press the hotkey
   and look at the overlay". A slice split hands the user six docs for one sitting.
@@ -128,6 +137,62 @@ Ordered by what unblocks the most, and grouped so each group is one sitting.
 The two standing items in [windows-desktop.md](windows-desktop.md) never appear in this order:
 one is an observation to make over months of real use, the other is a per-change obligation.
 
+## Every item, one line each
+
+The order above groups sittings; this is the roll call. [AGENTS.md](../../AGENTS.md) requires a
+host item to be recorded in three places, its sitting doc, its line here, and its origin decision
+record, and a grouped order is not a line per item: added 2026-07-19 after the optional PGDATA
+check and the resident VRAM figure were found sitting on two of the three. Statuses are not
+repeated below, because every item reads **never attempted** today and its own section is
+authoritative the moment that stops being true.
+
+**W, and these six share one bring-up** ([windows-desktop.md](windows-desktop.md)):
+
+1. **The real Core Audio volume action.** Blocked on nothing but the sitting, and it closes the
+   fully cortex-driven `set_volume` with it.
+2. **A real reminder toast.** Needs a fired reminder, so seed one before starting.
+3. **The confirm card through real Tauri IPC.** Needs a gated tool armed, per the prerequisites.
+4. **The session-read Tauri commands.** Needs a brain with prior chats in its store.
+5. **The reminder pull surface on the live hotkey path.** Pairs with item 2 and the same seed.
+6. **The connection indicator's real IPC hop.** Costs one brain stop and restart.
+
+**W, each with its own bring-up:**
+
+- **The whole GDI capture path** ([windows-capture.md](windows-capture.md)): one check with six
+  observations, its own kill switch, and the self-exclusion observation to be made first rather
+  than last.
+- **The OS-window half of the overlay polish** ([overlay-polish.md](overlay-polish.md)): the one
+  **authoring** item here. Blocked on nothing; it is reviewed rather than passed.
+- **PGDATA directly on the Windows drive** ([windows-desktop.md](windows-desktop.md), optional and
+  explicitly a nice to have): Docker on the Windows host, no Tauri app and no overlay. Nothing
+  depends on the answer, and no procedure exists yet, so writing one is part of taking it.
+
+**W, standing rather than a check** ([windows-desktop.md](windows-desktop.md)), which is why
+neither appears in the recommended order:
+
+- **Unbalanced COM initialization on the blocking pool:** an observation over months of real use.
+  The fix stays in [refinements/body-gateway.md](../refinements/body-gateway.md) with its code cost.
+- **The toolchain-linked full build:** a per-change obligation for anything touching
+  `body/crates/os_windows` or `body/app/src-tauri`, not a one-time check.
+
+**G, one bring-up and one blocker** ([gpu-tier-scale.md](gpu-tier-scale.md)):
+
+1. **The deep-model pick.** Blocks items 2, 3, 4 and 5 below, and it is the longest single item
+   in this directory.
+2. **The tier-scale cortex to brain swap.** Blocked on the pick.
+3. **The chaos kill at tier scale.** Blocked on the pick and the swap. A failure here is a finding
+   against the one hard rule.
+4. **Measured swap timings.** Blocked on the swap.
+5. **The ~31B injection-harness run.** Blocked on the pick. The only item here whose outcome can
+   change shipped policy, and the only one with no runbook, so writing that section is part of it.
+6. **Real GPU-placed subagent validation.** Independent of the pick. The `VramBudgetPlacer`'s GPU
+   arm has never fired against a real placement.
+7. **The cgroup cap numbers.** Independent, but best done under item 2's load, which is the only
+   realistic one.
+8. **The resident VRAM figure with the projector loaded.** Independent. Filed here after being
+   carried inside an "Host-Windows" list it has no OS-native business in and then dropped from its
+   own ADR's closeout, which is precisely the failure this roll call exists to prevent.
+
 ## Status convention
 
 This is the one place this directory must **not** copy the refinements precedent. A refinement
@@ -185,14 +250,22 @@ only so a sitting on the host's hardware knows what it could also settle:
   ([resource-governance.md](../refinements/resource-governance.md)): a feasibility pass, whose
   likely blocker is reachability from the dockerized WSL2 brain.
 - **The spontaneous-pick nudge's live uptake** ([subagents.md](../refinements/subagents.md)):
-  whether a live cortex reaches for distinct roster models unprompted. No proxy exists, since
-  gemma-12B does not fit 8 GB and the small subagents do not respect framing the way the cortex
-  does.
+  whether a live cortex reaches for distinct roster models unprompted, over real use rather than
+  one scripted ask. The spawn tool is cortex-only and the small subagents do not respect prompt
+  framing the way the cortex does, so no subagent-tier proxy tests it.
 - **Session-history summarization and the model-based reranker**
   ([session-history.md](../refinements/session-history.md),
-  [memory.md](../refinements/memory.md)): both need `select` to go async first, and both are model
-  passes that cannot be judged on 8 GB.
+  [memory.md](../refinements/memory.md)): both need `select` to go async first, which is the
+  blocker that actually decides them; both are also model passes, which the host tier judges at
+  production context.
 - **Unbalanced COM initialization on the blocking pool**
   ([body-gateway.md](../refinements/body-gateway.md)): the fix is code and stays there; the
   *observation* that would trigger it is the standing watch item in
   [windows-desktop.md](windows-desktop.md).
+
+**One caveat on the nudge and the two model passes.** Each of their entries gives "the cortex tier
+does not fit the 8 GB dev GPU" as part of its reason, and that clause is stale:
+[ADR-0029](../adr/ADR-0029-vision-screen-capture.md) measured the cortex fitting the dev GPU
+beside its projector at 4K context on 2026-07-17. Whether a 4K-context cortex with one slot is a
+fair proxy for any of the three is untested, so nothing is reclassified here. The entries stay
+where they are, and the question belongs to whoever picks one up.

@@ -90,7 +90,7 @@ to 18 GB alone is the part that was never exercised.
 restored. `Health` reads `ready=false` with a truthful residency detail between turns during the
 window, which lights the overlay's connection dot amber.
 
-**Fail.** A load that never completes inside `CORTEX_MODELHOST_LOAD_TIMEOUT_S` is item 4's problem,
+**Fail.** A load that never completes inside `CORTEX_SWAP_LOAD_TIMEOUT_S` is item 4's problem,
 not this one. The failure that matters here is a restore that does not happen:
 
 ```
@@ -144,8 +144,9 @@ finding against the hard rule itself and is the most serious thing this director
 
 **Status: never attempted.** Blocked on item 2.
 
-**What only this proves.** ROADMAP assumption 2 at the brain tier, and whether the 300 s load
-timeout default is right. Kept verbatim from that assumption:
+**What only this proves.** ROADMAP assumption 2 at the brain tier, and whether the default of
+`CORTEX_SWAP_LOAD_TIMEOUT_S` (300 s, the knob [runbooks/model-swap.md](../runbooks/model-swap.md)
+lists beside the drain timeout) is right. Kept verbatim from that assumption:
 
 > **Swap latency.** A cortex↔brain swap is a `llama-server` stop + start (ADR-0005), so its cost is
 > loading a multi-GB GGUF from the bind-mounted Windows drive. Assumed acceptable (seconds,

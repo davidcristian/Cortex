@@ -142,9 +142,21 @@ independent, load/throughput are not. Full detail + placement strategy in the
 |---|---|---|---|---|---|
 | **Cortex (pick)** | **gemma-4-12B** | q4_0 (QAT) | 11.0 GB | 11.3 GB (small proj) | ~38-52 s |
 | Cortex (alt) | Qwen3.5-9B | Q4_K_M | 9.2 GB | 11.0 GB (F32 proj) | ~32-42 s |
-| Subagent (pick) | **Qwen3.5-2B** (CPU) | Q4_K_M | CPU, ~893 MiB RSS | n/a | ~14.5 s |
+| Subagent (pick) | **gemma-4-E4B** (CPU) | q4_0 (QAT) | 4.9 GB, ~2.5 GiB RSS | n/a | 38 s |
+| Subagent (override) | Qwen3.5-2B (CPU) | Q4_K_M | 1.19 GB, ~893 MiB RSS | n/a | ~14.5 s |
 | Brain | _tbd (host-side pick)_ | | | | |
-| Embedder (pick) | **nomic-embed-text-v1.5** (CPU) | Q8_0 | CPU | n/a | |
+| Embedder (pick) | **nomic-embed-text-v1.5** (CPU) | Q8_0 | 0.146 GB, ~18 MiB RSS | n/a | ~1.2 s |
+
+The three CPU rows are not from that GPU session: the embedder was measured 2026-06-29 and both
+subagent rows 2026-07-03, each in the [ADR-0004](../adr/ADR-0004-model-lineup.md) addendum that
+settled it, off the same mount and with no power cap in play.
+
+**Corrected 2026-07-19.** This table briefly named Qwen3.5-2B as *the* subagent pick, carrying the
+old pick's numbers, which contradicted ADR-0004's 2026-07-03 revision, the compose default, and
+[subagents-cpu.md](subagents-cpu.md). It also left the embedder's measured weights and load blank.
+The pick line matters beyond bookkeeping: ADR-0017 binds the untrusted-content safety default to
+the *current* subagent pick by its logical id, so a table naming the wrong model names the wrong
+safety default.
 
 - **Cortex = gemma-4-12B** (stronger chat model + QAT). Both candidates ≈ 11 GB, so VRAM
   didn't decide it. The budget is a **deliberate 14 GB soft cap** (env
@@ -160,8 +172,17 @@ independent, load/throughput are not. Full detail + placement strategy in the
   sub-second (SIGTERM to reaped in 0.1 to 0.4 s), so the load dominates exactly as assumed and the
   tier-scale figure is a host measurement ([model-swap.md](model-swap.md)). If it dominates
   once real tiers swap, mirror hot models into a WSL-side/volume cache and re-measure.
+- **Subagent = gemma-4-E4B QAT q4_0 on CPU**, revised to it on 2026-07-03 for injection robustness
+  (0/10 obeyed framed, against 1/10 output-laundering for the earlier Qwen3.5-2B pick) at a measured
+  and accepted cost of ~2.6x the load and ~2.8x the RSS. It is the `docker-compose.subagents.yml`
+  default; **Qwen3.5-2B Q4_K_M is the documented cheap override** (`CORTEX_MODEL_FILE_SUBAGENT`)
+  when latency matters more than robustness, and [ADR-0017](../adr/ADR-0017-subagent-model-safety.md)
+  forces the E4B pick on any spawn whose path can carry untrusted content, so the override is
+  reachable only for tool-less subagents on untainted turns. Full table:
+  [ADR-0004](../adr/ADR-0004-model-lineup.md) pick-revision addendum, procedure in
+  [subagents-cpu.md](subagents-cpu.md).
 - **Remaining picks:** only the **brain** tier. Cortex (gemma-4-12B, the compose default),
-  subagent (Qwen3.5-2B Q4_K_M on CPU) and embedder (nomic-embed-text-v1.5 Q8_0 on CPU) are all
+  subagent (gemma-4-E4B QAT q4_0 on CPU) and embedder (nomic-embed-text-v1.5 Q8_0 on CPU) are all
   settled and recorded in [ADR-0004](../adr/ADR-0004-model-lineup.md). The brain row above stays
   `tbd` because it needs a card this half of the repo does not have; it is the item that blocks
   the rest of the tier-scale work in

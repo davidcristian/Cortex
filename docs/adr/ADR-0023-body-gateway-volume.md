@@ -374,3 +374,26 @@ in [docs/refinements/index.md](../refinements/index.md) under dead until a consu
 been counted but never placed.
 
 No code changed here; this is a records correction at the origin ADR.
+
+## Addendum (2026-07-19): the cortex-driven half of the volume check is not VRAM-blocked
+
+The Agent-Docker paragraph above says "On this host the 8 GB GPU cannot hold the gemma-4-12B
+cortex, so a full cortex-*driven* `set_volume` is bounded by what fits". That first clause was
+measured false before it was acted on. [ADR-0029](ADR-0029-vision-screen-capture.md) brought the
+real `gemma-4-12b-it-qat-q4_0.gguf` up **beside its projector** on the dev machine's 8 GB card at
+`--ctx-size 4096 --parallel 1` on 2026-07-17 (7715 of 8188 MiB) and drove a real vision turn
+through it on 2026-07-18; a resident cortex had already emitted a native tool call here on
+2026-07-03. The 11.3 GB reservation the sentence leaned on is an ADR-0004 16K-context figure, not a
+floor.
+
+**What this changes.** Nothing in the decision, and one tag. The remaining "set volume to 30%"
+check had been filed as needing a Windows desktop **and** a 24 GB card, which is the kind of item
+a user must not start until both are in the room, and if those are two machines the wrong tag
+costs the trip. It needs a Windows desktop and any card that holds the cortex, so it is
+Windows-blocked only ([docs/host/windows-desktop.md](../host/windows-desktop.md)), and one
+sitting closes the cortex-driven half with it. The same sentence had been copied into
+[docs/runbooks/body-volume.md](../runbooks/body-volume.md) and is corrected there the same day.
+
+**What is unchanged.** The Host-Windows paragraph above. The Core Audio backend, the Tauri-shell
+bind and serve, and the spoken end-to-end action are OS-native, and no amount of VRAM substitutes
+for a real desktop session.
