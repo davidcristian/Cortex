@@ -10,6 +10,7 @@ import { DemoBridge } from "./bridge/demoBridge";
 import { TauriBridge } from "./bridge/tauriBridge";
 import type { BrainBridge } from "./bridge/types";
 import { App } from "./components/App";
+import { requestActivation } from "./overlay/activation";
 import "./overlay.css";
 
 const inTauri = "__TAURI_INTERNALS__" in window;
@@ -24,13 +25,13 @@ if (root) {
   );
   if (inTauri) {
     void import("@tauri-apps/api/event").then(({ listen }) =>
-      listen("cortex:activate", () => window.dispatchEvent(new Event("cortex:activate"))),
+      listen("cortex:activate", requestActivation),
     );
   } else {
-    // Defer so App's activate listener is attached: effects flush before paint, so two animation
-    // frames are safely past them (setTimeout(0) raced StrictMode's mount-unmount-remount cycle).
-    requestAnimationFrame(() =>
-      requestAnimationFrame(() => window.dispatchEvent(new Event("cortex:activate"))),
-    );
+    // The browser build self-summons so the design is visible immediately. No deferral is needed
+    // (and none worked): passive effects flush after paint, so this always ran before App's
+    // listener existed. `requestActivation` records the request, and the listener takes it on
+    // attach.
+    requestActivation();
   }
 }

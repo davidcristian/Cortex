@@ -498,3 +498,25 @@ the checks rather than a check, so nobody wrote them down. Nothing else in the r
 hotkey registers on a live desktop, so "obvious" was never "covered".
 
 No code changed here; this is a records correction at the origin ADR.
+
+
+## Addendum (2026-07-19): a summon that arrives early is no longer lost
+
+The overlay is summoned by a `cortex:activate` DOM event: the Tauri shell re-dispatches the host's
+global-hotkey event, and the browser build self-summons on load so `vite dev` shows the design
+immediately. Both were plain dispatches, delivered only to listeners that already existed, and the
+app attaches its listener in a **passive** effect, which React flushes after paint rather than
+before it. The self-summon therefore lost the race every time: instrumented in a browser, the
+event fired at t=102ms and the listener attached at t=104ms, so `npm run dev` came up to an empty
+stage and the overlay could only be opened by dispatching the event by hand. The original code
+deferred the dispatch by two animation frames on the belief that effects flush before paint; that
+is true of layout effects only, so the deferral never helped.
+
+The same race drops a real hotkey press that lands while the webview is still mounting, which is
+exactly the cold-start case where the first press is the one the user cares about.
+
+An activation is now a **fact rather than a moment** (`overlay/activation.ts`): `requestActivation`
+records it and then announces it, and the app takes any outstanding request when its listener
+attaches. Both paths consume it, so a remount cannot replay a summon that has already been
+answered. Proven the way the bug was found, by loading the dev server with no scripted input and
+reading the panel's class: `panel open` at HEAD, `panel` (opacity 0) at the commit before the fix.

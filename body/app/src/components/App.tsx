@@ -2,6 +2,7 @@ import { type MouseEvent, useEffect } from "react";
 
 import type { BrainBridge } from "../bridge/types";
 import { resolveMark } from "../mark/marks";
+import { ACTIVATE_EVENT, takePendingActivation } from "../overlay/activation";
 import { useOverlay } from "../overlay/useOverlay";
 import { usePreferences } from "../overlay/usePreferences";
 import { applyTheme, resolveTheme } from "../theme/themes";
@@ -29,11 +30,20 @@ export function App({ bridge, newSessionId }: AppProps) {
     applyTheme(theme, document.documentElement);
   }, [theme]);
 
-  // The host (the Tauri global hotkey) summons the overlay via a window event.
+  // The host (the Tauri global hotkey) summons the overlay via a window event. An activation
+  // that arrived before this listener existed is waiting as a pending request, so a hotkey press
+  // during a cold start (and the browser build's self-summon on load, which loses the race every
+  // time) still opens the overlay instead of being dropped. Both paths consume the request.
   useEffect(() => {
-    const summon = () => controller.open();
-    window.addEventListener("cortex:activate", summon);
-    return () => window.removeEventListener("cortex:activate", summon);
+    const summon = () => {
+      takePendingActivation();
+      controller.open();
+    };
+    window.addEventListener(ACTIVATE_EVENT, summon);
+    if (takePendingActivation()) {
+      controller.open();
+    }
+    return () => window.removeEventListener(ACTIVATE_EVENT, summon);
   }, [controller.open]);
 
   // The header's quick flip names the opposite theme outright, so it always lands somewhere
