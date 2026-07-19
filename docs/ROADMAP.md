@@ -461,7 +461,9 @@ proven end to end; the session contract suite (incl. `list_sessions`) also passe
 
 ## Slice 8.8 (Email-write): the first gated outbound tool + the real Confirmer
 
-**Status:** CI-gated half done on 2026-07-08 ([ADR-0022](adr/ADR-0022-email-write-confirmer.md)),
+**Status:** done as far as this repo can take it; the host-only half is the Windows Tauri confirm-card
+validation named below. The CI-gated half landed 2026-07-08
+([ADR-0022](adr/ADR-0022-email-write-confirmer.md)),
 100% under `just check` across all four trees, including the confirm exchange proven over a
 real loopback gRPC wire on both answers; delivered summary at the end of this slice.
 Agent-validated 2026-07-08 ([ADR-0022 addendum](adr/ADR-0022-email-write-confirmer.md)): the
@@ -559,7 +561,8 @@ capability gate, and the `Confirmer` round-trip over the seam.
 
 ## Slice 9 (One OS action end-to-end, volume)
 
-**Status:** CI-gated half done on 2026-07-08 ([ADR-0023](adr/ADR-0023-body-gateway-volume.md)),
+**Status:** done as far as this repo can take it; the host-only half is the real Core Audio action.
+The CI-gated half landed 2026-07-08 ([ADR-0023](adr/ADR-0023-body-gateway-volume.md)),
 100% under `just check` across all four trees; **agent-Docker validated 2026-07-08**
 ([ADR-0023 addendum](adr/ADR-0023-body-gateway-volume.md)). The containerized brain dialed a
 host-side `BodyService` over `host.docker.internal`, round-tripped volume with the seam token
@@ -600,7 +603,8 @@ committed; Slice 9 is hand-written wiring on top.
 [ADR-0023 addendum](adr/ADR-0023-body-gateway-volume.md)): the tokened round-trip passed from a
 container and the untokened dial was rejected. What is left is host-side and carries its own
 verbatim record in [docs/host/](host/index.md): the real Core Audio validation, and with it the
-fully *cortex-driven* `set_volume` that an 8 GB card cannot reach.
+fully *cortex-driven* `set_volume`, which is blocked on the Windows desktop the audio backend needs
+rather than on VRAM.
 
 Original scope (still the design):
 `AudioControl` Windows backend (Core Audio); `BodyService.SetVolume/GetVolume` served by
@@ -619,7 +623,8 @@ Any *side-effectful* OS action inherits the Slice 6.5 gate + the Slice 8.8 `Conf
 
 ## Slice 9.5 (Scheduling & proactive reminders)
 
-**Status:** brain half done on 2026-07-08 ([ADR-0025](adr/ADR-0025-scheduling-reminders.md);
+**Status:** done as far as this repo can take it; the host-only half is how the two delivery surfaces
+look on Windows. The brain half landed 2026-07-08 ([ADR-0025](adr/ADR-0025-scheduling-reminders.md);
 the 2026-07-01 insertion's "ADR-0014" pointer was stale, since that number was taken by history
 windowing). The design was **adversarially reviewed pre-implementation** (four lenses, 27
 findings, with every major one folded in before a line of code: the fencing claim token,
@@ -719,7 +724,11 @@ handoff that a screen read could kill to a reply nothing held to the bounds it a
 the host-only Windows validation ([docs/host/](host/index.md)), which keeps that half's wording
 verbatim: the GDI backend is authored, cross-compiled for `x86_64-pc-windows-msvc` and
 clippy-linted, and has never captured a real pixel. Everything else
-is green under `just check` and agent-validated against the real cortex plus its projector; see
+is green under `just check` and agent-validated against the real cortex plus its projector, with
+three measurements this repo still owes itself and can run on its own card: an image arm for the
+injection-defence harness, whether thinking needs disabling on a vision turn, and `llama-server`'s
+`mmproj`-less error body text, all three tracked as actionable now in
+[docs/refinements/vision.md](refinements/vision.md). See
 `docs/runbooks/vision.md` for both halves. The design was produced by a multi-lens design pass (six mapping agents over the
 affected subsystems, four independent designs from an architecture, security, systems, and
 delivery lens, then a synthesizing judge), then **measured against the real cortex artifact
@@ -822,8 +831,10 @@ Moved to [docs/host/](host/index.md) on 2026-07-19, mirroring the extraction abo
 self-contained doc per **sitting** rather than per area, with the load-bearing wording kept
 verbatim, plus an index carrying a blurb per doc, the prerequisites each sitting needs before it
 starts, the recommended order, and what blocks each item. Every slice above is complete on the
-agent's side; what those statuses used to carry, and no longer do, is the half that needs hardware
-this repo is not developed on. Two capabilities, tagged per item because the layout must not assume
+agent's side apart from the three vision measurements its own status names, which are actionable
+now in [docs/refinements/](refinements/index.md) rather than host work; what those statuses used
+to carry, and no longer do, is the half that needs hardware this repo is not developed on. Two
+capabilities, tagged per item because the layout must not assume
 they are one machine or two: a **real Win32 desktop session** for everything OS native (the Core
 Audio action, the native toast, the confirm card and the other Tauri IPC surfaces, the GDI capture
 path, the overlay's OS-window polish), and a **24 GB GPU** for everything at tier scale (the deep-

@@ -1,4 +1,4 @@
-# The screen-capture sitting (tag W, one step W+G)
+# The screen-capture sitting (tag W)
 
 One check with six observations inside it, in its own doc for three reasons: it has a different
 bring-up from the rest of the Windows work (a host kill switch, a receipt, its own env), its
@@ -48,8 +48,12 @@ This sitting is the only thing that turns those claims into findings.
 - `CORTEX_HOST_CAPTURE=1` in the shell's environment. The kill switch fails closed, so without it
   every capture answers `PermissionDenied` and the shell prints `screen capture is off (...)` at
   startup, which is the first thing to check.
-- A cortex with its projector loaded, for the end-to-end answer. That part is **W+G**; the blit and
-  the self-exclusion are pure W and can be checked against any answering brain.
+- A cortex with its projector loaded, for the end-to-end answer. **Not a 24 GB requirement**,
+  corrected 2026-07-19: this step first carried a **W+G** tag, and
+  [ADR-0029](../adr/ADR-0029-vision-screen-capture.md) had already measured the cortex fitting an
+  8 GB card beside its projector at `--ctx-size 4096 --parallel 1` on 2026-07-17, then driven a
+  real vision turn on it. Any card that holds the cortex answers this; the blit and the
+  self-exclusion need no model at all and can be checked against any answering brain.
 - The full procedure is [runbooks/vision.md](../runbooks/vision.md), "Host-only half (Windows, a real
   desktop)", four steps.
 

@@ -26,7 +26,7 @@ three read surfaces.
 
 ## 1. The real Core Audio volume action
 
-**Status: never attempted.** Tag **W**, with a note below that makes one part **W+G**.
+**Status: never attempted.** Tag **W**.
 
 **What only this proves.** That `WindowsAudioControl`'s narrowly authorized `unsafe` COM path
 actually drives the endpoint, and that a container reaches the host body **through the Windows
@@ -49,8 +49,14 @@ Kept verbatim from the ROADMAP's Slice 9 status:
 > the gemma-4-12B cortex does not fit, so a fully *cortex-driven* `set_volume` is bounded by what
 > fits; the seam + gateway + tool path validated directly.
 
-That last sentence is why one part of this item is **W+G**: on the 24 GB card the cortex fits, so
-this sitting also closes the only remaining gap in a fully cortex-driven `set_volume`.
+**That last sentence is stale, and this item was mistagged for it (corrected 2026-07-19).** It
+first read as needing a 24 GB card for the cortex-driven half, which would have made this item
+**W+G**. The VRAM clause is false: [ADR-0029](../adr/ADR-0029-vision-screen-capture.md) measured
+the real `gemma-4-12b-it-qat-q4_0.gguf` fitting the 8 GB dev GPU **beside its projector** at
+`--ctx-size 4096 --parallel 1` on 2026-07-17, and a resident cortex emitted a real tool call here
+on 2026-07-03. The 11.3 GB reservation the sentence leaned on is a 16K-context figure. What no
+card can supply is the Win32 desktop the audio backend needs, so the whole item is **W**, and one
+bring-up closes the cortex-driven half with it.
 
 **Do.** [runbooks/body-volume.md](../runbooks/body-volume.md), "Host-only half (real Core Audio on
 Windows)", three numbered steps. Then say or type **"set volume to 30%"**, and **"what's my
@@ -69,9 +75,10 @@ volume?"** for `get_volume`.
 - The call succeeds and nothing moves: this is the interesting failure, and it is the COM path.
 
 **Record it.** A dated addendum to [ADR-0023](../adr/ADR-0023-body-gateway-volume.md), whose
-closing line today reads "Unchanged and still host-side: the real 'set volume to 30%' on
-Windows"; a note in [runbooks/body-volume.md](../runbooks/body-volume.md); then delete this
-section.
+2026-07-16 addendum on moving the sync OS calls off the async worker ends its "Validated" paragraph
+with "Unchanged and still host-side: the real 'set volume to 30%' on Windows" (two addenda follow
+it, so it is not the file's last line); a note in
+[runbooks/body-volume.md](../runbooks/body-volume.md); then delete this section.
 
 ---
 
@@ -185,21 +192,26 @@ cycling moves through them and loads each one's history; a restart restores the 
 **Fail.** An empty list against a brain that has sessions is the IPC hop or the seam token. A list
 that appears but whose messages never load is `session_messages` specifically.
 
-**Record it.** A dated addendum to [ADR-0021](../adr/ADR-0021-session-read-seam.md), whose closing
-line reads "the Windows-native Tauri `list_sessions`/`session_messages` commands remain user host-
-validation"; then delete this section.
+**Record it.** A dated addendum to [ADR-0021](../adr/ADR-0021-session-read-seam.md), whose
+2026-07-07 live-validation addendum closes with "the Windows-native Tauri
+`list_sessions`/`session_messages` commands remain host validation" (nine addenda follow it,
+so it is not the file's last line); then delete this section.
 
 ---
 
 ## 5. The reminder pull surface on the live hotkey path
 
-**Status: never attempted.** Tag **W**. **Until 2026-07-19 this was recorded in one place only, a
-runbook paragraph.**
+**Status: never attempted.** Tag **W**. **Until 2026-07-19 it had no backlog line**, though it was
+never unrecorded: [ADR-0025](../adr/ADR-0025-scheduling-reminders.md)'s host line has named "the
+overlay's reminder surface on the real hotkey→overlay path" since the slice landed, and the
+procedure is in the runbook. What it lacked was a place that listed it as work still owed.
+(Corrected 2026-07-19: this section first claimed the runbook paragraph was its only record, which
+its own "Record it" line below refutes.)
 
 **What only this proves.** That the browser-validated card stack reads correctly at real window
 size, and that a failed pull is a no-op on the live path rather than an emptied surface.
 
-Kept verbatim from [runbooks/scheduling.md](../runbooks/scheduling.md), which was its only record:
+Kept verbatim from [runbooks/scheduling.md](../runbooks/scheduling.md), which carries the procedure:
 
 > what is genuinely host-side is the real hotkey path: whether the stack reads well over the live
 > window and whether killing the brain mid-session leaves the cards in place (it should: a failed

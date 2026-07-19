@@ -46,9 +46,17 @@ up **any** `BodyService` server on the host and point the brain's live test at i
   `CORTEX_BODY_ENDPOINT` set to it. The live test reads the volume, nudges it, and restores it,
   so it leaves the host as it found it.
 
-Note: on an 8 GB GPU the gemma-4-12B cortex does not fit, so a fully *cortex-driven*
-`set_volume` (the model emitting the tool call) is bounded by what fits; the seam + gateway +
-tool path are what this half validates directly.
+Note: what this half validates directly is the seam + gateway + tool path. A fully *cortex-driven*
+`set_volume` (the model emitting the tool call) additionally needs a real Windows desktop, since
+the audio backend is `cfg(windows)`.
+
+**Corrected 2026-07-19.** This note used to say the 12B cortex does not fit an 8 GB GPU, so a
+cortex-driven `set_volume` was "bounded by what fits". The VRAM half of that is false: the
+[ADR-0029](../adr/ADR-0029-vision-screen-capture.md) measurement of 2026-07-17 brought the real
+`gemma-4-12b-it-qat-q4_0.gguf` up beside its projector on the 8 GB dev GPU at
+`--ctx-size 4096 --parallel 1` (7715 of 8188 MiB), and a resident cortex emitted a real tool call
+here on 2026-07-03. The 11.3 GB reservation this used to lean on is a 16K-context figure. What the
+dev machine cannot supply for this check is the Win32 desktop, not the VRAM.
 
 **Validated 2026-07-08 (agent, [ADR-0023 addendum](../adr/ADR-0023-body-gateway-volume.md)):**
 the host-side-test-server path, run end to end. A token-requiring fake `BodyService` served on
