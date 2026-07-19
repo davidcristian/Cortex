@@ -28,10 +28,13 @@ and the design's own statement of why the four parts go together, from
 > the empty margins), morphing the window to a true *screen* corner (v1's orb sits at the window's
 > own corner), and **hide-on-blur** (v1 toggles with the hotkey instead).
 
-The ROADMAP's Slice 8 status said the same thing more tersely, and that sentence now resolves here:
+The terser form of the same list is [ADR-0011](../adr/ADR-0011-body-v1.md)'s 2026-07-03 addendum,
+which is where the deferral was recorded at its origin (a planning doc carried a copy until it was
+slimmed on 2026-07-19, so this and that addendum are now the two places it lives):
 
-> **Deferred overlay polish** (a proper transparent window + click-through margins done together,
-> OS-window morph to a real screen corner, hide-on-blur, a tighter CSP)
+> **Deferred overlay polish (the Slice 8 conscious deferral), recorded at its origin ADR.** A
+> proper transparent window + click-through margins (done together), the OS-window morph to a real
+> screen corner, hide-on-blur, and a tighter CSP (null in v1) shipped deferred with the slice.
 
 ## Where v1 stands today
 
