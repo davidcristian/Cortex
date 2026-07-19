@@ -185,13 +185,16 @@ neither appears in the recommended order:
 4. **Measured swap timings.** Blocked on the swap.
 5. **The ~31B injection-harness run.** Blocked on the pick. The only item here whose outcome can
    change shipped policy, and the only one with no runbook, so writing that section is part of it.
-6. **Real GPU-placed subagent validation.** Independent of the pick. The `VramBudgetPlacer`'s GPU
-   arm has never fired against a real placement.
+6. **A GPU-placed subagent beside a resident cortex.** Independent of the pick. Narrowed
+   2026-07-19: the placer's GPU arm firing against a real placement at all needs no resident cortex
+   and went back to the agent's list; what needs this card is the fit test against a real 12B
+   reservation.
 7. **The cgroup cap numbers.** Independent, but best done under item 2's load, which is the only
    realistic one.
-8. **The resident VRAM figure with the projector loaded.** Independent. Filed here after being
-   carried inside an "Host-Windows" list it has no OS-native business in and then dropped from its
-   own ADR's closeout, which is precisely the failure this roll call exists to prevent.
+8. **The resident VRAM figure with the projector loaded, at 16K.** Independent. Filed here after
+   being carried inside an "Host-Windows" list it has no OS-native business in and then dropped
+   from its own ADR's closeout, which is precisely the failure this roll call exists to prevent.
+   The 4K figure on the dev GPU is already measured, so this is a delta.
 
 ## Status convention
 
@@ -252,20 +255,27 @@ only so a sitting on the host's hardware knows what it could also settle:
 - **The spontaneous-pick nudge's live uptake** ([subagents.md](../refinements/subagents.md)):
   whether a live cortex reaches for distinct roster models unprompted, over real use rather than
   one scripted ask. The spawn tool is cortex-only and the small subagents do not respect prompt
-  framing the way the cortex does, so no subagent-tier proxy tests it.
+  framing the way the cortex does, so no subagent-tier proxy tests it. What this hardware adds is
+  real use at production context; the one-ask probe is agent-side and is listed as actionable now
+  in [refinements/index.md](../refinements/index.md).
 - **Session-history summarization and the model-based reranker**
   ([session-history.md](../refinements/session-history.md),
-  [memory.md](../refinements/memory.md)): both need `select` to go async first, which is the
-  blocker that actually decides them; both are also model passes, which the host tier judges at
-  production context.
+  [memory.md](../refinements/memory.md)): both need `select` to go async first, and summarization
+  needs its cache-versus-recompute question decided, which are the blockers that actually decide
+  them; both are also model passes, which the host tier judges at production context.
 - **Unbalanced COM initialization on the blocking pool**
   ([body-gateway.md](../refinements/body-gateway.md)): the fix is code and stays there; the
   *observation* that would trigger it is the standing watch item in
   [windows-desktop.md](windows-desktop.md).
 
-**One caveat on the nudge and the two model passes.** Each of their entries gives "the cortex tier
-does not fit the 8 GB dev GPU" as part of its reason, and that clause is stale:
-[ADR-0029](../adr/ADR-0029-vision-screen-capture.md) measured the cortex fitting the dev GPU
-beside its projector at 4K context on 2026-07-17. Whether a 4K-context cortex with one slot is a
-fair proxy for any of the three is untested, so nothing is reclassified here. The entries stay
-where they are, and the question belongs to whoever picks one up.
+**The caveat on those three, resolved rather than left open (2026-07-19).** Each entry gave "the
+cortex tier does not fit the 8 GB dev GPU" as part of its reason, and that clause is false:
+[ADR-0029](../adr/ADR-0029-vision-screen-capture.md) measured the cortex resident on the dev GPU
+beside its projector at 4K on 2026-07-17 (7715 of 8188 MiB) and drove a real turn through it the
+next day. This page first recorded the clause as merely stale and reclassified nothing, which left
+the question with whoever picked an entry up. It is settled here instead, per entry: the nudge probe
+is agent-runnable and moved to actionable now; the two model passes were never hardware-blocked at
+all, and their real blockers, the shared `select` widening and the undecided cache question, are
+written at their entries and their origin ADRs. What genuinely wants this hardware is the same
+judgment at 16K with more than one slot, which is a better answer rather than the only one, so all
+three stay listed above as things a sitting here could also settle.

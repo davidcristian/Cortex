@@ -473,3 +473,24 @@ no-match scope returned 0. Distrust-green: a no-op fake delete fails the core de
 search-after assertion (the count alone still passes, proving the test asserts real mutation), a
 by-id adapter SQL fails the adapter's SQL assertion, and a `WHERE scope = $1 AND false` neutered
 adapter fails the live contract's `removed == 2`, each turned red before being reverted.
+
+## Addendum (2026-07-19): the model reranker's hardware blocker was false
+
+The 2026-07-16 addendum above opens its "Why it still waits" paragraph with "a model reranker's
+ordering being unverifiable on the 8 GB dev GPU, where the cortex tier does not fit". The second
+half of that is measurably wrong, and it was wrong before it was written:
+[ADR-0029](ADR-0029-vision-screen-capture.md) brought `gemma-4-12b-it-qat-q4_0.gguf` up on that
+card on 2026-07-17 at `-ngl 99 --ctx-size 4096 --parallel 1` **with its vision projector loaded**,
+7715 of 8188 MiB, and drove a real turn through it the next day. Ranking a handful of recall
+candidates is not a 16K-context question, so the ordering is judgeable agent-side today.
+
+**What this changes.** Not the deferral, only its reason, which matters because a reason that names
+hardware reads as "wait for the user" and this one is "take the design decision". What holds the
+reranker is the sequencing this ADR already gives: the declined blended-relevance field and the
+recall-observability entry resolve to the same `RecallPolicy.select` widening, and that widening
+should serve all three consumers in one change rather than go async alone. Read the paragraph above
+as saying that and nothing about a card. Corrected the same day in
+[docs/refinements/memory.md](../refinements/memory.md) and its
+[index](../refinements/index.md).
+
+No code changed here; this is a records correction at the origin ADR.

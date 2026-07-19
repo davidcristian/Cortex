@@ -39,7 +39,7 @@ sections, one of which literally reads "Record the timings here".
                       │                         └──> 4. measured timings
                       └──> 5. the ~31B injection-harness run
 
-6. GPU-placed subagent · 7. cgroup caps · 8. resident VRAM with the projector   (independent)
+6. GPU subagent beside the cortex · 7. cgroup caps · 8. resident VRAM at 16K   (independent)
 ```
 
 ---
@@ -211,7 +211,7 @@ decision ADR-0030 flagged for maintainer review.
 
 ---
 
-## 6. Real GPU-placed subagent validation
+## 6. A GPU-placed subagent beside a resident cortex
 
 **Status: never attempted.** Independent of the pick.
 
@@ -228,15 +228,30 @@ and the consequence, from
 > Consequently the `VramBudgetPlacer`'s GPU arm has never fired against a real placement: with the
 > shipped settings every spawn overflows to CPU.
 
-**Do.** Set `CORTEX_MODEL_FILE_SUBAGENT_GPU`, `CORTEX_SUBAGENTS_GPU_ENDPOINT` and
-`CORTEX_SWAP_EVICT_MODELS` together (the GPU compose override documents all three), then have the
-cortex spawn subagents.
+**The last clause of that reason is false, and this item is narrower for it (corrected
+2026-07-19).** "Which needs a card that holds the cortex first" says the dev GPU does not hold the
+cortex; [ADR-0029](../adr/ADR-0029-vision-screen-capture.md) measured it holding one at
+`-ngl 99 --ctx-size 4096 --parallel 1` **with the vision projector loaded**, 7715 of 8188 MiB. What
+that leaves is roughly 470 MiB, so nothing multi-GB fits beside it, which is the real reason and the
+one this item now carries. The **mechanism**, the placer's GPU arm firing against a real placement
+at all, needs no resident cortex and is agent-side work listed as actionable now in
+[refinements/index.md](../refinements/index.md). Expect it to have been run before this sitting, and
+read a green mechanism as saying nothing about the arithmetic below, exactly as with the swap.
 
-**Pass.** A spawn is placed on the GPU (`-ngl 99`) rather than spilling to CPU, and the placer's
-ledger accounts for it against the soft cap.
+**What only this proves.** The fit test against real numbers: `CORTEX_SUBAGENTS_VRAM_GB` under the
+soft cap minus a genuinely resident 12B cortex, on a card with room for both.
 
-**Fail.** Every spawn still overflowing to CPU with headroom available means the fit test is wrong,
-which is a real finding: that arm has never run against a real placement.
+**Do.** With the cortex resident, set `CORTEX_MODEL_FILE_SUBAGENT_GPU`,
+`CORTEX_SUBAGENTS_GPU_ENDPOINT` and `CORTEX_SWAP_EVICT_MODELS` together (the GPU compose override
+documents all three), then have the cortex spawn subagents.
+
+**Pass.** A spawn is placed on the GPU (`-ngl 99`) rather than spilling to CPU while the cortex
+stays resident and serving, and the placer's ledger accounts for it against the soft cap.
+
+**Fail.** Every spawn still overflowing to CPU with headroom available means the shipped
+`CORTEX_SUBAGENTS_VRAM_GB` is above the real headroom, which is a numbers finding and the reason
+these values are called placeholders. A spawn placed on the GPU that then degrades the cortex is the
+more interesting failure and is an argument about the soft cap, not about the placer.
 
 **Record it.** A dated addendum to [ADR-0012](../adr/ADR-0012-resource-governance.md) and the note
 in [refinements/resource-governance.md](../refinements/resource-governance.md) that points here.
@@ -275,7 +290,7 @@ them user-tunable placeholders), and an ADR-0012 addendum.
 
 ---
 
-## 8. The resident VRAM figure with the projector loaded
+## 8. The resident VRAM figure with the projector loaded, at production context
 
 **Status: never attempted.** Independent. **Filed here after being misfiled and then lost.**
 
@@ -291,7 +306,14 @@ content at all, and it was then dropped from the same ADR's own "Still host-only
 never reached [refinements/vision.md](../refinements/vision.md). It is a **G** item and it lives
 here.
 
-**Do.** Bring the cortex up with `--mmproj` under the model host and read `nvidia-smi`.
+**You are not starting from nothing (noted 2026-07-19).** The same ADR measured 7715 of 8188 MiB on
+the 8 GB dev GPU with the projector loaded at `-ngl 99 --ctx-size 4096 --parallel 1`. What is owed
+here is that figure at the production context (`CORTEX_CTX_SIZE`, 16K) with the deployment's slot
+count, which the dev GPU cannot allocate, so this measures a delta against a known 4K number rather
+than an unknown.
+
+**Do.** Bring the cortex up with `--mmproj` at the production context under the model host and read
+`nvidia-smi`.
 
 **Pass.** The measured figure is at or under ADR-0004's 11.3 GB reservation, which is already a
 with-mmproj number, so the placer's arithmetic is unchanged.
@@ -308,6 +330,11 @@ section states the reservation this checks), the
 ## Also possible on this hardware, but not host work
 
 Design work recorded in [refinements/](../refinements/index.md) that becomes *testable* here for
-the first time: co-residency, the NPU feasibility pass, the spontaneous-pick nudge's live uptake,
-and the model passes behind session-history summarization and the reranker. They stay in that
-backlog with their code cost. See the last section of [index.md](index.md).
+the first time: co-residency and the NPU feasibility pass. They stay in that backlog with their code
+cost. See the last section of [index.md](index.md).
+
+Three more used to be listed here, on the premise that no card the agent has can run the cortex:
+the spontaneous-pick nudge's live uptake and the model passes behind session-history summarization
+and the reranker. Corrected 2026-07-19, since the dev GPU does run the cortex at 4K. What this
+hardware still adds to them is the production 16K context and more than one slot, which is a
+sharper judgment rather than the only possible one.
