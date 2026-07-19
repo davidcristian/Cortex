@@ -412,9 +412,12 @@ The service:
   serving nothing; registers `escalate_to_brain`; hands that same manager to `serve` inside
   `SeamPorts` as the seam's `residency` reporter (which is what makes `Health` honest mid
   handoff, ADR-0030 decision 6); and returns an `EscalatingTurnEngine` from `make_engine`: a
-  fresh slot and inner engine per turn, and a `SwapConductor` over THIS stream's dispatcher, so
-  the deep model's phase runs the same audited tools the cortex phase did, with no slot of its
-  own. `swap_closer(swap)` releases the handoff store **and** the control client in the shutdown
+  fresh slot and inner engine per turn, and a `SwapConductor` over a dispatcher built from THIS
+  stream's confirmer, so the deep model's phase runs the same audited tools the cortex phase did,
+  with no slot of its own and **without `capture_screen`** (ADR-0029: the root builds a second
+  built-in set with `vision=None` for the deep tier, because the probe asked the cortex's endpoint
+  and no brain-tier candidate on the mount carries a projector, so registration follows the tier
+  that will actually answer rather than the one that was probed). `swap_closer(swap)` releases the handoff store **and** the control client in the shutdown
   `finally` (the client even when the store's own release raises, so one refused close cannot leak
   the other resource), or is a clean no-op when nothing was built. `build_subagents` returns its `ResourceBudgetScheduler` alongside
   the spawn tool for the same reason: the conductor must quiesce that very pool before a swap

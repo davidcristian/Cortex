@@ -91,19 +91,27 @@ async def run_from_env(
         ),
     )
     schedules, close_schedules = build_schedule(schedule_config, runtime.redis_url)
-    capture = (
-        CaptureBounds(max_edge=body_config.capture_max_edge, max_bytes=body_config.max_image_bytes)
-        if body is not None and await vision_enabled(inference.vision, inference.endpoint)
-        else None
+    capture: CaptureBounds | None = None
+    if body is not None and await vision_enabled(inference.vision, inference.endpoint):
+        capture = CaptureBounds(
+            max_edge=body_config.capture_max_edge, max_bytes=body_config.max_image_bytes
+        )
+    schedule_tools = build_schedule_tools(
+        schedule_config, schedules, clock, tasks_enabled=spawn_tool is not None
     )
     builtins = build_builtin_tools(
         spawn_tool,
         body,
-        schedule_tools=build_schedule_tools(
-            schedule_config, schedules, clock, tasks_enabled=spawn_tool is not None
-        ),
+        schedule_tools=schedule_tools,
         escalation=swap is not None,
         vision=capture,
+    )
+    deep_builtins = build_builtin_tools(
+        spawn_tool,
+        body,
+        schedule_tools=schedule_tools,
+        escalation=swap is not None,
+        vision=None,
     )
     ticker = build_ticker(
         schedule_config,
@@ -150,12 +158,21 @@ async def run_from_env(
             caps = capabilities(confirmer, progress)
             if swap is None:
                 return make_turn_engine(caps)
+            deep = replace(
+                caps,
+                escalation=None,
+                tools=build_cortex_tools(
+                    tool_registry,
+                    deep_builtins,
+                    clock,
+                    confirmer=confirmer,
+                    policy=tools_config.dispatch_policy,
+                ),
+            )
             conductor = SwapConductor(
                 swap.handoffs,
                 swap.manager,
-                BrainPhase(
-                    store, backend, clock, swap.plan.brain_model, replace(caps, escalation=None)
-                ),
+                BrainPhase(store, backend, clock, swap.plan.brain_model, deep),
                 swap.plan,
                 clock,
                 scheduler,
