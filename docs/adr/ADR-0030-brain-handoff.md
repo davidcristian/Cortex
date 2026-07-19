@@ -1377,3 +1377,26 @@ through the 300 s `CORTEX_SWAP_LOAD_TIMEOUT_S` default for a reason that has not
 mount. The user doc carries this warning at the top of its bring-up.
 
 No code changed here; this addendum records a records fix and one measurement.
+
+## Addendum (2026-07-19, later): the tier-scale swap needs the overlay, not only the card
+
+Decision 7's host half says "verify from the overlay", and the user directory had nevertheless
+filed the tier-scale swap and the chaos kill as card-only work. They are not, and the reason is
+decision 1's own gate: `escalate_to_brain` ships `gated=True`, so a handoff begins only after the
+ADR-0022 confirm card is approved. That card is a `ConfirmRequest` on the Converse stream answered
+by a `ConfirmResponse` from the client, denied fail-closed after `CORTEX_SEAM_CONFIRM_TIMEOUT_S`
+(120 s) if nobody answers, and the only shipped client that answers one is the overlay
+(`body/crates/rpc/src/converse.rs`, `body/app/src/bridge/tauriBridge.ts`). The repo's headless
+Converse driver, the `body-rpc` live suite, opens a stream and reads it; it answers no confirm.
+
+So the tier-scale swap, the chaos kill during one, and the timings of one need **both** a 24 GB
+card and a Windows desktop, and are tagged W+G in [docs/host/](../host/index.md). The deep-model
+pick and the injection-harness run need the card alone: both drive the model host's control API and
+the tier's own port directly, with no turn and no gate involved.
+
+**A consequence worth stating for anyone who wants this headless later.** The gate is the design,
+not an accident, so the fix is never to ungate escalation for a test run: it would be validating a
+path the product does not have. A headless confirm-answering client on the seam would be a new
+thing to build and to justify, and no slice needs one today.
+
+No code changed here; this addendum records where a host item belongs.

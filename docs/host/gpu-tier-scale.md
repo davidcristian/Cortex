@@ -1,14 +1,22 @@
-# The 24 GB machine (tag G)
+# The 24 GB machine (tag G, and three items are also W)
 
 Seven items, one bring-up, one blocker. The first one gates four of the others, which is why this
 is a single doc rather than seven: the dependency chain is the whole story on this side in a way
 it is not on the Windows side.
 
-Everything here is blocked on VRAM, not on an operating system. The dev GPU is an 8 GB card,
-and [ADR-0030](../adr/ADR-0030-brain-handoff.md) measured `gemma-4-12b-it-qat-q4_0.gguf` alone
-taking 7715 of its 8188 MiB, so the real cortex cannot be swapped against any deep-model
-candidate, and no subagent can be GPU-placed beside a resident cortex. Kept verbatim from the
-ROADMAP's Slice 11 status:
+Four of the seven need nothing but the card. **Items 2, 3 and 4 need the Windows overlay as well**,
+because the handoff they exercise starts with a gated tool call and only the overlay can answer the
+confirm card that gates it. That is spelled out at each of them and in the prerequisites below; if
+the 24 GB card and the Windows desktop are the same laptop it costs nothing, and if they are two
+machines it is the difference between a sitting and a wasted trip.
+
+Everything else here is blocked on VRAM, not on an operating system. The dev GPU is an 8 GB card, and [ADR-0030](../adr/ADR-0030-brain-handoff.md) measured `gemma-4-12b-it-qat-q4_0.gguf`
+alone taking 7715 of its 8188 MiB, so the real cortex cannot be swapped against any deep-model
+candidate, and no subagent can be GPU-placed beside a resident cortex. The paragraph below was the
+ROADMAP's summary of this side of the work; it was **preserved here when the ROADMAP was slimmed
+on 2026-07-19** and no longer exists there, so this doc is its only home. The same substance,
+in the decision record that owns it, is item 7 of
+[ADR-0030](../adr/ADR-0030-brain-handoff.md)'s "what is left" list:
 
 > What remains is the host-side capstone on the 24 GB machine: the brain pick, the tier-scale
 > swap, measured timings, the runbook, and the injection-harness run. The ADR states plainly why
@@ -23,71 +31,208 @@ plan: **the runbook exists.** [runbooks/model-swap.md](../runbooks/model-swap.md
 2026-07-18 with the measured mechanism in it. What is owed is the user filling in its tier-scale
 sections, one of which literally reads "Record the timings here".
 
-## Before you start
+## Before you start: the bring-up, start to finish
 
-Derived from `docker/docker-compose.gpu.yml`, the `justfile`, and
-`brain/packages/orchestrator/src/cortex_orchestrator/config_swap.py`, then run on the dev machine on
-2026-07-19 as far as 8 GB allows. Follow it in this order; the earlier list here named two
-settings that no compose file wires and omitted the one whose absence is a boot failure.
+Derived from `docker/docker-compose.gpu.yml`, the `justfile`,
+`brain/packages/model_manager/src/cortex_model_manager/api.py`, and
+`brain/packages/orchestrator/src/cortex_orchestrator/config_swap.py`, then **run end to end on the
+dev machine on 2026-07-19**, with every output below copied from that run rather than reasoned about.
 
-1. **Put the three escalation settings in the `brain` service's `environment:` block** of
-   `docker/docker-compose.gpu.yml`, which is what that file's header instructs, or in a local
-   override you layer after it. Nothing interpolates them, so a `.env` entry and an exported shell
-   variable both leave the container without them and the stack comes up with escalation quietly
-   off:
+**The one thing this section used to leave out, which made item 1 unexecutable from the text: the
+deep tier does not start itself.** At boot the sidecar's daemon starts the cortex and nothing else
+(`model_host_lifespan` in `api.py`), and no compose setting starts a second tier. The deep model
+begins loading when you POST to the control API, and on a card that cannot hold both it begins
+only after the cortex is stopped. Both are steps you issue by hand, and they are steps 4 and 5.
 
-   ```yaml
-   services:
-     brain:
-       environment:
-         CORTEX_ESCALATION: "1"
-         CORTEX_MODELHOST_BACKEND: "supervisor"
-         CORTEX_BRAIN_ENDPOINT: "http://model-host:8081"
-   ```
+Steps 1 to 9 are the whole of **item 1**, which needs neither escalation nor the overlay: the pick
+is measured by driving the sidecar directly. Step 10 and the overlay are what items 2, 3 and 4 add.
+Item 5 runs on none of this: it starts its own container, so it wants the stack **down**.
 
-   All three or none. `config_swap.py` fails the brain at boot on escalation without a backend and
-   on escalation without a brain endpoint, and the container then restarts forever rather than
-   serving. `CORTEX_MODELHOST_ENDPOINT` is already set by the GPU override; do not add it.
-
-2. **Name the deep artifact.** These are interpolated on `model-host`, so a repo-root `.env` or
-   the calling shell carries them:
+1. **Name the models directory and the deep artifact.** All four are interpolated on `model-host`,
+   so a repo-root `.env` or the calling shell carries them:
 
    ```
    CORTEX_MODELS_DIR=<the host dir holding the GGUFs>
-   CORTEX_MODEL_FILE_BRAIN=<the pick's path under that dir>
+   CORTEX_MODEL_FILE_BRAIN=<the candidate's path under that dir>
    CORTEX_NGL_BRAIN=99
    CORTEX_CTX_SIZE_BRAIN=<the context the brain phase will use>
    ```
 
-   A tier with no artifact file is not in the roster at all, so before item 1 lands a pick the
-   deep model answers 404 and boot recovery logs one. That is a stock stack behaving as designed.
+   A tier with no artifact file is not in the roster at all, so before a pick is named the deep
+   model answers 404 and boot recovery logs one. That is a stock stack behaving as designed, and it
+   is also the only way into the roster: nothing a request carries can name a model into existence
+   (`api.py`), so this variable is the whole mechanism for adding the tier.
 
-3. **Bring it up** with `just up-gpu`, which is `docker compose --project-directory . -f
-   docker/docker-compose.yml -f docker/docker-compose.gpu.yml up -d --build`. If step 1 used a
-   local override, run that command by hand with your `-f` last. `depends_on` holds the brain
-   until the sidecar reports a tier that can serve a turn as READY.
-
-4. **Ask the sidecar what it has.** Its control API is deliberately unpublished, so go through the
-   container:
+2. **Bring it up** with `just up-gpu`, which is `docker compose --project-directory . -f
+   docker/docker-compose.yml -f docker/docker-compose.gpu.yml up -d --build`. `depends_on` holds
+   the brain until the sidecar reports a tier that can serve a turn as READY. Here, with both
+   images already built and the cortex at `CORTEX_CTX_SIZE=4096`, that took 48.9 s and ended:
 
    ```
-   docker compose --project-directory . -f docker/docker-compose.yml \
-     -f docker/docker-compose.gpu.yml exec model-host \
-     curl -s http://127.0.0.1:9300/health
+    Container cortex-model-host-1 Healthy
+    Container cortex-brain-1 Starting
+    Container cortex-brain-1 Started
    ```
 
-   That lists the roster, and the deep tier appears in it only once step 2 named its file;
-   `GET /models/<id>` gives one tier's state. When a live test needs the control API from the
-   host, `just up-modelhost-loopback` layers `docker/docker-compose.modelhost-loopback.yml`, and
-   `just down-gpu` takes it down again.
+   Every command below goes through the sidecar's control API, which is deliberately unpublished
+   (it starts and stops processes on the container holding the GPU and the models mount), so each
+   one is a `docker compose exec`. The prefix is long, so the rest of this section abbreviates it
+   the way the derivation run did:
 
-5. Read [runbooks/model-swap.md](../runbooks/model-swap.md) first, whose opening paragraph already
-   states which of its numbers are the mechanism's and which are a tier's.
+   ```
+   GPU="--project-directory . -f docker/docker-compose.yml -f docker/docker-compose.gpu.yml"
+   ```
 
-**What the dev machine could and could not reach (2026-07-19).** Steps 1 to 4 ran here on the 8 GB card with the models on the Windows drive, so the sequence is observed rather than reasoned about:
-the stack came up, the cortex tier served (at `CORTEX_CTX_SIZE=4096`, because the shipped 16K
-cortex is ADR-0004's 11.3 GB and this card has 8188 MiB), a brain with all three escalation
-settings booted healthy, and the two live streaming tests in
+3. **Ask the sidecar what it has.** This is the check that the deep tier is in the roster at all,
+   and it is worth doing before anything else, because a mistyped `CORTEX_MODEL_FILE_BRAIN` is
+   silent: the tier simply is not there.
+
+   ```
+   docker compose $GPU exec model-host curl -s http://127.0.0.1:9300/health
+   docker compose $GPU exec model-host curl -s http://127.0.0.1:9300/models/cortex
+   docker compose $GPU exec model-host curl -s http://127.0.0.1:9300/models/brain
+   ```
+
+   ```
+   {"status":"ok","models":["cortex","brain"],"stop_grace_s":10.0,"reap_timeout_s":30.0}
+   {"model":"cortex","state":"ready","detail":"serving on port 8080"}
+   {"model":"brain","state":"stopped","detail":"no process is running"}
+   ```
+
+   `"models":["cortex","brain"]` is step 1 having worked. `"state":"stopped"` on the deep tier is
+   the point above: it is in the roster and it is not running, and nothing will start it for you.
+   `nvidia-smi` read 7916 MiB of 8188 at this moment, which is the resident cortex.
+
+4. **Stop the cortex**, which is what frees the card for the deep model. On 24 GB this is not
+   optional either: ADR-0004's cortex reservation is 11.3 GB and the candidates are 15 to 18 GB.
+
+   ```
+   docker compose $GPU exec model-host curl -s -X POST http://127.0.0.1:9300/models/cortex/stop
+   ```
+
+   ```
+   {"model":"cortex","state":"stopped","detail":"no process is running"}
+   ```
+
+   It answered in **0.53 s** with the child idle and VRAM fell to 551 MiB. A cortex with a request
+   in flight costs the full `CORTEX_MODELHOST_STOP_GRACE_S` instead (10 s, measured in
+   [runbooks/model-swap.md](../runbooks/model-swap.md)); the stop does not answer until the child
+   is dead and reaped, which is the point of waiting for this reply before step 5.
+
+5. **Start the deep tier.**
+
+   ```
+   docker compose $GPU exec model-host curl -s -X POST http://127.0.0.1:9300/models/brain/start
+   ```
+
+   ```
+   {"model":"brain","state":"loading","detail":"pid 279 is not serving yet"}
+   ```
+
+   It answered in **0.12 s**, because that is a spawn and not a load. The load is what you wait for
+   next, and `loading` is the honest answer until the child serves.
+
+6. **Poll until it is ready.** Nothing pushes you a notification; the state flips under
+   `GET /models/brain`:
+
+   ```
+   docker compose $GPU exec -T model-host curl -s http://127.0.0.1:9300/models/brain
+   ```
+
+   ```
+   t=0s  {"model":"brain","state":"loading","detail":"pid 279 is not serving yet"}
+   ...
+   t=38s {"model":"brain","state":"ready","detail":"serving on port 8081"}
+   ```
+
+   Two things to expect at tier scale that this run was too small to show. A load of a 15 to 18 GB
+   GGUF off the mount is minutes, not the 38 s above, and while it runs **neither tier serves**, so
+   the `model-host` container turns unhealthy after about 150 s of it; that is a handoff in
+   progress, not a fault, and [runbooks/model-swap.md](../runbooks/model-swap.md) says so under
+   manual recovery. A child that dies instead reports `{"state":"failed", ...}` with its exit code
+   in the detail, and its own reason is in `docker compose logs model-host`.
+
+7. **Measure it, and ask it something.** This is item 1's actual content. `nvidia-smi` is the VRAM
+   number; the tier's own OpenAI-compatible API on 8081 is the answer-quality half:
+
+   ```
+   docker compose $GPU exec model-host curl -s http://127.0.0.1:8081/v1/models
+   docker compose $GPU exec model-host curl -s http://127.0.0.1:8081/v1/chat/completions \
+     -H 'Content-Type: application/json' \
+     -d '{"messages":[{"role":"user","content":"<your question>"}],"max_tokens":120}'
+   ```
+
+   `/v1/models` names the artifact path that is actually serving, which is how you know you
+   measured the candidate you meant to. **Read the reply carefully before judging quality**: the
+   gemma candidates are reasoning models, and in this run the whole 120-token budget went to
+   `reasoning_content` with `"content":""` and `"finish_reason":"length"`. A candidate scored on
+   that would look mute when it was thinking. Give it a budget that fits a chain of thought plus an
+   answer, and read `reasoning_content` as well as `content`. The reply also carries its own
+   `timings`, which is the per-token speed without a stopwatch (this run: 120 tokens in 2072 ms).
+
+8. **Swap back**, which is the same two verbs in the other order, and is worth doing by hand once
+   before item 2 asks the brain to do it under a turn:
+
+   ```
+   docker compose $GPU exec model-host curl -s -X POST http://127.0.0.1:9300/models/brain/stop
+   docker compose $GPU exec model-host curl -s -X POST http://127.0.0.1:9300/models/cortex/start
+   ```
+
+   The stop answered in 0.48 s and VRAM fell to 746 MiB; the cortex start answered in 0.10 s and
+   the tier read `{"model":"cortex","state":"ready","detail":"serving on port 8080"}` **65 s**
+   later, back at 7920 MiB. Note what the container health did through all of this: with the cortex
+   stopped and the deep tier READY, `model-host` still read healthy, because its check asks for
+   either tier, and `brain` read healthy throughout, because its check asks only that the `Health`
+   RPC answered.
+
+9. **Tear down, and verify the teardown with a command.** `just down-gpu` removes the stack
+   including a locally layered override, since `down` works from the project's own labels:
+
+   ```
+   just down-gpu
+   docker ps -a
+   nvidia-smi --query-gpu=memory.used --format=csv,noheader
+   ```
+
+   Here that removed `cortex-brain-1`, `cortex-redis-1`, `cortex-model-host-1` and the
+   `cortex_default` network, and VRAM fell to 610 MiB. **Run those last two lines rather than
+   assuming.** A model-host left running holds the whole card, and this repo has already spent a
+   round on a cleanup that was claimed and not checked.
+
+10. **Only for items 2, 3 and 4: put the three escalation settings in the `brain` service's
+    `environment:` block** of `docker/docker-compose.gpu.yml`, which is what that file's header
+    instructs, or in a local override you layer after it with your `-f` last. Nothing interpolates
+    them, so a `.env` entry and an exported shell variable both leave the container without them
+    and the stack comes up with escalation quietly off:
+
+    ```yaml
+    services:
+      brain:
+        environment:
+          CORTEX_ESCALATION: "1"
+          CORTEX_MODELHOST_BACKEND: "supervisor"
+          CORTEX_BRAIN_ENDPOINT: "http://model-host:8081"
+    ```
+
+    All three or none. `config_swap.py` fails the brain at boot on escalation without a backend and
+    on escalation without a brain endpoint, and the container then restarts forever rather than
+    serving. `CORTEX_MODELHOST_ENDPOINT` is already set by the GPU override; do not add it.
+
+11. Read [runbooks/model-swap.md](../runbooks/model-swap.md) before item 2, whose opening paragraph
+    states which of its numbers are the mechanism's and which are a tier's. When a live test needs
+    the control API from the host rather than through `exec`, `just up-modelhost-loopback` layers
+    `docker/docker-compose.modelhost-loopback.yml` (control API on 9300, deep tier on 9081), and
+    `just down-gpu` takes it down again.
+
+**What the dev machine could and could not reach (2026-07-19).** Every step above ran here on the 8 GB card with the models on `/srv/models`, so the sequence is observed and not inferred. **The one
+step this card could not prove is the artifact in step 1.** A real candidate is 14 to 17 GB and
+this card has 8188 MiB, so the run above pointed the deep tier at
+`google/gemma-4-E4B-it-qat-q4_0-gguf/gemma-4-E4B_q4_0-it.gguf` (4.9 GB) as a stand-in. It proves
+the roster, the eviction, the start, the health gate, the tier's own API and the swap back, and it
+proves **none** of the arithmetic: the 38 s load, the 3801 MiB and the token rate are the stand-in's
+and belong to no tier. Everything else the earlier version of this section recorded still holds:
+the cortex tier served at `CORTEX_CTX_SIZE=4096` (the shipped 16K cortex is ADR-0004's 11.3 GB),
+a brain with all three escalation settings booted healthy, and the two live streaming tests in
 `brain/packages/inference/tests/test_backend_live.py` passed against it through the real
 `LlamaCppBackend`. Dropping `CORTEX_BRAIN_ENDPOINT` was confirmed to be a restart loop, and putting
 the three settings in the shell instead of the compose file was confirmed to leave the container
@@ -116,11 +261,17 @@ the shipped `CORTEX_SWAP_LOAD_TIMEOUT_S` default of 300 s, which is item 4's que
 6. GPU subagent beside the cortex · 7. cgroup caps                            (independent)
 ```
 
+Items **2, 3 and 4 are W+G**: they ride a real handoff, a handoff starts at an approved confirm
+card, and the overlay is the only client that answers one. Items **1, 5, 6 and 7 are G**: the card
+alone. If both capabilities live in one laptop the distinction costs nothing; if they do not, do 1,
+5, 6 and 7 on the card and keep 2, 3 and 4 for a sitting with the desktop in the room.
+
 ---
 
 ## 1. The deep-model pick
 
-**Status: never attempted. Blocks items 2, 3, 4 and 5.**
+**Status: never attempted. Blocks items 2, 3, 4 and 5.** Tag **G**: the card alone, no overlay and
+no escalation.
 
 **What only this proves.** Which of the four brain candidates actually fits and serves on 24 GB.
 Nothing about it is answerable on the dev GPU. [ADR-0004](../adr/ADR-0004-model-lineup.md) locked
@@ -129,11 +280,15 @@ cortex, so it gets the full budget; hybrid `-ngl` / CPU-KV fallback if it doesn'
 candidates are `Qwen3.6-27B-GGUF (Q4_K_M)`, `Qwen3.6-35B-A3B-GGUF (UD-Q3_K_M)`,
 `gemma-4-31B-it-qat-q4_0-gguf`, and `gemma-4-26B-A4B-it-qat-q4_0-gguf`.
 
-**Do.** Bring each candidate up alone under the model host and measure VRAM at the context size the
-brain phase will use, load time off the mount, and answer quality on a handful of the kinds of
-question that justify escalating at all. The method is the one
-[runbooks/llamacpp-gpu.md](../runbooks/llamacpp-gpu.md) already uses for the other tiers: bring the
-host up, read `nvidia-smi`, record the row.
+**Do.** Run "Before you start" steps 1 to 9 above **once per candidate**, changing only
+`CORTEX_MODEL_FILE_BRAIN` (and `CORTEX_CTX_SIZE_BRAIN`) between runs, since that variable is what
+puts a tier in the roster at all. Each pass gives the three numbers this item exists for: the VRAM
+at step 7 (`nvidia-smi` with the deep tier alone resident, at the context the brain phase will
+use), the load time at step 6 (the wall clock from the start's reply to `"state":"ready"`, which is
+the figure item 4 compares its swap against), and answer quality at step 7 on a handful of the
+kinds of question that justify escalating at all. Read step 7's warning about `reasoning_content`
+before judging any gemma candidate mute. The row this fills is the same one
+[runbooks/llamacpp-gpu.md](../runbooks/llamacpp-gpu.md) keeps for the other tiers.
 
 **Pass.** One candidate locked, with its measured numbers.
 
@@ -152,13 +307,31 @@ whose comment today says there is no deep-model pick yet.
 
 ## 2. The tier-scale cortex to brain swap
 
-**Status: never attempted.** Blocked on item 1.
+**Status: never attempted.** Blocked on item 1. Tag **W+G**, corrected 2026-07-19: this item sat
+under G alone, and both its procedure and its pass line need the Windows overlay.
 
 **What only this proves.** The VRAM arithmetic. The agent's validation ran two small artifacts
 through every code path, which is explicitly not the same thing: evicting ~11.3 GB and loading 15
 to 18 GB alone is the part that was never exercised.
 
-**Do.** From the overlay, ask something that escalates. Watch the swap window's `StatusUpdate`s.
+**Why it needs the overlay too, and cannot be done headless today.** `escalate_to_brain` carries
+`gated=True` in its own spec (`brain/packages/core/src/cortex_core/escalate.py`), so a handoff
+begins only after the ADR-0022 confirm card is **approved**. That card is not a brain-side prompt:
+the brain emits a `ConfirmRequest` on the Converse stream and waits
+`CORTEX_SEAM_CONFIRM_TIMEOUT_S` (120 s) for the client's `ConfirmResponse`, and an unanswered one
+is denied fail-closed, so nothing swaps. The only shipped client that answers a `ConfirmRequest` is
+the overlay (`body/crates/rpc/src/converse.rs`, `body/app/src/bridge/tauriBridge.ts`); the repo's
+own headless Converse driver, `just seam-health`, opens a stream, reads it, and answers no confirm.
+So the trigger and the amber dot are the overlay's, and the arithmetic is the card's. Nothing about
+this makes it a Windows item: no overlay can evict 11.3 GB and load 18 GB. If the Windows desktop
+and the 24 GB card are the same laptop, this costs one bring-up of each side and nothing more.
+
+**Do.** With "Before you start" done **including step 10**, bring the overlay up beside the brain
+([windows-desktop.md](windows-desktop.md) has that bring-up), then ask something that escalates and
+**approve the card** when it appears. Watch the swap window's `StatusUpdate`s. To see the swap from
+the other side while it runs, `GET /models/brain` on the sidecar (step 6's command) flips
+`stopped` to `loading` to `ready` and the cortex flips the other way; that is also how you tell an
+escalation that was never approved from one that was.
 
 **Pass.** The cortex is evicted, the deep model loads, the answer returns, and the cortex is
 restored. `Health` reads `ready=false` with a truthful residency detail between turns during the
@@ -181,7 +354,11 @@ half of [runbooks/model-swap.md](../runbooks/model-swap.md).
 
 ## 3. The chaos kill at tier scale
 
-**Status: never attempted.** Blocked on items 1 and 2.
+**Status: never attempted.** Blocked on items 1 and 2. Tag **W+G**, corrected 2026-07-19, for
+item 2's reason and one of its own: there is no handoff to kill in the middle of until a confirm
+card has been approved, and the ADR's own procedure below says "verify from the overlay". The kill
+itself is a `docker exec` on the card's machine; what the overlay supplies is the turn that is
+in flight when it lands and the honest failure the user sees.
 
 **What only this proves.** That the one hard rule holds when a real ~31B process dies, not a 2B
 stand-in. Kept verbatim from [ADR-0030](../adr/ADR-0030-brain-handoff.md):
@@ -216,7 +393,10 @@ finding against the hard rule itself and is the most serious thing this director
 
 ## 4. Measured swap timings
 
-**Status: never attempted.** Blocked on item 2.
+**Status: never attempted.** Blocked on item 2, and it inherits item 2's **W+G** with the block:
+these are the phases of a real handoff, and a real handoff starts at an approved confirm card. The
+one number you can take without the overlay is the deep tier's bare load time, which is item 1's
+step 6 and is the figure this compares the swap's load phase against.
 
 **What only this proves.** ROADMAP assumption 2 at the brain tier, and whether the default of
 `CORTEX_SWAP_LOAD_TIMEOUT_S` (300 s, the knob [runbooks/model-swap.md](../runbooks/model-swap.md)
@@ -249,8 +429,11 @@ compares against.
 
 ## 5. The ~31B injection-harness run
 
-**Status: never attempted.** Blocked on item 1. **The only host item whose outcome can change
-shipped policy.**
+**Status: never attempted.** Tag **G**: a pytest, and neither escalation nor the overlay is
+involved. Note what it does **not** need either: the model host. The harness starts its own
+`llama-server` container, so this item is not run on top of the bring-up above but instead of it.
+Blocked on item 1 only in the sense that the pick is what makes one row of its matrix the answer.
+**The only host item whose outcome can change shipped policy.**
 
 Kept verbatim from [refinements/untrusted-content.md](../refinements/untrusted-content.md), the
 entry that moved here:
@@ -265,12 +448,31 @@ Why it is policy and not just a number, from [ADR-0030](../adr/ADR-0030-brain-ha
 > the ~31B injection-harness run (`CORTEX_PROBE_BRAIN=1`), whose result feeds back into decision
 > 1's tainted-escalation stance.
 
-**Do.** There is **no runbook for this one.** The only instructions that exist are a comment in
-[`test_injection_defense_live.py`](../../brain/packages/inference/tests/test_injection_defense_live.py):
-"The ~31B brain (swap) tier is heavy; opt in with `CORTEX_PROBE_BRAIN=1` (needs ~13-18 GB free)."
-The nearest procedure is the framing-efficacy probe in
+**Do.** There is still **no runbook for this one**, and writing the missing section is part of the
+item. The command itself is the harness's own docstring plus the opt-in flag, read out of
+[`test_injection_defense_live.py`](../../brain/packages/inference/tests/test_injection_defense_live.py)
+on 2026-07-19:
+
+```
+cd brain && CORTEX_MODELS_DIR=<the host dir holding the GGUFs> CORTEX_PROBE_BRAIN=1 \
+  uv run pytest -m integration --no-cov -s \
+  packages/inference/tests/test_injection_defense_live.py
+```
+
+Four things that file will not tell you until it fails, and that the runbook section owes:
+
+- **Bring the model host down first** (step 9 of the bring-up). The harness runs its own container,
+  `cortex-inj-probe`, publishing `127.0.0.1:8080`, which is exactly the port the GPU override
+  publishes for the cortex tier, and it needs the card to itself anyway.
+- `CORTEX_PROBE_BRAIN=1` **adds** the four brain candidates to a matrix that already holds the
+  cortex and subagent rows, so a bare run is long. `-k` narrows it to the row you care about.
+- The candidates are named in the file's own `BRAIN_CANDIDATES`, not read from
+  `CORTEX_MODEL_FILE_BRAIN`, so a pick that is not one of those four means editing that tuple.
+- `--no-cov` is not optional: the 100% gate fails the run without it.
+
+The nearest existing procedure is the framing-efficacy probe in
 [runbooks/llamacpp-gpu.md](../runbooks/llamacpp-gpu.md), which is agent-runnable and never mentions
-the flag. Writing the missing runbook section is part of this item.
+the flag.
 
 **Pass.** The framed brain refuses the corpus the way the cortex does. The published number is the
 result whatever it says; a published bad number is the point of the harness.
@@ -287,7 +489,10 @@ decision ADR-0030 flagged for maintainer review.
 
 ## 6. A GPU-placed subagent beside a resident cortex
 
-**Status: never attempted.** Independent of the pick.
+**Status: never attempted.** Tag **G**. Independent of the pick, and independent of the overlay:
+the spawn can come from a turn, but the live delegation suite
+(`brain/packages/orchestrator/tests/test_subagent_live.py`) invokes the spawn tool directly "as the
+cortex would", which is a placement without a desktop.
 
 Kept verbatim from [ADR-0012](../adr/ADR-0012-resource-governance.md):
 
@@ -345,7 +550,8 @@ in [refinements/resource-governance.md](../refinements/resource-governance.md) t
 
 ## 7. The cgroup cap numbers
 
-**Status: never attempted.** Best done alongside item 2, which is the only realistic load.
+**Status: never attempted.** Tag **G**, with one caveat: item 2 is the only realistic load to tune
+against, and item 2 needs the overlay, so in practice this is measured during that sitting.
 
 **What only this proves.** What leaves the machine usable. Kept verbatim from
 [ADR-0012](../adr/ADR-0012-resource-governance.md):

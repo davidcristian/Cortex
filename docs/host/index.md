@@ -17,22 +17,32 @@ lands in this directory only when the agent's dev machine physically cannot do i
 
 ## The two capabilities
 
-Every item below carries one of two tags, and mixing them wastes a sitting:
+Every item below carries one of these two tags or both of them, and mixing them wastes a sitting:
 
 | Tag | What it means | Why the dev machine cannot stand in |
 | --- | --- | --- |
 | **W** | A real Win32 desktop session, where the body runs natively | The dev machine is Linux under WSL2. Nothing OS native (COM, WinRT, GDI, a real Tauri IPC hop, a real window) exists to exercise. |
 | **G** | A card that holds the real model tiers (24 GB) | The dev GPU is an 8 GB card, and [ADR-0030](../adr/ADR-0030-brain-handoff.md) measured `gemma-4-12b-it-qat-q4_0.gguf` alone taking 7715 of its 8188 MiB, so no tier pair, no ~31B model, and no GPU-placed subagent beside a resident cortex is reachable. |
 
-**There is no W+G tag, corrected 2026-07-19.** This table shipped with one, claiming that a fully
-cortex-driven `set_volume` and the end-to-end answer on the capture path each need both at once.
-That rested on an older sentence saying the 12B cortex does not fit 8 GB, which
-[ADR-0029](../adr/ADR-0029-vision-screen-capture.md) had already measured false on 2026-07-17: at
-`--ctx-size 4096 --parallel 1` the cortex fits the dev GPU **beside its projector**, which is the
-harder of the two cases, and it drove a real vision turn there on 2026-07-18. Both items are
-therefore **W**. The tag mattered: a W+G item is one the user must not start until both
-capabilities are in the room, and if the Windows host and the 24 GB card turn out to be two
-machines, the wrong tag costs exactly the trip the tagging exists to prevent.
+**W+G exists, and it is exactly three items: 2, 3 and 4 of
+[gpu-tier-scale.md](gpu-tier-scale.md)** (the tier-scale swap, the chaos kill during one, and the
+timings of one). A handoff begins only when the confirm card gating `escalate_to_brain` is
+approved, that card is a `ConfirmRequest` on the Converse stream, and the only shipped client that
+answers one is the overlay; the arithmetic those items exist to prove needs the 24 GB card. Both
+capabilities, or the sitting stalls at the card. Marked 2026-07-19 after an audit tried to execute
+them from the GPU doc alone.
+
+**The tag was withdrawn earlier the same day, from two items that did not need it**, and the
+correction is worth keeping because it is the same mistake in the other direction. This table
+shipped claiming that a fully cortex-driven `set_volume` and the end-to-end answer on the capture
+path each need both capabilities at once. That rested on an older sentence saying the 12B cortex
+does not fit 8 GB, which [ADR-0029](../adr/ADR-0029-vision-screen-capture.md) had already measured
+false on 2026-07-17: at `--ctx-size 4096 --parallel 1` the cortex fits the dev GPU **beside its
+projector**, which is the harder of the two cases, and it drove a real vision turn there on
+2026-07-18. Both items are therefore **W**. The tag matters in both directions: a W+G item is one
+the user must not start until both capabilities are in the room, and if the Windows host and the
+24 GB card turn out to be two machines, a wrong tag costs exactly the trip the tagging exists to
+prevent.
 
 **Tagged by capability, not by machine name, deliberately.** The repo's own evidence says the
 Windows host and the 24 GB card are one laptop: [ARCHITECTURE.md](../ARCHITECTURE.md) says "Three
@@ -46,10 +56,10 @@ directory. Settling this in writing is worth one sentence in an ADR the next tim
 
 | Doc | Tag | What one bring-up buys | Open |
 | --- | --- | --- | --- |
-| [windows-desktop.md](windows-desktop.md) | W | One `npm run tauri dev` beside a running brain: volume, the toast, the confirm card, the session commands, the reminder surface, the connection dot | 6 checks + 1 optional + 2 standing |
+| [windows-desktop.md](windows-desktop.md) | W | One `npm run tauri dev` beside a running brain: the hotkey and one streamed turn, volume, the toast, the confirm card, the session commands, the reminder surface, the connection dot | 7 checks + 1 optional + 2 standing |
 | [windows-capture.md](windows-capture.md) | W | The screen-capture path, which needs its own switch, its own receipts, and its own expectations. Carries the single highest-consequence check in the repo | 1 check, 6 observations |
 | [overlay-polish.md](overlay-polish.md) | W | The one item here that is **authoring, not validation**: the OS-window half of the overlay | 1 build (4 parts) + 1 design decision |
-| [gpu-tier-scale.md](gpu-tier-scale.md) | G | The 24 GB machine: the deep-model pick and everything the pick unblocks, plus the measurements the placer and the caps ship without | 7 items |
+| [gpu-tier-scale.md](gpu-tier-scale.md) | G, and W+G for three | The 24 GB machine: the deep-model pick and everything the pick unblocks, plus the measurements the placer and the caps ship without. Items 2, 3 and 4 need the overlay to trigger the handoff | 7 items |
 
 User **decisions** (weigh, do not run) stay at their ADRs and are listed at the bottom of this
 page rather than copied, so a decision has exactly one home.
@@ -127,18 +137,29 @@ Sittings die on setup. Have these before starting.
   [gpu-tier-scale.md](gpu-tier-scale.md) produces a pick, the tier answers 404 and boot recovery
   logs one, which is a stock stack behaving correctly rather than a fault. That item blocks four
   of the others.
+- **The deep tier does not start itself.** Naming its artifact puts it in the roster; at boot the
+  sidecar starts the cortex and nothing else. Starting the deep model is two commands you issue by
+  hand, a stop of the cortex and a start of the deep tier against the model host's control API,
+  and they are steps 4 and 5 of that doc's bring-up.
 - Enough free VRAM that the brain tier can be the only resident model (13 to 18 GB by estimate).
+- **For items 2, 3 and 4 only: a Windows desktop too, with the overlay running against this same
+  brain.** Those three ride a real handoff; a handoff starts with the confirm card that gates
+  `escalate_to_brain`, and the overlay is the only client that answers one. Bring both up, or take
+  items 1, 5, 6 and 7 on the card alone and keep the other three for a sitting that has both. The W
+  prerequisites above apply in full to that half.
 - The whole sequence, with what it was observed doing on 2026-07-19, is the "Before you start"
   section of [gpu-tier-scale.md](gpu-tier-scale.md). Follow it there rather than assembling it
-  from this list.
+  from this list. Its last step is the teardown, with the two commands that **verify** the stack is
+  gone: a model host left running holds the whole card.
 
 ## Recommended order
 
 Ordered by what unblocks the most, and grouped so each group is one sitting.
 
 1. **The Windows desktop sitting** ([windows-desktop.md](windows-desktop.md)). One bring-up covers
-   six checks. Start here because it is the cheapest and closes the most items at once, and because
-   the confirm card and the toast are the two consent surfaces the safety posture rests on.
+   seven checks, the first of which is that bring-up. Start here because it is the cheapest and
+   closes the most items at once, and because the confirm card and the toast are the two consent
+   surfaces the safety posture rests on.
 2. **The capture sitting** ([windows-capture.md](windows-capture.md)). Its own bring-up. Do the
    self-exclusion check first inside it and not last: if it fails, the loop it prevents is already
    live and the rest of the sitting is moot.
@@ -146,7 +167,9 @@ Ordered by what unblocks the most, and grouped so each group is one sitting.
    kill, the timings, and the injection-harness run, so nothing else on the G side moves until it
    lands. It is also the longest single item here.
 4. **The rest of the G list in one long sitting**, in the order that doc gives, since they share
-   one bring-up and one blocker.
+   one bring-up and one blocker. Items 2, 3 and 4 of it want the overlay up beside the brain, so
+   if the desktop and the card are two machines, that sitting splits: 5, 6 and 7 on the card, and
+   2, 3 and 4 wherever both are.
 5. **The overlay polish** ([overlay-polish.md](overlay-polish.md)). A work session, not a sitting.
    It is authoring, it can fail review rather than fail a check, and it is the only thing here that
    is not urgent for correctness.
@@ -165,8 +188,19 @@ that half of its founding evidence is withdrawn below. Statuses are not
 repeated below, because every item reads **never attempted** today and its own section is
 authoritative the moment that stops being true.
 
-**W, and these six share one bring-up** ([windows-desktop.md](windows-desktop.md)):
+**The rule has to hold in both directions, and did not until 2026-07-19.** It held forward, from
+every item here to its line and its ADR, and failed backward: [ADR-0011](../adr/ADR-0011-body-v1.md)
+named six Host-Windows lines and two of them, the hotkey and tray registration and the live
+`converse` stream to the webview, had no item in this directory at all. Both are now check 0 of
+[windows-desktop.md](windows-desktop.md), listed below. Reading an origin ADR's user list against
+this roll call is the cheap way to catch that, and it is worth doing whenever an ADR gains a
+host line.
 
+**W, and these seven share one bring-up** ([windows-desktop.md](windows-desktop.md)):
+
+0. **The bring-up itself: the hotkey, the tray, show and hide, and one streamed turn.** Numbered 0
+   because everything below rides on it, so it is done first by construction. Closes two ADR-0011
+   user lines that had no home until 2026-07-19.
 1. **The real Core Audio volume action.** Blocked on nothing but the sitting, and it closes the
    fully cortex-driven `set_volume` with it.
 2. **A real reminder toast.** Needs a fired reminder, so seed one before starting.
@@ -194,22 +228,27 @@ neither appears in the recommended order:
 - **The toolchain-linked full build:** a per-change obligation for anything touching
   `body/crates/os_windows` or `body/app/src-tauri`, not a one-time check.
 
-**G, one bring-up and one blocker** ([gpu-tier-scale.md](gpu-tier-scale.md)):
+**G, one bring-up and one blocker** ([gpu-tier-scale.md](gpu-tier-scale.md)), and **three of these
+are W+G**, marked on each line:
 
-1. **The deep-model pick.** Blocks items 2, 3, 4 and 5 below, and it is the longest single item
-   in this directory.
-2. **The tier-scale cortex to brain swap.** Blocked on the pick.
-3. **The chaos kill at tier scale.** Blocked on the pick and the swap. A failure here is a finding
-   against the one hard rule.
-4. **Measured swap timings.** Blocked on the swap.
-5. **The ~31B injection-harness run.** Blocked on the pick. The only item here whose outcome can
-   change shipped policy, and the only one with no runbook, so writing that section is part of it.
-6. **A GPU-placed subagent beside a resident cortex.** Independent of the pick. Narrowed
+1. **The deep-model pick.** **G.** Blocks items 2, 3, 4 and 5 below, and it is the longest single
+   item in this directory. Needs neither escalation nor the overlay: it is driven straight at the
+   model host's control API.
+2. **The tier-scale cortex to brain swap.** **W+G.** Blocked on the pick, and on having an overlay
+   to approve the confirm card that starts a handoff.
+3. **The chaos kill at tier scale.** **W+G.** Blocked on the pick and the swap. A failure here is a
+   finding against the one hard rule.
+4. **Measured swap timings.** **W+G**, inherited: these are the phases of the swap in item 2.
+5. **The ~31B injection-harness run.** **G**, a pytest that starts its own `llama-server`
+   container, so it runs with the model host **down** rather than on top of it. The only item here
+   whose outcome can change shipped policy, and the only one with no runbook, so writing that
+   section is part of it.
+6. **A GPU-placed subagent beside a resident cortex.** **G.** Independent of the pick. Narrowed
    2026-07-19: the placer's GPU arm firing against a real placement at all needs no resident cortex
    and went back to the agent's list; what needs this card is the fit test against a real 12B
    reservation.
-7. **The cgroup cap numbers.** Independent, but best done under item 2's load, which is the only
-   realistic one.
+7. **The cgroup cap numbers.** **G.** Independent, but best done under item 2's load, which is the
+   only realistic one, so in practice it happens in the sitting that has both capabilities.
 
 **Withdrawn 2026-07-19, the day it was filed: "the resident VRAM figure with the projector loaded,
 at 16K".** It was filed as an eighth G item on the premise that it "existed in exactly one

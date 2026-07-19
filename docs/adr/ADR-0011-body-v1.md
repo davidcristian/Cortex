@@ -475,3 +475,25 @@ uses (which is worth keeping precisely because an ADR that names none makes a mi
   the "build" third of the risk this ADR named, and it stays host-side by construction.
 
 No code changed here; this is a records correction at the origin ADR.
+
+## Addendum (2026-07-19, later): the user list above, mapped to the check that closes each
+
+The list is a records fix only if it can be read in both directions. It could not: an audit that
+walked from these lines into [docs/host/](../host/index.md) found the first two named nothing
+there. Both are now check 0 of [docs/host/windows-desktop.md](../host/windows-desktop.md), which
+is the sitting's own bring-up written down as a check, numbered 0 so the existing items keep the
+numbers other ADRs cite. The mapping, line for line:
+
+- Hotkey registration, the tray, window show/hide → **check 0**.
+- The real `converse` command streaming to the webview → **check 0**.
+- `confirm_response` into an open turn → check 3.
+- `list_sessions` / `session_messages` → check 4.
+- `check_link` behind the connection indicator → check 6.
+- The overlay polish pass → [docs/host/overlay-polish.md](../host/overlay-polish.md).
+- The toolchain-linked full build → the standing item at the end of the same doc.
+
+Why the two that went missing were the obvious ones is worth keeping: they are what you do before
+the checks rather than a check, so nobody wrote them down. Nothing else in the repo proves a global
+hotkey registers on a live desktop, so "obvious" was never "covered".
+
+No code changed here; this is a records correction at the origin ADR.
