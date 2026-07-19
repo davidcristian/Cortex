@@ -318,7 +318,12 @@ own budget rather than to a duplicated constant.
   tests (workspace lints).
 - An existing `HotkeyChord` is always canonical. Invalid states are unrepresentable.
 - 100% line+region+branch covered by behavior tests in `tests/` (never inline test
-  modules; the 300-line cap counts source files, per ADR-0002).
+  modules; the 300-line cap counts source files, per ADR-0002), and **this crate declares no
+  coverage escape**: everything in it is reachable from a test, which is the whole reason the
+  capture's size policy lives here rather than in the `cfg(windows)` backend CI never compiles.
+  The ladder's encode wrapper briefly carried one; it hid nine covered regions and no unreachable
+  one (the untakeable arm is inside `Result::unwrap_or_default`, std's line and not a region
+  here), so it was removed with the gate re-run at 100%.
 
 **Dependencies.** `thiserror` and `futures-core` (the `Stream` trait for the `converse`
 return type, and the `Future` bound the retry loop is generic over). Both are trait/type-only,

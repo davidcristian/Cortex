@@ -16,9 +16,9 @@
 //! [`ScreenCapture`] seam that gives the cortex eyes (Slice 10, ADR-0029) along with the
 //! whole downscale, encode, and byte-ceiling policy that bounds what it may send.
 //!
-//! One escape hatch is declared here (AGENTS.md gate 2): the capture ladder's encode step,
-//! whose error arm no input can reach. Its reason is inline at the site.
-#![cfg_attr(coverage, feature(coverage_attribute))]
+//! No coverage escape is declared in this crate: every line of it is reachable from a test, which
+//! is the whole point of putting the capture's size policy here rather than in the `cfg(windows)`
+//! backend CI never compiles.
 
 pub mod hotkey;
 pub mod link;

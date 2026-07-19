@@ -633,23 +633,38 @@ async fn a_wrong_length_token_is_unauthenticated() {
 /// A fake `ScreenCapture`: answers a scripted frame or failure, records the resolved requests
 /// it was handed and the thread each ran on.
 struct FakeScreen {
-    frame: Result<RawFrame, CaptureError>,
+    answer: Answer,
     seen: Arc<Mutex<Vec<CaptureRequest>>>,
     threads: Threads,
 }
 
+/// What a fake backend hands back. `Raw` is the honest shape of a backend fault in a buffer:
+/// the frame is built by production's own `RawFrame::new` inside the handler, so a miscounted
+/// buffer is rejected there and the message the brain reads is production's, not the test's.
+enum Answer {
+    Frame(RawFrame),
+    Failure(CaptureError),
+    Raw(u32, u32, Vec<u8>),
+}
+
 impl FakeScreen {
     fn answering(frame: RawFrame) -> Self {
-        Self {
-            frame: Ok(frame),
-            seen: Arc::default(),
-            threads: Threads::default(),
-        }
+        Self::with(Answer::Frame(frame))
     }
 
     fn failing(error: CaptureError) -> Self {
+        Self::with(Answer::Failure(error))
+    }
+
+    /// A backend that reports a size its buffer does not match, as a real one would if it
+    /// miscounted a `GetDIBits` stride.
+    fn miscounting(width: u32, height: u32, pixels: Vec<u8>) -> Self {
+        Self::with(Answer::Raw(width, height, pixels))
+    }
+
+    fn with(answer: Answer) -> Self {
         Self {
-            frame: Err(error),
+            answer,
             seen: Arc::default(),
             threads: Threads::default(),
         }
@@ -673,7 +688,11 @@ impl ScreenCapture for FakeScreen {
             .lock()
             .unwrap_or_else(PoisonError::into_inner)
             .push(*request);
-        self.frame.clone()
+        match &self.answer {
+            Answer::Frame(frame) => Ok(frame.clone()),
+            Answer::Failure(error) => Err(error.clone()),
+            Answer::Raw(width, height, pixels) => RawFrame::new(*width, *height, pixels.clone()),
+        }
     }
 }
 
@@ -891,18 +910,24 @@ async fn a_host_with_capture_switched_off_refuses_every_request() {
 }
 
 #[tokio::test]
-async fn a_frame_the_policy_cannot_encode_is_a_backend_error() {
-    // A backend that miscounts its own buffer is caught by the pure-core frame check, and the
-    // failure has to reach the brain as a backend fault rather than a panic.
-    let screen = FakeScreen::failing(CaptureError::Backend(String::from(
-        "the frame is 2x2 but carries 15 bytes, not 16",
-    )));
-    let addr = spawn_screen(screen, FakeNotify::answering(true), true)
-        .await
-        .unwrap();
+async fn a_backend_that_miscounts_its_buffer_is_caught_by_the_pure_core_frame_check() {
+    // The frame is built INSIDE the handler here, from a raw buffer the fake hands over, so
+    // `RawFrame::new` really runs and the sentence the brain reads is production's own. Handing
+    // over a pre-built error instead would have made this a second copy of the Backend arm of
+    // the mapping table above, asserting on a string the test itself wrote.
+    let addr = spawn_screen(
+        FakeScreen::miscounting(2, 2, vec![0x10; 15]),
+        FakeNotify::answering(true),
+        true,
+    )
+    .await
+    .unwrap();
     let status = capture_once(addr, 0).await.unwrap_err();
     assert_eq!(status.code(), Code::Internal);
-    assert!(status.message().contains("not 16"));
+    assert_eq!(
+        status.message(),
+        "screen capture backend error: the frame is 2x2 but carries 15 bytes, not 16"
+    );
 }
 
 /// The pure-core capture value is what the handler maps, so a `Capture` built here and the
