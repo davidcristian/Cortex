@@ -698,8 +698,10 @@ state that survives a swap; the brain acting on its own initiative.
 
 ## Slice 10 (Vision): "see my screen"
 
-**Status:** landed 2026-07-18 ([ADR-0029](adr/ADR-0029-vision-screen-capture.md)), except the
-host-only Windows validation: the GDI backend is authored, cross-compiled for
+**Status:** landed 2026-07-18 ([ADR-0029](adr/ADR-0029-vision-screen-capture.md)) and repaired
+2026-07-19 after three adversarial audits (the ADR's second addendum lists all of it, from a
+handoff that a screen read could kill to a reply nothing held to the bounds it asked for), except
+the host-only Windows validation: the GDI backend is authored, cross-compiled for
 `x86_64-pc-windows-msvc` and clippy-linted, and has never captured a real pixel. Everything else
 is green under `just check` and agent-validated against the real cortex plus its projector; see
 `docs/runbooks/vision.md` for both halves. The design was produced by a multi-lens design pass (six mapping agents over the
@@ -724,9 +726,11 @@ and byte-bounding policy in pure `body_core` (the `escape_xml` precedent, since 
 code is invisible to the coverage gate), a GDI `BitBlt` Windows backend under its own `unsafe`
 authorization, and the image riding `ToolResult.images` onto the `Role.TOOL` message with
 `InferenceBackend.stream` unchanged. **Pixels are turn-local**, enforced as an invariant rather
-than a convention: a `Message` invariant refuses images on a persistable role and both session
-stores raise on an image-bearing append, pinned by a shared contract check, so the later
-attachment slice must design persistence deliberately instead of half inheriting it. Since no
+than a convention: a `Message` invariant allows images on the `Role.TOOL` message alone, both
+session stores raise on an image-bearing append, pinned by a shared contract check, and a turn
+that looked at the screen cannot hand over to the deep model at all (the swap conductor refuses
+it with a note), so the later attachment slice must design persistence deliberately instead of
+half inheriting it. Since no
 nonce can bracket an image, the boundary is taint (a capture is always UNTRUSTED, closing every
 gated tool for the turn), a new turn-local `opaque` bit escalating the output guardrail to
 strict URL redaction and blocking durable memory outright, a body-authored notification receipt

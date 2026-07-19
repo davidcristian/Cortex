@@ -42,9 +42,9 @@ its signature.
 | [session-read-seam.md](session-read-seam.md) | Session listing/read seam (ADR-0021) | 3 |
 | [resource-governance.md](resource-governance.md) | Scheduler/placer budgets, NPU, drain (ADR-0012) | 5 |
 | [email-confirmer.md](email-confirmer.md) | Email write, Confirmer, attachments, `ToolActivity` chip (ADR-0022) | 4 |
-| [body-gateway.md](body-gateway.md) | Body gateway, OS actions, hardened posture (ADR-0023) | 5 |
+| [body-gateway.md](body-gateway.md) | Body gateway, OS actions, hardened posture (ADR-0023) | 6 |
 | [scheduling.md](scheduling.md) | Scheduling and reminders, `TurnStamp` provenance (ADR-0025/0027) | 8 |
-| [vision.md](vision.md) | Screen capture, images, the pixel boundary (ADR-0029) | 15 |
+| [vision.md](vision.md) | Screen capture, images, the pixel boundary (ADR-0029) | 18 |
 | [cross-cutting.md](cross-cutting.md) | Pointer input, OS backends, more roles | 3 |
 
 The counts are per area as extracted; a few threads appear in two areas (the cross-cutting
@@ -130,11 +130,35 @@ slice lands first, but ADR-0029 is designed and unimplemented, `Message` carries
 no `opaque` bit exists, so the refusal has nothing to check yet and faking one would be a gate
 that cannot fail; it lands with the vision slice's pixel-taint increment instead.
 That entry closed on 2026-07-18 with that very increment, taking untrusted content back to 13:
-the `opaque` bit landed, `escalate_to_brain` refuses an opaque turn, and the handoff record
-refuses an image-bearing loop tail the way both session stores do. The entry's own expectation
-needed one correction, which is the usual lesson: it assumed the refusal would key on
-image-bearing messages, but the handoff codec enumerates message fields by name and would have
-dropped `Message.images` silently, so the only signal that survives the trip is the bit.
+the `opaque` bit landed and the handoff record refuses an image-bearing loop tail the way both
+session stores do. The entry's own expectation needed one correction, which is the usual lesson:
+it assumed the refusal would key on image-bearing messages, but the handoff codec enumerates
+message fields by name and would have dropped `Message.images` silently, so the only signal that
+survives the trip is the bit.
+It needed a second correction on 2026-07-19, from the audit of that slice, and the closure text
+here was wrong in the way this file exists to catch. The refusal shipped **in the escalation
+tool**, where it could never fire: `TaintLedger.observe` cannot mark a turn opaque without
+marking it tainted, and that tool is gated, so the dispatcher's hard-deny answers every
+escalation after a capture before `invoke` runs. Its test reached the branch by calling `invoke`
+directly and its "control arm" ran with `tainted=False`, so nothing measured the bit; the
+deferral had been closed with exactly the gate-that-cannot-fail it was recorded to avoid. Worse,
+the ordering that *is* reachable was unhandled: an approved escalation followed by an ungated
+capture reached the record snapshot, whose image invariant raised out of the conductor and killed
+the whole Converse stream. The refusal now lives in `SwapConductor._prepare`, keyed on the same
+bit, answering a fixed note beside the already-active and store-failed ones, pinned end to end
+through the real loop, the real tools and the real conductor; the dead check in the tool is gone
+and the taint gate is named as what closes the other ordering. The entry stays closed, and
+untrusted content stays at 13: what the fix opened is recorded under vision, not here.
+Vision went 15 to 18 the same day, all three from that audit rather than from new work: carrying
+a picture (or at least the `opaque` bit) across a swap, which ADR-0029's own Deferred paragraph
+named and the closeout missed; an outcome-driven capture indicator, since the overlay's dot is
+lit by a pre-dispatch chip and can only honestly say the assistant *asked* to look; and the
+host-side Windows validation of the capture path, which was on the ADR's host-only list with no
+backlog line of its own.
+Body gateway held at 6 on 2026-07-19: its `CaptureScreen` half closed with the vision slice, but
+the entry names the remaining `BodyService` RPCs and `InjectInput` is still unbuilt, so the count
+does not move until it lands. A cell decremented for a half-closed entry is how an open deferral
+gets lost.
 Body & overlay held at 3 on 2026-07-16 when the connection indicator landed and
 opened the push half behind it (streamed brain status, blocked on a producer), while session
 read seam went 5 to 4 the same day: the two entries were one deferral written down twice, and
@@ -570,6 +594,20 @@ and free of a prior blocker.
   and `dashcheck.py`. The wire's `max_bytes` hint already means a disagreement tightens rather
   than breaks, which is why this is the cheapest honest item in the area rather than the most
   urgent.
+- **An outcome-driven capture indicator** ([vision.md](vision.md)): the overlay's capture dot is
+  lit by the `ToolActivity` chip, which the brain emits just *before* the dispatch, so it can
+  honestly say the assistant **asked** to look at the screen and no more. A capture the host kill
+  switch refused, one whose self-exclusion failed closed, one the body never answered, and a
+  gated one the user declined all produce that same event. Making the dot mean "the screen was
+  read" needs a post-dispatch signal on the `Converse` stream: a proto field, a tool-loop emission
+  point, and a reducer arm, which is why it is a seam change rather than a wording fix. It matters
+  because this dot is one of the three consent surfaces that justify shipping capture ungated.
+- **Carrying the `opaque` bit across a model swap** ([vision.md](vision.md)): the cheap half of
+  the pixels-across-a-swap entry, and the one with a real fail-open behind it. `HandoffRecord`
+  carries the ledger minus `opaque`, so a rebuilt ledger says `False` and both consumers (strict
+  URL redaction, the durable-memory block) would open for the deep phase. Unreachable today only
+  because the conductor refuses an opaque turn before any record exists, which makes this defence
+  in depth: a record field, a codec line, and the store contract's round trip.
 - **Streamed brain status** ([body-overlay.md](body-overlay.md)): the push half of the landed
   connection indicator, unblocked on 2026-07-18 and now waiting on a seam change plus a consumer
   rather than on a producer. Both halves of the producer exist: the escalating turn streams
@@ -638,6 +676,12 @@ and free of a prior blocker.
 - Windows-native validation of the confirm card ([untrusted-content.md](untrusted-content.md))
 - The OS-window half of the overlay polish: transparent window + click-through, the morph to a
   real screen corner, hide-on-blur ([body-overlay.md](body-overlay.md))
+- The whole screen-capture path on a real desktop ([vision.md](vision.md)): the GDI blit, the
+  receipt, per-monitor DPI, GDI's silent black rectangle on protected surfaces, and above all
+  **capturing while the overlay is visible**, to prove the self-exclusion held. That last one is
+  the check nothing else can stand in for, because a silent failure there makes the overlay's own
+  contents (the user's prompt, the prior reply, a confirm card) part of the next picture, which
+  is model output laundered back into untrusted model input. Runbook: `docs/runbooks/vision.md`
 
 ### Dead until a consumer exists
 
