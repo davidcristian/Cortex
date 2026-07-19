@@ -6,7 +6,7 @@ deferred-refinements section on 2026-07-15 with the entries kept verbatim; lande
 are the historical record of what each deferral became, and the index at
 [index.md](index.md) carries the recommended pickup order.
 
-**Open items:** multi-turn-within-one-stream + proto `Cancel`, deferred overlay polish, streamed
+**Open items:** multi-turn-within-one-stream + proto `Cancel`, streamed
 brain status (its producer landed 2026-07-18; only the push RPC remains)
 
 **Body / overlay in Slice 8 ([ADR-0011](../adr/ADR-0011-body-v1.md)):**
@@ -71,12 +71,16 @@ brain status (its producer landed 2026-07-18; only the push RPC remains)
       proto change), which the brain already tears down cleanly through `events()`'s finally. Both
       that and the multi-turn+`Cancel` build live entirely in the ungated, host-validated Tauri
       shell + overlay glue, so neither is a gated slice today.
-- **Deferred overlay polish.** A proper transparent window + click-through margins (done
-  together), the OS-window morph to a real screen corner, hide-on-blur, and a tighter CSP are
-  detailed in [overlay-ux.md §4](../design/overlay-ux.md) and
-  [body-overlay.md](../runbooks/body-overlay.md), recorded at ADR-0011 (2026-07-03 addendum). The
-  design doc's smaller "later" marks (custom theme token sets, a licensed `@font-face`, a
-  `Ctrl+K` command palette) ride along in §2-3 of the same doc.
+- **Deferred overlay polish moved to [docs/host/overlay-polish.md](../host/overlay-polish.md) on
+  2026-07-19** with its text kept verbatim. It was the one entry in this whole backlog that is
+  **authoring by the user** rather than deferred design anyone can pick up: a transparent window
+  and click-through margins can only be judged against a real Win32 window, and a first attempt
+  bled through the panel and left a border. Leaving it here would have meant this backlog could
+  not empty until the maintainer wrote Rust, which is the wrong contract for a backlog whose emptiness
+  gates the README. The design source is unchanged
+  ([overlay-ux.md §4](../design/overlay-ux.md), [body-overlay.md](../runbooks/body-overlay.md),
+  ADR-0011's 2026-07-03 addendum), and the design doc's smaller "later" marks (custom theme token
+  sets, a licensed `@font-face`, a `Ctrl+K` command palette) ride along in §2-3 of the same doc.
 - **A real connection indicator landed 2026-07-16 ([ADR-0011 addendum](../adr/ADR-0011-body-v1.md)),
   without the status stream this entry expected.** The entry text was accurate about the code
   (`Health` exists, `BrainBridge` did not carry it) and wrong about the shape of the answer: it

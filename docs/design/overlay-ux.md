@@ -264,11 +264,22 @@ Keyboard-first; the hint strip shows the contextually-relevant subset, `?` shows
   100%-tested while animation lives in CSS (no JS branches to leave uncovered).
 - `session_id` is the chat identity; new-chat/cycle operate on it; history is store-backed.
 
-## 9. Open decisions (user)
+## 9. Decisions this design left to the user
+
+Four of the five are settled; the list is kept whole so the reasoning is not lost. Host work that
+is still outstanding lives in [docs/host/](../host/index.md).
 
 - **Corner** for the minimized orb/preview defaults to bottom-right; top-right if the taskbar area
-  is busy. (Configurable.)
-- **Auto-dismiss timing** for the completed preview (default ~6s; hover-to-pause).
-- **Theme:** ship dark-glass only in v1, or also a light theme token set now?
+  is busy. (Configurable.) *Not decidable yet:* v1's orb sits at the fixed window's own corner, so
+  this becomes a real choice only with the deferred window morph in section 4, and it is folded
+  into that host-side pass.
+- **Auto-dismiss timing** for the completed preview (default ~6s; hover-to-pause). *Settled
+  2026-07-12:* the default and hover-to-pause both shipped, and the preview does not auto-fade
+  while a confirm question is open.
+- **Theme:** ship dark-glass only in v1, or also a light theme token set now? *Settled 2026-07-03:*
+  both themes ship, with the toggle in the panel header.
 - **Palette:** the violet→fuchsia→cyan accent is a starting proposal. Lock the exact hues.
-- **Sound:** a soft completion chime as an opt-in later, or never?
+  *Settled 2026-07-03:* locked to the user's one eight-stop gradient, which the connection dot's
+  `ok`/`warn`/`bad` trio later drew from.
+- **Sound:** a soft completion chime as an opt-in later, or never? *Still open*, and the only line
+  here that is.

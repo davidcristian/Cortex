@@ -85,7 +85,10 @@ the unchanged `SubagentPlacer`/`SubagentScheduler`/`ModelManager` ports.
   true of the trio's *entries* and misleading about the area, since it read as if nothing at all
   were owed. It now names both halves of what is left, the subagent validation and the placeholder
   cap numbers, as host-side hardware work rather than deferred design, which is why neither is
-  counted in this area's open items.
+  counted in this area's open items. **Both moved to
+  [docs/host/gpu-tier-scale.md](../host/gpu-tier-scale.md) the same day**, with the sentences
+  above kept verbatim there; the cap numbers arrived carrying the mmap trap ADR-0012 records,
+  which is that a cap below the artifact size makes a load thrash rather than fail.
 - **Placement-aware CPU charging closed 2026-07-16 as declined, wrong premise and no gain
   ([ADR-0012 admission-wall addendum](../adr/ADR-0012-resource-governance.md)).** The entry read:
   "`admit` charges every spawn its full `cpus`/`memory_gb` regardless of placement (conservative);

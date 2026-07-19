@@ -862,3 +862,29 @@ the paraphrase path, which would be a different kind of defence than an output f
 exclusion, previously silent, is now stated in the area doc's own open-items line.
 
 No code changed here; this is a records correction at the origin ADR.
+
+## Addendum (2026-07-19): the host-only list moves out, and one item on it was never a Windows item
+
+The host-side half of this slice moved to [docs/host/windows-capture.md](../host/windows-capture.md) with
+its wording kept verbatim, when work needing the host's hardware was extracted from the ROADMAP
+and the refinements backlog into its own directory. Nothing about the work changed. The "Still
+host-only" section above remains the ADR's own statement of what it owes; the new doc adds the
+bring-up, what a pass and a failure look like for each of the six observations, and the instruction
+to do the self-exclusion check **first** rather than sixth, since a silent failure there makes the
+rest of the sitting a measurement of a system that is already unsound.
+
+**One item is corrected rather than moved.** The Consequences section's "Host-Windows (host only)"
+list ends with "the resident VRAM figure with the projector loaded on the 24 GB GPU". That is not a
+Windows item: it has no OS-native content, needs no desktop session, and asks a question only a
+24 GB card can answer. It was then dropped from this ADR's own "Still host-only" closeout and
+never reached [docs/refinements/vision.md](../refinements/vision.md), so it existed in exactly one
+sentence in this repo. It is restored here and filed under the GPU capability, in
+[docs/host/gpu-tier-scale.md](../host/gpu-tier-scale.md), where it checks the real cortex plus `mmproj`
+footprint against ADR-0004's 11.3 GB reservation, which is already a with-mmproj number: if the
+measured figure is materially larger, every subagent headroom calculation the `VramBudgetPlacer`
+makes shifts.
+
+Read the "Still host-only" section above as complete for the Windows half and as missing that one
+GPU line, which this addendum supplies.
+
+No code changed here; this is a records correction at the origin ADR.

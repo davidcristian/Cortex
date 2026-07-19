@@ -58,6 +58,9 @@ subagent headroom is unchanged. An image costs 266 prompt tokens at any size fro
 
 ## Host-only half (Windows, a real desktop)
 
+What this closes, what a pass and a failure look like for each observation, and where to record
+them: [docs/host/windows-capture.md](../host/windows-capture.md).
+
 1. Build and run the Tauri app on Windows with the switch on:
    ```
    set CORTEX_HOST_CAPTURE=1
