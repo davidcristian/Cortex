@@ -99,6 +99,13 @@ classification behind the overlay's connection indicator (ADR-0011 addendum), an
     (`SeamMethod::SetSessionPinned` is not repeatable, the uniform catalog-write convention), so a
     lost reply surfaces rather than re-asserting a pinned value the user's next toggle reversed; a
     store failure surfaces as `TransportError::Rpc` (`Unavailable`).
+  - `get_preferences(&self)` / `set_preference(&self, key, value)` (ADR-0032) are the user's
+    settings record: the read answers `Vec<(String, String)>` of every stored pair, sorted by key
+    and with values opaque to this layer, and the write persists one pair, an EMPTY value clearing
+    the key so the reader's default applies again. The read is repeatable and retries with the
+    other reads; the write follows the catalog-write convention (`SeamMethod::SetPreference` is
+    not repeatable), since a lost reply must not re-assert a value the user's next change
+    reversed. A store failure surfaces as `TransportError::Rpc` (`Unavailable`).
   - `list_due_reminders(&self)` / `ack_reminder(&self, reminder_id)` (ADR-0025) are the
     overlay's pull path: `Vec<DueReminder>` of everything fired and still awaiting
     delivery (all sessions, since one user has one set of reminders), and the one

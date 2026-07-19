@@ -173,6 +173,17 @@ impl BrainTransport for FlakyTransport {
         let _ = (session_id, pinned);
         Ok(())
     }
+
+    async fn get_preferences(&self) -> Result<Vec<(String, String)>, TransportError> {
+        self.tick()?;
+        Ok(Vec::new())
+    }
+
+    async fn set_preference(&self, key: &str, value: &str) -> Result<(), TransportError> {
+        self.tick()?;
+        let _ = (key, value);
+        Ok(())
+    }
 }
 
 /// A `Sleeper` that records each requested delay and returns immediately (no real time). `Clone`
@@ -401,6 +412,44 @@ async fn forwards_set_session_pinned_without_retrying_it() {
     assert!(sleeper.delays().is_empty());
     // And a healthy pin toggle still crosses the decorator.
     assert!(transport.set_session_pinned("s1", true).await.is_ok());
+}
+
+#[tokio::test]
+async fn retries_get_preferences_the_same_way() {
+    // The settings record is a read like the others: a transient failure is worth waiting out,
+    // because a repeat answers the same question and touches nothing.
+    let flaky = FlakyTransport::new(FailKind::Connection, 1);
+    let sleeper = FakeSleeper::default();
+    let transport = RetryingTransport::new(flaky.clone(), sleeper.clone(), policy(3));
+    assert!(transport.get_preferences().await.is_ok());
+    assert_eq!(flaky.call_count(), 2);
+    assert_eq!(sleeper.delays().len(), 1);
+}
+
+#[tokio::test]
+async fn forwards_set_preference_without_retrying_it() {
+    // Last write wins in the store, so a repeat cannot duplicate an effect; it is still a
+    // pass-through under the catalog-write convention, so a lost reply never re-asserts a value
+    // the user's next change reversed.
+    let flaky = FlakyTransport::new(FailKind::Connection, 1);
+    let sleeper = FakeSleeper::default();
+    let transport = RetryingTransport::new(flaky.clone(), sleeper.clone(), policy(3));
+    assert_eq!(
+        transport
+            .set_preference("overlay.mark", "ping")
+            .await
+            .unwrap_err(),
+        TransportError::Connection(String::from("refused"))
+    );
+    assert_eq!(flaky.call_count(), 1); // no second attempt
+    assert!(sleeper.delays().is_empty());
+    // And a healthy write still crosses the decorator.
+    assert!(
+        transport
+            .set_preference("overlay.mark", "ping")
+            .await
+            .is_ok()
+    );
 }
 
 #[tokio::test]

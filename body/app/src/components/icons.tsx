@@ -41,6 +41,21 @@ export function PencilIcon() {
   );
 }
 
+/** Settings: three sliders, not a gear. The sheet holds choices to set, not machinery to
+ *  configure, and sliders read as taste while a gear reads as plumbing. */
+export function SlidersIcon() {
+  return (
+    <Icon>
+      <path d="M4 7h9" />
+      <path d="M17 7h3" />
+      <path d="M4 17h4" />
+      <path d="M12 17h8" />
+      <circle cx="15" cy="7" r="2" />
+      <circle cx="10" cy="17" r="2" />
+    </Icon>
+  );
+}
+
 /** Dismiss: a downward chevron for "tuck it away" (the chat is saved; re-summon restores it). */
 export function TuckIcon() {
   return (

@@ -1,14 +1,16 @@
 """State-store ports (typing.Protocol): the durable and hot stores the one hard rule protects.
 
-Split from ``ports.py`` for the line cap; ``ports`` re-exports these five, so every existing
+Split from ``ports.py`` for the line cap; ``ports`` re-exports these six, so every existing
 ``from cortex_core.ports import ...`` keeps resolving. Conversation, memory, subagent-task,
 schedule, and mid-turn handoff state each lives only behind one of these ports (AGENTS.md hard
-rule): no such state may sit inside a model process, so a model swap is survivable. Method bodies
+rule): no such state may sit inside a model process, so a model swap is survivable. The sixth,
+``PreferenceStore``, holds the user's settings rather than turn state, and is here because it is
+durable state the brain owns on the same terms. Method bodies
 are one-line ``...`` stubs; failures cross these boundaries exclusively as the typed errors in
 ``errors.py``.
 """
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from datetime import datetime, timedelta
 from typing import Protocol
 
@@ -167,3 +169,22 @@ class HandoffStore(Protocol):
     async def delete(self, handoff_id: str) -> None: ...
 
     async def active(self) -> HandoffRecord | None: ...
+
+
+class PreferenceStore(Protocol):
+    """Durable store for the user's own settings: opaque key/value pairs the brain never reads.
+
+    The point of the port is WHERE the record lives, not what is in it. A choice made in the
+    overlay (theme, activity mark) belongs to the user rather than to the window that set it, so
+    it lives here beside the conversation state and outlives a body restart, a body reinstall, and
+    any single surface. ``all`` returns every set pair; ``set`` writes one, last write wins, and an
+    EMPTY value CLEARS the key so the reader falls back to its default (the ``set_title`` empty
+    convention). Values are opaque strings this side never parses: a new preference is a new key,
+    never a schema change, which is what keeps it off the seam. It holds no conversation content,
+    so it is outside the one hard rule rather than an exception to it. Failures surface as
+    ``PreferenceStoreError``.
+    """
+
+    async def all(self) -> Mapping[str, str]: ...
+
+    async def set(self, key: str, value: str) -> None: ...

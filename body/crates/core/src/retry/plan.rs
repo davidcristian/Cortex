@@ -52,6 +52,10 @@ pub enum SeamMethod {
     DeleteSession,
     /// `BrainService.SetSessionPinned`: the overlay's user-driven pin toggle on a chat.
     SetSessionPinned,
+    /// `BrainService.GetPreferences`: the user's settings record, read whole.
+    GetPreferences,
+    /// `BrainService.SetPreference`: one setting written by the user.
+    SetPreference,
 }
 
 impl SeamMethod {
@@ -59,7 +63,7 @@ impl SeamMethod {
     /// safety property every retry rests on**, and the one decision no policy, budget, or
     /// error code may override.
     ///
-    /// The four reads qualify: each is a view of a store the call does not touch, so a repeat
+    /// The five reads qualify: each is a view of a store the call does not touch, so a repeat
     /// returns a fresh answer to the same question and nothing else. The two that do not:
     ///
     /// - `Converse` runs a turn. It may append messages, invoke tools, and stream partial
@@ -90,17 +94,25 @@ impl SeamMethod {
     /// while its turn still streams is a concurrent `append` that can re-materialize the id between
     /// a lost reply and a retry, so a silent retry could destroy a transcript the user never
     /// confirmed removing. A destroy is the last call to re-issue automatically, so one attempt.
+    ///
+    /// `GetPreferences` is a plain read of the settings record and repeatable with the others.
+    /// `SetPreference` follows the same catalog-write convention as `RenameSession`: last write
+    /// wins in the store, so a repeat cannot duplicate an effect, but a lost reply must not
+    /// silently re-assert a value the user's next change already reversed. One attempt.
     #[must_use]
     pub const fn repeatable(self) -> bool {
         match self {
-            Self::Health | Self::ListSessions | Self::SessionMessages | Self::ListDueReminders => {
-                true
-            }
+            Self::Health
+            | Self::ListSessions
+            | Self::SessionMessages
+            | Self::ListDueReminders
+            | Self::GetPreferences => true,
             Self::Converse
             | Self::AckReminder
             | Self::RenameSession
             | Self::DeleteSession
-            | Self::SetSessionPinned => false,
+            | Self::SetSessionPinned
+            | Self::SetPreference => false,
         }
     }
 }

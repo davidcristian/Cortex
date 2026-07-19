@@ -134,6 +134,27 @@ impl BrainTransport for FakeTransport {
         let _ = pinned;
         Ok(())
     }
+
+    async fn get_preferences(&self) -> Result<Vec<(String, String)>, TransportError> {
+        // The settings record as the overlay reads it: sorted pairs, values opaque to the port.
+        Ok(vec![
+            (String::from("overlay.mark"), String::from("foam")),
+            (String::from("overlay.theme"), String::from("midnight")),
+        ])
+    }
+
+    async fn set_preference(&self, key: &str, value: &str) -> Result<(), TransportError> {
+        // A user-only write; an empty key stands in for a store failure so the error arm is
+        // exercisable here too, as the neighbouring writes do with an empty session id.
+        if key.is_empty() {
+            return Err(TransportError::Rpc {
+                code: String::from("Unavailable"),
+                message: String::from("store down"),
+            });
+        }
+        let _ = value;
+        Ok(())
+    }
 }
 
 /// Uses the trait as a generic bound, the way application code will.

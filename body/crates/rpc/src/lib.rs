@@ -11,6 +11,7 @@
 mod auth;
 mod client;
 mod converse;
+mod preferences;
 mod reminders;
 mod screen;
 mod server;

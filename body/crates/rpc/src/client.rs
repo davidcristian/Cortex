@@ -208,4 +208,13 @@ impl BrainTransport for BrainSeamClient {
     ) -> Result<(), TransportError> {
         crate::sessions::set_session_pinned(self.inner.clone(), session_id.to_owned(), pinned).await
     }
+
+    async fn get_preferences(&self) -> Result<Vec<(String, String)>, TransportError> {
+        crate::preferences::get_preferences(self.inner.clone()).await
+    }
+
+    async fn set_preference(&self, key: &str, value: &str) -> Result<(), TransportError> {
+        crate::preferences::set_preference(self.inner.clone(), key.to_owned(), value.to_owned())
+            .await
+    }
 }

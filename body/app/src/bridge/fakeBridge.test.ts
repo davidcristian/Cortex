@@ -106,3 +106,21 @@ describe("FakeBridge", () => {
     expect(bridge.acks).toEqual(["r-1"]);
   });
 });
+
+describe("FakeBridge preferences", () => {
+  it("counts reads, records writes, and can be armed to fail on either call", async () => {
+    const bridge = new FakeBridge();
+    bridge.preferences = [{ key: "overlay.mark", value: "foam" }];
+    expect(await bridge.getPreferences()).toEqual([{ key: "overlay.mark", value: "foam" }]);
+    expect(bridge.preferenceReads).toBe(1);
+    await bridge.setPreference("overlay.theme", "midnight");
+    expect(bridge.preferenceWrites).toEqual([{ key: "overlay.theme", value: "midnight" }]);
+
+    bridge.preferencesFail = true;
+    await expect(bridge.getPreferences()).rejects.toThrow("preferences failed");
+    bridge.preferenceWriteFails = true;
+    await expect(bridge.setPreference("overlay.mark", "ping")).rejects.toThrow(
+      "preference write failed",
+    );
+  });
+});

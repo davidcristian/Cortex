@@ -234,6 +234,31 @@ pub struct SetSessionPinnedRequest {
 }
 #[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct SetSessionPinnedReply {}
+/// The user's settings record. One pair is one setting; the brain stores and returns them
+/// verbatim and never parses a value, so adding a preference costs no wire change.
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct Preference {
+    #[prost(string, tag = "1")]
+    pub key: ::prost::alloc::string::String,
+    #[prost(string, tag = "2")]
+    pub value: ::prost::alloc::string::String,
+}
+#[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct GetPreferencesRequest {}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct GetPreferencesReply {
+    #[prost(message, repeated, tag = "1")]
+    pub preferences: ::prost::alloc::vec::Vec<Preference>,
+}
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct SetPreferenceRequest {
+    #[prost(string, tag = "1")]
+    pub key: ::prost::alloc::string::String,
+    #[prost(string, tag = "2")]
+    pub value: ::prost::alloc::string::String,
+}
+#[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct SetPreferenceReply {}
 /// Reminder pull-delivery views (ADR-0025). All sessions are listed deliberately because
 /// a single-user assistant has one user to remind; session_id rides along so the
 /// overlay can later offer "open the conversation this came from" without a wire change.
@@ -741,6 +766,70 @@ pub mod brain_service_client {
                 );
             self.inner.unary(req, path, codec).await
         }
+        /// The user's own settings: a durable key/value record the BRAIN owns, so a choice survives a
+        /// body restart or a body reinstall and is readable by any surface rather than trapped in the
+        /// one that set it. Keys are namespaced strings the caller owns ("overlay.theme",
+        /// "overlay.mark"); values are short opaque strings the brain never interprets, which is what
+        /// keeps a new preference from being a seam change. GetPreferences returns every set key.
+        /// SetPreference is idempotent (last write wins) and an EMPTY value CLEARS the key, restoring
+        /// whatever default the reader applies, exactly as RenameSession's empty title clears an
+        /// override. Their gate is the SAME structural user-only reachability RenameSession has: no tool
+        /// in any registry, never through the turn engine, so no model, tool, or tainted turn reaches
+        /// them. They carry display preferences only, never conversation content, so they cannot touch
+        /// the one hard rule. SetPreference carries an effect, so the body makes exactly ONE attempt and
+        /// never retries it (the catalog-write convention): a lost reply must not silently re-assert a
+        /// value the user's next change reversed. GetPreferences is a read and retries like the other
+        /// read-only views.
+        pub async fn get_preferences(
+            &mut self,
+            request: impl tonic::IntoRequest<super::GetPreferencesRequest>,
+        ) -> std::result::Result<
+            tonic::Response<super::GetPreferencesReply>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic_prost::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/cortex.seam.v1.BrainService/GetPreferences",
+            );
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(
+                    GrpcMethod::new("cortex.seam.v1.BrainService", "GetPreferences"),
+                );
+            self.inner.unary(req, path, codec).await
+        }
+        pub async fn set_preference(
+            &mut self,
+            request: impl tonic::IntoRequest<super::SetPreferenceRequest>,
+        ) -> std::result::Result<
+            tonic::Response<super::SetPreferenceReply>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic_prost::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/cortex.seam.v1.BrainService/SetPreference",
+            );
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(GrpcMethod::new("cortex.seam.v1.BrainService", "SetPreference"));
+            self.inner.unary(req, path, codec).await
+        }
     }
 }
 /// Generated server implementations.
@@ -861,6 +950,34 @@ pub mod brain_service_server {
             request: tonic::Request<super::SetSessionPinnedRequest>,
         ) -> std::result::Result<
             tonic::Response<super::SetSessionPinnedReply>,
+            tonic::Status,
+        >;
+        /// The user's own settings: a durable key/value record the BRAIN owns, so a choice survives a
+        /// body restart or a body reinstall and is readable by any surface rather than trapped in the
+        /// one that set it. Keys are namespaced strings the caller owns ("overlay.theme",
+        /// "overlay.mark"); values are short opaque strings the brain never interprets, which is what
+        /// keeps a new preference from being a seam change. GetPreferences returns every set key.
+        /// SetPreference is idempotent (last write wins) and an EMPTY value CLEARS the key, restoring
+        /// whatever default the reader applies, exactly as RenameSession's empty title clears an
+        /// override. Their gate is the SAME structural user-only reachability RenameSession has: no tool
+        /// in any registry, never through the turn engine, so no model, tool, or tainted turn reaches
+        /// them. They carry display preferences only, never conversation content, so they cannot touch
+        /// the one hard rule. SetPreference carries an effect, so the body makes exactly ONE attempt and
+        /// never retries it (the catalog-write convention): a lost reply must not silently re-assert a
+        /// value the user's next change reversed. GetPreferences is a read and retries like the other
+        /// read-only views.
+        async fn get_preferences(
+            &self,
+            request: tonic::Request<super::GetPreferencesRequest>,
+        ) -> std::result::Result<
+            tonic::Response<super::GetPreferencesReply>,
+            tonic::Status,
+        >;
+        async fn set_preference(
+            &self,
+            request: tonic::Request<super::SetPreferenceRequest>,
+        ) -> std::result::Result<
+            tonic::Response<super::SetPreferenceReply>,
             tonic::Status,
         >;
     }
@@ -1337,6 +1454,96 @@ pub mod brain_service_server {
                     let inner = self.inner.clone();
                     let fut = async move {
                         let method = SetSessionPinnedSvc(inner);
+                        let codec = tonic_prost::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            )
+                            .apply_max_message_size_config(
+                                max_decoding_message_size,
+                                max_encoding_message_size,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                "/cortex.seam.v1.BrainService/GetPreferences" => {
+                    #[allow(non_camel_case_types)]
+                    struct GetPreferencesSvc<T: BrainService>(pub Arc<T>);
+                    impl<
+                        T: BrainService,
+                    > tonic::server::UnaryService<super::GetPreferencesRequest>
+                    for GetPreferencesSvc<T> {
+                        type Response = super::GetPreferencesReply;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::GetPreferencesRequest>,
+                        ) -> Self::Future {
+                            let inner = Arc::clone(&self.0);
+                            let fut = async move {
+                                <T as BrainService>::get_preferences(&inner, request).await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let max_decoding_message_size = self.max_decoding_message_size;
+                    let max_encoding_message_size = self.max_encoding_message_size;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let method = GetPreferencesSvc(inner);
+                        let codec = tonic_prost::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            )
+                            .apply_max_message_size_config(
+                                max_decoding_message_size,
+                                max_encoding_message_size,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                "/cortex.seam.v1.BrainService/SetPreference" => {
+                    #[allow(non_camel_case_types)]
+                    struct SetPreferenceSvc<T: BrainService>(pub Arc<T>);
+                    impl<
+                        T: BrainService,
+                    > tonic::server::UnaryService<super::SetPreferenceRequest>
+                    for SetPreferenceSvc<T> {
+                        type Response = super::SetPreferenceReply;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::SetPreferenceRequest>,
+                        ) -> Self::Future {
+                            let inner = Arc::clone(&self.0);
+                            let fut = async move {
+                                <T as BrainService>::set_preference(&inner, request).await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let max_decoding_message_size = self.max_decoding_message_size;
+                    let max_encoding_message_size = self.max_encoding_message_size;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let method = SetPreferenceSvc(inner);
                         let codec = tonic_prost::ProstCodec::default();
                         let mut grpc = tonic::server::Grpc::new(codec)
                             .apply_compression_config(

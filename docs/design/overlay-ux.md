@@ -56,6 +56,13 @@ is a token swap, not a rewrite.
     a brief blur), never a pop. The stream feels like it flows.
   - **Traveling morph**. Minimize/maximize animate real *movement*: the panel glides along a path
     between center and the corner while it scales to/from the orb (FLIP), so you see it travel.
+  - **Growing upward**. The panel is anchored by its BOTTOM edge, so a reply arriving, the
+    switcher opening, or a reminder landing grows it upward and the composer never moves under
+    the hand that just typed. The size change itself eases ([ADR-0033](../adr/ADR-0033-panel-growth.md)),
+    clipped by the panel's rounded edge so it reads as a reveal; sections rise into the space as
+    it appears. This is measured and replayed in code, not a CSS transition: `height: auto` to
+    `height: auto` is not a computed-value change, so a transition never fires (and
+    `interpolate-size` does not help, being for `auto` against a length).
   - **A warping bubble**. The orb's mark is a soap bubble whose outline warps on its own clock
     while the film turns under a fixed highlight; the anchor point holds rock still (no breathing
     scale, no positional drift, per 2026-07-03 user refinements), so it reads as alive without
@@ -109,8 +116,10 @@ Top-to-bottom, the summoned panel is:
    reducer action drops the bridge stream and ends the reply in place, keeping the partial text
    (distinct from dismiss, which minimizes to the orb). Landed 2026-07-07.
 4. **Hint strip** is a subtle one-line footer of the live shortcuts (§6), dimmed and **centered**,
-   with a `?` that opens the full shortcut sheet (landed 2026-07-12; the `?` key works too,
-   outside the composer, and Esc closes the sheet before it dismisses the panel). The sheet is
+   with two sheet openers at its end: a **sliders** button for **settings** (landed 2026-07-19,
+   [ADR-0032](../adr/ADR-0032-preference-record.md)) and a `?` for the full shortcut sheet
+   (landed 2026-07-12; the `?` key works too, outside the composer, and Esc closes whichever
+   sheet is open, settings first, before it dismisses the panel). The sheet is
    not frosted: the panel's own backdrop-filter bounds the backdrop root, so a child's blur
    cannot reach the history beneath it, and the sheet layers the panel tint over the solid
    ground instead. The kbd glyphs are outline icons matching the
@@ -167,6 +176,14 @@ while a turn is processing must not lose it*) lives here. States:
   a registry (`mark/marks.ts`), the twin of the theme registry, so a fifth is a literal and no
   code. The picker is the empty state's own mark: clicking it opens the styles drawn live, rather
   than adding a fifth header button that would put the accent palette on resting chrome.
+- **SETTINGS:** the sheet where the overlay's appearance is chosen (2026-07-19,
+  [ADR-0032](../adr/ADR-0032-preference-record.md)), opened from the hint strip's sliders button
+  or from the empty state's own mark, which is the shortcut to the row that changes it. Two rows:
+  the **theme** (Auto plus every registered theme; this is the only place Auto can be chosen,
+  since the header's toggle names the opposite theme outright and can only land on one of the
+  two) and the **mark** (every bubble style, drawn live). Every choice persists to the brain's
+  own settings record, so it outlives a restart and a reinstall of the body. A click on the
+  backdrop closes it, a click on the card does not, and Esc closes it before the shortcut sheet.
 - **PREVIEW:** when the turn **completes while minimized**, the orb **expands** into a compact
   card near the corner: the answer (a few-line clamp) and a hairline accent progress bar
   counting down the auto-dismiss (~6s) and **nothing else** (the "reply ready"/"click to open"
@@ -251,12 +268,17 @@ Keyboard-first; the hint strip shows the contextually-relevant subset, `?` shows
 | `Ctrl+Alt+Space` (configurable) | Summon / focus the overlay |
 | `Enter` | Send |
 | `Shift+Enter` | Newline |
-| `Esc` | Dismiss (→ orb if a turn is streaming; else hide) |
+| `Esc` | Close the open sheet (settings first, then shortcuts), else dismiss (→ orb if a turn is streaming; else hide) |
 | `Ctrl+N` | New chat |
 | `Ctrl+↑` / `Ctrl+↓` | Previous / next chat |
 | `Ctrl+K` | Chat switcher / command palette (palette is later) |
 | `click orb` | Reopen the minimized turn |
 | `?` | Shortcut sheet |
+
+The hint strip under the composer carries the common bindings plus two sheet openers, the sliders
+(settings) and the `?`. It no longer lists `Esc`: the strip ran out of room when the settings
+button joined it (measured at 573px of a 558px row), and Esc-to-dismiss is the most guessable of
+the five. The sheet beside it is the complete list.
 
 ## 7. Accessibility & restraint
 

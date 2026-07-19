@@ -5,6 +5,7 @@ import type {
   Cancellation,
   DueReminder,
   LinkStatus,
+  Preference,
   SessionMessage,
   SessionSummary,
   TransportError,
@@ -87,6 +88,18 @@ export class TauriBridge implements BrainBridge {
 
   ackReminder(reminderId: string): Promise<boolean> {
     return invoke<boolean>("ack_reminder", { reminderId });
+  }
+
+  // The user's settings record (ADR-0032). The Rust side answers pairs as tuples, which is the
+  // one shape difference from the port, so it is mapped here rather than leaking into the app.
+  getPreferences(): Promise<readonly Preference[]> {
+    return invoke<readonly [string, string][]>("get_preferences").then((pairs) =>
+      pairs.map(([key, value]) => ({ key, value })),
+    );
+  }
+
+  setPreference(key: string, value: string): Promise<void> {
+    return invoke<void>("set_preference", { key, value });
   }
 
   // The confirm answer (ADR-0022): a fire-and-forget command that pushes the decision

@@ -4,6 +4,7 @@ import type {
   DueReminder,
   LinkState,
   LinkStatus,
+  Preference,
   SessionMessage,
   SessionSummary,
   TurnSink,
@@ -259,6 +260,23 @@ export class DemoBridge implements BrainBridge {
       sessionId: "demo-2",
     },
   ];
+
+  // The user's settings record (ADR-0032). Held in memory for browser dev, so picking a mark or
+  // a theme sticks across a re-summon within the session the way the real record sticks across a
+  // restart; a reload starts fresh, since there is no brain here to hold it.
+  private prefs: Preference[] = [];
+
+  getPreferences(): Promise<readonly Preference[]> {
+    return Promise.resolve([...this.prefs]);
+  }
+
+  setPreference(key: string, value: string): Promise<void> {
+    this.prefs = this.prefs.filter((pref) => pref.key !== key);
+    if (value !== "") {
+      this.prefs.push({ key, value });
+    }
+    return Promise.resolve();
+  }
 
   listDueReminders(): Promise<readonly DueReminder[]> {
     return Promise.resolve(this.due);

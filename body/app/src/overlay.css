@@ -27,16 +27,30 @@
 
 /* Sleek at rest: neutral glass, no gradient, a soft neutral shadow. Closed = scaled at center
    (summon/dismiss pop from the middle); .to-orb parks the closed panel at the corner instead so
-   minimize-to-orb / reopen-from-orb are a real travel. */
+   minimize-to-orb / reopen-from-orb are a real travel.
+
+   The panel is anchored by its BOTTOM edge, not its middle. Everything that changes its size
+   (a reply arriving, the switcher list opening, reminders showing up) therefore grows it
+   UPWARDS, leaving the composer exactly where the hand left it; a centre-anchored panel grew
+   both ways and slid the input out from under the cursor mid-conversation. `bottom: 15vh` is
+   chosen so a full-height panel occupies nearly the same band it always did.
+
+   The growth itself is animated from `overlay/useGrowthAnimation.ts`, NOT from a transition
+   here: the panel's height is `auto` on both sides of a content change, so a `transition:
+   height` never fires (measured, not assumed). `overflow: hidden` is what turns that animation
+   into a reveal: mid-ease the panel is shorter than its content, and the new rows are clipped
+   by the rounded edge instead of spilling past it. */
 .panel {
   position: fixed;
   left: 50%;
-  top: 46%;
+  bottom: 15vh;
   width: min(560px, 92vw);
+  height: auto;
   max-height: 76vh;
   z-index: 10;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
   background: var(--panel);
   backdrop-filter: blur(30px) saturate(140%);
   border: 1px solid var(--stroke);
@@ -44,18 +58,19 @@
   box-shadow: 0 34px 90px -26px rgba(0, 0, 0, 0.55);
   opacity: 0;
   pointer-events: none;
-  transform: translate(-50%, -50%) scale(0.92);
+  transform: translate(-50%, 0) scale(0.92);
+  transform-origin: 50% 100%;
   transition:
     transform 0.44s var(--spring),
     opacity 0.3s var(--ease);
 }
 .panel.to-orb {
-  transform: translate(calc(-50% + 32vw), calc(-50% + 30vh)) scale(0.2);
+  transform: translate(calc(-50% + 34vw), 11vh) scale(0.18);
 }
 .panel.open {
   opacity: 1;
   pointer-events: auto;
-  transform: translate(-50%, -50%) scale(1);
+  transform: translate(-50%, 0) scale(1);
 }
 
 .head {
@@ -727,6 +742,75 @@
   color: var(--dim);
 }
 
+/* The settings sheet (ADR-0032) shares the shortcut sheet's chrome and adds a card, because
+   this one is interactive: the backdrop closes it, the card does not, and the card is where the
+   pointer stops meaning "dismiss". Choices are pills in the same vocabulary as the empty state's
+   example chips, so the sheet reads as part of the panel rather than a settings dialog. */
+.set-sheet {
+  cursor: default;
+}
+.set-card {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+.set-row {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+.set-label {
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+}
+.set-hint {
+  font-weight: 400;
+  font-size: 12px;
+  color: var(--dim);
+}
+.set-choices {
+  display: flex;
+}
+.set-seg {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  background: var(--control);
+  border: 1px solid var(--stroke);
+  border-radius: 999px;
+}
+.set-opt {
+  padding: 6px 15px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: none;
+  color: var(--muted);
+  font-family: var(--font);
+  font-size: 12.5px;
+  text-transform: capitalize;
+  cursor: pointer;
+  transition: 0.18s var(--ease);
+}
+.set-opt:hover {
+  color: var(--text);
+  background: var(--field);
+}
+.set-opt.on {
+  color: var(--text);
+  background: var(--field);
+  border-color: var(--stroke);
+}
+/* The sheet's own foot sits under the card's content, not floated to the bottom of the panel:
+   the settings rows are short and a foot stranded 300px below them reads as a different sheet. */
+.set-card .sheet-foot {
+  margin-top: auto;
+}
+
 /* The orb: the bubble mark is colorful (it's a working state). All of its motion is inside the
    SVG, driven by the mark's own clock (the outline warps, the film rotates under a fixed
    highlight), so nothing here animates: no spin, no breathing scale, no positional drift. Every
@@ -841,6 +925,17 @@
     transform: none;
   }
 }
+/* A section revealed inside the growing panel: it rises into the space the panel just made. */
+@keyframes sectionin {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
 @keyframes drain {
   from {
     transform: scaleX(1);
@@ -859,8 +954,10 @@
 }
 
 /* Chat switcher (ADR-0021) is a slim store-backed list under the header. Resting chrome:
-   neutral, no accent (color stays reserved for working affordances, §1). */
+   neutral, no accent (color stays reserved for working affordances, §1). It slides in as the
+   panel grows to make room for it, so the two motions read as one. */
 .switcher {
+  animation: sectionin 0.32s var(--ease) both;
   list-style: none;
   margin: 0 12px 6px;
   padding: 6px;
@@ -1099,6 +1196,7 @@
    stack scrolls itself if several fired while the overlay was away. The untrusted badge is
    dashed rather than colored, since a provenance warning is not a working affordance. */
 .reminders {
+  animation: sectionin 0.32s var(--ease) both;
   list-style: none;
   margin: 0 12px 6px;
   padding: 6px;

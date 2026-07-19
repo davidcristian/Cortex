@@ -9,18 +9,29 @@ import { Preview } from "./Preview";
 
 // The mode router: the panel is always mounted (its `open` class drives the enter/travel
 // animation); the orb and preview mount only in their modes. Also owns the global keys. Esc
-// closes the shortcut sheet if open, else dismisses (→ orb mid-stream); Ctrl/Cmd+N starts a
-// new chat, Ctrl+↑/↓ cycle recent chats, Ctrl+K toggles the switcher (ADR-0021), and ?
-// (outside the composer, where it is just typing) toggles the shortcut sheet.
+// closes whichever sheet is open (settings first, then shortcuts), else dismisses (→ orb
+// mid-stream); Ctrl/Cmd+N starts a new chat, Ctrl+↑/↓ cycle recent chats, Ctrl+K toggles the
+// switcher (ADR-0021), and ? (outside the composer, where it is just typing) toggles the
+// shortcut sheet.
 interface OverlayProps {
   readonly controller: OverlayController;
   readonly dark: boolean;
   readonly mark: MarkStyle;
+  readonly themeName: string | null;
+  readonly onPickTheme: (name: string | null) => void;
   readonly onPickMark: (name: string) => void;
   readonly onToggleTheme: () => void;
 }
 
-export function Overlay({ controller, dark, mark, onPickMark, onToggleTheme }: OverlayProps) {
+export function Overlay({
+  controller,
+  dark,
+  mark,
+  themeName,
+  onPickTheme,
+  onPickMark,
+  onToggleTheme,
+}: OverlayProps) {
   const {
     state,
     submit,
@@ -36,6 +47,7 @@ export function Overlay({ controller, dark, mark, onPickMark, onToggleTheme }: O
     cycleNext,
     toggleSwitcher,
     toggleSheet,
+    toggleSettings,
     previewHover,
     respondConfirm,
     dismissReminder,
@@ -45,7 +57,9 @@ export function Overlay({ controller, dark, mark, onPickMark, onToggleTheme }: O
     const onKey = (event: KeyboardEvent) => {
       const mod = event.ctrlKey || event.metaKey;
       if (event.key === "Escape") {
-        if (state.sheetOpen) {
+        if (state.settingsOpen) {
+          toggleSettings();
+        } else if (state.sheetOpen) {
           toggleSheet();
         } else if (state.mode !== "hidden") {
           dismiss();
@@ -69,7 +83,18 @@ export function Overlay({ controller, dark, mark, onPickMark, onToggleTheme }: O
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [state.mode, state.sheetOpen, dismiss, newChat, toggleSwitcher, toggleSheet, cyclePrev, cycleNext]);
+  }, [
+    state.mode,
+    state.sheetOpen,
+    state.settingsOpen,
+    dismiss,
+    newChat,
+    toggleSwitcher,
+    toggleSheet,
+    toggleSettings,
+    cyclePrev,
+    cycleNext,
+  ]);
 
   return (
     <>
@@ -78,7 +103,10 @@ export function Overlay({ controller, dark, mark, onPickMark, onToggleTheme }: O
         open={state.mode === "panel"}
         dark={dark}
         mark={mark}
+        themeName={themeName}
+        onPickTheme={onPickTheme}
         onPickMark={onPickMark}
+        onToggleSettings={toggleSettings}
         onToggleTheme={onToggleTheme}
         onSubmit={submit}
         onStop={stop}

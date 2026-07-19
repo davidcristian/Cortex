@@ -11,6 +11,7 @@ mod confirm;
 mod converse;
 mod hotkey;
 mod link;
+mod preferences;
 mod reminders;
 mod seam;
 mod sessions;
@@ -48,6 +49,8 @@ pub fn run() {
             sessions::rename_session,
             sessions::delete_session,
             sessions::set_session_pinned,
+            preferences::get_preferences,
+            preferences::set_preference,
             reminders::list_due_reminders,
             reminders::ack_reminder,
             link::check_link

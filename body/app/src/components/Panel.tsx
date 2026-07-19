@@ -1,16 +1,27 @@
 import { useEffect, useRef } from "react";
 
 import { type OverlayState, isTurnActive } from "../overlay/overlayState";
+import { useGrowthAnimation } from "../overlay/useGrowthAnimation";
 import { Composer } from "./Composer";
 import { ConfirmCard } from "./ConfirmCard";
-import { ChatsIcon, DownArrowKey, PencilIcon, ReturnKey, ShiftKey, TuckIcon, UpArrowKey } from "./icons";
+import {
+  ChatsIcon,
+  DownArrowKey,
+  PencilIcon,
+  ReturnKey,
+  ShiftKey,
+  SlidersIcon,
+  TuckIcon,
+  UpArrowKey,
+} from "./icons";
 import { CaptureDot } from "./CaptureDot";
 import { LinkDot } from "./LinkDot";
 import type { MarkStyle } from "../mark/marks";
-import { MarkPicker } from "./MarkPicker";
+import { BubbleMark } from "./BubbleMark";
 import { Message } from "./Message";
 import { Reminders } from "./Reminders";
 import { SessionList } from "./SessionList";
+import { SettingsSheet } from "./SettingsSheet";
 import { ShortcutSheet } from "./ShortcutSheet";
 import { ThemeIcon } from "./ThemeIcon";
 
@@ -19,7 +30,11 @@ interface PanelProps {
   readonly open: boolean;
   readonly dark: boolean;
   readonly mark: MarkStyle;
+  /** The chosen theme name, or `null` while following the system scheme (the sheet shows it). */
+  readonly themeName: string | null;
+  readonly onPickTheme: (name: string | null) => void;
   readonly onPickMark: (name: string) => void;
+  readonly onToggleSettings: () => void;
   readonly onToggleTheme: () => void;
   readonly onSubmit: (text: string) => void;
   readonly onStop: () => void;
@@ -50,7 +65,10 @@ export function Panel({
   open,
   dark,
   mark,
+  themeName,
+  onPickTheme,
   onPickMark,
+  onToggleSettings,
   onToggleTheme,
   onSubmit,
   onStop,
@@ -68,7 +86,11 @@ export function Panel({
   const closed = state.mode === "orb" ? " to-orb" : "";
   // The history is always mounted with the panel, so the ref is set before any effect runs.
   const historyRef = useRef<HTMLDivElement>(null!);
+  const panelRef = useRef<HTMLDivElement>(null);
   const pinned = useRef(true);
+  // Anything that resizes the panel eases into place (see the hook): the panel is anchored by
+  // its bottom edge in CSS, so what the eye sees is the top edge travelling up or down.
+  useGrowthAnimation(panelRef, open);
 
   const onHistoryScroll = () => {
     const el = historyRef.current;
@@ -86,7 +108,13 @@ export function Panel({
 
   const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   return (
-    <div className={`panel${open ? " open" : closed}`} role="dialog" aria-label="Cortex" aria-hidden={!open}>
+    <div
+      ref={panelRef}
+      className={`panel${open ? " open" : closed}`}
+      role="dialog"
+      aria-label="Cortex"
+      aria-hidden={!open}
+    >
       <header className="head">
         <LinkDot link={state.link} />
         <CaptureDot capturing={state.capturing} />
@@ -131,7 +159,14 @@ export function Panel({
       <div className="history" ref={historyRef} onScroll={onHistoryScroll}>
         {state.messages.length === 0 ? (
           <div className="empty">
-            <MarkPicker style={mark} animated={!reduced} onPick={onPickMark} />
+            <button
+              className="markbtn"
+              onClick={onToggleSettings}
+              aria-label={`Mark: ${mark.label}. Open settings`}
+              type="button"
+            >
+              <BubbleMark style={mark} size={54} idPrefix="empty" animated={!reduced} />
+            </button>
             <p className="empty-line">Ask me anything</p>
             <div className="empty-chips">
               {EXAMPLE_PROMPTS.map((prompt) => (
@@ -150,6 +185,9 @@ export function Panel({
         ) : null}
       </div>
       <Composer busy={isTurnActive(state)} active={open} onSubmit={onSubmit} onStop={onStop} />
+      {/* Esc is not listed here: the strip is a convenience, it had run out of room once the
+          settings button joined it, and Esc-to-dismiss is the most guessable of the five. The
+          shortcut sheet next to it still lists every binding, that one being the complete list. */}
       <div className="hints">
         <span>
           <b className="key">
@@ -165,9 +203,6 @@ export function Panel({
           newline
         </span>
         <span>
-          <b>Esc</b> dismiss
-        </span>
-        <span>
           <b>Ctrl</b>
           <b>N</b> new
         </span>
@@ -181,11 +216,26 @@ export function Panel({
           </b>{" "}
           chats
         </span>
+        <button className="qbtn" onClick={onToggleSettings} aria-label="Settings" type="button">
+          <b className="key">
+            <SlidersIcon />
+          </b>
+        </button>
         <button className="qbtn" onClick={onToggleSheet} aria-label="Shortcuts" type="button">
           <b>?</b>
         </button>
       </div>
       {state.sheetOpen ? <ShortcutSheet onClose={onToggleSheet} /> : null}
+      {state.settingsOpen ? (
+        <SettingsSheet
+          themeName={themeName}
+          mark={mark}
+          animated={!reduced}
+          onPickTheme={onPickTheme}
+          onPickMark={onPickMark}
+          onClose={onToggleSettings}
+        />
+      ) : null}
     </div>
   );
 }
