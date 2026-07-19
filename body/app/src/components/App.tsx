@@ -1,6 +1,7 @@
 import { type MouseEvent, useEffect, useState } from "react";
 
 import type { BrainBridge } from "../bridge/types";
+import { resolveMark } from "../mark/marks";
 import { useOverlay } from "../overlay/useOverlay";
 import { applyTheme, resolveTheme } from "../theme/themes";
 import { Overlay } from "./Overlay";
@@ -15,11 +16,14 @@ interface AppProps {
   readonly newSessionId?: () => string;
 }
 
-/** Wires the theme + host activation to the overlay controller. */
+/** Wires the theme, the mark style, and host activation to the overlay controller. Both
+ *  appearance choices are session state for now, the same as the theme has always been. */
 export function App({ bridge, newSessionId }: AppProps) {
   const controller = useOverlay(bridge, newSessionId);
   const [preference, setPreference] = useState<string | null>(null);
+  const [markPreference, setMarkPreference] = useState<string | null>(null);
   const theme = resolveTheme(preference, systemPrefersDark());
+  const mark = resolveMark(markPreference);
 
   useEffect(() => {
     applyTheme(theme, document.documentElement);
@@ -45,7 +49,13 @@ export function App({ bridge, newSessionId }: AppProps) {
 
   return (
     <div className="stage" onMouseDown={onStageMouseDown}>
-      <Overlay controller={controller} dark={theme.scheme === "dark"} onToggleTheme={toggleTheme} />
+      <Overlay
+        controller={controller}
+        dark={theme.scheme === "dark"}
+        mark={mark}
+        onPickMark={setMarkPreference}
+        onToggleTheme={toggleTheme}
+      />
     </div>
   );
 }

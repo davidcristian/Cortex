@@ -20,8 +20,8 @@ Three adjectives, in priority order: **sleek** (minimal, precise, current, never
 rounded, springy shapes and motion, friendly and never sharp). It ships **light and dark** from day
 one and is **theme-customizable** later (a token swap). It is an *overlay*, not an app: fast to
 summon, effortless to dismiss, and it never nags. Motion is fluid and purposeful: text *streams* in
-rather than popping, the panel *travels* when it minimizes/maximizes, and the orb's rings *turn*
-as their waves swell and relax. All of it respects `prefers-reduced-motion`.
+rather than popping, the panel *travels* when it minimizes/maximizes, and the orb's bubble *warps*
+as its film turns under the light. All of it respects `prefers-reduced-motion`.
 
 ## 2. Visual language (design tokens)
 
@@ -45,8 +45,8 @@ is a token swap, not a rewrite.
   (a subtle tint of the ground, e.g. `rgba(127,110,190,0.14)` for the user in dark). The **only**
   color is *transient*: while a reply streams, a soft accent glow/shimmer rides the in-progress
   bubble, then settles to neutral on completion. `border-radius: 20px`, one tail corner tightened.
-- **Radius scale:** panel `28px`, bubbles `20px`, input pill `22px`; the orb is the stroked
-  living-rings mark (§4), not a filled disc. Generous, uniform.
+- **Radius scale:** panel `28px`, bubbles `20px`, input pill `22px`; the orb is the bubble mark
+  (§4), an off-round film rather than a disc, so it has no radius of its own. Generous, uniform.
 - **Typography:** a clean modern sans for everything (system stack in v1; a licensed sans inlined
   as a `@font-face` data URI later; no CDN). Assistant text ~15px/1.5, never cramped. Sleek, not
   decorative. The personality is in motion + the color bloom, not a novelty face.
@@ -56,11 +56,14 @@ is a token swap, not a rewrite.
     a brief blur), never a pop. The stream feels like it flows.
   - **Traveling morph**. Minimize/maximize animate real *movement*: the panel glides along a path
     between center and the corner while it scales to/from the orb (FLIP), so you see it travel.
-  - **Living rings**. The orb's mark spins as one while each band's wave depth pulses on its
-    own clock; the anchor point holds rock still (no breathing scale, no positional drift, per
-    2026-07-03 user refinements), so it reads as alive without wandering.
+  - **A warping bubble**. The orb's mark is a soap bubble whose outline warps on its own clock
+    while the film turns under a fixed highlight; the anchor point holds rock still (no breathing
+    scale, no positional drift, per 2026-07-03 user refinements), so it reads as alive without
+    wandering. The stillness is structural, not a rule to remember: every harmonic is of order two
+    or higher, which fixes the centroid and the mean radius (§4, ADR-0031).
   - Durations: micro 120ms, standard 240ms, morph ~360ms. `prefers-reduced-motion: reduce` →
-    collapse to ≤120ms opacity fades, no travel, rings shown static.
+    collapse to ≤120ms opacity fades, no travel, the mark frozen at a still pose with no
+    animation frames scheduled at all.
 
 ## 3. Anatomy of the panel
 
@@ -84,7 +87,7 @@ Top-to-bottom, the summoned panel is:
    decoration and the 2026-07-03 pass removed it: chrome earns its place by meaning something,
    and the difference now is that the signal is real (ADR-0011 addendum: derived from the turn's
    own events, a probe per summon, and a recovery re-check only while an unhealthy link is on
-   screen, never a poll on a timer). The three status hues come from the rings' own palette,
+   screen, never a poll on a timer). The three status hues come from the mark's own palette,
    deepened in the light theme; they are the only colour in the overlay that is not activity.
 2. **History** is the scrollable conversation: alternating user/assistant bubbles, newest at the
    bottom, auto-scrolling as tokens stream (but *not* if the user has scrolled up to read;
@@ -94,7 +97,9 @@ Top-to-bottom, the summoned panel is:
    status chip reads distinctly (landed 2026-07-13: `chip-think`, the dot carrying the reasoning
    bob and the label the accent, so deliberation is not mistaken for tool action). The **approval
    card** (§4, ADR-0022) is this inline layer's first real occupant. Empty state: the mark +
-   "Ask me anything" + a couple of example prompts as tappable chips (landed 2026-07-12).
+   "Ask me anything" + a couple of example prompts as tappable chips (landed 2026-07-12). The
+   mark here is also the **mark picker** (§4, ADR-0031): clicking it opens the bubble styles,
+   drawn live, and choosing one applies to the empty state and the orb at once.
 3. **Composer** is a rounded pill textarea (`⏎` sends, `⇧⏎` newlines, auto-grows to a few lines;
    grow + focus-on-summon landed 2026-07-12),
    a glowing accent focus ring when active, and a gradient **send** button (an outline up-arrow,
@@ -144,17 +149,24 @@ while a turn is processing must not lose it*) lives here. States:
   to a corner (default **bottom-right**, configurable), shedding its chrome, into a small **ORB**.
   This is one continuous transform (FLIP-style), not a disappear-then-appear, and the reverse
   (maximize) *travels* it back from the corner to center. You always **see it move**, both ways.
-- **ORB(thinking):** the **living rings** at the corner (~64px; redesigned 2026-07-03 to the
-  user's reference, motion refined same day): two thin wavy bands built from sine-modulated circles
-  (7 and 9 waves, `wavyRingPath`), both stroked with the **same eight-stop gradient** (the
-  user's palette is one gradient, not two arcs: `#43d675 #ffb347 #ff5f6d #e055d8 #3fa2ff
-  #6a5cff #c44fd8 #ffd23f`), over a soft neon glow. Motion is deliberately layered and *only* this: the mark **spins as one** (waves
-  and gradient rotate together, so the bands never rotate against each other) while each band's
-  **wave depth pulses independently** (SMIL `d` animation, skipped under reduced motion), plus
-  a slow hue walk (`hue-rotate`). No breathing scale, no positional drift. The anchor holds
-  still. It reads as alive, not a static badge, and means "still working." **Click** it → morph
-  back to **PANEL(streaming)** (the in-progress turn, right where it is). It never covers
-  active work, thanks to small, corner-pinned, click-through-safe margins.
+- **ORB(thinking):** the **bubble mark** at the corner (~64px; replaced the living rings
+  2026-07-19, ADR-0031, because concentric turning rings read as another product's identity). It
+  is a soap bubble: an off-round film, lit from the upper left by a light that never moves, with
+  the **same eight-stop gradient** the rings carried (the user's palette is one gradient, not two
+  arcs: `#43d675 #ffb347 #ff5f6d #e055d8 #3fa2ff #6a5cff #c44fd8 #ffd23f`) stroked thickly just
+  inside the rim, where a real film thins and colors, over a soft bloom. Its outline is a circle
+  modulated by sine harmonics, all of order two or higher, so the **centroid and the mean radius
+  are fixed by the maths**: no breathing scale, no positional drift, the anchor holds still while
+  the shape moves. Under reduced motion the mark freezes at a still pose and schedules no frames.
+  It reads as alive, not a static badge, and means "still working." **Click** it → morph back to
+  **PANEL(streaming)** (the in-progress turn, right where it is). It never covers active work,
+  thanks to small, corner-pinned, click-through-safe margins.
+- **Which bubble is a choice** (ADR-0031). Four styles ship: **Wobble** (two slow modes roll the
+  outline; the default), **Sheen** (near circular, the film crawling underneath), **Ping** (still,
+  then a ripple runs the rim and decays), **Foam** (three lobes jostling as one). They are data in
+  a registry (`mark/marks.ts`), the twin of the theme registry, so a fifth is a literal and no
+  code. The picker is the empty state's own mark: clicking it opens the styles drawn live, rather
+  than adding a fifth header button that would put the accent palette on resting chrome.
 - **PREVIEW:** when the turn **completes while minimized**, the orb **expands** into a compact
   card near the corner: the answer (a few-line clamp) and a hairline accent progress bar
   counting down the auto-dismiss (~6s) and **nothing else** (the "reply ready"/"click to open"
@@ -249,7 +261,7 @@ Keyboard-first; the hint strip shows the contextually-relevant subset, `?` shows
 ## 7. Accessibility & restraint
 
 - **Reduced motion:** honor `prefers-reduced-motion` with no morphs/springs, just quick opacity
-  fades; the orb still shows but without the pulse.
+  fades; the orb still shows, its bubble held at a still pose (no frames scheduled at all).
 - **Focus:** the composer is focused on summon; focus is trapped in the panel; visible focus rings.
 - **Contrast:** text on glass/gradient must clear WCAG AA. Verify bubble text over the accent.
 - **Non-intrusive:** the orb/preview never steal focus from the app the user is using and stay

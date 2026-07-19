@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
+import { WOBBLE } from "../mark/marks";
 import { INITIAL_LINK } from "../overlay/linkState";
 import type { Message, OverlayState } from "../overlay/overlayState";
 import type { OverlayController } from "../overlay/useOverlay";
@@ -61,7 +62,15 @@ const reply: Message = {
 };
 
 function renderOverlay(controller: OverlayController, onToggleTheme: () => void = vi.fn()) {
-  return render(<Overlay controller={controller} dark={false} onToggleTheme={onToggleTheme} />);
+  return render(
+    <Overlay
+      controller={controller}
+      dark={false}
+      mark={WOBBLE}
+      onPickMark={vi.fn()}
+      onToggleTheme={onToggleTheme}
+    />,
+  );
 }
 
 describe("Overlay", () => {

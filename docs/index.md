@@ -211,6 +211,15 @@ Start here. Rules for working in this repo: [AGENTS.md](../AGENTS.md).
   test over the fake host (kill at every step boundary, converge with no state loss); tier-scale
   swap validation is host-side.
 
+- [ADR-0031: The bubble mark, and the mark as a picked style](adr/ADR-0031-bubble-mark.md): the
+  overlay's activity mark, **landed**. The living rings retired (concentric turning rings read as
+  another product's identity) for a soap bubble carrying the same eight-hue palette: an outline
+  built from sine harmonics of order two or higher, which fixes the centroid and the mean radius,
+  so the standing "the anchor never moves" rule holds by construction. Four styles ship in a
+  registry that mirrors the theme registry, defaulting to Wobble, picked from the empty state's
+  own mark rather than a fifth header button; the motion left CSS and SMIL for a frame clock, so
+  reduced motion schedules no frames at all.
+
 New non-obvious decision → add `adr/ADR-XXXX-<slug>.md`, link it here.
 
 ## Design

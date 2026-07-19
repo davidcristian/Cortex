@@ -8,7 +8,9 @@ shell** is host-validated on Windows, like the brain's real adapters.
 
 Two halves meet at one seam. That seam is the typed `BrainBridge` port:
 
-- **Frontend** (`src/`, gated). Pure logic first: the theme system (`theme/`), the overlay state
+- **Frontend** (`src/`, gated). Pure logic first: the theme system (`theme/`), the activity mark
+  (`mark/`: `bubble.ts` is the pure geometry, `marks.ts` the style registry, `useMarkClock.ts` the
+  frame clock, ADR-0031), the overlay state
   machine (`overlay/overlayState.ts` is a pure reducer over a `Mode` = hidden/panel/orb/preview,
   with the session-switching helpers split into `overlay/sessionState.ts` for the line cap),
   and the controller hook (`overlay/useOverlay.ts`). Components (`components/`) depend only on the
