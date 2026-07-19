@@ -227,6 +227,60 @@ def test_commit_exists_is_false_when_git_is_missing(
     assert commitlint.commit_exists("abcdef1", repo) is False
 
 
+# ── body width ─────────────────────────────────────────────────────────────────
+
+# Exactly 73 characters, all short words, so it had somewhere to break: one of the four real
+# lines that reached master while this rule did not exist.
+_OVER = "The projector rides the cortex tier's argv from CORTEX_MMPROJ_FILE_CORTEX"
+_LONG_URL = "https://example.invalid/" + "x" * 60
+
+
+def test_a_wrappable_line_past_the_wrap_is_flagged() -> None:
+    assert len(_OVER) == 73
+    (problem,) = commitlint.check_body_lines(["feat: subject", _OVER], Path())
+    assert "line 2 is 73 chars" in problem
+    assert "wraps the body at 72" in problem
+
+
+def test_a_line_exactly_at_the_wrap_passes() -> None:
+    line = _OVER[:-1]
+    assert len(line) == 72
+    assert commitlint.check_body_lines(["feat: subject", line], Path()) == []
+
+
+@pytest.mark.parametrize(
+    "line",
+    [
+        _LONG_URL,  # one unbreakable token: nowhere to break
+        f"see {_LONG_URL}",  # a URL past the wrap on its own, with a word beside it
+        "brain/packages/orchestrator/src/cortex_orchestrator/" + "a" * 40 + ".py",
+    ],
+)
+def test_a_line_with_nowhere_to_break_is_exempt(line: str) -> None:
+    assert len(line) > commitlint.MAX_BODY_WIDTH
+    assert commitlint.check_body_lines(["feat: subject", line], Path()) == []
+
+
+def test_an_overlong_subject_is_reported_once_as_a_header(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    # The header owns its own cap and its own sentence; the width rule starts below it, so one
+    # long subject is one complaint rather than two.
+    msg = _write(tmp_path, f"feat: {'x ' * 40}\n")
+    assert commitlint.main([msg, "--repo", str(tmp_path)]) == 1
+    errors = capsys.readouterr().err.splitlines()
+    assert len(errors) == 1
+    assert "caps the subject line at 72" in errors[0]
+
+
+def test_main_flags_a_body_line_past_the_wrap(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    msg = _write(tmp_path, f"feat: add the thing\n\n{_OVER}\n")
+    assert commitlint.main([msg, "--repo", str(tmp_path)]) == 1
+    assert "wraps the body at 72" in capsys.readouterr().err
+
+
 # ── whole-message wiring ───────────────────────────────────────────────────────
 
 
