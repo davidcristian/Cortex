@@ -131,19 +131,37 @@ async def run_from_env(
     # modalities, so a brain-side boolean can never disagree with it. Probed once here, because
     # the alternative is paying the whole privacy cost of a screen read for a picture the model
     # cannot see. Needs a body too, so the probe is skipped outright without one.
-    capture = (
-        CaptureBounds(max_edge=body_config.capture_max_edge, max_bytes=body_config.max_image_bytes)
-        if body is not None and await vision_enabled(inference.vision, inference.endpoint)
-        else None
+    # An ``if`` rather than a conditional expression on purpose: coverage.py measures the arcs of
+    # a statement and not the arms of a boolean short-circuit, so as an expression this decision
+    # could be (and was) executed on one side only with the gate still reporting 100%.
+    capture: CaptureBounds | None = None
+    if body is not None and await vision_enabled(inference.vision, inference.endpoint):
+        capture = CaptureBounds(
+            max_edge=body_config.capture_max_edge, max_bytes=body_config.max_image_bytes
+        )
+    schedule_tools = build_schedule_tools(
+        schedule_config, schedules, clock, tasks_enabled=spawn_tool is not None
     )
     builtins = build_builtin_tools(
         spawn_tool,
         body,
-        schedule_tools=build_schedule_tools(
-            schedule_config, schedules, clock, tasks_enabled=spawn_tool is not None
-        ),
+        schedule_tools=schedule_tools,
         escalation=swap is not None,
         vision=capture,
+    )
+    # The deep tier's own set, and the only difference is vision (ADR-0029 decision 6: no
+    # brain-tier candidate on the mount carries a projector, so that tier is text-only by
+    # construction). The probe above asked the CORTEX endpoint, and after a swap the model
+    # serving is a different one at a different URL, so registration has to follow the tier that
+    # will actually answer. Offering it there spends the whole privacy cost of a screen read
+    # (pixels blitted, host receipt fired, turn tainted and opaque) on a picture nothing can
+    # read, which is the exact trade the probe exists to prevent.
+    deep_builtins = build_builtin_tools(
+        spawn_tool,
+        body,
+        schedule_tools=schedule_tools,
+        escalation=swap is not None,
+        vision=None,
     )
     ticker = build_ticker(
         schedule_config,
@@ -201,14 +219,23 @@ async def run_from_env(
                 return make_turn_engine(caps)
             # The escalating wrapper (ADR-0030 decision 5): a fresh slot and inner engine per
             # turn, and a conductor over THIS stream's dispatcher, so the deep model's phase
-            # runs the same audited tools the cortex phase did. The deep phase carries no slot:
-            # it cannot escalate to itself.
+            # runs the same audited tools the cortex phase did, minus the screen (ADR-0029). The
+            # deep phase carries no slot either: it cannot escalate to itself.
+            deep = replace(
+                caps,
+                escalation=None,
+                tools=build_cortex_tools(
+                    tool_registry,
+                    deep_builtins,
+                    clock,
+                    confirmer=confirmer,
+                    policy=tools_config.dispatch_policy,
+                ),
+            )
             conductor = SwapConductor(
                 swap.handoffs,
                 swap.manager,
-                BrainPhase(
-                    store, backend, clock, swap.plan.brain_model, replace(caps, escalation=None)
-                ),
+                BrainPhase(store, backend, clock, swap.plan.brain_model, deep),
                 swap.plan,
                 clock,
                 scheduler,
