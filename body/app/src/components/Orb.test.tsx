@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { WOBBLE } from "../mark/marks";
 import { Orb } from "./Orb";
 
 function stubMotionPreference(reduce: boolean): void {
@@ -16,23 +17,28 @@ function stubMotionPreference(reduce: boolean): void {
   } as MediaQueryList);
 }
 
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
 describe("Orb", () => {
-  it("shows the animated living rings and reopens the turn when clicked", () => {
+  it("shows the bubble mark, warping on its own clock, and reopens the turn when clicked", () => {
     stubMotionPreference(false);
+    const frames = vi.spyOn(window, "requestAnimationFrame");
     const onClick = vi.fn();
-    render(<Orb onClick={onClick} />);
+    render(<Orb style={WOBBLE} onClick={onClick} />);
     const button = screen.getByLabelText(/Reopen/u);
-    expect(button.querySelectorAll("path.ring")).toHaveLength(2);
-    expect(button.querySelectorAll("animate")).toHaveLength(2);
+    expect(button.querySelector("svg.mark")).not.toBeNull();
+    expect(frames).toHaveBeenCalled();
     fireEvent.click(button);
     expect(onClick).toHaveBeenCalledOnce();
   });
 
-  it("skips the wave-depth pulse under prefers-reduced-motion", () => {
+  it("holds the mark still, scheduling no frames, under prefers-reduced-motion", () => {
     stubMotionPreference(true);
-    render(<Orb onClick={vi.fn()} />);
-    const button = screen.getByLabelText(/Reopen/u);
-    expect(button.querySelectorAll("path.ring")).toHaveLength(2);
-    expect(button.querySelectorAll("animate")).toHaveLength(0);
+    const frames = vi.spyOn(window, "requestAnimationFrame");
+    render(<Orb style={WOBBLE} onClick={vi.fn()} />);
+    expect(screen.getByLabelText(/Reopen/u).querySelector("svg.mark")).not.toBeNull();
+    expect(frames).not.toHaveBeenCalled();
   });
 });

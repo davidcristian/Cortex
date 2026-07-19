@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
+import { WOBBLE } from "../mark/marks";
 import { INITIAL_LINK } from "../overlay/linkState";
 import type { Message, OverlayState } from "../overlay/overlayState";
 import { Panel } from "./Panel";
@@ -47,6 +48,7 @@ const reply = (id: string): Message => ({
 });
 
 interface Handlers {
+  onPickMark?: (name: string) => void;
   onToggleTheme?: () => void;
   onSubmit?: (text: string) => void;
   onDismiss?: () => void;
@@ -66,6 +68,8 @@ function panelProps(over: Partial<OverlayState>, open: boolean, dark: boolean, h
     state: state(over),
     open,
     dark,
+    mark: WOBBLE,
+    onPickMark: handlers.onPickMark ?? vi.fn(),
     onToggleTheme: handlers.onToggleTheme ?? vi.fn(),
     onSubmit: handlers.onSubmit ?? vi.fn(),
     onStop: vi.fn(),
@@ -247,7 +251,7 @@ describe("Panel", () => {
     const onSubmit = vi.fn();
     const { container } = renderPanel({}, true, false, { onSubmit });
     expect(screen.getByText("Ask me anything")).toBeInTheDocument();
-    expect(container.querySelector(".empty .rings")).not.toBeNull();
+    expect(container.querySelector(".empty .markbtn .mark")).not.toBeNull();
     fireEvent.click(screen.getByText("Summarize my unread email"));
     expect(onSubmit).toHaveBeenCalledWith("Summarize my unread email");
   });
