@@ -339,3 +339,38 @@ that consumer. `CaptureScreen` (Slice 10) is unaffected.
 No code changed. The seam, the OS traits, the `BodyGateway` port, and the tool dispatch are untouched;
 this is a backlog decision recorded at its origin
 ([docs/refinements/cross-cutting.md](../refinements/cross-cutting.md)).
+
+## Addendum (2026-07-19): `CaptureScreen` closed, and it did not stay behind this seam
+
+This ADR's Deferrals paragraph promised "the remaining `BodyService` RPCs (`CaptureScreen` in
+Slice 10; `InjectInput` comes later)" **behind these unchanged seams**, and two later paragraphs
+repeat that `CaptureScreen` "stays deferred to its slices" and "is unaffected". All three are now
+out of date. `CaptureScreen` landed on 2026-07-18 with the vision slice
+([ADR-0029](ADR-0029-vision-screen-capture.md)), and the closure was recorded in the area doc and
+the backlog index while this ADR, the one a reader of that Deferrals paragraph actually reaches,
+was left saying the opposite. That is the same two-of-three miss caught earlier for the ADR-0012
+host half, and this addendum is the third record.
+
+**The cost estimate was wrong in the way the backlog's own opening warning describes.** The seam
+did change. `proto/body.proto` gained five fields: `CaptureScreenRequest.max_edge` and `max_bytes`,
+and `ImageBlob.source_width`, `source_height` and `captured_at_unix_ms`. The brain-side
+`BodyGateway` port gained a method returning a new pure-core value. Two of those fields were not in
+the vision design either: `max_bytes` exists because a fixed byte ceiling made the shrink ladder's
+give-up arm unreachable, and putting the budget on the request is what makes the brain's bound and
+the body's ceiling one number rather than two constants coupled by prose. So "behind the same seam"
+was a hypothesis, not a finding, exactly as the index warns for every entry that still carries that
+phrasing.
+
+**What is unchanged.** `InjectInput` is now the only unbuilt `BodyService` RPC, and it stays
+deferred on the terms the 2026-07-16 pointer-input addendum set: it reopens with a real consumer,
+built then as one slice (the whole `InputInjector` trait, text plus keyboard plus pointer, behind
+one `gated=True` audited tool inheriting the confirmer and the tainted-turn denial, one Windows
+`SendInput` adapter under a new `unsafe` authorization, and one proto pointer extension designed
+with that consumer), never as a wired handler shipped ahead of the tool that would gate it. The
+backlog holds this area's count unchanged for that reason: half an entry closing does not close the
+entry, and a count moved for a half-closed one is how an open deferral gets lost. The entry lives
+in [docs/refinements/body-gateway.md](../refinements/body-gateway.md), and it now has its own line
+in [docs/refinements/index.md](../refinements/index.md) under dead until a consumer, where it had
+been counted but never placed.
+
+No code changed here; this is a records correction at the origin ADR.

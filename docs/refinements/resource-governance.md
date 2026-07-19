@@ -79,7 +79,13 @@ the unchanged `SubagentPlacer`/`SubagentScheduler`/`ModelManager` ports.
   here is the mechanism, not the arithmetic. Real GPU-placed-**subagent** validation is the one
   piece still owed, and it is host-side for the same reason: a GPU-placed subagent only happens
   when `CORTEX_SUBAGENTS_VRAM_GB` fits under the soft cap minus the resident cortex, which needs a
-  card that holds the cortex first.
+  card that holds the cortex first. Consequently the `VramBudgetPlacer`'s GPU arm has never fired
+  against a real placement: with the shipped settings every spawn overflows to CPU.
+  **Index corrected 2026-07-19.** That bucket line read "Nothing of this area's trio remains here",
+  true of the trio's *entries* and misleading about the area, since it read as if nothing at all
+  were owed. It now names both halves of what is left, the subagent validation and the placeholder
+  cap numbers, as host-side hardware work rather than deferred design, which is why neither is
+  counted in this area's open items.
 - **Placement-aware CPU charging closed 2026-07-16 as declined, wrong premise and no gain
   ([ADR-0012 admission-wall addendum](../adr/ADR-0012-resource-governance.md)).** The entry read:
   "`admit` charges every spawn its full `cpus`/`memory_gb` regardless of placement (conservative);

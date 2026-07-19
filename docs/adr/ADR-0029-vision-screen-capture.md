@@ -824,3 +824,41 @@ worktree.
 Every fix carries a mutation proof naming the test it reddens, and the three-place refinement
 records for what it opened are in `docs/refinements/vision.md` with their index lines.
 
+
+## Addendum (2026-07-19): two agent-Docker measurements were owed and tracked nowhere
+
+The Consequences section above lists four things as "still to run" under **Agent-Docker (mine)**.
+Two of them ran and are recorded in the agent-validation section: the whole path through the real
+`LlamaCppBackend` rather than raw HTTP, and an injection arm on the shipped payload. Two did not,
+and nothing in the backlog tracked them, so a reader of the refinements index would have concluded
+this slice owed only its host-side Windows pass. They are:
+
+1. **Whether thinking needs disabling on a vision turn** under the shipped parts payload. The
+   disable-thinking lever itself is a separate open entry
+   ([docs/refinements/inference-model-manager.md](../refinements/inference-model-manager.md), where
+   it sits as fix-when-it-bites beside token-budget capping); what is unmeasured is whether a
+   vision turn is the case that needs it.
+2. **`llama-server`'s `mmproj`-less error body text.** This one is load-bearing rather than
+   cosmetic: it is on this ADR's own assumptions list, and the bounded 300-character non-2xx
+   excerpt was built precisely so a forgotten `--mmproj` reads as its own hint instead of a bare
+   status. The excerpt's whole value therefore rests on a string nobody has read.
+
+**They are agent-side, not host-side**, which is the distinction that matters for where they are
+recorded. [AGENTS.md](../../AGENTS.md) states that "on the host" includes the agent, and the same
+8 GB dev GPU that drove the real cortex beside its projector on 2026-07-18 is enough for both, so
+neither waits on the host's hardware. They are now one entry in
+[docs/refinements/vision.md](../refinements/vision.md) with its line in
+[docs/refinements/index.md](../refinements/index.md) under **actionable now**, alongside the image
+arm of the injection harness, which this ADR's own closeout leaves as one corpus of one.
+
+**One bookkeeping decision recorded with them.** The Deferred paragraph above lists **the accepted
+residual the guardrail cannot catch** (a URL the model retypes with a space, defangs, or describes
+in words) beside the rest of this slice's deferrals, and the area doc carries it as a bullet, but
+it is deliberately **not counted** as an open item. It names no work: no output filter can close a
+paraphrase, so counting it would put an unclosable entry in a backlog that must be empty before the
+user-facing README ships. It stays as the record of what was accepted and on what reasoning, which
+is the role a declined entry plays, and it reopens only if someone proposes a mechanism that closes
+the paraphrase path, which would be a different kind of defence than an output filter. That
+exclusion, previously silent, is now stated in the area doc's own open-items line.
+
+No code changed here; this is a records correction at the origin ADR.

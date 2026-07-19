@@ -9,9 +9,10 @@ entries are the historical record of what each deferral became, and the index at
 [index.md](index.md) carries the recommended pickup order.
 
 **Open items:** 3 (`cargo clippy` for the Tauri shell in CI, moved to fix-when-it-bites
-2026-07-16; standing test-order randomization, opened as fix-when-it-bites 2026-07-18; the
-commit-body wrap gate, opened as fix-when-it-bites 2026-07-18; the
-rest landed 2026-07-16, see the outcome note below the verbatim entry)
+2026-07-16; standing test-order randomization, opened as fix-when-it-bites 2026-07-18; the three
+exceptions the wrap gate did not ship, opened as fix-when-it-bites 2026-07-19 behind the landing
+of the commit-body wrap check itself; the rest landed 2026-07-16 and 2026-07-19, see the outcome
+notes below the verbatim entries)
 
 **Prose style ([ADR-0026](../adr/ADR-0026-prose-style-gates.md)):**
 - **Check the commit body's 72-column wrap, not only the header's length.** Opened 2026-07-18,
@@ -31,6 +32,43 @@ rest landed 2026-07-16, see the outcome note below the verbatim entry)
   release-note extraction that assumes the wrap), or a deliberate reflow pass over the history,
   after which the gate is what keeps it reflowed. Until then the rule stands as convention, the
   way imperative mood does, and this entry is the record that it is convention rather than gate.
+
+  **Landed 2026-07-19, with one of the four exceptions this entry called the actual design
+  ([ADR-0026 wrap addendum](../adr/ADR-0026-prose-style-gates.md)).** `scripts/commitlint.py` now
+  measures every line below the header against a new `MAX_BODY_WIDTH = 72`, inside the same walker
+  that already read each line for dashes and volatile references, exactly as the entry predicted;
+  the header keeps `check_header`'s own cap so one long subject is one complaint rather than two.
+  The exception that shipped is `too_wide`: a line past the wrap whose longest word alone exceeds
+  it has nowhere to break, so a URL, a path, or a long identifier is exempt, while ordinary prose
+  past the wrap is not. Proven against the four 73-character lines that had already reached master
+  (flagged with their line numbers and widths) and against the wrapped bodies it must pass. The
+  drift the entry measured is therefore gated rather than convention, and the trigger it waited
+  for turned out not to be what moved it: the rule was enforced because a slice's own predecessor
+  had recorded the same ungated rule as a defect, not because a narrow pager finally cost
+  something. What the landing did **not** decide is the rest of the exception design, which is the
+  residual below.
+- **The three exceptions the wrap gate did not ship (opened 2026-07-19 behind the landing).**
+  *Fix when it bites.* The entry above named four things a hard wrap must not touch, a URL, a
+  pasted command, a fenced code block, and a `BREAKING CHANGE:` footer, and called deciding them
+  "the whole reason this is not a two-line patch". Only the first is covered, because the shipped
+  exemption is a property of the longest **word** rather than of the line's **kind**, and a pasted
+  command or a fenced line is built out of ordinary short words. Measured against the shipped gate
+  on 2026-07-19 rather than reasoned about: one message carrying an indented
+  `docker compose --project-directory . -f docker/docker-compose.yml ... up -d` line (108 chars,
+  longest word 29), a fenced `uv run pytest packages/core --cov ...` line (82 chars), and a
+  `BREAKING CHANGE:` footer of short words (118 chars) drew three complaints and exit 1. The
+  footer is the sharp one, because [AGENTS.md](../../AGENTS.md) itself mandates that footer for a
+  breaking change, so the gate can now refuse a message the commit rules require; it is also the
+  easiest of the three to live with, since a footer is prose and its value may legitimately carry
+  newlines, so it can simply be wrapped. A command and a fence cannot: reflowing either changes
+  what it says, which is the "rewriting messages rather than checking them" failure the entry
+  named. **What would close it:** a line-kind exemption rather than a word-width one, which is a
+  fence toggle carried through the walk plus a heuristic for a pasted command (a leading indent, a
+  shell prompt), and the decision about whether a footer is exempt at all or simply wrapped like
+  any other prose. **Trigger:** the first commit that genuinely needs a command or a block in its
+  body, at which point the author chooses between mangling the paste and bypassing the hook, which
+  is precisely the outcome the entry above was recorded to avoid. Until then the gate is right
+  about every message this repo has actually written.
 
 **Test-runner mechanics ([ADR-0002](../adr/ADR-0002-toolchain-gates.md)):**
 - **Standing test-order randomization.** Opened 2026-07-18, fix-when-it-bites, by a review that
