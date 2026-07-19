@@ -155,7 +155,6 @@ impl Capture {
 }
 
 /// Encodes one rung of the ladder, or nothing at all if the encoder somehow refuses it.
-#[cfg_attr(coverage, coverage(off))]
 fn encode_rung(image: &Rgb) -> Vec<u8> {
     encode_png(image.width(), image.height(), image.pixels()).unwrap_or_default()
 }

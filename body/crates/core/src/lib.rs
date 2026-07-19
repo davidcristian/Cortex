@@ -1,5 +1,4 @@
 //! Pure, I/O-free core logic for the Cortex body (the hexagonal core).
-#![cfg_attr(coverage, feature(coverage_attribute))]
 
 pub mod hotkey;
 pub mod link;
