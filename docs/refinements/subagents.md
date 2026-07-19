@@ -7,12 +7,21 @@ deferred-refinements section on 2026-07-15 with the entries kept verbatim; lande
 are the historical record of what each deferral became, and the index at
 [index.md](index.md) carries the recommended pickup order.
 
-**Open items:** the per-role escape hatch (on the dead-until-a-consumer list). Subagent progress
+**Open items:** the per-role escape hatch (on the dead-until-a-consumer list) and the
+spontaneous-pick nudge's live uptake (fix when it bites, recorded at the end). Subagent progress
 reporting **landed 2026-07-16** as one side channel with the tool-step chip surfacing entry from
 [email-confirmer.md](email-confirmer.md) (annotated in place below). The spawn-spec tuning for
 spontaneous model picks and the measured trade-off advertisement landed together on 2026-07-16
-(one prose change, annotated in place below); a fix-when-it-bites residual on the nudge's live
-uptake is recorded at the end.
+(one prose change, annotated in place below).
+
+**Count corrected 2026-07-19, from 1 to 2.** The nudge residual was named here from the day it
+opened but never counted, so the index read this area at 1 while the doc held two open things. The
+arithmetic that dropped it is visible in the index's own narrative: two entries closed on
+2026-07-16 and one opened behind them, so the count should have moved 4 to 3 and then 3 to 2, not
+4 to 2 and then 2 to 1. Every other area counts its fix-when-it-bites entries as open (repo gates
+counts three, memory counts its ANN index and recall observability, resource governance counts
+five), so this was a slip rather than a convention, and a count that does not move for a still-open
+deferral is the same way an open item gets lost as a count moved for a half-closed one.
 
 **Subagents in Slice 7 ([ADR-0010](../adr/ADR-0010-subagents.md)):**
 - **Subagent progress reporting over the `Converse` status stream.** v1 delegation is synchronous

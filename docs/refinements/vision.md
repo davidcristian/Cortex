@@ -12,8 +12,14 @@ screens, an `AttachmentStore` for accountability, an image arm of the injection 
 per-source memory rules, a Windows.Graphics.Capture backend, multi-monitor and DPI reporting,
 Linux and macOS backends, a uniform per-call deadline, `RESOURCE_EXHAUSTED` classification,
 pixel screening in the body, carrying a picture (or at least the `opaque` bit) across a model
-swap, an outcome-driven capture indicator, and the host-side Windows validation of the whole
-capture path.
+swap, an outcome-driven capture indicator, the two agent-Docker validations this slice left
+unrun, and the host-side Windows validation of the whole capture path.
+
+Two bookkeeping notes, both settled 2026-07-19, so the names above can be reconciled against the
+bullets below without re-deriving them. Region and window capture and legibility at 4K share one
+bullet (the risk and the fix that closes it), which is why the names outnumber the bullets by one.
+And **the accepted residual the guardrail cannot catch** has a bullet but is deliberately not
+counted; the reason is recorded on the bullet itself.
 
 ## Vision in Slice 10 ([ADR-0029](../adr/ADR-0029-vision-screen-capture.md))
 
@@ -64,6 +70,14 @@ capture path.
   reproduces. It cannot catch one the model **retypes with a space**, defangs, or describes in
   words. The opaque bit closes the transcription path, not the paraphrase path, and no output
   filter can close the latter.
+  **Excluded from this area's open count on purpose, stated 2026-07-19.** ADR-0029's own Deferred
+  paragraph lists it beside the rest, and it was missing from the Open items line above without
+  anything saying why, which is the silent kind of omission this file exists to catch. It is
+  excluded because it names no work: an accepted limitation with no fix on offer (no output filter
+  closes a paraphrase) would sit in a backlog that must be empty before the README ships and never
+  leave it. It stays here as the record of what was accepted and on what reasoning, which is the
+  role a declined entry plays, and it reopens only if someone proposes a mechanism that closes the
+  paraphrase path, which would be a different kind of defence than an output filter.
 - **Per-source memory rules, so a vision turn can be remembered deliberately.** An opaque turn is
   dropped from durable memory outright, which is the safe default and a blunt one: "remember that
   my invoice number is 4021" after a capture is lost. A per-source policy (this source may be
@@ -108,6 +122,21 @@ capture path.
   (the one consent surface that would then match the body's own OS receipt) needs a post-dispatch
   signal on the `Converse` stream, which is a proto field plus a reducer arm plus a tool-loop
   emission point, so it is a seam change rather than an increment.
+- **Two agent-Docker validations this slice listed as still to run.** Written down 2026-07-19,
+  having lived only in [ADR-0029](../adr/ADR-0029-vision-screen-capture.md)'s Consequences with
+  nothing tracking them, which is how work owed becomes work forgotten. That ADR named four
+  measurements as still to run when it was accepted. Two of them ran and are recorded in its
+  2026-07-18 agent-validation section (the whole path through the real `LlamaCppBackend` rather
+  than raw HTTP, and an injection arm on the shipped payload). Two did not: **whether thinking
+  needs disabling on a vision turn** under the shipped parts payload, and **`llama-server`'s
+  `mmproj`-less error body text**, which that ADR also carries on its assumptions list precisely
+  because the bounded 300-character non-2xx excerpt was built to surface it, so the excerpt's whole
+  value rests on a string nobody has read. Both are **agent-side, not host-side**, which is why
+  they belong in this backlog rather than on a user list: the same 8 GB dev GPU that ran the
+  2026-07-18 validation holds the cortex beside its projector, so nothing about them needs the
+  host hardware. The disable-thinking lever itself is a separate open entry
+  ([inference-model-manager.md](inference-model-manager.md)); what is unmeasured here is only
+  whether a vision turn is the case that needs it.
 - **Host-side Windows validation of the whole capture path.** The one part of this slice no gate
   can reach, and the only one on the ADR's host-only list without a backlog line until
   2026-07-19. In order: the real GDI blit of a live desktop; **capturing while the overlay is
