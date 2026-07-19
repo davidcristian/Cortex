@@ -24,7 +24,11 @@ as the mechanism's, never as a tier's.
 Escalation is **off by default**. It is on only when `CORTEX_ESCALATION` is set, and then the
 deployment must also set `CORTEX_MODELHOST_BACKEND` (`scripted`, or `supervisor` with a
 `CORTEX_MODELHOST_ENDPOINT`) and
-`CORTEX_BRAIN_ENDPOINT`, or the brain refuses to boot (`config_swap.py`). With escalation off,
+`CORTEX_BRAIN_ENDPOINT`, or the brain refuses to boot (`config_swap.py`). **None of those three is
+interpolated by any compose file**, so a `.env` entry or an exported shell variable does not reach
+the brain container and the stack comes up with escalation quietly off (verified against a running
+container 2026-07-19): they go in the `brain` service's `environment:` block in
+`docker/docker-compose.gpu.yml`, or in a local override layered after it. With escalation off,
 nothing below can happen: no `escalate_to_brain` tool, no conductor, no boot recovery. The
 `model-host` sidecar itself is not gated by that switch: it comes up with the GPU override either
 way, serving the cortex as the always-on `llama-cortex` service used to.
@@ -106,6 +110,17 @@ Every number is one observation on this card, not a benchmark.
 | what the seam would say | `manager.residency()` read at those same instants | "a deep task is in progress" inside the scope, the serving report before and after, checked against the sidecar's own reads rather than beside them. A report that always claims serving reddens it |
 | the brain's own healthcheck | `docker inspect cortex-brain-1` after the predicate change | **healthy**; the same command against a port with no server exits 1, so the check still catches the broken gRPC server it exists for |
 | end to end | one `Converse` turn through the brain container | `Health` ready, `text_delta`s, `turn_complete`; the reply came off the supervised child over `http://model-host:8080` |
+
+**Do not run the tier-scale swap on an undersized card to "see if it works": it will say yes.**
+Measured 2026-07-19 on the same dev GPU, with the cortex evicted first and the deep tier pointed
+at a 17 GB `gemma-4-31B-it-qat-q4_0` artifact, llama.cpp logged `failed to fit params to free
+device memory: n_gpu_layers already set by user to 99, abort`, kept every layer assigned to the
+GPU, reached `ready` after **373 s** with `nvidia-smi` pinned at about 7.7 of the card's 8188 MiB,
+and then served 16 tokens in 36 s (roughly half a token per second), which is what the WSL2 driver
+spilling into host RAM costs. Nothing failed, so nothing warns you: the swap, the health gate and
+the stream all behave, and every timing and VRAM number from such a run is meaningless. Tier scale
+is a host measurement on a card that holds the tier
+([docs/host/gpu-tier-scale.md](../host/gpu-tier-scale.md)).
 
 Tier scale will be minutes rather than seconds on both halves: an 18 GB GGUF off the model mount at
 the measured mount read rate is what `CORTEX_SWAP_LOAD_TIMEOUT_S` (300 s) exists for. The eviction

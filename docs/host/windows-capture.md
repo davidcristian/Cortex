@@ -26,7 +26,7 @@ Kept verbatim from [refinements/vision.md](../refinements/vision.md), the entry 
 > surcharge. Runbook: [../runbooks/vision.md](../runbooks/vision.md).
 
 And from [ADR-0029](../adr/ADR-0029-vision-screen-capture.md)'s Consequences, which is the fuller
-form and adds the prediction and one item that is **not** a Windows item at all:
+form and adds the prediction and one clause that is **not** host work at all:
 
 > **Host-Windows (host only).** The real GDI blit of a live desktop; `WDA_EXCLUDEFROMCAPTURE`
 > verified by capturing while the overlay is visible and confirming it is absent; per-monitor DPI
@@ -35,9 +35,12 @@ form and adds the prediction and one item that is **not** a Windows item at all:
 > over a text turn, dominated by the second inference pass rather than by the body); and the
 > resident VRAM figure with the projector loaded on the 24 GB GPU.
 
-The last clause of that list is a **G** item with no OS-native content, filed under an
-"Host-Windows" heading and then dropped from the same ADR's own "Still host-only" closeout. It
-lives in [gpu-tier-scale.md](gpu-tier-scale.md) now, where a 24 GB card can answer it.
+The last clause of that list has no OS-native content, so it was briefly filed as a G item on
+2026-07-19 and withdrawn the same day: that figure was measured on the 24 GB card at 16K
+with the projector loaded on 2026-06-29 and is [ADR-0004](../adr/ADR-0004-model-lineup.md)'s
+11.3 GB, which ADR-0029's own decision 14 leans on. Read the clause as already satisfied rather
+than as work owed. The withdrawal is written up at the end of
+[gpu-tier-scale.md](gpu-tier-scale.md).
 
 That ADR also flags, on its assumptions list, that "every Win32 GDI and
 `SetWindowDisplayAffinity` behavior claim" is "documentation-derived and user-verifiable only".

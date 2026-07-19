@@ -459,7 +459,8 @@ validation**, for this ADR's own reason: a subagent is only ever placed on the G
 that holds the cortex first." The last clause asserts that the dev GPU does not hold the cortex.
 It does: [ADR-0029](ADR-0029-vision-screen-capture.md) measured `gemma-4-12b-it-qat-q4_0.gguf`
 resident on the 8 GB card on 2026-07-17 at `-ngl 99 --ctx-size 4096 --parallel 1` **with its
-vision projector**, 7715 of 8188 MiB.
+vision projector**, and [ADR-0030](ADR-0030-brain-handoff.md) records the model alone taking 7715
+of that card's 8188 MiB.
 
 **What is true instead, and it is narrower.** The card holds the cortex with roughly 470 MiB to
 spare, so nothing multi-GB fits *beside* it. A GPU placement **beside a resident cortex**, which is

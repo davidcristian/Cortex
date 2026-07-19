@@ -1342,3 +1342,38 @@ own log, and the container still read **healthy**, which is the corrected predic
 answered `ready=true` with the version detail, so the check discriminates rather than always
 reddening. **Tier scale is still not validated and cannot be here**, for the reason every addendum
 above gives: the dev GPU is 8 GB.
+
+## Addendum (2026-07-19): the host-only half has a home, and an 8 GB card does not fail loudly
+
+**Where the host-only half is tracked.** The three things this ADR leaves to the 24 GB machine, the
+tier-scale swap, the chaos kill against a real deep-model process, and the measured swap timings,
+now have a written home with a bring-up, a pass, a fail, and a "record it" line pointing back here:
+items 2, 3 and 4 of [docs/host/gpu-tier-scale.md](../host/gpu-tier-scale.md), indexed at
+[docs/host/](../host/index.md). The five risks this ADR flags for maintainer review stay here, which is
+where a decision belongs, and are listed on that index as pointers so they survive the ROADMAP
+slimming. Nothing about the work changed.
+
+**The bring-up the user needs was not derivable from the docs, and now is.** Enabling escalation
+takes three settings on the `brain` service (`CORTEX_ESCALATION`, `CORTEX_MODELHOST_BACKEND`,
+`CORTEX_BRAIN_ENDPOINT`), and **no compose file interpolates any of them**, so a `.env` entry or an
+exported shell variable reaches nothing and the stack comes up with escalation quietly off
+(verified against a running container on 2026-07-19). Omitting the endpoint is a restart loop on
+`CORTEX_BRAIN_ENDPOINT is required when CORTEX_ESCALATION=1`, which is `config_swap.py` behaving
+exactly as decision-level fail-closed intends. They belong in the `brain` environment block of
+`docker/docker-compose.gpu.yml` or in a local override layered after it, which that file's own
+header says and the user prerequisites now repeat.
+
+**An undersized card produces a green swap, which is the surprise worth recording.** Every addendum
+above says the dev GPU is 8 GB and cannot hold the cortex beside a deep candidate, which is true
+and unchanged. What was assumed and is false is that trying anyway fails loudly. Measured here on
+2026-07-19 with the cortex evicted first and the deep tier pointed at a 17 GB
+`gemma-4-31B-it-qat-q4_0` artifact: llama.cpp logged `failed to fit params to free device memory:
+n_gpu_layers already set by user to 99, abort`, kept every layer assigned to the GPU, and the tier
+reached READY after **373 s** with `nvidia-smi` pinned at about 7.7 of 8188 MiB, then generated 16
+tokens in 36 s, roughly half a token per second, which is consistent with the WSL2 driver spilling
+into host memory rather than refusing the allocation. So an 8 GB run of the tier-scale swap would
+look like a pass and every number in it would be meaningless, and the 373 s load would already blow
+through the 300 s `CORTEX_SWAP_LOAD_TIMEOUT_S` default for a reason that has nothing to do with the
+mount. The user doc carries this warning at the top of its bring-up.
+
+No code changed here; this addendum records a records fix and one measurement.

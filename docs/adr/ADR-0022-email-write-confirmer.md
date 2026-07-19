@@ -822,3 +822,17 @@ is built to the finding 4 shape, not by handing the egress sidecar a path. The e
 in [email-confirmer.md](../refinements/email-confirmer.md) as the historical record, annotated with
 this outcome, and moves to the backlog's dead-until-a-consumer list. Nothing in the seam, the proto,
 the sidecar, or the gate changed.
+
+## Addendum (2026-07-19): where the Windows-native card check is tracked
+
+The "Still pending (genuinely OS-native, host-only)" paragraph above names the confirm card
+through the real Tauri IPC hop. That check now has a written home: item 3 of
+[docs/host/windows-desktop.md](../host/windows-desktop.md), indexed at
+[docs/host/](../host/index.md), with the gated-tool prerequisite spelled out (either
+`CORTEX_EMAIL_SEND_ENABLED=true` with the Bridge reachable, or any name in `CORTEX_TOOLS_GATED`)
+and with the approve, deny, and ignore paths as three separate expectations. Worth knowing when
+searching for the trail: its backlog line lived under
+[refinements/untrusted-content.md](../refinements/untrusted-content.md) rather than
+`email-confirmer.md`. The result comes back here as a dated addendum.
+
+No code changed here; this is a records correction at the origin ADR.

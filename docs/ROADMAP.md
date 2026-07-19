@@ -398,8 +398,12 @@ overlay change. Runbook: [runbooks/model-swap.md](runbooks/model-swap.md).
 
 Moved to [refinements/](refinements/index.md) on 2026-07-15: one self-contained doc per
 area with the entries kept verbatim, plus an index carrying a blurb per doc, the recommended
-pickup order, and what blocks each open item (a pending slice, a seam change, a host-side
-validation, or a missing consumer). The contract is unchanged and lives there now: every
+pickup order, and what blocks each open item. Two of the four blocker classes this sentence once
+named are gone (corrected 2026-07-19): **host-side validation** moved to
+[host/](host/index.md), and nothing waits on **a pending slice** now that the last one has
+landed. What that index actually carries today is a seam or port change, a consumer that does not
+yet exist, a trigger that has not bitten yet, and hardware that fits two model tiers.
+The contract is unchanged and lives there now: every
 consciously deferred refinement is recorded in its area doc and on the index (and at its
 origin ADR) as part of finishing a slice. References elsewhere in this repo to "the ROADMAP's
 deferred-refinements section" resolve through this pointer.

@@ -1500,3 +1500,16 @@ retry table), on the same want-of-a-consumer test.
 
 No code changed. The Host-Windows toast validation the notify addendum already owed is unchanged,
 and it is the one look that would first exercise a clicked toast.
+
+## Addendum (2026-07-19): where the two Host-Windows looks are tracked
+
+This ADR's host line names two things no gate can reach: whether a real WinRT toast appears and
+reads well, and the overlay's reminder surface on the real hotkey to overlay path. Both now have a
+written home, items 2 and 5 of [docs/host/windows-desktop.md](../host/windows-desktop.md),
+indexed at [docs/host/](../host/index.md). They share one bring-up and one seeded reminder, which
+is why they are listed as a pair, and each carries its sharp failure: a toast that appears for a
+plain reminder but not for one whose text contains hostile markup is an escaping break, and cards
+that vanish when the brain goes away means a failed pull is clearing state. Both results come back
+here as dated addenda.
+
+No code changed here; this is a records correction at the origin ADR.

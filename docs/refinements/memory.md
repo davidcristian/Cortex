@@ -141,8 +141,9 @@ Deferred refinements from the Slice 5 memory work under [ADR-0008](../adr/ADR-00
   read "a model reranker's ordering is unverifiable on the 8 GB dev GPU (the cortex tier does not
   fit)", which is false and was doing work here:
   [ADR-0029](../adr/ADR-0029-vision-screen-capture.md) measured the real cortex plus its vision
-  projector resident on that card at `-ngl 99 --ctx-size 4096 --parallel 1` (7715 of 8188 MiB), so a
-  rank over a handful of candidates is judgeable agent-side today and only a 16K production context
+  projector resident on that card at `-ngl 99 --ctx-size 4096 --parallel 1`, and
+  [ADR-0030](../adr/ADR-0030-brain-handoff.md) records the model alone taking 7715 of that card's
+  8188 MiB, so a rank over a handful of candidates is judgeable agent-side today and only a 16K production context
   is out of reach. What binds is sequencing, and it always was: the declined blended-relevance field
   and the recall-observability entry both resolve to a `RecallPolicy.select` widening, and the
   recorded guidance is to change `select` once for all three consumers (a model rank, the distinct
