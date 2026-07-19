@@ -374,6 +374,10 @@ async def test_a_wedged_body_hits_the_capture_deadline() -> None:
             await gateway.capture_screen()
 
 
+def test_the_raised_receive_limit_is_the_number_it_claims_to_be() -> None:
+    assert MAX_RECEIVE_BYTES == 16777216
+
+
 async def test_an_oversized_reply_crosses_the_transport_and_is_refused_by_the_domain() -> None:
     # The distrust-green proof, in two halves. This reply is 8 MiB: over grpc's own 4 MiB
     # receive default (so the raised channel option is doing work), and over the 6 MiB domain

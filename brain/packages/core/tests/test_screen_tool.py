@@ -13,6 +13,7 @@ from cortex_core import (
     DENIED_MSG,
     MAX_IDENTICAL_DISPATCHES,
     BodyGatewayError,
+    CaptureBounds,
     CaptureScreenTool,
     DispatchPolicy,
     ImagePart,
@@ -129,6 +130,10 @@ async def test_a_capture_taints_the_turn_through_the_ordinary_ledger() -> None:
     assert ledger.tainted is False
     ledger.observe(result)
     assert ledger.tainted is True
+
+
+def test_the_default_bounds_ask_the_body_for_its_own_defaults() -> None:
+    assert (CaptureBounds().max_edge, CaptureBounds().max_bytes) == (0, 0)
 
 
 async def test_a_failed_capture_leaves_the_turn_clean() -> None:
