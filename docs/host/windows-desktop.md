@@ -150,7 +150,9 @@ inside the landed `Notify` entry:
 > Remaining, and unchanged from what this slice always owed: the **Host-Windows** look at a real
 > toast (runbook [scheduling.md](../runbooks/scheduling.md)).
 
-and from the ROADMAP's Slice 9.5 status:
+The sentence below was that slice's status in a planning doc, preserved here when it was slimmed
+on 2026-07-19; [ADR-0025](../adr/ADR-0025-scheduling-reminders.md)'s own 2026-07-19 addendum states
+the live version of it and points back at this item by number:
 
 > the port plus the inert-text rule are gated in `body_core`, `WindowsNotify` renders a WinRT
 > toast, and only the user's look at a real toast is left.
