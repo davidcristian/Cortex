@@ -355,8 +355,10 @@ description now names the measured trade-off (distinct-model spread is the wall-
 same-model subtasks serialize), which doubles as the spontaneous-pick nudge finding 1 wanted. The
 entry's *other* reading, deriving the config description strings from numbers, stayed declined
 (deployment-specific text, safety deterministic), and the nudge's live uptake opened one
-fix-when-it-bites residual behind it, unverifiable on the 8 GB dev GPU where the cortex tier does
-not fit. Subagents then went 2 to 1, and email & confirmer 7 to 6, on 2026-07-16 together, when
+fix-when-it-bites residual behind it, recorded as unverifiable on the 8 GB dev GPU where the cortex
+tier does not fit, **which was false and is struck 2026-07-19**: that card runs the real cortex, and
+the probe is agent-runnable and now sits under actionable now.
+Subagents then went 2 to 1, and email & confirmer 7 to 6, on 2026-07-16 together, when
 the two entries the index had flagged as one piece of work (subagent progress reporting in
 subagents.md, subagent tool-step chip surfacing in email-confirmer.md) **landed** as one side
 channel, decrementing both counts. Both halves of that entry's cost correction held against the
@@ -399,10 +401,13 @@ non-reentrant GPU-lease hazard is navigable by the title generator's sequential-
 (proven against the real manager: a drained acquire then the reply's acquire succeeds, a held-open
 call deadlocks), not the structural nesting the memory entry's "inside a turn that already holds the
 lease" implied, since selection completes before the reply stream acquires the lock. What binds is
-elsewhere: a model pass cannot be behavior-validated on the 8 GB dev GPU where the cortex tier does
-not fit, and `RecallPolicy.select`'s widening should serve its three deferred consumers (a model
-rank, the declined blended field, a recall-observability sink) in one change rather than go async
-alone now, so both reopen with the real GPU lifecycle.
+elsewhere, and the 2026-07-16 audit named the wrong "elsewhere" first: it said a model pass cannot
+be behavior-validated on the 8 GB dev GPU where the cortex tier does not fit, **struck 2026-07-19**
+because that card holds the cortex. What is left of it is real and is enough: `RecallPolicy.select`'s
+widening should serve its three deferred consumers (a model rank, the declined blended field, a
+recall-observability sink) in one change rather than go async alone now, and summarization's
+cache-versus-recompute question is undecided, so both reopen on that design work rather than on
+hardware.
 Cross-cutting went 4 to 3 on 2026-07-16 when pointer-input injection closed as declined, dead until
 a consumer, the entry whose premise the tree contradicted most sharply. It read as a small pointer
 increment over an existing text/keyboard input-injection capability needing only a proto extension,
@@ -660,6 +665,21 @@ against the code (the warning above); the entry text tells you which seams it ex
   projector on 2026-07-18 is enough for all of them. The hand-run injection arm in that ADR's
   closeout is one corpus of one, which is exactly why the harness arm is still owed and why its
   number gets published whatever it says.
+- **The `VramBudgetPlacer`'s GPU arm against a real placement**
+  ([resource-governance.md](resource-governance.md)), the mechanism half of what was filed whole as
+  host work on 2026-07-19 and split back the same day. A GPU placement **beside a resident cortex**
+  needs the 24 GB card and stays item 6 of
+  [docs/host/gpu-tier-scale.md](../host/gpu-tier-scale.md), because this card holds the cortex with
+  roughly 470 MiB to spare. The arm firing at all does not need a cortex resident: the budget is
+  three env values, the tier is one small artifact behind `CORTEX_MODEL_FILE_SUBAGENT_GPU` on the
+  supervisor's `:8083`, and what gets proven is the route from a GPU verdict to an `-ngl 99` process
+  and the ledger that accounts for it. Same mechanism-versus-tier-scale split the swap already runs
+  on.
+- **The spontaneous-pick nudge's live uptake** ([subagents.md](subagents.md)), whose fix stays
+  fix-when-it-bites but whose *observation* is runnable here: a resident cortex at 4K with the
+  CPU roster up, given a prose-only ask carrying independent subtasks, either reaches for distinct
+  roster models or does not. Listed here because the entry said for three days that no card
+  available to the agent could answer it.
 
 Everything else that remains is gated on a seam or port change, on the GPU lifecycle at tier
 scale, on a consumer that does not yet exist, or is a bounded fix-when-it-bites contingency. The
@@ -670,7 +690,9 @@ the last item then
 listed (`cargo clippy` for the Tauri shell in CI) moved to fix-when-it-bites once reading what the
 rust CI job installs (no system library at all) showed it is not a marginal add but a new class of
 CI provisioning, until 2026-07-19. What changed is worth stating plainly rather than quietly: it
-was not that new work appeared, but that three actionable things had never been written down.
+was not that new work appeared, but that three actionable things had never been written down, and
+then that two more turned out to be actionable once the false "the cortex does not fit the dev GPU"
+premise was struck across the docs that same day.
 
 ### Actionable, but a seam or port change comes first
 
@@ -730,10 +752,12 @@ was not that new work appeared, but that three actionable things had never been 
   on its own. **Audited 2026-07-16:** the async widening is mechanically clean and contained (one
   already-async caller each, no colour cascade, gate-clean under this repo's non-preview ruff) and
   the lease hazard is navigable by the title generator's sequential-drain discipline (the reply's
-  lock is not yet held at selection time), so neither is the binding blocker; what binds is that a
-  model pass cannot be validated on the 8 GB dev GPU (the cortex tier does not fit) and that
-  `select`'s widening should serve its three deferred consumers in one change, so this reopens with
-  the real GPU lifecycle.
+  lock is not yet held at selection time), so neither is the binding blocker. That audit then gave a
+  hardware blocker, "a model pass cannot be validated on the 8 GB dev GPU (the cortex tier does not
+  fit)", **struck 2026-07-19**: the card holds the cortex and a model pass is judgeable here at 4K.
+  What binds is that `select`'s widening should serve its three deferred consumers in one change,
+  plus summarization's undecided cache-versus-recompute question, so this reopens on that design
+  work and not on a card.
 
 ### Blocked on Slice 11 (real model swap / GPU lifecycle)
 
@@ -765,7 +789,11 @@ was not that new work appeared, but that three actionable things had never been 
   was validated is the runtime's **mechanism**, in Docker on the dev GPU with two small artifacts;
   real GPU-placed **subagent** validation and the placeholder cgroup numbers were not, and both
   **moved to [docs/host/gpu-tier-scale.md](../host/gpu-tier-scale.md) the same day** as items 6
-  and 7 there, which is where their reasoning now lives. Neither ever carried a count here.
+  and 7 there. **Split again the same day:** the subagent validation's own reason ("needs a card
+  that holds the cortex first") assumed the dev GPU cannot hold the cortex, and it can, so what
+  needs the 24 GB card is a placement **beside** a resident cortex while the placer's GPU arm
+  firing against a real placement is agent-side and sits under actionable now. The cap numbers are
+  host work unchanged. None of this ever carried a count here.
 - The ~31B brain-tier injection-harness run **moved to
   [docs/host/gpu-tier-scale.md](../host/gpu-tier-scale.md) on 2026-07-19**, where it sits behind
   the deep-model pick with the other four capstone items
@@ -800,7 +828,8 @@ uncounted residuals went, listed here so nothing has to be re-derived:
   [scheduling.md](scheduling.md), never counted), joined there by the pull surface's own check,
   which had no backlog line although ADR-0025's host line and the runbook both named it
 - Real GPU-placed subagent validation and the placeholder cgroup numbers (were inside a landed
-  entry in [resource-governance.md](resource-governance.md), never counted)
+  entry in [resource-governance.md](resource-governance.md), never counted). The first of those came
+  back the same day, split: only a placement beside a resident cortex needs the 24 GB card
 
 Each origin doc keeps a dated pointer stub in place of the entry, so the trail from an ADR through
 this backlog still resolves. **Why they moved rather than staying with a tag:** the two backlogs
@@ -1013,8 +1042,9 @@ Bounded contingencies, each named in its doc with the condition that would activ
 salience limit knob, cross-loop salience, the `CORTEX_SUBAGENTS_MAX_BATCH` knob, the
 cost-aware batch cap, the fair-share policy, and the sidecar session cache/pool, whose own entry calls the per-call handshake acceptable at personal scale ([tools-mcp.md](tools-mcp.md)); the
 spontaneous-pick nudge's live uptake, joined on 2026-07-16 when the measured trade-off
-advertisement landed, whose trigger is a live cortex on user-tier hardware still under-reaching
-for distinct models and whose fix is stronger nudging behind the same spec seam
+advertisement landed, whose trigger is a live cortex still under-reaching for distinct models
+(observable here since 2026-07-19, when the card's stated inability to hold the cortex was struck)
+and whose fix is stronger nudging behind the same spec seam
 ([subagents.md](subagents.md)); checking the sidecar's stop bounds against the brain's control
 deadline instead of only documenting the pairing, joined on 2026-07-18 with the audit round that
 found the pairing had a third term and added the `GET /health` reporting that would make the check

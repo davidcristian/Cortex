@@ -89,6 +89,24 @@ the unchanged `SubagentPlacer`/`SubagentScheduler`/`ModelManager` ports.
   [docs/host/gpu-tier-scale.md](../host/gpu-tier-scale.md) the same day**, with the sentences
   above kept verbatim there; the cap numbers arrived carrying the mmap trap ADR-0012 records,
   which is that a cap below the artifact size makes a load thrash rather than fail.
+  **The reason above is wrong in its second half, and half of that validation comes back here
+  (2026-07-19).** "Which needs a card that holds the cortex first" says the dev GPU does not hold
+  the cortex, and it does:
+  [ADR-0029](../adr/ADR-0029-vision-screen-capture.md) measured `gemma-4-12b-it-qat-q4_0.gguf`
+  resident with its vision projector at `-ngl 99 --ctx-size 4096 --parallel 1`, 7715 of 8188 MiB.
+  What the card cannot do is hold anything *beside* that cortex, roughly 470 MiB of headroom
+  against a multi-GB subagent, so a GPU placement **beside a resident cortex**, which is the
+  arithmetic ADR-0012 cares about, stays host-side and stays item 6 of
+  [docs/host/gpu-tier-scale.md](../host/gpu-tier-scale.md). The **mechanism** does not need a
+  resident cortex at all: with no cortex up, the budget sized to this card
+  (`CORTEX_VRAM_SOFT_CAP_GB`, `CORTEX_VRAM_CORTEX_GB`, `CORTEX_SUBAGENTS_VRAM_GB` are all env), a
+  small artifact in `CORTEX_MODEL_FILE_SUBAGENT_GPU` and `CORTEX_SUBAGENTS_GPU_ENDPOINT` pointed at
+  the sidecar's `:8083`, the `VramBudgetPlacer`'s GPU arm can fire against a real placement here and
+  the route from a GPU verdict to an `-ngl 99` tier can be exercised end to end. That is the same
+  mechanism-versus-tier-scale split the swap already uses, it is agent-side under the rule that "on
+  the host" includes the agent, and it is **actionable now** rather than host work. Nobody has run
+  it: the GPU arm has still never fired against a real placement, which is exactly why the split
+  matters.
 - **Placement-aware CPU charging closed 2026-07-16 as declined, wrong premise and no gain
   ([ADR-0012 admission-wall addendum](../adr/ADR-0012-resource-governance.md)).** The entry read:
   "`admit` charges every spawn its full `cpus`/`memory_gb` regardless of placement (conservative);

@@ -63,8 +63,10 @@ deferral is the same way an open item gets lost as a count moved for a half-clos
   **Advanced 2026-07-16 by the trade-off change below:** the new parallelism line is also the
   spontaneous-pick nudge finding 1 wanted, giving the model knob a concrete reason (a wall-clock
   win from spreading independent subtasks across distinct models) to reach for beyond a directed
-  pick. The *uptake* by a live cortex is unverified here (gemma-12B does not fit the 8 GB dev
-  GPU), so it is recorded as a fix-when-it-bites residual below rather than proven closed.
+  pick. The *uptake* by a live cortex is unverified: not measured rather than unmeasurable, since
+  the reason recorded until 2026-07-19 (gemma-12B does not fit the 8 GB dev GPU) is false. It is
+  recorded as a fix-when-it-bites residual below rather than proven closed, with the probe itself
+  agent-runnable now.
 
 **Heterogeneous subagents in Slice 8.6 ([ADR-0018](../adr/ADR-0018-heterogeneous-subagents.md)):**
 - **Measured trade-off advertisement.** Roster descriptions are config-authored text
@@ -96,13 +98,21 @@ deferral is the same way an open item gets lost as a count moved for a half-clos
 
 **Fix when it bites ([ADR-0018](../adr/ADR-0018-heterogeneous-subagents.md)):**
 - **The spontaneous-pick nudge's live uptake.** The measured trade-off line gives the cortex a
-  concrete wall-clock reason to spread independent subtasks across distinct roster models, but its
-  uptake cannot be validated on the 8 GB dev GPU (gemma-12B, the cortex tier, does not fit; the
-  spawn tool is cortex-only, and the small subagents do not respect prompt framing the way the
-  cortex does, so a subagent-tier proxy would not test it). The trigger is a live cortex on
-  user-tier hardware still folding cheap-model picks into instruction text or piling same-model
-  batches for latency; the fix is stronger nudging behind the same spec seam (a worked example, a
-  sharper phrasing), never a schema change.
+  concrete wall-clock reason to spread independent subtasks across distinct roster models, and
+  whether it takes that reason unprompted is unmeasured. A subagent-tier proxy would not test it
+  (the spawn tool is cortex-only, and the small subagents do not respect prompt framing the way the
+  cortex does), so the probe needs a live cortex. **Corrected 2026-07-19: that is agent-runnable
+  here, and this entry said it was not.** It read "cannot be validated on the 8 GB dev GPU
+  (gemma-12B, the cortex tier, does not fit)";
+  [ADR-0029](../adr/ADR-0029-vision-screen-capture.md) had already run the real cortex on that card
+  at `-ngl 99 --ctx-size 4096 --parallel 1`, beside its vision projector, which is the heavier case.
+  The roster is CPU-placed by default, so it contends for no VRAM. The probe is a resident cortex at
+  4K with the roster up and a prose-only ask carrying independent subtasks, and it is listed as
+  actionable now in [index.md](index.md); what stays host-side is the same question at the
+  production 16K context with more than one slot. The trigger is a live cortex still folding
+  cheap-model picks into instruction text or piling same-model batches for latency; the fix is
+  stronger nudging behind the same spec seam (a worked example, a sharper phrasing), never a schema
+  change.
 - **The per-role escape hatch.** A future subagent role needing a cheap model on a
   tainted/tool path for a proven-safe reason would be a per-role override on the same roster
   seam, never a relaxation of the forced-robust default (ADR-0017 risks, ADR-0018 risks).

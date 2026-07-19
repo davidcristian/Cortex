@@ -137,13 +137,18 @@ Deferred refinements from the Slice 5 memory work under [ADR-0008](../adr/ADR-00
   is a sequential acquire, the title generator's discipline, proven safe against the real manager (a
   drained acquire then the reply's acquire succeeds; a call held open across it deadlocks). So "runs
   inside a turn that already holds the lease" is imprecise: the real hazard is an abandoned reranker
-  stream, not nesting. **Why it still waits.** Beyond a model reranker's ordering being unverifiable
-  on the 8 GB dev GPU (the cortex tier does not fit), the declined blended-relevance field and the
-  recall-observability entry both resolve to a `RecallPolicy.select` widening, and the recorded
-  guidance is to change `select` once for all three consumers (a model rank, the distinct blended
-  field, an observability sink reading the rank key) rather than twice; an async-only widening now
-  would be the first of two changes. So this reopens with the model manager's real GPU lifecycle,
-  landing the async widening, the richer `select` return, and the model policy as one design.
+  stream, not nesting. **Why it still waits, and the hardware clause is struck (2026-07-19).** This
+  read "a model reranker's ordering is unverifiable on the 8 GB dev GPU (the cortex tier does not
+  fit)", which is false and was doing work here:
+  [ADR-0029](../adr/ADR-0029-vision-screen-capture.md) measured the real cortex plus its vision
+  projector resident on that card at `-ngl 99 --ctx-size 4096 --parallel 1` (7715 of 8188 MiB), so a
+  rank over a handful of candidates is judgeable agent-side today and only a 16K production context
+  is out of reach. What binds is sequencing, and it always was: the declined blended-relevance field
+  and the recall-observability entry both resolve to a `RecallPolicy.select` widening, and the
+  recorded guidance is to change `select` once for all three consumers (a model rank, the distinct
+  blended field, an observability sink reading the rank key) rather than twice; an async-only
+  widening now would be the first of two changes. So this reopens when that widening is taken,
+  landing the async change, the richer `select` return, and the model policy as one design.
 - **Write-salience policy.** v1 records the raw exchange text every turn; deciding what
   *deserves* remembering (salience filtering at record time) is a later policy (ADR-0008 risks).
   Its summarization half is adjacent to the tiered-memory entry above. **Cost correction:** a

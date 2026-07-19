@@ -53,10 +53,12 @@ Kept verbatim from the ROADMAP's Slice 9 status:
 first read as needing a 24 GB card for the cortex-driven half, which would have made this item
 **W+G**. The VRAM clause is false: [ADR-0029](../adr/ADR-0029-vision-screen-capture.md) measured
 the real `gemma-4-12b-it-qat-q4_0.gguf` fitting the 8 GB dev GPU **beside its projector** at
-`--ctx-size 4096 --parallel 1` on 2026-07-17, and a resident cortex emitted a real tool call here
-on 2026-07-03. The 11.3 GB reservation the sentence leaned on is a 16K-context figure. What no
-card can supply is the Win32 desktop the audio backend needs, so the whole item is **W**, and one
-bring-up closes the cortex-driven half with it.
+`--ctx-size 4096 --parallel 1` on 2026-07-17 and drove a real vision turn through the shipped
+inference adapter on 2026-07-18. The 11.3 GB reservation the sentence leaned on is a 16K-context
+figure. What no card can supply is the Win32 desktop the audio backend needs, so the whole item is
+**W**, and one bring-up closes the cortex-driven half with it. (Second correction, 2026-07-19:
+this paragraph also cited a cortex-driven tool call "here on 2026-07-03", which was agent-run on
+the 24 GB card, the machine the agent had then. The dev-card evidence is the vision turn.)
 
 **Do.** [runbooks/body-volume.md](../runbooks/body-volume.md), "Host-only half (real Core Audio on
 Windows)", three numbered steps. Then say or type **"set volume to 30%"**, and **"what's my
@@ -76,8 +78,8 @@ volume?"** for `get_volume`.
 
 **Record it.** A dated addendum to [ADR-0023](../adr/ADR-0023-body-gateway-volume.md), whose
 2026-07-16 addendum on moving the sync OS calls off the async worker ends its "Validated" paragraph
-with "Unchanged and still host-side: the real 'set volume to 30%' on Windows" (two addenda follow
-it, so it is not the file's last line); a note in
+with "Unchanged and still host-side: the real 'set volume to 30%' on Windows" (later addenda follow
+it, so search for the sentence rather than reading the file's end); a note in
 [runbooks/body-volume.md](../runbooks/body-volume.md); then delete this section.
 
 ---
@@ -194,8 +196,8 @@ that appears but whose messages never load is `session_messages` specifically.
 
 **Record it.** A dated addendum to [ADR-0021](../adr/ADR-0021-session-read-seam.md), whose
 2026-07-07 live-validation addendum closes with "the Windows-native Tauri
-`list_sessions`/`session_messages` commands remain host validation" (nine addenda follow it,
-so it is not the file's last line); then delete this section.
+`list_sessions`/`session_messages` commands remain host validation" (many later addenda follow
+it, so search for the sentence rather than reading the file's end); then delete this section.
 
 ---
 

@@ -39,11 +39,15 @@ Deferred refinements from Slice 3's cortex chat and session work; the windowing 
   second acquire succeeds, while a summarizer stream held open across the reply's acquire deadlocks.
   So the hazard is the abandoned-stream case this entry named, a discipline requirement on the future
   selector, not the reply already holding the lease. **What stays deferred is the model pass
-  itself.** A summarizing window cannot be behavior-validated on the 8 GB dev GPU, where the cortex
-  tier (gemma-12B) does not fit, and the cache-versus-recompute-per-turn decision this entry named is
-  unresolved (a design choice, not a wrapper). So the honest slice waits for the model manager's real
-  GPU lifecycle to give user-tier hardware, and lands the async widening together with the
-  summarizer rather than the widening alone as an empty async layer.
+  itself, and its stated blocker was wrong (corrected 2026-07-19).** This read "a summarizing window
+  cannot be behavior-validated on the 8 GB dev GPU, where the cortex tier (gemma-12B) does not fit".
+  The cortex does fit that card: [ADR-0029](../adr/ADR-0029-vision-screen-capture.md) ran it there
+  beside its vision projector at `-ngl 99 --ctx-size 4096 --parallel 1` (7715 of 8188 MiB), and
+  judging whether a summary keeps what the next turn needs is not a 16K question. What is unresolved
+  is the design: the cache-versus-recompute-per-turn decision this entry named is a choice, not a
+  wrapper. So the honest slice still lands the async widening together with the summarizer rather
+  than the widening alone as an empty async layer, and what it waits on is that decision plus the
+  shared `select` widening, not the 24 GB card.
 - **Bounded backpressure on the `Converse` output queue landed 2026-07-03.** The per-turn
   output queue (`converse.py`) is now credit-bounded (`CORTEX_SEAM_CONVERSE_BUFFER`, default
   256): a consumer that stops reading suspends generation at the bound, while the terminal
