@@ -458,3 +458,15 @@ order, URL set) against fake and Redis adapter alike, mutation-proven and verifi
 Redis. The boundary semantics decided here are untouched; the escalate tool and swap conductor
 that will write a record mid-turn (and the tainted-escalation denial that keeps injected content
 from forcing an eviction) are ADR-0030's later sub-slices.
+
+## Addendum (2026-07-19): where the brain-tier harness run is tracked
+
+The harness addendum's brain tier stays opt-in (`CORTEX_PROBE_BRAIN=1`) and unrun, because the VRAM
+cost needs the other tiers evicted. That run is host work behind the deep-model pick, and it now
+has a written home: item 5 of [docs/host/gpu-tier-scale.md](../host/gpu-tier-scale.md), indexed at
+[docs/host/](../host/index.md). It is recorded there as the only host item whose outcome can
+change shipped policy (a brain tier that obeys injections under the shipped preamble is evidence for
+keeping escalation gated), and as the only one with no runbook section yet, so writing that section
+is part of it. The result comes back here as a dated addendum.
+
+No code changed here; this is a records correction at the origin ADR.

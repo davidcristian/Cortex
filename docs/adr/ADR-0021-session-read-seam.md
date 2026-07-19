@@ -655,3 +655,16 @@ by a no-tool structural test. The body proves `SeamMethod::SetSessionPinned` is 
 however patient the plan. Live-validated (agent, Docker + real Redis): four chats seeded with the
 oldest pinned and a `limit=3` listing returned the pinned old chat FIRST, above the three newer chats,
 exactly once, and unpinning dropped it back out of the window.
+
+## Addendum (2026-07-19): where the Windows-native command check is tracked
+
+The 2026-07-07 live-validation addendum closes with the Tauri `list_sessions` and
+`session_messages` commands remaining host validation. That check now has a written home:
+item 4 of [docs/host/windows-desktop.md](../host/windows-desktop.md), indexed at
+[docs/host/](../host/index.md), where it shares one `npm run tauri dev` bring-up with five other
+checks and carries its own pass and fail. One staleness note travels with it: the quoted status says
+prior chats are reachable only through the switcher because auto-restore was deferred, and
+auto-restore landed 2026-07-12, so the most recent chat is expected to restore. The result comes
+back here as a dated addendum.
+
+No code changed here; this is a records correction at the origin ADR.

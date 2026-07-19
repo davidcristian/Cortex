@@ -681,8 +681,8 @@ against the code (the warning above); the entry text tells you which seams it ex
   roster models or does not. Listed here because the entry said for three days that no card
   available to the agent could answer it.
 
-Everything else that remains is gated on a seam or port change, on the GPU lifecycle at tier
-scale, on a consumer that does not yet exist, or is a bounded fix-when-it-bites contingency. The
+Everything else that remains is gated on a seam or port change, on hardware that fits two model
+tiers, on a consumer that does not yet exist, or is a bounded fix-when-it-bites contingency. The
 list used to end with "on host-side Windows validation" too; since 2026-07-19 that class lives in
 [docs/host/](../host/index.md) and what stays here is the handful of entries whose cost is code
 even though only the user can observe the trigger. This section read "None" from 2026-07-16, when
@@ -759,7 +759,13 @@ premise was struck across the docs that same day.
   plus summarization's undecided cache-versus-recompute question, so this reopens on that design
   work and not on a card.
 
-### Blocked on Slice 11 (real model swap / GPU lifecycle)
+### Blocked on hardware that fits two model tiers
+
+**Renamed 2026-07-19.** This bucket read "Blocked on Slice 11 (real model swap / GPU lifecycle)"
+after that slice was marked done on 2026-07-18, which named a blocker that had stopped existing.
+One entry is still open here, co-residency, and what blocks it is a card that fits the tiers it
+would keep alive plus the ADR-0030 decision 8 rule it would relax. The rest of the bucket is kept
+as the record of what an area's deferrals became.
 
 - Co-residency, the open half of the model-manager process-lifecycle entry
   ([inference-model-manager.md](inference-model-manager.md)). The **pure half landed 2026-07-17**

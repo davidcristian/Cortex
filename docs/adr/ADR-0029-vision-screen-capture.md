@@ -875,16 +875,24 @@ rest of the sitting a measurement of a system that is already unsound.
 
 **One item is corrected rather than moved.** The Consequences section's "Host-Windows (host only)"
 list ends with "the resident VRAM figure with the projector loaded on the 24 GB GPU". That is not a
-Windows item: it has no OS-native content, needs no desktop session, and asks a question only a
-24 GB card can answer. It was then dropped from this ADR's own "Still host-only" closeout and
-never reached [docs/refinements/vision.md](../refinements/vision.md), so it existed in exactly one
-sentence in this repo. It is restored here and filed under the GPU capability, in
-[docs/host/gpu-tier-scale.md](../host/gpu-tier-scale.md), where it checks the real cortex plus `mmproj`
-footprint against ADR-0004's 11.3 GB reservation, which is already a with-mmproj number: if the
-measured figure is materially larger, every subagent headroom calculation the `VramBudgetPlacer`
-makes shifts.
+Windows item: it has no OS-native content and needs no desktop session. It was filed under the GPU
+capability instead, as an eighth item in
+[docs/host/gpu-tier-scale.md](../host/gpu-tier-scale.md).
 
-Read the "Still host-only" section above as complete for the Windows half and as missing that one
-GPU line, which this addendum supplies.
+**Corrected later the same day: that filing was wrong, and the item is withdrawn.** The paragraph
+above claimed the clause "existed in exactly one sentence in this repo" and therefore owed the
+user a measurement. It owes nothing. The figure was measured on that card before this ADR was
+written: [ADR-0004](ADR-0004-model-lineup.md)'s 2026-06-29 addendum records
+`gemma-4-12B q4_0` at 11.0 GB weights only and **11.3 GB with the mmproj loaded**, on "the user's
+24 GB card ... 16K context, single slot, all layers on GPU", which is the
+production context and the deployment's own slot count (the model host runs the cortex tier at
+`parallel=1`). The [llamacpp-gpu.md](../runbooks/llamacpp-gpu.md) table and
+[vision.md](../runbooks/vision.md)'s "What the projector costs" carry the same number, and this
+ADR's decision 14 leans on it in as many words: "The 11.3 GB default is ADR-0004's **with-mmproj**
+measurement". So the Consequences clause is a restatement of a measurement already held, not a gap,
+and the honest correction is the one this addendum now makes rather than a sitting invented for it.
+
+Read the "Still host-only" section above as complete: the Windows half is the whole of what this
+ADR owes.
 
 No code changed here; this is a records correction at the origin ADR.

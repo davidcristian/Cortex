@@ -225,8 +225,10 @@ The residual above says whether a live cortex reaches for distinct models unprom
 validated on the 8 GB dev GPU (gemma-12B, the cortex tier, does not fit ...)" and puts its trigger
 on "user-tier hardware". The parenthetical is false.
 [ADR-0029](ADR-0029-vision-screen-capture.md) ran `gemma-4-12b-it-qat-q4_0.gguf` on that card on
-2026-07-17 at `-ngl 99 --ctx-size 4096 --parallel 1` with its vision projector loaded, 7715 of
-8188 MiB, and drove a real vision turn through the shipped inference adapter on 2026-07-18. The rest of the
+2026-07-17 at `-ngl 99 --ctx-size 4096 --parallel 1` with its vision projector loaded and drove a
+real vision turn through the shipped inference adapter on 2026-07-18, and
+[ADR-0030](ADR-0030-brain-handoff.md) records the model alone taking 7715 of that card's
+8188 MiB. The rest of the
 parenthetical stands and is the part that matters for design: the spawn tool is cortex-only and the
 small subagents do not respect prompt framing the way the cortex does, so no subagent-tier proxy
 tests this.

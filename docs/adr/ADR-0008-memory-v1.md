@@ -480,8 +480,10 @@ The 2026-07-16 addendum above opens its "Why it still waits" paragraph with "a m
 ordering being unverifiable on the 8 GB dev GPU, where the cortex tier does not fit". The second
 half of that is measurably wrong, and it was wrong before it was written:
 [ADR-0029](ADR-0029-vision-screen-capture.md) brought `gemma-4-12b-it-qat-q4_0.gguf` up on that
-card on 2026-07-17 at `-ngl 99 --ctx-size 4096 --parallel 1` **with its vision projector loaded**,
-7715 of 8188 MiB, and drove a real turn through it the next day. Ranking a handful of recall
+card on 2026-07-17 at `-ngl 99 --ctx-size 4096 --parallel 1` **with its vision projector loaded**
+and drove a real turn through it the next day, and
+[ADR-0030](ADR-0030-brain-handoff.md) records the model alone taking 7715 of that card's
+8188 MiB. Ranking a handful of recall
 candidates is not a 16K-context question, so the ordering is judgeable agent-side today.
 
 **What this changes.** Not the deferral, only its reason, which matters because a reason that names
@@ -492,5 +494,17 @@ should serve all three consumers in one change rather than go async alone. Read 
 as saying that and nothing about a card. Corrected the same day in
 [docs/refinements/memory.md](../refinements/memory.md) and its
 [index](../refinements/index.md).
+
+No code changed here; this is a records correction at the origin ADR.
+
+## Addendum (2026-07-19): where decision 7's host-side check is tracked
+
+Decision 7 says mounting PGDATA directly onto the Windows drive "is validated on the host as a
+*nice to have*, not the default". That check needs Docker on the host Windows host, so it is
+host work, and it now has a written home: the optional item at the end of
+[docs/host/windows-desktop.md](../host/windows-desktop.md), indexed at
+[docs/host/](../host/index.md), which states plainly that nothing depends on the answer and that
+no procedure exists yet, so writing one is part of taking it. Its result comes back here as a dated
+addendum and to [runbooks/memory-pgvector.md](../runbooks/memory-pgvector.md).
 
 No code changed here; this is a records correction at the origin ADR.

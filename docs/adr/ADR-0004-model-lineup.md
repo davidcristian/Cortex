@@ -249,3 +249,20 @@ thinking off, ctx 8192, 2 slots):
   revision here moves the safety default with it automatically.
 - Artifacts: `google/gemma-4-E4B-it-qat-q4_0-gguf/gemma-4-E4B_q4_0-it.gguf` (the
   harness-tested QAT quant; the lmstudio Q8_0 stays unused, since 7.5 GB buys no robustness).
+
+## Addendum (2026-07-19): where the host-side pick is tracked
+
+The deep-model pick this ADR left open, and the injection table's line that the brain tier is
+"opt-in and not yet run", are the two things here that only the 24 GB card can close. Both
+now have a written home with a procedure, a pass, a fail, and a "record it" line pointing back at
+this file: items 1 and 5 of
+[docs/host/gpu-tier-scale.md](../host/gpu-tier-scale.md), whose index is
+[docs/host/](../host/index.md). Nothing about the work changed; this is the third of the three
+records [AGENTS.md](../../AGENTS.md) requires for a host item, which this ADR was missing.
+
+The measurement table above is **not** host work and never was: it was taken on that card on
+2026-06-29, at 16K context and a single slot, with and without the mmproj. A briefly filed user
+item asking for the with-projector figure again was withdrawn the same day it was filed
+([ADR-0029](ADR-0029-vision-screen-capture.md)'s 2026-07-19 addendum).
+
+No code changed here; this is a records correction at the origin ADR.

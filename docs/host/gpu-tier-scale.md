@@ -1,13 +1,14 @@
 # The 24 GB machine (tag G)
 
-Eight items, one bring-up, one blocker. The first one gates four of the others, which is why this
-is a single doc rather than eight: the dependency chain is the whole story on this side in a way
+Seven items, one bring-up, one blocker. The first one gates four of the others, which is why this
+is a single doc rather than seven: the dependency chain is the whole story on this side in a way
 it is not on the Windows side.
 
-Everything here is blocked on VRAM, not on an operating system. The dev GPU is an 8 GB card
-and `gemma-4-12b-it-qat-q4_0.gguf` alone takes 7715 of its 8188 MiB, so the real cortex cannot be
-swapped against any deep-model candidate, and no subagent can be GPU-placed beside a resident
-cortex. Kept verbatim from the ROADMAP's Slice 11 status:
+Everything here is blocked on VRAM, not on an operating system. The dev GPU is an 8 GB card,
+and [ADR-0030](../adr/ADR-0030-brain-handoff.md) measured `gemma-4-12b-it-qat-q4_0.gguf` alone
+taking 7715 of its 8188 MiB, so the real cortex cannot be swapped against any deep-model
+candidate, and no subagent can be GPU-placed beside a resident cortex. Kept verbatim from the
+ROADMAP's Slice 11 status:
 
 > What remains is the host-side capstone on the 24 GB machine: the brain pick, the tier-scale
 > swap, measured timings, the runbook, and the injection-harness run. The ADR states plainly why
@@ -24,13 +25,86 @@ sections, one of which literally reads "Record the timings here".
 
 ## Before you start
 
-- `just up-gpu` with the models mount reachable and the GPU visible through the container toolkit.
-- `CORTEX_MODELHOST_BACKEND=supervisor`, so the real `model-host` sidecar runs one `llama-server`
-  child per tier.
-- `CORTEX_ESCALATION=1` for anything that swaps. Escalation is **off by default**.
-- `CORTEX_MODEL_FILE_BRAIN` pointing at the pick, once item 1 has produced one.
-- Read [runbooks/model-swap.md](../runbooks/model-swap.md) first, whose opening paragraph already
-  states which of its numbers are the mechanism's and which are a tier's.
+Derived from `docker/docker-compose.gpu.yml`, the `justfile`, and
+`brain/packages/orchestrator/src/cortex_orchestrator/config_swap.py`, then run on the dev machine on
+2026-07-19 as far as 8 GB allows. Follow it in this order; the earlier list here named two
+settings that no compose file wires and omitted the one whose absence is a boot failure.
+
+1. **Put the three escalation settings in the `brain` service's `environment:` block** of
+   `docker/docker-compose.gpu.yml`, which is what that file's header instructs, or in a local
+   override you layer after it. Nothing interpolates them, so a `.env` entry and an exported shell
+   variable both leave the container without them and the stack comes up with escalation quietly
+   off:
+
+   ```yaml
+   services:
+     brain:
+       environment:
+         CORTEX_ESCALATION: "1"
+         CORTEX_MODELHOST_BACKEND: "supervisor"
+         CORTEX_BRAIN_ENDPOINT: "http://model-host:8081"
+   ```
+
+   All three or none. `config_swap.py` fails the brain at boot on escalation without a backend and
+   on escalation without a brain endpoint, and the container then restarts forever rather than
+   serving. `CORTEX_MODELHOST_ENDPOINT` is already set by the GPU override; do not add it.
+
+2. **Name the deep artifact.** These are interpolated on `model-host`, so a repo-root `.env` or
+   the calling shell carries them:
+
+   ```
+   CORTEX_MODELS_DIR=<the host dir holding the GGUFs>
+   CORTEX_MODEL_FILE_BRAIN=<the pick's path under that dir>
+   CORTEX_NGL_BRAIN=99
+   CORTEX_CTX_SIZE_BRAIN=<the context the brain phase will use>
+   ```
+
+   A tier with no artifact file is not in the roster at all, so before item 1 lands a pick the
+   deep model answers 404 and boot recovery logs one. That is a stock stack behaving as designed.
+
+3. **Bring it up** with `just up-gpu`, which is `docker compose --project-directory . -f
+   docker/docker-compose.yml -f docker/docker-compose.gpu.yml up -d --build`. If step 1 used a
+   local override, run that command by hand with your `-f` last. `depends_on` holds the brain
+   until the sidecar reports a tier that can serve a turn as READY.
+
+4. **Ask the sidecar what it has.** Its control API is deliberately unpublished, so go through the
+   container:
+
+   ```
+   docker compose --project-directory . -f docker/docker-compose.yml \
+     -f docker/docker-compose.gpu.yml exec model-host \
+     curl -s http://127.0.0.1:9300/health
+   ```
+
+   That lists the roster, and the deep tier appears in it only once step 2 named its file;
+   `GET /models/<id>` gives one tier's state. When a live test needs the control API from the
+   host, `just up-modelhost-loopback` layers `docker/docker-compose.modelhost-loopback.yml`, and
+   `just down-gpu` takes it down again.
+
+5. Read [runbooks/model-swap.md](../runbooks/model-swap.md) first, whose opening paragraph already
+   states which of its numbers are the mechanism's and which are a tier's.
+
+**What the dev machine could and could not reach (2026-07-19).** Steps 1 to 4 ran here on the 8 GB card with the models on the Windows drive, so the sequence is observed rather than reasoned about:
+the stack came up, the cortex tier served (at `CORTEX_CTX_SIZE=4096`, because the shipped 16K
+cortex is ADR-0004's 11.3 GB and this card has 8188 MiB), a brain with all three escalation
+settings booted healthy, and the two live streaming tests in
+`brain/packages/inference/tests/test_backend_live.py` passed against it through the real
+`LlamaCppBackend`. Dropping `CORTEX_BRAIN_ENDPOINT` was confirmed to be a restart loop, and putting
+the three settings in the shell instead of the compose file was confirmed to leave the container
+with none of them. One thing to expect on the host box too: the rest of the
+`just brain-inference-live` suite starts its own `llama-server` on `127.0.0.1:8080`, which the
+sidecar already publishes, so those arms fail on the port rather than on the stack.
+
+Where the dev machine stops is the tier itself, and not in the way the design predicted. Pointed at
+`gemma-4-31B-it-qat-q4_0` (a 17 GB artifact) with the cortex evicted first, the deep tier did
+**not** fail: llama.cpp logged `failed to fit params to free device memory: n_gpu_layers already
+set by user to 99, abort`, kept every layer on the GPU anyway, reported READY after 373 s with
+`nvidia-smi` pinned at about 7.7 of 8188 MiB, and then generated 16 tokens in 36 s, which is
+roughly half a token per second and is what a WSL2 driver spilling into host RAM looks like. So a
+card that cannot hold the tier gives a green swap and numbers that mean nothing, which is the trap
+this sitting exists to avoid. Two consequences worth carrying in: no timing, VRAM figure, or
+answer quality from an undersized card is a tier-scale result, and that 373 s load already exceeds
+the shipped `CORTEX_SWAP_LOAD_TIMEOUT_S` default of 300 s, which is item 4's question.
 
 ## The dependency chain
 
@@ -39,7 +113,7 @@ sections, one of which literally reads "Record the timings here".
                       │                         └──> 4. measured timings
                       └──> 5. the ~31B injection-harness run
 
-6. GPU subagent beside the cortex · 7. cgroup caps · 8. resident VRAM at 16K   (independent)
+6. GPU subagent beside the cortex · 7. cgroup caps                            (independent)
 ```
 
 ---
@@ -231,19 +305,30 @@ and the consequence, from
 **The last clause of that reason is false, and this item is narrower for it (corrected
 2026-07-19).** "Which needs a card that holds the cortex first" says the dev GPU does not hold the
 cortex; [ADR-0029](../adr/ADR-0029-vision-screen-capture.md) measured it holding one at
-`-ngl 99 --ctx-size 4096 --parallel 1` **with the vision projector loaded**, 7715 of 8188 MiB. What
-that leaves is roughly 470 MiB, so nothing multi-GB fits beside it, which is the real reason and the
-one this item now carries. The **mechanism**, the placer's GPU arm firing against a real placement
-at all, needs no resident cortex and is agent-side work listed as actionable now in
+`-ngl 99 --ctx-size 4096 --parallel 1` **with the vision projector loaded**, and
+[ADR-0030](../adr/ADR-0030-brain-handoff.md) puts a number on how little that leaves: the model
+alone takes 7715 of the card's 8188 MiB. Roughly 470 MiB is the remainder, so nothing multi-GB
+fits beside it, which is the real reason and the one this item now carries. The **mechanism**, the
+placer's GPU arm firing against a real placement at all, needs no resident cortex and is agent-side work listed as actionable now in
 [refinements/index.md](../refinements/index.md). Expect it to have been run before this sitting, and
 read a green mechanism as saying nothing about the arithmetic below, exactly as with the swap.
 
 **What only this proves.** The fit test against real numbers: `CORTEX_SUBAGENTS_VRAM_GB` under the
 soft cap minus a genuinely resident 12B cortex, on a card with room for both.
 
-**Do.** With the cortex resident, set `CORTEX_MODEL_FILE_SUBAGENT_GPU`,
-`CORTEX_SUBAGENTS_GPU_ENDPOINT` and `CORTEX_SWAP_EVICT_MODELS` together (the GPU compose override
-documents all three), then have the cortex spawn subagents.
+**Do.** With the cortex resident, set all three of these together. The GPU override's header
+documents all three and wires one, so they do not go in one place:
+
+- `CORTEX_MODEL_FILE_SUBAGENT_GPU` puts the tier in the sidecar's roster on `:8083`. Interpolated
+  on `model-host`, so `.env` or the calling shell carries it.
+- `CORTEX_SUBAGENTS_GPU_ENDPOINT=http://model-host:8083` routes GPU-placed spawns to it.
+  Interpolated on the brain by `docker/docker-compose.subagents.yml`, so that override has to be
+  layered too (`-f docker/docker-compose.subagents.yml`); without it both placement targets
+  resolve to that file's CPU server and the tier serves nothing.
+- `CORTEX_SWAP_EVICT_MODELS` names the tier so a handoff stops it first. Nothing interpolates it,
+  so it goes in the `brain` service's `environment:` block beside the escalation settings.
+
+Then have the cortex spawn subagents.
 
 **Pass.** A spawn is placed on the GPU (`-ngl 99`) rather than spilling to CPU while the cortex
 stays resident and serving, and the placer's ledger accounts for it against the soft cap.
@@ -290,40 +375,33 @@ them user-tunable placeholders), and an ADR-0012 addendum.
 
 ---
 
-## 8. The resident VRAM figure with the projector loaded, at production context
+## Withdrawn: "the resident VRAM figure with the projector loaded, at production context"
 
-**Status: never attempted.** Independent. **Filed here after being misfiled and then lost.**
+This doc shipped on 2026-07-19 with an eighth item asking for the resident cortex plus `mmproj`
+footprint on the 24 GB card at production context. **It was withdrawn the same day, because the
+repo already has that measurement.** It is recorded here rather than deleted silently, since a
+maintainer reading an older pointer to "item 8" deserves to find out why it is gone.
 
-**What only this proves.** The real cortex plus `mmproj` footprint against the 14 GB soft cap on
-a 24 GB card. Kept verbatim from
-[ADR-0029](../adr/ADR-0029-vision-screen-capture.md)'s Consequences, which is the only place it has
-ever appeared:
+The item rested on the claim that its source clause in
+[ADR-0029](../adr/ADR-0029-vision-screen-capture.md)'s Consequences, "and the resident VRAM figure
+with the projector loaded on the 24 GB GPU", was the only place the figure had ever appeared. The
+figure had appeared three times before that clause was ever read:
 
-> and the resident VRAM figure with the projector loaded on the 24 GB GPU.
+- [ADR-0004](../adr/ADR-0004-model-lineup.md)'s 2026-06-29 addendum, whose table row for
+  `gemma-4-12B q4_0` reads `11.0 GB` weights only and `11.3 GB (mmproj 0.18 GB, +0.3)` with
+  vision, measured on "the 24 GB card ... 16K context, single slot, all
+  layers on GPU". That is this card, this context, and the deployment's own slot count: the model
+  host gives the cortex tier `parallel=1` (`model_manager/config.py`).
+- The [runbooks/llamacpp-gpu.md](../runbooks/llamacpp-gpu.md) table, whose header says the numbers
+  are "`nvidia-smi` total used with the model resident".
+- [runbooks/vision.md](../runbooks/vision.md)'s "What the projector costs", which states that
+  "ADR-0004's 11.3 GB cortex reservation is a **with-mmproj** measurement".
 
-That clause sits inside a list headed "Host-Windows (host only)" although it has no OS-native
-content at all, and it was then dropped from the same ADR's own "Still host-only" closeout and
-never reached [refinements/vision.md](../refinements/vision.md). It is a **G** item and it lives
-here.
-
-**You are not starting from nothing (noted 2026-07-19).** The same ADR measured 7715 of 8188 MiB on
-the 8 GB dev GPU with the projector loaded at `-ngl 99 --ctx-size 4096 --parallel 1`. What is owed
-here is that figure at the production context (`CORTEX_CTX_SIZE`, 16K) with the deployment's slot
-count, which the dev GPU cannot allocate, so this measures a delta against a known 4K number rather
-than an unknown.
-
-**Do.** Bring the cortex up with `--mmproj` at the production context under the model host and read
-`nvidia-smi`.
-
-**Pass.** The measured figure is at or under ADR-0004's 11.3 GB reservation, which is already a
-with-mmproj number, so the placer's arithmetic is unchanged.
-
-**Fail.** A materially larger figure means the placer has been charging too little for the resident
-cortex and every subagent headroom calculation shifts.
-
-**Record it.** [runbooks/vision.md](../runbooks/vision.md) (whose "What the projector costs"
-section states the reservation this checks), the
-[runbooks/llamacpp-gpu.md](../runbooks/llamacpp-gpu.md) table, and an ADR-0029 addendum.
+ADR-0029 itself says the same thing in its decision 14: "The 11.3 GB default is ADR-0004's
+**with-mmproj** measurement, so enabling the projector spends budget the placer has been charging
+since Slice 8.5 while the server ran text-only at 11.0 ... The only owed correction is
+documentary." Nothing is owed the user here, and inventing a sitting for a number the repo
+already holds costs more than leaving a gap would have.
 
 ---
 

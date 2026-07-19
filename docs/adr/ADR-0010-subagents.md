@@ -315,7 +315,9 @@ close in [subagents.md](../refinements/subagents.md) and
 The 2026-07-16 addendum above hands the spontaneous-pick residual to
 [ADR-0018](ADR-0018-heterogeneous-subagents.md) and describes it in passing as "unverifiable on the
 8 GB dev GPU". That card runs the real cortex (`-ngl 99 --ctx-size 4096 --parallel 1`, projector
-loaded, 7715 of 8188 MiB, [ADR-0029](ADR-0029-vision-screen-capture.md) on 2026-07-17), so the
+loaded, [ADR-0029](ADR-0029-vision-screen-capture.md) on 2026-07-17, with
+[ADR-0030](ADR-0030-brain-handoff.md) recording the model alone at 7715 of that card's
+8188 MiB), so the
 uptake probe is agent-side work rather than host work. The full correction, and what stays
 host-side, is at the ADR-0018 addendum of the same date.
 

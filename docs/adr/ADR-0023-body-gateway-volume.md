@@ -381,8 +381,10 @@ The Agent-Docker paragraph above says "On this host the 8 GB GPU cannot hold the
 cortex, so a full cortex-*driven* `set_volume` is bounded by what fits". That first clause was
 measured false before it was acted on. [ADR-0029](ADR-0029-vision-screen-capture.md) brought the
 real `gemma-4-12b-it-qat-q4_0.gguf` up **beside its projector** on the dev machine's 8 GB card at
-`--ctx-size 4096 --parallel 1` on 2026-07-17 (7715 of 8188 MiB) and drove a real vision turn through the
-shipped inference adapter on 2026-07-18. The 11.3 GB reservation the sentence leaned on is an ADR-0004 16K-context
+`--ctx-size 4096 --parallel 1` on 2026-07-17 and drove a real vision turn through the
+shipped inference adapter on 2026-07-18; the MiB figure is
+[ADR-0030](ADR-0030-brain-handoff.md)'s, which records the model alone taking 7715 of that card's
+8188 MiB. The 11.3 GB reservation the sentence leaned on is an ADR-0004 16K-context
 figure, not a floor. (Corrected later the same day: this paragraph first added "a resident cortex
 had already emitted a native tool call here on 2026-07-03", which was agent-run on the user's
 24 GB card, the machine the agent had then. It says nothing about the dev GPU, and the

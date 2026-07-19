@@ -122,9 +122,10 @@ an empty async layer. Recorded at
 The addendum above says a summarizing window "cannot be behavior-validated on the 8 GB dev GPU,
 where the cortex tier (gemma-12B) does not fit". The card holds the cortex.
 [ADR-0029](ADR-0029-vision-screen-capture.md) measured it resident there on 2026-07-17 at
-`-ngl 99 --ctx-size 4096 --parallel 1` beside its vision projector (7715 of 8188 MiB), which is the
-heavier configuration, and ran a real vision turn through the shipped adapter on 2026-07-18. What
-that card cannot serve is the 16K production context this ADR names for the deployed cortex, and
+`-ngl 99 --ctx-size 4096 --parallel 1` beside its vision projector, which is the
+heavier configuration, and ran a real vision turn through the shipped adapter on 2026-07-18;
+[ADR-0030](ADR-0030-brain-handoff.md) records the model alone taking 7715 of that card's
+8188 MiB. What that card cannot serve is the 16K production context this ADR names for the deployed cortex, and
 whether a summary keeps what the next turn needs can be judged well below 16K.
 
 **What this changes.** The blocker, not the decision. What actually holds the slice is stated in
