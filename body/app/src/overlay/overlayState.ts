@@ -280,6 +280,10 @@ function applyEvent(state: OverlayState, event: TurnEvent): OverlayState {
     case "delta":
       return patchStreaming(state, (m) => ({ ...m, content: m.content + event.text }));
     case "toolActivity": {
+      // The chip is emitted just BEFORE the dispatch, so this flag means "a capture was asked
+      // for this turn", never "a capture happened": the outcome (host refused, body unreachable,
+      // a gated capture declined) never crosses the seam. `CaptureDot`'s label says exactly that
+      // and no more.
       const lit = state.capturing || event.toolName === CAPTURE_SCREEN_TOOL;
       const chipped = patchStreaming(state, (m) => ({
         ...m,
