@@ -17,14 +17,13 @@ up rather than pretending anything already swapped. The brief is model-authored 
 conversation's own trust domain; it is bounded here before it can enter the handoff record,
 and it rides WITH the record's serialized taint ledger, never instead of it.
 
-An **opaque** turn cannot escalate at all (ADR-0030 decision 1, landed with ADR-0029). Pixels
-are turn-local by design: no session store persists them and the handoff record refuses them
-too, so a swap would carry a loop tail whose tool message says "the picture is attached to this
-message" with no picture attached, and the deep model would answer about an image it never saw.
-The refusal reads the turn's ``opaque`` bit rather than looking for images in the tail, which is
-deliberate: the bit is the fact that pixels entered this turn, and it stays true even where the
-pixels themselves cannot travel. No brain-tier candidate carries a projector anyway, so a
-replayed image would be unreadable even if it survived.
+A turn that looked at the user's screen cannot hand over either, and **this tool is not where
+that is decided**. Pixels are turn-local by design (ADR-0029), so a swap would carry a loop tail
+whose tool message says "the picture is attached to this message" with no picture attached. But a
+capture always taints the turn, and this tool is gated, so the dispatcher's existing hard-deny
+already answers every call that follows a capture: an opaque-turn check here could never fire.
+The ordering that matters runs the other way (escalate approved, capture afterwards), and the
+conductor refuses it at the loop boundary, which is the first point that sees the whole turn.
 """
 
 from cortex_core.tools import ToolCall, ToolResult, ToolSpec, Trust
@@ -71,12 +70,6 @@ _ERR_ALREADY_REQUESTED = (
     "REFUSED: a handoff to the deep model is already requested for this turn, so it was not "
     "requested again. Finish your reply; the deep model takes over when you are done."
 )
-_ERR_OPAQUE_TURN = (
-    "REFUSED: this turn looked at the user's screen, and a picture cannot be handed to the deep "
-    "model, so no handoff was requested. Answer what you can yourself, and tell the user to ask "
-    "again in a fresh message if they still want the deep model."
-)
-
 # Honest about the cost (the spawn spec's measured-trade-off precedent): the swap is disruptive
 # and slow, so the description says so plainly instead of selling a free upgrade.
 _DESCRIPTION = (
@@ -125,10 +118,6 @@ class EscalateToBrainTool:
             # No slot was armed for this dispatch: an escalation-less wiring, or a caller with
             # no turn (the ticker). Refusing is honest; nothing could consume a brief here.
             return _refusal(call, _NO_SLOT_MSG)
-        if slot.refs is not None and slot.refs.taint.opaque:
-            # Checked ahead of the brief, so a turn that looked at the screen is refused on what
-            # it read rather than on what the model wrote.
-            return _refusal(call, _ERR_OPAQUE_TURN)
         brief = call.arguments.get("brief")
         if not isinstance(brief, str) or not brief.strip():
             return _refusal(call, _ERR_BRIEF)

@@ -12,14 +12,15 @@ Fail-safe direction throughout: **every exit path converges back to a serving co
 every one of them leaves the record in a terminal state and tells the user what happened. The
 ordering is load-bearing and each step's failure has a direction:
 
-0. **Claim.** Take the one-handoff claim on the residency controller, before anything at all.
-   It is a claim and not a read because the check and the act must not be two awaits apart: a
-   second escalating turn that slipped through would drain the pool, be refused at the swap,
-   and then reopen admission in its own ``finally`` while the winner's deep model was still
-   resident. Losing the claim costs nothing: nothing has been read, written, drained or
-   evicted, and the user is told the truthful thing, that a handoff is already running.
-1. **Snapshot.** Refuse a handoff the store still thinks is live, then persist the record
-   ``READY``. Nothing has been stopped, so a failure here costs nothing but the handoff.
+0. **Claim.** Take the one-handoff claim on the residency controller, before anything at all,
+   because the check and the act must not be two awaits apart: a second escalating turn that
+   slipped through would drain the pool, be refused at the swap, and then reopen admission in
+   its own ``finally`` while the winner's deep model was still resident. Losing it costs
+   nothing, and the user is told the truthful thing, that a handoff is already running.
+1. **Snapshot.** Refuse a turn that read the screen (here and not in the escalation tool,
+   because the capture may happen AFTER the handoff was approved), then one the store still
+   thinks is live, then persist the record ``READY``. Nothing has been stopped, so a failure
+   here costs nothing but the handoff.
 2. **Drain.** Quiesce the subagent pool, bounded. A timeout **aborts before anything is
    evicted**: v1 never kills a subagent mid-stream, so a straggler means the swap does not
    happen, not that the machine is left half-swapped. ``undrain`` is owed in a ``finally``,
@@ -56,6 +57,7 @@ from cortex_core.swap_notes import (
     DRAIN_TIMEOUT_NOTE,
     DRAINING_DETAIL,
     LOADING_DETAIL,
+    OPAQUE_TURN_NOTE,
     RESTORING_DETAIL,
     STORE_FAILED_NOTE,
     SWAPPING_STATE,
@@ -169,6 +171,14 @@ class SwapConductor:
         self, slot: EscalationSlot, *, session_id: str, turn_id: str
     ) -> HandoffRecord | str:
         """Serialize the slot into a ``READY`` record, or the note saying why there is none."""
+        if slot.refs is not None and slot.refs.taint.opaque:
+            # Pixels are turn-local (ADR-0029 decision 6): no store persists them, so the deep
+            # model would get a tool message promising a picture with none attached. Keyed on
+            # the ``opaque`` bit, the fact that stays true where the pixels cannot travel.
+            _logger.warning(
+                "refusing a handoff for a turn that read the screen", extra={"turn": turn_id}
+            )
+            return OPAQUE_TURN_NOTE
         try:
             if (active := await self._handoffs.active()) is not None:
                 # The claim already refused anything racing this turn in this process, so a

@@ -235,6 +235,7 @@ from cortex_core.swap_notes import BRAIN_FAILED_NOTE as BRAIN_FAILED_NOTE
 from cortex_core.swap_notes import DRAIN_TIMEOUT_NOTE as DRAIN_TIMEOUT_NOTE
 from cortex_core.swap_notes import DRAINING_DETAIL as DRAINING_DETAIL
 from cortex_core.swap_notes import LOADING_DETAIL as LOADING_DETAIL
+from cortex_core.swap_notes import OPAQUE_TURN_NOTE as OPAQUE_TURN_NOTE
 from cortex_core.swap_notes import RESTORE_FAILED_NOTE as RESTORE_FAILED_NOTE
 from cortex_core.swap_notes import RESTORING_DETAIL as RESTORING_DETAIL
 from cortex_core.swap_notes import STORE_FAILED_NOTE as STORE_FAILED_NOTE
