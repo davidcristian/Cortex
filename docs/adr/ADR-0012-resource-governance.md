@@ -176,7 +176,9 @@ CI-half increments (each small, green under `just check`, no GPU):
   one in the pure core to cover a retry branch would be the vacuous coverage AGENTS.md forbids).
 - The real process-lifecycle `ModelManager` adapter (the deferred `cortex_model_manager` package,
   ADR-0007) whose `acquire` performs the swap; placement-aware CPU charging; the Intel NPU as a third
-  `PlacementTarget` (ROADMAP deferred option).
+  `PlacementTarget` (recorded in
+  [refinements/resource-governance.md](../refinements/resource-governance.md), which since
+  2026-07-19 also carries the two feasibility unknowns the ROADMAP used to hold).
 
 **Deferred to the host half (user):** two real `llama-server` sidecars (GPU `-ngl 99` + CPU `-ngl 0`)
 in `docker/docker-compose.subagents.yml`; the per-container `--cpus`/`--memory`/`--memory-swap` caps; the
