@@ -226,13 +226,19 @@ Start here. Rules for working in this repo: [AGENTS.md](../AGENTS.md).
   conversation state uses), so a new setting costs no seam change and a choice outlives a body
   reinstall. An empty value clears a key, which is how the overlay expresses "follow the system"
   without a magic value. Reads retry, writes do not; the write is optimistic and its failure costs
-  only durability. Its surface is a settings sheet holding the theme and the mark, which also gave
+  only durability. Its surface is a settings view holding the theme and the mark, which also gave
   the mark picker a route in from a chat that already has messages.
 - [ADR-0033: The panel grows upward](adr/ADR-0033-panel-growth.md): the overlay panel anchored by
   its bottom edge so the composer never moves, with size changes eased through the Web Animations
   API, **landed**. The CSS-only version is documented there as measured-and-rejected: a
   `transition: height` cannot fire between two content-driven `auto` heights, and
   `interpolate-size` does not change that.
+- [ADR-0034: The panel's other faces are views](adr/ADR-0034-panel-views.md): settings and the
+  shortcut list stop being sheets laid over the panel and become views it morphs into, so the panel
+  resizes to what each needs and slides back to true centre, **landed**. Amends the entry above:
+  the bottom edge is pinned only *within* a view, the ceiling is derived from the max height so a
+  full-height panel lands exactly centred, and sections now animate their own height instead of
+  being deleted while the panel eases after them.
 
 New non-obvious decision → add `adr/ADR-XXXX-<slug>.md`, link it here.
 

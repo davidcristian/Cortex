@@ -1,8 +1,9 @@
 import { MARKS, type MarkStyle } from "../mark/marks";
 import { THEMES } from "../theme/themes";
 import { BubbleMark } from "./BubbleMark";
+import { PanelView } from "./PanelView";
 
-interface SettingsSheetProps {
+interface SettingsViewProps {
   /** The chosen theme name, or `null` while the overlay follows the system scheme. */
   readonly themeName: string | null;
   readonly mark: MarkStyle;
@@ -12,7 +13,7 @@ interface SettingsSheetProps {
   readonly onClose: () => void;
 }
 
-/** One labelled row of choices. */
+/** One settings row: what it is on the left, what it can be on the right. */
 function Row({
   label,
   hint,
@@ -23,40 +24,39 @@ function Row({
   readonly children: React.ReactNode;
 }) {
   return (
-    <div className="set-row">
-      <div className="set-label">
-        <span>{label}</span>
-        <span className="set-hint">{hint}</span>
-      </div>
-      <div className="set-choices">{children}</div>
+    <div className="row">
+      <span className="row-label">
+        {label}
+        <small>{hint}</small>
+      </span>
+      {children}
     </div>
   );
 }
 
-/** The settings sheet (ADR-0032): where the overlay's appearance is chosen, and the answer to the
- *  mark picker having lived only on the empty state. It covers the panel like the shortcut sheet,
- *  closes on a click outside its card or on Esc (wired in `Overlay`), and every choice here is
- *  persisted to the brain's own settings record, so it survives a restart.
+/** Where the overlay's appearance is chosen (ADR-0032), and the answer to the mark picker having
+ *  lived only on the empty state. Every choice is persisted to the brain's own settings record, so
+ *  it survives a restart.
  *
- *  The theme row is the one place "follow the system" can be chosen: the header's toggle names
- *  the opposite theme outright and can only ever land on one of the two, so `Auto` would be
- *  unreachable without this. */
-export function SettingsSheet({
+ *  A row is a label and its choices, nothing else: with two settings in it the view is barely
+ *  taller than the header, and the panel shrinks to match rather than dressing the emptiness up.
+ *  The theme row is the one place "follow the system" can be chosen, since the header's toggle
+ *  names the opposite theme outright and can only ever land on one of the two. */
+export function SettingsView({
   themeName,
   mark,
   animated,
   onPickTheme,
   onPickMark,
   onClose,
-}: SettingsSheetProps) {
+}: SettingsViewProps) {
   return (
-    <div className="sheet set-sheet" role="dialog" aria-label="Settings" onClick={onClose}>
-      <div className="set-card" onClick={(event) => event.stopPropagation()}>
-        <p className="sheet-head">Settings</p>
+    <PanelView title="Settings" onClose={onClose}>
+      <div className="rows">
         <Row label="Theme" hint="Auto follows your system">
-          <div className="set-seg" role="radiogroup" aria-label="Theme">
+          <div className="seg" role="radiogroup" aria-label="Theme">
             <button
-              className={`set-opt${themeName === null ? " on" : ""}`}
+              className={`seg-opt${themeName === null ? " on" : ""}`}
               type="button"
               role="radio"
               aria-checked={themeName === null}
@@ -67,7 +67,7 @@ export function SettingsSheet({
             {THEMES.map((theme) => (
               <button
                 key={theme.name}
-                className={`set-opt${themeName === theme.name ? " on" : ""}`}
+                className={`seg-opt${themeName === theme.name ? " on" : ""}`}
                 type="button"
                 role="radio"
                 aria-checked={themeName === theme.name}
@@ -78,31 +78,32 @@ export function SettingsSheet({
             ))}
           </div>
         </Row>
-        <Row label="Mark" hint="The bubble shown while a turn runs">
-          <div className="markmenu" role="radiogroup" aria-label="Mark style">
+        {/* Drawn live, not named: the styles differ by how they move, so the choice is made by
+            watching them rather than by reading four labels. */}
+        <Row label="Mark" hint="Shown while a turn runs">
+          <div className="seg" role="radiogroup" aria-label="Mark style">
             {MARKS.map((choice) => (
               <button
                 key={choice.name}
-                className={`markopt${choice.name === mark.name ? " on" : ""}`}
+                className={`seg-mark${choice.name === mark.name ? " on" : ""}`}
                 type="button"
                 role="radio"
+                aria-label={choice.label}
                 aria-checked={choice.name === mark.name}
                 title={choice.note}
                 onClick={() => onPickMark(choice.name)}
               >
                 <BubbleMark
                   style={choice}
-                  size={34}
+                  size={26}
                   idPrefix={`set-${choice.name}`}
                   animated={animated}
                 />
-                <span>{choice.label}</span>
               </button>
             ))}
           </div>
         </Row>
-        <p className="sheet-foot">Click outside or press Esc to close</p>
       </div>
-    </div>
+    </PanelView>
   );
 }
