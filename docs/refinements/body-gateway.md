@@ -2,14 +2,15 @@
 
 These deferrals originate at [ADR-0023](../adr/ADR-0023-body-gateway-volume.md), which established the body gateway and its first OS action (volume) across the brain→body seam. Extracted from the ROADMAP's deferred-refinements section on 2026-07-15 with the entries kept verbatim; landed entries are the historical record of what each deferral became, and the index at [index.md](index.md) carries the recommended pickup order.
 
-**Open items:** Host-Windows volume validation, body-initiated-stream tunnel fallback, hardened non-loopback posture, the `InjectInput` RPC (the last unbuilt one, `CaptureScreen` having closed with the vision slice), safe Core Audio wrapper, unbalanced COM initialization on the blocking pool
+**Open items:** body-initiated-stream tunnel fallback, hardened non-loopback posture, the `InjectInput` RPC (the last unbuilt one, `CaptureScreen` having closed with the vision slice), safe Core Audio wrapper, unbalanced COM initialization on the blocking pool
 
 **Body gateway & OS actions in Slice 9 ([ADR-0023](../adr/ADR-0023-body-gateway-volume.md)):** each
 behind the unchanged `BodyGateway`/`AudioControl`/`BodyService` seams.
-- **Host-Windows validation.** The CI-gated half and the **agent-Docker dial are done**
-  (2026-07-08, [ADR-0023 addendum](../adr/ADR-0023-body-gateway-volume.md), where a tokened round-trip
-  passed across the container boundary, untokened rejected); the real Core Audio
-  "set volume to 30%" on Windows remains. See [body-volume.md](../runbooks/body-volume.md).
+- **Host-Windows validation moved to [docs/host/](../host/index.md) on 2026-07-19** with its
+  text kept verbatim, when work needing the host's hardware was extracted from this backlog the
+  way this backlog was extracted from the ROADMAP. It was the real Core Audio "set volume to 30%"
+  on Windows; the CI-gated half and the agent-Docker dial were already done. Runbook unchanged:
+  [body-volume.md](../runbooks/body-volume.md).
 - **The Q3 body-initiated-stream tunnel fallback.** The brain dials the body directly today; if
   `host.docker.internal` proves brittle on WSL2, tunneling body-directed calls over a
   body-initiated bidi stream is a different `BodyGateway` adapter, with no core/tool/proto change.
@@ -98,4 +99,6 @@ behind the unchanged `BodyGateway`/`AudioControl`/`BodyService` seams.
   session: funnel the OS calls through one dedicated COM-initialized thread instead, which
   also amortizes the initialization. Uninitializing at the end of each call is the wrong fix,
   since it would tear down and rebuild MTA membership per call. Host-Windows to observe;
-  neither CI nor a Linux run can see it.
+  neither CI nor a Linux run can see it. The observation itself is the standing watch item in
+  [docs/host/windows-desktop.md](../host/windows-desktop.md); the fix stays here, counted, because
+  it is code.

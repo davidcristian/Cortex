@@ -87,9 +87,10 @@ its `ModelHost` adapter.
 the nomic candidates in ADR-0004 run on llama.cpp per ADR-0005); memory writes at turn
 end, top-k retrieval into cortex context. ADR resolving Letta vs. custom decides the
 implementation behind the unchanged port. The knowledge base's durable data lives under
-`D:\Software\AI\Database` (plug-and-play requirement, ADR-0004 addendum). Validate the
-Postgres-over-Windows-bind-mount caveat here; fallback (now the default, ADR-0008) is a
-named volume + automated sync into that directory.
+`D:\Software\AI\Database` (plug-and-play requirement, ADR-0004 addendum). The
+Postgres-over-Windows-bind-mount caveat is why the default (ADR-0008) is a named volume +
+automated sync into that directory; validating a direct PGDATA bind mount instead is an
+optional user check ([docs/host/](host/index.md)).
 
 **Progress (2026-06-29):** design + first three increments landed
 ([ADR-0008](adr/ADR-0008-memory-v1.md)), all 100% under `just check`, no DB.
@@ -161,8 +162,9 @@ version-pinned filesystem sidecar). See [ADR-0009 addendum](adr/ADR-0009-tools-m
 
 ## Slice 6.5 (Untrusted-content boundary): prompt-injection defense
 
-**Status:** CI half done 2026-07-01 ([ADR-0013](adr/ADR-0013-untrusted-content.md)); the real
-overlay confirmation adapter is host-half, deferred to the first outbound tool (Slice 9/10). The
+**Status:** done. The CI half landed 2026-07-01 ([ADR-0013](adr/ADR-0013-untrusted-content.md)) and
+the real overlay confirmation adapter, which this slice deferred to the first outbound tool, landed
+2026-07-08 with Slice 8.8. The
 boundary is drawn entirely behind the existing `ToolRegistry`/`ToolDispatcher`/`stream_tool_loop`
 seams (a hardening pass) plus the one new `Confirmer` port. Inserted as 6.5 (its logical home is the
 Slice 6 tool-read boundary; decimal insert, no renumber).
@@ -198,9 +200,10 @@ framing works causally, and the gate remains the deterministic backstop (proven 
 incidental finding that **gemma-4-12B is a reasoning model** is recorded as an inference-path
 deferral below.
 
-**Deferred (ADR-0013), collected in the Deferred-refinements section below.** Only the **overlay
-confirmation UI** (Rust/Tauri on Windows, with the first outbound tool, Slice 9/10) remains genuinely
-host/host-only. **Gate proven:** the untrusted-input boundary the founding safety posture requires.
+**Deferred (ADR-0013), recorded in [docs/refinements/](refinements/index.md).** The overlay
+confirmation UI this slice left host/host-only shipped with Slice 8.8; what is still host-only is
+the Windows-native *validation* of that card ([docs/host/](host/index.md)).
+**Gate proven:** the untrusted-input boundary the founding safety posture requires.
 
 ## Slice 7 (Subagents)
 
@@ -285,18 +288,22 @@ the `converse` command streaming `TurnEvent`s to the webview over a Tauri `Chann
 overlay, the tray works, and with the GPU brain up (`just up-gpu`, gemma-4-12B) a typed prompt
 **streams a real reply** into the panel token by token. The live seam test (`just seam-health`)
 round-trips a `Converse` turn against the same brain. Refined from the run: the light/dark toggle
-moved into the panel header. **Deferred overlay polish** (a proper transparent window + click-through
-margins done together, OS-window morph to a real screen corner, hide-on-blur, a tighter CSP) is
-recorded in [overlay-ux.md](design/overlay-ux.md) §4 + [body-overlay.md](runbooks/body-overlay.md).
+moved into the panel header. The **deferred overlay polish** (the OS-window half, designed in
+[overlay-ux.md](design/overlay-ux.md) §4) is host-side authoring and lives in
+[docs/host/](host/index.md).
 
 ## Slice 8.5 (Resource governance): revise the GPU/CPU managers
 
 **Status:** done on 2026-07-01 ([ADR-0012](adr/ADR-0012-resource-governance.md)). The slice's scope
 (revising the `SubagentPlacer`/`SubagentScheduler` ports **before** Slice 11 builds on them) is
 complete and green under `just check`. Per the design, the real GPU-placed **runtime mechanism**
-(the two live sidecars + per-container cgroup caps) lands **with the Slice 11 lifecycle** behind
-these corrected ports, not as a separate host pass here. Inserted as 8.5 to avoid renumbering the
-heavily-referenced Slices 9-11.
+landed **with the Slice 11 lifecycle** on 2026-07-18 behind these corrected ports, not as a
+separate host pass here, and it landed in a shape this paragraph used to predict wrongly: not two
+live sidecars but one `model-host` supervisor container running a `llama-server` child per tier,
+with the cgroup caps applied to that container (ADR-0030 decision 3). What is left is host-side
+and is not mechanism: tuning the cap numbers, which ship as placeholders, and seeing the placer's
+GPU arm fire against a real placement ([docs/host/](host/index.md)). Inserted as 8.5 to avoid
+renumbering the heavily-referenced Slices 9-11.
 
 **Delivered (CI half, 2026-07-01), 100% under `just check`, no GPU:** the placement seam is a new
 pure-core port **`SubagentPlacer`** (`place`/`release`) rather than a fattening of `ModelManager`
@@ -313,8 +320,10 @@ config refuses at boot (ADR-0012 admission-wall addendum, 2026-07-16).
 backends selected by target, so `InferenceBackend`/the proto are untouched. New env: `CORTEX_VRAM_*`
 and `CORTEX_SUBAGENTS_{GPU_ENDPOINT,VRAM_GB,CPUS,MEMORY_GB,CPU_BUDGET,MEM_BUDGET_GB}` (replacing
 `MAX_CONCURRENCY`). The ledgers are live-resource state rebuilt from zero, never the durable state
-the hard rule governs. **Deferred behind these unchanged ports:** the scheduler `drain()` and the
-CUDA-OOM→CPU re-place (Slice 11), and the NPU as a third target. Placement-aware CPU charging is
+the hard rule governs. **Deferred behind these unchanged ports** at the time: the scheduler
+`drain()` (landed 2026-07-17), the CUDA-OOM→CPU re-place (landed 2026-07-18, and deliberately not
+as a CUDA-OOM check), and the NPU as a third target, the only one of the three still open and
+recorded in [docs/refinements/](refinements/index.md). Placement-aware CPU charging is
 **not** behind them and was declined on 2026-07-16: `admit` runs before `place`, so no charge can
 see a target without a port change (see docs/refinements/resource-governance.md).
 
@@ -359,9 +368,9 @@ LLM inference for 2-4B is fast/mature enough (OpenVINO GenAI).
 
 **Splits (our rhythm):** CI-gated half (me) covers ADR-0012, then the revised `ModelManager` +
 `SubagentScheduler` **ports + pure fakes + contract tests** (budget math, fit-test, placement
-decision, admission coordination), 100% without a GPU. Host half (user) is per-container cgroup
-caps in the compose layering + real GPU-placed-subagent validation, landing the mechanism with
-the Slice 11 lifecycle behind the corrected ports.
+decision, admission coordination), 100% without a GPU. The host half landed with the Slice 11
+lifecycle on 2026-07-18 behind the corrected ports; what stayed host-side is the arithmetic rather
+than the mechanism ([docs/host/](host/index.md)).
 
 ## Slice 8.6 (Heterogeneous subagent models): the cortex picks which, and how many
 
@@ -439,9 +448,10 @@ them through every seam.
   select/cycle; the pure reducer gained `sessions`/`switcherOpen`/`cycleTarget`. The `⌄` switcher +
   `SessionList`, `Ctrl+↑/↓` cycling, and `Ctrl+K` ship (77 tests, browser-validated shape).
 
-**Host half (host-validated on Windows):** the `list_sessions`/`session_messages` Tauri commands
-(`src-tauri/src/sessions.rs`), the same ungated-glue class as the `converse` command. **Cold start
-opens a new chat**; prior chats are reachable via the switcher/cycling (auto-restore deferred).
+**Host half:** the `list_sessions`/`session_messages` Tauri commands (`src-tauri/src/sessions.rs`),
+the same ungated-glue class as the `converse` command, authored here and host-validated on Windows
+([docs/host/](host/index.md)). Cold start opened a new chat at first; auto-restore of the most
+recent one landed 2026-07-12.
 **Brain-side Docker-validated (agent, 2026-07-07, [ADR-0021 addendum](adr/ADR-0021-session-read-seam.md)):**
 against the real brain + Redis (no GPU), the new `session_reads_round_trip_over_the_live_seam` test
 seeds a turn over Converse, then reads it back over the typed `BrainTransport`. The `cortex:sessions`
@@ -461,9 +471,8 @@ registers ungated over MCP and is stamped gated by the composition root, a send 
 the Bridge is a clean `is_error`, and the sidecar is read-only when the flag is off; and, once
 the user added a Windows `netsh` portproxy to the Bridge, the **live IMAP + SMTP round-trip**
 against the real ProtonMail Bridge (`send_email` really sent a message and the test found it back
-over IMAP by subject, ~13 s). **Only the Windows Tauri confirm-card** (hotkey → gated send → card
-→ approve/deny through the real IPC) remains, genuinely OS-native and host-only
-([body-overlay.md](runbooks/body-overlay.md)).
+over IMAP by subject, ~13 s). Only the Windows Tauri confirm-card validation remains, genuinely
+OS-native and host-only ([docs/host/](host/index.md)).
 Design → ADR-0022 (opened the slice). The first
 *outbound, irreversible* capability, and the vehicle that lands the real overlay **confirmation**
 adapter every later gated action reuses (Slice 9 OS actions, Slice 9.5 side-effectful reminders).
@@ -483,11 +492,12 @@ turn-local / store-backed, reconstructed like taint. Three parts:
   server via the canned-transport pattern (the IMAP adapter's twin), with an `integration`-marked live
   test round-tripping a message **between two `example.com` addresses over the Bridge** (user's domain,
   mine to run).
-- **The real `Confirmer` adapter (proto + body/overlay, host/OS-host-only).** The `Confirmer` port
+- **The real `Confirmer` adapter (proto + body/overlay).** The `Confirmer` port
   ships inert (`confirmer=None`, fail-closed) since Slice 6.5; this slice builds the real one: a new
   `Confirm` request/response in [proto/body.proto](../proto/body.proto), threaded over the seam and
-  surfaced as an overlay approval prompt (what/why, approve/deny) in the Rust/Tauri body. This is the
-  genuinely host-only piece (Windows-native UI), the same class as the Slice 9/10 OS backends.
+  surfaced as an overlay approval prompt (what/why, approve/deny) in the Rust/Tauri body. It landed
+  on 2026-07-08 and was validated in Chrome; only exercising the card over the real Windows IPC
+  transport is host-only, the same class as the Slice 9/10 OS backends.
 - **Gate composition (core, CI-gated, mine).** The dispatcher already blocks a `gated` tool on a
   **tainted** turn (ADR-0013 decision 4); with a real Confirmer wired, an *untainted* gated send
   prompts the user and proceeds only on approval. A **tainted** turn's send stays fail-closed, since
@@ -495,8 +505,9 @@ turn-local / store-backed, reconstructed like taint. Three parts:
   keeps the send tool off subagents entirely (ADR-0013 subagent-exclusion).
 
 CI-gated end to end with fakes on both sides (`RecordingConfirmer` + the canned transport, no GPU/SMTP);
-the brain-side send live-validated to `example.com` (mine); the overlay confirmation prompt host-validated
-on Windows (user). Closes two deferred items: the real overlay confirmation adapter (Slice 6.5) and the
+the brain-side send live-validated to `example.com` (mine); the overlay confirmation prompt still
+owed its Windows validation ([docs/host/](host/index.md)). Closes two deferred items: the real
+overlay confirmation adapter (Slice 6.5) and the
 email-write tool (cross-cutting). **Gate proven:** the first outbound/irreversible capability under the
 capability gate, and the `Confirmer` round-trip over the seam.
 
@@ -552,8 +563,9 @@ capability gate, and the `Confirmer` round-trip over the seam.
 100% under `just check` across all four trees; **agent-Docker validated 2026-07-08**
 ([ADR-0023 addendum](adr/ADR-0023-body-gateway-volume.md)). The containerized brain dialed a
 host-side `BodyService` over `host.docker.internal`, round-tripped volume with the seam token
-attached, and the untokened dial was rejected `UNAUTHENTICATED` (assumption 3 holds). Only the
-Host-Windows Core Audio half remains. The first **brain→body** seam direction and the
+attached, and the untokened dial was rejected `UNAUTHENTICATED` (assumption 3 holds for the WSL2
+path). Only the Host-Windows Core Audio half remains
+([docs/host/](host/index.md)). The first **brain→body** seam direction and the
 first OS action. Resolves ADR-0001 Q2 (body capabilities are **internal** tools over a
 `BodyGateway` port, not MCP) and Q3 (the brain **dials** the host body via `host.docker.internal`;
 the abstract port keeps the ADR-0001 Q3 tunnel fallback a pure adapter swap). No proto change, since
@@ -584,12 +596,11 @@ committed; Slice 9 is hand-written wiring on top.
   clean turn → confirm, tainted turn → denied, ADR-0022). Trust is `TRUSTED` so a volume call never
   taints the turn.
 
-**Remaining:** only the **Host-Windows** real Core Audio validation ("set volume to 30%"), per
-[body-volume.md](runbooks/body-volume.md). The **agent-Docker** dial across the container
-boundary is done (2026-07-08, [ADR-0023 addendum](adr/ADR-0023-body-gateway-volume.md)): the
-tokened round-trip passed from a container and the untokened dial was rejected. On an 8 GB GPU
-the gemma-4-12B cortex does not fit, so a fully *cortex-driven* `set_volume` is bounded by what
-fits; the seam + gateway + tool path validated directly.
+**Remaining:** the **agent-Docker** dial across the container boundary is done (2026-07-08,
+[ADR-0023 addendum](adr/ADR-0023-body-gateway-volume.md)): the tokened round-trip passed from a
+container and the untokened dial was rejected. What is left is host-side and carries its own
+verbatim record in [docs/host/](host/index.md): the real Core Audio validation, and with it the
+fully *cortex-driven* `set_volume` that an 8 GB card cannot reach.
 
 Original scope (still the design):
 `AudioControl` Windows backend (Core Audio); `BodyService.SetVolume/GetVolume` served by
@@ -624,8 +635,9 @@ shapes: the Rust `BrainTransport` reminder methods + retry forwarding and the ov
 reminders-on-open surface on 2026-07-14, and the body-side `Notify` OS trait + the native
 toast on 2026-07-16 ([ADR-0025 notify
 addendum](adr/ADR-0025-scheduling-reminders.md)), which makes push delivery real: the port
-plus the inert-text rule are gated in `body_core`, `WindowsNotify` renders a WinRT toast, and
-only the user's look at a real toast is left. See
+plus the inert-text rule are gated in `body_core` and `WindowsNotify` renders a WinRT toast. Both
+delivery surfaces are owed a user look on Windows, the toast and the pull stack on the live
+hotkey path ([docs/host/](host/index.md)). See
 [runbooks/scheduling.md](runbooks/scheduling.md). Placed after Slice 9
 because proactive delivery rides the **brain→body** direction that slice establishes; the store-backed
 core could land earlier pull-only. Inserted as 9.5 (decimal insert, no renumber).
@@ -688,12 +700,15 @@ external store, never in a model process:
 - **Firing.** A due item runs one of two ways: an **autonomous task** executes via a subagent (Slice 7)
   and persists its result; a **reminder** is delivered **proactively to the overlay** over the brain→body
   seam (Slice 9). A pull-only fallback (surface due reminders when the overlay next opens) needs no push
-  and can ship first.
+  and could ship first; in the end both shipped, the pull surface on 2026-07-14 and the push on
+  2026-07-16.
 
 Any *side-effectful* scheduled action stays subject to the Slice 6.5 capability gate. A reminder
 created from injected external content must not silently fire an irreversible action. CI-gated end to
 end (the pure scheduler + `ScheduleStore` fake + the tool, no clock-wall-time flakiness via an injected
-`Clock`); real timer firing + overlay delivery are host-validated. **Gate proven:** durable scheduled
+`Clock`). Real timer firing was agent-Docker validated 2026-07-08 end to end against live Redis;
+what stays host-side is how the two delivery surfaces look on Windows
+([docs/host/](host/index.md)). **Gate proven:** durable scheduled
 state that survives a swap; the brain acting on its own initiative.
 
 ## Slice 10 (Vision): "see my screen"
@@ -701,8 +716,9 @@ state that survives a swap; the brain acting on its own initiative.
 **Status:** landed 2026-07-18 ([ADR-0029](adr/ADR-0029-vision-screen-capture.md)) and repaired
 2026-07-19 after three adversarial audits (the ADR's second addendum lists all of it, from a
 handoff that a screen read could kill to a reply nothing held to the bounds it asked for), except
-the host-only Windows validation: the GDI backend is authored, cross-compiled for
-`x86_64-pc-windows-msvc` and clippy-linted, and has never captured a real pixel. Everything else
+the host-only Windows validation ([docs/host/](host/index.md)), which keeps that half's wording
+verbatim: the GDI backend is authored, cross-compiled for `x86_64-pc-windows-msvc` and
+clippy-linted, and has never captured a real pixel. Everything else
 is green under `just check` and agent-validated against the real cortex plus its projector; see
 `docs/runbooks/vision.md` for both halves. The design was produced by a multi-lens design pass (six mapping agents over the
 affected subsystems, four independent designs from an architecture, security, systems, and
@@ -738,12 +754,14 @@ a compromised brain cannot suppress, a host-side kill switch that fails closed, 
 excluding itself from capture to break the self-injection loop. The user-attached
 `UserTurn.images` path is deliberately **not** in this slice.
 
+Original scope (still the design):
 `ScreenCapture` Windows backend; capture flows brain-ward over the seam into the
 multimodal cortex; "what's on my screen?" answered in the overlay.
 **Gate proven:** a seam that carries a payload stays bounded at both ends, and unfenceable
 content gets a deterministic boundary rather than a prompt-shaped one.
 
-Three things the implementation corrected against the design, each recorded as an ADR addendum.
+The implementation's corrections against the design are enumerated in the ADR's addenda (five in
+the first, nine audit findings in the second). Three are worth naming here.
 The ladder's give-up arm was unreachable with a fixed ceiling (two halvings from a 4096 edge
 always land under 6 MiB), so the byte budget rides the request, which also makes the brain's
 `CORTEX_BODY_MAX_IMAGE_BYTES` and the body's ceiling one number instead of two constants coupled
@@ -753,6 +771,10 @@ which no longer exists. And the preparatory engine split the design asked for ha
 with the handoff work.
 
 ## Slice 11 (Brain handoff): the swap rule, for real (capstone)
+
+**Status:** done as far as this repo can take it. Every sub-slice landed by 2026-07-18 and the
+whole of it is green under `just check`; the tier-scale half is host-side and lives in
+[docs/host/](host/index.md). Nothing here has run a real cortex to ~31B swap.
 
 Full handoff: cortex escalates → context serialized → `ModelManager` evicts
 cortex/subagents and loads the brain (stops their `llama-server` processes, starts the
@@ -774,9 +796,11 @@ answers `ready=false` with a truthful detail between turns, which lights the ove
 connection dot amber with no overlay change and closes the last backlog entry that was blocked on
 a producer. An audit round the same day extended that to the one machine state it still called
 ready, a boot whose recovery could not settle the cortex, which the composition root now publishes
-from what recovery observed rather than from the manager's optimistic seed. What remains is the host-side capstone on
-the 24 GB machine: the brain pick, the tier-scale swap, measured timings, the runbook, and the
-injection-harness run. The ADR states plainly why the last of those cannot move here: CI has no GPU
+from what recovery observed rather than from the manager's optimistic seed. What remains is the
+host-side capstone on the 24 GB machine, moved verbatim into
+[docs/host/gpu-tier-scale.md](host/gpu-tier-scale.md) with the runbook pointers and the
+dependency chain: the brain pick blocks the tier-scale swap, its chaos kill, the measured timings,
+and the injection-harness run. The reason it cannot move here is unchanged: CI has no GPU
 and the dev GPU cannot hold the cortex beside a ~31B brain, so the swap's **mechanism** is
 agent-validated against real `llama-server` processes with two small stand-ins (started,
 health-gated, evicted, swapped, killed under the daemon, and restarted over their own corpses) while
@@ -792,12 +816,32 @@ consciously deferred refinement is recorded in its area doc and on the index (an
 origin ADR) as part of finishing a slice. References elsewhere in this repo to "the ROADMAP's
 deferred-refinements section" resolve through this pointer.
 
+## Host-side work
+
+Moved to [docs/host/](host/index.md) on 2026-07-19, mirroring the extraction above: one
+self-contained doc per **sitting** rather than per area, with the load-bearing wording kept
+verbatim, plus an index carrying a blurb per doc, the prerequisites each sitting needs before it
+starts, the recommended order, and what blocks each item. Every slice above is complete on the
+agent's side; what those statuses used to carry, and no longer do, is the half that needs hardware
+this repo is not developed on. Two capabilities, tagged per item because the layout must not assume
+they are one machine or two: a **real Win32 desktop session** for everything OS native (the Core
+Audio action, the native toast, the confirm card and the other Tauri IPC surfaces, the GDI capture
+path, the overlay's OS-window polish), and a **24 GB GPU** for everything at tier scale (the deep-
+model pick, the real cortex to brain swap, its chaos kill and timings, the ~31B injection-harness
+run, a GPU-placed subagent, the cap numbers). References elsewhere in this repo to a slice status's
+"host-only half", "Host-Windows", or "host half (user)" resolve through this pointer.
+
+User *decisions* stay at their ADRs and are listed on that index rather than copied, so a decision
+keeps one home.
+
 ## Ship the user-facing README (the very last step)
 
-**Status:** planned. This is the terminal action, gated on **every slice above AND the entire
-deferred-refinements backlog ([docs/refinements/](refinements/index.md)) being cleared**. The
-README describes the *finished* system, so it
-lands only once nothing remains marked planned or deferred; writing it earlier would advertise
+**Status:** planned. This is the terminal action, gated on **every slice above, the entire
+deferred-refinements backlog ([docs/refinements/](refinements/index.md)), and the host-side work
+([docs/host/](host/index.md)) all being cleared**. The three are different kinds of "not done":
+a slice is unbuilt, a refinement is built-around, a host item is built but unrun. The README
+describes the *finished* system, so it
+lands only once none of the three has anything left; writing it earlier would advertise
 capabilities that aren't real yet.
 
 Until now every doc is engineer-facing (AGENTS.md, ADRs, module contracts, runbooks). There is
@@ -846,10 +890,14 @@ plan bets on, with what would invalidate each:
    so its cost is loading a multi-GB GGUF from the bind-mounted Windows drive.
    Assumed acceptable (seconds, reported to the overlay via the `Converse` status
    stream); if the Windows mount is the bottleneck, hot models get mirrored into a
-   WSL-side/volume cache (measured in Slice 4).
+   WSL-side/volume cache (measured in Slice 4). **Still unmeasured at the brain tier**, which is
+   host-side ([docs/host/](host/index.md)).
 3. **Brain→body connectivity.** The dockerized brain can dial the host body's gRPC
    server via `host.docker.internal` through the Windows firewall. Fallback: tunnel
-   body-directed calls over a body-initiated stream (ADR-0001 Q3).
+   body-directed calls over a body-initiated stream (ADR-0001 Q3). *Half real as of 2026-07-08:*
+   the dial and the token round-trip passed from a container under WSL2 native dockerd against
+   the Rust `BodyService` (ADR-0023 addendum); the **Windows firewall** crossing rides the
+   host-side volume check ([docs/host/](host/index.md)).
 4. **Coverage on Tauri glue.** 100% line+branch on the body holds because app wiring
    stays thin and logic lives in `body/crates/core`. If Tauri macro-generated glue
    resists instrumentation, that glue gets an ADR'd, narrowly-scoped exclusion.

@@ -12,6 +12,10 @@ Start here. Rules for working in this repo: [AGENTS.md](../AGENTS.md).
   follow-up, one self-contained doc per area, by origin ADR), with an index carrying a blurb
   per doc, the recommended pickup order, and what blocks each open item. Moved out of the
   ROADMAP on 2026-07-15.
+- [host/](host/index.md) is the work only the maintainer can perform, one self-contained doc
+  per sitting, each item tagged with the capability it needs: a real Win32 desktop session, or a
+  24 GB GPU. Deferred *design* lives in refinements; this holds code that is written and needs
+  hardware the dev machine does not have. Moved out of the ROADMAP on 2026-07-19.
 
 ## Decisions (ADRs)
 

@@ -296,6 +296,7 @@ GPU. The full working agreement is [AGENTS.md](AGENTS.md).
 | [docs/runbooks/](docs/runbooks/) | How to bring up and validate each subsystem live |
 | [docs/design/overlay-ux.md](docs/design/overlay-ux.md) | The overlay's UX and visual language |
 | [docs/refinements/](docs/refinements/index.md) | Every consciously deferred refinement, with a pickup order |
+| [docs/host/](docs/host/index.md) | Work that is built and waiting on hardware this repo is not developed on |
 | [docs/ROADMAP.md](docs/ROADMAP.md) | The ordered vertical slices |
 | [AGENTS.md](AGENTS.md) | The rules every change in this repo is held to |
 

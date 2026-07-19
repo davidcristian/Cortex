@@ -12,14 +12,16 @@ screens, an `AttachmentStore` for accountability, an image arm of the injection 
 per-source memory rules, a Windows.Graphics.Capture backend, multi-monitor and DPI reporting,
 Linux and macOS backends, a uniform per-call deadline, `RESOURCE_EXHAUSTED` classification,
 pixel screening in the body, carrying a picture (or at least the `opaque` bit) across a model
-swap, an outcome-driven capture indicator, the two agent-Docker validations this slice left
-unrun, and the host-side Windows validation of the whole capture path.
+swap, an outcome-driven capture indicator, and the two agent-Docker validations this slice left
+unrun.
 
 Two bookkeeping notes, both settled 2026-07-19, so the names above can be reconciled against the
 bullets below without re-deriving them. Region and window capture and legibility at 4K share one
 bullet (the risk and the fix that closes it), which is why the names outnumber the bullets by one.
 And **the accepted residual the guardrail cannot catch** has a bullet but is deliberately not
-counted; the reason is recorded on the bullet itself.
+counted; the reason is recorded on the bullet itself. A third note as of the same day: the
+host-side capture validation also has a bullet and is no longer counted, because it moved to
+[docs/host/](../host/index.md).
 
 ## Vision in Slice 10 ([ADR-0029](../adr/ADR-0029-vision-screen-capture.md))
 
@@ -137,14 +139,15 @@ counted; the reason is recorded on the bullet itself.
   host hardware. The disable-thinking lever itself is a separate open entry
   ([inference-model-manager.md](inference-model-manager.md)); what is unmeasured here is only
   whether a vision turn is the case that needs it.
-- **Host-side Windows validation of the whole capture path.** The one part of this slice no gate
-  can reach, and the only one on the ADR's host-only list without a backlog line until
-  2026-07-19. In order: the real GDI blit of a live desktop; **capturing while the overlay is
-  visible, to prove `WDA_EXCLUDEFROMCAPTURE` held**, which is the check nothing else can stand in
-  for (if it silently fails, the self-injection loop is live); per-monitor DPI behaviour; the
-  body-authored receipt appearing and reading well; GDI's black-rectangle behaviour on
-  hardware-overlay and DRM-protected surfaces; and hotkey-to-answer latency with its vision
-  surcharge. Runbook: [../runbooks/vision.md](../runbooks/vision.md).
+- **Host-side Windows validation of the whole capture path moved to
+  [docs/host/windows-capture.md](../host/windows-capture.md) on 2026-07-19**, its text kept
+  verbatim and its six observations broken out with what a pass and a failure look like for each.
+  It had a backlog line here for exactly one day, having been the only item on the ADR's host-only
+  list without one. The item that ADR filed beside it and this backlog never carried, **the
+  resident VRAM figure with the projector loaded on the 24 GB GPU**, went to
+  [docs/host/gpu-tier-scale.md](../host/gpu-tier-scale.md) instead: it sat inside an
+  "Host-Windows" list although it has no OS-native content at all. Runbook unchanged:
+  [../runbooks/vision.md](../runbooks/vision.md).
 - **Pixel-level screening in the body.** The body is the only side that knows what is on the
   screen before it crosses the seam, so it is the only side that could redact a region (a
   password field, a specific window) rather than refuse a whole capture. Nothing in the design

@@ -144,6 +144,10 @@ the sweep being sequential).
 
 ## The chaos kill, host-side
 
+This and the rest of the tier-scale half are tracked in
+[docs/host/gpu-tier-scale.md](../host/gpu-tier-scale.md), which carries the dependency chain
+(nothing here moves before the deep-model pick).
+
 ADR-0030 decision 7's host half, at tier scale on the 24 GB machine. The agent-side equivalent at
 small scale is the third and fourth bullets above; what is host-only is doing it mid handoff with
 a real deep model, from the overlay:

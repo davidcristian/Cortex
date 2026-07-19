@@ -8,6 +8,12 @@ be empty before the user-facing README ships. Landed entries stay in the area do
 historical record of what each deferral became, and several deliberately correct their own
 ADRs, which is why the entries are kept verbatim rather than summarized.
 
+**What is not here.** Work that is already built and is waiting on hardware this repo is not
+developed on lives in [docs/host/](../host/index.md), extracted from here and from the ROADMAP
+on 2026-07-19. The distinction is what kind of not-done an item is: a refinement is built-around
+and anyone can pick it up, a host item is built and unrun until it meets a real Win32 desktop
+session or a 24 GB GPU. Both must be clear before the README ships.
+
 **An entry's own cost estimate is a hypothesis, not a finding.** The ROADMAP section this
 backlog was extracted from used to open by asserting that every entry was "a small change
 behind an unchanged port". That was wrong often enough to mislead planning four times: the
@@ -34,17 +40,17 @@ its signature.
 | [seam-auth.md](seam-auth.md) | Seam token auth (ADR-0016) | 1 |
 | [session-history.md](session-history.md) | Slice 3 history windowing and summarization | 1 |
 | [tools-mcp.md](tools-mcp.md) | Dispatch budget/cost/salience, spawn batch cap, MCP registries (ADR-0009/0010) | 6 |
-| [untrusted-content.md](untrusted-content.md) | Taint boundary, output guardrail, subagent model safety (ADR-0013/0015/0017/0019/0028) | 13 |
+| [untrusted-content.md](untrusted-content.md) | Taint boundary, output guardrail, subagent model safety (ADR-0013/0015/0017/0019/0028) | 11 |
 | [memory.md](memory.md) | Store, scoping, rerank/MMR (ADR-0008) | 8 |
 | [inference-model-manager.md](inference-model-manager.md) | Model-manager lifecycle, MTP, reasoning status (ADR-0007/0020) | 7 |
 | [subagents.md](subagents.md) | Progress reporting, spawn schema, heterogeneous roster (ADR-0010/0018) | 2 |
-| [body-overlay.md](body-overlay.md) | Overlay polish, connection indicator, proto Cancel (ADR-0011) | 3 |
+| [body-overlay.md](body-overlay.md) | Overlay polish, connection indicator, proto Cancel (ADR-0011) | 2 |
 | [session-read-seam.md](session-read-seam.md) | Session listing/read seam (ADR-0021) | 3 |
 | [resource-governance.md](resource-governance.md) | Scheduler/placer budgets, NPU, drain (ADR-0012) | 5 |
 | [email-confirmer.md](email-confirmer.md) | Email write, Confirmer, attachments, `ToolActivity` chip (ADR-0022) | 4 |
-| [body-gateway.md](body-gateway.md) | Body gateway, OS actions, hardened posture (ADR-0023) | 6 |
+| [body-gateway.md](body-gateway.md) | Body gateway, OS actions, hardened posture (ADR-0023) | 5 |
 | [scheduling.md](scheduling.md) | Scheduling and reminders, `TurnStamp` provenance (ADR-0025/0027) | 8 |
-| [vision.md](vision.md) | Screen capture, images, the pixel boundary (ADR-0029) | 19 |
+| [vision.md](vision.md) | Screen capture, images, the pixel boundary (ADR-0029) | 18 |
 | [cross-cutting.md](cross-cutting.md) | Pointer input, OS backends, more roles | 3 |
 
 The counts are per area as extracted; a few threads appear in two areas (the cross-cutting
@@ -623,6 +629,19 @@ item (body gateway's volume check, vision's capture path, untrusted content's co
 and overlay's window polish). The inconsistency is recorded rather than resolved here: adding two
 cells now and removing six later would be churn, and where host-side validation is tracked is a
 decision this pass deliberately did not make.
+That decision was made later the same day, and it went the other way from "add two cells": **the
+total went 96 to 91 when host-side work was extracted to [docs/host/](../host/index.md)**, one
+self-contained doc per sitting with the entries kept verbatim, mirroring this backlog's own
+extraction from the ROADMAP. Four cells lost one each (body gateway 6 to 5 for the volume check,
+body and overlay 3 to 2 for the window polish, vision 19 to 18 for the capture path, untrusted
+content 13 to 11 for the confirm card and the ~31B harness run), and the two uncounted residuals
+went with them (the toast look, real GPU-placed subagent validation with the placeholder cap
+numbers), so the inconsistency the paragraph above recorded is gone rather than papered over.
+Each origin keeps a dated pointer stub, the way the ROADMAP kept one for this directory. What did
+**not** move is anything whose work is code, even when only the user can see the trigger: the COM
+initialization fix, the nudge's live uptake, co-residency, the NPU, and the two model passes all
+stay, because moving them would split a design decision from its area. The bucket below says the
+same in the place a reader looking for host work will land.
 
 ## Recommended order
 
@@ -747,31 +766,59 @@ was not that new work appeared, but that three actionable things had never been 
   against a real placement, and the shipped cgroup numbers are user-tunable placeholders for the
   same reason. Both are host-side hardware work rather than deferred design, which is why they
   carry no count here.
-- The ~31B brain-tier injection-harness run ([untrusted-content.md](untrusted-content.md)).
+- The ~31B brain-tier injection-harness run **moved to
+  [docs/host/gpu-tier-scale.md](../host/gpu-tier-scale.md) on 2026-07-19**, where it sits behind
+  the deep-model pick with the other four capstone items
+  ([untrusted-content.md](untrusted-content.md) keeps its pointer stub).
   Its taint/provenance-persistence sibling **landed 2026-07-17** as the brain-handoff record's
   schema and pinned tainted-ledger round trip (ADR-0030), and the conductor sub-slice then
   exercised that schema across a swap the same day: the deep model's phase rebuilds the ledger
   from the record, so a tainted turn stays tainted and the output guardrail opens over the URL
-  evidence the cortex collected (mutation-proven). Only the harness run itself, which needs the
-  real ~31B tier, remains here.
+  evidence the cortex collected (mutation-proven). The harness run itself, which needs the
+  real ~31B tier, is the only part that outlived this bucket, and it left it for the user
+  directory rather than staying.
 - Nothing of the overlay's streamed-brain-status entry remains here: its producer became whole on
   2026-07-18 and the entry moved up to "actionable, but a seam or port change comes first"
   ([body-overlay.md](body-overlay.md)).
 
-### Host-side Windows validation only
+### Host-side work: moved out on 2026-07-19
 
-- The real Core Audio "set volume to 30%" check ([body-gateway.md](body-gateway.md))
-- Whether a real reminder toast appears and reads well, the one half of the landed `Notify`
-  backend no gate can reach ([scheduling.md](scheduling.md))
-- Windows-native validation of the confirm card ([untrusted-content.md](untrusted-content.md))
-- The OS-window half of the overlay polish: transparent window + click-through, the morph to a
-  real screen corner, hide-on-blur ([body-overlay.md](body-overlay.md))
-- The whole screen-capture path on a real desktop ([vision.md](vision.md)): the GDI blit, the
-  receipt, per-monitor DPI, GDI's silent black rectangle on protected surfaces, and above all
-  **capturing while the overlay is visible**, to prove the self-exclusion held. That last one is
-  the check nothing else can stand in for, because a silent failure there makes the overlay's own
-  contents (the user's prompt, the prior reply, a confirm card) part of the next picture, which
-  is model output laundered back into untrusted model input. Runbook: `docs/runbooks/vision.md`
+This bucket is now a pointer, not a list. Everything that needs the host's hardware left for
+**[docs/host/](../host/index.md)** on 2026-07-19, extracted the way this whole backlog was
+extracted from the ROADMAP: one self-contained doc per **sitting**, wording kept verbatim, plus an
+index with prerequisites, a recommended order, and a status line per item. Five entries and two
+uncounted residuals went, listed here so nothing has to be re-derived:
+
+- The real Core Audio "set volume to 30%" check (was [body-gateway.md](body-gateway.md), counted)
+- Windows-native validation of the confirm card (was
+  [untrusted-content.md](untrusted-content.md), counted)
+- The OS-window half of the overlay polish (was [body-overlay.md](body-overlay.md), counted, and
+  the only **authoring** entry this backlog held)
+- The whole screen-capture path on a real desktop (was [vision.md](vision.md), counted)
+- The ~31B injection-harness run (was [untrusted-content.md](untrusted-content.md), counted)
+- Whether a real reminder toast appears and reads well (was inside a landed entry in
+  [scheduling.md](scheduling.md), never counted), joined there by the pull surface's own check,
+  which lived only in a runbook
+- Real GPU-placed subagent validation and the placeholder cgroup numbers (were inside a landed
+  entry in [resource-governance.md](resource-governance.md), never counted)
+
+Each origin doc keeps a dated pointer stub in place of the entry, so the trail from an ADR through
+this backlog still resolves. **Why they moved rather than staying with a tag:** the two backlogs
+now hold different kinds of not-done. This one holds deferred *design*, work anyone can pick up
+once a seam or a consumer unblocks it, and its emptiness gates the README. That gate is dishonest
+if it also waits on the user pressing a hotkey, and it is worse than dishonest for the overlay
+polish, which would have meant this backlog could not empty until the maintainer wrote Rust. The
+inconsistency the 2026-07-19 pass recorded rather than resolved (four areas counting their
+host item, two not) is resolved by the move: none of them counts here now.
+
+What stays here despite needing the host's hardware to *observe* or *judge*, because the work
+itself is code and belongs with its area: unbalanced COM initialization on the blocking pool
+([body-gateway.md](body-gateway.md)), the spontaneous-pick nudge's live uptake
+([subagents.md](subagents.md)), co-residency
+([inference-model-manager.md](inference-model-manager.md)), the NPU as a third placement target
+([resource-governance.md](resource-governance.md)), and the model passes behind history
+summarization and reranking ([session-history.md](session-history.md),
+[memory.md](memory.md)). The user index lists all five under a heading that says exactly that.
 
 ### Dead until a consumer exists
 

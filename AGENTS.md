@@ -82,7 +82,12 @@ Interfaces are designed around this rule from day one. Retrofitting it is a rewr
    [docs/refinements/index.md](docs/refinements/index.md), and at its origin ADR)**. A change
    that touches code but not docs is incomplete; a refinement knowingly punted but not written
    down is a lost decision. That directory is the one place none is lost, so updating it is part
-   of finishing a slice, not an afterthought. Every module has a short contract
+   of finishing a slice, not an afterthought. Its companion is
+   [docs/host/](docs/host/index.md), recorded the same way (its sitting doc, its line on that
+   index, and its origin ADR) and holding the other kind of not-done: work that is built but
+   needs hardware this repo is not developed on, meaning a real Win32 desktop session or a 24 GB
+   GPU. Anything the agent can reach, including GPU and model behavior via Docker, belongs in
+   neither and is done now. Every module has a short contract
    doc in `docs/modules/` (purpose, public contract, invariants, dependencies) that lets a
    future agent work on it without reading the tree.
 5. **Types & quality.** Python: `ruff` (lint + format) clean; `pyright` in strict mode
@@ -155,7 +160,9 @@ Entries marked *(planned)* are target layout; docs/ROADMAP.md says which slice d
 ```
 proto/            body↔brain gRPC contract (source of truth for the seam)
 docs/             ARCHITECTURE.md, index.md, ROADMAP.md, adr/, modules/, runbooks/,
-                  refinements/ (deferred-refinements backlog + ordered index), assets/ (logo)
+                  refinements/ (deferred-refinements backlog + ordered index),
+                  host/ (work only the host's hardware can do: a Win32 desktop session or a
+                  24 GB GPU, one doc per sitting + ordered index), assets/ (logo)
 brain/            Python workspace (uv), dockerized (brain/Dockerfile)
   packages/       core (pure logic + ports), seam (committed gRPC stubs + typed facade),
                   orchestrator (hosts BrainService), session (Redis SessionStore +

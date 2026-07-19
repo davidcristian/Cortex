@@ -2,7 +2,7 @@
 
 This area originates in [ADR-0013](../adr/ADR-0013-untrusted-content.md) (Slice 6.5), whose deferrals grew into the output guardrail ([ADR-0015](../adr/ADR-0015-output-guardrail.md)), subagent model safety ([ADR-0017](../adr/ADR-0017-subagent-model-safety.md)), tainted-memory recording ([ADR-0019](../adr/ADR-0019-tainted-memory-recording.md)), and grammar-constrained subagent output ([ADR-0028](../adr/ADR-0028-grammar-constrained-subagents.md)). Extracted from the ROADMAP's deferred-refinements section on 2026-07-15 with the entries kept verbatim; landed entries are the historical record of what each deferral became, and the index at [index.md](index.md) carries the recommended pickup order.
 
-**Open items:** the screening subagent, Windows-native validation of the confirm card, whitespace-split hosts, the full UTS-39 confusables set, mixed/other encodings, footer/boilerplate heuristics, a raw GBNF grammar alternative, a per-task caller-supplied schema, provenance across the stores, a fence-without-block recall mode, per-provenance eviction, per-remote-tool trust/gating overrides, the brain-tier injection-harness run
+**Open items:** the screening subagent, whitespace-split hosts, the full UTS-39 confusables set, mixed/other encodings, footer/boilerplate heuristics, a raw GBNF grammar alternative, a per-task caller-supplied schema, provenance across the stores, a fence-without-block recall mode, per-provenance eviction, per-remote-tool trust/gating overrides
 
 **Untrusted-content boundary in Slice 6.5 ([ADR-0013](../adr/ADR-0013-untrusted-content.md)):** each
 behind the unchanged `ToolRegistry`/`ToolDispatcher`/`stream_tool_loop` seams (or the new `Confirmer` port).
@@ -11,7 +11,8 @@ behind the unchanged `ToolRegistry`/`ToolDispatcher`/`stream_tool_loop` seams (o
   exchange over the `Converse` stream to the overlay's approval card; the gate table was revised
   in the same slice (untainted gated → confirm; tainted gated → denied outright, per the
   ADR-0013 2026-07-08 addendum). Only the Windows-native validation of the card remains
-  host-side.
+  host-side, and it **moved to [docs/host/windows-desktop.md](../host/windows-desktop.md) on
+  2026-07-19** with that sentence kept verbatim, so it is no longer counted here.
 - **Agent GPU validation of framing efficacy done 2026-07-01** ([ADR-0013 addendum](../adr/ADR-0013-untrusted-content.md)).
   The agent ran it on the host GPU via Docker (gemma-4-12B): the framed model cites the shipped
   `SECURITY_PREAMBLE` in its reasoning to defeat seven injection variants; the gate is the
@@ -324,7 +325,12 @@ behind the unchanged `ToolRegistry`/`ToolDispatcher`/`stream_tool_loop` seams (o
   loop tail, the same rule both session stores enforce, so even a caller that bypassed the tool
   cannot persist a caption whose picture is gone. The refusal is pinned against its literal text
   with a transparent-tainted control arm, so it measures the opaque bit and not taint.
-- **Injection-harness run against the ~31B brain tier.** The harness's brain tier is **opt-in and
-  not yet run** (`CORTEX_PROBE_BRAIN=1`, as the VRAM cost needs the others evicted; ADR-0013 harness
-  addendum + [ADR-0004](../adr/ADR-0004-model-lineup.md) injection addendum). Run it when the brain
-  pick lands (**Slice 11**), and whenever picks or the preamble change.
+- **Injection-harness run against the ~31B brain tier, moved to
+  [docs/host/gpu-tier-scale.md](../host/gpu-tier-scale.md) on 2026-07-19** with its text kept
+  verbatim. It was: "The harness's brain tier is **opt-in and not yet run**
+  (`CORTEX_PROBE_BRAIN=1`, as the VRAM cost needs the others evicted; ADR-0013 harness addendum +
+  [ADR-0004](../adr/ADR-0004-model-lineup.md) injection addendum). Run it when the brain pick lands
+  (**Slice 11**), and whenever picks or the preamble change." It is the one host item whose result
+  can change shipped policy, since ADR-0030 decision 1's tainted-escalation stance turns on it.
+  The "whenever picks or the preamble change" half is a standing obligation that survives the
+  first run, and it lives there with it.
