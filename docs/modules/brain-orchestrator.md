@@ -153,7 +153,11 @@ Config (pydantic-settings; explicit constructor arguments beat the environment):
   MAX_IMAGE_BYTES` (6 MiB) are what the brain asks the body for **and** holds the reply to,
   since the body clamps both and an older body ignores both; `capture_timeout_s: float = 10.0`
   is the only deadline on this seam, because a blit plus an encode is the only call that can
-  park a host thread. Validates that
+  park a host thread. All three are **bounded so a misconfiguration fails at boot** rather than
+  turning every capture into a turn-killing exception: `capture_max_edge` `ge=0, le=8192` and
+  `max_image_bytes` `gt=0, le=6291456` (it may tighten the domain ceiling, never loosen it, the
+  body clamping to its own regardless), both because the pair rides uint32 proto fields, and
+  `capture_timeout_s` `gt=0`. Validates that
   `grpc` has a non-empty `endpoint`. Off by default (CI + no-GPU dev never dial a host body);
   the shared `CORTEX_SEAM_TOKEN` (SeamServerConfig, not a `CORTEX_BODY_` var) authenticates the
   dial.

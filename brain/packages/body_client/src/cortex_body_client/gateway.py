@@ -19,6 +19,7 @@ from cortex_seam import (
     CaptureScreenReply,
     CaptureScreenRequest,
     GetVolumeRequest,
+    ImageBlob,
     NotifyReply,
     NotifyRequest,
     SetVolumeRequest,
@@ -98,7 +99,14 @@ class GrpcBodyGateway:
 
     async def capture_screen(self, *, max_edge: int = 0, max_bytes: int = 0) -> ScreenCapture:
         """Read the host's primary display over ``BodyService.CaptureScreen`` (ADR-0029)."""
-        request = CaptureScreenRequest(max_edge=max_edge, max_bytes=max_bytes)
+        try:
+            request = CaptureScreenRequest(max_edge=max_edge, max_bytes=max_bytes)
+        except ValueError as err:
+            # A misconfigured bound must not escape as a bare ValueError: this port promises
+            # BodyGatewayError as its only failure channel, and anything else kills the turn
+            # instead of failing the capture.
+            msg = f"body capture_screen was asked for a bound the wire cannot carry: {err}"
+            raise BodyGatewayError(msg) from err
         method = self._stub.CaptureScreen  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
         try:
             reply = cast(
@@ -108,15 +116,16 @@ class GrpcBodyGateway:
         except aio.AioRpcError as err:
             msg = f"body capture_screen failed: {err.details()}"
             raise BodyGatewayError(msg) from err
-        return _to_capture(reply)
+        return _to_capture(reply, max_edge=max_edge, max_bytes=max_bytes)
 
 
-def _to_capture(reply: CaptureScreenReply) -> ScreenCapture:
+def _to_capture(reply: CaptureScreenReply, *, max_edge: int, max_bytes: int) -> ScreenCapture:
     """Translate the wire reply into the domain value, refusing anything it will not vouch for."""
     if not reply.HasField("image"):
         msg = "body capture_screen returned no image"
         raise BodyGatewayError(msg)
     blob = reply.image
+    _hold_to_the_bounds_asked_for(blob, max_edge=max_edge, max_bytes=max_bytes)
     try:
         image = ImagePart(
             data=blob.data,
@@ -133,3 +142,20 @@ def _to_capture(reply: CaptureScreenReply) -> ScreenCapture:
         source_height=blob.source_height or blob.height,
         captured_at=captured_at_from_unix_ms(blob.captured_at_unix_ms),
     )
+
+
+def _hold_to_the_bounds_asked_for(blob: ImageBlob, *, max_edge: int, max_bytes: int) -> None:
+    """Refuse a reply outside the bounds this call asked the body for (ADR-0029 decision 7)."""
+    edge = max(blob.width, blob.height)
+    if max_edge and edge > max_edge:
+        msg = (
+            f"body capture_screen answered {blob.width}x{blob.height}, over the {max_edge} px "
+            "edge it was asked for"
+        )
+        raise BodyGatewayError(msg)
+    if max_bytes and len(blob.data) > max_bytes:
+        msg = (
+            f"body capture_screen answered {len(blob.data)} bytes, over the {max_bytes} byte "
+            "budget it was asked for"
+        )
+        raise BodyGatewayError(msg)
