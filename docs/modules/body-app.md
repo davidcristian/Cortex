@@ -64,18 +64,26 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
   picture but a **self-injection loop**: the overlay is always-on-top and opaque, so its
   contents (the user's prompt, the prior reply, any confirm card) would be re-ingested as screen
   content on the next capture, laundering model output back into untrusted model input.
-  `CORTEX_HOST_CAPTURE_NOTIFY=0` silences the body-authored receipt. Host-validated; see
-  `docs/runbooks/vision.md`.
+  `CORTEX_HOST_CAPTURE_NOTIFY=0` silences the body-authored receipt. **Host-validated only, and
+  not yet run:** nothing on this path has ever touched a real screen, and the self-exclusion in
+  particular has no CI-visible failure mode, which is why capturing while the overlay is visible
+  is the one check `docs/runbooks/vision.md` says nothing else can stand in for.
 - **The screen-capture indicator** (`state.capturing` + `components/CaptureDot.tsx`,
   ADR-0029). The reducer sets `capturing` when a `toolActivity` event names
   `CAPTURE_SCREEN_TOOL` (`"capture_screen"`, matched by name because the event already carries
   it and a second seam field would be one more place the two ends could disagree), and clears it
   only when the turn ends, on completion or failure alike. It therefore stays lit for the rest
   of the turn rather than blinking past with the tool chip, because the fact the user is owed is
-  "the assistant looked at my screen during this reply", not "a tool ran for a moment". This is
+  "the assistant went for my screen during this reply", not "a tool ran for a moment". This is
   a **consent surface** and part of why the capture tool ships without an approval card: the
   dot renders only when it means something and carries a fixed accessible label saying exactly
-  that. The body fires its own OS notification independently; this is the half the user is
+  what the seam proved, which is *"The assistant asked to look at your screen during this
+  reply"*. **"asked to look", not "looked":** the chip is emitted just before the dispatch, so
+  the flag is set for a capture the host refused (`CORTEX_HOST_CAPTURE` unset is the shipping
+  default), one whose self-exclusion failed closed, one the body never answered, and a gated one
+  the user declined. No outcome crosses the seam, so the stronger claim would be false in every
+  one of those cases; an outcome-driven indicator needs a seam change and is a recorded
+  deferral (`docs/refinements/vision.md`). The body fires its own OS notification independently; this is the half the user is
   already looking at.
 - **The connection indicator** (`overlay/linkState.ts` + `overlay/useLink.ts` +
   `components/LinkDot.tsx`, ADR-0011 addendum). `state.link` is a `LinkView { state, detail,

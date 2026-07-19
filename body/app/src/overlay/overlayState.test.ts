@@ -542,6 +542,27 @@ describe("the screen-capture indicator", () => {
     expect(later.messages.at(-1)?.tool).toBe("get_volume: reading");
   });
 
+  it("lights on the ask, since the seam never says whether the capture happened", () => {
+    // The chip the brain emits for a capture is pre-dispatch, so this is what the overlay knows:
+    // that the assistant went for the screen. A capture the host refused (CORTEX_HOST_CAPTURE
+    // unset is the shipping default), one the body could not answer, and a gated one the user
+    // declined all produce this exact event and nothing else, which is why the indicator's label
+    // says "asked to look" rather than "looked". Locking that in here so a future outcome signal
+    // has to change this test on purpose rather than quietly making the label true.
+    const asked = reduce(streaming(), {
+      kind: "event",
+      event: { kind: "toolActivity", toolName: "capture_screen", summary: "primary display" },
+    });
+    expect(asked.capturing).toBe(true);
+    // Whatever came back, no later event tells the overlay: the only capture-shaped thing that
+    // follows is the reply text, which cannot distinguish a refusal from a picture.
+    const answered = reduce(asked, {
+      kind: "event",
+      event: { kind: "delta", text: "I could not see your screen." },
+    });
+    expect(answered.capturing).toBe(true);
+  });
+
   it("stays dark for a turn that only ran other tools", () => {
     const after = reduce(streaming(), {
       kind: "event",

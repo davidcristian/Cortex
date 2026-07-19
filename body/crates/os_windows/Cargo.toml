@@ -29,9 +29,11 @@ windows = { version = "0.58", features = [
   "Win32_UI_WindowsAndMessaging",
 ] }
 
-# os_windows opts OUT of the workspace `unsafe_code = "forbid"` for Core Audio COM
-# (ADR-0023 decision 7): `unsafe` stays denied crate-wide and is re-enabled only in the
-# `audio` module via a scoped `#![allow(unsafe_code)]`. Because `[lints]` is all-or-nothing,
+# os_windows opts OUT of the workspace `unsafe_code = "forbid"` for the Win32 calls its
+# backends need (ADR-0023 decision 7): `unsafe` stays denied crate-wide and is re-enabled only
+# in the modules that own an authorization, each with its own scoped `#![allow(unsafe_code)]`
+# naming the ADR that granted it. There are three: `audio` (Core Audio COM, ADR-0023), `notify`
+# (WinRT toasts, ADR-0025), and `screen` (GDI BitBlt, ADR-0029). Because `[lints]` is all-or-nothing,
 # the other workspace lints (the `coverage` cfg allowance, clippy pedantic, no unwrap/expect)
 # are re-declared here. Every other crate keeps `forbid`.
 [lints.rust]
