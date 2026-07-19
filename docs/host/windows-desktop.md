@@ -185,8 +185,11 @@ The parenthetical is stale and is kept only because the sentence is quoted: **au
 2026-07-12** ([refinements/session-read-seam.md](../refinements/session-read-seam.md)). Expect the
 most recent chat to restore, not a blank one.
 
-**Do.** In the running overlay: open the `⌄` switcher, `Ctrl+↑`/`Ctrl+↓` to cycle, `Ctrl+K` to
-open it from the keyboard. Restart the app and summon again.
+**Do.** In the running overlay: open the switcher with the header's **Recent chats** button (the
+two overlapping speech bubbles), or `Ctrl+K` from the keyboard, then `Ctrl+↑`/`Ctrl+↓` to cycle.
+Restart the app and summon again. **Corrected 2026-07-19:** this line named the `⌄` control, which
+is the header's rightmost button and dismisses the overlay (`TuckIcon`, "tuck it away"), so
+following it literally ended the check instead of starting it.
 
 **Pass.** The switcher lists prior chats with their derived titles and previews, most recent first;
 cycling moves through them and loads each one's history; a restart restores the most recent chat.
@@ -329,3 +332,21 @@ Kept verbatim from [refinements/repo-gates.md](../refinements/repo-gates.md):
 **What this means in practice.** Any change touching `body/crates/os_windows` or
 `body/app/src-tauri` is unproven until it has been built on Windows once. The gates catch format
 and type errors; they cannot catch a link error.
+
+**Do, once per such change** (this was the only item in this directory carrying no command,
+added 2026-07-19, and it is the one repeated most often):
+
+```powershell
+cd body/app
+npm run tauri build
+```
+
+The shell declares `os-windows` under `[target.'cfg(windows)'.dependencies]`, so a Windows build
+of the shell is what links both ungated trees at once. The `npm run tauri dev` that every check
+above starts with links them too, so a sitting that ran those has already covered whatever change
+it was carrying; the build command is the form to use when there is no sitting to attach it to.
+
+**Pass.** It links and the app starts.
+
+**Fail.** A link error, which is exactly the third of the risk the gates cannot reach. Record it
+where the change was made, not here.

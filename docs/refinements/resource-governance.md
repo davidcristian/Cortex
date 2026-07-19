@@ -93,7 +93,9 @@ the unchanged `SubagentPlacer`/`SubagentScheduler`/`ModelManager` ports.
   (2026-07-19).** "Which needs a card that holds the cortex first" says the dev GPU does not hold
   the cortex, and it does:
   [ADR-0029](../adr/ADR-0029-vision-screen-capture.md) measured `gemma-4-12b-it-qat-q4_0.gguf`
-  resident with its vision projector at `-ngl 99 --ctx-size 4096 --parallel 1`, 7715 of 8188 MiB.
+  resident with its vision projector at `-ngl 99 --ctx-size 4096 --parallel 1`, and
+  [ADR-0030](../adr/ADR-0030-brain-handoff.md) records the model alone taking 7715 of that card's
+  8188 MiB.
   What the card cannot do is hold anything *beside* that cortex, roughly 470 MiB of headroom
   against a multi-GB subagent, so a GPU placement **beside a resident cortex**, which is the
   arithmetic ADR-0012 cares about, stays host-side and stays item 6 of

@@ -143,11 +143,13 @@ host-side capture validation also has a bullet and is no longer counted, because
   [docs/host/windows-capture.md](../host/windows-capture.md) on 2026-07-19**, its text kept
   verbatim and its six observations broken out with what a pass and a failure look like for each.
   It had a backlog line here for exactly one day, having been the only item on the ADR's host-only
-  list without one. The item that ADR filed beside it and this backlog never carried, **the
-  resident VRAM figure with the projector loaded on the 24 GB GPU**, went to
-  [docs/host/gpu-tier-scale.md](../host/gpu-tier-scale.md) instead: it sat inside an
-  "Host-Windows" list although it has no OS-native content at all. Runbook unchanged:
-  [../runbooks/vision.md](../runbooks/vision.md).
+  list without one. The clause the ADR filed beside it, **the resident VRAM figure with the
+  projector loaded on the 24 GB GPU**, briefly went to
+  [docs/host/gpu-tier-scale.md](../host/gpu-tier-scale.md) as a host item and was **withdrawn
+  the same day**: this backlog never carried it because it was never a deferral. ADR-0004 measured
+  that figure on the 24 GB card at 16K with the projector loaded on 2026-06-29 (11.3 GB), the
+  llamacpp-gpu and vision runbooks both carry it, and ADR-0029's own decision 14 leans on it.
+  Runbook unchanged: [../runbooks/vision.md](../runbooks/vision.md).
 - **Pixel-level screening in the body.** The body is the only side that knows what is on the
   screen before it crosses the seam, so it is the only side that could redact a region (a
   password field, a specific window) rather than refuse a whole capture. Nothing in the design

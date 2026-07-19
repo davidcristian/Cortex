@@ -42,8 +42,9 @@ Deferred refinements from Slice 3's cortex chat and session work; the windowing 
   itself, and its stated blocker was wrong (corrected 2026-07-19).** This read "a summarizing window
   cannot be behavior-validated on the 8 GB dev GPU, where the cortex tier (gemma-12B) does not fit".
   The cortex does fit that card: [ADR-0029](../adr/ADR-0029-vision-screen-capture.md) ran it there
-  beside its vision projector at `-ngl 99 --ctx-size 4096 --parallel 1` (7715 of 8188 MiB), and
-  judging whether a summary keeps what the next turn needs is not a 16K question. What is unresolved
+  beside its vision projector at `-ngl 99 --ctx-size 4096 --parallel 1`, and
+  [ADR-0030](../adr/ADR-0030-brain-handoff.md) records the model alone taking 7715 of that card's
+  8188 MiB. Judging whether a summary keeps what the next turn needs is not a 16K question. What is unresolved
   is the design: the cache-versus-recompute-per-turn decision this entry named is a choice, not a
   wrapper. So the honest slice still lands the async widening together with the summarizer rather
   than the widening alone as an empty async layer, and what it waits on is that decision plus the

@@ -8,7 +8,7 @@ is the companion to [refinements/](../refinements/index.md) and the two hold dif
   a seam, a consumer, or a decision unblocks it. Its entries describe code that is not written.
 - **This directory holds work that is blocked on hardware the dev machine does not have.** The code is
   written; what is missing is a machine that can run it. Almost every item here is a *validation*,
-  and the two that are not say so at the top of their section.
+  and the one that is not, the overlay polish pass, says so at the top of its section.
 
 Neither is "host-only" in the [AGENTS.md](../../AGENTS.md) sense. An `integration`-marked live test
 is host-only because it needs Docker, a GPU, or a network service, and gate 3 is explicit that "on
@@ -22,7 +22,7 @@ Every item below carries one of two tags, and mixing them wastes a sitting:
 | Tag | What it means | Why the dev machine cannot stand in |
 | --- | --- | --- |
 | **W** | A real Win32 desktop session, where the body runs natively | The dev machine is Linux under WSL2. Nothing OS native (COM, WinRT, GDI, a real Tauri IPC hop, a real window) exists to exercise. |
-| **G** | A card that holds the real model tiers (24 GB) | The dev GPU is an 8 GB card. The cortex alone takes 7715 of 8188 MiB with `gemma-4-12b-it-qat-q4_0.gguf` loaded, so no tier pair, no ~31B model, and no GPU-placed subagent beside a resident cortex is reachable. |
+| **G** | A card that holds the real model tiers (24 GB) | The dev GPU is an 8 GB card, and [ADR-0030](../adr/ADR-0030-brain-handoff.md) measured `gemma-4-12b-it-qat-q4_0.gguf` alone taking 7715 of its 8188 MiB, so no tier pair, no ~31B model, and no GPU-placed subagent beside a resident cortex is reachable. |
 
 **There is no W+G tag, corrected 2026-07-19.** This table shipped with one, claiming that a fully
 cortex-driven `set_volume` and the end-to-end answer on the capture path each need both at once.
@@ -49,7 +49,7 @@ directory. Settling this in writing is worth one sentence in an ADR the next tim
 | [windows-desktop.md](windows-desktop.md) | W | One `npm run tauri dev` beside a running brain: volume, the toast, the confirm card, the session commands, the reminder surface, the connection dot | 6 checks + 1 optional + 2 standing |
 | [windows-capture.md](windows-capture.md) | W | The screen-capture path, which needs its own switch, its own receipts, and its own expectations. Carries the single highest-consequence check in the repo | 1 check, 6 observations |
 | [overlay-polish.md](overlay-polish.md) | W | The one item here that is **authoring, not validation**: the OS-window half of the overlay | 1 build (4 parts) + 1 design decision |
-| [gpu-tier-scale.md](gpu-tier-scale.md) | G | The 24 GB machine: the deep-model pick and everything the pick unblocks, plus the measurements the placer and the caps ship without | 8 items |
+| [gpu-tier-scale.md](gpu-tier-scale.md) | G | The 24 GB machine: the deep-model pick and everything the pick unblocks, plus the measurements the placer and the caps ship without | 7 items |
 
 User **decisions** (weigh, do not run) stay at their ADRs and are listed at the bottom of this
 page rather than copied, so a decision has exactly one home.
@@ -108,12 +108,29 @@ Sittings die on setup. Have these before starting.
 **For G (any 24 GB item):**
 
 - The models mount reachable by Docker and the GPU visible through the container toolkit
-  (`just up-gpu`); see [runbooks/llamacpp-gpu.md](../runbooks/llamacpp-gpu.md).
-- `CORTEX_MODELHOST_BACKEND=supervisor` so the real `model-host` sidecar runs the tiers.
-- `CORTEX_ESCALATION=1` for anything that swaps, plus `CORTEX_MODEL_FILE_BRAIN` once the pick
-  exists. There is no deep-model pick yet, which is why the first item in
-  [gpu-tier-scale.md](gpu-tier-scale.md) blocks four of the others.
+  (`just up-gpu`); see [runbooks/llamacpp-gpu.md](../runbooks/llamacpp-gpu.md). The mount's host
+  directory is `CORTEX_MODELS_DIR` (default `./models`), which compose interpolates,
+  so the calling shell or a repo-root `.env` sets it.
+- **The three escalation settings are brain-side and no compose file interpolates them**, so a
+  `.env` entry or an exported shell variable is silently ignored and the stack comes up with
+  escalation off. They go in the `brain` service's `environment:` block in
+  `docker/docker-compose.gpu.yml`, which is what that file's own header instructs, or in a local
+  override layered after it. They are needed together:
+  `CORTEX_ESCALATION=1`, `CORTEX_MODELHOST_BACKEND=supervisor`, and
+  `CORTEX_BRAIN_ENDPOINT=http://model-host:8081`. The last one used to be missing from this list:
+  without it the brain refuses to boot and restarts forever on
+  `CORTEX_BRAIN_ENDPOINT is required when CORTEX_ESCALATION=1` (`config_swap.py`).
+  `CORTEX_MODELHOST_ENDPOINT` is already set by the GPU override, so do not add it.
+- `CORTEX_MODEL_FILE_BRAIN`, with `CORTEX_NGL_BRAIN` and `CORTEX_CTX_SIZE_BRAIN` to fit it, is
+  model-host side and **is** interpolated, so `.env` or the calling shell carries it. It is what
+  puts the deep tier in the roster at all. Until the first item in
+  [gpu-tier-scale.md](gpu-tier-scale.md) produces a pick, the tier answers 404 and boot recovery
+  logs one, which is a stock stack behaving correctly rather than a fault. That item blocks four
+  of the others.
 - Enough free VRAM that the brain tier can be the only resident model (13 to 18 GB by estimate).
+- The whole sequence, with what it was observed doing on 2026-07-19, is the "Before you start"
+  section of [gpu-tier-scale.md](gpu-tier-scale.md). Follow it there rather than assembling it
+  from this list.
 
 ## Recommended order
 
@@ -142,7 +159,9 @@ one is an observation to make over months of real use, the other is a per-change
 The order above groups sittings; this is the roll call. [AGENTS.md](../../AGENTS.md) requires a
 host item to be recorded in three places, its sitting doc, its line here, and its origin decision
 record, and a grouped order is not a line per item: added 2026-07-19 after the optional PGDATA
-check and the resident VRAM figure were found sitting on two of the three. Statuses are not
+check was found sitting on two of the three. It was added naming a second example too, the
+resident VRAM figure with the projector loaded, which turned out to be no host item at all;
+that half of its founding evidence is withdrawn below. Statuses are not
 repeated below, because every item reads **never attempted** today and its own section is
 authoritative the moment that stops being true.
 
@@ -191,10 +210,19 @@ neither appears in the recommended order:
    reservation.
 7. **The cgroup cap numbers.** Independent, but best done under item 2's load, which is the only
    realistic one.
-8. **The resident VRAM figure with the projector loaded, at 16K.** Independent. Filed here after
-   being carried inside an "Host-Windows" list it has no OS-native business in and then dropped
-   from its own ADR's closeout, which is precisely the failure this roll call exists to prevent.
-   The 4K figure on the dev GPU is already measured, so this is a delta.
+
+**Withdrawn 2026-07-19, the day it was filed: "the resident VRAM figure with the projector loaded,
+at 16K".** It was filed as an eighth G item on the premise that it "existed in exactly one
+sentence in this repo", a clause in
+[ADR-0029](../adr/ADR-0029-vision-screen-capture.md)'s Consequences. That premise was false. The
+measurement exists: [ADR-0004](../adr/ADR-0004-model-lineup.md)'s 2026-06-29 addendum recorded
+11.3 GB with the mmproj loaded, on the 24 GB card, at 16K context and a single slot, which
+is the deployment's own tier shape (`config.py` gives the cortex `parallel=1`), and
+[runbooks/llamacpp-gpu.md](../runbooks/llamacpp-gpu.md)'s table and
+[runbooks/vision.md](../runbooks/vision.md)'s "What the projector costs" both carry it. ADR-0029
+decision 14 says so itself: "The 11.3 GB default is ADR-0004's **with-mmproj** measurement". Asking
+the user to re-measure it was manufactured work, which is worse than an omission, because an
+omission does not cost a sitting.
 
 ## Status convention
 
@@ -271,9 +299,10 @@ only so a sitting on the host's hardware knows what it could also settle:
 **The caveat on those three, resolved rather than left open (2026-07-19).** Each entry gave "the
 cortex tier does not fit the 8 GB dev GPU" as part of its reason, and that clause is false:
 [ADR-0029](../adr/ADR-0029-vision-screen-capture.md) measured the cortex resident on the dev GPU
-beside its projector at 4K on 2026-07-17 (7715 of 8188 MiB) and drove a real turn through it the
-next day. This page first recorded the clause as merely stale and reclassified nothing, which left
-the question with whoever picked an entry up. It is settled here instead, per entry: the nudge probe
+beside its projector at 4K on 2026-07-17 and drove a real turn through it the next day, and
+[ADR-0030](../adr/ADR-0030-brain-handoff.md) records what that leaves, the model alone taking 7715
+of the card's 8188 MiB. This page first recorded the clause as merely stale and reclassified
+nothing, which left the question with whoever picked an entry up. It is settled here instead, per entry: the nudge probe
 is agent-runnable and moved to actionable now; the two model passes were never hardware-blocked at
 all, and their real blockers, the shared `select` widening and the undecided cache question, are
 written at their entries and their origin ADRs. What genuinely wants this hardware is the same

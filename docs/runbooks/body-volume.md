@@ -54,8 +54,10 @@ the audio backend is `cfg(windows)`.
 cortex-driven `set_volume` was "bounded by what fits". The VRAM half of that is false: the
 [ADR-0029](../adr/ADR-0029-vision-screen-capture.md) measurement of 2026-07-17 brought the real
 `gemma-4-12b-it-qat-q4_0.gguf` up beside its projector on the 8 GB dev GPU at
-`--ctx-size 4096 --parallel 1` (7715 of 8188 MiB), and drove a real vision turn through the
-shipped inference adapter on 2026-07-18. The 11.3 GB reservation this used to lean on is a
+`--ctx-size 4096 --parallel 1`, and drove a real vision turn through the
+shipped inference adapter on 2026-07-18. The MiB figure belongs to
+[ADR-0030](../adr/ADR-0030-brain-handoff.md), which records the model alone taking 7715 of that
+card's 8188 MiB. The 11.3 GB reservation this used to lean on is a
 16K-context figure. What the dev machine cannot supply for this check is the Win32 desktop, not the
 VRAM. (The first version of this
 note also cited a cortex tool call "here on 2026-07-03"; that run was on the 24 GB card and
