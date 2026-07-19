@@ -2,7 +2,7 @@
 
 The kill-at-every-boundary half lives in ``test_swap_chaos.py``; this suite pins the sequence
 itself: the ordering the ADR fixes, the record's states, what reaches the user's stream, and the
-five refusals that end a handoff before or instead of a swap. Composition is real throughout
+six refusals that end a handoff before or instead of a swap. Composition is real throughout
 (the conductor drives the real residency manager, the real drain, and the real deep phase over
 the scripted host), so an ordering mistake shows up here rather than in a mock's expectations.
 
@@ -19,6 +19,10 @@ Distrust-green proofs (each mutation reddened the named test, then was restored)
   ``test_a_second_concurrent_handoff_is_refused_without_evicting_anything``;
 - dropping the ``escalation=None`` on the deep phase's context reddens
   ``test_the_deep_phase_cannot_escalate_to_itself``;
+- deleting the ``opaque`` refusal in ``_prepare``, or moving a word of the note it answers with,
+  each reddens ``test_a_turn_that_looked_at_the_screen_after_escalating_ends_with_a_note``
+  (measured 2026-07-19; without the refusal the snapshot's invariant raises straight out of the
+  turn, which is the defect that test was written for);
 - answering the swap-failure note for a refused claim (which is what the note mapping did
   while every doc said otherwise) reddens
   ``test_a_swap_that_finds_the_gpu_already_handed_over_says_so_and_not_that_it_broke``;
@@ -56,6 +60,7 @@ from cortex_core import (
     ALREADY_ACTIVE_NOTE,
     BRAIN_FAILED_NOTE,
     BUDGET_EXHAUSTED_MSG,
+    CAPTURE_SCREEN_TOOL_NAME,
     DRAIN_TIMEOUT_NOTE,
     DRAINING_DETAIL,
     ESCALATE_TOOL_NAME,
@@ -66,11 +71,13 @@ from cortex_core import (
     SWAP_FAILED_NOTE,
     SWAPPING_STATE,
     WORKING_DETAIL,
+    CaptureScreenTool,
     DispatchBudget,
     EscalateToBrainTool,
     EscalationSlot,
     HandoffState,
     HandoffStoreError,
+    InMemoryBodyGateway,
     InMemoryToolRegistry,
     ModelHostState,
     RecordingAuditSink,
@@ -88,6 +95,7 @@ from cortex_core import (
     UrlRedactingGuardrail,
 )
 from cortex_core.composite import CompositeToolRegistry
+from cortex_core.tool_loop import ToolLoopContext, stream_tool_loop
 
 
 def _texts(events: Sequence[TurnEvent]) -> str:
@@ -451,6 +459,67 @@ async def test_a_store_that_cannot_even_drop_the_record_says_what_is_now_stuck(
     assert [record.message for record in caplog.records][-1] == (
         "could not release the finished handoff; escalation stays refused until a restart"
     )
+
+
+async def test_a_turn_that_looked_at_the_screen_after_escalating_ends_with_a_note() -> None:
+    """The ordering the escalation tool cannot see, driven through the real loop end to end.
+
+    A capture BEFORE an escalation is denied by the dispatcher's taint gate. A capture AFTER
+    one is not: the handoff was approved while the turn was still clean, and the pixels arrive
+    afterwards. The conductor is the first place that sees the whole turn, so that is where the
+    refusal lives, and it has to be a note on the stream rather than an exception: the cortex is
+    still serving, the user's answer is already streamed, and a raise here would kill the whole
+    Converse stream (no further turns) over a handoff that simply cannot happen.
+
+    Nothing about the loop, the tools, the dispatcher or the conductor is faked, so the tail
+    really carries an image and the ledger really is opaque when the conductor is asked.
+    """
+    audit = RecordingAuditSink()
+    dispatcher = ToolDispatcher(
+        CompositeToolRegistry([EscalateToBrainTool(), CaptureScreenTool(InMemoryBodyGateway())]),
+        audit,
+        SystemClock(),
+        confirmer=RecordingConfirmer(answer=True),  # the user approved the handoff
+    )
+    slot = harness.armed_slot(brief=None)
+    assert slot.refs is not None
+    working = slot.refs.working
+    cortex = ScriptedBrainBackend(
+        chunks=("handing this over",),
+        tool_calls=(
+            ToolCall(id="c1", name=ESCALATE_TOOL_NAME, arguments={"brief": harness.BRIEF}),
+            ToolCall(id="c2", name=CAPTURE_SCREEN_TOOL_NAME, arguments={}),
+        ),
+    )
+    context = ToolLoopContext(
+        dispatcher=dispatcher,
+        clock=SystemClock(),
+        turn_id=harness.TURN,
+        taint=slot.refs.taint,
+        nonce=slot.refs.nonce,
+        session_id=harness.SESSION,
+        escalation=slot,
+    )
+    async for _delta in stream_tool_loop(cortex, "cortex", working, context):
+        pass
+
+    assert slot.brief == harness.BRIEF, "the escalation really was queued before the capture"
+    assert [line.name for line in audit.records] == [ESCALATE_TOOL_NAME, CAPTURE_SCREEN_TOOL_NAME]
+    assert [len(message.images) for message in working[slot.refs.base_len :]].count(1) == 1
+
+    live = build_harness()
+    await live.seed_session()
+    events = await harness.run_handoff(live, slot)
+
+    assert _texts(events) == (
+        "\n\n(This turn looked at your screen, and a picture cannot be handed to the deep model, "
+        "so the handoff was not started. Nothing was unloaded. Ask again in a new message if you "
+        "still want the deep model.)"
+    )
+    assert _states(events) == [], "nothing was announced, because nothing was done"
+    assert live.host.calls == []  # the cortex never stopped serving
+    assert live.backend.calls == 0  # the deep model was never asked anything
+    assert live.handoffs.states == []  # and no record was written to be settled
 
 
 async def test_the_deep_phase_cannot_escalate_to_itself() -> None:

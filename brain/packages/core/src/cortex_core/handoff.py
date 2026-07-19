@@ -64,9 +64,12 @@ class HandoffRecord:
     text, the conversation's own trust domain). ``nonce`` is the turn's fence id, carried so
     the fenced blocks in ``loop_tail`` stay explained by the preamble's markers-carry-a-random-
     id rule instead of becoming unexplained markers under a fresh nonce. ``tainted`` /
-    ``sources`` / ``untrusted_urls`` are the whole ``TaintLedger`` (ADR-0013/0015/0027): taint
-    that did not survive the swap would fail open, and without the URL set the brain phase's
-    guardrail would forget every URL read before the swap. ``budget_remaining`` /
+    ``sources`` / ``untrusted_urls`` are the ``TaintLedger`` minus its ``opaque`` bit
+    (ADR-0013/0015/0027): taint that did not survive the swap would fail open, and without the
+    URL set the brain phase's guardrail would forget every URL read before the swap. The bit is
+    absent because no opaque turn can produce a record at all: the conductor refuses one before
+    it snapshots, so a rebuilt ledger's ``False`` is a fact rather than a loss. Carrying it
+    anyway, as defence in depth, is a recorded deferral. ``budget_remaining`` /
     ``budget_closed`` carry the turn-wide dispatch pool's position, so a swap can never refill
     the turn's allowance. ``rounds_used`` counts the tool-loop rounds that dispatched (one
     assistant tool-call message each), and ``loop_tail`` is every message the loop appended
@@ -97,10 +100,12 @@ class HandoffRecord:
     def taint_ledger(self) -> TaintLedger:
         """Reconstruct the turn's ``TaintLedger`` for the brain phase (ADR-0030 decision 4).
 
-        An exact rebuild: the bit, the sources in the order the turn read them (claimed kinds
-        still claimed, attested still attested, since ``Provenance`` round-trips whole), and
-        the full laundering-evidence URL set. The contract test pins this round trip through
-        the store; losing any part of it here would fail open after a swap.
+        An exact rebuild of everything the record carries: the bit, the sources in the order the
+        turn read them (claimed kinds still claimed, attested still attested, since
+        ``Provenance`` round-trips whole), and the full laundering-evidence URL set. The contract
+        test pins this round trip through the store; losing any part of it here would fail open
+        after a swap. ``opaque`` stays at its default, which is sound only because a turn that
+        read pixels never reaches a record (the conductor refuses it first).
         """
         return TaintLedger(
             tainted=self.tainted,
@@ -163,9 +168,10 @@ class EscalationSlot:
         if any(message.images for message in tail):
             # The same rule the session stores enforce (ADR-0029): a handoff record is durable,
             # and the record schema has no field for pixels, so accepting one would drop the
-            # picture in silence and hand the deep model a caption with nothing attached.
-            # ``escalate_to_brain`` refuses an opaque turn before it can reach here, so this is
-            # the structural backstop rather than the user-facing answer.
+            # picture in silence and hand the deep model a caption with nothing attached. The
+            # conductor refuses an opaque turn before it can reach here (that is the user-facing
+            # answer), so this is the invariant behind it: an unreachable raise, like the one
+            # ``Message`` makes for a persistable role, not the mechanism anything relies on.
             msg = "a handoff record never persists images: pixels are turn-local"
             raise ValueError(msg)
         return HandoffRecord(

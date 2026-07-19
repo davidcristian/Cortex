@@ -29,11 +29,13 @@ from cortex_core import (
     EscalateToBrainTool,
     EscalationRefs,
     EscalationSlot,
+    ImagePart,
     RecordingAuditSink,
     RecordingConfirmer,
     TaintLedger,
     ToolCall,
     ToolDispatcher,
+    ToolResult,
     Trust,
     TurnStamp,
 )
@@ -210,12 +212,12 @@ async def test_the_config_backstop_gates_escalation_even_if_the_flag_is_lost() -
     assert slot.brief is None
 
 
-def _opaque_slot(*, opaque: bool) -> EscalationSlot:
-    """An armed slot whose turn did (or did not) look at the screen."""
+def _armed_slot(*, taint: TaintLedger) -> EscalationSlot:
+    """An armed slot over a turn whose ledger the test controls."""
     return EscalationSlot(
         refs=EscalationRefs(
             working=[],
-            taint=TaintLedger(tainted=opaque, opaque=opaque),
+            taint=taint,
             nonce="cafe0123beef4567",
             budget=DispatchBudget(8),
             base_len=0,
@@ -223,41 +225,48 @@ def _opaque_slot(*, opaque: bool) -> EscalationSlot:
     )
 
 
-async def test_a_turn_that_looked_at_the_screen_cannot_escalate() -> None:
-    """Pixels are turn-local: no store persists them and the handoff record refuses them, so a
-    swap would hand the deep model a tool message saying a picture is attached with no picture
-    attached. The refusal reads the turn's opaque bit rather than hunting for images in the
-    tail, because the bit stays true exactly where the pixels cannot travel."""
-    slot = _opaque_slot(opaque=True)
-    result = await EscalateToBrainTool().invoke(
-        ToolCall(
-            id="c1",
-            name=ESCALATE_TOOL_NAME,
-            arguments={"brief": "go deep"},
-            stamp=TurnStamp(escalation=slot),
+async def test_a_turn_that_looked_at_the_screen_is_denied_before_the_tool_runs() -> None:
+    """A capture closes escalation through the gate that already exists, not a check in the tool.
+
+    ``TaintLedger.observe`` cannot mark a turn opaque without marking it tainted, and this tool
+    is gated, so the dispatcher's hard-deny answers every escalation that follows a capture with
+    the confirmer never consulted. An opaque-turn branch inside ``invoke`` could therefore never
+    fire, which is why there is not one: the boundary is measured here, through dispatch.
+    """
+    tool = EscalateToBrainTool()
+    ledger = TaintLedger()
+    ledger.observe(
+        ToolResult(
+            call_id="c0",
+            content="screen capture of the primary display",
+            trust=Trust.UNTRUSTED,
+            images=(ImagePart(data=b"\x89PNG", mime_type="image/png", width=8, height=8),),
         )
+    )
+    assert (ledger.opaque, ledger.tainted) == (True, True), "opaque implies tainted, always"
+    confirmer = RecordingConfirmer(answer=True)  # an approving one cannot mask the block
+    slot = _armed_slot(taint=ledger)
+    result = await _gated_dispatcher(tool, confirmer).dispatch(
+        ToolCall(id="c1", name=ESCALATE_TOOL_NAME, arguments={"brief": "go deep"}),
+        stamp=TurnStamp(tainted=ledger.tainted, escalation=slot),
+        gated=True,
     )
     assert result.is_error is True
-    assert result.trust is Trust.TRUSTED
-    assert result.content == (
-        "REFUSED: this turn looked at the user's screen, and a picture cannot be handed to the "
-        "deep model, so no handoff was requested. Answer what you can yourself, and tell the "
-        "user to ask again in a fresh message if they still want the deep model."
-    )
-    assert slot.brief is None, "a refused escalation must not arm the slot"
+    assert result.content == DENIED_MSG
+    assert list(confirmer.requests) == [], "a hard denial must never reach the confirmer"
+    assert slot.brief is None, "a denied escalation must not arm the slot"
 
 
-async def test_a_transparent_tainted_turn_still_escalates() -> None:
-    """The control arm: taint alone does not block the tool here (the dispatcher's gate handles
-    that), so the refusal above is measuring the opaque bit and nothing else."""
-    slot = _opaque_slot(opaque=False)
-    result = await EscalateToBrainTool().invoke(
-        ToolCall(
-            id="c1",
-            name=ESCALATE_TOOL_NAME,
-            arguments={"brief": "go deep"},
-            stamp=TurnStamp(escalation=slot),
-        )
+async def test_an_untainted_turn_reaches_the_tool_and_arms_the_slot() -> None:
+    """The control arm for the deny above: the same call, the same dispatcher, taint the only
+    difference, and it runs. Without this the denial could be measuring any other refusal."""
+    slot = _armed_slot(taint=TaintLedger())
+    result = await _gated_dispatcher(
+        EscalateToBrainTool(), RecordingConfirmer(answer=True)
+    ).dispatch(
+        ToolCall(id="c1", name=ESCALATE_TOOL_NAME, arguments={"brief": "go deep"}),
+        stamp=TurnStamp(tainted=False, escalation=slot),
+        gated=True,
     )
     assert result.is_error is False
     assert slot.brief == "go deep"

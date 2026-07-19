@@ -40,6 +40,13 @@ STORE_FAILED_NOTE = (
     "\n\n(The handoff could not be recorded, so the deep model was not loaded and nothing was "
     "unloaded. The answer above is what I have.)"
 )
+# A turn that looked at the screen cannot hand over: pixels are turn-local, so the deep model
+# would be given a description of a picture with no picture. The note says what the user can do.
+OPAQUE_TURN_NOTE = (
+    "\n\n(This turn looked at your screen, and a picture cannot be handed to the deep model, so "
+    "the handoff was not started. Nothing was unloaded. Ask again in a new message if you still "
+    "want the deep model.)"
+)
 DRAIN_TIMEOUT_NOTE = (
     "\n\n(Delegated work was still running when the handoff was due to start, so nothing was "
     "unloaded and the deep model did not take over. The answer above is what I have.)"
