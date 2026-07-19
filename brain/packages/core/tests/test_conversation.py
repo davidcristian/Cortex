@@ -82,19 +82,20 @@ def test_a_tool_message_may_carry_images() -> None:
     assert message.images == (picture,)
 
 
-@pytest.mark.parametrize("role", [Role.USER, Role.ASSISTANT])
-def test_a_persistable_role_may_never_carry_images(role: Role) -> None:
-    # Pixels are turn-local. The invariant lives on the value so it holds even for a code path
-    # that never touches a store, and it is checked before any store is asked to refuse it.
+@pytest.mark.parametrize("role", [Role.USER, Role.ASSISTANT, Role.SYSTEM])
+def test_no_role_but_tool_may_carry_images(role: Role) -> None:
+    """Pixels are turn-local, and they ride the tool result they arrived on.
+
+    The invariant lives on the value so it holds even for a code path that never touches a store,
+    and it is checked before any store is asked to refuse it. SYSTEM is refused for a second
+    reason: it is never persisted, so turn-locality alone would allow it, but the inference
+    adapter builds a content-parts array for a tool message only and emits the plain string for
+    every other role. An image on a SYSTEM message would be dropped on the way to the model
+    without a word, so the domain refuses to express it rather than the adapter discarding it.
+    """
     picture = ImagePart(data=b"\x89PNG", mime_type="image/png", width=8, height=8)
     with pytest.raises(ValueError, match="may not carry images: pixels are turn-local"):
         Message(role=role, text="hi", at=_AT, turn_id="t1", images=(picture,))
-
-
-def test_a_system_message_may_carry_images_since_it_is_never_persisted() -> None:
-    picture = ImagePart(data=b"\x89PNG", mime_type="image/png", width=8, height=8)
-    message = Message(role=Role.SYSTEM, text="context", at=_AT, turn_id="t1", images=(picture,))
-    assert message.images == (picture,)
 
 
 def test_an_image_free_persistable_message_is_untouched() -> None:

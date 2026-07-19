@@ -31,10 +31,13 @@ Conversation domain (Slice 3):
   result), and `images: tuple[ImagePart, ...] = ()` (pixels a tool returned, ADR-0029).
   Rejects naive `at` with `ValueError`, since externalized state must carry its
   timezone. `turn_id` ties a user message to the assistant reply it produced.
-  **Rejects images on a persistable role** (`USER`/`ASSISTANT`) with `ValueError`: pixels are
-  turn-local, so they live on the `Role.TOOL` message in the tool loop's working list and die
-  with the turn. The invariant is on the value, not only in the stores, so it holds for a code
-  path that never touches a store.
+  **Rejects images on any role but `TOOL`** with `ValueError`: pixels are turn-local, so they
+  live on the `Role.TOOL` message in the tool loop's working list and die with the turn.
+  `USER`/`ASSISTANT` are what a store persists; `SYSTEM` is refused for a second reason, that
+  `LlamaCppBackend` builds the content-parts array for a tool message only and emits the plain
+  string for every other role, so an image elsewhere would be dropped on the way to the model
+  without a word. The invariant is on the value, not only in the stores, so it holds for a code
+  path that never touches a store, and the domain cannot express a shape the adapter discards.
 - `TextDelta(text)` / `StatusUpdate(state, detail)` / `ToolActivity(tool_name, summary)` /
   `TurnCompleted(turn_id, full_text)` are frozen domain events; `TurnEvent` is their union (the
   orchestrator maps them onto the proto's `ServerEvent`). `StatusUpdate` is ephemeral mid-turn

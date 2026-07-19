@@ -21,7 +21,9 @@ No orchestration, no session state (the one hard rule). The core keeps talking o
      `USER`/`SYSTEM`/`ASSISTANT`→`{role, content}`, an assistant with `tool_calls`→the
      OpenAI `tool_calls` array, and a `TOOL` result→`{role: "tool", tool_call_id, content}`.
      A `TOOL` message carrying `images` (ADR-0029) emits `content` as an OpenAI
-     **content-parts array** instead: one `{type: "text"}` part followed by one
+     **content-parts array** instead, and a tool message is the only one that can carry them
+     (`Message` refuses images on every other role precisely because this mapping would drop
+     them): one `{type: "text"}` part followed by one
      `{type: "image_url", image_url: {url: "data:<mime>;base64,…"}}` part per image. Measured
      against the real cortex: a `role: "tool"` message in that form is accepted inside a full
      tool-calling exchange and answered correctly, so the picture rides the message that
