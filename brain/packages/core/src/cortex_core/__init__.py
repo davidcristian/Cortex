@@ -40,6 +40,7 @@ from cortex_core.errors import MemoryStoreError as MemoryStoreError
 from cortex_core.errors import ModelHostError as ModelHostError
 from cortex_core.errors import ModelManagerError as ModelManagerError
 from cortex_core.errors import ModelUnavailableError as ModelUnavailableError
+from cortex_core.errors import PreferenceStoreError as PreferenceStoreError
 from cortex_core.errors import ResidencyRestoreError as ResidencyRestoreError
 from cortex_core.errors import ScheduleStoreError as ScheduleStoreError
 from cortex_core.errors import SessionStoreError as SessionStoreError
@@ -74,6 +75,9 @@ from cortex_core.fakes_body import SentNotification as SentNotification
 from cortex_core.fakes_body import default_capture as default_capture
 from cortex_core.fakes_handoff import InMemoryHandoffStore as InMemoryHandoffStore
 from cortex_core.fakes_model_host import ScriptedModelHost as ScriptedModelHost
+from cortex_core.fakes_preferences import (
+    InMemoryPreferenceStore as InMemoryPreferenceStore,
+)
 from cortex_core.fakes_schedule import InMemoryScheduleStore as InMemoryScheduleStore
 from cortex_core.fakes_scheduler import AdmitAllScheduler as AdmitAllScheduler
 from cortex_core.fakes_session import InMemorySessionStore as InMemorySessionStore
@@ -124,6 +128,7 @@ from cortex_core.ports import InferenceBackend as InferenceBackend
 from cortex_core.ports import MemoryStore as MemoryStore
 from cortex_core.ports import ModelHost as ModelHost
 from cortex_core.ports import ModelManager as ModelManager
+from cortex_core.ports import PreferenceStore as PreferenceStore
 from cortex_core.ports import ResidencyController as ResidencyController
 from cortex_core.ports import ResidencyReporter as ResidencyReporter
 from cortex_core.ports import ScheduleStore as ScheduleStore

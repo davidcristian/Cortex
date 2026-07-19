@@ -56,7 +56,7 @@ directory. Settling this in writing is worth one sentence in an ADR the next tim
 
 | Doc | Tag | What one bring-up buys | Open |
 | --- | --- | --- | --- |
-| [windows-desktop.md](windows-desktop.md) | W | One `npm run tauri dev` beside a running brain: the hotkey and one streamed turn, volume, the toast, the confirm card, the session commands, the reminder surface, the connection dot | 7 checks + 1 optional + 2 standing |
+| [windows-desktop.md](windows-desktop.md) | W | One `npm run tauri dev` beside a running brain: the hotkey and one streamed turn, volume, the toast, the confirm card, the session commands, the preference commands and the appearance surviving a restart, the reminder surface, the connection dot | 8 checks + 1 optional + 2 standing |
 | [windows-capture.md](windows-capture.md) | W | The screen-capture path, which needs its own switch, its own receipts, and its own expectations. Carries the single highest-consequence check in the repo | 1 check, 6 observations |
 | [overlay-polish.md](overlay-polish.md) | W | The one item here that is **authoring, not validation**: the OS-window half of the overlay | 1 build (4 parts) + 1 design decision |
 | [gpu-tier-scale.md](gpu-tier-scale.md) | G, and W+G for three | The 24 GB machine: the deep-model pick and everything the pick unblocks, plus the measurements the placer and the caps ship without. Items 2, 3 and 4 need the overlay to trigger the handoff | 7 items |
@@ -157,7 +157,7 @@ Sittings die on setup. Have these before starting.
 Ordered by what unblocks the most, and grouped so each group is one sitting.
 
 1. **The Windows desktop sitting** ([windows-desktop.md](windows-desktop.md)). One bring-up covers
-   seven checks, the first of which is that bring-up. Start here because it is the cheapest and
+   eight checks, the first of which is that bring-up. Start here because it is the cheapest and
    closes the most items at once, and because the confirm card and the toast are the two consent
    surfaces the safety posture rests on.
 2. **The capture sitting** ([windows-capture.md](windows-capture.md)). Its own bring-up. Do the

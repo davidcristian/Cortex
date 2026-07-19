@@ -17,11 +17,12 @@ use body_rpc::generated::brain_service_client::BrainServiceClient;
 use body_rpc::generated::brain_service_server::{BrainService, BrainServiceServer};
 use body_rpc::generated::{
     AckReminderReply, AckReminderRequest, ClientEvent, DeleteSessionReply, DeleteSessionRequest,
-    DueReminder as PbDueReminder, GetSessionMessagesReply, GetSessionMessagesRequest, HealthReply,
-    HealthRequest, ListDueRemindersReply, ListDueRemindersRequest, ListSessionsReply,
-    ListSessionsRequest, RenameSessionReply, RenameSessionRequest, ServerEvent,
-    SessionMessage as PbSessionMessage, SessionSummary as PbSessionSummary, SetSessionPinnedReply,
-    SetSessionPinnedRequest,
+    DueReminder as PbDueReminder, GetPreferencesReply, GetPreferencesRequest,
+    GetSessionMessagesReply, GetSessionMessagesRequest, HealthReply, HealthRequest,
+    ListDueRemindersReply, ListDueRemindersRequest, ListSessionsReply, ListSessionsRequest,
+    Preference, RenameSessionReply, RenameSessionRequest, ServerEvent,
+    SessionMessage as PbSessionMessage, SessionSummary as PbSessionSummary, SetPreferenceReply,
+    SetPreferenceRequest, SetSessionPinnedReply, SetSessionPinnedRequest,
 };
 use tokio::net::TcpListener;
 use tokio::sync::oneshot;
@@ -62,6 +63,9 @@ struct FakeBrain {
     /// Records each `SetSessionPinned` write `(session_id, pinned)`, so a test can prove both
     /// fields crossed the wire (the reply is a bare ack, ADR-0021 pinning addendum).
     pins: Arc<Mutex<Vec<(String, bool)>>>,
+    /// Records each `SetPreference` write `(key, value)`, so a test can prove both fields crossed
+    /// the wire, the empty clearing value included (the reply is a bare ack).
+    preference_writes: Arc<Mutex<Vec<(String, String)>>>,
 }
 
 impl FakeBrain {
@@ -74,6 +78,7 @@ impl FakeBrain {
             renames: Arc::new(Mutex::new(Vec::new())),
             deletes: Arc::new(Mutex::new(Vec::new())),
             pins: Arc::new(Mutex::new(Vec::new())),
+            preference_writes: Arc::new(Mutex::new(Vec::new())),
         }
     }
 }
@@ -260,6 +265,44 @@ impl BrainService for FakeBrain {
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .push((req.session_id, req.pinned));
         Ok(Response::new(SetSessionPinnedReply {}))
+    }
+
+    async fn get_preferences(
+        &self,
+        _request: Request<GetPreferencesRequest>,
+    ) -> Result<Response<GetPreferencesReply>, Status> {
+        // A store-down abort behaves like the reads; otherwise answer a canned record, sorted
+        // by key exactly as the brain sorts it.
+        if self.sessions_fail {
+            return Err(Status::unavailable("store down"));
+        }
+        Ok(Response::new(GetPreferencesReply {
+            preferences: vec![
+                Preference {
+                    key: String::from("overlay.mark"),
+                    value: String::from("foam"),
+                },
+                Preference {
+                    key: String::from("overlay.theme"),
+                    value: String::from("midnight"),
+                },
+            ],
+        }))
+    }
+
+    async fn set_preference(
+        &self,
+        request: Request<SetPreferenceRequest>,
+    ) -> Result<Response<SetPreferenceReply>, Status> {
+        if self.sessions_fail {
+            return Err(Status::unavailable("store down"));
+        }
+        let req = request.into_inner();
+        self.preference_writes
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .push((req.key, req.value));
+        Ok(Response::new(SetPreferenceReply {}))
     }
 }
 
@@ -803,4 +846,68 @@ async fn lazy_connect_non_ascii_seam_token_maps_to_the_connection_variant() {
         message.contains("invalid seam token"),
         "message should name the token as the cause, got: {message}"
     );
+}
+
+#[tokio::test]
+async fn get_preferences_maps_every_pair_in_the_brains_order() {
+    let addr = spawn_fake_brain(FakeBrain::new(Script::Ready))
+        .await
+        .unwrap();
+    let client = BrainSeamClient::connect(&format!("http://{addr}"))
+        .await
+        .unwrap();
+    let record = client.get_preferences().await.unwrap();
+    // Pairs arrive as the brain sorted them; the port hands them over verbatim.
+    assert_eq!(
+        record,
+        vec![
+            (String::from("overlay.mark"), String::from("foam")),
+            (String::from("overlay.theme"), String::from("midnight")),
+        ]
+    );
+}
+
+#[tokio::test]
+async fn set_preference_writes_both_fields_across_the_wire() {
+    let recorder = Arc::new(Mutex::new(Vec::new()));
+    let mut fake = FakeBrain::new(Script::Ready);
+    fake.preference_writes = recorder.clone();
+    let addr = spawn_fake_brain(fake).await.unwrap();
+    let client = BrainSeamClient::connect(&format!("http://{addr}"))
+        .await
+        .unwrap();
+    client.set_preference("overlay.mark", "ping").await.unwrap();
+    // The clearing write is the one that must not be mistaken for "nothing to send".
+    client.set_preference("overlay.theme", "").await.unwrap();
+    assert_eq!(
+        *recorder.lock().unwrap(),
+        vec![
+            (String::from("overlay.mark"), String::from("ping")),
+            (String::from("overlay.theme"), String::new()),
+        ]
+    );
+}
+
+#[tokio::test]
+async fn preference_store_failures_map_to_the_rpc_variant() {
+    let mut fake = FakeBrain::new(Script::Ready);
+    fake.sessions_fail = true;
+    let addr = spawn_fake_brain(fake).await.unwrap();
+    let client = BrainSeamClient::connect(&format!("http://{addr}"))
+        .await
+        .unwrap();
+    let read = client.get_preferences().await.unwrap_err();
+    let write = client
+        .set_preference("overlay.mark", "ping")
+        .await
+        .unwrap_err();
+    for error in [read, write] {
+        match error {
+            TransportError::Rpc { code, message } => {
+                assert_eq!(code, "Unavailable");
+                assert!(message.contains("store down"));
+            }
+            other => panic!("expected an Rpc error, got {other:?}"),
+        }
+    }
 }

@@ -220,4 +220,40 @@ pub trait BrainTransport: Send + Sync {
         session_id: &str,
         pinned: bool,
     ) -> impl Future<Output = Result<(), TransportError>> + Send;
+
+    /// Reads the user's settings record whole (`BrainService.GetPreferences`): every key the
+    /// brain has stored, as `(key, value)` pairs sorted by key. The overlay asks once at startup
+    /// and applies what it recognises, so an unknown key is data for some other surface, not an
+    /// error. An empty record is the normal first-run answer.
+    ///
+    /// A **read**, and repeatable with the other reads (`SeamMethod::GetPreferences`): it is a
+    /// view of a store it does not touch. Values are opaque strings; this side parses them only
+    /// where it knows the key.
+    ///
+    /// # Errors
+    ///
+    /// As [`BrainTransport::list_sessions`] (a store failure surfaces as `Unavailable`).
+    fn get_preferences(
+        &self,
+    ) -> impl Future<Output = Result<Vec<(String, String)>, TransportError>> + Send;
+
+    /// Writes one setting (`BrainService.SetPreference`): `key` is a namespaced name the caller
+    /// owns, `value` an opaque short string, and an EMPTY value CLEARS the key so the reader's
+    /// own default applies again (the `rename_session` empty-title convention).
+    ///
+    /// A **write**, and a user-only one: its gate is the same structural user-only reachability
+    /// `rename_session` has, and it carries a display preference, never conversation content. Last
+    /// write wins in the store, so a repeat cannot duplicate an effect, yet the resilient transport
+    /// still refuses to retry it (`SeamMethod::SetPreference` is not repeatable), the catalog-write
+    /// convention: a lost reply must not silently re-assert a value the user's next change
+    /// reversed.
+    ///
+    /// # Errors
+    ///
+    /// As [`BrainTransport::list_sessions`] (a store failure surfaces as `Unavailable`).
+    fn set_preference(
+        &self,
+        key: &str,
+        value: &str,
+    ) -> impl Future<Output = Result<(), TransportError>> + Send;
 }

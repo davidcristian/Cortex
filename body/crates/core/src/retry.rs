@@ -264,4 +264,21 @@ impl<T: BrainTransport, S: Sleeper, R: Randomness> BrainTransport for RetryingTr
         })
         .await
     }
+
+    async fn get_preferences(&self) -> Result<Vec<(String, String)>, TransportError> {
+        // A read of the settings record, repeatable with the other reads: the retry returns a
+        // fresh answer to the same question and touches nothing.
+        self.guarded(SeamMethod::GetPreferences, || self.inner.get_preferences())
+            .await
+    }
+
+    async fn set_preference(&self, key: &str, value: &str) -> Result<(), TransportError> {
+        // A user-driven write. Last write wins in the store, so a repeat cannot duplicate an
+        // effect, but the catalog-write convention still grants exactly one attempt: a lost reply
+        // must not re-assert a value the user's next change reversed.
+        self.guarded(SeamMethod::SetPreference, || {
+            self.inner.set_preference(key, value)
+        })
+        .await
+    }
 }

@@ -2,12 +2,20 @@
 
 **Purpose.** The Redis adapters for the core's stateful ports, `SessionStore` (conversation
 history), `TaskStore` (subagent tasks + results), `ScheduleStore` (durable schedules,
-ADR-0025), and `HandoffStore` (the in-flight brain handoff, ADR-0030), the state that survives
+ADR-0025), `HandoffStore` (the in-flight brain handoff, ADR-0030), and `PreferenceStore` (the
+user's settings record, ADR-0032), the state that survives
 orchestrator restarts and model swaps (the one hard rule).
 Translators only: serialization, key layout, and error wrapping; no business logic.
 
 **Public contract** (everything importable from `cortex_session`; `__all__` is the API):
 
+- `RedisPreferenceStore` implements the `PreferenceStore` port over ONE Redis hash,
+  `cortex:preferences`, one field per setting (ADR-0032). `all()` is a single HGETALL (the common
+  read: the overlay asks once at startup), `set(key, value)` is an HSET, and an EMPTY value HDELs
+  the field, so a cleared preference is absent rather than present-and-empty and the reader's own
+  default applies. Values are stored verbatim and never parsed here, which is what lets a new
+  preference cost no change in this package. Same constructor pair as the other adapters
+  (injected client or `from_url`), same `PreferenceStoreError` wrapping with the cause chained.
 - `RedisSessionStore` implements the `SessionStore` port over redis-py asyncio:
   - `RedisSessionStore(client: redis.asyncio.Redis)` takes an injected client (the contract
     tests inject fakeredis here).

@@ -6,6 +6,8 @@ delegation, `memory_builders.py` for recall), one per port, each returning the d
 plus its closer; this module only reads the env configs, calls them, hands the `TurnEngine`
 its ports, and releases everything on the way out:
 
+- PreferenceStore -> `RedisPreferenceStore` over the same CORTEX_REDIS_URL, holding the user's
+  settings record so a choice survives a restart of either side.
 - SessionStore  -> `RedisSessionStore` over CORTEX_REDIS_URL, holding the state that
   survives restarts and model swaps (the one hard rule).
 - Clock -> `SystemClock`, shared by the turn engine, memory recaller, and
@@ -65,20 +67,22 @@ from cortex_orchestrator.schedule_builders import (
     stop_ticker,
 )
 from cortex_orchestrator.server import SeamPorts, serve
+from cortex_orchestrator.stores import RedisStores
 from cortex_orchestrator.subagent_builders import build_subagent_tools, build_subagents
 from cortex_orchestrator.swap_builders import build_swap_runtime, swap_closer
 from cortex_orchestrator.vision import vision_enabled
-from cortex_session import RedisSessionStore
+from cortex_session import RedisPreferenceStore, RedisSessionStore
 
 
 async def run_from_env(
     *,
     store_factory: Callable[[str], RedisSessionStore] = RedisSessionStore.from_url,
+    preference_factory: Callable[[str], RedisPreferenceStore] = RedisPreferenceStore.from_url,
 ) -> None:
     """Compose the brain from the environment and serve until shutdown.
 
-    `store_factory` exists so tests can substitute a fakeredis-backed store; the
-    production entrypoint always uses the default. The store's connections and every
+    `store_factory` and `preference_factory` exist so tests can substitute fakeredis-backed
+    stores; the production entrypoint always uses the defaults. The store's connections and every
     backend's resources are released on the way out, whatever ends `serve`.
     """
     seam_config = SeamServerConfig()
@@ -91,7 +95,9 @@ async def run_from_env(
     schedule_config = ScheduleConfig()
     swap_config = SwapConfig()
     clock = SystemClock()
-    store = store_factory(runtime.redis_url)
+    # The settings record rides the same Redis the conversation state does: durable for the same
+    # reason (append-only + a named volume), so a choice outlives a body reinstall.
+    stores = RedisStores.open(runtime.redis_url, store_factory, preference_factory)
     # The handoff's process-wide half (ADR-0030), or None when CORTEX_ESCALATION is off, which
     # is the default: nothing below changes shape for a deployment that never escalates. When it
     # is on, the inference backend must lease through the very manager the residency scope swaps
@@ -210,7 +216,11 @@ async def run_from_env(
             # Engines are stateless functions over the store, so per-stream (and, when a turn
             # escalates, per-turn) construction is free.
             return TurnEngine(
-                store, backend, clock, cortex_model=runtime.cortex_model, capabilities=caps
+                stores.sessions,
+                backend,
+                clock,
+                cortex_model=runtime.cortex_model,
+                capabilities=caps,
             )
 
         def make_engine(confirmer: Confirmer, progress: ProgressSink) -> TurnRunner:
@@ -235,7 +245,7 @@ async def run_from_env(
             conductor = SwapConductor(
                 swap.handoffs,
                 swap.manager,
-                BrainPhase(store, backend, clock, swap.plan.brain_model, deep),
+                BrainPhase(stores.sessions, backend, clock, swap.plan.brain_model, deep),
                 swap.plan,
                 clock,
                 scheduler,
@@ -247,7 +257,7 @@ async def run_from_env(
         await serve(
             seam_config,
             make_engine,
-            store,
+            stores.sessions,
             SeamPorts(
                 schedules=schedules,
                 memory_cascade=memory_cascade,
@@ -255,6 +265,7 @@ async def run_from_env(
                 # reads it synchronously, so a probe between turns says what the GPU is really
                 # doing. Absent with escalation off, where nothing can make the brain not-ready.
                 residency=None if swap is None else swap.manager,
+                preferences=stores.preferences,
             ),
         )
     finally:
@@ -266,4 +277,4 @@ async def run_from_env(
         await close_tools()
         await close_memory()
         await close_backend()
-        await store.aclose()
+        await stores.aclose()

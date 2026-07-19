@@ -44,7 +44,7 @@ its signature.
 | [memory.md](memory.md) | Store, scoping, rerank/MMR (ADR-0008) | 8 |
 | [inference-model-manager.md](inference-model-manager.md) | Model-manager lifecycle, MTP, reasoning status (ADR-0007/0020) | 7 |
 | [subagents.md](subagents.md) | Progress reporting, spawn schema, heterogeneous roster (ADR-0010/0018) | 2 |
-| [body-overlay.md](body-overlay.md) | Overlay polish, connection indicator, proto Cancel (ADR-0011), mark persistence and picker affordances (ADR-0031) | 4 |
+| [body-overlay.md](body-overlay.md) | Overlay polish, connection indicator, proto Cancel (ADR-0011), section exit animations (ADR-0033) | 3 |
 | [session-read-seam.md](session-read-seam.md) | Session listing/read seam (ADR-0021) | 3 |
 | [resource-governance.md](resource-governance.md) | Scheduler/placer budgets, NPU, drain (ADR-0012) | 5 |
 | [email-confirmer.md](email-confirmer.md) | Email write, Confirmer, attachments, `ToolActivity` chip (ADR-0022) | 4 |
@@ -680,13 +680,12 @@ against the code (the warning above); the entry text tells you which seams it ex
   CPU roster up, given a prose-only ask carrying independent subtasks, either reaches for distinct
   roster models or does not. Listed here because the entry said for three days that no card
   available to the agent could answer it.
-- **Making an appearance choice survive a restart** ([body-overlay.md](body-overlay.md)), joined
-  2026-07-19 with the bubble mark (ADR-0031), which gave the overlay a second appearance
-  preference and so made the theme's own session-only lifetime worth writing down rather than
-  assuming. Nothing blocks the code. What the entry wants first is the one decision it names:
-  `localStorage` in the webview is a few lines and dies with a reinstall, a preferences record the
-  brain owns survives one and reaches other surfaces. It is listed here rather than as a knob
-  because the overlay has no persistence at all today, so whichever is chosen is the first one.
+- **Animating a section out of the panel** ([body-overlay.md](body-overlay.md)), joined
+  2026-07-19 when the panel's size animation landed and made the asymmetry visible: growth and
+  collapse both ease, but a removed switcher list or reminder stack vanishes on the first frame
+  because React unmounts it immediately. Nothing blocks the code; what it needs is a decision
+  about how the panel renders a leaving child (a flag in the reducer versus a transition
+  library), which is why it is here rather than filed as a CSS tweak.
 
 Everything else that remains is gated on a seam or port change, on hardware that fits two model
 tiers, on a consumer that does not yet exist, or is a bounded fix-when-it-bites contingency. The
@@ -1083,11 +1082,7 @@ error, so it cannot cleanly precede body multi-turn, which itself carries the pe
 knock-on), and whose trigger is the same Slice 11 model swap: today's Stop mutes the sink without
 aborting the RPC, so the brain finishes the turn and persists the full reply, adequate while compute is
 cheap and worth a real abort only when a swap makes mid-turn compute expensive
-([body-overlay.md](body-overlay.md)); the mark picker's missing click-away close and its single
-route in (the empty state's own mark), joined on 2026-07-19 with the bubble mark, whose real fix
-is not either affordance but the settings surface the overlay does not have, the design doc's
-`Ctrl+K` command palette being the likeliest host, and whose trigger is wanting to change the mark
-in a chat that already has messages ([body-overlay.md](body-overlay.md)); the tunnel
+([body-overlay.md](body-overlay.md)); the tunnel
 fallback, the
 hardened non-loopback posture, a safe Core Audio wrapper, and the unbalanced COM
 initialization the blocking-pool hop made visible, whose trigger is a COM failure or thread

@@ -118,6 +118,16 @@ impl BrainTransport for ScriptedTransport {
         self.touch_other();
         Ok(())
     }
+
+    async fn get_preferences(&self) -> Result<Vec<(String, String)>, TransportError> {
+        self.touch_other();
+        Ok(Vec::new())
+    }
+
+    async fn set_preference(&self, _key: &str, _value: &str) -> Result<(), TransportError> {
+        self.touch_other();
+        Ok(())
+    }
 }
 
 /// Probes once and reports the status plus how many methods the probe touched.

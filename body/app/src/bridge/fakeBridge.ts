@@ -3,6 +3,7 @@ import type {
   Cancellation,
   DueReminder,
   LinkStatus,
+  Preference,
   SessionMessage,
   SessionSummary,
   TransportError,
@@ -134,6 +135,32 @@ export class FakeBridge implements BrainBridge {
     // Stable-sort pinned-first, preserving the existing order within each group (the brain's
     // `merge_pinned` rule, mirrored so the fake's re-list matches what the real listing returns).
     this.sessions = [...updated].sort((a, b) => Number(b.pinned) - Number(a.pinned));
+    return Promise.resolve();
+  }
+
+  /** The stored settings the overlay hydrates from (assignable by a test; ADR-0032). */
+  preferences: readonly Preference[] = [];
+  /** How many times the overlay read the record (proves the hydrate latch fires once). */
+  preferenceReads = 0;
+  /** Every write the overlay made, in order, the clearing empty values included. */
+  readonly preferenceWrites: { readonly key: string; readonly value: string }[] = [];
+  /** When set, the matching preference call rejects (an unreachable or store-down brain). */
+  preferencesFail = false;
+  preferenceWriteFails = false;
+
+  getPreferences(): Promise<readonly Preference[]> {
+    this.preferenceReads += 1;
+    if (this.preferencesFail) {
+      return Promise.reject(new Error("preferences failed"));
+    }
+    return Promise.resolve(this.preferences);
+  }
+
+  setPreference(key: string, value: string): Promise<void> {
+    this.preferenceWrites.push({ key, value });
+    if (this.preferenceWriteFails) {
+      return Promise.reject(new Error("preference write failed"));
+    }
     return Promise.resolve();
   }
 

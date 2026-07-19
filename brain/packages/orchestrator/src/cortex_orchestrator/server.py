@@ -16,6 +16,7 @@ import grpc
 from grpc import aio
 
 from cortex_core import (
+    PreferenceStore,
     ResidencyReporter,
     ScheduleStore,
     ScheduleStoreError,
@@ -30,6 +31,7 @@ from cortex_orchestrator.converse import (
     EngineFactory,
     converse,
 )
+from cortex_orchestrator.preference_servicer import PreferenceRpcMixin
 from cortex_orchestrator.reminders import ack_reminder, list_due_reminders
 from cortex_orchestrator.session_rpc import DEFAULT_SESSION_LIST_LIMIT, MAX_SESSION_LIST_LIMIT
 from cortex_orchestrator.session_servicer import SessionRpcMixin
@@ -71,10 +73,11 @@ __all__ = [
 class SeamPorts:
     """The optional ports the seam serves *beyond* a turn, bundled as one dependency.
 
-    Each is `None` when its capability is off, which is the shipped default for all three:
+    Each is `None` when its capability is off, which is the shipped default for all four:
     `schedules` (ADR-0025) backs the reminder pull RPCs, `memory_cascade` is what
-    `DeleteSession` forgets a chat's private memories through, and `residency` (ADR-0030) is
-    what makes `Health` honest while a model handoff holds the GPU. Bundled rather than passed
+    `DeleteSession` forgets a chat's private memories through, `residency` (ADR-0030) is
+    what makes `Health` honest while a model handoff holds the GPU, and `preferences` is the
+    user's durable settings record behind the two preference RPCs. Bundled rather than passed
     one by one because the dependency ceiling is a design rule (ruff.toml): optional
     collaborators travel together, exactly as `TurnCapabilities` does for a turn.
     """
@@ -82,6 +85,7 @@ class SeamPorts:
     schedules: ScheduleStore | None = None
     memory_cascade: SessionMemoryCascade | None = None
     residency: ResidencyReporter | None = None
+    preferences: PreferenceStore | None = None
 
 
 # The "nothing beyond a turn" bundle, shared because it is frozen: the default for a service
@@ -89,7 +93,7 @@ class SeamPorts:
 _NO_SEAM_PORTS = SeamPorts()
 
 
-class BrainService(SessionRpcMixin, BrainServiceServicer):
+class BrainService(SessionRpcMixin, PreferenceRpcMixin, BrainServiceServicer):
     """The brain's side of the seam (proto/body.proto BrainService).
 
     Constructed with the engine factory and the session store by the composition root
@@ -115,6 +119,7 @@ class BrainService(SessionRpcMixin, BrainServiceServicer):
         self._schedules = ports.schedules
         self._memory_cascade = ports.memory_cascade
         self._residency = ports.residency
+        self._preferences = ports.preferences
         self._max_buffered_events = max_buffered_events
         self._confirm_timeout_s = confirm_timeout_s
 

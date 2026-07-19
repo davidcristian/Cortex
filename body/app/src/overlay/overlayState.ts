@@ -81,6 +81,8 @@ export interface OverlayState {
   readonly switcherOpen: boolean;
   /** Whether the full shortcut sheet covers the panel (design/overlay-ux.md §6). */
   readonly sheetOpen: boolean;
+  /** Whether the settings sheet covers the panel (ADR-0032): the appearance choices live there. */
+  readonly settingsOpen: boolean;
   /** The approval the current turn is paused on, if any (ADR-0022). */
   readonly pendingConfirm: PendingConfirm | null;
   /** Fired reminders awaiting delivery, pulled on each open and acked on dismiss (ADR-0025). */
@@ -138,7 +140,8 @@ export type Action =
   | { readonly kind: "linkObserved"; readonly status: LinkStatus }
   | { readonly kind: "linkProbeEnded" }
   | { readonly kind: "toggleSwitcher" }
-  | { readonly kind: "toggleSheet" };
+  | { readonly kind: "toggleSheet" }
+  | { readonly kind: "toggleSettings" };
 
 /** A fresh, empty overlay state for `sessionId` (a new chat). */
 export function createInitialState(sessionId: string): OverlayState {
@@ -150,6 +153,7 @@ export function createInitialState(sessionId: string): OverlayState {
     sessions: [],
     switcherOpen: false,
     sheetOpen: false,
+    settingsOpen: false,
     pendingConfirm: null,
     reminders: [],
     link: INITIAL_LINK,
@@ -198,11 +202,13 @@ export function reduce(state: OverlayState, action: Action): OverlayState {
     case "dismiss":
       // Dismissing drops any pending approval with it (walking away is a deny, since the brain
       // fails closed by timeout, ADR-0022); the turn itself keeps streaming to the store. The
-      // shortcut sheet closes too, so a re-summoned panel never opens onto stale help.
+      // shortcut sheet closes too, so a re-summoned panel never opens onto stale help, and the
+      // settings sheet with it: a dismissed panel should come back to the chat, not to settings.
       return {
         ...state,
         mode: isTurnActive(state) ? "orb" : "hidden",
         sheetOpen: false,
+        settingsOpen: false,
         pendingConfirm: null,
       };
     case "stop":
@@ -254,6 +260,8 @@ export function reduce(state: OverlayState, action: Action): OverlayState {
       return { ...state, switcherOpen: !state.switcherOpen };
     case "toggleSheet":
       return { ...state, sheetOpen: !state.sheetOpen };
+    case "toggleSettings":
+      return { ...state, settingsOpen: !state.settingsOpen };
   }
 }
 

@@ -9,8 +9,8 @@ are the historical record of what each deferral became, and the index at
 [index.md](index.md) carries the recommended pickup order.
 
 **Open items:** multi-turn-within-one-stream + proto `Cancel`, streamed
-brain status (its producer landed 2026-07-18; only the push RPC remains), appearance choices
-not surviving a restart, the mark picker's affordances
+brain status (its producer landed 2026-07-18; only the push RPC remains), exit animations for
+sections leaving the panel
 
 **Body / overlay in Slice 8 ([ADR-0011](../adr/ADR-0011-body-v1.md)):**
 - **Multi-turn-within-one-stream + an explicit proto `Cancel` event.** One turn per `Converse`
@@ -158,21 +158,33 @@ not surviving a restart, the mark picker's affordances
   (`components/icons.tsx`) the same day.
 
 **The bubble mark ([ADR-0031](../adr/ADR-0031-bubble-mark.md), 2026-07-19):**
-- **Appearance choices do not survive a restart.** The chosen theme and the chosen mark style are
-  both `useState` in `components/App.tsx`, so a restart returns to the system scheme and to
-  Wobble. This predates the mark: the theme has worked this way since Slice 8, and the mark simply
-  joined it rather than inventing a second story. The fix is one small store (the overlay has no
-  persistence layer at all today, so the choice is `localStorage` in the webview versus a real
-  preferences record the brain owns) plus a read of it at mount. Deliberately not decided here:
-  the second option is the one that survives a reinstall and reaches other surfaces, and picking
-  it is a design decision, not a code change. Recorded rather than fixed because nothing else in
-  the overlay persists yet and inventing the first store for a mark style is the wrong order.
-- **The mark picker has no click-away close and no other route in.** Clicking the empty state's
-  mark opens the styles; choosing one closes it, and clicking the mark again closes it, but a
-  click anywhere else leaves it open, and there is no way to reach it once a chat has messages
-  (the empty state is gone). Both are the same missing thing: the overlay has **no settings
-  surface**, and the picker is deliberately squatting on the mark because a fifth header button
-  would put the accent palette on resting chrome (ADR-0031 decision 5). When a settings surface
-  exists (the design doc's `Ctrl+K` command palette is the likeliest host, §2-3), the picker
-  belongs in it, and the mark can keep its click as the shortcut. Until then the discoverability
-  cost is real and knowingly taken: the user is the only user, and the maintainer picked the four.
+- **Appearance choices do not survive a restart. LANDED the same day
+  ([ADR-0032](../adr/ADR-0032-preference-record.md)), by the option this entry called the more
+  expensive one.** The entry recorded two choices and declined to pick: `localStorage` in the
+  webview, or a preferences record the brain owns. The maintainer chose the brain's record, so what
+  shipped is a `PreferenceStore` port with a Redis adapter, two RPCs on `BrainService`, and
+  `usePreferences` hydrating the theme and mark at mount. The entry's framing held up: this was
+  the overlay's first persistence of any kind, and the reason to prefer the record was exactly
+  what the entry said, that it survives a reinstall and reaches surfaces other than the window
+  that set it. One thing the entry did not anticipate: because the record arrives a round trip
+  after mount, hydration had to be taught not to overwrite a choice made in that window, which is
+  the feature's only real race and now has its own test.
+- **The mark picker has no click-away close and no other route in. LANDED the same day**
+  ([ADR-0032](../adr/ADR-0032-preference-record.md)), and the entry's own diagnosis is what fixed
+  it: both symptoms were the missing settings surface, so a settings sheet shipped (theme + mark,
+  opened from the hint strip or from the mark itself) and `MarkPicker` was deleted rather than
+  patched. Neither affordance needed to be built in the end. There is no inline popover left to
+  click away from, and the sheet is reachable from a chat that already has messages. The entry
+  guessed the `Ctrl+K` command palette would be the host; a sheet in the shortcut-sheet family
+  turned out to be the smaller step, and the palette can absorb it later without changing where
+  the choices live.
+
+**The panel's size ([ADR-0033](../adr/ADR-0033-panel-growth.md), 2026-07-19):**
+- **Sections do not animate out.** The panel's size change eases in both directions, so closing
+  the switcher or dismissing the last reminder collapses the panel smoothly, but the section
+  itself vanishes on the first frame instead of sliding out: React unmounts a removed child
+  immediately, and the growth animation only sees the height that is left behind. Animating an
+  exit means keeping the element mounted through it (a leaving flag in the reducer, or a
+  transition library), which is a real change to how the panel renders its sections rather than a
+  CSS addition. Deferred because the asymmetry is barely visible at the durations in use: the
+  collapse the eye follows is the panel's, and it is animated.

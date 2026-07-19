@@ -71,6 +71,23 @@ service BrainService {
   // makes exactly ONE attempt and never retries it (the catalog-write convention RenameSession
   // set): a lost reply must not silently re-assert a pinned value the user's next toggle reversed.
   rpc SetSessionPinned(SetSessionPinnedRequest) returns (SetSessionPinnedReply);
+
+  // The user's own settings: a durable key/value record the BRAIN owns, so a choice survives a
+  // body restart or a body reinstall and is readable by any surface rather than trapped in the
+  // one that set it. Keys are namespaced strings the caller owns ("overlay.theme",
+  // "overlay.mark"); values are short opaque strings the brain never interprets, which is what
+  // keeps a new preference from being a seam change. GetPreferences returns every set key.
+  // SetPreference is idempotent (last write wins) and an EMPTY value CLEARS the key, restoring
+  // whatever default the reader applies, exactly as RenameSession's empty title clears an
+  // override. Their gate is the SAME structural user-only reachability RenameSession has: no tool
+  // in any registry, never through the turn engine, so no model, tool, or tainted turn reaches
+  // them. They carry display preferences only, never conversation content, so they cannot touch
+  // the one hard rule. SetPreference carries an effect, so the body makes exactly ONE attempt and
+  // never retries it (the catalog-write convention): a lost reply must not silently re-assert a
+  // value the user's next change reversed. GetPreferences is a read and retries like the other
+  // read-only views.
+  rpc GetPreferences(GetPreferencesRequest) returns (GetPreferencesReply);
+  rpc SetPreference(SetPreferenceRequest) returns (SetPreferenceReply);
 }
 
 message ClientEvent {
@@ -188,6 +205,20 @@ message SetSessionPinnedRequest {
   bool pinned = 2;
 }
 message SetSessionPinnedReply {}
+
+// The user's settings record. One pair is one setting; the brain stores and returns them
+// verbatim and never parses a value, so adding a preference costs no wire change.
+message Preference {
+  string key = 1;
+  string value = 2;
+}
+message GetPreferencesRequest {}
+message GetPreferencesReply { repeated Preference preferences = 1; }
+message SetPreferenceRequest {
+  string key = 1;
+  string value = 2;
+}
+message SetPreferenceReply {}
 
 // Reminder pull-delivery views (ADR-0025). All sessions are listed deliberately because
 // a single-user assistant has one user to remind; session_id rides along so the

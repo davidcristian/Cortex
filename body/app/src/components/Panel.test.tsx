@@ -14,6 +14,7 @@ const state = (over: Partial<OverlayState> = {}): OverlayState => ({
   sessions: [],
   switcherOpen: false,
   sheetOpen: false,
+  settingsOpen: false,
   pendingConfirm: null,
   reminders: [],
   link: INITIAL_LINK,
@@ -49,6 +50,8 @@ const reply = (id: string): Message => ({
 
 interface Handlers {
   onPickMark?: (name: string) => void;
+  onPickTheme?: (name: string | null) => void;
+  onToggleSettings?: () => void;
   onToggleTheme?: () => void;
   onSubmit?: (text: string) => void;
   onDismiss?: () => void;
@@ -69,7 +72,10 @@ function panelProps(over: Partial<OverlayState>, open: boolean, dark: boolean, h
     open,
     dark,
     mark: WOBBLE,
+    themeName: null,
+    onPickTheme: handlers.onPickTheme ?? vi.fn(),
     onPickMark: handlers.onPickMark ?? vi.fn(),
+    onToggleSettings: handlers.onToggleSettings ?? vi.fn(),
     onToggleTheme: handlers.onToggleTheme ?? vi.fn(),
     onSubmit: handlers.onSubmit ?? vi.fn(),
     onStop: vi.fn(),
@@ -245,6 +251,27 @@ describe("Panel", () => {
     // A reminder's origin opens through the switcher's own handler: same chat load, one path.
     fireEvent.click(screen.getByText("open chat"));
     expect(onSelectSession).toHaveBeenCalledWith("c9");
+  });
+
+  it("opens settings from the hint strip and from the empty state's own mark", () => {
+    const onToggleSettings = vi.fn();
+    renderPanel({}, true, false, { onToggleSettings });
+    fireEvent.click(screen.getByLabelText("Settings"));
+    expect(onToggleSettings).toHaveBeenCalledOnce();
+    // The mark is the shortcut: it is the thing the sheet's mark row changes.
+    fireEvent.click(screen.getByLabelText(/Mark: Wobble/u));
+    expect(onToggleSettings).toHaveBeenCalledTimes(2);
+  });
+
+  it("covers the panel with the settings sheet when it is open, and wires its choices", () => {
+    const onPickMark = vi.fn();
+    const onPickTheme = vi.fn();
+    renderPanel({ settingsOpen: true }, true, false, { onPickMark, onPickTheme });
+    expect(screen.getByRole("dialog", { name: "Settings" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("radio", { name: /Foam/u }));
+    expect(onPickMark).toHaveBeenCalledWith("foam");
+    fireEvent.click(screen.getByRole("radio", { name: "daylight" }));
+    expect(onPickTheme).toHaveBeenCalledWith("daylight");
   });
 
   it("greets an empty chat with the mark and tappable example prompts that submit", () => {

@@ -36,6 +36,8 @@ export interface OverlayController {
   cycleNext(): void;
   toggleSwitcher(): void;
   toggleSheet(): void;
+  /** Open or close the settings sheet (appearance lives there, ADR-0032). */
+  toggleSettings(): void;
   /** Hovering the preview pauses its auto-fade; leaving restarts the full countdown. */
   previewHover(hovering: boolean): void;
   /** Answer the pending approval (ADR-0022); stale/duplicate answers are no-ops. */
@@ -201,6 +203,7 @@ export function useOverlay(
   }, [denyPendingConfirm, newSessionId]);
   const toggleSwitcher = useCallback(() => dispatch({ kind: "toggleSwitcher" }), []);
   const toggleSheet = useCallback(() => dispatch({ kind: "toggleSheet" }), []);
+  const toggleSettings = useCallback(() => dispatch({ kind: "toggleSettings" }), []);
   const previewHover = useCallback((hovering: boolean) => setPreviewHovered(hovering), []);
 
   const openSession = useCallback(
@@ -301,6 +304,7 @@ export function useOverlay(
     cycleNext,
     toggleSwitcher,
     toggleSheet,
+    toggleSettings,
     previewHover,
     respondConfirm,
     dismissReminder,

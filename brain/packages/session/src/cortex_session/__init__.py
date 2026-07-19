@@ -1,7 +1,8 @@
 """Redis adapters for the core's stateful ports: SessionStore + TaskStore + ScheduleStore +
-HandoffStore (brain-session.md)."""
+HandoffStore + PreferenceStore (brain-session.md)."""
 
 from cortex_session.handoffs import RedisHandoffStore
+from cortex_session.preferences import RedisPreferenceStore
 from cortex_session.schedule_codec import DeadLetter
 from cortex_session.schedules import RedisScheduleStore
 from cortex_session.store import DEFAULT_REDIS_URL, RedisSessionStore
@@ -13,6 +14,7 @@ __all__ = [
     "ZONEINFO_RESOLVER",
     "DeadLetter",
     "RedisHandoffStore",
+    "RedisPreferenceStore",
     "RedisScheduleStore",
     "RedisSessionStore",
     "RedisTaskStore",

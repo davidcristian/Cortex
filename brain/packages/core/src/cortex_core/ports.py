@@ -2,7 +2,7 @@
 
 Method bodies are one-line ``...`` stubs. Protocols carry contracts, never behavior.
 Failures cross these boundaries exclusively as the typed errors in ``errors.py``.
-The five state-store ports (session, memory, task, schedule, handoff) live in
+The six state-store ports (session, memory, task, schedule, handoff, preference) live in
 ``ports_stores.py`` and the three model-lifecycle ports (``ModelHost``, ``ResidencyController``,
 ``ResidencyReporter``) in ``ports_models.py``; both sets are re-exported here, so
 ``from cortex_core.ports import SessionStore`` keeps resolving.
@@ -23,13 +23,14 @@ from cortex_core.ports_models import ModelHost, ResidencyController, ResidencyRe
 from cortex_core.ports_stores import (
     HandoffStore,
     MemoryStore,
+    PreferenceStore,
     ScheduleStore,
     SessionStore,
     TaskStore,
 )
 from cortex_core.tools import ConfirmationRequest, ToolCall, ToolInvocation, ToolResult, ToolSpec
 
-# The five state-store ports live in ``ports_stores.py`` and the three model-lifecycle ports in
+# The six state-store ports live in ``ports_stores.py`` and the three model-lifecycle ports in
 # ``ports_models.py`` (line-cap splits); the explicit export list re-exports them alongside the
 # ports defined here, so every existing ``from cortex_core.ports import ...`` and the
 # ``cortex_core`` barrel keep resolving unchanged.
@@ -43,6 +44,7 @@ __all__ = [
     "MemoryStore",
     "ModelHost",
     "ModelManager",
+    "PreferenceStore",
     "ResidencyController",
     "ResidencyReporter",
     "ScheduleStore",

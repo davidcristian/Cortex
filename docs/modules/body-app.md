@@ -10,7 +10,9 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
 
 - **Frontend** (`src/`, gated). Pure logic first: the theme system (`theme/`), the activity mark
   (`mark/`: `bubble.ts` is the pure geometry, `marks.ts` the style registry, `useMarkClock.ts` the
-  frame clock, ADR-0031), the overlay state
+  frame clock, ADR-0031), the appearance record (`overlay/usePreferences.ts`: hydrates the theme
+  and mark from the brain once and writes each change back optimistically, ADR-0032), the panel's
+  size animation (`overlay/useGrowthAnimation.ts`, ADR-0033), the overlay state
   machine (`overlay/overlayState.ts` is a pure reducer over a `Mode` = hidden/panel/orb/preview,
   with the session-switching helpers split into `overlay/sessionState.ts` for the line cap),
   and the controller hook (`overlay/useOverlay.ts`). Components (`components/`) depend only on the
@@ -57,7 +59,11 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
   mount. The port also carries reminder pull delivery (ADR-0025): `listDueReminders()` /
   `ackReminder(reminderId)` plus the `DueReminder` mirror, and the connection probe
   (ADR-0011 addendum): `checkLink()` plus the `LinkState` / `LinkStatus` mirrors of
-  `body_core::link`.
+  `body_core::link`. It also carries the user's settings record (ADR-0032):
+  `getPreferences()` / `setPreference(key, value)` plus the `Preference` mirror, opaque pairs the
+  overlay reads once at startup (`usePreferences`) and writes one at a time on every appearance
+  change. An unrecognised key belongs to another surface and is ignored; an empty value clears a
+  key, which is how "follow the system" is stored for the theme.
 - **The capture switch and the overlay's self-exclusion** (`body_server.rs`, ADR-0029). The
   shell wires the real `WindowsScreenCapture` only when `CORTEX_HOST_CAPTURE=1` **and** the
   setup call to `exclude_from_capture` on the overlay's own window succeeded; on either failure
