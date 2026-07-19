@@ -538,6 +538,21 @@ describe("the screen-capture indicator", () => {
     expect(later.messages.at(-1)?.tool).toBe("get_volume: reading");
   });
 
+  it("lights on the ask, since the seam never says whether the capture happened", () => {
+    const asked = reduce(streaming(), {
+      kind: "event",
+      event: { kind: "toolActivity", toolName: "capture_screen", summary: "primary display" },
+    });
+    expect(asked.capturing).toBe(true);
+    // Whatever came back, no later event tells the overlay: the only capture-shaped thing that
+    // follows is the reply text, which cannot distinguish a refusal from a picture.
+    const answered = reduce(asked, {
+      kind: "event",
+      event: { kind: "delta", text: "I could not see your screen." },
+    });
+    expect(answered.capturing).toBe(true);
+  });
+
   it("stays dark for a turn that only ran other tools", () => {
     const after = reduce(streaming(), {
       kind: "event",
