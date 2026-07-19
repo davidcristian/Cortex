@@ -1,7 +1,13 @@
 # ADR-0033: The panel grows upward, and its size changes are animated
 
-- **Status:** Accepted
+- **Status:** Accepted, amended by [ADR-0034](ADR-0034-panel-views.md)
 - **Date:** 2026-07-19
+
+> **What changed.** Decision 1's fixed `bottom: 15vh` is gone: the panel re-centres on a view change
+> and pins its bottom edge only *within* a view, which keeps the composer still without leaving a
+> short panel permanently below centre. Decision 5's `sectionin` is gone too, replaced by sections
+> that animate their own height (ADR-0034 decision 4), which is also the answer to consequence 3's
+> unanimated exits. Decisions 2, 3, 4 and 6 stand and are why the rest works.
 
 ## Context
 

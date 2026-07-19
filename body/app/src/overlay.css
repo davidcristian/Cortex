@@ -29,24 +29,21 @@
    (summon/dismiss pop from the middle); .to-orb parks the closed panel at the corner instead so
    minimize-to-orb / reopen-from-orb are a real travel.
 
-   The panel is anchored by its BOTTOM edge, not its middle. Everything that changes its size
-   (a reply arriving, the switcher list opening, reminders showing up) therefore grows it
-   UPWARDS, leaving the composer exactly where the hand left it; a centre-anchored panel grew
-   both ways and slid the input out from under the cursor mid-conversation. `bottom: 15vh` is
-   chosen so a full-height panel occupies nearly the same band it always did.
+   VERTICAL GEOMETRY IS NOT SET HERE. `bottom` and `max-height` are written as inline styles by
+   `overlay/usePanelMotion.ts`, which owns both: the panel re-centres on a view change and grows
+   UPWARD from a pinned bottom edge in between, and the ceiling it may not grow past is derived
+   from the max height so a full-height panel lands exactly centred. Two sources for those numbers
+   would drift apart; there is one, and it is the hook.
 
-   The growth itself is animated from `overlay/useGrowthAnimation.ts`, NOT from a transition
-   here: the panel's height is `auto` on both sides of a content change, so a `transition:
-   height` never fires (measured, not assumed). `overflow: hidden` is what turns that animation
-   into a reveal: mid-ease the panel is shorter than its content, and the new rows are clipped
-   by the rounded edge instead of spilling past it. */
+   The growth is animated there too, NOT by a transition here: the panel's height is `auto` on both
+   sides of a content change, so a `transition: height` never fires (measured, not assumed).
+   `overflow: hidden` is what turns that animation into a reveal: mid-ease the panel is shorter
+   than its content, and the new rows are clipped by the rounded edge instead of spilling past it. */
 .panel {
   position: fixed;
   left: 50%;
-  bottom: 15vh;
   width: min(560px, 92vw);
   height: auto;
-  max-height: 76vh;
   z-index: 10;
   display: flex;
   flex-direction: column;
@@ -71,6 +68,49 @@
   opacity: 1;
   pointer-events: auto;
   transform: translate(-50%, 0) scale(1);
+}
+
+/* The panel shows one view at a time (the chat, the shortcuts list, settings) and morphs between
+   them. `.views` is the stack they share; only the ACTIVE view is in the layout flow, so it alone
+   decides the height the panel is easing to.
+
+   The chat is never unmounted, only switched to `gone` (a half-typed draft, the history's scroll
+   position and the composer's focus all survive a trip to settings); the view being LEFT is held
+   for one morph as `.out`, lifted out of flow so it cannot fight the incoming one for the height,
+   and faded out over the top of it. */
+.views {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.view {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  animation: viewin 0.34s var(--ease) 0.05s both;
+}
+.view.out {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  flex: none;
+  pointer-events: none;
+  animation: viewout 0.26s var(--ease) both;
+}
+.view.gone {
+  display: none;
+}
+/* Every non-chat view: the same column, so the header sits on the chat's rhythm and the foot
+   settles under the content rather than at the bottom of a panel that is no longer that tall. */
+.pane {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
 .head {
@@ -193,12 +233,25 @@
   background: var(--field);
 }
 
+/* The history takes the slack, which is what keeps the composer glued to the panel's bottom edge
+   while the panel is mid-resize. Without `flex: 1` the leftover height lands after the last child
+   instead, and every shrink jerked the composer and the hint strip up before easing them back. */
 .history {
   display: flex;
   flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
   gap: 11px;
   padding: 6px 16px 4px;
   overflow-y: auto;
+}
+
+/* A section that rolls open and shut (components/Collapse.tsx animates the height of this
+   wrapper). The clip is what makes it a roll rather than a squash: the list inside keeps its own
+   size while the wrapper reveals less or more of it. */
+.collapse {
+  flex: none;
+  overflow: hidden;
 }
 .history::-webkit-scrollbar {
   width: 7px;
@@ -650,7 +703,7 @@
   color: var(--dim);
 }
 .hints b,
-.sheet-row b {
+.row-keys b {
   color: var(--muted);
   font-weight: 500;
   background: var(--control);
@@ -661,7 +714,7 @@
 /* Keycaps whose glyph is an outline SVG (Enter/Shift/cycle arrows) instead of a letter: shrink
    the icon to cap size and center it, so they read as clearly as the letter keys beside them. */
 .hints b.key,
-.sheet-row b.key {
+.row-keys b.key {
   display: inline-flex;
   align-items: center;
   gap: 1px;
@@ -669,7 +722,7 @@
   vertical-align: -3px;
 }
 .hints b.key svg,
-.sheet-row b.key svg {
+.row-keys b.key svg {
   width: 13px;
   height: 13px;
 }
@@ -692,101 +745,73 @@
   color: var(--text);
 }
 
-/* The full shortcut sheet (design/overlay-ux.md §6) covers the panel. Informational resting
-   chrome (no accent); a click anywhere on it, or Esc, closes it. The panel's own
-   backdrop-filter bounds the backdrop root, so a frosted child cannot blur the history
-   beneath it; the panel tint layered over the solid ground keeps the hue and covers it. */
-.sheet {
-  position: absolute;
-  inset: 0;
-  z-index: 6;
+/* The shortcuts and settings views (design/overlay-ux.md §6, ADR-0032) share one shape: a list of
+   rows, what it is on the left, what it can be on the right, hairlines between. Informational
+   resting chrome, so no accent anywhere; the two differ only in what the right-hand side holds,
+   which is why a keycap row and a theme picker sit at the same rhythm.
+
+   Nothing here stretches. The list is as tall as its rows, and the panel shrinks to it. */
+.rows {
   display: flex;
   flex-direction: column;
-  padding: 22px 26px 16px;
-  background: linear-gradient(var(--panel), var(--panel)), var(--bg);
-  border-radius: 28px;
-  cursor: pointer;
-  animation: confirmin 0.28s var(--spring) both;
-}
-.sheet-head {
-  margin: 0 0 10px;
-  font-size: 13.5px;
-  font-weight: 600;
-}
-.sheet-rows {
-  margin: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
+  flex: 0 1 auto;
+  min-height: 0;
   overflow-y: auto;
+  /* Rows start on the panel's own left margin, so the hairlines between them read as inset rules
+     rather than as lines drawn to the rounded edge. */
+  padding: 0 16px;
 }
-.sheet-row {
+.row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 14px;
-  padding: 6px 2px;
-  font-size: 13px;
-  color: var(--muted);
+  gap: 16px;
+  padding: 9px 0;
 }
-.sheet-row dd {
-  margin: 0;
+.row + .row {
+  border-top: 1px solid var(--stroke);
+}
+.row-label {
+  min-width: 0;
+  font-size: 13.5px;
+}
+.row-label small {
+  display: block;
+  margin-top: 1px;
+  font-size: 11.5px;
+  color: var(--dim);
+}
+.row-keys {
+  flex: none;
   display: flex;
   gap: 4px;
 }
-.sheet-foot {
+/* Pinned to the bottom of the pane, which only shows mid-morph: while the panel is still easing
+   to this view's height the slack is below the rows, and the foot rides the bottom edge down
+   rather than floating in the middle of a gap. At rest there is no slack and it sits under the
+   last row. */
+.viewfoot {
   margin: auto 0 0;
-  padding-top: 12px;
+  padding: 10px 16px 14px;
   text-align: center;
   font-size: 11.5px;
   color: var(--dim);
 }
 
-/* The settings sheet (ADR-0032) shares the shortcut sheet's chrome and adds a card, because
-   this one is interactive: the backdrop closes it, the card does not, and the card is where the
-   pointer stops meaning "dismiss". Choices are pills in the same vocabulary as the empty state's
-   example chips, so the sheet reads as part of the panel rather than a settings dialog. */
-.set-sheet {
-  cursor: default;
-}
-.set-card {
-  flex: 1;
+/* A row's choices: one rail, so the options read as the settable range of that row rather than as
+   loose buttons, and the chosen one is lit from within it. Marks are drawn live in their own rail
+   at the same height, because these four styles differ by how they MOVE. */
+.seg {
+  flex: none;
   display: flex;
-  flex-direction: column;
-  gap: 22px;
-}
-.set-row {
-  display: flex;
-  flex-direction: column;
-  gap: 9px;
-}
-.set-label {
-  display: flex;
-  align-items: baseline;
-  gap: 9px;
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--text);
-}
-.set-hint {
-  font-weight: 400;
-  font-size: 12px;
-  color: var(--dim);
-}
-.set-choices {
-  display: flex;
-}
-.set-seg {
-  display: flex;
-  gap: 4px;
-  padding: 4px;
+  gap: 2px;
+  padding: 3px;
   background: var(--control);
-  border: 1px solid var(--stroke);
   border-radius: 999px;
 }
-.set-opt {
-  padding: 6px 15px;
-  border: 1px solid transparent;
+.seg-opt {
+  padding: 5px 13px;
+  border: none;
   border-radius: 999px;
   background: none;
   color: var(--muted);
@@ -796,19 +821,32 @@
   cursor: pointer;
   transition: 0.18s var(--ease);
 }
-.set-opt:hover {
+.seg-mark {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 30px;
+  padding: 0;
+  border: none;
+  border-radius: 999px;
+  background: none;
+  cursor: pointer;
+  opacity: 0.5;
+  transition: 0.18s var(--ease);
+}
+.seg-opt:hover {
+  color: var(--text);
+}
+.seg-mark:hover {
+  opacity: 0.85;
+}
+.seg-opt.on {
   color: var(--text);
   background: var(--field);
 }
-.set-opt.on {
-  color: var(--text);
+.seg-mark.on {
+  opacity: 1;
   background: var(--field);
-  border-color: var(--stroke);
-}
-/* The sheet's own foot sits under the card's content, not floated to the bottom of the panel:
-   the settings rows are short and a foot stranded 300px below them reads as a different sheet. */
-.set-card .sheet-foot {
-  margin-top: auto;
 }
 
 /* The orb: the bubble mark is colorful (it's a working state). All of its motion is inside the
@@ -925,15 +963,27 @@
     transform: none;
   }
 }
-/* A section revealed inside the growing panel: it rises into the space the panel just made. */
-@keyframes sectionin {
+/* The panel changing views: the one arriving rises into the space the panel is easing open for
+   it, the one leaving sinks out under it. Both are short, because the resize is the real motion
+   and these only stop it looking like a hard cut. */
+@keyframes viewin {
   from {
     opacity: 0;
-    transform: translateY(-6px);
+    transform: translateY(7px);
   }
   to {
     opacity: 1;
     transform: none;
+  }
+}
+@keyframes viewout {
+  from {
+    opacity: 1;
+    transform: none;
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-7px);
   }
 }
 @keyframes drain {
@@ -954,10 +1004,10 @@
 }
 
 /* Chat switcher (ADR-0021) is a slim store-backed list under the header. Resting chrome:
-   neutral, no accent (color stays reserved for working affordances, §1). It slides in as the
-   panel grows to make room for it, so the two motions read as one. */
+   neutral, no accent (color stays reserved for working affordances, §1). Its enter and exit are
+   the roll of the `.collapse` wrapper around it, not an animation of its own: the panel's height
+   follows that roll, so the list and the window it lives in move as one thing. */
 .switcher {
-  animation: sectionin 0.32s var(--ease) both;
   list-style: none;
   margin: 0 12px 6px;
   padding: 6px;
@@ -1196,7 +1246,6 @@
    stack scrolls itself if several fired while the overlay was away. The untrusted badge is
    dashed rather than colored, since a provenance warning is not a working affordance. */
 .reminders {
-  animation: sectionin 0.32s var(--ease) both;
   list-style: none;
   margin: 0 12px 6px;
   padding: 6px;

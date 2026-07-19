@@ -1,0 +1,102 @@
+# ADR-0034: The panel's other faces are views it morphs into, not sheets laid over it
+
+- **Status:** Accepted
+- **Date:** 2026-07-19
+- **Amends:** [ADR-0033](ADR-0033-panel-growth.md) (decisions 1, 5 and consequence 3)
+
+## Context
+
+Three things went wrong at once with the panel's vertical behaviour, and they turned out to be one
+problem seen from three sides.
+
+1. **The panel stopped being centred.** ADR-0033 anchored it at `bottom: 15vh` so that growth
+   pushed the top edge up and left the composer alone. That works during a conversation and is
+   wrong at rest: an empty chat sat 84px below where the eye expects a summoned window, and it was
+   never centred again for the rest of the session.
+
+2. **The shortcut and settings sheets could not resize.** Both were `position: absolute; inset: 0`
+   covers, so each inherited whatever height the chat underneath happened to have. The settings
+   sheet has two rows in it. At 546px tall those two rows sat at the top of a mostly empty box with
+   "Click outside or press Esc to close" stranded three hundred pixels below them.
+
+3. **Closing a section snapped.** Removing the chat switcher deleted its rows in one frame,
+   everything below them jumped up into the hole, and only then did the panel ease down after
+   them. Two motions, in the wrong order. ADR-0033 recorded this as a known gap.
+
+A fourth defect was found while measuring the first three: the growth hook treated any non-null
+`Animation` as running, so after one ease finished it read the *new* height as "what is displayed",
+found no delta, and skipped the animation entirely. Every second size change was therefore a jump.
+Traced in a browser at 60Hz: opening the switcher jumped, closing it eased, opening it jumped.
+
+## Decision
+
+1. **The panel has views, and morphs between them.** `chat`, `shortcuts` and `settings` are three
+   views of one window rather than a window with covers over it. Only the active view is in the
+   layout flow, so it alone decides the height the panel is easing to. The settings view is now
+   198px tall and the shortcuts view 391px, against 546px for the chat that opened them.
+
+2. **A view change re-centres; growth inside a view goes upward.** These are the same measurement
+   and live in one hook (`overlay/usePanelMotion.ts`), which owns both the panel's `bottom` and its
+   `max-height` as inline styles. Opening a view, coming back from one, or switching chats resizes
+   the panel and slides it back to true centre in a single animation of `height` and `bottom`
+   together. A reply arriving or the switcher opening keeps the bottom edge pinned, so the composer
+   never slides out from under the hand that just typed into it.
+
+3. **The ceiling is derived from the max height, not chosen.** Growth pushes the top edge up until
+   `12vh` of clear space is left above, and past that the panel grows downward instead. `12vh` is
+   `(100 - 76) / 2`, so a panel at its 76vh maximum is *exactly* centred: a long conversation ends
+   dead centre rather than jammed against the top edge. Because the two numbers must agree, both
+   live in the hook and neither is in CSS.
+
+4. **Sections roll open and shut themselves** (`components/Collapse.tsx`). The switcher list and the
+   reminder stack animate their own height between nothing and their content, staying mounted
+   through the close (an exit cannot be animated on an element React has already removed). The
+   panel's `auto` height follows that roll frame by frame with no animation of its own, and since
+   the panel is anchored by its bottom edge, nothing else on screen moves at all: the list rolls up
+   and the panel's top edge comes down with it. Fading the section out instead was considered and
+   does not work, because an invisible element still occupies its space and the snap simply happens
+   later.
+
+5. **A child animating the panel's height claims it, and hands it back** (`overlay/morph.ts` holds
+   both halves of the contract). While `data-morphing` is set on any descendant, the panel leaves
+   the height alone. When it clears, the section dispatches a bubbling `cortex:morphend`, which is
+   the panel's only word that anything happened: a section rolling *open* changes no React state,
+   so no render follows it and the panel would never learn it had grown. Without that event a
+   switcher opened on a tall chat sat 39px from the top of the screen with 177px of space below it,
+   having sailed past the ceiling of decision 3 unnoticed. Measured, not reasoned about.
+
+   On that first placement after a roll, what is on screen is already the new height (the panel
+   followed the roll frame by frame), so the geometry to animate *from* is that height at the old
+   bottom edge, not the height the panel last remembered. Remembering the mid-roll height instead
+   snapped the switcher back open for one frame; that frame was visible in a 60Hz trace before it
+   was understood. What is left to animate is the slide off the ceiling, if there is one.
+
+6. **The history takes the slack** (`.history { flex: 1 }`). Mid-resize the panel is taller than its
+   content; without this the leftover height landed after the last child and jerked the composer
+   and the hint strip up before easing them back. Measured: the composer moved 106px on a switcher
+   close, then eased back over 300ms. It now does not move at all.
+
+7. **The chat view is never unmounted**, only taken out of the flow. A half-typed draft, the
+   history's scroll position and the composer's focus all survive a trip to settings and back.
+
+8. **The views are rows, and the baseline is the plainest of three directions pitched.** Both are a
+   titled list: what it is on the left, what it can be on the right, hairlines between, and one way
+   back. The two views differ only in what the right-hand side holds, which is why a keycap and a
+   theme picker sit at the same rhythm. Colour stays reserved for working affordances, so nothing
+   here is accented. Two richer directions (theme choices as thumbnails of the panel wearing them;
+   one tabbed console instead of two destinations) were pitched to the user as a live artifact and
+   are open, and either is inner markup on this same plumbing.
+
+## Consequences
+
+- A settings view cannot be dismissed by clicking a backdrop, because there is no backdrop any
+  more. Esc still closes it, and the header's chevron is the visible way back. This is a better
+  affordance than the old one and it is also a behaviour change.
+- The morph animates `height` and `bottom`, both of which drive layout, so this is the one place in
+  the overlay that deliberately animates layout-affecting properties. It is bounded: one element,
+  one animation, at most one per render.
+- A single reminder leaving the stack still vanishes in one frame rather than rolling up, since
+  `Collapse` wraps the stack and not each row. Nothing else moves when it does (decision 6), so
+  what is left is one row's worth of instant. Recorded in `docs/refinements/body-overlay.md`.
+- Two views' worth of chrome collapsed into `components/PanelView.tsx`, and `Panel` became a router
+  over `components/ChatView.tsx` and the two views, which is what kept every file under the cap.
