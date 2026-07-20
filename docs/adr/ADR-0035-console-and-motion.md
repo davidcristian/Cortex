@@ -822,3 +822,66 @@ at, which is why they are recorded together.
 
 8. **The Auto tile is not captioned.** A line of prose under three pictures explaining the word on
    one of them is the picture explained to someone who has just looked at it.
+
+## Addendum, 2026-07-20: four corrections from a second maintainer pass
+
+1. **Two tabs share one height only while they are close, and the number saying so is
+   `TAB_SPREAD_PX` in `components/ConsoleView.tsx`.** Both tabs are mounted and stacked in one grid
+   cell, so the taller decides the panel's height and a tab switch resizes nothing. That was
+   written as a rule with no number, on the grounds that the two tabs that ship are 12px apart
+   (measured in Chromium at 640x720: the appearance tab wants 278px, the shortcut list 290px) and a
+   window that jumps 12px and back reads as a flinch. It stops being right for a tab that is
+   genuinely shorter, where the panel holds a band of empty space under the content and the window
+   is lying about how much is in it. Past 15px the pane not on screen leaves the flow, the cell is
+   left to the pane that is, and the panel morphs between the two heights as it does for any other
+   size change inside a view.
+
+   The two are measured rather than declared, in a pose the stack does not otherwise hold: a pane
+   stretched to the cell reports the cell's height, which is the taller pane's, so unstretched is
+   the only way the difference is visible at all. One synchronous read in a layout effect, which
+   React runs before the panel's own, so the height the panel eases to is the one this decided.
+
+2. **The chat's scroll position survives the console.** It did not, and
+   [ADR-0034](ADR-0034-panel-views.md) decision 7 said it did; that decision now carries the
+   correction and this is the fix. `ChatView` parks the position on every scroll of the reader's own
+   and hands it back in a layout effect on the way in, so the return is painted with the
+   conversation where the eye left it. A reader who was AT the tail comes back to the tail rather
+   than to the line it used to be on, since a reply can land while the console is up.
+
+   Scrolling that the layout does is not the reader's and is ignored while the console is up. The
+   trip relays the history out twice, each time with a scroll event behind it, and either would
+   otherwise park the log where the trip left it. The second would also re-pin it, a box with
+   nothing to scroll reading as a box sitting at its own tail.
+
+3. **The panel's own measurement no longer takes the log off the reader.** The panel measures itself
+   by growing to the loosest cap any edge could allow and reading what it becomes (decision 1 of the
+   addendum above). Every scroll box inside a taller panel is a taller box, and the engine answers a
+   box that has outgrown its scroll range by clamping it, which putting the real cap back does not
+   undo. Traced at 60Hz at 640x720 through a streamed reply, wheeling 60px up from the tail:
+   `scrollTop` read 312, then 252 the frame the wheel landed, then 215 two frames later with nothing
+   else touching it, 215 being the deepest a 390px window scrolls a 605px log. Every token did it
+   again, which is what "the history will not let me scroll while a reply streams" was. The same
+   clamp landed on every placement of any kind: opening the chat switcher moved a reader from 154 to
+   73 and left them there.
+
+   So `place` takes the scroll positions before it measures and hands them back after, on every path
+   out. Traced again afterwards: a 60px wheel mid-reply holds at exactly where it landed for the
+   rest of the reply, while the log grows from 605 to 694 underneath it.
+
+   The suspect before tracing was the panel's height animation firing resize-induced scroll events
+   that re-armed the auto-scroll's pin. It does not: the clamp lands 97px off the tail, which is
+   past the 40px that counts as reading the tail, so the pin was never re-armed and the reader was
+   simply moved. Recorded because the fix that hypothesis implies, treating only wheel and touch and
+   key as intent, would have left the actual defect in place.
+
+4. **A section's roll cannot overshoot the ceiling.** A roll is not a placement: the panel stands
+   down and lets the section own the height, and nothing takes the measuring cap back off the
+   element until the roll ends. So for the length of every roll the panel was licensed to grow to
+   the loose cap. Traced at 60Hz at 640x720 with the panel already on its ceiling, opening the chat
+   switcher: the panel jumped from 450 to the loose 547 with its top edge 11px off the top of the
+   screen, held it for the whole 300ms roll, and the placement at the end put the real 450 back in a
+   single frame. The real ceiling is written to the element for the duration instead, so the section
+   rolls to its full height and the history gives the room up. Traced afterwards: the panel holds at
+   450 with its top edge on the 86px line for every frame, the switcher rolls 0 to 120, and the
+   history goes 293 to 173. Under the ceiling nothing changes: the same roll on a 353px panel grows
+   it to 450 with the bottom edge pinned, which is decision 3 of this ADR working as it always did.

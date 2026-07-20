@@ -42,12 +42,15 @@ interface PanelProps {
  *  view being left is never cut away mid-movement. */
 const MORPH_MS = MAX_DURATION_MS;
 
-/** A view of the panel. The console's tab is NOT part of the name: both tabs are mounted inside it
- *  and the taller one sets the height (`ConsoleView`), so switching tabs is not a view change, does
- *  not resize the panel, and does not re-run the chrome's enter animation. Making a tab a view of
- *  its own was the first shape, and it flinched: the panel jumped 12px between two tabs that differ
- *  by that much, and the header and the back chevron faded out and in around content that was the
- *  only thing actually changing. */
+/** A view of the panel. The console's tab is NOT part of the name: both tabs are mounted inside it,
+ *  so switching tabs is not a view change, does not re-centre the panel, and does not re-run the
+ *  chrome's enter animation. Making a tab a view of its own was the first shape, and it flinched:
+ *  the panel jumped 12px between two tabs that differ by that much, and the header and the back
+ *  chevron faded out and in around content that was the only thing actually changing.
+ *
+ *  A tab change can still resize the panel, and there is one number saying when (`TAB_SPREAD_PX` in
+ *  `ConsoleView`): tabs within it share the taller one's height, tabs beyond it each get their own
+ *  and the panel morphs, which is the ordinary growth-inside-a-view move and not a view change. */
 type View = "chat" | "console";
 
 const CONSOLE: View = "console";
@@ -57,10 +60,12 @@ const CONSOLE: View = "console";
  *  Closed, it sits scaled at centre (summon/dismiss pop from the middle), except when the mode is
  *  `orb`, where `to-orb` parks it at the corner so minimize/maximize *travel* to and from the orb.
  *
- *  The chat view is never unmounted, only taken out of the layout flow: a half-typed draft, the
- *  history's scroll position, and the composer's focus all survive a trip to the console and back.
- *  The view being left behind is held for one morph, absolutely positioned so it cannot define the
- *  height the panel is easing to, and faded out over the one arriving. */
+ *  The chat view is never unmounted, only taken out of the layout flow, so a half-typed draft and
+ *  the composer's focus survive a trip to the console and back. The view being left behind is held
+ *  for one morph, absolutely positioned so it cannot define the height the panel is easing to, and
+ *  faded out over the one arriving. The history's scroll position is the one thing that does NOT
+ *  come along for free: being out of the flow is exactly what loses it, so `ChatView` parks it and
+ *  hands it back. */
 export function Panel(props: PanelProps) {
   const { state, open, themeName, mark, onOpenConsole, onCloseConsole } = props;
   const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;

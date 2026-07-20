@@ -1,8 +1,32 @@
+import { useLayoutEffect, useRef } from "react";
+
 import type { MarkStyle } from "../mark/marks";
 import { CONSOLE_TABS, type ConsoleTab } from "../overlay/overlayState";
 import { AppearanceTab } from "./AppearanceTab";
 import { BackIcon } from "./icons";
 import { ShortcutsTab } from "./ShortcutsTab";
+
+/**
+ * How far apart two tabs may stand, in px, and still be held at one shared height.
+ *
+ * Both tabs are mounted and stacked in one grid cell, so the taller of them decides the panel's
+ * height and switching tabs resizes nothing. That is right while the two are close: measured in
+ * Chromium at a 640x720 window the appearance tab wants 278px and the shortcut list 290px, and a
+ * window that jumps 12px and back reads as a flinch rather than as a change of view. It stops being
+ * right once a tab is genuinely shorter than its neighbour, where holding the taller one's height
+ * leaves a band of empty panel under the content and the window is lying about how much is in it.
+ * Past this many pixels the tab on screen is given its own height and the panel morphs to fit it.
+ *
+ * This is the only number in it, and it is the one to retune: raise it to hold more pairs still,
+ * lower it to let more of them move. Nothing else has to change either way.
+ */
+export const TAB_SPREAD_PX = 15;
+
+/** Set on the stack for the length of one synchronous measurement, never across a paint. */
+const MEASURING_ATTRIBUTE = "data-measuring";
+
+/** Set on the stack while the tab on screen owns the height, rather than the taller of the two. */
+const APART_CLASS = "apart";
 
 /** How each tab is named on the strip. Beside `CONSOLE_TABS` rather than inside it: the reducer's
  *  list is the state machine's, and how a tab is worded is this view's business. */
@@ -44,6 +68,27 @@ export function ConsoleView({
   onSelectTab,
   onClose,
 }: ConsoleViewProps) {
+  // The stack is mounted with the view, so the ref is set before any effect runs.
+  const stack = useRef<HTMLDivElement>(null!);
+
+  // Which of the two shapes the stack is in, decided from the tabs themselves rather than from a
+  // list of which pairs happen to be close. A layout effect and a direct write, because the panel
+  // measures the result: `usePanelMotion`'s own layout effect runs after this one (React flushes a
+  // child's before its parent's), so the height the panel eases to is the one decided here, and no
+  // render of the panel's ever sees the other one.
+  useLayoutEffect(() => {
+    const element = stack.current;
+    // Measured in a pose the stack does not otherwise hold. A pane stretched to the cell reports
+    // the CELL's height, which is the taller tab's, which is exactly the difference being looked
+    // for: unstretched, each reports what it is worth. One synchronous read, so nothing paints in
+    // this pose, and the grid's row is sized to the taller pane either way, so it does not move.
+    element.setAttribute(MEASURING_ATTRIBUTE, "");
+    const heights = [...element.children].map((pane) => (pane as HTMLElement).offsetHeight);
+    element.removeAttribute(MEASURING_ATTRIBUTE);
+    const spread = Math.max(...heights) - Math.min(...heights);
+    element.classList.toggle(APART_CLASS, spread > TAB_SPREAD_PX);
+  });
+
   return (
     <section className="pane" aria-label="Settings">
       {/* One line of chrome: the way back, and the strip saying which half you are looking at. A
@@ -77,16 +122,15 @@ export function ConsoleView({
         </div>
         <span className="hspacer" aria-hidden="true" />
       </header>
-      {/* Both tabs are mounted, stacked in one grid cell, and the taller one decides the height.
-          Switching tabs therefore does not resize the panel at all: measured, the two are 335px and
-          347px apart, and a window that jumps 12px and back reads as a flinch rather than as a
-          change of view. A threshold could let a genuinely taller tab shrink the panel back, but
-          there is no such tab to design against yet, and this is the shape that needs no number.
+      {/* Both tabs are mounted and stacked in one grid cell. Whether the taller one decides the
+          height for both, or the tab on screen decides its own and the panel morphs, is the one
+          judgement above (`TAB_SPREAD_PX`): close together they share, far apart they do not. The
+          two that ship today are 12px apart, so they share, and switching tabs moves nothing.
 
-          The inactive tab keeps its box (that is the point) and gives up everything else: it is
-          hidden from assistive tech and from the pointer, and `visibility` is what takes it out of
-          the tab order too, which `opacity` alone would not. */}
-      <div className="tabstack">
+          The inactive tab keeps its box while they share (that is the point) and gives up
+          everything else: it is hidden from assistive tech and from the pointer, and `visibility`
+          is what takes it out of the tab order too, which `opacity` alone would not. */}
+      <div className="tabstack" ref={stack}>
         {CONSOLE_TABS.map((name) => (
           <div
             key={name}
