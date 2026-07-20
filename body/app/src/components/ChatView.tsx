@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useRef } from "react";
+import { useEffect } from "react";
 
 import type { MarkStyle } from "../mark/marks";
 import { type ConsoleTab, type OverlayState, isTurnActive } from "../overlay/overlayState";
+import { useLogScroll } from "../overlay/useLogScroll";
 import { BubbleMark } from "./BubbleMark";
 import { CaptureDot } from "./CaptureDot";
 import { Collapse } from "./Collapse";
@@ -43,9 +44,6 @@ export interface ChatViewProps {
   readonly onDismissReminder: (reminderId: string) => void;
 }
 
-/** How close to the bottom (px) still counts as "reading the tail" for auto-scroll. */
-const PIN_THRESHOLD_PX = 40;
-
 /** Example prompts on the empty state; tapping one submits it. Real capabilities only. */
 const EXAMPLE_PROMPTS = ["Summarize my unread email", "Remind me to stretch in 20 minutes"];
 
@@ -72,28 +70,14 @@ export function ChatView({
   onRespondConfirm,
   onDismissReminder,
 }: ChatViewProps) {
-  // The history is always mounted with the view, so the ref is set before any effect runs.
-  const historyRef = useRef<HTMLDivElement>(null!);
-  const pinned = useRef(true);
-
-  const onHistoryScroll = () => {
-    const el = historyRef.current;
-    pinned.current = el.scrollHeight - el.scrollTop - el.clientHeight <= PIN_THRESHOLD_PX;
-  };
-
-  // "The reader is at the tail" is a claim about the log that has to survive everything that can
-  // falsify it, so the one way of restoring it is shared. Refs only, so its identity is stable and
-  // the composer's measurement below does not re-run on every frame of a stream.
-  const pinToTail = useCallback(() => {
-    if (pinned.current) {
-      const el = historyRef.current;
-      el.scrollTop = el.scrollHeight;
-    }
-  }, []);
+  // The chat is the view on screen while no console tab is up, which is the one thing the log's
+  // scroll position cannot look after itself through (`useLogScroll`).
+  const showing = state.consoleTab === null;
+  const log = useLogScroll(showing);
 
   // Follow the stream: each message change (and the approval card) scrolls the tail into view,
   // unless the reader has scrolled up to read (then their place holds until they return).
-  useEffect(pinToTail, [pinToTail, state.messages, state.pendingConfirm]);
+  useEffect(log.toTail, [log.toTail, state.messages, state.pendingConfirm]);
 
   const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   return (
@@ -153,7 +137,7 @@ export function ChatView({
           onOpen={onSelectSession}
         />
       </Collapse>
-      <div className="history" ref={historyRef} onScroll={onHistoryScroll}>
+      <div className="history" ref={log.ref} onScroll={log.onScroll}>
         {/* Everything the history holds lives in one inner column, `.log`, because the floor that
             stops the first send from shrinking the panel (its `min-height`, sized to the empty
             state in overlay.css) has to sit on the CONTENT rather than on the scroll box. A floor
@@ -212,10 +196,10 @@ export function ChatView({
           console left it and which the browser is about to display:none out from under it. */}
       <Composer
         busy={isTurnActive(state)}
-        active={open && state.consoleTab === null}
+        active={open && showing}
         onSubmit={onSubmit}
         onStop={onStop}
-        onResize={pinToTail}
+        onResize={log.toTail}
       />
       {/* Esc is not listed here: the strip is a convenience, it had run out of room once the
           settings button joined it, and Esc-to-dismiss is the most guessable of the five. The

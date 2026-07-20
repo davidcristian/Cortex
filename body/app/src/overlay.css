@@ -186,10 +186,14 @@
    them. `.views` is the stack they share; only the ACTIVE view is in the layout flow, so it alone
    decides the height the panel is easing to.
 
-   The chat is never unmounted, only switched to `gone` (a half-typed draft, the history's scroll
-   position and the composer's focus all survive a trip to settings); the view being LEFT is held
-   for one morph as `.out`, lifted out of flow so it cannot fight the incoming one for the height,
-   and faded out over the top of it. */
+   The chat is never unmounted, only switched to `gone`, so a half-typed draft and the composer's
+   focus survive a trip to settings; the view being LEFT is held for one morph as `.out`, lifted out
+   of flow so it cannot fight the incoming one for the height, and faded out over the top of it.
+
+   Being out of flow is what costs the history its scroll position, twice: unbounded by the panel it
+   has its whole content as its window and nothing left to scroll, and `gone` is `display: none` a
+   morph later. `ChatView` parks the position and hands it back, so this stays a layout question
+   rather than the reader's. */
 .views {
   position: relative;
   flex: 1 1 auto;
@@ -1234,8 +1238,9 @@
    the settings rows used to hold, promoted to the level it now switches.
 
    Both tabs are mounted at once and stacked (`.tabstack`), so switching them is not a view change:
-   the strip and the chevron are the same elements before and after, and neither the panel's size
-   nor its enter animation has anything to do. */
+   the strip and the chevron are the same elements before and after, and the enter animation has
+   nothing to do. Nor has the panel's size, as long as the two tabs are close enough to share a
+   height; see `.tabstack` below for where that stops. */
 .hspacer {
   width: 30px;
   flex: none;
@@ -1274,11 +1279,31 @@
 /* The tab's own body. It is the flex column the rows expect to be in, so a tab is free to be a
    list, a wall of swatches, or both, and the panel still shrinks to exactly its height. */
 /* Both tabs occupy the same grid cell, so the container is as tall as the taller of them and a tab
-   switch changes nothing about the panel's size. Only the content crosses over. */
+   switch changes nothing about the panel's size. Only the content crosses over. That holds while
+   the two are within `TAB_SPREAD_PX` of each other (components/ConsoleView.tsx measures them and
+   sets `apart` when they are not); past it the pane not on screen leaves the flow, the cell is left
+   to the pane that is, and the panel morphs between the two heights like any other size change.
+
+   `relative` is what makes the dev machine the containing block for that departed pane. */
 .tabstack {
   display: grid;
+  position: relative;
   flex: 0 1 auto;
   min-height: 0;
+}
+/* Out of the flow, so it contributes no height, and still laid out at its own so it stays
+   measurable: no `bottom`, which is what leaves the height to the content. */
+.tabstack.apart .tabpane:not(.on) {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+}
+/* The pose the stack is measured in, held for one synchronous read and never painted. Stretched to
+   the cell, a pane reports the cell's height, which is the taller pane's, so the two panes read as
+   identical and the spread being measured is invisible in it. */
+.tabstack[data-measuring] .tabpane {
+  align-self: start;
 }
 .tabpane {
   grid-area: 1 / 1;

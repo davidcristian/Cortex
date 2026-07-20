@@ -1,9 +1,9 @@
 import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { WOBBLE } from "../mark/marks";
 import { CONSOLE_TABS, type ConsoleTab } from "../overlay/overlayState";
-import { ConsoleView } from "./ConsoleView";
+import { ConsoleView, TAB_SPREAD_PX } from "./ConsoleView";
 
 function renderConsole(
   tab: ConsoleTab,
@@ -22,6 +22,24 @@ function renderConsole(
     />,
   );
 }
+
+/** jsdom has no layout, so the two tabs are given heights: the taller keeps the one the browser
+ *  measures for the shortcut list, and the other stands `spread()` px under it. Keyed off the
+ *  pane's own label, so what is stubbed is the two panes and not every box in the tree. */
+function stubTabHeights(spread: () => number) {
+  vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockImplementation(function (
+    this: HTMLElement,
+  ) {
+    if (!this.classList.contains("tabpane")) {
+      return 0;
+    }
+    return this.getAttribute("aria-label") === "Appearance" ? 290 - spread() : 290;
+  });
+}
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 describe("ConsoleView", () => {
   it("is one region with a strip of every tab, the showing one selected", () => {
@@ -67,6 +85,27 @@ describe("ConsoleView", () => {
     // Idempotent by construction: showing the tab that is up is what the reducer does with this.
     fireEvent.click(screen.getByRole("tab", { name: "Appearance" }));
     expect(onSelectTab).toHaveBeenLastCalledWith("appearance");
+  });
+
+  it("holds one height for two close tabs, and lets the shorter go when they are not close", () => {
+    let spread = TAB_SPREAD_PX;
+    stubTabHeights(() => spread);
+    const stack = () => document.querySelector(".tabstack") as HTMLElement;
+
+    // At the tolerance exactly the stack still holds both, so the panel keeps the taller tab's
+    // height whichever tab is up and switching tabs resizes nothing.
+    const held = renderConsole("appearance");
+    expect(stack().classList.contains("apart")).toBe(false);
+    held.unmount();
+
+    // One pixel further apart and the difference is a real one, so the pane not on screen leaves
+    // the flow and the panel is free to morph between the two heights.
+    spread = TAB_SPREAD_PX + 1;
+    renderConsole("appearance");
+    expect(stack().classList.contains("apart")).toBe(true);
+    // The measuring pose is never left behind: it exists for one synchronous read, and outliving
+    // it would hand the panel a height nothing in the stack agrees with.
+    expect(stack().hasAttribute("data-measuring")).toBe(false);
   });
 
   it("comes back to the chat from the header, and is not a sheet with a backdrop", () => {

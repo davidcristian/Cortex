@@ -60,6 +60,37 @@ import { rideAlong } from "./panelRide";
 /** The view whose position is remembered across a trip to another one. */
 const CHAT_VIEW = "chat";
 
+/** Every box inside the panel that scrolls: the conversation, and a console tab's rows. Written out
+ *  rather than discovered, because discovering it means reading `scrollTop` off every node in the
+ *  panel on every token of a stream. A new scrolling box in the panel belongs in this list. */
+const SCROLL_BOXES = ".history, .rows";
+
+/**
+ * Take the scroll positions the measurement below is about to cost, and give them back.
+ *
+ * The panel measures itself by growing to the loosest cap any edge could allow and reading what it
+ * becomes (`openHeight`). A scroll box inside a taller panel is a taller box, and the engine answers
+ * a box that has outgrown its own scroll range by CLAMPING it to the range it now has, which putting
+ * the real cap back does not undo. So the panel's own measurement walks the log up under the reader.
+ *
+ * Traced at 60Hz at 640x720 through a streamed reply, wheeling 60px up from the tail: `scrollTop`
+ * read 312, then 252 the frame the wheel landed, then 215 two frames later with nothing else
+ * touching it, 215 being exactly the deepest a 390px window can scroll a 605px log. Every token did
+ * it again, which is what "the history will not let me scroll while a reply streams" is. The same
+ * clamp lands on the way back from the console, where it took the position `ChatView` had just
+ * restored and left the log 97px off the tail rather than where the reader was.
+ */
+function holdScroll(element: HTMLElement): () => void {
+  const boxes = [...element.querySelectorAll<HTMLElement>(SCROLL_BOXES)].map(
+    (box) => [box, box.scrollTop] as const,
+  );
+  return () => {
+    for (const [box, top] of boxes) {
+      box.scrollTop = top;
+    }
+  };
+}
+
 /**
  * Where the panel's bottom edge wants to be, before the ceiling has its say.
  *
@@ -121,6 +152,7 @@ export function place(element: HTMLElement | null, memory: Memory, at: Placement
   // empty chat settled 82px below centre and scrolled, having capped itself at 520px where 604
   // would have fitted. Whole pixels throughout, so the numbers written to the DOM are the same ones
   // the arithmetic predicts against (`panelGeometry.maxHeight`).
+  const release = holdScroll(element);
   element.style.maxHeight = `${openHeight(viewport)}px`;
   const section = element.querySelector<HTMLElement>(`[${MORPHING_ATTRIBUTE}]`);
   if (section !== null) {
@@ -132,9 +164,18 @@ export function place(element: HTMLElement | null, memory: Memory, at: Placement
       memory.rolling = rolling;
       rideAlong(element, memory, section, viewport, arriving(memory, at));
     }
+    // The roll owns the height, but not the ceiling. The cap above is a MEASURING cap, and a roll is
+    // not a placement: left there for the length of the roll, it is the panel's licence to grow
+    // clean past the clear space kept at the top. Traced at 60Hz at 640x720 with the panel near its
+    // ceiling, opening the chat switcher: the panel rolled to the loose 547 with its top edge off
+    // the screen, and the placement at the END of the roll put the real 351 back in one frame, which
+    // is the overshoot and the pop back. Capped here instead, the section still rolls to its full
+    // height and the history gives the room up, which is what the history is for.
+    element.style.maxHeight = `${maxHeight(viewport, memory.applied)}px`;
     // Record what the eye sees, so a later change eases from here.
     memory.shown = { height: heightOf(element), bottom: memory.applied };
     memory.deferred = true;
+    release();
     return;
   }
   memory.rolling = null;
@@ -166,6 +207,7 @@ export function place(element: HTMLElement | null, memory: Memory, at: Placement
   // Re-read: the real cap may have shortened the panel, and everything below animates to what the
   // element actually is rather than to what it wanted to be.
   const next: Geometry = { height: heightOf(element), bottom };
+  release();
   memory.applied = bottom;
   element.style.bottom = `${Math.round(bottom)}px`;
   memory.shown = next;

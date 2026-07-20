@@ -2,6 +2,7 @@ import { renderHook } from "@testing-library/react";
 import { useLayoutEffect } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { openHeight } from "./panelGeometry";
 import { usePanelMotion } from "./usePanelMotion";
 
 const VIEWPORT = 1000;
@@ -96,6 +97,38 @@ function rolling(parent: HTMLElement, target: number, height: number): HTMLEleme
   rolled(section, height);
   parent.append(section);
   return section;
+}
+
+/**
+ * A scrolling box inside the panel, wearing the browser's clamp.
+ *
+ * The panel measures itself under the loosest cap any edge could allow, so for that read it is
+ * taller and every box inside it is taller too. A box that has outgrown its own scroll range is
+ * clamped by the engine to the range it now has, and putting the real cap back does not undo it:
+ * `deep` is what the dev machine can hold at rest, and `measuring` the shallower thing it can hold while
+ * the panel is being measured.
+ */
+function scrollBox(element: HTMLElement, deep: number, measuring: number): HTMLElement {
+  const box = document.createElement("div");
+  box.className = "history";
+  element.append(box);
+  let top = 0;
+  const clamp = () => {
+    const loose = element.style.maxHeight === `${openHeight(VIEWPORT)}px`;
+    top = Math.min(top, loose ? measuring : deep);
+  };
+  Object.defineProperty(box, "scrollTop", {
+    configurable: true,
+    get: () => {
+      clamp();
+      return top;
+    },
+    set: (value: number) => {
+      top = value;
+      clamp();
+    },
+  });
+  return box;
 }
 
 /**
@@ -456,6 +489,50 @@ describe("usePanelMotion", () => {
     rerender();
     expect(bottom()).toBe(87);
     expect(moves).toEqual([]);
+  });
+
+  it("keeps the real ceiling on the element for the length of a roll, so it cannot overshoot", () => {
+    const { ref, element, state } = harness();
+    state.natural = 400;
+    const { rerender } = renderHook(() => usePanelMotion(ref, true, "chat"));
+    expect(element.style.maxHeight).toBe("580px");
+    state.playState = "finished";
+    // A roll is not a placement: nothing takes the measuring cap back off until the roll ENDS, so
+    // left there it is the section's licence to roll the panel past the clear space kept above it.
+    // Traced at 60Hz at 640x720 with the panel already on its ceiling, opening the chat switcher:
+    // the panel went to the loose 547 with its top edge 11px off the top of the screen, stayed
+    // there for the whole 300ms roll, and the placement at the end put the real 450 back in a
+    // single frame. Capped for the duration instead, the section rolls to its full height and the
+    // history gives the room up, which is what the history is for.
+    rolling(element, 190, 0);
+    rerender();
+    expect(element.style.maxHeight).toBe("580px");
+    // And on every render inside the same roll, since each one writes the measuring cap first.
+    rerender();
+    expect(element.style.maxHeight).toBe("580px");
+  });
+
+  it("hands back a scroll position that its own measurement clamped", () => {
+    const { ref, element, state } = harness();
+    state.natural = 400;
+    // At rest the dev machine can scroll to 400; while the panel is being measured it is taller, and can
+    // hold only 80. A reader at 120 is inside the difference, which is where the defect lived.
+    const history = scrollBox(element, 400, 80);
+    const { rerender } = renderHook(() => usePanelMotion(ref, true, "chat"));
+    history.scrollTop = 120;
+
+    // Any placement at all: a token landing, a section rolling, the window resizing. Before this,
+    // every one of them walked the log up under the reader by exactly the difference above, which
+    // is what "the history will not let me scroll while a reply streams" was.
+    state.playState = "finished";
+    state.natural = 420;
+    rerender();
+    expect(history.scrollTop).toBe(120);
+
+    // Including the roll path, which returns from the middle of `place` and has its own way out.
+    rolling(element, 190, 0);
+    rerender();
+    expect(history.scrollTop).toBe(120);
   });
 
   it("scales the duration to the distance moved, between a floor and a ceiling", () => {
