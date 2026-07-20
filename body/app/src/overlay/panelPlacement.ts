@@ -20,6 +20,11 @@ import { rideAlong } from "./panelRide";
 const CHAT_VIEW = "chat";
 
 /** Where the panel's bottom edge wants to be, before the ceiling has its say. */
+function centringHeight(element: HTMLElement, height: number): number {
+  const aside = element.querySelector<HTMLElement>(".collapse.aside");
+  return height - (aside?.offsetHeight ?? 0);
+}
+
 function wantedBottom(memory: Memory, at: Placement, viewport: number, height: number): number {
   const changed = memory.view !== at.view;
   if (changed && memory.view === CHAT_VIEW) {
@@ -77,7 +82,7 @@ export function place(element: HTMLElement | null, memory: Memory, at: Placement
   const displayed = deferred
     ? { height: carrying ?? height, bottom: was }
     : (inFlight ?? memory.shown);
-  const wanted = wantedBottom(memory, at, viewport, height);
+  const wanted = wantedBottom(memory, at, viewport, centringHeight(element, height));
   memory.pinned = wanted;
   const bottom = clamped(wanted);
   element.style.maxHeight = `${maxHeight(viewport, bottom)}px`;
@@ -90,9 +95,11 @@ export function place(element: HTMLElement | null, memory: Memory, at: Placement
   if (!at.open || displayed === null || settled(displayed, next)) {
     // Closed, first measurement, or nothing moved: keep the geometry for next time, animate
     // nothing. Measuring while closed is what lets a reopen animate from a real height.
+    element.removeAttribute(RESIZING_ATTRIBUTE);
     return;
   }
   if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    element.removeAttribute(RESIZING_ATTRIBUTE);
     return;
   }
   const holding = live && settled(memory.aim, next);
@@ -104,9 +111,6 @@ export function place(element: HTMLElement | null, memory: Memory, at: Placement
     { duration, easing: EASING },
   );
   element.setAttribute(RESIZING_ATTRIBUTE, "");
-  // Both endings clear it. A cancel is the common one during a stream, where the next token's
-  // render replaces this move, and that render sets the attribute again on its way out.
   animation.onfinish = () => element.removeAttribute(RESIZING_ATTRIBUTE);
-  animation.oncancel = animation.onfinish;
   memory.running = animation;
 }

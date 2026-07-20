@@ -228,6 +228,23 @@ describe("usePanelMotion", () => {
     expect(bottom()).toBe(300);
   });
 
+  it("leaves an aside section out of the height a summon centres on", () => {
+    const tick = clock();
+    const { ref, element, state, bottom } = harness();
+    state.natural = 300;
+    const { rerender } = renderHook(({ open }) => usePanelMotion(ref, open, "chat"), {
+      initialProps: { open: false },
+    });
+    rerender({ open: true });
+    expect(bottom()).toBe(350);
+
+    tick(1);
+    const section = rolling(element, 200, 0);
+    section.classList.add("aside");
+    rerender({ open: true });
+    expect(bottom()).toBe(350);
+  });
+
   it("centres a summon on what it arrives with, not on the height it had while shut", () => {
     const tick = clock();
     const { ref, state, bottom } = harness();
@@ -708,12 +725,11 @@ describe("usePanelMotion", () => {
     expect(element.hasAttribute("data-resizing")).toBe(true);
     played[0]?.onfinish?.();
     expect(element.hasAttribute("data-resizing")).toBe(false);
-    // A cancel clears it too. During a stream that is the common ending: the next token's render
-    // replaces the move, and sets the attribute again on its way out.
     state.natural = 600;
     rerender();
     expect(element.hasAttribute("data-resizing")).toBe(true);
-    played[1]?.oncancel?.();
+    state.playState = "finished";
+    rerender();
     expect(element.hasAttribute("data-resizing")).toBe(false);
   });
 

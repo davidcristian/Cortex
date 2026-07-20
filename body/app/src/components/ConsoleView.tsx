@@ -64,21 +64,28 @@ export function ConsoleView({
         </div>
         <span className="hspacer" aria-hidden="true" />
       </header>
-      {/* Named by `aria-label` rather than pointing at the tab's id: both the tab being left and
-          the one arriving are mounted together for the length of the morph, so any id in here
-          would be in the document twice while the panel crosses over. */}
-      <div className="tabpanel" role="tabpanel" aria-label={TAB_LABELS[tab]}>
-        {tab === "appearance" ? (
-          <AppearanceTab
-            themeName={themeName}
-            mark={mark}
-            animated={animated}
-            onPickTheme={onPickTheme}
-            onPickMark={onPickMark}
-          />
-        ) : (
-          <ShortcutsTab />
-        )}
+      <div className="tabstack">
+        {CONSOLE_TABS.map((name) => (
+          <div
+            key={name}
+            className={`tabpane${name === tab ? " on" : ""}`}
+            role="tabpanel"
+            aria-label={TAB_LABELS[name]}
+            aria-hidden={name !== tab}
+          >
+            {name === "appearance" ? (
+              <AppearanceTab
+                themeName={themeName}
+                mark={mark}
+                animated={animated}
+                onPickTheme={onPickTheme}
+                onPickMark={onPickMark}
+              />
+            ) : (
+              <ShortcutsTab />
+            )}
+          </div>
+        ))}
       </div>
     </section>
   );

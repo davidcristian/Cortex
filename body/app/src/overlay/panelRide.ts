@@ -23,10 +23,8 @@ export function rideAlong(
   const target = Number(section.getAttribute(MORPHING_ATTRIBUTE));
   const height = Math.min(natural - heightOf(section) + target, maxHeight(viewport, memory.applied));
   if (arrival) {
-    // The summon is still landing, so this roll is part of the panel appearing rather than growth
-    // after the fact: it ends centred on the height it is taking the panel to, and that is the edge
-    // the session is then pinned to.
-    memory.pinned = centred(viewport, height);
+    const counted = section.classList.contains("aside") ? height - target : height;
+    memory.pinned = centred(viewport, counted);
   }
   const bottom = clamped(memory.pinned);
   const from = shown?.bottom ?? memory.applied;

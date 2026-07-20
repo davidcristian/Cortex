@@ -1,7 +1,7 @@
 import { useRef } from "react";
 
 import type { MarkStyle } from "../mark/marks";
-import { CONSOLE_TABS, type ConsoleTab, type OverlayState } from "../overlay/overlayState";
+import type { ConsoleTab, OverlayState } from "../overlay/overlayState";
 import { MAX_DURATION_MS } from "../overlay/panelGeometry";
 import { usePanelMotion } from "../overlay/usePanelMotion";
 import { useViewTransition } from "../overlay/useViewTransition";
@@ -39,28 +39,23 @@ interface PanelProps {
 /** How long the outgoing view stays on screen. */
 const MORPH_MS = MAX_DURATION_MS;
 
-/** A view of the panel. The console's TAB is part of the name on purpose: switching tabs is then a
- *  view change like any other, so it resizes and re-centres through the one motion the panel
- *  already has, and the cross-fade between the outgoing and incoming view carries it for free. */
-type View = "chat" | `console:${ConsoleTab}`;
+/** A view of the panel. */
+type View = "chat" | "console";
 
-const viewOf = (tab: ConsoleTab): View => `console:${tab}`;
+const CONSOLE: View = "console";
 
 /** The overlay panel: one window that shows one view at a time and morphs between them. */
 export function Panel(props: PanelProps) {
   const { state, open, themeName, mark, onOpenConsole, onCloseConsole } = props;
   const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  const view: View = state.consoleTab === null ? "chat" : viewOf(state.consoleTab);
+  const view: View = state.consoleTab === null ? "chat" : CONSOLE;
   const leaving = useViewTransition(view, MORPH_MS);
   const panelRef = useRef<HTMLDivElement>(null);
   usePanelMotion(panelRef, open, view);
 
   const closed = state.mode === "orb" ? " to-orb" : "";
-  const swap = leaving !== null && view !== "chat" && leaving !== "chat" ? " swap" : "";
   const classOf = (name: View) =>
-    name === view ? `view${swap}` : name === leaving ? `view out${swap}` : "view gone";
-  // A console tab is mounted while it is the view, and for one morph after it stops being one.
-  const showing = (tab: ConsoleTab) => view === viewOf(tab) || leaving === viewOf(tab);
+    name === view ? "view" : name === leaving ? "view out" : "view gone";
 
   return (
     <div
@@ -74,13 +69,10 @@ export function Panel(props: PanelProps) {
         <div className={classOf("chat")} aria-hidden={view !== "chat"}>
           <ChatView {...props} />
         </div>
-        {/* Both console tabs can be on screen at once, for exactly one morph: the one being left
-            is still fading out over the one arriving. Mounted from the tab list rather than from
-            two branches, so a third tab would be a name in that list and nothing here. */}
-        {CONSOLE_TABS.filter((tab) => showing(tab)).map((tab) => (
-          <div key={tab} className={classOf(viewOf(tab))} aria-hidden={view !== viewOf(tab)}>
+        {view === CONSOLE || leaving === CONSOLE ? (
+          <div className={classOf(CONSOLE)} aria-hidden={view !== CONSOLE}>
             <ConsoleView
-              tab={tab}
+              tab={state.consoleTab ?? "appearance"}
               themeName={themeName}
               mark={mark}
               animated={!reduced}
@@ -90,7 +82,7 @@ export function Panel(props: PanelProps) {
               onClose={onCloseConsole}
             />
           </div>
-        ))}
+        ) : null}
       </div>
     </div>
   );
