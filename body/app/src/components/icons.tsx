@@ -121,6 +121,16 @@ export function CloseIcon() {
   );
 }
 
+/** Back to the chat from the panel's other view: a left chevron, because that view is a place the
+ *  panel went to rather than a dialog laid over it, and leaving it is a return rather than a close. */
+export function BackIcon() {
+  return (
+    <Icon>
+      <path d="M14.5 6l-6 6l6 6" />
+    </Icon>
+  );
+}
+
 /** Dismiss a reminder: a check for "got it", never an X. Acking is delivery, not cancellation:
  *  a recurring series re-arms afterwards, so the glyph must not read as "delete this". */
 export function CheckIcon() {

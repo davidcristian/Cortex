@@ -128,7 +128,10 @@ export const initialState: OverlayState = createInitialState("");
 export function reduce(state: OverlayState, action: Action): OverlayState {
   switch (action.kind) {
     case "open":
-      return { ...state, mode: "panel", touched: true };
+      // A summon always arrives at the chat. Clearing the console HERE and not on dismiss is the
+      // whole trick: the panel fades out wearing whatever it had on, instead of morphing back to
+      // the chat first and then fading, which read as the window changing its mind on the way out.
+      return { ...state, mode: "panel", consoleTab: null, touched: true };
     case "submit":
       return submit(state, action.text);
     case "event": {
@@ -152,7 +155,6 @@ export function reduce(state: OverlayState, action: Action): OverlayState {
       return {
         ...state,
         mode: isTurnActive(state) ? "orb" : "hidden",
-        consoleTab: null,
         pendingConfirm: null,
       };
     case "stop":

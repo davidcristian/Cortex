@@ -41,13 +41,13 @@ describe("ConsoleView", () => {
   it("shows the appearance choices on one tab and the shortcut list on the other", () => {
     const { unmount } = renderConsole("appearance");
     expect(screen.getByRole("tabpanel", { name: "Appearance" })).toBeInTheDocument();
-    expect(screen.getByRole("radiogroup", { name: "Mark style" })).toBeInTheDocument();
+    expect(screen.getByRole("radiogroup", { name: "Bubble" })).toBeInTheDocument();
     expect(screen.queryByText("Chat switcher")).toBeNull();
     unmount();
     renderConsole("shortcuts");
     expect(screen.getByRole("tabpanel", { name: "Shortcuts" })).toBeInTheDocument();
     expect(screen.getByText("Switcher")).toBeInTheDocument();
-    expect(screen.queryByRole("radiogroup", { name: "Mark style" })).toBeNull();
+    expect(screen.queryByRole("radiogroup", { name: "Bubble" })).toBeNull();
   });
 
   it("takes focus onto the tab it is showing, since the strip it was clicked on is leaving", () => {

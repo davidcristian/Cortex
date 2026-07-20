@@ -203,13 +203,19 @@ describe("overlayState reducer", () => {
     );
   });
 
-  it("closeConsole leaves in one step from either tab, and dismiss closes the console too", () => {
+  it("closeConsole leaves in one step, and a dismissed panel keeps the console until it returns", () => {
     for (const tab of ["appearance", "shortcuts"] as const) {
       const opened = reduce(reduce(initialState, { kind: "open" }), { kind: "openConsole", tab });
       // One press, not two: there is no second sheet stacked behind this one any more.
       expect(reduce(opened, { kind: "closeConsole" }).consoleTab).toBeNull();
-      // A dismissed panel re-summons onto the chat, never onto stale help or the tiles.
-      expect(reduce(opened, { kind: "dismiss" }).consoleTab).toBeNull();
+      // Dismissing does NOT close it. Clearing the tab here would change the view mid-dismiss, so
+      // the panel morphed back to the chat and only then faded, which reads as the window changing
+      // its mind on the way out. It fades wearing what it had on instead.
+      const gone = reduce(opened, { kind: "dismiss" });
+      expect(gone.consoleTab).toBe(tab);
+      expect(gone.mode).toBe("hidden");
+      // The next summon is what puts it back on the chat, so nothing re-opens onto stale tiles.
+      expect(reduce(gone, { kind: "open" }).consoleTab).toBeNull();
     }
   });
 

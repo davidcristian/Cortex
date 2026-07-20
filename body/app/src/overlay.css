@@ -192,9 +192,6 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.head > .title:first-child {
-  margin-left: 14px;
-}
 .hbtn {
   width: 30px;
   height: 30px;
@@ -864,6 +861,13 @@
   gap: 4px;
 }
 
+.head > .tabs {
+  margin-inline: auto;
+}
+.hspacer {
+  width: 30px;
+  flex: none;
+}
 .tabs {
   flex: none;
   align-self: center;
@@ -915,10 +919,9 @@
   text-transform: uppercase;
   color: var(--dim);
 }
-/* One line under a group of tiles, explaining the choice the art cannot say out loud (what Auto
-   follows; what the chosen mark does when it moves). */
 .note {
   margin: 0;
+  text-align: center;
   font-size: 11.5px;
   color: var(--dim);
 }

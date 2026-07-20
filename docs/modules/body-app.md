@@ -166,7 +166,7 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
   acks (an ack destroys the reminder, navigation does not), and the control is *absent* for a
   session-less row (`""`) or for the chat already on screen, where it would cancel that chat's
   running turn to arrive where it already is.
-- **The panel's views** (`components/Panel.tsx` + `ChatView.tsx` + `PanelView.tsx` +
+- **The panel's views** (`components/Panel.tsx` + `ChatView.tsx` + `ConsoleView.tsx` +
   `ConsoleView.tsx`, ADR-0034): `Panel` is a router over views of one window, not a window with
   sheets over it, and the views are `chat` plus one per **console** tab
   (`console:appearance` | `console:shortcuts`, ADR-0035 decision 1). Only the active view is in the
