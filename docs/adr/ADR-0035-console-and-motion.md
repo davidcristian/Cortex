@@ -951,3 +951,33 @@ session list 120, composer 48 and hints 33 come to 447 of the 450 available, so 
 with what is left, and the design's answer to a panel at its ceiling is that the history yields and
 scrolls. What did change is that the panel no longer overshoots the ceiling while a section rolls,
 so that squeeze is now visible during the roll rather than only after it.
+
+## Addendum, 2026-07-20: the send button gets a hover, and it is the glyph that moves
+
+Four were pitched to the user as a live page of the real button in its three states and both
+themes: lift the cap 2px with a shadow, swell it to 1.12 on the spring, bloom its fill out of the
+middle, or move the glyph and leave the cap alone. The maintainer picked the last, with two amendments,
+and both amendments are the reason it is worth writing down.
+
+1. **The glyph travels the way it means.** The arrow rises 3px over 0.28s on the spring the press
+   already uses; the cap holds still and takes the same neutral fill it always had. It is the only
+   one of the four that says something rather than acknowledging the pointer, and the only one that
+   leaves the pill's geometry alone, which matters where the cap sits 4px from the panel's edge.
+
+2. **A live button keeps its white glyph.** `.send.live` is white BECAUSE the cap under it is the
+   accent gradient, and the hover was handing it back `--text`: near black in the light theme, on a
+   magenta cap. The one state where hovering a button made it harder to read.
+
+3. **The stop turns red, and it is the only hover in the overlay that changes hue.** Streaming, the
+   button has swapped what it MEANS, not just what it does: everywhere else the send is how a turn
+   begins and here it is how one is called off, and a grey that says "a button" does not carry that.
+   Its square eases shut (0.84) rather than travelling, having no direction to go in.
+
+   The red is `--halt`, which is not a new colour: it is what the trash on a chat row already wore
+   as a literal, now named once and used by the two controls in the overlay that undo something in
+   flight. It is the accent's own magenta walked to red (`--accent`'s middle stop is
+   rgb(226, 75, 196); this is the same two channels) rather than a traffic light imported from
+   nowhere, and it is read against the light panel as well as the dark one. This does not loosen
+   the rule that colour is reserved for working affordances: a stop offered mid-turn, and a trash
+   offered on hover, are working affordances at exactly the moment they are coloured, and neither
+   is coloured at rest.
