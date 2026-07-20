@@ -1,7 +1,7 @@
 import type { MarkStyle } from "../mark/marks";
 import { CONSOLE_TABS, type ConsoleTab } from "../overlay/overlayState";
 import { AppearanceTab } from "./AppearanceTab";
-import { PanelView } from "./PanelView";
+import { BackIcon } from "./icons";
 import { ShortcutsTab } from "./ShortcutsTab";
 
 /** How each tab is named on the strip. Beside `CONSOLE_TABS` rather than inside it: the reducer's
@@ -45,8 +45,15 @@ export function ConsoleView({
   onClose,
 }: ConsoleViewProps) {
   return (
-    <PanelView title="Settings" onClose={onClose}>
-      <div className="tabs" role="tablist" aria-label="Settings">
+    <section className="pane" aria-label="Settings">
+      {/* One line of chrome: the way back, and the strip saying which half you are looking at. A
+          title over a strip that already names both tabs was the same fact told twice, and the
+          panel is short enough that a row it does not need is a row you notice. */}
+      <header className="head">
+        <button className="hbtn" onClick={onClose} aria-label="Back to chat" type="button">
+          <BackIcon />
+        </button>
+        <div className="tabs" role="tablist" aria-label="Settings">
         {CONSOLE_TABS.map((name) => (
           <button
             key={name}
@@ -67,7 +74,9 @@ export function ConsoleView({
             {TAB_LABELS[name]}
           </button>
         ))}
-      </div>
+        </div>
+        <span className="hspacer" aria-hidden="true" />
+      </header>
       {/* Named by `aria-label` rather than pointing at the tab's id: both the tab being left and
           the one arriving are mounted together for the length of the morph, so any id in here
           would be in the document twice while the panel crosses over. */}
@@ -84,6 +93,6 @@ export function ConsoleView({
           <ShortcutsTab />
         )}
       </div>
-    </PanelView>
+    </section>
   );
 }

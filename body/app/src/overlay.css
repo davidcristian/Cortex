@@ -302,28 +302,6 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
-/* The chat's title now opens the header, so it is the one thing that has to hold its own against
-   the panel's 28px corner. 14px of extra inset (16px of header padding + the 1px border + 14px =
-   31px from the panel's outer edge) is what balances it, for two reasons that agree:
-     - It puts the text on the corner's own 45-degree diagonal. The title's centre already sits
-       31px below the panel's top edge (1px border + 15px of header padding + half a 30px button
-       row), so starting the text 31px in makes it exactly as far from the side of the panel as
-       from the top of it, which is what "centred on the corner" means for a corner. On the
-       header's bare padding it starts 17px in against those same 31px down, nearly twice as
-       close to one edge as to the other, with the corner turning through the short gap: that is
-       the crowding, and it is why the fix is an inset rather than a smaller radius.
-     - It lands on the panel's own text rail. Measured in Chromium at 560px: a switcher row's title
-       starts at 31px exactly, an assistant bubble's first glyph at 32px, the composer's text at
-       33px. The switcher is the one that shows, since it rolls open directly under the header and
-       its rows are the same kind of thing the header names, so the open chat's title and the list
-       of the others now share one left edge. At the old 40px from that same outer edge (the 1px
-       border + 16px of header padding + the dot's own 6px margin + a 7px dot + the 10px gap) the
-       header was outdented from everything below it.
-   Every other view opens with the back button, which supplies its own inset, so this is scoped to
-   a title that actually starts the row, and it follows the base rule it overrides. */
-.head > .title:first-child {
-  margin-left: 14px;
-}
 .hbtn {
   width: 30px;
   height: 30px;
@@ -1270,6 +1248,17 @@
    which is why the crossing reads as the CONTENT changing under a strip that stays put. That only
    holds because a tab-to-tab crossing drops the pane movement (`.view.swap`, above); with the
    rise-and-sink left on, the two strips sit 14px apart mid-fade and the stillness is a lie. */
+/* The strip sits IN the header row beside the way back, so the console opens with one line of
+   chrome rather than a title, a cross, and a strip under them saying the same thing three ways.
+   The spacer is the back button's own width on the other side, which is what keeps the strip
+   centred in the panel rather than centred in what is left of the row. */
+.head > .tabs {
+  margin-inline: auto;
+}
+.hspacer {
+  width: 30px;
+  flex: none;
+}
 .tabs {
   flex: none;
   align-self: center;
@@ -1331,8 +1320,12 @@
 }
 /* One line under a group of tiles, explaining the choice the art cannot say out loud (what Auto
    follows; what the chosen mark does when it moves). */
+/* Centred under the row it explains, not ranged left: it belongs to the whole group of tiles
+   rather than to the first one, and a line of type starting under the leftmost swatch reads as
+   that swatch's caption. */
 .note {
   margin: 0;
+  text-align: center;
   font-size: 11.5px;
   color: var(--dim);
 }

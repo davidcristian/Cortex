@@ -85,8 +85,8 @@ export function AppearanceTab({
         <p className="note">Auto follows your system</p>
       </section>
       <section className="swatch">
-        <h3 className="sect">Mark</h3>
-        <div className="tiles" role="radiogroup" aria-label="Mark style">
+        <h3 className="sect">Bubble</h3>
+        <div className="tiles" role="radiogroup" aria-label="Bubble">
           {MARKS.map((choice) => (
             <Tile
               key={choice.name}

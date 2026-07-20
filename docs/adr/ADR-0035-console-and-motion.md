@@ -748,3 +748,34 @@ a trace, which is why every claim below carries the measurement it rests on.
   border-top on a 12px-radius row, so it curves away and fades out nine columns clear of the thumb,
   and text and controls stay 9px to 11px clear on the rows' own padding. It bites if a row ever
   drops that padding, or if the maintainer reads the rail as touching the chrome.
+
+## Addendum, 2026-07-20: four corrections from a maintainer pass
+
+Each of these is small and each replaced something that had been reasoned about rather than looked
+at, which is why they are recorded together.
+
+1. **The console's header is one line: the way back, then the tab strip.** It had a title, a cross
+   and a strip beneath them, which is three tellings of "you are in settings" stacked in a panel
+   short enough that a row it does not need is a row you notice. The title went, the cross became
+   the back chevron on the left, and the strip moved up beside it, centred by a spacer the width of
+   that chevron. `components/PanelView.tsx` existed to hold the title-and-close chrome for two
+   views; there is one view now and it owns its own header, so that file is gone.
+
+2. **The chat title sits on the header's own 16px padding.** It had carried 14px more, argued from
+   the panel's 28px corner and from a text rail the switcher rows share. Looked at rather than
+   derived, 31px reads as a gap, not as balance. The right inset is the header's padding on the
+   other side, so the two now match by construction.
+
+3. **The mark is called the Bubble.** "Mark" named the implementation. What the user is choosing
+   is a soap bubble, and the design language calls the whole identity bubbly
+   ([overlay-ux.md](../design/overlay-ux.md) §1), so the setting is named after the thing on screen.
+   The line under each group of tiles is centred under them too: it explains the group, and ranged
+   left it read as a caption for the leftmost swatch.
+
+4. **Dismissing leaves the console open; the next summon closes it.** Clearing the tab on dismiss
+   changed the view in the same frame the panel started fading, so it morphed back to the chat under
+   a window that was already going, which reads as the panel changing its mind on the way out.
+   Traced at 60Hz: the live view now stays the console for the whole fade, opacity 1 to 0 over
+   ~300ms, and the summon after it lands on the chat. The invariant the old code was protecting (a
+   re-summon never opens onto stale settings) is unchanged; it is enforced on the way IN instead,
+   which is the only side where it is observable.
