@@ -77,21 +77,37 @@ export function ConsoleView({
         </div>
         <span className="hspacer" aria-hidden="true" />
       </header>
-      {/* Named by `aria-label` rather than pointing at the tab's id: both the tab being left and
-          the one arriving are mounted together for the length of the morph, so any id in here
-          would be in the document twice while the panel crosses over. */}
-      <div className="tabpanel" role="tabpanel" aria-label={TAB_LABELS[tab]}>
-        {tab === "appearance" ? (
-          <AppearanceTab
-            themeName={themeName}
-            mark={mark}
-            animated={animated}
-            onPickTheme={onPickTheme}
-            onPickMark={onPickMark}
-          />
-        ) : (
-          <ShortcutsTab />
-        )}
+      {/* Both tabs are mounted, stacked in one grid cell, and the taller one decides the height.
+          Switching tabs therefore does not resize the panel at all: measured, the two are 335px and
+          347px apart, and a window that jumps 12px and back reads as a flinch rather than as a
+          change of view. A threshold could let a genuinely taller tab shrink the panel back, but
+          there is no such tab to design against yet, and this is the shape that needs no number.
+
+          The inactive tab keeps its box (that is the point) and gives up everything else: it is
+          hidden from assistive tech and from the pointer, and `visibility` is what takes it out of
+          the tab order too, which `opacity` alone would not. */}
+      <div className="tabstack">
+        {CONSOLE_TABS.map((name) => (
+          <div
+            key={name}
+            className={`tabpane${name === tab ? " on" : ""}`}
+            role="tabpanel"
+            aria-label={TAB_LABELS[name]}
+            aria-hidden={name !== tab}
+          >
+            {name === "appearance" ? (
+              <AppearanceTab
+                themeName={themeName}
+                mark={mark}
+                animated={animated}
+                onPickTheme={onPickTheme}
+                onPickMark={onPickMark}
+              />
+            ) : (
+              <ShortcutsTab />
+            )}
+          </div>
+        ))}
       </div>
     </section>
   );

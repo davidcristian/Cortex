@@ -34,7 +34,15 @@ import { EASING, MORPHING_ATTRIBUTE } from "./morph";
 /** Set on the panel while it is easing between two sizes. Read only by the stylesheet, which hides
  *  the history's scrollbar thumb for the duration: mid-ease the panel is shorter than the height it
  *  is easing to, so the history overflows for a few frames and flashes a thumb for a size the panel
- *  never settles at. */
+ *  never settles at.
+ *
+ *  Written SYNCHRONOUSLY, on every path out of `place`, and never from an animation event. A
+ *  cancelled animation dispatches `oncancel` asynchronously, so a handler that cleared the flag
+ *  there ran AFTER the replacement animation had already set it, and during a stream every token
+ *  replaces the animation. Traced at 60Hz: 19 frames of a single reply had the history overflowing
+ *  with the panel unmarked, which is the thumb the flag exists to hide. Only `onfinish` is left
+ *  asynchronous, and it is safe: a replaced animation is cancelled, and a cancelled animation
+ *  never finishes. */
 const RESIZING_ATTRIBUTE = "data-resizing";
 import {
   type Geometry,
@@ -59,6 +67,15 @@ const CHAT_VIEW = "chat";
  * was parked when it was left. A closed panel always re-centres, because it is about to be summoned
  * and should come back to the middle rather than to wherever the last conversation had pushed it.
  */
+/** The height the panel centres ON, which is not always the height it HAS. A section marked `aside`
+ *  is left out of it: the reminder stack arrives with the summon and can be two rows or five, so
+ *  centring on it puts the conversation wherever the day's reminders happen to leave it. The chat
+ *  centres on itself and the stack grows it upward from there, the way every other arrival does. */
+function centringHeight(element: HTMLElement, height: number): number {
+  const aside = element.querySelector<HTMLElement>(".collapse.aside");
+  return height - (aside?.offsetHeight ?? 0);
+}
+
 function wantedBottom(memory: Memory, at: Placement, viewport: number, height: number): number {
   const changed = memory.view !== at.view;
   if (changed && memory.view === CHAT_VIEW) {
@@ -142,7 +159,7 @@ export function place(element: HTMLElement | null, memory: Memory, at: Placement
   const displayed = deferred
     ? { height: carrying ?? height, bottom: was }
     : (inFlight ?? memory.shown);
-  const wanted = wantedBottom(memory, at, viewport, height);
+  const wanted = wantedBottom(memory, at, viewport, centringHeight(element, height));
   memory.pinned = wanted;
   const bottom = clamped(wanted);
   element.style.maxHeight = `${maxHeight(viewport, bottom)}px`;
@@ -155,9 +172,11 @@ export function place(element: HTMLElement | null, memory: Memory, at: Placement
   if (!at.open || displayed === null || settled(displayed, next)) {
     // Closed, first measurement, or nothing moved: keep the geometry for next time, animate
     // nothing. Measuring while closed is what lets a reopen animate from a real height.
+    element.removeAttribute(RESIZING_ATTRIBUTE);
     return;
   }
   if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    element.removeAttribute(RESIZING_ATTRIBUTE);
     return;
   }
   // A render that did not redirect the panel RESUMES the move already in the air, over the time it
@@ -176,9 +195,6 @@ export function place(element: HTMLElement | null, memory: Memory, at: Placement
     { duration, easing: EASING },
   );
   element.setAttribute(RESIZING_ATTRIBUTE, "");
-  // Both endings clear it. A cancel is the common one during a stream, where the next token's
-  // render replaces this move, and that render sets the attribute again on its way out.
   animation.onfinish = () => element.removeAttribute(RESIZING_ATTRIBUTE);
-  animation.oncancel = animation.onfinish;
   memory.running = animation;
 }

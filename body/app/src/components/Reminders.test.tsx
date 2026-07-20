@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { DueReminder } from "../bridge/types";
@@ -32,6 +32,15 @@ function renderStack(reminders: readonly DueReminder[], handlers: Handlers = {})
     />,
   );
 }
+
+afterEach(() => {
+  vi.useRealTimers();
+});
+
+/** Let a dismissed card finish rolling shut, which is when its ack is actually sent. Timers are
+ *  faked here and not for the file: the cards print how long ago they fired, so a frozen clock
+ *  changes what every other test in here is reading. */
+const rollShut = () => act(() => vi.advanceTimersByTime(300));
 
 describe("Reminders", () => {
   afterEach(() => vi.useRealTimers());
@@ -76,7 +85,12 @@ describe("Reminders", () => {
   it("dismissing a card reports that reminder's id", () => {
     const onDismiss = vi.fn();
     renderStack([reminder(), reminder({ reminderId: "r-2", text: "Stretch" })], { onDismiss });
+    vi.useFakeTimers();
     fireEvent.click(screen.getAllByLabelText("Dismiss reminder")[1]!);
+    // The card rolls shut first and is handed over only once it has: acking straight away deleted
+    // the row in a frame, so the card vanished, the stack closed over the hole, and the panel eased
+    // down after both.
+    rollShut();
     expect(onDismiss).toHaveBeenCalledWith("r-2");
   });
 

@@ -1,7 +1,7 @@
 import { useRef } from "react";
 
 import type { MarkStyle } from "../mark/marks";
-import { CONSOLE_TABS, type ConsoleTab, type OverlayState } from "../overlay/overlayState";
+import type { ConsoleTab, OverlayState } from "../overlay/overlayState";
 import { MAX_DURATION_MS } from "../overlay/panelGeometry";
 import { usePanelMotion } from "../overlay/usePanelMotion";
 import { useViewTransition } from "../overlay/useViewTransition";
@@ -42,12 +42,15 @@ interface PanelProps {
  *  view being left is never cut away mid-movement. */
 const MORPH_MS = MAX_DURATION_MS;
 
-/** A view of the panel. The console's TAB is part of the name on purpose: switching tabs is then a
- *  view change like any other, so it resizes and re-centres through the one motion the panel
- *  already has, and the cross-fade between the outgoing and incoming view carries it for free. */
-type View = "chat" | `console:${ConsoleTab}`;
+/** A view of the panel. The console's tab is NOT part of the name: both tabs are mounted inside it
+ *  and the taller one sets the height (`ConsoleView`), so switching tabs is not a view change, does
+ *  not resize the panel, and does not re-run the chrome's enter animation. Making a tab a view of
+ *  its own was the first shape, and it flinched: the panel jumped 12px between two tabs that differ
+ *  by that much, and the header and the back chevron faded out and in around content that was the
+ *  only thing actually changing. */
+type View = "chat" | "console";
 
-const viewOf = (tab: ConsoleTab): View => `console:${tab}`;
+const CONSOLE: View = "console";
 
 /** The overlay panel: one window that shows one view at a time and morphs between them.
  *
@@ -61,7 +64,7 @@ const viewOf = (tab: ConsoleTab): View => `console:${tab}`;
 export function Panel(props: PanelProps) {
   const { state, open, themeName, mark, onOpenConsole, onCloseConsole } = props;
   const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  const view: View = state.consoleTab === null ? "chat" : viewOf(state.consoleTab);
+  const view: View = state.consoleTab === null ? "chat" : CONSOLE;
   const leaving = useViewTransition(view, MORPH_MS);
   const panelRef = useRef<HTMLDivElement>(null);
   // Entering another view centres it, returning to the chat restores where the chat was, and any
@@ -71,17 +74,8 @@ export function Panel(props: PanelProps) {
   usePanelMotion(panelRef, open, view);
 
   const closed = state.mode === "orb" ? " to-orb" : "";
-  // Two console tabs crossing is not a whole view arriving. The header and the tab strip are the
-  // same chrome in both panes, at the same height, so the rise-and-sink that sells a view change
-  // would show up as that shared chrome jittering (7px up on the pane leaving, 7px down on the one
-  // arriving, measured 14px apart mid-fade in Chromium) while only the content under it changes.
-  // Marked here rather than inside the console because it is a property of the TRANSITION, which is
-  // the panel's business: only the panel knows which view is being left.
-  const swap = leaving !== null && view !== "chat" && leaving !== "chat" ? " swap" : "";
   const classOf = (name: View) =>
-    name === view ? `view${swap}` : name === leaving ? `view out${swap}` : "view gone";
-  // A console tab is mounted while it is the view, and for one morph after it stops being one.
-  const showing = (tab: ConsoleTab) => view === viewOf(tab) || leaving === viewOf(tab);
+    name === view ? "view" : name === leaving ? "view out" : "view gone";
 
   return (
     <div
@@ -95,17 +89,10 @@ export function Panel(props: PanelProps) {
         <div className={classOf("chat")} aria-hidden={view !== "chat"}>
           <ChatView {...props} />
         </div>
-        {/* Both console tabs can be on screen at once, for exactly one morph: the one being left
-            is still fading out over the one arriving. Mounted from the tab list rather than from
-            two branches, so a third tab would be a name in that list and nothing here. */}
-        {CONSOLE_TABS.filter((tab) => showing(tab)).map((tab) => (
-          // Hidden from assistive tech the moment it stops being the view, like the chat above:
-          // both panes are named "Settings" and each carries a tab list and a tab panel, so without
-          // this the tree would hold two of each for the length of a tab morph, and a reader
-          // stepping through it would meet the tab it just left as a second, equal copy.
-          <div key={tab} className={classOf(viewOf(tab))} aria-hidden={view !== viewOf(tab)}>
+        {view === CONSOLE || leaving === CONSOLE ? (
+          <div className={classOf(CONSOLE)} aria-hidden={view !== CONSOLE}>
             <ConsoleView
-              tab={tab}
+              tab={state.consoleTab ?? "appearance"}
               themeName={themeName}
               mark={mark}
               animated={!reduced}
@@ -115,7 +102,7 @@ export function Panel(props: PanelProps) {
               onClose={onCloseConsole}
             />
           </div>
-        ))}
+        ) : null}
       </div>
     </div>
   );

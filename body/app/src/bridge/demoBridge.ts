@@ -217,8 +217,10 @@ export class DemoBridge implements BrainBridge {
     );
   }
 
-  listSessions(_limit: number): Promise<readonly SessionSummary[]> {
-    return Promise.resolve([
+  // Held rather than rebuilt per call, so the writes below actually stick for the session. They
+  // used to be no-ops over a static list, which made rename, delete and pin unexercisable by hand:
+  // the row changed optimistically and the next re-list put it straight back.
+  private sessions: SessionSummary[] = [
       {
         // Pinned, and the OLDER of the two by activity, so it demonstrates pinning by hand: it
         // sorts ABOVE the newer chat in the switcher and carries the pin indicator, exactly the
@@ -240,7 +242,15 @@ export class DemoBridge implements BrainBridge {
         lastActivityUnixMs: Date.now() - 5 * 60 * 1000,
         pinned: false,
       },
-    ]);
+  ];
+
+  listSessions(limit: number): Promise<readonly SessionSummary[]> {
+    // Pinned first, then by recency, which is the order the brain lists in (ADR-0021).
+    const ordered = [...this.sessions].sort(
+      (a, b) =>
+        Number(b.pinned) - Number(a.pinned) || b.lastActivityUnixMs - a.lastActivityUnixMs,
+    );
+    return Promise.resolve(ordered.slice(0, limit));
   }
 
   // Reminder pull delivery (ADR-0025). Three cards covering the shapes that render
@@ -318,9 +328,13 @@ export class DemoBridge implements BrainBridge {
     ]);
   }
 
-  // The demo list is static, so a rename is a no-op that resolves; the browser-dev switcher
-  // just does not persist the relabel (the real bridge does, over the seam).
-  renameSession(_sessionId: string, _title: string): Promise<void> {
+  private patch(sessionId: string, change: Partial<SessionSummary>): void {
+    this.sessions = this.sessions.map((s) => (s.sessionId === sessionId ? { ...s, ...change } : s));
+  }
+
+  /** An empty title clears the override, which the real store expresses the same way. */
+  renameSession(sessionId: string, title: string): Promise<void> {
+    this.patch(sessionId, { title: title === "" ? "New chat" : title });
     return Promise.resolve();
   }
 
@@ -330,9 +344,8 @@ export class DemoBridge implements BrainBridge {
     return Promise.resolve();
   }
 
-  // A pin toggle is a no-op that resolves too: the demo list is static, so the browser-dev
-  // switcher re-lists to its canned pinned-first order (the real bridge persists over the seam).
-  setSessionPinned(_sessionId: string, _pinned: boolean): Promise<void> {
+  setSessionPinned(sessionId: string, pinned: boolean): Promise<void> {
+    this.patch(sessionId, { pinned });
     return Promise.resolve();
   }
 }

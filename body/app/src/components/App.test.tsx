@@ -94,6 +94,8 @@ describe("App", () => {
     expect(screen.getByText("repeats")).toBeTruthy();
 
     fireEvent.click(screen.getByLabelText("Dismiss reminder"));
+    // The card rolls shut before its ack is sent.
+    await act(() => new Promise((r) => setTimeout(r, 320)));
     await act(async () => {});
     expect(bridge.acks).toEqual(["r-1"]);
     expect(screen.queryByText("Stand-up in 10 minutes")).toBeNull();

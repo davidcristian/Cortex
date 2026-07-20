@@ -202,11 +202,7 @@
   flex-direction: column;
   flex: 1 1 auto;
   min-height: 0;
-  /* How far a view travels as it arrives or leaves, read by both keyframes below. A variable and
-     not two pairs of keyframes, because the flag that zeroes it (`swap`) is dropped the moment the
-     crossing ends: a second animation NAME would then be a second animation, and the pane that had
-     already arrived would replay its rise from the top (traced in Chromium, the strip jumping 7px
-     at 380ms and easing back). Changing only the distance leaves the running animation alone. */
+  /* How far a view travels as it arrives or leaves, read by both keyframes below. */
   --rise: 7px;
   animation: viewin 0.34s var(--ease) 0.05s both;
 }
@@ -221,15 +217,6 @@
 }
 .view.gone {
   display: none;
-}
-/* One console tab crossing to another (`swap`, set by the panel, which is the only place that
-   knows which view is being left). Both panes wear the same header and the same tab strip, in the
-   same place, so the rise-and-sink above would draw that shared chrome twice 14px apart and read
-   as the strip jittering rather than as the content changing under it. Within the console the
-   crossing is opacity alone: the strip holds still while the panel resizes beneath it. Same
-   keyframes, same timings, only the distance dropped. */
-.view.swap {
-  --rise: 0px;
 }
 /* Every non-chat view: the same column, so the header sits on the chat's rhythm and the foot
    settles under the content rather than at the bottom of a panel that is no longer that tall. */
@@ -421,51 +408,27 @@
      WebView2 version this repo cannot trace. */
   overflow-anchor: none;
 }
-/* The column of bubbles inside that container, and the panel's floor: THE FIRST SEND MUST NOT MAKE
-   THE PANEL SMALLER. Sending replaces the empty state (the mark, the invitation, the two example
-   chips) with a short user bubble and a thinking one, which is less content, and the panel eased
-   down to fit it: the window shrank at the exact moment the user started using it.
+/* The history's inner column, packed to the BOTTOM so a short conversation sits against the
+   composer rather than floating at the top of the box. That is also what keeps the auto-scroll
+   honest: the history follows the tail by scrolling to its own `scrollHeight`, so reserved space
+   UNDER the last bubble is space the scroll dutifully lands on. Traced with the column top-aligned,
+   a first send squeezed by an open switcher scrolled 119px and showed 18px of the thinking bubble
+   above a blank history. `margin: auto` beats `justify-content` on the empty state, which therefore
+   stays centred.
 
-   185px is the empty state's own height, measured in Chromium at both 640x720 (the body's window)
-   and 900x900, where it comes out the same because none of it is viewport-height-derived: 32px of
-   `.empty` padding + a 54px mark + 13px gap + a 16px line of "Ask me anything" + 13px gap + a 31px
-   row of chips + 26px of padding. Viewport WIDTH does not enter it either, and that is arranged
-   rather than lucky: the chips would take a second row on a narrow panel and make the empty state
-   224px, so they are held to one row and shrink instead (`.empty-chips` below carries the
-   measurement and the reasoning). Every term above is therefore a constant, which is what lets one
-   number be the floor at every size. `.history` adds its own 6px and 4px, so the container reads
-   195px in the empty state and stays
-   there through the first exchange. Change anything in `.empty` and this number has to be
-   re-measured against it: too low and the panel dips again by the difference, too high and the
-   empty state gains that much dead space around the chips (`margin: auto` splits it
-   above and below, so it stays centred rather than sagging, but the panel is taller than it should
-   be). A couple of pixels either way is below the threshold where anything reads as motion.
-
-   Why the floor is here and not on `.history`: `min-height` on the scroll box cannot yield. With
-   the switcher and the reminder stack both open at a 720px window the history is squeezed to 76px,
-   and a box that refuses to go below 195px there drives the composer and the hint strip out past
-   the panel's clipped edge (measured, then looked at). Floored CONTENT scrolls instead, which is
-   already what the empty state does when it is squeezed. `flex: 1 0 auto` is the other half: the
-   column grows into a history left taller than its content (mid-morph, where `.empty`'s
-   `margin: auto` keeps it centred) and never shrinks under its own content.
-
-   THE SLACK SITS ABOVE THE BUBBLES, not below them, and that is what keeps the auto-scroll honest.
-   The history follows the tail by scrolling to its own `scrollHeight`, so reserved space under the
-   last bubble is space the scroll dutifully lands on: traced with the column top-aligned, the first
-   send squeezed by an open switcher scrolled 119px and showed 18px of the thinking bubble above a
-   blank history. Bottom-aligned, the newest bubble is what the tail is. It also reads as a chat,
-   the exchange sitting against the composer with the reserved height as separation above it, and it
-   is continuous with what happens next, since the panel growing upward moves the content up too.
-   `margin: auto` beats `justify-content` on the empty state, which therefore stays centred. There
-   is no overflow hazard in the alignment: the column never shrinks below its content, so this
-   distributes free space and never negative space (the case where `flex-end` puts content out of
-   the scroll container's reach). */
+   There is no `min-height` floor on it any more. One was here to stop the first message shrinking
+   the panel, from when the reminder stack stayed put through a send. The stack now rolls away on
+   the first message, so that shrink is deliberate and the floor outlived its reason, and it was
+   costing a defect: a column taller than the box it scrolls in is a box that overflows, so while
+   the panel was still easing up to the height that would hold it, a scrollbar appeared for the
+   climb. Traced at 60Hz through a streamed reply, seven frames showed a thumb with the panel
+   growing and no animation of its own to hide it behind. `flex: 1 0 auto` stays: the column grows
+   into a history left taller than its content and never shrinks under it. */
 .log {
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
   flex: 1 0 auto;
-  min-height: 185px;
   gap: 11px;
 }
 
@@ -478,6 +441,14 @@
 .collapse {
   flex: none;
   overflow: hidden;
+}
+/* A section the panel does not count when it centres itself (`panelPlacement`). The reminder stack
+   is delivery rather than conversation: it arrives with the summon and can be two rows or five, and
+   centring on it put the chat wherever the day's reminders happened to leave it. The panel centres
+   on what the chat is and lets the stack grow it upward from there, which is what every other
+   arrival does. */
+.collapse.aside {
+  flex: none;
 }
 
 .bubble {
@@ -1258,35 +1229,26 @@
   gap: 4px;
 }
 
-/* The console's tab strip: one rail holding the two faces of the view, centred under the header so
-   it reads as a control belonging to the whole pane rather than to the row beneath it. It is the
-   same segmented shape the settings rows used to hold, promoted to the level it now switches.
+/* The console's tab strip: one rail holding the two faces of the view, sitting in the header row
+   beside the way back so the console opens with one line of chrome. It is the same segmented shape
+   the settings rows used to hold, promoted to the level it now switches.
 
-   Both tabs are mounted for the length of a tab morph (the one being left is still fading over the
-   one arriving), so two strips are briefly stacked. They are identical and land in the same place,
-   which is why the crossing reads as the CONTENT changing under a strip that stays put. That only
-   holds because a tab-to-tab crossing drops the pane movement (`.view.swap`, above); with the
-   rise-and-sink left on, the two strips sit 14px apart mid-fade and the stillness is a lie. */
-/* The strip sits IN the header row beside the way back, so the console opens with one line of
-   chrome rather than a title, a cross, and a strip under them saying the same thing three ways.
-   The spacer is the back button's own width on the other side, which is what keeps the strip
-   centred in the panel rather than centred in what is left of the row. */
-.head > .tabs {
-  /* All four sides, not just the inline pair. The base rule gives the strip 2px above and 10px
-     below, from when it sat under a header rather than in one, and overriding only the sides left
-     those in: the strip's centre landed 4px above the chevron's, measured at 298 against 302. */
-  margin: 0 auto;
-}
+   Both tabs are mounted at once and stacked (`.tabstack`), so switching them is not a view change:
+   the strip and the chevron are the same elements before and after, and neither the panel's size
+   nor its enter animation has anything to do. */
 .hspacer {
   width: 30px;
   flex: none;
 }
 .tabs {
   flex: none;
-  align-self: center;
   display: flex;
   gap: 2px;
-  margin: 2px 0 10px;
+  /* All four sides in one shorthand, and no block margin: the strip lives in the header row now,
+     where the row's own `align-items: center` puts it on the chevron's centre line. It used to sit
+     under the header with 2px above and 10px below, and carrying those into the row left its centre
+     4px above the chevron's, measured at 298 against 302. */
+  margin: 0 auto;
   padding: 3px;
   background: var(--control);
   border-radius: 999px;
@@ -1311,11 +1273,31 @@
 }
 /* The tab's own body. It is the flex column the rows expect to be in, so a tab is free to be a
    list, a wall of swatches, or both, and the panel still shrinks to exactly its height. */
-.tabpanel {
-  display: flex;
-  flex-direction: column;
+/* Both tabs occupy the same grid cell, so the container is as tall as the taller of them and a tab
+   switch changes nothing about the panel's size. Only the content crosses over. */
+.tabstack {
+  display: grid;
   flex: 0 1 auto;
   min-height: 0;
+}
+.tabpane {
+  grid-area: 1 / 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  opacity: 0;
+  /* `visibility` and not `opacity` alone: an invisible pane still keeps its box (that is the whole
+     point of the stack) but must not be reachable by the pointer or the tab key. Its delay is what
+     lets the fade finish before the pane is taken out. */
+  visibility: hidden;
+  transition:
+    opacity 0.2s var(--ease),
+    visibility 0s 0.2s;
+}
+.tabpane.on {
+  opacity: 1;
+  visibility: visible;
+  transition: opacity 0.2s var(--ease);
 }
 
 /* A group inside a tab: a quiet heading and whatever belongs under it. Groups are separated by
@@ -1644,10 +1626,15 @@
   color: var(--muted);
   font-size: 13px;
 }
+/* A row holds its height whatever it is showing. At rest it is two lines, a title over a preview;
+   the rename box and the delete confirm are each one line, so without this the card popped 10px
+   shorter the moment either opened and back when it closed (measured: 50 to 40). The number is the
+   resting row, so changing the title or preview type sizes means re-measuring it. */
 .switcher-li {
   display: flex;
   align-items: stretch;
   gap: 2px;
+  min-height: 50px;
 }
 .switcher-item {
   display: block;
