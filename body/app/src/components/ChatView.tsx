@@ -12,7 +12,6 @@ import {
   DownArrowKey,
   PencilIcon,
   ReturnKey,
-  ShiftKey,
   SlidersIcon,
   TuckIcon,
   UpArrowKey,
@@ -146,7 +145,7 @@ export function ChatView({
           onPin={onPinSession}
         />
       </Collapse>
-      <Collapse open={state.reminders.length > 0}>
+      <Collapse open={state.reminders.length > 0 && state.messages.length === 0}>
         <Reminders
           reminders={state.reminders}
           currentId={state.sessionId}
@@ -230,13 +229,14 @@ export function ChatView({
         </span>
         {/* Shift and Return are two caps, not one cap holding two glyphs: every other hint here
             already separates its keys, and the console's shortcut list separates all of them, so a
-            single cap made this the one place a chord read as one key. Measured at 900px: the
-            second cap takes the strip's content from 448px to 461px of a 558px row, so it still
-            sits on one line. */}
+            single cap made this the one place a chord read as one key.
+
+            Shift is SPELLED OUT, like Ctrl and Alt beside it. Its glyph is the one modifier with a
+            drawing, so drawn it was the only modifier on the row you had to recognise rather than
+            read, sitting against three that are words. The drawn glyphs left are the keys that have
+            no name worth writing: return, and the two cycle arrows. */}
         <span>
-          <b className="key">
-            <ShiftKey />
-          </b>
+          <b>Shift</b>
           <b className="key">
             <ReturnKey />
           </b>{" "}

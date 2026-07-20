@@ -779,3 +779,46 @@ at, which is why they are recorded together.
    ~300ms, and the summon after it lands on the chat. The invariant the old code was protecting (a
    re-summon never opens onto stale settings) is unchanged; it is enforced on the way IN instead,
    which is the only side where it is observable.
+
+## Addendum, 2026-07-20: growth caps at the top, and seven smaller corrections
+
+1. **The panel grows upward or not at all.** It had two bounds, a flat maximum height and clear
+   space kept at the top, and together they meant a panel that reached the top kept growing
+   DOWNWARD to reach its height, walking the composer back down the screen. There is one bound now,
+   the clear space, and it is applied to the HEIGHT: at the ceiling the panel stops getting taller
+   and the history scrolls. Traced at 60Hz through a streamed reply: the bottom edge held one value
+   for the entire stream, and the top edge stopped exactly on the 12% line.
+
+   The cap depends on the bottom edge and the edge depends on the height, so both are decided in
+   one pass: measure under the loosest cap either could allow (which is the tallest a CENTRED panel
+   can be, `0.76v`, since that is what the ceiling permits once the centring is solved), work the
+   edge out, then apply the real cap. Sizing the cap from the previous edge lags one render, and the
+   lag was visible: a summon centred for the height it had at that instant, and the reminder stack
+   landing after it grew upward from an edge chosen for a shorter panel, leaving the empty chat 82px
+   below centre and scrolling at 520px where 604 would have fitted.
+
+2. **No scrollbar for a size the panel is only passing through.** Mid-ease the panel is shorter than
+   what it is easing to, so the history overflows for a few frames and flashes a thumb during every
+   streamed line. The panel marks itself `data-resizing` while a move is in the air and the
+   stylesheet hides the thumb for the duration. The thumb, not the overflow: `overflow: hidden`
+   would also freeze `scrollTop`, which the auto-scroll writes to on every token.
+
+3. **The reminder stack belongs to the empty chat.** It rolls away when the first message is sent or
+   a chat is opened, through the same `Collapse` it arrived by.
+
+4. **The chat title's two clearances are equal.** Measured rather than argued: on the header's bare
+   padding the glyphs start 17px in and 27px down, so 10px of inset makes both 27px.
+
+5. **The tab strip sits on the chevron's centre line.** It carried block margins from when it lived
+   under a header rather than in one, and overriding only its inline sides left them: measured, the
+   strip's centre was 4px above the chevron's.
+
+6. **Shift is spelled out**, in the hint strip and the shortcut tab alike. Its glyph was the one
+   modifier you had to recognise rather than read, sitting beside Ctrl and Alt as words. The drawn
+   caps left are the keys with no name worth writing: return, and the two cycle arrows.
+
+7. **The mark setting is the Iris**, after the rainbow in a soap film, which is both the thing being
+   chosen and a word that sits beside Cortex. "Mark" named the implementation.
+
+8. **The Auto tile is not captioned.** A line of prose under three pictures explaining the word on
+   one of them is the picture explained to someone who has just looked at it.

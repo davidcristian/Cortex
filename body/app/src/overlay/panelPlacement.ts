@@ -30,6 +30,12 @@
 // height. So the old geometry is captured before paint and replayed as a real animation.
 
 import { EASING, MORPHING_ATTRIBUTE } from "./morph";
+
+/** Set on the panel while it is easing between two sizes. Read only by the stylesheet, which hides
+ *  the history's scrollbar thumb for the duration: mid-ease the panel is shorter than the height it
+ *  is easing to, so the history overflows for a few frames and flashes a thumb for a size the panel
+ *  never settles at. */
+const RESIZING_ATTRIBUTE = "data-resizing";
 import {
   type Geometry,
   centred,
@@ -37,6 +43,7 @@ import {
   durationOf,
   frame,
   maxHeight,
+  openHeight,
   settled,
 } from "./panelGeometry";
 import { type Memory, type Placement, arriving, heightOf, measure } from "./panelMemory";
@@ -89,9 +96,15 @@ export function place(element: HTMLElement | null, memory: Memory, at: Placement
   }
   memory.open = at.open;
   const viewport = window.innerHeight;
-  // No rounding here: the ceiling arrives in whole pixels so that what the element is given and what
-  // the arithmetic predicts against cannot disagree (`panelGeometry.maxHeight`).
-  element.style.maxHeight = `${maxHeight(viewport)}px`;
+  // The cap depends on the bottom edge and the edge depends on the height, so both are decided in
+  // one pass: measure under the loosest cap any edge could allow, work the edge out from that, then
+  // apply the real cap. Sizing the cap from the PREVIOUS edge instead lags a render, and the lag
+  // shows: a summon centres for the height it has at that instant, then the reminder stack landing
+  // a moment later grows upward from an edge chosen for a shorter panel. Measured at 900px, the
+  // empty chat settled 82px below centre and scrolled, having capped itself at 520px where 604
+  // would have fitted. Whole pixels throughout, so the numbers written to the DOM are the same ones
+  // the arithmetic predicts against (`panelGeometry.maxHeight`).
+  element.style.maxHeight = `${openHeight(viewport)}px`;
   const section = element.querySelector<HTMLElement>(`[${MORPHING_ATTRIBUTE}]`);
   if (section !== null) {
     // A section inside is collapsing open or shut, and it owns the height: the panel's `auto` height
@@ -131,9 +144,13 @@ export function place(element: HTMLElement | null, memory: Memory, at: Placement
     : (inFlight ?? memory.shown);
   const wanted = wantedBottom(memory, at, viewport, height);
   memory.pinned = wanted;
-  const next: Geometry = { height, bottom: clamped(wanted, viewport, height) };
-  memory.applied = next.bottom;
-  element.style.bottom = `${Math.round(next.bottom)}px`;
+  const bottom = clamped(wanted);
+  element.style.maxHeight = `${maxHeight(viewport, bottom)}px`;
+  // Re-read: the real cap may have shortened the panel, and everything below animates to what the
+  // element actually is rather than to what it wanted to be.
+  const next: Geometry = { height: heightOf(element), bottom };
+  memory.applied = bottom;
+  element.style.bottom = `${Math.round(bottom)}px`;
   memory.shown = next;
   if (!at.open || displayed === null || settled(displayed, next)) {
     // Closed, first measurement, or nothing moved: keep the geometry for next time, animate
@@ -154,8 +171,14 @@ export function place(element: HTMLElement | null, memory: Memory, at: Placement
   const duration = holding ? Math.max(memory.lands - Date.now(), 0) : durationOf(displayed, next);
   memory.aim = next;
   memory.lands = Date.now() + duration;
-  memory.running = element.animate(
+  const animation = element.animate(
     [frame(displayed.height, displayed.bottom), frame(next.height, next.bottom)],
     { duration, easing: EASING },
   );
+  element.setAttribute(RESIZING_ATTRIBUTE, "");
+  // Both endings clear it. A cancel is the common one during a stream, where the next token's
+  // render replaces this move, and that render sets the attribute again on its way out.
+  animation.onfinish = () => element.removeAttribute(RESIZING_ATTRIBUTE);
+  animation.oncancel = animation.onfinish;
+  memory.running = animation;
 }
