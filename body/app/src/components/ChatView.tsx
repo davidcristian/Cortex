@@ -12,7 +12,6 @@ import {
   DownArrowKey,
   PencilIcon,
   ReturnKey,
-  ShiftKey,
   SlidersIcon,
   TuckIcon,
   UpArrowKey,
@@ -132,7 +131,7 @@ export function ChatView({
           onPin={onPinSession}
         />
       </Collapse>
-      <Collapse open={state.reminders.length > 0}>
+      <Collapse open={state.reminders.length > 0 && state.messages.length === 0}>
         <Reminders
           reminders={state.reminders}
           currentId={state.sessionId}
@@ -196,9 +195,7 @@ export function ChatView({
           send
         </span>
         <span>
-          <b className="key">
-            <ShiftKey />
-          </b>
+          <b>Shift</b>
           <b className="key">
             <ReturnKey />
           </b>{" "}

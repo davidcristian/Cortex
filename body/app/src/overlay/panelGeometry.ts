@@ -13,14 +13,11 @@ export const MAX_DURATION_MS = 380;
 /** The travel that earns the full duration. */
 const FULL_TRAVEL_PX = 240;
 
-/** The tallest the panel may grow, as a fraction of the viewport. Owned here rather than in CSS
- *  because the ceiling below is derived from it and the two must not drift apart. */
-const MAX_HEIGHT_RATIO = 0.76;
-
-/** The clear space kept above the panel, as a fraction of the viewport. Derived so that a panel at
- *  full height is EXACTLY centred: growth pushes the top edge up until it reaches this ceiling,
- *  and past that the panel grows downward instead, ending centred rather than jammed at the top. */
-const MIN_TOP_RATIO = (1 - MAX_HEIGHT_RATIO) / 2;
+/**
+ * The clear space kept above the panel, as a fraction of the viewport: how far its top edge stays
+ * off the top of the screen, so a tall conversation never runs up against the monitor's bezel.
+ */
+const MIN_TOP_RATIO = 0.12;
 
 export interface Geometry {
   readonly height: number;
@@ -40,12 +37,16 @@ export function settled(from: Geometry, to: Geometry): boolean {
 }
 
 /**
- * The tallest the panel may be in this viewport. Written to the element as `max-height`, and also
- * the cap on any PREDICTED height: a prediction above it is a height the panel cannot reach, and
- * placing the panel for one ran it off the bottom of the screen (see `rideAlong`).
+ * The tallest the panel may be from the edge it is pinned to: everything between that edge and the
+ * clear space kept at the top.
  */
-export function maxHeight(viewport: number): number {
-  return Math.round(viewport * MAX_HEIGHT_RATIO);
+export function maxHeight(viewport: number, bottom: number): number {
+  return Math.round(viewport * (1 - MIN_TOP_RATIO) - Math.max(0, bottom));
+}
+
+/** The tallest a panel can be before it is placed, which is the tallest a CENTRED one can be. */
+export function openHeight(viewport: number): number {
+  return Math.round(viewport * (1 - 2 * MIN_TOP_RATIO));
 }
 
 /** The bottom edge that puts a panel of this height in the true middle of the viewport. */
@@ -54,11 +55,12 @@ export function centred(viewport: number, height: number): number {
 }
 
 /**
- * The pinned edge with the ceiling's say applied: how far off the viewport floor a panel this tall
- * may actually sit.
+ * The pinned edge as the DOM may have it: on screen, and nothing more. The ceiling is no longer
+ * applied here, because it is applied to the HEIGHT instead (`maxHeight`); pushing the bottom edge
+ * down to make room for a taller panel is exactly the downward growth that is not wanted.
  */
-export function clamped(pinned: number, viewport: number, height: number): number {
-  return Math.max(0, Math.min(pinned, viewport * (1 - MIN_TOP_RATIO) - height));
+export function clamped(pinned: number): number {
+  return Math.max(0, pinned);
 }
 
 /**

@@ -60,8 +60,6 @@ export function AppearanceTab({
       <section className="swatch">
         <h3 className="sect">Theme</h3>
         <div className="tiles" role="radiogroup" aria-label="Theme">
-          {/* Auto leads, because it is the only choice the header's toggle cannot express: that
-              toggle names the opposite theme outright and can only ever land on one of the two. */}
           <Tile label="Auto" checked={themeName === null} onPick={() => onPickTheme(null)}>
             <AutoMini />
           </Tile>
@@ -76,11 +74,10 @@ export function AppearanceTab({
             </Tile>
           ))}
         </div>
-        <p className="note">Auto follows your system</p>
       </section>
       <section className="swatch">
-        <h3 className="sect">Bubble</h3>
-        <div className="tiles" role="radiogroup" aria-label="Bubble">
+        <h3 className="sect">Iris</h3>
+        <div className="tiles" role="radiogroup" aria-label="Iris">
           {MARKS.map((choice) => (
             <Tile
               key={choice.name}

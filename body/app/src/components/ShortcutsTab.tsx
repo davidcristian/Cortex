@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-import { DownArrowKey, ReturnKey, ShiftKey, UpArrowKey } from "./icons";
+import { DownArrowKey, ReturnKey, UpArrowKey } from "./icons";
 
 /**
  * One binding, as a soft filled card: what it does on the left, the keys that do it on the right.
@@ -35,9 +35,7 @@ export function ShortcutsTab() {
             </b>
           </Key>
           <Key label="Newline">
-            <b className="key">
-              <ShiftKey />
-            </b>
+            <b>Shift</b>
             <b className="key">
               <ReturnKey />
             </b>
