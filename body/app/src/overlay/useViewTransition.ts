@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 
 // Which view is on its way out, so it can be drawn while it leaves.
 //
-// The panel shows one view at a time (the chat, the shortcuts list, settings) and morphs between
+// The panel shows one view at a time (the chat, and each of the console's tabs) and morphs between
 // them: it resizes to what the incoming view needs and slides back to true centre. That morph has
 // nothing to cross-fade against unless the outgoing view is still on screen, and React removes it
 // the instant the state changes. So the leaving view is named for a moment longer; the panel keeps

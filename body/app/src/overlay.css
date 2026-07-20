@@ -6,10 +6,109 @@
   --spring: cubic-bezier(0.34, 1.56, 0.64, 1);
   --ease: cubic-bezier(0.4, 0, 0.2, 1);
   --font: -apple-system, "Segoe UI", system-ui, "Helvetica Neue", sans-serif;
+  /* The width every scroll container reserves for its scrollbar. It is a token because two rules
+     have to agree on it: the rail below is drawn this wide, and every scroll container pays for
+     it. There are two ways to pay, and which one a container uses depends on what inline-end
+     padding it already had, because the padding is also what keeps text off the thumb.
+     Enough padding to hold the rail, so the rail is *subtracted* from it and the visual margin
+     does not move: `.history` and `.rows` (16px, still 16px), `.switcher` and `.reminders` (6px,
+     still 6px). Not enough, so a full rail of padding is *added* beside the reserved one and the
+     inline-end inset lands at 12px where it was 0 or 2: `.thoughts-body`, `.confirm-draft`,
+     `.field`. Subtracting from nothing would be a negative padding, and spending a too-small
+     padding leaves the last glyph of a wrapped line about a pixel off the thumb. Each of those
+     rules names which of the two it is. */
+  --rail: 6px;
+  /* The height of one activity row above a bubble. It is a token for the same reason `--rail` is:
+     two rules have to agree on it, and here the agreement is the whole point. A reply that reasoned
+     shows a LIVE chip while it works and a SETTLED "Thoughts" disclosure once it lands, and those
+     are one row in two states, not two different things. Left to their natural boxes they were
+     24px and 20px, so the moment a turn completed the log lost 4px and the panel eased *down* by
+     that much: a shrink landing exactly when the answer did, which is the same complaint this
+     panel's floor exists to answer, only smaller. Both rules now floor themselves here instead.
+     24px is the chip's own natural box (a 14px line box for its 12px label + 4px padding + 1px
+     border, each side), so the live state is unchanged and the settled one grew to meet it. Change
+     the chip's padding, border or font size and this number is what has to be re-derived, or the
+     chip outgrows the token and the settled row is short again by the difference. */
+  --trace-row: 24px;
 }
 
 * {
   box-sizing: border-box;
+}
+
+/* Scrollbars are resting chrome, so they read as a faint rail rather than a widget: no arrows, no
+   track, no corner, a rounded thumb painted inside a transparent border so it is thinner than the
+   rail it can be grabbed by and never sits against the text it scrolls. The colour is mixed out of
+   `--muted`, so each theme gets a thumb tuned to its own ground instead of one hard-coded grey,
+   and the pointer lifts it rather than lighting it up.
+
+   Every scroll container also reserves the rail permanently (`scrollbar-gutter: stable` on each
+   one), because a gutter that comes and goes drags the content sideways the moment a reply spills
+   past the bottom: the same paragraph would re-wrap and every bubble would jump left by the width
+   of the bar. Reserved space costs the same few pixels whether or not the bar is there, so nothing
+   moves. The rail lives between the border and the padding, and how each container funds it is the
+   two-shape split described on `--rail` above: subtracted from an inline-end padding big enough to
+   hold it, added as padding where the container has none or too little.
+
+   That reservation covers one axis. `scrollbar-gutter: stable` reserves the inline-end gutter, so
+   a *horizontal* bar is never paid for: it takes its height out of the container's content box and
+   shifts everything vertically, which is the same defect on the other axis. The answer is not to
+   reserve a second gutter (a permanently blank strip along the bottom of every panel section for a
+   bar that should never exist) but to make sure nothing ever grows sideways: every container that
+   holds text it did not choose breaks long tokens with `overflow-wrap: anywhere`, and `.history`
+   additionally clips that axis. The `height` below is therefore for a bar that in this UI only a
+   bug can produce, and it is set so that bug would at least be quiet.
+
+   The two engines are covered separately on purpose. Chromium is the one that ships (the body is
+   Tauri on WebView2), and when both syntaxes are set it honours the standards properties and
+   ignores these pseudo-elements: measured here, `scrollbar-width: thin` beside a 6px
+   `::-webkit-scrollbar` reserves 10px, not 6, which would leave the padding arithmetic below
+   wrong by 4px. So the standards path is fenced behind engines that lack the pseudo-elements
+   (Firefox), where `thin` is the closest sanctioned equivalent and its exact width is the UA's
+   choice. Exactly one of the two is ever in force. That last point cuts both ways and is worth
+   stating: on the fenced branch the UA's `thin` is not 6px either, so the `calc(16px - var(--rail))`
+   subtractions do not balance there (a wider `thin` makes the inline-end margin read wider than
+   the 16px on the other side). Nothing shifts when the bar appears, which is the property that
+   matters, but the margins are only exactly symmetrical on the engine that ships. Firefox is not
+   a target, so this stays a known asymmetry rather than a second set of numbers to maintain. It is
+   an accepted tradeoff rather than an oversight, so it is filed as one in
+   docs/refinements/body-overlay.md (with the fix, which is to measure the UA's rail at startup and
+   publish it as `--rail` instead of assuming it) and at its origin ADR,
+   docs/adr/ADR-0011-body-v1.md. */
+.stage ::-webkit-scrollbar {
+  width: var(--rail);
+  height: var(--rail);
+}
+.stage ::-webkit-scrollbar-track {
+  /* Held off both ends so the thumb stops short of a container's rounded corners rather than
+     being sliced by one: the switcher and the reminder stack are 16px cards, and a bar drawn
+     into that curve is the first thing that reads as a widget bolted on. */
+  margin-block: 6px;
+  background: transparent;
+}
+.stage ::-webkit-scrollbar-corner {
+  background: transparent;
+}
+.stage ::-webkit-scrollbar-button {
+  display: none;
+}
+.stage ::-webkit-scrollbar-thumb {
+  /* A long history would otherwise scale the thumb down to a nub too small to aim at. */
+  min-height: 28px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--muted) 38%, transparent);
+  background-clip: padding-box;
+}
+.stage ::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--muted) 62%, transparent);
+  background-clip: padding-box;
+}
+@supports not selector(::-webkit-scrollbar) {
+  .stage * {
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in srgb, var(--muted) 38%, transparent) transparent;
+  }
 }
 
 /* Opaque stage in v1 (a transparent window is deferred per design/overlay-ux.md §4). */
@@ -90,6 +189,12 @@
   flex-direction: column;
   flex: 1 1 auto;
   min-height: 0;
+  /* How far a view travels as it arrives or leaves, read by both keyframes below. A variable and
+     not two pairs of keyframes, because the flag that zeroes it (`swap`) is dropped the moment the
+     crossing ends: a second animation NAME would then be a second animation, and the pane that had
+     already arrived would replay its rise from the top (traced in Chromium, the strip jumping 7px
+     at 380ms and easing back). Changing only the distance leaves the running animation alone. */
+  --rise: 7px;
   animation: viewin 0.34s var(--ease) 0.05s both;
 }
 .view.out {
@@ -103,6 +208,15 @@
 }
 .view.gone {
   display: none;
+}
+/* One console tab crossing to another (`swap`, set by the panel, which is the only place that
+   knows which view is being left). Both panes wear the same header and the same tab strip, in the
+   same place, so the rise-and-sink above would draw that shared chrome twice 14px apart and read
+   as the strip jittering rather than as the content changing under it. Within the console the
+   crossing is opacity alone: the strip holds still while the panel resizes beneath it. Same
+   keyframes, same timings, only the distance dropped. */
+.view.swap {
+  --rise: 0px;
 }
 /* Every non-chat view: the same column, so the header sits on the chat's rhythm and the foot
    settles under the content rather than at the bottom of a panel that is no longer that tall. */
@@ -119,14 +233,15 @@
   gap: 10px;
   padding: 15px 16px 9px;
 }
-/* Connection indicator: a small dot leading the title, coloured by what the seam last proved
-   and pulsing while a probe is out (components/LinkDot.tsx). It is deliberately tiny: the
-   healthy case is the common one and should read as a quiet full stop, not a status light. */
+/* Connection indicator: a small dot at the head of the button cluster, coloured by what the seam
+   last proved and pulsing while a probe is out (components/LinkDot.tsx). It is deliberately tiny:
+   the healthy case is the common one and should read as a quiet full stop, not a status light. It
+   used to lead the row and carried a 6px optical margin for the panel's edge; mid-row it needs no
+   such margin and rides the header's own 10px rhythm like every other item. */
 .linkdot {
   width: 7px;
   height: 7px;
   flex: none;
-  margin-left: 6px;
   border-radius: 50%;
   background: var(--dim);
   transition: background 0.35s var(--ease);
@@ -159,19 +274,22 @@
    from the moment the assistant looks at the screen until the turn ends. Open rather than
    filled, and the same size as the link dot, so the header reads as one row of state and this
    one is legible as "an eye was on your screen" rather than as a second connection colour. It
-   renders only while it means something, so it takes no space on an ordinary turn. */
+   renders only while it means something, so it takes no space on an ordinary turn, and it stays
+   next to the link dot wherever that sits: the pair is one row of state, and separating them
+   would put a ring beside the title that appears and vanishes with every capture.
+
+   It sits on the TITLE side of the link dot, and the DOM order is what makes that true: the title
+   is the header's only flexible item, so a fixed item inserted against it is paid for out of the
+   title's width and nothing to its right moves. See the note in components/ChatView.tsx. */
 .capturedot {
   width: 7px;
   height: 7px;
   flex: none;
-  margin-left: 6px;
   border-radius: 50%;
   border: 1.5px solid var(--warn);
   box-sizing: border-box;
 }
 
-/* The 6px optical left margin the header opens with now belongs to the dot, which leads the
-   row; the title follows it on the header's own 10px rhythm. */
 .title {
   flex: 1;
   font-size: 13.5px;
@@ -179,6 +297,28 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+/* The chat's title now opens the header, so it is the one thing that has to hold its own against
+   the panel's 28px corner. 14px of extra inset (16px of header padding + the 1px border + 14px =
+   31px from the panel's outer edge) is what balances it, for two reasons that agree:
+     - It puts the text on the corner's own 45-degree diagonal. The title's centre already sits
+       31px below the panel's top edge (1px border + 15px of header padding + half a 30px button
+       row), so starting the text 31px in makes it exactly as far from the side of the panel as
+       from the top of it, which is what "centred on the corner" means for a corner. On the
+       header's bare padding it starts 17px in against those same 31px down, nearly twice as
+       close to one edge as to the other, with the corner turning through the short gap: that is
+       the crowding, and it is why the fix is an inset rather than a smaller radius.
+     - It lands on the panel's own text rail. Measured in Chromium at 560px: a switcher row's title
+       starts at 31px exactly, an assistant bubble's first glyph at 32px, the composer's text at
+       33px. The switcher is the one that shows, since it rolls open directly under the header and
+       its rows are the same kind of thing the header names, so the open chat's title and the list
+       of the others now share one left edge. At the old 40px from that same outer edge (the 1px
+       border + 16px of header padding + the dot's own 6px margin + a 7px dot + the 10px gap) the
+       header was outdented from everything below it.
+   Every other view opens with the back button, which supplies its own inset, so this is scoped to
+   a title that actually starts the row, and it follows the base rule it overrides. */
+.head > .title:first-child {
+  margin-left: 14px;
 }
 .hbtn {
   width: 30px;
@@ -235,30 +375,108 @@
 
 /* The history takes the slack, which is what keeps the composer glued to the panel's bottom edge
    while the panel is mid-resize. Without `flex: 1` the leftover height lands after the last child
-   instead, and every shrink jerked the composer and the hint strip up before easing them back. */
+   instead, and every shrink jerked the composer and the hint strip up before easing them back.
+
+   The shrink factor is an ORDERING, not a ratio: it says the history yields before the pill does
+   (`.composer.stacked`, which is allowed to yield after it, gives the reasoning). Flexbox has no
+   "shrink last", so the priority is spelled as a weight, and the weight has to be large because
+   the alternative is a pill that gives up its share of every deficit at rest. The first-pass share
+   left to the pill is bounded by its own base over this factor, about 170/100000 of a pixel, and
+   measured at 640x720 with the switcher open a two-line draft reads exactly what it read while the
+   pill could not shrink at all (pill 100px, field 50px, history 24.25px), where the same draft at
+   a factor of 1000 cost 0.078px and at 10000 cost 0.016px. */
 .history {
   display: flex;
   flex-direction: column;
-  flex: 1 1 auto;
+  flex: 1 100000 auto;
   min-height: 0;
-  gap: 11px;
-  padding: 6px 16px 4px;
+  /* The rail is reserved out of the right padding, so a bubble ends 16px from the panel edge
+     whether the log scrolls or not, and the thumb rides in the gap the padding gave up. */
+  padding: 6px calc(16px - var(--rail)) 4px 16px;
   overflow-y: auto;
+  /* The gutter is reserved on the inline-end only, so a horizontal bar would be unfunded: it
+     would take its height out of the log the moment it appeared and shove every bubble up.
+     Nothing in here should ever need that axis (bubbles, traces, approval cards and reminders
+     all break long tokens instead of growing sideways), and `clip` is what keeps it that way for
+     content nobody has written yet. `clip` rather than `hidden` so this stays a paint boundary
+     rather than a second scroll container. */
+  overflow-x: clip;
+  scrollbar-gutter: stable;
+  /* Scroll anchoring off, because this scroll position already has a user and does not need a
+     second one. `ChatView` holds the log at its tail while the reader is at the tail, and a Thoughts
+     trace rolling open deliberately leaves `scrollTop` alone so the row stays under the pointer that
+     opened it (ADR-0035). Chromium's anchoring is an invisible third party to both, and the roll is
+     the only mid-log resize in the overlay for it to react to: everything else in here grows at the
+     tail, and the other two rolling sections are in the panel's chrome, outside the dev machine. Where it
+     did act it acted badly, because a roll measures its content at full height and then animates
+     from zero, and the anchor reads that as the log shrinking. Measured at 640x720 with a trace
+     scrolled out of the window: `scrollTop` fell 498 to 422 in one frame and walked back over the
+     roll, the whole log lurching down 76px and creeping back. Off, every frame of both directions
+     reads 498. The reachable paths were already still, and stay still: a pointer click on a row at
+     mid window (19 for every frame of the open and the close), on one straddling the top edge (71),
+     and on the newest reply's trace with the log parked at its tail (498). So this changes nothing
+     the user can do today. What it buys is that the stillness is now a property of the code rather
+     than of which node the engine chose to anchor on, which matters for a body that ships on a
+     WebView2 version this repo cannot trace. */
+  overflow-anchor: none;
+}
+/* The column of bubbles inside that container, and the panel's floor: THE FIRST SEND MUST NOT MAKE
+   THE PANEL SMALLER. Sending replaces the empty state (the mark, the invitation, the two example
+   chips) with a short user bubble and a thinking one, which is less content, and the panel eased
+   down to fit it: the window shrank at the exact moment the user started using it.
+
+   185px is the empty state's own height, measured in Chromium at both 640x720 (the body's window)
+   and 900x900, where it comes out the same because none of it is viewport-height-derived: 32px of
+   `.empty` padding + a 54px mark + 13px gap + a 16px line of "Ask me anything" + 13px gap + a 31px
+   row of chips + 26px of padding. Viewport WIDTH does not enter it either, and that is arranged
+   rather than lucky: the chips would take a second row on a narrow panel and make the empty state
+   224px, so they are held to one row and shrink instead (`.empty-chips` below carries the
+   measurement and the reasoning). Every term above is therefore a constant, which is what lets one
+   number be the floor at every size. `.history` adds its own 6px and 4px, so the container reads
+   195px in the empty state and stays
+   there through the first exchange. Change anything in `.empty` and this number has to be
+   re-measured against it: too low and the panel dips again by the difference, too high and the
+   empty state gains that much dead space around the chips (`margin: auto` splits it
+   above and below, so it stays centred rather than sagging, but the panel is taller than it should
+   be). A couple of pixels either way is below the threshold where anything reads as motion.
+
+   Why the floor is here and not on `.history`: `min-height` on the scroll box cannot yield. With
+   the switcher and the reminder stack both open at a 720px window the history is squeezed to 76px,
+   and a box that refuses to go below 195px there drives the composer and the hint strip out past
+   the panel's clipped edge (measured, then looked at). Floored CONTENT scrolls instead, which is
+   already what the empty state does when it is squeezed. `flex: 1 0 auto` is the other half: the
+   column grows into a history left taller than its content (mid-morph, where `.empty`'s
+   `margin: auto` keeps it centred) and never shrinks under its own content.
+
+   THE SLACK SITS ABOVE THE BUBBLES, not below them, and that is what keeps the auto-scroll honest.
+   The history follows the tail by scrolling to its own `scrollHeight`, so reserved space under the
+   last bubble is space the scroll dutifully lands on: traced with the column top-aligned, the first
+   send squeezed by an open switcher scrolled 119px and showed 18px of the thinking bubble above a
+   blank history. Bottom-aligned, the newest bubble is what the tail is. It also reads as a chat,
+   the exchange sitting against the composer with the reserved height as separation above it, and it
+   is continuous with what happens next, since the panel growing upward moves the content up too.
+   `margin: auto` beats `justify-content` on the empty state, which therefore stays centred. There
+   is no overflow hazard in the alignment: the column never shrinks below its content, so this
+   distributes free space and never negative space (the case where `flex-end` puts content out of
+   the scroll container's reach). */
+.log {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  flex: 1 0 auto;
+  min-height: 185px;
+  gap: 11px;
 }
 
 /* A section that rolls open and shut (components/Collapse.tsx animates the height of this
-   wrapper). The clip is what makes it a roll rather than a squash: the list inside keeps its own
-   size while the wrapper reveals less or more of it. */
+   wrapper): the switcher list, the reminder stack, and a settled reply's Thoughts trace. The clip
+   is what makes it a roll rather than a squash: the content inside keeps its own size while the
+   wrapper reveals less or more of it. That clip is also a block formatting context, which is what
+   keeps a first child's top margin from collapsing out through the wrapper and landing before the
+   roll does (`.thoughts-body` has one). */
 .collapse {
   flex: none;
   overflow: hidden;
-}
-.history::-webkit-scrollbar {
-  width: 7px;
-}
-.history::-webkit-scrollbar-thumb {
-  background: var(--stroke);
-  border-radius: 8px;
 }
 
 .bubble {
@@ -268,6 +486,13 @@
   line-height: 1.55;
   border-radius: 20px;
   white-space: pre-wrap;
+  /* A commit hash or a `.gguf` filename is ordinary output here, and neither offers a break
+     opportunity: without this the token runs past the bubble's 82% and the log grows a horizontal
+     bar, which `scrollbar-gutter: stable` does *not* pay for (it reserves the inline-end gutter
+     only), so that bar takes its height out of the log and every bubble jumps up. Breaking mid
+     token is the lesser evil, and it is what the trace, the approval card and a reminder already
+     do. */
+  overflow-wrap: anywhere;
 }
 .b-user {
   align-self: flex-end;
@@ -293,9 +518,16 @@
   color: var(--text);
   border-bottom-left-radius: 7px;
 }
+/* One streamed word (components/Message.tsx renders `word + " "` per span). The box has to be an
+   inline-block for the reveal to transform at all, and the space has to be preserved or the
+   inline-blocks would sit flush against each other. `pre-wrap` rather than `pre` because `pre`
+   also forbids wrapping *inside* the box, which is what let a single unbreakable token push the
+   bubble past its max-width; with `pre-wrap` the span still holds its trailing space (measured:
+   identical box width either way) and the bubble's `overflow-wrap: anywhere` can now reach the
+   text inside it. */
 .w {
   display: inline-block;
-  white-space: pre;
+  white-space: pre-wrap;
   animation: wordin 0.5s var(--ease) both;
 }
 
@@ -328,6 +560,9 @@
   align-items: center;
   gap: 7px;
   max-width: 82%;
+  /* The row height the settled disclosure below matches, so a turn completing swaps the two in
+     place instead of resizing the log under them. This is the chip's natural height already. */
+  min-height: var(--trace-row);
   padding: 4px 12px;
   background: var(--control);
   border: 1px solid var(--stroke);
@@ -363,38 +598,69 @@
 /* The settled reply's collapsed reasoning trace (ADR-0020 addendum): once the live thinking chip
    drops, the accumulated deliberation stays available as a neutral disclosure the user can open.
    Resting chrome only (the thinking is done, no accent); the body scrolls so a long trace never
-   grows the bubble, and its own `›` marker rotates open in a morph, not a glyph swap. */
+   grows the bubble, and its own `›` marker rotates open in a morph, not a glyph swap.
+
+   It is a button plus a `.collapse` and not a `<details>`, because `<details>` reveals its content
+   in one frame and cannot be made to animate it: the trace snapped open and the panel then eased
+   for 300ms behind it. components/Thoughts.tsx has the rest of that reasoning; what matters here is
+   that the row and the body are now two sibling boxes rather than a summary inside a disclosure, so
+   the open state is read off the button's `aria-expanded` rather than off a parent's `[open]`.
+
+   Closed, it stands exactly where the chip stood and is exactly as tall (`--trace-row`), because
+   it is that chip settled rather than a second element appearing after one left: matching the
+   height is what keeps the completion of a turn from resizing the log, and centring the label in
+   the taller box is what keeps the text from stepping up 5px at the same moment. */
 .thoughts {
   align-self: flex-start;
   max-width: 82%;
   font-size: 12px;
 }
 .thoughts-sum {
+  /* A flex box rather than the default block, purely so the label centres in a row that is taller
+     than the line it holds. `border`, `background` and `font` are the button's own defaults being
+     handed back: a UA button brings a border, a grey face and a 13.333px Arial with it, none of
+     which this row had as a `<summary>`. */
+  display: flex;
+  align-items: center;
+  min-height: var(--trace-row);
   padding: 3px 2px;
+  border: none;
+  background: none;
   color: var(--dim);
-  list-style: none;
+  font: inherit;
   cursor: pointer;
   user-select: none;
 }
-.thoughts-sum::-webkit-details-marker {
-  display: none;
-}
 .thoughts-sum::before {
-  content: "›";
+  /* The empty alt text after the slash is what keeps the marker out of the button's accessible
+     name: it is a picture of the state, which `aria-expanded` already says properly, and without it
+     Chromium announces the control as "› Thoughts". */
+  content: "›" / "";
   display: inline-block;
   margin-right: 6px;
-  transition: transform 0.18s var(--ease);
+  /* The marker turns over the same 300ms the body rolls open in (MORPH_ROLL_MS in overlay/morph.ts,
+     which the roll and the panel's slide already share). It used to turn in 180ms, which was fine
+     against a body that appeared instantly and is not against one that unfolds: the marker would
+     arrive, and then the trace would. */
+  transition: transform 0.3s var(--ease);
 }
-.thoughts[open] .thoughts-sum::before {
+.thoughts-sum[aria-expanded="true"]::before {
   transform: rotate(90deg);
 }
 .thoughts-sum:hover {
   color: var(--muted);
 }
 .thoughts-body {
+  /* Inside the `.collapse` wrapper, whose `overflow: hidden` keeps this margin from collapsing out
+     through it: the gap above the trace is part of what rolls, so it opens with the text rather
+     than appearing under the row a frame early. */
   margin-top: 4px;
   max-height: 28vh;
+  /* The trace has no margin of its own to give back, so the reserved rail is padded off the text
+     instead: a long line wraps clear of the thumb rather than running under it. */
+  padding-right: var(--rail);
   overflow-y: auto;
+  scrollbar-gutter: stable;
   overscroll-behavior: contain;
   color: var(--muted);
   line-height: 1.5;
@@ -412,19 +678,50 @@
   gap: 13px;
   padding: 32px 10px 26px;
   text-align: center;
+  /* The auto margins that centre this also take it off `stretch`, so it sizes to its content, and
+     its content is now a row of chips that refuses to break (`.empty-chips`). A shrinkable flex
+     ITEM does not make the container it is in shrinkable: intrinsic sizing never goes below
+     min-content, and a chip that may not wrap contributes its whole label to it. Measured with
+     `nowrap` on and this cap off, the row kept its full 474px inside a 423px panel and simply hung
+     out of it, where `.history`'s `overflow-x: clip` cuts the far chip off rather than letting it
+     ellipsise. The cap is what hands the shrinking back to the chips. */
+  max-width: 100%;
 }
 .empty-line {
   margin: 0;
   font-size: 14.5px;
   color: var(--muted);
 }
+/* One row, always, and that is a load-bearing choice rather than a layout preference. The chips are
+   the only part of the empty state whose height depends on how wide the panel is, and the floor that
+   stops the first send from shrinking the panel (`.log` above) is a single number sized to that
+   height. Allowed to take a second row they make the empty state 224px where the floor says 185px,
+   and the first send hands straight back the 39px dip the floor exists to prevent. Measured in
+   Chromium by sweeping the viewport: the two labels sit on one row down to a 528px panel and wrap at
+   526px, which the body's own window (640px wide, so a 560px panel) clears by 32px. That margin is a
+   font's worth of slack rather than a proof, and the engine that ships is WebView2 with Segoe UI,
+   not this one. Shrinking instead of wrapping takes the width out of the arithmetic altogether: the
+   empty state is the same height at every width in every engine, and the failure mode when a label
+   genuinely does not fit is a truncated label, which is local and visible, rather than a panel that
+   shrinks the moment the user sends their first message. */
 .empty-chips {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   justify-content: center;
   gap: 8px;
+  /* Same reason as `.empty`'s cap, one level down: the row has to be told it may not exceed the
+     column, or the chips have no pressure on them to shrink. */
+  max-width: 100%;
 }
 .echip {
+  /* A flex item refuses to shrink below its own content unless told to (`min-width: 0`), and the
+     three that follow are what a shrunk chip then does with the label that no longer fits: keep it
+     on one line, clip it, and mark the clip. Without them `nowrap` would push the chips out past
+     the panel's edge instead of ellipsising them. */
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   padding: 7px 14px;
   background: var(--control);
   border: 1px solid var(--stroke);
@@ -522,7 +819,10 @@
      An attachment is the first argument meant to be long, so the draft scrolls rather than
      growing until Approve and Deny are pushed out of view. */
   max-height: 42vh;
+  /* Same as the trace: no margin to give back, so the rail gets padded off the values. */
+  padding-right: var(--rail);
   overflow-y: auto;
+  scrollbar-gutter: stable;
   overscroll-behavior: contain;
 }
 .confirm-row {
@@ -602,8 +902,21 @@
 }
 
 /* The composer IS the rounded field pill; the textarea flows inside it and the send button is
-   nested at the bottom-right. They are flex siblings, so the typing area ends before the button
-   (text never runs under it) and the button stays bottom-aligned as the textarea grows. */
+   nested at the bottom-right. On ONE LINE they are flex siblings, so the typing area ends before
+   the button (text never runs under it) and the button is bottom-aligned.
+
+   PAST ONE LINE the pill restacks (`.stacked`, decided in Composer.tsx). As siblings the button
+   reserves its 44px column down the whole height of the pill, which one line hides and several
+   do not: every wrapped line stopped short of the right edge for no visible reason, and at the
+   field's ceiling the button floated alone at the bottom of a tall empty column. Stacked, the
+   field spans the pill and the button drops to its own row beneath it, still at the end. Both
+   layouts put the button in the same corner of the same content box, so the switch does not move
+   it by a pixel: what changes is that the text gets the width back.
+
+   The text does not move sideways either, and the pill's two insets agree because of where the
+   rail is paid from: the first glyph sits 3px (pill) + 13px (field) in, and a wrapped line ends
+   6px (field padding) + 6px (the reserved scrollbar gutter) from the field's far edge inside the
+   pill's 4px, so 16px on both sides of the border. */
 .composer {
   display: flex;
   align-items: flex-end;
@@ -613,25 +926,130 @@
   background: var(--field);
   border: 1.5px solid transparent;
   border-radius: 23px;
-  transition: 0.2s var(--ease);
+  /* Named properties, not `all`. The focus ring is the only thing here that should ease, and the
+     restack must not: the measurement in Composer.tsx takes the class off and puts it back inside
+     one layout effect, which an `all` transition read as a 6px-to-2px gap change starting over on
+     every keystroke, wobbling the pill's top edge by ~2px per character (traced in Chromium).
+     Layout flips in one frame; only colour travels. */
+  transition:
+    border-color 0.2s var(--ease),
+    background-color 0.2s var(--ease);
+}
+/* A column, so the rows are the field then the button; `stretch` is what hands the field the full
+   width, and the button opts out of it to stay at the end. The 2px row gap is deliberately much
+   tighter than the 6px beside the button: the field already carries 9px of its own padding under
+   the last line, and the pill is paying 38px for the new row as it is.
+
+   THE STACKED PILL YIELDS BEFORE THE PANEL'S EDGE DOES, which is what the floor below buys. A flex
+   item's automatic minimum is its content, so a pill at the field's 120px ceiling refused to give
+   up a pixel: with the switcher and the reminder stack both open at the body's 640x720 window the
+   history is already squeezed to its own padding (10px) and the deficit came out of nowhere else,
+   so the pill's bottom edge cleared the panel's clipped edge by 13px and the whole hint strip by
+   55px (measured, and looked at). The draft's WINDOW is the right thing to spend there: the field
+   already scrolls itself past 120px, so a shorter one shows fewer lines of the same text, where
+   the alternative is a send button and a hint strip that are not on screen at all. The history
+   still yields first, by weight (`.history`), so this is a last resort and not a share: wherever
+   there is room, the pill reads exactly what it read while it could not shrink at all (48/34 empty
+   and on one line, 100/50 on two, 170/120 at the field's ceiling with the switcher shut).
+
+   84px is one draft row plus the button's row, and it REPLACES the automatic minimum rather than
+   adding to it, so it has to be the measured height of exactly that pill and not a pixel more: a
+   floor above it would show up as a taller pill in the band below, where a stacked draft is one
+   visible line. Read off the boxes rather than asserted, 34px of field (its line box plus the 9px
+   it pads above and below) + 38px button + 2px row gap + 8px of the pill's own padding + 2px of
+   border. Written out because flexbox has no way to say "as small as one row of it", and needed
+   because a pill left free to shrink collapsed to 10px under a deficit big enough (a full switcher
+   list and a full reminder stack together outrun the panel before the composer is even asked) and
+   spilled its own text and button over the panel's background, which is worse than the clipping it
+   replaces. Anything added to this pill or taken out of it re-measures this number; the field
+   needs no floor of its own, being the only child here that can shrink. */
+.composer.stacked {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 2px;
+  min-height: 84px;
+}
+/* `flex: 1` is a `flex-basis: 0%`, which in a column is the HEIGHT, and it beats the height the
+   auto-grow measured. Left on, the field drops to its automatic minimum, which for a textarea is
+   one row, so a multi-line draft would be scrolled inside a one-line box: measured with `flex: 1`
+   forced back on, a two-line field went 50px to 34px and took the pill from 100px to 84px. So the
+   basis stays `auto` (the measured height) and only the shrink is given back, which is what lets
+   the pill above pay a deficit out of the field rather than out of the button's row: with the
+   shrink left at 0 the pill still shrank, the field kept all 120px, and it hung 11px below the
+   pill with the button 51px outside it. The field needs no floor of its own, since it is the only
+   child that can shrink and the pill's floor therefore holds it at one row. */
+.composer.stacked .field {
+  flex: 0 1 auto;
+}
+.composer.stacked .send {
+  align-self: flex-end;
 }
 .composer:focus-within {
   border-color: var(--stroke);
   background: var(--control);
 }
+/* The draft's window, and two of its declarations are about what happens when the draft outgrows
+   it. It outgrows it twice: past the 120px ceiling the field scrolls itself, and under a deficit
+   the field is the box that yields, so its window can be shorter than its text at any line count
+   (`.composer.stacked .field` above).
+
+   A SCROLLED WINDOW CUTS ITS EDGE LINES, and neither bound is a whole number of line boxes: the
+   ceiling is 120px against a 34px first row, and a squeezed field lands wherever the deficit
+   leaves it (64.25px in a 114.25px pill at the body's own 640x720 window with the switcher open
+   and a draft at the ceiling, measured). So the edge line was sliced horizontally through its
+   glyphs, which reads as a rendering fault rather than as a window onto more text. Looked at,
+   twice: at that squeeze, and at the plain ceiling, where a caret on the last line put the slice
+   at the TOP edge instead. The pair below answers both, and it is a pair:
+
+   - `mask-image` fades the field's own padding band at each end, so a line the window cuts
+     dissolves into the pill instead of being guillotined, and the fade says the true thing about
+     why it is there (more text, out of the window). The band IS the padding, which is what makes
+     it free: with the text inside its window those 9px hold nothing but padding, so the mask has
+     nothing to act on until there is something to cut. Diffed in Chromium against the same paint
+     with the rule off, a one-line pill moves by a maximum of 5/255 on any channel, which is the
+     composited layer's antialiasing rather than the fade.
+   - `scroll-padding-block` keeps the WRITER'S line out of that band. Chromium scrolls a caret
+     flush to the edge it moved toward, so without this the line being typed is the line being
+     faded: at the 120px ceiling `scrollTop` sat at 17 of a possible 26 with the caret on the last
+     line, which is that line jammed against the cut edge with its padding scrolled past. Declaring
+     the field's own padding as its scroll padding moves those to 26 (and to 0, not 9, with the
+     caret walked back to the first line), so the caret's line always keeps its padding and the
+     fade only ever eats text that is genuinely outside the window.
+
+   The line box is pinned rather than left to the font, for the same reason every number around it
+   is measured: `normal` computes to 16px for this stack, and the 34px one-line field, the stacked
+   pill's 84px floor and the band above are all read off that 16px. Declared, they stay true on a
+   host whose font stack falls back to metrics this repo cannot see. */
 .field {
+  --field-pad: 9px;
   flex: 1;
   min-width: 0;
   background: none;
   border: none;
   border-radius: 0;
-  padding: 9px 2px 9px 13px;
+  /* Past its 120px ceiling the field scrolls itself, and that is exactly when a draft must not
+     re-wrap under the writer's cursor, so the rail is reserved from the first line. The 2px that
+     used to sit on the right is less than the rail, so this is the trace's arrangement rather
+     than the history's: a full rail of padding beside the reserved one. Spending only the old 2px
+     was tried and measured, and it puts the last glyph of a wrapped line about a pixel from the
+     thumb, which is the one thing a reserved rail is supposed to prevent. */
+  padding: var(--field-pad) var(--rail) var(--field-pad) 13px;
   color: var(--text);
   font-family: var(--font);
   font-size: 14.5px;
+  line-height: 16px;
   resize: none;
   outline: none;
   max-height: 120px;
+  scrollbar-gutter: stable;
+  scroll-padding-block: var(--field-pad);
+  mask-image: linear-gradient(
+    to bottom,
+    transparent,
+    #000 var(--field-pad),
+    #000 calc(100% - var(--field-pad)),
+    transparent
+  );
 }
 .field::placeholder {
   color: var(--dim);
@@ -731,7 +1149,17 @@
 .hints b + b {
   margin-left: 4px;
 }
-/* The hint strip's ? is a real button in keycap clothing; it opens the shortcut sheet. */
+/* A cap sitting on a shortcut card cannot wear the card's own fill, or the two merge into one
+   rounded blob. It takes the panel tone instead, which is a step DOWN from the card in the dark
+   theme and a step UP in the light one; either way it is a different plane, which is what makes it
+   read as a key resting in a well. The switcher's rows lift on hover the same way and for the same
+   reason. */
+.skey .row-keys b {
+  background: var(--panel);
+}
+/* Two of the strip's caps are real buttons in keycap clothing: the sliders and the ?, each a door
+   into the console on the tab it names (ADR-0035). They dress as keys because they sit in a row of
+   keys, so the rule strips the button chrome rather than adding any. */
 .qbtn {
   padding: 0;
   border: none;
@@ -745,10 +1173,10 @@
   color: var(--text);
 }
 
-/* The shortcuts and settings views (design/overlay-ux.md §6, ADR-0032) share one shape: a list of
-   rows, what it is on the left, what it can be on the right, hairlines between. Informational
-   resting chrome, so no accent anywhere; the two differ only in what the right-hand side holds,
-   which is why a keycap row and a theme picker sit at the same rhythm.
+/* The console's two tabs (design/overlay-ux.md §6, ADR-0032, ADR-0035) share one shape: groups of
+   rows or swatches under a small section heading, hairlines between. Informational resting chrome,
+   so no accent anywhere; the tabs differ only in what a group holds, which is why a keycap row and
+   a wall of theme tiles sit inside the same box.
 
    Nothing here stretches. The list is as tall as its rows, and the panel shrinks to it. */
 .rows {
@@ -757,9 +1185,50 @@
   flex: 0 1 auto;
   min-height: 0;
   overflow-y: auto;
+  scrollbar-gutter: stable;
   /* Rows start on the panel's own left margin, so the hairlines between them read as inset rules
-     rather than as lines drawn to the rounded edge. */
-  padding: 0 16px;
+     rather than as lines drawn to the rounded edge. The right margin is that same number minus
+     the reserved rail, which puts the hairline's far end back where the left one starts. */
+  padding: 0 calc(16px - var(--rail)) 0 16px;
+}
+/* A binding as a soft filled card, two to a row. The shortcuts tab is a wall of small tiles for the
+   same reason the appearance tab is: they are two faces of one view, and a hairline-separated list
+   beside a grid of swatches reads as two different screens. The fill is the same resting
+   `--control` the keycaps themselves sit on, one step up from the panel, so a card reads as the
+   ground a key is pressed against rather than as a button that can be clicked. `.wide` spans both
+   columns, for a binding whose keys cannot fit beside its label at half width (three caps for
+   Ctrl+Alt+Space, or a label carrying a second line). */
+.skeys {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+.skey {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 0;
+  padding: 8px 11px;
+  border-radius: 12px;
+  background: var(--control);
+}
+.skey.wide {
+  grid-column: 1 / -1;
+}
+.skey-label {
+  min-width: 0;
+  font-size: 12.5px;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.skey-label small {
+  display: block;
+  margin-top: 1px;
+  font-size: 11px;
+  color: var(--dim);
 }
 .row {
   display: flex;
@@ -798,55 +1267,185 @@
   color: var(--dim);
 }
 
-/* A row's choices: one rail, so the options read as the settable range of that row rather than as
-   loose buttons, and the chosen one is lit from within it. Marks are drawn live in their own rail
-   at the same height, because these four styles differ by how they MOVE. */
-.seg {
+/* The console's tab strip: one rail holding the two faces of the view, centred under the header so
+   it reads as a control belonging to the whole pane rather than to the row beneath it. It is the
+   same segmented shape the settings rows used to hold, promoted to the level it now switches.
+
+   Both tabs are mounted for the length of a tab morph (the one being left is still fading over the
+   one arriving), so two strips are briefly stacked. They are identical and land in the same place,
+   which is why the crossing reads as the CONTENT changing under a strip that stays put. That only
+   holds because a tab-to-tab crossing drops the pane movement (`.view.swap`, above); with the
+   rise-and-sink left on, the two strips sit 14px apart mid-fade and the stillness is a lie. */
+.tabs {
   flex: none;
+  align-self: center;
   display: flex;
   gap: 2px;
+  margin: 2px 0 10px;
   padding: 3px;
   background: var(--control);
   border-radius: 999px;
 }
-.seg-opt {
-  padding: 5px 13px;
+.tab {
+  padding: 5px 15px;
   border: none;
   border-radius: 999px;
   background: none;
   color: var(--muted);
   font-family: var(--font);
   font-size: 12.5px;
+  cursor: pointer;
+  transition: 0.18s var(--ease);
+}
+.tab:hover {
+  color: var(--text);
+}
+.tab.on {
+  color: var(--text);
+  background: var(--field);
+}
+/* The tab's own body. It is the flex column the rows expect to be in, so a tab is free to be a
+   list, a wall of swatches, or both, and the panel still shrinks to exactly its height. */
+.tabpanel {
+  display: flex;
+  flex-direction: column;
+  flex: 0 1 auto;
+  min-height: 0;
+}
+
+/* A group inside a tab: a quiet heading and whatever belongs under it. The hairline between groups
+   is the same rule the rows draw between themselves, so a tab of lists and a tab of swatches read
+   as one surface. */
+.swatch {
+  padding: 4px 0 10px;
+}
+.swatch + .swatch {
+  border-top: 1px solid var(--stroke);
+}
+.sect {
+  margin: 0 0 8px;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+/* One line under a group of tiles, explaining the choice the art cannot say out loud (what Auto
+   follows; what the chosen mark does when it moves). */
+.note {
+  margin: 8px 0 0;
+  font-size: 11.5px;
+  color: var(--dim);
+}
+
+/* A choice made by looking at it. The tiles are a plain wrapping row rather than a segmented rail,
+   because each one carries its own picture and a shared pill around them would fight it. */
+.tiles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+/* Resting chrome, so the selection is a LIFT and not a colour: the chosen tile gains the ground
+   and the hairline the others do without. Both borders are always there (a transparent one when
+   resting) so nothing shifts by a pixel when the choice moves. */
+.tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 7px 5px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  background: none;
+  color: var(--muted);
+  font-family: var(--font);
+  font-size: 11.5px;
   text-transform: capitalize;
   cursor: pointer;
   transition: 0.18s var(--ease);
 }
-.seg-mark {
-  display: grid;
-  place-items: center;
-  width: 36px;
-  height: 30px;
-  padding: 0;
-  border: none;
-  border-radius: 999px;
-  background: none;
-  cursor: pointer;
-  opacity: 0.5;
-  transition: 0.18s var(--ease);
-}
-.seg-opt:hover {
+.tile:hover {
   color: var(--text);
 }
-.seg-mark:hover {
-  opacity: 0.85;
-}
-.seg-opt.on {
+.tile.on {
   color: var(--text);
   background: var(--field);
+  border-color: var(--stroke);
 }
-.seg-mark.on {
+.tile-art {
+  display: block;
+  position: relative;
+  /* The art sizes itself (a theme mini is a box, a mark is an SVG of a given size); the row of
+     tiles then sizes itself to the tallest, so a mark tile and a theme tile line up on their
+     labels without either number being written down twice. */
+}
+/* A mark at rest is dimmed like any other unchosen option, but never all the way: these four
+   styles differ by how they MOVE, so all four have to be watchable side by side. */
+.tile .mark {
+  opacity: 0.55;
+  transition: opacity 0.18s var(--ease);
+}
+.tile:hover .mark,
+.tile.on .mark {
   opacity: 1;
-  background: var(--field);
+}
+
+/* A theme, previewed as a miniature of the panel wearing it: the desktop ground, the glass panel on
+   it, and three bars for the title, a reply and the composer. Every colour is an inline style read
+   from that theme's own tokens (components/ThemeMini.tsx), so this rule owns the shape only and a
+   theme added to the registry previews itself. */
+.mini {
+  display: flex;
+  width: 72px;
+  height: 50px;
+  padding: 6px;
+  border-radius: 9px;
+  overflow: hidden;
+}
+/* The panel floats on that ground, so it carries the shadow the real one does. The shadow is the
+   one thing here NOT taken from the theme: it is shape rather than palette, and a light panel on a
+   light desktop needs an edge to sit on in any theme. */
+.mini-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 5px;
+  border: 1px solid;
+  border-radius: 6px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.22);
+}
+.mini-title {
+  width: 42%;
+  height: 3px;
+  border-radius: 2px;
+  opacity: 0.75;
+}
+/* A reply, not a rule: a block on the leading edge, so the mini reads as a conversation with a
+   composer under it rather than as three stacked lines. */
+.mini-msg {
+  width: 62%;
+  height: 7px;
+  border-radius: 3px;
+  opacity: 0.35;
+}
+.mini-pill {
+  margin-top: auto;
+  height: 8px;
+  border: 1px solid;
+  border-radius: 4px;
+  opacity: 0.55;
+}
+/* Auto is the one tile that is two themes: the light one is laid over the dark one and cut on the
+   diagonal, so the tile says "whichever your system is" without a word. */
+.mini-split {
+  display: block;
+  position: relative;
+}
+.mini-half {
+  position: absolute;
+  inset: 0;
+  clip-path: polygon(100% 0, 100% 100%, 0 100%);
 }
 
 /* The orb: the bubble mark is colorful (it's a working state). All of its motion is inside the
@@ -969,7 +1568,7 @@
 @keyframes viewin {
   from {
     opacity: 0;
-    transform: translateY(7px);
+    transform: translateY(var(--rise));
   }
   to {
     opacity: 1;
@@ -983,7 +1582,7 @@
   }
   to {
     opacity: 0;
-    transform: translateY(-7px);
+    transform: translateY(calc(0px - var(--rise)));
   }
 }
 @keyframes drain {
@@ -1010,9 +1609,18 @@
 .switcher {
   list-style: none;
   margin: 0 12px 6px;
-  padding: 6px;
+  /* The card's inset is 6px, which is exactly the reserved rail, so on the right the rail IS the
+     inset: rows stay centred in the card and keep their distance from its rounded edge whether or
+     not the list is long enough to scroll. The tradeoff of spending the whole inset is that a row's
+     box now reaches the rail while the list scrolls, so the clearance between the thumb and the
+     title is the row's own 11px of padding (`.switcher-item`), not the card's. A row that ever
+     drops its horizontal padding has to put the 6px back here, which is one of the two triggers
+     this is filed under in docs/refinements/body-overlay.md; the other is the maintainer reading the
+     rail as too close to the chrome. */
+  padding: 6px 0 6px 6px;
   max-height: 40vh;
   overflow-y: auto;
+  scrollbar-gutter: stable;
   background: var(--control);
   border: 1px solid var(--stroke);
   border-radius: 16px;
@@ -1248,9 +1856,18 @@
 .reminders {
   list-style: none;
   margin: 0 12px 6px;
-  padding: 6px;
+  /* The switcher's arithmetic, and its tradeoff: the 6px right inset is the reserved rail itself,
+     so the clearance from the thumb is the 9px each `.reminder` pads itself by, and a row's box
+     now ends 1px from the painted thumb while the stack scrolls. Only the box does: the hairline
+     between two reminders is a border-top on a 12px-radius row, so it has curved away and faded
+     into the card long before the box ends. Read off the pixels of the border row in both themes:
+     its straight run ends at x=697 (698 in light), its last tinted pixel is x=701, and the thumb's
+     first painted column is x=711, so nine untouched columns sit between them. Filed with the
+     switcher's copy of it in docs/refinements/body-overlay.md. */
+  padding: 6px 0 6px 6px;
   max-height: 30vh;
   overflow-y: auto;
+  scrollbar-gutter: stable;
   background: var(--control);
   border: 1px solid var(--stroke);
   border-radius: 16px;

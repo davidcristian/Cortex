@@ -14,8 +14,8 @@ interface PanelViewProps {
  *
  *  These views are not sheets laid over the panel any more; they ARE the panel while they are up,
  *  so the panel resizes to what they need and slides back to true centre (`usePanelMotion`). A
- *  view with two settings in it is therefore a small window rather than a tall one with its
- *  content pinned to the top and its footer stranded three hundred pixels below. */
+ *  view with two rows of swatches in it is therefore a small window rather than a tall one with
+ *  its content pinned to the top and its footer stranded three hundred pixels below. */
 export function PanelView({ title, onClose, children }: PanelViewProps) {
   return (
     <section className="pane" aria-label={title}>

@@ -206,7 +206,7 @@ reasoning past the turn (persisting or summarizing it) was **declined** for want
   `Message.tsx`). The reducer already folded a thinking status's latest `detail` into `status` and
   dropped it when the turn settled; it now also concatenates every `"thinking"` delta, in order,
   into a new `Message.thoughts`. While the reply streams the live `chip-think` still shows the
-  latest delta; once it settles, the chip drops and a collapsed `<details>` "Thoughts" disclosure
+  latest delta; once it settles, the chip drops and a collapsed "Thoughts" disclosure
   above the bubble holds the whole trace, so "what it was thinking" survives the turn as a
   retrospective the user opens on demand. One reasoning affordance at a time: the chip owns the
   live phase, the disclosure the settled one, so the section renders only when
@@ -217,6 +217,14 @@ reasoning past the turn (persisting or summarizing it) was **declined** for want
   it is a plain text node, never linkified. Live-validated in headless Chromium (light + dark): the
   disclosure is absent while streaming, appears collapsed once settled with the chip gone, expands
   to the full scrubbed trace, and holds zero anchors.
+
+  **It stopped being a `<details>` on 2026-07-20**, on the user's "there is no animation when
+  expanding thoughts". Neither `<details>` nor `<summary>` can animate the content it reveals, so
+  the trace appeared in one frame while the panel eased for 300ms behind it. It is now a real button
+  carrying `aria-expanded` over the overlay's existing rolling section (`components/Thoughts.tsx`
+  over `components/Collapse.tsx`, [ADR-0035](ADR-0035-console-and-motion.md) decision 14), which
+  rolls the body open and shut over 300ms and brings the panel with it. Nothing about what is rendered
+  changed: still one plain text node, still no markup parsed and no URL linkified.
 
 - **Reasoning persistence / summarization was declined for want of a consumer.** The collapsed
   section is served entirely by the in-memory `thoughts` accumulation; nothing reads a *stored*

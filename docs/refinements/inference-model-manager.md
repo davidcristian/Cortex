@@ -171,8 +171,9 @@ variants, disable-thinking / token-budget capping
   persistence/summarization was declined on 2026-07-16, both without a seam change ([ADR-0020
   fourth addendum](../adr/ADR-0020-reasoning-status.md)):** the reducer now also concatenates every
   scrubbed thinking delta into a new `Message.thoughts`, and the settled reply renders it as a
-  collapsed `<details>` disclosure above the bubble, the chip's retrospective counterpart
-  (`overlayState.ts` + `Message.tsx`, gated + browser-validated in both themes). Persisting or
+  collapsed disclosure above the bubble, the chip's retrospective counterpart (`overlayState.ts` +
+  `Thoughts.tsx`, gated + browser-validated in both themes; a `<details>` at first, rebuilt on
+  2026-07-20 as a button over `Collapse` so the trace rolls open instead of snapping). Persisting or
   summarizing the trace stays **declined for want of a consumer**: nothing reads a stored trace,
   re-display on reload needs a `GetSessionMessages` reasoning field (the read path the open-chat
   title-consistency entry independently needs widened) and the store to grow by the observed

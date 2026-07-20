@@ -1,4 +1,5 @@
 import type { Message as MessageModel } from "../overlay/overlayState";
+import { Thoughts } from "./Thoughts";
 
 // A chat bubble. Neutral at rest; while streaming it carries the accent glow + caret and reveals
 // each word fluidly (per-word spans keyed by index, so only new words animate in). Until the
@@ -7,9 +8,10 @@ import type { Message as MessageModel } from "../overlay/overlayState";
 // "thinking" status reads as deliberation, not action, so its chip bobs (chip-think) rather than
 // carrying the steady tool pulse (ADR-0020 state-aware chip). Once a reply that reasoned settles,
 // the live chip drops and the accumulated trace stays available as a collapsed "Thoughts"
-// disclosure above the bubble (ADR-0020 addendum): the settled counterpart of the chip, resting
-// chrome only since the thinking is done. Errors render as an alert. Color lives only in the
-// working/error states.
+// disclosure above the bubble (ADR-0020 addendum, `Thoughts.tsx`): the settled counterpart of the
+// chip, resting chrome only since the thinking is done. That disclosure owns its own open state,
+// which is why it is a component rather than markup here: this one stays a pure function of the
+// message. Errors render as an alert. Color lives only in the working/error states.
 export function Message({ message }: { readonly message: MessageModel }) {
   const tone = message.role === "user" ? "b-user" : "b-ai";
 
@@ -39,10 +41,7 @@ export function Message({ message }: { readonly message: MessageModel }) {
         </span>
       ) : null}
       {!message.streaming && message.thoughts !== "" ? (
-        <details className="thoughts">
-          <summary className="thoughts-sum">Thoughts</summary>
-          <div className="thoughts-body">{message.thoughts}</div>
-        </details>
+        <Thoughts trace={message.thoughts} />
       ) : null}
       <div className={`bubble ${tone}${message.streaming ? " streaming" : ""}`}>
         {thinking ? (

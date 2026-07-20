@@ -644,12 +644,16 @@ describe("useOverlay", () => {
     expect(result.current.state.switcherOpen).toBe(true);
   });
 
-  it("toggleSheet drives the reducer's shortcut-sheet flag", async () => {
+  it("drives the console's one tab: an opener toggles it, the strip switches, Esc's close leaves", async () => {
     const bridge = new FakeBridge();
     const { result } = renderHook(() => useOverlay(bridge, () => "s1"));
     await flush();
-    act(() => result.current.toggleSheet());
-    expect(result.current.state.sheetOpen).toBe(true);
+    act(() => result.current.toggleConsole("shortcuts"));
+    expect(result.current.state.consoleTab).toBe("shortcuts");
+    act(() => result.current.openConsole("appearance"));
+    expect(result.current.state.consoleTab).toBe("appearance");
+    act(() => result.current.closeConsole());
+    expect(result.current.state.consoleTab).toBeNull();
   });
 
   it("hovering the preview pauses the auto-fade; leaving restarts the full countdown", async () => {

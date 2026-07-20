@@ -108,6 +108,18 @@ export class DemoBridge implements BrainBridge {
     if (/send|email/iu.test(text)) {
       return this.confirmTurn(sink, /time\s?out/iu.test(text));
     }
+    // Say "screen" and the demo brain reports the capture built-in, so the header's capture ring
+    // (ADR-0029) is drivable by hand like the outage and confirm-timeout hooks above it. Without
+    // this the ring is unreachable in browser dev: it is lit by a `toolActivity` naming
+    // `capture_screen`, and no other demo turn emits a tool activity at all, so the one indicator
+    // whose whole job is to be seen was the one thing that could never be looked at.
+    if (/screen|look at|see this/iu.test(text)) {
+      sink.onEvent({
+        kind: "toolActivity",
+        toolName: "capture_screen",
+        summary: "reading the screen",
+      });
+    }
     // Hold the bubble on the thinking shimmer, surface a reasoning burst as thinking statuses,
     // then stream: the same shape a real reasoning turn has (ADR-0020). Several deltas so the
     // accumulated trace is real, both as the live bobbing chip and, once the reply settles, as the

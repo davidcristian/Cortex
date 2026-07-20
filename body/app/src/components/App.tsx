@@ -47,8 +47,8 @@ export function App({ bridge, newSessionId }: AppProps) {
   }, [controller.open]);
 
   // The header's quick flip names the opposite theme outright, so it always lands somewhere
-  // definite; going back to "follow the system" is the settings sheet's job (it can express the
-  // `null` the toggle cannot).
+  // definite; going back to "follow the system" belongs to the console's appearance tab (it can
+  // express the `null` the toggle cannot).
   const toggleTheme = () => setTheme(theme.scheme === "dark" ? "daylight" : "midnight");
 
   // Click-away dismisses (design/overlay-ux.md §4): a press on the bare stage around the open

@@ -44,7 +44,7 @@ its signature.
 | [memory.md](memory.md) | Store, scoping, rerank/MMR (ADR-0008) | 8 |
 | [inference-model-manager.md](inference-model-manager.md) | Model-manager lifecycle, MTP, reasoning status (ADR-0007/0020) | 7 |
 | [subagents.md](subagents.md) | Progress reporting, spawn schema, heterogeneous roster (ADR-0010/0018) | 2 |
-| [body-overlay.md](body-overlay.md) | Overlay polish, connection indicator, proto Cancel (ADR-0011), per-row reminder exit and the unpicked view directions (ADR-0034) | 4 |
+| [body-overlay.md](body-overlay.md) | Overlay polish, connection indicator, proto Cancel (ADR-0011), per-row reminder exit, the composer's move on a clamped shrink, a touch mid-roll pinning to a prediction, a placement left computed for a stale height, the composer's own growth being the one resize the panel never eases, the demo bridge staying over the line cap, the reserved scrollbar rail's assumed width and spent card inset, the chat floor's frozen measurement of the empty state, a mid-stream retarget restarting from a rounded height, a Thoughts trace opening a reply off the bottom of a full history, sections tall enough to outrun the panel on their own, the console tab strip's missing keyboard half, and a new chat minted from the console leaving the console up | 16 |
 | [session-read-seam.md](session-read-seam.md) | Session listing/read seam (ADR-0021) | 3 |
 | [resource-governance.md](resource-governance.md) | Scheduler/placer budgets, NPU, drain (ADR-0012) | 5 |
 | [email-confirmer.md](email-confirmer.md) | Email write, Confirmer, attachments, `ToolActivity` chip (ADR-0022) | 4 |
@@ -686,10 +686,116 @@ against the code (the warning above); the entry text tells you which seams it ex
   Nothing blocks the code; what it wants is a `usePresence` hook that holds a removed item until
   its own roll ends, which the switcher's rows would share. Small, and listed because the
   entry it replaces was sized as invisible and turned out to be the thing the maintainer noticed.
+- **A shrink against the ceiling still moves the composer, and the user picks the fix**
+  ([body-overlay.md](body-overlay.md)), open from 2026-07-20. Reversible switcher round trips and a
+  composer that never moves are the same statement with opposite signs once the panel is tall
+  enough to be clamped, so this is a design choice rather than a defect: as shipped the pinned edge
+  is kept unclamped (reversible, and a clamped shrink slides the composer), and the alternative
+  re-pins to the clamped edge and hands back a saved per-section edge when a roll closes. Centring
+  the summon took it from constant to rare (0px on every measured everyday case, and a chat must
+  grow 615px at a 900px viewport to reach the ceiling at all), which is why it can wait for an
+  answer instead of blocking.
+- **A placement can be left computed for a height the panel no longer has**
+  ([body-overlay.md](body-overlay.md)), found 2026-07-20 while re-verifying the switcher's round
+  trip. The hook is driven by renders and by the roll's end event, so content that settles after
+  both leaves the last placement standing; now that the resting panel is centred rather than pushed
+  off its ceiling, that is at most a pixel. Wants a `ResizeObserver` driving the same placement,
+  which would retire the event too, and the care is keeping the observer from fighting the
+  animations.
+- **A touch mid-roll leaves the session pinned to a prediction, not to a measurement**
+  ([body-overlay.md](body-overlay.md)), open from 2026-07-20, and the same entry above seen from
+  the other end. A summon owns the panel's geometry until the user touches it
+  ([ADR-0035](../adr/ADR-0035-console-and-motion.md) decision 8); a touch that lands while a
+  section is still rolling in makes the ride-along's PREDICTED height the session's pinned edge,
+  because the measurement that would have corrected it is no longer an arrival. Measured at a 900px
+  viewport: 2.1px, stable rather than drifting. The same `ResizeObserver` retires it, so the two
+  are one pickup.
+- **The composer's own growth is the one resize the panel never eases**
+  ([body-overlay.md](body-overlay.md)), open from 2026-07-20, when the composer learned to restack
+  past one line. The draft lives in the composer's own state, so a growing field re-renders nothing
+  above it and the placement hook is never called: the panel's `auto` height follows in the frame
+  the character lands, bottom edge pinned. Still (the button under the hand and the pill's bottom
+  edge do not move), and the step is now what the keystroke did rather than one number: 16px a
+  further line, 36px the character that restacks, 52px a Shift+Enter that restacks and adds a line
+  at once, 122px a paste that fills the field to its ceiling. Wants the same `ResizeObserver` as the
+  entry above it, with which it shares the whole of its fix, so the two are one pickup.
+- **Sections tall enough to outrun the panel on their own**
+  ([body-overlay.md](body-overlay.md)), open from 2026-07-20, when the composer learned to yield
+  before the panel's edge ([ADR-0035](../adr/ADR-0035-console-and-motion.md) decision 19) and left this
+  behind it. The chat switcher may be `40vh` and the reminder stack `30vh`, which at the body's
+  720px window is 504px of a 547px panel, so a full one of each leaves the composer and the hint
+  strip with nothing to be laid out in whatever they give up of their own height. Bounded now (the
+  pill stops at its 84px floor with its text and its button inside it, and only the hint strip goes
+  over the edge) and reachable only with both sections full at once. The fix is a cap that knows
+  about its neighbours: the two `vh` numbers are each written as if that section were alone with the
+  panel.
 - **The two unpicked directions for the settings and shortcuts views**
-  ([body-overlay.md](body-overlay.md)), open from 2026-07-19: three were pitched, the plainest
-  shipped, and the user's answer decides whether either of the others is built. Inner markup on
-  plumbing that already exists, so the cost is a component and not a motion change.
+  ([body-overlay.md](body-overlay.md)), open from 2026-07-19 and **closed 2026-07-20**: the user
+  picked both at once, and both landed as predicted, a component change on unchanged plumbing. The
+  two views are one console with a tab strip and the theme choices are thumbnails of the panel
+  wearing each theme ([ADR-0035](../adr/ADR-0035-console-and-motion.md) decision 1).
+- **Two overlay modules over the 300-line cap** ([body-overlay.md](body-overlay.md)), open from
+  2026-07-20 and **closed the same day**, along the two seams the entry named: the turn-event fold
+  left the reducer for `overlay/turnState.ts` (394 to 241) and the chat catalog left the controller
+  for `overlay/useSessionCatalog.ts` (321 to 181), both re-entering through the module they left so
+  no call site moved.
+- **`bridge/demoBridge.ts` stays over that cap** ([body-overlay.md](body-overlay.md)), open from
+  2026-07-20: the last overlay source above 300 (326), untouched by the console merge. Its natural
+  split is the canned demo script into a constants module, which no test imports, so it would cost
+  a new entry in the coverage `exclude` list. Widening that list is the bigger concession, so this
+  waits for the demo to grow behaviour worth testing.
+- **The chat floor's frozen measurement of the empty state**
+  ([body-overlay.md](body-overlay.md)), open from 2026-07-20, when a `min-height` sized to the
+  empty state stopped the panel shrinking on the first message. The 185px is measured and
+  commented but never re-checked, so editing the mark, the invitation or the example chips drifts
+  the floor away from the thing it copies, by a few pixels of dip or of dead space. What is left is
+  content drift and the engine: the width half was closed the same day by holding the example chips
+  to one row, once a sweep showed the shipping window clears their wrap by only 32px of label
+  width. Reading the
+  rendered empty state once and publishing it as a custom property retires the constant, and it is
+  the same startup probe the reserved scrollbar rail's assumed width wants, so the two are one
+  small module if either is picked up. The same probe would also retire `--trace-row`, the second
+  frozen number the panel now carries, which restates the activity chip's box so the settled
+  "Thoughts" disclosure can match it.
+- **A Thoughts trace opening a reply off the bottom of a full history**
+  ([body-overlay.md](body-overlay.md)), open from 2026-07-20, when the disclosure learned to roll.
+  The roll leaves the history's `scrollTop` alone, which is the right default (the row stays under
+  the pointer that opened it) and costs the tail of the reply once the panel can no longer grow:
+  measured at 640x720 with the reminder stack up, the disclosure's top edge held for every frame of
+  the roll and 76px of answer went below the fold, or the whole of it with a trace at its `28vh`
+  cap. The reader can scroll and closing the trace undoes it exactly, so it is comfort rather than a
+  defect. The fix is a scroll animation on the roll's own clock and curve, moving by as much of the
+  growth as falls below the fold and no more. It has a second job now: `.history` turned scroll
+  anchoring off ([ADR-0035](../adr/ADR-0035-console-and-motion.md) decision 15) after the engine's version
+  of it lurched the log 76px on the way open, and easing the log down as a trace above the fold
+  closes was the half it had been getting right.
+- **The console's tab strip is a tab list by role but not yet by keyboard, and the pane it is
+  leaving stays tabbable while it fades** ([body-overlay.md](body-overlay.md)), open from
+  2026-07-20, when the two settings views became one console. Focus now travels with the view (onto
+  the arriving tab, back to the composer on the way out), which is what makes the leaving pane's
+  `aria-hidden` take effect at all. What is left is the rest of the pattern: arrow keys along the
+  strip with a roving `tabindex`, and a leaving pane that is untabbable as well as unannounced,
+  which wants `inert` and therefore React 19. Both are small and neither is reachable by a
+  pointer; a keyboard user meets them only by pressing Tab during the 380ms of a morph.
+- **A new chat minted while the console is up leaves the console up**
+  ([body-overlay.md](body-overlay.md)), open from 2026-07-20, when verifying the console merge put
+  a name to behaviour that predates it: `newChat` clears the switcher and any pending confirm but
+  not the console tab, so Ctrl+N empties the chat behind Appearance or Shortcuts and leaves it
+  showing (measured at 900x900). Older than the merge, since the two sheets the console replaced
+  were not cleared either. One line in one reducer arm, and it is listed here because the answer is
+  the user's: a new chat probably wants the chat, but a console closing under a keystroke aimed at
+  the conversation surprises the other way round.
+- **A move retargeted mid-stream restarts from a rounded height**
+  ([body-overlay.md](body-overlay.md)), found 2026-07-20 while re-verifying the chat floor with
+  `element.animate` instrumented. The panel measures itself with `offsetHeight`, so each token's
+  retarget opens its keyframes on a whole pixel while the eye has the fractional one, and the panel
+  steps back by the remainder for one frame (worst 0.39px, none at all at the shipping window with
+  the reminder stack up, where the one whole pixel that was measurable turned out to be a second and
+  unrelated rounding, the ceiling itself, fixed rather than filed:
+  [ADR-0035](../adr/ADR-0035-console-and-motion.md) decision 16). Listed last of the open items on purpose:
+  it is the smallest thing in this file, the floor it was found under holds regardless (the panel is
+  never below its pre-send height at any frame), and the fix costs a harness rewrite across every
+  test that fakes `offsetHeight`.
 
 Everything else that remains is gated on a seam or port change, on hardware that fits two model
 tiers, on a consumer that does not yet exist, or is a bounded fix-when-it-bites contingency. The
@@ -881,6 +987,17 @@ summarization and reranking ([session-history.md](session-history.md),
   evasion those bounds do not cover, and even then the sound fix is a per-tool domain normalizer
   (the model judgment the ADR rejected), not schema folding ([tools-mcp.md](tools-mcp.md))
 - Token rotation / multiple tokens: needs a second seam client ([seam-auth.md](seam-auth.md))
+- Measuring the scrollbar rail instead of assuming it: no non-Chromium engine runs the overlay.
+  Every scroll container reserves `--rail` (6px) and pays for it out of its own inline-end padding,
+  which is exact wherever `::-webkit-scrollbar` sets the width. Chromium prefers the standards
+  properties over the pseudo-elements when both are set (measured 2026-07-20: `scrollbar-width:
+  thin` beside the 6px webkit rail reserves 10px, not 6), so the standards path is fenced to
+  engines that have no pseudo-elements, and there the UA picks `thin`'s width and the subtraction
+  leaves the inline-end margin a few px wider than the other side. Nothing shifts when the bar
+  appears on either engine, so what is deferred is symmetry on an engine the body does not ship on.
+  Reopens if the body ever runs on one, and the fix is then to read a probe's
+  `offsetWidth - clientWidth` once at startup and publish it as `--rail`, which is a module and its
+  tests rather than a CSS line ([body-overlay.md](body-overlay.md))
 - Trust/gating overrides for remote tools: no trusted remote tool exists
   ([untrusted-content.md](untrusted-content.md), [email-confirmer.md](email-confirmer.md))
 - Real-file email attachments (bytes the assistant did not author): declined 2026-07-16, the
@@ -1086,6 +1203,16 @@ error, so it cannot cleanly precede body multi-turn, which itself carries the pe
 knock-on), and whose trigger is the same Slice 11 model swap: today's Stop mutes the sink without
 aborting the RPC, so the brain finishes the turn and persists the full reply, adequate while compute is
 cheap and worth a real abort only when a swap makes mid-turn compute expensive
+([body-overlay.md](body-overlay.md)); the switcher's and the reminder stack's whole 6px inset being
+spent on the reserved scrollbar rail, joined on 2026-07-20 when scrollbars became reserved chrome,
+which keeps both cards' resting geometry exactly as it was and costs a row's box reaching the
+reserved band (the painted thumb clears the right-most child box by 1px, though only the box gets
+that close: the hairline between two reminders curves away on the row's own 12px radius and fades
+out nine columns clear of the thumb, and text stays 9px to 11px clear on the rows' own padding),
+whose
+trigger is either a row dropping its horizontal padding or the maintainer reading the rail as touching
+the chrome, and whose fix is the 6px going back on the card at the cost of a 12px inline-end inset
+against a 6px left, or a narrower rail for those two cards
 ([body-overlay.md](body-overlay.md)); the tunnel
 fallback, the
 hardened non-loopback posture, a safe Core Audio wrapper, and the unbalanced COM
