@@ -65,13 +65,16 @@ describe("Composer", () => {
     expect(onSubmit).not.toHaveBeenCalled();
   });
 
-  it("takes focus when the panel opens (focus-on-summon)", () => {
+  it("takes focus when the panel opens (focus-on-summon), and scrolls nothing to do it", () => {
+    const focus = vi.spyOn(HTMLTextAreaElement.prototype, "focus");
     const { rerender } = render(
       <Composer busy={false} active={false} onSubmit={vi.fn()} onStop={vi.fn()} onResize={vi.fn()} />,
     );
     expect(document.activeElement).not.toBe(field());
     rerender(<Composer busy={false} active={true} onSubmit={vi.fn()} onStop={vi.fn()} onResize={vi.fn()} />);
     expect(document.activeElement).toBe(field());
+    expect(focus).toHaveBeenCalledWith({ preventScroll: true });
+    focus.mockRestore();
   });
 
   it("auto-grows with its content up to the cap, then holds and scrolls", () => {

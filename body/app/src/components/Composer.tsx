@@ -39,7 +39,7 @@ export function Composer({ busy, active, onSubmit, onStop, onResize }: ComposerP
 
   useEffect(() => {
     if (active) {
-      fieldRef.current.focus();
+      fieldRef.current.focus({ preventScroll: true });
     }
   }, [active]);
 

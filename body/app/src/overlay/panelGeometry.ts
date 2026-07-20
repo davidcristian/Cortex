@@ -25,8 +25,9 @@ export interface Geometry {
   readonly bottom: number;
 }
 
-export function frame(height: number, bottom: number): Keyframe {
-  return { height: `${height}px`, bottom: `${bottom}px` };
+/** One end of a move, as a keyframe. */
+export function frame(height: number, bottom: number, ceiling: number): Keyframe {
+  return { height: `${height}px`, bottom: `${bottom}px`, maxHeight: `${ceiling}px` };
 }
 
 export function settled(from: Geometry, to: Geometry): boolean {

@@ -185,8 +185,13 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
   decides the height the panel eases to; the view being left is held for one morph, lifted out of
   flow, and faded out over the one arriving; the chat is never unmounted, so a half-typed draft and
   the composer's focus survive a trip to the console. The history's scroll position does NOT survive
-  on that alone, being out of the flow is precisely what loses it, and is parked and handed back by
-  `overlay/useLogScroll.ts`. Whichever pane is on its
+  on that alone, since the view being left is `display: none` at the end of the morph, and is parked
+  and handed back by `overlay/useLogScroll.ts`.
+  The view being left is bounded by the panel (`.view.out` carries a `bottom`) and not only lifted
+  out of it: laid out at its own natural height, its composer dropped from 388px down the panel to
+  558px inside a panel 347px tall, so the chat's bottom furniture was clipped away in the first
+  frame of a fade the rest of it took a quarter of a second over.
+  Whichever pane is on its
   way out is `aria-hidden`, chat or console, so two mounted panes are never two announced ones. `usePanelMotion` is the WHEN of the panel's
   geometry (every render, a window resize, and both ends of a roll) over three files that are the what:
   `overlay/panelGeometry.ts` is the pure arithmetic (the centre, the ceiling clamp, the max height
@@ -196,6 +201,13 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
   ceiling, because one fixed duration cannot serve both a streamed line and a whole view changing,
   which the placement pairs with resuming rather than restarting a move whose destination a render
   did not change, so a token landing mid-ease shortens that ease instead of deferring it);
+  a move's keyframes carry the CEILING as well as the two edges, because `max-height` clamps an
+  animated height exactly as it clamps a laid out one and the ceiling already belongs to where the
+  panel is going: written straight to the element, a 450 to 347 shrink stood at 351 one frame after
+  the click and eased the last 4px, which is the whole move in a single frame and an animation of
+  nothing after it. The panel also centres only on an aside inside the view being PLACED: a reminder
+  stack belonging to the view being LEFT was subtracted from the height of the one arriving, which
+  centred a 347px console as though it were 155 and capped it at 351px where 448 would have fitted;
   `overlay/panelMemory.ts` is what the panel remembers between placements and how it reads its own
   box (heights off `offsetHeight`, which the summon's scale transform does not touch, the bottom
   edge off the rect, which it does not either); `overlay/panelPlacement.ts` decides where the panel
@@ -468,6 +480,12 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
   past the panel's clipped edge and the whole hint strip 55px past it. Anyone changing what is in
   this pill re-measures the 84, and anyone giving another child of `.view` a shrink weight is
   changing who pays first.
+- **The composer takes focus without scrolling anything.** The panel clips its overflow, which makes
+  it a scroll container the user can never scroll and the engine can, and bringing a newly focused
+  element into view is when it does. Coming back from the console the field is below the panel's
+  clipped edge for the length of the ease, so `panel.scrollTop` went 0 to 139 in the frame focus
+  landed and unwound over the ease, lurching every row in the window. `focus({ preventScroll: true })`
+  is the fix, and anything else in here that takes focus while the panel is mid-move wants the same.
 - **The composer tells the chat when the pill resizes, because the log pays for it.** They are flex
   siblings and the log is the one that yields, so a draft that restacks or wraps takes that height
   straight out of the visible window (52px, and 122px at the field's ceiling, measured at 640x720).

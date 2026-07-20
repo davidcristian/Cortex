@@ -38,7 +38,7 @@ function holdScroll(element: HTMLElement): () => void {
 
 /** Where the panel's bottom edge wants to be, before the ceiling has its say. */
 function centringHeight(element: HTMLElement, height: number): number {
-  const aside = element.querySelector<HTMLElement>(".collapse.aside");
+  const aside = element.querySelector<HTMLElement>(".view:not(.out) .collapse.aside");
   return height - (aside?.offsetHeight ?? 0);
 }
 
@@ -105,7 +105,8 @@ export function place(element: HTMLElement | null, memory: Memory, at: Placement
   const wanted = wantedBottom(memory, at, viewport, centringHeight(element, height));
   memory.pinned = wanted;
   const bottom = clamped(wanted);
-  element.style.maxHeight = `${maxHeight(viewport, bottom)}px`;
+  const ceiling = maxHeight(viewport, bottom);
+  element.style.maxHeight = `${ceiling}px`;
   // Re-read: the real cap may have shortened the panel, and everything below animates to what the
   // element actually is rather than to what it wanted to be.
   const next: Geometry = { height: heightOf(element), bottom };
@@ -128,7 +129,13 @@ export function place(element: HTMLElement | null, memory: Memory, at: Placement
   memory.aim = next;
   memory.lands = Date.now() + duration;
   const animation = element.animate(
-    [frame(displayed.height, displayed.bottom), frame(next.height, next.bottom)],
+    [
+      // The ceiling the panel is going to is already on the element, and a panel easing DOWN to it
+      // started taller than it allows, so the move begins under a cap that starts where the panel
+      // actually is (`frame` has the trace).
+      frame(displayed.height, displayed.bottom, Math.max(displayed.height, ceiling)),
+      frame(next.height, next.bottom, ceiling),
+    ],
     { duration, easing: EASING },
   );
   element.setAttribute(RESIZING_ATTRIBUTE, "");
