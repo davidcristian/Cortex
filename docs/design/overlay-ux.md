@@ -217,8 +217,19 @@ Top-to-bottom, the summoned panel is:
    grow + focus-on-summon landed 2026-07-12),
    a glowing accent focus ring when active, and a gradient **send** button (an outline up-arrow,
    `components/icons.tsx`) that springs on press; its gradient **fades in** as the field gains
-   content (an opacity overlay, since gradients can't interpolate, and a hard swap pops). **While
-   streaming the button is a real stop** (a filled square, lit): it cancels the turn. A `stop`
+   content (an opacity overlay, since gradients can't interpolate, and a hard swap pops). **On hover
+   the glyph moves and the cap does not** (landed 2026-07-20): the arrow rises 3px, the way the
+   message goes, so the button says what it is about to do rather than only acknowledging the
+   pointer. The maintainer picked it over three hovers that move the cap itself (lift, swell, and a fill
+   blooming from the middle), and it is also the only one that leaves the pill's geometry alone. A
+   **live** button keeps its white glyph through the hover: white is what makes it legible on the
+   accent gradient, and handing it back the text colour put a near black arrow on a magenta cap in
+   the light theme. **While streaming the button is a real stop** (a filled square, lit): it cancels
+   the turn. Hovered, the stop **turns red** (`--halt`) and the square eases shut rather than
+   travelling, having no direction to go in. That is the one hover in the overlay that changes hue,
+   and it is meaning rather than decoration: the button has swapped what it MEANS, from how a turn
+   begins to how one is called off, and grey said only "a button". The red is the same one the
+   trash on a chat row wears, the two controls in the overlay that undo something in flight. A `stop`
    reducer action drops the bridge stream and ends the reply in place, keeping the partial text
    (distinct from dismiss, which minimizes to the orb). Landed 2026-07-07. **Past one line the pill
    is two rows** (landed 2026-07-20, [ADR-0035](../adr/ADR-0035-console-and-motion.md) decision 17): as a

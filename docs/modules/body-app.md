@@ -432,6 +432,15 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
   `.confirm-row dd`, `.confirm-raw`, `.reminder-text`; `.w`, the per-word streaming span, is
   `white-space: pre-wrap` rather than `pre` so that reaches inside it), and `.history` carries
   `overflow-x: clip` so a future child cannot bring the shift back.
+- **The send button's hover is on the GLYPH, and the stop's is the one hue change in the overlay.**
+  The arrow rises 3px on the spring while the cap holds still, which is the hover the maintainer picked
+  over three that move the cap (and the only one that leaves the pill's geometry alone). Two
+  exceptions carry the meaning. A `live` button keeps `#fff` through the hover, because white is
+  what makes the glyph legible on the accent gradient and `--text` is near black in the light theme.
+  A `stopping` button turns `--halt` on a 13% wash of it and its square eases shut rather than
+  travelling: streaming, the button has swapped what it means, from how a turn begins to how one is
+  called off. `--halt` is the overlay's one non-status red, named once and worn by the two controls
+  that undo something in flight, this and the trash on a chat row, and only ever on hover.
 - **The composer picks its layout at one width, never at the width it is using.** The pill has two
   ([ADR-0035](../adr/ADR-0035-console-and-motion.md) decision 17): the send button beside the field on one
   line, and under it on more, where the field spans the pill instead of stopping 44px short for the

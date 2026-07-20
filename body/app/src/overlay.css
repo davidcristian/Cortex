@@ -12,6 +12,7 @@
   --mono: ui-monospace, "Cascadia Code", "SF Mono", Menlo, Consolas, monospace;
   --rail: 6px;
   --trace-row: 24px;
+  --halt: rgb(226, 75, 107);
 }
 
 * {
@@ -723,6 +724,15 @@
   position: relative;
   display: grid;
   place-items: center;
+  transition: transform 0.28s var(--spring);
+}
+.send:hover .send-glyph {
+  transform: translateY(-3px);
+}
+/* A stop has no direction to go in, so it eases shut instead of travelling: the square drawing in
+   on itself is the same gesture the arrow makes, pointed at what this button does. */
+.send.stopping:hover .send-glyph {
+  transform: scale(0.84);
 }
 .send-glyph svg {
   width: 19px;
@@ -740,9 +750,19 @@
 .send.live::before {
   opacity: 1;
 }
+/* The live glyph is white BECAUSE the cap under it is the accent gradient, so the hover above must
+   not hand it back the text colour: on the light theme that is near black, and a near black arrow
+   on a magenta cap is the one state where hovering makes the button harder to read. */
+.send.live:hover {
+  color: #fff;
+}
 /* Streaming: the button is a live stop control. It is lit (not muted) so it reads as actionable. */
 .send.stopping {
   color: var(--text);
+}
+.send.stopping:hover {
+  color: var(--halt);
+  background: color-mix(in srgb, var(--halt) 13%, transparent);
 }
 .send:active {
   transform: scale(0.94);
@@ -1327,8 +1347,8 @@
   opacity: 1;
 }
 .switcher-delete-btn:hover {
-  background: rgba(226, 75, 107, 0.14);
-  color: rgb(226, 75, 107);
+  background: color-mix(in srgb, var(--halt) 14%, transparent);
+  color: var(--halt);
 }
 /* The pin sits with the pencil and trash, ink-revealing on hover/focus like them (ADR-0021
    pinning addendum). A PINNED row is the exception: its pin stays lit in the accent and the row
