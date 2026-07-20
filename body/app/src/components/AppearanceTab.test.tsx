@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-import { FOAM, MARKS, WOBBLE } from "../mark/marks";
+import { MARKS, ORBIT_MARK, WOBBLE } from "../mark/marks";
 import { THEMES, resolveTheme } from "../theme/themes";
 import { AppearanceTab } from "./AppearanceTab";
 
@@ -99,8 +99,8 @@ describe("AppearanceTab", () => {
     );
     expect(outlines.size).toBe(MARKS.length);
     expect([...marks].every((mark) => mark.getAttribute("width") === "40")).toBe(true);
-    fireEvent.click(screen.getByRole("radio", { name: "Foam" }));
-    expect(onPickMark).toHaveBeenCalledWith(FOAM.name);
+    fireEvent.click(screen.getByRole("radio", { name: "Orbit" }));
+    expect(onPickMark).toHaveBeenCalledWith(ORBIT_MARK.name);
   });
 
   it("says what the chosen mark does, under the row it was chosen from", () => {

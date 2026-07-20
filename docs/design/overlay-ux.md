@@ -307,7 +307,8 @@ while a turn is processing must not lose it*) lives here. States:
   thanks to small, corner-pinned, click-through-safe margins.
 - **Which bubble is a choice** (ADR-0031). Four styles ship: **Wobble** (two slow modes roll the
   outline; the default), **Sheen** (near circular, the film crawling underneath), **Ping** (still,
-  then a ripple runs the rim and decays), **Foam** (three lobes jostling as one). They are data in
+  then a ripple runs the rim and decays), **Orbit** (two small lobes swinging on slow arcs around a
+  larger one; it shipped as Foam and is still stored under that name). They are data in
   a registry (`mark/marks.ts`), the twin of the theme registry, so a fifth is a literal and no
   code. The picker is the empty state's own mark: clicking it opens the styles drawn live, rather
   than adding a fifth header button that would put the accent palette on resting chrome.

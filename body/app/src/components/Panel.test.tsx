@@ -308,7 +308,9 @@ describe("Panel", () => {
     // The chat is still mounted (a half-typed draft survives the trip) but out of the flow, so
     // the panel is only as tall as the tiles.
     expect(container.querySelector(".view.gone")).not.toBeNull();
-    fireEvent.click(screen.getByRole("radio", { name: "Foam" }));
+    // Picked by its label, stored under its name: the two differ for this one style, because
+    // "foam" is the value already in the preference record and renaming the label cannot move it.
+    fireEvent.click(screen.getByRole("radio", { name: "Orbit" }));
     expect(onPickMark).toHaveBeenCalledWith("foam");
     fireEvent.click(screen.getByRole("radio", { name: "daylight" }));
     expect(onPickTheme).toHaveBeenCalledWith("daylight");
