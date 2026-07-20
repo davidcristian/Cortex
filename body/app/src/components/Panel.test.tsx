@@ -298,7 +298,7 @@ describe("Panel", () => {
       onPickTheme,
       onCloseConsole,
     });
-    expect(screen.getByRole("region", { name: "Console" })).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Settings" })).toBeInTheDocument();
     expect(screen.getByRole("tabpanel", { name: "Appearance" })).toBeInTheDocument();
     // The chat is still mounted (a half-typed draft survives the trip) but out of the flow, so
     // the panel is only as tall as the tiles.
@@ -337,11 +337,11 @@ describe("Panel", () => {
     const props = (tab: ConsoleTab | null) => panelProps({ consoleTab: tab }, true, false);
     const view = render(<Panel {...props("appearance")} />);
     view.rerender(<Panel {...props("shortcuts")} />);
-    // Two panes are mounted, both a region called "Console" holding a tab list and a tab panel.
+    // Two panes are mounted, both a region called "Settings" holding a tab list and a tab panel.
     // Only the arriving one is exposed: `getByRole` fails on a second, and the pane on its way
     // out is the one hidden, so a reader is never handed the tab that was just left.
     expect(view.container.querySelectorAll(".pane")).toHaveLength(2);
-    expect(screen.getByRole("region", { name: "Console" })).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Settings" })).toBeInTheDocument();
     expect(screen.getAllByRole("tablist")).toHaveLength(1);
     expect(screen.getByRole("tabpanel", { name: "Shortcuts" })).toBeInTheDocument();
     expect(view.container.querySelector(".view.out")?.getAttribute("aria-hidden")).toBe("true");
@@ -464,7 +464,7 @@ describe("Panel", () => {
     const onToggleConsole = vi.fn();
     const onCloseConsole = vi.fn();
     renderPanel({}, true, false, { onToggleConsole, onCloseConsole });
-    expect(screen.queryByRole("region", { name: "Console" })).toBeNull();
+    expect(screen.queryByRole("region", { name: "Settings" })).toBeNull();
     fireEvent.click(screen.getByLabelText("Shortcuts"));
     expect(onToggleConsole).toHaveBeenCalledWith("shortcuts");
     cleanup();

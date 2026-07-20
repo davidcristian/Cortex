@@ -35,11 +35,14 @@ describe("ShortcutsTab", () => {
     // rules next to a grid of swatches read as two different screens.
     expect(container.querySelectorAll(".skey")).toHaveLength(9);
     expect(container.querySelectorAll(".row")).toHaveLength(0);
-    // Every tile is the same half of the grid. One card spanning both is a row that escaped the
-    // wall, so a binding whose keys crowd its label gets a shorter label rather than more width.
-    for (const tile of container.querySelectorAll(".skey")) {
-      expect(tile.className).toBe("skey");
-    }
+    // Exactly one card takes the whole row, and it is the global hotkey: the widest chord here,
+    // and the only binding that works while the overlay is not on screen. Every other binding gets
+    // a shorter label rather than more width, or the wall turns back into a list.
+    const wide = [...container.querySelectorAll(".skey")].filter((t) =>
+      t.className.includes("wide"),
+    );
+    expect(wide).toHaveLength(1);
+    expect(card("Summon").className).toContain("wide");
   });
 
   it("gives every key its own cap, so a chord reads as the keys it is", () => {

@@ -26,7 +26,7 @@ function renderConsole(
 describe("ConsoleView", () => {
   it("is one region with a strip of every tab, the showing one selected", () => {
     renderConsole("appearance");
-    expect(screen.getByRole("region", { name: "Console" })).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Settings" })).toBeInTheDocument();
     expect(screen.getAllByRole("tab")).toHaveLength(CONSOLE_TABS.length);
     expect(screen.getByRole("tab", { name: "Appearance" })).toHaveAttribute(
       "aria-selected",
