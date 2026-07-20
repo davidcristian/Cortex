@@ -382,7 +382,7 @@ describe("Panel", () => {
     // height the panel is easing to, and fades out over the chat arriving underneath it.
     view.rerender(<Panel {...props({})} />);
     const leaving = view.container.querySelector(".view.out");
-    expect(leaving?.textContent).toContain("Chat switcher");
+    expect(leaving?.textContent).toContain("Switcher");
     expect(screen.getByLabelText("Recent chats")).toBeInTheDocument();
   });
 
