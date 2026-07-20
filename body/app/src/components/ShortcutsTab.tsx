@@ -3,24 +3,12 @@ import type { ReactNode } from "react";
 import { DownArrowKey, ReturnKey, ShiftKey, UpArrowKey } from "./icons";
 
 /** One binding, as a soft filled card: what it does on the left, the keys that do it on the right.
- *  `wide` spans both columns, for a binding whose keys will not fit beside its label. */
-function Key({
-  label,
-  hint,
-  wide = false,
-  children,
-}: {
-  readonly label: string;
-  readonly hint?: string;
-  readonly wide?: boolean;
-  readonly children: ReactNode;
-}) {
+ *  Every card is the same half-width tile, which is what makes the tab a wall rather than a list,
+ *  so a label is one short word wherever one will do. */
+function Key({ label, children }: { readonly label: string; readonly children: ReactNode }) {
   return (
-    <span className={`skey${wide ? " wide" : ""}`}>
-      <span className="skey-label">
-        {label}
-        {hint === undefined ? null : <small>{hint}</small>}
-      </span>
+    <span className="skey">
+      <span className="skey-label">{label}</span>
       <span className="row-keys">{children}</span>
     </span>
   );
@@ -29,7 +17,7 @@ function Key({
 /** The console's shortcuts tab: every binding, grouped by what it is for.
  *
  *  Cards in a two-column grid rather than a hairline-separated list, so the tab is the same object
- *  as the appearance tab beside it: a wall of small filled tiles under a section heading. A list of
+ *  as the appearance tab beside it: a wall of small filled tiles under a section legend. A list of
  *  full-width rules alongside a wall of swatches read as two different screens.
  *
  *  Each key is its OWN cap, and a cap whose glyph is not a letter carries the header's outline
@@ -62,24 +50,24 @@ export function ShortcutsTab() {
       </section>
       <section className="swatch">
         <h3 className="sect">Chats</h3>
-        {/* Previous and next are two cards, not one row carrying both arrows: at half width the
-            label has no room for a slash and three caps, and the pair fills the grid evenly. */}
+        {/* Previous and next are two cards, not one carrying both arrows: the grid wants even
+            tiles, and a label with a slash in it plus three caps is what makes a card outgrow one. */}
         <div className="skeys">
-          <Key label="New chat">
+          <Key label="New">
             <b>Ctrl</b>
             <b>N</b>
           </Key>
-          <Key label="Chat switcher">
+          <Key label="Switcher">
             <b>Ctrl</b>
             <b>K</b>
           </Key>
-          <Key label="Previous chat">
+          <Key label="Previous">
             <b>Ctrl</b>
             <b className="key">
               <UpArrowKey />
             </b>
           </Key>
-          <Key label="Next chat">
+          <Key label="Next">
             <b>Ctrl</b>
             <b className="key">
               <DownArrowKey />
@@ -90,7 +78,7 @@ export function ShortcutsTab() {
       <section className="swatch">
         <h3 className="sect">The window</h3>
         <div className="skeys">
-          <Key label="Summon or focus" wide>
+          <Key label="Summon">
             <b>Ctrl</b>
             <b>Alt</b>
             <b>Space</b>
@@ -98,13 +86,10 @@ export function ShortcutsTab() {
           <Key label="This list">
             <b>?</b>
           </Key>
-          {/* Two cards, one key, in the order the panel tries them: Esc leaves the console in a
-              single press from either tab, and only a panel with no console up hears it as a
-              dismiss. */}
-          <Key label="Close the console">
-            <b>Esc</b>
-          </Key>
-          <Key label="Dismiss" hint="to the orb mid-turn" wide>
+          {/* One card, because Esc does one thing: it backs out of wherever you are. From the
+              console that is the console; from the chat it is the panel, to the orb if a turn is
+              running. Two cards for one key said that twice and taught nothing the second time. */}
+          <Key label="Dismiss">
             <b>Esc</b>
           </Key>
         </div>

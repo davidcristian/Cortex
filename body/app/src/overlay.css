@@ -6,6 +6,10 @@
   --spring: cubic-bezier(0.34, 1.56, 0.64, 1);
   --ease: cubic-bezier(0.4, 0, 0.2, 1);
   --font: -apple-system, "Segoe UI", system-ui, "Helvetica Neue", sans-serif;
+  /* One utility face, for group legends in the console and nothing else. A monospace at label size
+     with wide tracking reads as a caption for what is under it rather than as content, which is the
+     job; the system stack keeps it a token swap away from a licensed face later, like `--font`. */
+  --mono: ui-monospace, "Cascadia Code", "SF Mono", Menlo, Consolas, monospace;
   /* The width every scroll container reserves for its scrollbar. It is a token because two rules
      have to agree on it: the rail below is drawn this wide, and every scroll container pays for
      it. There are two ways to pay, and which one a container uses depends on what inline-end
@@ -1182,8 +1186,11 @@
 .rows {
   display: flex;
   flex-direction: column;
+  /* Groups are held apart by space, not by a rule between them: see `.swatch`. */
+  gap: 18px;
   flex: 0 1 auto;
   min-height: 0;
+  padding-block: 2px 4px;
   overflow-y: auto;
   scrollbar-gutter: stable;
   /* Rows start on the panel's own left margin, so the hairlines between them read as inset rules
@@ -1195,9 +1202,9 @@
    same reason the appearance tab is: they are two faces of one view, and a hairline-separated list
    beside a grid of swatches reads as two different screens. The fill is the same resting
    `--control` the keycaps themselves sit on, one step up from the panel, so a card reads as the
-   ground a key is pressed against rather than as a button that can be clicked. `.wide` spans both
-   columns, for a binding whose keys cannot fit beside its label at half width (three caps for
-   Ctrl+Alt+Space, or a label carrying a second line). */
+   ground a key is pressed against rather than as a button that can be clicked. Every card is the
+   same half tile: a full-width one among them reads as a row that escaped the grid, so a binding
+   whose keys will not fit beside its label gets a shorter label instead. */
 .skeys {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -1213,9 +1220,6 @@
   border-radius: 12px;
   background: var(--control);
 }
-.skey.wide {
-  grid-column: 1 / -1;
-}
 .skey-label {
   min-width: 0;
   font-size: 12.5px;
@@ -1223,12 +1227,6 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-.skey-label small {
-  display: block;
-  margin-top: 1px;
-  font-size: 11px;
-  color: var(--dim);
 }
 .row {
   display: flex;
@@ -1254,17 +1252,6 @@
   flex: none;
   display: flex;
   gap: 4px;
-}
-/* Pinned to the bottom of the pane, which only shows mid-morph: while the panel is still easing
-   to this view's height the slack is below the rows, and the foot rides the bottom edge down
-   rather than floating in the middle of a gap. At rest there is no slack and it sits under the
-   last row. */
-.viewfoot {
-  margin: auto 0 0;
-  padding: 10px 16px 14px;
-  text-align: center;
-  font-size: 11.5px;
-  color: var(--dim);
 }
 
 /* The console's tab strip: one rail holding the two faces of the view, centred under the header so
@@ -1313,64 +1300,74 @@
   min-height: 0;
 }
 
-/* A group inside a tab: a quiet heading and whatever belongs under it. The hairline between groups
-   is the same rule the rows draw between themselves, so a tab of lists and a tab of swatches read
-   as one surface. */
+/* A group inside a tab: a quiet heading and whatever belongs under it. Groups are separated by
+   space and nothing else. A hairline was tried and is wrong here: the tiles under a heading are
+   already bounded cards, so a rule between the groups draws a box around a box, and the tab stops
+   reading as a wall of swatches and starts reading as a settings list with pictures in it. */
 .swatch {
-  padding: 4px 0 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
-.swatch + .swatch {
-  border-top: 1px solid var(--stroke);
-}
+/* The legend is the one piece of type in the overlay that is not the system sans, and that is the
+   point of it: at 10.5px with this much tracking a monospace face reads as a label FOR the group
+   rather than as the first line of it, which is what keeps a heading legible while staying quieter
+   than every word beneath it. */
 .sect {
-  margin: 0 0 8px;
+  margin: 0;
+  font-family: var(--mono);
   font-size: 10.5px;
-  font-weight: 600;
-  letter-spacing: 0.07em;
+  font-weight: 400;
+  letter-spacing: 0.13em;
   text-transform: uppercase;
   color: var(--dim);
 }
 /* One line under a group of tiles, explaining the choice the art cannot say out loud (what Auto
    follows; what the chosen mark does when it moves). */
 .note {
-  margin: 8px 0 0;
+  margin: 0;
   font-size: 11.5px;
   color: var(--dim);
 }
 
-/* A choice made by looking at it. The tiles are a plain wrapping row rather than a segmented rail,
-   because each one carries its own picture and a shared pill around them would fight it. */
+/* A choice made by looking at it. The tiles share the width rather than bunching at the left, so a
+   group reads as the full set of what this setting can be: `auto-fit` collapses the empty tracks,
+   which is what lets three themes stretch across the same row four marks do, with no count written
+   down here. A registry that grows past a rowful wraps instead of shrinking to nothing. */
 .tiles {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
+  gap: 9px;
 }
-/* Resting chrome, so the selection is a LIFT and not a colour: the chosen tile gains the ground
-   and the hairline the others do without. Both borders are always there (a transparent one when
-   resting) so nothing shifts by a pixel when the choice moves. */
+/* Every choice is a card, and the chosen one is LIFTED out of the row rather than coloured in:
+   resting chrome keeps no accent (design/overlay-ux.md §1), so selection has to be built out of
+   ground and edge. The unchosen cards are still cards, which is the whole idea of a swatch wall.
+   Showing only the chosen one as a card was tried and reads as three loose pictures beside one
+   button. */
 .tile {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
-  padding: 7px 7px 5px;
-  border: 1px solid transparent;
-  border-radius: 12px;
-  background: none;
+  gap: 8px;
+  padding: 8px 8px 9px;
+  border: 1px solid var(--stroke);
+  border-radius: 15px;
+  background: var(--control);
   color: var(--muted);
   font-family: var(--font);
   font-size: 11.5px;
   text-transform: capitalize;
   cursor: pointer;
-  transition: 0.18s var(--ease);
+  transition: 0.2s var(--ease);
 }
 .tile:hover {
   color: var(--text);
+  transform: translateY(-2px);
 }
 .tile.on {
   color: var(--text);
   background: var(--field);
-  border-color: var(--stroke);
+  border-color: var(--muted);
 }
 .tile-art {
   display: block;
@@ -1379,16 +1376,10 @@
      tiles then sizes itself to the tallest, so a mark tile and a theme tile line up on their
      labels without either number being written down twice. */
 }
-/* A mark at rest is dimmed like any other unchosen option, but never all the way: these four
-   styles differ by how they MOVE, so all four have to be watchable side by side. */
-.tile .mark {
-  opacity: 0.55;
-  transition: opacity 0.18s var(--ease);
-}
-.tile:hover .mark,
-.tile.on .mark {
-  opacity: 1;
-}
+/* Every mark is drawn at full strength, chosen or not. Dimming the unchosen ones was tried and
+   defeats the row: these four styles differ ONLY by how they move, so the comparison is four
+   bubbles moving side by side, and three of them faded is three of them not being offered. The
+   card under it carries the selection instead. */
 
 /* A theme, previewed as a miniature of the panel wearing it: the desktop ground, the glass panel on
    it, and three bars for the title, a reply and the composer. Every colour is an inline style read
