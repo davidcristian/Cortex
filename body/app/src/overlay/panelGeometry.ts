@@ -44,8 +44,21 @@ export interface Geometry {
   readonly bottom: number;
 }
 
-export function frame(height: number, bottom: number): Keyframe {
-  return { height: `${height}px`, bottom: `${bottom}px` };
+/**
+ * One end of a move, as a keyframe.
+ *
+ * The CEILING travels with it, which is not decoration: `max-height` clamps an animated `height`
+ * exactly as it clamps a laid-out one, and the ceiling belongs to the edge the panel is going to, so
+ * it is already the destination's while the panel is still at the origin's size. Traced at 60Hz at
+ * 640x720, opening the console from a full-height chat: the ease was written 450 to 347, and the
+ * panel stood at 351 one frame after the click and eased the last 4px from there. What the eye gets
+ * is the whole shrink in a single frame followed by an animation of nothing, which is the "it pops
+ * and then animates" this exists to stop. Ridden along, the cap is never tighter than the height it
+ * is clamping: both ends interpolate under one easing, so a from-cap at or above the from-height
+ * keeps the cap above the height for every frame between.
+ */
+export function frame(height: number, bottom: number, ceiling: number): Keyframe {
+  return { height: `${height}px`, bottom: `${bottom}px`, maxHeight: `${ceiling}px` };
 }
 
 export function settled(from: Geometry, to: Geometry): boolean {

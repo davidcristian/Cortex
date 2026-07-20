@@ -853,6 +853,11 @@ at, which is why they are recorded together.
    otherwise park the log where the trip left it. The second would also re-pin it, a box with
    nothing to scroll reading as a box sitting at its own tail.
 
+   *Corrected 2026-07-20:* one of those two relayouts is gone. The leaving view is bounded by the
+   panel now (decision 3 of the addendum below), so the history keeps a real window for the whole
+   morph and only the `display: none` at the end of it takes the position. The parking still does
+   the work; there is simply less to defend against.
+
 3. **The panel's own measurement no longer takes the log off the reader.** The panel measures itself
    by growing to the loosest cap any edge could allow and reading what it becomes (decision 1 of the
    addendum above). Every scroll box inside a taller panel is a taller box, and the engine answers a
@@ -885,3 +890,64 @@ at, which is why they are recorded together.
    450 with its top edge on the 86px line for every frame, the switcher rolls 0 to 120, and the
    history goes 293 to 173. Under the ceiling nothing changes: the same roll on a 353px panel grows
    it to 450 with the bottom edge pinned, which is decision 3 of this ADR working as it always did.
+
+## Addendum, 2026-07-20: five more from the user watching the console open and shut
+
+The first four are one fault each in the trip between the chat and the console, found by filming it
+rather than by reasoning about it. None of them was introduced by the addendum above: the same
+frames were captured against the commit before it, and they are identical.
+
+1. **The console centres on itself.** `centringHeight` leaves a section marked `aside` out of the
+   height the panel centres on, which is right for the chat, whose reminder stack arrives with the
+   summon and can be two rows or five. It was subtracting that stack from the height of the view
+   ARRIVING, because the chat is held in the DOM for one morph after it is left. Measured at 640x720
+   entering the console over an empty chat with three reminders up: the console is 347px tall and
+   was centred as though it were 155, which put it 96px above the middle of the screen. The ceiling
+   is measured from the edge the panel sits on, so it was also capped at 351px where 448 would have
+   fitted, and the console had four spare pixels in the whole view. Only an aside inside the view
+   being placed counts now.
+
+2. **The ceiling travels with the move.** `max-height` clamps an animated `height` exactly as it
+   clamps a laid out one, and the ceiling belongs to the edge the panel is going to, so it was
+   already the destination's while the panel was still the origin's size. Traced at 60Hz opening the
+   console from a full-height chat: the ease was written 450 to 347, and the panel stood at 351 one
+   frame after the click and eased the last 4px from there. The eye gets the whole shrink in a
+   single frame followed by an animation of nothing, which is what "it pops and then animates" is.
+   The cap is a keyframe now, from a value at or above the height it starts on, and both ends
+   interpolate under one easing so the cap is never tighter than the height it is clamping.
+
+3. **The leaving view is bounded by the panel.** It is lifted out of the flow so it cannot fight the
+   arriving view for the height, and it was then laid out at its own natural height: with the
+   session list open the chat's composer sat 388px down the panel at rest and 558px down one frame
+   after the click, inside a panel 347px tall, so it was clipped away instantly while the rows above
+   it faded for a quarter of a second. The maintainer read that as the chat bar being deleted rather than
+   crossfaded. A `bottom` on the leaving view is the whole fix, and it also gives the history a real
+   window for the length of the morph, which is one of the two things that used to take the log's
+   scroll position.
+
+4. **Focus does not scroll the panel.** The panel clips its overflow, which makes it a scroll
+   container the user can never scroll and the engine can, and bringing a newly focused element
+   into view is exactly when it does. Coming back from the console the panel is still the console's
+   height and easing to the chat's, and the composer takes focus on that rising edge from below the
+   panel's clipped edge. Traced at 60Hz at 640x720 with the session list open: `panel.scrollTop`
+   went 0 to 139 in the frame focus landed and unwound over the ease, which is every row in the
+   window lurching 139px up and creeping back. `preventScroll` on the focus, and it holds at 0 for
+   every frame. The field is where the eye already is; it needs the caret, not bringing into view.
+
+5. **The console's foot is 26px, not the header's 15.** Matching the header's number is what made
+   the two ends look wrong: the header spends its 15px above a 30px control with an inset glyph, so
+   the ink starts about 25px down, while the same 15px at the foot sits directly under a card that
+   runs the panel's full width, hard against a 28px corner radius. Measured, 17px of clearance at
+   the top against 16px at the bottom, and the bottom was plainly the tighter. The two tabs still
+   differ by the 12px one of them has spare, which is the cost of their shared height and is under
+   the threshold that decides it.
+
+**The maximum height did not change**, which the maintainer asked about after seeing the empty state
+scroll with the session list open. `MIN_TOP_RATIO` and `maxHeight` are untouched, and the same
+frames on the commit before this work read the same numbers: at 640x720 the panel is 450px with a
+450px cap either way, and the empty state's history is 101px of a 195px column at rest and 10px of
+it with the list open. That is the demo state genuinely not fitting: head 54, reminder stack 192,
+session list 120, composer 48 and hints 33 come to 447 of the 450 available, so the history is left
+with what is left, and the design's answer to a panel at its ceiling is that the history yields and
+scrolls. What did change is that the panel no longer overshoots the ceiling while a section rolls,
+so that squeeze is now visible during the roll rather than only after it.

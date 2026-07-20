@@ -24,16 +24,18 @@ export interface LogScroll {
  * Hold the log where the reader put it, across everything that would otherwise move it.
  *
  * `showing` is whether the chat is the view on screen. It matters because the trip to the console
- * takes the scroll position: the view being left is lifted out of the layout flow (`.view.out`),
- * which hands the history its whole content as its window, and a box with nothing left to scroll is
- * clamped to zero by the engine; a morph later `.view.gone` is `display: none`, which zeroes it a
- * second time. Traced at 60Hz at 640x720 with the log a third of the way up: 154 of 463 in the last
- * frame before the class changed, then 0 against a 463px window in the first frame after it.
+ * takes the scroll position: the view being left goes `display: none` a morph after it leaves, and
+ * an unrendered box does not have one. Traced at 60Hz at 640x720 with the log a third of the way
+ * up, 154 of 463 became 0 in the frame the class changed.
  *
  * So the position is parked on the way out and handed back on the way in, before the return is
  * painted. The scrolling the trip itself does is not the reader's and is ignored, which is what the
  * ref below is for: taking it would park the log wherever the trip left it, and a box with nothing
- * to scroll reads as a box sitting at its own tail, so it would re-pin it too.
+ * to scroll reads as a box sitting at its own tail, so it would re-pin it too. The trip used to do
+ * plenty: the leaving view was laid out at its own natural height rather than the panel's, which
+ * handed the history its whole content as its window and clamped `scrollTop` to zero a whole morph
+ * before `display: none` got to it. That is `.view.out`'s job now, and this is still the half that
+ * cannot be done in CSS.
  */
 export function useLogScroll(showing: boolean): LogScroll {
   const ref = useRef<HTMLDivElement>(null!);

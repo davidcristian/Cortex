@@ -68,13 +68,21 @@ describe("Composer", () => {
     expect(onSubmit).not.toHaveBeenCalled();
   });
 
-  it("takes focus when the panel opens (focus-on-summon)", () => {
+  it("takes focus when the panel opens (focus-on-summon), and scrolls nothing to do it", () => {
+    const focus = vi.spyOn(HTMLTextAreaElement.prototype, "focus");
     const { rerender } = render(
       <Composer busy={false} active={false} onSubmit={vi.fn()} onStop={vi.fn()} onResize={vi.fn()} />,
     );
     expect(document.activeElement).not.toBe(field());
     rerender(<Composer busy={false} active={true} onSubmit={vi.fn()} onStop={vi.fn()} onResize={vi.fn()} />);
     expect(document.activeElement).toBe(field());
+    // The panel clips its overflow, which makes it a scroll box the user can never scroll and the
+    // ENGINE can, and bringing a newly focused element into view is when it does. Coming back from
+    // the console this field is below the panel's clipped edge for the length of the ease, so the
+    // panel was scrolled to reach it and every row in the window lurched up: `panel.scrollTop` went
+    // 0 to 139 in the frame focus landed, traced at 640x720 with the session list open.
+    expect(focus).toHaveBeenCalledWith({ preventScroll: true });
+    focus.mockRestore();
   });
 
   it("auto-grows with its content up to the cap, then holds and scrolls", () => {

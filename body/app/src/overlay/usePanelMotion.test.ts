@@ -31,6 +31,8 @@ function harness() {
     playState: "running" as AnimationPlayState,
   };
   const moves: Move[] = [];
+  /** The keyframes exactly as handed to the engine, for the properties `Move` does not model. */
+  const keyed: Keyframe[][] = [];
   const played: { onfinish: (() => void) | null; oncancel: (() => void) | null }[] = [];
   const durations: number[] = [];
   const cancels: number[] = [];
@@ -61,6 +63,7 @@ function harness() {
   });
 
   element.animate = ((keyframes: Keyframe[], options: KeyframeAnimationOptions) => {
+    keyed.push(keyframes);
     moves.push({ from: parse(keyframes[0] ?? {}), to: parse(keyframes[1] ?? {}) });
     durations.push(Math.round(Number(options.duration)));
     animatesHeight = keyframes[0]?.height !== undefined;
@@ -82,7 +85,7 @@ function harness() {
 
   const ref = { current: element };
   const bottom = () => Number.parseFloat(element.style.bottom || "0");
-  return { element, ref, state, moves, durations, cancels, played, bottom };
+  return { element, ref, state, moves, keyed, durations, cancels, played, bottom };
 }
 
 /** How tall a rolling section is right now, which changes under it while the roll runs. */
@@ -489,6 +492,54 @@ describe("usePanelMotion", () => {
     rerender();
     expect(bottom()).toBe(87);
     expect(moves).toEqual([]);
+  });
+
+  it("takes the ceiling along in the move, so a shrink is not clamped flat on its first frame", () => {
+    const { ref, state, keyed } = harness();
+    state.natural = 700;
+    const { rerender } = renderHook(({ view }) => usePanelMotion(ref, true, view), {
+      initialProps: { view: "chat" },
+    });
+    state.playState = "finished";
+    state.natural = 300;
+    rerender({ view: "console" });
+    // The panel is going to a 300px view centred at 350, whose ceiling is 880 less 350. That
+    // ceiling belongs to where the panel is GOING and is written to the element straight away, so
+    // it clamps the 700 the ease starts from: the panel stands at 530 one frame after the click and
+    // eases the last 230px from there. The whole shrink in one frame, then an animation of nothing.
+    expect(keyed.at(-1)).toEqual([
+      { height: "700px", bottom: "150px", maxHeight: "700px" },
+      { height: "300px", bottom: "350px", maxHeight: "530px" },
+    ]);
+  });
+
+  it("centres on the view being placed, not on an aside belonging to the one being left", () => {
+    const { ref, element, state, bottom } = harness();
+    // The chat, with the reminder stack in it. The panel centres on the conversation and lets the
+    // stack grow it upward from there, so the stack is left out of the height it centres on.
+    const chat = document.createElement("div");
+    chat.className = "view";
+    const aside = document.createElement("div");
+    aside.className = "collapse aside";
+    Object.defineProperty(aside, "offsetHeight", { configurable: true, get: () => 200 });
+    chat.append(aside);
+    element.append(chat);
+    state.natural = 500;
+    const { rerender } = renderHook(({ view }) => usePanelMotion(ref, true, view), {
+      initialProps: { view: "chat" },
+    });
+    expect(bottom()).toBe(350);
+
+    // Into the console, which has no stack of its own. The chat is held for one morph as `.view.out`
+    // with its stack still in it, and subtracting that from the height of the view ARRIVING centred
+    // a 300px console as though it were 100px: measured at 640x720, that put the console 96px above
+    // the middle of the screen and, the ceiling being measured from the edge it sits on, capped it
+    // at 351px where 448 would have fitted, leaving four spare pixels in the whole view.
+    chat.className = "view out";
+    state.playState = "finished";
+    state.natural = 300;
+    rerender({ view: "console" });
+    expect(bottom()).toBe(350);
   });
 
   it("keeps the real ceiling on the element for the length of a roll, so it cannot overshoot", () => {

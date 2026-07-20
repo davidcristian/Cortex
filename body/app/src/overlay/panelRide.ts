@@ -63,6 +63,7 @@ export function rideAlong(
     memory.pinned = centred(viewport, counted);
   }
   const bottom = clamped(memory.pinned);
+  const ceiling = maxHeight(viewport, bottom);
   const from = shown?.bottom ?? memory.applied;
   // Only a HEIGHT ease has to be carried. The other thing that can be in the air here is a slide of
   // the bottom edge alone (an earlier ride-along), which leaves the height to the section anyway.
@@ -85,7 +86,9 @@ export function rideAlong(
   memory.running = element.animate(
     carried === null
       ? [{ bottom: `${from}px` }, { bottom: `${bottom}px` }]
-      : [frame(carried, from), frame(height, bottom)],
+      : // The carried ease starts from a height the roll's own ceiling may already forbid, so the
+        // ceiling rides with it rather than clamping it flat on the first frame (see `frame`).
+        [frame(carried, from, Math.max(carried, ceiling)), frame(height, bottom, ceiling)],
     { duration: MORPH_ROLL_MS, easing: EASING },
   );
 }
