@@ -236,6 +236,11 @@ against the demo bridge):
 - The **`?` shortcut sheet** covers the panel, opened from the hint strip's ? button or the ?
   key outside the composer (where ? is just typing); Esc closes the sheet before it dismisses
   the panel, and `sheetOpen` lives in the reducer beside `switcherOpen`.
+  **Superseded by [ADR-0034](ADR-0034-panel-views.md)** (the sheet became a view of the panel) **and
+  [ADR-0035](ADR-0035-console-and-motion.md)** (that view became the shortcuts tab of one console it
+  shares with the appearance choices). Both openers and the `?` key survive unchanged; what does not
+  is the covering layer, `sheetOpen` (now one `consoleTab` field, so appearance and the list cannot
+  both be up), and the two-press Esc, which leaves the console in a single press from either tab.
 - The preview's **hover now pauses the fade timer itself**, not just the bar's animation: the
   hook latches hover, leaving restarts the full countdown, and the drain bar remounts in step
   so what it shows always matches the timer. The countdown-restarts-on-leave choice is noted
@@ -245,7 +250,9 @@ Two implementation nuances: the sheet is not frosted glass, because the panel's 
 backdrop-filter bounds the backdrop root and a child's blur cannot reach the history beneath
 it, so the sheet layers the panel tint over the solid ground instead; and the demo bridge
 gained a short thinking pause plus a status event before streaming, so the new working
-affordances are visible (and hand-verifiable) in plain browser dev.
+affordances are visible (and hand-verifiable) in plain browser dev. The first nuance expired with
+the sheet: a view is the panel's own content rather than a layer over it, so there is no second
+surface left to decide the glass question for.
 
 ## Addendum (2026-07-16): the connection indicator ships, derived rather than polled
 
@@ -520,3 +527,20 @@ records it and then announces it, and the app takes any outstanding request when
 attaches. Both paths consume it, so a remount cannot replay a summon that has already been
 answered. Proven the way the bug was found, by loading the dev server with no scripted input and
 reading the panel's class: `panel open` at HEAD, `panel` (opacity 0) at the commit before the fix.
+
+## Addendum (2026-07-20): two pieces of the overlay's chrome moved, and both are recorded elsewhere
+
+Maintainer review of the running overlay reached two things this ADR is the origin of, and both are
+written up as decisions of [ADR-0035](ADR-0035-console-and-motion.md) rather than here, because
+they landed alongside that day's motion work and share its measurements.
+
+- **Scrollbars became reserved chrome** ([ADR-0035](ADR-0035-console-and-motion.md) decision 22).
+  The complaint was that they "look absolutely terrible and disturb the look of the application and
+  also push elements around". Both halves were true: only `.history` was styled at all and its
+  thumb took real layout width. All seven scroll regions now wear one 6px rail and reserve it
+  permanently, and the horizontal axis is closed off rather than reserved.
+- **The connection indicator no longer leads the header row**
+  ([ADR-0035](ADR-0035-console-and-motion.md) decision 23). The dot and the capture ring moved
+  together to the head of the button cluster, and the title took the row with a 31px inset off the
+  panel's edge. That supersedes this ADR's 2026-07-03 line about the title's 6px margin: neither
+  indicator keeps an optical margin now, both riding the header's own 10px gap.

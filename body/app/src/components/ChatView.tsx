@@ -1,7 +1,7 @@
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 
 import type { MarkStyle } from "../mark/marks";
-import { type OverlayState, isTurnActive } from "../overlay/overlayState";
+import { type ConsoleTab, type OverlayState, isTurnActive } from "../overlay/overlayState";
 import { BubbleMark } from "./BubbleMark";
 import { CaptureDot } from "./CaptureDot";
 import { Collapse } from "./Collapse";
@@ -28,14 +28,14 @@ export interface ChatViewProps {
   readonly open: boolean;
   readonly dark: boolean;
   readonly mark: MarkStyle;
-  readonly onToggleSettings: () => void;
+  /** Open (or close again) one console tab: each opener in the hint strip owns its own tab. */
+  readonly onToggleConsole: (tab: ConsoleTab) => void;
   readonly onToggleTheme: () => void;
   readonly onSubmit: (text: string) => void;
   readonly onStop: () => void;
   readonly onDismiss: () => void;
   readonly onNewChat: () => void;
   readonly onToggleSwitcher: () => void;
-  readonly onToggleSheet: () => void;
   readonly onSelectSession: (sessionId: string) => void;
   readonly onRenameSession: (sessionId: string, title: string) => void;
   readonly onDeleteSession: (sessionId: string) => void;
@@ -59,14 +59,13 @@ export function ChatView({
   open,
   dark,
   mark,
-  onToggleSettings,
+  onToggleConsole,
   onToggleTheme,
   onSubmit,
   onStop,
   onDismiss,
   onNewChat,
   onToggleSwitcher,
-  onToggleSheet,
   onSelectSession,
   onRenameSession,
   onDeleteSession,
@@ -83,22 +82,41 @@ export function ChatView({
     pinned.current = el.scrollHeight - el.scrollTop - el.clientHeight <= PIN_THRESHOLD_PX;
   };
 
-  // Follow the stream: each message change (and the approval card) scrolls the tail into view,
-  // unless the reader has scrolled up to read (then their place holds until they return).
-  useEffect(() => {
+  // "The reader is at the tail" is a claim about the log that has to survive everything that can
+  // falsify it, so the one way of restoring it is shared. Refs only, so its identity is stable and
+  // the composer's measurement below does not re-run on every frame of a stream.
+  const pinToTail = useCallback(() => {
     if (pinned.current) {
       const el = historyRef.current;
       el.scrollTop = el.scrollHeight;
     }
-  }, [state.messages, state.pendingConfirm]);
+  }, []);
+
+  // Follow the stream: each message change (and the approval card) scrolls the tail into view,
+  // unless the reader has scrolled up to read (then their place holds until they return).
+  useEffect(pinToTail, [pinToTail, state.messages, state.pendingConfirm]);
 
   const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   return (
     <>
       <header className="head">
-        <LinkDot link={state.link} />
-        <CaptureDot capturing={state.capturing} />
+        {/* The title opens the row and the two state indicators close it, immediately left of the
+            button cluster. They sit together because they are one row of state, not two ornaments:
+            splitting them would leave a lone capture ring beside the title that only ever appears
+            mid-capture, so the header's left edge would gain and lose a dot per turn. Against the
+            buttons they read as "what the panel currently is" next to "what you can do to it", and
+            the title gets the corner to itself.
+
+            The capture ring comes FIRST, which is a layout fact rather than a preference. The title
+            is the row's only flexible item, so it absorbs every width change; a fixed item inserted
+            directly against it costs the title 17px and moves nothing else. Put the ring on the far
+            side of the connection dot instead and that dot, plus all four buttons, slide 17px left
+            the moment a capture starts, mid-turn, while the user is watching the header. This way a
+            capture beginning causes no motion anywhere in the row: the ring simply fades in, in
+            space the title gives up. */}
         <span className="title">{state.title}</span>
+        <CaptureDot capturing={state.capturing} />
+        <LinkDot link={state.link} />
         <button
           className="hbtn"
           onClick={onToggleSwitcher}
@@ -137,37 +155,72 @@ export function ChatView({
         />
       </Collapse>
       <div className="history" ref={historyRef} onScroll={onHistoryScroll}>
-        {state.messages.length === 0 ? (
-          <div className="empty">
-            <button
-              className="markbtn"
-              onClick={onToggleSettings}
-              aria-label={`Mark: ${mark.label}. Open settings`}
-              type="button"
-            >
-              <BubbleMark style={mark} size={54} idPrefix="empty" animated={!reduced} />
-            </button>
-            <p className="empty-line">Ask me anything</p>
-            <div className="empty-chips">
-              {EXAMPLE_PROMPTS.map((prompt) => (
-                <button key={prompt} className="echip" onClick={() => onSubmit(prompt)} type="button">
-                  {prompt}
-                </button>
-              ))}
+        {/* Everything the history holds lives in one inner column, `.log`, because the floor that
+            stops the first send from shrinking the panel (its `min-height`, sized to the empty
+            state in overlay.css) has to sit on the CONTENT rather than on the scroll box. A floor
+            on `.history` itself cannot yield: with the switcher and the reminder stack both open
+            at the body's 720px window there is 76px left for the history, and a box that refuses
+            to go below 195px there pushes the composer and the hint strip out past the panel's
+            own clipped edge (measured in Chromium before this was written). Floored content just
+            scrolls instead, which is what the empty state already does when it is squeezed. */}
+        <div className="log">
+          {state.messages.length === 0 ? (
+            <div className="empty">
+              <button
+                className="markbtn"
+                onClick={() => onToggleConsole("appearance")}
+                // Named for where it lands, which is the console's appearance tab: the settings
+                // sheet this used to open is gone, and a label naming a view that no longer
+                // exists is the one part of a rename a screen reader would still be reading out.
+                aria-label={`Mark: ${mark.label}. Open appearance`}
+                type="button"
+              >
+                <BubbleMark style={mark} size={54} idPrefix="empty" animated={!reduced} />
+              </button>
+              <p className="empty-line">Ask me anything</p>
+              <div className="empty-chips">
+                {EXAMPLE_PROMPTS.map((prompt) => (
+                  <button
+                    key={prompt}
+                    className="echip"
+                    onClick={() => onSubmit(prompt)}
+                    type="button"
+                  >
+                    {prompt}
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
-        ) : null}
-        {state.messages.map((message) => (
-          <Message key={message.id} message={message} />
-        ))}
-        {state.pendingConfirm !== null ? (
-          <ConfirmCard confirm={state.pendingConfirm} onRespond={onRespondConfirm} />
-        ) : null}
+          ) : null}
+          {state.messages.map((message) => (
+            <Message key={message.id} message={message} />
+          ))}
+          {state.pendingConfirm !== null ? (
+            <ConfirmCard confirm={state.pendingConfirm} onRespond={onRespondConfirm} />
+          ) : null}
+        </div>
       </div>
-      <Composer busy={isTurnActive(state)} active={open} onSubmit={onSubmit} onStop={onStop} />
+      {/* The pill's growth is the log's loss: they are flex siblings and the log is the one that
+          yields, so a draft that restacks or wraps takes the height out of the window above it
+          while the engine leaves `scrollTop` where it was. Measured at a 720px window with the
+          panel at its ceiling, a two-line draft left the newest reply 52px below the visible edge,
+          clipped mid-line, and a draft at the field's own ceiling 122px. The reader is answering
+          that reply, so it is exactly the thing that must not slide away under them. */}
+      {/* The chat is only the ACTIVE view while no console tab is up, and the field takes focus on
+          that rising edge. So coming back from the console puts the caret back in the composer
+          (with the draft and its selection intact, since this field is never unmounted) instead of
+          leaving focus on a tab strip that is fading out, which is where the click that opened the
+          console left it and which the browser is about to display:none out from under it. */}
+      <Composer
+        busy={isTurnActive(state)}
+        active={open && state.consoleTab === null}
+        onSubmit={onSubmit}
+        onStop={onStop}
+        onResize={pinToTail}
+      />
       {/* Esc is not listed here: the strip is a convenience, it had run out of room once the
           settings button joined it, and Esc-to-dismiss is the most guessable of the five. The
-          shortcuts view next to it still lists every binding, that one being the complete list. */}
+          console's shortcuts tab still lists every binding, that one being the complete list. */}
       <div className="hints">
         <span>
           <b className="key">
@@ -175,9 +228,16 @@ export function ChatView({
           </b>{" "}
           send
         </span>
+        {/* Shift and Return are two caps, not one cap holding two glyphs: every other hint here
+            already separates its keys, and the console's shortcut list separates all of them, so a
+            single cap made this the one place a chord read as one key. Measured at 900px: the
+            second cap takes the strip's content from 448px to 461px of a 558px row, so it still
+            sits on one line. */}
         <span>
           <b className="key">
             <ShiftKey />
+          </b>
+          <b className="key">
             <ReturnKey />
           </b>{" "}
           newline
@@ -196,12 +256,28 @@ export function ChatView({
           </b>{" "}
           chats
         </span>
-        <button className="qbtn" onClick={onToggleSettings} aria-label="Settings" type="button">
+        {/* Two doors into the one console, each landing on the tab it names: the sliders on
+            appearance, the ? on the shortcut list. A press here is always an open, because the
+            console is a view and replaces this one outright (`.view.gone` is `display: none`), so
+            neither button is reachable while it is up. They still dispatch the toggle rather than
+            the open, so that the strip and the ? KEY, which IS live inside the console and is the
+            binding that can close it that way, stay one behaviour with one name. */}
+        <button
+          className="qbtn"
+          onClick={() => onToggleConsole("appearance")}
+          aria-label="Settings"
+          type="button"
+        >
           <b className="key">
             <SlidersIcon />
           </b>
         </button>
-        <button className="qbtn" onClick={onToggleSheet} aria-label="Shortcuts" type="button">
+        <button
+          className="qbtn"
+          onClick={() => onToggleConsole("shortcuts")}
+          aria-label="Shortcuts"
+          type="button"
+        >
           <b>?</b>
         </button>
       </div>

@@ -18,15 +18,21 @@ interface Roll {
  */
 function stubBrowser() {
   const rolls: Roll[] = [];
+  // Which end state each roll holds after it finishes, and which held ones were released again.
+  const fills: string[] = [];
+  const cancelled: number[] = [];
   const finishers: (() => void)[] = [];
   const box = { natural: HEIGHT, displayed: 0 };
   let running = false;
   let playState: AnimationPlayState = "running";
 
-  Element.prototype.getBoundingClientRect = (() =>
-    ({ height: running ? box.displayed : box.natural }) as DOMRect) as () => DOMRect;
+  // The section reads its own LAYOUT height, which is `offsetHeight` and not the rect: the panel
+  // around it is scaled through a summon, and the rect is measured after that transform.
+  vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockImplementation(() =>
+    running ? box.displayed : box.natural,
+  );
 
-  Element.prototype.animate = ((keyframes: Keyframe[]) => {
+  Element.prototype.animate = ((keyframes: Keyframe[], options: KeyframeAnimationOptions) => {
     const read = (frame: Keyframe | undefined) => ({
       height: Number.parseFloat(String(frame?.height ?? "0")),
       opacity: Number(frame?.opacity ?? 0),
@@ -34,7 +40,9 @@ function stubBrowser() {
     const from = read(keyframes[0]);
     const to = read(keyframes[1]);
     rolls.push({ from: from.height, to: to.height, fade: [from.opacity, to.opacity] });
+    fills.push(String(options.fill ?? "none"));
     running = true;
+    const index = rolls.length;
     const animation = {
       get playState() {
         return playState;
@@ -42,6 +50,7 @@ function stubBrowser() {
       onfinish: null as (() => void) | null,
       cancel: () => {
         running = false;
+        cancelled.push(index);
       },
     };
     finishers.push(() => {
@@ -54,7 +63,16 @@ function stubBrowser() {
 
   /** Let the newest roll play out, as the browser would. */
   const settle = () => act(() => finishers[finishers.length - 1]?.());
-  return { rolls, box, settle, hold: (height: number) => { box.displayed = height; } };
+  return {
+    rolls,
+    fills,
+    cancelled,
+    box,
+    settle,
+    hold: (height: number) => {
+      box.displayed = height;
+    },
+  };
 }
 
 function stubMotionPreference(reduce: boolean): void {
@@ -121,7 +139,58 @@ describe("Collapse", () => {
     expect(screen.queryByText("rows")).toBeNull();
   });
 
-  it("claims the motion while it runs, so the panel leaves the height alone", () => {
+  it("holds its collapsed height until React removes it, so nothing paints at the old size", () => {
+    const { fills, settle } = stubBrowser();
+    const view = render(
+      <Collapse open>
+        <p>rows</p>
+      </Collapse>,
+    );
+    view.rerender(
+      <Collapse open={false}>
+        <p>rows</p>
+      </Collapse>,
+    );
+    // Unmounting is a React render away, so without this the element snapped back to its natural
+    // height the instant the roll ended and painted there until React caught up: one frame of the
+    // whole section reappearing, which is what a 60Hz trace of a switcher close showed.
+    expect(fills).toEqual(["forwards"]);
+    settle();
+    // The opening direction holds nothing: its end state IS the natural height, so there is
+    // nothing to hold, and holding it would freeze the section at the content it opened with.
+    view.rerender(
+      <Collapse open>
+        <p>rows</p>
+      </Collapse>,
+    );
+    expect(fills).toEqual(["forwards", "none"]);
+  });
+
+  it("releases the held height when reopened, so it rolls from nothing and not from a stuck one", () => {
+    const { rolls, cancelled, settle } = stubBrowser();
+    const view = render(
+      <Collapse open>
+        <p>rows</p>
+      </Collapse>,
+    );
+    view.rerender(
+      <Collapse open={false}>
+        <p>rows</p>
+      </Collapse>,
+    );
+    settle();
+    view.rerender(
+      <Collapse open>
+        <p>rows</p>
+      </Collapse>,
+    );
+    // The finished closing roll is still holding 0; letting go of it is what lets the section
+    // measure its natural height again.
+    expect(cancelled).toEqual([1]);
+    expect(rolls[1]).toEqual({ from: 0, to: HEIGHT, fade: [0, 1] });
+  });
+
+  it("claims the motion while it runs, saying which height it is rolling to", () => {
     const { settle } = stubBrowser();
     const view = render(
       <Collapse open={false}>
@@ -133,9 +202,69 @@ describe("Collapse", () => {
         <p>rows</p>
       </Collapse>,
     );
-    expect(view.container.querySelector("[data-morphing]")).not.toBeNull();
+    // The value is the contract, not just the presence: the panel works out from it how tall IT is
+    // about to be, and moves its own bottom edge over this same roll instead of after it.
+    expect(view.container.querySelector("[data-morphing]")?.getAttribute("data-morphing")).toBe(
+      String(HEIGHT),
+    );
     settle();
     expect(view.container.querySelector("[data-morphing]")).toBeNull();
+
+    view.rerender(
+      <Collapse open={false}>
+        <p>rows</p>
+      </Collapse>,
+    );
+    expect(view.container.querySelector("[data-morphing]")?.getAttribute("data-morphing")).toBe("0");
+  });
+
+  it("tells the panel when it starts, since not every roll is a render the panel can see", () => {
+    const { settle } = stubBrowser();
+    const heard: (string | null)[] = [];
+    const view = render(
+      <Collapse open={false}>
+        <p>rows</p>
+      </Collapse>,
+    );
+    // What the panel needs at this moment is the height being rolled to, so the attribute has to be
+    // set by the time the event lands: it works out from that number how tall it is about to be and
+    // takes its own bottom edge along over the same roll.
+    view.container.addEventListener("cortex:morphstart", (event) =>
+      heard.push((event.target as HTMLElement).getAttribute("data-morphing")),
+    );
+    view.rerender(
+      <Collapse open>
+        <p>rows</p>
+      </Collapse>,
+    );
+    expect(heard).toEqual([String(HEIGHT)]);
+    settle();
+    view.rerender(
+      <Collapse open={false}>
+        <p>rows</p>
+      </Collapse>,
+    );
+    expect(heard).toEqual([String(HEIGHT), "0"]);
+  });
+
+  it("announces no start when there is no roll to ride along with", () => {
+    stubMotionPreference(true);
+    stubBrowser();
+    const heard: string[] = [];
+    const view = render(
+      <Collapse open>
+        <p>rows</p>
+      </Collapse>,
+    );
+    view.container.addEventListener("cortex:morphstart", () => heard.push("start"));
+    view.rerender(
+      <Collapse open={false}>
+        <p>rows</p>
+      </Collapse>,
+    );
+    // Nothing is animating, so there is nothing for the panel to ride along WITH: the end event
+    // that follows immediately is what places it around the height already committed to.
+    expect(heard).toEqual([]);
   });
 
   it("tells the panel when it stops, since rolling open changes no state to notice", () => {
@@ -229,5 +358,30 @@ describe("Collapse", () => {
     );
     expect(rolls).toEqual([]);
     expect(screen.queryByText("rows")).toBeNull();
+  });
+
+  it("is already collapsed when it tells the panel so, with no animation to hold it there", () => {
+    stubMotionPreference(true);
+    stubBrowser();
+    const view = render(
+      <Collapse open>
+        <p>rows</p>
+      </Collapse>,
+    );
+    // What the panel sees when it re-measures on the event: with nothing animating, there is no
+    // forwards fill holding the end state, so the section would still be standing at its full
+    // height around rows that are about to go. Traced under prefers-reduced-motion before this was
+    // fixed: closing the chat switcher left the panel 119px lower than it had been before it
+    // opened, and it stayed there, because that was the height it was placed around.
+    let heightWhenTold: string | undefined;
+    view.container.addEventListener("cortex:morphend", (event) => {
+      heightWhenTold = (event.target as HTMLElement).style.height;
+    });
+    view.rerender(
+      <Collapse open={false}>
+        <p>rows</p>
+      </Collapse>,
+    );
+    expect(heightWhenTold).toBe("0px");
   });
 });

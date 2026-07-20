@@ -1,8 +1,19 @@
 # ADR-0034: The panel's other faces are views it morphs into, not sheets laid over it
 
-- **Status:** Accepted
+- **Status:** Accepted, amended by [ADR-0035](ADR-0035-console-and-motion.md)
 - **Date:** 2026-07-19
 - **Amends:** [ADR-0033](ADR-0033-panel-growth.md) (decisions 1, 5 and consequence 3)
+
+> **What changed.** Decision 1's three views are two: `shortcuts` and `settings` became the tabs of
+> one console ([ADR-0035](ADR-0035-console-and-motion.md) decision 1), which is also why Esc now
+> leaves in a single press and why the first consequence below is about a view that no longer
+> exists. Decision 2 re-centred every view change, the return trip included, and the chat's own
+> edge is parked and handed back instead, unclamped, with another chat no longer counting as
+> another view at all (ADR-0035 decisions 2 to 4); the flat duration those moves ran at became a
+> pace (ADR-0035 decisions 7 and 11). Decision 5's `cortex:morphend` gained a sibling
+> `cortex:morphstart` and a published target height, so the panel rides a roll instead of
+> discovering it afterwards (ADR-0035 decisions 5, 6 and 14). Decisions 3, 4, 6, 7 and 8 stand and
+> are why the rest works.
 
 ## Context
 
@@ -85,7 +96,9 @@ Traced in a browser at 60Hz: opening the switcher jumped, closing it eased, open
    theme picker sit at the same rhythm. Colour stays reserved for working affordances, so nothing
    here is accented. Two richer directions (theme choices as thumbnails of the panel wearing them;
    one tabbed console instead of two destinations) were pitched to the user as a live artifact and
-   are open, and either is inner markup on this same plumbing.
+   were open, and either is inner markup on this same plumbing. The maintainer picked **both**, and
+   [ADR-0035](ADR-0035-console-and-motion.md) decision 1 is what was built: this decision's two
+   views are one console now, and its rows are the shortcut tab's rows.
 
 ## Consequences
 
@@ -96,7 +109,7 @@ Traced in a browser at 60Hz: opening the switcher jumped, closing it eased, open
   the overlay that deliberately animates layout-affecting properties. It is bounded: one element,
   one animation, at most one per render.
 - A single reminder leaving the stack still vanishes in one frame rather than rolling up, since
-  `Collapse` wraps the stack and not each row. Nothing else moves when it does (decision 6), so
-  what is left is one row's worth of instant. Recorded in `docs/refinements/body-overlay.md`.
+  `Collapse` wraps the stack and not each row. The history absorbs the slack (decision 6), so what
+  is left is one row's worth of instant. Recorded in `docs/refinements/body-overlay.md`.
 - Two views' worth of chrome collapsed into `components/PanelView.tsx`, and `Panel` became a router
   over `components/ChatView.tsx` and the two views, which is what kept every file under the cap.

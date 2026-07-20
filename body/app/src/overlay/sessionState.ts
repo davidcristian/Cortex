@@ -1,11 +1,12 @@
 import type { SessionMessage, SessionSummary } from "../bridge/types";
-import type { Message, OverlayState } from "./overlayState";
+import type { OverlayState } from "./overlayState";
+import type { Message } from "./turnState";
 
 // Session-switching halves of the overlay state (ADR-0021): hydrating a stored chat into the
 // panel, adopting the most recent one on cold start, cycling between recent chats, and the
-// title derivation they share with `submit`. Split from `overlayState.ts` (which re-exports
-// the pieces components use) to keep both files under the repo line cap; only types cross
-// back, so the runtime import graph stays one-directional.
+// title derivation they share with `turnState`'s `submit`. Split from `overlayState.ts` (which
+// re-exports the pieces components use) to keep every one of them under the repo line cap; only
+// types cross back, so the runtime import graph stays one-directional.
 
 export const NEW_CHAT_TITLE = "New chat";
 const TITLE_MAX = 32;

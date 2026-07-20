@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
 import type { Message as MessageModel } from "../overlay/overlayState";
@@ -99,9 +99,13 @@ describe("Message", () => {
     const { container } = render(
       <Message message={msg({ content: "done", streaming: false, thoughts: "step one\nstep two" })} />,
     );
-    const details = container.querySelector("details.thoughts");
-    expect(details).not.toBeNull();
-    expect(details?.hasAttribute("open")).toBe(false); // collapsed by default
+    expect(container.querySelector(".thoughts")).not.toBeNull();
+    const control = screen.getByRole("button", { name: "Thoughts" });
+    expect(control).toHaveAttribute("aria-expanded", "false"); // collapsed by default
+    // The trace itself is the message's own, so opening it is what proves it was handed down whole:
+    // the body is not in the DOM at all while the disclosure is shut.
+    expect(container.querySelector(".thoughts-body")).toBeNull();
+    fireEvent.click(control);
     expect(container.querySelector(".thoughts-body")?.textContent).toBe("step one\nstep two");
   });
 
@@ -109,13 +113,31 @@ describe("Message", () => {
     const { container } = render(
       <Message message={msg({ content: "x", streaming: true, thoughts: "partial reasoning" })} />,
     );
-    expect(container.querySelector("details.thoughts")).toBeNull();
+    expect(container.querySelector(".thoughts")).toBeNull();
   });
 
   it("shows no thoughts disclosure on a settled reply that never reasoned", () => {
     const { container } = render(
       <Message message={msg({ content: "done", streaming: false, thoughts: "" })} />,
     );
-    expect(container.querySelector("details.thoughts")).toBeNull();
+    expect(container.querySelector(".thoughts")).toBeNull();
+  });
+
+  it("settles the live thinking chip into the disclosure in place, one row for one row", () => {
+    // The stylesheet gives both of these the same height (`--trace-row`) so that a turn completing
+    // swaps them without resizing the log under them: traced at 60Hz, unequal boxes eased the whole
+    // panel down 4px at the moment the answer landed. That only holds while the two really are one
+    // row in two states, which is a structural contract no stylesheet can defend. Adding a second
+    // settled row, or leaving the chip's slot empty, puts the shrink back.
+    const reasoning = { streaming: true, status: "reasoning", statusState: "thinking" } as const;
+    const live = render(<Message message={msg({ ...reasoning, thoughts: "step one" })} />).container;
+    expect(live.querySelectorAll(".chip")).toHaveLength(1);
+    expect(live.querySelector(".chip")?.nextElementSibling?.className).toContain("bubble");
+    cleanup();
+    const settled = render(
+      <Message message={msg({ ...reasoning, streaming: false, thoughts: "step one" })} />,
+    ).container;
+    expect(settled.querySelectorAll(".thoughts")).toHaveLength(1);
+    expect(settled.querySelector(".thoughts")?.nextElementSibling?.className).toContain("bubble");
   });
 });
