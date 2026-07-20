@@ -444,6 +444,34 @@ describe("Panel", () => {
     expect(el.scrollTop).toBe(100);
   });
 
+  it("hands the log back its place after a trip to the console, ignoring the layout's scrolling", () => {
+    const props = (tab: ConsoleTab | null) =>
+      panelProps({ messages: [userMsg, reply("m1")], consoleTab: tab }, true, false);
+    const view = render(<Panel {...props(null)} />);
+    const el = view.container.querySelector(".history") as HTMLDivElement;
+    Object.defineProperty(el, "scrollHeight", { configurable: true, value: 500 });
+    Object.defineProperty(el, "clientHeight", { configurable: true, value: 100 });
+
+    // A reader well up the log, reading rather than following.
+    el.scrollTop = 100;
+    fireEvent.scroll(el);
+    view.rerender(<Panel {...props("appearance")} />);
+    el.scrollTop = 0;
+    fireEvent.scroll(el);
+    view.rerender(<Panel {...props(null)} />);
+    expect(el.scrollTop).toBe(100);
+
+    // A reader who was AT the tail comes back to the tail, which is not the same line: a reply can
+    // land while the console is up, and following the stream is what they asked for.
+    el.scrollTop = 470;
+    fireEvent.scroll(el);
+    view.rerender(<Panel {...props("shortcuts")} />);
+    el.scrollTop = 0;
+    fireEvent.scroll(el);
+    view.rerender(<Panel {...props(null)} />);
+    expect(el.scrollTop).toBe(500);
+  });
+
   it("opens the console's shortcuts tab from the hint strip's ? and comes back from it", () => {
     const onToggleConsole = vi.fn();
     const onCloseConsole = vi.fn();

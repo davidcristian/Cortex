@@ -19,6 +19,23 @@ import { rideAlong } from "./panelRide";
 /** The view whose position is remembered across a trip to another one. */
 const CHAT_VIEW = "chat";
 
+/** Every box inside the panel that scrolls: the conversation, and a console tab's rows. Written out
+ *  rather than discovered, because discovering it means reading `scrollTop` off every node in the
+ *  panel on every token of a stream. A new scrolling box in the panel belongs in this list. */
+const SCROLL_BOXES = ".history, .rows";
+
+/** Take the scroll positions the measurement below is about to cost, and give them back. */
+function holdScroll(element: HTMLElement): () => void {
+  const boxes = [...element.querySelectorAll<HTMLElement>(SCROLL_BOXES)].map(
+    (box) => [box, box.scrollTop] as const,
+  );
+  return () => {
+    for (const [box, top] of boxes) {
+      box.scrollTop = top;
+    }
+  };
+}
+
 /** Where the panel's bottom edge wants to be, before the ceiling has its say. */
 function centringHeight(element: HTMLElement, height: number): number {
   const aside = element.querySelector<HTMLElement>(".collapse.aside");
@@ -52,6 +69,7 @@ export function place(element: HTMLElement | null, memory: Memory, at: Placement
   }
   memory.open = at.open;
   const viewport = window.innerHeight;
+  const release = holdScroll(element);
   element.style.maxHeight = `${openHeight(viewport)}px`;
   const section = element.querySelector<HTMLElement>(`[${MORPHING_ATTRIBUTE}]`);
   if (section !== null) {
@@ -63,9 +81,11 @@ export function place(element: HTMLElement | null, memory: Memory, at: Placement
       memory.rolling = rolling;
       rideAlong(element, memory, section, viewport, arriving(memory, at));
     }
+    element.style.maxHeight = `${maxHeight(viewport, memory.applied)}px`;
     // Record what the eye sees, so a later change eases from here.
     memory.shown = { height: heightOf(element), bottom: memory.applied };
     memory.deferred = true;
+    release();
     return;
   }
   memory.rolling = null;
@@ -89,6 +109,7 @@ export function place(element: HTMLElement | null, memory: Memory, at: Placement
   // Re-read: the real cap may have shortened the panel, and everything below animates to what the
   // element actually is rather than to what it wanted to be.
   const next: Geometry = { height: heightOf(element), bottom };
+  release();
   memory.applied = bottom;
   element.style.bottom = `${Math.round(bottom)}px`;
   memory.shown = next;

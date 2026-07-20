@@ -900,8 +900,23 @@
 }
 .tabstack {
   display: grid;
+  position: relative;
   flex: 0 1 auto;
   min-height: 0;
+}
+/* Out of the flow, so it contributes no height, and still laid out at its own so it stays
+   measurable: no `bottom`, which is what leaves the height to the content. */
+.tabstack.apart .tabpane:not(.on) {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+}
+/* The pose the stack is measured in, held for one synchronous read and never painted. Stretched to
+   the cell, a pane reports the cell's height, which is the taller pane's, so the two panes read as
+   identical and the spread being measured is invisible in it. */
+.tabstack[data-measuring] .tabpane {
+  align-self: start;
 }
 .tabpane {
   grid-area: 1 / 1;

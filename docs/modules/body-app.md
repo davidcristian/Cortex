@@ -15,7 +15,8 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
   vertical geometry and the motion into it (`overlay/usePanelMotion.ts` drives
   `overlay/panelPlacement.ts` and its neighbours, which own `bottom` and `max-height` as inline
   styles; `overlay/useViewTransition.ts` names the view being left behind
-  long enough to fade it, ADR-0033/ADR-0034), the overlay state
+  long enough to fade it; `overlay/useLogScroll.ts` owns where the reader is in the conversation and
+  keeps them there, ADR-0033/ADR-0034), the overlay state
   machine (`overlay/overlayState.ts` is a pure reducer over a `Mode` = hidden/panel/orb/preview,
   with two halves split off for the line cap and re-exported from it, so components import one
   module: the session-switching helpers in `overlay/sessionState.ts`, and the turn fold, meaning
@@ -166,22 +167,26 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
   acks (an ack destroys the reminder, navigation does not), and the control is *absent* for a
   session-less row (`""`) or for the chat already on screen, where it would cancel that chat's
   running turn to arrive where it already is.
-- **The panel's views** (`components/Panel.tsx` + `ChatView.tsx` + `ConsoleView.tsx` +
-  `ConsoleView.tsx`, ADR-0034): `Panel` is a router over views of one window, not a window with
-  sheets over it, and the views are `chat` plus one per **console** tab
-  (`console:appearance` | `console:shortcuts`, ADR-0035 decision 1). Only the active view is in the
-  layout flow, so it alone
+- **The panel's views** (`components/Panel.tsx` + `ChatView.tsx` + `ConsoleView.tsx`, ADR-0034):
+  `Panel` is a router over views of one window, not a window with sheets over it, and the views are
+  `chat` and `console` (ADR-0035 decision 1). The console's TAB is deliberately not part of the view
+  name: both tabs are mounted inside it and stacked in one grid cell, so a tab change is not a view
+  change, replaces none of the chrome, and re-runs neither the enter animation nor the centring. A
+  view per tab was the first shape and it flinched, jumping 12px between two tabs that differ by
+  12px while the header and the chevron faded out and in around content that was the only thing
+  actually changing.
+  Whether a tab change resizes the panel at all is one number, `TAB_SPREAD_PX` in `ConsoleView`:
+  within 15px the two tabs share the taller one's height (they ship 278px and 290px, measured at
+  640x720), beyond it each gets its own and the panel morphs between them like any other size change
+  inside a view. They are measured unstretched, in a pose the stack does not otherwise hold, because
+  a pane stretched to the cell reports the cell's height and so hides the very difference being
+  looked for; the read is synchronous, in a layout effect React runs before the panel's own.
+  Only the active view is in the layout flow, so it alone
   decides the height the panel eases to; the view being left is held for one morph, lifted out of
-  flow, and faded out over the one arriving; the chat is never unmounted (a half-typed draft and the
-  history's scroll position survive a trip to the console). Naming the TAB in the view is what makes
-  switching tabs the same resize-and-recentre morph as opening the console, with the cross-fade
-  already in place carrying it: measured, appearance 411px and the shortcut list 571px, both edges
-  moving 80px over about 150ms and back. Two panes that share their chrome cross without the rise:
-  `Panel` marks both `.view.swap` when the view being left is another console tab, which zeroes the
-  `--rise` both view keyframes read, so the header and the strip hold still (traced pixel-identical
-  in both panes) while only the content changes. It is a distance and not a second pair of
-  keyframes because the mark is dropped when the crossing ends, and changing an animation's NAME
-  restarts it, which replayed the rise on a pane that had already arrived. Whichever pane is on its
+  flow, and faded out over the one arriving; the chat is never unmounted, so a half-typed draft and
+  the composer's focus survive a trip to the console. The history's scroll position does NOT survive
+  on that alone, being out of the flow is precisely what loses it, and is parked and handed back by
+  `overlay/useLogScroll.ts`. Whichever pane is on its
   way out is `aria-hidden`, chat or console, so two mounted panes are never two announced ones. `usePanelMotion` is the WHEN of the panel's
   geometry (every render, a window resize, and both ends of a roll) over three files that are the what:
   `overlay/panelGeometry.ts` is the pure arithmetic (the centre, the ceiling clamp, the max height
@@ -212,7 +217,13 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
   share: `data-morphing` on the section makes the panel leave the height alone and carries the
   height the section is rolling to, which is what lets the panel take its bottom edge off the
   ceiling over that same roll (`MORPH_ROLL_MS`) instead of afterwards, capped at the height the
-  panel is allowed to reach. A move of the panel's own still in the air when a roll starts is
+  panel is allowed to reach. That cap goes on the ELEMENT for the length of the roll and not only on
+  the prediction: a roll is not a placement, so the measuring cap `place` writes on its way in would
+  otherwise stand there for the whole roll and let the section carry the panel clean past the clear
+  space at the top (traced at 640x720 on a panel already at its ceiling: 450 to the loose 547 with
+  the top edge 11px off the screen, held for 300ms, back to 450 in one frame). Capped, the section
+  rolls to its full height and the history gives the room up.
+  A move of the panel's own still in the air when a roll starts is
   carried through it (in-flight height to where the roll will leave the panel, on the roll's clock)
   rather than cancelled, since cancelling hands the used height back to layout in one frame. Two
   bubbling events bracket the roll, and both exist because a roll is not always a render the panel
@@ -464,9 +475,19 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
   the same tail-pin it uses for a new message, reader override included. A `ResizeObserver` on the
   log would be the obvious alternative and is the wrong one: the log also resizes when a trace rolls
   open, where leaving `scrollTop` alone is deliberate (ADR-0035 decision 15).
-- **The history's scroll position is decided here, not by the engine.** `ChatView` holds the log at
-  its tail while the reader is at the tail, and a section rolling open inside the log leaves
-  `scrollTop` alone so the row stays under the pointer that opened it. `.history` therefore carries
+- **The history's scroll position is decided here, not by the engine.** `overlay/useLogScroll.ts`
+  holds the log at its tail while the reader is at the tail, parks where they are otherwise and
+  hands it back after a trip to the console, and ignores the scrolling the layout does on that trip
+  (which is not the reader's, and which reads as sitting at the tail because the box being out of
+  the flow has nothing left to scroll). A section rolling open inside the log leaves
+  `scrollTop` alone so the row stays under the pointer that opened it. The panel's placement leaves
+  it alone too, which it had to be taught: `place` measures the panel by growing it to the loosest
+  cap any edge could allow, every scroll box inside a taller panel is a taller box, and the engine
+  clamps a box that has outgrown its scroll range and does not undo it when the real cap goes back
+  on. That put a reader 60px off the tail back to 97px off it on every token of a reply, so `place`
+  now takes the positions before it measures and hands them back after
+  ([ADR-0035](../adr/ADR-0035-console-and-motion.md), the addendum on the second maintainer pass, has the
+  traces). `.history` therefore carries
   `overflow-anchor: none`: Chromium's scroll anchoring is a third decider of the same number, and
   the roll is the only mid-log resize in the overlay for it to react to. A roll measures its content
   at full height and animates from zero, which the anchor reads as the log shrinking, and it
