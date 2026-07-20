@@ -2,12 +2,20 @@ import type { ReactNode } from "react";
 
 import { DownArrowKey, ReturnKey, ShiftKey, UpArrowKey } from "./icons";
 
-/** One binding, as a soft filled card: what it does on the left, the keys that do it on the right.
- *  Every card is the same half-width tile, which is what makes the tab a wall rather than a list,
- *  so a label is one short word wherever one will do. */
-function Key({ label, children }: { readonly label: string; readonly children: ReactNode }) {
+/**
+ * One binding, as a soft filled card: what it does on the left, the keys that do it on the right.
+ */
+function Key({
+  label,
+  wide = false,
+  children,
+}: {
+  readonly label: string;
+  readonly wide?: boolean;
+  readonly children: ReactNode;
+}) {
   return (
-    <span className="skey">
+    <span className={`skey${wide ? " wide" : ""}`}>
       <span className="skey-label">{label}</span>
       <span className="row-keys">{children}</span>
     </span>
@@ -66,7 +74,7 @@ export function ShortcutsTab() {
       <section className="swatch">
         <h3 className="sect">The window</h3>
         <div className="skeys">
-          <Key label="Summon">
+          <Key label="Summon" wide>
             <b>Ctrl</b>
             <b>Alt</b>
             <b>Space</b>

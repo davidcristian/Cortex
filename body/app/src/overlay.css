@@ -808,18 +808,17 @@
   gap: 18px;
   flex: 0 1 auto;
   min-height: 0;
-  padding-block: 2px 4px;
   overflow-y: auto;
   scrollbar-gutter: stable;
-  /* Rows start on the panel's own left margin, so the hairlines between them read as inset rules
-     rather than as lines drawn to the rounded edge. The right margin is that same number minus
-     the reserved rail, which puts the hairline's far end back where the left one starts. */
-  padding: 0 calc(16px - var(--rail)) 0 16px;
+  padding: 2px calc(16px - var(--rail)) 15px 16px;
 }
 .skeys {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 6px;
+}
+.skey.wide {
+  grid-column: 1 / -1;
 }
 .skey {
   display: flex;
