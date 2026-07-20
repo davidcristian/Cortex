@@ -54,7 +54,13 @@ export function rideAlong(
     // The summon is still landing, so this roll is part of the panel appearing rather than growth
     // after the fact: it ends centred on the height it is taking the panel to, and that is the edge
     // the session is then pinned to.
-    memory.pinned = centred(viewport, height);
+    //
+    // A section marked `aside` is left out of that height, exactly as `centringHeight` leaves it out
+    // of an ordinary placement. The reminder stack is the one that rolls in behind a summon, and
+    // centring on it is what put the conversation wherever the day's reminders left it: measured at
+    // 900px with three cards up, the chat sat 26px below its own centre.
+    const counted = section.classList.contains("aside") ? height - target : height;
+    memory.pinned = centred(viewport, counted);
   }
   const bottom = clamped(memory.pinned);
   const from = shown?.bottom ?? memory.applied;

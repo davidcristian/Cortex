@@ -25,10 +25,12 @@ import {
 
 interface CollapseProps {
   readonly open: boolean;
+  /** Marks a section the panel leaves out when it centres itself: see `.collapse.aside`. */
+  readonly aside?: boolean;
   readonly children: ReactNode;
 }
 
-export function Collapse({ open, children }: CollapseProps) {
+export function Collapse({ open, aside = false, children }: CollapseProps) {
   const ref = useRef<HTMLDivElement>(null);
   // Kept mounted through the closing animation: an exit cannot be animated on an element React
   // has already removed. `rendered` therefore lags `open` on the way out, never on the way in.
@@ -134,7 +136,7 @@ export function Collapse({ open, children }: CollapseProps) {
   });
 
   return rendered ? (
-    <div className="collapse" ref={ref}>
+    <div className={`collapse${aside ? " aside" : ""}`} ref={ref}>
       {children}
     </div>
   ) : null;

@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { WOBBLE } from "../mark/marks";
@@ -244,7 +244,7 @@ describe("Panel", () => {
     expect(onPinSession).toHaveBeenCalledWith("c1", true);
   });
 
-  it("shows the reminder stack only when something is due, above the scrolling history", () => {
+  it("shows the reminder stack only when something is due, above the scrolling history", async () => {
     const onDismissReminder = vi.fn();
     const onSelectSession = vi.fn();
     const { container, rerender } = render(<Panel {...panelProps({}, true, false)} />);
@@ -271,11 +271,14 @@ describe("Panel", () => {
     const stack = screen.getByLabelText("Due reminders");
     // Delivery is not conversation: the stack sits outside the log so it cannot scroll away.
     expect(container.querySelector(".history")?.contains(stack)).toBe(false);
-    fireEvent.click(screen.getByLabelText("Dismiss reminder"));
-    expect(onDismissReminder).toHaveBeenCalledWith("r-1");
     // A reminder's origin opens through the switcher's own handler: same chat load, one path.
+    // Read before the dismissal, which takes the card away with it.
     fireEvent.click(screen.getByText("open chat"));
     expect(onSelectSession).toHaveBeenCalledWith("c9");
+    fireEvent.click(screen.getByLabelText("Dismiss reminder"));
+    // The card rolls shut before its ack is sent, so the row is not deleted out from under it.
+    await act(() => new Promise((r) => setTimeout(r, 320)));
+    expect(onDismissReminder).toHaveBeenCalledWith("r-1");
   });
 
   it("opens the console on the tab each door names: the sliders and the mark on appearance", () => {
@@ -313,7 +316,7 @@ describe("Panel", () => {
     expect(onCloseConsole).toHaveBeenCalledOnce();
   });
 
-  it("routes each console tab to its own view, so the strip switches by morphing the panel", () => {
+  it("switches tabs inside one view, so the panel neither resizes nor replays its chrome", () => {
     const onOpenConsole = vi.fn();
     const props = (tab: ConsoleTab) =>
       panelProps({ consoleTab: tab }, true, false, { onOpenConsole });
@@ -321,32 +324,25 @@ describe("Panel", () => {
     fireEvent.click(screen.getByRole("tab", { name: "Shortcuts" }));
     expect(onOpenConsole).toHaveBeenCalledWith("shortcuts");
 
-    // The switch is a VIEW change, not a swap inside one: the tab being left is held out of the
-    // layout flow for one morph and fades over the one arriving, exactly as a whole view does.
+    // A tab is not a view. Both are mounted in one pane, stacked, so the taller decides the height
+    // and nothing about the panel moves when the tab changes; the header and its back chevron are
+    // the same elements before and after, so their enter animation does not run again.
     view.rerender(<Panel {...props("shortcuts")} />);
-    expect(view.container.querySelector(".view.out")?.textContent).toContain("Theme");
-    expect(screen.getByRole("tabpanel", { name: "Shortcuts" })).toBeInTheDocument();
-    // Both panes cross with `swap`, which trades the rise-and-sink for a plain fade: the header
-    // and the tab strip are the same chrome in both, so moving them would read as the strip
-    // jittering rather than as the content changing under a strip that stays put.
-    expect(view.container.querySelector(".view.out")?.className).toContain("swap");
-    expect(view.container.querySelector(".views > div:not(.out):not(.gone)")?.className).toContain(
-      "swap",
-    );
+    expect(view.container.querySelectorAll(".pane")).toHaveLength(1);
+    expect(view.container.querySelector(".view.out")).toBeNull();
+    expect(view.container.querySelectorAll(".tabpane")).toHaveLength(2);
   });
 
-  it("exposes one console to assistive tech while two tabs are crossing, and names the leaver", () => {
-    const props = (tab: ConsoleTab | null) => panelProps({ consoleTab: tab }, true, false);
-    const view = render(<Panel {...props("appearance")} />);
-    view.rerender(<Panel {...props("shortcuts")} />);
-    // Two panes are mounted, both a region called "Settings" holding a tab list and a tab panel.
-    // Only the arriving one is exposed: `getByRole` fails on a second, and the pane on its way
-    // out is the one hidden, so a reader is never handed the tab that was just left.
-    expect(view.container.querySelectorAll(".pane")).toHaveLength(2);
-    expect(screen.getByRole("region", { name: "Settings" })).toBeInTheDocument();
-    expect(screen.getAllByRole("tablist")).toHaveLength(1);
+  it("keeps the inactive tab's box but exposes neither it nor its content", () => {
+    const props = (tab: ConsoleTab) => panelProps({ consoleTab: tab }, true, false);
+    const view = render(<Panel {...props("shortcuts")} />);
+    // The point of mounting both is the box: the panel is as tall as the taller tab either way, so
+    // switching cannot resize it. Everything else about the hidden one is taken away, or a reader
+    // stepping through the console would meet two equal tab panels and both sets of controls.
+    const panes = [...view.container.querySelectorAll(".tabpane")];
+    expect(panes.map((p) => p.getAttribute("aria-hidden"))).toEqual(["true", "false"]);
+    expect(screen.getAllByRole("tabpanel")).toHaveLength(1);
     expect(screen.getByRole("tabpanel", { name: "Shortcuts" })).toBeInTheDocument();
-    expect(view.container.querySelector(".view.out")?.getAttribute("aria-hidden")).toBe("true");
   });
 
   it("hands focus to the console and takes it back into the composer on the way out", () => {

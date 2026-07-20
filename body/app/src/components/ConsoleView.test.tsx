@@ -74,7 +74,7 @@ describe("ConsoleView", () => {
     const { container } = renderConsole("shortcuts", { onClose });
     // Nothing here is a backdrop, so a click meant for a control cannot dismiss the view out from
     // under the user mid-comparison; the chevron is the one control that leaves.
-    fireEvent.click(container.querySelector(".tabpanel") as Element);
+    fireEvent.click(container.querySelector(".tabstack") as Element);
     expect(onClose).not.toHaveBeenCalled();
     fireEvent.click(screen.getByLabelText("Back to chat"));
     expect(onClose).toHaveBeenCalledOnce();
