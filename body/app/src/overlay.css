@@ -34,6 +34,14 @@
      the chip's padding, border or font size and this number is what has to be re-derived, or the
      chip outgrows the token and the settled row is short again by the difference. */
   --trace-row: 24px;
+  /* The one red in the overlay that is not a status. It marks the two controls that UNDO something
+     in flight: the trash on a chat row, and the stop that cancels a running turn. Both wear it on
+     hover only, so nothing at rest is coloured by it (design/overlay-ux.md §1 reserves colour for
+     working affordances, and both of these are working affordances at the moment they are offered).
+     It is the accent's own magenta walked to red rather than a traffic-light red imported from
+     nowhere: `--accent`'s middle stop is rgb(226, 75, 196) and this is the same two channels. Both
+     themes take it unchanged, having been read against the light panel as well as the dark one. */
+  --halt: rgb(226, 75, 107);
 }
 
 * {
@@ -1065,10 +1073,24 @@
   opacity: 0;
   transition: opacity 0.35s var(--ease);
 }
+/* The glyph moves on hover and the cap does not. Of the four hovers pitched to the user (lift the
+   cap, swell it, bloom its fill, or move the glyph) this is the one that means something: the arrow
+   goes the way the message goes, so the button says what it is about to do rather than just
+   acknowledging the pointer. It is also the only one that leaves the pill's geometry alone, which
+   matters here because the cap sits 4px from the panel's edge and the field's own box. */
 .send-glyph {
   position: relative;
   display: grid;
   place-items: center;
+  transition: transform 0.28s var(--spring);
+}
+.send:hover .send-glyph {
+  transform: translateY(-3px);
+}
+/* A stop has no direction to go in, so it eases shut instead of travelling: the square drawing in
+   on itself is the same gesture the arrow makes, pointed at what this button does. */
+.send.stopping:hover .send-glyph {
+  transform: scale(0.84);
 }
 .send-glyph svg {
   width: 19px;
@@ -1086,9 +1108,23 @@
 .send.live::before {
   opacity: 1;
 }
+/* The live glyph is white BECAUSE the cap under it is the accent gradient, so the hover above must
+   not hand it back the text colour: on the light theme that is near black, and a near black arrow
+   on a magenta cap is the one state where hovering makes the button harder to read. */
+.send.live:hover {
+  color: #fff;
+}
 /* Streaming: the button is a live stop control. It is lit (not muted) so it reads as actionable. */
 .send.stopping {
   color: var(--text);
+}
+/* And it turns red under the pointer, which is the one hover in the overlay that changes hue. The
+   button has swapped what it MEANS, not just what it does: everywhere else the send is how a turn
+   begins, and here it is how one is called off. Grey said "a button"; `--halt` says which button,
+   in the same red the one other undo-in-flight control wears (the trash on a chat row). */
+.send.stopping:hover {
+  color: var(--halt);
+  background: color-mix(in srgb, var(--halt) 13%, transparent);
 }
 .send:active {
   transform: scale(0.94);
@@ -1775,8 +1811,8 @@
   opacity: 1;
 }
 .switcher-delete-btn:hover {
-  background: rgba(226, 75, 107, 0.14);
-  color: rgb(226, 75, 107);
+  background: color-mix(in srgb, var(--halt) 14%, transparent);
+  color: var(--halt);
 }
 /* The pin sits with the pencil and trash, ink-revealing on hover/focus like them (ADR-0021
    pinning addendum). A PINNED row is the exception: its pin stays lit in the accent and the row
