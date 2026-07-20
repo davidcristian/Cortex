@@ -46,7 +46,16 @@ export function Composer({ busy, active, onSubmit, onStop, onResize }: ComposerP
 
   useEffect(() => {
     if (active) {
-      fieldRef.current.focus();
+      // WITHOUT SCROLLING ANYTHING. The panel clips its overflow, which makes it a scroll container
+      // the user can never scroll but the ENGINE can, and bringing a newly focused element into
+      // view is exactly when it does. Coming back from the console the panel is still the console's
+      // height and easing to the chat's, and this field is below its clipped edge for the length of
+      // that ease, so the engine scrolled the panel to reach it and every row in the window lurched
+      // up with it. Traced at 60Hz at 640x720 with the session list open: `panel.scrollTop` went 0
+      // to 139 in the frame focus landed and unwound over the ease, which is the whole panel's
+      // contents sliding 139px and creeping back. The field is where the eye already is; it does
+      // not need bringing into view, it needs the caret.
+      fieldRef.current.focus({ preventScroll: true });
     }
   }, [active]);
 

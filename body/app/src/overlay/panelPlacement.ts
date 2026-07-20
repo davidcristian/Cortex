@@ -101,9 +101,17 @@ function holdScroll(element: HTMLElement): () => void {
 /** The height the panel centres ON, which is not always the height it HAS. A section marked `aside`
  *  is left out of it: the reminder stack arrives with the summon and can be two rows or five, so
  *  centring on it puts the conversation wherever the day's reminders happen to leave it. The chat
- *  centres on itself and the stack grows it upward from there, the way every other arrival does. */
+ *  centres on itself and the stack grows it upward from there, the way every other arrival does.
+ *
+ *  Only an aside in the view being PLACED counts. The view being left is still in the DOM for one
+ *  morph, and a stack belonging to it was being subtracted from the height of the view arriving,
+ *  which has no stack and never did. Measured at 640x720 entering the console over an empty chat
+ *  with three reminders up: the console is 347px tall and was centred as though it were 155, which
+ *  put it 96px above the middle of the screen and, since the ceiling is measured from the edge it
+ *  sits on, capped it at 351px instead of 448. The console then had four spare pixels in it, and
+ *  anything added to a tab scrolled rather than fitting. */
 function centringHeight(element: HTMLElement, height: number): number {
-  const aside = element.querySelector<HTMLElement>(".collapse.aside");
+  const aside = element.querySelector<HTMLElement>(".view:not(.out) .collapse.aside");
   return height - (aside?.offsetHeight ?? 0);
 }
 
@@ -203,7 +211,8 @@ export function place(element: HTMLElement | null, memory: Memory, at: Placement
   const wanted = wantedBottom(memory, at, viewport, centringHeight(element, height));
   memory.pinned = wanted;
   const bottom = clamped(wanted);
-  element.style.maxHeight = `${maxHeight(viewport, bottom)}px`;
+  const ceiling = maxHeight(viewport, bottom);
+  element.style.maxHeight = `${ceiling}px`;
   // Re-read: the real cap may have shortened the panel, and everything below animates to what the
   // element actually is rather than to what it wanted to be.
   const next: Geometry = { height: heightOf(element), bottom };
@@ -233,7 +242,13 @@ export function place(element: HTMLElement | null, memory: Memory, at: Placement
   memory.aim = next;
   memory.lands = Date.now() + duration;
   const animation = element.animate(
-    [frame(displayed.height, displayed.bottom), frame(next.height, next.bottom)],
+    [
+      // The ceiling the panel is going to is already on the element, and a panel easing DOWN to it
+      // started taller than it allows, so the move begins under a cap that starts where the panel
+      // actually is (`frame` has the trace).
+      frame(displayed.height, displayed.bottom, Math.max(displayed.height, ceiling)),
+      frame(next.height, next.bottom, ceiling),
+    ],
     { duration, easing: EASING },
   );
   element.setAttribute(RESIZING_ATTRIBUTE, "");

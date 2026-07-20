@@ -91,13 +91,14 @@ Traced in a browser at 60Hz: opening the switcher jumped, closing it eased, open
    composer's focus survive a trip to settings and back on that alone.
 
    *Corrected 2026-07-20:* the history's scroll position was claimed here too, and did not survive.
-   Being taken out of the flow is exactly what loses it: the view stops being bounded by the panel,
-   so the history's window becomes its whole content, a box with nothing left to scroll is clamped
-   to zero by the engine, and `display: none` a morph later zeroes it a second time. Traced at 60Hz
-   at 640x720 with the log a third of the way up, 154 of 463 became 0 against a 463px window in the
-   frame the class changed. The position survives now because it is parked in `ChatView` and handed
-   back before the return is painted, which is a thing the view does rather than a property of never
-   being unmounted (ADR-0035, the addendum on the console's second maintainer pass).
+   Being taken out of the flow cost it once and `display: none` cost it again: unbounded by the
+   panel, the history's window became its whole content, and a box with nothing left to scroll is
+   clamped to zero by the engine. Traced at 60Hz at 640x720 with the log a third of the way up, 154
+   of 463 became 0 against a 463px window in the frame the class changed. The leaving view is
+   bounded by the panel now, so only the unrendering is left, and the position is parked and handed
+   back in `overlay/useLogScroll.ts` before the return is painted. It survives because a view does
+   that, not because the view is never unmounted (ADR-0035, the two addenda on the user's console
+   passes).
 
 8. **The views are rows, and the baseline is the plainest of three directions pitched.** Both are a
    titled list: what it is on the left, what it can be on the right, hairlines between, and one way

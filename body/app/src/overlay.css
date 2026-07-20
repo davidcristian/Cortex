@@ -190,10 +190,9 @@
    focus survive a trip to settings; the view being LEFT is held for one morph as `.out`, lifted out
    of flow so it cannot fight the incoming one for the height, and faded out over the top of it.
 
-   Being out of flow is what costs the history its scroll position, twice: unbounded by the panel it
-   has its whole content as its window and nothing left to scroll, and `gone` is `display: none` a
-   morph later. `ChatView` parks the position and hands it back, so this stays a layout question
-   rather than the reader's. */
+   `gone` is `display: none`, and an unrendered box has no scroll position, so the history's is
+   parked and handed back in `overlay/useLogScroll.ts`. Being out of flow used to cost it a second
+   time, before `.view.out` was bounded below. */
 .views {
   position: relative;
   flex: 1 1 auto;
@@ -210,11 +209,19 @@
   --rise: 7px;
   animation: viewin 0.34s var(--ease) 0.05s both;
 }
+/* Out of the flow so it cannot fight the arriving view for the panel's height, and bounded by the
+   panel all the same. Without the `bottom`, a leaving view is laid out at its own natural height
+   instead of the panel's: the chat's composer and hint strip drop to wherever an unsqueezed history
+   puts them, which is below the panel's clipped edge, so they are gone in the first frame while the
+   rows above them fade for a quarter of a second. Traced at 640x720 with the session list open: the
+   composer sat 388px down the panel at rest and 558px down one frame after the click, inside a panel
+   347px tall. Bounded, the whole view fades as one thing. */
 .view.out {
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
+  bottom: 0;
   flex: none;
   pointer-events: none;
   animation: viewout 0.26s var(--ease) both;
@@ -1166,12 +1173,16 @@
   scrollbar-gutter: stable;
   /* Content starts on the panel's own left margin, so a group legend lines up with the header's
      title. The right inset is that same number minus the reserved scrollbar rail, which puts the
-     far edge back where the left one starts. The bottom is the header's own 15px rather than
-     nothing: with no line under the last card it would run straight into the panel's 28px corner
-     and read as content clipped by the edge rather than content that ends. All four sit in one
-     shorthand, because a separate `padding-block` here is what this shorthand silently threw
-     away. */
-  padding: 2px calc(16px - var(--rail)) 15px 16px;
+     far edge back where the left one starts. All four sit in one shorthand, because a separate
+     `padding-block` here is what this shorthand silently threw away.
+
+     The bottom is NOT the header's 15px, though it was, and matching the number is what made the
+     two ends look wrong. The header spends its 15px above a 30px control with its glyph inset, so
+     the ink starts about 25px down; the same 15px at the foot sits directly under a card that runs
+     the full width, hard against the panel's 28px corner. Measured in Chromium, 17px of clearance
+     at the top read against 16px at the bottom, and the bottom was plainly the tighter of the two.
+     26px puts the ink at both ends the same distance from the edge. */
+  padding: 2px calc(16px - var(--rail)) 26px 16px;
 }
 /* A binding as a soft filled card, two to a row. The shortcuts tab is a wall of small tiles for the
    same reason the appearance tab is: they are two faces of one view, and a hairline-separated list
