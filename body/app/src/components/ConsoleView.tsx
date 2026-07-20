@@ -45,8 +45,8 @@ export function ConsoleView({
   onClose,
 }: ConsoleViewProps) {
   return (
-    <PanelView title="Console" onClose={onClose}>
-      <div className="tabs" role="tablist" aria-label="Console">
+    <PanelView title="Settings" onClose={onClose}>
+      <div className="tabs" role="tablist" aria-label="Settings">
         {CONSOLE_TABS.map((name) => (
           <button
             key={name}

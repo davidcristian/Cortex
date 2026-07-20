@@ -100,7 +100,7 @@ export function Panel(props: PanelProps) {
             two branches, so a third tab would be a name in that list and nothing here. */}
         {CONSOLE_TABS.filter((tab) => showing(tab)).map((tab) => (
           // Hidden from assistive tech the moment it stops being the view, like the chat above:
-          // both panes are named "Console" and each carries a tab list and a tab panel, so without
+          // both panes are named "Settings" and each carries a tab list and a tab panel, so without
           // this the tree would hold two of each for the length of a tab morph, and a reader
           // stepping through it would meet the tab it just left as a second, equal copy.
           <div key={tab} className={classOf(viewOf(tab))} aria-hidden={view !== viewOf(tab)}>

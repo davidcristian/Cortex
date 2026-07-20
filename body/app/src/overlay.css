@@ -1190,25 +1190,32 @@
   gap: 18px;
   flex: 0 1 auto;
   min-height: 0;
-  padding-block: 2px 4px;
   overflow-y: auto;
   scrollbar-gutter: stable;
-  /* Rows start on the panel's own left margin, so the hairlines between them read as inset rules
-     rather than as lines drawn to the rounded edge. The right margin is that same number minus
-     the reserved rail, which puts the hairline's far end back where the left one starts. */
-  padding: 0 calc(16px - var(--rail)) 0 16px;
+  /* Content starts on the panel's own left margin, so a group legend lines up with the header's
+     title. The right inset is that same number minus the reserved scrollbar rail, which puts the
+     far edge back where the left one starts. The bottom is the header's own 15px rather than
+     nothing: with no line under the last card it would run straight into the panel's 28px corner
+     and read as content clipped by the edge rather than content that ends. All four sit in one
+     shorthand, because a separate `padding-block` here is what this shorthand silently threw
+     away. */
+  padding: 2px calc(16px - var(--rail)) 15px 16px;
 }
 /* A binding as a soft filled card, two to a row. The shortcuts tab is a wall of small tiles for the
    same reason the appearance tab is: they are two faces of one view, and a hairline-separated list
    beside a grid of swatches reads as two different screens. The fill is the same resting
    `--control` the keycaps themselves sit on, one step up from the panel, so a card reads as the
-   ground a key is pressed against rather than as a button that can be clicked. Every card is the
-   same half tile: a full-width one among them reads as a row that escaped the grid, so a binding
-   whose keys will not fit beside its label gets a shorter label instead. */
+   ground a key is pressed against rather than as a button that can be clicked. Cards are half
+   tiles; `.wide` takes the whole row and is spent once, on the global hotkey, which is both the
+   widest chord here and the only binding that works while the overlay is not on screen. Handing it
+   out more freely is what turns the wall back into a list. */
 .skeys {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 6px;
+}
+.skey.wide {
+  grid-column: 1 / -1;
 }
 .skey {
   display: flex;
