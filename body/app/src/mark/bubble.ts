@@ -31,7 +31,7 @@ export interface Orbit {
   readonly periodSeconds: number;
 }
 
-/** One bubble in a mark. Marks are single-lobe except the foam cluster. */
+/** One bubble in a mark. Marks are single-lobe except the Orbit cluster. */
 export interface Lobe {
   readonly cx: number;
   readonly cy: number;

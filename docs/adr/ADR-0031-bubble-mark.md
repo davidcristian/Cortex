@@ -82,3 +82,15 @@ liked all four, which turned a one-of-four pick into the actual decision below.
   recorded as refinements rather than fixed here, because the honest fix for the second is a
   settings surface the overlay does not have yet.
 - `docs/assets/logo.jpg` is not the overlay mark and is untouched by this ADR.
+
+## Addendum (2026-07-20): the fourth style is called Orbit
+
+Decision 2 shipped it as **Foam**, on the strength of the cluster silhouette. What actually
+separates it from the other three is the motion, and the motion is orbital: it is the only style
+whose lobes carry a real `orbit`, the two small ones swinging on slow arcs around the big one's
+centre. The tile now reads **Orbit**, with a note that says what swings.
+
+`MarkStyle.name` stays `"foam"`. It is the value written to the preference record (ADR-0032), so
+renaming it would not rename anything, it would drop the choice of every user who had picked this
+style and hand them the default back on the next start. The label is what the maintainer reads and the
+name is what the record holds, and this is the one style where they differ.
