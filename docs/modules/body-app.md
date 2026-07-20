@@ -12,12 +12,17 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
   (`mark/`: `bubble.ts` is the pure geometry, `marks.ts` the style registry, `useMarkClock.ts` the
   frame clock, ADR-0031), the appearance record (`overlay/usePreferences.ts`: hydrates the theme
   and mark from the brain once and writes each change back optimistically, ADR-0032), the panel's
-  vertical geometry and the motion into it (`overlay/usePanelMotion.ts` owns `bottom` and
-  `max-height` as inline styles; `overlay/useViewTransition.ts` names the view being left behind
+  vertical geometry and the motion into it (`overlay/usePanelMotion.ts` drives
+  `overlay/panelPlacement.ts` and its neighbours, which own `bottom` and `max-height` as inline
+  styles; `overlay/useViewTransition.ts` names the view being left behind
   long enough to fade it, ADR-0033/ADR-0034), the overlay state
   machine (`overlay/overlayState.ts` is a pure reducer over a `Mode` = hidden/panel/orb/preview,
-  with the session-switching helpers split into `overlay/sessionState.ts` for the line cap),
-  and the controller hook (`overlay/useOverlay.ts`). Components (`components/`) depend only on the
+  with two halves split off for the line cap and re-exported from it, so components import one
+  module: the session-switching helpers in `overlay/sessionState.ts`, and the turn fold, meaning
+  what a `Message` is and how one `Converse` turn's events apply, in `overlay/turnState.ts`),
+  and the controller hook (`overlay/useOverlay.ts`, which likewise hands the chat catalog to
+  `overlay/useSessionCatalog.ts` and spreads it back in, keeping one flat controller).
+  Components (`components/`) depend only on the
   `BrainBridge` port and a `cortex:activate` DOM event (never on Tauri), so they run and test in a
   plain browser. That activation is a **pending request, not a moment** (`overlay/activation.ts`):
   it is recorded before it is announced, and the app takes any outstanding one when its listener
@@ -116,6 +121,29 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
   inside one React batch never renders the in-flight flip and would silently end the recovery
   after one retry; an in-flight ref keeps a slow probe from overlapping a tick. A **rejected**
   probe (the IPC itself, not the brain) leaves the last known state and only clears `probing`.
+- **Where both indicators sit** (`components/ChatView.tsx` + the `.head` block of
+  `src/overlay.css`, 2026-07-20). The chat header is title, then the link dot and the capture
+  ring, then the four buttons. The two indicators are **one row of state and move together**: the
+  ring renders only mid-capture, so splitting them would leave it alone beside the title as the
+  one mark there, appearing and vanishing per turn, while at the head of the button cluster the
+  pair reads as "what the panel currently is" against "what you can do to it". Neither carries an
+  optical margin any more; they ride the header's own 10px gap. The title, now starting the row,
+  carries **`margin-left: 14px`, putting its first glyph 31px from the panel's edge**, which is
+  the number the panel's 28px corner asks for: the title's centre is already 31px below the top
+  edge, so the text starts on the corner's 45-degree diagonal, as far from the side of the panel
+  as from the top of it (on the bare padding it is 17px in against 31px down), and 31px
+  is where a switcher row's title already starts (an assistant bubble's glyph is at 32px, the
+  composer's text at 33px, all measured in Chromium at the panel's 560px). The rule is
+  `.head > .title:first-child`, scoped that way because every other view's header opens with the
+  back button, which supplies its own inset. `.title` keeps `flex: 1` with `overflow: hidden`, so
+  at a narrow panel the title ellipsises and the buttons keep their 30px (checked at a 368px and
+  a 294px panel). What is left once the title has shrunk away is a fixed chain: 14px of inset, four
+  30px buttons, six 10px gaps, the 7px dot, the 7px ring while a capture is lit, and the header's
+  32px of padding, so with the ring showing the row wants a 240px panel. Under that (a viewport
+  below 261px, since the panel is `min(560px, 92vw)`) the cluster starts spending the right
+  padding: measured at a 239px panel, the last button sits 14.2px from the edge instead of 17px.
+  The body's overlay window is 640px wide and gives a 560px panel, so no window it opens reaches
+  this; it is recorded as the edge of the row rather than as a case to design for.
 - **The summon latch** (`overlay/useSummonEffect.ts`): `useSummonEffect(visible, effect)` runs
   its effect once per summon, on the rising edge of `mode !== "hidden"`, re-arming on hide. It
   absorbs StrictMode's double-fired mount effect and does not re-run when the overlay changes
@@ -139,17 +167,111 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
   session-less row (`""`) or for the chat already on screen, where it would cancel that chat's
   running turn to arrive where it already is.
 - **The panel's views** (`components/Panel.tsx` + `ChatView.tsx` + `PanelView.tsx` +
-  `SettingsView.tsx` + `ShortcutsView.tsx`, ADR-0034): `Panel` is a router over three views of one
-  window, not a window with sheets over it. Only the active view is in the layout flow, so it alone
+  `ConsoleView.tsx`, ADR-0034): `Panel` is a router over views of one window, not a window with
+  sheets over it, and the views are `chat` plus one per **console** tab
+  (`console:appearance` | `console:shortcuts`, ADR-0035 decision 1). Only the active view is in the
+  layout flow, so it alone
   decides the height the panel eases to; the view being left is held for one morph, lifted out of
   flow, and faded out over the one arriving; the chat is never unmounted (a half-typed draft and the
-  history's scroll position survive a trip to settings). `usePanelMotion` re-centres on a view change
-  and pins the bottom edge in between, so growth inside the chat leaves the composer alone.
-  `components/Collapse.tsx` gives the switcher list and the reminder stack their own height
-  animation. The two-part contract between it and the panel is `overlay/morph.ts`: `data-morphing`
-  on the section makes the panel leave the height alone, and a bubbling `cortex:morphend` when it
-  clears is the panel's only word that a section rolling *open* has finished, since that changes no
-  state and so triggers no render of its own.
+  history's scroll position survive a trip to the console). Naming the TAB in the view is what makes
+  switching tabs the same resize-and-recentre morph as opening the console, with the cross-fade
+  already in place carrying it: measured, appearance 411px and the shortcut list 571px, both edges
+  moving 80px over about 150ms and back. Two panes that share their chrome cross without the rise:
+  `Panel` marks both `.view.swap` when the view being left is another console tab, which zeroes the
+  `--rise` both view keyframes read, so the header and the strip hold still (traced pixel-identical
+  in both panes) while only the content changes. It is a distance and not a second pair of
+  keyframes because the mark is dropped when the crossing ends, and changing an animation's NAME
+  restarts it, which replayed the rise on a pane that had already arrived. Whichever pane is on its
+  way out is `aria-hidden`, chat or console, so two mounted panes are never two announced ones. `usePanelMotion` is the WHEN of the panel's
+  geometry (every render, a window resize, and both ends of a roll) over three files that are the what:
+  `overlay/panelGeometry.ts` is the pure arithmetic (the centre, the ceiling clamp, the max height
+  in whole pixels, since that one number is both written to the DOM and predicted against and the
+  two must not round apart, and a duration paced by the distance the further-travelling edge
+  covers, 120ms floor and 380ms
+  ceiling, because one fixed duration cannot serve both a streamed line and a whole view changing,
+  which the placement pairs with resuming rather than restarting a move whose destination a render
+  did not change, so a token landing mid-ease shortens that ease instead of deferring it);
+  `overlay/panelMemory.ts` is what the panel remembers between placements and how it reads its own
+  box (heights off `offsetHeight`, which the summon's scale transform does not touch, the bottom
+  edge off the rect, which it does not either); `overlay/panelPlacement.ts` decides where the panel
+  belongs; `overlay/panelRide.ts` is the slide it makes alongside a section's roll. The rules: a
+  summon centres the panel on what it arrives with for the length of its own 0.44s pop (so the
+  reminders pulled on that same rising edge are the panel appearing with them, not growth
+  afterwards) and stops the moment the user touches it, a press or a key being the difference
+  between content the panel arrived with and a section they opened and will close again;
+  entering another view centres it, coming back to the chat restores the edge it was
+  left at, and everything else pins the bottom edge, so growth inside the chat and a new chat (the
+  same view with less in it) leave the composer alone. The pinned edge is kept UNCLAMPED and the
+  ceiling is applied only on the way out to the DOM, which is what makes a grow-then-shrink round
+  trip exactly reversible. `components/Collapse.tsx` gives the switcher list, the reminder stack and
+  a reply's Thoughts trace
+  their own height animation, the closing one filling forwards so no frame paints at the old size
+  before React removes it, and committing that height by hand where nothing animates at all
+  (`prefers-reduced-motion`, or a roll too small to see). The contract between it and the panel is
+  `overlay/morph.ts`, which also holds the curve and the "too small to bother" threshold both sides
+  share: `data-morphing` on the section makes the panel leave the height alone and carries the
+  height the section is rolling to, which is what lets the panel take its bottom edge off the
+  ceiling over that same roll (`MORPH_ROLL_MS`) instead of afterwards, capped at the height the
+  panel is allowed to reach. A move of the panel's own still in the air when a roll starts is
+  carried through it (in-flight height to where the roll will leave the panel, on the roll's clock)
+  rather than cancelled, since cancelling hands the used height back to layout in one frame. Two
+  bubbling events bracket the roll, and both exist because a roll is not always a render the panel
+  sees: `cortex:morphstart` (dispatched once the attribute is set and the animation exists) is what
+  lets the panel ride along with a section whose open state is owned locally, a reply's trace being
+  the one that is, and `cortex:morphend` when the attribute clears is its only word that a section
+  rolling *open* has finished, since that changes no state and so triggers no render of its own.
+  Traced at 60Hz before the start event existed: a trace opened over its 300ms with the panel's
+  `auto` height following it, and the panel, hearing only the end and placing itself from the
+  geometry it remembered from before, snapped back to its old height for one frame and moved a
+  second time. `usePanelMotion` therefore reads what it is placing FOR out of a ref assigned during
+  the render rather than out of each handler's closure: the start arrives from inside a layout
+  effect, before any passive effect of that render has re-subscribed.
+- **The console** (`components/ConsoleView.tsx` + `AppearanceTab.tsx` + `ShortcutsTab.tsx` +
+  `ThemeMini.tsx`, ADR-0032 + ADR-0035 decision 1): the panel's one non-chat view, a tab strip
+  over the appearance choices and the complete shortcut list. State is a single
+  `consoleTab: "appearance" | "shortcuts" | null` on the reducer, with three actions that say what
+  each surface does: `toggleConsole(tab)` for the two openers in the hint strip (each owns its
+  tab, so its own button closes the console and the other switches), the idempotent
+  `openConsole(tab)` for the strip, and `closeConsole()` for Esc and the header chevron, which is
+  why Esc now leaves in one press instead of unstacking two sheets. `CONSOLE_TABS` is exported
+  beside the type because `Panel` walks it to mount tabs and `ConsoleView` walks it to draw the
+  strip. The appearance tab maps over `THEMES` and `MARKS` rather than naming what ships, so both
+  registries keep the plug-and-play property they claim: a theme previews itself through
+  `ThemeMini` (a miniature panel built from that theme's own tokens, with Auto split diagonally
+  between the two themes `resolveTheme(null, …)` answers with), and a mark style draws the real
+  `BubbleMark` at 40px. The shortcut list is grouped, and each key is its own `<b>` cap carrying
+  the same `icons.tsx` glyph the hint strip uses; the strip separates its own chords the same way,
+  so `Shift`+`Return` reads as two keys on both surfaces. Focus travels with the view: the arriving
+  pane's selected tab takes it (the strip that was clicked is inside the pane leaving, one morph
+  from `display: none`, which would drop focus to the body), and the chat takes it back into the
+  composer, whose `active` prop is "the panel is open AND no console tab is up". That is not
+  decoration: a browser refuses to hide the focused element's ancestor from assistive tech, so
+  without the handoff the `aria-hidden` on the pane being left is ignored and the tab just left
+  stays in the tree as a second, equal console.
+- **The chat's floor is the empty state** (`components/ChatView.tsx` + `src/overlay.css`, ADR-0035
+  decision 12). The history's children sit in one column, `.log`, which carries a `min-height` of
+  the empty state's measured height (185px: the mark, the invitation, the example chips and their
+  padding), so replacing that invitation with a short user bubble and a thinking one cannot ease
+  the panel down at the moment the chat starts. Two things about it are load-bearing and easy to
+  undo by accident. The floor is on the **content** and never on `.history`, because a scroll box
+  that will not shrink has nowhere to go when the switcher and the reminder stack are both open
+  (76px of history at a 720px window) and takes the composer out past the panel's clipped edge;
+  floored content simply scrolls. And the column is bottom-aligned, so the reserved height lands
+  above the bubbles rather than under them, where `scrollTop = scrollHeight` would faithfully
+  scroll the newest bubble out of sight to reach blank space. The empty state is unaffected by the
+  alignment: `margin: auto` outranks `justify-content`, so it stays centred in whatever the column
+  is. A third thing is load-bearing and looks like styling: the example chips are held to one row
+  (`flex-wrap: nowrap`, shrinking to an ellipsis) because they are the only part of the invitation
+  whose height depends on the panel's width, and one number can only be the floor while the thing
+  it measures is one height. `Panel.test.tsx` pins the structure the stylesheet cannot defend (the
+  empty state and the bubbles both inside `.log`); the number itself is a frozen measurement,
+  recorded in `docs/refinements/body-overlay.md`.
+- **A live activity chip and the settled "Thoughts" disclosure are one row in two states**
+  (`components/Message.tsx` + `src/overlay.css`, ADR-0035 decision 13). Both floor themselves on
+  `--trace-row` (24px, the chip's own box), so the frame where a turn completes swaps one for the
+  other in place instead of easing the whole panel down by the 4px difference their natural boxes
+  had. `Message.test.tsx` pins what the stylesheet cannot: that the disclosure stands exactly where
+  the chip stood, one row for one row.
 - **The confirmation card** (`components/ConfirmCard.tsx` + `components/draftValue.ts`,
   ADR-0022): the gated call's `argumentsJson` as key/value rows, shown verbatim because what is
   approved is what runs (a malformed one falls back to the raw string). `formatDraftValue`
@@ -161,8 +283,15 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
   reply's `"thinking"` statuses drive two affordances off the reducer's `statusState`. While the
   turn streams, the live chip bobs (`chip-think`) with the latest reasoning delta; the reducer
   also concatenates every thinking delta into `Message.thoughts`, so once the reply settles the
-  chip drops and a collapsed `<details>` "Thoughts" disclosure above the bubble holds the whole
-  trace (its `›` marker rotating open, resting chrome only since the thinking is done). Each delta
+  chip drops and a collapsed "Thoughts" disclosure above the bubble holds the whole trace
+  (`components/Thoughts.tsx`: a button carrying `aria-expanded` over a `Collapse`, its `›` marker
+  turning over the roll's own 300ms, resting chrome only since the thinking is done). It is not a
+  `<details>`, which reveals its content in one frame and cannot be made to animate it; reusing
+  `Collapse` is also what puts the trace under the same `data-morphing` contract, so the panel grows
+  to hold it over the same movement. The trace opens where it is: nothing touches the history's
+  `scrollTop`, so the row the reader clicked stays exactly where they clicked it and the trace
+  unfolds beneath it, at the cost of pushing the reply below the fold when the panel is already at
+  its ceiling (filed in [refinements/body-overlay.md](../refinements/body-overlay.md)). Each delta
   is already guardrail-scrubbed brain-side (ADR-0020 addendum), so the section shows nothing the
   live chip did not and opens no channel the reply-side guardrail never inspected; like everything
   else the overlay renders it is **never linkified** (a plain text node). `thoughts` is in-memory
@@ -260,6 +389,91 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
   untrusted ones; the text itself stays a plain text node. The card's controls are all app chrome
   with fixed labels, sitting *beside* that text and never wrapping it, so nothing a stranger
   wrote can become the label on a working button.
+- **A scroll container reserves its scrollbar; it never borrows the content's width.** All seven
+  (`.history`, `.switcher`, `.reminders`, `.thoughts-body`, `.confirm-draft`, `.rows`, and the
+  composer's `.field`) carry `scrollbar-gutter: stable`, so overflowing changes nothing about
+  where a bubble, a row, or a wrapped line sits. Paying for that rail (`--rail`, 6px) takes one of
+  two shapes, and which one depends on whether the container already had inline-end padding.
+  `.history` and `.rows` (16px) and `.switcher` and `.reminders` (6px) had enough to hold the rail,
+  so it is **subtracted** from theirs and their resting margins are unchanged. `.thoughts-body`,
+  `.confirm-draft`, and `.field` had 0, 0, and 2px, which is not enough to both hold the rail and
+  keep a wrapped line off the thumb, so a rail of padding is **added** beside the reserved one and
+  their inline-end inset is now 12px. Adding an eighth container means picking the right one of the
+  two: subtract where there is padding to spare, add where there is not (subtracting from nothing
+  is a negative padding, and spending a 2px padding leaves the text about a pixel off the thumb),
+  or the container jumps sideways the first time it fills up (`src/overlay.css`,
+  [overlay-ux.md §2](../design/overlay-ux.md)). The gutter is inline-end only, so the second half
+  of the rule is that nothing may grow along the other axis: a horizontal bar takes its height out
+  of the content box and shoves every child up, unreserved. Any container holding text it did not
+  author breaks long tokens instead (`overflow-wrap: anywhere` on `.bubble`, `.thoughts-body`,
+  `.confirm-row dd`, `.confirm-raw`, `.reminder-text`; `.w`, the per-word streaming span, is
+  `white-space: pre-wrap` rather than `pre` so that reaches inside it), and `.history` carries
+  `overflow-x: clip` so a future child cannot bring the shift back.
+- **The composer picks its layout at one width, never at the width it is using.** The pill has two
+  ([ADR-0035](../adr/ADR-0035-console-and-motion.md) decision 17): the send button beside the field on one
+  line, and under it on more, where the field spans the pill instead of stopping 44px short for the
+  button's column. `Composer.tsx` asks which to use with the pill forced into the INLINE layout,
+  always, because a stacked field is that same 44px wider: a draft that just wrapped fits on one
+  line again once the button leaves its side, so a decision taken at the width in use would unstack
+  it, re-wrap it, and stack it again (the band is five or six characters wide and where it starts
+  depends on the glyphs: 60 through 65 on one traced line at the shipping 560px, 62 through 66 on
+  another). The question itself is asked of the DOM rather than of a constant, `scrollHeight >
+  clientHeight` at `height: auto`, a `rows={1}` textarea's auto height being exactly one row, so
+  nothing here restates a font metric and a wrapped long line counts as multiline like a typed
+  newline does. Two rules follow for anyone editing this: `.composer`'s transition names its
+  properties (an `all` transition restarted a gap animation on every keystroke, since the decision
+  removes and restores the class inside one layout effect), and the button must stay in the same
+  corner of the same content box in both layouts (the last item of a bottom-aligned row, then the
+  last row of a column), which is what keeps its rect identical across the switch. A third rule
+  guards the measurement itself: it pins the pill's `min-height` for the length of the effect
+  ([ADR-0035](../adr/ADR-0035-console-and-motion.md) decision 18). At the panel's ceiling the column is in
+  deficit, the pill only holds its height because of the floor under it, and taking the class off
+  drops that floor, so the log above grew into the gap mid-measurement and Chromium clamped its
+  `scrollTop` to the taller reading and kept the clamp. Anything added here that changes the pill's
+  box before reading it belongs inside the same pin. The whole measurement lives in a `useCallback`
+  because the width is the other half of the question and it can move on its own: a `resize`
+  listener runs it too ([ADR-0035](../adr/ADR-0035-console-and-motion.md) decision 21), since a keystroke
+  is not the only thing that changes the answer, and the listener is removed on unmount because
+  React nulls the refs the measurement writes through.
+- **The draft's window fades where it cuts a line.** `.field` scrolls in two states, past its 120px
+  ceiling and under the squeeze below, and neither bound is a whole number of line boxes, so the
+  edge line was sliced through its glyphs ([ADR-0035](../adr/ADR-0035-console-and-motion.md) decision 20).
+  A `mask-image` band the size of the field's own padding fades it instead, and
+  `scroll-padding-block` of that same padding keeps the caret's line out of the band, Chromium
+  otherwise scrolling a caret flush to the edge it moved toward. Three numbers now agree by
+  declaration rather than by the font's accident: `line-height` is pinned at the 16px `normal`
+  computed to, and the 34px one-line field, the 84px floor below and the 9px band are all read off
+  it. Changing the field's padding changes the fade band with it, which is the point of the
+  `--field-pad` custom property they share.
+- **The pill yields before the panel's edge does, and only after the history has nothing left.**
+  Three declarations in `overlay.css` carry it ([ADR-0035](../adr/ADR-0035-console-and-motion.md) decision
+  19), and each is load bearing: `.composer.stacked` has an explicit 84px `min-height` (one row of
+  field plus the button's row, measured off the boxes) that replaces the automatic minimum a flex
+  item gets from its content; `.composer.stacked .field` keeps its measured height as the basis but
+  gives the shrink back (`flex: 0 1 auto`), so a squeeze comes out of the draft's window rather than
+  the button's row; and `.history` carries a shrink factor of 100000, which is an ORDERING and not a
+  ratio, since flexbox has no way to say "shrink last". Without them, at 640x720 with the switcher
+  open and the reminder stack up a draft at the field's ceiling put the pill's own bottom edge 13px
+  past the panel's clipped edge and the whole hint strip 55px past it. Anyone changing what is in
+  this pill re-measures the 84, and anyone giving another child of `.view` a shrink weight is
+  changing who pays first.
+- **The composer tells the chat when the pill resizes, because the log pays for it.** They are flex
+  siblings and the log is the one that yields, so a draft that restacks or wraps takes that height
+  straight out of the visible window (52px, and 122px at the field's ceiling, measured at 640x720).
+  `Composer` calls `onResize` when its measured height actually changes and `ChatView` answers with
+  the same tail-pin it uses for a new message, reader override included. A `ResizeObserver` on the
+  log would be the obvious alternative and is the wrong one: the log also resizes when a trace rolls
+  open, where leaving `scrollTop` alone is deliberate (ADR-0035 decision 15).
+- **The history's scroll position is decided here, not by the engine.** `ChatView` holds the log at
+  its tail while the reader is at the tail, and a section rolling open inside the log leaves
+  `scrollTop` alone so the row stays under the pointer that opened it. `.history` therefore carries
+  `overflow-anchor: none`: Chromium's scroll anchoring is a third decider of the same number, and
+  the roll is the only mid-log resize in the overlay for it to react to. A roll measures its content
+  at full height and animates from zero, which the anchor reads as the log shrinking, and it
+  compensated by 76px in one frame before walking the compensation back over the roll
+  ([ADR-0035](../adr/ADR-0035-console-and-motion.md) decision 15 has the traces and what turning it off
+  gives up). A future scroll container that holds rolling content wants the same line, or its own
+  reason not to.
 - The shell stays thin. Every branchy decision (accelerator mapping, seam translation) lives in
   the gated `body_core` / `body_rpc`; the app holds wiring only, which is what keeps the coverage
   exclusion safe (ADR-0011 risk: coverage creep).

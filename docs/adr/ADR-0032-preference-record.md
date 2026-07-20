@@ -82,7 +82,15 @@ cannot be reached is not much better than one that does not persist.
   two `BrainBridge` methods, `usePreferences`, `SettingsSheet`.
 - The hint strip ran out of room once the settings button joined it (measured: it wanted 573px of
   a 558px row and wrapped to two lines), so the `Esc dismiss` hint was dropped from the strip. The
-  shortcut sheet beside it still lists every binding, that one being the complete list.
+  shortcut list beside it still carries every binding, that one being the complete list.
+- **Decision 7's sheet is now a tab**, first a view of the panel
+  ([ADR-0034](ADR-0034-panel-views.md)) and then the appearance tab of one console it shares with
+  the shortcut list ([ADR-0035](ADR-0035-console-and-motion.md) decision 1). Nothing about the
+  record or the choices moved: the theme row (Auto plus every registered
+  theme) and the mark row (every style, drawn live) are the same two choices over the same seam,
+  shown as swatches instead of segmented rails. What did change is the state behind them, from
+  `settingsOpen` beside `sheetOpen` to one `consoleTab`, and with it the backdrop click this
+  decision mentions, which no longer exists to click.
 - A brain that is unreachable at startup means the overlay opens with default appearance and then
   does not correct itself until the next launch: hydration is once per mount, not a subscription.
   At personal scale, with the body launching alongside the brain, that is a fair trade against

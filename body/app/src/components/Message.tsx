@@ -1,4 +1,5 @@
 import type { Message as MessageModel } from "../overlay/overlayState";
+import { Thoughts } from "./Thoughts";
 
 export function Message({ message }: { readonly message: MessageModel }) {
   const tone = message.role === "user" ? "b-user" : "b-ai";
@@ -29,10 +30,7 @@ export function Message({ message }: { readonly message: MessageModel }) {
         </span>
       ) : null}
       {!message.streaming && message.thoughts !== "" ? (
-        <details className="thoughts">
-          <summary className="thoughts-sum">Thoughts</summary>
-          <div className="thoughts-body">{message.thoughts}</div>
-        </details>
+        <Thoughts trace={message.thoughts} />
       ) : null}
       <div className={`bubble ${tone}${message.streaming ? " streaming" : ""}`}>
         {thinking ? (

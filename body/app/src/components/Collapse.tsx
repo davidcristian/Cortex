@@ -1,13 +1,13 @@
 import { type ReactNode, useLayoutEffect, useRef, useState } from "react";
 
-import { MORPHING_ATTRIBUTE, MORPH_END_EVENT } from "../overlay/morph";
-
-/** How long the roll takes, and on what curve (matches `--ease` in overlay.css). */
-const DURATION_MS = 300;
-const EASING = "cubic-bezier(0.4, 0, 0.2, 1)";
-
-/** Below this many pixels there is nothing to see; apply the end state and skip the animation. */
-const MIN_DELTA_PX = 2;
+import {
+  EASING,
+  MIN_DELTA_PX,
+  MORPHING_ATTRIBUTE,
+  MORPH_END_EVENT,
+  MORPH_ROLL_MS,
+  MORPH_START_EVENT,
+} from "../overlay/morph";
 
 interface CollapseProps {
   readonly open: boolean;
@@ -34,17 +34,23 @@ export function Collapse({ open, children }: CollapseProps) {
       return;
     }
     at.current = open;
-    // Mid-roll the animation overrides the height, so read the displayed value BEFORE cancelling
-    // and the natural one after: a reopened section carries on from where it had rolled to.
     const live = running.current !== null && running.current.playState === "running";
-    const displayed = live ? element.getBoundingClientRect().height : open ? 0 : null;
+    const displayed = live ? element.offsetHeight : open ? 0 : null;
     running.current?.cancel();
     running.current = null;
-    const natural = element.getBoundingClientRect().height;
+    // A close with nothing to animate commits its collapsed height inline (see below), so hand the
+    // height back to layout before asking what the content is worth.
+    element.style.height = "";
+    const natural = element.offsetHeight;
     const from = displayed ?? natural;
     const to = open ? natural : 0;
     const finish = () => {
-      running.current = null;
+      // A finished CLOSING roll is deliberately kept in `running`: it holds the collapsed height
+      // (see the `fill` below), and this reference is what a reopen cancels to get the natural
+      // height back, in the one case where React never removed the element in between.
+      if (open) {
+        running.current = null;
+      }
       element.removeAttribute(MORPHING_ATTRIBUTE);
       if (!open) {
         setRendered(false);
@@ -57,21 +63,23 @@ export function Collapse({ open, children }: CollapseProps) {
       Math.abs(to - from) < MIN_DELTA_PX ||
       window.matchMedia("(prefers-reduced-motion: reduce)").matches
     ) {
+      if (!open) {
+        element.style.height = "0px";
+      }
       finish();
       return;
     }
-    // The panel reads this attribute and leaves the height alone while it is set, so the two do
-    // not animate the same pixels against each other.
-    element.setAttribute(MORPHING_ATTRIBUTE, "");
+    element.setAttribute(MORPHING_ATTRIBUTE, String(to));
     const animation = element.animate(
       [
         { height: `${from}px`, opacity: open ? 0 : 1 },
         { height: `${to}px`, opacity: open ? 1 : 0 },
       ],
-      { duration: DURATION_MS, easing: EASING },
+      { duration: MORPH_ROLL_MS, easing: EASING, fill: open ? "none" : "forwards" },
     );
     animation.onfinish = finish;
     running.current = animation;
+    element.dispatchEvent(new CustomEvent(MORPH_START_EVENT, { bubbles: true }));
   });
 
   return rendered ? (

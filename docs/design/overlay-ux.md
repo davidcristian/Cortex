@@ -47,6 +47,35 @@ is a token swap, not a rewrite.
   bubble, then settles to neutral on completion. `border-radius: 20px`, one tail corner tightened.
 - **Radius scale:** panel `28px`, bubbles `20px`, input pill `22px`; the orb is the bubble mark
   (§4), an off-round film rather than a disc, so it has no radius of its own. Generous, uniform.
+- **Scrollbars are reserved chrome, never a widget** (landed 2026-07-20). Every scroll region (the
+  history, the switcher, the reminder stack, an open Thoughts trace, an approval draft, the
+  console's rows, the composer field) wears one `--rail: 6px` bar: a rounded 4px thumb
+  mixed out of `--muted` at 38%, 62% under the pointer, on a transparent track, no arrows, no
+  corner square, and held 6px off both ends so it never meets a rounded corner. Resting chrome, so
+  no accent, ever. The rail's width is **reserved whether or not the region is scrolling**: a reply
+  spilling past the bottom must not re-wrap the paragraph above it or shove every bubble sideways.
+  Where a region already had enough inline-end padding to hold the rail, it is paid for out of that
+  padding and the margin stays the number it is on the other side (history and rows 16px, switcher
+  and reminder stack 6px, all unchanged). Three of the seven had 2px or none, and there the rail is
+  added on top instead, because the point of reserving it is that text clears the thumb: the
+  Thoughts trace, the approval draft, and the composer field each sit at a 12px inline-end inset
+  now. Reserving buys one axis: the gutter is inline-end, so a *horizontal* bar is unfunded and
+  takes its height straight out of the region, shoving everything up. Nothing is allowed to grow
+  sideways instead. Every region showing text it did not author breaks long tokens
+  (`overflow-wrap: anywhere`), so a 64-char commit hash or a `.gguf` filename wraps inside a bubble
+  rather than widening it, and the history clips that axis outright rather than trust future
+  content. Chromium (WebView2) is the engine that ships, so `::-webkit-scrollbar`
+  is the path that matters; `scrollbar-width` / `scrollbar-color` are fenced behind `@supports not
+  selector(::-webkit-scrollbar)` for the engines that have no pseudo-elements, because Chromium
+  honours the standards properties *over* them when both are set (measured: `thin` reserves 10px
+  beside a 6px webkit rail), which would leave every padding subtraction 4px wrong. On the fenced
+  engines the UA picks `thin`'s width, so the subtraction does not balance there either and the
+  inline-end margin reads a few px wider than the other side. Nothing shifts when the bar appears,
+  which is the property that matters; Firefox is not a target, so the asymmetry is accepted rather
+  than given its own numbers. That one and the switcher/reminder cards spending their whole 6px
+  inset on the rail are the two tradeoffs this pass accepts, and both are filed with their triggers
+  and their fixes in [refinements/body-overlay.md](../refinements/body-overlay.md) and at
+  [ADR-0035](../adr/ADR-0035-console-and-motion.md) decision 22.
 - **Typography:** a clean modern sans for everything (system stack in v1; a licensed sans inlined
   as a `@font-face` data URI later; no CDN). Assistant text ~15px/1.5, never cramped. Sleek, not
   decorative. The personality is in motion + the color bloom, not a novelty face.
@@ -56,20 +85,54 @@ is a token swap, not a rewrite.
     a brief blur), never a pop. The stream feels like it flows.
   - **Traveling morph**. Minimize/maximize animate real *movement*: the panel glides along a path
     between center and the corner while it scales to/from the orb (FLIP), so you see it travel.
-  - **Growing upward, re-centring on a view change**. Inside a view the panel is anchored by its
-    BOTTOM edge, so a reply arriving, the switcher opening, or a reminder landing grows it upward
-    and the composer never moves under the hand that just typed; it stops at `12vh` of clear space
-    and grows downward past that, which lands a full-height panel dead centre. Changing view
-    (settings, the shortcut list, another chat) resizes the panel to what the new view needs and
-    slides it back to true centre in the same movement ([ADR-0033](../adr/ADR-0033-panel-growth.md),
-    [ADR-0034](../adr/ADR-0034-panel-views.md)). Both are measured and replayed in code, not a CSS
-    transition: `height: auto` to `height: auto` is not a computed-value change, so a transition
-    never fires (and `interpolate-size` does not help, being for `auto` against a length).
-  - **Rolling sections**. A section that comes and goes (the switcher list, the reminder stack)
+  - **Arriving centred, growing upward, re-centring only into another view**. A summon centres the
+    panel on what it arrives with, for the length of its own pop: the day's reminders are pulled on
+    that same rising edge and roll in a frame later, and the panel appearing with them in it is not
+    the same thing as the panel growing afterwards. That hold ends early the moment the user
+    touches the panel, because a list they opened a beat after it appeared is a height they are
+    about to hand back, and centring on it would leave the panel low for the rest of the session.
+    From then on it is anchored by its BOTTOM edge,
+    so a reply arriving, the switcher opening, a reminder landing, or the pencil emptying the panel
+    resizes it from that edge and the composer never moves under the hand that just typed; it stops
+    at `12vh` of clear space and grows downward past that, which lands a full-height panel dead
+    centre. The edge it is pinned to is remembered UNCLAMPED, so a panel pushed down by its own
+    growth comes back to it as soon as it fits again and a grow-then-shrink round trip is exactly
+    reversible. Entering the console resizes the panel to what the tab it opens on needs and slides
+    it to true centre in one movement, and switching tabs is that same movement rather than a
+    second kind (traced at a 900px viewport: 546px to 411px on the way in, 411px to 571px between
+    the two tabs, each landing a pixel off true centre); coming BACK to the chat restores the edge
+    the chat was left at, because nothing about the chat changed while it was away
+    ([ADR-0033](../adr/ADR-0033-panel-growth.md),
+    [ADR-0034](../adr/ADR-0034-panel-views.md)). Another chat is not another view: it resizes in
+    place. All of it is measured and replayed in code, not a CSS transition: `height: auto` to
+    `height: auto` is not a computed-value change, so a transition never fires (and
+    `interpolate-size` does not help, being for `auto` against a length).
+  - **Motion is paced, not timed, and a move in the air is resumed rather than restarted**. A move
+    takes as long as its distance warrants, one constant pace between a 120ms floor and a 380ms
+    ceiling, so a line of streamed text settles at the floor and a whole view changing takes the
+    full time. One fixed duration cannot do both: every token re-renders the panel, so at 380ms it
+    never converged and visibly trailed the text it was growing to fit. Pacing alone does not fix
+    that, only shorten it, since a token still lands well inside the floor: what holds the landing
+    still is that a render which does not change where the panel is going carries on the move
+    already running over the time it had left. A line of growth then lands 120ms after it appeared,
+    whatever arrives while it is landing.
+  - **Rolling sections**. A section that comes and goes (the switcher list, the reminder stack, a
+    reply's Thoughts trace)
     animates its OWN height between nothing and its content, staying mounted through the close. The
     panel's height follows it frame by frame, so the list rolls up and the panel's top edge comes
     down with it while nothing else on screen moves. Deleting the rows and letting the panel catch
-    up afterwards is the thing this replaced, and it read as a glitch.
+    up afterwards is the thing this replaced, and it read as a glitch. The closing roll HOLDS its
+    collapsed height until React removes the element, or the section snaps back to full size for
+    the frame in between; where nothing animates at all (`prefers-reduced-motion`) the collapsed
+    height is committed by hand instead, since there is no fill to hold it. When the roll would
+    carry the panel past its ceiling, the panel takes its own bottom edge along over that same
+    roll, which holds the top edge still instead of correcting itself in a second beat afterwards.
+    A move of the panel's own that is still in the air when the roll starts is carried through it
+    rather than cancelled, so the panel never hands a half finished height back to layout and jumps
+    in a single frame. **The roll says out loud that it has begun** (landed 2026-07-20), because
+    not every section is one the panel re-renders with: the trace's open state belongs to its own
+    message, so without that word the panel heard only the end of the roll, snapped back to the
+    height it remembered from before it, and made a second movement out of one.
   - **A warping bubble**. The orb's mark is a soap bubble whose outline warps on its own clock
     while the film turns under a fixed highlight; the anchor point holds rock still (no breathing
     scale, no positional drift, per 2026-07-03 user refinements), so it reads as alive without
@@ -91,7 +154,8 @@ Top-to-bottom, the summoned panel is:
    crescent, as the two forms cross-fade and spin, the rays retract; never a glyph swap); a **new
    chat** (pencil for "compose a new one"); and **dismiss** (a downward "tuck-away" chevron, since
    dismissing only hides; the chat is saved and re-summoning restores it, so the glyph tells the
-   truth, not an `×`). A **connection indicator** leads the row (landed 2026-07-16): a 7px dot,
+   truth, not an `×`). A **connection indicator** opens the button cluster, immediately left of
+   the switcher (landed 2026-07-16; it led the row until 2026-07-20): a 7px dot,
    green when the brain answered ready, **amber when it answered and is not serving** (a non-OK
    status, an unreadable reply, or a future not-ready health reply), red when nothing answered,
    and neutral before anything has been asked. While a probe is out it keeps the last known
@@ -103,6 +167,21 @@ Top-to-bottom, the summoned panel is:
    own events, a probe per summon, and a recovery re-check only while an unhealthy link is on
    screen, never a poll on a timer). The three status hues come from the mark's own palette,
    deepened in the light theme; they are the only colour in the overlay that is not activity.
+   The **screen-capture ring** (ADR-0029, `components/CaptureDot.tsx`) sits next to it and moved
+   with it, because the two are **one row of state** rather than two ornaments: left at the title
+   the ring would be the one mark there, appearing and vanishing with every capture, while beside
+   the buttons the pair reads as "what the panel currently is" next to "what you can do to it".
+   **The title therefore starts the row** (2026-07-20,
+   [ADR-0035](../adr/ADR-0035-console-and-motion.md) decision 23), and it is inset **31px** from
+   the panel's edge rather than the header's bare 16px, which balances it against the 28px corner:
+   the title's own centre is already 31px below the top edge, so the first glyph sits on the
+   corner's 45-degree diagonal, as far from the side of the panel as from the top of it (on the
+   bare padding it is 17px in against 31px down, and the curve turns through the short gap). That
+   inset is also the panel's text rail, measured in Chromium: a switcher row's title starts at
+   31px, an assistant bubble's first glyph at 32px, the composer's text at 33px, so the open
+   chat's title now lines up with the list of the other chats that rolls open directly under it,
+   and with the reply beside it. Every other view opens with the back button instead, which
+   supplies its own inset, so the rule is scoped to a title that actually starts the row.
 2. **History** is the scrollable conversation: alternating user/assistant bubbles, newest at the
    bottom, auto-scrolling as tokens stream (but *not* if the user has scrolled up to read;
    landed 2026-07-12). Tool-activity and status appear as slim inline chips between bubbles
@@ -113,7 +192,27 @@ Top-to-bottom, the summoned panel is:
    card** (§4, ADR-0022) is this inline layer's first real occupant. Empty state: the mark +
    "Ask me anything" + a couple of example prompts as tappable chips (landed 2026-07-12). The
    mark here is also the **mark picker** (§4, ADR-0031): clicking it opens the bubble styles,
-   drawn live, and choosing one applies to the empty state and the orb at once.
+   drawn live, and choosing one applies to the empty state and the orb at once. **The empty state
+   is also the chat's floor** (landed 2026-07-20, [ADR-0035](../adr/ADR-0035-console-and-motion.md)
+   decision 12): the first send used to shrink the panel, because a user bubble and a thinking one
+   are less content than the invitation they replace (traced: 546px to 457px in 150ms). The column
+   of bubbles keeps a minimum of the empty state's own measured height, so a chat can only ever
+   grow from the panel that invited it. The reserved height sits *above* the bubbles, which puts
+   the newest one against the composer and keeps it the thing the auto-scroll follows. One measured
+   number can only be that floor while the invitation is one height, so the example chips are held
+   to a single row and shrink to an ellipsis rather than wrapping onto a second. **The end of a
+   turn is floored the same way** (landed 2026-07-20,
+   [ADR-0035](../adr/ADR-0035-console-and-motion.md) decision 13): the live chip and the collapsed
+   Thoughts disclosure that replaces it are one row in two states, so they are the same height and
+   the answer landing does not resize the panel it lands in. **That disclosure rolls** (landed
+   2026-07-20): it is a button over a rolling section rather than a `<details>`, which reveals its
+   content in one frame and cannot be talked into animating it, and the `›` turns over the same
+   300ms so the marker and the trace are one movement. Opening it leaves the history's scroll
+   position alone: the row stays under the pointer that clicked it and the trace unfolds beneath,
+   which is worth more than keeping the reply in view when the panel is already at its ceiling.
+   That is the app's decision rather than the engine's, the history having turned Chromium's scroll
+   anchoring off after it was caught lurching the log by the trace's height on the frame a roll
+   starts ([ADR-0035](../adr/ADR-0035-console-and-motion.md) decision 15).
 3. **Composer** is a rounded pill textarea (`⏎` sends, `⇧⏎` newlines, auto-grows to a few lines;
    grow + focus-on-summon landed 2026-07-12),
    a glowing accent focus ring when active, and a gradient **send** button (an outline up-arrow,
@@ -121,18 +220,45 @@ Top-to-bottom, the summoned panel is:
    content (an opacity overlay, since gradients can't interpolate, and a hard swap pops). **While
    streaming the button is a real stop** (a filled square, lit): it cancels the turn. A `stop`
    reducer action drops the bridge stream and ends the reply in place, keeping the partial text
-   (distinct from dismiss, which minimizes to the orb). Landed 2026-07-07.
+   (distinct from dismiss, which minimizes to the orb). Landed 2026-07-07. **Past one line the pill
+   is two rows** (landed 2026-07-20, [ADR-0035](../adr/ADR-0035-console-and-motion.md) decision 17): as a
+   flex sibling of the field the button reserves its 44px column down the whole pill, which one
+   line hides and several do not, every wrapped line stopping short of the right edge and the
+   button floating alone at the bottom of a tall empty column at the field's 120px ceiling. Past
+   one line the field spans the pill (475px to 519px at the shipping 560px) and the button drops
+   to its own row beneath, still at the end, where the eye already looks for it. The **button does
+   not move** in either direction: both layouts leave it in the same corner of the same content
+   box, traced at `[671,637,38,38]` for every one of the 183 characters of two lines typed one key
+   at a time, each with exactly one layout flip and no intermediate frame. Which layout to use is
+   decided at **one** width, the inline one, whatever layout is on screen, because a stacked field
+   is wider and a draft that just wrapped would fit again the moment the button left its side:
+   asked at the width in use the two layouts answer each other forever. The band where that matters
+   is five or six characters wide and where it starts depends on the glyphs (60 through 65 on one
+   traced line, 62 through 66 on another), and inside it the pill is one row roomier than its text
+   needs, which is the better of the two ways to be wrong there. **A pill with nowhere left to grow
+   shrinks its own window rather than pushing the chrome off the panel** (landed 2026-07-20,
+   [ADR-0035](../adr/ADR-0035-console-and-motion.md) decision 19): with the switcher open and the reminder
+   stack up at the body's window, a draft at the field's ceiling used to put the send button and
+   the whole hint strip past the panel's clipped edge, and now the field scrolls a shorter window
+   instead, down to one visible row before anything else gives. **A window that cuts a line fades
+   it** (landed 2026-07-20, [ADR-0035](../adr/ADR-0035-console-and-motion.md) decision 20): the field
+   scrolls in both of those states and neither bound is a whole number of line boxes, so the edge
+   line used to be sliced horizontally through its glyphs. The field's own 9px padding is a fade
+   band at each end instead, free while the text is inside its window because the band holds nothing
+   but padding, and the caret's line is kept out of it, so the line being typed is never the faded
+   one.
 4. **Hint strip** is a subtle one-line footer of the live shortcuts (§6), dimmed and **centered**,
-   with two view openers at its end: a **sliders** button for **settings** (landed 2026-07-19,
-   [ADR-0032](../adr/ADR-0032-preference-record.md)) and a `?` for the full shortcut list
-   (landed 2026-07-12; the `?` key works too, outside the composer, and Esc closes whichever
-   view is open, settings first, before it dismisses the panel). Both are **views the panel morphs
-   into**, not sheets laid over it (2026-07-19,
-   [ADR-0034](../adr/ADR-0034-panel-views.md)): the panel resizes to what the view needs and slides
-   back to true centre, so a settings view with two rows in it is a small window rather than a tall
-   one with its footer stranded three hundred pixels below the content. The kbd glyphs are outline
-   icons matching the header set (return / shift / cycle chevrons), not raw Unicode symbols
-   (2026-07-07).
+   with two openers at its end, each landing on the tab it names: a **sliders** button for
+   **appearance** (landed 2026-07-19, [ADR-0032](../adr/ADR-0032-preference-record.md)) and a `?`
+   for the full shortcut list (landed 2026-07-12; the `?` key works too, outside the composer).
+   Both open **the console**, one **view the panel morphs into** rather than a sheet laid over it
+   (2026-07-19, [ADR-0034](../adr/ADR-0034-panel-views.md)): the panel resizes to what the view
+   needs and slides back to true centre, so a console tab with two rows of swatches in it is a
+   small window rather than a tall one with its footer stranded three hundred pixels below the
+   content. **Esc leaves it in one press** (2026-07-20,
+   [ADR-0035](../adr/ADR-0035-console-and-motion.md) decision 1), because the two sheets that used
+   to stack are one view with a tab strip now. The kbd glyphs are outline icons matching the header set
+   (return / shift / cycle chevrons), not raw Unicode symbols (2026-07-07).
 
 ## 4. The interaction state machine (the heart)
 
@@ -185,17 +311,37 @@ while a turn is processing must not lose it*) lives here. States:
   a registry (`mark/marks.ts`), the twin of the theme registry, so a fifth is a literal and no
   code. The picker is the empty state's own mark: clicking it opens the styles drawn live, rather
   than adding a fifth header button that would put the accent palette on resting chrome.
-- **SETTINGS:** the view where the overlay's appearance is chosen (2026-07-19,
-  [ADR-0032](../adr/ADR-0032-preference-record.md)), opened from the hint strip's sliders button
-  or from the empty state's own mark, which is the shortcut to the row that changes it. Two rows:
-  the **theme** (Auto plus every registered theme; this is the only place Auto can be chosen,
-  since the header's toggle names the opposite theme outright and can only land on one of the
-  two) and the **mark** (every bubble style, drawn live). Every choice persists to the brain's
-  own settings record, so it outlives a restart and a reinstall of the body. Both this and the
-  shortcut list are rows on one rhythm (what it is on the left, what it can be on the right,
-  hairlines between) with a chevron back to the chat; there is no backdrop to click away from any
-  more, and Esc still closes settings before the shortcut list
-  ([ADR-0034](../adr/ADR-0034-panel-views.md)).
+- **CONSOLE:** the panel's one other face, everything about the overlay that is not the
+  conversation, behind a chevron back to the chat and a **tab strip** (2026-07-20,
+  [ADR-0035](../adr/ADR-0035-console-and-motion.md) decision 1). It replaced two separate views, so Esc
+  leaves in **one** press and there is no precedence to remember.
+  - **Appearance** (2026-07-19, [ADR-0032](../adr/ADR-0032-preference-record.md)) is opened by the
+    hint strip's sliders button or by the empty state's own mark, which is the shortcut to the row
+    that changes it. Two groups of **swatches**, each choice made by looking at the thing rather
+    than reading its name: the **theme** as tiles that are miniatures of the panel wearing that
+    theme, drawn from that theme's own tokens, with **Auto** as a tile split diagonally between the
+    two themes Auto resolves to (this is still the only place Auto can be chosen, since the
+    header's toggle names the opposite theme outright and can only land on one of the two); and the
+    **mark** as tiles drawing the real bubble at 40px, with the chosen style's note under the row,
+    because these four differ by how they MOVE. Both rows are a map over their registry, so a fifth
+    theme or mark style appears here with no change to the view. Every choice persists to the
+    brain's own settings record, so it outlives a restart and a reinstall of the body.
+  - **Shortcuts** is the complete binding list, grouped (Writing / Chats / The window) on the row
+    rhythm the console shares: what it is on the left, the keys on the right, hairlines between.
+    Each key is its own cap and a non-letter cap carries the header's own outline glyph, exactly as
+    the hint strip draws them.
+  - Selection is a **lift** (a fill and a hairline), never an accent: a console is resting chrome
+    even when the thing it draws is not, so the only colour on that surface is the marks
+    themselves. There is no backdrop to click away from.
+  - **Switching tabs is the panel's one morph** (it resizes and re-centres to the new tab), and the
+    crossing between two tabs is a **pure fade**: the header and the strip are the same chrome in
+    the same place in both, so they hold still, pixel for pixel, while the content changes under
+    them. Only a change between the chat and the console keeps the small rise-and-sink, since those
+    two share nothing. **Focus travels with the view**: into the console it lands on the tab that is
+    up (the strip that was clicked leaves with its pane), and out of the console it returns to the
+    composer with the draft and its caret intact, which is where a summon puts it too. That is also
+    what lets the pane on its way out be hidden from assistive tech, so only one console is ever
+    announced while two are on screen.
 - **PREVIEW:** when the turn **completes while minimized**, the orb **expands** into a compact
   card near the corner: the answer (a few-line clamp) and a hairline accent progress bar
   counting down the auto-dismiss (~6s) and **nothing else** (the "reply ready"/"click to open"
@@ -280,23 +426,28 @@ Keyboard-first; the hint strip shows the contextually-relevant subset, `?` shows
 | `Ctrl+Alt+Space` (configurable) | Summon / focus the overlay |
 | `Enter` | Send |
 | `Shift+Enter` | Newline |
-| `Esc` | Leave the open view (settings first, then shortcuts), else dismiss (→ orb if a turn is streaming; else hide) |
+| `Esc` | Leave the console (one press, whichever tab), else dismiss (→ orb if a turn is streaming; else hide) |
 | `Ctrl+N` | New chat |
 | `Ctrl+↑` / `Ctrl+↓` | Previous / next chat |
 | `Ctrl+K` | Chat switcher / command palette (palette is later) |
 | `click orb` | Reopen the minimized turn |
-| `?` | Shortcut list |
+| `?` | The console's shortcut list |
 
-The hint strip under the composer carries the common bindings plus two view openers, the sliders
-(settings) and the `?`. It no longer lists `Esc`: the strip ran out of room when the settings
-button joined it (measured at 573px of a 558px row), and Esc-to-dismiss is the most guessable of
-the five. The shortcuts view behind the `?` is the complete list.
+The hint strip under the composer carries the common bindings plus two openers into the console,
+the sliders (appearance) and the `?`. It no longer lists `Esc`: the strip ran out of room when the
+settings button joined it (measured at 573px of a 558px row), and Esc-to-dismiss is the most
+guessable of the five. The console's shortcuts tab is the complete list, and it says both halves of
+what Esc does, in the order the panel tries them. The strip draws a chord as the keys it is, one
+cap each, which is the console's rule and now also the strip's own: `Shift`+`Return` was the last
+place two glyphs shared one cap, and separating it costs 13px of a row with roughly 100 to spare.
 
 ## 7. Accessibility & restraint
 
 - **Reduced motion:** honor `prefers-reduced-motion` with no morphs/springs, just quick opacity
   fades; the orb still shows, its bubble held at a still pose (no frames scheduled at all).
-- **Focus:** the composer is focused on summon; focus is trapped in the panel; visible focus rings.
+- **Focus:** the composer is focused on summon and on every return to the chat view, the console
+  takes focus onto the tab it is showing, focus is trapped in the panel, and rings stay visible. A
+  view on its way out is hidden from assistive tech, which is only true if focus left with it.
 - **Contrast:** text on glass/gradient must clear WCAG AA. Verify bubble text over the accent.
 - **Non-intrusive:** the orb/preview never steal focus from the app the user is using and stay
   out of the way (corner-pinned, small, dismissible). Sound is off by default.

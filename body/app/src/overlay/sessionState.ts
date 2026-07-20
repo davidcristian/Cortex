@@ -1,5 +1,6 @@
 import type { SessionMessage, SessionSummary } from "../bridge/types";
-import type { Message, OverlayState } from "./overlayState";
+import type { OverlayState } from "./overlayState";
+import type { Message } from "./turnState";
 
 export const NEW_CHAT_TITLE = "New chat";
 const TITLE_MAX = 32;

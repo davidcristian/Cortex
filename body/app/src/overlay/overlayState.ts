@@ -15,52 +15,27 @@ import {
   linkProbing,
   linkServing,
 } from "./linkState";
+import { NEW_CHAT_TITLE, adoptSession, deleteSession, openSession } from "./sessionState";
 import {
-  NEW_CHAT_TITLE,
-  adoptSession,
-  deleteSession,
-  deriveTitle,
-  openSession,
-} from "./sessionState";
+  type Message,
+  type PendingConfirm,
+  applyEvent,
+  endTurn,
+  isTurnActive,
+  submit,
+} from "./turnState";
 
 export { cycleTarget } from "./sessionState";
-
-/**
- * The brain-side name of the screen-capture built-in (ADR-0029). Matched by name rather than by
- * a new event field: the tool activity the brain already streams carries it, and a second seam
- * field would be one more place the two ends could disagree about the same fact.
- */
-export const CAPTURE_SCREEN_TOOL = "capture_screen";
+export { CAPTURE_SCREEN_TOOL, isTurnActive, latestReply } from "./turnState";
+export type { Message, PendingConfirm } from "./turnState";
 
 /** Where the overlay is on screen. */
 export type Mode = "hidden" | "panel" | "orb" | "preview";
 
-export interface Message {
-  readonly id: string;
-  readonly role: "user" | "assistant";
-  readonly content: string;
-  readonly streaming: boolean;
-  readonly tool: string | null;
-  readonly status: string | null;
-  /** The status event's `state` (e.g. "thinking"), so the chip can treat deliberation
-   *  distinctly from a generic status; null until a status event lands (ADR-0020). */
-  readonly statusState: string | null;
-  /**
-   * The reply's accumulated reasoning trace: every `"thinking"` status's detail, concatenated in
-   * order (each already guardrail-scrubbed brain-side, ADR-0020 addendum).
-   */
-  readonly thoughts: string;
-  readonly error: string | null;
-}
+/** The console's tabs, in strip order. */
+export const CONSOLE_TABS = ["appearance", "shortcuts"] as const;
 
-/** A gated tool call awaiting the user's mid-turn approval (ADR-0022); at most one per turn. */
-export interface PendingConfirm {
-  readonly confirmId: string;
-  readonly toolName: string;
-  /** The exact draft being approved, one JSON object string (the executed contract). */
-  readonly argumentsJson: string;
-  readonly reason: string;
-}
+export type ConsoleTab = (typeof CONSOLE_TABS)[number];
 
 export interface OverlayState {
   readonly mode: Mode;
@@ -72,10 +47,10 @@ export interface OverlayState {
   readonly sessions: readonly SessionSummary[];
   /** Whether the switcher list is open in the header. */
   readonly switcherOpen: boolean;
-  /** Whether the full shortcut sheet covers the panel (design/overlay-ux.md §6). */
-  readonly sheetOpen: boolean;
-  /** Whether the settings sheet covers the panel (ADR-0032): the appearance choices live there. */
-  readonly settingsOpen: boolean;
+  /** Which console tab the panel is showing, or null while it is on the chat. One field, because
+   *  the console is one view with a tab strip (ADR-0032, ADR-0035): appearance and the shortcut
+   *  list cannot both be open, and Esc leaves in a single press from either. */
+  readonly consoleTab: ConsoleTab | null;
   /** The approval the current turn is paused on, if any (ADR-0022). */
   readonly pendingConfirm: PendingConfirm | null;
   /** Fired reminders awaiting delivery, pulled on each open and acked on dismiss (ADR-0025). */
@@ -125,8 +100,9 @@ export type Action =
   | { readonly kind: "linkObserved"; readonly status: LinkStatus }
   | { readonly kind: "linkProbeEnded" }
   | { readonly kind: "toggleSwitcher" }
-  | { readonly kind: "toggleSheet" }
-  | { readonly kind: "toggleSettings" };
+  | { readonly kind: "openConsole"; readonly tab: ConsoleTab }
+  | { readonly kind: "toggleConsole"; readonly tab: ConsoleTab }
+  | { readonly kind: "closeConsole" };
 
 /** A fresh, empty overlay state for `sessionId` (a new chat). */
 export function createInitialState(sessionId: string): OverlayState {
@@ -137,8 +113,7 @@ export function createInitialState(sessionId: string): OverlayState {
     messages: [],
     sessions: [],
     switcherOpen: false,
-    sheetOpen: false,
-    settingsOpen: false,
+    consoleTab: null,
     pendingConfirm: null,
     reminders: [],
     link: INITIAL_LINK,
@@ -149,17 +124,6 @@ export function createInitialState(sessionId: string): OverlayState {
 }
 
 export const initialState: OverlayState = createInitialState("");
-
-/** True while an assistant message is still streaming. */
-export function isTurnActive(state: OverlayState): boolean {
-  return state.messages.some((message) => message.streaming);
-}
-
-/** The most recent assistant reply's text (for the minimized preview); "" if none yet. */
-export function latestReply(state: OverlayState): string {
-  const reply = [...state.messages].reverse().find((message) => message.role === "assistant");
-  return reply?.content ?? "";
-}
 
 export function reduce(state: OverlayState, action: Action): OverlayState {
   switch (action.kind) {
@@ -188,8 +152,7 @@ export function reduce(state: OverlayState, action: Action): OverlayState {
       return {
         ...state,
         mode: isTurnActive(state) ? "orb" : "hidden",
-        sheetOpen: false,
-        settingsOpen: false,
+        consoleTab: null,
         pendingConfirm: null,
       };
     case "stop":
@@ -239,109 +202,16 @@ export function reduce(state: OverlayState, action: Action): OverlayState {
       };
     case "toggleSwitcher":
       return { ...state, switcherOpen: !state.switcherOpen };
-    case "toggleSheet":
-      return { ...state, sheetOpen: !state.sheetOpen };
-    case "toggleSettings":
-      return { ...state, settingsOpen: !state.settingsOpen };
+    case "openConsole":
+      // What the tab strip does, so it is idempotent: clicking the tab already showing leaves it
+      // showing. Switching tabs is a view change (Panel routes on the tab), so the panel morphs.
+      return { ...state, consoleTab: action.tab };
+    case "toggleConsole":
+      // What an OPENER does: the hint strip's sliders and its ?, and the ? key, each own one tab,
+      // so pressing the one you are already on closes the console and the other one switches.
+      return { ...state, consoleTab: state.consoleTab === action.tab ? null : action.tab };
+    case "closeConsole":
+      // Esc and the header's chevron: out in one press, whichever tab is up.
+      return { ...state, consoleTab: null };
   }
-}
-
-function submit(state: OverlayState, text: string): OverlayState {
-  const trimmed = text.trim();
-  if (isTurnActive(state) || trimmed.length === 0) {
-    return state;
-  }
-  const user: Message = message(`m${state.seq}`, "user", trimmed, false);
-  const assistant: Message = message(`m${state.seq + 1}`, "assistant", "", true);
-  const title = state.title === NEW_CHAT_TITLE ? deriveTitle(trimmed) : state.title;
-  return {
-    ...state,
-    mode: "panel",
-    touched: true,
-    title,
-    messages: [...state.messages, user, assistant],
-    seq: state.seq + 2,
-  };
-}
-
-function applyEvent(state: OverlayState, event: TurnEvent): OverlayState {
-  switch (event.kind) {
-    case "delta":
-      return patchStreaming(state, (m) => ({ ...m, content: m.content + event.text }));
-    case "toolActivity": {
-      const lit = state.capturing || event.toolName === CAPTURE_SCREEN_TOOL;
-      const chipped = patchStreaming(state, (m) => ({
-        ...m,
-        tool: `${event.toolName}: ${event.summary}`,
-      }));
-      return { ...chipped, capturing: lit };
-    }
-    case "status": {
-      const thinking = event.state === "thinking";
-      return patchStreaming(state, (m) => ({
-        ...m,
-        status: event.detail,
-        statusState: event.state,
-        thoughts: thinking ? m.thoughts + event.detail : m.thoughts,
-      }));
-    }
-    case "confirmRequest":
-      return applyConfirmRequest(state, event);
-    case "confirmResolved":
-      return state.pendingConfirm?.confirmId === event.confirmId
-        ? { ...state, pendingConfirm: null }
-        : state;
-    case "complete":
-      return endTurn(state, null);
-    case "failed":
-      return endTurn(state, `${event.code}: ${event.message}`);
-  }
-}
-
-/** A gated call awaits approval: raise the card, surfacing it like a completed turn (orb →
- *  preview). Only a live turn can ask. A cancelled/dead turn's late request must not resurrect
- *  UI state (the same no-op property `patchStreaming` gives every other event). */
-function applyConfirmRequest(
-  state: OverlayState,
-  event: Extract<TurnEvent, { kind: "confirmRequest" }>,
-): OverlayState {
-  if (!isTurnActive(state)) {
-    return state;
-  }
-  return {
-    ...state,
-    mode: state.mode === "orb" ? "preview" : state.mode,
-    pendingConfirm: {
-      confirmId: event.confirmId,
-      toolName: event.toolName,
-      argumentsJson: event.argumentsJson,
-      reason: event.reason,
-    },
-  };
-}
-
-/** End the streaming turn (optionally with an error) and surface it: orb → preview. Any pending
- *  approval dies with its turn. The stream is gone, and stream-death is the deny (ADR-0022). */
-function endTurn(state: OverlayState, error: string | null): OverlayState {
-  const ended = patchStreaming(state, (m) => ({ ...m, streaming: false, error }));
-  return {
-    ...ended,
-    mode: state.mode === "orb" ? "preview" : state.mode,
-    pendingConfirm: null,
-    // The turn is over, so the picture it took is out of context: the indicator goes out with
-    // it rather than persisting into a turn that never looked at anything.
-    capturing: false,
-  };
-}
-
-function patchStreaming(state: OverlayState, patch: (m: Message) => Message): OverlayState {
-  return {
-    ...state,
-    messages: state.messages.map((m) => (m.streaming ? patch(m) : m)),
-  };
-}
-
-function message(id: string, role: Message["role"], content: string, streaming: boolean): Message {
-  const base = { id, role, content, streaming, tool: null, status: null };
-  return { ...base, statusState: null, thoughts: "", error: null };
 }

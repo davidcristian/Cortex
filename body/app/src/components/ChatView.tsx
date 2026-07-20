@@ -1,7 +1,7 @@
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 
 import type { MarkStyle } from "../mark/marks";
-import { type OverlayState, isTurnActive } from "../overlay/overlayState";
+import { type ConsoleTab, type OverlayState, isTurnActive } from "../overlay/overlayState";
 import { BubbleMark } from "./BubbleMark";
 import { CaptureDot } from "./CaptureDot";
 import { Collapse } from "./Collapse";
@@ -28,14 +28,14 @@ export interface ChatViewProps {
   readonly open: boolean;
   readonly dark: boolean;
   readonly mark: MarkStyle;
-  readonly onToggleSettings: () => void;
+  /** Open (or close again) one console tab: each opener in the hint strip owns its own tab. */
+  readonly onToggleConsole: (tab: ConsoleTab) => void;
   readonly onToggleTheme: () => void;
   readonly onSubmit: (text: string) => void;
   readonly onStop: () => void;
   readonly onDismiss: () => void;
   readonly onNewChat: () => void;
   readonly onToggleSwitcher: () => void;
-  readonly onToggleSheet: () => void;
   readonly onSelectSession: (sessionId: string) => void;
   readonly onRenameSession: (sessionId: string, title: string) => void;
   readonly onDeleteSession: (sessionId: string) => void;
@@ -59,14 +59,13 @@ export function ChatView({
   open,
   dark,
   mark,
-  onToggleSettings,
+  onToggleConsole,
   onToggleTheme,
   onSubmit,
   onStop,
   onDismiss,
   onNewChat,
   onToggleSwitcher,
-  onToggleSheet,
   onSelectSession,
   onRenameSession,
   onDeleteSession,
@@ -83,22 +82,27 @@ export function ChatView({
     pinned.current = el.scrollHeight - el.scrollTop - el.clientHeight <= PIN_THRESHOLD_PX;
   };
 
-  // Follow the stream: each message change (and the approval card) scrolls the tail into view,
-  // unless the reader has scrolled up to read (then their place holds until they return).
-  useEffect(() => {
+  // "The reader is at the tail" is a claim about the log that has to survive everything that can
+  // falsify it, so the one way of restoring it is shared. Refs only, so its identity is stable and
+  // the composer's measurement below does not re-run on every frame of a stream.
+  const pinToTail = useCallback(() => {
     if (pinned.current) {
       const el = historyRef.current;
       el.scrollTop = el.scrollHeight;
     }
-  }, [state.messages, state.pendingConfirm]);
+  }, []);
+
+  // Follow the stream: each message change (and the approval card) scrolls the tail into view,
+  // unless the reader has scrolled up to read (then their place holds until they return).
+  useEffect(pinToTail, [pinToTail, state.messages, state.pendingConfirm]);
 
   const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   return (
     <>
       <header className="head">
-        <LinkDot link={state.link} />
-        <CaptureDot capturing={state.capturing} />
         <span className="title">{state.title}</span>
+        <CaptureDot capturing={state.capturing} />
+        <LinkDot link={state.link} />
         <button
           className="hbtn"
           onClick={onToggleSwitcher}
@@ -137,37 +141,53 @@ export function ChatView({
         />
       </Collapse>
       <div className="history" ref={historyRef} onScroll={onHistoryScroll}>
-        {state.messages.length === 0 ? (
-          <div className="empty">
-            <button
-              className="markbtn"
-              onClick={onToggleSettings}
-              aria-label={`Mark: ${mark.label}. Open settings`}
-              type="button"
-            >
-              <BubbleMark style={mark} size={54} idPrefix="empty" animated={!reduced} />
-            </button>
-            <p className="empty-line">Ask me anything</p>
-            <div className="empty-chips">
-              {EXAMPLE_PROMPTS.map((prompt) => (
-                <button key={prompt} className="echip" onClick={() => onSubmit(prompt)} type="button">
-                  {prompt}
-                </button>
-              ))}
+        <div className="log">
+          {state.messages.length === 0 ? (
+            <div className="empty">
+              <button
+                className="markbtn"
+                onClick={() => onToggleConsole("appearance")}
+                // Named for where it lands, which is the console's appearance tab: the settings
+                // sheet this used to open is gone, and a label naming a view that no longer
+                // exists is the one part of a rename a screen reader would still be reading out.
+                aria-label={`Mark: ${mark.label}. Open appearance`}
+                type="button"
+              >
+                <BubbleMark style={mark} size={54} idPrefix="empty" animated={!reduced} />
+              </button>
+              <p className="empty-line">Ask me anything</p>
+              <div className="empty-chips">
+                {EXAMPLE_PROMPTS.map((prompt) => (
+                  <button
+                    key={prompt}
+                    className="echip"
+                    onClick={() => onSubmit(prompt)}
+                    type="button"
+                  >
+                    {prompt}
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
-        ) : null}
-        {state.messages.map((message) => (
-          <Message key={message.id} message={message} />
-        ))}
-        {state.pendingConfirm !== null ? (
-          <ConfirmCard confirm={state.pendingConfirm} onRespond={onRespondConfirm} />
-        ) : null}
+          ) : null}
+          {state.messages.map((message) => (
+            <Message key={message.id} message={message} />
+          ))}
+          {state.pendingConfirm !== null ? (
+            <ConfirmCard confirm={state.pendingConfirm} onRespond={onRespondConfirm} />
+          ) : null}
+        </div>
       </div>
-      <Composer busy={isTurnActive(state)} active={open} onSubmit={onSubmit} onStop={onStop} />
+      <Composer
+        busy={isTurnActive(state)}
+        active={open && state.consoleTab === null}
+        onSubmit={onSubmit}
+        onStop={onStop}
+        onResize={pinToTail}
+      />
       {/* Esc is not listed here: the strip is a convenience, it had run out of room once the
           settings button joined it, and Esc-to-dismiss is the most guessable of the five. The
-          shortcuts view next to it still lists every binding, that one being the complete list. */}
+          console's shortcuts tab still lists every binding, that one being the complete list. */}
       <div className="hints">
         <span>
           <b className="key">
@@ -178,6 +198,8 @@ export function ChatView({
         <span>
           <b className="key">
             <ShiftKey />
+          </b>
+          <b className="key">
             <ReturnKey />
           </b>{" "}
           newline
@@ -196,12 +218,22 @@ export function ChatView({
           </b>{" "}
           chats
         </span>
-        <button className="qbtn" onClick={onToggleSettings} aria-label="Settings" type="button">
+        <button
+          className="qbtn"
+          onClick={() => onToggleConsole("appearance")}
+          aria-label="Settings"
+          type="button"
+        >
           <b className="key">
             <SlidersIcon />
           </b>
         </button>
-        <button className="qbtn" onClick={onToggleSheet} aria-label="Shortcuts" type="button">
+        <button
+          className="qbtn"
+          onClick={() => onToggleConsole("shortcuts")}
+          aria-label="Shortcuts"
+          type="button"
+        >
           <b>?</b>
         </button>
       </div>

@@ -40,8 +40,9 @@ export function Overlay({
     cyclePrev,
     cycleNext,
     toggleSwitcher,
-    toggleSheet,
-    toggleSettings,
+    openConsole,
+    toggleConsole,
+    closeConsole,
     previewHover,
     respondConfirm,
     dismissReminder,
@@ -51,16 +52,16 @@ export function Overlay({
     const onKey = (event: KeyboardEvent) => {
       const mod = event.ctrlKey || event.metaKey;
       if (event.key === "Escape") {
-        if (state.settingsOpen) {
-          toggleSettings();
-        } else if (state.sheetOpen) {
-          toggleSheet();
+        // One press out of the console, whichever tab is up: it is one view now, not a settings
+        // sheet stacked on a shortcut sheet, so nothing is left behind to press Esc at again.
+        if (state.consoleTab !== null) {
+          closeConsole();
         } else if (state.mode !== "hidden") {
           dismiss();
         }
       } else if (event.key === "?" && !(event.target instanceof HTMLTextAreaElement)) {
         event.preventDefault();
-        toggleSheet();
+        toggleConsole("shortcuts");
       } else if (mod && event.key.toLowerCase() === "n") {
         event.preventDefault();
         newChat();
@@ -79,13 +80,12 @@ export function Overlay({
     return () => window.removeEventListener("keydown", onKey);
   }, [
     state.mode,
-    state.sheetOpen,
-    state.settingsOpen,
+    state.consoleTab,
     dismiss,
     newChat,
     toggleSwitcher,
-    toggleSheet,
-    toggleSettings,
+    toggleConsole,
+    closeConsole,
     cyclePrev,
     cycleNext,
   ]);
@@ -100,14 +100,15 @@ export function Overlay({
         themeName={themeName}
         onPickTheme={onPickTheme}
         onPickMark={onPickMark}
-        onToggleSettings={toggleSettings}
+        onToggleConsole={toggleConsole}
+        onOpenConsole={openConsole}
+        onCloseConsole={closeConsole}
         onToggleTheme={onToggleTheme}
         onSubmit={submit}
         onStop={stop}
         onDismiss={dismiss}
         onNewChat={newChat}
         onToggleSwitcher={toggleSwitcher}
-        onToggleSheet={toggleSheet}
         onSelectSession={openSession}
         onRenameSession={renameSession}
         onDeleteSession={deleteSession}

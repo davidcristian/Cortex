@@ -41,7 +41,7 @@ export function PencilIcon() {
   );
 }
 
-/** Settings: three sliders, not a gear. The sheet holds choices to set, not machinery to
+/** Settings: three sliders, not a gear. The console holds choices to set, not machinery to
  *  configure, and sliders read as taste while a gear reads as plumbing. */
 export function SlidersIcon() {
   return (

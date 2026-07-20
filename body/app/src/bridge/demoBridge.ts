@@ -104,6 +104,13 @@ export class DemoBridge implements BrainBridge {
     if (/send|email/iu.test(text)) {
       return this.confirmTurn(sink, /time\s?out/iu.test(text));
     }
+    if (/screen|look at|see this/iu.test(text)) {
+      sink.onEvent({
+        kind: "toolActivity",
+        toolName: "capture_screen",
+        summary: "reading the screen",
+      });
+    }
     let cancelStream: Cancellation = () => undefined;
     const status = setTimeout(() => {
       cancelStream = streamWords(

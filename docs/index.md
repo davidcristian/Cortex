@@ -226,8 +226,8 @@ Start here. Rules for working in this repo: [AGENTS.md](../AGENTS.md).
   conversation state uses), so a new setting costs no seam change and a choice outlives a body
   reinstall. An empty value clears a key, which is how the overlay expresses "follow the system"
   without a magic value. Reads retry, writes do not; the write is optimistic and its failure costs
-  only durability. Its surface is a settings view holding the theme and the mark, which also gave
-  the mark picker a route in from a chat that already has messages.
+  only durability. Its surface is the console's appearance tab, holding the theme and the mark,
+  which also gave the mark picker a route in from a chat that already has messages.
 - [ADR-0033: The panel grows upward](adr/ADR-0033-panel-growth.md): the overlay panel anchored by
   its bottom edge so the composer never moves, with size changes eased through the Web Animations
   API, **landed**. The CSS-only version is documented there as measured-and-rejected: a
@@ -239,6 +239,15 @@ Start here. Rules for working in this repo: [AGENTS.md](../AGENTS.md).
   the bottom edge is pinned only *within* a view, the ceiling is derived from the max height so a
   full-height panel lands exactly centred, and sections now animate their own height instead of
   being deleted while the panel eases after them.
+- [ADR-0035: One console, and the motion a user's eye corrected](adr/ADR-0035-console-and-motion.md):
+  the two views above fold into **one console with a tab strip** (appearance and the shortcut list
+  are tabs of a single destination, so the panel has one thing to leave and Esc leaves it in one
+  press), and the day's maintainer review of the running overlay is the rest, **landed**. Amends the
+  entry above: coming back to the chat restores the edge it was left at instead of re-centring, the
+  pinned edge is remembered unclamped, a move is paced by its distance and resumed rather than
+  restarted, a roll announces its start so the panel can ride it, and the chat carries a floor so
+  the first message cannot shrink the window. Scrollbars became reserved chrome and the connection
+  dot moved into the button cluster in the same pass.
 
 New non-obvious decision → add `adr/ADR-XXXX-<slug>.md`, link it here.
 

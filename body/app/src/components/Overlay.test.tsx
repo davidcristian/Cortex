@@ -20,8 +20,7 @@ function fakeController(
       messages,
       sessions: [],
       switcherOpen: false,
-      sheetOpen: false,
-      settingsOpen: false,
+      consoleTab: null,
       pendingConfirm: null,
       reminders: [],
       link: INITIAL_LINK,
@@ -42,8 +41,9 @@ function fakeController(
     cyclePrev: vi.fn(),
     cycleNext: vi.fn(),
     toggleSwitcher: vi.fn(),
-    toggleSheet: vi.fn(),
-    toggleSettings: vi.fn(),
+    openConsole: vi.fn(),
+    toggleConsole: vi.fn(),
+    closeConsole: vi.fn(),
     previewHover: vi.fn(),
     respondConfirm: vi.fn(),
     dismissReminder: vi.fn(),
@@ -170,31 +170,26 @@ describe("Overlay", () => {
     expect(controller.openSession).toHaveBeenCalledWith("c1");
   });
 
-  it("? toggles the shortcut sheet, except while typing in the composer", () => {
+  it("? opens the console on its shortcuts tab, except while typing in the composer", () => {
     const controller = fakeController("panel");
     renderOverlay(controller);
     fireEvent.keyDown(document.body, { key: "?" });
-    expect(controller.toggleSheet).toHaveBeenCalledOnce();
-    // In the composer a ? is just typing, never the sheet.
+    expect(controller.toggleConsole).toHaveBeenCalledWith("shortcuts");
+    // In the composer a ? is just typing, never the console.
     fireEvent.keyDown(screen.getByLabelText("Message"), { key: "?" });
-    expect(controller.toggleSheet).toHaveBeenCalledOnce();
+    expect(controller.toggleConsole).toHaveBeenCalledOnce();
   });
 
-  it("Escape closes an open shortcut sheet instead of dismissing the panel", () => {
-    const controller = fakeController("panel", [], { sheetOpen: true });
-    renderOverlay(controller);
-    fireEvent.keyDown(document.body, { key: "Escape" });
-    expect(controller.toggleSheet).toHaveBeenCalledOnce();
-    expect(controller.dismiss).not.toHaveBeenCalled();
-  });
-
-  it("Escape closes the settings sheet first, before the shortcut sheet or the panel", () => {
-    const controller = fakeController("panel", [], { settingsOpen: true, sheetOpen: true });
-    renderOverlay(controller);
-    fireEvent.keyDown(document.body, { key: "Escape" });
-    expect(controller.toggleSettings).toHaveBeenCalledOnce();
-    expect(controller.toggleSheet).not.toHaveBeenCalled();
-    expect(controller.dismiss).not.toHaveBeenCalled();
+  it("Escape leaves the console in ONE press from either tab, without dismissing the panel", () => {
+    for (const tab of ["appearance", "shortcuts"] as const) {
+      const controller = fakeController("panel", [], { consoleTab: tab });
+      const { unmount } = renderOverlay(controller);
+      fireEvent.keyDown(document.body, { key: "Escape" });
+      // One console, so one Esc: the settings-then-shortcuts two-step is gone with the two sheets.
+      expect(controller.closeConsole).toHaveBeenCalledOnce();
+      expect(controller.dismiss).not.toHaveBeenCalled();
+      unmount();
+    }
   });
 
   it("forwards preview hover to the controller's pause latch", () => {

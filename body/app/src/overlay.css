@@ -6,10 +6,48 @@
   --spring: cubic-bezier(0.34, 1.56, 0.64, 1);
   --ease: cubic-bezier(0.4, 0, 0.2, 1);
   --font: -apple-system, "Segoe UI", system-ui, "Helvetica Neue", sans-serif;
+  --rail: 6px;
+  --trace-row: 24px;
 }
 
 * {
   box-sizing: border-box;
+}
+
+.stage ::-webkit-scrollbar {
+  width: var(--rail);
+  height: var(--rail);
+}
+.stage ::-webkit-scrollbar-track {
+  /* Held off both ends so the thumb stops short of a container's rounded corners rather than
+     being sliced by one: the switcher and the reminder stack are 16px cards, and a bar drawn
+     into that curve is the first thing that reads as a widget bolted on. */
+  margin-block: 6px;
+  background: transparent;
+}
+.stage ::-webkit-scrollbar-corner {
+  background: transparent;
+}
+.stage ::-webkit-scrollbar-button {
+  display: none;
+}
+.stage ::-webkit-scrollbar-thumb {
+  /* A long history would otherwise scale the thumb down to a nub too small to aim at. */
+  min-height: 28px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--muted) 38%, transparent);
+  background-clip: padding-box;
+}
+.stage ::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--muted) 62%, transparent);
+  background-clip: padding-box;
+}
+@supports not selector(::-webkit-scrollbar) {
+  .stage * {
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in srgb, var(--muted) 38%, transparent) transparent;
+  }
 }
 
 /* Opaque stage in v1 (a transparent window is deferred per design/overlay-ux.md §4). */
@@ -68,6 +106,7 @@
   flex-direction: column;
   flex: 1 1 auto;
   min-height: 0;
+  --rise: 7px;
   animation: viewin 0.34s var(--ease) 0.05s both;
 }
 .view.out {
@@ -81,6 +120,9 @@
 }
 .view.gone {
   display: none;
+}
+.view.swap {
+  --rise: 0px;
 }
 /* Every non-chat view: the same column, so the header sits on the chat's rhythm and the foot
    settles under the content rather than at the bottom of a panel that is no longer that tall. */
@@ -97,14 +139,10 @@
   gap: 10px;
   padding: 15px 16px 9px;
 }
-/* Connection indicator: a small dot leading the title, coloured by what the seam last proved
-   and pulsing while a probe is out (components/LinkDot.tsx). It is deliberately tiny: the
-   healthy case is the common one and should read as a quiet full stop, not a status light. */
 .linkdot {
   width: 7px;
   height: 7px;
   flex: none;
-  margin-left: 6px;
   border-radius: 50%;
   background: var(--dim);
   transition: background 0.35s var(--ease);
@@ -137,14 +175,11 @@
   width: 7px;
   height: 7px;
   flex: none;
-  margin-left: 6px;
   border-radius: 50%;
   border: 1.5px solid var(--warn);
   box-sizing: border-box;
 }
 
-/* The 6px optical left margin the header opens with now belongs to the dot, which leads the
-   row; the title follows it on the header's own 10px rhythm. */
 .title {
   flex: 1;
   font-size: 13.5px;
@@ -152,6 +187,9 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+.head > .title:first-child {
+  margin-left: 14px;
 }
 .hbtn {
   width: 30px;
@@ -206,32 +244,31 @@
   background: var(--field);
 }
 
-/* The history takes the slack, which is what keeps the composer glued to the panel's bottom edge
-   while the panel is mid-resize. Without `flex: 1` the leftover height lands after the last child
-   instead, and every shrink jerked the composer and the hint strip up before easing them back. */
 .history {
   display: flex;
   flex-direction: column;
-  flex: 1 1 auto;
+  flex: 1 100000 auto;
   min-height: 0;
-  gap: 11px;
-  padding: 6px 16px 4px;
+  /* The rail is reserved out of the right padding, so a bubble ends 16px from the panel edge
+     whether the log scrolls or not, and the thumb rides in the gap the padding gave up. */
+  padding: 6px calc(16px - var(--rail)) 4px 16px;
   overflow-y: auto;
+  overflow-x: clip;
+  scrollbar-gutter: stable;
+  overflow-anchor: none;
+}
+.log {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  flex: 1 0 auto;
+  min-height: 185px;
+  gap: 11px;
 }
 
-/* A section that rolls open and shut (components/Collapse.tsx animates the height of this
-   wrapper). The clip is what makes it a roll rather than a squash: the list inside keeps its own
-   size while the wrapper reveals less or more of it. */
 .collapse {
   flex: none;
   overflow: hidden;
-}
-.history::-webkit-scrollbar {
-  width: 7px;
-}
-.history::-webkit-scrollbar-thumb {
-  background: var(--stroke);
-  border-radius: 8px;
 }
 
 .bubble {
@@ -241,6 +278,7 @@
   line-height: 1.55;
   border-radius: 20px;
   white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 .b-user {
   align-self: flex-end;
@@ -268,7 +306,7 @@
 }
 .w {
   display: inline-block;
-  white-space: pre;
+  white-space: pre-wrap;
   animation: wordin 0.5s var(--ease) both;
 }
 
@@ -301,6 +339,9 @@
   align-items: center;
   gap: 7px;
   max-width: 82%;
+  /* The row height the settled disclosure below matches, so a turn completing swaps the two in
+     place instead of resizing the log under them. This is the chip's natural height already. */
+  min-height: var(--trace-row);
   padding: 4px 12px;
   background: var(--control);
   border: 1px solid var(--stroke);
@@ -339,31 +380,43 @@
   font-size: 12px;
 }
 .thoughts-sum {
+  display: flex;
+  align-items: center;
+  min-height: var(--trace-row);
   padding: 3px 2px;
+  border: none;
+  background: none;
   color: var(--dim);
-  list-style: none;
+  font: inherit;
   cursor: pointer;
   user-select: none;
 }
-.thoughts-sum::-webkit-details-marker {
-  display: none;
-}
 .thoughts-sum::before {
-  content: "›";
+  /* The empty alt text after the slash is what keeps the marker out of the button's accessible
+     name: it is a picture of the state, which `aria-expanded` already says properly, and without it
+     Chromium announces the control as "› Thoughts". */
+  content: "›" / "";
   display: inline-block;
   margin-right: 6px;
-  transition: transform 0.18s var(--ease);
+  transition: transform 0.3s var(--ease);
 }
-.thoughts[open] .thoughts-sum::before {
+.thoughts-sum[aria-expanded="true"]::before {
   transform: rotate(90deg);
 }
 .thoughts-sum:hover {
   color: var(--muted);
 }
 .thoughts-body {
+  /* Inside the `.collapse` wrapper, whose `overflow: hidden` keeps this margin from collapsing out
+     through it: the gap above the trace is part of what rolls, so it opens with the text rather
+     than appearing under the row a frame early. */
   margin-top: 4px;
   max-height: 28vh;
+  /* The trace has no margin of its own to give back, so the reserved rail is padded off the text
+     instead: a long line wraps clear of the thumb rather than running under it. */
+  padding-right: var(--rail);
   overflow-y: auto;
+  scrollbar-gutter: stable;
   overscroll-behavior: contain;
   color: var(--muted);
   line-height: 1.5;
@@ -381,6 +434,7 @@
   gap: 13px;
   padding: 32px 10px 26px;
   text-align: center;
+  max-width: 100%;
 }
 .empty-line {
   margin: 0;
@@ -389,11 +443,18 @@
 }
 .empty-chips {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   justify-content: center;
   gap: 8px;
+  /* Same reason as `.empty`'s cap, one level down: the row has to be told it may not exceed the
+     column, or the chips have no pressure on them to shrink. */
+  max-width: 100%;
 }
 .echip {
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   padding: 7px 14px;
   background: var(--control);
   border: 1px solid var(--stroke);
@@ -483,7 +544,10 @@
      An attachment is the first argument meant to be long, so the draft scrolls rather than
      growing until Approve and Deny are pushed out of view. */
   max-height: 42vh;
+  /* Same as the trace: no margin to give back, so the rail gets padded off the values. */
+  padding-right: var(--rail);
   overflow-y: auto;
+  scrollbar-gutter: stable;
   overscroll-behavior: contain;
 }
 .confirm-row {
@@ -562,9 +626,6 @@
   animation: pulse 1s ease infinite;
 }
 
-/* The composer IS the rounded field pill; the textarea flows inside it and the send button is
-   nested at the bottom-right. They are flex siblings, so the typing area ends before the button
-   (text never runs under it) and the button stays bottom-aligned as the textarea grows. */
 .composer {
   display: flex;
   align-items: flex-end;
@@ -574,25 +635,50 @@
   background: var(--field);
   border: 1.5px solid transparent;
   border-radius: 23px;
-  transition: 0.2s var(--ease);
+  transition:
+    border-color 0.2s var(--ease),
+    background-color 0.2s var(--ease);
+}
+.composer.stacked {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 2px;
+  min-height: 84px;
+}
+.composer.stacked .field {
+  flex: 0 1 auto;
+}
+.composer.stacked .send {
+  align-self: flex-end;
 }
 .composer:focus-within {
   border-color: var(--stroke);
   background: var(--control);
 }
 .field {
+  --field-pad: 9px;
   flex: 1;
   min-width: 0;
   background: none;
   border: none;
   border-radius: 0;
-  padding: 9px 2px 9px 13px;
+  padding: var(--field-pad) var(--rail) var(--field-pad) 13px;
   color: var(--text);
   font-family: var(--font);
   font-size: 14.5px;
+  line-height: 16px;
   resize: none;
   outline: none;
   max-height: 120px;
+  scrollbar-gutter: stable;
+  scroll-padding-block: var(--field-pad);
+  mask-image: linear-gradient(
+    to bottom,
+    transparent,
+    #000 var(--field-pad),
+    #000 calc(100% - var(--field-pad)),
+    transparent
+  );
 }
 .field::placeholder {
   color: var(--dim);
@@ -692,7 +778,12 @@
 .hints b + b {
   margin-left: 4px;
 }
-/* The hint strip's ? is a real button in keycap clothing; it opens the shortcut sheet. */
+.skey .row-keys b {
+  background: var(--panel);
+}
+/* Two of the strip's caps are real buttons in keycap clothing: the sliders and the ?, each a door
+   into the console on the tab it names (ADR-0035). They dress as keys because they sit in a row of
+   keys, so the rule strips the button chrome rather than adding any. */
 .qbtn {
   padding: 0;
   border: none;
@@ -712,9 +803,43 @@
   flex: 0 1 auto;
   min-height: 0;
   overflow-y: auto;
+  scrollbar-gutter: stable;
   /* Rows start on the panel's own left margin, so the hairlines between them read as inset rules
-     rather than as lines drawn to the rounded edge. */
-  padding: 0 16px;
+     rather than as lines drawn to the rounded edge. The right margin is that same number minus
+     the reserved rail, which puts the hairline's far end back where the left one starts. */
+  padding: 0 calc(16px - var(--rail)) 0 16px;
+}
+.skeys {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+.skey {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 0;
+  padding: 8px 11px;
+  border-radius: 12px;
+  background: var(--control);
+}
+.skey.wide {
+  grid-column: 1 / -1;
+}
+.skey-label {
+  min-width: 0;
+  font-size: 12.5px;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.skey-label small {
+  display: block;
+  margin-top: 1px;
+  font-size: 11px;
+  color: var(--dim);
 }
 .row {
   display: flex;
@@ -749,55 +874,172 @@
   color: var(--dim);
 }
 
-/* A row's choices: one rail, so the options read as the settable range of that row rather than as
-   loose buttons, and the chosen one is lit from within it. Marks are drawn live in their own rail
-   at the same height, because these four styles differ by how they MOVE. */
-.seg {
+.tabs {
   flex: none;
+  align-self: center;
   display: flex;
   gap: 2px;
+  margin: 2px 0 10px;
   padding: 3px;
   background: var(--control);
   border-radius: 999px;
 }
-.seg-opt {
-  padding: 5px 13px;
+.tab {
+  padding: 5px 15px;
   border: none;
   border-radius: 999px;
   background: none;
   color: var(--muted);
   font-family: var(--font);
   font-size: 12.5px;
+  cursor: pointer;
+  transition: 0.18s var(--ease);
+}
+.tab:hover {
+  color: var(--text);
+}
+.tab.on {
+  color: var(--text);
+  background: var(--field);
+}
+/* The tab's own body. It is the flex column the rows expect to be in, so a tab is free to be a
+   list, a wall of swatches, or both, and the panel still shrinks to exactly its height. */
+.tabpanel {
+  display: flex;
+  flex-direction: column;
+  flex: 0 1 auto;
+  min-height: 0;
+}
+
+/* A group inside a tab: a quiet heading and whatever belongs under it. The hairline between groups
+   is the same rule the rows draw between themselves, so a tab of lists and a tab of swatches read
+   as one surface. */
+.swatch {
+  padding: 4px 0 10px;
+}
+.swatch + .swatch {
+  border-top: 1px solid var(--stroke);
+}
+.sect {
+  margin: 0 0 8px;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+/* One line under a group of tiles, explaining the choice the art cannot say out loud (what Auto
+   follows; what the chosen mark does when it moves). */
+.note {
+  margin: 8px 0 0;
+  font-size: 11.5px;
+  color: var(--dim);
+}
+
+/* A choice made by looking at it. The tiles are a plain wrapping row rather than a segmented rail,
+   because each one carries its own picture and a shared pill around them would fight it. */
+.tiles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+/* Resting chrome, so the selection is a LIFT and not a colour: the chosen tile gains the ground
+   and the hairline the others do without. Both borders are always there (a transparent one when
+   resting) so nothing shifts by a pixel when the choice moves. */
+.tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 7px 5px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  background: none;
+  color: var(--muted);
+  font-family: var(--font);
+  font-size: 11.5px;
   text-transform: capitalize;
   cursor: pointer;
   transition: 0.18s var(--ease);
 }
-.seg-mark {
-  display: grid;
-  place-items: center;
-  width: 36px;
-  height: 30px;
-  padding: 0;
-  border: none;
-  border-radius: 999px;
-  background: none;
-  cursor: pointer;
-  opacity: 0.5;
-  transition: 0.18s var(--ease);
-}
-.seg-opt:hover {
+.tile:hover {
   color: var(--text);
 }
-.seg-mark:hover {
-  opacity: 0.85;
-}
-.seg-opt.on {
+.tile.on {
   color: var(--text);
   background: var(--field);
+  border-color: var(--stroke);
 }
-.seg-mark.on {
+.tile-art {
+  display: block;
+  position: relative;
+  /* The art sizes itself (a theme mini is a box, a mark is an SVG of a given size); the row of
+     tiles then sizes itself to the tallest, so a mark tile and a theme tile line up on their
+     labels without either number being written down twice. */
+}
+/* A mark at rest is dimmed like any other unchosen option, but never all the way: these four
+   styles differ by how they MOVE, so all four have to be watchable side by side. */
+.tile .mark {
+  opacity: 0.55;
+  transition: opacity 0.18s var(--ease);
+}
+.tile:hover .mark,
+.tile.on .mark {
   opacity: 1;
-  background: var(--field);
+}
+
+.mini {
+  display: flex;
+  width: 72px;
+  height: 50px;
+  padding: 6px;
+  border-radius: 9px;
+  overflow: hidden;
+}
+/* The panel floats on that ground, so it carries the shadow the real one does. The shadow is the
+   one thing here NOT taken from the theme: it is shape rather than palette, and a light panel on a
+   light desktop needs an edge to sit on in any theme. */
+.mini-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 5px;
+  border: 1px solid;
+  border-radius: 6px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.22);
+}
+.mini-title {
+  width: 42%;
+  height: 3px;
+  border-radius: 2px;
+  opacity: 0.75;
+}
+/* A reply, not a rule: a block on the leading edge, so the mini reads as a conversation with a
+   composer under it rather than as three stacked lines. */
+.mini-msg {
+  width: 62%;
+  height: 7px;
+  border-radius: 3px;
+  opacity: 0.35;
+}
+.mini-pill {
+  margin-top: auto;
+  height: 8px;
+  border: 1px solid;
+  border-radius: 4px;
+  opacity: 0.55;
+}
+/* Auto is the one tile that is two themes: the light one is laid over the dark one and cut on the
+   diagonal, so the tile says "whichever your system is" without a word. */
+.mini-split {
+  display: block;
+  position: relative;
+}
+.mini-half {
+  position: absolute;
+  inset: 0;
+  clip-path: polygon(100% 0, 100% 100%, 0 100%);
 }
 
 .orb {
@@ -915,7 +1157,7 @@
 @keyframes viewin {
   from {
     opacity: 0;
-    transform: translateY(7px);
+    transform: translateY(var(--rise));
   }
   to {
     opacity: 1;
@@ -929,7 +1171,7 @@
   }
   to {
     opacity: 0;
-    transform: translateY(-7px);
+    transform: translateY(calc(0px - var(--rise)));
   }
 }
 @keyframes drain {
@@ -952,9 +1194,10 @@
 .switcher {
   list-style: none;
   margin: 0 12px 6px;
-  padding: 6px;
+  padding: 6px 0 6px 6px;
   max-height: 40vh;
   overflow-y: auto;
+  scrollbar-gutter: stable;
   background: var(--control);
   border: 1px solid var(--stroke);
   border-radius: 16px;
@@ -1185,9 +1428,10 @@
 .reminders {
   list-style: none;
   margin: 0 12px 6px;
-  padding: 6px;
+  padding: 6px 0 6px 6px;
   max-height: 30vh;
   overflow-y: auto;
+  scrollbar-gutter: stable;
   background: var(--control);
   border: 1px solid var(--stroke);
   border-radius: 16px;

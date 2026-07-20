@@ -181,20 +181,36 @@ describe("overlayState reducer", () => {
     expect(reduce(opened, { kind: "toggleSwitcher" }).switcherOpen).toBe(false);
   });
 
-  it("toggleSheet flips the shortcut sheet open then shut, and dismiss closes it too", () => {
-    const opened = reduce(reduce(initialState, { kind: "open" }), { kind: "toggleSheet" });
-    expect(opened.sheetOpen).toBe(true);
-    expect(reduce(opened, { kind: "toggleSheet" }).sheetOpen).toBe(false);
-    // A dismissed panel never re-summons onto stale help.
-    expect(reduce(opened, { kind: "dismiss" }).sheetOpen).toBe(false);
+  it("toggleConsole opens its own tab, closes it again, and switches from the other one", () => {
+    const panel = reduce(initialState, { kind: "open" });
+    const appearance = reduce(panel, { kind: "toggleConsole", tab: "appearance" });
+    expect(appearance.consoleTab).toBe("appearance");
+    // Each opener owns one tab: pressing the one you are on leaves, pressing the other switches.
+    expect(reduce(appearance, { kind: "toggleConsole", tab: "appearance" }).consoleTab).toBeNull();
+    expect(reduce(appearance, { kind: "toggleConsole", tab: "shortcuts" }).consoleTab).toBe(
+      "shortcuts",
+    );
   });
 
-  it("toggleSettings flips the settings sheet open then shut, and dismiss closes it too", () => {
-    const opened = reduce(reduce(initialState, { kind: "open" }), { kind: "toggleSettings" });
-    expect(opened.settingsOpen).toBe(true);
-    expect(reduce(opened, { kind: "toggleSettings" }).settingsOpen).toBe(false);
-    // A dismissed panel comes back to the chat, not to settings.
-    expect(reduce(opened, { kind: "dismiss" }).settingsOpen).toBe(false);
+  it("openConsole shows a tab and is idempotent, so the tab strip cannot close the console", () => {
+    const shortcuts = reduce(initialState, { kind: "openConsole", tab: "shortcuts" });
+    expect(shortcuts.consoleTab).toBe("shortcuts");
+    expect(reduce(shortcuts, { kind: "openConsole", tab: "shortcuts" }).consoleTab).toBe(
+      "shortcuts",
+    );
+    expect(reduce(shortcuts, { kind: "openConsole", tab: "appearance" }).consoleTab).toBe(
+      "appearance",
+    );
+  });
+
+  it("closeConsole leaves in one step from either tab, and dismiss closes the console too", () => {
+    for (const tab of ["appearance", "shortcuts"] as const) {
+      const opened = reduce(reduce(initialState, { kind: "open" }), { kind: "openConsole", tab });
+      // One press, not two: there is no second sheet stacked behind this one any more.
+      expect(reduce(opened, { kind: "closeConsole" }).consoleTab).toBeNull();
+      // A dismissed panel re-summons onto the chat, never onto stale help or the tiles.
+      expect(reduce(opened, { kind: "dismiss" }).consoleTab).toBeNull();
+    }
   });
 
   it("openSession hydrates a stored chat: messages, derived title, session id, closed switcher", () => {
