@@ -97,12 +97,14 @@ export const PING: MarkStyle = {
   ],
 };
 
-/** A cluster: two small lobes surface behind the big one, off axis so it never reads as a face.
- *  Smallest first, so the big bubble draws over them and they read as clustered, not stuck on. */
-export const FOAM: MarkStyle = {
+/**
+ * A cluster: two small lobes surface behind the big one, off axis so it never reads as a face.
+ * Smallest first, so the big bubble draws over them and they read as clustered, not stuck on.
+ */
+export const ORBIT_MARK: MarkStyle = {
   name: "foam",
-  label: "Foam",
-  note: "Three lobes, each with its own wobble, jostling as one",
+  label: "Orbit",
+  note: "Two small lobes swing on slow arcs around a larger one",
   filmPeriodSeconds: 28,
   innerFilmPeriodSeconds: 40,
   innerFilmOpacity: 0.25,
@@ -133,7 +135,7 @@ export const FOAM: MarkStyle = {
 };
 
 /** The registry is plug-and-play: add a `MarkStyle` here and it becomes pickable. */
-export const MARKS: readonly MarkStyle[] = [WOBBLE, SHEEN, PING, FOAM];
+export const MARKS: readonly MarkStyle[] = [WOBBLE, SHEEN, PING, ORBIT_MARK];
 
 /** Resolve the active mark: a known name wins, anything else falls back to the default. */
 export function resolveMark(preference: string | null): MarkStyle {

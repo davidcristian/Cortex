@@ -2,7 +2,7 @@ import { act, render } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { lobePath } from "../mark/bubble";
-import { FOAM, PING, WOBBLE } from "../mark/marks";
+import { ORBIT_MARK, PING, WOBBLE } from "../mark/marks";
 import { STILL_SECONDS } from "../mark/useMarkClock";
 import { BubbleMark } from "./BubbleMark";
 
@@ -41,7 +41,7 @@ describe("BubbleMark", () => {
 
   it("draws the cluster style as three clipped lobes", () => {
     const { container } = render(
-      <BubbleMark style={FOAM} size={54} idPrefix="empty" animated={false} />,
+      <BubbleMark style={ORBIT_MARK} size={54} idPrefix="empty" animated={false} />,
     );
     expect(container.querySelectorAll("path.mark-body")).toHaveLength(3);
     expect(container.querySelectorAll("clipPath")).toHaveLength(3);
