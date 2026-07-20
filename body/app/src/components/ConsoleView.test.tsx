@@ -46,7 +46,7 @@ describe("ConsoleView", () => {
     unmount();
     renderConsole("shortcuts");
     expect(screen.getByRole("tabpanel", { name: "Shortcuts" })).toBeInTheDocument();
-    expect(screen.getByText("Chat switcher")).toBeInTheDocument();
+    expect(screen.getByText("Switcher")).toBeInTheDocument();
     expect(screen.queryByRole("radiogroup", { name: "Mark style" })).toBeNull();
   });
 

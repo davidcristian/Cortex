@@ -17,51 +17,48 @@ describe("ShortcutsTab", () => {
     for (const label of [
       "Send",
       "Newline",
-      "New chat",
-      "Previous chat",
-      "Next chat",
-      "Chat switcher",
-      "Summon or focus",
+      "New",
+      "Previous",
+      "Next",
+      "Switcher",
+      "Summon",
       "This list",
-      "Close the console",
       "Dismiss",
     ]) {
       expect(screen.getByText(label)).toBeInTheDocument();
     }
-    // The hint strip beside the composer carries four of these; this is the complete list, so a
-    // binding that is only ever written down here must actually be written down here.
-    expect(screen.getByText("to the orb mid-turn")).toBeInTheDocument();
   });
 
   it("is a wall of cards, the same object as the appearance tab beside it", () => {
     const { container } = render(<ShortcutsTab />);
-    // Ten bindings, ten tiles, and no hairline-separated rows left over: a list of full-width
+    // Nine bindings, nine tiles, and no hairline-separated rows left over: a list of full-width
     // rules next to a grid of swatches read as two different screens.
-    expect(container.querySelectorAll(".skey")).toHaveLength(10);
+    expect(container.querySelectorAll(".skey")).toHaveLength(9);
     expect(container.querySelectorAll(".row")).toHaveLength(0);
-    // The two whose keys will not fit beside their label at half width span the grid instead.
-    expect(card("Summon or focus").className).toContain("wide");
-    expect(card("Dismiss").className).toContain("wide");
-    expect(card("Send").className).not.toContain("wide");
+    // Every tile is the same half of the grid. One card spanning both is a row that escaped the
+    // wall, so a binding whose keys crowd its label gets a shorter label rather than more width.
+    for (const tile of container.querySelectorAll(".skey")) {
+      expect(tile.className).toBe("skey");
+    }
   });
 
   it("gives every key its own cap, so a chord reads as the keys it is", () => {
     render(<ShortcutsTab />);
-    const caps = [...card("New chat").querySelectorAll("b")].map((cap) => cap.textContent);
+    const caps = [...card("New").querySelectorAll("b")].map((cap) => cap.textContent);
     expect(caps).toEqual(["Ctrl", "N"]);
-    expect([...card("Summon or focus").querySelectorAll("b")].map((c) => c.textContent)).toEqual([
+    expect([...card("Summon").querySelectorAll("b")].map((c) => c.textContent)).toEqual([
       "Ctrl",
       "Alt",
       "Space",
     ]);
     // Modifier and key are separate caps even when both are drawn glyphs.
     expect(card("Newline").querySelectorAll("b")).toHaveLength(2);
-    expect(card("Previous chat").querySelectorAll("b")).toHaveLength(2);
+    expect(card("Previous").querySelectorAll("b")).toHaveLength(2);
   });
 
   it("draws a non-letter key with the header's outline icon, never a Unicode symbol", () => {
     render(<ShortcutsTab />);
-    for (const label of ["Send", "Newline", "Previous chat"]) {
+    for (const label of ["Send", "Newline", "Previous"]) {
       for (const cap of card(label).querySelectorAll("b.key")) {
         // One glyph per cap, and it is an SVG from `icons.tsx` rather than a character.
         expect(cap.querySelectorAll("svg")).toHaveLength(1);
@@ -72,13 +69,12 @@ describe("ShortcutsTab", () => {
     expect(card("Newline").querySelectorAll("b.key")).toHaveLength(2);
   });
 
-  it("says Esc leaves the console before it dismisses the panel, in that order", () => {
-    render(<ShortcutsTab />);
-    const labels = [...document.querySelectorAll(".skey-label")].map(
-      (label) => label.firstChild?.textContent,
+  it("gives Esc one card, not one per thing it backs out of", () => {
+    const { container } = render(<ShortcutsTab />);
+    const escs = [...container.querySelectorAll(".skey")].filter((tile) =>
+      [...tile.querySelectorAll("b")].some((cap) => cap.textContent === "Esc"),
     );
-    expect(labels.indexOf("Close the console")).toBeLessThan(labels.indexOf("Dismiss"));
-    expect(card("Close the console").querySelector("b")?.textContent).toBe("Esc");
+    expect(escs).toHaveLength(1);
     expect(card("Dismiss").querySelector("b")?.textContent).toBe("Esc");
   });
 });
