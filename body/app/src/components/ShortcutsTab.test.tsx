@@ -69,7 +69,10 @@ describe("ShortcutsTab", () => {
       }
     }
     expect(card("Send").querySelectorAll("b.key")).toHaveLength(1);
-    expect(card("Newline").querySelectorAll("b.key")).toHaveLength(2);
+    // Shift is a word like Ctrl; the drawn glyph left is the one key with no name worth
+    // writing, which is return.
+    expect(card("Newline").querySelectorAll("b.key")).toHaveLength(1);
+    expect(card("Newline").querySelector("b")?.textContent).toBe("Shift");
   });
 
   it("gives Esc one card, not one per thing it backs out of", () => {

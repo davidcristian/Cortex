@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-import { DownArrowKey, ReturnKey, ShiftKey, UpArrowKey } from "./icons";
+import { DownArrowKey, ReturnKey, UpArrowKey } from "./icons";
 
 /** One binding, as a soft filled card: what it does on the left, the keys that do it on the right.
  *  Cards are half-width tiles, which is what makes the tab a wall rather than a list, so a label is
@@ -49,9 +49,7 @@ export function ShortcutsTab() {
             </b>
           </Key>
           <Key label="Newline">
-            <b className="key">
-              <ShiftKey />
-            </b>
+            <b>Shift</b>
             <b className="key">
               <ReturnKey />
             </b>

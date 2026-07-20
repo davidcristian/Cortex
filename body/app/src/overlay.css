@@ -96,6 +96,15 @@
 .stage ::-webkit-scrollbar-button {
   display: none;
 }
+/* While the panel is easing to a new size it is briefly shorter than what it is easing to, so the
+   history overflows for a few frames and a thumb flashes on and straight off again during a stream.
+   The gutter is reserved either way (`scrollbar-gutter: stable`), so nothing moves; only the thumb
+   is wrong, and it is wrong because it reports a size the panel is passing through rather than one
+   it has. Hiding the thumb rather than the overflow is deliberate: `overflow: hidden` would also
+   freeze `scrollTop`, and the auto-scroll that follows a stream writes to it on every token. */
+.panel[data-resizing] .history::-webkit-scrollbar-thumb {
+  background: transparent;
+}
 .stage ::-webkit-scrollbar-thumb {
   /* A long history would otherwise scale the thumb down to a nub too small to aim at. */
   min-height: 28px;
@@ -294,6 +303,16 @@
   box-sizing: border-box;
 }
 
+/* The title is the one thing that has to hold its own against the panel's 28px corner, so its two
+   clearances are made equal by measurement rather than argued from the radius. On the header's bare
+   padding the glyphs start 17px in from the panel's outer edge and 27px down from its top, which is
+   the crowding: the corner turns through the short gap. 10px more inset makes both 27px, so the text
+   sits the same distance from the side as from the top, which is what "centred on a corner" means.
+   Every other view opens with the back chevron, which supplies its own inset, so this is scoped to a
+   title that actually starts the row. */
+.head > .title:first-child {
+  margin-left: 10px;
+}
 .title {
   flex: 1;
   font-size: 13.5px;
@@ -1253,7 +1272,10 @@
    The spacer is the back button's own width on the other side, which is what keeps the strip
    centred in the panel rather than centred in what is left of the row. */
 .head > .tabs {
-  margin-inline: auto;
+  /* All four sides, not just the inline pair. The base rule gives the strip 2px above and 10px
+     below, from when it sat under a header rather than in one, and overriding only the sides left
+     those in: the strip's centre landed 4px above the chevron's, measured at 298 against 302. */
+  margin: 0 auto;
 }
 .hspacer {
   width: 30px;

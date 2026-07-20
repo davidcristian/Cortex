@@ -170,15 +170,6 @@ export function ReturnKey() {
   );
 }
 
-/** Keycap glyph: the Shift key. */
-export function ShiftKey() {
-  return (
-    <Icon>
-      <path d="M12 4.5l6 6.5h-3.2v6h-5.6v-6H6z" />
-    </Icon>
-  );
-}
-
 /** Keycap glyph: the up-arrow key (cycle to a newer chat). */
 export function UpArrowKey() {
   return (

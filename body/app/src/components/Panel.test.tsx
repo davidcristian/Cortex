@@ -155,13 +155,15 @@ describe("Panel", () => {
   });
 
   it("marks the theme icon dark, is not open when closed, and renders its messages", () => {
-    renderPanel({ messages: [userMsg], mode: "hidden" }, false, true);
+    const { container } = renderPanel({ messages: [userMsg], mode: "hidden" }, false, true);
     const dialog = screen.getByRole("dialog", { hidden: true });
     expect(dialog.className).not.toContain("open");
     expect(dialog.className).not.toContain("to-orb");
     const icon = screen.getByLabelText("Toggle theme").querySelector("svg.sunmoon");
     expect(icon?.classList.contains("dark")).toBe(true);
-    expect(screen.getByText(/hi/u)).toBeInTheDocument();
+    // Read off the bubble rather than searched for: a reply is rendered one span per word, so it
+    // matches no single text node, and a loose pattern now finds the "Shift" keycap instead.
+    expect(container.querySelector(".b-user")?.textContent).toContain("hi there");
   });
 
   it("parks the closed panel at the corner while the orb owns the turn", () => {
@@ -478,9 +480,12 @@ describe("Panel", () => {
     renderPanel({}, true, false);
     const hint = (text: string) =>
       [...document.querySelectorAll(".hints span")].find((s) => s.textContent?.includes(text));
-    // A chord is drawn as the keys it is, glyph caps included: the newline hint is Shift AND
-    // Return, not one cap holding both drawings, which is how the console's list reads it too.
-    expect(hint("newline")?.querySelectorAll("b.key")).toHaveLength(2);
+    // A chord is drawn as the keys it is: the newline hint is Shift AND Return, two caps, which is
+    // how the console's list reads it too. Shift is spelled out like Ctrl and Alt, so the drawn cap
+    // left is return, the one key here with no name worth writing.
+    expect(hint("newline")?.querySelectorAll("b")).toHaveLength(2);
+    expect(hint("newline")?.querySelector("b")?.textContent).toBe("Shift");
+    expect(hint("newline")?.querySelectorAll("b.key")).toHaveLength(1);
     for (const cap of hint("newline")?.querySelectorAll("b.key") ?? []) {
       expect(cap.querySelectorAll("svg")).toHaveLength(1);
     }
