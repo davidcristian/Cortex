@@ -187,9 +187,6 @@
 .edge-ember.edge-working .edge-glow-a {
   opacity: 0.6;
 }
-.edge-mini-ground {
-  fill: var(--bg);
-}
 .edge-mini-glass {
   fill: var(--panel-solid);
 }

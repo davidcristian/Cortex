@@ -12,8 +12,9 @@ describe("EdgeMini", () => {
     expect(svg).toHaveAttribute("aria-hidden", "true");
     expect(container.querySelector("linearGradient")).toBeNull();
     expect(container.querySelector(".edge-mini-glow")).toBeNull();
-    // The portrait's furniture: the ground, then the little window's title, reply and composer.
-    expect(container.querySelector(".edge-mini-ground")).not.toBeNull();
+    // The portrait's furniture: the little window's title, reply and composer, and NO ground of
+    // its own, the tile being the ground it floats on.
+    expect(container.querySelector(".edge-mini-ground")).toBeNull();
     expect(container.querySelectorAll(".edge-mini-bar")).toHaveLength(2);
     expect(container.querySelector(".edge-mini-pill")).not.toBeNull();
     // Glass and hairline are the same outline, filled and stroked.
