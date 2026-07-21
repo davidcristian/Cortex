@@ -1603,7 +1603,7 @@
 }
 .reminder {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 9px;
   padding: 8px 9px;
   border-radius: 12px;
@@ -1616,10 +1616,7 @@
   flex: none;
   display: flex;
   color: var(--muted);
-  /* Centred within the title's line box: the text is 13.5px on 1.5 (a 20.25px line), the icon a
-     16px square, so it sits (20.25 - 16) / 2 off the line's top. */
-  align-self: flex-start;
-  margin-top: 2px;
+  margin-top: 4px;
 }
 .reminder-body {
   flex: 1;
@@ -1643,6 +1640,10 @@
 .reminder-time {
   flex: none;
   min-width: var(--time-col);
+  padding-right: 6px;
+  text-align: right;
+  font-size: 11.5px;
+  color: var(--dim);
 }
 .reminder-tag {
   padding: 0 8px 2px;
@@ -1670,9 +1671,18 @@
   background: var(--panel);
   color: var(--text);
 }
+.reminder-side {
+  flex: none;
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: space-between;
+}
 .reminder-ack {
   flex: none;
   display: flex;
+  margin-top: -3.5px;
   padding: 6px;
   border: none;
   border-radius: 10px;
