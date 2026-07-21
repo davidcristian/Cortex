@@ -1,9 +1,10 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import {
   DAYLIGHT,
   MIDNIGHT,
   THEMES,
+  THEME_SWAP_MS,
   applyTheme,
   resolveTheme,
   toCssVars,
@@ -64,24 +65,38 @@ describe("themes", () => {
     expect(el.dataset.theme).toBe("light");
   });
 
-  it("swaps in one frame: transitions off, tokens written, style flushed, transitions back", () => {
+  it("crosses the whole surface together, for the length of the crossing and no longer", () => {
+    vi.useFakeTimers();
     const el = document.createElement("div");
-    const flushes: string[] = [];
-    // The forced style read is the load-bearing line. Without it the guard goes on and off inside
-    // one task, the browser never resolves style in between, and every control crosses the theme at
-    // whatever pace its own hover transition uses: measured at 60Hz, the text took the new colour in
-    // the frame of the click and the pin, pencil, trash and tab labels took another nine to twenty.
-    Object.defineProperty(el, "offsetHeight", {
-      configurable: true,
-      get: () => {
-        flushes.push(el.dataset.swapping === "" ? "guarded" : "unguarded");
-        return 0;
-      },
-    });
-    applyTheme(MIDNIGHT, el);
-    expect(flushes).toEqual(["guarded"]);
-    expect(el.style.getPropertyValue("--bg")).toBe(MIDNIGHT.tokens.bg);
-    // And nothing is left holding the overlay's transitions down afterwards.
+
+    // The first application is not a crossing: there is nothing on screen to cross from, and easing
+    // the tokens in would be the overlay fading up into its own colours on boot.
+    applyTheme(DAYLIGHT, el);
     expect(el.dataset.swapping).toBeUndefined();
+
+    // A change is. One transition goes on everything for the duration, because a theme moves the
+    // same colour every control eases for its own hover: left alone they crossed at three different
+    // speeds, which reads as the window coming apart and going back together.
+    applyTheme(MIDNIGHT, el);
+    expect(el.dataset.swapping).toBe("");
+    expect(el.style.getPropertyValue("--theme-swap")).toBe(`${THEME_SWAP_MS}ms`);
+    expect(el.style.getPropertyValue("--bg")).toBe(MIDNIGHT.tokens.bg);
+
+    // It comes off only once the colours have arrived, or the fade is cut short.
+    vi.advanceTimersByTime(THEME_SWAP_MS - 1);
+    expect(el.dataset.swapping).toBe("");
+    vi.advanceTimersByTime(1);
+    expect(el.dataset.swapping).toBeUndefined();
+
+    // A second toggle inside the first one's window keeps its own full crossing: the timer that
+    // would have ended it belongs to a swap that is over.
+    applyTheme(DAYLIGHT, el);
+    vi.advanceTimersByTime(THEME_SWAP_MS - 1);
+    applyTheme(MIDNIGHT, el);
+    vi.advanceTimersByTime(THEME_SWAP_MS - 1);
+    expect(el.dataset.swapping).toBe("");
+    vi.advanceTimersByTime(1);
+    expect(el.dataset.swapping).toBeUndefined();
+    vi.useRealTimers();
   });
 });

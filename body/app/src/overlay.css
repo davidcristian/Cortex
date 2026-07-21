@@ -48,13 +48,24 @@
   box-sizing: border-box;
 }
 
-/* The one frame a theme is applied in (`theme/themes.ts` sets this, flushes, and clears it). Every
-   transition in the overlay is off for it, so the new tokens are adopted by everything at once
-   instead of each control crossing at whatever pace its hover happens to use. `!important` because
-   the point is to outrank every one of those declarations for that single frame, and there is no
-   other way to say "all of them" about a property each rule sets for its own reasons. */
+/* A theme crossing (`theme/themes.ts` sets this for the length of it and supplies the duration).
+   ONE transition, on everything, so the surface crosses as a surface: left to themselves, every
+   control eases the colour a theme moves at whatever pace its own hover uses, the text that sets a
+   colour and transitions nothing takes the new value at once, and the two lines that inherit the
+   ground's colour follow the ground. `!important` is the point rather than a shortcut: this has to
+   outrank every one of those declarations while it is set, and there is no other way to say "all of
+   them" about a property each rule sets for its own reasons.
+
+   The list is the properties a token can reach: text and icons (icons draw in `currentColor`,
+   but a `fill` or `stroke` set from a token is covered too), grounds, and hairlines. Not `opacity`,
+   which is how the reveals in here work and is nobody's theme. */
 [data-swapping] * {
-  transition: none !important;
+  transition:
+    color var(--theme-swap) var(--ease),
+    background-color var(--theme-swap) var(--ease),
+    border-color var(--theme-swap) var(--ease),
+    fill var(--theme-swap) var(--ease),
+    stroke var(--theme-swap) var(--ease) !important;
 }
 
 /* Scrollbars are resting chrome, so they read as a faint rail rather than a widget: no arrows, no
@@ -2005,9 +2016,13 @@
   border: 1px solid var(--stroke);
   border-radius: 16px;
 }
+/* The bell and the check are centred on the card rather than hung from its first line. They are
+   about the WHOLE reminder, not about the sentence's opening: the bell says a row is a reminder and
+   the check dismisses it, and a card is a line of text with a line of meta under it, so aligned to
+   the top they sat against the text while the row they belong to carried on below them. */
 .reminder {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 9px;
   padding: 8px 9px;
   border-radius: 12px;
@@ -2019,7 +2034,6 @@
 .reminder-mark {
   flex: none;
   display: flex;
-  margin-top: 1px;
   color: var(--muted);
 }
 .reminder-body {

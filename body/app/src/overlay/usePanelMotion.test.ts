@@ -964,17 +964,34 @@ describe("usePanelMotion", () => {
     expect(moves).toEqual([]);
   });
 
-  it("animates nothing while closed, but keeps measuring so a reopen comes back centred", () => {
+  it("animates nothing while closed, and does not move the panel it is closing either", () => {
     const { ref, state, moves, bottom } = harness();
     state.natural = 400;
+    // Never placed, so it takes the edge it would open at: that is what makes the first summon
+    // appear centred instead of sliding there.
     const { rerender } = renderHook(({ open }) => usePanelMotion(ref, open, "chat"), {
       initialProps: { open: false },
     });
+    expect(bottom()).toBe(300);
+
+    // Open, and grown to where a conversation and an open switcher put it.
+    state.playState = "finished";
     state.natural = 700;
-    rerender({ open: false });
-    expect(moves).toEqual([]);
-    // A dismissed panel comes back to the middle, not to wherever the last chat pushed it.
+    rerender({ open: true });
     expect(bottom()).toBe(150);
+
+    // Dismissed. The panel is scaled away from where the eye has it, so nothing about its geometry
+    // moves: written in the frame of the dismiss, the edge for the NEXT summon lands while the panel
+    // is still full size and fully opaque, which at 640x720 was the window dropping 78px and growing
+    // 58 in one frame before it began to shrink away.
+    state.natural = 400;
+    rerender({ open: false });
+    expect(bottom()).toBe(150);
+    // And the summon still comes back to the middle, which is where that edge was always for: the
+    // arrival window centres on what the panel arrives WITH, so the dismiss never had to.
+    rerender({ open: true });
+    expect(bottom()).toBe(300);
+    expect(moves).toEqual([]);
   });
 
   it("re-centres when the window itself is resized", () => {

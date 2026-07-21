@@ -123,27 +123,48 @@ export function toCssVars(theme: Theme): Record<string, string> {
   };
 }
 
+/** How long a theme takes to cross, and the only place the number lives: `applyTheme` writes it to
+ *  the root as `--theme-swap`, and `[data-swapping] *` in overlay.css is what reads it. A duration
+ *  declared in the stylesheet as well would be two numbers that have to agree, and the one holding
+ *  the attribute on has to outlast the one easing the colours or the fade is cut off mid-way. */
+export const THEME_SWAP_MS = 400;
+
+/** The swap in flight, so a second toggle inside the first one's window does not have the first
+ *  one's timer end its fade early. */
+let crossing: ReturnType<typeof setTimeout> | undefined;
+
 /**
  * Apply a theme to an element: write its CSS custom properties + the scheme dataset.
  *
- * IN ONE FRAME, which is the whole of what a token swap should look like and takes one more step
- * than writing the tokens. Every control in the overlay eases its own colour for its hover, and a
- * theme change moves that same colour, so each of them crossed at its own pace while the text beside
- * them, which sets a colour and transitions nothing, simply took the new value. Measured at 60Hz
- * with the session list up: the titles and previews changed in the frame of the click and the pin,
- * the pencil, the trash and the tab labels spent another nine to twenty crossing after them.
+ * The whole surface CROSSES TOGETHER, which takes one step more than writing the tokens. A theme
+ * moves the same `color` that every control eases for its own hover, so left alone each of them
+ * crossed at its own pace: measured at 60Hz with the session list up, the titles and previews took
+ * the new value in the frame of the click, the pin, the pencil, the trash and the tab labels spent
+ * another nine to twenty frames arriving, and the chat's title and the reminder lines, the only text
+ * in the panel that inherits the ground's colour rather than setting its own, followed a 0.4s ease
+ * on the ground itself. One swap at three speeds reads as the window coming apart and going back
+ * together.
  *
- * `data-swapping` turns every transition in the overlay off, and it is taken off again after a
- * forced style flush, so the new tokens have been read once with transitions disabled and nothing
- * has anything left to ease. The flush is the load-bearing line: without it the attribute goes on
- * and off inside one task, the browser coalesces the two, and every transition runs as before.
+ * So `data-swapping` puts ONE transition on everything for the length of the crossing, which is
+ * what makes it a crossing rather than each element's own idea of one. It goes on before the tokens
+ * so the rule is in the after-change style, which is the style a transition is started from, and it
+ * comes off on a timer rather than a style flush: taken off in the same task, there is nothing left
+ * to ease and the swap is instant.
+ *
+ * The FIRST application is not a crossing. Nothing is on screen to cross from, and the tokens
+ * arriving over 400ms would be the overlay fading up into its own colours on boot.
  */
 export function applyTheme(theme: Theme, root: HTMLElement): void {
-  root.dataset.swapping = "";
+  if (root.dataset.theme !== undefined) {
+    root.style.setProperty("--theme-swap", `${THEME_SWAP_MS}ms`);
+    root.dataset.swapping = "";
+    clearTimeout(crossing);
+    crossing = setTimeout(() => {
+      delete root.dataset.swapping;
+    }, THEME_SWAP_MS);
+  }
   for (const [name, value] of Object.entries(toCssVars(theme))) {
     root.style.setProperty(name, value);
   }
   root.dataset.theme = theme.scheme;
-  void root.offsetHeight;
-  delete root.dataset.swapping;
 }

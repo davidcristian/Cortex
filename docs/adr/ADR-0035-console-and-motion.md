@@ -1037,7 +1037,10 @@ and both amendments are the reason it is worth writing down.
    again: the panel holds 450 with its top edge on the 86px line for every frame of the roll and of
    the placement that follows it, in both directions.
 
-2. **A theme change happens in one frame.** `applyTheme` sets `data-swapping`, writes the tokens,
+2. **A theme change happens in one frame.** *Superseded the same day: it CROSSES, over 400ms, with
+   one transition on everything. The maintainer wanted the fade kept and the stragglers fixed, and turning
+   every transition off fixed the stragglers by removing the fade. See the addendum below.*
+   `applyTheme` sets `data-swapping`, writes the tokens,
    forces a style flush and clears it; `[data-swapping] *` turns every transition off. Without it
    the swap was a ragged 20 frames: the ground eased its own colour over 0.4s, most text sets a
    colour and transitions nothing so it changed in the frame of the click, and every control that
@@ -1069,3 +1072,36 @@ and both amendments are the reason it is worth writing down.
 5. **A keycap's height is floored with its width.** Both floors are what a glyph cap measures. Every
    cap in the hint strip was 15px or 17px tall depending only on whether its key happened to be
    drawn or written, so `Shift` and the return glyph beside it sat on different lines.
+
+## Addendum, 2026-07-21 (later): the theme crosses, and a dismiss does not move
+
+1. **A theme change is a crossing, not a snap.** The addendum above made every element take the new
+   tokens in one frame, which fixed the raggedness by removing the fade. The fade was wanted; only
+   the stragglers were not. So `data-swapping` now puts ONE transition on everything for the length
+   of the crossing (`THEME_SWAP_MS`, written to the root as `--theme-swap` so the stylesheet reads
+   the same number that holds the attribute on), instead of turning transitions off. Traced at 60Hz
+   afterwards: the ground, the chat title, the session titles, the times, the previews, the hint
+   strip and the pin all move together, frame for frame, on one curve.
+
+   Two details are load-bearing. The attribute goes on BEFORE the tokens, because a transition is
+   started from the after-change style, so the rule has to be in effect for the style that changes.
+   And it comes off on a timer rather than a style flush, which is the opposite of what the snap
+   needed: taken off in the same task there is nothing left to ease. The first application is not a
+   crossing, or the overlay fades up into its own colours on boot.
+
+2. **A dismiss is not a placement.** A closed panel re-centred itself so the next summon would start
+   in the middle. That write landed in the frame of the dismiss, with the panel still at full size
+   and fully opaque: traced at 640x720 with a conversation and the session list open, the window went
+   from 450 tall at a 184px edge to 508 tall at a 106px edge in one frame, and only then began to
+   shrink away. The panel now keeps the geometry it is standing in while it closes, and the summon
+   centres for itself, which is what the arrival window has always done (`arriving` is true for the
+   whole of it, and centring is one of the conditions it turns on). Re-measured: dismissing holds
+   184px for every frame of the close, and the summon after it lands dead centre.
+
+   A panel that has never been placed is the exception, since there is no geometry to keep, and the
+   summon frame itself no longer animates its geometry: the pop owns that arrival, and the edge it
+   arrives at is now genuinely new rather than one the dismiss left ready.
+
+3. **The bell and the check are centred on a reminder card**, not hung from its first line. They are
+   about the whole reminder rather than the sentence's opening, and a card is a line of text over a
+   line of meta.
