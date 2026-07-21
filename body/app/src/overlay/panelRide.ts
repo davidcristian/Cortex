@@ -2,7 +2,7 @@
 // the height while it rolls (`morph.ts`); this is the only thing the panel does about it.
 
 import { EASING, MIN_DELTA_PX, MORPHING_ATTRIBUTE, MORPH_ROLL_MS } from "./morph";
-import { centred, clamped, frame, maxHeight } from "./panelGeometry";
+import { centred, clamped, frame, maxHeight, openHeight } from "./panelGeometry";
 import { type Memory, heightOf, measure } from "./panelMemory";
 
 /** Slide the bottom edge to where the roll now running will leave it, over that same roll. */
@@ -21,13 +21,14 @@ export function rideAlong(
   memory.running = null;
   const natural = heightOf(element);
   const target = Number(section.getAttribute(MORPHING_ATTRIBUTE));
-  const height = Math.min(natural - heightOf(section) + target, maxHeight(viewport, memory.applied));
+  const raw = natural - heightOf(section) + target;
   if (arrival) {
-    const counted = section.classList.contains("aside") ? height - target : height;
-    memory.pinned = centred(viewport, counted);
+    const counted = section.classList.contains("aside") ? raw - target : raw;
+    memory.pinned = centred(viewport, Math.min(counted, openHeight(viewport)));
   }
   const bottom = clamped(memory.pinned);
   const ceiling = maxHeight(viewport, bottom);
+  const height = Math.min(raw, ceiling);
   const from = shown?.bottom ?? memory.applied;
   // Only a HEIGHT ease has to be carried. The other thing that can be in the air here is a slide of
   // the bottom edge alone (an earlier ride-along), which leaves the height to the section anyway.
