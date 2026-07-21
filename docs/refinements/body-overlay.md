@@ -18,9 +18,9 @@ is assumed rather than measured off the engine, and the two 6px cards spend thei
 it), the chat floor's frozen measurement of the empty state, a mid-stream retarget restarting
 from a rounded height, a Thoughts trace opening a reply off the bottom of a full history, the
 console tab strip's missing keyboard half, a new chat minted from the console leaving the
-console up, and the whisper's four follow-ups (a pickable voice row in the console, the wrap
-width a mid-stream resize cannot move, drain growth the panel's measured moves never see, and
-kerning inside the letter boxes under a changed font)
+console up, and the whisper's three follow-ups (a pickable voice row in the console, the wrap
+width a mid-stream resize cannot move, and kerning inside the letter boxes under a changed
+font; its drain-growth entry landed the same day it was filed)
 
 **Body / overlay in Slice 8 ([ADR-0011](../adr/ADR-0011-body-v1.md)):**
 - **Multi-turn-within-one-stream + an explicit proto `Cancel` event.** One turn per `Converse`
@@ -542,7 +542,14 @@ kerning inside the letter boxes under a changed font)
   floor, long ones scroll), and the tail pin rides the whisper's own `onGrow`. Trigger: the
   chat floor changing, or a between-render growth visibly outrunning the panel on some future
   layout. The fix is the panel hearing between-render growth the way it hears a roll
-  (`cortex:morphstart`'s lesson). Placed here 2026-07-21.
+  (`cortex:morphstart`'s lesson). Placed here 2026-07-21. **Landed 2026-07-21, the same day,
+  by exactly that fix**: the first live look found the panel's top edge snapping
+  backwards on every token of a reply past the chat floor (the same stale-measurement root,
+  seen from the other side), so the whisper bubble now carries `data-morphing` from its first
+  spoken letter to its settle and dispatches the contract's start and end events. Placements
+  defer for the length of the stream, the panel's auto height follows the box frame by frame
+  (the drain included), and the end event is the re-measure this entry asked for (ADR-0037
+  addendum has the before and after traces).
 - **Per-letter boxes give up kerning pairs.** A whispered message's letters are one box each
   inside an unbreakable word box (ADR-0037 decision 6), so kerning inside a word is lost while
   that message's DOM is on screen (it re-renders plain only when its chat is next loaded).

@@ -136,3 +136,35 @@ landed, so the box lurched by words and whole lines ahead of anything visible.
 - The drain can grow the bubble a few pixels after the turn's last render; the history's
   min-height floor hides it from the panel's measured moves today, and the tail pin rides
   `onGrow`. The panel learning about between-render growth is recorded as a refinement.
+
+## Addendum (2026-07-21): three fixes from the first live look
+
+The maintainer called two defects on the landed effect and his screenshot surfaced a third; all
+three landed in the slice that followed, with the mechanisms recorded so they are not
+relearned.
+
+1. **Letters are inline, never inline-block.** An inline-block letter is its own little box,
+   and the engine lays boxes on whole pixels, so every letter's advance was rounded and a
+   reply read as a ransom note, worst under Windows display scaling. Inline spans keep the
+   text's own sub-pixel advances, and opacity and blur are both fine on inline boxes. Kerning
+   pairs across letter boundaries stay lost either way (element boundaries split shaping
+   runs), so the licensed-face refinement stands unchanged.
+
+2. **The bubble announces its growth in the panel's own roll contract.** The panel replays its
+   geometry from a measurement taken at the last render (ADR-0033), which assumed content only
+   changes at renders; the whisper grows the bubble between them, so every token replayed the
+   panel from a stale height. Traced in headless Chromium at 660x1000 through one reply past
+   the chat floor: eight backward snaps of the top edge, up to 6.6px. The bubble now carries
+   `data-morphing` (holding the height it is easing to) from its first spoken letter to its
+   settle and dispatches the contract's start and end events (`overlay/morph.ts`), so
+   placements defer, the panel's auto height follows the box frame by frame, and the bottom
+   edge rides along when a landing line meets the ceiling. Re-traced after: zero reversals,
+   zero backward snaps. This also lands the "drain growth the panel's measured moves never
+   see" refinement filed above: deferral is exactly the panel hearing between-render growth,
+   and the end event is its re-measure.
+
+3. **The settle waits for the mist.** The drain sprints the front while the mist trails on its
+   own ease, and stopping the clock the instant the last letter cleared froze the glide
+   mid-line: the evaporation played a dozen letters short of the reply's end (the user's
+   screenshot has the smudge). The clock now runs a coda of a few frames until the blob is
+   within a pixel of the last word, then settles, so the reply ends where it says it does.

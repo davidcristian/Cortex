@@ -1,5 +1,6 @@
 import { type RefObject, useEffect, useRef, useState } from "react";
 
+import { MORPHING_ATTRIBUTE, MORPH_END_EVENT, MORPH_START_EVENT } from "../overlay/morph";
 import {
   BAND_LETTERS,
   type Front,
@@ -215,14 +216,30 @@ export function useWhisperClock(refs: WhisperRefs, facts: WhisperFacts): Whisper
       // mist); past the first wrap it is simply the final one. The height's target steps at a
       // wrap, and the easing is what turns that step into a curve.
       const lineOne = fy < m.padY + 5;
-      const done = draining && s.lo >= els.length;
+      const finished = draining && s.lo >= els.length;
       const tW = Math.max(
         m.breathW,
         lineOne ? Math.min(m.maxW, fx + m.padX + MIST_W + MIST_GAP * 2) : m.maxW,
       );
       const tH = Math.max(m.breathH, fy + m.line + m.padY);
-      s.w = done ? tW : approach(s.w, tW, dt, BOX_GAIN);
-      const h = done ? tH : approach(s.h, tH, dt, BOX_GAIN);
+      // The bubble owns its height for the length of the stream, and says so in the panel's own
+      // roll contract (`overlay/morph.ts`): placements defer while the attribute stands, so the
+      // panel's auto height follows the dev machine frame by frame instead of replaying it from a
+      // render-old measurement, which snapped the top edge backwards on every token of a reply
+      // that outgrew the chat floor (traced in headless Chromium at 660x1000: eight reversals of
+      // up to 6.6px in one reply; zero once the bubble announced its roll). The value is the
+      // height being eased to, which is what lets the panel take its bottom edge along when a
+      // landing line would push it past the ceiling.
+      const rolling = String(Math.round(tH));
+      if (bubble.getAttribute(MORPHING_ATTRIBUTE) !== rolling) {
+        const announced = bubble.hasAttribute(MORPHING_ATTRIBUTE);
+        bubble.setAttribute(MORPHING_ATTRIBUTE, rolling);
+        if (!announced) {
+          bubble.dispatchEvent(new CustomEvent(MORPH_START_EVENT, { bubbles: true }));
+        }
+      }
+      s.w = finished ? tW : approach(s.w, tW, dt, BOX_GAIN);
+      const h = finished ? tH : approach(s.h, tH, dt, BOX_GAIN);
       const grown = h - s.h;
       s.h = h;
       bubble.style.width = `${s.w.toFixed(1)}px`;
@@ -236,7 +253,14 @@ export function useWhisperClock(refs: WhisperRefs, facts: WhisperFacts): Whisper
       if (grown >= GROWTH_NOTICE_PX) {
         f.onGrow();
       }
-      if (done) {
+      // The settle waits for the mist. The drain sprints the front and the blob trails it on
+      // its own ease, so stopping the clock the instant the last letter cleared froze the glide
+      // mid-line and the evaporation played a dozen letters short of the reply's end (the user
+      // caught the smudge in a screenshot). This coda runs the loop the few frames it takes the
+      // mist to reach the last word, and the reply ends where it says it does.
+      if (finished && Math.abs(gx - s.mx) < 1 && Math.abs(gy - s.my) < 1) {
+        bubble.removeAttribute(MORPHING_ATTRIBUTE);
+        bubble.dispatchEvent(new CustomEvent(MORPH_END_EVENT, { bubbles: true }));
         setPhase("settled");
         return true;
       }
@@ -252,7 +276,15 @@ export function useWhisperClock(refs: WhisperRefs, facts: WhisperFacts): Whisper
         frame = requestAnimationFrame(step);
       }
     });
-    return () => cancelAnimationFrame(frame);
+    return () => {
+      cancelAnimationFrame(frame);
+      // A bubble unmounted mid-stream (a chat switch under a running turn) hands the height
+      // back explicitly, or the panel would keep deferring to a roll whose section is gone.
+      if (bubble.hasAttribute(MORPHING_ATTRIBUTE)) {
+        bubble.removeAttribute(MORPHING_ATTRIBUTE);
+        bubble.dispatchEvent(new CustomEvent(MORPH_END_EVENT, { bubbles: true }));
+      }
+    };
   }, [animated, bubbleRef, textRef, mistRef]);
 
   if (!animated) {
