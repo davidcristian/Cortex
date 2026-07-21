@@ -240,7 +240,7 @@ export function ChatView({
           <b className="key">
             <ReturnKey />
           </b>{" "}
-          newline
+          new line
         </span>
         <span>
           <b>Ctrl</b>
