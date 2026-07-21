@@ -1558,3 +1558,11 @@ the eye weighs the dome, so box-centring left the dome 2.5px above the letters, 
 above the target and the full ink box 1.17px below it, straddling the letters, which is where a
 bell wants to be. The check reaches the same line by a 3.5px lift, its hit area intact and simply
 overhanging the card's own top padding.
+
+The control aligns to the title by its TEXT, not by its pill. `open chat` draws no pill until it
+is hovered, so what the eye lines up against the title above it is the words, and box-aligned they
+read as indented by the pill's own inset. It is pulled left by exactly that inset (1px of border
+and 8px of padding), which puts its first glyph on the title's column, measured at 0.0px apart.
+The badges beside it are not pulled: their pills are always drawn, and a drawn pill aligns by its
+edge. On hover this one's pill grows into the gutter between the bell and the text, which holds
+nothing.

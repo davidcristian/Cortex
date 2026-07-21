@@ -2297,7 +2297,14 @@
    pointer. It does rest one step brighter than the row around it (`--muted` against the
    timestamp's `--dim`), which a browser pass settled: at the row's own weight it read as a
    third piece of metadata, and an action nobody can see before hovering it is not an action. */
+/* Pulled left by its own inset (1px of border and 8px of padding) so the TEXT starts on the
+   title's column rather than the pill's box doing. The pill is invisible until it is hovered, so
+   what the eye lines up against the title above is the words, and box-aligned they read as
+   indented. The badges beside it are not pulled: their pills are always drawn, and a drawn pill
+   aligns by its edge. On hover this one's pill grows into the gap it was pulled through, which
+   is the gutter between the bell and the text and holds nothing. */
 .reminder-open {
+  margin-left: -9px;
   padding: 0 8px 2px;
   border: 1px solid transparent;
   border-radius: 999px;
