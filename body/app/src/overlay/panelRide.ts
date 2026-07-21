@@ -81,8 +81,17 @@ export function rideAlong(
   const from = shown?.bottom ?? memory.applied;
   // Only a HEIGHT ease has to be carried. The other thing that can be in the air here is a slide of
   // the bottom edge alone (an earlier ride-along), which leaves the height to the section anyway.
+  //
+  // An ARRIVAL whose section outgrows the ceiling is the third case, and it carries the height
+  // on purpose rather than because something was interrupted. Left to `auto`, the panel follows
+  // the roll one-for-one until the cap bites, and the section's remaining growth then squeezes
+  // the chat under it: two phases inside one roll, the empty state holding its size and
+  // resizing only in the tail, which the maintainer caught on the summon. Driven from here to the
+  // predicted height over the roll's own clock and curve, the chat's window compresses in step
+  // with the stack growing, and everything arrives at the size it keeps.
+  const squeezed = arrival && raw > ceiling ? natural : null;
   const carried =
-    shown !== null && Math.abs(shown.height - natural) >= MIN_DELTA_PX ? shown.height : null;
+    shown !== null && Math.abs(shown.height - natural) >= MIN_DELTA_PX ? shown.height : squeezed;
   memory.carrying = carried === null ? null : height;
   memory.applied = bottom;
   element.style.bottom = `${Math.round(bottom)}px`;
