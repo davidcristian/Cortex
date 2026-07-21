@@ -30,10 +30,9 @@ export function rideAlong(
   const ceiling = maxHeight(viewport, bottom);
   const height = Math.min(raw, ceiling);
   const from = shown?.bottom ?? memory.applied;
-  // Only a HEIGHT ease has to be carried. The other thing that can be in the air here is a slide of
-  // the bottom edge alone (an earlier ride-along), which leaves the height to the section anyway.
+  const squeezed = arrival && raw > ceiling ? natural : null;
   const carried =
-    shown !== null && Math.abs(shown.height - natural) >= MIN_DELTA_PX ? shown.height : null;
+    shown !== null && Math.abs(shown.height - natural) >= MIN_DELTA_PX ? shown.height : squeezed;
   memory.carrying = carried === null ? null : height;
   memory.applied = bottom;
   element.style.bottom = `${Math.round(bottom)}px`;

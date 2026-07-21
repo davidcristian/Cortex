@@ -373,7 +373,7 @@ describe("usePanelMotion", () => {
 
   it("counts an arriving aside off the raw height, so the whole panel fits above the edge", () => {
     const tick = clock();
-    const { ref, element, state, moves, bottom } = harness();
+    const { ref, element, state, moves, durations, bottom } = harness();
     state.natural = 400;
     const { rerender } = renderHook(({ open }) => usePanelMotion(ref, open, "chat"), {
       initialProps: { open: false },
@@ -385,7 +385,10 @@ describe("usePanelMotion", () => {
     section.classList.add("aside");
     rerender({ open: true });
     expect(bottom()).toBe(300);
-    expect(moves).toHaveLength(0);
+    expect(moves).toEqual([
+      { from: { height: 400, bottom: 300 }, to: { height: 580, bottom: 300 } },
+    ]);
+    expect(durations).toEqual([300]);
   });
 
   it("centres a summon on what it arrives with, not on the height it had while shut", () => {
