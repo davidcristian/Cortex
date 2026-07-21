@@ -229,6 +229,11 @@
   background: transparent;
   border-color: transparent;
   backdrop-filter: none;
+  /* The rectangular shadow goes with the rectangular face: cast from the border box it traced
+     the ORIGINAL border behind the liquid (its negative spread gives it a defined inner rim,
+     plain on the light ground, and the maintainer read it as the old edge still standing). The
+     edge wrapper below casts the shadow instead, from the liquid silhouette itself. */
+  box-shadow: none;
   /* The edge wrapper bleeds past the border box so the liquid can swing OUTWARD around the
      panel's real edge; hidden overflow would slice that bleed off. The content clip this
      surrenders moves one level down, onto `.views`. */
@@ -248,6 +253,14 @@
 .edge {
   position: absolute;
   pointer-events: none;
+  /* The liquid's own shadow: a drop-shadow of the wrapper follows the clipped silhouette frame
+     by frame, where the panel's box-shadow could only ever trace the rectangle. It sits on the
+     WRAPPER rather than the slab because filters apply before clip-path on the same element,
+     which would cut the shadow off at the outline it is meant to fall from. Tuned against the
+     still panel's `0 34px 90px -26px` look rather than converted from it, since drop-shadow has
+     no spread. The filter also makes the wrapper one stacking context under `.views`, which is
+     fine: content never reaches the edge band, so nothing of the hairline's is ever covered. */
+  filter: drop-shadow(0 26px 34px rgba(0, 0, 0, 0.38));
 }
 .edge-glass,
 .edge-under,
@@ -255,6 +268,14 @@
   position: absolute;
   inset: 0;
   pointer-events: none;
+}
+/* An svg clips its painting to its own viewport by default, and the glow is a blurred stroke
+   that swings within a few px of that boundary: clipped, its haze ended in a straight seam at
+   the wrapper's rectangle, which read as one more ghost of the old border (worst on Trance,
+   whose ember is widest). Visible overflow lets the blur fade on its own terms. */
+.edge-under,
+.edge-over {
+  overflow: visible;
 }
 .edge-under,
 .edge-over {
