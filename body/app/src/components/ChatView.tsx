@@ -115,7 +115,11 @@ export function ChatView({
           onPin={onPinSession}
         />
       </Collapse>
-      <Collapse aside open={state.reminders.length > 0 && state.messages.length === 0}>
+      <Collapse
+        aside
+        key={state.sessionId}
+        open={state.reminders.length > 0 && state.messages.length === 0}
+      >
         <Reminders
           reminders={state.reminders}
           currentId={state.sessionId}

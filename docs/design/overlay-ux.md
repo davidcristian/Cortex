@@ -152,7 +152,10 @@ ground. One swap at three speeds reads as the window coming apart and going back
     in a single frame. **The roll says out loud that it has begun** (landed 2026-07-20), because
     not every section is one the panel re-renders with: the trace's open state belongs to its own
     message, so without that word the panel heard only the end of the roll, snapped back to the
-    height it remembered from before it, and made a second movement out of one.
+    height it remembered from before it, and made a second movement out of one. A chat change is
+    a content swap, not a section toggle: the reminder stack is keyed to its session, so a new
+    chat carries the stack in with the emptied panel's one movement instead of rolling it open
+    over the leaving conversation, which read as a jump (landed 2026-07-21).
   - **A warping bubble**. The orb's mark is a soap bubble whose outline warps on its own clock
     while the film turns under a fixed highlight; the anchor point holds rock still (no breathing
     scale, no positional drift, per 2026-07-03 user refinements), so it reads as alive without
