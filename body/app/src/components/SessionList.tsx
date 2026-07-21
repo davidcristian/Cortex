@@ -121,22 +121,22 @@ export function SessionList({
                 className={`switcher-item${session.sessionId === currentId ? " current" : ""}`}
                 onClick={() => onSelect(session.sessionId)}
               >
-                <span className="switcher-row">
-                  <span className="switcher-title">{session.title}</span>
-                  <span className="switcher-time">
-                    {relativeTime(session.lastActivityUnixMs, now)}
-                  </span>
-                </span>
+                <span className="switcher-title">{session.title}</span>
                 <span className="switcher-preview">{session.preview}</span>
               </button>
+              {/* Right to left: the time, then the pin, the pencil and the trash. The time is the
+                  one the eye goes to when it is skimming for a chat, so it takes the edge and the
+                  three controls sit inboard of it, in the order they escalate. It is outside the
+                  row's button because it is now on the far side of three buttons that are not, and
+                  a label is not a thing to click anyway; what selects the chat is the title, the
+                  preview and the space between them. */}
               <button
                 type="button"
-                className={`switcher-pin-btn${session.pinned ? " on" : ""}`}
-                aria-label={session.pinned ? `Unpin ${session.title}` : `Pin ${session.title}`}
-                aria-pressed={session.pinned}
-                onClick={() => onPin(session.sessionId, !session.pinned)}
+                className="switcher-delete-btn"
+                aria-label={`Delete ${session.title}`}
+                onClick={() => setConfirmingDeleteId(session.sessionId)}
               >
-                <PinIcon filled={session.pinned} />
+                <TrashIcon />
               </button>
               <button
                 type="button"
@@ -148,12 +148,16 @@ export function SessionList({
               </button>
               <button
                 type="button"
-                className="switcher-delete-btn"
-                aria-label={`Delete ${session.title}`}
-                onClick={() => setConfirmingDeleteId(session.sessionId)}
+                className={`switcher-pin-btn${session.pinned ? " on" : ""}`}
+                aria-label={session.pinned ? `Unpin ${session.title}` : `Pin ${session.title}`}
+                aria-pressed={session.pinned}
+                onClick={() => onPin(session.sessionId, !session.pinned)}
               >
-                <TrashIcon />
+                <PinIcon filled={session.pinned} />
               </button>
+              <span className="switcher-time">
+                {relativeTime(session.lastActivityUnixMs, now)}
+              </span>
             </li>
           );
         })

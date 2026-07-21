@@ -63,4 +63,25 @@ describe("themes", () => {
     expect(el.style.getPropertyValue("--spark")).toBe("#4FE3D0");
     expect(el.dataset.theme).toBe("light");
   });
+
+  it("swaps in one frame: transitions off, tokens written, style flushed, transitions back", () => {
+    const el = document.createElement("div");
+    const flushes: string[] = [];
+    // The forced style read is the load-bearing line. Without it the guard goes on and off inside
+    // one task, the browser never resolves style in between, and every control crosses the theme at
+    // whatever pace its own hover transition uses: measured at 60Hz, the text took the new colour in
+    // the frame of the click and the pin, pencil, trash and tab labels took another nine to twenty.
+    Object.defineProperty(el, "offsetHeight", {
+      configurable: true,
+      get: () => {
+        flushes.push(el.dataset.swapping === "" ? "guarded" : "unguarded");
+        return 0;
+      },
+    });
+    applyTheme(MIDNIGHT, el);
+    expect(flushes).toEqual(["guarded"]);
+    expect(el.style.getPropertyValue("--bg")).toBe(MIDNIGHT.tokens.bg);
+    // And nothing is left holding the overlay's transitions down afterwards.
+    expect(el.dataset.swapping).toBeUndefined();
+  });
 });

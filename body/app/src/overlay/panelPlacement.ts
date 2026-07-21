@@ -160,6 +160,14 @@ export function place(element: HTMLElement | null, memory: Memory, at: Placement
   // empty chat settled 82px below centre and scrolled, having capped itself at 520px where 604
   // would have fitted. Whole pixels throughout, so the numbers written to the DOM are the same ones
   // the arithmetic predicts against (`panelGeometry.maxHeight`).
+  // What the eye has RIGHT NOW, read before the measuring cap goes anywhere near the element. It is
+  // only needed after a roll, and it is needed then because the panel is already at the height the
+  // roll left it at: measured under the loose cap instead, a panel sitting at its 450px ceiling with
+  // the switcher open reads 547, and easing "from" 547 to 450 is a 97px jump to a top edge 11px off
+  // the screen followed by a slide back down. That was the overshoot the roll's own cap was fixed to
+  // stop, arriving one frame later by another route, and it was invisible before the ceiling learned
+  // to ride along in the keyframes, because the cap on the element was clamping the ease flat.
+  const onScreen = heightOf(element);
   const release = holdScroll(element);
   element.style.maxHeight = `${openHeight(viewport)}px`;
   const section = element.querySelector<HTMLElement>(`[${MORPHING_ATTRIBUTE}]`);
@@ -205,8 +213,11 @@ export function place(element: HTMLElement | null, memory: Memory, at: Placement
   // the panel carried an interrupted ease through: there the panel drove its own height to a
   // PREDICTED end, so the prediction is what is on screen, and anything that resized the panel while
   // the roll ran (a token landing mid-roll) is a residue to ease away rather than to snap.
+  //
+  // `onScreen` and not `height`: the two differ by whatever the measuring cap above just allowed,
+  // which after a roll that ended at the ceiling is the whole overshoot (see the read itself).
   const displayed = deferred
-    ? { height: carrying ?? height, bottom: was }
+    ? { height: carrying ?? onScreen, bottom: was }
     : (inFlight ?? memory.shown);
   const wanted = wantedBottom(memory, at, viewport, centringHeight(element, height));
   memory.pinned = wanted;

@@ -48,6 +48,15 @@
   box-sizing: border-box;
 }
 
+/* The one frame a theme is applied in (`theme/themes.ts` sets this, flushes, and clears it). Every
+   transition in the overlay is off for it, so the new tokens are adopted by everything at once
+   instead of each control crossing at whatever pace its hover happens to use. `!important` because
+   the point is to outrank every one of those declarations for that single frame, and there is no
+   other way to say "all of them" about a property each rule sets for its own reasons. */
+[data-swapping] * {
+  transition: none !important;
+}
+
 /* Scrollbars are resting chrome, so they read as a faint rail rather than a widget: no arrows, no
    track, no corner, a rounded thumb painted inside a transparent border so it is thinner than the
    rail it can be grabbed by and never sits against the text it scrolls. The colour is mixed out of
@@ -133,6 +142,17 @@
 }
 
 /* Opaque stage in v1 (a transparent window is deferred per design/overlay-ux.md §4). */
+/* A THEME CHANGE IS A TOKEN SWAP, and it happens in one frame (design/overlay-ux.md §1 says so in
+   as many words). There used to be a 0.4s ease on this ground's background and colour, and it was
+   the only thing in the overlay easing across a theme: the panel's own background carries no
+   transition, and nearly every piece of text in it sets its own colour and so simply took the new
+   value. What eased was the handful of things that INHERIT this colour, which is the chat's title
+   and the reminder lines and nothing else. Traced at 60Hz toggling the theme with the session list
+   up: the session titles, the times, the previews and the hint strip all changed in the frame of
+   the click, while the title and the reminders spent 14 frames crossing, so the two lines the eye
+   is most likely to be resting on were the two lagging behind. Fading everything instead would mean
+   overriding every hover transition in the file for the duration of the swap, and buys a flourish
+   nobody asked for on a control that is pressed to see a result. */
 .stage {
   position: fixed;
   inset: 0;
@@ -140,9 +160,6 @@
   color: var(--text);
   font-family: var(--font);
   overflow: hidden;
-  transition:
-    background 0.4s var(--ease),
-    color 0.4s var(--ease);
 }
 
 /* Sleek at rest: neutral glass, no gradient, a soft neutral shadow. Closed = scaled at center
@@ -1163,20 +1180,23 @@
   font-size: 11.5px;
   color: var(--dim);
 }
-/* Every keycap is at least as wide as the widest single key, so a row of them is a row of caps
-   rather than a row of different-sized labels. The floor is what a GLYPH cap measures, that being
-   the widest of the single keys and not by choice: an outline arrow is 13px of drawing against an
-   `N` at 8.2px and a `?` at 5.8px, so left to their own advance widths the six single keys came out
-   23, 20.2, 19.2 and 17.8 and no two columns of them lined up. The floor is a MINIMUM, so it costs
-   the named keys nothing: `Alt` is already 26.9 and `Ctrl` 31.6, and `Space` at 45.5 is the widest
-   thing here. A cap has to be a flex box for the floor to reach it (`min-width` does not apply to
-   an inline box), which is why the centring is here rather than only on the glyph caps below. */
+/* Every keycap is at least as big as the widest and tallest single key, so a row of them is a row
+   of caps rather than a row of different-sized labels. Both floors are what a GLYPH cap measures,
+   that being the largest of the single keys and not by choice: an outline arrow is 13px of drawing
+   against an `N` at 8.2px and a `?` at 5.8px, and it pads 2px where a letter pads 1. Left to
+   themselves the six single keys came out 23, 20.2, 19.2 and 17.8 wide, and every cap in the strip
+   was 15 or 17 tall depending only on whether its key happened to be drawn or written, which is why
+   `Shift` and the return glyph beside it sat on different lines. Both floors are MINIMUMS, so they
+   cost the named keys nothing: `Alt` is already 26.9 wide and `Ctrl` 31.6, and `Space` at 45.5 is
+   the widest thing here. A cap has to be a flex box for either to reach it (`min-width` does not
+   apply to an inline box), which is why the centring is here and not only on the glyph caps. */
 .hints b,
 .row-keys b {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   min-width: 23px;
+  min-height: 17px;
   color: var(--muted);
   font-weight: 500;
   background: var(--control);
@@ -1875,13 +1895,20 @@
   background: var(--panel);
   color: var(--text);
 }
-/* A pinned row's toggle stays visible and accented, doubling as the pin-state indicator. */
+/* A pinned row's toggle stays visible and LIT, doubling as the pin-state indicator: the unpinned
+   ones are muted and only ink-reveal on hover, so full text colour is the difference.
+   It asked for `var(--accent)` and never got it. That token is a gradient, a gradient is not a
+   colour, and a declaration that fails to compute is not dropped but set to `unset`, which for an
+   inherited property means `inherit`. So this pin has always taken the ground's text colour, which
+   is what it is asked for now in as many words. Being inherited was visible, not academic: the
+   ground eased its colour across a theme change while this button ran its own 0.16s ease chasing
+   it, and the two together sent the pin from the old text colour up past the new one and back down
+   again. Traced at 60Hz toggling the theme: 25 to 242 over eleven frames, then 165 in the next. */
 .switcher-pin-btn.on {
   opacity: 1;
-  color: var(--accent);
+  color: var(--text);
 }
 .switcher-li.pinned {
-  border-left: 2px solid var(--accent);
   border-radius: 12px;
 }
 /* The per-row "are you sure": a destructive write never fires on a single click, so the trash
@@ -1925,21 +1952,22 @@
 .switcher-confirm-no:hover {
   color: var(--text);
 }
-.switcher-row {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-}
 .switcher-title {
-  flex: 1;
+  display: block;
   font-size: 13.5px;
   font-weight: 500;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
+/* The row's other end. The title stands 11px inside the row's left edge (the item's own padding),
+   so the time stands 11px inside its right edge and the two read as one pair of margins rather than
+   as a label that happens to be near the corner. `center` because the row is stretch-aligned for
+   the buttons, and a stretched label would sit against the top of a two-line row. */
 .switcher-time {
   flex: none;
+  align-self: center;
+  padding-right: 11px;
   font-size: 11.5px;
   color: var(--muted);
 }

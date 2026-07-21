@@ -29,6 +29,11 @@ function harness() {
     /** Where a running slide has got to, when a test wants to interrupt one mid-flight. */
     displayedBottom: null as number | null,
     playState: "running" as AnimationPlayState,
+    /** Model what `max-height` does to the panel's `auto` height. Off by default, because most of
+     *  these tests are about the arithmetic and want to state a height and get it back; on for the
+     *  one defect that lives entirely in the gap between the height a cap allows and the height the
+     *  panel is actually standing at. */
+    capped: false,
   };
   const moves: Move[] = [];
   /** The keyframes exactly as handed to the engine, for the properties `Move` does not model. */
@@ -42,7 +47,11 @@ function harness() {
   // Only a LIVE animation overrides the box: one that has finished without a fill has handed the
   // element back to its own layout, even though the hook is still holding on to it.
   const live = () => running && state.playState === "running";
-  const height = () => (live() && animatesHeight ? state.displayed : state.natural);
+  const ceiling = () => Number.parseFloat(element.style.maxHeight || "");
+  const height = () => {
+    const own = live() && animatesHeight ? state.displayed : state.natural;
+    return state.capped && !Number.isNaN(ceiling()) ? Math.min(own, ceiling()) : own;
+  };
   // The hook reads the HEIGHT off `offsetHeight` and only the bottom edge off the rect, because the
   // rect is measured after the panel's summon transform and the layout box is not.
   Object.defineProperty(element, "offsetHeight", { get: height });
@@ -561,6 +570,32 @@ describe("usePanelMotion", () => {
     // And on every render inside the same roll, since each one writes the measuring cap first.
     rerender();
     expect(element.style.maxHeight).toBe("580px");
+  });
+
+  it("ends a roll from the height on screen, not from the one the measuring cap allows", () => {
+    const { ref, element, state, moves, bottom } = harness();
+    state.capped = true;
+    state.natural = 400;
+    const { rerender } = renderHook(() => usePanelMotion(ref, true, "chat"));
+    expect(bottom()).toBe(300);
+    state.playState = "finished";
+
+    // A section rolls open to more than there is room for: 400 less nothing plus 190 is 590, and the
+    // panel may only be 580 tall from the edge it sits on, so the roll ends ON the ceiling.
+    const section = rolling(element, 190, 0);
+    state.natural = 590;
+    rerender();
+    expect(element.style.maxHeight).toBe("580px");
+    expect(moves).toEqual([]);
+
+    // The roll ends and the panel is already where it is going, so there is nothing left to animate.
+    // Read under the measuring cap instead of off the screen it reads 590, and the panel eases 590
+    // to 580: traced at 640x720, a 97px jump to a top edge 11px off the screen and a slide back
+    // down, one frame after a roll that had just held the ceiling perfectly for its whole length.
+    section.removeAttribute("data-morphing");
+    element.dispatchEvent(new CustomEvent("cortex:morphend", { bubbles: true }));
+    expect(moves).toEqual([]);
+    expect(bottom()).toBe(300);
   });
 
   it("hands back a scroll position that its own measurement clamped", () => {
