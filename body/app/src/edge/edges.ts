@@ -35,7 +35,7 @@ export interface EdgeStyle {
 export const STILL: EdgeStyle = {
   name: "still",
   label: "Still",
-  note: "Crisp glass, holding perfectly still",
+  note: "Wide awake, the glass holding its edge exactly",
   waves: [],
   edgeShare: 0,
   depthBoost: 0,
@@ -46,7 +46,7 @@ export const STILL: EdgeStyle = {
 export const LUCID: EdgeStyle = {
   name: "lucid",
   label: "Lucid",
-  note: "The glass goes liquid; the color stays strict",
+  note: "Dreaming clearly, liquid in shape and strict about colour",
   waves: [
     { waves: 2, amplitude: 2.7, periodSeconds: 20.3, direction: 1, phase: 0.9 },
     { waves: 3, amplitude: 1.95, periodSeconds: 13.4, direction: -1, phase: 2.2 },
@@ -65,7 +65,7 @@ export const REVERIE: EdgeStyle = {
   ...LUCID,
   name: "reverie",
   label: "Reverie",
-  note: "Liquid, with a smolder that takes the accent while it works",
+  note: "Adrift, with a glow that catches the accent while it works",
   glow: "settled",
 };
 
@@ -73,7 +73,7 @@ export const REVERIE: EdgeStyle = {
 export const TRANCE: EdgeStyle = {
   name: "trance",
   label: "Trance",
-  note: "Deeper liquid, and the ember never quite goes out",
+  note: "Deeper under, where the ember never quite goes out",
   waves: [
     { waves: 2, amplitude: 2.6, periodSeconds: 15.0, direction: 1, phase: 0.6 },
     { waves: 3, amplitude: 2.0, periodSeconds: 10.0, direction: -1, phase: 2.8 },

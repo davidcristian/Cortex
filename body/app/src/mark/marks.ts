@@ -1,3 +1,6 @@
+// The overlay's activity mark, as a registry: a style is a named set of bubble parameters, and
+// adding one to `MARKS` makes it selectable. The geometry is in `bubble.ts`; this file is only the
+// numbers. `name` is the key the stored preference holds.
 
 import type { Envelope, Harmonic, Lobe, Orbit } from "./bubble";
 
@@ -17,8 +20,7 @@ function wave(
 }
 
 /** The parameters that make one bubble style. The film is the eight-hue palette, stroked thickly
- *  just inside the rim (where a real film thins and colors) and rotated; the inner band is a
- *  second, slower, opposed pass that keeps the interior from looking flat. */
+ *  just inside the rim and rotated; the inner band is a second, slower, opposite pass. */
 export interface MarkStyle {
   readonly name: string;
   /** How the style is named in the picker. */
@@ -37,7 +39,7 @@ export interface MarkStyle {
 export const MULL: MarkStyle = {
   name: "mull",
   label: "Mull",
-  note: "Two slow modes turn the outline over, never settling",
+  note: "Two slow modes roll the outline over, settling on nothing",
   filmPeriodSeconds: 26,
   innerFilmPeriodSeconds: 40,
   innerFilmOpacity: 0.25,
@@ -61,7 +63,7 @@ export const MULL: MarkStyle = {
 export const MUSE: MarkStyle = {
   name: "muse",
   label: "Muse",
-  note: "The outline keeps its calm; the film drifts beneath it",
+  note: "A surface holding its calm, with the film adrift far beneath it",
   filmPeriodSeconds: 15,
   innerFilmPeriodSeconds: 24,
   innerFilmOpacity: 0.55,
@@ -81,7 +83,7 @@ export const MUSE: MarkStyle = {
 export const HUNCH: MarkStyle = {
   name: "hunch",
   label: "Hunch",
-  note: "A ripple strikes the rim every few seconds, then fades",
+  note: "Still, until an idea strikes the rim and rings away",
   filmPeriodSeconds: 30,
   innerFilmPeriodSeconds: 44,
   innerFilmOpacity: 0.25,
@@ -97,14 +99,12 @@ export const HUNCH: MarkStyle = {
   ],
 };
 
-/**
- * A cluster: two small lobes surface behind the big one, off axis so it never reads as a face.
- * Smallest first, so the big bubble draws over them and they read as clustered, not stuck on.
- */
+/** A cluster: two small lobes sit behind the big one, off axis so it never reads as a face, and
+ *  smallest first so the big one draws over them. They are the only lobes here that swing. */
 export const TANGENT: MarkStyle = {
   name: "tangent",
   label: "Tangent",
-  note: "Two side thoughts swing on slow arcs around the main one",
+  note: "Two side thoughts circling the one in the middle, never leaving it",
   filmPeriodSeconds: 28,
   innerFilmPeriodSeconds: 40,
   innerFilmOpacity: 0.25,
@@ -137,8 +137,8 @@ export const TANGENT: MarkStyle = {
 /** The registry is plug-and-play: add a `MarkStyle` here and it becomes pickable. */
 export const MARKS: readonly MarkStyle[] = [MULL, MUSE, HUNCH, TANGENT];
 
-/** The keys the four styles first shipped under, kept resolving so a preference stored before
- *  the healing still lands on the style it named. New writes always use the current keys. */
+/** The keys the four styles first shipped under, still resolved so a preference stored before
+ *  the rename reaches the style it named. New writes always use the current keys. */
 const LEGACY_NAMES: Record<string, string> = {
   wobble: "mull",
   sheen: "muse",
@@ -146,8 +146,8 @@ const LEGACY_NAMES: Record<string, string> = {
   foam: "tangent",
 };
 
-/** Resolve the active mark: a known name wins, a legacy name resolves to what it became, and
- *  anything else falls back to the default. */
+/** Resolve the active mark: a known name is used as is, an old name resolves to what it became,
+ *  and anything else falls back to the default. */
 export function resolveMark(preference: string | null): MarkStyle {
   if (preference !== null) {
     const name = LEGACY_NAMES[preference] ?? preference;
