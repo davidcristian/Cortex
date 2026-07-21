@@ -94,3 +94,23 @@ centre. The tile now reads **Orbit**, with a note that says what swings.
 renaming it would not rename anything, it would drop the choice of every user who had picked this
 style and hand them the default back on the next start. The label is what the maintainer reads and the
 name is what the record holds, and this is the one style where they differ.
+
+## Addendum (2026-07-21): the styles are named as movements of thought
+
+The tiles now read **Mull** (was Wobble), **Muse** (was Sheen), **Hunch** (was Ping) and
+**Tangent** (was Orbit). The mark exists to say "still thinking", so its styles are ways a mind
+moves, and each label names the motion it fronts: Mull turns the outline over without settling,
+Muse keeps a calm surface over a drifting film, Hunch is the sudden ripple that strikes the rim
+and fades, Tangent's side lobes swing on arcs around the main one without ever leaving it.
+
+The scheme is the point, not just the words. Naming here is a designed system with the same craft
+as the visuals, which the maintainer made standing policy when he approved this set: one word per
+style, distinct first letters, one metaphor for the whole family, and the family chosen to mean
+something (a picker for the thinking signal should ask "how does it think?"). Sibling registries
+speak sibling languages rather than sharing words, so no mark name collides with a theme name or
+any other pickable family.
+
+Every `MarkStyle.name` is now a frozen key that differs from its label (`wobble`, `sheen`,
+`ping`, `foam`): the reasoning of the 2026-07-20 addendum holds for all four, and its closing
+line ("the one style where they differ") is superseded here. Labels, notes and comments changed;
+no key, number or behaviour did.

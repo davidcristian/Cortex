@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-import { MARKS, ORBIT_MARK, WOBBLE } from "../mark/marks";
+import { MARKS, TANGENT, MULL } from "../mark/marks";
 import { THEMES, resolveTheme } from "../theme/themes";
 import { AppearanceTab } from "./AppearanceTab";
 
@@ -23,7 +23,7 @@ function renderTab(
   return render(
     <AppearanceTab
       themeName={over.themeName === undefined ? null : over.themeName}
-      mark={WOBBLE}
+      mark={MULL}
       animated={false}
       onPickTheme={over.onPickTheme ?? vi.fn()}
       onPickMark={over.onPickMark ?? vi.fn()}
@@ -99,13 +99,13 @@ describe("AppearanceTab", () => {
     );
     expect(outlines.size).toBe(MARKS.length);
     expect([...marks].every((mark) => mark.getAttribute("width") === "40")).toBe(true);
-    fireEvent.click(screen.getByRole("radio", { name: "Orbit" }));
-    expect(onPickMark).toHaveBeenCalledWith(ORBIT_MARK.name);
+    fireEvent.click(screen.getByRole("radio", { name: "Tangent" }));
+    expect(onPickMark).toHaveBeenCalledWith(TANGENT.name);
   });
 
   it("says what the chosen mark does, under the row it was chosen from", () => {
     renderTab();
-    expect(screen.getByRole("radio", { name: "Wobble" })).toHaveAttribute("aria-checked", "true");
-    expect(screen.getByText(WOBBLE.note)).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: "Mull" })).toHaveAttribute("aria-checked", "true");
+    expect(screen.getByText(MULL.note)).toBeInTheDocument();
   });
 });
