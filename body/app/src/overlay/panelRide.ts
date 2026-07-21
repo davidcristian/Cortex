@@ -2,7 +2,7 @@
 // the height while it rolls (`morph.ts`); this is the only thing the panel does about it.
 
 import { EASING, MIN_DELTA_PX, MORPHING_ATTRIBUTE, MORPH_ROLL_MS } from "./morph";
-import { centred, clamped, frame, maxHeight } from "./panelGeometry";
+import { centred, clamped, frame, maxHeight, openHeight } from "./panelGeometry";
 import { type Memory, heightOf, measure } from "./panelMemory";
 
 /**
@@ -49,7 +49,7 @@ export function rideAlong(
   memory.running = null;
   const natural = heightOf(element);
   const target = Number(section.getAttribute(MORPHING_ATTRIBUTE));
-  const height = Math.min(natural - heightOf(section) + target, maxHeight(viewport, memory.applied));
+  const raw = natural - heightOf(section) + target;
   if (arrival) {
     // The summon is still landing, so this roll is part of the panel appearing rather than growth
     // after the fact: it ends centred on the height it is taking the panel to, and that is the edge
@@ -59,11 +59,25 @@ export function rideAlong(
     // of an ordinary placement. The reminder stack is the one that rolls in behind a summon, and
     // centring on it is what put the conversation wherever the day's reminders left it: measured at
     // 900px with three cards up, the chat sat 26px below its own centre.
-    const counted = section.classList.contains("aside") ? height - target : height;
-    memory.pinned = centred(viewport, counted);
+    //
+    // Counted off the RAW prediction, never a clamped one. Subtracting the aside from a height
+    // the OLD edge's ceiling had already eaten centred the chat on the remainder, pinned an edge
+    // the whole panel could not fit above, and the cap written for that edge then squeezed the
+    // chat under the rolling stack until the placement after the roll undid it: traced at 760px
+    // with the demo's reminders, the history lost 119px over the roll and a second 40px ease
+    // gave it back, the two-beat arrival the maintainer caught. The bound is `openHeight`, the same
+    // loose cap an ordinary placement measures under, so the two agree on the edge and that
+    // second placement finds nothing left to move.
+    const counted = section.classList.contains("aside") ? raw - target : raw;
+    memory.pinned = centred(viewport, Math.min(counted, openHeight(viewport)));
   }
   const bottom = clamped(memory.pinned);
   const ceiling = maxHeight(viewport, bottom);
+  // The height this roll leaves the panel at, under the ceiling of the edge it now stands on: a
+  // prediction the panel cannot reach places it for a height it will never have (see the trace
+  // in the doc comment above). Outside an arrival the pinned edge is the applied one, so this is
+  // the same cap it always was.
+  const height = Math.min(raw, ceiling);
   const from = shown?.bottom ?? memory.applied;
   // Only a HEIGHT ease has to be carried. The other thing that can be in the air here is a slide of
   // the bottom edge alone (an earlier ride-along), which leaves the height to the section anyway.
