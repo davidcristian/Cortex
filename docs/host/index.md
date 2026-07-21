@@ -282,7 +282,7 @@ refinements keep landed entries in place as the historical record of what a defe
 because their text often corrects its own ADR. A user check produces a *measurement*, whose home
 is the ADR and the runbook, so this directory shrinks toward empty rather than accumulating.
 
-Emptiness here is load-bearing: the ROADMAP gates the user-facing README on every slice, this
+Emptiness here is load-bearing: the ROADMAP's finish line requires every slice, this
 directory, and the refinements backlog all being clear.
 
 ## Decisions awaiting the user

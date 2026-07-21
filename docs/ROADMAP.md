@@ -420,44 +420,26 @@ User *decisions* stay at their ADRs and are listed on that index rather than cop
 decision keeps one home. References elsewhere in this repo to a slice status's "host-only half",
 "Host-Windows", or "host half (user)" resolve through this pointer.
 
-## Ship the user-facing README (the very last step)
+## The finish line (the very last step)
 
-**Status:** planned. This is the terminal action, gated on **every slice above, the entire
+**Status:** open. The terminal marker, crossed only when **every slice above, the entire
 deferred-refinements backlog ([refinements/](refinements/index.md)), and the host-side work
-([host/](host/index.md)) all being cleared**. The three are different kinds of "not done":
-a slice is unbuilt, a refinement is built-around, a host item is built but unrun. The
-README describes the *finished* system, so it lands only once none of the three has anything
-left; writing it earlier would advertise capabilities that aren't real yet.
+([host/](host/index.md)) are all cleared**. The three are different kinds of "not done":
+a slice is unbuilt, a refinement is built-around, a host item is built but unrun. Nothing
+may call the system finished while any of the three holds an open item.
 
-Until now every doc is engineer-facing (AGENTS.md, ADRs, module contracts, runbooks). There
-is deliberately **no root `README.md`**. This final step writes the one document that *sells*
-the project to a human skimming the repo (a reviewer, a recruiter, a curious visitor). It is
-a presentation deliverable, not a slice: it proves no gate and ships no feature, but it makes
-the finished work legible and impressive at a glance.
+The root [README.md](../README.md) is the repo's product face: the logo and pitch, the
+feature grid, captures of the overlay in action, the model lineup with the hardware it is
+tuned to, and the quickstart. It speaks to a human deciding whether to care, so it reads in
+the present tense and carries no engineering process; the deeper truth stays in the
+engineer-facing docs it links. It is kept current as behavior lands: a change that alters
+what a stranger would see or run updates the README in the same change, re-taking the
+captures under [assets/](assets/) when the overlay's face changes. Crossing the finish line
+means reading it once more against the running system and finding nothing to correct.
 
-It should:
-
-- **Lead with the logo** ([assets/logo.jpg](assets/logo.jpg), cropped from the source) and a
-  one-line elevator pitch: a personal, local-first AI assistant. A host-native Rust/Tauri
-  **body** (global hotkey, overlay, OS actions) talking over gRPC to a dockerized Python
-  **brain** (local llama.cpp inference, memory, tools, subagents) with a live **model-swap**
-  rule.
-- **Sell the engineering**, not just the feature list. The things a resume reviewer notices:
-  hexagonal architecture across a polyglot seam, ports-before-adapters with contract tests,
-  **100% line+branch coverage in both toolchains**, the one hard rule (state survives a model
-  swap) designed in from day one, doc-first Definition of Done, GPU-first resource governance
-  under a VRAM budget.
-- **Show, don't tell:** a short overlay demo (GIF/screenshots of the hotkey → overlay →
-  streamed reply), and a small architecture diagram (or a link to
-  [ARCHITECTURE.md](ARCHITECTURE.md)).
-- **Quickstart** that actually works end to end (`just up-gpu`, the hotkey, a first turn), the
-  tech stack + three model tiers + the 24 GB GPU budget, and pointers into the deeper docs
-  ([index](index.md), the ADRs, this roadmap).
-- Read as a **finished product**, in the present tense, with no "planned"/"TODO" sections.
-
-**Gate proven:** none. This is the presentation layer over a complete system. It is done when
-a stranger can understand what Cortex is, why it is built the way it is, and how to run it, in
-under a minute of skimming.
+References elsewhere in this repo to shipping "the user-facing README" resolve through this
+section: the README ships with the repo, and the emptiness those references gate on is this
+finish line.
 
 ## Assumptions & risks to confirm (Phase 0)
 
