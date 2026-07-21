@@ -146,7 +146,8 @@ export function place(element: HTMLElement | null, memory: Memory, at: Placement
   if (element === null) {
     return;
   }
-  if (at.open && !memory.open) {
+  const summoned = at.open && !memory.open;
+  if (summoned) {
     // A summon: the panel is arriving, and owns its own geometry for as long as that takes.
     memory.arrived = Date.now();
   }
@@ -221,7 +222,19 @@ export function place(element: HTMLElement | null, memory: Memory, at: Placement
     : (inFlight ?? memory.shown);
   const wanted = wantedBottom(memory, at, viewport, centringHeight(element, height));
   memory.pinned = wanted;
-  const bottom = clamped(wanted);
+  // A CLOSING PANEL IS NOT MOVED. It is about to be scaled away from where the eye last had it, and
+  // the edge worked out above is for the summon that follows, which centres for itself anyway
+  // (`arriving` covers the whole of that arrival). Written while it closes instead, it lands in the
+  // frame of the dismiss, with the panel still at full size and fully opaque: traced at 60Hz at
+  // 640x720 with a conversation and the session list up, the panel went from 450 tall at a 184px
+  // edge to 508 tall at a 106px edge in one frame, and only then began to shrink away. A dismiss is
+  // not a placement, and the panel keeps the geometry it is standing in for the length of it.
+  //
+  // A panel that has never been placed is the exception, and it is why this is not simply `at.open`:
+  // there is no geometry to keep, so it takes the one it would open at, which is what makes the very
+  // first summon appear centred rather than sliding there.
+  const placed = at.open || memory.shown === null;
+  const bottom = placed ? clamped(wanted) : memory.applied;
   const ceiling = maxHeight(viewport, bottom);
   element.style.maxHeight = `${ceiling}px`;
   // Re-read: the real cap may have shortened the panel, and everything below animates to what the
@@ -231,9 +244,12 @@ export function place(element: HTMLElement | null, memory: Memory, at: Placement
   memory.applied = bottom;
   element.style.bottom = `${Math.round(bottom)}px`;
   memory.shown = next;
-  if (!at.open || displayed === null || settled(displayed, next)) {
-    // Closed, first measurement, or nothing moved: keep the geometry for next time, animate
-    // nothing. Measuring while closed is what lets a reopen animate from a real height.
+  if (!at.open || summoned || displayed === null || settled(displayed, next)) {
+    // Closed, arriving, first measurement, or nothing moved: keep the geometry for next time,
+    // animate nothing. Measuring while closed is what lets a reopen animate from a real height.
+    // The SUMMON is on that list because the panel is not travelling to where it is opening: the
+    // pop owns that arrival, and with the close no longer re-centring, the geometry it arrives at
+    // is genuinely new rather than the one the dismiss left ready.
     element.removeAttribute(RESIZING_ATTRIBUTE);
     return;
   }

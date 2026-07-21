@@ -8,15 +8,18 @@ shell** is host-validated on Windows, like the brain's real adapters.
 
 Two halves meet at one seam. That seam is the typed `BrainBridge` port:
 
-- **A theme change lands in one frame.** `applyTheme` sets `data-swapping` on the root, writes the
-  tokens, forces a style flush and clears it, and `[data-swapping] *` suppresses every transition for
-  that flush. The forced read is the load-bearing line: without it the attribute goes on and off
-  inside one task and the browser never resolves style in between, so nothing is suppressed. It
-  exists because a theme moves the same `color` that every control eases for its hover: the swap was
-  a ragged 20 frames, most text taking the new value at once and the pin, pencil, trash and tab
-  labels crossing at 0.16s to 0.35s behind it, with the chat title and the reminder lines (the two
-  things that INHERIT the ground's colour instead of setting their own) following a 0.4s ease on the
-  ground itself, which is gone. Anything that wants to animate a theme change has to do it here.
+- **A theme change crosses the whole surface together.** `applyTheme` sets `data-swapping` on the
+  root for `THEME_SWAP_MS`, and `[data-swapping] *` puts ONE transition (colour, background, border,
+  fill, stroke) on everything for that window. It exists because a theme moves the same `color` every
+  control eases for its own hover: left alone the swap was a ragged 20 frames, most text taking the
+  new value at once, the pin, pencil, trash and tab labels crossing at 0.16s to 0.35s behind it, and
+  the chat title and the reminder lines (the two things that INHERIT the ground's colour instead of
+  setting their own) following a 0.4s ease on the ground. Two things are load-bearing: the attribute
+  goes on BEFORE the tokens, since a transition is started from the after-change style, and it comes
+  off on a timer rather than a flush, since taking it off in the same task leaves nothing to ease.
+  The duration lives in `THEME_SWAP_MS` and is written to the root as `--theme-swap` for the
+  stylesheet to read, so the number holding the attribute on cannot drift from the number easing the
+  colours. The first application is not a crossing: there is nothing to cross from.
 - **A gradient is not a colour.** `--accent` is a `linear-gradient`, so `color: var(--accent)` and
   `border: 1px solid var(--accent)` do not compute, and a declaration invalid at computed-value time
   is set to `unset`, which for `color` means `inherit` and for a border shorthand means no border.
