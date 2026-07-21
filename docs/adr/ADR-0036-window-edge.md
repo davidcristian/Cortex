@@ -46,10 +46,14 @@ re-rasterized every frame or it goes soft.
    without ever leaving the wrapper. The panel's geometry, growth and travel machinery
    (ADR-0033, ADR-0034, ADR-0035) still never learns the edge exists; what moves is the clip: a
    liquid panel goes `overflow: visible` and hands the content clip to the views box (same box,
-   same radius), which keeps the growth reveal, and the box-shadow stays the panel's own, now
-   sitting exactly on the neutral line. The first cut inset the whole liquid by the reach
-   instead, to spare even the clip a change, and the maintainer caught it on sight: on the light
-   ground it read as a window that had shrunk.
+   same radius), which keeps the growth reveal. The shadow moves too: cast from the border box
+   it traced the original rectangle behind the liquid (worst on the light ground, where the
+   maintainer read it as the old border still standing), so a liquid panel drops its box-shadow and
+   the edge wrapper carries a `drop-shadow` filter instead, which falls from the clipped
+   silhouette itself, frame by frame; the glow svgs overflow visibly for the same reason, or
+   their blur seams at the wrapper's rectangle. The first cut inset the whole liquid by the
+   reach instead, to spare even the clip a change, and the maintainer caught it on sight: it read as
+   a window that had shrunk.
 
 6. **The words never ride the warping layer.** The animated clip is applied to a background-only
    glass slab under the content; the content column sits above it, un-clipped and never

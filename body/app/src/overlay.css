@@ -111,6 +111,7 @@
   background: transparent;
   border-color: transparent;
   backdrop-filter: none;
+  box-shadow: none;
   /* The edge wrapper bleeds past the border box so the liquid can swing OUTWARD around the
      panel's real edge; hidden overflow would slice that bleed off. The content clip this
      surrenders moves one level down, onto `.views`. */
@@ -126,6 +127,7 @@
 .edge {
   position: absolute;
   pointer-events: none;
+  filter: drop-shadow(0 26px 34px rgba(0, 0, 0, 0.38));
 }
 .edge-glass,
 .edge-under,
@@ -133,6 +135,10 @@
   position: absolute;
   inset: 0;
   pointer-events: none;
+}
+.edge-under,
+.edge-over {
+  overflow: visible;
 }
 .edge-under,
 .edge-over {
