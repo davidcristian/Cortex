@@ -1,6 +1,7 @@
 import { type MouseEvent, useEffect } from "react";
 
 import type { BrainBridge } from "../bridge/types";
+import { resolveEdge } from "../edge/edges";
 import { resolveMark } from "../mark/marks";
 import { ACTIVATE_EVENT, takePendingActivation } from "../overlay/activation";
 import { useOverlay } from "../overlay/useOverlay";
@@ -22,9 +23,10 @@ interface AppProps {
  *  host activation to the overlay controller. */
 export function App({ bridge, newSessionId }: AppProps) {
   const controller = useOverlay(bridge, newSessionId);
-  const { appearance, setTheme, setMark } = usePreferences(bridge);
+  const { appearance, setTheme, setMark, setWindow } = usePreferences(bridge);
   const theme = resolveTheme(appearance.theme, systemPrefersDark());
   const mark = resolveMark(appearance.mark);
+  const edge = resolveEdge(appearance.window);
 
   useEffect(() => {
     applyTheme(theme, document.documentElement);
@@ -67,8 +69,10 @@ export function App({ bridge, newSessionId }: AppProps) {
         dark={theme.scheme === "dark"}
         themeName={appearance.theme}
         mark={mark}
+        edge={edge}
         onPickTheme={setTheme}
         onPickMark={setMark}
+        onPickEdge={setWindow}
         onToggleTheme={toggleTheme}
       />
     </div>

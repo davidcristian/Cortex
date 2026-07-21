@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 
+import type { EdgeStyle } from "../edge/edges";
 import type { MarkStyle } from "../mark/marks";
 import { latestReply } from "../overlay/overlayState";
 import type { OverlayController } from "../overlay/useOverlay";
@@ -17,9 +18,11 @@ interface OverlayProps {
   readonly controller: OverlayController;
   readonly dark: boolean;
   readonly mark: MarkStyle;
+  readonly edge: EdgeStyle;
   readonly themeName: string | null;
   readonly onPickTheme: (name: string | null) => void;
   readonly onPickMark: (name: string) => void;
+  readonly onPickEdge: (name: string) => void;
   readonly onToggleTheme: () => void;
 }
 
@@ -27,9 +30,11 @@ export function Overlay({
   controller,
   dark,
   mark,
+  edge,
   themeName,
   onPickTheme,
   onPickMark,
+  onPickEdge,
   onToggleTheme,
 }: OverlayProps) {
   const {
@@ -103,9 +108,11 @@ export function Overlay({
         open={state.mode === "panel"}
         dark={dark}
         mark={mark}
+        edge={edge}
         themeName={themeName}
         onPickTheme={onPickTheme}
         onPickMark={onPickMark}
+        onPickEdge={onPickEdge}
         onToggleConsole={toggleConsole}
         onOpenConsole={openConsole}
         onCloseConsole={closeConsole}

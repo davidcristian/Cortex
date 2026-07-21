@@ -1,17 +1,21 @@
 import type { ReactNode } from "react";
 
+import { EDGES, type EdgeStyle } from "../edge/edges";
 import { MARKS, type MarkStyle } from "../mark/marks";
 import { THEMES } from "../theme/themes";
 import { BubbleMark } from "./BubbleMark";
+import { EdgeMini } from "./EdgeMini";
 import { AutoMini, ThemeMini } from "./ThemeMini";
 
 interface AppearanceTabProps {
   /** The chosen theme name, or `null` while the overlay follows the system scheme. */
   readonly themeName: string | null;
   readonly mark: MarkStyle;
+  readonly edge: EdgeStyle;
   readonly animated: boolean;
   readonly onPickTheme: (name: string | null) => void;
   readonly onPickMark: (name: string) => void;
+  readonly onPickEdge: (name: string) => void;
 }
 
 interface TileProps {
@@ -57,9 +61,11 @@ function Tile({ label, checked, hint, onPick, children }: TileProps) {
 export function AppearanceTab({
   themeName,
   mark,
+  edge,
   animated,
   onPickTheme,
   onPickMark,
+  onPickEdge,
 }: AppearanceTabProps) {
   return (
     <div className="rows">
@@ -109,6 +115,26 @@ export function AppearanceTab({
         {/* The chosen style's own note, under the row it belongs to: what moves is the thing being
             chosen, and one line of it beats four labels nobody can tell apart. */}
         <p className="note">{mark.note}</p>
+      </section>
+      <section className="swatch">
+        <h3 className="sect">Window</h3>
+        <div className="tiles" role="radiogroup" aria-label="Window">
+          {/* The registry's own order is the ladder, Still to Trance, so the row explains
+              intensity without a caption (ADR-0036). A map over the registry, like the rows
+              above: a fifth edge appears here with no change to this view. */}
+          {EDGES.map((choice) => (
+            <Tile
+              key={choice.name}
+              label={choice.label}
+              hint={choice.note}
+              checked={choice.name === edge.name}
+              onPick={() => onPickEdge(choice.name)}
+            >
+              <EdgeMini style={choice} idPrefix={`tile-edge-${choice.name}`} animated={animated} />
+            </Tile>
+          ))}
+        </div>
+        <p className="note">{edge.note}</p>
       </section>
     </div>
   );

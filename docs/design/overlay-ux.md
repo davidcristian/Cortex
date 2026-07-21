@@ -51,6 +51,22 @@ ground. One swap at three speeds reads as the window coming apart and going back
   bubble, then settles to neutral on completion. `border-radius: 20px`, one tail corner tightened.
 - **Radius scale:** panel `28px`, bubbles `20px`, input pill `22px`; the orb is the bubble mark
   (§4), an off-round film rather than a disc, so it has no radius of its own. Generous, uniform.
+- **The window's edge is a choice, a ladder of dream depth** (landed 2026-07-21,
+  [ADR-0036](../adr/ADR-0036-window-edge.md)): a third registry beside the theme and the mark,
+  one more swatch row in the console, and the two families speak sibling languages: the mark
+  thinks, the window dreams. **Still** is today's crisp glass as a real choice; **Lucid** (the
+  default, by the user's call) melts the silhouette with the mark's own maths, integer wave
+  orders on the closed perimeter so the seam never tears and the shape never drifts, and keeps
+  the color story strict; **Reverie** adds a smolder riding the outline, neutral at rest, taking
+  the accent gradient while a turn runs; **Trance** thickens the spectrum and keeps a low ember
+  of the gradient lit at rest, **the one written exception to §1's color rule**, chosen with its
+  cost on the table. The registry's order is the explanation, so the tile row needs no caption.
+  Three build truths carry the look: the animated clip lives on a background-only glass slab and
+  the words never ride the warping layer (which is what keeps type sharp), the blurred smolder
+  paints under the content so nothing soft crosses a glyph, and a liquid panel trades its
+  backdrop blur for the near-solid `--panel-solid` token because Chromium composites the blur
+  un-clipped by a path (invisible in the v1 opaque window; refiled with the transparent-window
+  pass in [refinements/body-overlay.md](../refinements/body-overlay.md)).
 - **Scrollbars are reserved chrome, never a widget** (landed 2026-07-20). Every scroll region (the
   history, the switcher, the reminder stack, an open Thoughts trace, an approval draft, the
   console's rows, the composer field) wears one `--rail: 6px` bar: a rounded 4px thumb
@@ -484,7 +500,8 @@ different lines. Both are minimums, so the named keys are untouched: `Alt` is al
 ## 7. Accessibility & restraint
 
 - **Reduced motion:** honor `prefers-reduced-motion` with no morphs/springs, just quick opacity
-  fades; the orb still shows, its bubble held at a still pose (no frames scheduled at all).
+  fades; the orb still shows, its bubble held at a still pose (no frames scheduled at all), and a
+  liquid window edge holds one exact pose per state the same way.
 - **Focus:** the composer is focused on summon and on every return to the chat view, the console
   takes focus onto the tab it is showing, focus is trapped in the panel, and rings stay visible. A
   view on its way out is hidden from assistive tech, which is only true if focus left with it.

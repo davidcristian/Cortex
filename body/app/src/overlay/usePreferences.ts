@@ -10,12 +10,15 @@ import type { BrainBridge } from "../bridge/types";
 /** The record's keys. Namespaced because the record is shared with every future surface. */
 export const THEME_KEY = "overlay.theme";
 export const MARK_KEY = "overlay.mark";
+export const WINDOW_KEY = "overlay.window";
 
-/** The two appearance choices, each `null` when the user has not made one (the default applies:
- *  the system colour scheme for the theme, the default bubble for the mark). */
+/** The three appearance choices, each `null` when the user has not made one (the default
+ *  applies: the system colour scheme for the theme, the default bubble for the mark, the
+ *  default edge for the window). */
 export interface Appearance {
   readonly theme: string | null;
   readonly mark: string | null;
+  readonly window: string | null;
 }
 
 export interface AppearanceController {
@@ -24,9 +27,11 @@ export interface AppearanceController {
   setTheme: (name: string | null) => void;
   /** Choose a mark style by name. */
   setMark: (name: string) => void;
+  /** Choose a window edge style by name (ADR-0036). */
+  setWindow: (name: string) => void;
 }
 
-const NOTHING_CHOSEN: Appearance = { theme: null, mark: null };
+const NOTHING_CHOSEN: Appearance = { theme: null, mark: null, window: null };
 
 /**
  * Hydrate the appearance from the brain once, and persist every later change.
@@ -41,7 +46,7 @@ const NOTHING_CHOSEN: Appearance = { theme: null, mark: null };
  */
 export function usePreferences(bridge: BrainBridge): AppearanceController {
   const [appearance, setAppearance] = useState<Appearance>(NOTHING_CHOSEN);
-  const chosen = useRef({ theme: false, mark: false });
+  const chosen = useRef({ theme: false, mark: false, window: false });
 
   useEffect(() => {
     let live = true;
@@ -56,6 +61,7 @@ export function usePreferences(bridge: BrainBridge): AppearanceController {
         setAppearance((current) => ({
           theme: chosen.current.theme ? current.theme : read(THEME_KEY),
           mark: chosen.current.mark ? current.mark : read(MARK_KEY),
+          window: chosen.current.window ? current.window : read(WINDOW_KEY),
         }));
       })
       .catch(() => {
@@ -96,5 +102,14 @@ export function usePreferences(bridge: BrainBridge): AppearanceController {
     [write],
   );
 
-  return { appearance, setTheme, setMark };
+  const setWindow = useCallback(
+    (name: string) => {
+      chosen.current.window = true;
+      setAppearance((current) => ({ ...current, window: name }));
+      write(WINDOW_KEY, name);
+    },
+    [write],
+  );
+
+  return { appearance, setTheme, setMark, setWindow };
 }

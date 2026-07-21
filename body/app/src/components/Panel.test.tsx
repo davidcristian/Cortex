@@ -1,6 +1,7 @@
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
+import { LUCID, STILL } from "../edge/edges";
 import { MULL } from "../mark/marks";
 import { INITIAL_LINK } from "../overlay/linkState";
 import type { ConsoleTab, Message, OverlayState } from "../overlay/overlayState";
@@ -72,9 +73,11 @@ function panelProps(over: Partial<OverlayState>, open: boolean, dark: boolean, h
     open,
     dark,
     mark: MULL,
+    edge: STILL,
     themeName: null,
     onPickTheme: handlers.onPickTheme ?? vi.fn(),
     onPickMark: handlers.onPickMark ?? vi.fn(),
+    onPickEdge: vi.fn(),
     onToggleConsole: handlers.onToggleConsole ?? vi.fn(),
     onOpenConsole: handlers.onOpenConsole ?? vi.fn(),
     onCloseConsole: handlers.onCloseConsole ?? vi.fn(),
@@ -560,5 +563,26 @@ describe("Panel", () => {
       "Ctrl",
       "N",
     ]);
+  });
+
+  it("keeps the still edge exactly the panel it always was: no edge layers, no flag", () => {
+    const { container } = renderPanel({}, true, false);
+    expect(container.querySelector(".edge")).toBeNull();
+    expect(screen.getByRole("dialog").className).not.toContain("edge-live");
+  });
+
+  it("hands a liquid edge the panel's face and mounts its layers", () => {
+    const { container } = render(<Panel {...panelProps({}, true, false)} edge={LUCID} />);
+    expect(screen.getByRole("dialog").className).toContain("edge-live");
+    const slab = container.querySelector(".edge-glass") as HTMLElement;
+    expect(slab.style.clipPath).toContain("path(");
+  });
+
+  it("tells the edge a turn is running, which is what deepens the liquid", () => {
+    const streaming: Message = { ...reply("live"), streaming: true };
+    const { container } = render(
+      <Panel {...panelProps({ messages: [userMsg, streaming] }, true, false)} edge={LUCID} />,
+    );
+    expect(container.querySelector(".edge")?.className).toContain("edge-working");
   });
 });
