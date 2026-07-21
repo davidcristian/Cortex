@@ -1768,6 +1768,12 @@
   overflow: visible;
 }
 
+/* The preview always dreams, and always in Lucid (see Preview.tsx for why that one), so it hands
+   its whole face to the edge layers exactly as `.panel.edge-live` does: no border, no fill and no
+   box-shadow of its own, since the wrapper's drop-shadow now falls from the liquid silhouette,
+   and `overflow: visible` because the edge bleeds past the dev machine on every side. The panel's clip
+   has no counterpart here: the card is four clamped lines inside its own padding, so there is
+   nothing that could reach the edge to be clipped by it. */
 .preview {
   position: fixed;
   right: 26px;
@@ -1775,15 +1781,20 @@
   width: min(340px, 84vw);
   z-index: 9;
   text-align: left;
-  border: 1px solid var(--stroke);
+  border: none;
   border-radius: 22px;
   padding: 14px 16px 12px;
-  background: var(--panel);
-  backdrop-filter: blur(28px) saturate(140%);
+  background: transparent;
   color: var(--text);
   cursor: pointer;
-  box-shadow: 0 24px 60px -14px rgba(0, 0, 0, 0.55);
+  overflow: visible;
   animation: previewin 0.4s var(--spring) both;
+}
+/* Above the edge's glass and glow, the same rule (and the same reason) as `.views`. */
+.preview > .pv-b,
+.preview > .bar {
+  position: relative;
+  z-index: 1;
 }
 .pv-b {
   font-size: 14px;
