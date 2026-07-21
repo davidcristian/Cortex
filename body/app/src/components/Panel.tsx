@@ -51,6 +51,8 @@ export function Panel(props: PanelProps) {
   const view: View = state.consoleTab === null ? "chat" : CONSOLE;
   const leaving = useViewTransition(view, MORPH_MS);
   const panelRef = useRef<HTMLDivElement>(null);
+  const tab = useRef<ConsoleTab>("appearance");
+  tab.current = state.consoleTab ?? tab.current;
   usePanelMotion(panelRef, open, view);
 
   const closed = state.mode === "orb" ? " to-orb" : "";
@@ -72,7 +74,7 @@ export function Panel(props: PanelProps) {
         {view === CONSOLE || leaving === CONSOLE ? (
           <div className={classOf(CONSOLE)} aria-hidden={view !== CONSOLE}>
             <ConsoleView
-              tab={state.consoleTab ?? "appearance"}
+              tab={tab.current}
               themeName={themeName}
               mark={mark}
               animated={!reduced}

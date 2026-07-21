@@ -271,24 +271,26 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
   decoration: a browser refuses to hide the focused element's ancestor from assistive tech, so
   without the handoff the `aria-hidden` on the pane being left is ignored and the tab just left
   stays in the tree as a second, equal console.
-- **The chat's floor is the empty state** (`components/ChatView.tsx` + `src/overlay.css`, ADR-0035
-  decision 12). The history's children sit in one column, `.log`, which carries a `min-height` of
-  the empty state's measured height (185px: the mark, the invitation, the example chips and their
-  padding), so replacing that invitation with a short user bubble and a thinking one cannot ease
-  the panel down at the moment the chat starts. Two things about it are load-bearing and easy to
-  undo by accident. The floor is on the **content** and never on `.history`, because a scroll box
-  that will not shrink has nowhere to go when the switcher and the reminder stack are both open
-  (76px of history at a 720px window) and takes the composer out past the panel's clipped edge;
-  floored content simply scrolls. And the column is bottom-aligned, so the reserved height lands
-  above the bubbles rather than under them, where `scrollTop = scrollHeight` would faithfully
-  scroll the newest bubble out of sight to reach blank space. The empty state is unaffected by the
-  alignment: `margin: auto` outranks `justify-content`, so it stays centred in whatever the column
-  is. A third thing is load-bearing and looks like styling: the example chips are held to one row
+- **The empty state does not scroll; it is clipped** (`components/ChatView.tsx` + `src/overlay.css`).
+  The history's children sit in one column, `.log`, which carries `bare` while the empty state is
+  the whole of it (no messages and no approval card, asked of the same state the empty state itself
+  is rendered from). `bare` is the one case where the column may be SHORTER than its content: it
+  shrinks, centres what is left, and clips, which is what the history reads as "nothing here
+  overflows" so it never offers a bar. An opening screen is a picture rather than a log, with no
+  more of it further down, so a scrollbar on it offers to reveal nothing. It is the ordinary case
+  and not a corner: at the body's 640x720 window the reminder stack leaves 101px of history against
+  a 195px column, and the session list on top of it leaves 10px. Clipping is symmetric by
+  construction, centring with negative free space overflowing both ends alike, so the mark stays on
+  the middle line. Do NOT try to buy room by dropping the empty state's block padding: those 58px
+  are part of the height the panel sizes itself to, so the panel shortens, the history shortens with
+  it, and 58px of saving comes back as 29px of lost panel (measured 185 to 127 of content against
+  101 to 72 of history). A log with any message in it keeps every one of the old rules: it is
+  bottom-aligned, so a reply arrives against the composer, and it scrolls.
+  One more thing is load-bearing and looks like styling: the example chips are held to one row
   (`flex-wrap: nowrap`, shrinking to an ellipsis) because they are the only part of the invitation
-  whose height depends on the panel's width, and one number can only be the floor while the thing
-  it measures is one height. `Panel.test.tsx` pins the structure the stylesheet cannot defend (the
-  empty state and the bubbles both inside `.log`); the number itself is a frozen measurement,
-  recorded in `docs/refinements/body-overlay.md`.
+  whose height depends on the panel's width, and everything sized against that height wants it to be
+  one number. `Panel.test.tsx` pins what the stylesheet cannot defend: the structure (the empty
+  state and the bubbles both inside `.log`) and which of the two the class says it is.
 - **A live activity chip and the settled "Thoughts" disclosure are one row in two states**
   (`components/Message.tsx` + `src/overlay.css`, ADR-0035 decision 13). Both floor themselves on
   `--trace-row` (24px, the chip's own box), so the frame where a turn completes swaps one for the

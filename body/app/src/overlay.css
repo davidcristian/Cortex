@@ -271,6 +271,12 @@
   flex: 1 0 auto;
   gap: 11px;
 }
+.log.bare {
+  flex: 1 1 auto;
+  min-height: 0;
+  justify-content: center;
+  overflow: clip;
+}
 
 .collapse {
   flex: none;
@@ -779,6 +785,10 @@
 }
 .hints b,
 .row-keys b {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 23px;
   color: var(--muted);
   font-weight: 500;
   background: var(--control);
@@ -790,8 +800,6 @@
    the icon to cap size and center it, so they read as clearly as the letter keys beside them. */
 .hints b.key,
 .row-keys b.key {
-  display: inline-flex;
-  align-items: center;
   gap: 1px;
   padding: 2px 5px;
   vertical-align: -3px;
@@ -834,7 +842,7 @@
   min-height: 0;
   overflow-y: auto;
   scrollbar-gutter: stable;
-  padding: 2px calc(16px - var(--rail)) 26px 16px;
+  padding: 2px calc(16px - var(--rail)) 16px 16px;
 }
 .skeys {
   display: grid;

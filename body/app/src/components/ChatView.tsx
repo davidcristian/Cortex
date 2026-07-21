@@ -124,7 +124,7 @@ export function ChatView({
         />
       </Collapse>
       <div className="history" ref={log.ref} onScroll={log.onScroll}>
-        <div className="log">
+        <div className={`log${state.messages.length === 0 && state.pendingConfirm === null ? " bare" : ""}`}>
           {state.messages.length === 0 ? (
             <div className="empty">
               <button

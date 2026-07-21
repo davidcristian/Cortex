@@ -453,6 +453,13 @@ what Esc does, in the order the panel tries them. The strip draws a chord as the
 cap each, which is the console's rule and now also the strip's own: `Shift`+`Return` was the last
 place two glyphs shared one cap, and separating it costs 13px of a row with roughly 100 to spare.
 
+**Every cap is at least as wide as the widest single key** (landed 2026-07-21), in the strip and on
+the shortcut cards alike, so a column of them lines up. The floor is what a glyph cap measures and
+is not a chosen number: an outline arrow is 13px of drawing where an `N` is 8.2px and a `?` is
+5.8px, so left to their own advance widths the six single keys came out 23, 20.2, 19.2 and 17.8.
+It is a minimum, so the named keys are untouched: `Alt` is already 26.9 and `Space`, at 45.5, is
+the widest thing on either surface.
+
 ## 7. Accessibility & restraint
 
 - **Reduced motion:** honor `prefers-reduced-motion` with no morphs/springs, just quick opacity
