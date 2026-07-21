@@ -119,22 +119,16 @@ export function SessionList({
                 className={`switcher-item${session.sessionId === currentId ? " current" : ""}`}
                 onClick={() => onSelect(session.sessionId)}
               >
-                <span className="switcher-row">
-                  <span className="switcher-title">{session.title}</span>
-                  <span className="switcher-time">
-                    {relativeTime(session.lastActivityUnixMs, now)}
-                  </span>
-                </span>
+                <span className="switcher-title">{session.title}</span>
                 <span className="switcher-preview">{session.preview}</span>
               </button>
               <button
                 type="button"
-                className={`switcher-pin-btn${session.pinned ? " on" : ""}`}
-                aria-label={session.pinned ? `Unpin ${session.title}` : `Pin ${session.title}`}
-                aria-pressed={session.pinned}
-                onClick={() => onPin(session.sessionId, !session.pinned)}
+                className="switcher-delete-btn"
+                aria-label={`Delete ${session.title}`}
+                onClick={() => setConfirmingDeleteId(session.sessionId)}
               >
-                <PinIcon filled={session.pinned} />
+                <TrashIcon />
               </button>
               <button
                 type="button"
@@ -146,12 +140,16 @@ export function SessionList({
               </button>
               <button
                 type="button"
-                className="switcher-delete-btn"
-                aria-label={`Delete ${session.title}`}
-                onClick={() => setConfirmingDeleteId(session.sessionId)}
+                className={`switcher-pin-btn${session.pinned ? " on" : ""}`}
+                aria-label={session.pinned ? `Unpin ${session.title}` : `Pin ${session.title}`}
+                aria-pressed={session.pinned}
+                onClick={() => onPin(session.sessionId, !session.pinned)}
               >
-                <TrashIcon />
+                <PinIcon filled={session.pinned} />
               </button>
+              <span className="switcher-time">
+                {relativeTime(session.lastActivityUnixMs, now)}
+              </span>
             </li>
           );
         })

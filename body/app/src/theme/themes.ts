@@ -119,8 +119,11 @@ export function toCssVars(theme: Theme): Record<string, string> {
 
 /** Apply a theme to an element: write its CSS custom properties + the scheme dataset. */
 export function applyTheme(theme: Theme, root: HTMLElement): void {
+  root.dataset.swapping = "";
   for (const [name, value] of Object.entries(toCssVars(theme))) {
     root.style.setProperty(name, value);
   }
   root.dataset.theme = theme.scheme;
+  void root.offsetHeight;
+  delete root.dataset.swapping;
 }

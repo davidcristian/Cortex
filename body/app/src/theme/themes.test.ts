@@ -63,4 +63,21 @@ describe("themes", () => {
     expect(el.style.getPropertyValue("--spark")).toBe("#4FE3D0");
     expect(el.dataset.theme).toBe("light");
   });
+
+  it("swaps in one frame: transitions off, tokens written, style flushed, transitions back", () => {
+    const el = document.createElement("div");
+    const flushes: string[] = [];
+    Object.defineProperty(el, "offsetHeight", {
+      configurable: true,
+      get: () => {
+        flushes.push(el.dataset.swapping === "" ? "guarded" : "unguarded");
+        return 0;
+      },
+    });
+    applyTheme(MIDNIGHT, el);
+    expect(flushes).toEqual(["guarded"]);
+    expect(el.style.getPropertyValue("--bg")).toBe(MIDNIGHT.tokens.bg);
+    // And nothing is left holding the overlay's transitions down afterwards.
+    expect(el.dataset.swapping).toBeUndefined();
+  });
 });

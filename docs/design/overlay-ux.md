@@ -26,7 +26,10 @@ as its film turns under the light. All of it respects `prefers-reduced-motion`.
 ## 2. Visual language (design tokens)
 
 Everything is CSS custom properties, so the whole surface restyles from one place and a theme
-is a token swap, not a rewrite.
+is a token swap, not a rewrite. **It happens in one frame** (2026-07-21): every transition in the
+overlay is suppressed while the tokens land, because otherwise each control crosses at whatever pace
+its own hover transition uses while the text beside it, which transitions nothing, simply takes the
+new value.
 
 - **Two grounds, light and dark, both sleek** (mandatory in v1). Switched by `[data-theme]` (with
   `prefers-color-scheme` as the default). Both are frosted glass with `backdrop-filter: blur(28px)
@@ -413,7 +416,12 @@ restarts. The overlay is a *view* of store-backed state, never the user of it.
   previous chat is already saved.
 - **Cycle chats** (`Ctrl+↑` / `Ctrl+↓`): move through recent chats, newest first; the switcher (⌄)
   opens a slim list with titles + relative timestamps + a one-line preview. Selecting loads that
-  chat's history.
+  chat's history. **A row runs title and preview on the left, then right to left: the time, the pin,
+  the pencil, the trash** (2026-07-21). The time takes the edge because it is what the eye goes to
+  when it is skimming for a chat, and the three controls sit inboard of it in the order they
+  escalate; they stay ink-revealed on hover, so at rest a row is a title, a preview and a time. The
+  time stands **11px inside the row's right edge, which is what the title stands inside its left**,
+  so the two ends are one pair of margins rather than a label that happens to be near the corner.
 - **Titles:** derived from the first user message (later: a brain-generated summary title).
 
 **Seam dependency delivered in [Slice 8.7](../ROADMAP.md) ([ADR-0021](../adr/ADR-0021-session-read-seam.md)).**
@@ -453,12 +461,14 @@ what Esc does, in the order the panel tries them. The strip draws a chord as the
 cap each, which is the console's rule and now also the strip's own: `Shift`+`Return` was the last
 place two glyphs shared one cap, and separating it costs 13px of a row with roughly 100 to spare.
 
-**Every cap is at least as wide as the widest single key** (landed 2026-07-21), in the strip and on
-the shortcut cards alike, so a column of them lines up. The floor is what a glyph cap measures and
-is not a chosen number: an outline arrow is 13px of drawing where an `N` is 8.2px and a `?` is
-5.8px, so left to their own advance widths the six single keys came out 23, 20.2, 19.2 and 17.8.
-It is a minimum, so the named keys are untouched: `Alt` is already 26.9 and `Space`, at 45.5, is
-the widest thing on either surface.
+**Every cap is at least as big as the widest and tallest single key** (landed 2026-07-21), in the
+strip and on the shortcut cards alike, so a row of them lines up. Both floors are what a glyph cap
+measures and neither is a chosen number: an outline arrow is 13px of drawing where an `N` is 8.2px
+and a `?` is 5.8px, and it pads 2px where a letter pads 1. Left to themselves the six single keys
+came out 23, 20.2, 19.2 and 17.8 wide, and a cap was 15 or 17 tall depending only on whether its key
+happened to be drawn or written, which is why `Shift` and the return glyph beside it sat on
+different lines. Both are minimums, so the named keys are untouched: `Alt` is already 26.9 wide and
+`Space`, at 45.5, is the widest thing on either surface.
 
 ## 7. Accessibility & restraint
 

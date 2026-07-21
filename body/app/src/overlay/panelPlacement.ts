@@ -69,6 +69,7 @@ export function place(element: HTMLElement | null, memory: Memory, at: Placement
   }
   memory.open = at.open;
   const viewport = window.innerHeight;
+  const onScreen = heightOf(element);
   const release = holdScroll(element);
   element.style.maxHeight = `${openHeight(viewport)}px`;
   const section = element.querySelector<HTMLElement>(`[${MORPHING_ATTRIBUTE}]`);
@@ -100,7 +101,7 @@ export function place(element: HTMLElement | null, memory: Memory, at: Placement
   memory.running = null;
   const height = heightOf(element);
   const displayed = deferred
-    ? { height: carrying ?? height, bottom: was }
+    ? { height: carrying ?? onScreen, bottom: was }
     : (inFlight ?? memory.shown);
   const wanted = wantedBottom(memory, at, viewport, centringHeight(element, height));
   memory.pinned = wanted;

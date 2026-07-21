@@ -8,6 +8,24 @@ shell** is host-validated on Windows, like the brain's real adapters.
 
 Two halves meet at one seam. That seam is the typed `BrainBridge` port:
 
+- **A theme change lands in one frame.** `applyTheme` sets `data-swapping` on the root, writes the
+  tokens, forces a style flush and clears it, and `[data-swapping] *` suppresses every transition for
+  that flush. The forced read is the load-bearing line: without it the attribute goes on and off
+  inside one task and the browser never resolves style in between, so nothing is suppressed. It
+  exists because a theme moves the same `color` that every control eases for its hover: the swap was
+  a ragged 20 frames, most text taking the new value at once and the pin, pencil, trash and tab
+  labels crossing at 0.16s to 0.35s behind it, with the chat title and the reminder lines (the two
+  things that INHERIT the ground's colour instead of setting their own) following a 0.4s ease on the
+  ground itself, which is gone. Anything that wants to animate a theme change has to do it here.
+- **A gradient is not a colour.** `--accent` is a `linear-gradient`, so `color: var(--accent)` and
+  `border: 1px solid var(--accent)` do not compute, and a declaration invalid at computed-value time
+  is set to `unset`, which for `color` means `inherit` and for a border shorthand means no border.
+  Four rules ask for it. The pinned row's pin asked and always rendered as inherited text, which is
+  also what made it jitter across a theme change (it chased the ground's easing colour through its
+  own 0.16s ease); it now asks for `var(--text)` in as many words, and the pinned row's dead
+  `border-left` is gone. The thinking chip's label and the rename box's border still ask, and still
+  render as inherited text and no border. Giving a gradient to a colour needs a solid token
+  (`--spark`) or `background-clip: text`, not a var swap.
 - **Frontend** (`src/`, gated). Pure logic first: the theme system (`theme/`), the activity mark
   (`mark/`: `bubble.ts` is the pure geometry, `marks.ts` the style registry, `useMarkClock.ts` the
   frame clock, ADR-0031), the appearance record (`overlay/usePreferences.ts`: hydrates the theme
