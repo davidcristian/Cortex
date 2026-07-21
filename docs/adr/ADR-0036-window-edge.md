@@ -111,3 +111,20 @@ One tile moves differently on purpose. Frozen in its accent, Reverie read as "a 
 Its tile cross-fades two glow strokes on a slow cycle, and the phase is chosen so the frozen
 reduced-motion pose lands exactly mid-blend, both truths at once. Trance stays constantly lit,
 which is precisely the difference between the two styles, now visible in the row.
+
+## Addendum (2026-07-21, later): the preview card always dreams, in Lucid
+
+The completed-while-minimized preview (`components/Preview.tsx`) now mounts a `PanelEdge` of its
+own, hard-wired to `LUCID` rather than to the user's pick, and hands it its whole face the way
+`.panel.edge-live` does: no border, no fill, no box-shadow, `overflow: visible`, and the content
+lifted a layer so it paints above the glass.
+
+Two reasons it is a constant and not the picked style. The card is the one surface that arrives
+on its own, over whatever the user is working in, so a soft edge is what keeps it from reading
+as a system notification. And the two louder styles carry colour: on a card whose whole message
+is that a turn has *finished*, an accent rim would announce activity, which is exactly what §1 of
+the design doc reserves colour for. Still would leave the preview the only hard-edged surface in
+an overlay whose window breathes. Lucid is the one that is soft and says nothing.
+
+The panel's content clip has no counterpart here: the card is four clamped lines inside its own
+padding, so nothing can reach the edge to be clipped by it.
