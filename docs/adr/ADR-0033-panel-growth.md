@@ -90,3 +90,14 @@ ceiling of the edge that centring actually picks. The two deciders agree on the 
 placement after the roll finds nothing left to move: re-traced, the bottom edge stands still
 from summon to settle, the panel grows to its honest ceiling during the roll, and the history
 yields once, to the height it keeps.
+
+A second look found the half the edge fix alone did not buy: with the edge standing
+still the second ease was gone, but the squeeze itself had only moved inside the roll. The
+panel's `auto` height followed the roll one-for-one until the cap bit, and the stack's
+remaining growth then compressed the chat in the roll's tail, so the empty state held its size
+and resized only at the end. An arrival whose section outgrows the ceiling now CARRIES the
+panel's height, the mechanism interrupted eases already use, driving it to the predicted
+height over the roll's own clock and curve, so the chat's window compresses in step with the
+stack growing. Re-traced at the same 760px: the history eases monotonically from 195 to its
+final 116 across the whole roll, one animation, no phase change, and the placement after the
+roll still finds nothing to move.
