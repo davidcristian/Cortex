@@ -1,30 +1,43 @@
 import type { Message as MessageModel } from "../overlay/overlayState";
 import { Thoughts } from "./Thoughts";
+import { WhisperBubble } from "./WhisperBubble";
 
-// A chat bubble. Neutral at rest; while streaming it carries the accent glow + caret and reveals
-// each word fluidly (per-word spans keyed by index, so only new words animate in). Until the
-// first token arrives, a thinking shimmer holds the bubble; live tool/status activity renders as
-// slim inline chips above it, between bubbles (design/overlay-ux.md §3), gone on completion. A
-// "thinking" status reads as deliberation, not action, so its chip bobs (chip-think) rather than
-// carrying the steady tool pulse (ADR-0020 state-aware chip). Once a reply that reasoned settles,
-// the live chip drops and the accumulated trace stays available as a collapsed "Thoughts"
-// disclosure above the bubble (ADR-0020 addendum, `Thoughts.tsx`): the settled counterpart of the
-// chip, resting chrome only since the thinking is done. That disclosure owns its own open state,
-// which is why it is a component rather than markup here: this one stays a pure function of the
-// message. Errors render as an alert. Color lives only in the working/error states.
-export function Message({ message }: { readonly message: MessageModel }) {
-  const tone = message.role === "user" ? "b-user" : "b-ai";
+// A chat bubble. A user's line and a loaded reply are plain neutral bubbles; a live assistant
+// reply whispers in through `WhisperBubble` (ADR-0037): an accent mist breathes until the first
+// token, letters condense on a continuous front the mist glides along, and the bubble's box
+// grows at that front's pace. Until then, live tool/status activity renders as slim inline chips
+// above it, between bubbles (design/overlay-ux.md §3), gone on completion. A "thinking" status
+// reads as deliberation, not action, so its chip bobs (chip-think) rather than carrying the
+// steady tool pulse (ADR-0020 state-aware chip). Once a reply that reasoned settles, the live
+// chip drops and the accumulated trace stays available as a collapsed "Thoughts" disclosure
+// above the bubble (ADR-0020 addendum, `Thoughts.tsx`): the settled counterpart of the chip,
+// resting chrome only since the thinking is done. That disclosure owns its own open state, and
+// the whisper latches whether it streamed, which is why both are components rather than markup
+// here: this one stays a pure function of the message. Errors render as an alert. Colour lives
+// only on the working mist and the error tint.
+//
+// `onGrow` is how the whisper's drain (which outlives the turn's last render) reaches the
+// history's tail pin.
 
+export function Message({
+  message,
+  onGrow,
+}: {
+  readonly message: MessageModel;
+  readonly onGrow: () => void;
+}) {
   if (message.error !== null) {
     return (
-      <div className={`bubble ${tone} b-error`} role="alert">
+      <div className="bubble b-ai b-error" role="alert">
         {message.error}
       </div>
     );
   }
 
-  const thinking = message.streaming && message.content === "";
-  const words = message.content.split(" ");
+  if (message.role === "user") {
+    return <div className="bubble b-user">{message.content}</div>;
+  }
+
   return (
     <>
       {message.streaming && message.tool !== null ? (
@@ -43,23 +56,7 @@ export function Message({ message }: { readonly message: MessageModel }) {
       {!message.streaming && message.thoughts !== "" ? (
         <Thoughts trace={message.thoughts} />
       ) : null}
-      <div className={`bubble ${tone}${message.streaming ? " streaming" : ""}`}>
-        {thinking ? (
-          <span className="thinking" aria-label="Thinking">
-            <i />
-            <i />
-            <i />
-          </span>
-        ) : (
-          <>
-            {words.map((word, index) => (
-              // eslint-disable-next-line react/no-array-index-key -- stable append-only stream
-              <span key={index} className="w">{`${word} `}</span>
-            ))}
-            {message.streaming ? <span className="caret" aria-hidden="true" /> : null}
-          </>
-        )}
-      </div>
+      <WhisperBubble message={message} onGrow={onGrow} />
     </>
   );
 }

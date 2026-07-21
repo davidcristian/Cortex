@@ -690,6 +690,7 @@
   line-height: 1.55;
   border-radius: 20px;
   white-space: pre-wrap;
+  animation: bubblein 0.3s var(--ease) both;
   /* A commit hash or a `.gguf` filename is ordinary output here, and neither offers a break
      opportunity: without this the token runs past the bubble's 82% and the log grows a horizontal
      bar, which `scrollbar-gutter: stable` does *not* pay for (it reserves the inline-end gutter
@@ -707,14 +708,6 @@
   align-self: flex-start;
   background: var(--bubble-ai);
   border-bottom-left-radius: 7px;
-  box-shadow: 0 0 0 0 transparent;
-  transition: box-shadow 0.6s var(--ease);
-}
-/* Color only while working. */
-.b-ai.streaming {
-  box-shadow:
-    0 0 0 1px rgba(139, 92, 246, 0.3),
-    0 10px 34px -10px rgba(226, 75, 196, 0.4);
 }
 .b-error {
   align-self: flex-start;
@@ -722,38 +715,79 @@
   color: var(--text);
   border-bottom-left-radius: 7px;
 }
-/* One streamed word (components/Message.tsx renders `word + " "` per span). The box has to be an
-   inline-block for the reveal to transform at all, and the space has to be preserved or the
-   inline-blocks would sit flush against each other. `pre-wrap` rather than `pre` because `pre`
-   also forbids wrapping *inside* the box, which is what let a single unbreakable token push the
-   bubble past its max-width; with `pre-wrap` the span still holds its trailing space (measured:
-   identical box width either way) and the bubble's `overflow-wrap: anywhere` can now reach the
-   text inside it. */
-.w {
+/* The whispered reply (ADR-0037, components/WhisperBubble.tsx + whisper/). The bubble's box is
+   POSED by the clock (width and height as inline styles, eased toward the condensation front
+   each frame), so its own edge is the reveal: `overflow: hidden` clips only letters that have
+   not condensed yet. `border-box`, because the clock's arithmetic is over the box it can see.
+   The breathing floor is what holds the waiting pill open around the out-of-flow mist when no
+   clock runs (reduced motion schedules no frames at all). */
+.whisper {
+  position: relative;
+  box-sizing: border-box;
+  overflow: hidden;
+  /* The clock owns the cap: its measured maxW is `.bubble`'s own 82%, resolved against the
+     same content box and paid its padding on top. Leaving the class's max-width on would
+     re-apply the 82% to the BORDER box (this bubble is border-box), a box two paddings
+     narrower than the text was laid for, and the overflow clip would eat exactly that much
+     of every full line (seen in the browser validation before this line existed). */
+  max-width: none;
+}
+.whisper.w-breath {
+  min-width: 55px;
+  min-height: 42px;
+}
+/* The letter DOM lays out ONCE at the final wrap width (the clock writes .wtxt's width), so
+   letter positions never move after they are laid: only the posed box's edge does. A word is an
+   unbreakable box (`pre`), which is safe for a streamed hash because whisper/front.ts chunks a
+   run past 24 letters into boxes the bubble can break between; whitespace between boxes is
+   plain text nodes, so the bubble's `pre-wrap` renders newlines exactly as it always did. A
+   letter is one inline-block (the resolution the band works at; the clock writes fractional
+   opacity and blur), held at zero by the class until the front reaches it. */
+.wtxt {
+  display: block;
+}
+.wd {
   display: inline-block;
-  white-space: pre-wrap;
-  animation: wordin 0.5s var(--ease) both;
+  white-space: pre;
 }
-
-/* The pre-first-token thinking shimmer: three accent dots hold the bubble until text arrives
-   (design/overlay-ux.md §4). A working affordance, so it carries the accent. */
-.thinking {
-  display: inline-flex;
-  gap: 5px;
-  padding: 5px 2px 2px;
+.ch {
+  display: inline-block;
+  opacity: 0;
 }
-.thinking i {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
+/* The mist: one element for the whole lifecycle (it breathes before the first token, glides
+   along the front, evaporates on settle) and the streaming bubble's only colour, replacing the
+   dots, the caret and the glow alike (design/overlay-ux.md §2/§4). The outer span carries the
+   clock's translate and the inner carries the breathing, so the two transforms never fight;
+   the resting translate is the breath pose, where it stands when no clock runs. */
+.mist {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform: translate(15px, 14px);
+  pointer-events: none;
+  will-change: transform;
+}
+.mist i {
+  display: block;
+  width: 24px;
+  height: 13px;
+  border-radius: 999px;
   background: var(--accent);
-  animation: think 1.05s ease-in-out infinite;
+  filter: blur(7px);
+  animation: mistbreathe 2.2s ease-in-out infinite;
 }
-.thinking i:nth-child(2) {
-  animation-delay: 0.16s;
+.w-settled .mist i {
+  animation: mistgone 0.55s var(--ease) forwards;
 }
-.thinking i:nth-child(3) {
-  animation-delay: 0.32s;
+/* The reply as assistive tech reads it: the letter spans are presentation (aria-hidden), this
+   is the text, held to one offscreen pixel. */
+.sr-copy {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 /* Slim inline activity chips between bubbles (tool/status, design/overlay-ux.md §3): a neutral
@@ -1094,17 +1128,6 @@
   color: #fff;
   box-shadow: 0 8px 20px -6px rgba(226, 75, 196, 0.6);
 }
-.caret {
-  display: inline-block;
-  width: 7px;
-  height: 15px;
-  vertical-align: -2px;
-  margin-left: 2px;
-  border-radius: 3px;
-  background: var(--accent);
-  animation: pulse 1s ease infinite;
-}
-
 /* The composer IS the rounded field pill; the textarea flows inside it and the send button is
    nested at the bottom-right. On ONE LINE they are flex siblings, so the typing area ends before
    the button (text never runs under it) and the button is bottom-aligned.
@@ -1813,16 +1836,36 @@
   animation-play-state: paused;
 }
 
-@keyframes wordin {
+/* Every bubble arrives as one soft thing (ADR-0037 replaced the per-word rises, which also had
+   a history load animating every word of every bubble); the whisper's own letters carry the
+   real streaming motion. */
+@keyframes bubblein {
   from {
     opacity: 0;
-    transform: translateY(5px);
-    filter: blur(3px);
+    transform: translateY(4px);
   }
   to {
     opacity: 1;
     transform: none;
-    filter: none;
+  }
+}
+/* The mist breathing, and its evaporation where the last word ends (ADR-0037). */
+@keyframes mistbreathe {
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: scale(0.88);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(1.08);
+  }
+}
+@keyframes mistgone {
+  to {
+    opacity: 0;
+    transform: scale(1.7);
+    filter: blur(13px);
   }
 }
 @keyframes pulse {
@@ -1902,6 +1945,12 @@
     animation-duration: 0.001ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.12s !important;
+  }
+  /* No whisper clock runs (ADR-0037): letters show as they arrive (the class floor of zero
+     would otherwise hold them invisible forever), the mist rests at its breath pose, and the
+     `.w-breath` floor above holds the waiting pill without a posed box. */
+  .ch {
+    opacity: 1;
   }
 }
 
