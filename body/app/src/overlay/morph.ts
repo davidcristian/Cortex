@@ -5,6 +5,13 @@
  */
 export const MORPHING_ATTRIBUTE = "data-morphing";
 
+/**
+ * How much SHORTER the view on screen is than the tallest shape it can take, in px, published by a
+ * view that has more than one (the console, whose two tabs differ) and read by `panelPlacement`
+ * when it places that view.
+ */
+export const TAB_SLACK_ATTRIBUTE = "data-tab-slack";
+
 /** How long a section's roll takes. Shared, because the panel's concurrent slide has to land with
  *  it: two movements at different speeds read as two movements. */
 export const MORPH_ROLL_MS = 300;

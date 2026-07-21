@@ -1,5 +1,5 @@
 
-import { EASING, MORPHING_ATTRIBUTE } from "./morph";
+import { EASING, MORPHING_ATTRIBUTE, TAB_SLACK_ATTRIBUTE } from "./morph";
 
 /** Set on the panel while it is easing between two sizes. */
 const RESIZING_ATTRIBUTE = "data-resizing";
@@ -18,6 +18,27 @@ import { rideAlong } from "./panelRide";
 
 /** The view whose position is remembered across a trip to another one. */
 const CHAT_VIEW = "chat";
+
+/**
+ * How far the view arriving falls short of the tallest shape it can take, which it publishes
+ * itself (`TAB_SLACK_ATTRIBUTE`); 0 for a view of one shape, which is every view but the console.
+ */
+function tabSlack(element: HTMLElement): number {
+  const published = element
+    .querySelector(`.view:not(.out) [${TAB_SLACK_ATTRIBUTE}]`)
+    ?.getAttribute(TAB_SLACK_ATTRIBUTE);
+  return published === null || published === undefined ? 0 : Number(published);
+}
+
+/**
+ * The bottom edge a view of more than one shape arrives on: the one that puts its TOP where its
+ * TALLEST shape would have put it, hanging this shape from there.
+ */
+function arrivalBottom(viewport: number, edge: number, height: number, slack: number): number {
+  const clearTop = viewport - maxHeight(viewport, 0);
+  const top = Math.max(clearTop, viewport - edge - (height + slack));
+  return viewport - top - height;
+}
 
 /**
  * Whether entering another view slides the panel to the true middle of the screen, or keeps the
@@ -52,6 +73,7 @@ function wantedBottom(
   memory: Memory,
   at: Placement,
   viewport: number,
+  centring: number,
   height: number,
   recentres: boolean,
 ): number {
@@ -60,14 +82,22 @@ function wantedBottom(
     memory.parked = memory.pinned;
   }
   memory.view = at.view;
+  const shown = memory.shown;
+  // Nothing on screen to hold on to yet: a first placement centres, whatever else is true.
+  if (shown === null) {
+    return centred(viewport, centring);
+  }
   const parked = changed && at.view === CHAT_VIEW ? memory.parked : null;
-  const centre =
-    !at.open ||
-    memory.shown === null ||
-    at.recentre ||
-    arriving(memory, at) ||
-    (recentres && changed && parked === null);
-  return centre ? centred(viewport, height) : (parked ?? memory.pinned);
+  if (!at.open || at.recentre || arriving(memory, at) || (recentres && changed && parked === null)) {
+    return centred(viewport, centring);
+  }
+  if (parked !== null) {
+    return parked;
+  }
+  if (!changed && at.view !== CHAT_VIEW) {
+    return shown.bottom + shown.height - height;
+  }
+  return memory.pinned;
 }
 
 /** Put the panel where it belongs, and animate it there from wherever it was. */
@@ -88,6 +118,9 @@ export function place(
   memory.open = at.open;
   const viewport = window.innerHeight;
   const onScreen = heightOf(element);
+  // Asked before `wantedBottom` decides anything, because deciding is also what forgets which view
+  // the panel was in: this is true only on the render that ARRIVES in a multi-shape view.
+  const entering = at.open && memory.view !== at.view && at.view !== CHAT_VIEW;
   const release = holdScroll(element);
   element.style.maxHeight = `${openHeight(viewport)}px`;
   const section = element.querySelector<HTMLElement>(`[${MORPHING_ATTRIBUTE}]`);
@@ -121,10 +154,22 @@ export function place(
   const displayed = deferred
     ? { height: carrying ?? onScreen, bottom: was }
     : (inFlight ?? memory.shown);
-  const wanted = wantedBottom(memory, at, viewport, centringHeight(element, height), recentres);
+  const wanted = wantedBottom(
+    memory,
+    at,
+    viewport,
+    centringHeight(element, height),
+    height,
+    recentres,
+  );
   memory.pinned = wanted;
   const placed = at.open || memory.shown === null;
-  const bottom = placed ? clamped(wanted) : memory.applied;
+  // Spent HERE and never folded into `memory.pinned`, so the edge the panel remembers stays the
+  // one the chat is standing on: the trip back is unaffected, and a second placement in the same
+  // view cannot arrive twice. Every later resize inside the view holds the top this set (rule 4).
+  const edge = clamped(wanted);
+  const arrival = entering ? arrivalBottom(viewport, edge, height, tabSlack(element)) : edge;
+  const bottom = placed ? arrival : memory.applied;
   const ceiling = maxHeight(viewport, bottom);
   element.style.maxHeight = `${ceiling}px`;
   // Re-read: the real cap may have shortened the panel, and everything below animates to what the

@@ -2,6 +2,7 @@ import { useLayoutEffect, useRef } from "react";
 
 import type { EdgeStyle } from "../edge/edges";
 import type { MarkStyle } from "../mark/marks";
+import { TAB_SLACK_ATTRIBUTE } from "../overlay/morph";
 import { CONSOLE_TABS, type ConsoleTab } from "../overlay/overlayState";
 import { AppearanceTab } from "./AppearanceTab";
 import { BackIcon } from "./icons";
@@ -61,8 +62,9 @@ export function ConsoleView({
     element.setAttribute(MEASURING_ATTRIBUTE, "");
     const heights = [...element.children].map((pane) => (pane as HTMLElement).offsetHeight);
     element.removeAttribute(MEASURING_ATTRIBUTE);
-    const spread = Math.max(...heights) - Math.min(...heights);
-    element.classList.toggle(APART_CLASS, spread > TAB_SPREAD_PX);
+    const tallest = Math.max(...heights);
+    element.classList.toggle(APART_CLASS, tallest - Math.min(...heights) > TAB_SPREAD_PX);
+    element.setAttribute(TAB_SLACK_ATTRIBUTE, String(tallest - element.offsetHeight));
   });
 
   return (
