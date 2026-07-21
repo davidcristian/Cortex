@@ -551,14 +551,14 @@ describe("Panel", () => {
     // A chord is drawn as the keys it is: the newline hint is Shift AND Return, two caps, which is
     // how the console's list reads it too. Shift is spelled out like Ctrl and Alt, so the drawn cap
     // left is return, the one key here with no name worth writing.
-    expect(hint("newline")?.querySelectorAll("b")).toHaveLength(2);
-    expect(hint("newline")?.querySelector("b")?.textContent).toBe("Shift");
-    expect(hint("newline")?.querySelectorAll("b.key")).toHaveLength(1);
-    for (const cap of hint("newline")?.querySelectorAll("b.key") ?? []) {
+    expect(hint("new line")?.querySelectorAll("b")).toHaveLength(2);
+    expect(hint("new line")?.querySelector("b")?.textContent).toBe("Shift");
+    expect(hint("new line")?.querySelectorAll("b.key")).toHaveLength(1);
+    for (const cap of hint("new line")?.querySelectorAll("b.key") ?? []) {
       expect(cap.querySelectorAll("svg")).toHaveLength(1);
     }
     expect(hint("send")?.querySelectorAll("b.key")).toHaveLength(1);
-    // Matched on "N new" rather than "new", which "newline" would answer to first.
+    // Matched on "N new" rather than "new", which "new line" would answer to first.
     expect([...(hint("N new")?.querySelectorAll("b") ?? [])].map((b) => b.textContent)).toEqual([
       "Ctrl",
       "N",
