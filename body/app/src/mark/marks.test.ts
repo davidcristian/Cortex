@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { MARKS, MULL, resolveMark } from "./marks";
+import { HUNCH, MARKS, MULL, MUSE, TANGENT, resolveMark } from "./marks";
 
 describe("resolveMark", () => {
   it("defaults to Mull with no preference", () => {
@@ -11,6 +11,16 @@ describe("resolveMark", () => {
     for (const mark of MARKS) {
       expect(resolveMark(mark.name)).toBe(mark);
     }
+  });
+
+  it("resolves the keys the styles first shipped under, so an old stored pick still lands", () => {
+    // The keys were healed to match their labels while the project is private; a preference
+    // written before that day names a style by its shipped key, and it must keep landing on the
+    // style it named rather than falling back to the default.
+    expect(resolveMark("wobble")).toBe(MULL);
+    expect(resolveMark("sheen")).toBe(MUSE);
+    expect(resolveMark("ping")).toBe(HUNCH);
+    expect(resolveMark("foam")).toBe(TANGENT);
   });
 
   it("falls back to the default when the preference names no known style", () => {

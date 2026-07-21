@@ -11,7 +11,7 @@ function card(label: string): HTMLElement {
 describe("ShortcutsTab", () => {
   it("lists every binding, grouped by what it is for", () => {
     render(<ShortcutsTab />);
-    for (const group of ["Writing", "Chats", "The window"]) {
+    for (const group of ["Ink", "Chats", "The window"]) {
       expect(screen.getByText(group)).toBeInTheDocument();
     }
     for (const label of [
@@ -22,7 +22,7 @@ describe("ShortcutsTab", () => {
       "Next",
       "Switcher",
       "Summon",
-      "This list",
+      "This tab",
       "Dismiss",
     ]) {
       expect(screen.getByText(label)).toBeInTheDocument();

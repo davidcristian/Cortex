@@ -30,10 +30,14 @@ const MEASURING_ATTRIBUTE = "data-measuring";
 const APART_CLASS = "apart";
 
 /** How each tab is named on the strip. Beside `CONSOLE_TABS` rather than inside it: the reducer's
- *  list is the state machine's, and how a tab is worded is this view's business. */
+ *  list is the state machine's, and how a tab is worded is this view's business. The pair speaks
+ *  the overlay's own language (the AGENTS.md naming rule): Face is what it shows, the tab whose
+ *  rows are its light, its iris, and its dream, the way a watch face names the appearance you put
+ *  on the same watch; Chords is the term of art for the key combinations the other tab lists, the
+ *  music you play on it. */
 const TAB_LABELS: Record<ConsoleTab, string> = {
-  appearance: "Appearance",
-  shortcuts: "Shortcuts",
+  appearance: "Face",
+  shortcuts: "Chords",
 };
 
 interface ConsoleViewProps {

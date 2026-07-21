@@ -69,9 +69,11 @@ export function AppearanceTab({
 }: AppearanceTabProps) {
   return (
     <div className="rows">
+      {/* The three legends name the dimension each row varies along, in the one anatomy: the
+          face has a light, an iris, and a dream. */}
       <section className="swatch">
-        <h3 className="sect">Theme</h3>
-        <div className="tiles" role="radiogroup" aria-label="Theme">
+        <h3 className="sect">Light</h3>
+        <div className="tiles" role="radiogroup" aria-label="Light">
           {/* Auto leads, because it is the only choice the header's toggle cannot express: that
               toggle names the opposite theme outright and can only ever land on one of the two. The
               tile is not captioned "Auto follows your system": the word Auto on a tile split between
@@ -83,7 +85,7 @@ export function AppearanceTab({
           {THEMES.map((theme) => (
             <Tile
               key={theme.name}
-              label={theme.name}
+              label={theme.label}
               checked={themeName === theme.name}
               onPick={() => onPickTheme(theme.name)}
             >
@@ -117,8 +119,8 @@ export function AppearanceTab({
         <p className="note">{mark.note}</p>
       </section>
       <section className="swatch">
-        <h3 className="sect">Window</h3>
-        <div className="tiles" role="radiogroup" aria-label="Window">
+        <h3 className="sect">Dream</h3>
+        <div className="tiles" role="radiogroup" aria-label="Dream">
           {/* The registry's own order is the ladder, Still to Trance, so the row explains
               intensity without a caption (ADR-0036). A map over the registry, like the rows
               above: a fifth edge appears here with no change to this view. */}
