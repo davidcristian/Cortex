@@ -4,6 +4,11 @@ import type { EdgeStyle } from "./edges";
 /** The panel's own corner radius (overlay.css `.panel`), which the neutral line carries. */
 export const CORNER_RADIUS = 28;
 
+/** How far the edge wrapper extends past the panel's border box on every side, px. The wrapper
+ *  wears this as its negative inset (PanelEdge), the sampler as the neutral line's inset, so the
+ *  two cannot drift; reachOf(style) <= BLEED is what keeps every wave inside the wrapper. */
+export const BLEED = 14;
+
 /** How far past its arc a corner's full swell reaches into the straight runs, px. */
 const CORNER_TAIL = 34;
 
@@ -119,7 +124,7 @@ export function edgePath(
   depth: number,
   scale = 1,
 ): string {
-  const inset = reachOf(style) * scale;
+  const inset = BLEED * scale;
   const radius = CORNER_RADIUS * scale;
   const w = width - 2 * inset;
   const h = height - 2 * inset;

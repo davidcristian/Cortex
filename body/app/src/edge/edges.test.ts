@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { EDGES, LUCID, REVERIE, STILL, TRANCE, resolveEdge } from "./edges";
-import { reachOf } from "./liquid";
+import { BLEED, reachOf } from "./liquid";
 
 describe("resolveEdge", () => {
   it("defaults to Lucid with no preference, since a fresh overlay breathes", () => {
@@ -53,9 +53,9 @@ describe("EDGES", () => {
     }
   });
 
-  it("bounds every style's reach, the inset the panel pays to keep the liquid inside its box", () => {
+  it("bounds every style's reach under the bleed, which is what keeps the waves in the wrapper", () => {
     for (const edge of EDGES) {
-      expect(reachOf(edge)).toBeLessThanOrEqual(16);
+      expect(reachOf(edge)).toBeLessThanOrEqual(BLEED);
       expect(edge.edgeShare).toBeGreaterThanOrEqual(0);
       expect(edge.edgeShare).toBeLessThanOrEqual(1);
       expect(edge.depthBoost).toBeGreaterThanOrEqual(0);

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { LUCID, STILL, TRANCE } from "./edges";
-import { CORNER_RADIUS, approachDepth, edgePath, reachOf } from "./liquid";
+import { BLEED, CORNER_RADIUS, approachDepth, edgePath, reachOf } from "./liquid";
 
 /** Every vertex of a sampled path, read back out of the string. */
 function pointsOf(path: string): readonly (readonly [number, number])[] {
@@ -23,6 +23,9 @@ describe("edgePath", () => {
     const early = edgePath(STILL, 560, 480, 0, 0);
     expect(edgePath(STILL, 560, 480, 99.7, 1)).toBe(early);
     expect(early).toContain(`A${CORNER_RADIUS} ${CORNER_RADIUS}`);
+    // The neutral line sits exactly one bleed inside the wrapper, which the component aligns
+    // with the panel's own border: the liquid breathes around the REGULAR edge, not inside it.
+    expect(early.startsWith(`M${BLEED + CORNER_RADIUS} ${BLEED}`)).toBe(true);
   });
 
   it("moves a liquid with the clock and deepens it with the working depth", () => {

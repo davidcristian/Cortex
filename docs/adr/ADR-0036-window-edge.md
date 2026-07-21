@@ -38,12 +38,18 @@ re-rasterized every frame or it goes soft.
    speeds are aperiodic, so the motion never visibly repeats. One path string is computed per
    frame and reused by the clip, the hairline and the glow strokes.
 
-5. **The liquid lives inside the panel's layout box.** The neutral outline is inset by the
-   style's worst-case reach, so displacement can never cross the border box. The panel's
-   geometry, growth and travel machinery (ADR-0033, ADR-0034, ADR-0035) is untouched: `overflow:
-   hidden` keeps the growth reveal, the box-shadow stays the panel's own (the few px between the
-   glass line and the layout box vanish inside a 90px blur), and `usePanelMotion` never learns
-   the edge exists.
+5. **The liquid rides the window's own edge, on a bleed.** The edge layers extend a fixed bleed
+   past the panel's border box (`liquid.ts` owns the number and the wrapper wears it as an
+   inline inset, so the two cannot drift), the neutral outline sits exactly on the panel's edge,
+   and every style's worst-case reach is pinned under the bleed by the registry tests, so the
+   waves swing around the regular border, outward into the bleed and inward over the glass,
+   without ever leaving the wrapper. The panel's geometry, growth and travel machinery
+   (ADR-0033, ADR-0034, ADR-0035) still never learns the edge exists; what moves is the clip: a
+   liquid panel goes `overflow: visible` and hands the content clip to the views box (same box,
+   same radius), which keeps the growth reveal, and the box-shadow stays the panel's own, now
+   sitting exactly on the neutral line. The first cut inset the whole liquid by the reach
+   instead, to spare even the clip a change, and the maintainer caught it on sight: on the light
+   ground it read as a window that had shrunk.
 
 6. **The words never ride the warping layer.** The animated clip is applied to a background-only
    glass slab under the content; the content column sits above it, un-clipped and never
