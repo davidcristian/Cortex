@@ -49,7 +49,7 @@ export interface MarkStyle {
 export const MULL: MarkStyle = {
   name: "mull",
   label: "Mull",
-  note: "Two slow modes turn the outline over, never settling",
+  note: "Two slow modes roll the outline over, settling on nothing",
   filmPeriodSeconds: 26,
   innerFilmPeriodSeconds: 40,
   innerFilmOpacity: 0.25,
@@ -73,7 +73,7 @@ export const MULL: MarkStyle = {
 export const MUSE: MarkStyle = {
   name: "muse",
   label: "Muse",
-  note: "The outline keeps its calm; the film drifts beneath it",
+  note: "A surface holding its calm, with the film adrift far beneath it",
   filmPeriodSeconds: 15,
   innerFilmPeriodSeconds: 24,
   innerFilmOpacity: 0.55,
@@ -93,7 +93,7 @@ export const MUSE: MarkStyle = {
 export const HUNCH: MarkStyle = {
   name: "hunch",
   label: "Hunch",
-  note: "A ripple strikes the rim every few seconds, then fades",
+  note: "Still, until an idea strikes the rim and rings away",
   filmPeriodSeconds: 30,
   innerFilmPeriodSeconds: 44,
   innerFilmOpacity: 0.25,
@@ -120,7 +120,7 @@ export const HUNCH: MarkStyle = {
 export const TANGENT: MarkStyle = {
   name: "tangent",
   label: "Tangent",
-  note: "Two side thoughts swing on slow arcs around the main one",
+  note: "Two side thoughts circling the one in the middle, never leaving it",
   filmPeriodSeconds: 28,
   innerFilmPeriodSeconds: 40,
   innerFilmOpacity: 0.25,
