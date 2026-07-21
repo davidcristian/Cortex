@@ -400,7 +400,12 @@ while a turn is processing must not lose it*) lives here. States:
   always matches the timer); **click**
   morphs to **PANEL(done)** (full answer in context); ignore it and it **fades out** → HIDDEN
   (still persisted). A failed turn previews as a soft error card (same shape, red-tinted) that
-  does *not* auto-fade, because errors wait to be seen.
+  does *not* auto-fade, because errors wait to be seen. **The card always dreams, and always in
+  Lucid** (2026-07-21, [ADR-0036](../adr/ADR-0036-window-edge.md)), whatever the Dream row is
+  set to: it is the one surface that arrives unbidden over whatever the user is working in, so
+  a soft edge is what keeps it from reading as a system notification, and the two louder styles
+  carry colour, which on a card announcing work that has just *finished* would say the opposite
+  of what §1 reserves colour for.
 - Re-summoning the hotkey from HIDDEN always returns to **PANEL** on the current chat.
 
 This gives the "fire it, keep working, glance when it pings me" flow the maintainer asked for, and it
