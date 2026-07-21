@@ -4,7 +4,7 @@ Every consciously deferred refinement, one self-contained doc per area, extracte
 from the ROADMAP's "Deferred refinements & later work" section on 2026-07-15. Recording a new
 deferral here (in its area doc, on this index, and at its origin ADR) is part of finishing a
 slice, per the doc-first Definition of Done in [AGENTS.md](../../AGENTS.md); this backlog must
-be empty before the user-facing README ships. Landed entries stay in the area docs as the
+be empty before the ROADMAP's finish line is crossed. Landed entries stay in the area docs as the
 historical record of what each deferral became, and several deliberately correct their own
 ADRs, which is why the entries are kept verbatim rather than summarized.
 
