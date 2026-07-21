@@ -58,6 +58,26 @@ describe("Reminders", () => {
     expect(screen.getByText("repeats")).toBeTruthy();
   });
 
+  it("leads the meta line with the timestamp, then the control, then the badges", () => {
+    // The one thing you can DO on the row comes before the badges that only describe it, so it
+    // sits at a fixed x down the stack (the timestamp ahead of it reserves its column) instead
+    // of being pushed along by however many badges a given reminder carries.
+    vi.useFakeTimers({ now: NOW });
+    const { container } = renderStack([
+      reminder({ recurring: true, tainted: true, sessionId: "s-other" }),
+    ]);
+    const meta = container.querySelector(".reminder-meta") as HTMLElement;
+    expect([...meta.children].map((child) => child.textContent)).toEqual([
+      "5m ago",
+      "open chat",
+      "repeats",
+      "untrusted source",
+    ]);
+    // The timestamp holds a column of its own, so the control after it does not move when the
+    // clock ticks a row from `5m ago` to `10m ago`.
+    expect(meta.firstElementChild?.className).toBe("reminder-time");
+  });
+
   it("badges untrusted provenance and leaves a plain reminder unbadged", () => {
     const { rerender } = renderStack([reminder()]);
     expect(screen.queryByText("untrusted source")).toBeNull();
