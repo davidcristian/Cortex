@@ -106,6 +106,11 @@ the panel. The geometry module grew `loopPath`, the sampler on an explicit frame
 panel's `edgePath` became its uniform-inset wrapper, so the tile and the window share one
 sampler and re-tune only the frame.
 
+The tiles draw no ground of their own. The first cut painted the desktop under the little
+window the way the theme tiles do, which put a second surface inside the card and read as a panel
+stuck onto the swatch; the tile IS the ground here, and only the theme row needs to draw one,
+because there the ground is the thing being chosen.
+
 One tile moves differently on purpose. Frozen in its accent, Reverie read as "a lighter Trance"
 (the maintainer's words), when the style IS the change: neutral at rest, accent while a turn runs.
 Its tile cross-fades two glow strokes on a slow cycle, and the phase is chosen so the frozen

@@ -60,8 +60,9 @@ export function EdgeMini({ style, idPrefix, animated }: EdgeMiniProps) {
           </linearGradient>
         </defs>
       )}
-      {/* The desktop the little window floats on, then the pane itself. */}
-      <rect className="edge-mini-ground" width={WIDTH} height={HEIGHT} rx="8" />
+      {/* No ground of its own: the tile IS the ground the little window floats on. Painting one
+          put a second surface inside the card and read as a panel stuck onto the swatch. The
+          theme tiles below do carry one, because there the ground is the thing being chosen. */}
       <path className="edge-mini-glass" d={d} />
       {/* Reverie's resting smolder, neutral, handing over to the accent as the blend rises; the
           opacities are inline because they move every frame. */}
