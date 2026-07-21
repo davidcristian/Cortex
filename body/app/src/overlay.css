@@ -741,8 +741,12 @@
    unbreakable box (`pre`), which is safe for a streamed hash because whisper/front.ts chunks a
    run past 24 letters into boxes the bubble can break between; whitespace between boxes is
    plain text nodes, so the bubble's `pre-wrap` renders newlines exactly as it always did. A
-   letter is one inline-block (the resolution the band works at; the clock writes fractional
-   opacity and blur), held at zero by the class until the front reaches it. */
+   letter is one INLINE span (the resolution the band works at; the clock writes fractional
+   opacity and blur, both fine on inline boxes), held at zero by the class until the front
+   reaches it. Inline and never inline-block: an inline-block letter is its own little box and
+   the engine lays boxes on whole pixels, so every letter's advance was rounded and the text
+   read as a ransom note, worst under Windows display scaling (the maintainer caught it on sight).
+   Inline, the letters keep the text's own sub-pixel advances. */
 .wtxt {
   display: block;
 }
@@ -751,7 +755,6 @@
   white-space: pre;
 }
 .ch {
-  display: inline-block;
   opacity: 0;
 }
 /* The mist: one element for the whole lifecycle (it breathes before the first token, glides
