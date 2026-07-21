@@ -141,6 +141,15 @@ the subject style). Imperative mood is the one convention no machine checks:
 - **Decisions are written down.** Any non-obvious choice becomes an ADR in `docs/adr/`.
   Underspecified requirement? Record your interpretation as an ADR and proceed. Don't
   block, and flag the riskiest assumptions in your summary.
+- **Names are designed, never defaulted.** Anything pickable or family-shaped (a registry
+  of styles, themes, modes) gets a naming scheme built with the same craft as its visuals:
+  one word per entry, one metaphor per family, the family's structure carrying real meaning,
+  sibling families speaking sibling languages (the mark thinks: Mull, Muse, Hunch, Tangent;
+  the window dreams: Still, Lucid, Reverie, Trance), and no collisions with any existing
+  family or token. Propose a recommended set with honest alternates before landing one.
+  Storage keys freeze the day they ship while labels stay free, so name the key right on day
+  one (`body/app/src/mark/marks.ts` documents the cost of learning that late). The worked
+  standard lives in the bubble-mark ADR's naming addendum (`docs/adr/`).
 - **Claims carry evidence.** Never report a gate green without having run it in this
   session; show the command and result. Unverified statements are labeled assumptions.
 - **Distrust green.** A gate that cannot fail is a defect: after wiring or changing one,
