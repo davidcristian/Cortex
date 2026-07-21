@@ -2168,10 +2168,10 @@
   border: 1px solid var(--stroke);
   border-radius: 16px;
 }
-/* The bell and the check are centred on the card rather than hung from its first line. They are
-   about the WHOLE reminder, not about the sentence's opening: the bell says a row is a reminder and
-   the check dismisses it, and a card is a line of text with a line of meta under it, so aligned to
-   the top they sat against the text while the row they belong to carried on below them. */
+/* The check is centred on the card: it dismisses the WHOLE reminder, so it belongs to the row
+   rather than to either of its lines. The bell is not (user call, 2026-07-21): centred on a
+   two-line card it floated beside the seam between the text and the meta line and read as
+   belonging to neither, so it hangs from the title line instead, the way the row is read. */
 .reminder {
   display: flex;
   align-items: center;
@@ -2187,6 +2187,10 @@
   flex: none;
   display: flex;
   color: var(--muted);
+  /* Centred within the title's line box: the text is 13.5px on 1.5 (a 20.25px line), the icon a
+     16px square, so it sits (20.25 - 16) / 2 off the line's top. */
+  align-self: flex-start;
+  margin-top: 2px;
 }
 .reminder-body {
   flex: 1;
