@@ -100,4 +100,42 @@ describe("App", () => {
     expect(bridge.acks).toEqual(["r-1"]);
     expect(screen.queryByText("Stand-up in 10 minutes")).toBeNull();
   });
+
+  it("swaps the reminder stack in with a new chat instead of rolling it over the old one", async () => {
+    const bridge = new FakeBridge();
+    bridge.reminders = [
+      {
+        reminderId: "r-1",
+        text: "Stand-up in 10 minutes",
+        firedAtUnixMs: Date.now() - 60_000,
+        recurring: false,
+        tainted: false,
+        sessionId: "",
+      },
+    ];
+    // A real mint per chat: with one pinned id the session never changes and the swap under test
+    // (the stack keyed to the chat it belongs to) could not happen at all.
+    let minted = 0;
+    render(<App bridge={bridge} newSessionId={() => `s${++minted}`} />);
+    await act(async () => {});
+    activate();
+    await act(async () => {});
+    // A conversation on screen: the stack is shut behind it.
+    fireEvent.change(screen.getByLabelText("Message"), { target: { value: "hi" } });
+    fireEvent.keyDown(screen.getByLabelText("Message"), { key: "Enter" });
+    await act(async () => {});
+    // Minting a new chat is a content swap, not a section toggle: the stack must arrive WITH the
+    // emptied panel, in the panel's own single ease. A roll would announce itself (Collapse says
+    // out loud that it has begun and ended), and the panel would follow the roll instead, which
+    // is the two-motion jump the maintainer caught on a full chat.
+    const rolls: string[] = [];
+    const heard = (event: Event) => rolls.push(event.type);
+    document.addEventListener("cortex:morphstart", heard);
+    document.addEventListener("cortex:morphend", heard);
+    fireEvent.click(screen.getByLabelText("New chat"));
+    document.removeEventListener("cortex:morphstart", heard);
+    document.removeEventListener("cortex:morphend", heard);
+    expect(screen.getByText("Stand-up in 10 minutes")).toBeTruthy();
+    expect(rolls).toEqual([]);
+  });
 });
