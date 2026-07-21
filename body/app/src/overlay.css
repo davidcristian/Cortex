@@ -1596,6 +1596,10 @@
   flex: none;
   display: flex;
   color: var(--muted);
+  /* Centred within the title's line box: the text is 13.5px on 1.5 (a 20.25px line), the icon a
+     16px square, so it sits (20.25 - 16) / 2 off the line's top. */
+  align-self: flex-start;
+  margin-top: 2px;
 }
 .reminder-body {
   flex: 1;
