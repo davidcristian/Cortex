@@ -36,7 +36,7 @@ function stubTabHeights(spread: () => number) {
     if (!this.classList.contains("tabpane")) {
       return 0;
     }
-    return this.getAttribute("aria-label") === "Appearance" ? 290 - spread() : 290;
+    return this.getAttribute("aria-label") === "Face" ? 290 - spread() : 290;
   });
 }
 
@@ -49,11 +49,11 @@ describe("ConsoleView", () => {
     renderConsole("appearance");
     expect(screen.getByRole("region", { name: "Settings" })).toBeInTheDocument();
     expect(screen.getAllByRole("tab")).toHaveLength(CONSOLE_TABS.length);
-    expect(screen.getByRole("tab", { name: "Appearance" })).toHaveAttribute(
+    expect(screen.getByRole("tab", { name: "Face" })).toHaveAttribute(
       "aria-selected",
       "true",
     );
-    expect(screen.getByRole("tab", { name: "Shortcuts" })).toHaveAttribute(
+    expect(screen.getByRole("tab", { name: "Chords" })).toHaveAttribute(
       "aria-selected",
       "false",
     );
@@ -61,12 +61,12 @@ describe("ConsoleView", () => {
 
   it("shows the appearance choices on one tab and the shortcut list on the other", () => {
     const { unmount } = renderConsole("appearance");
-    expect(screen.getByRole("tabpanel", { name: "Appearance" })).toBeInTheDocument();
+    expect(screen.getByRole("tabpanel", { name: "Face" })).toBeInTheDocument();
     expect(screen.getByRole("radiogroup", { name: "Iris" })).toBeInTheDocument();
     expect(screen.queryByText("Chat switcher")).toBeNull();
     unmount();
     renderConsole("shortcuts");
-    expect(screen.getByRole("tabpanel", { name: "Shortcuts" })).toBeInTheDocument();
+    expect(screen.getByRole("tabpanel", { name: "Chords" })).toBeInTheDocument();
     expect(screen.getByText("Switcher")).toBeInTheDocument();
     expect(screen.queryByRole("radiogroup", { name: "Iris" })).toBeNull();
   });
@@ -77,16 +77,16 @@ describe("ConsoleView", () => {
     // display:none, which drops focus to the body. The arriving pane picks it up on the tab that
     // is now selected, which is also what allows the pane being left to be aria-hidden: a browser
     // refuses to hide the focused element's ancestor from assistive tech.
-    expect(document.activeElement).toBe(screen.getByRole("tab", { name: "Shortcuts" }));
+    expect(document.activeElement).toBe(screen.getByRole("tab", { name: "Chords" }));
   });
 
   it("asks for a tab by name, including the one already showing (the strip cannot close it)", () => {
     const onSelectTab = vi.fn();
     renderConsole("appearance", { onSelectTab });
-    fireEvent.click(screen.getByRole("tab", { name: "Shortcuts" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Chords" }));
     expect(onSelectTab).toHaveBeenCalledWith("shortcuts");
     // Idempotent by construction: showing the tab that is up is what the reducer does with this.
-    fireEvent.click(screen.getByRole("tab", { name: "Appearance" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Face" }));
     expect(onSelectTab).toHaveBeenLastCalledWith("appearance");
   });
 

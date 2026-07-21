@@ -307,15 +307,16 @@ describe("Panel", () => {
       onCloseConsole,
     });
     expect(screen.getByRole("region", { name: "Settings" })).toBeInTheDocument();
-    expect(screen.getByRole("tabpanel", { name: "Appearance" })).toBeInTheDocument();
+    expect(screen.getByRole("tabpanel", { name: "Face" })).toBeInTheDocument();
     // The chat is still mounted (a half-typed draft survives the trip) but out of the flow, so
     // the panel is only as tall as the tiles.
     expect(container.querySelector(".view.gone")).not.toBeNull();
-    // Picked by its label, stored under its name: the two differ for this one style, because
-    // "foam" is the value already in the preference record and renaming the label cannot move it.
+    // Picked by its label, stored under its key, and the two match again: the keys were healed
+    // once the maintainer confirmed the project is private, with the shipped names kept as resolver
+    // aliases so a pick stored under "foam" still lands on Tangent.
     fireEvent.click(screen.getByRole("radio", { name: "Tangent" }));
-    expect(onPickMark).toHaveBeenCalledWith("foam");
-    fireEvent.click(screen.getByRole("radio", { name: "daylight" }));
+    expect(onPickMark).toHaveBeenCalledWith("tangent");
+    fireEvent.click(screen.getByRole("radio", { name: "Daylight" }));
     expect(onPickTheme).toHaveBeenCalledWith("daylight");
     fireEvent.click(screen.getByLabelText("Back to chat"));
     expect(onCloseConsole).toHaveBeenCalledOnce();
@@ -326,7 +327,7 @@ describe("Panel", () => {
     const props = (tab: ConsoleTab) =>
       panelProps({ consoleTab: tab }, true, false, { onOpenConsole });
     const view = render(<Panel {...props("appearance")} />);
-    fireEvent.click(screen.getByRole("tab", { name: "Shortcuts" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Chords" }));
     expect(onOpenConsole).toHaveBeenCalledWith("shortcuts");
 
     // A tab is not a view. Both are mounted in one pane, stacked, so the taller decides the height
@@ -347,7 +348,7 @@ describe("Panel", () => {
     const panes = [...view.container.querySelectorAll(".tabpane")];
     expect(panes.map((p) => p.getAttribute("aria-hidden"))).toEqual(["true", "false"]);
     expect(screen.getAllByRole("tabpanel")).toHaveLength(1);
-    expect(screen.getByRole("tabpanel", { name: "Shortcuts" })).toBeInTheDocument();
+    expect(screen.getByRole("tabpanel", { name: "Chords" })).toBeInTheDocument();
   });
 
   it("hands focus to the console and takes it back into the composer on the way out", () => {
@@ -358,7 +359,7 @@ describe("Panel", () => {
     // Into the console: the pane that arrives takes focus, because the chat pane it came from is
     // one morph away from display:none, which would drop focus to the body.
     view.rerender(<Panel {...props("appearance")} />);
-    expect(document.activeElement).toBe(screen.getByRole("tab", { name: "Appearance" }));
+    expect(document.activeElement).toBe(screen.getByRole("tab", { name: "Face" }));
     // And back out: the chat is the active view again, so the caret returns to the draft rather
     // than staying on a tab strip that is fading out.
     view.rerender(<Panel {...props(null)} />);
@@ -500,14 +501,14 @@ describe("Panel", () => {
     const props = (tab: ConsoleTab | null) => panelProps({ consoleTab: tab }, true, false);
     const view = render(<Panel {...props("shortcuts")} />);
     expect(view.container.querySelector(".tabpane.on")?.getAttribute("aria-label")).toBe(
-      "Shortcuts",
+      "Chords",
     );
     // Closing keeps the console mounted for one morph so it can fade out. Its tab is already null
     // by then, and the fallback for that was the FIRST tab, so leaving from the shortcuts drew the
     // appearance pane over the one the user was looking at and took it away with the fade.
     view.rerender(<Panel {...props(null)} />);
     const leaving = view.container.querySelector(".view.out");
-    expect(leaving?.querySelector(".tabpane.on")?.getAttribute("aria-label")).toBe("Shortcuts");
+    expect(leaving?.querySelector(".tabpane.on")?.getAttribute("aria-label")).toBe("Chords");
   });
 
   it("marks the log bare only while the empty state is the whole of it", () => {
@@ -539,7 +540,7 @@ describe("Panel", () => {
     expect(onToggleConsole).toHaveBeenCalledWith("shortcuts");
     cleanup();
     renderPanel({ consoleTab: "shortcuts" }, true, false, { onToggleConsole, onCloseConsole });
-    expect(screen.getByRole("tabpanel", { name: "Shortcuts" })).toBeInTheDocument();
+    expect(screen.getByRole("tabpanel", { name: "Chords" })).toBeInTheDocument();
     fireEvent.click(screen.getByLabelText("Back to chat"));
     expect(onCloseConsole).toHaveBeenCalledOnce();
   });

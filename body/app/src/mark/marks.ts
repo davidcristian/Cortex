@@ -6,8 +6,10 @@
 //
 // The labels are movements of thought: the mark is the overlay's thinking signal, so the picker
 // asks "how does it think?" and each label answers with how that style moves (ADR-0031 addendum).
-// `name` is the frozen storage key a style first shipped under, the value the preference record
-// holds, so every key now differs from its label; the note on Tangent says why none may change.
+// `name` is the storage key, the value the preference record holds, and every key matches its
+// label again: the keys were healed once the maintainer confirmed nothing beyond the dev machine holds a
+// stored value (keys freeze when someone else depends on them, and nobody does yet). A pick made
+// under an old key still lands, because `resolveMark` carries the shipped names as aliases.
 
 import type { Envelope, Harmonic, Lobe, Orbit } from "./bubble";
 
@@ -45,7 +47,7 @@ export interface MarkStyle {
 
 /** Turning it over: two slow modes roll the outline around and it never settles on a shape. */
 export const MULL: MarkStyle = {
-  name: "wobble",
+  name: "mull",
   label: "Mull",
   note: "Two slow modes turn the outline over, never settling",
   filmPeriodSeconds: 26,
@@ -69,7 +71,7 @@ export const MULL: MarkStyle = {
 
 /** Composed outside, alive inside: two opposed interference bands crawl across the film. */
 export const MUSE: MarkStyle = {
-  name: "sheen",
+  name: "muse",
   label: "Muse",
   note: "The outline keeps its calm; the film drifts beneath it",
   filmPeriodSeconds: 15,
@@ -89,7 +91,7 @@ export const MUSE: MarkStyle = {
 
 /** Mostly still, then a ripple runs the rim and decays, the way a film answers a nudge. */
 export const HUNCH: MarkStyle = {
-  name: "ping",
+  name: "hunch",
   label: "Hunch",
   note: "A ripple strikes the rim every few seconds, then fades",
   filmPeriodSeconds: 30,
@@ -112,11 +114,11 @@ export const HUNCH: MarkStyle = {
  *
  *  The two small ones are the only lobes in the registry that swing: each carries a real `orbit`
  *  around the big lobe's centre, side thoughts on arcs that never leave the main one, which is
- *  what the label names. `name` stays "foam", the label this first shipped under, because it is
- *  the value written to the preference record: change it and every user who picked this style
- *  silently falls back to the default. */
+ *  what the label names. This style shipped as Foam and wore that storage key under the Tangent
+ *  label for a while; the key was healed to match once the maintainer confirmed the project is still
+ *  private, and "foam" lives on only as a resolver alias. */
 export const TANGENT: MarkStyle = {
-  name: "foam",
+  name: "tangent",
   label: "Tangent",
   note: "Two side thoughts swing on slow arcs around the main one",
   filmPeriodSeconds: 28,
@@ -151,10 +153,21 @@ export const TANGENT: MarkStyle = {
 /** The registry is plug-and-play: add a `MarkStyle` here and it becomes pickable. */
 export const MARKS: readonly MarkStyle[] = [MULL, MUSE, HUNCH, TANGENT];
 
-/** Resolve the active mark: a known name wins, anything else falls back to the default. */
+/** The keys the four styles first shipped under, kept resolving so a preference stored before
+ *  the healing still lands on the style it named. New writes always use the current keys. */
+const LEGACY_NAMES: Record<string, string> = {
+  wobble: "mull",
+  sheen: "muse",
+  ping: "hunch",
+  foam: "tangent",
+};
+
+/** Resolve the active mark: a known name wins, a legacy name resolves to what it became, and
+ *  anything else falls back to the default. */
 export function resolveMark(preference: string | null): MarkStyle {
   if (preference !== null) {
-    const chosen = MARKS.find((mark) => mark.name === preference);
+    const name = LEGACY_NAMES[preference] ?? preference;
+    const chosen = MARKS.find((mark) => mark.name === name);
     if (chosen !== undefined) {
       return chosen;
     }

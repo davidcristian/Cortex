@@ -346,28 +346,33 @@ while a turn is processing must not lose it*) lives here. States:
   label answers with how that style moves. Four ship: **Mull** (two slow modes turn the outline
   over; the default), **Muse** (near circular, the film drifting beneath a calm surface),
   **Hunch** (still, until a ripple strikes the rim and fades), **Tangent** (two side thoughts
-  swinging on slow arcs around the main one). Each is stored under the key it first shipped with
-  (wobble, sheen, ping, foam), because the preference record holds the key and a key rename would
-  silently reset the choice. They are data in
-  a registry (`mark/marks.ts`), the twin of the theme registry, so a fifth is a literal and no
-  code. The picker is the empty state's own mark: clicking it opens the styles drawn live, rather
+  swinging on slow arcs around the main one). Each is stored under a key matching its label
+  (mull, muse, hunch, tangent): the keys a style first shipped under (wobble, sheen, ping, foam)
+  were healed to match on 2026-07-21, once the maintainer confirmed nothing beyond his machine holds a
+  stored value, and they live on as resolver aliases so an old stored pick still lands. They are
+  data in a registry (`mark/marks.ts`), the twin of the theme registry, so a fifth is a literal
+  and no code. The picker is the empty state's own mark: clicking it opens the styles drawn live, rather
   than adding a fifth header button that would put the accent palette on resting chrome.
 - **CONSOLE:** the panel's one other face, everything about the overlay that is not the
   conversation, behind a chevron back to the chat and a **tab strip** (2026-07-20,
   [ADR-0035](../adr/ADR-0035-console-and-motion.md) decision 1). It replaced two separate views, so Esc
   leaves in **one** press and there is no precedence to remember.
-  - **Appearance** (2026-07-19, [ADR-0032](../adr/ADR-0032-preference-record.md)) is opened by the
-    hint strip's sliders button or by the empty state's own mark, which is the shortcut to the row
-    that changes it. Two groups of **swatches**, each choice made by looking at the thing rather
-    than reading its name: the **theme** as tiles that are miniatures of the panel wearing that
-    theme, drawn from that theme's own tokens, with **Auto** as a tile split diagonally between the
-    two themes Auto resolves to (this is still the only place Auto can be chosen, since the
-    header's toggle names the opposite theme outright and can only land on one of the two); and the
-    **mark** as tiles drawing the real bubble at 40px, with the chosen style's note under the row,
-    because these four differ by how they MOVE. Both rows are a map over their registry, so a fifth
-    theme or mark style appears here with no change to the view. Every choice persists to the
-    brain's own settings record, so it outlives a restart and a reinstall of the body.
-  - **Shortcuts** is the complete binding list, grouped (Writing / Chats / The window) on the row
+  - **Face** (the appearance tab; named 2026-07-21, with the whole console strip: the two tabs
+    read **Face · Chords**, what it shows and what you play on it, per the AGENTS.md naming rule;
+    2026-07-19, [ADR-0032](../adr/ADR-0032-preference-record.md)) is opened by the hint strip's
+    sliders button or by the empty state's own mark, which is the shortcut to the row that
+    changes it. Three rows of **swatches** whose legends name the dimension each varies along,
+    one anatomy (the face has a light, an iris, and a dream), each choice made by looking at the
+    thing rather than reading its name: **Light** is the theme as tiles that are miniatures of
+    the panel wearing it, drawn from that theme's own tokens, with **Auto** as a tile split
+    diagonally between the two themes Auto resolves to (still the only place Auto can be chosen,
+    since the header's toggle names the opposite theme outright and can only land on one of the
+    two); **Iris** is the mark as tiles drawing the real bubble at 40px, with the chosen style's
+    note under the row, because these four differ by how they MOVE; **Dream** is the window edge
+    (§2). Every row is a map over its registry, so a fifth entry appears here with no change to
+    the view. Every choice persists to the brain's own settings record, so it outlives a restart
+    and a reinstall of the body.
+  - **Chords** is the complete binding list, grouped (Ink / Chats / The window) on the row
     rhythm the console shares: what it is on the left, the keys on the right, hairlines between.
     Each key is its own cap and a non-letter cap carries the header's own outline glyph, exactly as
     the hint strip draws them.

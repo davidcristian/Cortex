@@ -114,3 +114,14 @@ Every `MarkStyle.name` is now a frozen key that differs from its label (`wobble`
 `ping`, `foam`): the reasoning of the 2026-07-20 addendum holds for all four, and its closing
 line ("the one style where they differ") is superseded here. Labels, notes and comments changed;
 no key, number or behaviour did.
+
+## Addendum (2026-07-21, later): the keys are healed
+
+The maintainer corrected the premise under the two addenda above: the project is private, nothing is
+in production, and no machine but his holds a stored preference, so key-freezing is policy that
+has not started yet rather than physics. Every `MarkStyle.name` now matches its label (`mull`,
+`muse`, `hunch`, `tangent`), and the shipped keys (`wobble`, `sheen`, `ping`, `foam`) live on as
+aliases inside `resolveMark`, so a preference written before the healing still resolves to the
+style it named while every new write uses the current key. The freeze rule itself moved into
+AGENTS.md in its corrected form: keys freeze once anything beyond the host machine depends on
+them, and until then a mismatch is healed while healing is free.

@@ -40,8 +40,10 @@ function Key({
 export function ShortcutsTab() {
   return (
     <div className="rows">
+      {/* The group legends: Ink is what the send and new-line keys put on the page; Chats is the
+          product's own word for its conversations; The window is the window's own verbs. */}
       <section className="swatch">
-        <h3 className="sect">Writing</h3>
+        <h3 className="sect">Ink</h3>
         <div className="skeys">
           <Key label="Send">
             <b className="key">
@@ -91,7 +93,7 @@ export function ShortcutsTab() {
             <b>Alt</b>
             <b>Space</b>
           </Key>
-          <Key label="This list">
+          <Key label="This tab">
             <b>?</b>
           </Key>
           {/* One card, because Esc does one thing: it backs out of wherever you are. From the
