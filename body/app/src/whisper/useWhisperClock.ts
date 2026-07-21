@@ -1,5 +1,6 @@
 import { type RefObject, useEffect, useRef, useState } from "react";
 
+import { MORPHING_ATTRIBUTE, MORPH_END_EVENT, MORPH_START_EVENT } from "../overlay/morph";
 import {
   BAND_LETTERS,
   type Front,
@@ -204,14 +205,22 @@ export function useWhisperClock(refs: WhisperRefs, facts: WhisperFacts): Whisper
       // mist); past the first wrap it is simply the final one. The height's target steps at a
       // wrap, and the easing is what turns that step into a curve.
       const lineOne = fy < m.padY + 5;
-      const done = draining && s.lo >= els.length;
+      const finished = draining && s.lo >= els.length;
       const tW = Math.max(
         m.breathW,
         lineOne ? Math.min(m.maxW, fx + m.padX + MIST_W + MIST_GAP * 2) : m.maxW,
       );
       const tH = Math.max(m.breathH, fy + m.line + m.padY);
-      s.w = done ? tW : approach(s.w, tW, dt, BOX_GAIN);
-      const h = done ? tH : approach(s.h, tH, dt, BOX_GAIN);
+      const rolling = String(Math.round(tH));
+      if (bubble.getAttribute(MORPHING_ATTRIBUTE) !== rolling) {
+        const announced = bubble.hasAttribute(MORPHING_ATTRIBUTE);
+        bubble.setAttribute(MORPHING_ATTRIBUTE, rolling);
+        if (!announced) {
+          bubble.dispatchEvent(new CustomEvent(MORPH_START_EVENT, { bubbles: true }));
+        }
+      }
+      s.w = finished ? tW : approach(s.w, tW, dt, BOX_GAIN);
+      const h = finished ? tH : approach(s.h, tH, dt, BOX_GAIN);
       const grown = h - s.h;
       s.h = h;
       bubble.style.width = `${s.w.toFixed(1)}px`;
@@ -225,7 +234,9 @@ export function useWhisperClock(refs: WhisperRefs, facts: WhisperFacts): Whisper
       if (grown >= GROWTH_NOTICE_PX) {
         f.onGrow();
       }
-      if (done) {
+      if (finished && Math.abs(gx - s.mx) < 1 && Math.abs(gy - s.my) < 1) {
+        bubble.removeAttribute(MORPHING_ATTRIBUTE);
+        bubble.dispatchEvent(new CustomEvent(MORPH_END_EVENT, { bubbles: true }));
         setPhase("settled");
         return true;
       }
@@ -241,7 +252,15 @@ export function useWhisperClock(refs: WhisperRefs, facts: WhisperFacts): Whisper
         frame = requestAnimationFrame(step);
       }
     });
-    return () => cancelAnimationFrame(frame);
+    return () => {
+      cancelAnimationFrame(frame);
+      // A bubble unmounted mid-stream (a chat switch under a running turn) hands the height
+      // back explicitly, or the panel would keep deferring to a roll whose section is gone.
+      if (bubble.hasAttribute(MORPHING_ATTRIBUTE)) {
+        bubble.removeAttribute(MORPHING_ATTRIBUTE);
+        bubble.dispatchEvent(new CustomEvent(MORPH_END_EVENT, { bubbles: true }));
+      }
+    };
   }, [animated, bubbleRef, textRef, mistRef]);
 
   if (!animated) {

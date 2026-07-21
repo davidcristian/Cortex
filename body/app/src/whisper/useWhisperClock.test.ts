@@ -40,13 +40,17 @@ function rig(parented = true) {
     text: { current: text },
     mist: { current: mist },
   };
-  const lay = (count: number, topOf: (i: number) => number = () => 0): HTMLElement[] => {
+  const lay = (
+    count: number,
+    topOf: (i: number) => number = () => 0,
+    leftOf: (i: number) => number = (i) => 15 + (i % 8) * 7,
+  ): HTMLElement[] => {
     const laid: HTMLElement[] = [];
     for (let i = 0; i < count; i += 1) {
       const ch = document.createElement("span");
       ch.className = "ch";
       Object.defineProperty(ch, "offsetTop", { value: topOf(i) });
-      Object.defineProperty(ch, "offsetLeft", { value: 15 + (i % 8) * 7 });
+      Object.defineProperty(ch, "offsetLeft", { value: leftOf(i) });
       Object.defineProperty(ch, "offsetWidth", { value: 7 });
       text.appendChild(ch);
       laid.push(ch);
@@ -107,6 +111,9 @@ describe("useWhisperClock", () => {
     const { request, tick } = fakeFrames();
     const { refs, bubble, mist, lay } = rig();
     const grew = vi.fn();
+    const rolls: string[] = [];
+    bubble.parentElement?.addEventListener("cortex:morphstart", () => rolls.push("start"));
+    bubble.parentElement?.addEventListener("cortex:morphend", () => rolls.push("end"));
     // Two lines: the second's letters sit 40px down, so the box has real height to grow.
     const letters = lay(12, (i) => (i < 6 ? 0 : 40));
     const { result, rerender } = renderHook(({ f }) => useWhisperClock(refs, f), {
@@ -117,8 +124,12 @@ describe("useWhisperClock", () => {
       tick((now += 50));
     }
     expect(result.current).toBe("talking");
+    // The bubble owns its height while it speaks, in the panel's own roll contract: the
+    // attribute stands (holding the height being eased to) and the start bubbled up once.
+    expect(bubble.getAttribute("data-morphing")).not.toBeNull();
+    expect(rolls).toEqual(["start"]);
     rerender({ f: facts({ letters: 12, confirmed: 7, streaming: false, onGrow: grew }) });
-    for (let i = 0; i < 40 && result.current !== "settled"; i += 1) {
+    for (let i = 0; i < 60 && result.current !== "settled"; i += 1) {
       tick((now += 50));
     }
     expect(result.current).toBe("settled");
@@ -129,11 +140,56 @@ describe("useWhisperClock", () => {
     // The box grew to hold the second line and said so to the tail pin.
     expect(Number.parseFloat(bubble.style.height)).toBeGreaterThan(42);
     expect(grew).toHaveBeenCalled();
-    // The mist rode the front as an inline transform, and the loop stopped with the settle.
+    // The mist rode the front as an inline transform, the roll was handed back with the
+    // settle, and the loop stopped.
     expect(mist.style.transform).toContain("translate");
+    expect(bubble.hasAttribute("data-morphing")).toBe(false);
+    expect(rolls).toEqual(["start", "end"]);
     const scheduled = request.mock.calls.length;
     tick(now + 50);
     expect(request.mock.calls.length).toBe(scheduled);
+  });
+
+  it("holds the settle until the mist reaches the last word (the coda)", () => {
+    const { tick } = fakeFrames();
+    const { refs, lay } = rig();
+    // The last letter sits far to the right, so the drain finishes the letters well before
+    // the trailing mist can have glided there.
+    const letters = lay(8, () => 0, (i) => (i === 7 ? 320 : 15 + i * 7));
+    const { result, rerender } = renderHook(({ f }) => useWhisperClock(refs, f), {
+      initialProps: { f: facts({ letters: 8, confirmed: 8 }) },
+    });
+    let now = 0;
+    tick((now += 50));
+    rerender({ f: facts({ letters: 8, confirmed: 8, streaming: false }) });
+    let lettersDoneAt: number | null = null;
+    for (let i = 0; i < 60 && result.current !== "settled"; i += 1) {
+      tick((now += 50));
+      if (lettersDoneAt === null && letters.every((ch) => ch.style.opacity === "1")) {
+        lettersDoneAt = i;
+        // Every letter is ink, and the reply is still not settled: the mist is en route.
+        expect(result.current).toBe("talking");
+      }
+    }
+    expect(lettersDoneAt).not.toBeNull();
+    expect(result.current).toBe("settled");
+  });
+
+  it("hands the roll back if it unmounts mid-stream", () => {
+    const { tick } = fakeFrames();
+    const { refs, bubble, lay } = rig();
+    const rolls: string[] = [];
+    bubble.parentElement?.addEventListener("cortex:morphend", () => rolls.push("end"));
+    lay(6);
+    const { unmount } = renderHook(() => useWhisperClock(refs, facts({ letters: 6, confirmed: 6 })));
+    let now = 0;
+    for (let i = 0; i < 3; i += 1) {
+      tick((now += 50));
+    }
+    expect(bubble.hasAttribute("data-morphing")).toBe(true);
+    unmount();
+    expect(bubble.hasAttribute("data-morphing")).toBe(false);
+    expect(rolls).toEqual(["end"]);
   });
 
   it("starts a remounted bubble past its confirmed letters instead of replaying them", () => {

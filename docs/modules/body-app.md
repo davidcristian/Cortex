@@ -339,7 +339,15 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
   never moves visible letters); `whisper/useWhisperClock.ts` is a rAF loop in `useMarkClock`'s
   shape that writes letter opacity and blur, the mist's transform and the bubble's posed box
   imperatively, its only `setState` being the breath-to-talking and talking-to-settled
-  transitions. The bubble latches whether the message was streaming when it mounted: history
+  transitions. Letters are INLINE spans inside the inline-block word boxes (an inline-block
+  letter is laid on whole pixels and reads as a ransom note; inline keeps the text's own
+  sub-pixel advances). The bubble announces its growth in the panel's roll contract
+  (`overlay/morph.ts`): it carries `data-morphing` from its first spoken letter to its settle,
+  so placements defer and the panel's auto height follows the box frame by frame instead of
+  replaying it from a render-old measurement, which snapped the top edge backwards on every
+  token (ADR-0037 addendum has the traces). The settle itself waits a few frames of coda for
+  the mist to reach the last word, so the evaporation plays at the reply's end and never
+  mid-line. The bubble latches whether the message was streaming when it mounted: history
   renders one plain text node with none of the machinery, and a message this instance streamed
   keeps its letter DOM after settling so nothing re-wraps under the reader. The letter DOM is
   `aria-hidden` behind a visually hidden copy of the content; the mist carries the "Thinking"
