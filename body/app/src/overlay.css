@@ -2211,8 +2211,13 @@
   font-size: 11.5px;
   color: var(--dim);
 }
+/* The vertical padding is deliberately lopsided: the line box places its baseline by font
+   metrics, which at this size leaves ~1.5px more air above the lowercase band than below it, and
+   the maintainer read the text as sitting low in the pill. A pixel moved from the top to the bottom
+   re-centres the band by eye without changing the pill's height; `.reminder-open` matches, since
+   it grows the same pill on hover. */
 .reminder-tag {
-  padding: 1px 8px;
+  padding: 0 8px 2px;
   border: 1px solid var(--stroke);
   border-radius: 999px;
 }
@@ -2234,7 +2239,7 @@
    timestamp's `--dim`), which a browser pass settled: at the row's own weight it read as a
    third piece of metadata, and an action nobody can see before hovering it is not an action. */
 .reminder-open {
-  padding: 1px 8px;
+  padding: 0 8px 2px;
   border: 1px solid transparent;
   border-radius: 999px;
   background: none;
