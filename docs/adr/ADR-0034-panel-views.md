@@ -123,3 +123,17 @@ Traced in a browser at 60Hz: opening the switcher jumped, closing it eased, open
   is left is one row's worth of instant. Recorded in `docs/refinements/body-overlay.md`.
 - Two views' worth of chrome collapsed into `components/PanelView.tsx`, and `Panel` became a router
   over `components/ChatView.tsx` and the two views, which is what kept every file under the cap.
+
+## Addendum (2026-07-21): the console stands on the chat's edge
+
+Living with the motion, the user reversed one half of the morph: entering the console, or
+switching between its tabs, no longer slides the panel to the true middle of the screen. It
+resizes in place instead, standing on the bottom edge the chat is standing on, the way growth
+inside a view does, so the eye tracks one thing changing (the height) rather than two. Coming
+back to the chat is unchanged, and now trivially so, the edge never having moved.
+
+The slide itself was not deleted: `panelPlacement.ts` keeps it behind `VIEW_CHANGE_RECENTRES`,
+a defaulted argument of `place`, with both settings under test (the flipped-switch tests drive
+`place` directly, including the parked-edge restore and the ceiling-along-the-move clamp that
+only a rising bottom edge can exercise). Flipping the constant restores this decision's
+original motion in full.
