@@ -2,6 +2,7 @@ import { act, render } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { LUCID, REVERIE, TRANCE } from "../edge/edges";
+import { BLEED } from "../edge/liquid";
 import { PanelEdge } from "./PanelEdge";
 
 /** Take over the frame loop so the test drives the edge's clock by hand. */
@@ -38,9 +39,12 @@ describe("PanelEdge", () => {
     const { container } = render(
       <PanelEdge style={REVERIE} working={false} animated={false} idPrefix="t1" />,
     );
-    const wrapper = container.querySelector(".edge");
+    const wrapper = container.querySelector(".edge") as HTMLElement;
     expect(wrapper).toHaveAttribute("aria-hidden", "true");
-    expect(wrapper?.className).toBe("edge edge-settled");
+    expect(wrapper.className).toBe("edge edge-settled");
+    // The wrapper bleeds past the panel by the geometry module's own number, so the liquid
+    // breathes around the panel's real edge rather than inside it.
+    expect(wrapper.style.inset).toBe(`${-BLEED}px`);
     const slab = container.querySelector(".edge-glass") as HTMLElement;
     expect(slab.style.clipPath).toContain('path("M');
     // The box it measured is the box it drew: the far edge of the outline sits near 560.

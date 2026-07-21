@@ -229,11 +229,26 @@
   background: transparent;
   border-color: transparent;
   backdrop-filter: none;
+  /* The edge wrapper bleeds past the border box so the liquid can swing OUTWARD around the
+     panel's real edge; hidden overflow would slice that bleed off. The content clip this
+     surrenders moves one level down, onto `.views`. */
+  overflow: visible;
 }
-/* The edge's own layers. The wrapper and each layer cover the panel exactly; everything ignores
-   the pointer. Back to front: the clipped glass slab, the glow strokes, the content (`.views`,
-   z-index 1 above), and the crisp hairline over it all, where no text ever reaches. */
-.edge,
+/* The content clip a liquid panel hands down: same box, same corner, so the growth reveal
+   (see `.panel`) clips here exactly as it clipped on the panel itself, and mid-ease rows still
+   resolve behind a rounded edge instead of spilling past the glass. */
+.panel.edge-live .views {
+  overflow: hidden;
+  border-radius: 28px;
+}
+/* The edge's own layers. The wrapper carries its bleed as an inline inset (the geometry module
+   owns the number); each layer covers the wrapper; everything ignores the pointer. Back to
+   front: the clipped glass slab, the glow strokes, the content (`.views`, z-index 1 above), and
+   the crisp hairline over it all, where no text ever reaches. */
+.edge {
+  position: absolute;
+  pointer-events: none;
+}
 .edge-glass,
 .edge-under,
 .edge-over {

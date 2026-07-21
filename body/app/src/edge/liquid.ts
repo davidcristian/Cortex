@@ -3,15 +3,23 @@
 // like mark/bubble.ts: the component that renders this owns a clock and a box size, nothing here
 // touches the DOM.
 //
-// The invariant this file owes the panel: the path NEVER leaves the given box. The neutral line
-// is inset by the style's worst-case reach, so however deep the spectrum swings, the glass stays
-// inside the panel's border box and the panel's layout, growth and shadow never learn the edge
-// exists (ADR-0036 decision 5).
+// The invariant this file owes the panel: the path NEVER leaves the given box. The box is the
+// edge wrapper, which bleeds `BLEED` past the panel on every side, and the neutral outline sits
+// exactly that far inside it, which is to say exactly ON the panel's own edge: the waves swing
+// around the regular border, outward into the bleed and inward over the glass, and every style's
+// worst-case reach is pinned under the bleed by the registry tests. The first cut inset the
+// whole liquid by the reach instead, and the maintainer caught it on sight: on the light ground it
+// read as a window that had shrunk (ADR-0036 decision 5).
 
 import type { EdgeStyle } from "./edges";
 
 /** The panel's own corner radius (overlay.css `.panel`), which the neutral line carries. */
 export const CORNER_RADIUS = 28;
+
+/** How far the edge wrapper extends past the panel's border box on every side, px. The wrapper
+ *  wears this as its negative inset (PanelEdge), the sampler as the neutral line's inset, so the
+ *  two cannot drift; reachOf(style) <= BLEED is what keeps every wave inside the wrapper. */
+export const BLEED = 14;
 
 /** How far past its arc a corner's full swell reaches into the straight runs, px. */
 const CORNER_TAIL = 34;
@@ -128,7 +136,7 @@ export function edgePath(
   depth: number,
   scale = 1,
 ): string {
-  const inset = reachOf(style) * scale;
+  const inset = BLEED * scale;
   const radius = CORNER_RADIUS * scale;
   const w = width - 2 * inset;
   const h = height - 2 * inset;
