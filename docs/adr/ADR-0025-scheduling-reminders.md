@@ -1513,3 +1513,22 @@ that vanish when the brain goes away means a failed pull is clearing state. Both
 here as dated addenda.
 
 No code changed here; this is a records correction at the origin ADR.
+
+## Addendum (2026-07-21): the meta line's column, order and baseline
+
+Three user-caught refinements to the card's second line, all of them typography rather than
+behaviour:
+
+- **The timestamp reserves its column** (`--time-col`, a token the switcher's rows now share,
+  where the measurement of `relativeTime`'s widest bounded shape lives). Without it, everything
+  after the time slid sideways as a card aged from `1m ago` to `10m ago` under the reader.
+- **The control leads the badges.** `open chat` is the one thing the row can DO; the badges only
+  describe it. With the timestamp's column ahead of it, the control now sits at one x down the
+  whole stack instead of being pushed along by however many badges a given reminder carries.
+- **The line aligns on the BASELINE, not the centre.** The pills carry lopsided vertical padding
+  so their own text is optically centred inside the rounded box (an earlier fix, also the
+  user's), and centring the row then centres those boxes and leaves the text inside them a
+  pixel above the bare timestamp beside it: measured in Chromium at 11.5px, the time's glyphs at
+  y=181.25 against the pills' at 180.25, in every row of the stack. Baselines are what the eye
+  reads along, so the row aligns on them and both corrections hold at once (re-measured after:
+  a delta of exactly 0.0 on all three rows).

@@ -34,6 +34,15 @@
      the chip's padding, border or font size and this number is what has to be re-derived, or the
      chip outgrows the token and the settled row is short again by the difference. */
   --trace-row: 24px;
+  /* The width every relative timestamp reserves, so a column of them holds still while the clock
+     runs under it. A token because two rules have to agree: the switcher's rows and the reminder
+     stack's meta line both print `relativeTime` at 11.5px, so one measurement bounds both. Its
+     four shapes at that size: `just now` 48.4, `59m ago` 50.9 (the widest that is bounded),
+     `23h ago` 47, and then the day branch, which is not bounded: `99d ago` 47, `365d ago` 54.3,
+     `9999d ago` 61.6. 55px covers every one of them up to three digits of days, which is the
+     better part of three years; a fourth digit pushes its own row rather than being paid for by
+     every row above it. Re-derive it if the label's size or face changes. */
+  --time-col: 55px;
   /* The one red in the overlay that is not a status. It marks the two controls that UNDO something
      in flight: the trash on a chat row, and the stop that cancels a running turn. Both wear it on
      hover only, so nothing at rest is coloured by it (design/overlay-ux.md §1 reserves colour for
@@ -2131,14 +2140,10 @@
    as a label that happens to be near the corner. `center` because the row is stretch-aligned for
    the buttons, and a stretched label would sit against the top of a two-line row.
 
-   ITS WIDTH IS RESERVED, so the column holds still while the clock runs and while a list of chats
-   of different ages is read down. `relativeTime` has exactly four shapes, and at this size they
-   measure: `just now` 48.4, `59m ago` 50.9 (the widest that is bounded), `23h ago` 47, and then the
-   day branch, which is not bounded: `99d ago` 47, `365d ago` 54.3, `9999d ago` 61.6. 55px covers
-   every one of them up to three digits of days, which is a chat pinned for the better part of three
-   years; a fourth digit is left to push the column rather than paid for by every row above it. The
-   text is right-aligned inside that box, or the reserve would simply hang off the end of a short
-   value and the alignment it exists for would be the thing it broke.
+   ITS WIDTH IS RESERVED (`--time-col`, where the measurement lives), so the column holds still
+   while the clock runs and while a list of chats of different ages is read down. The text is
+   right-aligned inside that box, or the reserve would simply hang off the end of a short value and
+   the alignment it exists for would be the thing it broke.
 
    The inset is a MARGIN, not padding: `box-sizing` is border-box here, so padding would come out of
    the 55 and reserve 44. And the left margin is the gap between a label and the controls beside it:
@@ -2147,7 +2152,7 @@
 .switcher-time {
   flex: none;
   align-self: center;
-  min-width: 55px;
+  min-width: var(--time-col);
   margin: 0 11px 0 8px;
   text-align: right;
   font-size: 11.5px;
@@ -2221,14 +2226,28 @@
   line-height: 1.5;
   overflow-wrap: anywhere;
 }
+/* Aligned on the BASELINE, not the centre. The pills carry lopsided vertical padding so their own
+   text is optically centred in the rounded box (see `.reminder-tag`), and centring the row then
+   centres those BOXES and leaves the text inside them a pixel above the bare timestamp beside it:
+   measured at 11.5px, the time's glyphs at y=181.25 against the pills' at 180.25, in every row.
+   Baselines are what the eye reads along, so the row aligns on them and both corrections hold at
+   once. */
 .reminder-meta {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   flex-wrap: wrap;
   gap: 7px;
   margin-top: 3px;
   font-size: 11.5px;
   color: var(--dim);
+}
+/* The timestamp reserves its column (`--time-col`) exactly as the switcher's does, so the pills
+   beside it start at one x across every row of the stack and hold there while the clock ticks a
+   row from `1m ago` to `10m ago` under them. Left-aligned rather than the switcher's right,
+   because here the reserve opens a column to its right instead of closing one at a row's end. */
+.reminder-time {
+  flex: none;
+  min-width: var(--time-col);
 }
 /* The vertical padding is deliberately lopsided: the line box places its baseline by font
    metrics, which at this size leaves ~1.5px more air above the lowercase band than below it, and
