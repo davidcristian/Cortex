@@ -423,6 +423,12 @@ restarts. The overlay is a *view* of store-backed state, never the user of it.
   escalate; they stay ink-revealed on hover, so at rest a row is a title, a preview and a time. The
   time stands **11px inside the row's right edge, which is what the title stands inside its left**,
   so the two ends are one pair of margins rather than a label that happens to be near the corner.
+  **Its width is reserved at 55px** and its text right-aligned in that box, so the column holds still
+  while the clock runs and down a list of chats of different ages. 55 is a measurement of the four
+  things `relativeTime` can say: `just now` 48.4, `59m ago` 50.9 (the widest that is bounded),
+  `23h ago` 47, and the unbounded day branch at 47 for two digits and 54.3 for three, which is a chat
+  pinned the better part of three years. A fourth digit pushes the column rather than being paid for
+  by every row above it.
 - **Titles:** derived from the first user message (later: a brain-generated summary title).
 
 **Seam dependency delivered in [Slice 8.7](../ROADMAP.md) ([ADR-0021](../adr/ADR-0021-session-read-seam.md)).**

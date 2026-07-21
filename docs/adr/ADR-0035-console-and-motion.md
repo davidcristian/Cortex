@@ -1105,3 +1105,23 @@ and both amendments are the reason it is worth writing down.
 3. **The bell and the check are centred on a reminder card**, not hung from its first line. They are
    about the whole reminder rather than the sentence's opening, and a card is a line of text over a
    line of meta.
+
+## Addendum, 2026-07-21 (later still): the switcher's time column is reserved
+
+`.switcher-time` reserves 55px and right-aligns its text in it, so the column holds still while the
+clock runs and down a list of chats of different ages. The number is a measurement, taken at the
+size the column is actually drawn at, of everything `relativeTime` can say: `just now` 48.4,
+`59m ago` 50.9 (the widest of the three bounded shapes), `23h ago` 47, and the day branch, which is
+not bounded, at 47 for two digits and 54.3 for three. 55 therefore covers every value up to a chat
+pinned for the better part of three years, and a fourth digit of days is left to push the column
+rather than being paid for by every row above it.
+
+Two things are easy to get wrong here and are written into the rule. The inset is a margin rather
+than padding, because `box-sizing` is border-box in this stylesheet and padding would come out of
+the 55 and reserve 44. And the text is right-aligned inside the box: left-aligned, a short value
+hangs the reserve off its end and the alignment the reserve exists for is the thing it breaks.
+`relativeTime.test.ts` asserts the four shapes as a range rather than as samples, so a fifth shape
+is a failing test pointing at this number rather than a column that has quietly started moving.
+
+The time also keeps 8px off the pin beside it. The row's own 2px gap is the spacing WITHIN the
+cluster of three icon buttons, and a label that is not one of them wants its own.
