@@ -18,4 +18,16 @@ describe("relativeTime", () => {
   it("clamps a future timestamp to 'just now'", () => {
     expect(relativeTime(NOW + 10_000, NOW)).toBe("just now");
   });
+
+  it("says one of four things, which is what the switcher's time column is sized to", () => {
+    const shapes = /^(just now|[1-9]\d*[mhd] ago)$/u;
+    const minute = 60_000;
+    const spans = [0, 1, 59, 60, 61, 1439, 1440, 1441, 60 * 24 * 999, 60 * 24 * 9999];
+    for (const minutes of spans) {
+      expect(relativeTime(NOW - minutes * minute, NOW)).toMatch(shapes);
+    }
+    // And the two the width was read off, exactly as measured.
+    expect(relativeTime(NOW - 59 * minute, NOW)).toBe("59m ago");
+    expect(relativeTime(NOW - 999 * 24 * 60 * minute, NOW)).toBe("999d ago");
+  });
 });
