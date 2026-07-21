@@ -397,6 +397,31 @@ describe("usePanelMotion", () => {
     expect(bottom()).toBe(350);
   });
 
+  it("counts an arriving aside off the raw height, so the whole panel fits above the edge", () => {
+    const tick = clock();
+    const { ref, element, state, moves, bottom } = harness();
+    state.natural = 400;
+    const { rerender } = renderHook(({ open }) => usePanelMotion(ref, open, "chat"), {
+      initialProps: { open: false },
+    });
+    rerender({ open: true });
+    expect(bottom()).toBe(300);
+    // The stack rolling in behind this summon wants more than the ceiling above that edge allows:
+    // 400 of chat plus 250 of reminders against the 530 the edge affords. Centring the chat on
+    // the CLAMPED prediction (530 less the stack is 280) pinned an edge the whole panel could not
+    // fit above, the cap written for it squeezed the chat under the rolling stack, and the
+    // placement after the roll undid it: a second beat on every summon whose reminders outgrow
+    // the ceiling, which the maintainer caught at a 760px viewport (the history lost 119px over the
+    // roll and got 40 back afterwards). Counted off the raw height, the chat's own 400 centres,
+    // the edge stands exactly where the summon put it, and the roll is the whole movement.
+    tick(1);
+    const section = rolling(element, 250, 0);
+    section.classList.add("aside");
+    rerender({ open: true });
+    expect(bottom()).toBe(300);
+    expect(moves).toHaveLength(0);
+  });
+
   it("centres a summon on what it arrives with, not on the height it had while shut", () => {
     const tick = clock();
     const { ref, state, bottom } = harness();

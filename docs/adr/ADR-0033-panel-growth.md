@@ -68,3 +68,25 @@ from one height to the next.
   switcher collapses through the panel's height ease but the list itself vanishes rather than
   sliding out. Recorded in `docs/refinements/body-overlay.md` rather than solved here, because
   animating unmount means keeping the element mounted through its exit.
+
+## Addendum (2026-07-21): an arriving aside is counted off the raw height
+
+The maintainer caught a two-beat summon: with the day's reminders rolling in behind the pop, the
+part under the stack squeezed a little further after the main movement finished, and a small
+second ease then gave it back. Nothing of the kind happens entering or leaving the console,
+which is what made it stand out.
+
+The defect was in the ride-along's arrival centring. It subtracted the aside's height from a
+panel-height prediction the OLD edge's ceiling had already clamped, so the chat was centred on
+the remainder of a number the ceiling had eaten rather than on its own height. That pinned an
+edge the whole panel could not fit above, the cap written for that edge squeezed the chat under
+the rolling stack, and the first placement after the roll recomputed from the raw height and
+undid it. Traced at a 760px viewport with the demo's reminders: the history lost 119px over the
+roll and a 40px ease handed most of it back a beat after the pop settled.
+
+The aside is now counted off the RAW prediction (bounded by `openHeight`, the same loose cap an
+ordinary placement measures under), and the height the roll is placed for is capped by the
+ceiling of the edge that centring actually picks. The two deciders agree on the edge, so the
+placement after the roll finds nothing left to move: re-traced, the bottom edge stands still
+from summon to settle, the panel grows to its honest ceiling during the roll, and the history
+yields once, to the height it keeps.
