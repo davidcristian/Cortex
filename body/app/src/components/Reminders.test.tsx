@@ -58,24 +58,37 @@ describe("Reminders", () => {
     expect(screen.getByText("repeats")).toBeTruthy();
   });
 
-  it("leads the meta line with the timestamp, then the control, then the badges", () => {
+  it("puts the control before the badges, and the timestamp in the side column", () => {
     // The one thing you can DO on the row comes before the badges that only describe it, so it
-    // sits at a fixed x down the stack (the timestamp ahead of it reserves its column) instead
-    // of being pushed along by however many badges a given reminder carries.
+    // sits at a fixed x down the stack instead of being pushed along by however many badges a
+    // given reminder carries. The timestamp is not one of those badges: it is the row's other
+    // fact, and it lives in the right column under the dismiss control.
     vi.useFakeTimers({ now: NOW });
     const { container } = renderStack([
       reminder({ recurring: true, tainted: true, sessionId: "s-other" }),
     ]);
     const meta = container.querySelector(".reminder-meta") as HTMLElement;
     expect([...meta.children].map((child) => child.textContent)).toEqual([
-      "5m ago",
       "open chat",
       "repeats",
       "untrusted source",
     ]);
-    // The timestamp holds a column of its own, so the control after it does not move when the
-    // clock ticks a row from `5m ago` to `10m ago`.
-    expect(meta.firstElementChild?.className).toBe("reminder-time");
+    const side = container.querySelector(".reminder-side") as HTMLElement;
+    expect([...side.children].map((child) => child.className)).toEqual([
+      "reminder-ack",
+      "reminder-time",
+    ]);
+    expect(side.querySelector(".reminder-time")?.textContent).toBe("5m ago");
+  });
+
+  it("drops the meta line entirely when a reminder has nothing to put on it", () => {
+    // One-shot, untrusted by nobody, and already in the chat on screen: no control and no
+    // badges, so an empty row would only spend its own top margin.
+    vi.useFakeTimers({ now: NOW });
+    const { container } = renderStack([reminder({ sessionId: "open-chat" })]);
+    expect(container.querySelector(".reminder-meta")).toBeNull();
+    // The timestamp is unaffected: it never lived on that line.
+    expect(container.querySelector(".reminder-time")?.textContent).toBe("5m ago");
   });
 
   it("badges untrusted provenance and leaves a plain reminder unbadged", () => {
