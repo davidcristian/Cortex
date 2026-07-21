@@ -450,6 +450,30 @@
   flex: 1 0 auto;
   gap: 11px;
 }
+/* The opening screen does not scroll. It is the one thing in the history that is a PICTURE rather
+   than a log: there is no more of it further down, so a scrollbar on it offers to reveal nothing
+   and is simply the panel admitting it could not fit its own welcome. At the body's 640x720 window
+   with the reminder stack up the history is 101px against a 195px column, and with the session list
+   open as well it is 10px, so this is the ordinary case and not the corner.
+   Three declarations, and each is load bearing: the column may shrink under its content (the flex
+   above forbids exactly that, for the log, where growth downward is the whole point); it centres
+   what is left rather than packing it to the bottom like bubbles; and it CLIPS, which is what the
+   history reads as "nothing here overflows" and so never offers a bar. Symmetric by construction:
+   centring with negative free space overflows both ends equally, so what is lost is lost off the
+   top and the bottom alike and the mark stays on the middle line. A log with any message in it
+   keeps every one of the old rules, and the class says which it is. */
+.log.bare {
+  flex: 1 1 auto;
+  min-height: 0;
+  justify-content: center;
+  overflow: clip;
+}
+/* The empty state keeps its block padding here, which is worth saying because dropping it is the
+   obvious next move and it is a trap. Those 58px are part of the height the PANEL sizes itself to,
+   so taking them off shortens the panel, which shortens the history, which hands most of the saving
+   straight back: measured at the body's window, the empty state went 185 to 127 and the history it
+   had to fit in went 101 to 72, turning half a visible mark into a sliver of one and costing 29px
+   of panel for it. The air stays where it is and the clip does the rest. */
 
 /* A section that rolls open and shut (components/Collapse.tsx animates the height of this
    wrapper): the switcher list, the reminder stack, and a settled reply's Thoughts trace. The clip
@@ -684,10 +708,10 @@
   color: var(--muted);
 }
 /* One row, always, and that is a load-bearing choice rather than a layout preference. The chips are
-   the only part of the empty state whose height depends on how wide the panel is, and the floor that
-   stops the first send from shrinking the panel (`.log` above) is a single number sized to that
-   height. Allowed to take a second row they make the empty state 224px where the floor says 185px,
-   and the first send hands straight back the 39px dip the floor exists to prevent. Measured in
+   the only part of the empty state whose height depends on how wide the panel is, and everything
+   sized against that height wants it to be one number: the panel opens to it, and `.log.bare` clips
+   to it. Allowed to take a second row they make the empty state 224px where it is otherwise 185,
+   which is 39px of panel that appears and disappears with the width of the window. Measured in
    Chromium by sweeping the viewport: the two labels sit on one row down to a 528px panel and wrap at
    526px, which the body's own window (640px wide, so a 560px panel) clears by 32px. That margin is a
    font's worth of slack rather than a proof, and the engine that ships is WebView2 with Segoe UI,
@@ -1139,8 +1163,20 @@
   font-size: 11.5px;
   color: var(--dim);
 }
+/* Every keycap is at least as wide as the widest single key, so a row of them is a row of caps
+   rather than a row of different-sized labels. The floor is what a GLYPH cap measures, that being
+   the widest of the single keys and not by choice: an outline arrow is 13px of drawing against an
+   `N` at 8.2px and a `?` at 5.8px, so left to their own advance widths the six single keys came out
+   23, 20.2, 19.2 and 17.8 and no two columns of them lined up. The floor is a MINIMUM, so it costs
+   the named keys nothing: `Alt` is already 26.9 and `Ctrl` 31.6, and `Space` at 45.5 is the widest
+   thing here. A cap has to be a flex box for the floor to reach it (`min-width` does not apply to
+   an inline box), which is why the centring is here rather than only on the glyph caps below. */
 .hints b,
 .row-keys b {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 23px;
   color: var(--muted);
   font-weight: 500;
   background: var(--control);
@@ -1152,8 +1188,6 @@
    the icon to cap size and center it, so they read as clearly as the letter keys beside them. */
 .hints b.key,
 .row-keys b.key {
-  display: inline-flex;
-  align-items: center;
   gap: 1px;
   padding: 2px 5px;
   vertical-align: -3px;
@@ -1212,13 +1246,12 @@
      far edge back where the left one starts. All four sit in one shorthand, because a separate
      `padding-block` here is what this shorthand silently threw away.
 
-     The bottom is NOT the header's 15px, though it was, and matching the number is what made the
-     two ends look wrong. The header spends its 15px above a 30px control with its glyph inset, so
-     the ink starts about 25px down; the same 15px at the foot sits directly under a card that runs
-     the full width, hard against the panel's 28px corner. Measured in Chromium, 17px of clearance
-     at the top read against 16px at the bottom, and the bottom was plainly the tighter of the two.
-     26px puts the ink at both ends the same distance from the edge. */
-  padding: 2px calc(16px - var(--rail)) 26px 16px;
+     THE FOOT IS THE SIDES. A card's left edge stands 17px from the panel's, and so does its right,
+     so its bottom does too and the number is read off the other two rather than judged: 16px of
+     padding plus the panel's 1px border. It was the header's 15px once, which measured 16 and read
+     tight, and then a guessed 26, which measured 27 and read loose. Neither was a number anything
+     else in the view agreed with. Change the inset above and this follows it. */
+  padding: 2px calc(16px - var(--rail)) 16px 16px;
 }
 /* A binding as a soft filled card, two to a row. The shortcuts tab is a wall of small tiles for the
    same reason the appearance tab is: they are two faces of one view, and a hairline-separated list

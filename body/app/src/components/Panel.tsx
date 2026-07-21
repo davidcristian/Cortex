@@ -72,6 +72,13 @@ export function Panel(props: PanelProps) {
   const view: View = state.consoleTab === null ? "chat" : CONSOLE;
   const leaving = useViewTransition(view, MORPH_MS);
   const panelRef = useRef<HTMLDivElement>(null);
+  // Which tab the console is showing, kept for the morph it spends on its way out. The console is
+  // still mounted then and its tab is already null, so the fallback below was drawing the FIRST tab
+  // over the one the user was actually looking at: leaving from the shortcuts, the appearance tab
+  // appeared for the length of the fade and left with it. Assigned during the render, so it is
+  // right by the time the render that closed the console reads it.
+  const tab = useRef<ConsoleTab>("appearance");
+  tab.current = state.consoleTab ?? tab.current;
   // Entering another view centres it, returning to the chat restores where the chat was, and any
   // size change inside a view pushes the top edge up from the pinned bottom. The view name carries
   // no session id on purpose: a different chat, or a new one, is the same view with other content
@@ -97,7 +104,7 @@ export function Panel(props: PanelProps) {
         {view === CONSOLE || leaving === CONSOLE ? (
           <div className={classOf(CONSOLE)} aria-hidden={view !== CONSOLE}>
             <ConsoleView
-              tab={state.consoleTab ?? "appearance"}
+              tab={tab.current}
               themeName={themeName}
               mark={mark}
               animated={!reduced}

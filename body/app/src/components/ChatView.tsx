@@ -145,8 +145,14 @@ export function ChatView({
             at the body's 720px window there is 76px left for the history, and a box that refuses
             to go below 195px there pushes the composer and the hint strip out past the panel's
             own clipped edge (measured in Chromium before this was written). Floored content just
-            scrolls instead, which is what the empty state already does when it is squeezed. */}
-        <div className="log">
+            scrolls instead.
+
+            `bare` says the log holds the empty state and nothing else, which is the one case where
+            the column may be SHORTER than its content: an opening screen that scrolls is a wrong
+            thing to have made, so it shrinks and stays centred instead (`.log.bare`). It is asked
+            of the same two pieces of state the empty state itself is rendered from, so the class
+            and the child can never disagree. */}
+        <div className={`log${state.messages.length === 0 && state.pendingConfirm === null ? " bare" : ""}`}>
           {state.messages.length === 0 ? (
             <div className="empty">
               <button
