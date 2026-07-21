@@ -320,10 +320,14 @@ while a turn is processing must not lose it*) lives here. States:
   It reads as alive, not a static badge, and means "still working." **Click** it → morph back to
   **PANEL(streaming)** (the in-progress turn, right where it is). It never covers active work,
   thanks to small, corner-pinned, click-through-safe margins.
-- **Which bubble is a choice** (ADR-0031). Four styles ship: **Wobble** (two slow modes roll the
-  outline; the default), **Sheen** (near circular, the film crawling underneath), **Ping** (still,
-  then a ripple runs the rim and decays), **Orbit** (two small lobes swinging on slow arcs around a
-  larger one; it shipped as Foam and is still stored under that name). They are data in
+- **Which bubble is a choice** (ADR-0031), and the choices are named as movements of thought:
+  the mark is the overlay's thinking signal, so the picker asks "how does it think?" and each
+  label answers with how that style moves. Four ship: **Mull** (two slow modes turn the outline
+  over; the default), **Muse** (near circular, the film drifting beneath a calm surface),
+  **Hunch** (still, until a ripple strikes the rim and fades), **Tangent** (two side thoughts
+  swinging on slow arcs around the main one). Each is stored under the key it first shipped with
+  (wobble, sheen, ping, foam), because the preference record holds the key and a key rename would
+  silently reset the choice. They are data in
   a registry (`mark/marks.ts`), the twin of the theme registry, so a fifth is a literal and no
   code. The picker is the empty state's own mark: clicking it opens the styles drawn live, rather
   than adding a fifth header button that would put the accent palette on resting chrome.

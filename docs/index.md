@@ -216,7 +216,8 @@ Start here. Rules for working in this repo: [AGENTS.md](../AGENTS.md).
   another product's identity) for a soap bubble carrying the same eight-hue palette: an outline
   built from sine harmonics of order two or higher, which fixes the centroid and the mean radius,
   so the standing "the anchor never moves" rule holds by construction. Four styles ship in a
-  registry that mirrors the theme registry, defaulting to Wobble, picked from the empty state's
+  registry that mirrors the theme registry, named as movements of thought (Mull the default,
+  Muse, Hunch, Tangent), picked from the empty state's
   own mark rather than a fifth header button; the motion left CSS and SMIL for a frame clock, so
   reduced motion schedules no frames at all.
 

@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { MARKS, WOBBLE, resolveMark } from "./marks";
+import { MARKS, MULL, resolveMark } from "./marks";
 
 describe("resolveMark", () => {
-  it("defaults to the wobble bubble with no preference", () => {
-    expect(resolveMark(null)).toBe(WOBBLE);
+  it("defaults to Mull with no preference", () => {
+    expect(resolveMark(null)).toBe(MULL);
   });
 
   it("returns the named style for every style in the registry", () => {
@@ -14,7 +14,7 @@ describe("resolveMark", () => {
   });
 
   it("falls back to the default when the preference names no known style", () => {
-    expect(resolveMark("bubbles-deluxe")).toBe(WOBBLE);
+    expect(resolveMark("bubbles-deluxe")).toBe(MULL);
   });
 });
 

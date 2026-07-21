@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-import { WOBBLE } from "../mark/marks";
+import { MULL } from "../mark/marks";
 import { INITIAL_LINK } from "../overlay/linkState";
 import type { Message, OverlayState } from "../overlay/overlayState";
 import type { OverlayController } from "../overlay/useOverlay";
@@ -68,7 +68,7 @@ function renderOverlay(controller: OverlayController, onToggleTheme: () => void 
     <Overlay
       controller={controller}
       dark={false}
-      mark={WOBBLE}
+      mark={MULL}
       themeName={null}
       onPickTheme={vi.fn()}
       onPickMark={vi.fn()}
