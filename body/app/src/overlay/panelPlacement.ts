@@ -13,10 +13,17 @@
 //      handed back on the way in, so a trip to the console and back leaves the conversation exactly
 //      where the eye left it. With rule 1 holding the edge anyway, the park is a no-op today; it is
 //      kept because it is what makes the return correct the moment the slide is switched back on.
-//   3. GROWTH INSIDE A VIEW pushes the top edge up. A reply arriving, the switcher list opening, a
-//      new chat emptying the panel, the composer taking a second line: the bottom stays pinned
+//   3. GROWTH INSIDE THE CHAT pushes the top edge up. A reply arriving, the switcher list opening,
+//      a new chat emptying the panel, the composer taking a second line: the bottom stays pinned
 //      where it was, so the composer never slides out from under the hand that just typed into it.
 //      Minting a new chat belongs here and not in rule 1: it is the same view with less in it.
+//   4. A RESIZE INSIDE ANY OTHER VIEW pushes the bottom edge down instead, holding the top. Which
+//      edge holds is decided by where the hand is, and the console's chrome is its tab strip, at
+//      the top: changing tabs must not slide the strip out from under the cursor that clicked it.
+//      Rule 3 is the same principle at the chat's other end. A view with more than one shape is
+//      entered at the top its TALLEST shape would take (`tabSlack`), so that held top is the same
+//      one whichever tab the console is opened on, and a shorter tab ends higher rather than
+//      starting lower.
 //
 // A summon is outside all three: for as long as the panel is arriving it centres on whatever it
 // currently is, so content that lands behind the summon (the reminder pull, a restored
@@ -31,7 +38,7 @@
 // and `interpolate-size` set, opening the switcher moved the panel through exactly one distinct
 // height. So the old geometry is captured before paint and replayed as a real animation.
 
-import { EASING, MORPHING_ATTRIBUTE } from "./morph";
+import { EASING, MORPHING_ATTRIBUTE, TAB_SLACK_ATTRIBUTE } from "./morph";
 
 /** Set on the panel while it is easing between two sizes. Read only by the stylesheet, which hides
  *  the history's scrollbar thumb for the duration: mid-ease the panel is shorter than the height it
@@ -61,6 +68,36 @@ import { rideAlong } from "./panelRide";
 
 /** The view whose position is remembered across a trip to another one. */
 const CHAT_VIEW = "chat";
+
+/** How far the view arriving falls short of the tallest shape it can take, which it publishes
+ *  itself (`TAB_SLACK_ATTRIBUTE`); 0 for a view of one shape, which is every view but the
+ *  console. Added to the bottom edge on the way in, so the top edge lands where the tallest shape
+ *  would put it and a shorter tab ends higher instead of starting lower. Without it the console's
+ *  strip sat at two different heights depending on which tab it was opened on, and the user
+ *  caught it: the shortcuts tab opened lower than the appearance tab. */
+function tabSlack(element: HTMLElement): number {
+  const published = element
+    .querySelector(`.view:not(.out) [${TAB_SLACK_ATTRIBUTE}]`)
+    ?.getAttribute(TAB_SLACK_ATTRIBUTE);
+  return published === null || published === undefined ? 0 : Number(published);
+}
+
+/**
+ * The bottom edge a view of more than one shape arrives on: the one that puts its TOP where its
+ * TALLEST shape would have put it, hanging this shape from there.
+ *
+ * Worked out in full here rather than as an adjustment to the edge, because the tallest shape may
+ * not fit above that edge at all, and then its top is the clear space kept at the screen's top
+ * instead. Getting that wrong is not a rounding error but a second movement: the first cut added
+ * the slack to the edge and let the panel's own top-holding correct it on the next render, which
+ * put the console through two eases, the second one sliding its bottom down 44px after it had
+ * apparently arrived.
+ */
+function arrivalBottom(viewport: number, edge: number, height: number, slack: number): number {
+  const clearTop = viewport - maxHeight(viewport, 0);
+  const top = Math.max(clearTop, viewport - edge - (height + slack));
+  return viewport - top - height;
+}
 
 /** Whether entering another view slides the panel to the true middle of the screen, or keeps the
  *  bottom edge it is standing on and resizes in place. The slide shipped first; the maintainer chose
@@ -128,6 +165,7 @@ function wantedBottom(
   memory: Memory,
   at: Placement,
   viewport: number,
+  centring: number,
   height: number,
   recentres: boolean,
 ): number {
@@ -136,14 +174,28 @@ function wantedBottom(
     memory.parked = memory.pinned;
   }
   memory.view = at.view;
+  const shown = memory.shown;
+  // Nothing on screen to hold on to yet: a first placement centres, whatever else is true.
+  if (shown === null) {
+    return centred(viewport, centring);
+  }
   const parked = changed && at.view === CHAT_VIEW ? memory.parked : null;
-  const centre =
-    !at.open ||
-    memory.shown === null ||
-    at.recentre ||
-    arriving(memory, at) ||
-    (recentres && changed && parked === null);
-  return centre ? centred(viewport, height) : (parked ?? memory.pinned);
+  if (!at.open || at.recentre || arriving(memory, at) || (recentres && changed && parked === null)) {
+    return centred(viewport, centring);
+  }
+  if (parked !== null) {
+    return parked;
+  }
+  // A resize INSIDE a view other than the chat holds that view's TOP edge, so the growth happens
+  // at the bottom. Which edge holds is decided by where the hand is: a console tab is changed
+  // from the strip at the top, and that strip must not move out from under the cursor that just
+  // clicked it. The chat is the other way round for the same reason, its composer being the edge
+  // the hand is on, which is why rule 3 above pins its bottom. Entering a view is neither, and
+  // keeps the edge it arrived on (rule 1): the opener that was clicked is down in the hint strip.
+  if (!changed && at.view !== CHAT_VIEW) {
+    return shown.bottom + shown.height - height;
+  }
+  return memory.pinned;
 }
 
 /**
@@ -189,6 +241,9 @@ export function place(
   // stop, arriving one frame later by another route, and it was invisible before the ceiling learned
   // to ride along in the keyframes, because the cap on the element was clamping the ease flat.
   const onScreen = heightOf(element);
+  // Asked before `wantedBottom` decides anything, because deciding is also what forgets which view
+  // the panel was in: this is true only on the render that ARRIVES in a multi-shape view.
+  const entering = at.open && memory.view !== at.view && at.view !== CHAT_VIEW;
   const release = holdScroll(element);
   element.style.maxHeight = `${openHeight(viewport)}px`;
   const section = element.querySelector<HTMLElement>(`[${MORPHING_ATTRIBUTE}]`);
@@ -240,7 +295,14 @@ export function place(
   const displayed = deferred
     ? { height: carrying ?? onScreen, bottom: was }
     : (inFlight ?? memory.shown);
-  const wanted = wantedBottom(memory, at, viewport, centringHeight(element, height), recentres);
+  const wanted = wantedBottom(
+    memory,
+    at,
+    viewport,
+    centringHeight(element, height),
+    height,
+    recentres,
+  );
   memory.pinned = wanted;
   // A CLOSING PANEL IS NOT MOVED. It is about to be scaled away from where the eye last had it, and
   // the edge worked out above is for the summon that follows, which centres for itself anyway
@@ -254,7 +316,12 @@ export function place(
   // there is no geometry to keep, so it takes the one it would open at, which is what makes the very
   // first summon appear centred rather than sliding there.
   const placed = at.open || memory.shown === null;
-  const bottom = placed ? clamped(wanted) : memory.applied;
+  // Spent HERE and never folded into `memory.pinned`, so the edge the panel remembers stays the
+  // one the chat is standing on: the trip back is unaffected, and a second placement in the same
+  // view cannot arrive twice. Every later resize inside the view holds the top this set (rule 4).
+  const edge = clamped(wanted);
+  const arrival = entering ? arrivalBottom(viewport, edge, height, tabSlack(element)) : edge;
+  const bottom = placed ? arrival : memory.applied;
   const ceiling = maxHeight(viewport, bottom);
   element.style.maxHeight = `${ceiling}px`;
   // Re-read: the real cap may have shortened the panel, and everything below animates to what the

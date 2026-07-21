@@ -117,10 +117,15 @@ ground. One swap at three speeds reads as the window coming apart and going back
     at `12vh` of clear space and grows downward past that, which lands a full-height panel dead
     centre. The edge it is pinned to is remembered UNCLAMPED, so a panel pushed down by its own
     growth comes back to it as soon as it fits again and a grow-then-shrink round trip is exactly
-    reversible. Entering the console resizes the panel to what the tab it opens on needs standing
-    on that same edge, and switching tabs resizes in place the same way (user call 2026-07-21: it
-    shipped sliding to true centre, and the slide is kept one flip away behind
-    `VIEW_CHANGE_RECENTRES` in `panelPlacement.ts`, both settings under test); coming BACK to the
+    reversible. **The edge nearest the hand is the edge that holds still**, which is that bottom
+    one for the chat and the TOP one for every other view: the console's chrome is its back button
+    and its tab strip, so a tab change grows the panel downward and the strip never moves under
+    the cursor that clicked it. A view of more than one shape (the console, whose tabs differ in
+    height) arrives at the top its TALLEST shape would take, so the strip sits at one height
+    whichever button opened it and a shorter tab simply ends higher. Entering resizes the panel
+    from the edge the chat is standing on (user call 2026-07-21: it shipped sliding to true
+    centre, and the slide is kept one flip away behind `VIEW_CHANGE_RECENTRES` in
+    `panelPlacement.ts`, both settings under test); coming BACK to the
     chat restores the edge the chat was left at, which the standing edge now makes trivial, and
     the parked edge still guarantees the moment the slide is switched back on
     ([ADR-0033](../adr/ADR-0033-panel-growth.md),
@@ -381,7 +386,7 @@ while a turn is processing must not lose it*) lives here. States:
   - Selection is a **lift** (a fill and a hairline), never an accent: a console is resting chrome
     even when the thing it draws is not, so the only colour on that surface is the marks
     themselves. There is no backdrop to click away from.
-  - **Switching tabs is the panel's one morph** (it resizes in place to the new tab), and the
+  - **Switching tabs is the panel's one morph** (it resizes downward from a held top edge), and the
     crossing between two tabs is a **pure fade**: the header and the strip are the same chrome in
     the same place in both, so they hold still, pixel for pixel, while the content changes under
     them. Only a change between the chat and the console keeps the small rise-and-sink, since those

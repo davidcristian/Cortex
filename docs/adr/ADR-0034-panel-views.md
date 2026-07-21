@@ -137,3 +137,30 @@ a defaulted argument of `place`, with both settings under test (the flipped-swit
 `place` directly, including the parked-edge restore and the ceiling-along-the-move clamp that
 only a rising bottom edge can exercise). Flipping the constant restores this decision's
 original motion in full.
+
+## Addendum (2026-07-21, later): which edge a view resizes from, and where the console arrives
+
+The standing edge above answered where the console *opens*; living with it surfaced the other
+half of the question, which is what happens once you are in it. Two rules now, and one principle
+under them: **the edge nearest the hand is the edge that holds still.**
+
+- **A resize inside any view but the chat holds that view's TOP edge**, so the growth happens at
+  the bottom. The console's chrome is its back button and its tab strip, both at the top, and a
+  tab change must not slide the strip out from under the cursor that just clicked it. The chat is
+  the same principle at its other end: its composer is the thing at the edge the hand is on, so
+  it keeps its bottom pinned and grows upward (ADR-0033).
+- **A view with more than one shape arrives at the top its TALLEST shape would take.** The console
+  publishes how far the tab on screen falls short of its tallest (`TAB_SLACK_ATTRIBUTE`, written
+  by `ConsoleView` from the two pane heights it already measures for `TAB_SPREAD_PX`) and the
+  placement hangs the arriving shape from that top. Without it the strip sat at two heights
+  depending on which button opened the console, since the hint strip's sliders lands on the taller
+  tab and its `?` on the shorter one, and the maintainer caught it: "the window position is lower when
+  opening the shortcuts view vs the settings view".
+
+The arrival is computed in full rather than as an adjustment to the edge, because the tallest
+shape may not fit above that edge at all, in which case its top is the clear space kept at the
+screen's top instead. The first cut added the slack to the edge and let the top-holding rule
+correct it on the next render, which put the console through two eases, the second sliding its
+bottom down 44px after it had apparently arrived. Traced at 60Hz over all three transitions
+afterwards (chat to either tab, and between tabs), the top holds at one pixel value for every
+frame of every one.

@@ -104,6 +104,17 @@ function rolled(section: HTMLElement, height: number): void {
   Object.defineProperty(section, "offsetHeight", { get: () => height, configurable: true });
 }
 
+/** A view inside the panel publishing how far short of its tallest shape it currently falls, the
+ *  way `ConsoleView` does from the two tabs it has measured. */
+function slack(parent: HTMLElement, px: number): void {
+  const view = document.createElement("div");
+  view.className = "view";
+  const stack = document.createElement("div");
+  stack.setAttribute("data-tab-slack", String(px));
+  view.append(stack);
+  parent.append(view);
+}
+
 /** A section rolling to `target` and `height` tall right now, as `Collapse` leaves it in the DOM. */
 function rolling(parent: HTMLElement, target: number, height: number): HTMLElement {
   const section = document.createElement("div");
@@ -251,6 +262,62 @@ describe("usePanelMotion", () => {
     state.natural = 700;
     place(element, memory, { open: true, view: "chat", recentre: false }, true);
     expect(bottom()).toBe(150);
+  });
+
+  it("enters a multi-shape view at the top its tallest shape would take", () => {
+    // The console's two tabs are different heights, so entering on the shorter one used to put
+    // its strip lower down the screen than entering on the taller one did, and the maintainer caught
+    // it. The view publishes how far short it falls and the panel spends that on its bottom edge,
+    // which fixes the TOP at one height whichever tab it is opened on.
+    const { ref, element, state, bottom } = harness();
+    state.natural = 700;
+    const { rerender } = renderHook(({ view }) => usePanelMotion(ref, true, view), {
+      initialProps: { view: "chat" },
+    });
+    expect(bottom()).toBe(150);
+    state.playState = "finished";
+    // Into the console on its SHORTER tab: 300 tall, 60 short of the tallest. It stands on the
+    // chat's 150 plus that 60, which puts its top at 1000 - 210 - 300 = 490: exactly where the
+    // 360px tall tab would have started from the same edge.
+    slack(element, 60);
+    state.natural = 300;
+    rerender({ view: "console" });
+    expect(bottom()).toBe(210);
+    // A second placement in the same view must not spend the slack again.
+    state.playState = "finished";
+    rerender({ view: "console" });
+    expect(bottom()).toBe(210);
+    // Back to the chat, which is one shape and takes its own parked edge, slack or no slack.
+    state.natural = 700;
+    rerender({ view: "chat" });
+    expect(bottom()).toBe(150);
+  });
+
+  it("holds the console's top edge when a tab resizes it, so the strip stays under the cursor", () => {
+    const { ref, state, moves, bottom } = harness();
+    state.natural = 700;
+    const { rerender } = renderHook(({ view }) => usePanelMotion(ref, true, view), {
+      initialProps: { view: "chat" },
+    });
+    expect(bottom()).toBe(150);
+    state.playState = "finished";
+    // Entering stands on the edge the chat was on: the opener that was clicked is in the hint
+    // strip, at the bottom. The panel's top is now at 1000 - 150 - 300 = 550.
+    state.natural = 300;
+    rerender({ view: "console" });
+    expect(bottom()).toBe(150);
+    // A tab change is the same view resizing, and the strip that was clicked is at the top, so
+    // THAT edge holds: 550 stays, and the bottom moves to 1000 - 550 - 420 = 30.
+    state.playState = "finished";
+    state.natural = 420;
+    rerender({ view: "console" });
+    expect(bottom()).toBe(30);
+    expect(moves.at(-1)).toEqual({ from: { height: 300, bottom: 150 }, to: { height: 420, bottom: 30 } });
+    // And back the other way, the top still held: 1000 - 550 - 260 = 190.
+    state.playState = "finished";
+    state.natural = 260;
+    rerender({ view: "console" });
+    expect(bottom()).toBe(190);
   });
 
   it("keeps one edge across a console round trip, coming back exactly where it left", () => {

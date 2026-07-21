@@ -2,6 +2,7 @@ import { useLayoutEffect, useRef } from "react";
 
 import type { EdgeStyle } from "../edge/edges";
 import type { MarkStyle } from "../mark/marks";
+import { TAB_SLACK_ATTRIBUTE } from "../overlay/morph";
 import { CONSOLE_TABS, type ConsoleTab } from "../overlay/overlayState";
 import { AppearanceTab } from "./AppearanceTab";
 import { BackIcon } from "./icons";
@@ -94,8 +95,15 @@ export function ConsoleView({
     element.setAttribute(MEASURING_ATTRIBUTE, "");
     const heights = [...element.children].map((pane) => (pane as HTMLElement).offsetHeight);
     element.removeAttribute(MEASURING_ATTRIBUTE);
-    const spread = Math.max(...heights) - Math.min(...heights);
-    element.classList.toggle(APART_CLASS, spread > TAB_SPREAD_PX);
+    const tallest = Math.max(...heights);
+    element.classList.toggle(APART_CLASS, tallest - Math.min(...heights) > TAB_SPREAD_PX);
+    // What the panel needs to place the console by the shape it can GROW to rather than by the one
+    // it was entered on: how far the stack falls short of its tallest tab. Read AFTER the class
+    // above, and off the STACK rather than off a pane picked out of the list, which answers both
+    // shapes with one number and no lookup that could miss: apart, the pane that is not showing
+    // leaves the flow and the stack stands at the showing one's height; sharing, the cell is the
+    // taller pane's and the subtraction is zero, which is exactly the truth in that mode.
+    element.setAttribute(TAB_SLACK_ATTRIBUTE, String(tallest - element.offsetHeight));
   });
 
   return (
