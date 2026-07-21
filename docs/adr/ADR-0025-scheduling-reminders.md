@@ -1532,3 +1532,29 @@ behaviour:
   y=181.25 against the pills' at 180.25, in every row of the stack. Baselines are what the eye
   reads along, so the row aligns on them and both corrections hold at once (re-measured after:
   a delta of exactly 0.0 on all three rows).
+
+## Addendum (2026-07-21, later): the card's right column, and both icons on the title's line
+
+The user moved the timestamp again, and the reason it moved twice is worth keeping: it is not
+one of the badges. `repeats` and `untrusted source` describe the reminder; the time is the row's
+other fact, and while it led the meta line it made that line read as a list beginning with a
+time. It now sits in a right-hand column under the dismiss control, right-aligned inside the same
+reserved width (`--time-col`) and inset by the check's own padding so the glyph and the text share
+one right edge. The column is stretched and `space-between`, so the check keeps the title's line
+and the timestamp keeps the meta line, which makes the column read as the two rows beside it
+rather than as a stack of its own; being a hair the taller of the two, it also sets the card's
+height, so every card in the stack now stands the same height whether or not it carries badges.
+The meta line is dropped entirely when a reminder has neither a control nor a badge to put on it.
+
+**Both icons now hang from the title's line, and the number they share is its OPTICAL centre.**
+The check was centred on the whole card (9.6px below the title's letters); the bell was centred on
+the title's line BOX, which is not the same thing as its letters. Measured in Chromium at the
+shipping 13.5px: the line box is 20.25px but the capital band is 10px and the lowercase-x band is
+8px, and the midpoints of those two average to 10.5px below the line's top. That is what every
+icon's ink is aimed at now. The bell needed more than box-centring to get there, for a reason
+worth writing down: its ink box is dragged downward by the thin detached arc of its clapper while
+the eye weighs the dome, so box-centring left the dome 2.5px above the letters, which is the
+"sits higher than the title text" the user reported. At `margin-top: 4px` the dome sits 0.5px
+above the target and the full ink box 1.17px below it, straddling the letters, which is where a
+bell wants to be. The check reaches the same line by a 3.5px lift, its hit area intact and simply
+overhanging the card's own top padding.

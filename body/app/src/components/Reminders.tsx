@@ -13,6 +13,13 @@ interface RemindersProps {
   readonly onOpen: (sessionId: string) => void;
 }
 
+/** Whether the row can offer its origin chat. There is nothing to go to when a session-less
+ *  caller sent it (""), and no point offering the chat already on screen, where opening would
+ *  only abandon whatever turn is running in it. Absent rather than disabled: nothing to explain. */
+function canOpen(reminder: DueReminder, currentId: string): boolean {
+  return reminder.sessionId !== "" && reminder.sessionId !== currentId;
+}
+
 /**
  * The due-reminder stack (ADR-0025): what fired while the overlay was away, sitting above the
  * history because it is delivery, not conversation. Dismissing acks it; opening loads the chat
@@ -56,46 +63,52 @@ export function Reminders({
             </span>
             <span className="reminder-body">
               <span className="reminder-text">{reminder.text}</span>
-              <span className="reminder-meta">
-                <span className="reminder-time">
-                  {relativeTime(reminder.firedAtUnixMs, now)}
+              {/* Only when it holds something. With the timestamp moved to the side column, a
+                  reminder that is one-shot, untainted and already in the chat on screen has no
+                  meta line at all, and an empty one would still spend its top margin. */}
+              {reminder.recurring || reminder.tainted || canOpen(reminder, currentId) ? (
+                <span className="reminder-meta">
+                  {/* The one control leads the badges that follow it: it is the thing you can DO
+                      and they only describe the row, so it sits at one x down the whole stack
+                      rather than being pushed along by however many badges a reminder carries. */}
+                  {canOpen(reminder, currentId) ? (
+                    <button
+                      type="button"
+                      className="reminder-open"
+                      onClick={() => onOpen(reminder.sessionId)}
+                    >
+                      open chat
+                    </button>
+                  ) : null}
+                  {reminder.recurring ? (
+                    <span className="reminder-tag">repeats</span>
+                  ) : null}
+                  {reminder.tainted ? (
+                    <span className="reminder-tag untrusted">
+                      untrusted source
+                    </span>
+                  ) : null}
                 </span>
-                {/* The one control on the row leads the pills that follow it, so the thing you can
-                  DO sits at a fixed x down the whole stack (the timestamp before it reserves its
-                  column) instead of being pushed along by however many badges a reminder happens
-                  to carry. The badges only describe the row, and they read as well after it.
-
-                  No origin to go to (a session-less caller sends ""), and no point offering the
-                  chat already on screen, where opening would only abandon whatever turn is
-                  running in it. Absent rather than disabled: there is nothing to explain. */}
-                {reminder.sessionId !== "" &&
-                reminder.sessionId !== currentId ? (
-                  <button
-                    type="button"
-                    className="reminder-open"
-                    onClick={() => onOpen(reminder.sessionId)}
-                  >
-                    open chat
-                  </button>
-                ) : null}
-                {reminder.recurring ? (
-                  <span className="reminder-tag">repeats</span>
-                ) : null}
-                {reminder.tainted ? (
-                  <span className="reminder-tag untrusted">
-                    untrusted source
-                  </span>
-                ) : null}
+              ) : null}
+            </span>
+            {/* The row's right column, the switcher's arrangement turned upright: what you can do
+                to the reminder on top, aligned to the title it belongs to, and when it fired
+                beneath it. The timestamp left the meta line because it is not one of the badges
+                describing the reminder; it is the row's other fact, and against the right edge it
+                stops the badges being read as a list that starts with a time. */}
+            <span className="reminder-side">
+              <button
+                type="button"
+                className="reminder-ack"
+                aria-label="Dismiss reminder"
+                onClick={() => ack(reminder.reminderId)}
+              >
+                <CheckIcon />
+              </button>
+              <span className="reminder-time">
+                {relativeTime(reminder.firedAtUnixMs, now)}
               </span>
             </span>
-            <button
-              type="button"
-              className="reminder-ack"
-              aria-label="Dismiss reminder"
-              onClick={() => ack(reminder.reminderId)}
-            >
-              <CheckIcon />
-            </button>
           </li>
         </Collapse>
       ))}

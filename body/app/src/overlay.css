@@ -2203,13 +2203,19 @@
   border: 1px solid var(--stroke);
   border-radius: 16px;
 }
-/* The check is centred on the card: it dismisses the WHOLE reminder, so it belongs to the row
-   rather than to either of its lines. The bell is not (user call, 2026-07-21): centred on a
-   two-line card it floated beside the seam between the text and the meta line and read as
-   belonging to neither, so it hangs from the title line instead, the way the row is read. */
+/* BOTH icons hang from the title line (user call, 2026-07-21), so the row reads as a heading
+   with a mark on either side of it rather than as a block with furniture floating in the middle.
+   The card is therefore top-aligned and each icon is placed by its own optical centre below.
+
+   The number they share is the title's OPTICAL centre, which is not its line box's centre.
+   Measured in Chromium at the shipping 13.5px: the line box is 20.25px tall but the ink inside it
+   is not centred in that box, so the eye reads the middle of the letters, not of the leading. The
+   band a capital fills is 10px and the band a lowercase x fills is 8px, and their two midpoints
+   (baseline less 5 and baseline less 4) average to baseline less 4.5, which lands 10.5px below
+   the top of the line. Every icon's ink is aimed at that. */
 .reminder {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 9px;
   padding: 8px 9px;
   border-radius: 12px;
@@ -2218,14 +2224,16 @@
 .reminder + .reminder {
   border-top: 1px solid var(--stroke);
 }
+/* The bell's ink runs 1.43px to 13.9px inside its 16px box, so centring the BOX would leave it
+   0.8px high; and its mass is higher still than its ink box says, because the box is dragged down
+   by the thin detached arc of the clapper while the eye weighs the dome. Both corrections point
+   the same way, and 4px is where the dome sits on the 10.5px line rather than above it (traced:
+   the dome's midpoint was 2.5px above the letters before this). */
 .reminder-mark {
   flex: none;
   display: flex;
   color: var(--muted);
-  /* Centred within the title's line box: the text is 13.5px on 1.5 (a 20.25px line), the icon a
-     16px square, so it sits (20.25 - 16) / 2 off the line's top. */
-  align-self: flex-start;
-  margin-top: 2px;
+  margin-top: 4px;
 }
 .reminder-body {
   flex: 1;
@@ -2252,13 +2260,18 @@
   font-size: 11.5px;
   color: var(--dim);
 }
-/* The timestamp reserves its column (`--time-col`) exactly as the switcher's does, so the pills
-   beside it start at one x across every row of the stack and hold there while the clock ticks a
-   row from `1m ago` to `10m ago` under them. Left-aligned rather than the switcher's right,
-   because here the reserve opens a column to its right instead of closing one at a row's end. */
+/* The timestamp, at the foot of the right column and right-aligned inside its reserved width
+   (`--time-col`), which is the switcher's own rule and the switcher's own token. The reserve is
+   what stops the column breathing as the clock ticks a card from `1m ago` to `10m ago`; the
+   right inset matches the check's padding above it, so the glyphs of the two line up on one
+   right edge instead of the button's invisible box doing. */
 .reminder-time {
   flex: none;
   min-width: var(--time-col);
+  padding-right: 6px;
+  text-align: right;
+  font-size: 11.5px;
+  color: var(--dim);
 }
 /* The vertical padding is deliberately lopsided: the line box places its baseline by font
    metrics, which at this size leaves ~1.5px more air above the lowercase band than below it, and
@@ -2302,9 +2315,29 @@
   background: var(--panel);
   color: var(--text);
 }
+/* The row's right column: what you can do to the reminder over when it fired. Stretched and
+   spread, so the check keeps the top (the title's line) and the timestamp keeps the bottom (the
+   meta line), which is what makes the column read as the two rows beside it rather than as a
+   stack of its own. It is the taller of the two by a hair, so it is also what sets the card's
+   height, and every card in the stack therefore stands the same height whether or not it carries
+   badges. */
+.reminder-side {
+  flex: none;
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: space-between;
+}
+/* The check's ink is centred in its 28px box, which is 14px down, and the title's optical centre
+   is 10.5px down (see `.reminder`), so the button is lifted the 3.5px between them. The hit area
+   is not reduced to do it: the padding still stands, it simply overhangs the card's own 8px of
+   top padding. `space-between` puts the timestamp at the bottom regardless, so lifting the check
+   does not drag it up too. */
 .reminder-ack {
   flex: none;
   display: flex;
+  margin-top: -3.5px;
   padding: 6px;
   border: none;
   border-radius: 10px;
