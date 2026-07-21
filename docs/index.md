@@ -261,6 +261,16 @@ Start here. Rules for working in this repo: [AGENTS.md](../AGENTS.md).
   backdrop-filter output by a path clip, invisible in the v1 opaque window and refiled with the
   transparent-window pass.
 
+- [ADR-0037: The reply whispers in, and the bubble grows at its pace](adr/ADR-0037-whisper-streaming.md):
+  the streaming redesign the maintainer picked over three rounds of live pitch, **landed**. The reply
+  condenses like breath on glass: letters clear through a nine-letter blur band on one continuous
+  front (paced not timed, per letter), a single accent mist is the whole lifecycle (it breathes
+  before the first token, glides along the front, evaporates on settle) and is the streaming
+  bubble's only colour, and the bubble's box is posed by the same clock (a pill around the mist
+  while thinking, then growth eased at the front's pace, its bottom edge doubling as the reveal).
+  The block caret, the three dots, the per-word rise and the streaming glow are deleted; the
+  reducer is untouched.
+
 New non-obvious decision → add `adr/ADR-XXXX-<slug>.md`, link it here.
 
 ## Design

@@ -413,6 +413,7 @@
   line-height: 1.55;
   border-radius: 20px;
   white-space: pre-wrap;
+  animation: bubblein 0.3s var(--ease) both;
   overflow-wrap: anywhere;
 }
 .b-user {
@@ -424,14 +425,6 @@
   align-self: flex-start;
   background: var(--bubble-ai);
   border-bottom-left-radius: 7px;
-  box-shadow: 0 0 0 0 transparent;
-  transition: box-shadow 0.6s var(--ease);
-}
-/* Color only while working. */
-.b-ai.streaming {
-  box-shadow:
-    0 0 0 1px rgba(139, 92, 246, 0.3),
-    0 10px 34px -10px rgba(226, 75, 196, 0.4);
 }
 .b-error {
   align-self: flex-start;
@@ -439,31 +432,56 @@
   color: var(--text);
   border-bottom-left-radius: 7px;
 }
-.w {
+.whisper {
+  position: relative;
+  box-sizing: border-box;
+  overflow: hidden;
+  max-width: none;
+}
+.whisper.w-breath {
+  min-width: 55px;
+  min-height: 42px;
+}
+.wtxt {
+  display: block;
+}
+.wd {
   display: inline-block;
-  white-space: pre-wrap;
-  animation: wordin 0.5s var(--ease) both;
+  white-space: pre;
 }
-
-/* The pre-first-token thinking shimmer: three accent dots hold the bubble until text arrives
-   (design/overlay-ux.md §4). A working affordance, so it carries the accent. */
-.thinking {
-  display: inline-flex;
-  gap: 5px;
-  padding: 5px 2px 2px;
+.ch {
+  display: inline-block;
+  opacity: 0;
 }
-.thinking i {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
+.mist {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform: translate(15px, 14px);
+  pointer-events: none;
+  will-change: transform;
+}
+.mist i {
+  display: block;
+  width: 24px;
+  height: 13px;
+  border-radius: 999px;
   background: var(--accent);
-  animation: think 1.05s ease-in-out infinite;
+  filter: blur(7px);
+  animation: mistbreathe 2.2s ease-in-out infinite;
 }
-.thinking i:nth-child(2) {
-  animation-delay: 0.16s;
+.w-settled .mist i {
+  animation: mistgone 0.55s var(--ease) forwards;
 }
-.thinking i:nth-child(3) {
-  animation-delay: 0.32s;
+/* The reply as assistive tech reads it: the letter spans are presentation (aria-hidden), this
+   is the text, held to one offscreen pixel. */
+.sr-copy {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 /* Slim inline activity chips between bubbles (tool/status, design/overlay-ux.md §3): a neutral
@@ -750,17 +768,6 @@
   color: #fff;
   box-shadow: 0 8px 20px -6px rgba(226, 75, 196, 0.6);
 }
-.caret {
-  display: inline-block;
-  width: 7px;
-  height: 15px;
-  vertical-align: -2px;
-  margin-left: 2px;
-  border-radius: 3px;
-  background: var(--accent);
-  animation: pulse 1s ease infinite;
-}
-
 .composer {
   display: flex;
   align-items: flex-end;
@@ -1263,16 +1270,36 @@
   animation-play-state: paused;
 }
 
-@keyframes wordin {
+/* Every bubble arrives as one soft thing (ADR-0037 replaced the per-word rises, which also had
+   a history load animating every word of every bubble); the whisper's own letters carry the
+   real streaming motion. */
+@keyframes bubblein {
   from {
     opacity: 0;
-    transform: translateY(5px);
-    filter: blur(3px);
+    transform: translateY(4px);
   }
   to {
     opacity: 1;
     transform: none;
-    filter: none;
+  }
+}
+/* The mist breathing, and its evaporation where the last word ends (ADR-0037). */
+@keyframes mistbreathe {
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: scale(0.88);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(1.08);
+  }
+}
+@keyframes mistgone {
+  to {
+    opacity: 0;
+    transform: scale(1.7);
+    filter: blur(13px);
   }
 }
 @keyframes pulse {
@@ -1352,6 +1379,12 @@
     animation-duration: 0.001ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.12s !important;
+  }
+  /* No whisper clock runs (ADR-0037): letters show as they arrive (the class floor of zero
+     would otherwise hold them invisible forever), the mist rests at its breath pose, and the
+     `.w-breath` floor above holds the waiting pill without a posed box. */
+  .ch {
+    opacity: 1;
   }
 }
 

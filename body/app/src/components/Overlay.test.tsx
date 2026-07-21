@@ -103,8 +103,10 @@ describe("Overlay", () => {
 
   it("shows the preview with the latest reply and reopens on click", () => {
     const controller = fakeController("preview", [reply]);
-    renderOverlay(controller);
-    expect(screen.getByText("the answer")).toBeInTheDocument();
+    const { container } = renderOverlay(controller);
+    // Asked of the card's own text box: the reply also stands in the always-mounted panel
+    // behind it, as one plain text node now that a settled bubble is not word spans.
+    expect(container.querySelector(".pv-b")?.textContent).toBe("the answer");
     fireEvent.click(screen.getByLabelText("Open reply"));
     expect(controller.open).toHaveBeenCalledOnce();
   });

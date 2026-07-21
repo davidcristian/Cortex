@@ -34,7 +34,10 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
   frame clock, ADR-0031), the window's dreaming edge (`edge/`: `liquid.ts` the pure geometry and
   the eased working depth, `edges.ts` the style registry on the same clock, rendered by
   `components/PanelEdge.tsx` as a clipped background slab under the content so the words never
-  sit on the warping layer, ADR-0036), the appearance record (`overlay/usePreferences.ts`:
+  sit on the warping layer, ADR-0036), the whispered streaming (`whisper/`: `front.ts` the pure
+  front engine and tokenizer, `useWhisperClock.ts` the frame clock that writes the letter ramps,
+  the gliding mist and the bubble's posed box, rendered by `components/WhisperBubble.tsx`,
+  ADR-0037), the appearance record (`overlay/usePreferences.ts`:
   hydrates the theme, mark and window edge from the brain once and writes each change back
   optimistically, ADR-0032), the panel's
   vertical geometry and the motion into it (`overlay/usePanelMotion.ts` drives
@@ -329,6 +332,21 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
   indented `key: value` lines, which is what lets an attachment's content read as a file instead
   of as escaped JSON. It knows JSON shapes and never a tool's schema. The draft block caps at
   `42vh` and scrolls, so a long draft cannot push Approve and Deny out of view.
+- **The whispered reply** (`components/WhisperBubble.tsx` + `whisper/`, ADR-0037): an assistant
+  bubble streams by condensation. `whisper/front.ts` is the pure half (the front position with
+  one eased velocity, the nine-letter smoothstep band, the tokenizer that chunks giant words,
+  and the confirmed-letter hold that keeps a partial trailing word invisible so a mid-word wrap
+  never moves visible letters); `whisper/useWhisperClock.ts` is a rAF loop in `useMarkClock`'s
+  shape that writes letter opacity and blur, the mist's transform and the bubble's posed box
+  imperatively, its only `setState` being the breath-to-talking and talking-to-settled
+  transitions. The bubble latches whether the message was streaming when it mounted: history
+  renders one plain text node with none of the machinery, and a message this instance streamed
+  keeps its letter DOM after settling so nothing re-wraps under the reader. The letter DOM is
+  `aria-hidden` behind a visually hidden copy of the content; the mist carries the "Thinking"
+  label during the breath. Growth reports through `onGrow`, which `ChatView` wires to the
+  history's tail pin, so the drain that outlives the last render cannot slide a pinned reader
+  off the tail. Reduced motion schedules no frames: the stylesheet reveals letters as they
+  arrive and a CSS floor holds the breath pill.
 - **The reasoning surfaces** (`components/Message.tsx` + `overlay/overlayState.ts`, ADR-0020): a
   reply's `"thinking"` statuses drive two affordances off the reducer's `statusState`. While the
   turn streams, the live chip bobs (`chip-think`) with the latest reasoning delta; the reducer
@@ -456,8 +474,10 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
   of the rule is that nothing may grow along the other axis: a horizontal bar takes its height out
   of the content box and shoves every child up, unreserved. Any container holding text it did not
   author breaks long tokens instead (`overflow-wrap: anywhere` on `.bubble`, `.thoughts-body`,
-  `.confirm-row dd`, `.confirm-raw`, `.reminder-text`; `.w`, the per-word streaming span, is
-  `white-space: pre-wrap` rather than `pre` so that reaches inside it), and `.history` carries
+  `.confirm-row dd`, `.confirm-raw`, `.reminder-text`; a whispered reply's word boxes are
+  `white-space: pre` and unbreakable, so `whisper/front.ts` chunks a run of non-whitespace
+  longer than 24 letters into boxes the bubble can break between, ADR-0037 decision 6, which is
+  what keeps the reach inside a streamed token), and `.history` carries
   `overflow-x: clip` so a future child cannot bring the shift back.
 - **The send button's hover is on the GLYPH, and the stop's is the one hue change in the overlay.**
   The arrow rises 3px on the spring while the cap holds still, which is the hover the maintainer picked

@@ -44,7 +44,7 @@ its signature.
 | [memory.md](memory.md) | Store, scoping, rerank/MMR (ADR-0008) | 8 |
 | [inference-model-manager.md](inference-model-manager.md) | Model-manager lifecycle, MTP, reasoning status (ADR-0007/0020) | 7 |
 | [subagents.md](subagents.md) | Progress reporting, spawn schema, heterogeneous roster (ADR-0010/0018) | 2 |
-| [body-overlay.md](body-overlay.md) | Overlay polish, connection indicator, proto Cancel (ADR-0011), per-row reminder exit, the composer's move on a clamped shrink, a touch mid-roll pinning to a prediction, a placement left computed for a stale height, the composer's own growth being the one resize the panel never eases, the demo bridge staying over the line cap, the reserved scrollbar rail's assumed width and spent card inset, the chat floor's frozen measurement of the empty state, a mid-stream retarget restarting from a rounded height, a Thoughts trace opening a reply off the bottom of a full history, sections tall enough to outrun the panel on their own, the console tab strip's missing keyboard half, and a new chat minted from the console leaving the console up | 16 |
+| [body-overlay.md](body-overlay.md) | Overlay polish, connection indicator, proto Cancel (ADR-0011), per-row reminder exit, the composer's move on a clamped shrink, a touch mid-roll pinning to a prediction, a placement left computed for a stale height, the composer's own growth being the one resize the panel never eases, the demo bridge staying over the line cap, the reserved scrollbar rail's assumed width and spent card inset, the chat floor's frozen measurement of the empty state, a mid-stream retarget restarting from a rounded height, a Thoughts trace opening a reply off the bottom of a full history, sections tall enough to outrun the panel on their own, the console tab strip's missing keyboard half, a new chat minted from the console leaving the console up, and the whisper's follow-ups (ADR-0037): a pickable voice row, a mid-stream resize keeping the old wrap width, drain growth the panel's measured moves never see, and kerning inside the letter boxes under a changed font | 20 |
 | [session-read-seam.md](session-read-seam.md) | Session listing/read seam (ADR-0021) | 3 |
 | [resource-governance.md](resource-governance.md) | Scheduler/placer budgets, NPU, drain (ADR-0012) | 5 |
 | [email-confirmer.md](email-confirmer.md) | Email write, Confirmer, attachments, `ToolActivity` chip (ADR-0022) | 4 |
@@ -1213,7 +1213,12 @@ whose
 trigger is either a row dropping its horizontal padding or the maintainer reading the rail as touching
 the chrome, and whose fix is the 6px going back on the card at the cost of a 12px inline-end inset
 against a 6px left, or a narrower rail for those two cards
-([body-overlay.md](body-overlay.md)); the tunnel
+([body-overlay.md](body-overlay.md)); the whisper's three bounded follow-ups, joined on
+2026-07-21 when the streaming redesign landed (ADR-0037): a streamed bubble's wrap width
+measured once (trigger: a resizable overlay window), drain growth after the turn's last render
+that the panel's measured moves never see (trigger: the chat floor changing, or that growth
+visibly outrunning the panel), and kerning pairs lost inside the per-letter word boxes
+(trigger: adopting a licensed face) ([body-overlay.md](body-overlay.md)); the tunnel
 fallback, the
 hardened non-loopback posture, a safe Core Audio wrapper, and the unbalanced COM
 initialization the blocking-pool hop made visible, whose trigger is a COM failure or thread
@@ -1320,3 +1325,8 @@ that coarseness sends a reader to the wrong place.
   instead, at zero visible cost while the v1 window's ground is opaque. Picks itself up with the
   transparent-window pass; the candidate fix is the same outline as a `mask-image`, which the
   pitch measured clipping the blur correctly
+- **The voice as a fourth picked row** ([body-overlay.md](body-overlay.md)), placed here
+  2026-07-21: the whisper landed as the one streaming effect (ADR-0037), but it was chosen from
+  a pitched family and sits behind one component seam, so a registry beside the theme, the iris
+  and the dream (the Face's anatomy extending to a voice) is data plus a swatch row. Trigger:
+  the user wanting a second voice back

@@ -1,19 +1,26 @@
 import type { Message as MessageModel } from "../overlay/overlayState";
 import { Thoughts } from "./Thoughts";
+import { WhisperBubble } from "./WhisperBubble";
 
-export function Message({ message }: { readonly message: MessageModel }) {
-  const tone = message.role === "user" ? "b-user" : "b-ai";
-
+export function Message({
+  message,
+  onGrow,
+}: {
+  readonly message: MessageModel;
+  readonly onGrow: () => void;
+}) {
   if (message.error !== null) {
     return (
-      <div className={`bubble ${tone} b-error`} role="alert">
+      <div className="bubble b-ai b-error" role="alert">
         {message.error}
       </div>
     );
   }
 
-  const thinking = message.streaming && message.content === "";
-  const words = message.content.split(" ");
+  if (message.role === "user") {
+    return <div className="bubble b-user">{message.content}</div>;
+  }
+
   return (
     <>
       {message.streaming && message.tool !== null ? (
@@ -32,23 +39,7 @@ export function Message({ message }: { readonly message: MessageModel }) {
       {!message.streaming && message.thoughts !== "" ? (
         <Thoughts trace={message.thoughts} />
       ) : null}
-      <div className={`bubble ${tone}${message.streaming ? " streaming" : ""}`}>
-        {thinking ? (
-          <span className="thinking" aria-label="Thinking">
-            <i />
-            <i />
-            <i />
-          </span>
-        ) : (
-          <>
-            {words.map((word, index) => (
-              // eslint-disable-next-line react/no-array-index-key -- stable append-only stream
-              <span key={index} className="w">{`${word} `}</span>
-            ))}
-            {message.streaming ? <span className="caret" aria-hidden="true" /> : null}
-          </>
-        )}
-      </div>
+      <WhisperBubble message={message} onGrow={onGrow} />
     </>
   );
 }
