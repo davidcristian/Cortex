@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
+import { STILL } from "../edge/edges";
 import { MULL } from "../mark/marks";
 import { INITIAL_LINK } from "../overlay/linkState";
 import type { Message, OverlayState } from "../overlay/overlayState";
@@ -69,9 +70,11 @@ function renderOverlay(controller: OverlayController, onToggleTheme: () => void 
       controller={controller}
       dark={false}
       mark={MULL}
+      edge={STILL}
       themeName={null}
       onPickTheme={vi.fn()}
       onPickMark={vi.fn()}
+      onPickEdge={vi.fn()}
       onToggleTheme={onToggleTheme}
     />,
   );

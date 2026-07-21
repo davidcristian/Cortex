@@ -250,6 +250,17 @@ Start here. Rules for working in this repo: [AGENTS.md](../AGENTS.md).
   the first message cannot shrink the window. Scrollbars became reserved chrome and the connection
   dot moved into the button cluster in the same pass.
 
+- [ADR-0036: The window's dreaming edge, as a picked style](adr/ADR-0036-window-edge.md): the
+  panel's silhouette can go liquid, warped by the mark's own maths (integer wave orders on the
+  closed perimeter, corner-weighted, one path per frame), **landed**. A third appearance registry
+  beside the theme and the mark, named as a ladder of dream depth (Still, Lucid, Reverie, Trance)
+  with **Lucid the default** by the user's call; the animated clip rides a background-only slab
+  so the words never sit on the warping layer, the glow cross-fades neutral to accent with the
+  turn (Trance's resting ember is the one written exception to color-as-activity), and a liquid
+  panel trades its backdrop blur for a near-solid ground because Chromium does not clip
+  backdrop-filter output by a path clip, invisible in the v1 opaque window and refiled with the
+  transparent-window pass.
+
 New non-obvious decision → add `adr/ADR-XXXX-<slug>.md`, link it here.
 
 ## Design

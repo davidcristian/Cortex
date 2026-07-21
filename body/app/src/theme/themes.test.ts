@@ -50,6 +50,7 @@ describe("themes", () => {
   it("maps tokens to CSS custom properties", () => {
     const vars = toCssVars(MIDNIGHT);
     expect(vars["--bg"]).toBe("#0C0A12");
+    expect(vars["--panel-solid"]).toBe(MIDNIGHT.tokens.panelSolid);
     expect(vars["--bubble-user"]).toBe(MIDNIGHT.tokens.bubbleUser);
     expect(vars["--accent"]).toBe(MIDNIGHT.tokens.accent);
     expect(vars["--ok"]).toBe(MIDNIGHT.tokens.ok);

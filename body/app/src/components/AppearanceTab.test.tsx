@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
+import { EDGES, LUCID, TRANCE as TRANCE_EDGE } from "../edge/edges";
 import { MARKS, TANGENT, MULL } from "../mark/marks";
 import { THEMES, resolveTheme } from "../theme/themes";
 import { AppearanceTab } from "./AppearanceTab";
@@ -18,15 +19,18 @@ function renderTab(
     themeName?: string | null;
     onPickTheme?: (name: string | null) => void;
     onPickMark?: (name: string) => void;
+    onPickEdge?: (name: string) => void;
   } = {},
 ) {
   return render(
     <AppearanceTab
       themeName={over.themeName === undefined ? null : over.themeName}
       mark={MULL}
+      edge={LUCID}
       animated={false}
       onPickTheme={over.onPickTheme ?? vi.fn()}
       onPickMark={over.onPickMark ?? vi.fn()}
+      onPickEdge={over.onPickEdge ?? vi.fn()}
     />,
   );
 }
@@ -107,5 +111,29 @@ describe("AppearanceTab", () => {
     renderTab();
     expect(screen.getByRole("radio", { name: "Mull" })).toHaveAttribute("aria-checked", "true");
     expect(screen.getByText(MULL.note)).toBeInTheDocument();
+  });
+
+  it("offers the window ladder from the registry, in the registry's own order", () => {
+    renderTab();
+    const group = screen.getByRole("radiogroup", { name: "Window" });
+    // The order is the explanation, Still to Trance, and it comes from the registry: a fifth
+    // edge appears here, in its place on the ladder, with no change to this view.
+    expect([...group.querySelectorAll(".tile-name")].map((name) => name.textContent)).toEqual(
+      EDGES.map((edge) => edge.label),
+    );
+    expect(group.querySelectorAll("svg.edge-mini")).toHaveLength(EDGES.length);
+  });
+
+  it("checks the chosen edge and says what it does, under the row it was chosen from", () => {
+    renderTab();
+    expect(screen.getByRole("radio", { name: "Lucid" })).toHaveAttribute("aria-checked", "true");
+    expect(screen.getByText(LUCID.note)).toBeInTheDocument();
+  });
+
+  it("picks an edge by its stored name", () => {
+    const onPickEdge = vi.fn();
+    renderTab({ onPickEdge });
+    fireEvent.click(screen.getByRole("radio", { name: "Trance" }));
+    expect(onPickEdge).toHaveBeenCalledWith(TRANCE_EDGE.name);
   });
 });

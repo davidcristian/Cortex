@@ -31,8 +31,12 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
   (`--spark`) or `background-clip: text`, not a var swap.
 - **Frontend** (`src/`, gated). Pure logic first: the theme system (`theme/`), the activity mark
   (`mark/`: `bubble.ts` is the pure geometry, `marks.ts` the style registry, `useMarkClock.ts` the
-  frame clock, ADR-0031), the appearance record (`overlay/usePreferences.ts`: hydrates the theme
-  and mark from the brain once and writes each change back optimistically, ADR-0032), the panel's
+  frame clock, ADR-0031), the window's dreaming edge (`edge/`: `liquid.ts` the pure geometry and
+  the eased working depth, `edges.ts` the style registry on the same clock, rendered by
+  `components/PanelEdge.tsx` as a clipped background slab under the content so the words never
+  sit on the warping layer, ADR-0036), the appearance record (`overlay/usePreferences.ts`:
+  hydrates the theme, mark and window edge from the brain once and writes each change back
+  optimistically, ADR-0032), the panel's
   vertical geometry and the motion into it (`overlay/usePanelMotion.ts` drives
   `overlay/panelPlacement.ts` and its neighbours, which own `bottom` and `max-height` as inline
   styles; `overlay/useViewTransition.ts` names the view being left behind

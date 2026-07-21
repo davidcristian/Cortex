@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { STILL } from "../edge/edges";
 import { MULL } from "../mark/marks";
 import { CONSOLE_TABS, type ConsoleTab } from "../overlay/overlayState";
 import { ConsoleView, TAB_SPREAD_PX } from "./ConsoleView";
@@ -14,9 +15,11 @@ function renderConsole(
       tab={tab}
       themeName={null}
       mark={MULL}
+      edge={STILL}
       animated={false}
       onPickTheme={vi.fn()}
       onPickMark={vi.fn()}
+      onPickEdge={vi.fn()}
       onSelectTab={over.onSelectTab ?? vi.fn()}
       onClose={over.onClose ?? vi.fn()}
     />,

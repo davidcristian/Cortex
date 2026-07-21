@@ -2,15 +2,21 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { BrainBridge } from "../bridge/types";
 
-/** The record's keys. Namespaced because the record is shared with every future surface. */
+// The user's appearance choices, read from the brain's settings record once and written back on
+// every change. The record is the brain's, so a choice outlives this window.
+
+/** The record's keys, namespaced because the record is shared with every future surface. */
 export const THEME_KEY = "overlay.theme";
 export const MARK_KEY = "overlay.mark";
+export const WINDOW_KEY = "overlay.window";
 
-/** The two appearance choices, each `null` when the user has not made one (the default applies:
- *  the system colour scheme for the theme, the default bubble for the mark). */
+/** The three appearance choices, each `null` when the user has not made one (the default applies:
+ *  the system colour scheme for the theme, the default bubble for the mark, the default edge for
+ *  the window). */
 export interface Appearance {
   readonly theme: string | null;
   readonly mark: string | null;
+  readonly window: string | null;
 }
 
 export interface AppearanceController {
@@ -19,14 +25,18 @@ export interface AppearanceController {
   setTheme: (name: string | null) => void;
   /** Choose a mark style by name. */
   setMark: (name: string) => void;
+  /** Choose a window edge style by name (ADR-0036). */
+  setWindow: (name: string) => void;
 }
 
-const NOTHING_CHOSEN: Appearance = { theme: null, mark: null };
+const NOTHING_CHOSEN: Appearance = { theme: null, mark: null, window: null };
 
-/** Hydrate the appearance from the brain once, and persist every later change. */
+/** Read the appearance from the brain once, and save every later change. The write is optimistic:
+ *  the choice applies to this render and the call is not awaited, so a slow brain cannot make
+ *  picking a theme feel stuck. The `chosen` latch keeps a choice made before the record arrives. */
 export function usePreferences(bridge: BrainBridge): AppearanceController {
   const [appearance, setAppearance] = useState<Appearance>(NOTHING_CHOSEN);
-  const chosen = useRef({ theme: false, mark: false });
+  const chosen = useRef({ theme: false, mark: false, window: false });
 
   useEffect(() => {
     let live = true;
@@ -41,11 +51,11 @@ export function usePreferences(bridge: BrainBridge): AppearanceController {
         setAppearance((current) => ({
           theme: chosen.current.theme ? current.theme : read(THEME_KEY),
           mark: chosen.current.mark ? current.mark : read(MARK_KEY),
+          window: chosen.current.window ? current.window : read(WINDOW_KEY),
         }));
       })
       .catch(() => {
-        // A brain that cannot be reached leaves the defaults in place, which is exactly what a
-        // first run shows. The overlay is usable without its record; only durability is lost.
+        // A brain that cannot be reached leaves the defaults in place, which is a first run.
       });
     return () => {
       live = false;
@@ -55,8 +65,7 @@ export function usePreferences(bridge: BrainBridge): AppearanceController {
   const write = useCallback(
     (key: string, value: string) => {
       bridge.setPreference(key, value).catch(() => {
-        // Non-fatal by design: the choice is already applied above. Retrying here would fight
-        // the transport's deliberate one-attempt rule for this write (ADR-0032).
+        // Not fatal: the choice is already applied above, and only its durability is lost.
       });
     },
     [bridge],
@@ -66,7 +75,7 @@ export function usePreferences(bridge: BrainBridge): AppearanceController {
     (name: string | null) => {
       chosen.current.theme = true;
       setAppearance((current) => ({ ...current, theme: name }));
-      // `null` means "follow the system", which the record expresses as a cleared key.
+      // `null` means "follow the system", which the record writes as a cleared key.
       write(THEME_KEY, name ?? "");
     },
     [write],
@@ -81,5 +90,14 @@ export function usePreferences(bridge: BrainBridge): AppearanceController {
     [write],
   );
 
-  return { appearance, setTheme, setMark };
+  const setWindow = useCallback(
+    (name: string) => {
+      chosen.current.window = true;
+      setAppearance((current) => ({ ...current, window: name }));
+      write(WINDOW_KEY, name);
+    },
+    [write],
+  );
+
+  return { appearance, setTheme, setMark, setWindow };
 }
