@@ -16,7 +16,7 @@ describe("ShortcutsTab", () => {
     }
     for (const label of [
       "Send",
-      "Newline",
+      "New line",
       "New",
       "Previous",
       "Next",
@@ -55,13 +55,13 @@ describe("ShortcutsTab", () => {
       "Space",
     ]);
     // Modifier and key are separate caps even when both are drawn glyphs.
-    expect(card("Newline").querySelectorAll("b")).toHaveLength(2);
+    expect(card("New line").querySelectorAll("b")).toHaveLength(2);
     expect(card("Previous").querySelectorAll("b")).toHaveLength(2);
   });
 
   it("draws a non-letter key with the header's outline icon, never a Unicode symbol", () => {
     render(<ShortcutsTab />);
-    for (const label of ["Send", "Newline", "Previous"]) {
+    for (const label of ["Send", "New line", "Previous"]) {
       for (const cap of card(label).querySelectorAll("b.key")) {
         // One glyph per cap, and it is an SVG from `icons.tsx` rather than a character.
         expect(cap.querySelectorAll("svg")).toHaveLength(1);
@@ -71,8 +71,8 @@ describe("ShortcutsTab", () => {
     expect(card("Send").querySelectorAll("b.key")).toHaveLength(1);
     // Shift is a word like Ctrl; the drawn glyph left is the one key with no name worth
     // writing, which is return.
-    expect(card("Newline").querySelectorAll("b.key")).toHaveLength(1);
-    expect(card("Newline").querySelector("b")?.textContent).toBe("Shift");
+    expect(card("New line").querySelectorAll("b.key")).toHaveLength(1);
+    expect(card("New line").querySelector("b")?.textContent).toBe("Shift");
   });
 
   it("gives Esc one card, not one per thing it backs out of", () => {

@@ -34,7 +34,7 @@ export function ShortcutsTab() {
               <ReturnKey />
             </b>
           </Key>
-          <Key label="Newline">
+          <Key label="New line">
             <b>Shift</b>
             <b className="key">
               <ReturnKey />
