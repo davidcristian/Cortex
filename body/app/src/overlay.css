@@ -45,7 +45,7 @@
 .stage ::-webkit-scrollbar-button {
   display: none;
 }
-.panel[data-resizing] .history::-webkit-scrollbar-thumb {
+.panel[data-resizing] :is(.history, .rows)::-webkit-scrollbar-thumb {
   background: transparent;
 }
 .stage ::-webkit-scrollbar-thumb {
