@@ -493,6 +493,40 @@ describe("Panel", () => {
     expect(el.scrollTop).toBe(500);
   });
 
+  it("keeps the leaving console on the tab it was showing, instead of flashing the first one", () => {
+    const props = (tab: ConsoleTab | null) => panelProps({ consoleTab: tab }, true, false);
+    const view = render(<Panel {...props("shortcuts")} />);
+    expect(view.container.querySelector(".tabpane.on")?.getAttribute("aria-label")).toBe(
+      "Shortcuts",
+    );
+    // Closing keeps the console mounted for one morph so it can fade out. Its tab is already null
+    // by then, and the fallback for that was the FIRST tab, so leaving from the shortcuts drew the
+    // appearance pane over the one the user was looking at and took it away with the fade.
+    view.rerender(<Panel {...props(null)} />);
+    const leaving = view.container.querySelector(".view.out");
+    expect(leaving?.querySelector(".tabpane.on")?.getAttribute("aria-label")).toBe("Shortcuts");
+  });
+
+  it("marks the log bare only while the empty state is the whole of it", () => {
+    // `.log.bare` is what stops the opening screen scrolling: the column may then be shorter than
+    // its content, and clips instead of offering a bar for a picture with no more of it below.
+    const log = (over: Partial<OverlayState>) =>
+      renderPanel(over, true, false).container.querySelector(".log")?.className;
+    expect(log({})).toBe("log bare");
+    expect(log({ messages: [userMsg] })).toBe("log");
+    // An approval card with no messages is still something to scroll to, so the log stays a log.
+    expect(
+      log({
+        pendingConfirm: {
+          confirmId: "c1",
+          toolName: "email.send",
+          argumentsJson: "{}",
+          reason: "outbound",
+        },
+      }),
+    ).toBe("log");
+  });
+
   it("opens the console's shortcuts tab from the hint strip's ? and comes back from it", () => {
     const onToggleConsole = vi.fn();
     const onCloseConsole = vi.fn();

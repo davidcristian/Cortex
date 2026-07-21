@@ -934,7 +934,9 @@ frames were captured against the commit before it, and they are identical.
    window lurching 139px up and creeping back. `preventScroll` on the focus, and it holds at 0 for
    every frame. The field is where the eye already is; it needs the caret, not bringing into view.
 
-5. **The console's foot is 26px, not the header's 15.** Matching the header's number is what made
+5. **The console's foot is 26px, not the header's 15.** *Superseded the next day: it is 16px, read
+   off the side inset rather than judged. See the addendum below.* Matching the header's number is
+   what made
    the two ends look wrong: the header spends its 15px above a 30px control with an inset glyph, so
    the ink starts about 25px down, while the same 15px at the foot sits directly under a card that
    runs the panel's full width, hard against a 28px corner radius. Measured, 17px of clearance at
@@ -981,3 +983,41 @@ and both amendments are the reason it is worth writing down.
    the rule that colour is reserved for working affordances: a stop offered mid-turn, and a trash
    offered on hover, are working affordances at exactly the moment they are coloured, and neither
    is coloured at rest.
+
+## Addendum, 2026-07-21: four the maintainer measured rather than described
+
+1. **The console's foot is the console's sides.** Yesterday's addendum set it by eye twice, at the
+   header's 15px (which measures 16 and reads tight) and then at 26 (which measures 27 and reads
+   loose), and neither number was one anything else in the view agreed with. A card's left edge
+   stands 17px from the panel's and its right edge stands 17px from the panel's, so its bottom edge
+   does too: 16px of padding on `.rows` plus the panel's 1px border. Read off the other two rather
+   than judged, and it follows them if they change. The lesson generalises past this rule, which is
+   why it is written down: an inset that has a neighbour has an answer, not an opinion.
+
+2. **The console keeps its tab on the way out.** `Panel` renders the console while it is leaving so
+   it can fade, and read its tab from the reducer, which had already set it to null: the fallback
+   was the FIRST tab, so leaving from the shortcut list drew the appearance tab over the list the
+   user was looking at and took it away with the fade. The last tab shown is held in a ref for
+   exactly that morph.
+
+3. **Every keycap is at least as wide as the widest single key.** An outline arrow is 13px of
+   drawing where an `N` is 8.2px and a `?` is 5.8px, so the six single keys measured 23, 20.2, 19.2
+   and 17.8 and no two columns of them lined up. The floor is a minimum, so `Ctrl` at 31.6 and
+   `Space` at 45.5 are untouched. A cap has to be a flex box for `min-width` to reach it, which is
+   the one thing about the change that is not obvious from reading it.
+
+4. **The empty state does not scroll.** It is a picture rather than a log, with no more of it
+   further down, so a bar on it offers to reveal nothing and is only the panel admitting it could
+   not fit its own welcome. `.log.bare` marks the case (no messages and no approval card), and there
+   the column may be shorter than its content: it shrinks, centres, and clips, which is what leaves
+   the history with nothing overflowing to offer a bar for. The clipping is symmetric because
+   centring with negative free space overflows both ends alike, so the mark stays on the middle
+   line. A log with a message in it is unchanged, bottom aligned and scrolling.
+
+   Recorded because the obvious next move is a trap: dropping the empty state's 58px of block
+   padding to buy room makes it worse. That padding is part of the height the panel sizes itself to,
+   so the panel shortens and the history shortens with it, and the measurement says the content went
+   185 to 127 while the window it had to fit went 101 to 72. Half a visible mark became a sliver of
+   one, and it cost 29px of panel. What is left, when the room genuinely is not there, is a cropped
+   picture: if that wants to become a mark that scales or chips that stand down, it is a change to
+   what the empty state IS and belongs in the design doc first.
