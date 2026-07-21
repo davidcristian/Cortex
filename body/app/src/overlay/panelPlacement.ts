@@ -4,13 +4,15 @@
 //
 // Three rules share one measurement:
 //
-//   1. ENTERING ANOTHER VIEW centres it. Opening the console, or moving between its tabs, resizes
-//      the panel to what that view needs and slides it into the true middle of the screen.
+//   1. ENTERING ANOTHER VIEW resizes it in place. Opening the console, or moving between its tabs,
+//      resizes the panel to what that view needs from the bottom edge the chat is standing on, the
+//      way growth inside a view does. It shipped sliding to the true middle of the screen instead,
+//      and the user, having lived with it, chose the standing edge (2026-07-21); the slide stays
+//      one flip away behind `VIEW_CHANGE_RECENTRES`, both settings under test.
 //   2. COMING BACK TO THE CHAT restores it. The chat's own bottom edge is parked on the way out and
 //      handed back on the way in, so a trip to the console and back leaves the conversation exactly
-//      where the eye left it. Re-centring the return trip too was wrong twice over: the chat
-//      arrived somewhere it had never been, and the move had no meaning, since nothing about the
-//      chat had changed while it was away.
+//      where the eye left it. With rule 1 holding the edge anyway, the park is a no-op today; it is
+//      kept because it is what makes the return correct the moment the slide is switched back on.
 //   3. GROWTH INSIDE A VIEW pushes the top edge up. A reply arriving, the switcher list opening, a
 //      new chat emptying the panel, the composer taking a second line: the bottom stays pinned
 //      where it was, so the composer never slides out from under the hand that just typed into it.
@@ -59,6 +61,13 @@ import { rideAlong } from "./panelRide";
 
 /** The view whose position is remembered across a trip to another one. */
 const CHAT_VIEW = "chat";
+
+/** Whether entering another view slides the panel to the true middle of the screen, or keeps the
+ *  bottom edge it is standing on and resizes in place. The slide shipped first; the maintainer chose
+ *  the standing edge after living with both (2026-07-21), and asked for the slide to stay a
+ *  switch rather than a memory. `place` takes it as a defaulted argument so the tests hold both
+ *  branches green, and flipping this constant is the whole change back. */
+export const VIEW_CHANGE_RECENTRES = false;
 
 /** Every box inside the panel that scrolls: the conversation, and a console tab's rows. Written out
  *  rather than discovered, because discovering it means reading `scrollTop` off every node in the
@@ -115,7 +124,13 @@ function centringHeight(element: HTMLElement, height: number): number {
   return height - (aside?.offsetHeight ?? 0);
 }
 
-function wantedBottom(memory: Memory, at: Placement, viewport: number, height: number): number {
+function wantedBottom(
+  memory: Memory,
+  at: Placement,
+  viewport: number,
+  height: number,
+  recentres: boolean,
+): number {
   const changed = memory.view !== at.view;
   if (changed && memory.view === CHAT_VIEW) {
     memory.parked = memory.pinned;
@@ -127,7 +142,7 @@ function wantedBottom(memory: Memory, at: Placement, viewport: number, height: n
     memory.shown === null ||
     at.recentre ||
     arriving(memory, at) ||
-    (changed && parked === null);
+    (recentres && changed && parked === null);
   return centre ? centred(viewport, height) : (parked ?? memory.pinned);
 }
 
@@ -142,7 +157,12 @@ function wantedBottom(memory: Memory, at: Placement, viewport: number, height: n
  * displayed, cancel, read the natural geometry, animate between the two. That also keeps a change
  * mid-ease continuous, because the new animation starts exactly where the old one was.
  */
-export function place(element: HTMLElement | null, memory: Memory, at: Placement): void {
+export function place(
+  element: HTMLElement | null,
+  memory: Memory,
+  at: Placement,
+  recentres = VIEW_CHANGE_RECENTRES,
+): void {
   if (element === null) {
     return;
   }
@@ -220,7 +240,7 @@ export function place(element: HTMLElement | null, memory: Memory, at: Placement
   const displayed = deferred
     ? { height: carrying ?? onScreen, bottom: was }
     : (inFlight ?? memory.shown);
-  const wanted = wantedBottom(memory, at, viewport, centringHeight(element, height));
+  const wanted = wantedBottom(memory, at, viewport, centringHeight(element, height), recentres);
   memory.pinned = wanted;
   // A CLOSING PANEL IS NOT MOVED. It is about to be scaled away from where the eye last had it, and
   // the edge worked out above is for the summon that follows, which centres for itself anyway

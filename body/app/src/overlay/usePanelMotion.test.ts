@@ -3,6 +3,8 @@ import { useLayoutEffect } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { openHeight } from "./panelGeometry";
+import { emptyMemory } from "./panelMemory";
+import { place } from "./panelPlacement";
 import { usePanelMotion } from "./usePanelMotion";
 
 const VIEWPORT = 1000;
@@ -208,21 +210,50 @@ describe("usePanelMotion", () => {
     expect(moves).toEqual([{ from: { height: 520, bottom: 240 }, to: { height: 400, bottom: 240 } }]);
   });
 
-  it("re-centres on a view change, sliding and resizing in one movement", () => {
+  it("holds the chat's edge through a view change, resizing the console in place", () => {
     const { ref, state, moves, bottom } = harness();
     state.natural = 700;
     const { rerender } = renderHook(({ view }) => usePanelMotion(ref, true, view), {
       initialProps: { view: "chat" },
     });
     expect(bottom()).toBe(150);
-    // The console is much shorter: the panel shrinks to it AND returns to true centre.
+    // The console is much shorter, and it takes its height standing where the chat stood: the
+    // maintainer chose the standing edge over the slide to true centre (2026-07-21), which stays one
+    // flip away (`VIEW_CHANGE_RECENTRES`) and is held green by the flipped-switch tests below.
     state.natural = 300;
     rerender({ view: "console:shortcuts" });
-    expect(bottom()).toBe(350);
-    expect(moves).toEqual([{ from: { height: 700, bottom: 150 }, to: { height: 300, bottom: 350 } }]);
+    expect(bottom()).toBe(150);
+    expect(moves).toEqual([{ from: { height: 700, bottom: 150 }, to: { height: 300, bottom: 150 } }]);
   });
 
-  it("restores the chat's own edge on the way back, rather than centring it a second time", () => {
+  it("slides to true centre on a view change with the recentre switch flipped back on", () => {
+    // The shipped behaviour, kept one flip away: entering another view resizes the panel AND
+    // slides it to the middle of the screen, and the way back restores the chat's parked edge
+    // rather than centring a second time. Driven through `place` directly, because the hook
+    // always places at the constant's own setting.
+    const { element, state, keyed, bottom } = harness();
+    const memory = emptyMemory(true, "chat");
+    state.natural = 700;
+    place(element, memory, { open: true, view: "chat", recentre: false }, true);
+    expect(bottom()).toBe(150);
+    state.playState = "finished";
+    state.natural = 300;
+    place(element, memory, { open: true, view: "console:shortcuts", recentre: false }, true);
+    expect(bottom()).toBe(350);
+    // The ceiling belongs to where the panel is GOING (880 less 350) and is on the element
+    // already, so the move's first frame starts the cap where the panel actually stands: at 700,
+    // not clamped flat to 530 on its first frame.
+    expect(keyed.at(-1)).toEqual([
+      { height: "700px", bottom: "150px", maxHeight: "700px" },
+      { height: "300px", bottom: "350px", maxHeight: "530px" },
+    ]);
+    state.playState = "finished";
+    state.natural = 700;
+    place(element, memory, { open: true, view: "chat", recentre: false }, true);
+    expect(bottom()).toBe(150);
+  });
+
+  it("keeps one edge across a console round trip, coming back exactly where it left", () => {
     const { ref, state, moves, bottom } = harness();
     state.natural = 400;
     const { rerender } = renderHook(({ view }) => usePanelMotion(ref, true, view), {
@@ -234,28 +265,30 @@ describe("usePanelMotion", () => {
     expect(bottom()).toBe(300);
     // Each move settles before the next begins, so every step eases from the last one's end.
     state.playState = "finished";
-    // The console is a different view, so it centres for its own much shorter height.
+    // The console resizes on that same edge, and the chat comes back to it. The parked edge would
+    // guarantee the return even if the way out had moved, which is what keeps the restore correct
+    // the moment the slide is switched back on.
     state.natural = 200;
     rerender({ view: "console:appearance" });
-    expect(bottom()).toBe(400);
-    // Coming back is not a new arrival: the chat has not changed while it was away, so it returns
-    // to the edge it was left at rather than to (1000 - 560) / 2 = 220.
+    expect(bottom()).toBe(300);
     state.natural = 560;
     rerender({ view: "chat" });
     expect(bottom()).toBe(300);
-    expect(moves[2]).toEqual({ from: { height: 200, bottom: 400 }, to: { height: 560, bottom: 300 } });
+    expect(moves[2]).toEqual({ from: { height: 200, bottom: 300 }, to: { height: 560, bottom: 300 } });
   });
 
-  it("centres a first arrival at the chat, having nothing parked to put it back on", () => {
+  it("gives a first arrival at the chat the edge the console stood on, nothing being parked", () => {
     const { ref, state, bottom } = harness();
     state.natural = 300;
     const { rerender } = renderHook(({ view }) => usePanelMotion(ref, true, view), {
       initialProps: { view: "console:appearance" },
     });
     expect(bottom()).toBe(350);
+    // The session opened on the console, so no chat edge was ever parked: the chat takes the edge
+    // on screen, the same hold-your-ground rule as every other view change.
     state.natural = 500;
     rerender({ view: "chat" });
-    expect(bottom()).toBe(250);
+    expect(bottom()).toBe(350);
   });
 
   it("caps the height at the ceiling instead of walking the bottom edge down to meet it", () => {
@@ -503,7 +536,7 @@ describe("usePanelMotion", () => {
     expect(moves).toEqual([]);
   });
 
-  it("takes the ceiling along in the move, so a shrink is not clamped flat on its first frame", () => {
+  it("takes the ceiling along in the move, riding the same edge the panel is standing on", () => {
     const { ref, state, keyed } = harness();
     state.natural = 700;
     const { rerender } = renderHook(({ view }) => usePanelMotion(ref, true, view), {
@@ -512,20 +545,21 @@ describe("usePanelMotion", () => {
     state.playState = "finished";
     state.natural = 300;
     rerender({ view: "console" });
-    // The panel is going to a 300px view centred at 350, whose ceiling is 880 less 350. That
-    // ceiling belongs to where the panel is GOING and is written to the element straight away, so
-    // it clamps the 700 the ease starts from: the panel stands at 530 one frame after the click and
-    // eases the last 230px from there. The whole shrink in one frame, then an animation of nothing.
+    // The edge holds at 150, so the ceiling is 880 less 150 at both ends of the move, and the
+    // from-frame's cap never sits below the height the ease starts from. The clamped-first-frame
+    // defect this once traced belongs to the slide now, and is held down in the flipped-switch
+    // test above, where the bottom edge genuinely rises mid-move.
     expect(keyed.at(-1)).toEqual([
-      { height: "700px", bottom: "150px", maxHeight: "700px" },
-      { height: "300px", bottom: "350px", maxHeight: "530px" },
+      { height: "700px", bottom: "150px", maxHeight: "730px" },
+      { height: "300px", bottom: "150px", maxHeight: "730px" },
     ]);
   });
 
-  it("centres on the view being placed, not on an aside belonging to the one being left", () => {
-    const { ref, element, state, bottom } = harness();
-    // The chat, with the reminder stack in it. The panel centres on the conversation and lets the
-    // stack grow it upward from there, so the stack is left out of the height it centres on.
+  it("centres the arriving view on itself, not shy of an aside the leaving view still holds", () => {
+    // Centring on a view change lives behind the flipped switch, so the defect this guards is
+    // driven through `place` the way the slide's own test is. The chat holds the reminder stack
+    // (an aside): the panel centres on the conversation and lets the stack grow it upward.
+    const { element, state, bottom } = harness();
     const chat = document.createElement("div");
     chat.className = "view";
     const aside = document.createElement("div");
@@ -533,10 +567,9 @@ describe("usePanelMotion", () => {
     Object.defineProperty(aside, "offsetHeight", { configurable: true, get: () => 200 });
     chat.append(aside);
     element.append(chat);
+    const memory = emptyMemory(true, "chat");
     state.natural = 500;
-    const { rerender } = renderHook(({ view }) => usePanelMotion(ref, true, view), {
-      initialProps: { view: "chat" },
-    });
+    place(element, memory, { open: true, view: "chat", recentre: false }, true);
     expect(bottom()).toBe(350);
 
     // Into the console, which has no stack of its own. The chat is held for one morph as `.view.out`
@@ -547,7 +580,7 @@ describe("usePanelMotion", () => {
     chat.className = "view out";
     state.playState = "finished";
     state.natural = 300;
-    rerender({ view: "console" });
+    place(element, memory, { open: true, view: "console", recentre: false }, true);
     expect(bottom()).toBe(350);
   });
 

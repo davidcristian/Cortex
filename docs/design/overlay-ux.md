@@ -117,14 +117,15 @@ ground. One swap at three speeds reads as the window coming apart and going back
     at `12vh` of clear space and grows downward past that, which lands a full-height panel dead
     centre. The edge it is pinned to is remembered UNCLAMPED, so a panel pushed down by its own
     growth comes back to it as soon as it fits again and a grow-then-shrink round trip is exactly
-    reversible. Entering the console resizes the panel to what the tab it opens on needs and slides
-    it to true centre in one movement, and switching tabs is that same movement rather than a
-    second kind (traced at a 900px viewport: 546px to 411px on the way in, 411px to 571px between
-    the two tabs, each landing a pixel off true centre); coming BACK to the chat restores the edge
-    the chat was left at, because nothing about the chat changed while it was away
+    reversible. Entering the console resizes the panel to what the tab it opens on needs standing
+    on that same edge, and switching tabs resizes in place the same way (user call 2026-07-21: it
+    shipped sliding to true centre, and the slide is kept one flip away behind
+    `VIEW_CHANGE_RECENTRES` in `panelPlacement.ts`, both settings under test); coming BACK to the
+    chat restores the edge the chat was left at, which the standing edge now makes trivial, and
+    the parked edge still guarantees the moment the slide is switched back on
     ([ADR-0033](../adr/ADR-0033-panel-growth.md),
-    [ADR-0034](../adr/ADR-0034-panel-views.md)). Another chat is not another view: it resizes in
-    place. All of it is measured and replayed in code, not a CSS transition: `height: auto` to
+    [ADR-0034](../adr/ADR-0034-panel-views.md) and its addendum). Another chat is not another
+    view: it resizes in place. All of it is measured and replayed in code, not a CSS transition: `height: auto` to
     `height: auto` is not a computed-value change, so a transition never fires (and
     `interpolate-size` does not help, being for `auto` against a length).
   - **Motion is paced, not timed, and a move in the air is resumed rather than restarted**. A move
@@ -287,9 +288,10 @@ Top-to-bottom, the summoned panel is:
    for the full shortcut list (landed 2026-07-12; the `?` key works too, outside the composer).
    Both open **the console**, one **view the panel morphs into** rather than a sheet laid over it
    (2026-07-19, [ADR-0034](../adr/ADR-0034-panel-views.md)): the panel resizes to what the view
-   needs and slides back to true centre, so a console tab with two rows of swatches in it is a
-   small window rather than a tall one with its footer stranded three hundred pixels below the
-   content. **Esc leaves it in one press** (2026-07-20,
+   needs on the edge the chat is standing on (the slide back to true centre it shipped with is a
+   user-reversed flip away; see the ADR's addendum), so a console tab with two rows of swatches
+   in it is a small window rather than a tall one with its footer stranded three hundred pixels
+   below the content. **Esc leaves it in one press** (2026-07-20,
    [ADR-0035](../adr/ADR-0035-console-and-motion.md) decision 1), because the two sheets that used
    to stack are one view with a tab strip now. The kbd glyphs are outline icons matching the header set
    (return / shift / cycle chevrons), not raw Unicode symbols (2026-07-07).
@@ -372,7 +374,7 @@ while a turn is processing must not lose it*) lives here. States:
   - Selection is a **lift** (a fill and a hairline), never an accent: a console is resting chrome
     even when the thing it draws is not, so the only colour on that surface is the marks
     themselves. There is no backdrop to click away from.
-  - **Switching tabs is the panel's one morph** (it resizes and re-centres to the new tab), and the
+  - **Switching tabs is the panel's one morph** (it resizes in place to the new tab), and the
     crossing between two tabs is a **pure fade**: the header and the strip are the same chrome in
     the same place in both, so they hold still, pixel for pixel, while the content changes under
     them. Only a change between the chat and the console keeps the small rise-and-sink, since those
