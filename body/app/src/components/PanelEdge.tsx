@@ -1,7 +1,7 @@
 import { useCallback, useLayoutEffect, useReducer, useRef } from "react";
 
 import type { EdgeStyle } from "../edge/edges";
-import { approachDepth, edgePath } from "../edge/liquid";
+import { BLEED, approachDepth, edgePath } from "../edge/liquid";
 import { useMarkClock } from "../mark/useMarkClock";
 
 // The panel's dreaming edge (ADR-0036). Layers, back to front: the glass slab wearing the
@@ -71,9 +71,13 @@ export function PanelEdge({ style, working, animated, idPrefix }: PanelEdgeProps
   const d = edgePath(style, size.current.width, size.current.height, seconds, depth);
   const ember = `${idPrefix}-ember`;
   return (
+    // The wrapper bleeds past the panel so the neutral outline rides the panel's real edge and
+    // the waves have room to swing outward. The inset is the geometry module's own number, worn
+    // inline so the two cannot drift.
     <div
       ref={box}
       className={`edge edge-${style.glow}${working ? " edge-working" : ""}`}
+      style={{ inset: -BLEED }}
       aria-hidden="true"
     >
       <div className="edge-glass" style={{ clipPath: `path("${d}")` }} />
