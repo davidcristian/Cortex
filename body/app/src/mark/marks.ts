@@ -1,8 +1,13 @@
 // The overlay's activity mark, as a plug-and-play registry (the same shape as theme/themes.ts):
 // a mark style is a named set of bubble parameters, and adding one to MARKS makes it pickable
 // with no other code change. Four ship (design/overlay-ux.md §4, ADR-0031); the user picks one
-// from the empty state and Wobble is the default. All geometry lives in bubble.ts; this file is
+// from the empty state and Mull is the default. All geometry lives in bubble.ts; this file is
 // only the numbers.
+//
+// The labels are movements of thought: the mark is the overlay's thinking signal, so the picker
+// asks "how does it think?" and each label answers with how that style moves (ADR-0031 addendum).
+// `name` is the frozen storage key a style first shipped under, the value the preference record
+// holds, so every key now differs from its label; the note on Tangent says why none may change.
 
 import type { Envelope, Harmonic, Lobe, Orbit } from "./bubble";
 
@@ -33,16 +38,16 @@ export interface MarkStyle {
   readonly filmPeriodSeconds: number;
   readonly innerFilmPeriodSeconds: number;
   readonly innerFilmOpacity: number;
-  /** Steady film, or one that brightens with each crest (Ping). */
+  /** Steady film, or one that brightens with each crest (Hunch). */
   readonly filmEnvelope: Envelope;
   readonly lobes: readonly Lobe[];
 }
 
-/** A soap bubble that cannot settle on a shape: two slow modes roll the outline around. */
-export const WOBBLE: MarkStyle = {
+/** Turning it over: two slow modes roll the outline around and it never settles on a shape. */
+export const MULL: MarkStyle = {
   name: "wobble",
-  label: "Wobble",
-  note: "Two slow surface modes roll the outline around",
+  label: "Mull",
+  note: "Two slow modes turn the outline over, never settling",
   filmPeriodSeconds: 26,
   innerFilmPeriodSeconds: 40,
   innerFilmOpacity: 0.25,
@@ -62,11 +67,11 @@ export const WOBBLE: MarkStyle = {
   ],
 };
 
-/** Near circular, with the life inside: two opposed interference bands crawl across the film. */
-export const SHEEN: MarkStyle = {
+/** Composed outside, alive inside: two opposed interference bands crawl across the film. */
+export const MUSE: MarkStyle = {
   name: "sheen",
-  label: "Sheen",
-  note: "The outline holds; the film crawls underneath",
+  label: "Muse",
+  note: "The outline keeps its calm; the film drifts beneath it",
   filmPeriodSeconds: 15,
   innerFilmPeriodSeconds: 24,
   innerFilmOpacity: 0.55,
@@ -83,10 +88,10 @@ export const SHEEN: MarkStyle = {
 };
 
 /** Mostly still, then a ripple runs the rim and decays, the way a film answers a nudge. */
-export const PING: MarkStyle = {
+export const HUNCH: MarkStyle = {
   name: "ping",
-  label: "Ping",
-  note: "A ripple runs the rim every few seconds, then fades",
+  label: "Hunch",
+  note: "A ripple strikes the rim every few seconds, then fades",
   filmPeriodSeconds: 30,
   innerFilmPeriodSeconds: 44,
   innerFilmOpacity: 0.25,
@@ -106,13 +111,14 @@ export const PING: MarkStyle = {
  *  Smallest first, so the big bubble draws over them and they read as clustered, not stuck on.
  *
  *  The two small ones are the only lobes in the registry that swing: each carries a real `orbit`
- *  around the big lobe's centre, which is where the style's name comes from. `name` stays "foam",
- *  the label this shipped under, because it is the value written to the preference record: change
- *  it and every user who picked this style silently falls back to the default. */
-export const ORBIT_MARK: MarkStyle = {
+ *  around the big lobe's centre, side thoughts on arcs that never leave the main one, which is
+ *  what the label names. `name` stays "foam", the label this first shipped under, because it is
+ *  the value written to the preference record: change it and every user who picked this style
+ *  silently falls back to the default. */
+export const TANGENT: MarkStyle = {
   name: "foam",
-  label: "Orbit",
-  note: "Two small lobes swing on slow arcs around a larger one",
+  label: "Tangent",
+  note: "Two side thoughts swing on slow arcs around the main one",
   filmPeriodSeconds: 28,
   innerFilmPeriodSeconds: 40,
   innerFilmOpacity: 0.25,
@@ -143,7 +149,7 @@ export const ORBIT_MARK: MarkStyle = {
 };
 
 /** The registry is plug-and-play: add a `MarkStyle` here and it becomes pickable. */
-export const MARKS: readonly MarkStyle[] = [WOBBLE, SHEEN, PING, ORBIT_MARK];
+export const MARKS: readonly MarkStyle[] = [MULL, MUSE, HUNCH, TANGENT];
 
 /** Resolve the active mark: a known name wins, anything else falls back to the default. */
 export function resolveMark(preference: string | null): MarkStyle {
@@ -153,5 +159,5 @@ export function resolveMark(preference: string | null): MarkStyle {
       return chosen;
     }
   }
-  return WOBBLE;
+  return MULL;
 }

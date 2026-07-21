@@ -276,7 +276,7 @@ restarted, read back intact, a cleared key still cleared), the Rust client is co
 fake brain, and `usePreferences` is gated at 100% including the hydrate-does-not-clobber race.
 
 **Do.** Summon the overlay. Open **settings** from the sliders button in the hint strip (or by
-clicking the mark on an empty chat). Pick a mark other than Wobble and a theme other than the one
+clicking the mark on an empty chat). Pick a mark other than Mull and a theme other than the one
 showing. Close the sheet, then quit the app and start it again.
 
 **Pass.** The overlay comes back with the chosen mark and theme already applied, without a flash

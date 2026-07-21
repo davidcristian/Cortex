@@ -1,7 +1,7 @@
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-import { WOBBLE } from "../mark/marks";
+import { MULL } from "../mark/marks";
 import { INITIAL_LINK } from "../overlay/linkState";
 import type { ConsoleTab, Message, OverlayState } from "../overlay/overlayState";
 import { Panel } from "./Panel";
@@ -71,7 +71,7 @@ function panelProps(over: Partial<OverlayState>, open: boolean, dark: boolean, h
     state: state(over),
     open,
     dark,
-    mark: WOBBLE,
+    mark: MULL,
     themeName: null,
     onPickTheme: handlers.onPickTheme ?? vi.fn(),
     onPickMark: handlers.onPickMark ?? vi.fn(),
@@ -289,7 +289,7 @@ describe("Panel", () => {
     // The mark is the shortcut: it is the thing the appearance tab's mark row changes, so it says
     // what it shows and where it lands. Named for the tab, not for the settings sheet that used to
     // be there: the view is gone, and a stale label is the part of a rename only a reader hears.
-    fireEvent.click(screen.getByLabelText("Mark: Wobble. Open appearance"));
+    fireEvent.click(screen.getByLabelText("Mark: Mull. Open appearance"));
     expect(onToggleConsole).toHaveBeenCalledTimes(2);
     expect(onToggleConsole).toHaveBeenLastCalledWith("appearance");
   });
@@ -310,7 +310,7 @@ describe("Panel", () => {
     expect(container.querySelector(".view.gone")).not.toBeNull();
     // Picked by its label, stored under its name: the two differ for this one style, because
     // "foam" is the value already in the preference record and renaming the label cannot move it.
-    fireEvent.click(screen.getByRole("radio", { name: "Orbit" }));
+    fireEvent.click(screen.getByRole("radio", { name: "Tangent" }));
     expect(onPickMark).toHaveBeenCalledWith("foam");
     fireEvent.click(screen.getByRole("radio", { name: "daylight" }));
     expect(onPickTheme).toHaveBeenCalledWith("daylight");

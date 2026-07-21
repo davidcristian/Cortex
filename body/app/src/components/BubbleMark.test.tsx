@@ -2,7 +2,7 @@ import { act, render } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { lobePath } from "../mark/bubble";
-import { ORBIT_MARK, PING, WOBBLE } from "../mark/marks";
+import { TANGENT, HUNCH, MULL } from "../mark/marks";
 import { STILL_SECONDS } from "../mark/useMarkClock";
 import { BubbleMark } from "./BubbleMark";
 
@@ -30,7 +30,7 @@ afterEach(() => {
 describe("BubbleMark", () => {
   it("draws one bubble per lobe, sized and hidden from assistive tech", () => {
     const { container } = render(
-      <BubbleMark style={WOBBLE} size={64} idPrefix="orb" animated={false} />,
+      <BubbleMark style={MULL} size={64} idPrefix="orb" animated={false} />,
     );
     const svg = container.querySelector("svg.mark");
     expect(svg).toHaveAttribute("width", "64");
@@ -41,7 +41,7 @@ describe("BubbleMark", () => {
 
   it("draws the cluster style as three clipped lobes", () => {
     const { container } = render(
-      <BubbleMark style={ORBIT_MARK} size={54} idPrefix="empty" animated={false} />,
+      <BubbleMark style={TANGENT} size={54} idPrefix="empty" animated={false} />,
     );
     expect(container.querySelectorAll("path.mark-body")).toHaveLength(3);
     expect(container.querySelectorAll("clipPath")).toHaveLength(3);
@@ -50,9 +50,9 @@ describe("BubbleMark", () => {
 
   it("holds the still pose, exactly the geometry the model gives, when not animated", () => {
     const { container } = render(
-      <BubbleMark style={WOBBLE} size={64} idPrefix="orb" animated={false} />,
+      <BubbleMark style={MULL} size={64} idPrefix="orb" animated={false} />,
     );
-    const lobe = WOBBLE.lobes[0];
+    const lobe = MULL.lobes[0];
     expect(lobe).toBeDefined();
     expect(outline(container)).toBe(lobe && lobePath(lobe, STILL_SECONDS));
   });
@@ -60,7 +60,7 @@ describe("BubbleMark", () => {
   it("warps the outline as its clock advances", () => {
     const tick = fakeFrames();
     const { container } = render(
-      <BubbleMark style={WOBBLE} size={64} idPrefix="orb" animated={true} />,
+      <BubbleMark style={MULL} size={64} idPrefix="orb" animated={true} />,
     );
     tick(1000);
     const early = outline(container);
@@ -74,8 +74,8 @@ describe("BubbleMark", () => {
   });
 
   it("brightens the film with each crest for a ping style, and holds it steady otherwise", () => {
-    const still = render(<BubbleMark style={WOBBLE} size={64} idPrefix="a" animated={false} />);
-    const pinged = render(<BubbleMark style={PING} size={64} idPrefix="b" animated={false} />);
+    const still = render(<BubbleMark style={MULL} size={64} idPrefix="a" animated={false} />);
+    const pinged = render(<BubbleMark style={HUNCH} size={64} idPrefix="b" animated={false} />);
     const opacityOf = (view: typeof still): number =>
       Number(view.container.querySelector("path.mark-film")?.getAttribute("opacity"));
     expect(opacityOf(still)).toBeCloseTo(0.85, 5);
@@ -85,8 +85,8 @@ describe("BubbleMark", () => {
   it("keeps its gradient and clip ids unique, so co-existing marks never borrow each other's", () => {
     const { container } = render(
       <>
-        <BubbleMark style={WOBBLE} size={64} idPrefix="orb" animated={false} />
-        <BubbleMark style={PING} size={34} idPrefix="pick-ping" animated={false} />
+        <BubbleMark style={MULL} size={64} idPrefix="orb" animated={false} />
+        <BubbleMark style={HUNCH} size={34} idPrefix="pick-ping" animated={false} />
       </>,
     );
     const ids = [...container.querySelectorAll("linearGradient, radialGradient, clipPath")].map(
