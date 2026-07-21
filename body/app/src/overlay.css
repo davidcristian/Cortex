@@ -1654,6 +1654,7 @@
   color: var(--text);
 }
 .reminder-open {
+  margin-left: -9px;
   padding: 0 8px 2px;
   border: 1px solid transparent;
   border-radius: 999px;
