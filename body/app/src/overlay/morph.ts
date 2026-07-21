@@ -15,6 +15,14 @@
  *  than as a second beat afterwards. */
 export const MORPHING_ATTRIBUTE = "data-morphing";
 
+/** How much SHORTER the view on screen is than the tallest shape it can take, in px, published by
+ *  a view that has more than one (the console, whose two tabs differ) and read by `panelPlacement`
+ *  when it places that view. It is what lets a multi-shape view be positioned by the shape it
+ *  could grow to rather than by the one it happens to open on: the panel sets its top edge as if
+ *  the tallest were showing and lets the shorter tab end higher, so the tab strip sits at one
+ *  height whichever tab the console is entered on. Absent or "0" means the view is at its tallest. */
+export const TAB_SLACK_ATTRIBUTE = "data-tab-slack";
+
 /** How long a section's roll takes. Shared, because the panel's concurrent slide has to land with
  *  it: two movements at different speeds read as two movements. */
 export const MORPH_ROLL_MS = 300;
