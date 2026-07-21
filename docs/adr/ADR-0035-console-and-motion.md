@@ -1021,3 +1021,51 @@ and both amendments are the reason it is worth writing down.
    one, and it cost 29px of panel. What is left, when the room genuinely is not there, is a cropped
    picture: if that wants to become a mark that scales or chips that stand down, it is a change to
    what the empty state IS and belongs in the design doc first.
+
+## Addendum, 2026-07-21: a theme is one frame, and four more the maintainer watched
+
+1. **The overshoot came back at the end of the roll, by another route.** The addendum above put the
+   real ceiling on the element for the length of a roll, and the roll then held it perfectly; the
+   placement that runs when the roll ENDS was still reading the panel's height under the measuring
+   cap. A panel standing at its 450px ceiling with the session list open measures 547 under that
+   cap, so the ease was written 547 to 450: one frame of a 97px jump to a top edge 11px off the
+   screen, then a slide back down, immediately after 21 frames of holding the ceiling exactly.
+
+   It was invisible until the ceiling learned to ride along in the keyframes (decision 2 of that
+   addendum), because the cap on the element had been clamping that ease flat. The fix is to read
+   the height the eye actually has, which means reading it BEFORE the measuring cap goes on. Filmed
+   again: the panel holds 450 with its top edge on the 86px line for every frame of the roll and of
+   the placement that follows it, in both directions.
+
+2. **A theme change happens in one frame.** `applyTheme` sets `data-swapping`, writes the tokens,
+   forces a style flush and clears it; `[data-swapping] *` turns every transition off. Without it
+   the swap was a ragged 20 frames: the ground eased its own colour over 0.4s, most text sets a
+   colour and transitions nothing so it changed in the frame of the click, and every control that
+   eases colour for its hover crossed at its own 0.16s to 0.35s pace. What the maintainer noticed was the
+   chat's title and the reminder lines lagging, which are the two things in the panel that INHERIT
+   the ground's colour rather than setting their own, and so were the only text following the 0.4s.
+   The forced flush is the load-bearing line: without it the attribute goes on and off inside one
+   task and the browser never resolves style in between.
+
+3. **A gradient is not a colour, and four rules asked for one.** `--accent` is a
+   `linear-gradient`, so `color: var(--accent)` does not compute; a declaration that fails at
+   computed-value time is not dropped but set to `unset`, which for an inherited property means
+   `inherit`. The pinned row's pin has therefore always taken the ground's text colour rather than
+   the accent, and being inherited is what made it jitter: the ground eased its colour across a
+   theme change while the button ran its own 0.16s ease chasing it, sending the pin from the old
+   text colour up past the new one and back down (traced at 60Hz: 25 to 242 over eleven frames, then
+   165 in the next). It asks for `var(--text)` now, which is what it has always rendered as, and the
+   pinned row's `border-left`, whose shorthand the same gradient invalidated whole, is gone rather
+   than left reading as live. **Three more sites still ask for it**: the thinking chip's label, the
+   rename box's border, and they are left alone deliberately, because giving them the accent they
+   ask for is a visible change to surfaces nobody has complained about.
+
+4. **The session row is title and preview, then right to left the time, the pin, the pencil, the
+   trash.** The time takes the edge, being what the eye goes to when it is skimming for a chat, and
+   it stands 11px inside the row's right edge because the title stands 11px inside its left. It
+   moves out of the row's own button to get there, which costs a click target that was never an
+   affordance: what selects a chat is its title, its preview, and the space between them.
+
+5. **A keycap's height is floored with its width.** Both floors are what a glyph cap measures. Every
+   cap in the hint strip was 15px or 17px tall depending only on whether its key happened to be
+   drawn or written, so `Shift` and the return glyph beside it sat on different lines.

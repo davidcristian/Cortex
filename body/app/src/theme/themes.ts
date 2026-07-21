@@ -123,10 +123,27 @@ export function toCssVars(theme: Theme): Record<string, string> {
   };
 }
 
-/** Apply a theme to an element: write its CSS custom properties + the scheme dataset. */
+/**
+ * Apply a theme to an element: write its CSS custom properties + the scheme dataset.
+ *
+ * IN ONE FRAME, which is the whole of what a token swap should look like and takes one more step
+ * than writing the tokens. Every control in the overlay eases its own colour for its hover, and a
+ * theme change moves that same colour, so each of them crossed at its own pace while the text beside
+ * them, which sets a colour and transitions nothing, simply took the new value. Measured at 60Hz
+ * with the session list up: the titles and previews changed in the frame of the click and the pin,
+ * the pencil, the trash and the tab labels spent another nine to twenty crossing after them.
+ *
+ * `data-swapping` turns every transition in the overlay off, and it is taken off again after a
+ * forced style flush, so the new tokens have been read once with transitions disabled and nothing
+ * has anything left to ease. The flush is the load-bearing line: without it the attribute goes on
+ * and off inside one task, the browser coalesces the two, and every transition runs as before.
+ */
 export function applyTheme(theme: Theme, root: HTMLElement): void {
+  root.dataset.swapping = "";
   for (const [name, value] of Object.entries(toCssVars(theme))) {
     root.style.setProperty(name, value);
   }
   root.dataset.theme = theme.scheme;
+  void root.offsetHeight;
+  delete root.dataset.swapping;
 }
