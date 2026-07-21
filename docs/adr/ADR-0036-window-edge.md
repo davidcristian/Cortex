@@ -93,3 +93,21 @@ re-rasterized every frame or it goes soft.
 - The mini tiles draw each style's color signature (Reverie's smolder, Trance's ember) even at
   rest, because four liquids that differ mostly by glow must be tellable apart in a swatch row;
   the note under the row says when the color actually appears.
+
+## Addendum (2026-07-21): the Dream tiles are portraits
+
+The first tile art drew the real liquid at about a third of its size, and the maintainer called the
+row ugly, with reason: honesty at that scale shrinks the bleed into dead margin and the waves
+into a nervous line, and a wall of empty wireframes sat under two rows of real pictures. Three
+directions were pitched live (a portrait, a near-full-size corner crop, an aura around a still
+core) and the maintainer chose the portrait: each tile is the same miniature window the theme tiles
+draw, its outline gone liquid, the amplitude chosen for the swatch rather than inherited from
+the panel. The geometry module grew `loopPath`, the sampler on an explicit frame, and the
+panel's `edgePath` became its uniform-inset wrapper, so the tile and the window share one
+sampler and re-tune only the frame.
+
+One tile moves differently on purpose. Frozen in its accent, Reverie read as "a lighter Trance"
+(the maintainer's words), when the style IS the change: neutral at rest, accent while a turn runs.
+Its tile cross-fades two glow strokes on a slow cycle, and the phase is chosen so the frozen
+reduced-motion pose lands exactly mid-blend, both truths at once. Trance stays constantly lit,
+which is precisely the difference between the two styles, now visible in the row.

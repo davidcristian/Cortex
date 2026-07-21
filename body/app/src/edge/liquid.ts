@@ -21,8 +21,9 @@ export const CORNER_RADIUS = 28;
  *  two cannot drift; reachOf(style) <= BLEED is what keeps every wave inside the wrapper. */
 export const BLEED = 14;
 
-/** How far past its arc a corner's full swell reaches into the straight runs, px. */
-const CORNER_TAIL = 34;
+/** How far past its arc a corner's full swell reaches into the straight runs, px. The panel
+ *  scales it with everything else; the tile passes it whole, so the swell owns the small loop. */
+export const CORNER_TAIL = 34;
 
 /** Samples around the loop. Order eight around a panel-sized perimeter spans ~200px per wave, so
  *  this leaves better than twenty points per wave, smooth at one decimal of precision. */
@@ -123,28 +124,36 @@ function displacementAt(
   return weight * scale * sum;
 }
 
+/** The rectangle one liquid loop breathes around, placed wherever the caller draws, plus how
+ *  far the spectrum swings on it. `amplitude` scales displacement ALONE: a miniature keeps a
+ *  legible swing on a small rectangle instead of inheriting its box's shrink, which is how the
+ *  tile art re-tunes the motion for its medium the way the mark tiles do (ADR-0036 addendum). */
+export interface LoopFrame {
+  readonly x: number;
+  readonly y: number;
+  readonly width: number;
+  readonly height: number;
+  readonly radius: number;
+  readonly amplitude: number;
+  readonly tail: number;
+}
+
 /**
- * The edge's outline for a `width` x `height` box at `seconds` on the clock and `depth` in
- * [0, 1] of the working pose, as an SVG path string usable as both a `path()` clip and a
- * stroked `d`. `scale` shrinks the whole treatment for a miniature (the tile art).
+ * The loop's outline on an explicit frame at `seconds` on the clock and `depth` in [0, 1] of
+ * the working pose, as an SVG path string usable as both a `path()` clip and a stroked `d`.
  */
-export function edgePath(
+export function loopPath(
   style: EdgeStyle,
-  width: number,
-  height: number,
+  frame: LoopFrame,
   seconds: number,
   depth: number,
-  scale = 1,
 ): string {
-  const inset = BLEED * scale;
-  const radius = CORNER_RADIUS * scale;
-  const w = width - 2 * inset;
-  const h = height - 2 * inset;
+  const { x, y, width: w, height: h, radius } = frame;
   // A still style, or a box with no room for two arcs and a run between them: the plain rect.
   if (style.waves.length === 0 || w < 2 * radius + 16 || h < 2 * radius + 16) {
-    return roundedRect(inset, inset, Math.max(0, w), Math.max(0, h), radius);
+    return roundedRect(x, y, Math.max(0, w), Math.max(0, h), radius);
   }
-  const segments = segmentsOf(w, h, radius, CORNER_TAIL * scale);
+  const segments = segmentsOf(w, h, radius, frame.tail);
   const total = segments.reduce((sum, segment) => sum + segment.length, 0);
   const parts: string[] = [];
   let index = 0;
@@ -157,10 +166,37 @@ export function edgePath(
     }
     const segment = segments[index] as Segment;
     const point = segment.at((along - start) / segment.length);
-    const d = displacementAt(style, i / SAMPLES, point.cw, seconds, depth) * scale;
-    const x = (point.x + point.nx * d + inset).toFixed(1);
-    const y = (point.y + point.ny * d + inset).toFixed(1);
-    parts.push(`${i === 0 ? "M" : "L"}${x} ${y}`);
+    const d = displacementAt(style, i / SAMPLES, point.cw, seconds, depth) * frame.amplitude;
+    const px = (point.x + point.nx * d + x).toFixed(1);
+    const py = (point.y + point.ny * d + y).toFixed(1);
+    parts.push(`${i === 0 ? "M" : "L"}${px} ${py}`);
   }
   return `${parts.join("")}Z`;
+}
+
+/** The panel's edge: `loopPath` on the uniform-inset frame the bleed wrapper implies, with the
+ *  whole treatment (inset, radius, amplitude, tail) scaled together. */
+export function edgePath(
+  style: EdgeStyle,
+  width: number,
+  height: number,
+  seconds: number,
+  depth: number,
+  scale = 1,
+): string {
+  const inset = BLEED * scale;
+  return loopPath(
+    style,
+    {
+      x: inset,
+      y: inset,
+      width: width - 2 * inset,
+      height: height - 2 * inset,
+      radius: CORNER_RADIUS * scale,
+      amplitude: scale,
+      tail: CORNER_TAIL * scale,
+    },
+    seconds,
+    depth,
+  );
 }

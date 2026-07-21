@@ -332,22 +332,41 @@
 }
 /* The tile art (EdgeMini): the liquid at swatch scale, resting chrome except the glow it exists
    to show. */
+/* The Dream tiles are portraits (ADR-0036 addendum): the theme tiles' miniature window with its
+   outline gone liquid, on the current theme's own tokens. Reverie's two glow strokes carry
+   their opacities inline, because they cross-fade on the tile's clock. */
+.edge-mini-ground {
+  fill: var(--bg);
+}
 .edge-mini-glass {
-  fill: var(--control);
+  fill: var(--panel-solid);
 }
 .edge-mini-line {
   fill: none;
-  stroke: var(--muted);
+  stroke: var(--stroke);
   stroke-width: 1;
 }
 .edge-mini-glow {
   fill: none;
-  stroke-width: 4;
-  filter: blur(3px);
-  opacity: 0.35;
+  stroke-width: 5;
+  filter: blur(2.5px);
+}
+.edge-mini-glow.rest {
+  stroke: var(--muted);
 }
 .edge-mini-glow.ember {
-  opacity: 0.6;
+  opacity: 0.75;
+}
+.edge-mini-bar.title {
+  fill: var(--text);
+}
+.edge-mini-bar.msg {
+  fill: var(--muted);
+  opacity: 0.75;
+}
+.edge-mini-pill {
+  fill: var(--muted);
+  opacity: 0.3;
 }
 
 /* The panel shows one view at a time (the chat, the shortcuts list, settings) and morphs between

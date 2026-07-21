@@ -369,7 +369,9 @@ while a turn is processing must not lose it*) lives here. States:
     since the header's toggle names the opposite theme outright and can only land on one of the
     two); **Iris** is the mark as tiles drawing the real bubble at 40px, with the chosen style's
     note under the row, because these four differ by how they MOVE; **Dream** is the window edge
-    (§2). Every row is a map over its registry, so a fifth entry appears here with no change to
+    (§2), drawn as portraits: the Light row's miniature window with its outline gone liquid, the
+    amplitude re-tuned for the swatch, and Reverie's tile cycling between its two states so it
+    does not read as a lighter Trance (ADR-0036 addendum). Every row is a map over its registry, so a fifth entry appears here with no change to
     the view. Every choice persists to the brain's own settings record, so it outlives a restart
     and a reinstall of the body.
   - **Chords** is the complete binding list, grouped (Ink / Chats / The window) on the row
