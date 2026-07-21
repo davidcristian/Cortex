@@ -46,18 +46,9 @@ export function Reminders({
             <span className="reminder-body">
               <span className="reminder-text">{reminder.text}</span>
               <span className="reminder-meta">
-                <span>{relativeTime(reminder.firedAtUnixMs, now)}</span>
-                {reminder.recurring ? (
-                  <span className="reminder-tag">repeats</span>
-                ) : null}
-                {reminder.tainted ? (
-                  <span className="reminder-tag untrusted">
-                    untrusted source
-                  </span>
-                ) : null}
-                {/* No origin to go to (a session-less caller sends ""), and no point offering the
-                  chat already on screen, where opening would only abandon whatever turn is
-                  running in it. Absent rather than disabled: there is nothing to explain. */}
+                <span className="reminder-time">
+                  {relativeTime(reminder.firedAtUnixMs, now)}
+                </span>
                 {reminder.sessionId !== "" &&
                 reminder.sessionId !== currentId ? (
                   <button
@@ -67,6 +58,14 @@ export function Reminders({
                   >
                     open chat
                   </button>
+                ) : null}
+                {reminder.recurring ? (
+                  <span className="reminder-tag">repeats</span>
+                ) : null}
+                {reminder.tainted ? (
+                  <span className="reminder-tag untrusted">
+                    untrusted source
+                  </span>
                 ) : null}
               </span>
             </span>

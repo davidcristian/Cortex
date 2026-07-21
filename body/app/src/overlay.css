@@ -12,6 +12,7 @@
   --mono: ui-monospace, "Cascadia Code", "SF Mono", Menlo, Consolas, monospace;
   --rail: 6px;
   --trace-row: 24px;
+  --time-col: 55px;
   --halt: rgb(226, 75, 107);
 }
 
@@ -1568,7 +1569,7 @@
 .switcher-time {
   flex: none;
   align-self: center;
-  min-width: 55px;
+  min-width: var(--time-col);
   margin: 0 11px 0 8px;
   text-align: right;
   font-size: 11.5px;
@@ -1627,12 +1628,16 @@
 }
 .reminder-meta {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   flex-wrap: wrap;
   gap: 7px;
   margin-top: 3px;
   font-size: 11.5px;
   color: var(--dim);
+}
+.reminder-time {
+  flex: none;
+  min-width: var(--time-col);
 }
 .reminder-tag {
   padding: 0 8px 2px;
