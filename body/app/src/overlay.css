@@ -344,9 +344,6 @@
 /* The Dream tiles are portraits (ADR-0036 addendum): the theme tiles' miniature window with its
    outline gone liquid, on the current theme's own tokens. Reverie's two glow strokes carry
    their opacities inline, because they cross-fade on the tile's clock. */
-.edge-mini-ground {
-  fill: var(--bg);
-}
 .edge-mini-glass {
   fill: var(--panel-solid);
 }
