@@ -1974,11 +1974,27 @@
 /* The row's other end. The title stands 11px inside the row's left edge (the item's own padding),
    so the time stands 11px inside its right edge and the two read as one pair of margins rather than
    as a label that happens to be near the corner. `center` because the row is stretch-aligned for
-   the buttons, and a stretched label would sit against the top of a two-line row. */
+   the buttons, and a stretched label would sit against the top of a two-line row.
+
+   ITS WIDTH IS RESERVED, so the column holds still while the clock runs and while a list of chats
+   of different ages is read down. `relativeTime` has exactly four shapes, and at this size they
+   measure: `just now` 48.4, `59m ago` 50.9 (the widest that is bounded), `23h ago` 47, and then the
+   day branch, which is not bounded: `99d ago` 47, `365d ago` 54.3, `9999d ago` 61.6. 55px covers
+   every one of them up to three digits of days, which is a chat pinned for the better part of three
+   years; a fourth digit is left to push the column rather than paid for by every row above it. The
+   text is right-aligned inside that box, or the reserve would simply hang off the end of a short
+   value and the alignment it exists for would be the thing it broke.
+
+   The inset is a MARGIN, not padding: `box-sizing` is border-box here, so padding would come out of
+   the 55 and reserve 44. And the left margin is the gap between a label and the controls beside it:
+   the row's own 2px is the spacing WITHIN the cluster of three icon buttons, which is not the
+   spacing between that cluster and something that is not one of them. */
 .switcher-time {
   flex: none;
   align-self: center;
-  padding-right: 11px;
+  min-width: 55px;
+  margin: 0 11px 0 8px;
+  text-align: right;
   font-size: 11.5px;
   color: var(--muted);
 }
