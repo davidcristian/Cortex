@@ -19,6 +19,12 @@ import { rideAlong } from "./panelRide";
 /** The view whose position is remembered across a trip to another one. */
 const CHAT_VIEW = "chat";
 
+/**
+ * Whether entering another view slides the panel to the true middle of the screen, or keeps the
+ * bottom edge it is standing on and resizes in place.
+ */
+export const VIEW_CHANGE_RECENTRES = false;
+
 /** Every box inside the panel that scrolls: the conversation, and a console tab's rows. Written out
  *  rather than discovered, because discovering it means reading `scrollTop` off every node in the
  *  panel on every token of a stream. A new scrolling box in the panel belongs in this list. */
@@ -42,7 +48,13 @@ function centringHeight(element: HTMLElement, height: number): number {
   return height - (aside?.offsetHeight ?? 0);
 }
 
-function wantedBottom(memory: Memory, at: Placement, viewport: number, height: number): number {
+function wantedBottom(
+  memory: Memory,
+  at: Placement,
+  viewport: number,
+  height: number,
+  recentres: boolean,
+): number {
   const changed = memory.view !== at.view;
   if (changed && memory.view === CHAT_VIEW) {
     memory.parked = memory.pinned;
@@ -54,12 +66,17 @@ function wantedBottom(memory: Memory, at: Placement, viewport: number, height: n
     memory.shown === null ||
     at.recentre ||
     arriving(memory, at) ||
-    (changed && parked === null);
+    (recentres && changed && parked === null);
   return centre ? centred(viewport, height) : (parked ?? memory.pinned);
 }
 
 /** Put the panel where it belongs, and animate it there from wherever it was. */
-export function place(element: HTMLElement | null, memory: Memory, at: Placement): void {
+export function place(
+  element: HTMLElement | null,
+  memory: Memory,
+  at: Placement,
+  recentres = VIEW_CHANGE_RECENTRES,
+): void {
   if (element === null) {
     return;
   }
@@ -104,7 +121,7 @@ export function place(element: HTMLElement | null, memory: Memory, at: Placement
   const displayed = deferred
     ? { height: carrying ?? onScreen, bottom: was }
     : (inFlight ?? memory.shown);
-  const wanted = wantedBottom(memory, at, viewport, centringHeight(element, height));
+  const wanted = wantedBottom(memory, at, viewport, centringHeight(element, height), recentres);
   memory.pinned = wanted;
   const placed = at.open || memory.shown === null;
   const bottom = placed ? clamped(wanted) : memory.applied;
