@@ -2,24 +2,29 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
 import { FakeBridge } from "../bridge/fakeBridge";
-import { MARK_KEY, THEME_KEY, usePreferences } from "./usePreferences";
+import { MARK_KEY, THEME_KEY, WINDOW_KEY, usePreferences } from "./usePreferences";
 
 describe("usePreferences", () => {
   it("starts with nothing chosen, so the defaults apply until the record arrives", () => {
     const bridge = new FakeBridge();
     const { result } = renderHook(() => usePreferences(bridge));
-    expect(result.current.appearance).toEqual({ theme: null, mark: null });
+    expect(result.current.appearance).toEqual({ theme: null, mark: null, window: null });
   });
 
-  it("hydrates both choices from the brain's record", async () => {
+  it("hydrates all three choices from the brain's record", async () => {
     const bridge = new FakeBridge();
     bridge.preferences = [
       { key: THEME_KEY, value: "daylight" },
       { key: MARK_KEY, value: "foam" },
+      { key: WINDOW_KEY, value: "trance" },
     ];
     const { result } = renderHook(() => usePreferences(bridge));
     await waitFor(() =>
-      expect(result.current.appearance).toEqual({ theme: "daylight", mark: "foam" }),
+      expect(result.current.appearance).toEqual({
+        theme: "daylight",
+        mark: "foam",
+        window: "trance",
+      }),
     );
   });
 
@@ -42,6 +47,16 @@ describe("usePreferences", () => {
     expect(result.current.appearance.mark).toBe("sheen");
     await waitFor(() =>
       expect(bridge.preferenceWrites).toEqual([{ key: MARK_KEY, value: "sheen" }]),
+    );
+  });
+
+  it("treats the window edge as the third choice, applied and persisted the same way", async () => {
+    const bridge = new FakeBridge();
+    const { result } = renderHook(() => usePreferences(bridge));
+    act(() => result.current.setWindow("still"));
+    expect(result.current.appearance.window).toBe("still");
+    await waitFor(() =>
+      expect(bridge.preferenceWrites).toEqual([{ key: WINDOW_KEY, value: "still" }]),
     );
   });
 
@@ -78,10 +93,12 @@ describe("usePreferences", () => {
     } as unknown as FakeBridge;
     const { result } = renderHook(() => usePreferences(slow));
     act(() => result.current.setMark("ping"));
+    act(() => result.current.setWindow("reverie"));
     act(() => release?.());
-    // The stored theme still lands (untouched), while the chosen mark survives the record.
+    // The stored theme still lands (untouched), while the chosen mark and edge survive it.
     await waitFor(() => expect(result.current.appearance.theme).toBe("daylight"));
     expect(result.current.appearance.mark).toBe("ping");
+    expect(result.current.appearance.window).toBe("reverie");
   });
 
   it("keeps the defaults when the record cannot be read", async () => {
@@ -89,7 +106,7 @@ describe("usePreferences", () => {
     bridge.preferencesFail = true;
     const { result } = renderHook(() => usePreferences(bridge));
     await waitFor(() => expect(bridge.preferenceReads).toBe(1));
-    expect(result.current.appearance).toEqual({ theme: null, mark: null });
+    expect(result.current.appearance).toEqual({ theme: null, mark: null, window: null });
   });
 
   it("keeps a choice applied when persisting it fails, losing only its durability", async () => {

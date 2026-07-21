@@ -11,6 +11,10 @@ export type Scheme = "light" | "dark";
 export interface ThemeTokens {
   readonly bg: string;
   readonly panel: string;
+  /** The panel's face when a liquid edge carries it (ADR-0036): the same ground, nearly opaque,
+   *  because a path-clipped panel cannot keep its backdrop blur (Chromium composites the blur
+   *  un-clipped) and a hair more opacity is the honest trade. */
+  readonly panelSolid: string;
   readonly stroke: string;
   readonly text: string;
   readonly muted: string;
@@ -43,6 +47,7 @@ export const MIDNIGHT: Theme = {
   tokens: {
     bg: "#0C0A12",
     panel: "rgba(22, 20, 33, 0.72)",
+    panelSolid: "rgba(21, 19, 31, 0.94)",
     stroke: "rgba(255, 255, 255, 0.09)",
     text: "#F2F0F8",
     muted: "#9691AC",
@@ -67,6 +72,7 @@ export const DAYLIGHT: Theme = {
   tokens: {
     bg: "#EFEFF4",
     panel: "rgba(252, 252, 254, 0.74)",
+    panelSolid: "rgba(250, 250, 252, 0.95)",
     stroke: "rgba(20, 16, 40, 0.09)",
     text: "#191626",
     muted: "#605D74",
@@ -107,6 +113,7 @@ export function toCssVars(theme: Theme): Record<string, string> {
   return {
     "--bg": t.bg,
     "--panel": t.panel,
+    "--panel-solid": t.panelSolid,
     "--stroke": t.stroke,
     "--text": t.text,
     "--muted": t.muted,

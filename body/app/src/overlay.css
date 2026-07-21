@@ -218,6 +218,99 @@
   transform: translate(-50%, 0) scale(1);
 }
 
+/* The dreaming edge (ADR-0036): a liquid window style hands the panel's face to the edge layers
+   and keeps everything else. The border keeps its width (layout would shift a pixel without it)
+   and loses only its colour; the shadow stays the panel's own, the glass line sitting a few px
+   inside it, which a 90px blur buries. No backdrop blur here, measured rather than assumed:
+   Chromium does not clip backdrop-filter output by a path() clip, so a liquid panel paints the
+   theme's `--panel-solid` instead, and in the v1 window (opaque ground) nothing is visibly lost.
+   Refiled for the transparent-window pass in docs/refinements/body-overlay.md. */
+.panel.edge-live {
+  background: transparent;
+  border-color: transparent;
+  backdrop-filter: none;
+}
+/* The edge's own layers. The wrapper and each layer cover the panel exactly; everything ignores
+   the pointer. Back to front: the clipped glass slab, the glow strokes, the content (`.views`,
+   z-index 1 above), and the crisp hairline over it all, where no text ever reaches. */
+.edge,
+.edge-glass,
+.edge-under,
+.edge-over {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.edge-under,
+.edge-over {
+  width: 100%;
+  height: 100%;
+}
+.edge-over {
+  z-index: 2;
+}
+.edge-glass {
+  background: var(--panel-solid);
+}
+.edge-under path,
+.edge-over path {
+  fill: none;
+}
+.edge-hair {
+  stroke: var(--stroke);
+  stroke-width: 1;
+}
+/* The smolder: two strokes riding the outline, cross-faded by opacity because gradients cannot
+   interpolate (the send button's trick). Settled (Reverie): neutral at rest, the accent while a
+   turn runs, so color stays activity. Ember (Trance): the accent stays lit at rest, the one
+   written exception to that rule, chosen by the user (ADR-0036 decision 8). */
+.edge-glow-n {
+  stroke: var(--muted);
+  stroke-width: 7;
+  filter: blur(5px);
+  opacity: 0.2;
+  transition: opacity 0.8s var(--ease);
+}
+.edge-glow-a {
+  stroke-width: 7;
+  filter: blur(6px);
+  opacity: 0;
+  transition: opacity 0.8s var(--ease);
+}
+.edge-working .edge-glow-n {
+  opacity: 0;
+}
+.edge-working .edge-glow-a {
+  opacity: 0.55;
+}
+.edge-ember .edge-glow-a {
+  stroke-width: 9;
+  filter: blur(7px);
+  opacity: 0.16;
+}
+.edge-ember.edge-working .edge-glow-a {
+  opacity: 0.6;
+}
+/* The tile art (EdgeMini): the liquid at swatch scale, resting chrome except the glow it exists
+   to show. */
+.edge-mini-glass {
+  fill: var(--control);
+}
+.edge-mini-line {
+  fill: none;
+  stroke: var(--muted);
+  stroke-width: 1;
+}
+.edge-mini-glow {
+  fill: none;
+  stroke-width: 4;
+  filter: blur(3px);
+  opacity: 0.35;
+}
+.edge-mini-glow.ember {
+  opacity: 0.6;
+}
+
 /* The panel shows one view at a time (the chat, the shortcuts list, settings) and morphs between
    them. `.views` is the stack they share; only the ACTIVE view is in the layout flow, so it alone
    decides the height the panel is easing to.
@@ -235,6 +328,10 @@
   min-height: 0;
   display: flex;
   flex-direction: column;
+  /* Above the dreaming edge's glass and glow, below its hairline (see the .edge block): the
+     content never sits on the layer the animated clip re-rasterizes, which is what keeps the
+     type sharp while the glass warps (ADR-0036). */
+  z-index: 1;
 }
 .view {
   display: flex;

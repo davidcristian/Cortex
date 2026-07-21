@@ -1,5 +1,6 @@
 import { useLayoutEffect, useRef } from "react";
 
+import type { EdgeStyle } from "../edge/edges";
 import type { MarkStyle } from "../mark/marks";
 import { CONSOLE_TABS, type ConsoleTab } from "../overlay/overlayState";
 import { AppearanceTab } from "./AppearanceTab";
@@ -40,9 +41,11 @@ interface ConsoleViewProps {
   /** The chosen theme name, or `null` while the overlay follows the system scheme. */
   readonly themeName: string | null;
   readonly mark: MarkStyle;
+  readonly edge: EdgeStyle;
   readonly animated: boolean;
   readonly onPickTheme: (name: string | null) => void;
   readonly onPickMark: (name: string) => void;
+  readonly onPickEdge: (name: string) => void;
   readonly onSelectTab: (tab: ConsoleTab) => void;
   readonly onClose: () => void;
 }
@@ -62,9 +65,11 @@ export function ConsoleView({
   tab,
   themeName,
   mark,
+  edge,
   animated,
   onPickTheme,
   onPickMark,
+  onPickEdge,
   onSelectTab,
   onClose,
 }: ConsoleViewProps) {
@@ -143,9 +148,11 @@ export function ConsoleView({
               <AppearanceTab
                 themeName={themeName}
                 mark={mark}
+                edge={edge}
                 animated={animated}
                 onPickTheme={onPickTheme}
                 onPickMark={onPickMark}
+                onPickEdge={onPickEdge}
               />
             ) : (
               <ShortcutsTab />

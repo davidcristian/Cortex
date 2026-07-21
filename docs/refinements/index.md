@@ -1314,3 +1314,9 @@ that coarseness sends a reader to the wrong place.
   consciously given up. It costs async frame arrival against a deliberately synchronous port,
   WinRT interop, a D3D11 staging copy, and a Windows 11 22H2 floor to control the border, behind
   the unchanged trait either way
+- **The liquid edge's backdrop blur** ([body-overlay.md](body-overlay.md)), placed here
+  2026-07-21: a path-clipped panel cannot keep `backdrop-filter` (Chromium composites the blur
+  un-clipped, measured), so liquid window styles paint the near-opaque `--panel-solid` token
+  instead, at zero visible cost while the v1 window's ground is opaque. Picks itself up with the
+  transparent-window pass; the candidate fix is the same outline as a `mask-image`, which the
+  pitch measured clipping the blur correctly

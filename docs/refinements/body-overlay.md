@@ -507,3 +507,14 @@ console up
   from under someone who reached for a new chat while reading the shortcut list is the same
   surprise pointing the other way. Nothing else is ambiguous: `dismiss` and Esc both close the
   console on purpose and say so in their comments, so this is about the third door alone.
+- **A liquid window edge gives up the backdrop blur.** Measured in the design pitch that chose it
+  and pinned in ADR-0036: Chromium composites `backdrop-filter` output without clipping it by a
+  `path()` clip, so a sculpted panel showed a sharp frosted rectangle ghosting behind the liquid
+  outline. The shipped trade paints `--panel-solid` (a near-opaque theme token) on the clipped
+  slab instead, which costs nothing visible today: the v1 window's ground behind the panel is
+  opaque, so there is nothing behind the glass to blur. It becomes real at the transparent-window
+  pass, when the desktop shows through and a Still panel is frosted while a liquid one is merely
+  translucent. Two fix shapes were seen working in that same pitch: a `mask-image` built from the
+  same outline (masks DO clip backdrop-filter output, the corner-dissolve candidate proved it), or
+  re-testing the clip path once WebView2's Chromium fixes the compositing. Whoever picks this up
+  should start by re-measuring, since the engine moves. Placed here 2026-07-21.
