@@ -20,7 +20,12 @@
 }
 
 [data-swapping] * {
-  transition: none !important;
+  transition:
+    color var(--theme-swap) var(--ease),
+    background-color var(--theme-swap) var(--ease),
+    border-color var(--theme-swap) var(--ease),
+    fill var(--theme-swap) var(--ease),
+    stroke var(--theme-swap) var(--ease) !important;
 }
 
 .stage ::-webkit-scrollbar {
@@ -1473,7 +1478,7 @@
 }
 .reminder {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 9px;
   padding: 8px 9px;
   border-radius: 12px;
@@ -1485,7 +1490,6 @@
 .reminder-mark {
   flex: none;
   display: flex;
-  margin-top: 1px;
   color: var(--muted);
 }
 .reminder-body {

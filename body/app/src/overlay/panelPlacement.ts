@@ -63,7 +63,8 @@ export function place(element: HTMLElement | null, memory: Memory, at: Placement
   if (element === null) {
     return;
   }
-  if (at.open && !memory.open) {
+  const summoned = at.open && !memory.open;
+  if (summoned) {
     // A summon: the panel is arriving, and owns its own geometry for as long as that takes.
     memory.arrived = Date.now();
   }
@@ -105,7 +106,8 @@ export function place(element: HTMLElement | null, memory: Memory, at: Placement
     : (inFlight ?? memory.shown);
   const wanted = wantedBottom(memory, at, viewport, centringHeight(element, height));
   memory.pinned = wanted;
-  const bottom = clamped(wanted);
+  const placed = at.open || memory.shown === null;
+  const bottom = placed ? clamped(wanted) : memory.applied;
   const ceiling = maxHeight(viewport, bottom);
   element.style.maxHeight = `${ceiling}px`;
   // Re-read: the real cap may have shortened the panel, and everything below animates to what the
@@ -115,9 +117,7 @@ export function place(element: HTMLElement | null, memory: Memory, at: Placement
   memory.applied = bottom;
   element.style.bottom = `${Math.round(bottom)}px`;
   memory.shown = next;
-  if (!at.open || displayed === null || settled(displayed, next)) {
-    // Closed, first measurement, or nothing moved: keep the geometry for next time, animate
-    // nothing. Measuring while closed is what lets a reopen animate from a real height.
+  if (!at.open || summoned || displayed === null || settled(displayed, next)) {
     element.removeAttribute(RESIZING_ATTRIBUTE);
     return;
   }

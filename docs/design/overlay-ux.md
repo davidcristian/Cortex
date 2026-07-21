@@ -26,10 +26,11 @@ as its film turns under the light. All of it respects `prefers-reduced-motion`.
 ## 2. Visual language (design tokens)
 
 Everything is CSS custom properties, so the whole surface restyles from one place and a theme
-is a token swap, not a rewrite. **It happens in one frame** (2026-07-21): every transition in the
-overlay is suppressed while the tokens land, because otherwise each control crosses at whatever pace
-its own hover transition uses while the text beside it, which transitions nothing, simply takes the
-new value.
+is a token swap, not a rewrite. **The whole surface crosses together, over 400ms** (2026-07-21):
+one transition is put on everything for the length of the crossing, because otherwise each control
+crosses at whatever pace its own hover transition uses, the text beside it (which transitions
+nothing) takes the new value at once, and the two lines that inherit the ground's colour follow the
+ground. One swap at three speeds reads as the window coming apart and going back together.
 
 - **Two grounds, light and dark, both sleek** (mandatory in v1). Switched by `[data-theme]` (with
   `prefers-color-scheme` as the default). Both are frosted glass with `backdrop-filter: blur(28px)

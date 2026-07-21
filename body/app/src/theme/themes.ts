@@ -117,13 +117,28 @@ export function toCssVars(theme: Theme): Record<string, string> {
   };
 }
 
+/**
+ * How long a theme takes to cross, and the only place the number lives: `applyTheme` writes it to
+ * the root as `--theme-swap`, and `[data-swapping] *` in overlay.css is what reads it.
+ */
+export const THEME_SWAP_MS = 400;
+
+/** The swap in flight, so a second toggle inside the first one's window does not have the first
+ *  one's timer end its fade early. */
+let crossing: ReturnType<typeof setTimeout> | undefined;
+
 /** Apply a theme to an element: write its CSS custom properties + the scheme dataset. */
 export function applyTheme(theme: Theme, root: HTMLElement): void {
-  root.dataset.swapping = "";
+  if (root.dataset.theme !== undefined) {
+    root.style.setProperty("--theme-swap", `${THEME_SWAP_MS}ms`);
+    root.dataset.swapping = "";
+    clearTimeout(crossing);
+    crossing = setTimeout(() => {
+      delete root.dataset.swapping;
+    }, THEME_SWAP_MS);
+  }
   for (const [name, value] of Object.entries(toCssVars(theme))) {
     root.style.setProperty(name, value);
   }
   root.dataset.theme = theme.scheme;
-  void root.offsetHeight;
-  delete root.dataset.swapping;
 }
