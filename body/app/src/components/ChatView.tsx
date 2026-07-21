@@ -129,7 +129,17 @@ export function ChatView({
           onPin={onPinSession}
         />
       </Collapse>
-      <Collapse aside open={state.reminders.length > 0 && state.messages.length === 0}>
+      {/* Keyed by the chat, because a session change is a content swap, not a section toggle.
+          Minting a new chat over a conversation flips this stack open in the same render that
+          empties the log, and rolled open there it fought the panel's own ease and read as a
+          jump; remounted instead, it arrives with the empty state in the panel's one movement,
+          exactly as it does coming back from the console. Within one chat the key holds still,
+          so a reminder dismissed or arriving on the empty state still rolls. */}
+      <Collapse
+        aside
+        key={state.sessionId}
+        open={state.reminders.length > 0 && state.messages.length === 0}
+      >
         <Reminders
           reminders={state.reminders}
           currentId={state.sessionId}
