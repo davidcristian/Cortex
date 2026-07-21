@@ -124,13 +124,16 @@
 .stage ::-webkit-scrollbar-button {
   display: none;
 }
-/* While the panel is easing to a new size it is briefly shorter than what it is easing to, so the
-   history overflows for a few frames and a thumb flashes on and straight off again during a stream.
-   The gutter is reserved either way (`scrollbar-gutter: stable`), so nothing moves; only the thumb
-   is wrong, and it is wrong because it reports a size the panel is passing through rather than one
-   it has. Hiding the thumb rather than the overflow is deliberate: `overflow: hidden` would also
-   freeze `scrollTop`, and the auto-scroll that follows a stream writes to it on every token. */
-.panel[data-resizing] .history::-webkit-scrollbar-thumb {
+/* While the panel is easing to a new size it is briefly shorter than what it is easing to, so its
+   scroll boxes overflow for a few frames and a thumb flashes on and straight off again: the
+   history during a stream, and a console tab's rows through the morph a tab switch or the trip
+   back to the chat plays. The selector names the same two boxes `panelPlacement`'s SCROLL_BOXES
+   list does; a new scroll box in the panel joins both. The gutter is reserved either way
+   (`scrollbar-gutter: stable`), so nothing moves; only the thumb is wrong, and it is wrong
+   because it reports a size the panel is passing through rather than one it has. Hiding the
+   thumb rather than the overflow is deliberate: `overflow: hidden` would also freeze
+   `scrollTop`, and the auto-scroll that follows a stream writes to it on every token. */
+.panel[data-resizing] :is(.history, .rows)::-webkit-scrollbar-thumb {
   background: transparent;
 }
 .stage ::-webkit-scrollbar-thumb {
