@@ -1621,7 +1621,7 @@
   color: var(--dim);
 }
 .reminder-tag {
-  padding: 1px 8px;
+  padding: 0 8px 2px;
   border: 1px solid var(--stroke);
   border-radius: 999px;
 }
@@ -1632,7 +1632,7 @@
   color: var(--text);
 }
 .reminder-open {
-  padding: 1px 8px;
+  padding: 0 8px 2px;
   border: 1px solid transparent;
   border-radius: 999px;
   background: none;
