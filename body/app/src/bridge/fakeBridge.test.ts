@@ -110,8 +110,8 @@ describe("FakeBridge", () => {
 describe("FakeBridge preferences", () => {
   it("counts reads, records writes, and can be armed to fail on either call", async () => {
     const bridge = new FakeBridge();
-    bridge.preferences = [{ key: "overlay.mark", value: "foam" }];
-    expect(await bridge.getPreferences()).toEqual([{ key: "overlay.mark", value: "foam" }]);
+    bridge.preferences = [{ key: "overlay.mark", value: "tangent" }];
+    expect(await bridge.getPreferences()).toEqual([{ key: "overlay.mark", value: "tangent" }]);
     expect(bridge.preferenceReads).toBe(1);
     await bridge.setPreference("overlay.theme", "midnight");
     expect(bridge.preferenceWrites).toEqual([{ key: "overlay.theme", value: "midnight" }]);
@@ -119,7 +119,7 @@ describe("FakeBridge preferences", () => {
     bridge.preferencesFail = true;
     await expect(bridge.getPreferences()).rejects.toThrow("preferences failed");
     bridge.preferenceWriteFails = true;
-    await expect(bridge.setPreference("overlay.mark", "ping")).rejects.toThrow(
+    await expect(bridge.setPreference("overlay.mark", "hunch")).rejects.toThrow(
       "preference write failed",
     );
   });

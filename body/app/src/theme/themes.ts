@@ -26,6 +26,8 @@ export interface ThemeTokens {
 
 export interface Theme {
   readonly name: string;
+  /** How the theme is named on its tile; `name` stays the lowercase storage key. */
+  readonly label: string;
   readonly scheme: Scheme;
   readonly tokens: ThemeTokens;
 }
@@ -37,6 +39,7 @@ const ACTIVITY = {
 
 export const MIDNIGHT: Theme = {
   name: "midnight",
+  label: "Midnight",
   scheme: "dark",
   tokens: {
     bg: "#0C0A12",
@@ -62,6 +65,7 @@ export const MIDNIGHT: Theme = {
 
 export const DAYLIGHT: Theme = {
   name: "daylight",
+  label: "Daylight",
   scheme: "light",
   tokens: {
     bg: "#EFEFF4",

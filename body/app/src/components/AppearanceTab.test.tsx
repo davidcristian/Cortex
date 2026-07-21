@@ -38,7 +38,7 @@ function renderTab(
 describe("AppearanceTab", () => {
   it("offers Auto plus every registered theme, with Auto checked when nothing is chosen", () => {
     renderTab();
-    const tiles = screen.getByRole("radiogroup", { name: "Theme" });
+    const tiles = screen.getByRole("radiogroup", { name: "Light" });
     // A map over the registry, so a fifth theme appears here with no change to this view.
     expect(tiles.querySelectorAll(".tile")).toHaveLength(THEMES.length + 1);
     expect(screen.getByRole("radio", { name: "Auto" })).toHaveAttribute("aria-checked", "true");
@@ -50,7 +50,7 @@ describe("AppearanceTab", () => {
     // One per theme, plus the two halves of the Auto tile's diagonal split.
     expect(minis).toHaveLength(THEMES.length + 2);
     for (const theme of THEMES) {
-      const tile = screen.getByRole("radio", { name: theme.name });
+      const tile = screen.getByRole("radio", { name: theme.label });
       const mini = tile.querySelector(".mini") as HTMLElement;
       expect(mini.style.background).not.toBe("");
       // The colours come from the registry, never re-typed here: a theme that changed its ground
@@ -80,11 +80,11 @@ describe("AppearanceTab", () => {
     const onPickTheme = vi.fn();
     renderTab({ themeName: "midnight", onPickTheme });
     expect(screen.getByRole("radio", { name: "Auto" })).toHaveAttribute("aria-checked", "false");
-    expect(screen.getByRole("radio", { name: "midnight" })).toHaveAttribute(
+    expect(screen.getByRole("radio", { name: "Midnight" })).toHaveAttribute(
       "aria-checked",
       "true",
     );
-    fireEvent.click(screen.getByRole("radio", { name: "daylight" }));
+    fireEvent.click(screen.getByRole("radio", { name: "Daylight" }));
     expect(onPickTheme).toHaveBeenCalledWith("daylight");
     // Auto is the one choice the header's toggle cannot express, so it is a null pick.
     fireEvent.click(screen.getByRole("radio", { name: "Auto" }));
@@ -115,7 +115,7 @@ describe("AppearanceTab", () => {
 
   it("offers the window ladder from the registry, in the registry's own order", () => {
     renderTab();
-    const group = screen.getByRole("radiogroup", { name: "Window" });
+    const group = screen.getByRole("radiogroup", { name: "Dream" });
     // The order is the explanation, Still to Trance, and it comes from the registry: a fifth
     // edge appears here, in its place on the ladder, with no change to this view.
     expect([...group.querySelectorAll(".tile-name")].map((name) => name.textContent)).toEqual(

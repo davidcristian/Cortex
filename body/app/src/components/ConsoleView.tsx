@@ -16,11 +16,10 @@ const MEASURING_ATTRIBUTE = "data-measuring";
 /** Set on the stack while the tab on screen owns the height, rather than the taller of the two. */
 const APART_CLASS = "apart";
 
-/** How each tab is named on the strip. Beside `CONSOLE_TABS` rather than inside it: the reducer's
- *  list is the state machine's, and how a tab is worded is this view's business. */
+/** How each tab is named on the strip. */
 const TAB_LABELS: Record<ConsoleTab, string> = {
-  appearance: "Appearance",
-  shortcuts: "Shortcuts",
+  appearance: "Face",
+  shortcuts: "Chords",
 };
 
 interface ConsoleViewProps {

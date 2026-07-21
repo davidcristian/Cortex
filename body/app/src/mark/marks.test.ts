@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { MARKS, MULL, resolveMark } from "./marks";
+import { HUNCH, MARKS, MULL, MUSE, TANGENT, resolveMark } from "./marks";
 
 describe("resolveMark", () => {
   it("defaults to Mull with no preference", () => {
@@ -11,6 +11,13 @@ describe("resolveMark", () => {
     for (const mark of MARKS) {
       expect(resolveMark(mark.name)).toBe(mark);
     }
+  });
+
+  it("resolves the keys the styles first shipped under, so an old stored pick still lands", () => {
+    expect(resolveMark("wobble")).toBe(MULL);
+    expect(resolveMark("sheen")).toBe(MUSE);
+    expect(resolveMark("ping")).toBe(HUNCH);
+    expect(resolveMark("foam")).toBe(TANGENT);
   });
 
   it("falls back to the default when the preference names no known style", () => {
@@ -31,8 +38,6 @@ describe("MARKS", () => {
   });
 
   it("uses only harmonics of order two or higher, which is what pins the anchor", () => {
-    // An n=1 term translates the whole outline: the mark would wander in its corner, which the
-    // design forbids. Everything else about a style is taste; this is the invariant.
     for (const mark of MARKS) {
       for (const lobe of mark.lobes) {
         for (const harmonic of lobe.harmonics) {

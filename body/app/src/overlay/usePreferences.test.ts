@@ -15,14 +15,14 @@ describe("usePreferences", () => {
     const bridge = new FakeBridge();
     bridge.preferences = [
       { key: THEME_KEY, value: "daylight" },
-      { key: MARK_KEY, value: "foam" },
+      { key: MARK_KEY, value: "tangent" },
       { key: WINDOW_KEY, value: "trance" },
     ];
     const { result } = renderHook(() => usePreferences(bridge));
     await waitFor(() =>
       expect(result.current.appearance).toEqual({
         theme: "daylight",
-        mark: "foam",
+        mark: "tangent",
         window: "trance",
       }),
     );
@@ -32,21 +32,21 @@ describe("usePreferences", () => {
     const bridge = new FakeBridge();
     bridge.preferences = [
       { key: "someone.else", value: "whatever" },
-      { key: MARK_KEY, value: "ping" },
+      { key: MARK_KEY, value: "hunch" },
     ];
     const { result } = renderHook(() => usePreferences(bridge));
-    await waitFor(() => expect(result.current.appearance.mark).toBe("ping"));
+    await waitFor(() => expect(result.current.appearance.mark).toBe("hunch"));
     expect(result.current.appearance.theme).toBeNull();
   });
 
   it("applies a choice immediately and persists it without being awaited", async () => {
     const bridge = new FakeBridge();
     const { result } = renderHook(() => usePreferences(bridge));
-    act(() => result.current.setMark("sheen"));
+    act(() => result.current.setMark("muse"));
     // Applied in the same tick: the UI never waits on the seam to show a choice.
-    expect(result.current.appearance.mark).toBe("sheen");
+    expect(result.current.appearance.mark).toBe("muse");
     await waitFor(() =>
-      expect(bridge.preferenceWrites).toEqual([{ key: MARK_KEY, value: "sheen" }]),
+      expect(bridge.preferenceWrites).toEqual([{ key: MARK_KEY, value: "muse" }]),
     );
   });
 
@@ -80,7 +80,7 @@ describe("usePreferences", () => {
     const bridge = new FakeBridge();
     bridge.preferences = [
       { key: THEME_KEY, value: "daylight" },
-      { key: MARK_KEY, value: "foam" },
+      { key: MARK_KEY, value: "tangent" },
     ];
     let release: (() => void) | null = null;
     const gate = new Promise<void>((resolve) => {
@@ -92,12 +92,12 @@ describe("usePreferences", () => {
       setPreference: bridge.setPreference.bind(bridge),
     } as unknown as FakeBridge;
     const { result } = renderHook(() => usePreferences(slow));
-    act(() => result.current.setMark("ping"));
+    act(() => result.current.setMark("hunch"));
     act(() => result.current.setWindow("reverie"));
     act(() => release?.());
     // The stored theme still lands (untouched), while the chosen mark and edge survive it.
     await waitFor(() => expect(result.current.appearance.theme).toBe("daylight"));
-    expect(result.current.appearance.mark).toBe("ping");
+    expect(result.current.appearance.mark).toBe("hunch");
     expect(result.current.appearance.window).toBe("reverie");
   });
 
@@ -113,14 +113,14 @@ describe("usePreferences", () => {
     const bridge = new FakeBridge();
     bridge.preferenceWriteFails = true;
     const { result } = renderHook(() => usePreferences(bridge));
-    act(() => result.current.setMark("foam"));
+    act(() => result.current.setMark("tangent"));
     await waitFor(() => expect(bridge.preferenceWrites).toHaveLength(1));
-    expect(result.current.appearance.mark).toBe("foam");
+    expect(result.current.appearance.mark).toBe("tangent");
   });
 
   it("drops a record that resolves after unmount rather than setting state on a dead hook", async () => {
     const bridge = new FakeBridge();
-    bridge.preferences = [{ key: MARK_KEY, value: "foam" }];
+    bridge.preferences = [{ key: MARK_KEY, value: "tangent" }];
     let release: (() => void) | null = null;
     const gate = new Promise<void>((resolve) => {
       release = resolve;

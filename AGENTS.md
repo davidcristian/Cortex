@@ -147,9 +147,11 @@ the subject style). Imperative mood is the one convention no machine checks:
   sibling families speaking sibling languages (the mark thinks: Mull, Muse, Hunch, Tangent;
   the window dreams: Still, Lucid, Reverie, Trance), and no collisions with any existing
   family or token. Propose a recommended set with honest alternates before landing one.
-  Storage keys freeze the day they ship while labels stay free, so name the key right on day
-  one (`body/app/src/mark/marks.ts` documents the cost of learning that late). The worked
-  standard lives in the bubble-mark ADR's naming addendum (`docs/adr/`).
+  Storage keys freeze once anything beyond the host machine depends on them; until then a
+  rename is cheap (a resolver alias over the old name), so name the key right on day one and
+  heal a mismatch while healing is free (`body/app/src/mark/marks.ts` carries both halves of
+  that lesson). The worked standard lives in the bubble-mark ADR's naming addendum
+  (`docs/adr/`).
 - **Claims carry evidence.** Never report a gate green without having run it in this
   session; show the command and result. Unverified statements are labeled assumptions.
 - **Distrust green.** A gate that cannot fail is a defect: after wiring or changing one,

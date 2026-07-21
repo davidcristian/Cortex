@@ -35,7 +35,7 @@ export interface MarkStyle {
 
 /** Turning it over: two slow modes roll the outline around and it never settles on a shape. */
 export const MULL: MarkStyle = {
-  name: "wobble",
+  name: "mull",
   label: "Mull",
   note: "Two slow modes turn the outline over, never settling",
   filmPeriodSeconds: 26,
@@ -59,7 +59,7 @@ export const MULL: MarkStyle = {
 
 /** Composed outside, alive inside: two opposed interference bands crawl across the film. */
 export const MUSE: MarkStyle = {
-  name: "sheen",
+  name: "muse",
   label: "Muse",
   note: "The outline keeps its calm; the film drifts beneath it",
   filmPeriodSeconds: 15,
@@ -79,7 +79,7 @@ export const MUSE: MarkStyle = {
 
 /** Mostly still, then a ripple runs the rim and decays, the way a film answers a nudge. */
 export const HUNCH: MarkStyle = {
-  name: "ping",
+  name: "hunch",
   label: "Hunch",
   note: "A ripple strikes the rim every few seconds, then fades",
   filmPeriodSeconds: 30,
@@ -102,7 +102,7 @@ export const HUNCH: MarkStyle = {
  * Smallest first, so the big bubble draws over them and they read as clustered, not stuck on.
  */
 export const TANGENT: MarkStyle = {
-  name: "foam",
+  name: "tangent",
   label: "Tangent",
   note: "Two side thoughts swing on slow arcs around the main one",
   filmPeriodSeconds: 28,
@@ -137,10 +137,21 @@ export const TANGENT: MarkStyle = {
 /** The registry is plug-and-play: add a `MarkStyle` here and it becomes pickable. */
 export const MARKS: readonly MarkStyle[] = [MULL, MUSE, HUNCH, TANGENT];
 
-/** Resolve the active mark: a known name wins, anything else falls back to the default. */
+/** The keys the four styles first shipped under, kept resolving so a preference stored before
+ *  the healing still lands on the style it named. New writes always use the current keys. */
+const LEGACY_NAMES: Record<string, string> = {
+  wobble: "mull",
+  sheen: "muse",
+  ping: "hunch",
+  foam: "tangent",
+};
+
+/** Resolve the active mark: a known name wins, a legacy name resolves to what it became, and
+ *  anything else falls back to the default. */
 export function resolveMark(preference: string | null): MarkStyle {
   if (preference !== null) {
-    const chosen = MARKS.find((mark) => mark.name === preference);
+    const name = LEGACY_NAMES[preference] ?? preference;
+    const chosen = MARKS.find((mark) => mark.name === name);
     if (chosen !== undefined) {
       return chosen;
     }
