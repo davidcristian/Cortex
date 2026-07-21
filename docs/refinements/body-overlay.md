@@ -17,8 +17,10 @@ the demo bridge staying over the line cap, the two tradeoffs the reserved scroll
 is assumed rather than measured off the engine, and the two 6px cards spend their whole inset on
 it), the chat floor's frozen measurement of the empty state, a mid-stream retarget restarting
 from a rounded height, a Thoughts trace opening a reply off the bottom of a full history, the
-console tab strip's missing keyboard half, and a new chat minted from the console leaving the
-console up
+console tab strip's missing keyboard half, a new chat minted from the console leaving the
+console up, and the whisper's four follow-ups (a pickable voice row in the console, the wrap
+width a mid-stream resize cannot move, drain growth the panel's measured moves never see, and
+kerning inside the letter boxes under a changed font)
 
 **Body / overlay in Slice 8 ([ADR-0011](../adr/ADR-0011-body-v1.md)):**
 - **Multi-turn-within-one-stream + an explicit proto `Cancel` event.** One turn per `Converse`
@@ -518,3 +520,33 @@ console up
   same outline (masks DO clip backdrop-filter output, the corner-dissolve candidate proved it), or
   re-testing the clip path once WebView2's Chromium fixes the compositing. Whoever picks this up
   should start by re-measuring, since the engine moves. Placed here 2026-07-21.
+- **The voice could be a fourth picked row.** The whisper landed as the one streaming effect
+  (ADR-0037 decision 1), but it was chosen from a pitched family (the Voice: Murmur, Whisper,
+  Patter, Intone, each a breath, words and settle lifecycle) and it lands behind one component
+  seam (`WhisperBubble` plus its clock), so promoting it to a registry beside the theme, the
+  iris and the dream is data plus a swatch row rather than a redesign: the Face's anatomy
+  extends to a light, an iris, a dream, and a voice. The pitch history lives in the artifact's
+  labeled versions. Trigger: the user wanting a second voice back, or any second streaming
+  treatment being asked for. Placed here 2026-07-21.
+- **A streamed bubble's wrap width is measured once.** The whisper lays its letter DOM at the
+  final wrap width measured when the bubble mounts (ADR-0037 decision 4), so a window resized
+  mid-stream keeps the old wrap until the next message. Invisible in the v1 body, whose 640x720
+  window cannot resize; only the browser dev flow can see it. The fix is re-measuring on a
+  resize and re-laying the letters, which moves only invisible ones if the front is held during
+  the re-lay. Trigger: the transparent-window pass or any resizable overlay window.
+  Placed here 2026-07-21.
+- **The drain can grow the bubble after the turn's last render.** The front trails arrivals by
+  its catch-up time, so the box can gain its last line inside the half second after `complete`,
+  when nothing re-renders and the panel's measured moves are not looking (ADR-0037
+  consequences). The history's min-height floor hides it today (short chats sit inside the
+  floor, long ones scroll), and the tail pin rides the whisper's own `onGrow`. Trigger: the
+  chat floor changing, or a between-render growth visibly outrunning the panel on some future
+  layout. The fix is the panel hearing between-render growth the way it hears a roll
+  (`cortex:morphstart`'s lesson). Placed here 2026-07-21.
+- **Per-letter boxes give up kerning pairs.** A whispered message's letters are one box each
+  inside an unbreakable word box (ADR-0037 decision 6), so kerning inside a word is lost while
+  that message's DOM is on screen (it re-renders plain only when its chat is next loaded).
+  Checked by eye at 13.5px in the system stack in both themes and invisible there. Trigger:
+  the overlay adopting a licensed face (overlay-ux.md §2 keeps that door open), whose kerning
+  is worth re-checking against a settled reply's plain rendering side by side.
+  Placed here 2026-07-21.

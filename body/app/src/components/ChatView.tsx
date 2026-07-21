@@ -191,8 +191,11 @@ export function ChatView({
               </div>
             </div>
           ) : null}
+          {/* The whisper's drain outlives the turn's last render (ADR-0037), so a streamed
+              bubble reports its growth and the tail pin answers exactly as it does for a new
+              message: pinned readers follow, a reader who scrolled up holds their place. */}
           {state.messages.map((message) => (
-            <Message key={message.id} message={message} />
+            <Message key={message.id} message={message} onGrow={log.toTail} />
           ))}
           {state.pendingConfirm !== null ? (
             <ConfirmCard confirm={state.pendingConfirm} onRespond={onRespondConfirm} />

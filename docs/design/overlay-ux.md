@@ -42,13 +42,17 @@ ground. One swap at three speeds reads as the window coming apart and going back
   - **Custom themes are a later token-swap** (user-defined `--panel`/`--text`/`--accent` sets).
 - **Accent gradient (activity only).** `--accent: linear-gradient(135deg, #8B5CF6, #E24BC4 52%,
   #FF7A6B)` plus a mint spark `--spark: #4FE3D0`. It appears **only** on *working* affordances: the
-  thinking dots, the streaming caret and a faint reveal shimmer on incoming text, the minimized
-  orb, and progress bars. It **never** touches resting chrome, buttons, or composed messages, the
-  single most important rule (see §1). Exact hues are provisional; keep it a warm-leaning gradient.
+  breath mist that rides a streaming reply (§2 motion, [ADR-0037](../adr/ADR-0037-whisper-streaming.md)),
+  the minimized orb, and progress bars. It **never** touches resting chrome, buttons, or composed
+  messages, the single most important rule (see §1). Exact hues are provisional; keep it a
+  warm-leaning gradient.
 - **Bubbles (neutral at rest).** Both user and assistant bubbles use a quiet raised neutral fill
   (a subtle tint of the ground, e.g. `rgba(127,110,190,0.14)` for the user in dark). The **only**
-  color is *transient*: while a reply streams, a soft accent glow/shimmer rides the in-progress
-  bubble, then settles to neutral on completion. `border-radius: 20px`, one tail corner tightened.
+  color is *transient*: while a reply streams, the whisper's accent mist rides the condensation
+  front inside the bubble and evaporates on completion
+  ([ADR-0037](../adr/ADR-0037-whisper-streaming.md)); the bubble itself wears no glow, ring or
+  caret, so the colour sits exactly where the work is and nowhere else.
+  `border-radius: 20px`, one tail corner tightened.
 - **Radius scale:** panel `28px`, bubbles `20px`, input pill `22px`; the orb is the bubble mark
   (§4), an off-round film rather than a disc, so it has no radius of its own. Generous, uniform.
 - **The window's edge is a choice, a ladder of dream depth** (landed 2026-07-21,
@@ -101,8 +105,16 @@ ground. One swap at three speeds reads as the window coming apart and going back
   decorative. The personality is in motion + the color bloom, not a novelty face.
 - **Motion:** `--spring: cubic-bezier(.34,1.56,.64,1)` for shape; `--ease: cubic-bezier(.4,0,.2,1)`
   for fades. Three signatures, detailed in §4:
-  - **Fluid streaming**. Each incoming token *fades and rises* into place (opacity + a few px +
-    a brief blur), never a pop. The stream feels like it flows.
+  - **Whispered streaming** ([ADR-0037](../adr/ADR-0037-whisper-streaming.md), replacing the
+    per-word rise + blur this doc used to prescribe). The reply *condenses like breath on
+    glass*: letters clear through a nine-letter band of blur on one continuous front whose
+    velocity eases toward its backlog and never resets (paced not timed, per letter), so
+    nothing resolves as a block. A small accent mist breathes where the text will start, glides
+    along the front while the reply speaks (one element, breath to front to evaporation, a
+    morph with no swap anywhere in the lifecycle), and is the bubble's only colour. The
+    bubble's box is posed by the same clock: a small pill around the mist while thinking, then
+    growth eased at the front's own pace, its bottom edge doubling as the reveal, so a new line
+    is a curve rather than a step.
   - **Traveling morph**. Minimize/maximize animate real *movement*: the panel glides along a path
     between center and the corner while it scales to/from the orb (FLIP), so you see it travel.
   - **Arriving centred, growing upward, re-centring only into another view**. A summon centres the
@@ -322,10 +334,13 @@ while a turn is processing must not lose it*) lives here. States:
 ```
 
 - **PANEL(composing / streaming / done):** the full centered panel, sleek and near-monochrome at
-  rest (composing/done). **Streaming** is where color blooms: a "thinking" shimmer holds the
-  assistant bubble until the first token, then tokens **flow in fluidly** (fade + rise, never a
-  pop) behind an accent caret, with a soft accent glow on the in-progress bubble that settles back
-  to neutral on completion.
+  rest (composing/done). **Streaming** is where color blooms, and the bloom is the whisper
+  ([ADR-0037](../adr/ADR-0037-whisper-streaming.md)): the accent mist breathes in a small
+  bubble until the first token, then the reply **condenses** behind it, letters clearing
+  through a continuous band of blur while the mist glides along the front and the bubble grows
+  at that front's pace; when the turn completes the mist evaporates where the last word ends
+  and the bubble is already neutral. No caret, no dots, no glow: the mist is the streaming
+  bubble's one colour.
 - **Dismiss while idle** (composing or done): the panel springs out **at center** (a scale-fade,
   no corner travel, per 2026-07-03 user direction; summon pops in from center the same way) →
   **HIDDEN**. Nothing is lost, because the chat is persisted; re-summoning restores it. The corner
