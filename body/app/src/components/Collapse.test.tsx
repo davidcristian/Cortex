@@ -384,4 +384,64 @@ describe("Collapse", () => {
     );
     expect(heightWhenTold).toBe("0px");
   });
+
+  it("hands the closed section back to its caller, and only once it is shut", () => {
+    // What lets a list hold a removed row until its own exit ends (`overlay/usePresence.ts`):
+    // the roll owns the clock, and this is the roll saying it is over.
+    const { settle } = stubBrowser();
+    const onClosed = vi.fn();
+    const view = render(
+      <Collapse open onClosed={onClosed}>
+        <p>rows</p>
+      </Collapse>,
+    );
+    view.rerender(
+      <Collapse open={false} onClosed={onClosed}>
+        <p>rows</p>
+      </Collapse>,
+    );
+    expect(onClosed).not.toHaveBeenCalled();
+    settle();
+    expect(onClosed).toHaveBeenCalledTimes(1);
+  });
+
+  it("says nothing to its caller on the way open, there being nothing to take away", () => {
+    const { settle } = stubBrowser();
+    const onClosed = vi.fn();
+    const view = render(
+      <Collapse open={false} onClosed={onClosed}>
+        <p>rows</p>
+      </Collapse>,
+    );
+    view.rerender(
+      <Collapse open onClosed={onClosed}>
+        <p>rows</p>
+      </Collapse>,
+    );
+    settle();
+    expect(onClosed).not.toHaveBeenCalled();
+  });
+
+  it("is still in the tree when the panel re-measures, and released only after", () => {
+    // The order these two land in is the contract: the panel places itself off the event, so the
+    // section has to be part of what it measures. Told first, the caller would be free to take the
+    // element away before the panel had heard the roll end at all.
+    const { settle } = stubBrowser();
+    const seen: string[] = [];
+    const view = render(
+      <Collapse open onClosed={() => seen.push("released")}>
+        <p>rows</p>
+      </Collapse>,
+    );
+    view.container.addEventListener("cortex:morphend", (event) => {
+      seen.push(view.container.contains(event.target as Node) ? "measured" : "measured off-tree");
+    });
+    view.rerender(
+      <Collapse open={false} onClosed={() => seen.push("released")}>
+        <p>rows</p>
+      </Collapse>,
+    );
+    settle();
+    expect(seen).toEqual(["measured", "released"]);
+  });
 });
