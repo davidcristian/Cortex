@@ -57,12 +57,9 @@ export function PanelEdge({ style, working, animated, idPrefix }: PanelEdgeProps
   }, []);
   useLayoutEffect(() => {
     // Once before first paint, so the edge never shows a zero-size pose; after that the observer
-    // owns it. The test DOM has no ResizeObserver and no layout either, so there the one mount
-    // measurement is the whole story.
+    // owns it. jsdom has no layout, so under test the mount measurement is a stub and the
+    // observer's deliveries are hand-driven (`src/test-setup.ts`).
     measure();
-    if (typeof ResizeObserver === "undefined") {
-      return undefined;
-    }
     const observer = new ResizeObserver(measure);
     observer.observe(box.current);
     return () => observer.disconnect();

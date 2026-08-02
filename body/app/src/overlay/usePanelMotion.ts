@@ -3,6 +3,7 @@ import { type RefObject, useEffect, useLayoutEffect, useRef } from "react";
 import { MORPH_END_EVENT, MORPH_START_EVENT } from "./morph";
 import { type Placement, emptyMemory, touched } from "./panelMemory";
 import { place } from "./panelPlacement";
+import { watchSize } from "./panelWatch";
 
 /** The three ways the user reaches the panel: a press, a key, or an activation that arrives
  *  without either, which is how assistive technology and scripts click a button. Any of them ends
@@ -27,8 +28,12 @@ const TOUCH_EVENTS = ["pointerdown", "keydown", "click"] as const;
  * open/close pop and the corner travel are transforms and own that motion themselves. Under
  * `prefers-reduced-motion` nothing is scheduled at all.
  *
- * The one thing here that is not a render is the user's hand: a summon owns the panel's geometry
- * for a window afterwards, and any input inside that window ends it early (`touched`).
+ * Three things here are not renders. A summon owns the panel's geometry for a window afterwards,
+ * and any input inside that window ends it early (`touched`). A section's roll brackets itself with
+ * its own two events, because a roll is not always a render the panel sees. And the panel watches
+ * its own box (`panelWatch`), for the resizes that are neither: a draft growing a line lives in the
+ * composer's own state, so nothing above it renders and the panel's `auto` height would otherwise
+ * simply follow in the frame the character lands.
  */
 export function usePanelMotion(
   ref: RefObject<HTMLElement | null>,
@@ -71,6 +76,11 @@ export function usePanelMotion(
     }
     element?.addEventListener(MORPH_START_EVENT, onMorph);
     element?.addEventListener(MORPH_END_EVENT, onMorph);
+    // And the resizes nothing announces at all: a draft growing a line, a released row, content
+    // that settles after the render that brought it. `panelWatch` decides which of the panel's own
+    // size changes are its content moving and which are a roll or its own ease, and drives the same
+    // placement the roll's end event does for the first kind only.
+    const unwatch = element === null ? null : watchSize(element, memory.current, onMorph);
     return () => {
       window.removeEventListener("resize", onResize);
       for (const name of TOUCH_EVENTS) {
@@ -78,6 +88,7 @@ export function usePanelMotion(
       }
       element?.removeEventListener(MORPH_START_EVENT, onMorph);
       element?.removeEventListener(MORPH_END_EVENT, onMorph);
+      unwatch?.();
     };
     // The panel element is mounted for the life of the overlay, so this subscribes once. Everything
     // the handlers need that does change is read from `at` above, which is why this list no longer

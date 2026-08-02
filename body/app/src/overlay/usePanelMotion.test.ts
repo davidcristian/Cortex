@@ -2,6 +2,7 @@ import { renderHook } from "@testing-library/react";
 import { useLayoutEffect } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { resized } from "../test-setup";
 import { openHeight } from "./panelGeometry";
 import { emptyMemory } from "./panelMemory";
 import { place } from "./panelPlacement";
@@ -124,6 +125,25 @@ function rolling(parent: HTMLElement, target: number, height: number): HTMLEleme
   return section;
 }
 
+/** The box a view's content actually hangs in. The aside rule is written against the view being
+ *  PLACED, so a section that is not inside one is not an aside of anything. */
+function view(parent: HTMLElement): HTMLElement {
+  const box = document.createElement("div");
+  box.className = "view";
+  parent.append(box);
+  return box;
+}
+
+/** A section marked `aside` that is not rolling: the reminder stack, standing in the panel while
+ *  something else moves. */
+function standing(parent: HTMLElement, height: number): HTMLElement {
+  const section = document.createElement("div");
+  section.className = "collapse aside";
+  rolled(section, height);
+  parent.append(section);
+  return section;
+}
+
 /**
  * A scrolling box inside the panel, wearing the browser's clamp.
  *
@@ -166,6 +186,31 @@ function clock(): (ms: number) => void {
   vi.spyOn(Date, "now").mockImplementation(() => now);
   return (ms: number) => {
     now += ms;
+  };
+}
+
+/** The browser's frame, held so a test can run it by hand: the panel's watch on its own box is
+ *  lifted for the frame it writes in and taken up again on the next one. */
+function frames() {
+  const queue = new Map<number, FrameRequestCallback>();
+  let next = 1;
+  let cancelled = 0;
+  vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => {
+    queue.set(next, callback);
+    return next++;
+  });
+  vi.spyOn(window, "cancelAnimationFrame").mockImplementation((id) => {
+    cancelled += queue.delete(id) ? 1 : 0;
+  });
+  return {
+    run: () => {
+      const due = [...queue.values()];
+      queue.clear();
+      for (const callback of due) {
+        callback(0);
+      }
+    },
+    cancelled: () => cancelled,
   };
 }
 
@@ -391,8 +436,8 @@ describe("usePanelMotion", () => {
     // chat is and lets the stack grow it upward: centring on 500 instead put the conversation
     // wherever the day's reminders happened to leave it, measured 26px below its own centre.
     tick(1);
-    const section = rolling(element, 200, 0);
-    section.classList.add("aside");
+    const section = rolling(view(element), 200, 0);
+    section.classList.add("collapse", "aside");
     rerender({ open: true });
     expect(bottom()).toBe(350);
   });
@@ -415,8 +460,8 @@ describe("usePanelMotion", () => {
     // afterwards). Counted off the raw height, the chat's own 400 centres and the edge stands
     // exactly where the summon put it.
     tick(1);
-    const section = rolling(element, 250, 0);
-    section.classList.add("aside");
+    const section = rolling(view(element), 250, 0);
+    section.classList.add("collapse", "aside");
     rerender({ open: true });
     expect(bottom()).toBe(300);
     // And because the stack outgrows even that edge's ceiling, the panel DRIVES its height to
@@ -428,6 +473,74 @@ describe("usePanelMotion", () => {
       { from: { height: 400, bottom: 300 }, to: { height: 580, bottom: 300 } },
     ]);
     expect(durations).toEqual([300]);
+  });
+
+  it("counts an aside that is only STANDING off an arriving roll's prediction too", () => {
+    // Ctrl+N with the switcher list open: one commit summons the panel and rolls that list shut,
+    // and the reminder stack stands in the panel through the whole of it. The roll is not the
+    // aside, so the ride-along used to count the stack INTO the height it centred on while the
+    // placement at the end of the roll counted it out again, and the two disagreed by a whole
+    // stack. Measured at 900x1000 over the demo: the summon pinned 227 and the placement at the
+    // end re-centred to 324, so a touch inside the arrival window, which is exactly what stops
+    // that placement re-centring, left the session 97px low for the rest of it.
+    const tick = clock();
+    const { ref, element, state, bottom } = harness();
+    const chat = view(element);
+    standing(chat, 190);
+    // Shut, and holding 546 of chat and stack plus 120 of switcher list.
+    state.natural = 666;
+    const { rerender } = renderHook(({ open }) => usePanelMotion(ref, open, "chat"), {
+      initialProps: { open: false },
+    });
+    rolling(chat, 0, 120);
+    rerender({ open: true });
+    // 546 arriving, less the 190 the stack takes: the chat's own 356 centres, and the stack grows
+    // it upward from there.
+    expect(bottom()).toBe(322);
+
+    // A key inside the arrival window hands the geometry to the session, so the placement at the
+    // end of the roll no longer re-centres. It has nothing to re-centre: the edge the summon
+    // pinned is the one that measurement would have produced.
+    tick(1);
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "k" }));
+    state.natural = 546;
+    element.querySelector("[data-morphing]")?.removeAttribute("data-morphing");
+    element.dispatchEvent(new CustomEvent("cortex:morphend", { bubbles: true }));
+    expect(bottom()).toBe(322);
+  });
+
+  it("bounds an arriving roll where the placement bounds it, before the aside comes off", () => {
+    // The prediction and the measurement have to be counted in the same ORDER as well as by the
+    // same rule. `place` reads the panel under the loose cap and takes the aside off what it
+    // reads, so a prediction that outgrows that cap has to be cut to it BEFORE the aside comes
+    // off. Cut afterwards, the ride-along stood a whole aside above the placement that followed
+    // it, which is a second beat on the summon rather than a wrong edge for the session.
+    const tick = clock();
+    const { ref, element, state, moves, bottom } = harness();
+    const chat = view(element);
+    state.capped = true;
+    state.natural = 600;
+    const { rerender } = renderHook(({ open }) => usePanelMotion(ref, open, "chat"), {
+      initialProps: { open: false },
+    });
+    rerender({ open: true });
+    tick(1);
+    // The stack rolling in takes the panel to 850, where the loosest cap any edge could allow is
+    // 760: what arrives is 760, of which the stack is 250 and the chat 510.
+    const section = rolling(chat, 250, 0);
+    section.classList.add("collapse", "aside");
+    rerender({ open: true });
+    expect(bottom()).toBe(245);
+    const slides = moves.length;
+
+    // The roll lands, and the placement finds nothing to move.
+    tick(299);
+    state.natural = 850;
+    section.removeAttribute("data-morphing");
+    rolled(section, 250);
+    element.dispatchEvent(new CustomEvent("cortex:morphend", { bubbles: true }));
+    expect(bottom()).toBe(245);
+    expect(moves).toHaveLength(slides);
   });
 
   it("centres a summon on what it arrives with, not on the height it had while shut", () => {
@@ -1124,6 +1237,142 @@ describe("usePanelMotion", () => {
     // arrival window centres on what the panel arrives WITH, so the dismiss never had to.
     rerender({ open: true });
     expect(bottom()).toBe(300);
+    expect(moves).toEqual([]);
+  });
+
+  it("eases a resize no render told it about, which is what the composer's growth is", () => {
+    // The draft lives in `Composer`'s own state, so a field growing a line re-renders nothing above
+    // the composer and the panel is never asked to place itself: its `auto` height simply followed
+    // in the frame the character landed, bottom edge pinned, with no ease at all. Traced at 640x720
+    // with the reminder stack acked, two consecutive samples and no third state between them: 16px
+    // for a further line on a stacked pill, 36px for the character that restacks a one-line draft,
+    // 52px for a Shift+Enter that restacks and adds a line at once, and 98px for a paste that fills
+    // the field to its 120px ceiling with the panel already on its own.
+    const { ref, element, state, moves, durations } = harness();
+    state.natural = 400;
+    renderHook(() => usePanelMotion(ref, true, "chat"));
+    state.natural = 452;
+    expect(resized(element)).toBe(1);
+    expect(moves).toEqual([{ from: { height: 400, bottom: 300 }, to: { height: 452, bottom: 300 } }]);
+    // Paced by the distance like any other move, and pinned by the bottom edge like any other
+    // growth inside the chat: the composer does not slide out from under the hand that typed it.
+    expect(durations).toEqual([120]);
+  });
+
+  it("leaves the height alone while a section inside is rolling it, frame by frame", () => {
+    // A roll is one notification per frame for its whole length (19 across a 300ms roll, measured
+    // at 900x900 over the demo's reminder pull). The section owns the height through all of them
+    // and the ride-along has already taken the bottom edge where the roll will leave it, so a
+    // placement on those frames is the panel's arithmetic against a height that is mid-animation
+    // by construction.
+    const tick = clock();
+    const { ref, element, state, moves, bottom } = harness();
+    state.natural = 356;
+    const { rerender } = renderHook(({ open }) => usePanelMotion(ref, open, "chat"), {
+      initialProps: { open: false },
+    });
+    rerender({ open: true });
+    expect(bottom()).toBe(322);
+
+    tick(1);
+    rolling(element, 190, 0);
+    state.natural = 400;
+    expect(resized(element)).toBe(1);
+    expect(bottom()).toBe(322);
+    expect(moves).toEqual([]);
+    // And the roll's own start event is still what the panel rides along with: the observer did
+    // not quietly answer it first and leave the start with nothing to do.
+    element.dispatchEvent(new CustomEvent("cortex:morphstart", { bubbles: true }));
+    expect(bottom()).toBe(205);
+    expect(moves).toHaveLength(1);
+  });
+
+  it("leaves its own move in the air rather than retargeting it once a frame", () => {
+    // The panel's ease is a height animation on this same element, so it is also one notification
+    // per frame (18 across one 380ms move in the same trace). Answering them would cancel the move
+    // to measure the natural box and start another, sixty times a second, which is feeding the
+    // observer its own output.
+    const { ref, element, state, moves } = harness();
+    state.natural = 400;
+    const { rerender } = renderHook(() => usePanelMotion(ref, true, "chat"));
+    state.natural = 520;
+    rerender();
+    expect(moves).toHaveLength(1);
+    state.displayed = 460;
+    expect(resized(element)).toBe(1);
+    expect(moves).toHaveLength(1);
+
+    // Once that move has landed the panel hears its box again, so growth that arrived mid-ease is
+    // eased away rather than left standing.
+    state.playState = "finished";
+    state.natural = 560;
+    expect(resized(element)).toBe(1);
+    expect(moves).toEqual([
+      { from: { height: 400, bottom: 300 }, to: { height: 520, bottom: 300 } },
+      { from: { height: 520, bottom: 300 }, to: { height: 560, bottom: 300 } },
+    ]);
+  });
+
+  it("lifts the watch for the frame it writes in, and takes it up again on the next", () => {
+    // Placing is itself a resize of the element being watched, and an observer that resizes its own
+    // target inside its own callback is the one case the specification's depth rule cannot deliver:
+    // the notification is dropped and the page told through the "loop completed with undelivered
+    // notifications" error. Measured over the demo before this, one error event per keystroke that
+    // grew the pill.
+    const frame = frames();
+    const { ref, element, state, moves } = harness();
+    state.natural = 400;
+    renderHook(() => usePanelMotion(ref, true, "chat"));
+    state.natural = 452;
+    expect(resized(element)).toBe(1);
+    expect(moves).toHaveLength(1);
+
+    // Nothing is watching for the rest of this frame, which is what leaves the specification's
+    // re-gather with nothing to drop.
+    state.playState = "finished";
+    state.natural = 500;
+    expect(resized(element)).toBe(0);
+    expect(moves).toHaveLength(1);
+
+    // And on the next frame the watch is back, so the growth that landed meanwhile is still eased.
+    frame.run();
+    expect(resized(element)).toBe(1);
+    expect(moves).toHaveLength(2);
+
+    // A reading with nothing behind it is heard and answered with nothing, which is what makes the
+    // callback settle rather than chase the box it just moved. The watch is not lifted for it
+    // either, so it is still there for the next one: lifting on every delivery would spend a frame
+    // of blindness and a placement on each of them for as long as the panel is open.
+    frame.run();
+    expect(resized(element)).toBe(1);
+    expect(moves).toHaveLength(2);
+    expect(resized(element)).toBe(1);
+  });
+
+  it("cancels the frame it would have taken the watch up on when the panel goes", () => {
+    const frame = frames();
+    const { ref, element, state } = harness();
+    state.natural = 400;
+    const { unmount } = renderHook(() => usePanelMotion(ref, true, "chat"));
+    state.natural = 452;
+    expect(resized(element)).toBe(1);
+    unmount();
+    expect(frame.cancelled()).toBe(1);
+    // And nothing takes the watch back up behind the unmount.
+    frame.run();
+    state.natural = 500;
+    expect(resized(element)).toBe(0);
+  });
+
+  it("stops watching its own box once the panel is gone", () => {
+    const { ref, element, state, moves } = harness();
+    state.natural = 400;
+    const { unmount } = renderHook(() => usePanelMotion(ref, true, "chat"));
+    unmount();
+    state.natural = 520;
+    // Nothing is listening at all, which is stronger than nothing happening: a watch left running
+    // holds the element and the memory of a panel that is gone.
+    expect(resized(element)).toBe(0);
     expect(moves).toEqual([]);
   });
 

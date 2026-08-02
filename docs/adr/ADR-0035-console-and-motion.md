@@ -1325,3 +1325,143 @@ want the same treatment, but they need their own DOM restructure, their own hove
 re-checked against the wrapper, and their own frame trace, so they are a second surface rather than
 a free line. That is recorded as a deferral in
 [docs/refinements/body-overlay.md](../refinements/body-overlay.md).
+
+## Addendum, 2026-08-03: the panel watches its own box, and an arrival counts the same aside a placement counts
+
+Decision 14 gave a roll its own two events because a roll is not always a render the panel sees.
+Three deferrals filed on 2026-07-20 said the same thing about content. `usePanelMotion` places the
+panel on renders of `Panel`, on both ends of a roll and on a window resize, and anything that
+resizes the panel outside those leaves the last placement standing. The composer is the largest and
+most frequent case: the draft lives in `Composer`'s own state, so a field growing a line re-renders
+nothing above it and the panel's `auto` height simply follows in the frame the character lands,
+bottom edge pinned, with no ease at all.
+
+### What the watch answers, and what it refuses
+
+**The panel observes its own box (`overlay/panelWatch.ts`) and drives the same placement the roll's
+end event drives.** All of the design is in what it refuses to answer, because every placement
+resizes the element being watched. Traced at 900x900 over the demo, a single `ResizeObserver` on the
+panel delivered 19 notifications across the reminder stack's 300ms roll and 18 more across one 380ms
+move of the panel's own, one per frame of each.
+
+1. **A roll owns the height.** While a section inside is animating its own height, the panel's
+   `auto` height follows it frame by frame, and the ride-along has already taken the bottom edge to
+   where the roll will leave it. Placing on those frames is the panel's arithmetic against a height
+   that is mid-animation by construction.
+2. **A move of the panel's own owns the height too.** The panel's ease is a height animation on this
+   same element. Answering its frames feeds the observer its own output: each one would cancel the
+   running ease to measure the natural box and start another, sixty times a second, which is the
+   mid-stream retarget already filed as a refinement arriving once per frame instead of once per
+   token. Measured over one scripted reply, three runs each side, the panel is given 2 to 3
+   animations both before this change and after it.
+3. **A reading with nothing behind it is answered with nothing.** The watch remembers the height it
+   last looked at, not the height the panel was placed at, since a roll and an ease both walk the
+   box past it every frame and the only question each time is whether anything has moved.
+4. **The watch is lifted for the frame the panel writes in.** Placing is itself a resize of the
+   observed element, the ease starting at the height the panel had rather than the one that was
+   reported. An observer whose callback resizes its own target is the one case the specification's
+   depth rule cannot deliver, the re-gathered observation being no deeper than the broadcast that
+   caused it, so the notification is dropped and the page is told through the "loop completed with
+   undelivered notifications" error. Measured over the demo, that was one error event per keystroke
+   that grew the pill. Dropping the observation before placing and taking it up again on the next
+   frame leaves nothing to re-gather: the same trace now reports zero.
+
+**The ease is not a frame late for any of this**, which is worth stating because it looks as though
+it should be. `requestAnimationFrame` runs before the resize observer steps, so a trace taken there
+reads the frame's layout before the placement has had its say. Traced at 640x720 over a Shift+Enter
+that restacks the pill, a rAF probe reads the panel at 404 for the frame the character landed and a
+second observer reading the same frame after the placement reads 352 with one animation attached.
+The frame paints the height the panel had and eases from it. Nothing jumps and comes back.
+
+### What it measures
+
+Chromium over the demo bridge, per animation frame.
+
+- **The composer's four growth steps at 640x720 with the reminder stack acked**, each of which was
+  one unpainted frame before and is now a paced ease. A further line on an already stacked pill runs
+  the panel's top edge 148, 147.13, 143.11, 137.64, 134.61, 133.03, 132.28, 132.02, 132, where it
+  was 148 to 132 between two consecutive samples with no third state between them. The character
+  that restacks a one-line draft runs 184, 182.02, 172.98, 160.75, 153.86, 150.33, 148.61, 148.02,
+  148 against a single 36px step. A Shift+Enter that restacks and adds a line at once runs 184,
+  181.14, 168.08, 150.41, 140.5, 135.34, 132.88, 132.03, 132 against a single 52px step, largest
+  frame 17.67px. A paste that fills the field to its 120px ceiling runs 184, 180.98, 168.19, 141.92,
+  118.2, 103.77, 95.05, 89.92, 87.14, 86.06, 86 against a single 98px step, largest frame 26.27px.
+  The paste is 98px rather than the 122px the deferral published because the panel is on its own
+  ceiling at that size and the history absorbs the other 24.
+- **A resize with no render and no roll behind it at all**, which is the general case the composer
+  is one instance of: 40px of content appended straight into the log from the console, where React
+  never hears about it. Before, the panel's top edge went 368.13 to 328.13 in one frame. After, it
+  runs 368.13, 365.77, 355.66, 342.16, 334.52, 330.59, 328.67, 328.02, 328.13 over about 120ms.
+
+### The end of a roll is not a resize, so `cortex:morphend` stays
+
+The deferral that asked for the observer expected it to retire the end event. It cannot, and the
+reason is visible in the same trace: **a roll ends without changing the panel's size at all.** An
+opening roll fills nothing, so its final value is the section's natural height and the element is
+already there when the animation stops; a closing roll fills forwards at zero and the section that
+is then unmounted was already contributing nothing. Instrumented at 900x900 across the reminder
+stack's roll, the last notification lands at t=456 with the panel at 518 and `cortex:morphend`
+fires at t=471 with no notification anywhere near it, the next one arriving 2.3 seconds later when
+a conversation is loaded. Nothing but that event tells the panel a roll is over, which is what
+decision 5 already says about re-measuring keeping a prediction honest, and it is now also what
+tells the watch that the height is the panel's own again.
+
+### An arrival counts the aside the way a placement counts it
+
+Decision 8 says a summon owns the panel's geometry until the user touches it, and a deferral filed
+against it measured 2.1px of error left behind when a touch lands mid-roll: the ride-along pins the
+edge from a prediction, and the placement at the end of the roll, which is what would have corrected
+it, is no longer an arrival. **Read against the code and the browser on 2026-08-03, the prediction
+is exact and the error was somewhere else entirely, and it is 97px rather than 2.1.**
+
+The prediction cannot be wrong in the way the deferral assumed, because the rolling section's
+current height cancels out of it: the panel will be as tall as it is now, less what the section
+takes now, plus what it is about to take, and the roll is announced at its start where those two
+readings are taken in the same frame. What the ride-along got wrong was the aside. `centringHeight`
+leaves the reminder stack out of the height the panel centres on, so that the chat centres on itself
+and the stack grows it upward, and the ride-along asked a different question: whether the section
+that is ROLLING is the aside. A stack that is merely standing in the panel while something else
+rolls was therefore counted into the arrival's centring and out of the placement's. Measured at
+900x1000 over the demo, Ctrl+N with the switcher list open, which summons the panel and rolls that
+list shut in one commit while the stack stands: the summon pinned the edge at 227 and the placement
+at the end of the roll re-centred to 324, so the panel's bottom edge travelled 97px down the
+viewport across the roll and came back at the end of it, and a key pressed inside the arrival
+window, which is exactly what stops that placement re-centring, left the session pinned 97px low
+for the rest of it.
+
+**The ride-along now counts its prediction through `centringHeight` itself**, the same function the
+placement counts its measurement with, and the two agree by construction rather than by argument.
+The aside's height is taken as the height it will have when everything settles, which is the height
+it is rolling to while it rolls and the height it has otherwise, so the one function serves both
+callers. It is bounded at `openHeight` BEFORE the aside comes off, because that is the order the
+measurement happens in: `place` reads the element under the loose cap and takes the aside off what
+it read. Bounded afterwards, the ride-along stood a whole aside above the placement that followed it
+on any panel whose content outgrows that cap, which is a second beat on the summon rather than a
+wrong edge for the session.
+
+After: the panel's bottom edge holds at 676 for every frame of that roll and settles at 676 whether
+the user touches the panel mid-roll or not, at both 900x900 (edge 274, the panel on its ceiling) and
+900x1000 (edge 324). The aside's own roll behind a summon is unchanged, since for that case the two
+spellings were always the same number.
+
+Three functions moved with this, without changing: `centringHeight`, `tabSlack` and `holdScroll` are
+now `overlay/panelParts.ts`, the probes a placement makes into the panel's own tree, so that
+`panelRide` can ask the same questions without importing the module that imports it, and
+`arrivalBottom` is now in `overlay/panelGeometry.ts` with the rest of the pure arithmetic.
+`panelPlacement.ts` is 295 lines where it was 371.
+
+### What this does not do
+
+The watch answers a resize that arrives while the panel is settled. One that arrives while the
+panel's own ease is in the air is deliberately ignored until that ease lands, and **the cost is
+latency rather than a jump**, which is worth measuring rather than assuming. Traced at 900x1000 with
+200px of content injected into the log and 40px more injected 100ms into the resulting ease: the
+first move runs the panel's top edge 368 to 168 over about 316ms with the second growth invisible
+throughout, because the running height animation overrides the box the growth would have changed.
+The frame the animation hands the element back reads 168, the frame after reads 165.83, and the
+residue then eases 40px to 128 over about 120ms, monotonic, with no step anywhere. So the second
+growth waits, at most the 380ms ceiling of decision 7 and in practice much less, and then arrives
+the way every other growth does. It is recorded as a deferral in
+[docs/refinements/body-overlay.md](../refinements/body-overlay.md), because waiting is still not
+following, and the obvious alternative, retargeting the move in flight on every frame of it, is the
+harm decision 11 and the mid-stream-retarget deferral are both about.
