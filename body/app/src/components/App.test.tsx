@@ -93,11 +93,12 @@ describe("App", () => {
     expect(screen.getByText("Stand-up in 10 minutes")).toBeTruthy();
     expect(screen.getByText("repeats")).toBeTruthy();
 
+    // The ack rides the bridge in the frame the check is pressed. Nothing the user asked for
+    // waits on an animation: the card's own roll is what lags, and the stack holds the row for
+    // the length of it (`overlay/usePresence.ts`).
     fireEvent.click(screen.getByLabelText("Dismiss reminder"));
-    // The card rolls shut before its ack is sent.
-    await act(() => new Promise((r) => setTimeout(r, 320)));
-    await act(async () => {});
     expect(bridge.acks).toEqual(["r-1"]);
+    await act(async () => {});
     expect(screen.queryByText("Stand-up in 10 minutes")).toBeNull();
   });
 

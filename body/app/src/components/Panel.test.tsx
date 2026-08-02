@@ -1,4 +1,4 @@
-import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { LUCID, STILL } from "../edge/edges";
@@ -278,9 +278,9 @@ describe("Panel", () => {
     // Read before the dismissal, which takes the card away with it.
     fireEvent.click(screen.getByText("open chat"));
     expect(onSelectSession).toHaveBeenCalledWith("c9");
+    // The ack goes up in the frame the check is pressed; the row it removes is held on screen for
+    // the length of its own roll by the stack itself (`overlay/usePresence.ts`).
     fireEvent.click(screen.getByLabelText("Dismiss reminder"));
-    // The card rolls shut before its ack is sent, so the row is not deleted out from under it.
-    await act(() => new Promise((r) => setTimeout(r, 320)));
     expect(onDismissReminder).toHaveBeenCalledWith("r-1");
   });
 

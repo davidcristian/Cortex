@@ -22,25 +22,57 @@ interface Handlers {
   onOpen?: (sessionId: string) => void;
 }
 
+const stack = (reminders: readonly DueReminder[], handlers: Handlers = {}) => (
+  <Reminders
+    reminders={reminders}
+    currentId={handlers.currentId ?? "open-chat"}
+    onDismiss={handlers.onDismiss ?? vi.fn()}
+    onOpen={handlers.onOpen ?? vi.fn()}
+  />
+);
+
 function renderStack(reminders: readonly DueReminder[], handlers: Handlers = {}) {
-  return render(
-    <Reminders
-      reminders={reminders}
-      currentId={handlers.currentId ?? "open-chat"}
-      onDismiss={handlers.onDismiss ?? vi.fn()}
-      onOpen={handlers.onOpen ?? vi.fn()}
-    />,
-  );
+  return render(stack(reminders, handlers));
 }
 
 afterEach(() => {
   vi.useRealTimers();
+  vi.restoreAllMocks();
 });
 
-/** Let a dismissed card finish rolling shut, which is when its ack is actually sent. Timers are
- *  faked here and not for the file: the cards print how long ago they fired, so a frozen clock
- *  changes what every other test in here is reading. */
-const rollShut = () => act(() => vi.advanceTimersByTime(300));
+/** How tall a row measures while the roll stub is installed. Any value past `MIN_DELTA_PX` will
+ *  do: what it buys is a roll that actually runs rather than one `Collapse` completes on the spot. */
+const ROW_PX = 48;
+
+/**
+ * jsdom has neither layout nor the Web Animations API, so a row's exit finishes inside the layout
+ * effect that starts it and a row is never observably mid-roll. Both are stood in for, faithfully
+ * in the one way that matters here: a cancelled animation never finishes, which is what a row
+ * coming back mid-exit depends on. Returns the way to land every roll still in the air.
+ */
+function stubRoll(): () => void {
+  vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockReturnValue(ROW_PX);
+  const finishers: (() => void)[] = [];
+  Element.prototype.animate = (() => {
+    let live = true;
+    const animation = {
+      get playState(): AnimationPlayState {
+        return live ? "running" : "idle";
+      },
+      onfinish: null as (() => void) | null,
+      cancel: () => {
+        live = false;
+      },
+    };
+    finishers.push(() => {
+      if (live) {
+        animation.onfinish?.();
+      }
+    });
+    return animation as unknown as Animation;
+  }) as typeof Element.prototype.animate;
+  return () => act(() => finishers.splice(0).forEach((land) => land()));
+}
 
 describe("Reminders", () => {
   afterEach(() => vi.useRealTimers());
@@ -115,16 +147,60 @@ describe("Reminders", () => {
     expect(container.querySelector("a")).toBeNull();
   });
 
-  it("dismissing a card reports that reminder's id", () => {
+  it("dismissing a card reports that reminder's id, in the frame the check is pressed", () => {
+    // The ack is the user's gesture and the roll is the overlay's answer to it, so the ack does
+    // not wait: held behind a timer the roll's length long, it was lost outright whenever the
+    // stack was unmounted inside those 300ms (a new chat, or the chat a reminder points at).
     const onDismiss = vi.fn();
-    renderStack([reminder(), reminder({ reminderId: "r-2", text: "Stretch" })], { onDismiss });
-    vi.useFakeTimers();
+    const { unmount } = renderStack([reminder(), reminder({ reminderId: "r-2", text: "Stretch" })], {
+      onDismiss,
+    });
     fireEvent.click(screen.getAllByLabelText("Dismiss reminder")[1]!);
-    // The card rolls shut first and is handed over only once it has: acking straight away deleted
-    // the row in a frame, so the card vanished, the stack closed over the hole, and the panel eased
-    // down after both.
-    rollShut();
     expect(onDismiss).toHaveBeenCalledWith("r-2");
+    unmount();
+    expect(onDismiss).toHaveBeenCalledTimes(1);
+  });
+
+  it("holds an acked row through its own roll while the rest of the stack keeps its place", () => {
+    // The defect: the row was the caller's, so the optimistic ack deleted it in a frame and the
+    // rows under it snapped up into the hole. It is held here until its roll ends, and the roll
+    // is what closes the gap.
+    const land = stubRoll();
+    const three = [
+      reminder(),
+      reminder({ reminderId: "r-2", text: "Stretch" }),
+      reminder({ reminderId: "r-3", text: "Drink water" }),
+    ];
+    const { rerender } = renderStack(three);
+    fireEvent.click(screen.getAllByLabelText("Dismiss reminder")[1]!);
+    // What the reducer does with that ack, on the spot: the reminder is gone from the list.
+    rerender(stack([three[0]!, three[2]!]));
+    expect(screen.getAllByLabelText("Dismiss reminder")).toHaveLength(3);
+    expect(screen.getByText("Stretch")).toBeTruthy();
+    // Between its neighbours, still, rather than shunted to the end of the stack.
+    expect([...document.querySelectorAll(".reminder-text")].map((row) => row.textContent)).toEqual([
+      "Stand-up in 10 minutes",
+      "Stretch",
+      "Drink water",
+    ]);
+    land();
+    expect(screen.queryByText("Stretch")).toBeNull();
+    expect(screen.getAllByLabelText("Dismiss reminder")).toHaveLength(2);
+  });
+
+  it("shows a reminder that returns before its exit ends, rather than holding it shut for good", () => {
+    // A lost ack leaves the reminder deliverable and the next summon lists it again under the id
+    // it left with (ADR-0025). Held shut, that row would occupy its place in the stack and never
+    // be seen again.
+    const land = stubRoll();
+    const two = [reminder(), reminder({ reminderId: "r-2", text: "Stretch" })];
+    const { rerender } = renderStack(two);
+    fireEvent.click(screen.getAllByLabelText("Dismiss reminder")[1]!);
+    rerender(stack([two[0]!]));
+    rerender(stack(two));
+    land();
+    expect(screen.getByText("Stretch")).toBeTruthy();
+    expect(screen.getAllByLabelText("Dismiss reminder")).toHaveLength(2);
   });
 
   it("opens the chat a reminder came from, and never acks it in passing", () => {

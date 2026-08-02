@@ -27,10 +27,14 @@ interface CollapseProps {
   readonly open: boolean;
   /** Marks a section the panel leaves out when it centres itself: see `.collapse.aside`. */
   readonly aside?: boolean;
+  /** Called once a CLOSING roll has finished, which is the moment the thing inside may be taken
+   *  away for good. It is what lets a list hold a removed row until its own exit ends
+   *  (`overlay/usePresence.ts`) without owning a second copy of this clock. */
+  readonly onClosed?: () => void;
   readonly children: ReactNode;
 }
 
-export function Collapse({ open, aside = false, children }: CollapseProps) {
+export function Collapse({ open, aside = false, onClosed, children }: CollapseProps) {
   const ref = useRef<HTMLDivElement>(null);
   // Kept mounted through the closing animation: an exit cannot be animated on an element React
   // has already removed. `rendered` therefore lags `open` on the way out, never on the way in.
@@ -79,6 +83,14 @@ export function Collapse({ open, aside = false, children }: CollapseProps) {
       // Rolling open changes no state, so nothing else would tell the panel it just got taller
       // and may have grown past the clear space it keeps above itself.
       element.dispatchEvent(new CustomEvent(MORPH_END_EVENT, { bubbles: true }));
+      // Last, and only on the way shut: this is the caller's licence to take the element out of
+      // the tree, and the panel re-measures on the event above, so the row stays part of what is
+      // measured until the panel has heard the roll end. React's batching would hold the caller's
+      // removal until after this function returns whichever order these two were in; the order
+      // says which of them the other is allowed to depend on.
+      if (!open) {
+        onClosed?.();
+      }
     };
     if (
       Math.abs(to - from) < MIN_DELTA_PX ||

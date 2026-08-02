@@ -1193,3 +1193,135 @@ After: the same two presses each leave the chat as the live view with no tab str
 the first on the empty state and the second on the loaded conversation. One naming note for anyone
 reading the deferral beside this: the tabs were labelled Appearance and Shortcuts when it was
 written and are labelled Face and Chords now, the reducer keys being unchanged.
+
+## Addendum, 2026-08-03: a reminder leaves on its own clock, and its ack does not wait for it
+
+Decision 4 gave every section its own roll, and the deferral filed against it on 2026-07-19 said
+that a row inside one of those sections still went in a frame: `Collapse` wrapped the whole
+reminder stack, so acking one reminder of three deleted that row while the panel eased smoothly
+around the hole. **Read against the code on 2026-08-03, half of that had already been fixed and
+the entry was never closed.** The stack has wrapped each row in its own `Collapse` since the
+settings-tab slice of 2026-07-20, and the roll it produces is the right one: traced at 60Hz, the
+acked row's height ran 57.25px to 0 over the roll and its neighbour travelled the same distance in
+the same frames. What the entry described as the whole defect was therefore already gone; what was
+left underneath it was worse than the entry claimed, and is what this addendum is about.
+
+**The way that first version held the row was to hold the ACK.** Pressing the check put the
+reminder id into a local `going` list, started the roll, and called `onDismiss` from a
+`setTimeout(MORPH_ROLL_MS)`. So the row on screen and the list upstream disagreed for 300ms, and
+everything else followed from that. A `useEffect` cleanup cleared the pending timers on unmount,
+which is correct for a timer and fatal for an ack: the stack is keyed to the chat it belongs to
+(`ChatView`), so minting a new chat or opening the one a reminder points at remounts it, and inside
+those 300ms the ack was cancelled and never sent. Measured in Chromium at 900x900 over the demo
+bridge, acking the middle of three reminders and pressing Ctrl+N 100ms later left all three cards on
+screen, and a fresh summon, which re-reads the brain, listed all three again. The gesture had done
+nothing at all. The same list also never forgot an id, so a reminder that came back (which is
+exactly what a lost ack leaves behind, ADR-0025 preferring a repeated reminder to a lost one) was
+rendered into a `Collapse` that was already shut and stayed invisible for the life of the panel.
+
+### The decision
+
+**A leaving row is held by the view, not by the removal.** The ack goes upstream in the frame the
+check is pressed, the reducer drops the reminder immediately as it always did (ADR-0025's optimistic
+dismissal), and the row is kept on screen afterwards by a new hook,
+`overlay/usePresence.ts`, which renders a list that outlives the caller's. An item that leaves the
+caller's list stays in the rendered one, marked `leaving`, at the index it held, carrying the last
+version of itself that was on screen, until its exit says it is over. Nothing the user asks for
+waits on an animation, and an unmount mid-exit can lose nothing, because there is nothing in flight
+to lose.
+
+**The exit's clock is the roll's, and there is only one of it.** The hook holds no timer and does
+not know how long an exit takes. `Collapse` gained one optional prop, `onClosed`, called when a
+CLOSING roll has finished, and that call is the only thing that ends a hold. So the timing and the
+easing of a leaving row are not a new decision at all: they are `MORPH_ROLL_MS` and `EASING` from
+`overlay/morph.ts`, the same 300ms and the same curve the panel and every other section already
+share. A second clock beside them is the thing this deliberately does not add.
+
+**The order inside `Collapse.finish` is a contract.** `onClosed` is called after the
+`cortex:morphend` dispatch, because the panel re-measures on that event and the row must still be
+part of what it measures. React's batching would hold the caller's removal until after `finish`
+returns in either order; the order is there to say which of the two is allowed to depend on the
+other, and a test asserts the sequence rather than the outcome.
+
+**The layout collapses through the roll and not around it.** A held row is a real row of zero
+height at the end, so its neighbours close the gap by travelling over the roll's own curve, the
+panel's `auto` height follows the section frame by frame exactly as decision 4 set up, and the
+release itself moves nothing: by the time the hook drops the row, the row is 0px tall and its
+`Collapse` has already told the panel the roll is over.
+
+### What it measures
+
+Chromium over the demo bridge, three due reminders on an empty chat, traced per animation frame.
+
+- **640x720, the body's own window, acking the middle of three.** The panel is at its 450px
+  ceiling here, so the history absorbs the whole change: panel top 86, bottom 536, height 450 on
+  every frame of the exit, and the first row's top edge holds at 148 for every frame too. The acked
+  row runs 58.25px to 0 (first sub-pixel movement one frame after the click, zero 317ms later, which
+  is the 300ms roll plus the frame it starts on) and the row below it travels 263.5 to 205.25 across
+  the same frames. The slot leaves the DOM one frame after the height reaches zero and nothing moves
+  when it does.
+- **900x900, where the panel is not clamped, same gesture.** The history yields 26.75px of the
+  58.25 first, so the panel's top edge is still for the opening 167ms, then eases 108 to 138.5 and
+  stops. It is monotonic, the largest single frame is 6.75px, and there is no step at the release:
+  the panel reads 487.5 on the frame before and every frame after.
+- **Two acks 120ms apart at 900x900**, which is the case the old timer made ambiguous. Each row
+  runs its own roll on its own clock (57.25 to 0 across t=42 to t=359, released at 375.8; 58.25 to 0
+  across t=209 to t=525.8, released at 559.1). The row between them never changes height and only
+  travels. The panel's top edge is monotonic through both, 108 to 196.75, largest single frame
+  9.22px, with no backward step anywhere.
+- **The last reminder, where the row's roll and the stack's own wrapper roll run together.** They
+  share the clock and the curve, so the two read as one movement: the panel eases 429.25 to 352
+  monotonically at both viewports, and the card chrome the empty stack still measures (14px of
+  padding and border) leaves with no panel movement at all, being inside a wrapper the panel is
+  already measuring at zero.
+- **The ack, measured the way it was lost.** Acking the middle reminder and pressing Ctrl+N 100ms
+  later now leaves two cards on screen, and a fresh summon lists two. Before, it left three and
+  listed three.
+- **One pixel is spent, and only when the row leaving is the top one.** The hairline sits between
+  two rows, so the row under a departing first row loses the line above it in the frame that empty
+  slot is removed: at 900x900 the panel's last step is 137.5 to 138.5 and the stack's 130.5 to
+  129.5, one frame after a 300ms roll that has already landed. It is kept because it is the truth
+  (a line between two rows, one of which has gone) and because the alternative rule, a border
+  bottom on every row but the last, only moves the same pixel to the case where the BOTTOM row is
+  acked. Acking a middle row spends nothing either way, and it is the case the earlier traces are
+  taken from.
+
+### Two repairs that came with it
+
+Wrapping each row in a `Collapse` had put a `<div>` between the stack's `<ul>` and its `<li>`
+children, and both consequences were live and unnoticed until this pass measured them.
+
+1. **The stack was no longer a list.** Its `<ul>` had three `<div>` children, so the
+   `aria-label="Due reminders"` sat on a list whose items were not items. The row's `<li>` now sits
+   OUTSIDE the roll, as `.reminder-slot`, with the wrapper and the row's own box inside it.
+2. **The hairline between two reminders had been switched off.** It is drawn by
+   `.reminder + .reminder`, an adjacent-sibling rule, and two rows in two wrappers are not
+   siblings. Computed `border-top-width` read 0px on all three rows. The rule now reads down from
+   the slot (`.reminder-slot + .reminder-slot .reminder`), which keeps the border inside the
+   wrapper that clips it, so a row rolling shut takes its own hairline with it and the row left at
+   the top of the stack loses the one above it in the frame that slot leaves. The stack measures
+   187.75px where it measured 185.75px, which is the two restored hairlines and the whole of the
+   difference. Decision 22's reserved-rail note measures that hairline down to the pixel its
+   corner curve fades on, and it is not wrong: it was taken 39 minutes before the wrapper landed,
+   which is how long the measurement was true for.
+
+### One lesson worth the space
+
+The hook's first shape remembered what it had just rendered by writing a ref during the render. It
+passed every test written against it and dropped the row on the first frame in a real browser, which
+is the very defect it exists to prevent, one layer down. The cause is `StrictMode`, which the
+overlay runs under (`main.tsx`) and which invokes a render twice: the second pass read back what the
+first had written and concluded that nothing had left. The memory is written from a layout effect
+now, so a render is a pure function of the props, the state and the last commit, and every case in
+`overlay/usePresence.test.tsx` renders under `StrictMode` so that it stays that way. The general
+form: a hook that derives from "what I rendered last time" has to mean the last COMMIT, and only an
+effect knows which render that was.
+
+### What this does not do
+
+The hook is written to be shared and only the reminder stack is wired to it. The switcher's rows
+have the same shape of exit (a deleted chat leaves the list the moment the write lands) and would
+want the same treatment, but they need their own DOM restructure, their own hover and pinned rules
+re-checked against the wrapper, and their own frame trace, so they are a second surface rather than
+a free line. That is recorded as a deferral in
+[docs/refinements/body-overlay.md](../refinements/body-overlay.md).

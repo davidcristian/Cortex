@@ -9,8 +9,9 @@ are the historical record of what each deferral became, and the index at
 [index.md](index.md) carries the recommended pickup order.
 
 **Open items:** multi-turn-within-one-stream + proto `Cancel`, streamed
-brain status (its producer landed 2026-07-18; only the push RPC remains), a per-row exit for the
-reminder stack, the composer's move on a shrink against the ceiling (a user's choice between two
+brain status (its producer landed 2026-07-18; only the push RPC remains), an exit for the
+switcher's rows (the reminder stack's landed 2026-08-03 and left the hook behind for
+it), the composer's move on a shrink against the ceiling (a user's choice between two
 designs), a placement left computed for a stale height, the composer's own growth being the one
 resize the panel never eases, two sections that are both full outrunning the panel on their own,
 the demo bridge staying over the line cap, the two tradeoffs the reserved scrollbar rail accepts (its width
@@ -212,6 +213,34 @@ chat landed 2026-08-03)
   Fixing it properly is a `usePresence(items, key)` hook that keeps a removed item rendered until
   its own roll finishes, which the switcher's rows would want too. Deferred as genuinely small,
   not as invisible: it is one row, and the surrounding motion no longer amplifies it.
+  - **LANDED 2026-08-03 as the hook this entry named, and the entry was stale about the defect
+    while being right about the fix** ([ADR-0035 addendum](../adr/ADR-0035-console-and-motion.md)).
+    Half of what it describes had been fixed on 2026-07-20, the day after it was written, by the
+    settings-tab slice: the stack has wrapped each ROW in its own `Collapse` since then, and traced
+    at 60Hz that roll is the right one, the acked row running 57.25px to 0 while its neighbour
+    travels the same distance in the same frames. Nobody closed the entry. What was left underneath
+    it was not motion at all and was worse than "one row's worth of instant": that first version
+    held the row by holding the ACK, behind a `setTimeout(MORPH_ROLL_MS)` whose unmount cleanup
+    cancelled it, and the stack is keyed to the chat it belongs to. Measured at 900x900 over the
+    demo bridge, acking the middle of three reminders and pressing Ctrl+N 100ms later left all three
+    cards on screen and a fresh summon listed all three again: the gesture had done nothing. The
+    same local list never forgot an id either, so a reminder that came back, which is exactly what a
+    lost ack leaves behind, rendered into a `Collapse` that was already shut and stayed invisible
+    for the life of the panel. `overlay/usePresence.ts` inverts it: the ack goes up in the frame the
+    check is pressed, the reducer drops the reminder as it always did, and the ROW is what is held,
+    at the index it kept, until its own `Collapse` reports the roll over through a new `onClosed`.
+    The hook owns no clock, `MORPH_ROLL_MS` and `EASING` staying the one vocabulary, and it is
+    written to be shared with the switcher's rows, which are not wired to it (a new deferral,
+    below). Two repairs came with the restructure, both live and unnoticed since the wrapper landed:
+    the stack's `<ul>` had `<div>` children, so it was not a list to a screen reader, and the
+    hairline between two rows is an adjacent-sibling rule that two rows in two wrappers cannot
+    satisfy, so it had been switched off (computed `border-top-width` 0px on all three rows; the
+    stack now measures 187.75px where it measured 185.75px, which is the two restored hairlines
+    exactly). One lesson is worth more than the feature: the hook's first shape remembered its last
+    render by writing a ref DURING the render, passed every test written against it, and dropped the
+    row on the first frame in a real browser, because `StrictMode` invokes a render twice and the
+    second pass read back what the first had written. A hook deriving from what it rendered last
+    time has to mean the last COMMIT, and only an effect knows which render that was.
 - **Two richer directions for the settings and shortcuts views were open, and are CLOSED
   2026-07-20.** What shipped first was the plainest of three pitched to the user: rows, hairlines,
   one way back. The maintainer picked the other two together, and both were built as predicted, inner
@@ -573,6 +602,19 @@ chat landed 2026-08-03)
   defer for the length of the stream, the panel's auto height follows the box frame by frame
   (the drain included), and the end event is the re-measure this entry asked for (ADR-0037
   addendum has the before and after traces).
+- **The switcher's rows have no exit, and the hook for one is already in the tree.** Opened
+  2026-08-03 with the reminder stack's per-row exit ([ADR-0035
+  addendum](../adr/ADR-0035-console-and-motion.md)). Deleting a chat drops its row from
+  `state.sessions` the moment the write lands, so it goes in a frame and the rows under it snap up,
+  which is the defect the reminder stack no longer has. `overlay/usePresence.ts` is generic and was
+  built to be shared, so the missing part is the wiring rather than the mechanism. What makes it a
+  second surface rather than a free line: the row needs the same restructure the reminder row got
+  (the `<li>` outside the roll, the row's box inside it), and the switcher's own rules have to be
+  re-checked against that wrapper, `.switcher-li:hover .switcher-rename-btn` and its two siblings
+  reaching for descendants, `.switcher-li.pinned` styling the row itself, and a row that is
+  mid-rename or mid-delete-confirm being a different subtree of the same slot. It also wants its own
+  frame trace, since a delete refreshes the list behind the roll and resets the panel outright when
+  the chat being deleted is the one on screen. Nothing blocks it.
 - **Per-letter boxes give up kerning pairs.** A whispered message's letters are one box each
   inside an unbreakable word box (ADR-0037 decision 6), so kerning inside a word is lost while
   that message's DOM is on screen (it re-renders plain only when its chat is next loaded).

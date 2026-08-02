@@ -2270,7 +2270,19 @@
   border-radius: 12px;
   animation: confirmin 0.3s var(--ease) both;
 }
-.reminder + .reminder {
+/* The hairline is drawn between two SLOTS rather than between two rows, because a row is inside
+   its own roll wrapper and two rows are therefore never siblings (`components/Reminders.tsx`).
+   The rule reads down the slot so the border still lands on the row, inside the wrapper that
+   clips it: a row rolling shut takes its own hairline down with it.
+
+   One pixel of this is visible and is kept on purpose. Acking the TOP row of a stack leaves the
+   row under it first, so that row loses the hairline above it in the frame the empty slot is
+   removed: traced at 900x900, the panel's last step of the exit is 137.5 to 138.5 and the stack
+   130.5 to 129.5, one frame after a 300ms roll that has already finished. It is the line between
+   two rows correctly ceasing to exist when one of the two does. Drawing it as a border-BOTTOM on
+   every row but the last only moves the same pixel to the other end of the card, where acking the
+   BOTTOM row would spend it instead. */
+.reminder-slot + .reminder-slot .reminder {
   border-top: 1px solid var(--stroke);
 }
 /* The bell's ink runs 1.43px to 13.9px inside its 16px box, so centring the BOX would leave it
