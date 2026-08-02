@@ -69,8 +69,35 @@ describe("overlayState reducer", () => {
   it("keeps an existing title on later turns and truncates/normalizes new ones", () => {
     const first = reduce(run([submit("first question")]), complete);
     expect(reduce(first, submit("second")).title).toBe("first question");
-    expect(run([submit("a".repeat(50))]).title).toBe(`${"a".repeat(32)}…`);
+    expect(run([submit("a".repeat(50))]).title).toBe(`${"a".repeat(48)}…`);
     expect(run([submit("hello    world")]).title).toBe("hello world");
+  });
+
+  it("titles a fresh chat exactly as the brain will title it once the chat is listed", () => {
+    // The local derivation is a stand-in for the brain's, not a bound of its own: a chat is
+    // named here and named again by `ListSessions` a moment later, and while the switcher is
+    // open both strings are on screen at once. So the header a submit writes must equal the
+    // row the brain sends for the same first message. Reddens if the overlay's `TITLE_MAX`
+    // drops below the brain's 48 again: this message is 42 characters, which the brain leaves
+    // whole and a 32 bound cut to `How does the session title trunc…`.
+    const opening = "How does the session title truncation work";
+    const listed: SessionSummary = {
+      sessionId: "chat-9",
+      title: opening,
+      preview: "p",
+      lastActivityUnixMs: 3,
+      pinned: false,
+    };
+    const submitted = run([{ kind: "newChat", sessionId: "chat-9" }, submit(opening)]);
+    expect(submitted.title).toBe(listed.title);
+    // And it still equals it after the list lands and the chat is reopened from the switcher.
+    const refreshed = reduce(submitted, { kind: "sessionsLoaded", sessions: [listed] });
+    const reopened = reduce(refreshed, {
+      kind: "openSession",
+      sessionId: "chat-9",
+      messages: [{ role: "user", text: opening, turnId: "t", atUnixMs: 1 }],
+    });
+    expect(reopened.title).toBe(listed.title);
   });
 
   it("folds delta, tool activity, and status into the streaming message", () => {

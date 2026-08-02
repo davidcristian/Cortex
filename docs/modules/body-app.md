@@ -95,7 +95,12 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
   `sessionState.ts`), so the header and the switcher row agree by construction (a stored generated
   title, a user rename, or the brain-side truncation bound, ADR-0021 header-title addendum) instead
   of re-deriving the header locally; only a chat absent from the loaded list (a reminder deep-link
-  past the recency window) falls back to the local `deriveTitle`. On cold start the first list
+  past the recency window) falls back to the local `deriveTitle`. That local derivation, which also
+  names a chat on its first submit before the brain has listed it, is a **stand-in** for the
+  brain's and not a bound of its own: `sessionState.ts` declares `TITLE_MAX` 48, the same number
+  `cortex_core.sessions` bounds every listed title to, tied to it by `scripts/crosscheck.py` so
+  neither can move alone (ADR-0021 truncation addendum, where the 48-against-32 disagreement that
+  showed one chat under two names is measured). On cold start the first list
   arrival adopts the most recent chat into the
   still-hidden overlay (ADR-0021 addendum): the `adoptSession` reducer action hydrates like
   `openSession` but preserves `mode` and no-ops unless the overlay's `touched` flag is still

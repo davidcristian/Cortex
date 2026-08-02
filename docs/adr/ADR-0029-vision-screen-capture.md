@@ -993,8 +993,16 @@ holds no entry for, in three kinds. Relations the equality comparator cannot exp
 `ALLOWED_MIME_TYPES`, the client's `MAX_RECEIVE_BYTES` above both ceilings); copies that are not
 declarations and so are invisible to a scanner that reads them (the compose healthcheck's inline
 `x-cortex-seam-token`, the two ports spelled inside strings); and TypeScript, which
-`DECLARATIONS` has no syntax for, where the overlay matches `capture_screen` and `thinking`
-against the brain by hand. One pair there, `TITLE_MAX`, is **already divergent** (48 in the
+`DECLARATIONS` had no syntax for, where the overlay matches `capture_screen` and `thinking`
+against the brain by hand. One pair there, `TITLE_MAX`, was **already divergent** (48 in the
 brain, 32 in the overlay, an artefact [ADR-0021](ADR-0021-session-read-seam.md) records),
-so registering it would turn the gate on over a shipped disagreement no one has decided how to
-resolve. It waits on that decision rather than on the scan.
+so registering it would have turned the gate on over a shipped disagreement no one had decided how
+to resolve. It waited on that decision rather than on the scan.
+
+**The TypeScript kind closed later the same day**, when that decision was made: the two bounds are
+one number, the overlay's being a stand-in for the brain's rather than a bound of its own, and the
+scan gained a `.ts` declaration syntax (a module-level `const`, anchored at column 0, optional type
+annotation) plus the pair as its third registered constant. The registry now spans three languages.
+What is left of the deferral is the comparator field, the copies spelled inside strings, and, in
+TypeScript, `thinking` still being a bare literal that would have to be named before it could be
+registered ([ADR-0021](ADR-0021-session-read-seam.md) truncation addendum, 2026-08-03).

@@ -9,8 +9,24 @@ import type { Message } from "./turnState";
 // types cross back, so the runtime import graph stays one-directional.
 
 export const NEW_CHAT_TITLE = "New chat";
-const TITLE_MAX = 32;
+/**
+ * The character bound on a title, the same number the brain's `cortex_core.sessions.TITLE_MAX`
+ * bounds every listed title to, and tied to it by `scripts/crosscheck.py` so neither can move
+ * alone. It has to be the same number rather than merely a number, because `deriveTitle` below is
+ * a STAND-IN for the brain's derivation and not a bound of its own: it names a chat the brain has
+ * not listed yet, and the moment that chat is listed the switcher row beside the header carries
+ * the brain's rendering of the same first message. At 32 against 48 those two strings differed on
+ * screen at once, a 42-character first message reading in full in the row and cut at 32 in the
+ * header, in a header box measured wider than the row (339px against 314px at a 900px viewport,
+ * fitting 42 characters against 39), so the shorter cut was not answering less room.
+ */
+const TITLE_MAX = 48;
 
+/** The live title for a chat the brain has not listed yet: the brain's rule, applied locally.
+ *  Collapse runs of whitespace to single spaces, then past `TITLE_MAX` characters cut and append
+ *  one ellipsis, which is what `_one_line` in `cortex_core.sessions` does to the same text. Once
+ *  the chat is listed, the brain's own title replaces this one (`headerTitle`), and the two read
+ *  alike because the rule and the bound are the same on both sides. */
 export function deriveTitle(text: string): string {
   const oneLine = text.replace(/\s+/gu, " ").trim();
   return oneLine.length > TITLE_MAX ? `${oneLine.slice(0, TITLE_MAX)}…` : oneLine;

@@ -17,8 +17,12 @@ from datetime import datetime
 from cortex_core.conversation import Message
 
 # Title/preview are collapsed to one line and truncated for the switcher (ADR-0021).
-# The overlay's own live-title derivation (for a chat not yet persisted) applies the
-# same rule and is kept documented in step, since neither side can see the other's constant.
+# ``TITLE_MAX`` is declared a second time, in the overlay's ``sessionState.ts``, because its
+# ``deriveTitle`` names a chat this brain has not listed yet and neither toolchain can import the
+# other's constant. The two are held equal by ``scripts/crosscheck.py`` rather than by anyone
+# remembering to move both: they were 48 here against 32 there until 2026-08-03, which put one
+# chat under two names at once (ADR-0021 truncation addendum). ``PREVIEW_MAX`` has no second
+# declaration, the overlay deriving no preview of its own.
 TITLE_MAX = 48
 PREVIEW_MAX = 96
 

@@ -690,3 +690,83 @@ Recorded in [refinements/body-overlay.md](../refinements/body-overlay.md) and on
 argued at length in the [ADR-0035](ADR-0035-console-and-motion.md) addendum of the same date, which
 is the pass that found it. This is the third of that deferral's three records, at the ADR whose
 decision the role belongs to.
+
+## Addendum (2026-08-03): one bound governs a title's length, and a gate now holds the two copies
+
+`TITLE_MAX` was 48 in the brain and 32 in the overlay, and the comment above the brain's
+declaration claimed the overlay "applies the same rule and is kept documented in step". It did
+not. The header-title carry above records the same gap as one of the three disagreements it
+closed, and read against the code that claim was too broad: the carry covers `openSession` and
+`adoptSession`, so it closed the gap for a chat being **loaded**, and left it open for the chat
+being **had**, whose header `turnState.submit` writes from the local derivation and never
+revisits. The overlay is now 48 as well, and `scripts/crosscheck.py` holds the two declarations
+equal, which is the third entry in that gate's registry and the first in TypeScript.
+
+**What governs a title's length at each surface.** Every path below ends at one of two functions,
+`_one_line` in `cortex_core.sessions` or `deriveTitle` in `overlay/sessionState.ts`, which now
+apply the same rule at the same bound: collapse runs of whitespace to single spaces, and past
+`TITLE_MAX` characters cut and append a single ellipsis, so an over-long title renders at 49
+characters.
+
+- *The brain's first-message derivation*, for a chat with no stored title. `summarize_ends` runs
+  the first message's text through `_one_line` at `TITLE_MAX`. Governs every switcher row and,
+  through the carry, the header of any chat opened from the loaded list.
+- *A user rename.* `session_rpc.clamp_title` bounds what is **persisted** to `MAX_TITLE_INPUT`
+  (200), deliberately generous, and the display is re-collapsed and re-bounded to `TITLE_MAX` on
+  every read. A blank override falls back to the derivation rather than blanking the row.
+- *A brain-generated title* (behind `CORTEX_GENERATE_TITLES`). `clean_title` bounds the model's
+  reply to `TITLE_MAX` by a hard slice with **no** ellipsis, and the read-side re-bound is then a
+  no-op, since the stored value is at most exactly the bound. So a generated title that ran long
+  is the one title that reaches the user cut without an ellipsis marking the cut. That is a
+  cosmetic difference inside one language rather than a cross-tree disagreement, and it is left
+  as it stands.
+- *The overlay's local derivation on submit* (`turnState.submit` through `deriveTitle`). The one
+  path with no brain title to read: it names a chat in the same render that starts its first
+  turn, before `ListSessions` has ever seen it. This is the path the disagreement was on, and it
+  is why the bound has to be the brain's number rather than a number: the turn-completion refresh
+  lists the chat a few seconds later, and from then on the header and that chat's own switcher row
+  are two renderings of the same first message, on screen together whenever the switcher is open.
+- *The overlay's local derivation on open* (`titleFor` through `deriveTitle`), reached only when
+  the opened chat is absent from the loaded list. The recorded out-of-window residual: a reminder
+  deep-link to a chat past `listSessions(50)`. It stays a local derivation, and with the bounds
+  equal it now renders what the brain would have listed, so the residual is reduced to a title
+  that a later rename or generated title could still make stale.
+- *The switcher row* (`SessionList`) and *the open-chat header* (`ChatView`) render their string
+  as inert React text and add no bound of their own. Both then ellipsize in CSS at whatever width
+  they have.
+
+**Why 48 and not 32, decided by measurement rather than taste.** The only reason the two bounds
+could honestly differ is if the header had less room than a switcher row. Measured in Chromium at
+a 900x900 viewport, it has more: the header's title box is 339px and fits 42 characters of the
+sample string, while a switcher row's is 314px and fits 39, the header being the wider of the two
+despite carrying four buttons and two indicators, because a row spends width on a reserved
+timestamp column. So the shorter bound was answering nothing. 48 is also not a new number, which is
+what keeps this a removal rather than an invention: it is the bound already governing every title
+the brain lists, and the only titles the brain does not list are the two the overlay derives
+locally, a chat's own first turn and an out-of-window deep link.
+
+**Measured, before and after (Chromium, 900x900, the demo bridge extended for the run so that
+submitting a chat lists it the way the real brain does).** A 42-character first message,
+`How does the session title truncation work`, with the switcher open under the header: before,
+the header read `How does the session title trunc…` (33 characters) while that chat's own row read
+the message in full (42), two strings for one chat at once, and the header box was not clipping,
+so the ten characters were thrown away with room to spare. After, both read the full 42. A
+62-character first message: before, the header read 33 characters and the row 49; after, both read
+`How does the session title truncation actually w…` (49), the row's CSS then ellipsizing it to its
+narrower box. The brain's own rendering of the same inputs, run against `summarize_ends` and
+`clean_title` directly, is 49 characters for the over-long derivation and rename and 48 for the
+over-long generated title.
+
+**The gate.** `crosscheck.py` gained a `.ts` declaration syntax (a module-level `const`, anchored
+at column 0 so a function-local one is not mistaken for it, with an optional type annotation) and
+the pair as its third registered constant. Proved to fail before it was trusted: with the overlay
+alone set back to 32, `python3 scripts/crosscheck.py --root .` exits 1 naming both sites and both
+values. Each side also pins its own literal, `test_the_title_bound_is_forty_eight_characters` in
+the brain and the reducer's title tests in the overlay, so an edit to one constant alone reddens a
+suite and an edit to a constant and its pin together reddens the gate.
+
+**Evidence.** `just check` green over the whole repo. Mutation-proven in the overlay: setting
+`TITLE_MAX` back to 32 reddens both the truncation test and the new
+`titles a fresh chat exactly as the brain will title it once the chat is listed`, which asserts
+the submit-path header equals the `SessionSummary.title` the brain sends for the same first
+message. Browser-validated as measured above.
