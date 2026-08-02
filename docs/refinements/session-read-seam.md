@@ -105,6 +105,19 @@ behind the unchanged `SessionStore.list_sessions` / `BrainTransport` / `BrainBri
   mutation-proven (reverting `headerTitle` to the local derivation reddens the switcher-title tests
   in `openSession`, `adoptSession`, and the cold-start hook); browser-validated against the demo
   bridge, live-validated against real Redis (below).
+  **The truncation-length third of that claim was itself too broad, and closed 2026-08-03
+  ([ADR-0021 truncation addendum](../adr/ADR-0021-session-read-seam.md)).** The carry closed the
+  gap for a chat being *loaded*, which is the only kind `headerTitle` sees. It left it open for the
+  chat being *had*: `turnState.submit` names a brand-new chat from `deriveTitle` in the same render
+  that starts its first turn, and never revisits that header, so the 32 bound survived on the one
+  path where the overlay has no brain title to read. The turn-completion refresh then lists the
+  chat, and from that moment the header and that chat's own switcher row are two renderings of the
+  same first message. Measured in Chromium at 900x900 with the demo bridge extended to list a
+  submitted chat the way the brain does: a 42-character first message read in full in the row and
+  as `How does the session title trunc…` in the header, both visible together, in a header box of
+  339px that fits 42 characters against the row's 314px that fits 39, so the shorter bound was not
+  answering less room. The overlay's `TITLE_MAX` is now 48 and `scripts/crosscheck.py` holds the
+  two declarations equal, the pair being that gate's third entry and the first in TypeScript.
 - **Out-of-window authoritative title.** Opened 2026-07-16 behind the header-title carry above. The
   carry reads the title from `state.sessions`, so a chat **not** in the loaded recency window still
   derives its header locally. The only path today that opens a chat absent from that window is a
@@ -115,6 +128,12 @@ behind the unchanged `SessionStore.list_sessions` / `BrainTransport` / `BrainBri
   read path the reasoning-persistence entry independently wants widened), dead until a consumer that
   opens an out-of-window chat beside the switcher exists (toast activation routing once
   `NotifyRequest` carries a `session_id`, or a search / deep-link by id).
+  **Narrowed 2026-08-03 without being closed.** With the two `TITLE_MAX` declarations now equal
+  (the addendum recorded above), the local derivation renders exactly what the brain would have
+  listed for the same first message, so the fallback no longer differs in *length*. What is still
+  open is what it cannot know: a user rename or a generated title stored against that chat, which
+  only the read path can carry. Measured on the reminder deep-link in Chromium, a chat outside the
+  loaded window opens with its first message derived locally, at the brain's bound.
 - **Session deletion / rename / pinning.** Write operations on the catalog, a later *gated* surface
   (Slice 6.5 gate + Slice 8.8 Confirmer), out of scope for this read-only slice.
   **Rename landed 2026-07-16 ([ADR-0021 rename addendum](../adr/ADR-0021-session-read-seam.md)); pin

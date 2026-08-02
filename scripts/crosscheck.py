@@ -28,8 +28,9 @@ import sys
 from pathlib import Path
 from typing import NamedTuple
 
-# The only comment marker a declaration's right-hand side may carry. Rust needs none: its
-# value is captured up to the terminating semicolon, so a trailing `//` never arrives here.
+# The only comment marker a declaration's right-hand side may carry. Rust and TypeScript need
+# none: their value is captured up to the terminating semicolon, so a trailing `//` never
+# arrives here.
 COMMENT_MARKER = "#"
 
 INTEGER_PRODUCT = re.compile(r"^\d[\d_]*(?:\s*\*\s*\d[\d_]*)*$")
@@ -38,15 +39,19 @@ INTEGER_PRODUCT = re.compile(r"^\d[\d_]*(?:\s*\*\s*\d[\d_]*)*$")
 # cannot fail this scan was written to remove. Two is therefore the floor, not a formality.
 MIN_SITES = 2
 
-# One declaration syntax per language, each matching only a module-level (Python) or item-level
-# (Rust) constant, and each capturing exactly the value expression. `{name}` is substituted with
-# the escaped identifier. An unknown suffix is a fault, never a skip.
+# One declaration syntax per language, each matching only a module-level (Python, TypeScript) or
+# item-level (Rust) constant, and each capturing exactly the value expression. `{name}` is
+# substituted with the escaped identifier. An unknown suffix is a fault, never a skip. The
+# TypeScript form is anchored at column 0 like the Python one, so a `const` inside a function is a
+# local and not a second declaration of the module's constant; its type annotation is optional
+# because TypeScript infers one, where Rust requires it.
 DECLARATIONS = {
     ".py": r"^{name}(?:\s*:[^=\n]*)?\s*=(?P<value>[^\n]*)$",
     ".rs": (
         r"^[ \t]*(?:pub(?:\([^)]*\))?[ \t]+)?(?:const|static)[ \t]+{name}"
         r"[ \t]*:[^=\n]*=(?P<value>[^;\n]*);"
     ),
+    ".ts": r"^(?:export[ \t]+)?const[ \t]+{name}(?:[ \t]*:[^=\n]*)?[ \t]*=(?P<value>[^;\n]*);",
 }
 
 
@@ -99,6 +104,19 @@ CONSTANTS: tuple[Constant, ...] = (
             Site("body/crates/rpc/src/auth.rs", "SEAM_TOKEN_HEADER"),
             Site("body/crates/rpc/src/client.rs", "SEAM_TOKEN_HEADER"),
             Site("brain/packages/seam/src/cortex_seam/__init__.py", "SEAM_TOKEN_HEADER"),
+        ),
+    ),
+    Constant(
+        label="the session-title truncation bound",
+        why=(
+            "the brain bounds every title it lists to this, and the overlay bounds the live "
+            "title it derives for a chat the brain has not listed yet, so a disagreement shows "
+            "one chat under two names at once: the header cut at one bound while its own "
+            "switcher row carries the other (ADR-0021)"
+        ),
+        sites=(
+            Site("brain/packages/core/src/cortex_core/sessions.py", "TITLE_MAX"),
+            Site("body/app/src/overlay/sessionState.ts", "TITLE_MAX"),
         ),
     ),
 )

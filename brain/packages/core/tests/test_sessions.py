@@ -53,6 +53,15 @@ def test_single_message_session_uses_it_for_both_title_and_preview() -> None:
     assert summary.last_activity == _EARLY
 
 
+def test_the_title_bound_is_forty_eight_characters() -> None:
+    # The overlay's `sessionState.ts` declares the same number for the live title it derives
+    # before a chat is listed, so the header and that chat's own switcher row cut at the same
+    # place. Pinned to the literal rather than to itself: an assertion that `TITLE_MAX ==
+    # TITLE_MAX` stays green while the two halves drift, which is what they did (48 here
+    # against 32 there) until crosscheck.py tied them.
+    assert TITLE_MAX == 48
+
+
 def test_whitespace_is_collapsed_to_single_spaces() -> None:
     summary = summarize_session("s1", [_msg(Role.USER, "  hello \n\t world  ", _EARLY)])
     assert summary.title == "hello world"

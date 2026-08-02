@@ -62,7 +62,11 @@ Session listing (Slice 8.7, ADR-0021; `sessions.py`):
   window and drives `merge_pinned`.
 - `summarize_ends(session_id, first, last, *, title_override=None, pinned=False) -> SessionSummary`
   is the pure derivation: `title` from the first message, `preview` from the last, `last_activity`
-  from the last's `at`; each collapsed to one line and truncated (`TITLE_MAX` / `PREVIEW_MAX`).
+  from the last's `at`; each collapsed to one line and truncated (`TITLE_MAX` 48 / `PREVIEW_MAX`
+  96, an over-long value rendering at the bound plus one ellipsis). `TITLE_MAX` is declared a
+  second time in the overlay's `sessionState.ts`, which derives a live title for a chat this brain
+  has not listed yet, and `scripts/crosscheck.py` holds the two equal (ADR-0021 truncation
+  addendum); `PREVIEW_MAX` has no second declaration.
   Taking just the two ends states in the core that nothing between them is needed, which is what
   lets a store read only those two records (ADR-0021 bounded-reads addendum). A non-blank
   `title_override` (a brain-generated title a store holds, ADR-0021 titles addendum) replaces the
@@ -80,10 +84,11 @@ Session listing (Slice 8.7, ADR-0021; `sessions.py`):
   the exact order and cannot drift.
 - `session_title.py` (ADR-0021 titles addendum) is brain-generated titling: `build_title_messages`
   builds the one-message prompt (instruction + opening exchange), `clean_title` collapses/strips/
-  bounds a model reply to `TITLE_MAX` (empty when nothing usable), and `generate_title(backend,
-  model, messages)` runs one tool-less completion and returns the cleaned title, keeping only
-  `TextChunk` (a reasoning model's `ReasoningChunk` and any `ToolCall` are ignored) and letting
-  `InferenceError` propagate for the caller to absorb.
+  bounds a model reply to `TITLE_MAX` (a hard slice with no ellipsis, unlike the derivation's
+  bound, so the read-side re-bound is a no-op; empty when nothing usable), and
+  `generate_title(backend, model, messages)` runs one tool-less completion and returns the
+  cleaned title, keeping only `TextChunk` (a reasoning model's `ReasoningChunk` and any
+  `ToolCall` are ignored) and letting `InferenceError` propagate for the caller to absorb.
 
 Model management (Slice 4, ADR-0007; the swap's value half is ADR-0030, in `model_host.py`):
 

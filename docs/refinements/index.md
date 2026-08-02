@@ -215,7 +215,17 @@ The carry reads the header title from the already-loaded `state.sessions` (the s
 snapshot and agree by construction (a stronger guarantee than the `GetSessionMessages` title field,
 a second read a change between the two could desync). It closed three disagreements the entry named
 only one of: a default-on user rename the header ignored, a 48-vs-32 truncation gap, and the
-generated title. The entry (and this index) undersold the carry by claiming it misses adoption and
+generated title. **The truncation third of that was overclaimed, and settled 2026-08-03**, found by
+the survey behind the cross-language constant scan rather than by a backlog entry. The carry runs
+in `headerTitle`, which only a chat being *loaded* reaches; the chat being *had* takes its header
+from `turnState.submit`, which derives locally at the overlay's own bound and never revisits it. So
+a brand-new chat kept a 32-char header while the turn-completion refresh listed the same first
+message at 48 in its own switcher row directly below, measured in Chromium at 42 characters against
+33 in a header box that fits 42. The overlay is 48 now, the two declarations are the constant scan's
+third registered pair and its first in TypeScript, and the gate was proved to fail on a divergence
+before being trusted (ADR-0021 truncation addendum). The area count does not move: this corrects a
+landed entry and narrows the residual below rather than closing one or opening one. The entry (and
+this index) undersold the carry by claiming it misses adoption and
 cycling "which load by id"; read against the code both target a session already in `state.sessions`
 (adoption is `sessions[0]`, cycling is `cycleTarget(state.sessions, ...)`), so a reducer lookup
 covers switcher-open, cycling, and adoption alike. The residual it opened is the out-of-window
@@ -771,11 +781,13 @@ uncoupled copy of the kind the 1600 px default edge already has four of
 ([ADR-0029](../adr/ADR-0029-vision-screen-capture.md) cross-language-constant addendum). What
 increments repo gates is the survey that shape forced: the seam token's metadata key rode along as
 a second entry, three hand-written declarations with nothing comparing them, and everything else
-found is now a written deferral rather than an absence, in three kinds the scan cannot hold today
-(ordered relations rather than equalities, values spelled inside strings, and TypeScript). One of
-them, `TITLE_MAX`, is **already divergent** at 48 against 32, so registering it would turn a gate
-on over a shipped disagreement nobody has decided how to resolve, and it waits on that decision
-rather than on the scanner ([repo-gates.md](repo-gates.md)).
+found is now a written deferral rather than an absence, in three kinds the scan could not hold that
+morning (ordered relations rather than equalities, values spelled inside strings, and TypeScript).
+One of them, `TITLE_MAX`, was **already divergent** at 48 against 32, so registering it then would
+have turned a gate on over a shipped disagreement nobody had decided how to resolve, and it waited
+on that decision rather than on the scanner ([repo-gates.md](repo-gates.md)). That decision was
+made later the same day, so the registry stands at three and the scan reads TypeScript; see the
+session-read seam entry below.
 
 Vision then **held at 17 on 2026-08-03**, later the same day, when the `opaque` bit's half of the
 pixels-across-a-swap entry landed and the picture half did not, which is the body-gateway
@@ -1436,7 +1448,10 @@ summarization and reranking ([session-history.md](session-history.md),
   field on `GetSessionMessages` the consistency entry named, the same read path the reasoning-persistence
   entry above independently wants widened; reopens with a consumer that opens an out-of-window chat
   beside the switcher (toast activation routing once `NotifyRequest` carries a `session_id`, or a
-  search / deep-link by id) ([session-read-seam.md](session-read-seam.md))
+  search / deep-link by id). Narrowed 2026-08-03 without closing: with the two `TITLE_MAX`
+  declarations now equal, the local fallback renders exactly what the brain would have listed for
+  the same first message, so what remains open is only what the fallback cannot know, a stored
+  rename or generated title ([session-read-seam.md](session-read-seam.md))
 - Provenance across the stores: `ScheduledItem` and `SubagentResult` each carry the taint bit
   and no sources, so a fired task's stamp and a subagent's own readings attribute nothing back
   ([untrusted-content.md](untrusted-content.md))
@@ -1586,12 +1601,15 @@ that scan landing, which turned every unregistered coupling into a decision rath
 in three kinds needing three answers (ordered relations the equality comparator cannot express, such
 as `MAX_EDGE_CEILING` at or below `MAX_IMAGE_EDGE`; values spelled inside strings rather than
 declared, such as the compose healthcheck's fourth copy of the seam-token key and the two ports; and
-TypeScript, which the scan has no declaration syntax for, where the overlay matches `capture_screen`
-and `thinking` against the brain by hand), whose fix is a comparator field, a `.ts` syntax, and a
-resolution for the one pair that is **already divergent** (`TITLE_MAX`, 48 in the brain against 32
-in the overlay, which is why registering it today would turn a gate on over a shipped disagreement),
-and whose trigger is the first coupling that actually drifts or that `TITLE_MAX` decision being made
-for its own reasons ([repo-gates.md](repo-gates.md)).
+TypeScript, where the overlay matched `capture_screen` and `thinking` against the brain by hand and
+the scan had no declaration syntax at all), whose fix is a comparator field, a `.ts` syntax, and a
+resolution for the one pair that was **already divergent** (`TITLE_MAX`, 48 in the brain against 32
+in the overlay, which is why registering it that morning would have turned a gate on over a shipped
+disagreement). **Two of those three landed later the same day** with the truncation bound settled
+below: the scan reads TypeScript, and `TITLE_MAX` is its third registered constant. What is left is
+the comparator field, the copies that are not declarations, the TypeScript names whose far side is a
+CSS use, and `thinking` still being a bare literal rather than a named constant; the trigger is now
+just the first coupling that actually drifts ([repo-gates.md](repo-gates.md)).
 
 Four entries opened by the brain-handoff sub-slices were written up in their area docs and in the
 narrative above but had no line here until 2026-07-19, so nothing said when to pick them up.
