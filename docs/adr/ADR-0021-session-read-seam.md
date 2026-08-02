@@ -770,3 +770,22 @@ suite and an edit to a constant and its pin together reddens the gate.
 `titles a fresh chat exactly as the brain will title it once the chat is listed`, which asserts
 the submit-path header equals the `SessionSummary.title` the brain sends for the same first
 message. Browser-validated as measured above.
+
+## Addendum (2026-08-03): the live suite's sweep is superseded by a database of its own
+
+The sweep addendum above decided how the live-Redis session suite keeps a shared store clean,
+and recorded one residual it could not reach: the checks read a fixed recency window with
+fixture dates in the past, so real sessions more recent than those crowd the fixtures out and
+the run fails over a correct adapter. It sized that residual against
+`check_list_sessions_orders_and_summarizes` and its `limit=50` window, which needs fifty real
+sessions. The pinning addendum then landed
+`check_a_pinned_chat_escapes_the_recency_window`, whose `limit=3` window needs three, and the
+residual was never resized. Sixteen real sessions later it bit, exactly as written.
+
+It is fixed where it belongs, in the test runner rather than in this seam: the live runs now
+select a Redis logical database of their own, so every check starts from the empty store the
+fakeredis fixture already gives it and the sweeps are gone along with the two sibling suites'
+skips. Nothing here changes. `RedisSessionStore` keeps its key layout, `list_sessions` keeps its
+union and its two round trips, and the contract checks keep their assertions. The decision, what
+it rejected, and the evidence are in the
+[ADR-0002 addendum on the live-run database](ADR-0002-toolchain-gates.md).
