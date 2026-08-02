@@ -38,7 +38,7 @@
 // and `interpolate-size` set, opening the switcher moved the panel through exactly one distinct
 // height. So the old geometry is captured before paint and replayed as a real animation.
 
-import { EASING, MORPHING_ATTRIBUTE, TAB_SLACK_ATTRIBUTE } from "./morph";
+import { EASING, MORPHING_ATTRIBUTE } from "./morph";
 
 /** Set on the panel while it is easing between two sizes. Read only by the stylesheet, which hides
  *  the history's scrollbar thumb for the duration: mid-ease the panel is shorter than the height it
@@ -55,6 +55,7 @@ import { EASING, MORPHING_ATTRIBUTE, TAB_SLACK_ATTRIBUTE } from "./morph";
 const RESIZING_ATTRIBUTE = "data-resizing";
 import {
   type Geometry,
+  arrivalBottom,
   centred,
   clamped,
   durationOf,
@@ -64,40 +65,11 @@ import {
   settled,
 } from "./panelGeometry";
 import { type Memory, type Placement, arriving, heightOf, measure } from "./panelMemory";
+import { centringHeight, holdScroll, tabSlack } from "./panelParts";
 import { rideAlong } from "./panelRide";
 
 /** The view whose position is remembered across a trip to another one. */
 const CHAT_VIEW = "chat";
-
-/** How far the view arriving falls short of the tallest shape it can take, which it publishes
- *  itself (`TAB_SLACK_ATTRIBUTE`); 0 for a view of one shape, which is every view but the
- *  console. Added to the bottom edge on the way in, so the top edge lands where the tallest shape
- *  would put it and a shorter tab ends higher instead of starting lower. Without it the console's
- *  strip sat at two different heights depending on which tab it was opened on, and the user
- *  caught it: the shortcuts tab opened lower than the appearance tab. */
-function tabSlack(element: HTMLElement): number {
-  const published = element
-    .querySelector(`.view:not(.out) [${TAB_SLACK_ATTRIBUTE}]`)
-    ?.getAttribute(TAB_SLACK_ATTRIBUTE);
-  return published === null || published === undefined ? 0 : Number(published);
-}
-
-/**
- * The bottom edge a view of more than one shape arrives on: the one that puts its TOP where its
- * TALLEST shape would have put it, hanging this shape from there.
- *
- * Worked out in full here rather than as an adjustment to the edge, because the tallest shape may
- * not fit above that edge at all, and then its top is the clear space kept at the screen's top
- * instead. Getting that wrong is not a rounding error but a second movement: the first cut added
- * the slack to the edge and let the panel's own top-holding correct it on the next render, which
- * put the console through two eases, the second one sliding its bottom down 44px after it had
- * apparently arrived.
- */
-function arrivalBottom(viewport: number, edge: number, height: number, slack: number): number {
-  const clearTop = viewport - maxHeight(viewport, 0);
-  const top = Math.max(clearTop, viewport - edge - (height + slack));
-  return viewport - top - height;
-}
 
 /** Whether entering another view slides the panel to the true middle of the screen, or keeps the
  *  bottom edge it is standing on and resizes in place. The slide shipped first; the maintainer chose
@@ -106,37 +78,6 @@ function arrivalBottom(viewport: number, edge: number, height: number, slack: nu
  *  branches green, and flipping this constant is the whole change back. */
 export const VIEW_CHANGE_RECENTRES = false;
 
-/** Every box inside the panel that scrolls: the conversation, and a console tab's rows. Written out
- *  rather than discovered, because discovering it means reading `scrollTop` off every node in the
- *  panel on every token of a stream. A new scrolling box in the panel belongs in this list. */
-const SCROLL_BOXES = ".history, .rows";
-
-/**
- * Take the scroll positions the measurement below is about to cost, and give them back.
- *
- * The panel measures itself by growing to the loosest cap any edge could allow and reading what it
- * becomes (`openHeight`). A scroll box inside a taller panel is a taller box, and the engine answers
- * a box that has outgrown its own scroll range by CLAMPING it to the range it now has, which putting
- * the real cap back does not undo. So the panel's own measurement walks the log up under the reader.
- *
- * Traced at 60Hz at 640x720 through a streamed reply, wheeling 60px up from the tail: `scrollTop`
- * read 312, then 252 the frame the wheel landed, then 215 two frames later with nothing else
- * touching it, 215 being exactly the deepest a 390px window can scroll a 605px log. Every token did
- * it again, which is what "the history will not let me scroll while a reply streams" is. The same
- * clamp lands on the way back from the console, where it took the position `ChatView` had just
- * restored and left the log 97px off the tail rather than where the reader was.
- */
-function holdScroll(element: HTMLElement): () => void {
-  const boxes = [...element.querySelectorAll<HTMLElement>(SCROLL_BOXES)].map(
-    (box) => [box, box.scrollTop] as const,
-  );
-  return () => {
-    for (const [box, top] of boxes) {
-      box.scrollTop = top;
-    }
-  };
-}
-
 /**
  * Where the panel's bottom edge wants to be, before the ceiling has its say.
  *
@@ -144,23 +85,6 @@ function holdScroll(element: HTMLElement): () => void {
  * was parked when it was left. A closed panel always re-centres, because it is about to be summoned
  * and should come back to the middle rather than to wherever the last conversation had pushed it.
  */
-/** The height the panel centres ON, which is not always the height it HAS. A section marked `aside`
- *  is left out of it: the reminder stack arrives with the summon and can be two rows or five, so
- *  centring on it puts the conversation wherever the day's reminders happen to leave it. The chat
- *  centres on itself and the stack grows it upward from there, the way every other arrival does.
- *
- *  Only an aside in the view being PLACED counts. The view being left is still in the DOM for one
- *  morph, and a stack belonging to it was being subtracted from the height of the view arriving,
- *  which has no stack and never did. Measured at 640x720 entering the console over an empty chat
- *  with three reminders up: the console is 347px tall and was centred as though it were 155, which
- *  put it 96px above the middle of the screen and, since the ceiling is measured from the edge it
- *  sits on, capped it at 351px instead of 448. The console then had four spare pixels in it, and
- *  anything added to a tab scrolled rather than fitting. */
-function centringHeight(element: HTMLElement, height: number): number {
-  const aside = element.querySelector<HTMLElement>(".view:not(.out) .collapse.aside");
-  return height - (aside?.offsetHeight ?? 0);
-}
-
 function wantedBottom(
   memory: Memory,
   at: Placement,

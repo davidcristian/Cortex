@@ -4,6 +4,7 @@
 import { EASING, MIN_DELTA_PX, MORPHING_ATTRIBUTE, MORPH_ROLL_MS } from "./morph";
 import { centred, clamped, frame, maxHeight, openHeight } from "./panelGeometry";
 import { type Memory, heightOf, measure } from "./panelMemory";
+import { centringHeight } from "./panelParts";
 
 /**
  * Slide the bottom edge to where the roll now running will leave it, over that same roll.
@@ -55,21 +56,28 @@ export function rideAlong(
     // after the fact: it ends centred on the height it is taking the panel to, and that is the edge
     // the session is then pinned to.
     //
-    // A section marked `aside` is left out of that height, exactly as `centringHeight` leaves it out
-    // of an ordinary placement. The reminder stack is the one that rolls in behind a summon, and
-    // centring on it is what put the conversation wherever the day's reminders left it: measured at
-    // 900px with three cards up, the chat sat 26px below its own centre.
+    // Counted through `centringHeight`, the SAME function the placement at the end of the roll
+    // counts its own measurement with, which is what makes this edge a measurement rather than a
+    // guess at one. The section's current height cancels out of `raw`, so the prediction is exact,
+    // and asking the two questions the same way is what makes the placement afterwards find
+    // nothing left to move. Written out here instead, it asked only whether the ROLLING section was
+    // the aside, so an aside merely STANDING in the panel was counted into the centring by the
+    // ride-along and out of it by the placement: measured at 900x1000 over the demo, Ctrl+N with
+    // the switcher list open (the list rolls shut behind the summon while the reminder stack
+    // stands) pinned the panel to 227 where the placement at the end of the roll re-centred it to
+    // 324, and a touch inside the arrival window, which is what stops that placement re-centring,
+    // left the session 97px low for the rest of it.
     //
-    // Counted off the RAW prediction, never a clamped one. Subtracting the aside from a height
-    // the OLD edge's ceiling had already eaten centred the chat on the remainder, pinned an edge
-    // the whole panel could not fit above, and the cap written for that edge then squeezed the
-    // chat under the rolling stack until the placement after the roll undid it: traced at 760px
-    // with the demo's reminders, the history lost 119px over the roll and a second 40px ease
-    // gave it back, the two-beat arrival the maintainer caught. The bound is `openHeight`, the same
-    // loose cap an ordinary placement measures under, so the two agree on the edge and that
-    // second placement finds nothing left to move.
-    const counted = section.classList.contains("aside") ? raw - target : raw;
-    memory.pinned = centred(viewport, Math.min(counted, openHeight(viewport)));
+    // Bounded at `openHeight`, the loose cap the placement measures the panel under, and bounded
+    // BEFORE the aside comes off for the same reason: that is the order the measurement happens in,
+    // the element having already been capped when its height is read. Bounding it after put the
+    // ride-along a whole aside above the placement on any panel whose content outgrows that cap.
+    // Bounding it at the OLD edge's ceiling, tighter still, was worse than either: it centred the
+    // chat on a remainder, pinned an edge the whole panel could not fit above, and let the cap
+    // written for that edge squeeze the chat under the rolling stack until the placement after the
+    // roll undid it, which at 760px with the demo's reminders cost the history 119px over the roll
+    // and gave 40 back in a second ease.
+    memory.pinned = centred(viewport, centringHeight(element, Math.min(raw, openHeight(viewport))));
   }
   const bottom = clamped(memory.pinned);
   const ceiling = maxHeight(viewport, bottom);

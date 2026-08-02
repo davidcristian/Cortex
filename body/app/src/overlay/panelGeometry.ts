@@ -106,6 +106,28 @@ export function centred(viewport: number, height: number): number {
 }
 
 /**
+ * The bottom edge a view of more than one shape arrives on: the one that puts its TOP where its
+ * TALLEST shape would have put it, hanging this shape from there.
+ *
+ * Worked out in full here rather than as an adjustment to the edge, because the tallest shape may
+ * not fit above that edge at all, and then its top is the clear space kept at the screen's top
+ * instead. Getting that wrong is not a rounding error but a second movement: the first cut added
+ * the slack to the edge and let the panel's own top-holding correct it on the next render, which
+ * put the console through two eases, the second one sliding its bottom down 44px after it had
+ * apparently arrived.
+ */
+export function arrivalBottom(
+  viewport: number,
+  edge: number,
+  height: number,
+  slack: number,
+): number {
+  const clearTop = viewport - maxHeight(viewport, 0);
+  const top = Math.max(clearTop, viewport - edge - (height + slack));
+  return viewport - top - height;
+}
+
+/**
  * The pinned edge as the DOM may have it: on screen, and nothing more. The ceiling is no longer
  * applied here, because it is applied to the HEIGHT instead (`maxHeight`); pushing the bottom edge
  * down to make room for a taller panel is exactly the downward growth that is not wanted.
