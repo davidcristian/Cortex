@@ -29,6 +29,10 @@ decisions the spec left open; this ADR records them so no future agent re-derive
 5. **Tests live outside counted source files.** Rust tests go in `tests/` directories;
    Python tests in `tests/` directories. The linecap scan excludes `tests/` dir
    components plus `test_*.py`, `*_test.py`, `conftest.py`, `*_test.rs`.
+   *Amended (2026-08-03):* the scan reaches the overlay's TypeScript too, so both lists
+   grew, this one by Vitest's own `*.test.ts`/`*.test.tsx` plus `test-setup.ts`, and
+   decision 4's by `dist` and `coverage`. The suffixes, the skips and what stays outside
+   the cap are decided in the [ADR-0011](ADR-0011-body-v1.md) line-cap addendum.
    *Amended (Slice 2):* a narrowly-scoped inline `#[cfg(test)]` module is permitted
    when it unit-tests private internals unreachable through the public API (first use:
    the status-mapping helpers in `body/crates/rpc/src/client.rs`). Inline tests count

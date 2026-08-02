@@ -33,7 +33,7 @@ check:
     done
     exit "$fail"
 
-# AGENTS.md gate 1: ≤300 lines per non-test .py/.rs source file, both trees.
+# AGENTS.md gate 1: ≤300 lines per non-test .py/.rs/.ts/.tsx source file, every tree.
 check-linecap:
     cd scripts && uv sync --locked
     cd scripts && uv run python linecap.py --root ..
@@ -69,9 +69,6 @@ check-body:
     cd scripts && uv sync --locked
     cd scripts && uv run python coverage_gate.py ../body/coverage.json
 
-# Overlay frontend (React + Vite): typecheck + Vitest at 100% line+branch coverage
-# (ADR-0011 addendum). Host-only node toolchain, path-filtered in CI (ADR-0006); not under
-# the .py/.rs line cap. Entry glue (main.tsx) + the real Tauri bridge are coverage-excluded.
 check-overlay:
     cd body/app && npm ci
     cd body/app && npm run typecheck

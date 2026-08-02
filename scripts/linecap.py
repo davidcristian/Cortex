@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import NamedTuple
 
 DEFAULT_MAX_LINES = 300
-SOURCE_SUFFIXES = frozenset({".py", ".rs"})
+SOURCE_SUFFIXES = frozenset({".py", ".rs", ".ts", ".tsx"})
 SKIPPED_DIRS = frozenset(
     {
         ".git",
@@ -18,11 +18,21 @@ SKIPPED_DIRS = frozenset(
         "__pycache__",
         ".pytest_cache",
         ".ruff_cache",
+        "dist",
+        "coverage",
         "tests",
         "_generated",
     }
 )
-SKIPPED_FILE_PATTERNS = ("test_*.py", "*_test.py", "conftest.py", "*_test.rs")
+SKIPPED_FILE_PATTERNS = (
+    "test_*.py",
+    "*_test.py",
+    "conftest.py",
+    "*_test.rs",
+    "*.test.ts",
+    "*.test.tsx",
+    "test-setup.ts",
+)
 
 
 class UnreadableFileError(Exception):
@@ -70,7 +80,7 @@ def scan(root: Path, cap: int) -> list[Violation]:
 def main(argv: list[str] | None = None) -> int:
     """Run the gate; print any violations and return the process exit code."""
     parser = argparse.ArgumentParser(
-        description="Fail when a non-test .py/.rs source file exceeds the line cap.",
+        description="Fail when a non-test .py/.rs/.ts/.tsx source file exceeds the line cap.",
     )
     parser.add_argument(
         "--root",

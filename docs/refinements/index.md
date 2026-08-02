@@ -35,7 +35,7 @@ its signature.
 
 | Doc | Area | Open |
 | --- | --- | --- |
-| [repo-gates.md](repo-gates.md) | Line cap, dashcheck, coverage config (ADR-0026), gate coverage of the ungated Rust trees (ADR-0011), test-runner mechanics (ADR-0002) | 3 |
+| [repo-gates.md](repo-gates.md) | Line cap, dashcheck, coverage config (ADR-0026), gate coverage of the ungated Rust trees and of the overlay's TypeScript (ADR-0011), the stylesheet still outside the cap, test-runner mechanics (ADR-0002) | 4 |
 | [seam-transport.md](seam-transport.md) | `BrainTransport` retry/reconnect (ADR-0003/0024) | 4 |
 | [seam-auth.md](seam-auth.md) | Seam token auth (ADR-0016) | 1 |
 | [session-history.md](session-history.md) | Slice 3 history windowing and summarization | 1 |
@@ -44,7 +44,7 @@ its signature.
 | [memory.md](memory.md) | Store, scoping, rerank/MMR (ADR-0008) | 8 |
 | [inference-model-manager.md](inference-model-manager.md) | Model-manager lifecycle, MTP, reasoning status (ADR-0007/0020) | 7 |
 | [subagents.md](subagents.md) | Progress reporting, spawn schema, heterogeneous roster (ADR-0010/0018) | 2 |
-| [body-overlay.md](body-overlay.md) | Overlay polish, connection indicator, proto Cancel (ADR-0011), an exit for the switcher's rows, the composer's move on a clamped shrink, the demo bridge staying over the line cap, the reserved scrollbar rail's assumed width and spent card inset, the chat floor's frozen measurement of the empty state, a mid-stream retarget restarting from a rounded height, a Thoughts trace opening a reply off the bottom of a full history, sections tall enough to outrun the panel on their own, the console tab strip's missing keyboard half, and the whisper's follow-ups (ADR-0037): a pickable voice row, a mid-stream resize keeping the old wrap width, and kerning inside the letter boxes under a changed font (its drain-growth entry landed the day it was filed, and the console outliving a new chat, the reminder stack's per-row exit, and the panel's watch on its own box with the arrival-aside correction that came out of it all landed 2026-08-03), and a resize that lands inside the panel's own move waiting for it | 16 |
+| [body-overlay.md](body-overlay.md) | Overlay polish, connection indicator, proto Cancel (ADR-0011), an exit for the switcher's rows, the composer's move on a clamped shrink, the reserved scrollbar rail's assumed width and spent card inset, the chat floor's frozen measurement of the empty state, a mid-stream retarget restarting from a rounded height, a Thoughts trace opening a reply off the bottom of a full history, sections tall enough to outrun the panel on their own, the console tab strip's missing keyboard half, and the whisper's follow-ups (ADR-0037): a pickable voice row, a mid-stream resize keeping the old wrap width, and kerning inside the letter boxes under a changed font (its drain-growth entry landed the day it was filed, and the console outliving a new chat, the reminder stack's per-row exit, the panel's watch on its own box with the arrival-aside correction that came out of it, and the demo bridge over the line cap all landed 2026-08-03), and a resize that lands inside the panel's own move waiting for it | 15 |
 | [session-read-seam.md](session-read-seam.md) | Session listing/read seam (ADR-0021) | 3 |
 | [resource-governance.md](resource-governance.md) | Scheduler/placer budgets, NPU, drain (ADR-0012) | 5 |
 | [email-confirmer.md](email-confirmer.md) | Email write, Confirmer, attachments, `ToolActivity` chip (ADR-0022) | 4 |
@@ -728,6 +728,30 @@ not a jump (traced at 900x1000, the residue eases 40px over about 120ms with no 
 hand-back) and whose real fix is the mid-stream retarget's, since both want a move that can be
 redirected from where it is without being restarted.
 
+Body & overlay went **16 to 15 and repo gates 3 to 4 on 2026-08-03**, from a finding that is about
+this backlog as much as about the code. Reviewing the day's landed change turned up a gate that
+could not fail: `scripts/linecap.py` had scanned `.py` and `.rs` only since it was written, which
+was right while [ADR-0001](../adr/ADR-0001-architecture.md) open question 6 scoped both the coverage
+gate and the 300-line cap away from a "kept minimal" frontend, and wrong from the moment ADR-0011's
+2026-07-01 addendum reversed that for coverage and left the cap behind. For thirty-three days
+AGENTS.md gate 1 stated a rule over a 65-module tree that nothing measured. **What that cost was
+paid here, in this file.** Two entries tracked overlay cap violations by eye across that window and
+both drifted, in the two ways an unenforced rule drifts: `bridge/demoBridge.ts` was recorded at 326
+on a day it already stood at 351 and was still 351 fourteen days later, and the claim that it was
+the only overlay source over the cap was true for exactly one day, `overlay/panelPlacement.ts`
+crossing to 304 and then 371 the next morning and sitting there for thirteen days until an unrelated
+`ResizeObserver` change took it to 295 by accident. Neither cost anything but its own accuracy,
+which is the point: an unenforced rule fails silently, so the backlog that exists to catch lost
+decisions was itself the thing keeping the lost decision. The cap now covers `.ts`/`.tsx` with
+Vitest's own notion of a test file as its exclusion ([ADR-0011](../adr/ADR-0011-body-v1.md) line-cap
+addendum) and `demoBridge.ts` was split rather than exempted, which decrements body & overlay. What
+increments repo gates is what turning the gate on made visible: `overlay.css` at **2420 lines**, the
+longest hand-written file in the repo, still outside the cap on an argument about cascades that is
+honest about the remedy and evasive about the problem ([repo-gates.md](repo-gates.md)). The proto is
+the other thing outside, and it is a decision rather than a deferral: capping `proto/body.proto`
+(314) would put a gate in direct conflict with AGENTS.md's own invariant that the seam is defined
+once, in one file.
+
 ## Recommended order
 
 Ordered by what unblocks the most value soonest. Before starting any item, verify its claims
@@ -818,12 +842,19 @@ against the code (the warning above); the entry text tells you which seams it ex
   2026-07-20 and **closed the same day**, along the two seams the entry named: the turn-event fold
   left the reducer for `overlay/turnState.ts` (394 to 241) and the chat catalog left the controller
   for `overlay/useSessionCatalog.ts` (321 to 181), both re-entering through the module they left so
-  no call site moved.
+  no call site moved. Its closing line, that AGENTS.md's cap "is now met", was **corrected
+  2026-08-03**: it held for one day, until `overlay/panelPlacement.ts` went to 304 and then 371 on
+  2026-07-21 and stayed over the cap for thirteen days, since nothing but attention was measuring.
 - **`bridge/demoBridge.ts` stays over that cap** ([body-overlay.md](body-overlay.md)), open from
-  2026-07-20: the last overlay source above 300 (326), untouched by the console merge. Its natural
-  split is the canned demo script into a constants module, which no test imports, so it would cost
-  a new entry in the coverage `exclude` list. Widening that list is the bigger concession, so this
-  waits for the demo to grow behaviour worth testing.
+  2026-07-20 and **closed 2026-08-03**, along the seam it named but against a corrected cost and
+  two corrected numbers. Its 326 was stale the day it was filed (the file already stood at 351, and
+  still did fourteen days later), and "the last overlay source above 300" was true for one day, per
+  the correction above. The canned script left for `bridge/demoScript.ts` (141) and the bridge went
+  351 to 234. The entry was right that an exclusion is required, measured rather than assumed: an
+  unexcluded `demoScript.ts` reports 0% and takes the overlay from 100% to 97.45%, exit 1. It was
+  wrong that this is the bigger concession, because the demo bridge has been coverage-excluded since
+  it was written, so the cost is one explicit path extending an exclusion that already exists rather
+  than a new kind of unmeasured file. The comparison had been drawn against a cap nothing enforced.
 - **The chat floor's frozen measurement of the empty state**
   ([body-overlay.md](body-overlay.md)), open from 2026-07-20, when a `min-height` sized to the
   empty state stopped the panel shrinking on the first message. The 185px is measured and
@@ -1358,7 +1389,14 @@ occasional lint on 881 lines of host-validated thin wiring, whose trigger is CI 
 Tauri desktop stack for another reason (a future CI-side Tauri build or smoke job) so shell
 clippy rides along, or shell findings outpacing the user's local checks; confirmed clippy-clean
 live over a `pkg-config` shim, with a planted lint proving the declined check real
-([repo-gates.md](repo-gates.md)).
+([repo-gates.md](repo-gates.md)); and the overlay stylesheet outside the line cap, opened here on
+2026-08-03 behind the cap reaching the overlay's TypeScript, which turned an oversight into a
+decision: `body/app/src/overlay.css` is 2420 lines and uncapped on the argument that the cap's
+"split by responsibility" remedy presumes a module with a public contract while a stylesheet is one
+cascade whose ordering is load-bearing, whose fix is a split by layer imported in a fixed order from
+one entry sheet (one suffix in the scanner, everything else in the CSS), and whose trigger is an
+edit landing in the wrong cascade position because the file is too long to hold in view, or a second
+stylesheet appearing and forcing the ordering question anyway ([repo-gates.md](repo-gates.md)).
 
 Four entries opened by the brain-handoff sub-slices were written up in their area docs and in the
 narrative above but had no line here until 2026-07-19, so nothing said when to pick them up.

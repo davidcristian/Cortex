@@ -81,8 +81,10 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
   lists first), plus the
   `TurnEvent` / `TransportError` / `SessionSummary` / `SessionMessage` types, the
   TS mirror of the Rust `body_core` values. Three implementations: `TauriBridge` (real, over IPC),
-  `DemoBridge` (canned stream + canned chats for `vite dev`), `FakeBridge` (tests). Only
-  `tauriBridge.ts`, `demoBridge.ts`, and `main.tsx` are coverage-excluded (the un-gated glue);
+  `DemoBridge` (canned stream + canned chats for `vite dev`, with everything it says or serves in
+  `demoScript.ts` beside it and only the behaviour left in the class), `FakeBridge` (tests). Only
+  `tauriBridge.ts`, `demoBridge.ts`, `demoScript.ts`, and `main.tsx` are coverage-excluded (the
+  un-gated glue);
   everything else is 100% line + branch. `useOverlay` owns the `session_id` (minted per new chat)
   and the store-backed chat list (loaded on mount + after each turn; a chat's history loads on
   select/cycle). The open-chat **header title** is the switcher's own `SessionSummary.title` for

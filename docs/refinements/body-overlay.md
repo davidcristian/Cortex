@@ -13,7 +13,7 @@ brain status (its producer landed 2026-07-18; only the push RPC remains), an exi
 switcher's rows (the reminder stack's landed 2026-08-03 and left the hook behind for
 it), the composer's move on a shrink against the ceiling (a user's choice between two
 designs), two sections that are both full outrunning the panel on their own,
-the demo bridge staying over the line cap, the two tradeoffs the reserved scrollbar rail accepts (its width
+the two tradeoffs the reserved scrollbar rail accepts (its width
 is assumed rather than measured off the engine, and the two 6px cards spend their whole inset on
 it), the chat floor's frozen measurement of the empty state, a mid-stream retarget restarting
 from a rounded height, a Thoughts trace opening a reply off the bottom of a full history, the
@@ -26,7 +26,10 @@ placement left computed for a stale height, the composer's own growth being the 
 never eases, and a touch mid-roll pinning the session to a prediction all landed together on
 2026-08-03, the first two as the `ResizeObserver` they asked for and the third as something else
 entirely (the arrival was counting an aside the placement was counting out); the waiting resize is
-the one thing that watch deliberately does not do, and was opened with it.
+the one thing that watch deliberately does not do, and was opened with it. The demo bridge over the
+line cap landed later the same day, along the seam it named, when the cap started actually measuring
+`.ts`/`.tsx` ([ADR-0011](../adr/ADR-0011-body-v1.md) line-cap addendum) and both cap entries here
+turned out to have drifted while nothing was watching them.
 
 **Body / overlay in Slice 8 ([ADR-0011](../adr/ADR-0011-body-v1.md)):**
 - **Multi-turn-within-one-stream + an explicit proto `Cancel` event.** One turn per `Converse`
@@ -429,7 +432,17 @@ the one thing that watch deliberately does not do, and was opened with it.
   hand and the catalog needs. `scripts/linecap.py` still scans `.py` and `.rs` only, so nothing
   machine-enforced changed; what changed is that AGENTS.md's cap, which is about cognitive load and
   does not care which toolchain a file is in, is now met.
-- **`bridge/demoBridge.ts` (326) is the one overlay source still over that cap, and staying.**
+
+  **Corrected 2026-08-03: "is now met" held for one day.** The entry's count of two was true when
+  it was written, and its closing claim stopped being true on 2026-07-21, when
+  `overlay/panelPlacement.ts` went to 304 (`9e2ec6c3`) and then 371 (`051e733d`) and stayed over
+  the cap for thirteen days, until the ResizeObserver work took it to 295 on 2026-08-03 as a side
+  effect rather than because anything complained. That is exactly the failure mode the sentence
+  before it described: a cap met by attention is met until attention moves on. The cap is machine
+  enforced over `.ts`/`.tsx` from 2026-08-03 ([ADR-0011](../adr/ADR-0011-body-v1.md) line-cap
+  addendum), so this line is the historical record of that interval rather than a standing
+  description.
+- ~~**`bridge/demoBridge.ts` (326) is the one overlay source still over that cap, and staying.**~~
   It is the browser-dev fake, coverage-excluded as the frontend analog of the real Tauri bridge and
   exercised by hand rather than in CI. The obvious split is its canned script (the reply, the
   reasoning trace, the gated draft, the outage details) into a constants module, and that module
@@ -438,6 +451,26 @@ the one thing that watch deliberately does not do, and was opened with it.
   bigger concession than a long dev-only fake. The trigger is the demo growing a second behaviour
   worth testing, at which point the script becomes real data with a real test and the exclusion
   question answers itself.
+
+  **Struck 2026-08-03, along exactly the seam this entry named, with two of its own numbers
+  corrected.** The 326 was stale the day it was filed: `42be4c49` had already taken the file to
+  **351** on 2026-07-20, and nothing measured it again for fourteen days. "The one overlay source
+  still over that cap" was true on 2026-07-20 and false from 2026-07-21, per the correction above.
+  What the entry got right is the seam. The canned script left for `bridge/demoScript.ts` (141: the
+  reply, the reasoning trace, the confirm round and its draft, the outage details, and the seeded
+  switcher, reminders and transcripts), taking the bridge from 351 to 234 with only behaviour left
+  in the class, and `sessions()`/`reminders()` are functions rather than constants so each
+  `DemoBridge` still stamps its seed relative to its own construction. What it got wrong is the
+  cost, because it weighed the split against a cap nothing enforced. **Measured rather than
+  assumed:** leaving `demoScript.ts` out of the coverage `exclude` list reports it 0% over lines 8
+  to 141 and takes the overlay from 100% to 97.45%, exit 1, so the entry was right that an
+  exclusion is required. But the concession is not a new kind of unmeasured file, since the demo
+  bridge has been coverage-excluded since it was written; it is the same exclusion spelled over the
+  two files it now occupies. It is written as an explicit path rather than a `demo*.ts` glob,
+  because loose enumeration in gate config has already cost this repo once ([repo-gates.md](repo-gates.md),
+  the fail-open `scripts/` config closed 2026-07-12). The trigger the entry set, the demo growing a
+  second behaviour worth testing, is untouched and is still what would turn the script into tested
+  data.
 
 **Scrollbars as reserved chrome ([overlay-ux.md §2](../design/overlay-ux.md),
 [ADR-0035](../adr/ADR-0035-console-and-motion.md) decision 22, 2026-07-20):**

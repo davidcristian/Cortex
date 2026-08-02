@@ -50,7 +50,8 @@ later move to macOS or Linux is plausible.
 6. **Toolchains and gates.** Python 3.12+/`uv` (ruff, `pyright` strict, which was chosen over
    `mypy --strict` for speed and stronger `Protocol` inference, pytest at 100%
    line+branch) and Rust stable/Cargo (fmt, clippy `-D warnings`, cargo-llvm-cov at
-   100%), a 300-line cap on all non-test `.py`/`.rs` files, doc-first DoD, and a single
+   100%), a 300-line cap on all non-test `.py`/`.rs` files (widened to `.ts`/`.tsx` on
+   2026-08-03 with the overlay's, see open question 6), doc-first DoD, and a single
    dual-toolchain `just check` mirrored by pre-commit and GPU-less CI
    (see [AGENTS.md](../../AGENTS.md)).
 7. **Generated code is exempt from the line cap and coverage.** Protobuf/tonic stubs
@@ -92,4 +93,8 @@ later move to macOS or Linux is plausible.
    first body slice.
 6. **Webview frontend gating** means the overlay's TS/HTML is kept minimal; lint/format
    gated, but the 100%-coverage and 300-line gates initially apply only to `.py`/`.rs`.
-   Revisit if the frontend grows real logic.
+   Revisit if the frontend grows real logic. *Closed, in two halves, because the frontend
+   did grow real logic:* coverage on 2026-07-01 and the line cap on 2026-08-03, both in
+   [ADR-0011](ADR-0011-body-v1.md) addenda. The overlay's `.ts`/`.tsx` now carries 100%
+   line+branch coverage and the 300-line cap; its stylesheet and markup stay outside the
+   cap, argued in the second of those addenda.
