@@ -397,6 +397,27 @@
      type sharp while the glass warps (ADR-0036). */
   z-index: 1;
 }
+/* THE COLUMN'S HEIGHT IS A BUDGET, AND THE TWO ROLL-OPEN SECTIONS SPEND WHAT IS LEFT OF IT.
+
+   `--ceiling` is the panel's own `max-height`, written beside it by `overlay/panelBudget.ts`
+   because `max-height` is the one thing a descendant cannot read. Everything below is what the
+   cascade does with that number, and it lives here rather than in the placement code so that a
+   section and the panel cannot hold different opinions of the same height: there is one number, and
+   the sections are written as shares of it. Before the first placement `--ceiling` is not set at
+   all, and the fallback is the loosest thing that is still a bound, which is the viewport.
+
+   `--reserved` is the furniture the panel keeps whatever else is open, and it is why the composer
+   and the hint strip cannot lose: they come out of the budget before either section sees any of it.
+   Its addends are read off the boxes at the shipping type sizes and are written in the order they
+   sit in the column, so anything added to one of them re-measures its own addend here. The pill's
+   floor is the one that is not restated: it is declared here and enforced on `.composer.stacked`,
+   which is the box it is the floor of.
+
+   The history is reserved no further than its own padding, on purpose. It yields first and by a
+   long way (its shrink weight), the sections yield after it, and the composer yields last and only
+   down to its floor. That ordering is the whole design: the conversation gives up room before the
+   chrome does, the chrome gives up room before the composer does, and the composer gives up its
+   draft's window rather than the panel's edge. */
 .view {
   display: flex;
   flex-direction: column;
@@ -404,7 +425,43 @@
   min-height: 0;
   /* How far a view travels as it arrives or leaves, read by both keyframes below. */
   --rise: 7px;
+  --pill-floor: 84px;
+  /* The air under a roll-open section (its own `margin-bottom`), spent out of that section's share
+     so the share bounds the OUTER box and the arithmetic below closes. */
+  --section-gap: 6px;
+  --reserved: calc(2px + 54px + 10px + 11px + var(--pill-floor) + 9px + 33px);
+  /* Floored at zero, because a viewport short enough to leave the sections nothing still leaves
+     the composer, and the composer is what a panel that small is for. */
+  --budget: max(0px, var(--ceiling, 100vh) - var(--reserved));
+  /* A section alone with the panel may have the whole budget, which is what the two rules below
+     take back when it is not alone. Floored again, because `max-height` refuses a negative length
+     by dropping the declaration, and a dropped cap is the uncapped section this exists to stop. */
+  --switcher-room: max(0px, var(--budget) - var(--section-gap));
+  --reminders-room: max(0px, var(--budget) - var(--section-gap));
   animation: viewin 0.34s var(--ease) 0.05s both;
+}
+/* BOTH SECTIONS OPEN, SO NEITHER IS ALONE WITH THE PANEL, and the budget is split in the ratio of
+   the two numbers the sections are already written in: one that may take 40vh alone gives up four
+   sevenths of a short budget where one that may take 30vh gives up three.
+
+   A ratio rather than an order, and that is the decision rather than the arithmetic. Both of these
+   boxes already scroll, so a shorter window shows fewer rows of the same list and loses nothing,
+   which is the same argument that lets the composer spend its draft's window when the column runs
+   out. A winner-takes-the-budget rule would leave the loser showing nothing at all, and a stack of
+   fired reminders that silently is not there is worse than one that is two rows shorter. The split
+   also needs no memory of which section arrived first, so the panel reads the same whichever order
+   the user opened them in.
+
+   Each rule asks only whether the OTHER section is in the tree, so a section on its own keeps the
+   whole budget and the ordinary case (a reminder stack on an empty chat, nothing else open) is
+   untouched. A section that is rolling SHUT is still in the tree until React removes it, so the
+   other one holds its share for the length of that roll and takes the room back in the frame the
+   roll's end hands it over. */
+.view:has(> .collapse.aside) {
+  --switcher-room: max(0px, calc(var(--budget) * 40 / 70 - var(--section-gap)));
+}
+.view:has(> .collapse:not(.aside)) {
+  --reminders-room: max(0px, calc(var(--budget) * 30 / 70 - var(--section-gap)));
 }
 /* Out of the flow so it cannot fight the arriving view for the panel's height, and bounded by the
    panel all the same. Without the `bottom`, a leaving view is laid out at its own natural height
@@ -1188,16 +1245,21 @@
    visible line. Read off the boxes rather than asserted, 34px of field (its line box plus the 9px
    it pads above and below) + 38px button + 2px row gap + 8px of the pill's own padding + 2px of
    border. Written out because flexbox has no way to say "as small as one row of it", and needed
-   because a pill left free to shrink collapsed to 10px under a deficit big enough (a full switcher
-   list and a full reminder stack together outrun the panel before the composer is even asked) and
-   spilled its own text and button over the panel's background, which is worse than the clipping it
-   replaces. Anything added to this pill or taken out of it re-measures this number; the field
-   needs no floor of its own, being the only child here that can shrink. */
+   because a pill left free to shrink collapsed to 10px under a deficit big enough (which at the
+   time was a full switcher list and a full reminder stack outrunning the panel between them, before
+   the composer was asked for anything) and spilled its own text and button over the panel's
+   background, which is worse than the clipping it replaces. Anything added to this pill or taken
+   out of it re-measures this number; the field needs no floor of its own, being the only child here
+   that can shrink.
+
+   Declared on `.view` rather than here, because the column's own budget reserves this same floor
+   out of the panel's ceiling before the roll-open sections are allowed to spend any of it, and the
+   two have to be the same 84px or the sections can take the room the pill is promised. */
 .composer.stacked {
   flex-direction: column;
   align-items: stretch;
   gap: 2px;
-  min-height: 84px;
+  min-height: var(--pill-floor);
 }
 /* `flex: 1` is a `flex-basis: 0%`, which in a column is the HEIGHT, and it beats the height the
    auto-grow measured. Left on, the field drops to its automatic minimum, which for a textarea is
@@ -1973,7 +2035,14 @@
      this is filed under in docs/refinements/body-overlay.md; the other is the maintainer reading the
      rail as too close to the chrome. */
   padding: 6px 0 6px 6px;
-  max-height: 40vh;
+  /* 40vh is what this list may take when nothing else is competing for the column, and the room
+     beside it is what the panel actually has (`.view`). The `vh` alone was the whole cap once,
+     which is a cap written as though the list were alone with a panel of unlimited height: measured
+     in Chromium at the body's own 640x720 window on the demo's own seed, opening this list over a
+     reminder stack put the hint strip 29.75px past the panel's clipped edge, and a full list and a
+     full stack together put it 246px past it with the composer, send button and all, 204px past
+     it. */
+  max-height: min(40vh, var(--switcher-room));
   overflow-y: auto;
   scrollbar-gutter: stable;
   background: var(--control);
@@ -2245,7 +2314,9 @@
      first painted column is x=711, so nine untouched columns sit between them. Filed with the
      switcher's copy of it in docs/refinements/body-overlay.md. */
   padding: 6px 0 6px 6px;
-  max-height: 30vh;
+  /* The switcher's arithmetic again, and for the same reason: 30vh is this stack with nothing else
+     competing for the column, and the room beside it is what the panel actually has (`.view`). */
+  max-height: min(30vh, var(--reminders-room));
   overflow-y: auto;
   scrollbar-gutter: stable;
   background: var(--control);

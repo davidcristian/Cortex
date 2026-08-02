@@ -12,7 +12,8 @@ are the historical record of what each deferral became, and the index at
 brain status (its producer landed 2026-07-18; only the push RPC remains), an exit for the
 switcher's rows (the reminder stack's landed 2026-08-03 and left the hook behind for
 it), the composer's move on a shrink against the ceiling (a user's choice between two
-designs), two sections that are both full outrunning the panel on their own,
+designs), the two bounds the panel's section budget leaves behind it (a section's own frame
+being under no cap, and the room a closing section hands back arriving in one frame),
 the two tradeoffs the reserved scrollbar rail accepts (its width
 is assumed rather than measured off the engine, and the two 6px cards spend their whole inset on
 it), the chat floor's frozen measurement of the empty state, a mid-stream retarget restarting
@@ -29,7 +30,9 @@ entirely (the arrival was counting an aside the placement was counting out); the
 the one thing that watch deliberately does not do, and was opened with it. The demo bridge over the
 line cap landed later the same day, along the seam it named, when the cap started actually measuring
 `.ts`/`.tsx` ([ADR-0011](../adr/ADR-0011-body-v1.md) line-cap addendum) and both cap entries here
-turned out to have drifted while nothing was watching them.
+turned out to have drifted while nothing was watching them. Two sections outrunning the panel landed
+later still, as the neighbour-aware cap it asked for, having understated its own harm in three ways;
+the two bounds above were opened with it.
 
 **Body / overlay in Slice 8 ([ADR-0011](../adr/ADR-0011-body-v1.md)):**
 - **Multi-turn-within-one-stream + an explicit proto `Cancel` event.** One turn per `Converse`
@@ -419,6 +422,59 @@ turned out to have drifted while nothing was watching them.
   both be right at once; what makes it a deferral rather than a defect is that the sections are the
   user's own transient chrome, both are dismissible, and the state needs a full list AND a full
   stack AND a draft at the ceiling to reach. Measured 2026-07-20.
+  - **LANDED 2026-08-03 as the neighbour-aware cap this entry asked for, and the entry understated
+    itself in three ways** ([ADR-0035 addendum](../adr/ADR-0035-console-and-motion.md)). The two
+    `vh` numbers are what this said they are, and everything the entry drew from them was too kind.
+    **It is not a corner:** on the demo's own seed of two chats and three reminders, at the body's
+    640x720 window, pressing the switcher button once put the hint strip 29.75px past the panel's
+    clipped edge and moved the composer 30.75px down to get there. The 547 above is
+    `openHeight(720)`, the ceiling of a panel pinned 86px off the bottom of the screen, and this
+    state does not pin it there: measured on that seed the panel stands 450px tall on a 184px edge,
+    and on a widened one 436px on a 198px edge. The entry's arithmetic was against a taller panel
+    than the one the harm happens in, which is why its conclusion came out one section too
+    generous.
+    **It is not bounded at the hint strip:** with both sections at their caps and an EMPTY composer,
+    the composer was 204px past the edge and the hint strip 246px, so the send button and every
+    shortcut were gone with no draft involved, and focusing the field then scrolled the panel's own
+    clipped box 247px and took the header off the top of it. **And it is worse on a bigger screen,**
+    the caps being viewport fractions where the ceiling is not: 450px of hint strip outside at
+    640x1400, 322px at 640x1000. It is a PAIR and not a family, which is the other thing worth
+    checking: the stylesheet's other two `vh` caps (`.thoughts-body`, `.confirm-draft`) are inside
+    the scrolling history, and with the switcher at its budgeted 227px and an approval draft at its
+    full 302.39px in a 46px history the hint strip still cleared the edge by 1px.
+  - The fix is one number and one reservation. `overlay/panelBudget.ts` publishes the panel's
+    ceiling as `--ceiling` beside the `max-height` it always equals, and overlay.css takes the
+    column's own furniture off it (`--reserved`: the hairline, the header, the history's padding,
+    the composer's margins around `--pill-floor`, the hint strip) and splits what is left between
+    the two sections four sevenths to three, which is the 40 and the 30 they were already written
+    in, read as shares. **The composer and the hint strip cannot lose because they are never in the
+    budget.** A section alone with the panel still has all of it, so the ordinary case is
+    bit-identical. After, at 640x720 with a seed of twelve chats and eleven reminders: the hint
+    strip clears the edge by 1px and the composer by 43px in all five states this entry names,
+    where they read 246/204 with both sections open, 282/240 with a draft at the field's ceiling,
+    24/-18 with the switcher alone and 60/18 with the switcher alone under that draft. Mutated
+    three ways and restored: the bare `vh` caps put 246 and 204 straight back, and taking
+    `var(--pill-floor)` out of the reserve alone puts the hint strip 46.98px out with an empty
+    composer, which is what proves the reservation rather than the cap is the half that keeps the
+    composer on screen.
+- **The budget bounds a section's content, not its own frame.** Opened 2026-08-03 with the budget
+  above. Each section is a bordered, padded card that cannot be shorter than 14px whatever its cap
+  says, and carries 6px of air beneath it, so two of them cost 40px that no cap can reach. Below
+  roughly 260px of viewport with both open there is nothing left to give: measured at 640x240, where
+  the budget floors at zero, the hint strip is 34px past the panel's edge, and at 640x300 everything
+  is inside. What makes it a deferral rather than a defect is that the body's window is 720px tall
+  and the overlay has no smaller size; the fix, if a screen that small ever exists, is for a section
+  whose share cannot hold one row to leave rather than to stand there as a frame.
+- **The room a section hands back arrives in one frame.** Opened 2026-08-03 with the budget above. A
+  section rolling shut is still in the tree until React removes it, which is what the share's own
+  `:has()` sees, so the other section holds its reduced share for the length of that roll and takes
+  the whole budget in the single frame the roll's end hands it over. Traced at 640x720 acking a full
+  reminder stack with the switcher open: the panel's own box never moves (one distinct height across
+  the trace, largest single-frame step of its top edge 0px) and the switcher steps 127.14 to 227 in
+  one frame, revealing two more rows. **The cost is a reveal and not a jump**, nothing outside the
+  list moving at all, which is what makes it a deferral. The fix is for the share to follow the
+  roll rather than the tree, which wants the rolling section's target height where the cascade can
+  read it, and that is the same publication the ride-along already makes to the panel.
 - ~~**Two overlay modules are over the 300-line cap the TypeScript trees are not machine-gated at.**~~
   **Struck 2026-07-20: both were split along exactly the seams predicted here.** `overlayState.ts`
   went from 394 to 241 by handing the turn-event fold to `overlay/turnState.ts` (171: `Message`,

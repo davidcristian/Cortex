@@ -1465,3 +1465,131 @@ the way every other growth does. It is recorded as a deferral in
 [docs/refinements/body-overlay.md](../refinements/body-overlay.md), because waiting is still not
 following, and the obvious alternative, retargeting the move in flight on every frame of it, is the
 harm decision 11 and the mid-stream-retarget deferral are both about.
+
+## Addendum, 2026-08-03: the panel's height is a budget, and the sections spend what is left
+
+Decision 19 taught the composer to yield before the panel's edge does, and named what it left
+behind: two sections whose own caps are each written as though that section were alone with the
+panel. The chat switcher may take `40vh` and the reminder stack `30vh`, and neither number has ever
+had anything to do with how tall the panel actually is. **Measured before anything was changed, the
+deferral that recorded this understated it in three ways**, so the corrections come first.
+
+### What the measurement found
+
+At the body's own 640x720 window, in Chromium, driving the overlay's demo bridge:
+
+- **It is not a corner reachable only with both sections full.** On the demo's own seed, two chats
+  and three reminders, pressing the switcher button once put the hint strip **29.75px past the
+  panel's clipped edge** and moved the composer 30.75px down the screen to get there. The deferral
+  had that case inside the panel with a pixel to spare, and its 547px panel is where the arithmetic
+  went: 547 is `openHeight(720)`, the ceiling of a panel pinned 86px off the bottom of the screen,
+  and this state does not pin it there. Measured on the same seed the panel stands 450px tall on a
+  184px edge, and on a widened one 436px on a 198px edge, so the entry weighed the sections against
+  about a section more panel than they actually have.
+- **It is not bounded at the hint strip.** With both sections at their caps and an EMPTY composer,
+  the composer sat **204px** past the panel's clipped edge and the hint strip **246px** past it, so
+  the send button and every shortcut were off screen at once, with no draft involved. With a draft
+  at the field's ceiling those became 240px and 282px. Focusing the field then scrolled the panel's
+  own `overflow: hidden` box by 247px to bring the caret into view, which took the header off the
+  top of the panel.
+- **It gets worse on a bigger screen, not better.** The caps are viewport fractions and the panel's
+  ceiling is not: at 640x1400 the two sections want 980px of a 708px panel, and the hint strip
+  measured **450px** past the edge; at 640x1000, 322px.
+
+**It is a pair and not a family**, which is the other thing worth checking rather than assuming.
+The stylesheet holds four `vh` caps, and the other two (`.thoughts-body` at `28vh`,
+`.confirm-draft` at `42vh`) sit inside the scrolling history, which is the child that yields.
+Measured with the switcher at its budgeted 227px and an approval card's draft at its full 302.39px
+inside a 46px history: the hint strip still cleared the panel's edge by 1px and the composer by
+43px. A box inside a scroller cannot reach the panel's edge, so those two numbers are not part of
+this and are left alone.
+
+### The decision
+
+**The panel's ceiling is published, and the two sections are written as shares of what is left of
+it.** `overlay/panelBudget.ts` writes `--ceiling` beside every layout write of the panel's
+`max-height`, because `max-height` is the one thing a descendant cannot read, and overlay.css does
+the rest. The arithmetic lives in the cascade rather than in the placement code for one reason: a
+section and the panel cannot then hold different opinions of the same height, there being one
+number and no second source to drift from it.
+
+- **The composer and the hint strip cannot lose, because they are never in the budget.**
+  `--reserved` is the column's own furniture, taken off the ceiling before either section sees any
+  of it: the panel's hairline (2px), the header (54px), the history's own padding (10px), the
+  composer's margins (11px and 9px) around its floor, and the hint strip (33px). The floor itself is
+  `--pill-floor`, declared once and enforced on `.composer.stacked`, so decision 19's 84px and the
+  reservation of it are the same 84px by construction.
+- **The order of yielding is now three deep and unchanged at the top.** The history yields first and
+  by a long way (its shrink weight, decision 19), the sections yield after it, and the composer
+  yields last and only down to its floor, spending its draft's window rather than the panel's edge.
+  Only the history's padding is reserved, because the conversation is the thing that is supposed to
+  give room up.
+- **Between the two sections it is a ratio, not an order.** With both in the tree the budget splits
+  four sevenths to the switcher and three to the stack, which is the 40 and the 30 they are already
+  written in, read as shares. Neither wins outright on purpose: both boxes already scroll, so a
+  shorter window shows fewer rows of the same list and loses nothing, which is exactly the argument
+  decision 19 used for spending the draft's window. A winner-takes-the-budget rule would leave the
+  loser showing nothing, and a stack of fired reminders that silently is not there is worse than one
+  that is two rows shorter. A ratio also needs no memory of which section arrived first, so the
+  panel reads the same whichever order the user opened them in.
+- **A section alone with the panel still gets the whole budget.** The share is taken back only by a
+  rule that asks whether the OTHER section is in the tree, so the ordinary case, a reminder stack on
+  an empty chat with nothing else open, is bit-identical to what it was: 216px of stack, the hint
+  strip clearing the edge by the same 1px.
+
+### What it measures
+
+At 640x720 with the seed widened to twelve chats and eleven reminders, so both sections are
+genuinely at their caps. Every number is the box's distance past the panel's clipped edge, so
+negative is inside:
+
+| State | Hint strip, before | after | Composer, before | after |
+| --- | --- | --- | --- | --- |
+| Reminder stack alone | -1 | -1 | -43 | -43 |
+| Switcher alone | 24 | -1 | -18 | -43 |
+| Switcher alone, draft at the field's ceiling | 60 | -1 | 18 | -43 |
+| Both sections | 246 | -1 | 204 | -43 |
+| Both sections, draft at the field's ceiling | 282 | -1 | 240 | -43 |
+
+The history is 46px where it was 10 in the two cases with no draft, and the panel's own height and
+pinned edge are unchanged in all five (436px at a 198px edge). At 640x1400, 640x1000 and 640x900
+with both sections open the hint strip reads -1 where it read 450, 322 and 290. The console view is
+untouched, having no sections at all.
+
+**Mutated three ways, each restored after.** Dropping the published property from `capTo` reddens
+`panelBudget.test.ts` and the placement test that asserts the ceiling is published at all three of
+the caps a placement writes. Putting the section caps back to the bare `vh` returns the harm
+exactly: 246px and 204px with both sections open, 35px and -7px with the tall draft, which is the
+shape the deferral recorded from its forced 300px ceiling. Taking `var(--pill-floor)` out of
+`--reserved` alone puts the hint strip 46.98px out with an empty composer and 81.98px out with a
+full one, which is the one mutation that proves the reservation, and not merely the cap, is what
+keeps the composer on screen.
+
+**The CSS half of this is not expressible in jsdom**, which has no layout and no `:has()`, so the
+browser numbers above are the evidence for it rather than a test that would only be asserting its
+own harness. What is tested in the toolchain is the seam: that a cap and the number the sections
+spend are written together and cannot come apart.
+
+### What this does not do
+
+Three things, each recorded as a deferral.
+
+The budget bounds a section's content, not its own frame. Each section is a bordered, padded card
+that cannot be shorter than 14px whatever the cap says, plus 6px of air beneath it, so with both
+open below roughly 260px of viewport there is nothing left to give: measured at 640x240, where the
+budget floors at zero, the hint strip is 34px past the edge. At 640x300 it is inside. The body's
+window is 720px tall and no smaller.
+
+The room a section hands back arrives in one frame. A section rolling shut is in the tree until
+React removes it, so the other holds its share for the length of that roll and takes the whole
+budget in the frame the roll's end hands it over. Traced at 640x720 acking a full stack with the
+switcher open: the panel's own box never moves at all (one distinct height across the trace, largest
+single-frame step of its top edge 0px) and the switcher steps 127.14 to 227 in a single frame,
+revealing two more rows.
+
+Nothing machine-checks the two halves of `--ceiling`. `CEILING_PROPERTY` in TypeScript and
+`var(--ceiling, 100vh)` in the stylesheet are one seam with no gate across it, and a rename on
+either side falls back to the viewport silently, which is the neighbourless cap again with every
+test green. The literal is pinned in `panelBudget.test.ts` so a rename has to walk past it, which is
+the same arrangement `data-resizing` already has with the rule that hides the history's thumb, and
+the real answer is a scan that reads both trees.
