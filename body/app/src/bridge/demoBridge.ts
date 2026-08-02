@@ -1,3 +1,4 @@
+import * as script from "./demoScript";
 import type {
   BrainBridge,
   Cancellation,
@@ -9,58 +10,6 @@ import type {
   SessionSummary,
   TurnSink,
 } from "./types";
-
-const ANSWER =
-  "The cortex stays resident on the GPU under the soft cap, and spawns small subagents when it " +
-  "needs help. GPU-first when there's headroom, CPU otherwise. Nothing is lost on a model swap, " +
-  "because every turn's state lives in the store, not the model.";
-
-// A short reasoning trace streamed as thinking statuses before the reply, so the live chip and the
-// settled collapsed "Thoughts" disclosure both have real content to show in browser dev (ADR-0020).
-const REASONING =
-  "The question is about where conversation state lives across a model swap. The invariant is that " +
-  "no state sits in a model process, so the answer must ground itself in the external store rather " +
-  "than the KV cache. Let me phrase that plainly.";
-
-// The scripted confirm round (ADR-0022): a prompt that looks like a send walks the gated-tool
-// path. First a short preamble, then a confirmRequest whose draft/reason mirror the brain's, then
-// the reply continues (approve) or ends with a "not sent" line (deny).
-const CONFIRM_PREAMBLE = "Here's the draft. Sending is gated, so it needs your approval first.";
-const CONFIRM_REASON = "this action is outbound or irreversible and runs only with your approval";
-// The attachment is here so the long-draft case is drivable by hand: it is the one argument
-// meant to be long, and the card shows every value verbatim (ADR-0022 attachments addendum),
-// so this is what proves `.confirm-draft` scrolls instead of pushing the buttons out of view.
-const CONFIRM_DRAFT = JSON.stringify({
-  to: "ada@example.com",
-  subject: "Quick hello from Cortex",
-  body: "Testing the send flow. Feel free to ignore this.",
-  attachments: [
-    {
-      filename: "notes.md",
-      subtype: "markdown",
-      content: Array.from(
-        { length: 24 },
-        (_unused, line) => `- line ${line + 1} of the attached notes`,
-      ).join("\n"),
-    },
-  ],
-});
-const CONFIRM_SENT = "Sent. Ada should have it in a moment. Anything else?";
-const CONFIRM_DENIED = "Okay. Not sent, and the draft is discarded.";
-// Say "timeout" in the prompt and the demo brain stops waiting after DEMO_CONFIRM_TIMEOUT_MS,
-// as the real one does at CORTEX_SEAM_CONFIRM_TIMEOUT_S: it emits `confirmResolved`, the card
-// closes on its own, and the declined reply resumes behind it (ADR-0022 resolution addendum).
-// Four seconds rather than two minutes, so the behaviour is drivable by hand.
-const DEMO_CONFIRM_TIMEOUT_MS = 4000;
-const CONFIRM_TIMED_OUT = "You did not answer in time, so nothing was sent. Ask again any time.";
-
-// The connection indicator is hand-drivable too (ADR-0011 addendum): say "offline" or
-// "degraded" in a prompt and the demo brain reports that for a while, so amber, red, the
-// pulse while a probe is out, and the recovery re-check are all visible in plain browser dev.
-const DEMO_OUTAGE_MS = 12000;
-const DEMO_READY_DETAIL = "cortex-orchestrator demo";
-const DEMO_DOWN_DETAIL = "tcp connect error: connection refused";
-const DEMO_DEGRADED_DETAIL = "Unavailable: the session store is down";
 
 /** Stream `text` word by word; `lead` prefixes the first word. By default each word is a reply
  *  `delta`; pass `emit` to route the words elsewhere (the reasoning burst sends them as thinking
@@ -88,7 +37,8 @@ function streamWords(
 }
 
 // Browser-dev BrainBridge: streams a canned reply on a timer so `vite dev` shows the real
-// components with realistic streaming. Coverage-excluded as the frontend analog of the real Tauri
+// components with realistic streaming. Everything it says or serves lives in `demoScript.ts`;
+// what is left here is the behaviour. Coverage-excluded as the frontend analog of the real Tauri
 // bridge, exercised by hand (browser validation), never in CI.
 export class DemoBridge implements BrainBridge {
   /** Resumes the paused confirm turn with the user's decision (null = none pending). */
@@ -98,6 +48,15 @@ export class DemoBridge implements BrainBridge {
   /** What the next probe reports, and when the scripted outage heals (0 = never went down). */
   private link: LinkState = "ready";
   private healsAt = 0;
+  // Held rather than rebuilt per call, so the writes below actually stick for the session. They
+  // used to be no-ops over a static list, which made rename, delete and pin unexercisable by hand:
+  // the row changed optimistically and the next re-list put it straight back.
+  private sessions: SessionSummary[] = script.sessions();
+  private due: readonly DueReminder[] = script.reminders();
+  // The user's settings record (ADR-0032). Held in memory for browser dev, so picking a mark or
+  // a theme sticks across a re-summon within the session the way the real record sticks across a
+  // restart; a reload starts fresh, since there is no brain here to hold it.
+  private prefs: Preference[] = [];
 
   converse(_sessionId: string, text: string, sink: TurnSink): Cancellation {
     if (/offline|unreachable/iu.test(text)) {
@@ -128,10 +87,10 @@ export class DemoBridge implements BrainBridge {
     const status = setTimeout(() => {
       cancelStream = streamWords(
         sink,
-        REASONING,
+        script.REASONING,
         "",
         () => {
-          cancelStream = streamWords(sink, ANSWER, "", () =>
+          cancelStream = streamWords(sink, script.ANSWER, "", () =>
             sink.onEvent({ kind: "complete", turnId: "demo" }),
           );
         },
@@ -145,20 +104,20 @@ export class DemoBridge implements BrainBridge {
   }
 
   private confirmTurn(sink: TurnSink, expires: boolean): Cancellation {
-    let cancel = streamWords(sink, CONFIRM_PREAMBLE, "", () => {
+    let cancel = streamWords(sink, script.CONFIRM_PREAMBLE, "", () => {
       const resume = (reply: string) => {
         cancel = streamWords(sink, reply, " ", () =>
           sink.onEvent({ kind: "complete", turnId: "demo" }),
         );
       };
       // Park the continuation before asking, because respondConfirm may answer immediately.
-      this.pending = (approved) => resume(approved ? CONFIRM_SENT : CONFIRM_DENIED);
+      this.pending = (approved) => resume(approved ? script.CONFIRM_SENT : script.CONFIRM_DENIED);
       sink.onEvent({
         kind: "confirmRequest",
         confirmId: "demo-confirm",
         toolName: "send_email",
-        argumentsJson: CONFIRM_DRAFT,
-        reason: CONFIRM_REASON,
+        argumentsJson: script.CONFIRM_DRAFT,
+        reason: script.CONFIRM_REASON,
       });
       if (expires) {
         this.expiry = setTimeout(() => {
@@ -166,8 +125,8 @@ export class DemoBridge implements BrainBridge {
           // after the card closes resumes nothing (the stale-answer case, fail-closed).
           this.pending = null;
           sink.onEvent({ kind: "confirmResolved", confirmId: "demo-confirm", outcome: "timeout" });
-          resume(CONFIRM_TIMED_OUT);
-        }, DEMO_CONFIRM_TIMEOUT_MS);
+          resume(script.CONFIRM_TIMED_OUT);
+        }, script.CONFIRM_TIMEOUT_MS);
       }
     });
     return () => {
@@ -195,7 +154,7 @@ export class DemoBridge implements BrainBridge {
   /** Script an outage that heals on its own, so the recovery re-check has something to find. */
   private fail(state: LinkState): void {
     this.link = state;
-    this.healsAt = Date.now() + DEMO_OUTAGE_MS;
+    this.healsAt = Date.now() + script.OUTAGE_MS;
   }
 
   checkLink(): Promise<LinkStatus> {
@@ -205,10 +164,10 @@ export class DemoBridge implements BrainBridge {
     }
     const detail =
       this.link === "ready"
-        ? DEMO_READY_DETAIL
+        ? script.READY_DETAIL
         : this.link === "degraded"
-          ? DEMO_DEGRADED_DETAIL
-          : DEMO_DOWN_DETAIL;
+          ? script.DEGRADED_DETAIL
+          : script.DOWN_DETAIL;
     // A real probe rides the retrying transport, so a down brain answers slowly. Delay the
     // unhappy answers a little so the "checking" pulse is actually visible by hand.
     const delay = this.link === "ready" ? 120 : 900;
@@ -216,33 +175,6 @@ export class DemoBridge implements BrainBridge {
       setTimeout(() => resolve({ state: this.link, detail }), delay),
     );
   }
-
-  // Held rather than rebuilt per call, so the writes below actually stick for the session. They
-  // used to be no-ops over a static list, which made rename, delete and pin unexercisable by hand:
-  // the row changed optimistically and the next re-list put it straight back.
-  private sessions: SessionSummary[] = [
-      {
-        // Pinned, and the OLDER of the two by activity, so it demonstrates pinning by hand: it
-        // sorts ABOVE the newer chat in the switcher and carries the pin indicator, exactly the
-        // read-path union the brain applies (ADR-0021 pinning addendum).
-        sessionId: "demo-2",
-        title: "Summarize my unread email",
-        preview: "You have three unread threads…",
-        lastActivityUnixMs: Date.now() - 3 * 60 * 60 * 1000,
-        pinned: true,
-      },
-      {
-        // A title deliberately unlike this chat's first message ("How does the model swap
-        // work?"), standing in for a rename or a brain-generated title: opening the chat shows
-        // this switcher title in the header, not the first message re-derived (ADR-0021
-        // header-title addendum), so the consistency is visible by hand in browser dev.
-        sessionId: "demo-1",
-        title: "Everything about model swaps",
-        preview: "The cortex is evicted and the brain loads…",
-        lastActivityUnixMs: Date.now() - 5 * 60 * 1000,
-        pinned: false,
-      },
-  ];
 
   listSessions(limit: number): Promise<readonly SessionSummary[]> {
     // Pinned first, then by recency, which is the order the brain lists in (ADR-0021).
@@ -252,41 +184,6 @@ export class DemoBridge implements BrainBridge {
     );
     return Promise.resolve(ordered.slice(0, limit));
   }
-
-  // Reminder pull delivery (ADR-0025). Three cards covering the shapes that render
-  // differently: a plain one, a recurring one, and one carrying untrusted provenance.
-  // Dismissing acks against the local table, so the stack empties as it would for real.
-  private due: readonly DueReminder[] = [
-    {
-      reminderId: "demo-r1",
-      text: "Stretch. You have been at this for an hour.",
-      firedAtUnixMs: Date.now() - 4 * 60 * 1000,
-      recurring: false,
-      tainted: false,
-      sessionId: "demo-1",
-    },
-    {
-      reminderId: "demo-r2",
-      text: "Stand-up in 10 minutes.",
-      firedAtUnixMs: Date.now() - 90 * 1000,
-      recurring: true,
-      tainted: false,
-      sessionId: "demo-2",
-    },
-    {
-      reminderId: "demo-r3",
-      text: "Confirm the invoice from the email thread before Friday.",
-      firedAtUnixMs: Date.now() - 40 * 60 * 1000,
-      recurring: false,
-      tainted: true,
-      sessionId: "demo-2",
-    },
-  ];
-
-  // The user's settings record (ADR-0032). Held in memory for browser dev, so picking a mark or
-  // a theme sticks across a re-summon within the session the way the real record sticks across a
-  // restart; a reload starts fresh, since there is no brain here to hold it.
-  private prefs: Preference[] = [];
 
   getPreferences(): Promise<readonly Preference[]> {
     return Promise.resolve([...this.prefs]);
@@ -311,21 +208,7 @@ export class DemoBridge implements BrainBridge {
   }
 
   sessionMessages(sessionId: string): Promise<readonly SessionMessage[]> {
-    if (sessionId === "demo-2") {
-      return Promise.resolve([
-        { role: "user", text: "Summarize my unread email", turnId: "t2", atUnixMs: 0 },
-        {
-          role: "assistant",
-          text: "You have three unread threads: a deploy failure from CI, a review request on the seam PR, and a calendar invite for Thursday.",
-          turnId: "t2",
-          atUnixMs: 0,
-        },
-      ]);
-    }
-    return Promise.resolve([
-      { role: "user", text: "How does the model swap work?", turnId: "t1", atUnixMs: 0 },
-      { role: "assistant", text: ANSWER, turnId: "t1", atUnixMs: 0 },
-    ]);
+    return Promise.resolve(script.transcript(sessionId));
   }
 
   private patch(sessionId: string, change: Partial<SessionSummary>): void {

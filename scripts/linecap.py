@@ -3,6 +3,12 @@
 The cap counts ALL lines -- code, comments, and blanks alike -- because it targets
 cognitive load, not statement count. Test code and clearly marked generated-code
 directories (`_generated`, ADR-0001 decision 7) are exempt.
+
+The scan covers all three of the repo's gated toolchains: Python, Rust, and the overlay's
+TypeScript (ADR-0011 line-cap addendum). It deliberately does not cover the stylesheet,
+the markup, or `proto/body.proto`, which are not modules the cap's split-by-responsibility
+remedy applies to; see that addendum for the argument and docs/refinements/repo-gates.md
+for what stays unmeasured.
 """
 
 import argparse
@@ -12,7 +18,7 @@ from pathlib import Path
 from typing import NamedTuple
 
 DEFAULT_MAX_LINES = 300
-SOURCE_SUFFIXES = frozenset({".py", ".rs"})
+SOURCE_SUFFIXES = frozenset({".py", ".rs", ".ts", ".tsx"})
 SKIPPED_DIRS = frozenset(
     {
         ".git",
@@ -23,11 +29,25 @@ SKIPPED_DIRS = frozenset(
         "__pycache__",
         ".pytest_cache",
         ".ruff_cache",
+        "dist",
+        "coverage",
         "tests",
         "_generated",
     }
 )
-SKIPPED_FILE_PATTERNS = ("test_*.py", "*_test.py", "conftest.py", "*_test.rs")
+# One naming rule per toolchain, each matching what that toolchain's runner already calls a
+# test: pytest's `test_*.py`/`*_test.py`/`conftest.py`, Rust's `tests/` plus `*_test.rs`, and
+# Vitest's `src/**/*.test.{ts,tsx}` from `body/app/vite.config.ts` with `test-setup.ts`, its
+# `setupFiles` entry and the TypeScript analog of `conftest.py`.
+SKIPPED_FILE_PATTERNS = (
+    "test_*.py",
+    "*_test.py",
+    "conftest.py",
+    "*_test.rs",
+    "*.test.ts",
+    "*.test.tsx",
+    "test-setup.ts",
+)
 
 
 class UnreadableFileError(Exception):
@@ -75,7 +95,7 @@ def scan(root: Path, cap: int) -> list[Violation]:
 def main(argv: list[str] | None = None) -> int:
     """Run the gate; print any violations and return the process exit code."""
     parser = argparse.ArgumentParser(
-        description="Fail when a non-test .py/.rs source file exceeds the line cap.",
+        description="Fail when a non-test .py/.rs/.ts/.tsx source file exceeds the line cap.",
     )
     parser.add_argument(
         "--root",
