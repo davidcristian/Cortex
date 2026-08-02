@@ -60,7 +60,14 @@ function headerTitle(
   return summary ? summary.title : titleFor(messages);
 }
 
-/** Load a stored chat into the panel: hydrate its messages, carry the switcher's title. */
+/**
+ * Load a stored chat into the panel: hydrate its messages, carry the switcher's title, and leave
+ * the console the way `newChat` does (ADR-0035 addendum, 2026-08-03). The switcher row that
+ * selects a chat is unreachable while the console is up, since the chat view is `display: none`
+ * behind it, but Ctrl+Up and Ctrl+Down are global keys and cycle straight into this: without the
+ * clear they loaded another conversation behind the standing console, which is the same
+ * surprise the new-chat arm was answering and the same answer.
+ */
 export function openSession(
   state: OverlayState,
   sessionId: string,
@@ -75,6 +82,7 @@ export function openSession(
     title: headerTitle(state.sessions, sessionId, messages),
     messages: loaded,
     switcherOpen: false,
+    consoleTab: null,
     pendingConfirm: null,
     seq: loaded.length,
   };
@@ -82,7 +90,9 @@ export function openSession(
 
 /**
  * Adopt the most recent stored chat on cold start (ADR-0021 refinement): hydrate exactly like
- * `openSession` but preserve `mode`, so a background restore never pops the panel. The guard is
+ * `openSession` but preserve `mode` and the console tab, so a background restore never pops the
+ * panel and never takes a view off it. The console cannot be up here anyway, since reaching it
+ * means summoning the panel and a summon sets `touched`, which is the guard below. The guard is
  * the reducer-evaluated `touched` flag: adoption applies only while the user has not acted on
  * the overlay since mount, so a racing summon, submit, cycle, or explicit new-chat wins (each
  * sets `touched`), and a StrictMode double-fired mount effect is idempotent. `seq`/`messages`
@@ -114,6 +124,12 @@ export function adoptSession(
  * place (the panel stays open, the switcher stays as it was so the user can keep managing chats),
  * taking `fallbackSessionId` for its identity: the reducer cannot mint ids, so the controller mints
  * one and hands it in. Either way `touched` is set, since deleting is the user acting on the overlay.
+ *
+ * The console is the one surface this leaves standing where its two neighbours clear it, and the
+ * reason is the same reason the switcher stays open: a delete is fired from a switcher row, so the
+ * user is managing chats rather than asking for one, and the surface they are working in survives
+ * the write. That row is its only caller and the chat view is `display: none` behind the console,
+ * so this is unreachable from there besides.
  */
 export function deleteSession(
   state: OverlayState,

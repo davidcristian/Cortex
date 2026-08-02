@@ -1125,3 +1125,71 @@ is a failing test pointing at this number rather than a column that has quietly 
 
 The time also keeps 8px off the pin beside it. The row's own 2px gap is the spacing WITHIN the
 cluster of three icon buttons, and a label that is not one of them wants its own.
+
+## Addendum, 2026-08-03: a chat arriving takes the console with it
+
+The deferral this closes was recorded on 2026-07-20 while verifying the console merge, and it was
+recorded rather than fixed because the one line it needed had two defensible values and neither was
+the agent's to choose. `newChat` cleared the switcher and any pending confirm but not `consoleTab`,
+so pressing Ctrl+N while the console was up minted the session and emptied the chat *behind* it:
+measured at 900x900, the console's live tabpanel stayed on screen while the title behind it had
+gone back to "New chat". The
+behaviour predates the console, the two sheets it replaced having been left standing by the same
+arm, so the merge neither caused it nor hid it.
+
+**The user's answer, given on 2026-08-03: Ctrl+N closes the console.** A keystroke aimed at the
+conversation puts you in the conversation. The chat is cleared, the console tab goes with the chat
+it was opened over, and the empty chat is what you are looking at.
+
+The alternative was real and is worth keeping on the record, because it surprises the other way
+round rather than not at all. The console is the one surface in the panel that is about the app
+instead of the conversation, so closing it out from under someone who reached for a new chat while
+reading the shortcut list takes away what they were reading. What settles it is that the arm was
+already half-committed to the answer that shipped: it sets `mode: "panel"` for exactly the reason
+the user gave, and a new chat that arrives somewhere the user cannot see is the weaker half of a
+statement the arm was otherwise making in full.
+
+Two consequences of the pick, both of which the deferral's "one line in one reducer arm" estimate
+did not carry:
+
+1. **`openSession` had the identical hole, and it is reachable by keyboard.** The entry named only
+   `newChat`, and its own reasoning applies unchanged to loading a stored chat, which is the same
+   event from the user's side: another conversation arriving on the panel. The switcher row that
+   normally starts one is not reachable while the console is up (the chat view is `display: none`
+   behind it), but Ctrl+Up and Ctrl+Down are global keys handled in `Overlay.tsx` and cycle straight
+   through `openSession`, so a cycled chat loaded behind the console exactly the way a new one did.
+   Both arms now clear the tab, so the rule is "a conversation arriving on the panel brings the chat
+   with it" rather than a special case for one keystroke. The keyboard is the whole of the reachable
+   surface here, which is worth saying because it bounds the defect: the header's pencil and the
+   switcher's rows are the pointer doors into these two arms and neither can be clicked while the
+   console is up, so what was measured is exactly what a user could hit.
+2. **The other two chat swaps deliberately keep the console, and now say why.** `deleteSession`
+   resets the panel to a fresh chat in place, and it keeps the tab for the same reason it already
+   keeps the switcher open: a delete is fired from a switcher row, so the user is managing chats
+   rather than asking for one, and the surface they are working in survives the write. That row is
+   its only caller, so it is unreachable from the console besides. `adoptSession` is a
+   cold-start background restore that must take nothing off the panel, and it cannot meet an open
+   console anyway, since reaching the console means summoning the panel and a summon sets `touched`,
+   which is the flag adoption gives way to.
+
+This is the opposite call from `dismiss`, and for the opposite reason, so the maintainer-pass
+addendum above that gave the dismiss its rule is worth reading beside this one. A dismiss leaves the
+console standing because the panel is on its way out and
+morphing back to the chat under a fading window read as the window changing its mind; the summon
+after it is what clears the tab. Here the panel stays on screen, so the morph back to the chat is
+the movement the keystroke asked for rather than one the window makes on its own way out. Both
+halves are pinned in
+`overlay/overlayState.test.ts`: one case walks both tabs through both arriving doors, and a second
+pins the delete and the adoption as leaving the console where it was, so a later "consistency" edit
+to those two has to argue with a test rather than pass silently.
+
+Measured in Chromium at 900x900, the viewport the deferral was written against, by driving the real
+overlay over the demo bridge and reading which view is in the layout flow. Before, with both clears
+removed: the console is the live view, Ctrl+N leaves it the live view with its strip still selected
+on Face, and Ctrl+Down loads "Summarize my unread email" with its two bubbles underneath while the
+console stays up (the hint strip's own buttons are not clickable in that state either, which is the
+`display: none` on the view being covered, and is why the keyboard is the whole reachable surface).
+After: the same two presses each leave the chat as the live view with no tab strip mounted at all,
+the first on the empty state and the second on the loaded conversation. One naming note for anyone
+reading the deferral beside this: the tabs were labelled Appearance and Shortcuts when it was
+written and are labelled Face and Chords now, the reducer keys being unchanged.
