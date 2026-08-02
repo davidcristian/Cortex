@@ -2,8 +2,8 @@
 
 Per the one hard rule, the record carries ONLY what is not already in a store when the cortex
 escalates mid-turn: the escalation brief, the turn's fence nonce, the serialized ``TaintLedger``
-(bit, sources, laundering-evidence URLs), the turn-wide dispatch-budget position, and the tool
-loop's never-persisted tail (the assistant tool-call messages and their fenced ``Role.TOOL``
+(both bits, sources, laundering-evidence URLs), the turn-wide dispatch-budget position, and the
+tool loop's never-persisted tail (the assistant tool-call messages and their fenced ``Role.TOOL``
 results, in order). Everything else (history, tasks, schedules, memories) already survives in
 its own store. The tail is text-only by the same invariant the session stores enforce
 (ADR-0029): ``Message`` carries no pixels today, and the day it can, the handoff record refuses
@@ -64,18 +64,21 @@ class HandoffRecord:
     text, the conversation's own trust domain). ``nonce`` is the turn's fence id, carried so
     the fenced blocks in ``loop_tail`` stay explained by the preamble's markers-carry-a-random-
     id rule instead of becoming unexplained markers under a fresh nonce. ``tainted`` /
-    ``sources`` / ``untrusted_urls`` are the ``TaintLedger`` minus its ``opaque`` bit
-    (ADR-0013/0015/0027): taint that did not survive the swap would fail open, and without the
-    URL set the brain phase's guardrail would forget every URL read before the swap. The bit is
-    absent because no opaque turn can produce a record at all: the conductor refuses one before
-    it snapshots, so a rebuilt ledger's ``False`` is a fact rather than a loss. Carrying it
-    anyway, as defence in depth, is a recorded deferral. ``budget_remaining`` /
-    ``budget_closed`` carry the turn-wide dispatch pool's position, so a swap can never refill
-    the turn's allowance. ``rounds_used`` counts the tool-loop rounds that dispatched (one
-    assistant tool-call message each), and ``loop_tail`` is every message the loop appended
-    this turn, in order. Tool-call stamps are transient live handles and are never persisted
-    (``tools.py``: the loop persists the unstamped calls), so a re-read tail carries
-    ``UNSTAMPED`` calls, exactly as it was appended.
+    ``opaque`` / ``sources`` / ``untrusted_urls`` are the whole ``TaintLedger``
+    (ADR-0013/0015/0027/0029): taint that did not survive the swap would fail open, and without
+    the URL set the brain phase's guardrail would forget every URL read before the swap.
+    ``opaque`` is carried as **defence in depth** and nothing else: no opaque turn produces a
+    record today, because ``SwapConductor._prepare`` refuses one before it snapshots, so every
+    record written now says ``False`` truthfully. What the schema must not do is *invent* that
+    ``False``, because both consumers of the bit open on it after the swap (the default URL
+    guardrail stops scanning strictly, and an opaque turn stops being kept out of durable
+    memory), so a bit that decayed in transit would fail open the day anything relaxes that
+    refusal. ``budget_remaining`` / ``budget_closed`` carry the turn-wide dispatch pool's
+    position, so a swap can never refill the turn's allowance. ``rounds_used`` counts the
+    tool-loop rounds that dispatched (one assistant tool-call message each), and ``loop_tail``
+    is every message the loop appended this turn, in order. Tool-call stamps are transient live
+    handles and are never persisted (``tools.py``: the loop persists the unstamped calls), so a
+    re-read tail carries ``UNSTAMPED`` calls, exactly as it was appended.
     """
 
     handoff_id: str
@@ -85,6 +88,7 @@ class HandoffRecord:
     brief: str
     nonce: str
     tainted: bool
+    opaque: bool
     sources: tuple[Provenance, ...]
     untrusted_urls: frozenset[str]
     budget_remaining: int
@@ -100,15 +104,17 @@ class HandoffRecord:
     def taint_ledger(self) -> TaintLedger:
         """Reconstruct the turn's ``TaintLedger`` for the brain phase (ADR-0030 decision 4).
 
-        An exact rebuild of everything the record carries: the bit, the sources in the order the
-        turn read them (claimed kinds still claimed, attested still attested, since
+        An exact rebuild of everything the record carries: both bits, the sources in the order
+        the turn read them (claimed kinds still claimed, attested still attested, since
         ``Provenance`` round-trips whole), and the full laundering-evidence URL set. The contract
         test pins this round trip through the store; losing any part of it here would fail open
-        after a swap. ``opaque`` stays at its default, which is sound only because a turn that
-        read pixels never reaches a record (the conductor refuses it first).
+        after a swap. ``opaque`` is rebuilt from the record rather than left at its default so
+        the deep phase's guardrail and memory policy read the turn's own answer, not the one a
+        fresh ledger happens to start with.
         """
         return TaintLedger(
             tainted=self.tainted,
+            opaque=self.opaque,
             untrusted_urls=set(self.untrusted_urls),
             sources=self.sources,
         )
@@ -182,6 +188,7 @@ class EscalationSlot:
             brief=self.brief,
             nonce=self.refs.nonce,
             tainted=self.refs.taint.tainted,
+            opaque=self.refs.taint.opaque,
             sources=self.refs.taint.sources,
             untrusted_urls=frozenset(self.refs.taint.untrusted_urls),
             budget_remaining=self.refs.budget.limit - self.refs.budget.spent,

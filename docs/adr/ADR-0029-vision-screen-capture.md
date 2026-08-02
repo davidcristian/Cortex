@@ -200,6 +200,15 @@ text-only deployment for a risk it does not run. Selecting strict at the composi
 capture is enabled is rejected: it creates a second truth about which policy is in force. A
 per-turn bit escalates exactly where the evidence is.
 
+**The bit crosses a model swap as of 2026-08-03.** It is turn-local and rebuilt each turn, which
+is unchanged, but the one thing that serializes a turn's ledger, the brain-handoff record, used to
+carry the ledger minus this field and so rebuilt it at `False` on the far side, opening both
+consumers above for the deep phase. `HandoffRecord` now carries `opaque` and its codec round-trips
+it strictly; the schema change and its proofs are in
+[ADR-0030](ADR-0030-brain-handoff.md)'s 2026-08-03 addendum. It is defence in depth rather than a
+live fix, because `SwapConductor._prepare` still refuses an opaque turn before any record exists,
+and the pixels half of that deferral stays open.
+
 ### 5. The capture tool is ungated by default, and the honest consent surface lives in the body
 
 `capture_screen` ships **ungated**, with `CORTEX_TOOLS_GATED=send_email,capture_screen` as the

@@ -242,15 +242,19 @@ under "Use-case" is what snapshots it and runs the swap):
 - `HandoffRecord` is a frozen dataclass: `handoff_id` (= the escalating `turn_id`),
   `session_id`, `requested_at` (tz-aware, rejects naive), `state`, `brief` (the cortex's
   escalation ask), `nonce` (the turn's fence id, so the tail's fenced blocks stay explained),
-  `tainted` / `sources` / `untrusted_urls: frozenset[str]` (the whole serialized `TaintLedger`;
-  taint that did not survive the swap would fail open, and the URL set is the guardrail's
-  laundering evidence), `budget_remaining` / `budget_closed` (the turn-wide dispatch pool's
+  `tainted` / `opaque` / `sources` / `untrusted_urls: frozenset[str]` (the whole serialized
+  `TaintLedger`; taint that did not survive the swap would fail open, and the URL set is the
+  guardrail's laundering evidence). `opaque` (ADR-0029) is carried as **defence in depth**: the
+  conductor refuses an opaque turn before it snapshots, so every record written today says
+  `False` truthfully, but both consumers of the bit open on a `False` after the swap (strict URL
+  redaction stops being forced, and the durable-memory drop stops applying), so the schema must
+  never manufacture one. `budget_remaining` / `budget_closed` (the turn-wide dispatch pool's
   position, so a swap never refills the allowance), `rounds_used`, and
   `loop_tail: tuple[Message, ...]` (every message the tool loop appended this turn, in order;
   tool-call stamps are transient live handles and are never persisted, so a re-read tail
   carries `UNSTAMPED` calls). Per the one hard rule it carries ONLY what is not already in a
   store. `taint_ledger()` reconstructs an exact, detached `TaintLedger` for the brain phase
-  (bit, sources order, URL set), the round trip the contract test pins.
+  (both bits, sources order, URL set), the round trip the contract test pins.
 - `EscalationSlot(refs=None, brief=None)` is the mutable turn-local handle through which
   in-flight state reaches the serializer. Built **empty** by whoever orchestrates the turn (the
   escalating engine wrapper, ADR-0030 decision 5, so it can hold the slot across the delegated

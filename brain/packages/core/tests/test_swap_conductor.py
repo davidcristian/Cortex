@@ -517,6 +517,9 @@ async def test_a_turn_that_looked_at_the_screen_after_escalating_ends_with_a_not
         "still want the deep model.)"
     )
     assert _states(events) == [], "nothing was announced, because nothing was done"
+    # And no record was written at all, which is what makes the record's own ``opaque`` field
+    # defence in depth rather than a live path: the refusal is upstream of the store.
+    assert live.handoffs.states == []
     assert live.host.calls == []  # the cortex never stopped serving
     assert live.backend.calls == 0  # the deep model was never asked anything
     assert live.handoffs.states == []  # and no record was written to be settled

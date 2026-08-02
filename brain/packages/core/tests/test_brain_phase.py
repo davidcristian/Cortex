@@ -13,6 +13,11 @@ Distrust-green proofs (each mutation reddened the named test, then was restored)
   ``test_the_carried_budget_bounds_the_deep_phase_too``;
 - taking the query from the brief rather than from history reddens
   ``test_the_query_is_recovered_from_the_store_for_recall_and_memory``;
+- dropping the ``opaque`` bit anywhere on its way across (off the snapshot, off the record, or
+  out of the rebuilt ledger) reddens both
+  ``test_a_carried_opaque_bit_makes_the_deep_phase_redact_strictly`` and
+  ``test_a_carried_opaque_bit_keeps_the_deep_phase_out_of_durable_memory``, each of which runs
+  its own tainted-but-not-opaque control arm so the difference is the bit and not the taint;
 - fencing under a fresh nonce instead of the record's reddens
   ``test_the_deep_phase_fences_under_the_record_s_own_nonce``;
 - dropping the phase's own ``aclose`` on its event stream reddens
@@ -31,6 +36,7 @@ from cortex_core import (
     BRAIN_FAILED_NOTE,
     BUDGET_EXHAUSTED_MSG,
     DispatchBudget,
+    ImagePart,
     InferenceError,
     InMemoryMemoryStore,
     InMemorySessionStore,
@@ -44,7 +50,9 @@ from cortex_core import (
     TextDelta,
     ToolCall,
     ToolDispatcher,
+    ToolResult,
     ToolSpec,
+    Trust,
     TurnCapabilities,
     TurnEvent,
     UrlRedactingGuardrail,
@@ -161,6 +169,80 @@ async def test_a_tainted_turn_is_kept_out_of_memory_by_the_same_policy() -> None
     recorded = await _recorded(memory_on)
     assert len(recorded) == 1
     assert recorded[0].tainted is True
+
+
+def _opaque_ledger() -> TaintLedger:
+    """A ledger an image-bearing untrusted result marked, the one way production marks one.
+
+    No URL anywhere in the result text, which is the whole point of the bit: a link painted
+    into pixels never reaches ``untrusted_urls``, so the default guardrail has nothing
+    collected to redact and only the bit can escalate it.
+    """
+    ledger = TaintLedger()
+    ledger.observe(
+        ToolResult(
+            call_id="c1",
+            content="screen capture of the primary display",
+            trust=Trust.UNTRUSTED,
+            images=(ImagePart(data=b"\x89PNG", mime_type="image/png", width=8, height=8),),
+        ),
+        source=as_source(SourceKind.TOOL, "capture_screen"),
+    )
+    return ledger
+
+
+def _textual_ledger() -> TaintLedger:
+    """The control: the same taint, from untrusted TEXT that carried no URL either."""
+    ledger = TaintLedger()
+    ledger.ingest_untrusted("a note with nothing linkable in it", source=None)
+    return ledger
+
+
+async def test_a_carried_opaque_bit_makes_the_deep_phase_redact_strictly() -> None:
+    """The first consumer, across the swap: strict redaction for a turn that read pixels.
+
+    Defence in depth and named as such. ``SwapConductor._prepare`` refuses an opaque turn
+    before any record exists, so the deep phase does not meet one today; what this pins is
+    that when it does, the policy it applies comes from the turn's own bit and not from a
+    ledger that started fresh. The control arm is the same taint without the bit, so a
+    difference here is the bit and nothing else.
+    """
+    laundered = "http://evil.test/painted-into-the-screenshot"
+    _phase, _backend, _sessions, texts = await _drive(
+        backend=ScriptedBrainBackend(chunks=(f"visit {laundered} now",)),
+        taint=_opaque_ledger(),
+        capabilities=TurnCapabilities(guardrail=UrlRedactingGuardrail()),
+    )
+    assert laundered not in "".join(texts)
+    # Same default policy, same taint, no bit: nothing was collected from result text, so the
+    # verbatim policy has nothing to flag and the link streams. That IS the vision gap.
+    _phase2, _backend2, _sessions2, control_texts = await _drive(
+        backend=ScriptedBrainBackend(chunks=(f"visit {laundered} now",)),
+        taint=_textual_ledger(),
+        capabilities=TurnCapabilities(guardrail=UrlRedactingGuardrail()),
+    )
+    assert laundered in "".join(control_texts)
+
+
+async def test_a_carried_opaque_bit_keeps_the_deep_phase_out_of_durable_memory() -> None:
+    """The second consumer, across the swap: the memory drop that outranks the record policy.
+
+    Same defence-in-depth framing as its sibling. With recording explicitly switched on, an
+    opaque turn is still dropped (a capture turn's reply is a transcription of the screen), and
+    the control arm proves the drop is the bit rather than a tightening of taint.
+    """
+    memory = _recaller()
+    _phase, _backend, _sessions, _texts = await _drive(
+        taint=_opaque_ledger(),
+        capabilities=TurnCapabilities(memory=memory, record_tainted_memory=True),
+    )
+    assert await _recorded(memory) == []
+    control = _recaller()
+    _phase2, _backend2, _sessions2, _texts2 = await _drive(
+        taint=_textual_ledger(),
+        capabilities=TurnCapabilities(memory=control, record_tainted_memory=True),
+    )
+    assert len(await _recorded(control)) == 1
 
 
 async def test_the_untainted_exchange_is_remembered_as_the_turn_it_was() -> None:

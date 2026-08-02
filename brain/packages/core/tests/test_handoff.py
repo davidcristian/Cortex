@@ -22,6 +22,8 @@ from cortex_core import (
     SourceKind,
     TaintLedger,
     ToolCall,
+    ToolResult,
+    Trust,
 )
 
 _AT = datetime(2026, 7, 25, 12, 0, tzinfo=UTC)
@@ -86,6 +88,7 @@ def test_snapshot_captures_the_loop_tail_and_derives_rounds_from_it() -> None:
     assert record.rounds_used == 1  # one assistant tool-call message = one dispatched round
     assert (record.budget_remaining, record.budget_closed) == (6, False)
     assert record.tainted is True
+    assert record.opaque is False  # this turn read untrusted text, not pixels
     assert record.sources == _ledger().sources
     assert record.untrusted_urls == frozenset({"http://evil.example/a"})
 
@@ -146,6 +149,7 @@ def test_taint_ledger_reconstruction_is_exact_and_detached() -> None:
         brief="go",
         nonce="cafe0123beef4567",
         tainted=ledger.tainted,
+        opaque=ledger.opaque,
         sources=ledger.sources,
         untrusted_urls=frozenset(ledger.untrusted_urls),
         budget_remaining=5,
@@ -162,10 +166,48 @@ def test_taint_ledger_reconstruction_is_exact_and_detached() -> None:
 def test_a_snapshot_refuses_a_loop_tail_carrying_pixels() -> None:
     """The same rule the session stores enforce (ADR-0029). A handoff record is durable and its
     schema has no field for an image, so accepting one would drop the picture in silence and
-    hand the deep model a caption with nothing attached. ``escalate_to_brain`` refuses an opaque
-    turn before it can reach here; this is the structural backstop."""
+    hand the deep model a caption with nothing attached. ``SwapConductor._prepare`` refuses an
+    opaque turn before it can reach here; this is the structural backstop."""
+    slot = _slot(_pixel_working(), budget=DispatchBudget(8), base_len=1)
+    with pytest.raises(ValueError, match="never persists images"):
+        slot.snapshot(turn_id="t-1", session_id="s-1", requested_at=_AT)
+
+
+def test_a_snapshot_carries_the_opaque_bit_off_the_live_ledger() -> None:
+    """The bit the pixels leave behind rides the record, and the rebuilt ledger says so.
+
+    Defence in depth rather than a live path, and worth naming as such: the conductor refuses
+    an opaque turn before it ever snapshots one, so this record is a shape the running system
+    does not produce. The reason to carry the bit anyway is that its two consumers both OPEN on
+    a ``False`` (the default URL guardrail stops escalating to strict redaction, and the
+    durable-memory drop stops applying), so a rebuilt ledger that invented ``False`` would be
+    indistinguishable from an honest one. Here the ledger is marked the only way production
+    marks it, through ``observe`` on an image-bearing untrusted result.
+    """
+    ledger = _ledger()
+    ledger.observe(
+        ToolResult(
+            call_id="c1",
+            content="screen capture of the primary display",
+            trust=Trust.UNTRUSTED,
+            images=(ImagePart(data=b"\x89PNG", mime_type="image/png", width=8, height=8),),
+        )
+    )
+    assert (ledger.opaque, ledger.tainted) == (True, True)
+    slot = EscalationSlot(
+        refs=EscalationRefs(
+            working=[], taint=ledger, nonce="cafe0123beef4567", budget=DispatchBudget(), base_len=0
+        ),
+        brief="go deep on this",
+    )
+    record = slot.snapshot(turn_id="t-1", session_id="s-1", requested_at=_AT)
+    assert record.opaque is True
+    assert record.taint_ledger().opaque is True
+
+
+def _pixel_working() -> list[Message]:
     picture = ImagePart(data=b"\x89PNG", mime_type="image/png", width=8, height=8)
-    working = [
+    return [
         Message(role=Role.USER, text="what is on my screen?", at=_AT, turn_id="t-1"),
         Message(
             role=Role.TOOL,
@@ -176,6 +218,3 @@ def test_a_snapshot_refuses_a_loop_tail_carrying_pixels() -> None:
             images=(picture,),
         ),
     ]
-    slot = _slot(working, budget=DispatchBudget(8), base_len=1)
-    with pytest.raises(ValueError, match="never persists images"):
-        slot.snapshot(turn_id="t-1", session_id="s-1", requested_at=_AT)
