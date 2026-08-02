@@ -16,13 +16,17 @@ designs), the two bounds the panel's section budget leaves behind it (a section'
 being under no cap, and the room a closing section hands back arriving in one frame),
 the two tradeoffs the reserved scrollbar rail accepts (its width
 is assumed rather than measured off the engine, and the two 6px cards spend their whole inset on
-it), the chat floor's frozen measurement of the empty state, a mid-stream retarget restarting
+it), a mid-stream retarget restarting
 from a rounded height, a Thoughts trace opening a reply off the bottom of a full history, the
 console tab strip's missing keyboard half, and the whisper's three follow-ups (a pickable voice
 row in the console, the wrap
 width a mid-stream resize cannot move, and kerning inside the letter boxes under a changed
 font; its drain-growth entry landed the same day it was filed, and the console outliving a new
-chat landed 2026-08-03), and a resize that lands inside the panel's own move waiting for it. A
+chat landed 2026-08-03), and a resize that lands inside the panel's own move waiting for it. The
+chat floor's frozen measurement of the empty state landed 2026-08-03 as the custom property it
+asked for, having been about a constant that was deleted the same day the entry was written, and
+took the second frozen number it named (`--trace-row`) with it; the rail's, the third, is
+unchanged, for the same want of a consumer it always had. A
 placement left computed for a stale height, the composer's own growth being the one resize the panel
 never eases, and a touch mid-roll pinning the session to a prediction all landed together on
 2026-08-03, the first two as the `ResizeObserver` they asked for and the third as something else
@@ -549,6 +553,18 @@ the two bounds above were opened with it.
   and measure it: a probe element read once at startup (`offsetWidth - clientWidth`) published back
   as `--rail` makes every subtraction true on any engine, at the cost of a small module and its
   tests, which is why it is not in a CSS-only slice.
+  - **Read against the tree and against the browser on 2026-08-03, when the chat floor's probe was
+    built. The status does not move, and the recipe above needs one correction.** The small module
+    now exists (`overlay/measured.ts`) and this entry could ride it, so what keeps it deferred is
+    only what always kept it deferred: no non-Chromium engine runs the overlay. On the engine that
+    does, the measurement is circular, `::-webkit-scrollbar { width: var(--rail) }` setting the very
+    width a probe would read back, so publishing it writes 6px over 6px; the version that would help
+    a fenced engine has to publish a SECOND property rather than the same one, or the webkit rule
+    consumes its own output, and that is a change to every subtraction in the stylesheet rather than
+    a line of wiring. The measurement was taken while the audit was on and confirms the assumption:
+    `.history` and `.field` both reserve exactly 6px. The recipe is right only on a box with no
+    border, which two of the containers it would serve have, so `.reminders` answers 8px for a 6px
+    rail inside two 1px edges; whoever picks this up takes the borders off the reading first.
 - **The switcher and the reminder stack spend their whole inset on the rail.** Both cards carry a
   6px pad, which is exactly the rail, so their inline-end padding goes to 0 and the reserved gutter
   becomes the inset. That keeps the resting geometry (measured 2026-07-20: rows at x 190, width
@@ -599,6 +615,49 @@ the two bounds above were opened with it.
   invitation and the bubbles that replace it in the same floored column") pins the other half: the
   floor only works while the empty state and the bubbles share the column it is on, which no
   stylesheet can defend.
+  - **LANDED 2026-08-03 as the published property this entry asked for, `--chat-floor` from
+    `overlay/measured.ts`, and the entry was describing a constant that had not existed for
+    fourteen days** ([ADR-0035 addendum](../adr/ADR-0035-console-and-motion.md)). `.log`'s
+    `min-height` was deleted on 2026-07-20 by the settings-tab slice, about forty minutes after this
+    text was written, on the reasoning that the reminder stack now rolls away on the first message
+    so the shrink is deliberate. That is true of a chat with reminders due and false of every other
+    chat, and nothing re-read the entry, so this backlog carried a note about tuning a number that
+    had been removed while the defect it prevented was live underneath it. **What that cost,
+    measured at 60Hz over the demo with the stack acked, at 900x900 and 640x720 alike: the first
+    message took the panel 352px to 262px and back to 297px as the reply began.** The composer's own
+    top edge reads 535 (and 445) for every frame of it, the panel being pinned below, so the whole
+    90px is the conversation dropping and climbing back. This entry predicted "a few pixels of dip";
+    it was 90, and by deletion rather than by drift.
+    **The other two frozen numbers were audited before anything was built, and neither had drifted.**
+    `--trace-row` is still exactly the chip's box (the live chip's laid-out height is 24.000px and
+    the settled disclosure's own is 20px, floored to 24 by the token), and `--rail` is still what
+    Chromium reserves (6px on both unbordered scroll boxes, `.history` and `.field`). The trace row
+    is retired here: `.chip`'s own floor was a no-op restating its natural height back at itself, so
+    it is gone and the chip publishes its box for the disclosure to floor on. The rail is not, and
+    the entry below says why.
+    **The design differs from this entry's guess in the one way that matters: a startup probe cannot
+    do it.** There is no empty state and no chip at startup, so a startup probe would have to render
+    a hidden copy, which is this exact defect one layer down with nobody looking at the copy. Both
+    elements are instead already in the tree exactly when their number is knowable and leave exactly
+    when it starts to matter, so the probe measures the real one, and the empty state's is a
+    reading plus a `ResizeObserver` rather than a single reading: measured at boot, it is 183px in
+    the frame React attaches it and 185px two frames later, the example chips' row coming out 29px
+    before the system font stack resolves and 31px after. A chip gets one reading, being unable to
+    appear before the user has typed and able to appear twice at once, which one watch could not
+    hold honestly. The engine half of this entry is therefore
+    answered rather than deferred, the number now being measured on whatever engine is running.
+    **The removal's own reason was real and is answered separately.** A column taller than the box
+    it scrolls in overflows, so with the stack still rolling away a thumb appears for 8 frames
+    (the removal reported seven). The rule that hides the history's thumb while the panel is
+    `[data-resizing]` now covers the stack's roll as well, naming the aside rather than any rolling
+    section: the general version hid a thumb that was already on screen for 38 frames of one
+    switcher round trip over a history scrolling 845px inside 293px, to save 8 frames that should
+    never have had one.
+    **The demonstration is the whole point of the entry.** Lengthening the invitation by one wrapped
+    line takes the empty state to 201px: the measured floor follows and the panel stands at 368px
+    both before the send and after it, where the same edit under a frozen 185px leaves 368px before
+    and 352px after, which is 16px of exactly the drift this entry described. The invitation was put
+    back.
 - **A settled reasoning reply still shrinks the panel by about 4px.** *Landed 2026-07-20*
   ([ADR-0035](../adr/ADR-0035-console-and-motion.md) decision 13.) The deferral read: traced at 60Hz at a
   900px viewport while verifying the floor, through the first send and the whole streamed reply the

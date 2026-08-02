@@ -1593,3 +1593,143 @@ either side falls back to the viewport silently, which is the neighbourless cap 
 test green. The literal is pinned in `panelBudget.test.ts` so a rename has to walk past it, which is
 the same arrangement `data-resizing` already has with the rule that hides the history's thumb, and
 the real answer is a scan that reads both trees.
+
+## Addendum, 2026-08-03: the floor under a chat is measured off the thing it copies
+
+Decision 12 gave `.log` a floor so that sending the first message does not shrink the panel, and
+sized it by measuring the empty state in a browser and writing the number into the stylesheet. The
+deferral that recorded this asked for the number to be read off the empty state instead, and named
+two more frozen numbers the same probe would retire. **Read against the tree before anything was
+built, one of the three was not there at all, and its absence was a live defect**, so the audit
+comes first.
+
+### What the three constants actually were
+
+- **The chat floor's 185px was gone.** `.log`'s `min-height` was deleted on 2026-07-20 by the
+  settings-tab slice, about forty minutes after the deferral describing it was written, on the
+  reasoning that the reminder stack now rolls away on the first message so the shrink is deliberate.
+  That is true of a chat with reminders due and false of every other chat. Nothing re-read the entry
+  for fourteen days, so this backlog carried a refinement about tuning a constant that had been
+  deleted, over a defect nobody was looking at.
+- **`--trace-row`'s 24px had not drifted.** Measured mid-turn in Chromium, the live activity chip's
+  laid-out box is exactly 24.000px and the settled disclosure's own box is 20px, floored to 24 by the
+  token, which is what decision 13 shipped. The chip's own `min-height` was restating its natural
+  height back at itself, a no-op that read as a constraint.
+- **`--rail`'s 6px is what the engine that ships reserves.** Measured on the two unbordered scroll
+  boxes, `.history` and `.field` both reserve exactly 6px (`offsetWidth - clientWidth`). The recipe
+  the deferral and the stylesheet comment both name needs one correction before anyone uses it: on a
+  bordered box it over-reads by the border, `.reminders` answering 8px for a 6px rail inside two 1px
+  edges.
+
+### What the missing floor cost
+
+Traced at 60Hz over the demo bridge, on an empty chat with the reminder stack acked, which is every
+chat a user has no reminders due on. At 900x900 and at 640x720 alike, sending the first message took
+the panel from 352px to **262px** and back to 297px as the reply began, an excursion of 90px whose
+whole travel is the panel's top edge: the composer's own top reads 535 (and 445) for every frame of
+it, the panel being pinned at its bottom edge. The panel then climbed past its starting height as
+the answer arrived. So the first thing a user does in a new chat dropped the conversation 90px and
+then walked it back up, which is the complaint decision 12 exists to answer, arriving through a
+deletion rather than through a drift.
+
+### The decision
+
+**`.log` floors on `--chat-floor`, and `overlay/measured.ts` publishes that property from the empty
+state's own box.** The same module publishes `--trace-row` from the live chip's box, and `.chip`'s
+own floor is gone, so the chip is the row and the disclosure matches it rather than both restating a
+constant.
+
+- **The probe renders nothing.** A hidden copy of the empty state would reproduce the defect being
+  fixed one layer down, the copy drifting from the real thing with nobody looking at the copy. Both
+  elements are already in the tree exactly when their numbers are knowable, and each leaves exactly
+  when its number starts to matter: the empty state stands for the whole life of an empty chat and
+  is replaced by the first message, and the live chip stands for the whole of a turn's deliberation
+  and is replaced by the disclosure that has to be as tall as it.
+- **It is therefore not a startup probe, and no startup would be early enough.** Measured at boot,
+  the first reading of the empty state is 183px against the 185px it settles at two frames later,
+  because the example chips' row comes out 29px before the system font stack resolves and 31px
+  after. So the empty state is a reading plus a watch, the shape `PanelEdge` already uses for its
+  own box: once as React attaches the element, so the number is never missing, and again whenever
+  the box actually changes. A chip is one reading, and the difference is reasoned rather than
+  incidental: a chip cannot be on screen before the user has typed, so it is never measured through
+  the settling the empty state sits in, and a tool chip and a status chip can be up at once, which
+  one watch could not hold honestly, a shared ref callback being told that an element is leaving but
+  never which one. Both chips are the same box, so a reading apiece says the same thing.
+- **Neither watch can feed itself**, which is the care `panelWatch` documents. `--chat-floor` is
+  spent by `.log`, and while the empty state is up the log carries `.log.bare`, whose own
+  `min-height: 0` outranks it. `--trace-row` is spent by a disclosure that is never on screen beside
+  the chip that publishes it. A reading changes nothing about the element it was taken from, so
+  there is no resize for the panel's own watch to answer either.
+- **Both readings are `offsetHeight`,** for the reason `panelMemory` gives: it ignores transforms,
+  and both boxes are measured while one is running. The panel is scaled through a summon, and a chip
+  arrives under a 300ms `confirmin` that translates and scales it, whose rect reads 23.883 against a
+  laid-out 24.
+- **When it cannot measure, the stylesheet's own value stands.** An element with no layout reports
+  0 and publishes nothing, and an element that never mounts publishes nothing either: a chat
+  restored with messages in it never shows the empty state, and a reply that did not reason never
+  shows a chip. So `--chat-floor: 185px` and `--trace-row: 24px` stay declared on `:root` as
+  documented fallbacks rather than being deleted, and the failure mode is exactly the behaviour that
+  shipped before rather than a zero-height floor.
+
+### The thumb the removal was right about
+
+Restoring the floor brings back the defect the deletion cited, and it is real: a column taller than
+the box it scrolls in overflows, so with the reminder stack still rolling away the history is handed
+its share a frame at a time under a log already standing at the floor. Measured at 640x720, that is
+**8 frames** with a thumb on screen, against the seven the removal reported.
+
+The rule that hides the history's thumb while the panel is `[data-resizing]` already says why this
+is wrong: the thumb is reporting a size the box is passing through rather than one it has. That rule
+now covers the reminder stack's roll as well, and it names the **aside** rather than any rolling
+section, which is a narrowing the browser argued for. The general version blinks a thumb that was
+already on screen: measured on a history scrolling 845px inside 293px, one switcher round trip hid
+it for 38 frames, to save 8 frames it should never have had. The stack is safe because of when it is
+allowed to roll at all, being open only on a chat with no messages, so it can shut only as the first
+message lands (this case) or as the last reminder is acked on an empty chat, where the log is
+`.log.bare` and clips rather than scrolling. In neither is there an honest thumb to lose.
+
+### What it measures
+
+Panel height at rest on an empty chat, and again once the first message has landed, over the demo
+bridge. The empty states are untouched; every case that used to fall now holds.
+
+| State | Panel before | after |
+| --- | --- | --- |
+| 640x720, empty chat, reminder stack up | 450 | 450 |
+| 640x720, first message sent, stack rolling away | 297.47 | 352 |
+| 640x720, empty chat, stack acked | 352 | 352 |
+| 640x720, first message sent, no stack | 297.47 | 352 |
+| 900x900, empty chat, reminder stack up | 518 | 518 |
+| 900x900, first message sent, stack rolling away | 297.47 | 352 |
+| 900x900, empty chat, stack acked | 352 | 352 |
+| 900x900, first message sent, no stack | 297.47 | 352 |
+
+Frame by frame through the send with no stack, the panel now holds one height (352) from the
+keystroke to the reply's first growth, where it ran 352, 348.67, 333.94, 306.81, 286.13, 274.30,
+267.48, 263.78, 262.19 and back before. The published floor reads 183px in the frame the empty state
+is attached and 185px once the font stack resolves, and the chip publishes 24px.
+
+**The point of the change is what happens to an edit.** Lengthening the invitation by one wrapped
+line takes the empty state to 201px: the measured floor follows it, and the panel stands at 368px
+before the send and 368px after it. With the floor frozen at 185px under that same edit, the panel
+stands at 368px before the send and **352px** after it, a 16px dip that is exactly the drift the
+deferral predicted. The invitation was restored afterwards.
+
+**Mutated three ways, each restored after.** Publishing the frozen `185px` instead of the measured
+height reddens five tests across the module and both components. Dropping the ref from the empty
+state reddens the Panel suite's floor test, and dropping it from a chip reddens the Message suite's.
+The browser is the evidence for the CSS half, which jsdom has no layout to hold an opinion about.
+
+### What this does not do
+
+**The rail entry does not move, and a probe would not move it.** Measuring the rail is dead for want
+of a consumer rather than for want of a measurement: no non-Chromium engine runs the overlay, and on
+the engine that does the number is circular, since `::-webkit-scrollbar { width: var(--rail) }` sets
+the width the probe would read back. Publishing a measured `--rail` on Chromium writes 6px over 6px,
+and on a hypothetical Firefox it would have to be a second property rather than the same one, or the
+webkit rule would consume its own output. The entry keeps its status, with its recipe corrected for
+the border.
+
+**Nothing machine-checks the two new properties**, which is the same TypeScript-into-CSS seam
+`--ceiling` and `data-resizing` already have, and joins that deferral rather than opening one. The
+literals are pinned in `measured.test.ts` so a rename has to walk past them.

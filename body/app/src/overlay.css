@@ -22,18 +22,29 @@
      padding leaves the last glyph of a wrapped line about a pixel off the thumb. Each of those
      rules names which of the two it is. */
   --rail: 6px;
-  /* The height of one activity row above a bubble. It is a token for the same reason `--rail` is:
-     two rules have to agree on it, and here the agreement is the whole point. A reply that reasoned
-     shows a LIVE chip while it works and a SETTLED "Thoughts" disclosure once it lands, and those
-     are one row in two states, not two different things. Left to their natural boxes they were
-     24px and 20px, so the moment a turn completed the log lost 4px and the panel eased *down* by
-     that much: a shrink landing exactly when the answer did, which is the same complaint this
-     panel's floor exists to answer, only smaller. Both rules now floor themselves here instead.
-     24px is the chip's own natural box (a 14px line box for its 12px label + 4px padding + 1px
-     border, each side), so the live state is unchanged and the settled one grew to meet it. Change
-     the chip's padding, border or font size and this number is what has to be re-derived, or the
-     chip outgrows the token and the settled row is short again by the difference. */
+  /* The height of one activity row above a bubble, MEASURED off the live chip rather than restated
+     here (overlay/measured.ts publishes it off the chip's own box, and keeps it current). A reply
+     that reasoned shows a LIVE chip while it works and a SETTLED "Thoughts" disclosure once it
+     lands, and those are one row in two states, not two different things. Left to their natural
+     boxes they were 24px and 20px, so the moment a turn completed the log lost 4px and the panel
+     eased *down* by that much: a shrink landing exactly when the answer did, which is the same
+     complaint the chat floor below exists to answer, only smaller. The chip is the row and the
+     disclosure floors on it, so the two cannot drift apart when the chip's padding, border or font
+     size changes.
+     The value here is what stands until a chip has been seen: 24px is the chip's own natural box
+     (a 14px line box for its 12px label + 4px padding + 1px border, each side), measured in
+     Chromium at HEAD, and it is what a turn that never reasoned or a reload that never showed a
+     chip leaves the disclosure floored on. */
   --trace-row: 24px;
+  /* The height of the empty state, MEASURED off the empty state (overlay/measured.ts again, off
+     the one element, for as long as it is on screen). `.log` floors on it so that sending the first
+     message does not shrink the panel: the invitation is the tallest the chat has been, and a panel
+     that drops the moment the user uses it is the complaint this answers.
+     185px is that measurement in Chromium at HEAD, the same at 640x720 and 900x900 because none of
+     it is viewport-derived (32px of padding, a 54px mark, 13px, a 16px line, 13px, a 31px row of
+     chips, 26px), and it is what stands on a chat restored with messages already in it, where no
+     empty state was ever on screen to read. */
+  --chat-floor: 185px;
   /* The width every relative timestamp reserves, so a column of them holds still while the clock
      runs under it. A token because two rules have to agree: the switcher's rows and the reminder
      stack's meta line both print `relativeTime` at 11.5px, so one measurement bounds both. Its
@@ -141,8 +152,23 @@
    (`scrollbar-gutter: stable`), so nothing moves; only the thumb is wrong, and it is wrong
    because it reports a size the panel is passing through rather than one it has. Hiding the
    thumb rather than the overflow is deliberate: `overflow: hidden` would also freeze
-   `scrollTop`, and the auto-scroll that follows a stream writes to it on every token. */
-.panel[data-resizing] :is(.history, .rows)::-webkit-scrollbar-thumb {
+   `scrollTop`, and the auto-scroll that follows a stream writes to it on every token.
+
+   The second selector is the same sentence about the one other thing that makes the history's box
+   transient: the reminder stack rolling away above it. The panel's own height is not animating
+   then (the roll owns it), so `data-resizing` is not set, and the history is handed its share a
+   frame at a time while the log under it already stands at the chat floor. Measured at 640x720,
+   sending the first message with the stack up put a thumb on screen for 8 frames, which is the
+   defect that had the floor taken out altogether.
+   It names the ASIDE and not any rolling section, which is a narrowing the browser argued for. The
+   general version (any chrome section mid-roll) blinks a thumb that was already on screen: measured
+   on a history scrolling 845px inside 293px, one switcher round trip hid it for 38 frames, where
+   the 8 it saves are frames the thumb should never have had. The stack is safe because of when it
+   is allowed to roll at all: it is open only on a chat with no messages, so it can shut only as the
+   first message lands (this case) or as the last reminder is acked on an empty chat, where the log
+   is `.log.bare` and clips rather than scrolling. In neither is there an honest thumb to lose. */
+.panel[data-resizing] :is(.history, .rows)::-webkit-scrollbar-thumb,
+.view:has(> .collapse.aside[data-morphing]) .history::-webkit-scrollbar-thumb {
   background: transparent;
 }
 .stage ::-webkit-scrollbar-thumb {
@@ -681,20 +707,28 @@
    above a blank history. `margin: auto` beats `justify-content` on the empty state, which therefore
    stays centred.
 
-   There is no `min-height` floor on it any more. One was here to stop the first message shrinking
-   the panel, from when the reminder stack stayed put through a send. The stack now rolls away on
-   the first message, so that shrink is deliberate and the floor outlived its reason, and it was
-   costing a defect: a column taller than the box it scrolls in is a box that overflows, so while
-   the panel was still easing up to the height that would hold it, a scrollbar appeared for the
-   climb. Traced at 60Hz through a streamed reply, seven frames showed a thumb with the panel
-   growing and no animation of its own to hide it behind. `flex: 1 0 auto` stays: the column grows
-   into a history left taller than its content and never shrinks under it. */
+   The floor is what stops the first message shrinking the panel, and it is `--chat-floor`, which is
+   the empty state's own height read off the empty state. It sits on the CONTENT rather than on the
+   scroll box because a floor on `.history` cannot yield: with the switcher and the reminder stack
+   both open at the body's 720px window there is 76px left for the history, and a box that refuses
+   to go below that pushes the composer and the hint strip past the panel's own clipped edge.
+   Floored content just scrolls instead.
+   It was taken off for fourteen days, on the reasoning that the reminder stack now rolls away on
+   the first message so the shrink is deliberate. That is true of a chat with reminders due and
+   false of every other chat: measured with the stack acked, at 640x720 and at 900x900 alike, the
+   first message took the panel 352px to 262px and its top edge fell 90px before the reply climbed
+   back. The defect the removal named is real and is answered by the thumb rule near the top of this
+   file rather than by giving the floor up: a column taller than the box it scrolls in overflows, so
+   a thumb appeared for the frames the history spent being handed its share back, and that rule now
+   covers the stack's roll as well as the panel's own resize. `flex: 1 0 auto` stays: the column grows into a history left taller than its
+   content and never shrinks under it. */
 .log {
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
   flex: 1 0 auto;
   gap: 11px;
+  min-height: var(--chat-floor);
 }
 /* The opening screen does not scroll. It is the one thing in the history that is a PICTURE rather
    than a log: there is no more of it further down, so a scrollbar on it offers to reveal nothing
@@ -858,9 +892,11 @@
   align-items: center;
   gap: 7px;
   max-width: 82%;
-  /* The row height the settled disclosure below matches, so a turn completing swaps the two in
-     place instead of resizing the log under them. This is the chip's natural height already. */
-  min-height: var(--trace-row);
+  /* No floor here on purpose: this box IS the row height, and the settled disclosure below floors
+     on it (`--trace-row`, published from this element by overlay/measured.ts) so that a turn
+     completing swaps the two in place instead of resizing the log under them. The floor that used
+     to be here restated this box's own natural height back at it, which is a no-op that reads as a
+     constraint and would quietly become one if the padding or the font ever shrank the box. */
   padding: 4px 12px;
   background: var(--control);
   border: 1px solid var(--stroke);
@@ -904,10 +940,11 @@
    that the row and the body are now two sibling boxes rather than a summary inside a disclosure, so
    the open state is read off the button's `aria-expanded` rather than off a parent's `[open]`.
 
-   Closed, it stands exactly where the chip stood and is exactly as tall (`--trace-row`), because
-   it is that chip settled rather than a second element appearing after one left: matching the
-   height is what keeps the completion of a turn from resizing the log, and centring the label in
-   the taller box is what keeps the text from stepping up 5px at the same moment. */
+   Closed, it stands exactly where the chip stood and is exactly as tall (`--trace-row`, read off
+   the chip that just left rather than restated), because it is that chip settled rather than a
+   second element appearing after one left: matching the height is what keeps the completion of a
+   turn from resizing the log, and centring the label in the taller box is what keeps the text from
+   stepping up 5px at the same moment. */
 .thoughts {
   align-self: flex-start;
   max-width: 82%;
