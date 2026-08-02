@@ -53,6 +53,7 @@ import { EASING, MORPHING_ATTRIBUTE } from "./morph";
  *  asynchronous, and it is safe: a replaced animation is cancelled, and a cancelled animation
  *  never finishes. */
 const RESIZING_ATTRIBUTE = "data-resizing";
+import { capTo } from "./panelBudget";
 import {
   type Geometry,
   arrivalBottom,
@@ -169,7 +170,7 @@ export function place(
   // the panel was in: this is true only on the render that ARRIVES in a multi-shape view.
   const entering = at.open && memory.view !== at.view && at.view !== CHAT_VIEW;
   const release = holdScroll(element);
-  element.style.maxHeight = `${openHeight(viewport)}px`;
+  capTo(element, openHeight(viewport));
   const section = element.querySelector<HTMLElement>(`[${MORPHING_ATTRIBUTE}]`);
   if (section !== null) {
     // A section inside is collapsing open or shut, and it owns the height: the panel's `auto` height
@@ -187,7 +188,7 @@ export function place(
     // the screen, and the placement at the END of the roll put the real 351 back in one frame, which
     // is the overshoot and the pop back. Capped here instead, the section still rolls to its full
     // height and the history gives the room up, which is what the history is for.
-    element.style.maxHeight = `${maxHeight(viewport, memory.applied)}px`;
+    capTo(element, maxHeight(viewport, memory.applied));
     // Record what the eye sees, so a later change eases from here.
     memory.shown = { height: heightOf(element), bottom: memory.applied };
     memory.deferred = true;
@@ -247,9 +248,11 @@ export function place(
   const arrival = entering ? arrivalBottom(viewport, edge, height, tabSlack(element)) : edge;
   const bottom = placed ? arrival : memory.applied;
   const ceiling = maxHeight(viewport, bottom);
-  element.style.maxHeight = `${ceiling}px`;
+  capTo(element, ceiling);
   // Re-read: the real cap may have shortened the panel, and everything below animates to what the
-  // element actually is rather than to what it wanted to be.
+  // element actually is rather than to what it wanted to be. It may also have shortened the
+  // roll-open sections, the budget they share being a share of this same number, and the re-read
+  // covers that for the same reason: what the element IS is the only thing worth animating to.
   const next: Geometry = { height: heightOf(element), bottom };
   release();
   memory.applied = bottom;

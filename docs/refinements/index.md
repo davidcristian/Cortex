@@ -44,7 +44,7 @@ its signature.
 | [memory.md](memory.md) | Store, scoping, rerank/MMR (ADR-0008) | 8 |
 | [inference-model-manager.md](inference-model-manager.md) | Model-manager lifecycle, MTP, reasoning status (ADR-0007/0020) | 7 |
 | [subagents.md](subagents.md) | Progress reporting, spawn schema, heterogeneous roster (ADR-0010/0018) | 2 |
-| [body-overlay.md](body-overlay.md) | Overlay polish, connection indicator, proto Cancel (ADR-0011), an exit for the switcher's rows, the composer's move on a clamped shrink, the reserved scrollbar rail's assumed width and spent card inset, the chat floor's frozen measurement of the empty state, a mid-stream retarget restarting from a rounded height, a Thoughts trace opening a reply off the bottom of a full history, sections tall enough to outrun the panel on their own, the console tab strip's missing keyboard half, and the whisper's follow-ups (ADR-0037): a pickable voice row, a mid-stream resize keeping the old wrap width, and kerning inside the letter boxes under a changed font (its drain-growth entry landed the day it was filed, and the console outliving a new chat, the reminder stack's per-row exit, the panel's watch on its own box with the arrival-aside correction that came out of it, and the demo bridge over the line cap all landed 2026-08-03), and a resize that lands inside the panel's own move waiting for it | 15 |
+| [body-overlay.md](body-overlay.md) | Overlay polish, connection indicator, proto Cancel (ADR-0011), an exit for the switcher's rows, the composer's move on a clamped shrink, the reserved scrollbar rail's assumed width and spent card inset, the chat floor's frozen measurement of the empty state, a mid-stream retarget restarting from a rounded height, a Thoughts trace opening a reply off the bottom of a full history, the two bounds the panel's section budget left behind it (a section's own frame being under no cap, and the room a closing section hands back arriving in one frame), the console tab strip's missing keyboard half, and the whisper's follow-ups (ADR-0037): a pickable voice row, a mid-stream resize keeping the old wrap width, and kerning inside the letter boxes under a changed font (its drain-growth entry landed the day it was filed, and the console outliving a new chat, the reminder stack's per-row exit, the panel's watch on its own box with the arrival-aside correction that came out of it, the demo bridge over the line cap, and two sections outrunning the panel on their own all landed 2026-08-03), and a resize that lands inside the panel's own move waiting for it | 16 |
 | [session-read-seam.md](session-read-seam.md) | Session listing/read seam (ADR-0021) | 3 |
 | [resource-governance.md](resource-governance.md) | Scheduler/placer budgets, NPU, drain (ADR-0012) | 5 |
 | [email-confirmer.md](email-confirmer.md) | Email write, Confirmer, attachments, `ToolActivity` chip (ADR-0022) | 4 |
@@ -873,15 +873,22 @@ against the code (the warning above); the entry text tells you which seams it ex
   26.27px where a paste moved 98 (the 122 the entry published is 98 once the panel is on its own
   ceiling and the history absorbs the rest).
 - **Sections tall enough to outrun the panel on their own**
-  ([body-overlay.md](body-overlay.md)), open from 2026-07-20, when the composer learned to yield
-  before the panel's edge ([ADR-0035](../adr/ADR-0035-console-and-motion.md) decision 19) and left this
-  behind it. The chat switcher may be `40vh` and the reminder stack `30vh`, which at the body's
-  720px window is 504px of a 547px panel, so a full one of each leaves the composer and the hint
-  strip with nothing to be laid out in whatever they give up of their own height. Bounded now (the
-  pill stops at its 84px floor with its text and its button inside it, and only the hint strip goes
-  over the edge) and reachable only with both sections full at once. The fix is a cap that knows
-  about its neighbours: the two `vh` numbers are each written as if that section were alone with the
-  panel.
+  ([body-overlay.md](body-overlay.md)), open from 2026-07-20 and **closed 2026-08-03** as the cap
+  that knows about its neighbours, with three of its own claims corrected upward
+  ([ADR-0035 addendum](../adr/ADR-0035-console-and-motion.md)). It was not a corner needing both
+  sections full: the demo's own two chats and three reminders put the hint strip 29.75px outside
+  the panel the moment the switcher opened, this entry having weighed the sections against the
+  547px panel of an 86px pinned edge where the state it describes stands 450px tall on a 184px one.
+  It was not bounded at the hint strip either: with both sections at their caps and no draft at all, the composer was 204px
+  outside and the hint strip 246px. And it is worse on a bigger screen, the caps being viewport
+  fractions where the panel's ceiling is not (450px outside at 640x1400). It is a pair and not a
+  family, the stylesheet's other two `vh` caps being inside the scrolling history where they cannot
+  reach the panel's edge. The panel's ceiling is now published as `--ceiling` beside the
+  `max-height` it equals, the column's own furniture is reserved off it (the header, the composer's
+  84px floor and its margins, the hint strip, the history's padding), and the two sections split
+  what is left four sevenths to three, which is the 40 and the 30 they were already written in. The
+  composer and the hint strip cannot lose because they are never in the budget. All five states
+  read 1px inside the edge afterwards; two bounds were opened behind it.
 - **The two unpicked directions for the settings and shortcuts views**
   ([body-overlay.md](body-overlay.md)), open from 2026-07-19 and **closed 2026-07-20**: the user
   picked both at once, and both landed as predicted, a component change on unchanged plumbing. The
@@ -1399,6 +1406,17 @@ whose
 trigger is either a row dropping its horizontal padding or the maintainer reading the rail as touching
 the chrome, and whose fix is the 6px going back on the card at the cost of a 12px inline-end inset
 against a 6px left, or a narrower rail for those two cards
+([body-overlay.md](body-overlay.md)); the two bounds the panel's section budget leaves behind it,
+joined on 2026-08-03 when the budget landed, both measured rather than assumed: a section's own
+border, padding and air (14px plus 6px) sit under no cap at all, so two open sections cost 40px the
+budget cannot reach and the hint strip is 34px outside at a 640x240 viewport, everything being
+inside again by 640x300 against a body window of 720 (trigger: a screen the overlay is never opened
+on today, and the fix is a section whose share cannot hold one row leaving rather than standing
+there as a frame); and the room a closing section hands back arrives in a single frame, because the
+share reads the tree and a section rolling shut is in the tree until React removes it, traced at
+640x720 as the switcher stepping 127.14 to 227 in one frame with the panel's own box never moving at
+all (trigger: the maintainer reading that reveal as a jump, and the fix is the share following the
+roll's published target rather than the tree)
 ([body-overlay.md](body-overlay.md)); the whisper's two bounded follow-ups, joined on
 2026-07-21 when the streaming redesign landed (ADR-0037): a streamed bubble's wrap width
 measured once (trigger: a resizable overlay window), and kerning pairs lost across the letter
