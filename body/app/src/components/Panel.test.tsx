@@ -390,6 +390,40 @@ describe("Panel", () => {
     expect(screen.getByLabelText("Recent chats")).toBeInTheDocument();
   });
 
+  it("takes the leaving view out of the tab order for as long as it is out of the tree's", () => {
+    const props = (over: Partial<OverlayState>) => panelProps(over, true, false);
+    const view = render(<Panel {...props({ consoleTab: "shortcuts" })} />);
+    const views = () => [...view.container.querySelectorAll(".views > .view")];
+    // Settled: the chat is `gone`, which is display:none, and the console is the live view.
+    expect(views().map((pane) => pane.hasAttribute("inert"))).toEqual([true, false]);
+
+    // Leaving: the console is still mounted and fading, and for that whole 380ms it was announced
+    // as hidden and still reachable by Tab, which is three stops (the chevron and both faces) in a
+    // pane the user has already left. Now the two attributes say the same thing.
+    view.rerender(<Panel {...props({})} />);
+    const leaving = view.container.querySelector(".view.out") as HTMLElement;
+    expect(leaving.getAttribute("aria-hidden")).toBe("true");
+    expect(leaving.hasAttribute("inert")).toBe(true);
+    expect(view.container.querySelector(".views > .view:not(.out)")).not.toHaveAttribute("inert");
+  });
+
+  it("takes a dismissed panel out of the tab order, orb and hidden alike", () => {
+    // The outermost of the three: the panel is never unmounted, so a dismissed one was opacity 0
+    // with everything in it still tabbable, and Tab walked an invisible panel. Measured in
+    // Chromium at 900x900 before this: six presses reached the reminder rows' buttons.
+    for (const mode of ["hidden", "orb"] as const) {
+      const { container, unmount } = renderPanel({ mode }, false, false);
+      const panel = container.querySelector(".panel") as HTMLElement;
+      expect(panel.getAttribute("aria-hidden")).toBe("true");
+      expect(panel.hasAttribute("inert")).toBe(true);
+      unmount();
+    }
+    const open = renderPanel({}, true, false);
+    const panel = open.container.querySelector(".panel") as HTMLElement;
+    expect(panel.getAttribute("aria-hidden")).toBe("false");
+    expect(panel.hasAttribute("inert")).toBe(false);
+  });
+
   it("greets an empty chat with the mark and tappable example prompts that submit", () => {
     const onSubmit = vi.fn();
     const { container } = renderPanel({}, true, false, { onSubmit });

@@ -668,3 +668,25 @@ auto-restore landed 2026-07-12, so the most recent chat is expected to restore. 
 back here as a dated addendum.
 
 No code changed here; this is a records correction at the origin ADR.
+
+## Addendum (2026-08-03): the switcher's listbox role is disputed and the question is written down
+
+The switcher this ADR designed (decision list, "The switcher (`⌄`) shows the list") ships as a `<ul>`
+carrying `role="listbox"`, and its rows do not satisfy that role. Each is an `<li>` holding four
+ordinary buttons (the row itself, then pin, rename and trash) with no `role="option"` anywhere, so
+the container announces a listbox whose required children are absent. Measured in Chromium at
+900x900 while giving the console's tab strip its keyboard half: one open switcher offers eight tab
+stops across two rows.
+
+No code changed here, and none should until the shape is chosen, because there are two and they lead
+different places. Either the rows become options and the list becomes one tab stop moved through
+with `aria-activedescendant`, which then has to answer what happens to the three per-row buttons,
+since an option is a leaf and they are not; or `role="listbox"` comes off and the list is the set of
+composite rows it already behaves like. Whichever wins has to be reconciled with `Ctrl+↑` and
+`Ctrl+↓`, which this ADR's cycle math drives without moving focus at all and which are the obvious
+keys for a listbox to answer with focus instead.
+
+Recorded in [refinements/body-overlay.md](../refinements/body-overlay.md) and on its index, and
+argued at length in the [ADR-0035](ADR-0035-console-and-motion.md) addendum of the same date, which
+is the pass that found it. This is the third of that deferral's three records, at the ADR whose
+decision the role belongs to.

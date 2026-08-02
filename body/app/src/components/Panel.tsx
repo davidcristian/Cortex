@@ -6,6 +6,7 @@ import { type ConsoleTab, type OverlayState, isTurnActive } from "../overlay/ove
 import { MAX_DURATION_MS } from "../overlay/panelGeometry";
 import { usePanelMotion } from "../overlay/usePanelMotion";
 import { useViewTransition } from "../overlay/useViewTransition";
+import { withdrawn } from "../overlay/withdrawn";
 import { ChatView } from "./ChatView";
 import { ConsoleView } from "./ConsoleView";
 import { PanelEdge } from "./PanelEdge";
@@ -104,7 +105,13 @@ export function Panel(props: PanelProps) {
       className={`panel${liquid ? " edge-live" : ""}${open ? " open" : closed}`}
       role="dialog"
       aria-label="Cortex"
-      aria-hidden={!open}
+      // A dismissed panel is still mounted (its `open` class is what animates the way out and the
+      // way back in) and was `opacity: 0` with nothing taking it out of the tab order, so the tab
+      // key walked an invisible panel: measured in Chromium at 900x900, Esc to the orb and then six
+      // presses of Tab reached the two reminder rows' buttons three times over, every one of them
+      // under this `aria-hidden`. The panel is the outermost of the three places the overlay holds
+      // something mounted that is not on screen, and it gets the same rule as the other two.
+      {...withdrawn(!open)}
     >
       {liquid ? (
         <PanelEdge
@@ -115,11 +122,17 @@ export function Panel(props: PanelProps) {
         />
       ) : null}
       <div className="views">
-        <div className={classOf("chat")} aria-hidden={view !== "chat"}>
+        {/* The view being left is held for one morph so it has something to fade against, and for
+            that morph it is `.out`: out of flow, not painted at full opacity, not clickable. It was
+            still tabbable, though, and the fade is 380ms long: measured in Chromium at 900x900,
+            leaving the console for the chat and then pressing Tab reached the back chevron and both
+            faces of the strip inside the pane on its way out, and then the body. `withdrawn` takes
+            the whole pane out of the tab order for exactly as long as it is out of the tree's. */}
+        <div className={classOf("chat")} {...withdrawn(view !== "chat")}>
           <ChatView {...props} />
         </div>
         {view === CONSOLE || leaving === CONSOLE ? (
-          <div className={classOf(CONSOLE)} aria-hidden={view !== CONSOLE}>
+          <div className={classOf(CONSOLE)} {...withdrawn(view !== CONSOLE)}>
             <ConsoleView
               tab={tab.current}
               themeName={themeName}

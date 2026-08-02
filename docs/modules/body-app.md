@@ -234,7 +234,14 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
   558px inside a panel 347px tall, so the chat's bottom furniture was clipped away in the first
   frame of a fade the rest of it took a quarter of a second over.
   Whichever pane is on its
-  way out is `aria-hidden`, chat or console, so two mounted panes are never two announced ones. `usePanelMotion` is the WHEN of the panel's
+  way out is `aria-hidden` AND `inert`, chat or console, so two mounted panes are never two
+  announced ones and never two tabbable ones. Both attributes come from one function,
+  `overlay/withdrawn.ts`, and the same call sits on the panel itself while it is dismissed and on
+  the console's tab not showing: wherever the overlay holds something mounted that is not on screen,
+  what is hidden from a reader is hidden from the tab key in the same frame
+  ([ADR-0035](../adr/ADR-0035-console-and-motion.md), the 2026-08-03 addendum on the strip's
+  keyboard, has the before and after counts and the react-dom 18 probe behind the `inert=""` form).
+  `usePanelMotion` is the WHEN of the panel's
   geometry (every render, a window resize, both ends of a roll, and the panel's own box changing
   under it) over the files that are the what:
   `overlay/panelGeometry.ts` is the pure arithmetic (the centre, the ceiling clamp, the max height
@@ -367,6 +374,19 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
   decoration: a browser refuses to hide the focused element's ancestor from assistive tech, so
   without the handoff the `aria-hidden` on the pane being left is ignored and the tab just left
   stays in the tree as a second, equal console.
+  **The strip is a full tab list from the keyboard** (ADR-0035 addendum, 2026-08-03). It is ONE stop
+  in the page's tab order, carried by a roving `tabIndex` that is 0 on the selected face and -1 on
+  the others, which needs no state of its own because selection follows focus and the tab that has
+  focus is the tab that is selected. `overlay/tabStrip.ts` is the pure map of what the keys do:
+  ArrowLeft and ArrowRight step along the strip and wrap at both ends, Home and End go to the ends
+  and do not wrap, everything else is left alone (the vertical arrows included, since Ctrl with
+  those cycles chats overlay-wide). The four it answers are `preventDefault`ed, because the panel
+  clips its overflow and they would scroll a box the user cannot scroll back. Focus following the
+  selection is a layout effect on the tab that is up rather than an `autoFocus`, which covers the
+  way in exactly as before and additionally covers a switch, the console pane not being remounted
+  when the tab changes; the switch that needs it is the global `?`, which can change the tab while
+  the keyboard is down among the theme tiles of the pane about to go inert. Each face also carries
+  `aria-controls` naming the pane it opens, over a `useId` prefix rather than a hand-written id.
 - **The empty state does not scroll; it is clipped** (`components/ChatView.tsx` + `src/overlay.css`).
   The history's children sit in one column, `.log`, which carries `bare` while the empty state is
   the whole of it (no messages and no approval card, asked of the same state the empty state itself
@@ -541,6 +561,18 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
   untrusted ones; the text itself stays a plain text node. The card's controls are all app chrome
   with fixed labels, sitting *beside* that text and never wrapping it, so nothing a stranger
   wrote can become the label on a working button.
+- **Whatever is hidden from a reader is hidden from the tab key, in the same frame and from the
+  same call.** The overlay keeps three things mounted that are not on screen: the panel while it is
+  dismissed, the view being left for the length of its morph, and the console's tab not showing.
+  Each spreads `withdrawn(away)` (`overlay/withdrawn.ts`), which writes `aria-hidden` in both
+  directions and `inert` in one, `inert` being a boolean attribute whose absence is its false. A
+  fourth such place spreads the same call or it is a defect: `aria-hidden` alone leaves the subtree
+  in the tab order, and CSS that takes it out (`visibility: hidden`, `display: none`) arrives after
+  the fade rather than with the state change, which is the window every one of these was reachable
+  in. The `inert=""` string form is deliberate and load-bearing: React 18 writes a string attribute
+  straight through and drops a boolean one with a warning, so the empty string is how this tree
+  spells a present boolean attribute until it moves to React 19
+  ([ADR-0035](../adr/ADR-0035-console-and-motion.md), 2026-08-03 addendum, has the probe).
 - **A scroll container reserves its scrollbar; it never borrows the content's width.** All seven
   (`.history`, `.switcher`, `.reminders`, `.thoughts-body`, `.confirm-draft`, `.rows`, and the
   composer's `.field`) carry `scrollbar-gutter: stable`, so overflowing changes nothing about

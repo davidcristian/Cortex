@@ -93,7 +93,9 @@ a trace, which is why every claim below carries the measurement it rests on.
      composer, which is where a summon puts it and where the draft still is. The rest of the tab
      list pattern (a roving `tabindex` and arrow keys along the strip) and a leaving pane that is
      untabbable as well as unannounced (which wants `inert`, and so React 19) are deferred and
-     written down in [refinements/body-overlay.md](../refinements/body-overlay.md).
+     written down in [refinements/body-overlay.md](../refinements/body-overlay.md). **Both landed
+     on 2026-08-03**, in the addendum below on the strip's keyboard, which also records that the
+     React 19 half of that parenthesis was wrong: only the type is missing from React 18.
    - **The two state modules the merge lengthened were split rather than left over the cap.**
      `overlayState.ts` (394) handed the turn fold to `overlay/turnState.ts` and `useOverlay.ts`
      (321) handed the chat catalog to `overlay/useSessionCatalog.ts`, each re-entering through the
@@ -1733,3 +1735,197 @@ the border.
 **Nothing machine-checks the two new properties**, which is the same TypeScript-into-CSS seam
 `--ceiling` and `data-resizing` already have, and joins that deferral rather than opening one. The
 literals are pinned in `measured.test.ts` so a rename has to walk past them.
+
+## Addendum, 2026-08-03: the strip gets its keyboard, and what is hidden is untabbable
+
+Decision 1 gave the console a tab strip with the right roles and half the pattern. It carried
+`role="tablist"`, a `role="tab"` per face and `aria-selected` on the one showing, and it made focus
+travel with the view, which is the half that makes the leaving pane's `aria-hidden` take effect at
+all. The other half was deferred: a roving `tabindex` and arrow keys along the strip, and a pane on
+its way out that is untabbable as well as unannounced. Both are closed here. The deferral put the
+second half behind React 19, and that turned out to be wrong; the measurement is below.
+
+### What the keyboard actually did, before
+
+Driven in Chromium at 900x900 over the demo bridge, with real key presses rather than synthetic
+events, reading `document.activeElement` after each one.
+
+- **The strip was two stops, not one.** Both faces had no `tabindex` attribute at all, so both were
+  in the page's tab order, and Tab from Face landed on Chords rather than leaving the strip.
+- **Every key the pattern asks for did nothing.** ArrowRight, ArrowRight, ArrowLeft, Home and End
+  in sequence left focus on Face and the selection on Face, five presses with no effect of any kind.
+- **A pane on its way out was reachable.** Leaving the console for the chat and pressing Tab inside
+  the 380ms fade landed on the back chevron, then Face, then Chords, all three inside `.view.out`
+  and all three under its `aria-hidden="true"`, before the walk reached the body and wrapped into
+  the chat. Three stops in a pane the user had already left.
+- **Switching tabs was worse, because it also dropped focus.** The two panes cross-fade over 200ms
+  and the stylesheet takes the leaving one out of the tab order with `visibility: hidden` on a delay
+  that waits for the fade. Tab pressed inside that window walked six stops through the tab being
+  left (Auto, Midnight, Daylight, Mull, Muse, Hunch, every one of them under the pane's own
+  `aria-hidden`), and then `visibility` landed on the element that had focus and the keyboard was on
+  the body.
+- **A dismissed panel was a whole invisible panel of stops.** The panel is never unmounted, and
+  closed it is `opacity: 0` with `pointer-events: none` and nothing at all taking it out of the tab
+  order. Esc to the orb and six presses of Tab reached the two reminder rows' open and dismiss
+  buttons, three times round, inside `aria-hidden="true"`.
+
+### The React 19 claim was wrong, and this is how
+
+The deferral said the leaving pane wants `inert` "which React types only from 19 (this tree is on
+18, and setting the attribute by hand around a subtree React owns is the kind of thing that reads as
+a bug later)". Only the first clause is true, and it is about types rather than about React. Probed
+against the tree's own react-dom 18.3.1, on the server renderer and on the client:
+
+| written | rendered | warning |
+| --- | --- | --- |
+| `inert={true}` | `<div></div>` | yes, "Received `true` for a non-boolean attribute" |
+| `inert=""` | `<div inert=""></div>` | none |
+| `inert="inert"` | `<div inert="inert"></div>` | none |
+| `inert={undefined}` | `<div></div>` (removed again) | none |
+
+React 18 has no entry for `inert` in its prop tables, so it falls through to the custom-attribute
+path, which writes a string value straight to the DOM and drops a boolean one. An empty string is
+how HTML spells a boolean attribute that is present, so the string form is not a workaround for the
+real thing: it is the real thing, written the way the platform writes it, by React, through JSX,
+with nothing set by hand around a subtree React owns. What React 18 genuinely lacks is the type,
+which `@types/react` 18.3.31 confirms by not mentioning `inert` anywhere. One module augmentation in
+`overlay/withdrawn.ts` adds it, narrowed to the empty string so no call site can write the form
+React 18 drops. Upgrading React was neither needed nor attempted.
+
+This is the third entry in a row whose cost estimate was wrong about itself, and it is worth naming
+the shape: the estimate reasoned from a version number to a capability. The capability was one
+`renderToStaticMarkup` call away from being checked.
+
+### The decision
+
+**One rule for what is hidden, one map for what the keys do.**
+
+1. **`aria-hidden` and `inert` are written together, by one function, in every place the overlay
+   holds something mounted that is not on screen.** `overlay/withdrawn.ts` exports `withdrawn(away)`
+   returning the pair, and the three places spread it: the panel while it is dismissed, the view
+   being left for the length of its morph, and the tab not showing inside the console. The two
+   attributes are not two spellings of one idea, which is why the pairing is the rule rather than a
+   convenience. `aria-hidden` hides a subtree from assistive technology and leaves the tab order
+   alone, and a browser refuses it over an ancestor of the focused element, so it needs the app to
+   move focus first before it does anything at all. `inert` takes the subtree out of the tab order,
+   out of the pointer's reach and out of the accessibility tree, and it blurs whatever inside it had
+   focus rather than asking to be helped. `aria-hidden` stays beside it because it is what every
+   reader already understands, and it stays written in both directions, an explicit
+   `aria-hidden="false"` on the live view being a useful thing for the tree to say. `inert` is
+   written in one direction only: its absence is its false, and `inert="false"` would be an inert
+   element.
+2. **The strip is one stop in the tab order, and the stop is the tab that is up.** A roving
+   `tabindex`, 0 on the selected face and -1 on the others. With selection following focus this
+   needs no memory of its own, because the tab that has focus and the tab that is selected are the
+   same tab: `aria-selected` and `tabIndex` are two readings of one fact rather than two pieces of
+   state that could disagree.
+3. **Selection follows focus.** One arrow press both moves the keyboard and changes the view. The
+   practice recommends automatic activation wherever showing a panel costs nothing, and here it
+   costs nothing twice over: both panes are already mounted and stacked in one grid cell, so there
+   is no load and no latency, and at the shipping spread of 12px they share a height
+   (`TAB_SPREAD_PX`), so the panel does not even resize. Manual activation would make the keyboard
+   pay two keystrokes for what one click already does, on the surface whose entire content is
+   reversible preferences, and it would need a second piece of state (the focused tab, separate from
+   the selected one) to hold the gap between them. If a future face is far enough from its
+   neighbours to put the panel back into a morph on every arrow, this is the decision to revisit,
+   and `TAB_SPREAD_PX` is the number that would say so.
+4. **The arrows wrap, Home and End do not.** Wrapping is what the practice recommends, and on a
+   strip of two it is what makes the arrows worth pressing: stopping at the ends would leave
+   ArrowRight a no-op half the time, which reads as a broken key rather than as a strip that has an
+   end. Home and End are absolute by their own meaning, so there is nothing for them to wrap around;
+   End on the last tab is the last tab, and it asks for the tab already up, which `openConsole` has
+   always treated as the no-op it is.
+5. **The strip answers Left and Right and not Up and Down.** It is a horizontal strip, which is the
+   practice's own condition for that, and the overlay spends Ctrl with the vertical arrows on
+   cycling chats. A strip that also answered them would put two meanings on one gesture, told apart
+   only by a modifier. The four keys it does answer are `preventDefault`ed, because the panel clips
+   its overflow and Home, End and the arrows scroll a clipped box the user cannot scroll back.
+   Everything else passes through untouched, which is what keeps Esc, Ctrl+K and the rest reaching
+   the window listener in `Overlay.tsx` from a focused tab.
+6. **Focus follows the selection at every switch, not only on the way in.** The `autoFocus` that
+   decision 1 put on the arriving pane's selected tab is now an explicit layout effect on the tab
+   that is up. On the way in it does exactly what `autoFocus` did. It also covers the switches,
+   which `autoFocus` never did because the console pane is not remounted when the tab changes, and
+   there are three of those. The arrows land there already, so it is a no-op for them; a click
+   arrives with focus on the button the pointer pressed, so it is a no-op for that too. The third is
+   the one it repairs: `?` is a global key that toggles the shortcut tab from anywhere, so it can
+   change the tab while the keyboard is down among the theme tiles, and that pane is about to go
+   inert underneath it. It focuses with `preventScroll`, for the reason the composer's focus already
+   gives at length: the panel is a scroll container the user cannot scroll and the engine can, and
+   bringing a newly focused element into view is exactly when it does.
+
+One piece of the ROLES came with the keys, the strip's roles having otherwise been complete since
+decision 1: each face now carries `aria-controls` naming the pane it opens, over an id minted by
+`useId` rather than written by hand. The two already read alike, the pane taking its accessible name
+from the same label as its tab, but a reader offering "move to the panel" needs the pointer rather
+than the coincidence, and a duplicated id is what a test now reddens on.
+
+The keys live in `overlay/tabStrip.ts` as one pure map, `nextTab(key, tabs, from)`, generic over
+what a tab is and returning the tab rather than its index. That is where the wrap lives, so what the
+strip does with a key is one function to read and one function to change, and a second strip would
+be a call rather than a copy. It answers `null` for a strip with nothing on it, which is the only
+edge in the arithmetic and is pinned as such.
+
+### What it measures
+
+Same window, same bridge, same key presses, after.
+
+- **The strip is one stop.** Face is `tabindex="0"` and Chords `tabindex="-1"`, and they swap with
+  the selection. Tab from the selected face leaves the strip entirely; the whole console is two
+  stops now (the back chevron and the one live face, plus whatever the live pane holds) where the
+  walk used to include both faces and the hidden pane's tiles.
+- **Every key works, and moves the view with it.** ArrowRight put focus and `aria-selected` on
+  Chords with `tabindex` following; a second ArrowRight wrapped back to Face; ArrowLeft went to
+  Chords and again to Face; Home landed on Face and End on Chords, each with the selection and the
+  roving index in the same place as the focus.
+- **The leaving view is unreachable.** `.view.out` now carries `inert`, and the eight Tab presses
+  after leaving the console for the chat land on Send, Settings, Shortcuts, the body, and then
+  Recent chats, Toggle theme, New chat and Dismiss: eight stops, all in the live chat, zero in the
+  pane on its way out, against three in it before.
+- **The 200ms tab crossing is unreachable too.** Switching tabs without moving focus and then
+  pressing Tab eight times inside the fade gives zero stops in the leaving pane, against six before,
+  and focus is never dropped to the body by a `visibility` flip landing on it.
+- **A dismissed panel takes nothing with it.** Six presses of Tab after Esc land on the body six
+  times, against six buttons inside the invisible panel before.
+- **The `?` key no longer loses the keyboard.** With focus on the Auto theme tile, pressing `?`
+  used to leave focus on the body once the fade finished. It now lands on the Chords tab, 40ms after
+  the press and still there 440ms later.
+
+**Mutated six ways, each restored after.** Removing the roving `tabindex` reddens the one-stop test
+and the arrow test. Taking `onKeyDown` off the strip reddens four. Making the arrows stop at the
+ends instead of wrapping reddens two in the pure map's suite and one in the view's. Making
+`withdrawn` return `aria-hidden` alone, which is exactly the state this addendum found, reddens five
+across three suites. Dropping the `preventDefault` reddens the test that asserts which keys the
+strip claims. Dropping the focus effect reddens three in the console's suite and one in the panel's.
+
+### What this does not do
+
+**The chat switcher is mis-roled, and that is a new deferral rather than part of this.** Its `<ul>`
+carries `role="listbox"` while its rows are `<li>` elements holding four ordinary buttons each and
+no `role="option"` anywhere, so its children do not satisfy the role its container claims; measured
+in the same session, one open switcher offered eight tab stops across two rows. That is not the
+defect this addendum fixes. The strip was correctly roled and keyboard-incomplete, and completing it
+is additive; the switcher's roles and its interaction model disagree with each other, and settling
+that means choosing between two shapes (make the rows options and give the list one stop with
+`aria-activedescendant`, or drop the listbox role and let it be the list of composite rows it
+already behaves like) and reconciling whichever wins with Ctrl+Up and Ctrl+Down, which cycle
+sessions without moving focus at all. It is recorded in
+[refinements/body-overlay.md](../refinements/body-overlay.md).
+
+**A section rolling shut stays tabbable, and deliberately.** `.collapse` hides its overflow while
+its height animates to zero, and clipped content keeps its place in the tab order. It
+is also still in the accessibility tree, with no `aria-hidden` on it, so both channels agree, which
+is the standard this addendum is applying rather than a violation of it. A section rolling shut is
+still on screen and still shrinking; it is not a pane that has been left.
+
+**The reminder stack is a list of rows with buttons and needs nothing.** Its `<ul>` claims no role
+its children have to satisfy, and tabbing through the rows is the correct pattern for it.
+
+**A tabpanel holding no focusable element does not take a tab stop of its own.** The practice asks
+for `tabindex="0"` on such a panel so a keyboard user can reach its content, and exactly one of the
+two qualifies: Chords is a static list of keycaps with nothing focusable in it, while Face is a wall
+of buttons. Adding it would put a stop on the panel that shows no focus ring and does nothing on the
+sighted keyboard path, to reach a list that scrolls nowhere and that a reader already reaches by its
+own name and through the `aria-controls` above. The trigger to revisit is a panel that scrolls, or
+one whose content a keyboard user needs to reach with no control inside it, at which point the rule
+is per panel (does this one hold anything focusable) rather than per strip.
