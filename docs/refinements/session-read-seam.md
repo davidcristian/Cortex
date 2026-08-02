@@ -3,7 +3,8 @@
 Deferrals from the Slice 8.7 session listing and read seam, whose origin decision is
 [ADR-0021](../adr/ADR-0021-session-read-seam.md). Extracted from the ROADMAP's deferred-refinements section on 2026-07-15 with the entries kept verbatim; landed entries are the historical record of what each deferral became, and the index at [index.md](index.md) carries the recommended pickup order.
 
-**Open items:** live-suite fixed-window residual, out-of-window authoritative title, paging / cursor
+**Open items:** out-of-window authoritative title, paging / cursor (the live-suite fixed-window
+residual closed 2026-08-03; see its entry and [repo-gates.md](repo-gates.md))
 
 **Chat history & sessions in Slice 8.7 ([ADR-0021](../adr/ADR-0021-session-read-seam.md)):** each
 behind the unchanged `SessionStore.list_sessions` / `BrainTransport` / `BrainBridge` seams.
@@ -50,6 +51,22 @@ behind the unchanged `SessionStore.list_sessions` / `BrainTransport` / `BrainBri
   fixed `limit=50` window with message timestamps fixed in the past, so a live Redis holding 50 or
   more *real* sessions more recent than those crowds it out and fails identically. Fix when it
   bites, by dating the check's messages from a clock or by reading a larger window.
+
+  **The residual closed 2026-08-03, and its own sizing was the thing that went wrong
+  ([ADR-0002 addendum on the live-run database](../adr/ADR-0002-toolchain-gates.md)).** Fifty was
+  right for the check this entry was looking at. Two days after it was written, the pinning
+  addendum landed `check_a_pinned_chat_escapes_the_recency_window`, which reads `limit=3` because
+  its three newer chats must BE the window for the pin to be the only reason the old chat lists.
+  That lowered the trigger from fifty real sessions to three and nobody came back to this
+  paragraph, so the entry kept saying fifty while the code needed three. Sixteen real sessions
+  later the live run failed, blaming a correct adapter exactly as described. Neither fix this
+  entry proposed was taken: dating the fixtures from a clock is a lie that breaks the moment real
+  data is future-dated, and a larger window cannot help a check whose subject is the window. The
+  live runs now select a Redis logical database of their own
+  (`brain/packages/session/tests/live_redis.py`), emptied before the suite and after every check,
+  so every check starts from the empty store the fakeredis fixture already gives it and the sweep
+  this entry landed is gone with the shared keyspace that needed it. Nothing in this seam changed:
+  `RedisSessionStore` keeps its key layout and `list_sessions` its union and its two round trips.
 - **Brain-generated summary titles.** Titles derive from the first user message (`summarize_session`);
   a brain-generated summary title would replace that behind the unchanged `SessionSummary`. The
   overlay's own live-title `deriveTitle` stays for a not-yet-persisted chat.

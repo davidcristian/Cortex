@@ -1,9 +1,11 @@
 """Shared SessionStore behavior checks. Every implementation must pass all of them.
 
 Driven by the parametrized contract tests (in-memory fake + fakeredis-backed Redis
-adapter) and by the integration-marked live-Redis test. Each check generates its own
-session ids, all prefixed `contract-` (safe against a shared live server, and the prefix
-the live test sweeps by; see tests/test_store_live.py).
+adapter) and by the integration-marked live-Redis test. Both hand every check the same
+precondition, an EMPTY store: the fixture builds a fresh one per test, and the live run
+works in a database of its own that it empties after every check (tests/live_redis.py).
+Each check still generates its own session ids, all prefixed `contract-`, so a record that
+outlives a run is recognizable on sight.
 """
 
 from datetime import UTC, datetime, timedelta, timezone
@@ -78,11 +80,12 @@ async def check_roundtrip_fidelity(store: SessionStore) -> None:
 async def check_list_sessions_orders_and_summarizes(store: SessionStore) -> None:
     """list_sessions returns recent chats newest-active first, with a derived title/preview.
 
-    Robust against a shared live server: it filters the global list down to the two sessions
-    it created, then asserts their relative order and summaries, the filtered sublist of a
-    sorted list being sorted too. What DOES break it is being crowded out of the `limit=50`
-    window by 50 more-recent sessions, which is why the live test sweeps its own ids after
-    every check instead of letting them pile up (see tests/test_store_live.py)."""
+    It filters the global list down to the two sessions it created, then asserts their
+    relative order and summaries, the filtered sublist of a sorted list being sorted too.
+    Filtering is belt and braces now that both runners start it from an empty store: what
+    actually broke this check was being crowded out of the `limit=50` window by more-recent
+    sessions it never created, which no filter can survive and only an empty store prevents
+    (see tests/live_redis.py)."""
     older, newer = _session_id(), _session_id()
     early = datetime(2026, 7, 3, 9, 0, tzinfo=UTC)
     late = datetime(2026, 7, 3, 10, 0, tzinfo=UTC)
@@ -107,7 +110,7 @@ async def check_set_title_overrides_the_first_message(store: SessionStore) -> No
 
     Proves both stores honor ``set_title`` behind the port (ADR-0021 titles addendum): the
     override replaces only the title, a later call overwrites it, and it survives being read
-    back through ``list_sessions``. Robust against a shared live server by filtering to its id.
+    back through ``list_sessions``. It filters to its own id, so the read names one row.
     """
     session_id = _session_id()
     await store.append(session_id, make_message(Role.USER, "a rambly first question about cats"))
@@ -161,7 +164,7 @@ async def check_set_pinned_marks_and_clears_the_summary(store: SessionStore) -> 
     """``set_pinned`` toggles ``SessionSummary.pinned``, idempotent by value (pinning addendum).
 
     A chat lists unpinned by default; pinning marks it, pinning again is a no-op, and unpinning
-    clears it. Robust against a shared live server by filtering to its own id.
+    clears it. It filters to its own id, so the read names one row.
     """
     session_id = _session_id()
     await store.append(session_id, make_message(Role.USER, "toggle my pin"))
@@ -185,8 +188,9 @@ async def check_a_pinned_chat_escapes_the_recency_window(store: SessionStore) ->
     This is the whole point of pinning (ADR-0021 pinning addendum), and the flagship distrust-green
     check: with a window of three and three newer chats, the old chat is crowded out of recency and
     appears ONLY because it is pinned. Removing the read-path union (so ``list_sessions`` returns
-    just the recency window) reddens the ``old in ids`` assertion. Pinned sorts above every unpinned
-    chat, so the ordering assertion holds even on a shared live server carrying other recent chats.
+    just the recency window) reddens the ``old in ids`` assertion. Its three newer chats have to BE
+    the window, which is the assumption no filtering can rescue and the reason the live run gets a
+    database of its own rather than a share of the brain's (tests/live_redis.py).
     """
     old = _session_id()
     newer = [_session_id() for _ in range(3)]
