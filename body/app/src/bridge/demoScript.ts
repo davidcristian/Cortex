@@ -84,6 +84,17 @@ export function sessions(): SessionSummary[] {
       lastActivityUnixMs: Date.now() - 5 * 60 * 1000,
       pinned: false,
     },
+    {
+      // A third chat so the seeded list has a MIDDLE row, which is the only row whose exit shows
+      // both halves of the motion: the neighbour below it travelling up and the neighbour above it
+      // holding still. Two chats can only ever demonstrate one of those. It sorts last, so the
+      // renamed and pinned rows above it keep the arrangement the other addenda were measured on.
+      sessionId: "demo-3",
+      title: "Reminders and recurrence",
+      preview: "Every weekday at nine, in your timezone…",
+      lastActivityUnixMs: Date.now() - 40 * 60 * 1000,
+      pinned: false,
+    },
   ];
 }
 

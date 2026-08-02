@@ -2092,11 +2092,25 @@
   color: var(--muted);
   font-size: 13px;
 }
+/* The `<li>` carries nothing but its place in the list. Everything that gives a row a size is on
+   `.switcher-row` inside it, because between the two sits the roll a deleted row leaves through
+   (`components/SessionList.tsx`), and a `min-height` on the outside of that roll is a floor the
+   roll cannot get under: put back deliberately, the row stands at 50.00px for the whole 300ms and
+   then vanishes in one frame, which is the defect the roll exists to remove, 300ms late. Named for
+   the reminder stack's `.reminder-slot`, which is the same arrangement for the same reason, so the
+   overlay's two roll-out lists read as the pair they are.
+
+   The one declaration is a block box in place of the `list-item` one, which changes nothing here
+   (the card sets `list-style: none`) and is not the point. The rule exists so that this note is
+   where anyone reaching to give a row a size will already be looking. */
+.switcher-slot {
+  display: block;
+}
 /* A row holds its height whatever it is showing. At rest it is two lines, a title over a preview;
    the rename box and the delete confirm are each one line, so without this the card popped 10px
    shorter the moment either opened and back when it closed (measured: 50 to 40). The number is the
    resting row, so changing the title or preview type sizes means re-measuring it. */
-.switcher-li {
+.switcher-row {
   display: flex;
   align-items: stretch;
   gap: 2px;
@@ -2138,7 +2152,7 @@
     background 0.16s var(--ease),
     color 0.16s var(--ease);
 }
-.switcher-li:hover .switcher-rename-btn,
+.switcher-row:hover .switcher-rename-btn,
 .switcher-rename-btn:focus-visible {
   opacity: 1;
 }
@@ -2200,7 +2214,7 @@
     background 0.16s var(--ease),
     color 0.16s var(--ease);
 }
-.switcher-li:hover .switcher-delete-btn,
+.switcher-row:hover .switcher-delete-btn,
 .switcher-delete-btn:focus-visible {
   opacity: 1;
 }
@@ -2228,7 +2242,7 @@
     background 0.16s var(--ease),
     color 0.16s var(--ease);
 }
-.switcher-li:hover .switcher-pin-btn,
+.switcher-row:hover .switcher-pin-btn,
 .switcher-pin-btn:focus-visible {
   opacity: 1;
 }
@@ -2249,7 +2263,7 @@
   opacity: 1;
   color: var(--text);
 }
-.switcher-li.pinned {
+.switcher-row.pinned {
   border-radius: 12px;
 }
 /* The per-row "are you sure": a destructive write never fires on a single click, so the trash

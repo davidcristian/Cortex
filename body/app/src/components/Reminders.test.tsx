@@ -1,7 +1,8 @@
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { DueReminder } from "../bridge/types";
+import { stubRoll } from "../test-setup";
 import { Reminders } from "./Reminders";
 
 const NOW = 1_700_000_000_000;
@@ -39,40 +40,6 @@ afterEach(() => {
   vi.useRealTimers();
   vi.restoreAllMocks();
 });
-
-/** How tall a row measures while the roll stub is installed. Any value past `MIN_DELTA_PX` will
- *  do: what it buys is a roll that actually runs rather than one `Collapse` completes on the spot. */
-const ROW_PX = 48;
-
-/**
- * jsdom has neither layout nor the Web Animations API, so a row's exit finishes inside the layout
- * effect that starts it and a row is never observably mid-roll. Both are stood in for, faithfully
- * in the one way that matters here: a cancelled animation never finishes, which is what a row
- * coming back mid-exit depends on. Returns the way to land every roll still in the air.
- */
-function stubRoll(): () => void {
-  vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockReturnValue(ROW_PX);
-  const finishers: (() => void)[] = [];
-  Element.prototype.animate = (() => {
-    let live = true;
-    const animation = {
-      get playState(): AnimationPlayState {
-        return live ? "running" : "idle";
-      },
-      onfinish: null as (() => void) | null,
-      cancel: () => {
-        live = false;
-      },
-    };
-    finishers.push(() => {
-      if (live) {
-        animation.onfinish?.();
-      }
-    });
-    return animation as unknown as Animation;
-  }) as typeof Element.prototype.animate;
-  return () => act(() => finishers.splice(0).forEach((land) => land()));
-}
 
 describe("Reminders", () => {
   afterEach(() => vi.useRealTimers());
