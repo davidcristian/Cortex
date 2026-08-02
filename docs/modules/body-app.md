@@ -273,6 +273,18 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
   reading with nothing behind it is answered with nothing, and the watch is lifted for the frame the
   panel writes in and taken up again on the next, since an observer that resizes its own target
   inside its own callback is the case the specification cannot deliver and reports as a loop error.
+  `overlay/measured.ts` is the budget's idea pointed the other way: two numbers overlay.css cannot
+  express are read off the boxes they restate instead of being frozen beside them, the empty state
+  publishing `--chat-floor` (what `.log` stands on, so a first message does not shrink the panel out
+  from under the composer) and a live activity chip publishing `--trace-row` (the row the settled
+  Thoughts disclosure matches). It renders nothing of its own, both elements being in the tree
+  exactly when their number is knowable and leaving exactly when it starts to matter. The empty
+  state is a reading as React attaches it plus a `ResizeObserver` after it, because a reading taken
+  in the commit frame alone catches it at 183px before the system font stack resolves and 185px
+  after; a chip is one reading, being unable to appear before the user has typed and able to appear
+  twice at once (a tool and a status), which one watch could not hold honestly. Neither can feed itself (`.log.bare`'s own `min-height: 0` outranks the floor while
+  the empty state is up, and the disclosure is never on screen beside the chip), and an element with
+  no layout publishes nothing, so the values declared on `:root` stand as fallbacks.
   The rules: a
   summon centres the panel on what it arrives with for the length of its own 0.44s pop (so the
   reminders pulled on that same rising edge are the panel appearing with them, not growth
@@ -375,12 +387,20 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
   whose height depends on the panel's width, and everything sized against that height wants it to be
   one number. `Panel.test.tsx` pins what the stylesheet cannot defend: the structure (the empty
   state and the bubbles both inside `.log`) and which of the two the class says it is.
+- **A log with messages in it stands on the empty state it replaced** (`components/ChatView.tsx` +
+  `overlay/measured.ts` + `src/overlay.css`, ADR-0035 decision 12 and its 2026-08-03 addendum). The
+  floor is `--chat-floor`, published from the empty state's own box while that box is on screen, so
+  editing the mark, the invitation or the chips moves the floor with it. Without one the first
+  message a user sends drops the panel 90px and the reply walks it back up. The one thing to know
+  before touching it: the floor has to sit on `.log` and not on `.history`, because a floor on the
+  scroll box cannot yield, and with both chrome sections open there is 76px of history to yield in.
 - **A live activity chip and the settled "Thoughts" disclosure are one row in two states**
-  (`components/Message.tsx` + `src/overlay.css`, ADR-0035 decision 13). Both floor themselves on
-  `--trace-row` (24px, the chip's own box), so the frame where a turn completes swaps one for the
-  other in place instead of easing the whole panel down by the 4px difference their natural boxes
-  had. `Message.test.tsx` pins what the stylesheet cannot: that the disclosure stands exactly where
-  the chip stood, one row for one row.
+  (`components/Message.tsx` + `overlay/measured.ts` + `src/overlay.css`, ADR-0035 decision 13). The
+  chip IS the row and publishes its own box as `--trace-row` (24px in Chromium at HEAD); the
+  disclosure floors on that, so the frame where a turn completes swaps one for the other in place
+  instead of easing the whole panel down by the 4px difference their natural boxes had.
+  `Message.test.tsx` pins what the stylesheet cannot: that the disclosure stands exactly where the
+  chip stood, one row for one row, and that whichever chip a turn shows says how tall it is.
 - **The confirmation card** (`components/ConfirmCard.tsx` + `components/draftValue.ts`,
   ADR-0022): the gated call's `argumentsJson` as key/value rows, shown verbatim because what is
   approved is what runs (a malformed one falls back to the raw string). `formatDraftValue`

@@ -165,4 +165,29 @@ describe("Message", () => {
     expect(settled.querySelectorAll(".thoughts")).toHaveLength(1);
     expect(settled.querySelector(".thoughts")?.nextElementSibling?.className).toContain("bubble");
   });
+
+  it("publishes the row height off whichever chip the turn shows", () => {
+    // The other half of the contract above. The disclosure matches the chip because the chip says
+    // how tall it is (`--trace-row`, overlay/measured.ts), so the pairing survives a change to the
+    // chip's padding or font that nobody thinks to re-derive a constant for. Both chips are the
+    // same box and either may be the only one a turn shows, so both have to say so.
+    const laid = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "offsetHeight");
+    Object.defineProperty(HTMLElement.prototype, "offsetHeight", {
+      configurable: true,
+      get: () => 28,
+    });
+    try {
+      render(<Show message={msg({ streaming: true, status: "reasoning" })} />);
+      expect(document.documentElement.style.getPropertyValue("--trace-row")).toBe("28px");
+      document.documentElement.style.removeProperty("--trace-row");
+      cleanup();
+      render(<Show message={msg({ streaming: true, tool: "read_email" })} />);
+      expect(document.documentElement.style.getPropertyValue("--trace-row")).toBe("28px");
+    } finally {
+      document.documentElement.style.removeProperty("--trace-row");
+      if (laid !== undefined) {
+        Object.defineProperty(HTMLElement.prototype, "offsetHeight", laid);
+      }
+    }
+  });
 });

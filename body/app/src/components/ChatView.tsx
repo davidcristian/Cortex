@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 
 import type { MarkStyle } from "../mark/marks";
+import { chatFloorRef } from "../overlay/measured";
 import { type ConsoleTab, type OverlayState, isTurnActive } from "../overlay/overlayState";
 import { useLogScroll } from "../overlay/useLogScroll";
 import { BubbleMark } from "./BubbleMark";
@@ -149,13 +150,13 @@ export function ChatView({
       </Collapse>
       <div className="history" ref={log.ref} onScroll={log.onScroll}>
         {/* Everything the history holds lives in one inner column, `.log`, because the floor that
-            stops the first send from shrinking the panel (its `min-height`, sized to the empty
-            state in overlay.css) has to sit on the CONTENT rather than on the scroll box. A floor
-            on `.history` itself cannot yield: with the switcher and the reminder stack both open
-            at the body's 720px window there is 76px left for the history, and a box that refuses
-            to go below 195px there pushes the composer and the hint strip out past the panel's
-            own clipped edge (measured in Chromium before this was written). Floored content just
-            scrolls instead.
+            stops the first send from shrinking the panel (its `min-height`, which is `--chat-floor`
+            measured off the empty state below) has to sit on the CONTENT rather than on the scroll
+            box. A floor on `.history` itself cannot yield: with the switcher and the reminder stack
+            both open at the body's 720px window there is 76px left for the history, and a box that
+            refuses to go below 195px there pushes the composer and the hint strip out past the
+            panel's own clipped edge (measured in Chromium before this was written). Floored content
+            just scrolls instead.
 
             `bare` says the log holds the empty state and nothing else, which is the one case where
             the column may be SHORTER than its content: an opening screen that scrolls is a wrong
@@ -164,7 +165,9 @@ export function ChatView({
             and the child can never disagree. */}
         <div className={`log${state.messages.length === 0 && state.pendingConfirm === null ? " bare" : ""}`}>
           {state.messages.length === 0 ? (
-            <div className="empty">
+            // The ref is that floor, measured: this element stands for the whole life of an empty
+            // chat and leaves as the first message lands (overlay/measured.ts).
+            <div className="empty" ref={chatFloorRef}>
               <button
                 className="markbtn"
                 onClick={() => onToggleConsole("appearance")}
