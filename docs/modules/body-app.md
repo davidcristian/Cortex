@@ -233,7 +233,8 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
   frame of a fade the rest of it took a quarter of a second over.
   Whichever pane is on its
   way out is `aria-hidden`, chat or console, so two mounted panes are never two announced ones. `usePanelMotion` is the WHEN of the panel's
-  geometry (every render, a window resize, and both ends of a roll) over three files that are the what:
+  geometry (every render, a window resize, both ends of a roll, and the panel's own box changing
+  under it) over the files that are the what:
   `overlay/panelGeometry.ts` is the pure arithmetic (the centre, the ceiling clamp, the max height
   in whole pixels, since that one number is both written to the DOM and predicted against and the
   two must not round apart, and a duration paced by the distance the further-travelling edge
@@ -250,8 +251,21 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
   centred a 347px console as though it were 155 and capped it at 351px where 448 would have fitted;
   `overlay/panelMemory.ts` is what the panel remembers between placements and how it reads its own
   box (heights off `offsetHeight`, which the summon's scale transform does not touch, the bottom
-  edge off the rect, which it does not either); `overlay/panelPlacement.ts` decides where the panel
-  belongs; `overlay/panelRide.ts` is the slide it makes alongside a section's roll. The rules: a
+  edge off the rect, which it does not either); `overlay/panelParts.ts` is the probes a placement
+  makes into the panel's own tree (the aside it centres shy of, a multi-shape view's published
+  slack, the scroll positions the measurement is about to cost), shared so that a ride-along's
+  prediction and the placement after it cannot ask the same question two ways;
+  `overlay/panelPlacement.ts` decides where the panel
+  belongs; `overlay/panelRide.ts` is the slide it makes alongside a section's roll, counting its
+  prediction through the same `centringHeight` a placement counts its measurement with and bounding
+  it at `openHeight` first, because that is the order the measurement happens in;
+  `overlay/panelWatch.ts` is the `ResizeObserver` that catches a resize no render and no roll
+  announced (a draft growing a line lives in the composer's own state). It answers only a box that
+  moved while nothing was moving it: a roll owns the height, so does a move of the panel's own, a
+  reading with nothing behind it is answered with nothing, and the watch is lifted for the frame the
+  panel writes in and taken up again on the next, since an observer that resizes its own target
+  inside its own callback is the case the specification cannot deliver and reports as a loop error.
+  The rules: a
   summon centres the panel on what it arrives with for the length of its own 0.44s pop (so the
   reminders pulled on that same rising edge are the panel appearing with them, not growth
   afterwards) and stops the moment the user touches it, a press or a key being the difference
@@ -289,6 +303,11 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
   lets the panel ride along with a section whose open state is owned locally, a reply's trace being
   the one that is, and `cortex:morphend` when the attribute clears is its only word that a section
   rolling *open* has finished, since that changes no state and so triggers no render of its own.
+  The observer does not retire that event and cannot: a roll ends without changing the panel's size,
+  an opening one filling nothing so its last value is the height the element already has and a
+  closing one filling forwards at zero, so no notification is produced anywhere near it (traced at
+  900x900, the roll's last notification at t=456 and the event at t=471 with the next notification
+  2.3 seconds later).
   Traced at 60Hz before the start event existed: a trace opened over its 300ms with the panel's
   `auto` height following it, and the panel, hearing only the end and placing itself from the
   geometry it remembered from before, snapped back to its old height for one frame and moved a

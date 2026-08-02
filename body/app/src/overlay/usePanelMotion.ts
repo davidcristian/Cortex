@@ -3,6 +3,7 @@ import { type RefObject, useEffect, useLayoutEffect, useRef } from "react";
 import { MORPH_END_EVENT, MORPH_START_EVENT } from "./morph";
 import { type Placement, emptyMemory, touched } from "./panelMemory";
 import { place } from "./panelPlacement";
+import { watchSize } from "./panelWatch";
 
 /**
  * The three ways the user reaches the panel: a press, a key, or an activation that arrives without
@@ -41,6 +42,7 @@ export function usePanelMotion(
     }
     element?.addEventListener(MORPH_START_EVENT, onMorph);
     element?.addEventListener(MORPH_END_EVENT, onMorph);
+    const unwatch = element === null ? null : watchSize(element, memory.current, onMorph);
     return () => {
       window.removeEventListener("resize", onResize);
       for (const name of TOUCH_EVENTS) {
@@ -48,6 +50,7 @@ export function usePanelMotion(
       }
       element?.removeEventListener(MORPH_START_EVENT, onMorph);
       element?.removeEventListener(MORPH_END_EVENT, onMorph);
+      unwatch?.();
     };
     // The panel element is mounted for the life of the overlay, so this subscribes once. Everything
     // the handlers need that does change is read from `at` above, which is why this list no longer

@@ -12,8 +12,7 @@ are the historical record of what each deferral became, and the index at
 brain status (its producer landed 2026-07-18; only the push RPC remains), an exit for the
 switcher's rows (the reminder stack's landed 2026-08-03 and left the hook behind for
 it), the composer's move on a shrink against the ceiling (a user's choice between two
-designs), a placement left computed for a stale height, the composer's own growth being the one
-resize the panel never eases, two sections that are both full outrunning the panel on their own,
+designs), two sections that are both full outrunning the panel on their own,
 the demo bridge staying over the line cap, the two tradeoffs the reserved scrollbar rail accepts (its width
 is assumed rather than measured off the engine, and the two 6px cards spend their whole inset on
 it), the chat floor's frozen measurement of the empty state, a mid-stream retarget restarting
@@ -22,7 +21,12 @@ console tab strip's missing keyboard half, and the whisper's three follow-ups (a
 row in the console, the wrap
 width a mid-stream resize cannot move, and kerning inside the letter boxes under a changed
 font; its drain-growth entry landed the same day it was filed, and the console outliving a new
-chat landed 2026-08-03)
+chat landed 2026-08-03), and a resize that lands inside the panel's own move waiting for it. A
+placement left computed for a stale height, the composer's own growth being the one resize the panel
+never eases, and a touch mid-roll pinning the session to a prediction all landed together on
+2026-08-03, the first two as the `ResizeObserver` they asked for and the third as something else
+entirely (the arrival was counting an aside the placement was counting out); the waiting resize is
+the one thing that watch deliberately does not do, and was opened with it.
 
 **Body / overlay in Slice 8 ([ADR-0011](../adr/ADR-0011-body-v1.md)):**
 - **Multi-turn-within-one-stream + an explicit proto `Cancel` event.** One turn per `Converse`
@@ -280,6 +284,28 @@ chat landed 2026-08-03)
   drifting, and it is the same 4px prediction error that the entry below is about from the other
   end. The fix is the same `ResizeObserver` that entry wants, which would make the roll's real
   height available continuously rather than at its end.
+  - **LANDED 2026-08-03, and the entry was wrong about the cause, the size and the fix**
+    ([ADR-0035 addendum](../adr/ADR-0035-console-and-motion.md)). The prediction cannot be wrong in
+    the way this describes: the rolling section's current height cancels out of it (the panel will
+    be as tall as it is now, less what the section takes now, plus what it is about to take) and a
+    roll is announced at its START, where both readings are taken in the same frame. What the
+    ride-along got wrong was the ASIDE. It asked whether the section that is ROLLING is the reminder
+    stack, where `centringHeight` asks whether the view being placed HAS one, so a stack merely
+    standing in the panel while something else rolled was counted into the arrival's centring and
+    out of the placement's. Measured at 900x1000 over the demo with Ctrl+N pressed while the
+    switcher list is open, which summons the panel and rolls that list shut in one commit with the
+    stack standing through both: the summon pinned the edge at 227 and the placement at the end of
+    the roll re-centred it to 324, so the panel's bottom edge travelled 97px down the viewport
+    across the roll and came back at the end of it, and a key pressed inside the arrival window,
+    which is what stops that placement re-centring, left the session pinned 97px low for the rest of
+    it. That is 97px and a visible excursion, not 2.1px of stable error. The ride-along now counts
+    its prediction through `centringHeight` itself, bounded at `openHeight` before the aside comes
+    off because that is the order the measurement happens in, so the arrival and the placement agree
+    by construction: the bottom edge holds at 676 for every frame of that roll and settles there
+    whether the panel is touched mid-roll or not, at 900x900 (edge 274, the panel on its ceiling)
+    and 900x1000 (edge 324) alike. The `ResizeObserver` the entry expected to retire it had nothing
+    to do with it, and the aside's own roll behind a summon never had the defect, the two spellings
+    being the same number for that case.
 - **A placement can be left computed for a height the panel no longer has.** `usePanelMotion` runs
   on renders and on `cortex:morphend`, so content that resizes the panel without either (the demo's
   canned chat settles 1.9px after its last render) leaves the last placement standing. It is
@@ -289,6 +315,26 @@ chat landed 2026-08-03)
   trip after it is bit-exact. The fix is a `ResizeObserver` on the panel driving the same placement
   the morph end event does, which would also retire the event; the care needed is that the observer
   must not fight the animations, since every placement resizes the element it is watching.
+  - **LANDED 2026-08-03 as the observer this entry names, `overlay/panelWatch.ts`, and the event
+    STAYS** ([ADR-0035 addendum](../adr/ADR-0035-console-and-motion.md)). It cannot be retired,
+    which the observer is itself the instrument for saying: a roll ends without changing the panel's
+    size at all, an opening roll filling nothing so its last value is the height the element already
+    has and a closing one filling forwards at zero. Instrumented at 900x900 across the reminder
+    stack's roll, the last notification lands at t=456 with the panel at 518 and `cortex:morphend`
+    fires at t=471 with none anywhere near it, the next arriving 2.3 seconds later when a
+    conversation is loaded. The published cost did not move and could not have: it was at most a
+    pixel by this entry's own measurement, and the demo's canned chat no longer settles after its
+    last render at all, so that 1.9px could not be reproduced at HEAD. What changed is that the
+    panel is now placed for the height it has. The general case, measured rather than argued: 40px
+    of content appended straight into the log from the console, where React never hears about it,
+    moved the panel's top edge 368.13 to 328.13 in one frame before, and now runs 368.13, 365.77,
+    355.66, 342.16, 334.52, 330.59, 328.67, 328.02, 328.13 over about 120ms. The care this entry
+    names is the whole of the design and is written out in the addendum: a roll owns the height, a
+    move of the panel's own owns it too, a reading with nothing behind it is answered with nothing,
+    and the watch is lifted for the frame the panel writes in, because an observer that resizes its
+    own target inside its own callback is the one case the specification's depth rule cannot
+    deliver and reports as a loop error (measured over the demo: one error event per keystroke that
+    grew the pill, now zero).
 - **The composer's own growth is the one resize the panel never eases, and the restack made it
   bigger.** `usePanelMotion` is driven by renders of `Panel` and by a roll's end event, and the
   draft lives in `Composer`'s own state, so a field growing a line re-renders nothing above the
@@ -320,6 +366,41 @@ chat landed 2026-08-03)
   a composer one. What the growth costs the history is NOT part of this entry: the log now holds
   its own tail across a pill resize ([ADR-0035](../adr/ADR-0035-console-and-motion.md) decision 18), so
   what is left here is the easing and nothing else. Measured 2026-07-20.
+  - **LANDED 2026-08-03 on the watch the entry above asked for**
+    ([ADR-0035 addendum](../adr/ADR-0035-console-and-motion.md)). All four steps are now paced eases
+    rather than one unpainted frame, re-measured at 640x720 with the stack acked, per animation
+    frame, reading the panel's top edge after the placement has run in each. A further line on an
+    already stacked pill: 148, 147.13, 143.11, 137.64, 134.61, 133.03, 132.28, 132.02, 132. The
+    character that restacks a one-line draft: 184, 182.02, 172.98, 160.75, 153.86, 150.33, 148.61,
+    148.02, 148. A Shift+Enter that restacks and adds a line at once: 184, 181.14, 168.08, 150.41,
+    140.5, 135.34, 132.88, 132.03, 132, largest single frame 17.67px against the 52 it was. A paste
+    that fills the field to its ceiling: 184, 180.98, 168.19, 141.92, 118.2, 103.77, 95.05, 89.92,
+    87.14, 86.06, 86, largest single frame 26.27px. That last total is 98px rather than the 122 this
+    entry published, and the difference is not the fix: the panel is on its own ceiling at that
+    size, so the history absorbs the other 24. The one thing that looked like a regression is not
+    one: `requestAnimationFrame` runs BEFORE the resize observer steps, so a trace taken there reads
+    the frame's layout before the placement has had its say and appears to show the panel jumping to
+    the new height and back. A second observer reading the same frame after the placement reads the
+    OLD height with one animation attached (352 where the rAF probe read 404), so the frame paints
+    the height the panel had and eases from it.
+- **A resize that lands inside the panel's own move waits for that move rather than joining it.**
+  Opened 2026-08-03 with the panel's watch on its own box
+  ([ADR-0035](../adr/ADR-0035-console-and-motion.md), the 2026-08-03 addendum). The watch refuses a
+  reading while the panel's own ease is running, because answering one would cancel that ease to
+  measure the natural box and start another, once per frame, which is the mid-stream retarget the
+  entry below is about arriving sixty times a second instead of once per token. So a keystroke that
+  grows the pill while the panel is already moving is not eased until the move it landed inside has
+  landed. **The cost is latency and not a jump**, which is what makes it a deferral rather than a
+  defect: traced at 900x1000 with 200px injected into the log and 40px more injected 100ms into the
+  resulting ease, the first move runs the top edge 368 to 168 over about 316ms with the second
+  growth invisible throughout (the running height animation overrides the box it would have
+  changed), the frame that hands the element back reads 168, the frame after reads 165.83, and the
+  residue eases 40px to 128 over about 120ms, monotonic, with no step anywhere. The wait is bounded
+  by the 380ms move ceiling ([ADR-0035](../adr/ADR-0035-console-and-motion.md) decision 7) and is
+  usually far shorter, and during a stream the panel's own renders cover most of it, a token landing
+  about every 55ms. The fix is not a second observer but whatever answers the mid-stream retarget
+  below, since both want a move that can be redirected from where it is without being restarted;
+  taken separately, this one would simply reintroduce that harm.
 - **A switcher and a reminder stack that are both full outrun the panel before the composer is
   asked for anything.** `.switcher` may be `40vh` and `.reminders` `30vh`, each capped as if it
   were alone with the panel, and at the body's 720px window that is 504px of a 547px panel with the

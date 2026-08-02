@@ -44,7 +44,7 @@ its signature.
 | [memory.md](memory.md) | Store, scoping, rerank/MMR (ADR-0008) | 8 |
 | [inference-model-manager.md](inference-model-manager.md) | Model-manager lifecycle, MTP, reasoning status (ADR-0007/0020) | 7 |
 | [subagents.md](subagents.md) | Progress reporting, spawn schema, heterogeneous roster (ADR-0010/0018) | 2 |
-| [body-overlay.md](body-overlay.md) | Overlay polish, connection indicator, proto Cancel (ADR-0011), an exit for the switcher's rows, the composer's move on a clamped shrink, a touch mid-roll pinning to a prediction, a placement left computed for a stale height, the composer's own growth being the one resize the panel never eases, the demo bridge staying over the line cap, the reserved scrollbar rail's assumed width and spent card inset, the chat floor's frozen measurement of the empty state, a mid-stream retarget restarting from a rounded height, a Thoughts trace opening a reply off the bottom of a full history, sections tall enough to outrun the panel on their own, the console tab strip's missing keyboard half, and the whisper's follow-ups (ADR-0037): a pickable voice row, a mid-stream resize keeping the old wrap width, and kerning inside the letter boxes under a changed font (its drain-growth entry landed the day it was filed, and the console outliving a new chat and the reminder stack's per-row exit both landed 2026-08-03) | 18 |
+| [body-overlay.md](body-overlay.md) | Overlay polish, connection indicator, proto Cancel (ADR-0011), an exit for the switcher's rows, the composer's move on a clamped shrink, the demo bridge staying over the line cap, the reserved scrollbar rail's assumed width and spent card inset, the chat floor's frozen measurement of the empty state, a mid-stream retarget restarting from a rounded height, a Thoughts trace opening a reply off the bottom of a full history, sections tall enough to outrun the panel on their own, the console tab strip's missing keyboard half, and the whisper's follow-ups (ADR-0037): a pickable voice row, a mid-stream resize keeping the old wrap width, and kerning inside the letter boxes under a changed font (its drain-growth entry landed the day it was filed, and the console outliving a new chat, the reminder stack's per-row exit, and the panel's watch on its own box with the arrival-aside correction that came out of it all landed 2026-08-03), and a resize that lands inside the panel's own move waiting for it | 16 |
 | [session-read-seam.md](session-read-seam.md) | Session listing/read seam (ADR-0021) | 3 |
 | [resource-governance.md](resource-governance.md) | Scheduler/placer budgets, NPU, drain (ADR-0012) | 5 |
 | [email-confirmer.md](email-confirmer.md) | Email write, Confirmer, attachments, `ToolActivity` chip (ADR-0022) | 4 |
@@ -695,6 +695,39 @@ memory in a ref written during the render, passed every test, and dropped the ro
 in a real browser, because `StrictMode` invokes a render twice and the second pass read back what
 the first had written. The overlay runs under `StrictMode`, so its hooks are tested under it now.
 
+Body & overlay then went **18 to 16 later on 2026-08-03**, three panel-motion entries closing and
+one opening behind them. The three were the ones the backlog itself described as one pickup, and
+two of them were: a placement left
+computed for a stale height and the composer's own growth are the same `ResizeObserver` and closed
+as one. The third was not, and finding that out is the whole of what this closure corrects. **Two
+of the three were materially wrong about themselves, in opposite directions.** The stale-placement
+entry asked for an observer that would "retire the event too", and it cannot: measured with the
+observer itself, a roll ends without changing the panel's size at all, so `cortex:morphend` produces
+no notification and stays as the only thing that says a roll is over. The mid-roll-touch entry
+priced itself at 2.1px and blamed a prediction; the prediction is exact by construction, the roll's
+current height cancelling out of it, and what was actually wrong was that the ride-along asked
+whether the section that is ROLLING is the reminder stack where the placement asks whether the view
+being placed HAS one. A stack merely standing in the panel was therefore counted into the arrival's
+centring and out of the placement's: measured at 900x1000, Ctrl+N with the switcher list open ran
+the panel's bottom edge 97px down the viewport across the roll and back at the end of it, and a
+touch inside the arrival window left the session pinned 97px low for good. That is 97px, not 2.1,
+and it is a different defect from the one the entry names. Both now count the aside through one
+function. The `ResizeObserver`'s own design is the other thing worth reading, since it is entirely
+about what the observer refuses: a roll owns the height, a move of the panel's own owns it too, a
+reading with nothing behind it is answered with nothing, and the watch is lifted for the frame the
+panel writes in, because an observer that resizes its own target inside its own callback is the one
+case the specification's depth rule cannot deliver and reports as a loop error (one error event per
+keystroke that grew the pill before that last rule, zero after). Two entries that share this ground
+and are still open were measured on both sides of the change and did not move: the mid-stream
+retarget puts the panel through 2 to 3 animations per reply either way, and the composer holds its
+bottom edge at 493 through an ack and a switcher round trip either way, so the preference about a
+shrink against the ceiling that the user has twice declined to settle is not settled here by
+accident. The one entry opened is the watch's own refusal stated as work: a resize that lands while
+the panel's own ease is running waits for that ease rather than joining it, which costs latency and
+not a jump (traced at 900x1000, the residue eases 40px over about 120ms with no step at the
+hand-back) and whose real fix is the mid-stream retarget's, since both want a move that can be
+redirected from where it is without being restarted.
+
 ## Recommended order
 
 Ordered by what unblocks the most value soonest. Before starting any item, verify its claims
@@ -745,29 +778,27 @@ against the code (the warning above); the entry text tells you which seams it ex
   grow 615px at a 900px viewport to reach the ceiling at all), which is why it can wait for an
   answer instead of blocking.
 - **A placement can be left computed for a height the panel no longer has**
-  ([body-overlay.md](body-overlay.md)), found 2026-07-20 while re-verifying the switcher's round
-  trip. The hook is driven by renders and by the roll's end event, so content that settles after
-  both leaves the last placement standing; now that the resting panel is centred rather than pushed
-  off its ceiling, that is at most a pixel. Wants a `ResizeObserver` driving the same placement,
-  which would retire the event too, and the care is keeping the observer from fighting the
-  animations.
+  ([body-overlay.md](body-overlay.md)), found 2026-07-20 and **closed 2026-08-03** as the
+  `ResizeObserver` it names, `overlay/panelWatch.ts`, driving the same placement the roll's end
+  event drives. That event is NOT retired and cannot be: measured with the observer itself, a roll
+  ends without changing the panel's size, so nothing but the event says a roll is over. The
+  published cost did not move, being at most a pixel, and the case it was measured on no longer
+  settles at HEAD; the general case does, and 40px appended straight into the log now eases over
+  about 120ms where it went in one frame.
 - **A touch mid-roll leaves the session pinned to a prediction, not to a measurement**
-  ([body-overlay.md](body-overlay.md)), open from 2026-07-20, and the same entry above seen from
-  the other end. A summon owns the panel's geometry until the user touches it
-  ([ADR-0035](../adr/ADR-0035-console-and-motion.md) decision 8); a touch that lands while a
-  section is still rolling in makes the ride-along's PREDICTED height the session's pinned edge,
-  because the measurement that would have corrected it is no longer an arrival. Measured at a 900px
-  viewport: 2.1px, stable rather than drifting. The same `ResizeObserver` retires it, so the two
-  are one pickup.
+  ([body-overlay.md](body-overlay.md)), open from 2026-07-20 and **closed 2026-08-03 by something
+  other than what it asked for, at 97px rather than 2.1**. The prediction is exact, the rolling
+  section's current height cancelling out of it. What was wrong was the aside: the ride-along asked
+  whether the section that is ROLLING is the reminder stack where a placement asks whether the view
+  being placed HAS one, so a stack merely standing in the panel was counted into the arrival's
+  centring and out of the placement's. Both now count it through `centringHeight`, bounded at
+  `openHeight` first because that is the order the measurement happens in.
 - **The composer's own growth is the one resize the panel never eases**
-  ([body-overlay.md](body-overlay.md)), open from 2026-07-20, when the composer learned to restack
-  past one line. The draft lives in the composer's own state, so a growing field re-renders nothing
-  above it and the placement hook is never called: the panel's `auto` height follows in the frame
-  the character lands, bottom edge pinned. Still (the button under the hand and the pill's bottom
-  edge do not move), and the step is now what the keystroke did rather than one number: 16px a
-  further line, 36px the character that restacks, 52px a Shift+Enter that restacks and adds a line
-  at once, 122px a paste that fills the field to its ceiling. Wants the same `ResizeObserver` as the
-  entry above it, with which it shares the whole of its fix, so the two are one pickup.
+  ([body-overlay.md](body-overlay.md)), open from 2026-07-20 and **closed 2026-08-03** on the same
+  watch as the stale-height entry, with which it did share the whole of its fix. All four steps are
+  paced eases now, the largest single frame 17.67px where a Shift+Enter moved 52px in one and
+  26.27px where a paste moved 98 (the 122 the entry published is 98 once the panel is on its own
+  ceiling and the history absorbs the rest).
 - **Sections tall enough to outrun the panel on their own**
   ([body-overlay.md](body-overlay.md)), open from 2026-07-20, when the composer learned to yield
   before the panel's edge ([ADR-0035](../adr/ADR-0035-console-and-motion.md) decision 19) and left this
@@ -849,6 +880,16 @@ against the code (the warning above); the entry text tells you which seams it ex
   it is the smallest thing in this file, the floor it was found under holds regardless (the panel is
   never below its pre-send height at any frame), and the fix costs a harness rewrite across every
   test that fakes `offsetHeight`.
+- **A resize that lands inside the panel's own move waits for that move**
+  ([body-overlay.md](body-overlay.md)), opened 2026-08-03 with the panel's watch on its own box and
+  listed here beside the entry it belongs to. The watch refuses a reading while the panel's own ease
+  is running, because answering one would cancel that ease to measure the natural box and start
+  another once per frame, which is the entry above arriving sixty times a second. The cost is
+  latency and not a jump, measured at 900x1000 with 40px injected 100ms into a 316ms ease: the
+  growth is invisible while the animation overrides the box, the frame that hands the element back
+  reads 168 and the frame after 165.83, and the residue eases to 128 over about 120ms with no step
+  anywhere. Bounded by the 380ms move ceiling and usually far shorter. Taken on its own it would
+  simply put the retarget back, so the two are one piece of work.
 
 Everything else that remains is gated on a seam or port change, on hardware that fits two model
 tiers, on a consumer that does not yet exist, or is a bounded fix-when-it-bites contingency. The

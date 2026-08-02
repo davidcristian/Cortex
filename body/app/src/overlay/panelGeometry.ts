@@ -56,6 +56,21 @@ export function centred(viewport: number, height: number): number {
 }
 
 /**
+ * The bottom edge a view of more than one shape arrives on: the one that puts its TOP where its
+ * TALLEST shape would have put it, hanging this shape from there.
+ */
+export function arrivalBottom(
+  viewport: number,
+  edge: number,
+  height: number,
+  slack: number,
+): number {
+  const clearTop = viewport - maxHeight(viewport, 0);
+  const top = Math.max(clearTop, viewport - edge - (height + slack));
+  return viewport - top - height;
+}
+
+/**
  * The pinned edge as the DOM may have it: on screen, and nothing more. The ceiling is no longer
  * applied here, because it is applied to the HEIGHT instead (`maxHeight`); pushing the bottom edge
  * down to make room for a taller panel is exactly the downward growth that is not wanted.

@@ -1,10 +1,11 @@
 
-import { EASING, MORPHING_ATTRIBUTE, TAB_SLACK_ATTRIBUTE } from "./morph";
+import { EASING, MORPHING_ATTRIBUTE } from "./morph";
 
 /** Set on the panel while it is easing between two sizes. */
 const RESIZING_ATTRIBUTE = "data-resizing";
 import {
   type Geometry,
+  arrivalBottom,
   centred,
   clamped,
   durationOf,
@@ -14,31 +15,11 @@ import {
   settled,
 } from "./panelGeometry";
 import { type Memory, type Placement, arriving, heightOf, measure } from "./panelMemory";
+import { centringHeight, holdScroll, tabSlack } from "./panelParts";
 import { rideAlong } from "./panelRide";
 
 /** The view whose position is remembered across a trip to another one. */
 const CHAT_VIEW = "chat";
-
-/**
- * How far the view arriving falls short of the tallest shape it can take, which it publishes
- * itself (`TAB_SLACK_ATTRIBUTE`); 0 for a view of one shape, which is every view but the console.
- */
-function tabSlack(element: HTMLElement): number {
-  const published = element
-    .querySelector(`.view:not(.out) [${TAB_SLACK_ATTRIBUTE}]`)
-    ?.getAttribute(TAB_SLACK_ATTRIBUTE);
-  return published === null || published === undefined ? 0 : Number(published);
-}
-
-/**
- * The bottom edge a view of more than one shape arrives on: the one that puts its TOP where its
- * TALLEST shape would have put it, hanging this shape from there.
- */
-function arrivalBottom(viewport: number, edge: number, height: number, slack: number): number {
-  const clearTop = viewport - maxHeight(viewport, 0);
-  const top = Math.max(clearTop, viewport - edge - (height + slack));
-  return viewport - top - height;
-}
 
 /**
  * Whether entering another view slides the panel to the true middle of the screen, or keeps the
@@ -46,29 +27,7 @@ function arrivalBottom(viewport: number, edge: number, height: number, slack: nu
  */
 export const VIEW_CHANGE_RECENTRES = false;
 
-/** Every box inside the panel that scrolls: the conversation, and a console tab's rows. Written out
- *  rather than discovered, because discovering it means reading `scrollTop` off every node in the
- *  panel on every token of a stream. A new scrolling box in the panel belongs in this list. */
-const SCROLL_BOXES = ".history, .rows";
-
-/** Take the scroll positions the measurement below is about to cost, and give them back. */
-function holdScroll(element: HTMLElement): () => void {
-  const boxes = [...element.querySelectorAll<HTMLElement>(SCROLL_BOXES)].map(
-    (box) => [box, box.scrollTop] as const,
-  );
-  return () => {
-    for (const [box, top] of boxes) {
-      box.scrollTop = top;
-    }
-  };
-}
-
 /** Where the panel's bottom edge wants to be, before the ceiling has its say. */
-function centringHeight(element: HTMLElement, height: number): number {
-  const aside = element.querySelector<HTMLElement>(".view:not(.out) .collapse.aside");
-  return height - (aside?.offsetHeight ?? 0);
-}
-
 function wantedBottom(
   memory: Memory,
   at: Placement,

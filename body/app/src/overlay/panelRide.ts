@@ -4,6 +4,7 @@
 import { EASING, MIN_DELTA_PX, MORPHING_ATTRIBUTE, MORPH_ROLL_MS } from "./morph";
 import { centred, clamped, frame, maxHeight, openHeight } from "./panelGeometry";
 import { type Memory, heightOf, measure } from "./panelMemory";
+import { centringHeight } from "./panelParts";
 
 /** Slide the bottom edge to where the roll now running will leave it, over that same roll. */
 export function rideAlong(
@@ -23,8 +24,7 @@ export function rideAlong(
   const target = Number(section.getAttribute(MORPHING_ATTRIBUTE));
   const raw = natural - heightOf(section) + target;
   if (arrival) {
-    const counted = section.classList.contains("aside") ? raw - target : raw;
-    memory.pinned = centred(viewport, Math.min(counted, openHeight(viewport)));
+    memory.pinned = centred(viewport, centringHeight(element, Math.min(raw, openHeight(viewport))));
   }
   const bottom = clamped(memory.pinned);
   const ceiling = maxHeight(viewport, bottom);
