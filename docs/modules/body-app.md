@@ -194,7 +194,19 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
   `onSelectSession`, so a reminder and the switcher load a chat by the same path. Opening never
   acks (an ack destroys the reminder, navigation does not), and the control is *absent* for a
   session-less row (`""`) or for the chat already on screen, where it would cancel that chat's
-  running turn to arrive where it already is.
+  running turn to arrive where it already is. The card's own **exit** is the row's, not the list's
+  (ADR-0035 addendum): `overlay/usePresence.ts` renders a list that outlives the caller's, keeping
+  an item that has left `state.reminders` at the index it held, marked `leaving` and carrying the
+  last version of itself that was on screen, until that row's `Collapse` reports its roll over
+  through `onClosed`. So the ack leaves in the frame the check is pressed and only the exit lags,
+  which is the opposite of the first version: it delayed the ACK behind a `MORPH_ROLL_MS` timer, so
+  an unmount inside those 300ms (the stack is keyed to its chat, and Ctrl+N remints it) cancelled
+  the timer and the reminder was never acked at all. The hook holds no clock of its own, a key that
+  returns before its exit ends stops leaving (which is what a re-listed reminder after a lost ack
+  is), and the row's `<li>` sits OUTSIDE the roll wrapper as `.reminder-slot` so the stack stays a
+  list to a screen reader and the `.reminder-slot + .reminder-slot .reminder` hairline still has two
+  siblings to sit between. It is written to be shared with the switcher's rows and is not wired
+  there yet.
 - **The panel's views** (`components/Panel.tsx` + `ChatView.tsx` + `ConsoleView.tsx`, ADR-0034):
   `Panel` is a router over views of one window, not a window with sheets over it, and the views are
   `chat` and `console` (ADR-0035 decision 1). The console's TAB is deliberately not part of the view
@@ -255,7 +267,10 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
   a reply's Thoughts trace
   their own height animation, the closing one filling forwards so no frame paints at the old size
   before React removes it, and committing that height by hand where nothing animates at all
-  (`prefers-reduced-motion`, or a roll too small to see). The contract between it and the panel is
+  (`prefers-reduced-motion`, or a roll too small to see). Its optional `onClosed` fires once a
+  CLOSING roll has finished, after the `cortex:morphend` dispatch so the section is still part of
+  what the panel re-measures, and it is the only thing that ends a held exit (the reminder stack's
+  rows, above). The contract between it and the panel is
   `overlay/morph.ts`, which also holds the curve and the "too small to bother" threshold both sides
   share: `data-morphing` on the section makes the panel leave the height alone and carries the
   height the section is rolling to, which is what lets the panel take its bottom edge off the

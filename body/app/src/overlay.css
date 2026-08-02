@@ -1638,7 +1638,7 @@
   border-radius: 12px;
   animation: confirmin 0.3s var(--ease) both;
 }
-.reminder + .reminder {
+.reminder-slot + .reminder-slot .reminder {
   border-top: 1px solid var(--stroke);
 }
 .reminder-mark {

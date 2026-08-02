@@ -44,7 +44,7 @@ its signature.
 | [memory.md](memory.md) | Store, scoping, rerank/MMR (ADR-0008) | 8 |
 | [inference-model-manager.md](inference-model-manager.md) | Model-manager lifecycle, MTP, reasoning status (ADR-0007/0020) | 7 |
 | [subagents.md](subagents.md) | Progress reporting, spawn schema, heterogeneous roster (ADR-0010/0018) | 2 |
-| [body-overlay.md](body-overlay.md) | Overlay polish, connection indicator, proto Cancel (ADR-0011), per-row reminder exit, the composer's move on a clamped shrink, a touch mid-roll pinning to a prediction, a placement left computed for a stale height, the composer's own growth being the one resize the panel never eases, the demo bridge staying over the line cap, the reserved scrollbar rail's assumed width and spent card inset, the chat floor's frozen measurement of the empty state, a mid-stream retarget restarting from a rounded height, a Thoughts trace opening a reply off the bottom of a full history, sections tall enough to outrun the panel on their own, the console tab strip's missing keyboard half, and the whisper's follow-ups (ADR-0037): a pickable voice row, a mid-stream resize keeping the old wrap width, and kerning inside the letter boxes under a changed font (its drain-growth entry landed the day it was filed, and the console outliving a new chat landed 2026-08-03) | 18 |
+| [body-overlay.md](body-overlay.md) | Overlay polish, connection indicator, proto Cancel (ADR-0011), an exit for the switcher's rows, the composer's move on a clamped shrink, a touch mid-roll pinning to a prediction, a placement left computed for a stale height, the composer's own growth being the one resize the panel never eases, the demo bridge staying over the line cap, the reserved scrollbar rail's assumed width and spent card inset, the chat floor's frozen measurement of the empty state, a mid-stream retarget restarting from a rounded height, a Thoughts trace opening a reply off the bottom of a full history, sections tall enough to outrun the panel on their own, the console tab strip's missing keyboard half, and the whisper's follow-ups (ADR-0037): a pickable voice row, a mid-stream resize keeping the old wrap width, and kerning inside the letter boxes under a changed font (its drain-growth entry landed the day it was filed, and the console outliving a new chat and the reminder stack's per-row exit both landed 2026-08-03) | 18 |
 | [session-read-seam.md](session-read-seam.md) | Session listing/read seam (ADR-0021) | 3 |
 | [resource-governance.md](resource-governance.md) | Scheduler/placer budgets, NPU, drain (ADR-0012) | 5 |
 | [email-confirmer.md](email-confirmer.md) | Email write, Confirmer, attachments, `ToolActivity` chip (ADR-0022) | 4 |
@@ -671,6 +671,30 @@ against the ceiling, also in this area, where two designs have been put to the u
 been picked; it stays open. Both are a reminder that an entry can be cheap and still sit, since
 nothing about the code was in the way of either of them.
 
+Body & overlay then **held at 18 on 2026-08-03**, when the reminder stack's per-row exit landed and
+opened one entry behind it, the backlog working as intended: the hook it needed is generic, so the
+switcher's rows, which the closed entry named as the other consumer, are now a wiring job with a
+mechanism already in the tree. The closure is worth reading for what it corrects rather than for
+what it built. **The entry was stale about the defect and right about the fix.** It said acking one
+reminder of three deleted that row in a frame; the stack had wrapped each row in its own `Collapse`
+since the day after the entry was written, and traced at 60Hz that roll was already correct. What
+was left underneath was not motion: the first version held the row by holding the ACK, behind a
+300ms timer whose unmount cleanup cancelled it, and the stack is keyed to the chat it belongs to, so
+acking a reminder and pressing Ctrl+N inside those 300ms sent no ack at all. Measured over the demo
+bridge at 900x900, all three cards were still on screen afterwards and a fresh summon listed all
+three again. The same local list never forgot an id, so a reminder that came back, which is exactly
+what a lost ack leaves behind, was rendered shut and stayed invisible. So an entry filed as
+cosmetic was covering a lost user gesture, which is the mirror image of this file's usual lesson
+about cost estimates: the entry underestimated what it was worth, not what it would take. Two live
+defects were found by measuring rather than by reading, both introduced by the wrapper the stale
+half of the entry did not know about: the stack's `<ul>` had `<div>` children and so was not a list
+to a screen reader, and the hairline between two rows is an adjacent-sibling rule that two rows in
+two wrappers cannot satisfy, so it had been off since 2026-07-20 (all three rows computed
+`border-top-width: 0px`). And one lesson that outlives the feature: the hook's first shape kept its
+memory in a ref written during the render, passed every test, and dropped the row on the first frame
+in a real browser, because `StrictMode` invokes a render twice and the second pass read back what
+the first had written. The overlay runs under `StrictMode`, so its hooks are tested under it now.
+
 ## Recommended order
 
 Ordered by what unblocks the most value soonest. Before starting any item, verify its claims
@@ -703,12 +727,14 @@ against the code (the warning above); the entry text tells you which seams it ex
   CPU roster up, given a prose-only ask carrying independent subtasks, either reaches for distinct
   roster models or does not. Listed here because the entry said for three days that no card
   available to the agent could answer it.
-- **A per-row exit for the reminder stack** ([body-overlay.md](body-overlay.md)), joined
-  2026-07-19 when the panel's views landed. Sections now roll shut instead of vanishing, but the
-  wrapper is around the stack, so acking one reminder of three still deletes that row in a frame.
-  Nothing blocks the code; what it wants is a `usePresence` hook that holds a removed item until
-  its own roll ends, which the switcher's rows would share. Small, and listed because the
-  entry it replaces was sized as invisible and turned out to be the thing the maintainer noticed.
+- **An exit for the switcher's rows** ([body-overlay.md](body-overlay.md)), opened 2026-08-03 as
+  the reminder stack's per-row exit closed and left the hook behind for it. A deleted chat leaves
+  `state.sessions` the moment the write lands, so its row goes in a frame and the rows under it snap
+  up, which is what the reminder stack no longer does. `overlay/usePresence.ts` is generic and
+  already gated, so what is missing is the wiring: the `<li>` outside the roll, the switcher's hover,
+  pinned, rename and delete-confirm rules re-checked against the wrapper between them, and a frame
+  trace of its own, a delete refreshing the list behind the roll and resetting the panel outright
+  when the chat being deleted is the one on screen. Nothing blocks it.
 - **A shrink against the ceiling still moves the composer, and the user picks the fix**
   ([body-overlay.md](body-overlay.md)), open from 2026-07-20. Reversible switcher round trips and a
   composer that never moves are the same statement with opposite signs once the panel is tall
