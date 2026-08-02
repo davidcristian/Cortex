@@ -44,7 +44,7 @@ its signature.
 | [memory.md](memory.md) | Store, scoping, rerank/MMR (ADR-0008) | 8 |
 | [inference-model-manager.md](inference-model-manager.md) | Model-manager lifecycle, MTP, reasoning status (ADR-0007/0020) | 7 |
 | [subagents.md](subagents.md) | Progress reporting, spawn schema, heterogeneous roster (ADR-0010/0018) | 2 |
-| [body-overlay.md](body-overlay.md) | Overlay polish, connection indicator, proto Cancel (ADR-0011), per-row reminder exit, the composer's move on a clamped shrink, a touch mid-roll pinning to a prediction, a placement left computed for a stale height, the composer's own growth being the one resize the panel never eases, the demo bridge staying over the line cap, the reserved scrollbar rail's assumed width and spent card inset, the chat floor's frozen measurement of the empty state, a mid-stream retarget restarting from a rounded height, a Thoughts trace opening a reply off the bottom of a full history, sections tall enough to outrun the panel on their own, the console tab strip's missing keyboard half, a new chat minted from the console leaving the console up, and the whisper's follow-ups (ADR-0037): a pickable voice row, a mid-stream resize keeping the old wrap width, and kerning inside the letter boxes under a changed font (its drain-growth entry landed the day it was filed) | 19 |
+| [body-overlay.md](body-overlay.md) | Overlay polish, connection indicator, proto Cancel (ADR-0011), per-row reminder exit, the composer's move on a clamped shrink, a touch mid-roll pinning to a prediction, a placement left computed for a stale height, the composer's own growth being the one resize the panel never eases, the demo bridge staying over the line cap, the reserved scrollbar rail's assumed width and spent card inset, the chat floor's frozen measurement of the empty state, a mid-stream retarget restarting from a rounded height, a Thoughts trace opening a reply off the bottom of a full history, sections tall enough to outrun the panel on their own, the console tab strip's missing keyboard half, and the whisper's follow-ups (ADR-0037): a pickable voice row, a mid-stream resize keeping the old wrap width, and kerning inside the letter boxes under a changed font (its drain-growth entry landed the day it was filed, and the console outliving a new chat landed 2026-08-03) | 18 |
 | [session-read-seam.md](session-read-seam.md) | Session listing/read seam (ADR-0021) | 3 |
 | [resource-governance.md](resource-governance.md) | Scheduler/placer budgets, NPU, drain (ADR-0012) | 5 |
 | [email-confirmer.md](email-confirmer.md) | Email write, Confirmer, attachments, `ToolActivity` chip (ADR-0022) | 4 |
@@ -647,6 +647,29 @@ Each origin keeps a dated pointer stub, the way the ROADMAP kept one for this di
 initialization fix, the nudge's live uptake, co-residency, the NPU, and the two model passes all
 stay, because moving them would split a design decision from its area. The bucket below says the
 same in the place a reader looking for host work will land.
+Body & overlay went 19 to 18 on 2026-08-03, when the user answered the one entry here that had been
+waiting on a preference rather than on work: a new chat minted while the console is up now closes
+the console, because a keystroke aimed at the conversation should put you in the conversation. The
+count moves by one and the code moved by two, which is this file's recurring correction and is
+recorded in the entry: `openSession` had the identical hole and Ctrl+Up and Ctrl+Down reach it, so
+the fix landed as a rule (a conversation arriving on the panel brings the chat with it) rather than
+as the single line the entry priced. Both holes are keyboard-only, the pointer doors into either arm
+being the header's pencil and the switcher's rows, neither of them clickable while the console is
+covering the chat. The two neighbouring arms that keep the console, a delete fired from a switcher
+row and a cold-start adoption, were read at the same time, are unchanged, and now carry their
+reasons and a
+test that pins them as standing, so nobody closes them later for symmetry. Two things about this
+paragraph are worth saying plainly rather than leaving to be inferred. The area's count jumped from
+2 to 19 between the 2026-07-19 extraction and here with nothing narrated, because the panel motion,
+scrollbar, chat floor, console and whisper slices recorded their new entries in the area doc, the
+table, and their own bullets under the recommended order (where each carries its opening date and,
+where it applies, its closing one) and not in this block. That is not a lost item, every one of the
+seventeen being both counted and written up, but it is why this paragraph reads as though eight days
+of work happened between two sentences. And this is one of only two entries anywhere in the backlog
+whose blocker was a preference rather than work. The other is the composer's move on a shrink
+against the ceiling, also in this area, where two designs have been put to the user and neither has
+been picked; it stays open. Both are a reminder that an entry can be cheap and still sit, since
+nothing about the code was in the way of either of them.
 
 ## Recommended order
 
@@ -779,12 +802,16 @@ against the code (the warning above); the entry text tells you which seams it ex
   pointer; a keyboard user meets them only by pressing Tab during the 380ms of a morph.
 - **A new chat minted while the console is up leaves the console up**
   ([body-overlay.md](body-overlay.md)), open from 2026-07-20, when verifying the console merge put
-  a name to behaviour that predates it: `newChat` clears the switcher and any pending confirm but
-  not the console tab, so Ctrl+N empties the chat behind Appearance or Shortcuts and leaves it
-  showing (measured at 900x900). Older than the merge, since the two sheets the console replaced
-  were not cleared either. One line in one reducer arm, and it is listed here because the answer is
-  the user's: a new chat probably wants the chat, but a console closing under a keystroke aimed at
-  the conversation surprises the other way round.
+  a name to behaviour that predates it, and **closed 2026-08-03** by the user's answer: Ctrl+N
+  closes the console. `newChat` cleared the switcher and any pending confirm but not the console
+  tab, so Ctrl+N emptied the chat behind the console and left it showing (measured at
+  900x900), which is older than the merge, the two sheets the console replaced not having been
+  cleared either. The entry was right that the answer belonged to the user and wrong about the cost
+  by one arm: `openSession` had the identical hole and its version is reachable by keyboard, since
+  Ctrl+Up and Ctrl+Down cycle chats globally while the switcher row that normally loads one sits
+  behind the console. So "one line in one reducer arm" was two lines in two, and what shipped is a
+  rule rather than a keystroke's special case, that a conversation arriving on the panel brings the
+  chat with it ([ADR-0035 addendum](../adr/ADR-0035-console-and-motion.md)).
 - **A move retargeted mid-stream restarts from a rounded height**
   ([body-overlay.md](body-overlay.md)), found 2026-07-20 while re-verifying the chat floor with
   `element.animate` instrumented. The panel measures itself with `offsetHeight`, so each token's

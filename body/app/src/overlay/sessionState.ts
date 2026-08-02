@@ -43,7 +43,10 @@ function headerTitle(
   return summary ? summary.title : titleFor(messages);
 }
 
-/** Load a stored chat into the panel: hydrate its messages, carry the switcher's title. */
+/**
+ * Load a stored chat into the panel: hydrate its messages, carry the switcher's title, and leave
+ * the console the way `newChat` does (ADR-0035 addendum, 2026-08-03).
+ */
 export function openSession(
   state: OverlayState,
   sessionId: string,
@@ -58,6 +61,7 @@ export function openSession(
     title: headerTitle(state.sessions, sessionId, messages),
     messages: loaded,
     switcherOpen: false,
+    consoleTab: null,
     pendingConfirm: null,
     seq: loaded.length,
   };
@@ -65,7 +69,8 @@ export function openSession(
 
 /**
  * Adopt the most recent stored chat on cold start (ADR-0021 refinement): hydrate exactly like
- * `openSession` but preserve `mode`, so a background restore never pops the panel.
+ * `openSession` but preserve `mode` and the console tab, so a background restore never pops the
+ * panel and never takes a view off it.
  */
 export function adoptSession(
   state: OverlayState,

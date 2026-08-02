@@ -173,6 +173,43 @@ describe("overlayState reducer", () => {
     expect(fresh.switcherOpen).toBe(false);
   });
 
+  it("a chat arriving takes the console off the panel, from either tab and by either door", () => {
+    for (const tab of ["appearance", "shortcuts"] as const) {
+      const reading = reduce(run([{ kind: "open" }, submit("q")]), { kind: "openConsole", tab });
+      expect(reading.consoleTab).toBe(tab);
+
+      const fresh = reduce(reading, { kind: "newChat", sessionId: "new-42" });
+      expect(fresh.consoleTab).toBeNull();
+      expect(fresh.messages).toEqual([]); // the empty chat is what is on screen, not behind it
+      expect(fresh.mode).toBe("panel");
+
+      const cycled = reduce(reading, { kind: "openSession", sessionId: "chat-7", messages: [] });
+      expect(cycled.consoleTab).toBeNull();
+      expect(cycled.sessionId).toBe("chat-7");
+      expect(cycled.mode).toBe("panel");
+    }
+  });
+
+  it("a delete and a cold-start adoption both leave the console where it was", () => {
+    const reading = reduce(run([{ kind: "open" }, submit("q")]), {
+      kind: "openConsole",
+      tab: "appearance",
+    });
+    const listed = reduce(reading, {
+      kind: "sessionsLoaded",
+      sessions: [summary(reading.sessionId)],
+    });
+    const deleted = reduce(listed, {
+      kind: "sessionDeleted",
+      sessionId: listed.sessionId,
+      fallbackSessionId: "fresh-1",
+    });
+    expect(deleted.consoleTab).toBe("appearance");
+    expect(deleted.sessionId).toBe("fresh-1");
+    const adopt: Action = { kind: "adoptSession", sessionId: "chat-7", messages: [] };
+    expect(reduce(listed, adopt)).toBe(listed); // touched: the summon that reached the console
+  });
+
   it("sessionsLoaded stores the chat list and toggleSwitcher flips it open then shut", () => {
     const loaded = reduce(initialState, { kind: "sessionsLoaded", sessions: [summary("a")] });
     expect(loaded.sessions).toEqual([summary("a")]);

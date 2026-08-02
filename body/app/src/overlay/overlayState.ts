@@ -180,6 +180,7 @@ export function reduce(state: OverlayState, action: Action): OverlayState {
         title: NEW_CHAT_TITLE,
         messages: [],
         switcherOpen: false,
+        consoleTab: null,
         pendingConfirm: null,
       };
     case "sessionsLoaded":
