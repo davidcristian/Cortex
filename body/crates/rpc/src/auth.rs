@@ -13,7 +13,8 @@ use tonic::service::Interceptor;
 use tonic::{Request, Status};
 
 /// The metadata key the seam token travels under (ADR-0016; lowercase per gRPC). The brain's
-/// `cortex_seam.SEAM_TOKEN_HEADER` carries the same value on the Python side.
+/// `cortex_seam.SEAM_TOKEN_HEADER` carries the same value on the Python side, and
+/// `scripts/crosscheck.py` fails if this declaration, the client's, and that one stop agreeing.
 const SEAM_TOKEN_HEADER: &str = "x-cortex-seam-token";
 
 /// Validates the seam token on inbound `BodyService` calls. Deliberately NOT `Debug`: it holds

@@ -12,6 +12,7 @@ check:
     set -euo pipefail
     just check-linecap
     just check-dashcheck
+    just check-crosscheck
     tmp=$(mktemp -d)
     trap 'rm -rf "$tmp"' EXIT
     echo "Running check-brain, check-scripts, check-body in parallel (output buffered)..."
@@ -46,6 +47,11 @@ check-linecap:
 check-dashcheck:
     cd scripts && uv sync --locked
     cd scripts && uv run python dashcheck.py --root ..
+
+# One value, declared once per language: every registered constant still agrees with itself.
+check-crosscheck:
+    cd scripts && uv sync --locked
+    cd scripts && uv run python crosscheck.py --root ..
 
 # Python brain workspace: format, lint, strict types, tests at 100% line+branch.
 check-brain:

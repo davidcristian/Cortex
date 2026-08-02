@@ -3,7 +3,9 @@ the ``data_uri`` rendering, and the two bounds pinned against their literals.
 
 The bounds are pinned to numbers rather than to each other because they are half of a ceiling
 the body enforces in another language: a test that only asserted ``MAX_IMAGE_BYTES ==
-MAX_IMAGE_BYTES`` would stay green while the two halves of the seam drifted apart.
+MAX_IMAGE_BYTES`` would stay green while the two halves of the seam drifted apart. This pin
+catches an edit to the constant alone; an edit to the constant *and* this literal is what
+``scripts/crosscheck.py`` catches, since no suite here can read the body's Rust.
 """
 
 import base64
@@ -23,8 +25,8 @@ _PNG = b"\x89PNG\r\n\x1a\n"
 
 
 def test_the_byte_budget_is_six_mebibytes() -> None:
-    # The body's MAX_CAPTURE_BYTES is the same number in Rust. Nothing mechanical couples them,
-    # so each side pins the literal and the brain sends this value as the request's max_bytes.
+    # The body's MAX_CAPTURE_BYTES is the same number in Rust. Each side pins the literal, the
+    # brain sends this value as the request's max_bytes, and crosscheck.py ties the two.
     assert MAX_IMAGE_BYTES == 6291456
     assert MAX_IMAGE_EDGE == 8192
 

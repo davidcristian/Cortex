@@ -49,12 +49,15 @@ The decisions were revised same-day, pre-push, for open-source longevity.
    tj-actions/changed-files, compromised in March 2025 to exfiltrate secrets from
    thousands of repos. This repo already owns its gates as 100%-covered scripts in
    `scripts/`; the classifier follows that pattern.
-   The line-cap gate is the one exception to the filter: `linecap.py` scans `.py`, `.rs`,
-   `.ts` and `.tsx` across every tree (`docs/` included, and the overlay since the
-   2026-08-03 [ADR-0011](ADR-0011-body-v1.md) addendum), so `check-linecap` runs as its own
-   unconditional CI job rather than inside a path-gated one. Otherwise a Rust-only,
-   overlay-only or docs-only change would skip the cross-tree cap. Locally it stays the fail-early first
-   step of `just check`.
+   The cross-tree scans are the exception to the filter, and they share one unconditional
+   `cross-tree` CI job rather than sitting inside a path-gated one. `linecap.py` scans `.py`,
+   `.rs`, `.ts` and `.tsx` across every tree (`docs/` included, and the overlay since the
+   2026-08-03 [ADR-0011](ADR-0011-body-v1.md) addendum); `dashcheck.py` scans every text file
+   ([ADR-0026](ADR-0026-prose-style-gates.md)); and `crosscheck.py` reads declaration sites in
+   two trees at once ([ADR-0029](ADR-0029-vision-screen-capture.md) cross-language-constant
+   addendum), which is precisely what no single-toolchain job can do. Otherwise a Rust-only,
+   overlay-only or docs-only change would skip them. Locally they stay the fail-early first
+   steps of `just check`.
 2. **Cancellation is PR-only**: `concurrency` with `cancel-in-progress` applies only to
    `pull_request` events. Superseded PR pushes cancel (the churny case), but every
    master commit keeps its CI verdict, because a bisectable history matters for a
@@ -81,9 +84,11 @@ The decisions were revised same-day, pre-push, for open-source longevity.
 - Skipped jobs report "skipped", which GitHub branch protection treats as satisfied, and
   this is why filtering is job-level `if`s fed by a `changes` job rather than
   `on.push.paths`, which would leave required checks pending forever.
-- The line-cap gate runs unconditionally, outside the filter: it is cross-tree (`.py` +
-  `.rs`, `docs/` included), so gating it on any one toolchain's paths would let a
-  Rust-only or docs-only change merge an over-cap file green.
+- The three cross-tree scans run unconditionally, outside the filter, because each reaches
+  more than one tree (the cap over `.py`/`.rs`/`.ts`/`.tsx` with `docs/` included, the dash
+  ban over every text file, the constant check over two trees at once), so gating any of
+  them on one toolchain's paths would let a Rust-only or docs-only change merge green over a
+  violation.
 - Action version bumps now arrive as weekly dependabot PRs; merging them is routine
   maintenance (each touches `.github/workflows/`, so all toolchains re-gate).
 - Buffered parallel gate output means no live streaming per tree; logs print complete,

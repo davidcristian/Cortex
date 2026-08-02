@@ -34,8 +34,10 @@ pub const MAX_EDGE_CEILING: u32 = 4096;
 /// measured worst case (a synthetic-noise screen encodes to 4.33 MB at 1600x900) would trip
 /// the halving ladder on any photographic screen and silently drop the user to an 800 px
 /// view. 6 MiB clears that worst case with headroom, so the ladder fires only on genuinely
-/// pathological input. Nothing mechanical couples the two constants; they are pinned to the
-/// same literal in each toolchain and that coupling is a documented invariant.
+/// pathological input. Neither toolchain can import the other's constant, so a repo gate ties
+/// them instead (`scripts/crosscheck.py`): it reads both declarations and fails when they
+/// disagree, while each stays pinned to the same literal in its own suite. Editing this value
+/// means editing the brain's too.
 pub const MAX_CAPTURE_BYTES: usize = 6 * 1024 * 1024;
 
 /// How many times [`Capture::from_bgra`] may halve the edge and re-encode before giving up.

@@ -417,10 +417,12 @@ Images (Slice 10, ADR-0029; in `images.py`, which imports only the standard libr
 - **The core never decodes an image.** Everything here checks declarations and encodes; no
   attacker-controlled bytes reach a decoder inside the process that holds the memory store.
 - `MAX_IMAGE_BYTES` is the domain half of a ceiling the body enforces too (its
-  `MAX_CAPTURE_BYTES` is the same number). Nothing mechanical couples the two constants across
-  the language boundary, so each is pinned to the literal in its own toolchain, and the brain
-  sends this number to the body as the capture request's `max_bytes` rather than trusting the
-  body to hold an equal constant.
+  `MAX_CAPTURE_BYTES` is the same number). Each is pinned to the literal in its own toolchain,
+  and the brain sends this number to the body as the capture request's `max_bytes` rather than
+  trusting the body to hold an equal constant. The two constants are tied across the language
+  boundary by `scripts/crosscheck.py`, an unconditional cross-tree gate (ADR-0029
+  cross-language-constant addendum); `MAX_IMAGE_EDGE` is deliberately not tied, being a looser
+  declaration bound rather than the body's clamp.
 
 Untrusted-content boundary (Slice 6.5, ADR-0013; the pure primitives in `untrusted.py`):
 
