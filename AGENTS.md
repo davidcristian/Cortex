@@ -53,10 +53,13 @@ Interfaces are designed around this rule from day one. Retrofitting it is a rewr
 
 ## Hard gates (CI and pre-commit run the same `just check`)
 
-1. **≤ 300 lines per non-test source file**, `.py` and `.rs`, comments and blank lines
-   included. Hard failure above 300. Split by responsibility, as you go, never as a
-   cleanup pass. Generated code (protobuf stubs) is exempt and lives only in clearly
-   marked generated-code directories excluded by the scan (ADR-0001 decision 7).
+1. **≤ 300 lines per non-test source file**, `.py`, `.rs`, `.ts` and `.tsx`, comments and
+   blank lines included. Hard failure above 300. Split by responsibility, as you go, never
+   as a cleanup pass. Generated code (protobuf stubs) is exempt and lives only in clearly
+   marked generated-code directories excluded by the scan (ADR-0001 decision 7), as is
+   build output (`dist/`, `coverage/`). The overlay's stylesheet and markup and
+   [proto/body.proto](proto/body.proto) are deliberately outside the cap, argued in the
+   ADR-0011 line-cap addendum; nothing else is.
 2. **100% line + branch coverage in both toolchains.** Python: `pytest --cov` with
    branch coverage and `--cov-fail-under=100`. Rust: `cargo llvm-cov` with a failing
    100% threshold. Tests assert behavior (fakes over mocks, error/edge paths included), and
@@ -97,9 +100,11 @@ Interfaces are designed around this rule from day one. Retrofitting it is a rewr
    an ADR. Both: structured logging, no secrets in logs, **no secrets in the repo**,
    config via env only.
 6. **`just check` is the single gate**, running ruff, pyright, pytest + coverage,
-   `cargo fmt --check`, clippy, `cargo test`, `cargo llvm-cov`, and the two cross-tree
-   scans: the line cap and `dashcheck.py`, which bans a dash used as punctuation in any
-   text file (ADR-0026). Pre-commit mirrors it. Run it before declaring anything done.
+   `cargo fmt --check`, clippy, `cargo test`, `cargo llvm-cov`, the overlay's typecheck and
+   Vitest coverage, and the two cross-tree scans: the line cap, which reaches all three
+   toolchains, and `dashcheck.py`, which bans a dash used as punctuation in any text file
+   (ADR-0026). Both scans run unconditionally, in CI too. Pre-commit mirrors it. Run it
+   before declaring anything done.
 
 ## Commits
 

@@ -65,9 +65,9 @@ jobs:
             echo "overlay=true" >> "$GITHUB_OUTPUT"
           fi
 
-  # The cross-tree scans are repo-wide and exempt from the path filter, so a
-  # Rust-only or docs-only change is still covered. linecap.py caps .py and .rs
-  # everywhere (AGENTS.md gate 1); dashcheck.py bans a dash used as punctuation in
+  # The cross-tree scans are repo-wide and exempt from the path filter, so a Rust-only,
+  # overlay-only or docs-only change is still covered. linecap.py caps .py, .rs, .ts and
+  # .tsx everywhere (AGENTS.md gate 1); dashcheck.py bans a dash used as punctuation in
   # any text file, which is mostly a docs concern and would otherwise never run.
   cross-tree:
     runs-on: ubuntu-latest

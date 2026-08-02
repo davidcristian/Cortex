@@ -49,10 +49,11 @@ The decisions were revised same-day, pre-push, for open-source longevity.
    tj-actions/changed-files, compromised in March 2025 to exfiltrate secrets from
    thousands of repos. This repo already owns its gates as 100%-covered scripts in
    `scripts/`; the classifier follows that pattern.
-   The line-cap gate is the one exception to the filter: `linecap.py` scans `.py` and
-   `.rs` across every tree (`docs/` included), so `check-linecap` runs as its own
-   unconditional CI job rather than inside a path-gated one. Otherwise a Rust-only or
-   docs-only change would skip the cross-tree cap. Locally it stays the fail-early first
+   The line-cap gate is the one exception to the filter: `linecap.py` scans `.py`, `.rs`,
+   `.ts` and `.tsx` across every tree (`docs/` included, and the overlay since the
+   2026-08-03 [ADR-0011](ADR-0011-body-v1.md) addendum), so `check-linecap` runs as its own
+   unconditional CI job rather than inside a path-gated one. Otherwise a Rust-only,
+   overlay-only or docs-only change would skip the cross-tree cap. Locally it stays the fail-early first
    step of `just check`.
 2. **Cancellation is PR-only**: `concurrency` with `cancel-in-progress` applies only to
    `pull_request` events. Superseded PR pushes cancel (the churny case), but every

@@ -10,12 +10,16 @@ exactly like all other Python.
 `commitlint.py` by the commit-msg pre-commit stage; each also exposes a pure, unit-tested
 core function).
 
-- `linecap.py [--root DIR] [--max-lines N]` implements AGENTS.md gate 1. Scans `*.py`/`*.rs`
-  under `--root` (default `.`), counting ALL lines (code, comments, blanks; cap default
-  300). Skips dir components `.git`, `.venv`, `.claude`, `target`, `node_modules`,
-  `__pycache__`, `.pytest_cache`, `.ruff_cache`, `tests`, `_generated` (the
-  generated-code marker), and test-named files (`test_*.py`, `*_test.py`,
-  `conftest.py`, `*_test.rs`). Directory symlinks are not traversed (deliberate: no
+- `linecap.py [--root DIR] [--max-lines N]` implements AGENTS.md gate 1. Scans
+  `*.py`/`*.rs`/`*.ts`/`*.tsx` under `--root` (default `.`), all three gated toolchains
+  since the ADR-0011 line-cap addendum, counting ALL lines (code, comments, blanks; cap
+  default 300). Stylesheets, markup and `proto/body.proto` are outside the cap by that same
+  addendum. Skips dir components `.git`, `.venv`, `.claude`, `target`, `node_modules`,
+  `__pycache__`, `.pytest_cache`, `.ruff_cache`, `dist`, `coverage`, `tests`, `_generated`
+  (the generated-code marker), and test-named files (`test_*.py`, `*_test.py`,
+  `conftest.py`, `*_test.rs`, `*.test.ts`, `*.test.tsx`, `test-setup.ts`, the last three
+  being what `body/app/vite.config.ts` collects and sets up). `*.d.ts` is NOT exempt.
+  Directory symlinks are not traversed (deliberate: no
   cycles, no escapes outside the root); a candidate that is not a regular file after
   following symlinks (e.g. a dangling editor-lockfile symlink) is skipped.
   Exit 0 with a summary line; exit 1 printing `path: N lines (cap M)` per violation;
@@ -27,7 +31,9 @@ core function).
   MINUS SIGN (arithmetic), and on ASCII `--` (the repo's inline-reason idiom, which the gate-2
   escape-hatch rule effectively requires; commit messages are stricter and `commitlint.py`
   bans it there). Skips the same directory components as `linecap.py` minus `tests` and
-  `_generated`, since prose in a test or a generated stub is still prose; binary files are
+  `_generated`, since prose in a test or a generated stub is still prose, and
+  `test_skipped_dirs_match_dashcheck_plus_tests_and_generated` holds the two lists to that
+  sentence rather than leaving it to be believed; binary files are
   detected and skipped. A line carrying `dashcheck: allow` plus a reason is exempt, for a
   dash that means rather than punctuates. Exit 0 with a summary; exit 1 printing
   `path:line: kind: text` per violation; exit 2 if `--root` is not a directory or a file

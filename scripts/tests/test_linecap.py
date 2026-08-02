@@ -2,6 +2,7 @@ from pathlib import Path
 
 import pytest
 
+import dashcheck
 import linecap
 
 
@@ -39,22 +40,56 @@ def test_scan_counts_comments_and_blank_lines(tmp_path: Path) -> None:
     assert violations == [linecap.Violation(path=Path("mixed.py"), lines=3)]
 
 
+@pytest.mark.parametrize("name", ["big.ts", "big.tsx"])
+def test_scan_caps_overlay_typescript(tmp_path: Path, name: str) -> None:
+    write_file(tmp_path / "app" / "src" / name, 50)
+    violations = linecap.scan(tmp_path, cap=10)
+    assert violations == [linecap.Violation(path=Path("app/src") / name, lines=50)]
+
+
+def test_scan_caps_ambient_declaration_files(tmp_path: Path) -> None:
+    """`.d.ts` is hand-written TypeScript, so it is capped like any other `.ts`."""
+    write_file(tmp_path / "shims.d.ts", 50)
+    violations = linecap.scan(tmp_path, cap=10)
+    assert violations == [linecap.Violation(path=Path("shims.d.ts"), lines=50)]
+
+
 def test_scan_ignores_non_source_suffixes(tmp_path: Path) -> None:
     write_file(tmp_path / "notes.txt", 50)
     write_file(tmp_path / "README.md", 50)
     assert linecap.scan(tmp_path, cap=10) == []
 
 
-@pytest.mark.parametrize("name", ["test_big.py", "big_test.py", "conftest.py", "big_test.rs"])
+def test_scan_ignores_stylesheets_markup_and_the_proto(tmp_path: Path) -> None:
+    """The three uncapped file kinds, pinned so dropping one is a deliberate edit here."""
+    write_file(tmp_path / "overlay.css", 50)
+    write_file(tmp_path / "index.html", 50)
+    write_file(tmp_path / "body.proto", 50)
+    assert linecap.scan(tmp_path, cap=10) == []
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "test_big.py",
+        "big_test.py",
+        "conftest.py",
+        "big_test.rs",
+        "big.test.ts",
+        "big.test.tsx",
+        "test-setup.ts",
+    ],
+)
 def test_scan_skips_test_named_files(tmp_path: Path, name: str) -> None:
     write_file(tmp_path / name, 50)
     assert linecap.scan(tmp_path, cap=10) == []
 
 
-def test_scan_does_not_skip_files_that_merely_contain_test(tmp_path: Path) -> None:
-    write_file(tmp_path / "attestation.py", 50)
+@pytest.mark.parametrize("name", ["attestation.py", "latest.ts", "Contest.tsx", "testable.ts"])
+def test_scan_does_not_skip_files_that_merely_contain_test(tmp_path: Path, name: str) -> None:
+    write_file(tmp_path / name, 50)
     violations = linecap.scan(tmp_path, cap=10)
-    assert violations == [linecap.Violation(path=Path("attestation.py"), lines=50)]
+    assert violations == [linecap.Violation(path=Path(name), lines=50)]
 
 
 @pytest.mark.parametrize(
@@ -68,13 +103,24 @@ def test_scan_does_not_skip_files_that_merely_contain_test(tmp_path: Path) -> No
         "__pycache__",
         ".pytest_cache",
         ".ruff_cache",
+        "dist",
+        "coverage",
         "tests",
         "_generated",
     ],
 )
 def test_scan_skips_exempt_directories(tmp_path: Path, directory: str) -> None:
     write_file(tmp_path / directory / "big.py", 50)
+    write_file(tmp_path / directory / "big.ts", 50)
     assert linecap.scan(tmp_path, cap=10) == []
+
+
+def test_skipped_dirs_match_dashcheck_plus_tests_and_generated() -> None:
+    """docs/modules/repo-gates.md states this relationship; a drift here falsifies that doc."""
+    only_linecap = linecap.SKIPPED_DIRS - dashcheck.SKIPPED_DIRS
+    only_dashcheck = dashcheck.SKIPPED_DIRS - linecap.SKIPPED_DIRS
+    assert only_linecap == {"tests", "_generated"}
+    assert only_dashcheck == set()
 
 
 def test_scan_skips_exempt_directory_components_at_any_depth(tmp_path: Path) -> None:

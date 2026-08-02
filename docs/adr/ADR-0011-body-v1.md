@@ -544,3 +544,73 @@ they landed alongside that day's motion work and share its measurements.
   together to the head of the button cluster, and the title took the row with a 31px inset off the
   panel's edge. That supersedes this ADR's 2026-07-03 line about the title's 6px margin: neither
   indicator keeps an optical margin now, both riding the header's own 10px gap.
+
+## Addendum (2026-08-03): the line cap covers the overlay's TypeScript (closes ADR-0001 open question 6)
+
+This ADR's 2026-07-01 addendum brought the overlay under the coverage gate and said so;
+[ADR-0001](ADR-0001-architecture.md) open question 6 had named **two** gates that applied to
+`.py`/`.rs` only, coverage and the 300-line cap, and only the first was reversed. The second was
+left as written, so `scripts/linecap.py` kept `SOURCE_SUFFIXES = {".py", ".rs"}` and AGENTS.md gate 1
+kept saying the cap covers "`.py` and `.rs`" while decision 6 above it had been overturned. The
+overlay grew from a prompt box to 65 non-test TypeScript modules under a rule nothing measured.
+
+**What that let through, measured on 2026-08-03 rather than assumed.** Two entries in
+[docs/refinements/body-overlay.md](../refinements/body-overlay.md) had tracked overlay files as cap
+violations by eye, and eye-tracking failed exactly as an ungated rule does. The closed entry and the
+open one both call `bridge/demoBridge.ts` at 326 "the last overlay source above 300"; at the moment
+that was written `overlay/panelPlacement.ts` stood at **371**, and it fell to 295 on 2026-08-02 as a
+side effect of the ResizeObserver work, not because anything complained. `demoBridge.ts` itself had
+drifted to **351**. So the backlog held a false claim and a stale number at once, which is the
+signature of a rule enforced by attention.
+
+1. **The cap now scans `.ts` and `.tsx` beside `.py` and `.rs`.** One scanner, one cap, one
+   `just check-linecap`, because the cap is about cognitive load and does not care which toolchain a
+   file is in. `SKIPPED_DIRS` gains `dist` and `coverage`, the overlay's own build output as listed
+   in `body/app/.gitignore`; that also makes true a sentence
+   [docs/modules/repo-gates.md](../modules/repo-gates.md) had been asserting since dashcheck landed,
+   that dashcheck skips the same directories as the line cap minus `tests` and `_generated`, and a
+   test in `scripts/tests/test_linecap.py` now holds the two lists to it.
+2. **A test file is whatever that toolchain's runner calls a test.** `SKIPPED_FILE_PATTERNS` gains
+   `*.test.ts` and `*.test.tsx`, which is verbatim the `src/**/*.test.{ts,tsx}` that
+   `body/app/vite.config.ts` collects, plus `test-setup.ts`, that config's `setupFiles` entry and the
+   TypeScript analog of `conftest.py`. Nothing wider: a `.spec.ts` cannot exist under this runner's
+   config, so no rule pretends to cover one. `.d.ts` is **not** exempt, because an ambient
+   declaration is hand-written TypeScript like any other.
+3. **The stylesheet, the markup, and the proto stay outside, and this is the argument.** The cap's
+   remedy is "split by responsibility", which presumes a module with a public contract. `overlay.css`
+   (2420 lines) is one cascade whose order is load-bearing, so splitting it trades a long file for
+   fragile `@import` ordering, and `index.html` is a single mount point. `proto/body.proto` (314
+   lines) is over 300 today, and capping it would put the gate in direct conflict with this repo's
+   own architecture invariant that the seam is "defined once in proto/body.proto". A gate that
+   demands a violation of AGENTS.md is worse than no gate. The CSS is recorded as an open deferral in
+   [docs/refinements/repo-gates.md](../refinements/repo-gates.md); the proto is a decision, not a
+   deferral. `scripts/tests/test_linecap.py` pins all three so dropping one is a deliberate edit.
+4. **`demoBridge.ts` was split rather than exempted.** Its open refinement entry had argued for
+   waiting, on the grounds that lifting the canned script into a constants module "would cost a new
+   entry in the coverage `exclude` list" and that "widening that list is the bigger concession". That
+   reasoning was written while nothing enforced the cap, so the comparison was against no cost at
+   all. Re-read against the code it does not survive: the concession is not a new **kind** of
+   unmeasured file, since the demo bridge has been coverage-excluded since it was written, but the
+   same exclusion spelled over the two files it now occupies. Measured rather than assumed: with
+   `demoScript.ts` left out of the list, `vitest run --coverage` reports it 0% over lines 8 to 141
+   and the tree drops from 100% to **97.45%**, exit 1; with it in, the tree is back at 100%. The cost
+   is therefore exactly one explicit path, and it is written as a path rather than a
+   `src/bridge/demo*.ts` glob because this repo has already been bitten once by gate config that
+   enumerates loosely (the fail-open `scripts/` config closed 2026-07-12, ADR-0026 addendum). The
+   bridge went 351 to 234 and the extracted script is 141; `sessions()` and `reminders()` are
+   functions rather than constants so each `DemoBridge` still stamps its seed relative to its own
+   construction, as the inline initializers did.
+5. **CI needed no change, which was checked rather than presumed.** `cross-tree` in
+   `.github/workflows/ci.yml` carries no `needs` and no `if`, so it runs on every push and pull
+   request; `scripts/ci_paths.py` classifies `body/app/src/overlay/useOverlay.ts` as overlay-only,
+   and the cap scan sees it anyway because it is not path-gated. Only the comments naming the scanned
+   suffixes were wrong, in that workflow, in the `justfile`, and in
+   [ADR-0006](ADR-0006-gate-performance.md) decision 1.
+
+**Proven able to fail before being trusted**, per AGENTS.md's distrust-green rule, with
+`just check-linecap`'s own command. A planted 301-line `body/app/src/overlay/planted.ts` and a
+301-line `body/app/src/components/Planted.tsx` each exit 1 naming the file; a 300-line one exits 0.
+A 400-line `*.test.ts` and `*.test.tsx`, a 400-line `.ts` under `dist/`, `coverage/` and
+`node_modules/`, and `test-setup.ts` grown past 400 all exit 0, so each exclusion excludes what it
+claims and nothing else. The new scanner branches are covered by tests that fail under mutation:
+reverting `SOURCE_SUFFIXES` fails 6, dropping `*.test.ts` fails 1, dropping `dist` fails 2.

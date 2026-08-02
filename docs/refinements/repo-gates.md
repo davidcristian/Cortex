@@ -8,11 +8,12 @@ deferred-refinements section on 2026-07-15 with the entries kept verbatim; lande
 entries are the historical record of what each deferral became, and the index at
 [index.md](index.md) carries the recommended pickup order.
 
-**Open items:** 3 (`cargo clippy` for the Tauri shell in CI, moved to fix-when-it-bites
+**Open items:** 4 (`cargo clippy` for the Tauri shell in CI, moved to fix-when-it-bites
 2026-07-16; standing test-order randomization, opened as fix-when-it-bites 2026-07-18; the three
 exceptions the wrap gate did not ship, opened as fix-when-it-bites 2026-07-19 behind the landing
-of the commit-body wrap check itself; the rest landed 2026-07-16 and 2026-07-19, see the outcome
-notes below the verbatim entries)
+of the commit-body wrap check itself; the overlay stylesheet outside the line cap, opened as
+fix-when-it-bites 2026-08-03 behind the cap reaching the overlay's TypeScript; the rest landed
+2026-07-16, 2026-07-19 and 2026-08-03, see the outcome notes below the verbatim entries)
 
 **Prose style ([ADR-0026](../adr/ADR-0026-prose-style-gates.md)):**
 - **Check the commit body's 72-column wrap, not only the header's length.** Opened 2026-07-18,
@@ -189,6 +190,46 @@ notes below the verbatim entries)
   rather than vacuously green. The heavier note is that assembling even a shim for a one-off
   local check mirrors the CI cost: the stack this host lacks is exactly the stack a CI runner
   would have to install on every shell change.
+
+**Gate reach ([ADR-0011](../adr/ADR-0011-body-v1.md) line-cap addendum):**
+- **The line cap did not cover the overlay at all, and had not since the overlay was gated.**
+  Found 2026-08-03 while reviewing a landed change, and recorded here because a gate that cannot
+  fail is a defect in its own right, whatever it happens to have missed. `scripts/linecap.py` held
+  `SOURCE_SUFFIXES = {".py", ".rs"}` from the day it was written, which was correct then:
+  [ADR-0001](../adr/ADR-0001-architecture.md) open question 6 scoped both the coverage gate and the
+  300-line cap to `.py`/`.rs` while the overlay was "kept minimal". ADR-0011's 2026-07-01 addendum
+  reversed that for coverage and said so; nothing reversed it for the cap, and nothing noticed,
+  because the gate kept passing. **How long, and what it let through:** thirty-three days from the
+  overlay's first gated component to 2026-08-03, over a tree that reached 107 TypeScript files, 65
+  of them the non-test sources the cap would have been measuring the whole time.
+  Two entries in [body-overlay.md](body-overlay.md) tracked cap violations by eye over that window
+  and both drifted. `bridge/demoBridge.ts` was recorded at 326 on the day it already stood at 351,
+  and it was still 351 fourteen days later; `overlay/panelPlacement.ts` crossed the cap the day
+  after the entry that called demoBridge the only one over it, reached 371, and sat there for
+  thirteen days until an unrelated ResizeObserver change took it to 295 by accident. Neither the
+  false claim nor the stale number cost anything beyond themselves, which is the point: the failure
+  of an unenforced rule is silent by construction, and it was found by a review rather than by a
+  gate. **Landed the day it was found**, so this entry is a record rather than a deferral: the scan
+  now covers `.ts`/`.tsx`, `demoBridge.ts` was split rather than exempted, and the whole decision
+  including what stays outside the cap is in the ADR-0011 line-cap addendum. Proven able to fail
+  before being trusted, planted file by planted file, per the same distrust-green rule that turned
+  this up.
+- **The overlay's stylesheet is outside the line cap.** *Fix when it bites.* Opened 2026-08-03
+  behind the entry above, because turning the cap on made the exclusion a decision rather than an
+  oversight. `body/app/src/overlay.css` is **2420 lines**, by a wide margin the longest hand-written
+  file in the repo, and no gate measures it. It is excluded on the argument that the cap's remedy is
+  "split by responsibility", which presumes a module with a public contract, while a stylesheet is
+  one cascade whose ordering is load-bearing: splitting it trades a long file for `@import` ordering
+  that nothing checks and that fails visually rather than loudly. That argument is honest about the
+  remedy and evasive about the problem, since 2420 lines is exactly the cognitive load the cap
+  exists to bound, and the file has grown with every overlay slice. **What would close it:** either
+  a cap for `.css` at a width chosen for stylesheets rather than modules, with the split done by
+  layer (tokens, panel, console, motion) and imported in a fixed order from one entry sheet, or the
+  same split done for its own sake with the cap following. Neither is a scanner change; the scanner
+  needs one suffix added. **Trigger:** the first time an edit lands in the wrong cascade position
+  because the file is too long to hold in view, or a second stylesheet appearing, at which point the
+  ordering question has to be answered anyway. Until then the cap covers every executable module in
+  the repo and this is the one measured hole in it.
 
 **Repo gates ([ADR-0026](../adr/ADR-0026-prose-style-gates.md)):**
 - **The fail-open `scripts/` gate config closed 2026-07-12
