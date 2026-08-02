@@ -25,7 +25,9 @@ use crate::generated::HealthRequest;
 use crate::generated::brain_service_client::BrainServiceClient;
 use crate::status::{error_chain, status_to_error};
 
-/// The metadata key the seam token travels under (ADR-0016; lowercase per gRPC).
+/// The metadata key the seam token travels under (ADR-0016; lowercase per gRPC). Declared again
+/// in `auth.rs` and once more in the brain's `cortex_seam`; `scripts/crosscheck.py` ties all
+/// three, so a rename here that misses either of the others fails the gate rather than the seam.
 const SEAM_TOKEN_HEADER: &str = "x-cortex-seam-token";
 
 /// The service every seam call runs over: tonic's [`Channel`] fronted by the

@@ -896,3 +896,96 @@ Read the "Still host-only" section above as complete: the Windows half is the wh
 ADR owes.
 
 No code changed here; this is a records correction at the origin ADR.
+
+## Addendum (2026-08-03): the byte ceiling is tied by a gate, and the tie is a registry
+
+Decision 7 above states the invariant ("one ceiling, two enforcers") and this ADR's
+2026-07-18 interpretation section records what was missing: "each side pins the literal in its
+own test; nothing mechanical couples them, which is recorded as a deferral". That deferral, in
+[docs/refinements/vision.md](../refinements/vision.md), asked for "a repo-gate scan asserting
+the two literals match", beside `linecap.py` and `dashcheck.py`. It is now
+`scripts/crosscheck.py`, wired into `just check` and into CI's unconditional `cross-tree` job.
+
+**The entry was slightly wrong about itself, and the correction is the design.** It claimed "an
+edit to one leaves both suites green". Measured on 2026-08-03 rather than assumed: raising
+`MAX_CAPTURE_BYTES` to 8 MiB alone fails `body-core`'s own suite (exit 101,
+`left: 8388608, right: 6291456`), because `the_byte_ceiling_is_six_mebibytes_and_the_ladder_has_two_rungs`
+pins the literal. What actually drifts is an edit to the constant **and** its own pin, which is
+not a mistake anyone has to make carelessly; it is the ordinary shape of a deliberate change to
+one side. With `MAX_CAPTURE_BYTES` and its assertion both at 8 MiB, `cargo test -p body-core`
+and the brain's `packages/core` plus `packages/body_client` suites are all green while the two
+trees disagree by 2 MiB. That is what the gate closes, and it is a sharper failure than the one
+recorded: a per-toolchain pin is not weak enforcement of the coupling, it is enforcement of the
+wrong thing, since it can only ever compare a tree with itself.
+
+1. **A registry of constants, not a check of one pair.** `CONSTANTS` in `crosscheck.py` holds an
+   entry per value: a label, the reason the sites must agree (printed with any failure, so the
+   message explains the coupling rather than only reporting it), and two or more `Site`s, each a
+   repo-relative path plus the identifier declared in it. A scan hard-wired to this one pair
+   would have to be rewritten by the next coupling that needs it, and this is not the only one.
+2. **Two entries, chosen deliberately, with the survey behind them recorded as a deferral.** The
+   byte ceiling is the entry this addendum was written for. The second is the seam token's
+   metadata key, `SEAM_TOKEN_HEADER` ([ADR-0016](ADR-0016-seam-token.md)), which is declared
+   **three** times by hand (`body/crates/rpc/src/auth.rs`, `body/crates/rpc/src/client.rs`, and
+   `brain/packages/seam`) with nothing tying any of them and no test anywhere comparing them. It
+   is registered both because it is the highest-blast-radius equality on the seam (a
+   disagreement fails every authenticated call in either direction) and because a registry whose
+   only entry is a pair is a registry in name only: the three-site case is what proves the shape
+   generalizes past two. A wider survey found several more couplings of other kinds, and
+   registering those is a decision this addendum does not make; it is
+   [docs/refinements/repo-gates.md](../refinements/repo-gates.md).
+3. **No master, and `proto/body.proto` is not one.** Sites are compared with each other, never
+   against a value declared in the registry. Protobuf has no constant, so a number could live
+   there only as a comment, which is a third uncoupled copy rather than a source of truth: the
+   1600 px default edge is already spelled in four places, `DEFAULT_MAX_EDGE`, the proto comment
+   on `max_edge`, `images.py`'s prose, and this ADR, which is exactly the failure mode a proto
+   comment would repeat. Comparing sites with each other also keeps the gate symmetric. A
+   designated original would leave that one file editable alone, which is the drift measured
+   above with the roles reversed. The wire's `max_bytes` hint is unaffected and still does its
+   own job: it makes the two ceilings one number **at runtime**, so a disagreement tightens
+   rather than breaks, and it is why this was the cheapest honest item in the area rather than
+   the most urgent.
+4. **Values are compared after reduction, so the gate cannot fail on a non-violation.** One site
+   may write `6291456` where another writes `6 * 1024 * 1024`; both reduce to the same integer.
+   Exactly two forms reduce, a product of integer literals and a plain double-quoted string, and
+   anything else is refused rather than guessed at. `DECLARATIONS` holds one declaration syntax
+   per language, matching a module-level Python constant and a Rust `const`/`static` item, so an
+   indented local or a `let` binding of the same name is not mistaken for the declaration.
+5. **Fail closed, because the alternative is a scan that agrees with itself forever.** A regex
+   over two files fails **open** by default: rename the constant and the scan finds nothing and
+   passes. Here every way of not establishing a value is a fault with exit 1: a missing file, an
+   unreadable or non-UTF-8 one, a suffix in a language the scan does not know, a name that is
+   absent, a name declared twice (ambiguous, so nothing can be compared), a value that will not
+   reduce, and a registry entry naming fewer than `MIN_SITES` sites. The suite additionally runs
+   the registry against the real trees (`test_the_repo_itself_is_tied`) and refuses an entry in
+   an unknown language or confined to one tree, so `check-scripts` catches a drift as well.
+6. **Proven able to fail before being trusted, on the real tree.** Divergence: with
+   `MAX_CAPTURE_BYTES` at 8 MiB and its own pin updated to match, the state both suites call
+   green, the gate exits 1 naming both sides with their reduced values and the reason they must
+   agree. Fail closed: renaming `MAX_IMAGE_BYTES` to `MAX_IMAGE_PART_BYTES` exits 1 with
+   "declares no MAX_IMAGE_BYTES"; deleting the `client.rs` seam-token declaration exits 1 with
+   "declares no SEAM_TOKEN_HEADER"; moving `images.py` away exits 1 with "cannot read". Clean
+   tree: exit 0, "crosscheck OK: 2 cross-tree constant(s) under .. agree".
+
+**Why this is an addendum here rather than a new decision record.** The gate enforces a decision
+this ADR already made and this ADR recorded the deferral, which is where a reader looking for the
+byte ceiling's rules arrives. `linecap.py` and `dashcheck.py` each sit under the ADR that owns
+the rule they enforce ([ADR-0011](ADR-0011-body-v1.md)'s line-cap addendum,
+[ADR-0026](ADR-0026-prose-style-gates.md)), so gates in this repo are not owned by a gates ADR;
+there is none. The seam token's entry is the one thing this addendum records that ADR-0029 does
+not own, and it is registered under a mechanism argued here rather than a rule decided here,
+with a pointer left at ADR-0016. The scan itself is documented in
+[docs/modules/repo-gates.md](../modules/repo-gates.md) beside the other two.
+
+**Deferred by this addendum** (recorded in
+[docs/refinements/repo-gates.md](../refinements/repo-gates.md)): the couplings the registry
+holds no entry for, in three kinds. Relations the equality comparator cannot express (the body's
+`MAX_EDGE_CEILING` at or below the brain's `MAX_IMAGE_EDGE`, `CAPTURE_MIME` inside
+`ALLOWED_MIME_TYPES`, the client's `MAX_RECEIVE_BYTES` above both ceilings); copies that are not
+declarations and so are invisible to a scanner that reads them (the compose healthcheck's inline
+`x-cortex-seam-token`, the two ports spelled inside strings); and TypeScript, which
+`DECLARATIONS` has no syntax for, where the overlay matches `capture_screen` and `thinking`
+against the brain by hand. One pair there, `TITLE_MAX`, is **already divergent** (48 in the
+brain, 32 in the overlay, an artefact [ADR-0021](ADR-0021-session-read-seam.md) records),
+so registering it would turn the gate on over a shipped disagreement no one has decided how to
+resolve. It waits on that decision rather than on the scan.

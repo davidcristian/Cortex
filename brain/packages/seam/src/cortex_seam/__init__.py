@@ -87,7 +87,8 @@ add_BrainServiceServicer_to_server = cast("_AddBrainServicer", _untyped_add_brai
 # The metadata key the seam token travels under, on either direction of the seam (ADR-0016;
 # lowercase per gRPC). It lives here as a seam-contract detail both the brain's server-side
 # interceptor and the brain's `BodyService` client (`cortex_body_client`, ADR-0023) share; the
-# body's Rust side declares its own `const` of the same value.
+# body's Rust side declares its own `const` of the same value, twice, and `scripts/crosscheck.py`
+# fails if the three stop agreeing.
 SEAM_TOKEN_HEADER = "x-cortex-seam-token"  # noqa: S105 - the header NAME, not a secret
 
 __all__ = [

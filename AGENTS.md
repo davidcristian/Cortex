@@ -101,9 +101,11 @@ Interfaces are designed around this rule from day one. Retrofitting it is a rewr
    config via env only.
 6. **`just check` is the single gate**, running ruff, pyright, pytest + coverage,
    `cargo fmt --check`, clippy, `cargo test`, `cargo llvm-cov`, the overlay's typecheck and
-   Vitest coverage, and the two cross-tree scans: the line cap, which reaches all three
-   toolchains, and `dashcheck.py`, which bans a dash used as punctuation in any text file
-   (ADR-0026). Both scans run unconditionally, in CI too. Pre-commit mirrors it. Run it
+   Vitest coverage, and the three cross-tree scans: the line cap, which reaches all three
+   toolchains; `dashcheck.py`, which bans a dash used as punctuation in any text file
+   (ADR-0026); and `crosscheck.py`, which ties the constants declared once per language
+   because both sides of the seam must hold the same value (ADR-0029 cross-language-constant
+   addendum). All three run unconditionally, in CI too. Pre-commit mirrors it. Run it
    before declaring anything done.
 
 ## Commits
@@ -198,7 +200,8 @@ body/             Rust/Tauri workspace, host-native
   app/            React+Vite overlay (gated 100%) + its host-native Tauri src-tauri
                   shell (fmt-checked in CI, else host-validated) named cortex-body, own workspace
 scripts/          repo gates: linecap.py (300-line cap), dashcheck.py (no dash as
-                  punctuation), coverage_gate.py (Rust branches), ci_paths.py (CI path
+                  punctuation), crosscheck.py (one value, declared once per language, still
+                  agreeing), coverage_gate.py (Rust branches), ci_paths.py (CI path
                   classifier), commitlint.py (commit-message style)
 .github/          GPU-less CI running the same `just` recipes as local dev
 justfile          `just check` + check-*; proto, up/down, brain-serve, seam-health

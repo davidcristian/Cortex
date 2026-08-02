@@ -9,10 +9,12 @@ decoder inside the process that holds the durable memory store.
 
 The bounds are the domain half of a ceiling the body enforces too. ``MAX_IMAGE_BYTES`` is the
 same 6 MiB as the body's ``MAX_CAPTURE_BYTES``, and the two must agree: a body ceiling looser
-than this one would let a legitimate capture pass the body and be refused here. Nothing
-mechanical couples the two constants across the language boundary, so each is pinned to the
-literal in its own toolchain and the brain sends this number to the body as the request's
-``max_bytes`` rather than trusting the body to hold the same constant.
+than this one would let a legitimate capture pass the body and be refused here. Neither
+toolchain can import the other's constant, so the two are tied by a repo gate instead,
+``scripts/crosscheck.py``, which reads both declarations and fails when they disagree; each is
+still pinned to the literal in its own toolchain, and the brain still sends this number to the
+body as the request's ``max_bytes`` rather than trusting the body to hold the same constant.
+Editing this value means editing the body's too, which is what the gate now insists on.
 """
 
 import base64
