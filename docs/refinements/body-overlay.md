@@ -17,10 +17,11 @@ the demo bridge staying over the line cap, the two tradeoffs the reserved scroll
 is assumed rather than measured off the engine, and the two 6px cards spend their whole inset on
 it), the chat floor's frozen measurement of the empty state, a mid-stream retarget restarting
 from a rounded height, a Thoughts trace opening a reply off the bottom of a full history, the
-console tab strip's missing keyboard half, a new chat minted from the console leaving the
-console up, and the whisper's three follow-ups (a pickable voice row in the console, the wrap
+console tab strip's missing keyboard half, and the whisper's three follow-ups (a pickable voice
+row in the console, the wrap
 width a mid-stream resize cannot move, and kerning inside the letter boxes under a changed
-font; its drain-growth entry landed the same day it was filed)
+font; its drain-growth entry landed the same day it was filed, and the console outliving a new
+chat landed 2026-08-03)
 
 **Body / overlay in Slice 8 ([ADR-0011](../adr/ADR-0011-body-v1.md)):**
 - **Multi-turn-within-one-stream + an explicit proto `Cancel` event.** One turn per `Converse`
@@ -509,6 +510,28 @@ font; its drain-growth entry landed the same day it was filed)
   from under someone who reached for a new chat while reading the shortcut list is the same
   surprise pointing the other way. Nothing else is ambiguous: `dismiss` and Esc both close the
   console on purpose and say so in their comments, so this is about the third door alone.
+  **The user answered on 2026-08-03 and it LANDED the same day
+  ([ADR-0035 addendum](../adr/ADR-0035-console-and-motion.md)): Ctrl+N closes the console.** A
+  keystroke aimed at the conversation puts you in the conversation, so the chat is cleared, the tab
+  goes with the chat it was opened over, and the empty chat is what is on screen. The entry framed
+  the question correctly and undersold the answer by exactly one arm, which is the usual lesson
+  here: `openSession` had the identical hole, and its version is reachable by keyboard, because
+  Ctrl+Up and Ctrl+Down are global keys in `Overlay.tsx` and cycle straight into it while the
+  switcher row that normally starts a load is `display: none` behind the console. Those two keys and
+  Ctrl+N are the whole reachable surface, the pointer doors into both arms (the pencil, a switcher
+  row) being under the console. So "one line in one reducer arm" was two lines in two, and the rule
+  that shipped is a conversation arriving on the
+  panel brings the chat with it, rather than a special case for one keystroke. The two chat swaps
+  that do NOT clear the tab were read at the same time and are unchanged with their reasons now
+  written down: `deleteSession` keeps it for the same reason it already keeps the switcher open (a
+  delete comes from a switcher row, so the user is managing chats rather than asking for one) and is
+  unreachable from the console besides, and `adoptSession` is a cold-start restore that must take
+  nothing off the panel and cannot meet an open console anyway, a summon having set `touched`. Both
+  halves are pinned in `overlay/overlayState.test.ts`, the arriving pair walked through both tabs
+  and both doors, the standing pair asserted as standing, and each arm's clear was proven to redden
+  its case by being removed in place. Both were also watched in the browser at the entry's own
+  900x900, before and after, and the readings are in the ADR addendum: with the clears removed the
+  console is still the live view after each press, and with them in place the chat is.
 - **A liquid window edge gives up the backdrop blur.** Measured in the design pitch that chose it
   and pinned in ADR-0036: Chromium composites `backdrop-filter` output without clipping it by a
   `path()` clip, so a sculpted panel showed a sharp frosted rectangle ghosting behind the liquid

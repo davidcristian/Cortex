@@ -246,7 +246,10 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
   between content the panel arrived with and a section they opened and will close again;
   entering another view centres it, coming back to the chat restores the edge it was
   left at, and everything else pins the bottom edge, so growth inside the chat and a new chat (the
-  same view with less in it) leave the composer alone. The pinned edge is kept UNCLAMPED and the
+  same view with less in it) leave the composer alone. A new chat or a cycle started while the
+  console is up now clears the tab in the same commit, so those two take the first branch rather
+  than the last: it is the ordinary return to the chat, at the edge the chat was left at.
+  The pinned edge is kept UNCLAMPED and the
   ceiling is applied only on the way out to the DOM, which is what makes a grow-then-shrink round
   trip exactly reversible. `components/Collapse.tsx` gives the switcher list, the reminder stack and
   a reply's Thoughts trace
@@ -284,7 +287,18 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
   each surface does: `toggleConsole(tab)` for the two openers in the hint strip (each owns its
   tab, so its own button closes the console and the other switches), the idempotent
   `openConsole(tab)` for the strip, and `closeConsole()` for Esc and the header chevron, which is
-  why Esc now leaves in one press instead of unstacking two sheets. `CONSOLE_TABS` is exported
+  why Esc now leaves in one press instead of unstacking two sheets. Beyond those three it is the
+  chat's own arms that decide the tab's fate, and the rule between them is **a conversation
+  arriving on the panel brings the chat
+  with it** (ADR-0035 addendum, 2026-08-03): `newChat` and `openSession` clear the tab, so Ctrl+N
+  and the Ctrl+Up / Ctrl+Down cycle land in the conversation they were aimed at instead of
+  emptying or swapping it behind a standing console (those two keys are the whole reachable
+  surface, the pencil and
+  the switcher rows being under the console); a summon clears it too, and a
+  dismiss deliberately does not, the panel fading out wearing what it had on. `sessionDeleted` and
+  `adoptSession` leave it exactly as it was, the first because a delete comes from a switcher row
+  and keeps the surface the user is managing chats in (as it already keeps the switcher open), the
+  second because a cold-start restore must take nothing off the panel. `CONSOLE_TABS` is exported
   beside the type because `Panel` walks it to mount tabs and `ConsoleView` walks it to draw the
   strip. The appearance tab maps over `THEMES` and `MARKS` rather than naming what ships, so both
   registries keep the plug-and-play property they claim: a theme previews itself through

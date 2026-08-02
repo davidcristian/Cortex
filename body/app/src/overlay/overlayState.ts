@@ -197,6 +197,14 @@ export function reduce(state: OverlayState, action: Action): OverlayState {
         ? { ...state, mode: "hidden" }
         : state;
     case "newChat":
+      // The console leaves with the old chat. Both doors here, Ctrl+N and the header's pencil, are
+      // aimed at the conversation, so they land in the conversation: the arm already sets
+      // `mode: "panel"` for that reason, and leaving `consoleTab` alone emptied the chat *behind*
+      // the console, which stayed up (the user's pick, ADR-0035 addendum, 2026-08-03; Ctrl+N is the
+      // reachable half of the pair, the pencil being under the console with the rest of the chat).
+      // This is the opposite call from `dismiss` and for the opposite reason: the panel stays on
+      // screen here, so the morph back to the chat is the movement that was asked for rather than
+      // one the window makes on its way out.
       return {
         ...state,
         mode: "panel",
@@ -205,6 +213,7 @@ export function reduce(state: OverlayState, action: Action): OverlayState {
         title: NEW_CHAT_TITLE,
         messages: [],
         switcherOpen: false,
+        consoleTab: null,
         pendingConfirm: null,
       };
     case "sessionsLoaded":
