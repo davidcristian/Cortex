@@ -4,10 +4,11 @@ Hot, short-lived state on the ``TaskStore`` precedent: a handoff record is writt
 back within one handoff (minutes) by one deployment, so it carries no ``v``/``kind`` markers,
 and a missing key is a corrupt record that fails LOUDLY as ``HandoffStoreError`` naming its
 key, never a silent skip (losing the taint fields silently would fail open after the swap).
-The whole record round-trips: the taint ledger's bit, its sources in read order (each kind's
-string plus its already-sanitized value), the laundering-evidence URL set (stored sorted for a
-deterministic document, read back as a set), the budget position, and the tool-loop tail with
-each message's tool calls. A tool call's ``stamp`` is a transient live handle and is never
+The whole record round-trips: the taint ledger's two bits (``tainted``, and the ``opaque`` bit
+that says the untrusted content was unfenceable, ADR-0029), its sources in read order (each
+kind's string plus its already-sanitized value), the laundering-evidence URL set (stored sorted
+for a deterministic document, read back as a set), the budget position, and the tool-loop tail
+with each message's tool calls. A tool call's ``stamp`` is a transient live handle and is never
 persisted (``tools.py``: the loop persists the unstamped calls), so a decoded call carries the
 default ``UNSTAMPED``, exactly as the loop appended it.
 """
@@ -77,6 +78,7 @@ def encode_record(record: HandoffRecord) -> str:
             "brief": record.brief,
             "nonce": record.nonce,
             "tainted": record.tainted,
+            "opaque": record.opaque,
             "sources": [
                 {"kind": source.kind.value, "value": source.value} for source in record.sources
             ],
@@ -101,6 +103,7 @@ def decode_record(raw: bytes | str, handoff_id: str) -> HandoffRecord:
             brief=fields["brief"],
             nonce=fields["nonce"],
             tainted=fields["tainted"],
+            opaque=fields["opaque"],
             sources=tuple(
                 Provenance(kind=SourceKind(source["kind"]), value=source["value"])
                 for source in fields["sources"]

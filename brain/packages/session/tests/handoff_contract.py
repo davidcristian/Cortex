@@ -5,7 +5,8 @@ The two must be observably interchangeable behind the port (ports-before-adapter
 The load-bearing check is the tainted-ledger round trip: a ledger built through the REAL
 ``TaintLedger`` API (an observed untrusted result with a claimed sender, plus ingested
 untrusted content naming a URI and a memory) must come back from the store bit-, order-, and
-set-exact, or taint would fail open across the model swap.
+set-exact, or taint would fail open across the model swap. Its companion is the ``opaque``
+bit's own round trip, held to the same standard for the same reason.
 """
 
 from dataclasses import replace
@@ -19,6 +20,7 @@ from cortex_core import (
     HandoffRecord,
     HandoffState,
     HandoffStore,
+    ImagePart,
     Message,
     Provenance,
     Role,
@@ -60,14 +62,40 @@ def tainted_ledger() -> TaintLedger:
     return ledger
 
 
+def opaque_ledger() -> TaintLedger:
+    """The same ledger plus the unfenceable bit, set the one way production sets it.
+
+    ``TaintLedger.observe`` sets ``opaque`` when an UNTRUSTED result carries images (ADR-0029),
+    so this goes through that API rather than assigning the field: a bit set by hand would
+    round-trip just as happily while proving nothing about the value a turn actually produces.
+    """
+    ledger = tainted_ledger()
+    ledger.observe(
+        ToolResult(
+            call_id="c2",
+            content="screen capture of the primary display",
+            trust=Trust.UNTRUSTED,
+            images=(ImagePart(data=b"\x89PNG", mime_type="image/png", width=8, height=8),),
+        ),
+        source=Provenance(kind=SourceKind.TOOL, value="capture_screen"),
+    )
+    return ledger
+
+
 def make_record(
     handoff_id: str,
     *,
     state: HandoffState = HandoffState.READY,
     requested_at: datetime = _AT,
+    opaque: bool = False,
 ) -> HandoffRecord:
-    """One full-shape record, snapshotted off a live slot exactly as the conductor will."""
-    ledger = tainted_ledger()
+    """One full-shape record, snapshotted off a live slot exactly as the conductor will.
+
+    ``opaque`` swaps in the image-marked ledger. The conductor never snapshots one (it refuses
+    an opaque turn first), so that record is a value the store must carry rather than a state
+    the running system reaches; the check below says so in full.
+    """
+    ledger = opaque_ledger() if opaque else tainted_ledger()
     budget = DispatchBudget(limit=8)
     budget.charge(3)
     call = ToolCall(id="c1", name="read_email", arguments={"folder": "inbox", "limit": 2})
@@ -148,6 +176,41 @@ async def check_tainted_ledger_round_trips_exactly(store: HandoffStore) -> None:
     assert [source.kind.attested for source in restored.sources] == [True, False, False, True]
     assert restored.untrusted_urls == ledger.untrusted_urls
     assert "http://evil.example/report" in restored.untrusted_urls
+    await store.delete(record.handoff_id)
+
+
+async def check_the_opaque_bit_round_trips_both_ways(store: HandoffStore) -> None:
+    """The unfenceable-content bit survives the store, set and unset (ADR-0029/0030 decision 2).
+
+    Defence in depth, and said plainly: no opaque turn reaches a record today, because
+    ``SwapConductor._prepare`` refuses one before it snapshots, so a record with the bit set is
+    a value this store must carry rather than a state the running system produces. What the
+    store must never do is manufacture the ``False``, because both of the bit's consumers open
+    on it in the deep phase (the default URL guardrail stops escalating to strict, and an opaque
+    turn stops being kept out of durable memory), and a bit that decayed in transit would look
+    exactly like an honest ``False``. So both poles are asserted: a clean record reads back
+    ``False`` and an opaque one reads back ``True``, on the record and on the ledger rebuilt
+    from it.
+    """
+    clean = make_record(_handoff_id())
+    assert clean.opaque is False
+    await store.put(clean)
+    loaded_clean = await store.get(clean.handoff_id)
+    assert loaded_clean is not None
+    assert loaded_clean.opaque is False
+    assert loaded_clean.taint_ledger().opaque is False
+    await store.delete(clean.handoff_id)
+
+    record = make_record(_handoff_id(), opaque=True)
+    assert record.opaque is True  # snapshotted off a ledger an image-bearing result marked
+    await store.put(record)
+    loaded = await store.get(record.handoff_id)
+    assert loaded is not None
+    assert loaded == record
+    assert loaded.opaque is True
+    restored = loaded.taint_ledger()
+    assert restored.opaque is True
+    assert restored == opaque_ledger()  # the whole ledger, not just the bit
     await store.delete(record.handoff_id)
 
 
@@ -242,6 +305,7 @@ ALL_CHECKS = (
     check_missing_reads_are_none,
     check_record_round_trips_field_for_field,
     check_tainted_ledger_round_trips_exactly,
+    check_the_opaque_bit_round_trips_both_ways,
     check_put_claims_the_active_slot,
     check_transition_walks_the_lifecycle,
     check_terminal_transition_releases_active_but_keeps_the_record,

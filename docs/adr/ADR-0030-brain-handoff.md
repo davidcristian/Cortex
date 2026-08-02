@@ -522,7 +522,9 @@ tools and the real conductor, and deleting it (or moving a word of the note) red
 What the record still does **not** carry is the `opaque` bit itself, so `taint_ledger()` rebuilds
 it at `False`: sound only because no opaque turn can reach a record now, and recorded as a
 deferral in `docs/refinements/vision.md` with its index line, beside the pixels-across-a-swap
-entry this ADR's sibling named.
+entry this ADR's sibling named. **That deferral closed 2026-08-03**: the record carries the bit,
+as defence in depth behind the unchanged refusal, and the addendum at the end of this ADR has
+the schema change and its proofs.
 
 What landed, versus this ADR's shape, with no other deviation:
 
@@ -1400,3 +1402,54 @@ path the product does not have. A headless confirm-answering client on the seam 
 thing to build and to justify, and no slice needs one today.
 
 No code changed here; this addendum records where a host item belongs.
+
+## Addendum (2026-08-03): the record carries the `opaque` bit, as defence in depth and nothing more
+
+Decision 2's schema said "the serialized `TaintLedger`" and shipped one field short of it: the
+2026-07-19 correction above ends by naming what the record still did not carry, the ADR-0029
+`opaque` bit, so `taint_ledger()` rebuilt it at `False`. That is now closed. `HandoffRecord`
+grows `opaque: bool` beside `tainted`, `EscalationSlot.snapshot` reads it off the live ledger,
+`taint_ledger()` rebuilds it, the Redis codec writes and reads the key strictly (a missing one is
+a corrupt record like every other taint field), and the `HandoffStore` contract suite gains
+`check_the_opaque_bit_round_trips_both_ways`, which both implementations pass.
+
+**This is defence in depth, and calling it anything else would repeat the mistake this area is
+famous for.** `SwapConductor._prepare` refuses an opaque turn before it snapshots, so no record
+with the bit set exists today; the conductor test that drives the reachable ordering end to end
+now also asserts that the store saw no write at all, which is what makes the refusal, rather than
+the schema, the thing keeping the far side clean. The reason to carry the bit anyway is that both
+of its consumers **open** on a `False`, and neither can tell an invented one from an honest one:
+`_UrlRedactingFilter._scrub` stops escalating to strict redaction (the default policy redacts URLs
+collected from untrusted result **text**, and a URL painted into pixels is never in that text, so
+verbatim redaction is structurally a no-op for exactly the case vision introduces), and
+`record_exchange` stops dropping the exchange, so a deployment with `CORTEX_MEMORY_ON_TAINTED=record`
+would write a transcription of the screen into Postgres. A rebuilt ledger that manufactures the
+bit is therefore a fail-open waiting for whatever relaxes the refusal, which is precisely what the
+pixels-across-a-swap half of the vision entry would do.
+
+Two claims in the deferral were checked against the code rather than inherited. Both consumers are
+real and are reached by the deep phase (`BrainPhase.run` opens the guardrail over the rebuilt
+ledger and hands the same ledger to `record_exchange`), and the cost estimate ("a record field, a
+codec line, and the store contract's round trip") held exactly. The codec's behaviour on a field it
+does not know was checked too, since the same entry's history turns on it: `decode_record` reads
+keys by name, so an **unknown** key is ignored in silence and a **missing** known key raises
+`KeyError` into `HandoffStoreError`. That asymmetry is why the bit is added to both halves of the
+codec rather than defaulted on read, and why the strict-decode test is now parametrized over all
+four taint fields.
+
+Mutation-proven three ways, each restored: dropping the key from `encode_record` alone reddens
+thirteen store tests (every read of a written record fails as corrupt); defaulting it on read with
+`.get("opaque", False)` reddens only the strict-decode test, which is the one that exists to catch
+a silent default; dropping it from both halves reddens the contract round trip itself on
+`loaded == record`. Dropping `opaque` out of `snapshot` or out of `taint_ledger()` reddens the two
+new brain-phase tests that watch the consumers differ across a swap, each of which runs a
+tainted-but-not-opaque control arm so the difference measured is the bit and not the taint.
+
+Validated against the compose Redis (`cortex-redis-1`), not only fakeredis: the integration-marked
+`test_handoff_live.py` runs the whole suite including the new check, and a direct put/read of both
+poles shows `"opaque": true` and `"opaque": false` in the stored document, reads back exact on the
+record and on the rebuilt ledger, and sweeps the keys.
+
+What stays open is the expensive half, pixels themselves, which still wants an `AttachmentStore`
+and still meets the capability argument that no brain-tier candidate on the mount has a projector.
+The conductor's refusal stays exactly where it is.
