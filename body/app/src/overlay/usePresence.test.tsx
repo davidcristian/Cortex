@@ -75,6 +75,46 @@ describe("usePresence", () => {
     expect(shape(result.current.entries)).toEqual(["a"]);
   });
 
+  it("falls back to the remembered index when the row a leaving row hung from is released first", () => {
+    // The anchor a leaving row goes back under can itself be a leaving row, and that one can end
+    // first. With nothing left to hang from, the index it remembers is what places it, clamped to
+    // the end of the list as before.
+    const { result, rerender } = renderHook(({ items }) => usePresence(items, keyOf), {
+      wrapper: StrictMode,
+      initialProps: { items: [row("a"), row("b"), row("c")] },
+    });
+    rerender({ items: [row("a"), row("c")] });
+    rerender({ items: [row("a")] });
+    expect(shape(result.current.entries)).toEqual(["a", "b*", "c*"]);
+    // `c` was under `b`, and `b` goes first: index 2 of a one-row list clamps to the end.
+    act(() => result.current.released("b"));
+    expect(shape(result.current.entries)).toEqual(["a", "c*"]);
+  });
+
+  it("carries a leaving row with its neighbour when the caller's list reorders under it", () => {
+    // The reminder stack only ever loses rows, so index and neighbour agree on every frame of it.
+    // The chat switcher re-lists pinned-first and then by recency, so a pin landing inside a row's
+    // exit reorders the list around it. By index the row lands between whichever two now hold that
+    // ordinal; by neighbour it stays in the gap it actually is.
+    const { result, rerender } = renderHook(({ items }) => usePresence(items, keyOf), {
+      wrapper: StrictMode,
+      initialProps: { items: [row("a"), row("b"), row("c"), row("d")] },
+    });
+    rerender({ items: [row("a"), row("b"), row("d")] });
+    expect(shape(result.current.entries)).toEqual(["a", "b", "c*", "d"]);
+    rerender({ items: [row("d"), row("a"), row("b")] });
+    expect(shape(result.current.entries)).toEqual(["d", "a", "b", "c*"]);
+  });
+
+  it("keeps the first row at the top when it is the one leaving, having nothing to hang from", () => {
+    const { result, rerender } = renderHook(({ items }) => usePresence(items, keyOf), {
+      wrapper: StrictMode,
+      initialProps: { items: [row("a"), row("b")] },
+    });
+    rerender({ items: [row("b")] });
+    expect(shape(result.current.entries)).toEqual(["a*", "b"]);
+  });
+
   it("puts a row that comes back before its exit has ended back into the list", () => {
     // A reminder whose ack never reached the brain is deliverable again on the next summon and
     // arrives carrying the id it left with. Held shut for good, it would be a row that exists,

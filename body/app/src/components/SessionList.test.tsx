@@ -1,7 +1,8 @@
 import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { SessionSummary } from "../bridge/types";
+import { stubRoll } from "../test-setup";
 import { SessionList } from "./SessionList";
 
 const summary = (over: Partial<SessionSummary> = {}): SessionSummary => ({
@@ -12,6 +13,32 @@ const summary = (over: Partial<SessionSummary> = {}): SessionSummary => ({
   pinned: false,
   ...over,
 });
+
+/** The switcher over a given list, with every write stubbed: the exit cases care about which rows
+ *  are on screen and in what order, not about what the row's controls report. */
+const list = (sessions: readonly SessionSummary[], currentId = "c1") => (
+  <SessionList
+    sessions={sessions}
+    currentId={currentId}
+    onSelect={vi.fn()}
+    onRename={vi.fn()}
+    onDelete={vi.fn()}
+    onPin={vi.fn()}
+  />
+);
+
+/** The rendered rows, top to bottom, a row on its way out starred. */
+const rows = (): string[] =>
+  [...document.querySelectorAll<HTMLElement>(".switcher-slot")].map(
+    (slot) =>
+      `${slot.querySelector(".switcher-title")?.textContent ?? "?"}${
+        slot.hasAttribute("inert") ? "*" : ""
+      }`,
+  );
+
+const chat = (id: string): SessionSummary => summary({ sessionId: id, title: id });
+
+afterEach(() => vi.restoreAllMocks());
 
 describe("SessionList", () => {
   it("renders each chat's title and preview, marks the current, and selects on click", () => {
@@ -190,13 +217,122 @@ describe("SessionList", () => {
       />,
     );
     // The pinned row carries the pinned marker class and its toggle reads pressed + offers "Unpin".
-    const pinnedRow = screen.getByText("Pinned").closest("li");
+    // The marker is on `.switcher-row`, inside the roll, not on the `<li>` slot around it.
+    const pinnedRow = screen.getByText("Pinned").closest(".switcher-row");
     expect(pinnedRow?.className).toContain("pinned");
     const toggle = screen.getByLabelText("Unpin Pinned");
     expect(toggle).toHaveAttribute("aria-pressed", "true");
     // The unpinned row does not carry the pinned marker.
-    expect(screen.getByText("Recent").closest("li")?.className).not.toContain("pinned");
+    expect(screen.getByText("Recent").closest(".switcher-row")?.className).not.toContain("pinned");
     fireEvent.click(toggle);
     expect(onPin).toHaveBeenCalledWith("p1", false); // unpins the target chat
+  });
+
+  it("holds a deleted row through its own roll while its neighbours close over it", () => {
+    // The defect: the row was rendered from `sessions`, so a landed delete removed it in a frame
+    // and every row under it snapped up 50px into the hole. Held here until its roll ends, and the
+    // roll is what closes the gap.
+    const land = stubRoll();
+    const { rerender } = render(list([chat("a"), chat("b"), chat("c")]));
+    rerender(list([chat("a"), chat("c")]));
+    expect(rows()).toEqual(["a", "b*", "c"]);
+    land();
+    expect(rows()).toEqual(["a", "c"]);
+  });
+
+  it("withdraws a leaving row, so a deleted chat cannot be opened or deleted again mid-roll", () => {
+    // Holding a row on screen for 300ms after its chat is gone is 300ms in which its title still
+    // opens a deleted chat and its trash still asks to delete one. The slot is `inert` and
+    // `aria-hidden` for the length of the exit, which takes all four buttons out of the pointer's
+    // reach and out of the tab order at once.
+    const land = stubRoll();
+    const { rerender } = render(list([chat("a"), chat("b")]));
+    const slots = () => [...document.querySelectorAll<HTMLElement>(".switcher-slot")];
+    expect(slots().map((slot) => slot.getAttribute("aria-hidden"))).toEqual(["false", "false"]);
+    rerender(list([chat("a")]));
+    const leaving = slots()[1]!;
+    expect(leaving.getAttribute("aria-hidden")).toBe("true");
+    expect(leaving.hasAttribute("inert")).toBe(true);
+    // The surviving row is untouched: withdrawal is per row, not per list.
+    expect(slots()[0]!.hasAttribute("inert")).toBe(false);
+    land();
+    expect(slots()).toHaveLength(1);
+  });
+
+  it("carries a leaving row with the neighbour it left under when the list reorders", () => {
+    // The switcher re-lists after every write, pinned chats first and then by recency, so a pin, a
+    // finished turn or a plain refresh can reorder it while a row is still rolling out. The
+    // reminder stack never reorders, so this is the case its exit never had to answer. Placed at
+    // the index it held, the leaving row lands wherever that ordinal now points, which is a pair of
+    // neighbours it was never between; it goes back under its own former neighbour instead.
+    const land = stubRoll();
+    const { rerender } = render(list([chat("a"), chat("b"), chat("c"), chat("d")]));
+    rerender(list([chat("a"), chat("b"), chat("d")])); // c deleted, from under b
+    expect(rows()).toEqual(["a", "b", "c*", "d"]);
+    rerender(list([chat("d"), chat("a"), chat("b")])); // d pinned: the list re-groups mid-roll
+    expect(rows()).toEqual(["d", "a", "b", "c*"]);
+    land();
+    expect(rows()).toEqual(["d", "a", "b"]);
+  });
+
+  it("rolls out every row a whole re-listing dropped, above the ones it brought", () => {
+    // Not a delete: the switcher re-lists on every summon and after every write, so a listing that
+    // no longer holds any of the chats on screen (another client cleared them, the recency window
+    // moved on) is a departure of all of them at once. Each leaves through its own roll, keeping
+    // the order it had, and the arrivals take their places underneath.
+    const land = stubRoll();
+    const { rerender } = render(list([chat("a"), chat("b"), chat("c")]));
+    rerender(list([chat("x"), chat("y")]));
+    expect(rows()).toEqual(["a*", "b*", "c*", "x", "y"]);
+    land();
+    expect(rows()).toEqual(["x", "y"]);
+  });
+
+  it("holds two deletes at once, each on its own clock", () => {
+    const land = stubRoll();
+    const { rerender } = render(list([chat("a"), chat("b"), chat("c")]));
+    rerender(list([chat("a"), chat("c")]));
+    rerender(list([chat("a")]));
+    expect(rows()).toEqual(["a", "b*", "c*"]);
+    land();
+    expect(rows()).toEqual(["a"]);
+  });
+
+  it("puts back a row that returns before its exit ends, rather than holding it shut", () => {
+    // A failed delete leaves the chat where it was and the next refresh lists it again under the id
+    // it left with. Held shut, that row would keep its place in the switcher and never be seen.
+    const land = stubRoll();
+    const { rerender } = render(list([chat("a"), chat("b")]));
+    rerender(list([chat("a")]));
+    rerender(list([chat("a"), chat("b")]));
+    land();
+    expect(rows()).toEqual(["a", "b"]);
+  });
+
+  it("survives being unmounted mid-exit, the switcher rolling shut being one way it happens", () => {
+    // Selecting a chat closes the switcher, and the section's own roll unmounts the list under any
+    // row still leaving inside it. The roll that outlives it still reports back, so what is asserted
+    // is that the late `released` lands on nothing: no throw and no React complaint, which is the
+    // whole benefit of the hold owning no timer to cancel and no removal to catch up on.
+    const complaints = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const land = stubRoll();
+    const { rerender, unmount } = render(list([chat("a"), chat("b")]));
+    rerender(list([chat("a")]));
+    unmount();
+    expect(() => land()).not.toThrow();
+    expect(complaints).not.toHaveBeenCalled();
+    expect(document.querySelectorAll(".switcher-slot")).toHaveLength(0);
+  });
+
+  it("waits for the last row's roll before putting the empty line up", () => {
+    // Deleting the last chat would otherwise show "no other chats yet" in the frame the write
+    // lands, on top of the row it is replacing, which is still rolling out underneath it.
+    const land = stubRoll();
+    const { rerender } = render(list([chat("a")]));
+    rerender(list([]));
+    expect(screen.queryByText(/no other chats/iu)).toBeNull();
+    expect(rows()).toEqual(["a*"]);
+    land();
+    expect(screen.getByText(/no other chats/iu)).toBeInTheDocument();
   });
 });

@@ -44,7 +44,7 @@ its signature.
 | [memory.md](memory.md) | Store, scoping, rerank/MMR (ADR-0008) | 8 |
 | [inference-model-manager.md](inference-model-manager.md) | Model-manager lifecycle, MTP, reasoning status (ADR-0007/0020) | 7 |
 | [subagents.md](subagents.md) | Progress reporting, spawn schema, heterogeneous roster (ADR-0010/0018) | 2 |
-| [body-overlay.md](body-overlay.md) | Overlay polish, connection indicator, proto Cancel (ADR-0011), an exit for the switcher's rows, the composer's move on a clamped shrink, the reserved scrollbar rail's assumed width and spent card inset, a mid-stream retarget restarting from a rounded height, a Thoughts trace opening a reply off the bottom of a full history, the two bounds the panel's section budget left behind it (a section's own frame being under no cap, and the room a closing section hands back arriving in one frame), the chat switcher claiming a listbox role its own rows do not satisfy, and the whisper's follow-ups (ADR-0037): a pickable voice row, a mid-stream resize keeping the old wrap width, and kerning inside the letter boxes under a changed font (its drain-growth entry landed the day it was filed, and the console outliving a new chat, the reminder stack's per-row exit, the panel's watch on its own box with the arrival-aside correction that came out of it, the demo bridge over the line cap, two sections outrunning the panel on their own, the chat floor's frozen measurement of the empty state, and the console tab strip's missing keyboard half all landed 2026-08-03), and a resize that lands inside the panel's own move waiting for it | 15 |
+| [body-overlay.md](body-overlay.md) | Overlay polish, connection indicator, proto Cancel (ADR-0011), the two motions the switcher's list still makes in one frame, the composer's move on a clamped shrink, the reserved scrollbar rail's assumed width and spent card inset, a mid-stream retarget restarting from a rounded height, a Thoughts trace opening a reply off the bottom of a full history, the two bounds the panel's section budget left behind it (a section's own frame being under no cap, and the room a closing section hands back arriving in one frame), the chat switcher claiming a listbox role its own rows do not satisfy, and the whisper's follow-ups (ADR-0037): a pickable voice row, a mid-stream resize keeping the old wrap width, and kerning inside the letter boxes under a changed font (its drain-growth entry landed the day it was filed, and the console outliving a new chat, the reminder stack's per-row exit and the switcher's, the panel's watch on its own box with the arrival-aside correction that came out of it, the demo bridge over the line cap, two sections outrunning the panel on their own, the chat floor's frozen measurement of the empty state, and the console tab strip's missing keyboard half all landed 2026-08-03), and a resize that lands inside the panel's own move waiting for it | 15 |
 | [session-read-seam.md](session-read-seam.md) | Session listing/read seam (ADR-0021) | 3 |
 | [resource-governance.md](resource-governance.md) | Scheduler/placer budgets, NPU, drain (ADR-0012) | 5 |
 | [email-confirmer.md](email-confirmer.md) | Email write, Confirmer, attachments, `ToolActivity` chip (ADR-0022) | 4 |
@@ -890,13 +890,27 @@ against the code (the warning above); the entry text tells you which seams it ex
   roster models or does not. Listed here because the entry said for three days that no card
   available to the agent could answer it.
 - **An exit for the switcher's rows** ([body-overlay.md](body-overlay.md)), opened 2026-08-03 as
-  the reminder stack's per-row exit closed and left the hook behind for it. A deleted chat leaves
-  `state.sessions` the moment the write lands, so its row goes in a frame and the rows under it snap
-  up, which is what the reminder stack no longer does. `overlay/usePresence.ts` is generic and
-  already gated, so what is missing is the wiring: the `<li>` outside the roll, the switcher's hover,
-  pinned, rename and delete-confirm rules re-checked against the wrapper between them, and a frame
-  trace of its own, a delete refreshing the list behind the roll and resetting the panel outright
-  when the chat being deleted is the one on screen. Nothing blocks it.
+  the reminder stack's per-row exit closed and left the hook behind for it, and **closed 2026-08-03**
+  by wiring the switcher to that same hook. It called itself mostly wiring and was about half of
+  one: the shared hook put a departed row back at the index it held, which the reminder stack can
+  rely on because it only ever loses rows and the switcher cannot because it re-lists pinned-first
+  after every write, so a row that leaves now goes back under the row it was UNDER, with the index
+  as the fallback. Two of the three hazards the entry named did not apply (the switcher draws no
+  hairline between rows, and all four of its hover, pinned, rename and confirm rules read down to a
+  descendant and follow the row's box inside the wrapper), and the one that mattered was not on its
+  list: `min-height: 50px` outside the roll is a floor the roll cannot get under. Two more the entry
+  did not have: a row held after its chat is gone is 300ms of live buttons offering to open and
+  re-delete it, and the demo bridge could not delete at all, which made the whole thing
+  unmeasurable by hand. What it left behind is the entry below.
+- **Two motions in the switcher's list are still instant** ([body-overlay.md](body-overlay.md)),
+  opened 2026-08-03 with the exit above. The empty line arrives in the frame after the last row's
+  roll (card 14 to 53 in one frame, the panel easing its top 119 to 108 over the 117ms after), and
+  rolling it in as well is worse in the other direction, a first chat arriving into an empty list
+  overshooting by the new row's whole height. A reorder still moves every row it touches in one
+  frame, which the exit changed only by carrying a leaving row along with them. Both are design
+  decisions rather than parameters: the first wants the two directions treated differently, the
+  second wants every row's position read before the commit and played back after it (FLIP).
+  Nothing blocks either.
 - **A shrink against the ceiling still moves the composer, and the user picks the fix**
   ([body-overlay.md](body-overlay.md)), open from 2026-07-20. Reversible switcher round trips and a
   composer that never moves are the same statement with opposite signs once the panel is tall

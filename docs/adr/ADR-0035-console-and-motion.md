@@ -1321,7 +1321,8 @@ effect knows which render that was.
 
 ### What this does not do
 
-The hook is written to be shared and only the reminder stack is wired to it. The switcher's rows
+The hook is written to be shared and only the reminder stack is wired to it. *Wired to the switcher
+later the same day; see the addendum below.* The switcher's rows
 have the same shape of exit (a deleted chat leaves the list the moment the write lands) and would
 want the same treatment, but they need their own DOM restructure, their own hover and pinned rules
 re-checked against the wrapper, and their own frame trace, so they are a second surface rather than
@@ -1929,3 +1930,138 @@ sighted keyboard path, to reach a list that scrolls nowhere and that a reader al
 own name and through the `aria-controls` above. The trigger to revisit is a panel that scrolls, or
 one whose content a keyboard user needs to reach with no control inside it, at which point the rule
 is per panel (does this one hold anything focusable) rather than per strip.
+
+## Addendum, 2026-08-03: the switcher's rows leave the same way, and reordering is what they add
+
+The addendum above built `overlay/usePresence.ts` generic and wired only the reminder stack to it,
+recording the switcher's rows as a deferral that called itself mostly a wiring change. The wiring is
+about half of it. The hook needed one real change, the markup needed a restructure the reminder
+stack's did not, and a leaving row needed to stop being clickable.
+
+**What the switcher did before.** Traced at 900x900 over the demo bridge, deleting the middle of
+three chats: the row and its 50px went between one frame and the next, `list=164` at t=21 and
+`list=114` at t=37.7, with the row below jumping from y=270 to y=220 in that same frame. The panel
+does not move at all here (518 tall, composer top 535, on every frame), because the history absorbs
+the change, so that one snap was the entire visible event.
+
+### The decision
+
+**The rows render from `usePresence`, and the row is what is held.** Exactly as the reminder stack
+does: the delete goes to the brain in the frame the confirm is pressed, `deleteSession` drops the
+chat from `state.sessions` when the write lands, and the row stays on screen inside its own
+`Collapse` until that roll reports itself over through `onClosed`. The clock and the curve are
+`MORPH_ROLL_MS` and `EASING`, as everywhere else.
+
+**A leaving row goes back UNDER the row it was under, not at the index it held.** This is the one
+change to the hook, and it is the switcher's own requirement. The reminder stack only ever loses
+rows, so its order is one-directional and a remembered index and a remembered neighbour agree on
+every frame of it. The switcher re-lists after every write and lists pinned chats first and then by
+recency, so a pin, a finished turn, or a plain summon refresh can reorder the list underneath a row
+that is still rolling out. `Leaving` therefore carries the key of the row above it as well as the
+index, and `merge` puts it back after that key when the key is still on screen. The index survives
+as the fallback, for a neighbour that has been released first or that a whole re-listing dropped,
+and it still clamps to the end of the list so a row released out of order takes its slot with it.
+The anchor is read off what was on SCREEN rather than off the caller's list, so it can be another
+leaving row, and the ascending sort in `merge` guarantees that anchor is already back in place when
+the row that hangs from it looks for it.
+
+**The `<li>` carries nothing but its place in the list.** `.switcher-slot` sits outside the roll and
+`.switcher-row` inside it, which is the reminder stack's arrangement and the first of its two
+reasons: a list whose items are wrapper `<div>`s is not a list to a screen reader. Its second
+reason does not apply, the switcher drawing no rule between rows, so there is no adjacent-sibling
+hairline here to switch off. A third reason the reminder stack did not have does apply, and it is
+the load-bearing one: `min-height: 50px` is what keeps a row the same height whether it is showing a
+title over a preview, a rename box, or a delete confirm, and left on the outside of the roll it is
+also a floor the roll cannot get under.
+
+**A leaving row is withdrawn for the length of its exit.** `withdrawn(leaving)` from
+`overlay/withdrawn.ts` puts `aria-hidden` and `inert` on the slot. A row held on screen after its
+chat is gone is otherwise 300ms in which its title still opens a deleted chat, its trash still asks
+to delete one that no longer exists, and the tab order still walks all four of its buttons. This is
+new exposure that the exit itself creates, so the exit closes it.
+
+**And the demo bridge deletes for real now.** It was the one catalog write left as a no-op over its
+held list while rename and pin both stuck, which made this exit unmeasurable by hand: the reducer
+dropped the row, the refresh immediately behind it listed the chat again, and the row that had just
+begun rolling out came straight back. The demo also seeds a third chat, because only a middle row
+shows both halves of the motion at once.
+
+### What it measures
+
+Chromium over the demo bridge, three chats, the switcher open, traced per animation frame.
+
+- **900x900, deleting the middle row.** The row runs 50.00px to 0.00 from t=53.4 to t=353.4, which
+  is the 300ms roll and the frame it starts on. The row below travels 269.63 to 220.00 across those
+  same frames; the row above holds at 170.00 on every one of them. The card runs 164 to 114. The
+  panel is 518 tall with its top at 108 and its composer at 535 on every frame of the exit, so
+  nothing outside the list moves at all. The slot leaves the DOM at t=386.8 and the card reads 114
+  on the frame before and the frame after, which is a released row costing nothing.
+- **640x720, the body's own window, same gesture.** The list is at its cap here (135.14px of a
+  162px content), so the card holds 135.14 for the first 155ms and only starts shrinking once the
+  content falls under the cap, reaching 114 at the end. The rows inside travel throughout. Panel 450
+  and composer 445 on every frame. A capped, scrolling switcher rolls a row out inside its own
+  scroll box and the panel never hears about it.
+- **A pin landing 120ms into a delete, at 900x900.** At t=137.8 the list re-groups: the pinned chat
+  takes the top, the previously pinned one takes second, and the rolling row (20.48px at that
+  instant) travels from y=220 to y=270 with the row it sat under. The card's height eases straight
+  through the reorder, 141.13 to 134.48 to 129.23, with no discontinuity. Under the index rule the
+  same trace leaves the rolling row at y=220 and walks its former neighbour down past it to
+  y=240.47, so the closing gap ends up between two rows it was never between and one of them
+  crosses it.
+- **Deleting the chat the panel is showing.** The reducer resets the panel to a fresh empty chat in
+  the same commit that drops the row, and the reminder stack is keyed to the session so it remounts
+  with it. The top row still runs 50.00 to 0.00 over 300ms with both rows below travelling in step,
+  and the panel holds 518 with the composer at 535 on every frame.
+- **Deleting the LAST chat**, which is the one case with a rough edge. The row rolls out cleanly and
+  the panel follows the last 11px of it, since the history has nothing left to give (top 108 to 119
+  from t=189.7, monotonic, largest single frame 2.86px, composer still at 535). Then the empty line
+  arrives in one frame at t=356.7, taking the card 14 to 53. The panel does NOT snap back with it:
+  it eases 119 to 108 over the following 117ms, monotonic, largest single frame 2.77px. The trace's
+  own reading of 108 in the frame the line lands is the artefact this ADR's watch addendum already
+  documents (`requestAnimationFrame` runs before the placement's own frame, so a probe there reads
+  the natural box with no animation attached, which a re-run confirmed: the animation first appears
+  one frame later, starting at 118.41). So the one-frame event is the line appearing inside the
+  card, and it is recorded as a deferral rather than smoothed, for the reason under it.
+
+### The mutation proof
+
+Three, each restored afterwards.
+
+1. **Placing a leaving row by index alone** reddens exactly two tests, the reorder case in
+   `overlay/usePresence.test.tsx` and the one in `components/SessionList.test.tsx`, and nothing
+   else. The browser trace of the same mutation is the y=240.47 counterfactual above.
+2. **Rendering `sessions` instead of `stack.entries`** reddens six in the switcher's suite: the
+   held row, the withdrawal, the reorder, the whole re-listing, two exits at once, and the empty
+   line waiting.
+3. **Putting `min-height: 50px` back on `.switcher-slot`** passes every test, because jsdom has no
+   layout, and the browser shows the defect immediately: the row stands at 50.00 for the whole
+   300ms roll and then vanishes in one frame, 164 to 114 at t=370.4. That is the old snap arriving
+   300ms late, and it is why the split is in the CSS comment as well as here.
+
+### What this does not do
+
+**The switcher's empty line still arrives in one frame.** Deleting the last chat rolls that row out
+and then puts "no other chats yet" up in the frame after, costing the panel the 11px correction
+measured above. Rolling the line in as well was considered and is worse in the other direction: a
+first chat arriving into an empty list would then add the new row's 50px instantly and only
+afterwards roll the 39px line away, an overshoot larger than the snap it removes. One flag cannot
+make both directions smooth, so the line is left instant and the case is filed in
+[refinements/body-overlay.md](../refinements/body-overlay.md).
+
+**The reorder itself is not animated.** A pin regrouping the list moves every row it touches in one
+frame, exactly as it did before this, and what changed is only that a row on its way out travels
+with them instead of being left behind. Animating the reorder is a different mechanism (every row's
+position read before the commit and played back after it, the pattern usually called FLIP) and a
+different decision, filed with the line above.
+
+**The `role="listbox"` question is untouched.** The switcher still puts that role on its `<ul>` over
+rows of ordinary buttons with no `role="option"`, which the addendum above opened as its own
+deferral, and this change is deliberately neutral to it: whichever shape wins, the role belongs on
+the `<li>`, which is where it would have gone before and where it still goes. The one thing added to
+those elements is `aria-hidden="false"` on a row that is not leaving, which is the default state
+written out and is harmless under either answer.
+
+**And the rows still have no ENTER animation.** A chat arriving in the list appears in the frame the
+refresh lands, which is what it did before. The asymmetry is on purpose and is the same one the
+reminder stack has: a removal is a gap that has to close before the eye can follow it, while an
+arrival is already where it belongs.
