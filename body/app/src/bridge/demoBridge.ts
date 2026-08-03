@@ -1,3 +1,4 @@
+import { deriveTitle } from "../overlay/sessionState";
 import * as script from "./demoScript";
 import type {
   BrainBridge,
@@ -54,7 +55,22 @@ export class DemoBridge implements BrainBridge {
   // restart; a reload starts fresh, since there is no brain here to hold it.
   private prefs: Preference[] = [];
 
-  converse(_sessionId: string, text: string, sink: TurnSink): Cancellation {
+  private remember(sessionId: string, text: string): void {
+    if (this.sessions.some((held) => held.sessionId === sessionId)) {
+      this.patch(sessionId, { preview: text, lastActivityUnixMs: Date.now() });
+      return;
+    }
+    this.sessions.push({
+      sessionId,
+      title: deriveTitle(text),
+      preview: text,
+      lastActivityUnixMs: Date.now(),
+      pinned: false,
+    });
+  }
+
+  converse(sessionId: string, text: string, sink: TurnSink): Cancellation {
+    this.remember(sessionId, text);
     if (/offline|unreachable/iu.test(text)) {
       this.fail("down");
     } else if (/degraded|not ready/iu.test(text)) {

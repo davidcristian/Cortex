@@ -1417,6 +1417,9 @@
   border: 1px solid var(--stroke);
   border-radius: 16px;
 }
+.switcher-empty-slot {
+  display: block;
+}
 .switcher-empty {
   padding: 12px;
   text-align: center;

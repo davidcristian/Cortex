@@ -326,6 +326,23 @@ describe("Collapse", () => {
     expect(rolls).toEqual([]);
   });
 
+  it("rolls in on mount when told to, and only then", () => {
+    const { rolls } = stubBrowser();
+    const view = render(
+      <Collapse open enter>
+        <p>rows</p>
+      </Collapse>,
+    );
+    expect(rolls).toEqual([{ from: 0, to: HEIGHT, fade: [0, 1] }]);
+    // Read once, at mount: a section already on screen cannot arrive again.
+    view.rerender(
+      <Collapse open enter>
+        <p>rows</p>
+      </Collapse>,
+    );
+    expect(rolls).toHaveLength(1);
+  });
+
   it("skips the roll when there is nothing to see, closing at once", () => {
     const { rolls, box } = stubBrowser();
     box.natural = 1;

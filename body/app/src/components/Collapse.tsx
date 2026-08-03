@@ -13,6 +13,8 @@ interface CollapseProps {
   readonly open: boolean;
   /** Marks a section the panel leaves out when it centres itself: see `.collapse.aside`. */
   readonly aside?: boolean;
+  /** Roll open on MOUNT as well, from nothing to the content's height. */
+  readonly enter?: boolean;
   /** Called once a CLOSING roll has finished, which is the moment the thing inside may be taken
    *  away for good. It is what lets a list hold a removed row until its own exit ends
    *  (`overlay/usePresence.ts`) without owning a second copy of this clock. */
@@ -20,12 +22,15 @@ interface CollapseProps {
   readonly children: ReactNode;
 }
 
-export function Collapse({ open, aside = false, onClosed, children }: CollapseProps) {
+export function Collapse({ open, aside = false, enter = false, onClosed, children }: CollapseProps) {
   const ref = useRef<HTMLDivElement>(null);
   // Kept mounted through the closing animation: an exit cannot be animated on an element React
   // has already removed. `rendered` therefore lags `open` on the way out, never on the way in.
   const [rendered, setRendered] = useState(open);
-  const at = useRef(open);
+  // Where the roll below thinks the section already is. A section that is to roll in on mount
+  // starts life shut as far as this is concerned, so the first layout effect finds a change to
+  // animate and rolls from nothing to the content, exactly as a later opening would.
+  const at = useRef(open && !enter);
   const running = useRef<Animation | null>(null);
 
   if (open && !rendered) {

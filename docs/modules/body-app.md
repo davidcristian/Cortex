@@ -85,7 +85,9 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
   in `demoScript.ts` beside it and only the behaviour left in the class; all four catalog writes are
   held rather than rebuilt per call, so a rename, a pin and now a DELETE all stick for the session,
   the delete having been the one left as a no-op, which made a deleted row's exit unmeasurable by
-  hand because the refresh right behind it listed the chat again), `FakeBridge` (tests). Only
+  hand because the refresh right behind it listed the chat again; and a turn adds the chat it was
+  spoken in to that list, titled by `deriveTitle`, so a chat can ARRIVE and not only leave, which is
+  what the empty line's filling direction is measured on), `FakeBridge` (tests). Only
   `tauriBridge.ts`, `demoBridge.ts`, `demoScript.ts`, and `main.tsx` are coverage-excluded (the
   un-gated glue);
   everything else is 100% line + branch. `useOverlay` owns the `session_id` (minted per new chat)
@@ -246,6 +248,25 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
   on the open row and `false` on the others. `Ctrl+↑` and `Ctrl+↓` are unchanged, being an
   application-wide cycle rather than movement inside a list; that they announce nothing when they
   swap the chat is a deferral in [refinements/body-overlay.md](../refinements/body-overlay.md).
+- **The empty line waits for a row and yields to one, and a row the list moves travels there**
+  (`components/SessionList.tsx` + `overlay/useTravel.ts`, ADR-0035 addendum, 2026-08-03). The empty
+  line is asked of `sessions` rather than of the rendered rows, so deleting the last chat puts it up
+  in the frame that row starts leaving and `Collapse`'s `enter` prop (read once, at mount) grows it
+  from nothing over that row's own roll: the card eases 64 to 53 over 283.9ms at a largest single
+  frame of 1.66px where it used to roll to 14 and snap 39px back, and the panel holds its edge
+  throughout. The other direction is not the same rule reversed: the line is unmounted in the frame
+  a chat arrives, an 11px step kept on purpose, because a line rolling away under a row that has
+  already landed is a bigger overshoot than the step it removes. It renders BELOW the rows so the
+  first `data-morphing` in the tree during those 300ms is the leaving row's, which is the target the
+  panel's ride-along should read. `useTravel` is the reorder half: a hook over a ref and a selector
+  (so the next list to want it wires it in one line) that reads each row's `offsetTop`, lets the
+  commit place it, and hands the difference back as a `translateY` decaying to nothing over
+  `MORPH_ROLL_MS` and `EASING`. Rows are remembered by element rather than by key, since React moves
+  the node a keyed row owns; travels are `composite: "add"` so an interrupted one composes instead of
+  stranding the row; and while a roll is in flight inside the list the record is refreshed every
+  animation frame and never played from, because a roll moves rows by layout with no commit in it
+  and the release at the end of an exit would otherwise read the neighbour's travelled 50px as a jump
+  to answer. A travel is a transform, so nothing outside the list can be fought by it.
 - **The panel's views** (`components/Panel.tsx` + `ChatView.tsx` + `ConsoleView.tsx`, ADR-0034):
   `Panel` is a router over views of one window, not a window with sheets over it, and the views are
   `chat` and `console` (ADR-0035 decision 1). The console's TAB is deliberately not part of the view

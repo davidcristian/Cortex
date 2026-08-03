@@ -1,7 +1,8 @@
-import { type ReactNode, useState } from "react";
+import { type ReactNode, useRef, useState } from "react";
 
 import type { SessionSummary } from "../bridge/types";
 import { usePresence } from "../overlay/usePresence";
+import { useTravel } from "../overlay/useTravel";
 import { withdrawn } from "../overlay/withdrawn";
 import { Collapse } from "./Collapse";
 import { CheckIcon, CloseIcon, PencilIcon, PinIcon, TrashIcon } from "./icons";
@@ -43,6 +44,8 @@ export function SessionList({
   // write fires only when the user confirms here, so a single stray click never deletes a chat.
   const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(null);
   const stack = usePresence(sessions, (session) => session.sessionId);
+  const card = useRef<HTMLUListElement>(null);
+  useTravel(card, ".switcher-slot");
 
   const startRename = (session: SessionSummary): void => {
     setRenamingId(session.sessionId);
@@ -156,17 +159,20 @@ export function SessionList({
   };
 
   return (
-    <ul className="switcher" aria-label="Recent chats">
-      {stack.entries.length === 0 ? (
-        <li className="switcher-empty">No other chats yet</li>
-      ) : (
-        stack.entries.map(({ key, item: session, leaving }) => (
-          <li key={key} className="switcher-slot" {...withdrawn(leaving)}>
-            <Collapse open={!leaving} onClosed={() => stack.released(key)}>
-              {rowFor(session)}
-            </Collapse>
-          </li>
-        ))
+    <ul className="switcher" aria-label="Recent chats" ref={card}>
+      {stack.entries.map(({ key, item: session, leaving }) => (
+        <li key={key} className="switcher-slot" {...withdrawn(leaving)}>
+          <Collapse open={!leaving} onClosed={() => stack.released(key)}>
+            {rowFor(session)}
+          </Collapse>
+        </li>
+      ))}
+      {sessions.length === 0 && (
+        <li className="switcher-empty-slot">
+          <Collapse open enter={stack.entries.length > 0}>
+            <div className="switcher-empty">No other chats yet</div>
+          </Collapse>
+        </li>
       )}
     </ul>
   );
