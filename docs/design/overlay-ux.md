@@ -241,11 +241,17 @@ Top-to-bottom, the summoned panel is:
    grow from the panel that invited it. The reserved height sits *above* the bubbles, which puts
    the newest one against the composer and keeps it the thing the auto-scroll follows. One measured
    number can only be that floor while the invitation is one height, so the example chips are held
-   to a single row and shrink to an ellipsis rather than wrapping onto a second. **The end of a
+   to a single row and shrink to an ellipsis rather than wrapping onto a second. Since 2026-08-03
+   the floor is measured rather than transcribed (the same ADR's chat-floor addendum): the empty
+   state publishes its own box as `--chat-floor` while it is on screen, which is every moment before
+   the first message, so an edit to the mark, the invitation or the chips moves the floor with it.
+   That sentence was briefly untrue: the floor was removed on 2026-07-20 and the first message
+   dropped the panel 90px for fourteen days. **The end of a
    turn is floored the same way** (landed 2026-07-20,
    [ADR-0035](../adr/ADR-0035-console-and-motion.md) decision 13): the live chip and the collapsed
    Thoughts disclosure that replaces it are one row in two states, so they are the same height and
-   the answer landing does not resize the panel it lands in. **That disclosure rolls** (landed
+   the answer landing does not resize the panel it lands in. Measured off the chip itself since
+   2026-08-03, by the same probe: the chip is the row and the disclosure floors on what it says. **That disclosure rolls** (landed
    2026-07-20): it is a button over a rolling section rather than a `<details>`, which reveals its
    content in one frame and cannot be talked into animating it, and the `›` turns over the same
    300ms so the marker and the trace are one movement. Opening it leaves the history's scroll

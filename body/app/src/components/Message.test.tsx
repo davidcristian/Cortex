@@ -160,4 +160,25 @@ describe("Message", () => {
     expect(settled.querySelectorAll(".thoughts")).toHaveLength(1);
     expect(settled.querySelector(".thoughts")?.nextElementSibling?.className).toContain("bubble");
   });
+
+  it("publishes the row height off whichever chip the turn shows", () => {
+    const laid = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "offsetHeight");
+    Object.defineProperty(HTMLElement.prototype, "offsetHeight", {
+      configurable: true,
+      get: () => 28,
+    });
+    try {
+      render(<Show message={msg({ streaming: true, status: "reasoning" })} />);
+      expect(document.documentElement.style.getPropertyValue("--trace-row")).toBe("28px");
+      document.documentElement.style.removeProperty("--trace-row");
+      cleanup();
+      render(<Show message={msg({ streaming: true, tool: "read_email" })} />);
+      expect(document.documentElement.style.getPropertyValue("--trace-row")).toBe("28px");
+    } finally {
+      document.documentElement.style.removeProperty("--trace-row");
+      if (laid !== undefined) {
+        Object.defineProperty(HTMLElement.prototype, "offsetHeight", laid);
+      }
+    }
+  });
 });

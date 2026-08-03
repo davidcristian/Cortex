@@ -44,7 +44,7 @@ its signature.
 | [memory.md](memory.md) | Store, scoping, rerank/MMR (ADR-0008) | 8 |
 | [inference-model-manager.md](inference-model-manager.md) | Model-manager lifecycle, MTP, reasoning status (ADR-0007/0020) | 7 |
 | [subagents.md](subagents.md) | Progress reporting, spawn schema, heterogeneous roster (ADR-0010/0018) | 2 |
-| [body-overlay.md](body-overlay.md) | Overlay polish, connection indicator, proto Cancel (ADR-0011), an exit for the switcher's rows, the composer's move on a clamped shrink, the reserved scrollbar rail's assumed width and spent card inset, the chat floor's frozen measurement of the empty state, a mid-stream retarget restarting from a rounded height, a Thoughts trace opening a reply off the bottom of a full history, the two bounds the panel's section budget left behind it (a section's own frame being under no cap, and the room a closing section hands back arriving in one frame), the console tab strip's missing keyboard half, and the whisper's follow-ups (ADR-0037): a pickable voice row, a mid-stream resize keeping the old wrap width, and kerning inside the letter boxes under a changed font (its drain-growth entry landed the day it was filed, and the console outliving a new chat, the reminder stack's per-row exit, the panel's watch on its own box with the arrival-aside correction that came out of it, the demo bridge over the line cap, and two sections outrunning the panel on their own all landed 2026-08-03), and a resize that lands inside the panel's own move waiting for it | 16 |
+| [body-overlay.md](body-overlay.md) | Overlay polish, connection indicator, proto Cancel (ADR-0011), an exit for the switcher's rows, the composer's move on a clamped shrink, the reserved scrollbar rail's assumed width and spent card inset, a mid-stream retarget restarting from a rounded height, a Thoughts trace opening a reply off the bottom of a full history, the two bounds the panel's section budget left behind it (a section's own frame being under no cap, and the room a closing section hands back arriving in one frame), the console tab strip's missing keyboard half, and the whisper's follow-ups (ADR-0037): a pickable voice row, a mid-stream resize keeping the old wrap width, and kerning inside the letter boxes under a changed font (its drain-growth entry landed the day it was filed, and the console outliving a new chat, the reminder stack's per-row exit, the panel's watch on its own box with the arrival-aside correction that came out of it, the demo bridge over the line cap, two sections outrunning the panel on their own, and the chat floor's frozen measurement of the empty state all landed 2026-08-03), and a resize that lands inside the panel's own move waiting for it | 15 |
 | [session-read-seam.md](session-read-seam.md) | Session listing/read seam (ADR-0021) | 3 |
 | [resource-governance.md](resource-governance.md) | Scheduler/placer budgets, NPU, drain (ADR-0012) | 5 |
 | [email-confirmer.md](email-confirmer.md) | Email write, Confirmer, attachments, `ToolActivity` chip (ADR-0022) | 4 |
@@ -801,6 +801,35 @@ ways and observed live against the compose Redis
 ([ADR-0030](../adr/ADR-0030-brain-handoff.md) 2026-08-03 addendum, with a pointer from ADR-0029
 decision 4, which owns the bit).
 
+Body & overlay then went **16 to 15 on 2026-08-03**, when the chat floor's frozen measurement
+closed, and this one is the sharpest instance yet of the warning at the top of this file. The
+entry's cost claim was not merely optimistic, it was about a line of CSS that had been **deleted
+about forty minutes after the entry was written**, by the same day's settings-tab slice, on the
+reasoning that the reminder stack now rolls away on the first message so the shrink is deliberate.
+That reasoning is true of a chat with reminders due and false of every other chat, and for fourteen
+days this backlog carried a note about drifting a constant while the defect that constant prevented
+was live underneath it. Measured before anything was built, at 60Hz with the stack acked, the first
+message a user sends took the panel 352px to 262px and back to 297px, the composer's own top edge
+unmoved throughout, so the entry's "a few pixels of dip" was a 90px excursion of the whole
+conversation. **The lesson is not about estimating cost; it is that an entry describing a line of
+code is stale the moment that line moves, and nothing in this process re-reads one.** The other two
+frozen numbers the entry named were audited at the same time and neither had drifted: the activity
+chip is still exactly `--trace-row` (24.000px against 24), and the reserved rail is still exactly
+`--rail` (6px on both unbordered scroll boxes). What shipped is `overlay/measured.ts`, which
+publishes `--chat-floor` off the empty state and `--trace-row` off the live chip, retiring two of
+the three. The third stays where it was, because a probe does not answer what kept it there: nothing
+non-Chromium runs the overlay, and on Chromium the rail's measurement is circular, the pseudo-element
+setting the width the probe would read back. The entry's shape was wrong in one way worth keeping
+for the next probe of this kind: a STARTUP probe cannot do this at all, since neither element exists
+at startup, so it would have to measure a hidden copy, which is this defect one layer down with
+nobody watching the copy. Measuring the real element as React attaches it, and watching the empty
+state's box afterwards, also caught something a single reading would have frozen: it is 183px in the
+frame it is attached and 185px once the system font stack resolves. Two open neighbours were
+measured on both sides and did not move, the composer holding still through an ack, a switcher round
+trip and the pencil at both viewports, and the panel showing no sub-pixel step anywhere in a
+streamed reply either way, so the user's undecided preference about a shrink against the ceiling is
+again not settled by accident.
+
 ## Recommended order
 
 Ordered by what unblocks the most value soonest. Before starting any item, verify its claims
@@ -912,18 +941,28 @@ against the code (the warning above); the entry text tells you which seams it ex
   it was written, so the cost is one explicit path extending an exclusion that already exists rather
   than a new kind of unmeasured file. The comparison had been drawn against a cap nothing enforced.
 - **The chat floor's frozen measurement of the empty state**
-  ([body-overlay.md](body-overlay.md)), open from 2026-07-20, when a `min-height` sized to the
-  empty state stopped the panel shrinking on the first message. The 185px is measured and
-  commented but never re-checked, so editing the mark, the invitation or the example chips drifts
-  the floor away from the thing it copies, by a few pixels of dip or of dead space. What is left is
-  content drift and the engine: the width half was closed the same day by holding the example chips
-  to one row, once a sweep showed the shipping window clears their wrap by only 32px of label
-  width. Reading the
-  rendered empty state once and publishing it as a custom property retires the constant, and it is
-  the same startup probe the reserved scrollbar rail's assumed width wants, so the two are one
-  small module if either is picked up. The same probe would also retire `--trace-row`, the second
-  frozen number the panel now carries, which restates the activity chip's box so the settled
-  "Thoughts" disclosure can match it.
+  ([body-overlay.md](body-overlay.md)), open from 2026-07-20 and **closed 2026-08-03 as the custom
+  property it asked for, over a defect it did not know it had** ([ADR-0035
+  addendum](../adr/ADR-0035-console-and-motion.md)). The constant this entry was about had not
+  existed for fourteen days: `.log`'s `min-height` was deleted about forty minutes after the entry
+  was written, by the settings-tab slice, on the reasoning that the reminder stack now rolls away on
+  the first message so the shrink is deliberate, which is true of a chat with reminders due and
+  false of every other chat. Measured at 60Hz with the stack acked, at 900x900 and 640x720 alike,
+  the first message took the panel 352px to 262px and back to 297px, with the composer's own top
+  edge unmoved for every frame, so the entry's "a few pixels of dip" was 90px and arrived by
+  deletion rather than by drift. `.log` now floors on `--chat-floor`, published by
+  `overlay/measured.ts` from the empty state's own box, and the panel holds one height across the
+  send in all four cases. Two of the three frozen numbers it named are retired: `--trace-row` goes
+  too, the chip publishing its own box now that its floor (a no-op restating that box back at
+  itself) is gone. The rail does not, for the reason below. The entry was wrong about the shape in
+  one way worth keeping: a STARTUP probe cannot do this, there being no empty state and no chip at
+  startup, so it would have to measure a hidden copy, which is this defect one layer down. The real
+  elements are measured instead, as React attaches them and again whenever their box moves, because
+  a single reading in the commit frame catches the empty state at 183px against the 185px it settles
+  at once the system font stack resolves. Neither of the two numbers had drifted when audited, which
+  is why the demonstration is the evidence: lengthening the invitation by one wrapped line takes the
+  empty state to 201px, and the measured floor holds the panel at 368px across the send where the
+  frozen 185px drops it to 352.
 - **A Thoughts trace opening a reply off the bottom of a full history**
   ([body-overlay.md](body-overlay.md)), open from 2026-07-20, when the disclosure learned to roll.
   The roll leaves the history's `scrollTop` alone, which is the right default (the row stays under
@@ -1190,7 +1229,13 @@ summarization and reranking ([session-history.md](session-history.md),
   appears on either engine, so what is deferred is symmetry on an engine the body does not ship on.
   Reopens if the body ever runs on one, and the fix is then to read a probe's
   `offsetWidth - clientWidth` once at startup and publish it as `--rail`, which is a module and its
-  tests rather than a CSS line ([body-overlay.md](body-overlay.md))
+  tests rather than a CSS line. **Re-read 2026-08-03 when that module was built for the chat floor
+  (`overlay/measured.ts`), and it stays here rather than riding it**: on the engine that ships the
+  reading is circular, `::-webkit-scrollbar { width: var(--rail) }` setting the width the probe
+  would read back, so the fenced version needs a SECOND property and therefore a change to every
+  subtraction in the stylesheet, not a line of wiring. Measured while auditing it, `.history` and
+  `.field` reserve exactly 6px, and the recipe above holds only on a box with no border, `.reminders`
+  answering 8px for a 6px rail inside two 1px edges ([body-overlay.md](body-overlay.md))
 - Trust/gating overrides for remote tools: no trusted remote tool exists
   ([untrusted-content.md](untrusted-content.md), [email-confirmer.md](email-confirmer.md))
 - Real-file email attachments (bytes the assistant did not author): declined 2026-07-16, the

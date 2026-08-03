@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 
 import type { MarkStyle } from "../mark/marks";
+import { chatFloorRef } from "../overlay/measured";
 import { type ConsoleTab, type OverlayState, isTurnActive } from "../overlay/overlayState";
 import { useLogScroll } from "../overlay/useLogScroll";
 import { BubbleMark } from "./BubbleMark";
@@ -130,7 +131,9 @@ export function ChatView({
       <div className="history" ref={log.ref} onScroll={log.onScroll}>
         <div className={`log${state.messages.length === 0 && state.pendingConfirm === null ? " bare" : ""}`}>
           {state.messages.length === 0 ? (
-            <div className="empty">
+            // The ref is that floor, measured: this element stands for the whole life of an empty
+            // chat and leaves as the first message lands (overlay/measured.ts).
+            <div className="empty" ref={chatFloorRef}>
               <button
                 className="markbtn"
                 onClick={() => onToggleConsole("appearance")}

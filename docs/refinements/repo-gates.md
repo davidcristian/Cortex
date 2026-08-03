@@ -267,9 +267,14 @@ cross-language-constant addendum):**
   is the uncapped section the panel's budget exists to stop, with every test still green
   ([ADR-0035](../adr/ADR-0035-console-and-motion.md), the 2026-08-03 budget addendum). The same
   shape already holds `data-resizing`, written by the placement and read only by the rule that
-  hides the history's thumb. Both are pinned as literals in their own suites, which is what a
-  rename has to walk past; what would close it is a scan that reads a stylesheet for uses rather
-  than a source for declarations.
+  hides the history's thumb, and gained two more members later the same day: `overlay/measured.ts`
+  publishes `CHAT_FLOOR_PROPERTY` (`--chat-floor`) and `TRACE_ROW_PROPERTY` (`--trace-row`), spent
+  by `.log`'s floor and by the settled Thoughts disclosure, where a rename on either side falls back
+  to the value declared on `:root` and so degrades to exactly the frozen constants the probe
+  replaced, silently and with every test green ([ADR-0035](../adr/ADR-0035-console-and-motion.md),
+  the 2026-08-03 chat-floor addendum). All four are pinned as literals in their own suites, which is
+  what a rename has to walk past; what would close it is a scan that reads a stylesheet for uses
+  rather than a source for declarations.
   **One of them is already divergent, which is why this is recorded rather than folded in.**
   `TITLE_MAX` is 48 in `brain/packages/core/src/cortex_core/sessions.py` and 32 in
   `body/app/src/overlay/sessionState.ts`, and the comment above the brain's declaration says the

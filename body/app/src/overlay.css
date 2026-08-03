@@ -12,6 +12,7 @@
   --mono: ui-monospace, "Cascadia Code", "SF Mono", Menlo, Consolas, monospace;
   --rail: 6px;
   --trace-row: 24px;
+  --chat-floor: 185px;
   --time-col: 55px;
   --halt: rgb(226, 75, 107);
 }
@@ -46,7 +47,8 @@
 .stage ::-webkit-scrollbar-button {
   display: none;
 }
-.panel[data-resizing] :is(.history, .rows)::-webkit-scrollbar-thumb {
+.panel[data-resizing] :is(.history, .rows)::-webkit-scrollbar-thumb,
+.view:has(> .collapse.aside[data-morphing]) .history::-webkit-scrollbar-thumb {
   background: transparent;
 }
 .stage ::-webkit-scrollbar-thumb {
@@ -409,6 +411,7 @@
   justify-content: flex-end;
   flex: 1 0 auto;
   gap: 11px;
+  min-height: var(--chat-floor);
 }
 .log.bare {
   flex: 1 1 auto;
@@ -510,9 +513,6 @@
   align-items: center;
   gap: 7px;
   max-width: 82%;
-  /* The row height the settled disclosure below matches, so a turn completing swaps the two in
-     place instead of resizing the log under them. This is the chip's natural height already. */
-  min-height: var(--trace-row);
   padding: 4px 12px;
   background: var(--control);
   border: 1px solid var(--stroke);
