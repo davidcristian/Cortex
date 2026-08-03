@@ -234,6 +234,18 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
   y=270 with the row it sat under; the index rule leaves it at y=220 and walks that neighbour down
   past it to y=240.47, so the gap ends up between two rows it was never between. The reminder stack
   only ever loses rows, so the two rules agree on every frame of it and it never had to choose.
+- **The switcher is a named list of rows, and the row says which chat is open**
+  (`components/SessionList.tsx`, ADR-0035 addendum, 2026-08-03). The `<ul>` carries `aria-label` and
+  no role, the reminder stack's arrangement, because the `role="listbox"` it used to carry was one
+  no child satisfied: an option is a leaf and a row is four buttons, and a `<li>` inside a listbox
+  is not a listitem either, so Chromium announced a listbox with no options in it over three rows of
+  role `none`. Removed, the implicit list and listitem roles come back with nothing written on the
+  `<li>`, and the four buttons keep their own tab stops (twelve across the demo's three chats,
+  identical before and after). The open chat was a background tint and nothing more, and
+  `aria-selected` needs the role that came off, so the row's button carries `aria-current`, `true`
+  on the open row and `false` on the others. `Ctrl+↑` and `Ctrl+↓` are unchanged, being an
+  application-wide cycle rather than movement inside a list; that they announce nothing when they
+  swap the chat is a deferral in [refinements/body-overlay.md](../refinements/body-overlay.md).
 - **The panel's views** (`components/Panel.tsx` + `ChatView.tsx` + `ConsoleView.tsx`, ADR-0034):
   `Panel` is a router over views of one window, not a window with sheets over it, and the views are
   `chat` and `console` (ADR-0035 decision 1). The console's TAB is deliberately not part of the view

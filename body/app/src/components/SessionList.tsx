@@ -127,6 +127,13 @@ export function SessionList({
         <button
           type="button"
           className={`switcher-item${session.sessionId === currentId ? " current" : ""}`}
+          // Which chat is already open was a background tint and nothing else, so the one row a
+          // reader most needs to place sounded exactly like the others. `aria-current` is the
+          // channel that says it, and `true` is its value for a current item that is none of the
+          // enumerated kinds: a chat is not a page, a step, a location, a date or a time. Written
+          // on every row rather than only the open one, the pin toggle's `aria-pressed` idiom, so
+          // the state is a property of the row instead of an attribute that comes and goes.
+          aria-current={session.sessionId === currentId}
           onClick={() => onSelect(session.sessionId)}
         >
           <span className="switcher-title">{session.title}</span>
@@ -169,7 +176,18 @@ export function SessionList({
   };
 
   return (
-    <ul className="switcher" role="listbox" aria-label="Recent chats">
+    // The list is the list of composite rows it behaves like, and says so. It carried
+    // `role="listbox"` once, which nothing under it satisfied: an option is a leaf and these rows
+    // are four buttons each, so the container announced a listbox holding no options. Measured in
+    // Chromium, the cost was not only the missing role. A `<li>` inside a listbox is not a
+    // listitem, so every row came through as `none` and the boundaries a reader counts rows by
+    // were gone, leaving twelve loose buttons in a list of nothing. Dropped, the implicit list and
+    // listitem roles come back, `aria-label` names the list, and this is the reminder stack's
+    // arrangement exactly (`Reminders.tsx`), which is the overlay's other list of rows with
+    // buttons in them. The four buttons per row keep their own tab stops, and `Ctrl+↑` / `Ctrl+↓`
+    // stay what they were: overlay-wide keys that cycle the chat without moving focus, which is
+    // a listbox's job and no longer a promise this markup makes.
+    <ul className="switcher" aria-label="Recent chats">
       {/* Asked of the RENDERED rows and not of `sessions`, so deleting the last chat does not put
           the empty line up while the row it replaces is still rolling out underneath it. The line
           itself still arrives in one frame, once the roll has ended and there is nothing left to

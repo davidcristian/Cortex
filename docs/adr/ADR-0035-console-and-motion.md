@@ -2059,9 +2059,87 @@ rows of ordinary buttons with no `role="option"`, which the addendum above opene
 deferral, and this change is deliberately neutral to it: whichever shape wins, the role belongs on
 the `<li>`, which is where it would have gone before and where it still goes. The one thing added to
 those elements is `aria-hidden="false"` on a row that is not leaving, which is the default state
-written out and is harmless under either answer.
+written out and is harmless under either answer. Answered later the same day by the addendum below,
+which took the role off and left the `<li>` carrying its own implicit one.
 
 **And the rows still have no ENTER animation.** A chat arriving in the list appears in the frame the
 refresh lands, which is what it did before. The asymmetry is on purpose and is the same one the
 reminder stack has: a removal is a gap that has to close before the eye can follow it, while an
 arrival is already where it belongs.
+
+## Addendum, 2026-08-03: the switcher is a list of rows, and a row says which chat is open
+
+The addendum above opened the switcher's role as a deferral with two shapes and left the choice to
+the user. The user chose: **drop the listbox role.** The switcher announces the list of composite
+rows it already behaves like, every per-row button stays individually reachable, `Ctrl+↑` and
+`Ctrl+↓` keep cycling chats exactly as they did, and no `aria-activedescendant` or `role="option"`
+went in.
+
+### What the role actually cost
+
+The deferral said a listbox was announced whose required children were missing. Read out of
+Chromium's accessibility tree at 900x900, it was worse than that, because a `<li>` inside a listbox
+is not a listitem either. The container came through as `listbox "Recent chats"` over three children
+of role `none`, each holding its four buttons directly, so the rows had no boundary a reader could
+count by: a listbox with no options in it and twelve loose buttons inside.
+
+### The decision
+
+`role="listbox"` comes off the `<ul>` in `body/app/src/components/SessionList.tsx` and nothing
+replaces it. The `aria-label` stays and now names a list rather than a listbox, and the implicit
+list and listitem roles come back on their own, so no role is written on the `<li>` at all. That is
+the reminder stack's arrangement exactly, a named `<ul>` with no role and rows of ordinary buttons
+under it, which is what the two lists should have had in common from the start.
+
+One thing had to be added rather than removed. Which chat is open was carried by the `.current`
+background tint and by nothing else, and this answer drops the one ARIA shape that could have
+carried it, since `aria-selected` needs the listbox. The row's own button therefore takes
+`aria-current`, written `true` on the open row and `false` on the others, which is the pin toggle's
+`aria-pressed` idiom one row over. The value is `true` rather than one of the tokens because a chat
+is none of the enumerated kinds: not a page, a step, a location, a date or a time.
+
+`Ctrl+↑` and `Ctrl+↓` needed no reconciliation in the end. They are an application-wide cycle, not
+movement inside a list, and with the listbox gone the markup no longer promises otherwise.
+
+### What it measures
+
+Chromium at 900x900, on the demo's own seed, before and after:
+
+- **The tree.** `listbox "Recent chats"` over three `none` children becomes `list "Recent chats"`
+  over three `listitem`s, each holding the row's four buttons.
+- **The tab order is untouched.** Twelve stops inside the switcher both times, four to a row, in
+  the same order, with the whole cycle at 24. The deferral's "eight tab stops across two rows" was
+  right for the list it measured and is eight no longer, the demo having seeded a third chat when
+  the row exit landed; four to a row is the figure that carries.
+- **The open chat says so.** Nothing is current at boot, the demo restoring a chat that is not in
+  the seeded list. Clicking the second row and reopening the switcher reads
+  `Everything about model swaps=true` with the other two rows `false`, and a `Ctrl+↓` press lands
+  the same `true` on the chat it cycled to.
+
+Two notes for whoever measures next. jsdom does not reproduce the row finding at all, since
+`dom-accessibility-api` maps `<li>` to `listitem` whatever an ancestor claims, so the browser is the
+only place the `none` rows are visible and the Vitest suite pins what it can see: no listbox in the
+tree, a named list, a listitem per row, four buttons each at `tabIndex` 0, and `aria-current` true
+on the open row and false on the rest. And `aria-current` cannot be read back from CDP, whose
+accessibility domain has no `current` among its property names, so it was verified per row in the
+live DOM beside the roles that did come out of the tree.
+
+### The mutation proof
+
+Putting `role="listbox"` back reddens the new test at its first assertion, and taking the
+`aria-current` line off reddens it at its last. Both were checked in place and restored.
+
+### What this does not do
+
+**The swap itself is still silent, and that is a new deferral.** Leaving the cycle keys alone leaves
+them announcing nothing: a press replaces the whole conversation with focus where it was, and the
+page's only live region is the link indicator reading the brain's health. Measured at 900x900, two
+presses walk the header title through three chats while focus stays on the header's chats button,
+and the first press closes the switcher under it. The listbox shape would have answered this by
+moving focus, so the rejected shape takes the answer with it; what fits this one is a polite live
+region naming the chat that arrived. Recorded in
+[refinements/body-overlay.md](../refinements/body-overlay.md) and on its index.
+
+**The header's chats button still shares the list's accessible name.** Both are "Recent chats",
+read in the same pass and left alone: they announce with different roles, so the button and the list
+are told apart in speech by what follows the name.
