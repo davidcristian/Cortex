@@ -27,6 +27,20 @@ interface CollapseProps {
   readonly open: boolean;
   /** Marks a section the panel leaves out when it centres itself: see `.collapse.aside`. */
   readonly aside?: boolean;
+  /** Roll open on MOUNT as well, from nothing to the content's height.
+   *
+   *  A section normally appears at its full height and only animates what happens to it afterwards,
+   *  which is right for a section that is mounted with the view it belongs to: the switcher's list
+   *  rolls open because the panel opens it, not because it arrived. Something mounted INTO a list
+   *  that is already on screen is the other case, and the switcher's empty line is the one that
+   *  wanted it (`SessionList.tsx`): it takes the place of the last row as that row rolls out, so it
+   *  has to grow into the gap on the same clock rather than land in it a frame later.
+   *
+   *  Read once, at mount, and ignored on every render after: a section already on screen cannot
+   *  arrive again. Rolling it OUT is deliberately not the mirror of this and is not offered here.
+   *  The line yields to a row in the frame the row lands, so the direction that matters is the one
+   *  where something is waiting for it. */
+  readonly enter?: boolean;
   /** Called once a CLOSING roll has finished, which is the moment the thing inside may be taken
    *  away for good. It is what lets a list hold a removed row until its own exit ends
    *  (`overlay/usePresence.ts`) without owning a second copy of this clock. */
@@ -34,12 +48,15 @@ interface CollapseProps {
   readonly children: ReactNode;
 }
 
-export function Collapse({ open, aside = false, onClosed, children }: CollapseProps) {
+export function Collapse({ open, aside = false, enter = false, onClosed, children }: CollapseProps) {
   const ref = useRef<HTMLDivElement>(null);
   // Kept mounted through the closing animation: an exit cannot be animated on an element React
   // has already removed. `rendered` therefore lags `open` on the way out, never on the way in.
   const [rendered, setRendered] = useState(open);
-  const at = useRef(open);
+  // Where the roll below thinks the section already is. A section that is to roll in on mount
+  // starts life shut as far as this is concerned, so the first layout effect finds a change to
+  // animate and rolls from nothing to the content, exactly as a later opening would.
+  const at = useRef(open && !enter);
   const running = useRef<Animation | null>(null);
 
   if (open && !rendered) {

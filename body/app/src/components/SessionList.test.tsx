@@ -353,15 +353,78 @@ describe("SessionList", () => {
     expect(document.querySelectorAll(".switcher-slot")).toHaveLength(0);
   });
 
-  it("waits for the last row's roll before putting the empty line up", () => {
-    // Deleting the last chat would otherwise show "no other chats yet" in the frame the write
-    // lands, on top of the row it is replacing, which is still rolling out underneath it.
+  it("grows the empty line into the gap the last row leaves, on that row's own clock", () => {
+    // The line used to wait for the roll to end and then arrive in the frame after it, which took
+    // the card 14 to 53 in one frame at 900x900 with the panel wobbling after it. It goes up as the
+    // row starts leaving instead, and rolls from nothing over the same 300ms, so the card eases
+    // from a row's height to a line's and the panel never moves at all.
     const land = stubRoll();
     const { rerender } = render(list([chat("a")]));
     rerender(list([]));
-    expect(screen.queryByText(/no other chats/iu)).toBeNull();
     expect(rows()).toEqual(["a*"]);
+    const line = screen.getByText(/no other chats/iu).closest(".collapse");
+    expect(line).toHaveAttribute("data-morphing"); // rolling, and the panel can read where to
     land();
+    expect(rows()).toEqual([]);
     expect(screen.getByText(/no other chats/iu)).toBeInTheDocument();
+    expect(line).not.toHaveAttribute("data-morphing");
+  });
+
+  it("yields the empty line in the frame a chat arrives, rather than rolling it out under one", () => {
+    // The other direction is not the same flag run backwards. A row lands at its full height at
+    // once, so a line rolling away underneath it would grow the card by the row and only then take
+    // the line off it, an overshoot bigger than the step it removes. The line is what the list says
+    // when it has nothing to say: it waits for the row it replaces and yields to the row that
+    // replaces it.
+    const land = stubRoll();
+    const { rerender } = render(list([]));
+    expect(screen.getByText(/no other chats/iu)).toBeInTheDocument();
+    rerender(list([chat("a")]));
+    expect(screen.queryByText(/no other chats/iu)).toBeNull();
+    expect(rows()).toEqual(["a"]);
+    land();
+    expect(screen.queryByText(/no other chats/iu)).toBeNull();
+  });
+
+  it("does not roll the line in when the switcher opens on a list that is already empty", () => {
+    // Mounting is not arriving. The list opens inside the switcher's own roll, and a line rolling
+    // in underneath that roll would have the section measure itself against a card growing out of
+    // nothing.
+    stubRoll();
+    render(list([]));
+    expect(screen.getByText(/no other chats/iu).closest(".collapse")).not.toHaveAttribute(
+      "data-morphing",
+    );
+  });
+
+  it("travels every row a regrouping moved, instead of leaving them at their new places", () => {
+    // The switcher re-lists pinned chats first and then by recency, so a pin moves rows that are
+    // staying. Traced at 900x900 before this, pinning the third of three chats took it 270 to 170
+    // and pushed the two above it 50px each, all inside the frame the re-listing committed.
+    const places = new Map([
+      ["a", 0],
+      ["b", 50],
+    ]);
+    vi.spyOn(HTMLElement.prototype, "offsetTop", "get").mockImplementation(function (
+      this: HTMLElement,
+    ) {
+      return places.get(this.querySelector(".switcher-title")?.textContent ?? "") ?? 0;
+    });
+    const played: string[] = [];
+    Element.prototype.animate = function (this: Element, keyframes: Keyframe[]) {
+      played.push(
+        `${String(this.querySelector(".switcher-title")?.textContent)}:${String(
+          keyframes[0]?.transform,
+        )}`,
+      );
+      return { cancel: () => undefined } as unknown as Animation;
+    } as typeof Element.prototype.animate;
+    const { rerender } = render(list([chat("a"), chat("b")]));
+    expect(played).toEqual([]);
+    places.set("b", 0);
+    places.set("a", 50);
+    rerender(list([chat("b"), chat("a")]));
+    // Each row is handed back the distance it moved, which decays to nothing over the roll's clock.
+    expect(played).toEqual(["b:translateY(50px)", "a:translateY(-50px)"]);
   });
 });

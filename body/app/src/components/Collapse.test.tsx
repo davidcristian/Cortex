@@ -326,6 +326,27 @@ describe("Collapse", () => {
     expect(rolls).toEqual([]);
   });
 
+  it("rolls in on mount when told to, and only then", () => {
+    const { rolls } = stubBrowser();
+    // A section mounted with the view it belongs to is already there and animates only what
+    // happens to it afterwards (the re-render case above). One mounted INTO a list that is on
+    // screen has arrived, and the switcher's empty line is that case: it takes the place of the
+    // last row as that row rolls out, so it has to grow into the gap on the same clock.
+    const view = render(
+      <Collapse open enter>
+        <p>rows</p>
+      </Collapse>,
+    );
+    expect(rolls).toEqual([{ from: 0, to: HEIGHT, fade: [0, 1] }]);
+    // Read once, at mount: a section already on screen cannot arrive again.
+    view.rerender(
+      <Collapse open enter>
+        <p>rows</p>
+      </Collapse>,
+    );
+    expect(rolls).toHaveLength(1);
+  });
+
   it("skips the roll when there is nothing to see, closing at once", () => {
     const { rolls, box } = stubBrowser();
     box.natural = 1;

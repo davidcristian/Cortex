@@ -2046,13 +2046,16 @@ measured above. Rolling the line in as well was considered and is worse in the o
 first chat arriving into an empty list would then add the new row's 50px instantly and only
 afterwards roll the 39px line away, an overshoot larger than the snap it removes. One flag cannot
 make both directions smooth, so the line is left instant and the case is filed in
-[refinements/body-overlay.md](../refinements/body-overlay.md).
+[refinements/body-overlay.md](../refinements/body-overlay.md). Answered later the same day by the
+addendum below, which found that it is not one flag: the direction that must be instant is a plain
+unmount, and the line now grows in over the leaving row's own roll.
 
 **The reorder itself is not animated.** A pin regrouping the list moves every row it touches in one
 frame, exactly as it did before this, and what changed is only that a row on its way out travels
 with them instead of being left behind. Animating the reorder is a different mechanism (every row's
 position read before the commit and played back after it, the pattern usually called FLIP) and a
-different decision, filed with the line above.
+different decision, filed with the line above. Landed later the same day by the addendum below, as
+`overlay/useTravel.ts`, with the leaving row on the survivors' clock.
 
 **The `role="listbox"` question is untouched.** The switcher still puts that role on its `<ul>` over
 rows of ordinary buttons with no `role="option"`, which the addendum above opened as its own
@@ -2143,3 +2146,150 @@ region naming the chat that arrived. Recorded in
 **The header's chats button still shares the list's accessible name.** Both are "Recent chats",
 read in the same pass and left alone: they announce with different roles, so the button and the list
 are told apart in speech by what follows the name.
+
+## Addendum, 2026-08-03: the empty line is not a row, and a row that stays travels
+
+The row-exit addendum above closed with two motions left instant on purpose, filed as one deferral:
+the switcher's empty line arriving in the frame after the last row's roll, and a reorder moving
+every row it touches in a single frame. They are answered here, one by a decision about what an
+empty list is, the other by the mechanism the deferral named.
+
+**What the two actually did.** Traced at 900x900 over the demo bridge, per animation frame.
+Deleting the last chat rolled the row out over 300ms (card 64 to 14, largest single frame 7.47px)
+and then put the line up in the next frame, card 14 to 53, with the panel easing its top 119 to 108
+over the 117ms after that. Pinning the third of three chats moved every row in the frame the
+re-listing committed: the pinned chat 270 to 170, the two above it 50px each, all in one 16.7ms
+step. The deferral's numbers were right, its reading of the panel was right, and the shape of the
+fix it proposed for the first one was not.
+
+### The decision
+
+**The empty line waits for the row it replaces and yields to the row that replaces it.** The line is
+not a row. It is what the list says when it has nothing to say, so it has no claim on the eye and no
+right to keep a chat waiting. That gives the two directions different rules, which is what the
+deferral asked for, and they turn out not to need a flag between them:
+
+- *Emptying.* The line is asked of `sessions` rather than of the rendered rows, so it goes up in the
+  same commit that starts the last row's exit, and `Collapse`'s new `enter` prop grows it from
+  nothing over that row's own roll. The two are on screen together for those 300ms, the row
+  shrinking to zero while the line grows to 39, and the card eases from a row's height to a line's
+  instead of collapsing to 14 and snapping 39px back up.
+- *Filling.* The line is unmounted in the frame a chat arrives. There is no roll to run, because the
+  thing the eye is going to is the row, and a line rolling away underneath it would add the row's
+  50px at once and take the line's 39 off over the following 300ms, which is an overshoot bigger
+  than the step it removes. This is the direction the deferral correctly refused to smooth.
+
+The order in the markup is load-bearing: the line renders BELOW the rows, so the first
+`data-morphing` in the tree during those 300ms is the leaving row's, and the ride-along
+(`panelRide.ts`) reads the target the card is actually going to rather than the line's.
+
+**`enter` is read once, at mount.** A section mounted with the view it belongs to is already there
+and animates only what happens to it afterwards, which is why the switcher's list rolls open when
+the panel opens it and not when it is built. Something mounted INTO a list already on screen has
+arrived, and only that case wants the roll. Opening the switcher on a list that is already empty
+therefore shows the line at its full height with nothing animating, which is what keeps the
+section's own roll measuring a card of 53 rather than one growing out of nothing.
+
+**A row the list MOVES travels there, through `overlay/useTravel.ts`.** The mechanism is the one the
+deferral named: read where each row is, let the commit put it where it belongs, and hand the
+difference back as a `translateY` that decays to nothing over `MORPH_ROLL_MS` and `EASING`. Three
+things about it are worth writing down.
+
+*A transform cannot fight the panel.* Layout is final in the frame a travel starts, so the card's
+height never changes, the panel's `auto` height has nothing to follow, and the `ResizeObserver` the
+panel keeps on its own box has no resize to answer. Measured across a reorder, the card holds 164 on
+every frame and its `scrollHeight` holds 162 against a 162 client box, so the rows moving through
+each other never even reach for a scrollbar.
+
+*A row is remembered by its element, not by a key.* React moves the DOM node a keyed row owns rather
+than rebuilding it, which is what makes a reorder a reorder, so the element is the identity and a
+`WeakMap` needs no cleanup. A row that was rebuilt is correctly a row with nowhere to travel from.
+
+*Where a row WAS is not where the last commit left it, and this is the finding the deferral did not
+have.* A roll moves rows by layout, frame by frame, with no commit anywhere in it: over a deleted
+row's 300ms exit its neighbours below travel 50px, and the next commit is the release, once the roll
+has already taken them there. Read against the previous commit, that is a 50px jump to answer, and
+the answer is a travel back down a distance the row had just covered, which is a worse defect than
+the one being fixed. So while a roll is in flight inside the list the record is refreshed every
+frame and nothing is played from it: the frame loop only remembers, and only a commit may animate.
+That is also what puts a regrouping that lands mid-roll on honest numbers, the leaving row included,
+since every row is measured from where it was in the previous frame.
+
+*An interrupted travel is composed, not cancelled.* A second regrouping mid-travel finds a row
+visually between two places and structurally at the second, so cancelling would drop whatever of the
+first travel was still in the air. Every travel is `composite: "add"` instead, each a translation
+decaying to zero, so the offsets sum to the gap the eye has and the row lands where layout already
+put it.
+
+**And the demo bridge can make a chat arrive.** `converse` remembers the chat it was called for,
+titled by `deriveTitle`, which is the brain's own rule applied locally, so a turn in a fresh chat
+puts a row in the list on the refresh that follows it. The demo's list could only ever shrink
+before, which left the filling direction of the empty line unmeasurable by hand: the same gap the
+delete had before the row exit landed, found the same way and closed the same way.
+
+### What it measures
+
+Chromium over the demo bridge, per animation frame, before and after.
+
+- **The last chat deleted, 900x900.** Before: the card ran 64 to 14 over the roll's own 300ms and
+  then 14 to 53 in one frame, with the panel's top walking 108 to 119 over the roll and easing
+  118.41 back to 108 over the 117ms after the line landed. After: the card runs 64 to 53 over 283.9ms, largest single
+  frame 1.66px, and the panel's top holds 108 with its height at 518 on every frame of it. The
+  39px frame is gone and so is the correction that followed it.
+- **The same gesture at 640x720**, where the panel is on its ceiling: card 64 to 53 over 283.5ms,
+  largest single frame 1.66px, panel top 86 and height 450 on every frame.
+- **A chat arriving into an empty list, 900x900.** Card 53 to 64 in one frame, before and after
+  alike. That step is the difference between a line's height and a row's, and it is kept
+  deliberately (below).
+- **The switcher reopened on an empty list.** The card reads 53 from the first frame, with no roll
+  inside the section's own.
+- **A pin regrouping three chats, 900x900.** Before: the pinned chat 270 to 170 and the two above it
+  50px each, all in one frame. After: 270 to 170 over 300.3ms with a largest single frame of
+  15.04px, the other two 50px each with a largest single frame of 7.52px, and the card at 164
+  throughout.
+- **Two pins 90ms apart.** The second travel starts while the first is in the air: every row moves
+  continuously, largest single frame 14.76px, and all three settle at their new places by t=415.1
+  against a second regrouping that committed at t=101.9, which is that travel's own 300ms and no
+  more. Nothing is left stranded. A row whose first travel was carrying it somewhere else does pass
+  its new place and come back (the chat pinned first runs to 201.2 on its way to 220), which is what
+  composing two eases looks like and is continuous throughout.
+- **A pin landing 120ms into a delete's roll.** The regrouping frame moves nothing (the rows swap in
+  the DOM and their transforms hold them where the roll had them), the two survivors then travel to
+  their new places at a largest single frame of 7.79px while the roll continues underneath, and the
+  release commit at the end of the exit costs nothing: the row below reads 185.27 on the frame
+  before it and 181.24 on the frame after, which is the roll's own pace.
+
+### The mutation proof
+
+Eight, each restored afterwards, each reddening only what it should.
+
+1. **The line waits for the rendered rows again** (its old condition): one test fails, the empty
+   line growing into the gap.
+2. **The line mounts without `enter`**: the same test fails, at the roll rather than at the timing.
+3. **`Collapse` ignores `enter` on mount**: one test fails, in its own suite.
+4. **Travels replace rather than add**: two fail, the interruption and the terms of the animation.
+5. **The frame loop is never started**: three fail, including the release-commit case, which is the
+   regression this loop exists to prevent.
+6. **Reduced motion is ignored**: one fails.
+7. **A pending frame is never cancelled**: one fails.
+8. **The list is never asked to travel**: one fails, the switcher's own wiring.
+
+### What this does not do
+
+**A chat arriving into an empty list still steps the card 11px in one frame.** That is a line's 39px
+being replaced by a row's 50, and smoothing it needs the arriving row to roll in, which no row in
+the overlay does. The asymmetry is the one the row-exit addendum already recorded and defended: a
+removal is a gap that has to close before the eye can follow it, an arrival is already where it
+belongs. It is three and a half times smaller than the 39px frame it replaces and it happens in the
+direction the eye is already looking. Trigger for revisiting it: the maintainer catching that frame,
+or a list in the overlay wanting arrivals to roll.
+
+**A row that leaves and comes back mid-roll takes the line with it abruptly.** A failed delete lists
+the chat again, the row's `Collapse` reopens from where it had rolled to, and the empty line, being
+unmounted the moment `sessions` is non-empty again, goes in that frame rather than rolling back out.
+Nothing else was worth the second mechanism: the case is a lost write, the line is at most 39px, and
+the row coming back is what the eye follows.
+
+**The travel is the switcher's alone.** The reminder stack only ever loses rows, so it has nothing
+to travel, and `useTravel` is written against a selector and a ref rather than against the switcher
+so that the second list to want it wires it in one line.
