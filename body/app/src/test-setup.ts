@@ -1,9 +1,6 @@
-// Test harness glue (excluded from coverage): jest-dom matchers, DOM cleanup between tests, a
-// matchMedia stub (jsdom omits it) so the theme resolver can read the system scheme, and a
-// ResizeObserver stand-in (jsdom omits that too).
 import "@testing-library/jest-dom/vitest";
-import { cleanup } from "@testing-library/react";
-import { afterEach } from "vitest";
+import { act, cleanup } from "@testing-library/react";
+import { afterEach, vi } from "vitest";
 
 /**
  * A `ResizeObserver` that observes what the real one observes and reports when a test says the box
@@ -51,6 +48,38 @@ export function resized(target: Element): number {
 }
 
 globalThis.ResizeObserver = FakeResizeObserver;
+
+/** How tall a rolling section measures while `stubRoll` is installed. Any value past
+ *  `MIN_DELTA_PX` will do: what it buys is a roll that actually runs rather than one `Collapse`
+ *  completes on the spot. */
+const ROLL_PX = 48;
+
+/**
+ * Stand in for the two things jsdom does not have, so a `Collapse` exit can be observed mid-roll.
+ */
+export function stubRoll(): () => void {
+  vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockReturnValue(ROLL_PX);
+  const finishers: (() => void)[] = [];
+  Element.prototype.animate = (() => {
+    let live = true;
+    const animation = {
+      get playState(): AnimationPlayState {
+        return live ? "running" : "idle";
+      },
+      onfinish: null as (() => void) | null,
+      cancel: () => {
+        live = false;
+      },
+    };
+    finishers.push(() => {
+      if (live) {
+        animation.onfinish?.();
+      }
+    });
+    return animation as unknown as Animation;
+  }) as typeof Element.prototype.animate;
+  return () => act(() => finishers.splice(0).forEach((land) => land()));
+}
 
 afterEach(() => {
   cleanup();

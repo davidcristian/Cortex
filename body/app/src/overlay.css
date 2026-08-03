@@ -1423,7 +1423,10 @@
   color: var(--muted);
   font-size: 13px;
 }
-.switcher-li {
+.switcher-slot {
+  display: block;
+}
+.switcher-row {
   display: flex;
   align-items: stretch;
   gap: 2px;
@@ -1465,7 +1468,7 @@
     background 0.16s var(--ease),
     color 0.16s var(--ease);
 }
-.switcher-li:hover .switcher-rename-btn,
+.switcher-row:hover .switcher-rename-btn,
 .switcher-rename-btn:focus-visible {
   opacity: 1;
 }
@@ -1527,7 +1530,7 @@
     background 0.16s var(--ease),
     color 0.16s var(--ease);
 }
-.switcher-li:hover .switcher-delete-btn,
+.switcher-row:hover .switcher-delete-btn,
 .switcher-delete-btn:focus-visible {
   opacity: 1;
 }
@@ -1555,7 +1558,7 @@
     background 0.16s var(--ease),
     color 0.16s var(--ease);
 }
-.switcher-li:hover .switcher-pin-btn,
+.switcher-row:hover .switcher-pin-btn,
 .switcher-pin-btn:focus-visible {
   opacity: 1;
 }
@@ -1567,7 +1570,7 @@
   opacity: 1;
   color: var(--text);
 }
-.switcher-li.pinned {
+.switcher-row.pinned {
   border-radius: 12px;
 }
 /* The per-row "are you sure": a destructive write never fires on a single click, so the trash

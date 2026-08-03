@@ -81,8 +81,11 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
   lists first), plus the
   `TurnEvent` / `TransportError` / `SessionSummary` / `SessionMessage` types, the
   TS mirror of the Rust `body_core` values. Three implementations: `TauriBridge` (real, over IPC),
-  `DemoBridge` (canned stream + canned chats for `vite dev`, with everything it says or serves in
-  `demoScript.ts` beside it and only the behaviour left in the class), `FakeBridge` (tests). Only
+  `DemoBridge` (canned stream + three canned chats for `vite dev`, with everything it says or serves
+  in `demoScript.ts` beside it and only the behaviour left in the class; all four catalog writes are
+  held rather than rebuilt per call, so a rename, a pin and now a DELETE all stick for the session,
+  the delete having been the one left as a no-op, which made a deleted row's exit unmeasurable by
+  hand because the refresh right behind it listed the chat again), `FakeBridge` (tests). Only
   `tauriBridge.ts`, `demoBridge.ts`, `demoScript.ts`, and `main.tsx` are coverage-excluded (the
   un-gated glue);
   everything else is 100% line + branch. `useOverlay` owns the `session_id` (minted per new chat)
@@ -198,7 +201,7 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
   session-less row (`""`) or for the chat already on screen, where it would cancel that chat's
   running turn to arrive where it already is. The card's own **exit** is the row's, not the list's
   (ADR-0035 addendum): `overlay/usePresence.ts` renders a list that outlives the caller's, keeping
-  an item that has left `state.reminders` at the index it held, marked `leaving` and carrying the
+  an item that has left `state.reminders` in the gap it left, marked `leaving` and carrying the
   last version of itself that was on screen, until that row's `Collapse` reports its roll over
   through `onClosed`. So the ack leaves in the frame the check is pressed and only the exit lags,
   which is the opposite of the first version: it delayed the ACK behind a `MORPH_ROLL_MS` timer, so
@@ -207,8 +210,25 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
   returns before its exit ends stops leaving (which is what a re-listed reminder after a lost ack
   is), and the row's `<li>` sits OUTSIDE the roll wrapper as `.reminder-slot` so the stack stays a
   list to a screen reader and the `.reminder-slot + .reminder-slot .reminder` hairline still has two
-  siblings to sit between. It is written to be shared with the switcher's rows and is not wired
-  there yet.
+  siblings to sit between.
+- **A deleted chat's row leaves the same way, and reordering is what the switcher adds to it**
+  (`components/SessionList.tsx`, ADR-0035 addendum, 2026-08-03). The switcher renders from the same
+  `usePresence`, so a row that leaves `state.sessions` rolls out over `MORPH_ROLL_MS` while its
+  neighbours close the gap (traced at 900x900: 50.00px to zero over 300ms, the row below travelling
+  269.63 to 220.00 in the same frames, the row above holding at 170.00 exactly, and the panel and
+  composer both moving 0px because the history absorbs it). Three things are the switcher's own.
+  **The row is `withdrawn` while it leaves** (`overlay/withdrawn.ts`): the chat is gone, so its four
+  buttons must not spend 300ms still offering to open or re-delete it. **The `<li>` carries nothing
+  but its place**, `.switcher-slot` outside the roll and `.switcher-row` inside it, because the
+  50px `min-height` that keeps every shape of a row the same height is also a floor the roll cannot
+  get under (proved by putting it back: the row stood at 50.00 for the whole 300ms and then vanished
+  in one frame, the old defect arriving 300ms late). **And a leaving row goes back under the row it
+  was under, not at the index it held**: the switcher re-lists pinned-first and then by recency after
+  every write, so a pin landing mid-roll reorders the list around a row that is still going. Traced
+  at 900x900 with a pin 120ms into a delete, the neighbour rule carries the rolling row from y=220 to
+  y=270 with the row it sat under; the index rule leaves it at y=220 and walks that neighbour down
+  past it to y=240.47, so the gap ends up between two rows it was never between. The reminder stack
+  only ever loses rows, so the two rules agree on every frame of it and it never had to choose.
 - **The panel's views** (`components/Panel.tsx` + `ChatView.tsx` + `ConsoleView.tsx`, ADR-0034):
   `Panel` is a router over views of one window, not a window with sheets over it, and the views are
   `chat` and `console` (ADR-0035 decision 1). The console's TAB is deliberately not part of the view
@@ -311,7 +331,7 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
   (`prefers-reduced-motion`, or a roll too small to see). Its optional `onClosed` fires once a
   CLOSING roll has finished, after the `cortex:morphend` dispatch so the section is still part of
   what the panel re-measures, and it is the only thing that ends a held exit (the reminder stack's
-  rows, above). The contract between it and the panel is
+  rows and the switcher's, above). The contract between it and the panel is
   `overlay/morph.ts`, which also holds the curve and the "too small to bother" threshold both sides
   share: `data-morphing` on the section makes the panel leave the height alone and carries the
   height the section is rolling to, which is what lets the panel take its bottom edge off the

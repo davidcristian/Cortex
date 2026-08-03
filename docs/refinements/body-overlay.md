@@ -9,11 +9,11 @@ are the historical record of what each deferral became, and the index at
 [index.md](index.md) carries the recommended pickup order.
 
 **Open items:** multi-turn-within-one-stream + proto `Cancel`, streamed
-brain status (its producer landed 2026-07-18; only the push RPC remains), an exit for the
-switcher's rows (the reminder stack's landed 2026-08-03 and left the hook behind for
-it), the composer's move on a shrink against the ceiling (a user's choice between two
-designs), the two bounds the panel's section budget leaves behind it (a section's own frame
-being under no cap, and the room a closing section hands back arriving in one frame),
+brain status (its producer landed 2026-07-18; only the push RPC remains), the two motions the
+switcher's list still makes in one frame (its empty line arriving after the last row's exit, and a
+reorder moving every row it touches), the composer's move on a shrink against the ceiling (a
+user's choice between two designs), the two bounds the panel's section budget leaves behind it
+(a section's own frame being under no cap, and the room a closing section hands back in one frame),
 the two tradeoffs the reserved scrollbar rail accepts (its width
 is assumed rather than measured off the engine, and the two 6px cards spend their whole inset on
 it), a mid-stream retarget restarting
@@ -36,7 +36,11 @@ line cap landed later the same day, along the seam it named, when the cap starte
 `.ts`/`.tsx` ([ADR-0011](../adr/ADR-0011-body-v1.md) line-cap addendum) and both cap entries here
 turned out to have drifted while nothing was watching them. Two sections outrunning the panel landed
 later still, as the neighbour-aware cap it asked for, having understated its own harm in three ways;
-the two bounds above were opened with it.
+the two bounds above were opened with it. The switcher's rows got their exit on 2026-08-03 too, the
+same day the entry for it was opened, and it was about half the wiring it called itself: the shared
+hook had to learn that a list can REORDER under a row that is still leaving, two of the three
+hazards the entry named turned out not to apply, and the one that mattered (a `min-height` outside
+the roll) was not on its list at all. The two instant motions above were opened with it.
 
 **Body / overlay in Slice 8 ([ADR-0011](../adr/ADR-0011-body-v1.md)):**
 - **Multi-turn-within-one-stream + an explicit proto `Cancel` event.** One turn per `Converse`
@@ -876,6 +880,35 @@ the two bounds above were opened with it.
   mid-rename or mid-delete-confirm being a different subtree of the same slot. It also wants its own
   frame trace, since a delete refreshes the list behind the roll and resets the panel outright when
   the chat being deleted is the one on screen. Nothing blocks it.
+  - **LANDED 2026-08-03, the same day it was opened, and the wiring was about half of it**
+    ([ADR-0035 addendum](../adr/ADR-0035-console-and-motion.md)). The defect was as described and
+    measured worse than it reads: at 900x900 the card went 164 to 114 between one frame and the
+    next, the row below jumping y=270 to y=220, with the panel and the composer not moving at all,
+    so that single snap was the whole visible event. What the entry did not have is the part that
+    made this a decision rather than a wiring. **The hook needed a change.** It put a departed row
+    back at the INDEX it held, which is exactly right for a list that only ever loses rows, and the
+    switcher re-lists pinned-first and then by recency after every write, so a pin, a finished turn
+    or a summon refresh can reorder it around a row that is still rolling. `Leaving` now carries the
+    key of the row above it as well, and a departed row goes back under that key when it is still on
+    screen, the index surviving as the fallback for a neighbour released first or dropped by a whole
+    re-listing. Traced with a pin landing 120ms into a delete: by neighbour the rolling row travels
+    y=220 to y=270 with the row it sat under, by index it stays at y=220 and that neighbour walks
+    down past it to y=240.47. Two of the three hazards the entry named were real and one was not:
+    the `<li>` does have to come out of the roll, but not for the hairline (the switcher draws none
+    between rows) and not for the hover, pinned, rename or confirm rules either, all four of which
+    read down to a descendant and follow `.switcher-row` inside the wrapper unchanged. The reason it
+    has to come out is the one the entry missed, `min-height: 50px` on the outside of a roll being a
+    floor the roll cannot get under; put back deliberately, the row stands at 50.00 for the whole
+    300ms and then vanishes in one frame, which is the old defect arriving 300ms late. Two more
+    things the entry did not have: a row held on screen after its chat is gone is 300ms of live
+    buttons offering to open and re-delete a deleted chat, so the slot is `withdrawn` while it
+    leaves; and the demo bridge's `deleteSession` was a no-op over its held list while rename and
+    pin both stuck, which made the exit unmeasurable by hand, the refresh behind the delete listing
+    the chat straight back. It deletes now, and seeds a third chat so a middle row has neighbours on
+    both sides. The exit itself measures 50.00px to zero over 300ms with the row below travelling
+    269.63 to 220.00 and the row above holding at 170.00, the panel and composer 0px throughout, and
+    at 640x720, where the list is at its cap, the card holds 135.14 until the content falls under
+    the cap and the rows travel inside their own scroll box meanwhile.
 - **Per-letter boxes give up kerning pairs.** A whispered message's letters are one box each
   inside an unbreakable word box (ADR-0037 decision 6), so kerning inside a word is lost while
   that message's DOM is on screen (it re-renders plain only when its chat is next loaded).
@@ -905,3 +938,20 @@ the two bounds above were opened with it.
   to zero and the clipped content keeps its place in the tab order, but it is also still in the
   accessibility tree, so both channels agree, which is the standard the strip's pass applied rather
   than a violation of it. Nothing blocks this; it is a design decision plus its wiring.
+- **Two motions in the switcher's list are still instant, and one flag cannot smooth both.** Opened
+  2026-08-03 with the switcher's per-row exit ([ADR-0035
+  addendum](../adr/ADR-0035-console-and-motion.md)), which left them on purpose. The first is the
+  empty line: deleting the last chat rolls its row out over 300ms and then puts "no other chats
+  yet" up in the frame after, taking the card 14 to 53 (traced at 900x900; the panel does not snap
+  with it, easing its top 119 to 108 over the following 117ms). Rolling that line through its own
+  `Collapse` is three lines and is worse in the other direction, because the same flag runs
+  backwards when a first chat arrives into an empty list: the new row's 50px lands instantly and
+  the 39px line then rolls away underneath it, an overshoot bigger than the snap it removes.
+  Settling it means giving the two directions different treatments, which is a decision about what
+  an empty list is rather than a parameter. The second is the reorder itself: a pin regrouping the
+  list moves every row it touches in one frame, as it always has, and the exit only made a leaving
+  row travel with them instead of being left behind. Animating that is a different mechanism (every
+  row's position read before the commit and played back after it, the pattern usually called FLIP,
+  which this overlay has nowhere else) and would want the leaving row on the same clock as the
+  survivors. Trigger for either: the maintainer catching the frame, or a second list in the overlay
+  wanting reordered rows to travel.

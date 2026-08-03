@@ -15,10 +15,14 @@ export interface PresenceList<T> {
   readonly released: (key: string) => void;
 }
 
-/** A row that has left the caller's list, with the index it held while it was still in it. */
+/** A row that has left the caller's list, with where it was standing when it did: the key of the
+ *  row directly above it, and the index it held. */
 interface Leaving<T> {
   readonly key: string;
   readonly item: T;
+  /** The row this one was under, or `null` if it was the first. A gap is between two rows rather
+   *  than at an ordinal, and a list that REORDERS is the case that tells the two apart. */
+  readonly after: string | null;
   readonly at: number;
 }
 
@@ -34,7 +38,8 @@ function merge<T>(
     leaving: false,
   }));
   for (const gone of [...leaving].sort((a, b) => a.at - b.at)) {
-    entries.splice(Math.min(gone.at, entries.length), 0, {
+    const anchor = entries.findIndex((entry) => entry.key === gone.after);
+    entries.splice(anchor === -1 ? Math.min(gone.at, entries.length) : anchor + 1, 0, {
       key: gone.key,
       item: gone.item,
       leaving: true,
@@ -57,7 +62,11 @@ export function usePresence<T>(
   const departed: Leaving<T>[] = [];
   shown.current.forEach((entry, at) => {
     if (!entry.leaving && !present.has(entry.key) && !held.has(entry.key)) {
-      departed.push({ key: entry.key, item: entry.item, at });
+      // The anchor is read off what was on SCREEN, so it may itself be a row that is leaving. That
+      // is the intent: two rows going at once come back as the pair they were, the later one under
+      // the earlier one, the ascending sort in `merge` having already put the earlier one back.
+      const after = shown.current[at - 1]?.key ?? null;
+      departed.push({ key: entry.key, item: entry.item, after, at });
     }
   });
   const next = [...staying, ...departed];

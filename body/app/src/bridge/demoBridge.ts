@@ -208,9 +208,8 @@ export class DemoBridge implements BrainBridge {
     return Promise.resolve();
   }
 
-  // Likewise a delete is a no-op that resolves: the demo list is static, so the browser-dev
-  // switcher shows the row leave optimistically but does not persist it (the real bridge does).
-  deleteSession(_sessionId: string): Promise<void> {
+  deleteSession(sessionId: string): Promise<void> {
+    this.sessions = this.sessions.filter((s) => s.sessionId !== sessionId);
     return Promise.resolve();
   }
 

@@ -71,6 +71,13 @@ export function sessions(): SessionSummary[] {
       lastActivityUnixMs: Date.now() - 5 * 60 * 1000,
       pinned: false,
     },
+    {
+      sessionId: "demo-3",
+      title: "Reminders and recurrence",
+      preview: "Every weekday at nine, in your timezone…",
+      lastActivityUnixMs: Date.now() - 40 * 60 * 1000,
+      pinned: false,
+    },
   ];
 }
 
