@@ -17,7 +17,8 @@ user's choice between two designs), the two bounds the panel's section budget le
 the two tradeoffs the reserved scrollbar rail accepts (its width
 is assumed rather than measured off the engine, and the two 6px cards spend their whole inset on
 it), a mid-stream retarget restarting
-from a rounded height, a Thoughts trace opening a reply off the bottom of a full history, the
+from a rounded height, a section rolling in the panel's chrome shrinking the log without the log
+answering, the
 console tab strip's missing keyboard half, and the whisper's three follow-ups (a pickable voice
 row in the console, the wrap
 width a mid-stream resize cannot move, and kerning inside the letter boxes under a changed
@@ -40,7 +41,11 @@ the two bounds above were opened with it. The switcher's rows got their exit on 
 same day the entry for it was opened, and it was about half the wiring it called itself: the shared
 hook had to learn that a list can REORDER under a row that is still leaving, two of the three
 hazards the entry named turned out not to apply, and the one that mattered (a `min-height` outside
-the roll) was not on its list at all. The two instant motions above were opened with it.
+the roll) was not on its list at all. The two instant motions above were opened with it. A Thoughts
+trace opening a reply off the bottom of a full history landed 2026-08-03 as well, as the tail pin
+held across a roll rather than as the second animation it asked for, and neither its measured setup
+nor its account of the fix survived contact; the panel's chrome shrinking the log the same way from
+outside the box was opened with it.
 
 **Body / overlay in Slice 8 ([ADR-0011](../adr/ADR-0011-body-v1.md)):**
 - **Multi-turn-within-one-stream + an explicit proto `Cancel` event.** One turn per `Converse`
@@ -740,6 +745,58 @@ the roll) was not on its list at all. The two instant motions above were opened 
   thing it had been getting right: it eased `scrollTop` down with the shrink so the visible content
   never moved. A deliberate scroll on the roll's clock covers both directions with one rule, where
   the engine had one good half and one bad one.
+
+  **LANDED 2026-08-03 ([ADR-0035 addendum](../adr/ADR-0035-console-and-motion.md)), and the entry
+  was wrong about its own setup and about the shape of the fix.** The rule is the tail pin held
+  across a roll: while the reader is at the end of the log, `overlay/logRide.ts` holds their distance
+  from it for every frame of the roll, so the growth comes out of the scroll rather than out of the
+  reply. Traced at 60Hz at 640x720 after: that distance reads 3px on every frame of both directions
+  where it had run 3 to 79, `scrollTop` goes 408 to 484 and back, the largest single frame is 12px,
+  and the movement spans t=44ms to t=311ms, which is the roll's own 300ms with no second beat after
+  it. The entry's own setup does not reproduce: the reminder stack is gated on an empty log and rolls
+  away on the first message, so a full history never has it up, and the ceiling at that viewport
+  reads 450px rather than 547px, the panel's budget having moved it. Everything the entry was
+  actually about does reproduce on a history long enough to hold the panel at its ceiling by itself,
+  which is the condition that always mattered.
+  - **There is no second animation and no shared clock, which is what the entry asked for.** It
+    wanted "a scroll animation alongside `Collapse`'s height animation" because `Collapse` "owns the
+    only clock either could share". A second animation would have had to predict how much of the
+    growth the panel was about to absorb. The scroll is recomputed from the box on every frame of
+    the roll instead, and the box is being resized by the roll's own height animation, so it
+    inherits the roll's timing by construction; neither `MORPH_ROLL_MS` nor `EASING` is read in the
+    file and `Collapse.tsx` is untouched. Below the ceiling the arithmetic returns the position the
+    box is already at, so the uncontended case scrolls nothing at all: traced at 900x900, the panel
+    goes 390.97 to 466.97 and `scrollTop` reads 0 on every frame of both directions.
+  - **"As much as fits" needed a rule about WHO, not only about how much.** For a reader who has
+    scrolled up nothing they are looking at moves, since a section growing pushes only what is below
+    it, so the ride does nothing and the row stays under the pointer that opened it. And that claim
+    is measured on the roll's first frame rather than taken from the log's remembered copy of it,
+    which a roll falsifies without a scroll event: built on the remembered answer, the ride at
+    640x460 did nothing on the way open (correctly capped) and then eased the log 76px on the way
+    shut on a claim that had been false since the open, turning a reversible round trip into a 76px
+    drift. The height rule is the one the entry guessed at: the ride stops where the rolling
+    section's own top edge reaches the top of the window, which at 640x600 is 58px of a 206px window,
+    spent by t=181ms, with the last 21px of growth going into the scroll as before.
+  - **The second job is done and `overflow-anchor: none` gives up nothing now.** Traced with a trace
+    scrolled off the top of the window and closed: `scrollTop` eases 487 to 411 across the shrink and
+    the oldest visible bubble holds its place to under a pixel on every frame, which is the 498 to 422
+    the engine used to do and the reason decision 15 was recorded as a trade. A reader who takes the
+    scroll back outranks the ride and ends it in the frame their wheel lands. Under
+    `prefers-reduced-motion` there is no roll to ride and the log holds still, which
+    `Collapse.test.tsx` now pins by asserting that no start event is announced at all.
+- **A section rolling in the panel's chrome shrinks the log the same way, and nothing answers it.**
+  The switcher list and the reminder stack roll outside the history, so at the panel's ceiling their
+  growth comes out of the history's window rather than out of the panel, and the ride above never
+  hears them: it is subscribed to the box, and their start event goes to the panel instead. Measured
+  2026-08-03 at 640x720 on a full history: opening the chat switcher takes the history's window 293px
+  to 73px with `scrollTop` left at 408, so the reader's distance from the end of the reply goes 3px
+  to 223px in one roll, and closing it reads 3px again. The same arithmetic answers it, the ride
+  being written against a box and a section rather than against the history; what it needs is to
+  hear a roll that happens outside the box, which means the panel dispatching to it, and its own
+  measurements across the summon, a new chat and a reminder ack, where the panel is moving on its own
+  account (an arrival centres it, an interrupted ease is carried, and the ride-along is already
+  driving the bottom edge). Deferred because it is exactly reversible, the reader can scroll, and
+  the three panel motions it would have to be measured against are each their own sitting.
 - **The console's tab strip is a tab list by role but not by keyboard, and the pane being left is
   hidden from assistive tech without being untabbable.** The strip carries `role="tablist"` with a
   `role="tab"` per face and `aria-selected` on the one showing, and focus travels with the view:

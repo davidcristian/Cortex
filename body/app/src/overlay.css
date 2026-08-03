@@ -682,21 +682,22 @@
   overflow-x: clip;
   scrollbar-gutter: stable;
   /* Scroll anchoring off, because this scroll position already has a user and does not need a
-     second one. `ChatView` holds the log at its tail while the reader is at the tail, and a Thoughts
-     trace rolling open deliberately leaves `scrollTop` alone so the row stays under the pointer that
-     opened it (ADR-0035). Chromium's anchoring is an invisible third party to both, and the roll is
-     the only mid-log resize in the overlay for it to react to: everything else in here grows at the
-     tail, and the other two rolling sections are in the panel's chrome, outside the dev machine. Where it
-     did act it acted badly, because a roll measures its content at full height and then animates
-     from zero, and the anchor reads that as the log shrinking. Measured at 640x720 with a trace
-     scrolled out of the window: `scrollTop` fell 498 to 422 in one frame and walked back over the
-     roll, the whole log lurching down 76px and creeping back. Off, every frame of both directions
-     reads 498. The reachable paths were already still, and stay still: a pointer click on a row at
-     mid window (19 for every frame of the open and the close), on one straddling the top edge (71),
-     and on the newest reply's trace with the log parked at its tail (498). So this changes nothing
-     the user can do today. What it buys is that the stillness is now a property of the code rather
-     than of which node the engine chose to anchor on, which matters for a body that ships on a
-     WebView2 version this repo cannot trace. */
+     second one. `ChatView` holds the log at its tail while the reader is at the tail, a Thoughts
+     trace rolling open holds that same distance across the roll for a reader who is at the tail
+     (`overlay/logRide.ts`), and for anyone who has scrolled up the roll leaves `scrollTop` alone so
+     the row stays under the pointer that opened it (ADR-0035). Chromium's anchoring is an invisible
+     third party to all three, and the roll is the only mid-log resize in the overlay for it to react
+     to: everything else in here grows at the tail, and the other two rolling sections are in the
+     panel's chrome, outside this box. Where it did act it acted badly, because a roll measures its
+     content at full height and then animates from zero, and the anchor reads that as the log
+     shrinking. Measured at 640x720 with a trace scrolled out of the window: `scrollTop` fell 498 to
+     422 in one frame and walked back over the roll, the whole log lurching down 76px and creeping
+     back. Off, every frame of both directions read 498. The half anchoring HAD been getting right,
+     easing the log down as a trace above the window closes, is the ride's now and is done on the
+     roll's own frames: traced at 640x720, `scrollTop` eases 487 to 411 across the shrink and the
+     oldest visible bubble holds its place to under a pixel for every frame. What the line buys is
+     that all of this is a property of the code rather than of which node the engine chose to anchor
+     on, which matters for a body that ships on a WebView2 version this repo cannot trace. */
   overflow-anchor: none;
 }
 /* The history's inner column, packed to the BOTTOM so a short conversation sits against the

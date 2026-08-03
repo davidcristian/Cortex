@@ -5,9 +5,14 @@
 // gives it back). Both are refs, because both are about the DOM rather than about what is rendered,
 // and neither should re-render anything when it changes.
 
-import { type RefObject, useCallback, useLayoutEffect, useRef } from "react";
+import { type RefObject, useCallback, useEffect, useLayoutEffect, useRef } from "react";
 
-/** How close to the bottom (px) still counts as "reading the tail" for auto-scroll. */
+import { rideTail } from "./logRide";
+import { MORPHING_ATTRIBUTE, MORPH_START_EVENT } from "./morph";
+
+/** How close to the bottom (px) still counts as "reading the tail". Two things are spent on it: the
+ *  auto-scroll follows a landing reply for a reader inside it, and a section rolling open inside the
+ *  log holds their distance from the tail instead of pushing it away (`logRide.ts`). */
 const PIN_THRESHOLD_PX = 40;
 
 export interface LogScroll {
@@ -75,6 +80,40 @@ export function useLogScroll(showing: boolean): LogScroll {
       toTail();
     }
   }, [showing, toTail]);
+
+  // And the third thing that can falsify it: a section rolling open INSIDE the log. A Thoughts
+  // trace grows in the middle of a settled reply, and once the panel is at its ceiling that growth
+  // comes out of the visible window rather than out of the panel, taking the end of the reply below
+  // the fold. `rideTail` holds the reader's distance from the tail across the roll, for a reader
+  // who is at the tail; anyone who has scrolled up keeps the row under the pointer that opened it,
+  // which is the disclosure's own default and moves nothing they are reading. The threshold is this
+  // hook's, the same one the pin is drawn at, and the ride tests it against the box itself on the
+  // roll's first frame, that being the one moment in a roll where the log is still the size it was.
+  //
+  // Subscribed once, on the box itself, which the roll's own bubbling start event reaches from
+  // wherever in the log it happens. The panel's chrome rolls too (the switcher list, the reminder
+  // stack), and those sections are siblings of this box rather than children of it, so their rolls
+  // are the panel's business and never this one's.
+  const ride = useRef<(() => void) | null>(null);
+  useEffect(() => {
+    const box = ref.current;
+    const onRoll = () => {
+      const section = box.querySelector<HTMLElement>(`[${MORPHING_ATTRIBUTE}]`);
+      if (section === null) {
+        return;
+      }
+      // A roll starting while another is still in the air re-reads the distance from where the eye
+      // has the log now, rather than carrying a baseline measured against a layout that has since
+      // moved on.
+      ride.current?.();
+      ride.current = rideTail(box, section, PIN_THRESHOLD_PX);
+    };
+    box.addEventListener(MORPH_START_EVENT, onRoll);
+    return () => {
+      box.removeEventListener(MORPH_START_EVENT, onRoll);
+      ride.current?.();
+    };
+  }, []);
 
   return { ref, onScroll, toTail };
 }
