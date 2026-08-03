@@ -119,6 +119,7 @@ export function SessionList({
         <button
           type="button"
           className={`switcher-item${session.sessionId === currentId ? " current" : ""}`}
+          aria-current={session.sessionId === currentId}
           onClick={() => onSelect(session.sessionId)}
         >
           <span className="switcher-title">{session.title}</span>
@@ -155,7 +156,7 @@ export function SessionList({
   };
 
   return (
-    <ul className="switcher" role="listbox" aria-label="Recent chats">
+    <ul className="switcher" aria-label="Recent chats">
       {stack.entries.length === 0 ? (
         <li className="switcher-empty">No other chats yet</li>
       ) : (
