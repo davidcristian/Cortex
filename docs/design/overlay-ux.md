@@ -173,7 +173,14 @@ ground. One swap at three speeds reads as the window coming apart and going back
     height it remembered from before it, and made a second movement out of one. A chat change is
     a content swap, not a section toggle: the reminder stack is keyed to its session, so a new
     chat carries the stack in with the emptied panel's one movement instead of rolling it open
-    over the leaving conversation, which read as a jump (landed 2026-07-21).
+    over the leaving conversation, which read as a jump (landed 2026-07-21). **A roll INSIDE the
+    conversation carries the log with it** (landed 2026-08-03): once the panel is at its ceiling it
+    has nothing left to absorb a trace with, so the growth goes into the scroll and takes the end of
+    the reply under the composer. For a reader who is at the end of the log, the history holds that
+    same distance for every frame of the roll and hands the growth to the scroll instead, capped so
+    the trace's own top edge never leaves the window; for a reader who has scrolled up it does
+    nothing, since nothing they are looking at moves and the row should stay under the pointer that
+    opened it. The wheel outranks it, and under `prefers-reduced-motion` there is no roll to carry.
   - **A warping bubble**. The orb's mark is a soap bubble whose outline warps on its own clock
     while the film turns under a fixed highlight; the anchor point holds rock still (no breathing
     scale, no positional drift, per 2026-07-03 user refinements), so it reads as alive without

@@ -1,7 +1,12 @@
 
-import { type RefObject, useCallback, useLayoutEffect, useRef } from "react";
+import { type RefObject, useCallback, useEffect, useLayoutEffect, useRef } from "react";
 
-/** How close to the bottom (px) still counts as "reading the tail" for auto-scroll. */
+import { rideTail } from "./logRide";
+import { MORPHING_ATTRIBUTE, MORPH_START_EVENT } from "./morph";
+
+/** How close to the bottom (px) still counts as "reading the tail". Two things are spent on it: the
+ *  auto-scroll follows a landing reply for a reader inside it, and a section rolling open inside the
+ *  log holds their distance from the tail instead of pushing it away (`logRide.ts`). */
 const PIN_THRESHOLD_PX = 40;
 
 export interface LogScroll {
@@ -49,6 +54,27 @@ export function useLogScroll(showing: boolean): LogScroll {
       toTail();
     }
   }, [showing, toTail]);
+
+  const ride = useRef<(() => void) | null>(null);
+  useEffect(() => {
+    const box = ref.current;
+    const onRoll = () => {
+      const section = box.querySelector<HTMLElement>(`[${MORPHING_ATTRIBUTE}]`);
+      if (section === null) {
+        return;
+      }
+      // A roll starting while another is still in the air re-reads the distance from where the eye
+      // has the log now, rather than carrying a baseline measured against a layout that has since
+      // moved on.
+      ride.current?.();
+      ride.current = rideTail(box, section, PIN_THRESHOLD_PX);
+    };
+    box.addEventListener(MORPH_START_EVENT, onRoll);
+    return () => {
+      box.removeEventListener(MORPH_START_EVENT, onRoll);
+      ride.current?.();
+    };
+  }, []);
 
   return { ref, onScroll, toTail };
 }
