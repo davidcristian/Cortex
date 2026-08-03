@@ -70,6 +70,7 @@ jobs:
           tool: just
       - run: just check-linecap
       - run: just check-dashcheck
+      - run: just check-crosscheck
 
   python:
     needs: changes

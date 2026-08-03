@@ -194,7 +194,10 @@ Start here. Rules for working in this repo: [AGENTS.md](../AGENTS.md).
   (a fifth proto field, because a fixed byte ceiling made the shrink ladder's give-up arm
   unreachable and putting the budget on the request makes "one ceiling, two enforcers" a
   mechanism) and its validation, including the control arm that shows a projector-less turn
-  **fabricates** a desktop rather than failing.
+  **fabricates** a desktop rather than failing. Its 2026-08-03 addendum turns the last piece of
+  that mechanism from prose into a gate: `scripts/crosscheck.py`, the third cross-tree scan, ties
+  the constants declared once per language (the byte ceiling, and the seam token's metadata key)
+  by comparing declaration sites with each other rather than against a master.
 - [ADR-0030: Brain handoff (the real model swap)](adr/ADR-0030-brain-handoff.md): the Slice 11
   capstone design, **accepted**; every engineering sub-slice has landed and the host-side
   capstone (the deep-model pick, the tier-scale swap) remains. An explicit gated `escalate_to_brain`
@@ -315,8 +318,8 @@ New non-obvious decision → add `adr/ADR-XXXX-<slug>.md`, link it here.
     backends (the `Hotkey` seam; real Windows, cfg-gated stubs elsewhere).
   - [body-app.md](modules/body-app.md) covers `body/app`: the React overlay (gated 100%) + its
     host-native Tauri shell (`cortex-body`).
-  - [repo-gates.md](modules/repo-gates.md) covers `scripts/`: linecap, dashcheck, coverage gate,
-    CI path classifier, and commit-message CLIs.
+  - [repo-gates.md](modules/repo-gates.md) covers `scripts/`: linecap, dashcheck, crosscheck,
+    coverage gate, CI path classifier, and commit-message CLIs.
 
 ## Runbooks
 

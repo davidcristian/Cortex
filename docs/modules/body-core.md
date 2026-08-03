@@ -308,10 +308,12 @@ crosses the seam.
   was read may never be built from anything the brain sent.
 
 **Invariant (the byte ceiling).** `MAX_CAPTURE_BYTES` and the brain's
-`CORTEX_BODY_MAX_IMAGE_BYTES` are the same number, 6 MiB. Nothing mechanical couples the two
-constants across the language boundary; each is pinned to the literal `6291456` by a test in
-its own toolchain, and the wire's `max_bytes` hint is what lets the brain hold the body to its
-own budget rather than to a duplicated constant.
+`CORTEX_BODY_MAX_IMAGE_BYTES` are the same number, 6 MiB. Each is pinned to the literal
+`6291456` by a test in its own toolchain, and the wire's `max_bytes` hint is what lets the
+brain hold the body to its own budget rather than to a duplicated constant. The two constants
+themselves are tied by `scripts/crosscheck.py`, an unconditional cross-tree gate that reads
+both declarations and fails when they disagree, since no single-toolchain suite can see the
+other side (ADR-0029 cross-language-constant addendum).
 
 - `os::escape_xml(&str) -> String` escapes the five predefined XML entities, for a backend
   whose renderer is a markup template (the Windows toast). It is *not* applied by

@@ -2,18 +2,21 @@
 
 Deferred refinements for the repo's cross-tree gates, originating in
 [ADR-0026](../adr/ADR-0026-prose-style-gates.md), for the two Rust trees that no gate
-lints, in [ADR-0011](../adr/ADR-0011-body-v1.md), and for the test-runner mechanics in
-[ADR-0002](../adr/ADR-0002-toolchain-gates.md). Extracted from the ROADMAP's
+lints, in [ADR-0011](../adr/ADR-0011-body-v1.md), for the test-runner mechanics in
+[ADR-0002](../adr/ADR-0002-toolchain-gates.md), and for the cross-language constant
+registry in [ADR-0029](../adr/ADR-0029-vision-screen-capture.md). Extracted from the ROADMAP's
 deferred-refinements section on 2026-07-15 with the entries kept verbatim; landed
 entries are the historical record of what each deferral became, and the index at
 [index.md](index.md) carries the recommended pickup order.
 
-**Open items:** 4 (`cargo clippy` for the Tauri shell in CI, moved to fix-when-it-bites
+**Open items:** 5 (`cargo clippy` for the Tauri shell in CI, moved to fix-when-it-bites
 2026-07-16; standing test-order randomization, opened as fix-when-it-bites 2026-07-18; the three
 exceptions the wrap gate did not ship, opened as fix-when-it-bites 2026-07-19 behind the landing
 of the commit-body wrap check itself; the overlay stylesheet outside the line cap, opened as
-fix-when-it-bites 2026-08-03 behind the cap reaching the overlay's TypeScript; the rest landed
-2026-07-16, 2026-07-19 and 2026-08-03, see the outcome notes below the verbatim entries)
+fix-when-it-bites 2026-08-03 behind the cap reaching the overlay's TypeScript; the couplings the
+cross-language constant scan does not hold yet, opened as fix-when-it-bites 2026-08-03 behind
+that scan landing; the rest landed 2026-07-16, 2026-07-19 and 2026-08-03, see the outcome notes
+below the verbatim entries)
 
 **Prose style ([ADR-0026](../adr/ADR-0026-prose-style-gates.md)):**
 - **Check the commit body's 72-column wrap, not only the header's length.** Opened 2026-07-18,
@@ -230,6 +233,47 @@ fix-when-it-bites 2026-08-03 behind the cap reaching the overlay's TypeScript; t
   because the file is too long to hold in view, or a second stylesheet appearing, at which point the
   ordering question has to be answered anyway. Until then the cap covers every executable module in
   the repo and this is the one measured hole in it.
+
+**Cross-language constants ([ADR-0029](../adr/ADR-0029-vision-screen-capture.md)
+cross-language-constant addendum):**
+- **The couplings `crosscheck.py` deliberately does not hold yet.** *Fix when it bites.* Opened
+  2026-08-03 behind the scan landing, because a registry with two entries makes every unregistered
+  coupling a decision rather than an absence. A survey of the whole seam on that day, run before
+  the registry was written rather than after, found the rest, and they fall into three kinds that
+  need three different answers. **First, relations the comparator cannot express.** The scan
+  compares for equality, and three real couplings are orderings: the body's `MAX_EDGE_CEILING`
+  (4096) must stay at or below the brain's `MAX_IMAGE_EDGE` (8192), the body's `CAPTURE_MIME`
+  must stay inside the brain's `ALLOWED_MIME_TYPES`, and `cortex_body_client`'s
+  `MAX_RECEIVE_BYTES` (16 MiB) must stay above both byte ceilings. Each would need a comparator
+  and a registry field naming which one applies, which is a design, not a line.
+  **Second, copies that are not declarations.** A value spelled inside a string is invisible to a
+  scan that reads constant declarations: `docker/docker-compose.yml`'s healthcheck carries
+  `x-cortex-seam-token` inline in a one-line Python command (a fourth copy of a key the gate now
+  ties in three places, and the one whose drift would be silent), the brain's port `50051` lives
+  in the shell as `"http://127.0.0.1:50051"` against `SeamServerConfig.port`, and the body's bind
+  port `50151` is a bare literal argument in `body_server.rs` against a compose env var. Teaching
+  a constant scanner to read a shell string embedded in YAML is a different tool. **Third,
+  TypeScript, which the scan has no declaration syntax for at all.** The overlay matches wire
+  values by hand: `CAPTURE_SCREEN_TOOL` against the brain's `CAPTURE_SCREEN_TOOL_NAME`, whose
+  drift leaves the capture dot unlit, and a bare `"thinking"` literal (in `turnState.ts` and
+  twice in `Message.tsx`) against `THINKING_STATE`, whose drift leaves the reasoning trace
+  unaccumulated and its chip unstyled. Both fail silently, by a surface simply never appearing.
+  Adding `.ts` to `DECLARATIONS` is one pattern; deciding that a bare literal must first become
+  a named constant is the actual work.
+  **One of them is already divergent, which is why this is recorded rather than folded in.**
+  `TITLE_MAX` is 48 in `brain/packages/core/src/cortex_core/sessions.py` and 32 in
+  `body/app/src/overlay/sessionState.ts`, and the comment above the brain's declaration says the
+  overlay "applies the same rule and is kept documented in step, since neither side can see the
+  other's constant". It does not, and
+  [ADR-0021](../adr/ADR-0021-session-read-seam.md) records the artefact (a first
+  message of 33 to 48 characters reads longer in the switcher than in the header). Registering
+  that pair today would make the gate red on a shipped disagreement nobody has decided how to
+  resolve, and turning a gate on over an unresolved divergence is how a gate gets bypassed. So
+  the pair waits on the decision, not on the scan. **What would close it:** a comparator field
+  for the ordered relations, a `.ts` declaration syntax, and a resolution for `TITLE_MAX` (one
+  number, or an ADR saying the two bounds are deliberately different). **Trigger:** the first
+  coupling that actually drifts, or the `TITLE_MAX` decision being made for its own reasons, at
+  which point registering the pair costs three lines.
 
 **Repo gates ([ADR-0026](../adr/ADR-0026-prose-style-gates.md)):**
 - **The fail-open `scripts/` gate config closed 2026-07-12

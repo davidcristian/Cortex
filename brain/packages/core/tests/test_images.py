@@ -1,7 +1,3 @@
-"""Behavioural tests for cortex_core.images (ADR-0029): every reject branch of ``ImagePart``,
-the ``data_uri`` rendering, and the two bounds pinned against their literals.
-"""
-
 import base64
 
 import pytest
@@ -19,8 +15,7 @@ _PNG = b"\x89PNG\r\n\x1a\n"
 
 
 def test_the_byte_budget_is_six_mebibytes() -> None:
-    # The body's MAX_CAPTURE_BYTES is the same number in Rust. Nothing mechanical couples them,
-    # so each side pins the literal and the brain sends this value as the request's max_bytes.
+    # The body writes the same number as MAX_CAPTURE_BYTES in Rust; crosscheck.py compares them.
     assert MAX_IMAGE_BYTES == 6291456
     assert MAX_IMAGE_EDGE == 8192
 
@@ -79,7 +74,6 @@ def test_a_part_exactly_at_the_budget_is_accepted() -> None:
 def test_data_uri_renders_the_form_the_inference_payload_takes() -> None:
     part = ImagePart(data=_PNG, mime_type="image/png", width=4, height=4)
     assert data_uri(part) == "data:image/png;base64,iVBORw0KGgo="
-    # Independently: the tail really is standard base64 of the bytes, not a lookalike.
     assert base64.b64decode(data_uri(part).split(",", 1)[1]) == _PNG
 
 

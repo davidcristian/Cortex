@@ -1,11 +1,11 @@
 # scripts/ (`repo-gates`)
 
 **Purpose.** The repo's own gate tooling: the cross-tree line cap, the punctuating-dash
-ban, the Rust branch coverage threshold, the CI path classifier, and the commit-message
-style hook. A standalone uv project (not a brain workspace member, per ADR-0002), gated
-exactly like all other Python.
+ban, the cross-language constant check, the Rust branch coverage threshold, the CI path
+classifier, and the commit-message style hook. A standalone uv project (not a brain
+workspace member, per ADR-0002), gated exactly like all other Python.
 
-**Public contract** (all are CLIs, with `linecap.py`, `dashcheck.py`, and
+**Public contract** (all are CLIs, with `linecap.py`, `dashcheck.py`, `crosscheck.py` and
 `coverage_gate.py` invoked by `just` recipes, `ci_paths.py` by the CI workflow,
 `commitlint.py` by the commit-msg pre-commit stage; each also exposes a pure, unit-tested
 core function).
@@ -38,6 +38,26 @@ core function).
   dash that means rather than punctuates. Exit 0 with a summary; exit 1 printing
   `path:line: kind: text` per violation; exit 2 if `--root` is not a directory or a file
   cannot be read.
+- `crosscheck.py [--root DIR]` ties the constants that exist once per language because both
+  sides of the seam must hold the same value and neither toolchain can import the other's
+  (ADR-0029 cross-language-constant addendum). `CONSTANTS` is the registry: each entry is a
+  label, the reason the sites must agree (printed with any failure), and two or more `Site`s,
+  each a repo-relative path plus the identifier declared in it. Registered today: the
+  screen-capture byte ceiling (`MAX_CAPTURE_BYTES` in `body/crates/core`, `MAX_IMAGE_BYTES` in
+  `brain/packages/core`) and the seam token's metadata key (`SEAM_TOKEN_HEADER` in
+  `body/crates/rpc`'s `auth.rs` and `client.rs`, and in `brain/packages/seam`).
+  **No master:** the sites are compared with each other, not against a declared value, so
+  editing either side alone fails and a deliberate change is a change to all of them.
+  `proto/body.proto` is not the source: protobuf has no constant, so a value could only sit
+  there as a comment, which is one more uncoupled copy. Values are compared after reduction,
+  so `6291456` and `6 * 1024 * 1024` tie; the two forms that reduce are a product of integer
+  literals and a plain double-quoted string, and `DECLARATIONS` holds one declaration syntax
+  per language (`.py`, `.rs`), matching module-level and item-level constants only.
+  **Fails closed by design**, because a scan that cannot find its constants would agree with
+  itself forever: a missing file, an unreadable or non-UTF-8 one, an unknown suffix, a name
+  that is absent, one declared twice, a value it cannot reduce, and a registry entry naming
+  fewer than `MIN_SITES` (2) are each a fault, never a skip. Exit 0 with a summary; exit 1
+  printing `label: detail` per fault; exit 2 if `--root` is not a directory.
 - `coverage_gate.py PATH` reads a `cargo llvm-cov --json --summary-only` export,
   requires exactly one `data[]` entry, and gates each of
   `data[0].totals.{lines,regions,branches}` on `covered == count` (the producer's
@@ -86,6 +106,10 @@ core function).
 **Invariants.**
 - stdlib-only modules; pure cores (`scan`, `evaluate`/`check`, `classify`) unit-tested
   to 100% line+branch; the only coverage pragmas are the `__main__` guard lines.
+- `crosscheck.py`'s registry is checked against the real trees by its own suite
+  (`test_the_repo_itself_is_tied`), so `check-scripts` catches a drift even when
+  `check-crosscheck` is not the recipe that runs. Registering a constant in a language
+  `DECLARATIONS` does not know, or inside a single tree, is refused by that suite too.
 - The exclusion lists above are the single definition of "non-test source file" and
   "generated code" for the cap. Change them only with an ADR update.
 - `dashcheck.py`, `commitlint.py`, and their tests spell the dashes as `\uXXXX` escapes

@@ -35,7 +35,7 @@ its signature.
 
 | Doc | Area | Open |
 | --- | --- | --- |
-| [repo-gates.md](repo-gates.md) | Line cap, dashcheck, coverage config (ADR-0026), gate coverage of the ungated Rust trees and of the overlay's TypeScript (ADR-0011), the stylesheet still outside the cap, test-runner mechanics (ADR-0002) | 4 |
+| [repo-gates.md](repo-gates.md) | Line cap, dashcheck, coverage config (ADR-0026), gate coverage of the ungated Rust trees and of the overlay's TypeScript (ADR-0011), the stylesheet still outside the cap, test-runner mechanics (ADR-0002), the couplings the cross-language constant scan does not hold yet (ADR-0029) | 5 |
 | [seam-transport.md](seam-transport.md) | `BrainTransport` retry/reconnect (ADR-0003/0024) | 4 |
 | [seam-auth.md](seam-auth.md) | Seam token auth (ADR-0016) | 1 |
 | [session-history.md](session-history.md) | Slice 3 history windowing and summarization | 1 |
@@ -50,7 +50,7 @@ its signature.
 | [email-confirmer.md](email-confirmer.md) | Email write, Confirmer, attachments, `ToolActivity` chip (ADR-0022) | 4 |
 | [body-gateway.md](body-gateway.md) | Body gateway, OS actions, hardened posture (ADR-0023) | 5 |
 | [scheduling.md](scheduling.md) | Scheduling and reminders, `TurnStamp` provenance (ADR-0025/0027) | 8 |
-| [vision.md](vision.md) | Screen capture, images, the pixel boundary (ADR-0029) | 18 |
+| [vision.md](vision.md) | Screen capture, images, the pixel boundary (ADR-0029) | 17 |
 | [cross-cutting.md](cross-cutting.md) | Pointer input, OS backends, more roles | 3 |
 
 The counts are per area as extracted; a few threads appear in two areas (the cross-cutting
@@ -752,6 +752,31 @@ the other thing outside, and it is a decision rather than a deferral: capping `p
 (314) would put a gate in direct conflict with AGENTS.md's own invariant that the seam is defined
 once, in one file.
 
+Vision went **18 to 17 and repo gates 4 to 5 on 2026-08-03**, from the third cross-tree scan
+landing beside the other two, and the entry that asked for it turned out to be wrong about itself
+in the direction that matters. It claimed the two byte ceilings had "nothing mechanical coupling
+them: an edit to one leaves both suites green". Measured before building anything, per this file's
+own warning that a cost claim is a hypothesis: an edit to `MAX_CAPTURE_BYTES` **alone** fails
+`body-core`'s suite at exit 101, because that side pins its own literal. What actually drifts is an
+edit to the constant and its pin together, which is the ordinary shape of a deliberate change to
+one side rather than a careless one, and with both raised to 8 MiB the Rust and Python suites are
+all green while the trees disagree by 2 MiB. So the pin was not weak enforcement of the coupling,
+it was enforcement of the wrong thing: a suite can only ever compare a tree with itself. The
+estimate held (one small script, `scripts/crosscheck.py`, wired into `just check` and CI's
+unconditional `cross-tree` job) but the shape did not. Rather than asserting one pair, it holds a
+registry of constants, each naming two or more declaration sites, comparing the sites with each
+other rather than against a master so that editing either side alone fails; `proto/body.proto` is
+not that master, because protobuf has no constant and a number in a comment there would be a third
+uncoupled copy of the kind the 1600 px default edge already has four of
+([ADR-0029](../adr/ADR-0029-vision-screen-capture.md) cross-language-constant addendum). What
+increments repo gates is the survey that shape forced: the seam token's metadata key rode along as
+a second entry, three hand-written declarations with nothing comparing them, and everything else
+found is now a written deferral rather than an absence, in three kinds the scan cannot hold today
+(ordered relations rather than equalities, values spelled inside strings, and TypeScript). One of
+them, `TITLE_MAX`, is **already divergent** at 48 against 32, so registering it would turn a gate
+on over a shipped disagreement nobody has decided how to resolve, and it waits on that decision
+rather than on the scanner ([repo-gates.md](repo-gates.md)).
+
 ## Recommended order
 
 Ordered by what unblocks the most value soonest. Before starting any item, verify its claims
@@ -944,13 +969,18 @@ premise was struck across the docs that same day.
   fields ADR-0029 deliberately refused to add without a consumer, so it is a seam change with a
   design attached rather than an increment. Take the env var first and measure before spending
   the fields.
-- **A cross-language check on the byte ceiling** ([vision.md](vision.md)): the body's
-  `MAX_CAPTURE_BYTES` and the brain's `MAX_IMAGE_BYTES` are the same 6 MiB, each pinned to the
-  literal in its own toolchain, with **nothing mechanical coupling them**: an edit to one leaves
-  both suites green. Not a seam change but a **gate** change, a small scan beside `linecap.py`
-  and `dashcheck.py`. The wire's `max_bytes` hint already means a disagreement tightens rather
-  than breaks, which is why this is the cheapest honest item in the area rather than the most
-  urgent.
+- **A cross-language check on the byte ceiling** ([vision.md](vision.md)), open from 2026-07-18
+  and **closed 2026-08-03** as `scripts/crosscheck.py`, the third cross-tree scan. Its cost
+  estimate held ("one small script" beside `linecap.py` and `dashcheck.py`) and its diagnosis did
+  not, in the direction this section's own warning is about. "An edit to one leaves both suites
+  green" is not what happens: each side's pin catches an edit to its constant alone, at exit 101,
+  and what actually drifts is an edit to the constant **and** its pin, which is the ordinary shape
+  of a deliberate change to one side. The scan therefore compares declaration **sites** with each
+  other rather than asserting two literals against a number, holds a registry so the next coupling
+  costs three lines instead of a rewrite, and fails closed on every way of not finding a value,
+  since a scan that cannot find its constants would agree with itself forever. It was also filed
+  under this heading and needed no seam change at all, which the entry itself said. The couplings
+  the registry deliberately does not hold yet moved to [repo-gates.md](repo-gates.md).
 - **An outcome-driven capture indicator** ([vision.md](vision.md)): the overlay's capture dot is
   lit by the `ToolActivity` chip, which the brain emits just *before* the dispatch, so it can
   honestly say the assistant **asked** to look at the screen and no more. A capture the host kill
@@ -1396,7 +1426,18 @@ decision: `body/app/src/overlay.css` is 2420 lines and uncapped on the argument 
 cascade whose ordering is load-bearing, whose fix is a split by layer imported in a fixed order from
 one entry sheet (one suffix in the scanner, everything else in the CSS), and whose trigger is an
 edit landing in the wrong cascade position because the file is too long to hold in view, or a second
-stylesheet appearing and forcing the ordering question anyway ([repo-gates.md](repo-gates.md)).
+stylesheet appearing and forcing the ordering question anyway ([repo-gates.md](repo-gates.md)); and
+the couplings the cross-language constant scan does not hold yet, opened here on 2026-08-03 behind
+that scan landing, which turned every unregistered coupling into a decision rather than an absence,
+in three kinds needing three answers (ordered relations the equality comparator cannot express, such
+as `MAX_EDGE_CEILING` at or below `MAX_IMAGE_EDGE`; values spelled inside strings rather than
+declared, such as the compose healthcheck's fourth copy of the seam-token key and the two ports; and
+TypeScript, which the scan has no declaration syntax for, where the overlay matches `capture_screen`
+and `thinking` against the brain by hand), whose fix is a comparator field, a `.ts` syntax, and a
+resolution for the one pair that is **already divergent** (`TITLE_MAX`, 48 in the brain against 32
+in the overlay, which is why registering it today would turn a gate on over a shipped disagreement),
+and whose trigger is the first coupling that actually drifts or that `TITLE_MAX` decision being made
+for its own reasons ([repo-gates.md](repo-gates.md)).
 
 Four entries opened by the brain-handoff sub-slices were written up in their area docs and in the
 narrative above but had no line here until 2026-07-19, so nothing said when to pick them up.
