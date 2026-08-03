@@ -36,6 +36,14 @@ fidelity including the `scope`, and scope-filter isolation/union) against real p
 proving the adapter's SQL, which CI's canned-row fake cannot. The test cleans up its own
 `contract-%` rows.
 
+**It needs the `memories` table to be empty**, unlike the live Redis suites, which take a
+logical database of their own. Two of its checks assert over the whole table (`check_empty_search`
+wants `search(k=5)` to come back empty, `check_ranks_by_similarity` wants an exact top-2), so a
+single real memory reddens the run over a correct adapter and the failure looks like an adapter
+bug. If that happens, check `select count(*) from memories where id not like 'contract-%'` before
+reading anything into the assertion. Giving this suite its own Postgres database or schema is
+recorded in [docs/refinements/repo-gates.md](../refinements/repo-gates.md).
+
 ## Memory scoping (ADR-0008 scoping addendum)
 
 Recall is **global by default** (`CORTEX_MEMORY_SCOPE=global`). Memories are one shared space

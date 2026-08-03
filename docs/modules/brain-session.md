@@ -246,7 +246,9 @@ corrupt record between the ends, a fatal one at either end named by its true ind
 title persisted under its own key and read back truncated; and, over the raw keyspace, the pinned
 set holding/dropping its member, the union lifting a pinned old chat past the window, and a
 dangling pinned entry skipped). The `list_sessions` check filters the global list to the ids it
-created, so it is safe against a shared live server. `tests/task_contract.py`
+created, which narrows the read to one row but cannot rescue a check whose fixtures were crowded
+out of the window in the first place; that is the live runs' isolated database, below.
+`tests/task_contract.py`
 does the same for the `TaskStore` (missing→None, task/result round-trip, timezone fidelity) over
 `InMemoryTaskStore` and `RedisTaskStore`, plus disconnected/corrupt-record failure tests.
 `tests/schedule_contract.py` does it for the `ScheduleStore`. The fenced protocol is the
@@ -267,22 +269,23 @@ mechanics (error wrapping per operation, strict corrupt-record policy over each 
 fields and a forged provenance kind, terminal-only TTL, dangling/terminal pointer self-healing)
 against the Redis adapter alone. The
 integration-marked tests in `tests/test_store_live.py`, `tests/test_handoff_live.py`, and
-`tests/test_schedule_live.py` run the suites against real Redis at `CORTEX_REDIS_URL`
+`tests/test_schedule_live.py` run the suites against real Redis
 (excluded from CI/coverage by the workspace addopts; run manually:
 `cd brain && uv run pytest -m integration --no-cov packages/session`. Here the `--no-cov`
-matters, the 100% gate in addopts would otherwise fail the run). All three clean up after
-themselves the same way: every check works on ids prefixed `contract-`, and a `_sweep`
-helper removes records **and every index member** carrying that prefix, by pattern rather
-than by a list of ids the checks handed back (the handoff sweep also releases the
-`cortex:handoff:active` pointer when a contract id claims it). It runs after each check and
-again in a
-`finally`, so a check that FAILS is swept too. Sweeping the index is not optional bookkeeping:
-a `cortex:sessions` member outlives the message list it names, and enough of them push a
-check's own sessions out of the `limit=50` window it asserts over, so a single failed run
-used to poison every later one. The schedule live test additionally **skips when real
-schedules exist** (its checks assert exact global views and claim whatever is due, so it
-refuses to disturb them), and the handoff live test skips when a real (non-contract) handoff
-is active, for the same reason.
+matters, the 100% gate in addopts would otherwise fail the run). All three take their store
+from `tests/live_redis.py`, which is the one place that knows how a live run is isolated: it
+rewrites `CORTEX_REDIS_URL` onto **its own logical database** (`LIVE_DB`, database 15, which
+production never selects) and its `reset` empties that database before the suite and again
+after every check, including a check that FAILS. So each check starts from the same empty
+store the fakeredis fixture gives it, which is what lets these three suites be the identical
+suites the fixture runs rather than hedged versions of them, and no real session, schedule, or
+handoff is read, written, or deleted. Two guards keep the flush honest: the URL rewrite refuses
+a `CORTEX_REDIS_URL` that already selects `LIVE_DB`, and `reset` re-reads the database its
+client actually opened before flushing anything. Nothing about this reaches the adapters, which
+keep their key layouts and gained no prefix, namespace, or database argument (ADR-0002 addendum
+on the live-run database). This replaces the earlier prefix sweeps, which had to restate each
+adapter's key layout inside the test, and the schedule and handoff suites' skips, which reported
+green while asserting nothing whenever the shared database held a real record.
 
 **Invariants.**
 - State outlives every process: nothing is cached in the adapter; every read hits

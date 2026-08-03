@@ -35,7 +35,7 @@ its signature.
 
 | Doc | Area | Open |
 | --- | --- | --- |
-| [repo-gates.md](repo-gates.md) | Line cap, dashcheck, coverage config (ADR-0026), gate coverage of the ungated Rust trees and of the overlay's TypeScript (ADR-0011), the stylesheet still outside the cap, test-runner mechanics (ADR-0002), the couplings the cross-language constant scan does not hold yet (ADR-0029) | 5 |
+| [repo-gates.md](repo-gates.md) | Line cap, dashcheck, coverage config (ADR-0026), gate coverage of the ungated Rust trees and of the overlay's TypeScript (ADR-0011), the stylesheet still outside the cap, test-runner mechanics (ADR-0002) including the live pgvector run still sharing the brain's `memories` table (the live Redis runs got a database of their own 2026-08-03), the couplings the cross-language constant scan does not hold yet (ADR-0029) | 6 |
 | [seam-transport.md](seam-transport.md) | `BrainTransport` retry/reconnect (ADR-0003/0024) | 4 |
 | [seam-auth.md](seam-auth.md) | Seam token auth (ADR-0016) | 1 |
 | [session-history.md](session-history.md) | Slice 3 history windowing and summarization | 1 |
@@ -45,7 +45,7 @@ its signature.
 | [inference-model-manager.md](inference-model-manager.md) | Model-manager lifecycle, MTP, reasoning status (ADR-0007/0020) | 7 |
 | [subagents.md](subagents.md) | Progress reporting, spawn schema, heterogeneous roster (ADR-0010/0018) | 2 |
 | [body-overlay.md](body-overlay.md) | Overlay polish, connection indicator, proto Cancel (ADR-0011), the two motions the switcher's list still makes in one frame, the composer's move on a clamped shrink, the reserved scrollbar rail's assumed width and spent card inset, a mid-stream retarget restarting from a rounded height, a Thoughts trace opening a reply off the bottom of a full history, the two bounds the panel's section budget left behind it (a section's own frame being under no cap, and the room a closing section hands back arriving in one frame), the chat switcher claiming a listbox role its own rows do not satisfy, and the whisper's follow-ups (ADR-0037): a pickable voice row, a mid-stream resize keeping the old wrap width, and kerning inside the letter boxes under a changed font (its drain-growth entry landed the day it was filed, and the console outliving a new chat, the reminder stack's per-row exit and the switcher's, the panel's watch on its own box with the arrival-aside correction that came out of it, the demo bridge over the line cap, two sections outrunning the panel on their own, the chat floor's frozen measurement of the empty state, and the console tab strip's missing keyboard half all landed 2026-08-03), and a resize that lands inside the panel's own move waiting for it | 15 |
-| [session-read-seam.md](session-read-seam.md) | Session listing/read seam (ADR-0021) | 3 |
+| [session-read-seam.md](session-read-seam.md) | Session listing/read seam (ADR-0021) | 2 |
 | [resource-governance.md](resource-governance.md) | Scheduler/placer budgets, NPU, drain (ADR-0012) | 5 |
 | [email-confirmer.md](email-confirmer.md) | Email write, Confirmer, attachments, `ToolActivity` chip (ADR-0022) | 4 |
 | [body-gateway.md](body-gateway.md) | Body gateway, OS actions, hardened posture (ADR-0023) | 5 |
@@ -1548,8 +1548,10 @@ fallback, the
 hardened non-loopback posture, a safe Core Audio wrapper, and the unbalanced COM
 initialization the blocking-pool hop made visible, whose trigger is a COM failure or thread
 growth on Windows after a long session
-([body-gateway.md](body-gateway.md)); paging/cursor and the live-suite fixed-window residual
-([session-read-seam.md](session-read-seam.md)); the Postgres durable twin, cron expressions,
+([body-gateway.md](body-gateway.md)); paging/cursor, the live-suite fixed-window residual having
+closed 2026-08-03 when the live Redis runs took a logical database of their own
+([session-read-seam.md](session-read-seam.md), [repo-gates.md](repo-gates.md)); the Postgres
+durable twin, cron expressions,
 and automated dead-letter retention, joined on 2026-07-16 by the push retry policy beyond
 next-poll-pull (sharpened when task-outcome delivery landed: the safe retry is the
 deliverable-until-acked pull, and a proactive re-push double-delivers because a stable

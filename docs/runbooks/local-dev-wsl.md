@@ -149,14 +149,24 @@ probe of the same RPC (it is what the container healthcheck runs):
 cd brain && uv run python -c "import grpc, cortex_seam as seam; print(seam.BrainServiceStub(grpc.insecure_channel('127.0.0.1:50051')).Health(seam.HealthRequest(), timeout=5))"
 ```
 
-The live-Redis contract suite (integration-marked, excluded from CI/coverage) runs
-against `CORTEX_REDIS_URL`. Pass `--no-cov` because the workspace's 100% coverage
-gate is meaningless for (and would fail) an integration-only selection:
+The live-Redis contract suites (integration-marked, excluded from CI/coverage) run the
+`SessionStore`, `HandoffStore`, and `ScheduleStore` contracts against a real server. Pass
+`--no-cov` because the workspace's 100% coverage gate is meaningless for (and would fail) an
+integration-only selection:
 
 ```sh
 docker compose up -d redis
 cd brain && uv run pytest -m integration --no-cov packages/session
 ```
+
+They reach the same server `CORTEX_REDIS_URL` names but **select database 15**, which the brain
+never opens, and they empty it before the suite and after every check. So the run is safe on a
+machine carrying real state, it needs no cleanup of yours, and each check gets the empty store
+the fakeredis fixture gives it (`brain/packages/session/tests/live_redis.py`, decided in the
+[ADR-0002](../adr/ADR-0002-toolchain-gates.md) addendum on the live-run database). Two things
+follow for you. Do not point `CORTEX_REDIS_URL` at database 15; the run refuses to start if you
+do, rather than emptying the brain's state. And if you want to inspect what a run left behind,
+look in database 15 (`redis-cli -n 15`) while it is paused, since the next `reset` clears it.
 
 ## Regenerating seam stubs
 

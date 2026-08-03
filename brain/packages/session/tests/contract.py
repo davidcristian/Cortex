@@ -136,7 +136,7 @@ async def check_set_pinned_marks_and_clears_the_summary(store: SessionStore) -> 
     """``set_pinned`` toggles ``SessionSummary.pinned``, idempotent by value (pinning addendum).
 
     A chat lists unpinned by default; pinning marks it, pinning again is a no-op, and unpinning
-    clears it. Robust against a shared live server by filtering to its own id.
+    clears it. It filters to its own id, so the read names one row.
     """
     session_id = _session_id()
     await store.append(session_id, make_message(Role.USER, "toggle my pin"))

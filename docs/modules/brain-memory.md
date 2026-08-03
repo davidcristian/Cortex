@@ -53,7 +53,12 @@ stores float4, so embeddings roundtrip at single precision (irrelevant to simila
   canned-row fake `Database` (the asyncpg analog of `httpx.MockTransport`), with no Postgres, no
   network. The behavioral contract against real pgvector is the `integration`-marked
   `tests/test_pgvector_live.py` (`CORTEX_MEMORY_DSN`), excluded from CI + coverage; run per
-  `docs/runbooks/memory-pgvector.md`.
+  `docs/runbooks/memory-pgvector.md`. That live run **needs the `memories` table to be empty**
+  and does not yet get a database of its own the way the live Redis suites do:
+  `memory_contract.check_empty_search` asserts `search(k=5) == []` over the whole table and
+  `check_ranks_by_similarity` asserts an exact top-2, so a single real memory reddens it over a
+  correct adapter. Deferral and the Postgres-side cure are in
+  [docs/refinements/repo-gates.md](../refinements/repo-gates.md).
 
 **Dependencies.** cortex-core (the `MemoryStore` port, `MemoryRecord`/`ScoredMemory`, typed
 errors), asyncpg (+ asyncpg-stubs for typing). The composition root

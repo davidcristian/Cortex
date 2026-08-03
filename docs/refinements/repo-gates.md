@@ -9,14 +9,15 @@ deferred-refinements section on 2026-07-15 with the entries kept verbatim; lande
 entries are the historical record of what each deferral became, and the index at
 [index.md](index.md) carries the recommended pickup order.
 
-**Open items:** 5 (`cargo clippy` for the Tauri shell in CI, moved to fix-when-it-bites
+**Open items:** 6 (`cargo clippy` for the Tauri shell in CI, moved to fix-when-it-bites
 2026-07-16; standing test-order randomization, opened as fix-when-it-bites 2026-07-18; the three
 exceptions the wrap gate did not ship, opened as fix-when-it-bites 2026-07-19 behind the landing
 of the commit-body wrap check itself; the overlay stylesheet outside the line cap, opened as
 fix-when-it-bites 2026-08-03 behind the cap reaching the overlay's TypeScript; the couplings the
 cross-language constant scan does not hold yet, opened as fix-when-it-bites 2026-08-03 behind
-that scan landing; the rest landed 2026-07-16, 2026-07-19 and 2026-08-03, see the outcome notes
-below the verbatim entries)
+that scan landing; the live pgvector run still sharing the brain's `memories` table, opened as
+fix-when-it-bites 2026-08-03 behind the live Redis runs getting a database of their own; the rest
+landed 2026-07-16, 2026-07-19 and 2026-08-03, see the outcome notes below the verbatim entries)
 
 **Prose style ([ADR-0026](../adr/ADR-0026-prose-style-gates.md)):**
 - **Check the commit body's 72-column wrap, not only the header's length.** Opened 2026-07-18,
@@ -90,6 +91,50 @@ below the verbatim entries)
   `pytest-randomly` to the brain (and `scripts/`) dev dependencies with the seed printed by the
   header it already emits. The `just check` recipes are unchanged for now
   ([ADR-0002 addendum](../adr/ADR-0002-toolchain-gates.md)).
+- **The live contract runs shared the brain's own Redis keyspace.** Found and closed the same
+  day, 2026-08-03, so it is recorded here as what it was rather than as work waiting. This is not
+  a new deferral so much as an old one that had been mis-sized: the
+  [ADR-0021 sweep addendum](../adr/ADR-0021-session-read-seam.md) recorded on 2026-07-14 that the
+  live session checks read a fixed recency window with fixture dates in the past, so real sessions
+  more recent than those crowd them out, and it sized the residual against a `limit=50` window,
+  meaning fifty real sessions before it would bite. Two days later the pinning addendum landed a
+  `limit=3` check on the same assumption and the trigger silently fell from fifty to three; the
+  residual was not resized, and the entry in
+  [session-read-seam.md](session-read-seam.md) still carried the fifty. So it had been latent
+  since 2026-07-16 and failing in practice since the compose Redis first held three real sessions
+  dated after the fixtures, which its oldest surviving one puts at 2026-07-21 or earlier: roughly
+  a fortnight of a live run that would have blamed a correct adapter, unnoticed because these
+  suites are run by hand. Reproduced on 2026-08-03 with sixteen real sessions present. **What it
+  became:** the live runs select a Redis logical database of their own
+  (`brain/packages/session/tests/live_redis.py`, database 15, which production never selects) and
+  empty it before the suite and after every check, so every check starts from the empty store the
+  fakeredis fixture already gives it. That also closed two siblings of the same defect wearing the
+  other mask: the schedule and handoff live suites used to **skip** whenever the shared database
+  held a real record, reporting green while asserting nothing, and both skips are gone because
+  there is nothing real in that database to protect. The prefix sweeps went with them, and with
+  them a coupling that restated each adapter's key layout inside the test. Decision, rejected
+  alternatives, and evidence in the
+  [ADR-0002 addendum on the live-run database](../adr/ADR-0002-toolchain-gates.md). The lesson
+  worth keeping is the one this entry is filed under: a recorded residual is sized against the
+  code that existed when it was written, and a later change can lower its trigger without anyone
+  reading it again.
+- **The live pgvector run still shares the brain's `memories` table.** *Fix when it bites.*
+  Opened 2026-08-03 behind the Redis fix above, which does not reach it: Postgres isolation is a
+  different mechanism, a dedicated database or a schema plus a `search_path`, with
+  `docker/postgres/init.sql` applied to it, so it is its own piece of work rather than one more
+  line in the same helper. The exposure is real and was measured, not assumed:
+  `memory_contract.check_empty_search` asserts `search(k=5) == []` over the whole table and
+  `check_ranks_by_similarity` asserts an exact top-2, so with Postgres up and the table empty the
+  suite passes, and inserting a single real (non `contract-`) memory row reddens
+  `check_empty_search` at `memory_contract.py:36` with no code changed. It waits because the table
+  is empty on this machine today, so the suite is currently honest, and because the two checks
+  that need the whole table could alternatively be re-derived to assert within a `contract-` scope
+  (`search(..., scopes=[...])` already exists), which is a smaller change that trades some of the
+  contract's reach for it. **Trigger:** the first live memory run on a machine that has actually
+  remembered something, or any pgvector failure whose first suspect should be
+  `select count(*) from memories where id not like 'contract-%'`. Recorded at the module doc
+  ([brain-memory.md](../modules/brain-memory.md)) and in its runbook
+  ([memory-pgvector.md](../runbooks/memory-pgvector.md)) so the failure is legible when it lands.
 
 **Gate coverage ([ADR-0011](../adr/ADR-0011-body-v1.md)):**
 - **`cargo fmt` and `cargo clippy` for the two ungated Rust trees.** `just check-body` runs
