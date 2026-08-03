@@ -44,7 +44,7 @@ its signature.
 | [memory.md](memory.md) | Store, scoping, rerank/MMR (ADR-0008) | 8 |
 | [inference-model-manager.md](inference-model-manager.md) | Model-manager lifecycle, MTP, reasoning status (ADR-0007/0020) | 7 |
 | [subagents.md](subagents.md) | Progress reporting, spawn schema, heterogeneous roster (ADR-0010/0018) | 2 |
-| [body-overlay.md](body-overlay.md) | Overlay polish, connection indicator, proto Cancel (ADR-0011), the composer's move on a clamped shrink, the reserved scrollbar rail's assumed width and spent card inset, a mid-stream retarget restarting from a rounded height, a Thoughts trace opening a reply off the bottom of a full history, the two bounds the panel's section budget left behind it (a section's own frame being under no cap, and the room a closing section hands back arriving in one frame), the chat cycle keys swapping the conversation without saying so, and the whisper's follow-ups (ADR-0037): a pickable voice row, a mid-stream resize keeping the old wrap width, and kerning inside the letter boxes under a changed font (its drain-growth entry landed the day it was filed, and the console outliving a new chat, the reminder stack's per-row exit and the switcher's, the panel's watch on its own box with the arrival-aside correction that came out of it, the demo bridge over the line cap, two sections outrunning the panel on their own, the chat floor's frozen measurement of the empty state, the console tab strip's missing keyboard half, the switcher's disputed listbox role, and the two motions its list still made in one frame all landed 2026-08-03), and a resize that lands inside the panel's own move waiting for it | 14 |
+| [body-overlay.md](body-overlay.md) | Overlay polish, connection indicator, proto Cancel (ADR-0011), the composer's move on a clamped shrink, the reserved scrollbar rail's assumed width and spent card inset, a mid-stream retarget restarting from a rounded height, a section rolling in the panel's chrome shrinking the log without the log answering, the two bounds the panel's section budget left behind it (a section's own frame being under no cap, and the room a closing section hands back arriving in one frame), the chat cycle keys swapping the conversation without saying so, and the whisper's follow-ups (ADR-0037): a pickable voice row, a mid-stream resize keeping the old wrap width, and kerning inside the letter boxes under a changed font (its drain-growth entry landed the day it was filed, and the console outliving a new chat, the reminder stack's per-row exit and the switcher's, the panel's watch on its own box with the arrival-aside correction that came out of it, the demo bridge over the line cap, two sections outrunning the panel on their own, the chat floor's frozen measurement of the empty state, the console tab strip's missing keyboard half, the switcher's disputed listbox role, the two motions its list still made in one frame, and a Thoughts trace opening a reply off the bottom of a full history all landed 2026-08-03, the last of them opening the chrome-side entry above), and a resize that lands inside the panel's own move waiting for it | 14 |
 | [session-read-seam.md](session-read-seam.md) | Session listing/read seam (ADR-0021) | 2 |
 | [resource-governance.md](resource-governance.md) | Scheduler/placer budgets, NPU, drain (ADR-0012) | 5 |
 | [email-confirmer.md](email-confirmer.md) | Email write, Confirmer, attachments, `ToolActivity` chip (ADR-0022) | 4 |
@@ -917,6 +917,25 @@ is deliberately left an 11px step, a line's 39px replaced by a row's 50, which i
 the row exit already recorded and defended: a removal is a gap that has to close before the eye can
 follow it, an arrival is already where it belongs.
 
+Body & overlay then **held at 14 on 2026-08-03**, when a Thoughts trace opening a reply off the
+bottom of a full history landed and opened one entry behind it, which is the backlog working as
+intended. The fix is the tail pin held across a roll: while the reader is at the end of the log,
+`overlay/logRide.ts` holds their distance from it for every frame of the roll, so the growth comes
+out of the scroll rather than out of the reply, and a reader who has scrolled up is left alone.
+Traced at 640x720 the distance reads 3px on every frame of both directions where it had run 3 to 79,
+with `scrollTop` going 408 to 484 and back inside the roll's own 300ms. The entry was wrong twice, in
+the two ways this file keeps finding. Its measured setup no longer exists (it names the reminder
+stack, which is gated on an empty log, and a 547px ceiling that reads 450px now), though the
+condition that always mattered, the panel having nothing left to give, reproduces on a long enough
+history. And its prescription, a second animation sharing `Collapse`'s clock, would have had to
+predict how much of the growth the panel was about to absorb; recomputing the scroll from the box on
+every frame needs no prediction, inherits the clock and the curve by construction, and leaves
+`Collapse.tsx` untouched. One thing the entry did not have at all: the log's remembered "the reader
+is at the tail" goes stale across exactly this roll, and built on it the closing direction eased 76px
+on a claim that had been false since the open. The entry it opened is the same defect from the other
+side, the switcher list and the reminder stack shrinking the log's window from outside the box, where
+the ride never hears their roll.
+
 ## Recommended order
 
 Ordered by what unblocks the most value soonest. Before starting any item, verify its claims
@@ -1078,17 +1097,33 @@ against the code (the warning above); the entry text tells you which seams it ex
   empty state to 201px, and the measured floor holds the panel at 368px across the send where the
   frozen 185px drops it to 352.
 - **A Thoughts trace opening a reply off the bottom of a full history**
-  ([body-overlay.md](body-overlay.md)), open from 2026-07-20, when the disclosure learned to roll.
-  The roll leaves the history's `scrollTop` alone, which is the right default (the row stays under
-  the pointer that opened it) and costs the tail of the reply once the panel can no longer grow:
-  measured at 640x720 with the reminder stack up, the disclosure's top edge held for every frame of
-  the roll and 76px of answer went below the fold, or the whole of it with a trace at its `28vh`
-  cap. The reader can scroll and closing the trace undoes it exactly, so it is comfort rather than a
-  defect. The fix is a scroll animation on the roll's own clock and curve, moving by as much of the
-  growth as falls below the fold and no more. It has a second job now: `.history` turned scroll
-  anchoring off ([ADR-0035](../adr/ADR-0035-console-and-motion.md) decision 15) after the engine's version
-  of it lurched the log 76px on the way open, and easing the log down as a trace above the fold
-  closes was the half it had been getting right.
+  ([body-overlay.md](body-overlay.md)), open from 2026-07-20, when the disclosure learned to roll,
+  and **landed 2026-08-03** ([ADR-0035 addendum](../adr/ADR-0035-console-and-motion.md)). The roll
+  left the history's `scrollTop` alone and cost the tail of the reply once the panel could no longer
+  grow: the distance from the log's bottom edge to the end of the answer ran 3px to 79px over one
+  76px trace. It is the tail pin held across a roll now (`overlay/logRide.ts`): while the reader is
+  at the end of the log, their distance from it reads the same on every frame of the roll, traced at
+  640x720 as 3px throughout both directions with `scrollTop` running 408 to 484 and back, the largest
+  single frame 12px, and the movement landing inside the roll's own 300ms. A reader who has scrolled
+  up is left alone, since a section growing pushes only what is below it. The entry was wrong twice
+  over. Its setup does not reproduce (the reminder stack is gated on an empty log and the ceiling at
+  that viewport reads 450px, not 547px), and the second animation it prescribed is not what landed:
+  the scroll is recomputed from the box on every frame of the roll, and the box is being resized by
+  the roll's own height animation, so it inherits the clock and the curve by construction with
+  `Collapse.tsx` untouched and no prediction of what the panel is about to absorb. The second job is
+  done too, so `overflow-anchor: none` now gives up nothing: closing a trace scrolled off the top of
+  the window eases `scrollTop` 487 to 411 with the visible content holding to under a pixel. It
+  opened one entry behind it, the panel's own chrome shrinking the log from outside the box.
+- **A section rolling in the panel's chrome shrinks the log, and nothing answers it**
+  ([body-overlay.md](body-overlay.md)), open from 2026-08-03, when the ride above landed. The
+  switcher list and the reminder stack roll outside the history, so at the panel's ceiling their
+  growth comes out of the history's window rather than out of the panel, and the ride is subscribed
+  to the box their start event never reaches. Measured at 640x720 on a full history: opening the chat
+  switcher takes the window 293px to 73px with `scrollTop` left at 408, so the reader's distance from
+  the end of the reply goes 3px to 223px, and closing it reads 3px again. The same arithmetic answers
+  it and the ride is already written against a box and a section rather than against the history;
+  what it needs is the panel dispatching to it, plus its own measurements across the summon, a new
+  chat and a reminder ack, where the panel is moving on its own account.
 - **The console's tab strip is a tab list by role but not yet by keyboard, and the pane it is
   leaving stays tabbable while it fades** ([body-overlay.md](body-overlay.md)), open from
   2026-07-20, when the two settings views became one console, and **both halves closed 2026-08-03**

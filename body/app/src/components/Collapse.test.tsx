@@ -364,14 +364,16 @@ describe("Collapse", () => {
     expect(screen.queryByText("rows")).toBeNull();
   });
 
-  it("schedules nothing under prefers-reduced-motion", () => {
+  it("schedules nothing under prefers-reduced-motion, and announces no start either", () => {
     const { rolls } = stubBrowser();
     stubMotionPreference(true);
+    const started: string[] = [];
     const view = render(
       <Collapse open>
         <p>rows</p>
       </Collapse>,
     );
+    view.container.addEventListener("cortex:morphstart", () => started.push("start"));
     view.rerender(
       <Collapse open={false}>
         <p>rows</p>
@@ -379,6 +381,10 @@ describe("Collapse", () => {
     );
     expect(rolls).toEqual([]);
     expect(screen.queryByText("rows")).toBeNull();
+    // The silence is load bearing for the log underneath: its scroll rides a roll off this event
+    // (`overlay/logRide.ts`), so a roll that is not a motion leaves the reader's place alone, which
+    // is what a disclosure did before it learned to roll at all.
+    expect(started).toEqual([]);
   });
 
   it("is already collapsed when it tells the panel so, with no animation to hold it there", () => {

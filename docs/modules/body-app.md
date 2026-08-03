@@ -44,7 +44,8 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
   `overlay/panelPlacement.ts` and its neighbours, which own `bottom` and `max-height` as inline
   styles; `overlay/useViewTransition.ts` names the view being left behind
   long enough to fade it; `overlay/useLogScroll.ts` owns where the reader is in the conversation and
-  keeps them there, ADR-0033/ADR-0034), the overlay state
+  keeps them there, spending `overlay/logRide.ts` on the one thing that moves it from inside, a
+  section rolling open in the middle of the log, ADR-0033/ADR-0034), the overlay state
   machine (`overlay/overlayState.ts` is a pure reducer over a `Mode` = hidden/panel/orb/preview,
   with two halves split off for the line cap and re-exported from it, so components import one
   module: the session-switching helpers in `overlay/sessionState.ts`, and the turn fold, meaning
@@ -722,13 +723,18 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
   `Composer` calls `onResize` when its measured height actually changes and `ChatView` answers with
   the same tail-pin it uses for a new message, reader override included. A `ResizeObserver` on the
   log would be the obvious alternative and is the wrong one: the log also resizes when a trace rolls
-  open, where leaving `scrollTop` alone is deliberate (ADR-0035 decision 15).
+  open, which is a cause of its own with its own answer (`overlay/logRide.ts`) rather than a draft
+  the tail pin should chase.
 - **The history's scroll position is decided here, not by the engine.** `overlay/useLogScroll.ts`
   holds the log at its tail while the reader is at the tail, parks where they are otherwise and
   hands it back after a trip to the console, and ignores the scrolling the layout does on that trip
   (which is not the reader's, and which reads as sitting at the tail because the box being out of
-  the flow has nothing left to scroll). A section rolling open inside the log leaves
-  `scrollTop` alone so the row stays under the pointer that opened it. The panel's placement leaves
+  the flow has nothing left to scroll). A section rolling open inside the log is answered by
+  `overlay/logRide.ts`: for a reader at the tail it holds their distance from it for every frame of
+  the roll, so the growth comes out of the scroll rather than out of the end of the reply, capped so
+  the rolling section's own top edge never leaves the window and abandoned the moment the reader
+  takes the scroll back; for a reader who has scrolled up it does nothing, and the row stays under
+  the pointer that opened it. The panel's placement leaves
   it alone too, which it had to be taught: `place` measures the panel by growing it to the loosest
   cap any edge could allow, every scroll box inside a taller panel is a taller box, and the engine
   clamps a box that has outgrown its scroll range and does not undo it when the real cap goes back
@@ -740,9 +746,10 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
   the roll is the only mid-log resize in the overlay for it to react to. A roll measures its content
   at full height and animates from zero, which the anchor reads as the log shrinking, and it
   compensated by 76px in one frame before walking the compensation back over the roll
-  ([ADR-0035](../adr/ADR-0035-console-and-motion.md) decision 15 has the traces and what turning it off
-  gives up). A future scroll container that holds rolling content wants the same line, or its own
-  reason not to.
+  ([ADR-0035](../adr/ADR-0035-console-and-motion.md) decision 15 has the traces; the one service it
+  had been performing, easing the log down as a trace above the window closes, is the ride's now).
+  A future scroll container that holds rolling content wants the same line, or its own reason not
+  to.
 - The shell stays thin. Every branchy decision (accelerator mapping, seam translation) lives in
   the gated `body_core` / `body_rpc`; the app holds wiring only, which is what keeps the coverage
   exclusion safe (ADR-0011 risk: coverage creep).

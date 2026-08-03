@@ -2293,3 +2293,110 @@ the row coming back is what the eye follows.
 **The travel is the switcher's alone.** The reminder stack only ever loses rows, so it has nothing
 to travel, and `useTravel` is written against a selector and a ref rather than against the switcher
 so that the second list to want it wires it in one line.
+
+## Addendum, 2026-08-03: the log rides a roll, and anchoring's good half comes back as code
+
+Decision 14 taught a Thoughts trace to roll open in place. Decision 15 took Chromium's scroll
+anchoring out of the history, because the position already had two deciders and did not need a
+third. Both left the same thing behind: at the panel's ceiling there is no room for the panel to
+absorb a trace, so the growth goes into the log's scroll range instead and the end of the reply
+slides out under the composer, and nothing in the overlay answered it. This closes the refinement
+filed for it in [body-overlay.md](../refinements/body-overlay.md).
+
+1. **The rule is the tail pin, held across a roll.** Whether the reader is at the tail is the claim
+   the log already keeps and already restores (`overlay/useLogScroll.ts`), and the reader at the
+   tail is the one this happens to. So while they are there, `overlay/logRide.ts` holds the same
+   distance from the end of the content for every frame of the roll, and the growth comes out of
+   the scroll rather than out of the reply. A reader who has scrolled up is left alone, which is
+   the disclosure's own default and the right one for them: a section growing pushes only what is
+   BELOW it, and what is below it is not where they are reading. Traced at 60Hz at 640x720 on a
+   history full enough to hold the panel at its ceiling, before: the trace was 76px, the
+   disclosure's top edge held at 262.41px for every frame, and the distance from the log's bottom
+   edge to the end of the reply went 3px to 79px. After: that distance reads 3px on every frame of
+   both directions, `scrollTop` runs 408 to 484 and back, the largest single frame is 12px, and the
+   movement spans t=44ms to t=311ms, which is the roll's own 300ms and no second beat after it.
+
+2. **One rule, both directions, and the closing one is what decision 15 gave up.** Closing is the
+   same sentence and lands back on the pixel the opening started from. It is also the service
+   anchoring had been performing: with a trace scrolled off the top of the window, anchoring eased
+   `scrollTop` down with the shrink so the visible content never moved, which decision 15 recorded
+   as its one good half (498 to 422 in that trace) and gave up to be rid of the bad one. Traced on
+   the same path now, deliberately: `scrollTop` eases 487 to 411 across the shrink and the oldest
+   visible bubble holds its place to under a pixel for every frame. `overflow-anchor: none` stays,
+   and it is now a line that gives up nothing: the engine's compensation was a guess about which
+   node to hold, and this is the log's own policy applied on the roll's own frames.
+
+3. **There is no clock here and no curve.** The scroll is recomputed from the box on every frame of
+   the roll, and the box is being resized by the roll's own height animation, so the scroll inherits
+   the roll's timing by construction rather than by agreeing with it. Neither `MORPH_ROLL_MS` nor
+   `EASING` is read in the file, which is the strongest form of sharing them, and `Collapse.tsx` is
+   untouched. The filed entry expected the opposite, asking for "a scroll animation alongside
+   `Collapse`'s height animation" on the grounds that `Collapse` "owns the only clock either could
+   share". A second animation would have had to predict how much of the growth the panel was about
+   to absorb; reading the box each frame needs no prediction at all, and answers the panel's own
+   ride-along and its ceiling by measuring what they did rather than by modelling them.
+
+4. **Below the ceiling nothing scrolls, because nothing needs to.** The panel grows by exactly what
+   the trace takes and the history grows with it, so the scroll range never changes and the ride's
+   arithmetic returns the position the box is already at. Traced at 900x900 on a one-turn chat: the
+   panel goes 390.97 to 466.97 and `scrollTop` reads 0 on every frame of both directions. This is
+   the case a fix that assumed the trace's whole height would have got wrong.
+
+5. **The cap is that the reader keeps what they opened.** Holding the tail through a trace taller
+   than the window would scroll the trace's own top edge off the screen and leave the reader on its
+   bottom half, so the ride stops at the frame the section's top edge reaches the top of the window.
+   Traced at 640x600, where that edge sits 58px down a 206px window: the ride spends exactly those
+   58px, stops at t=181ms with the whole trace in view from its first line, and lets the last 21px
+   of the growth go into the scroll as before. The cap is measured on the rolling section rather
+   than on the block around it, which costs the "Thoughts" control a row of visibility in that one
+   case and buys a rule that does not depend on how much markup sits between the section and the
+   box. A section already above the window caps the ride where it stands, since scrolling further
+   down would carry the reader away from the thing they opened.
+
+6. **The reader outranks the ride.** Every frame compares the box against what the ride last wrote,
+   and anything else that moved it, the wheel or the tail pin answering a reply that landed
+   mid-roll, ends the ride on the spot. Traced at 640x720 with an 80px wheel at t=190ms: the ride
+   stood down in the frame it landed and `scrollTop` read the reader's number for every frame after
+   it. The comparison is against the last written position clamped to the range the box has NOW,
+   because a closing roll shortens the content under a position the engine then clamps for itself,
+   which is the box moving and not the reader.
+
+7. **The claim is measured, not remembered, and that was a real defect on the way.** The log's own
+   copy of "the reader is at the tail" is refreshed from scroll events, and a roll is precisely the
+   thing that falsifies it without one. Built on the remembered answer, the ride at 640x460 (a 121px
+   history with the disclosure above the window) did nothing on the way open, correctly capped, and
+   then eased the log 76px on the way shut on a claim that had been false since the open: a round
+   trip that had been exactly reversible left the reader 76px off where they started. Read off the
+   box on the roll's own first frame, which is the one moment in a roll where the log is still the
+   size it was, both directions answer for the state they are actually in.
+
+8. **Under `prefers-reduced-motion` the log holds still.** A roll under it is not a motion at all:
+   `Collapse` commits the end state and announces no start, so the ride is never reached and the
+   disclosure behaves as it did before it learned to roll. Traced at 640x720: the trace appears in
+   one frame, the distance from the end goes 0 to 76 and back to 0, and `scrollTop` never moves.
+   `Collapse.test.tsx` now asserts the silence, since the log's behaviour hangs off it.
+
+### What the filed entry got wrong about its own setup
+
+Its measurement said "at 640x720 with the reminder stack up, so the panel was already at its 547px
+ceiling". Neither half reproduces. The stack is gated on an empty log and rolls away on the first
+message, so a full history never has it up; and the ceiling at that viewport reads 450px now, the
+panel's budget having moved it since. What does reproduce is everything the entry was actually
+about, on a history long enough to hold the panel at its ceiling without help: the 76px trace, the
+disclosure's top edge unmoved for every frame, and the 3px to 79px tail. The condition that matters
+was never the stack; it is the panel having nothing left to give.
+
+### What this opens
+
+**The panel's own chrome shrinks the log the same way, and the log does not answer that either.**
+The switcher list and the reminder stack roll in the panel's chrome, outside the history, and at the
+ceiling their growth comes out of the history's window rather than out of the panel. Measured at
+640x720 on the same full history: opening the chat switcher takes the history's window 293px to
+73px with `scrollTop` left at 408, so the reader's distance from the end of the reply goes 3px to
+223px in one roll. It is the same defect with the other cause, the window shrinking rather than the
+content growing, and the same arithmetic would answer it; what it needs is to hear a roll that
+happens outside the box, which means the panel and not the log dispatching to the ride, plus its own
+measurements across the summon, a new chat and a reminder ack, where the panel is doing plenty of
+moving on its own account. It is exactly reversible (closing the switcher reads 3px again) and the
+reader can scroll, so it is filed rather than bundled
+([body-overlay.md](../refinements/body-overlay.md)).
