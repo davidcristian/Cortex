@@ -44,7 +44,7 @@ its signature.
 | [memory.md](memory.md) | Store, scoping, rerank/MMR (ADR-0008) | 8 |
 | [inference-model-manager.md](inference-model-manager.md) | Model-manager lifecycle, MTP, reasoning status (ADR-0007/0020) | 7 |
 | [subagents.md](subagents.md) | Progress reporting, spawn schema, heterogeneous roster (ADR-0010/0018) | 2 |
-| [body-overlay.md](body-overlay.md) | Overlay polish, connection indicator, proto Cancel (ADR-0011), the two motions the switcher's list still makes in one frame, the composer's move on a clamped shrink, the reserved scrollbar rail's assumed width and spent card inset, a mid-stream retarget restarting from a rounded height, a Thoughts trace opening a reply off the bottom of a full history, the two bounds the panel's section budget left behind it (a section's own frame being under no cap, and the room a closing section hands back arriving in one frame), the chat cycle keys swapping the conversation without saying so, and the whisper's follow-ups (ADR-0037): a pickable voice row, a mid-stream resize keeping the old wrap width, and kerning inside the letter boxes under a changed font (its drain-growth entry landed the day it was filed, and the console outliving a new chat, the reminder stack's per-row exit and the switcher's, the panel's watch on its own box with the arrival-aside correction that came out of it, the demo bridge over the line cap, two sections outrunning the panel on their own, the chat floor's frozen measurement of the empty state, the console tab strip's missing keyboard half, and the switcher's disputed listbox role all landed 2026-08-03), and a resize that lands inside the panel's own move waiting for it | 15 |
+| [body-overlay.md](body-overlay.md) | Overlay polish, connection indicator, proto Cancel (ADR-0011), the composer's move on a clamped shrink, the reserved scrollbar rail's assumed width and spent card inset, a mid-stream retarget restarting from a rounded height, a Thoughts trace opening a reply off the bottom of a full history, the two bounds the panel's section budget left behind it (a section's own frame being under no cap, and the room a closing section hands back arriving in one frame), the chat cycle keys swapping the conversation without saying so, and the whisper's follow-ups (ADR-0037): a pickable voice row, a mid-stream resize keeping the old wrap width, and kerning inside the letter boxes under a changed font (its drain-growth entry landed the day it was filed, and the console outliving a new chat, the reminder stack's per-row exit and the switcher's, the panel's watch on its own box with the arrival-aside correction that came out of it, the demo bridge over the line cap, two sections outrunning the panel on their own, the chat floor's frozen measurement of the empty state, the console tab strip's missing keyboard half, the switcher's disputed listbox role, and the two motions its list still made in one frame all landed 2026-08-03), and a resize that lands inside the panel's own move waiting for it | 14 |
 | [session-read-seam.md](session-read-seam.md) | Session listing/read seam (ADR-0021) | 2 |
 | [resource-governance.md](resource-governance.md) | Scheduler/placer budgets, NPU, drain (ADR-0012) | 5 |
 | [email-confirmer.md](email-confirmer.md) | Email write, Confirmer, attachments, `ToolActivity` chip (ADR-0022) | 4 |
@@ -890,6 +890,33 @@ projector-loaded server answers `400 "Failed to tokenize prompt"`, which reads l
 and is not one, so the canary carries the assistant's own tool call and images from 1x1 to 1280x1280
 all answer 200 under the shipped scaffold.
 
+Body & overlay went **15 to 14 on 2026-08-03**, when the two motions the switcher's list still made
+in one frame both landed, and the entry that named them was right about every number and wrong about
+the shape of one of its own fixes. It priced the empty line as a flag that "cannot smooth both
+directions", the roll it wanted being three lines of `Collapse`. There is no flag: the direction that
+has to be instant is a plain unmount, and only the other one is an animation. Asked of `sessions`
+rather than of the rendered rows, the line goes up in the frame the last row STARTS leaving and
+grows from nothing over that row's own roll, so the card never collapses to 14 and springs back at
+all. It eases 64 to 53 over 283.9ms with a largest single frame of 1.66px where it used to move 39px
+in one, and the panel, which used to walk its top edge 108 to 119 over the roll and ease 118.41 back
+to 108 afterwards, holds 108 on every frame at 900x900 and 86 at 640x720. The entry's reading of the
+panel was itself correct, artefact and all, which is worth recording because this file's usual
+finding is the opposite. The reorder landed as the FLIP the entry named, in `overlay/useTravel.ts`,
+and carries the leaving row on the same clock the entry asked for, because a leaving row is one of
+the rows the hook watches. **What it did not have is the hazard that would have made FLIP a
+regression.** A roll moves rows by layout, frame by frame, with no commit anywhere in it, so the
+release at the end of a 300ms exit reads the 50px its neighbour has already travelled as a jump to
+answer and answers it by sending that row back down. Positions are therefore refreshed every frame
+while a roll is in flight and played from only on a commit, which also puts a regrouping that lands
+mid-roll on honest numbers. Two smaller things the entry did not have: a travel is a transform, so
+the card's height never changes and the panel's watch on its own box has nothing to answer (measured
+across a reorder, card 164 and `scrollHeight` 162 against a 162 client box on every frame), and the
+demo bridge could not make a chat ARRIVE, its list only ever shrinking, which left the filling
+direction unmeasurable by hand exactly as the delete was before the row exit landed. That direction
+is deliberately left an 11px step, a line's 39px replaced by a row's 50, which is the same asymmetry
+the row exit already recorded and defended: a removal is a gap that has to close before the eye can
+follow it, an arrival is already where it belongs.
+
 ## Recommended order
 
 Ordered by what unblocks the most value soonest. Before starting any item, verify its claims
@@ -942,14 +969,21 @@ against the code (the warning above); the entry text tells you which seams it ex
   re-delete it, and the demo bridge could not delete at all, which made the whole thing
   unmeasurable by hand. What it left behind is the entry below.
 - **Two motions in the switcher's list are still instant** ([body-overlay.md](body-overlay.md)),
-  opened 2026-08-03 with the exit above. The empty line arrives in the frame after the last row's
-  roll (card 14 to 53 in one frame, the panel easing its top 119 to 108 over the 117ms after), and
-  rolling it in as well is worse in the other direction, a first chat arriving into an empty list
-  overshooting by the new row's whole height. A reorder still moves every row it touches in one
-  frame, which the exit changed only by carrying a leaving row along with them. Both are design
-  decisions rather than parameters: the first wants the two directions treated differently, the
-  second wants every row's position read before the commit and played back after it (FLIP).
-  Nothing blocks either.
+  opened 2026-08-03 with the exit above and **closed 2026-08-03**, both motions landing and the
+  first one not by the fix the entry proposed. Every number it published measured true again,
+  including its reading of the panel, and what was wrong is that it is one flag at all: the
+  direction that must be instant is a plain unmount and only the other one is an animation. The
+  empty line is asked of `sessions` now, so it goes up in the frame the last row STARTS leaving and
+  grows from nothing over that row's own roll (`Collapse` gained an `enter` prop, read once at
+  mount), and it is unmounted in the frame a chat arrives. The card never returns to 14: it eases
+  64 to 53 over 283.9ms at a largest single frame of 1.66px, and the panel, which used to walk 108
+  to 119 and correct itself afterwards, does not move at all. The filling direction stays an 11px
+  step on purpose, a line's 39px replaced by a row's 50. The reorder landed as FLIP, as the entry
+  described it, with the leaving row on the same clock because it is one of the rows the hook
+  watches. Two things it did not have: a travel is a transform, so the panel cannot be fought by it,
+  and FLIP's "before" cannot be read at the previous commit, a roll moving rows by layout with no
+  commit in it, so the record is refreshed every frame while a roll runs and played from only on a
+  commit.
 - **A shrink against the ceiling still moves the composer, and the user picks the fix**
   ([body-overlay.md](body-overlay.md)), open from 2026-07-20. Reversible switcher round trips and a
   composer that never moves are the same statement with opposite signs once the panel is tall

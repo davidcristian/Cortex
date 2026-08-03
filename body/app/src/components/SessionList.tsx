@@ -1,7 +1,8 @@
-import { type ReactNode, useState } from "react";
+import { type ReactNode, useRef, useState } from "react";
 
 import type { SessionSummary } from "../bridge/types";
 import { usePresence } from "../overlay/usePresence";
+import { useTravel } from "../overlay/useTravel";
 import { withdrawn } from "../overlay/withdrawn";
 import { Collapse } from "./Collapse";
 import { CheckIcon, CloseIcon, PencilIcon, PinIcon, TrashIcon } from "./icons";
@@ -51,6 +52,12 @@ export function SessionList({
   // what the eye saw. The hook holds no clock: `Collapse` reports the roll over and the row is
   // dropped then, which is what keeps the WRITE immediate and only the exit lagging.
   const stack = usePresence(sessions, (session) => session.sessionId);
+  // And a row the list MOVES travels there. The brain lists pinned chats first and then by recency,
+  // so pinning one regroups everything around it, and every row the regrouping touched used to be
+  // at its new place in the frame the write landed (`overlay/useTravel.ts` has the trace and the
+  // mechanism). Rows only: the empty line below is not one of them, and it has nowhere to go.
+  const card = useRef<HTMLUListElement>(null);
+  useTravel(card, ".switcher-slot");
 
   const startRename = (session: SessionSummary): void => {
     setRenamingId(session.sessionId);
@@ -187,35 +194,47 @@ export function SessionList({
     // buttons in them. The four buttons per row keep their own tab stops, and `Ctrl+↑` / `Ctrl+↓`
     // stay what they were: overlay-wide keys that cycle the chat without moving focus, which is
     // a listbox's job and no longer a promise this markup makes.
-    <ul className="switcher" aria-label="Recent chats">
-      {/* Asked of the RENDERED rows and not of `sessions`, so deleting the last chat does not put
-          the empty line up while the row it replaces is still rolling out underneath it. The line
-          itself still arrives in one frame, once the roll has ended and there is nothing left to
-          collide with; rolling it in as well was traced and is worse, because the opposite case (a
-          first chat arriving into an empty list) would then grow the list by the new row and only
-          then roll the line away, overshooting by the row's own height. */}
-      {stack.entries.length === 0 ? (
-        <li className="switcher-empty">No other chats yet</li>
-      ) : (
-        stack.entries.map(({ key, item: session, leaving }) => (
-          // The `<li>` is outside the roll and the row inside it, the reminder stack's arrangement
-          // and for the first of its two reasons: a list whose items are wrapper divs is not a list
-          // to a screen reader. Its second reason, an adjacent-sibling hairline that a wrapper in
-          // between switches off, does not apply here, the switcher drawing no rule between rows.
-          // A third that stack did not have does: the row's `min-height` is what makes every shape
-          // of it the same height, and left on the `<li>` it is also a floor the roll inside cannot
-          // get under, so the row would animate to nothing inside a slot that never shrank.
-          //
-          // A leaving row is WITHDRAWN for the length of its exit. It is a chat that no longer
-          // exists, and holding it on screen for 300ms otherwise leaves its four buttons live: the
-          // roll would be 300ms in which the title still opens a deleted chat, the trash still asks
-          // to delete it again, and the tab order still walks through all four.
-          <li key={key} className="switcher-slot" {...withdrawn(leaving)}>
-            <Collapse open={!leaving} onClosed={() => stack.released(key)}>
-              {rowFor(session)}
-            </Collapse>
-          </li>
-        ))
+    <ul className="switcher" aria-label="Recent chats" ref={card}>
+      {stack.entries.map(({ key, item: session, leaving }) => (
+        // The `<li>` is outside the roll and the row inside it, the reminder stack's arrangement
+        // and for the first of its two reasons: a list whose items are wrapper divs is not a list
+        // to a screen reader. Its second reason, an adjacent-sibling hairline that a wrapper in
+        // between switches off, does not apply here, the switcher drawing no rule between rows.
+        // A third that stack did not have does: the row's `min-height` is what makes every shape
+        // of it the same height, and left on the `<li>` it is also a floor the roll inside cannot
+        // get under, so the row would animate to nothing inside a slot that never shrank.
+        //
+        // A leaving row is WITHDRAWN for the length of its exit. It is a chat that no longer
+        // exists, and holding it on screen for 300ms otherwise leaves its four buttons live: the
+        // roll would be 300ms in which the title still opens a deleted chat, the trash still asks
+        // to delete it again, and the tab order still walks through all four.
+        <li key={key} className="switcher-slot" {...withdrawn(leaving)}>
+          <Collapse open={!leaving} onClosed={() => stack.released(key)}>
+            {rowFor(session)}
+          </Collapse>
+        </li>
+      ))}
+      {/* THE TWO DIRECTIONS OF THE EMPTY LINE ARE NOT ONE FLAG.
+          It is asked of `sessions` and not of the rendered rows, so deleting the last chat puts it
+          up in the same frame the row starts leaving, and `enter` grows it out of nothing over that
+          row's own roll: the card eases from a row to a line instead of rolling to 14 and then
+          snapping 39px back up to 53, which is what it did while this waited for the roll to end.
+          Both are on screen together for those 300ms, which is why the line is BELOW the rows and
+          not above them, and why it is the row's roll the panel rides along with (the first
+          `data-morphing` in the tree, `panelPlacement`), the target it publishes being the one the
+          card is actually going to.
+          Going the other way it does not roll at all: it is unmounted in the frame a chat arrives.
+          The line is not a row, it is what the list says when it has nothing to say, so it waits
+          for the row it replaces and yields to the row that replaces it. Rolling it out instead was
+          traced and is worse in exactly the way this is better: the arriving row's 50px lands at
+          once and the line's 39 would then roll away underneath it, an overshoot bigger than the
+          11px step that is left. */}
+      {sessions.length === 0 && (
+        <li className="switcher-empty-slot">
+          <Collapse open enter={stack.entries.length > 0}>
+            <div className="switcher-empty">No other chats yet</div>
+          </Collapse>
+        </li>
       )}
     </ul>
   );

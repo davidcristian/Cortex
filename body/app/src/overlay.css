@@ -2086,6 +2086,13 @@
   border: 1px solid var(--stroke);
   border-radius: 16px;
 }
+/* The empty line's slot, and the same arrangement as `.switcher-slot` below for the same reason:
+   between the `<li>` and the line sits a roll (the line grows into the gap the last row leaves,
+   `components/SessionList.tsx`), so everything that gives the line a size has to be INSIDE that
+   roll. The 12px of padding on `.switcher-empty` is what the roll animates from nothing to 39. */
+.switcher-empty-slot {
+  display: block;
+}
 .switcher-empty {
   padding: 12px;
   text-align: center;

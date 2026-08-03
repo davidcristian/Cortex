@@ -1,3 +1,4 @@
+import { deriveTitle } from "../overlay/sessionState";
 import * as script from "./demoScript";
 import type {
   BrainBridge,
@@ -58,7 +59,28 @@ export class DemoBridge implements BrainBridge {
   // restart; a reload starts fresh, since there is no brain here to hold it.
   private prefs: Preference[] = [];
 
-  converse(_sessionId: string, text: string, sink: TurnSink): Cancellation {
+  // A chat the user has spoken in is a chat the list holds, which is what the brain does: the turn
+  // is persisted and the next listing carries it, titled from the first message. The demo's list
+  // could only ever shrink before this, so a chat ARRIVING was the one thing about the switcher
+  // that could not be looked at by hand, and the empty line's two directions are told apart by
+  // exactly that case. The title is `deriveTitle`, the brain's own rule applied locally, so the row
+  // that lands reads like the header above it.
+  private remember(sessionId: string, text: string): void {
+    if (this.sessions.some((held) => held.sessionId === sessionId)) {
+      this.patch(sessionId, { preview: text, lastActivityUnixMs: Date.now() });
+      return;
+    }
+    this.sessions.push({
+      sessionId,
+      title: deriveTitle(text),
+      preview: text,
+      lastActivityUnixMs: Date.now(),
+      pinned: false,
+    });
+  }
+
+  converse(sessionId: string, text: string, sink: TurnSink): Cancellation {
+    this.remember(sessionId, text);
     if (/offline|unreachable/iu.test(text)) {
       this.fail("down");
     } else if (/degraded|not ready/iu.test(text)) {
