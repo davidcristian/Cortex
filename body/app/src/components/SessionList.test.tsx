@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { SessionSummary } from "../bridge/types";
@@ -60,6 +60,35 @@ describe("SessionList", () => {
     expect(current?.className).toContain("current");
     fireEvent.click(screen.getByText("First chat"));
     expect(onSelect).toHaveBeenCalledWith("c1");
+  });
+
+  it("announces a named list of rows, not a listbox, and says which chat is open", () => {
+    render(list([summary(), summary({ sessionId: "c2", title: "Second" })], "c2"));
+    // The `<ul>` claimed `role="listbox"` while nothing under it was ever an option, and the cost
+    // was not only the absent role: a `<li>` inside a listbox is not a listitem, so Chromium
+    // announced a listbox with no options and rendered every row as `none`, losing the boundaries
+    // a reader counts rows by. It is the named list of rows it behaves like now.
+    expect(screen.queryByRole("listbox")).toBeNull();
+    const rendered = screen.getByRole("list", { name: "Recent chats" });
+    const items = within(rendered).getAllByRole("listitem");
+    expect(items).toHaveLength(2);
+    // Each row keeps all four of its buttons on their own tab stops. An option is a leaf, so the
+    // listbox shape would have had to answer for the pin, the pencil and the trash; this one does
+    // not, and nothing here holds a roving `tabIndex` that would take three of the four away.
+    for (const item of items) {
+      const buttons = within(item).getAllByRole("button");
+      expect(buttons).toHaveLength(4);
+      for (const button of buttons) {
+        expect(button.tabIndex).toBe(0);
+      }
+    }
+    // Which chat is open was a tint and nothing else. `aria-selected` would have needed the role
+    // that just came off, so the open row carries `aria-current` and the others deny it.
+    expect(screen.getByText("Second").closest("button")).toHaveAttribute("aria-current", "true");
+    expect(screen.getByText("First chat").closest("button")).toHaveAttribute(
+      "aria-current",
+      "false",
+    );
   });
 
   it("shows an empty-state line when there are no chats", () => {

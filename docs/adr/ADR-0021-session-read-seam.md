@@ -691,6 +691,29 @@ argued at length in the [ADR-0035](ADR-0035-console-and-motion.md) addendum of t
 is the pass that found it. This is the third of that deferral's three records, at the ADR whose
 decision the role belongs to.
 
+## Addendum (2026-08-03): the shape was chosen, and the role came off
+
+The question above was answered the same day it was written down. The user chose the second shape:
+`role="listbox"` comes off the `<ul>` and the switcher is the list of composite rows it already
+behaves like, with all four buttons per row still individually reachable and `Ctrl+↑` and `Ctrl+↓`
+untouched, being an application-wide cycle rather than movement inside a list. The rows needed no
+role written on them, the implicit list and listitem semantics returning as soon as the container
+stopped claiming to be something else.
+
+One addition came with the removal, and it belongs to this ADR's design rather than to the pass that
+found the mismatch. The switcher marks the chat that is open, and it marked it with a background
+tint alone; the shape that was dropped is also the only one that could have said so in ARIA, since
+`aria-selected` needs a listbox. The row's button now carries `aria-current`, `true` on the open row
+and `false` on the others.
+
+The measurement that opened this addendum is superseded by its own correction: the eight tab stops
+were across the two chats the demo seeded then, the seed is three chats now, and the figure that
+carries is four stops to a row, unchanged by the fix. The full before and after, including the
+listbox's `none` rows and what the browser could not be made to report, is in the
+[ADR-0035](ADR-0035-console-and-motion.md) addendum of the same date. This closes the deferral's
+third record; what it left behind, the cycle keys changing the chat with nothing announcing it, is
+recorded in [refinements/body-overlay.md](../refinements/body-overlay.md) and on its index.
+
 ## Addendum (2026-08-03): one bound governs a title's length, and a gate now holds the two copies
 
 `TITLE_MAX` was 48 in the brain and 32 in the overlay, and the comment above the brain's

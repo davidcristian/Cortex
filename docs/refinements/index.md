@@ -44,7 +44,7 @@ its signature.
 | [memory.md](memory.md) | Store, scoping, rerank/MMR (ADR-0008) | 8 |
 | [inference-model-manager.md](inference-model-manager.md) | Model-manager lifecycle, MTP, reasoning status (ADR-0007/0020) | 7 |
 | [subagents.md](subagents.md) | Progress reporting, spawn schema, heterogeneous roster (ADR-0010/0018) | 2 |
-| [body-overlay.md](body-overlay.md) | Overlay polish, connection indicator, proto Cancel (ADR-0011), the two motions the switcher's list still makes in one frame, the composer's move on a clamped shrink, the reserved scrollbar rail's assumed width and spent card inset, a mid-stream retarget restarting from a rounded height, a Thoughts trace opening a reply off the bottom of a full history, the two bounds the panel's section budget left behind it (a section's own frame being under no cap, and the room a closing section hands back arriving in one frame), the chat switcher claiming a listbox role its own rows do not satisfy, and the whisper's follow-ups (ADR-0037): a pickable voice row, a mid-stream resize keeping the old wrap width, and kerning inside the letter boxes under a changed font (its drain-growth entry landed the day it was filed, and the console outliving a new chat, the reminder stack's per-row exit and the switcher's, the panel's watch on its own box with the arrival-aside correction that came out of it, the demo bridge over the line cap, two sections outrunning the panel on their own, the chat floor's frozen measurement of the empty state, and the console tab strip's missing keyboard half all landed 2026-08-03), and a resize that lands inside the panel's own move waiting for it | 15 |
+| [body-overlay.md](body-overlay.md) | Overlay polish, connection indicator, proto Cancel (ADR-0011), the two motions the switcher's list still makes in one frame, the composer's move on a clamped shrink, the reserved scrollbar rail's assumed width and spent card inset, a mid-stream retarget restarting from a rounded height, a Thoughts trace opening a reply off the bottom of a full history, the two bounds the panel's section budget left behind it (a section's own frame being under no cap, and the room a closing section hands back arriving in one frame), the chat cycle keys swapping the conversation without saying so, and the whisper's follow-ups (ADR-0037): a pickable voice row, a mid-stream resize keeping the old wrap width, and kerning inside the letter boxes under a changed font (its drain-growth entry landed the day it was filed, and the console outliving a new chat, the reminder stack's per-row exit and the switcher's, the panel's watch on its own box with the arrival-aside correction that came out of it, the demo bridge over the line cap, two sections outrunning the panel on their own, the chat floor's frozen measurement of the empty state, the console tab strip's missing keyboard half, and the switcher's disputed listbox role all landed 2026-08-03), and a resize that lands inside the panel's own move waiting for it | 15 |
 | [session-read-seam.md](session-read-seam.md) | Session listing/read seam (ADR-0021) | 2 |
 | [resource-governance.md](resource-governance.md) | Scheduler/placer budgets, NPU, drain (ADR-0012) | 5 |
 | [email-confirmer.md](email-confirmer.md) | Email write, Confirmer, attachments, `ToolActivity` chip (ADR-0022) | 4 |
@@ -1044,17 +1044,30 @@ against the code (the warning above); the entry text tells you which seams it ex
   role mismatch, the next bullet.
 - **The chat switcher claims a listbox role its own rows do not satisfy**
   ([body-overlay.md](body-overlay.md)), opened 2026-08-03 by the pass above, which checked the
-  overlay's other lists and found one whose gap is a different shape. `SessionList.tsx` puts
-  `role="listbox"` on its `<ul>` while its `<li>` rows hold four ordinary buttons each and no
-  `role="option"` anywhere, so a listbox is announced whose required children are missing (measured
-  at 900x900: eight tab stops across two rows). The strip's problem was a correct role with half a
-  keyboard, which is additive; here the role and the interaction model disagree, so it is a decision
-  between two shapes (rows become options and the list becomes one stop moved through with
-  `aria-activedescendant`, which then has to say what happens to the three per-row buttons, or the
-  listbox role comes off and it is the list of composite rows it already behaves like) plus the
-  reconciliation with Ctrl+Up and Ctrl+Down, which cycle sessions without moving focus at all.
-  Nothing blocks it. The reminder stack was read in the same pass and needs nothing, and a section
-  rolling shut is deliberately left tabbable, being still announced too.
+  overlay's other lists and found one whose gap is a different shape, and **closed the same day** by
+  the user's answer: the role comes off and the switcher is the list of composite rows it already
+  behaves like ([ADR-0035 addendum](../adr/ADR-0035-console-and-motion.md)). The entry was right
+  that this was a decision rather than a defect list and understated the defect twice. A `<li>`
+  inside a listbox is not a listitem, so the rows were not announced as anything at all: Chromium
+  read `listbox "Recent chats"` over three children of role `none`, a listbox with no options in it
+  holding twelve loose buttons, and with the role off the same tree reads `list` over three
+  `listitem`s with nothing written on the `<li>` to get them. And "nothing else changes" missed a
+  channel, since which chat is open was a background tint and nothing more, so the row button
+  carries `aria-current` now, `aria-selected` being exactly what the dropped role would have cost
+  it. The tab order is untouched at four stops a row, twelve across the demo's three chats, and
+  Ctrl+Up and Ctrl+Down needed no reconciliation, being an application-wide cycle rather than
+  movement inside a list. The reminder stack was read in the same pass and needs nothing, and a
+  section rolling shut is deliberately left tabbable, being still announced too.
+- **The chat cycle keys swap the conversation without saying so**
+  ([body-overlay.md](body-overlay.md)), opened 2026-08-03 by the answer above, which left Ctrl+Up
+  and Ctrl+Down as the application-wide cycle they are. A press replaces the whole conversation
+  with focus left where it was, and nothing announces it: measured at 900x900, two presses walk the
+  header title through three chats while focus stays on the header's chats button, the first press
+  closes the switcher, and the page's only live region is the link indicator reading the brain's
+  health. The listbox shape would have answered this by moving focus, which is the shape that was
+  rejected, so what fits is a polite live region naming the chat that arrived rather than a focus
+  move, plus a look at the other doors into the same swap so a reader is not read back a title it
+  just clicked. Nothing blocks it.
 - **A new chat minted while the console is up leaves the console up**
   ([body-overlay.md](body-overlay.md)), open from 2026-07-20, when verifying the console merge put
   a name to behaviour that predates it, and **closed 2026-08-03** by the user's answer: Ctrl+N
