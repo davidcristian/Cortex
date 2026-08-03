@@ -93,7 +93,9 @@ a trace, which is why every claim below carries the measurement it rests on.
      composer, which is where a summon puts it and where the draft still is. The rest of the tab
      list pattern (a roving `tabindex` and arrow keys along the strip) and a leaving pane that is
      untabbable as well as unannounced (which wants `inert`, and so React 19) are deferred and
-     written down in [refinements/body-overlay.md](../refinements/body-overlay.md).
+     written down in [refinements/body-overlay.md](../refinements/body-overlay.md). **Both landed
+     on 2026-08-03**, in the addendum below on the strip's keyboard, which also records that the
+     React 19 half of that parenthesis was wrong: only the type is missing from React 18.
    - **The two state modules the merge lengthened were split rather than left over the cap.**
      `overlayState.ts` (394) handed the turn fold to `overlay/turnState.ts` and `useOverlay.ts`
      (321) handed the chat catalog to `overlay/useSessionCatalog.ts`, each re-entering through the

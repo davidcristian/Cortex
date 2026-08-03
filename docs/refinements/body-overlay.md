@@ -754,6 +754,38 @@ the two bounds above were opened with it.
   a bug later). Deferred because neither is reachable with a pointer, both are invisible outside
   that 380ms window, and the half that changes what is ANNOUNCED, which is the half a screen reader
   actually reports, is done.
+  **BOTH halves LANDED 2026-08-03
+  ([ADR-0035 addendum](../adr/ADR-0035-console-and-motion.md)), and the entry's blocker was not
+  real.** The strip is one stop in the tab order now, carried by a roving `tabIndex` that is 0 on the
+  selected face and -1 on the others and needs no state of its own, because selection follows focus
+  and the tab that has focus is the tab that is selected. `overlay/tabStrip.ts` is the pure map of
+  the keys: the arrows step along the strip and wrap at both ends, Home and End go to the ends and
+  do not wrap, the vertical arrows are left alone (Ctrl with those cycles chats), and the four it
+  answers are `preventDefault`ed because the panel clips its overflow. Selection follows focus rather
+  than waiting for Enter, which the practice recommends wherever showing a panel costs nothing and
+  which this console can afford twice over: both panes are already mounted, and at the shipping 12px
+  spread they share a height, so an arrow changes the content and not the panel's size. The leaving
+  pane is `inert` as well as `aria-hidden`, from one function (`overlay/withdrawn.ts`) used in all
+  three places the overlay holds something mounted that is not on screen, the third being the panel
+  itself while dismissed. **The React 19 blocker evaporated on contact.** Only the TYPE is missing:
+  probed against the tree's own react-dom 18.3.1 on both renderers, `inert=""` renders
+  `<div inert="">` with no warning and `inert={undefined}` removes it again, while `inert={true}` is
+  the form React 18 drops. An empty string is how HTML spells a present boolean attribute, so the
+  string form is what the platform means rather than a workaround, and it is written by React
+  through JSX with nothing set by hand; one module augmentation adds the type, narrowed to `""` so no
+  call site can write the form React 18 drops. Nothing was upgraded. The entry also undersold the
+  reach in two ways. The 380ms morph was not the only window: switching tabs cross-fades the two
+  panes over 200ms, and Tab pressed inside THAT window walked six stops through the tab being left
+  and then lost focus to the body when `visibility: hidden` landed on the focused element. And the
+  dismissed panel had the same defect one level up, `aria-hidden` over an `opacity: 0` panel that is
+  never unmounted, where six presses of Tab reached the reminder rows' buttons three times round.
+  Measured in Chromium at 900x900 before and after: the strip went from two tab stops to one, five
+  arrow and Home/End presses from doing nothing at all to moving focus and the selection together,
+  the leaving view from three reachable stops to zero, the tab crossing from six to zero, and the
+  dismissed panel from six to zero. The `?` key, which can change the tab from anywhere, used to
+  drop focus to the body when it fired from inside a pane; focus follows the selection at every
+  switch now, so it lands on the arriving tab. What this consciously did not do is the chat
+  switcher, whose `role="listbox"` disagrees with its own rows; that is the new entry below.
 - **A new chat minted while the console is up leaves the console up.** `Ctrl+N` and the header's
   pencil clear the switcher and any pending confirm but not `consoleTab` (`overlay/overlayState.ts`,
   case `newChat`), so the panel mints the session and empties the chat *behind* the console while
@@ -851,3 +883,25 @@ the two bounds above were opened with it.
   the overlay adopting a licensed face (overlay-ux.md §2 keeps that door open), whose kerning
   is worth re-checking against a settled reply's plain rendering side by side.
   Placed here 2026-07-21.
+- **The chat switcher claims a role its own rows do not satisfy.** Opened 2026-08-03 by the pass
+  that gave the console's tab strip its keyboard half ([ADR-0035
+  addendum](../adr/ADR-0035-console-and-motion.md)), which checked the overlay's other lists for the
+  same shape of gap and found one that is not the same shape at all. `SessionList.tsx` puts
+  `role="listbox"` on its `<ul>`, and its children are `<li>` elements holding four ordinary buttons
+  each (the row itself, then pin, rename and trash) with no `role="option"` anywhere, so a listbox
+  is announced whose required children are missing; measured in Chromium at 900x900, one open
+  switcher with two rows offers eight tab stops. The strip's problem was a correct role with half a
+  keyboard, which completing is additive. This is the opposite: the role and the interaction model
+  disagree, and settling it means choosing between two shapes rather than filling one in. Either the
+  rows become options and the list becomes one tab stop moved through with `aria-activedescendant`
+  (which then has to say what happens to the three per-row buttons, since an option is a leaf and
+  they are not), or `role="listbox"` comes off and it is the list of composite rows it already
+  behaves like, in which case the rows want `role="listitem"` semantics and nothing else changes.
+  Whichever wins has to be reconciled with Ctrl+Up and Ctrl+Down, which cycle sessions overlay-wide
+  without moving focus at all and would be the obvious keys for a listbox to answer with focus. The
+  reminder stack was read in the same pass and needs nothing: its `<ul>` claims no role its children
+  have to satisfy, and tabbing through rows of buttons is correct for it. A section rolling shut was
+  read too and is deliberately left alone: `.collapse` hides its overflow while its height animates
+  to zero and the clipped content keeps its place in the tab order, but it is also still in the
+  accessibility tree, so both channels agree, which is the standard the strip's pass applied rather
+  than a violation of it. Nothing blocks this; it is a design decision plus its wiring.

@@ -416,6 +416,18 @@ while a turn is processing must not lose it*) lives here. States:
     composer with the draft and its caret intact, which is where a summon puts it too. That is also
     what lets the pane on its way out be hidden from assistive tech, so only one console is ever
     announced while two are on screen.
+  - **The strip is a tab list from the keyboard too** (2026-08-03,
+    [ADR-0035](../adr/ADR-0035-console-and-motion.md) addendum). Tab reaches the whole strip as
+    **one** stop and arrives on the face that is up; **←** and **→** walk along it and wrap round at
+    both ends; **Home** and **End** go to the first and last face and stop there. **Selection
+    follows focus**, so one arrow both moves the keyboard and changes the view, exactly as one click
+    does, which the console can afford because both faces are already mounted and at the shipping
+    spread they share a height, so the arrow changes the content and not the panel's size. The
+    vertical arrows are left alone, Ctrl with those being how chats cycle. **What is hidden is
+    unreachable**: the pane on its way out, the face not showing, and the whole panel while it is
+    dismissed are each taken out of the tab order in the same frame they leave the accessibility
+    tree, so Tab pressed during a 380ms morph cannot land in the view being left and Tab pressed on
+    a dismissed panel finds nothing at all.
 - **PREVIEW:** when the turn **completes while minimized**, the orb **expands** into a compact
   card near the corner: the answer (a few-line clamp) and a hairline accent progress bar
   counting down the auto-dismiss (~6s) and **nothing else** (the "reply ready"/"click to open"

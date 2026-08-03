@@ -44,7 +44,7 @@ its signature.
 | [memory.md](memory.md) | Store, scoping, rerank/MMR (ADR-0008) | 8 |
 | [inference-model-manager.md](inference-model-manager.md) | Model-manager lifecycle, MTP, reasoning status (ADR-0007/0020) | 7 |
 | [subagents.md](subagents.md) | Progress reporting, spawn schema, heterogeneous roster (ADR-0010/0018) | 2 |
-| [body-overlay.md](body-overlay.md) | Overlay polish, connection indicator, proto Cancel (ADR-0011), an exit for the switcher's rows, the composer's move on a clamped shrink, the reserved scrollbar rail's assumed width and spent card inset, a mid-stream retarget restarting from a rounded height, a Thoughts trace opening a reply off the bottom of a full history, the two bounds the panel's section budget left behind it (a section's own frame being under no cap, and the room a closing section hands back arriving in one frame), the console tab strip's missing keyboard half, and the whisper's follow-ups (ADR-0037): a pickable voice row, a mid-stream resize keeping the old wrap width, and kerning inside the letter boxes under a changed font (its drain-growth entry landed the day it was filed, and the console outliving a new chat, the reminder stack's per-row exit, the panel's watch on its own box with the arrival-aside correction that came out of it, the demo bridge over the line cap, two sections outrunning the panel on their own, and the chat floor's frozen measurement of the empty state all landed 2026-08-03), and a resize that lands inside the panel's own move waiting for it | 15 |
+| [body-overlay.md](body-overlay.md) | Overlay polish, connection indicator, proto Cancel (ADR-0011), an exit for the switcher's rows, the composer's move on a clamped shrink, the reserved scrollbar rail's assumed width and spent card inset, a mid-stream retarget restarting from a rounded height, a Thoughts trace opening a reply off the bottom of a full history, the two bounds the panel's section budget left behind it (a section's own frame being under no cap, and the room a closing section hands back arriving in one frame), the chat switcher claiming a listbox role its own rows do not satisfy, and the whisper's follow-ups (ADR-0037): a pickable voice row, a mid-stream resize keeping the old wrap width, and kerning inside the letter boxes under a changed font (its drain-growth entry landed the day it was filed, and the console outliving a new chat, the reminder stack's per-row exit, the panel's watch on its own box with the arrival-aside correction that came out of it, the demo bridge over the line cap, two sections outrunning the panel on their own, the chat floor's frozen measurement of the empty state, and the console tab strip's missing keyboard half all landed 2026-08-03), and a resize that lands inside the panel's own move waiting for it | 15 |
 | [session-read-seam.md](session-read-seam.md) | Session listing/read seam (ADR-0021) | 3 |
 | [resource-governance.md](resource-governance.md) | Scheduler/placer budgets, NPU, drain (ADR-0012) | 5 |
 | [email-confirmer.md](email-confirmer.md) | Email write, Confirmer, attachments, `ToolActivity` chip (ADR-0022) | 4 |
@@ -830,6 +830,33 @@ trip and the pencil at both viewports, and the panel showing no sub-pixel step a
 streamed reply either way, so the user's undecided preference about a shrink against the ceiling is
 again not settled by accident.
 
+Body & overlay then **held at 15 on 2026-08-03**, when the console tab strip's missing keyboard half
+closed in full and one entry opened behind it, the backlog working as intended. The count not moving
+is the whole of the bookkeeping: both halves of the entry landed, so it decrements, and the pass that
+landed them opened the chat switcher's role mismatch, so it increments back. What the entry got wrong
+is a species this file has not recorded before. It said the untabbable half "wants `inert`, and
+therefore React 19", and that inference was never checked: React 19 is where `inert` becomes a
+boolean PROP, and the ATTRIBUTE has always been reachable from React 18, which writes a string
+attribute straight through and drops a boolean one with a warning. Probed against the tree's own
+react-dom 18.3.1 on both renderers before a line was written, `inert=""` renders `<div inert="">`
+with no warning and `inert={undefined}` removes it again. An empty string is how HTML spells a
+present boolean attribute, so the string form is the real thing rather than a workaround for it, and
+it is written by React through JSX; what React 18 genuinely lacks is the type, which one module
+augmentation supplies, narrowed to `""` so no call site can write the form React 18 drops. Nothing
+was upgraded and nothing was set by hand. **The estimate reasoned from a version number to a
+capability, and the capability was one `renderToStaticMarkup` call away from being checked**, which
+is the same failure as the stale-constant entry above with the staleness in the author's model
+rather than in the tree. The entry also undersold its own reach twice, in the direction this file
+expects by now: the 380ms view morph was not the only window a Tab could land in the wrong place,
+the 200ms tab-to-tab cross-fade being a second one where six stops were reachable and focus was then
+dropped to the body outright, and the dismissed panel had the identical defect one level up, six tab
+stops inside an invisible panel that is never unmounted. All three now spread one function, so what
+is hidden from a reader is out of the tab order in the same frame. Measured in Chromium at 900x900
+before and after, with real key presses: the strip went from two tab stops to one, five arrow and
+Home/End presses from doing nothing at all to moving focus and the selection together, the leaving
+view from three reachable stops to zero, the tab crossing from six to zero, and the dismissed panel
+from six to zero.
+
 ## Recommended order
 
 Ordered by what unblocks the most value soonest. Before starting any item, verify its claims
@@ -977,12 +1004,31 @@ against the code (the warning above); the entry text tells you which seams it ex
   closes was the half it had been getting right.
 - **The console's tab strip is a tab list by role but not yet by keyboard, and the pane it is
   leaving stays tabbable while it fades** ([body-overlay.md](body-overlay.md)), open from
-  2026-07-20, when the two settings views became one console. Focus now travels with the view (onto
-  the arriving tab, back to the composer on the way out), which is what makes the leaving pane's
-  `aria-hidden` take effect at all. What is left is the rest of the pattern: arrow keys along the
-  strip with a roving `tabindex`, and a leaving pane that is untabbable as well as unannounced,
-  which wants `inert` and therefore React 19. Both are small and neither is reachable by a
-  pointer; a keyboard user meets them only by pressing Tab during the 380ms of a morph.
+  2026-07-20, when the two settings views became one console, and **both halves closed 2026-08-03**
+  ([ADR-0035 addendum](../adr/ADR-0035-console-and-motion.md)). Focus already travelled with the
+  view, which is what made the leaving pane's `aria-hidden` take effect at all; what landed is the
+  rest of the pattern. The strip is one stop in the tab order (a roving `tabIndex` needing no state
+  of its own, since selection follows focus), the arrows walk it and wrap while Home and End go to
+  the ends and do not, and the leaving pane is `inert` as well as `aria-hidden`, from one function
+  used in all three places the overlay holds something mounted that is not on screen. The entry's
+  React 19 blocker was not real: only the type is missing from React 18, the attribute itself being
+  written straight through from a string, which one probe against the tree's own react-dom settled.
+  The 380ms morph was also not the only window; the 200ms tab crossing and the dismissed panel had
+  the same defect, at six reachable stops each. What it consciously did not do is the switcher's
+  role mismatch, the next bullet.
+- **The chat switcher claims a listbox role its own rows do not satisfy**
+  ([body-overlay.md](body-overlay.md)), opened 2026-08-03 by the pass above, which checked the
+  overlay's other lists and found one whose gap is a different shape. `SessionList.tsx` puts
+  `role="listbox"` on its `<ul>` while its `<li>` rows hold four ordinary buttons each and no
+  `role="option"` anywhere, so a listbox is announced whose required children are missing (measured
+  at 900x900: eight tab stops across two rows). The strip's problem was a correct role with half a
+  keyboard, which is additive; here the role and the interaction model disagree, so it is a decision
+  between two shapes (rows become options and the list becomes one stop moved through with
+  `aria-activedescendant`, which then has to say what happens to the three per-row buttons, or the
+  listbox role comes off and it is the list of composite rows it already behaves like) plus the
+  reconciliation with Ctrl+Up and Ctrl+Down, which cycle sessions without moving focus at all.
+  Nothing blocks it. The reminder stack was read in the same pass and needs nothing, and a section
+  rolling shut is deliberately left tabbable, being still announced too.
 - **A new chat minted while the console is up leaves the console up**
   ([body-overlay.md](body-overlay.md)), open from 2026-07-20, when verifying the console merge put
   a name to behaviour that predates it, and **closed 2026-08-03** by the user's answer: Ctrl+N

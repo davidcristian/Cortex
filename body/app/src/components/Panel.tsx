@@ -6,6 +6,7 @@ import { type ConsoleTab, type OverlayState, isTurnActive } from "../overlay/ove
 import { MAX_DURATION_MS } from "../overlay/panelGeometry";
 import { usePanelMotion } from "../overlay/usePanelMotion";
 import { useViewTransition } from "../overlay/useViewTransition";
+import { withdrawn } from "../overlay/withdrawn";
 import { ChatView } from "./ChatView";
 import { ConsoleView } from "./ConsoleView";
 import { PanelEdge } from "./PanelEdge";
@@ -74,7 +75,7 @@ export function Panel(props: PanelProps) {
       className={`panel${liquid ? " edge-live" : ""}${open ? " open" : closed}`}
       role="dialog"
       aria-label="Cortex"
-      aria-hidden={!open}
+      {...withdrawn(!open)}
     >
       {liquid ? (
         <PanelEdge
@@ -85,11 +86,11 @@ export function Panel(props: PanelProps) {
         />
       ) : null}
       <div className="views">
-        <div className={classOf("chat")} aria-hidden={view !== "chat"}>
+        <div className={classOf("chat")} {...withdrawn(view !== "chat")}>
           <ChatView {...props} />
         </div>
         {view === CONSOLE || leaving === CONSOLE ? (
-          <div className={classOf(CONSOLE)} aria-hidden={view !== CONSOLE}>
+          <div className={classOf(CONSOLE)} {...withdrawn(view !== CONSOLE)}>
             <ConsoleView
               tab={tab.current}
               themeName={themeName}
