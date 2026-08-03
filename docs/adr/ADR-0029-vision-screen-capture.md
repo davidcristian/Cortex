@@ -537,7 +537,8 @@ Overlay: the reducer flag and the indicator under the existing thresholds.
 through the real `LlamaCppBackend` rather than raw HTTP; whether thinking needs disabling on a
 vision turn under the shipped payload; the `mmproj`-less error body text; and an image arm of the
 injection-defense harness against a rendered-payload corpus, whose number is published whatever
-it says.
+it says. (Three of those four have since run: the first on 2026-07-18, the middle two on
+2026-08-03, each recorded in its own dated addendum below. The harness arm is the one still owed.)
 
 **Host-Windows (host only).** The real GDI blit of a live desktop; `WDA_EXCLUDEFROMCAPTURE`
 verified by capturing while the overlay is visible and confirming it is absent; per-monitor DPI
@@ -546,7 +547,9 @@ DRM-protected surfaces; hotkey-to-answer latency with its vision surcharge (pred
 over a text turn, dominated by the second inference pass rather than by the body); and the
 resident VRAM figure with the projector loaded on the 24 GB GPU.
 
-**Assumptions, flagged rather than stated as fact.** `llama-server`'s `mmproj`-less error text;
+**Assumptions, flagged rather than stated as fact.** `llama-server`'s `mmproj`-less error text
+(measured verbatim on 2026-08-03 and it says what this ADR expected, so it is a fact now rather
+than an assumption; the addendum below carries the bytes);
 that the `png` crate vendors cleanly under `--locked`; every Win32 GDI and
 `SetWindowDisplayAffinity` behavior claim, which is documentation-derived and user-verifiable
 only; and the projector's exact effective view resolution, inferred from the 266-token saturation

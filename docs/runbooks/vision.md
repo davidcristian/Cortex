@@ -51,10 +51,32 @@ The other knobs, all optional:
 3. The brain's startup log carries the probe's own answer (`vision probe answered`, with the
    endpoint and the verdict). A failure logs `vision probe failed` and counts as no vision, so
    the tool is simply not advertised.
+4. To check what a **forgotten projector** looks like, which is the failure the inference
+   adapter's bounded error excerpt exists for, start a second server on the same weights with the
+   cortex tier's flags minus the `--mmproj` pair and run the canary against it:
+   ```
+   docker run -d --name cortex-nommproj --gpus all -p 127.0.0.1:8085:8085 \
+     -v "$CORTEX_MODELS_DIR:/models:ro" ghcr.io/ggml-org/llama.cpp:server-cuda \
+     --model /models/google/gemma-4-12B-it-qat-q4_0-gguf/gemma-4-12b-it-qat-q4_0.gguf \
+     --host 0.0.0.0 --port 8085 -ngl 99 --ctx-size 16384 --parallel 1 --jinja
+   cd brain && uv run pytest -m integration --no-cov \
+     packages/inference/tests/test_backend_live.py -k projector
+   ```
+   It asserts the 500 and llama.cpp's own `mmproj` hint, measured verbatim in ADR-0029's
+   2026-08-03 addendum. A red run means the wording moved; re-measure and record the new string.
 
 **What the projector costs.** ADR-0004's 11.3 GB cortex reservation is a **with-mmproj**
 measurement, so enabling it spends budget the placer has been charging since before it loaded;
 subagent headroom is unchanged. An image costs 266 prompt tokens at any size from 720p up.
+
+**What a picture costs in time.** The cortex thinks before it answers, and on an open-ended ask a
+picture makes that near-certain (measured 2026-08-03: 10 of 10 image runs of "what is on my
+screen?" thought, against 2 of 5 on the same scaffold with the picture removed). The reply then
+begins around 6 s in on a simple screen and 15 s in on one packed with small text, against 0.4 s
+pixel-less. Nothing is truncated by it, because the shipped
+request sends no `max_tokens` and the server runs at `n_predict: -1`, so this is a latency cost and
+not a correctness one. Turning thinking off is a server-side decision the cortex tier does not
+take today; it starts the reply in about 1.2 s when it is taken.
 
 ## Host-only half (Windows, a real desktop)
 

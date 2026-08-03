@@ -161,7 +161,16 @@ variants, disable-thinking / token-budget capping
   change; reasoning stays ephemeral. Remaining behind the same
   `InferenceBackend`/`TurnCapabilities` seams (ADR-0020 deferred):
   the **disable-thinking / token-budget** alternatives (still available if a runaway trace needs
-  capping) and **reasoning persistence/summarization**. **`state`-aware overlay treatment landed
+  capping) and **reasoning persistence/summarization**. The vision slice asked whether an image turn
+  is the case that finally needs the disable-thinking half, and the answer measured 2026-08-03 is
+  no, with a number attached ([vision.md](vision.md), [ADR-0029 agent-validation
+  addendum](../adr/ADR-0029-vision-screen-capture.md)): a picture makes a think near-certain on an
+  open-ended ask, 10 of 10 runs against 2 of 5 pixel-less, but nothing truncates, since the shipped
+  request sends no `max_tokens` against a server at `n_predict: -1`. What it buys is latency,
+  roughly 6 s before the first word on a simple screen and 15 s on a dense one against 1.2 s with
+  thinking off, so this
+  lever stays fix-when-it-bites and its trigger is a user who minds the wait rather than a truncated
+  reply. **`state`-aware overlay treatment landed
   2026-07-13 ([ADR-0020 third addendum](../adr/ADR-0020-reasoning-status.md)):** the reducer now
   keeps the status event's `state` (a new `Message.statusState`) and a `"thinking"` chip renders
   distinctly (a `chip-think` modifier: the reasoning bob on its dot, an accent label, an aria
