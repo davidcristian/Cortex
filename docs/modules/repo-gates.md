@@ -44,15 +44,19 @@ core function).
   label, the reason the sites must agree (printed with any failure), and two or more `Site`s,
   each a repo-relative path plus the identifier declared in it. Registered today: the
   screen-capture byte ceiling (`MAX_CAPTURE_BYTES` in `body/crates/core`, `MAX_IMAGE_BYTES` in
-  `brain/packages/core`) and the seam token's metadata key (`SEAM_TOKEN_HEADER` in
-  `body/crates/rpc`'s `auth.rs` and `client.rs`, and in `brain/packages/seam`).
+  `brain/packages/core`), the seam token's metadata key (`SEAM_TOKEN_HEADER` in
+  `body/crates/rpc`'s `auth.rs` and `client.rs`, and in `brain/packages/seam`), and the
+  session-title truncation bound (`TITLE_MAX` in `brain/packages/core`'s `sessions.py` and in the
+  overlay's `sessionState.ts`, ADR-0021 truncation addendum).
   **No master:** the sites are compared with each other, not against a declared value, so
   editing either side alone fails and a deliberate change is a change to all of them.
   `proto/body.proto` is not the source: protobuf has no constant, so a value could only sit
   there as a comment, which is one more uncoupled copy. Values are compared after reduction,
   so `6291456` and `6 * 1024 * 1024` tie; the two forms that reduce are a product of integer
   literals and a plain double-quoted string, and `DECLARATIONS` holds one declaration syntax
-  per language (`.py`, `.rs`), matching module-level and item-level constants only.
+  per language (`.py`, `.rs`, `.ts`), matching module-level and item-level constants only: the
+  Python and TypeScript forms are anchored at column 0, so an indented `const` is a local and not
+  a second declaration of the module's constant.
   **Fails closed by design**, because a scan that cannot find its constants would agree with
   itself forever: a missing file, an unreadable or non-UTF-8 one, an unknown suffix, a name
   that is absent, one declared twice, a value it cannot reduce, and a registry entry naming

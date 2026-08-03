@@ -53,6 +53,10 @@ def test_single_message_session_uses_it_for_both_title_and_preview() -> None:
     assert summary.last_activity == _EARLY
 
 
+def test_the_title_bound_is_forty_eight_characters() -> None:
+    assert TITLE_MAX == 48
+
+
 def test_whitespace_is_collapsed_to_single_spaces() -> None:
     summary = summarize_session("s1", [_msg(Role.USER, "  hello \n\t world  ", _EARLY)])
     assert summary.title == "hello world"

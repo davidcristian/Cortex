@@ -76,6 +76,10 @@ def test_parse_value_refuses_what_it_cannot_reduce(text: str) -> None:
         ("decl.py", "MAX_CAPTURE_BYTES = 6 * 1024 * 1024"),
         ("decl.py", "MAX_CAPTURE_BYTES: int = 6291456"),
         ("decl.py", "MAX_CAPTURE_BYTES = 6291456  # a trailing comment"),
+        ("decl.ts", "const MAX_CAPTURE_BYTES = 6291456;"),
+        ("decl.ts", "export const MAX_CAPTURE_BYTES = 6 * 1024 * 1024;"),
+        ("decl.ts", "export const MAX_CAPTURE_BYTES: number = 6291456;"),
+        ("decl.ts", "const MAX_CAPTURE_BYTES = 6291456; // a trailing comment"),
     ],
 )
 def test_read_value_reads_each_declaration_form(tmp_path: Path, name: str, line: str) -> None:
@@ -102,6 +106,9 @@ def test_read_value_ties_a_string_across_both_languages(tmp_path: Path) -> None:
         ("decl.py", "MAX_CAPTURE_BYTES_EXTRA = 1\n"),
         ("decl.py", "    MAX_CAPTURE_BYTES = 1\n"),  # indented: a local, not a module constant
         ("decl.rs", "let MAX_CAPTURE_BYTES: usize = 1;\n"),  # a binding, not a const item
+        ("decl.ts", "const MAX_CAPTURE_BYTES_EXTRA = 1;\n"),
+        ("decl.ts", "  const MAX_CAPTURE_BYTES = 1;\n"),  # indented: a local, not a module one
+        ("decl.ts", "let MAX_CAPTURE_BYTES = 1;\n"),  # reassignable, so not a constant
     ],
 )
 def test_read_value_fails_closed_when_the_name_is_gone(
@@ -134,9 +141,18 @@ def test_read_value_fails_closed_on_a_non_utf8_file(tmp_path: Path) -> None:
 
 
 def test_read_value_fails_closed_on_an_unknown_language(tmp_path: Path) -> None:
-    (tmp_path / "decl.ts").write_text("export const A = 1;\n", encoding="utf-8")
+    (tmp_path / "decl.go").write_text("const A = 1\n", encoding="utf-8")
     with pytest.raises(crosscheck.CrossCheckError, match="no declaration syntax is known"):
-        crosscheck.read_value(tmp_path, crosscheck.Site("decl.ts", "A"))
+        crosscheck.read_value(tmp_path, crosscheck.Site("decl.go", "A"))
+
+
+def test_read_value_ties_a_number_from_typescript_to_python(tmp_path: Path) -> None:
+    """The session-title bound's real shape: a bare overlay `const` against a bare Python name."""
+    (tmp_path / "sessionState.ts").write_text("const TITLE_MAX = 48;\n", encoding="utf-8")
+    (tmp_path / "sessions.py").write_text("TITLE_MAX = 48\n", encoding="utf-8")
+    from_ts = crosscheck.read_value(tmp_path, crosscheck.Site("sessionState.ts", "TITLE_MAX"))
+    from_py = crosscheck.read_value(tmp_path, crosscheck.Site("sessions.py", "TITLE_MAX"))
+    assert from_ts == from_py == 48
 
 
 # ── tying the sites together ───────────────────────────────────────────────────

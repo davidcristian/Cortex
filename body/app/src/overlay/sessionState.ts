@@ -3,8 +3,14 @@ import type { OverlayState } from "./overlayState";
 import type { Message } from "./turnState";
 
 export const NEW_CHAT_TITLE = "New chat";
-const TITLE_MAX = 32;
+/**
+ * The character bound on a title, the same number the brain's `cortex_core.sessions.TITLE_MAX`
+ * bounds every listed title to, and tied to it by `scripts/crosscheck.py` so neither can move
+ * alone.
+ */
+const TITLE_MAX = 48;
 
+/** The live title for a chat the brain has not listed yet: the brain's rule, applied locally. */
 export function deriveTitle(text: string): string {
   const oneLine = text.replace(/\s+/gu, " ").trim();
   return oneLine.length > TITLE_MAX ? `${oneLine.slice(0, TITLE_MAX)}…` : oneLine;

@@ -6,9 +6,6 @@ from datetime import datetime
 
 from cortex_core.conversation import Message
 
-# Title/preview are collapsed to one line and truncated for the switcher (ADR-0021).
-# The overlay's own live-title derivation (for a chat not yet persisted) applies the
-# same rule and is kept documented in step, since neither side can see the other's constant.
 TITLE_MAX = 48
 PREVIEW_MAX = 96
 

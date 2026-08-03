@@ -253,13 +253,15 @@ cross-language-constant addendum):**
   in the shell as `"http://127.0.0.1:50051"` against `SeamServerConfig.port`, and the body's bind
   port `50151` is a bare literal argument in `body_server.rs` against a compose env var. Teaching
   a constant scanner to read a shell string embedded in YAML is a different tool. **Third,
-  TypeScript, which the scan has no declaration syntax for at all.** The overlay matches wire
+  TypeScript, which the scan had no declaration syntax for at all. That half closed the same day
+  (below), so what remains of this kind is the naming, not the scanning.** The overlay matches wire
   values by hand: `CAPTURE_SCREEN_TOOL` against the brain's `CAPTURE_SCREEN_TOOL_NAME`, whose
   drift leaves the capture dot unlit, and a bare `"thinking"` literal (in `turnState.ts` and
   twice in `Message.tsx`) against `THINKING_STATE`, whose drift leaves the reasoning trace
   unaccumulated and its chip unstyled. Both fail silently, by a surface simply never appearing.
-  Adding `.ts` to `DECLARATIONS` is one pattern; deciding that a bare literal must first become
-  a named constant is the actual work. **A fourth kind arrived on 2026-08-03 and is the same
+  `CAPTURE_SCREEN_TOOL` is now registrable as it stands, at the cost of a registry entry; the
+  `"thinking"` literals are not, and deciding that a bare literal must first become a named
+  constant is the work that is left. **A fourth kind arrived on 2026-08-03 and is the same
   entry rather than a new one:** a name that crosses from TypeScript into CSS, where the far side
   is a USE and not a declaration at all, so there is nothing for a declaration scanner to compare.
   `overlay/panelBudget.ts` publishes `CEILING_PROPERTY` (`--ceiling`) and overlay.css spends it as
@@ -275,20 +277,23 @@ cross-language-constant addendum):**
   the 2026-08-03 chat-floor addendum). All four are pinned as literals in their own suites, which is
   what a rename has to walk past; what would close it is a scan that reads a stylesheet for uses
   rather than a source for declarations.
-  **One of them is already divergent, which is why this is recorded rather than folded in.**
-  `TITLE_MAX` is 48 in `brain/packages/core/src/cortex_core/sessions.py` and 32 in
-  `body/app/src/overlay/sessionState.ts`, and the comment above the brain's declaration says the
+  **One of them was already divergent, which is why this was recorded rather than folded in, and
+  that one is settled and registered as of 2026-08-03 (the same day, later).** `TITLE_MAX` was 48
+  in `brain/packages/core/src/cortex_core/sessions.py` and 32 in
+  `body/app/src/overlay/sessionState.ts`, and the comment above the brain's declaration said the
   overlay "applies the same rule and is kept documented in step, since neither side can see the
-  other's constant". It does not, and
-  [ADR-0021](../adr/ADR-0021-session-read-seam.md) records the artefact (a first
-  message of 33 to 48 characters reads longer in the switcher than in the header). Registering
-  that pair today would make the gate red on a shipped disagreement nobody has decided how to
-  resolve, and turning a gate on over an unresolved divergence is how a gate gets bypassed. So
-  the pair waits on the decision, not on the scan. **What would close it:** a comparator field
-  for the ordered relations, a `.ts` declaration syntax, and a resolution for `TITLE_MAX` (one
-  number, or an ADR saying the two bounds are deliberately different). **Trigger:** the first
-  coupling that actually drifts, or the `TITLE_MAX` decision being made for its own reasons, at
-  which point registering the pair costs three lines.
+  other's constant". It did not. This entry's framing of the artefact, taken from
+  [ADR-0021](../adr/ADR-0021-session-read-seam.md), was also narrower than the code: it named the
+  chat being loaded, where the header-title carry had already closed the gap, and the path the 32
+  actually governed was the chat being **had**, whose header `turnState.submit` writes from the
+  local derivation and never revisits. Measured in Chromium, a 42-character first message read in
+  full in that chat's own switcher row and cut at 33 characters in the header directly above it,
+  both on screen at once, in a header box that fits 42 and so was not short of room. The overlay
+  is now 48, the pair is the registry's third entry and the first in TypeScript, and the gate was
+  proved to fail on a divergence before being trusted (ADR-0021 truncation addendum, 2026-08-03).
+  **What is left of this entry:** a comparator field for the ordered relations, the copies that
+  are not declarations, and the TypeScript-into-CSS names whose far side is a use. **Trigger:**
+  the first coupling that actually drifts.
 
 **Repo gates ([ADR-0026](../adr/ADR-0026-prose-style-gates.md)):**
 - **The fail-open `scripts/` gate config closed 2026-07-12
