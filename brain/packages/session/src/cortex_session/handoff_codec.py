@@ -65,6 +65,7 @@ def encode_record(record: HandoffRecord) -> str:
             "brief": record.brief,
             "nonce": record.nonce,
             "tainted": record.tainted,
+            "opaque": record.opaque,
             "sources": [
                 {"kind": source.kind.value, "value": source.value} for source in record.sources
             ],
@@ -89,6 +90,7 @@ def decode_record(raw: bytes | str, handoff_id: str) -> HandoffRecord:
             brief=fields["brief"],
             nonce=fields["nonce"],
             tainted=fields["tainted"],
+            opaque=fields["opaque"],
             sources=tuple(
                 Provenance(kind=SourceKind(source["kind"]), value=source["value"])
                 for source in fields["sources"]

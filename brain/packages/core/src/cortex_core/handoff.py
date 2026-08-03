@@ -42,6 +42,7 @@ class HandoffRecord:
     brief: str
     nonce: str
     tainted: bool
+    opaque: bool
     sources: tuple[Provenance, ...]
     untrusted_urls: frozenset[str]
     budget_remaining: int
@@ -58,6 +59,7 @@ class HandoffRecord:
         """Reconstruct the turn's ``TaintLedger`` for the brain phase (ADR-0030 decision 4)."""
         return TaintLedger(
             tainted=self.tainted,
+            opaque=self.opaque,
             untrusted_urls=set(self.untrusted_urls),
             sources=self.sources,
         )
@@ -101,6 +103,7 @@ class EscalationSlot:
             brief=self.brief,
             nonce=self.refs.nonce,
             tainted=self.refs.taint.tainted,
+            opaque=self.refs.taint.opaque,
             sources=self.refs.taint.sources,
             untrusted_urls=frozenset(self.refs.taint.untrusted_urls),
             budget_remaining=self.refs.budget.limit - self.refs.budget.spent,

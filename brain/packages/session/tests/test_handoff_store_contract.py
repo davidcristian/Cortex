@@ -82,11 +82,12 @@ async def test_corrupt_record_wraps_into_handoff_store_error() -> None:
         await RedisHandoffStore(client).get("t1")
 
 
-async def test_record_missing_a_taint_field_is_corrupt_not_a_default() -> None:
-    """A document without its taint fields fails LOUDLY; defaulting them would fail open."""
+@pytest.mark.parametrize("field", ["tainted", "opaque", "sources", "untrusted_urls"])
+async def test_record_missing_a_taint_field_is_corrupt_not_a_default(field: str) -> None:
+    """A document without one of its taint fields fails LOUDLY; a default would fail open."""
     client = FakeAsyncRedis(server=FakeServer())
     fields = cast("dict[str, Any]", json.loads(encode_record(handoff_contract.make_record("t1"))))
-    del fields["sources"]
+    del fields[field]
     await client.set("cortex:handoff:t1", json.dumps(fields))
     with pytest.raises(HandoffStoreError, match="corrupt handoff record at 'cortex:handoff:t1'"):
         await RedisHandoffStore(client).get("t1")

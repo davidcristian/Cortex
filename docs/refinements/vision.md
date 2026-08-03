@@ -11,9 +11,8 @@ live-probe refresh, JPEG or WebP for photographic screens,
 an `AttachmentStore` for accountability, an image arm of the injection harness,
 per-source memory rules, a Windows.Graphics.Capture backend, multi-monitor and DPI reporting,
 Linux and macOS backends, a uniform per-call deadline, `RESOURCE_EXHAUSTED` classification,
-pixel screening in the body, carrying a picture (or at least the `opaque` bit) across a model
-swap, an outcome-driven capture indicator, and the two agent-Docker validations this slice left
-unrun.
+pixel screening in the body, carrying a picture across a model swap, an outcome-driven capture
+indicator, and the two agent-Docker validations this slice left unrun.
 
 Two bookkeeping notes, both settled 2026-07-19, so the names above can be reconciled against the
 bullets below without re-deriving them. Region and window capture and legibility at 4K share one
@@ -23,7 +22,11 @@ counted; the reason is recorded on the bullet itself. A third note as of the sam
 host-side capture validation also has a bullet and is no longer counted, because it moved to
 [docs/host/](../host/index.md). A fourth as of 2026-08-03: the cross-language check on the byte
 ceiling landed, so its name left the line above while its bullet stays below with what it became,
-which is the record this file keeps rather than a fifth uncounted deferral.
+which is the record this file keeps rather than a fifth uncounted deferral. A fifth, later the
+same day: the swap entry named two halves and only the cheap one landed, so its **name narrowed**
+(the `opaque` bit left it, the picture stays) while the bullet keeps both with what the cheap half
+became. The count does not move for it, because the entry is half closed and a cell decremented
+for a half-closed entry is how an open deferral gets lost.
 
 ## Vision in Slice 10 ([ADR-0029](../adr/ADR-0029-vision-screen-capture.md))
 
@@ -141,6 +144,36 @@ which is the record this file keeps rather than a fifth uncounted deferral.
   of this entry. The expensive half is pixels themselves, which wants the `AttachmentStore` above,
   and a capability argument still says no: no brain-tier candidate on the mount has a projector,
   so a replayed picture would be unreadable even if it survived.
+
+  **The cheap half landed 2026-08-03; the expensive half stays open, so this entry stays counted**
+  ([ADR-0030](../adr/ADR-0030-brain-handoff.md) 2026-08-03 addendum). `HandoffRecord` grows
+  `opaque: bool` beside `tainted`, `EscalationSlot.snapshot` reads it off the live ledger,
+  `taint_ledger()` rebuilds it, the Redis codec writes and reads the key strictly (a missing one is
+  a corrupt record, like every other taint field), and the `HandoffStore` contract suite gains a
+  both-poles round trip that the fake and the Redis adapter both pass. The entry was right about
+  itself on every checkable claim, which is worth recording because this file's standing warning is
+  that a cost estimate is a hypothesis: the record really did carry the ledger minus the bit, both
+  consumers really are reached by the deep phase (`BrainPhase.run` opens the guardrail over the
+  rebuilt ledger and hands the same ledger to `record_exchange`), and "a record field, a codec line,
+  and the store contract's round trip" was the whole cost. It was right about the reachability too,
+  so the landing claims nothing more: `SwapConductor._prepare` still refuses an opaque turn before
+  anything is written, and the conductor test that drives the reachable ordering end to end now also
+  asserts the store saw **no write at all**, which is what makes the refusal, rather than the
+  schema, the thing keeping the far side clean today. What the bit buys is that neither consumer can
+  be handed a manufactured `False` the day the picture half relaxes that refusal, since a decayed
+  bit and an honest one look identical to both of them. The codec's treatment of a field it does not
+  know was checked rather than assumed, the same question that produced this entry's
+  `Message.images` lesson: `decode_record` reads keys by name, so an unknown key is ignored in
+  silence while a missing known key raises into `HandoffStoreError`, which is why the bit is written
+  **and** read rather than defaulted, and why the strict-decode test now runs over all four taint
+  fields. Proven by mutation three ways in the codec (drop the encode line and thirteen store tests
+  redden; default it on read with `.get` and only the strict-decode test reddens, which is the one
+  that exists for that; drop both and the contract round trip reddens on `loaded == record`) and two
+  ways in the core (drop it from `snapshot` or from `taint_ledger()` and the two new brain-phase
+  tests redden, each carrying a tainted-but-not-opaque control arm so the measured difference is the
+  bit and not the taint). Observed live against the compose Redis rather than fakeredis alone:
+  `"opaque": true` and `"opaque": false` in the stored document, both read back exact on the record
+  and on the ledger rebuilt from it.
 - **An outcome-driven capture indicator.** The overlay's dot is lit by the `ToolActivity` chip,
   which the brain emits just *before* the dispatch, so it means "the assistant asked to look at
   your screen" and its label says exactly that. It cannot say the screen was read, because no

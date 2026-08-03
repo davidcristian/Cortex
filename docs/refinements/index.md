@@ -777,6 +777,30 @@ them, `TITLE_MAX`, is **already divergent** at 48 against 32, so registering it 
 on over a shipped disagreement nobody has decided how to resolve, and it waits on that decision
 rather than on the scanner ([repo-gates.md](repo-gates.md)).
 
+Vision then **held at 17 on 2026-08-03**, later the same day, when the `opaque` bit's half of the
+pixels-across-a-swap entry landed and the picture half did not, which is the body-gateway
+precedent: a cell decremented for a half-closed entry is how an open deferral gets lost. The
+schema is whole now (`HandoffRecord` carries `opaque` beside `tainted`, `snapshot` reads it off
+the live ledger, `taint_ledger()` rebuilds it, the Redis codec writes and reads the key strictly,
+and one contract check round-trips both poles through the fake and the adapter alike), and what
+the landing is careful **not** to claim is a live fix. `SwapConductor._prepare` refuses an opaque
+turn before anything is written, so every record today says `False` truthfully; the bit is carried
+because both of its consumers open on a `False` and neither can tell an invented one from an
+honest one, so a rebuilt ledger that manufactures it is a fail-open waiting for the picture half.
+This entry's own history is why the distinction is drawn so hard: the last refusal in this area
+shipped inside a gated tool where it could never fire, with a test that reached the branch by
+calling `invoke` directly. So the conductor test now asserts the store saw no write at all (the
+refusal, not the schema, is what keeps the far side clean), and the two new brain-phase tests that
+watch the consumers differ across a swap each carry a tainted-but-not-opaque control arm, so what
+they measure is the bit and not the taint. Unusually for this backlog, the entry was right about
+itself on every checkable claim including its cost; what it did not say, and what the same entry's
+`Message.images` lesson demanded checking, is that the codec ignores an unknown key in silence
+while raising on a missing known one, which is why the bit is written and read rather than
+defaulted and why the strict-decode test now covers all four taint fields. Mutation-proven five
+ways and observed live against the compose Redis
+([ADR-0030](../adr/ADR-0030-brain-handoff.md) 2026-08-03 addendum, with a pointer from ADR-0029
+decision 4, which owns the bit).
+
 ## Recommended order
 
 Ordered by what unblocks the most value soonest. Before starting any item, verify its claims
@@ -989,12 +1013,19 @@ premise was struck across the docs that same day.
   read" needs a post-dispatch signal on the `Converse` stream: a proto field, a tool-loop emission
   point, and a reducer arm, which is why it is a seam change rather than a wording fix. It matters
   because this dot is one of the three consent surfaces that justify shipping capture ungated.
-- **Carrying the `opaque` bit across a model swap** ([vision.md](vision.md)): the cheap half of
-  the pixels-across-a-swap entry, and the one with a real fail-open behind it. `HandoffRecord`
-  carries the ledger minus `opaque`, so a rebuilt ledger says `False` and both consumers (strict
-  URL redaction, the durable-memory block) would open for the deep phase. Unreachable today only
-  because the conductor refuses an opaque turn before any record exists, which makes this defence
-  in depth: a record field, a codec line, and the store contract's round trip.
+- **Carrying the `opaque` bit across a model swap** ([vision.md](vision.md)), the cheap half of
+  the pixels-across-a-swap entry and the one with a real fail-open behind it, open from 2026-07-19
+  and **closed 2026-08-03**. It was right about itself throughout, which is worth saying under a
+  heading whose standing warning is the opposite: `HandoffRecord` did carry the ledger minus
+  `opaque`, both consumers (strict URL redaction, the durable-memory block) are real and are
+  reached by the deep phase, and "a record field, a codec line, and the store contract's round
+  trip" was the whole cost. It was right that this is defence in depth, so the landing claims no
+  more than that: `SwapConductor._prepare` still refuses an opaque turn before any record exists,
+  and the conductor test that drives the reachable ordering end to end now also asserts the store
+  saw no write at all. What the carried bit buys is that neither consumer can be handed a
+  manufactured `False` the day the picture half relaxes that refusal. It also needed no seam or
+  port change and was filed under this heading anyway, the second entry today to sit here without
+  belonging to it. The pixels half stays open, so vision's count holds.
 - **A live-probe refresh** ([vision.md](vision.md)): the `/props` vision probe runs **once at
   startup**, so a `llama-server` restarted without `--mmproj` mid-session leaves `capture_screen`
   advertised, and the next capture pays the full privacy cost (a screen read, a notified user, a

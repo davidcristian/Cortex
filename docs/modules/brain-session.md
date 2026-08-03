@@ -174,7 +174,7 @@ Handoff state (ADR-0030) is hot like task state: one record at `cortex:handoff:{
 document, no `v`/`kind` markers, written and read back within one handoff by one deployment,
 the task-store precedent) plus the pointer key `cortex:handoff:active` holding the in-flight
 record's id (one GPU, at most one swap at a time). The document carries the escalation `brief`,
-the turn's fence `nonce`, the whole taint ledger (`tainted`, `sources` as ordered
+the turn's fence `nonce`, the whole taint ledger (`tainted`, `opaque`, `sources` as ordered
 `{"kind", "value"}` pairs, `untrusted_urls` stored sorted and read back as a set), the budget
 position (`budget_remaining`/`budget_closed`), `rounds_used`, and `loop_tail` (each message
 with its `tool_calls` as `{"id", "name", "arguments"}`; the transient dispatch stamp is never
@@ -257,12 +257,15 @@ per operation, codec policy, quarantine, dangling-id tolerance, surplus release)
 the Redis adapter alone. `tests/handoff_contract.py` does it for the `HandoffStore` over
 `InMemoryHandoffStore` and `RedisHandoffStore` (ADR-0030); its load-bearing check is the
 tainted-ledger round trip (a ledger built through the real `TaintLedger` API with attested and
-claimed sources comes back bit-, order-, and set-exact via `HandoffRecord.taint_ledger()`),
-beside the lifecycle checks (active-slot claim/release across put/transition/delete, terminal
-records readable but never active, unknown-id no-ops, timezone fidelity on the record and its
-tool-bearing tail), with adapter-only mechanics (error wrapping per operation, strict corrupt-
-record policy including a dropped taint field and a forged provenance kind, terminal-only TTL,
-dangling/terminal pointer self-healing) against the Redis adapter alone. The
+claimed sources comes back bit-, order-, and set-exact via `HandoffRecord.taint_ledger()`) with
+the `opaque` bit's own both-poles round trip beside it (ADR-0029/0030: a clean record reads back
+`False` and an image-marked one `True`, on the record and on the rebuilt ledger, because both of
+that bit's consumers open on a `False` after the swap), then the lifecycle checks (active-slot
+claim/release across put/transition/delete, terminal records readable but never active,
+unknown-id no-ops, timezone fidelity on the record and its tool-bearing tail), with adapter-only
+mechanics (error wrapping per operation, strict corrupt-record policy over each of the four taint
+fields and a forged provenance kind, terminal-only TTL, dangling/terminal pointer self-healing)
+against the Redis adapter alone. The
 integration-marked tests in `tests/test_store_live.py`, `tests/test_handoff_live.py`, and
 `tests/test_schedule_live.py` run the suites against real Redis at `CORTEX_REDIS_URL`
 (excluded from CI/coverage by the workspace addopts; run manually:

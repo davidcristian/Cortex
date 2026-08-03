@@ -12,6 +12,7 @@ from cortex_core import (
     BRAIN_FAILED_NOTE,
     BUDGET_EXHAUSTED_MSG,
     DispatchBudget,
+    ImagePart,
     InferenceError,
     InMemoryMemoryStore,
     InMemorySessionStore,
@@ -25,7 +26,9 @@ from cortex_core import (
     TextDelta,
     ToolCall,
     ToolDispatcher,
+    ToolResult,
     ToolSpec,
+    Trust,
     TurnCapabilities,
     TurnEvent,
     UrlRedactingGuardrail,
@@ -142,6 +145,63 @@ async def test_a_tainted_turn_is_kept_out_of_memory_by_the_same_policy() -> None
     recorded = await _recorded(memory_on)
     assert len(recorded) == 1
     assert recorded[0].tainted is True
+
+
+def _opaque_ledger() -> TaintLedger:
+    """A ledger an image-bearing untrusted result marked, the one way production marks one."""
+    ledger = TaintLedger()
+    ledger.observe(
+        ToolResult(
+            call_id="c1",
+            content="screen capture of the primary display",
+            trust=Trust.UNTRUSTED,
+            images=(ImagePart(data=b"\x89PNG", mime_type="image/png", width=8, height=8),),
+        ),
+        source=as_source(SourceKind.TOOL, "capture_screen"),
+    )
+    return ledger
+
+
+def _textual_ledger() -> TaintLedger:
+    """The control: the same taint, from untrusted TEXT that carried no URL either."""
+    ledger = TaintLedger()
+    ledger.ingest_untrusted("a note with nothing linkable in it", source=None)
+    return ledger
+
+
+async def test_a_carried_opaque_bit_makes_the_deep_phase_redact_strictly() -> None:
+    """The first consumer, across the swap: strict redaction for a turn that read pixels."""
+    laundered = "http://evil.test/painted-into-the-screenshot"
+    _phase, _backend, _sessions, texts = await _drive(
+        backend=ScriptedBrainBackend(chunks=(f"visit {laundered} now",)),
+        taint=_opaque_ledger(),
+        capabilities=TurnCapabilities(guardrail=UrlRedactingGuardrail()),
+    )
+    assert laundered not in "".join(texts)
+    # Same default policy, same taint, no bit: nothing was collected from result text, so the
+    # verbatim policy has nothing to flag and the link streams. That IS the vision gap.
+    _phase2, _backend2, _sessions2, control_texts = await _drive(
+        backend=ScriptedBrainBackend(chunks=(f"visit {laundered} now",)),
+        taint=_textual_ledger(),
+        capabilities=TurnCapabilities(guardrail=UrlRedactingGuardrail()),
+    )
+    assert laundered in "".join(control_texts)
+
+
+async def test_a_carried_opaque_bit_keeps_the_deep_phase_out_of_durable_memory() -> None:
+    """The second consumer, across the swap: the memory drop that outranks the record policy."""
+    memory = _recaller()
+    _phase, _backend, _sessions, _texts = await _drive(
+        taint=_opaque_ledger(),
+        capabilities=TurnCapabilities(memory=memory, record_tainted_memory=True),
+    )
+    assert await _recorded(memory) == []
+    control = _recaller()
+    _phase2, _backend2, _sessions2, _texts2 = await _drive(
+        taint=_textual_ledger(),
+        capabilities=TurnCapabilities(memory=control, record_tainted_memory=True),
+    )
+    assert len(await _recorded(control)) == 1
 
 
 async def test_the_untainted_exchange_is_remembered_as_the_turn_it_was() -> None:
