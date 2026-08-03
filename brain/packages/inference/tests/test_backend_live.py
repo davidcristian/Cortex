@@ -16,17 +16,28 @@ import httpx
 import pytest
 
 from cortex_core import (
+    InferenceError,
     JsonSchema,
     Message,
     ReasoningChunk,
     Role,
     SingleResidentModelManager,
     TextChunk,
+    ToolCall,
+    ToolSpec,
+    call_message,
 )
+from cortex_core.fakes_body import default_capture
 from cortex_inference import LlamaCppBackend
 
 _MODEL = os.environ.get("CORTEX_MODEL_CORTEX", "cortex")
 _ENDPOINT = os.environ.get("CORTEX_INFERENCE_ENDPOINT", "http://127.0.0.1:8080")
+
+# A second llama-server on the SAME weights started WITHOUT the --mmproj pair, which is what the
+# projector-less error-body check needs and what no compose file produces (the gpu override always
+# names the projector). Start one beside the stack on the cortex tier's own flags minus that pair;
+# docs/runbooks/vision.md carries the command in its agent half.
+_NO_MMPROJ_ENDPOINT = os.environ.get("CORTEX_INFERENCE_ENDPOINT_NO_MMPROJ", "http://127.0.0.1:8085")
 
 # The constrained-decoding validation (ADR-0028) runs against the small subagent tier on CPU,
 # so it targets its own endpoint/model. Point these at the CPU llama-server the
@@ -94,6 +105,53 @@ async def test_reasoning_model_emits_reasoning_before_reply() -> None:
     reply = "".join(e.text for e in events if isinstance(e, TextChunk))
     assert reasoning, "reasoning_content was not surfaced as ReasoningChunk"
     assert reply.strip() != ""
+
+
+@pytest.mark.integration
+async def test_a_projector_less_server_says_so_when_an_image_arrives() -> None:
+    """ADR-0029, agent-Docker measured 2026-08-03 against gemma-4-12B at build b10236-1464c62d8:
+    a server started without --mmproj answers an image-bearing request with HTTP 500 and a JSON
+    body that names the missing projector, which is the whole reason the adapter quotes a bounded
+    excerpt of a non-2xx body instead of reporting the status alone. Measured verbatim:
+    `{"error":{"code":500,"message":"image input is not supported - hint: if this is unexpected,
+    you may need to provide the mmproj","type":"server_error"}}`, 151 bytes, so the 300-character
+    bound quotes the whole of it. The assertions pin what the excerpt has to keep working: the
+    hint token survives, and the quoted body is still complete JSON rather than a cut-off prefix.
+    This is a canary for a llama.cpp wording change, not a gate; if it reddens, re-measure and
+    record the new string. Text-only turns at the same server are unaffected.
+
+    The conversation is the shipped capture turn's own shape, the assistant's tool call included:
+    a bare user-plus-tool pair is a malformed exchange, and a server that tokenizes before it
+    checks for a projector would then answer 400 for that reason instead (measured)."""
+    manager = SingleResidentModelManager(_MODEL, _NO_MMPROJ_ENDPOINT)
+    at = datetime.now(UTC)
+    call = ToolCall(id="c1", name="capture_screen", arguments={})
+    spec = ToolSpec(
+        name="capture_screen",
+        description="Take a picture of the user's primary display and look at it.",
+        parameters={"type": "object", "properties": {}},
+    )
+    messages = [
+        Message(role=Role.USER, text="what is on my screen?", at=at, turn_id="live-vision"),
+        call_message("", [call], at, "live-vision"),
+        Message(
+            role=Role.TOOL,
+            text="screen capture of the primary display",
+            at=at,
+            turn_id="live-vision",
+            tool_call_id="c1",
+            images=(default_capture().image,),
+        ),
+    ]
+    async with httpx.AsyncClient(timeout=httpx.Timeout(60.0)) as client:
+        backend = LlamaCppBackend(manager, client)
+        with pytest.raises(InferenceError) as excinfo:
+            _ = [event async for event in backend.stream(_MODEL, messages, tools=[spec])]
+    prefix = f"llama-server answered 500 for model {_MODEL!r}: "
+    message = str(excinfo.value)
+    assert message.startswith(prefix), message
+    body = json.loads(message[len(prefix) :])
+    assert "mmproj" in body["error"]["message"], body
 
 
 async def _subagent_reply(prompt: str, *, schema: JsonSchema | None) -> str:

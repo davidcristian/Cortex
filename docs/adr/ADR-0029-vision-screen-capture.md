@@ -537,7 +537,8 @@ Overlay: the reducer flag and the indicator under the existing thresholds.
 through the real `LlamaCppBackend` rather than raw HTTP; whether thinking needs disabling on a
 vision turn under the shipped payload; the `mmproj`-less error body text; and an image arm of the
 injection-defense harness against a rendered-payload corpus, whose number is published whatever
-it says.
+it says. (Three of those four have since run: the first on 2026-07-18, the middle two on
+2026-08-03, each recorded in its own dated addendum below. The harness arm is the one still owed.)
 
 **Host-Windows (host only).** The real GDI blit of a live desktop; `WDA_EXCLUDEFROMCAPTURE`
 verified by capturing while the overlay is visible and confirming it is absent; per-monitor DPI
@@ -546,7 +547,9 @@ DRM-protected surfaces; hotkey-to-answer latency with its vision surcharge (pred
 over a text turn, dominated by the second inference pass rather than by the body); and the
 resident VRAM figure with the projector loaded on the 24 GB GPU.
 
-**Assumptions, flagged rather than stated as fact.** `llama-server`'s `mmproj`-less error text;
+**Assumptions, flagged rather than stated as fact.** `llama-server`'s `mmproj`-less error text
+(measured verbatim on 2026-08-03 and it says what this ADR expected, so it is a fact now rather
+than an assumption; the addendum below carries the bytes);
 that the `png` crate vendors cleanly under `--locked`; every Win32 GDI and
 `SetWindowDisplayAffinity` behavior claim, which is documentation-derived and user-verifiable
 only; and the projector's exact effective view resolution, inferred from the 266-token saturation
@@ -1006,3 +1009,94 @@ annotation) plus the pair as its third registered constant. The registry now spa
 What is left of the deferral is the comparator field, the copies spelled inside strings, and, in
 TypeScript, `thinking` still being a bare literal that would have to be named before it could be
 registered ([ADR-0021](ADR-0021-session-read-seam.md) truncation addendum, 2026-08-03).
+
+## Addendum (2026-08-03): the two remaining agent-Docker measurements, and what they answered
+
+### Agent-validated (2026-08-03, real cortex plus projector on the 24 GB card)
+
+The two measurements the 2026-07-19 addendum wrote down as owed have run. Both were driven against
+the cortex tier brought up the shipped way, the `model-host` supervisor under
+`docker/docker-compose.gpu.yml` with `CORTEX_MMPROJ_FILE_CORTEX` naming the projector beside the
+weights, whose `/props` answered `modalities: {'vision': True, 'video': True, 'audio': True}` as it
+did in July. Every request was built by the shipped code rather than by hand: `CaptureScreenTool`
+over an in-memory body produced the `ToolResult`, `result_message` fenced it and carried the
+`ImagePart`, `security_preamble_message` and `call_message` supplied the rest of the conversation,
+and `LlamaCppBackend` serialised the parts array and streamed the reply. The card is the 24 GB one
+rather than the 8 GB one the deferral expected, which changes nothing about either result: the
+cortex plus its projector fits both.
+
+**Thinking does not need disabling on a vision turn, and the question was aimed at a risk the
+shipped path cannot reach.** What it feared is a turn that spends its budget in `reasoning_content`
+and answers with an empty `content`. The shipped request carries no `max_tokens` at all, since
+`_build_payload` emits `model`, `messages`, `stream`, and then `tools` and `response_format` only
+when present, and the shipped server reports `n_predict: -1`, so nothing bounds the reply. Ten image
+runs across two screens each returned a reasoning trace and a non-empty reply. That absence is
+load-bearing rather than lucky, which was checked rather than argued: the identical payload with
+`max_tokens: 64` comes back `finish_reason: "length"` carrying 247 characters of reasoning and an
+empty `content`, while 200, 400 and uncapped answer normally. The property is already held by the
+suite rather than by this record, and that too was measured: planting a `max_tokens` in
+`_build_payload` reddens `test_streams_content_deltas_and_stops_on_done` and
+`test_offers_tools_and_serializes_the_tool_calling_conversation`, both of which pin the exact
+request body.
+
+**What thinking costs a vision turn is latency, and the control arm is what makes that a vision
+finding.** On a 1600x900 invoice screen, five runs began their reply 5.09 to 6.89 s in (median 6.14)
+and ran 9.5 to 11.7 s in total, with 326 to 467 characters of reasoning. On a screen packed with
+small text, five runs began 13.80 to 17.70 s in (median 15.29) and ran 28.4 to 32.8 s, with 956 to
+1359 characters. The same payload with `chat_template_kwargs: {"enable_thinking": false}` began in
+1.1 to 1.2 s, spent 93 completion tokens against 283 on the same ask, and read the same figures off
+the screen. With the `ImagePart` removed and the stand-in text kept, the same scaffold thought on
+only 2 of 5 runs and its first word arrived at a median 0.41 s, so a picture makes a think
+near-certain while the length of a think belongs to the model rather than to the pixels: the two
+pixel-less thinks, 858 and 1408 characters, are longer than every invoice-screen one. Both counts
+are for the open-ended "what is on my screen?"; a narrow ask ("what is the total due shown on my
+screen?") skipped the think on some image runs and answered in 1.8 s, so the tendency belongs to
+the open question rather than to the picture alone. The
+disable-thinking lever stays the separate open entry it was, in
+[docs/refinements/inference-model-manager.md](../refinements/inference-model-manager.md), now with a
+latency number behind it instead of an emptiness risk.
+
+**`llama-server`'s `mmproj`-less error body says what this ADR assumed it would.** A second server
+on the same weights, started with the cortex tier's flags minus the `--mmproj` pair, answers an
+image-bearing shipped payload with HTTP 500, `content-type: application/json`, and this body
+verbatim, 151 bytes, byte-identical whether the request streams or not:
+
+```
+{"error":{"code":500,"message":"image input is not supported - hint: if this is unexpected, you may need to provide the mmproj","type":"server_error"}}
+```
+
+llama.cpp writes the word "hint" itself. The interpretation recorded above ("the non-2xx excerpt is
+bounded at 300 characters, enough for `llama-server`'s own message") holds with room to spare: 151
+bytes is quoted whole, so the raised `InferenceError` reads `llama-server answered 500 for model
+'cortex': {...}` at 197 characters, and `converse_stream` hands that string to the seam as
+`ERROR_CODE_INFERENCE_FAILED`. A text-only turn at the same server answers 200, so the failure is
+exactly as narrow as decision 13 assumed. Two things still bound who meets it: that server's
+`/props` reports `modalities: {'vision': False, ...}`, so the startup probe never advertises
+`capture_screen`, which leaves a projector-less restart under a running brain (risk 4, the
+live-probe-refresh deferral) and a forced `CORTEX_VISION=on` as the ways in.
+
+**The string is a llama.cpp build's, not a contract, so it landed as a canary rather than as prose.**
+`test_a_projector_less_server_says_so_when_an_image_arrives` in
+`brain/packages/inference/tests/test_backend_live.py` is integration-marked, points at
+`CORTEX_INFERENCE_ENDPOINT_NO_MMPROJ`, and asserts the status prefix, that the quoted body still
+parses as whole JSON rather than a cut-off prefix, and that the hint names the `mmproj`. It was
+proved able to fail before being trusted: run against the projector-loaded server it fails with
+`DID NOT RAISE InferenceError`. If it ever reddens on a build bump, the answer is to re-measure and
+record the new string, since the excerpt bound is sized by it.
+
+**One correction came out of proving that, and it is why the canary carries a whole conversation.**
+A bare user-plus-tool pair, with no assistant message carrying the tool call, is a malformed
+exchange, and the projector-loaded server answers it
+`400 {"error":{"code":400,"message":"Failed to tokenize prompt","type":"invalid_request_error"}}`,
+which reads like an image problem and is not one. Under the shipped scaffold, the assistant's own
+call included, square images from 1x1 through 1280x1280 all answer 200, and the picture's
+prompt-token cost rises 51, 171 and 258 and has saturated by 896 px, consistent with the 266-token
+saturation measured before deciding. So there is no minimum image size, nothing new is deferred, and
+every number above was taken with that message in place.
+
+**No code changed for either measurement**, beyond the canary, which is the outcome this ADR wanted:
+the excerpt was built for a string nobody had read, and the string turned out to be the one it was
+built for. The refinement entry that tracked both closes in
+[docs/refinements/vision.md](../refinements/vision.md), with its line on
+[docs/refinements/index.md](../refinements/index.md); the image arm of the injection harness is the
+last of this ADR's four agent-Docker measurements still owed.

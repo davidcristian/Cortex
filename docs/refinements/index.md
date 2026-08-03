@@ -50,7 +50,7 @@ its signature.
 | [email-confirmer.md](email-confirmer.md) | Email write, Confirmer, attachments, `ToolActivity` chip (ADR-0022) | 4 |
 | [body-gateway.md](body-gateway.md) | Body gateway, OS actions, hardened posture (ADR-0023) | 5 |
 | [scheduling.md](scheduling.md) | Scheduling and reminders, `TurnStamp` provenance (ADR-0025/0027) | 8 |
-| [vision.md](vision.md) | Screen capture, images, the pixel boundary (ADR-0029) | 17 |
+| [vision.md](vision.md) | Screen capture, images, the pixel boundary (ADR-0029) | 16 |
 | [cross-cutting.md](cross-cutting.md) | Pointer input, OS backends, more roles | 3 |
 
 The counts are per area as extracted; a few threads appear in two areas (the cross-cutting
@@ -869,6 +869,27 @@ Home/End presses from doing nothing at all to moving focus and the selection tog
 view from three reachable stops to zero, the tab crossing from six to zero, and the dismissed panel
 from six to zero.
 
+Vision went 17 to 16 on 2026-08-03 when the two agent-Docker validations ran, both against the real
+cortex beside its projector under the shipped compose path, and the entry closed whole. The thinking
+half answers no and reframes its own question: the risk it names is a reply truncated to nothing by a
+think, and the shipped request carries no `max_tokens` at all against a server reporting
+`n_predict: -1`, so ten image runs over two screens all returned a trace and a non-empty reply, while
+the same payload capped at 64 tokens does come back empty with `finish_reason: "length"`, which is
+what makes the absence of a cap load-bearing rather than lucky. What thinking costs a vision turn is
+time, 5.09 to 6.89 s before the first word on a simple screen and 13.80 to 17.70 s on a dense one,
+against a median 0.41 s on the same scaffold with the picture removed; that control arm is also
+where the vision-specific finding lives, a picture making a think near-certain on the open-ended ask
+(10 of 10 runs against 2 of 5 pixel-less) while the length of a think stays a property of the model.
+The `mmproj`-less half confirms this backlog's rarer outcome, an entry that was right: the body is
+151 bytes of JSON naming the missing projector in llama.cpp's own words, "hint" included, so the 300-character excerpt quotes all
+of it and the design claim behind that bound is now measured rather than assumed. Neither half needed
+a code change, and both are the kind of claim a llama.cpp build can invalidate, so the error string
+landed as an integration-marked canary proved able to fail before being trusted. One correction rode
+along, found while proving it: a bare user-plus-tool pair is a malformed exchange that the
+projector-loaded server answers `400 "Failed to tokenize prompt"`, which reads like an image problem
+and is not one, so the canary carries the assistant's own tool call and images from 1x1 to 1280x1280
+all answer 200 under the shipped scaffold.
+
 ## Recommended order
 
 Ordered by what unblocks the most value soonest. Before starting any item, verify its claims
@@ -885,7 +906,13 @@ against the code (the warning above); the entry text tells you which seams it ex
   the host" includes the agent, and the same 8 GB dev GPU that drove the real cortex beside its
   projector on 2026-07-18 is enough for all of them. The hand-run injection arm in that ADR's
   closeout is one corpus of one, which is exactly why the harness arm is still owed and why its
-  number gets published whatever it says.
+  number gets published whatever it says. **The two agent-Docker checks ran and closed 2026-08-03**,
+  leaving the harness arm as the whole of this item: thinking needs no disabling because the shipped
+  request carries no `max_tokens` against a server reporting `n_predict: -1`, so a vision reply
+  cannot be truncated to nothing, and what thinking costs is 5 to 6 seconds before the first word on
+  a simple screen against 0.4 on the pixel-less control arm; and the `mmproj`-less body is 151 bytes
+  of JSON naming the projector in llama.cpp's own words, well inside the excerpt bound, now pinned
+  by a live canary that was proved able to fail.
 - **The `VramBudgetPlacer`'s GPU arm against a real placement**
   ([resource-governance.md](resource-governance.md)), the mechanism half of what was filed whole as
   host work on 2026-07-19 and split back the same day. A GPU placement **beside a resident cortex**

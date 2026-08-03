@@ -46,7 +46,12 @@ the response is streamed and its body is never read, which makes the most likely
 misconfiguration on this path (a vision request to a server started without its projector)
 indistinguishable from any other failure. The adapter reads the body on a non-2xx only, quotes
 at most 300 characters of it, and raises `InferenceError` with the status and that excerpt.
-Reading it there is safe precisely because the request has already failed.
+Reading it there is safe precisely because the request has already failed. That projector-less
+case was measured on 2026-08-03: llama-server answers 500 with a 151-byte JSON body naming the
+missing `mmproj`, so the bound quotes the whole of it, and
+`test_a_projector_less_server_says_so_when_an_image_arrives` (integration-marked, needing a server
+started without the `--mmproj` pair at `CORTEX_INFERENCE_ENDPOINT_NO_MMPROJ`) is the canary for a
+llama.cpp wording change.
 
 **Error contract.** Every failure crosses the `InferenceBackend` port as `InferenceError`
 with the cause chained:
