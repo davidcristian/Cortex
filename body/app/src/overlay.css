@@ -236,7 +236,26 @@
   min-height: 0;
   /* How far a view travels as it arrives or leaves, read by both keyframes below. */
   --rise: 7px;
+  --pill-floor: 84px;
+  /* The air under a roll-open section (its own `margin-bottom`), spent out of that section's share
+     so the share bounds the OUTER box and the arithmetic below closes. */
+  --section-gap: 6px;
+  --reserved: calc(2px + 54px + 10px + 11px + var(--pill-floor) + 9px + 33px);
+  /* Floored at zero, because a viewport short enough to leave the sections nothing still leaves
+     the composer, and the composer is what a panel that small is for. */
+  --budget: max(0px, var(--ceiling, 100vh) - var(--reserved));
+  /* A section alone with the panel may have the whole budget, which is what the two rules below
+     take back when it is not alone. Floored again, because `max-height` refuses a negative length
+     by dropping the declaration, and a dropped cap is the uncapped section this exists to stop. */
+  --switcher-room: max(0px, var(--budget) - var(--section-gap));
+  --reminders-room: max(0px, var(--budget) - var(--section-gap));
   animation: viewin 0.34s var(--ease) 0.05s both;
+}
+.view:has(> .collapse.aside) {
+  --switcher-room: max(0px, calc(var(--budget) * 40 / 70 - var(--section-gap)));
+}
+.view:has(> .collapse:not(.aside)) {
+  --reminders-room: max(0px, calc(var(--budget) * 30 / 70 - var(--section-gap)));
 }
 .view.out {
   position: absolute;
@@ -784,7 +803,7 @@
   flex-direction: column;
   align-items: stretch;
   gap: 2px;
-  min-height: 84px;
+  min-height: var(--pill-floor);
 }
 .composer.stacked .field {
   flex: 0 1 auto;
@@ -1391,7 +1410,7 @@
   list-style: none;
   margin: 0 12px 6px;
   padding: 6px 0 6px 6px;
-  max-height: 40vh;
+  max-height: min(40vh, var(--switcher-room));
   overflow-y: auto;
   scrollbar-gutter: stable;
   background: var(--control);
@@ -1623,7 +1642,9 @@
   list-style: none;
   margin: 0 12px 6px;
   padding: 6px 0 6px 6px;
-  max-height: 30vh;
+  /* The switcher's arithmetic again, and for the same reason: 30vh is this stack with nothing else
+     competing for the column, and the room beside it is what the panel actually has (`.view`). */
+  max-height: min(30vh, var(--reminders-room));
   overflow-y: auto;
   scrollbar-gutter: stable;
   background: var(--control);

@@ -259,7 +259,17 @@ cross-language-constant addendum):**
   twice in `Message.tsx`) against `THINKING_STATE`, whose drift leaves the reasoning trace
   unaccumulated and its chip unstyled. Both fail silently, by a surface simply never appearing.
   Adding `.ts` to `DECLARATIONS` is one pattern; deciding that a bare literal must first become
-  a named constant is the actual work.
+  a named constant is the actual work. **A fourth kind arrived on 2026-08-03 and is the same
+  entry rather than a new one:** a name that crosses from TypeScript into CSS, where the far side
+  is a USE and not a declaration at all, so there is nothing for a declaration scanner to compare.
+  `overlay/panelBudget.ts` publishes `CEILING_PROPERTY` (`--ceiling`) and overlay.css spends it as
+  `var(--ceiling, 100vh)`; rename either side and the fallback quietly becomes the viewport, which
+  is the uncapped section the panel's budget exists to stop, with every test still green
+  ([ADR-0035](../adr/ADR-0035-console-and-motion.md), the 2026-08-03 budget addendum). The same
+  shape already holds `data-resizing`, written by the placement and read only by the rule that
+  hides the history's thumb. Both are pinned as literals in their own suites, which is what a
+  rename has to walk past; what would close it is a scan that reads a stylesheet for uses rather
+  than a source for declarations.
   **One of them is already divergent, which is why this is recorded rather than folded in.**
   `TITLE_MAX` is 48 in `brain/packages/core/src/cortex_core/sessions.py` and 32 in
   `body/app/src/overlay/sessionState.ts`, and the comment above the brain's declaration says the

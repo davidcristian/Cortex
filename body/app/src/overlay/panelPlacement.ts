@@ -3,6 +3,7 @@ import { EASING, MORPHING_ATTRIBUTE } from "./morph";
 
 /** Set on the panel while it is easing between two sizes. */
 const RESIZING_ATTRIBUTE = "data-resizing";
+import { capTo } from "./panelBudget";
 import {
   type Geometry,
   arrivalBottom,
@@ -81,7 +82,7 @@ export function place(
   // the panel was in: this is true only on the render that ARRIVES in a multi-shape view.
   const entering = at.open && memory.view !== at.view && at.view !== CHAT_VIEW;
   const release = holdScroll(element);
-  element.style.maxHeight = `${openHeight(viewport)}px`;
+  capTo(element, openHeight(viewport));
   const section = element.querySelector<HTMLElement>(`[${MORPHING_ATTRIBUTE}]`);
   if (section !== null) {
     // A section inside is collapsing open or shut, and it owns the height: the panel's `auto` height
@@ -92,7 +93,7 @@ export function place(
       memory.rolling = rolling;
       rideAlong(element, memory, section, viewport, arriving(memory, at));
     }
-    element.style.maxHeight = `${maxHeight(viewport, memory.applied)}px`;
+    capTo(element, maxHeight(viewport, memory.applied));
     // Record what the eye sees, so a later change eases from here.
     memory.shown = { height: heightOf(element), bottom: memory.applied };
     memory.deferred = true;
@@ -130,9 +131,7 @@ export function place(
   const arrival = entering ? arrivalBottom(viewport, edge, height, tabSlack(element)) : edge;
   const bottom = placed ? arrival : memory.applied;
   const ceiling = maxHeight(viewport, bottom);
-  element.style.maxHeight = `${ceiling}px`;
-  // Re-read: the real cap may have shortened the panel, and everything below animates to what the
-  // element actually is rather than to what it wanted to be.
+  capTo(element, ceiling);
   const next: Geometry = { height: heightOf(element), bottom };
   release();
   memory.applied = bottom;

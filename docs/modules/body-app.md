@@ -258,7 +258,13 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
   slack, the scroll positions the measurement is about to cost), shared so that a ride-along's
   prediction and the placement after it cannot ask the same question two ways;
   `overlay/panelPlacement.ts` decides where the panel
-  belongs; `overlay/panelRide.ts` is the slide it makes alongside a section's roll, counting its
+  belongs; `overlay/panelBudget.ts` is the one write that caps it, putting the ceiling on the
+  element as `max-height` and beside it as a `--ceiling` custom property, because `max-height` is
+  the one thing a descendant cannot read and the two roll-open sections in the panel's chrome are
+  capped out of that same number (overlay.css reserves the header, the composer's floor, the hint
+  strip and the history's padding off it, and splits what is left between the switcher and the
+  reminder stack in the ratio of the `vh` numbers they are written in, whenever both are open at
+  once); `overlay/panelRide.ts` is the slide it makes alongside a section's roll, counting its
   prediction through the same `centringHeight` a placement counts its measurement with and bounding
   it at `openHeight` first, because that is the order the measurement happens in;
   `overlay/panelWatch.ts` is the `ResizeObserver` that catches a resize no render and no roll

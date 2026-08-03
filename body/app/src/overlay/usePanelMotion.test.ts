@@ -3,7 +3,8 @@ import { useLayoutEffect } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { resized } from "../test-setup";
-import { openHeight } from "./panelGeometry";
+import { CEILING_PROPERTY } from "./panelBudget";
+import { maxHeight, openHeight } from "./panelGeometry";
 import { emptyMemory } from "./panelMemory";
 import { place } from "./panelPlacement";
 import { usePanelMotion } from "./usePanelMotion";
@@ -795,6 +796,27 @@ describe("usePanelMotion", () => {
     state.natural = 180;
     rerender({ view: "console:appearance" });
     expect(durations[2]).toBe(380);
+  });
+
+  it("publishes every cap it writes, so the sections are budgeted against the panel's own number", () => {
+    const { ref, element, state, bottom } = harness();
+    state.capped = true;
+    state.natural = 300;
+    const { rerender } = renderHook(() => usePanelMotion(ref, true, "chat"));
+    expect(bottom()).toBe(350);
+    expect(element.style.maxHeight).toBe("530px");
+    expect(element.style.getPropertyValue(CEILING_PROPERTY)).toBe("530px");
+    // A roll owns the height, and the placement returns early having written only the roll's cap.
+    state.playState = "finished";
+    const section = rolling(element, 400, 0);
+    rerender();
+    expect(element.style.getPropertyValue(CEILING_PROPERTY)).toBe(element.style.maxHeight);
+    // And the panel picks its own geometry back up at the end of the roll, on a new edge.
+    section.remove();
+    state.natural = 760;
+    rerender();
+    expect(element.style.maxHeight).toBe(`${maxHeight(VIEWPORT, bottom())}px`);
+    expect(element.style.getPropertyValue(CEILING_PROPERTY)).toBe(element.style.maxHeight);
   });
 
   it("stops growing at the top rather than reclaiming room by growing downward", () => {
