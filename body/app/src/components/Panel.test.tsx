@@ -1,10 +1,11 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { LUCID, STILL } from "../edge/edges";
 import { MULL } from "../mark/marks";
 import { INITIAL_LINK } from "../overlay/linkState";
 import type { ConsoleTab, Message, OverlayState } from "../overlay/overlayState";
+import { stubRoll } from "../test-setup";
 import { Panel } from "./Panel";
 
 const state = (over: Partial<OverlayState> = {}): OverlayState => ({
@@ -100,6 +101,11 @@ function panelProps(over: Partial<OverlayState>, open: boolean, dark: boolean, h
 function renderPanel(over: Partial<OverlayState>, open: boolean, dark: boolean, handlers: Handlers = {}) {
   return render(<Panel {...panelProps(over, open, dark, handlers)} />);
 }
+
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
 
 describe("Panel", () => {
   it("shows the title, the sun-form theme icon in light mode, and wires the header buttons", () => {
@@ -521,6 +527,41 @@ describe("Panel", () => {
     Object.defineProperty(pill, "offsetHeight", { configurable: true, get: () => 130 });
     fireEvent.change(field, { target: { value: "a draft\nover two lines\nand a third" } });
     expect(el.scrollTop).toBe(100);
+  });
+
+  it("holds the log's place while a section rolls open in the chrome beside it", () => {
+    // The switcher list and the reminder stack are siblings of the history, so a roll's start event
+    // goes up past the log to the panel and the box itself hears nothing. At the panel's ceiling
+    // their growth comes out of the log's window all the same: measured at 640x720 on a full
+    // history, opening the switcher took the window 293px to 73px with `scrollTop` left where it
+    // was, so the end of the reply went from 3px below the fold to 223px. The log listens on the
+    // column the panel renders this view into, and this is that wire.
+    const land = stubRoll();
+    const frames: FrameRequestCallback[] = [];
+    vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) =>
+      frames.push(callback),
+    );
+    vi.stubGlobal("cancelAnimationFrame", () => undefined);
+    // One array across both renders, so opening the switcher is the only thing that changed: a new
+    // list of messages is what the tail pin itself answers, and it would scroll this log on its own.
+    const messages = [userMsg, reply("m1")];
+    const props = (switcherOpen: boolean) => panelProps({ messages, switcherOpen }, true, false);
+    const view = render(<Panel {...props(false)} />);
+    const el = view.container.querySelector(".history") as HTMLDivElement;
+    let seen = 293;
+    Object.defineProperty(el, "scrollHeight", { configurable: true, get: () => 704 });
+    Object.defineProperty(el, "clientHeight", { configurable: true, get: () => seen });
+    el.scrollTop = 408;
+    view.rerender(<Panel {...props(true)} />);
+    // Frame zero of the roll, where the log is still the size it was: the ride reads the reader's
+    // distance from the end there (3px, so they are at it) and moves nothing yet.
+    frames[frames.length - 1]?.(0);
+    expect(el.scrollTop).toBe(408);
+    // And now the roll takes the window, the panel having nothing left to give.
+    seen = 73;
+    frames[frames.length - 1]?.(0);
+    expect(el.scrollTop).toBe(628);
+    land();
   });
 
   it("hands the log back its place after a trip to the console, ignoring the layout's scrolling", () => {

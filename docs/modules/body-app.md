@@ -44,8 +44,8 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
   `overlay/panelPlacement.ts` and its neighbours, which own `bottom` and `max-height` as inline
   styles; `overlay/useViewTransition.ts` names the view being left behind
   long enough to fade it; `overlay/useLogScroll.ts` owns where the reader is in the conversation and
-  keeps them there, spending `overlay/logRide.ts` on the one thing that moves it from inside, a
-  section rolling open in the middle of the log, ADR-0033/ADR-0034), the overlay state
+  keeps them there, spending `overlay/logRide.ts` on a section rolling open, whether in the middle
+  of the log or in the chrome beside it, ADR-0033/ADR-0034), the overlay state
   machine (`overlay/overlayState.ts` is a pure reducer over a `Mode` = hidden/panel/orb/preview,
   with two halves split off for the line cap and re-exported from it, so components import one
   module: the session-switching helpers in `overlay/sessionState.ts`, and the turn fold, meaning
@@ -748,12 +748,19 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
   holds the log at its tail while the reader is at the tail, parks where they are otherwise and
   hands it back after a trip to the console, and ignores the scrolling the layout does on that trip
   (which is not the reader's, and which reads as sitting at the tail because the box being out of
-  the flow has nothing left to scroll). A section rolling open inside the log is answered by
+  the flow has nothing left to scroll). A section rolling open is answered by
   `overlay/logRide.ts`: for a reader at the tail it holds their distance from it for every frame of
   the roll, so the growth comes out of the scroll rather than out of the end of the reply, capped so
   the rolling section's own top edge never leaves the window and abandoned the moment the reader
   takes the scroll back; for a reader who has scrolled up it does nothing, and the row stays under
-  the pointer that opened it. The panel's placement leaves
+  the pointer that opened it. The cap is the one thing that asks WHERE the section is: a roll in the
+  panel's chrome (the switcher list, the reminder stack, a row leaving either) takes the log's
+  window rather than growing its content, and there is nothing in the log for the reader to be
+  carried away from, so nothing bounds the ride but the box's own range. Those rolls are heard on
+  the column the panel renders the view into, `Panel` handing that element to `ChatView`, because
+  the chrome's sections are siblings of the box and their bubbling start event goes up past it; a
+  roll inside the log reaches the same listener through the box on its way. The panel's placement
+  leaves
   it alone too, which it had to be taught: `place` measures the panel by growing it to the loosest
   cap any edge could allow, every scroll box inside a taller panel is a taller box, and the engine
   clamps a box that has outgrown its scroll range and does not undo it when the real cap goes back

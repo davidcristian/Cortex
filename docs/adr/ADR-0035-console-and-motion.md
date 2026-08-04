@@ -2531,3 +2531,128 @@ identical string is its own decision; a listen would ride the standing Windows b
 **Nothing else announces.** A turn's reply, a tool chip, a reminder arriving and the switcher's own
 open and close are all still silent, deliberately: this region exists for the one thing that
 replaces the whole panel without moving anything.
+
+## Addendum, 2026-08-04: the log rides a roll in the chrome as well as one inside it
+
+The log-ride addendum above closed the trace's half of one defect and filed the other: a section
+rolling in the panel's chrome takes the log's window away exactly as a trace takes its content, and
+the ride never heard those rolls. This closes the filed entry
+([body-overlay.md](../refinements/body-overlay.md)). It is one line of subscription and one rule
+about the cap, and both of the entry's guesses about the shape of it were wrong in ways worth
+recording.
+
+### What was measured before
+
+Chromium at 640x720, the body's own window, on a history long enough to hold the panel at its 450px
+ceiling (four turns of the demo's canned reply, log content 469px in a 293px window, the reader 3px
+off the end of the last reply).
+
+- **Opening the chat switcher takes the window 293px to 73px with `scrollTop` left at 173**, so the
+  distance from the log's bottom edge to the end of the reply runs 3px to 223px across the roll,
+  which is the whole answer gone under the composer. Closing reads 3px again, so it is exactly
+  reversible, which is why it was filed rather than bundled.
+- **The start event never reaches the box.** Listeners on the history, on its column and on the
+  panel, with the switcher opened: the column and the panel hear it, the history hears nothing. The
+  chrome's sections are siblings of the box, so a bubbling event from one goes up past the log.
+- **The panel does not move at all in that trace** (top edge 86, height 450 on every frame), which
+  is what the ceiling means: there is nothing left for it to absorb the growth with.
+
+### What the entry got right, and the two things it got wrong
+
+Right, and reproduced: the numbers above, the diagnosis (the ride is subscribed to a box their start
+event never reaches), and that the ride is already written against a box and a section rather than
+against the history, so no second mechanism was needed.
+
+Wrong in two places, one of them the whole cost of the entry:
+
+1. **"The same arithmetic answers it" is false, and the wiring alone changes nothing.** The ride's
+   cap keeps the rolling section's own top edge on screen, and it is expressed as the room between
+   that edge and the box's. For a section in the chrome that room is NEGATIVE for every frame of the
+   roll, its top edge being above the box; the floor that stops the ride chasing a section already
+   above the window turns that into no room at all, and the cap freezes the ride at the position it
+   started from. Measured with the subscription landed and the cap left as it was: the window ran
+   293px to 73px and `scrollTop` read 173 on every frame, byte for byte the trace with nothing
+   listening. The rule the fix adds is one line, `box.contains(section)`, and it says what the cap
+   was always about: only a section INSIDE the box is something the reader can be carried away from.
+   A switcher list stays where the panel put it whatever the log does underneath.
+2. **The reminder stack cannot cost a reader anything, so the pair is really one section and a
+   family.** The stack is gated on an empty log (`ChatView` opens it only while `messages.length ===
+   0`), which is the same gate the previous addendum caught this entry's predecessor on. Measured on
+   the boot state: acking one of three reminders grows the history 99px to 158px with the log's
+   content at 99px, so `scrollTop` and the tail read 0 on all 21 painted frames. What the entry did
+   not name is the family that DOES reach it: every row inside those two lists rolls through the
+   same component (`overlay/usePresence.ts`, a row leaving; the switcher's empty line arriving), and
+   a row leaving the open switcher moves the log exactly as the list itself does.
+
+### The decision
+
+**The log listens on the column, and the roll's own element is the event's target.** `Panel` holds a
+ref for the chat's `.view` and hands it to `ChatView`, which hands it to `useLogScroll`; the
+subscription moves from the box to that column. One listener hears both kinds, a roll inside the log
+bubbling through the box on its way there, so there is one doorbell and not two. The section is read
+off `event.target` rather than searched for by attribute, which is what keeps two rolls in the same
+frame apart (a switcher row leaving under an empty line arriving is the reachable pair) and which
+the roll contract already licenses: `morph.ts` says the element that announces is the element that
+was marked, and both dispatchers do exactly that.
+
+**The cap is only ever about a section inside the box**, per the correction above. Outside it, the
+ride holds the tail and nothing bounds it but the box's own range.
+
+The console's column is deliberately a different element, so a roll in there is not the chat log's
+business, and the panel itself was not used for the same reason.
+
+### What it measures
+
+Chromium at 640x720 unless stated, per painted frame. The readings are taken in a `ResizeObserver`
+callback rather than in a `requestAnimationFrame` one, because the observer step runs after every
+rAF callback and therefore reads the frame the ride has already written into; a rAF probe registered
+before the ride reads that frame's new geometry against the ride's previous write and reports a lag
+that never paints, peaking at 36px on the way open, which is one frame of the roll's growth plus the
+3px being held.
+
+- **The entry's case.** Opening the switcher on the full history: the distance from the end of the
+  reply reads 3px on all 19 painted frames and `scrollTop` runs 173 to 393; closing it runs 393 back
+  to 173 with the same 3px throughout, so the round trip lands on the pixel it started from. No
+  frame moves it more than 34px, and the movement takes about 270ms of the roll's own 300ms, with
+  nothing after it.
+- **A row leaving the open list.** Deleting a chat with the switcher up: the window grows 170px to
+  220px, `scrollTop` eases 299 to 249, and the tail holds at 0 for all 19 frames.
+- **A summon, with the roll landing inside its arrival window.** Dismissed on a full history, then
+  summoned and the switcher opened 100ms later, which is the case where the panel is placing itself
+  and the ride-along is driving the bottom edge: the tail holds at 0 for all 19 painted frames while
+  the panel's top edge travels 129.76 to 85.54 and the window 390px to 170px, `scrollTop` easing 79
+  to 299. The ride and the panel's own motion do not fight, because the ride reads the box each
+  frame rather than predicting where it will be.
+- **A new chat.** `Ctrl+N` with the switcher open on a full history, which empties the log and rolls
+  the list shut in one commit: the log has nothing left to hold, `scrollTop` and the tail read 0 on
+  every frame, and the panel eases its top edge 86.5 to 145.5 undisturbed.
+- **A reminder ack.** The third of the three cases the entry asked for, and a no-op for the reason
+  above: 0 and 0 on every frame.
+- **Below the ceiling.** A one-turn chat, where opening the switcher takes the panel from 352px to
+  its ceiling first: the tail reads 0 throughout and `scrollTop` runs 0 to 72 and back to 0 as the
+  log yields the last of it, with no step anywhere.
+- **A reader who has scrolled up is left alone.** With the log parked at `scrollTop` 40 and the
+  switcher closing under them: `scrollTop` reads 40 on every frame while the window grows 220px to
+  390px. Nothing they are reading moves, which is the same rule the trace's half of this already
+  applied.
+
+### The mutation proof
+
+Three mutations, each reddening exactly the tests that carry the claim, checked in place and
+restored: taking the `box.contains` rule out again freezes the ride at its opening position (both
+new ride tests and the panel's wiring test), taking the ref off the panel's chat column leaves the
+log listening to nothing (the panel's wiring test alone), and putting the subscription back on the
+box reddens four (the chrome test, the two-rolls test, the unmounted-column test and the panel's
+wiring test) while leaving the inside-the-log ride green, which is the shape that says the two kinds
+of roll are one mechanism.
+
+### What this does not do
+
+**Nothing new is bounded by the section's own top edge outside the box.** A chrome section tall
+enough to leave the log a single line still leaves it that line, since the ride only ever holds the
+tail; what stops that from being a problem is the panel's height budget (the addendum above where
+the sections spend what the column's furniture leaves), which is what keeps the composer and the
+hint strip on screen in the first place.
+
+**The console's own column is not wired, and has nothing to wire.** No section in it rolls today,
+and a log is not what it holds.

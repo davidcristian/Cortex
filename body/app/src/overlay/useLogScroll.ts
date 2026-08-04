@@ -8,7 +8,7 @@
 import { type RefObject, useCallback, useEffect, useLayoutEffect, useRef } from "react";
 
 import { rideTail } from "./logRide";
-import { MORPHING_ATTRIBUTE, MORPH_START_EVENT } from "./morph";
+import { MORPH_START_EVENT } from "./morph";
 
 /** How close to the bottom (px) still counts as "reading the tail". Two things are spent on it: the
  *  auto-scroll follows a landing reply for a reader inside it, and a section rolling open inside the
@@ -41,8 +41,13 @@ export interface LogScroll {
  * handed the history its whole content as its window and clamped `scrollTop` to zero a whole morph
  * before `display: none` got to it. That is `.view.out`'s job now, and this is still the half that
  * cannot be done in CSS.
+ *
+ * `columnRef` is the flex column this box stands in, which is the panel's chat face: the header, the
+ * two roll-open sections, this log, the composer and the hint strip. It is where a roll is heard,
+ * for the reason written over the subscription below, and it is handed in rather than walked to
+ * from the box because the element belongs to the panel and not to the log.
  */
-export function useLogScroll(showing: boolean): LogScroll {
+export function useLogScroll(showing: boolean, columnRef: RefObject<HTMLElement | null>): LogScroll {
   const ref = useRef<HTMLDivElement>(null!);
   const pinned = useRef(true);
   const parked = useRef(0);
@@ -81,39 +86,47 @@ export function useLogScroll(showing: boolean): LogScroll {
     }
   }, [showing, toTail]);
 
-  // And the third thing that can falsify it: a section rolling open INSIDE the log. A Thoughts
-  // trace grows in the middle of a settled reply, and once the panel is at its ceiling that growth
-  // comes out of the visible window rather than out of the panel, taking the end of the reply below
-  // the fold. `rideTail` holds the reader's distance from the tail across the roll, for a reader
-  // who is at the tail; anyone who has scrolled up keeps the row under the pointer that opened it,
-  // which is the disclosure's own default and moves nothing they are reading. The threshold is this
-  // hook's, the same one the pin is drawn at, and the ride tests it against the box itself on the
-  // roll's first frame, that being the one moment in a roll where the log is still the size it was.
+  // And the third thing that can falsify it: a section rolling open. A Thoughts trace grows in the
+  // middle of a settled reply, and once the panel is at its ceiling that growth comes out of the
+  // visible window rather than out of the panel, taking the end of the reply below the fold.
+  // `rideTail` holds the reader's distance from the tail across the roll, for a reader who is at
+  // the tail; anyone who has scrolled up keeps the row under the pointer that opened it, which is
+  // the disclosure's own default and moves nothing they are reading. The threshold is this hook's,
+  // the same one the pin is drawn at, and the ride tests it against the box itself on the roll's
+  // first frame, that being the one moment in a roll where the log is still the size it was.
   //
-  // Subscribed once, on the box itself, which the roll's own bubbling start event reaches from
-  // wherever in the log it happens. The panel's chrome rolls too (the switcher list, the reminder
-  // stack), and those sections are siblings of this box rather than children of it, so their rolls
-  // are the panel's business and never this one's.
+  // Subscribed on the COLUMN rather than on the box, because half the rolls that shrink this log
+  // happen outside it. The switcher list and the reminder stack are siblings of the box, not
+  // children of it, so their bubbling start event goes up past the log to the panel and the box
+  // never hears a thing; at the ceiling their growth comes out of the log's window exactly as a
+  // trace's does, and measured at 640x720 on a full history, opening the switcher took the window
+  // 293px to 73px with `scrollTop` untouched, so the end of the reply went 3px below the fold to
+  // 223px. One listener on the element they share hears both, and a roll inside the log still
+  // reaches it by bubbling through the box on its way. Which of the two a section is, the ride asks
+  // the box itself (`logRide.ts`): only a section INSIDE it is something the reader can be carried
+  // away from.
   const ride = useRef<(() => void) | null>(null);
   useEffect(() => {
     const box = ref.current;
-    const onRoll = () => {
-      const section = box.querySelector<HTMLElement>(`[${MORPHING_ATTRIBUTE}]`);
-      if (section === null) {
-        return;
-      }
+    const column = columnRef.current;
+    const onRoll = (event: Event) => {
+      // The roll's own element, which is what the event's target IS: both dispatchers mark the
+      // element they then announce from, and the contract says so (`morph.ts`). Reading the target
+      // rather than searching for the mark is what keeps two rolls in one frame apart, a switcher
+      // row leaving under an empty line arriving being the pair that does it.
+      const section = event.target as HTMLElement;
       // A roll starting while another is still in the air re-reads the distance from where the eye
       // has the log now, rather than carrying a baseline measured against a layout that has since
       // moved on.
       ride.current?.();
       ride.current = rideTail(box, section, PIN_THRESHOLD_PX);
     };
-    box.addEventListener(MORPH_START_EVENT, onRoll);
+    column?.addEventListener(MORPH_START_EVENT, onRoll);
     return () => {
-      box.removeEventListener(MORPH_START_EVENT, onRoll);
+      column?.removeEventListener(MORPH_START_EVENT, onRoll);
       ride.current?.();
     };
-  }, []);
+  }, [columnRef]);
 
   return { ref, onScroll, toTail };
 }

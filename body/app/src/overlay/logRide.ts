@@ -11,6 +11,15 @@
 // of the roll, and the distance from the log's bottom edge to the end of the reply went 3px to 79px,
 // which is the last two lines of the answer gone.
 //
+// **The panel's chrome does it from the other side, and it is the same defect.** The switcher list
+// and the reminder stack roll OUTSIDE the history, so at the ceiling their growth comes out of the
+// log's window rather than out of the log's content: the range grows because the box shrank, and
+// the reader is carried off the end of the reply just the same. Measured at 640x720 on the same
+// full history: opening the switcher took the window 293px to 73px with `scrollTop` untouched, so
+// the distance from the end of the reply ran 3px to 223px. Those rolls are heard on the column the
+// panel renders the view into, their start event never reaching the box (`useLogScroll`), and the
+// only thing that asks which kind of roll this is is the cap below.
+//
 // **The rule is the tail pin, held across a roll.** Whether the reader is at the tail is the claim
 // the log already keeps and already restores (`useLogScroll`), and the reader at the tail is the one
 // this happens to. So while they are there, the log holds the same distance from the end of the
@@ -62,15 +71,29 @@ import { MIN_DELTA_PX, MORPHING_ATTRIBUTE } from "./morph";
  * the top edge, and anchoring on that block instead would keep it; it would also read a room of zero
  * for a section that is the scroll box's own child, which makes the rule depend on how much markup
  * happens to sit between the two. The section is the element the roll names.
+ *
+ * **The cap is only ever about a section inside the box.** A section in the panel's chrome takes its
+ * room from the log's window rather than from the log's content, so there is nothing in here for the
+ * reader to be carried away from: the switcher list they just opened is above this box and stays
+ * where the panel put it, whatever the log does underneath. Read as room, an outside section is
+ * worse than irrelevant, its top edge being ABOVE the box's for every frame of the roll, so the
+ * subtraction is negative, the floor turns it into no room at all, and the cap freezes the ride at
+ * the position it started from. Measured at 640x720 on a full history with the ride subscribed and
+ * this rule not yet written: the switcher took the log's window 293px to 73px and `scrollTop` read
+ * 173 on every frame of the roll, exactly as it had with nothing listening at all.
  */
 function stopAt(box: HTMLElement, section: HTMLElement, tail: number): number {
+  const hold = box.scrollHeight - box.clientHeight - tail;
+  if (!box.contains(section)) {
+    return hold;
+  }
   const room = section.getBoundingClientRect().top - box.getBoundingClientRect().top;
   // Room is spent, not kept: a section already above the window's top edge caps the ride where it
   // stands, since scrolling further down carries the reader away from the thing they just opened.
   const cap = box.scrollTop + Math.max(room, 0);
   // The floor is the engine's: a position past either end of the range is clamped to it, which is
   // also what the read-back below is for.
-  return Math.min(box.scrollHeight - box.clientHeight - tail, cap);
+  return Math.min(hold, cap);
 }
 
 /**
