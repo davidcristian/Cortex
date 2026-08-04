@@ -13,12 +13,17 @@ built-ins stamp TRUSTED because host state is a float the OS authored; this is n
 Tainting is not cosmetic: it closes every gated tool for the rest of the turn, refuses
 autonomous task creation, and pins subagent spawns to the injection-robust model.
 
-The boundary has to be that mechanical, because the measured behaviour of the cortex is that an
-instruction painted into the pixels is **not obeyed but is transcribed verbatim**, with and
-without a hardened preamble carrying an explicit clause about images. No amount of framing
-bounds a picture; a nonce can bracket text and cannot bracket pixels. So the tool marks the turn
-through exactly the machinery every other untrusted result uses, with no special case, and the
-existing denial does the rest.
+The boundary has to be that mechanical, because framing does not hold over pixels the way it
+holds over text. Measured against a rendered-payload corpus (ADR-0029's 2026-08-04 image-arm
+addendum), an instruction painted into the pixels is **not obeyed but described** for every
+hijack-shaped attack, with and without the hardened preamble: overrides, task-completion spoofs,
+system-prompt mimicry, roleplay, refusal suppression, payload splitting and both exfiltrations
+all failed, and the outbound tool was never called from a picture. **Content manipulation is the
+exception**, and it is the one the preamble was hardened for: told by a screen that every summary
+must end with a given line, the cortex has ended its summary with that line, framed. No amount of
+framing bounds a picture; a nonce can bracket text and cannot bracket pixels. So the tool marks
+the turn through exactly the machinery every other untrusted result uses, with no special case,
+and the existing denial does the rest.
 
 Failure is deliberately asymmetric: every failure returns ``Trust.TRUSTED, is_error=True`` with
 no images. Nothing untrusted arrived, so tainting on a dead body would gratuitously close the
