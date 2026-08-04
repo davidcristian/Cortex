@@ -83,6 +83,11 @@ export function Panel(props: PanelProps) {
   const view: View = state.consoleTab === null ? "chat" : CONSOLE;
   const leaving = useViewTransition(view, MORPH_MS);
   const panelRef = useRef<HTMLDivElement>(null);
+  // The chat's own column, handed to the view inside it. A roll in the chrome (the switcher list,
+  // the reminder stack, a row leaving either of them) is a sibling of the history and its start
+  // event never reaches that box, so the log listens here instead (`useLogScroll`). The console's
+  // column is deliberately a different element: a roll in there is not the chat log's business.
+  const chatRef = useRef<HTMLDivElement>(null);
   // Which tab the console is showing, kept for the morph it spends on its way out. The console is
   // still mounted then and its tab is already null, so the fallback below was drawing the FIRST tab
   // over the one the user was actually looking at: leaving from the shortcuts, the appearance tab
@@ -129,8 +134,8 @@ export function Panel(props: PanelProps) {
             leaving the console for the chat and then pressing Tab reached the back chevron and both
             faces of the strip inside the pane on its way out, and then the body. `withdrawn` takes
             the whole pane out of the tab order for exactly as long as it is out of the tree's. */}
-        <div className={classOf("chat")} {...withdrawn(view !== "chat")}>
-          <ChatView {...props} />
+        <div className={classOf("chat")} ref={chatRef} {...withdrawn(view !== "chat")}>
+          <ChatView {...props} column={chatRef} />
         </div>
         {view === CONSOLE || leaving === CONSOLE ? (
           <div className={classOf(CONSOLE)} {...withdrawn(view !== CONSOLE)}>

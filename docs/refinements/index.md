@@ -44,7 +44,7 @@ its signature.
 | [memory.md](memory.md) | Store, scoping, rerank/MMR (ADR-0008) | 8 |
 | [inference-model-manager.md](inference-model-manager.md) | Model-manager lifecycle, MTP, reasoning status (ADR-0007/0020) | 7 |
 | [subagents.md](subagents.md) | Progress reporting, spawn schema, heterogeneous roster (ADR-0010/0018) | 2 |
-| [body-overlay.md](body-overlay.md) | Overlay polish, connection indicator, proto Cancel (ADR-0011), the composer's move on a clamped shrink, the reserved scrollbar rail's assumed width and spent card inset, a mid-stream retarget restarting from a rounded height, a section rolling in the panel's chrome shrinking the log without the log answering, the two bounds the panel's section budget left behind it (a section's own frame being under no cap, and the room a closing section hands back arriving in one frame), a swap fired from inside a closing section dropping focus on the floor, and the whisper's follow-ups (ADR-0037): a pickable voice row, a mid-stream resize keeping the old wrap width, and kerning inside the letter boxes under a changed font (its drain-growth entry landed the day it was filed, and the console outliving a new chat, the reminder stack's per-row exit and the switcher's, the panel's watch on its own box with the arrival-aside correction that came out of it, the demo bridge over the line cap, two sections outrunning the panel on their own, the chat floor's frozen measurement of the empty state, the console tab strip's missing keyboard half, the switcher's disputed listbox role, the two motions its list still made in one frame, and a Thoughts trace opening a reply off the bottom of a full history all landed 2026-08-03, the last of them opening the chrome-side entry above; the cycle keys' silent swap landed 2026-08-04 and opened the focus entry that replaces it), and a resize that lands inside the panel's own move waiting for it | 14 |
+| [body-overlay.md](body-overlay.md) | Overlay polish, connection indicator, proto Cancel (ADR-0011), the composer's move on a clamped shrink, the reserved scrollbar rail's assumed width and spent card inset, a mid-stream retarget restarting from a rounded height, the two bounds the panel's section budget left behind it (a section's own frame being under no cap, and the room a closing section hands back arriving in one frame), a swap fired from inside a closing section dropping focus on the floor, and the whisper's follow-ups (ADR-0037): a pickable voice row, a mid-stream resize keeping the old wrap width, and kerning inside the letter boxes under a changed font (its drain-growth entry landed the day it was filed, and the console outliving a new chat, the reminder stack's per-row exit and the switcher's, the panel's watch on its own box with the arrival-aside correction that came out of it, the demo bridge over the line cap, two sections outrunning the panel on their own, the chat floor's frozen measurement of the empty state, the console tab strip's missing keyboard half, the switcher's disputed listbox role, the two motions its list still made in one frame, and a Thoughts trace opening a reply off the bottom of a full history all landed 2026-08-03, the last of them opening the chrome-side entry that landed 2026-08-04 on the same ride, alongside the cycle keys' silent swap, which opened the focus entry that replaces it), and a resize that lands inside the panel's own move waiting for it | 13 |
 | [session-read-seam.md](session-read-seam.md) | Session listing/read seam (ADR-0021) | 2 |
 | [resource-governance.md](resource-governance.md) | Scheduler/placer budgets, NPU, drain (ADR-0012) | 5 |
 | [email-confirmer.md](email-confirmer.md) | Email write, Confirmer, attachments, `ToolActivity` chip (ADR-0022) | 4 |
@@ -1174,17 +1174,27 @@ against the code (the warning above); the entry text tells you which seams it ex
   `Collapse.tsx` untouched and no prediction of what the panel is about to absorb. The second job is
   done too, so `overflow-anchor: none` now gives up nothing: closing a trace scrolled off the top of
   the window eases `scrollTop` 487 to 411 with the visible content holding to under a pixel. It
-  opened one entry behind it, the panel's own chrome shrinking the log from outside the box.
+  opened one entry behind it, the panel's own chrome shrinking the log from outside the box, which
+  closed the next day on the same ride.
 - **A section rolling in the panel's chrome shrinks the log, and nothing answers it**
-  ([body-overlay.md](body-overlay.md)), open from 2026-08-03, when the ride above landed. The
-  switcher list and the reminder stack roll outside the history, so at the panel's ceiling their
-  growth comes out of the history's window rather than out of the panel, and the ride is subscribed
-  to the box their start event never reaches. Measured at 640x720 on a full history: opening the chat
-  switcher takes the window 293px to 73px with `scrollTop` left at 408, so the reader's distance from
-  the end of the reply goes 3px to 223px, and closing it reads 3px again. The same arithmetic answers
-  it and the ride is already written against a box and a section rather than against the history;
-  what it needs is the panel dispatching to it, plus its own measurements across the summon, a new
-  chat and a reminder ack, where the panel is moving on its own account.
+  ([body-overlay.md](body-overlay.md)), open from 2026-08-03, when the ride above landed, and
+  **closed 2026-08-04 on that same ride**
+  ([ADR-0035 addendum](../adr/ADR-0035-console-and-motion.md)). The setup reproduced exactly (the
+  log's window 293px to 73px with `scrollTop` untouched, the reader's distance from the end of the
+  reply 3px to 223px, the start event reaching the column and the panel and never the box), and the
+  sentence that sized the work did not: **wiring the ride up with its arithmetic untouched changed
+  nothing at all.** The cap that keeps a rolling section's top edge on screen reads the room between
+  that edge and the box's, and a section in the chrome sits above the box for every frame, so the
+  floor under that room froze the ride where it started (`scrollTop` 173 on every frame, byte for
+  byte the trace with nothing listening). One line says what the cap always meant, that only a
+  section INSIDE the box is something the reader can be carried away from. The entry's pair is also
+  one section and a family: the reminder stack is gated on an empty log, so it can never cost a
+  reader anything (0 and 0 on all 21 painted frames of an ack), while every ROW inside those lists
+  rolls the same way and a deleted chat moves the log exactly as its list does. After, the tail
+  holds at 3px for all 19 painted frames of the switcher's roll in each direction, `scrollTop`
+  running 173 to 393 and back to the pixel it started from, and the three panel motions the entry
+  asked to be measured against are each clean: a summon with the roll landing 100ms into its
+  arrival, a new chat that empties the log, and the ack above.
 - **The console's tab strip is a tab list by role but not yet by keyboard, and the pane it is
   leaving stays tabbable while it fades** ([body-overlay.md](body-overlay.md)), open from
   2026-07-20, when the two settings views became one console, and **both halves closed 2026-08-03**

@@ -181,6 +181,11 @@ ground. One swap at three speeds reads as the window coming apart and going back
     the trace's own top edge never leaves the window; for a reader who has scrolled up it does
     nothing, since nothing they are looking at moves and the row should stay under the pointer that
     opened it. The wheel outranks it, and under `prefers-reduced-motion` there is no roll to carry.
+    **A roll in the panel's CHROME carries it the same way** (landed 2026-08-04): the switcher list
+    and the reminder stack take the log's window where a trace takes its content, which costs the
+    reader the same 220px of reply at the ceiling, so the same rule answers both. The one difference
+    is the cap, which is about keeping what you opened in view and therefore means nothing for a
+    section that is not in the log at all.
   - **A warping bubble**. The orb's mark is a soap bubble whose outline warps on its own clock
     while the film turns under a fixed highlight; the anchor point holds rock still (no breathing
     scale, no positional drift, per 2026-07-03 user refinements), so it reads as alive without

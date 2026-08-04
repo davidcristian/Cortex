@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { type RefObject, useEffect } from "react";
 
 import type { MarkStyle } from "../mark/marks";
 import { chatFloorRef } from "../overlay/measured";
@@ -26,6 +26,8 @@ import { ThemeIcon } from "./ThemeIcon";
 
 export interface ChatViewProps {
   readonly state: OverlayState;
+  /** The column the panel renders this view into, where the log hears a roll in the chrome. */
+  readonly column: RefObject<HTMLElement | null>;
   readonly open: boolean;
   readonly dark: boolean;
   readonly mark: MarkStyle;
@@ -51,11 +53,12 @@ export interface ChatViewProps {
 const EXAMPLE_PROMPTS = ["Summarize my unread email", "Remind me to stretch in 20 minutes"];
 
 /** The panel's resting view: header, the roll-open sections, the scrolling history, the composer,
- *  and the shortcut hints. The history follows the stream (auto-scroll) unless the reader has
- *  scrolled up. The switcher list and the reminder stack roll open and shut through `Collapse`, so
- *  the panel's own height follows them instead of jumping and then catching up. */
+ *  and the shortcut hints. The history follows the stream unless the reader has scrolled up, and
+ *  holds its place under a roll that takes its window (`overlay/logRide.ts`). The switcher list and
+ *  the reminder stack roll through `Collapse`, so the panel's height follows them frame by frame. */
 export function ChatView({
   state,
+  column,
   open,
   dark,
   mark,
@@ -76,7 +79,7 @@ export function ChatView({
   // The chat is the view on screen while no console tab is up, which is the one thing the log's
   // scroll position cannot look after itself through (`useLogScroll`).
   const showing = state.consoleTab === null;
-  const log = useLogScroll(showing);
+  const log = useLogScroll(showing, column);
 
   // Follow the stream: each message change (and the approval card) scrolls the tail into view,
   // unless the reader has scrolled up to read (then their place holds until they return).
