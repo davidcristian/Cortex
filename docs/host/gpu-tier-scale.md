@@ -4,7 +4,8 @@ Seven items, one bring-up, one blocker. The first one gated four of the others, 
 is a single doc rather than seven: the dependency chain is the whole story on this side in a way
 it is not on the Windows side. **That first item is done, on 2026-08-04**, and so is the one of the
 four it gated that needed nothing else, **item 5, the same day**. The other three are open with
-their own blockers rather than with this one.
+their own blockers rather than with this one. **Item 6, which the chain never gated, is done the
+same day too**, so what is left here is the three that ride a real handoff and the cap numbers.
 
 Four of the seven need nothing but the card. **Items 2, 3 and 4 need the Windows overlay as well**,
 because the handoff they exercise starts with a gated tool call and only the overlay can answer the
@@ -25,7 +26,8 @@ in [index.md](index.md) carries the correction, and
 agent and GPU work reachable through Docker is done now rather than filed here. **No tag below
 changes.** Items 2, 3 and 4 stay **W+G** because what blocks them is the overlay that answers a
 confirm card, which is a Windows desktop and not a card; items 5, 6 and 7 stay listed because each
-is its own sitting, not because the VRAM is missing.
+is its own sitting, not because the VRAM is missing. Two of those three were sittings the agent
+then took, 5 and 6, both on 2026-08-04.
 
 The paragraph below was the
 ROADMAP's summary of this side of the work; it was **preserved here when the ROADMAP was slimmed
@@ -279,13 +281,15 @@ it, resident at 19128 MiB. The 373 s figure was the spill, not the model. Item 1
                       └──> 5. the ~31B injection-harness run
 
 6. GPU subagent beside the cortex · 7. cgroup caps                            (independent)
+   (done 2026-08-04)
 ```
 
 Items **2, 3 and 4 are W+G**: they ride a real handoff, a handoff starts at an approved confirm
 card, and the overlay is the only client that answers one. Items **1, 5, 6 and 7 are G**: the card
 alone. If both capabilities live in one laptop the distinction costs nothing; if they do not, do 1,
-5, 6 and 7 on the card and keep 2, 3 and 4 for a sitting with the desktop in the room. **1 and 5
-are done as of 2026-08-04**, both by the agent, which is what the G tag now means.
+5, 6 and 7 on the card and keep 2, 3 and 4 for a sitting with the desktop in the room. **1, 5 and 6
+are done as of 2026-08-04**, all by the agent, which is what the G tag now means, and 7 is the only
+card-alone item left.
 
 ---
 
@@ -498,62 +502,37 @@ lives in the runbook section with the procedure, which is where a re-run will be
 
 ## 6. A GPU-placed subagent beside a resident cortex
 
-**Status: never attempted.** Tag **G**. Independent of the pick, and independent of the overlay:
-the spawn can come from a turn, but the live delegation suite
-(`brain/packages/orchestrator/tests/test_subagent_live.py`) invokes the spawn tool directly "as the
-cortex would", which is a placement without a desktop.
+**Status: Done 2026-08-04.** A spawn was placed on the hosted `-ngl 99` tier while the 12B cortex
+stayed resident and kept serving, and the ledger accounted for it, which is this item's pass line
+met. The finding is a numbers one, which is the failure this item predicted for itself.
 
-Kept verbatim from [ADR-0012](../adr/ADR-0012-resource-governance.md):
+**The measurement has left this directory**, per [index.md](index.md)'s exit contract: its home is
+the dated fit-test addendum in [ADR-0012](../adr/ADR-0012-resource-governance.md), with the
+co-residency figures in the measured table of
+[runbooks/llamacpp-gpu.md](../runbooks/llamacpp-gpu.md) and the procedure in
+[runbooks/subagents-cpu.md](../runbooks/subagents-cpu.md) section 2c. Only the heading and this
+record stay, because the dependency chain above lists this item by number.
 
-> **What stays host-side is real GPU-placed-*subagent* validation**, for this ADR's own reason: a
-> subagent is only ever placed on the GPU when `CORTEX_SUBAGENTS_VRAM_GB` fits under the soft cap
-> minus the resident cortex, which needs a card that holds the cortex first. The measured `vram_gb`
-> and budget numbers stay host-side with it.
+**What it found, in one paragraph.** The card holds both tiers with a third of itself to spare:
+10022 MiB of `nvidia-smi` total used with the cortex resident at 16K with its projector, 13353 MiB
+with the GPU-placed subagent tier beside it, and 11110 MiB still free. So the fit question this item
+was written to answer turned out to be a question about the shipped numbers rather than about the
+card. The placeholder pair sums to 16.8 GB (an 11.3 GB cortex reservation and a 5.5 GB subagent ask)
+against a 14 GB soft cap the two tiers very nearly meet as measured: 13353 MiB of total used is
+14.00 GB, of which 12.02 GB is the tiers themselves above the 1888 MiB the card reads with both
+stopped. So what refused every placement was the arithmetic and not the hardware: the reservation
+runs about 0.8 GB above what this build of llama.cpp needs for the cortex, and the ask about 2 GB
+above what the subagent tier measured (3.48 GB). The more interesting failure this item named did
+not happen either: with both tiers generating at once the cortex fell from 71.82 to 50.54 tok/s and
+the subagent from 96.96 to 63.50, which is contention rather than degradation, and through the
+spawn batch itself the cortex answered at 61.71 tok/s and its tier never left READY.
 
-and the consequence, from
-[refinements/resource-governance.md](../refinements/resource-governance.md):
-
-> Consequently the `VramBudgetPlacer`'s GPU arm has never fired against a real placement: with the
-> shipped settings every spawn overflows to CPU.
-
-**The last clause of that reason is false, and this item is narrower for it (corrected
-2026-07-19).** "Which needs a card that holds the cortex first" says the dev GPU does not hold the
-cortex; [ADR-0029](../adr/ADR-0029-vision-screen-capture.md) measured it holding one at
-`-ngl 99 --ctx-size 4096 --parallel 1` **with the vision projector loaded**, and
-[ADR-0030](../adr/ADR-0030-brain-handoff.md) puts a number on how little that leaves: the model
-alone takes 7715 of the card's 8188 MiB. Roughly 470 MiB is the remainder, so nothing multi-GB
-fits beside it, which is the real reason and the one this item now carries. The **mechanism**, the
-placer's GPU arm firing against a real placement at all, needs no resident cortex and is agent-side work listed as actionable now in
-[refinements/index.md](../refinements/index.md). Expect it to have been run before this sitting, and
-read a green mechanism as saying nothing about the arithmetic below, exactly as with the swap.
-
-**What only this proves.** The fit test against real numbers: `CORTEX_SUBAGENTS_VRAM_GB` under the
-soft cap minus a genuinely resident 12B cortex, on a card with room for both.
-
-**Do.** With the cortex resident, set all three of these together. The GPU override's header
-documents all three and wires one, so they do not go in one place:
-
-- `CORTEX_MODEL_FILE_SUBAGENT_GPU` puts the tier in the sidecar's roster on `:8083`. Interpolated
-  on `model-host`, so `.env` or the calling shell carries it.
-- `CORTEX_SUBAGENTS_GPU_ENDPOINT=http://model-host:8083` routes GPU-placed spawns to it.
-  Interpolated on the brain by `docker/docker-compose.subagents.yml`, so that override has to be
-  layered too (`-f docker/docker-compose.subagents.yml`); without it both placement targets
-  resolve to that file's CPU server and the tier serves nothing.
-- `CORTEX_SWAP_EVICT_MODELS` names the tier so a handoff stops it first. Nothing interpolates it,
-  so it goes in the `brain` service's `environment:` block beside the escalation settings.
-
-Then have the cortex spawn subagents.
-
-**Pass.** A spawn is placed on the GPU (`-ngl 99`) rather than spilling to CPU while the cortex
-stays resident and serving, and the placer's ledger accounts for it against the soft cap.
-
-**Fail.** Every spawn still overflowing to CPU with headroom available means the shipped
-`CORTEX_SUBAGENTS_VRAM_GB` is above the real headroom, which is a numbers finding and the reason
-these values are called placeholders. A spawn placed on the GPU that then degrades the cortex is the
-more interesting failure and is an argument about the soft cap, not about the placer.
-
-**Record it.** A dated addendum to [ADR-0012](../adr/ADR-0012-resource-governance.md) and the note
-in [refinements/resource-governance.md](../refinements/resource-governance.md) that points here.
+**What it deliberately did not do**, both named because this item's own recipe asked for them.
+`CORTEX_SWAP_EVICT_MODELS` was left unset: what it buys is a handoff stopping the tier before the
+deep model loads, which is items 2 to 4's territory and needs the overlay they wait on. And the
+spawn came from the live delegation suite invoking the spawn tool directly, which is what this
+item's own opening blessed as a placement without a desktop, rather than from a cortex that decided
+to delegate inside a turn.
 
 ---
 

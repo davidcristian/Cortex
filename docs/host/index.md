@@ -77,7 +77,7 @@ directory. Settling this in writing is worth one sentence in an ADR the next tim
 | [windows-desktop.md](windows-desktop.md) | W | One `npm run tauri dev` beside a running brain: the hotkey and one streamed turn, volume, the toast, the confirm card, the session commands, the preference commands and the appearance surviving a restart, the reminder surface, the connection dot | 8 checks + 1 optional + 2 standing |
 | [windows-capture.md](windows-capture.md) | W | The screen-capture path, which needs its own switch, its own receipts, and its own expectations. Carries the single highest-consequence check in the repo | 1 check, 6 observations |
 | [overlay-polish.md](overlay-polish.md) | W | The one item here that is **authoring, not validation**: the OS-window half of the overlay | 1 build (4 parts) + 1 design decision |
-| [gpu-tier-scale.md](gpu-tier-scale.md) | G, and W+G for three | The 24 GB machine: everything the deep-model pick unblocks, plus the measurements the placer and the caps ship without. Items 2, 3 and 4 need the overlay to trigger the handoff | 5 open; the pick and the injection run both done 2026-08-04 |
+| [gpu-tier-scale.md](gpu-tier-scale.md) | G, and W+G for three | The 24 GB machine: everything the deep-model pick unblocks, plus the measurements the placer and the caps ship without. Items 2, 3 and 4 need the overlay to trigger the handoff | 4 open; the pick, the injection run and the GPU-placed subagent all done 2026-08-04 |
 
 User **decisions** (weigh, do not run) stay at their ADRs and are listed at the bottom of this
 page rather than copied, so a decision has exactly one home.
@@ -163,8 +163,8 @@ Sittings die on setup. Have these before starting.
 - **For items 2, 3 and 4 only: a Windows desktop too, with the overlay running against this same
   brain.** Those three ride a real handoff; a handoff starts with the confirm card that gates
   `escalate_to_brain`, and the overlay is the only client that answers one. Bring both up, or take
-  items 1, 5, 6 and 7 on the card alone and keep the other three for a sitting that has both. The W
-  prerequisites above apply in full to that half.
+  the card-alone items and keep the other three for a sitting that has both; of those, 1, 5 and 6
+  were taken on 2026-08-04 and only 7 is left. The W prerequisites above apply in full to that half.
 - The whole sequence, with what it was observed doing on 2026-07-19, is the "Before you start"
   section of [gpu-tier-scale.md](gpu-tier-scale.md). Follow it there rather than assembling it
   from this list. Its last step is the teardown, with the two commands that **verify** the stack is
@@ -188,10 +188,10 @@ Ordered by what unblocks the most, and grouped so each group is one sitting.
    [ADR-0004](../adr/ADR-0004-model-lineup.md).
 4. **The rest of the G list in one long sitting**, in the order that doc gives, since they share
    one bring-up and one blocker. Items 2, 3 and 4 of it want the overlay up beside the brain, so
-   if the desktop and the card are two machines, that sitting splits: 6 and 7 on the card, and
+   if the desktop and the card are two machines, that sitting splits: 7 on the card, and
    2, 3 and 4 wherever both are. Item 5 was the third of the card-alone items and it is **done as
    of 2026-08-04**; it never shared this bring-up anyway, since it starts its own container and
-   wants the stack down.
+   wants the stack down. **Item 6 is done the same day** and left 7 alone on the card side.
 5. **The overlay polish** ([overlay-polish.md](overlay-polish.md)). A work session, not a sitting.
    It is authoring, it can fail review rather than fail a check, and it is the only thing here that
    is not urgent for correctness.
@@ -208,9 +208,9 @@ check was found sitting on two of the three. It was added naming a second exampl
 resident VRAM figure with the projector loaded, which turned out to be no host item at all;
 that half of its founding evidence is withdrawn below. Statuses are not
 repeated below, with the one exception the rule always anticipated: every item still reads
-**never attempted** except the deep-model pick and the injection-harness run, both done on
-2026-08-04 and both carrying their status on their line, and each item's own section stays
-authoritative.
+**never attempted** except the deep-model pick, the injection-harness run and the GPU-placed
+subagent, all three done on 2026-08-04 and each carrying its status on its line, and each item's
+own section stays authoritative.
 
 **The rule has to hold in both directions, and did not until 2026-07-19.** It held forward, from
 every item here to its line and its ADR, and failed backward: [ADR-0011](../adr/ADR-0011-body-v1.md)
@@ -276,10 +276,16 @@ are W+G**, marked on each line:
    [runbooks/llamacpp-gpu.md](../runbooks/llamacpp-gpu.md). Policy did not move: the run retires one
    of the two reasons the tainted-escalation deny rests on, and the choice is now a decision
    awaiting the user, listed below.
-6. **A GPU-placed subagent beside a resident cortex.** **G.** Independent of the pick. Narrowed
-   2026-07-19: the placer's GPU arm firing against a real placement at all needs no resident cortex
-   and went back to the agent's list; what needs this card is the fit test against a real 12B
-   reservation.
+6. **A GPU-placed subagent beside a resident cortex. Done 2026-08-04**, the third item to leave this
+   directory and the one whose split turned out not to matter. **G.** Independent of the pick.
+   Narrowed 2026-07-19: the placer's GPU arm firing against a real placement at all needs no
+   resident cortex and went back to the agent's list, leaving the fit test against a real 12B
+   reservation here. Running the first with the cortex up **is** the second, so both closed
+   together: the tiers cost 14.00 GB of `nvidia-smi` total used against a 14 GB soft cap and leave
+   11110 MiB of the card free, while the shipped placeholders claim 16.8 GB for them, so the
+   arithmetic and not the card is why no spawn had ever been GPU-placed. The numbers live in the
+   [ADR-0012](../adr/ADR-0012-resource-governance.md) fit addendum and the measured table of
+   [runbooks/llamacpp-gpu.md](../runbooks/llamacpp-gpu.md).
 7. **The cgroup cap numbers.** **G.** Independent, but best done under item 2's load, which is the
    only realistic one, so in practice it happens in the sitting that has both capabilities.
 
@@ -306,8 +312,8 @@ carries a status line, one of:
 - **Attempted YYYY-MM-DD, inconclusive:** with what happened. This is a real and useful state; an
   environment problem is not a failed check.
 - **Done YYYY-MM-DD.** With the result written where the item's "Record it" line says. The
-  deep-model pick is the first, on 2026-08-04, and the injection-harness run the second, the same
-  day.
+  deep-model pick is the first, on 2026-08-04, the injection-harness run the second and the
+  GPU-placed subagent the third, all the same day.
 
 ## The exit contract
 
