@@ -32,8 +32,6 @@ services:
       # both sides, since no port carries a path, a layer count, or a URL).
       CORTEX_MODEL_CORTEX: "${CORTEX_MODEL_CORTEX:-cortex}"
       CORTEX_MODEL_BRAIN: "${CORTEX_MODEL_BRAIN:-brain}"
-      # A tier is in the roster only when a file is named for it, so these are empty by default:
-      # there is no deep-model pick yet, and the GPU-placed subagent tier is opt-in.
       CORTEX_MODEL_FILE_BRAIN: "${CORTEX_MODEL_FILE_BRAIN:-}"
       CORTEX_NGL_BRAIN: "${CORTEX_NGL_BRAIN:-99}"
       CORTEX_CTX_SIZE_BRAIN: "${CORTEX_CTX_SIZE_BRAIN:-8192}"

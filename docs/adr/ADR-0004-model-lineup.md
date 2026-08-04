@@ -1,8 +1,9 @@
 # ADR-0004: Model lineup (candidates locked)
 
 - **Status:** Accepted (candidates locked 2026-06-29). Picks: cortex = **gemma-4-12B** (Slice 4),
-  embedder = **nomic-embed-text-v1.5 Q8_0** (Slice 5), subagent = **Qwen3.5-2B Q4_K_M** (Slice 7);
-  see the measurement addenda; brain pick follows in Slice 11.
+  embedder = **nomic-embed-text-v1.5 Q8_0** (Slice 5), subagent = **gemma-4-E4B QAT q4_0**
+  (Slice 7, revised to it on 2026-07-03), brain = **gemma-4-31B QAT q4_0** (Slice 11, measured
+  2026-08-04); see the measurement addenda. Every tier is now picked.
 - **Date:** 2026-06-29
 
 ## Context

@@ -65,8 +65,10 @@ tree at the commit this ADR lands on:
 - **VRAM (ADR-0004, measured):** 24 GB GPU, soft cap 14 GB (`CORTEX_VRAM_SOFT_CAP_GB`), cortex
   gemma-4-12B at ~11.3 GB incl. vision at 16K ctx, subagent E4B VRAM ask 5.5 GB (deliberately
   above the ~2.7 GB headroom, so every spawn overflows to CPU today), brain candidates 15-18 GB
-  of weights that "all fit alone in 24 GB". The brain pick itself is still open and lands with
-  this slice.
+  of weights that "all fit alone in 24 GB". That last clause was confirmed on 2026-08-04, when
+  the brain pick was measured and landed: **gemma-4-31B QAT q4_0**, 19128 MiB alone on the card at
+  an 8192 context and 99.6 s from start to READY, with all four candidates fitting and none
+  needing the hybrid fallback (ADR-0004's brain-pick addendum).
 - **Sequencing and the line cap.** ADR-0029 (Slice 10, designed, not yet implemented) records
   `engine.py` at 299 of 300 lines and `tool_loop.py` at 297. This slice lands after the vision
   slice; its engine-adjacent additions live in new modules and any residual cap pressure is
@@ -403,11 +405,13 @@ ADR-0012 addendum.
    swap validation on the dev GPU.
 6. **S11.f, honesty surfaces.** `Health` residency state + the swapping `StatusUpdate`s;
    overlay untouched by design.
-7. **S11.g, host-side capstone.** The brain pick (ADR-0004 gains its addendum), the live
+7. **S11.g, host-side capstone.** The brain pick (**done 2026-08-04**: ADR-0004 has its addendum
+   and `docs/host/gpu-tier-scale.md` item 1 its record), the live
    tier-scale swap + chaos kill on the 24 GB machine, measured swap timings,
    `docs/runbooks/model-swap.md`, and the ~31B injection-harness run
    (`CORTEX_PROBE_BRAIN=1`), whose result feeds back into decision 1's tainted-escalation
-   stance.
+   stance. The four that remain all need a handoff the overlay has to approve, except the
+   injection run, which is its own sitting.
 
 ## Where each "Blocked on Slice 11" backlog entry lands
 

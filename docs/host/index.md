@@ -22,7 +22,25 @@ Every item below carries one of these two tags or both of them, and mixing them 
 | Tag | What it means | Why the dev machine cannot stand in |
 | --- | --- | --- |
 | **W** | A real Win32 desktop session, where the body runs natively | The dev machine is Linux under WSL2. Nothing OS native (COM, WinRT, GDI, a real Tauri IPC hop, a real window) exists to exercise. |
-| **G** | A card that holds the real model tiers (24 GB) | The dev GPU is an 8 GB card, and [ADR-0030](../adr/ADR-0030-brain-handoff.md) measured `gemma-4-12b-it-qat-q4_0.gguf` alone taking 7715 of its 8188 MiB, so no tier pair, no ~31B model, and no GPU-placed subagent beside a resident cortex is reachable. |
+| **G** | A card that holds the real model tiers (24 GB) | **Nothing, since 2026-08-04.** See the correction below: the development card holds the tiers, so a G item is agent-runnable. |
+
+**The G premise was false, and the correction is worth more than the tag.** This table shipped
+saying the dev GPU is an 8 GB card, so that no tier pair, no ~31B model and no GPU-placed subagent
+beside a resident cortex was reachable. [ADR-0030](../adr/ADR-0030-brain-handoff.md) did measure
+`gemma-4-12b-it-qat-q4_0.gguf` alone taking 7715 of that card's 8188 MiB, and every figure derived
+from that card stays true of it. The premise that failed is the one underneath: that the 8 GB card
+is the card the repo is developed on. On 2026-08-04 the development machine reported 24463 MiB and
+ran the deep-model pick end to end, loading and serving all four candidates alone on the card, and
+[gpu-tier-scale.md](gpu-tier-scale.md) item 1 records the result. **So G on its own is no longer a
+reason to file work here.** [AGENTS.md](../../AGENTS.md) is explicit that "on the host" includes
+the agent and that GPU and model behavior reachable through Docker is done now rather than
+deferred, and that is the rule this table was quietly contradicting.
+
+Two things this does **not** change. **W is untouched**, and it is now the only tag doing real
+work here: a Win32 desktop session is still something no agent can stand in for. And **the three
+W+G items are still blocked**, on their W half alone, for the reason the next paragraph gives.
+The plain G items that remain are listed because each is its own sitting with its own bring-up,
+not because the VRAM is missing.
 
 **W+G exists, and it is exactly three items: 2, 3 and 4 of
 [gpu-tier-scale.md](gpu-tier-scale.md)** (the tier-scale swap, the chaos kill during one, and the
@@ -59,7 +77,7 @@ directory. Settling this in writing is worth one sentence in an ADR the next tim
 | [windows-desktop.md](windows-desktop.md) | W | One `npm run tauri dev` beside a running brain: the hotkey and one streamed turn, volume, the toast, the confirm card, the session commands, the preference commands and the appearance surviving a restart, the reminder surface, the connection dot | 8 checks + 1 optional + 2 standing |
 | [windows-capture.md](windows-capture.md) | W | The screen-capture path, which needs its own switch, its own receipts, and its own expectations. Carries the single highest-consequence check in the repo | 1 check, 6 observations |
 | [overlay-polish.md](overlay-polish.md) | W | The one item here that is **authoring, not validation**: the OS-window half of the overlay | 1 build (4 parts) + 1 design decision |
-| [gpu-tier-scale.md](gpu-tier-scale.md) | G, and W+G for three | The 24 GB machine: the deep-model pick and everything the pick unblocks, plus the measurements the placer and the caps ship without. Items 2, 3 and 4 need the overlay to trigger the handoff | 7 items |
+| [gpu-tier-scale.md](gpu-tier-scale.md) | G, and W+G for three | The 24 GB machine: everything the deep-model pick unblocks, plus the measurements the placer and the caps ship without. Items 2, 3 and 4 need the overlay to trigger the handoff | 6 open, the pick done 2026-08-04 |
 
 User **decisions** (weigh, do not run) stay at their ADRs and are listed at the bottom of this
 page rather than copied, so a decision has exactly one home.
@@ -163,9 +181,11 @@ Ordered by what unblocks the most, and grouped so each group is one sitting.
 2. **The capture sitting** ([windows-capture.md](windows-capture.md)). Its own bring-up. Do the
    self-exclusion check first inside it and not last: if it fails, the loop it prevents is already
    live and the rest of the sitting is moot.
-3. **The deep-model pick** ([gpu-tier-scale.md](gpu-tier-scale.md)). It gates the swap, the chaos
-   kill, the timings, and the injection-harness run, so nothing else on the G side moves until it
-   lands. It is also the longest single item here.
+3. ~~**The deep-model pick**~~ ([gpu-tier-scale.md](gpu-tier-scale.md)). **Done 2026-08-04**, by
+   the agent, once the G premise above was found false. It gated the swap, the chaos kill, the
+   timings and the injection-harness run, and all four are unblocked; what still holds items 2, 3
+   and 4 is the overlay. The pick is gemma-4-31B QAT q4_0 and its numbers are in
+   [ADR-0004](../adr/ADR-0004-model-lineup.md).
 4. **The rest of the G list in one long sitting**, in the order that doc gives, since they share
    one bring-up and one blocker. Items 2, 3 and 4 of it want the overlay up beside the brain, so
    if the desktop and the card are two machines, that sitting splits: 5, 6 and 7 on the card, and
@@ -185,8 +205,9 @@ record, and a grouped order is not a line per item: added 2026-07-19 after the o
 check was found sitting on two of the three. It was added naming a second example too, the
 resident VRAM figure with the projector loaded, which turned out to be no host item at all;
 that half of its founding evidence is withdrawn below. Statuses are not
-repeated below, because every item reads **never attempted** today and its own section is
-authoritative the moment that stops being true.
+repeated below, with the one exception the rule always anticipated: every item still reads
+**never attempted** except the deep-model pick, which was done on 2026-08-04 and carries its
+status on its line, and each item's own section stays authoritative.
 
 **The rule has to hold in both directions, and did not until 2026-07-19.** It held forward, from
 every item here to its line and its ADR, and failed backward: [ADR-0011](../adr/ADR-0011-body-v1.md)
@@ -231,9 +252,12 @@ neither appears in the recommended order:
 **G, one bring-up and one blocker** ([gpu-tier-scale.md](gpu-tier-scale.md)), and **three of these
 are W+G**, marked on each line:
 
-1. **The deep-model pick.** **G.** Blocks items 2, 3, 4 and 5 below, and it is the longest single
-   item in this directory. Needs neither escalation nor the overlay: it is driven straight at the
-   model host's control API.
+1. **The deep-model pick. Done 2026-08-04**, the first item to leave this directory. **G**, and
+   the run that proved G is no longer a reason to be here. Driven straight at the model host's
+   control API with neither escalation nor the overlay, once per candidate. The pick is
+   **gemma-4-31B QAT q4_0**, at 19128 MiB alone on the card and 99.6 s from start to READY; the
+   result lives in [ADR-0004](../adr/ADR-0004-model-lineup.md)'s brain-pick addendum and the Brain
+   rows of [runbooks/llamacpp-gpu.md](../runbooks/llamacpp-gpu.md). It unblocks 2, 3, 4 and 5.
 2. **The tier-scale cortex to brain swap.** **W+G.** Blocked on the pick, and on having an overlay
    to approve the confirm card that starts a handoff.
 3. **The chaos kill at tier scale.** **W+G.** Blocked on the pick and the swap. A failure here is a
@@ -269,10 +293,11 @@ This is the one place this directory must **not** copy the refinements precedent
 lands or is declined; a user check can be attempted, inconclusive, and worth retrying. Each item
 carries a status line, one of:
 
-- **Never attempted.** The default, and what every item here says today.
+- **Never attempted.** The default, and what every item here but one says today.
 - **Attempted YYYY-MM-DD, inconclusive:** with what happened. This is a real and useful state; an
   environment problem is not a failed check.
-- **Done YYYY-MM-DD.** With the result written where the item's "Record it" line says.
+- **Done YYYY-MM-DD.** With the result written where the item's "Record it" line says. The
+  deep-model pick is the first, on 2026-08-04.
 
 ## The exit contract
 
@@ -281,6 +306,14 @@ its **runbook**, then leaves this directory. Same shape as a landed refinement, 
 refinements keep landed entries in place as the historical record of what a deferral became,
 because their text often corrects its own ADR. A user check produces a *measurement*, whose home
 is the ADR and the runbook, so this directory shrinks toward empty rather than accumulating.
+
+**The first exit showed the contract needs one qualifier, added 2026-08-04.** The deep-model
+pick's measurement did leave, to the model-lineup ADR and the GPU runbook, and its section in
+[gpu-tier-scale.md](gpu-tier-scale.md) is now a heading, a status and a pointer rather than a
+procedure. What could not leave is the heading itself: four items in that doc are written against
+"item 1", so deleting the section would have cost a renumbering of every reference to buy back
+twenty lines. **A completed item leaves its content, and keeps its number for as long as something
+still depends on it.** Nothing changes for an item nothing points at; those go entirely.
 
 Emptiness here is load-bearing: the ROADMAP's finish line requires every slice, this
 directory, and the refinements backlog all being clear.
