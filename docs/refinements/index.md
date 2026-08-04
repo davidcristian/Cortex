@@ -1022,7 +1022,11 @@ against the code (the warning above); the entry text tells you which seams it ex
   server, the GPU one answering in 221.05 ms against the overflow's 12536.83 ms, and with the
   shipped soft cap the same batch left the tier untouched. Its own suite was proved able to fail
   first, by pointing the GPU endpoint at a closed port: the placement then re-runs on the CPU and
-  the assertion reddens on the third one.
+  the assertion reddens on the third one. **The split this bullet describes then dissolved.** The
+  "roughly 470 MiB to spare" above is the 8 GB card's remainder and not this one's, so the run kept
+  the cortex resident and the placement beside it was simply what happened: host item 6 closed the
+  same day, its finding being that the shipped placeholders and not the card are why nothing was
+  ever GPU-placed.
 - **The spontaneous-pick nudge's live uptake** ([subagents.md](subagents.md)), whose fix stays
   fix-when-it-bites but whose *observation* is runnable here: a resident cortex at 4K with the
   CPU roster up, given a prose-only ask carrying independent subtasks, either reaches for distinct
@@ -1450,7 +1454,9 @@ uncounted residuals went, listed here so nothing has to be re-derived:
   which had no backlog line although ADR-0025's host line and the runbook both named it
 - Real GPU-placed subagent validation and the placeholder cgroup numbers (were inside a landed
   entry in [resource-governance.md](resource-governance.md), never counted). The first of those came
-  back the same day, split: only a placement beside a resident cortex needs the 24 GB card
+  back the same day, split: only a placement beside a resident cortex needs the 24 GB card. **Both
+  halves of that one closed on 2026-08-04**, together, because firing the arm with the cortex up is
+  the placement beside it; the cgroup numbers are the only piece of the pair still owed
 
 Each origin doc keeps a dated pointer stub in place of the entry, so the trail from an ADR through
 this backlog still resolves. **Why they moved rather than staying with a tag:** the two backlogs

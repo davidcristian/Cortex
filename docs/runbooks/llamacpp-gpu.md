@@ -301,6 +301,18 @@ safety default.
 - **Placement:** cortex → GPU (~11.3 GB, ~2.7 GB under the 14 GB cap), embedder → CPU (`CORTEX_NGL=0`),
   subagents → CPU (a dynamic pool the cortex sizes within budget), brain → hybrid if it
   doesn't fit. All per-`llama-server` flags, no core change (ADR-0004 addendum).
+- **Co-residency of the cortex and a GPU-placed subagent, measured 2026-08-04** on a card that holds
+  the tiers, through the `model-host` sidecar with the subagent tier opted in
+  (`CORTEX_MODEL_FILE_SUBAGENT_GPU`, `-ngl 99 --ctx-size 8192 --parallel 2` on `:8083`). `nvidia-smi`
+  total used: **1872 MiB** with nothing loaded and 1888 MiB with the stack up and both tiers stopped;
+  **10022 to 10034 MiB** with the cortex resident at 16K **with its projector**, which is 8146 MiB
+  above that floor and 0.8 GB under the 11.3 GB row above (same tier shape, newer llama.cpp build,
+  so the shipped `CORTEX_VRAM_CORTEX_GB` is conservative rather than wrong); **13334 to 13405 MiB**
+  with the E4B subagent tier beside it, so that tier is **3319 MiB** and the pair leaves 11110 MiB
+  free. Throughput alone was 71.82 tok/s for the cortex and 96.96 for the subagent tier, and 50.54
+  and 63.50 with both generating at once, which is what sharing one card costs. Procedure:
+  [subagents-cpu.md](subagents-cpu.md) section 2c; budget consequences in the
+  [ADR-0012](../adr/ADR-0012-resource-governance.md) fit addendum.
 - **Swap latency (ROADMAP assumption 2):** load is ~mount-read bound (~150-180 MB/s off
   the Windows bind mount). Measured through the real supervisor at small scale on the 8 GB dev
   card, a 0.8B stand-in health-gates in ~11 s and a 2B in ~18 s, while the eviction half is

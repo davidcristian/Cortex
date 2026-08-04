@@ -131,6 +131,17 @@ the unchanged `SubagentPlacer`/`SubagentScheduler`/`ModelManager` ports.
   pointed at a closed port reddens on a third placement, because a GPU-placed attempt whose backend
   did not answer re-runs once on the CPU, which is also the first time the re-place two bullets up
   has fired from a real GPU placement rather than from a failing fake.
+  **The host half went with it, because the run kept the cortex resident (2026-08-04).** The
+  placement beside a resident cortex that this entry sent to item 6 of
+  [docs/host/gpu-tier-scale.md](../host/gpu-tier-scale.md) is what a GPU arm firing on that stack
+  is, so that item closed the same day with its numbers at the
+  [ADR-0012 fit addendum](../adr/ADR-0012-resource-governance.md). Its finding is about this
+  entry's own numbers: the card holds both tiers with 11110 MiB free and the pair costs 14.00 GB of
+  `nvidia-smi` total used, which is the deliberate soft cap, while the placeholders inside it claim
+  16.8 GB for the same pair (a cortex reservation 0.8 GB high and a subagent ask 2 GB high). So the
+  reason no spawn was ever GPU-placed is the arithmetic, and the lever is the cap, which is a user
+  policy value rather than a placer question. What is still owed of this bullet is the cgroup cap
+  numbers alone.
 - **Placement-aware CPU charging closed 2026-07-16 as declined, wrong premise and no gain
   ([ADR-0012 admission-wall addendum](../adr/ADR-0012-resource-governance.md)).** The entry read:
   "`admit` charges every spawn its full `cpus`/`memory_gb` regardless of placement (conservative);

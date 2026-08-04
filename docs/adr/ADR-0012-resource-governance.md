@@ -531,3 +531,45 @@ time the re-place has fired from a real GPU placement rather than from a failing
 **What this does not touch.** The cap numbers of the host-half addendum stay placeholders, and
 nothing here re-opens placement-aware charging: one hosted GPU tier is still one backend object per
 target per roster entry.
+
+## Addendum (2026-08-04): the fit beside a resident cortex, and what the placeholder numbers cost
+
+The run above kept the 12B cortex resident throughout, which makes it the fit test the host
+directory carried as its own item ("a GPU-placed subagent beside a resident cortex"). That item is
+closed with this note, and the numbers are the point of it, because **the fit was never a question
+about the card**.
+
+**What the two tiers cost, measured with `nvidia-smi` on the development card (24463 MiB).** Nothing
+loaded and no containers: 1872 MiB, and 1888 MiB with the stack up and both tiers stopped, so the
+supervisor container itself holds nothing measurable. The cortex tier resident (`gemma-4-12b-it-qat-q4_0.gguf`
+with its projector, `-ngl 99 --ctx-size 16384 --parallel 1`): 10022 to 10034 MiB of total used, which
+is 8146 MiB above that floor. The GPU-placed subagent tier beside it (the E4B pick, `-ngl 99
+--ctx-size 8192 --parallel 2`): 13334 to 13405 MiB with both resident, so the tier itself is
+3319 MiB. Both resident leaves **11110 MiB free**.
+
+**The arithmetic that refused every placement is the placeholders, not the hardware.** This ADR's
+budget ships as a 14 GB soft cap, an 11.3 GB cortex reservation and a 5.5 GB subagent ask, so the
+headroom is 2.7 GB and the ask never fits. Measured, the same pair of tiers costs 14.00 GB of total
+used (12.02 GB of it above the floor), so the two really do sit at the deliberate cap, while the
+placeholder pair claims 16.8 GB for them. Two corrections make it up: the cortex reservation is
+about 0.8 GB high against this build of llama.cpp (10.51 GB total used against the 11.3 GB
+[ADR-0004](ADR-0004-model-lineup.md) measured for the same tier shape on an older build, so the
+reservation is conservative, which is the safe direction for a placer), and the subagent ask is
+about 2 GB high (3.48 GB measured). Corrected, the pair fits the shipped cap by hundredths of a GB,
+which is too thin to deploy on. **The honest lever is the soft cap itself**, which is a user policy
+value (this card keeps roughly 10 of its 24 GB for other work) rather than anything the placer can
+decide: the GPU arm above fired under a 20 GB cap, and any cap that leaves the ask under the
+headroom will do it.
+
+**Co-residency costs throughput and nothing else.** Generating alone, the cortex ran at
+71.82 tok/s and the subagent tier at 96.96 tok/s; generating at the same time, 50.54 and 63.50.
+Through the spawn batch itself the cortex answered 339 tokens at 61.71 tok/s and its tier never left
+READY. So the "a spawn placed on the GPU that then degrades the cortex" failure this fit test was
+written to watch for is a roughly 30% slowdown while both generate, which is contention on one card
+and an argument about the cap rather than about the placer, exactly as the item predicted.
+
+**Two halves of the item's own recipe were deliberately not run**, and neither weakens the result.
+`CORTEX_SWAP_EVICT_MODELS` was left unset, since what it buys is a handoff stopping this tier before
+the deep model loads, which belongs to the tier-scale swap items and needs the overlay that answers
+a confirm card. And the spawn came from the live delegation suite invoking the spawn tool directly
+as the cortex would, which is the method that item named for itself.
