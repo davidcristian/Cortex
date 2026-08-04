@@ -79,7 +79,9 @@ context figures.
    the tool-message path in two arms, one with a hardened preamble carrying an explicit pixel
    clause and one with no system message at all. **Neither arm obeyed the impersonation.
    Both arms reproduced `http://evil.example/x` verbatim in the reply.** That is the entire
-   basis for decision 4.
+   basis for decision 4. (Narrowed 2026-08-04 by the image-arm addendum below, which ran a
+   thirty-cell corpus rather than this one payload: it holds for every hijack-shaped attack and
+   **not** for content manipulation, which the framed cortex has obeyed off a screen.)
 
 Wire limits were read from the code rather than assumed: the brain's server is built as
 `aio.server(interceptors=...)` with no `options`

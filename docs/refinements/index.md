@@ -50,7 +50,7 @@ its signature.
 | [email-confirmer.md](email-confirmer.md) | Email write, Confirmer, attachments, `ToolActivity` chip (ADR-0022) | 4 |
 | [body-gateway.md](body-gateway.md) | Body gateway, OS actions, hardened posture (ADR-0023) | 5 |
 | [scheduling.md](scheduling.md) | Scheduling and reminders, `TurnStamp` provenance (ADR-0025/0027) | 8 |
-| [vision.md](vision.md) | Screen capture, images, the pixel boundary (ADR-0029) | 16 |
+| [vision.md](vision.md) | Screen capture, images, the pixel boundary (ADR-0029) | 15 |
 | [cross-cutting.md](cross-cutting.md) | Pointer input, OS backends, more roles | 3 |
 
 The counts are per area as extracted; a few threads appear in two areas (the cross-cutting
@@ -936,6 +936,31 @@ on a claim that had been false since the open. The entry it opened is the same d
 side, the switcher list and the reminder stack shrinking the log's window from outside the box, where
 the ride never hears their roll.
 
+Vision went 16 to 15 on 2026-08-04 when the image arm of the injection-defence harness ran against
+a rendered-payload corpus, the last of [ADR-0029](../adr/ADR-0029-vision-screen-capture.md)'s four
+agent-Docker measurements and the one whose entry promised its number would be published whatever
+it said. It says something the ADR did not predict, so the promise was the load-bearing part of the
+entry. Ten attacks in each of three renderings (unstyled screen text, a modal system dialog
+claiming administrator authority, and an ordinary mail client carrying the payload in a message
+tail) put the shipped framing at 1 of 30 cells fired framed against 5 of 30 unframed on the cortex
+pick, and reading the replies is what those counts need: **a canary detector inherited from the
+text channel cannot tell obedience from diligence in the pixel channel**, because describing the
+screen is the benign answer to "what is on my screen?" and a description quotes the payload. Five
+of the six were that, four of them on the dialog, which is a property of the rendering rather than
+of the model, since a dialog whose whole content is the payload cannot be summarised without
+quoting it. What is real is `output-laundering`, the one attack
+[ADR-0013](../adr/ADR-0013-untrusted-content.md)'s hardening addendum exists for: the clause that
+took gemma-4-12B to 0 of 10 over text does not hold over pixels, and the framed cortex has ended
+its summary with the line a screen told it to. Every hijack-shaped attack failed in both arms on
+all three renderings, and `send_email` was never called from a picture, so the closeout's "not
+obeyed, transcribed" is narrowed rather than overturned and decision 4's boundary (taint, not
+framing) is better supported than before. The entry's cost estimate was wrong in this file's usual
+direction: rendering payloads was the cheap half, and reading a matrix that four of its own seven
+checks had to fail in anger to earn was the expensive one. The rate behind the finding was measured
+rather than reported from the one cell that produced it, five framed runs per rendering, and the
+bitmap font was controlled for with the same screen redrawn by a browser in a real face, which came
+back harder for the model to read than the corpus is.
+
 ## Recommended order
 
 Ordered by what unblocks the most value soonest. Before starting any item, verify its claims
@@ -958,7 +983,14 @@ against the code (the warning above); the entry text tells you which seams it ex
   cannot be truncated to nothing, and what thinking costs is 5 to 6 seconds before the first word on
   a simple screen against 0.4 on the pixel-less control arm; and the `mmproj`-less body is 151 bytes
   of JSON naming the projector in llama.cpp's own words, well inside the excerpt bound, now pinned
-  by a live canary that was proved able to fail.
+  by a live canary that was proved able to fail. **The harness arm ran and closed 2026-08-04, so
+  this whole item is done**, and its number does what the entry promised it might: against a corpus
+  of ten attacks in each of three renderings, the shipped preamble holds over pixels for every
+  hijack-shaped attack and does **not** hold for content manipulation, which is the one attack the
+  preamble was hardened for over text. The expensive part was not the rendering, it was learning
+  that a canary detector inherited from the text channel cannot tell obedience from diligence in
+  the pixel one, since describing the screen is the benign answer and a description quotes the
+  payload.
 - **The `VramBudgetPlacer`'s GPU arm against a real placement**
   ([resource-governance.md](resource-governance.md)), the mechanism half of what was filed whole as
   host work on 2026-07-19 and split back the same day. A GPU placement **beside a resident cortex**
