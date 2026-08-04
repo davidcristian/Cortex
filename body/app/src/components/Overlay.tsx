@@ -4,6 +4,7 @@ import type { EdgeStyle } from "../edge/edges";
 import type { MarkStyle } from "../mark/marks";
 import { latestReply } from "../overlay/overlayState";
 import type { OverlayController } from "../overlay/useOverlay";
+import { Announcer } from "./Announcer";
 import { Orb } from "./Orb";
 import { Panel } from "./Panel";
 import { Preview } from "./Preview";
@@ -14,6 +15,12 @@ import { Preview } from "./Preview";
 // Ctrl/Cmd+N starts a new chat, Ctrl+↑/↓ cycle recent chats, Ctrl+K toggles the switcher
 // (ADR-0021), and ? (outside the composer, where it is just typing) toggles the console's
 // shortcuts tab.
+//
+// It also holds the overlay's live region, which is here rather than in the panel because the
+// panel is out of the accessibility tree whenever it is shut and these keys are live anyway
+// (`Announcer`). The two doors onto a fresh chat are both visible in this file, and they differ:
+// the key announces, the header's pencil is bound silent, since its label already says where it
+// goes (`overlay/notice.ts` carries the whole rule).
 interface OverlayProps {
   readonly controller: OverlayController;
   readonly dark: boolean;
@@ -75,7 +82,7 @@ export function Overlay({
         toggleConsole("shortcuts");
       } else if (mod && event.key.toLowerCase() === "n") {
         event.preventDefault();
-        newChat();
+        newChat(true);
       } else if (mod && event.key.toLowerCase() === "k") {
         event.preventDefault();
         toggleSwitcher();
@@ -103,6 +110,7 @@ export function Overlay({
 
   return (
     <>
+      <Announcer notice={state.notice} />
       <Panel
         state={state}
         open={state.mode === "panel"}
@@ -120,7 +128,7 @@ export function Overlay({
         onSubmit={submit}
         onStop={stop}
         onDismiss={dismiss}
-        onNewChat={newChat}
+        onNewChat={() => newChat(false)}
         onToggleSwitcher={toggleSwitcher}
         onSelectSession={openSession}
         onRenameSession={renameSession}

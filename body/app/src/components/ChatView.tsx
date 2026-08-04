@@ -37,7 +37,9 @@ export interface ChatViewProps {
   readonly onDismiss: () => void;
   readonly onNewChat: () => void;
   readonly onToggleSwitcher: () => void;
-  readonly onSelectSession: (sessionId: string) => void;
+  /** Load a chat. Whether the swap is announced belongs to the door, and this view holds both of
+   *  them: a switcher row and a reminder's open control answer it differently (`notice.ts`). */
+  readonly onSelectSession: (sessionId: string, announce: boolean) => void;
   readonly onRenameSession: (sessionId: string, title: string) => void;
   readonly onDeleteSession: (sessionId: string) => void;
   readonly onPinSession: (sessionId: string, pinned: boolean) => void;
@@ -124,7 +126,8 @@ export function ChatView({
         <SessionList
           sessions={state.sessions}
           currentId={state.sessionId}
-          onSelect={onSelectSession}
+          // Silent: the row IS the chat's name, so announcing would read the label back.
+          onSelect={(sessionId) => onSelectSession(sessionId, false)}
           onRename={onRenameSession}
           onDelete={onDeleteSession}
           onPin={onPinSession}
@@ -145,7 +148,8 @@ export function ChatView({
           reminders={state.reminders}
           currentId={state.sessionId}
           onDismiss={onDismissReminder}
-          onOpen={onSelectSession}
+          // Announced: "open chat" names the act and not the chat, so the title is news.
+          onOpen={(sessionId) => onSelectSession(sessionId, true)}
         />
       </Collapse>
       <div className="history" ref={log.ref} onScroll={log.onScroll}>

@@ -15,7 +15,11 @@ const SESSION_LIST_LIMIT = 50;
 
 /** The chat-catalog half of `OverlayController`; every member is re-exported from it verbatim. */
 export interface SessionCatalog {
-  openSession(sessionId: string): void;
+  /** Load a stored chat into the panel. `announce` is the door's answer to whether the swap says
+   *  what arrived: false from a switcher row, whose own accessible name is that chat's title, and
+   *  true from a control that points at a chat without naming it, which is the reminder card's
+   *  open link and the cycle keys below (`overlay/notice.ts`). */
+  openSession(sessionId: string, announce: boolean): void;
   renameSession(sessionId: string, title: string): void;
   deleteSession(sessionId: string): void;
   setSessionPinned(sessionId: string, pinned: boolean): void;
@@ -86,13 +90,15 @@ export function useSessionCatalog(
   }, [latestSessionId, bridge, dispatch]);
 
   const openSession = useCallback(
-    (sessionId: string) => {
+    (sessionId: string, announce: boolean) => {
       abandonTurn();
       bridge
         .sessionMessages(sessionId)
-        .then((messages) => dispatch({ kind: "openSession", sessionId, messages }))
+        .then((messages) => dispatch({ kind: "openSession", sessionId, messages, announce }))
         .catch(() => {
-          // Leave the current chat in place if its history cannot load.
+          // Leave the current chat in place if its history cannot load. Nothing is announced
+          // either, the notice riding the same dispatch as the swap it describes, so a history
+          // that never arrives cannot have its title read out as though it had.
         });
     },
     [abandonTurn, bridge, dispatch],
@@ -152,17 +158,20 @@ export function useSessionCatalog(
     [bridge, refreshSessions],
   );
 
+  // Both cycle keys announce. They are the reason the live region exists: a keystroke names no
+  // chat, the swap moves no focus, and the panel's whole contents change under a reader who is
+  // told nothing otherwise (`overlay/notice.ts`).
   const cyclePrev = useCallback(() => {
     const target = cycleTarget(state.sessions, state.sessionId, -1);
     if (target !== null) {
-      openSession(target);
+      openSession(target, true);
     }
   }, [state.sessions, state.sessionId, openSession]);
 
   const cycleNext = useCallback(() => {
     const target = cycleTarget(state.sessions, state.sessionId, 1);
     if (target !== null) {
-      openSession(target);
+      openSession(target, true);
     }
   }, [state.sessions, state.sessionId, openSession]);
 

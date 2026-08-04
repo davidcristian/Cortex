@@ -23,7 +23,10 @@ export interface OverlayController extends SessionCatalog {
   stop(): void;
   dismiss(): void;
   open(): void;
-  newChat(): void;
+  /** Mint a fresh chat over whatever is on screen. `announce` follows the same rule the chat
+   *  catalog's `openSession` follows: Ctrl+N speaks, since a keystroke names nothing, and the
+   *  header's pencil does not, being labelled with the name of what arrives (`notice.ts`). */
+  newChat(announce: boolean): void;
   toggleSwitcher(): void;
   /** Show a console tab (ADR-0032, ADR-0035). Idempotent, so the tab strip switches with it. */
   openConsole(tab: ConsoleTab): void;
@@ -149,10 +152,13 @@ export function useOverlay(
     dispatch({ kind: "dismiss" });
   }, [denyPendingConfirm]);
   const open = useCallback(() => dispatch({ kind: "open" }), []);
-  const newChat = useCallback(() => {
-    abandonTurn();
-    dispatch({ kind: "newChat", sessionId: newSessionId() });
-  }, [abandonTurn, newSessionId]);
+  const newChat = useCallback(
+    (announce: boolean) => {
+      abandonTurn();
+      dispatch({ kind: "newChat", sessionId: newSessionId(), announce });
+    },
+    [abandonTurn, newSessionId],
+  );
   const toggleSwitcher = useCallback(() => dispatch({ kind: "toggleSwitcher" }), []);
   const openConsole = useCallback((tab: ConsoleTab) => dispatch({ kind: "openConsole", tab }), []);
   const toggleConsole = useCallback(

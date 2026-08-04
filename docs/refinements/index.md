@@ -44,7 +44,7 @@ its signature.
 | [memory.md](memory.md) | Store, scoping, rerank/MMR (ADR-0008) | 8 |
 | [inference-model-manager.md](inference-model-manager.md) | Model-manager lifecycle, MTP, reasoning status (ADR-0007/0020) | 7 |
 | [subagents.md](subagents.md) | Progress reporting, spawn schema, heterogeneous roster (ADR-0010/0018) | 2 |
-| [body-overlay.md](body-overlay.md) | Overlay polish, connection indicator, proto Cancel (ADR-0011), the composer's move on a clamped shrink, the reserved scrollbar rail's assumed width and spent card inset, a mid-stream retarget restarting from a rounded height, a section rolling in the panel's chrome shrinking the log without the log answering, the two bounds the panel's section budget left behind it (a section's own frame being under no cap, and the room a closing section hands back arriving in one frame), the chat cycle keys swapping the conversation without saying so, and the whisper's follow-ups (ADR-0037): a pickable voice row, a mid-stream resize keeping the old wrap width, and kerning inside the letter boxes under a changed font (its drain-growth entry landed the day it was filed, and the console outliving a new chat, the reminder stack's per-row exit and the switcher's, the panel's watch on its own box with the arrival-aside correction that came out of it, the demo bridge over the line cap, two sections outrunning the panel on their own, the chat floor's frozen measurement of the empty state, the console tab strip's missing keyboard half, the switcher's disputed listbox role, the two motions its list still made in one frame, and a Thoughts trace opening a reply off the bottom of a full history all landed 2026-08-03, the last of them opening the chrome-side entry above), and a resize that lands inside the panel's own move waiting for it | 14 |
+| [body-overlay.md](body-overlay.md) | Overlay polish, connection indicator, proto Cancel (ADR-0011), the composer's move on a clamped shrink, the reserved scrollbar rail's assumed width and spent card inset, a mid-stream retarget restarting from a rounded height, a section rolling in the panel's chrome shrinking the log without the log answering, the two bounds the panel's section budget left behind it (a section's own frame being under no cap, and the room a closing section hands back arriving in one frame), a swap fired from inside a closing section dropping focus on the floor, and the whisper's follow-ups (ADR-0037): a pickable voice row, a mid-stream resize keeping the old wrap width, and kerning inside the letter boxes under a changed font (its drain-growth entry landed the day it was filed, and the console outliving a new chat, the reminder stack's per-row exit and the switcher's, the panel's watch on its own box with the arrival-aside correction that came out of it, the demo bridge over the line cap, two sections outrunning the panel on their own, the chat floor's frozen measurement of the empty state, the console tab strip's missing keyboard half, the switcher's disputed listbox role, the two motions its list still made in one frame, and a Thoughts trace opening a reply off the bottom of a full history all landed 2026-08-03, the last of them opening the chrome-side entry above; the cycle keys' silent swap landed 2026-08-04 and opened the focus entry that replaces it), and a resize that lands inside the panel's own move waiting for it | 14 |
 | [session-read-seam.md](session-read-seam.md) | Session listing/read seam (ADR-0021) | 2 |
 | [resource-governance.md](resource-governance.md) | Scheduler/placer budgets, NPU, drain (ADR-0012) | 5 |
 | [email-confirmer.md](email-confirmer.md) | Email write, Confirmer, attachments, `ToolActivity` chip (ADR-0022) | 4 |
@@ -1163,7 +1163,31 @@ against the code (the warning above); the entry text tells you which seams it ex
   health. The listbox shape would have answered this by moving focus, which is the shape that was
   rejected, so what fits is a polite live region naming the chat that arrived rather than a focus
   move, plus a look at the other doors into the same swap so a reader is not read back a title it
-  just clicked. Nothing blocks it.
+  just clicked. **Closed 2026-08-04** by the region it asked for, which says `Switched to <title>`
+  at the overlay's root ([ADR-0035 addendum](../adr/ADR-0035-console-and-motion.md)). Every number
+  above measured true again first. The entry was wrong four times over and each one moved the fix:
+  the page's live regions are one only as the page happens to stand (the capture ring and an
+  errored bubble mount conditionally beside the dot); `state.title` holds the arriving title only
+  after the swap, so the notice is the title the reducer arm computes rather than one read at the
+  keypress, a failed history load leaving the old chat in place; the doors are seven rather than the
+  two it named, `Ctrl+N` and the chat replacing a deleted one being just as silent; and the rule
+  cannot live in the reducer arm, one arm serving a switcher row and a cycle key both, so the flag
+  travels with the action. Speaking: the cycle keys, `Ctrl+N`, a reminder's open control, and the
+  chat that replaces a deleted one. Silent: a switcher row and the header's pencil, both already
+  named for what arrives, and cold-start adoption. Two things the entry did not have: a silent door
+  clears the notice, and a count keys the region's child so a second chat under one title is a
+  second announcement. It opened the focus entry below.
+- **A swap fired from inside a section that closes with it drops focus on the floor**
+  ([body-overlay.md](body-overlay.md)), opened 2026-08-04 by the answer above, which put the
+  arriving chat into speech and left focus alone on purpose. A switcher row, a reminder card's open
+  control and a delete confirm all sit inside sections the swap takes away, and `Collapse` unmounts
+  its child at the end of the roll, so the focused control stops existing and the browser falls
+  back to `<body>`: measured at 900x900 on all three. Nothing is misannounced (a live region reads
+  regardless of focus, which is why it did not block that answer), but the reader ends up outside
+  the panel entirely. The work is deciding where focus belongs after a swap, the composer and the
+  header's chats button being the two candidates and a delete wanting a third answer again, since
+  the switcher deliberately stays open behind it; the wiring is small once that is settled. Nothing
+  blocks it.
 - **A new chat minted while the console is up leaves the console up**
   ([body-overlay.md](body-overlay.md)), open from 2026-07-20, when verifying the console merge put
   a name to behaviour that predates it, and **closed 2026-08-03** by the user's answer: Ctrl+N

@@ -204,7 +204,8 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
   the previous cards in place (the chat list's rule). `remindersLoaded` replaces the list
   wholesale; the brain is the authority on each open. A card also offers its **origin chat**
   (ADR-0025 origin addendum): `DueReminder.sessionId` through `Panel`'s existing
-  `onSelectSession`, so a reminder and the switcher load a chat by the same path. Opening never
+  `onSelectSession`, so a reminder and the switcher load a chat by the same path, parting only on
+  whether the arriving chat is announced, which this control asks for and a row does not. Opening never
   acks (an ack destroys the reminder, navigation does not), and the control is *absent* for a
   session-less row (`""`) or for the chat already on screen, where it would cancel that chat's
   running turn to arrive where it already is. The card's own **exit** is the row's, not the list's
@@ -247,8 +248,26 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
   identical before and after). The open chat was a background tint and nothing more, and
   `aria-selected` needs the role that came off, so the row's button carries `aria-current`, `true`
   on the open row and `false` on the others. `Ctrl+↑` and `Ctrl+↓` are unchanged, being an
-  application-wide cycle rather than movement inside a list; that they announce nothing when they
-  swap the chat is a deferral in [refinements/body-overlay.md](../refinements/body-overlay.md).
+  application-wide cycle rather than movement inside a list; what they say when they swap the chat
+  is the next bullet.
+- **A chat swap says which chat arrived, unless its door already said it**
+  (`overlay/notice.ts` + `components/Announcer.tsx`, ADR-0035 addendum, 2026-08-04). The overlay
+  keeps one polite live region, `role="status"` at the overlay's ROOT rather than in the panel,
+  because a dismissed panel is `inert` and the cycle keys are global, so a press can open the panel
+  and swap the chat in one commit and a region inside it would enter the accessibility tree with
+  the words it wants read. `OverlayState.notice` is what it renders (`Switched to <title>`), and
+  the rule is about the gesture rather than the transition, so `openSession` and `newChat` carry an
+  `announce` flag set at the door: one arm serves a switcher row and a cycle key both. Speaking are
+  the cycle keys, `Ctrl+N`, a reminder card's open control, and the fresh chat that replaces a
+  deleted one, none of whose gestures name a chat; silent are a switcher row and the header's
+  pencil, each already labelled with the arriving title, and cold-start adoption, which answers no
+  gesture and cannot land over something said (it runs only while `touched` is false). A silent
+  door CLEARS the notice, a removal not being announced under the default `aria-relevant`, and the
+  notice carries a count that keys the region's child, since a live region reports a mutation
+  rather than a value and two chats can share a title. What the region says is the title the
+  reducer arm computed, so it and the header cannot disagree. Focus is deliberately not moved, and
+  where a door sits inside a section the swap closes it now lands on `<body>`: a deferral in
+  [refinements/body-overlay.md](../refinements/body-overlay.md).
 - **The empty line waits for a row and yields to one, and a row the list moves travels there**
   (`components/SessionList.tsx` + `overlay/useTravel.ts`, ADR-0035 addendum, 2026-08-03). The empty
   line is asked of `sessions` rather than of the rendered rows, so deleting the last chat puts it up
