@@ -201,8 +201,9 @@ Start here. Rules for working in this repo: [AGENTS.md](../AGENTS.md).
   the constants declared once per language (the byte ceiling, and the seam token's metadata key)
   by comparing declaration sites with each other rather than against a master.
 - [ADR-0030: Brain handoff (the real model swap)](adr/ADR-0030-brain-handoff.md): the Slice 11
-  capstone design, **accepted**; every engineering sub-slice has landed and the host-side
-  capstone (the deep-model pick, the tier-scale swap) remains. An explicit gated `escalate_to_brain`
+  capstone design, **accepted**; every engineering sub-slice has landed, the deep-model pick was
+  measured 2026-08-04 (gemma-4-31B QAT q4_0, ADR-0004), and the tier-scale swap remains because a
+  handoff begins at a confirm card only the overlay answers. An explicit gated `escalate_to_brain`
   built-in triggers a within-turn handoff: the turn's not-yet-stored remainder (brief, taint
   ledger with sources and URLs, nonce, tool-loop tail, dispatch budget) serializes into a
   `HandoffRecord` behind a new `HandoffStore` port; a core `SwapConductor` drains subagents,

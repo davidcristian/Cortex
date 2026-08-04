@@ -12,12 +12,18 @@ end but **starts no process and moves no weights**, and the **supervisor** one, 
 [brain-model-manager.md](../modules/brain-model-manager.md).
 
 The swap **mechanism** is validated: real `llama-server` processes started, health-gated, killed,
-and swapped, on the dev GPU with two small artifacts standing in for the tiers, with the timings
-and the exact commands in "The mechanism, as measured" below. **Tier scale is not validated and
-cannot be here:** gemma-4-12B alone takes 7715 of the dev GPU's 8188 MiB, so the real cortex and
-any deep-model candidate cannot be swapped between on 8 GB, and the 24 GB machine owns that
-half (plus the deep-model pick itself, which ADR-0004 does not have yet). Read every number below
-as the mechanism's, never as a tier's.
+and swapped, on an 8 GB card with two small artifacts standing in for the tiers, with the timings
+and the exact commands in "The mechanism, as measured" below. **Read every number below as the
+mechanism's, never as a tier's:** gemma-4-12B alone takes 7715 of that card's 8188 MiB, so the
+real cortex and any deep-model candidate cannot be swapped between on 8 GB, and every figure in
+this file was taken with stand-ins.
+
+**Two pieces of the tier-scale half have since been measured on a card that holds the tiers**, and
+both live in [docs/host/gpu-tier-scale.md](../host/gpu-tier-scale.md): the deep-model pick, which
+landed 2026-08-04 as gemma-4-31B QAT q4_0 at 19128 MiB alone and 99.6 s from start to READY
+(ADR-0004's brain-pick addendum), and one cortex to deep to cortex cycle driven by hand against
+the control API. What this runbook still owes is that cycle under a real escalated turn, which
+begins at a confirm card only the overlay answers, and the timings of its phases.
 
 ## Is the capability even on?
 
@@ -160,8 +166,9 @@ the sweep being sequential).
 ## The chaos kill, host-side
 
 This and the rest of the tier-scale half are tracked in
-[docs/host/gpu-tier-scale.md](../host/gpu-tier-scale.md), which carries the dependency chain
-(nothing here moves before the deep-model pick).
+[docs/host/gpu-tier-scale.md](../host/gpu-tier-scale.md), which carries the dependency chain. The
+deep-model pick at the head of that chain landed 2026-08-04; what still gates this section is the
+overlay, since a handoff to kill in the middle of begins at an approved confirm card.
 
 ADR-0030 decision 7's host half, at tier scale on the 24 GB machine. The agent-side equivalent at
 small scale is the third and fourth bullets above; what is host-only is doing it mid handoff with

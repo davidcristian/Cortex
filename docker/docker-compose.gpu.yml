@@ -20,8 +20,8 @@
 #   CORTEX_MODELHOST_{CPUS,MEMORY,MEMSWAP}  the container's cgroup caps (ADR-0012 host half).
 #                          Placeholders: the maintainer measures real numbers on the 24 GB machine.
 #
-# To turn the brain handoff on (off by default, and there is no deep-model pick yet, ADR-0004),
-# a deployment additionally sets, in the `brain` environment below:
+# To turn the brain handoff on (off by default; the deep-model pick is gemma-4-31B QAT q4_0,
+# measured 2026-08-04, ADR-0004), a deployment additionally sets, in the `brain` environment below:
 #   CORTEX_ESCALATION=1, CORTEX_MODELHOST_BACKEND=supervisor,
 #   CORTEX_BRAIN_ENDPOINT=http://model-host:8081
 # and, in the `model-host` environment, CORTEX_MODEL_FILE_BRAIN (plus CORTEX_NGL_BRAIN /
@@ -82,8 +82,15 @@ services:
       # both sides, since no port carries a path, a layer count, or a URL).
       CORTEX_MODEL_CORTEX: "${CORTEX_MODEL_CORTEX:-cortex}"
       CORTEX_MODEL_BRAIN: "${CORTEX_MODEL_BRAIN:-brain}"
-      # A tier is in the roster only when a file is named for it, so these are empty by default:
-      # there is no deep-model pick yet, and the GPU-placed subagent tier is opt-in.
+      # A tier is in the roster only when a file is named for it, so these stay empty by default:
+      # the deep tier is opt-in (escalation is off unless a deployment turns it on), and so is the
+      # GPU-placed subagent tier. Empty is not "undecided" here any more. The deep-model pick is
+      # google/gemma-4-31B-it-qat-q4_0-gguf/gemma-4-31B_q4_0-it.gguf, measured 2026-08-04 on a card
+      # that holds the tiers: 19128 MiB with the cortex evicted at the 8192 context below, 99.6 s
+      # from start to READY off the mount, and the only candidate of the four to answer every
+      # escalation-grade question inside a bounded budget (ADR-0004's brain-pick addendum, which
+      # also records Qwen3.6-27B Q4_K_M as the 2.7 GB lighter alternate). Name it here or in a
+      # .env to put the tier in the roster; nothing else does.
       CORTEX_MODEL_FILE_BRAIN: "${CORTEX_MODEL_FILE_BRAIN:-}"
       CORTEX_NGL_BRAIN: "${CORTEX_NGL_BRAIN:-99}"
       CORTEX_CTX_SIZE_BRAIN: "${CORTEX_CTX_SIZE_BRAIN:-8192}"
