@@ -7,8 +7,9 @@ server** with both placement targets pointed at it, so a GPU-*placed* subagent s
 CPU and this needs **no GPU**. A real GPU-placed executor does exist now, as an opt-in tier of the
 `model-host` supervisor sidecar (`CORTEX_MODEL_FILE_SUBAGENT_GPU`, `-ngl 99` on `:8083`,
 [model-swap.md](model-swap.md)); routing to it is the separate step of setting
-`CORTEX_SUBAGENTS_GPU_ENDPOINT=http://model-host:8083`. This runbook stays the CPU path and runs
-alongside `docker/docker-compose.gpu.yml`.
+`CORTEX_SUBAGENTS_GPU_ENDPOINT=http://model-host:8083`. Everything here but section 2c stays the
+CPU path and runs alongside `docker/docker-compose.gpu.yml`; **2c is the GPU one**, where a
+GPU-placed spawn really executes on the GPU and both of the placer's verdicts are exercised.
 
 ## Prerequisites
 
@@ -90,6 +91,63 @@ pick. Servers are per-model, so routing is verifiable in the logs, where each co
 ```bash
 docker logs cortex-llama-subagent-qwen-1 2>&1 | grep -c "prompt eval time"
 ```
+
+## 2c. The GPU-placed tier: both arms of the placer (ADR-0012)
+
+This is the one procedure here that needs a GPU, because it is the only one where a GPU-*placed*
+subagent actually *executes* on the GPU. It brings the hosted `-ngl 99` tier up beside the CPU
+server and drives the placer over both, so the run shows the arm firing **and** shows it staying
+silent; a GPU arm that cannot be made to do the second proves nothing by doing the first.
+
+```bash
+CORTEX_MODELS_DIR=/srv/models \
+  CORTEX_MODEL_FILE_SUBAGENT_GPU=google/gemma-4-E4B-it-qat-q4_0-gguf/gemma-4-E4B_q4_0-it.gguf \
+  CORTEX_SUBAGENTS_GPU_ENDPOINT=http://model-host:8083 \
+  docker compose --project-directory . -f docker/docker-compose.yml \
+  -f docker/docker-compose.gpu.yml -f docker/docker-compose.subagents.yml \
+  -f docker/docker-compose.modelhost-loopback.yml up -d --build
+# the tier is in the roster but NOT started: the daemon starts the cortex and nothing else
+curl -s -X POST http://127.0.0.1:9300/models/subagent-gpu/start
+curl -s http://127.0.0.1:9300/models/subagent-gpu   # poll until "state":"ready"
+```
+
+The loopback override is what makes this runnable from the host at all: the sidecar's tiers are
+deliberately unpublished, and it maps the tier's `:8083` to `127.0.0.1:9083` (`:8083` on the host
+belongs to the roster override's second CPU server). Take it down with `just down-gpu`.
+
+Then the two arms, which select themselves from the budget in the environment and skip otherwise:
+
+```bash
+cd brain
+# the GPU arm: a soft cap sized to the real card, so the ask fits the headroom once
+CORTEX_SUBAGENTS_ENDPOINT=http://127.0.0.1:8082 CORTEX_SUBAGENTS_GPU_ENDPOINT=http://127.0.0.1:9083 \
+  CORTEX_SUBAGENTS_VRAM_GB=5.5 CORTEX_VRAM_SOFT_CAP_GB=20 \
+  uv run pytest -m integration --no-cov packages/orchestrator/tests/test_subagent_gpu_live.py
+# the CPU arm: the shipped soft cap, whose headroom the same ask exceeds
+CORTEX_SUBAGENTS_ENDPOINT=http://127.0.0.1:8082 CORTEX_SUBAGENTS_GPU_ENDPOINT=http://127.0.0.1:9083 \
+  CORTEX_SUBAGENTS_VRAM_GB=5.5 \
+  uv run pytest -m integration --no-cov packages/orchestrator/tests/test_subagent_gpu_live.py
+```
+
+Each run passes one test and skips the other; the skip message prints the ask and the headroom it
+was measured against, so a run that skips both is a budget problem and says so. Corroborate the
+routing outside the test with each server's own log, where a `launch_slot_` line is one served
+request:
+
+```bash
+docker compose --project-directory . -f docker/docker-compose.yml -f docker/docker-compose.gpu.yml \
+  -f docker/docker-compose.subagents.yml logs model-host | grep -c launch_slot_
+```
+
+**Measured here on 2026-08-04**, cortex resident throughout. The GPU arm (headroom 8.7 GB against
+the 5.5 GB ask) placed one of two concurrent spawns on the tier and overflowed the other: the tier
+answered in **221.05 ms** (18 prompt tokens at 104.83 tok/s, 4 generated at 81.07 tok/s) against
+**12536.83 ms** on the CPU server, a ratio no core-side arrangement could fake. The CPU arm (the
+shipped 14 GB cap, headroom 2.7 GB) overflowed both and left the tier's count unmoved. **Distrust
+green here:** point `CORTEX_SUBAGENTS_GPU_ENDPOINT` at a closed port under the GPU-arm budget and
+the run must **fail** with three placements and a "a GPU-placed subagent did not answer" warning,
+which is the ADR-0012 CPU re-place doing its job. A suite that passes that way is measuring
+nothing.
 
 ## 3. Validate cortex-driven delegation (full stack, needs the GPU cortex)
 
