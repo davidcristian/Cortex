@@ -289,7 +289,11 @@ outside the box was opened with it.
   moves) and saves the pre-roll edge PER SECTION to hand back when that section rolls shut (so the
   switcher's round trip stays reversible), at the cost of a panel that keeps whatever low edge its
   tallest moment left it with until the next summon or view change. The user has been shown both;
-  this waits on which they want. Measured 2026-07-20.
+  this waits on which they want. Measured 2026-07-20. **Put to the user again 2026-08-04 and
+  deliberately left unpicked**, both designs restated with the rarity measurement above: the answer
+  was to spend the sitting on the entries that need no preference, so this stays open on a
+  preference rather than on work. That is a third outcome worth naming, since the entry had read as
+  though it were merely unasked, and the rarity is what makes waiting cheap.
 - **A touch mid-roll leaves the session pinned to a prediction, not to a measurement.** The summon's
   hold on the panel's geometry ends the moment the user touches it
   ([ADR-0035](../adr/ADR-0035-console-and-motion.md) decision 8), and if that touch lands while a section
