@@ -482,3 +482,52 @@ for it, which is the same mechanism-versus-tier-scale split the model swap alrea
 yet, so the "never fired against a real placement" sentence above stays true until somebody does.
 
 No code changed here; this is a records correction at the origin ADR.
+
+## Addendum (2026-08-04): the GPU arm fired, and both verdicts are witnessed against live tiers
+
+Somebody ran it. The sentence the addendum above left standing is retired: the `VramBudgetPlacer`'s
+GPU arm has now fired against a real placement, and the arm that overflows to CPU has been shown
+firing beside it on the same stack, because an arm that cannot be made to stay silent proves nothing
+about the one that fires.
+
+**The stack.** The base file plus the `gpu`, `subagents` and `modelhost-loopback` overrides, models
+on the host mount, with the ADR-0004 subagent pick (`gemma-4-E4B` QAT q4_0) hosted twice: as the
+sidecar's `-ngl 99` tier on `:8083` (put in the roster by `CORTEX_MODEL_FILE_SUBAGENT_GPU`, started
+by hand because the daemon starts only the cortex, READY between 9 s and 12 s after the start
+returned in 0.007 s) and as the subagents override's `-ngl 0` CPU server on `:8082`. The tier's argv
+was read out of the container rather than assumed: `--model .../gemma-4-E4B_q4_0-it.gguf --port 8083
+-ngl 99 --ctx-size 8192 --parallel 2`, beside the cortex tier's own `-ngl 99 --ctx-size 16384
+--parallel 1`.
+
+**The GPU verdict.** Soft cap 20 GB (the shipped 14 is a placeholder sized for an 8 GB card),
+reservation 11.3 GB, ask 5.5 GB, so the headroom of 8.7 GB holds exactly one spawn. A batch of two
+concurrent spawns of one roster entry landed one on each target, which is the ledger and not the
+scheduler: both were admitted, and the second was refused the GPU only because the first had already
+debited 5.5 GB of an 8.7 GB allowance. The GPU-placed one is visible in the tier's own log as its
+only task, 18 prompt tokens at 104.83 tok/s and 4 generated at 81.07 tok/s, 221.05 ms in total; its
+sibling took 12536.83 ms on the CPU server. That ratio is the route being real: no arrangement of the
+core could make a CPU server answer in 221 ms.
+
+**The CPU verdict, which is the shipped configuration.** With the soft cap left at 14 GB the headroom
+is 2.7 GB, under the same 5.5 GB ask, and both spawns overflowed; the GPU tier's task count did not
+move. So the deliberate placeholder pairing this ADR ships (an ask above the placeholder headroom) is
+confirmed to route nothing at the tier, which is what makes the three-setting opt-in of the host-half
+addendum the whole story rather than most of it.
+
+**How it is run, and how it was reddened.** The suite is
+`brain/packages/orchestrator/tests/test_subagent_gpu_live.py`, `integration`-marked and therefore
+outside CI and the coverage gate, run as two commands against one stack (the arms select themselves
+from the budget in the environment); the procedure is
+[runbooks/subagents-cpu.md](../runbooks/subagents-cpu.md). It reads the three env values through
+`BrainRuntimeConfig` and `SubagentsConfig`, the same settings classes the composition root reads, so
+the arm a run takes is the deployment's arithmetic rather than the test's, and it records the target
+each spawn was handed because nothing else can: the ledger is private and no log line names a
+verdict. Proved able to fail before being trusted, by pointing `CORTEX_SUBAGENTS_GPU_ENDPOINT` at a
+closed port under the GPU-arm budget: the placement still happens, the backend does not answer, and
+the re-place addendum's single CPU re-run fires, so the run reddens on a third placement with the
+runner's "a GPU-placed subagent did not answer" warning in the captured log. That is also the first
+time the re-place has fired from a real GPU placement rather than from a failing fake.
+
+**What this does not touch.** The cap numbers of the host-half addendum stay placeholders, and
+nothing here re-opens placement-aware charging: one hosted GPU tier is still one backend object per
+target per roster entry.

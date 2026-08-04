@@ -961,6 +961,23 @@ rather than reported from the one cell that produced it, five framed runs per re
 bitmap font was controlled for with the same screen redrawn by a browser in a real face, which came
 back harder for the model to read than the corpus is.
 
+Resource governance **held at 5 on 2026-08-04** while the last uncounted piece of its landed
+GPU-placed-runtime entry closed: the `VramBudgetPlacer`'s GPU arm fired against a real placement for
+the first time. The count does not move because this was validation of something already built,
+which this area has never counted, and the entry stays where it is with its own closing sentence
+("the GPU arm has still never fired") preserved and dated false. The claims it shipped with all held
+against the code, which is the rarer outcome here: the budget really is the three env values, the
+tier really is one artifact behind `CORTEX_MODEL_FILE_SUBAGENT_GPU`, and routing really is the
+separate `CORTEX_SUBAGENTS_GPU_ENDPOINT` setting the 2026-07-18 correction added. What the run
+added is the part no reading of the code can give. Two concurrent spawns of one roster entry
+against a headroom that holds exactly one of them went one to the sidecar's `-ngl 99` tier and one
+to the CPU server, and the tier's own log says which: one task, 221.05 ms, against 12536.83 ms for
+the sibling. The same batch under the shipped soft cap left the tier with no task at all, which is
+the arm being shown able to stay silent, and the shipped configuration is exactly that arm. The
+suite carrying both is integration-marked and lives beside the CPU one; it was reddened on purpose
+first, by pointing the GPU endpoint at a closed port, which also fired ADR-0012's CPU re-place from
+a real GPU placement rather than from a failing fake for the first time.
+
 ## Recommended order
 
 Ordered by what unblocks the most value soonest. Before starting any item, verify its claims
@@ -1000,7 +1017,12 @@ against the code (the warning above); the entry text tells you which seams it ex
   three env values, the tier is one small artifact behind `CORTEX_MODEL_FILE_SUBAGENT_GPU` on the
   supervisor's `:8083`, and what gets proven is the route from a GPU verdict to an `-ngl 99` process
   and the ledger that accounts for it. Same mechanism-versus-tier-scale split the swap already runs
-  on.
+  on. **It ran and closed 2026-08-04**, and the arm fired: with the soft cap sized to the real card,
+  two concurrent spawns of one entry went one to the hosted `-ngl 99` tier and one to the CPU
+  server, the GPU one answering in 221.05 ms against the overflow's 12536.83 ms, and with the
+  shipped soft cap the same batch left the tier untouched. Its own suite was proved able to fail
+  first, by pointing the GPU endpoint at a closed port: the placement then re-runs on the CPU and
+  the assertion reddens on the third one.
 - **The spontaneous-pick nudge's live uptake** ([subagents.md](subagents.md)), whose fix stays
   fix-when-it-bites but whose *observation* is runnable here: a resident cortex at 4K with the
   CPU roster up, given a prose-only ask carrying independent subtasks, either reaches for distinct
@@ -1387,7 +1409,9 @@ as the record of what an area's deferrals became.
   that holds the cortex first") assumed the dev GPU cannot hold the cortex, and it can, so what
   needs the 24 GB card is a placement **beside** a resident cortex while the placer's GPU arm
   firing against a real placement is agent-side and sits under actionable now. The cap numbers are
-  host work unchanged. None of this ever carried a count here.
+  host work unchanged. None of this ever carried a count here. **The agent-side half ran on
+  2026-08-04** and the arm fired, both verdicts witnessed against live tiers by
+  `test_subagent_gpu_live.py`; the cap numbers are the only piece of this entry still owed.
 - The ~31B brain-tier injection-harness run **moved to
   [docs/host/gpu-tier-scale.md](../host/gpu-tier-scale.md) on 2026-07-19**, where it sat behind
   the deep-model pick with the other four capstone items
