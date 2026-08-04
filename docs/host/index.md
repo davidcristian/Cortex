@@ -386,9 +386,13 @@ only so a sitting on the host's hardware knows what it could also settle:
 - **The spontaneous-pick nudge's live uptake** ([subagents.md](../refinements/subagents.md)):
   whether a live cortex reaches for distinct roster models unprompted, over real use rather than
   one scripted ask. The spawn tool is cortex-only and the small subagents do not respect prompt
-  framing the way the cortex does, so no subagent-tier proxy tests it. What this hardware adds is
-  real use at production context; the one-ask probe is agent-side and is listed as actionable now
-  in [refinements/index.md](../refinements/index.md).
+  framing the way the cortex does, so no subagent-tier proxy tests it. **The scripted half ran
+  2026-08-04**, and it ran here at the production 16K context with a single slot rather than the 4K
+  its entry proposed, so this line's old claim that the hardware buys "real use at production
+  context" is narrower than it was: the context is not what was missing. The scripted asks are
+  answered (a prose-only ask never delegates at all; an invited one delegated in all 16 turns and
+  piled the whole batch on one entry in all 16), and what is left for this hardware is the same
+  question over months of real use rather than over 36 scripted turns.
 - **Session-history summarization and the model-based reranker**
   ([session-history.md](../refinements/session-history.md),
   [memory.md](../refinements/memory.md)): both need `select` to go async first, and summarization
@@ -410,4 +414,6 @@ is agent-runnable and moved to actionable now; the two model passes were never h
 all, and their real blockers, the shared `select` widening and the undecided cache question, are
 written at their entries and their origin ADRs. What genuinely wants this hardware is the same
 judgment at 16K with more than one slot, which is a better answer rather than the only one, so all
-three stay listed above as things a sitting here could also settle.
+three stay listed above as things a sitting here could also settle. **The nudge half of that last
+sentence was overtaken on 2026-08-04**, when the probe ran on this hardware at 16K with the tier's
+own single slot: what its entry still wants is duration, not context.

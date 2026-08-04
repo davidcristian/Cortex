@@ -242,3 +242,88 @@ one slot stays host-side. The pointer at
 [ADR-0010](ADR-0010-subagents.md) repeats the false clause and is corrected there.
 
 No code changed here; this is a records correction at the origin ADR.
+
+## Addendum (2026-08-04): the nudge's live uptake, observed
+
+The residual the two addenda above hand forward, whether a live cortex reaches for **distinct**
+roster models unprompted, was run on the development card. It has an answer, and running it split
+the question in two, because the residual had folded a prior question inside it: before a cortex
+can spread a batch it has to want a batch at all.
+
+**Setup.** Base + gpu + subagents + subagents-roster on the 24 GB card, models under
+`CORTEX_MODELS_DIR`. The cortex tier is the shipped one, started by the model host over
+`gemma-4-12b-it-qat-q4_0.gguf` with `-ngl 99 --ctx-size 16384 --parallel 1 --jinja`, so this ran at
+the **production 16K context and a single slot** rather than the 4K the entry proposed;
+`nvidia-smi` read 1893 MiB with nothing loaded, 9676 MiB with it resident, and 1870 MiB again after
+teardown. The roster is the two-entry one the overrides build, read live inside the brain container
+through `SubagentsConfig()`: `subagent` (gemma-4-E4B on `:8082`, the robust default) and `qwen`
+(Qwen3.5-2B on `:8083`). Every turn ran through the real `stream_tool_loop` over a dispatcher the
+real builders assembled (`build_subagents`, `build_builtin_tools`, `build_cortex_tools`), with the
+security preamble in place via `assemble_inference_messages` and `spawn_subagents` as the **only**
+advertised tool, which is the most favourable condition delegation could be given.
+
+**The tool was armed, checked before any silence was read as a decision.** The advertised spec
+carried the model enum `["qwen", "subagent"]` and the trade-off sentence verbatim ("Subtasks on
+distinct models run in parallel, while subtasks that share one model run one after another (one
+backend each), so spread independent subtasks across models to finish the batch sooner"). A control
+ask that directed the picks produced one `spawn_subagents` call carrying `{"model": "qwen"}` and
+`{"model": "subagent"}`, one `launch_slot_` line in each server's log, and both answers back, in
+95.34 s.
+
+**Finding 1: a prose-only ask does not reach for delegation at all.** Four asks, each carrying
+three or four genuinely independent subtasks and saying nothing about delegation, over **20 turns**
+(twelve run to completion, eight sampled at the dispatch): **zero** `spawn_subagents` calls, 9.88 s
+to 76.03 s per turn. The traces do not decline to delegate, they never raise it: `subagent`,
+`delegat`, `spawn` and `farm` appear **zero** times across the twelve full reasoning traces. The
+cortex enumerates the subtasks as a checklist and answers them itself, which on this deployment is
+also the better answer, since the CPU tiers generate at 0.35 tok/s (gemma-4-E4B under its 4 CPU
+cap) and 0.97 to 1.10 tok/s (Qwen3.5-2B), so a delegated paragraph costs minutes the cortex spends
+in seconds. **The probe as specified therefore cannot observe a spread**, because it never produces
+a batch.
+
+**Finding 2: invited to delegate, it delegates every time and piles the batch on one entry every
+time.** Two asks that request delegation in ordinary user prose (no tool name, no model name, no
+parallelism language), over **16 turns: 16 delegations, 0 spreads.** Of the 15 batches whose
+arguments were recorded, 11 used the object item form and 4 bare strings, and exactly **one**
+carried a `model` key at all: it put all three subtasks on `qwen`, which is a pile on the cheap
+entry rather than a spread. The other fourteen ran entirely on the default, as did the sixteenth
+turn, which was abandoned while its batch ran and during which the alternate's server served
+nothing at all. The one explicit pick states
+the reasoning plainly, and states it while holding the belief the trade-off line was written to
+remove: "I can use `spawn_subagents` to handle these three requests in parallel. Since the content
+is simple and doesn't involve untrusted data, I can use the default model or `qwen` for speed, but
+`subagent` is safer. Actually, `qwen` is fine for these simple definitions." The choice is made per
+subtask on cost and safety, never on the batch's shape.
+
+**Finding 3, from the code rather than the card: the nudge is only ever shown to the deployment
+with the least reason to delegate.** `build_spawn_spec` advertises the `model` knob, and the spread
+sentence with it, only when `not tools_enabled and len(roster.entries) > 1`, while
+`build_subagent_tools` hands subagents a dispatcher whenever any tool registry is configured at
+all. So the moment a deployment layers the tools or email overrides, every spawn is pinned to the
+robust default (rule 2b above) and the spec swaps the spread advice for the pinned note, which says
+the batch groups independent work rather than speeding it up. Confirmed by building the spec both
+ways off the running deployment's own roster: `tools_enabled=False` publishes the knob and the
+spread sentence, `tools_enabled=True` publishes neither. The nudge's whole audience is a tool-less
+multi-entry deployment, whose subagents can only do prose work, which is exactly the work finding 1
+shows the cortex keeps for itself.
+
+**A correction to the advertised sentence, measured rather than argued.** "Subtasks that share one
+model run one after another (one backend each)" is not quite true of this deployment. An entry
+holds one backend **per placement target**, and the roster override omits `gpu_endpoint`, so both
+of an entry's targets dial one server. With the `qwen` ask at 2.5 GB against a 2.7 GB headroom
+(`CORTEX_VRAM_SOFT_CAP_GB` 14.0 minus `CORTEX_VRAM_CORTEX_GB` 11.3) exactly one spawn of a batch is
+GPU-placed and the rest overflow, so two lock objects front one server: the three `qwen` subtasks
+launched two in the same millisecond and the third only when the first released. The default
+entry's 5.5 GB ask never fits, so its batches are strictly serial (258.4 s, 208.7 s, 330.2 s, one
+after another). The advertised claim is therefore conservative rather than wrong, and what it
+overstates is the size of the prize for spreading, which is one more reason to leave the fix
+queued.
+
+**What changes, and what does not.** The spec text is unchanged. This run says the advice is not
+taken; it does not say which wording would be taken, and rewriting on the strength of one
+deployment's behaviour is the guess this residual was written to avoid. The entry stays open and fix-when-it-bites, with its trigger
+sharpened by all three findings, at
+[docs/refinements/subagents.md](../refinements/subagents.md). What the run buys is a probe that is
+cheap to repeat: `packages/orchestrator/tests/test_spawn_nudge_live.py` carries the armed check and
+both asks, and [runbooks/subagents-cpu.md](../runbooks/subagents-cpu.md) section 3c carries the
+bring-up and the two ways to make the run meaningless (any tool override, or a one-entry roster).
