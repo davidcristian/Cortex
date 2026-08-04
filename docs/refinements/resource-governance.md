@@ -109,6 +109,28 @@ the unchanged `SubagentPlacer`/`SubagentScheduler`/`ModelManager` ports.
   the host" includes the agent, and it is **actionable now** rather than host work. Nobody has run
   it: the GPU arm has still never fired against a real placement, which is exactly why the split
   matters.
+  **It ran on 2026-08-04 and the GPU arm has now fired ([ADR-0012 GPU-arm
+  addendum](../adr/ADR-0012-resource-governance.md), procedure in
+  [subagents-cpu.md](../runbooks/subagents-cpu.md)).** The stack was the base plus the gpu,
+  subagents and modelhost-loopback overrides, with the E4B subagent pick hosted twice: as the
+  sidecar's `-ngl 99` tier on `:8083` (reachable at `127.0.0.1:9083`, since the sidecar's tiers are
+  otherwise unpublished) and as the subagents override's `-ngl 0` CPU server on `:8082`. Both arms
+  are witnessed by a new integration suite,
+  `brain/packages/orchestrator/tests/test_subagent_gpu_live.py`, which reads the three env values
+  through the same settings classes the composition root reads and records which backend each spawn
+  was handed. With the soft cap raised to 20 GB for the card the repo is developed on (headroom
+  8.7 GB against the shipped 5.5 GB ask), two concurrent spawns of one roster entry landed **one on
+  the GPU tier and one on the CPU server**, which is the ledger doing its job rather than a
+  coincidence of two servers: the tier's own `llama-server` log carries exactly one task, 18 prompt
+  tokens at 104.83 tok/s and 4 generated at 81.07 tok/s for 221.05 ms in total, against 12536.83 ms
+  for the sibling that overflowed. With the shipped soft cap of 14 GB (headroom 2.7 GB, under the
+  same ask) both spawns overflowed and the tier's task count did not move, so the arm is proven able
+  to stay silent as well as to fire. **The sentence above is therefore false as of that date and is
+  kept as the record**; what is left of this entry's host half is the cap numbers.
+  **The suite was proved able to fail before it was trusted.** The same budget with the GPU endpoint
+  pointed at a closed port reddens on a third placement, because a GPU-placed attempt whose backend
+  did not answer re-runs once on the CPU, which is also the first time the re-place two bullets up
+  has fired from a real GPU placement rather than from a failing fake.
 - **Placement-aware CPU charging closed 2026-07-16 as declined, wrong premise and no gain
   ([ADR-0012 admission-wall addendum](../adr/ADR-0012-resource-governance.md)).** The entry read:
   "`admit` charges every spawn its full `cpus`/`memory_gb` regardless of placement (conservative);
