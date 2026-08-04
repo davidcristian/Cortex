@@ -2400,3 +2400,134 @@ measurements across the summon, a new chat and a reminder ack, where the panel i
 moving on its own account. It is exactly reversible (closing the switcher reads 3px again) and the
 reader can scroll, so it is filed rather than bundled
 ([body-overlay.md](../refinements/body-overlay.md)).
+
+## Addendum, 2026-08-04: a chat swap says which chat arrived, unless its door already said it
+
+The switcher-role addendum above left the cycle keys exactly as they were and opened one deferral
+on its way out: the swap they perform is silent. This closes it. The overlay gains **one polite
+live region**, at its root and never inside the panel, and the rule for who writes to it is about
+the **gesture** rather than the transition: a swap speaks when the control that fired it named no
+chat, and stays quiet when that control's own accessible name is the title arriving.
+
+### What was measured before
+
+Chromium at 900x900, on the demo's own seed, with the reminder stack and the switcher as they boot:
+
+- **The keys.** Focus put on the header's chats button (by opening the switcher with it), then two
+  presses of `Ctrl+↓` walk the header title "New chat" to "Summarize my unread email" to
+  "Everything about model swaps". The first press closes the switcher out from under the reader,
+  `aria-expanded` going true to false, and `document.activeElement` is the chats button throughout.
+  Nothing on the page says any of it.
+- **The other doors, which the entry did not have.** `Ctrl+N` has the identical shape: the title
+  goes back to "New chat", focus does not move, nothing is announced. A reminder card's "open chat"
+  loads its origin chat ("Everything about model swaps") and says nothing. Deleting the chat that is
+  open resets the panel to a fresh one, also silently. So the doors are seven and not the two the
+  entry named.
+- **The page's live regions.** One `role="status"`, the connection dot, reading
+  "Brain ready: cortex-orchestrator demo".
+
+### What the deferral got right and what it got wrong
+
+Right, and reproduced exactly: the mechanism (`Overlay.tsx` calling `cyclePrev`/`cycleNext` from a
+window keydown), the three titles in that order, focus never moving, the switcher closing on the
+first press, and the answer itself, a polite live region naming the chat that arrived rather than
+the focus move the rejected listbox shape would have brought.
+
+Wrong in four places, each of which changed the shape of the fix:
+
+1. **"The page's only live region" is true of the page as measured and not of the overlay.** Two
+   more carry a role and mount conditionally: the capture ring (`role="status"`, up only while the
+   assistant has asked for the screen during a turn) and an errored reply's bubble
+   (`role="alert"`). Neither is ever about a chat, so the conclusion survives, but a reader
+   counting regions from that sentence would come up one short of what the tree can hold.
+2. **"`state.title` already holds it" is true only after the swap, and reading it before is a
+   bug.** A history load can fail, and its `.catch` deliberately leaves the current chat in place,
+   so a notice raised at the keypress would name a chat that never arrived. What is announced is
+   the title the reducer arm computes, off the same `headerTitle` call the header takes, so the
+   region and the header cannot disagree about which chat is on screen for the same reason the
+   header and the switcher row cannot.
+3. **The decision cannot live in the reducer arm, because one arm serves two doors.**
+   `openSession` is the switcher row AND the cycle keys; `newChat` is the pencil AND `Ctrl+N`. The
+   flag therefore travels with the action from the door that raised it, which is the only shape
+   that can deliver the entry's own "so a reader is not read back a title it just clicked": a rule
+   written into either arm would have to answer for both of that arm's doors at once.
+4. **A title said twice is not said twice.** A live region reports a mutation, not a value, so text
+   replaced by identical text announces nothing. Two chats can easily share a title (the same
+   question asked twice, or two runs of "New chat"), so the notice carries a count and the region's
+   child is keyed on it.
+
+### The decision
+
+`overlay/notice.ts` holds a `Notice` (`title` plus `count`) and `speak`, which is the whole of the
+new state. `OverlayState` gains `notice: Notice | null`, the `openSession` and `newChat` actions
+gain an `announce` flag, and `components/Announcer.tsx` renders the region. Seven doors, and the
+rule is read off the gesture rather than off the transition:
+
+| Door | Speaks | Why |
+| --- | --- | --- |
+| `Ctrl+↑` / `Ctrl+↓` | yes | A keystroke names no chat and moves no focus. |
+| `Ctrl+N` | yes | The same, for the fresh chat it mints. |
+| A reminder's "open chat" | yes | The control is named for the act, not for the chat. |
+| The fresh chat after deleting the open one | yes | Its only door is `Confirm delete <title>`, which names the chat LEAVING. |
+| A switcher row | no | The row's accessible name IS the arriving title. |
+| The header's pencil | no | Labelled "New chat", which is what arrives. |
+| Cold-start adoption | no | No gesture to answer, and it runs only while `touched` is false, which every speaking door sets, so it can never land over something said. |
+
+A silent swap **clears** the notice rather than leaving it: a removal is not announced under the
+default `aria-relevant`, so nothing is read, and the region is left holding only what was actually
+last said. The delete fallback needs no flag, having the one door.
+
+The region sits at the overlay's root and not in the panel, which is load-bearing. A dismissed
+panel is `aria-hidden` and `inert` (`overlay/withdrawn.ts`) and the cycle keys are global, so a
+press can put the panel on screen and swap the chat in one commit; a region inside it would be
+entering the accessibility tree in the same frame as the words it wants read. What it says is a
+sentence, `Switched to <title>`, because a bare title arriving out of nowhere names a thing without
+saying what happened to it.
+
+### What it measures
+
+Chromium at 900x900, same seed, after:
+
+- **The region is there before it is needed.** At boot the tree holds two `status` nodes, the new
+  one empty and the connection dot named as before, both `live: polite`, `atomic: true`,
+  `relevant: additions text`. Its box is 1x1 and it is not inside `.panel`.
+- **The keys speak.** The same two presses now put "Switched to Summarize my unread email" and then
+  "Switched to Everything about model swaps" in the region, each naming the title the header carries
+  in the same frame. `Ctrl+N` reads "Switched to New chat". A reminder's "open chat" reads "Switched to
+  Everything about model swaps". Deleting the open chat reads "Switched to New chat".
+- **The named doors stay quiet.** A switcher row click and the header's pencil each leave the region
+  empty, and a `MutationObserver` over it records only the removal of what stood there.
+- **One title, twice, is two announcements.** Two `Ctrl+N` presses in a row record three mutations:
+  an addition, then a removal, then an addition of the identical string. Without the keyed child
+  the second press mutates nothing at all.
+
+### The mutation proof
+
+Seven mutations, each reddening exactly one test and no other, checked in place and restored:
+dropping the `key` on the region's child (the same-title test), pinning `speak`'s count at 1 (the
+counting test), making `openSession` ignore its flag (the door test), flipping the switcher row to
+announce (Panel's switcher test), flipping the reminder's control to silent (Panel's reminder
+test), giving `Ctrl+N` the pencil's rule (Overlay's door test), and dropping the notice from the
+delete fallback (the delete test). Moving the `Announcer` under the panel reddens the placement
+test on the `inert` subtree, which is the assertion that keeps it out.
+
+### What this does not do
+
+**Focus is still exactly where the gesture left it, and for three doors that is now the body.**
+Measured at 900x900: clicking a switcher row keeps focus on the row for its 300ms roll and then
+loses it to `<body>` when `Collapse` unmounts the row; a reminder's "open chat" loses it in the same
+way, the stack rolling away as the history fills; and confirming a delete loses it with the row.
+The live region reads regardless of focus, so nothing here depends on it, but a reader is left with
+no place in the panel to continue from. It is a focus question rather than an announcement one, it
+predates this work, and it is filed as its own deferral
+([refinements/body-overlay.md](../refinements/body-overlay.md)).
+
+**Nobody has heard it.** What is proved here is the accessibility tree and the DOM mutations, which
+is the standard every other accessibility pass in this ADR applied (the tab strip, `withdrawn`, the
+switcher's role), and it is what this machine can prove. Whether a given screen reader re-speaks an
+identical string is its own decision; a listen would ride the standing Windows bring-up
+([host/windows-desktop.md](../host/windows-desktop.md)) rather than open a sitting of its own.
+
+**Nothing else announces.** A turn's reply, a tool chip, a reminder arriving and the switcher's own
+open and close are all still silent, deliberately: this region exists for the one thing that
+replaces the whole panel without moving anything.

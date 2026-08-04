@@ -113,7 +113,7 @@ describe("useOverlay", () => {
     await flush();
     expect(result.current.state.sessionId).toBe("s0");
     act(() => result.current.submit("q"));
-    act(() => result.current.newChat());
+    act(() => result.current.newChat(false));
     expect(result.current.state.messages).toEqual([]);
     expect(result.current.state.sessionId).toBe("s1");
     // The cancelled turn's late events no longer reach the (cleared) state.
@@ -305,7 +305,7 @@ describe("useOverlay", () => {
     const { result } = renderHook(() => useOverlay(bridge, () => "s1"));
     await flush();
     act(() => result.current.submit("q")); // an in-flight turn openSession must cancel
-    act(() => result.current.openSession("chat-2"));
+    act(() => result.current.openSession("chat-2", false));
     await flush();
     expect(result.current.state.sessionId).toBe("chat-2");
     expect(result.current.state.messages.at(0)?.content).toBe("old question");
@@ -315,7 +315,7 @@ describe("useOverlay", () => {
     const bridge = new FakeBridge(); // messagesBySession empty → resolves []
     const { result } = renderHook(() => useOverlay(bridge, () => "s1"));
     await flush();
-    act(() => result.current.openSession("ghost"));
+    act(() => result.current.openSession("ghost", false));
     await flush();
     expect(result.current.state.sessionId).toBe("ghost");
     expect(result.current.state.messages).toEqual([]);
@@ -327,7 +327,7 @@ describe("useOverlay", () => {
     bridge.messagesFail = true;
     const { result } = renderHook(() => useOverlay(bridge, () => "s1"));
     await flush();
-    act(() => result.current.openSession("chat-2"));
+    act(() => result.current.openSession("chat-2", false));
     await flush();
     expect(result.current.state.sessionId).toBe("s1");
   });
@@ -490,6 +490,35 @@ describe("useOverlay", () => {
     expect(result.current.state.sessionId).toBe("oldest");
   });
 
+  it("a cycled chat is announced by name and a picked one is not", async () => {
+    // The keys are the reason the live region exists, so this is the end of that path: the id
+    // `cycleTarget` chose reaches the reducer with the flag up, and what comes back names the
+    // chat by the title the header is showing. The same call from a switcher row leaves nothing
+    // to read, which is what stops a reader being handed back the row they pressed.
+    const bridge = new FakeBridge();
+    bridge.sessions = [summary("newest"), summary("oldest")];
+    bridge.messagesBySession = {
+      newest: [{ role: "user", text: "newest chat", turnId: "t", atUnixMs: 1 }],
+      oldest: [{ role: "user", text: "oldest chat", turnId: "t", atUnixMs: 1 }],
+    };
+    const { result } = renderHook(() => useOverlay(bridge, () => "s1"));
+    await flush();
+    // The cold-start restore that put "newest" on screen said nothing on its way in.
+    expect(result.current.state.notice).toBeNull();
+    act(() => result.current.cycleNext());
+    await flush();
+    expect(result.current.state.notice?.title).toBe(result.current.state.title);
+    expect(result.current.state.notice).toEqual({ title: "title oldest", count: 1 });
+    act(() => result.current.cyclePrev());
+    await flush();
+    expect(result.current.state.notice).toEqual({ title: "title newest", count: 2 });
+    // The switcher's own door, over the same controller call.
+    act(() => result.current.openSession("oldest", false));
+    await flush();
+    expect(result.current.state.sessionId).toBe("oldest");
+    expect(result.current.state.notice).toBeNull();
+  });
+
   it("answers a pending confirm over the bridge and clears the card", async () => {
     const bridge = new FakeBridge();
     const { result } = renderHook(() => useOverlay(bridge, () => "s1"));
@@ -588,11 +617,11 @@ describe("useOverlay", () => {
     await flush();
     act(() => result.current.submit("send it"));
     act(() => bridge.emit(confirmRequest("c-1")));
-    act(() => result.current.newChat());
+    act(() => result.current.newChat(false));
     expect(bridge.confirms).toEqual([{ confirmId: "c-1", approved: false }]);
     act(() => result.current.submit("send again"));
     act(() => bridge.emit(confirmRequest("c-2")));
-    act(() => result.current.openSession("prior"));
+    act(() => result.current.openSession("prior", false));
     await flush();
     expect(bridge.confirms).toEqual([
       { confirmId: "c-1", approved: false },

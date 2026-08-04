@@ -211,6 +211,25 @@
   overflow: hidden;
 }
 
+/* The live region that says which conversation just arrived (components/Announcer.tsx). Read but
+   never seen, so it is clipped to a single pixel rather than hidden: `display: none`,
+   `visibility: hidden` and a zero size each take an element out of the accessibility tree along
+   with the view, which for this one element removes the entire point of it. It sits at the stage's
+   own origin under everything else, takes no pointer events, and is 1px so the clip has something
+   to clip; text wrapping is switched off so a long title cannot lay itself out down the page
+   inside a box that will never show it. */
+.announcer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  pointer-events: none;
+}
+
 /* Sleek at rest: neutral glass, no gradient, a soft neutral shadow. Closed = scaled at center
    (summon/dismiss pop from the middle); .to-orb parks the closed panel at the corner instead so
    minimize-to-orb / reopen-from-orb are a real travel.

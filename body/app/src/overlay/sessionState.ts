@@ -1,4 +1,5 @@
 import type { SessionMessage, SessionSummary } from "../bridge/types";
+import { speak } from "./notice";
 import type { OverlayState } from "./overlayState";
 import type { Message } from "./turnState";
 
@@ -83,19 +84,28 @@ function headerTitle(
  * behind it, but Ctrl+Up and Ctrl+Down are global keys and cycle straight into this: without the
  * clear they loaded another conversation behind the standing console, which is the same
  * surprise the new-chat arm was answering and the same answer.
+ *
+ * `announce` is the caller's door, not this arm's decision, because the doors are three and the
+ * arm is one: a cycle key and a reminder's open control speak, a switcher row does not
+ * (`notice.ts`). What is announced is the title computed right here, so the live region and the
+ * header cannot disagree about which chat arrived, in the same way the header and the switcher
+ * row cannot (`headerTitle`).
  */
 export function openSession(
   state: OverlayState,
   sessionId: string,
   messages: readonly SessionMessage[],
+  announce: boolean,
 ): OverlayState {
   const loaded = hydrate(messages);
+  const title = headerTitle(state.sessions, sessionId, messages);
   return {
     ...state,
     mode: "panel",
     touched: true,
     sessionId,
-    title: headerTitle(state.sessions, sessionId, messages),
+    title,
+    notice: announce ? speak(state.notice, title) : null,
     messages: loaded,
     switcherOpen: false,
     consoleTab: null,
@@ -114,6 +124,11 @@ export function openSession(
  * sets `touched`), and a StrictMode double-fired mount effect is idempotent. `seq`/`messages`
  * cannot stand in for `touched`: `newChat` leaves both pristine, so open then new-chat then
  * dismiss would otherwise read as an untouched boot and be hijacked.
+ *
+ * It is the one chat swap that says nothing, and it needs no flag to stay quiet: there is no
+ * gesture behind it to answer, and it runs only while `touched` is false, which every door that
+ * can raise a notice sets. So a restore cannot arrive over something said, and the notice it
+ * carries forward is always the `null` it started at.
  */
 export function adoptSession(
   state: OverlayState,
@@ -146,6 +161,11 @@ export function adoptSession(
  * user is managing chats rather than asking for one, and the surface they are working in survives
  * the write. That row is its only caller and the chat view is `display: none` behind the console,
  * so this is unreachable from there besides.
+ *
+ * That reset is a chat swap and it always announces, with no flag to say so, because it has only
+ * the one door and that door names the wrong chat: the button pressed is "Confirm delete" plus the
+ * title of the conversation LEAVING, which says nothing about the empty one taking its place
+ * (`notice.ts`). Deleting any other chat swaps nothing and stays silent.
  */
 export function deleteSession(
   state: OverlayState,
@@ -162,6 +182,7 @@ export function deleteSession(
     touched: true,
     sessionId: fallbackSessionId,
     title: NEW_CHAT_TITLE,
+    notice: speak(state.notice, NEW_CHAT_TITLE),
     messages: [],
     pendingConfirm: null,
     seq: 0,

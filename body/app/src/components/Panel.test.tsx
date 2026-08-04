@@ -16,6 +16,7 @@ const state = (over: Partial<OverlayState> = {}): OverlayState => ({
   switcherOpen: false,
   consoleTab: null,
   pendingConfirm: null,
+  notice: null,
   reminders: [],
   link: INITIAL_LINK,
   capturing: false,
@@ -209,7 +210,9 @@ describe("Panel", () => {
       { onSelectSession },
     );
     fireEvent.click(screen.getByText("First chat"));
-    expect(onSelectSession).toHaveBeenCalledWith("c1");
+    // And it loads SILENTLY: the row's own accessible name is the title, so a live region
+    // repeating it would read the reader the label they just pressed (`overlay/notice.ts`).
+    expect(onSelectSession).toHaveBeenCalledWith("c1", false);
   });
 
   it("threads the delete handler to the switcher: confirming a row's trash deletes it", () => {
@@ -275,9 +278,11 @@ describe("Panel", () => {
     // Delivery is not conversation: the stack sits outside the log so it cannot scroll away.
     expect(container.querySelector(".history")?.contains(stack)).toBe(false);
     // A reminder's origin opens through the switcher's own handler: same chat load, one path.
-    // Read before the dismissal, which takes the card away with it.
+    // Read before the dismissal, which takes the card away with it. The two doors part on the
+    // second argument only: this control is named "open chat" and not for the chat, so the chat
+    // that arrives is announced where a switcher row's is not (`overlay/notice.ts`).
     fireEvent.click(screen.getByText("open chat"));
-    expect(onSelectSession).toHaveBeenCalledWith("c9");
+    expect(onSelectSession).toHaveBeenCalledWith("c9", true);
     // The ack goes up in the frame the check is pressed; the row it removes is held on screen for
     // the length of its own roll by the stack itself (`overlay/usePresence.ts`).
     fireEvent.click(screen.getByLabelText("Dismiss reminder"));

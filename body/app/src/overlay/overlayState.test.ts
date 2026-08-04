@@ -88,7 +88,7 @@ describe("overlayState reducer", () => {
       lastActivityUnixMs: 3,
       pinned: false,
     };
-    const submitted = run([{ kind: "newChat", sessionId: "chat-9" }, submit(opening)]);
+    const submitted = run([{ kind: "newChat", sessionId: "chat-9", announce: false }, submit(opening)]);
     expect(submitted.title).toBe(listed.title);
     // And it still equals it after the list lands and the chat is reopened from the switcher.
     const refreshed = reduce(submitted, { kind: "sessionsLoaded", sessions: [listed] });
@@ -96,6 +96,7 @@ describe("overlayState reducer", () => {
       kind: "openSession",
       sessionId: "chat-9",
       messages: [{ role: "user", text: opening, turnId: "t", atUnixMs: 1 }],
+      announce: false,
     });
     expect(reopened.title).toBe(listed.title);
   });
@@ -192,7 +193,7 @@ describe("overlayState reducer", () => {
 
   it("newChat mints a fresh session, clears the conversation, and closes the switcher", () => {
     const started = reduce(run([{ kind: "open" }, submit("q")]), { kind: "toggleSwitcher" });
-    const fresh = reduce(started, { kind: "newChat", sessionId: "new-42" });
+    const fresh = reduce(started, { kind: "newChat", sessionId: "new-42", announce: false });
     expect(fresh.sessionId).toBe("new-42");
     expect(fresh.messages).toEqual([]);
     expect(fresh.title).toBe("New chat");
@@ -209,12 +210,12 @@ describe("overlayState reducer", () => {
       const reading = reduce(run([{ kind: "open" }, submit("q")]), { kind: "openConsole", tab });
       expect(reading.consoleTab).toBe(tab);
 
-      const fresh = reduce(reading, { kind: "newChat", sessionId: "new-42" });
+      const fresh = reduce(reading, { kind: "newChat", sessionId: "new-42", announce: false });
       expect(fresh.consoleTab).toBeNull();
       expect(fresh.messages).toEqual([]); // the empty chat is what is on screen, not behind it
       expect(fresh.mode).toBe("panel");
 
-      const cycled = reduce(reading, { kind: "openSession", sessionId: "chat-7", messages: [] });
+      const cycled = reduce(reading, { kind: "openSession", sessionId: "chat-7", messages: [], announce: false });
       expect(cycled.consoleTab).toBeNull();
       expect(cycled.sessionId).toBe("chat-7");
       expect(cycled.mode).toBe("panel");
@@ -301,6 +302,7 @@ describe("overlayState reducer", () => {
       kind: "openSession",
       sessionId: "chat-7",
       messages,
+      announce: false,
     });
     expect(open.sessionId).toBe("chat-7");
     expect(open.title).toBe("about cats");
@@ -314,7 +316,7 @@ describe("overlayState reducer", () => {
   });
 
   it("openSession with no messages falls back to the New chat title", () => {
-    const open = reduce(initialState, { kind: "openSession", sessionId: "empty", messages: [] });
+    const open = reduce(initialState, { kind: "openSession", sessionId: "empty", messages: [], announce: false });
     expect(open.title).toBe("New chat");
     expect(open.messages).toEqual([]);
   });
@@ -334,7 +336,7 @@ describe("overlayState reducer", () => {
         { sessionId: "chat-7", title: "Everything about cats", preview: "p", lastActivityUnixMs: 2, pinned: false },
       ],
     });
-    const open = reduce(listed, { kind: "openSession", sessionId: "chat-7", messages });
+    const open = reduce(listed, { kind: "openSession", sessionId: "chat-7", messages, announce: false });
     expect(open.title).toBe("Everything about cats");
   });
 
@@ -351,7 +353,7 @@ describe("overlayState reducer", () => {
         { sessionId: "elsewhere", title: "unrelated chat", preview: "p", lastActivityUnixMs: 2, pinned: false },
       ],
     });
-    const open = reduce(listed, { kind: "openSession", sessionId: "chat-9", messages });
+    const open = reduce(listed, { kind: "openSession", sessionId: "chat-9", messages, announce: false });
     expect(open.title).toBe("about dogs");
   });
 
@@ -397,6 +399,70 @@ describe("overlayState reducer", () => {
     expect(after.touched).toBe(true);
   });
 
+  it("openSession says which chat arrived, unless the door that opened it already named one", () => {
+    // The swap replaces the whole panel and moves no focus, so the only thing that tells a
+    // reader where they went is the notice behind the live region. What it names is the title
+    // the header takes, read off the same `headerTitle` call, so the two cannot disagree.
+    const listed = reduce(initialState, {
+      kind: "sessionsLoaded",
+      sessions: [
+        { sessionId: "chat-7", title: "Everything about cats", preview: "p", lastActivityUnixMs: 2, pinned: false },
+      ],
+    });
+    const cycled = reduce(listed, {
+      kind: "openSession",
+      sessionId: "chat-7",
+      messages: [],
+      announce: true,
+    });
+    expect(cycled.notice).toEqual({ title: "Everything about cats", count: 1 });
+    expect(cycled.notice?.title).toBe(cycled.title);
+    // A switcher row is the other door and the reader pressed the title itself there, so the
+    // swap is silent AND what was said before comes down rather than standing in the region.
+    const picked = reduce(cycled, {
+      kind: "openSession",
+      sessionId: "chat-7",
+      messages: [],
+      announce: false,
+    });
+    expect(picked.notice).toBeNull();
+  });
+
+  it("counts each announcement, so two chats under one title are two things said", () => {
+    // A live region reports a mutation and not a value, so identical text landing twice is
+    // nothing landing twice. Reddens if the count stops moving: Ctrl+N over Ctrl+N is exactly
+    // the case, both arrivals being called "New chat".
+    const first = reduce(initialState, { kind: "newChat", sessionId: "a", announce: true });
+    const second = reduce(first, { kind: "newChat", sessionId: "b", announce: true });
+    expect(first.notice).toEqual({ title: "New chat", count: 1 });
+    expect(second.notice).toEqual({ title: "New chat", count: 2 });
+    // The header's pencil is the same arm with the flag down: its label is "New chat" already.
+    expect(reduce(second, { kind: "newChat", sessionId: "c", announce: false }).notice).toBeNull();
+  });
+
+  it("the empty chat replacing a deleted one announces itself, and nothing else about a delete does", () => {
+    // The confirm button names the chat LEAVING ("Confirm delete <title>"), so the fresh chat
+    // arriving in its place has no other announcement, and this is the one swap with a single
+    // door and therefore no flag. Deleting any other chat swaps nothing and says nothing.
+    const started = run([{ kind: "open" }, submit("secret question")]);
+    const listed = reduce(started, {
+      kind: "sessionsLoaded",
+      sessions: [summary(started.sessionId), summary("keep")],
+    });
+    const other = reduce(listed, {
+      kind: "sessionDeleted",
+      sessionId: "keep",
+      fallbackSessionId: "unused",
+    });
+    expect(other.notice).toBeNull();
+    const current = reduce(listed, {
+      kind: "sessionDeleted",
+      sessionId: started.sessionId,
+      fallbackSessionId: "fresh-99",
+    });
+    expect(current.notice).toEqual({ title: "New chat", count: 1 });
+  });
+
   it("adoptSession hydrates like openSession but keeps the overlay hidden", () => {
     const messages: SessionMessage[] = [
       { role: "user", text: "about cats", turnId: "t", atUnixMs: 1 },
@@ -404,6 +470,9 @@ describe("overlayState reducer", () => {
     ];
     const adopted = reduce(initialState, { kind: "adoptSession", sessionId: "chat-7", messages });
     expect(adopted.mode).toBe("hidden");
+    // And says nothing while it does it: there is no gesture behind a restore to answer, and it
+    // cannot land over something already said, every door that speaks setting `touched` first.
+    expect(adopted.notice).toBeNull();
     expect(adopted.sessionId).toBe("chat-7");
     expect(adopted.title).toBe("about cats");
     expect(adopted.seq).toBe(2);
@@ -450,7 +519,7 @@ describe("overlayState reducer", () => {
     // open → newChat → dismiss leaves {hidden, messages: [], seq: 0}: byte-identical to a
     // pristine boot on the seq/messages/mode proxy, yet the user explicitly chose a fresh
     // chat. The `touched` flag is what distinguishes them, so adoption must be a no-op here.
-    const cleared = run([{ kind: "open" }, { kind: "newChat", sessionId: "n-2" }, { kind: "dismiss" }]);
+    const cleared = run([{ kind: "open" }, { kind: "newChat", sessionId: "n-2", announce: false }, { kind: "dismiss" }]);
     expect(cleared.mode).toBe("hidden");
     expect(cleared.messages).toEqual([]);
     expect(cleared.seq).toBe(0); // the proxy the old guard used cannot tell this from boot
@@ -528,8 +597,8 @@ describe("overlayState reducer", () => {
       { kind: "transportError", error: { kind: "connection", message: "down" } },
       { kind: "stop" },
       { kind: "dismiss" },
-      { kind: "newChat", sessionId: "next" },
-      { kind: "openSession", sessionId: "other", messages: [] },
+      { kind: "newChat", sessionId: "next", announce: false },
+      { kind: "openSession", sessionId: "other", messages: [], announce: false },
     ];
     for (const ender of enders) {
       expect(reduce(pending, ender).pendingConfirm).toBeNull();
@@ -583,7 +652,7 @@ describe("overlayState reducer", () => {
   it("reminders survive the turn and chat actions that clear other surfaces", () => {
     const loaded = reduce(initialState, { kind: "remindersLoaded", reminders: [reminder("r-1")] });
     // Delivery is not conversation: a new chat empties messages but keeps what is undelivered.
-    const fresh = reduce(loaded, { kind: "newChat", sessionId: "s2" });
+    const fresh = reduce(loaded, { kind: "newChat", sessionId: "s2", announce: false });
     expect(fresh.messages).toEqual([]);
     expect(fresh.reminders.map((r) => r.reminderId)).toEqual(["r-1"]);
   });
