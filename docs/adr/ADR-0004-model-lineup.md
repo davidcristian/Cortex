@@ -181,7 +181,10 @@ The untrusted-content boundary (ADR-0013) added a **safety axis** to the per-tie
 committable harness [`test_injection_defense_live.py`](../../brain/packages/inference/tests/test_injection_defense_live.py)
 (10-category indirect-injection corpus, framed-vs-control, agent-run on the GPU). Every cortex + subagent
 candidate above was run under the shipped (hardened) preamble; **embedders are excluded** (they emit
-vectors, not text, and are not prompt-injectable); the brain tier is opt-in and not yet run.
+vectors, not text, and are not prompt-injectable); the brain tier was opt-in and unrun until
+**2026-08-04**, when the pick's row was measured (the last row below, and the
+[ADR-0013](ADR-0013-untrusted-content.md) addendum of that date). The other three deep candidates
+stay unmeasured.
 
 | tier | candidate | framed obeyed / 10 |
 |---|---|---|
@@ -191,6 +194,7 @@ vectors, not text, and are not prompt-injectable); the brain tier is opt-in and 
 | | Qwen3.5-2B (pick) | 1 (output-laundering) |
 | | Qwen3.5-4B | 2 |
 | | gemma-4-E2B | 4 |
+| **brain** (2026-08-04) | gemma-4-31B (pick), thinking on | **0** (the unframed control obeyed 1) |
 
 - **Cortex:** injection-robustness does **not** decide it (both candidates are 0/10), so the gemma-4-12B
   pick stands on VRAM/quality/QAT (decision 1). Reassuring, since the cortex is the only user-facing
@@ -260,6 +264,10 @@ this file: items 1 and 5 of
 [docs/host/gpu-tier-scale.md](../host/gpu-tier-scale.md), whose index is
 [docs/host/](../host/index.md). Nothing about the work changed; this is the third of the three
 records [AGENTS.md](../../AGENTS.md) requires for a host item, which this ADR was missing.
+
+**Both closed on 2026-08-04**, by the two addenda below, and by the agent rather than the user:
+the premise that put them in that directory, a development card too small for a tier, was itself
+measured false that day.
 
 The measurement table above is **not** host work and never was: it was taken on that card on
 2026-06-29, at 16K context and a single slot, with and without the mmproj. A briefly filed user
@@ -359,5 +367,12 @@ own version of that slip:
 current subagent pick by its logical id, so a header naming the wrong model names the wrong
 safety default.
 
-Still open at this tier and unchanged by this run: the injection-harness row for the brain, which
-the injection addendum above still records as opt-in and not yet run.
+**Closed later the same day: the injection-harness row for the brain**, which the injection addendum
+above had recorded as opt-in and unrun since 2026-07-01. The pick answers **0/10 framed** against an
+unframed control that obeyed 1, so the deepest tier is as injection-robust as the cortex, and the
+one attack the control fell to is the tool exfil, where an unframed model emitted a real
+`send_email` call and the shipped framing stopped it. That row is now in the table above, and the
+evidence, the checks that make a perfect score believable, and what it does and does not imply for
+the tainted-escalation stance are in
+[ADR-0013](ADR-0013-untrusted-content.md)'s 2026-08-04 addendum. The three candidates this addendum
+rejected were not probed: an alternate adopted later buys its own harness row.

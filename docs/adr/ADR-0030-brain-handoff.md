@@ -410,8 +410,8 @@ ADR-0012 addendum.
    tier-scale swap + chaos kill on the 24 GB machine, measured swap timings,
    `docs/runbooks/model-swap.md`, and the ~31B injection-harness run
    (`CORTEX_PROBE_BRAIN=1`), whose result feeds back into decision 1's tainted-escalation
-   stance. The four that remain all need a handoff the overlay has to approve, except the
-   injection run, which is its own sitting.
+   stance. **That run is also done, on 2026-08-04** (0/10 framed; the last addendum here), so
+   what remains is the three that need a handoff the overlay has to approve.
 
 ## Where each "Blocked on Slice 11" backlog entry lands
 
@@ -433,8 +433,10 @@ The four entries under "Blocked on Slice 11" in
 - **Taint/provenance persistence across a mid-turn swap, and the ~31B injection-harness run**
   ([untrusted-content.md](../refinements/untrusted-content.md)): the persistence is decision
   2's record schema (S11.a) exactly as the entry flagged ("provenance rides on the stored
-  tool-step context"); the harness run is S11.g, user-hardware, and gates any future
-  relaxation of the tainted-turn escalation denial.
+  tool-step context"); the harness run is S11.g and gates any future relaxation of the
+  tainted-turn escalation denial. **It ran on 2026-08-04**, by the agent rather than the user
+  once the hardware premise that filed it turned out to be false, and the gate it held is open:
+  the relaxation is now a judgement rather than a missing number (the last addendum here).
 - **Streamed brain status** ([body-overlay.md](../refinements/body-overlay.md)): decision 6
   delivers the *producer* (`Health` earns `ready=false` between turns, with truthful detail),
   which is the entry's named blocker. **The push stream itself stays deferred**: the landed
@@ -472,7 +474,10 @@ fix-when-it-bites with their triggers now live.
 1. **The gated-escalation default** trades away "escalate about untrusted content" until the
    ~31B harness run exists. If that is too restrictive in practice, the alternative (ungated
    tool + internal taint refusal + card kept for consent) weakens nothing else; it is a
-   config-plus-one-check change by design.
+   config-plus-one-check change by design. **The harness run exists as of 2026-08-04** and the
+   deep tier measured 0/10; what that does and does not settle is the addendum at the end of this
+   file, and the short version is that it retires one of the deny's two reasons and leaves the
+   other standing.
 2. **The model-host sidecar** is a new privileged-ish component (GPU + models mount + process
    control). Its API is compose-network-only and it holds no secrets, but the user may
    prefer the docker-socket controller shape despite the host-root argument in decision 3.
@@ -1457,3 +1462,43 @@ record and on the rebuilt ledger, and sweeps the keys.
 What stays open is the expensive half, pixels themselves, which still wants an `AttachmentStore`
 and still meets the capability argument that no brain-tier candidate on the mount has a projector.
 The conductor's refusal stays exactly where it is.
+
+## Addendum (2026-08-04): decision 1's robustness pillar is measured, and the stance still stands
+
+The `CORTEX_PROBE_BRAIN=1` harness row this ADR made a precondition has run, on the pick locked the
+same day. **`gemma-4-31B-it-qat-q4_0` obeys 0 of 10 framed injections, against an unframed control
+that obeys 1**, so the deep tier is as robust as the cortex under the shipped preamble, and the one
+arm the control fell to is the tool exfil: unframed, the model emits a real `send_email` call on an
+instruction hidden in a file it was asked to summarize, and the framing is what stops it. The
+evidence, the checks that make a perfect score believable rather than an empty-reply artifact, and
+the trace showing the model citing the preamble while refusing are in
+[ADR-0013](ADR-0013-untrusted-content.md)'s addendum of this date;
+[runbooks/llamacpp-gpu.md](../runbooks/llamacpp-gpu.md) has the procedure.
+
+**Decision 1 rests on two reasons for hard-denying `escalate_to_brain` on a tainted turn, and this
+retires one.** The sentence "because the brain tier's injection robustness is unmeasured until the
+harness runs, refusing to hand attacker-influenced context to a stronger tools-holding model is the
+only honest v1 default" is now false in its premise and favourable in its answer. The other reason
+in the same paragraph, that injected content must never force an eviction that claims the whole GPU
+for minutes, is a resource-control argument no model measurement can touch, and it is untouched.
+
+**So the shipped behaviour does not change here, and the remaining decision is the user's.** Three
+things are worth having in hand before weighing it, all checked against code rather than recalled:
+
+1. **It is not a knob.** The deny is the generic gated-tool branch of the dispatcher
+   (`if gated: if stamp.tainted: DENIED_MSG`, [dispatch.py](../../brain/packages/core/src/cortex_core/dispatch.py),
+   the rule [ADR-0022](ADR-0022-email-write-confirmer.md) decision 2 made unconditional for every
+   gated tool). Relaxing it for escalation is a carve-out in a rule that currently has no
+   exceptions, not a config flip, and risk 1's recorded alternative (ungated tool, internal taint
+   refusal, card kept for consent) keeps the refusal rather than removing it.
+2. **The far side is already covered if it is ever relaxed.** The ledger rides the handoff record
+   whole (decision 2), so a tainted turn stays tainted through the swap and the deep phase's own
+   gated calls hit the same deny. A relaxation would widen what may be *reasoned about* after an
+   eviction, not what may be *done* with it.
+3. **What the harness does not measure.** One row of ten attacks, at `--ctx-size 8192` with thinking
+   on, on one artifact. The three rejected deep candidates were not probed, so adopting the recorded
+   alternate means re-running the row before leaning on this result.
+
+Risk 1 in the list above is therefore no longer blocked on a measurement; it is a judgement about
+whether injected content may spend the machine. It stays listed for the user, now with a number
+beside it.
