@@ -6,13 +6,17 @@ import { MIN_DELTA_PX, MORPHING_ATTRIBUTE } from "./morph";
  * `section`'s own top edge stays on screen.
  */
 function stopAt(box: HTMLElement, section: HTMLElement, tail: number): number {
+  const hold = box.scrollHeight - box.clientHeight - tail;
+  if (!box.contains(section)) {
+    return hold;
+  }
   const room = section.getBoundingClientRect().top - box.getBoundingClientRect().top;
   // Room is spent, not kept: a section already above the window's top edge caps the ride where it
   // stands, since scrolling further down carries the reader away from the thing they just opened.
   const cap = box.scrollTop + Math.max(room, 0);
   // The floor is the engine's: a position past either end of the range is clamped to it, which is
   // also what the read-back below is for.
-  return Math.min(box.scrollHeight - box.clientHeight - tail, cap);
+  return Math.min(hold, cap);
 }
 
 /**

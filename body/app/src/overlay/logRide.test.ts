@@ -18,7 +18,10 @@ interface Layout {
   at: number;
 }
 
-function stage(layout: Layout) {
+/** Where the rolling section stands. */
+type Where = "in" | "chrome";
+
+function stage(layout: Layout, where: Where = "in") {
   const frames: FrameRequestCallback[] = [];
   const cancelled: number[] = [];
   vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
@@ -30,8 +33,12 @@ function stage(layout: Layout) {
   const box = document.createElement("div");
   const section = document.createElement("div");
   section.setAttribute("data-morphing", "76");
-  box.append(section);
-  document.body.append(box);
+  if (where === "in") {
+    box.append(section);
+    document.body.append(box);
+  } else {
+    document.body.append(section, box);
+  }
   Object.defineProperty(box, "scrollHeight", { get: () => layout.content });
   Object.defineProperty(box, "clientHeight", { get: () => layout.window });
   Object.defineProperty(box, "scrollTop", {
@@ -42,7 +49,9 @@ function stage(layout: Layout) {
   });
   const rect = (top: number) => ({ top }) as DOMRect;
   box.getBoundingClientRect = () => rect(0);
-  section.getBoundingClientRect = () => rect(layout.at - box.scrollTop);
+  // A section in the chrome sits above the box and does not scroll with it: `at` is read straight
+  // off the screen there, which is what makes it negative for every frame of the roll.
+  section.getBoundingClientRect = () => rect(where === "in" ? layout.at - box.scrollTop : layout.at);
   return {
     box,
     section,
@@ -144,6 +153,45 @@ describe("rideTail", () => {
     layout.content = 780;
     log.tick();
     expect(log.top()).toBe(580);
+  });
+
+  it("holds the tail through a roll in the chrome, which takes the window and not the content", () => {
+    const layout: Layout = { content: 469, window: 293, top: 173, at: -118 };
+    const log = stage(layout, "chrome");
+    rideTail(log.box, log.section, WITHIN);
+    log.tick();
+    expect(log.tail()).toBe(3);
+    for (const shrunk of [254, 192, 122, 90, 73]) {
+      layout.window = shrunk;
+      log.tick();
+      expect(log.tail()).toBe(3);
+    }
+    expect(log.top()).toBe(393);
+  });
+
+  it("gives a chrome roll's room back on the way shut, landing on the pixel it started from", () => {
+    const layout: Layout = { content: 469, window: 73, top: 393, at: -118 };
+    const log = stage(layout, "chrome");
+    rideTail(log.box, log.section, WITHIN);
+    log.tick();
+    for (const grown of [122, 192, 254, 293]) {
+      layout.window = grown;
+      log.tick();
+      expect(log.tail()).toBe(3);
+    }
+    expect(log.top()).toBe(173);
+  });
+
+  it("does not read a chrome section's own top edge as room the reader has to keep", () => {
+    const layout: Layout = { content: 469, window: 293, top: 173, at: -118 };
+    const log = stage(layout, "chrome");
+    // Room, as the inside rule would read it: 118px of it, all of it negative.
+    expect(log.section.getBoundingClientRect().top - log.box.getBoundingClientRect().top).toBe(-118);
+    rideTail(log.box, log.section, WITHIN);
+    log.tick();
+    layout.window = 73;
+    log.tick();
+    expect(log.top()).toBe(393);
   });
 
   it("hands the scroll straight back to a reader who takes it mid-roll", () => {

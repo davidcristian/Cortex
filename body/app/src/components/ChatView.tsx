@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { type RefObject, useEffect } from "react";
 
 import type { MarkStyle } from "../mark/marks";
 import { chatFloorRef } from "../overlay/measured";
@@ -26,6 +26,8 @@ import { ThemeIcon } from "./ThemeIcon";
 
 export interface ChatViewProps {
   readonly state: OverlayState;
+  /** The column the panel renders this view into, where the log hears a roll in the chrome. */
+  readonly column: RefObject<HTMLElement | null>;
   readonly open: boolean;
   readonly dark: boolean;
   readonly mark: MarkStyle;
@@ -56,6 +58,7 @@ const EXAMPLE_PROMPTS = ["Summarize my unread email", "Remind me to stretch in 2
  */
 export function ChatView({
   state,
+  column,
   open,
   dark,
   mark,
@@ -76,7 +79,7 @@ export function ChatView({
   // The chat is the view on screen while no console tab is up, which is the one thing the log's
   // scroll position cannot look after itself through (`useLogScroll`).
   const showing = state.consoleTab === null;
-  const log = useLogScroll(showing);
+  const log = useLogScroll(showing, column);
 
   // Follow the stream: each message change (and the approval card) scrolls the tail into view,
   // unless the reader has scrolled up to read (then their place holds until they return).

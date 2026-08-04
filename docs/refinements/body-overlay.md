@@ -17,9 +17,7 @@ user's choice between two designs), the two bounds the panel's section budget le
 the two tradeoffs the reserved scrollbar rail accepts (its width
 is assumed rather than measured off the engine, and the two 6px cards spend their whole inset on
 it), a mid-stream retarget restarting
-from a rounded height, a section rolling in the panel's chrome shrinking the log without the log
-answering, the
-console tab strip's missing keyboard half, and the whisper's three follow-ups (a pickable voice
+from a rounded height, and the whisper's three follow-ups (a pickable voice
 row in the console, the wrap
 width a mid-stream resize cannot move, and kerning inside the letter boxes under a changed
 font; its drain-growth entry landed the same day it was filed, and the console outliving a new
@@ -45,7 +43,10 @@ the roll) was not on its list at all. The two instant motions above were opened 
 trace opening a reply off the bottom of a full history landed 2026-08-03 as well, as the tail pin
 held across a roll rather than as the second animation it asked for, and neither its measured setup
 nor its account of the fix survived contact; the panel's chrome shrinking the log the same way from
-outside the box was opened with it.
+outside the box was opened with it, and closed on 2026-08-04 on that same ride, one line of
+subscription and one line of cap, after the arithmetic it promised turned out to refuse the whole
+ride. The console tab strip's keyboard half, listed open here until then, had in fact landed on
+2026-08-03 with the entry that describes it.
 
 **Body / overlay in Slice 8 ([ADR-0011](../adr/ADR-0011-body-v1.md)):**
 - **Multi-turn-within-one-stream + an explicit proto `Cancel` event.** One turn per `Converse`
@@ -801,6 +802,41 @@ outside the box was opened with it.
   account (an arrival centres it, an interrupted ease is carried, and the ride-along is already
   driving the bottom edge). Deferred because it is exactly reversible, the reader can scroll, and
   the three panel motions it would have to be measured against are each their own sitting.
+  - **LANDED 2026-08-04 on the ride it named, and "the same arithmetic answers it" was the one
+    thing it got wrong** ([ADR-0035 addendum](../adr/ADR-0035-console-and-motion.md)). The setup and
+    the diagnosis reproduce exactly, on a full history at 640x720 with the panel on its 450px
+    ceiling: the window runs 293px to 73px, the reader's distance from the end of the reply 3px to
+    223px, and listeners on the history, its column and the panel say who hears the roll, which is
+    the last two and never the box. Everything after that sentence cost more than the entry thought.
+    **Wired up with the arithmetic untouched, the ride hears the roll and does nothing at all**: the
+    cap that keeps a rolling section's own top edge on screen is expressed as the room between that
+    edge and the box's top, and a section in the chrome is ABOVE the box for every frame, so the
+    floor that stops the ride chasing a section already off the top turns that room into none and
+    freezes the ride where it started. Measured in that state, `scrollTop` read 173 on every frame
+    of the roll, byte for byte the trace with nothing listening. The rule that answers it is one
+    line, `box.contains(section)`, and it says what the cap was always about: only a section inside
+    the box is something the reader can be carried away from, a switcher list staying where the
+    panel put it whatever the log does underneath. **The pair the entry named is one section and a
+    family.** The reminder stack is gated on an empty log, the same gate the entry above was caught
+    on, so it can never cost a reader anything: acking one of three grows the history 99px to 158px
+    with 99px of content, and `scrollTop` and the tail read 0 on all 21 painted frames. What it did
+    not name is the family that does reach the log, since every row inside those two lists rolls
+    through the same component, and a row deleted from the open switcher moves the log exactly as
+    the list does (window 170px to 220px, `scrollTop` 299 to 249, tail 0 throughout). The
+    subscription moves from the box to the column the panel renders the view into, and the rolling
+    element is read off the event's target rather than searched for, which keeps two rolls in one
+    frame apart. After, per painted frame: the tail reads 3px on all 19 frames of the switcher's
+    roll open and all 19 of its roll shut, `scrollTop` running 173 to 393 and back to the pixel it
+    started from, no frame moving it more than 34px, inside the roll's own 300ms. The three panel
+    motions the entry wanted measured are each clean: a switcher opened 100ms into a summon holds
+    the tail at 0 for every frame while the panel's top edge travels 129.76 to 85.54 and the window
+    390px to 170px; `Ctrl+N` on a full history with the list open empties the log, so there is
+    nothing to hold and the panel eases 86.5 to 145.5 undisturbed; and the ack is the no-op above. A
+    reader who has scrolled up is still left alone, `scrollTop` reading 40 on every frame of a
+    switcher closing under them. One measuring lesson came out of it: read in a
+    `requestAnimationFrame` the ride looks one frame behind (a 36px peak on the way open), because
+    those callbacks run before the ride's own; the `ResizeObserver` step runs after all of them, so
+    that is where the frame the browser actually paints can be read.
 - **The console's tab strip is a tab list by role but not by keyboard, and the pane being left is
   hidden from assistive tech without being untabbable.** The strip carries `role="tablist"` with a
   `role="tab"` per face and `aria-selected` on the one showing, and focus travels with the view:

@@ -62,6 +62,7 @@ export function Panel(props: PanelProps) {
   const view: View = state.consoleTab === null ? "chat" : CONSOLE;
   const leaving = useViewTransition(view, MORPH_MS);
   const panelRef = useRef<HTMLDivElement>(null);
+  const chatRef = useRef<HTMLDivElement>(null);
   const tab = useRef<ConsoleTab>("appearance");
   tab.current = state.consoleTab ?? tab.current;
   usePanelMotion(panelRef, open, view);
@@ -87,8 +88,8 @@ export function Panel(props: PanelProps) {
         />
       ) : null}
       <div className="views">
-        <div className={classOf("chat")} {...withdrawn(view !== "chat")}>
-          <ChatView {...props} />
+        <div className={classOf("chat")} ref={chatRef} {...withdrawn(view !== "chat")}>
+          <ChatView {...props} column={chatRef} />
         </div>
         {view === CONSOLE || leaving === CONSOLE ? (
           <div className={classOf(CONSOLE)} {...withdrawn(view !== CONSOLE)}>
