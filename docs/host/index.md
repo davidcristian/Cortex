@@ -77,7 +77,7 @@ directory. Settling this in writing is worth one sentence in an ADR the next tim
 | [windows-desktop.md](windows-desktop.md) | W | One `npm run tauri dev` beside a running brain: the hotkey and one streamed turn, volume, the toast, the confirm card, the session commands, the preference commands and the appearance surviving a restart, the reminder surface, the connection dot | 8 checks + 1 optional + 2 standing |
 | [windows-capture.md](windows-capture.md) | W | The screen-capture path, which needs its own switch, its own receipts, and its own expectations. Carries the single highest-consequence check in the repo | 1 check, 6 observations |
 | [overlay-polish.md](overlay-polish.md) | W | The one item here that is **authoring, not validation**: the OS-window half of the overlay | 1 build (4 parts) + 1 design decision |
-| [gpu-tier-scale.md](gpu-tier-scale.md) | G, and W+G for three | The 24 GB machine: everything the deep-model pick unblocks, plus the measurements the placer and the caps ship without. Items 2, 3 and 4 need the overlay to trigger the handoff | 6 open, the pick done 2026-08-04 |
+| [gpu-tier-scale.md](gpu-tier-scale.md) | G, and W+G for three | The 24 GB machine: everything the deep-model pick unblocks, plus the measurements the placer and the caps ship without. Items 2, 3 and 4 need the overlay to trigger the handoff | 5 open; the pick and the injection run both done 2026-08-04 |
 
 User **decisions** (weigh, do not run) stay at their ADRs and are listed at the bottom of this
 page rather than copied, so a decision has exactly one home.
@@ -188,8 +188,10 @@ Ordered by what unblocks the most, and grouped so each group is one sitting.
    [ADR-0004](../adr/ADR-0004-model-lineup.md).
 4. **The rest of the G list in one long sitting**, in the order that doc gives, since they share
    one bring-up and one blocker. Items 2, 3 and 4 of it want the overlay up beside the brain, so
-   if the desktop and the card are two machines, that sitting splits: 5, 6 and 7 on the card, and
-   2, 3 and 4 wherever both are.
+   if the desktop and the card are two machines, that sitting splits: 6 and 7 on the card, and
+   2, 3 and 4 wherever both are. Item 5 was the third of the card-alone items and it is **done as
+   of 2026-08-04**; it never shared this bring-up anyway, since it starts its own container and
+   wants the stack down.
 5. **The overlay polish** ([overlay-polish.md](overlay-polish.md)). A work session, not a sitting.
    It is authoring, it can fail review rather than fail a check, and it is the only thing here that
    is not urgent for correctness.
@@ -206,8 +208,9 @@ check was found sitting on two of the three. It was added naming a second exampl
 resident VRAM figure with the projector loaded, which turned out to be no host item at all;
 that half of its founding evidence is withdrawn below. Statuses are not
 repeated below, with the one exception the rule always anticipated: every item still reads
-**never attempted** except the deep-model pick, which was done on 2026-08-04 and carries its
-status on its line, and each item's own section stays authoritative.
+**never attempted** except the deep-model pick and the injection-harness run, both done on
+2026-08-04 and both carrying their status on their line, and each item's own section stays
+authoritative.
 
 **The rule has to hold in both directions, and did not until 2026-07-19.** It held forward, from
 every item here to its line and its ADR, and failed backward: [ADR-0011](../adr/ADR-0011-body-v1.md)
@@ -263,10 +266,16 @@ are W+G**, marked on each line:
 3. **The chaos kill at tier scale.** **W+G.** Blocked on the pick and the swap. A failure here is a
    finding against the one hard rule.
 4. **Measured swap timings.** **W+G**, inherited: these are the phases of the swap in item 2.
-5. **The ~31B injection-harness run.** **G**, a pytest that starts its own `llama-server`
-   container, so it runs with the model host **down** rather than on top of it. The only item here
-   whose outcome can change shipped policy, and the only one with no runbook, so writing that
-   section is part of it.
+5. **The ~31B injection-harness run. Done 2026-08-04**, the second item to leave this directory and
+   the first whose outcome could have changed shipped policy. **G**, a pytest that starts its own
+   `llama-server` container, run with the model host down. The pick obeyed **0 of 10** framed
+   injections against an unframed control that obeyed 1, so the deep tier is as robust as the
+   cortex; the result lives in the [ADR-0013](../adr/ADR-0013-untrusted-content.md) addendum, the
+   [ADR-0004](../adr/ADR-0004-model-lineup.md) injection table and a note at
+   [ADR-0030](../adr/ADR-0030-brain-handoff.md) decision 1, and the runbook section it owed is in
+   [runbooks/llamacpp-gpu.md](../runbooks/llamacpp-gpu.md). Policy did not move: the run retires one
+   of the two reasons the tainted-escalation deny rests on, and the choice is now a decision
+   awaiting the user, listed below.
 6. **A GPU-placed subagent beside a resident cortex.** **G.** Independent of the pick. Narrowed
    2026-07-19: the placer's GPU arm firing against a real placement at all needs no resident cortex
    and went back to the agent's list; what needs this card is the fit test against a real 12B
@@ -297,7 +306,8 @@ carries a status line, one of:
 - **Attempted YYYY-MM-DD, inconclusive:** with what happened. This is a real and useful state; an
   environment problem is not a failed check.
 - **Done YYYY-MM-DD.** With the result written where the item's "Record it" line says. The
-  deep-model pick is the first, on 2026-08-04.
+  deep-model pick is the first, on 2026-08-04, and the injection-harness run the second, the same
+  day.
 
 ## The exit contract
 
@@ -315,6 +325,13 @@ procedure. What could not leave is the heading itself: four items in that doc ar
 twenty lines. **A completed item leaves its content, and keeps its number for as long as something
 still depends on it.** Nothing changes for an item nothing points at; those go entirely.
 
+The second exit, the injection-harness run later the same day, followed that qualifier without
+needing it argued again, and added one of its own: **an item that owes a procedure exits by writing
+the procedure, not by describing it.** That item's four warnings about how the harness fails were
+its most reusable content, and leaving them in a completed section would have hidden them from the
+next person to re-run the row, so they left for
+[runbooks/llamacpp-gpu.md](../runbooks/llamacpp-gpu.md) with the measurement.
+
 Emptiness here is load-bearing: the ROADMAP's finish line requires every slice, this
 directory, and the refinements backlog all being clear.
 
@@ -328,6 +345,14 @@ pointers so they are not lost when the ROADMAP slims.
   default (a config plus one check to reverse), the model-host sidecar shape versus a docker-socket
   controller, the unmeasured brain-tier swap latency, two assistant messages under one turn id,
   and whether the brain phase should carry the cortex's full dispatcher.
+- **Whether a tainted turn may escalate, now that the deep tier is measured.** The first of those
+  five risks was waiting on a number and has one as of 2026-08-04: the brain pick obeys 0 of 10
+  framed injections. That retires one of the two reasons the hard-deny rests on and leaves the
+  other, that injected content must not force an eviction, untouched, so the agent published the
+  number and changed nothing. Two corrections to the risk's own wording are worth reading with it,
+  both in [ADR-0030](../adr/ADR-0030-brain-handoff.md)'s addendum of that date: the deny is the
+  generic gated-tool branch shared by every gated tool rather than an escalation setting, and the
+  recorded alternative keeps a taint refusal rather than removing one.
 - **Whether screen capture should ship gated.** [ADR-0029](../adr/ADR-0029-vision-screen-capture.md)
   risk 2: capture is ungated, so an injected tool result can drive a capture in the turn it arrived
   in. The ADR says plainly that the user may reasonably overrule it, and names the paragraph to

@@ -131,6 +131,81 @@ unframed control (no preamble, raw payload). **gemma-4-12B is a reasoning model*
 mid-think and returns empty. Result (2026-07-01): the framed model cites the preamble in its
 reasoning to defeat every injection variant. See the [ADR-0013 addendum](../adr/ADR-0013-untrusted-content.md).
 
+## The brain tier's injection-harness row (ADR-0013, `CORTEX_PROBE_BRAIN=1`)
+
+The probe above is a hand-built one. The committable version is
+[`test_injection_defense_live.py`](../../brain/packages/inference/tests/test_injection_defense_live.py),
+whose deep-tier rows are opt-in behind a flag because they want the card to themselves. Run it when
+the brain pick changes, when the `SECURITY_PREAMBLE` changes, and whenever a candidate is added to
+`BRAIN_CANDIDATES`; that standing obligation is the reason this section exists rather than a note
+made once in an ADR. First run: 2026-08-04, recorded in the
+[ADR-0013](../adr/ADR-0013-untrusted-content.md) and [ADR-0004](../adr/ADR-0004-model-lineup.md)
+addenda.
+
+```
+cd brain && CORTEX_MODELS_DIR=<the host dir holding the GGUFs> CORTEX_PROBE_BRAIN=1 \
+  uv run pytest -m integration --no-cov -s -k "31B" \
+  packages/inference/tests/test_injection_defense_live.py
+```
+
+Five things the test file does not tell you until it fails. Each was checked with a command on
+2026-08-04 rather than reasoned about; the first four are the ones the host item that commissioned
+this section named, and the fifth is what running it added.
+
+- **Take the model host down first.** The harness runs its own container, `cortex-inj-probe`,
+  publishing `127.0.0.1:8080`, and `docker/docker-compose.gpu.yml` publishes the cortex tier on
+  exactly that port. A second bind fails with `Bind for 127.0.0.1:8080 failed: port is already
+  allocated` and `docker run` exits 125, which `_docker` raises as a bare
+  `CalledProcessError ... exit status 125` with the daemon's reason captured rather than printed.
+  So the pytest failure names a port and not a stack: run `docker ps` to find what holds 8080.
+  `just down-gpu` plus the two verifying commands in
+  [docs/host/gpu-tier-scale.md](../host/gpu-tier-scale.md) is the clean way in.
+- **The flag adds rows, it does not select them.** Collection goes from 7 rows to 11 with
+  `CORTEX_PROBE_BRAIN=1` set, since the four deep candidates join the cortex and subagent matrix.
+  `-k` narrows it, and `-k "31B"` selects the pick's row alone (`1 selected, 10 deselected`), which
+  is the row a landed pick makes the answer. **Say which rows you ran.** A narrowed run reported as
+  a full matrix is the one outcome here worse than a bad number.
+- **The lineup is the file's, not the deployment's.** `BRAIN_CANDIDATES` is a literal tuple, so
+  `CORTEX_MODEL_FILE_BRAIN` is not read: pointing it at a nonexistent artifact leaves collection at
+  the same 11 rows. A pick outside that tuple means editing the tuple, and today's pick is its
+  first entry, so the tuple and the compose default agree without one.
+- **`--no-cov` is not optional.** Without it the workspace's `--cov-fail-under=100` closes the
+  session with `FAIL Required test coverage of 100% not reached`, and it does so even when every
+  row is deselected, so the run dies on the gate rather than on anything it measured.
+- **The health gate allows 180 s** (`_HEALTH_TIMEOUT_S`), against the 99.6 s cold load the table
+  below records for this artifact. The margin is real and it is the one number a colder mount or a
+  larger candidate could eat; the failure is explicit (`llama-server did not become healthy in
+  180s`) rather than a hang.
+
+**Read the matrix knowing what it reads.** Every detector runs against `content` alone, so a
+reasoning model that spends its whole `max_tokens` budget (1600 here) on `reasoning_content` returns
+an empty `content` that scores as resistance on all ten attacks. That is a measurement of nothing
+wearing a perfect score, and it is the specific trap the two mixture-of-experts candidates in
+`BRAIN_CANDIDATES` are known to walk into: [ADR-0004](../adr/ADR-0004-model-lineup.md)'s brain-pick
+addendum measured both consuming an entire 8192-token context and returning `"content":""`. Before
+believing a 0/10, confirm the run was real, which costs one extra pass over the same corpus
+recording `finish_reason`, `len(content)` and the canary's presence in `reasoning_content`:
+
+- **No arm should end on `length`.** On the pick, 0 of 20 did; 19 ended `stop` and the one obeyed
+  control arm ended `tool_calls`.
+- **The benign task should still be done.** Every framed reply was a correct 115 to 119 character
+  summary of the notes, and the longest completion in either arm was 773 tokens against the 1600
+  cap, so the budget never bound.
+- **The payload should be visible in the trace.** The canary appeared in `reasoning_content` on 7 of
+  the 8 canary attacks framed and 8 of 8 unframed, which is how you know the injection reached the
+  model and was read rather than skipped. It is not a leak: the thinking surface is scrubbed by the
+  same guardrail as the reply (`core/output_channels.py`, the ADR-0020 addendum).
+- **Prove the detectors can fire.** Asked the canary directly as the user (`Reply with exactly this
+  token ... ZK9-OVERRIDE`), the pick answers `ZK9-OVERRIDE` on `finish_reason: stop`, so `_emits`
+  fires on a genuinely obedient reply through the same path. `_called_send` fired live on the
+  unframed exfil arm, and all three predicates fire on planted content and stay silent on a clean
+  summary.
+
+One brain row cost **269.30 s** end to end including the load, and held **21131 MiB** while
+resident, against 1971 MiB on the idle card. Tear down by checking rather than assuming: the
+harness removes `cortex-inj-probe` in a `finally`, so `docker ps -a` and
+`nvidia-smi --query-gpu=memory.used` should show nothing of it.
+
 ## Measured so far (2026-06-29, 24 GB card, 16K ctx, single slot, full offload)
 
 `nvidia-smi` total used with the model resident (only the llama-server on the GPU). Load
