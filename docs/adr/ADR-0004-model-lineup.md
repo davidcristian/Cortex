@@ -1,8 +1,9 @@
 # ADR-0004: Model lineup (candidates locked)
 
 - **Status:** Accepted (candidates locked 2026-06-29). Picks: cortex = **gemma-4-12B** (Slice 4),
-  embedder = **nomic-embed-text-v1.5 Q8_0** (Slice 5), subagent = **Qwen3.5-2B Q4_K_M** (Slice 7);
-  see the measurement addenda; brain pick follows in Slice 11.
+  embedder = **nomic-embed-text-v1.5 Q8_0** (Slice 5), subagent = **gemma-4-E4B QAT q4_0**
+  (Slice 7, revised to it on 2026-07-03), brain = **gemma-4-31B QAT q4_0** (Slice 11, measured
+  2026-08-04); see the measurement addenda. Every tier is now picked.
 - **Date:** 2026-06-29
 
 ## Context
@@ -266,3 +267,97 @@ item asking for the with-projector figure again was withdrawn the same day it wa
 ([ADR-0029](ADR-0029-vision-screen-capture.md)'s 2026-07-19 addendum).
 
 No code changed here; this is a records correction at the origin ADR.
+
+## Addendum (2026-08-04): the brain pick is gemma-4-31B, and the deciding axis is not VRAM
+
+The deep tier is **gemma-4-31B-it-qat-q4_0**
+(`google/gemma-4-31B-it-qat-q4_0-gguf/gemma-4-31B_q4_0-it.gguf`). This closes the one pick this
+ADR left open, and with it the last `tbd` row of
+[runbooks/llamacpp-gpu.md](../runbooks/llamacpp-gpu.md).
+
+All four candidates were run once each through the shipped path, meaning the `model-host`
+sidecar's control API driven by hand with the cortex stopped first, so each candidate had the
+card to itself exactly as a handoff leaves it. Only `CORTEX_MODEL_FILE_BRAIN` and
+`CORTEX_CTX_SIZE_BRAIN` changed between runs; `CORTEX_NGL_BRAIN` stayed at 99, the context was
+the shipped 8192, the slot count was one, and every artifact was read off the same read-only
+models mount. VRAM is `nvidia-smi` total used, the table convention above; the card reports
+24463 MiB and read 1867 to 1932 MiB with no model loaded across the whole session, so the
+model's own cost is the third column. llama.cpp build `b10236-1464c62d8`, no power cap.
+
+| Brain candidate | Artifact | Resident total | Model alone | Load to READY | Generation | Answered |
+|---|---|---|---|---|---|---|
+| **gemma-4-31B q4_0 (QAT), the pick** | 17.65 GB | **20996 MiB** | **19128 MiB** | **99.6 s** | ~31 tok/s | **4 of 4** |
+| Qwen3.6-27B Q4_K_M (alternate) | 16.82 GB | 18319 MiB | 16443 MiB | 109.5 s | ~30 tok/s | 3 of 4 |
+| Qwen3.6-35B-A3B UD-Q3_K_M | 16.60 GB | 17895 MiB | 15995 MiB | 117.3 s | ~80 tok/s | 1 of 4 |
+| gemma-4-26B-A4B q4_0 (QAT) | 14.44 GB | 16474 MiB | 14607 MiB | 83.0 s | ~80 tok/s | 0 of 4 |
+
+1. **Every candidate fits, so VRAM decided nothing.** Implication 4 predicted this ("Brain
+   candidates (~15-18 GB) all fit alone in 24 GB") and it is the one prediction the run
+   confirms outright. The spread is 14607 to 19128 MiB with the card to itself, and the
+   largest candidate still leaves about 3.4 GB. **The hybrid `-ngl` / CPU-KV fallback that
+   decision 3 recorded for this tier is therefore not needed and is not configured.** It stays
+   on the shelf as the lever for a smaller card, which is what it was written for.
+2. **What decided it is whether the model stops thinking.** Both families are reasoning models,
+   and the last column is the number of escalation-grade questions (multi-step arithmetic under a
+   deadline, a memory-fit puzzle, a two-sentence precision constraint, and a bug hunt in an async
+   swap path) that produced an actual answer rather than an unfinished chain of thought, asked at
+   a 4096-token budget. The two mixture-of-experts candidates are the fast ones, at roughly 2.6x
+   the token rate of the dense pair, and they spend all of it: they reason correctly, arrive at
+   the right derivation, and then either re-check it indefinitely or loop on a decimal expansion
+   until the budget is gone. The answer is in the trace and never in the reply.
+3. **That failure is not an artifact of the budget, and it reaches the deployment.** The brain
+   sends no `max_tokens`, and the server's own default is `n_predict = -1` (read from `/props`),
+   so the real bound on a turn is the context window. Re-asked with no cap at `--ctx-size 8192`,
+   which is exactly how the tier ships, gemma-4-26B-A4B burned 8087 and 8057 tokens and returned
+   `"content":""` on both questions, and Qwen3.6-35B-A3B burned 8092 and 8068 for the same empty
+   result. **Both mixture-of-experts candidates consume the entire context and answer nothing.**
+   Under the same uncapped condition gemma-4-31B answered in 4448 and 3847 tokens and
+   Qwen3.6-27B in 3104 and 3340, both finishing on end-of-generation rather than on the wall.
+   A candidate that cannot terminate is not a slow candidate; it is a turn that produces nothing,
+   which is why the fastest two artifacts here are the two rejected ones.
+4. **Between the two dense candidates the margin is real but narrow.** Both answered everything
+   asked of them uncapped, and every completed answer was correct on the checkable questions.
+   The one question with no key, which asked which of a soft cap and a hard limit needs admission
+   control to mean anything, drew "the hard limit" from the pick on both of its runs and from
+   every other candidate that answered it, except Qwen3.6-27B, which said "the soft cap" once and
+   "the hard limit" once. This repo's own position is the soft cap, since that is the number
+   decision 3 says the Model Manager will enforce, so the tier does not reach the house answer
+   unprompted. Worth knowing before a brain phase is asked to reason about the budget it is
+   running inside.
+   gemma-4-31B wins on being **QAT**, which is the same reason decision 1 gave for the cortex,
+   on reaching its answers in fewer tokens (4 of 4 inside a 4096 budget against 3 of 4), and on
+   being the same family as the shipped cortex, so one chat template and one prompt idiom span
+   both tiers. Qwen3.6-27B Q4_K_M loses on those and wins on 2.7 GB of VRAM, so it is recorded
+   as **the documented alternate** for a deployment that wants more of the card left over during
+   a handoff, and it is one `CORTEX_MODEL_FILE_BRAIN` away.
+5. **Context has room to grow.** At `CORTEX_CTX_SIZE_BRAIN=16384` the pick read 21667 MiB
+   resident, 19786 MiB over the floor, which is 658 MiB for the second 8K of KV. The shipped
+   8192 default is therefore not a fit constraint, and doubling it costs well under a gigabyte.
+6. **Load stays mount-read bound, as decision 4 said.** The four cold loads run 142 to 177 MB/s
+   off the mount (17.65 GB in 99.6 s for the pick), squarely inside the 150 to 180 MB/s this ADR
+   already recorded, so nothing here argues for the WSL-side mirror lever. A bare load of the
+   pick is **99.6 s**, which is the figure the swap's load phase is compared against and leaves
+   the shipped `CORTEX_SWAP_LOAD_TIMEOUT_S` default of 300 s about two thirds unspent. A second
+   load of the same artifact took 66.4 s with the file partly in page cache, so treat 99.6 s as
+   the cold number and the timeout margin as the cold-case margin.
+7. **The eviction half is unchanged at tier scale.** Stopping an idle deep tier answered in
+   0.92 s and VRAM fell to 1874 MiB; restarting the cortex answered in 0.12 s and reached READY
+   35.7 s later at 9691 MiB. Both container health checks stayed green throughout, the sidecar's
+   because it asks for either tier and the brain's because it asks only that `Health` answered.
+8. **One incidental observation, recorded rather than acted on.** With this llama.cpp build the
+   cortex tier read about 9.7 GB `nvidia-smi` total at 16K text-only, against the 11.0 GB this
+   ADR measured for it in 2026-06-29's build. That is a different build and a text-only start,
+   not a controlled re-measurement, so **no cortex row is changed here**; it is written down
+   because the swap arithmetic depends on the cortex figure and a future sitting should confirm
+   which number the deployment actually pays.
+
+The header's pick line also carried a stale subagent entry, naming Qwen3.5-2B where the
+2026-07-03 addendum below had already revised the pick to gemma-4-E4B. It is corrected in the
+same pass, for the reason [runbooks/llamacpp-gpu.md](../runbooks/llamacpp-gpu.md) gives for its
+own version of that slip:
+[ADR-0017](ADR-0017-subagent-model-safety.md) binds the untrusted-content safety default to the
+current subagent pick by its logical id, so a header naming the wrong model names the wrong
+safety default.
+
+Still open at this tier and unchanged by this run: the injection-harness row for the brain, which
+the injection addendum above still records as opt-in and not yet run.

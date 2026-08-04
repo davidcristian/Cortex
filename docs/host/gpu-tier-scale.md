@@ -1,8 +1,9 @@
 # The 24 GB machine (tag G, and three items are also W)
 
-Seven items, one bring-up, one blocker. The first one gates four of the others, which is why this
+Seven items, one bring-up, one blocker. The first one gated four of the others, which is why this
 is a single doc rather than seven: the dependency chain is the whole story on this side in a way
-it is not on the Windows side.
+it is not on the Windows side. **That first item is done, on 2026-08-04**, and the four it gated
+are open with their own blockers rather than with this one.
 
 Four of the seven need nothing but the card. **Items 2, 3 and 4 need the Windows overlay as well**,
 because the handoff they exercise starts with a gated tool call and only the overlay can answer the
@@ -10,9 +11,22 @@ confirm card that gates it. That is spelled out at each of them and in the prere
 the 24 GB card and the Windows desktop are the same laptop it costs nothing, and if they are two
 machines it is the difference between a sitting and a wasted trip.
 
-Everything else here is blocked on VRAM, not on an operating system. The dev GPU is an 8 GB card, and [ADR-0030](../adr/ADR-0030-brain-handoff.md) measured `gemma-4-12b-it-qat-q4_0.gguf`
-alone taking 7715 of its 8188 MiB, so the real cortex cannot be swapped against any deep-model
-candidate, and no subagent can be GPU-placed beside a resident cortex. The paragraph below was the
+Everything else here is blocked on VRAM, not on an operating system.
+
+**The VRAM premise was measured false on 2026-08-04, which is how item 1 below came to be run
+here rather than waited for.** This section used to open by saying the dev GPU is an 8 GB card,
+and [ADR-0030](../adr/ADR-0030-brain-handoff.md) did measure `gemma-4-12b-it-qat-q4_0.gguf` alone
+taking 7715 of that card's 8188 MiB. Every number derived from that card is still true of it. What
+is no longer true is that it is the card the repo is developed on: the development machine reports
+24463 MiB, and all four deep-model candidates loaded and served on it alone. The capability table
+in [index.md](index.md) carries the correction, and
+[AGENTS.md](../../AGENTS.md) already said what follows from it, that "on the host" includes the
+agent and GPU work reachable through Docker is done now rather than filed here. **No tag below
+changes.** Items 2, 3 and 4 stay **W+G** because what blocks them is the overlay that answers a
+confirm card, which is a Windows desktop and not a card; items 5, 6 and 7 stay listed because each
+is its own sitting, not because the VRAM is missing.
+
+The paragraph below was the
 ROADMAP's summary of this side of the work; it was **preserved here when the ROADMAP was slimmed
 on 2026-07-19** and no longer exists there, so this doc is its only home. The same substance,
 in the decision record that owns it, is item 7 of
@@ -251,6 +265,11 @@ this sitting exists to avoid. Two consequences worth carrying in: no timing, VRA
 answer quality from an undersized card is a tier-scale result, and that 373 s load already exceeds
 the shipped `CORTEX_SWAP_LOAD_TIMEOUT_S` default of 300 s, which is item 4's question.
 
+**Both of those are settled on the real card as of 2026-08-04**, and the trap is worth rereading
+against the answer: the same `gemma-4-31B-it-qat-q4_0` artifact that took 373 s and generated half
+a token per second on 8 GB loads in 99.6 s and generates at about 31 tok/s on a card that holds
+it, resident at 19128 MiB. The 373 s figure was the spill, not the model. Item 1 has the rest.
+
 ## The dependency chain
 
 ```
@@ -270,38 +289,42 @@ alone. If both capabilities live in one laptop the distinction costs nothing; if
 
 ## 1. The deep-model pick
 
-**Status: never attempted. Blocks items 2, 3, 4 and 5.** Tag **G**: the card alone, no overlay and
-no escalation.
+**Status: Done 2026-08-04.** The pick is **gemma-4-31B-it-qat-q4_0**. It no longer blocks items
+2, 3, 4 and 5.
 
-**What only this proves.** Which of the four brain candidates actually fits and serves on 24 GB.
-Nothing about it is answerable on the dev GPU. [ADR-0004](../adr/ADR-0004-model-lineup.md) locked
-the candidate set and says of the tier only that "**Brain** (~31B) is the swap model: it evicts the
-cortex, so it gets the full budget; hybrid `-ngl` / CPU-KV fallback if it doesn't fit". The
-candidates are `Qwen3.6-27B-GGUF (Q4_K_M)`, `Qwen3.6-35B-A3B-GGUF (UD-Q3_K_M)`,
-`gemma-4-31B-it-qat-q4_0-gguf`, and `gemma-4-26B-A4B-it-qat-q4_0-gguf`.
+**The measurement has left this directory**, which is what the exit contract in
+[index.md](index.md) asks of a completed item: its home is now the dated brain-pick addendum in
+[ADR-0004](../adr/ADR-0004-model-lineup.md) and the two Brain rows in
+[runbooks/llamacpp-gpu.md](../runbooks/llamacpp-gpu.md), with the artifact named in the
+`CORTEX_MODEL_FILE_BRAIN` comment of `docker/docker-compose.gpu.yml`. Only the heading and this
+record stay here, because four items below are written against this one's number and a hole where
+item 1 was would cost more than the line it saves.
 
-**Do.** Run "Before you start" steps 1 to 9 above **once per candidate**, changing only
-`CORTEX_MODEL_FILE_BRAIN` (and `CORTEX_CTX_SIZE_BRAIN`) between runs, since that variable is what
-puts a tier in the roster at all. Each pass gives the three numbers this item exists for: the VRAM
-at step 7 (`nvidia-smi` with the deep tier alone resident, at the context the brain phase will
-use), the load time at step 6 (the wall clock from the start's reply to `"state":"ready"`, which is
-the figure item 4 compares its swap against), and answer quality at step 7 on a handful of the
-kinds of question that justify escalating at all. Read step 7's warning about `reasoning_content`
-before judging any gemma candidate mute. The row this fills is the same one
-[runbooks/llamacpp-gpu.md](../runbooks/llamacpp-gpu.md) keeps for the other tiers.
+**What it found, in one paragraph.** All four candidates loaded and served alone on a card that
+holds the tiers, so the fit question this item was written to answer turned out not to be the
+question: the spread was 14607 to 19128 MiB with the cortex evicted, and ADR-0004's hybrid `-ngl`
+/ CPU-KV fallback is not needed. What separated the candidates is whether they stop reasoning.
+Both mixture-of-experts artifacts, which are the fast ones at about 80 tok/s, consume the entire
+8192-token context on an escalation-grade question and return an empty `content`, and they do it
+under the deployment's own condition, since the brain sends no `max_tokens` and llama-server
+defaults to `n_predict = -1`. Both dense candidates answer. The pick loads in 99.6 s, sits at
+19128 MiB at the shipped 8192 context and 19786 at 16384, generates at about 31 tok/s, and was
+the only candidate to answer all four questions inside a bounded budget; `Qwen3.6-27B-GGUF
+(Q4_K_M)` is the recorded alternate, 2.7 GB lighter and one question short.
 
-**Pass.** One candidate locked, with its measured numbers.
+**What this hands the items below.** Item 4 compares a real swap's load phase against **99.6 s**
+cold, which leaves the shipped `CORTEX_SWAP_LOAD_TIMEOUT_S` default of 300 s about two thirds
+unspent, and against a warm reload of the same artifact at 66.4 s. Item 2's eviction arithmetic
+is 19128 MiB for the deep tier against a card reading 1867 to 1932 MiB with nothing loaded. The
+swap back was also run by hand once, as step 8 suggests: the deep tier stopped in 0.92 s and the
+cortex was READY again 35.7 s later, with both container health checks green throughout.
 
-**Fail.** No candidate fits with acceptable context. The recorded fallback is ADR-0004's hybrid
-`-ngl` / CPU-KV path, which is a real answer and should be written down as one rather than treated
-as a failure of the slice.
-
-**Record it.** An addendum to [ADR-0004](../adr/ADR-0004-model-lineup.md), which
-[ADR-0030](../adr/ADR-0030-brain-handoff.md) explicitly expects ("the brain pick (ADR-0004 gains
-its addendum)"); the Brain row of the table in
-[runbooks/llamacpp-gpu.md](../runbooks/llamacpp-gpu.md), which today reads
-`| Brain | _tbd (host-side pick)_ | | | | |`; and `CORTEX_MODEL_FILE_BRAIN` in the GPU compose,
-whose comment today says there is no deep-model pick yet.
+**One correction to the bring-up above, from running it.** Step 7's warning about
+`reasoning_content` is right and is worth strengthening: a budget that fits "a chain of thought
+plus an answer" is not a fixed number, it is a property of the candidate, and on two of these four
+no budget inside the context window is enough. Read `finish_reason` before reading either field.
+`"length"` with an empty `content` and a full `reasoning_content` is a model that never finished,
+and at tier scale that is a finding about the model rather than about the budget.
 
 ---
 

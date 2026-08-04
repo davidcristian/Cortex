@@ -144,12 +144,23 @@ independent, load/throughput are not. Full detail + placement strategy in the
 | Cortex (alt) | Qwen3.5-9B | Q4_K_M | 9.2 GB | 11.0 GB (F32 proj) | ~32-42 s |
 | Subagent (pick) | **gemma-4-E4B** (CPU) | q4_0 (QAT) | 4.9 GB, ~2.5 GiB RSS | n/a | 38 s |
 | Subagent (override) | Qwen3.5-2B (CPU) | Q4_K_M | 1.19 GB, ~893 MiB RSS | n/a | ~14.5 s |
-| Brain | _tbd (host-side pick)_ | | | | |
+| **Brain (pick)** | **gemma-4-31B** | q4_0 (QAT) | 18.7 GB (8K ctx) | n/a | 99.6 s |
+| Brain (alt) | Qwen3.6-27B | Q4_K_M | 16.1 GB (8K ctx) | n/a | 109.5 s |
 | Embedder (pick) | **nomic-embed-text-v1.5** (CPU) | Q8_0 | 0.146 GB, ~18 MiB RSS | n/a | ~1.2 s |
 
 The three CPU rows are not from that GPU session: the embedder was measured 2026-06-29 and both
 subagent rows 2026-07-03, each in the [ADR-0004](../adr/ADR-0004-model-lineup.md) addendum that
 settled it, off the same mount and with no power cap in play.
+
+**Nor are the two brain rows**, added 2026-08-04 when the deep-model pick landed. They were taken
+on a card that holds the real tiers, through the `model-host` sidecar with the cortex evicted
+first, at `CORTEX_CTX_SIZE_BRAIN=8192` and `-ngl 99`, on llama.cpp `b10236-1464c62d8` with **no
+power cap**, so their load times are not comparable with the 55 W rows above. The weights column
+is `nvidia-smi` total used minus the 1867 to 1932 MiB the card reads with no model loaded, and it
+includes the 8K KV. All four candidates fit alone on 24 GB, so the pick turned on whether a
+candidate finishes reasoning rather than on VRAM; the two mixture-of-experts candidates consume
+the whole context and answer nothing, which is the [ADR-0004](../adr/ADR-0004-model-lineup.md)
+brain-pick addendum's subject.
 
 **Corrected 2026-07-19.** This table briefly named Qwen3.5-2B as *the* subagent pick, carrying the
 old pick's numbers, which contradicted ADR-0004's 2026-07-03 revision, the compose default, and
@@ -181,13 +192,18 @@ safety default.
   reachable only for tool-less subagents on untainted turns. Full table:
   [ADR-0004](../adr/ADR-0004-model-lineup.md) pick-revision addendum, procedure in
   [subagents-cpu.md](subagents-cpu.md).
-- **Remaining picks:** only the **brain** tier. Cortex (gemma-4-12B, the compose default),
-  subagent (gemma-4-E4B QAT q4_0 on CPU) and embedder (nomic-embed-text-v1.5 Q8_0 on CPU) are all
-  settled and recorded in [ADR-0004](../adr/ADR-0004-model-lineup.md). The brain row above stays
-  `tbd` because it needs a card this half of the repo does not have; it is the item that blocks
-  the rest of the tier-scale work in
-  [docs/host/gpu-tier-scale.md](../host/gpu-tier-scale.md), and ADR-0004 gains its addendum when
-  it lands.
+- **Remaining picks: none.** Cortex (gemma-4-12B, the compose default), subagent (gemma-4-E4B QAT
+  q4_0 on CPU), embedder (nomic-embed-text-v1.5 Q8_0 on CPU) and, since 2026-08-04, brain
+  (gemma-4-31B QAT q4_0) are all settled and recorded in
+  [ADR-0004](../adr/ADR-0004-model-lineup.md). The brain pick unblocks the rest of the tier-scale
+  work in [docs/host/gpu-tier-scale.md](../host/gpu-tier-scale.md), whose remaining items need a
+  handoff the overlay has to approve.
+- **The brain tier's own reasoning budget is a deployment fact worth knowing.** The brain sends no
+  `max_tokens` and llama-server defaults to `n_predict = -1`, so a turn is bounded by
+  `CORTEX_CTX_SIZE_BRAIN` alone. The pick reaches an answer on hard questions in roughly 3800 to
+  4500 tokens at about 31 tok/s, so a deep turn costs a couple of minutes of generation on top of
+  the swap, and shrinking that context to save VRAM buys a truncated answer rather than a faster
+  one.
 - **Pin the image:** replace the `ghcr.io/ggml-org/llama.cpp:server-cuda` tag in
   `docker/docker-compose.gpu.yml` with a digest once a working version is settled (ADR-0006:
   mutable tags are a supply-chain risk).
