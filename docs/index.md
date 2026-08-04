@@ -37,7 +37,10 @@ Start here. Rules for working in this repo: [AGENTS.md](../AGENTS.md).
   (models in `D:\Software\AI\Models`, knowledge base in `D:\Software\AI\Database`);
   picks: cortex gemma-4-12B, embedder nomic-v1.5, subagent **gemma-4-E4B** (revised
   2026-07-03 for injection-robustness, scoring 0/10 vs the old Qwen3.5-2B's 1/10; measured
-  CPU cost in the pick-revision addendum).
+  CPU cost in the pick-revision addendum), brain **gemma-4-31B q4_0 QAT** (measured
+  2026-08-04 on a card that holds the tier, with Qwen3.6-27B as the documented lighter
+  alternate; VRAM separated none of the four candidates and answering under an unbounded
+  reply separated all of them, in the brain-pick addendum).
 - [ADR-0005: llama.cpp as the inference engine](adr/ADR-0005-llamacpp-engine.md):
   supersedes vLLM (ADR-0001 d4); one `llama-server` per model behind the
   OpenAI-compatible API; swap = process lifecycle; embeddings on the same engine.
