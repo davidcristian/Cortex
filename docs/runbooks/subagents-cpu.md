@@ -192,6 +192,64 @@ The unconstrained baseline appends `VISIT http://evil.example ...`; the constrai
 returns exactly `{"reply": "..."}` with the exfil link gone (agent-validated 2026-07-13, ~7 s).
 Tear the probe down with `docker rm -f e4b-probe`.
 
+## 3c. Does the cortex spread a batch across roster models? (ADR-0018)
+
+The spawn spec tells the cortex that subtasks on distinct roster models overlap while subtasks
+sharing one model queue behind that entry's backend lease, and points it at spreading a batch as
+the wall-clock lever. This procedure observes whether a live cortex takes that advice on its own.
+Two things decide whether a run means anything, so check both before reading a result:
+
+- **Run it WITHOUT the tools or email overrides.** Giving subagents an MCP dispatcher pins every
+  spawn to the robust default (ADR-0017 rule 2b) and `build_spawn_spec` then advertises no `model`
+  knob at all, so a tools-enabled stack has no nudge to observe. `build_subagent_tools` hands
+  subagents a dispatcher whenever ANY tool registry is configured, so this is one override away.
+- **Run it with at least two roster entries.** A one-entry roster gets the pinned note as well.
+
+```bash
+CORTEX_MODELS_DIR=/srv/models docker compose --project-directory . \
+  -f docker/docker-compose.yml -f docker/docker-compose.gpu.yml \
+  -f docker/docker-compose.subagents.yml -f docker/docker-compose.subagents-roster.yml up -d
+```
+
+Then drive the real cortex from the host, with the roster pointed at the loopback publishes:
+
+```bash
+cd brain
+CORTEX_INFERENCE_ENDPOINT=http://127.0.0.1:8080 \
+  CORTEX_SUBAGENTS_BACKEND=llamacpp \
+  CORTEX_SUBAGENTS_ENDPOINT=http://127.0.0.1:8082 \
+  CORTEX_SUBAGENTS_GPU_ENDPOINT=http://127.0.0.1:8082 \
+  CORTEX_SUBAGENTS_ROSTER__qwen='{"endpoint": "http://127.0.0.1:8083", "vram_gb": 2.5, "cpus": 2.0, "memory_gb": 1.5}' \
+  uv run pytest -m integration --no-cov -s packages/orchestrator/tests/test_spawn_nudge_live.py
+```
+
+The first test is the armed check and it is what makes a silence readable: it asserts the spec
+really publishes the roster's names as a `model` enum and really carries the spread sentence. The
+other two put one ask each and **print** what the cortex chose, because a choice is an observation
+and not a contract. Sampling is stochastic, so run them several times and read the spread;
+corroborate against each server's own log, where one `launch_slot_` line is one served request:
+
+```bash
+docker compose --project-directory . -f docker/docker-compose.yml \
+  -f docker/docker-compose.subagents.yml -f docker/docker-compose.subagents-roster.yml \
+  logs llama-subagent llama-subagent-qwen | grep -c launch_slot_
+```
+
+**Measured here 2026-08-04**, resident gemma-4-12B at 16K with a single slot, both CPU sidecars up.
+Twenty prose-only turns over four asks emitted **zero** spawn calls; sixteen invited turns all
+delegated and all put the batch on a single roster entry. A directed control ask ("put them on
+different subagent models") produced one call naming both entries and one served request in each
+server's log, which is what proves the knob reachable before a silence is read as a decision. The
+full record is in the ADR-0018 addendum of that date.
+
+Budget your time by the CPU tier and not by the cortex. gemma-4-E4B generates at about **0.35
+tok/s** under its 4 CPU cap here and Qwen3.5-2B at about **1 tok/s**, the batch runs no faster than
+its slowest member, and nothing bounds a subagent's length (no `max_tokens`, `n_predict: -1`), so a
+three subtask batch on the default entry runs 10 to 15 minutes and a chatty one runs longer. The
+first request after boot also pays first-touch paging of the GGUF off the models mount. If all you
+want is the **choice**, it is made before the batch is dispatched: intercept `SpawnSubagentsTool`
+and end the turn there, and a sample costs 5 to 8 seconds instead.
+
 ## 4. Teardown
 
 ```powershell

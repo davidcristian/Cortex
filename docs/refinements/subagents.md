@@ -8,7 +8,9 @@ are the historical record of what each deferral became, and the index at
 [index.md](index.md) carries the recommended pickup order.
 
 **Open items:** the per-role escape hatch (on the dead-until-a-consumer list) and the
-spontaneous-pick nudge's live uptake (fix when it bites, recorded at the end). Subagent progress
+spontaneous-pick nudge's live uptake (fix when it bites, recorded at the end, and **observed live
+on 2026-08-04** without closing: the run found the probe's own premise false, so the entry stays
+open with a sharper trigger). Subagent progress
 reporting **landed 2026-07-16** as one side channel with the tool-step chip surfacing entry from
 [email-confirmer.md](email-confirmer.md) (annotated in place below). The spawn-spec tuning for
 spontaneous model picks and the measured trade-off advertisement landed together on 2026-07-16
@@ -113,6 +115,43 @@ deferral is the same way an open item gets lost as a count moved for a half-clos
   cheap-model picks into instruction text or piling same-model batches for latency; the fix is
   stronger nudging behind the same spec seam (a worked example, a sharper phrasing), never a schema
   change.
+  **Observed 2026-08-04, and the entry stays open**
+  ([ADR-0018 addendum](../adr/ADR-0018-heterogeneous-subagents.md) of that date). The probe ran on
+  the 24 GB card at the **production 16K context** with a single slot, not the 4K proposed above,
+  cortex resident (9676 MiB of `nvidia-smi` total used against 1893 MiB idle) and both CPU roster
+  servers up, driving the real tool loop over the real builders' dispatcher with `spawn_subagents`
+  as the only advertised tool. It found three things and none of them is the yes or no this entry
+  expected. **The probe as specified cannot answer the question**, because a prose-only ask does
+  not produce a batch: 20 turns over four asks carrying three or four independent subtasks each
+  emitted **zero** spawn calls, and `subagent`, `delegat`, `spawn` and `farm` appear zero times in
+  the twelve full reasoning traces, so delegation was never declined, it was never raised. That is
+  also the right call on this deployment, where the CPU tiers run at 0.35 tok/s (the E4B default)
+  and about 1 tok/s (the Qwen alternate), so a delegated paragraph costs minutes the cortex spends
+  in seconds. **Invited to delegate in ordinary prose** (no tool name, no model name, no
+  parallelism language) it delegates every time and piles the whole batch on ONE entry every time:
+  16 turns, 16 delegations, 0 spreads, with exactly one of the 15 batches whose arguments were
+  recorded carrying a `model` key at all, and that one putting all three subtasks on `qwen` (the
+  sixteenth turn was abandoned while its batch ran, and the alternate's server served nothing
+  during it, so it too was a pile on the default). And **the nudge is only
+  advertised where it matters least:** `build_spawn_spec` publishes the knob and the spread
+  sentence only when `not tools_enabled and len(roster.entries) > 1`, while `build_subagent_tools`
+  makes subagents tools-enabled whenever any tool registry is configured, so every tools-enabled
+  deployment gets the pinned note instead (built both ways off the live roster to confirm). One
+  correction to the advertised sentence came out of the same run: an entry holds one backend per
+  placement *target*, and with `gpu_endpoint` falling back to `endpoint` both targets dial one
+  server, so a same-entry batch whose ask fits the VRAM headroom once overlaps two ways rather than
+  serializing (measured on `qwen`: two subtasks launched in the same millisecond, the third when
+  the first released; the default entry, whose ask never fits, was strictly serial at 258.4 s,
+  208.7 s and 330.2 s). It is folded in here rather than opened as its own entry because it is the
+  same sentence, the same seam and the same fix, and because it makes the prize for spreading
+  smaller rather than opening new work. **The trigger sharpens accordingly.** Piling is now
+  measured, so the old wording would read as fired, but nothing is being paid for it while
+  unprompted delegation does not happen at all. What would make it bite is a deployment where the
+  cortex reaches for delegation on its own and the batch's wall clock is the user's: a tool-less
+  multi-entry roster in real daily use, or roster entries far enough apart that piling is visibly
+  slower. The fix is unchanged, and the probe is now cheap to repeat
+  (`packages/orchestrator/tests/test_spawn_nudge_live.py`, bring-up in
+  [runbooks/subagents-cpu.md](../runbooks/subagents-cpu.md) section 3c).
 - **The per-role escape hatch.** A future subagent role needing a cheap model on a
   tainted/tool path for a proven-safe reason would be a per-role override on the same roster
   seam, never a relaxation of the forced-robust default (ADR-0017 risks, ADR-0018 risks).

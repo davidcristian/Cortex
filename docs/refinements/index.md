@@ -978,6 +978,28 @@ suite carrying both is integration-marked and lives beside the CPU one; it was r
 first, by pointing the GPU endpoint at a closed port, which also fired ADR-0012's CPU re-place from
 a real GPU placement rather than from a failing fake for the first time.
 
+Subagents **held at 2 on 2026-08-04** when the spontaneous-pick nudge's live uptake was observed
+and stayed open, which is the outcome this file has the fewest examples of: an entry whose owed
+*measurement* is delivered while its *fix* stays queued. The count does not move because a
+fix-when-it-bites entry closes when the fix lands or is declined, not when the number it was
+waiting on arrives, and this area's cell was corrected on 2026-07-19 precisely for failing to count
+this entry at all. What arrived is three findings, and the first of them retires the recipe rather
+than answering it: a prose-only ask carrying independent subtasks does not delegate at all (20
+turns over four asks, zero spawn calls, and `subagent`, `delegat`, `spawn` and `farm` absent from
+every one of the twelve full reasoning traces), so there is no batch whose spread could be read.
+Asked in ordinary prose to farm the same work out, the cortex delegated in all 16 turns and put the
+whole batch on one roster entry in all 16, with exactly one batch naming a model at all and that
+one naming `qwen` for every subtask, which is a pile on the cheap entry rather than a spread. The third finding is the one no card was needed for and the one that reframes
+the entry: `build_spawn_spec` publishes the knob and the spread sentence only for a tool-less
+multi-entry roster, and `build_subagent_tools` makes subagents tools-enabled the moment any tool
+registry exists, so the nudge is shown exclusively to the deployment whose subagents can do nothing
+but the prose work the cortex prefers to keep. A fourth thing was corrected rather than opened: the
+advertised "subtasks that share one model run one after another" is conservative on this
+deployment, because an entry holds one backend per placement target and the roster override points
+both at one server, so a same-entry batch whose ask fits the VRAM headroom once overlaps two ways.
+That correction rides the same sentence and the same fix, so it is folded into the entry rather
+than counted, and it shrinks the prize for spreading rather than adding work.
+
 ## Recommended order
 
 Ordered by what unblocks the most value soonest. Before starting any item, verify its claims
@@ -1031,7 +1053,17 @@ against the code (the warning above); the entry text tells you which seams it ex
   fix-when-it-bites but whose *observation* is runnable here: a resident cortex at 4K with the
   CPU roster up, given a prose-only ask carrying independent subtasks, either reaches for distinct
   roster models or does not. Listed here because the entry said for three days that no card
-  available to the agent could answer it.
+  available to the agent could answer it. **It ran 2026-08-04 and did not close the entry**, which
+  is the honest outcome rather than a stalled one: the observation this bullet owed is published
+  and the fix it feeds stays queued. The recipe above was wrong about its own premise, since a
+  prose-only ask produces no batch to spread (20 turns over four such asks, zero spawn calls, and
+  the four words a delegating trace would use absent from every full reasoning trace). Invited to
+  delegate in plain prose it delegated in all 16 turns and put the whole batch on one roster entry
+  in all 16. Reading the spec builder afterwards found the sharpest part: the knob and the spread
+  sentence are advertised only to a tool-less multi-entry deployment, since any tool registry makes
+  subagents tools-enabled and swaps in the pinned note. The run also outgrew this bullet's own
+  recipe by using the production 16K context rather than 4K, so what stays host-side is real use
+  over time and not a context size.
 - **An exit for the switcher's rows** ([body-overlay.md](body-overlay.md)), opened 2026-08-03 as
   the reminder stack's per-row exit closed and left the hook behind for it, and **closed 2026-08-03**
   by wiring the switcher to that same hook. It called itself mostly wiring and was about half of
@@ -1699,10 +1731,11 @@ Bounded contingencies, each named in its doc with the condition that would activ
 salience limit knob, cross-loop salience, the `CORTEX_SUBAGENTS_MAX_BATCH` knob, the
 cost-aware batch cap, the fair-share policy, and the sidecar session cache/pool, whose own entry calls the per-call handshake acceptable at personal scale ([tools-mcp.md](tools-mcp.md)); the
 spontaneous-pick nudge's live uptake, joined on 2026-07-16 when the measured trade-off
-advertisement landed, whose trigger is a live cortex still under-reaching for distinct models
-(observable here since 2026-07-19, when the card's stated inability to hold the cortex was struck)
-and whose fix is stronger nudging behind the same spec seam
-([subagents.md](subagents.md)); checking the sidecar's stop bounds against the brain's control
+advertisement landed and **observed live on 2026-08-04** (a prose-only ask never delegates at all,
+an invited one piles the whole batch on one entry every time, and the knob is not advertised at all
+once subagents hold tools), whose trigger is now a deployment that delegates unprompted and pays
+for the pile rather than a cortex merely under-reaching, and whose fix is stronger nudging behind
+the same spec seam ([subagents.md](subagents.md)); checking the sidecar's stop bounds against the brain's control
 deadline instead of only documenting the pairing, joined on 2026-07-18 with the audit round that
 found the pairing had a third term and added the `GET /health` reporting that would make the check
 possible, whose trigger is either side's timing being tuned or a handoff aborting on an eviction
