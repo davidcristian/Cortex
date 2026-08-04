@@ -1,4 +1,5 @@
 import type { SessionMessage, SessionSummary } from "../bridge/types";
+import { speak } from "./notice";
 import type { OverlayState } from "./overlayState";
 import type { Message } from "./turnState";
 
@@ -57,14 +58,17 @@ export function openSession(
   state: OverlayState,
   sessionId: string,
   messages: readonly SessionMessage[],
+  announce: boolean,
 ): OverlayState {
   const loaded = hydrate(messages);
+  const title = headerTitle(state.sessions, sessionId, messages);
   return {
     ...state,
     mode: "panel",
     touched: true,
     sessionId,
-    title: headerTitle(state.sessions, sessionId, messages),
+    title,
+    notice: announce ? speak(state.notice, title) : null,
     messages: loaded,
     switcherOpen: false,
     consoleTab: null,
@@ -115,6 +119,7 @@ export function deleteSession(
     touched: true,
     sessionId: fallbackSessionId,
     title: NEW_CHAT_TITLE,
+    notice: speak(state.notice, NEW_CHAT_TITLE),
     messages: [],
     pendingConfirm: null,
     seq: 0,

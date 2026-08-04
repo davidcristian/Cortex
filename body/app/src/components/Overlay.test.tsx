@@ -23,6 +23,7 @@ function fakeController(
       switcherOpen: false,
       consoleTab: null,
       pendingConfirm: null,
+      notice: null,
       reminders: [],
       link: INITIAL_LINK,
       capturing: false,
@@ -135,6 +136,30 @@ describe("Overlay", () => {
     expect(controller.dismiss).not.toHaveBeenCalled();
   });
 
+  it("Ctrl+N announces the chat it mints and the header's pencil does not", () => {
+    // One controller call, two doors, and the difference is the whole rule: a keystroke names
+    // nothing, so the fresh chat is announced, while the pencil is labelled "New chat" and
+    // would be handing the reader back the label they just pressed (`overlay/notice.ts`).
+    const controller = fakeController("panel");
+    renderOverlay(controller);
+    fireEvent.keyDown(document.body, { key: "n", ctrlKey: true });
+    expect(controller.newChat).toHaveBeenCalledWith(true);
+    fireEvent.click(screen.getByLabelText("New chat"));
+    expect(controller.newChat).toHaveBeenLastCalledWith(false);
+  });
+
+  it("keeps the live region outside the panel, which is out of the tree while dismissed", () => {
+    const controller = fakeController("hidden", [], {
+      notice: { title: "Everything about model swaps", count: 1 },
+    });
+    const { container } = renderOverlay(controller);
+    const region = container.querySelector(".announcer");
+    const panel = container.querySelector(".panel");
+    expect(region?.textContent).toBe("Switched to Everything about model swaps");
+    expect(panel?.hasAttribute("inert")).toBe(true);
+    expect(panel?.contains(region ?? null)).toBe(false);
+  });
+
   it("Ctrl+K toggles the switcher and Ctrl+↑/↓ cycle chats", () => {
     const controller = fakeController("panel");
     renderOverlay(controller);
@@ -172,7 +197,7 @@ describe("Overlay", () => {
     });
     renderOverlay(controller);
     fireEvent.click(screen.getByText("First chat"));
-    expect(controller.openSession).toHaveBeenCalledWith("c1");
+    expect(controller.openSession).toHaveBeenCalledWith("c1", false);
   });
 
   it("? opens the console on its shortcuts tab, except while typing in the composer", () => {

@@ -4,6 +4,7 @@ import type { EdgeStyle } from "../edge/edges";
 import type { MarkStyle } from "../mark/marks";
 import { latestReply } from "../overlay/overlayState";
 import type { OverlayController } from "../overlay/useOverlay";
+import { Announcer } from "./Announcer";
 import { Orb } from "./Orb";
 import { Panel } from "./Panel";
 import { Preview } from "./Preview";
@@ -69,7 +70,7 @@ export function Overlay({
         toggleConsole("shortcuts");
       } else if (mod && event.key.toLowerCase() === "n") {
         event.preventDefault();
-        newChat();
+        newChat(true);
       } else if (mod && event.key.toLowerCase() === "k") {
         event.preventDefault();
         toggleSwitcher();
@@ -97,6 +98,7 @@ export function Overlay({
 
   return (
     <>
+      <Announcer notice={state.notice} />
       <Panel
         state={state}
         open={state.mode === "panel"}
@@ -114,7 +116,7 @@ export function Overlay({
         onSubmit={submit}
         onStop={stop}
         onDismiss={dismiss}
-        onNewChat={newChat}
+        onNewChat={() => newChat(false)}
         onToggleSwitcher={toggleSwitcher}
         onSelectSession={openSession}
         onRenameSession={renameSession}

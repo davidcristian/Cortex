@@ -35,7 +35,8 @@ interface PanelProps {
   readonly onDismiss: () => void;
   readonly onNewChat: () => void;
   readonly onToggleSwitcher: () => void;
-  readonly onSelectSession: (sessionId: string) => void;
+  /** Load a chat, announcing it or not by the door it came from (`overlay/notice.ts`). */
+  readonly onSelectSession: (sessionId: string, announce: boolean) => void;
   readonly onRenameSession: (sessionId: string, title: string) => void;
   readonly onDeleteSession: (sessionId: string) => void;
   readonly onPinSession: (sessionId: string, pinned: boolean) => void;

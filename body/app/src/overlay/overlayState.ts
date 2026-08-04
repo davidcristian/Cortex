@@ -15,6 +15,7 @@ import {
   linkProbing,
   linkServing,
 } from "./linkState";
+import { type Notice, speak } from "./notice";
 import { NEW_CHAT_TITLE, adoptSession, deleteSession, openSession } from "./sessionState";
 import {
   type Message,
@@ -53,6 +54,9 @@ export interface OverlayState {
   readonly consoleTab: ConsoleTab | null;
   /** The approval the current turn is paused on, if any (ADR-0022). */
   readonly pendingConfirm: PendingConfirm | null;
+  /** What the overlay's live region has to say about the conversation that arrived, or `null`
+   *  when the swap that put it on screen was fired by a control already naming it (`notice.ts`). */
+  readonly notice: Notice | null;
   /** Fired reminders awaiting delivery, pulled on each open and acked on dismiss (ADR-0025). */
   readonly reminders: readonly DueReminder[];
   /** What the overlay knows about the brain connection, for the header indicator (`linkState`). */
@@ -76,12 +80,21 @@ export type Action =
   | { readonly kind: "stop" }
   | { readonly kind: "confirmAnswered"; readonly approved: boolean }
   | { readonly kind: "previewFade" }
-  | { readonly kind: "newChat"; readonly sessionId: string }
+  | {
+      readonly kind: "newChat";
+      readonly sessionId: string;
+      /** Whether the fresh chat is announced: true for Ctrl+N, false for the header's pencil,
+       *  whose own label is the name of what arrives (`notice.ts`). */
+      readonly announce: boolean;
+    }
   | { readonly kind: "sessionsLoaded"; readonly sessions: readonly SessionSummary[] }
   | {
       readonly kind: "openSession";
       readonly sessionId: string;
       readonly messages: readonly SessionMessage[];
+      /** Whether the arriving chat is announced: true for the cycle keys and a reminder's open
+       *  control, false for a switcher row, which is already named for it (`notice.ts`). */
+      readonly announce: boolean;
     }
   | {
       readonly kind: "adoptSession";
@@ -115,6 +128,7 @@ export function createInitialState(sessionId: string): OverlayState {
     switcherOpen: false,
     consoleTab: null,
     pendingConfirm: null,
+    notice: null,
     reminders: [],
     link: INITIAL_LINK,
     capturing: false,
@@ -178,6 +192,7 @@ export function reduce(state: OverlayState, action: Action): OverlayState {
         touched: true,
         sessionId: action.sessionId,
         title: NEW_CHAT_TITLE,
+        notice: action.announce ? speak(state.notice, NEW_CHAT_TITLE) : null,
         messages: [],
         switcherOpen: false,
         consoleTab: null,
@@ -186,7 +201,7 @@ export function reduce(state: OverlayState, action: Action): OverlayState {
     case "sessionsLoaded":
       return { ...state, sessions: action.sessions };
     case "openSession":
-      return openSession(state, action.sessionId, action.messages);
+      return openSession(state, action.sessionId, action.messages, action.announce);
     case "adoptSession":
       return adoptSession(state, action.sessionId, action.messages);
     case "sessionDeleted":

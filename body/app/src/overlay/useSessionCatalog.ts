@@ -4,11 +4,18 @@ import type { BrainBridge } from "../bridge/types";
 import { type Action, type OverlayState, cycleTarget, isTurnActive } from "./overlayState";
 import { useSummonEffect } from "./useSummonEffect";
 
+// The chat catalog, split from `useOverlay` so the hook that owns a turn is not also the hook that
+// owns the list of chats. Both halves are callbacks and effects over the same reducer, so nothing
+// but `dispatch` and the turn-abandon callback crosses between them.
+
 const SESSION_LIST_LIMIT = 50;
 
 /** The chat-catalog half of `OverlayController`; every member is re-exported from it verbatim. */
 export interface SessionCatalog {
-  openSession(sessionId: string): void;
+  /** Load a stored chat into the panel. `announce` is false from a switcher row, whose own
+   *  accessible name is that chat's title, and true from a control that points at a chat without
+   *  naming it, which is the reminder card's open control and the cycle keys. */
+  openSession(sessionId: string, announce: boolean): void;
   renameSession(sessionId: string, title: string): void;
   deleteSession(sessionId: string): void;
   setSessionPinned(sessionId: string, pinned: boolean): void;
@@ -16,7 +23,9 @@ export interface SessionCatalog {
   cycleNext(): void;
 }
 
-/** Keeps the store-backed chat list current and exposes the operations over it. */
+/** Keeps the store-backed chat list current and exposes the operations over it. `abandonTurn` is
+ *  the caller's "drop whatever is in flight": switching or deleting a chat has to run it before
+ *  the write, and it belongs to the turn half, so it is passed in. */
 export function useSessionCatalog(
   bridge: BrainBridge,
   state: OverlayState,
@@ -29,12 +38,12 @@ export function useSessionCatalog(
       .listSessions(SESSION_LIST_LIMIT)
       .then((sessions) => dispatch({ kind: "sessionsLoaded", sessions }))
       .catch(() => {
-        // A failed list leaves the current list in place. The switcher just won't update.
+        // A failed list leaves the current one in place; the switcher simply does not update.
       });
   }, [bridge, dispatch]);
 
-  // Load the chat list on mount, and refresh it each time a turn finishes: `turnActive`
-  // flips false→true→false per turn, so the false edges (mount + completion) reload.
+  // Load the chat list on mount, and refresh it each time a turn finishes: `turnActive` goes false
+  // to true to false per turn, so the false edges reload it.
   const turnActive = isTurnActive(state);
   useEffect(() => {
     if (!turnActive) {
@@ -42,8 +51,13 @@ export function useSessionCatalog(
     }
   }, [turnActive, refreshSessions]);
 
+  // Refresh it on each summon too. The other two triggers can be very old by the time anyone
+  // looks: mount happens once for a tray-resident body, and the last turn may have been days ago.
   useSummonEffect(state.mode !== "hidden", refreshSessions);
 
+  // Cold-start restore: when the first chat list arrives, adopt the top listed chat so a summon
+  // reaches it instead of an empty fresh one. One attempt per mount, and whether it applies is the
+  // reducer's `touched` guard, so a racing summon, submit, cycle or new chat always wins.
   const adoptAttempted = useRef(false);
   const latestSessionId = state.sessions[0]?.sessionId;
   useEffect(() => {
@@ -55,25 +69,25 @@ export function useSessionCatalog(
       .sessionMessages(latestSessionId)
       .then((messages) => dispatch({ kind: "adoptSession", sessionId: latestSessionId, messages }))
       .catch(() => {
-        // Leave the fresh chat in place if the history cannot load (the openSession rule).
+        // Leave the fresh chat in place if the history cannot be read.
       });
   }, [latestSessionId, bridge, dispatch]);
 
   const openSession = useCallback(
-    (sessionId: string) => {
+    (sessionId: string, announce: boolean) => {
       abandonTurn();
       bridge
         .sessionMessages(sessionId)
-        .then((messages) => dispatch({ kind: "openSession", sessionId, messages }))
+        .then((messages) => dispatch({ kind: "openSession", sessionId, messages, announce }))
         .catch(() => {
-          // Leave the current chat in place if its history cannot load.
+          // Leave the current chat in place if its history cannot be read. Nothing is announced
+          // either, because the notice is sent with the swap it describes.
         });
     },
     [abandonTurn, bridge, dispatch],
   );
 
-  // A user-only catalog write (ADR-0021): relabel the chat, then re-list so the switcher shows
-  // the new title (the write does not return it). A failed rename leaves the list unchanged.
+  // Relabel the chat, then re-list, because the write does not return the new title.
   const renameSession = useCallback(
     (sessionId: string, title: string) => {
       bridge
@@ -86,6 +100,9 @@ export function useSessionCatalog(
     [bridge, refreshSessions],
   );
 
+  // Deleting the currently open chat first tears down its turn and denies any pending confirm, so
+  // a still-streaming reply cannot recreate the chat after the delete. The row is dropped and the
+  // list refreshed only on success.
   const deleteSession = useCallback(
     (sessionId: string) => {
       if (sessionId === state.sessionId) {
@@ -104,32 +121,32 @@ export function useSessionCatalog(
     [state.sessionId, abandonTurn, bridge, dispatch, refreshSessions, newSessionId],
   );
 
-  // A user-only catalog write (ADR-0021 pinning addendum): set the chat's pin state, then re-list
-  // so the switcher re-groups (the brain unions a pinned chat into the listing above the recency
-  // window). A failed pin leaves the list unchanged; the switcher simply keeps its old grouping.
+  // Set the chat's `pinned` state, then re-list, because the brain decides the new grouping.
   const setSessionPinned = useCallback(
     (sessionId: string, pinned: boolean) => {
       bridge
         .setSessionPinned(sessionId, pinned)
         .then(refreshSessions)
         .catch(() => {
-          // A lost write leaves the list as it is; the switcher simply does not re-group.
+          // A lost write leaves the list as it is; the switcher keeps its old grouping.
         });
     },
     [bridge, refreshSessions],
   );
 
+  // Both cycle keys announce. They are the reason the live region exists: a keystroke names no
+  // chat, the swap moves no focus, and the panel's whole contents change.
   const cyclePrev = useCallback(() => {
     const target = cycleTarget(state.sessions, state.sessionId, -1);
     if (target !== null) {
-      openSession(target);
+      openSession(target, true);
     }
   }, [state.sessions, state.sessionId, openSession]);
 
   const cycleNext = useCallback(() => {
     const target = cycleTarget(state.sessions, state.sessionId, 1);
     if (target !== null) {
-      openSession(target);
+      openSession(target, true);
     }
   }, [state.sessions, state.sessionId, openSession]);
 
