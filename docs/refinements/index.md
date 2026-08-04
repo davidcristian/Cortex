@@ -1357,7 +1357,7 @@ as the record of what an area's deferrals became.
   firing against a real placement is agent-side and sits under actionable now. The cap numbers are
   host work unchanged. None of this ever carried a count here.
 - The ~31B brain-tier injection-harness run **moved to
-  [docs/host/gpu-tier-scale.md](../host/gpu-tier-scale.md) on 2026-07-19**, where it sits behind
+  [docs/host/gpu-tier-scale.md](../host/gpu-tier-scale.md) on 2026-07-19**, where it sat behind
   the deep-model pick with the other four capstone items
   ([untrusted-content.md](untrusted-content.md) keeps its pointer stub).
   Its taint/provenance-persistence sibling **landed 2026-07-17** as the brain-handoff record's
@@ -1366,7 +1366,10 @@ as the record of what an area's deferrals became.
   from the record, so a tainted turn stays tainted and the output guardrail opens over the URL
   evidence the cortex collected (mutation-proven). The harness run itself, which needs the
   real ~31B tier, is the only part that outlived this bucket, and it left it for the user
-  directory rather than staying.
+  directory rather than staying. **It ran there on 2026-08-04**, by the agent once the hardware
+  premise that filed it was found false: 0 of 10 framed injections obeyed, the escalation stance
+  unchanged, and the procedure it owed written into
+  [runbooks/llamacpp-gpu.md](../runbooks/llamacpp-gpu.md). The stub carries the detail.
 - Nothing of the overlay's streamed-brain-status entry remains here: its producer became whole on
   2026-07-18 and the entry moved up to "actionable, but a seam or port change comes first"
   ([body-overlay.md](body-overlay.md)).
