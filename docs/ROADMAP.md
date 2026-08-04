@@ -350,10 +350,12 @@ initiative.
 
 **Status:** done 2026-07-18 ([ADR-0029](adr/ADR-0029-vision-screen-capture.md)), repaired
 2026-07-19 after three adversarial audits, and validated against the real cortex and its
-projector. Three measurements this repo can run on its own card are still owed and tracked
-as actionable in [refinements/vision.md](refinements/vision.md): an image arm for the
-injection-defence harness, whether thinking needs disabling on a vision turn, and
-`llama-server`'s `mmproj`-less error body text. See [runbooks/vision.md](runbooks/vision.md).
+projector. The three measurements this repo could run on its own card have all run: whether
+thinking needs disabling on a vision turn and `llama-server`'s `mmproj`-less error body text on
+2026-08-03, and the image arm of the injection-defence harness on 2026-08-04, which found the
+hardened preamble's content-manipulation clause holding over text and not over pixels. Each is
+recorded at that ADR with its entry in [refinements/vision.md](refinements/vision.md). See
+[runbooks/vision.md](runbooks/vision.md).
 
 The shape: a model-initiated built-in `capture_screen` tool over the unchanged `BodyGateway`
 (the volume precedent, so it inherits audit, the dispatch budget, taint marking, and
