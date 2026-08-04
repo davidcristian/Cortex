@@ -1011,7 +1011,10 @@ against the code (the warning above); the entry text tells you which seams it ex
   re-pins to the clamped edge and hands back a saved per-section edge when a roll closes. Centring
   the summon took it from constant to rare (0px on every measured everyday case, and a chat must
   grow 615px at a 900px viewport to reach the ceiling at all), which is why it can wait for an
-  answer instead of blocking.
+  answer instead of blocking. **Put to the user again 2026-08-04 and left unpicked by their answer**,
+  which spends the sitting on entries needing no preference instead. It stays in this bucket rather
+  than moving to another, because nothing about it is blocked on a seam, on hardware, or on a
+  consumer: it is the one actionable-now item whose whole remaining cost is a decision.
 - **A placement can be left computed for a height the panel no longer has**
   ([body-overlay.md](body-overlay.md)), found 2026-07-20 and **closed 2026-08-03** as the
   `ResizeObserver` it names, `overlay/panelWatch.ts`, driving the same placement the roll's end
