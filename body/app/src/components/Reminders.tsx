@@ -1,5 +1,9 @@
+import { type RefObject, useRef } from "react";
+
 import type { DueReminder } from "../bridge/types";
+import { caretKey, heir, useRowCaret } from "../overlay/rowCaret";
 import { usePresence } from "../overlay/usePresence";
+import { withdrawn } from "../overlay/withdrawn";
 import { Collapse } from "./Collapse";
 import { BellIcon, CheckIcon } from "./icons";
 import { relativeTime } from "./relativeTime";
@@ -7,6 +11,12 @@ import { relativeTime } from "./relativeTime";
 interface RemindersProps {
   readonly reminders: readonly DueReminder[];
   readonly currentId: string;
+  /**
+   * Where the caret goes when the last reminder is acked, which is the one case this stack cannot
+   * answer from inside itself: the section goes with its last row, so there is no list left to
+   * keep the caret in.
+   */
+  readonly anchor: RefObject<HTMLElement | null>;
   readonly onDismiss: (reminderId: string) => void;
   readonly onOpen: (sessionId: string) => void;
 }
@@ -26,18 +36,22 @@ function canOpen(reminder: DueReminder, currentId: string): boolean {
 export function Reminders({
   reminders,
   currentId,
+  anchor,
   onDismiss,
   onOpen,
 }: RemindersProps) {
   const now = Date.now();
   const stack = usePresence(reminders, (reminder) => reminder.reminderId);
+  const list = useRef<HTMLUListElement>(null);
+  const caret = useRowCaret(list, anchor);
+  const ack = (reminderId: string): void => {
+    onDismiss(reminderId);
+    caret(caretKey("ack", heir(reminders.map((held) => held.reminderId), reminderId)));
+  };
   return (
-    <ul className="reminders" aria-label="Due reminders">
+    <ul className="reminders" aria-label="Due reminders" ref={list}>
       {stack.entries.map(({ key, item: reminder, leaving }) => (
-        // The `<li>` is outside the roll and the row inside it: a list whose items are wrapper
-        // divs is not a list to a screen reader, and the hairline between two rows is drawn with
-        // an adjacent-sibling rule that a wrapper in between would silently switch off.
-        <li key={key} className="reminder-slot">
+        <li key={key} className="reminder-slot" {...withdrawn(leaving)}>
           <Collapse open={!leaving} onClosed={() => stack.released(key)}>
             <div className="reminder">
               <span className="reminder-mark" aria-hidden="true">
@@ -75,8 +89,9 @@ export function Reminders({
                 <button
                   type="button"
                   className="reminder-ack"
+                  data-caret={caretKey("ack", reminder.reminderId)}
                   aria-label="Dismiss reminder"
-                  onClick={() => onDismiss(reminder.reminderId)}
+                  onClick={() => ack(reminder.reminderId)}
                 >
                   <CheckIcon />
                 </button>

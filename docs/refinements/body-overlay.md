@@ -8,9 +8,10 @@ deferred-refinements section on 2026-07-15 with the entries kept verbatim; lande
 are the historical record of what each deferral became, and the index at
 [index.md](index.md) carries the recommended pickup order.
 
-**Open items:** 11. Multi-turn-within-one-stream + proto `Cancel`, streamed
-brain status (its producer landed 2026-07-18; only the push RPC remains), the switcher's and the
-reminder stack's own row gestures dropping focus with no swap to answer them,
+**Open items:** 12. Multi-turn-within-one-stream + proto `Cancel`, streamed
+brain status (its producer landed 2026-07-18; only the push RPC remains), a modified chord still
+reaching the overlay from inside a row's editor, a list that shrinks saying nothing where a chat
+arriving speaks,
 the two bounds the panel's section budget leaves behind it
 (a section's own frame being under no cap, and the room a closing section hands back in one frame),
 the two tradeoffs the reserved scrollbar rail accepts (its width
@@ -30,7 +31,12 @@ a reader following it would have opened a closed entry and never seen an open on
 the standing lesson **a count that is right by cancellation hides both of its errors**, which no
 count can catch and only reading the entries can, and which is now the third warning at
 [index.md](index.md) beside the one about cost estimates and the one about an entry's account of
-the code. A mid-stream retarget restarting from a rounded height and a resize that
+the code. **Moved again 2026-08-06, and this line says which way so the lesson above is not repeated
+on itself.** The row gestures it had just picked up landed the same day, as the caret staying in the
+list, and opened two behind them: a modified chord still reaching the overlay from inside the rename
+editor the caret now lands in, and a list that shrinks saying nothing where a chat arriving speaks.
+Eleven to twelve, one out and two in, which is a count that moved by less than the set did; the three
+names changed are all above. A mid-stream retarget restarting from a rounded height and a resize that
 lands inside the panel's own move waiting for it landed together on 2026-08-06, as the one piece of
 work they always were: the panel reads its used height with its sub-pixels and its watch asks what
 the panel would be rather than what the box says, so a growth that lands inside a move joins it one
@@ -1318,6 +1324,72 @@ the caret moves the sentence with it.
   its place or the list around it. It is one decision about what a list does with focus when it
   changes shape under the hand, plus small wiring per gesture (`SessionList.tsx`, `Reminders.tsx`).
   Nothing blocks it.
+  - **LANDED 2026-08-06 as one rule with three clauses**
+    ([ADR-0035 addendum](../adr/ADR-0035-console-and-motion.md)). A list that reshapes under the hand
+    keeps the caret: a row that changes SHAPE hands it to the control the new shape puts in the place
+    of the one that left; a row that LEAVES hands it to the same control in the row that inherits its
+    place, below where there is one and above for the last row; and a list with no row left hands it
+    to its anchor, a control the view holds outside the list. The decision was the implementer's, the
+    entry saying so, and the composite-row reading is what the switcher's own accessibility pass
+    forced: those rows are four buttons each and were taken out of `listbox` for exactly that reason,
+    so "the next option" has no referent and "the same column, one row down" does.
+    **The entry filed five gestures and there are thirteen**, which is the sibling entry's lesson
+    repeating one entry later. Measured at 900x900, all thirteen: a rename opening, committing by the
+    save button, committing by Enter and cancelling by Escape; a delete opening, cancelling, and
+    confirming against another chat, against the last row, against the only row and against the open
+    one; a reminder acked, the last reminder acked, and a pin toggled. Nine of them read `<body>` at
+    0ms and the mechanism is an UNMOUNT rather than the `inert` the entry above found for its own
+    doors: the row's shape change takes the pressed control out of the tree (`pencilInDom` 3 → 2 with
+    no slot `inert`), and a confirmed delete unmounts the confirm in the same commit that withdraws
+    the row, so `inert` is redundant there rather than the cause. The ack is the one that behaves as
+    filed, holding the caret at 0, 150 and 320ms and reading `<body>` at 350. **The pin toggle needs
+    no answer**, its button surviving the regroup it causes, focus held at every sample to 700ms.
+    **Two findings the entry did not have, both fixed here.** Escape cancelling a rename also
+    dismissed the whole panel: the editor closed the editor and the press carried on to the window
+    listener, so undoing a rename ended the session (the panel read `panel edge-live`, no `open`,
+    400ms later). And `?` typed into that editor opened the console, the global guard naming the
+    composer's textarea alone, so "why?" left `why` in the field and the settings pane over the row.
+    Both were reachable before and neither by accident, nothing having put the caret in that editor.
+    Both of the row's overlays now keep a cancelling Escape to themselves and the guard asks about
+    `HTMLInputElement` too.
+    **The confirm opens on its cancel, measured rather than argued.** With focus on the confirm's yes
+    one further Enter deleted the chat; with focus on its cancel the same press put the row back. The
+    pointer has no such hazard (the yes sits at x=633 against the trash's 528).
+    **At the commit, not at the end of the roll**, because the control being aimed at was on screen
+    all along and waiting would park the caret in two different places for 300ms: on `<body>` for a
+    switcher row, on an element animating to nothing for an ack. The panel does not notice, all at
+    60Hz: a confirmed delete leaves its box unchanged at top 108 and height 518 over 60 frames; an ack
+    runs 108 to 138.5 over 14 distinct boxes with a largest step of 6.14; the last ack, where the
+    section leaves and the caret crosses to the composer, runs 196.75 to 274 over 20 with a largest
+    step of 11.57; and the arrival rule's own trace is unmoved, a row press running 108 to 274 with a
+    largest top step of 25.58 against the 25.56 it landed at. Every `panel.scrollTop` and every log
+    `scrollTop` in those four traces is 0, which is `preventScroll` doing its job.
+    **What it cost**: `overlay/rowCaret.ts` (`heir`, `caretKey`, `useRowCaret`), the row's three shapes
+    split into `components/SessionRow.tsx`, an anchor prop on each list, the composer's field ref moved
+    up to `ChatView` so the stack has one, and the switcher's row withdrawal copied onto the reminder
+    stack, which the rule needs: with the caret moved on at the commit, an acked row kept two live tab
+    stops for its whole roll. One thing left open behind it, below.
+- **A modified chord still reaches the overlay from inside a row's editor.** Opened 2026-08-06 by the
+  entry above, which made the rename editor a place the caret lands rather than a place it is clicked
+  into. Escape and `?` are answered there now; `Ctrl+N`, `Ctrl+K` and the cycle keys are not, so
+  pressing `Ctrl+N` mid rename mints a new chat, closes the switcher and discards the edit. That is
+  arguably correct, a chord being a deliberate act rather than a character somebody is typing, and it
+  is the reason it was not changed with the other two; it is recorded because it was noticed and
+  decided rather than measured, and because the same question will be asked of the next field the
+  overlay grows. Neither behaviour is measured today. Cost is a few lines in `Overlay.tsx` if the
+  answer is that an open editor swallows chords too, or nothing at all if the answer is that it does
+  not. Nothing blocks it.
+- **A list that shrinks says nothing, where a chat arriving speaks.** Opened 2026-08-06 by the entry
+  above. The caret's landings all put focus on a control whose accessible name says what it is
+  ("Delete Reminders and recurrence", "Cancel delete", the pencil carrying the new title), which is
+  why no live region was added with the rule; but the change to the LIST is silent. A reader who
+  deletes a chat hears the name of the control they landed on and never hears that a row left, that
+  one row is left, or that the list is now empty, where the arrival rule's own region says which chat
+  arrived (`overlay/notice.ts`). The shapes are a second region for the list, a `role="status"` line
+  inside the switcher, or extending `notice` to carry more than a chat title, and the third is the one
+  that risks the most: that region is read by the panel's own announcer and its contract today is "the
+  conversation that arrived". Wants a measurement in a real reader before a shape is picked. Nothing
+  blocks it.
 - **The composer's draft belongs to no chat, and the caret now lands in it.** Opened 2026-08-06 by
   the focus rule above. The field is never unmounted, which is what keeps a draft alive across a trip
   to the console, and it keeps it across a chat swap too: measured at 900x900, "half a question"

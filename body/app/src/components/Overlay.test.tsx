@@ -211,6 +211,11 @@ describe("Overlay", () => {
     // In the composer a ? is just typing, never the console.
     fireEvent.keyDown(screen.getByLabelText("Message"), { key: "?" });
     expect(controller.toggleConsole).toHaveBeenCalledOnce();
+    const editor = document.createElement("input");
+    document.body.append(editor);
+    fireEvent.keyDown(editor, { key: "?" });
+    expect(controller.toggleConsole).toHaveBeenCalledOnce();
+    editor.remove();
   });
 
   it("Escape leaves the console in ONE press from either tab, without dismissing the panel", () => {

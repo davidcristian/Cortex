@@ -1,4 +1,4 @@
-import { type RefObject, useEffect } from "react";
+import { type RefObject, useEffect, useRef } from "react";
 
 import type { MarkStyle } from "../mark/marks";
 import { chatFloorRef } from "../overlay/measured";
@@ -77,6 +77,9 @@ export function ChatView({
   const showing = state.consoleTab === null;
   const log = useLogScroll(showing, column);
 
+  const chatsButton = useRef<HTMLButtonElement>(null);
+  const field = useRef<HTMLTextAreaElement>(null!);
+
   // Follow the stream: each message change (and the approval card) scrolls the tail into view,
   // unless the reader has scrolled up to read (then their place holds until they return).
   useEffect(log.toTail, [log.toTail, state.messages, state.pendingConfirm]);
@@ -90,6 +93,7 @@ export function ChatView({
         <LinkDot link={state.link} />
         <button
           className="hbtn"
+          ref={chatsButton}
           onClick={onToggleSwitcher}
           aria-label="Recent chats"
           aria-expanded={state.switcherOpen}
@@ -111,6 +115,7 @@ export function ChatView({
         <SessionList
           sessions={state.sessions}
           currentId={state.sessionId}
+          anchor={chatsButton}
           // Silent: the row IS the chat's name, so announcing would read the label back.
           onSelect={(sessionId) => onSelectSession(sessionId, false)}
           onRename={onRenameSession}
@@ -126,6 +131,7 @@ export function ChatView({
         <Reminders
           reminders={state.reminders}
           currentId={state.sessionId}
+          anchor={field}
           onDismiss={onDismissReminder}
           // Announced: "open chat" names the act and not the chat, so the title is news.
           onOpen={(sessionId) => onSelectSession(sessionId, true)}
@@ -175,6 +181,7 @@ export function ChatView({
         </div>
       </div>
       <Composer
+        field={field}
         busy={isTurnActive(state)}
         draft={draftOf(state.drafts, state.sessionId)}
         arrival={open && showing ? state.arrival : null}

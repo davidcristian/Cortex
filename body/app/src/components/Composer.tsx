@@ -1,8 +1,21 @@
-import { type KeyboardEvent, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import {
+  type KeyboardEvent,
+  type MutableRefObject,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 
 import { SendIcon, StopIcon } from "./icons";
 
 interface ComposerProps {
+  /**
+   * The field itself, held by the view above so that the panel's other surfaces can hand the caret
+   * back to the conversation.
+   */
+  readonly field: MutableRefObject<HTMLTextAreaElement>;
   readonly busy: boolean;
   /** What this conversation is holding, unsent. */
   readonly draft: string;
@@ -33,6 +46,7 @@ const STACKED = "stacked";
  * a few lines.
  */
 export function Composer({
+  field: fieldRef,
   busy,
   draft,
   arrival,
@@ -42,8 +56,8 @@ export function Composer({
   onResize,
 }: ComposerProps) {
   const [stacked, setStacked] = useState(false);
-  // Both are always mounted with the panel, so the refs are set before any effect runs.
-  const fieldRef = useRef<HTMLTextAreaElement>(null!);
+  // Both are always mounted with the panel, so the refs are set before any effect runs. The field's
+  // is the view's (see the prop), the pill's is this component's own.
   const pillRef = useRef<HTMLDivElement>(null!);
   // The pill's last measured height, so the container hears about a resize and not about a
   // keystroke. Starts at 0, which the first measurement is free to disagree with.

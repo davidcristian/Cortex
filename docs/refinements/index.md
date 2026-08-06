@@ -68,7 +68,7 @@ entries from it never added the two it opened, and there the count did move and 
 | [memory.md](memory.md) | Store, scoping, rerank/MMR, the ranked `select` and its recall trail, and the judge's default now that bounding its request made it twenty times cheaper at the same ranking, plus the two the ranked-recall close opened and neither this cell nor the area header picked up until 2026-08-06, a cross-encoder rank and an audit of the candidates a rank drops (ADR-0008/0038) | 9 |
 | [inference-model-manager.md](inference-model-manager.md) | Model-manager lifecycle, MTP, reasoning status, whose disable-thinking and token-cap halves now reach every pass that discards its own deliberation, leaving the user-facing reply as the whole of that entry and the count unmoved for a narrowing (ADR-0007/0020/0038) | 7 |
 | [subagents.md](subagents.md) | Progress reporting, spawn schema, heterogeneous roster (ADR-0010/0018) | 3 |
-| [body-overlay.md](body-overlay.md) | Overlay polish, connection indicator, proto Cancel (ADR-0011), the reserved scrollbar rail's assumed width and spent card inset, a section's roll ending 0.25px from where it was going, the two bounds the panel's section budget left behind it (a section's own frame being under no cap, and the room a closing section hands back arriving in one frame), the switcher's and the reminder stack's own row gestures dropping focus with no swap to answer them, and the whisper's follow-ups (ADR-0037): a pickable voice row, a mid-stream resize keeping the old wrap width, and kerning inside the letter boxes under a changed font (its drain-growth entry landed the day it was filed, and the console outliving a new chat, the reminder stack's per-row exit and the switcher's, the panel's watch on its own box with the arrival-aside correction that came out of it, the demo bridge over the line cap, two sections outrunning the panel on their own, the chat floor's frozen measurement of the empty state, the console tab strip's missing keyboard half, the switcher's disputed listbox role, the two motions its list still made in one frame, and a Thoughts trace opening a reply off the bottom of a full history all landed 2026-08-03, the last of them opening the chrome-side entry that landed 2026-08-04 on the same ride, alongside the cycle keys' silent swap, which opened the focus entry that landed 2026-08-06 as the caret following the conversation into the composer and opened two entries behind it, the row gestures above and the draft named below; the composer's move on a clamped shrink closed 2026-08-06 as moot, its mechanism having been deleted the day it was filed, and the retarget-and-resize pair landed 2026-08-06 as the panel measuring itself in fractional pixels, opening the roll entry that took its place; the composer's draft belonging to no chat landed 2026-08-06 too, the same day it was opened and the same day the user answered it, as unsent text keyed by session id in the reducer, which was the last entry anywhere waiting on a decision rather than on work) | 11 |
+| [body-overlay.md](body-overlay.md) | Overlay polish, connection indicator, proto Cancel (ADR-0011), the reserved scrollbar rail's assumed width and spent card inset, a section's roll ending 0.25px from where it was going, the two bounds the panel's section budget left behind it (a section's own frame being under no cap, and the room a closing section hands back arriving in one frame), a modified chord still reaching the overlay from inside a row's rename editor, a list that shrinks saying nothing where a chat arriving speaks, and the whisper's follow-ups (ADR-0037): a pickable voice row, a mid-stream resize keeping the old wrap width, and kerning inside the letter boxes under a changed font (its drain-growth entry landed the day it was filed, and the console outliving a new chat, the reminder stack's per-row exit and the switcher's, the panel's watch on its own box with the arrival-aside correction that came out of it, the demo bridge over the line cap, two sections outrunning the panel on their own, the chat floor's frozen measurement of the empty state, the console tab strip's missing keyboard half, the switcher's disputed listbox role, the two motions its list still made in one frame, and a Thoughts trace opening a reply off the bottom of a full history all landed 2026-08-03, the last of them opening the chrome-side entry that landed 2026-08-04 on the same ride, alongside the cycle keys' silent swap, which opened the focus entry that landed 2026-08-06 as the caret following the conversation into the composer and opened two entries behind it, both landed the same day: the draft named below, and the row gestures that swap nothing, answered by the caret staying in the list and opening the chord and the silent-shrink entries above; the composer's move on a clamped shrink closed 2026-08-06 as moot, its mechanism having been deleted the day it was filed, and the retarget-and-resize pair landed 2026-08-06 as the panel measuring itself in fractional pixels, opening the roll entry that took its place; the composer's draft belonging to no chat landed 2026-08-06 too, the same day it was opened and the same day the user answered it, as unsent text keyed by session id in the reducer, which was the last entry anywhere waiting on a decision rather than on work) | 12 |
 | [session-read-seam.md](session-read-seam.md) | Session listing/read seam, the generated title's empty-reply half closed 2026-08-06 by bounding its request (ADR-0021/0038) | 2 |
 | [resource-governance.md](resource-governance.md) | Scheduler/placer budgets, NPU, drain (ADR-0012) | 5 |
 | [email-confirmer.md](email-confirmer.md) | Email write, Confirmer, attachments, `ToolActivity` chip (ADR-0022) | 4 |
@@ -1135,6 +1135,19 @@ only survival of a restart that unsent text with no reader does not earn; and it
 all the same, because the delete cascade has to reach it and a swap has to hand it over
 synchronously, which also leaves it one hydrate from a store if that is ever wanted. Nothing opened
 behind it.
+
+Body & overlay then went **11 to 12 the same evening**, and the count moving by one while three names
+changed is the point rather than an accident, this file's newest warning being that a count right by
+cancellation hides both its errors. Out: the row gestures that swap nothing, answered as the caret
+staying in the list. In: a modified chord still reaching the overlay from inside the rename editor
+the caret now lands in, and a list that shrinks saying nothing where a chat arriving speaks. The
+closed entry named five gestures and there were thirteen, which is the same undercount its own
+predecessor made two entries earlier and by the same route, remembering the last report instead of
+reading the component. It also had the mechanism wrong in the opposite direction to that predecessor:
+these controls are unmounted by the row's shape change rather than blurred by `inert`, and the ack is
+the only one of the thirteen that behaves as filed. Two live defects turned up alongside and were
+fixed with it, neither about focus and both about the same seam: a cancelling Escape reached the
+window listener and dismissed the panel, and `?` typed into the rename editor opened the console.
 Session history held at 3 and untrusted content went 11 to 12 on 2026-08-06 when the summarizer's
 sharp deferral, an unfenced recap of tainted turns, closed by being fenced at both ends, and the
 counts moved that way because settling it corrected the premise and found something wider. The
@@ -1633,7 +1646,37 @@ against the code (the warning above); the entry text tells you which seams it ex
   rest at once, all measured at 900x900). Each wants an answer of its own shape rather than the
   composer, a rename editor its own input and a leaving row the row or the list around it, so it is
   one decision about what a list does with focus when it changes shape under the hand plus small
-  wiring per gesture. Nothing blocks it.
+  wiring per gesture. Nothing blocks it. **Closed the same day, the decision being the
+  implementer's** ([ADR-0035 addendum](../adr/ADR-0035-console-and-motion.md)): a list that reshapes
+  under the hand keeps the caret. A row that changes shape hands it to the control the new shape puts
+  in the place of the one that left, a row that leaves hands it to the same control in the row that
+  inherits its place, and a list with no row left hands it to its anchor, which is the header's chats
+  button for the switcher (still open, saying it holds nothing) and the composer's field for the
+  reminder stack (whose section leaves with its last row). The entry filed five gestures and there
+  are thirteen, its predecessor's lesson repeating one entry later, and the mechanism is an unmount
+  rather than the `inert` that predecessor found: a row's shape change takes the pressed control out
+  of the tree. Two findings it did not have, both fixed here: Escape cancelling a rename also
+  dismissed the whole panel, and `?` typed into that editor opened the console, the global guard
+  having named the composer's textarea alone. And two decisions made against measurement rather than
+  practice: the confirm opens on its cancel, since with focus on its yes one further Enter deleted
+  the chat, and the caret moves at the commit rather than at the end of the roll, since the control
+  aimed at was on screen all along. It opened the two entries below.
+- **A modified chord still reaches the overlay from inside a row's editor**
+  ([body-overlay.md](body-overlay.md)), opened 2026-08-06 by the answer above, which made the rename
+  editor somewhere the caret lands rather than somewhere it is clicked into. Escape and `?` are
+  answered there now; `Ctrl+N`, `Ctrl+K` and the cycle keys are not, so `Ctrl+N` mid rename mints a
+  new chat and discards the edit. Arguably correct, a chord being a deliberate act rather than a
+  character somebody is typing, which is why it was not changed with the other two; recorded because
+  it was decided rather than measured and because the next field the overlay grows asks it again.
+  Nothing blocks it.
+- **A list that shrinks says nothing, where a chat arriving speaks**
+  ([body-overlay.md](body-overlay.md)), opened 2026-08-06 by the same answer. Each landing puts focus
+  on a control whose accessible name says what it is, which is why no live region shipped with the
+  rule, but the change to the list is silent: a reader who deletes a chat never hears that a row
+  left, that one is left, or that the list is empty, where the swap rule's region says which chat
+  arrived. The shapes are a second region, a `role="status"` line inside the switcher, or widening
+  `notice`, and the last risks the most, its contract today being "the conversation that arrived".
+  Wants a measurement in a real reader before a shape is picked. Nothing blocks it.
 - **The composer's draft belongs to no chat, and the caret now lands in it**
   ([body-overlay.md](body-overlay.md)), opened 2026-08-06 by the same answer. The field is never
   unmounted, which is what carries a draft to the console and back, and it carries it across a chat

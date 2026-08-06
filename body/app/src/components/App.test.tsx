@@ -127,6 +127,28 @@ describe("App", () => {
     expect(document.activeElement).toBe(screen.getByLabelText("Message"));
   });
 
+  it("keeps the caret in the switcher for a delete that swaps nothing", async () => {
+    const bridge = new FakeBridge();
+    bridge.sessions = [
+      { sessionId: "s1", title: "About cats", preview: "p1", lastActivityUnixMs: 3, pinned: false },
+      { sessionId: "s2", title: "About swaps", preview: "p2", lastActivityUnixMs: 2, pinned: false },
+      { sessionId: "s3", title: "About rain", preview: "p3", lastActivityUnixMs: 1, pinned: false },
+    ];
+    await renderApp(bridge);
+    activate();
+    await act(async () => {});
+    fireEvent.click(screen.getByLabelText("Recent chats"));
+    fireEvent.click(screen.getByLabelText("Delete About swaps"));
+    // The confirm opens on its cancel, not on the trash that would delete on one more press.
+    expect(document.activeElement).toBe(screen.getByLabelText("Cancel delete"));
+    fireEvent.click(screen.getByLabelText("Confirm delete About swaps"));
+    expect(document.activeElement).toBe(screen.getByLabelText("Delete About rain"));
+    await act(async () => {});
+    expect(bridge.deletes).toEqual(["s2"]);
+    expect(document.activeElement).toBe(screen.getByLabelText("Delete About rain"));
+    expect(document.activeElement).not.toBe(screen.getByLabelText("Message"));
+  });
+
   it("keeps each chat's half-typed question with the chat it was typed into", async () => {
     const bridge = new FakeBridge();
     bridge.sessions = [

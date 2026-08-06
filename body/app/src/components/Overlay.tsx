@@ -21,6 +21,14 @@ interface OverlayProps {
   readonly onToggleTheme: () => void;
 }
 
+/**
+ * Whether a key landed in a field somebody is writing in, which is where `?` is a character and
+ * not a shortcut.
+ */
+function typing(target: EventTarget | null): boolean {
+  return target instanceof HTMLTextAreaElement || target instanceof HTMLInputElement;
+}
+
 export function Overlay({
   controller,
   dark,
@@ -66,7 +74,7 @@ export function Overlay({
         } else if (state.mode !== "hidden") {
           dismiss();
         }
-      } else if (event.key === "?" && !(event.target instanceof HTMLTextAreaElement)) {
+      } else if (event.key === "?" && !typing(event.target)) {
         event.preventDefault();
         toggleConsole("shortcuts");
       } else if (mod && event.key.toLowerCase() === "n") {
