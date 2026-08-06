@@ -327,3 +327,82 @@ hedging. And the flattery: **one corpus, hand-built by the author of the feature
 placed exactly where a summary would keep it. It shows the mechanism works. It is not a benchmark,
 and 11 s on the turns where the boundary moves is why `CORTEX_HISTORY_SUMMARY` still ships off:
 a deployment that would rather wait than forget opts in.
+
+## Untrusted-recap addendum (2026-08-06)
+
+The summarizing-window addendum left one deferral marked as the sharp one: a recap of tainted
+turns is not fenced. Settling it found the premise wrong and the real exposure a different shape,
+so this records what is true, what was built, and what was deliberately not built.
+
+**The prefix a recap reads holds no tool output.** `TurnEngine.handle_turn` appends exactly two
+messages per turn: the raw `Role.USER` text and the `Role.ASSISTANT` reply the output guardrail
+already scrubbed. The `Role.TOOL` message carrying an untrusted payload lives in the turn's
+working list and dies with the turn, which `Role`'s own docstring states and which the
+tainted-memory decline established for the record path. The recap therefore cannot read a tool
+result, and the entry's "untrusted tool results in the prefix" was never reachable.
+
+**Nor is there a bit to key a refusal on.** A stored `Message` carries role, text, timestamp,
+turn id and the turn-local tool fields, and nothing else; taint is a `TaintLedger` rebuilt per
+turn and never persisted, and `SessionStore` has no verb that would report it. So "refuse a recap
+when the prefix is tainted", the fail-closed option the deferral imagined, has nothing to read.
+Making it readable is a store schema change, and it would only ever narrow a fence that is
+cheaper to apply unconditionally.
+
+**What is reachable is the assistant's own quotation, and it is enough.** `SECURITY_PREAMBLE`
+expressly permits quoting untrusted content, so a reply to "summarize this email" may carry an
+injection verbatim, and that reply is persisted. Two things the recap then did that the plain
+window does not:
+
+1. **It made a bare model call over that text under an instruction to process it.** This is the
+   summarizer-as-target shape the tainted-memory work declined on the record path, arriving on
+   the read path instead. The reasoning that declined it there does not decline it here, because
+   there the summary bought no safety over an exchange that was already fenced on recall, whereas
+   here the pass is the feature: the alternative is not "store the raw text instead", it is "have
+   no recap".
+2. **It promoted the answer.** The recap enters as `Role.SYSTEM`, the most trusted position in a
+   turn, is cached in Redis, and is folded forward for the life of the session. A laundered
+   sentence would therefore outlive by an unbounded margin the assistant message it came from,
+   which the window drops.
+
+### Decision: fence both ends, unconditionally, without spreading taint
+
+The recap prompt carries `SECURITY_PREAMBLE` verbatim as its system message and quotes both the
+dropped transcript and the previous account inside `wrap_untrusted`, under one nonce minted for
+that call, the way a turn's tool results share the turn's. The instruction that names them stays
+outside every fence, so the only text the prompt asks the model to obey is text this repo wrote.
+The recap then enters a turn through `fence_recap`, wrapped under a **second** nonce minted after
+the model has spoken. That ordering is the load-bearing part rather than a detail: a shared nonce
+would hand a compromised summarizer the one string that ends its own fence, and a nonce cached
+alongside the recap text would be a session-long secret instead of a per-selection one. Neither
+wrap takes an argument or sits behind a condition, so no state of the window produces an unfenced
+recap; the fence is a property of the only two functions that build these messages, not of a
+caller remembering to ask. The recap explains its markers in its own text, because a window
+cannot know whether the turn it feeds will also carry the preamble (which is prepended only for a
+tool-enabled or already-tainted turn), and an unexplained marker is worse than none.
+
+**Taint is deliberately not spread by a recap**, and this is the one place the decision trades
+safety for usefulness knowingly. Spreading it would close the outbound surface (a tainted gated
+call is hard-denied) on every turn of every long conversation for the rest of its life, whether
+or not a tool ever ran, which is the "too blunt" failure the fence-without-block recall mode is
+already open against. It would also be inconsistent: the plain window hands the model the same
+assistant messages, unfenced and untainted, on every turn until they age out, so tainting the
+narrower derived artifact while its own source stays trusted would be theatre. That inconsistency
+is a real finding rather than an excuse, and it is recorded as its own entry in the
+untrusted-content area, where it belongs; it is wider than this feature and predates it.
+
+**What it costs.** The recap now reads as data rather than as the assistant's own notes. The
+preamble tells the model that fenced content is inert information to analyze or quote, so the
+facts should still be usable, but "should" is the word: the measurement in the addendum above ran
+before the fence and has not been re-run behind it. The safety direction needs no model (it is
+structural, and asserted against what falls outside the fences), but the usefulness direction
+does, and it is recorded as open beside the one-corpus entry, which wants the same run.
+
+**Alternatives rejected.** *Refusing the recap on a tools-enabled deployment* is fail-closed and
+structural, but it does not close what it claims (a user can paste untrusted text into their own
+message in a tool-less deployment too) and it kills the only deployment the feature is interesting
+in. *A persisted per-turn taint marker*, which would let both the fence and the refusal be
+precise, is a `SessionStore` schema change bought for a narrowing rather than for a protection,
+and the unconditional fence is strictly safer than any predicate over it. *Declining the feature
+outright* was weighed against the fact that the recap's input is exactly the corpus the plain
+window already sends the model; what the recap adds is the call and the promotion, and both are
+fixable at their own site, which is what this does.
