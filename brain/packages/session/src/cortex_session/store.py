@@ -20,12 +20,14 @@ from typing import cast
 from redis.asyncio import Redis
 from redis.exceptions import RedisError
 
-from cortex_core import Message, SessionStoreError, SessionSummary, merge_pinned, summarize_ends
-
-# The recap value is imported from its defining module rather than the `cortex_core` barrel,
-# which is at its 300-line cap (docs/refinements/repo-gates.md): windowing's new public names
-# are reached through their own modules so the barrel does not have to grow for them.
-from cortex_core.sessions import HistoryRecap
+from cortex_core import (
+    HistoryRecap,
+    Message,
+    SessionStoreError,
+    SessionSummary,
+    merge_pinned,
+    summarize_ends,
+)
 from cortex_session.store_codec import (
     decode_message,
     decode_recap,

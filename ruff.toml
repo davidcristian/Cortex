@@ -39,6 +39,9 @@ max-args = 6
 "scripts/*.py" = [
   "T201", # the repo gates are CLIs; reporting via stdout/stderr is their contract
 ]
+"brain/packages/core/src/cortex_core/__init__.py" = [
+  "F403", # the barrel re-exports its area sub-barrels wholesale; each declares its own __all__
+]
 "**/tests/**" = [
   "S101",    # tests use bare asserts by design (pytest)
   "PLR2004", # magic values in assertions are the point of a test

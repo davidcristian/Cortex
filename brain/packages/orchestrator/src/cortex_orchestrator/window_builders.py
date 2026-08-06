@@ -6,12 +6,14 @@ Split out of ``builders.py`` for the line cap when the summarizing window arrive
 the core never reads an environment variable to make it.
 """
 
-from cortex_core import CharBudgetHistoryWindow, Clock, InferenceBackend, SessionStore
-
-# Windowing's newer public names are reached through their own modules rather than the
-# `cortex_core` barrel, which is at its 300-line cap (docs/refinements/repo-gates.md).
-from cortex_core.summarizing import SummarizingHistoryWindow
-from cortex_core.windowing import HistoryWindow
+from cortex_core import (
+    CharBudgetHistoryWindow,
+    Clock,
+    HistoryWindow,
+    InferenceBackend,
+    SessionStore,
+    SummarizingHistoryWindow,
+)
 
 
 def build_history_window(
