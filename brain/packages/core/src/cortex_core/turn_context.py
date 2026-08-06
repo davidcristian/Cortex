@@ -113,9 +113,12 @@ async def assemble_inference_messages(
     reply asks for it. Memory recall runs next: a tainted recalled memory is
     fenced and taints ``context.taint`` (ADR-0019). The untrusted-content ``SECURITY_PREAMBLE``
     is prepended when tools are enabled (a tool-enabled turn can ingest untrusted content) OR a
-    tainted memory was recalled. The fence markers are therefore always explained; the recalled
-    memories follow it. All are derived fresh each turn, handed only to the backend, never
-    persisted. A bare turn (no tools, no memory, no window) returns the history unchanged.
+    tainted memory was recalled. The fence markers this assembly draws are therefore always
+    explained; the recalled memories follow it. A summarizing window's recap carries markers of
+    its own on a turn that may have neither tools nor taint, which is why it explains them in its
+    own text instead of relying on the preamble being there. All are derived fresh each turn,
+    handed only to the backend, never persisted. A bare turn (no tools, no memory, no window)
+    returns the history unchanged.
     """
     if caps.window is not None:
         history = await caps.window.select(history, session_id=context.session_id)

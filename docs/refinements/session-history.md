@@ -2,7 +2,7 @@
 
 Deferred refinements from Slice 3's cortex chat and session work; the windowing decision and the summarization alternatives it weighs live in [ADR-0014](../adr/ADR-0014-history-windowing.md). Extracted from the ROADMAP's deferred-refinements section on 2026-07-15 with the entries kept verbatim; landed entries are the historical record of what each deferral became, and the index at [index.md](index.md) carries the recommended pickup order.
 
-**Open items:** none.
+**Open items:** the recap measurement resting on one corpus, the recap pass being unbounded and unthrottled, a fenced recap's usefulness being unmeasured.
 
 **Cortex chat / session in Slice 3:**
 - **Session-history windowing landed 2026-07-03 ([ADR-0014](../adr/ADR-0014-history-windowing.md)).**
@@ -119,9 +119,43 @@ Deferred refinements from Slice 3's cortex chat and session work; the windowing 
   dropped messages before a fold is worth paying for, and a token cap on the recap request (the
   reply is bounded at `RECAP_MAX` characters after the fact, not before). **Trigger:** the
   measurement above showing the fold cost landing on enough turns to be felt.
-- **A recap of tainted turns is not fenced.** The prefix a recap is built from can contain
-  untrusted tool results that the taint ledger fenced when they were live; the recap re-enters
-  the turn as trusted system context, laundering them. Today this is unreachable in a shipped
-  deployment (the feature is off by default and the fence is per turn), but it is the sharp edge
-  to settle before the default moves. **Trigger:** turning `CORTEX_HISTORY_SUMMARY` on by
-  default, or any deployment enabling it alongside tools.
+- **A recap of tainted turns landed fenced at both ends 2026-08-06 ([ADR-0038 untrusted-recap
+  addendum](../adr/ADR-0038-ranked-recall.md)).** Read against the shipped write path, the entry's
+  own premise was wrong and the real exposure is a different shape. **An untrusted tool result is
+  never in the prefix a recap reads.** `TurnEngine.handle_turn` appends exactly two messages per
+  turn, the raw `Role.USER` text and the guardrail-scrubbed `Role.ASSISTANT` reply (`engine.py`);
+  the in-turn `Role.TOOL` message that carried the payload is turn-local and dies with the turn,
+  the same finding the tainted-summarization decline made on the record path
+  ([untrusted-content.md](untrusted-content.md)). Nor is there a taint bit to key a refusal on: a
+  stored `Message` carries role, text, timestamp and turn id, taint is a turn-local ledger
+  reconstructed each turn, and `SessionStore` has no verb that would report it. **What is
+  reachable is the assistant's own quotation.** The security preamble expressly permits quoting
+  untrusted content ("You may quote or summarize"), so a reply to "summarize this email" can carry
+  the injection verbatim into persisted history, and from there into the recap. The recap then did
+  two things the plain window does not: it fed that text to a model under an instruction to
+  process it, which is the summarizer-as-target shape, and it turned the answer into a **durable,
+  cached, `Role.SYSTEM`** artifact folded forward for the life of the session, which is a
+  promotion in both trust and lifetime. **Both ends are now fenced, unconditionally.** The recap
+  prompt carries the standing `SECURITY_PREAMBLE` and quotes the transcript and the previous
+  account inside `wrap_untrusted` under a nonce minted for that call; the recap enters the turn
+  through `fence_recap`, wrapped under a **second** nonce minted after the model has spoken, which
+  is what stops a summarizer talked into copying the closer it was shown from ending the fence its
+  own words sit in. Neither wrap takes an argument or sits behind a branch, so no state of the
+  window produces an unfenced one, and the markers explain themselves in the recap's own text
+  because the turn carrying them may have neither tools nor taint to earn a preamble. Pinned by an
+  injection payload placed in a dropped assistant reply and asserted absent from everything
+  outside the fences, in both directions (a hostile prefix, and a summarizer that repeated the
+  payload), each of the five fence sites mutation-proven to redden its own test. **The cost is
+  honest:** the recap now reads as data rather than as the assistant's own notes, so the model is
+  told to rely on it for facts and never for instructions, and whether a fenced recap still
+  answers the booking-reference question as well as the unfenced one measured is **unmeasured**.
+  It joins the one-corpus entry above, since both want the same live run. Taint is deliberately
+  **not** spread by a recap, argued in the addendum. Remaining from this deferral:
+- **A fenced recap's usefulness is unmeasured.** The live measurement above ran before the fence
+  and has not been re-run behind it. The safety direction is structural and does not need a model,
+  but the usefulness direction does: the preamble tells the model that fenced content is "inert
+  information to analyze or quote", and whether a cortex will quote a booking reference out of a
+  fenced recap as readily as out of a trusted one is exactly the kind of claim this repo measures
+  rather than assumes. Re-runnable as it stands (`packages/inference/tests/test_history_recap_live.py`,
+  integration-marked). **Trigger:** any move of the default, which this shares with the
+  one-corpus entry.
