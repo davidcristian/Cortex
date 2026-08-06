@@ -8,6 +8,7 @@ import {
   MORPH_ROLL_MS,
   MORPH_START_EVENT,
 } from "../overlay/morph";
+import { heightOf } from "../overlay/panelMemory";
 
 // A section that rolls open and shut instead of appearing and vanishing.
 //
@@ -73,17 +74,24 @@ export function Collapse({ open, aside = false, enter = false, onClosed, childre
     at.current = open;
     // Mid-roll the animation overrides the height, so read the displayed value BEFORE cancelling
     // and the natural one after: a reopened section carries on from where it had rolled to.
-    // `offsetHeight` rather than the rect, because the panel around this is scaled through a summon
-    // and the rect is measured after that transform: at boot the stack rolled to a target 8% short
-    // of its content and snapped the last 16px on when the roll ended.
+    // The used height off the computed style (`heightOf`), which is what the panel reads its own box
+    // with, so the roll's target and the panel's prediction of where it leaves the panel are the
+    // same measurement. Not the rect, because the panel around this is scaled through a summon and
+    // the rect is measured after that transform: at boot the stack rolled to a target 8% short of
+    // its content and snapped the last 16px on when the roll ended. Not `offsetHeight` either,
+    // which ignores the transform but rounds: an opening roll deliberately does not fill, so a
+    // section whose layout height is fractional was handed back to its own layout 0.25px from where
+    // the keyframes had just painted it, and a closing roll started the same 0.25px above where the
+    // eye had it (measured over the demo at 900x1000: the reminder stack's aside stands at 193.75px
+    // and rolled to 194).
     const live = running.current !== null && running.current.playState === "running";
-    const displayed = live ? element.offsetHeight : open ? 0 : null;
+    const displayed = live ? heightOf(element) : open ? 0 : null;
     running.current?.cancel();
     running.current = null;
     // A close with nothing to animate commits its collapsed height inline (see below), so hand the
     // height back to layout before asking what the content is worth.
     element.style.height = "";
-    const natural = element.offsetHeight;
+    const natural = heightOf(element);
     const from = displayed ?? natural;
     const to = open ? natural : 0;
     const finish = () => {
