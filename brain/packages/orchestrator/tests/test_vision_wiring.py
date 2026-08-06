@@ -16,15 +16,20 @@ from cortex_body_client import GrpcBodyGateway
 from cortex_core import (
     CAPTURE_SCREEN_TOOL_NAME,
     GET_VOLUME_TOOL_NAME,
+    BodyGateway,
     BrainPhase,
     BuiltinTool,
     CaptureAsk,
     InMemoryBodyGateway,
+    ScriptedVisionProbe,
     ToolCall,
+    ToolDispatcher,
     TurnCapabilities,
 )
 from cortex_orchestrator import build_builtin_tools, run_from_env, wiring
-from cortex_orchestrator.vision import vision_enabled
+from cortex_orchestrator.builders import build_cortex_tools
+from cortex_orchestrator.config import BodyConfig, InferenceConfig
+from cortex_orchestrator.vision import build_vision
 from cortex_seam import BrainServiceStub, ClientEvent, ServerEvent, UserTurn
 from cortex_session import RedisSessionStore
 
@@ -41,12 +46,18 @@ class _Root:
 
     def __init__(self) -> None:
         self.builtin_sets: list[list[BuiltinTool]] = []
-        self.probes: list[tuple[str, str]] = []
+        self.builds: list[tuple[str, str]] = []
+        self.dispatchers: list[ToolDispatcher] = []
         self.deep_capabilities: list[TurnCapabilities] = []
+        self.scripted: ScriptedVisionProbe | None = None
         self.body = InMemoryBodyGateway()
 
     def names(self, which: int) -> list[str]:
         return [tool.spec.name for tool in self.builtin_sets[which]]
+
+    async def offered(self) -> set[str]:
+        """What the cortex's own dispatcher advertises, which is what the model is offered."""
+        return {spec.name for spec in await self.dispatchers[0].describe_tools()}
 
     async def deep_tools(self) -> set[str]:
         (deep,) = self.deep_capabilities
@@ -57,11 +68,49 @@ class _Root:
         return self.body.captures
 
 
+def _record(monkeypatch: pytest.MonkeyPatch, root: _Root, vision_answers: tuple[bool, ...]) -> None:
+    """Wrap the four root collaborators whose arguments and products this suite reads back."""
+    real_builtins = build_builtin_tools
+    real_vision = build_vision
+    real_tools = build_cortex_tools
+    real_phase = BrainPhase
+
+    def recording_builtins(*args: object, **kwargs: object) -> list[BuiltinTool]:
+        built = real_builtins(*args, **kwargs)  # pyright: ignore[reportCallIssue, reportArgumentType]
+        root.builtin_sets.append(built)
+        return built
+
+    def recording_vision(
+        config: InferenceConfig, body_config: BodyConfig, body: object
+    ) -> tuple[object, object, Callable[[], Awaitable[None]]]:
+        root.builds.append((config.vision, config.endpoint))
+        bounds, probe, close = real_vision(config, body_config, cast("BodyGateway | None", body))
+        if vision_answers and probe is not None:
+            root.scripted = ScriptedVisionProbe(vision_answers)
+            probe = root.scripted
+        return bounds, probe, close
+
+    def recording_tools(*args: object, **kwargs: object) -> ToolDispatcher | None:
+        built = real_tools(*args, **kwargs)  # pyright: ignore[reportCallIssue, reportArgumentType]
+        if built is not None:
+            root.dispatchers.append(built)
+        return built
+
+    def recording_phase(*args: object) -> object:
+        root.deep_capabilities.append(cast("TurnCapabilities", args[-1]))
+        return real_phase(*args)  # pyright: ignore[reportCallIssue, reportArgumentType]
+
+    monkeypatch.setattr(wiring, "build_builtin_tools", recording_builtins)
+    monkeypatch.setattr(wiring, "build_vision", recording_vision)
+    monkeypatch.setattr(wiring, "build_cortex_tools", recording_tools)
+    monkeypatch.setattr(wiring, "BrainPhase", recording_phase)
+
+
 async def _compose(
     monkeypatch: pytest.MonkeyPatch,
     *,
     env: dict[str, str],
-    vision_answer: bool | None = None,
+    vision_answers: tuple[bool, ...] = (),
 ) -> _Root:
     """Run the real composition root against a fake body, one turn, then shut it down."""
     root = _Root()
@@ -90,28 +139,7 @@ async def _compose(
 
     monkeypatch.setattr(GrpcBodyGateway, "connect", fake_connect)
 
-    real_builtins = build_builtin_tools
-    real_probe = vision_enabled
-    real_phase = BrainPhase
-
-    def recording_builtins(*args: object, **kwargs: object) -> list[BuiltinTool]:
-        built = real_builtins(*args, **kwargs)  # pyright: ignore[reportCallIssue, reportArgumentType]
-        root.builtin_sets.append(built)
-        return built
-
-    async def recording_probe(mode: str, endpoint: str) -> bool:
-        root.probes.append((mode, endpoint))
-        if vision_answer is not None:
-            return vision_answer
-        return await real_probe(mode, endpoint)
-
-    def recording_phase(*args: object) -> object:
-        root.deep_capabilities.append(cast("TurnCapabilities", args[-1]))
-        return real_phase(*args)  # pyright: ignore[reportCallIssue, reportArgumentType]
-
-    monkeypatch.setattr(wiring, "build_builtin_tools", recording_builtins)
-    monkeypatch.setattr(wiring, "vision_enabled", recording_probe)
-    monkeypatch.setattr(wiring, "BrainPhase", recording_phase)
+    _record(monkeypatch, root, vision_answers)
 
     task = asyncio.create_task(
         run_from_env(store_factory=lambda _url: RedisSessionStore(FakeAsyncRedis(server=server)))
@@ -144,41 +172,65 @@ async def test_the_probes_answer_decides_whether_the_screen_is_offered(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Discovered, not declared: the same env, the same body, and only the probe's verdict differs.
-
-    The probe's arguments are read back too, because the root passing the wrong pair (a constant
-    mode, or the endpoint as the mode) would leave a suite that only checks the outcome green.
     """
     seeing = await _compose(
         monkeypatch,
         env={**_BODY, "CORTEX_VISION": "auto", "CORTEX_INFERENCE_ENDPOINT": "http://cortex:8080"},
-        vision_answer=True,
+        vision_answers=(True,),
     )
-    assert seeing.probes == [("auto", "http://cortex:8080")]
-    assert CAPTURE_SCREEN_TOOL_NAME in seeing.names(0)
+    assert seeing.builds == [("auto", "http://cortex:8080")]
+    assert CAPTURE_SCREEN_TOOL_NAME in await seeing.offered()
 
     blind = await _compose(
         monkeypatch,
         env={**_BODY, "CORTEX_VISION": "auto", "CORTEX_INFERENCE_ENDPOINT": "http://cortex:8080"},
-        vision_answer=False,
+        vision_answers=(False,),
     )
-    assert blind.probes == [("auto", "http://cortex:8080")]
-    assert CAPTURE_SCREEN_TOOL_NAME not in blind.names(0)
-    assert GET_VOLUME_TOOL_NAME in blind.names(0), "the body's other tools are unaffected"
+    assert blind.builds == [("auto", "http://cortex:8080")]
+    offered = await blind.offered()
+    assert CAPTURE_SCREEN_TOOL_NAME not in offered
+    assert GET_VOLUME_TOOL_NAME in offered, "the body's other tools are unaffected"
+
+
+async def test_a_capture_the_model_can_no_longer_read_reads_no_pixels(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The reproduced failure, refused at the root: advertised honestly, then the server changed."""
+    root = await _compose(
+        monkeypatch,
+        env={**_BODY, "CORTEX_VISION": "auto", "CORTEX_INFERENCE_ENDPOINT": "http://cortex:8080"},
+        vision_answers=(True,),
+    )
+    assert CAPTURE_SCREEN_TOOL_NAME in await root.offered(), "honest when it was advertised"
+    assert root.scripted is not None
+    # The model host is recreated without its projector, under a brain that never restarts.
+    root.scripted.rescript([False])
+
+    result = await root.dispatchers[0].dispatch(
+        ToolCall(id="c1", name=CAPTURE_SCREEN_TOOL_NAME, arguments={})
+    )
+
+    assert result.is_error is True
+    assert "the screen was not read" in result.content
+    assert await root.captures() == (), "the body was never asked for a picture"
 
 
 async def test_the_owners_off_switch_needs_no_server_to_be_believed(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """``off`` is resolved by the real ``vision_enabled``, so no HTTP happens and no tool lands."""
+    """``off`` is resolved by the real ``build_vision``, so no tool lands and nothing is probed."""
     root = await _compose(monkeypatch, env={**_BODY, "CORTEX_VISION": "off"})
-    assert root.probes == [("off", "")]
+    assert root.builds == [("off", "")]
     assert CAPTURE_SCREEN_TOOL_NAME not in root.names(0)
+    assert CAPTURE_SCREEN_TOOL_NAME not in await root.offered()
 
 
-async def test_without_a_body_the_probe_never_runs(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_without_a_body_nothing_is_built_to_probe_with(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """No body, no capture, so there is no reason to ask a model server anything."""
     root = await _compose(monkeypatch, env={"CORTEX_VISION": "on"})
-    assert root.probes == []
+    assert root.builds == [("on", "")]
     assert CAPTURE_SCREEN_TOOL_NAME not in root.names(0)
 
 

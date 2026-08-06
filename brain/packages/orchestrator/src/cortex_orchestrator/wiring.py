@@ -6,7 +6,6 @@ from dataclasses import replace
 from cortex_core import (
     AsyncioSleeper,
     BrainPhase,
-    CaptureBounds,
     Confirmer,
     EscalatingTurnEngine,
     ProgressSink,
@@ -50,7 +49,7 @@ from cortex_orchestrator.server import SeamPorts, serve
 from cortex_orchestrator.stores import RedisStores
 from cortex_orchestrator.subagent_builders import build_subagent_tools, build_subagents
 from cortex_orchestrator.swap_builders import build_swap_runtime, swap_closer
-from cortex_orchestrator.vision import vision_enabled
+from cortex_orchestrator.vision import build_vision
 from cortex_session import RedisPreferenceStore, RedisSessionStore
 
 
@@ -95,11 +94,7 @@ async def run_from_env(
         ),
     )
     schedules, close_schedules = build_schedule(schedule_config, runtime.redis_url)
-    capture: CaptureBounds | None = None
-    if body is not None and await vision_enabled(inference.vision, inference.endpoint):
-        capture = CaptureBounds(
-            max_edge=body_config.capture_max_edge, max_bytes=body_config.max_image_bytes
-        )
+    capture, sight, close_vision = build_vision(inference, body_config, body)
     schedule_tools = build_schedule_tools(
         schedule_config, schedules, clock, tasks_enabled=spawn_tool is not None
     )
@@ -142,6 +137,7 @@ async def run_from_env(
                     clock,
                     confirmer=confirmer,
                     policy=tools_config.dispatch_policy,
+                    vision=sight,
                 ),
                 window=build_history_window(runtime.history_char_budget),
                 guardrail=build_output_guardrail(runtime.output_guardrail),
@@ -205,6 +201,7 @@ async def run_from_env(
         )
     finally:
         await stop_ticker(ticker, ticker_task)
+        await close_vision()
         await swap_closer(swap)()
         await close_schedules()
         await close_body()

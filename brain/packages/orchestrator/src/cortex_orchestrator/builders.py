@@ -27,6 +27,7 @@ from cortex_core import (
     InferenceBackend,
     ModelManager,
     SetVolumeTool,
+    SightedToolRegistry,
     SingleResidentModelManager,
     SkipUnavailableToolRegistry,
     SpawnSubagentsTool,
@@ -35,6 +36,7 @@ from cortex_core import (
     ToolError,
     ToolRegistry,
     UrlRedactingGuardrail,
+    VisionProbe,
 )
 from cortex_inference import LlamaCppBackend
 from cortex_orchestrator.config import BodyConfig, InferenceConfig
@@ -160,11 +162,14 @@ def build_cortex_tools(
     *,
     confirmer: Confirmer | None = None,
     policy: DispatchPolicy = DEFAULT_DISPATCH_POLICY,
+    vision: VisionProbe | None = None,
 ) -> ToolDispatcher | None:
     """The cortex's audited dispatcher: the built-in set merged with the MCP tools."""
     if not builtins and tool_registry is None:
         return None
-    registry = CompositeToolRegistry(builtins, remote=tool_registry)
+    registry: ToolRegistry = CompositeToolRegistry(builtins, remote=tool_registry)
+    if vision is not None:
+        registry = SightedToolRegistry(registry, vision)
     return ToolDispatcher(
         registry,
         LoggingAuditSink(),

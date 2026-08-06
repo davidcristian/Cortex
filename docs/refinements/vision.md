@@ -6,13 +6,12 @@ downscale/encode/byte-bounding policy in pure `body_core`, a GDI Windows backend
 treated as untrusted and unfenceable content. Recorded when the slice landed on 2026-07-18; the
 index at [index.md](index.md) carries the recommended pickup order.
 
-**Open items:** the user-attached image path, region and window capture, a
-live-probe refresh, JPEG or WebP for photographic screens,
+**Open items:** the user-attached image path, region and window capture,
+JPEG or WebP for photographic screens,
 an `AttachmentStore` for accountability,
 per-source memory rules, a Windows.Graphics.Capture backend, multi-monitor and DPI reporting,
 Linux and macOS backends, a uniform per-call deadline, `RESOURCE_EXHAUSTED` classification,
-pixel screening in the body, carrying a picture across a model swap, and an outcome-driven capture
-indicator.
+pixel screening in the body, and carrying a picture across a model swap.
 
 Two bookkeeping notes, both settled 2026-07-19, so the names above can be reconciled against the
 bullets below without re-deriving them. Region and window capture and legibility at 4K share one
@@ -41,7 +40,15 @@ and the difference is worth stating, since both are halves of a shared bullet. T
 halves were one name, so a decrement would have hidden the open half; here the pair were two names,
 region capture keeps its own, and what closed was a risk rather than a piece of work. The bullet
 stays and stays counted, because the fix it names is still owed for the residue the knob does not
-reach.
+reach. A ninth, later on 2026-08-06, which carries two names off the line
+rather than one. **A live-probe refresh** landed, so its name leaves, and the count moves 13 to
+12; it closes whole rather than half, and its bullet keeps both what was reproduced and the one
+thing the entry got wrong, which was not the cost but the wire, since the swap it named as the
+trigger provably cannot change the answer while the event that can does not reach the conductor at
+all. The second name is **an outcome-driven capture indicator**, whose bullet was closed earlier
+the same day and whose decrement [index.md](index.md) recorded (14 to 13) while this line kept the
+name. That is the arithmetic the two files are meant to agree on, so the name leaves here now and
+no count moves for it twice.
 
 ## Vision in Slice 10 ([ADR-0029](../adr/ADR-0029-vision-screen-capture.md))
 
@@ -125,12 +132,41 @@ reach.
   metadata key, declared three times by hand with nothing comparing them; the survey behind that
   choice, and the couplings deliberately left unregistered, are in
   [repo-gates.md](repo-gates.md).
-- **A live-probe refresh.** The `/props` vision probe runs **once at startup**. A `llama-server`
-  restarted without `--mmproj` mid-session leaves `capture_screen` advertised, so a capture would
+- **A live-probe refresh.** The `/props` vision probe ran **once at startup**. A `llama-server`
+  restarted without `--mmproj` mid-session left `capture_screen` advertised, so a capture would
   be taken, the user notified, and the turn tainted for an image the model cannot read: the full
   privacy cost for zero benefit. Re-probing per turn would make the inference adapter stateful,
   which is why it was not done; the cheap version is re-probing when a swap changes residency,
   since that is the only thing in the system that restarts a model server.
+
+  **Closed 2026-08-06, and the entry's premise held while its proposed fix did not**
+  ([ADR-0029 live-probe addendum](../adr/ADR-0029-vision-screen-capture.md)). The failure was
+  reproduced end to end against the real stack before anything was built: a `model-host` recreated
+  without `CORTEX_MMPROJ_FILE_CORTEX` flipped `/props` from `vision: true` to `vision: false`
+  under a brain whose container never restarted and whose log still held exactly one probe line,
+  and the next "look at my screen" read the screen, fired the capture receipt, tainted the turn,
+  and died on llama.cpp's `image input is not supported - hint: ... you may need to provide the
+  mmproj`. So the cost was exactly what the entry claimed. The **wire** it proposed was the wrong
+  one, and that is the finding worth keeping: a child's argv is fixed at the *sidecar's* boot, so
+  a swap's own `stop` then `start` respawns the cortex tier from the same flags. Driven directly
+  against the running control API, `/props` answered `vision: true` before and after. The
+  conductor would have rung on the one event that cannot change the answer, and stayed silent on
+  the one that does, which does not touch residency at all.
+
+  What shipped instead is a port asked at the two moments the answer is acted on and cached
+  nowhere. `VisionProbe.can_see()` never raises and answers False when it cannot tell;
+  `SightedToolRegistry` drops `capture_screen` from the advertisement and **refuses it at the
+  call**, which is the half that protects the user, since a turn lists its tools once and then
+  runs rounds against that list. Not caching is what turns a bound on staleness into no
+  staleness, and it is affordable by measurement rather than by assumption: `/props` answers in
+  1.5 ms idle and 1.7 ms with a generation in flight (worst of 40 samples 2.5 ms) against a
+  capture that blits and PNG-encodes a display, so the probe's leash came *down*, from 5 s to 2 s,
+  because it now sits inside a turn rather than at boot. The refused objection dissolved on
+  inspection: `vision.py` has always lived in the composition root, never in `cortex_inference`,
+  so re-probing never made the inference adapter stateful. One thing the entry did not ask for
+  came free, because the tool is registered whenever a body exists and the probe decides per use:
+  vision now heals in **both** directions, so a deployment that gains a projector after boot no
+  longer stays blind until a brain restart.
 - **JPEG or WebP for a photographic screen.** Measurement puts JPEG q80 at roughly a quarter of
   PNG's bytes on incompressible content (0.97 MB vs 4.33 MB at 1600x900). It is a **body-side
   swap behind an unchanged seam**: `ImageBlob.mime_type` already carries the format, the brain's

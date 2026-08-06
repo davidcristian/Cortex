@@ -335,15 +335,26 @@ The service:
   `x-cortex-seam-token` metadata (empty = none), and returns it with its channel closer; `none`
   (default) returns `(None, no-op closer)`. Off by default so CI and the no-GPU dev loop never
   reach for a host body. The uniform closer keeps `run_from_env`'s shutdown backend-agnostic.
-- `vision_enabled(mode, endpoint, *, client=None) -> bool` (`vision.py`, ADR-0029) resolves
-  `CORTEX_VISION`: `on`/`off` answer without touching the network, `auto` calls `probe_vision`,
-  which does one `GET {endpoint}/props` and reads `modalities.vision`. The running server is
-  believed rather than a brain-side declaration, because the two can disagree and both
-  directions are bad: advertising vision the server lacks spends the whole privacy cost of a
-  screen read on an image nothing can read, and hiding vision the server has silently removes
-  the capability. Every failure (unreachable, non-2xx, unparseable, an unexpected `/props`
-  shape) counts as **no vision** and logs a structured warning. The probe is startup-only, so a
-  `llama-server` restarted without `--mmproj` mid-session leaves the tool advertised.
+- `build_vision(config: InferenceConfig, body_config: BodyConfig, body: BodyGateway | None) ->
+  tuple[CaptureBounds | None, VisionProbe | None, closer]` (`vision.py`, ADR-0029) resolves
+  `CORTEX_VISION` into the two things the root needs. The bounds say whether `capture_screen` may
+  be registered at all (no body, or `off`, means never). The probe is `PropsVisionProbe`, the
+  `VisionProbe` adapter over `GET {endpoint}/props`, and it is built only for `auto`: `on` and
+  `off` fix the answer without touching the network, which is what those switches are for. The
+  running server is believed rather than a brain-side declaration, because the two can disagree
+  and both directions are bad: advertising vision the server lacks spends the whole privacy cost
+  of a screen read on an image nothing can read, and hiding vision the server has silently
+  removes the capability. Every failure (unreachable, non-2xx, unparseable, an unexpected
+  `/props` shape) counts as **no vision** and logs a structured warning.
+- The probe is **asked per advertisement and per call**, never remembered (ADR-0029 live-probe
+  addendum). It used to be asked once at startup and frozen into the built-in set, which left a
+  `llama-server` recreated without `--mmproj` mid-session still advertising the tool: reproduced
+  2026-08-06 against the real stack, where the stale advertisement cost a real screen read, a
+  real notification and a turn that then died on llama.cpp's own 500. The root therefore hands
+  the probe to `build_cortex_tools`, which wraps the composite in `SightedToolRegistry`; the
+  registry is what re-asks. Asking is free at this scale (measured 1.5 ms idle, 1.7 ms with a
+  generation in flight, worst of 40 samples 2.5 ms), which is why nothing is cached and
+  `PROBE_TIMEOUT_S` is 2 s: the leash now sits inside a user's turn rather than at boot.
 - `ScheduleTicker(store, clock, settings: TickerSettings, *, spawn=None, body=None)`
   (`ticker.py`, ADR-0025) is the stateless firing loop. `TickerSettings` carries the pacing
   (`poll_s`, `lease`, `claim_limit`) plus the `zone: DisplayZone` a calendar item re-arms on
