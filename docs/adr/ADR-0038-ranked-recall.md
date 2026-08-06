@@ -406,3 +406,16 @@ and the unconditional fence is strictly safer than any predicate over it. *Decli
 outright* was weighed against the fact that the recap's input is exactly the corpus the plain
 window already sends the model; what the recap adds is the call and the promotion, and both are
 fixable at their own site, which is what this does.
+
+**The wider entry this opened was settled the same day.** The inconsistency named above, that the
+plain window hands the model the same assistant messages unfenced while this feature fences its
+derived artifact, was measured rather than argued. The carrier is real but not automatic: asked for
+a one-sentence summary the cortex quoted a payload into its persisted reply not once in ten, and
+asked for the wording verbatim it did so every time. Replayed out of history on a bare turn with no
+preamble, that quotation was obeyed two times in three, the model appending the payload's own token
+to an unrelated answer; behind the standing preamble the identical replay was obeyed not at all.
+Nothing was built at the plain window, and the reasoning for fencing this one is unchanged, since
+what the recap adds over the window is the model call and the promotion to a durable system-role
+artifact rather than the mere presence of the text. The numbers, the two premises the entry got
+wrong, and the residue still open are at the [ADR-0013](ADR-0013-untrusted-content.md)
+replayed-quotation addendum.
