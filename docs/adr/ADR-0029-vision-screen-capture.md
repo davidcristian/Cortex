@@ -1615,7 +1615,11 @@ is re-runnable without a GPU or a model):
 | uniform per-pixel noise | 3991818 B | **the ladder fires** | over |
 
 So the ceiling holds for every screen a person reads text off, with the worst realistic one at
-three quarters of it, and it still takes per-pixel noise to fire the ladder. The grain is added at
+three quarters of it, and it still takes per-pixel noise to fire the ladder. (**Narrowed later the
+same day** by the addendum on the refused capture below: every row here is a 3840x2160 frame, and
+4K is the display size that flatters this table most, so the worst realistic screen is 79% on a
+2560x1440 desktop. The conclusion holds and the margin is a fifth rather than a quarter.) The grain
+is added at
 the source resolution and averaged down by the body's own box filter, which is why the wider edge
 costs so much more: it averages fewer source pixels per output pixel, so more of the noise
 survives, over more pixels. The same harness answers why the edge stopped at 2048 rather than going
@@ -1838,3 +1842,106 @@ for the other things it was asked for (`docs/refinements/model-manager.md`), and
 needs it nor supplies it. It also does not change the deep tier, which carries no capture tool to
 gate, and it does not touch the body: the host-side switches, the self-exclusion, and the byte
 ceilings are all as they were.
+
+## Addendum (2026-08-06): the refused capture cannot happen, and the 74% was a 4K number
+
+Raising `CORTEX_BODY_CAPTURE_MAX_EDGE` to 2048 earlier the same day brought the halving ladder
+nearer, so the deferred entries whose triggers that edge could pull were re-read. The encoding
+entry (JPEG or WebP for a photographic screen) had already re-read itself against the new default
+and correctly stayed put. **`RESOURCE_EXHAUSTED` classification** had not, and it is the entry this
+addendum is about. It stays deferred, its trigger is now a check rather than a feeling, and two
+things turned up beside it that are worth the record more than the entry was.
+
+### The give-up arm is unreachable at the shipped ceiling, and the edge cannot change that
+
+`Capture::from_bgra` runs `MAX_SHRINK_ATTEMPTS + 1` rungs, and each rung halves the edge the
+previous rung **reached** rather than the edge it asked for. The last rung is therefore at most a
+quarter of the requested edge. At `MAX_EDGE_CEILING`, the largest edge any caller may name, that is
+1024 px on the long edge, so at most 1024x1024 and 3.1 MB of raw RGB, and PNG does not inflate
+incompressible data past a 6 MiB budget. The third rung always fits, and `CaptureError::TooLarge`
+never happens.
+
+This is not new information, and that is the point: decision 7's implementation says so in
+`screen_policy.rs`, in the paragraph arguing why the byte ceiling rides the request rather than
+being baked into the ladder ("a branch nothing can take is a gate that cannot fail"), and the gated
+test that reaches the give-up arm reaches it by naming a 40 byte ceiling. What the re-read adds is
+the consequence for the deferral: **raising the edge cannot fire this entry**, because the rung
+that decides it is a fraction of the edge rather than a fixed size, and the arm is reachable only
+when a deployment tightens `CORTEX_BODY_MAX_IMAGE_BYTES` far enough that a quarter-edge capture can
+miss it, which at the shipped 2048 px ask is under roughly 450 KB against a 6 MiB default. The
+entry's trigger is rewritten as that condition, which a reader can check against a deployment
+instead of waiting to feel.
+
+### The coarseness is narrower than the entry claimed, and the real defect is a prefix
+
+The entry says the brain cannot tell a refused capture from a broken backend. The status **code**
+is indeed shared, `Internal` for both `CaptureError::Backend` and `CaptureError::TooLarge`. But
+nothing on the brain side reads the code: `GrpcBodyGateway.capture_screen` catches
+`aio.AioRpcError` and keeps only `err.details()`, so what reaches the model is the body's own
+sentence, and the sentences are entirely different. A refused capture reads "the capture is too
+large for the seam: N bytes", a broken backend "screen capture backend error: ...", an unanswered
+body "Deadline Exceeded", a switched-off host "screen capture is disabled on this host". The
+distinction the entry wants already reaches the only reader there is. A status code is worth adding
+for a caller that would branch on it, and there is none.
+
+What is genuinely wrong on that path is a **prefix**. `CaptureScreenTool.invoke` announces every
+failure as `could not reach the body to capture the screen`, and the body was reached in all but
+one of them. The case that matters is the shipping default: `CORTEX_HOST_CAPTURE` is unset, the
+shell wires `DeniedScreenCapture`, the body answers `PermissionDenied` immediately and precisely,
+and the model is told the body is unreachable and then, after the colon, the truth. It is a
+mis-framing rather than a lost fact, which is why it is recorded rather than fixed here, and it is
+folded into the same deferred entry rather than counted as a new one, since one sitting fixes both.
+`volume.py` carries the same prefix with a better claim to it, having no kill switch behind it.
+
+### What the four cases look like end to end, since that is what the entry is really about
+
+A capture that succeeds tells the model its delivered size and the display's own size through
+`describe`, lights the overlay ring at `asked` and then `read`, and fires the body's OS receipt. A
+capture the ladder **degrades** and then delivers is reported the same way and is honest about the
+geometry the model got, but nothing says the deployment asked for 2048 px and the seam could only
+afford 1024: the ring still says `read`, correctly, because the screen was read, and the receipt
+still fires. A capture the ladder **refuses** is the one case where neither surface reports
+anything, exactly as the capture-dot addendum above records: `Capture::from_bgra` runs after the
+blit and returns before `announce`, so a frame that was read but would not fit shows no receipt,
+and `ok=false` leaves the ring at `asked`. A **broken or silent** body is indistinguishable from
+that at the ring and different in the sentence. The consent surface needs no new rung for any of
+this. The two rungs are about whether the screen was read, the ladder rule is that they may never
+under-report, and a degraded capture is a read one.
+
+### The 74% was measured on the one display size that flatters it
+
+Decision 7's byte table above was taken entirely on 3840x2160 frames, and the closing sentence
+("the worst realistic one at three quarters of it") reads as a fact about screens. It is a fact
+about 4K screens. How much film grain survives a capture is decided by the **ratio** between the
+display and the requested edge, not by the display's size: a 4K screen averages roughly three and a
+half source pixels into every output pixel at a 2048 px ask and most of the grain dies in the box
+filter, while a display nearer the requested edge averages almost nothing. Re-measured through the
+same `downscale` and `encode_png`:
+
+| the same heavy-grain photograph, by display | at 1600 px | at 2048 px | of the 6 MiB ceiling |
+|---|---|---|---|
+| 3840x2160 | 2693875 B | 4669961 B | 74% |
+| 2560x1440 | 2970284 B | 5016491 B | **79%** |
+| 1920x1080 | 3077587 B | 4500808 B | 71% |
+
+So **the worst realistic screen is 79% of the ceiling, not 74%**, and it is the middle display
+rather than the biggest. The smallest is cheaper again for a reason worth stating, because it is
+the one case in this table where the ladder cannot fire on content at all: 1920x1080 is already
+inside the requested edge, so `downscale` takes its identity arm and the capture crosses the seam
+pixel for pixel, and two million undiluted pixels still beat two and a third million diluted ones.
+On the costliest display the grain sweep runs 35%, 70%, 79%, 90% and then fires at a grain of plus
+or minus 64 counts, which is one step earlier than at 4K, where it took uniform per-pixel noise.
+The conclusion the default was signed off on holds: nothing a person would look at fires the ladder
+at 2048 px. The margin behind it is a fifth rather than a quarter.
+
+**The harness was wrong in the other direction while finding this**, which is the part worth
+copying. Its verdict compared the returned width against `BRAIN_EDGE`, so the first run called the
+1920x1080 row a fired ladder and the assertion failed. Nothing had fired: a display inside the
+bound is returned untouched, and the test was asking for an upscale the policy explicitly refuses.
+It compares against `min(the display's long edge, the requested edge)` now, which is the size the
+policy should have produced. A measurement gate that reddens for the wrong reason would have been
+read as a defect in the capture path and sent the next reader to rewrite the ladder.
+
+The three records for this re-read are [docs/refinements/vision.md](../refinements/vision.md), its
+line and its bucket entry on [docs/refinements/index.md](../refinements/index.md), and this
+addendum. The area count deliberately does not move: the entry was confirmed, not closed.

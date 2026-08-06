@@ -296,8 +296,14 @@ crosses the seam.
   photograph is megabytes. A `Capture` exposes `data`, `mime_type` (always `CAPTURE_MIME`,
   `image/png`), `width`/`height` after the downscale, and `source_width`/`source_height`
   before it. How much room the ceiling leaves at the 2048 px edge the brain asks for is
-  measured on 4K frames by `tests/capture_bytes.rs`, which is `#[ignore]`d because it is
-  seconds of CPU rather than a gate.
+  measured by `tests/capture_bytes.rs`, which is `#[ignore]`d because it is seconds of CPU
+  rather than a gate. The costliest display there is 2560x1440 rather than 4K, at 79% of the
+  ceiling under heavy grain, because a display nearer the requested edge averages less of the
+  grain away. **`TooLarge` is unreachable at the seam's own ceiling**, which is why the
+  ceiling rides the request: each rung halves the edge the last one reached, so the third is at
+  most a quarter of the requested edge and a 1024 px image cannot exceed 6 MiB. The arm is
+  reachable only when a caller names a much tighter `max_bytes`, and that is what the gated
+  test for it does.
 - `encode_png(width, height, rgb) -> Result<Vec<u8>, CaptureError>` is the encoder, public so
   its two rejects (a zero dimension, a buffer that is not `width * height * 3` bytes) can be
   provoked by a caller. The downscaler is a box filter with a separate identity arm, so a
