@@ -968,10 +968,19 @@ Use-case:
   covering MORE than the current boundary (a widened budget) is discarded and rebuilt, which
   self-heals. It LETS GO of the GPU: the model pass goes through `drain_text`, so the adapter's
   acquire block is left before `select` returns and the reply's acquire is the second acquire
-  of a sequence, never a nested one. `build_recap_messages(previous, dropped, *, at, turn_id)`
-  and `clean_recap(raw)` are the pure prompt and reply-cleanup pieces (the `session_title.py`
-  shape); `clean_recap` collapses to one paragraph and bounds at `RECAP_MAX`, answering `""`
-  for a reply with nothing in it, which the window rejects rather than stores.
+  of a sequence, never a nested one. And it is FENCED at both ends (ADR-0038 untrusted-recap
+  addendum): a persisted transcript is not trusted input, because an assistant reply may quote
+  what an untrusted tool result said, so the recap prompt carries `SECURITY_PREAMBLE` as its
+  system message and quotes the dropped transcript and the folded previous account inside
+  `wrap_untrusted`, and the recap re-enters the turn inside a fence of its own under a nonce
+  minted after the model has spoken (never the one it was shown, which a compromised summarizer
+  could echo as a closer). Neither wrap takes an argument or sits behind a branch. A recap does
+  NOT spread taint: the plain window hands back the same assistant messages unfenced, so a
+  tainting recap would be narrower than its own source. `build_recap_messages(previous,
+  dropped, *, at, turn_id)` returns the two-message prompt, `fence_recap(text)` the fenced,
+  self-explaining body of the prepended message, and `clean_recap(raw)` is the reply cleanup
+  (the `session_title.py` shape), collapsing to one paragraph and bounding at `RECAP_MAX`,
+  answering `""` for a reply with nothing in it, which the window rejects rather than stores.
 - `HistoryRecap(text, covers)` (`sessions.py`) is that cached account as a pure value: `covers`
   is how many messages from the START of the session `text` accounts for, which is the key the
   cache is valid under. It refuses a blank text or a `covers` below one, so an unusable recap

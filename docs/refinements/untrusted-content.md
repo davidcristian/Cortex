@@ -2,7 +2,7 @@
 
 This area originates in [ADR-0013](../adr/ADR-0013-untrusted-content.md) (Slice 6.5), whose deferrals grew into the output guardrail ([ADR-0015](../adr/ADR-0015-output-guardrail.md)), subagent model safety ([ADR-0017](../adr/ADR-0017-subagent-model-safety.md)), tainted-memory recording ([ADR-0019](../adr/ADR-0019-tainted-memory-recording.md)), and grammar-constrained subagent output ([ADR-0028](../adr/ADR-0028-grammar-constrained-subagents.md)). Extracted from the ROADMAP's deferred-refinements section on 2026-07-15 with the entries kept verbatim; landed entries are the historical record of what each deferral became, and the index at [index.md](index.md) carries the recommended pickup order.
 
-**Open items:** the screening subagent, whitespace-split hosts, the full UTS-39 confusables set, mixed/other encodings, footer/boilerplate heuristics, a raw GBNF grammar alternative, a per-task caller-supplied schema, provenance across the stores, a fence-without-block recall mode, per-provenance eviction, per-remote-tool trust/gating overrides
+**Open items:** the screening subagent, whitespace-split hosts, the full UTS-39 confusables set, mixed/other encodings, footer/boilerplate heuristics, a raw GBNF grammar alternative, a per-task caller-supplied schema, provenance across the stores, a fence-without-block recall mode, per-provenance eviction, per-remote-tool trust/gating overrides, a quoted injection re-entering through the plain history window
 
 **Untrusted-content boundary in Slice 6.5 ([ADR-0013](../adr/ADR-0013-untrusted-content.md)):** each
 behind the unchanged `ToolRegistry`/`ToolDispatcher`/`stream_tool_loop` seams (or the new `Confirmer` port).
@@ -350,3 +350,27 @@ behind the unchanged `ToolRegistry`/`ToolDispatcher`/`stream_tool_loop` seams (o
   [runbooks/llamacpp-gpu.md](../runbooks/llamacpp-gpu.md), which is also where the standing
   obligation moved, so a re-run reads it beside the command. Only the pick's row ran: the three
   rejected deep candidates stay unmeasured, and adopting the recorded alternate buys its own row.
+- **A quoted injection re-enters through the plain history window, unfenced and untainted.** Found
+  2026-08-06 while fencing the summarizing window's recap ([ADR-0038 untrusted-recap
+  addendum](../adr/ADR-0038-ranked-recall.md)), and recorded here rather than in
+  [session-history.md](session-history.md) because it is wider than that feature and predates it.
+  The taint boundary is turn-local by design: a `TaintLedger` is rebuilt each turn and never
+  persisted, and a stored `Message` carries no taint bit. `SECURITY_PREAMBLE` expressly permits
+  quoting untrusted content, and `TurnEngine` persists the assistant reply, so a reply to
+  "summarize this email" can carry an injection verbatim into session history. On every later turn
+  until the char budget drops it, the window hands that text back to the model as an ordinary
+  `Role.ASSISTANT` message: unfenced, and on a turn that ingests nothing else, untainted, so the
+  output guardrail sees no tainted turn either. The model is reading its own past words, which is
+  the position framing is weakest against, and the untrusted-content boundary that fenced the
+  payload when it was live does not reach it. What bounds the exposure today: the payload survives
+  only if the cortex chose to quote it (it resists obeying, 0 of 10 framed, but quoting is
+  permitted and sometimes correct), the reply was scrubbed by the output guardrail when the
+  originating turn was tainted, so a URL in it is already `[link removed: untrusted source]`, and
+  the window drops it with age. What is not bounded is a re-quotation chain, where the model
+  quotes its own earlier quotation onto a turn that was never tainted. The fix is not another
+  fence at the window (fencing the whole transcript would tell the model to distrust the user's own
+  words), so it wants the marker the recap work found missing: something on the stored turn saying
+  it read untrusted content, which is a `SessionStore` schema change and would serve
+  per-provenance eviction and a precise recap refusal at the same time. **Trigger:** the first
+  design that needs a persisted per-turn taint or provenance marker, which this shares with
+  provenance across the stores.

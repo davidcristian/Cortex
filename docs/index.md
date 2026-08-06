@@ -88,7 +88,10 @@ Start here. Rules for working in this repo: [AGENTS.md](../AGENTS.md).
   0 disables); persistence untouched. Summarization landed behind the same seam on 2026-08-06
   (ADR-0038 decision 9 and its summarizing-window addendum): `SummarizingHistoryWindow` recaps
   the turns the budget drops, cached in the session store and folded forward as the boundary
-  moves, `CORTEX_HISTORY_SUMMARY`, off by default.
+  moves, `CORTEX_HISTORY_SUMMARY`, off by default. Fenced at both ends since the same day
+  (ADR-0038 untrusted-recap addendum): a stored transcript can quote untrusted content, so the
+  recap pass runs under the security preamble over wrapped material and the recap re-enters the
+  turn wrapped in turn, under a nonce minted after the model has spoken.
 - [ADR-0015: Output guardrail](adr/ADR-0015-output-guardrail.md): the model-independent
   laundering defense (ADR-0013 hardening deferral landed). The `TaintLedger` collects the
   URLs untrusted content carries in, an `OutputGuardrail` seam in `TurnCapabilities` redacts

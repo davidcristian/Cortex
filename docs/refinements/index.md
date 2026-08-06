@@ -51,7 +51,7 @@ the tree does now.
 | [seam-auth.md](seam-auth.md) | Seam token auth (ADR-0016) | 1 |
 | [session-history.md](session-history.md) | Slice 3 history windowing and summarization | 3 |
 | [tools-mcp.md](tools-mcp.md) | Dispatch budget/cost/salience, spawn batch cap, MCP registries (ADR-0009/0010) | 6 |
-| [untrusted-content.md](untrusted-content.md) | Taint boundary, output guardrail, subagent model safety (ADR-0013/0015/0017/0019/0028) | 11 |
+| [untrusted-content.md](untrusted-content.md) | Taint boundary, output guardrail, subagent model safety (ADR-0013/0015/0017/0019/0028), a quoted injection re-entering through the plain history window (ADR-0038) | 12 |
 | [memory.md](memory.md) | Store, scoping, rerank/MMR, the ranked `select` and its recall trail (ADR-0008/0038) | 6 |
 | [inference-model-manager.md](inference-model-manager.md) | Model-manager lifecycle, MTP, reasoning status (ADR-0007/0020) | 7 |
 | [subagents.md](subagents.md) | Progress reporting, spawn schema, heterogeneous roster (ADR-0010/0018) | 3 |
@@ -1103,6 +1103,30 @@ entry's own claims wanted correcting, both about mechanism: only the switcher ro
 its roll, the other two doors losing it in the commit itself (a reminder stack is keyed on the chat
 and remounts, a leaving row goes `inert` at once), and the doors are not three, since any global key
 pressed while focus sits inside the switcher has the identical defect.
+Session history held at 3 and untrusted content went 11 to 12 on 2026-08-06 when the summarizer's
+sharp deferral, an unfenced recap of tainted turns, closed by being fenced at both ends, and the
+counts moved that way because settling it corrected the premise and found something wider. The
+premise was wrong: an untrusted tool result is never in the prefix a recap reads, since the engine
+persists only the raw user text and the scrubbed assistant reply and the `Role.TOOL` message dies
+with the turn, and a stored `Message` carries no taint bit, so the fail-closed "refuse a tainted
+prefix" option the entry imagined had nothing to read. What is reachable is the assistant's own
+quotation of untrusted content, which the security preamble expressly permits, and the recap did
+two things the plain window does not with it: it fed that text to a model under an instruction to
+process it, the summarizer-as-target shape the tainted-memory decline named on the record path,
+and it promoted the answer to a durable, cached, system-role artifact folded forward for the life
+of the session. Both are now fenced unconditionally, the prompt under the standing preamble and
+the recap under a nonce minted after the model has spoken so a summarizer that echoes the closer
+it was shown ends nothing, with the injection pinned absent from everything outside the fences in
+both directions and each of the five fence sites reddening its own test when reverted. Taint is
+deliberately not spread, because the plain window hands the model the same assistant messages
+unfenced on every turn until they age out, so a tainting recap would be narrower than its own
+source. That inconsistency is the wider thing, and it is now the untrusted-content area's twelfth
+entry rather than a line in this closure: a quoted injection re-enters through the plain history
+window, unfenced and untainted, and the fix it wants is the persisted per-turn taint marker that
+per-provenance eviction and a precise recap refusal would both spend. Session history held rather
+than fell because the fence's cost is unmeasured, the live run having been made before it, so the
+usefulness question took the closed entry's place beside the one-corpus one that wants the same
+run.
 
 ## Recommended order
 
