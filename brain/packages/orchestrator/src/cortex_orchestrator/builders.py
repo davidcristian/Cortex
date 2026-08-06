@@ -51,6 +51,7 @@ from cortex_core import (
     InferenceBackend,
     ModelManager,
     SetVolumeTool,
+    SightedToolRegistry,
     SingleResidentModelManager,
     SkipUnavailableToolRegistry,
     SpawnSubagentsTool,
@@ -59,6 +60,7 @@ from cortex_core import (
     ToolError,
     ToolRegistry,
     UrlRedactingGuardrail,
+    VisionProbe,
 )
 from cortex_inference import LlamaCppBackend
 from cortex_orchestrator.config import BodyConfig, InferenceConfig
@@ -243,6 +245,7 @@ def build_cortex_tools(
     *,
     confirmer: Confirmer | None = None,
     policy: DispatchPolicy = DEFAULT_DISPATCH_POLICY,
+    vision: VisionProbe | None = None,
 ) -> ToolDispatcher | None:
     """The cortex's audited dispatcher: the built-in set merged with the MCP tools.
 
@@ -261,10 +264,19 @@ def build_cortex_tools(
     already made (ADR-0009 salience addendum). This is the dispatcher
     the default `spawn_subagents` price applies to: built-ins are cortex-only, so the
     subagent and ticker dispatchers never advertise it.
+
+    `vision` (ADR-0029 live-probe addendum) is the running server's own answer to whether the
+    model can read a picture, and wrapping the composite in `SightedToolRegistry` is what makes
+    `capture_screen` follow it: hidden from the advertisement and refused at the call while the
+    answer is no. Absent for `CORTEX_VISION=on|off` (the answer is fixed by the owner) and for
+    the deep tier's set (it carries no capture tool to gate), so the wrapper appears exactly
+    where the answer is discovered.
     """
     if not builtins and tool_registry is None:
         return None
-    registry = CompositeToolRegistry(builtins, remote=tool_registry)
+    registry: ToolRegistry = CompositeToolRegistry(builtins, remote=tool_registry)
+    if vision is not None:
+        registry = SightedToolRegistry(registry, vision)
     return ToolDispatcher(
         registry,
         LoggingAuditSink(),

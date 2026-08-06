@@ -145,10 +145,11 @@ class InferenceConfig(BaseSettings):
     URL of the resident model's ``llama-server``, set by ``docker-compose.gpu.yml``).
 
     ``vision`` (``CORTEX_VISION``) decides whether the screen-capture tool is advertised
-    (ADR-0029). ``auto``, the default, probes ``GET {endpoint}/props`` once at startup and
-    believes the running server rather than a brain-side declaration; ``on`` and ``off`` fix
-    the answer for CI, for a deterministic test, and for a user who wants capture off without
-    editing compose.
+    (ADR-0029). ``auto``, the default, probes ``GET {endpoint}/props`` on every advertisement
+    and every call and believes the running server rather than a brain-side declaration, so a
+    model host restarted without its projector stops being offered eyes without a brain restart;
+    ``on`` and ``off`` fix the answer for CI, for a deterministic test, and for a user who wants
+    capture off without editing compose.
     """
 
     model_config = SettingsConfigDict(env_prefix="CORTEX_INFERENCE_")

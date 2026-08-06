@@ -26,7 +26,6 @@ from dataclasses import replace
 from cortex_core import (
     AsyncioSleeper,
     BrainPhase,
-    CaptureBounds,
     Confirmer,
     EscalatingTurnEngine,
     ProgressSink,
@@ -70,7 +69,7 @@ from cortex_orchestrator.server import SeamPorts, serve
 from cortex_orchestrator.stores import RedisStores
 from cortex_orchestrator.subagent_builders import build_subagent_tools, build_subagents
 from cortex_orchestrator.swap_builders import build_swap_runtime, swap_closer
-from cortex_orchestrator.vision import vision_enabled
+from cortex_orchestrator.vision import build_vision
 from cortex_session import RedisPreferenceStore, RedisSessionStore
 
 
@@ -134,17 +133,12 @@ async def run_from_env(
     # The built-in set is confirmer-independent, so it is assembled once (ADR-0025 d7);
     # the ticker fires beside `serve` and is stopped before its store closes.
     # Vision is discovered, not declared (ADR-0029): the running llama-server reports its own
-    # modalities, so a brain-side boolean can never disagree with it. Probed once here, because
-    # the alternative is paying the whole privacy cost of a screen read for a picture the model
-    # cannot see. Needs a body too, so the probe is skipped outright without one.
-    # An ``if`` rather than a conditional expression on purpose: coverage.py measures the arcs of
-    # a statement and not the arms of a boolean short-circuit, so as an expression this decision
-    # could be (and was) executed on one side only with the gate still reporting 100%.
-    capture: CaptureBounds | None = None
-    if body is not None and await vision_enabled(inference.vision, inference.endpoint):
-        capture = CaptureBounds(
-            max_edge=body_config.capture_max_edge, max_bytes=body_config.max_image_bytes
-        )
+    # modalities, so a brain-side boolean can never disagree with it. The bounds say the tool may
+    # be registered at all (a body can take a picture); the probe is what the tool's registry asks
+    # on every advertisement and every call, because the server answering can be replaced under a
+    # brain that never restarts, and a stale yes spends the whole privacy cost of a screen read on
+    # an image nothing can read (ADR-0029 live-probe addendum). Both are absent without a body.
+    capture, sight, close_vision = build_vision(inference, body_config, body)
     schedule_tools = build_schedule_tools(
         schedule_config, schedules, clock, tasks_enabled=spawn_tool is not None
     )
@@ -203,6 +197,7 @@ async def run_from_env(
                     clock,
                     confirmer=confirmer,
                     policy=tools_config.dispatch_policy,
+                    vision=sight,
                 ),
                 window=build_history_window(runtime.history_char_budget),
                 guardrail=build_output_guardrail(runtime.output_guardrail),
@@ -270,6 +265,7 @@ async def run_from_env(
         )
     finally:
         await stop_ticker(ticker, ticker_task)
+        await close_vision()
         await swap_closer(swap)()
         await close_schedules()
         await close_body()

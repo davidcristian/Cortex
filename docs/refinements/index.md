@@ -61,7 +61,7 @@ the tree does now.
 | [email-confirmer.md](email-confirmer.md) | Email write, Confirmer, attachments, `ToolActivity` chip (ADR-0022) | 4 |
 | [body-gateway.md](body-gateway.md) | Body gateway, OS actions, hardened posture (ADR-0023) | 5 |
 | [scheduling.md](scheduling.md) | Scheduling and reminders, `TurnStamp` provenance (ADR-0025/0027) | 8 |
-| [vision.md](vision.md) | Screen capture, images, the pixel boundary (ADR-0029) | 13 |
+| [vision.md](vision.md) | Screen capture, images, the pixel boundary (ADR-0029) | 12 |
 | [cross-cutting.md](cross-cutting.md) | Pointer input, OS backends, more roles | 3 |
 
 The counts are per area as extracted; a few threads appear in two areas (the cross-cutting
@@ -1037,6 +1037,35 @@ is indistinguishable brain-side from one that never happened. So the outcome may
 what the ring claims, the ladder only climbs, and a failed capture leaves the ring exactly where
 the ask put it.
 
+Vision went **13 to 12 on 2026-08-06**, later the same day, when the live-probe refresh landed,
+and it is the fourth sitting running to find an entry whose own premise needed checking, so the
+useful part is which half survived. The **cost** was exactly as written and was reproduced end to
+end rather than argued: a `model-host` recreated without its projector flipped `GET /props` from
+`vision: true` to `vision: false` under a brain whose container never restarted and whose log
+still held exactly one probe line, and the next "look at my screen" read the screen through the
+stand-in body, tainted the turn, and died on llama.cpp's `image input is not supported`. The
+**wire** the entry proposed did not survive. A model child's argv is fixed at the sidecar's own
+boot, so a swap's `stop` then `start` respawns the cortex tier from the same flags; driven
+straight at the running control API, which is literally what the restore does, `/props` answered
+`vision: true` before and after. The conductor would have rung on the one event that cannot
+change the answer and stayed silent on the one that does, which touches residency not at all. So
+the entry would have shipped a wire that left its own reproduction reachable, and that is worth
+recording beside the cost estimates this file already warns about: an entry can name the right
+defect and the wrong trigger.
+
+The refused option dissolved on inspection too, which is the other thing to keep. "Re-probing per
+turn makes the inference adapter stateful" was about a component that never held the probe:
+`vision.py` has lived in the composition root since the slice landed. What replaced the wire is a
+port asked at both moments the answer is acted on, the advertisement and the call, with nothing
+cached at either. Both, because a turn lists its tools once and then runs rounds against that
+list, so refusing at the call is the half that keeps a screen from being read; and nothing cached,
+because a cache only bounds how stale an answer may be and the measurement says the bound buys
+nothing worth defending (a `/props` costs 1.5 ms idle and 1.7 ms with a generation in flight,
+against a capture that blits and PNG-encodes a display). The probe's own leash came **down** as a
+result, 5 s to 2 s, since it sits inside a user's turn now instead of at boot. One thing nobody
+asked for came free: the capability heals in both directions, so a deployment that gains a
+projector after boot no longer stays blind until the brain restarts.
+
 Body & overlay went **13 to 12 on 2026-08-06**, when the composer's move on a clamped shrink closed
 without any code being written and without the user picking anything, because the design choice it
 had been holding open for seventeen days stopped existing on the day it was filed. This is a
@@ -1553,15 +1582,19 @@ that has siblings, and the siblings only become visible once the first one is ri
   manufactured `False` the day the picture half relaxes that refusal. It also needed no seam or
   port change and was filed under this heading anyway, the second entry today to sit here without
   belonging to it. The pixels half stays open, so vision's count holds.
-- **A live-probe refresh** ([vision.md](vision.md)): the `/props` vision probe runs **once at
-  startup**, so a `llama-server` restarted without `--mmproj` mid-session leaves `capture_screen`
-  advertised, and the next capture pays the full privacy cost (a screen read, a notified user, a
+- **A live-probe refresh** ([vision.md](vision.md)): the `/props` vision probe ran **once at
+  startup**, so a `llama-server` restarted without `--mmproj` mid-session left `capture_screen`
+  advertised, and the next capture paid the full privacy cost (a screen read, a notified user, a
   tainted turn) for an image the model cannot read. Re-probing per turn was refused because it
   makes the inference adapter stateful; the cheap version re-probes when a swap changes residency,
   since that is the only thing in the system that restarts a model server, and it needs the
   conductor's residency change to reach the adapter, which is a wire that does not exist. Placed
   here for the first time on 2026-07-19, and it is no longer hypothetical: the real swap restarts
   model servers, so the staleness this describes is reachable.
+  **Closed 2026-08-06** ([ADR-0029 live-probe addendum](../adr/ADR-0029-vision-screen-capture.md)):
+  the cost was reproduced end to end and was exactly as described, the proposed wire was
+  falsified, and what shipped is a `VisionProbe` port asked per advertisement and per call with
+  nothing cached anywhere.
 - **Streamed brain status** ([body-overlay.md](body-overlay.md)): the push half of the landed
   connection indicator, unblocked on 2026-07-18 and now waiting on a seam change plus a consumer
   rather than on a producer. Both halves of the producer exist: the escalating turn streams

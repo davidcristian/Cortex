@@ -84,6 +84,7 @@ from cortex_core.fakes_scheduler import AdmitAllScheduler as AdmitAllScheduler
 from cortex_core.fakes_session import InMemorySessionStore as InMemorySessionStore
 from cortex_core.fakes_sleeper import AsyncioSleeper as AsyncioSleeper
 from cortex_core.fakes_sleeper import RecordingSleeper as RecordingSleeper
+from cortex_core.fakes_vision import ScriptedVisionProbe as ScriptedVisionProbe
 from cortex_core.guardrail import REDACTED_LINK as REDACTED_LINK
 from cortex_core.guardrail import OutputFilter as OutputFilter
 from cortex_core.guardrail import OutputGuardrail as OutputGuardrail
@@ -229,6 +230,9 @@ from cortex_core.sessions import SessionSummary as SessionSummary
 from cortex_core.sessions import merge_pinned as merge_pinned
 from cortex_core.sessions import summarize_ends as summarize_ends
 from cortex_core.sessions import summarize_session as summarize_session
+from cortex_core.sighted import BLIND_MSG as BLIND_MSG
+from cortex_core.sighted import SightedToolRegistry as SightedToolRegistry
+from cortex_core.sighted import VisionProbe as VisionProbe
 from cortex_core.spawn import SUBAGENT_PROGRESS_STATE as SUBAGENT_PROGRESS_STATE
 from cortex_core.spawn import SpawnSubagentsTool as SpawnSubagentsTool
 from cortex_core.spawn_spec import MAX_SPAWN_BATCH as MAX_SPAWN_BATCH

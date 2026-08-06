@@ -1686,3 +1686,95 @@ planned round of dispatches moved to `dispatch_round.py` along with `ToolLoopCon
 every field of which is a thing a dispatch carries rather than a thing the loop reads;
 `tool_loop` re-exports the context, so no call site moved. The seam between the three modules is
 now the loop's own sentence: infer, plan the round, run it.
+
+## Addendum (2026-08-06): the probe is asked per use, and the wire the deferral proposed was wrong
+
+Decision 13 said the composition root probes `GET {endpoint}/props` once at startup and registers
+`CaptureScreenTool` only when the answer is yes, on the reasoning that "probing once rather than
+per turn keeps the inference adapter stateless, and `llama-server` is a fixed process per
+ADR-0005". The deferred entry that grew out of it (**a live-probe refresh**) proposed the cheap
+repair: re-probe when a swap changes residency, "since that is the only thing in the system that
+restarts a model server". Both halves of that sentence were checked against the running stack
+before anything was built, and the first half held while the second did not.
+
+### The staleness is real, and it costs exactly what the entry said
+
+Reproduced against the real stack on the 24 GB card, gemma-4-12B with its projector, a fake body
+on the compose network standing in for the Windows one:
+
+1. `just up-gpu` with `CORTEX_MMPROJ_FILE_CORTEX` set. `GET /props` answers
+   `{"vision": true, "video": true, "audio": true}`; the brain logs one `vision probe answered`
+   and advertises `capture_screen`. "Look at my screen" reads the screen and the model describes
+   the picture: the whole path works.
+2. `docker compose up -d --no-deps --force-recreate model-host` with `CORTEX_MMPROJ_FILE_CORTEX`
+   empty. `/props` now answers `{"vision": false, ...}`. The brain container's `StartedAt` is
+   unchanged and its log still holds exactly one probe line, because nothing tells it.
+3. The same turn again. The tool is still advertised, the model still calls it, **the body still
+   reads the screen** (the stand-in recorded its second capture, which on the real body is a
+   blit plus the user's notification), the turn is tainted, and the next inference round dies
+   with llama.cpp's own `image input is not supported - hint: if this is unexpected, you may need
+   to provide the mmproj`. Full privacy cost, zero benefit, exactly as written.
+
+### The residency wire would fire when nothing can have changed, and never when something has
+
+A model-host child's argv is fixed at the **sidecar's** boot, from its own env. A swap restarts
+the cortex tier by `stop` then `start` through the control API, which respawns it from that same
+argv. Driven directly against the running sidecar (`POST /models/cortex/stop`, then `/start`,
+which is literally what `restore_standing` does), `/props` answers `vision: true` before and
+after. So a swap-induced restart cannot change this answer, while the thing that can, an
+out-of-band recreate of the sidecar, changes nothing about residency and would ring no bell in
+the conductor at all. Wiring the conductor to the probe would have been a wire fired on the
+wrong event, and it would have left the reproduced failure reachable.
+
+### Decision: the answer is re-read at every point where it is acted on, and never cached
+
+`VisionProbe` (`cortex_core.sighted`) is a port with one method, `can_see()`, that **never raises
+and answers False when it cannot tell**. `SightedToolRegistry` is a port-preserving `ToolRegistry`
+combinator beside the ones in `aggregate.py`: it drops `capture_screen` from `describe_tools` and
+refuses it in `invoke` while the answer is no. `PropsVisionProbe` is the real adapter over
+`GET /props`, and `build_vision` is the root's builder: no body or `off` returns no bounds at all,
+`on` returns bounds and no probe (the owner has fixed the answer), `auto` returns both.
+
+Four things about the shape are load-bearing.
+
+**Both points, not just the advertisement.** A turn lists its tools once and then runs rounds
+against that list, so the advertisement is always a little older than the call it authorizes.
+Refusing at the call is what makes the reproduced failure structurally impossible: the body is
+never asked, so no pixels are read and no receipt fires. Hiding the spec is the courtesy half,
+and it is the half that would have been mistaken for a fix.
+
+**Fail closed, structurally.** The unknown answer and the negative answer are the same answer, in
+the port's contract rather than in each caller: a probe that cannot reach the server, gets a
+non-2xx, gets something that will not parse, or gets a `/props` this version does not understand
+answers False. The asymmetry is the reason: a wrong yes spends the **user's** privacy on nothing,
+a wrong no costs one turn's worth of a capability that returns the moment the server does.
+
+**No cache, which is why the guarantee is a guarantee.** A cache would only bound how stale the
+answer may be, and the bound would be another number to defend. It is affordable to do without:
+measured on the real stack, `/props` answers in 1.5 ms idle and 1.7 ms with a generation in
+flight, worst of 40 samples 2.5 ms, against a capture that blits and PNG-encodes a whole display.
+`PROBE_TIMEOUT_S` drops from 5 s to 2 s, because the leash now sits inside a user's turn rather
+than at boot. It also settles the one hard rule trivially: there is no state here to survive a
+swap, and the original objection ("re-probing per turn makes the inference adapter stateful")
+turned out to be about a component that never held the probe anyway, since `vision.py` has always
+lived in the composition root and not in `cortex_inference`.
+
+**It heals both ways.** The startup probe could only ever remove the capability; a deployment that
+gained a projector after boot stayed blind until a brain restart. The tool is registered whenever
+a body can take a picture now, so vision appears and disappears with the server.
+
+The naming follows the AGENTS.md rule that names are designed. `SightedToolRegistry` reads as its
+siblings do (`UngatedToolRegistry` is a registry stripped of gated tools; this is one restricted
+to what a sighted model can use). `VisionGatedToolRegistry` was the obvious alternate and was
+rejected on a collision: `gated` already means "needs the user's confirmation" everywhere else in
+this codebase, including on `ToolSpec` itself. `VisionCheckedToolRegistry` and `SeeingToolRegistry`
+were the other two considered.
+
+### What this does not do
+
+It does not give the brain any notification of a model host restarting. Nothing pushes; the probe
+pulls, at the two moments it matters. A per-tier residency generation would still be worth having
+for the other things it was asked for (`docs/refinements/model-manager.md`), and this work neither
+needs it nor supplies it. It also does not change the deep tier, which carries no capture tool to
+gate, and it does not touch the body: the host-side switches, the self-exclusion, and the byte
+ceilings are all as they were.
