@@ -16,8 +16,8 @@ the two bounds the panel's section budget leaves behind it
 (a section's own frame being under no cap, and the room a closing section hands back in one frame),
 the two tradeoffs the reserved scrollbar rail accepts (its width
 is assumed rather than measured off the engine, and the two 6px cards spend their whole inset on
-it), a section's roll ending 0.25px
-from where it was going, and the whisper's three follow-ups (a pickable voice
+it), the rounded roll target the whisper's bubble
+publishes while its own height carries a decimal, and the whisper's three follow-ups (a pickable voice
 row in the console, the wrap
 width a mid-stream resize cannot move, and kerning inside the letter boxes under a changed
 font; its drain-growth entry landed the same day it was filed, and the console outliving a new
@@ -42,7 +42,11 @@ work they always were: the panel reads its used height with its sub-pixels and i
 the panel would be rather than what the box says, so a growth that lands inside a move joins it one
 frame later instead of 188ms later, and the worst backward step over a streamed reply is 0.281px no
 longer but 0.015px, which is the engine's own grid. The section-roll entry above was opened by
-them, being the same reading one element down. The
+them, being the same reading one element down. **That section roll landed hours later the same day,
+and the number above did not move, so this says which way it went:** the roll now measures with the
+same used height the panel does, and the rounded target the whisper's bubble publishes was noticed
+in the doing and opened behind it, which is twelve by one out and one in rather than twelve
+unchanged. The
 chat floor's frozen measurement of the empty state landed 2026-08-03 as the custom property it
 asked for, having been about a constant that was deleted the same day the entry was written, and
 took the second frozen number it named (`--trace-row`) with it; the rail's, the third, is
@@ -873,6 +877,44 @@ the caret moves the sentence with it.
   prototype and is shared by three test files, so following the panel means moving all of them. The
   trigger is a roll whose end is visible at all: a section whose natural height lands nearer the
   half pixel, or any report of a section settling with a flick.
+  - **LANDED 2026-08-06, hours after it was filed, and both published numbers reproduced exactly**
+    ([ADR-0035 addendum](../adr/ADR-0035-console-and-motion.md)). Re-instrumented at HEAD in
+    headless Chromium at 900x1000 over the demo, `Element.prototype.animate` hooked before the app
+    loaded and every painted frame sampled: the aside stands at 193.75px with an `offsetHeight` of
+    194, and a section at 57.25 against 57 is there too. That second one is a reminder ROW and not a
+    Thoughts trace, which measures 76 flat at this viewport, so the entry named the right number on
+    the wrong element. The summon's own roll of the aside opened `0px` to `194px` and was handed
+    back to its layout at 193.75; the closing roll then started at 194 with the eye on 193.75, a
+    0.25px step up in a single frame that the panel's `auto` height took with it (545.75 to 546).
+    The ride-along predicted 546 for a roll that left the panel at 545.75, which is the same 0.25px
+    inherited exactly as the entry said.
+  - **After: the roll measures with the used height the panel reads its own box with** (`heightOf`),
+    so the two sides of the roll contract hold one number instead of two roundings of it. The aside
+    rolls `0px` to `193.75px` and publishes `data-morphing="193.75"`, the ride-along's prediction is
+    the 545.75 the panel lands on, and the step at every roll boundary in the trace is 0.000px:
+    under the 0.015px the panel's own change reached, because there is no longer any arithmetic to
+    round rather than because the grid got finer. The reading passes the check the entry asked for
+    and it is the same check the panel's did, the used height ignoring the summon's scale transform
+    where the rect does not.
+  - **The harness moved with it, which is what the entry priced.** The prototype-wide stand-in
+    (`stubRoll`) and `Collapse.test.tsx`'s own now say the height through the computed style, so the
+    three files sharing them assert on what production reads; `laysEverything` was widened to take
+    an answer that changes under the test, which is what a roll interrupted mid-flight needs.
+    Falsified both ways: put `offsetHeight` back and 11 `Collapse` cases redden along with the
+    per-row exits in `Reminders.test.tsx` and `SessionList.test.tsx`; round the used height instead
+    and exactly one case reddens, the new one that names the sub-pixel.
+- **The whisper's bubble publishes a rounded roll target while its own height carries a decimal.**
+  `useWhisperClock` sets the roll contract's attribute to `String(Math.round(tH))` and writes the
+  box itself with `${s.h.toFixed(1)}px` (`body/app/src/whisper/useWhisperClock.ts`), so the panel's
+  ride-along adds a whole-pixel prediction to fractional heights for the length of every streamed
+  reply, which is the same mismatch the section's roll above had. Noticed 2026-08-06 while taking
+  that one off `offsetHeight`, and read from the code rather than measured: the bubble is not
+  handed back to layout at the end of its roll the way a section is, so the visible symptom (a step
+  when the animation is taken away) may not exist here at all, and the prediction error is bounded
+  by half a pixel against a 2px floor for animating anything. Deferred as unmeasured: the honest
+  first move is a live trace of a streamed reply at 900x1000 against the panel's settled height,
+  and only then a change. The trigger is any panel step seen at the end of a reply, or the next
+  visit to the whisper's clock.
 - **Opening a Thoughts trace on a panel at its ceiling pushes the reply below the fold.** The
   disclosure rolls open in place and nothing touches the history's `scrollTop`, which is the right
   default: the row stays exactly under the pointer that clicked it and the trace unfolds beneath,

@@ -8,6 +8,7 @@ import {
   MORPH_ROLL_MS,
   MORPH_START_EVENT,
 } from "../overlay/morph";
+import { heightOf } from "../overlay/panelMemory";
 
 interface CollapseProps {
   readonly open: boolean;
@@ -46,13 +47,13 @@ export function Collapse({ open, aside = false, enter = false, onClosed, childre
     }
     at.current = open;
     const live = running.current !== null && running.current.playState === "running";
-    const displayed = live ? element.offsetHeight : open ? 0 : null;
+    const displayed = live ? heightOf(element) : open ? 0 : null;
     running.current?.cancel();
     running.current = null;
     // A close with nothing to animate commits its collapsed height inline (see below), so hand the
     // height back to layout before asking what the content is worth.
     element.style.height = "";
-    const natural = element.offsetHeight;
+    const natural = heightOf(element);
     const from = displayed ?? natural;
     const to = open ? natural : 0;
     const finish = () => {

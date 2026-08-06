@@ -1,6 +1,6 @@
 import "@testing-library/jest-dom/vitest";
 import { act, cleanup } from "@testing-library/react";
-import { afterEach, vi } from "vitest";
+import { afterEach } from "vitest";
 
 /**
  * A `ResizeObserver` that observes what the real one observes and reports when a test says the box
@@ -76,11 +76,9 @@ export function lays(element: Element, height: number | (() => number)): void {
   laidOut.set(element, typeof height === "number" ? () => height : height);
 }
 
-/** Give EVERY box the same laid-out height, and answer the way to stop. For a test whose subject
- *  is an element it cannot reach: `Panel`'s empty state publishes `--chat-floor` during the render
- *  that mounts it, so there is no moment in between to hand it a height. */
-export function laysEverything(height: number): () => void {
-  laidOutAll = () => height;
+/** Give EVERY box the same laid-out height, and answer the way to stop. */
+export function laysEverything(height: number | (() => number)): () => void {
+  laidOutAll = typeof height === "number" ? () => height : height;
   return () => {
     laidOutAll = null;
   };
@@ -95,7 +93,7 @@ const ROLL_PX = 48;
  * Stand in for the two things jsdom does not have, so a `Collapse` exit can be observed mid-roll.
  */
 export function stubRoll(): () => void {
-  vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockReturnValue(ROLL_PX);
+  laysEverything(ROLL_PX);
   const finishers: (() => void)[] = [];
   Element.prototype.animate = (() => {
     let live = true;
