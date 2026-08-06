@@ -12,6 +12,7 @@ from cortex_core import (
     ROUND_OVERSIZED_MSG,
     DispatchPolicy,
     EscalationSlot,
+    GenerationBounds,
     ImagePart,
     InferenceEvent,
     InMemoryToolRegistry,
@@ -74,8 +75,9 @@ class _MultiCallBackend:
         *,
         tools: Sequence[ToolSpec] = (),
         schema: JsonSchema | None = None,
+        bounds: GenerationBounds | None = None,
     ) -> AsyncIterator[InferenceEvent]:
-        del model, tools, schema
+        del model, tools, schema, bounds
         self.rounds += 1
         self.seen.append(list(messages))
         yield TextChunk("working ")
@@ -104,8 +106,9 @@ class _ScriptedBackend(_MultiCallBackend):
         *,
         tools: Sequence[ToolSpec] = (),
         schema: JsonSchema | None = None,
+        bounds: GenerationBounds | None = None,
     ) -> AsyncIterator[InferenceEvent]:
-        del model, tools, schema
+        del model, tools, schema, bounds
         self.rounds += 1
         self.seen.append(list(messages))
         for index, name in enumerate(self._names):
@@ -415,8 +418,9 @@ class _RepeatBackend(_MultiCallBackend):
         *,
         tools: Sequence[ToolSpec] = (),
         schema: JsonSchema | None = None,
+        bounds: GenerationBounds | None = None,
     ) -> AsyncIterator[InferenceEvent]:
-        del model, tools, schema
+        del model, tools, schema, bounds
         self.rounds += 1
         self.seen.append(list(messages))
         for index in range(self._per_round):
@@ -638,8 +642,9 @@ class _OneCaptureThenAnswer(_MultiCallBackend):
         *,
         tools: Sequence[ToolSpec] = (),
         schema: JsonSchema | None = None,
+        bounds: GenerationBounds | None = None,
     ) -> AsyncIterator[InferenceEvent]:
-        del model, tools, schema
+        del model, tools, schema, bounds
         self.rounds += 1
         self.seen.append(list(messages))
         if self.rounds == 1:

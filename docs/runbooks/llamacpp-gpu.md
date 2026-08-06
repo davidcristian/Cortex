@@ -115,7 +115,7 @@ adapter surfaces as `ReasoningChunk` (the model observation CI can't make). Vali
 
 `packages/inference/tests/test_history_recap_live.py` is the measurement behind
 `CORTEX_HISTORY_SUMMARY`, and it is the one to re-run before anyone argues for moving that
-default. It runs inside the command above and takes about eleven minutes, so run it alone when
+default. It runs inside the command above and takes about four minutes, so run it alone when
 that is all you want:
 
 ```
@@ -123,15 +123,23 @@ cd brain && CORTEX_INFERENCE_ENDPOINT=http://127.0.0.1:8080 \
   uv run pytest -m integration --no-cov packages/inference/tests/test_history_recap_live.py -s
 ```
 
-Two arms. The first asks a question whose answer dropped out of the window, once through the
-char-budget window that ships and once through the summarizing one, and prints what each sent the
-model, the fold's cost cold and cached, both replies and the time to their first tokens. The
-second stages a conversation so the boundary moves five times, each fold reading the previous
-account, and reports over three sessions how often the fact survived the fold and reached the
-reply. `-s` is required: the print IS the measurement. Retention is reported rather than asserted,
-because it varies; what the test asserts is that the folds happened, that the shipped arm really
-could not answer (a control that does not fire has measured nothing), and that no fence marker
-reached the reply.
+Five arms, about four minutes in total. The first asks a question whose answer dropped out of the
+window, once through the char-budget window that ships and once through the summarizing one, and
+prints what each sent the model, the fold's cost cold and cached, both replies and the time to
+their first tokens. The second stages a conversation so the boundary moves five times, each fold
+reading the previous account, and reports over three sessions how often the fact survived the fold
+and reached the reply. The third prices the fold's request against the unbounded one that shipped
+before it, over the identical prompt, which is the before-and-after any default argument rests on.
+The fourth runs the shipped token cap with thinking left ON, which is the trap the cap and the
+switch ship together to avoid. The fifth reruns the staged conversation at the fold floor a
+deployment actually gets, and counts how many of the five boundary moves cost a model pass.
+
+`-s` is required: the print IS the measurement. Retention is reported rather than asserted,
+because it varies; so is the trap arm's outcome, because whether a reasoning model finishes
+thinking inside a given cap is the coin flip that makes the pairing necessary. What the test
+asserts is that the folds happened, that the shipped arm really could not answer (a control that
+does not fire has measured nothing), that no fence marker reached the reply, that every bounded
+fold produced an account the window would store, and that the bounded arm is cheaper in total.
 
 Read the fold's wall time against the server's own counters, which say where it went:
 
@@ -139,11 +147,18 @@ Read the fold's wall time against the server's own counters, which say where it 
 docker logs cortex-model-host-1 | grep "eval time ="
 ```
 
-Measured 2026-08-06 on the 24 GB card: the fence costs characters and not the answer, a fold costs
-14.5 s to 30.8 s typically and reached 224.5 s at 6286 decoded tokens for an account of about 120,
-and the fact survived five compounding folds 2 times in 3, which is why the default did not move.
-The numbers and the four things a move waits on are in the
-[ADR-0038 re-measured-behind-the-fence addendum](../adr/ADR-0038-ranked-recall.md).
+Measured 2026-08-06 on the 24 GB card, before the fold was bounded: the fence costs characters and
+not the answer, a fold cost 14.5 s to 30.8 s typically and reached 224.5 s at 6286 decoded tokens
+for an account of about 120, and the fact survived five compounding folds 2 times in 3, which is
+why the default did not move then. Re-measured the same day with the fold bounded (thinking off,
+512 tokens) and floored: the identical prompt went from 378, 531 and 602 decoded tokens at 13.6 s,
+18.9 s and 21.5 s to 88, 87 and 88 at 3.9 s for a slightly longer account, a staged fold decodes
+61 to 163 tokens for 2.9 s to 6.2 s, retention is 3 of 3, and at the shipped floor the same
+conversation folds once over five boundary moves. **`CORTEX_HISTORY_SUMMARY` now defaults to on**;
+set it `false` for a deployment that would rather forget than wait, and
+`CORTEX_HISTORY_RECAP_MIN_CHARS` (default 2000, clamped to the character budget) is how much newly
+dropped conversation is worth a fold. The numbers are in the
+[ADR-0038 cheap-fold addendum](../adr/ADR-0038-ranked-recall.md).
 
 ## Framing-efficacy probe (Slice 6.5 / ADR-0013, agent-runnable)
 

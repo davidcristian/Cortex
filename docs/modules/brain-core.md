@@ -599,12 +599,20 @@ unchanged):
   ADR-0021 pinning addendum; a pinned chat is unioned into `list_sessions` regardless of recency and
   sorts above the recency group via `SessionSummary.pinned`, idempotent by value). The source of
   truth for conversation state; survives swaps and restarts.
-- `InferenceBackend` has `stream(model, messages, *, tools=(), schema=None) ->
+- `InferenceBackend` has `stream(model, messages, *, tools=(), schema=None, bounds=None) ->
   AsyncIterator[InferenceEvent]`: one stateless streamed completion, yielding `TextChunk` deltas
   interleaved with `ToolCall`s the model makes from the offered `tools` (ADR-0009). `model` is a
   logical id (ADR-0004). `schema` (a `JsonSchema`, `Mapping[str, object]`), when set, constrains
   decoding to that JSON Schema (ADR-0028); `None` (every caller but a constrained tool-less
-  subagent) leaves output unconstrained.
+  subagent) leaves output unconstrained. `bounds` (a `GenerationBounds`, ADR-0038 cheap-fold
+  addendum) is how far this one request lets the model go: `max_tokens` caps what the server will
+  decode, and `thinking=False` asks the chat template to skip deliberation. They are one value
+  because they only work together, a cap against a thinking model returning an empty reply
+  (measured); `max_tokens` below 1 raises `ValueError`. `None` (the default, and every user-facing
+  reply) leaves both to the deployment's server flags, so that request is byte-identical to the
+  one this port always described. Per request rather than per server because one resident cortex
+  both answers the user, where deliberation earns its wait, and folds a history recap, where it is
+  discarded unread.
 - `ModelManager` provides `acquire(model) -> AbstractAsyncContextManager[ModelLease]`: owns the
   GPU, queues for access, yields a `ModelLease`; leaving the block releases it to the
   next waiter. Consumed by the inference adapter (and, later, the handoff use-case).
@@ -962,9 +970,13 @@ Use-case:
   decision 15 planned), re-exported unchanged from the barrel.
 - `HistoryWindow` (protocol, `windowing.py`) / `CharBudgetHistoryWindow(max_chars)` are the
   session-history windowing seam and its shipped policy (ADR-0014).
-  `async select(history, *, session_id)` returns what one turn sends to the model. It is `async`
-  and carries the session because a window may consult the store or the model (ADR-0038
-  decision 9); a heuristic policy ignores the argument and wraps a synchronous body. A window
+  `async select(history, *, session_id, progress=None)` returns what one turn sends to the model.
+  It is `async` and carries the session because a window may consult the store or the model
+  (ADR-0038 decision 9), and carries the turn's `ProgressSink` so a window whose selection costs a
+  model pass can say so while the user waits (ADR-0038 cheap-fold addendum); the sink is handed
+  per CALL, like a dispatch's `TurnStamp` and unlike a constructor dependency, because it belongs
+  to one `Converse` stream while a window is a policy. A heuristic policy ignores both keywords
+  and wraps a synchronous body. A window
   returns a subsequence of `history` in original order, and may additionally PREPEND derived
   context of its own, but may never drop or alter a kept message. `CharBudgetHistoryWindow`: `CharBudgetHistoryWindow` keeps the newest
   whole turns (grouped by consecutive `turn_id`) whose summed text length fits `max_chars`,
@@ -972,11 +984,12 @@ Use-case:
   overflow, the newest turn always kept even oversized (the current user message must reach
   the model). Characters approximate tokens (~4 chars/token) so the core needs no tokenizer.
   Applied at inference-message assembly only. The store keeps the full history.
-- `SummarizingHistoryWindow(inner, store, backend, model, clock)` (`summarizing.py`) wraps a
-  window so the turns it drops arrive as a model-written recap instead of vanishing (ADR-0038
-  decision 9). Per turn it takes `inner`'s selection, measures the boundary (how many messages
-  of the head were dropped), and prepends a `Role.SYSTEM` message carrying the recap of that
-  prefix, stamped with the last turn it accounts for. Three invariants define it. It can only
+- `SummarizingHistoryWindow(inner, store, backend, model, clock, *, min_dropped_chars=0)`
+  (`summarizing.py`) wraps a window so the turns it drops arrive as a model-written recap instead
+  of vanishing (ADR-0038 decision 9). Per turn it takes `inner`'s selection, measures the boundary
+  (how many messages of the head were dropped), and prepends a `Role.SYSTEM` message carrying the
+  recap of that prefix, stamped with the last turn the recap ACCOUNTS FOR (the same message as the
+  boundary until a fold is deferred, and behind it afterwards). Five invariants define it. It can only
   ADD: the inner selection is returned untouched, and every failure path (store unreachable,
   model unreachable or failing mid-stream, model returning nothing usable) returns that
   selection exactly as the shipped window would have, logged and never raised. It CACHES: the
@@ -987,22 +1000,33 @@ Use-case:
   self-heals. It LETS GO of the GPU: the model pass goes through `drain_text`, so the adapter's
   acquire block is left before `select` returns and the reply's acquire is the second acquire
   of a sequence, never a nested one. And it is FENCED at both ends (ADR-0038 untrusted-recap
-  addendum): a persisted transcript is not trusted input, because an assistant reply may quote
+  addendum, the fences themselves living in `recap_prompt.py`): a persisted transcript is not
+  trusted input, because an assistant reply may quote
   what an untrusted tool result said, so the recap prompt carries `SECURITY_PREAMBLE` as its
   system message and quotes the dropped transcript and the folded previous account inside
   `wrap_untrusted`, and the recap re-enters the turn inside a fence of its own under a nonce
   minted after the model has spoken (never the one it was shown, which a compromised summarizer
   could echo as a closer). Neither wrap takes an argument or sits behind a branch. A recap does
   NOT spread taint: the plain window hands back the same assistant messages unfenced, so a
-  tainting recap would be narrower than its own source. `build_recap_messages(previous,
+  tainting recap would be narrower than its own source. It is BOUNDED (ADR-0038 cheap-fold
+  addendum): the fold's request carries `RECAP_BOUNDS`, so it decodes an account rather than
+  pages of reasoning `drain_text` throws away, and a boundary move dropping fewer than
+  `min_dropped_chars` new characters defers the pass rather than spending it. Deferring is not
+  skipping: the stored account's `covers` does not move, so the next fold reads from there and
+  picks up everything deferred, and what it costs meanwhile is a gap smaller than the floor
+  sitting in neither the window nor the account. And it ANNOUNCES itself: when a caller passes a
+  sink the window emits one `StatusUpdate(RECAP_PROGRESS_STATE, RECAP_PROGRESS_DETAIL)` before the
+  pass and only when a pass will really happen, so a cache hit and a deferred fold stay silent.
+  `recap_prompt.py` holds the text on both sides of the call: `build_recap_messages(previous,
   dropped, *, at, turn_id)` returns the two-message prompt, `fence_recap(text)` the fenced,
-  self-explaining body of the prepended message, and `clean_recap(raw)` is the reply cleanup
-  (the `session_title.py` shape), collapsing to one paragraph and bounding at `RECAP_MAX`,
-  answering `""` for a reply with nothing in it, which the window rejects rather than stores.
-  Two costs are measured rather than assumed (ADR-0038 re-measured-behind-the-fence addendum) and
-  are why the knob is still off: the fold's model call carries no token cap, so `RECAP_MAX` cuts
-  the text after the model has spoken and a fold has decoded 6286 tokens for an account of about
-  120, and folding compounds, an opening fact surviving five folds 2 times in 3.
+  self-explaining body of the prepended message, `RECAP_BOUNDS` how far the request may go
+  (512 tokens, thinking off, which only work as a pair since a cap against a thinking model
+  returns an empty reply), and `clean_recap(raw)` the reply cleanup (the `session_title.py`
+  shape), collapsing to one paragraph and answering `""` for a reply with nothing in it, one that
+  does not end a sentence, or one longer than `RECAP_MAX`. The last two are refusals rather than
+  truncations on purpose: storing a cut-off account would advance `covers` past turns the missing
+  tail never reached, and the next fold reads from `covers` forward, so they would be lost for
+  good rather than for a turn.
 - `HistoryRecap(text, covers)` (`sessions.py`) is that cached account as a pure value: `covers`
   is how many messages from the START of the session `text` accounts for, which is the key the
   cache is valid under. It refuses a blank text or a `covers` below one, so an unusable recap
@@ -1116,7 +1140,8 @@ Use-case:
   `async select(hits, *, query, now, k) -> Ranking` reranks and prunes it. It is `async` so a policy
   may call the model, and it carries the `query` because a policy that ranks by what a memory says
   needs the question (ADR-0038); a policy that runs inference must leave its acquire block before
-  returning, which `drain_text` does. The port and the default `RawRecallPolicy` (its
+  returning, which `drain_text` does (it also forwards a caller's `bounds`, which every in-turn
+  side call wants since the line above it throws the model's thinking away). The port and the default `RawRecallPolicy` (its
   `RAW_RECALL_POLICY` singleton keeps v1 top-`k` cosine exactly) live in `rerank.py`; the three
   heuristic opt-in policies live in `rerank_policies.py`, their shared `recency_blend` /
   `redundancy` / `greedy_mmr` math in `rerank_math.py`, and the model-based judge in

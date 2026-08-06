@@ -1,4 +1,4 @@
-"""Inference stream events: what a backend yields while producing one completion."""
+"""Inference stream events, and the bounds one request may put on the completion it asks for."""
 
 from collections.abc import Mapping
 from dataclasses import dataclass
@@ -30,3 +30,16 @@ class ReasoningChunk:
 
 
 type InferenceEvent = TextChunk | ReasoningChunk | ToolCall
+
+
+@dataclass(frozen=True, slots=True)
+class GenerationBounds:
+    """How far one request lets the model go before it must answer (ADR-0020's deferred levers)."""
+
+    max_tokens: int | None = None
+    thinking: bool = True
+
+    def __post_init__(self) -> None:
+        if self.max_tokens is not None and self.max_tokens < 1:
+            msg = "max_tokens must be at least 1"
+            raise ValueError(msg)

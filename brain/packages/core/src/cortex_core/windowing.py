@@ -1,19 +1,30 @@
-"""Session-history windowing: bound what one turn sends to the model (ADR-0014)."""
+"""Session-history windowing: bound what one turn sends to the model."""
 
 from collections.abc import Sequence
 from typing import Protocol
 
 from cortex_core.conversation import Message
+from cortex_core.progress import ProgressSink
 
 
 class HistoryWindow(Protocol):
     """Selects the slice of a session's stored history one turn sends to the model."""
 
-    async def select(self, history: Sequence[Message], *, session_id: str) -> Sequence[Message]: ...
+    async def select(
+        self,
+        history: Sequence[Message],
+        *,
+        session_id: str,
+        progress: ProgressSink | None = None,
+    ) -> Sequence[Message]: ...
 
 
 class CharBudgetHistoryWindow:
-    """Keep the newest whole turns whose summed text length fits a character budget."""
+    """Keep the newest whole turns whose summed text length fits a character budget.
+
+    Characters stand in for tokens, at roughly four characters each, so the core needs no
+    tokenizer; the budget is a conservative estimate rather than an exact fit.
+    """
 
     def __init__(self, max_chars: int) -> None:
         if max_chars < 1:
@@ -21,13 +32,15 @@ class CharBudgetHistoryWindow:
             raise ValueError(msg)
         self._max_chars = max_chars
 
-    async def select(self, history: Sequence[Message], *, session_id: str) -> Sequence[Message]:
-        """The newest whole turns fitting the budget (the newest always among them).
-
-        Pure and synchronous in substance: the coroutine is the port's shape, not this
-        policy's need, and ``session_id`` names a session this policy never consults.
-        """
-        del session_id
+    async def select(
+        self,
+        history: Sequence[Message],
+        *,
+        session_id: str,
+        progress: ProgressSink | None = None,
+    ) -> Sequence[Message]:
+        """The newest whole turns fitting the budget (the newest always among them)."""
+        del session_id, progress
         turns: list[list[Message]] = []
         for message in history:
             if turns and turns[-1][-1].turn_id == message.turn_id:

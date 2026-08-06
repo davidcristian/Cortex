@@ -119,10 +119,13 @@ def test_runtime_defaults_match_the_dictated_contract() -> None:
     assert config.history_char_budget == 48_000  # ≈12K of the 16K-token context (ADR-0014)
     assert config.output_guardrail == "redact"  # the laundering defense ships on (ADR-0015)
     assert config.generate_titles is False  # opt-in: an extra inference call per new session
-    # Off is a measured decision, not an oversight: a fold costs 14.5 s to 30.8 s and has reached
-    # 224.5 s, nothing on screen says a turn is folding, and an opening fact survived five
-    # compounding folds 2 times in 3 (ADR-0038 re-measured-behind-the-fence addendum).
-    assert config.history_summary is False
+    # On is a measured decision and the user's: a fold now decodes 61 to 163 tokens for 2.9 s to
+    # 5.6 s with no tail, announces itself on screen, and an opening fact survived five
+    # compounding folds 3 times of 3 (ADR-0038 cheap-fold addendum).
+    assert config.history_summary is True
+    # A fold's floor, in the unit the budget it wraps is denominated in: below one stored
+    # account's worth of new material there is less to fold in than the account folded into.
+    assert config.history_recap_min_chars == 2_000
 
 
 @pytest.mark.usefixtures("clean_env")
@@ -140,10 +143,26 @@ def test_runtime_rejects_a_negative_history_budget(monkeypatch: pytest.MonkeyPat
 
 
 @pytest.mark.usefixtures("clean_env")
-def test_runtime_env_enables_the_history_summary(monkeypatch: pytest.MonkeyPatch) -> None:
-    # The knob a deployment that would rather wait than forget reaches for; the default is off.
-    monkeypatch.setenv("CORTEX_HISTORY_SUMMARY", "true")
-    assert BrainRuntimeConfig().history_summary is True
+def test_runtime_env_turns_the_history_summary_off(monkeypatch: pytest.MonkeyPatch) -> None:
+    # The knob a deployment that would rather forget than wait reaches for; the default is on.
+    monkeypatch.setenv("CORTEX_HISTORY_SUMMARY", "false")
+    assert BrainRuntimeConfig().history_summary is False
+
+
+@pytest.mark.usefixtures("clean_env")
+def test_runtime_env_sets_how_much_dropped_text_is_worth_a_fold(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # 0 folds on every boundary move, which is what the summary did before it had a floor.
+    monkeypatch.setenv("CORTEX_HISTORY_RECAP_MIN_CHARS", "0")
+    assert BrainRuntimeConfig().history_recap_min_chars == 0
+
+
+@pytest.mark.usefixtures("clean_env")
+def test_runtime_rejects_a_negative_recap_floor(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("CORTEX_HISTORY_RECAP_MIN_CHARS", "-1")
+    with pytest.raises(ValidationError, match="history_recap_min_chars"):
+        BrainRuntimeConfig()
 
 
 @pytest.mark.usefixtures("clean_env")

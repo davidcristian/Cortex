@@ -8,7 +8,7 @@ from typing import Protocol
 from cortex_core.body import ScreenCapture, VolumeState
 from cortex_core.conversation import Message
 from cortex_core.events import TurnEvent
-from cortex_core.inference import InferenceEvent, JsonSchema
+from cortex_core.inference import GenerationBounds, InferenceEvent, JsonSchema
 from cortex_core.model import ModelLease
 from cortex_core.placement import Placement, PlacementRequest
 from cortex_core.ports_models import ModelHost, ResidencyController, ResidencyReporter
@@ -59,6 +59,7 @@ class InferenceBackend(Protocol):
         *,
         tools: Sequence[ToolSpec] = (),
         schema: JsonSchema | None = None,
+        bounds: GenerationBounds | None = None,
     ) -> AsyncIterator[InferenceEvent]: ...
 
 

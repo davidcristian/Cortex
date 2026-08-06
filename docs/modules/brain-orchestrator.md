@@ -32,13 +32,17 @@ Config (pydantic-settings; explicit constructor arguments beat the environment):
   `history_char_budget: int = 48000` (`CORTEX_HISTORY_CHAR_BUDGET`, ADR-0014) sets how many
   characters of session history one turn sends to the model (the newest whole turns;
   `0` disables windowing, negative rejected);
-  `history_summary: bool = False` (`CORTEX_HISTORY_SUMMARY`, ADR-0038 decision 9) recaps the
-  turns the window drops instead of losing them; off by default because it spends a cortex
-  generation on the turns where the boundary moves, and ignored when the budget is `0`. The
-  default was re-examined 2026-08-06 and stayed off on measured numbers (ADR-0038
-  re-measured-behind-the-fence addendum): a fold costs 14.5 s to 30.8 s typically and reached
-  224.5 s, nothing on screen says a turn is folding, and over five compounding folds the fact a
-  question needed survived 2 times in 3;
+  `history_summary: bool = True` (`CORTEX_HISTORY_SUMMARY`, ADR-0038 decision 9) recaps the
+  turns the window drops instead of losing them, and is ignored when the budget is `0`. It
+  defaults ON since 2026-08-06 (ADR-0038 cheap-fold addendum), the user's standing decision
+  carried by the numbers that had twice held it back: a fold now decodes 61 to 163 tokens rather
+  than 400 to 850, costs 2.9 s to 6.2 s with no tail, announces itself on screen, and over five
+  compounding folds the fact a question needed survived 3 times of 3. Set it `false` to prefer
+  forgetting over waiting;
+  `history_recap_min_chars: int = 2000` (`CORTEX_HISTORY_RECAP_MIN_CHARS`, same addendum) is how
+  much newly dropped conversation is worth a fold's model pass; below it the fold waits for the
+  next boundary move, which reads everything deferred since. `0` folds on every move, negative
+  rejected, and the builder clamps it to the character budget;
   `output_guardrail: "redact" | "strict" | "off" = "redact"` (`CORTEX_OUTPUT_GUARDRAIL`,
   ADR-0015) is the model-independent laundering defense: `redact` (default) scrubs
   verbatim-untrusted-sourced URLs from the reply the user sees, `strict` (addendum) scrubs
@@ -339,14 +343,19 @@ The service:
   `SingleResidentModelManager(cortex_model, endpoint)` + the httpx client's `aclose`
   (short connect timeout, no read deadline). The uniform closer keeps `run_from_env`'s
   shutdown path backend-agnostic.
-- `build_history_window(char_budget, *, summarize, sessions, backend, model, clock)`
-  -> `HistoryWindow | None` (`window_builders.py`, split from `builders.py` for the line cap
-  when the summarizing window arrived) is the turn's history window (ADR-0014, ADR-0038
-  decision 9): a positive budget returns the char-budget window, `0` returns `None` (windowing
-  off), and `summarize` wraps the budget window in `SummarizingHistoryWindow` over the session
-  store and the cortex backend. The flag is ignored when the budget is `0`, there being no
-  dropped prefix to recap. Windowing is on by default via
-  `BrainRuntimeConfig.history_char_budget`; summarization is not.
+- `build_history_window(runtime, *, sessions, backend, clock) -> HistoryWindow | None`
+  (`window_builders.py`, split from `builders.py` for the line cap when the summarizing window
+  arrived) is the turn's history window (ADR-0014, ADR-0038 decision 9). It takes the runtime
+  config whole, the `build_memory`/`build_subagents` shape, because it now reads four values off
+  it: a positive `history_char_budget` returns the char-budget window, `0` returns `None`
+  (windowing off), and `history_summary` wraps the budget window in `SummarizingHistoryWindow`
+  over the session store and the cortex backend. The flag is ignored when the budget is `0`,
+  there being no dropped prefix to recap. **`history_recap_min_chars` is clamped to the budget
+  here**, which is the one place both numbers are in hand: a fold's cost is flat so an absolute
+  floor is the right shape for deciding whether the pass is worth it, but a deferred fold leaves
+  a gap in neither the window nor the account, and a floor above the budget would make that gap
+  wider than everything the model can see. Both windowing and summarization are on by default
+  (ADR-0038 cheap-fold addendum).
 - `build_output_guardrail(mode: str) -> UrlRedactingGuardrail | StrictUrlRedactingGuardrail | None`
   is the turn's output guardrail (ADR-0015): `redact` returns the default verbatim URL-redacting
   policy, `strict` (addendum) the redact-all-non-user-URL policy, `off` returns `None`. On by
@@ -402,8 +411,8 @@ The service:
   rest. Every fire failure is logged, never fatal.
 - `run_from_env() -> None` (async) is the composition root: reads the env configs and serves
   with `RedisSessionStore.from_url(redis_url)`, `build_inference_backend(...)`, `SystemClock`,
-  the default-on history window (`build_history_window`, ADR-0014) and output guardrail
-  (`build_output_guardrail`, ADR-0015),
+  the default-on history window (`build_history_window`, ADR-0014, recapping what it drops since
+  ADR-0038's cheap-fold addendum) and output guardrail (`build_output_guardrail`, ADR-0015),
   and four opt-in adapters, each disabled by default so CI and the no-GPU dev loop stay
   external-service-free: **memory** (`build_memory`, in `memory_builders.py` split from
   `builders.py`, ADR-0008; returns the `MemoryRecaller` for the engine, a `SessionMemoryCascade`

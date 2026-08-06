@@ -49,7 +49,7 @@ the tree does now.
 | [repo-gates.md](repo-gates.md) | Line cap (the core barrel came off it 2026-08-06, split into area sub-barrels under `cortex_core._surface` with every call site unmoved, ADR-0026), dashcheck, coverage config (ADR-0026), gate coverage of the ungated Rust trees and of the overlay's TypeScript (ADR-0011), the stylesheet still outside the cap, test-runner mechanics (ADR-0002) including the live pgvector run still sharing the brain's `memories` table (the live Redis runs got a database of their own 2026-08-03), the couplings the cross-language constant scan does not hold yet (ADR-0029) | 6 |
 | [seam-transport.md](seam-transport.md) | `BrainTransport` retry/reconnect (ADR-0003/0024) | 4 |
 | [seam-auth.md](seam-auth.md) | Seam token auth (ADR-0016) | 1 |
-| [session-history.md](session-history.md) | Slice 3 history windowing and summarization, the recap's fold measured behind its fence 2026-08-06 and the default left off on the numbers (ADR-0014/0038) | 3 |
+| [session-history.md](session-history.md) | Slice 3 history windowing and summarization, the recap's fold made cheap 2026-08-06 (thinking off and a token cap per request, a floor under a fold, a chip while it runs) and `CORTEX_HISTORY_SUMMARY` moved to on, leaving the one-corpus measurement as the area's only open item (ADR-0014/0038) | 1 |
 | [tools-mcp.md](tools-mcp.md) | Dispatch budget/cost/salience, spawn batch cap, MCP registries (ADR-0009/0010) | 6 |
 | [untrusted-content.md](untrusted-content.md) | Taint boundary, output guardrail, subagent model safety (ADR-0013/0015/0017/0019/0028), a quoted injection replayed by the plain history window, obeyed 2 of 10 on a bare turn and 0 of 10 behind either standing rule, the plain one landed for the tool-less turn (ADR-0013/0038) | 12 |
 | [memory.md](memory.md) | Store, scoping, rerank/MMR, the ranked `select` and its recall trail (ADR-0008/0038) | 6 |
@@ -1202,6 +1202,31 @@ user a turn is folding, the overlay's mist breathing identically for a slow mode
 one, and the reason is the port rather than the seam, `HistoryWindow.select` taking no progress
 sink while the per-stream one it would need is already in scope where the window is built.
 
+Session history then fell to 1 later the same day, when all four of those landed together and the
+default moved. **The diagnosis held on every point**, which is worth saying in an area whose
+entries have twice been wrong about themselves: the request carried no `max_tokens` and no
+`chat_template_kwargs`, `RECAP_MAX` cut text the model had already finished writing, and
+`drain_text` decoded and dropped the whole reasoning stream unread. `InferenceBackend.stream` now
+takes a `GenerationBounds`, so the fold asks for no thinking and at most 512 tokens per request,
+which is `RECAP_MAX` said in the request's own unit. The pair ships together because a cap alone
+is a trap with a number on it: the same prompt at 160 and 256 tokens with thinking on returned
+`finish_reason: "length"`, hundreds of characters of reasoning, and an empty reply. A reply that
+runs into either bound is refused rather than trimmed, because storing half a sentence would
+advance the account's `covers` past turns no later fold would ever read again.
+`CORTEX_HISTORY_RECAP_MIN_CHARS` puts a floor under a fold, clamped at the composition root to the
+character budget so a deferred fold's gap can never be wider than the window itself, and
+`HistoryWindow.select` now takes a `ProgressSink` per call, so a fold emits one `"folding"` chip
+before it starts and nothing at all when it is cached or deferred. The overlay needed no change.
+**Measured in the same shape as the run that held the default:** on the identical prompt 378, 531
+and 602 decoded tokens at 13.6 s, 18.9 s and 21.5 s became 88, 87 and 88 at 3.9 s, for a slightly
+longer account; across five compounding folds a fold decodes 61 to 163 tokens for 2.9 s to 6.2 s
+with no tail; retention went from 2 of 3 to 3 of 3; and at the shipped floor the same conversation
+folded once over five boundary moves for 3.4 s in total. So the default moved to on, as the user's
+standing decision finally carried by its own numbers rather than shipped over them, pinned by a
+test that reddens when it is flipped back. The corpus entry stays open and is now the only thing
+between this feature and a claim about real conversations, and the lever's own entry stays open
+too, since the session title and the recall rank still spend the same discarded thinking.
+
 ## Recommended order
 
 Ordered by what unblocks the most value soonest. Before starting any item, verify its claims
@@ -1757,7 +1782,13 @@ that has siblings, and the siblings only become visible once the first one is ri
   has one waiting consumer where the other had three. Three of this entry's own claims did not
   survive re-derivation: both halves name a caller (`_inference_messages` in `engine.py`) that no
   longer exists, and neither noticed that `select` did not carry the query a model rank has to rank
-  against.
+  against. **The summarizing half landed the same day and shipped on by default 2026-08-06**
+  (ADR-0038 summarizing, untrusted-recap, re-measured-behind-the-fence and cheap-fold addenda),
+  after two passes that measured it and held the default off. `HistoryWindow.select` widened twice
+  in the end, once for the `async` and the session id and once for a progress sink, which is the
+  outcome this entry's guidance existed to avoid; the reason it was still right to split them is
+  that the sink had no consumer until a fold was slow enough to need narrating and cheap enough to
+  ship. **This entry is closed.**
 
 ### Blocked on hardware that fits two model tiers
 

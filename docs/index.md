@@ -88,13 +88,18 @@ Start here. Rules for working in this repo: [AGENTS.md](../AGENTS.md).
   0 disables); persistence untouched. Summarization landed behind the same seam on 2026-08-06
   (ADR-0038 decision 9 and its summarizing-window addendum): `SummarizingHistoryWindow` recaps
   the turns the budget drops, cached in the session store and folded forward as the boundary
-  moves, `CORTEX_HISTORY_SUMMARY`, off by default. Fenced at both ends since the same day
+  moves, `CORTEX_HISTORY_SUMMARY`. Fenced at both ends since the same day
   (ADR-0038 untrusted-recap addendum): a stored transcript can quote untrusted content, so the
   recap pass runs under the security preamble over wrapped material and the recap re-enters the
   turn wrapped in turn, under a nonce minted after the model has spoken. Re-measured behind that
   fence the same day (ADR-0038 re-measured-behind-the-fence addendum): the fence costs characters
-  rather than the answer, and the default stayed off anyway, on a fold that reached 224.5 s and an
-  opening fact surviving five compounding folds 2 times in 3.
+  rather than the answer, and the default stayed off then, on a fold that reached 224.5 s and an
+  opening fact surviving five compounding folds 2 times in 3. **It defaults on since the
+  cheap-fold addendum, later the same day**, which built the four things that move waited on: the
+  fold asks for no thinking and at most 512 tokens per request (a new `GenerationBounds` on
+  `InferenceBackend.stream`), `CORTEX_HISTORY_RECAP_MIN_CHARS` puts a floor under a fold, and
+  `HistoryWindow.select` takes a `ProgressSink` so a folding turn says so. A fold now decodes 61 to
+  163 tokens for 2.9 s to 6.2 s and the opening fact survives 3 times of 3.
 - [ADR-0015: Output guardrail](adr/ADR-0015-output-guardrail.md): the model-independent
   laundering defense (ADR-0013 hardening deferral landed). The `TaintLedger` collects the
   URLs untrusted content carries in, an `OutputGuardrail` seam in `TurnCapabilities` redacts
