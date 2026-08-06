@@ -4,6 +4,10 @@ import { SendIcon, StopIcon } from "./icons";
 
 interface ComposerProps {
   readonly busy: boolean;
+  /** What this conversation is holding, unsent. */
+  readonly draft: string;
+  /** Every keystroke, parked under the chat on screen. Called with the field's raw value. */
+  readonly onDraft: (text: string) => void;
   /**
    * Which conversation this field is sitting in (`OverlayState.arrival`), or null while the panel
    * is shut or the console is over the chat.
@@ -28,8 +32,15 @@ const STACKED = "stacked";
  * The prompt input: Enter sends, Shift+Enter newlines, and the field grows with its content up to
  * a few lines.
  */
-export function Composer({ busy, arrival, onSubmit, onStop, onResize }: ComposerProps) {
-  const [text, setText] = useState("");
+export function Composer({
+  busy,
+  draft,
+  arrival,
+  onSubmit,
+  onDraft,
+  onStop,
+  onResize,
+}: ComposerProps) {
   const [stacked, setStacked] = useState(false);
   // Both are always mounted with the panel, so the refs are set before any effect runs.
   const fieldRef = useRef<HTMLTextAreaElement>(null!);
@@ -75,21 +86,21 @@ export function Composer({ busy, arrival, onSubmit, onStop, onResize }: Composer
     }
   }, [onResize]);
 
-  // Layout, not paint: the measurement both chooses a layout and sizes the field, so it has to land
-  // before the frame that shows the new character rather than one frame after it.
-  useLayoutEffect(measure, [text, measure]);
+  useLayoutEffect(measure, [draft, measure]);
 
   useEffect(() => {
     window.addEventListener("resize", measure);
     return () => window.removeEventListener("resize", measure);
   }, [measure]);
 
+  // The field is emptied by the state that holds it, not from here: a turn actually starting is what
+  // spends a draft, so a send the controller refuses (a blank field, a turn already streaming) leaves
+  // the text where it is instead of quietly eating it (`overlay/turnState.ts`).
   const submit = () => {
     if (busy) {
       return;
     }
-    onSubmit(text);
-    setText("");
+    onSubmit(draft);
   };
 
   const onKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
@@ -99,15 +110,15 @@ export function Composer({ busy, arrival, onSubmit, onStop, onResize }: Composer
     }
   };
 
-  const live = text.trim().length > 0 && !busy;
+  const live = draft.trim().length > 0 && !busy;
 
   return (
     <div ref={pillRef} className={`composer${stacked ? ` ${STACKED}` : ""}`}>
       <textarea
         ref={fieldRef}
         className="field"
-        value={text}
-        onChange={(event) => setText(event.target.value)}
+        value={draft}
+        onChange={(event) => onDraft(event.target.value)}
         onKeyDown={onKeyDown}
         placeholder="Ask anything…"
         aria-label="Message"

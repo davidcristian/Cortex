@@ -1,10 +1,51 @@
 import { fireEvent, render, screen } from "@testing-library/react";
+import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 
+import { draftOf, dropDraft, parkDraft } from "../overlay/drafts";
 import { Composer } from "./Composer";
 
 const field = () => screen.getByLabelText("Message") as HTMLTextAreaElement;
 const pill = () => field().parentElement as HTMLDivElement;
+
+interface StageProps {
+  readonly sessionId?: string;
+  readonly busy?: boolean;
+  readonly arrival?: number | null;
+  readonly seed?: Record<string, string>;
+  readonly onSubmit?: (text: string) => void;
+  readonly onStop?: () => void;
+  readonly onResize?: () => void;
+}
+
+/** The composer holds no text of its own, so a test that types needs the thing that does. */
+function Stage({
+  sessionId = "a",
+  busy = false,
+  arrival = null,
+  seed = {},
+  onSubmit = () => undefined,
+  onStop = () => undefined,
+  onResize = () => undefined,
+}: StageProps) {
+  const [drafts, setDrafts] = useState<Record<string, string>>(seed);
+  return (
+    <Composer
+      busy={busy}
+      draft={draftOf(drafts, sessionId)}
+      arrival={arrival}
+      onSubmit={(text) => {
+        onSubmit(text);
+        if (text.trim().length > 0) {
+          setDrafts((held) => (draftOf(held, sessionId) === text ? dropDraft(held, sessionId) : held));
+        }
+      }}
+      onDraft={(text) => setDrafts((held) => parkDraft(held, sessionId, text))}
+      onStop={onStop}
+      onResize={onResize}
+    />
+  );
+}
 
 /** jsdom has no layout, so the field is given the two numbers the effect reads. */
 function fakeMetrics(oneLine: number, needs: (stacked: boolean) => number) {
@@ -30,7 +71,7 @@ function fakeMetrics(oneLine: number, needs: (stacked: boolean) => number) {
 describe("Composer", () => {
   it("sends on Enter and clears, but Shift+Enter and other keys do not", () => {
     const onSubmit = vi.fn();
-    render(<Composer busy={false} arrival={null} onSubmit={onSubmit} onStop={vi.fn()} onResize={vi.fn()} />);
+    render(<Stage onSubmit={onSubmit} />);
     fireEvent.change(field(), { target: { value: "hello" } });
     fireEvent.keyDown(field(), { key: "Enter", shiftKey: true });
     fireEvent.keyDown(field(), { key: "a" });
@@ -40,9 +81,52 @@ describe("Composer", () => {
     expect(field().value).toBe("");
   });
 
+  it("shows the arriving conversation's own sentence, never the one it replaced", () => {
+    // The defect this answers, at the component: the field was never unmounted and held one text
+    // for the whole overlay, so "half a question" typed in one chat was still sitting there, caret
+    // and all, once another conversation had loaded around it.
+    const { rerender } = render(<Stage sessionId="a" arrival={1} seed={{ b: "the other chat's line" }} />);
+    fireEvent.change(field(), { target: { value: "half a question" } });
+    rerender(<Stage sessionId="b" arrival={2} seed={{ b: "the other chat's line" }} />);
+    expect(field().value).toBe("the other chat's line");
+    // And a chat nobody has typed into arrives on an empty field rather than on a stranger's words.
+    rerender(<Stage sessionId="c" arrival={3} seed={{ b: "the other chat's line" }} />);
+    expect(field().value).toBe("");
+    // Back where it started, the sentence is where it was left.
+    rerender(<Stage sessionId="a" arrival={4} seed={{ b: "the other chat's line" }} />);
+    expect(field().value).toBe("half a question");
+  });
+
+  it("offers a restored draft at its end, which is where the next character goes", () => {
+    const seed = { a: "half a question", b: "a much longer sentence in the other chat" };
+    const { rerender } = render(<Stage sessionId="a" arrival={1} seed={seed} />);
+    rerender(<Stage sessionId="b" arrival={2} seed={seed} />);
+    expect([field().value, field().selectionStart]).toEqual([seed.b, seed.b.length]);
+    rerender(<Stage sessionId="a" arrival={3} seed={seed} />);
+    expect([field().value, field().selectionStart]).toEqual([seed.a, seed.a.length]);
+  });
+
+  it("never empties its own field: a send the state refuses leaves the words standing", () => {
+    // The field is emptied by the state that holds it, which spends a draft only when a turn
+    // actually starts. Pressing Enter into a busy panel used to blank the field regardless.
+    const onSubmit = vi.fn();
+    render(<Stage busy={true} onSubmit={onSubmit} seed={{ a: "half a question" }} />);
+    fireEvent.keyDown(field(), { key: "Enter" });
+    expect(onSubmit).not.toHaveBeenCalled();
+    expect(field().value).toBe("half a question");
+  });
+
+  it("hands a blank field's whitespace to the state rather than swallowing it", () => {
+    const onSubmit = vi.fn();
+    render(<Stage onSubmit={onSubmit} seed={{ a: "   " }} />);
+    fireEvent.keyDown(field(), { key: "Enter" });
+    expect(onSubmit).toHaveBeenCalledWith("   ");
+    expect(field().value).toBe("   ");
+  });
+
   it("sends on the send button and lights it only with text", () => {
     const onSubmit = vi.fn();
-    render(<Composer busy={false} arrival={null} onSubmit={onSubmit} onStop={vi.fn()} onResize={vi.fn()} />);
+    render(<Stage onSubmit={onSubmit} />);
     expect(screen.getByLabelText("Send").className).not.toContain("live");
     fireEvent.change(field(), { target: { value: "hi" } });
     expect(screen.getByLabelText("Send").className).toContain("live");
@@ -53,7 +137,7 @@ describe("Composer", () => {
   it("becomes a stop button while busy: it cancels the turn and never submits", () => {
     const onSubmit = vi.fn();
     const onStop = vi.fn();
-    render(<Composer busy={true} arrival={null} onSubmit={onSubmit} onStop={onStop} onResize={vi.fn()} />);
+    render(<Stage busy={true} onSubmit={onSubmit} onStop={onStop} />);
     fireEvent.change(field(), { target: { value: "x" } });
     const stop = screen.getByLabelText("Stop");
     expect(stop.className).not.toContain("live");
@@ -67,20 +151,16 @@ describe("Composer", () => {
 
   it("takes focus when the panel opens (focus-on-summon), and scrolls nothing to do it", () => {
     const focus = vi.spyOn(HTMLTextAreaElement.prototype, "focus");
-    const { rerender } = render(
-      <Composer busy={false} arrival={null} onSubmit={vi.fn()} onStop={vi.fn()} onResize={vi.fn()} />,
-    );
+    const { rerender } = render(<Stage />);
     expect(document.activeElement).not.toBe(field());
-    rerender(<Composer busy={false} arrival={0} onSubmit={vi.fn()} onStop={vi.fn()} onResize={vi.fn()} />);
+    rerender(<Stage arrival={0} />);
     expect(document.activeElement).toBe(field());
     expect(focus).toHaveBeenCalledWith({ preventScroll: true });
     focus.mockRestore();
   });
 
   it("takes focus again when another conversation arrives, but not on any other render", () => {
-    const composer = (arrival: number | null) => (
-      <Composer busy={false} arrival={arrival} onSubmit={vi.fn()} onStop={vi.fn()} onResize={vi.fn()} />
-    );
+    const composer = (arrival: number | null) => <Stage arrival={arrival} />;
     const { rerender } = render(composer(3));
     expect(document.activeElement).toBe(field());
     // A reader who has gone somewhere else in the panel keeps their place: a stream re-rendering
@@ -102,7 +182,7 @@ describe("Composer", () => {
   });
 
   it("auto-grows with its content up to the cap, then holds and scrolls", () => {
-    render(<Composer busy={false} arrival={0} onSubmit={vi.fn()} onStop={vi.fn()} onResize={vi.fn()} />);
+    render(<Stage arrival={0} />);
     fakeMetrics(34, () => 64);
     fireEvent.change(field(), { target: { value: "two\nlines" } });
     expect(field().style.height).toBe("64px");
@@ -112,7 +192,7 @@ describe("Composer", () => {
   });
 
   it("keeps the button beside the field on one line and drops it below once it wraps", () => {
-    render(<Composer busy={false} arrival={0} onSubmit={vi.fn()} onStop={vi.fn()} onResize={vi.fn()} />);
+    render(<Stage arrival={0} />);
     fakeMetrics(34, () => 34);
     fireEvent.change(field(), { target: { value: "one line" } });
     expect(pill().className).toBe("composer");
@@ -123,7 +203,7 @@ describe("Composer", () => {
   });
 
   it("decides the layout at the inline width, so a draft in the band cannot flip-flop", () => {
-    render(<Composer busy={false} arrival={0} onSubmit={vi.fn()} onStop={vi.fn()} onResize={vi.fn()} />);
+    render(<Stage arrival={0} />);
     // The band: this draft needs two lines while the button holds its column beside the field, and
     // one once the button drops below and hands the width back. Asked at the width in use, the two
     // layouts would answer each other forever.
@@ -139,7 +219,7 @@ describe("Composer", () => {
   });
 
   it("pins the pill's floor for the measurement and hands it back afterwards", () => {
-    render(<Composer busy={false} arrival={0} onSubmit={vi.fn()} onStop={vi.fn()} onResize={vi.fn()} />);
+    render(<Stage arrival={0} />);
     fakeMetrics(34, () => 34);
     fireEvent.change(field(), { target: { value: "one line" } });
     const floors: string[] = [];
@@ -158,7 +238,7 @@ describe("Composer", () => {
 
   it("tells the container when the pill resizes, and stays quiet when it only retypes", () => {
     const onResize = vi.fn();
-    render(<Composer busy={false} arrival={0} onSubmit={vi.fn()} onStop={vi.fn()} onResize={onResize} />);
+    render(<Stage arrival={0} onResize={onResize} />);
     // A draft inside one line: the pill is the same size it was, so nothing is announced. This is
     // the case that must stay silent, since every keystroke of a short message passes through here.
     fakeMetrics(34, () => 34);
@@ -178,7 +258,7 @@ describe("Composer", () => {
 
   it("re-measures when the viewport resizes, since the answer belongs to a width", () => {
     const onResize = vi.fn();
-    render(<Composer busy={false} arrival={0} onSubmit={vi.fn()} onStop={vi.fn()} onResize={onResize} />);
+    render(<Stage arrival={0} onResize={onResize} />);
     // A draft that fits one line at the width it was typed at.
     let narrow = false;
     fakeMetrics(34, () => (narrow ? 50 : 34));
@@ -199,9 +279,7 @@ describe("Composer", () => {
   });
 
   it("stops listening for resizes once it is gone", () => {
-    const { unmount } = render(
-      <Composer busy={false} arrival={0} onSubmit={vi.fn()} onStop={vi.fn()} onResize={vi.fn()} />,
-    );
+    const { unmount } = render(<Stage arrival={0} />);
     const errors: string[] = [];
     const onError = (event: ErrorEvent) => errors.push(String(event.error));
     window.addEventListener("error", onError);
@@ -212,7 +290,7 @@ describe("Composer", () => {
   });
 
   it("returns to one row when the draft is sent", () => {
-    render(<Composer busy={false} arrival={0} onSubmit={vi.fn()} onStop={vi.fn()} onResize={vi.fn()} />);
+    render(<Stage arrival={0} />);
     fakeMetrics(34, (stacked) => (field().value === "" ? 34 : stacked ? 50 : 66));
     fireEvent.change(field(), { target: { value: "a draft\nover two lines" } });
     expect(pill().className).toBe("composer stacked");

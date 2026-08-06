@@ -1,8 +1,10 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { LUCID, STILL } from "../edge/edges";
 import { MULL } from "../mark/marks";
+import { parkDraft } from "../overlay/drafts";
 import { INITIAL_LINK } from "../overlay/linkState";
 import type { ConsoleTab, Message, OverlayState } from "../overlay/overlayState";
 import { laysEverything, stubRoll } from "../test-setup";
@@ -19,6 +21,7 @@ const state = (over: Partial<OverlayState> = {}): OverlayState => ({
   pendingConfirm: null,
   notice: null,
   arrival: 0,
+  drafts: {},
   reminders: [],
   link: INITIAL_LINK,
   capture: null,
@@ -59,6 +62,7 @@ interface Handlers {
   onCloseConsole?: () => void;
   onToggleTheme?: () => void;
   onSubmit?: (text: string) => void;
+  onDraft?: (text: string) => void;
   onDismiss?: () => void;
   onNewChat?: () => void;
   onToggleSwitcher?: () => void;
@@ -86,6 +90,7 @@ function panelProps(over: Partial<OverlayState>, open: boolean, dark: boolean, h
     onCloseConsole: handlers.onCloseConsole ?? vi.fn(),
     onToggleTheme: handlers.onToggleTheme ?? vi.fn(),
     onSubmit: handlers.onSubmit ?? vi.fn(),
+    onDraft: handlers.onDraft ?? vi.fn(),
     onStop: vi.fn(),
     onDismiss: handlers.onDismiss ?? vi.fn(),
     onNewChat: handlers.onNewChat ?? vi.fn(),
@@ -101,6 +106,18 @@ function panelProps(over: Partial<OverlayState>, open: boolean, dark: boolean, h
 
 function renderPanel(over: Partial<OverlayState>, open: boolean, dark: boolean, handlers: Handlers = {}) {
   return render(<Panel {...panelProps(over, open, dark, handlers)} />);
+}
+
+/** The panel with the reducer's draft half wired back up. */
+function LivePanel({ props }: { readonly props: ReturnType<typeof panelProps> }) {
+  const [drafts, setDrafts] = useState(props.state.drafts);
+  return (
+    <Panel
+      {...props}
+      state={{ ...props.state, drafts }}
+      onDraft={(text) => setDrafts((held) => parkDraft(held, props.state.sessionId, text))}
+    />
+  );
 }
 
 afterEach(() => {
@@ -483,7 +500,7 @@ describe("Panel", () => {
   });
 
   it("holds the tail when a growing draft eats the log's height, unless the reader scrolled up", () => {
-    const view = render(<Panel {...panelProps({ messages: [userMsg, reply("m1")] }, true, false)} />);
+    const view = render(<LivePanel props={panelProps({ messages: [userMsg, reply("m1")] }, true, false)} />);
     const el = view.container.querySelector(".history") as HTMLDivElement;
     const field = screen.getByLabelText("Message") as HTMLTextAreaElement;
     const pill = field.parentElement as HTMLDivElement;

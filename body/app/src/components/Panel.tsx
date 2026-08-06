@@ -31,6 +31,8 @@ interface PanelProps {
   readonly onCloseConsole: () => void;
   readonly onToggleTheme: () => void;
   readonly onSubmit: (text: string) => void;
+  /** Park the composer's field under the chat on screen, keystroke by keystroke (`drafts.ts`). */
+  readonly onDraft: (text: string) => void;
   readonly onStop: () => void;
   readonly onDismiss: () => void;
   readonly onNewChat: () => void;

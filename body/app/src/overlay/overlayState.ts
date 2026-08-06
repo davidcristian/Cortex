@@ -6,6 +6,7 @@ import type {
   TransportError,
   TurnEvent,
 } from "../bridge/types";
+import { type Drafts, parkDraft } from "./drafts";
 import {
   INITIAL_LINK,
   type LinkView,
@@ -15,8 +16,8 @@ import {
   linkProbing,
   linkServing,
 } from "./linkState";
-import { type Notice, speak } from "./notice";
-import { NEW_CHAT_TITLE, adoptSession, deleteSession, openSession } from "./sessionState";
+import type { Notice } from "./notice";
+import { NEW_CHAT_TITLE, adoptSession, deleteSession, newChat, openSession } from "./sessionState";
 import {
   type CaptureClaim,
   type Message,
@@ -27,6 +28,7 @@ import {
   submit,
 } from "./turnState";
 
+export { draftOf } from "./drafts";
 export { cycleTarget } from "./sessionState";
 export { CAPTURE_SCREEN_TOOL, isTurnActive, latestReply } from "./turnState";
 export type { CaptureClaim, Message, PendingConfirm } from "./turnState";
@@ -60,6 +62,10 @@ export interface OverlayState {
   readonly notice: Notice | null;
   /** Which conversation-arrival the panel is showing, counted from the overlay's first. */
   readonly arrival: number;
+  /** What the composer is holding for each conversation, keyed by session id (`drafts.ts`). The
+   *  field on screen is this map's entry for `sessionId`, so a swap hands the arriving chat its own
+   *  text in the same commit that swaps and no arm has to move anything. */
+  readonly drafts: Drafts;
   /** Fired reminders awaiting delivery, pulled on each open and acked on dismiss (ADR-0025). */
   readonly reminders: readonly DueReminder[];
   /** What the overlay knows about the brain connection, for the header indicator (`linkState`). */
@@ -80,6 +86,9 @@ export interface OverlayState {
 export type Action =
   | { readonly kind: "open" }
   | { readonly kind: "submit"; readonly text: string }
+  /** The composer's field changed. Parked under whichever chat is on screen, so the text is
+   *  already where it belongs by the time any swap arm runs (`drafts.ts`). */
+  | { readonly kind: "draft"; readonly text: string }
   | { readonly kind: "event"; readonly event: TurnEvent }
   | { readonly kind: "transportError"; readonly error: TransportError }
   | { readonly kind: "dismiss" }
@@ -136,6 +145,7 @@ export function createInitialState(sessionId: string): OverlayState {
     pendingConfirm: null,
     notice: null,
     arrival: 0,
+    drafts: {},
     reminders: [],
     link: INITIAL_LINK,
     capture: null,
@@ -155,6 +165,15 @@ export function reduce(state: OverlayState, action: Action): OverlayState {
       return { ...state, mode: "panel", consoleTab: null, touched: true };
     case "submit":
       return submit(state, action.text);
+    case "draft":
+      // Typing is the user acting on the overlay, which `touched` has always claimed to cover and
+      // until now could not: nothing dispatched on a keystroke, so a cold-start adoption could
+      // replace the chat under a sentence somebody was in the middle of. Now it cannot.
+      return {
+        ...state,
+        touched: true,
+        drafts: parkDraft(state.drafts, state.sessionId, action.text),
+      };
     case "event": {
       // Any event at all is the brain serving, so the turn keeps the indicator honest for free:
       // no probe fires while a stream is arriving. The identity check keeps a no-op event a
@@ -193,19 +212,7 @@ export function reduce(state: OverlayState, action: Action): OverlayState {
         ? { ...state, mode: "hidden" }
         : state;
     case "newChat":
-      return {
-        ...state,
-        mode: "panel",
-        touched: true,
-        sessionId: action.sessionId,
-        title: NEW_CHAT_TITLE,
-        notice: action.announce ? speak(state.notice, NEW_CHAT_TITLE) : null,
-        arrival: state.arrival + 1,
-        messages: [],
-        switcherOpen: false,
-        consoleTab: null,
-        pendingConfirm: null,
-      };
+      return newChat(state, action.sessionId, action.announce);
     case "sessionsLoaded":
       return { ...state, sessions: action.sessions };
     case "openSession":

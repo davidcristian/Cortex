@@ -1139,7 +1139,7 @@ describe("usePanelMotion", () => {
     expect(moves).toEqual([]);
   });
 
-  it("eases a resize no render told it about, which is what the composer's growth is", () => {
+  it("eases a resize no render told it about, such as a row released at the end of its exit", () => {
     const { ref, element, state, moves, durations } = harness();
     state.natural = 400;
     renderHook(() => usePanelMotion(ref, true, "chat"));

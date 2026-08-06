@@ -1,4 +1,5 @@
 import type { SessionMessage, SessionSummary } from "../bridge/types";
+import { dropDraft } from "./drafts";
 import { speak } from "./notice";
 import type { OverlayState } from "./overlayState";
 import type { Message } from "./turnState";
@@ -48,6 +49,23 @@ function headerTitle(
 ): string {
   const summary = sessions.find((s) => s.sessionId === sessionId);
   return summary ? summary.title : titleFor(messages);
+}
+
+/** Mint a fresh chat over whatever is on screen (ADR-0035 addendum, 2026-08-03). */
+export function newChat(state: OverlayState, sessionId: string, announce: boolean): OverlayState {
+  return {
+    ...state,
+    mode: "panel",
+    touched: true,
+    sessionId,
+    title: NEW_CHAT_TITLE,
+    notice: announce ? speak(state.notice, NEW_CHAT_TITLE) : null,
+    arrival: state.arrival + 1,
+    messages: [],
+    switcherOpen: false,
+    consoleTab: null,
+    pendingConfirm: null,
+  };
 }
 
 /**
@@ -111,12 +129,14 @@ export function deleteSession(
   fallbackSessionId: string,
 ): OverlayState {
   const sessions = state.sessions.filter((s) => s.sessionId !== sessionId);
+  const drafts = dropDraft(state.drafts, sessionId);
   if (sessionId !== state.sessionId) {
-    return { ...state, sessions, touched: true };
+    return { ...state, sessions, drafts, touched: true };
   }
   return {
     ...state,
     sessions,
+    drafts,
     touched: true,
     sessionId: fallbackSessionId,
     title: NEW_CHAT_TITLE,

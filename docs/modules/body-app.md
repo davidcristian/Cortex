@@ -289,8 +289,30 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
   still takes its row away; cold-start adoption is excluded by being its own arm, and would be moving
   focus inside an `inert` panel besides. What it does NOT reach is a row gesture that swaps nothing
   (a rename, a delete of another chat, a reminder's ack), each still dropping focus: a deferral in
-  [refinements/body-overlay.md](../refinements/body-overlay.md), along with the draft that the caret
-  now lands in and that still belongs to no chat.
+  [refinements/body-overlay.md](../refinements/body-overlay.md). What the caret lands IN is the next
+  bullet.
+- **A draft belongs to the conversation it was typed into** (`OverlayState.drafts` +
+  `overlay/drafts.ts` + `components/Composer.tsx`, ADR-0035 addendum, 2026-08-06). Unsent composer
+  text is keyed by session id in the reducer and the field is CONTROLLED by the entry for the chat
+  on screen, so a swap hands the arriving conversation its own sentence in the same commit that
+  swaps the transcript: no arm parks anything, no effect runs in between, and no frame can paint the
+  wrong conversation's text. Before it the field held one text for the whole overlay, which cost
+  nothing while a swap dropped focus and cost the reader a stranger's half sentence once the caret
+  started landing there. **It is view state and dies with the body process**, which is a decision and
+  not an omission: the hard rule about surviving a model swap is satisfied by being in the body at
+  all, and what a store would add is survival of a RESTART, which text nobody has sent, nothing but
+  its own field can read, and no surface promises to keep does not earn. It sits in the reducer
+  rather than in the component because the delete cascade has to take a deleted chat's draft with it
+  and a swap has to be synchronous, which also leaves it one hydrate from a store if that ever
+  changes. **An empty field is stored as nothing**, which is the whole of the eviction policy: only
+  chats with a sentence waiting in them hold an entry. **Sending a text empties the field that held
+  it**, asked of the text rather than of the door, so the composer's own send spends the draft and an
+  example prompt on the empty state does not. A send the reducer refuses spends nothing. **Typing
+  sets `touched`**, which that flag has always documented and could not do until a keystroke reached
+  the reducer, so a cold-start adoption can no longer replace the conversation a half-typed line was
+  written in. The caret lands at the END of a restored draft, the field's own answer to having its
+  value assigned and the one worth having, since coming back to a half-typed thought is coming back
+  to finish it.
 - **The empty line waits for a row and yields to one, and a row the list moves travels there**
   (`components/SessionList.tsx` + `overlay/useTravel.ts`, ADR-0035 addendum, 2026-08-03). The empty
   line is asked of `sessions` rather than of the rendered rows, so deleting the last chat puts it up
@@ -326,8 +348,9 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
   looked for; the read is synchronous, in a layout effect React runs before the panel's own.
   Only the active view is in the layout flow, so it alone
   decides the height the panel eases to; the view being left is held for one morph, lifted out of
-  flow, and faded out over the one arriving; the chat is never unmounted, so a half-typed draft and
-  the composer's focus survive a trip to the console. The history's scroll position does NOT survive
+  flow, and faded out over the one arriving; the chat is never unmounted, so the composer's focus and
+  its field survive a trip to the console (the draft would survive an unmount too, being state above
+  the component, but the caret would not). The history's scroll position does NOT survive
   on that alone, since the view being left is `display: none` at the end of the morph, and is parked
   and handed back by `overlay/useLogScroll.ts`.
   The view being left is bounded by the panel (`.view.out` carries a `bottom`) and not only lifted
@@ -383,7 +406,7 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
   prediction through the same `centringHeight` a placement counts its measurement with and bounding
   it at `openHeight` first, because that is the order the measurement happens in;
   `overlay/panelWatch.ts` is the `ResizeObserver` that catches a resize no render and no roll
-  announced (a draft growing a line lives in the composer's own state). It answers a change to the
+  announced (a released row, content that settles after the render that brought it). It answers a change to the
   height the panel WANTS rather than to the box it has: a roll owns the height and is left alone, a
   move of the panel's own is asked through the probe instead of through the box (so a growth that
   lands mid-move redirects that move rather than queueing behind it), a reading that matches the
@@ -459,7 +482,8 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
   `ThemeMini.tsx`, ADR-0032 + ADR-0035 decision 1): the panel's one non-chat view, a tab strip
   over the appearance choices and the complete shortcut list. State is a single
   `consoleTab: "appearance" | "shortcuts" | null` on the reducer, with three actions that say what
-  each surface does: `toggleConsole(tab)` for the two openers in the hint strip (each owns its
+  each surface does: `toggleConsole(tab)` for the two openers in the hint strip (`HintStrip.tsx`,
+  the row of keyboard affordances under the composer; each opener owns its
   tab, so its own button closes the console and the other switches), the idempotent
   `openConsole(tab)` for the strip, and `closeConsole()` for Esc and the header chevron, which is
   why Esc now leaves in one press instead of unstacking two sheets. Beyond those three it is the

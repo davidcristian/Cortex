@@ -1,15 +1,18 @@
+// The turn half of the overlay state: what a message is, and how one turn's events fold into the
+// transcript. `overlayState.ts` re-exports the pieces components use, and only types cross back.
+
 import type { TurnEvent } from "../bridge/types";
+import { draftOf, dropDraft } from "./drafts";
 import type { OverlayState } from "./overlayState";
 import { NEW_CHAT_TITLE, deriveTitle } from "./sessionState";
 
-/**
- * The brain-side name of the screen-capture built-in (ADR-0029). Matched by name rather than by
- * a new event field: the tool activity the brain already streams carries it, and a second seam
- * field would be one more place the two ends could disagree about the same fact.
- */
+/** The brain-side name of the screen-capture built-in. Matched by name rather than by a new event
+ *  field, because the tool activity the brain already streams contains it. */
 export const CAPTURE_SCREEN_TOOL = "capture_screen";
 
-/** How far this turn's screen-capture claim has climbed (ADR-0029 outcome addendum). */
+/** How far this turn's screen-capture claim has climbed: `asked` is what the pre-dispatch activity
+ *  proves, `read` what the outcome proves, and `null` is a turn that asked for nothing. It only
+ *  ever climbs within a turn, because over-reporting is the safe direction here. */
 export type CaptureClaim = "asked" | "read";
 
 export interface Message {
@@ -19,18 +22,17 @@ export interface Message {
   readonly streaming: boolean;
   readonly tool: string | null;
   readonly status: string | null;
-  /** The status event's `state` (e.g. "thinking"), so the chip can treat deliberation
-   *  distinctly from a generic status; null until a status event lands (ADR-0020). */
+  /** The status event's `state`, such as "thinking", so the chip can show deliberation
+   *  differently from a generic status. Null until a status event arrives. */
   readonly statusState: string | null;
-  /**
-   * The reply's accumulated reasoning trace: every `"thinking"` status's detail, concatenated in
-   * order (each already guardrail-scrubbed brain-side, ADR-0020 addendum).
-   */
+  /** The reply's reasoning trace: every `"thinking"` status's detail in order, each already
+   *  filtered brain-side. `status` shows only the latest delta and clears when the turn settles.
+   *  In memory only, so a reloaded chat has `""`. */
   readonly thoughts: string;
   readonly error: string | null;
 }
 
-/** A gated tool call awaiting the user's mid-turn approval (ADR-0022); at most one per turn. */
+/** A tool call waiting for the user's mid-turn approval; at most one per turn. */
 export interface PendingConfirm {
   readonly confirmId: string;
   readonly toolName: string;
@@ -51,7 +53,8 @@ export function latestReply(state: OverlayState): string {
 }
 
 /** Start a turn: the user's line plus the empty assistant bubble the stream fills. A blank draft
- *  or a turn already running is a no-op, so a double-send cannot open a second stream. */
+ *  or a turn already running is a no-op. Sending empties the field that held the text, which is
+ *  asked of the text rather than of the control it was sent from. */
 export function submit(state: OverlayState, text: string): OverlayState {
   const trimmed = text.trim();
   if (isTurnActive(state) || trimmed.length === 0) {
@@ -60,11 +63,13 @@ export function submit(state: OverlayState, text: string): OverlayState {
   const user: Message = message(`m${state.seq}`, "user", trimmed, false);
   const assistant: Message = message(`m${state.seq + 1}`, "assistant", "", true);
   const title = state.title === NEW_CHAT_TITLE ? deriveTitle(trimmed) : state.title;
+  const sentTheDraft = draftOf(state.drafts, state.sessionId) === text;
   return {
     ...state,
     mode: "panel",
     touched: true,
     title,
+    drafts: sentTheDraft ? dropDraft(state.drafts, state.sessionId) : state.drafts,
     messages: [...state.messages, user, assistant],
     seq: state.seq + 2,
   };
@@ -76,6 +81,9 @@ export function applyEvent(state: OverlayState, event: TurnEvent): OverlayState 
     case "delta":
       return patchStreaming(state, (m) => ({ ...m, content: m.content + event.text }));
     case "toolActivity": {
+      // The chip is emitted just before the dispatch, so it proves the assistant asked to look and
+      // no more. `?? "asked"` keeps the claim from falling: a second capture asked for after a
+      // first was read leaves it at "read".
       const capture =
         event.toolName === CAPTURE_SCREEN_TOOL ? (state.capture ?? "asked") : state.capture;
       const chipped = patchStreaming(state, (m) => ({
@@ -85,10 +93,15 @@ export function applyEvent(state: OverlayState, event: TurnEvent): OverlayState 
       return { ...chipped, capture };
     }
     case "toolOutcome":
+      // It may only ever strengthen the claim: `ok` false means the brain cannot say the screen was
+      // read, never that it was not, so it changes nothing. A true one promotes even a claim this
+      // side never saw asked, because a dropped activity must not cost the truer statement.
       return event.toolName === CAPTURE_SCREEN_TOOL && event.ok
         ? { ...state, capture: "read" }
         : state;
     case "status": {
+      // A "thinking" status is one reasoning delta, already filtered brain-side, so it joins
+      // `thoughts` as well as the live chip. Any other status drives the chip only.
       const thinking = event.state === "thinking";
       return patchStreaming(state, (m) => ({
         ...m,
@@ -100,6 +113,8 @@ export function applyEvent(state: OverlayState, event: TurnEvent): OverlayState 
     case "confirmRequest":
       return applyConfirmRequest(state, event);
     case "confirmResolved":
+      // The brain stopped waiting, so the question on screen can no longer be answered: close it
+      // rather than let a click reach nothing. Only the card showing goes.
       return state.pendingConfirm?.confirmId === event.confirmId
         ? { ...state, pendingConfirm: null }
         : state;
@@ -110,9 +125,8 @@ export function applyEvent(state: OverlayState, event: TurnEvent): OverlayState 
   }
 }
 
-/** A gated call awaits approval: raise the card, surfacing it like a completed turn (orb →
- *  preview). Only a live turn can ask. A cancelled/dead turn's late request must not resurrect
- *  UI state (the same no-op property `patchStreaming` gives every other event). */
+/** A call is waiting for approval: raise the card, showing it as a completed turn does (orb then
+ *  preview). Only a live turn can ask, so a cancelled turn's late request revives nothing. */
 function applyConfirmRequest(
   state: OverlayState,
   event: Extract<TurnEvent, { kind: "confirmRequest" }>,
@@ -132,17 +146,16 @@ function applyConfirmRequest(
   };
 }
 
-/** End the streaming turn (optionally with an error) and surface it: orb → preview. Any pending
- *  approval dies with its turn. The stream is gone, and stream-death is the deny (ADR-0022). */
+/** End the streaming turn, with an error or without, and show it: orb then preview. Any pending
+ *  approval dies with its turn, the stream being gone and that being the deny. */
 export function endTurn(state: OverlayState, error: string | null): OverlayState {
   const ended = patchStreaming(state, (m) => ({ ...m, streaming: false, error }));
   return {
     ...ended,
     mode: state.mode === "orb" ? "preview" : state.mode,
     pendingConfirm: null,
-    // The turn is over, so the picture it took is out of context: the indicator goes out with
-    // it rather than persisting into a turn that never looked at anything. The one place the
-    // claim ladder is allowed to fall, and it falls all the way rather than a rung.
+    // The turn is over, so the picture it took is out of context and the indicator goes out with
+    // it. The one place the claim is allowed to fall, and it falls all the way.
     capture: null,
   };
 }
