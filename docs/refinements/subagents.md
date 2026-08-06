@@ -7,10 +7,14 @@ deferred-refinements section on 2026-07-15 with the entries kept verbatim; lande
 are the historical record of what each deferral became, and the index at
 [index.md](index.md) carries the recommended pickup order.
 
-**Open items:** the per-role escape hatch (on the dead-until-a-consumer list) and the
+**Open items:** 3. The per-role escape hatch (on the dead-until-a-consumer list), the
 spontaneous-pick nudge's live uptake (fix when it bites, recorded at the end, and **observed live
 on 2026-08-04** without closing: the run found the probe's own premise false, so the entry stays
-open with a sharper trigger). Subagent progress
+open with a sharper trigger), and a delegated tool step announced and never settled. **The third
+was added to this line 2026-08-06**, later than the entry itself, which was written at the end of
+this doc the same day the capture dispatch's outcome landed; the index cell counted 3 from the
+start, so the header was the wrong side and the correction belongs here rather than there.
+Subagent progress
 reporting **landed 2026-07-16** as one side channel with the tool-step chip surfacing entry from
 [email-confirmer.md](email-confirmer.md) (annotated in place below). The spawn-spec tuning for
 spontaneous model picks and the measured trade-off advertisement landed together on 2026-07-16

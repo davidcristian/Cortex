@@ -7,10 +7,20 @@ deferred-refinements section on 2026-07-15 with the entries kept verbatim; lande
 historical record of what each deferral became, and the index at [index.md](index.md) carries the
 recommended pickup order.
 
-**Open items:** model-manager co-residency; resume a crashed handoff from its record; fence the
+**Open items:** 7. Model-manager co-residency; resume a crashed handoff from its record; fence the
 single-handoff claim across processes; reconverge the brain's residency when the sidecar restarts
 under it; check the sidecar's stop bounds against the brain's control deadline; MTP model
-variants, disable-thinking / token-budget capping
+variants; and disable-thinking / token-budget capping, **narrowed rather than closed on
+2026-08-06**. The lever shipped that day as `GenerationBounds` on `InferenceBackend.stream`, and
+all three passes whose deliberation `drain_text` throws away unread now take it: the history
+recap's fold, the session title, and the model-based recall rank. What the entry still covers is
+the case it was written for and the only one left, a user-facing reply, which sends no bounds
+deliberately, so a runaway trace on a real answer is uncapped exactly as it always was and the
+original trigger, a user who minds the wait, still stands for that case alone. **The count
+deliberately does not move.** A count moved for a half-closed entry loses an open item exactly as
+one that fails to move for a newly opened deferral does, which this backlog learned in the other
+direction; what moves instead is this sentence and the entry's line in the index's
+fix-when-it-bites bucket, so nobody picks it up expecting to build a lever that already exists.
 
 **Inference / Model Manager in Slice 4 ([ADR-0007](../adr/ADR-0007-model-manager-inference.md)):**
 - **`cortex_model_manager` process lifecycle and the real swap landed 2026-07-17 and 2026-07-18

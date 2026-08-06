@@ -42,6 +42,19 @@ starting an entry, and before quoting one back to the user, re-derive its claim 
 from a running build. An entry is a record of what somebody once measured, never a reading of what
 the tree does now.
 
+**And a count that is right by cancellation hides both of its errors.** The two warnings above are
+about an entry's own text; this one is about the arithmetic that navigates to it, and it was earned
+on 2026-08-06 by [body-overlay.md](body-overlay.md), whose Open items line had drifted twice in
+opposite directions. It still named an entry that landed on 2026-08-03 and it had never picked up
+one that opened on 2026-08-06. Eleven names either way, so that header and its cell in the table
+below agreed at every moment, and the agreement was worth nothing: a reader following it would have
+opened a closed entry and never seen an open one. A count is a checksum over a set, and two errors
+of the same size in opposite directions are the one thing a checksum cannot see. So a header and a
+cell matching says nobody has miscounted; it does not say either names the right entries, and the
+only check that catches this is reading the entries the line claims to summarize. The other half of
+the lesson is the memory row, which read 7 for a day because the close that struck two landed
+entries from it never added the two it opened, and there the count did move and moved the wrong way.
+
 ## The docs
 
 | Doc | Area | Open |
@@ -52,8 +65,8 @@ the tree does now.
 | [session-history.md](session-history.md) | Slice 3 history windowing and summarization, the recap's fold made cheap 2026-08-06 (thinking off and a token cap per request, a floor under a fold, a chip while it runs) and `CORTEX_HISTORY_SUMMARY` moved to on, leaving the one-corpus measurement as the area's only open item (ADR-0014/0038) | 1 |
 | [tools-mcp.md](tools-mcp.md) | Dispatch budget/cost/salience, spawn batch cap, MCP registries (ADR-0009/0010) | 6 |
 | [untrusted-content.md](untrusted-content.md) | Taint boundary, output guardrail, subagent model safety (ADR-0013/0015/0017/0019/0028), a quoted injection replayed by the plain history window, obeyed 2 of 10 on a bare turn and 0 of 10 behind either standing rule, the plain one landed for the tool-less turn (ADR-0013/0038) | 12 |
-| [memory.md](memory.md) | Store, scoping, rerank/MMR, the ranked `select` and its recall trail, and the judge's default now that bounding its request made it twenty times cheaper at the same ranking (ADR-0008/0038) | 7 |
-| [inference-model-manager.md](inference-model-manager.md) | Model-manager lifecycle, MTP, reasoning status, whose disable-thinking and token-cap halves now reach every pass that discards its own deliberation (ADR-0007/0020/0038) | 7 |
+| [memory.md](memory.md) | Store, scoping, rerank/MMR, the ranked `select` and its recall trail, and the judge's default now that bounding its request made it twenty times cheaper at the same ranking, plus the two the ranked-recall close opened and neither this cell nor the area header picked up until 2026-08-06, a cross-encoder rank and an audit of the candidates a rank drops (ADR-0008/0038) | 9 |
+| [inference-model-manager.md](inference-model-manager.md) | Model-manager lifecycle, MTP, reasoning status, whose disable-thinking and token-cap halves now reach every pass that discards its own deliberation, leaving the user-facing reply as the whole of that entry and the count unmoved for a narrowing (ADR-0007/0020/0038) | 7 |
 | [subagents.md](subagents.md) | Progress reporting, spawn schema, heterogeneous roster (ADR-0010/0018) | 3 |
 | [body-overlay.md](body-overlay.md) | Overlay polish, connection indicator, proto Cancel (ADR-0011), the reserved scrollbar rail's assumed width and spent card inset, a section's roll ending 0.25px from where it was going, the two bounds the panel's section budget left behind it (a section's own frame being under no cap, and the room a closing section hands back arriving in one frame), the switcher's and the reminder stack's own row gestures dropping focus with no swap to answer them, and the whisper's follow-ups (ADR-0037): a pickable voice row, a mid-stream resize keeping the old wrap width, and kerning inside the letter boxes under a changed font (its drain-growth entry landed the day it was filed, and the console outliving a new chat, the reminder stack's per-row exit and the switcher's, the panel's watch on its own box with the arrival-aside correction that came out of it, the demo bridge over the line cap, two sections outrunning the panel on their own, the chat floor's frozen measurement of the empty state, the console tab strip's missing keyboard half, the switcher's disputed listbox role, the two motions its list still made in one frame, and a Thoughts trace opening a reply off the bottom of a full history all landed 2026-08-03, the last of them opening the chrome-side entry that landed 2026-08-04 on the same ride, alongside the cycle keys' silent swap, which opened the focus entry that landed 2026-08-06 as the caret following the conversation into the composer and opened two entries behind it, the row gestures above and the draft named below; the composer's move on a clamped shrink closed 2026-08-06 as moot, its mechanism having been deleted the day it was filed, and the retarget-and-resize pair landed 2026-08-06 as the panel measuring itself in fractional pixels, opening the roll entry that took its place; the composer's draft belonging to no chat landed 2026-08-06 too, the same day it was opened and the same day the user answered it, as unsent text keyed by session id in the reducer, which was the last entry anywhere waiting on a decision rather than on work) | 11 |
 | [session-read-seam.md](session-read-seam.md) | Session listing/read seam, the generated title's empty-reply half closed 2026-08-06 by bounding its request (ADR-0021/0038) | 2 |
@@ -1269,6 +1282,21 @@ that checks, and what these binds receive is GGUFs and database dumps rather tha
 deferral is the scan, and it is deferred rather than written because one built today would guard a
 set that is already correct ([repo-gates.md](repo-gates.md)).
 
+Memory went **7 to 9 on 2026-08-06**, an arithmetic correction rather than new work, and the pass
+that found it repaired three more lines without moving a count. The ranked-recall close had done
+half of its own bookkeeping: it struck the model-based reranker and recall observability from the
+area header when they landed, and it never added the cross-encoder rank and the audit of dropped
+candidates that the same close opened, both written up in the entry and at the origin decision
+within the hour. Header, cell and bucket therefore all read as though that close had only shut
+things. Three more lines were wrong without any count being wrong with them.
+**Subagents'** header named two of its three entries, the
+delegated tool step announced and never settled having been written up and counted on this page but
+never added there, so the header was the wrong side. **Body and overlay's** named eleven of which
+one had landed and one was missing, which is the standing warning added at the top of this page.
+And the **fix-when-it-bites** bucket still described recall observability as a thing nobody can
+inspect after the fact, on the day the audit sink that inspects it shipped. Four navigation aids,
+four different ways to be wrong, none of them reachable by rereading a number.
+
 ## Recommended order
 
 Ordered by what unblocks the most value soonest. Before starting any item, verify its claims
@@ -1690,6 +1718,17 @@ behind itself: the reading it moved off `offsetHeight` was the panel's, and a se
 still measures the old way. The shape repeats often enough to be worth naming. An entry that closes
 here rarely closes alone, because the thing it fixes is usually one instance of a reading or a rule
 that has siblings, and the siblings only become visible once the first one is right.
+
+**That paragraph stopped a few hours short of its own day, corrected 2026-08-06.** Written in the
+afternoon, it ends on the composer's draft standing "in its place" as a decision again, and the
+draft was answered and landed that same afternoon, taking the count of entries waiting on a
+decision to zero for the first time. Then the evening put one back, and it is the **first bullet of
+this section**: bounding the recall rank's request removed the only reason `CORTEX_MEMORY_RECALL`
+defaults to `raw`, so the judge's default is a choice in front of the user with no work behind it.
+The paragraph above therefore reads as though this bucket's decision-only item were behind it while
+the item is above it, which the narrative on this page had right all along, recording the fall to
+zero and the rise back to one in the same sentence. A closing paragraph that summarizes a day is a
+claim about the tree like any other, and this one aged in hours.
 
 ### Actionable, but a seam or port change comes first
 
@@ -2231,10 +2270,26 @@ deliverable-until-acked pull, and a proactive re-push double-delivers because a 
 `reminder_id` cannot tell a retry from a legitimate re-fire, so it wants the per-fire delivery id
 the declined occurrence-history record would carry; its trigger is a body reconnecting between a
 failed push and the next overlay open often enough that a stuck-until-open outcome is a real gap)
-([scheduling.md](scheduling.md)); MTP variants and the
-disable-thinking / token-budget caps ([inference-model-manager.md](inference-model-manager.md));
-the ANN index, and recall observability, whose trigger is a visibly wrong recall no one can inspect
-after the fact ([memory.md](memory.md)); the four guardrail tails (whitespace-split hosts, full
+([scheduling.md](scheduling.md)); MTP variants, and the
+disable-thinking / token-budget caps, **narrowed on 2026-08-06 rather than closed**, because the
+lever shipped that day as `GenerationBounds` on `InferenceBackend.stream` and all three passes that
+throw their own deliberation away took it (the history recap's fold, the session title, the
+model-based recall rank), leaving the user-facing reply as the whole of what stays deferred, since
+it sends no bounds by design; the trigger is unchanged and now applies to that case alone, a
+runaway trace on a real answer or a user who minds the wait, and the area's count deliberately did
+not move for a narrowing ([inference-model-manager.md](inference-model-manager.md));
+the ANN index; **recall observability, which this bucket claimed until 2026-08-06 and which is
+false about the tree**, its trigger having read "a visibly wrong recall no one can inspect after the
+fact" while the inspection had shipped that same day as the `RecallAuditSink` port and
+`LoggingRecallSink` (`cortex_memory/audit.py`, one structured line per recall behind
+`CORTEX_MEMORY_RECALL_AUDIT=1`), so the line is struck rather than retriggered; and, in its place,
+the two that the same close opened, joined here 2026-08-06: a **cross-encoder rank**, the
+other form of a model reranker, wanting a scoring-model port rather than a chat completion and so a
+new adapter rather than a policy, whose trigger is a measured shortfall of the judge on a real
+corpus or a latency budget it cannot meet; and **auditing the candidates a rank dropped**, which
+`RecallAudit` does not carry because a non-picked candidate's `SPREAD`/`SWEEP` key is not well
+defined, whose trigger is the first investigation that needs to know why a specific memory was not
+returned ([memory.md](memory.md)); the four guardrail tails (whitespace-split hosts, full
 UTS-39 confusables, further encodings, footer heuristics), the GBNF alternative, the
 fence-without-block recall mode, per-provenance eviction, and the screening subagent
 ([untrusted-content.md](untrusted-content.md)); per-field attachment schema descriptions and

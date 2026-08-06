@@ -398,6 +398,21 @@ only so a sitting on the host's hardware knows what it could also settle:
   [memory.md](../refinements/memory.md)): both need `select` to go async first, and summarization
   needs its cache-versus-recompute question decided, which are the blockers that actually decide
   them; both are also model passes, which the host tier judges at production context.
+  **Both blockers are gone as of 2026-08-06 and both passes shipped, so the sentence above is false
+  about the tree and is kept only as the record of what was believed.** `RecallPolicy.select` and
+  `HistoryWindow.select` are both `async` now, the recall one widened once for the reranker, the
+  declined blended-relevance field and the recall trail together
+  ([ADR-0038](../adr/ADR-0038-ranked-recall.md)). The reranker is `JudgeRecallPolicy`
+  (`CORTEX_MEMORY_RECALL=judge`) and summarization is `SummarizingHistoryWindow`
+  (`CORTEX_HISTORY_SUMMARY`, now on by default), its cache question answered as cache rather than
+  recompute, the account living in the session store and folded forward as the boundary moves.
+  What is left of this line is the half that was always the honest one: both
+  were measured on the agent's own runs, on one hand-built corpus each, so what this hardware still
+  buys is the same judgment over real conversations rather than a blocker to clear. Their remaining
+  entries say so at [session-history.md](../refinements/session-history.md) and
+  [memory.md](../refinements/memory.md), and one of them is now a decision for the user rather than
+  work for anyone: the judge's default, whose only reason to be off was a cost that fell twenty
+  times over on the same day.
 - **Unbalanced COM initialization on the blocking pool**
   ([body-gateway.md](../refinements/body-gateway.md)): the fix is code and stays there; the
   *observation* that would trigger it is the standing watch item in
@@ -416,4 +431,9 @@ written at their entries and their origin ADRs. What genuinely wants this hardwa
 judgment at 16K with more than one slot, which is a better answer rather than the only one, so all
 three stay listed above as things a sitting here could also settle. **The nudge half of that last
 sentence was overtaken on 2026-08-04**, when the probe ran on this hardware at 16K with the tier's
-own single slot: what its entry still wants is duration, not context.
+own single slot: what its entry still wants is duration, not context. **The other half was
+overtaken on 2026-08-06**, when both of the model passes' named blockers, the shared `select`
+widening and the undecided cache question, were cleared and both passes shipped, which is written
+at the entry above. This paragraph's own verdict survives it and is worth restating for that
+reason: neither pass was ever hardware-blocked, and what this hardware buys them is still judgment
+over real use rather than a blocker to clear.

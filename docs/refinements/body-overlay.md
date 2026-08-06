@@ -8,10 +8,10 @@ deferred-refinements section on 2026-07-15 with the entries kept verbatim; lande
 are the historical record of what each deferral became, and the index at
 [index.md](index.md) carries the recommended pickup order.
 
-**Open items:** multi-turn-within-one-stream + proto `Cancel`, streamed
-brain status (its producer landed 2026-07-18; only the push RPC remains), the two motions the
-switcher's list still makes in one frame (its empty line arriving after the last row's exit, and a
-reorder moving every row it touches), the two bounds the panel's section budget leaves behind it
+**Open items:** 11. Multi-turn-within-one-stream + proto `Cancel`, streamed
+brain status (its producer landed 2026-07-18; only the push RPC remains), the switcher's and the
+reminder stack's own row gestures dropping focus with no swap to answer them,
+the two bounds the panel's section budget leaves behind it
 (a section's own frame being under no cap, and the room a closing section hands back in one frame),
 the two tradeoffs the reserved scrollbar rail accepts (its width
 is assumed rather than measured off the engine, and the two 6px cards spend their whole inset on
@@ -20,7 +20,17 @@ from where it was going, and the whisper's three follow-ups (a pickable voice
 row in the console, the wrap
 width a mid-stream resize cannot move, and kerning inside the letter boxes under a changed
 font; its drain-growth entry landed the same day it was filed, and the console outliving a new
-chat landed 2026-08-03). A mid-stream retarget restarting from a rounded height and a resize that
+chat landed 2026-08-03). **Corrected 2026-08-06, and the shape of the error is worth more than the
+fix.** This line was wrong twice in opposite directions. It still named the two motions the
+switcher's list once made in one frame, which landed 2026-08-03 and took the count 15 to 14 as one
+entry, and it had never picked up the row gestures, which opened 2026-08-06 behind the caret
+following a chat swap and which the index cell did list. Eleven names before and eleven after, so
+the header agreed with the index at every moment and neither could be checked against the other:
+a reader following it would have opened a closed entry and never seen an open one. Filed here as
+the standing lesson **a count that is right by cancellation hides both of its errors**, which no
+count can catch and only reading the entries can, and which is now the third warning at
+[index.md](index.md) beside the one about cost estimates and the one about an entry's account of
+the code. A mid-stream retarget restarting from a rounded height and a resize that
 lands inside the panel's own move waiting for it landed together on 2026-08-06, as the one piece of
 work they always were: the panel reads its used height with its sub-pixels and its watch asks what
 the panel would be rather than what the box says, so a growth that lands inside a move joins it one
