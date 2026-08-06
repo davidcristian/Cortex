@@ -6,6 +6,7 @@ import type {
   TransportError,
   TurnEvent,
 } from "../bridge/types";
+import { type Drafts, parkDraft } from "./drafts";
 import {
   INITIAL_LINK,
   type LinkView,
@@ -15,8 +16,8 @@ import {
   linkProbing,
   linkServing,
 } from "./linkState";
-import { type Notice, speak } from "./notice";
-import { NEW_CHAT_TITLE, adoptSession, deleteSession, openSession } from "./sessionState";
+import type { Notice } from "./notice";
+import { NEW_CHAT_TITLE, adoptSession, deleteSession, newChat, openSession } from "./sessionState";
 import {
   type CaptureClaim,
   type Message,
@@ -35,6 +36,7 @@ import {
 // helpers in `sessionState.ts`, and the turn fold (what a message is, how its events apply) in
 // `turnState.ts`. Splitting them is what keeps all three under the line cap.
 
+export { draftOf } from "./drafts";
 export { cycleTarget } from "./sessionState";
 export { CAPTURE_SCREEN_TOOL, isTurnActive, latestReply } from "./turnState";
 export type { CaptureClaim, Message, PendingConfirm } from "./turnState";
@@ -84,6 +86,10 @@ export interface OverlayState {
    * count, having no gesture behind it to answer and running only while the panel is untouched.
    */
   readonly arrival: number;
+  /** What the composer is holding for each conversation, keyed by session id (`drafts.ts`). The
+   *  field on screen is this map's entry for `sessionId`, so a swap hands the arriving chat its own
+   *  text in the same commit that swaps and no arm has to move anything. */
+  readonly drafts: Drafts;
   /** Fired reminders awaiting delivery, pulled on each open and acked on dismiss (ADR-0025). */
   readonly reminders: readonly DueReminder[];
   /** What the overlay knows about the brain connection, for the header indicator (`linkState`). */
@@ -111,6 +117,9 @@ export interface OverlayState {
 export type Action =
   | { readonly kind: "open" }
   | { readonly kind: "submit"; readonly text: string }
+  /** The composer's field changed. Parked under whichever chat is on screen, so the text is
+   *  already where it belongs by the time any swap arm runs (`drafts.ts`). */
+  | { readonly kind: "draft"; readonly text: string }
   | { readonly kind: "event"; readonly event: TurnEvent }
   | { readonly kind: "transportError"; readonly error: TransportError }
   | { readonly kind: "dismiss" }
@@ -167,6 +176,7 @@ export function createInitialState(sessionId: string): OverlayState {
     pendingConfirm: null,
     notice: null,
     arrival: 0,
+    drafts: {},
     reminders: [],
     link: INITIAL_LINK,
     capture: null,
@@ -186,6 +196,15 @@ export function reduce(state: OverlayState, action: Action): OverlayState {
       return { ...state, mode: "panel", consoleTab: null, touched: true };
     case "submit":
       return submit(state, action.text);
+    case "draft":
+      // Typing is the user acting on the overlay, which `touched` has always claimed to cover and
+      // until now could not: nothing dispatched on a keystroke, so a cold-start adoption could
+      // replace the chat under a sentence somebody was in the middle of. Now it cannot.
+      return {
+        ...state,
+        touched: true,
+        drafts: parkDraft(state.drafts, state.sessionId, action.text),
+      };
     case "event": {
       // Any event at all is the brain serving, so the turn keeps the indicator honest for free:
       // no probe fires while a stream is arriving. The identity check keeps a no-op event a
@@ -228,32 +247,7 @@ export function reduce(state: OverlayState, action: Action): OverlayState {
         ? { ...state, mode: "hidden" }
         : state;
     case "newChat":
-      // The console leaves with the old chat. Both doors here, Ctrl+N and the header's pencil, are
-      // aimed at the conversation, so they land in the conversation: the arm already sets
-      // `mode: "panel"` for that reason, and leaving `consoleTab` alone emptied the chat *behind*
-      // the console, which stayed up (the user's pick, ADR-0035 addendum, 2026-08-03; Ctrl+N is the
-      // reachable half of the pair, the pencil being under the console with the rest of the chat).
-      // This is the opposite call from `dismiss` and for the opposite reason: the panel stays on
-      // screen here, so the morph back to the chat is the movement that was asked for rather than
-      // one the window makes on its way out.
-      //
-      // The two doors part company on one thing only, which is whether the swap is announced. The
-      // pencil is labelled "New chat" and hands back exactly that string, so it stays silent; the
-      // keystroke names nothing, so it speaks (`notice.ts`). They agree about focus, as every pair
-      // of doors on one arm does: the empty chat arrives with the caret in it (`arrival`).
-      return {
-        ...state,
-        mode: "panel",
-        touched: true,
-        sessionId: action.sessionId,
-        title: NEW_CHAT_TITLE,
-        notice: action.announce ? speak(state.notice, NEW_CHAT_TITLE) : null,
-        arrival: state.arrival + 1,
-        messages: [],
-        switcherOpen: false,
-        consoleTab: null,
-        pendingConfirm: null,
-      };
+      return newChat(state, action.sessionId, action.announce);
     case "sessionsLoaded":
       return { ...state, sessions: action.sessions };
     case "openSession":

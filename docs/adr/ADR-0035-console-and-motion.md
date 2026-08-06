@@ -2972,3 +2972,152 @@ test files. Filed with the numbers in
 **The other boxes that measure themselves are unchanged too.** The console's tab slack, the panel
 edge's canvas and the composer's pill each read `offsetHeight` for their own purposes; only the tab
 slack reaches the panel's arithmetic, and it does so through the same 2px floor.
+
+## Addendum, 2026-08-06: a draft belongs to the conversation it was typed into
+
+The caret addendum above filed one thing it had made visible: the composer's field is never
+unmounted, so its text is the overlay's and not any chat's, and now that a swap puts the caret in
+that field, the first thing a reader meets in the arriving conversation is a sentence they started
+somewhere else. **The user's answer is a draft per chat**, taken over clearing on swap on
+2026-08-06, because a half-typed question is work and swapping away is not a decision to discard it.
+
+### What was measured before
+
+Chromium at 900x900 against the demo bridge, "half a question" typed into the field and then every
+door into a swap fired. The entry's claim held exactly and at every door, not only the one it named:
+the value and the caret came through `Ctrl+↓`, a switcher row, `Ctrl+N`, the header's pencil, a
+delete confirm on the open chat, and a reminder card's open control, all reading
+`{"value":"half a question","caret":15}` afterwards, with the arriving chat's title in the header.
+
+One detail in the entry is worth correcting rather than repeating: **"caret at 15" is the end of the
+draft**, `"half a question"` being fifteen characters, so the entry was recording where the caret
+already was and not a caret preserved mid-sentence. Both are true at HEAD, as it happens; a caret
+parked at offset 2 also survived a swap unchanged.
+
+Cold-start adoption could not be reproduced in the browser at all, and for a reason worth writing
+down: the browser build self-summons on load, `open` sets `touched`, and adoption is guarded on
+`touched`, so the adopt attempt is always refused before a field exists to type into. It is covered
+in the reducer instead.
+
+### The decision
+
+**`OverlayState` gains `drafts`, unsent composer text keyed by session id, and the composer becomes
+a controlled field over the entry for the chat on screen** (`overlay/drafts.ts`,
+`components/Composer.tsx`). A swap hands the arriving conversation its own text in the very commit
+that swaps the transcript, so no arm parks anything, no effect runs in between, and there is no frame
+that could paint the wrong conversation's sentence.
+
+**In the body's own reducer rather than behind a store port, argued rather than assumed.** The repo's
+hard rule is that state survives a model swap, meaning no conversation state, task state or working
+memory inside a model-server process or a model's KV cache. This is in the body, which a model swap
+cannot reach, so that rule is satisfied by construction and Redis would not make it more so. The
+separate question a store would answer is survival of a body RESTART, and a draft does not earn it:
+it is text nobody has sent, nothing but the field it was typed in can read it, and no surface
+anywhere promises it is kept, which is what makes an undurable draft honest rather than a lie. It is
+the same category as the switcher being open, the console's tab, the log's scroll position and a
+switcher row's own half-typed rename, all of which die with the process today. What durability would
+cost is a proto message, a brain-side arm, an adapter, a contract test and an eviction policy, spent
+per keystroke over gRPC, for a sentence a restart loses.
+
+**In the reducer rather than in the component, which is what keeps that cheap to revisit.** Two
+things the composer cannot see need the map: the delete cascade has to take a deleted chat's draft
+with it, and a swap has to hand over the arriving text synchronously. If a draft ever must survive a
+restart it hydrates and persists exactly where `messages` does, with no component to reach into.
+
+**An empty field is stored as nothing.** `parkDraft` with `""` drops the entry, which is the whole
+of the eviction policy: a map keyed by chat that stored `""` would grow an entry per conversation
+ever visited and never lose one, where this holds only chats with a sentence waiting in them, and
+each leaves again when its text is sent, when its chat is deleted, or when the field is emptied by
+hand. A draft for a chat outside the loaded switcher window needs nothing special, being keyed by id
+rather than by list membership.
+
+**Sending a text empties the field that held it**, asked of the text and not of the door
+(`turnState.submit`). The composer sends its own draft, so the draft goes; an example prompt on the
+empty state sends the chip's words, so a half-typed question sitting in the field beside it is not
+thrown away by a button pressed for something else. A send the reducer refuses (a blank field, a turn
+already streaming) spends nothing, where the field used to blank itself regardless.
+
+**Typing now counts as touching the overlay.** `touched` has always documented itself as covering
+typing and could not, nothing having dispatched on a keystroke; the draft action sets it, which
+closes the one path where a cold-start restore could take away the conversation a half-typed line was
+written in.
+
+| Door | The draft it leaves | The field it arrives on |
+| --- | --- | --- |
+| A switcher row | parked under the chat being left | that chat's own text, or empty |
+| `Ctrl+↑` / `Ctrl+↓` | parked under the chat being left | that chat's own text, or empty |
+| `Ctrl+N` and the header's pencil | parked under the chat being left | empty, a fresh id holding nothing |
+| A reminder card's open control | parked under the chat being left | that chat's own text, or empty |
+| A delete confirm on the open chat | dropped with the conversation it described | empty |
+| A delete of any other chat | that chat's draft dropped; the open chat's untouched | unchanged, no swap |
+| Cold-start adoption | never runs once anything is typed (`touched`) | unchanged |
+| A trip to the console and back | nothing, no swap and no unmount | the same text, as before |
+
+### The caret
+
+**A restored draft is offered at its end**, not at the offset it was left at. Coming back to a
+half-typed thought is coming back to finish it, so the caret is where the next character goes. It is
+also the field's own answer rather than machinery: assigning a textarea's value puts the selection
+after the last character, a swap is exactly what assigns it (the text differs), and a keystroke is
+exactly what does not, which is the same mechanism saying both halves. Measured in Chromium at
+900x900 and 640x720: a draft left with the caret at offset 2, swapped away and reopened from a
+switcher row, comes back at 15; and typing an `X` at offset 4 of a standing draft leaves the caret at
+5, in place, rather than throwing the writer to the end.
+
+### What it measures
+
+**Every door, at 900x900**, after: a sentence typed in one chat is gone from the field the moment
+another conversation arrives and is waiting under the chat it was written in when any door goes back;
+`Ctrl+N` and the pencil arrive empty and leave both sentences behind them; a delete of the open chat
+arrives empty; a reminder's open control behaves as the row does; a trip to the console and back is
+unchanged, which it always was; a send empties the field and an example chip does not.
+
+**The panel does not jump, which is the hazard a taller composer carries.** The swap alone was
+traced per animation frame with the switcher already open and settled, at both viewports, against a
+swap into a chat holding nothing:
+
+- **900x900.** Into a chat with no draft, the panel eases its top edge 108 to 273.19 over 18 frames,
+  largest step 25.56px. Into the chat holding a draft at the field's ceiling (a 148px pill against
+  48), 108 to 174 over 12 frames, largest step 14.25px. **Zero direction reversals in either**, which
+  is the reading that matters: a jump-and-come-back is a reversal. The draft-laden swap is the
+  smaller and smoother of the two, the panel easing once to a height that already has the draft in
+  it.
+- **640x720.** Into a chat with no draft, 86 to 183.19 over 14 frames, largest step 22.53px. Into the
+  chat with the draft, **one frame and no movement at all**: the panel is at its ceiling and stays
+  there.
+- **The pill is never painted at its unmeasured height.** It reads 148 in the first traced frame of
+  the swap and every frame after, never 48 and then 148. A parent's layout effect runs after its
+  children's, so the composer has measured and sized itself before `usePanelMotion` places the panel
+  in the same commit, and the panel's watch then finds the height it just placed for and says nothing
+  ([`overlay/panelWatch.ts`](../../body/app/src/overlay/panelWatch.ts)).
+
+### The falsification proof
+
+Seven mutations, each checked in place and restored, each reddening tests that name it and leaving
+the rest green. Reading the field off the last text typed anywhere rather than off the chat on screen
+reddens the App-level door test alone, which is the wiring that test exists for. Dropping the delete
+cascade's `dropDraft` reddens the delete test. Never spending a sent draft reddens the reducer's send
+test and the App-level one; always spending it reddens the send test on the example-chip half.
+Storing `""` as an entry reddens the eviction test. Taking `touched` off the draft arm reddens the
+adoption test. Carrying the outgoing draft into a freshly minted chat reddens the new-chat test and
+the App-level one.
+
+### What this does not do
+
+**A draft does not survive a restart of the body**, by the argument above rather than by omission. If
+that is ever wanted it is a store-backed hydrate and persist at the reducer, where `messages` already
+is, plus an eviction policy the in-memory map does not need.
+
+**The word stays overloaded.** An approval's `argumentsJson` is "the draft" in the confirmer's
+vocabulary (`components/draftValue.ts`) and a switcher row's in-progress label is a `draft` local.
+Both are unrelated to the composer's, which is what every doc in the overlay already calls a draft, so
+inventing a third word would have cost more than the collision does.
+
+**`ChatView` was split to make room for this**, the file having stood at 299 lines against a 300-line
+cap. The hint strip under the composer is its own component now (`components/HintStrip.tsx`), which
+is a split by responsibility rather than by line count: it is the row of keyboard affordances plus
+the two doors into the console, and it takes no state. `newChat` moved from the reducer's switch into
+`overlay/sessionState.ts` beside `openSession`, `adoptSession` and `deleteSession` for the same
+reason and with the same test: all four are conversation-swap arms answering the same three questions
+(what is announced, that the caret follows, and what becomes of the draft), and reading one is now
+reading the others.

@@ -2,22 +2,15 @@ import { type RefObject, useEffect } from "react";
 
 import type { MarkStyle } from "../mark/marks";
 import { chatFloorRef } from "../overlay/measured";
-import { type ConsoleTab, type OverlayState, isTurnActive } from "../overlay/overlayState";
+import { type ConsoleTab, type OverlayState, draftOf, isTurnActive } from "../overlay/overlayState";
 import { useLogScroll } from "../overlay/useLogScroll";
 import { BubbleMark } from "./BubbleMark";
 import { CaptureDot } from "./CaptureDot";
 import { Collapse } from "./Collapse";
 import { Composer } from "./Composer";
 import { ConfirmCard } from "./ConfirmCard";
-import {
-  ChatsIcon,
-  DownArrowKey,
-  PencilIcon,
-  ReturnKey,
-  SlidersIcon,
-  TuckIcon,
-  UpArrowKey,
-} from "./icons";
+import { HintStrip } from "./HintStrip";
+import { ChatsIcon, PencilIcon, TuckIcon } from "./icons";
 import { LinkDot } from "./LinkDot";
 import { Message } from "./Message";
 import { Reminders } from "./Reminders";
@@ -35,6 +28,8 @@ export interface ChatViewProps {
   readonly onToggleConsole: (tab: ConsoleTab) => void;
   readonly onToggleTheme: () => void;
   readonly onSubmit: (text: string) => void;
+  /** Park the composer's field under the chat on screen, keystroke by keystroke (`drafts.ts`). */
+  readonly onDraft: (text: string) => void;
   readonly onStop: () => void;
   readonly onDismiss: () => void;
   readonly onNewChat: () => void;
@@ -65,6 +60,7 @@ export function ChatView({
   onToggleConsole,
   onToggleTheme,
   onSubmit,
+  onDraft,
   onStop,
   onDismiss,
   onNewChat,
@@ -222,78 +218,20 @@ export function ChatView({
           which conversation it is sitting in only then, and null otherwise. It takes focus on every
           change: coming back from the console puts the caret back in the draft (intact, this field
           never being unmounted) rather than on a tab strip the browser is about to display:none out
-          from under it, and a chat arriving lands it in the conversation that arrived. */}
+          from under it, and a chat arriving lands it in the conversation that arrived.
+          What that caret lands IN is the arriving chat's own half-typed sentence, which is the same
+          fact stated about the text instead of the focus: the field renders this conversation's
+          draft, so it changes with the conversation (`overlay/drafts.ts`). */}
       <Composer
         busy={isTurnActive(state)}
+        draft={draftOf(state.drafts, state.sessionId)}
         arrival={open && showing ? state.arrival : null}
         onSubmit={onSubmit}
+        onDraft={onDraft}
         onStop={onStop}
         onResize={log.toTail}
       />
-      {/* Esc is not listed here: the strip is a convenience, it had run out of room once the
-          settings button joined it, and Esc-to-dismiss is the most guessable of the five. The
-          console's shortcuts tab still lists every binding, that one being the complete list. */}
-      <div className="hints">
-        <span>
-          <b className="key">
-            <ReturnKey />
-          </b>{" "}
-          send
-        </span>
-        {/* Shift and Return are two caps, not one cap holding two glyphs: every other hint here
-            already separates its keys, and the console's shortcut list separates all of them, so a
-            single cap made this the one place a chord read as one key.
-
-            Shift is SPELLED OUT, like Ctrl and Alt beside it. Its glyph is the one modifier with a
-            drawing, so drawn it was the only modifier on the row you had to recognise rather than
-            read, sitting against three that are words. The drawn glyphs left are the keys that have
-            no name worth writing: return, and the two cycle arrows. */}
-        <span>
-          <b>Shift</b>
-          <b className="key">
-            <ReturnKey />
-          </b>{" "}
-          new line
-        </span>
-        <span>
-          <b>Ctrl</b>
-          <b>N</b> new
-        </span>
-        <span>
-          <b>Ctrl</b>
-          <b className="key">
-            <UpArrowKey />
-          </b>
-          <b className="key">
-            <DownArrowKey />
-          </b>{" "}
-          chats
-        </span>
-        {/* Two doors into the one console, each landing on the tab it names: the sliders on
-            appearance, the ? on the shortcut list. A press here is always an open, because the
-            console is a view and replaces this one outright (`.view.gone` is `display: none`), so
-            neither button is reachable while it is up. They still dispatch the toggle rather than
-            the open, so that the strip and the ? KEY, which IS live inside the console and is the
-            binding that can close it that way, stay one behaviour with one name. */}
-        <button
-          className="qbtn"
-          onClick={() => onToggleConsole("appearance")}
-          aria-label="Settings"
-          type="button"
-        >
-          <b className="key">
-            <SlidersIcon />
-          </b>
-        </button>
-        <button
-          className="qbtn"
-          onClick={() => onToggleConsole("shortcuts")}
-          aria-label="Shortcuts"
-          type="button"
-        >
-          <b>?</b>
-        </button>
-      </div>
+      <HintStrip onToggleConsole={onToggleConsole} />
     </>
   );
 }

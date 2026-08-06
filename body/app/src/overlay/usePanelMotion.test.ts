@@ -1274,14 +1274,16 @@ describe("usePanelMotion", () => {
     expect(moves).toEqual([]);
   });
 
-  it("eases a resize no render told it about, which is what the composer's growth is", () => {
-    // The draft lives in `Composer`'s own state, so a field growing a line re-renders nothing above
-    // the composer and the panel is never asked to place itself: its `auto` height simply followed
-    // in the frame the character landed, bottom edge pinned, with no ease at all. Traced at 640x720
-    // with the reminder stack acked, two consecutive samples and no third state between them: 16px
-    // for a further line on a stacked pill, 36px for the character that restacks a one-line draft,
-    // 52px for a Shift+Enter that restacks and adds a line at once, and 98px for a paste that fills
-    // the field to its 120px ceiling with the panel already on its own.
+  it("eases a resize no render told it about, such as a row released at the end of its exit", () => {
+    // A resize the panel is never asked to place itself for: its `auto` height simply followed in
+    // the frame the content landed, bottom edge pinned, with no ease at all. The composer's growth
+    // was the largest example while the draft lived in `Composer`'s own state (traced at 640x720
+    // with the reminder stack acked, two consecutive samples and no third between them: 16px for a
+    // further line on a stacked pill, 36px for the character that restacks a one-line draft, 52px
+    // for a Shift+Enter that restacks and adds a line at once, and 98px for a paste that fills the
+    // field to its 120px ceiling). It is an ordinary render now that the draft is state above the
+    // composer, and what is left here is a released row and content that settles late, which reach
+    // the panel exactly as that growth did.
     const { ref, element, state, moves, durations } = harness();
     state.natural = 400;
     renderHook(() => usePanelMotion(ref, true, "chat"));

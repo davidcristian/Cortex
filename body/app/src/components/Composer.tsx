@@ -4,6 +4,13 @@ import { SendIcon, StopIcon } from "./icons";
 
 interface ComposerProps {
   readonly busy: boolean;
+  /** What this conversation is holding, unsent. The field is CONTROLLED by it rather than keeping
+   *  its own copy, so a chat arriving is handed its own text by the same render that swaps the
+   *  transcript: nothing here has to notice a swap, nothing parks anything on the way out, and
+   *  there is no frame in between showing the wrong conversation's sentence (`overlay/drafts.ts`). */
+  readonly draft: string;
+  /** Every keystroke, parked under the chat on screen. Called with the field's raw value. */
+  readonly onDraft: (text: string) => void;
   /** Which conversation this field is sitting in (`OverlayState.arrival`), or null while the panel
    *  is shut or the console is over the chat. Every change to it is a landing, and the field takes
    *  focus on each: null to a number is a summon or a return from the console, and one number to
@@ -29,6 +36,11 @@ const STACKED = "stacked";
  *  whenever another conversation arrives on it. While a turn streams the send button becomes a
  *  stop that cancels it (§3).
  *
+ *  It holds no text of its own. What is typed here belongs to the conversation it was typed into
+ *  and is kept there (`overlay/drafts.ts`), which is what makes a swap arriving with somebody
+ *  else's half-typed sentence in the field impossible rather than merely unlikely: this component
+ *  renders the chat on screen, and there is no second copy anywhere to fall out of step with it.
+ *
  *  Past one line the pill restacks: on a single line the button is a flex sibling of the field,
  *  which is fine, but it reserves its column down the WHOLE pill, so every wrapped line stopped
  *  44px short of the right edge for no visible reason and the button floated alone at the bottom
@@ -37,8 +49,15 @@ const STACKED = "stacked";
  *  corner of the same content box, one as the last item of a bottom-aligned row and one as the
  *  last row of a column, so the switch never moves it: traced character by character over two
  *  lines, its rect was identical in all 183 samples. */
-export function Composer({ busy, arrival, onSubmit, onStop, onResize }: ComposerProps) {
-  const [text, setText] = useState("");
+export function Composer({
+  busy,
+  draft,
+  arrival,
+  onSubmit,
+  onDraft,
+  onStop,
+  onResize,
+}: ComposerProps) {
   const [stacked, setStacked] = useState(false);
   // Both are always mounted with the panel, so the refs are set before any effect runs.
   const fieldRef = useRef<HTMLTextAreaElement>(null!);
@@ -139,11 +158,15 @@ export function Composer({ busy, arrival, onSubmit, onStop, onResize }: Composer
   }, [onResize]);
 
   // Layout, not paint: the measurement both chooses a layout and sizes the field, so it has to land
-  // before the frame that shows the new character rather than one frame after it.
-  useLayoutEffect(measure, [text, measure]);
+  // before the frame that shows the new character rather than one frame after it. A RESTORED draft
+  // is the same question asked of a whole sentence at once, and it is asked in the commit that
+  // swapped the chat: the pill is already its restored height when the panel places itself in the
+  // same commit (a parent's layout effect runs after its children's), so the panel eases to a
+  // height that has the draft in it rather than easing twice.
+  useLayoutEffect(measure, [draft, measure]);
 
   // The other thing that changes the answer is the width, and the width can move with the draft
-  // standing still. Nothing in this component would notice: `text` is what re-runs the measurement,
+  // standing still. Nothing in this component would notice: the draft is what re-runs the measurement,
   // so a narrower panel left BOTH readings computed for the old one, the field scrolled inside a
   // box sized for a line that no longer fits and the pill still inline with a draft that now wraps
   // (traced at 900x900: a one-line draft measured at 34px stayed at 34px with `scrollHeight` at 50
@@ -156,12 +179,14 @@ export function Composer({ busy, arrival, onSubmit, onStop, onResize }: Composer
     return () => window.removeEventListener("resize", measure);
   }, [measure]);
 
+  // The field is emptied by the state that holds it, not from here: a turn actually starting is what
+  // spends a draft, so a send the controller refuses (a blank field, a turn already streaming) leaves
+  // the text where it is instead of quietly eating it (`overlay/turnState.ts`).
   const submit = () => {
     if (busy) {
       return;
     }
-    onSubmit(text);
-    setText("");
+    onSubmit(draft);
   };
 
   const onKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
@@ -171,15 +196,21 @@ export function Composer({ busy, arrival, onSubmit, onStop, onResize }: Composer
     }
   };
 
-  const live = text.trim().length > 0 && !busy;
+  const live = draft.trim().length > 0 && !busy;
 
   return (
     <div ref={pillRef} className={`composer${stacked ? ` ${STACKED}` : ""}`}>
+      {/* THE CARET LANDS AT THE END OF A RESTORED DRAFT, which is the field's own answer and the
+          one worth having: coming back to a half-typed thought is coming back to finish it, so the
+          caret is where the next character goes. Assigning a textarea's value puts the selection
+          at its end, and that assignment is exactly what a swap does here (the value differs, so
+          React writes it; a keystroke's does not, so it does not, which is what leaves a caret
+          typing mid-sentence alone). Focus arrives after it in the same commit, so the two agree. */}
       <textarea
         ref={fieldRef}
         className="field"
-        value={text}
-        onChange={(event) => setText(event.target.value)}
+        value={draft}
+        onChange={(event) => onDraft(event.target.value)}
         onKeyDown={onKeyDown}
         placeholder="Ask anything…"
         aria-label="Message"

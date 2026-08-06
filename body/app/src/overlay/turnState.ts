@@ -1,4 +1,5 @@
 import type { TurnEvent } from "../bridge/types";
+import { draftOf, dropDraft } from "./drafts";
 import type { OverlayState } from "./overlayState";
 import { NEW_CHAT_TITLE, deriveTitle } from "./sessionState";
 
@@ -70,7 +71,13 @@ export function latestReply(state: OverlayState): string {
 }
 
 /** Start a turn: the user's line plus the empty assistant bubble the stream fills. A blank draft
- *  or a turn already running is a no-op, so a double-send cannot open a second stream. */
+ *  or a turn already running is a no-op, so a double-send cannot open a second stream (and a blank
+ *  one leaves the field exactly as it is, nothing having been sent out of it).
+ *
+ *  SENDING A TEXT EMPTIES THE FIELD THAT HELD IT, which is asked of the text rather than of the
+ *  door it came through (`drafts.ts`). The composer sends its own draft, so the draft goes; an
+ *  example chip on the empty state sends the chip's words, so a half-typed question sitting in the
+ *  field beside it is not thrown away by a button the user pressed for something else. */
 export function submit(state: OverlayState, text: string): OverlayState {
   const trimmed = text.trim();
   if (isTurnActive(state) || trimmed.length === 0) {
@@ -79,11 +86,13 @@ export function submit(state: OverlayState, text: string): OverlayState {
   const user: Message = message(`m${state.seq}`, "user", trimmed, false);
   const assistant: Message = message(`m${state.seq + 1}`, "assistant", "", true);
   const title = state.title === NEW_CHAT_TITLE ? deriveTitle(trimmed) : state.title;
+  const sentTheDraft = draftOf(state.drafts, state.sessionId) === text;
   return {
     ...state,
     mode: "panel",
     touched: true,
     title,
+    drafts: sentTheDraft ? dropDraft(state.drafts, state.sessionId) : state.drafts,
     messages: [...state.messages, user, assistant],
     seq: state.seq + 2,
   };

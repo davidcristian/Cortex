@@ -2,11 +2,20 @@
 //
 // `usePanelMotion` places the panel on renders of `Panel`, on both ends of a section's roll, and on
 // a window resize. Content that resizes the panel without any of those leaves the last placement
-// standing: a draft growing a line lives in the composer's own state, so nothing above the composer
-// renders and the panel's `auto` height simply follows in the frame the character lands, bottom edge
-// pinned, with no ease at all. A row released at the end of its exit is the same shape (the release
-// is state inside the list, not above it), and so is any content that settles after the render that
+// standing, and the panel's `auto` height simply follows in the frame the content lands, bottom edge
+// pinned, with no ease at all: a row released at the end of its exit is that shape (the release is
+// state inside the list, not above it), and so is any content that settles after the render that
 // brought it.
+//
+// A draft growing a line USED to be the first and largest of those cases, and is no longer one at
+// all: the composer's text is state above the composer now (`drafts.ts`), so a keystroke renders
+// `Panel` and its own layout effect places the panel, before paint and in the same commit that grew
+// the pill. The ease is unchanged by the move, having always been the same `place`, and was
+// re-measured after it at 640x720 with the reminder stack acked: a Shift+Enter that restacks and
+// adds a line at once runs 184, 181.17, 168.08, 150.48, 140.5, 135.36, 132.88, 132.03, 132, against
+// the 184, 181.14, 168.08, 150.41, 140.5, 135.34, 132.88, 132.03, 132 the observer used to drive.
+// What the observer does with those keystrokes now is nothing, by the third rule below: the
+// notification it gets one frame later finds the height that placement already chose.
 //
 // A `ResizeObserver` on the panel closes that gap, and the whole design of it is what it must NOT
 // react to, because every placement resizes the element being watched.
@@ -34,7 +43,11 @@
 // answer is no for every notification a placement raised by resizing the element it was placing.
 // That is what settles the callback rather than letting it chase the box it just moved: a render
 // that grew the panel is answered by the placement inside that render, and the notification it
-// raises one frame later finds the height that placement chose already standing.
+// raises one frame later finds the height that placement chose already standing. Every keystroke in
+// the composer now takes exactly this path, which is why moving the draft into the reducer cost the
+// panel no motion and raised no loop error (measured over a draft typed character by character, a
+// restack, a paste to the field's ceiling, a swap in and out of the chat holding it, and a send, at
+// both viewports: zero).
 //
 // What is left is exactly the case the observer is for: the panel's content changed the height it
 // wants, whether or not something is already moving it there.

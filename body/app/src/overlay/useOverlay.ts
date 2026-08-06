@@ -20,6 +20,9 @@ const PREVIEW_MS = 6000;
 export interface OverlayController extends SessionCatalog {
   readonly state: OverlayState;
   submit(text: string): void;
+  /** Park the composer's field under the chat on screen (`overlay/drafts.ts`). The composer is
+   *  controlled by that entry, so this is what typing in it does and the only thing it does. */
+  setDraft(text: string): void;
   stop(): void;
   dismiss(): void;
   open(): void;
@@ -128,6 +131,10 @@ export function useOverlay(
     [state, bridge],
   );
 
+  // Stable, so a keystroke re-renders on the state it changed and nothing else: this is the one
+  // callback that fires per character, and rebuilding it would re-render the composer twice over.
+  const setDraft = useCallback((text: string) => dispatch({ kind: "draft", text }), []);
+
   const stop = useCallback(() => {
     abandonTurn();
     dispatch({ kind: "stop" });
@@ -172,6 +179,7 @@ export function useOverlay(
     ...catalog,
     state,
     submit,
+    setDraft,
     stop,
     dismiss,
     open,

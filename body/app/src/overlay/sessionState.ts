@@ -1,13 +1,22 @@
 import type { SessionMessage, SessionSummary } from "../bridge/types";
+import { dropDraft } from "./drafts";
 import { speak } from "./notice";
 import type { OverlayState } from "./overlayState";
 import type { Message } from "./turnState";
 
-// Session-switching halves of the overlay state (ADR-0021): hydrating a stored chat into the
-// panel, adopting the most recent one on cold start, cycling between recent chats, and the
-// title derivation they share with `turnState`'s `submit`. Split from `overlayState.ts` (which
-// re-exports the pieces components use) to keep every one of them under the repo line cap; only
-// types cross back, so the runtime import graph stays one-directional.
+// Session-switching halves of the overlay state (ADR-0021): minting a fresh chat, hydrating a
+// stored one into the panel, adopting the most recent on cold start, cycling between recent chats,
+// and the title derivation they share with `turnState`'s `submit`. Split from `overlayState.ts`
+// (which re-exports the pieces components use) to keep every one of them under the repo line cap;
+// only types cross back, so the runtime import graph stays one-directional.
+//
+// All four swap arms live together because they answer the same three questions the same way, and
+// reading one is reading the others: whether the arriving chat is announced (`notice.ts`), that its
+// arrival takes the caret with it (`arrival`), and what becomes of the draft the outgoing chat was
+// holding. That last one is nothing at all for three of them: the composer's text is keyed by
+// session id and parked as it is typed (`drafts.ts`), so a chat leaving keeps what it was holding
+// and a chat arriving is handed its own, with no arm doing anything. Only a DELETE has work,
+// having taken away the conversation a draft belonged to.
 
 export const NEW_CHAT_TITLE = "New chat";
 /**
@@ -75,6 +84,41 @@ function headerTitle(
 ): string {
   const summary = sessions.find((s) => s.sessionId === sessionId);
   return summary ? summary.title : titleFor(messages);
+}
+
+/**
+ * Mint a fresh chat over whatever is on screen (ADR-0035 addendum, 2026-08-03). The console leaves
+ * with the old chat. Both doors here, Ctrl+N and the header's pencil, are aimed at the conversation,
+ * so they land in the conversation: the arm sets `mode: "panel"` for that reason, and leaving
+ * `consoleTab` alone emptied the chat *behind* the console, which stayed up (the user's pick; Ctrl+N
+ * is the reachable half of the pair, the pencil being under the console with the rest of the chat).
+ * This is the opposite call from `dismiss` and for the opposite reason: the panel stays on screen
+ * here, so the morph back to the chat is the movement that was asked for rather than one the window
+ * makes on its way out.
+ *
+ * The two doors part company on one thing only, which is whether the swap is announced. The pencil
+ * is labelled "New chat" and hands back exactly that string, so it stays silent; the keystroke names
+ * nothing, so it speaks (`notice.ts`). They agree about focus, as every pair of doors on one arm
+ * does: the empty chat arrives with the caret in it (`arrival`).
+ *
+ * And they agree about the draft, which needs no line here. The fresh id has nothing parked under
+ * it, so the composer is empty; the sentence the user was half way through stays under the chat
+ * they were half way through it in, and is waiting there when they cycle back (`drafts.ts`).
+ */
+export function newChat(state: OverlayState, sessionId: string, announce: boolean): OverlayState {
+  return {
+    ...state,
+    mode: "panel",
+    touched: true,
+    sessionId,
+    title: NEW_CHAT_TITLE,
+    notice: announce ? speak(state.notice, NEW_CHAT_TITLE) : null,
+    arrival: state.arrival + 1,
+    messages: [],
+    switcherOpen: false,
+    consoleTab: null,
+    pendingConfirm: null,
+  };
 }
 
 /**
@@ -176,6 +220,12 @@ export function adoptSession(
  * It is a swap for focus too, and the reset counts as an arrival: the confirm button is inside the
  * row that leaves, so the caret goes to the composer of the chat that arrived rather than nowhere
  * (`arrival`). The switcher stays open behind it, which is deliberate above and unchanged here.
+ *
+ * It is also the ONE arm that touches a draft, and it does so on both of its paths, because a draft
+ * belongs to a conversation and this is where a conversation stops existing (`drafts.ts`). Deleting
+ * another chat drops the text parked under it, which nothing could ever reach again; deleting the
+ * open one drops it too, and the empty chat taking its place is handed nothing, since the sentence
+ * was about the transcript that just went away.
  */
 export function deleteSession(
   state: OverlayState,
@@ -183,12 +233,14 @@ export function deleteSession(
   fallbackSessionId: string,
 ): OverlayState {
   const sessions = state.sessions.filter((s) => s.sessionId !== sessionId);
+  const drafts = dropDraft(state.drafts, sessionId);
   if (sessionId !== state.sessionId) {
-    return { ...state, sessions, touched: true };
+    return { ...state, sessions, drafts, touched: true };
   }
   return {
     ...state,
     sessions,
+    drafts,
     touched: true,
     sessionId: fallbackSessionId,
     title: NEW_CHAT_TITLE,

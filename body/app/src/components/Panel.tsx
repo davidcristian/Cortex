@@ -31,6 +31,8 @@ interface PanelProps {
   readonly onCloseConsole: () => void;
   readonly onToggleTheme: () => void;
   readonly onSubmit: (text: string) => void;
+  /** Park the composer's field under the chat on screen, keystroke by keystroke (`drafts.ts`). */
+  readonly onDraft: (text: string) => void;
   readonly onStop: () => void;
   readonly onDismiss: () => void;
   readonly onNewChat: () => void;
@@ -68,8 +70,9 @@ const CONSOLE: View = "console";
  *  Closed, it sits scaled at centre (summon/dismiss pop from the middle), except when the mode is
  *  `orb`, where `to-orb` parks it at the corner so minimize/maximize *travel* to and from the orb.
  *
- *  The chat view is never unmounted, only taken out of the layout flow, so a half-typed draft and
- *  the composer's focus survive a trip to the console and back. The view being left behind is held
+ *  The chat view is never unmounted, only taken out of the layout flow, so the composer's focus and
+ *  its field survive a trip to the console and back (the draft would survive an unmount too, being
+ *  state above this, but the caret would not). The view being left behind is held
  *  for one morph, absolutely positioned so it cannot define the height the panel is easing to, and
  *  faded out over the one arriving. The history's scroll position is the one thing that does NOT
  *  come along for free: being out of the flow is exactly what loses it, so `ChatView` parks it and

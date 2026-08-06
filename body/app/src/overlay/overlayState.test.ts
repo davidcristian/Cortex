@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { DueReminder, SessionMessage, SessionSummary, TurnEvent } from "../bridge/types";
 import type { Action, OverlayState } from "./overlayState";
-import { createInitialState, cycleTarget, initialState, isTurnActive, latestReply, reduce } from "./overlayState";
+import { createInitialState, cycleTarget, draftOf, initialState, isTurnActive, latestReply, reduce } from "./overlayState";
 
 const summary = (sessionId: string): SessionSummary => ({
   sessionId,
@@ -484,6 +484,95 @@ describe("overlayState reducer", () => {
     expect(reduce(open, { kind: "sessionDeleted", sessionId: "chat-7", fallbackSessionId: "f" }).arrival).toBe(2);
     expect(reduce(open, { kind: "sessionDeleted", sessionId: "other", fallbackSessionId: "f" }).arrival).toBe(1);
     expect(run([{ kind: "open" }, submit("hi"), { kind: "toggleSwitcher" }]).arrival).toBe(0);
+  });
+
+  it("gives every chat its own draft: a swap parks one and hands over the other", () => {
+    // The entry this answers, reproduced as state: "half a question" typed into the fresh chat used
+    // to still be in the field, caret and all, after another conversation loaded over it.
+    const listed = reduce(createInitialState("boot"), {
+      kind: "sessionsLoaded",
+      sessions: [summary("chat-7")],
+    });
+    const typed = reduce(listed, { kind: "draft", text: "half a question" });
+    expect(draftOf(typed.drafts, "boot")).toBe("half a question");
+    const arrived = reduce(typed, {
+      kind: "openSession",
+      sessionId: "chat-7",
+      messages: [],
+      announce: true,
+    });
+    // The arriving conversation shows its own field, which is empty, and the sentence it replaced
+    // is not lost: it is parked under the chat it was written in.
+    expect(draftOf(arrived.drafts, "chat-7")).toBe("");
+    expect(draftOf(arrived.drafts, "boot")).toBe("half a question");
+    // Typing in the new chat parks under the new chat, and going back restores the first.
+    const both = reduce(arrived, { kind: "draft", text: "a second thought" });
+    const back = reduce(both, { kind: "openSession", sessionId: "boot", messages: [], announce: true });
+    expect(draftOf(back.drafts, "boot")).toBe("half a question");
+    expect(draftOf(back.drafts, "chat-7")).toBe("a second thought");
+  });
+
+  it("leaves a draft behind for the chat it belongs to when a fresh chat is minted", () => {
+    // The door with no draft of its own to restore: Ctrl+N and the pencil both arrive on an empty
+    // field, because a new chat has nothing parked under it. What must not happen is the sentence
+    // being carried into the new chat, and what must also not happen is it being thrown away.
+    const typed = reduce(createInitialState("boot"), { kind: "draft", text: "half a question" });
+    for (const announce of [true, false]) {
+      const minted = reduce(typed, { kind: "newChat", sessionId: "fresh", announce });
+      expect(draftOf(minted.drafts, "fresh")).toBe("");
+      expect(draftOf(minted.drafts, "boot")).toBe("half a question");
+    }
+  });
+
+  it("takes a deleted chat's draft with it, whether or not that chat was the one on screen", () => {
+    const listed = reduce(createInitialState("boot"), {
+      kind: "sessionsLoaded",
+      sessions: [summary("chat-7"), summary("chat-8")],
+    });
+    const here = reduce(listed, { kind: "draft", text: "about the open chat" });
+    const there = reduce(
+      reduce(reduce(here, { kind: "openSession", sessionId: "chat-8", messages: [], announce: false }), {
+        kind: "draft",
+        text: "about another chat",
+      }),
+      { kind: "openSession", sessionId: "boot", messages: [], announce: false },
+    );
+    // Deleting a chat that is not on screen drops only its own text.
+    const other = reduce(there, { kind: "sessionDeleted", sessionId: "chat-8", fallbackSessionId: "f" });
+    expect(draftOf(other.drafts, "chat-8")).toBe("");
+    expect(draftOf(other.drafts, "boot")).toBe("about the open chat");
+    // Deleting the chat on screen resets the panel to a fresh empty one, and the sentence about a
+    // transcript that no longer exists goes with the transcript rather than into the new chat.
+    const open = reduce(there, { kind: "sessionDeleted", sessionId: "boot", fallbackSessionId: "f" });
+    expect(draftOf(open.drafts, "boot")).toBe("");
+    expect(draftOf(open.drafts, "f")).toBe("");
+    expect(draftOf(open.drafts, "chat-8")).toBe("about another chat");
+  });
+
+  it("spends the draft it sent and leaves any other text alone", () => {
+    const typed = reduce(reduce(createInitialState("boot"), { kind: "open" }), {
+      kind: "draft",
+      text: "half a question",
+    });
+    expect(draftOf(reduce(typed, submit("half a question")).drafts, "boot")).toBe("");
+    // An example chip on the empty state sends its own words. The half-typed question beside it is
+    // the user's and was not what they pressed, so it is still there afterwards.
+    const chipped = reduce(typed, submit("Summarize my unread email"));
+    expect(draftOf(chipped.drafts, "boot")).toBe("half a question");
+    // And a send the reducer refuses spends nothing: a blank field, or a turn already streaming.
+    expect(draftOf(reduce(typed, submit("   ")).drafts, "boot")).toBe("half a question");
+    expect(draftOf(reduce(chipped, submit("half a question")).drafts, "boot")).toBe("half a question");
+  });
+
+  it("counts typing as touching the overlay, so a cold-start restore cannot swap under a sentence", () => {
+    // `touched` has always claimed to cover typing and never could: nothing dispatched on a
+    // keystroke. Now something does, and the claim is true. Adoption replaces the boot chat whole,
+    // so without this it could take away the conversation a half-typed line was written in.
+    const typed = reduce(createInitialState("boot"), { kind: "draft", text: "half a question" });
+    expect(typed.touched).toBe(true);
+    const adopted = reduce(typed, { kind: "adoptSession", sessionId: "chat-7", messages: [] });
+    expect(adopted.sessionId).toBe("boot");
+    expect(draftOf(adopted.drafts, "boot")).toBe("half a question");
   });
 
   it("adoptSession hydrates like openSession but keeps the overlay hidden", () => {
