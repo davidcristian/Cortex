@@ -37,6 +37,7 @@ import httpx
 import pytest
 
 from cortex_core import (
+    GenerationBounds,
     InferenceBackend,
     InferenceEvent,
     InMemoryTaskStore,
@@ -101,9 +102,10 @@ class _PlacedOn:
         *,
         tools: Sequence[ToolSpec] = (),
         schema: JsonSchema | None = None,
+        bounds: GenerationBounds | None = None,
     ) -> AsyncIterator[InferenceEvent]:
         self._seen.append(self._target)
-        return self._inner.stream(model, messages, tools=tools, schema=schema)
+        return self._inner.stream(model, messages, tools=tools, schema=schema, bounds=bounds)
 
 
 def _headroom(runtime: BrainRuntimeConfig) -> float:

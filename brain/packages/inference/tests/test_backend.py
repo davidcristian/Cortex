@@ -15,6 +15,7 @@ import httpx
 import pytest
 
 from cortex_core import (
+    GenerationBounds,
     ImagePart,
     InferenceError,
     Message,
@@ -303,6 +304,67 @@ async def test_no_schema_omits_the_response_format() -> None:
     body = captured["body"]
     assert isinstance(body, dict)
     assert "response_format" not in body
+
+
+async def test_bounds_render_as_a_token_cap_and_a_no_thinking_template_kwarg() -> None:
+    """ADR-0038 cheap-fold addendum: both halves ride the request, not the server's flags.
+
+    ``max_tokens`` overrides llama-server's own ``n_predict: -1`` for this call, and
+    ``chat_template_kwargs`` is the per-request twin of the ``--chat-template-kwargs`` the
+    subagent tier bakes into its compose command; ``--reasoning-budget 0`` does not work on
+    this build, so this is the key that does.
+    """
+    captured: dict[str, object] = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured["body"] = json.loads(request.content)
+        return httpx.Response(200, content=_sse(_chunk({"content": "an account."})))
+
+    bounds = GenerationBounds(max_tokens=512, thinking=False)
+    stream = _backend(handler).stream("cortex", _messages(), bounds=bounds)
+    _ = [event async for event in stream]
+    body = captured["body"]
+    assert isinstance(body, dict)
+    assert body["max_tokens"] == 512
+    assert body["chat_template_kwargs"] == {"enable_thinking": False}
+
+
+async def test_bounds_that_ask_for_nothing_leave_the_request_as_the_server_configured_it() -> None:
+    """A cap with thinking left alone, and thinking left alone with no cap, each emit one key.
+
+    The ``thinking=True`` half deliberately emits NO key rather than an explicit ``true``: the
+    template's own default is what a user-facing reply already gets, and spelling it out would
+    change the request for every deployment whose template names the flag differently.
+    """
+    captured: list[dict[str, object]] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured.append(json.loads(request.content))
+        return httpx.Response(200, content=_sse(_chunk({"content": "ok"})))
+
+    backend = _backend(handler)
+    for bounds in (GenerationBounds(max_tokens=64), GenerationBounds(thinking=False)):
+        _ = [event async for event in backend.stream("cortex", _messages(), bounds=bounds)]
+    capped, unthinking = captured
+    assert capped["max_tokens"] == 64
+    assert "chat_template_kwargs" not in capped
+    assert unthinking["chat_template_kwargs"] == {"enable_thinking": False}
+    assert "max_tokens" not in unthinking
+
+
+async def test_no_bounds_omits_both_keys() -> None:
+    # The unbounded request is byte-for-byte the original, which is what every reply still sends.
+    captured: dict[str, object] = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured["body"] = json.loads(request.content)
+        return httpx.Response(200, content=_sse(_chunk({"content": "ok"})))
+
+    _ = [event async for event in _backend(handler).stream("cortex", _messages())]
+    body = captured["body"]
+    assert isinstance(body, dict)
+    assert "max_tokens" not in body
+    assert "chat_template_kwargs" not in body
 
 
 async def test_reassembles_a_streamed_tool_call_and_final_text() -> None:

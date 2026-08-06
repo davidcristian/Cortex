@@ -5,7 +5,7 @@ import logging
 import os
 import signal
 import socket
-from collections.abc import AsyncGenerator, Awaitable, Callable, Mapping, Sequence
+from collections.abc import AsyncGenerator, AsyncIterator, Awaitable, Callable, Mapping, Sequence
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 from typing import cast
@@ -30,13 +30,17 @@ from cortex_core import (
     CharBudgetHistoryWindow,
     DispatchPolicy,
     EchoInferenceBackend,
+    GenerationBounds,
     GlobalMemoryScope,
+    InferenceEvent,
     InMemoryBodyGateway,
     InMemorySessionStore,
     InMemoryTaskStore,
     InMemoryToolRegistry,
+    JsonSchema,
     JudgeRecallPolicy,
     MemoryRecaller,
+    Message,
     MmrRecallPolicy,
     PlacementRequest,
     PlacementTarget,
@@ -45,6 +49,7 @@ from cortex_core import (
     RecordingConfirmer,
     RerankingRecallPolicy,
     ResourceBudgetScheduler,
+    Role,
     ScheduledItem,
     ScheduleKind,
     SessionMemoryCascade,
@@ -70,6 +75,7 @@ from cortex_inference import LlamaCppBackend
 from cortex_memory import LoggingRecallSink, PgVectorMemoryStore
 from cortex_orchestrator import (
     BodyConfig,
+    BrainRuntimeConfig,
     InferenceConfig,
     MemoryConfig,
     SubagentRosterEntry,
@@ -599,11 +605,9 @@ def test_build_output_guardrail_off_disables_it() -> None:
 
 def _window(budget: int, *, summarize: bool = False) -> HistoryWindow | None:
     return build_history_window(
-        budget,
-        summarize=summarize,
+        BrainRuntimeConfig(history_char_budget=budget, history_summary=summarize),
         sessions=InMemorySessionStore(),
         backend=EchoInferenceBackend(),
-        model="cortex",
         clock=SystemClock(),
     )
 
@@ -626,6 +630,82 @@ def test_build_history_window_ignores_the_summary_flag_without_a_budget() -> Non
     # With windowing off nothing is ever dropped, so a summarizing wrapper could never fire;
     # building one anyway would put a model call on a path that has no work for it.
     assert _window(0, summarize=True) is None
+
+
+def _forty_char_turns(count: int) -> list[Message]:
+    """``count`` exchanges of two 40-character messages, so a budget drops a known amount."""
+    at = datetime(2026, 8, 6, 12, 0, tzinfo=UTC)
+    return [
+        Message(role=role, text="x" * 40, at=at, turn_id=f"t{index}")
+        for index in range(count)
+        for role in (Role.USER, Role.ASSISTANT)
+    ]
+
+
+class _CountingBackend(EchoInferenceBackend):
+    """Echo, plus a count of how many times a window actually spent a model pass."""
+
+    def __init__(self) -> None:
+        self.calls = 0
+
+    async def stream(
+        self,
+        model: str,
+        messages: Sequence[Message],
+        *,
+        tools: Sequence[ToolSpec] = (),
+        schema: JsonSchema | None = None,
+        bounds: GenerationBounds | None = None,
+    ) -> AsyncIterator[InferenceEvent]:
+        self.calls += 1
+        async for event in super().stream(
+            model, messages, tools=tools, schema=schema, bounds=bounds
+        ):
+            yield event
+
+
+async def test_build_history_window_carries_the_fold_floor_into_the_window() -> None:
+    """CORTEX_HISTORY_RECAP_MIN_CHARS is the composition root's, so it has to arrive.
+
+    Asserted through behaviour rather than through the wrapper's private field: a floor above
+    everything the budget could drop means the window makes no model call at all, which the
+    scripted echo backend would otherwise answer.
+    """
+    backend = _CountingBackend()
+    window = build_history_window(
+        BrainRuntimeConfig(
+            history_char_budget=200, history_summary=True, history_recap_min_chars=200
+        ),
+        sessions=InMemorySessionStore(),
+        backend=backend,
+        clock=SystemClock(),
+    )
+    assert isinstance(window, SummarizingHistoryWindow)
+    selected = await window.select(_forty_char_turns(4), session_id="floored")
+    plain = await CharBudgetHistoryWindow(200).select(_forty_char_turns(4), session_id="floored")
+    assert list(selected) == list(plain)  # deferred, so no recap was prepended
+    assert backend.calls == 0
+
+
+async def test_build_history_window_never_lets_the_floor_exceed_the_budget() -> None:
+    """A floor above the window would defer more conversation than the model can see at all.
+
+    The same deployment as above with the floor left at a default sized for a full budget: the
+    clamp brings it down to the budget, so the first boundary move that fills the window is
+    paid for rather than deferred, and the recap exists at all.
+    """
+    backend = _CountingBackend()
+    window = build_history_window(
+        BrainRuntimeConfig(
+            history_char_budget=80, history_summary=True, history_recap_min_chars=10_000
+        ),
+        sessions=InMemorySessionStore(),
+        backend=backend,
+        clock=SystemClock(),
+    )
+    assert isinstance(window, SummarizingHistoryWindow)
+    await window.select(_forty_char_turns(4), session_id="clamped")
+    assert backend.calls == 1  # the floor was clamped to the budget, so the fold was paid for
 
 
 def test_build_cortex_tools_none_when_nothing_is_enabled() -> None:

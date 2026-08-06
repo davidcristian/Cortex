@@ -113,9 +113,13 @@ async def assemble_inference_messages(
     When a window is enabled it selects the newest slice of the stored history the model
     sees (persistence is untouched); a summarizing window may also prepend its own recap of
     what it dropped, which is why ``select`` is awaited and told the session (ADR-0038
-    decision 9). This whole assembly is awaited to completion before ``handle_turn`` iterates
-    the reply's generator, so a window that calls the model releases the GPU lease before the
-    reply asks for it. Memory recall runs next: a tainted recalled memory is
+    decision 9) and handed this stream's progress sink, so the seconds a fold costs are
+    narrated rather than silent (ADR-0038 cheap-fold addendum). This whole assembly is awaited
+    to completion before ``handle_turn`` iterates the reply's generator, so a window that calls
+    the model releases the GPU lease before the reply asks for it, and a progress event emitted
+    during it rides the stream's own queue rather than the still-suspended turn generator, which
+    is why it reaches the overlay while assembly is running. Memory recall runs next: a tainted
+    recalled memory is
     fenced and taints ``context.taint`` (ADR-0019). Exactly one standing rule then opens every
     turn: the untrusted-content ``SECURITY_PREAMBLE`` when tools are enabled (a tool-enabled turn
     can ingest untrusted content) OR a tainted memory was recalled, and the shorter
@@ -129,7 +133,9 @@ async def assemble_inference_messages(
     All are derived fresh each turn, handed only to the backend, never persisted.
     """
     if caps.window is not None:
-        history = await caps.window.select(history, session_id=context.session_id)
+        history = await caps.window.select(
+            history, session_id=context.session_id, progress=caps.progress
+        )
     memory = await _recalled_context(query, caps, context, clock)
     prefix: list[Message] = []
     tool_shaped = caps.tools is not None or context.taint.tainted

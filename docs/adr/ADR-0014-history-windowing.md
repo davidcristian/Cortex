@@ -191,3 +191,21 @@ could not answer a question the recap could. The cost first read as 11 s per bou
 re-run behind the fence found 14.5 s to 30.8 s typically and 224.5 s at worst, with the fact
 surviving five compounding folds 2 times in 3, which is why the default did not move
 ([ADR-0038](ADR-0038-ranked-recall.md) re-measured-behind-the-fence addendum).
+
+## Addendum (2026-08-06): the seam widens once more, and summarization ships on
+
+`HistoryWindow.select` is now `async select(history, *, session_id, progress=None)`, the third
+keyword being the turn's `ProgressSink` so a window whose selection costs a model pass can say so
+while the user waits. `CharBudgetHistoryWindow` ignores it exactly as it ignores `session_id`.
+The sink is handed per call rather than held on the window because it belongs to one `Converse`
+stream while a window is a policy, which is the discipline a dispatch's `TurnStamp` already
+follows.
+
+`CORTEX_HISTORY_SUMMARY` now defaults to **on**. What changed is the fold's cost rather than this
+seam: the recap request asks for no thinking and at most 512 tokens, a floor
+(`CORTEX_HISTORY_RECAP_MIN_CHARS`) stops a small boundary move from spending a model pass, and a
+turn that folds shows a chip saying so. A fold decodes 61 to 163 tokens for 2.9 s to 6.2 s against
+the 400 to 850 and 14.5 s to 224.5 s that held the default off, and an opening fact now survives
+five compounding folds 3 times of 3. The reasoning, the numbers and the trap that makes the token
+cap and the thinking switch one decision are in
+[ADR-0038's cheap-fold addendum](ADR-0038-ranked-recall.md).

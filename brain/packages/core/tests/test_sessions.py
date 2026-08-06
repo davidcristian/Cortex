@@ -19,7 +19,7 @@ from cortex_core import (
     generate_title,
     summarize_session,
 )
-from cortex_core.inference import InferenceEvent, JsonSchema
+from cortex_core.inference import GenerationBounds, InferenceEvent, JsonSchema
 from cortex_core.sessions import PREVIEW_MAX, TITLE_MAX
 
 _EARLY = datetime(2026, 7, 8, 9, 0, tzinfo=UTC)
@@ -143,8 +143,9 @@ class _ScriptedBackend:
         *,
         tools: Sequence[ToolSpec] = (),
         schema: JsonSchema | None = None,
+        bounds: GenerationBounds | None = None,
     ) -> AsyncIterator[InferenceEvent]:
-        del model, messages, tools, schema
+        del model, messages, tools, schema, bounds
         if self._fail is not None:
             raise self._fail
         for event in self._events:

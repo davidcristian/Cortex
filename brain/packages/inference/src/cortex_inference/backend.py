@@ -29,7 +29,7 @@ from cortex_core import (
     ToolSpec,
     data_uri,
 )
-from cortex_core.inference import InferenceEvent, JsonSchema
+from cortex_core.inference import GenerationBounds, InferenceEvent, JsonSchema
 
 _CHAT_COMPLETIONS_PATH = "/v1/chat/completions"
 _SSE_DATA_PREFIX = "data:"
@@ -127,11 +127,26 @@ def _to_openai_tools(tools: Sequence[ToolSpec]) -> list[dict[str, object]]:
 
 
 def _build_payload(
-    model: str, messages: Sequence[Message], tools: Sequence[ToolSpec], schema: JsonSchema | None
+    model: str,
+    messages: Sequence[Message],
+    tools: Sequence[ToolSpec],
+    schema: JsonSchema | None,
+    bounds: GenerationBounds | None,
 ) -> dict[str, object]:
-    """The streaming chat-completion request body: messages always, tools and a constrained
-    ``response_format`` only when present (ADR-0009/0028), so an unconstrained tool-less turn
-    is byte-for-byte the original request."""
+    """The streaming chat-completion request body: messages always, tools, a constrained
+    ``response_format`` and the request's ``bounds`` only when present (ADR-0009/0028, ADR-0038
+    cheap-fold addendum), so an unbounded unconstrained tool-less turn is byte-for-byte the
+    original request.
+
+    ``bounds`` renders as two independent keys. ``max_tokens`` is the OpenAI field llama-server
+    reads as ``n_predict`` for this request, overriding the server's own ``-1``.
+    ``chat_template_kwargs: {"enable_thinking": false}`` is the per-request half of the lever the
+    subagent tier takes per server (``--chat-template-kwargs``, ADR-0010); the other documented
+    lever, ``--reasoning-budget 0``, does not work on this build, so this is the one that does.
+    A ``thinking=True`` bound emits no key at all rather than an explicit ``true``: the server's
+    template default is what a user-facing reply already gets, and saying so louder would change
+    the request for every deployment whose template spells the flag differently.
+    """
     payload: dict[str, object] = {
         "model": model,
         "messages": [_to_openai_message(message) for message in messages],
@@ -144,6 +159,11 @@ def _build_payload(
             "type": "json_schema",
             "json_schema": {"name": "reply", "schema": dict(schema), "strict": True},
         }
+    if bounds is not None:
+        if bounds.max_tokens is not None:
+            payload["max_tokens"] = bounds.max_tokens
+        if not bounds.thinking:
+            payload["chat_template_kwargs"] = {"enable_thinking": False}
     return payload
 
 
@@ -218,6 +238,7 @@ class LlamaCppBackend:
         *,
         tools: Sequence[ToolSpec] = (),
         schema: JsonSchema | None = None,
+        bounds: GenerationBounds | None = None,
     ) -> AsyncIterator[InferenceEvent]:
         """Stream text deltas from the leased llama-server, then any assembled tool calls.
 
@@ -225,8 +246,10 @@ class LlamaCppBackend:
         ``json_schema`` so llama-server constrains every token to that shape; the subagent
         runner uses it to force a tool-less weak model's reply into a fixed envelope, killing
         format-laundering. ``None`` leaves the request unconstrained, byte-for-byte as before.
+        With ``bounds`` set (ADR-0038 cheap-fold addendum) the request carries a ``max_tokens``
+        and/or asks the chat template for no thinking; ``None`` leaves both to the server.
         """
-        payload = _build_payload(model, messages, tools, schema)
+        payload = _build_payload(model, messages, tools, schema, bounds)
         pending: dict[int, _PendingCall] = {}
         try:
             async with self._manager.acquire(model) as lease:

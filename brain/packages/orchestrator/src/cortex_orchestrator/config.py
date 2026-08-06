@@ -80,14 +80,20 @@ class BrainRuntimeConfig(BaseSettings):
     history_char_budget: int = Field(default=48_000, ge=0)
     # env CORTEX_HISTORY_SUMMARY recaps the turns the window drops instead of losing them
     # (ADR-0038 decision 9): the cortex writes one paragraph accounting for the dropped prefix,
-    # cached in the session store and folded forward as the boundary moves. Default off, since
-    # it spends a cortex generation on the turns where the boundary moves and that lands
-    # directly on time-to-first-token; a deployment that would rather pay than forget opts in.
-    # Re-examined 2026-08-06 and left off on measured numbers (ADR-0038 re-measured-behind-the-
-    # fence addendum): the fold costs 14.5 s to 30.8 s typically and reached 224.5 s, nothing on
-    # screen says a turn is folding, and an opening fact survived five compounding folds 2 of 3.
-    # Ignored when the budget is 0, there being no dropped prefix to recap.
-    history_summary: bool = False
+    # cached in the session store and folded forward as the boundary moves. Default ON since
+    # 2026-08-06, the user's standing decision now carried by the numbers that had twice held it
+    # back (ADR-0038 cheap-fold addendum): a fold decodes 61 to 163 tokens rather than 400 to
+    # 850, costs 2.9 s to 5.6 s with no tail, says so on screen while it runs, and the opening
+    # fact survived five compounding folds 3 times of 3. A deployment that would rather forget
+    # than wait sets this false. Ignored when the budget is 0, there being no prefix to recap.
+    history_summary: bool = True
+    # env CORTEX_HISTORY_RECAP_MIN_CHARS is how much newly dropped conversation is worth a fold
+    # (ADR-0038 cheap-fold addendum). Below it the fold waits for the next boundary move, which
+    # picks up everything deferred since, so the cost is that those turns are briefly in neither
+    # the window nor the account rather than lost. The default matches RECAP_MAX: below one
+    # account's worth of new material there is less to fold in than the account being folded
+    # into, and folding again is what compounds a recap's losses. 0 folds on every move.
+    history_recap_min_chars: int = Field(default=2_000, ge=0)
     # env CORTEX_OUTPUT_GUARDRAIL is the model-independent laundering defense (ADR-0015):
     # `redact` (the default, so hardening is on out of the box) replaces URLs sourced verbatim
     # from untrusted tool results in the reply the user sees; `strict` (ADR-0015 addendum)

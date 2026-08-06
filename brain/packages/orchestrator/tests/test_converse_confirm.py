@@ -11,6 +11,7 @@ from collections.abc import AsyncIterator, Mapping, Sequence
 
 from cortex_core import (
     Confirmer,
+    GenerationBounds,
     InferenceEvent,
     InMemorySessionStore,
     InMemoryToolRegistry,
@@ -66,8 +67,9 @@ class _ScriptedToolBackend:
         *,
         tools: Sequence[ToolSpec] = (),
         schema: JsonSchema | None = None,
+        bounds: GenerationBounds | None = None,
     ) -> AsyncIterator[InferenceEvent]:
-        del model, messages, tools, schema
+        del model, messages, tools, schema, bounds
         step = self._steps[self._call]
         self._call += 1
         for event in step:

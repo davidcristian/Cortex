@@ -14,6 +14,7 @@ from cortex_core import (
     SUBAGENT_PROGRESS_STATE,
     CompositeToolRegistry,
     EchoInferenceBackend,
+    GenerationBounds,
     InferenceBackend,
     InferenceEvent,
     InMemorySessionStore,
@@ -68,8 +69,9 @@ class ScriptedCortexBackend:
         *,
         tools: Sequence[ToolSpec] = (),
         schema: JsonSchema | None = None,
+        bounds: GenerationBounds | None = None,
     ) -> AsyncIterator[InferenceEvent]:
-        del model, tools, schema
+        del model, tools, schema, bounds
         self.seen.append(tuple(messages))
         step = self._steps[self._call]
         self._call += 1
@@ -91,8 +93,9 @@ class TextBackend:
         *,
         tools: Sequence[ToolSpec] = (),
         schema: JsonSchema | None = None,
+        bounds: GenerationBounds | None = None,
     ) -> AsyncIterator[InferenceEvent]:
-        del model, tools, schema
+        del model, tools, schema, bounds
         self.seen.append(tuple(messages))
         for delta in self._deltas:
             yield TextChunk(delta)
@@ -184,8 +187,9 @@ class OneReadThenAnswer:
         *,
         tools: Sequence[ToolSpec] = (),
         schema: JsonSchema | None = None,
+        bounds: GenerationBounds | None = None,
     ) -> AsyncIterator[InferenceEvent]:
-        del model, tools, schema
+        del model, tools, schema, bounds
         if any(message.role is Role.TOOL for message in messages):
             yield TextChunk("done")
             return

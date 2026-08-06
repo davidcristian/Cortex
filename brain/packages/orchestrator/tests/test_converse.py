@@ -11,6 +11,7 @@ import pytest
 
 from cortex_core import (
     EchoInferenceBackend,
+    GenerationBounds,
     InferenceError,
     InferenceEvent,
     InMemorySessionStore,
@@ -125,8 +126,9 @@ class MidStreamFailingBackend:
         *,
         tools: Sequence[ToolSpec] = (),
         schema: JsonSchema | None = None,
+        bounds: GenerationBounds | None = None,
     ) -> AsyncIterator[InferenceEvent]:
-        del model, messages, tools, schema
+        del model, messages, tools, schema, bounds
         yield TextChunk("partial ")
         msg = "backend exploded mid-stream"
         raise InferenceError(msg)
@@ -142,8 +144,9 @@ class BrokenBackend:
         *,
         tools: Sequence[ToolSpec] = (),
         schema: JsonSchema | None = None,
+        bounds: GenerationBounds | None = None,
     ) -> AsyncIterator[InferenceEvent]:
-        del model, messages, tools, schema
+        del model, messages, tools, schema, bounds
         msg = "a bug, not a typed seam failure"
         raise RuntimeError(msg)
         yield TextChunk("")  # makes this an async generator; never reached
@@ -163,8 +166,9 @@ class GatedBackend:
         *,
         tools: Sequence[ToolSpec] = (),
         schema: JsonSchema | None = None,
+        bounds: GenerationBounds | None = None,
     ) -> AsyncIterator[InferenceEvent]:
-        del model, messages, tools, schema
+        del model, messages, tools, schema, bounds
         self.calls += 1
         try:
             yield TextChunk("never-finished")
@@ -187,8 +191,9 @@ class TeardownGatedBackend:
         *,
         tools: Sequence[ToolSpec] = (),
         schema: JsonSchema | None = None,
+        bounds: GenerationBounds | None = None,
     ) -> AsyncIterator[InferenceEvent]:
-        del model, messages, tools, schema
+        del model, messages, tools, schema, bounds
         try:
             yield TextChunk("never-finished")
             await asyncio.sleep(3600)
@@ -210,8 +215,9 @@ class CountingEndlessBackend:
         *,
         tools: Sequence[ToolSpec] = (),
         schema: JsonSchema | None = None,
+        bounds: GenerationBounds | None = None,
     ) -> AsyncIterator[InferenceEvent]:
-        del model, messages, tools, schema
+        del model, messages, tools, schema, bounds
         while True:
             self.yielded += 1
             yield TextChunk(f"d{self.yielded}")
@@ -230,8 +236,9 @@ class BurstThenFailBackend:
         *,
         tools: Sequence[ToolSpec] = (),
         schema: JsonSchema | None = None,
+        bounds: GenerationBounds | None = None,
     ) -> AsyncIterator[InferenceEvent]:
-        del model, messages, tools, schema
+        del model, messages, tools, schema, bounds
         for n in range(1, self._burst + 1):
             yield TextChunk(f"d{n}")
         msg = "burst over"
@@ -306,8 +313,9 @@ class ReasoningBackend:
         *,
         tools: Sequence[ToolSpec] = (),
         schema: JsonSchema | None = None,
+        bounds: GenerationBounds | None = None,
     ) -> AsyncIterator[InferenceEvent]:
-        del model, messages, tools, schema
+        del model, messages, tools, schema, bounds
         yield ReasoningChunk("pondering")
         yield TextChunk("hi")
 
@@ -337,8 +345,9 @@ class OneToolCallBackend:
         *,
         tools: Sequence[ToolSpec] = (),
         schema: JsonSchema | None = None,
+        bounds: GenerationBounds | None = None,
     ) -> AsyncIterator[InferenceEvent]:
-        del model, messages, tools, schema
+        del model, messages, tools, schema, bounds
         self._calls += 1
         if self._calls == 1:
             yield ToolCall(id="c1", name="read", arguments={"path": "/x"})

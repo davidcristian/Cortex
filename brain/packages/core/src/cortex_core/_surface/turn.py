@@ -23,6 +23,13 @@ from cortex_core.guardrail import (
     TaintView,
     UrlRedactingGuardrail,
 )
+from cortex_core.recap_prompt import (
+    RECAP_BOUNDS,
+    RECAP_MAX_TOKENS,
+    build_recap_messages,
+    clean_recap,
+    fence_recap,
+)
 from cortex_core.routing import RoutingHints, Tier, route_turn
 from cortex_core.session_title import build_title_messages, clean_title, generate_title
 from cortex_core.sessions import (
@@ -33,7 +40,11 @@ from cortex_core.sessions import (
     summarize_ends,
     summarize_session,
 )
-from cortex_core.summarizing import SummarizingHistoryWindow
+from cortex_core.summarizing import (
+    RECAP_PROGRESS_DETAIL,
+    RECAP_PROGRESS_STATE,
+    SummarizingHistoryWindow,
+)
 from cortex_core.turn_context import TurnCapabilities
 from cortex_core.turn_output import record_exchange, render_exchange
 from cortex_core.untrusted import (
@@ -57,7 +68,11 @@ __all__ = [
     "ESCALATION_QUEUED_MSG",
     "MAX_BRIEF_CHARS",
     "PLAIN_SECURITY_PREAMBLE",
+    "RECAP_BOUNDS",
     "RECAP_MAX",
+    "RECAP_MAX_TOKENS",
+    "RECAP_PROGRESS_DETAIL",
+    "RECAP_PROGRESS_STATE",
     "REDACTED_LINK",
     "SECURITY_PREAMBLE",
     "USER_DECLINED_MSG",
@@ -79,9 +94,12 @@ __all__ = [
     "TurnCapabilities",
     "TurnEngine",
     "UrlRedactingGuardrail",
+    "build_recap_messages",
     "build_title_messages",
+    "clean_recap",
     "clean_title",
     "extract_urls",
+    "fence_recap",
     "generate_title",
     "merge_pinned",
     "new_nonce",

@@ -14,7 +14,7 @@ import pytest
 
 from cortex_core import InferenceError, Message, ReasoningChunk, Role, TextChunk, ToolCall, ToolSpec
 from cortex_core.drain import drain_text
-from cortex_core.inference import InferenceEvent, JsonSchema
+from cortex_core.inference import GenerationBounds, InferenceEvent, JsonSchema
 
 _AT = datetime(2026, 8, 6, tzinfo=UTC)
 
@@ -31,6 +31,7 @@ class _GeneratorBackend:
         self._fail_after = fail_after
         self.closed = False
         self.seen_schema: JsonSchema | None = None
+        self.seen_bounds: GenerationBounds | None = None
 
     async def stream(
         self,
@@ -39,9 +40,11 @@ class _GeneratorBackend:
         *,
         tools: Sequence[ToolSpec] = (),
         schema: JsonSchema | None = None,
+        bounds: GenerationBounds | None = None,
     ) -> AsyncIterator[InferenceEvent]:
         del model, messages, tools
         self.seen_schema = schema
+        self.seen_bounds = bounds
         try:
             for index, event in enumerate(self._events):
                 if self._fail_after is not None and index == self._fail_after:
@@ -66,8 +69,9 @@ class _IteratorBackend:
         *,
         tools: Sequence[ToolSpec] = (),
         schema: JsonSchema | None = None,
+        bounds: GenerationBounds | None = None,
     ) -> AsyncIterator[InferenceEvent]:
-        del model, messages, tools, schema
+        del model, messages, tools, schema, bounds
         return _PlainIterator(self._events)
 
 
@@ -116,3 +120,36 @@ async def test_drain_accepts_a_stream_that_is_not_a_generator() -> None:
     """A plain iterator has no suspended ``finally`` and so no ``aclose``; draining still works."""
     backend = _IteratorBackend([TextChunk("plain")])
     assert await drain_text(backend, "cortex", [_message()]) == "plain"
+
+
+async def test_bounds_reach_the_backend_unchanged() -> None:
+    """The helper is a pass-through for how far the call may go, not a policy about it.
+
+    Every ``drain_text`` caller is an in-turn side call whose thinking this helper throws away
+    a line later, which is exactly what makes a bound worth asking for here.
+    """
+    backend = _GeneratorBackend([TextChunk("an account.")])
+    bounds = GenerationBounds(max_tokens=512, thinking=False)
+    assert await drain_text(backend, "cortex", [_message()], bounds=bounds) == "an account."
+    assert backend.seen_bounds == bounds
+
+
+async def test_no_bounds_is_what_a_reply_still_asks_for() -> None:
+    backend = _GeneratorBackend([TextChunk("hello")])
+    await drain_text(backend, "cortex", [_message()])
+    assert backend.seen_bounds is None
+
+
+def test_bounds_default_to_the_deployments_own_settings() -> None:
+    unbounded = GenerationBounds()
+    assert unbounded.max_tokens is None
+    assert unbounded.thinking is True
+
+
+def test_a_cap_of_no_tokens_is_a_configuration_mistake_not_a_silent_empty_reply() -> None:
+    # A zero or negative cap cannot produce an answer, so it fails where it is written rather
+    # than as an empty account the window would report as the model saying nothing usable.
+    with pytest.raises(ValueError, match="at least 1"):
+        GenerationBounds(max_tokens=0)
+    with pytest.raises(ValueError, match="at least 1"):
+        GenerationBounds(max_tokens=-1)
