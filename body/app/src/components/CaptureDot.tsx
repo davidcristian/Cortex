@@ -1,6 +1,16 @@
+import type { CaptureClaim } from "../overlay/overlayState";
+
 interface CaptureDotProps {
-  readonly capturing: boolean;
+  readonly claim: CaptureClaim | null;
 }
+
+/** What each rung of the claim is allowed to say, and nothing more (ADR-0029). The label IS the
+ *  consent surface: a colour explains nothing, so the accessible name and the tooltip carry the
+ *  whole statement, exactly as the connection dot's do. */
+const LABELS: Record<CaptureClaim, string> = {
+  asked: "The assistant asked to look at your screen during this reply",
+  read: "The assistant looked at your screen during this reply",
+};
 
 /**
  * The header's screen-capture indicator (ADR-0029): lit from the moment the assistant asks to
@@ -14,22 +24,32 @@ interface CaptureDotProps {
  * "a tool ran for a moment". The body fires its own OS notification independently; this is the
  * half the user is already looking at.
  *
- * **It says "asked to look", not "looked", because that is all the seam proves.** The signal
- * behind it is the `ToolActivity` chip, which the brain emits just *before* dispatch, and a
- * capture can still fail afterwards: the host kill switch is off by default, the overlay's
- * self-exclusion can fail closed, the body can be unreachable or time out, and a user who
- * gated the tool can decline the card. None of those outcomes reaches the overlay, so a label
- * claiming the screen was read would be wrong in every one of them. Uninformative but never
- * wrong is the rule this indicator shares with the connection dot; the stronger surface (a
- * post-dispatch outcome on the seam) is a recorded deferral, not a thing to imply here.
+ * **Two rungs, because the seam now proves two things.** The `ToolActivity` chip is emitted just
+ * *before* dispatch, so on its own it proves only that the assistant asked; the `ToolOutcome`
+ * that settles the dispatch is what raises the claim to "looked". The weaker rung is not a
+ * fallback nobody reaches: the host kill switch is off by default, the overlay's self-exclusion
+ * can fail closed, the body can be unreachable or time out, and a user who gated the tool can
+ * decline the card, and all four still say "asked".
+ *
+ * **The ring only ever deepens.** A failed outcome leaves the ring exactly where the ask put it
+ * rather than dimming it, because from the brain's side a capture that failed *after* the
+ * shutter fired is indistinguishable from one that never happened. Over-reporting a screen read
+ * is the safe direction for a privacy indicator; under-reporting is the one that would matter.
  *
  * Renders nothing when no capture has been asked for, on the same rule the connection dot
  * follows: chrome earns its place by meaning something.
  */
-export function CaptureDot({ capturing }: CaptureDotProps) {
-  if (!capturing) {
+export function CaptureDot({ claim }: CaptureDotProps) {
+  if (claim === null) {
     return null;
   }
-  const label = "The assistant asked to look at your screen during this reply";
-  return <span className="capturedot" role="status" aria-label={label} title={label} />;
+  const label = LABELS[claim];
+  return (
+    <span
+      className={claim === "read" ? "capturedot read" : "capturedot"}
+      role="status"
+      aria-label={label}
+      title={label}
+    />
+  );
 }

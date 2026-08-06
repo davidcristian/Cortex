@@ -156,3 +156,13 @@ deferral is the same way an open item gets lost as a count moved for a half-clos
   tainted/tool path for a proven-safe reason would be a per-role override on the same roster
   seam, never a relaxation of the forced-robust default (ADR-0017 risks, ADR-0018 risks).
   Unimplemented by design; no role justifies it today.
+- **A delegated tool step is announced and never settled** ([ADR-0029](../adr/ADR-0029-vision-screen-capture.md)),
+  opened 2026-08-06 by the answer above. A subagent's `ToolStep` surfaces onto the spawning
+  stream as a `ToolActivity` through the progress sink, and its `StepOutcome` is dropped, so the
+  1:1 pairing the outcome guarantees holds for the turn's own dispatches and not for delegated
+  ones. That is deliberate today (the outcome exists for a consent surface over a cortex-only
+  built-in, and a seam field joins with a consumer or not at all), and it is worth writing down
+  because the moment any surface renders how a delegated step ended, the pairing becomes a claim
+  the progress path does not keep. The work is three lines (widen `ProgressEvent`, one arm in
+  `subagent_attempt.py`, one in the sink) plus deciding whether a subagent's failures are the
+  user's business at all, which is the real question and is not a small one.

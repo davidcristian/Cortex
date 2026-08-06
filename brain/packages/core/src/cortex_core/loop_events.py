@@ -2,8 +2,9 @@
 
 Split from ``tool_loop.py`` at the 300-line cap when the escalation slot threading landed
 (ADR-0030); the contract is unchanged. The loop yields ``str`` (reply text), ``ReasoningDelta``
-(ADR-0020), or ``ToolStep`` (ADR-0009 addendum); this module owns the two event values and the
-registry-authored chip text, and ``tool_loop.py`` owns running the loop that yields them.
+(ADR-0020), ``ToolStep`` (ADR-0009 addendum), or ``StepOutcome`` (ADR-0029 outcome addendum);
+this module owns the three event values and the registry-authored chip text, and
+``tool_loop.py`` owns running the loop that yields them.
 """
 
 from dataclasses import dataclass
@@ -38,6 +39,28 @@ class ToolStep:
 
     tool_name: str
     summary: str
+
+
+@dataclass(frozen=True, slots=True)
+class StepOutcome:
+    """How one announced dispatch ended, yielded immediately after it resolves (ADR-0029
+    outcome addendum). The other half of ``ToolStep``: the loop yields exactly one of these
+    per ``ToolStep`` it yielded, on every path out of the dispatch, so a consumer that lit
+    something on the step has something to settle it with.
+
+    ``tool_name`` is the same registry-authored ``spec.name`` the step carried. ``ok`` is the
+    audit trail's own verdict (``ToolInvocation.ok``, the negation of the result's
+    ``is_error``), read off the very result the audit line was written from, so a display
+    surface and the audit log cannot disagree about one dispatch. A bit rather than a reason:
+    the gate denials and the tool's own failures differ in what the model is told and not in
+    what a consent surface may claim, and a reason nobody renders would be a wire vocabulary
+    with no consumer.
+
+    Ephemeral like ``ToolStep``: never reply text, never persisted, never fed back to the model.
+    """
+
+    tool_name: str
+    ok: bool
 
 
 def step_summary(spec: ToolSpec) -> str:

@@ -192,7 +192,11 @@ class PlacedAttempt:
                 # the delegated work (ADR-0010 progress addendum), never joining the answer. Both
                 # of its fields are registry-authored (copied off the matched ToolSpec), so no
                 # untrusted-derived text ever rides the sink and it needs no guardrail pass, the
-                # same argument the cortex's own ToolActivity makes. Append text incrementally
+                # same argument the cortex's own ToolActivity makes. A step outcome (ADR-0029
+                # outcome addendum) is dropped like a reasoning delta: it exists for the
+                # capture indicator, which is a consent surface over a cortex-only built-in
+                # a subagent can never call, so forwarding one would put an event on the seam
+                # with no consumer at either end. Append text incrementally
                 # (not a comprehension) so text produced before a mid-stream failure survives.
                 if isinstance(delta, str):
                     parts.append(delta)

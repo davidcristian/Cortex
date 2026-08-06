@@ -10,7 +10,8 @@
 //! [`TurnEvent::Failed`] means the brain reported a turn error, the connection is
 //! fine); a mid-turn `ConfirmRequest` (→ [`TurnEvent::ConfirmRequest`]) and the
 //! `ConfirmResolved` that ends one the caller never answered (→
-//! [`TurnEvent::ConfirmResolved`]) are both non-terminal. A stream that ends
+//! [`TurnEvent::ConfirmResolved`]) are both non-terminal, as is the `ToolOutcome`
+//! settling an announced dispatch (→ [`TurnEvent::ToolOutcome`]). A stream that ends
 //! without a terminal event, or an empty
 //! `ServerEvent`, is a [`TransportError::Protocol`]; a non-OK gRPC status maps
 //! the same way `health` does (via [`crate::status::status_to_error`]).
@@ -61,6 +62,13 @@ fn map_event(event: ServerEvent) -> (Result<TurnEvent, TransportError>, bool) {
             Ok(TurnEvent::ToolActivity {
                 tool_name: activity.tool_name,
                 summary: activity.summary,
+            }),
+            false,
+        ),
+        Some(server_event::Event::ToolOutcome(outcome)) => (
+            Ok(TurnEvent::ToolOutcome {
+                tool_name: outcome.tool_name,
+                ok: outcome.ok,
             }),
             false,
         ),

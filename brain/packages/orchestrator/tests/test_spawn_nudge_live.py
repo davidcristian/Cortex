@@ -68,7 +68,7 @@ from cortex_core import (
     VramBudgetPlacer,
     new_nonce,
 )
-from cortex_core.loop_events import ReasoningDelta, ToolStep
+from cortex_core.loop_events import ReasoningDelta
 from cortex_core.tool_loop import ToolLoopContext, stream_tool_loop
 from cortex_core.turn_context import assemble_inference_messages
 from cortex_inference import LlamaCppBackend
@@ -214,7 +214,7 @@ async def _one_turn(ask: str) -> _Observed:
         async for event in stream_tool_loop(backend, runtime.cortex_model, working, context):
             if isinstance(event, ReasoningDelta):
                 reasoning.append(event.text)
-            elif not isinstance(event, ToolStep):
+            elif isinstance(event, str):
                 reply.append(event)
     observed = _Observed(reply="".join(reply), reasoning="".join(reasoning))
     for message in working:

@@ -115,11 +115,33 @@ message ServerEvent {
     SeamError error = 5;
     ConfirmRequest confirm_request = 6; // a gated tool call awaits user approval (ADR-0022)
     ConfirmResolved confirm_resolved = 7; // the brain stopped waiting for an answer (ADR-0022)
+    ToolOutcome tool_outcome = 8;   // how a dispatch already announced above ended (ADR-0029)
   }
 }
 
 message TextDelta { string text = 1; }
 message ToolActivity { string tool_name = 1; string summary = 2; }
+
+// How one announced dispatch ENDED, emitted after it resolves (ADR-0029 outcome addendum).
+// ToolActivity says a tool is about to run and ToolOutcome says how it went, so the pair is
+// one dispatch seen twice: the brain emits exactly one outcome per activity it emitted on the
+// turn's own stream, on every path out of the dispatch including the gate denials and the
+// tool's own failures. It exists for the overlay's screen-capture indicator, which is one of
+// the consent surfaces that let capture ship without an approval card, and which could
+// otherwise only say the assistant ASKED to look at the screen.
+//
+// `ok` is the audit trail's own verdict (`ToolInvocation.ok`, the negation of the result's
+// is_error), so the consent surface and the audit log cannot disagree about the same dispatch.
+// It is a bit rather than a taxonomy because the indicator has exactly two honest rungs. The
+// proto3 default is the safe one: a missing or unread outcome reads false, which leaves an
+// indicator at the weaker claim it already makes rather than promoting it.
+//
+// An outcome may only ever STRENGTHEN what a surface claims, never retract it. A capture that
+// failed after the shutter fired (a reply the brain refused for breaking the bounds it asked
+// for, a deadline that expired after the body had already read the display and shown its own
+// receipt) is indistinguishable here from one that never happened, so `ok=false` means "this
+// side cannot say the screen was read", never "your screen was not read".
+message ToolOutcome { string tool_name = 1; bool ok = 2; }
 message StatusUpdate { string state = 1; string detail = 2; }
 message TurnComplete { string turn_id = 1; }
 message SeamError { string code = 1; string message = 2; }

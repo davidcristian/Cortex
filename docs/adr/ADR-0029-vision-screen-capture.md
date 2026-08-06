@@ -1574,3 +1574,115 @@ recommended setting are in [docs/runbooks/llamacpp-gpu.md](../runbooks/llamacpp-
 re-runnable half is `packages/inference/tests/test_image_budget_live.py`, which asserts the
 saturation, asserts the knob raises it, and proves the abort by stripping the micro-batch back off
 the shipped argv.
+
+## Addendum (2026-08-06): the capture dot says what happened, and one bit is all it needs
+
+Decision 5 lists three consent surfaces that let `capture_screen` ship ungated, and the third of
+them, the overlay's capture ring, was the weakest of the three by construction. It is lit by the
+`ToolActivity` chip, which the loop yields immediately **before** the dispatch, so it could
+honestly say the assistant asked to look at the screen and nothing more. This addendum records
+the post-dispatch signal that closes that gap, and the shape of the honesty it can and cannot buy.
+
+### The premise held, and it was tighter than the entry said
+
+The deferred entry named four failure modes it claimed produced the identical event. Driving the
+real `stream_tool_loop` over the real `ToolDispatcher` and the real `CaptureScreenTool` confirms
+it: every one of them yields exactly `ToolStep(tool_name="capture_screen", summary=...)` and then
+nothing, byte for byte what a successful capture yields. The audit line's `ok` bit and the images
+riding the result are the only things that differ, and neither crossed the seam.
+
+Two of the four are tighter than the entry knew. **A capture the host kill switch refused and one
+whose self-exclusion failed closed are one code path, not two:** `body_server::start` wires
+`DeniedScreenCapture` when either condition fails, that backend answers `CaptureError::Disabled`,
+and the mapping turns it into a single `PermissionDenied` with one fixed string. They are
+indistinguishable in the error text, let alone in the event, so no design could have separated
+them and none should try. The other two are genuinely distinct: an unanswered body arrives as the
+gateway's deadline, and a declined gated capture never reaches the body at all (asserted against
+the fake, which records nothing).
+
+### The signal is a new `ServerEvent` arm, because the two existing ones already mean something
+
+`ToolOutcome { string tool_name = 1; bool ok = 2; }` joins the `ServerEvent` oneof at field 8, and
+the loop yields the core `StepOutcome` that becomes it. A field on `ToolActivity` was rejected
+because the chip is emitted before the dispatch, so carrying an outcome on it means emitting a
+second activity, and a second chip says a tool started twice. A `StatusUpdate` was rejected
+because its reducer arm writes the live status chip and accumulates a `"thinking"` detail into the
+reply's reasoning trace, so an outcome would land as plumbing in a surface reserved for
+deliberation. A new arm is the smallest thing that cannot collide with a renderer that already
+exists.
+
+**The outcome is a bit rather than a taxonomy.** The indicator has exactly two honest rungs, and
+the difference between "the user declined" and "the body was unreachable" is a fact about the
+assistant's plumbing rather than about the user's privacy. It could not be told honestly anyway:
+`USER_DECLINED_MSG` is also what a missing confirmer returns, so a "declined" arm would be a lie
+on the fail-closed path. And it would change nothing rendered, since every non-success outcome has
+to leave the ring exactly where it was (below). So the bit is `ToolInvocation.ok`, the audit
+trail's own verdict read off the same result the audit line was written from, which means the
+consent surface and the audit log cannot disagree about one dispatch. The proto3 default is the
+safe one: an unset or unread field reads `false`, which leaves an indicator at the weaker claim
+rather than promoting it.
+
+### The asymmetry is the design, and it is enforced twice
+
+Over-reporting a screen read is the safe direction for a privacy indicator; under-reporting is the
+dangerous one. That is not a preference here but a fact about what the brain can know: **a capture
+that failed after the shutter fired is indistinguishable, brain-side, from one that never
+happened.** `screen.rs` blits, encodes, timestamps, fires the receipt and only then answers, so a
+deadline expiring after that point, a reply the gateway refuses for breaking the bounds it asked
+for, and an `ImagePart` the domain will not vouch for all describe a display that really was read
+and that the user really was told about. Reading that order back also finds the one case where
+**neither** surface reports it: `Capture::from_bgra` runs after the blit and can end in
+`CaptureError::TooLarge`, which returns before `announce`, so a frame that was read but would not
+fit fires no receipt either. `ok=false` therefore means "this side cannot say the screen was
+read", never "your screen was not read", and the wording in the proto says so.
+
+The enforcement is structural on both sides. Brain-side the outcome is emitted **after** the
+dispatch and outside every branch inside it, under the identical condition the step was emitted
+under, so the taint denial, a declined confirmation, a registry fault and the tool's own failure
+all resolve into the one `result` it reads. The only way out of a dispatch without an outcome is
+the consumer closing the generator mid-dispatch, which ends the turn and the surface with it, and
+there is a test that drives exactly that. Overlay-side `state.capturing` became
+`state.capture: "asked" | "read" | null`, a ladder whose every write is non-decreasing: the
+activity writes `state.capture ?? "asked"`, a successful outcome writes the top rung, and only
+`endTurn` resets. A successful outcome promotes even a claim this side never saw asked, because
+a dropped activity must not cost the stronger, truer statement.
+
+### The ring gains ink and never loses it
+
+`"asked"` is the open ring, unchanged from what shipped. `"read"` grows a pupil inside it, which
+is the same mark deepening rather than a swap, and it is addition only, so the weaker rung never
+looks less alarming than it did. It stays a ring rather than filling in for the reason it was open
+to begin with: a solid 7px `--warn` disc is exactly what the connection dot beside it looks like
+when the brain is degraded, and the pair has to keep one connection colour between them.
+
+The pupil is 2.5px, measured rather than picked. The 7px ring's 1.5px border leaves a 4px hole,
+and rendered in Chromium at devicePixelRatio 1 a 2px pupil is a 2x2 smudge barely darker than the
+hole's own antialiasing, a 3px pupil closes the hole to half a pixel and reads as a solid disc,
+and 2.5px lands a three-pixel core with 0.75px of gap still showing all the way round. Both themes
+were driven live: the ring and its pupil take `--warn`, `#C07408` light and `#FFB347` dark, and
+the pupil reaches full scale in both.
+
+**One defect was found while proving the motion behaved.** The stylesheet's
+`prefers-reduced-motion` block clamps `*`, and `*` does not match pseudo-elements: measured with
+reduced motion on, the new pupil reported its full 0.35s transition, and reading the sheet back
+found four more escaping the same clamp, two of them infinite (the tool chip's pulse and the
+thinking dot's bob, plus the send cap's accent fade and the thoughts marker's turn). A user asking
+for no motion was getting all five at full speed. The block now names `*::before` and `*::after`,
+and the fix is measured the same way: with reduced motion on the chip's pulse runs one iteration
+at a microsecond and every transition reads 0.12s.
+
+### What this does not do
+
+It does not make the ring a proof of what was **in** the picture, and it does not replace the OS
+receipt, which remains the surface that lives on the side of the seam that knows. It does not
+reach delegated work: a subagent's tool step still surfaces as activity alone through the progress
+sink, because the outcome exists for a consent surface over a cortex-only built-in and a field
+joins the seam with a consumer or not at all. And it does not change the gating decision: decision
+5 still ships `capture_screen` ungated, with a stronger third surface behind that choice than it
+had.
+
+`tool_loop.py` reached both the mccabe ceiling and the 300-line cap on the way, so running one
+planned round of dispatches moved to `dispatch_round.py` along with `ToolLoopContext`, almost
+every field of which is a thing a dispatch carries rather than a thing the loop reads;
+`tool_loop` re-exports the context, so no call site moved. The seam between the three modules is
+now the loop's own sentence: infer, plan the round, run it.

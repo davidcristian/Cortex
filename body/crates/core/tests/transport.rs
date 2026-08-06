@@ -263,6 +263,19 @@ fn turn_event_is_clone_eq_and_debug() {
         tool_name: String::from("read_email"),
         summary: String::from("reading"),
     };
+    // The settling half of the activity above, and the one pair a consent surface reads:
+    // two outcomes for the same tool must not compare equal when only `ok` differs.
+    let outcome = TurnEvent::ToolOutcome {
+        tool_name: String::from("read_email"),
+        ok: true,
+    };
+    assert_ne!(
+        outcome,
+        TurnEvent::ToolOutcome {
+            tool_name: String::from("read_email"),
+            ok: false,
+        }
+    );
     let status = TurnEvent::Status {
         state: String::from("model_loading"),
         detail: String::from("swapping"),
@@ -287,6 +300,7 @@ fn turn_event_is_clone_eq_and_debug() {
     for (event, name) in [
         (&delta, "Delta"),
         (&tool, "ToolActivity"),
+        (&outcome, "ToolOutcome"),
         (&status, "Status"),
         (&complete, "Complete"),
         (&failed, "Failed"),

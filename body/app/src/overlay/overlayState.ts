@@ -18,6 +18,7 @@ import {
 import { type Notice, speak } from "./notice";
 import { NEW_CHAT_TITLE, adoptSession, deleteSession, openSession } from "./sessionState";
 import {
+  type CaptureClaim,
   type Message,
   type PendingConfirm,
   applyEvent,
@@ -36,7 +37,7 @@ import {
 
 export { cycleTarget } from "./sessionState";
 export { CAPTURE_SCREEN_TOOL, isTurnActive, latestReply } from "./turnState";
-export type { Message, PendingConfirm } from "./turnState";
+export type { CaptureClaim, Message, PendingConfirm } from "./turnState";
 
 /** Where the overlay is on screen. */
 export type Mode = "hidden" | "panel" | "orb" | "preview";
@@ -88,13 +89,15 @@ export interface OverlayState {
   /** What the overlay knows about the brain connection, for the header indicator (`linkState`). */
   readonly link: LinkView;
   /**
-   * Whether the assistant has looked at the user's screen during the turn in flight
-   * (ADR-0029). Set by the `capture_screen` tool activity and cleared only when the turn ends,
-   * so the indicator stays lit for the rest of the turn rather than blinking past with the
-   * chip. This is a **consent surface**, which is part of why the capture tool ships without an
-   * approval card: the user is told plainly, by the app, that a picture was taken.
+   * How far this turn's screen-capture claim has climbed, or `null` if nothing was asked for
+   * (ADR-0029). Raised to `"asked"` by the `capture_screen` tool activity, to `"read"` by the
+   * outcome that settles it, and cleared only when the turn ends, so the indicator stays lit
+   * for the rest of the turn rather than blinking past with the chip. This is a **consent
+   * surface**, which is part of why the capture tool ships without an approval card: the user
+   * is told plainly, by the app, that a picture was taken. Within a turn it only ever climbs,
+   * because a privacy indicator may over-report and may never under-report.
    */
-  readonly capturing: boolean;
+  readonly capture: CaptureClaim | null;
   readonly seq: number;
   /**
    * Whether the user has acted on this overlay since mount (opened it, typed, switched, or
@@ -166,7 +169,7 @@ export function createInitialState(sessionId: string): OverlayState {
     arrival: 0,
     reminders: [],
     link: INITIAL_LINK,
-    capturing: false,
+    capture: null,
     seq: 0,
     touched: false,
   };

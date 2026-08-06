@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { DueReminder, SessionMessage, SessionSummary } from "../bridge/types";
+import type { DueReminder, SessionMessage, SessionSummary, TurnEvent } from "../bridge/types";
 import type { Action, OverlayState } from "./overlayState";
 import { createInitialState, cycleTarget, initialState, isTurnActive, latestReply, reduce } from "./overlayState";
 
@@ -715,50 +715,85 @@ describe("the screen-capture indicator", () => {
       text: "what is on my screen?",
     });
 
-  it("lights when the assistant looks at the screen", () => {
-    const before = streaming();
-    expect(before.capturing).toBe(false);
-    const after = reduce(before, {
+  const capture = (state: OverlayState): OverlayState =>
+    reduce(state, {
       kind: "event",
       event: { kind: "toolActivity", toolName: "capture_screen", summary: "primary display" },
     });
-    expect(after.capturing).toBe(true);
+
+  const settle = (state: OverlayState, ok: boolean): OverlayState =>
+    reduce(state, {
+      kind: "event",
+      event: { kind: "toolOutcome", toolName: "capture_screen", ok },
+    });
+
+  const settleOther = (state: OverlayState): OverlayState =>
+    reduce(state, {
+      kind: "event",
+      event: { kind: "toolOutcome", toolName: "get_volume", ok: true },
+    });
+
+  it("claims only the ask when the assistant goes for the screen", () => {
+    const before = streaming();
+    expect(before.capture).toBeNull();
+    // The chip the brain emits for a capture is pre-dispatch, so on its own this is all the
+    // overlay knows: that the assistant went for the screen.
+    expect(capture(before).capture).toBe("asked");
+  });
+
+  it("climbs to read only when the outcome says the dispatch reached something", () => {
+    expect(settle(capture(streaming()), true).capture).toBe("read");
+  });
+
+  it("stays at the ask when the capture did not reach the model", () => {
+    // The four modes that produce this: the host kill switch off (the shipping default), the
+    // overlay's self-exclusion failing closed, a body that never answered, and a gated capture
+    // the user declined. None of them may dim the ring, because a capture that failed AFTER the
+    // shutter fired is indistinguishable from one that never happened, and the body has already
+    // shown its own receipt in that case.
+    expect(settle(capture(streaming()), false).capture).toBe("asked");
+  });
+
+  it("never falls a rung mid-turn, whatever order the events arrive in", () => {
+    // The asymmetry this indicator is built around, stated as a property rather than a case:
+    // over-reporting a screen read is safe and under-reporting is not, so nothing short of the
+    // turn ending may weaken the claim.
+    const rung = (state: OverlayState): number =>
+      state.capture === null ? 0 : state.capture === "asked" ? 1 : 2;
+    const mid: readonly TurnEvent[] = [
+      { kind: "toolActivity", toolName: "capture_screen", summary: "primary display" },
+      { kind: "toolOutcome", toolName: "capture_screen", ok: true },
+      { kind: "toolActivity", toolName: "capture_screen", summary: "primary display" },
+      { kind: "toolOutcome", toolName: "capture_screen", ok: false },
+      { kind: "toolActivity", toolName: "get_volume", summary: "reading" },
+      { kind: "toolOutcome", toolName: "get_volume", ok: false },
+      { kind: "delta", text: "I could not see your screen." },
+      { kind: "status", state: "thinking", detail: "hmm" },
+    ];
+    let state = streaming();
+    for (const event of mid) {
+      const next = reduce(state, { kind: "event", event });
+      expect(rung(next)).toBeGreaterThanOrEqual(rung(state));
+      state = next;
+    }
+    expect(state.capture).toBe("read");
   });
 
   it("stays lit for the rest of the turn, past later tool activity", () => {
     // The fact the user is owed is "the assistant looked at my screen during this reply", not
     // "a tool ran for a moment", so a later chip must not put the indicator out.
-    const looked = reduce(streaming(), {
-      kind: "event",
-      event: { kind: "toolActivity", toolName: "capture_screen", summary: "primary display" },
-    });
-    const later = reduce(looked, {
+    const later = reduce(capture(streaming()), {
       kind: "event",
       event: { kind: "toolActivity", toolName: "get_volume", summary: "reading" },
     });
-    expect(later.capturing).toBe(true);
+    expect(later.capture).toBe("asked");
     expect(later.messages.at(-1)?.tool).toBe("get_volume: reading");
   });
 
-  it("lights on the ask, since the seam never says whether the capture happened", () => {
-    // The chip the brain emits for a capture is pre-dispatch, so this is what the overlay knows:
-    // that the assistant went for the screen. A capture the host refused (CORTEX_HOST_CAPTURE
-    // unset is the shipping default), one the body could not answer, and a gated one the user
-    // declined all produce this exact event and nothing else, which is why the indicator's label
-    // says "asked to look" rather than "looked". Locking that in here so a future outcome signal
-    // has to change this test on purpose rather than quietly making the label true.
-    const asked = reduce(streaming(), {
-      kind: "event",
-      event: { kind: "toolActivity", toolName: "capture_screen", summary: "primary display" },
-    });
-    expect(asked.capturing).toBe(true);
-    // Whatever came back, no later event tells the overlay: the only capture-shaped thing that
-    // follows is the reply text, which cannot distinguish a refusal from a picture.
-    const answered = reduce(asked, {
-      kind: "event",
-      event: { kind: "delta", text: "I could not see your screen." },
-    });
-    expect(answered.capturing).toBe(true);
+  it("takes a read outcome even for an ask it never saw", () => {
+    // A dropped activity must not cost the stronger, truer statement: the outcome is evidence
+    // the screen WAS read, and ignoring it would under-report, which is the dangerous direction.
+    expect(settle(streaming(), true).capture).toBe("read");
   });
 
   it("stays dark for a turn that only ran other tools", () => {
@@ -766,27 +801,24 @@ describe("the screen-capture indicator", () => {
       kind: "event",
       event: { kind: "toolActivity", toolName: "get_volume", summary: "reading" },
     });
-    expect(after.capturing).toBe(false);
+    expect(after.capture).toBeNull();
+    // Nor does another tool's successful outcome light it: the ring is about the screen.
+    expect(settleOther(after).capture).toBeNull();
   });
 
   it("goes out when the turn completes", () => {
-    const looked = reduce(streaming(), {
+    const done = reduce(settle(capture(streaming()), true), {
       kind: "event",
-      event: { kind: "toolActivity", toolName: "capture_screen", summary: "primary display" },
+      event: { kind: "complete", turnId: "t1" },
     });
-    const done = reduce(looked, { kind: "event", event: { kind: "complete", turnId: "t1" } });
-    expect(done.capturing).toBe(false);
+    expect(done.capture).toBeNull();
   });
 
   it("goes out when the turn fails", () => {
-    const looked = reduce(streaming(), {
-      kind: "event",
-      event: { kind: "toolActivity", toolName: "capture_screen", summary: "primary display" },
-    });
-    const dead = reduce(looked, {
+    const dead = reduce(capture(streaming()), {
       kind: "event",
       event: { kind: "failed", code: "INTERNAL", message: "boom" },
     });
-    expect(dead.capturing).toBe(false);
+    expect(dead.capture).toBeNull();
   });
 });

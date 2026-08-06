@@ -29,7 +29,7 @@ use body_rpc::generated::{
     ListDueRemindersReply, ListDueRemindersRequest, ListSessionsReply, ListSessionsRequest,
     RenameSessionReply, RenameSessionRequest, SeamError, ServerEvent, SetPreferenceReply,
     SetPreferenceRequest, SetSessionPinnedReply, SetSessionPinnedRequest, StatusUpdate, TextDelta,
-    ToolActivity, TurnComplete, client_event, server_event,
+    ToolActivity, ToolOutcome, TurnComplete, client_event, server_event,
 };
 use tokio::net::TcpListener;
 use tokio_stream::wrappers::TcpListenerStream;
@@ -172,6 +172,16 @@ impl BrainService for FakeBrain {
                         event: Some(server_event::Event::ToolActivity(ToolActivity {
                             tool_name: String::from("read_email"),
                             summary: String::from("reading inbox"),
+                        })),
+                    }),
+                    // The dispatch the activity above announced, settled (ADR-0029 outcome
+                    // addendum). `ok: false` is the interesting one to carry through the
+                    // adapter: proto3 leaves a bool defaulted, so a mapping that silently
+                    // dropped the field would look identical to a real refusal.
+                    Ok(ServerEvent {
+                        event: Some(server_event::Event::ToolOutcome(ToolOutcome {
+                            tool_name: String::from("read_email"),
+                            ok: false,
                         })),
                     }),
                     Ok(ServerEvent {
@@ -397,6 +407,10 @@ async fn echo_turn_round_trips_every_event_kind() {
             TurnEvent::ToolActivity {
                 tool_name: String::from("read_email"),
                 summary: String::from("reading inbox"),
+            },
+            TurnEvent::ToolOutcome {
+                tool_name: String::from("read_email"),
+                ok: false,
             },
             TurnEvent::Status {
                 state: String::from("model_loading"),

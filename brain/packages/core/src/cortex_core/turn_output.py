@@ -13,9 +13,9 @@ I/O is through the ports its callers hand in.
 
 from collections.abc import AsyncGenerator, Iterator
 
-from cortex_core.events import TextDelta, ToolActivity, TurnEvent
+from cortex_core.events import TextDelta, ToolActivity, ToolOutcome, TurnEvent
 from cortex_core.guardrail import OutputFilter
-from cortex_core.loop_events import ReasoningDelta, ToolStep
+from cortex_core.loop_events import ReasoningDelta, StepOutcome, ToolStep
 from cortex_core.output_channels import ThinkingChannel
 from cortex_core.turn_context import TurnCapabilities
 from cortex_core.untrusted import TaintLedger
@@ -47,7 +47,7 @@ def flush_channels(channels: OutputChannels, parts: list[str]) -> Iterator[TurnE
 
 
 async def stream_turn_events(
-    loop: AsyncGenerator[str | ReasoningDelta | ToolStep, None],
+    loop: AsyncGenerator[str | ReasoningDelta | ToolStep | StepOutcome, None],
     channels: OutputChannels,
     parts: list[str],
 ) -> AsyncGenerator[TurnEvent, None]:
@@ -56,8 +56,11 @@ async def stream_turn_events(
     A ``ReasoningDelta`` is a reasoning model's live thinking (ADR-0020): ephemeral status,
     never the reply, so it skips ``parts`` and persistence, and a wholly-carried delta emits
     nothing. A ``ToolStep`` is an audited dispatch about to run (ADR-0009 addendum), surfaced as
-    the overlay's activity chip with the same non-reply treatment. Everything else is reply
-    text, passed through the guardrail (ADR-0015) so what is persisted is what was shown.
+    the overlay's activity chip with the same non-reply treatment, and the ``StepOutcome`` that
+    settles it becomes the ``ToolOutcome`` a consent surface reads (ADR-0029 outcome addendum);
+    the pairing the loop guarantees survives this mapping, since neither is ever dropped here.
+    Everything else is reply text, passed through the guardrail (ADR-0015) so what is persisted
+    is what was shown.
 
     The loop is closed deterministically in a ``finally``: a consumer that closes this
     generator mid-turn must not leave the loop (and the backend stream it holds) half
@@ -72,6 +75,9 @@ async def stream_turn_events(
                 continue
             if isinstance(delta, ToolStep):
                 yield ToolActivity(tool_name=delta.tool_name, summary=delta.summary)
+                continue
+            if isinstance(delta, StepOutcome):
+                yield ToolOutcome(tool_name=delta.tool_name, ok=delta.ok)
                 continue
             shown = delta if channels[0] is None else channels[0].feed(delta)
             if not shown:

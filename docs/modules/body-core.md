@@ -38,7 +38,10 @@ classification behind the overlay's connection indicator (ADR-0011 addendum), an
   `transport`, so `body_core::TurnEvent` and `body_core::transport::TurnEvent` both still resolve.
 - `TurnEvent` is the typed core mirror of the proto `ServerEvent`, streamed by `converse`
   (`Clone`, `Eq`, `Debug`): `Delta(String)` (assistant text) | `ToolActivity { tool_name,
-  summary }` | `Status { state, detail }` | `ConfirmRequest { confirm_id, tool_name,
+  summary }` | `ToolOutcome { tool_name, ok }` (how an announced dispatch ended, ADR-0029
+  outcome addendum; **non-terminal**, one per activity, and it may only strengthen what a
+  surface claims, so `ok: false` means the brain cannot say the tool reached anything rather
+  than that nothing happened) | `Status { state, detail }` | `ConfirmRequest { confirm_id, tool_name,
   arguments_json, reason }` (a gated tool call awaits the user's approval, ADR-0022;
   **non-terminal**, answered via the `decisions` stream) | `ConfirmResolved { confirm_id,
   outcome }` (the brain stopped waiting on one, so a surface showing it can close it;

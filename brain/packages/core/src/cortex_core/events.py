@@ -42,6 +42,25 @@ class ToolActivity:
 
 
 @dataclass(frozen=True, slots=True)
+class ToolOutcome:
+    """How an announced dispatch ended (proto ``ToolOutcome``), emitted after it resolves
+    (ADR-0029 outcome addendum). The settling half of ``ToolActivity``: exactly one rides the
+    turn's stream per activity the turn emitted, on every path out of the dispatch, so a
+    surface lit by the activity has something honest to settle it with.
+
+    ``tool_name`` is the same registry-authored name the activity carried. ``ok`` is the audit
+    trail's own verdict, so the consent surface and the audit log agree by construction. It may
+    only ever **strengthen** what a surface claims and never retract it: a capture that failed
+    after the shutter fired is indistinguishable here from one that never happened, so
+    ``ok=False`` means "the brain cannot say the screen was read", never "it was not read".
+    Ephemeral like ``ToolActivity``: never reply text, never persisted.
+    """
+
+    tool_name: str
+    ok: bool
+
+
+@dataclass(frozen=True, slots=True)
 class TurnCompleted:
     """The turn finished and the assistant message was persisted to the store."""
 
@@ -49,4 +68,4 @@ class TurnCompleted:
     full_text: str
 
 
-type TurnEvent = TextDelta | StatusUpdate | ToolActivity | TurnCompleted
+type TurnEvent = TextDelta | StatusUpdate | ToolActivity | ToolOutcome | TurnCompleted

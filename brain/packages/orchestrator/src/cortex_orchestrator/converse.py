@@ -15,7 +15,8 @@ Stream contract (proto/body.proto `BrainService.Converse`):
 - `UserTurn` runs one core turn; domain events map onto `ServerEvent`: one
   `TextDelta` per streamed reply delta, a `StatusUpdate` per reasoning delta
   (ADR-0020, `state="thinking"`), a `ToolActivity` per audited tool dispatch
-  (ADR-0009 addendum), then `TurnComplete{turn_id}`. `UserTurn.images`
+  (ADR-0009 addendum) and the `ToolOutcome` settling it once that dispatch resolves
+  (ADR-0029 outcome addendum), then `TurnComplete{turn_id}`. `UserTurn.images`
   are still ignored: vision arrived as a model-initiated capture (ADR-0029), and the
   user-attached image path is a recorded deferral rather than a coming slice.
   A turn that spawns subagents also surfaces their progress on the same stream,
@@ -23,6 +24,9 @@ Stream contract (proto/body.proto `BrainService.Converse`):
   for the batch's scale and a `ToolActivity` per subagent tool step (ADR-0010).
   Those ride while the turn is suspended inside the spawn dispatch (its generator
   cannot yield), best-effort and credit-balanced, so a stalled consumer drops them.
+  A delegated step carries no outcome: the outcome exists for a consent surface over
+  a cortex-only built-in, so pairing holds for the turn's own dispatches and a
+  subagent's step stays activity-only.
 - Turns run one at a time, but dispatch never blocks on the running turn: a
   `UserTurn` arriving mid-turn is queued and starts when the in-flight turn
   finishes, and later client events (a `Cancel` above all) are still acted on

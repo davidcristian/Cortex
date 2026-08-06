@@ -39,6 +39,23 @@ pub enum TurnEvent {
         /// Human-readable summary of the activity.
         summary: String,
     },
+    /// How an announced dispatch ENDED, arriving after it resolves (proto `ToolOutcome`,
+    /// ADR-0029 outcome addendum). The settling half of [`TurnEvent::ToolActivity`]: the
+    /// brain emits exactly one per activity it emitted on the turn's own stream, on every
+    /// path out of the dispatch, so a surface lit by an activity has something honest to
+    /// settle it with. Non-terminal.
+    ///
+    /// It exists for the overlay's screen-capture indicator, which is one of the consent
+    /// surfaces that let capture ship without an approval card. **It may only ever strengthen
+    /// what a surface claims, never retract it:** a capture that failed after the shutter
+    /// fired is indistinguishable here from one that never happened, so `ok: false` means
+    /// "the brain cannot say the screen was read", never "your screen was not read".
+    ToolOutcome {
+        /// The tool that ran, the same registry-authored name the activity carried.
+        tool_name: String,
+        /// The audit trail's own verdict: the dispatch returned a usable result.
+        ok: bool,
+    },
     /// Progress for the overlay to show, e.g. a model swap (proto `StatusUpdate`).
     Status {
         /// Machine-readable state name, e.g. `model_loading`.

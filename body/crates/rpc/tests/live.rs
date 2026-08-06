@@ -321,9 +321,13 @@ async fn converse_round_trips_one_turn_over_the_live_seam() {
                 code = error.code,
                 message = error.message
             ),
-            // Tool/status traffic is legal on the stream; this check only
-            // cares about the reply text and turn completion.
-            Some(server_event::Event::ToolActivity(_) | server_event::Event::Status(_)) => {}
+            // Tool/status traffic is legal on the stream, an announced dispatch's outcome
+            // included; this check only cares about the reply text and turn completion.
+            Some(
+                server_event::Event::ToolActivity(_)
+                | server_event::Event::ToolOutcome(_)
+                | server_event::Event::Status(_),
+            ) => {}
             // Nothing gated is asked for here, and this raw one-shot client
             // could not answer anyway (ADR-0022). A confirm request means
             // something is wrong brain-side.
