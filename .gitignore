@@ -29,3 +29,6 @@ gen/
 
 # Host-only MCP filesystem sandbox (docs/runbooks/tools-mcp.md)
 sandbox/
+
+pgdata/
+models/

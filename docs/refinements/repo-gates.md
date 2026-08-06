@@ -9,14 +9,16 @@ deferred-refinements section on 2026-07-15 with the entries kept verbatim; lande
 entries are the historical record of what each deferral became, and the index at
 [index.md](index.md) carries the recommended pickup order.
 
-**Open items:** 6 (`cargo clippy` for the Tauri shell in CI, moved to fix-when-it-bites
+**Open items:** 7 (`cargo clippy` for the Tauri shell in CI, moved to fix-when-it-bites
 2026-07-16; standing test-order randomization, opened as fix-when-it-bites 2026-07-18; the three
 exceptions the wrap gate did not ship, opened as fix-when-it-bites 2026-07-19 behind the landing
 of the commit-body wrap check itself; the overlay stylesheet outside the line cap, opened as
 fix-when-it-bites 2026-08-03 behind the cap reaching the overlay's TypeScript; the couplings the
 cross-language constant scan does not hold yet, opened as fix-when-it-bites 2026-08-03 behind
 that scan landing; the live pgvector run still sharing the brain's `memories` table, opened as
-fix-when-it-bites 2026-08-03 behind the live Redis runs getting a database of their own; the rest
+fix-when-it-bites 2026-08-03 behind the live Redis runs getting a database of their own; a compose
+bind default that lands in the repo tree being stageable, opened as fix-when-it-bites 2026-08-06
+when the two live ones were ignored; the rest
 landed 2026-07-16, 2026-07-19, 2026-08-03 and 2026-08-06, the last of them the core barrel at its
 300-line cap, see the outcome notes below the verbatim entries)
 
@@ -408,3 +410,23 @@ cross-language-constant addendum):**
   space, so a run of port additions is the case that reaches a cap first. What is different is
   that reaching it costs an ordinary split by responsibility inside one area rather than a third
   round of this argument, and that the gate was never touched to get here.
+- **A compose bind default that lands in the repo tree is stageable, and nothing but `.gitignore`
+  says otherwise.** *Fix when it bites.* Opened 2026-08-06, when `models/` was found root-owned and
+  empty at the repo root, created that morning by a container and matched by no ignore rule;
+  `pgdata/`, where the pg-backup sidecar writes `cortex.dump` (`CORTEX_DB_DIR`,
+  [runbooks/memory-pgvector.md](../runbooks/memory-pgvector.md)), carried the same exposure and had
+  carried it since that sidecar shipped. Both are ignored now, unanchored so they match at any
+  depth, because compose resolves a relative bind against the **project directory**: the `just`
+  recipes pass `--project-directory .` and a bare `docker compose -f
+  docker/docker-compose.memory.yml` does not, which puts the same two under `docker/` instead. A
+  third default of the same shape, `${CORTEX_TOOLS_ROOT:-./sandbox}`, was already ignored, and that
+  is the point rather than a reassurance: the tree is clean by three separate acts of remembering
+  and not by anything that checks. What is deferred is the check. Six bind defaults exist today
+  (four spell `${CORTEX_MODELS_DIR:-./models}`, one `${CORTEX_DB_DIR:-./pgdata}`, one the sandbox),
+  every one of them written by root from inside a container, and the artifacts are GGUFs and
+  database dumps rather than kilobytes, so what this class fails as is a multi-gigabyte blob one
+  `git add -A` from the index. The fix is a scan reading the `${VAR:-./path}` defaults out of
+  `docker/*.yml` and failing when one is not matched by `.gitignore`, which is `crosscheck.py`'s own
+  trick of tying two files that must agree and is the size of it too. The trigger is the next
+  override that adds a bind default, since a scan written today would guard a set of three that is
+  already correct.
