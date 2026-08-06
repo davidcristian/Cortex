@@ -119,6 +119,10 @@ def test_runtime_defaults_match_the_dictated_contract() -> None:
     assert config.history_char_budget == 48_000  # ≈12K of the 16K-token context (ADR-0014)
     assert config.output_guardrail == "redact"  # the laundering defense ships on (ADR-0015)
     assert config.generate_titles is False  # opt-in: an extra inference call per new session
+    # Off is a measured decision, not an oversight: a fold costs 14.5 s to 30.8 s and has reached
+    # 224.5 s, nothing on screen says a turn is folding, and an opening fact survived five
+    # compounding folds 2 times in 3 (ADR-0038 re-measured-behind-the-fence addendum).
+    assert config.history_summary is False
 
 
 @pytest.mark.usefixtures("clean_env")
@@ -133,6 +137,13 @@ def test_runtime_rejects_a_negative_history_budget(monkeypatch: pytest.MonkeyPat
     monkeypatch.setenv("CORTEX_HISTORY_CHAR_BUDGET", "-1")
     with pytest.raises(ValidationError, match="history_char_budget"):
         BrainRuntimeConfig()
+
+
+@pytest.mark.usefixtures("clean_env")
+def test_runtime_env_enables_the_history_summary(monkeypatch: pytest.MonkeyPatch) -> None:
+    # The knob a deployment that would rather wait than forget reaches for; the default is off.
+    monkeypatch.setenv("CORTEX_HISTORY_SUMMARY", "true")
+    assert BrainRuntimeConfig().history_summary is True
 
 
 @pytest.mark.usefixtures("clean_env")

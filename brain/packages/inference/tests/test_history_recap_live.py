@@ -12,10 +12,21 @@ same question is asked twice: once with the char-budget window that ships, and o
 summarizing window over it. What is measured is the prompt each one hands the model (in
 characters, the same unit the budget is denominated in), the wall time to the reply's first
 token, and whether the answer actually contains the fact from the dropped opening.
+
+**The control has to fire or there is no measurement.** The shipped arm must fail to answer;
+if it answers from the tail alone the two arms are not being compared, so that is an assertion
+here rather than a line of output to read past.
+
+The recap is fenced at both ends (ADR-0038 untrusted-recap addendum), which the second test
+pins the reply side of: a model told the recap is quoted data must still quote a booking
+reference out of it, and must not copy the fence's own markers into what the user reads. The
+third asks the harder version of the same question, whether a fact survives being folded
+forward through several boundary moves rather than one.
 """
 
 import os
 import time
+from collections.abc import Sequence
 from datetime import UTC, datetime
 
 import httpx
@@ -30,6 +41,7 @@ from cortex_core import (
     TextChunk,
 )
 from cortex_core.summarizing import SummarizingHistoryWindow
+from cortex_core.untrusted import wrap_untrusted
 from cortex_inference import LlamaCppBackend
 
 _MODEL = os.environ.get("CORTEX_MODEL_CORTEX", "cortex")
@@ -61,19 +73,40 @@ _FILLER = [
     ("what plug voltage do they run?", "Two hundred and thirty volts."),
 ]
 
+# Filler for the staged run below, which keeps adding exchanges so the boundary moves again and
+# again and every fold after the first reads the previous account rather than the raw opening.
+_MORE_FILLER = [
+    ("do the buses run through the night?", "On the two main lines only."),
+    ("is tipping expected in cafes?", "Rounding up is enough."),
+    ("what is the currency there?", "The local krona; cards work everywhere."),
+    ("is the old town walkable?", "Entirely, and it is mostly flat."),
+    ("do I need a reservation for the ferry?", "Not in spring."),
+    ("how early should I get to the airport?", "Two hours is plenty."),
+]
+
 _QUESTION = "remind me of my booking reference"
 _FACT = "QH7-4412"
 
+# The fence's own tag, taken from the wrap rather than copied from it, so a leak check here
+# tracks what `wrap_untrusted` actually renders. A recap reaches the model inside these markers;
+# seeing one come back out in the reply the user reads would be the visible half of the fence
+# leaking, which is a defect and not a measurement.
+_FENCE_TAG = wrap_untrusted("", nonce="0").split(" ", 1)[0].lstrip("<")
 
-def _history() -> list[Message]:
-    """The opening exchanges, the filler, then the question, as one session's stored history."""
+
+def _exchanges(pairs: Sequence[tuple[str, str]]) -> list[Message]:
+    """``pairs`` as stored history: one user message and one assistant reply per exchange."""
     messages: list[Message] = []
-    for index, (user, assistant) in enumerate([*_OPENING, *_FILLER]):
+    for index, (user, assistant) in enumerate(pairs):
         turn = f"t{index}"
         messages.append(Message(role=Role.USER, text=user, at=_AT, turn_id=turn))
         messages.append(Message(role=Role.ASSISTANT, text=assistant, at=_AT, turn_id=turn))
-    messages.append(Message(role=Role.USER, text=_QUESTION, at=_AT, turn_id="ask"))
     return messages
+
+
+def _asking(pairs: Sequence[tuple[str, str]]) -> list[Message]:
+    """Those exchanges with the follow-up appended, which is what a turn hands the window."""
+    return [*_exchanges(pairs), Message(role=Role.USER, text=_QUESTION, at=_AT, turn_id="ask")]
 
 
 class _FixedClock:
@@ -99,7 +132,7 @@ async def _answer(backend: LlamaCppBackend, prompt: list[Message]) -> tuple[str,
 async def test_the_recap_is_measured_against_the_window_that_ships() -> None:
     async with httpx.AsyncClient(timeout=httpx.Timeout(180.0)) as client:
         backend = LlamaCppBackend(SingleResidentModelManager(_MODEL, _ENDPOINT), client)
-        history = _history()
+        history = _asking([*_OPENING, *_FILLER])
         plain = CharBudgetHistoryWindow(_BUDGET)
         store = InMemorySessionStore()
         summarizing = SummarizingHistoryWindow(plain, store, backend, _MODEL, _FixedClock())
@@ -127,6 +160,10 @@ async def test_the_recap_is_measured_against_the_window_that_ships() -> None:
             f"\nrecap pass: {recap_cost:.1f}s cold, {cached_cost:.3f}s cached"
             f"\nreply first token: shipped {shipped_ttft:.1f}s, recap {recapped_ttft:.1f}s"
             f"\nrecap: {stored.text if stored else '(none)'}"
+            # What the fence costs in the unit the budget is denominated in: the preface plus the
+            # two markers, carried on every turn the recap rides, on top of the recap itself.
+            f"\nrecap text {len(stored.text) if stored else 0} chars,"
+            f" fenced {len(recapped[0].text)} chars"
             f"\nasked: {_QUESTION}"
             f"\nshipped answer: {shipped_answer.strip()}"
             f"\nrecapped answer: {recapped_answer.strip()}"
@@ -138,3 +175,93 @@ async def test_the_recap_is_measured_against_the_window_that_ships() -> None:
         assert stored is not None
         assert _FACT not in "".join(m.text for m in shipped)  # the fact really did drop out
         assert len(recapped) == len(shipped) + 1  # and the recap really did ride along
+        # The control fired: without the recap the model cannot answer. A run where the shipped
+        # arm answers anyway has measured nothing, because there is no contrast left in it.
+        assert _FACT not in shipped_answer
+        # And the fenced recap is still usable as facts, without the fence reaching the user.
+        assert _FACT in recapped_answer
+        assert _FENCE_TAG not in recapped_answer
+
+
+# How many of the staged runs below are played out. Retention across repeated folds turned out
+# to vary between runs, so one sample would be an anecdote in either direction; this reports a
+# rate. Each round is five folds plus two replies, so keep it small enough to sit through.
+_ROUNDS = 3
+
+# Where the conversation grows, two exchanges at a time. Each growth moves the window's boundary,
+# so each is one fold reading the previous account rather than the raw opening.
+_GROWTH = [_FILLER[2:4], _FILLER[4:6], _FILLER[6:8], _MORE_FILLER[:2], _MORE_FILLER[2:4]]
+
+
+@pytest.mark.integration
+async def test_a_fact_survives_being_folded_forward_several_times() -> None:
+    """The same question after the boundary has moved repeatedly, which is the default-on case.
+
+    The single-fold run above reads the opening turns directly. A long conversation does not: the
+    opening is folded once, and every fold after that reads the *previous account* plus whatever
+    dropped since, so the booking reference has to survive being copied from a paragraph into a
+    paragraph, through a fence, several times over. That is the compounding-loss direction the
+    one-corpus deferral named, and it is what a deployment running with the summary on will do.
+
+    Retention is REPORTED rather than asserted, as a rate over ``_ROUNDS`` independent sessions,
+    and the two things it could mean are separated: whether the fold kept the fact (is it in the
+    stored recap) and whether the model quoted it out of the fence (is it in the reply). Asserting
+    a probabilistic model behavior would be pinning the model rather than the code. What is
+    asserted is what must hold every round regardless: the folds really happened, the control
+    really failed to answer, and the fence never reached the user.
+    """
+    async with httpx.AsyncClient(timeout=httpx.Timeout(180.0)) as client:
+        backend = LlamaCppBackend(SingleResidentModelManager(_MODEL, _ENDPOINT), client)
+        plain = CharBudgetHistoryWindow(_BUDGET)
+        in_recap = 0
+        in_reply = 0
+        for round_index in range(_ROUNDS):
+            store = InMemorySessionStore()
+            summarizing = SummarizingHistoryWindow(plain, store, backend, _MODEL, _FixedClock())
+            session = f"{_SESSION}-folded-{round_index}"
+
+            # The conversation grows as turns arrive, and the window is asked for its selection
+            # after each growth, so every move of the boundary is paid for as a fold.
+            grown = [*_OPENING, *_FILLER[:2]]
+            folds: list[tuple[int, float]] = []
+            for pair in _GROWTH:
+                grown = [*grown, *pair]
+                started = time.monotonic()
+                await summarizing.select(_asking(grown), session_id=session)
+                elapsed = time.monotonic() - started
+                covers = await store.recap(session)
+                folds.append(((covers.covers if covers else 0), elapsed))
+
+            history = _asking(grown)
+            shipped = list(await plain.select(history, session_id=session))
+            recapped = list(await summarizing.select(history, session_id=session))
+            shipped_answer, _ = await _answer(backend, shipped)
+            recapped_answer, _ = await _answer(backend, recapped)
+            stored = await store.recap(session)
+            kept = stored is not None and _FACT in stored.text
+            quoted = _FACT in recapped_answer
+            in_recap += int(kept)
+            in_reply += int(quoted)
+            print(  # noqa: T201 -- the measurement IS this test's output
+                f"\nround {round_index}: history {len(history)} messages,"
+                f" {sum(len(m.text) for m in history)} chars"
+                f"\nfolds (boundary, seconds): {[(c, round(s, 1)) for c, s in folds]}"
+                f"\nshipped window: {len(shipped)} messages,"
+                f" {sum(len(m.text) for m in shipped)} chars"
+                f"\nrecapped window: {len(recapped)} messages,"
+                f" {sum(len(m.text) for m in recapped)} chars"
+                f"\nrecap after {len(folds)} folds: {stored.text if stored else '(none)'}"
+                f"\nshipped answer: {shipped_answer.strip()}"
+                f"\nrecapped answer: {recapped_answer.strip()}"
+                f"\nfact {_FACT}: in the recap {kept}, in the reply {quoted}"
+            )
+            assert stored is not None
+            # The boundary really did move on every growth: these were folds, not cache hits.
+            assert len({covers for covers, _ in folds}) == len(folds)
+            assert _FACT not in shipped_answer  # the control fires here too
+            assert _FENCE_TAG not in recapped_answer
+        print(  # noqa: T201 -- the measurement IS this test's output
+            f"\nafter {len(_GROWTH)} folds, over {_ROUNDS} rounds:"
+            f" the fact survived the fold {in_recap}/{_ROUNDS},"
+            f" and reached the reply {in_reply}/{_ROUNDS}"
+        )

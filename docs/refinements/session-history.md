@@ -2,7 +2,7 @@
 
 Deferred refinements from Slice 3's cortex chat and session work; the windowing decision and the summarization alternatives it weighs live in [ADR-0014](../adr/ADR-0014-history-windowing.md). Extracted from the ROADMAP's deferred-refinements section on 2026-07-15 with the entries kept verbatim; landed entries are the historical record of what each deferral became, and the index at [index.md](index.md) carries the recommended pickup order.
 
-**Open items:** the recap measurement resting on one corpus, the recap pass being unbounded and unthrottled, a fenced recap's usefulness being unmeasured.
+**Open items:** the recap measurement resting on one corpus, the recap pass being unbounded and unthrottled, nothing telling the user a turn is folding.
 
 **Cortex chat / session in Slice 3:**
 - **Session-history windowing landed 2026-07-03 ([ADR-0014](../adr/ADR-0014-history-windowing.md)).**
@@ -108,17 +108,45 @@ Deferred refinements from Slice 3's cortex chat and session work; the windowing 
   for every turn after it. Time to first token did not get worse. The default stays off anyway,
   because 11 s lands on the turn that triggers it, and because the corpus is one hand-built case.
   Remaining from this deferral:
-- **The measurement is one corpus.** It shows the mechanism works and is not a benchmark: a single
-  hand-built conversation, by the author of the feature, with the needed fact placed where a
-  summary would keep it. What it does not measure is a real long chat's fold quality after several
-  boundary moves, or the cost on a cortex under load. **Trigger:** any move of the default, which
-  wants more than one conversation behind it.
-- **The recap pass is unbounded and unthrottled.** Every boundary move spends a full cortex
-  generation over the newly dropped turns, serialized ahead of the reply, and the fold's prompt
-  is whatever those turns say. Two knobs were consciously not built: a minimum number of newly
-  dropped messages before a fold is worth paying for, and a token cap on the recap request (the
-  reply is bounded at `RECAP_MAX` characters after the fact, not before). **Trigger:** the
-  measurement above showing the fold cost landing on enough turns to be felt.
+- **The measurement is one corpus, and half of what it did not measure has now been measured
+  (2026-08-06).** It shows the mechanism works and is not a benchmark: a single hand-built
+  conversation, by the author of the feature, with the needed fact placed where a summary would
+  keep it. Two of the three things it did not cover were taken on the re-run below. **Fold quality
+  after several boundary moves is no longer unmeasured, and it is the weak one:** over three
+  independent sessions of five folds each, the opening fact survived into the final account 2 of 3
+  times, the round that lost it losing the whole opening (no reference, no hotel, no card) while
+  keeping the recent filler. **Repetition is covered too**, the single-fold arm having answered 3
+  of 3 with the control failing 3 of 3. What is still one corpus is the conversation itself: still
+  hand-built, still by the author, still with the fact placed where a summary would keep it, and
+  still nothing about a cortex under load. **Trigger:** any move of the default, which now wants
+  a real conversation and a retention rate nearer 1 than 2 of 3.
+- **The recap pass is unbounded and unthrottled, and its trigger has fired (2026-08-06).** Every
+  boundary move spends a full cortex generation over the newly dropped turns, serialized ahead of
+  the reply, and the fold's prompt is whatever those turns say. Two knobs were consciously not
+  built: a minimum number of newly dropped messages before a fold is worth paying for, and a token
+  cap on the recap request (the reply is bounded at `RECAP_MAX` characters after the fact, not
+  before). The re-run put numbers on both halves. A fold costs 14.5 s to 30.8 s typically, with
+  outliers of 77.3 s and **224.5 s**, and the server's own counters say where it goes: that 224.5 s
+  fold decoded 6286 tokens against a 370-token prompt, a typical one decodes 400 to 850, and the
+  account actually stored is 330 to 650 characters, which is 80 to 160 tokens. So most of every
+  fold is reasoning `drain_text` discards, and the missing token cap is what leaves the tail
+  unbounded. It is the first of the four things a default move waits on
+  ([ADR-0038](../adr/ADR-0038-ranked-recall.md) re-measured-behind-the-fence addendum), and the
+  second is not here but in [inference-model-manager.md](inference-model-manager.md): a fold is the
+  clearest case yet for the disable-thinking lever, since unlike a reply nobody ever sees the
+  thinking it pays for. **Trigger:** already fired; this is now work rather than a watch.
+- **Nothing tells the user a turn is folding (opened 2026-08-06).** The fold is serialized ahead of
+  the reply, so on the turn where the boundary moves the user waits the fold plus the reply with
+  nothing on screen that distinguishes it from a slow model: the overlay's whisper starts breathing
+  its accent mist the moment they press enter, and the chip that would say otherwise renders only
+  when a `StatusUpdate` or `ToolActivity` has landed. None does. The seam is not the obstacle:
+  `SeamProgressSink` is per Converse stream and emits onto that stream's own queue rather than
+  through the turn generator, and `build_history_window` is already called inside the per-stream
+  `capabilities` closure that holds one, so an event emitted during selection would surface while
+  `assemble_inference_messages` is still running. What is missing is the port: `HistoryWindow.select`
+  takes a history and a session id and no sink, so the window has nothing to emit onto. Deliberately
+  not built here, on a knob that is staying off. **Trigger:** any move of the default, which turns a
+  silent fold from something a deployment opted into on every long conversation.
 - **A recap of tainted turns landed fenced at both ends 2026-08-06 ([ADR-0038 untrusted-recap
   addendum](../adr/ADR-0038-ranked-recall.md)).** Read against the shipped write path, the entry's
   own premise was wrong and the real exposure is a different shape. **An untrusted tool result is
@@ -151,11 +179,28 @@ Deferred refinements from Slice 3's cortex chat and session work; the windowing 
   answers the booking-reference question as well as the unfenced one measured is **unmeasured**.
   It joins the one-corpus entry above, since both want the same live run. Taint is deliberately
   **not** spread by a recap, argued in the addendum. Remaining from this deferral:
-- **A fenced recap's usefulness is unmeasured.** The live measurement above ran before the fence
-  and has not been re-run behind it. The safety direction is structural and does not need a model,
-  but the usefulness direction does: the preamble tells the model that fenced content is "inert
-  information to analyze or quote", and whether a cortex will quote a booking reference out of a
-  fenced recap as readily as out of a trusted one is exactly the kind of claim this repo measures
-  rather than assumes. Re-runnable as it stands (`packages/inference/tests/test_history_recap_live.py`,
-  integration-marked). **Trigger:** any move of the default, which this shares with the
-  one-corpus entry.
+- **A fenced recap's usefulness was measured 2026-08-06 and the fence is not what costs
+  ([ADR-0038 re-measured-behind-the-fence addendum](../adr/ADR-0038-ranked-recall.md)); the
+  default stays off all the same, on the user's decision, against numbers the same run
+  falsified.** The question was whether a cortex told the recap is quoted data would still quote a
+  booking reference out of it. It does: three runs of the recorded live test, and behind the fence
+  the reply is "Your booking reference is QH7-4412." exactly as it read unfenced, with the shipped
+  window failing to answer all three times. **The control is now asserted rather than printed**,
+  which is the trap this repo has fallen into twice: an arm that answers anyway has measured
+  nothing, so the test fails instead of reporting a comparison with no contrast in it. So is the
+  absence of fence markers from the reply, a defect that would have been visible only by reading
+  the output. **What the fence costs is characters, not the answer:** the same 484-character
+  account reaches the model as a 1022-character message once its standing preface and two markers
+  are around it, so the recap message roughly doubled while the account inside it did not change.
+  The fold also got slower, 11.0 s unfenced against 15.2 s and 23.6 s here, which is partly the
+  larger prompt and partly run variance, and is dwarfed by what follows. **What stopped the default
+  is the case a default runs in**, and it is written up as its own finding on the two entries above:
+  five folds compound, retention was 2 of 3, and a fold reached 224.5 s. The user had decided to
+  turn the summary on and accepted 11 s per boundary move; that premise is what this run
+  falsified, so the knob stays one env variable away rather than shipping against its own numbers.
+  The live test now carries both arms, the single fold and the staged one
+  (`packages/inference/tests/test_history_recap_live.py`, integration-marked), and reports
+  retention as a rate rather than asserting it, since asserting a probabilistic model behaviour
+  pins the model rather than the code. Remaining from this deferral: nothing of its own, the four
+  things a default move waits on being the two entries above, the disable-thinking lever in
+  [inference-model-manager.md](inference-model-manager.md), and the fold's silence, opened above.

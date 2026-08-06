@@ -49,7 +49,7 @@ the tree does now.
 | [repo-gates.md](repo-gates.md) | Line cap (the core barrel came off it 2026-08-06, split into area sub-barrels under `cortex_core._surface` with every call site unmoved, ADR-0026), dashcheck, coverage config (ADR-0026), gate coverage of the ungated Rust trees and of the overlay's TypeScript (ADR-0011), the stylesheet still outside the cap, test-runner mechanics (ADR-0002) including the live pgvector run still sharing the brain's `memories` table (the live Redis runs got a database of their own 2026-08-03), the couplings the cross-language constant scan does not hold yet (ADR-0029) | 6 |
 | [seam-transport.md](seam-transport.md) | `BrainTransport` retry/reconnect (ADR-0003/0024) | 4 |
 | [seam-auth.md](seam-auth.md) | Seam token auth (ADR-0016) | 1 |
-| [session-history.md](session-history.md) | Slice 3 history windowing and summarization | 3 |
+| [session-history.md](session-history.md) | Slice 3 history windowing and summarization, the recap's fold measured behind its fence 2026-08-06 and the default left off on the numbers (ADR-0014/0038) | 3 |
 | [tools-mcp.md](tools-mcp.md) | Dispatch budget/cost/salience, spawn batch cap, MCP registries (ADR-0009/0010) | 6 |
 | [untrusted-content.md](untrusted-content.md) | Taint boundary, output guardrail, subagent model safety (ADR-0013/0015/0017/0019/0028), a quoted injection replayed by the plain history window, obeyed 2 of 10 on a bare turn and 0 of 10 behind either standing rule, the plain one landed for the tool-less turn (ADR-0013/0038) | 12 |
 | [memory.md](memory.md) | Store, scoping, rerank/MMR, the ranked `select` and its recall trail (ADR-0008/0038) | 6 |
@@ -1175,6 +1175,32 @@ honesty rather than efficacy, its first sentence being "You may call tools" on a
 none. What stays open is the rest of the residue: the persisted taint mark that would let a later
 turn re-fence only what read untrusted content is still unbuilt, and the transcript is still
 unfenced in the assistant position, with the standing rule now on the turn that replays it.
+
+Session history then held at 3 on 2026-08-06 when the usefulness the fence left unmeasured was
+measured, one entry closing and one opening on the same run. The fence is not what costs: behind
+it the cortex still answers "Your booking reference is QH7-4412." out of a recap it has been told
+is quoted data, three runs of three, with the shipped window failing all three, and no fence marker
+reaching the reply. Both of those are assertions now rather than lines of printed output, the
+control especially, since an arm that answers anyway has measured nothing and this repo has read
+past that twice. What the fence does cost is characters, a 484-character account arriving as a
+1022-character message once its preface and markers are around it. **The default did not move
+anyway, and the reason is not the fence but the case a default runs in.** One fold is not what a
+long conversation does; it folds at every boundary move, each fold reading the previous account,
+and over three staged sessions of five folds the opening fact survived 2 of 3, the round that lost
+it losing the reference, the hotel and the card together while keeping the filler. A fold costs
+14.5 s to 30.8 s typically and reached 224.5 s, and the server's counters say why: 6286 tokens
+decoded on that one, 400 to 850 typically, for an account of 80 to 160 tokens, the rest being
+reasoning `drain_text` drops. The user had decided to turn the summary on and accepted 11 s per
+boundary move, and this run falsified that premise, so the honest answer was to report rather than
+ship, and `CORTEX_HISTORY_SUMMARY` stays off. Four things now stand between it and a default, two
+of them this area's own sharpened entries (the missing token cap and minimum fold size, whose
+trigger has fired, and the corpus, which still wants a real conversation and a retention nearer
+1), one of them the disable-thinking lever in
+[inference-model-manager.md](inference-model-manager.md), where a fold is the clearest case yet
+because its thinking is discarded by construction, and one newly opened here: nothing tells the
+user a turn is folding, the overlay's mist breathing identically for a slow model and a 224-second
+one, and the reason is the port rather than the seam, `HistoryWindow.select` taking no progress
+sink while the per-stream one it would need is already in scope where the window is built.
 
 ## Recommended order
 
