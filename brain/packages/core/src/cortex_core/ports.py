@@ -20,6 +20,7 @@ from cortex_core.ports_stores import (
     SessionStore,
     TaskStore,
 )
+from cortex_core.ranking import RecallAudit
 from cortex_core.tools import ConfirmationRequest, ToolCall, ToolInvocation, ToolResult, ToolSpec
 
 __all__ = [
@@ -33,6 +34,7 @@ __all__ = [
     "ModelHost",
     "ModelManager",
     "PreferenceStore",
+    "RecallAuditSink",
     "ResidencyController",
     "ResidencyReporter",
     "ScheduleStore",
@@ -114,6 +116,12 @@ class ToolAuditSink(Protocol):
     """The audit trail where every dispatched tool call is recorded (AGENTS.md, ADR-0009)."""
 
     async def record(self, invocation: ToolInvocation) -> None: ...
+
+
+class RecallAuditSink(Protocol):
+    """The trail that answers "why did recall return these?" (ADR-0038 decision 5)."""
+
+    async def record(self, audit: RecallAudit) -> None: ...
 
 
 class Confirmer(Protocol):

@@ -18,7 +18,7 @@ InferenceBackendName = Literal["echo", "llamacpp"]
 VisionMode = Literal["auto", "on", "off"]
 MemoryBackendName = Literal["none", "pgvector"]
 MemoryScopeName = Literal["global", "session"]
-MemoryRecallName = Literal["raw", "reranked", "mmr", "recency_mmr"]
+MemoryRecallName = Literal["raw", "reranked", "mmr", "recency_mmr", "judge"]
 MemoryTaintPolicyName = Literal["skip", "record"]
 
 
@@ -125,6 +125,7 @@ class MemoryConfig(BaseSettings):
     recall_dedup_threshold: float = 0.98
     recall_pool_factor: int = 4
     recall_mmr_lambda: float = 0.5
+    recall_audit: bool = False
 
     @model_validator(mode="after")
     def _pgvector_needs_dsn_and_embedder(self) -> "MemoryConfig":

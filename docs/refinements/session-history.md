@@ -2,7 +2,7 @@
 
 Deferred refinements from Slice 3's cortex chat and session work; the windowing decision and the summarization alternatives it weighs live in [ADR-0014](../adr/ADR-0014-history-windowing.md). Extracted from the ROADMAP's deferred-refinements section on 2026-07-15 with the entries kept verbatim; landed entries are the historical record of what each deferral became, and the index at [index.md](index.md) carries the recommended pickup order.
 
-**Open items:** Session-history summarization
+**Open items:** Session-history summarization (its two design questions now settled, [ADR-0038](../adr/ADR-0038-ranked-recall.md))
 
 **Cortex chat / session in Slice 3:**
 - **Session-history windowing landed 2026-07-03 ([ADR-0014](../adr/ADR-0014-history-windowing.md)).**
@@ -55,3 +55,28 @@ Deferred refinements from Slice 3's cortex chat and session work; the windowing 
   `SeamError` and teardown bypass the credits so failure never blocks behind a full buffer.
   The `Converse` stream contract is unchanged; design in
   [brain-orchestrator.md](../modules/brain-orchestrator.md).
+- **Session-history summarization's two open design questions closed 2026-08-06
+  ([ADR-0038](../adr/ADR-0038-ranked-recall.md)); the summarizer itself stays deferred, now on
+  nothing but implementation.** The audit above kept this deferred on "the cache-versus-recompute
+  decision plus the shared `select` widening", and both are now answered. **Cache, not recompute,
+  and the reason is that history is append-only.** A summary lives in Redis behind `SessionStore`,
+  beside the messages and the title it derives from, never in `MemoryStore` (a summary is one
+  conversation's working context, and pgvector would make it recallable into other conversations,
+  which is a different feature). It is keyed by the boundary it covers, and because `SessionStore`
+  has `append`, `history`, `set_title` and a whole-session delete and **no verb that edits or
+  removes a message**, a summary of a prefix can never become wrong, only incomplete: each new
+  summary folds the previous one together with the newly dropped turns, a deleted session takes its
+  summary with it, and there is no invalidation path to get wrong. Recompute was priced against
+  that: one full cortex generation on *every* turn, serialized ahead of the reply and therefore
+  straight onto time-to-first-token, against once per boundary move. It survives a model swap by
+  construction, being text in the store rather than anything in a KV cache. **The lease sequencing
+  is settled too**, as `drain_text` (`drain.py`), which leaves the adapter's acquire block in a
+  `finally`; `generate_title` was moved onto it in the same change, so the discipline is one helper
+  rather than a habit. **One claim of this entry did not hold:** it names the window's caller as
+  `_inference_messages` in `engine.py`, a method that no longer exists (the caller is
+  `assemble_inference_messages` in `turn_context.py`, still `async`, so the substance held).
+  What is left is implementation with no design in it: the `SessionStore` summary verbs (port,
+  fake, Redis adapter, contract test), a `SummarizingHistoryWindow`, the `async` widening of
+  `HistoryWindow.select` **alongside** it rather than as an empty async layer, and the config knob.
+  Deliberately not taken in that change: `RecallPolicy.select` widened because it had three waiting
+  consumers, and `HistoryWindow.select` has exactly one, so it waits for that one.

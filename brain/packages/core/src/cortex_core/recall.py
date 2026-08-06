@@ -4,7 +4,8 @@ from collections.abc import Callable, Sequence
 from uuid import uuid4
 
 from cortex_core.memory import MemoryRecord, ScoredMemory
-from cortex_core.ports import Clock, Embedder, MemoryStore
+from cortex_core.ports import Clock, Embedder, MemoryStore, RecallAuditSink
+from cortex_core.ranking import RecallAudit
 from cortex_core.rerank import RAW_RECALL_POLICY, RecallPolicy
 from cortex_core.scope import GLOBAL_MEMORY_SCOPE, MemoryScope
 
@@ -17,7 +18,7 @@ def _uuid4_memory_id() -> str:
 class MemoryRecaller:
     """Embed-and-store on write, embed-and-search on read. This is the memory use-case."""
 
-    def __init__(
+    def __init__(  # noqa: PLR0913 -- four optional policy seams, each independently swappable
         self,
         store: MemoryStore,
         embedder: Embedder,
@@ -25,6 +26,7 @@ class MemoryRecaller:
         *,
         scope: MemoryScope = GLOBAL_MEMORY_SCOPE,
         policy: RecallPolicy = RAW_RECALL_POLICY,
+        audit: RecallAuditSink | None = None,
         id_factory: Callable[[], str] = _uuid4_memory_id,
     ) -> None:
         self._store = store
@@ -32,6 +34,7 @@ class MemoryRecaller:
         self._clock = clock
         self._scope = scope
         self._policy = policy
+        self._audit = audit
         self._id_factory = id_factory
 
     async def record(self, text: str, *, session_id: str, tainted: bool = False) -> MemoryRecord:
@@ -54,4 +57,17 @@ class MemoryRecaller:
         pool = await self._store.search(
             embedding, k=self._policy.candidate_k(k), scopes=self._scope.read_scopes(session_id)
         )
-        return self._policy.select(pool, now=self._clock.now(), k=k)
+        now = self._clock.now()
+        ranking = await self._policy.select(pool, query=query, now=now, k=k)
+        if self._audit is not None:
+            await self._audit.record(
+                RecallAudit(
+                    session_id=session_id,
+                    query=query,
+                    pool_size=len(pool),
+                    k=k,
+                    ranking=ranking,
+                    at=now,
+                )
+            )
+        return ranking.memories

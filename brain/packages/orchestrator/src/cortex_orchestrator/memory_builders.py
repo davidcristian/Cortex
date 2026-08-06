@@ -1,4 +1,4 @@
-"""Memory wiring: the recaller, its scope policy, and its recall reranking policy (ADR-0008)."""
+"""Memory wiring: the recaller, its scope policy, and its recall reranking policy."""
 
 from collections.abc import Awaitable, Callable
 
@@ -8,9 +8,12 @@ from cortex_core import (
     RAW_RECALL_POLICY,
     Clock,
     GlobalMemoryScope,
+    InferenceBackend,
+    JudgeRecallPolicy,
     MemoryRecaller,
     MemoryScope,
     MmrRecallPolicy,
+    RecallAuditSink,
     RecallPolicy,
     RecencyMmrRecallPolicy,
     RerankingRecallPolicy,
@@ -18,26 +21,27 @@ from cortex_core import (
     SessionMemoryScope,
 )
 from cortex_embedding import LlamaCppEmbedder
-from cortex_memory import PgVectorMemoryStore
+from cortex_memory import LoggingRecallSink, PgVectorMemoryStore
 from cortex_orchestrator.builders import noop_aclose
 from cortex_orchestrator.config import MemoryConfig, MemoryScopeName
 
-# An embedding is a quick request (no streaming), so it gets a finite overall timeout.
 _EMBEDDER_TIMEOUT_S = 30.0
-# The recency half-life is authored in days at the config seam and converted here (the core's
-# ``RerankingRecallPolicy`` is unit-agnostic and takes seconds).
 _SECONDS_PER_DAY = 86400.0
 
 
 def memory_scope_from_name(name: MemoryScopeName) -> MemoryScope:
-    """Map ``CORTEX_MEMORY_SCOPE`` to its recall-namespace policy (ADR-0008 scoping addendum)."""
+    """Map ``CORTEX_MEMORY_SCOPE`` to its recall-namespace policy."""
     if name == "session":
         return SessionMemoryScope()
     return GlobalMemoryScope()
 
 
-def recall_policy_from_config(config: MemoryConfig) -> RecallPolicy:
-    """Map ``CORTEX_MEMORY_RECALL`` to its recall reranking policy (ADR-0008 rerank addendum)."""
+def recall_policy_from_config(
+    config: MemoryConfig, backend: InferenceBackend, cortex_model: str
+) -> RecallPolicy:
+    """Map ``CORTEX_MEMORY_RECALL`` to its recall reranking policy."""
+    if config.recall == "judge":
+        return JudgeRecallPolicy(backend, cortex_model, pool_factor=config.recall_pool_factor)
     if config.recall == "reranked":
         return RerankingRecallPolicy(
             half_life_seconds=config.recall_half_life_days * _SECONDS_PER_DAY,
@@ -60,11 +64,15 @@ def recall_policy_from_config(config: MemoryConfig) -> RecallPolicy:
     return RAW_RECALL_POLICY
 
 
+def recall_audit_from_config(config: MemoryConfig) -> RecallAuditSink | None:
+    """Map ``CORTEX_MEMORY_RECALL_AUDIT`` to the recall trail, or to no trail."""
+    return LoggingRecallSink() if config.recall_audit else None
+
+
 async def build_memory(
-    config: MemoryConfig, clock: Clock
+    config: MemoryConfig, clock: Clock, backend: InferenceBackend, cortex_model: str
 ) -> tuple[MemoryRecaller | None, SessionMemoryCascade | None, Callable[[], Awaitable[None]]]:
-    """Pick the memory backend from config; return the recaller, the delete cascade, and a closer.
-    """
+    """Pick the memory backend from config: the recaller, the delete cascade, and a closer."""
     if config.backend == "pgvector":
         client = httpx.AsyncClient(timeout=httpx.Timeout(_EMBEDDER_TIMEOUT_S))
         embedder = LlamaCppEmbedder(client, config.embedder_endpoint, model=config.embedder_model)
@@ -75,7 +83,8 @@ async def build_memory(
             await client.aclose()
 
         scope = memory_scope_from_name(config.scope)
-        policy = recall_policy_from_config(config)
-        recaller = MemoryRecaller(store, embedder, clock, scope=scope, policy=policy)
+        policy = recall_policy_from_config(config, backend, cortex_model)
+        audit = recall_audit_from_config(config)
+        recaller = MemoryRecaller(store, embedder, clock, scope=scope, policy=policy, audit=audit)
         return recaller, SessionMemoryCascade(store, scope), close_memory
     return None, None, noop_aclose

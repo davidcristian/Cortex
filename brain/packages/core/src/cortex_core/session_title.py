@@ -4,7 +4,7 @@ from collections.abc import Sequence
 from datetime import datetime
 
 from cortex_core.conversation import Message, Role
-from cortex_core.inference import TextChunk
+from cortex_core.drain import drain_text
 from cortex_core.ports import InferenceBackend
 from cortex_core.sessions import TITLE_MAX
 
@@ -33,9 +33,4 @@ def clean_title(raw: str) -> str:
 
 async def generate_title(backend: InferenceBackend, model: str, messages: Sequence[Message]) -> str:
     """Run one tool-less completion and return its cleaned title."""
-    parts = [
-        event.text
-        async for event in backend.stream(model, messages)
-        if isinstance(event, TextChunk)
-    ]
-    return clean_title("".join(parts))
+    return clean_title(await drain_text(backend, model, messages))

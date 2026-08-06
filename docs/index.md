@@ -280,6 +280,19 @@ Start here. Rules for working in this repo: [AGENTS.md](../AGENTS.md).
   The block caret, the three dots, the per-word rise and the streaming glow are deleted; the
   reducer is untouched.
 
+- [ADR-0038: A ranked `select`, its audit trail, and where a history summary lives](adr/ADR-0038-ranked-recall.md):
+  the design the deferred-refinements backlog had been holding two entries against, **landed** for
+  the reranking half. `RecallPolicy.select` is widened once for all three of its waiting consumers,
+  to `async def select(hits, *, query, now, k) -> Ranking`, and the key a policy ranked by travels
+  with the hits it kept under a named `RankBasis` (`ECHO`, `EMBER`, `SPREAD`, `SWEEP`, `VERDICT`)
+  whose `comparable` property carries the fact that an MMR key is measured against the kept set. The
+  declined blended-relevance field is reversed onto that return rather than onto `ScoredMemory`;
+  recall gets its first audit trail (`RecallAuditSink` plus a logging sink that writes rank keys and
+  no text); and the model rank ships as `JudgeRecallPolicy`, measured against the shipping cosine at
+  0.917 to 1.000 mean reciprocal rank. A session summary is decided as cached in Redis rather than
+  recomputed per turn, safe because `SessionStore` has no verb that edits a message, so a prefix
+  summary can only go incomplete and never wrong.
+
 New non-obvious decision → add `adr/ADR-XXXX-<slug>.md`, link it here.
 
 ## Design

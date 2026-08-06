@@ -352,3 +352,17 @@ cross-language-constant addendum):**
   explicit exclude. A new script is gated by default; escaping needs a written exclusion.
   Proven to fail on an unlisted probe script (coverage 98.62% + two strict pyright
   errors) before being trusted.
+- **The `cortex_core/__init__.py` barrel is at its 300-line cap again, opened 2026-08-06 by the
+  ranked-`select` widening ([ADR-0038](../adr/ADR-0038-ranked-recall.md)).** The 2026-07-14 entry in
+  [tools-mcp.md](tools-mcp.md) bought the barrel its headroom back by halving the cost of a name
+  from two lines to one (the redundant-alias re-export form, dropping `__all__`). That economy is
+  spent: the surface is now ~290 names and the file sits at exactly 300 again, which this change got
+  under only by trimming the module docstring. So the *next* public core name breaks the line cap
+  for whatever unrelated slice adds it, exactly as before, and there is no second halving available.
+  The options are all genuine changes of convention rather than economies, which is why this is
+  recorded rather than done in passing: a sub-barrel per area with `cortex_core` re-exporting it
+  (still one line per name, so it only moves the problem unless consumers import from the
+  sub-barrel); the test doubles (`fakes*`) leaving the top barrel, which is a real responsibility
+  split and is already how a few call sites import them, at the cost of touching many test files;
+  or the barrel becoming an explicit `__all__` over star imports, which ruff bans as F403. **Fix
+  when it bites**, which will be the next slice that adds a public core name.
