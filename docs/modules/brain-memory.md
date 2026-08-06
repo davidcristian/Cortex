@@ -61,12 +61,14 @@ stores float4, so embeddings roundtrip at single precision (irrelevant to simila
   canned-row fake `Database` (the asyncpg analog of `httpx.MockTransport`), with no Postgres, no
   network. The behavioral contract against real pgvector is the `integration`-marked
   `tests/test_pgvector_live.py` (`CORTEX_MEMORY_DSN`), excluded from CI + coverage; run per
-  `docs/runbooks/memory-pgvector.md`. That live run **needs the `memories` table to be empty**
-  and does not yet get a database of its own the way the live Redis suites do:
-  `memory_contract.check_empty_search` asserts `search(k=5) == []` over the whole table and
-  `check_ranks_by_similarity` asserts an exact top-2, so a single real memory reddens it over a
-  correct adapter. Deferral and the Postgres-side cure are in
-  [docs/refinements/repo-gates.md](../refinements/repo-gates.md).
+  `docs/runbooks/memory-pgvector.md`. That live run **owns the `cortex_contract` database** and
+  empties it before the suite and after every check (`tests/live_postgres.py`, the Postgres twin of
+  the session package's `live_redis.py`), so it starts from the same empty store the in-memory fake
+  does and never touches the brain's memories, which the two checks asserting over the whole table
+  (`check_empty_search`, `check_ranks_by_similarity`) used to require by luck. The database is
+  bootstrapped from this same schema by `docker/postgres/live-contract-db.sql` through the compose,
+  and the run refuses to start rather than falling back when it is absent (ADR-0002 addendum on the
+  live pgvector database).
 
 **Dependencies.** cortex-core (the `MemoryStore` port, `MemoryRecord`/`ScoredMemory`, typed
 errors), asyncpg (+ asyncpg-stubs for typing). The composition root
