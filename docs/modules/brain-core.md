@@ -1245,7 +1245,22 @@ Use-case:
   **Every failure is `Trust.TRUSTED, is_error=True` with no images**: nothing untrusted arrived,
   so tainting on a dead body would gratuitously close the user's gated tools for the rest of a
   turn in which nothing was read. `CaptureBounds(max_edge, max_bytes)` is what the composition
-  root passes when vision is available at all; its absence is how "no vision" is expressed.
+  root passes when a body can take a picture at all; its absence is how "no capture" is expressed.
+- `VisionProbe` (`sighted.py`) is the port answering whether the model serving this tier **right
+  now** can read a picture, and `SightedToolRegistry(inner, probe)` is the port-preserving
+  combinator that holds `capture_screen` to it (ADR-0029 live-probe addendum): the spec is
+  dropped from `describe_tools` and the call is refused with `BLIND_MSG` while the answer is no.
+  Both, because a turn lists its tools once and then runs several rounds against them, so the
+  advertisement is always older than the call it authorizes, and refusing at the call is what
+  makes it impossible to blit a screen, fire the host's receipt and taint the turn for a picture
+  that will come back as an HTTP 500. Nothing is cached anywhere: the model host can replace a
+  `llama-server` under a brain that never restarts (reproduced 2026-08-06), so the answer is
+  re-read rather than remembered, which is affordable (a `/props` is ~1.5 ms against a capture
+  that blits and encodes a display) and leaves no state to survive a swap. The probe **never
+  raises and answers False when it cannot tell**, which is the port's whole safety property: a
+  wrong yes spends the user's privacy, a wrong no costs one turn's capability. The core fake is
+  `ScriptedVisionProbe(answers)` (`fakes_vision.py`), whose script and `rescript` are how a test
+  changes the world between the advertisement and the call.
 - `EscalateToBrainTool()` (`escalate.py`) is the built-in `escalate_to_brain` tool (ADR-0030
   decision 1): the cortex's mid-turn request for the deep-model handoff, cortex-only like every
   built-in. Stateless and dependency-free: it reads the turn's `EscalationSlot` off each

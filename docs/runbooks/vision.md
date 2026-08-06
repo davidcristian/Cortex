@@ -19,11 +19,31 @@ one fails closed on its own.
 | --- | --- | --- | --- |
 | `CORTEX_HOST_CAPTURE=1` | host (Tauri shell) | off | Whether the body wires the real GDI backend at all. Anything else serves `DeniedScreenCapture`, which answers `PermissionDenied`. |
 | overlay self-exclusion | host (automatic) | required | The shell calls `SetWindowDisplayAffinity(WDA_EXCLUDEFROMCAPTURE)` on the overlay at setup. If it fails, capture stays off even with the switch on. |
-| `CORTEX_VISION` | brain | `auto` | Whether `capture_screen` is advertised to the model. `auto` probes `GET {CORTEX_INFERENCE_ENDPOINT}/props` once at startup; `on`/`off` fix the answer. |
+| `CORTEX_VISION` | brain | `auto` | Whether `capture_screen` is advertised to the model. `auto` probes `GET {CORTEX_INFERENCE_ENDPOINT}/props` **on every advertisement and every call**; `on`/`off` fix the answer without touching the network. |
 
 Plus the model itself: `CORTEX_MMPROJ_FILE_CORTEX` names the multimodal projector the model host
 loads beside the cortex tier. Without it the server reports no vision, the probe says no, and
 the tool is never advertised.
+
+**Changing the projector needs no brain restart, in either direction.** Recreate the `model-host`
+service with the variable set or cleared and the next turn follows it: the capability appears when
+a projector is loaded beside the model and disappears when one stops being. This is worth knowing
+because it used to be the opposite, and the failure was silent and expensive. Measured 2026-08-06:
+with the answer taken once at startup, a projector-less recreate left the tool advertised, and the
+next "look at my screen" blitted a display, showed the user the capture notification, tainted the
+turn, and then died on `image input is not supported - hint: ... you may need to provide the
+mmproj`. To watch either direction happen:
+
+```
+CORTEX_MMPROJ_FILE_CORTEX= docker compose --project-directory . -f docker/docker-compose.yml \
+  -f docker/docker-compose.gpu.yml up -d --no-deps --force-recreate model-host
+# wait for the tier to reload, then:
+curl -s http://127.0.0.1:8080/props | jq .modalities   # {"vision": false, ...}
+```
+
+The brain's own log then says `vision probe answered` with `vision: false` on the next turn, and
+the tool is gone from that turn's advertisement. Drop the `CORTEX_MMPROJ_FILE_CORTEX=` prefix and
+repeat to put it back.
 
 The other knobs, all optional:
 
@@ -48,9 +68,11 @@ The other knobs, all optional:
    ```
    `{"vision": true, ...}` is what the brain's probe reads. A `false` here means the argv did
    not get the `--mmproj` pair; check `docker compose logs model-host` for the child's flags.
-3. The brain's startup log carries the probe's own answer (`vision probe answered`, with the
-   endpoint and the verdict). A failure logs `vision probe failed` and counts as no vision, so
-   the tool is simply not advertised.
+3. The brain logs the probe's own answer (`vision probe answered`, with the endpoint and the
+   verdict) each time it asks, which is once when a turn lists its tools and once more when the
+   model actually calls the screen. There is no longer a boot-time line: the first one appears on
+   the first turn. A failure logs `vision probe failed` and counts as no vision, so the tool is
+   simply not advertised and any capture already in flight is refused.
 4. To check what a **forgotten projector** looks like, which is the failure the inference
    adapter's bounded error excerpt exists for, start a second server on the same weights with the
    cortex tier's flags minus the `--mmproj` pair and run the canary against it:
