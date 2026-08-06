@@ -51,7 +51,7 @@ the tree does now.
 | [seam-auth.md](seam-auth.md) | Seam token auth (ADR-0016) | 1 |
 | [session-history.md](session-history.md) | Slice 3 history windowing and summarization | 3 |
 | [tools-mcp.md](tools-mcp.md) | Dispatch budget/cost/salience, spawn batch cap, MCP registries (ADR-0009/0010) | 6 |
-| [untrusted-content.md](untrusted-content.md) | Taint boundary, output guardrail, subagent model safety (ADR-0013/0015/0017/0019/0028), a quoted injection re-entering through the plain history window (ADR-0038) | 12 |
+| [untrusted-content.md](untrusted-content.md) | Taint boundary, output guardrail, subagent model safety (ADR-0013/0015/0017/0019/0028), a quoted injection replayed by the plain history window, obeyed 2 of 3 on a bare turn and 0 of 3 behind the standing preamble (ADR-0013/0038) | 12 |
 | [memory.md](memory.md) | Store, scoping, rerank/MMR, the ranked `select` and its recall trail (ADR-0008/0038) | 6 |
 | [inference-model-manager.md](inference-model-manager.md) | Model-manager lifecycle, MTP, reasoning status (ADR-0007/0020) | 7 |
 | [subagents.md](subagents.md) | Progress reporting, spawn schema, heterogeneous roster (ADR-0010/0018) | 3 |
@@ -1127,6 +1127,28 @@ per-provenance eviction and a precise recap refusal would both spend. Session hi
 than fell because the fence's cost is unmeasured, the live run having been made before it, so the
 usefulness question took the closed entry's place beside the one-corpus one that wants the same
 run.
+
+Untrusted content then held at 12 on 2026-08-06 when that twelfth entry, opened hours earlier, was
+read against the code and then put on the GPU, and it held rather than fell because the mechanism is
+real even though two of the premises around it are not. The later turn is not preamble-free, since
+the assembly prepends the standing rule whenever tools are enabled at all and a deployment without
+tools has no tool result to quote; and the outbound surface is not open, since an untainted gated
+call goes to the confirmation card and a missing confirmer denies, so what an untainted turn loses
+is the hard deny rather than the gate. What is right is the mechanism: the output guardrail removes
+URLs and only URLs, so an injection's prose is persisted whole while its links are not, and the
+replayed text really is unfenced in the assistant position. The first run measured nothing and said
+so: on the corpus's own "give me a one-sentence summary" ask the cortex quoted a payload into its
+persisted reply zero times out of ten, so the replay arms replayed clean summaries and every cell,
+the positive control included, recorded the absence of a payload rather than resistance to one. An
+injection does not reach history by itself. The second run changed the ask to the one a user really
+makes, for the wording quoted verbatim, and over three payloads the carrier appeared every time,
+the replay on a bare turn with no preamble was obeyed twice (the model answered the follow-up and
+then appended the payload's own token to it, with the one-shot payload the only one that held), and
+the identical replay behind the standing preamble was obeyed not at all. So the framing is causal
+at this position too, nothing was built, and what stays open is the residue: a tool-less deployment
+has no preamble and is exactly where the replay landed, the persisted taint mark that would let a
+later turn re-fence only what read untrusted content is still unbuilt, and the full corpus down the
+corrected ask is unrun.
 
 ## Recommended order
 
