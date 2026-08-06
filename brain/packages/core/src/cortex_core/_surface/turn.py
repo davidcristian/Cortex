@@ -31,7 +31,13 @@ from cortex_core.recap_prompt import (
     fence_recap,
 )
 from cortex_core.routing import RoutingHints, Tier, route_turn
-from cortex_core.session_title import build_title_messages, clean_title, generate_title
+from cortex_core.session_title import (
+    TITLE_BOUNDS,
+    TITLE_MAX_TOKENS,
+    build_title_messages,
+    clean_title,
+    generate_title,
+)
 from cortex_core.sessions import (
     RECAP_MAX,
     HistoryRecap,
@@ -75,6 +81,8 @@ __all__ = [
     "RECAP_PROGRESS_STATE",
     "REDACTED_LINK",
     "SECURITY_PREAMBLE",
+    "TITLE_BOUNDS",
+    "TITLE_MAX_TOKENS",
     "USER_DECLINED_MSG",
     "BrainPhase",
     "CharBudgetHistoryWindow",

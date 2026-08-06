@@ -303,7 +303,11 @@ Start here. Rules for working in this repo: [AGENTS.md](../AGENTS.md).
   declined blended-relevance field is reversed onto that return rather than onto `ScoredMemory`;
   recall gets its first audit trail (`RecallAuditSink` plus a logging sink that writes rank keys and
   no text); and the model rank ships as `JudgeRecallPolicy`, measured against the shipping cosine at
-  0.917 to 1.000 mean reciprocal rank. A session summary is cached in Redis rather than
+  0.917 to 1.000 mean reciprocal rank. **The rank's request is bounded since the bounded-side-calls
+  addendum**, which took it from 448 to 613 decoded tokens at 18.4 s per recall to 12 to 22 at
+  0.9 s at exactly the same ranking, so `CORTEX_MEMORY_RECALL=judge` is recommended as a default and
+  left for the user to call, the session title having taken the same lever on the same day (ADR-0021
+  addendum). A session summary is cached in Redis rather than
   recomputed per turn, safe because `SessionStore` has no verb that edits a message, so a prefix
   summary can only go incomplete and never wrong; the summarizing-window addendum records that
   half being built, from the `set_recap`/`recap` verbs through `SummarizingHistoryWindow` to a

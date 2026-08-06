@@ -93,6 +93,15 @@ behind the unchanged `SessionStore.list_sessions` / `BrainTransport` / `BrainBri
   `InferenceBackend.stream` cannot yet express (it reopens as a consumer of the disable-thinking /
   token-budget inference deferral, not as new title work). Gated at 100% with four guards
   mutation-proven (title override, first-turn-only, empty title rejected, reasoning ignored).
+  **That half closed 2026-08-06 ([ADR-0021 addendum](../adr/ADR-0021-session-read-seam.md),
+  [ADR-0038](../adr/ADR-0038-ranked-recall.md) bounded-side-calls addendum):** the port learned to
+  carry per-request bounds for the history fold, and the title pass was the caller this entry had
+  been waiting for. `generate_title` sends `TITLE_BOUNDS` (`max_tokens=32, thinking=False`, 32
+  being `TITLE_MAX` in the request's own unit, so a cap-hit lands past the 48 characters
+  `clean_title` keeps and cannot change a stored title). Measured on the shipped cortex over one
+  prompt, three runs each way: 235 to 303 decoded tokens at 7.9 s to 10.4 s became **4 tokens at
+  0.2 s to 0.3 s, for the same titles**. `CORTEX_GENERATE_TITLES` still ships off, on the reason
+  that survives (an extra inference call per new session, now a cheap one).
 - **Open-chat header title consistency.** Opened 2026-07-16 behind the landed titles above. The
   switcher now shows the brain title (`SessionSummary.title`), but opening that chat re-derives the
   header from the loaded first user message (`deriveTitle`/`titleFor` in `sessionState.ts`), so the

@@ -103,7 +103,13 @@ Session listing (Slice 8.7, ADR-0021; `sessions.py`):
   bound, so the read-side re-bound is a no-op; empty when nothing usable), and
   `generate_title(backend, model, messages)` runs one tool-less completion and returns the
   cleaned title, keeping only `TextChunk` (a reasoning model's `ReasoningChunk` and any
-  `ToolCall` are ignored) and letting `InferenceError` propagate for the caller to absorb.
+  `ToolCall` are ignored) and letting `InferenceError` propagate for the caller to absorb. The
+  request carries `TITLE_BOUNDS` (`max_tokens=TITLE_MAX_TOKENS` of 32, `thinking=False`, ADR-0038
+  bounded-side-calls addendum), because the deliberation the line above discards is the whole cost
+  of this pass: measured, 235 to 303 decoded tokens at 7.9 s to 10.4 s against 4 tokens at 0.2 s to
+  0.3 s for the same title. The cap is `TITLE_MAX` in the request's own unit with room to spare, so
+  reaching it cuts past the 48 characters `clean_title` keeps and cannot change a stored title;
+  reaching it with thinking left ON returns nothing at all, which is why the two are one value.
 
 Model management (Slice 4, ADR-0007; the swap's value half is ADR-0030, in `model_host.py`):
 
@@ -1153,7 +1159,11 @@ Use-case:
   the recency blend rather than raw similarity, combining both axes; `JudgeRecallPolicy(backend,
   model, *, pool_factor, fallback=RAW_RECALL_POLICY)` asks the resident model to order the pool under
   a JSON-schema-constrained request and falls back on any failure to reach or believe it, the emitted
-  basis then being the fallback's. Selected at the composition root via `CORTEX_MEMORY_RECALL`
+  basis then being the fallback's. Its request carries `rank_bounds(k)`
+  (`max_tokens=24 + 8k`, `thinking=False`, ADR-0038 bounded-side-calls addendum), computed from `k`
+  rather than fixed because `ORDER_ENVELOPE` admits an array of numbers and nothing else, so the
+  reply's length is known before it is asked for; a truncated constrained reply is not JSON, so
+  running into the cap degrades to that same fallback rather than to a shortened order. Selected at the composition root via `CORTEX_MEMORY_RECALL`
   (`raw`, `reranked`, `mmr`, `recency_mmr`, `judge`); the reported `ScoredMemory.score` stays the raw
   cosine, only order and membership change.
 - `Ranking` / `RankedMemory` / `RankBasis` (`ranking.py`, ADR-0038) are what `select` returns.
@@ -1166,10 +1176,13 @@ Use-case:
 - `RecallAudit` (`ranking.py`) is what a `RecallAuditSink` records: `session_id`, `query`,
   `pool_size`, `k`, `ranking`, `at`. It carries conversation content, so a sink decides what it keeps
   of it; the shipped `LoggingRecallSink` keeps none.
-- `drain_text(backend, model, messages, *, schema=None)` (`drain.py`, ADR-0038) runs one completion
+- `drain_text(backend, model, messages, *, schema=None, bounds=None)` (`drain.py`, ADR-0038) runs
+  one completion
   to its end and closes the stream in a `finally`, so the adapter's `acquire` block is left before
   the call returns and the turn's own reply is the next acquire of a sequence rather than a nested
-  one. Used by `generate_title` and by `JudgeRecallPolicy`; the guard around `aclose` is because the
+  one. Used by `generate_title`, by `JudgeRecallPolicy` and by `SummarizingHistoryWindow`, and all
+  three now pass `bounds`, since a caller whose reasoning this helper drops has no reason to ask
+  the model for any; the guard around `aclose` is because the
   `InferenceBackend` port promises only an `AsyncIterator`.
 - `ToolDispatcher(registry, audit, clock, *, confirmer=None, policy=DEFAULT_DISPATCH_POLICY)`
   is the turn's tool gateway and

@@ -812,3 +812,40 @@ skips. Nothing here changes. `RedisSessionStore` keeps its key layout, `list_ses
 union and its two round trips, and the contract checks keep their assertions. The decision, what
 it rejected, and the evidence are in the
 [ADR-0002 addendum on the live-run database](ADR-0002-toolchain-gates.md).
+
+## Addendum (2026-08-06): a title asks for a title, not for a page of deliberation
+
+The titles addendum above shipped the feature off by default for two reasons and named the second
+as waiting on the inference port: a reasoning cortex can spend its whole budget thinking and emit
+no content at all (one live case produced 13,882 characters of `reasoning_content` and zero reply,
+so the first-message derivation stood), and reliable title content wanted thinking disabled or a
+token budget, which `InferenceBackend.stream` could not express. It can now, and this is that
+consumer arriving.
+
+`generate_title` sends `TITLE_BOUNDS`, which is `max_tokens=32, thinking=False`. The two ride
+together because either alone is worse than neither: the cap exists so nothing else has to bound
+the request (`clean_title` cuts the stored text only after the model has spoken), and the switch
+exists because a model that deliberates first reaches a cap sized from the answer with the answer
+still unwritten. Measured on the shipped cortex over one title prompt, that is not the fold's coin
+flip but a certainty, three times in three at each of 16, 32 and 64 tokens: `finish_reason:
+"length"`, and an empty reply.
+
+32 is `TITLE_MAX` said in the request's own unit with room to spare, 48 characters being 12 tokens
+at the roughly 4 characters per token this repo's budgets assume. **Running into it cannot change
+a stored title**, because a reply that reaches 32 tokens has already written past the 48 characters
+`clean_title` keeps, so the cut lands beyond the stored text; and the failure that remains, an
+empty reply, is the one this feature already ships a fallback for.
+
+Measured against the real cortex (gemma-4-12B on the 24 GB card, via the gpu compose stack), the
+identical prompt three times each way: 277, 235 and 303 decoded tokens in 9.7 s, 7.9 s and 10.4 s
+became 4, 4 and 4 tokens in 0.3 s, 0.2 s and 0.3 s, **for the same titles, run for run**. So the
+pass that ran between the reply and `TurnCompleted`, with the answer already on screen and nothing
+saying why the turn had not finished, now costs a third of a second. The numbers, the sizing and
+the sibling change to the recall rank are in the
+[ADR-0038 bounded-side-calls addendum](ADR-0038-ranked-recall.md); the live arm is
+`packages/inference/tests/test_session_title_live.py`, integration-marked.
+
+**`CORTEX_GENERATE_TITLES` still ships off.** The reason that survives is the first one, that this
+is an extra inference call per new session on a shared GPU; it is simply a cheap one now. What is
+closed is the second reason, and with it the recorded deferral of reliable content on a reasoning
+cortex.

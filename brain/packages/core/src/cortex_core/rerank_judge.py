@@ -10,6 +10,8 @@ It lives in the core because it depends on nothing but ports, exactly like ``Sub
 the reason ``RecallPolicy.select`` is ``async`` at all, and it obeys the selection-time lease
 discipline: the model call goes through ``drain_text``, which closes its stream in a ``finally``, so
 the turn's own reply acquires the GPU lease as the second acquire of a sequence and never nests.
+The same call carries ``rank_bounds(k)``, so the request asks for the order alone rather than for
+the deliberation ``drain_text`` drops before this module sees it.
 """
 
 import json
@@ -20,7 +22,7 @@ from typing import cast
 from cortex_core.conversation import Message, Role
 from cortex_core.drain import drain_text
 from cortex_core.errors import InferenceError
-from cortex_core.inference import JsonSchema
+from cortex_core.inference import GenerationBounds, JsonSchema
 from cortex_core.memory import ScoredMemory
 from cortex_core.ports import InferenceBackend
 from cortex_core.ranking import RankBasis, RankedMemory, Ranking
@@ -48,6 +50,37 @@ CANDIDATE_CHARS = 400
 # The prompt is not a conversation turn, so its ``turn_id`` is a constant rather than a real one:
 # nothing persists these messages, and a borrowed turn id would read as this turn in a log.
 _RANK_TURN_ID = "recall-rank"
+
+# How far a rank's request may go (ADR-0038 bounded-side-calls addendum). **Thinking off** for the
+# same reason as every other in-turn side call: ``drain_text`` drops the deliberation unread.
+# Measured on the shipped cortex over six questions against ten notes, thinking on decoded 448 to
+# 613 tokens for 18.4 s per recall; off, it decoded 12 to 22 tokens for 0.9 s, and returned the
+# identical order for every question, so this bound costs the ranking nothing.
+#
+# **The cap is computed from ``k`` rather than fixed**, because unlike prose this reply's length
+# is known in advance: ``ORDER_ENVELOPE`` admits ``{"order": [n, ...]}`` and nothing else, so the
+# only thing that varies is how many numbers the caller allowed. The envelope's own punctuation
+# measured 14 to 16 tokens for a single pick (JSON decodes at roughly a token per character), and
+# each further candidate adds a comma, a space and its digits. A fixed constant sized for today's
+# ``k`` of 5 would quietly start truncating the day a deployment recalls more, which is the failure
+# a formula cannot have.
+RANK_ENVELOPE_TOKENS = 24
+RANK_TOKENS_PER_CANDIDATE = 8
+
+
+def rank_bounds(k: int) -> GenerationBounds:
+    """The bounds one rank request carries: no thinking, and room for ``k`` numbered picks.
+
+    **Running into the cap degrades to the fallback policy, never to a mangled order.** A cut
+    reply is not JSON (measured: a rank capped below its answer came back ``{"order":``), so
+    ``parse_order`` returns empty and ``select`` falls back exactly as it does for an unreachable
+    model, with the fallback's own basis on the ranking so the audit trail says the model did not
+    rank this one. That is why the cap is generous rather than snug: a cap reached costs the whole
+    judgement, not a candidate off the end.
+    """
+    return GenerationBounds(
+        max_tokens=RANK_ENVELOPE_TOKENS + RANK_TOKENS_PER_CANDIDATE * k, thinking=False
+    )
 
 
 def build_rank_messages(
@@ -131,6 +164,7 @@ class JudgeRecallPolicy:
                 self._model,
                 build_rank_messages(query, hits, k=k, at=now),
                 schema=ORDER_ENVELOPE,
+                bounds=rank_bounds(k),
             )
         except InferenceError:
             return await self._fallback.select(hits, query=query, now=now, k=k)

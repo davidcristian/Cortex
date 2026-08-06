@@ -2,7 +2,7 @@
 
 Deferred refinements from the Slice 5 memory work under [ADR-0008](../adr/ADR-0008-memory-v1.md): the memory store, its scoping seam, and the pure-core recall policies. Extracted from the ROADMAP's deferred-refinements section on 2026-07-15 with the entries kept verbatim; landed entries are the historical record of what each deferral became, and the index at [index.md](index.md) carries the recommended pickup order.
 
-**Open items:** session+global union read policy, per-scope retention/eviction, cross-scope recall ranking, tiered / self-editing memory + summarization, write-salience policy, ANN index
+**Open items:** the judge's default now that it is cheap, session+global union read policy, per-scope retention/eviction, cross-scope recall ranking, tiered / self-editing memory + summarization, write-salience policy, ANN index
 
 **Memory in Slice 5 ([ADR-0008](../adr/ADR-0008-memory-v1.md)):**
 - **Per-session / namespaced scoping landed 2026-07-06 ([ADR-0008 scoping addendum](../adr/ADR-0008-memory-v1.md)).**
@@ -201,3 +201,22 @@ Deferred refinements from the Slice 5 memory work under [ADR-0008](../adr/ADR-00
   cannot meet); and **auditing the candidates that were dropped**, which `RecallAudit` does not
   carry because a non-picked candidate's `SPREAD`/`SWEEP` key is not well defined (trigger: the
   first investigation that needs to know why a specific memory was *not* returned).
+- **The judge's cost, which is the only reason its default is `raw`, fell twenty-fold on 2026-08-06
+  ([ADR-0038](../adr/ADR-0038-ranked-recall.md) bounded-side-calls addendum), so the default is
+  recommended for a move and the decision is the user's.** The rank's request now carries
+  `rank_bounds(k)` (`max_tokens=24 + 8k, thinking=False`), the lever the history fold proved out
+  the same day, and a rank whose deliberation `drain_text` throws away unread stopped paying for
+  it: 448 to 613 decoded tokens at 18.4 s per recall became 12 to 22 at **0.9 s**, of which about
+  0.2 s is evaluating the pool prompt that no bound touches. **The ranking did not change.** Scored
+  again over the same ten notes and six questions, the bounded judge returned the identical note
+  for every question, mean reciprocal rank 1.000 against the cosine's 0.917, the right note first 6
+  of 6 against 5 of 6, no fallbacks, and it still returns *fewer* hits than `k` because it drops
+  the notes that do not help. So the premise the default rested on is gone, and two things a
+  default still has to answer for are not: a rank runs on **every** turn that recalls, unlike the
+  history fold that a cache pays for once per boundary move, so this is 0.9 s on the front of every
+  such turn rather than an amortized cost; and the corpus is still hand built by the policy's
+  author, ten notes and six questions, which shows the mechanism works and is not a benchmark.
+  **Trigger:** the user's call on `CORTEX_MEMORY_RECALL=judge` as a default, or a wider corpus that
+  settles the second point on its own. Whichever way it goes, the audit trail
+  (`CORTEX_MEMORY_RECALL_AUDIT=1`) reports the basis that actually ranked each recall, so a
+  deployment that turns it on can tell a judged rank from a fallback after the fact.
