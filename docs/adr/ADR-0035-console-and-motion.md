@@ -123,6 +123,13 @@ a trace, which is why every claim below carries the measurement it rests on.
    the panel's bottom edge from 656 to 774 and left it there. Keeping the want and the fit apart
    makes a grow-then-shrink round trip exactly reversible. It also means a shrink while clamped
    moves the bottom edge, which is the same statement as reversibility and not a second rule.
+   **That last sentence stopped being true later the same evening** and is kept here because it is
+   what this decision was reasoned from. The "way out" clamp it names, `max(0, min(pinned, 0.88v -
+   h))`, was replaced by `max(0, pinned)` when the panel's second bound was deleted (the 2026-07-20
+   "growth caps at the top" addendum, item 1): the ceiling applies to the HEIGHT, not to the edge, so
+   nothing pulls the bottom edge back when a shrink gives it room. Reversibility survives untouched,
+   the pinned edge still being remembered unclamped, and the cost this sentence priced for it is
+   gone. Measured and closed 2026-08-06; see the clamped-shrink addendum below.
 
 5. **The panel takes its bottom edge along with a roll, rather than after it.** ADR-0034
    decision 5 had the panel discover at `cortex:morphend` that it had outgrown its ceiling. That
@@ -679,6 +686,15 @@ a trace, which is why every claim below carries the measurement it rests on.
   bites on a conversation tall enough to reach the ceiling, and the alternative (re-pinning to the
   clamped edge, and saving the pre-roll edge per section to hand back when it rolls shut) is a
   design the user has not been asked for. Recorded in `docs/refinements/body-overlay.md`.
+  - **This consequence was already false when it was written, and its rarity number was wrong on
+    top of that. Corrected 2026-08-06** (clamped-shrink addendum below). The edge clamp it depends
+    on was deleted later the same evening by the "growth caps at the top" addendum's first item, so
+    a clamped shrink moves nothing: the
+    ceiling caps the height and the history gives the room up. And 615 is not a growth delta but the
+    CEILING'S VALUE for a 546px panel centred at 900px, which has 69px of headroom, not 615. Real
+    headroom is `0.88v - (v - h)/2 - h`, at 900px `342 - h/2`, so at most 342px for any panel and
+    0px at `openHeight(900) = 684`. The 0px measurements after decision 8 are the only part of this
+    bullet that still reads true, and they read true for the other reason.
 - The hook is driven by renders and by the roll's end event and by nothing else, so a panel resized
   by neither keeps a placement computed for the height it used to have. The demo's canned chat
   settles 1.9px after its last render, which now reads as at most 1px of the centre it should have

@@ -382,7 +382,10 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
   than the last: it is the ordinary return to the chat, at the edge the chat was left at.
   The pinned edge is kept UNCLAMPED and the
   ceiling is applied only on the way out to the DOM, which is what makes a grow-then-shrink round
-  trip exactly reversible. `components/Collapse.tsx` gives the switcher list, the reminder stack and
+  trip exactly reversible. That clamp is `max(0, pinned)` and nothing more, the ceiling having moved
+  onto the HEIGHT: a shrink against the ceiling therefore moves the composer 0px as well, and the
+  two are not in tension (measured 2026-08-06 at 640x720 and 900x900, every frame of an ack, a
+  switcher round trip and a shrink clean off the ceiling). `components/Collapse.tsx` gives the switcher list, the reminder stack and
   a reply's Thoughts trace
   their own height animation, the closing one filling forwards so no frame paints at the old size
   before React removes it, and committing that height by hand where nothing animates at all
