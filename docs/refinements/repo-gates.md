@@ -17,7 +17,8 @@ fix-when-it-bites 2026-08-03 behind the cap reaching the overlay's TypeScript; t
 cross-language constant scan does not hold yet, opened as fix-when-it-bites 2026-08-03 behind
 that scan landing; the live pgvector run still sharing the brain's `memories` table, opened as
 fix-when-it-bites 2026-08-03 behind the live Redis runs getting a database of their own; the rest
-landed 2026-07-16, 2026-07-19 and 2026-08-03, see the outcome notes below the verbatim entries)
+landed 2026-07-16, 2026-07-19, 2026-08-03 and 2026-08-06, the last of them the core barrel at its
+300-line cap, see the outcome notes below the verbatim entries)
 
 **Prose style ([ADR-0026](../adr/ADR-0026-prose-style-gates.md)):**
 - **Check the commit body's 72-column wrap, not only the header's length.** Opened 2026-07-18,
@@ -379,3 +380,31 @@ cross-language-constant addendum):**
   module-by-module escape leaves the tree with two import styles for core names until something
   settles which is normal. **Still fix when it bites**, and the fix is now a decision about the
   barrel's future rather than a hunt for headroom.
+
+  **Landed 2026-08-06, the same night, as the third option in the form its objection missed
+  ([ADR-0026 barrel addendum](../adr/ADR-0026-prose-style-gates.md)).** The decision this entry
+  said was owed was taken rather than deferred again, and the criterion was the one the two
+  bruises had established: whichever option left call sites alone. That ruled out the first two.
+  A sub-barrel per area only relocates the wall unless consumers import from the sub-barrel, and
+  the test doubles leaving the barrel is a real responsibility split whose bill is 155 files
+  (measured, `from cortex_core import` across the brain workspace), spent entirely on import
+  lines. The third option, `__all__` over star imports, is the only one that moves nothing, and
+  the entry had recorded it as blocked by ruff's F403. It is not: `cortex_core/_surface/` now
+  holds eight area modules (`ports`, `turn`, `tools`, `subagents`, `memory`, `schedule`,
+  `residency`, `fakes`), each importing its area's names from their defining modules and
+  declaring them in its own `__all__`, and `cortex_core/__init__.py` re-exports all eight
+  wholesale behind one `per-file-ignores` line naming the file and the reason. Pyright had the
+  second objection, `reportWildcardImportFromLibrary`, which fires because the package resolves
+  through its own editable install and which a relative import inside the source tree does not
+  trip, so the barrel is the one relatively-importing file in the brain and needs no suppression.
+  **The numbers:** 300 lines to 18, 290 public names to 294, and the largest sub-barrel at 151.
+  `PLAIN_SECURITY_PREAMBLE` is back on the public surface with `HistoryRecap`, `RECAP_MAX` and
+  `SummarizingHistoryWindow`, which is the whole of the inconsistency the two bruised slices left;
+  the two production call sites that had imported them from their defining modules with a comment
+  citing this entry now import them from the barrel like everything else, so the tree is back to
+  one import style. **Honest about the headroom:** it is not unlimited, it is per area, and the
+  areas are uneven. `ports` at 151 lines has room for about 130 more names and `subagents` at 34
+  has room for about 250, but a name lands in the area it belongs to rather than the area with
+  space, so a run of port additions is the case that reaches a cap first. What is different is
+  that reaching it costs an ordinary split by responsibility inside one area rather than a third
+  round of this argument, and that the gate was never touched to get here.

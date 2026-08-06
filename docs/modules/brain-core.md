@@ -7,8 +7,15 @@ model's phase, and the escalating turn wrapper, ADR-0030). No I/O, ever. This is
 (`tool_loop.stream_tool_loop`) that both the cortex turn and each subagent run (ADR-0010).
 
 **Public contract** (everything importable from `cortex_core`; the barrel's re-exports are the
-API, declared with the typing spec's redundant-alias form `X as X` rather than an `__all__`
-list, so a public name costs one line there instead of two):
+API. Since 2026-08-06 the barrel does not list the names itself: they live in eight area
+sub-barrels under `cortex_core._surface` (`ports`, `turn`, `tools`, `subagents`, `memory`,
+`schedule`, `residency`, `fakes`), each importing its area's names from their defining modules
+and declaring them in its own `__all__`, and `cortex_core/__init__.py` re-exports all eight
+wholesale. Nothing outside the package names `_surface`: `from cortex_core import X` reaches
+every public name, as it always did. A new public name is added to its area's file, which is
+where the 300-line cap now applies, and the choice of area is the only judgement it asks for.
+See the [ADR-0026 barrel addendum](../adr/ADR-0026-prose-style-gates.md) for why the flat form
+ran out and why this shape was the one that moved no call sites):
 
 Routing (Slice 1):
 

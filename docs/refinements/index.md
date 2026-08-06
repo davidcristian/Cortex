@@ -46,7 +46,7 @@ the tree does now.
 
 | Doc | Area | Open |
 | --- | --- | --- |
-| [repo-gates.md](repo-gates.md) | Line cap (the core barrel back at it, ADR-0038), dashcheck, coverage config (ADR-0026), gate coverage of the ungated Rust trees and of the overlay's TypeScript (ADR-0011), the stylesheet still outside the cap, test-runner mechanics (ADR-0002) including the live pgvector run still sharing the brain's `memories` table (the live Redis runs got a database of their own 2026-08-03), the couplings the cross-language constant scan does not hold yet (ADR-0029) | 7 |
+| [repo-gates.md](repo-gates.md) | Line cap (the core barrel came off it 2026-08-06, split into area sub-barrels under `cortex_core._surface` with every call site unmoved, ADR-0026), dashcheck, coverage config (ADR-0026), gate coverage of the ungated Rust trees and of the overlay's TypeScript (ADR-0011), the stylesheet still outside the cap, test-runner mechanics (ADR-0002) including the live pgvector run still sharing the brain's `memories` table (the live Redis runs got a database of their own 2026-08-03), the couplings the cross-language constant scan does not hold yet (ADR-0029) | 6 |
 | [seam-transport.md](seam-transport.md) | `BrainTransport` retry/reconnect (ADR-0003/0024) | 4 |
 | [seam-auth.md](seam-auth.md) | Seam token auth (ADR-0016) | 1 |
 | [session-history.md](session-history.md) | Slice 3 history windowing and summarization | 3 |
