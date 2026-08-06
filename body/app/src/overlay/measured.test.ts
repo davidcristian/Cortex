@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 
-import { resized } from "../test-setup";
+import { lays, resized } from "../test-setup";
 import {
   CHAT_FLOOR_PROPERTY,
   TRACE_ROW_PROPERTY,
@@ -9,17 +9,18 @@ import {
   traceRowRef,
 } from "./measured";
 
-/** An element whose laid-out height jsdom would otherwise report as 0 for everything. */
+/** An element whose laid-out height jsdom would otherwise report as nothing at all. Given through
+ *  the computed style, which is where `publishHeight` reads it. */
 function tall(height: number): HTMLElement {
   const element = document.createElement("div");
-  Object.defineProperty(element, "offsetHeight", { configurable: true, value: height });
+  lays(element, height);
   document.body.append(element);
   return element;
 }
 
 /** What the browser does when the box changes under a laid-out element. */
 function grewTo(element: HTMLElement, height: number): number {
-  Object.defineProperty(element, "offsetHeight", { configurable: true, value: height });
+  lays(element, height);
   return resized(element);
 }
 
@@ -47,7 +48,7 @@ describe("publishHeight", () => {
     // the second reading and not latch the first.
     const element = tall(185);
     publishHeight(CHAT_FLOOR_PROPERTY, element);
-    Object.defineProperty(element, "offsetHeight", { configurable: true, value: 224 });
+    lays(element, 224);
     publishHeight(CHAT_FLOOR_PROPERTY, element);
     expect(standing(CHAT_FLOOR_PROPERTY)).toBe("224px");
   });

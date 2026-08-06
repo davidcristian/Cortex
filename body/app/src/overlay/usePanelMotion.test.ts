@@ -2,7 +2,7 @@ import { renderHook } from "@testing-library/react";
 import { useLayoutEffect } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { resized } from "../test-setup";
+import { lays, resized } from "../test-setup";
 import { CEILING_PROPERTY } from "./panelBudget";
 import { maxHeight, openHeight } from "./panelGeometry";
 import { emptyMemory } from "./panelMemory";
@@ -47,12 +47,16 @@ function harness() {
   const live = () => running && state.playState === "running";
   const ceiling = () => Number.parseFloat(element.style.maxHeight || "");
   const height = () => {
-    const own = live() && animatesHeight ? state.displayed : state.natural;
+    // The natural-height probe hands the box back to layout for the length of one read by declaring
+    // `height: auto` important, which outranks the animation origin. While it is on, the answer is
+    // the panel's own layout even though the animation is still running.
+    const probing = element.style.getPropertyPriority("height") === "important";
+    const own = live() && animatesHeight && !probing ? state.displayed : state.natural;
     return state.capped && !Number.isNaN(ceiling()) ? Math.min(own, ceiling()) : own;
   };
-  // The hook reads the HEIGHT off `offsetHeight` and only the bottom edge off the rect, because the
-  // rect is measured after the panel's summon transform and the layout box is not.
-  Object.defineProperty(element, "offsetHeight", { get: height });
+  // The hook reads the HEIGHT off the computed style and only the bottom edge off the rect, because
+  // the rect is measured after the panel's summon transform and the used height is not.
+  lays(element, height);
   element.getBoundingClientRect = (() => {
     // The element sits at whatever `bottom` the hook last wrote, expressed as a viewport rect,
     // unless a slide is running and the test has said where it has got to.
@@ -97,7 +101,7 @@ function harness() {
 
 /** How tall a rolling section is right now, which changes under it while the roll runs. */
 function rolled(section: HTMLElement, height: number): void {
-  Object.defineProperty(section, "offsetHeight", { get: () => height, configurable: true });
+  lays(section, height);
 }
 
 /** A view inside the panel publishing how far short of its tallest shape it currently falls, the
@@ -668,11 +672,11 @@ describe("usePanelMotion", () => {
     state.natural = 547;
     const { rerender } = renderHook(() => usePanelMotion(ref, true, "chat"));
     expect(element.style.maxHeight).toBe("547px");
-    expect(bottom()).toBe(87);
+    expect(bottom()).toBe(86.5);
     state.playState = "finished";
     rolling(element, 76, 0);
     rerender();
-    expect(bottom()).toBe(87);
+    expect(bottom()).toBe(86.5);
     expect(moves).toEqual([]);
   });
 
@@ -700,7 +704,7 @@ describe("usePanelMotion", () => {
     chat.className = "view";
     const aside = document.createElement("div");
     aside.className = "collapse aside";
-    Object.defineProperty(aside, "offsetHeight", { configurable: true, get: () => 200 });
+    lays(aside, 200);
     chat.append(aside);
     element.append(chat);
     const memory = emptyMemory(true, "chat");
@@ -1181,15 +1185,69 @@ describe("usePanelMotion", () => {
     expect(resized(element)).toBe(1);
     expect(moves).toHaveLength(1);
 
-    // Once that move has landed the panel hears its box again, so growth that arrived mid-ease is
-    // eased away rather than left standing.
+    // And once it has landed, a box that is still the height it was placed for is still nothing.
     state.playState = "finished";
+    expect(resized(element)).toBe(1);
+    expect(moves).toHaveLength(1);
+  });
+
+  it("joins the move it is already making when content grows inside it", () => {
+    const { ref, element, state, moves, durations } = harness();
+    state.natural = 400;
+    const { rerender } = renderHook(() => usePanelMotion(ref, true, "chat"));
+    state.natural = 520;
+    rerender();
+    expect(moves).toHaveLength(1);
+
+    // Mid-ease: the box is at 460 and the content now wants 560. The box cannot say so, which is
+    // why the probe exists, and the move is redirected from where the eye has it rather than from
+    // where it was going.
+    state.displayed = 460;
     state.natural = 560;
     expect(resized(element)).toBe(1);
     expect(moves).toEqual([
       { from: { height: 400, bottom: 300 }, to: { height: 520, bottom: 300 } },
-      { from: { height: 520, bottom: 300 }, to: { height: 560, bottom: 300 } },
+      { from: { height: 460, bottom: 300 }, to: { height: 560, bottom: 300 } },
     ]);
+    // Paced by what is left to travel, like any other move, rather than by the whole 160.
+    expect(durations.at(-1)).toBe(158);
+    // And the probe hands the box straight back: an element left declaring `height: auto` important
+    // would never follow another animation again, and one left with an important cap would keep the
+    // sections it feeds on a budget nothing updates.
+    expect(element.style.getPropertyValue("height")).toBe("");
+    expect(element.style.getPropertyPriority("max-height")).toBe("");
+    expect(element.style.maxHeight).toBe("580px");
+  });
+
+  it("opens a retarget on the sub-pixel the panel is standing at, and ends on the edge it wrote", () => {
+    const { ref, element, state, keyed, bottom } = harness();
+    state.natural = 352.8125;
+    const { rerender } = renderHook(() => usePanelMotion(ref, true, "chat"));
+    expect(bottom()).toBe(323.59375);
+    state.natural = 459.28125;
+    rerender();
+
+    state.displayed = 459.28125;
+    state.natural = 494.28125;
+    expect(resized(element)).toBe(1);
+    expect(keyed.at(-1)).toEqual([
+      { height: "459.28125px", bottom: "323.59375px", maxHeight: "556px" },
+      { height: "494.28125px", bottom: "323.59375px", maxHeight: "556px" },
+    ]);
+    expect(element.style.bottom).toBe("323.59375px");
+  });
+
+  it("hears the resize its own placement raised and finds nothing behind it", () => {
+    const frame = frames();
+    const { ref, element, state, moves } = harness();
+    state.natural = 400;
+    const { rerender } = renderHook(() => usePanelMotion(ref, true, "chat"));
+    state.natural = 520;
+    rerender();
+    expect(moves).toHaveLength(1);
+    frame.run();
+    expect(resized(element)).toBe(1);
+    expect(moves).toHaveLength(1);
   });
 
   it("lifts the watch for the frame it writes in, and takes it up again on the next", () => {

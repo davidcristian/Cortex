@@ -49,6 +49,43 @@ export function resized(target: Element): number {
 
 globalThis.ResizeObserver = FakeResizeObserver;
 
+/** How tall a box measures, said through the one property production reads. */
+const laidOut = new WeakMap<Element, () => number>();
+/** Every box at once, for the tests that measure an element they never get their hands on. */
+let laidOutAll: (() => number) | null = null;
+const computedStyle = window.getComputedStyle.bind(window);
+window.getComputedStyle = ((element: Element, pseudo?: string | null) => {
+  const declaration = computedStyle(element, pseudo ?? undefined);
+  const height = laidOut.get(element) ?? laidOutAll;
+  if (height === null) {
+    return declaration;
+  }
+  return new Proxy(declaration, {
+    get(target, key) {
+      if (key === "height") {
+        return `${height()}px`;
+      }
+      const value = Reflect.get(target, key) as unknown;
+      return typeof value === "function" ? (value as () => unknown).bind(target) : value;
+    },
+  });
+}) as typeof window.getComputedStyle;
+
+/** Give `element` a laid-out height, as a number or as an answer that can change under the test. */
+export function lays(element: Element, height: number | (() => number)): void {
+  laidOut.set(element, typeof height === "number" ? () => height : height);
+}
+
+/** Give EVERY box the same laid-out height, and answer the way to stop. For a test whose subject
+ *  is an element it cannot reach: `Panel`'s empty state publishes `--chat-floor` during the render
+ *  that mounts it, so there is no moment in between to hand it a height. */
+export function laysEverything(height: number): () => void {
+  laidOutAll = () => height;
+  return () => {
+    laidOutAll = null;
+  };
+}
+
 /** How tall a rolling section measures while `stubRoll` is installed. Any value past
  *  `MIN_DELTA_PX` will do: what it buys is a roll that actually runs rather than one `Collapse`
  *  completes on the spot. */
@@ -84,6 +121,7 @@ export function stubRoll(): () => void {
 afterEach(() => {
   cleanup();
   watchers.clear();
+  laidOutAll = null;
 });
 
 window.matchMedia = ((query: string) => ({

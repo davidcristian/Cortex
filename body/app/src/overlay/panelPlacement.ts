@@ -7,7 +7,6 @@ import { capTo } from "./panelBudget";
 import {
   type Geometry,
   arrivalBottom,
-  centred,
   clamped,
   durationOf,
   frame,
@@ -17,48 +16,8 @@ import {
 } from "./panelGeometry";
 import { type Memory, type Placement, arriving, heightOf, measure } from "./panelMemory";
 import { centringHeight, holdScroll, tabSlack } from "./panelParts";
+import { VIEW_CHANGE_RECENTRES, entering, pinnedBottom } from "./panelPin";
 import { rideAlong } from "./panelRide";
-
-/** The view whose position is remembered across a trip to another one. */
-const CHAT_VIEW = "chat";
-
-/**
- * Whether entering another view slides the panel to the true middle of the screen, or keeps the
- * bottom edge it is standing on and resizes in place.
- */
-export const VIEW_CHANGE_RECENTRES = false;
-
-/** Where the panel's bottom edge wants to be, before the ceiling has its say. */
-function wantedBottom(
-  memory: Memory,
-  at: Placement,
-  viewport: number,
-  centring: number,
-  height: number,
-  recentres: boolean,
-): number {
-  const changed = memory.view !== at.view;
-  if (changed && memory.view === CHAT_VIEW) {
-    memory.parked = memory.pinned;
-  }
-  memory.view = at.view;
-  const shown = memory.shown;
-  // Nothing on screen to hold on to yet: a first placement centres, whatever else is true.
-  if (shown === null) {
-    return centred(viewport, centring);
-  }
-  const parked = changed && at.view === CHAT_VIEW ? memory.parked : null;
-  if (!at.open || at.recentre || arriving(memory, at) || (recentres && changed && parked === null)) {
-    return centred(viewport, centring);
-  }
-  if (parked !== null) {
-    return parked;
-  }
-  if (!changed && at.view !== CHAT_VIEW) {
-    return shown.bottom + shown.height - height;
-  }
-  return memory.pinned;
-}
 
 /** Put the panel where it belongs, and animate it there from wherever it was. */
 export function place(
@@ -78,9 +37,9 @@ export function place(
   memory.open = at.open;
   const viewport = window.innerHeight;
   const onScreen = heightOf(element);
-  // Asked before `wantedBottom` decides anything, because deciding is also what forgets which view
-  // the panel was in: this is true only on the render that ARRIVES in a multi-shape view.
-  const entering = at.open && memory.view !== at.view && at.view !== CHAT_VIEW;
+  // Asked before the edge is decided, because deciding is also what forgets which view the panel
+  // was in: this is true only on the render that ARRIVES in a multi-shape view.
+  const arrives = entering(memory, at);
   const release = holdScroll(element);
   capTo(element, openHeight(viewport));
   const section = element.querySelector<HTMLElement>(`[${MORPHING_ATTRIBUTE}]`);
@@ -114,7 +73,7 @@ export function place(
   const displayed = deferred
     ? { height: carrying ?? onScreen, bottom: was }
     : (inFlight ?? memory.shown);
-  const wanted = wantedBottom(
+  const wanted = pinnedBottom(
     memory,
     at,
     viewport,
@@ -128,15 +87,19 @@ export function place(
   // one the chat is standing on: the trip back is unaffected, and a second placement in the same
   // view cannot arrive twice. Every later resize inside the view holds the top this set (rule 4).
   const edge = clamped(wanted);
-  const arrival = entering ? arrivalBottom(viewport, edge, height, tabSlack(element)) : edge;
+  const arrival = arrives ? arrivalBottom(viewport, edge, height, tabSlack(element)) : edge;
   const bottom = placed ? arrival : memory.applied;
   const ceiling = maxHeight(viewport, bottom);
   capTo(element, ceiling);
   const next: Geometry = { height: heightOf(element), bottom };
   release();
   memory.applied = bottom;
-  element.style.bottom = `${Math.round(bottom)}px`;
+  element.style.bottom = `${bottom}px`;
   memory.shown = next;
+  // What the panel's own watch measures itself against from here: this placement answered the
+  // content the panel has now, so the notification the ease below is about to raise has nothing
+  // behind it.
+  memory.placedFor = next.height;
   if (!at.open || summoned || displayed === null || settled(displayed, next)) {
     element.removeAttribute(RESIZING_ATTRIBUTE);
     return;

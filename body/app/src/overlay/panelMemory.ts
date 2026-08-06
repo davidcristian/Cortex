@@ -13,6 +13,11 @@ const ARRIVAL_MS = 440;
 export interface Memory {
   /** The geometry currently on screen, or null before the first measurement. */
   shown: Geometry | null;
+  /**
+   * The height the panel was last placed FOR: what its content asked of it, under the cap it was
+   * given.
+   */
+  placedFor: number;
   running: Animation | null;
   /** Where `running` is taking the panel. Meaningless while `running` is null or finished. */
   aim: Geometry;
@@ -45,6 +50,7 @@ export interface Memory {
 export function emptyMemory(open: boolean, view: string): Memory {
   return {
     shown: null,
+    placedFor: 0,
     running: null,
     aim: { height: 0, bottom: 0 },
     lands: 0,
@@ -67,9 +73,27 @@ export interface Placement {
   readonly recentre: boolean;
 }
 
-/** How tall the element is, in layout pixels. */
+/** How tall the element is, in layout pixels, sub-pixels included. */
 export function heightOf(element: HTMLElement): number {
-  return element.offsetHeight;
+  const used = Number.parseFloat(getComputedStyle(element).height);
+  return Number.isNaN(used) ? 0 : used;
+}
+
+/**
+ * How tall the element would be right now if nothing were animating it, read WITHOUT cancelling
+ * the move in the air.
+ */
+export function naturalHeightOf(element: HTMLElement): number {
+  const style = element.style;
+  const height = style.getPropertyValue("height");
+  const priority = style.getPropertyPriority("height");
+  const cap = style.getPropertyValue("max-height");
+  style.setProperty("height", "auto", "important");
+  style.setProperty("max-height", cap, "important");
+  const natural = heightOf(element);
+  style.setProperty("height", height, priority);
+  style.setProperty("max-height", cap);
+  return natural;
 }
 
 /** Where the element is right now, mid-animation: what the eye actually sees. The bottom edge is

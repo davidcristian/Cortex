@@ -1,36 +1,37 @@
+// The watch the panel keeps on its own box, for the resizes nothing else announces. The whole
+// design of it is what it must not react to, because every placement resizes the element being
+// watched: a roll owns the height, and a reading that matches `placedFor` has nothing behind it.
 
 import { MORPHING_ATTRIBUTE } from "./morph";
-import { type Memory, heightOf } from "./panelMemory";
+import { type Memory, heightOf, naturalHeightOf } from "./panelMemory";
 
-/** Whether something is already moving the panel's height, and this resize is its doing. */
-function owned(element: HTMLElement, memory: Memory): boolean {
-  if (element.querySelector(`[${MORPHING_ATTRIBUTE}]`) !== null) {
-    return true;
-  }
-  return memory.running !== null && memory.running.playState === "running";
+/** Whether a section inside is rolling, which owns the height for as long as it runs. */
+function rolling(element: HTMLElement): boolean {
+  return element.querySelector(`[${MORPHING_ATTRIBUTE}]`) !== null;
 }
 
-/**
- * Watch `element` and `replace` its placement whenever its own content resizes it.
- *
- * `replace` is the same placement the roll's end event drives, so the panel eases its content's
- * growth from wherever it is, exactly as it eases growth a render told it about.
- */
+/** The height the panel wants right now: what it would be with nothing animating it. Probed only
+ *  while a move of its own is overriding the box, that being the one case the box cannot answer. */
+function wanted(element: HTMLElement, memory: Memory): number {
+  const moving = memory.running !== null && memory.running.playState === "running";
+  return moving ? naturalHeightOf(element) : heightOf(element);
+}
+
+/** Watch `element` and `replace` its placement whenever its own content resizes it. `replace` is
+ *  the same placement the roll's end event drives, so the panel eases its content's growth from
+ *  wherever it is. */
 export function watchSize(element: HTMLElement, memory: Memory, replace: () => void): () => void {
-  // The height this watch last looked at. Not the height the panel was PLACED at: a roll and an
-  // ease both walk the box past this every frame, and what matters each time is only whether
-  // anything has moved since the last reading.
-  let seen = heightOf(element);
   let rearm: number | null = null;
   const observer = new ResizeObserver(() => {
-    const height = heightOf(element);
-    if (height === seen) {
+    if (rolling(element)) {
       return;
     }
-    seen = height;
-    if (owned(element, memory)) {
+    if (wanted(element, memory) === memory.placedFor) {
       return;
     }
+    // The watch is dropped for the frame the panel writes in. Placing resizes the element being
+    // watched, and an observer whose callback resizes its own target is the one case the
+    // specification cannot deliver: the notification is dropped and the page is told by an error.
     observer.unobserve(element);
     replace();
     rearm = requestAnimationFrame(() => {
