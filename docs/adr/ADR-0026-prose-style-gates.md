@@ -189,3 +189,39 @@ updated AGENTS.md and the repo-gates module doc, while touching no deferral reco
 index and this ADR all went on saying the rule was ungated. It is the only commit in the last fifty
 to move a gate without moving a record, which is precisely what the doc-first Definition of Done
 exists to prevent, and it is why the correction is three edits rather than one.
+
+## Addendum (2026-08-06): the core barrel is a package of area sub-barrels, not one capped file
+
+The line cap and the `cortex_core` re-export barrel had been on a collision course for a month,
+and they collided twice on 2026-08-06: the session-history summarizer got under 300 lines only by
+trimming the barrel's docstring, and an hour later `PLAIN_SECURITY_PREAMBLE` landed with its
+barrel export backed out after `scripts/linecap.py` measured the file at 304. That left a public
+core constant importable from `cortex_core.untrusted` and from nowhere else, unlike every one of
+its siblings, which is the shape of a rule bending code rather than code obeying a rule.
+
+The three options on the record were a sub-barrel per area, the test doubles leaving the top
+barrel, and an `__all__` over star imports. The first two only relocate the wall unless every
+consumer is rewritten to import from the new place, which is 155 files for the doubles alone. The
+third is the one that leaves all of them alone, so it is what landed, in the form the objection
+against it did not anticipate: `cortex_core/_surface/` holds eight modules, one per area of the
+core (`ports`, `turn`, `tools`, `subagents`, `memory`, `schedule`, `residency`, `fakes`), each
+importing its area's names from their defining modules and declaring them in its own `__all__`,
+and `cortex_core/__init__.py` re-exports all eight wholesale. `from cortex_core import X` still
+reaches all 294 public names, so no call site moved and no behaviour changed.
+
+Two objections had to be answered rather than argued away. **Ruff bans the star import** (F403),
+which is what the recorded entry called the blocker; it is now one narrow `per-file-ignores` entry
+naming the file and the reason, because the rule's own justification ("unable to detect undefined
+names") does not apply to a source module that declares `__all__`. **Pyright strict refuses a
+wildcard from a library** (`reportWildcardImportFromLibrary`), which fires because `cortex-core`
+resolves through its own editable install; a relative import (`from ._surface.turn import *`)
+resolves inside the source tree instead, and the package type-checks clean with no suppression at
+all. That is why the barrel is the one place in the brain that imports relatively.
+
+The gate itself is untouched. No suffix was added to the scanner, no exemption was written, and
+the AGENTS.md list of what sits outside the cap is unchanged: the barrel went from 300 lines to
+18, and each sub-barrel is measured like any other module, the largest at 151. Headroom is now
+per area rather than global, which is the real change of shape. A new public name costs a line in
+its area's file and none in the barrel, so the surface can roughly quadruple before any single
+file is at the cap again, and when one is, the split that relieves it is the ordinary
+split-by-responsibility remedy rather than another convention change.
