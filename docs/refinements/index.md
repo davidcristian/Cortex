@@ -46,13 +46,13 @@ the tree does now.
 
 | Doc | Area | Open |
 | --- | --- | --- |
-| [repo-gates.md](repo-gates.md) | Line cap, dashcheck, coverage config (ADR-0026), gate coverage of the ungated Rust trees and of the overlay's TypeScript (ADR-0011), the stylesheet still outside the cap, test-runner mechanics (ADR-0002) including the live pgvector run still sharing the brain's `memories` table (the live Redis runs got a database of their own 2026-08-03), the couplings the cross-language constant scan does not hold yet (ADR-0029) | 6 |
+| [repo-gates.md](repo-gates.md) | Line cap (the core barrel back at it, ADR-0038), dashcheck, coverage config (ADR-0026), gate coverage of the ungated Rust trees and of the overlay's TypeScript (ADR-0011), the stylesheet still outside the cap, test-runner mechanics (ADR-0002) including the live pgvector run still sharing the brain's `memories` table (the live Redis runs got a database of their own 2026-08-03), the couplings the cross-language constant scan does not hold yet (ADR-0029) | 7 |
 | [seam-transport.md](seam-transport.md) | `BrainTransport` retry/reconnect (ADR-0003/0024) | 4 |
 | [seam-auth.md](seam-auth.md) | Seam token auth (ADR-0016) | 1 |
 | [session-history.md](session-history.md) | Slice 3 history windowing and summarization | 1 |
 | [tools-mcp.md](tools-mcp.md) | Dispatch budget/cost/salience, spawn batch cap, MCP registries (ADR-0009/0010) | 6 |
 | [untrusted-content.md](untrusted-content.md) | Taint boundary, output guardrail, subagent model safety (ADR-0013/0015/0017/0019/0028) | 11 |
-| [memory.md](memory.md) | Store, scoping, rerank/MMR (ADR-0008) | 8 |
+| [memory.md](memory.md) | Store, scoping, rerank/MMR, the ranked `select` and its recall trail (ADR-0008/0038) | 6 |
 | [inference-model-manager.md](inference-model-manager.md) | Model-manager lifecycle, MTP, reasoning status (ADR-0007/0020) | 7 |
 | [subagents.md](subagents.md) | Progress reporting, spawn schema, heterogeneous roster (ADR-0010/0018) | 3 |
 | [body-overlay.md](body-overlay.md) | Overlay polish, connection indicator, proto Cancel (ADR-0011), the reserved scrollbar rail's assumed width and spent card inset, a section's roll ending 0.25px from where it was going, the two bounds the panel's section budget left behind it (a section's own frame being under no cap, and the room a closing section hands back arriving in one frame), the switcher's and the reminder stack's own row gestures dropping focus with no swap to answer them, the composer's draft belonging to no chat, and the whisper's follow-ups (ADR-0037): a pickable voice row, a mid-stream resize keeping the old wrap width, and kerning inside the letter boxes under a changed font (its drain-growth entry landed the day it was filed, and the console outliving a new chat, the reminder stack's per-row exit and the switcher's, the panel's watch on its own box with the arrival-aside correction that came out of it, the demo bridge over the line cap, two sections outrunning the panel on their own, the chat floor's frozen measurement of the empty state, the console tab strip's missing keyboard half, the switcher's disputed listbox role, the two motions its list still made in one frame, and a Thoughts trace opening a reply off the bottom of a full history all landed 2026-08-03, the last of them opening the chrome-side entry that landed 2026-08-04 on the same ride, alongside the cycle keys' silent swap, which opened the focus entry that landed 2026-08-06 as the caret following the conversation into the composer and opened the two above; the composer's move on a clamped shrink closed 2026-08-06 as moot, its mechanism having been deleted the day it was filed, and the retarget-and-resize pair landed 2026-08-06 as the panel measuring itself in fractional pixels, opening the roll entry that took its place) | 12 |
@@ -1620,6 +1620,23 @@ that has siblings, and the siblings only become visible once the first one is ri
   What binds is that `select`'s widening should serve its three deferred consumers in one change,
   plus summarization's undecided cache-versus-recompute question, so this reopens on that design
   work and not on a card.
+  **The design work was done and the reranking half landed 2026-08-06
+  ([ADR-0038](../adr/ADR-0038-ranked-recall.md)).** `RecallPolicy.select` was widened once, to
+  `async def select(hits, *, query, now, k) -> Ranking`, and all three of its waiting consumers
+  arrived on it: the model rank (`JudgeRecallPolicy`, measured against the shipping cosine at 0.917
+  to 1.000 mean reciprocal rank on a small built-for-disagreement corpus), the blended-relevance
+  field (**the decline is reversed**, as a key on the policy's own return rather than a field on the
+  store's output type), and the recall trail (`RecallAuditSink` plus a logging sink that carries the
+  rank key and no text). Summarization's own question is **settled as cache rather than recompute**,
+  in Redis behind `SessionStore`, safe because that port has no verb that edits a message so a
+  prefix summary can only go incomplete and never wrong; and the lease sequencing is settled as a
+  `drain_text` helper that leaves the adapter's acquire block in a `finally`, which the title
+  generator now also uses. What is left is the summarizer's implementation, with the `async`
+  widening of `HistoryWindow.select` beside it rather than as an empty async layer, since that port
+  has one waiting consumer where the other had three. Three of this entry's own claims did not
+  survive re-derivation: both halves name a caller (`_inference_messages` in `engine.py`) that no
+  longer exists, and neither noticed that `select` did not carry the query a model rank has to rank
+  against.
 
 ### Blocked on hardware that fits two model tiers
 
@@ -1721,8 +1738,9 @@ itself is code and belongs with its area: unbalanced COM initialization on the b
 ([subagents.md](subagents.md)), co-residency
 ([inference-model-manager.md](inference-model-manager.md)), the NPU as a third placement target
 ([resource-governance.md](resource-governance.md)), and the model passes behind history
-summarization and reranking ([session-history.md](session-history.md),
-[memory.md](memory.md)). The user index lists all five under a heading that says exactly that.
+summarization ([session-history.md](session-history.md)); reranking's own model pass left this
+list on 2026-08-06, having been run and measured against the real cortex in Docker
+([memory.md](memory.md)). The user index lists them under a heading that says exactly that.
 
 ### Dead until a consumer exists
 

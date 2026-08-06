@@ -18,7 +18,7 @@ InferenceBackendName = Literal["echo", "llamacpp"]
 VisionMode = Literal["auto", "on", "off"]
 MemoryBackendName = Literal["none", "pgvector"]
 MemoryScopeName = Literal["global", "session"]
-MemoryRecallName = Literal["raw", "reranked", "mmr", "recency_mmr"]
+MemoryRecallName = Literal["raw", "reranked", "mmr", "recency_mmr", "judge"]
 MemoryTaintPolicyName = Literal["skip", "record"]
 
 
@@ -193,8 +193,15 @@ class MemoryConfig(BaseSettings):
     the reranker's near-duplicate cutoff), tuned by ``recall_mmr_lambda`` (0.5, the relevance share,
     ``1`` pure relevance and ``0`` pure diversity) and the shared ``recall_pool_factor``;
     ``recency_mmr`` runs that MMR selection over the recency blend rather than raw similarity,
-    combining both axes and reusing the recency and lambda knobs. The knobs are inert under ``raw``;
-    each policy validates the ranges of the ones it uses when it is built.
+    combining both axes and reusing the recency and lambda knobs; ``judge`` asks the resident model
+    to order the over-fetched pool by what each note actually says (ADR-0038), reusing
+    ``recall_pool_factor`` and falling back to raw top-k cosine whenever the model cannot be reached
+    or believed. The knobs are inert under ``raw``; each policy validates the ranges of the ones it
+    uses when it is built.
+
+    ``recall_audit`` (env ``CORTEX_MEMORY_RECALL_AUDIT``, ADR-0038) turns on the recall trail: one
+    structured log line per recall carrying the pool size, the rank basis, and each kept hit's id,
+    score and rank key, never any text. ``False`` (the default) is the founding silent recall path.
     """
 
     model_config = SettingsConfigDict(env_prefix="CORTEX_MEMORY_")
@@ -211,6 +218,7 @@ class MemoryConfig(BaseSettings):
     recall_dedup_threshold: float = 0.98
     recall_pool_factor: int = 4
     recall_mmr_lambda: float = 0.5
+    recall_audit: bool = False
 
     @model_validator(mode="after")
     def _pgvector_needs_dsn_and_embedder(self) -> "MemoryConfig":

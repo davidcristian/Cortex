@@ -6,77 +6,27 @@ the ``MemoryStore.search`` contract untouched and reranks above it, so both stor
 translators. ``RerankingRecallPolicy`` blends similarity with an exponential recency decay and drops
 near-duplicates; ``MmrRecallPolicy`` selects for maximal marginal relevance (diversity beyond that
 near-duplicate cutoff); ``RecencyMmrRecallPolicy`` composes the two, running MMR selection over the
-recency-blended relevance. The shared ``_recency_blend``/``_redundancy``/``_greedy_mmr`` helpers
-keep each policy to its own axis; a further model-based reranker is one more addition here.
+recency-blended relevance. The shared ``recency_blend``/``redundancy``/``greedy_mmr`` helpers live
+in ``rerank_math.py`` and keep each policy to its own axis; the model-based judge is a fourth
+policy, in ``rerank_judge.py`` because it holds ports rather than only maths.
+
+Each ``select`` returns a ``Ranking`` carrying the key it ordered by and the basis naming that key
+(ADR-0038). Order and membership are unchanged by that widening.
 """
 
-from collections.abc import Callable, Sequence
+from collections.abc import Sequence
 from datetime import datetime
-from math import sqrt
 
 from cortex_core.memory import ScoredMemory
-
-
-def _cosine(a: Sequence[float], b: Sequence[float]) -> float:
-    """Cosine similarity of two equal-length vectors; 0.0 if either has no magnitude."""
-    dot = sum(x * y for x, y in zip(a, b, strict=True))
-    magnitude = sqrt(sum(x * x for x in a)) * sqrt(sum(x * x for x in b))
-    if magnitude == 0:
-        return 0.0
-    return dot / magnitude
-
-
-def _recency_blend(
-    hit: ScoredMemory, now: datetime, *, half_life_seconds: float, recency_weight: float
-) -> float:
-    """The similarity-and-recency convex blend shared by the recency-aware policies.
-
-    ``(1 - recency_weight) * similarity + recency_weight * recency``, where ``recency`` is the
-    exponential decay ``0.5 ** (age / half_life)`` over an age floored at 0, so a future-dated
-    record (clock skew or a corrupt/hand-inserted row) is treated as maximally recent, cannot
-    outweigh a fresh one, and keeps the exponent non-positive so ``0.5 ** x`` never overflows.
-    """
-    age_seconds = max(0.0, (now - hit.record.at).total_seconds())
-    recency = 0.5 ** (age_seconds / half_life_seconds)
-    return (1.0 - recency_weight) * hit.score + recency_weight * recency
-
-
-def _redundancy(hit: ScoredMemory, kept: Sequence[ScoredMemory]) -> float:
-    """A hit's greatest embedding cosine to an already-kept hit; 0.0 for an empty kept set.
-
-    A zero-magnitude embedding is cosine 0.0 to everything (``_cosine``), so it is never redundant.
-    """
-    return max(
-        (_cosine(hit.record.embedding, other.record.embedding) for other in kept),
-        default=0.0,
-    )
-
-
-def _greedy_mmr(
-    hits: Sequence[ScoredMemory],
-    k: int,
-    marginal: Callable[[ScoredMemory, Sequence[ScoredMemory]], float],
-) -> tuple[ScoredMemory, ...]:
-    """Greedily keep the ``k`` hits of highest marginal score, recomputed against what is kept.
-
-    ``marginal(hit, kept)`` scores a candidate given the current kept set. Candidates are scanned in
-    the store's similarity order and only a strict improvement displaces the incumbent, so a tie
-    keeps that order (e.g. the all-zero redundancy of the first pick keeps the most-similar hit).
-    """
-    remaining = list(hits)
-    kept: list[ScoredMemory] = []
-    while remaining and len(kept) < k:
-        best = max(remaining, key=lambda hit: marginal(hit, kept))
-        kept.append(best)
-        remaining.remove(best)
-    return tuple(kept)
+from cortex_core.ranking import RankBasis, RankedMemory, Ranking
+from cortex_core.rerank_math import cosine, greedy_mmr, recency_blend, redundancy
 
 
 class RerankingRecallPolicy:
     """Blend similarity with recency over a wider pool, drop near-duplicates, truncate to ``k``.
 
     ``candidate_k`` over-fetches ``k * pool_factor`` candidates. ``select`` scores each hit by its
-    ``_recency_blend``, sorts by that blend (stable, so equal-blend ties keep the store's
+    ``recency_blend``, sorts by that blend (stable, so equal-blend ties keep the store's
     similarity order), greedily drops a hit whose embedding cosine to an already-kept hit is
     ``>= dedup_threshold`` (identical text roundtrips to cosine 1.0, so exact duplicates and their
     paraphrases fall out), and returns the top ``k``. Each emitted ``ScoredMemory.score`` stays the
@@ -112,20 +62,24 @@ class RerankingRecallPolicy:
         """Over-fetch a pool ``pool_factor`` times wider than the returned ``k``."""
         return k * self._pool_factor
 
-    def select(
-        self, hits: Sequence[ScoredMemory], *, now: datetime, k: int
-    ) -> Sequence[ScoredMemory]:
+    async def select(
+        self, hits: Sequence[ScoredMemory], *, query: str, now: datetime, k: int
+    ) -> Ranking:
         """Rerank by the similarity+recency blend, drop near-duplicates, keep the top ``k``."""
+        del query  # a geometric policy never reads the question
         ranked = sorted(hits, key=lambda hit: self._relevance(hit, now), reverse=True)
         kept: list[ScoredMemory] = []
         for hit in ranked:
             if not any(self._is_duplicate(hit, other) for other in kept):
                 kept.append(hit)
-        return tuple(kept[:k])
+        return Ranking(
+            hits=tuple(RankedMemory(hit=hit, key=self._relevance(hit, now)) for hit in kept[:k]),
+            basis=RankBasis.EMBER,
+        )
 
     def _relevance(self, hit: ScoredMemory, now: datetime) -> float:
         """The blended rank key: similarity discounted toward its recency."""
-        return _recency_blend(
+        return recency_blend(
             hit,
             now,
             half_life_seconds=self._half_life_seconds,
@@ -134,7 +88,7 @@ class RerankingRecallPolicy:
 
     def _is_duplicate(self, hit: ScoredMemory, other: ScoredMemory) -> bool:
         """True when two hits' embeddings are within the dedup cosine threshold."""
-        return _cosine(hit.record.embedding, other.record.embedding) >= self._dedup_threshold
+        return cosine(hit.record.embedding, other.record.embedding) >= self._dedup_threshold
 
 
 class MmrRecallPolicy:
@@ -143,11 +97,11 @@ class MmrRecallPolicy:
     Threshold dedup (``RerankingRecallPolicy``) only removes *near*-identical hits; a pool of
     distinct-but-redundant memories (several phrasings of one fact, each below the dedup cosine)
     still crowds out the rest, so the turn sees one region of the query's neighborhood ``k`` times.
-    MMR instead penalizes *every* candidate by its ``_redundancy`` to what is kept, so the returned
+    MMR instead penalizes *every* candidate by its ``redundancy`` to what is kept, so the returned
     ``k`` spread across the neighborhood (ADR-0008 rerank addendum, diversity past threshold dedup).
 
     ``candidate_k`` over-fetches ``k * pool_factor``. ``select`` builds the result greedily via
-    ``_greedy_mmr``, each step maximizing ``relevance_weight * similarity - (1 - relevance_weight) *
+    ``greedy_mmr``, each step maximizing ``relevance_weight * similarity - (1 - relevance_weight) *
     redundancy`` where ``similarity`` is the hit's raw cosine (the store's score).
     ``relevance_weight`` is the MMR ``lambda``: ``1.0`` is pure relevance (top-``k`` by score,
     degenerating to ``RawRecallPolicy`` order), ``0.0`` pure diversity after the first pick. Each
@@ -169,16 +123,16 @@ class MmrRecallPolicy:
         """Over-fetch a pool ``pool_factor`` times wider than the returned ``k``."""
         return k * self._pool_factor
 
-    def select(
-        self, hits: Sequence[ScoredMemory], *, now: datetime, k: int
-    ) -> Sequence[ScoredMemory]:
+    async def select(
+        self, hits: Sequence[ScoredMemory], *, query: str, now: datetime, k: int
+    ) -> Ranking:
         """Greedily keep the ``k`` hits of highest marginal relevance (relevance less penalty)."""
-        del now  # MMR weighs relevance against diversity, not age
-        return _greedy_mmr(hits, k, self._marginal_relevance)
+        del query, now  # MMR weighs relevance against diversity, not the question or age
+        return Ranking(hits=greedy_mmr(hits, k, self._marginal_relevance), basis=RankBasis.SPREAD)
 
     def _marginal_relevance(self, hit: ScoredMemory, kept: Sequence[ScoredMemory]) -> float:
         """The MMR objective: query-relevance discounted by redundancy against what is kept."""
-        penalty = (1.0 - self._relevance_weight) * _redundancy(hit, kept)
+        penalty = (1.0 - self._relevance_weight) * redundancy(hit, kept)
         return self._relevance_weight * hit.score - penalty
 
 
@@ -188,13 +142,13 @@ class RecencyMmrRecallPolicy:
     ``MmrRecallPolicy`` diversifies on raw query-similarity and ``RerankingRecallPolicy`` weights
     recency; a memory that is fresh, on-topic, *and* non-redundant wants both axes at once. This
     policy composes them: the MMR greedy selection (penalize each candidate by its redundancy to
-    what is kept) run with the ``_recency_blend`` similarity-and-recency combination as the
+    what is kept) run with the ``recency_blend`` similarity-and-recency combination as the
     relevance term, so the returned ``k`` are recent, relevant, *and* spread across the query's
     neighborhood (ADR-0008 recency-and-diversity addendum).
 
     ``candidate_k`` over-fetches ``k * pool_factor``. ``select`` builds the result greedily via
-    ``_greedy_mmr``, each step maximizing ``relevance_weight * blend - (1 - relevance_weight) *
-    redundancy`` where ``blend`` is the hit's ``_recency_blend`` relevance. ``relevance_weight`` is
+    ``greedy_mmr``, each step maximizing ``relevance_weight * blend - (1 - relevance_weight) *
+    redundancy`` where ``blend`` is the hit's ``recency_blend`` relevance. ``relevance_weight`` is
     the MMR ``lambda`` (relevance vs diversity); ``recency_weight`` is the blend's recency share.
     Each emitted ``ScoredMemory.score`` stays the raw cosine, as the other reranking policies.
     """
@@ -228,21 +182,25 @@ class RecencyMmrRecallPolicy:
         """Over-fetch a pool ``pool_factor`` times wider than the returned ``k``."""
         return k * self._pool_factor
 
-    def select(
-        self, hits: Sequence[ScoredMemory], *, now: datetime, k: int
-    ) -> Sequence[ScoredMemory]:
+    async def select(
+        self, hits: Sequence[ScoredMemory], *, query: str, now: datetime, k: int
+    ) -> Ranking:
         """Greedily keep the ``k`` of highest recency-blended marginal relevance."""
-        return _greedy_mmr(hits, k, lambda hit, kept: self._marginal_relevance(hit, kept, now))
+        del query  # a geometric policy never reads the question
+        return Ranking(
+            hits=greedy_mmr(hits, k, lambda hit, kept: self._marginal_relevance(hit, kept, now)),
+            basis=RankBasis.SWEEP,
+        )
 
     def _marginal_relevance(
         self, hit: ScoredMemory, kept: Sequence[ScoredMemory], now: datetime
     ) -> float:
         """The MMR objective with the similarity-and-recency blend as the relevance term."""
-        relevance = _recency_blend(
+        relevance = recency_blend(
             hit,
             now,
             half_life_seconds=self._half_life_seconds,
             recency_weight=self._recency_weight,
         )
-        penalty = (1.0 - self._relevance_weight) * _redundancy(hit, kept)
+        penalty = (1.0 - self._relevance_weight) * redundancy(hit, kept)
         return self._relevance_weight * relevance - penalty

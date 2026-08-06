@@ -1,5 +1,6 @@
 """Behavior of the RecallPolicy seam: raw top-k, recency reranking, dedup, and MMR diversity."""
 
+from collections.abc import Sequence
 from datetime import UTC, datetime, timedelta
 
 import pytest
@@ -8,7 +9,10 @@ from cortex_core import (
     RAW_RECALL_POLICY,
     MemoryRecord,
     MmrRecallPolicy,
+    RankBasis,
+    Ranking,
     RawRecallPolicy,
+    RecallPolicy,
     RecencyMmrRecallPolicy,
     RerankingRecallPolicy,
     ScoredMemory,
@@ -43,51 +47,65 @@ def _reranker(
     )
 
 
+async def _kept(policy: RecallPolicy, hits: Sequence[ScoredMemory], *, k: int) -> Sequence[str]:
+    """The memory ids a policy keeps, in order: the shape these tests pinned before ``select``
+    widened to a ``Ranking`` (ADR-0038), so order and membership stay asserted exactly as they were.
+    """
+    return [ranked.hit.record.id for ranked in (await _rank(policy, hits, k=k)).hits]
+
+
+async def _rank(policy: RecallPolicy, hits: Sequence[ScoredMemory], *, k: int) -> Ranking:
+    """The whole ranking a policy returns, for the assertions about keys and basis."""
+    return await policy.select(hits, query="what did we say?", now=_NOW, k=k)
+
+
 def test_raw_policy_fetches_exactly_k() -> None:
     assert RAW_RECALL_POLICY.candidate_k(5) == 5
 
 
-def test_raw_policy_keeps_store_order_truncated_to_k() -> None:
+async def test_raw_policy_keeps_store_order_truncated_to_k() -> None:
     hits = [_hit("a", 0.9, (1.0, 0.0)), _hit("b", 0.5, (0.0, 1.0)), _hit("c", 0.1, (1.0, 1.0))]
-    kept = RawRecallPolicy().select(hits, now=_NOW, k=2)
-    assert [hit.record.id for hit in kept] == ["a", "b"]  # order unchanged, truncated
+    kept = await _kept(RawRecallPolicy(), hits, k=2)
+    assert kept == ["a", "b"]  # order unchanged, truncated
 
 
 def test_reranking_over_fetches_a_wider_pool() -> None:
     assert _reranker(pool_factor=4).candidate_k(5) == 20
 
 
-def test_reranking_prefers_a_recent_hit_over_a_slightly_more_similar_stale_one() -> None:
+async def test_reranking_prefers_a_recent_hit_over_a_slightly_more_similar_stale_one() -> None:
     fresh = _hit("fresh", 0.90, (1.0, 0.0), age_days=0.0)
     stale = _hit("stale", 0.92, (0.0, 1.0), age_days=400.0)
-    kept = _reranker(recency_weight=0.5).select([stale, fresh], now=_NOW, k=2)
-    assert [hit.record.id for hit in kept] == ["fresh", "stale"]  # recency lifts fresh above stale
-    assert kept[0].score == 0.90  # the reported score stays the raw cosine, not the blend
+    ranking = await _rank(_reranker(recency_weight=0.5), [stale, fresh], k=2)
+    assert [ranked.hit.record.id for ranked in ranking.hits] == ["fresh", "stale"]
+    assert ranking.hits[0].hit.score == 0.90  # the reported score stays the raw cosine
+    assert ranking.basis is RankBasis.EMBER  # and the blend is the rank key, named
+    assert ranking.hits[0].key > ranking.hits[1].key
 
 
-def test_reranking_drops_a_near_duplicate_keeping_the_higher_ranked() -> None:
+async def test_reranking_drops_a_near_duplicate_keeping_the_higher_ranked() -> None:
     keep = _hit("keep", 0.90, (1.0, 0.0))
     dupe = _hit("dupe", 0.85, (1.0, 0.0))  # identical embedding -> cosine 1.0 >= threshold
     other = _hit("other", 0.80, (0.0, 1.0))  # orthogonal -> not a duplicate
-    kept = _reranker().select([keep, dupe, other], now=_NOW, k=3)
-    assert [hit.record.id for hit in kept] == ["keep", "other"]  # dupe pruned, other survives
+    kept = await _kept(_reranker(), [keep, dupe, other], k=3)
+    assert kept == ["keep", "other"]  # dupe pruned, other survives
 
 
-def test_reranking_truncates_to_k_after_dedup() -> None:
+async def test_reranking_truncates_to_k_after_dedup() -> None:
     hits = [_hit(f"m{i}", 0.9 - i * 0.1, (float(i + 1), 1.0)) for i in range(4)]
-    assert len(_reranker().select(hits, now=_NOW, k=2)) == 2
+    assert len(await _kept(_reranker(), hits, k=2)) == 2
 
 
-def test_reranking_clamps_a_future_dated_record() -> None:
+async def test_reranking_clamps_a_future_dated_record() -> None:
     # A future ``at`` (clock skew) would make an unclamped decay exceed 1 and lift a less-similar
     # hit above a fresh one; the clamp caps recency at 1.0, so similarity decides the tie.
     future = _hit("future", 0.40, (1.0, 0.0), age_days=-10.0)
     now = _hit("now", 0.60, (0.0, 1.0), age_days=0.0)
-    kept = _reranker(recency_weight=0.5).select([future, now], now=_NOW, k=2)
-    assert [hit.record.id for hit in kept] == ["now", "future"]
+    kept = await _kept(_reranker(recency_weight=0.5), [future, now], k=2)
+    assert kept == ["now", "future"]
 
 
-def test_reranking_survives_a_far_future_record_without_overflow() -> None:
+async def test_reranking_survives_a_far_future_record_without_overflow() -> None:
     # A record dated far enough ahead (large clock skew or a corrupt/hand-inserted row) drives the
     # age hugely negative; flooring it at 0 keeps the exponent non-positive, so `0.5 ** x` never
     # overflows to OverflowError (which would crash the whole turn). An aggressive sub-day half-life
@@ -97,21 +115,21 @@ def test_reranking_survives_a_far_future_record_without_overflow() -> None:
         "far", 0.30, (1.0, 0.0), age_days=-2_800_000.0
     )  # ~7,600 years ahead (< datetime.max)
     now = _hit("now", 0.40, (0.0, 1.0), age_days=0.0)
-    kept = _reranker(half_life_days=0.5, recency_weight=0.5).select([far, now], now=_NOW, k=2)
-    assert [hit.record.id for hit in kept] == ["now", "far"]  # no overflow; higher similarity wins
+    kept = await _kept(_reranker(half_life_days=0.5, recency_weight=0.5), [far, now], k=2)
+    assert kept == ["now", "far"]  # no overflow; higher similarity wins
 
 
-def test_reranking_never_dedups_a_degenerate_zero_embedding() -> None:
+async def test_reranking_never_dedups_a_degenerate_zero_embedding() -> None:
     # A zero-magnitude embedding scores cosine 0.0 against everything, so two of them are never
     # treated as duplicates (exercises the no-magnitude guard).
     z1 = _hit("z1", 0.5, (0.0, 0.0))
     z2 = _hit("z2", 0.4, (0.0, 0.0))
-    kept = _reranker().select([z1, z2], now=_NOW, k=5)
-    assert {hit.record.id for hit in kept} == {"z1", "z2"}
+    kept = await _kept(_reranker(), [z1, z2], k=5)
+    assert set(kept) == {"z1", "z2"}
 
 
-def test_reranking_of_an_empty_pool_is_empty() -> None:
-    assert _reranker().select([], now=_NOW, k=5) == ()
+async def test_reranking_of_an_empty_pool_is_empty() -> None:
+    assert await _kept(_reranker(), [], k=5) == []
 
 
 def test_reranking_rejects_a_non_positive_half_life() -> None:
@@ -142,36 +160,37 @@ def test_mmr_over_fetches_a_wider_pool() -> None:
     assert _mmr(pool_factor=4).candidate_k(5) == 20
 
 
-def test_mmr_prefers_a_diverse_hit_over_a_more_similar_redundant_one() -> None:
+async def test_mmr_prefers_a_diverse_hit_over_a_more_similar_redundant_one() -> None:
     # `b` is more similar to the query than `c` (0.88 > 0.80) and is NOT a near-duplicate of the
     # top hit (cosine 0.707 sits below any sane dedup cutoff, so threshold dedup keeps it), yet MMR
     # still prefers the orthogonal `c` for its second pick: diversity beyond dedup.
     top = _hit("top", 0.90, (1.0, 0.0))
     redundant = _hit("redundant", 0.88, (1.0, 1.0))  # cosine 0.707 to top: similar, not a dupe
     diverse = _hit("diverse", 0.80, (0.0, 1.0))  # orthogonal to top
-    kept = _mmr(relevance_weight=0.5).select([top, redundant, diverse], now=_NOW, k=2)
-    assert [hit.record.id for hit in kept] == ["top", "diverse"]
-    assert kept[0].score == 0.90  # the reported score stays the raw cosine, not the MMR objective
+    ranking = await _rank(_mmr(relevance_weight=0.5), [top, redundant, diverse], k=2)
+    assert [ranked.hit.record.id for ranked in ranking.hits] == ["top", "diverse"]
+    assert ranking.hits[0].hit.score == 0.90  # the reported score stays the raw cosine
+    assert ranking.basis is RankBasis.SPREAD
 
 
-def test_mmr_with_full_relevance_weight_is_top_k_by_score() -> None:
+async def test_mmr_with_full_relevance_weight_is_top_k_by_score() -> None:
     # relevance_weight 1.0 zeroes the diversity penalty, so MMR degenerates to raw top-k order.
     hits = [_hit("a", 0.90, (1.0, 0.0)), _hit("b", 0.88, (1.0, 1.0)), _hit("c", 0.80, (0.0, 1.0))]
-    kept = _mmr(relevance_weight=1.0).select(hits, now=_NOW, k=3)
-    assert [hit.record.id for hit in kept] == ["a", "b", "c"]
+    kept = await _kept(_mmr(relevance_weight=1.0), hits, k=3)
+    assert kept == ["a", "b", "c"]
 
 
-def test_mmr_returns_all_when_the_pool_is_smaller_than_k() -> None:
+async def test_mmr_returns_all_when_the_pool_is_smaller_than_k() -> None:
     hits = [_hit("a", 0.90, (1.0, 0.0)), _hit("b", 0.80, (0.0, 1.0))]
-    kept = _mmr().select(hits, now=_NOW, k=5)
-    assert [hit.record.id for hit in kept] == ["a", "b"]  # pool exhausted before k, both kept
+    kept = await _kept(_mmr(), hits, k=5)
+    assert kept == ["a", "b"]  # pool exhausted before k, both kept
 
 
-def test_mmr_of_an_empty_pool_is_empty() -> None:
-    assert _mmr().select([], now=_NOW, k=5) == ()
+async def test_mmr_of_an_empty_pool_is_empty() -> None:
+    assert await _kept(_mmr(), [], k=5) == []
 
 
-def test_mmr_never_counts_a_degenerate_zero_embedding_as_redundant() -> None:
+async def test_mmr_never_counts_a_degenerate_zero_embedding_as_redundant() -> None:
     # A zero-magnitude embedding scores cosine 0.0 against everything (the no-magnitude guard), so
     # it is never penalized as redundant. `zero` takes the last slot over the more-similar
     # `redundant` because `redundant` overlaps the already-kept `top` (cosine 1.0, marginal
@@ -180,8 +199,8 @@ def test_mmr_never_counts_a_degenerate_zero_embedding_as_redundant() -> None:
     top = _hit("top", 0.90, (1.0, 0.0))
     redundant = _hit("redundant", 0.70, (1.0, 0.0))  # cosine 1.0 to top: penalized
     zero = _hit("zero", 0.60, (0.0, 0.0))  # zero magnitude: cosine 0.0 to all, so never penalized
-    kept = _mmr(relevance_weight=0.5).select([top, redundant, zero], now=_NOW, k=2)
-    assert [hit.record.id for hit in kept] == ["top", "zero"]  # zero beats the redundant hit
+    kept = await _kept(_mmr(relevance_weight=0.5), [top, redundant, zero], k=2)
+    assert kept == ["top", "zero"]  # zero beats the redundant hit
 
 
 def test_mmr_rejects_a_relevance_weight_out_of_range() -> None:
@@ -213,42 +232,43 @@ def test_recency_mmr_over_fetches_a_wider_pool() -> None:
     assert _recency_mmr(pool_factor=4).candidate_k(5) == 20
 
 
-def test_recency_mmr_prefers_a_recent_hit_for_the_first_pick() -> None:
+async def test_recency_mmr_prefers_a_recent_hit_for_the_first_pick() -> None:
     # The first pick has an empty kept set (redundancy 0 for all), so it is pure recency-blended
     # relevance: the fresher hit wins even though the stale one is slightly more similar.
     fresh = _hit("fresh", 0.80, (1.0, 0.0), age_days=0.0)
     stale = _hit("stale", 0.85, (0.0, 1.0), age_days=400.0)
-    kept = _recency_mmr(recency_weight=0.5).select([stale, fresh], now=_NOW, k=2)
-    assert [hit.record.id for hit in kept] == ["fresh", "stale"]  # recency lifts fresh above stale
-    assert kept[0].score == 0.80  # the reported score stays the raw cosine, not the blend
+    ranking = await _rank(_recency_mmr(recency_weight=0.5), [stale, fresh], k=2)
+    assert [ranked.hit.record.id for ranked in ranking.hits] == ["fresh", "stale"]
+    assert ranking.hits[0].hit.score == 0.80  # the reported score stays the raw cosine
+    assert ranking.basis is RankBasis.SWEEP
 
 
-def test_recency_mmr_prefers_a_diverse_hit_over_a_redundant_one() -> None:
+async def test_recency_mmr_prefers_a_diverse_hit_over_a_redundant_one() -> None:
     # Equal ages neutralize recency, so the diversity axis decides the second pick: MMR still
     # prefers the orthogonal `diverse` over the more-similar `redundant`, as `MmrRecallPolicy` does.
     top = _hit("top", 0.90, (1.0, 0.0))
     redundant = _hit("redundant", 0.88, (1.0, 1.0))  # cosine 0.707 to top: similar, not a dupe
     diverse = _hit("diverse", 0.80, (0.0, 1.0))  # orthogonal to top
-    kept = _recency_mmr().select([top, redundant, diverse], now=_NOW, k=2)
-    assert [hit.record.id for hit in kept] == ["top", "diverse"]
+    kept = await _kept(_recency_mmr(), [top, redundant, diverse], k=2)
+    assert kept == ["top", "diverse"]
 
 
-def test_recency_mmr_with_full_relevance_weight_is_recency_blended_top_k() -> None:
+async def test_recency_mmr_with_full_relevance_weight_is_recency_blended_top_k() -> None:
     # relevance_weight 1.0 zeroes the diversity penalty, so a redundant hit is kept on relevance
     # alone; with equal ages the recency blend is monotonic in score, so this is top-k by score.
     hits = [_hit("a", 0.90, (1.0, 0.0)), _hit("b", 0.88, (1.0, 0.0)), _hit("c", 0.80, (0.0, 1.0))]
-    kept = _recency_mmr(relevance_weight=1.0).select(hits, now=_NOW, k=3)
-    assert [hit.record.id for hit in kept] == ["a", "b", "c"]  # `b` kept despite duplicating `a`
+    kept = await _kept(_recency_mmr(relevance_weight=1.0), hits, k=3)
+    assert kept == ["a", "b", "c"]  # `b` kept despite duplicating `a`
 
 
-def test_recency_mmr_returns_all_when_the_pool_is_smaller_than_k() -> None:
+async def test_recency_mmr_returns_all_when_the_pool_is_smaller_than_k() -> None:
     hits = [_hit("a", 0.90, (1.0, 0.0)), _hit("b", 0.80, (0.0, 1.0))]
-    kept = _recency_mmr().select(hits, now=_NOW, k=5)
-    assert [hit.record.id for hit in kept] == ["a", "b"]  # pool exhausted before k, both kept
+    kept = await _kept(_recency_mmr(), hits, k=5)
+    assert kept == ["a", "b"]  # pool exhausted before k, both kept
 
 
-def test_recency_mmr_of_an_empty_pool_is_empty() -> None:
-    assert _recency_mmr().select([], now=_NOW, k=5) == ()
+async def test_recency_mmr_of_an_empty_pool_is_empty() -> None:
+    assert await _kept(_recency_mmr(), [], k=5) == []
 
 
 def test_recency_mmr_rejects_a_non_positive_half_life() -> None:
@@ -269,3 +289,27 @@ def test_recency_mmr_rejects_a_relevance_weight_out_of_range() -> None:
 def test_recency_mmr_rejects_a_pool_factor_below_one() -> None:
     with pytest.raises(ValueError, match="pool_factor must be at least 1"):
         _recency_mmr(pool_factor=0)
+
+
+async def test_raw_policy_keys_each_hit_by_the_stores_own_cosine() -> None:
+    hits = [_hit("a", 0.9, (1.0, 0.0)), _hit("b", 0.5, (0.0, 1.0))]
+    ranking = await _rank(RawRecallPolicy(), hits, k=2)
+    assert ranking.basis is RankBasis.ECHO
+    assert [ranked.key for ranked in ranking.hits] == [0.9, 0.5]
+
+
+def test_only_the_order_dependent_bases_refuse_comparison() -> None:
+    """The family's structure IS the finding: an MMR key was measured against the kept set."""
+    comparable = {basis for basis in RankBasis if basis.comparable}
+    assert comparable == {RankBasis.ECHO, RankBasis.EMBER, RankBasis.VERDICT}
+    assert not RankBasis.SPREAD.comparable
+    assert not RankBasis.SWEEP.comparable
+
+
+async def test_an_mmr_key_falls_as_the_kept_set_grows() -> None:
+    """Why SPREAD is incomparable: the second pick is scored against a non-empty kept set."""
+    top = _hit("top", 0.90, (1.0, 0.0))
+    redundant = _hit("redundant", 0.85, (1.0, 0.0))
+    ranking = await _rank(_mmr(relevance_weight=0.5), [top, redundant], k=2)
+    assert ranking.hits[0].key == pytest.approx(0.45)  # 0.5 * 0.90, nothing kept yet
+    assert ranking.hits[1].key == pytest.approx(0.5 * 0.85 - 0.5 * 1.0)  # penalised by `top`

@@ -54,11 +54,17 @@ Config (pydantic-settings; explicit constructor arguments beat the environment):
   `embedder_endpoint: str = ""` (`CORTEX_MEMORY_EMBEDDER_ENDPOINT`), `embedder_model: str`
   (`CORTEX_MEMORY_EMBEDDER_MODEL`), `scope: "global" | "session" = "global"`
   (`CORTEX_MEMORY_SCOPE`, scoping addendum), `on_tainted: "skip" | "record" = "skip"`
-  (`CORTEX_MEMORY_ON_TAINTED`, ADR-0019), and `recall: "raw" | "reranked" | "mmr" | "recency_mmr" =
-  "raw"` (`CORTEX_MEMORY_RECALL`, rerank + MMR + recency-and-diversity addenda) with its
+  (`CORTEX_MEMORY_ON_TAINTED`, ADR-0019), and `recall: "raw" | "reranked" | "mmr" | "recency_mmr" |
+  "judge" = "raw"` (`CORTEX_MEMORY_RECALL`, rerank + MMR + recency-and-diversity addenda,
+  ADR-0038) with its
   `recall_half_life_days` (30), `recall_recency_weight` (0.3), `recall_dedup_threshold` (0.98),
   `recall_pool_factor` (4), and `recall_mmr_lambda` (0.5, the MMR relevance-vs-diversity dial) tuning
-  knobs (`recency_mmr` reuses the recency and lambda knobs). Validates that
+  knobs (`recency_mmr` reuses the recency and lambda knobs, `judge` reuses the pool factor), plus
+  `recall_audit: bool = False` (`CORTEX_MEMORY_RECALL_AUDIT`, ADR-0038) attaching the structured
+  recall trail. `recall_policy_from_config(config, backend, cortex_model)` maps the string to the
+  policy (the model rank is a policy over the inference port, which is why `build_memory` now takes
+  that port and the cortex id) and `recall_audit_from_config(config)` maps the flag to
+  `LoggingRecallSink` or to `None`. Validates that
   `pgvector` has both a DSN and an embedder endpoint. Set by `docker/docker-compose.memory.yml`.
 - `ToolsConfig` uses env prefix `CORTEX_TOOLS_`, nested delimiter `__` (`config_tools.py`, split
   off at `config.py`'s line cap as the third dispatch declaration landed; ADR-0009 + refinements

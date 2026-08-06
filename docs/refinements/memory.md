@@ -2,7 +2,7 @@
 
 Deferred refinements from the Slice 5 memory work under [ADR-0008](../adr/ADR-0008-memory-v1.md): the memory store, its scoping seam, and the pure-core recall policies. Extracted from the ROADMAP's deferred-refinements section on 2026-07-15 with the entries kept verbatim; landed entries are the historical record of what each deferral became, and the index at [index.md](index.md) carries the recommended pickup order.
 
-**Open items:** session+global union read policy, per-scope retention/eviction, cross-scope recall ranking, tiered / self-editing memory + summarization, model-based reranker, write-salience policy, recall observability, ANN index
+**Open items:** session+global union read policy, per-scope retention/eviction, cross-scope recall ranking, tiered / self-editing memory + summarization, write-salience policy, ANN index
 
 **Memory in Slice 5 ([ADR-0008](../adr/ADR-0008-memory-v1.md)):**
 - **Per-session / namespaced scoping landed 2026-07-06 ([ADR-0008 scoping addendum](../adr/ADR-0008-memory-v1.md)).**
@@ -168,3 +168,36 @@ Deferred refinements from the Slice 5 memory work under [ADR-0008](../adr/ADR-00
   something visibly wrong and the ranking cannot be inspected after the fact.
 - **ANN index.** Exact cosine now; an approximate index would need a migration, per
   [ADR-0004](../adr/ADR-0004-model-lineup.md).
+- **The model-based reranker, the declined blended-relevance field, and recall observability all
+  landed together 2026-08-06 ([ADR-0038](../adr/ADR-0038-ranked-recall.md)), which is what the
+  audit above said they would have to do.** `RecallPolicy.select` was widened once, for all three:
+  it is now `async def select(hits, *, query, now, k) -> Ranking`. **The blended-relevance decline
+  is reversed**, and the reversal is about placement rather than verdict: the key a policy ranked by
+  is `RankedMemory.key` on the policy's own return, never a second field on `ScoredMemory`, which
+  keeps the store's score meaning the raw cosine exactly as that close insisted. The
+  no-single-blend finding is answered rather than dodged by `RankBasis` (`ECHO`, `EMBER`, `SPREAD`,
+  `SWEEP`, `VERDICT`), whose `comparable` property carries the close's own discovery that an MMR key
+  is measured against the kept set and so means nothing beside another. **Recall observability** is
+  the `RecallAuditSink` port plus `LoggingRecallSink` (`cortex_memory/audit.py`), one structured
+  line per recall carrying the pool size, the basis, and each kept hit's id, score, key and taint
+  bit, and deliberately no text at all, the tool audit's stance on result bytes applied to
+  conversation content. `CORTEX_MEMORY_RECALL_AUDIT=1` turns it on. **The model rank** is
+  `JudgeRecallPolicy` (`rerank_judge.py`, `CORTEX_MEMORY_RECALL=judge`), which sends the
+  over-fetched pool to the resident cortex as a numbered list under a JSON-schema-constrained
+  request and falls back to another policy on any failure to reach or believe it, the emitted basis
+  then being the fallback's so the trail says what actually ranked. **Measured against the cosine
+  that ships**, on ten notes and six questions worded so the answer shares no vocabulary with the
+  question while a distractor shares plenty: mean reciprocal rank 0.917 to 1.000, the correct note
+  placed first 5 of 6 times against 6 of 6, no fallbacks, and the judge returned *fewer* than `k`
+  because it drops notes that do not help, which is a larger win in the turn's context than in the
+  ranking. It costs a full cortex generation per recall, so the default stays `raw`. **Two claims of
+  the audited entries did not hold.** Both name `_inference_messages` in `engine.py` as the caller,
+  a method that no longer exists (it is `MemoryRecaller.recall` in `recall.py` for this port, still
+  `async`, so the substance held); and neither noticed that **`select` did not carry the query**, so
+  the widening was three changes rather than two, which is the one place their cost estimate was
+  too small. Still open here: a **cross-encoder** rank, which is the other form of a model reranker
+  and wants a scoring-model port rather than a chat completion, so it is a new adapter and not a
+  policy (trigger: a measured shortfall of the judge on a real corpus, or a latency budget it
+  cannot meet); and **auditing the candidates that were dropped**, which `RecallAudit` does not
+  carry because a non-picked candidate's `SPREAD`/`SWEEP` key is not well defined (trigger: the
+  first investigation that needs to know why a specific memory was *not* returned).

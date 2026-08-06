@@ -16,6 +16,7 @@ from cortex_core.errors import InferenceError, ToolNotFoundError
 from cortex_core.inference import InferenceEvent, JsonSchema, TextChunk
 from cortex_core.memory import MemoryRecord, ScoredMemory
 from cortex_core.progress import ProgressEvent
+from cortex_core.ranking import RecallAudit
 from cortex_core.subagents import SubagentResult, SubagentTask
 from cortex_core.tools import ConfirmationRequest, ToolCall, ToolInvocation, ToolResult, ToolSpec
 
@@ -242,6 +243,27 @@ class RecordingProgressSink:
     def events(self) -> Sequence[ProgressEvent]:
         """The progress events emitted so far, in order."""
         return tuple(self._events)
+
+
+class RecordingRecallSink:
+    """RecallAuditSink that keeps audits in a list so tests can assert the recall trail.
+
+    The shipped adapter writes structured logs and deliberately drops the query and the recalled
+    text (ADR-0038 decision 5); this one keeps the whole audit, because a test asserting which key
+    a policy ranked by has to be able to read it back.
+    """
+
+    def __init__(self) -> None:
+        self._audits: list[RecallAudit] = []
+
+    async def record(self, audit: RecallAudit) -> None:
+        """Append one recall audit to the recorded trail."""
+        self._audits.append(audit)
+
+    @property
+    def audits(self) -> Sequence[RecallAudit]:
+        """The recalls audited so far, in order."""
+        return tuple(self._audits)
 
 
 class SystemClock:

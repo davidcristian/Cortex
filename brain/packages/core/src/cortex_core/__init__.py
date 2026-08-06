@@ -1,12 +1,9 @@
 """Cortex brain pure core: typed logic and ports, no I/O.
 
-A re-export barrel and nothing else: every name below is defined in a sibling module and
-listed here so consumers import the core's public surface from one place. Re-export is
-declared with the typing spec's redundant-alias form (``X as X``) rather than an ``__all__``
-list, because the list restated all 151 names a second time and that duplication, not the
-surface itself, is what pushed this file onto the 300-line cap (ADR-0009 cost addendum's
-recorded deferral). Both forms mean the same thing to pyright; this one says it once, so
-adding a public name costs one line instead of two.
+A re-export barrel and nothing else: one line per public name, via the typing spec's
+redundant-alias form (``X as X``) rather than an ``__all__`` list restating each name twice.
+The file is at its 300-line cap again now that the surface has outgrown what that halving
+bought, so the next name needs the split recorded in docs/refinements/repo-gates.md.
 """
 
 from cortex_core.aggregate import AggregateToolRegistry as AggregateToolRegistry
@@ -69,6 +66,7 @@ from cortex_core.fakes import InMemoryToolRegistry as InMemoryToolRegistry
 from cortex_core.fakes import RecordingAuditSink as RecordingAuditSink
 from cortex_core.fakes import RecordingConfirmer as RecordingConfirmer
 from cortex_core.fakes import RecordingProgressSink as RecordingProgressSink
+from cortex_core.fakes import RecordingRecallSink as RecordingRecallSink
 from cortex_core.fakes import SystemClock as SystemClock
 from cortex_core.fakes_body import CaptureAsk as CaptureAsk
 from cortex_core.fakes_body import InMemoryBodyGateway as InMemoryBodyGateway
@@ -131,6 +129,7 @@ from cortex_core.ports import MemoryStore as MemoryStore
 from cortex_core.ports import ModelHost as ModelHost
 from cortex_core.ports import ModelManager as ModelManager
 from cortex_core.ports import PreferenceStore as PreferenceStore
+from cortex_core.ports import RecallAuditSink as RecallAuditSink
 from cortex_core.ports import ResidencyController as ResidencyController
 from cortex_core.ports import ResidencyReporter as ResidencyReporter
 from cortex_core.ports import ScheduleStore as ScheduleStore
@@ -150,10 +149,15 @@ from cortex_core.provenance import Provenance as Provenance
 from cortex_core.provenance import SourceKind as SourceKind
 from cortex_core.provenance import as_source as as_source
 from cortex_core.provenance import claimed_source as claimed_source
+from cortex_core.ranking import RankBasis as RankBasis
+from cortex_core.ranking import RankedMemory as RankedMemory
+from cortex_core.ranking import Ranking as Ranking
+from cortex_core.ranking import RecallAudit as RecallAudit
 from cortex_core.recall import MemoryRecaller as MemoryRecaller
 from cortex_core.rerank import RAW_RECALL_POLICY as RAW_RECALL_POLICY
 from cortex_core.rerank import RawRecallPolicy as RawRecallPolicy
 from cortex_core.rerank import RecallPolicy as RecallPolicy
+from cortex_core.rerank_judge import JudgeRecallPolicy as JudgeRecallPolicy
 from cortex_core.rerank_policies import MmrRecallPolicy as MmrRecallPolicy
 from cortex_core.rerank_policies import RecencyMmrRecallPolicy as RecencyMmrRecallPolicy
 from cortex_core.rerank_policies import RerankingRecallPolicy as RerankingRecallPolicy

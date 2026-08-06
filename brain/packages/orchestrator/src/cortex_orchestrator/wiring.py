@@ -105,7 +105,9 @@ async def run_from_env(
     backend, close_backend = build_inference_backend(
         inference, runtime.cortex_model, manager=None if swap is None else swap.manager
     )
-    memory, memory_cascade, close_memory = await build_memory(memory_config, clock)
+    memory, memory_cascade, close_memory = await build_memory(
+        memory_config, clock, backend, runtime.cortex_model
+    )
     tool_registry, close_tools = build_tool_registry(tools_config)
     body, close_body = await build_body_gateway(body_config, token=seam_config.token)
     # The subagent dispatcher is assembled here so the user's gated-name backstop

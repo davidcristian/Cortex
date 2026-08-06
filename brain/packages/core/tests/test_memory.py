@@ -14,6 +14,10 @@ from cortex_core import (
     InMemoryMemoryStore,
     MemoryRecaller,
     MemoryRecord,
+    RankBasis,
+    RankedMemory,
+    Ranking,
+    RecordingRecallSink,
     ScoredMemory,
     SessionMemoryCascade,
     SessionMemoryScope,
@@ -299,16 +303,19 @@ class _SpyRecallPolicy:
     """A RecallPolicy that records how the recaller called it and returns only the first hit."""
 
     def __init__(self) -> None:
-        self.select_call: tuple[tuple[str, ...], datetime, int] | None = None
+        self.select_call: tuple[tuple[str, ...], str, datetime, int] | None = None
 
     def candidate_k(self, k: int) -> int:
         return k + 3  # ask for a wider pool than the caller's k, to observe the over-fetch
 
-    def select(
-        self, hits: Sequence[ScoredMemory], *, now: datetime, k: int
-    ) -> Sequence[ScoredMemory]:
-        self.select_call = (tuple(hit.record.id for hit in hits), now, k)
-        return tuple(hits[:1])
+    async def select(
+        self, hits: Sequence[ScoredMemory], *, query: str, now: datetime, k: int
+    ) -> Ranking:
+        self.select_call = (tuple(hit.record.id for hit in hits), query, now, k)
+        return Ranking(
+            hits=tuple(RankedMemory(hit=hit, key=hit.score) for hit in hits[:1]),
+            basis=RankBasis.VERDICT,
+        )
 
 
 async def test_recall_over_fetches_the_pool_and_applies_the_policy() -> None:
@@ -322,11 +329,46 @@ async def test_recall_over_fetches_the_pool_and_applies_the_policy() -> None:
         await recaller.record(f"fact {i}", session_id="s")
     hits = await recaller.recall("fact 0", k=2, session_id="s")
     assert spy.select_call is not None
-    pool_ids, now, k = spy.select_call
+    pool_ids, query, now, k = spy.select_call
     assert len(pool_ids) == 5  # candidate_k(2) == 5, so the store handed the policy 5 candidates
+    assert query == "fact 0"  # the query reaches the policy, which is what a model rank needs
     assert now == _AT  # the recaller passes clock.now() as the recall time
     assert k == 2
     assert len(hits) == 1  # the recaller returns exactly what the policy selected
+
+
+async def test_recall_audits_the_ranking_when_a_sink_is_wired() -> None:
+    """The trail the relevance-field decline had to write a throwaway script for (ADR-0038)."""
+    store = InMemoryMemoryStore()
+    sink = RecordingRecallSink()
+    ids = iter([f"m{i}" for i in range(3)])
+    recaller = MemoryRecaller(
+        store,
+        HashEmbedder(),
+        _FixedClock(),
+        policy=_SpyRecallPolicy(),
+        audit=sink,
+        id_factory=lambda: next(ids),
+    )
+    for i in range(3):
+        await recaller.record(f"fact {i}", session_id="s")
+    await recaller.recall("fact 0", k=1, session_id="s")
+    (audit,) = sink.audits
+    assert audit.session_id == "s"
+    assert audit.query == "fact 0"
+    assert audit.k == 1
+    assert audit.pool_size == 3  # the whole pool the policy chose from, not just what it kept
+    assert audit.at == _AT
+    assert audit.ranking.basis is RankBasis.VERDICT  # the basis that actually ranked
+    assert [ranked.hit.record.id for ranked in audit.ranking.hits] == ["m0"]
+
+
+async def test_recall_without_a_sink_records_nothing() -> None:
+    """The founding silent path: an unwired audit is not an empty trail, it is no trail."""
+    store = InMemoryMemoryStore()
+    recaller = MemoryRecaller(store, HashEmbedder(), _FixedClock(), id_factory=lambda: "m0")
+    await recaller.record("a fact", session_id="s")
+    assert len(await recaller.recall("a fact", k=1, session_id="s")) == 1
 
 
 async def test_session_scoped_recaller_does_not_cross_conversations() -> None:
