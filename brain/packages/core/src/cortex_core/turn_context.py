@@ -21,7 +21,12 @@ from cortex_core.progress import ProgressSink
 from cortex_core.provenance import SourceKind, as_source
 from cortex_core.recall import MemoryRecaller
 from cortex_core.tool_loop import ToolLoopContext
-from cortex_core.untrusted import TaintLedger, security_preamble_message, wrap_untrusted
+from cortex_core.untrusted import (
+    TaintLedger,
+    plain_security_preamble_message,
+    security_preamble_message,
+    wrap_untrusted,
+)
 from cortex_core.windowing import HistoryWindow
 
 # How many past memories to recall into a turn's context by default (ADR-0008).
@@ -111,21 +116,29 @@ async def assemble_inference_messages(
     decision 9). This whole assembly is awaited to completion before ``handle_turn`` iterates
     the reply's generator, so a window that calls the model releases the GPU lease before the
     reply asks for it. Memory recall runs next: a tainted recalled memory is
-    fenced and taints ``context.taint`` (ADR-0019). The untrusted-content ``SECURITY_PREAMBLE``
-    is prepended when tools are enabled (a tool-enabled turn can ingest untrusted content) OR a
-    tainted memory was recalled. The fence markers this assembly draws are therefore always
-    explained; the recalled memories follow it. A summarizing window's recap carries markers of
-    its own on a turn that may have neither tools nor taint, which is why it explains them in its
-    own text instead of relying on the preamble being there. All are derived fresh each turn,
-    handed only to the backend, never persisted. A bare turn (no tools, no memory, no window)
-    returns the history unchanged.
+    fenced and taints ``context.taint`` (ADR-0019). Exactly one standing rule then opens every
+    turn: the untrusted-content ``SECURITY_PREAMBLE`` when tools are enabled (a tool-enabled turn
+    can ingest untrusted content) OR a tainted memory was recalled, and the shorter
+    ``PLAIN_SECURITY_PREAMBLE`` otherwise. The fence markers this assembly draws are therefore
+    always explained by the rule that draws them, and the turn that draws none still carries the
+    clause that does the work there: a reply of the assistant's own that quoted hostile content is
+    replayed as ordinary history on every later turn, and a bare turn was measured obeying it
+    (ADR-0013 replayed-quotation addendum). The recalled memories follow the rule. A summarizing
+    window's recap carries markers of its own on a turn that may have neither tools nor taint,
+    which is why it explains them in its own text rather than relying on which rule is present.
+    All are derived fresh each turn, handed only to the backend, never persisted.
     """
     if caps.window is not None:
         history = await caps.window.select(history, session_id=context.session_id)
     memory = await _recalled_context(query, caps, context, clock)
     prefix: list[Message] = []
-    if caps.tools is not None or context.taint.tainted:
-        prefix.append(security_preamble_message(clock.now(), context.turn_id))
+    tool_shaped = caps.tools is not None or context.taint.tainted
+    at = clock.now()
+    prefix.append(
+        security_preamble_message(at, context.turn_id)
+        if tool_shaped
+        else plain_security_preamble_message(at, context.turn_id)
+    )
     if memory is not None:
         prefix.append(memory)
     return [*prefix, *history]
