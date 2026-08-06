@@ -46,7 +46,7 @@ the tree does now.
 
 | Doc | Area | Open |
 | --- | --- | --- |
-| [repo-gates.md](repo-gates.md) | Line cap (the core barrel came off it 2026-08-06, split into area sub-barrels under `cortex_core._surface` with every call site unmoved, ADR-0026), dashcheck, coverage config (ADR-0026), gate coverage of the ungated Rust trees and of the overlay's TypeScript (ADR-0011), the stylesheet still outside the cap, test-runner mechanics (ADR-0002) including the live pgvector run still sharing the brain's `memories` table (the live Redis runs got a database of their own 2026-08-03), the couplings the cross-language constant scan does not hold yet (ADR-0029) | 6 |
+| [repo-gates.md](repo-gates.md) | Line cap (the core barrel came off it 2026-08-06, split into area sub-barrels under `cortex_core._surface` with every call site unmoved, ADR-0026), dashcheck, coverage config (ADR-0026), gate coverage of the ungated Rust trees and of the overlay's TypeScript (ADR-0011), the stylesheet still outside the cap, test-runner mechanics (ADR-0002) including the live pgvector run still sharing the brain's `memories` table (the live Redis runs got a database of their own 2026-08-03), the couplings the cross-language constant scan does not hold yet (ADR-0029), and the compose bind defaults that land in the repo tree, whose two live cases were ignored 2026-08-06 while nothing checks for a third | 7 |
 | [seam-transport.md](seam-transport.md) | `BrainTransport` retry/reconnect (ADR-0003/0024) | 4 |
 | [seam-auth.md](seam-auth.md) | Seam token auth (ADR-0016) | 1 |
 | [session-history.md](session-history.md) | Slice 3 history windowing and summarization, the recap's fold made cheap 2026-08-06 (thinking off and a token cap per request, a floor under a fold, a chip while it runs) and `CORTEX_HISTORY_SUMMARY` moved to on, leaving the one-corpus measurement as the area's only open item (ADR-0014/0038) | 1 |
@@ -1257,6 +1257,18 @@ recommendation and not taken here, because the standing choice is the user's own
 things are still true: a rank runs on **every** recalling turn where a fold is cached per boundary
 move, and the corpus is ten notes and six questions hand built by the policy's author.
 
+Repo gates went **6 to 7 on 2026-08-06**, from two untracked directories rather than from any code.
+`models/` was sitting root-owned and empty at the repo root, created that morning by a container and
+matched by no ignore rule, and `pgdata/`, where the pg-backup sidecar writes `cortex.dump`, had
+carried the same exposure since that sidecar shipped. Both are ignored now, unanchored so that a
+bare `docker compose -f docker/docker-compose.memory.yml`, which resolves its binds against
+`docker/` rather than the repo root, is covered as well. What increments the cell is the class and
+not the two directories: a third default of the same shape, `${CORTEX_TOOLS_ROOT:-./sandbox}`, was
+already ignored, so the tree is clean by three separate acts of remembering rather than by anything
+that checks, and what these binds receive is GGUFs and database dumps rather than kilobytes. The
+deferral is the scan, and it is deferred rather than written because one built today would guard a
+set that is already correct ([repo-gates.md](repo-gates.md)).
+
 ## Recommended order
 
 Ordered by what unblocks the most value soonest. Before starting any item, verify its claims
@@ -2272,7 +2284,13 @@ disagreement). **Two of those three landed later the same day** with the truncat
 below: the scan reads TypeScript, and `TITLE_MAX` is its third registered constant. What is left is
 the comparator field, the copies that are not declarations, the TypeScript names whose far side is a
 CSS use, and `thinking` still being a bare literal rather than a named constant; the trigger is now
-just the first coupling that actually drifts ([repo-gates.md](repo-gates.md)).
+just the first coupling that actually drifts ([repo-gates.md](repo-gates.md)); and a compose bind
+default that lands in the repo tree being stageable, opened here on 2026-08-06 when the two live
+cases were ignored and the class was not, since `models/` and `pgdata/` are now matched at any
+depth and `./sandbox` always was, leaving the tree clean by three separate acts of remembering
+rather than by anything that checks, whose fix is a scan comparing the `${VAR:-./path}` bind
+defaults in `docker/*.yml` against `.gitignore` and whose trigger is the next override that adds
+one, a scan written today having nothing to catch ([repo-gates.md](repo-gates.md)).
 
 Four entries opened by the brain-handoff sub-slices were written up in their area docs and in the
 narrative above but had no line here until 2026-07-19, so nothing said when to pick them up.

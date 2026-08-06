@@ -29,3 +29,13 @@ gen/
 
 # Host-only MCP filesystem sandbox (docs/runbooks/tools-mcp.md)
 sandbox/
+
+# Compose bind targets that default into the repo tree. Both are written by root from
+# inside a container, and both are unbounded in size: pgdata/ receives the pg-backup
+# sidecar's cortex.dump (CORTEX_DB_DIR, docs/runbooks/memory-pgvector.md) and models/ is
+# where the GGUFs land when CORTEX_MODELS_DIR is left at its default. Unanchored on
+# purpose: a bare docker compose -f docker/docker-compose.memory.yml resolves the binds
+# against docker/ rather than the repo root, so docker/pgdata and docker/models are
+# reachable too.
+pgdata/
+models/
