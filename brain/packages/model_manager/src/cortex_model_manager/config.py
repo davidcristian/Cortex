@@ -78,14 +78,16 @@ class ModelHostConfig(BaseSettings):
     # runs; naming a file adds llama.cpp's --mmproj pair, and the brain then discovers the
     # capability from the running server's /props rather than from a second flag here.
     cortex_mmproj_file: str = Field(default="", validation_alias="CORTEX_MMPROJ_FILE_CORTEX")
-    # How many tokens one picture may occupy. Zero (the default) leaves the budget the model
-    # declares for itself, which on the shipped cortex saturates at 266 tokens and makes a 4K
-    # desktop's interface text unreadable below roughly 28 physical pixels. Raising it raises the
-    # resolution the projector keeps, and the measured recommendation is 1024 with a 2048 px
-    # capture (docs/runbooks/llamacpp-gpu.md). Ignored without a projector, since it is a budget
-    # for pictures and a text-only tier has none.
+    # How many tokens one picture may occupy, and with it how much of a 4K screen survives the
+    # downscale. Zero hands the budget back to the model, which declares 266 tokens on the cortex
+    # pick and reads 6 to 8 of 47 ground-truth strings off a 4K desktop, inventing most of the
+    # rest. 1024 is the default because the maintainer took the measured pair: with the brain
+    # asking for a 2048 px capture (CORTEX_BODY_CAPTURE_MAX_EDGE) it reads 36 to 38 of the same 47
+    # for about 400 MiB of VRAM, 0.6 s of time to first token, and 744 context tokens a capture
+    # (docs/runbooks/llamacpp-gpu.md). A deployment tighter on either sets it back to 0. Ignored
+    # without a projector, since it is a budget for pictures and a text-only tier has none.
     cortex_image_max_tokens: int = Field(
-        default=0, ge=0, validation_alias="CORTEX_IMAGE_MAX_TOKENS"
+        default=1024, ge=0, validation_alias="CORTEX_IMAGE_MAX_TOKENS"
     )
     cortex_ngl: int = Field(default=99, validation_alias="CORTEX_NGL")
     cortex_ctx_size: int = Field(default=16384, gt=0, validation_alias="CORTEX_CTX_SIZE")
@@ -159,7 +161,11 @@ class ModelHostConfig(BaseSettings):
         return ("--mmproj", path, *self._image_budget())
 
     def _image_budget(self) -> tuple[str, ...]:
-        """The per-image token budget, with the micro-batch a raised budget forces beside it."""
+        """The per-image token budget, with the micro-batch a raised budget forces beside it.
+
+        Zero emits nothing at all, so turning the default off restores an argv the engine's own
+        defaults decide, rather than one that names them back at it.
+        """
         budget = self.cortex_image_max_tokens
         if not budget:
             return ()

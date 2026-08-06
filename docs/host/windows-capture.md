@@ -92,9 +92,12 @@ fails, set `CORTEX_HOST_CAPTURE=0`, stop, and record it before doing anything el
 | Protected surfaces | A **black** rectangle where a hardware-overlay or DRM-protected surface was | The same thing, silently, with no error to distinguish it from a dark screen. This is expected behaviour to know rather than a bug to file |
 | Latency | Roughly 0.5 to 1 s over a text turn, dominated by the second inference pass | Materially worse, which points at the body rather than the model and is worth a number |
 
-One expectation that is not a failure: small text on a 4K display downscaled to 1600 px may be
-illegible. That is the slice's headline risk, and the first mitigation is llama.cpp's
-`--image-max-tokens`, a deployment flag with no code behind it.
+One expectation that is not a failure: small text on a 4K display may be illegible. That is the
+slice's headline risk, measured 2026-08-06 and mitigated by default since the same day. A stock
+deployment now captures at 2048 px and reads it at `CORTEX_IMAGE_MAX_TOKENS=1024`, which took a
+synthetic 4K corpus from 6 to 8 of 47 ground-truth strings to 36 to 38. Type at 15 px on an
+unscaled monitor stays unreadable at every budget tried, so expect that and do not file it
+([llamacpp-gpu.md](../runbooks/llamacpp-gpu.md)).
 
 ## What a pass buys
 

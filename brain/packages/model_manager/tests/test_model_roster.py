@@ -160,7 +160,7 @@ def test_naming_a_projector_gives_the_cortex_tier_eyes(monkeypatch: pytest.Monke
     than from a second flag here that could disagree with it."""
     monkeypatch.setenv("CORTEX_MMPROJ_FILE_CORTEX", "google/gemma-4-12B/mmproj.gguf")
     argv = ModelHostConfig().roster()["cortex"].argv
-    assert argv[-2:] == ("--mmproj", "/models/google/gemma-4-12B/mmproj.gguf")
+    assert argv[-6:-4] == ("--mmproj", "/models/google/gemma-4-12B/mmproj.gguf")
 
 
 def test_a_deployment_that_names_no_projector_stays_text_only(
@@ -205,13 +205,31 @@ def test_a_budget_under_the_engine_default_leaves_the_micro_batch_alone(
     assert argv[-4:] == ("--image-max-tokens", "128", "--ubatch-size", "512")
 
 
-def test_the_shipped_default_leaves_the_image_budget_to_the_model(
+def test_the_shipped_default_buys_the_measured_resolution_back(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    """A seeing deployment that sets nothing gets the pair the 4K measurement settled on.
+
+    The model's own budget saturates at 266 tokens and reads 6 to 8 of 47 ground-truth strings
+    off a 4K desktop; 1024 here, with the brain asking for a 2048 px capture, reads 36 to 38.
+    The maintainer took that trade, so it is what an unconfigured stack comes up with.
+    """
     monkeypatch.setenv("CORTEX_MMPROJ_FILE_CORTEX", "mmproj.gguf")
     monkeypatch.delenv("CORTEX_IMAGE_MAX_TOKENS", raising=False)
     argv = ModelHostConfig().roster()["cortex"].argv
+    assert argv[-4:] == ("--image-max-tokens", "1024", "--ubatch-size", "1024")
+
+
+def test_a_deployment_can_still_hand_the_budget_back_to_the_model(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Zero is off, and off means an argv naming neither flag rather than one naming the
+    engine's own defaults back at it: the VRAM and the latency the default buys are refundable."""
+    monkeypatch.setenv("CORTEX_MMPROJ_FILE_CORTEX", "mmproj.gguf")
+    monkeypatch.setenv("CORTEX_IMAGE_MAX_TOKENS", "0")
+    argv = ModelHostConfig().roster()["cortex"].argv
     assert "--image-max-tokens" not in argv
+    assert "--ubatch-size" not in argv
     assert argv[-2:] == ("--mmproj", "/models/mmproj.gguf")
 
 

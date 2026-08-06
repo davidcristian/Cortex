@@ -1514,11 +1514,12 @@ abort above. It hangs off the projector, so a text-only tier neither raises its 
 pays the VRAM. The brain's half needed no change at all: `CORTEX_BODY_CAPTURE_MAX_EDGE` has been a
 deployment variable since this slice landed, bounded by the body's own 4096 px ceiling.
 
-**The default is not changed here.** The recommended pair costs VRAM and latency that this ADR is
-not entitled to spend on the user's behalf while `CORTEX_VRAM_SOFT_CAP_GB` exists precisely because
-the card is shared, and the honest reading of the byte table below is that a 2048 px capture moves
-a pathological screen closer to the ladder. The runbook carries the recommendation and the numbers;
-flipping the default is a decision for the maintainer.
+**The default was not changed by the measurement.** The recommended pair costs VRAM and latency
+that a measurement is not entitled to spend on the user's behalf while `CORTEX_VRAM_SOFT_CAP_GB`
+exists precisely because the card is shared, and the honest reading of the byte table below is that
+a 2048 px capture moves a pathological screen closer to the ladder. The runbook carried the
+recommendation and the numbers; flipping the default was a decision for the maintainer, who took it
+the same day. The section below records what that cost and what had to be measured first.
 
 **One consequence of a 2048 px capture, measured rather than assumed.** PNG bytes for the whole
 3840x2160 frame, against the 6 MiB `MAX_CAPTURE_BYTES` ceiling: uniform noise, the incompressible
@@ -1574,6 +1575,65 @@ recommended setting are in [docs/runbooks/llamacpp-gpu.md](../runbooks/llamacpp-
 re-runnable half is `packages/inference/tests/test_image_budget_live.py`, which asserts the
 saturation, asserts the knob raises it, and proves the abort by stripping the micro-batch back off
 the shipped argv.
+
+### The default moved, the same day, on the maintainer's decision
+
+The measurement above left the recommendation opt-in and said flipping it was the maintainer's
+call. The maintainer took it: the reading is worth about 400 MiB of VRAM, 0.6 s of time to first
+token, and 744 context tokens a capture, and a capture the model mostly invents is not worth
+having. **Both halves moved, because half the pair buys about half the reading**: the budget alone
+at the body's 1600 px reads 24 to 26 of 47 against the pair's 36 to 38.
+
+- `ModelHostConfig.cortex_image_max_tokens` (`CORTEX_IMAGE_MAX_TOKENS`) defaults to **1024**, and
+  `docker/docker-compose.gpu.yml` names the same number, so the flag pair is in the cortex tier's
+  argv without a `.env`. It still hangs off the projector, so a text-only tier pays nothing, and
+  **zero still turns it off**, emitting neither flag rather than naming the engine's own defaults
+  back at it.
+- `BodyConfig.capture_max_edge` (`CORTEX_BODY_CAPTURE_MAX_EDGE`) defaults to **2048**, and
+  `docker/docker-compose.body.yml` names the same number. Zero still means the body's own default.
+- **The body's own `DEFAULT_MAX_EDGE` stays 1600**, deliberately. A caller that names no edge is a
+  caller whose token budget the body cannot know, and at the model's own 266-token budget a 2048 px
+  capture is *worse* than a 1600 px one (4 of 47 against 6 to 8). The wider edge is worth its bytes
+  only next to a raised budget, and the raised budget is brain-side knowledge, so the brain is
+  where the ask belongs. 1600 also remains the edge whose worst case fits the byte ceiling.
+
+**The byte ceiling had to be settled before this was safe**, because the measurement above only
+had the incompressible bound and a single wallpaper. A capture over `MAX_CAPTURE_BYTES` does not
+error: it halves to 1024 px and arrives smaller than the view the default replaced, which would
+quietly undo what the edge was raised to buy. Measured through the body's own `downscale` and
+`encode_png` on 3840x2160 frames
+([`capture_bytes.rs`](../../body/crates/core/tests/capture_bytes.rs), standard library only, so it
+is re-runnable without a GPU or a model):
+
+| 4K screen | at 1600 px | at 2048 px | of the 6 MiB ceiling |
+|---|---|---|---|
+| two flat panes of interface text | 243431 B | 243155 B | 3% |
+| photographic wallpaper under two text windows | 1219153 B | 1978393 B | 31% |
+| a photograph filling the display | 2052503 B | 3591544 B | 57% |
+| the same photograph, heavy film grain | 2693875 B | 4669961 B | 74% |
+| the same, grain of plus or minus 64 counts | 3476339 B | 6002130 B | 95% |
+| uniform per-pixel noise | 3991818 B | **the ladder fires** | over |
+
+So the ceiling holds for every screen a person reads text off, with the worst realistic one at
+three quarters of it, and it still takes per-pixel noise to fire the ladder. The grain is added at
+the source resolution and averaged down by the body's own box filter, which is why the wider edge
+costs so much more: it averages fewer source pixels per output pixel, so more of the noise
+survives, over more pixels. The same harness answers why the edge stopped at 2048 rather than going
+further: at a full 3840 px capture **even a grainless photograph fires the ladder**, which is the
+byte-side version of the legibility result that a full-resolution capture reads worse than a
+2048 px one.
+
+**Confirmed live at the new defaults** (2026-08-06, the 24 GB card, `just up-gpu` with nothing set
+but `CORTEX_MODELS_DIR` and the projector). The child's `/proc/<pid>/cmdline` ends
+`--mmproj ... --image-max-tokens 1024 --ubatch-size 1024`, so the pair reaches the engine from the
+defaults alone. A capture-shaped 2048x1152 PNG cost exactly **1010 prompt tokens**, the number the
+table above predicts, and was answered rather than aborting: the reply read a 2x-scale line back
+verbatim, and the server was still healthy afterwards. The card read 11304 MiB with the tier
+resident and 2778 MiB after teardown, so the tier holds **8526 MiB**, roughly 2.8 GB under the
+11.3 GB `CORTEX_VRAM_CORTEX_GB` the placer already charges for it. Nothing about placement changes,
+and a deployment that also hosts the GPU subagent tier is unaffected in both senses: the placer's
+subagent headroom is the soft cap minus that unchanged reservation, and the flags themselves hang
+off the projector, which only the cortex tier has.
 
 ## Addendum (2026-08-06): the capture dot says what happened, and one bit is all it needs
 

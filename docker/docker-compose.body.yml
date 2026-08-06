@@ -31,9 +31,13 @@ services:
       # The byte budget defaults to the body's own 6 MiB ceiling, so the two ends of the seam
       # agree by construction rather than by two constants staying equal, and it may only be
       # tightened; a value outside either seam bound refuses to boot rather than failing a turn.
-      # 0 leaves the body's default edge (1600 px). The deadline is the only one on this seam:
-      # a blit plus an encode is the only call that can park a host thread.
-      CORTEX_BODY_CAPTURE_MAX_EDGE: "${CORTEX_BODY_CAPTURE_MAX_EDGE:-0}"
+      # The edge defaults to 2048 rather than to the body's own 1600, which is the brain half of
+      # the pair that makes a 4K desktop legible: it is worth the extra pixels only because
+      # CORTEX_IMAGE_MAX_TOKENS=1024 on the model host gives the encoder somewhere to put them
+      # (docs/runbooks/vision.md). 0 hands the edge back to the body's default. The deadline is
+      # the only one on this seam: a blit plus an encode is the only call that can park a host
+      # thread.
+      CORTEX_BODY_CAPTURE_MAX_EDGE: "${CORTEX_BODY_CAPTURE_MAX_EDGE:-2048}"
       CORTEX_BODY_MAX_IMAGE_BYTES: "${CORTEX_BODY_MAX_IMAGE_BYTES:-6291456}"
       CORTEX_BODY_CAPTURE_TIMEOUT_S: "${CORTEX_BODY_CAPTURE_TIMEOUT_S:-10.0}"
       # auto probes the running llama-server's /props once at startup and advertises

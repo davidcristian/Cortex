@@ -1577,11 +1577,19 @@ that has siblings, and the siblings only become visible once the first one is ri
   section's standing warning arriving on schedule: the flag was **unreachable** (nothing in
   `ModelHostConfig` passed it to the cortex tier's argv) and it is **unsafe alone** (a budget over
   llama.cpp's 512 micro-batch aborts the server with SIGSEGV on the first oversized picture, met in
-  anger). Both are now one knob, `CORTEX_IMAGE_MAX_TOKENS`, default off, emitting the flag and its
-  micro-batch together. What keeps the entry open is the residue the knob cannot reach: 15 px text
-  on an unscaled monitor stays at 4 of 16 even at 1982 image tokens, a 2048 px capture pushes a
-  pathological screen to 6.50 MB and into the halving ladder, and none of this was ever the privacy
-  argument. The measurement is the design input the fields were waiting for, since the binding
+  anger). Both are now one knob, `CORTEX_IMAGE_MAX_TOKENS`, emitting the flag and its
+  micro-batch together, and **the pair is the default from the same day on**, the maintainer having
+  decided the reading is worth the 400 MiB and the 0.6 s. Both halves had to move, since the budget
+  alone at the body's 1600 px is the 24 to 26 row. Flipping it cost one number this entry had only
+  as a worry: through the body's own downscaler a real 4K screen at 2048 px costs 243 KB of text
+  desktop to 4.67 MB of grainy photograph, so the worst realistic one sits at 74% of the 6 MiB
+  ceiling and only per-pixel noise crosses it. What keeps the entry open is the residue the knob
+  cannot reach: 15 px text on an unscaled monitor stays at 4 of 16 even at 1982 image tokens, a
+  2048 px capture pushes a pathological screen to 6.50 MB and into the halving ladder (and a full
+  3840 px one takes an ordinary photograph there), and none of this was ever the privacy argument.
+  A raised default sharpens the case rather than settling it, since the deployment now spends
+  1010 tokens on a whole screen where a region would spend them on the part that was asked about.
+  The measurement is the design input the fields were waiting for, since the binding
   quantity turns out to be source pixels per image token: `region` wants physical display
   coordinates rather than normalized ones, `display_index` is required beside it, and a window
   handle would serve the common ask better than either.

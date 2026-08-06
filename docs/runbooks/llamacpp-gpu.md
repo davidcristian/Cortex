@@ -24,7 +24,7 @@ design, AGENTS.md gate 3).
 | `CORTEX_MODELS_DIR` | host dir holding the GGUFs, mounted read-only | `./models` |
 | `CORTEX_MODEL_FILE_CORTEX` | cortex GGUF path **relative to that dir** (LM Studio nests it under `publisher/repo/`); default is the gemma-4-12B pick | `google/gemma-4-12B-it-qat-q4_0-gguf/gemma-4-12b-it-qat-q4_0.gguf` |
 | `CORTEX_MMPROJ_FILE_CORTEX` | the multimodal projector, relative to the same dir. Setting it adds llama.cpp's `--mmproj` pair to the cortex tier's argv, which is what makes `GET /props` report `modalities.vision` and therefore what makes the brain advertise `capture_screen` (ADR-0029). Empty (the default) starts text-only. See `docs/runbooks/vision.md` | `google/gemma-4-12B-it-qat-q4_0-gguf/mmproj-gemma-4-12b-it-qat-q4_0.gguf` |
-| `CORTEX_IMAGE_MAX_TOKENS` | how many tokens one picture may occupy, and with it how much of a 4K screen the cortex can read. `0` (the default) leaves the budget the model declares for itself. See the legibility section below before changing it, and never set llama.cpp's `--image-max-tokens` by hand instead | `0` |
+| `CORTEX_IMAGE_MAX_TOKENS` | how many tokens one picture may occupy, and with it how much of a 4K screen the cortex can read. `1024` is the default, paired with `CORTEX_BODY_CAPTURE_MAX_EDGE=2048` on the brain; `0` hands the budget back to the model, which is the 266-token view that reads 13% of a 4K screen. See the legibility section below before changing it, and never set llama.cpp's `--image-max-tokens` by hand instead | `1024` |
 | `CORTEX_CTX_SIZE` | context window (KV size); **set it**. The model default (262144) alone eats ~8 GB | `16384` |
 | `CORTEX_NGL` | GPU layers to offload: `99` = all, `0` = CPU-only, partial = hybrid (ADR-0004 addendum) | `99` |
 
@@ -258,11 +258,12 @@ full matrix is over an hour of card time. Budget for that before selecting it.
 
 ## How much of a 4K screen the cortex can read, and the two knobs that decide it (ADR-0029)
 
-Vision ships at the budget the model declares for itself, which measured **266 prompt tokens for
+Left to itself the model declares its own per-image budget, which measured **266 prompt tokens for
 any capture from 1280 px up**. On a 4K desktop that is a 13% reading: of 47 ground-truth strings
 across five synthetic 3840x2160 desktops (a code editor, a terminal, a browser article, a
-spreadsheet, a chat client, from 15 px to 52 px type), the shipped deployment read 6 to 8 and
-confidently invented most of the rest. Two settings change that, and they only work together:
+spreadsheet, a chat client, from 15 px to 52 px type), that deployment read 6 to 8 and confidently
+invented most of the rest. Two settings change it, they only work together, and **both are the
+default from 2026-08-06 on**, the maintainer having decided the reading is worth what it costs:
 
 ```
 CORTEX_IMAGE_MAX_TOKENS=1024    # on the model-host sidecar (this runbook's table above)
@@ -271,18 +272,24 @@ CORTEX_BODY_CAPTURE_MAX_EDGE=2048    # on the brain (docs/runbooks/vision.md)
 
 | setting | image tokens | strings read (of 47) | cortex VRAM | time to first token |
 |---|---|---|---|---|
-| shipped (both unset) | 266 | 6 to 8 | 10766 to 10815 MiB | 0.94 to 1.08 s |
+| both off (`CORTEX_IMAGE_MAX_TOKENS=0`) | 266 | 6 to 8 | 10766 to 10815 MiB | 0.94 to 1.08 s |
 | `CORTEX_IMAGE_MAX_TOKENS=1024` alone | 629 | 24 to 26 | 11181 MiB | |
-| **both, as above** | 1010 | **36 to 38** | 11181 MiB | 1.67 to 1.68 s |
+| **both, as above (the default)** | 1010 | **36 to 38** | 11181 MiB | 1.67 to 1.68 s |
 | `CORTEX_IMAGE_MAX_TOKENS=2048` + a 3072 px capture | 1982 | 36 to 37 | 11726 MiB | |
 
 Measured 2026-08-06 on the 24 GB card through the `model-host` sidecar, with the idle card at 2581
-to 2651 MiB and thinking on. Six things to know before turning it on.
+to 2651 MiB and thinking on. Six things to know about the setting you are now running.
 
-- **The recommended pair is not the default**, and turning it on is the maintainer's call: it costs
-  about 400 MiB of VRAM (all of it the micro-batch, not the budget), 0.6 s of time to first token,
-  and 744 more context tokens per capture out of 16384. It stays far inside the 11.3 GB
-  `CORTEX_VRAM_CORTEX_GB` reservation, so nothing about placement changes.
+- **What the default costs, and how to refund it.** About 400 MiB of VRAM (all of it the
+  micro-batch, not the budget), 0.6 s of time to first token, and 744 more context tokens per
+  capture out of 16384. `CORTEX_IMAGE_MAX_TOKENS=0` hands the budget back to the model and drops
+  both flags from the child's argv; the capture edge is refunded separately with
+  `CORTEX_BODY_CAPTURE_MAX_EDGE=0`, which returns the body to its own 1600 px default. Confirmed
+  live at the default on 2026-08-06: the card read 11304 MiB with the tier resident and 2778 MiB
+  after teardown, so the tier holds 8526 MiB and sits about 2.8 GB under the 11.3 GB
+  `CORTEX_VRAM_CORTEX_GB` the placer already charges for it. Nothing about placement changes, and
+  the GPU subagent tier's headroom (the 14 GB soft cap minus that reservation) is untouched: the
+  budget hangs off the projector, which only the cortex tier has.
 - **Raising one without the other is close to pointless.** The budget alone leaves the body sending
   a 1600 px picture (24 to 26 of 47); the capture edge alone sends more pixels into an encoder that
   throws them away (4 of 47 at 2048 px and at 3072 px on the shipped budget, no better than the
@@ -300,10 +307,14 @@ to 2651 MiB and thinking on. Six things to know before turning it on.
   tried, including 1982 tokens; 20 px spreadsheet cells in their usual grey reach 18 of 24. The
   boundary is 21 px and up on the budget alone, 18 to 20 px with the 2048 px capture. Below that,
   region capture is the fix and it is still deferred (docs/refinements/vision.md).
-- **A 2048 px capture moves a pathological screen closer to the ladder.** Uniform noise, the
-  incompressible worst case, encodes to 3.80 MB at 1600 px and 6.50 MB at 2048 px, which is over
-  the 6 MiB ceiling and halves the capture to 1024 px, below even the shipped view. A photographic
-  wallpaper reaches 4.53 MB and fits; a text screen is under 220 KB at any edge.
+- **A 2048 px capture moves a pathological screen closer to the ladder, and a real one is not
+  close.** Through the body's own downscale and encoder, a 4K frame at 2048 px costs 243 KB as a
+  text desktop, 1.98 MB as a photographic wallpaper under two windows, 3.59 MB as a full-screen
+  photograph and 4.67 MB with heavy film grain over it: 74% of the 6 MiB ceiling at the worst
+  realistic screen, and it takes per-pixel uniform noise to actually fire the halving ladder (which
+  then drops the capture to 1024 px, below even the 1600 px view). Measured 2026-08-06 by
+  [`capture_bytes.rs`](../../body/crates/core/tests/capture_bytes.rs), which is why the default
+  edge stopped at 2048: at a full 3840 px capture even a grainless photograph fires the ladder.
 
 The re-runnable half is
 [`test_image_budget_live.py`](../../brain/packages/inference/tests/test_image_budget_live.py),
@@ -314,6 +325,14 @@ changes; it needs the `cortex-model-host` image built, because the base tag drif
 ```
 cd brain && CORTEX_MODELS_DIR=<the host dir holding the GGUFs> \
   uv run pytest -m integration --no-cov -s packages/inference/tests/test_image_budget_live.py
+```
+
+The byte half needs no GPU and no model, only the body's own downscaler and encoder. Re-run it
+when the capture edge, the byte ceiling, or the downscale filter moves:
+
+```
+cd body && cargo test -p body-core --test capture_bytes --release -- \
+  --ignored --nocapture --test-threads=1
 ```
 
 ## Measured so far (2026-06-29, 24 GB card, 16K ctx, single slot, full offload)

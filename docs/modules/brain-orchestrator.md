@@ -158,9 +158,13 @@ Config (pydantic-settings; explicit constructor arguments beat the environment):
   direction, the brain as gRPC client of the host body's `BodyService`): `backend: "none" |
   "grpc" = "none"` (`CORTEX_BODY_BACKEND`), `endpoint: str = ""` (`CORTEX_BODY_ENDPOINT`, the
   host body's bind, `host.docker.internal:50151` from the dockerized brain), plus three
-  screen-capture knobs (ADR-0029): `capture_max_edge: int = 0` and `max_image_bytes: int =
+  screen-capture knobs (ADR-0029): `capture_max_edge: int = 2048` and `max_image_bytes: int =
   MAX_IMAGE_BYTES` (6 MiB) are what the brain asks the body for **and** holds the reply to,
-  since the body clamps both and an older body ignores both; `capture_timeout_s: float = 10.0`
+  since the body clamps both and an older body ignores both. The edge defaults above the body's
+  own 1600 because the pixels are only worth sending when the model host's
+  `CORTEX_IMAGE_MAX_TOKENS` gives the encoder somewhere to put them, which is a number this side
+  knows and the body does not; `0` still means "the body's own default".
+  `capture_timeout_s: float = 10.0`
   is the only deadline on this seam, because a blit plus an encode is the only call that can
   park a host thread. All three are **bounded so a misconfiguration fails at boot** rather than
   turning every capture into a turn-killing exception: `capture_max_edge` `ge=0, le=8192` and

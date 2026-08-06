@@ -119,6 +119,15 @@ class BodyConfig(BaseSettings):
     only deadline on this seam, because a blit plus an encode is the only call that can park a
     host thread.
 
+    ``capture_max_edge`` defaults to **2048 rather than to the body's own 1600**, which is the
+    brain half of the measured legibility pair (ADR-0029's legibility addendum): with the model
+    host's ``CORTEX_IMAGE_MAX_TOKENS`` at 1024, a 4K desktop goes from 6 to 8 of 47 ground-truth
+    strings read to 36 to 38. It belongs on this side because the number that makes it worth
+    paying for is the model's per-image token budget, which the body cannot know; a body asked
+    for nothing keeps answering at its own conservative 1600, where a worst-case incompressible
+    screen still encodes inside the byte ceiling. ``0`` still means "the body's own default", so
+    a deployment can hand the choice back.
+
     All three are **bounded here so a misconfiguration fails at boot**, the way the model host's
     ports and context sizes do. Both capture bounds ride uint32 proto fields, so a negative or
     over-wide value is a request that cannot be built at all, and unbounded they turned every
@@ -132,7 +141,7 @@ class BodyConfig(BaseSettings):
 
     backend: BodyBackendName = "none"
     endpoint: str = ""
-    capture_max_edge: int = Field(default=0, ge=0, le=MAX_IMAGE_EDGE)
+    capture_max_edge: int = Field(default=2048, ge=0, le=MAX_IMAGE_EDGE)
     max_image_bytes: int = Field(default=MAX_IMAGE_BYTES, gt=0, le=MAX_IMAGE_BYTES)
     capture_timeout_s: float = Field(default=10.0, gt=0)
 

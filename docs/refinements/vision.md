@@ -85,7 +85,7 @@ no count moves for it twice.
   picture is one non-causal chunk and llama.cpp asserts the micro-batch covers it, so a raised
   budget without `--ubatch-size` aborts `llama-server` with SIGSEGV on the first oversized picture,
   met in anger on the second command of the sitting. Both are now one knob,
-  `CORTEX_IMAGE_MAX_TOKENS`, default off, emitting the pair. **A bigger PNG buys nothing**, which
+  `CORTEX_IMAGE_MAX_TOKENS`, emitting the pair. **A bigger PNG buys nothing**, which
   the saturation predicted and this confirms as a legibility fact (4 of 47 at a 3072 px capture on
   the shipped budget), and a full-resolution capture at the raised budget is *worse* than a 2048 px
   one on identical tokens, because the encoder's own resize is a poorer filter than the body's box
@@ -93,10 +93,26 @@ no count moves for it twice.
   "unreadable" offered as an answer, the shipped deployment declined on 3 of 47 and invented the
   rest, which narrows a claim that docstring has made since the slice landed.
 
+  **The pair is the default from 2026-08-06 on** (ADR-0029's legibility addendum, "the default
+  moved"), which is the one sentence this entry used to leave open: the measurement said the
+  recommendation was the maintainer's to take, and the maintainer took it the same day.
+  `CORTEX_IMAGE_MAX_TOKENS=1024` and `CORTEX_BODY_CAPTURE_MAX_EDGE=2048` are what an unconfigured
+  seeing stack now comes up with, both still refundable to `0`. Turning it on cost one measurement
+  this entry had been carrying as an open worry rather than a number: whether a real screen at
+  2048 px fires the halving ladder. Through the body's own downscaler and encoder, a 4K frame costs
+  243 KB as a text desktop, 1.98 MB as a wallpaper under two windows, 3.59 MB as a full-screen
+  photograph and 4.67 MB with heavy grain over it, so the worst realistic screen sits at 74% of the
+  ceiling and only per-pixel noise crosses it
+  ([`capture_bytes.rs`](../../body/crates/core/tests/capture_bytes.rs)).
+
   **The fields are demoted, not declined, and the entry stays open.** The knob does not reach 15 px
   text on an unscaled monitor (4 of 16 at every budget tried, including 1982 tokens), it does not
   help the 6 MiB ceiling (uniform noise reaches 6.50 MB at a 2048 px capture and fires the halving
-  ladder), and it was never the privacy argument. The measurement is the design input the fields
+  ladder, and a full 3840 px capture fires it on a photograph alone), and it was never the privacy
+  argument. Raising the default has if anything sharpened the first of those: the deployment now
+  spends 1010 tokens and 744 context tokens a capture on a whole screen, which is exactly the
+  budget a region would spend on the part of it the user asked about. The measurement is the
+  design input the fields
   were waiting for: the binding quantity is **source pixels per image token**, so `region` wants a
   rectangle in the display's own physical coordinates rather than a normalized one, `display_index`
   is required beside it because a multi-monitor bounding box makes that ratio worse, and a window
@@ -171,7 +187,11 @@ no count moves for it twice.
   PNG's bytes on incompressible content (0.97 MB vs 4.33 MB at 1600x900). It is a **body-side
   swap behind an unchanged seam**: `ImageBlob.mime_type` already carries the format, the brain's
   allow-list already lists both, and nothing in the brain decodes. Worth doing when bytes on the
-  wire start mattering; PNG's losslessness is worth more while legibility is the open risk.
+  wire start mattering; PNG's losslessness is worth more while legibility is the open risk. The
+  2048 px default edge moved the numbers without moving the trigger: a photographic screen costs
+  3.59 MB there against 2.05 MB at 1600 px, and 4.67 MB with heavy grain, which is still inside
+  the ceiling with room to spare (measured 2026-08-06,
+  [`capture_bytes.rs`](../../body/crates/core/tests/capture_bytes.rs)).
 - **A content-addressed `AttachmentStore`, if accountability outweighs zero retention.** Today a
   reopened chat shows no evidence of what the assistant saw, and the audit line records
   dimensions, a byte count and a timestamp only, so a later dispute about what a capture
