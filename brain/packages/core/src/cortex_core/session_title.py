@@ -5,8 +5,12 @@ from datetime import datetime
 
 from cortex_core.conversation import Message, Role
 from cortex_core.drain import drain_text
+from cortex_core.inference import GenerationBounds
 from cortex_core.ports import InferenceBackend
 from cortex_core.sessions import TITLE_MAX
+
+TITLE_MAX_TOKENS = 32
+TITLE_BOUNDS = GenerationBounds(max_tokens=TITLE_MAX_TOKENS, thinking=False)
 
 # The opening exchange follows this instruction as the model's only context. Kept short and
 # deterministic; the reply is cleaned to one bounded line regardless of how the model answers.
@@ -33,4 +37,4 @@ def clean_title(raw: str) -> str:
 
 async def generate_title(backend: InferenceBackend, model: str, messages: Sequence[Message]) -> str:
     """Run one tool-less completion and return its cleaned title."""
-    return clean_title(await drain_text(backend, model, messages))
+    return clean_title(await drain_text(backend, model, messages, bounds=TITLE_BOUNDS))

@@ -48,9 +48,10 @@ Config (pydantic-settings; explicit constructor arguments beat the environment):
   verbatim-untrusted-sourced URLs from the reply the user sees, `strict` (addendum) scrubs
   every non-user URL on a tainted turn, `off` restores the unguarded stream;
   `generate_titles: bool = False` (`CORTEX_GENERATE_TITLES`, ADR-0021 titles addendum) opts a
-  deployment into brain-generated switcher titles (one extra inference call per new session; a
-  reasoning cortex may emit no title and the first-message derivation stands), threaded into
-  `TurnCapabilities.generate_titles`.
+  deployment into brain-generated switcher titles (one extra inference call per new session, and a
+  cheap one since the pass asks for no thinking and at most 32 tokens, ADR-0038 bounded-side-calls
+  addendum; a model that answers with nothing usable still leaves the first-message derivation
+  standing), threaded into `TurnCapabilities.generate_titles`.
 - `InferenceConfig` uses env prefix `CORTEX_INFERENCE_`: which backend answers turns
   (ADR-0007 d4). `backend: "echo" | "llamacpp" = "echo"` (`CORTEX_INFERENCE_BACKEND`) and
   `endpoint: str = ""` (`CORTEX_INFERENCE_ENDPOINT`, the resident `llama-server` base
@@ -70,7 +71,9 @@ Config (pydantic-settings; explicit constructor arguments beat the environment):
   ADR-0038) with its
   `recall_half_life_days` (30), `recall_recency_weight` (0.3), `recall_dedup_threshold` (0.98),
   `recall_pool_factor` (4), and `recall_mmr_lambda` (0.5, the MMR relevance-vs-diversity dial) tuning
-  knobs (`recency_mmr` reuses the recency and lambda knobs, `judge` reuses the pool factor), plus
+  knobs (`recency_mmr` reuses the recency and lambda knobs, `judge` reuses the pool factor and, since
+  its request was bounded, costs about 0.9 s per recall rather than 12, which is why its default is
+  under review rather than settled, ADR-0038 bounded-side-calls addendum), plus
   `recall_audit: bool = False` (`CORTEX_MEMORY_RECALL_AUDIT`, ADR-0038) attaching the structured
   recall trail. `recall_policy_from_config(config, backend, cortex_model)` maps the string to the
   policy (the model rank is a policy over the inference port, which is why `build_memory` now takes

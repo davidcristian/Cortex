@@ -195,11 +195,23 @@ variants, disable-thinking / token-budget capping
   unusable characters, another finished thinking in 404 and answered). Paired, the same prompt
   decodes 88 tokens in 3.9 s where the unbounded request decoded 378 to 602 in 13.6 s to 21.5 s,
   for a slightly LONGER account. `--reasoning-budget 0` is still not working on this build, so the
-  per-request `chat_template_kwargs` remains the only lever that does. **What stays open here is
-  every other caller:** the session title and the model-based recall rank run the same
-  discarded-thinking pass through `drain_text` and still send no bounds, while a user-facing reply
-  keeps its thinking deliberately. **Trigger:** the session title's own empty-reply entry, which
-  now has this lever one keyword away. **`state`-aware overlay treatment landed
+  per-request `chat_template_kwargs` remains the only lever that does. **The two callers that were
+  left open took it the same day ([ADR-0038](../adr/ADR-0038-ranked-recall.md)
+  bounded-side-calls addendum), so every pass whose thinking `drain_text` discards now says so in
+  its request.** `generate_title` sends `TITLE_BOUNDS` (`max_tokens=32, thinking=False`, 32 being
+  `TITLE_MAX` in the request's own unit) and `JudgeRecallPolicy.select` sends `rank_bounds(k)`
+  (`24 + 8k`, computed rather than fixed because a schema-constrained order's length is known
+  before it is asked for). Measured on the shipped cortex: a title went from 235 to 303 decoded
+  tokens at 7.9 s to 10.4 s to **4 tokens at 0.2 s to 0.3 s for the same titles**, and a recall
+  rank from 448 to 613 tokens at 18.4 s to **12 to 22 tokens at 0.9 s**, its ranking unchanged
+  (mean reciprocal rank 1.000 either way, the right note first 6 of 6). Two findings the residue
+  did not predict: a JSON schema does **not** protect a constrained reply from a cap (a truncated
+  one is not JSON, so it falls back exactly as an unreachable model does), and the trap of a cap
+  with thinking left on, a coin flip on the fold, is a certainty on these two, empty three times
+  in three at each of 16, 32 and 64 tokens, because their answers are a few tokens and the
+  deliberation before them is hundreds. A user-facing reply still keeps its thinking deliberately, which is
+  what per-request bounds are for. What the rank's number reopens is its own default, recorded in
+  [memory.md](memory.md). **`state`-aware overlay treatment landed
   2026-07-13 ([ADR-0020 third addendum](../adr/ADR-0020-reasoning-status.md)):** the reducer now
   keeps the status event's `state` (a new `Message.statusState`) and a `"thinking"` chip renders
   distinctly (a `chip-think` modifier: the reasoning bob on its dot, an accent label, an aria

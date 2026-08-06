@@ -9,7 +9,7 @@ from typing import cast
 from cortex_core.conversation import Message, Role
 from cortex_core.drain import drain_text
 from cortex_core.errors import InferenceError
-from cortex_core.inference import JsonSchema
+from cortex_core.inference import GenerationBounds, JsonSchema
 from cortex_core.memory import ScoredMemory
 from cortex_core.ports import InferenceBackend
 from cortex_core.ranking import RankBasis, RankedMemory, Ranking
@@ -37,6 +37,16 @@ CANDIDATE_CHARS = 400
 # The prompt is not a conversation turn, so its ``turn_id`` is a constant rather than a real one:
 # nothing persists these messages, and a borrowed turn id would read as this turn in a log.
 _RANK_TURN_ID = "recall-rank"
+
+RANK_ENVELOPE_TOKENS = 24
+RANK_TOKENS_PER_CANDIDATE = 8
+
+
+def rank_bounds(k: int) -> GenerationBounds:
+    """The bounds one rank request carries: no thinking, and room for ``k`` numbered picks."""
+    return GenerationBounds(
+        max_tokens=RANK_ENVELOPE_TOKENS + RANK_TOKENS_PER_CANDIDATE * k, thinking=False
+    )
 
 
 def build_rank_messages(
@@ -101,6 +111,7 @@ class JudgeRecallPolicy:
                 self._model,
                 build_rank_messages(query, hits, k=k, at=now),
                 schema=ORDER_ENVELOPE,
+                bounds=rank_bounds(k),
             )
         except InferenceError:
             return await self._fallback.select(hits, query=query, now=now, k=k)
