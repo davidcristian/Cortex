@@ -9,7 +9,7 @@ from cortex_core.conversation import Message
 class HistoryWindow(Protocol):
     """Selects the slice of a session's stored history one turn sends to the model."""
 
-    def select(self, history: Sequence[Message]) -> Sequence[Message]: ...
+    async def select(self, history: Sequence[Message], *, session_id: str) -> Sequence[Message]: ...
 
 
 class CharBudgetHistoryWindow:
@@ -21,8 +21,13 @@ class CharBudgetHistoryWindow:
             raise ValueError(msg)
         self._max_chars = max_chars
 
-    def select(self, history: Sequence[Message]) -> Sequence[Message]:
-        """The newest whole turns fitting the budget (the newest always among them)."""
+    async def select(self, history: Sequence[Message], *, session_id: str) -> Sequence[Message]:
+        """The newest whole turns fitting the budget (the newest always among them).
+
+        Pure and synchronous in substance: the coroutine is the port's shape, not this
+        policy's need, and ``session_id`` names a session this policy never consults.
+        """
+        del session_id
         turns: list[list[Message]] = []
         for message in history:
             if turns and turns[-1][-1].turn_id == message.turn_id:

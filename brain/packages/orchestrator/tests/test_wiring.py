@@ -32,6 +32,7 @@ from cortex_core import (
     EchoInferenceBackend,
     GlobalMemoryScope,
     InMemoryBodyGateway,
+    InMemorySessionStore,
     InMemoryTaskStore,
     InMemoryToolRegistry,
     JudgeRecallPolicy,
@@ -63,6 +64,8 @@ from cortex_core import (
     UrlRedactingGuardrail,
     VramBudgetPlacer,
 )
+from cortex_core.summarizing import SummarizingHistoryWindow
+from cortex_core.windowing import HistoryWindow
 from cortex_inference import LlamaCppBackend
 from cortex_memory import LoggingRecallSink, PgVectorMemoryStore
 from cortex_orchestrator import (
@@ -75,7 +78,6 @@ from cortex_orchestrator import (
     build_body_gateway,
     build_builtin_tools,
     build_cortex_tools,
-    build_history_window,
     build_inference_backend,
     build_memory,
     build_output_guardrail,
@@ -87,6 +89,7 @@ from cortex_orchestrator import (
     recall_policy_from_config,
     run_from_env,
 )
+from cortex_orchestrator.window_builders import build_history_window
 from cortex_seam import (
     BrainServiceStub,
     ClientEvent,
@@ -594,13 +597,35 @@ def test_build_output_guardrail_off_disables_it() -> None:
     assert build_output_guardrail("off") is None
 
 
+def _window(budget: int, *, summarize: bool = False) -> HistoryWindow | None:
+    return build_history_window(
+        budget,
+        summarize=summarize,
+        sessions=InMemorySessionStore(),
+        backend=EchoInferenceBackend(),
+        model="cortex",
+        clock=SystemClock(),
+    )
+
+
 def test_build_history_window_positive_budget_enables_windowing() -> None:
-    assert isinstance(build_history_window(100), CharBudgetHistoryWindow)
+    assert isinstance(_window(100), CharBudgetHistoryWindow)
 
 
 def test_build_history_window_zero_disables_windowing() -> None:
     # CORTEX_HISTORY_CHAR_BUDGET=0 is the documented off switch (ADR-0014).
-    assert build_history_window(0) is None
+    assert _window(0) is None
+
+
+def test_build_history_window_summarizes_when_asked() -> None:
+    # CORTEX_HISTORY_SUMMARY=true wraps the budget window so dropped turns arrive as a recap.
+    assert isinstance(_window(100, summarize=True), SummarizingHistoryWindow)
+
+
+def test_build_history_window_ignores_the_summary_flag_without_a_budget() -> None:
+    # With windowing off nothing is ever dropped, so a summarizing wrapper could never fire;
+    # building one anyway would put a model call on a path that has no work for it.
+    assert _window(0, summarize=True) is None
 
 
 def test_build_cortex_tools_none_when_nothing_is_enabled() -> None:

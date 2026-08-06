@@ -2,7 +2,7 @@
 
 Deferred refinements from Slice 3's cortex chat and session work; the windowing decision and the summarization alternatives it weighs live in [ADR-0014](../adr/ADR-0014-history-windowing.md). Extracted from the ROADMAP's deferred-refinements section on 2026-07-15 with the entries kept verbatim; landed entries are the historical record of what each deferral became, and the index at [index.md](index.md) carries the recommended pickup order.
 
-**Open items:** Session-history summarization (its two design questions now settled, [ADR-0038](../adr/ADR-0038-ranked-recall.md))
+**Open items:** none.
 
 **Cortex chat / session in Slice 3:**
 - **Session-history windowing landed 2026-07-03 ([ADR-0014](../adr/ADR-0014-history-windowing.md)).**
@@ -80,3 +80,48 @@ Deferred refinements from Slice 3's cortex chat and session work; the windowing 
   `HistoryWindow.select` **alongside** it rather than as an empty async layer, and the config knob.
   Deliberately not taken in that change: `RecallPolicy.select` widened because it had three waiting
   consumers, and `HistoryWindow.select` has exactly one, so it waits for that one.
+- **Session-history summarization landed 2026-08-06
+  ([ADR-0038 summarizing-window addendum](../adr/ADR-0038-ranked-recall.md)), closing this area.**
+  The design settled hours earlier held on every point that was re-checked against the tree:
+  `SessionStore` still has no verb that edits or removes a message, so a recap of a prefix can
+  only go incomplete and never wrong; the window's caller is still `assemble_inference_messages`,
+  awaited to completion before the reply's generator is built; and `drain_text` still leaves the
+  adapter's acquire block in a `finally`. What shipped is the `SessionStore` recap verbs
+  (`set_recap`/`recap`, a `HistoryRecap(text, covers)` behind the port, in the fake, in the Redis
+  adapter, under the same shared contract suite, and removed by the whole-session delete in the
+  same transaction), a `SummarizingHistoryWindow` in the core, the `async` widening of
+  `HistoryWindow.select` alongside it, and `CORTEX_HISTORY_SUMMARY`, **default off**. Four things
+  the design did not say: `select` needed the `session_id` as well as the `async`, the same shape
+  of miss as the recall port's `query`; the value is a `Recap` rather than a `Summary`, because
+  `SessionSummary` already means a chat-list row; the port pair belongs to `SessionStore` for a
+  reason stronger than proximity, since a recap is as private as the transcript and "forget this
+  chat" must take it in the same write; and the fallback is structural rather than a policy, the
+  window being able only to PREPEND to the shipped window's selection, so losing a word the user
+  wrote is not reachable from any state of the summarizer. The lease test had to be fixed before
+  it meant anything: asserting the reply's acquire succeeds did not redden when the drain was
+  removed, because generator finalization tidied the abandoned stream first; it now asserts the
+  acquire block was left with no `await` in between, which the collector cannot rescue.
+  Measured against the window it wraps, on the real cortex through the gpu stack: over a
+  23-message conversation whose opening facts had dropped out, the shipped window sent 295
+  characters and could not answer "remind me of my booking reference" at all, while the recap
+  sent 831 and answered it correctly, at 11.0 s for the pass that moved the boundary and 0.000 s
+  for every turn after it. Time to first token did not get worse. The default stays off anyway,
+  because 11 s lands on the turn that triggers it, and because the corpus is one hand-built case.
+  Remaining from this deferral:
+- **The measurement is one corpus.** It shows the mechanism works and is not a benchmark: a single
+  hand-built conversation, by the author of the feature, with the needed fact placed where a
+  summary would keep it. What it does not measure is a real long chat's fold quality after several
+  boundary moves, or the cost on a cortex under load. **Trigger:** any move of the default, which
+  wants more than one conversation behind it.
+- **The recap pass is unbounded and unthrottled.** Every boundary move spends a full cortex
+  generation over the newly dropped turns, serialized ahead of the reply, and the fold's prompt
+  is whatever those turns say. Two knobs were consciously not built: a minimum number of newly
+  dropped messages before a fold is worth paying for, and a token cap on the recap request (the
+  reply is bounded at `RECAP_MAX` characters after the fact, not before). **Trigger:** the
+  measurement above showing the fold cost landing on enough turns to be felt.
+- **A recap of tainted turns is not fenced.** The prefix a recap is built from can contain
+  untrusted tool results that the taint ledger fenced when they were live; the recap re-enters
+  the turn as trusted system context, laundering them. Today this is unreachable in a shipped
+  deployment (the feature is off by default and the fence is per turn), but it is the sharp edge
+  to settle before the default moves. **Trigger:** turning `CORTEX_HISTORY_SUMMARY` on by
+  default, or any deployment enabling it alongside tools.

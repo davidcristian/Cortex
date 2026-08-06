@@ -68,6 +68,7 @@ class BrainRuntimeConfig(BaseSettings):
         default=11.3, ge=0, validation_alias="CORTEX_VRAM_CORTEX_GB"
     )
     history_char_budget: int = Field(default=48_000, ge=0)
+    history_summary: bool = False
     output_guardrail: Literal["redact", "strict", "off"] = "redact"
     generate_titles: bool = False
 

@@ -49,7 +49,7 @@ the tree does now.
 | [repo-gates.md](repo-gates.md) | Line cap (the core barrel back at it, ADR-0038), dashcheck, coverage config (ADR-0026), gate coverage of the ungated Rust trees and of the overlay's TypeScript (ADR-0011), the stylesheet still outside the cap, test-runner mechanics (ADR-0002) including the live pgvector run still sharing the brain's `memories` table (the live Redis runs got a database of their own 2026-08-03), the couplings the cross-language constant scan does not hold yet (ADR-0029) | 7 |
 | [seam-transport.md](seam-transport.md) | `BrainTransport` retry/reconnect (ADR-0003/0024) | 4 |
 | [seam-auth.md](seam-auth.md) | Seam token auth (ADR-0016) | 1 |
-| [session-history.md](session-history.md) | Slice 3 history windowing and summarization | 1 |
+| [session-history.md](session-history.md) | Slice 3 history windowing and summarization | 3 |
 | [tools-mcp.md](tools-mcp.md) | Dispatch budget/cost/salience, spawn batch cap, MCP registries (ADR-0009/0010) | 6 |
 | [untrusted-content.md](untrusted-content.md) | Taint boundary, output guardrail, subagent model safety (ADR-0013/0015/0017/0019/0028) | 11 |
 | [memory.md](memory.md) | Store, scoping, rerank/MMR, the ranked `select` and its recall trail (ADR-0008/0038) | 6 |
@@ -1736,10 +1736,11 @@ What stays here despite needing the host's hardware to *observe* or *judge*, bec
 itself is code and belongs with its area: unbalanced COM initialization on the blocking pool
 ([body-gateway.md](body-gateway.md)), the spontaneous-pick nudge's live uptake
 ([subagents.md](subagents.md)), co-residency
-([inference-model-manager.md](inference-model-manager.md)), the NPU as a third placement target
-([resource-governance.md](resource-governance.md)), and the model passes behind history
-summarization ([session-history.md](session-history.md)); reranking's own model pass left this
-list on 2026-08-06, having been run and measured against the real cortex in Docker
+([inference-model-manager.md](inference-model-manager.md)),
+and the NPU as a third placement target
+([resource-governance.md](resource-governance.md)); the model passes behind history
+summarization left this list on 2026-08-06 by being built, and reranking's own left it the same
+day, having been run and measured against the real cortex in Docker
 ([memory.md](memory.md)). The user index lists them under a heading that says exactly that.
 
 ### Dead until a consumer exists

@@ -29,6 +29,7 @@ from cortex_core import (
     SystemClock,
     TurnEngine,
 )
+from cortex_core.sessions import HistoryRecap
 from cortex_orchestrator import (
     DEFAULT_SESSION_LIST_LIMIT,
     SeamPorts,
@@ -216,6 +217,16 @@ class FailingStore:
 
     async def set_pinned(self, session_id: str, *, pinned: bool) -> None:
         del session_id, pinned
+        msg = "redis is down"
+        raise SessionStoreError(msg)
+
+    async def set_recap(self, session_id: str, recap: HistoryRecap) -> None:
+        del session_id, recap
+        msg = "redis is down"
+        raise SessionStoreError(msg)
+
+    async def recap(self, session_id: str) -> HistoryRecap | None:
+        del session_id
         msg = "redis is down"
         raise SessionStoreError(msg)
 

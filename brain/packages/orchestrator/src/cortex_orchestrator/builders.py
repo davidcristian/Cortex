@@ -14,7 +14,6 @@ from cortex_core import (
     BuiltinTool,
     CaptureBounds,
     CaptureScreenTool,
-    CharBudgetHistoryWindow,
     Clock,
     CompositeToolRegistry,
     Confirmer,
@@ -113,11 +112,6 @@ def build_output_guardrail(
     if mode == "strict":
         return StrictUrlRedactingGuardrail()
     return UrlRedactingGuardrail() if mode == "redact" else None
-
-
-def build_history_window(char_budget: int) -> CharBudgetHistoryWindow | None:
-    """The turn's history window, or None when windowing is disabled (ADR-0014)."""
-    return CharBudgetHistoryWindow(char_budget) if char_budget > 0 else None
 
 
 async def build_body_gateway(

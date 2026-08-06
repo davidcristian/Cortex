@@ -9,7 +9,7 @@ from cortex_core.handoff import HandoffRecord, HandoffState
 from cortex_core.memory import MemoryRecord, ScoredMemory
 from cortex_core.schedule import FireOutcome, ScheduleClaim, ScheduledItem
 from cortex_core.schedule_transitions import ScheduleEdit
-from cortex_core.sessions import SessionSummary
+from cortex_core.sessions import HistoryRecap, SessionSummary
 from cortex_core.subagents import SubagentResult, SubagentTask
 
 
@@ -27,6 +27,10 @@ class SessionStore(Protocol):
     async def delete(self, session_id: str) -> None: ...
 
     async def set_pinned(self, session_id: str, *, pinned: bool) -> None: ...
+
+    async def set_recap(self, session_id: str, recap: HistoryRecap) -> None: ...
+
+    async def recap(self, session_id: str) -> HistoryRecap | None: ...
 
 
 class MemoryStore(Protocol):

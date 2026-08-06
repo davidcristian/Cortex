@@ -18,7 +18,10 @@ Translators only: serialization, key layout, and error wrapping; no business log
   (injected client or `from_url`), same `PreferenceStoreError` wrapping with the cause chained.
 - `RedisSessionStore` implements the `SessionStore` port over redis-py asyncio:
   - `RedisSessionStore(client: redis.asyncio.Redis)` takes an injected client (the contract
-    tests inject fakeredis here).
+    tests inject fakeredis here). Its keys and both record codecs (message and recap) live in
+    `store_codec.py`, split out for the line cap when the recap arrived (the `handoff_codec` /
+    `schedule_codec` precedent) and a real seam: that module owns the storage format, `store.py`
+    owns the round trips and the error wrapping.
   - `RedisSessionStore.from_url(url: str = DEFAULT_REDIS_URL)` builds and owns a
     client for `url`; release it via `aclose()` at composition-root shutdown.
   - `async append(session_id, message)` RPUSHes one JSON document onto the session's
@@ -55,7 +58,8 @@ Translators only: serialization, key layout, and error wrapping; no business log
     and the overlay's user-driven `RenameSession` (ADR-0021 management addendum); the store does
     not distinguish them, so no new port method was needed to add rename.
   - `async delete(session_id)` HARD-deletes a whole chat: the message list (`:messages`), the
-    optional title (`:title`), the `cortex:sessions` recency-index member, and the
+    optional title (`:title`), the optional recap (`:recap`, ADR-0038 decision 9), the
+    `cortex:sessions` recency-index member, and the
     `cortex:sessions:pinned` member (ADR-0021 pinning addendum), all in one transactional pipeline
     so a listing never sees a half-deleted chat (ADR-0021 delete addendum). The destructive "forget
     this chat" write. Hard, not a tombstone: reads are snapshots and an unknown session already
@@ -64,6 +68,18 @@ Translators only: serialization, key layout, and error wrapping; no business log
     dangling pin, and is idempotent (`DEL`/`ZREM`/`SREM` on absent keys/members are no-ops), so a
     retry after a failure heals. The memory half of the cascade is NOT here (memory is a separate
     store); the orchestrator's `DeleteSession` composes this delete with `SessionMemoryCascade`.
+  - `async set_recap(session_id, recap)` / `async recap(session_id)` hold the summarizing
+    window's account of the turns that fell out of the window (ADR-0038 decision 9), as one JSON
+    document at `cortex:session:{id}:recap` carrying `v`/`kind` like a message record: the text
+    and `covers`, the boundary it accounts for. Both halves are on the wire because a reader with
+    the text alone could not tell a current recap from a stale one. `recap` answers `None` for a
+    session that never had one written, and fails loudly on a document this reader cannot read
+    rather than answering `None`, which would look exactly like a session never summarized. A
+    later `set_recap` overwrites. The pair sits on this port rather than one of its own because a
+    recap's lifetime IS the session's, so `delete` removes it in the same transaction: it is a
+    model's account of the same conversation and exactly as private as the transcript. Derived
+    and disposable, but stored beside the messages so it survives a model swap, which is the
+    whole reason the summarizer caches rather than recomputes.
   - `async set_pinned(session_id, *, pinned)` toggles the chat's membership in the pinned set
     (ADR-0021 pinning addendum): `SADD cortex:sessions:pinned` when pinning, `SREM` when unpinning,
     both idempotent by value. `list_sessions` unions the pinned set into every listing, so a pinned
@@ -235,7 +251,8 @@ exception to fail-loud is the schedule **claim path**, where a corrupt record qu
 **Contract tests.** `tests/contract.py` is one shared behavior suite (empty history,
 append→history order, multi-session isolation, roundtrip fidelity incl. timezone,
 `list_sessions` recency-ordering + title/preview derivation, `set_title` overriding the
-first-message title (ADR-0021 titles addendum), and pinning: `set_pinned` marking/clearing the
+first-message title (ADR-0021 titles addendum), the recap verbs (ADR-0038 decision 9), and
+pinning: `set_pinned` marking/clearing the
 summary idempotently, a pinned chat older than the window escaping recency and sorting above the
 recency group, a pinned-and-recent chat not duplicated, and delete clearing the pin, ADR-0021
 pinning addendum) run against BOTH implementations (`InMemorySessionStore` and `RedisSessionStore`
@@ -245,7 +262,12 @@ Redis-specific edges (`list_sessions` empty store, limit, dangling index entry, 
 corrupt record between the ends, a fatal one at either end named by its true index; a stored
 title persisted under its own key and read back truncated; and, over the raw keyspace, the pinned
 set holding/dropping its member, the union lifting a pinned old chat past the window, and a
-dangling pinned entry skipped). The `list_sessions` check filters the global list to the ids it
+dangling pinned entry skipped; the recap document's shape on the wire, its removal by delete, an
+unreadable kind/version, a corrupt document, a document whose fields would build an invalid value,
+and connection failures on both recap verbs). The recap checks in the shared suite are its absence
+before any write, a full roundtrip and overwrite, per-session isolation, and a read-back after the
+write, which on the live-Redis run is a real round trip to another process and so is the one that
+means the most: the recap crossing a model swap is exactly that read. The `list_sessions` check filters the global list to the ids it
 created, which narrows the read to one row but cannot rescue a check whose fixtures were crowded
 out of the window in the first place; that is the live runs' isolated database, below.
 `tests/task_contract.py`

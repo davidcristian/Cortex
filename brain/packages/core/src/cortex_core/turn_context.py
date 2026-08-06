@@ -64,7 +64,7 @@ async def assemble_inference_messages(
     needs (ADR-0008/0013/0014/0019).
     """
     if caps.window is not None:
-        history = caps.window.select(history)
+        history = await caps.window.select(history, session_id=context.session_id)
     memory = await _recalled_context(query, caps, context, clock)
     prefix: list[Message] = []
     if caps.tools is not None or context.taint.tainted:

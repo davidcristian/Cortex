@@ -1,4 +1,4 @@
-"""Session summaries for the chat list (ADR-0021): a pure value plus its derivation."""
+"""Per-session values the store holds beside a chat's messages: its summary row, its recap."""
 
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
@@ -19,6 +19,28 @@ class SessionSummary:
     preview: str
     last_activity: datetime
     pinned: bool = False
+
+
+# How long a stored recap may be. It is prepended to every windowed turn once the window
+# starts dropping, so a runaway model reply would eat the context the window exists to
+# protect; ~1 turn's worth of the 48K default budget is generous for a paragraph.
+RECAP_MAX = 2_000
+
+
+@dataclass(frozen=True, slots=True)
+class HistoryRecap:
+    """What the turns that fell out of a session's history window said (ADR-0038 decision 9)."""
+
+    text: str
+    covers: int
+
+    def __post_init__(self) -> None:
+        if not self.text.strip():
+            msg = "a recap with no text is not worth storing"
+            raise ValueError(msg)
+        if self.covers < 1:
+            msg = "a recap must cover at least one message"
+            raise ValueError(msg)
 
 
 def _one_line(text: str, limit: int) -> str:
