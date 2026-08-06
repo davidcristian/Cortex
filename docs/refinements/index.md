@@ -65,7 +65,7 @@ entries from it never added the two it opened, and there the count did move and 
 | [session-history.md](session-history.md) | Slice 3 history windowing and summarization, the recap's fold made cheap 2026-08-06 (thinking off and a token cap per request, a floor under a fold, a chip while it runs) and `CORTEX_HISTORY_SUMMARY` moved to on, leaving the one-corpus measurement as the area's only open item (ADR-0014/0038) | 1 |
 | [tools-mcp.md](tools-mcp.md) | Dispatch budget/cost/salience, spawn batch cap, MCP registries (ADR-0009/0010) | 6 |
 | [untrusted-content.md](untrusted-content.md) | Taint boundary, output guardrail, subagent model safety (ADR-0013/0015/0017/0019/0028), a quoted injection replayed by the plain history window, obeyed 2 of 10 on a bare turn and 0 of 10 behind either standing rule, the plain one landed for the tool-less turn (ADR-0013/0038) | 12 |
-| [memory.md](memory.md) | Store, scoping, rerank/MMR, the ranked `select` and its recall trail, and the judge's default now that bounding its request made it twenty times cheaper at the same ranking, plus the two the ranked-recall close opened and neither this cell nor the area header picked up until 2026-08-06, a cross-encoder rank and an audit of the candidates a rank drops (ADR-0008/0038) | 9 |
+| [memory.md](memory.md) | Store, scoping, rerank/MMR, the ranked `select` and its recall trail, and the judge's default now that bounding its request made it twenty times cheaper at the same ranking and a 41-note corpus across six categories found it worse nowhere and better on two, plus the two the ranked-recall close opened and neither this cell nor the area header picked up until 2026-08-06, a cross-encoder rank and an audit of the candidates a rank drops, and the abstention that same widening found: the judge correctly answers "no note helps" and the policy converts that into a cosine fallback (ADR-0008/0038) | 10 |
 | [inference-model-manager.md](inference-model-manager.md) | Model-manager lifecycle, MTP, reasoning status, whose disable-thinking and token-cap halves now reach every pass that discards its own deliberation, leaving the user-facing reply as the whole of that entry and the count unmoved for a narrowing (ADR-0007/0020/0038) | 7 |
 | [subagents.md](subagents.md) | Progress reporting, spawn schema, heterogeneous roster (ADR-0010/0018) | 3 |
 | [body-overlay.md](body-overlay.md) | Overlay polish, connection indicator, proto Cancel (ADR-0011), the reserved scrollbar rail's assumed width and spent card inset, the rounded roll target the whisper's bubble publishes while its own height carries a decimal, the two bounds the panel's section budget left behind it (a section's own frame being under no cap, and the room a closing section hands back arriving in one frame), a modified chord still reaching the overlay from inside a row's rename editor, a list that shrinks saying nothing where a chat arriving speaks, and the whisper's follow-ups (ADR-0037): a pickable voice row, a mid-stream resize keeping the old wrap width, and kerning inside the letter boxes under a changed font (its drain-growth entry landed the day it was filed, and the console outliving a new chat, the reminder stack's per-row exit and the switcher's, the panel's watch on its own box with the arrival-aside correction that came out of it, the demo bridge over the line cap, two sections outrunning the panel on their own, the chat floor's frozen measurement of the empty state, the console tab strip's missing keyboard half, the switcher's disputed listbox role, the two motions its list still made in one frame, and a Thoughts trace opening a reply off the bottom of a full history all landed 2026-08-03, the last of them opening the chrome-side entry that landed 2026-08-04 on the same ride, alongside the cycle keys' silent swap, which opened the focus entry that landed 2026-08-06 as the caret following the conversation into the composer and opened two entries behind it, both landed the same day: the draft named below, and the row gestures that swap nothing, answered by the caret staying in the list and opening the chord and the silent-shrink entries above; the composer's move on a clamped shrink closed 2026-08-06 as moot, its mechanism having been deleted the day it was filed, and the retarget-and-resize pair landed 2026-08-06 as the panel measuring itself in fractional pixels, opening the roll entry that took its place, which landed hours later the same day as the section measuring itself the way the panel does, both published numbers reproducing first and the step at every roll boundary reading 0.000px after, and which opened the whisper-bubble target named above; the composer's draft belonging to no chat landed 2026-08-06 too, the same day it was opened and the same day the user answered it, as unsent text keyed by session id in the reducer, which was the last entry anywhere waiting on a decision rather than on work) | 12 |
@@ -1313,6 +1313,14 @@ header that read seven from 2026-08-03 to now, the header and the cell agreeing 
 and with nothing else. The close makes them agree at six, which is the arithmetic working out
 rather than the check working ([repo-gates.md](repo-gates.md)).
 
+Memory then went **9 to 10 the same evening**, and that one is new work: widening the judge's
+corpus from ten notes to 41 found a defect the narrow corpus had no category for. Four of the 26
+questions have no answer anywhere in the notes, the model correctly replied that none of them help,
+and `JudgeRecallPolicy` reads an empty pick as a failed rank and falls back to the cosine's three
+wrong notes. The measurement that vindicated the policy is the measurement that found the hole in
+it, which is the argument for widening a corpus even when the recommendation is already written
+([memory.md](memory.md), [ADR-0038](../adr/ADR-0038-ranked-recall.md)).
+
 Memory went **7 to 9 on 2026-08-06**, an arithmetic correction rather than new work, and the pass
 that found it repaired three more lines without moving a count. The ranked-recall close had done
 half of its own bookkeeping: it struck the model-based reranker and recall observability from the
@@ -1384,11 +1392,25 @@ against the code (the warning above); the entry text tells you which seams it ex
   its request on 2026-08-06 took that cost from about 12 seconds per recall to 0.9 while the
   ranking stayed exactly where it was (mean reciprocal rank 1.000 against the shipped cosine's
   0.917, the right note first 6 of 6 against 5 of 6, no fallbacks, and fewer hits than `k` because
-  it drops the notes that do not help). What is left to weigh is that a rank runs on every
-  recalling turn, where the history fold it borrows the lever from is cached per boundary move, and
-  that the corpus behind both numbers is ten notes and six questions hand built by the policy's
-  author. Nothing is blocked: it is one env variable either way, and
+  it drops the notes that do not help). **The corpus objection was answered the same evening** and
+  the entry is stronger for it: 41 notes and 26 questions across six categories, five of them cases
+  the judge could have lost, scored through the shipped pool width with a reversed-cosine control
+  arm at 0.000 to prove the scorer could fail. The judge is worse nowhere, ties at 1.000 wherever
+  the geometry was already right, and beats the cosine on the vocabulary trap (1.000 against 0.806)
+  and on superseded facts (1.000 against 0.750), at 0.75 s per recall. It is still hand built by an
+  interested party, which no amount of widening fixes. What is left to weigh is that a rank runs on
+  every recalling turn, where the history fold it borrows the lever from is cached per boundary
+  move, and that on a question memory cannot answer the judge's correct refusal is currently spent:
+  the policy reads an empty pick as a failure and returns the cosine's wrong notes instead, filed
+  as its own entry. Nothing is blocked: it is one env variable either way, and
   `CORTEX_MEMORY_RECALL_AUDIT=1` reports which policy actually ranked each recall afterwards.
+- **The abstention the judge can reach and its policy cannot report**
+  ([memory.md](memory.md)), opened 2026-08-06 by the widening above. Asked a question nothing in
+  memory answers, the model replies `{"order": []}`, which is correct, complete and unparseable as
+  a pick, so `JudgeRecallPolicy` falls back to the cosine and hands the turn three irrelevant
+  notes. Needs a third `RankBasis` and a `select` that may return nothing, which changes what a
+  recall can mean rather than how it ranks. **Trigger:** flipping the default to `judge`, since
+  nothing can hit this while the policy is off.
 - **The vision measurements this repo owes itself** ([vision.md](vision.md)): an image arm of the
   injection-defence harness against a rendered-payload corpus, plus the two agent-Docker checks
   ADR-0029 listed as still to run and nothing tracked until 2026-07-19 (whether thinking needs
