@@ -351,13 +351,20 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
   stack belonging to the view being LEFT was subtracted from the height of the one arriving, which
   centred a 347px console as though it were 155 and capped it at 351px where 448 would have fitted;
   `overlay/panelMemory.ts` is what the panel remembers between placements and how it reads its own
-  box (heights off `offsetHeight`, which the summon's scale transform does not touch, the bottom
-  edge off the rect, which it does not either); `overlay/panelParts.ts` is the probes a placement
+  box (heights as the USED height off the computed style, which keeps the sub-pixels the box has and
+  which the summon's scale transform does not touch either, the bottom edge off the rect, which it
+  does not touch; plus the probe that asks what the panel WOULD be while a move of its own is
+  overriding the box, an important inline `height: auto` outranking the animation origin in the
+  cascade); `overlay/panelParts.ts` is the probes a placement
   makes into the panel's own tree (the aside it centres shy of, a multi-shape view's published
   slack, the scroll positions the measurement is about to cost), shared so that a ride-along's
   prediction and the placement after it cannot ask the same question two ways;
-  `overlay/panelPlacement.ts` decides where the panel
-  belongs; `overlay/panelBudget.ts` is the one write that caps it, putting the ceiling on the
+  `overlay/panelPlacement.ts` reads the box, plays the move and writes the two inline numbers, with
+  `overlay/panelPin.ts` beside it holding the four rules that decide which EDGE it holds (entering a
+  view keeps the edge it arrived on, coming back to the chat restores the parked one, growth in the
+  chat pins the bottom so the composer stays under the hand, and a resize in any other view holds
+  the top so the console's tab strip stays under the cursor); `overlay/panelBudget.ts` is the one
+  write that caps it, putting the ceiling on the
   element as `max-height` and beside it as a `--ceiling` custom property, because `max-height` is
   the one thing a descendant cannot read and the two roll-open sections in the panel's chrome are
   capped out of that same number (overlay.css reserves the header, the composer's floor, the hint
@@ -367,11 +374,14 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
   prediction through the same `centringHeight` a placement counts its measurement with and bounding
   it at `openHeight` first, because that is the order the measurement happens in;
   `overlay/panelWatch.ts` is the `ResizeObserver` that catches a resize no render and no roll
-  announced (a draft growing a line lives in the composer's own state). It answers only a box that
-  moved while nothing was moving it: a roll owns the height, so does a move of the panel's own, a
-  reading with nothing behind it is answered with nothing, and the watch is lifted for the frame the
-  panel writes in and taken up again on the next, since an observer that resizes its own target
-  inside its own callback is the case the specification cannot deliver and reports as a loop error.
+  announced (a draft growing a line lives in the composer's own state). It answers a change to the
+  height the panel WANTS rather than to the box it has: a roll owns the height and is left alone, a
+  move of the panel's own is asked through the probe instead of through the box (so a growth that
+  lands mid-move redirects that move rather than queueing behind it), a reading that matches the
+  height the panel was last placed for is answered with nothing, and the watch is lifted for the
+  frame the panel writes in and taken up again on the next, since an observer that resizes its own
+  target inside its own callback is the case the specification cannot deliver and reports as a loop
+  error.
   `overlay/measured.ts` is the budget's idea pointed the other way: two numbers overlay.css cannot
   express are read off the boxes they restate instead of being frozen beside them, the empty state
   publishing `--chat-floor` (what `.log` stands on, so a first message does not shrink the panel out

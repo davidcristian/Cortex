@@ -1,7 +1,7 @@
 // Test harness glue (excluded from coverage): jest-dom matchers, DOM cleanup between tests, a
 // matchMedia stub (jsdom omits it) so the theme resolver can read the system scheme, a
-// ResizeObserver stand-in (jsdom omits that too), and the roll stand-in every per-row exit is
-// asserted through.
+// ResizeObserver stand-in (jsdom omits that too), the laid-out height every box the panel measures
+// is given, and the roll stand-in every per-row exit is asserted through.
 import "@testing-library/jest-dom/vitest";
 import { act, cleanup } from "@testing-library/react";
 import { afterEach, vi } from "vitest";
@@ -57,6 +57,53 @@ export function resized(target: Element): number {
 
 globalThis.ResizeObserver = FakeResizeObserver;
 
+/**
+ * How tall a box measures, said through the one property production reads.
+ *
+ * The panel's own measurement is the used height off the computed style (`panelMemory.heightOf`),
+ * which is the reading that keeps its sub-pixels and ignores the summon's scale transform. jsdom
+ * has no layout and answers every height with the empty string, so a test that needs a box says how
+ * tall it is here. Faking `offsetHeight` instead would fake a number nothing measures.
+ *
+ * A function rather than a number where the height changes under the test: a box mid-animation, or
+ * one whose answer depends on the cap standing on the element.
+ */
+const laidOut = new WeakMap<Element, () => number>();
+/** Every box at once, for the tests that measure an element they never get their hands on. */
+let laidOutAll: (() => number) | null = null;
+const computedStyle = window.getComputedStyle.bind(window);
+window.getComputedStyle = ((element: Element, pseudo?: string | null) => {
+  const declaration = computedStyle(element, pseudo ?? undefined);
+  const height = laidOut.get(element) ?? laidOutAll;
+  if (height === null) {
+    return declaration;
+  }
+  return new Proxy(declaration, {
+    get(target, key) {
+      if (key === "height") {
+        return `${height()}px`;
+      }
+      const value = Reflect.get(target, key) as unknown;
+      return typeof value === "function" ? (value as () => unknown).bind(target) : value;
+    },
+  });
+}) as typeof window.getComputedStyle;
+
+/** Give `element` a laid-out height, as a number or as an answer that can change under the test. */
+export function lays(element: Element, height: number | (() => number)): void {
+  laidOut.set(element, typeof height === "number" ? () => height : height);
+}
+
+/** Give EVERY box the same laid-out height, and answer the way to stop. For a test whose subject
+ *  is an element it cannot reach: `Panel`'s empty state publishes `--chat-floor` during the render
+ *  that mounts it, so there is no moment in between to hand it a height. */
+export function laysEverything(height: number): () => void {
+  laidOutAll = () => height;
+  return () => {
+    laidOutAll = null;
+  };
+}
+
 /** How tall a rolling section measures while `stubRoll` is installed. Any value past
  *  `MIN_DELTA_PX` will do: what it buys is a roll that actually runs rather than one `Collapse`
  *  completes on the spot. */
@@ -101,6 +148,7 @@ export function stubRoll(): () => void {
 afterEach(() => {
   cleanup();
   watchers.clear();
+  laidOutAll = null;
 });
 
 window.matchMedia = ((query: string) => ({

@@ -2,7 +2,7 @@ import { renderHook } from "@testing-library/react";
 import { useLayoutEffect } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { resized } from "../test-setup";
+import { lays, resized } from "../test-setup";
 import { CEILING_PROPERTY } from "./panelBudget";
 import { maxHeight, openHeight } from "./panelGeometry";
 import { emptyMemory } from "./panelMemory";
@@ -53,12 +53,16 @@ function harness() {
   const live = () => running && state.playState === "running";
   const ceiling = () => Number.parseFloat(element.style.maxHeight || "");
   const height = () => {
-    const own = live() && animatesHeight ? state.displayed : state.natural;
+    // The natural-height probe hands the box back to layout for the length of one read by declaring
+    // `height: auto` important, which outranks the animation origin. While it is on, the answer is
+    // the panel's own layout even though the animation is still running.
+    const probing = element.style.getPropertyPriority("height") === "important";
+    const own = live() && animatesHeight && !probing ? state.displayed : state.natural;
     return state.capped && !Number.isNaN(ceiling()) ? Math.min(own, ceiling()) : own;
   };
-  // The hook reads the HEIGHT off `offsetHeight` and only the bottom edge off the rect, because the
-  // rect is measured after the panel's summon transform and the layout box is not.
-  Object.defineProperty(element, "offsetHeight", { get: height });
+  // The hook reads the HEIGHT off the computed style and only the bottom edge off the rect, because
+  // the rect is measured after the panel's summon transform and the used height is not.
+  lays(element, height);
   element.getBoundingClientRect = (() => {
     // The element sits at whatever `bottom` the hook last wrote, expressed as a viewport rect,
     // unless a slide is running and the test has said where it has got to.
@@ -103,7 +107,7 @@ function harness() {
 
 /** How tall a rolling section is right now, which changes under it while the roll runs. */
 function rolled(section: HTMLElement, height: number): void {
-  Object.defineProperty(section, "offsetHeight", { get: () => height, configurable: true });
+  lays(section, height);
 }
 
 /** A view inside the panel publishing how far short of its tallest shape it currently falls, the
@@ -734,21 +738,22 @@ describe("usePanelMotion", () => {
   it("caps that prediction at the same whole-pixel ceiling the element was given", () => {
     // 720 is the body's own window, and 76% of it is 547.2: the one case the test above cannot see,
     // because 76% of 1000 is already whole. The panel is given a `max-height` in whole pixels, so a
-    // prediction capped at the raw 547.2 places it for a height it can never have. The gap is 0.2px,
-    // far under `MIN_DELTA_PX`, so nothing animates it away; the bottom edge is written rounded, and
-    // 86.6 and 86.4 round apart. Traced at 60Hz at 640x720 with the reminder stack up before this
-    // was fixed: every roll inside the panel began with `bottom` stepping 87 to 86 in a single frame
-    // and stepped back the frame the roll ended.
+    // prediction capped at the raw 547.2 places it for a height it can never have, and the roll
+    // slides the edge it was standing on. Traced at 60Hz at 640x720 with the reminder stack up
+    // before this was fixed, back when the edge was also written rounded: every roll inside the
+    // panel began with `bottom` stepping 87 to 86 in a single frame and stepped back the frame the
+    // roll ended. The edge now carries its own fraction, so the same disagreement is worth 0.2px
+    // rather than a whole one, and the ceiling is still what has to agree with itself.
     vi.spyOn(window, "innerHeight", "get").mockReturnValue(720);
     const { ref, element, state, moves, bottom } = harness();
     state.natural = 547;
     const { rerender } = renderHook(() => usePanelMotion(ref, true, "chat"));
     expect(element.style.maxHeight).toBe("547px");
-    expect(bottom()).toBe(87);
+    expect(bottom()).toBe(86.5);
     state.playState = "finished";
     rolling(element, 76, 0);
     rerender();
-    expect(bottom()).toBe(87);
+    expect(bottom()).toBe(86.5);
     expect(moves).toEqual([]);
   });
 
@@ -780,7 +785,7 @@ describe("usePanelMotion", () => {
     chat.className = "view";
     const aside = document.createElement("div");
     aside.className = "collapse aside";
-    Object.defineProperty(aside, "offsetHeight", { configurable: true, get: () => 200 });
+    lays(aside, 200);
     chat.append(aside);
     element.append(chat);
     const memory = emptyMemory(true, "chat");
@@ -1318,9 +1323,14 @@ describe("usePanelMotion", () => {
 
   it("leaves its own move in the air rather than retargeting it once a frame", () => {
     // The panel's ease is a height animation on this same element, so it is also one notification
-    // per frame (18 across one 380ms move in the same trace). Answering them would cancel the move
-    // to measure the natural box and start another, sixty times a second, which is feeding the
-    // observer its own output.
+    // per frame (18 across one 380ms move in the same trace). Answering them by the box would cancel
+    // the move to measure the natural box and start another, sixty times a second, which is feeding
+    // the observer its own output: measured over one 150px growth with the guard taken off, 24
+    // animations replaced 2, the ease restarted its own curve every frame so the panel crawled 33px
+    // in the first 233ms, and it then dumped 40.83px in a single frame at the end.
+    //
+    // What settles those frames is that the height the panel WANTS has not moved, so there is
+    // nothing behind any of them. The ease is not consulted about it at all.
     const { ref, element, state, moves } = harness();
     state.natural = 400;
     const { rerender } = renderHook(() => usePanelMotion(ref, true, "chat"));
@@ -1331,15 +1341,93 @@ describe("usePanelMotion", () => {
     expect(resized(element)).toBe(1);
     expect(moves).toHaveLength(1);
 
-    // Once that move has landed the panel hears its box again, so growth that arrived mid-ease is
-    // eased away rather than left standing.
+    // And once it has landed, a box that is still the height it was placed for is still nothing.
     state.playState = "finished";
+    expect(resized(element)).toBe(1);
+    expect(moves).toHaveLength(1);
+  });
+
+  it("joins the move it is already making when content grows inside it", () => {
+    // A growth that lands mid-move used to wait for that move, because the running height animation
+    // overrides the box and hides it. Traced at 900x1000 with 150px appended into the log and 40px
+    // more 100ms into the resulting 255ms ease: the second growth was invisible for 188ms, the frame
+    // that handed the element back read 514, and only then did a second ease start. Asked what the
+    // panel WOULD be instead, the same trace answers the 40px one frame later and the panel is
+    // settled at 339ms rather than 465ms.
+    const { ref, element, state, moves, durations } = harness();
+    state.natural = 400;
+    const { rerender } = renderHook(() => usePanelMotion(ref, true, "chat"));
+    state.natural = 520;
+    rerender();
+    expect(moves).toHaveLength(1);
+
+    // Mid-ease: the box is at 460 and the content now wants 560. The box cannot say so, which is
+    // why the probe exists, and the move is redirected from where the eye has it rather than from
+    // where it was going.
+    state.displayed = 460;
     state.natural = 560;
     expect(resized(element)).toBe(1);
     expect(moves).toEqual([
       { from: { height: 400, bottom: 300 }, to: { height: 520, bottom: 300 } },
-      { from: { height: 520, bottom: 300 }, to: { height: 560, bottom: 300 } },
+      { from: { height: 460, bottom: 300 }, to: { height: 560, bottom: 300 } },
     ]);
+    // Paced by what is left to travel, like any other move, rather than by the whole 160.
+    expect(durations.at(-1)).toBe(158);
+    // And the probe hands the box straight back: an element left declaring `height: auto` important
+    // would never follow another animation again, and one left with an important cap would keep the
+    // sections it feeds on a budget nothing updates.
+    expect(element.style.getPropertyValue("height")).toBe("");
+    expect(element.style.getPropertyPriority("max-height")).toBe("");
+    expect(element.style.maxHeight).toBe("580px");
+  });
+
+  it("opens a retarget on the sub-pixel the panel is standing at, and ends on the edge it wrote", () => {
+    // A used height is fractional and `offsetHeight` was not, so every retarget opened its keyframes
+    // on the whole pixel below the one the eye had and the panel stepped back by the remainder for a
+    // frame. Instrumented at 900x1000 over one streamed reply before this: 310 of 330 readings threw
+    // a sub-pixel away, worst 0.484, all three of the moves opened on a whole number, and the painted
+    // top edge stepped back 0.281px. After, none of six openings is whole and the worst step is
+    // 0.015px, which is Chromium's own 1/64px grid.
+    //
+    // The bottom edge is the same defect on the other axis: written rounded while the keyframe went
+    // to the fraction, the whole ease painted 324.5 and the frame that took the animation away
+    // handed back 325 (measured at 901x1001). Both ends of the move now agree with what the element
+    // is standing on.
+    // On Chromium's own 1/64px grid, which is what a used height comes back on.
+    const { ref, element, state, keyed, bottom } = harness();
+    state.natural = 352.8125;
+    const { rerender } = renderHook(() => usePanelMotion(ref, true, "chat"));
+    expect(bottom()).toBe(323.59375);
+    state.natural = 459.28125;
+    rerender();
+
+    state.displayed = 459.28125;
+    state.natural = 494.28125;
+    expect(resized(element)).toBe(1);
+    expect(keyed.at(-1)).toEqual([
+      { height: "459.28125px", bottom: "323.59375px", maxHeight: "556px" },
+      { height: "494.28125px", bottom: "323.59375px", maxHeight: "556px" },
+    ]);
+    expect(element.style.bottom).toBe("323.59375px");
+  });
+
+  it("hears the resize its own placement raised and finds nothing behind it", () => {
+    // A render that grows the panel is answered by the placement inside that render, and that
+    // placement resizes the element the watch is on. Measured against the height last LOOKED at, the
+    // notification one frame later reads as growth and places a second time: instrumented over one
+    // streamed reply at 900x1000, that doubled every move, 6 animations for 3 growths, each pair
+    // 3ms and 0.015px apart. Measured against the height the panel was PLACED for, there is nothing
+    // there.
+    const frame = frames();
+    const { ref, element, state, moves } = harness();
+    state.natural = 400;
+    const { rerender } = renderHook(() => usePanelMotion(ref, true, "chat"));
+    state.natural = 520;
+    rerender();
+    expect(moves).toHaveLength(1);
+    frame.run();
+    expect(resized(element)).toBe(1);
+    expect(moves).toHaveLength(1);
   });
 
   it("lifts the watch for the frame it writes in, and takes it up again on the next", () => {

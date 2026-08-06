@@ -18,19 +18,26 @@
 // construction, and the ride-along has already taken the bottom edge to where the roll will leave
 // it.
 //
-// **A move of the panel's own owns the height too.** The panel's ease is a height animation on this
-// same element, so it is also one notification per frame (18 across one 380ms move in the same
-// trace). Placing on those feeds the observer its own output: each one would cancel the running ease
-// to measure the natural box and start another, sixty times a second, which is the mid-stream
-// retarget already filed as a refinement, arriving once per frame instead of once per token.
+// **A move of the panel's own is asked a different question.** The panel's ease is a height
+// animation on this same element, so it is also one notification per frame (18 across one 380ms
+// move in the same trace), and the animation overrides the used height, so content growing inside
+// the panel changes nothing the box can show. Answering the box would feed the observer its own
+// output: each notification would cancel the running ease to measure the natural box and start
+// another, sixty times a second. Refusing the box instead made the resize wait for the move, which
+// it did until 2026-08-06, at a measured cost of up to a whole move's length of latency. So the
+// watch asks what the panel WOULD be (`panelMemory.naturalHeightOf`), which the ease does not move
+// and content does, and a growth that lands mid-move redirects that move from where the eye has it
+// instead of queueing behind it.
 //
-// **A reading with nothing behind it is answered with nothing.** The watch remembers the height it
-// last looked at, which is not the height the panel was placed at: a roll and an ease both walk the
-// box past it every frame, and the only question each time is whether anything has moved since. It
-// is what settles the callback rather than letting it chase the box it just moved.
+// **A reading with nothing behind it is answered with nothing.** The question each time is whether
+// the panel wants a height other than the one it was last placed for (`Memory.placedFor`), and the
+// answer is no for every notification a placement raised by resizing the element it was placing.
+// That is what settles the callback rather than letting it chase the box it just moved: a render
+// that grew the panel is answered by the placement inside that render, and the notification it
+// raises one frame later finds the height that placement chose already standing.
 //
-// What is left is exactly the case the observer is for: the panel's box changed while nothing was
-// moving it.
+// What is left is exactly the case the observer is for: the panel's content changed the height it
+// wants, whether or not something is already moving it there.
 //
 // **And the watch is lifted for the frame the panel writes in.** Placing is itself a resize of the
 // element being watched: the ease starts at the height the panel HAD, so the box the notification
@@ -40,8 +47,8 @@
 // through the "loop completed with undelivered notifications" error. Measured over the demo, that
 // was one error event per keystroke that grew the pill. Dropping the observation before placing and
 // taking it up again on the next frame leaves nothing to re-gather, so the error never fires; the
-// reading that arrives when the watch is taken up again is answered by the rules above, the panel's
-// own ease being in the air by then.
+// reading that arrives when the watch is taken up again is the height the placement just chose,
+// which is the height it last looked at, so nothing is behind it.
 //
 // The ease itself is NOT a frame late for this. Traced at 640x720 over a Shift+Enter that restacks
 // the pill: `requestAnimationFrame` runs before the resize observer steps, so a trace taken there
@@ -50,14 +57,18 @@
 // eases from it; nothing jumps and comes back.
 
 import { MORPHING_ATTRIBUTE } from "./morph";
-import { type Memory, heightOf } from "./panelMemory";
+import { type Memory, heightOf, naturalHeightOf } from "./panelMemory";
 
-/** Whether something is already moving the panel's height, and this resize is its doing. */
-function owned(element: HTMLElement, memory: Memory): boolean {
-  if (element.querySelector(`[${MORPHING_ATTRIBUTE}]`) !== null) {
-    return true;
-  }
-  return memory.running !== null && memory.running.playState === "running";
+/** Whether a section inside is rolling, which owns the height for as long as it runs. */
+function rolling(element: HTMLElement): boolean {
+  return element.querySelector(`[${MORPHING_ATTRIBUTE}]`) !== null;
+}
+
+/** The height the panel wants right now: what it would be with nothing animating it. Probed only
+ *  while a move of its own is overriding the box, that being the one case the box cannot answer. */
+function wanted(element: HTMLElement, memory: Memory): number {
+  const moving = memory.running !== null && memory.running.playState === "running";
+  return moving ? naturalHeightOf(element) : heightOf(element);
 }
 
 /**
@@ -67,18 +78,12 @@ function owned(element: HTMLElement, memory: Memory): boolean {
  * growth from wherever it is, exactly as it eases growth a render told it about.
  */
 export function watchSize(element: HTMLElement, memory: Memory, replace: () => void): () => void {
-  // The height this watch last looked at. Not the height the panel was PLACED at: a roll and an
-  // ease both walk the box past this every frame, and what matters each time is only whether
-  // anything has moved since the last reading.
-  let seen = heightOf(element);
   let rearm: number | null = null;
   const observer = new ResizeObserver(() => {
-    const height = heightOf(element);
-    if (height === seen) {
+    if (rolling(element)) {
       return;
     }
-    seen = height;
-    if (owned(element, memory)) {
+    if (wanted(element, memory) === memory.placedFor) {
       return;
     }
     observer.unobserve(element);

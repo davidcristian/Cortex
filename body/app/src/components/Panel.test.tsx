@@ -5,7 +5,7 @@ import { LUCID, STILL } from "../edge/edges";
 import { MULL } from "../mark/marks";
 import { INITIAL_LINK } from "../overlay/linkState";
 import type { ConsoleTab, Message, OverlayState } from "../overlay/overlayState";
-import { stubRoll } from "../test-setup";
+import { laysEverything, stubRoll } from "../test-setup";
 import { Panel } from "./Panel";
 
 const state = (over: Partial<OverlayState> = {}): OverlayState => ({
@@ -467,19 +467,13 @@ describe("Panel", () => {
     // The other half of the same contract: the floor is `--chat-floor` and the empty state is what
     // publishes it (overlay/measured.ts), so an edit to the mark, the invitation or the chips moves
     // the floor with it instead of leaving a constant behind to drift.
-    const laid = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "offsetHeight");
-    Object.defineProperty(HTMLElement.prototype, "offsetHeight", {
-      configurable: true,
-      get: () => 207,
-    });
+    const settle = laysEverything(207);
     try {
       renderPanel({}, true, false);
       expect(document.documentElement.style.getPropertyValue("--chat-floor")).toBe("207px");
     } finally {
       document.documentElement.style.removeProperty("--chat-floor");
-      if (laid !== undefined) {
-        Object.defineProperty(HTMLElement.prototype, "offsetHeight", laid);
-      }
+      settle();
     }
   });
 

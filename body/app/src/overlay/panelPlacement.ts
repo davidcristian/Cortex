@@ -1,34 +1,9 @@
-// Putting the panel where it belongs: the DOM adapter over `panelGeometry`'s arithmetic. It reads
-// the element's box, decides the geometry the panel should have, writes the bottom edge, and plays
-// the move. `usePanelMotion` is the React hook that drives it.
+// Putting the panel where it belongs: the DOM adapter over `panelGeometry`'s arithmetic and
+// `panelPin`'s rules. It reads the element's box, decides the geometry the panel should have, writes
+// the bottom edge, and plays the move. `usePanelMotion` is the React hook that drives it.
 //
-// Three rules share one measurement:
-//
-//   1. ENTERING ANOTHER VIEW resizes it in place. Opening the console, or moving between its tabs,
-//      resizes the panel to what that view needs from the bottom edge the chat is standing on, the
-//      way growth inside a view does. It shipped sliding to the true middle of the screen instead,
-//      and the user, having lived with it, chose the standing edge (2026-07-21); the slide stays
-//      one flip away behind `VIEW_CHANGE_RECENTRES`, both settings under test.
-//   2. COMING BACK TO THE CHAT restores it. The chat's own bottom edge is parked on the way out and
-//      handed back on the way in, so a trip to the console and back leaves the conversation exactly
-//      where the eye left it. With rule 1 holding the edge anyway, the park is a no-op today; it is
-//      kept because it is what makes the return correct the moment the slide is switched back on.
-//   3. GROWTH INSIDE THE CHAT pushes the top edge up. A reply arriving, the switcher list opening,
-//      a new chat emptying the panel, the composer taking a second line: the bottom stays pinned
-//      where it was, so the composer never slides out from under the hand that just typed into it.
-//      Minting a new chat belongs here and not in rule 1: it is the same view with less in it.
-//   4. A RESIZE INSIDE ANY OTHER VIEW pushes the bottom edge down instead, holding the top. Which
-//      edge holds is decided by where the hand is, and the console's chrome is its tab strip, at
-//      the top: changing tabs must not slide the strip out from under the cursor that clicked it.
-//      Rule 3 is the same principle at the chat's other end. A view with more than one shape is
-//      entered at the top its TALLEST shape would take (`tabSlack`), so that held top is the same
-//      one whichever tab the console is opened on, and a shorter tab ends higher rather than
-//      starting lower.
-//
-// A summon is outside all three: for as long as the panel is arriving it centres on whatever it
-// currently is, so content that lands behind the summon (the reminder pull, a restored
-// conversation) is the panel appearing with it rather than growth from an edge it was pinned to
-// before it had any.
+// Which EDGE the panel holds through all of that is `panelPin`, which is the half of this that is
+// about the user's hand rather than about pixels, and reads as one piece written out together.
 //
 // Why this is code and not a CSS transition: a `transition: height` never fires here, because the
 // panel's height is `auto` on both sides and only its *content* changed, which is not a computed
@@ -57,7 +32,6 @@ import { capTo } from "./panelBudget";
 import {
   type Geometry,
   arrivalBottom,
-  centred,
   clamped,
   durationOf,
   frame,
@@ -67,61 +41,8 @@ import {
 } from "./panelGeometry";
 import { type Memory, type Placement, arriving, heightOf, measure } from "./panelMemory";
 import { centringHeight, holdScroll, tabSlack } from "./panelParts";
+import { VIEW_CHANGE_RECENTRES, entering, pinnedBottom } from "./panelPin";
 import { rideAlong } from "./panelRide";
-
-/** The view whose position is remembered across a trip to another one. */
-const CHAT_VIEW = "chat";
-
-/** Whether entering another view slides the panel to the true middle of the screen, or keeps the
- *  bottom edge it is standing on and resizes in place. The slide shipped first; the maintainer chose
- *  the standing edge after living with both (2026-07-21), and asked for the slide to stay a
- *  switch rather than a memory. `place` takes it as a defaulted argument so the tests hold both
- *  branches green, and flipping this constant is the whole change back. */
-export const VIEW_CHANGE_RECENTRES = false;
-
-/**
- * Where the panel's bottom edge wants to be, before the ceiling has its say.
- *
- * Also updates the memory the next such decision reads: which view is on screen, and where the chat
- * was parked when it was left. A closed panel always re-centres, because it is about to be summoned
- * and should come back to the middle rather than to wherever the last conversation had pushed it.
- */
-function wantedBottom(
-  memory: Memory,
-  at: Placement,
-  viewport: number,
-  centring: number,
-  height: number,
-  recentres: boolean,
-): number {
-  const changed = memory.view !== at.view;
-  if (changed && memory.view === CHAT_VIEW) {
-    memory.parked = memory.pinned;
-  }
-  memory.view = at.view;
-  const shown = memory.shown;
-  // Nothing on screen to hold on to yet: a first placement centres, whatever else is true.
-  if (shown === null) {
-    return centred(viewport, centring);
-  }
-  const parked = changed && at.view === CHAT_VIEW ? memory.parked : null;
-  if (!at.open || at.recentre || arriving(memory, at) || (recentres && changed && parked === null)) {
-    return centred(viewport, centring);
-  }
-  if (parked !== null) {
-    return parked;
-  }
-  // A resize INSIDE a view other than the chat holds that view's TOP edge, so the growth happens
-  // at the bottom. Which edge holds is decided by where the hand is: a console tab is changed
-  // from the strip at the top, and that strip must not move out from under the cursor that just
-  // clicked it. The chat is the other way round for the same reason, its composer being the edge
-  // the hand is on, which is why rule 3 above pins its bottom. Entering a view is neither, and
-  // keeps the edge it arrived on (rule 1): the opener that was clicked is down in the hint strip.
-  if (!changed && at.view !== CHAT_VIEW) {
-    return shown.bottom + shown.height - height;
-  }
-  return memory.pinned;
-}
 
 /**
  * Put the panel where it belongs, and animate it there from wherever it was.
@@ -166,9 +87,9 @@ export function place(
   // stop, arriving one frame later by another route, and it was invisible before the ceiling learned
   // to ride along in the keyframes, because the cap on the element was clamping the ease flat.
   const onScreen = heightOf(element);
-  // Asked before `wantedBottom` decides anything, because deciding is also what forgets which view
-  // the panel was in: this is true only on the render that ARRIVES in a multi-shape view.
-  const entering = at.open && memory.view !== at.view && at.view !== CHAT_VIEW;
+  // Asked before the edge is decided, because deciding is also what forgets which view the panel
+  // was in: this is true only on the render that ARRIVES in a multi-shape view.
+  const arrives = entering(memory, at);
   const release = holdScroll(element);
   capTo(element, openHeight(viewport));
   const section = element.querySelector<HTMLElement>(`[${MORPHING_ATTRIBUTE}]`);
@@ -220,7 +141,7 @@ export function place(
   const displayed = deferred
     ? { height: carrying ?? onScreen, bottom: was }
     : (inFlight ?? memory.shown);
-  const wanted = wantedBottom(
+  const wanted = pinnedBottom(
     memory,
     at,
     viewport,
@@ -245,7 +166,7 @@ export function place(
   // one the chat is standing on: the trip back is unaffected, and a second placement in the same
   // view cannot arrive twice. Every later resize inside the view holds the top this set (rule 4).
   const edge = clamped(wanted);
-  const arrival = entering ? arrivalBottom(viewport, edge, height, tabSlack(element)) : edge;
+  const arrival = arrives ? arrivalBottom(viewport, edge, height, tabSlack(element)) : edge;
   const bottom = placed ? arrival : memory.applied;
   const ceiling = maxHeight(viewport, bottom);
   capTo(element, ceiling);
@@ -256,8 +177,19 @@ export function place(
   const next: Geometry = { height: heightOf(element), bottom };
   release();
   memory.applied = bottom;
-  element.style.bottom = `${Math.round(bottom)}px`;
+  // Written with its fraction, because the keyframe below goes to this same edge and the element
+  // holds it once the move is over. Rounded here instead, the two were different numbers: measured
+  // at 901x1001, one growth's whole ease painted a 324.5px edge and the frame that took the
+  // animation away handed back the 325px inline value, which is half a pixel of the panel's
+  // bordered, shadowed edge stepping with nothing moving it. The CEILING is still whole
+  // (`panelGeometry.maxHeight` rounds its own answer), so the number that is reasoned about after
+  // being written is unaffected.
+  element.style.bottom = `${bottom}px`;
   memory.shown = next;
+  // What the panel's own watch measures itself against from here: this placement answered the
+  // content the panel has now, so the notification the ease below is about to raise has nothing
+  // behind it.
+  memory.placedFor = next.height;
   if (!at.open || summoned || displayed === null || settled(displayed, next)) {
     // Closed, arriving, first measurement, or nothing moved: keep the geometry for next time,
     // animate nothing. Measuring while closed is what lets a reopen animate from a real height.
