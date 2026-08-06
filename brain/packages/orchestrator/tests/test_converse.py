@@ -30,6 +30,7 @@ from cortex_core import (
     TurnCapabilities,
     TurnEngine,
 )
+from cortex_core.sessions import HistoryRecap
 from cortex_orchestrator import (
     ERROR_CODE_INFERENCE_FAILED,
     ERROR_CODE_INTERNAL,
@@ -105,6 +106,13 @@ class CountingFailingStore:
 
     async def set_pinned(self, session_id: str, *, pinned: bool) -> None:
         del session_id, pinned
+
+    async def set_recap(self, session_id: str, recap: HistoryRecap) -> None:
+        del session_id, recap
+
+    async def recap(self, session_id: str) -> HistoryRecap | None:
+        del session_id
+        return None
 
 
 class MidStreamFailingBackend:

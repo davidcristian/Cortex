@@ -20,6 +20,7 @@ from cortex_core import (
     SessionSummary,
     ToolRegistry,
 )
+from cortex_core.sessions import HistoryRecap
 from cortex_orchestrator import BrainService
 from cortex_orchestrator.session_rpc import (
     MAX_TITLE_INPUT,
@@ -64,6 +65,13 @@ class RecordingStore:
 
     async def set_pinned(self, session_id: str, *, pinned: bool) -> None:
         self.set_pinned_calls.append((session_id, pinned))
+
+    async def set_recap(self, session_id: str, recap: HistoryRecap) -> None:
+        del session_id, recap
+
+    async def recap(self, session_id: str) -> HistoryRecap | None:
+        del session_id
+        return None
 
 
 class RecordingMemoryStore:

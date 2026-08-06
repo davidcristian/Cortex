@@ -2,11 +2,11 @@
 
 `TurnEngine` reads a session's FULL history from the store every turn (the one hard
 rule, where the store stays the sole source of truth), but what it hands the backend must
-fit the resident model's context window. A `HistoryWindow` is the pure selection
+fit the resident model's context window. A `HistoryWindow` is the selection
 policy between the two, applied at inference-message assembly only: persistence is
-untouched and the selection is derived fresh each turn, so it is never stored, nothing to
-rehydrate. Summarization (compressing old turns instead of dropping them) is a
-still-deferred refinement behind this same seam (ROADMAP, Slice 3 block).
+untouched and, for the heuristic windows here, the selection is derived fresh each turn.
+A window that recaps what it drops instead of losing it lives in `summarizing.py`, behind
+this same seam (ADR-0038 decision 9).
 """
 
 from collections.abc import Sequence
@@ -18,12 +18,20 @@ from cortex_core.conversation import Message
 class HistoryWindow(Protocol):
     """Selects the slice of a session's stored history one turn sends to the model.
 
-    ``select`` returns a subsequence of ``history`` in original order. Implementations
-    must keep the newest turn (its user message is the query driving this turn)
-    whatever their budget; an empty history stays empty.
+    ``select`` returns the messages this turn's model sees, the newest turn among them
+    whatever the budget (its user message is the query driving this turn); an empty history
+    stays empty. A heuristic window returns a subsequence of ``history`` in original order,
+    which is what ``CharBudgetHistoryWindow`` does; a window is also allowed to PREPEND
+    derived context of its own, which is what the summarizing window does with its recap,
+    and it may never drop or alter a kept message.
+
+    ``select`` is ``async`` and carries ``session_id`` because a window may consult the
+    store or the model (ADR-0038 decision 9): the recap of a session's dropped prefix is
+    cached per session, so a window needs to know which session it is windowing. A
+    heuristic implementation ignores the argument and wraps a synchronous body.
     """
 
-    def select(self, history: Sequence[Message]) -> Sequence[Message]: ...
+    async def select(self, history: Sequence[Message], *, session_id: str) -> Sequence[Message]: ...
 
 
 class CharBudgetHistoryWindow:
@@ -45,8 +53,13 @@ class CharBudgetHistoryWindow:
             raise ValueError(msg)
         self._max_chars = max_chars
 
-    def select(self, history: Sequence[Message]) -> Sequence[Message]:
-        """The newest whole turns fitting the budget (the newest always among them)."""
+    async def select(self, history: Sequence[Message], *, session_id: str) -> Sequence[Message]:
+        """The newest whole turns fitting the budget (the newest always among them).
+
+        Pure and synchronous in substance: the coroutine is the port's shape, not this
+        policy's need, and ``session_id`` names a session this policy never consults.
+        """
+        del session_id
         turns: list[list[Message]] = []
         for message in history:
             if turns and turns[-1][-1].turn_id == message.turn_id:

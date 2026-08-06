@@ -1,5 +1,6 @@
-"""Session summaries for the chat list (ADR-0021): a pure value plus its derivation.
+"""Per-session values the store holds beside a chat's messages: its summary row, its recap.
 
+Session summaries for the chat list (ADR-0021) are a pure value plus its derivation.
 The session-read seam lists recent chats with a derived title and one-line preview.
 Deriving those is domain logic, so it lives here in the core and never in an adapter
 (the hexagonal invariant). Both the in-memory fake and the Redis ``SessionStore``
@@ -43,6 +44,36 @@ class SessionSummary:
     preview: str
     last_activity: datetime
     pinned: bool = False
+
+
+# How long a stored recap may be. It is prepended to every windowed turn once the window
+# starts dropping, so a runaway model reply would eat the context the window exists to
+# protect; ~1 turn's worth of the 48K default budget is generous for a paragraph.
+RECAP_MAX = 2_000
+
+
+@dataclass(frozen=True, slots=True)
+class HistoryRecap:
+    """What the turns that fell out of a session's history window said (ADR-0038 decision 9).
+
+    ``covers`` is the boundary this recap is keyed by: how many messages from the START of the
+    session ``text`` accounts for. Because a session's history is append-only (``SessionStore``
+    has no verb that edits or removes a message), a recap of a prefix can never become wrong,
+    only incomplete, so a stored recap is reusable exactly while the window's boundary has not
+    moved past ``covers`` and is folded forward when it has. A pure value (no I/O, immutable);
+    it is text in the store, so it survives a model swap by construction.
+    """
+
+    text: str
+    covers: int
+
+    def __post_init__(self) -> None:
+        if not self.text.strip():
+            msg = "a recap with no text is not worth storing"
+            raise ValueError(msg)
+        if self.covers < 1:
+            msg = "a recap must cover at least one message"
+            raise ValueError(msg)
 
 
 def _one_line(text: str, limit: int) -> str:

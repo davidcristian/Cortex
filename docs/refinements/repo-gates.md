@@ -366,3 +366,16 @@ cross-language-constant addendum):**
   split and is already how a few call sites import them, at the cost of touching many test files;
   or the barrel becoming an explicit `__all__` over star imports, which ruff bans as F403. **Fix
   when it bites**, which will be the next slice that adds a public core name.
+  **It bit on 2026-08-06**, the same day, when the summarizing history window added four public
+  core names (`SummarizingHistoryWindow`, `HistoryRecap`, `RECAP_MAX`, and the widened
+  `HistoryWindow`). The sub-barrel option was taken, in the only form the record says actually
+  works: the names live in their defining modules (`cortex_core.summarizing`,
+  `cortex_core.sessions`, `cortex_core.windowing`) and **every consumer imports from there**, so
+  the top barrel did not grow by a line and still sits at 300. Three call sites do it
+  (`cortex_session.store`, the orchestrator's `window_builders`, the tests), each with a comment
+  naming this entry, joining the one production precedent that already existed
+  (`cortex_inference.backend` importing `cortex_core.inference`). What this does NOT do is decide
+  the convention: the barrel is still full, the next name still has to choose, and a
+  module-by-module escape leaves the tree with two import styles for core names until something
+  settles which is normal. **Still fix when it bites**, and the fix is now a decision about the
+  barrel's future rather than a hunt for headroom.

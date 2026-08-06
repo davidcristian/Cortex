@@ -12,7 +12,12 @@ from collections.abc import Sequence
 
 from cortex_core.conversation import Message
 from cortex_core.errors import SessionStoreError
-from cortex_core.sessions import SessionSummary, merge_pinned, summarize_session
+from cortex_core.sessions import (
+    HistoryRecap,
+    SessionSummary,
+    merge_pinned,
+    summarize_session,
+)
 
 
 class InMemorySessionStore:
@@ -26,6 +31,7 @@ class InMemorySessionStore:
         self._sessions: dict[str, list[Message]] = {}
         self._titles: dict[str, str] = {}
         self._pinned: set[str] = set()
+        self._recaps: dict[str, HistoryRecap] = {}
 
     async def append(self, session_id: str, message: Message) -> None:
         """Persist one message at the end of the session's history.
@@ -77,10 +83,23 @@ class InMemorySessionStore:
         self._titles[session_id] = title
 
     async def delete(self, session_id: str) -> None:
-        """Hard-delete a session's history, title, and pin, idempotently (delete addendum)."""
+        """Hard-delete a session's history, title, pin and recap, idempotently (delete addendum)."""
         self._sessions.pop(session_id, None)
         self._titles.pop(session_id, None)
         self._pinned.discard(session_id)
+        self._recaps.pop(session_id, None)
+
+    async def set_recap(self, session_id: str, recap: HistoryRecap) -> None:
+        """Persist the summarizing window's recap of this session's dropped prefix.
+
+        Last write wins, as for the Redis twin: a recap is re-derived whenever the window's
+        boundary moves, and the newer one covers strictly more of the same append-only log.
+        """
+        self._recaps[session_id] = recap
+
+    async def recap(self, session_id: str) -> HistoryRecap | None:
+        """The stored recap, or ``None`` for a session that has never had one written."""
+        return self._recaps.get(session_id)
 
     async def set_pinned(self, session_id: str, *, pinned: bool) -> None:
         """Pin or unpin a chat (ADR-0021 pinning addendum); idempotent by value.

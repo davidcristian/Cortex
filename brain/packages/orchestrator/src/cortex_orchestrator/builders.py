@@ -18,8 +18,9 @@ releases it, so the root's shutdown path is uniform whatever was picked:
   composite) and its subagents.
 - Subagents -> `subagent_builders.py` (split for the 300-line cap when the ADR-0018 roster
   arrived): the `spawn_subagents` tool over a roster-resolving `SubagentRunner`.
-- History window -> `CharBudgetHistoryWindow` over CORTEX_HISTORY_CHAR_BUDGET (ADR-0014),
-  on by default (48K chars ≈ 12K of the cortex's 16K-token context); 0 disables it.
+- History window -> `window_builders.py` (split for the 300-line cap when the summarizing
+  window arrived): a `CharBudgetHistoryWindow` over CORTEX_HISTORY_CHAR_BUDGET, optionally
+  wrapped so the turns it drops arrive as a recap.
 - Output guardrail -> `UrlRedactingGuardrail` over CORTEX_OUTPUT_GUARDRAIL (ADR-0015), on by
   default (hardening ships enabled); `off` restores the unguarded stream.
 """
@@ -38,7 +39,6 @@ from cortex_core import (
     BuiltinTool,
     CaptureBounds,
     CaptureScreenTool,
-    CharBudgetHistoryWindow,
     Clock,
     CompositeToolRegistry,
     Confirmer,
@@ -167,16 +167,6 @@ def build_output_guardrail(
     if mode == "strict":
         return StrictUrlRedactingGuardrail()
     return UrlRedactingGuardrail() if mode == "redact" else None
-
-
-def build_history_window(char_budget: int) -> CharBudgetHistoryWindow | None:
-    """The turn's history window, or None when windowing is disabled (ADR-0014).
-
-    A positive budget caps what one turn sends to the model at the newest whole turns
-    fitting it; 0 (`CORTEX_HISTORY_CHAR_BUDGET=0`) disables windowing, so the model gets
-    the full stored history, the pre-ADR-0014 behavior. Persistence is untouched either way.
-    """
-    return CharBudgetHistoryWindow(char_budget) if char_budget > 0 else None
 
 
 async def build_body_gateway(

@@ -78,6 +78,13 @@ class BrainRuntimeConfig(BaseSettings):
     # 16K-token cortex context, leaving headroom for preamble/memories/tools/reply. 0 disables
     # windowing (the model gets the full stored history).
     history_char_budget: int = Field(default=48_000, ge=0)
+    # env CORTEX_HISTORY_SUMMARY recaps the turns the window drops instead of losing them
+    # (ADR-0038 decision 9): the cortex writes one paragraph accounting for the dropped prefix,
+    # cached in the session store and folded forward as the boundary moves. Default off, since
+    # it spends a cortex generation on the turns where the boundary moves and that lands
+    # directly on time-to-first-token; a deployment that would rather pay than forget opts in.
+    # Ignored when the budget is 0, there being no dropped prefix to recap.
+    history_summary: bool = False
     # env CORTEX_OUTPUT_GUARDRAIL is the model-independent laundering defense (ADR-0015):
     # `redact` (the default, so hardening is on out of the box) replaces URLs sourced verbatim
     # from untrusted tool results in the reply the user sees; `strict` (ADR-0015 addendum)

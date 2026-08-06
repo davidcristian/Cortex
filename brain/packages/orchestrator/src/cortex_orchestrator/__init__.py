@@ -5,7 +5,6 @@ from cortex_orchestrator.builders import (
     build_body_gateway,
     build_builtin_tools,
     build_cortex_tools,
-    build_history_window,
     build_inference_backend,
     build_output_guardrail,
     build_tool_registry,
@@ -63,6 +62,7 @@ from cortex_orchestrator.ticker import (
     ScheduleTicker,
     TickerSettings,
 )
+from cortex_orchestrator.window_builders import build_history_window
 from cortex_orchestrator.wiring import run_from_env
 from cortex_seam import SEAM_TOKEN_HEADER
 

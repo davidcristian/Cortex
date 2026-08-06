@@ -41,7 +41,6 @@ from cortex_orchestrator.builders import (
     build_body_gateway,
     build_builtin_tools,
     build_cortex_tools,
-    build_history_window,
     build_inference_backend,
     build_output_guardrail,
     build_tool_registry,
@@ -70,6 +69,7 @@ from cortex_orchestrator.stores import RedisStores
 from cortex_orchestrator.subagent_builders import build_subagent_tools, build_subagents
 from cortex_orchestrator.swap_builders import build_swap_runtime, swap_closer
 from cortex_orchestrator.vision import build_vision
+from cortex_orchestrator.window_builders import build_history_window
 from cortex_session import RedisPreferenceStore, RedisSessionStore
 
 
@@ -201,7 +201,14 @@ async def run_from_env(
                     policy=tools_config.dispatch_policy,
                     vision=sight,
                 ),
-                window=build_history_window(runtime.history_char_budget),
+                window=build_history_window(
+                    runtime.history_char_budget,
+                    summarize=runtime.history_summary,
+                    sessions=stores.sessions,
+                    backend=backend,
+                    model=runtime.cortex_model,
+                    clock=clock,
+                ),
                 guardrail=build_output_guardrail(runtime.output_guardrail),
                 # The core takes a bool; the composition root maps the string (ADR-0019).
                 record_tainted_memory=memory_config.on_tainted == "record",

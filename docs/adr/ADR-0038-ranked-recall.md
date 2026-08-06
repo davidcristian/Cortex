@@ -240,3 +240,90 @@ Recorded in [session-history.md](../refinements/session-history.md) and
   size, not the rejected candidates' keys, because for `SPREAD` and `SWEEP` a non-picked
   candidate's key is not even well defined (it depends on the kept set at each step).
   **Trigger:** the first investigation that needs to know why a specific memory was *not* returned.
+
+## Summarizing-window addendum (2026-08-06)
+
+Decision 9 designed where a history summary lives; this records what building it found. Every
+claim the decision rested on was re-checked against the tree first, and all of them held:
+`SessionStore` still has exactly `append`, `history`, `list_sessions`, `set_title`, `delete`
+and `set_pinned`, with **no verb that edits or removes a message**, so a recap of a prefix can
+only go incomplete and never wrong; the window's caller is still `assemble_inference_messages`
+in `turn_context.py`, awaited to completion by `handle_turn` before it builds the reply's
+generator; and `drain_text` still leaves the adapter's acquire block in a `finally`.
+
+Four things the decision did not say, found while implementing it.
+
+1. **`select` needs the session, not just the `async`.** Decision 10 priced the widening as
+   `async` alone. A recap cached per session has to know which session it is windowing, and the
+   port carried only the history, so the signature is
+   `async select(history, *, session_id) -> Sequence[Message]`. This is the same shape of miss
+   as decision 1's `query`, in the same session, on the sibling port: a `select` that consults
+   anything outside its arguments needs an argument naming what it consults.
+
+2. **The verbs are `set_recap`/`recap` and the value is `HistoryRecap`, not "summary".**
+   `SessionSummary` already means a chat-list row and would have sat two declarations away from
+   a `HistorySummary` meaning something else entirely. `Recap` says what the value is (an
+   account of what came before) with no collision anywhere in the tree; `digest` was the other
+   candidate and lost because the tree already spends that word on hashes
+   (`secrets.compare_digest`).
+
+3. **The port pair belongs to `SessionStore` for a reason stronger than proximity.** Decision 9
+   argued placement from what the state IS (one conversation's working context). The binding
+   argument turned out to be lifetime: a recap is a model's account of the same conversation and
+   exactly as private as the transcript, so "forget this chat" must take it in the SAME
+   transaction. A separate port would have made that a second call that can be forgotten or fail
+   alone. The contract test asserts the removal, and the Redis test asserts the key is in the
+   delete pipeline.
+
+4. **The fallback is structural, not a policy.** The window returns the inner window's selection
+   untouched and can only PREPEND to it, so every failure path (store unreachable, model
+   unreachable or failing mid-stream, model returning nothing usable) returns byte for byte what
+   ships today. Losing a word the user wrote is not reachable from any state of the summarizer,
+   which is the property worth having, since a lost recap costs context and a lost message costs
+   the conversation.
+
+**A test that could not fail, caught and fixed.** The lease test first asserted that the reply's
+acquire succeeds after selection. Removing `drain_text` from the window did **not** redden it:
+the abandoned generator was unreferenced, so asynchronous-generator finalization closed it on the
+loop before the reply's acquire, exactly the "at the mercy of the collector" release decision 8
+names. The test now asserts that the adapter's acquire block was left with **no `await` between
+the assertion and `select`'s return**, which the collector cannot rescue, and it does redden when
+the drain is removed. Its twin, which retains an abandoned stream and watches the next acquire
+time out, stays in the tree to prove the harness's lock is genuinely non-reentrant.
+
+**Measured, and the default still reflects the cost.** `CORTEX_HISTORY_SUMMARY` ships **off**,
+the same call `CORTEX_MEMORY_RECALL=judge` got: the recap answers a question the shipped window
+cannot, and it costs a full cortex generation on the turns where the boundary moves. The numbers
+are below.
+
+### Measured (2026-08-06)
+
+Run against the real cortex (gemma-4-12B on the 24 GB card, via the gpu compose stack) over a
+23-message conversation whose opening three exchanges carry facts a later question depends on and
+whose middle is unrelated filler, under a character budget small enough to push those openings out
+of the window. Baseline is what ships, the char-budget tail alone. Reproduce:
+`packages/inference/tests/test_history_recap_live.py`, integration-marked.
+
+| | char budget (ships) | plus recap |
+| --- | --- | --- |
+| What the model sees | 9 messages, 295 chars | 10 messages, 831 chars |
+| Selection cost, boundary moved | 0.0 s | 11.0 s |
+| Selection cost, boundary unmoved | 0.0 s | 0.000 s |
+| Reply time to first token | 5.2 s | 4.1 s |
+| Answered the follow-up | no | **yes** |
+
+The follow-up was "remind me of my booking reference", whose answer appeared once, in the first
+exchange. The shipped window answered "I don't have access to your personal information ... you
+should be able to find it in your confirmation email"; with the recap the reply was "Your booking
+reference is QH7-4412." The recap kept every fact from the dropped openings (the reference, the
+flight time, the hotel, the card to charge) and compressed the filler.
+
+Two things the table understates and one it flatters. **The cached read is free**, at three
+decimal places of a second, which is the whole argument for caching: the 11 s is paid once per
+boundary move, not per turn. **Time to first token did not get worse** here, and was in fact
+lower for the larger prompt, which is prefill noise at this size rather than a finding; what is
+real is that the reply's prompt grew 2.8x while its answer got shorter, because the model stopped
+hedging. And the flattery: **one corpus, hand-built by the author of the feature**, with a fact
+placed exactly where a summary would keep it. It shows the mechanism works. It is not a benchmark,
+and 11 s on the turns where the boundary moves is why `CORTEX_HISTORY_SUMMARY` still ships off:
+a deployment that would rather wait than forget opts in.

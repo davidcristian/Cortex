@@ -85,7 +85,10 @@ Start here. Rules for working in this repo: [AGENTS.md](../AGENTS.md).
 - [ADR-0014: Session-history windowing](adr/ADR-0014-history-windowing.md): the Slice-3
   deferral landed as a pure `HistoryWindow` seam in `TurnCapabilities` with a turn-aligned
   char-budget tail (`CharBudgetHistoryWindow`, `CORTEX_HISTORY_CHAR_BUDGET`, on by default,
-  0 disables); persistence untouched; summarization still deferred behind the same seam.
+  0 disables); persistence untouched. Summarization landed behind the same seam on 2026-08-06
+  (ADR-0038 decision 9 and its summarizing-window addendum): `SummarizingHistoryWindow` recaps
+  the turns the budget drops, cached in the session store and folded forward as the boundary
+  moves, `CORTEX_HISTORY_SUMMARY`, off by default.
 - [ADR-0015: Output guardrail](adr/ADR-0015-output-guardrail.md): the model-independent
   laundering defense (ADR-0013 hardening deferral landed). The `TaintLedger` collects the
   URLs untrusted content carries in, an `OutputGuardrail` seam in `TurnCapabilities` redacts
@@ -281,17 +284,19 @@ Start here. Rules for working in this repo: [AGENTS.md](../AGENTS.md).
   reducer is untouched.
 
 - [ADR-0038: A ranked `select`, its audit trail, and where a history summary lives](adr/ADR-0038-ranked-recall.md):
-  the design the deferred-refinements backlog had been holding two entries against, **landed** for
-  the reranking half. `RecallPolicy.select` is widened once for all three of its waiting consumers,
+  the design the deferred-refinements backlog had been holding two entries against, **landed** in
+  both halves. `RecallPolicy.select` is widened once for all three of its waiting consumers,
   to `async def select(hits, *, query, now, k) -> Ranking`, and the key a policy ranked by travels
   with the hits it kept under a named `RankBasis` (`ECHO`, `EMBER`, `SPREAD`, `SWEEP`, `VERDICT`)
   whose `comparable` property carries the fact that an MMR key is measured against the kept set. The
   declined blended-relevance field is reversed onto that return rather than onto `ScoredMemory`;
   recall gets its first audit trail (`RecallAuditSink` plus a logging sink that writes rank keys and
   no text); and the model rank ships as `JudgeRecallPolicy`, measured against the shipping cosine at
-  0.917 to 1.000 mean reciprocal rank. A session summary is decided as cached in Redis rather than
+  0.917 to 1.000 mean reciprocal rank. A session summary is cached in Redis rather than
   recomputed per turn, safe because `SessionStore` has no verb that edits a message, so a prefix
-  summary can only go incomplete and never wrong.
+  summary can only go incomplete and never wrong; the summarizing-window addendum records that
+  half being built, from the `set_recap`/`recap` verbs through `SummarizingHistoryWindow` to a
+  measured run where the shipped window could not answer a question the recap could.
 
 New non-obvious decision → add `adr/ADR-XXXX-<slug>.md`, link it here.
 

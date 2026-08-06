@@ -170,3 +170,21 @@ One claim of the audit addendum did not survive re-derivation and is corrected h
 window's production caller as `_inference_messages` in `engine.py`, a method that no longer exists.
 The caller is `assemble_inference_messages` in `turn_context.py`, still `async`, so the substance
 (one caller, already async, one `await` to add) held.
+
+## Addendum (2026-08-06): summarization is written
+
+The addendum above left the slice on implementation only, and it landed the same day, recorded in
+full in [ADR-0038's summarizing-window addendum](ADR-0038-ranked-recall.md). What arrived behind
+this ADR's seam: `HistoryWindow.select` is now
+`async select(history, *, session_id) -> Sequence[Message]`, `CharBudgetHistoryWindow` unchanged
+in behaviour behind it, and `SummarizingHistoryWindow` wrapping it so the turns the budget drops
+come back as a cached, model-written recap. The seam's contract gained one clause: a window
+returns a subsequence of the history in order and may additionally PREPEND derived context of its
+own, but may never drop or alter a message the wrapped window kept. That clause is what makes the
+summarizer safe to run on the turn's critical path, since every one of its failure paths returns
+the char-budget selection this ADR shipped, byte for byte.
+
+The `async` widening cost one `await` at one caller, as this ADR's audit predicted, plus the
+`session_id` the audit did not: a recap cached per session has to know which session it is
+windowing. `CORTEX_HISTORY_SUMMARY` is the knob and it is off by default, measured at 11 s per
+boundary move against a shipped window that could not answer a question the recap could.
