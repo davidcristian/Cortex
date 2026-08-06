@@ -6,8 +6,9 @@ use std::fmt::Debug;
 use body_core::os::screen_policy::MAX_CAPTURE_BYTES;
 use body_core::{Capture, CaptureRequest, RawFrame};
 
-/// The frame every fixture is built at: one 4K display, which is what the capture path is
-/// bounded for and the size the legibility measurement was taken on.
+/// The display the desktop fixtures are built at: one 4K screen, which is what the capture path
+/// is bounded for and the size the legibility measurement was taken on. It is the default rather
+/// than the only one, since [`WORST_DISPLAY`] costs more.
 const SOURCE: (u32, u32) = (3840, 2160);
 
 /// The body's own default edge, what a caller that asks for nothing still gets.
@@ -87,8 +88,8 @@ struct Screen {
 }
 
 impl Screen {
-    fn new() -> Self {
-        let (width, height) = (SOURCE.0 as usize, SOURCE.1 as usize);
+    fn new(source: (u32, u32)) -> Self {
+        let (width, height) = (source.0 as usize, source.1 as usize);
         Self {
             width,
             height,
@@ -159,7 +160,11 @@ impl Screen {
     }
 
     fn frame(self) -> RawFrame {
-        ok(RawFrame::new(SOURCE.0, SOURCE.1, self.pixels))
+        let (width, height) = (
+            ok(u32::try_from(self.width)),
+            ok(u32::try_from(self.height)),
+        );
+        ok(RawFrame::new(width, height, self.pixels))
     }
 }
 
@@ -179,7 +184,7 @@ fn grain_of(grain: i32, rng: &mut Rng) -> i32 {
 /// screen a person asks about usually is.
 fn wallpaper_desktop(grain: i32) -> RawFrame {
     let mut rng = Rng::new(0x5EED_0001);
-    let mut screen = Screen::new();
+    let mut screen = Screen::new(SOURCE);
     screen.photograph(grain, &mut rng);
     screen.panel(0, 2100, 3840, 60, 32);
     for (left, top) in [(120, 140), (1960, 720)] {
@@ -193,8 +198,15 @@ fn wallpaper_desktop(grain: i32) -> RawFrame {
 /// A photograph filling the display: a maximised viewer, a video still, a full-bleed page. The
 /// realistic worst case, since nothing flat is left to compress.
 fn full_screen_photograph(grain: i32) -> RawFrame {
+    full_screen_photograph_on(SOURCE, grain)
+}
+
+/// The same photograph on a display of any size, because how much grain survives the downscale is
+/// decided by the *ratio* between the display and the requested edge rather than by either number
+/// alone.
+fn full_screen_photograph_on(source: (u32, u32), grain: i32) -> RawFrame {
     let mut rng = Rng::new(0x5EED_0002);
-    let mut screen = Screen::new();
+    let mut screen = Screen::new(source);
     screen.photograph(grain, &mut rng);
     screen.frame()
 }
@@ -202,7 +214,7 @@ fn full_screen_photograph(grain: i32) -> RawFrame {
 /// The screen this whole setting exists for: flat panels and nothing but small text.
 fn text_desktop() -> RawFrame {
     let mut rng = Rng::new(0x5EED_0003);
-    let mut screen = Screen::new();
+    let mut screen = Screen::new(SOURCE);
     screen.panel(0, 0, 3840, 2160, 24);
     screen.panel(0, 0, 2200, 2160, 30);
     screen.panel(2200, 0, 1640, 2160, 250);
@@ -215,7 +227,7 @@ fn text_desktop() -> RawFrame {
 /// exists for.
 fn uniform_noise() -> RawFrame {
     let mut rng = Rng::new(0x5EED_0004);
-    let mut screen = Screen::new();
+    let mut screen = Screen::new(SOURCE);
     for y in 0..screen.height {
         for x in 0..screen.width {
             let (blue, green, red) = (rng.next_byte(), rng.next_byte(), rng.next_byte());
@@ -232,20 +244,21 @@ fn measure(frame: &RawFrame, edge: u32) -> (usize, u32, u32) {
     (capture.data().len(), capture.width(), capture.height())
 }
 
-/// Prints one screen's row and answers whether the wider edge kept its full size.
+/// Prints one screen's row and answers whether the wider edge kept the size it should have.
 fn report(name: &str, frame: &RawFrame) -> bool {
     let (body_bytes, ..) = measure(frame, BODY_EDGE);
     let (brain_bytes, width, height) = measure(frame, BRAIN_EDGE);
-    let verdict = if width == BRAIN_EDGE {
+    let intact = width.max(height) == frame.width().max(frame.height()).min(BRAIN_EDGE);
+    let verdict = if intact {
         format!("{}% of the ceiling", brain_bytes * 100 / MAX_CAPTURE_BYTES)
     } else {
         String::from("THE LADDER FIRED")
     };
     println!(
-        "  {name:<28} {BODY_EDGE} px: {body_bytes:>9} B   {BRAIN_EDGE} px: {brain_bytes:>9} B \
+        "  {name:<32} {BODY_EDGE} px: {body_bytes:>9} B   {BRAIN_EDGE} px: {brain_bytes:>9} B \
          ({width}x{height}, {verdict})"
     );
-    width == BRAIN_EDGE
+    intact
 }
 
 #[test]
@@ -282,4 +295,32 @@ fn the_ladder_still_fires_on_a_screen_no_one_has() {
         "uniform noise now fits inside {MAX_CAPTURE_BYTES} bytes at {BRAIN_EDGE} px, so either \
          the encoder or the ceiling moved and the margin recorded in the addendum is stale"
     );
+}
+
+/// The display that costs the most at the [`BRAIN_EDGE`] default, which is not the biggest one.
+const WORST_DISPLAY: (u32, u32) = (2560, 1440);
+
+#[test]
+#[ignore = "byte measurement on 4K frames: run with --release -- --ignored --nocapture"]
+fn a_display_nearer_the_requested_edge_is_the_expensive_one() {
+    println!("\nThe same grainy photograph on the displays a person actually owns:");
+    for source in [(3840, 2160), WORST_DISPLAY, (1920, 1080)] {
+        assert!(
+            report(
+                &format!("photograph, grain 16, {}x{}", source.0, source.1),
+                &full_screen_photograph_on(source, 16),
+            ),
+            "a {}x{} display fired the halving ladder on an ordinary grainy photograph, which \
+             the 4K measurement behind the {BRAIN_EDGE} px default did not predict",
+            source.0,
+            source.1
+        );
+    }
+    println!("\nHow much room the costliest of those has left, by how grainy the screen is:");
+    for grain in [0, 8, 16, 32, 64] {
+        report(
+            &format!("photograph, grain {grain}, 2560x1440"),
+            &full_screen_photograph_on(WORST_DISPLAY, grain),
+        );
+    }
 }

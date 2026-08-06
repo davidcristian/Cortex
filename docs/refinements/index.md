@@ -1310,6 +1310,29 @@ And the **fix-when-it-bites** bucket still described recall observability as a t
 inspect after the fact, on the day the audit sink that inspects it shipped. Four navigation aids,
 four different ways to be wrong, none of them reachable by rereading a number.
 
+Vision **held at 12 on 2026-08-06**, that evening, when the fix-when-it-bites bucket was re-read
+against the capture edge that moved that morning and one of its entries was ruled not fired. That
+pass was owed: raising `CORTEX_BODY_CAPTURE_MAX_EDGE` to 2048 brings the halving ladder nearer, the
+encoding entry beside it had re-read itself against exactly that change and correctly stayed put,
+and `RESOURCE_EXHAUSTED` classification had not. The answer is that it cannot fire at the shipped
+byte ceiling **at any edge the seam permits**, which is stronger than the numbers and does not
+expire with them: the ladder's last rung is at most a quarter of the requested edge, so at the
+4096 px ceiling it is 1024 px on the long edge and 3.1 MB of raw RGB against a 6 MiB budget, and
+`CaptureError::TooLarge` is unreachable until a deployment tightens `CORTEX_BODY_MAX_IMAGE_BYTES`
+to about an eighth of its default. The entry's trigger is rewritten as that check. Two things the
+re-read found beside it. The coarseness is narrower than the entry says, because nothing brain-side
+reads the status code at all, only the body's own sentence, and the three sentences differ
+completely; what is actually wrong on that path is a **prefix**, every capture failure being
+announced to the model as "could not reach the body" including the shipping default where capture
+is switched off and the body answers at once, and that is folded into the same entry rather than
+counted again. And the number the morning's default was signed off with, a worst realistic screen
+at 74% of the ceiling, was a 4K number: a 2560x1440 desktop under the same grain reaches 79%,
+because how much grain survives is set by the ratio between the display and the requested edge
+rather than by the display's size, and the biggest display is the one that averages the most of it
+away. The margin holds and it is smaller than it read, and the harness that reads it was wrong in
+the other direction, calling an untouched 1920x1080 capture a fired ladder because it compared the
+returned width against the edge that was asked for rather than against the edge that was possible.
+
 ## Recommended order
 
 Ordered by what unblocks the most value soonest. Before starting any item, verify its claims
@@ -2421,8 +2444,14 @@ per-provenance eviction entry above rather than standing alone. **A uniform per-
 first that can park a host thread, and changing the three live-validated no-deadline calls is not
 a change that slice earned, so the trigger is a second call that can park a thread. And
 **`RESOURCE_EXHAUSTED` classification**, a small mapping change on both sides whose absence leaves
-a capture the ladder refuses indistinguishable from a broken backend, triggered the first time
-that coarseness sends a reader to the wrong place.
+a capture the ladder refuses indistinguishable from a broken backend. Its trigger was "the first
+time that coarseness sends a reader to the wrong place" and is now a check instead, **re-read
+2026-08-06 against the raised capture edge and ruled not fired**: the refused arm cannot be reached
+at the shipped byte ceiling at any edge the seam permits, since the ladder's last rung is a quarter
+of the requested edge and always fits, so the entry fires when a deployment sets
+`CORTEX_BODY_MAX_IMAGE_BYTES` under roughly 450 KB and not before. It also now carries the one
+live thing that pass found, which is that every capture failure reaches the model behind a
+"could not reach the body" prefix that is false for all but one of them.
 
 ### Feature breadth, on request
 

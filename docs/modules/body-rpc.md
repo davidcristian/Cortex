@@ -106,7 +106,10 @@ line cap.
     pure-core `Capture::from_bgra` policy, the clock read, and the receipt inside **one**
     `off_worker` hop, then maps the `Capture` onto `ImageBlob` (including `source_width`/
     `source_height` and `captured_at_unix_ms`). Error mapping: `NoDisplay -> Unavailable`,
-    `Disabled -> PermissionDenied`, `Backend`/`TooLarge -> Internal`. The receipt is a
+    `Disabled -> PermissionDenied`, `Backend`/`TooLarge -> Internal`. That last pair sharing a
+    code is a deferred refinement (`docs/refinements/vision.md`) and not an urgent one: the
+    brain reads the message rather than the code, and `TooLarge` cannot arise at all unless a
+    caller names a much tighter `max_bytes` than this seam's own. The receipt is a
     `body_core::Notification` built from the fixed body-owned `CAPTURE_RECEIPT_*` strings and
     is **best effort**: by the time it runs the pixels have been read, so a dead notification
     service must not also cost the capability. `receipts` (the host's

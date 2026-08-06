@@ -48,7 +48,12 @@ trigger provably cannot change the answer while the event that can does not reac
 all. The second name is **an outcome-driven capture indicator**, whose bullet was closed earlier
 the same day and whose decrement [index.md](index.md) recorded (14 to 13) while this line kept the
 name. That is the arithmetic the two files are meant to agree on, so the name leaves here now and
-no count moves for it twice.
+no count moves for it twice. A tenth, later on 2026-08-06, which moves no count at all and is
+written down so that is visibly a decision rather than an oversight: **`RESOURCE_EXHAUSTED`
+classification** was re-read against the raised capture edge and ruled not fired, so it keeps its
+name, its bullet and its place in the count while its bullet gains what the re-read found and a
+trigger a reader can check instead of feel. A re-read that confirms a deferral is the one event in
+this file that should leave the arithmetic exactly where it was.
 
 ## Vision in Slice 10 ([ADR-0029](../adr/ADR-0029-vision-screen-capture.md))
 
@@ -104,6 +109,20 @@ no count moves for it twice.
   photograph and 4.67 MB with heavy grain over it, so the worst realistic screen sits at 74% of the
   ceiling and only per-pixel noise crosses it
   ([`capture_bytes.rs`](../../body/crates/core/tests/capture_bytes.rs)).
+
+  **That 74% was a 4K number, and 4K is not the costly case** (measured 2026-08-06, the same
+  harness). How much grain survives is decided by the ratio between the display and the requested
+  edge, not by either alone: a 4K screen averages three and a half source pixels into every output
+  pixel and most of the grain dies there, while a display nearer 2048 px averages almost nothing. A
+  2560x1440 desktop under the same heavy grain costs 5.02 MB against 4K's 4.67 MB, so **the worst
+  realistic screen is 79% of the ceiling rather than 74%**, and the ladder fires one step of grain
+  earlier there than at 4K. A 1920x1080 desktop is cheaper again at 71%, because it is already
+  inside the requested edge and crosses the seam untouched, and fewer pixels beat undiluted grain.
+  The margin is smaller than the closing measurement said and it still holds: nothing a person
+  would look at fires the ladder at the shipped default. Correcting this also corrected the
+  harness, whose verdict compared the returned width against the *requested* edge and so read an
+  untouched 1920x1080 capture as a fired ladder; it compares against
+  `min(the display's long edge, the requested edge)` now.
 
   **The fields are demoted, not declined, and the entry stays open.** The knob does not reach 15 px
   text on an unscaled monitor (4 of 16 at every budget tried, including 1982 tokens), it does not
@@ -314,6 +333,47 @@ no count moves for it twice.
   is honest but coarse: the brain cannot tell "your screen is too complex to send" from "the
   backend broke". A distinct status (and a distinct message the cortex could relay) is a small
   mapping change on both sides.
+
+  **Re-read 2026-08-06 against the raised capture edge, and it has not fired, for a reason that
+  outlives the numbers.** The trigger was re-read because `CORTEX_BODY_CAPTURE_MAX_EDGE` moved 0 to
+  2048 that morning, which brings the halving ladder nearer, and the sibling encoding entry below
+  had re-read itself against the same change while this one had not. Two findings, and the second
+  is the one that settles it.
+
+  The **arm this entry describes cannot be reached at the shipped byte ceiling at all**, at any
+  edge the seam permits. `Capture::from_bgra` runs three rungs, and each halves the edge the
+  previous rung *reached*, so the last rung is at most a quarter of the requested edge: with
+  `MAX_EDGE_CEILING` at 4096 that is 1024 px on the long edge, at most 1024x1024, and 3.1 MB of
+  raw RGB against a 6 MiB ceiling. PNG cannot inflate that past the ceiling, so the third rung
+  always fits and `CaptureError::TooLarge` never happens. This is not a discovery; it is written
+  into `screen_policy.rs`'s own argument for why the byte ceiling rides the request ("a branch
+  nothing can take is a gate that cannot fail"), and the gated test that reaches the give-up arm
+  reaches it by naming a 40 byte ceiling. Raising the *edge* cannot move this, because the third
+  rung is a fraction of the edge rather than a fixed size. What would move it is a deployment
+  setting `CORTEX_BODY_MAX_IMAGE_BYTES` low enough that a quarter-edge capture can miss it, which
+  for the shipped 2048 px ask is under roughly 450 KB, an eighth of its default. **So the trigger
+  is sharpened from a feeling to a check**: this entry fires when a deployment tightens that
+  budget far enough to make the give-up arm reachable, and not before.
+
+  The second finding narrows the coarseness the entry claims. The status *code* really is shared,
+  `Internal` for both `Backend` and `TooLarge`. But **nothing on the brain side reads the code**:
+  `GrpcBodyGateway.capture_screen` catches `aio.AioRpcError` and keeps only `err.details()`, so
+  what reaches the model is the body's own sentence, and the three sentences are entirely
+  different ("the capture is too large for the seam: N bytes", "screen capture backend error: ...",
+  "Deadline Exceeded"). The distinction the entry wants already reaches the only reader there is.
+  A code the brain does not read is worth adding for a caller that would branch on it, and there
+  is none yet.
+
+  **One live wording defect was found on the same path and is folded in here rather than counted
+  separately**, since one sitting fixes both and a near-duplicate name would inflate the area.
+  `CaptureScreenTool.invoke` prefixes every failure with `could not reach the body to capture the
+  screen`, which is false for all but one of them: a refused capture, a broken backend, a reply the
+  gateway will not vouch for, and above all the shipping default, where `CORTEX_HOST_CAPTURE` is
+  unset and the body answers `PermissionDenied` promptly and precisely. The model is told the body
+  is unreachable and then, after the colon, the true reason. It is a mis-framing rather than a lost
+  fact, which is why it waits, but it is reachable on a default install and this entry's own
+  trigger clause is about sending a reader to the wrong place. `volume.py` carries the same
+  prefix and is more defensible there, having no kill switch behind it.
 - **Carrying a picture, or at least the `opaque` bit, across a model swap.** Named in ADR-0029's
   own Deferred paragraph and written down here on 2026-07-19, having been missed when the slice
   closed. Nothing persists an in-turn image: no session store, and no handoff record either, whose
