@@ -295,7 +295,9 @@ crosses the seam.
   after encoding is the only honest order: a flat desktop is kilobytes at 1600x900 and a
   photograph is megabytes. A `Capture` exposes `data`, `mime_type` (always `CAPTURE_MIME`,
   `image/png`), `width`/`height` after the downscale, and `source_width`/`source_height`
-  before it.
+  before it. How much room the ceiling leaves at the 2048 px edge the brain asks for is
+  measured on 4K frames by `tests/capture_bytes.rs`, which is `#[ignore]`d because it is
+  seconds of CPU rather than a gate.
 - `encode_png(width, height, rgb) -> Result<Vec<u8>, CaptureError>` is the encoder, public so
   its two rejects (a zero dimension, a buffer that is not `width * height * 3` bytes) can be
   provoked by a caller. The downscaler is a box filter with a separate identity arm, so a

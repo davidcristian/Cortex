@@ -226,10 +226,11 @@ def test_body_defaults_to_disabled() -> None:
     assert config.endpoint == ""
     # The capture knobs, against literals rather than against the constants production reads:
     # comparing a default to the very name it was assigned from proves which value was published
-    # and nothing about what it is. 0 means "the body's own default edge", 6291456 is the 6 MiB
+    # and nothing about what it is. 2048 is the brain half of the measured legibility pair (the
+    # body's own default is 1600 and would be what a 0 here asked for), 6291456 is the 6 MiB
     # domain ceiling this side enforces, and 10 seconds is the only deadline on this seam.
     assert (config.capture_max_edge, config.max_image_bytes, config.capture_timeout_s) == (
-        0,
+        2048,
         6291456,
         10.0,
     )

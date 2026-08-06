@@ -5,9 +5,11 @@ projector on a real card (ADR-0029's legibility measurement):
 
 1. The model declares its own per-image token budget and **saturates** at it, so past a certain
    size a bigger capture buys nothing. That number is what makes a 4K desktop's interface text
-   unreadable, and it is the premise the whole region-capture deferral rests on.
-2. ``CORTEX_IMAGE_MAX_TOKENS`` raises it. The argv under test is built by the shipped
-   ``ModelHostConfig``, not typed here, so this measures the knob and not a flag.
+   unreadable, and it is the premise the whole region-capture deferral rests on. It is what a
+   deployment falls back to when it turns ``CORTEX_IMAGE_MAX_TOKENS`` off.
+2. ``CORTEX_IMAGE_MAX_TOKENS`` raises it, which is why it defaults to 1024. The argv under test is
+   built by the shipped ``ModelHostConfig``, not typed here, so this measures the knob and not a
+   flag.
 3. Raising llama.cpp's ``--image-max-tokens`` **without** the matching ``--ubatch-size`` aborts
    the server on the first oversized picture. That is why the knob emits the pair, and this arm
    is the proof the coupling is load-bearing rather than defensive.
@@ -166,25 +168,26 @@ def _prompt_tokens(messages: list[dict[str, object]]) -> int:
 
 
 @pytest.mark.integration
-def test_the_shipped_budget_saturates_and_the_knob_raises_it(
+def test_the_models_own_budget_saturates_and_the_knob_raises_it(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """A 4K screen costs the model's declared budget; the knob buys real resolution back."""
     png = _screen()
     with _server(_argv_tail(0, monkeypatch)):
-        shipped = _cost(png)
-    print(f"\n  shipped (no CORTEX_IMAGE_MAX_TOKENS): {shipped} prompt tokens for one 4K screen")  # noqa: T201
-    # The premise of the region-capture deferral: the default is small enough that a 4K desktop
-    # is thrown away inside the encoder, and small enough that no default deployment can meet
-    # the micro-batch assert the third arm below provokes.
-    assert shipped < _ENGINE_UBATCH
+        declared = _cost(png)
+    print(f"\n  CORTEX_IMAGE_MAX_TOKENS=0: {declared} prompt tokens for one 4K screen")  # noqa: T201
+    # The premise of the region-capture deferral, and the reason the knob had to be raised: left
+    # to itself the model throws a 4K desktop away inside the encoder. It is also why turning the
+    # knob off is safe on its own, since a budget this small cannot meet the micro-batch assert
+    # the arm below provokes.
+    assert declared < _ENGINE_UBATCH
 
     with _server(_argv_tail(1024, monkeypatch)):
         raised = _cost(png)
         assert _alive(), "the raised budget aborted the server on a 4K picture"
-    print(f"  CORTEX_IMAGE_MAX_TOKENS=1024: {raised} prompt tokens for the same screen")  # noqa: T201
-    assert raised > 2 * shipped, (
-        f"the knob bought no resolution: {shipped} tokens shipped vs {raised} raised. "
+    print(f"  CORTEX_IMAGE_MAX_TOKENS=1024 (the default): {raised} tokens, same screen")  # noqa: T201
+    assert raised > 2 * declared, (
+        f"the knob bought no resolution: {declared} tokens off against {raised} raised. "
         "Either llama.cpp stopped honouring --image-max-tokens for this model, or the model's "
         "own declared budget rose above the knob."
     )
