@@ -123,6 +123,13 @@ a trace, which is why every claim below carries the measurement it rests on.
    the panel's bottom edge from 656 to 774 and left it there. Keeping the want and the fit apart
    makes a grow-then-shrink round trip exactly reversible. It also means a shrink while clamped
    moves the bottom edge, which is the same statement as reversibility and not a second rule.
+   **That last sentence stopped being true later the same evening** and is kept here because it is
+   what this decision was reasoned from. The "way out" clamp it names, `max(0, min(pinned, 0.88v -
+   h))`, was replaced by `max(0, pinned)` when the panel's second bound was deleted (the 2026-07-20
+   "growth caps at the top" addendum, item 1): the ceiling applies to the HEIGHT, not to the edge, so
+   nothing pulls the bottom edge back when a shrink gives it room. Reversibility survives untouched,
+   the pinned edge still being remembered unclamped, and the cost this sentence priced for it is
+   gone. Measured and closed 2026-08-06; see the clamped-shrink addendum below.
 
 5. **The panel takes its bottom edge along with a roll, rather than after it.** ADR-0034
    decision 5 had the panel discover at `cortex:morphend` that it had outgrown its ceiling. That
@@ -679,6 +686,15 @@ a trace, which is why every claim below carries the measurement it rests on.
   bites on a conversation tall enough to reach the ceiling, and the alternative (re-pinning to the
   clamped edge, and saving the pre-roll edge per section to hand back when it rolls shut) is a
   design the user has not been asked for. Recorded in `docs/refinements/body-overlay.md`.
+  - **This consequence was already false when it was written, and its rarity number was wrong on
+    top of that. Corrected 2026-08-06** (clamped-shrink addendum below). The edge clamp it depends
+    on was deleted later the same evening by the "growth caps at the top" addendum's first item, so
+    a clamped shrink moves nothing: the
+    ceiling caps the height and the history gives the room up. And 615 is not a growth delta but the
+    CEILING'S VALUE for a 546px panel centred at 900px, which has 69px of headroom, not 615. Real
+    headroom is `0.88v - (v - h)/2 - h`, at 900px `342 - h/2`, so at most 342px for any panel and
+    0px at `openHeight(900) = 684`. The 0px measurements after decision 8 are the only part of this
+    bullet that still reads true, and they read true for the other reason.
 - The hook is driven by renders and by the roll's end event and by nothing else, so a panel resized
   by neither keeps a placement computed for the height it used to have. The demo's canned chat
   settles 1.9px after its last render, which now reads as at most 1px of the centre it should have
@@ -2656,3 +2672,92 @@ hint strip on screen in the first place.
 
 **The console's own column is not wired, and has nothing to wire.** No section in it rolls today,
 and a log is not what it holds.
+
+## Addendum, 2026-08-06: the clamped shrink was answered on the day it was asked
+
+A deferred entry held that decision 4 forced a choice: an unclamped pinned edge buys a switcher
+round trip that is exactly reversible, and pays for it by sliding the composer whenever a shrink
+gives a clamped panel room. Two designs were written up, the user was asked twice (2026-07-20 and
+2026-08-04) and picked neither, and the entry sat for seventeen days as the one item in the backlog
+whose whole remaining cost was a decision.
+
+There was no choice. HEAD delivers both halves, and has since 20:57 on 2026-07-20, thirty two
+minutes after the entry was written into the console-and-motion commit at 20:25 the same evening.
+The "growth caps at the top" addendum above, item 1, is what did it: the second bound came off, and
+with it the clamp on the pinned EDGE.
+
+### What changed underneath the entry
+
+`clamped(pinned, viewport, height)` was `max(0, min(pinned, 0.88v - h))`. That `min` is the whole of
+the entry's argument: it walks the bottom edge down as the panel grows past its ceiling, and lets it
+walk back up as soon as a shrink gives room, which is the composer moving. It is now
+`clamped(pinned) = max(0, pinned)` in `overlay/panelGeometry.ts`, a no-op for any chat, whose pinned
+edge is `centred(...)` and therefore at least `0.12v`. The ceiling moved onto the height as
+`maxHeight(viewport, bottom)`, so a panel at its ceiling stops getting taller and the history
+scrolls. `overlay/panelPlacement.ts` still spends the clamp on the way out and still never folds it
+into `memory.pinned`, so reversibility is untouched. Nothing was traded; a bound was deleted.
+
+### What was measured, and how it was made to fail first
+
+Driven by hand in headless Chromium against the demo bridge, per painted frame, reading the
+composer's own bounding box rather than inferring its position from the panel's edge.
+
+At 640x720 the three reminders on the empty chat put the panel against its ceiling on arrival, and
+the panel is asked rather than assumed: `offsetHeight` 450, `max-height` 450, and the `--ceiling`
+the panel publishes for itself 450, against `round(0.88 x 720 - 184) = 450`. Top edge 86, bottom
+edge 184px, composer top 445. At 900x900 the same three readings are 518 at a 274px edge.
+
+1. **Acking one reminder**, which gives back 58px of real content (the stack reads 188 then 130 and
+   the history's box grows 99 to 158 taking the room up): the panel holds 450 tall at a 184px edge
+   for all 75 frames and the composer reads 445 on every one of them. Travel 0px.
+2. **A switcher round trip while clamped**: the list opens 135px inside the panel and rolls the
+   stack to 100, then both come back at 0 and 188. The panel reads 450 at 184px before, during and
+   after, and the composer 445 throughout. Reversible and immobile at once, which the entry says is
+   impossible.
+3. **Acking all three**, which takes the panel clean off its ceiling: the TOP edge moves 86 to 184
+   and the height 450 to 352, while the bottom edge holds 536 and the composer holds 445 on every
+   frame. The shrink is taken entirely at the top, which is decision 4's rule 3 running in reverse.
+4. **The same three at 900x900**, where the panel also arrives clamped (518 tall at a 274px edge):
+   the ack drops the top edge 108 to 138.5 with the composer at 535 on all 76 frames, and the round
+   trip returns the panel to the identical 274px edge with the composer at 535 throughout.
+
+**The arm was reddened before it was trusted.** The deleted clamp was put back at the one line that
+spends it, `edge = max(0, min(wanted, 0.88v - height))`, which is the old `clamped` verbatim. The
+panel then arrives 546 tall at an 88px edge with the composer at 541, and acking one reminder
+settles it at 483: a 58px move, through a 96px excursion (541 down to 445 across the roll, back up
+to 483), with the edge walking 88 to 184 to 146. That is the entry's defect, reproduced on demand.
+The change was reverted and every green reading above was re-taken afterwards.
+
+### The rarity number was wrong, and it made waiting look cheap
+
+"A correctly pinned panel has to grow 615px at a 900px viewport before the ceiling binds at all"
+reads 615 as a growth delta. It is the ceiling's VALUE for a 546px panel centred at 900px:
+`maxHeight` allows `0.88v - b`, a centred panel of height h sits at `b = (v - h)/2`, so its ceiling
+is `0.88v - (v - h)/2` and its headroom is that less h, which at 900px is `342 - h/2`. For the 546px
+panel that is 69px, not 615. Headroom is at most 342px for any panel at all, and exactly 0 at
+`openHeight(900) = 684`, which is where the two curves meet by construction. Measured live at 900px,
+the demo's own arriving chat has 0px of headroom and stands on its ceiling before the user has
+touched anything. The ceiling is common, not rare. What is gone is the consequence.
+
+### What this says about the backlog rather than about the panel
+
+The entry was restated twice from its own text and never re-derived from the tree, and two sittings
+in `docs/refinements/index.md` measured its answer and filed it as a null result: on 2026-08-03 the
+panel-watch pass recorded "the composer holds its bottom edge at 493 through an ack and a switcher
+round trip either way", and the chat-floor pass the same day recorded the composer holding still
+"through an ack, a switcher round trip and the pencil at both viewports". 493 is this panel's
+composer bottom at 640x720. Both were asking whether their own change had moved the composer, which
+is narrower than asking whether anything still did. The index's opening warning, that an entry's own
+cost estimate is a hypothesis, now carries the harder form beside it: an entry's account of the code
+is a hypothesis too, and a much more expensive one, because it reads as a description of the tree.
+
+### What this does not do
+
+**Decision 4 is not reversed.** The pinned edge is still remembered unclamped and the clamp is still
+spent on the way out, which is still what makes the round trip reversible. Only the sentence pricing
+that reversibility is retired, the price having been deleted.
+
+**The alternative design is not adopted, and should not be.** Re-pinning to the clamped edge and
+saving a pre-roll edge per section buys nothing HEAD does not already have, and costs the panel
+parked on whatever low edge its tallest moment left it with. It is recorded as history, not as a
+standing option.

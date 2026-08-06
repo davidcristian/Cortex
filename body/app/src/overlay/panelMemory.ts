@@ -15,6 +15,13 @@ import type { Geometry } from "./panelGeometry";
  * the centre of the 356px it had been before the reminders landed. It then spent the whole session
  * 109px above its own centre and hard against its ceiling, where every later shrink slid the
  * composer (measured: acking one reminder moved it 40px up the screen).
+ *
+ * That 40px is a reading from before the panel's second bound was deleted on 2026-07-20, and only
+ * the composer half of it is stale: re-measured 2026-08-06, a shrink against the ceiling moves the
+ * composer 0px whatever edge the session is pinned to, the ceiling now capping the HEIGHT. What the
+ * window still earns is the first half, which is the whole reason it exists. A panel pinned to the
+ * centre of a height its content is a beat away from having spends the session off its own centre,
+ * and off centre is where it sits until the next summon.
  */
 const ARRIVAL_MS = 440;
 

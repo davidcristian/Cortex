@@ -126,10 +126,13 @@ ground. One swap at three speeds reads as the window coming apart and going back
     From then on it is anchored by its BOTTOM edge,
     so a reply arriving, the switcher opening, a reminder landing, or the pencil emptying the panel
     resizes it from that edge and the composer never moves under the hand that just typed; it stops
-    at `12vh` of clear space and grows downward past that, which lands a full-height panel dead
-    centre. The edge it is pinned to is remembered UNCLAMPED, so a panel pushed down by its own
-    growth comes back to it as soon as it fits again and a grow-then-shrink round trip is exactly
-    reversible. **The edge nearest the hand is the edge that holds still**, which is that bottom
+    at `12vh` of clear space and simply stops getting taller there, the history giving the room up
+    instead. That is the ONE bound and it is on the height, not on the edge: nothing walks the
+    bottom edge down to buy a taller panel, so the composer holds still at the ceiling exactly as it
+    does below it (measured 2026-08-06 at 640x720 and 900x900, 0px on every frame of an ack, a
+    switcher round trip and a shrink clean off the ceiling). The edge it is pinned to is remembered
+    UNCLAMPED, which is what makes a grow-then-shrink round trip land back on the identical edge and
+    height. **The edge nearest the hand is the edge that holds still**, which is that bottom
     one for the chat and the TOP one for every other view: the console's chrome is its back button
     and its tab strip, so a tab change grows the panel downward and the strip never moves under
     the cursor that clicked it. A view of more than one shape (the console, whose tabs differ in
