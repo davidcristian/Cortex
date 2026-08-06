@@ -60,6 +60,7 @@ from cortex_core import (
 )
 from cortex_core.loop_events import MAX_STEP_SUMMARY_CHARS
 from cortex_core.tool_loop import MAX_TOOL_STEPS
+from cortex_core.untrusted import PLAIN_SECURITY_PREAMBLE
 
 _START = datetime(2026, 7, 3, 12, 0, 0, tzinfo=UTC)
 
@@ -186,7 +187,9 @@ async def test_turn_persists_user_then_assistant_with_shared_turn_id() -> None:
         Message(
             role=Role.ASSISTANT,
             text="reply 1: hello",
-            at=_START + timedelta(seconds=1),
+            # Two ticks on, not one: the assembly stamps a standing rule onto every turn, the
+            # plain one here (ADR-0013 replayed-quotation addendum), and it reads the clock.
+            at=_START + timedelta(seconds=2),
             turn_id="t-1",
         ),
     ]
@@ -241,8 +244,14 @@ async def test_backend_receives_model_id_and_full_history() -> None:
     await _collect(engine.handle_turn("s", "second"))
     assert [model for model, _ in backend.calls] == ["cortex-q4", "cortex-q4"]
     first_history, second_history = (messages for _, messages in backend.calls)
-    assert [m.text for m in first_history] == ["first"]
-    assert [m.text for m in second_history] == ["first", "abc", "second"]
+    # Every turn opens with a standing rule, the plain one here; the history follows it whole.
+    assert [m.text for m in first_history] == [PLAIN_SECURITY_PREAMBLE, "first"]
+    assert [m.text for m in second_history] == [
+        PLAIN_SECURITY_PREAMBLE,
+        "first",
+        "abc",
+        "second",
+    ]
 
 
 async def test_windowed_history_bounds_the_backend_not_the_store() -> None:
@@ -260,7 +269,9 @@ async def test_windowed_history_bounds_the_backend_not_the_store() -> None:
     await _collect(engine.handle_turn("s", "one"))
     await _collect(engine.handle_turn("s", "two"))
     await _collect(engine.handle_turn("s", "three"))
-    histories = [[m.text for m in messages] for _, messages in backend.calls]
+    histories = [
+        [m.text for m in messages if m.role is not Role.SYSTEM] for _, messages in backend.calls
+    ]
     # Turns 1-2 fit the budget whole; turn 3 drops the oldest exchange wholesale.
     assert histories == [["one"], ["one", "abc", "two"], ["two", "abc", "three"]]
     # Persistence is untouched by the window: the store holds the full history.
@@ -334,9 +345,11 @@ async def test_recalled_memory_is_injected_as_ephemeral_system_context() -> None
     )
     await _collect(engine.handle_turn("s", "pizza"))
     _, messages = backend.calls[0]
-    assert messages[0].role is Role.SYSTEM
-    assert "I love pizza" in messages[0].text
-    assert (messages[1].role, messages[1].text) == (Role.USER, "pizza")
+    # The standing rule leads (the plain one: no tools, no taint), the recalled context follows.
+    assert messages[0].text == PLAIN_SECURITY_PREAMBLE
+    assert messages[1].role is Role.SYSTEM
+    assert "I love pizza" in messages[1].text
+    assert (messages[2].role, messages[2].text) == (Role.USER, "pizza")
     # The system context is ephemeral: the session store holds only real dialogue.
     assert [m.role for m in await store.history("s")] == [Role.USER, Role.ASSISTANT]
 
@@ -353,9 +366,10 @@ async def test_empty_memory_adds_no_context_and_records_the_exchange() -> None:
         turn_id_factory=lambda: "t-1",
     )
     await _collect(engine.handle_turn("s", "hello"))
-    # Nothing to recall on the first turn -> no system message, just the user turn.
+    # Nothing to recall on the first turn -> no memory context, just the standing rule and the
+    # user turn.
     _, messages = backend.calls[0]
-    assert [m.role for m in messages] == [Role.USER]
+    assert [m.text for m in messages] == [PLAIN_SECURITY_PREAMBLE, "hello"]
     # The completed exchange was recorded to memory at turn end.
     (recorded,) = await recaller.recall("hello", k=1, session_id="s")
     assert recorded.record.text == "User: hello\nAssistant: ok"
@@ -385,7 +399,8 @@ async def test_session_scope_keeps_one_conversations_memory_out_of_another() -> 
     )
     await _collect(engine_b.handle_turn("conv-b", "hello"))
     _, messages = backend_b.calls[0]
-    assert [m.role for m in messages] == [Role.USER]  # no recalled-memory system message
+    # Only the standing rule and B's own turn: no recalled-memory system message from A.
+    assert [m.text for m in messages] == [PLAIN_SECURITY_PREAMBLE, "hello"]
     # A recorded in its own scope; B's scope is empty until B records its own turn.
     assert await recaller.recall("hello", k=5, session_id="conv-a") != ()
     assert await recaller.recall("hello", k=5, session_id="conv-b") != ()  # only B's own now
@@ -702,6 +717,30 @@ async def test_security_preamble_precedes_a_tool_enabled_turn() -> None:
     assert messages[0].role is Role.SYSTEM
     assert messages[0].text == SECURITY_PREAMBLE
     assert messages[1].role is Role.USER
+    # One rule, not two: the tool-enabled turn's preamble already carries the plain one's clause.
+    assert PLAIN_SECURITY_PREAMBLE not in [m.text for m in messages]
+
+
+async def test_the_plain_standing_rule_precedes_a_turn_with_no_tools() -> None:
+    """A tool-less turn carries the shorter rule, which is where a replayed quotation lands.
+
+    The exposure the replayed-quotation measurement found (ADR-0013): a reply that quoted hostile
+    content is replayed as ordinary assistant history on every later turn, and with no tools the
+    turn used to carry no standing rule at all. It carries one now, and only one.
+    """
+    backend = RecordingBackend(("ok",))
+    engine = TurnEngine(
+        InMemorySessionStore(),
+        backend,
+        TickingClock(),
+        turn_id_factory=lambda: "t-1",
+    )
+    await _collect(engine.handle_turn("s", "hello"))
+    _, messages = backend.calls[0]
+    assert messages[0].role is Role.SYSTEM
+    assert messages[0].text == PLAIN_SECURITY_PREAMBLE
+    assert messages[0].turn_id == "t-1"
+    assert [m.text for m in messages[1:]] == ["hello"]
 
 
 async def test_tainted_turn_is_not_recorded_to_memory() -> None:
