@@ -3121,3 +3121,174 @@ the two doors into the console, and it takes no state. `newChat` moved from the 
 reason and with the same test: all four are conversation-swap arms answering the same three questions
 (what is announced, that the caret follows, and what becomes of the draft), and reading one is now
 reading the others.
+
+## Addendum, 2026-08-06: the caret stays in the list
+
+The addendum above sends the caret to the composer whenever a conversation arrives, and said plainly
+what it did not do: the same rows drop focus for the gestures that swap nothing. This closes that.
+**A list that reshapes under the hand keeps the caret**, by a rule with three clauses and one clock
+(`overlay/rowCaret.ts`).
+
+### What was measured before
+
+Chromium at 900x900 against the demo bridge, `document.activeElement` read before each gesture and at
+0, 60, 150, 290, 320 and 700ms after it. **The entry filed five gestures and there are thirteen**,
+which is the sibling entry's lesson repeating: doors are counted by reading the component, not by
+remembering the last bug report.
+
+| Gesture | Before | Mechanism | After |
+| --- | --- | --- | --- |
+| Rename opens | the pencil | the pencil is unmounted by the shape change (`pencilInDom` 3 → 2, no slot `inert`) | `<body>` at 0ms |
+| Rename commits, the save button | the editor | the editor is unmounted with the form | `<body>` at 0ms |
+| Rename commits, Enter in the field | the editor | the same | `<body>` at 0ms |
+| Rename cancels, Escape | the editor | the same, **and Escape reaches the window listener and dismisses the panel** | `<body>` at 0ms, panel gone |
+| Delete opens | the trash | the trash is unmounted by the shape change | `<body>` at 0ms |
+| Delete cancels | the confirm's cancel | the confirm is unmounted by the shape change | `<body>` at 0ms |
+| Delete confirms, another chat | the confirm's yes | unmounted (`confirmInDom` 0 at 0ms) inside a slot that is also `inert` in the same commit | `<body>` at 0ms |
+| Delete confirms, the last row | the confirm's yes | the same | `<body>` at 0ms |
+| Delete confirms, the only row | the confirm's yes | the same | `<body>` at 0ms |
+| Delete confirms, the OPEN chat | the confirm's yes | the same, but a fresh chat arrives | the composer, already answered |
+| A reminder's ack | the ack | held for the whole roll (the ack at 0, 150 and 320ms), then `Collapse` unmounts the row | `<body>` at 350ms |
+| A reminder's ack, the last one | the ack | the same, and the section leaves with the row | `<body>` at 350ms |
+| Pin / unpin | the toggle | nothing: the button survives the regroup it causes | the toggle, at every sample to 700ms |
+
+Two of those rows are findings rather than measurements of the filed defect. **Escape cancelling a
+rename also ended the session**: the editor's handler closes the editor and the press carries on to
+the window listener that dismisses the panel, so the panel read `panel edge-live` (no `open`) 400ms
+later. And **`?` typed into that editor opened the console**: the global handler's guard named the
+composer's textarea alone, so typing "why?" left `why` in the field and the settings pane on screen.
+Both were reachable before this and neither was reachable *by accident* before this, the caret never
+having been put in that editor by anything but a click.
+
+### The rule
+
+**A row that changes SHAPE hands the caret to the control its new shape puts in the place of the one
+that left.** A rename opens on its editor, with the title it is standing in for selected; a rename
+closes, either way, on the pencil that opened it, whose label now reads the name just given. A delete
+opens on the confirm's **cancel** and never on its trash, and closes on the trash that asked.
+
+**A row that LEAVES hands it to the same control in the row that inherits its place**, the row below
+where there is one and the row above for the last row. Same control, not the row's first: the reader
+was deleting chats, and landing on the next row's trash makes deleting several one gesture repeated
+rather than a walk back into the list between each. This is the composite-row reading of the standard
+list-deletion pattern, and it is the reading this list needs: the switcher's rows are four buttons
+each and were deliberately taken out of `listbox` for that reason (the accessibility addendum above),
+so "focus the next option" has no referent here and "the same column, one row down" does.
+
+**A list with no row left hands it to its anchor**, a control outside the list that the view holds
+(`ChatView`). The two lists get different anchors because what the reader is left with differs. Delete
+the last other chat and the switcher is still open in front of you saying it holds nothing, so the
+caret goes to the header's chats button, which opened the list and is what closes it again. Ack the
+last reminder and the stack goes with it, delivery being over, so the caret goes to the composer's
+field. That second one lands where the arrival rule lands and is not the arrival rule: nothing
+arrived, and the argument is that the only thing left on the panel is the conversation underneath.
+
+**And the pin toggle is answered by saying nothing about it.** It is the one row gesture whose
+control survives, so a rule for it would be a rule that moves a caret already in the right place.
+
+#### Why the cancel and not the confirm
+
+Measured, rather than argued from the practice. With focus on the confirm's yes, one further Enter
+deleted the chat (three rows to two); with focus on its cancel, the same press put the row back
+(two rows to three). The reader arrives at that confirm having just pressed a key to open it, and the
+confirm exists precisely so that one stray press cannot delete a chat, so landing on the destructive
+half would make the second press of a key somebody is already holding the whole of the decision. The
+pointer has no such hazard: the confirm's yes sits at x=633 against the trash's 528, and what lands
+under the trash's own centre after the shape change is the confirm's text.
+
+#### And Escape closes the innermost thing
+
+Both of the row's overlays now keep a cancelling Escape to themselves (`event.stopPropagation()`),
+which is the rule the console already followed one layer up. The console can do it from the overlay's
+own handler because the overlay holds its state; the editor's and the confirm's live in the row, so
+the row is what says the press was answered. The `?` guard is asked of `HTMLInputElement` as well as
+`HTMLTextAreaElement`, so a third field anywhere in the overlay is covered on the day it is added.
+Modified chords are deliberately untouched: `Ctrl+N`, `Ctrl+K` and the cycle keys still reach the
+overlay from inside an editor, a modified chord not being a character somebody is typing.
+
+### At the commit, not at the end of the roll
+
+The same call the arrival rule made, and here it has a second argument of its own: **the control being
+aimed at has been on screen all along.** The heir of a deleted row never left, and a row changing shape
+mounts its new controls in the very commit the old ones go, so there is nothing to wait for. Waiting
+would mean the caret parked somewhere for 300ms, and the measurements above say it would be two
+different somewheres: a switcher row is unmounted and `inert` at once, so the caret would spend the
+roll on `<body>`, while an acked reminder's button survives its whole roll, so the caret would ride an
+element animating to nothing. One clock answers both and it is the earliest one.
+
+**The panel does not notice.** Traced at 60Hz at 900x900. A confirmed delete: 60 frames, the panel's
+box unchanged at top 108 and height 518 throughout (the switcher's row exit never moved the panel,
+which is why the snap it replaced was the whole of what the eye saw), `panel.scrollTop` and the log's
+`scrollTop` both 0 at every frame. An ack with two reminders left: top 108 to 138.5 and height 518 to
+487.5 over 14 distinct boxes, largest single top step 6.14, both scroll positions 0 throughout. The
+last ack, where the section leaves and the caret crosses to the composer: top 196.75 to 274, height
+429.25 to 352 over 20 distinct boxes, largest step 11.57, both scroll positions 0. And the arrival
+rule's own trace is unmoved: a switcher row press still runs the panel 108 to 274 with a largest top
+step of 25.58 against the 25.56 recorded when that rule landed. `focus({ preventScroll: true })`
+throughout, which is why every `scrollTop` above is a zero.
+
+### How it is built
+
+`overlay/rowCaret.ts` is the whole of it: `heir(keys, gone)` (pure, the row that inherits a place),
+`caretKey(role, id)` (the name of one control, passing a null id through so a call site stays one
+expression), and `useRowCaret(list, anchor)`, which returns the function a gesture calls to name where
+the caret should be once its change is on screen. The move happens in a layout effect, before paint.
+
+**Named rather than held as a ref**, because the control being aimed at usually does not exist when
+the gesture fires. The rows write `data-caret` and the list looks one up inside its own container,
+which is `useTravel`'s arrangement (one container ref plus a selector) applied to focus instead of to
+position. The lookup matches on the dataset rather than folding the id into the selector, so an id
+with a quote in it is a key that misses rather than a selector that throws.
+
+**Asking is what schedules the move**, through a counter the hook bumps, rather than the caller's own
+state change happening to. Every gesture that calls it does change what its list renders, so the render
+comes anyway and this costs no commit (one handler is one batch); what it buys is a hook that is true
+on its own terms rather than one that works because of its callers. It was written the other way first
+and the hook's own tests were the thing that caught it: a stage that only set a ref never re-rendered,
+so nothing focused.
+
+**A field the caret lands in is selected**, which is only ever the rename editor: a list sends the
+caret into a field to have that field replaced. Bare focus leaves the caret at the end instead
+(measured: offset 28 of "Everything about model swaps"), so the reader would have to select the name
+by hand before saying a new one, and selection also makes one Backspace the empty submit that clears a
+custom title back to the derived one. Deliberately not applied to the anchor, which is a landing place
+the list fell back to rather than a control it chose, and whose one instance is a sentence somebody is
+writing.
+
+**`SessionList` was split to make room**, the row's three shapes moving to `components/SessionRow.tsx`.
+A split by responsibility: the list is the rows plus their exits, their anchor and their caret, and the
+row is what one of them looks like. The state stays in the list, so at most one row renames and at most
+one asks about a delete, as before.
+
+**`Reminders` withdraws a leaving row**, which is the switcher's existing rule arriving one component
+over and is what the caret rule needs: with the caret moved on at the commit, an acked row's two
+controls stayed live and tabbable for the whole roll, so Shift+Tab walked back into a reminder that had
+been answered and was rolling away.
+
+**The composer's field ref moved up to `ChatView`.** The view that already decides where the caret goes
+is the view that holds the handle to its home, and the reminder stack needs it as an anchor. Nothing in
+the composer changed but where the ref comes from.
+
+### The mutation proof
+
+Thirteen mutations, each applied in place, run, and restored. Every one reddened at least one test and
+none reddened everything: dropping the editor's caret, aiming the confirm at its destructive half,
+narrowing `heir` to the row below, deleting the open-chat guard, dropping the field's `select()`,
+dropping the anchor fallback, dropping either Escape's `stopPropagation`, widening the `?` guard back,
+dropping the reminder row's withdrawal, dropping the ack's caret, and blanking the caret for a closing
+editor, a cancelled confirm and a confirmed delete. The one that spread furthest was the confirm's
+target, which reddened three tests across two files including the App-level door; the one that spread
+least was the open-chat guard, which reddened exactly the test that says the swap rule owns that door.
+
+### What this does not do
+
+**A modified chord still reaches the overlay from inside an editor.** `Ctrl+N` pressed while renaming
+mints a new chat and takes the switcher with it, discarding the edit in progress. That is arguably
+right, a chord being a deliberate act rather than a character, and it is not measured either way here.
+Recorded in [refinements/body-overlay.md](../refinements/body-overlay.md).
+
+**Nothing announces where the caret went.** Every landing above puts focus on a control whose
+accessible name says what it is ("Delete Reminders and recurrence", "Cancel delete", the pencil naming
+the new title), which is the reason no live region was added, but the *list's* own change (a row is
+gone, one row remains) is still silent. The swap rule's live region says which chat arrived; there is
+no equivalent for a list that shrank. Recorded beside the entry above.

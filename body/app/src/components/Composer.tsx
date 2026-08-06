@@ -1,8 +1,22 @@
-import { type KeyboardEvent, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import {
+  type KeyboardEvent,
+  type MutableRefObject,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 
 import { SendIcon, StopIcon } from "./icons";
 
 interface ComposerProps {
+  /** The field itself, held by the view above so that the panel's other surfaces can hand the
+   *  caret back to the conversation. The reminder stack is the one that needs it: acking its last
+   *  row takes the whole section away, so the caret has nowhere in that list to go and comes here,
+   *  where a summon lands anyway (`overlay/rowCaret.ts`, `ChatView`). Always attached, this
+   *  component being mounted with the panel and never unmounted. */
+  readonly field: MutableRefObject<HTMLTextAreaElement>;
   readonly busy: boolean;
   /** What this conversation is holding, unsent. The field is CONTROLLED by it rather than keeping
    *  its own copy, so a chat arriving is handed its own text by the same render that swaps the
@@ -50,6 +64,7 @@ const STACKED = "stacked";
  *  last row of a column, so the switch never moves it: traced character by character over two
  *  lines, its rect was identical in all 183 samples. */
 export function Composer({
+  field: fieldRef,
   busy,
   draft,
   arrival,
@@ -59,8 +74,8 @@ export function Composer({
   onResize,
 }: ComposerProps) {
   const [stacked, setStacked] = useState(false);
-  // Both are always mounted with the panel, so the refs are set before any effect runs.
-  const fieldRef = useRef<HTMLTextAreaElement>(null!);
+  // Both are always mounted with the panel, so the refs are set before any effect runs. The field's
+  // is the view's (see the prop), the pill's is this component's own.
   const pillRef = useRef<HTMLDivElement>(null!);
   // The pill's last measured height, so the container hears about a resize and not about a
   // keystroke. Starts at 0, which the first measurement is free to disagree with.

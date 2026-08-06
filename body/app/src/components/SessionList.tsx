@@ -1,16 +1,21 @@
-import { type ReactNode, useRef, useState } from "react";
+import { type RefObject, useRef, useState } from "react";
 
 import type { SessionSummary } from "../bridge/types";
+import { caretKey, heir, useRowCaret } from "../overlay/rowCaret";
 import { usePresence } from "../overlay/usePresence";
 import { useTravel } from "../overlay/useTravel";
 import { withdrawn } from "../overlay/withdrawn";
 import { Collapse } from "./Collapse";
-import { CheckIcon, CloseIcon, PencilIcon, PinIcon, TrashIcon } from "./icons";
-import { relativeTime } from "./relativeTime";
+import { type RowShape, SessionRow } from "./SessionRow";
 
 interface SessionListProps {
   readonly sessions: readonly SessionSummary[];
   readonly currentId: string;
+  /** Where the caret goes when this list has no row left to hand it to, which is the chat the
+   *  reader just deleted their last other one from: the header control that opened the list. It
+   *  is still on screen, it is what closes the list again, and it is the one control whose whole
+   *  job is this list (`overlay/rowCaret.ts`). */
+  readonly anchor: RefObject<HTMLElement | null>;
   readonly onSelect: (sessionId: string) => void;
   /** Rename a chat (ADR-0021 management addendum): submit a new label, or an empty one to
    *  clear a custom title back to the derived one. A user-only write. */
@@ -32,6 +37,7 @@ interface SessionListProps {
 export function SessionList({
   sessions,
   currentId,
+  anchor,
   onSelect,
   onRename,
   onDelete,
@@ -58,128 +64,59 @@ export function SessionList({
   // mechanism). Rows only: the empty line below is not one of them, and it has nowhere to go.
   const card = useRef<HTMLUListElement>(null);
   useTravel(card, ".switcher-slot");
+  // AND THE CARET TRAVELS TOO. Every gesture below takes the control that fired it off the page,
+  // and each hands the caret on rather than dropping it on `<body>` (`overlay/rowCaret.ts` carries
+  // the rule and the measurements). After `useTravel`, so a row's new place is settled before
+  // anything is focused inside it; neither cares, focus moving nothing and `preventScroll` keeping
+  // it that way, and the order is the one that stays right if either ever does.
+  const caret = useRowCaret(card, anchor);
 
   const startRename = (session: SessionSummary): void => {
     setRenamingId(session.sessionId);
     setDraft(session.title);
+    // The editor is a control the reader is expected to type into at once, so it takes the caret
+    // and the name it is standing in for comes selected with it.
+    caret(caretKey("name", session.sessionId));
   };
-  const commitRename = (sessionId: string): void => {
-    onRename(sessionId, draft.trim());
+  // Both ways out of an editor, and both give the caret back to the pencil that opened it: the
+  // reader is where they were, on the row they were on, and the pencil's own label now reads the
+  // name they just gave it.
+  const endRename = (sessionId: string, commit: boolean): void => {
+    if (commit) {
+      onRename(sessionId, draft.trim());
+    }
     setRenamingId(null);
+    caret(caretKey("rename", sessionId));
+  };
+  const startDelete = (sessionId: string): void => {
+    setConfirmingDeleteId(sessionId);
+    caret(caretKey("keep", sessionId));
+  };
+  const cancelDelete = (sessionId: string): void => {
+    setConfirmingDeleteId(null);
+    caret(caretKey("delete", sessionId));
   };
   const confirmDelete = (sessionId: string): void => {
     onDelete(sessionId);
     setConfirmingDeleteId(null);
+    if (sessionId === currentId) {
+      // Deleting the chat on screen is a SWAP: a fresh one arrives in its place and takes the caret
+      // to the composer with it (`sessionState.deleteSession`, `Composer`). Saying nothing here is
+      // what lets that rule answer, rather than aiming the caret at a row first and having the
+      // arriving chat pull it out of the list a moment later.
+      return;
+    }
+    // Every other delete leaves the reader in the list they are managing, on the row that has just
+    // moved into the gap, and on the same control they pressed to make the gap: deleting several
+    // chats is then the one gesture repeated rather than a walk back into the list each time.
+    caret(caretKey("delete", heir(sessions.map((session) => session.sessionId), sessionId)));
   };
 
-  /** The three shapes one row can be in, all of them inside the roll and all of them the same
-   *  height: `.switcher-row` carries the flex box and the resting row's height, so the one-line
-   *  rename editor and the one-line confirm do not shorten the card as they open. */
-  const rowFor = (session: SessionSummary): ReactNode => {
-    if (session.sessionId === renamingId) {
-      return (
-        <div className="switcher-row">
-          <form
-            className="switcher-rename"
-            onSubmit={(event) => {
-              event.preventDefault();
-              commitRename(session.sessionId);
-            }}
-          >
-            <input
-              className="switcher-rename-input"
-              aria-label="New chat name"
-              value={draft}
-              onChange={(event) => setDraft(event.currentTarget.value)}
-              onKeyDown={(event) => {
-                if (event.key === "Escape") {
-                  setRenamingId(null);
-                }
-              }}
-            />
-            <button type="submit" className="switcher-rename-save" aria-label="Save name">
-              <CheckIcon />
-            </button>
-          </form>
-        </div>
-      );
+  const shapeOf = (sessionId: string): RowShape => {
+    if (sessionId === renamingId) {
+      return "rename";
     }
-    if (session.sessionId === confirmingDeleteId) {
-      return (
-        <div className="switcher-row">
-          <div className="switcher-confirm-delete">
-            <span className="switcher-confirm-text">Delete this chat?</span>
-            <button
-              type="button"
-              className="switcher-confirm-yes"
-              aria-label={`Confirm delete ${session.title}`}
-              onClick={() => confirmDelete(session.sessionId)}
-            >
-              <TrashIcon />
-            </button>
-            <button
-              type="button"
-              className="switcher-confirm-no"
-              aria-label="Cancel delete"
-              onClick={() => setConfirmingDeleteId(null)}
-            >
-              <CloseIcon />
-            </button>
-          </div>
-        </div>
-      );
-    }
-    return (
-      <div className={`switcher-row${session.pinned ? " pinned" : ""}`}>
-        <button
-          type="button"
-          className={`switcher-item${session.sessionId === currentId ? " current" : ""}`}
-          // Which chat is already open was a background tint and nothing else, so the one row a
-          // reader most needs to place sounded exactly like the others. `aria-current` is the
-          // channel that says it, and `true` is its value for a current item that is none of the
-          // enumerated kinds: a chat is not a page, a step, a location, a date or a time. Written
-          // on every row rather than only the open one, the pin toggle's `aria-pressed` idiom, so
-          // the state is a property of the row instead of an attribute that comes and goes.
-          aria-current={session.sessionId === currentId}
-          onClick={() => onSelect(session.sessionId)}
-        >
-          <span className="switcher-title">{session.title}</span>
-          <span className="switcher-preview">{session.preview}</span>
-        </button>
-        {/* Right to left: the time, then the pin, the pencil and the trash. The time is the
-            one the eye goes to when it is skimming for a chat, so it takes the edge and the
-            three controls sit inboard of it, in the order they escalate. It is outside the
-            row's button because it is now on the far side of three buttons that are not, and
-            a label is not a thing to click anyway; what selects the chat is the title, the
-            preview and the space between them. */}
-        <button
-          type="button"
-          className="switcher-delete-btn"
-          aria-label={`Delete ${session.title}`}
-          onClick={() => setConfirmingDeleteId(session.sessionId)}
-        >
-          <TrashIcon />
-        </button>
-        <button
-          type="button"
-          className="switcher-rename-btn"
-          aria-label={`Rename ${session.title}`}
-          onClick={() => startRename(session)}
-        >
-          <PencilIcon />
-        </button>
-        <button
-          type="button"
-          className={`switcher-pin-btn${session.pinned ? " on" : ""}`}
-          aria-label={session.pinned ? `Unpin ${session.title}` : `Pin ${session.title}`}
-          aria-pressed={session.pinned}
-          onClick={() => onPin(session.sessionId, !session.pinned)}
-        >
-          <PinIcon filled={session.pinned} />
-        </button>
-        <span className="switcher-time">{relativeTime(session.lastActivityUnixMs, now)}</span>
-      </div>
-    );
+    return sessionId === confirmingDeleteId ? "confirm" : "rest";
   };
 
   return (
@@ -210,7 +147,22 @@ export function SessionList({
         // to delete it again, and the tab order still walks through all four.
         <li key={key} className="switcher-slot" {...withdrawn(leaving)}>
           <Collapse open={!leaving} onClosed={() => stack.released(key)}>
-            {rowFor(session)}
+            <SessionRow
+              session={session}
+              shape={shapeOf(session.sessionId)}
+              current={session.sessionId === currentId}
+              now={now}
+              draft={draft}
+              onDraft={setDraft}
+              onSelect={() => onSelect(session.sessionId)}
+              onStartRename={() => startRename(session)}
+              onCommitRename={() => endRename(session.sessionId, true)}
+              onCancelRename={() => endRename(session.sessionId, false)}
+              onStartDelete={() => startDelete(session.sessionId)}
+              onConfirmDelete={() => confirmDelete(session.sessionId)}
+              onCancelDelete={() => cancelDelete(session.sessionId)}
+              onPin={() => onPin(session.sessionId, !session.pinned)}
+            />
           </Collapse>
         </li>
       ))}

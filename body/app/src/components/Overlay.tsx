@@ -13,7 +13,7 @@ import { Preview } from "./Preview";
 // animation); the orb and preview mount only in their modes. Also owns the global keys. Esc
 // leaves the console in ONE press, whichever tab is up, else dismisses (→ orb mid-stream);
 // Ctrl/Cmd+N starts a new chat, Ctrl+↑/↓ cycle recent chats, Ctrl+K toggles the switcher
-// (ADR-0021), and ? (outside the composer, where it is just typing) toggles the console's
+// (ADR-0021), and ? (outside any field, where it is just typing) toggles the console's
 // shortcuts tab.
 //
 // It also holds the overlay's live region, which is here rather than in the panel because the
@@ -31,6 +31,17 @@ interface OverlayProps {
   readonly onPickMark: (name: string) => void;
   readonly onPickEdge: (name: string) => void;
   readonly onToggleTheme: () => void;
+}
+
+/** Whether a key landed in a field somebody is writing in, which is where `?` is a character and
+ *  not a shortcut. It named the composer's textarea alone for as long as that was the overlay's
+ *  only field; the switcher's rename editor is an `<input>`, and the caret is put in it by the
+ *  pencil now (`overlay/rowCaret.ts`), so typing a question into it opened the console over the row
+ *  being renamed (measured at 900x900: "why?" left `why` in the field and the settings pane up).
+ *  Asked of the two element types rather than of a list of selectors, so the next field the overlay
+ *  grows is covered on the day it is added. */
+function typing(target: EventTarget | null): boolean {
+  return target instanceof HTMLTextAreaElement || target instanceof HTMLInputElement;
 }
 
 export function Overlay({
@@ -78,7 +89,7 @@ export function Overlay({
         } else if (state.mode !== "hidden") {
           dismiss();
         }
-      } else if (event.key === "?" && !(event.target instanceof HTMLTextAreaElement)) {
+      } else if (event.key === "?" && !typing(event.target)) {
         event.preventDefault();
         toggleConsole("shortcuts");
       } else if (mod && event.key.toLowerCase() === "n") {

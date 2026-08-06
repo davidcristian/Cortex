@@ -127,6 +127,33 @@ describe("App", () => {
     expect(document.activeElement).toBe(screen.getByLabelText("Message"));
   });
 
+  it("keeps the caret in the switcher for a delete that swaps nothing", async () => {
+    // The other half of that rule, and the whole path for it: deleting a chat that is not the one
+    // on screen replaces no conversation, so `arrival` never hears about it and the composer is the
+    // wrong answer. The reader is managing chats and stays where they were managing them: on the
+    // same control, one row down (`overlay/rowCaret.ts`). The write is a real round trip through
+    // the bridge, so this also pins that the caret does not wait on it.
+    const bridge = new FakeBridge();
+    bridge.sessions = [
+      { sessionId: "s1", title: "About cats", preview: "p1", lastActivityUnixMs: 3, pinned: false },
+      { sessionId: "s2", title: "About swaps", preview: "p2", lastActivityUnixMs: 2, pinned: false },
+      { sessionId: "s3", title: "About rain", preview: "p3", lastActivityUnixMs: 1, pinned: false },
+    ];
+    await renderApp(bridge);
+    activate();
+    await act(async () => {});
+    fireEvent.click(screen.getByLabelText("Recent chats"));
+    fireEvent.click(screen.getByLabelText("Delete About swaps"));
+    // The confirm opens on its cancel, not on the trash that would delete on one more press.
+    expect(document.activeElement).toBe(screen.getByLabelText("Cancel delete"));
+    fireEvent.click(screen.getByLabelText("Confirm delete About swaps"));
+    expect(document.activeElement).toBe(screen.getByLabelText("Delete About rain"));
+    await act(async () => {});
+    expect(bridge.deletes).toEqual(["s2"]);
+    expect(document.activeElement).toBe(screen.getByLabelText("Delete About rain"));
+    expect(document.activeElement).not.toBe(screen.getByLabelText("Message"));
+  });
+
   it("keeps each chat's half-typed question with the chat it was typed into", async () => {
     // The whole path, end to end: the field, the controller, the reducer and a real swap through
     // the bridge. Before this, the composer held one text for the overlay and every door carried

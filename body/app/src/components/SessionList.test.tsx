@@ -16,14 +16,20 @@ const summary = (over: Partial<SessionSummary> = {}): SessionSummary => ({
 
 /** The switcher over a given list, with every write stubbed: the exit cases care about which rows
  *  are on screen and in what order, not about what the row's controls report. */
-const list = (sessions: readonly SessionSummary[], currentId = "c1") => (
+const list = (
+  sessions: readonly SessionSummary[],
+  currentId = "c1",
+  anchor: { readonly current: HTMLElement | null } = nowhere,
+  onDelete: (sessionId: string) => void = vi.fn(),
+) => (
   <SessionList
     sessions={sessions}
     currentId={currentId}
     onSelect={vi.fn()}
     onRename={vi.fn()}
-    onDelete={vi.fn()}
+    onDelete={onDelete}
     onPin={vi.fn()}
+    anchor={anchor}
   />
 );
 
@@ -38,6 +44,18 @@ const rows = (): string[] =>
 
 const chat = (id: string): SessionSummary => summary({ sessionId: id, title: id });
 
+/** The caret's landing place when the list empties, for the tests that are not about it. */
+const nowhere = { current: null };
+
+/** A real anchor: the header control the switcher hangs off in production, standing in the page so
+ *  the caret has somewhere to go when the list runs out of rows. */
+function anchored(): { current: HTMLButtonElement } {
+  const button = document.createElement("button");
+  button.setAttribute("aria-label", "Recent chats");
+  document.body.append(button);
+  return { current: button };
+}
+
 afterEach(() => vi.restoreAllMocks());
 
 describe("SessionList", () => {
@@ -51,6 +69,7 @@ describe("SessionList", () => {
         onRename={vi.fn()}
         onDelete={vi.fn()}
         onPin={vi.fn()}
+        anchor={nowhere}
       />,
     );
     expect(screen.getByText("First chat")).toBeInTheDocument();
@@ -100,6 +119,7 @@ describe("SessionList", () => {
         onRename={vi.fn()}
         onDelete={vi.fn()}
         onPin={vi.fn()}
+        anchor={nowhere}
       />,
     );
     expect(screen.getByText(/no other chats/iu)).toBeInTheDocument();
@@ -115,6 +135,7 @@ describe("SessionList", () => {
         onRename={onRename}
         onDelete={vi.fn()}
         onPin={vi.fn()}
+        anchor={nowhere}
       />,
     );
     fireEvent.click(screen.getByLabelText("Rename First chat"));
@@ -139,6 +160,7 @@ describe("SessionList", () => {
         onRename={onRename}
         onDelete={vi.fn()}
         onPin={vi.fn()}
+        anchor={nowhere}
       />,
     );
     fireEvent.click(screen.getByLabelText("Rename First chat"));
@@ -157,6 +179,7 @@ describe("SessionList", () => {
         onRename={onRename}
         onDelete={vi.fn()}
         onPin={vi.fn()}
+        anchor={nowhere}
       />,
     );
     fireEvent.click(screen.getByLabelText("Rename First chat"));
@@ -178,6 +201,7 @@ describe("SessionList", () => {
         onRename={vi.fn()}
         onDelete={onDelete}
         onPin={vi.fn()}
+        anchor={nowhere}
       />,
     );
     // One click on the trash asks, but does not delete: the confirm replaces the row.
@@ -202,6 +226,7 @@ describe("SessionList", () => {
         onRename={vi.fn()}
         onDelete={onDelete}
         onPin={vi.fn()}
+        anchor={nowhere}
       />,
     );
     fireEvent.click(screen.getByLabelText("Delete First chat"));
@@ -222,6 +247,7 @@ describe("SessionList", () => {
         onRename={vi.fn()}
         onDelete={vi.fn()}
         onPin={onPin}
+        anchor={nowhere}
       />,
     );
     const toggle = screen.getByLabelText("Pin First chat");
@@ -243,6 +269,7 @@ describe("SessionList", () => {
         onRename={vi.fn()}
         onDelete={vi.fn()}
         onPin={onPin}
+        anchor={nowhere}
       />,
     );
     // The pinned row carries the pinned marker class and its toggle reads pressed + offers "Unpin".
@@ -426,5 +453,117 @@ describe("SessionList", () => {
     rerender(list([chat("b"), chat("a")]));
     // Each row is handed back the distance it moved, which decays to nothing over the roll's clock.
     expect(played).toEqual(["b:translateY(50px)", "a:translateY(-50px)"]);
+  });
+
+  // WHERE THE CARET GOES FOR THE GESTURES THAT SWAP NOTHING (`overlay/rowCaret.ts`). Every one of
+  // these takes the control that fired it off the page, and measured at 900x900 every one of them
+  // left `document.activeElement` on `<body>`, outside the panel entirely.
+  it("puts the caret in the rename editor, with the name it is replacing selected", () => {
+    render(list([summary(), summary({ sessionId: "c2", title: "Second" })]));
+    fireEvent.click(screen.getByLabelText("Rename First chat"));
+    const input = screen.getByLabelText<HTMLInputElement>("New chat name");
+    expect(document.activeElement).toBe(input);
+    // Renaming a thing means replacing its name, so typing replaces it and one Backspace is the
+    // empty submit that clears a custom title back to the derived one.
+    expect([input.selectionStart, input.selectionEnd]).toEqual([0, "First chat".length]);
+  });
+
+  it("keeps a cancelling Escape to itself, the overlay dismissing the panel on the same key", () => {
+    // Measured at 900x900 before this: Escape cancelled the rename AND reached the window listener
+    // that dismisses the panel, so undoing a rename ended the session. Escape closes the innermost
+    // thing, and this editor is the innermost thing there is.
+    const heard: string[] = [];
+    const listener = (event: KeyboardEvent) => heard.push(event.key);
+    window.addEventListener("keydown", listener);
+    render(list([summary()]));
+    fireEvent.click(screen.getByLabelText("Rename First chat"));
+    fireEvent.keyDown(screen.getByLabelText("New chat name"), { key: "Escape" });
+    expect(heard).toEqual([]);
+    // The delete confirm is the row's other overlay and answers the same way, leaving the question
+    // closed rather than the panel dismissed with the question still standing under it.
+    fireEvent.click(screen.getByLabelText("Delete First chat"));
+    fireEvent.keyDown(screen.getByLabelText("Cancel delete"), { key: "Escape" });
+    expect(heard).toEqual([]);
+    expect(screen.queryByText("Delete this chat?")).not.toBeInTheDocument();
+    expect(document.activeElement).toBe(screen.getByLabelText("Delete First chat"));
+    // Every other key is the overlay's business as before: the switcher's own Ctrl+K, the cycle
+    // keys and Ctrl+N all still reach it from inside a row.
+    fireEvent.keyDown(screen.getByLabelText("Rename First chat"), { key: "Escape" });
+    expect(heard).toEqual(["Escape"]);
+    fireEvent.keyDown(screen.getByLabelText("Delete First chat"), { key: "k", ctrlKey: true });
+    expect(heard).toEqual(["Escape", "k"]);
+    window.removeEventListener("keydown", listener);
+  });
+
+  it("gives the caret back to the pencil when an editor closes, whichever way it closed", () => {
+    const { rerender } = render(list([summary()]));
+    fireEvent.click(screen.getByLabelText("Rename First chat"));
+    fireEvent.submit(screen.getByLabelText("New chat name"));
+    expect(document.activeElement).toBe(screen.getByLabelText("Rename First chat"));
+    // And the same for the way out that writes nothing.
+    rerender(list([summary()]));
+    fireEvent.click(screen.getByLabelText("Rename First chat"));
+    fireEvent.keyDown(screen.getByLabelText("New chat name"), { key: "Escape" });
+    expect(document.activeElement).toBe(screen.getByLabelText("Rename First chat"));
+  });
+
+  it("opens a delete confirm on its cancel, never on the trash beside it", () => {
+    render(list([summary()]));
+    fireEvent.click(screen.getByLabelText("Delete First chat"));
+    // Measured at 900x900: with the caret on the confirm, one further Enter deletes the chat; here,
+    // the same press puts the row back. The confirm exists so one stray press cannot delete.
+    expect(document.activeElement).toBe(screen.getByLabelText("Cancel delete"));
+    expect(document.activeElement).not.toBe(screen.getByLabelText("Confirm delete First chat"));
+    // Cancelling gives it back to the trash that asked, which is where the reader was.
+    fireEvent.click(screen.getByLabelText("Cancel delete"));
+    expect(document.activeElement).toBe(screen.getByLabelText("Delete First chat"));
+  });
+
+  it("moves the caret down to the row that inherits the gap a deleted chat leaves", () => {
+    render(list([chat("a"), chat("b"), chat("c")]));
+    fireEvent.click(screen.getByLabelText("Delete b"));
+    fireEvent.click(screen.getByLabelText("Confirm delete b"));
+    // The same control one row down, so deleting several chats is one gesture repeated rather than
+    // a walk back into the list between each.
+    expect(document.activeElement).toBe(screen.getByLabelText("Delete c"));
+  });
+
+  it("moves it up instead when the row that left was the last one", () => {
+    render(list([chat("a"), chat("b")]));
+    fireEvent.click(screen.getByLabelText("Delete b"));
+    fireEvent.click(screen.getByLabelText("Confirm delete b"));
+    expect(document.activeElement).toBe(screen.getByLabelText("Delete a"));
+  });
+
+  it("hands the caret to the anchor when the last row leaves, the list having none to give", () => {
+    const anchor = anchored();
+    render(list([chat("a")], "open", anchor));
+    fireEvent.click(screen.getByLabelText("Delete a"));
+    fireEvent.click(screen.getByLabelText("Confirm delete a"));
+    // The switcher is still open in front of the reader, saying it holds nothing; the control that
+    // opened it is the one that closes it again.
+    expect(document.activeElement).toBe(anchor.current);
+  });
+
+  it("says nothing about the caret when the chat deleted is the one on screen", () => {
+    // That delete is a SWAP: a fresh chat arrives in its place and takes the caret to the composer
+    // with it (`sessionState.deleteSession`). Aiming at a row first would put the caret somewhere
+    // the arriving chat pulls it straight back out of.
+    const anchor = anchored();
+    render(list([chat("a"), chat("b")], "a", anchor));
+    fireEvent.click(screen.getByLabelText("Delete a"));
+    fireEvent.click(screen.getByLabelText("Confirm delete a"));
+    expect(document.activeElement).toBe(document.body);
+    expect(document.activeElement).not.toBe(anchor.current);
+  });
+
+  it("leaves the pin toggle's own caret alone, its gesture taking no control away", () => {
+    // The one row gesture that needs no answer: pinning regroups the list around the row, and the
+    // button rides the move. Measured at 900x900, it held focus at every sample through 700ms.
+    render(list([summary()]));
+    const toggle = screen.getByLabelText("Pin First chat");
+    toggle.focus();
+    fireEvent.click(toggle);
+    expect(document.activeElement).toBe(screen.getByLabelText("Pin First chat"));
   });
 });

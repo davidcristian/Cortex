@@ -1,5 +1,5 @@
 import { fireEvent, render, screen } from "@testing-library/react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 
 import { draftOf, dropDraft, parkDraft } from "../overlay/drafts";
@@ -39,8 +39,12 @@ function Stage({
   onResize = () => undefined,
 }: StageProps) {
   const [drafts, setDrafts] = useState<Record<string, string>>(seed);
+  // The field's ref belongs to the view above in production, so that the reminder stack can hand
+  // the caret back to the conversation when its last row goes (`ChatView`, `overlay/rowCaret.ts`).
+  const field = useRef<HTMLTextAreaElement>(null!);
   return (
     <Composer
+      field={field}
       busy={busy}
       draft={draftOf(drafts, sessionId)}
       arrival={arrival}
