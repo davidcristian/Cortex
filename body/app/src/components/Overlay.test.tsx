@@ -27,7 +27,7 @@ function fakeController(
       arrival: 0,
       reminders: [],
       link: INITIAL_LINK,
-      capturing: false,
+      capture: null,
       seq: 0,
       touched: false,
       ...extra,

@@ -2,9 +2,9 @@
 
 from collections.abc import AsyncGenerator, Iterator
 
-from cortex_core.events import TextDelta, ToolActivity, TurnEvent
+from cortex_core.events import TextDelta, ToolActivity, ToolOutcome, TurnEvent
 from cortex_core.guardrail import OutputFilter
-from cortex_core.loop_events import ReasoningDelta, ToolStep
+from cortex_core.loop_events import ReasoningDelta, StepOutcome, ToolStep
 from cortex_core.output_channels import ThinkingChannel
 from cortex_core.turn_context import TurnCapabilities
 from cortex_core.untrusted import TaintLedger
@@ -30,7 +30,7 @@ def flush_channels(channels: OutputChannels, parts: list[str]) -> Iterator[TurnE
 
 
 async def stream_turn_events(
-    loop: AsyncGenerator[str | ReasoningDelta | ToolStep, None],
+    loop: AsyncGenerator[str | ReasoningDelta | ToolStep | StepOutcome, None],
     channels: OutputChannels,
     parts: list[str],
 ) -> AsyncGenerator[TurnEvent, None]:
@@ -43,6 +43,9 @@ async def stream_turn_events(
                 continue
             if isinstance(delta, ToolStep):
                 yield ToolActivity(tool_name=delta.tool_name, summary=delta.summary)
+                continue
+            if isinstance(delta, StepOutcome):
+                yield ToolOutcome(tool_name=delta.tool_name, ok=delta.ok)
                 continue
             shown = delta if channels[0] is None else channels[0].feed(delta)
             if not shown:

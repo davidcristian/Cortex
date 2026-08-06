@@ -31,7 +31,7 @@ class Cancel(_message.Message):
     def __init__(self) -> None: ...
 
 class ServerEvent(_message.Message):
-    __slots__ = ("text_delta", "tool_activity", "status", "turn_complete", "error", "confirm_request", "confirm_resolved")
+    __slots__ = ("text_delta", "tool_activity", "status", "turn_complete", "error", "confirm_request", "confirm_resolved", "tool_outcome")
     TEXT_DELTA_FIELD_NUMBER: _ClassVar[int]
     TOOL_ACTIVITY_FIELD_NUMBER: _ClassVar[int]
     STATUS_FIELD_NUMBER: _ClassVar[int]
@@ -39,6 +39,7 @@ class ServerEvent(_message.Message):
     ERROR_FIELD_NUMBER: _ClassVar[int]
     CONFIRM_REQUEST_FIELD_NUMBER: _ClassVar[int]
     CONFIRM_RESOLVED_FIELD_NUMBER: _ClassVar[int]
+    TOOL_OUTCOME_FIELD_NUMBER: _ClassVar[int]
     text_delta: TextDelta
     tool_activity: ToolActivity
     status: StatusUpdate
@@ -46,7 +47,8 @@ class ServerEvent(_message.Message):
     error: SeamError
     confirm_request: ConfirmRequest
     confirm_resolved: ConfirmResolved
-    def __init__(self, text_delta: _Optional[_Union[TextDelta, _Mapping]] = ..., tool_activity: _Optional[_Union[ToolActivity, _Mapping]] = ..., status: _Optional[_Union[StatusUpdate, _Mapping]] = ..., turn_complete: _Optional[_Union[TurnComplete, _Mapping]] = ..., error: _Optional[_Union[SeamError, _Mapping]] = ..., confirm_request: _Optional[_Union[ConfirmRequest, _Mapping]] = ..., confirm_resolved: _Optional[_Union[ConfirmResolved, _Mapping]] = ...) -> None: ...
+    tool_outcome: ToolOutcome
+    def __init__(self, text_delta: _Optional[_Union[TextDelta, _Mapping]] = ..., tool_activity: _Optional[_Union[ToolActivity, _Mapping]] = ..., status: _Optional[_Union[StatusUpdate, _Mapping]] = ..., turn_complete: _Optional[_Union[TurnComplete, _Mapping]] = ..., error: _Optional[_Union[SeamError, _Mapping]] = ..., confirm_request: _Optional[_Union[ConfirmRequest, _Mapping]] = ..., confirm_resolved: _Optional[_Union[ConfirmResolved, _Mapping]] = ..., tool_outcome: _Optional[_Union[ToolOutcome, _Mapping]] = ...) -> None: ...
 
 class TextDelta(_message.Message):
     __slots__ = ("text",)
@@ -61,6 +63,14 @@ class ToolActivity(_message.Message):
     tool_name: str
     summary: str
     def __init__(self, tool_name: _Optional[str] = ..., summary: _Optional[str] = ...) -> None: ...
+
+class ToolOutcome(_message.Message):
+    __slots__ = ("tool_name", "ok")
+    TOOL_NAME_FIELD_NUMBER: _ClassVar[int]
+    OK_FIELD_NUMBER: _ClassVar[int]
+    tool_name: str
+    ok: bool
+    def __init__(self, tool_name: _Optional[str] = ..., ok: _Optional[bool] = ...) -> None: ...
 
 class StatusUpdate(_message.Message):
     __slots__ = ("state", "detail")

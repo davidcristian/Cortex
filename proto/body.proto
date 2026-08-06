@@ -70,11 +70,15 @@ message ServerEvent {
     SeamError error = 5;
     ConfirmRequest confirm_request = 6; // a gated tool call awaits user approval (ADR-0022)
     ConfirmResolved confirm_resolved = 7; // the brain stopped waiting for an answer (ADR-0022)
+    ToolOutcome tool_outcome = 8;   // how a dispatch already announced above ended (ADR-0029)
   }
 }
 
 message TextDelta { string text = 1; }
 message ToolActivity { string tool_name = 1; string summary = 2; }
+
+// How one announced dispatch ENDED, emitted after it resolves (ADR-0029 outcome addendum).
+message ToolOutcome { string tool_name = 1; bool ok = 2; }
 message StatusUpdate { string state = 1; string detail = 2; }
 message TurnComplete { string turn_id = 1; }
 message SeamError { string code = 1; string message = 2; }

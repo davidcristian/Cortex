@@ -90,7 +90,7 @@ export function ChatView({
     <>
       <header className="head">
         <span className="title">{state.title}</span>
-        <CaptureDot capturing={state.capturing} />
+        <CaptureDot claim={state.capture} />
         <LinkDot link={state.link} />
         <button
           className="hbtn"

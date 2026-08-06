@@ -39,6 +39,7 @@ Conversation domain (Slice 3):
   without a word. The invariant is on the value, not only in the stores, so it holds for a code
   path that never touches a store, and the domain cannot express a shape the adapter discards.
 - `TextDelta(text)` / `StatusUpdate(state, detail)` / `ToolActivity(tool_name, summary)` /
+  `ToolOutcome(tool_name, ok)` /
   `TurnCompleted(turn_id, full_text)` are frozen domain events; `TurnEvent` is their union (the
   orchestrator maps them onto the proto's `ServerEvent`). `StatusUpdate` is ephemeral mid-turn
   progress. Its first use (ADR-0020) is a reasoning model's live thinking (`state="thinking"`),
@@ -48,7 +49,14 @@ Conversation domain (Slice 3):
   one per audited dispatch, emitted just before the tool runs. Both fields are registry-authored
   (`tool_name` = advertised `ToolSpec.name`, `summary` = its description first line); the loop
   emits none for a call that matched no advertised spec, so nothing the model authored, name or
-  arguments, ever reaches the chip.
+  arguments, ever reaches the chip. `ToolOutcome` (ADR-0029 outcome addendum) settles it:
+  **exactly one per `ToolActivity` the turn emitted**, after the dispatch resolves, on every path
+  out of it including the gate denials and the tool's own failures. `ok` is the audit line's own
+  verdict (`ToolInvocation.ok`), read off the same result, so a display surface and the audit
+  trail cannot disagree about one dispatch. It exists for the overlay's capture indicator and may
+  only ever **strengthen** what a surface claims: a capture that failed after the shutter fired
+  is indistinguishable here from one that never happened, so `ok=False` means "the brain cannot
+  say the screen was read", never "it was not read".
 - `TextChunk(text)` / `ReasoningChunk(text)` carries one streamed reply / thinking delta from a
   backend; `InferenceEvent` is the union `TextChunk | ReasoningChunk | ToolCall`, what an
   `InferenceBackend` yields (ADR-0009/0020).
@@ -945,13 +953,22 @@ Use-case:
   `max_chars < 1` raises `ValueError` (`0` as an off switch lives in the wiring, not here).
 - `stream_tool_loop(backend, model, working, context: ToolLoopContext)` (in `tool_loop`)
   is the bounded infer↔tool loop shared by `TurnEngine` and `SubagentRunner` (ADR-0010): an
-  async generator yielding assistant text deltas (`str`), `ReasoningDelta`s (ADR-0020), and a
+  async generator yielding assistant text deltas (`str`), `ReasoningDelta`s (ADR-0020), a
   `ToolStep(tool_name, summary)` immediately before each audited dispatch *of an advertised
   tool* (ADR-0009 addendum; both fields copied off the matched `ToolSpec`, so an unadvertised
   call surfaces no step; the engine maps it to `ToolActivity`, and a subagent maps it onto the
-  spawning stream's `ProgressSink` when it has one, else drops it, ADR-0010 progress addendum).
-  The yield vocabulary (`ReasoningDelta`, `ToolStep`, `step_summary`, `MAX_STEP_SUMMARY_CHARS`)
-  lives in `loop_events.py`, the line-cap split made when the escalation threading landed.
+  spawning stream's `ProgressSink` when it has one, else drops it, ADR-0010 progress addendum),
+  and the `StepOutcome(tool_name, ok)` that settles that step once the dispatch resolves
+  (ADR-0029 outcome addendum; guarded by the identical condition, so steps and outcomes are
+  **paired** and the only way out of a dispatch without one is the generator being closed
+  mid-dispatch). The engine maps it to `ToolOutcome`; a subagent drops it, as it drops reasoning,
+  because the consent surface it feeds is over a cortex-only built-in.
+  The yield vocabulary (`ReasoningDelta`, `ToolStep`, `StepOutcome`, `step_summary`,
+  `MAX_STEP_SUMMARY_CHARS`) lives in `loop_events.py`, the line-cap split made when the
+  escalation threading landed. Running one planned round of dispatches, and the `ToolLoopContext`
+  almost every field of which a round reads, live in `dispatch_round.py` (`run_round`), the split
+  made when the outcome landed and `tool_loop.py` reached the complexity ceiling; `tool_loop`
+  re-exports the context, so every existing import still resolves.
   It stamps each dispatch with `context.progress`, so a built-in that spawns further work reaches
   the overlay while this loop is suspended inside that dispatch, and with `context.escalation`
   (ADR-0030), so the escalate built-in reads the turn's handoff slot per call. Mutates
@@ -984,7 +1001,8 @@ Use-case:
   Past the budget each further call is still handed to the dispatcher, which refuses it
   as `BUDGET_EXHAUSTED_MSG` and audits it (skipping the dispatch would strand the round's
   `tool_calls` without their `Role.TOOL` answers and leave refusals unaudited), and it yields no
-  `ToolStep`, so a chip still means a tool is running.
+  `ToolStep`, so a chip still means a tool is running, and no `StepOutcome` either, so nothing
+  settles a chip that was never shown.
   It draws the untrusted boundary (ADR-0013): each call is dispatched
   with the turn's `tainted` state and the tool's `gated` flag (the ADR-0022 gate: tainted denies
   outright, untainted confirms), its result is observed by `context.taint` (taint bit + the untrusted-URL

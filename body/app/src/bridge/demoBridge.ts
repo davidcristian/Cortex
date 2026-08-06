@@ -79,12 +79,17 @@ export class DemoBridge implements BrainBridge {
     if (/send|email/iu.test(text)) {
       return this.confirmTurn(sink, /time\s?out/iu.test(text));
     }
+    let settle: ReturnType<typeof setTimeout> | undefined;
     if (/screen|look at|see this/iu.test(text)) {
+      const ok = !/refus|blocked|denied|declin/iu.test(text);
       sink.onEvent({
         kind: "toolActivity",
         toolName: "capture_screen",
         summary: "reading the screen",
       });
+      settle = setTimeout(() => {
+        sink.onEvent({ kind: "toolOutcome", toolName: "capture_screen", ok });
+      }, 320);
     }
     let cancelStream: Cancellation = () => undefined;
     const status = setTimeout(() => {
@@ -102,6 +107,7 @@ export class DemoBridge implements BrainBridge {
     }, 450);
     return () => {
       clearTimeout(status);
+      clearTimeout(settle);
       cancelStream();
     };
   }

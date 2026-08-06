@@ -9,6 +9,9 @@ import { NEW_CHAT_TITLE, deriveTitle } from "./sessionState";
  */
 export const CAPTURE_SCREEN_TOOL = "capture_screen";
 
+/** How far this turn's screen-capture claim has climbed (ADR-0029 outcome addendum). */
+export type CaptureClaim = "asked" | "read";
+
 export interface Message {
   readonly id: string;
   readonly role: "user" | "assistant";
@@ -73,13 +76,18 @@ export function applyEvent(state: OverlayState, event: TurnEvent): OverlayState 
     case "delta":
       return patchStreaming(state, (m) => ({ ...m, content: m.content + event.text }));
     case "toolActivity": {
-      const lit = state.capturing || event.toolName === CAPTURE_SCREEN_TOOL;
+      const capture =
+        event.toolName === CAPTURE_SCREEN_TOOL ? (state.capture ?? "asked") : state.capture;
       const chipped = patchStreaming(state, (m) => ({
         ...m,
         tool: `${event.toolName}: ${event.summary}`,
       }));
-      return { ...chipped, capturing: lit };
+      return { ...chipped, capture };
     }
+    case "toolOutcome":
+      return event.toolName === CAPTURE_SCREEN_TOOL && event.ok
+        ? { ...state, capture: "read" }
+        : state;
     case "status": {
       const thinking = event.state === "thinking";
       return patchStreaming(state, (m) => ({
@@ -133,8 +141,9 @@ export function endTurn(state: OverlayState, error: string | null): OverlayState
     mode: state.mode === "orb" ? "preview" : state.mode,
     pendingConfirm: null,
     // The turn is over, so the picture it took is out of context: the indicator goes out with
-    // it rather than persisting into a turn that never looked at anything.
-    capturing: false,
+    // it rather than persisting into a turn that never looked at anything. The one place the
+    // claim ladder is allowed to fall, and it falls all the way rather than a rung.
+    capture: null,
   };
 }
 

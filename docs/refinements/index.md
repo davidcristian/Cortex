@@ -54,14 +54,14 @@ the tree does now.
 | [untrusted-content.md](untrusted-content.md) | Taint boundary, output guardrail, subagent model safety (ADR-0013/0015/0017/0019/0028) | 11 |
 | [memory.md](memory.md) | Store, scoping, rerank/MMR (ADR-0008) | 8 |
 | [inference-model-manager.md](inference-model-manager.md) | Model-manager lifecycle, MTP, reasoning status (ADR-0007/0020) | 7 |
-| [subagents.md](subagents.md) | Progress reporting, spawn schema, heterogeneous roster (ADR-0010/0018) | 2 |
+| [subagents.md](subagents.md) | Progress reporting, spawn schema, heterogeneous roster (ADR-0010/0018) | 3 |
 | [body-overlay.md](body-overlay.md) | Overlay polish, connection indicator, proto Cancel (ADR-0011), the reserved scrollbar rail's assumed width and spent card inset, a section's roll ending 0.25px from where it was going, the two bounds the panel's section budget left behind it (a section's own frame being under no cap, and the room a closing section hands back arriving in one frame), the switcher's and the reminder stack's own row gestures dropping focus with no swap to answer them, the composer's draft belonging to no chat, and the whisper's follow-ups (ADR-0037): a pickable voice row, a mid-stream resize keeping the old wrap width, and kerning inside the letter boxes under a changed font (its drain-growth entry landed the day it was filed, and the console outliving a new chat, the reminder stack's per-row exit and the switcher's, the panel's watch on its own box with the arrival-aside correction that came out of it, the demo bridge over the line cap, two sections outrunning the panel on their own, the chat floor's frozen measurement of the empty state, the console tab strip's missing keyboard half, the switcher's disputed listbox role, the two motions its list still made in one frame, and a Thoughts trace opening a reply off the bottom of a full history all landed 2026-08-03, the last of them opening the chrome-side entry that landed 2026-08-04 on the same ride, alongside the cycle keys' silent swap, which opened the focus entry that landed 2026-08-06 as the caret following the conversation into the composer and opened the two above; the composer's move on a clamped shrink closed 2026-08-06 as moot, its mechanism having been deleted the day it was filed, and the retarget-and-resize pair landed 2026-08-06 as the panel measuring itself in fractional pixels, opening the roll entry that took its place) | 12 |
 | [session-read-seam.md](session-read-seam.md) | Session listing/read seam (ADR-0021) | 2 |
 | [resource-governance.md](resource-governance.md) | Scheduler/placer budgets, NPU, drain (ADR-0012) | 5 |
 | [email-confirmer.md](email-confirmer.md) | Email write, Confirmer, attachments, `ToolActivity` chip (ADR-0022) | 4 |
 | [body-gateway.md](body-gateway.md) | Body gateway, OS actions, hardened posture (ADR-0023) | 5 |
 | [scheduling.md](scheduling.md) | Scheduling and reminders, `TurnStamp` provenance (ADR-0025/0027) | 8 |
-| [vision.md](vision.md) | Screen capture, images, the pixel boundary (ADR-0029) | 14 |
+| [vision.md](vision.md) | Screen capture, images, the pixel boundary (ADR-0029) | 13 |
 | [cross-cutting.md](cross-cutting.md) | Pointer input, OS backends, more roles | 3 |
 
 The counts are per area as extracted; a few threads appear in two areas (the cross-cutting
@@ -1023,6 +1023,20 @@ both at one server, so a same-entry batch whose ask fits the VRAM headroom once 
 That correction rides the same sentence and the same fix, so it is folded into the entry rather
 than counted, and it shrinks the prize for spreading rather than adding work.
 
+Vision went **14 to 13 on 2026-08-06** and subagents **2 to 3** the same day, one closing that
+opened one: the capture indicator's outcome landed, and the pairing it guarantees for the turn's
+own dispatches does not reach a delegated step, which is now its own line. The closing is worth a
+sentence for the opposite reason to most here, since the entry was right about everything it
+claimed and this file's standing warning says to expect otherwise. It was also tighter than the
+entry: two of the four failure modes it listed as producing the identical event are literally one
+code path, so no design could have told them apart. What the sitting had to decide was not the
+mechanism but the **direction of the risk**, which is that a privacy indicator may over-report and
+may never under-report, and which is forced rather than chosen: a capture that failed after the
+shutter fired, with the pixels already off the display and the body's own receipt already shown,
+is indistinguishable brain-side from one that never happened. So the outcome may only strengthen
+what the ring claims, the ladder only climbs, and a failed capture leaves the ring exactly where
+the ask put it.
+
 Body & overlay went **13 to 12 on 2026-08-06**, when the composer's move on a clamped shrink closed
 without any code being written and without the user picking anything, because the design choice it
 had been holding open for seventeen days stopped existing on the day it was filed. This is a
@@ -1110,6 +1124,15 @@ against the code (the warning above); the entry text tells you which seams it ex
   the cortex resident and the placement beside it was simply what happened: host item 6 closed the
   same day, its finding being that the shipped placeholders and not the card are why nothing was
   ever GPU-placed.
+- **A delegated tool step is announced and never settled** ([subagents.md](subagents.md)), opened
+  2026-08-06 by the capture indicator's outcome landing. The turn's own dispatches are paired now,
+  one `ToolOutcome` per `ToolActivity` on every path out of the dispatch; a subagent's step is not,
+  because it reaches the overlay through the progress sink and its outcome is dropped there. That
+  is deliberate (the outcome exists for a consent surface over a cortex-only built-in, and a seam
+  field joins with a consumer or not at all), and it is written down because the day any surface
+  renders how a delegated step ended, the pairing becomes a claim one of the two paths does not
+  keep. Three lines of code plus the question that is actually hard, which is whether a subagent's
+  failures are the user's business at all.
 - **The spontaneous-pick nudge's live uptake** ([subagents.md](subagents.md)), whose fix stays
   fix-when-it-bites but whose *observation* is runnable here: a resident cortex at 4K with the
   CPU roster up, given a prose-only ask carrying independent subtasks, either reaches for distinct
@@ -1498,6 +1521,25 @@ that has siblings, and the siblings only become visible once the first one is ri
   read" needs a post-dispatch signal on the `Converse` stream: a proto field, a tool-loop emission
   point, and a reducer arm, which is why it is a seam change rather than a wording fix. It matters
   because this dot is one of the three consent surfaces that justify shipping capture ungated.
+
+  **Closed 2026-08-06** ([ADR-0029 outcome
+  addendum](../adr/ADR-0029-vision-screen-capture.md)). Right about its own premise, which under
+  this file's standing warning is not the way to bet: driven through the real loop over the real
+  dispatcher and the real `CaptureScreenTool`, all four modes yield exactly
+  `ToolStep(tool_name="capture_screen", ...)` and nothing else, identical to a successful capture.
+  Two of them are tighter than the entry knew and are **one code path**, since the shell wires
+  `DeniedScreenCapture` whether the host switch is off or the self-exclusion failed, so those two
+  are indistinguishable in the error text and no design could separate them. What landed is
+  `ToolOutcome { tool_name, ok }` as a new `ServerEvent` arm (a field on `ToolActivity` would mean
+  a second chip, a `StatusUpdate` would land plumbing in the reasoning channel), carrying a bit
+  rather than a taxonomy: the indicator has two honest rungs, and "the user declined" cannot be
+  told from "no confirmer was configured" without lying. **The direction of the risk is the
+  design.** The brain cannot tell a capture that failed after the shutter fired from one that
+  never happened, so `ok=false` changes nothing on screen; the ladder
+  (`state.capture: "asked" | "read" | null`) only ever climbs, and the ring only ever gains ink.
+  It opened one entry under [subagents.md](subagents.md) and fixed one defect found while proving
+  the motion: the reduced-motion block clamped `*`, which does not match pseudo-elements, so five
+  motions including two infinite ones ran at full speed for a user who asked for none.
 - **Carrying the `opaque` bit across a model swap** ([vision.md](vision.md)), the cheap half of
   the pixels-across-a-swap entry and the one with a real fail-open behind it, open from 2026-07-19
   and **closed 2026-08-03**. It was right about itself throughout, which is worth saying under a

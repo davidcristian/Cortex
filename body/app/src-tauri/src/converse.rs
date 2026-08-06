@@ -40,6 +40,10 @@ enum WireEvent {
         tool_name: String,
         summary: String,
     },
+    ToolOutcome {
+        tool_name: String,
+        ok: bool,
+    },
     Status {
         state: String,
         detail: String,
@@ -77,6 +81,7 @@ impl From<TurnEvent> for WireEvent {
             TurnEvent::ToolActivity { tool_name, summary } => {
                 Self::ToolActivity { tool_name, summary }
             }
+            TurnEvent::ToolOutcome { tool_name, ok } => Self::ToolOutcome { tool_name, ok },
             TurnEvent::Status { state, detail } => Self::Status { state, detail },
             TurnEvent::ConfirmRequest {
                 confirm_id,

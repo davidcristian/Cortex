@@ -227,6 +227,13 @@ Top-to-bottom, the summoned panel is:
    with it, because the two are **one row of state** rather than two ornaments: left at the title
    the ring would be the one mark there, appearing and vanishing with every capture, while beside
    the buttons the pair reads as "what the panel currently is" next to "what you can do to it".
+   It has two rungs and they differ by addition only: an open ring means the assistant asked to
+   look, and a pupil growing inside it means the seam came back saying the screen really was read
+   (2026-08-06, the outcome addendum). The ring never weakens, because for a privacy indicator
+   over-reporting is the safe direction, so the second rung can only ever be more ink than the
+   first. It stays a ring rather than filling in for the reason it was open to begin with: a
+   solid 7px `--warn` disc is exactly what the connection dot beside it looks like when the brain
+   is degraded, and the pair has to keep one connection colour between them.
    **The title therefore starts the row** (2026-07-20,
    [ADR-0035](../adr/ADR-0035-console-and-motion.md) decision 23), and it is inset **31px** from
    the panel's edge rather than the header's bare 16px, which balances it against the 28px corner:

@@ -338,6 +338,21 @@
   border-radius: 50%;
   border: 1.5px solid var(--warn);
   box-sizing: border-box;
+  display: grid;
+  place-items: center;
+}
+
+.capturedot::after {
+  content: "";
+  width: 2.5px;
+  height: 2.5px;
+  border-radius: 50%;
+  background: var(--warn);
+  transform: scale(0);
+  transition: transform 0.35s var(--ease);
+}
+.capturedot.read::after {
+  transform: scale(1);
 }
 
 .head > .title:first-child {
@@ -1405,7 +1420,9 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  * {
+  *,
+  *::before,
+  *::after {
     animation-duration: 0.001ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.12s !important;

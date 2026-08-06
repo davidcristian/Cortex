@@ -478,12 +478,16 @@ The service:
   `ClientEvent.session_id`; each engine reply delta streams back as a `TextDelta` ServerEvent
   (the echo script yields at least 3), a reasoning model's thinking as a `StatusUpdate`
   (ADR-0020, `state="thinking"`), each audited tool dispatch as a `ToolActivity` (ADR-0009
-  addendum, the overlay's activity chip), followed by exactly one `TurnComplete{turn_id}`.
+  addendum, the overlay's activity chip) plus the `ToolOutcome{tool_name, ok}` settling that
+  dispatch once it resolves (ADR-0029 outcome addendum, one per activity the turn emitted, on
+  every path out of the dispatch), followed by exactly one `TurnComplete{turn_id}`.
   A turn that spawns subagents also surfaces their progress on the same stream through this
   stream's `SeamProgressSink` (ADR-0010 progress addendum): a `StatusUpdate{state="delegating"}`
   for the batch's scale and a `ToolActivity` per subagent tool step, ridden while the turn is
   suspended inside the spawn dispatch (its generator cannot yield), best-effort and
-  credit-balanced so a stalled consumer drops them.
+  credit-balanced so a stalled consumer drops them. A delegated step carries **no** outcome: the
+  pairing above is about the turn's own dispatches, and the surface the outcome feeds is over a
+  cortex-only built-in a subagent cannot call.
   `UserTurn.images` are **still ignored**: vision arrived as a model-initiated capture
   (ADR-0029), and the user-attached image path is a recorded deferral
   (`docs/refinements/vision.md`) rather than a promise about a coming slice.

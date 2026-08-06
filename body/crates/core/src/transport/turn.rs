@@ -21,6 +21,14 @@ pub enum TurnEvent {
         /// Human-readable summary of the activity.
         summary: String,
     },
+    /// How an announced dispatch ENDED, arriving after it resolves (proto `ToolOutcome`, ADR-0029
+    /// outcome addendum).
+    ToolOutcome {
+        /// The tool that ran, the same registry-authored name the activity carried.
+        tool_name: String,
+        /// The audit trail's own verdict: the dispatch returned a usable result.
+        ok: bool,
+    },
     /// Progress for the overlay to show, e.g. a model swap (proto `StatusUpdate`).
     Status {
         /// Machine-readable state name, e.g. `model_loading`.

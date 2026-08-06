@@ -21,7 +21,7 @@ const state = (over: Partial<OverlayState> = {}): OverlayState => ({
   arrival: 0,
   reminders: [],
   link: INITIAL_LINK,
-  capturing: false,
+  capture: null,
   seq: 0,
   touched: false,
   ...over,
@@ -146,7 +146,7 @@ describe("Panel", () => {
   });
 
   it("appears with the capture ring against the title, so nothing on the row moves", () => {
-    renderPanel({ capturing: true }, true, false);
+    renderPanel({ capture: "asked" }, true, false);
     const [capture, link] = screen.getAllByRole("status");
     expect(capture?.className).toBe("capturedot");
     expect(link?.className).toContain("linkdot");

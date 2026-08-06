@@ -46,7 +46,8 @@ line cap.
     user_turn})` chained with one `confirm_response` per `ConfirmDecision` from the caller's
     `decisions` stream (ADR-0022). The client half-closes when `decisions` ends, so an
     empty stream keeps the pre-8.8 one-shot shape. Each streamed `ServerEvent` maps to a
-    `TurnEvent`: `TextDelta`→`Delta`, `ToolActivity`→`ToolActivity`, `StatusUpdate`→`Status`,
+    `TurnEvent`: `TextDelta`→`Delta`, `ToolActivity`→`ToolActivity`,
+    `ToolOutcome`→`ToolOutcome` (non-terminal), `StatusUpdate`→`Status`,
     `ConfirmRequest`→`ConfirmRequest` (non-terminal, since the brain suspends the gated call and
     denies it fail-closed if no matching decision ever arrives),
     `ConfirmResolved`→`ConfirmResolved` (non-terminal: the brain ended that wait itself, so the

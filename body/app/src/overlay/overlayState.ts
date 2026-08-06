@@ -18,6 +18,7 @@ import {
 import { type Notice, speak } from "./notice";
 import { NEW_CHAT_TITLE, adoptSession, deleteSession, openSession } from "./sessionState";
 import {
+  type CaptureClaim,
   type Message,
   type PendingConfirm,
   applyEvent,
@@ -28,7 +29,7 @@ import {
 
 export { cycleTarget } from "./sessionState";
 export { CAPTURE_SCREEN_TOOL, isTurnActive, latestReply } from "./turnState";
-export type { Message, PendingConfirm } from "./turnState";
+export type { CaptureClaim, Message, PendingConfirm } from "./turnState";
 
 /** Where the overlay is on screen. */
 export type Mode = "hidden" | "panel" | "orb" | "preview";
@@ -63,8 +64,11 @@ export interface OverlayState {
   readonly reminders: readonly DueReminder[];
   /** What the overlay knows about the brain connection, for the header indicator (`linkState`). */
   readonly link: LinkView;
-  /** Whether the assistant has looked at the user's screen during the turn in flight (ADR-0029). */
-  readonly capturing: boolean;
+  /**
+   * How far this turn's screen-capture claim has climbed, or `null` if nothing was asked for
+   * (ADR-0029).
+   */
+  readonly capture: CaptureClaim | null;
   readonly seq: number;
   /**
    * Whether the user has acted on this overlay since mount (opened it, typed, switched, or minted
@@ -134,7 +138,7 @@ export function createInitialState(sessionId: string): OverlayState {
     arrival: 0,
     reminders: [],
     link: INITIAL_LINK,
-    capturing: false,
+    capture: null,
     seq: 0,
     touched: false,
   };

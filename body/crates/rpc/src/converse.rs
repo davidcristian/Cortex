@@ -49,6 +49,13 @@ fn map_event(event: ServerEvent) -> (Result<TurnEvent, TransportError>, bool) {
             }),
             false,
         ),
+        Some(server_event::Event::ToolOutcome(outcome)) => (
+            Ok(TurnEvent::ToolOutcome {
+                tool_name: outcome.tool_name,
+                ok: outcome.ok,
+            }),
+            false,
+        ),
         Some(server_event::Event::Status(status)) => (
             Ok(TurnEvent::Status {
                 state: status.state,

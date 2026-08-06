@@ -28,6 +28,16 @@ class ToolStep:
     summary: str
 
 
+@dataclass(frozen=True, slots=True)
+class StepOutcome:
+    """How one announced dispatch ended, yielded immediately after it resolves (ADR-0029 outcome
+    addendum).
+    """
+
+    tool_name: str
+    ok: bool
+
+
 def step_summary(spec: ToolSpec) -> str:
     """The chip text for one dispatch: the advertised description's first line, capped, with
     the advertised name as the fallback when the description is empty.
