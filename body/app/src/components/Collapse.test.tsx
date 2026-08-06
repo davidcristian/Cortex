@@ -1,9 +1,13 @@
 import { act, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { laysEverything } from "../test-setup";
 import { Collapse } from "./Collapse";
 
 const HEIGHT = 120;
+/** A content height with a sub-pixel in it, which is the common case in a real layout: measured
+ *  over the demo at 900x1000, the reminder stack's aside stands at 193.75px and a row at 57.25. */
+const HALF = 76.75;
 
 interface Roll {
   readonly from: number;
@@ -26,11 +30,11 @@ function stubBrowser() {
   let running = false;
   let playState: AnimationPlayState = "running";
 
-  // The section reads its own LAYOUT height, which is `offsetHeight` and not the rect: the panel
-  // around it is scaled through a summon, and the rect is measured after that transform.
-  vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockImplementation(() =>
-    running ? box.displayed : box.natural,
-  );
+  // The section reads its own LAYOUT height off the computed style (`heightOf`), which keeps the
+  // sub-pixels the roll has to land on and still ignores the summon's scale transform, unlike the
+  // rect. Said here the way production asks for it, so a fractional height is a case these tests
+  // can have (`HALF`).
+  laysEverything(() => (running ? box.displayed : box.natural));
 
   Element.prototype.animate = ((keyframes: Keyframe[], options: KeyframeAnimationOptions) => {
     const read = (frame: Keyframe | undefined) => ({
@@ -116,6 +120,39 @@ describe("Collapse", () => {
     );
     expect(screen.getByText("rows")).toBeInTheDocument();
     expect(rolls).toEqual([{ from: 0, to: HEIGHT, fade: [0, 1] }]);
+  });
+
+  it("rolls to the sub-pixel its content actually stands on, opening and shutting alike", () => {
+    // An opening roll deliberately does not fill, so the section is handed back to its own layout
+    // the frame it ends: a target rounded off the box left it stepping the remainder. Measured over
+    // the demo at 900x1000 before this, the reminder stack's aside rolled to 194 and stood at
+    // 193.75, and the closing roll then started 0.25px above where the eye had it. The published
+    // target carries the fraction too, the panel's ride-along adding it to fractional heights of
+    // its own (`overlay/panelRide.ts`).
+    const { box, rolls, settle } = stubBrowser();
+    box.natural = HALF;
+    const view = render(
+      <Collapse open={false}>
+        <p>rows</p>
+      </Collapse>,
+    );
+    view.rerender(
+      <Collapse open>
+        <p>rows</p>
+      </Collapse>,
+    );
+    expect(rolls).toEqual([{ from: 0, to: HALF, fade: [0, 1] }]);
+    expect(view.container.querySelector("[data-morphing]")).toHaveAttribute(
+      "data-morphing",
+      String(HALF),
+    );
+    settle();
+    view.rerender(
+      <Collapse open={false}>
+        <p>rows</p>
+      </Collapse>,
+    );
+    expect(rolls[1]).toEqual({ from: HALF, to: 0, fade: [1, 0] });
   });
 
   it("stays mounted through the roll shut, which is the whole point of it", () => {

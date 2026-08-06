@@ -2967,7 +2967,8 @@ rounded target to fractional heights, which puts its prediction the same 0.25px 
 2px below which nothing is animated at all. It is deferred because the reading is one line and the
 harness around it is not: the roll stand-in every per-row exit is asserted through is shared by three
 test files. Filed with the numbers in
-[refinements/body-overlay.md](../refinements/body-overlay.md).
+[refinements/body-overlay.md](../refinements/body-overlay.md), and **landed hours later the same
+day**: the addendum below has the trace and the harness change.
 
 **The other boxes that measure themselves are unchanged too.** The console's tab slack, the panel
 edge's canvas and the composer's pill each read `offsetHeight` for their own purposes; only the tab
@@ -3292,3 +3293,76 @@ accessible name says what it is ("Delete Reminders and recurrence", "Cancel dele
 the new title), which is the reason no live region was added, but the *list's* own change (a row is
 gone, one row remains) is still silent. The swap rule's live region says which chat arrived; there is
 no equivalent for a list that shrank. Recorded beside the entry above.
+
+## Addendum, 2026-08-06: a section rolls to the height it actually stands on
+
+The addendum above left one reading behind, on the element one layer down, and this closes it.
+`Collapse` measured the height it rolls to with `offsetHeight`, a whole number, while the panel now
+reads its own box with the used height off the computed style. Two roundings of one number, on the
+two sides of a contract whose whole purpose is that both sides agree.
+
+### What was measured before
+
+Headless Chromium at 900x1000 over the demo, `Element.prototype.animate` hooked before the app
+loaded so the summon's own rolls are in the trace, and every painted frame sampled for each
+section's used height beside the panel's.
+
+- **Both numbers the entry published reproduced exactly at HEAD.** The reminder stack's aside stands
+  at 193.75px with an `offsetHeight` of 194, and a section at 57.25 against 57 is there beside it.
+  That second one is a reminder ROW rather than a Thoughts trace: a trace at this viewport measures
+  76 flat, so the entry had the right number on the wrong element.
+- **The step is real in both directions.** The summon's roll of the aside opened `0px` to `194px`
+  and the finish handed the section back to its own layout at 193.75. The closing roll then opened
+  at 194 while the eye had 193.75, which is a 0.25px step up in a single frame, and the panel's
+  `auto` height took it along (545.75 to 546 at the same frame).
+- **The ride-along inherited it exactly as the entry said.** Its prediction is the panel's natural
+  height less the section's plus the roll's target, so with a rounded target it read 546 for a roll
+  that left the panel at 545.75.
+
+### The decision
+
+**The roll measures with `heightOf`, the same used height the panel reads its own box with.** The
+check that chose `offsetHeight` for this element still has to pass, and it does: a section lives
+inside a panel that is scaled through the whole summon, and the used height ignores that transform
+where the rect does not (356.266 under `scale(0.92)`, where the rect reads 327.764). What it adds is
+the sub-pixel, which is the entire defect. The mid-roll read of where the section had got to moves
+with it, so a reopen carries on from the fraction it was painted at rather than from a rounded one.
+
+**The published target carries the fraction too.** `data-morphing` is the number the panel predicts
+from, and it now reads `193.75`; the prediction is arithmetic over three fractional heights and
+lands on the height the panel actually takes.
+
+### What it measures now
+
+Same instrument, same window. The aside rolls `0px` to `193.75px`, the ride-along's prediction is
+545.75 against a settled 545.75, and the step at every roll boundary in the trace is 0.000px. That
+is under the 0.015px the panel's own change reached, and for a different reason: 0.015 was
+Chromium's 1/64px grid showing through a real conversion, while this is two sides of one contract
+reading one number, with nothing left to disagree about.
+
+### The harness, which was the entry's stated cost
+
+Every fake of a rolling section's height now says it through the computed style, so no test asserts
+on a number production does not read. `stubRoll` in `body/app/src/test-setup.ts` (shared by
+`Reminders.test.tsx`, `SessionList.test.tsx` and `Panel.test.tsx`) hands its height to
+`laysEverything`, which was widened to take an answer that can change under the test, and
+`Collapse.test.tsx`'s own stand-in does the same so that a roll interrupted mid-flight still reads
+where it had got to. That is the whole of the "three test files sharing one prototype-wide fake"
+the entry priced, and it landed as one helper rather than a rewrite per file, exactly as the
+panel's did.
+
+**Falsified both ways.** Reading `offsetHeight` again reddens eleven `Collapse` cases plus the
+per-row exits in `Reminders.test.tsx` and `SessionList.test.tsx`, which is the harness proving it is
+bound to production. Rounding the used height instead reddens exactly one case, the new one that
+rolls a section standing on a sub-pixel and asserts the keyframes and the published target both
+carry it.
+
+### What this does not do
+
+**The whisper's bubble still publishes a rounded target.** `useWhisperClock` announces
+`String(Math.round(tH))` while writing its own box to a tenth of a pixel, so the ride-along adds a
+whole number to fractional heights for the length of a streamed reply. It is the same shape as the
+defect above and is read from the code rather than measured: the bubble is never handed back to
+layout the way a section is, so the visible symptom may not exist. Filed unmeasured in
+[refinements/body-overlay.md](../refinements/body-overlay.md), where the first move is a live trace
+and not a change.

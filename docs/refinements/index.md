@@ -68,7 +68,7 @@ entries from it never added the two it opened, and there the count did move and 
 | [memory.md](memory.md) | Store, scoping, rerank/MMR, the ranked `select` and its recall trail, and the judge's default now that bounding its request made it twenty times cheaper at the same ranking, plus the two the ranked-recall close opened and neither this cell nor the area header picked up until 2026-08-06, a cross-encoder rank and an audit of the candidates a rank drops (ADR-0008/0038) | 9 |
 | [inference-model-manager.md](inference-model-manager.md) | Model-manager lifecycle, MTP, reasoning status, whose disable-thinking and token-cap halves now reach every pass that discards its own deliberation, leaving the user-facing reply as the whole of that entry and the count unmoved for a narrowing (ADR-0007/0020/0038) | 7 |
 | [subagents.md](subagents.md) | Progress reporting, spawn schema, heterogeneous roster (ADR-0010/0018) | 3 |
-| [body-overlay.md](body-overlay.md) | Overlay polish, connection indicator, proto Cancel (ADR-0011), the reserved scrollbar rail's assumed width and spent card inset, a section's roll ending 0.25px from where it was going, the two bounds the panel's section budget left behind it (a section's own frame being under no cap, and the room a closing section hands back arriving in one frame), a modified chord still reaching the overlay from inside a row's rename editor, a list that shrinks saying nothing where a chat arriving speaks, and the whisper's follow-ups (ADR-0037): a pickable voice row, a mid-stream resize keeping the old wrap width, and kerning inside the letter boxes under a changed font (its drain-growth entry landed the day it was filed, and the console outliving a new chat, the reminder stack's per-row exit and the switcher's, the panel's watch on its own box with the arrival-aside correction that came out of it, the demo bridge over the line cap, two sections outrunning the panel on their own, the chat floor's frozen measurement of the empty state, the console tab strip's missing keyboard half, the switcher's disputed listbox role, the two motions its list still made in one frame, and a Thoughts trace opening a reply off the bottom of a full history all landed 2026-08-03, the last of them opening the chrome-side entry that landed 2026-08-04 on the same ride, alongside the cycle keys' silent swap, which opened the focus entry that landed 2026-08-06 as the caret following the conversation into the composer and opened two entries behind it, both landed the same day: the draft named below, and the row gestures that swap nothing, answered by the caret staying in the list and opening the chord and the silent-shrink entries above; the composer's move on a clamped shrink closed 2026-08-06 as moot, its mechanism having been deleted the day it was filed, and the retarget-and-resize pair landed 2026-08-06 as the panel measuring itself in fractional pixels, opening the roll entry that took its place; the composer's draft belonging to no chat landed 2026-08-06 too, the same day it was opened and the same day the user answered it, as unsent text keyed by session id in the reducer, which was the last entry anywhere waiting on a decision rather than on work) | 12 |
+| [body-overlay.md](body-overlay.md) | Overlay polish, connection indicator, proto Cancel (ADR-0011), the reserved scrollbar rail's assumed width and spent card inset, the rounded roll target the whisper's bubble publishes while its own height carries a decimal, the two bounds the panel's section budget left behind it (a section's own frame being under no cap, and the room a closing section hands back arriving in one frame), a modified chord still reaching the overlay from inside a row's rename editor, a list that shrinks saying nothing where a chat arriving speaks, and the whisper's follow-ups (ADR-0037): a pickable voice row, a mid-stream resize keeping the old wrap width, and kerning inside the letter boxes under a changed font (its drain-growth entry landed the day it was filed, and the console outliving a new chat, the reminder stack's per-row exit and the switcher's, the panel's watch on its own box with the arrival-aside correction that came out of it, the demo bridge over the line cap, two sections outrunning the panel on their own, the chat floor's frozen measurement of the empty state, the console tab strip's missing keyboard half, the switcher's disputed listbox role, the two motions its list still made in one frame, and a Thoughts trace opening a reply off the bottom of a full history all landed 2026-08-03, the last of them opening the chrome-side entry that landed 2026-08-04 on the same ride, alongside the cycle keys' silent swap, which opened the focus entry that landed 2026-08-06 as the caret following the conversation into the composer and opened two entries behind it, both landed the same day: the draft named below, and the row gestures that swap nothing, answered by the caret staying in the list and opening the chord and the silent-shrink entries above; the composer's move on a clamped shrink closed 2026-08-06 as moot, its mechanism having been deleted the day it was filed, and the retarget-and-resize pair landed 2026-08-06 as the panel measuring itself in fractional pixels, opening the roll entry that took its place, which landed hours later the same day as the section measuring itself the way the panel does, both published numbers reproducing first and the step at every roll boundary reading 0.000px after, and which opened the whisper-bubble target named above; the composer's draft belonging to no chat landed 2026-08-06 too, the same day it was opened and the same day the user answered it, as unsent text keyed by session id in the reducer, which was the last entry anywhere waiting on a decision rather than on work) | 12 |
 | [session-read-seam.md](session-read-seam.md) | Session listing/read seam, the generated title's empty-reply half closed 2026-08-06 by bounding its request (ADR-0021/0038) | 2 |
 | [resource-governance.md](resource-governance.md) | Scheduler/placer budgets, NPU, drain (ADR-0012) | 5 |
 | [email-confirmer.md](email-confirmer.md) | Email write, Confirmer, attachments, `ToolActivity` chip (ADR-0022) | 4 |
@@ -1333,6 +1333,27 @@ away. The margin holds and it is smaller than it read, and the harness that read
 the other direction, calling an untouched 1920x1080 capture a fired ladder because it compared the
 returned width against the edge that was asked for rather than against the edge that was possible.
 
+Body & overlay held at 12 on 2026-08-06 when a section's roll came off `offsetHeight`, one entry
+out and one in, and the pair is spelled out here because this file's newest warning is that a count
+right by cancellation hides both of its errors. Out: the roll ending 0.25px from where it was going,
+whose published numbers reproduced exactly at HEAD before anything moved, which is worth saying in a
+backlog whose warning is that they often do not. The aside stands at 193.75px against the 194 its
+target was taken from, a section at 57.25 against 57 is there beside it (a reminder row rather than
+the Thoughts trace the entry named, that trace measuring 76 flat at 900x1000), the summon's own roll
+of the aside was handed back to layout 0.25px under the height it had just painted, the closing roll
+started that same 0.25px above where the eye had it with the panel's auto height taking the step
+along, and the ride-along predicted 546 for a roll that left the panel at 545.75. The section now
+measures the way the panel does, the used height off the computed style, which keeps the sub-pixel
+and still ignores the summon's scale; after it, the target is the height the section stands on, the
+prediction is the height the panel lands on, and the step at every roll boundary is 0.000px, which
+is under the 0.015px grid the panel's own change reached because there is no arithmetic left to
+round rather than because the grid got finer. The harness was the whole of the entry's stated cost
+and moved the way its predecessor's did, the stand-in every per-row exit is asserted through saying
+its height where production reads it; reverting the reading reddens eleven `Collapse` cases and the
+per-row exits in two more files, and rounding it reddens exactly the one case that names the
+sub-pixel. In: the whisper bubble's rounded roll target, noticed in the doing, filed unmeasured
+because the honest first move there is a live trace rather than a change.
+
 ## Recommended order
 
 Ordered by what unblocks the most value soonest. Before starting any item, verify its claims
@@ -1752,16 +1773,27 @@ against the code (the warning above); the entry text tells you which seams it ex
   neither entry named came out of it, one fixed and one filed. The bottom edge had the identical
   rounding and a larger one (a whole ease painted 324.5 while the element carried 325), and it is
   fixed here. A section's own roll still measures its target with `offsetHeight` and is filed below.
-- **A section's roll ends 0.25px from where it was going**
-  ([body-overlay.md](body-overlay.md)), opened 2026-08-06 by the change above, which took the
-  panel's measurement off `offsetHeight` and left `Collapse`'s on it. An opening roll does not fill,
-  so the section hands itself back to its own layout at the end and steps by whatever the rounding
-  threw away: measured at 900x1000, the reminder stack's aside is 193.75px against a 194px target
-  and a Thoughts trace is 57.25px against 57. The panel's ride-along adds that rounded target to two
-  fractional heights, putting its prediction the same 0.25px out, which is far under the 2px below
-  which nothing is animated. Listed last of the open items for the reason its predecessor was: it is
-  the smallest thing in the file, and the reading is one line while the harness around it is three
-  test files sharing one roll stand-in that fakes `offsetHeight` on the prototype.
+- **A section's roll ends 0.25px from where it was going** ([body-overlay.md](body-overlay.md)),
+  opened 2026-08-06 by the change above and **closed hours later the same day**
+  ([ADR-0035 addendum](../adr/ADR-0035-console-and-motion.md)). Both published numbers reproduced
+  at HEAD before anything moved: the reminder stack's aside stands at 193.75px with an
+  `offsetHeight` of 194, and a section at 57.25 against 57 is there too, though it is a reminder row
+  rather than the Thoughts trace the entry named, that trace measuring 76 flat at this viewport. The
+  summon's own roll of the aside opened `0px` to `194px` and was handed back to layout at 193.75,
+  the closing roll started at 194 with the eye on 193.75 (a 0.25px step in one frame, the panel's
+  auto height taking it along, 545.75 to 546), and the ride-along predicted 546 for a roll that left
+  the panel at 545.75. The roll now measures with the same used height the panel reads its own box
+  with, so both sides of the contract hold one number: the aside rolls to 193.75, the prediction is
+  the height the panel lands on, and the step at every roll boundary is 0.000px. The harness cost
+  the entry priced was the whole cost, and it landed the way its predecessor's did, as the fakes
+  saying the height through the computed style rather than a rewrite per file.
+- **The whisper's bubble publishes a rounded roll target while its own height carries a decimal**
+  ([body-overlay.md](body-overlay.md)), opened 2026-08-06 in the doing of the entry above and read
+  from the code rather than measured. `useWhisperClock` rounds the height it announces and writes
+  the box to a tenth of a pixel, so the panel's ride-along adds a whole number to fractional heights
+  for the length of every streamed reply. It is listed here rather than fixed on the spot because
+  the bubble is never handed back to layout the way a section is, so the visible symptom may not
+  exist at all; the first move is a live trace of a reply at 900x1000, not a change.
 
 Everything else that remains is gated on a seam or port change, on hardware that fits two model
 tiers, on a consumer that does not yet exist, or is a bounded fix-when-it-bites contingency. The

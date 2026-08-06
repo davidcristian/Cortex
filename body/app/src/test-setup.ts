@@ -4,7 +4,7 @@
 // is given, and the roll stand-in every per-row exit is asserted through.
 import "@testing-library/jest-dom/vitest";
 import { act, cleanup } from "@testing-library/react";
-import { afterEach, vi } from "vitest";
+import { afterEach } from "vitest";
 
 /**
  * A `ResizeObserver` that observes what the real one observes and reports when a test says the box
@@ -61,7 +61,8 @@ globalThis.ResizeObserver = FakeResizeObserver;
  * How tall a box measures, said through the one property production reads.
  *
  * The panel's own measurement is the used height off the computed style (`panelMemory.heightOf`),
- * which is the reading that keeps its sub-pixels and ignores the summon's scale transform. jsdom
+ * which is the reading that keeps its sub-pixels and ignores the summon's scale transform, and a
+ * section's roll measures itself with the same function so the two cannot disagree. jsdom
  * has no layout and answers every height with the empty string, so a test that needs a box says how
  * tall it is here. Faking `offsetHeight` instead would fake a number nothing measures.
  *
@@ -96,9 +97,12 @@ export function lays(element: Element, height: number | (() => number)): void {
 
 /** Give EVERY box the same laid-out height, and answer the way to stop. For a test whose subject
  *  is an element it cannot reach: `Panel`'s empty state publishes `--chat-floor` during the render
- *  that mounts it, so there is no moment in between to hand it a height. */
-export function laysEverything(height: number): () => void {
-  laidOutAll = () => height;
+ *  that mounts it, so there is no moment in between to hand it a height, and a rolling section is
+ *  measured inside the layout effect that mounts it. A function where the answer changes under the
+ *  test, as it does mid-roll: a running height animation overrides the used height, so a roll
+ *  interrupted half way reads where it had got to rather than what its content is worth. */
+export function laysEverything(height: number | (() => number)): () => void {
+  laidOutAll = typeof height === "number" ? () => height : height;
   return () => {
     laidOutAll = null;
   };
@@ -118,11 +122,13 @@ const ROLL_PX = 48;
  * coming back mid-exit depends on. Returns the way to land every roll still in the air.
  *
  * Shared by the two lists that roll their rows out one at a time (the reminder stack and the chat
- * switcher), so the fake they both assert against is one fake. Restoring it is the caller's:
- * `vi.restoreAllMocks()` in the file's own `afterEach` puts `offsetHeight` back.
+ * switcher), so the fake they both assert against is one fake. The height is said through the
+ * computed style, because that is where `Collapse` reads the height it rolls to (`heightOf`); faked
+ * on `offsetHeight` it would be a number production no longer looks at. Restoring the height is the
+ * file's `afterEach` here rather than the caller's.
  */
 export function stubRoll(): () => void {
-  vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockReturnValue(ROLL_PX);
+  laysEverything(ROLL_PX);
   const finishers: (() => void)[] = [];
   Element.prototype.animate = (() => {
     let live = true;

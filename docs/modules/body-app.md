@@ -465,7 +465,10 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
   two are not in tension (measured 2026-08-06 at 640x720 and 900x900, every frame of an ack, a
   switcher round trip and a shrink clean off the ceiling). `components/Collapse.tsx` gives the switcher list, the reminder stack and
   a reply's Thoughts trace
-  their own height animation, the closing one filling forwards so no frame paints at the old size
+  their own height animation, rolled to the used height off the computed style (`heightOf`, the
+  panel's own reading, so a target and the prediction made from it are one number: an opening roll
+  does not fill, and a rounded target left the section stepping the remainder when its layout took
+  it back), the closing one filling forwards so no frame paints at the old size
   before React removes it, and committing that height by hand where nothing animates at all
   (`prefers-reduced-motion`, or a roll too small to see). Its optional `onClosed` fires once a
   CLOSING roll has finished, after the `cortex:morphend` dispatch so the section is still part of
