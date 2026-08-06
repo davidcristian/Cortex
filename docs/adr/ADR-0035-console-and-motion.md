@@ -2761,3 +2761,116 @@ that reversibility is retired, the price having been deleted.
 saving a pre-roll edge per section buys nothing HEAD does not already have, and costs the panel
 parked on whatever low edge its tallest moment left it with. It is recorded as history, not as a
 standing option.
+
+## Addendum, 2026-08-06: the caret follows the conversation
+
+The live-region addendum above put a chat swap into speech and left focus exactly where the gesture
+had made it, filing the rest as its own deferral: three of the doors into a swap sit inside sections
+the swap takes away, so the control that fired it stops existing and the browser falls back to
+`<body>`, outside the panel and one Tab from the top of the page. This closes that. **Focus goes to
+the composer**, which is the user's answer, taken plainly over the two alternatives on 2026-08-06.
+
+### What was measured before
+
+Chromium at 900x900 against the demo bridge, `document.activeElement` read before each gesture and
+at 0, 60, 150, 290, 320 and 700ms after it.
+
+- **A switcher row** keeps focus for its whole roll, reading the row at every sample through 320ms
+  and `BODY` by 700, which is `Collapse` unmounting the row when the roll ends. This is the door the
+  entry described, and the only one of its three that behaves the way it said.
+- **A reminder card's "open chat"** reads `BODY` at 0ms. The stack does not roll away as the entry
+  had it: that `Collapse` is keyed on the session id, so a swap remounts it outright and the control
+  is gone in the commit itself.
+- **A delete confirm on the open chat** also reads `BODY` at 0ms, by a third mechanism again. The
+  row leaving is `withdrawn` the moment `sessions` drops it, and `inert` blurs what it contains, so
+  the control is blurred before any roll has started.
+- **The doors are more than three.** `Ctrl+N` pressed with focus on a switcher row holds the row to
+  290ms and reads `BODY` at 320, so the defect belongs to where the gesture was made rather than to
+  which control made it. The cycle keys are the same shape into the same arm and were not measured
+  separately from a row, `Ctrl+N` being the one traced.
+- **The doors that keep focus** are the ones whose control survives: `Ctrl+↓` from the header's chats
+  button leaves focus there through the swap, the pencil keeps it, and cold-start adoption has the
+  composer already, the browser build self-summoning into it.
+
+### The decision
+
+Three candidates were put to the user: the composer, the header's chats button (which keeps a reader
+who is browsing chats where they were browsing), and a split where a delete keeps focus in the
+switcher that deliberately stays open behind it. The answer was the composer, for all of them,
+because it is where a summon already lands and it puts the reader in the conversation that arrived.
+
+`OverlayState` gains `arrival: number`, a count raised by every arm that replaces the conversation,
+and the composer's existing focus effect reads it: the `active: boolean` prop became
+`arrival: number | null`, null while the panel is shut or the console is over the chat, and the
+field takes focus on every change. One prop rather than two: it is one idea, which conversation the
+field is sitting in, and `ChatView` stands at 299 lines against a 300-line cap, so a second would
+have left it exactly on that cap with nothing spare for whoever reads it next.
+
+**Unlike the notice, no flag travels with the action.** That rule is about the gesture, so one arm
+serving two doors had to be told which one rang; this rule is about the transition, every door on an
+arm wants the same landing, and each arm therefore answers for all of its own doors. Cold-start
+adoption is excluded by being its own arm, which is also the only correct answer: the panel it would
+be moving focus inside is shut, and shut it is `inert`.
+
+**A count and not the session id.** Re-selecting the chat already open is a real gesture, the row is
+a plain button on every row, and it still takes that row away with the closing list; the id would
+not move and the caret would be lost. A count is also what makes two arrivals under one title two
+events, which is the notice's lesson applied to the same problem one field over.
+
+**At the arrival and not at the end of the roll.** The swap is one commit, so focus leaves the doomed
+control before its section starts rolling, rather than riding 300ms on an element that is on its way
+out; two of the three doors have already been blurred by then anyway, so "the end of the roll" would
+mean 300ms parked on `<body>` for them.
+
+| Door | Focus before | Focus after |
+| --- | --- | --- |
+| A switcher row | the row, then `<body>` | the composer, from 0ms |
+| A reminder's "open chat" | `<body>` at once | the composer, from 0ms |
+| A delete confirm on the open chat | `<body>` at once | the composer, from 0ms |
+| `Ctrl+N` from inside the switcher | the row, then `<body>` | the composer, from 0ms |
+| `Ctrl+↑` / `Ctrl+↓` from the chats button | the chats button | the composer, from 0ms |
+| The header's pencil | the pencil | the composer, from 0ms |
+| Cold-start adoption | wherever it was, the browser build's self-summon having put it in the composer | untouched, this being the one swap that is not counted |
+
+### What it measures
+
+Chromium at 900x900, same seed, after: every door in the table reads `TEXTAREA [Message]` at 0ms and
+at every sample through 700ms, with the arriving title in the header and the live region saying what
+it said before.
+
+**The panel does not notice.** The switcher's roll under a row press is frame for frame what it was:
+43 painted frames, the panel's top edge 108 to 273.19 and its height 518 to 352.81 in both traces,
+eleven of fifteen sampled frames identical to the hundredth of a pixel and the other four apart by
+at most 0.06, the largest single top step 25.42 before and 25.56 after, and the log's `scrollTop`
+identical throughout. That is `focus({ preventScroll: true })` doing the job it was already in this
+component for.
+
+### The mutation proof
+
+Two mutations, each reddening a different pair of tests, checked in place and restored. Pinning the
+three arms at `arrival: state.arrival` (the swap stops counting) reddens the reducer's arrival test
+and the App-level door test, and leaves the composer's own test green, which is the split the
+contract wants. Giving the effect the old rising edge, `[arrival !== null]`, reddens the composer's
+test and the App-level one, and leaves the reducer green.
+
+### What this does not do
+
+**The same rows still drop focus when nothing swaps.** Pressing Rename, committing a rename,
+pressing Delete, confirming the delete of a chat that is not the open one, and acking a reminder
+each take the pressed control away without replacing the conversation, so `arrival` never hears
+about them and each reads `<body>` afterwards (the ack after its roll, the rest at once). They want
+answers of their own shape rather than the composer, and are filed as one deferral
+([refinements/body-overlay.md](../refinements/body-overlay.md)).
+
+**A draft still belongs to no chat.** The field is never unmounted, so its text survives a swap:
+"half a question" typed into one chat is still there, caret at 15, after `Ctrl+↓` loads another. That
+was always so and cost nothing while focus was landing on `<body>`; now the caret is put in that
+field by the swap, so it is the first thing a reader meets in the conversation that arrived. Filed
+beside the entry above, with the two shapes it could take.
+
+**The switcher is still open behind a delete.** The split answer that would have kept focus in it
+was declined with the rest, so a reader who deletes the open chat lands in the composer of the fresh
+one with the list still up. Getting back to it is a walk rather than a step: three presses of
+Shift+Tab from the field reach the empty chat's own two example prompts and then its mark button,
+with the reminder stack and the rows above those, which is the tab order the panel has always had
+and is the cost the user accepted in taking the one rule.

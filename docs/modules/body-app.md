@@ -265,9 +265,23 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
   door CLEARS the notice, a removal not being announced under the default `aria-relevant`, and the
   notice carries a count that keys the region's child, since a live region reports a mutation
   rather than a value and two chats can share a title. What the region says is the title the
-  reducer arm computed, so it and the header cannot disagree. Focus is deliberately not moved, and
-  where a door sits inside a section the swap closes it now lands on `<body>`: a deferral in
-  [refinements/body-overlay.md](../refinements/body-overlay.md).
+  reducer arm computed, so it and the header cannot disagree. Where focus goes is the next bullet.
+- **A chat arriving on the panel takes the caret with it** (`OverlayState.arrival` +
+  `components/Composer.tsx`, ADR-0035 addendum, 2026-08-06). Every gesture that replaces the
+  conversation puts focus in the composer, which is where a summon already puts it, so the reader is
+  left in the conversation that arrived. Before it, three doors sat inside sections the swap takes
+  away (a switcher row, a reminder card's open control, a delete confirm) and the pressed control
+  simply stopped existing, focus falling to `<body>`; so did any global key pressed while focus was
+  inside the switcher. `arrival` is a count each swap arm raises, and the composer's `arrival` prop
+  is that count while the chat is the view on screen and null otherwise, the field taking focus on
+  every change to it. **Unlike the notice above, no flag travels with the action**: that rule is
+  about the gesture and this one about the transition, so each arm answers for all of its own doors.
+  It is a count rather than the session id because re-selecting the open chat is still an arrival and
+  still takes its row away; cold-start adoption is excluded by being its own arm, and would be moving
+  focus inside an `inert` panel besides. What it does NOT reach is a row gesture that swaps nothing
+  (a rename, a delete of another chat, a reminder's ack), each still dropping focus: a deferral in
+  [refinements/body-overlay.md](../refinements/body-overlay.md), along with the draft that the caret
+  now lands in and that still belongs to no chat.
 - **The empty line waits for a row and yields to one, and a row the list moves travels there**
   (`components/SessionList.tsx` + `overlay/useTravel.ts`, ADR-0035 addendum, 2026-08-03). The empty
   line is asked of `sessions` rather than of the rendered rows, so deleting the last chat puts it up
@@ -451,7 +465,8 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
   so `Shift`+`Return` reads as two keys on both surfaces. Focus travels with the view: the arriving
   pane's selected tab takes it (the strip that was clicked is inside the pane leaving, one morph
   from `display: none`, which would drop focus to the body), and the chat takes it back into the
-  composer, whose `active` prop is "the panel is open AND no console tab is up". That is not
+  composer, whose `arrival` prop is the arrival count while "the panel is open AND no console tab is
+  up" and null otherwise, so a return from the console is the same landing a swap is. That is not
   decoration: a browser refuses to hide the focused element's ancestor from assistive tech, so
   without the handoff the `aria-hidden` on the pane being left is ignored and the tab just left
   stays in the tree as a second, equal console.
