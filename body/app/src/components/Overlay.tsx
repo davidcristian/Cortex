@@ -47,6 +47,7 @@ export function Overlay({
   const {
     state,
     submit,
+    setDraft,
     stop,
     dismiss,
     open,
@@ -126,6 +127,7 @@ export function Overlay({
         onCloseConsole={closeConsole}
         onToggleTheme={onToggleTheme}
         onSubmit={submit}
+        onDraft={setDraft}
         onStop={stop}
         onDismiss={dismiss}
         onNewChat={() => newChat(false)}

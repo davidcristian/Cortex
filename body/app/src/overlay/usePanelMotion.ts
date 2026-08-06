@@ -31,9 +31,10 @@ const TOUCH_EVENTS = ["pointerdown", "keydown", "click"] as const;
  * Three things here are not renders. A summon owns the panel's geometry for a window afterwards,
  * and any input inside that window ends it early (`touched`). A section's roll brackets itself with
  * its own two events, because a roll is not always a render the panel sees. And the panel watches
- * its own box (`panelWatch`), for the resizes that are neither: a draft growing a line lives in the
- * composer's own state, so nothing above it renders and the panel's `auto` height would otherwise
- * simply follow in the frame the character lands.
+ * its own box (`panelWatch`), for the resizes that are neither: a row released at the end of its own
+ * exit, and content that settles after the render that brought it, where the panel's `auto` height
+ * would otherwise simply follow in the frame it lands. A draft growing a line was that case's
+ * largest example until the composer's text moved into the reducer, and is now an ordinary render.
  */
 export function usePanelMotion(
   ref: RefObject<HTMLElement | null>,

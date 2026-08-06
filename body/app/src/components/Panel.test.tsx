@@ -1,8 +1,10 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { LUCID, STILL } from "../edge/edges";
 import { MULL } from "../mark/marks";
+import { parkDraft } from "../overlay/drafts";
 import { INITIAL_LINK } from "../overlay/linkState";
 import type { ConsoleTab, Message, OverlayState } from "../overlay/overlayState";
 import { laysEverything, stubRoll } from "../test-setup";
@@ -19,6 +21,7 @@ const state = (over: Partial<OverlayState> = {}): OverlayState => ({
   pendingConfirm: null,
   notice: null,
   arrival: 0,
+  drafts: {},
   reminders: [],
   link: INITIAL_LINK,
   capture: null,
@@ -59,6 +62,7 @@ interface Handlers {
   onCloseConsole?: () => void;
   onToggleTheme?: () => void;
   onSubmit?: (text: string) => void;
+  onDraft?: (text: string) => void;
   onDismiss?: () => void;
   onNewChat?: () => void;
   onToggleSwitcher?: () => void;
@@ -86,6 +90,7 @@ function panelProps(over: Partial<OverlayState>, open: boolean, dark: boolean, h
     onCloseConsole: handlers.onCloseConsole ?? vi.fn(),
     onToggleTheme: handlers.onToggleTheme ?? vi.fn(),
     onSubmit: handlers.onSubmit ?? vi.fn(),
+    onDraft: handlers.onDraft ?? vi.fn(),
     onStop: vi.fn(),
     onDismiss: handlers.onDismiss ?? vi.fn(),
     onNewChat: handlers.onNewChat ?? vi.fn(),
@@ -101,6 +106,21 @@ function panelProps(over: Partial<OverlayState>, open: boolean, dark: boolean, h
 
 function renderPanel(over: Partial<OverlayState>, open: boolean, dark: boolean, handlers: Handlers = {}) {
   return render(<Panel {...panelProps(over, open, dark, handlers)} />);
+}
+
+/** The panel with the reducer's draft half wired back up. The composer holds no text of its own
+ *  (`overlay/drafts.ts`), so typing into the field changes what is on screen only if the state
+ *  above it hears the keystroke, which is the one wire a bare `panelProps` cannot carry: it hands
+ *  over a fixed `state`. Used by the tests that TYPE; the rest never touch the field. */
+function LivePanel({ props }: { readonly props: ReturnType<typeof panelProps> }) {
+  const [drafts, setDrafts] = useState(props.state.drafts);
+  return (
+    <Panel
+      {...props}
+      state={{ ...props.state, drafts }}
+      onDraft={(text) => setDrafts((held) => parkDraft(held, props.state.sessionId, text))}
+    />
+  );
 }
 
 afterEach(() => {
@@ -503,7 +523,7 @@ describe("Panel", () => {
     // that restacks the pill takes that height straight out of the visible window (52px measured
     // in Chromium, 122px at the field's ceiling) while the engine leaves `scrollTop` alone. Without
     // this the newest reply slides out from under the reader while they answer it.
-    const view = render(<Panel {...panelProps({ messages: [userMsg, reply("m1")] }, true, false)} />);
+    const view = render(<LivePanel props={panelProps({ messages: [userMsg, reply("m1")] }, true, false)} />);
     const el = view.container.querySelector(".history") as HTMLDivElement;
     const field = screen.getByLabelText("Message") as HTMLTextAreaElement;
     const pill = field.parentElement as HTMLDivElement;

@@ -55,7 +55,7 @@ the tree does now.
 | [memory.md](memory.md) | Store, scoping, rerank/MMR, the ranked `select` and its recall trail (ADR-0008/0038) | 6 |
 | [inference-model-manager.md](inference-model-manager.md) | Model-manager lifecycle, MTP, reasoning status (ADR-0007/0020) | 7 |
 | [subagents.md](subagents.md) | Progress reporting, spawn schema, heterogeneous roster (ADR-0010/0018) | 3 |
-| [body-overlay.md](body-overlay.md) | Overlay polish, connection indicator, proto Cancel (ADR-0011), the reserved scrollbar rail's assumed width and spent card inset, a section's roll ending 0.25px from where it was going, the two bounds the panel's section budget left behind it (a section's own frame being under no cap, and the room a closing section hands back arriving in one frame), the switcher's and the reminder stack's own row gestures dropping focus with no swap to answer them, the composer's draft belonging to no chat, and the whisper's follow-ups (ADR-0037): a pickable voice row, a mid-stream resize keeping the old wrap width, and kerning inside the letter boxes under a changed font (its drain-growth entry landed the day it was filed, and the console outliving a new chat, the reminder stack's per-row exit and the switcher's, the panel's watch on its own box with the arrival-aside correction that came out of it, the demo bridge over the line cap, two sections outrunning the panel on their own, the chat floor's frozen measurement of the empty state, the console tab strip's missing keyboard half, the switcher's disputed listbox role, the two motions its list still made in one frame, and a Thoughts trace opening a reply off the bottom of a full history all landed 2026-08-03, the last of them opening the chrome-side entry that landed 2026-08-04 on the same ride, alongside the cycle keys' silent swap, which opened the focus entry that landed 2026-08-06 as the caret following the conversation into the composer and opened the two above; the composer's move on a clamped shrink closed 2026-08-06 as moot, its mechanism having been deleted the day it was filed, and the retarget-and-resize pair landed 2026-08-06 as the panel measuring itself in fractional pixels, opening the roll entry that took its place) | 12 |
+| [body-overlay.md](body-overlay.md) | Overlay polish, connection indicator, proto Cancel (ADR-0011), the reserved scrollbar rail's assumed width and spent card inset, a section's roll ending 0.25px from where it was going, the two bounds the panel's section budget left behind it (a section's own frame being under no cap, and the room a closing section hands back arriving in one frame), the switcher's and the reminder stack's own row gestures dropping focus with no swap to answer them, and the whisper's follow-ups (ADR-0037): a pickable voice row, a mid-stream resize keeping the old wrap width, and kerning inside the letter boxes under a changed font (its drain-growth entry landed the day it was filed, and the console outliving a new chat, the reminder stack's per-row exit and the switcher's, the panel's watch on its own box with the arrival-aside correction that came out of it, the demo bridge over the line cap, two sections outrunning the panel on their own, the chat floor's frozen measurement of the empty state, the console tab strip's missing keyboard half, the switcher's disputed listbox role, the two motions its list still made in one frame, and a Thoughts trace opening a reply off the bottom of a full history all landed 2026-08-03, the last of them opening the chrome-side entry that landed 2026-08-04 on the same ride, alongside the cycle keys' silent swap, which opened the focus entry that landed 2026-08-06 as the caret following the conversation into the composer and opened two entries behind it, the row gestures above and the draft named below; the composer's move on a clamped shrink closed 2026-08-06 as moot, its mechanism having been deleted the day it was filed, and the retarget-and-resize pair landed 2026-08-06 as the panel measuring itself in fractional pixels, opening the roll entry that took its place; the composer's draft belonging to no chat landed 2026-08-06 too, the same day it was opened and the same day the user answered it, as unsent text keyed by session id in the reducer, which was the last entry anywhere waiting on a decision rather than on work) | 11 |
 | [session-read-seam.md](session-read-seam.md) | Session listing/read seam (ADR-0021) | 2 |
 | [resource-governance.md](resource-governance.md) | Scheduler/placer budgets, NPU, drain (ADR-0012) | 5 |
 | [email-confirmer.md](email-confirmer.md) | Email write, Confirmer, attachments, `ToolActivity` chip (ADR-0022) | 4 |
@@ -1085,7 +1085,9 @@ only then was the green reading worth anything. Two further corrections ride thi
 number it was restated with, "615px of growth at a 900px viewport", is a ceiling's value read as a
 delta, and real headroom is at most 342px there and 0px for the demo's own arriving chat, so waiting
 was never as cheap as the entry priced it. And the backlog is now down to one entry anywhere whose
-blocker is a preference rather than work, where it read as two.
+blocker is a preference rather than work, where it read as two. (**Superseded 2026-08-06**, later
+the same day: that last one was answered and landed, and then so was the one it opened, so the count
+of entries waiting on a decision rather than on work is zero.)
 
 Body & overlay went **12 to 13 later the same day**, when that last preference-blocked entry was
 answered and landed: a swap fired from inside a section that closes with it drops focus on the
@@ -1103,6 +1105,21 @@ entry's own claims wanted correcting, both about mechanism: only the switcher ro
 its roll, the other two doors losing it in the commit itself (a reminder stack is keyed on the chat
 and remounts, a leaving row goes `inert` at once), and the doors are not three, since any global key
 pressed while focus sits inside the switcher has the identical defect.
+
+Body & overlay came back **13 to 12 the same day**, and the count of entries waiting on a decision
+rather than on work went to **zero**, where it has never been: the user answered the draft with a
+draft per chat, over clearing on swap, and it landed. Unsent composer text is now keyed by session
+id in the reducer and the field renders the entry for the chat on screen, so the swap that moves the
+caret moves the sentence with it. The entry's claim held at every door and not only the two it
+named, which is worth recording in a section whose standing warning is that entries go stale; what
+wanted correcting was smaller and inside its own evidence, "caret at 15" being the end of a fifteen
+character draft rather than a caret held mid-sentence. Two things about the answer are decisions in
+their own right and are argued at the ADR rather than assumed here: a draft is view state and dies
+with the body process, the hard rule being about model processes and KV caches and a store buying
+only survival of a restart that unsent text with no reader does not earn; and it lives in the reducer
+all the same, because the delete cascade has to reach it and a swap has to hand it over
+synchronously, which also leaves it one hydrate from a store if that is ever wanted. Nothing opened
+behind it.
 Session history held at 3 and untrusted content went 11 to 12 on 2026-08-06 when the summarizer's
 sharp deferral, an unfenced recap of tainted turns, closed by being fenced at both ends, and the
 counts moved that way because settling it corrected the premise and found something wider. The
@@ -1494,7 +1511,22 @@ against the code (the warning above); the entry text tells you which seams it ex
   something now that the swap puts the caret there. The two shapes are a draft per chat, kept beside
   `messages` and restored on arrival, or a draft cleared by a swap, which is cheaper and throws work
   away; it wants the user's answer before either, and is the one entry anywhere whose blocker is a
-  preference rather than work.
+  preference rather than work. **Closed the same day on the user's pick of a draft per chat**
+  ([ADR-0035 addendum](../adr/ADR-0035-console-and-motion.md)), which takes the backlog's count of
+  entries waiting on a decision to zero. Unsent text is keyed by session id in the reducer and the
+  composer is a controlled field over the entry for the chat on screen, so a swap hands the arriving
+  conversation its own sentence in the commit that swaps the transcript, with no arm parking anything
+  and no frame able to paint the wrong one. Its claim held at all seven doors and not the two it
+  named; the correction is inside its own evidence, "caret at 15" being the end of a fifteen
+  character draft. It stays in the body's reducer rather than going behind a store port, and the ADR
+  argues why rather than assuming it: the hard rule is about model processes and KV caches, a store
+  buys only survival of a body restart, and unsent text that no surface promises to keep does not
+  earn that, where the delete cascade and a synchronous swap are what keep it out of the component.
+  An empty field stores nothing, which is the whole eviction policy. The caret lands at the end of a
+  restored draft, which is where the next character goes. And the panel does not jump: at 900x900 a
+  swap into a chat holding a draft at the field's ceiling eases 108 to 174 over 12 frames against 108
+  to 273.19 over 18 for a chat holding none, zero direction reversals in either, and at 640x720 the
+  laden swap moves it not at all.
 - **A new chat minted while the console is up leaves the console up**
   ([body-overlay.md](body-overlay.md)), open from 2026-07-20, when verifying the console merge put
   a name to behaviour that predates it, and **closed 2026-08-03** by the user's answer: Ctrl+N

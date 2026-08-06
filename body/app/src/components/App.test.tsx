@@ -127,6 +127,59 @@ describe("App", () => {
     expect(document.activeElement).toBe(screen.getByLabelText("Message"));
   });
 
+  it("keeps each chat's half-typed question with the chat it was typed into", async () => {
+    // The whole path, end to end: the field, the controller, the reducer and a real swap through
+    // the bridge. Before this, the composer held one text for the overlay and every door carried
+    // it across: "half a question" typed in the fresh chat was still in the field, caret and all,
+    // once another conversation had loaded around it, which the caret landing there made the first
+    // thing a reader met in the arriving chat.
+    const bridge = new FakeBridge();
+    bridge.sessions = [
+      { sessionId: "s1", title: "About cats", preview: "p1", lastActivityUnixMs: 2, pinned: false },
+      { sessionId: "s2", title: "About swaps", preview: "p2", lastActivityUnixMs: 1, pinned: false },
+    ];
+    bridge.messagesBySession = { s2: [{ role: "user", text: "about swaps", turnId: "t", atUnixMs: 1 }] };
+    let minted = 0;
+    render(<App bridge={bridge} newSessionId={() => `n${++minted}`} />);
+    await act(async () => {});
+    activate();
+    await act(async () => {});
+    const field = () => screen.getByLabelText("Message") as HTMLTextAreaElement;
+    const openRow = async (title: string) => {
+      fireEvent.click(screen.getByLabelText("Recent chats"));
+      const row = [...document.querySelectorAll<HTMLElement>(".switcher-item")].find((item) =>
+        item.textContent?.includes(title),
+      ) as HTMLElement;
+      fireEvent.click(row);
+      await act(async () => {});
+    };
+    // The panel opened on the adopted chat, About cats. A question started in it:
+    fireEvent.change(field(), { target: { value: "half a question" } });
+    // Ctrl+↓ cycles to the next stored chat: the arriving conversation brings its own empty field.
+    fireEvent.keyDown(window, { key: "ArrowDown", ctrlKey: true });
+    await act(async () => {});
+    expect(screen.getByText("about swaps")).toBeTruthy();
+    expect(field().value).toBe("");
+    // A sentence started here belongs here, and Ctrl+N is the door with nothing of its own to
+    // restore: the fresh chat arrives empty and neither sentence has followed it in.
+    fireEvent.change(field(), { target: { value: "and a thought about swaps" } });
+    fireEvent.keyDown(window, { key: "n", ctrlKey: true });
+    await act(async () => {});
+    expect(field().value).toBe("");
+    // Both are waiting where they were written, reached by either door.
+    await openRow("About swaps");
+    expect(field().value).toBe("and a thought about swaps");
+    await openRow("About cats");
+    expect(field().value).toBe("half a question");
+    // And sending it spends it: coming back a second time, the field is clean.
+    fireEvent.keyDown(field(), { key: "Enter" });
+    await act(async () => {});
+    expect(bridge.calls.at(-1)).toEqual({ sessionId: "s1", text: "half a question" });
+    await openRow("About swaps");
+    await openRow("About cats");
+    expect(field().value).toBe("");
+  });
+
   it("swaps the reminder stack in with a new chat instead of rolling it over the old one", async () => {
     const bridge = new FakeBridge();
     bridge.reminders = [
