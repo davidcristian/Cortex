@@ -601,6 +601,38 @@
   border-radius: 50%;
   border: 1.5px solid var(--warn);
   box-sizing: border-box;
+  display: grid;
+  place-items: center;
+}
+
+/* The second rung (ADR-0029 outcome addendum): the outcome settling the dispatch said the screen
+   really was read, so the ring opens its eye. A pupil growing inside the ring rather than the ring
+   filling in, for the reason the ring is open at all: a solid 7px disc in `--warn` is exactly what
+   the connection dot looks like when the brain is degraded, and the two sit side by side. It stays
+   a ring, so the pair still reads as one row of state with one connection colour in it.
+
+   Growing, not appearing: the mark deepens rather than being swapped for another, and the pupil is
+   what changed, so the pupil is what moves. The reduced-motion rule below collapses it to 0.12s,
+   landing the state without the travel rather than losing it, which is true only because that rule
+   now names pseudo-elements; measuring this transition is what found that it did not. No new
+   colour either: it is the ring's own `--warn`, which both themes already define.
+
+   2.5px is measured rather than picked. The 7px ring's 1.5px border leaves a 4px hole, and the
+   pupil has to be legible in it at devicePixelRatio 1 without closing it: rendered in Chromium at
+   1x, 2px is a 2x2 smudge barely darker than the hole's own antialiasing, 3px closes the hole to
+   half a pixel and reads as the solid disc this rule exists to avoid, and 2.5px lands a
+   three-pixel core with 0.75px of gap still showing all the way round. */
+.capturedot::after {
+  content: "";
+  width: 2.5px;
+  height: 2.5px;
+  border-radius: 50%;
+  background: var(--warn);
+  transform: scale(0);
+  transition: transform 0.35s var(--ease);
+}
+.capturedot.read::after {
+  transform: scale(1);
 }
 
 /* The title is the one thing that has to hold its own against the panel's 28px corner, so its two
@@ -2066,7 +2098,15 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  * {
+  /* The pseudo-elements are named because `*` does not match them, which this block silently
+     believed it did. Measured in Chromium with reduced motion on: the capture ring's pupil
+     reported a 0.35s transition, and reading the rest of the sheet back found four more escaping
+     the same way, two of them infinite (the tool chip's pulse and the thinking dot's bob, plus
+     the send cap's accent fade and the thoughts marker's turn). A user who asks for no motion
+     was getting all five at full speed. */
+  *,
+  *::before,
+  *::after {
     animation-duration: 0.001ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.12s !important;

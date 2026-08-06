@@ -7,7 +7,7 @@ imports seam names from `cortex_seam` and never from `cortex_seam._generated` di
 **Public contract** (everything importable from `cortex_seam`; `__all__` is the API):
 
 - Every proto message class: `ClientEvent`, `UserTurn`, `Cancel`, `ServerEvent`,
-  `TextDelta`, `ToolActivity`, `StatusUpdate`, `TurnComplete`, `SeamError`,
+  `TextDelta`, `ToolActivity`, `ToolOutcome`, `StatusUpdate`, `TurnComplete`, `SeamError`,
   `ConfirmRequest`, `ConfirmResponse`, `ConfirmResolved` (the gated-tool confirm
   exchange and the brain-side end of an unanswered one, ADR-0022),
   `HealthRequest`, `HealthReply`, `ListSessionsRequest`, `ListSessionsReply`,

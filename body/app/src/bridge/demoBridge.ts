@@ -94,12 +94,23 @@ export class DemoBridge implements BrainBridge {
     // this the ring is unreachable in browser dev: it is lit by a `toolActivity` naming
     // `capture_screen`, and no other demo turn emits a tool activity at all, so the one indicator
     // whose whole job is to be seen was the one thing that could never be looked at.
+    //
+    // Both of its rungs are drivable, because the difference between them is the feature: the
+    // activity raises the ring to "asked" and the outcome settling that dispatch is what opens
+    // its eye (ADR-0029 outcome addendum). Say "refused" and the outcome comes back not ok, so
+    // the ring holds at the ask, which is what the shipping default does with the host's capture
+    // switch unset. The gap is long enough to watch the pupil grow.
+    let settle: ReturnType<typeof setTimeout> | undefined;
     if (/screen|look at|see this/iu.test(text)) {
+      const ok = !/refus|blocked|denied|declin/iu.test(text);
       sink.onEvent({
         kind: "toolActivity",
         toolName: "capture_screen",
         summary: "reading the screen",
       });
+      settle = setTimeout(() => {
+        sink.onEvent({ kind: "toolOutcome", toolName: "capture_screen", ok });
+      }, 320);
     }
     // Hold the bubble on the thinking shimmer, surface a reasoning burst as thinking statuses,
     // then stream: the same shape a real reasoning turn has (ADR-0020). Several deltas so the
@@ -121,6 +132,7 @@ export class DemoBridge implements BrainBridge {
     }, 450);
     return () => {
       clearTimeout(status);
+      clearTimeout(settle);
       cancelStream();
     };
   }

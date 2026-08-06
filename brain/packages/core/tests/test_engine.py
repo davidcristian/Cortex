@@ -47,6 +47,7 @@ from cortex_core import (
     ToolActivity,
     ToolCall,
     ToolDispatcher,
+    ToolOutcome,
     ToolResult,
     ToolSpec,
     Trust,
@@ -478,6 +479,7 @@ async def test_tool_call_is_dispatched_audited_and_fed_back() -> None:
     assert events == [
         TextDelta("checking... "),
         ToolActivity(tool_name="read", summary="read a file"),
+        ToolOutcome(tool_name="read", ok=True),
         TextDelta("done"),
         TurnCompleted(turn_id="t-1", full_text="checking... done"),
     ]
@@ -981,6 +983,7 @@ async def test_url_split_across_thinking_bursts_around_a_tool_call_is_redacted()
     assert events == [
         StatusUpdate(state="thinking", detail="see "),
         ToolActivity(tool_name="read", summary="read a file"),
+        ToolOutcome(tool_name="read", ok=True),
         StatusUpdate(state="thinking", detail=f"{REDACTED_LINK} ok. "),
         TextDelta("done"),
         TurnCompleted(turn_id="t-1", full_text="done"),
@@ -1019,6 +1022,7 @@ async def test_thinking_carry_is_flushed_when_the_stream_ends_in_reasoning() -> 
     )
     assert events == [
         ToolActivity(tool_name="read", summary="read a file"),
+        ToolOutcome(tool_name="read", ok=True),
         TextDelta("Done. "),
         StatusUpdate(state="thinking", detail="cite "),
         StatusUpdate(state="thinking", detail=REDACTED_LINK),

@@ -30,12 +30,14 @@ from cortex_core import (
 from cortex_core import StatusUpdate as DomainStatusUpdate
 from cortex_core import TextDelta as DomainTextDelta
 from cortex_core import ToolActivity as DomainToolActivity
+from cortex_core import ToolOutcome as DomainToolOutcome
 from cortex_orchestrator.confirm import SeamConfirmer
 from cortex_orchestrator.progress import SeamProgressSink
 from cortex_seam import ClientEvent, SeamError, ServerEvent, TurnComplete
 from cortex_seam import StatusUpdate as WireStatusUpdate
 from cortex_seam import TextDelta as WireTextDelta
 from cortex_seam import ToolActivity as WireToolActivity
+from cortex_seam import ToolOutcome as WireToolOutcome
 
 # How the servicer builds one stream's engine (ADR-0022, ADR-0010): a closure over the shared
 # adapters that wires THIS stream's confirmer and progress sink into the dispatcher and the turn.
@@ -72,6 +74,8 @@ def to_server_event(event: TurnEvent) -> ServerEvent:
         return ServerEvent(
             tool_activity=WireToolActivity(tool_name=event.tool_name, summary=event.summary)
         )
+    if isinstance(event, DomainToolOutcome):
+        return ServerEvent(tool_outcome=WireToolOutcome(tool_name=event.tool_name, ok=event.ok))
     return ServerEvent(turn_complete=TurnComplete(turn_id=event.turn_id))
 
 

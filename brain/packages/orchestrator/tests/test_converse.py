@@ -338,9 +338,11 @@ class OneToolCallBackend:
             yield TextChunk("done")
 
 
-async def test_tool_activity_maps_to_the_wire_event() -> None:
-    """A domain ToolActivity becomes a wire ServerEvent(tool_activity=...) (ADR-0009 addendum):
-    the audited dispatch reaches the overlay chip with its registry-derived summary."""
+async def test_tool_activity_and_its_outcome_map_to_the_wire_events() -> None:
+    """A domain ToolActivity becomes a wire ServerEvent(tool_activity=...) (ADR-0009 addendum)
+    and the ToolOutcome settling it becomes ServerEvent(tool_outcome=...) (ADR-0029 outcome
+    addendum): the audited dispatch reaches the overlay chip with its registry-derived summary,
+    and how it ended reaches the consent surface that needs more than "a tool ran"."""
 
     async def _read(arguments: Mapping[str, object]) -> str:
         del arguments
@@ -360,9 +362,11 @@ async def test_tool_activity_maps_to_the_wire_event() -> None:
     )
     events = await _collect(converse(_make(engine), _events_from(_user_turn("s", "go"))))
     kinds = [e.WhichOneof("event") for e in events]
-    assert kinds == ["tool_activity", "text_delta", "turn_complete"]
+    assert kinds == ["tool_activity", "tool_outcome", "text_delta", "turn_complete"]
     activity = events[0].tool_activity
     assert (activity.tool_name, activity.summary) == ("read", "read a file")
+    outcome = events[1].tool_outcome
+    assert (outcome.tool_name, outcome.ok) == ("read", True)
 
 
 async def test_second_turn_on_the_same_stream_keeps_counting() -> None:

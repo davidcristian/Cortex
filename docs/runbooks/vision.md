@@ -91,10 +91,14 @@ them: [docs/host/windows-capture.md](../host/windows-capture.md).
    The shell prints `screen capture is off (...)` when either condition failed, which is the
    first thing to check if every capture answers `PermissionDenied`.
 2. Ask the assistant "what's on my screen?". Expect, in order: the tool chip, the overlay's
-   capture indicator lighting for the rest of the turn (its label says the assistant *asked* to
-   look, which is all the seam proves; the OS receipt is what proves a picture was taken), the OS
-   notification ("Screen captured"), and a reply describing the display. If the indicator lights
-   and no notification appears, the capture failed or was refused, and the reply should say so.
+   capture ring lighting for the rest of the turn, the ring growing its pupil a moment later,
+   the OS notification ("Screen captured"), and a reply describing the display. The pupil is the
+   dispatch's own outcome coming back: without it the ring's label reads "asked to look", with
+   it "looked". A ring that stays open all turn means the capture never reached the model (the
+   switch off, the exclusion failed, an unreachable body, or a gated capture declined), and the
+   reply should say so. The ring never goes the other way, so an open ring is not proof the
+   display was untouched: a capture that failed after the shutter fired looks the same from the
+   brain's side, and the OS receipt is the surface that settles that case.
 3. **Verify the self-exclusion**, which is the one check that cannot be inferred: capture while
    the overlay is visible and confirm the assistant does **not** describe the overlay. If it
    does, the exclusion silently failed and the loop it prevents is live (a line an attacker gets

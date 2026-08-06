@@ -16,6 +16,20 @@ import { NEW_CHAT_TITLE, deriveTitle } from "./sessionState";
  */
 export const CAPTURE_SCREEN_TOOL = "capture_screen";
 
+/**
+ * How far this turn's screen-capture claim has climbed (ADR-0029 outcome addendum). Two rungs,
+ * weakest first, and the only two the brain can honestly reach: `"asked"` is what the
+ * pre-dispatch activity proves, `"read"` what the post-dispatch outcome proves. `null` is a turn
+ * that asked for nothing.
+ *
+ * **The ladder only ever climbs within a turn.** Over-reporting a capture is the safe direction
+ * for a privacy indicator and under-reporting is the dangerous one, so no event may weaken a
+ * claim: a failed capture is indistinguishable from one that failed *after* the shutter fired,
+ * where the pixels really did leave the display and the body really did show its own receipt.
+ * Only `endTurn` resets, because the turn that looked is over.
+ */
+export type CaptureClaim = "asked" | "read";
+
 export interface Message {
   readonly id: string;
   readonly role: "user" | "assistant";
@@ -81,17 +95,27 @@ export function applyEvent(state: OverlayState, event: TurnEvent): OverlayState 
     case "delta":
       return patchStreaming(state, (m) => ({ ...m, content: m.content + event.text }));
     case "toolActivity": {
-      // The chip is emitted just BEFORE the dispatch, so this flag means "a capture was asked
-      // for this turn", never "a capture happened": the outcome (host refused, body unreachable,
-      // a gated capture declined) never crosses the seam. `CaptureDot`'s label says exactly that
-      // and no more.
-      const lit = state.capturing || event.toolName === CAPTURE_SCREEN_TOOL;
+      // The chip is emitted just BEFORE the dispatch, so it proves the assistant ASKED to look
+      // and no more; the `toolOutcome` below is what can raise that to "read". `?? "asked"` is
+      // what keeps the rung from falling: a second capture asked for after a first one was read
+      // leaves the claim at "read".
+      const capture =
+        event.toolName === CAPTURE_SCREEN_TOOL ? (state.capture ?? "asked") : state.capture;
       const chipped = patchStreaming(state, (m) => ({
         ...m,
         tool: `${event.toolName}: ${event.summary}`,
       }));
-      return { ...chipped, capturing: lit };
+      return { ...chipped, capture };
     }
+    case "toolOutcome":
+      // How the announced dispatch ended (ADR-0029 outcome addendum). It may only ever
+      // STRENGTHEN the claim: `ok` false means the brain cannot say the screen was read, never
+      // that it was not read, so it changes nothing and the dot stays where the ask put it. A
+      // true one is the only evidence that promotes the claim, and it promotes even a claim this
+      // side never saw asked (a dropped activity must not cost the stronger, truer statement).
+      return event.toolName === CAPTURE_SCREEN_TOOL && event.ok
+        ? { ...state, capture: "read" }
+        : state;
     case "status": {
       // A "thinking" status is one reasoning-trace delta (ADR-0020), already guardrail-scrubbed
       // brain-side, so accumulate it into `thoughts` for the settled reply's collapsed
@@ -153,8 +177,9 @@ export function endTurn(state: OverlayState, error: string | null): OverlayState
     mode: state.mode === "orb" ? "preview" : state.mode,
     pendingConfirm: null,
     // The turn is over, so the picture it took is out of context: the indicator goes out with
-    // it rather than persisting into a turn that never looked at anything.
-    capturing: false,
+    // it rather than persisting into a turn that never looked at anything. The one place the
+    // claim ladder is allowed to fall, and it falls all the way rather than a rung.
+    capture: null,
   };
 }
 

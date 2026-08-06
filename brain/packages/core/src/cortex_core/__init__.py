@@ -58,6 +58,7 @@ from cortex_core.escalating_engine import EscalatingTurnEngine as EscalatingTurn
 from cortex_core.events import StatusUpdate as StatusUpdate
 from cortex_core.events import TextDelta as TextDelta
 from cortex_core.events import ToolActivity as ToolActivity
+from cortex_core.events import ToolOutcome as ToolOutcome
 from cortex_core.events import TurnCompleted as TurnCompleted
 from cortex_core.events import TurnEvent as TurnEvent
 from cortex_core.fakes import EchoInferenceBackend as EchoInferenceBackend

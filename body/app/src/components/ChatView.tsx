@@ -104,7 +104,7 @@ export function ChatView({
             capture beginning causes no motion anywhere in the row: the ring simply fades in, in
             space the title gives up. */}
         <span className="title">{state.title}</span>
-        <CaptureDot capturing={state.capturing} />
+        <CaptureDot claim={state.capture} />
         <LinkDot link={state.link} />
         <button
           className="hbtn"

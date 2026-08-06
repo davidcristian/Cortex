@@ -33,7 +33,7 @@ pub struct UserTurn {
 pub struct Cancel {}
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct ServerEvent {
-    #[prost(oneof = "server_event::Event", tags = "1, 2, 3, 4, 5, 6, 7")]
+    #[prost(oneof = "server_event::Event", tags = "1, 2, 3, 4, 5, 6, 7, 8")]
     pub event: ::core::option::Option<server_event::Event>,
 }
 /// Nested message and enum types in `ServerEvent`.
@@ -59,6 +59,9 @@ pub mod server_event {
         /// the brain stopped waiting for an answer (ADR-0022)
         #[prost(message, tag = "7")]
         ConfirmResolved(super::ConfirmResolved),
+        /// how a dispatch already announced above ended (ADR-0029)
+        #[prost(message, tag = "8")]
+        ToolOutcome(super::ToolOutcome),
     }
 }
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
@@ -72,6 +75,32 @@ pub struct ToolActivity {
     pub tool_name: ::prost::alloc::string::String,
     #[prost(string, tag = "2")]
     pub summary: ::prost::alloc::string::String,
+}
+/// How one announced dispatch ENDED, emitted after it resolves (ADR-0029 outcome addendum).
+/// ToolActivity says a tool is about to run and ToolOutcome says how it went, so the pair is
+/// one dispatch seen twice: the brain emits exactly one outcome per activity it emitted on the
+/// turn's own stream, on every path out of the dispatch including the gate denials and the
+/// tool's own failures. It exists for the overlay's screen-capture indicator, which is one of
+/// the consent surfaces that let capture ship without an approval card, and which could
+/// otherwise only say the assistant ASKED to look at the screen.
+///
+/// `ok` is the audit trail's own verdict (`ToolInvocation.ok`, the negation of the result's
+/// is_error), so the consent surface and the audit log cannot disagree about the same dispatch.
+/// It is a bit rather than a taxonomy because the indicator has exactly two honest rungs. The
+/// proto3 default is the safe one: a missing or unread outcome reads false, which leaves an
+/// indicator at the weaker claim it already makes rather than promoting it.
+///
+/// An outcome may only ever STRENGTHEN what a surface claims, never retract it. A capture that
+/// failed after the shutter fired (a reply the brain refused for breaking the bounds it asked
+/// for, a deadline that expired after the body had already read the display and shown its own
+/// receipt) is indistinguishable here from one that never happened, so `ok=false` means "this
+/// side cannot say the screen was read", never "your screen was not read".
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct ToolOutcome {
+    #[prost(string, tag = "1")]
+    pub tool_name: ::prost::alloc::string::String,
+    #[prost(bool, tag = "2")]
+    pub ok: bool,
 }
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct StatusUpdate {

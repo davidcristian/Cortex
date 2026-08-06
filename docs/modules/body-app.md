@@ -129,23 +129,32 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
   not yet run:** nothing on this path has ever touched a real screen, and the self-exclusion in
   particular has no CI-visible failure mode, which is why capturing while the overlay is visible
   is the one check `docs/runbooks/vision.md` says nothing else can stand in for.
-- **The screen-capture indicator** (`state.capturing` + `components/CaptureDot.tsx`,
-  ADR-0029). The reducer sets `capturing` when a `toolActivity` event names
-  `CAPTURE_SCREEN_TOOL` (`"capture_screen"`, matched by name because the event already carries
-  it and a second seam field would be one more place the two ends could disagree), and clears it
-  only when the turn ends, on completion or failure alike. It therefore stays lit for the rest
+- **The screen-capture indicator** (`state.capture` + `components/CaptureDot.tsx`,
+  ADR-0029). `state.capture` is a two-rung claim (`"asked" | "read" | null`), not a flag. The
+  reducer raises it to `"asked"` when a `toolActivity` event names `CAPTURE_SCREEN_TOOL`
+  (`"capture_screen"`, matched by name because the event already carries it and a second seam
+  field would be one more place the two ends could disagree), to `"read"` when the `toolOutcome`
+  settling that dispatch comes back `ok` (ADR-0029 outcome addendum), and clears it only when
+  the turn ends, on completion or failure alike. It therefore stays lit for the rest
   of the turn rather than blinking past with the tool chip, because the fact the user is owed is
   "the assistant went for my screen during this reply", not "a tool ran for a moment". This is
   a **consent surface** and part of why the capture tool ships without an approval card: the
-  dot renders only when it means something and carries a fixed accessible label saying exactly
-  what the seam proved, which is *"The assistant asked to look at your screen during this
-  reply"*. **"asked to look", not "looked":** the chip is emitted just before the dispatch, so
-  the flag is set for a capture the host refused (`CORTEX_HOST_CAPTURE` unset is the shipping
-  default), one whose self-exclusion failed closed, one the body never answered, and a gated one
-  the user declined. No outcome crosses the seam, so the stronger claim would be false in every
-  one of those cases; an outcome-driven indicator needs a seam change and is a recorded
-  deferral (`docs/refinements/vision.md`). The body fires its own OS notification independently; this is the half the user is
-  already looking at.
+  dot renders only when it means something and carries a fixed accessible label per rung, either
+  *"The assistant asked to look at your screen during this reply"* or *"The assistant looked at
+  your screen during this reply"*.
+  **The ladder only climbs.** Nothing short of the turn ending may weaken a claim: a second ask
+  after a read stays at `"read"`, a not-`ok` outcome changes nothing, and an `ok` outcome for an
+  ask this side never saw still promotes. Over-reporting a screen read is the safe direction for
+  a privacy indicator and under-reporting is the dangerous one, and the two are not symmetric
+  brain-side either: a capture that failed *after* the shutter fired, where the pixels really did
+  leave the display and the body really did show its own receipt, is indistinguishable from one
+  that never happened. So `"asked"` remains what a capture the host refused
+  (`CORTEX_HOST_CAPTURE` unset is the shipping default), one whose self-exclusion failed closed,
+  one the body never answered, and a gated one the user declined all leave on screen. Visually
+  the ring only ever gains: `"asked"` is the open ring unchanged, and `"read"` grows a 2.5px
+  pupil inside it (an eye opening, not a fill, since a solid 7px `--warn` disc is what the
+  connection dot beside it looks like when the brain is degraded). The body fires its own OS
+  notification independently; this is the half the user is already looking at.
 - **The connection indicator** (`overlay/linkState.ts` + `overlay/useLink.ts` +
   `components/LinkDot.tsx`, ADR-0011 addendum). `state.link` is a `LinkView { state, detail,
   probing }`: `state` is the last thing the brain **proved** (`ready` | `degraded` | `down`,

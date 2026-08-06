@@ -15,9 +15,17 @@ lives here so both
 callers reuse it verbatim: one loop, one bound, one audited dispatch path. The loop mutates the
 ``working`` message list in place (appending the tool-call and result messages) and yields each
 assistant reply delta (a ``str``), any ``ReasoningDelta`` a reasoning model streams (ADR-0020),
-and a ``ToolStep`` per audited dispatch (ADR-0009 addendum); the caller accumulates the reply
-text and decides what to do with each (the cortex surfaces reasoning as status and tool steps
-as activity, a subagent drops both).
+a ``ToolStep`` per audited dispatch (ADR-0009 addendum), and the ``StepOutcome`` settling it
+(ADR-0029 outcome addendum); the caller accumulates the reply text and decides what to do with
+each (the cortex surfaces reasoning as status, tool steps as activity and outcomes as the
+capture indicator's evidence, a subagent drops all but its steps).
+
+The module owns the loop and nothing else. Running one round of dispatches (and the
+``ToolLoopContext`` almost every field of which a round reads) lives in ``dispatch_round.py``,
+split off when the outcome landed and this file reached both the complexity ceiling and the
+300-line cap; the context is re-exported here so every existing import keeps resolving. How wide
+a round may be is ``tool_round.py``'s pure arithmetic. The seam between the three is the loop's
+own sentence: infer, plan the round, run it.
 
 The loop is also where the untrusted-content boundary is drawn (ADR-0013): an UNTRUSTED result
 is fenced by ``wrap_untrusted`` before it re-enters the context, the per-turn ``TaintLedger``
@@ -29,100 +37,23 @@ addendum), which the next dispatch's stamp carries; the ledger + nonce ride in t
 construct the ledger, so both accumulate taint by the same mechanism.
 """
 
-from collections.abc import AsyncGenerator, Sequence
-from dataclasses import dataclass, field
+from collections.abc import AsyncGenerator
 
 from cortex_core.conversation import Message
-from cortex_core.dispatch import DispatchRefusal, ToolDispatcher
-from cortex_core.handoff import EscalationSlot
-from cortex_core.inference import JsonSchema, ReasoningChunk
-from cortex_core.loop_events import ReasoningDelta, ToolStep, step_summary
-from cortex_core.ports import Clock, InferenceBackend
-from cortex_core.progress import ProgressSink
-from cortex_core.provenance import SourceKind, as_source
-from cortex_core.tool_budget import DispatchBudget
-from cortex_core.tool_round import call_message, plan_round, result_message
-from cortex_core.tools import ToolCall, TurnStamp
-from cortex_core.untrusted import TaintLedger
+from cortex_core.dispatch_round import ToolLoopContext, run_round
+from cortex_core.inference import ReasoningChunk
+from cortex_core.loop_events import ReasoningDelta, StepOutcome, ToolStep
+from cortex_core.ports import InferenceBackend
+from cortex_core.tool_round import call_message, plan_round
+from cortex_core.tools import ToolCall
+
+# Re-exported so every existing `from cortex_core.tool_loop import ToolLoopContext` keeps
+# resolving after the round split; the context itself now lives beside the round that reads it.
+__all__ = ["MAX_TOOL_STEPS", "ToolLoopContext", "stream_tool_loop"]
 
 # Upper bound on inference↔tool rounds in one loop (ADR-0009): a safety net against a model
 # that never stops calling tools. On exhaustion the loop ends with the text produced so far.
 MAX_TOOL_STEPS = 8
-
-
-@dataclass(frozen=True, slots=True)
-class ToolLoopContext:
-    """The per-invocation collaborators of one tool loop (ADR-0013), bundled to stay under the
-    argument ceiling. ``dispatcher`` is the audited tool gateway (``None`` = a no-tools turn);
-    ``taint`` is the turn-local ledger the loop marks on each untrusted result; ``nonce`` fences
-    those results; ``session_id`` is the originating chat the loop stamps onto each dispatch
-    (ADR-0027; ``""`` for a session-less caller, e.g. a subagent); ``schema`` (ADR-0028), when
-    set, constrains the model's output to that JSON Schema (a constrained tool-less subagent
-    envelope; ``None`` for the cortex and every tool-enabled path); ``budget`` (ADR-0009 budget
-    addendum) caps what may be spent on dispatches across the loop's rounds. What each call
-    spends comes from the dispatcher's ``ToolCostPolicy`` (ADR-0009 cost addendum), so the price
-    of a tool travels with the gateway that runs it rather than being restated here.
-
-    The budget is the one collaborator a caller may **share**: a context built without one gets
-    its own pool at ``MAX_TOOL_DISPATCHES``, while a subagent spawned from a cortex turn is
-    handed that turn's pool (via the dispatch ``TurnStamp``), so delegation cannot multiply the
-    total the way a per-invocation count did (ADR-0009 turn-wide addendum). ``progress`` (ADR-0010
-    progress addendum) is the stream's side channel the loop stamps onto each dispatch, so a
-    built-in that spawns further work (``spawn_subagents``) can surface a subagent's steps onto
-    the overlay while the loop's own generator is suspended inside that dispatch; ``None`` (a
-    subagent's own inner loop, a session-less caller) leaves such work unsurfaced, keeping
-    delegation depth-1 in what reaches the overlay as it is in the tree. ``escalation``
-    (ADR-0030) is the turn's handoff slot, threaded exactly like ``progress`` so the
-    ``escalate_to_brain`` built-in reads it off each dispatch's stamp; ``None`` (the default,
-    every escalation-less caller) leaves the tool refusing honestly.
-    """
-
-    dispatcher: ToolDispatcher | None
-    clock: Clock
-    turn_id: str
-    taint: TaintLedger
-    nonce: str
-    session_id: str
-    schema: JsonSchema | None = None
-    budget: DispatchBudget = field(default_factory=DispatchBudget)
-    progress: ProgressSink | None = None
-    escalation: EscalationSlot | None = None
-
-
-def _refused_by(
-    call: ToolCall,
-    dispatcher: ToolDispatcher,
-    dispatched: Sequence[Sequence[ToolCall]],
-    budget: DispatchBudget,
-    *,
-    oversized: bool,
-) -> DispatchRefusal | None:
-    """Which bound refuses this call before it can run, or ``None`` when it may go ahead.
-
-    The overflow slot of a truncated round is refused first (ADR-0009 round-cap addendum),
-    ahead of both the other bounds and for the same reason salience precedes the budget: it
-    reaches nothing, so neither the turn's allowance nor this loop's repeat count should record
-    it. It is a fact about the round's shape, settled before anything about the call itself.
-
-    Salience is asked next, and a call it refuses is never charged: the budget bounds reach
-    into the outside world and a repeat reaches nothing, so charging it would spend the turn's
-    allowance on the model's own repetition (ADR-0009 salience addendum). The order's one cost is
-    that a repeat emitted past a closed budget reports redundancy rather than exhaustion, the
-    less useful of two true statements.
-
-    ``charge`` spends when the call fits and closes the pool for good when it does not, so a
-    cheaper call behind an unaffordable one does not trickle through (ADR-0009 cost addendum).
-    Closing is turn-wide once a subagent shares the pool: a runaway delegate stops its siblings
-    and the rest of this loop too, which is what keeps ``BUDGET_EXHAUSTED_MSG``'s "this turn has
-    reached its limit" true. Both calls have side effects, so the order is behavior, not style.
-    """
-    if oversized:
-        return DispatchRefusal.ROUND_OVERSIZED
-    if not dispatcher.admits(call, dispatched):
-        return DispatchRefusal.REDUNDANT
-    if not budget.charge(dispatcher.cost_of(call.name)):
-        return DispatchRefusal.BUDGET
-    return None
 
 
 async def stream_tool_loop(
@@ -130,10 +61,10 @@ async def stream_tool_loop(
     model: str,
     working: list[Message],
     context: ToolLoopContext,
-) -> AsyncGenerator[str | ReasoningDelta | ToolStep, None]:
+) -> AsyncGenerator[str | ReasoningDelta | ToolStep | StepOutcome, None]:
     """Run the bounded infer↔tool loop over ``working``, yielding reply-text deltas (``str``),
-    reasoning deltas (``ReasoningDelta``, ADR-0020), and a ``ToolStep`` per audited dispatch
-    (ADR-0009 addendum).
+    reasoning deltas (``ReasoningDelta``, ADR-0020), a ``ToolStep`` per audited dispatch
+    (ADR-0009 addendum), and the ``StepOutcome`` that settles it (ADR-0029 outcome addendum).
 
     The loop advertises exactly the tools it can dispatch: the dispatcher's tools when present,
     none otherwise. With ``dispatcher`` None (or once the model stops calling tools) the loop
@@ -150,18 +81,18 @@ async def stream_tool_loop(
     Each tool call is dispatched through the audited dispatcher, with
     gated calls confirmed against the turn's taint (ADR-0013). Its result marks the taint ledger
     and is fed back (fenced when untrusted) as a ``Role.TOOL`` message before re-inference.
-    Reasoning deltas and tool steps are surfaced live but never join ``step_text``, so they are
-    neither persisted with the assistant message nor fed back into the next step's context.
+    Reasoning deltas, tool steps, and step outcomes are surfaced live but never join
+    ``step_text``, so they are neither persisted with the assistant message nor fed back into
+    the next step's context.
+
+    Steps and outcomes are **paired** by the round that emits them: exactly one ``StepOutcome``
+    follows each ``ToolStep``, so nothing a consumer lit on a step is left without a settling
+    event. The one exception is this generator being closed mid-dispatch, which ends the turn
+    and the surface with it.
     """
     dispatcher = context.dispatcher
     specs = await dispatcher.describe_tools() if dispatcher is not None else ()
-    gated_by_name = {spec.name: spec.gated for spec in specs}
     spec_by_name = {spec.name: spec for spec in specs}
-    # The pool this loop spends from, summed across its rounds and shared with any subagent it
-    # spawns (ADR-0009 budget addendum + turn-wide addendum). A call is charged its policy cost
-    # rather than a flat one (ADR-0009 cost addendum), so a tool a user declared expensive
-    # exhausts the turn faster than a cheap one.
-    budget = context.budget
     # Every call this loop has dispatched, grouped by the round that emitted it, which is what
     # the salience policy reads (ADR-0009 salience addendum). A local rather than shared state on
     # the budget or the dispatcher, and deliberately not turn-wide the way the pool is: a repeat
@@ -196,69 +127,12 @@ async def stream_tool_loop(
         working.append(
             call_message("".join(step_text), plan.calls, context.clock.now(), context.turn_id)
         )
-        # This round's dispatched calls, appended to the loop's history before the round runs so
-        # the policy sees the round in progress as its last group (ADR-0009 salience addendum).
-        this_round: list[ToolCall] = []
-        dispatched.append(this_round)
-        for call, oversized in plan.answered():
-            # The advertised spec this call matched, or None for a name no snapshot carried. It
-            # is both the chip's text and the call's provenance below, and using it rather than
-            # `call.name` is what keeps either from carrying a string the model authored.
-            spec = spec_by_name.get(call.name)
-            # Refused by any bound, the call is still handed to the dispatcher, which refuses
-            # it and audits the refusal (ADR-0009 budget addendum). Breaking out instead would
-            # strand this round's tool_calls without their Role.TOOL answers, so the next round's
-            # re-inference would send a malformed conversation, and would refuse dispatches
-            # that no audit record ever sees.
-            refusal = _refused_by(call, dispatcher, dispatched, budget, oversized=oversized)
-            if refusal is None:
-                # Recorded when the call is handed over, not when it answers: a gate denial and
-                # a declined confirmation are `is_error` results too, so counting only successes
-                # would leave a declined gated call free to re-prompt the user every round.
-                this_round.append(call)
-            # Surface activity only for a dispatched call that matched an advertised spec, so
-            # the chip's name and summary are both registry-authored (ADR-0009 addendum). A call
-            # to an unadvertised name (a model hallucination, or a tool skip-mode hid) still
-            # dispatches below and fails as its usual is_error result, but never renders a chip
-            # carrying the model's chosen string. A refused call renders no chip either: a chip
-            # means a tool is running now.
-            if refusal is None and spec is not None:
-                yield ToolStep(tool_name=spec.name, summary=step_summary(spec))
-            # The advertised gated flag is a hint; the dispatcher OR-s it with its own
-            # authoritative gated-name set, so a tool a flaky sidecar hid from this snapshot
-            # (skip mode) and later recovered is still gated at dispatch (ADR-0022). The
-            # stamp is built fresh per dispatch (ADR-0027): the taint bit is live and can
-            # flip mid-loop as untrusted results arrive.
-            result = await dispatcher.dispatch(
-                call,
-                stamp=TurnStamp(
-                    session_id=context.session_id,
-                    tainted=context.taint.tainted,
-                    # Where the taint bit came from, as live as the bit itself (ADR-0027
-                    # addendum): what the turn had read *before* this call, which is exactly
-                    # what a consumer deciding about this call may reason over.
-                    sources=context.taint.sources,
-                    # The pool travels to whatever this call spawns, so a subagent draws from
-                    # the turn's remaining allowance instead of starting a fresh one.
-                    budget=budget,
-                    # And the stream's progress channel travels with it, so a built-in that
-                    # spawns subagents surfaces their steps onto this turn's overlay while the
-                    # loop is suspended inside the dispatch below (ADR-0010 progress addendum).
-                    progress=context.progress,
-                    # And the turn's handoff slot (ADR-0030): the escalate built-in writes its
-                    # brief here, per call off the stamp, so one shared tool instance never
-                    # holds a turn's slot as state.
-                    escalation=context.escalation,
-                ),
-                gated=gated_by_name.get(call.name, False),
-                refusal=refusal,
-            )
-            # An untrusted result's source is the tool it came through, named by the registry's
-            # own advertisement. A call that matched no spec attributes nothing rather than
-            # falling back to the model's chosen name.
-            context.taint.observe(
-                result, source=as_source(SourceKind.TOOL, None if spec is None else spec.name)
-            )
-            working.append(
-                result_message(result, context.clock.now(), context.turn_id, nonce=context.nonce)
-            )
+        round_events = run_round(plan, dispatcher, spec_by_name, dispatched, context, working)
+        try:
+            async for event in round_events:
+                yield event
+        finally:
+            # Closed deterministically for the same reason the backend stream above is: a
+            # consumer that closes this loop mid-round must not leave the round suspended
+            # inside a dispatch.
+            await round_events.aclose()
