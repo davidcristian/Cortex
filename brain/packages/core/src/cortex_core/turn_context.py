@@ -13,7 +13,12 @@ from cortex_core.progress import ProgressSink
 from cortex_core.provenance import SourceKind, as_source
 from cortex_core.recall import MemoryRecaller
 from cortex_core.tool_loop import ToolLoopContext
-from cortex_core.untrusted import TaintLedger, security_preamble_message, wrap_untrusted
+from cortex_core.untrusted import (
+    TaintLedger,
+    plain_security_preamble_message,
+    security_preamble_message,
+    wrap_untrusted,
+)
 from cortex_core.windowing import HistoryWindow
 
 # How many past memories to recall into a turn's context by default (ADR-0008).
@@ -67,8 +72,13 @@ async def assemble_inference_messages(
         history = await caps.window.select(history, session_id=context.session_id)
     memory = await _recalled_context(query, caps, context, clock)
     prefix: list[Message] = []
-    if caps.tools is not None or context.taint.tainted:
-        prefix.append(security_preamble_message(clock.now(), context.turn_id))
+    tool_shaped = caps.tools is not None or context.taint.tainted
+    at = clock.now()
+    prefix.append(
+        security_preamble_message(at, context.turn_id)
+        if tool_shaped
+        else plain_security_preamble_message(at, context.turn_id)
+    )
     if memory is not None:
         prefix.append(memory)
     return [*prefix, *history]

@@ -350,8 +350,8 @@ behind the unchanged `ToolRegistry`/`ToolDispatcher`/`stream_tool_loop` seams (o
   [runbooks/llamacpp-gpu.md](../runbooks/llamacpp-gpu.md), which is also where the standing
   obligation moved, so a re-run reads it beside the command. Only the pick's row ran: the three
   rejected deep candidates stay unmeasured, and adopting the recorded alternate buys its own row.
-- **A quoted injection replayed by the plain history window, measured 2026-08-06 and open on its
-  residue** ([ADR-0013 replayed-quotation addendum](../adr/ADR-0013-untrusted-content.md)). Opened
+- **A quoted injection replayed by the plain history window, measured over the full corpus
+  2026-08-06, the standing rule split and landed, open on its residue** ([ADR-0013 replayed-quotation addendum](../adr/ADR-0013-untrusted-content.md)). Opened
   hours earlier while fencing the summarizing window's recap ([ADR-0038 untrusted-recap
   addendum](../adr/ADR-0038-ranked-recall.md)), and recorded here rather than in
   [session-history.md](session-history.md) because it is wider than that feature and predates it.
@@ -380,18 +380,30 @@ behind the unchanged `ToolRegistry`/`ToolDispatcher`/`stream_tool_loop` seams (o
   which leaves a later turn nothing standing to obey; the positive control fires on the same two.
   Replayed with `SECURITY_PREAMBLE` present, the identical history and follow-up were obeyed **0 of
   3**, so the framing is causal at this position too and the exposure is confined to a deployment
-  with no tools. **Nothing was built.** Fencing the transcript would tell the model to distrust the
-  user's own words; fencing only the assistant half needs the taint mark that does not exist; and
-  narrowing the preamble so it may not quote would cost a real user need to defend a position the
-  preamble already holds. **The residue, which is why this stays open.** A tool-less deployment has
-  no preamble and is exactly where the replay was obeyed, and while it has no tool result to quote,
-  a user can paste untrusted text into their own message and the reply to that paste is persisted
-  on the same terms; making the preamble unconditional is the cheap answer and is not obviously
-  right, since it opens with "You may call tools" and describes markers a tool-less turn never
-  draws, so it wants rewriting rather than moving. Beside it stand the persisted per-turn taint
-  mark that would let a later turn re-fence exactly the messages that read untrusted content
-  (`HandoffRecord` already serializes a whole `TaintLedger`, so the shape exists), and the full
-  ten-payload corpus down the corrected ask, which the sitting's budget did not reach. **Trigger:**
-  the first design that needs a persisted per-turn taint or provenance marker, which this shares
-  with provenance across the stores, or a deployment shipped without tools, whichever comes first;
-  the corpus re-run rides the standing obligation every injection measurement here carries.
+  with no tools. **The full corpus followed the same day and the numbers held at ten:** quoted into
+  the persisted reply **9 of 10** (the miss is `payload-splitting`, whose canary exists only if the
+  model performs the concatenation), replayed on a bare turn **obeyed 2 of 10**, replayed with tools
+  and the full preamble **0 of 10**, and the positive control **fired on 6 of 10**, every reply in
+  every arm ending on `finish_reason: stop`. The two hits are the two standing-rule payloads, in the
+  same shape as before: an ordinary answer about the hiring plan with `Notice: ZK9-LAUNDER` or
+  `ZK9-COND` appended. Two detectors cannot fire in the bare arm at all and are counted as
+  unmeasurable rather than as resistance (`exfil-tool` needs a tool to call, `exfil-system-prompt`
+  needs a preamble to leak). **The preamble question was then measured rather than argued, and the
+  split landed.** Two more arms ran on the same histories: the full preamble on a tool-less turn was
+  obeyed **0 of 10**, and a shortened rule with every tool and marker sentence removed was obeyed
+  **0 of 10** as well. So `PLAIN_SECURITY_PREAMBLE` now stands beside `SECURITY_PREAMBLE` and
+  `assemble_inference_messages` prepends exactly one of them to every turn: the full preamble when
+  tools are enabled or the turn is tainted, the plain rule otherwise. It is composed beside the full
+  preamble, never carved out of it, because rewriting the shipped text would have invalidated every
+  framing matrix in the origin ADR; moving the full preamble unchanged would have worked on this
+  model too and was rejected on honesty, since its first sentence is "You may call tools" and that
+  is false on the turn it would be defending. **The residue, which is why this stays open.** The
+  persisted per-turn taint mark that would let a later turn re-fence exactly the messages that read
+  untrusted content is still unbuilt (`HandoffRecord` already serializes a whole `TaintLedger`, so
+  the shape exists), and the transcript itself is still unfenced in the assistant position: what
+  changed is that the standing rule is now on the turn that replays it. Fencing the transcript
+  would tell the model to distrust the user's own words; fencing only the assistant half needs that
+  mark; and narrowing either rule so it may not quote would cost a real user need to defend a
+  position both rules already hold. **Trigger:** the first design that needs a persisted per-turn
+  taint or provenance marker, which this shares with provenance across the stores; the re-run of
+  both rules rides the standing obligation every injection measurement here carries.

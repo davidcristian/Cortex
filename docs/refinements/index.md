@@ -51,7 +51,7 @@ the tree does now.
 | [seam-auth.md](seam-auth.md) | Seam token auth (ADR-0016) | 1 |
 | [session-history.md](session-history.md) | Slice 3 history windowing and summarization | 3 |
 | [tools-mcp.md](tools-mcp.md) | Dispatch budget/cost/salience, spawn batch cap, MCP registries (ADR-0009/0010) | 6 |
-| [untrusted-content.md](untrusted-content.md) | Taint boundary, output guardrail, subagent model safety (ADR-0013/0015/0017/0019/0028), a quoted injection replayed by the plain history window, obeyed 2 of 3 on a bare turn and 0 of 3 behind the standing preamble (ADR-0013/0038) | 12 |
+| [untrusted-content.md](untrusted-content.md) | Taint boundary, output guardrail, subagent model safety (ADR-0013/0015/0017/0019/0028), a quoted injection replayed by the plain history window, obeyed 2 of 10 on a bare turn and 0 of 10 behind either standing rule, the plain one landed for the tool-less turn (ADR-0013/0038) | 12 |
 | [memory.md](memory.md) | Store, scoping, rerank/MMR, the ranked `select` and its recall trail (ADR-0008/0038) | 6 |
 | [inference-model-manager.md](inference-model-manager.md) | Model-manager lifecycle, MTP, reasoning status (ADR-0007/0020) | 7 |
 | [subagents.md](subagents.md) | Progress reporting, spawn schema, heterogeneous roster (ADR-0010/0018) | 3 |
@@ -1145,10 +1145,19 @@ makes, for the wording quoted verbatim, and over three payloads the carrier appe
 the replay on a bare turn with no preamble was obeyed twice (the model answered the follow-up and
 then appended the payload's own token to it, with the one-shot payload the only one that held), and
 the identical replay behind the standing preamble was obeyed not at all. So the framing is causal
-at this position too, nothing was built, and what stays open is the residue: a tool-less deployment
-has no preamble and is exactly where the replay landed, the persisted taint mark that would let a
-later turn re-fence only what read untrusted content is still unbuilt, and the full corpus down the
-corrected ask is unrun.
+at this position too. The full corpus ran later the same day and the numbers held at ten: quoted 9
+of 10, obeyed 2 of 10 on the bare turn, 0 of 10 behind the preamble, with the positive control
+firing on 6 of 10 and every reply ending on a stop rather than a cap. The one open decision, what
+to do about the turn that has no rule at all, was then measured instead of argued, in two more arms
+over the same histories, and it landed: a shortened rule with every tool and marker sentence
+removed holds the replay to zero exactly as the full preamble does, so a plain standing rule now
+stands beside the full one and every turn carries exactly one of them. It is composed beside the
+shipped text rather than carved out of it, since rewriting the preamble would have invalidated
+every framing matrix measured against it, and moving the full preamble unchanged was rejected on
+honesty rather than efficacy, its first sentence being "You may call tools" on a turn that has
+none. What stays open is the rest of the residue: the persisted taint mark that would let a later
+turn re-fence only what read untrusted content is still unbuilt, and the transcript is still
+unfenced in the assistant position, with the standing rule now on the turn that replays it.
 
 ## Recommended order
 
