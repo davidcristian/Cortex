@@ -4,31 +4,37 @@ Key layout is ``cortex:session:{session_id}:messages``, with RPUSH on append, LR
 on a history read (and a bounded two-ended read for a listing, see ``list_sessions``),
 one JSON document per message with an ISO-8601 timestamp. A recency ZSET (``cortex:sessions``)
 and a pinned SET (``cortex:sessions:pinned``) index the catalog: a listing reads both, unions
-them, and returns pinned chats regardless of recency (ADR-0021 pinning addendum). Records carry
-``"v"``/``"kind"`` as the schema escape hatch; the read policy (see ``_decode``) is:
-unknown EXTRA keys are ignored (forward-compatible additions), an unknown kind or
-unsupported version fails LOUDLY naming the record and is never a silent skip, which would
-invisibly corrupt a future handoff's context. Redis is the hot state that survives
+them, and returns pinned chats regardless of recency (ADR-0021 pinning addendum). A session's
+summarizing recap (ADR-0038 decision 9) sits under a key of its own beside them and is removed
+with the rest on delete. The keys and both record codecs live in ``store_codec.py``, which owns
+the storage format; this module owns the round trips and the error wrapping. Redis is the hot
+state that survives
 orchestrator restarts and model swaps (the one hard rule); this adapter only
 translates. It holds no business logic, and every backend failure crosses the port as
 ``SessionStoreError`` with the cause chained.
 """
 
-import json
 from collections.abc import Sequence
-from datetime import datetime
 from typing import cast
 
 from redis.asyncio import Redis
 from redis.exceptions import RedisError
 
-from cortex_core import (
-    Message,
-    Role,
-    SessionStoreError,
-    SessionSummary,
-    merge_pinned,
-    summarize_ends,
+from cortex_core import Message, SessionStoreError, SessionSummary, merge_pinned, summarize_ends
+
+# The recap value is imported from its defining module rather than the `cortex_core` barrel,
+# which is at its 300-line cap (docs/refinements/repo-gates.md): windowing's new public names
+# are reached through their own modules so the barrel does not have to grow for them.
+from cortex_core.sessions import HistoryRecap
+from cortex_session.store_codec import (
+    decode_message,
+    decode_recap,
+    encode_message,
+    encode_recap,
+    messages_key,
+    recap_key,
+    refuse_images,
+    title_key,
 )
 
 # The dictated connection default; deployments override via CORTEX_REDIS_URL, which is
@@ -48,68 +54,6 @@ _PINNED_KEY = "cortex:sessions:pinned"
 # length (the tail's index, so a corrupt tail is still named precisely), and its stored
 # title (a brain-generated override, or absent for the first-message derivation).
 _ENDS_READS = 4
-
-# The record schema this writer emits and the ONLY combination this reader accepts.
-# Records missing the markers decode as this combination (pre-versioning writers).
-_RECORD_KIND = "message"
-_RECORD_VERSION = 1
-
-
-def _key(session_id: str) -> str:
-    return f"cortex:session:{session_id}:messages"
-
-
-def _title_key(session_id: str) -> str:
-    return f"cortex:session:{session_id}:title"
-
-
-def _encode(message: Message) -> str:
-    return json.dumps(
-        {
-            "v": _RECORD_VERSION,
-            "kind": _RECORD_KIND,
-            "role": message.role.value,
-            "text": message.text,
-            "at": message.at.isoformat(),
-            "turn_id": message.turn_id,
-        }
-    )
-
-
-def _refuse_images(message: Message) -> None:
-    """Raise if ``message`` carries pixels. See ``append``."""
-    if message.images:
-        msg = "a session store never persists images: pixels are turn-local"
-        raise SessionStoreError(msg)
-
-
-def _decode(raw: bytes | str, index: int) -> Message:
-    """Decode the record at ``index``; every failure names that record precisely.
-
-    Only the known keys are read, so unknown extra keys pass through untouched; an
-    unknown kind/version raises BEFORE field decoding so future record shapes fail
-    with the precise message, not as an arbitrary missing-field error.
-    """
-    try:
-        fields = cast("dict[str, str]", json.loads(raw))
-        kind = fields.get("kind", _RECORD_KIND)
-        version = fields.get("v", _RECORD_VERSION)
-        if kind != _RECORD_KIND or version != _RECORD_VERSION:
-            msg = (
-                f"unreadable session record at index {index}: kind {kind!r} v {version!r}"
-                f" (this reader supports kind {_RECORD_KIND!r} v {_RECORD_VERSION})"
-            )
-            raise SessionStoreError(msg)
-        return Message(
-            role=Role(fields["role"]),
-            text=fields["text"],
-            at=datetime.fromisoformat(fields["at"]),
-            turn_id=fields["turn_id"],
-        )
-    except (AttributeError, KeyError, TypeError, ValueError) as err:
-        # AttributeError: a JSON document that is not an object has no .get.
-        msg = f"corrupt session record at index {index}"
-        raise SessionStoreError(msg) from err
 
 
 def _summarize_ends(
@@ -134,8 +78,8 @@ def _summarize_ends(
     title = cast("bytes", raw_title).decode("utf-8") if raw_title is not None else None
     return summarize_ends(
         session_id,
-        _decode(head[0], 0),
-        _decode(tail[0], length - 1),
+        decode_message(head[0], 0),
+        decode_message(tail[0], length - 1),
         title_override=title,
         pinned=pinned,
     )
@@ -170,9 +114,9 @@ class RedisSessionStore:
         already refuses images on any role but ``TOOL``, so this is what catches a caller that
         reached the store with a TOOL message.
         """
-        _refuse_images(message)
+        refuse_images(message)
         try:
-            await self._client.rpush(_key(session_id), _encode(message))
+            await self._client.rpush(messages_key(session_id), encode_message(message))
             await self._client.zadd(_SESSIONS_KEY, {session_id: message.at.timestamp()})
         except RedisError as err:
             msg = f"append to session {session_id!r} failed"
@@ -181,11 +125,11 @@ class RedisSessionStore:
     async def history(self, session_id: str) -> Sequence[Message]:
         """Return the session's full history in append order (empty when unknown)."""
         try:
-            raw = await self._client.lrange(_key(session_id), 0, -1)
+            raw = await self._client.lrange(messages_key(session_id), 0, -1)
         except RedisError as err:
             msg = f"history read for session {session_id!r} failed"
             raise SessionStoreError(msg) from err
-        return tuple(_decode(item, index) for index, item in enumerate(raw))
+        return tuple(decode_message(item, index) for index, item in enumerate(raw))
 
     async def set_title(self, session_id: str, title: str) -> None:
         """Persist a brain-generated display title under the session's title key (ADR-0021).
@@ -195,17 +139,43 @@ class RedisSessionStore:
         overwrites it. Not conversation content, but stored beside it so it survives a swap.
         """
         try:
-            await self._client.set(_title_key(session_id), title)
+            await self._client.set(title_key(session_id), title)
         except RedisError as err:
             msg = f"setting the title for session {session_id!r} failed"
             raise SessionStoreError(msg) from err
 
-    async def delete(self, session_id: str) -> None:
-        """Hard-delete a whole session: its messages, its title, its recency-index entry.
+    async def set_recap(self, session_id: str, recap: HistoryRecap) -> None:
+        """Persist the summarizing window's recap of this session's dropped prefix.
 
-        The destructive "forget this chat" write (ADR-0021 delete addendum). Every key `append`
-        and `set_title` can create for this id is removed in one transaction so a listing never
-        sees a half-deleted chat: the message list (`:messages`), the optional title (`:title`),
+        One JSON document under the session's own recap key, overwritten whenever the window's
+        boundary moves forward. Derived state rather than something the user wrote, but stored
+        beside the conversation so it survives a model swap and a restart like the rest.
+        """
+        try:
+            await self._client.set(recap_key(session_id), encode_recap(recap))
+        except RedisError as err:
+            msg = f"setting the recap for session {session_id!r} failed"
+            raise SessionStoreError(msg) from err
+
+    async def recap(self, session_id: str) -> HistoryRecap | None:
+        """The stored recap, or ``None`` for a session that has never had one written."""
+        try:
+            raw = await self._client.get(recap_key(session_id))
+        except RedisError as err:
+            msg = f"recap read for session {session_id!r} failed"
+            raise SessionStoreError(msg) from err
+        # Decoding sits outside the wrapping above so a corrupt document is named as such
+        # rather than relabelled as a read failure, exactly as `history` treats a record.
+        return None if raw is None else decode_recap(cast("bytes", raw), session_id)
+
+    async def delete(self, session_id: str) -> None:
+        """Hard-delete a whole session: its messages, its title, its recap, its recency entry.
+
+        The destructive "forget this chat" write (ADR-0021 delete addendum). Every key `append`,
+        `set_title` and `set_recap` can create for this id is removed in one transaction so a
+        listing never sees a half-deleted chat: the message list (`:messages`), the optional title
+        (`:title`), the optional recap (`:recap`, a model-written account of the same conversation
+        and so exactly as private as the transcript, ADR-0038 decision 9),
         and the `cortex:sessions` recency-index member. Nothing is left orphaned, and no dangling
         index entry remains to be skipped later. `DEL`/`ZREM` on absent keys/members are no-ops,
         so deleting an unknown or already-deleted session is idempotent, and the next `history`
@@ -213,8 +183,9 @@ class RedisSessionStore:
         """
         try:
             async with self._client.pipeline(transaction=True) as pipe:
-                pipe.delete(_key(session_id))
-                pipe.delete(_title_key(session_id))
+                pipe.delete(messages_key(session_id))
+                pipe.delete(title_key(session_id))
+                pipe.delete(recap_key(session_id))
                 pipe.zrem(_SESSIONS_KEY, session_id)
                 pipe.srem(_PINNED_KEY, session_id)
                 await pipe.execute()
@@ -274,11 +245,11 @@ class RedisSessionStore:
             ids = recency_ids + sorted(pinned_ids - set(recency_ids))
             async with self._client.pipeline(transaction=True) as pipe:
                 for session_id in ids:
-                    key = _key(session_id)
+                    key = messages_key(session_id)
                     pipe.lrange(key, 0, 0)
                     pipe.lrange(key, -1, -1)
                     pipe.llen(key)
-                    pipe.get(_title_key(session_id))
+                    pipe.get(title_key(session_id))
                 reads = await pipe.execute()
         except RedisError as err:
             msg = "listing sessions failed"

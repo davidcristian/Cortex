@@ -943,13 +943,39 @@ Use-case:
   assembly `assemble_inference_messages`, the mechanical split out of `engine.py` that ADR-0029
   decision 15 planned), re-exported unchanged from the barrel.
 - `HistoryWindow` (protocol, `windowing.py`) / `CharBudgetHistoryWindow(max_chars)` are the
-  session-history windowing seam and its shipped policy (ADR-0014). `select(history)`
-  returns the slice one turn sends to the model: `CharBudgetHistoryWindow` keeps the newest
+  session-history windowing seam and its shipped policy (ADR-0014).
+  `async select(history, *, session_id)` returns what one turn sends to the model. It is `async`
+  and carries the session because a window may consult the store or the model (ADR-0038
+  decision 9); a heuristic policy ignores the argument and wraps a synchronous body. A window
+  returns a subsequence of `history` in original order, and may additionally PREPEND derived
+  context of its own, but may never drop or alter a kept message. `CharBudgetHistoryWindow`: `CharBudgetHistoryWindow` keeps the newest
   whole turns (grouped by consecutive `turn_id`) whose summed text length fits `max_chars`,
   as a contiguous tail, with turns kept or dropped whole, the walk stopping at the first
   overflow, the newest turn always kept even oversized (the current user message must reach
   the model). Characters approximate tokens (~4 chars/token) so the core needs no tokenizer.
   Applied at inference-message assembly only. The store keeps the full history.
+- `SummarizingHistoryWindow(inner, store, backend, model, clock)` (`summarizing.py`) wraps a
+  window so the turns it drops arrive as a model-written recap instead of vanishing (ADR-0038
+  decision 9). Per turn it takes `inner`'s selection, measures the boundary (how many messages
+  of the head were dropped), and prepends a `Role.SYSTEM` message carrying the recap of that
+  prefix, stamped with the last turn it accounts for. Three invariants define it. It can only
+  ADD: the inner selection is returned untouched, and every failure path (store unreachable,
+  model unreachable or failing mid-stream, model returning nothing usable) returns that
+  selection exactly as the shipped window would have, logged and never raised. It CACHES: the
+  recap lives behind `SessionStore.set_recap`/`recap`, keyed by the boundary it covers, so a
+  turn whose boundary has not moved pays nothing and a moved boundary folds the previous recap
+  together with the newly dropped turns rather than rereading the prefix; a stored recap
+  covering MORE than the current boundary (a widened budget) is discarded and rebuilt, which
+  self-heals. It LETS GO of the GPU: the model pass goes through `drain_text`, so the adapter's
+  acquire block is left before `select` returns and the reply's acquire is the second acquire
+  of a sequence, never a nested one. `build_recap_messages(previous, dropped, *, at, turn_id)`
+  and `clean_recap(raw)` are the pure prompt and reply-cleanup pieces (the `session_title.py`
+  shape); `clean_recap` collapses to one paragraph and bounds at `RECAP_MAX`, answering `""`
+  for a reply with nothing in it, which the window rejects rather than stores.
+- `HistoryRecap(text, covers)` (`sessions.py`) is that cached account as a pure value: `covers`
+  is how many messages from the START of the session `text` accounts for, which is the key the
+  cache is valid under. It refuses a blank text or a `covers` below one, so an unusable recap
+  cannot be persisted. `RECAP_MAX` bounds the stored text.
   `max_chars < 1` raises `ValueError` (`0` as an off switch lives in the wiring, not here).
 - `stream_tool_loop(backend, model, working, context: ToolLoopContext)` (in `tool_loop`)
   is the bounded infer↔tool loop shared by `TurnEngine` and `SubagentRunner` (ADR-0010): an

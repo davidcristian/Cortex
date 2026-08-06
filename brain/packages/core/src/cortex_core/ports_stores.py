@@ -19,7 +19,7 @@ from cortex_core.handoff import HandoffRecord, HandoffState
 from cortex_core.memory import MemoryRecord, ScoredMemory
 from cortex_core.schedule import FireOutcome, ScheduleClaim, ScheduledItem
 from cortex_core.schedule_transitions import ScheduleEdit
-from cortex_core.sessions import SessionSummary
+from cortex_core.sessions import HistoryRecap, SessionSummary
 from cortex_core.subagents import SubagentResult, SubagentTask
 
 
@@ -34,8 +34,15 @@ class SessionStore(Protocol):
     pinned chat lists regardless of recency (pinning addendum). ``set_title`` persists a display
     title (titles addendum) ``list_sessions`` prefers over the first-message derivation.
     ``set_pinned`` pins/unpins a chat (pinning addendum), in ``SessionSummary.pinned``, idempotent.
-    ``delete`` HARD-deletes a whole session (history, title, recency member, pin), the "forget"
-    write (delete addendum). Failures surface as ``SessionStoreError``.
+    ``delete`` HARD-deletes a whole session (history, title, recency member, pin, recap), the
+    "forget" write (delete addendum). ``set_recap``/``recap`` hold the summarizing window's
+    cached account of the turns that fell out of the window (ADR-0038 decision 9): ``recap``
+    answers ``None`` until one is written, a later ``set_recap`` overwrites, and the pair is
+    here rather than behind a port of its own because a recap's lifetime IS the session's, so
+    the whole-session delete must take it in the same write. Note what this port does NOT
+    have: no verb edits or removes a single message. That is what makes a recap of a prefix
+    safe to cache, since it can only go incomplete, never wrong. Failures surface as
+    ``SessionStoreError``.
     """
 
     async def append(self, session_id: str, message: Message) -> None: ...
@@ -49,6 +56,10 @@ class SessionStore(Protocol):
     async def delete(self, session_id: str) -> None: ...
 
     async def set_pinned(self, session_id: str, *, pinned: bool) -> None: ...
+
+    async def set_recap(self, session_id: str, recap: HistoryRecap) -> None: ...
+
+    async def recap(self, session_id: str) -> HistoryRecap | None: ...
 
 
 class MemoryStore(Protocol):

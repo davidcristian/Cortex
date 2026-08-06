@@ -15,7 +15,7 @@ from redis import exceptions as redis_exceptions
 from redis.asyncio import Redis
 
 from cortex_core import InMemorySessionStore, Role, SessionStore, SessionStoreError
-from cortex_core.sessions import TITLE_MAX
+from cortex_core.sessions import TITLE_MAX, HistoryRecap
 from cortex_session import DEFAULT_REDIS_URL, RedisSessionStore
 
 
@@ -394,3 +394,89 @@ async def test_from_url_wires_a_client_for_the_given_or_default_url(
     await store.aclose()
     RedisSessionStore.from_url()
     assert seen == ["redis://example.invalid:6390/7", DEFAULT_REDIS_URL]
+
+
+async def test_recap_roundtrips_and_overwrites(store: SessionStore) -> None:
+    await contract.check_recap_is_absent_then_roundtrips_and_overwrites(store)
+
+
+async def test_recaps_are_per_session(store: SessionStore) -> None:
+    await contract.check_recaps_do_not_leak_between_sessions(store)
+
+
+async def test_recap_survives_a_reconnect(store: SessionStore) -> None:
+    await contract.check_recap_survives_a_reconnect(store)
+
+
+async def test_recap_persists_as_one_versioned_document_under_its_own_key() -> None:
+    """Distrust-green over raw Redis: the recap is a kinded JSON document, not a bare string.
+
+    Both halves have to be on the wire, because a reader that got the text without the boundary
+    could not tell a current recap from a stale one, and would prepend the wrong paragraph
+    forever. Asserting on the raw value reddens if either field or the schema markers go missing.
+    """
+    client = FakeAsyncRedis(server=FakeServer())
+    store = RedisSessionStore(client)
+    await store.set_recap("s", HistoryRecap(text="they settled on Friday", covers=12))
+    raw = cast("bytes", await client.get("cortex:session:s:recap"))
+    assert json.loads(raw) == {
+        "v": 1,
+        "kind": "recap",
+        "text": "they settled on Friday",
+        "covers": 12,
+    }
+
+
+async def test_deleting_a_session_removes_its_recap_key() -> None:
+    """Distrust-green: the recap key is in the delete transaction, not merely forgotten."""
+    client = FakeAsyncRedis(server=FakeServer())
+    store = RedisSessionStore(client)
+    await store.append("s", contract.make_message(Role.USER, "hi"))
+    await store.set_recap("s", HistoryRecap(text="a private account", covers=2))
+    assert await client.exists("cortex:session:s:recap")
+    await store.delete("s")
+    assert not await client.exists("cortex:session:s:recap")
+
+
+async def test_an_unreadable_recap_kind_or_version_fails_loudly() -> None:
+    """A recap document this reader cannot read is named, never quietly answered as "none".
+
+    A silent None would look exactly like a session that has not been summarized yet, so a
+    schema mistake would hide behind a summarizer that merely seemed expensive.
+    """
+    client = FakeAsyncRedis(server=FakeServer())
+    store = RedisSessionStore(client)
+    await client.set("cortex:session:s:recap", json.dumps({"v": 2, "kind": "recap", "text": "x"}))
+    with pytest.raises(SessionStoreError, match=r"unreadable recap .*kind 'recap' v 2"):
+        await store.recap("s")
+
+
+async def test_a_corrupt_recap_document_names_the_session() -> None:
+    client = FakeAsyncRedis(server=FakeServer())
+    store = RedisSessionStore(client)
+    await client.set("cortex:session:s:recap", "{not json")
+    with pytest.raises(SessionStoreError, match="corrupt recap for session 's'"):
+        await store.recap("s")
+
+
+async def test_a_recap_document_that_would_be_an_invalid_value_is_corrupt() -> None:
+    """The value type's own rules are part of the read: a zero boundary is unusable, not None."""
+    client = FakeAsyncRedis(server=FakeServer())
+    store = RedisSessionStore(client)
+    await client.set(
+        "cortex:session:s:recap", json.dumps({"v": 1, "kind": "recap", "text": "x", "covers": 0})
+    )
+    with pytest.raises(SessionStoreError, match="corrupt recap for session 's'"):
+        await store.recap("s")
+
+
+async def test_connection_failure_on_set_recap_wraps_the_cause() -> None:
+    with pytest.raises(SessionStoreError, match="setting the recap for session 's'") as excinfo:
+        await _disconnected_store().set_recap("s", HistoryRecap(text="a", covers=1))
+    assert isinstance(excinfo.value.__cause__, redis_exceptions.ConnectionError)
+
+
+async def test_connection_failure_on_recap_read_wraps_the_cause() -> None:
+    with pytest.raises(SessionStoreError, match="recap read for session 's'") as excinfo:
+        await _disconnected_store().recap("s")
+    assert isinstance(excinfo.value.__cause__, redis_exceptions.ConnectionError)

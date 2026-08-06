@@ -106,7 +106,11 @@ async def assemble_inference_messages(
     needs (ADR-0008/0013/0014/0019).
 
     When a window is enabled it selects the newest slice of the stored history the model
-    sees (persistence is untouched). Memory recall runs first: a tainted recalled memory is
+    sees (persistence is untouched); a summarizing window may also prepend its own recap of
+    what it dropped, which is why ``select`` is awaited and told the session (ADR-0038
+    decision 9). This whole assembly is awaited to completion before ``handle_turn`` iterates
+    the reply's generator, so a window that calls the model releases the GPU lease before the
+    reply asks for it. Memory recall runs next: a tainted recalled memory is
     fenced and taints ``context.taint`` (ADR-0019). The untrusted-content ``SECURITY_PREAMBLE``
     is prepended when tools are enabled (a tool-enabled turn can ingest untrusted content) OR a
     tainted memory was recalled. The fence markers are therefore always explained; the recalled
@@ -114,7 +118,7 @@ async def assemble_inference_messages(
     persisted. A bare turn (no tools, no memory, no window) returns the history unchanged.
     """
     if caps.window is not None:
-        history = caps.window.select(history)
+        history = await caps.window.select(history, session_id=context.session_id)
     memory = await _recalled_context(query, caps, context, clock)
     prefix: list[Message] = []
     if caps.tools is not None or context.taint.tainted:

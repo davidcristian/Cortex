@@ -14,6 +14,7 @@ from uuid import uuid4
 import pytest
 
 from cortex_core import ImagePart, Message, Role, SessionStore, SessionStoreError
+from cortex_core.sessions import HistoryRecap
 
 _AT = datetime(2026, 7, 3, 12, 0, 0, tzinfo=UTC)
 
@@ -142,11 +143,15 @@ async def check_delete_removes_the_session(store: SessionStore) -> None:
     await store.append(doomed, make_message(Role.ASSISTANT, "secret answer", at=_AT, turn_id="d"))
     await store.set_title(doomed, "A private label")
     await store.set_pinned(doomed, pinned=True)
+    await store.set_recap(doomed, HistoryRecap(text="they discussed the secret", covers=2))
     await store.append(kept, make_message(Role.USER, "an unrelated chat", at=_AT, turn_id="k"))
 
     await store.delete(doomed)
 
     assert list(await store.history(doomed)) == []  # the transcript is gone
+    # The recap is a model's account of the same conversation, so "forget this chat" has to take
+    # it too; leaving it behind would keep a paraphrase of the transcript the user just deleted.
+    assert await store.recap(doomed) is None
     listed = {s.session_id for s in await store.list_sessions(limit=50)}
     assert doomed not in listed  # dropped from the recency index
     assert kept in listed  # a sibling chat is untouched
@@ -256,6 +261,55 @@ async def check_append_refuses_an_image_bearing_message(store: SessionStore) -> 
     assert list(await store.history(session_id)) == []
 
 
+async def check_recap_is_absent_then_roundtrips_and_overwrites(store: SessionStore) -> None:
+    """A session has no recap until one is written; then it reads back whole and last write wins.
+
+    The summarizing window's cache (ADR-0038 decision 9). Both halves of the value matter: the
+    text is what the model sees, and ``covers`` is the boundary that says whether the text is
+    still the right one, so a store that dropped the count would make every recap unusable. The
+    overwrite is what a boundary move does, and the newer recap always covers strictly more of
+    the same append-only log.
+    """
+    session_id = _session_id()
+    await store.append(session_id, make_message(Role.USER, "the opening question"))
+
+    assert await store.recap(session_id) is None  # never written, so nothing to read
+
+    first = HistoryRecap(text="They agreed to ship on Friday. Budget is 4,000.", covers=6)
+    await store.set_recap(session_id, first)
+    assert await store.recap(session_id) == first
+
+    later = HistoryRecap(text="They agreed to ship on Friday, then moved it to Monday.", covers=14)
+    await store.set_recap(session_id, later)
+    assert await store.recap(session_id) == later
+
+
+async def check_recaps_do_not_leak_between_sessions(store: SessionStore) -> None:
+    """One chat's recap is never another's: it is keyed by the session it summarizes."""
+    one, two = _session_id(), _session_id()
+    await store.set_recap(one, HistoryRecap(text="about cats", covers=2))
+    assert await store.recap(two) is None
+    await store.set_recap(two, HistoryRecap(text="about dogs", covers=4))
+    assert (await store.recap(one)) == HistoryRecap(text="about cats", covers=2)
+
+
+async def check_recap_survives_a_reconnect(store: SessionStore) -> None:
+    """A recap read back after the write is store state, not process state (the hard rule).
+
+    The point of caching the recap behind this port rather than in the summarizer is that a
+    model swap happens between the write and the next read: the pass that wrote it is gone, and
+    whatever model is resident next rehydrates the text from here. This check is that read, and
+    the live-Redis run is where it means the most, being a real round trip to another process.
+    """
+    session_id = _session_id()
+    written = HistoryRecap(text="a paragraph the writing model no longer remembers", covers=8)
+    await store.set_recap(session_id, written)
+    reloaded = await store.recap(session_id)
+    assert reloaded is not None
+    assert reloaded.text == written.text
+    assert reloaded.covers == written.covers
+
+
 ALL_CHECKS = (
     check_empty_history,
     check_append_then_history_order,
@@ -268,4 +322,7 @@ ALL_CHECKS = (
     check_a_pinned_chat_escapes_the_recency_window,
     check_a_pinned_recent_chat_is_not_duplicated,
     check_append_refuses_an_image_bearing_message,
+    check_recap_is_absent_then_roundtrips_and_overwrites,
+    check_recaps_do_not_leak_between_sessions,
+    check_recap_survives_a_reconnect,
 )

@@ -32,6 +32,9 @@ Config (pydantic-settings; explicit constructor arguments beat the environment):
   `history_char_budget: int = 48000` (`CORTEX_HISTORY_CHAR_BUDGET`, ADR-0014) sets how many
   characters of session history one turn sends to the model (the newest whole turns;
   `0` disables windowing, negative rejected);
+  `history_summary: bool = False` (`CORTEX_HISTORY_SUMMARY`, ADR-0038 decision 9) recaps the
+  turns the window drops instead of losing them; off by default because it spends a cortex
+  generation on the turns where the boundary moves, and ignored when the budget is `0`;
   `output_guardrail: "redact" | "strict" | "off" = "redact"` (`CORTEX_OUTPUT_GUARDRAIL`,
   ADR-0015) is the model-independent laundering defense: `redact` (default) scrubs
   verbatim-untrusted-sourced URLs from the reply the user sees, `strict` (addendum) scrubs
@@ -328,9 +331,14 @@ The service:
   `SingleResidentModelManager(cortex_model, endpoint)` + the httpx client's `aclose`
   (short connect timeout, no read deadline). The uniform closer keeps `run_from_env`'s
   shutdown path backend-agnostic.
-- `build_history_window(char_budget: int) -> CharBudgetHistoryWindow | None` is the turn's
-  history window (ADR-0014): a positive budget returns the char-budget window, `0` returns
-  `None` (windowing off). On by default via `BrainRuntimeConfig.history_char_budget`.
+- `build_history_window(char_budget, *, summarize, sessions, backend, model, clock)`
+  -> `HistoryWindow | None` (`window_builders.py`, split from `builders.py` for the line cap
+  when the summarizing window arrived) is the turn's history window (ADR-0014, ADR-0038
+  decision 9): a positive budget returns the char-budget window, `0` returns `None` (windowing
+  off), and `summarize` wraps the budget window in `SummarizingHistoryWindow` over the session
+  store and the cortex backend. The flag is ignored when the budget is `0`, there being no
+  dropped prefix to recap. Windowing is on by default via
+  `BrainRuntimeConfig.history_char_budget`; summarization is not.
 - `build_output_guardrail(mode: str) -> UrlRedactingGuardrail | StrictUrlRedactingGuardrail | None`
   is the turn's output guardrail (ADR-0015): `redact` returns the default verbatim URL-redacting
   policy, `strict` (addendum) the redact-all-non-user-URL policy, `off` returns `None`. On by
