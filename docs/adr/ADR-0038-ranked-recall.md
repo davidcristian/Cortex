@@ -496,3 +496,131 @@ Retention is reported by the live test as a rate rather than asserted, because a
 probabilistic model behaviour would pin the model rather than the code; what it asserts every
 round is that the folds really happened, that the control really failed to answer, and that no
 fence marker reached the user.
+
+### The fold made cheap, and the default moves (2026-08-06)
+
+The addendum above held `CORTEX_HISTORY_SUMMARY` off and named four things a default move waited
+on: a token cap on the fold's request, thinking disabled for a pass whose thinking nobody reads,
+a minimum fold size, and something on screen while it folds. All four are built and all four are
+measured. **The default is now `True`**, which is the user's standing decision finally carried by
+its own numbers rather than shipped over them.
+
+**The diagnosis held on every point.** The fold's request is built in `SummarizingHistoryWindow`
+and issued through `drain_text`, which called `backend.stream(model, messages, schema=schema)`;
+`_build_payload` put `model`, `messages` and `stream` on the wire and nothing else, so there was
+no `max_tokens` and no `chat_template_kwargs`. `RECAP_MAX` was applied by `clean_recap` to text
+the model had already finished writing. And `drain_text` keeps only `TextChunk`, so a reasoning
+model's whole `ReasoningChunk` stream was decoded, paid for, and dropped before the caller saw a
+character of it.
+
+#### Thinking off, per request
+
+`InferenceBackend.stream` gains `bounds: GenerationBounds | None`, a frozen value carrying
+`max_tokens` and `thinking`. The llama.cpp adapter renders `thinking=False` as
+`chat_template_kwargs: {"enable_thinking": false}`, which is the per-request twin of the server
+flag the subagent tier bakes into its compose command; the other documented lever,
+`--reasoning-budget 0`, still does not work on this build, so this is the one that does. It was
+verified against the shipped cortex before any of it was written rather than assumed.
+
+Per request rather than per server is the whole point. One resident cortex both answers the user,
+where deliberation earns its wait and the compose file deliberately leaves it on, and folds a
+recap, where the deliberation is discarded by construction. A server flag cannot tell those apart.
+`None` stays the default and emits no key, so every user-facing reply sends the byte-identical
+request it always did.
+
+#### A cap, sized from the account and paired with the switch
+
+`RECAP_BOUNDS` is `max_tokens=512, thinking=False`. 512 is `RECAP_MAX` said in the request's own
+unit: 2000 characters at the roughly 4 chars per token the character budget already assumes, and
+about six times the account this prompt actually produces. The two bounds now agree, so neither
+can silently truncate under the other.
+
+**Capping without the switch is a trap this repo measured rather than inherited.** A reasoning
+model spends its budget deliberating first, so a cap sized from the wanted answer is reached with
+nothing said: the identical fold prompt at `max_tokens` 160 and 256 with thinking on both came
+back `finish_reason: "length"` carrying 624 and 988 characters of `reasoning_content` and an
+**empty** reply. Even at the shipped 512 it is a coin flip, which the live suite reports rather
+than asserts: one run decoded the full 512 and returned 92 unusable characters, another finished
+its thinking in 404 and returned a usable account. Paired with `thinking=False` the same cap is
+never approached, because the fold decodes 61 to 163 tokens.
+
+**Hitting a bound degrades to the plain window, never to half a sentence.** `clean_recap` now
+returns `""` for a reply that does not end a sentence and for one longer than `RECAP_MAX`, and
+the window rejects it. Trimming to the last full stop was considered and rejected: storing a
+truncated account would advance the recap's `covers` to a boundary it only half describes, and
+because the next fold reads from `covers` forward, the turns the missing tail never reached would
+be lost for good rather than for a turn. Refusing keeps the boundary where it is, so the next
+fold reads them again.
+
+#### A floor under a fold, clamped to the window
+
+`SummarizingHistoryWindow` takes `min_dropped_chars` (`CORTEX_HISTORY_RECAP_MIN_CHARS`, default
+2000). Below it a boundary move does not spend a model pass. **Deferring is not skipping**: the
+boundary the stored account covers does not move, `history[covers:boundary]` is what the next fold
+reads, and it therefore picks up everything deferred since. Characters are the unit because that
+is what the budget it wraps is denominated in, and 2000 is `RECAP_MAX` again: below one account's
+worth of new material there is less to fold in than the account being folded into, and folding
+again is exactly what compounds a recap's losses.
+
+**What a deferred fold costs is a bounded gap.** Between `covers` and the boundary sits
+conversation in neither the window nor the account, and it is invisible until the next fold runs.
+The gap is always smaller than the floor, which is why `build_history_window` clamps the floor to
+the character budget: a fold's cost is flat, so an absolute floor is the right shape for deciding
+whether the pass is worth it, but the gap is only bearable while it is small next to the window,
+and a floor above the budget would leave more unaccounted for than the model can see at all. The
+clamp is at the composition root because that is the one place both numbers are in hand.
+
+#### The fold says so while it runs
+
+`HistoryWindow.select` gains `progress: ProgressSink | None`, and the summarizing window emits one
+`StatusUpdate(state="folding", detail="summarizing the earlier part of this conversation")` before
+the pass, and only when a pass is really about to happen (a cache hit and a deferred fold both
+emit nothing, since neither costs the user a second). The sink is handed per CALL rather than held
+on the window, matching the dispatch stamp's discipline: a sink belongs to one `Converse` stream
+while a window is a policy, so passing it in keeps a shared window correct for every stream
+instead of relying on one being built per stream. `assemble_inference_messages` passes
+`caps.progress`, and because the sink writes onto the stream's own queue rather than through the
+still-suspended turn generator, the chip appears while assembly is running. No overlay change was
+needed: a generic status already renders as a chip, which its own suite already pins.
+
+#### Measured, in the same shape as the run that held the default
+
+Same corpus, same test, same stack. The pricing arm sends the identical fold prompt twice, once
+with `bounds=None` (the request that shipped) and once with `RECAP_BOUNDS`, and the counters are
+llama-server's own `eval time` lines:
+
+| one fold, identical prompt | unbounded (before) | `RECAP_BOUNDS` (now) |
+| --- | --- | --- |
+| Decoded tokens | 378, 531, 602 | 88, 87, 88 |
+| Wall time | 13.6 s, 18.9 s, 21.5 s | 3.9 s, 3.8 s, 3.9 s |
+| Account produced | 345 to 367 chars | 369 to 382 chars |
+
+The account did not get shorter. It got slightly longer, because none of the budget went on
+deliberation. Across the staged five-fold arm a fold decoded **61 to 163 tokens** and cost **2.9 s
+to 6.2 s**, against the recorded 400 to 850 typical, 6286 worst, and 14.5 s to 224.5 s.
+
+**Retention moved from 2 of 3 to 3 of 3.** Three independent sessions of five compounding folds
+each, the arm that held the default off: the booking reference survived into the final account and
+reached the reply every round, and the accounts now carry the hotel, the card, the adapter, the
+museums and the transit advice together rather than keeping recent filler and dropping the
+opening. The control fired all three rounds and no fence marker reached a reply, both asserted.
+
+At the shipped floor the same conversation folded **once over five boundary moves**, for 3.4 s of
+model time in total, retention 3 of 3. That run also shows the cost honestly: the account covered
+10 of the 20 dropped messages and the other 10 sat in neither place, under the floor, which is the
+gap the clamp bounds.
+
+#### Decision: `CORTEX_HISTORY_SUMMARY` defaults to `True`
+
+The user asked for this on and accepted a real cost; what the previous two passes refused to do
+was ship it over numbers rather than on them. The numbers now say a boundary move costs a few
+seconds with a chip on screen explaining them, the tail is bounded by a cap rather than by luck,
+most boundary moves cost nothing at all, and the account keeps what the conversation opened with.
+A deployment that would rather forget than wait sets the variable to `false`, which is the same
+one switch it always was, pointing the other way.
+
+**What is still true and recorded as open.** The corpus is one hand-built conversation, by the
+author of the feature, with the needed fact placed where a summary would keep it, and three rounds
+is a small sample: the standing one-corpus entry does not close, and it is now the only thing
+between this feature and a claim about real conversations. Nothing has been measured about a
+cortex under load, and the fold still lands on the turn that triggers it.

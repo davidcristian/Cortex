@@ -21,6 +21,7 @@ from cortex_core import (
     EscalateToBrainTool,
     EscalatingTurnEngine,
     EscalationSlot,
+    GenerationBounds,
     InferenceEvent,
     InMemoryHandoffStore,
     InMemorySessionStore,
@@ -86,8 +87,9 @@ class _ScriptedModel:
         *,
         tools: Sequence[ToolSpec] = (),
         schema: JsonSchema | None = None,
+        bounds: GenerationBounds | None = None,
     ) -> AsyncIterator[InferenceEvent]:
-        del messages, tools, schema
+        del messages, tools, schema, bounds
         step = self._calls.get(model, 0)
         self._calls[model] = step + 1
         for event in self._script[model][step]:

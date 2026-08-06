@@ -16,7 +16,7 @@ from typing import Protocol
 from cortex_core.body import ScreenCapture, VolumeState
 from cortex_core.conversation import Message
 from cortex_core.events import TurnEvent
-from cortex_core.inference import InferenceEvent, JsonSchema
+from cortex_core.inference import GenerationBounds, InferenceEvent, JsonSchema
 from cortex_core.model import ModelLease
 from cortex_core.placement import Placement, PlacementRequest
 from cortex_core.ports_models import ModelHost, ResidencyController, ResidencyReporter
@@ -74,7 +74,9 @@ class InferenceBackend(Protocol):
     ``Message`` may carry ``images``, and an adapter that supports them serialises the pair
     together. A per-request keyword could not express "the image from round one" in round three
     without the caller re-threading it, which is why the port did not have to change at all.
-    Failures surface as ``InferenceError``.
+    ``bounds`` (ADR-0038 cheap-fold addendum) is how far this one request lets the model go, per
+    REQUEST because one resident cortex both answers the user, where deliberation earns its wait,
+    and folds a recap, where it is discarded unread. Failures surface as ``InferenceError``.
     """
 
     def stream(
@@ -84,6 +86,7 @@ class InferenceBackend(Protocol):
         *,
         tools: Sequence[ToolSpec] = (),
         schema: JsonSchema | None = None,
+        bounds: GenerationBounds | None = None,
     ) -> AsyncIterator[InferenceEvent]: ...
 
 

@@ -1,4 +1,4 @@
-"""Subagent progress reaches the overlay over the real converse() stream (ADR-0010 progress).
+"""Progress a suspended turn cannot yield reaches the overlay over the real converse() stream.
 
 A delegating cortex turn suspends its own generator inside the spawn dispatch, so a subagent's
 steps can only reach the wire through this stream's SeamProgressSink. This wires a real
@@ -8,9 +8,12 @@ alongside the cortex's own spawn_subagents chip.
 """
 
 from collections.abc import AsyncIterator, Mapping, Sequence
+from datetime import UTC, datetime
 
 from cortex_core import (
+    CharBudgetHistoryWindow,
     CompositeToolRegistry,
+    GenerationBounds,
     InferenceEvent,
     InMemorySessionStore,
     InMemoryTaskStore,
@@ -28,6 +31,7 @@ from cortex_core import (
     SubagentResources,
     SubagentRoster,
     SubagentRunner,
+    SummarizingHistoryWindow,
     SystemClock,
     TextChunk,
     ToolCall,
@@ -60,8 +64,9 @@ class _OneReadThenAnswer:
         *,
         tools: Sequence[ToolSpec] = (),
         schema: JsonSchema | None = None,
+        bounds: GenerationBounds | None = None,
     ) -> AsyncIterator[InferenceEvent]:
-        del model, tools, schema
+        del model, tools, schema, bounds
         if any(message.role is Role.TOOL for message in messages):
             yield TextChunk("done")
             return
@@ -78,8 +83,9 @@ class _SpawnThenReply:
         *,
         tools: Sequence[ToolSpec] = (),
         schema: JsonSchema | None = None,
+        bounds: GenerationBounds | None = None,
     ) -> AsyncIterator[InferenceEvent]:
-        del model, tools, schema
+        del model, tools, schema, bounds
         if any(message.role is Role.TOOL for message in messages):
             yield TextChunk("all done")
             return
@@ -150,4 +156,71 @@ async def test_a_delegating_turn_surfaces_subagent_progress_on_the_wire() -> Non
     assert "spawn_subagents" in names
     assert ("read", "Read a file") in [(a.tool_name, a.summary) for a in activities]
     # The reply still completed after the delegated work fed back.
+    assert any(e.WhichOneof("event") == "turn_complete" for e in events)
+
+
+class _AccountThenReply:
+    """Cortex backend for the fold test: an account first, then the answer.
+
+    The window drains its own call to completion before the reply's stream is opened, so the
+    two are a sequence and one stateless instance can serve both.
+    """
+
+    async def stream(
+        self,
+        model: str,
+        messages: Sequence[Message],
+        *,
+        tools: Sequence[ToolSpec] = (),
+        schema: JsonSchema | None = None,
+        bounds: GenerationBounds | None = None,
+    ) -> AsyncIterator[InferenceEvent]:
+        del model, tools, schema, bounds
+        folding = any("no longer fits in context" in message.text for message in messages)
+        yield TextChunk("They discussed the trip." if folding else "here is the answer")
+
+
+def _folding_factory(store: InMemorySessionStore) -> EngineFactory:
+    """An engine whose history window recaps what it drops, per stream (ADR-0038)."""
+
+    def make(_confirmer: ConfirmerPort, progress: ProgressSink) -> TurnEngine:
+        backend = _AccountThenReply()
+        window = SummarizingHistoryWindow(
+            CharBudgetHistoryWindow(60), store, backend, "cortex", SystemClock()
+        )
+        return TurnEngine(
+            store,
+            backend,
+            SystemClock(),
+            capabilities=TurnCapabilities(window=window, progress=progress),
+        )
+
+    return make
+
+
+async def test_a_folding_turn_says_so_on_the_wire_before_the_reply_arrives() -> None:
+    """The fold runs inside message assembly, before the turn's generator yields anything.
+
+    That is the whole reason it needs the side channel: an event emitted there rides the
+    stream's own queue rather than the suspended generator, so it reaches the overlay while
+    the user is still waiting rather than after the answer it was meant to explain.
+    """
+    store = InMemorySessionStore()
+    at = datetime(2026, 8, 6, 12, 0, tzinfo=UTC)
+    for index in range(4):
+        for role in (Role.USER, Role.ASSISTANT):
+            await store.append("s", Message(role=role, text="x" * 40, at=at, turn_id=f"t{index}"))
+
+    events = await _collect(
+        converse(_folding_factory(store), _events_from(_user_turn("remind me")))
+    )
+
+    kinds = [e.WhichOneof("event") for e in events]
+    statuses = [e.status for e in events if e.WhichOneof("event") == "status"]
+    assert any(
+        s.state == "folding" and s.detail == "summarizing the earlier part of this conversation"
+        for s in statuses
+    )
+    # It landed BEFORE the first word of the reply, which is what makes it an explanation.
+    assert kinds.index("status") < kinds.index("text_delta")
     assert any(e.WhichOneof("event") == "turn_complete" for e in events)

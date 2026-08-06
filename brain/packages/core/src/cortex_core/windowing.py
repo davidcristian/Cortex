@@ -13,6 +13,7 @@ from collections.abc import Sequence
 from typing import Protocol
 
 from cortex_core.conversation import Message
+from cortex_core.progress import ProgressSink
 
 
 class HistoryWindow(Protocol):
@@ -27,11 +28,24 @@ class HistoryWindow(Protocol):
 
     ``select`` is ``async`` and carries ``session_id`` because a window may consult the
     store or the model (ADR-0038 decision 9): the recap of a session's dropped prefix is
-    cached per session, so a window needs to know which session it is windowing. A
-    heuristic implementation ignores the argument and wraps a synchronous body.
+    cached per session, so a window needs to know which session it is windowing.
+
+    ``progress`` (ADR-0038 cheap-fold addendum) is the turn's side channel, so a window whose
+    selection costs a model pass can say so while the user waits. It is handed per CALL, like
+    the sink on a dispatch's ``TurnStamp`` and unlike a constructor dependency, because a sink
+    belongs to one ``Converse`` stream while a window is a policy: passing it in keeps a shared
+    window instance correct for every stream instead of relying on one being built per stream.
+    ``None`` (the default, and every caller with no stream) emits nowhere. A heuristic
+    implementation ignores both keywords and wraps a synchronous body.
     """
 
-    async def select(self, history: Sequence[Message], *, session_id: str) -> Sequence[Message]: ...
+    async def select(
+        self,
+        history: Sequence[Message],
+        *,
+        session_id: str,
+        progress: ProgressSink | None = None,
+    ) -> Sequence[Message]: ...
 
 
 class CharBudgetHistoryWindow:
@@ -53,13 +67,21 @@ class CharBudgetHistoryWindow:
             raise ValueError(msg)
         self._max_chars = max_chars
 
-    async def select(self, history: Sequence[Message], *, session_id: str) -> Sequence[Message]:
+    async def select(
+        self,
+        history: Sequence[Message],
+        *,
+        session_id: str,
+        progress: ProgressSink | None = None,
+    ) -> Sequence[Message]:
         """The newest whole turns fitting the budget (the newest always among them).
 
         Pure and synchronous in substance: the coroutine is the port's shape, not this
-        policy's need, and ``session_id`` names a session this policy never consults.
+        policy's need. ``session_id`` names a session this policy never consults, and
+        ``progress`` a stream it has nothing to report on, since counting characters costs
+        the user no wait worth narrating.
         """
-        del session_id
+        del session_id, progress
         turns: list[list[Message]] = []
         for message in history:
             if turns and turns[-1][-1].turn_id == message.turn_id:

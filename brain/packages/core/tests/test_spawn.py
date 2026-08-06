@@ -12,6 +12,7 @@ from cortex_core import (
     SUBAGENT_PROGRESS_STATE,
     DispatchBudget,
     EchoInferenceBackend,
+    GenerationBounds,
     InferenceBackend,
     InferenceError,
     InferenceEvent,
@@ -59,8 +60,9 @@ class FailingBackend:
         *,
         tools: Sequence[ToolSpec] = (),
         schema: JsonSchema | None = None,
+        bounds: GenerationBounds | None = None,
     ) -> AsyncIterator[InferenceEvent]:
-        del model, messages, tools, schema
+        del model, messages, tools, schema, bounds
         yield TextChunk("x")
         msg = "boom"
         raise InferenceError(msg)
@@ -125,8 +127,9 @@ class OneToolCallBackend:
         *,
         tools: Sequence[ToolSpec] = (),
         schema: JsonSchema | None = None,
+        bounds: GenerationBounds | None = None,
     ) -> AsyncIterator[InferenceEvent]:
-        del model, tools, schema
+        del model, tools, schema, bounds
         if any(message.role is Role.TOOL for message in messages):
             yield TextChunk("done")
             return

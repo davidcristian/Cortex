@@ -38,6 +38,7 @@ from cortex_core import (
     DispatchBudget,
     EscalationRefs,
     EscalationSlot,
+    GenerationBounds,
     HandoffRecord,
     HandoffState,
     HandoffStoreError,
@@ -250,8 +251,9 @@ class ScriptedBrainBackend:
         *,
         tools: Sequence[ToolSpec] = (),
         schema: JsonSchema | None = None,
+        bounds: GenerationBounds | None = None,
     ) -> AsyncIterator[InferenceEvent]:
-        del tools, schema
+        del tools, schema, bounds
         self.calls += 1
         self.models.append(model)
         self.seen = list(messages)

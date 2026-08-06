@@ -22,6 +22,11 @@ pins the reply side of: a model told the recap is quoted data must still quote a
 reference out of it, and must not copy the fence's own markers into what the user reads. The
 third asks the harder version of the same question, whether a fact survives being folded
 forward through several boundary moves rather than one.
+
+The last two are the cheap-fold addendum's own arms. One prices the fold's request against the
+unbounded one that shipped before it, over the identical prompt, which is the before-and-after
+the decision to move the default rests on. The other runs the staged conversation at the shipped
+fold floor rather than at zero, so the number reported is the one a default would actually get.
 """
 
 import os
@@ -40,6 +45,9 @@ from cortex_core import (
     SingleResidentModelManager,
     TextChunk,
 )
+from cortex_core.drain import drain_text
+from cortex_core.inference import GenerationBounds
+from cortex_core.recap_prompt import RECAP_BOUNDS, build_recap_messages, clean_recap
 from cortex_core.summarizing import SummarizingHistoryWindow
 from cortex_core.untrusted import wrap_untrusted
 from cortex_inference import LlamaCppBackend
@@ -217,7 +225,9 @@ async def test_a_fact_survives_being_folded_forward_several_times() -> None:
         in_reply = 0
         for round_index in range(_ROUNDS):
             store = InMemorySessionStore()
-            summarizing = SummarizingHistoryWindow(plain, store, backend, _MODEL, _FixedClock())
+            summarizing = SummarizingHistoryWindow(
+                plain, store, backend, _MODEL, _FixedClock(), min_dropped_chars=0
+            )
             session = f"{_SESSION}-folded-{round_index}"
 
             # The conversation grows as turns arrive, and the window is asked for its selection
@@ -264,4 +274,135 @@ async def test_a_fact_survives_being_folded_forward_several_times() -> None:
             f"\nafter {len(_GROWTH)} folds, over {_ROUNDS} rounds:"
             f" the fact survived the fold {in_recap}/{_ROUNDS},"
             f" and reached the reply {in_reply}/{_ROUNDS}"
+        )
+
+
+# How many times the before-and-after arm below repeats each side. Small: the point is a ratio
+# of several times, not a tight confidence interval, and the unbounded side is the slow one.
+_PRICING_RUNS = 3
+
+
+def _fold_prompt() -> list[Message]:
+    """The prompt one fold sends: a session's first account of its whole dropped opening."""
+    dropped = _exchanges([*_OPENING, *_FILLER[:2]])
+    return build_recap_messages(None, dropped, at=_AT, turn_id="t4")
+
+
+@pytest.mark.integration
+async def test_the_fold_costs_less_once_it_stops_paying_for_thinking_nobody_reads() -> None:
+    """The before and after, over the identical prompt, through the shipped adapter.
+
+    ``bounds=None`` is exactly the request the fold sent before this addendum: no cap, and
+    whatever the server's chat template does about thinking, which for the cortex is think
+    first. ``RECAP_BOUNDS`` is what it sends now. Everything else is held constant, so the
+    difference is the levers and nothing else.
+
+    What is asserted is the part a default rests on and that is not a coin flip: the bounded
+    fold still produces a usable account (``clean_recap`` accepting it is the same gate the
+    window applies), and it is cheaper in total across the runs. The per-run numbers are
+    printed rather than asserted, because pinning a model's speed pins the model.
+    """
+    async with httpx.AsyncClient(timeout=httpx.Timeout(600.0)) as client:
+        backend = LlamaCppBackend(SingleResidentModelManager(_MODEL, _ENDPOINT), client)
+        prompt = _fold_prompt()
+        timings: dict[str, list[float]] = {"unbounded": [], "bounded": []}
+        accounts: dict[str, list[str]] = {"unbounded": [], "bounded": []}
+        for _ in range(_PRICING_RUNS):
+            for label, bounds in (("unbounded", None), ("bounded", RECAP_BOUNDS)):
+                started = time.monotonic()
+                raw = await drain_text(backend, _MODEL, prompt, bounds=bounds)
+                timings[label].append(time.monotonic() - started)
+                accounts[label].append(clean_recap(raw))
+        print(  # noqa: T201 -- the measurement IS this test's output
+            f"\nfold prompt: {sum(len(m.text) for m in prompt)} chars"
+            f"\nunbounded (the request that shipped): "
+            f"{[round(s, 1) for s in timings['unbounded']]} s,"
+            f" accounts {[len(a) for a in accounts['unbounded']]} chars"
+            f"\nbounded ({RECAP_BOUNDS}): {[round(s, 1) for s in timings['bounded']]} s,"
+            f" accounts {[len(a) for a in accounts['bounded']]} chars"
+            f"\nbounded account: {accounts['bounded'][-1]}"
+        )
+        # Every bounded fold produced something the window would actually store.
+        assert all(accounts["bounded"])
+        assert all(_FACT in account for account in accounts["bounded"])
+        assert sum(timings["bounded"]) < sum(timings["unbounded"])
+
+
+@pytest.mark.integration
+async def test_a_small_cap_against_a_thinking_model_is_the_trap_the_pairing_avoids() -> None:
+    """Why the cap is not shipped on its own, with the number that says so.
+
+    A reasoning model spends its budget deliberating BEFORE it answers, so a cap can be reached
+    with nothing said. This runs the shipped cap with thinking left on and reports what came
+    back; the outcome is reported rather than asserted, because whether a given run finishes
+    thinking in time is the coin flip that makes the pairing necessary. What is asserted is the
+    pairing at the same cap, so the run cannot be read as the model merely having a slow day.
+    """
+    async with httpx.AsyncClient(timeout=httpx.Timeout(600.0)) as client:
+        backend = LlamaCppBackend(SingleResidentModelManager(_MODEL, _ENDPOINT), client)
+        prompt = _fold_prompt()
+        thinking_and_capped = GenerationBounds(max_tokens=RECAP_BOUNDS.max_tokens, thinking=True)
+        raw = await drain_text(backend, _MODEL, prompt, bounds=thinking_and_capped)
+        print(  # noqa: T201 -- the measurement IS this test's output
+            f"\nthinking on, capped at {thinking_and_capped.max_tokens}:"
+            f" {len(raw)} chars of reply, usable: {bool(clean_recap(raw))}"
+        )
+        # And the pairing, at the same cap, is usable. Asserted together so the run cannot be
+        # read as "the model was slow today" rather than as the cap doing this.
+        paired = await drain_text(backend, _MODEL, prompt, bounds=RECAP_BOUNDS)
+        assert clean_recap(paired)
+
+
+# The staged arm again, at the fold floor a deployment actually gets rather than at zero. The
+# same conversation and the same five growths, so the two runs differ only in how many of those
+# growths were worth a model pass. The floor is what `build_history_window` computes rather
+# than the raw default: it is clamped to the character budget, because a floor above the window
+# would leave more conversation unaccounted for than the model can see, and this corpus runs on
+# a deliberately tiny budget.
+_DEFAULT_FLOOR = 2_000
+_SHIPPED_FLOOR = min(_DEFAULT_FLOOR, _BUDGET)
+
+
+@pytest.mark.integration
+async def test_the_shipped_fold_floor_pays_for_fewer_folds_over_the_same_conversation() -> None:
+    """What the default would actually do, counted rather than assumed.
+
+    Fewer folds is the whole mechanism by which the floor helps: a recap's losses compound
+    across folds, so the interesting number is how many of the five boundary moves the floor
+    turned into a model pass, and whether the opening still reached the final account.
+    """
+    async with httpx.AsyncClient(timeout=httpx.Timeout(600.0)) as client:
+        backend = LlamaCppBackend(SingleResidentModelManager(_MODEL, _ENDPOINT), client)
+        plain = CharBudgetHistoryWindow(_BUDGET)
+        in_recap = 0
+        for round_index in range(_ROUNDS):
+            store = InMemorySessionStore()
+            floored = SummarizingHistoryWindow(
+                plain, store, backend, _MODEL, _FixedClock(), min_dropped_chars=_SHIPPED_FLOOR
+            )
+            session = f"{_SESSION}-floored-{round_index}"
+            grown = [*_OPENING, *_FILLER[:2]]
+            boundaries: list[int] = []
+            elapsed = 0.0
+            for pair in _GROWTH:
+                grown = [*grown, *pair]
+                started = time.monotonic()
+                await floored.select(_asking(grown), session_id=session)
+                elapsed += time.monotonic() - started
+                covers = await store.recap(session)
+                boundaries.append(covers.covers if covers else 0)
+            stored = await store.recap(session)
+            kept = stored is not None and _FACT in stored.text
+            in_recap += int(kept)
+            folds = len(set(boundaries) - {0})
+            print(  # noqa: T201 -- the measurement IS this test's output
+                f"\nround {round_index} at floor {_SHIPPED_FLOOR}:"
+                f" {folds} folds over {len(_GROWTH)} boundary moves, {elapsed:.1f}s total"
+                f"\nboundaries: {boundaries}"
+                f"\nrecap: {stored.text if stored else '(none)'}"
+                f"\nfact {_FACT} in the recap: {kept}"
+            )
+        print(  # noqa: T201 -- the measurement IS this test's output
+            f"\nat floor {_SHIPPED_FLOOR}, over {_ROUNDS} rounds:"
+            f" the fact survived {in_recap}/{_ROUNDS}"
         )

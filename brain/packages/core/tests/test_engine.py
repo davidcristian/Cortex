@@ -17,6 +17,7 @@ from cortex_core import (
     EchoInferenceBackend,
     EscalateToBrainTool,
     EscalationSlot,
+    GenerationBounds,
     HandoffState,
     HashEmbedder,
     ImagePart,
@@ -92,8 +93,9 @@ class RecordingBackend:
         *,
         tools: Sequence[ToolSpec] = (),
         schema: JsonSchema | None = None,
+        bounds: GenerationBounds | None = None,
     ) -> AsyncIterator[InferenceEvent]:
-        del tools, schema
+        del tools, schema, bounds
         self.calls.append((model, tuple(messages)))
         try:
             for delta in self._deltas:
@@ -130,8 +132,9 @@ class PlainIteratorBackend:
         *,
         tools: Sequence[ToolSpec] = (),
         schema: JsonSchema | None = None,
+        bounds: GenerationBounds | None = None,
     ) -> AsyncIterator[InferenceEvent]:
-        del model, messages, tools, schema
+        del model, messages, tools, schema, bounds
         return _PlainDeltas(self._deltas)
 
 
@@ -145,8 +148,9 @@ class MidStreamFailingBackend:
         *,
         tools: Sequence[ToolSpec] = (),
         schema: JsonSchema | None = None,
+        bounds: GenerationBounds | None = None,
     ) -> AsyncIterator[InferenceEvent]:
-        del model, messages, tools, schema
+        del model, messages, tools, schema, bounds
         yield TextChunk("partial ")
         msg = "backend exploded mid-stream"
         raise InferenceError(msg)
@@ -435,8 +439,9 @@ class ScriptedToolBackend:
         *,
         tools: Sequence[ToolSpec] = (),
         schema: JsonSchema | None = None,
+        bounds: GenerationBounds | None = None,
     ) -> AsyncIterator[InferenceEvent]:
-        del model, schema
+        del model, schema, bounds
         self.seen.append(tuple(messages))
         self.offered.append(tuple(tools))
         step = self._steps[self._call]
@@ -458,8 +463,9 @@ class AlwaysCallsBackend:
         *,
         tools: Sequence[ToolSpec] = (),
         schema: JsonSchema | None = None,
+        bounds: GenerationBounds | None = None,
     ) -> AsyncIterator[InferenceEvent]:
-        del model, messages, tools, schema
+        del model, messages, tools, schema, bounds
         self.calls += 1
         yield ToolCall(id=f"c{self.calls}", name="noop", arguments={})
 
@@ -1318,8 +1324,9 @@ class ScriptedTurnBackend:
         *,
         tools: Sequence[ToolSpec] = (),
         schema: JsonSchema | None = None,
+        bounds: GenerationBounds | None = None,
     ) -> AsyncIterator[InferenceEvent]:
-        del model, messages, tools, schema
+        del model, messages, tools, schema, bounds
         script = self._scripts[min(self.calls, len(self._scripts) - 1)]
         self.calls += 1
         if isinstance(script, InferenceError):

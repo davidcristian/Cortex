@@ -180,7 +180,26 @@ variants, disable-thinking / token-budget capping
   reached 224.5 s, nearly all of it spent generating text nothing reads. The token-budget half is
   wanted here too and for the same reason (`RECAP_MAX` cuts the stored text after the model has
   spoken, so nothing bounds the request), and both together are what a move of
-  `CORTEX_HISTORY_SUMMARY` off its default waits on. **`state`-aware overlay treatment landed
+  `CORTEX_HISTORY_SUMMARY` off its default waits on. **Both halves landed the same day
+  ([ADR-0038](../adr/ADR-0038-ranked-recall.md) cheap-fold addendum), and the port is what carries
+  them.** `InferenceBackend.stream` gained `bounds: GenerationBounds | None`, one frozen value
+  holding `max_tokens` and `thinking`, which the llama.cpp adapter renders as a `max_tokens` key
+  and `chat_template_kwargs: {"enable_thinking": false}`; `None` is the default and emits neither,
+  so every user-facing reply sends the byte-identical request it always did. It is per REQUEST
+  rather than per server because one resident cortex both answers the user, where the compose file
+  deliberately leaves deliberation on, and folds a recap, where it is discarded unread. **The two
+  ship as a pair because either alone is worse than neither**, which was measured rather than
+  argued: the identical fold prompt at `max_tokens` 160 and 256 with thinking left on came back
+  `finish_reason: "length"` carrying 624 and 988 characters of `reasoning_content` and an EMPTY
+  reply, and even at the shipped 512 it is a coin flip (one run decoded the whole cap for 92
+  unusable characters, another finished thinking in 404 and answered). Paired, the same prompt
+  decodes 88 tokens in 3.9 s where the unbounded request decoded 378 to 602 in 13.6 s to 21.5 s,
+  for a slightly LONGER account. `--reasoning-budget 0` is still not working on this build, so the
+  per-request `chat_template_kwargs` remains the only lever that does. **What stays open here is
+  every other caller:** the session title and the model-based recall rank run the same
+  discarded-thinking pass through `drain_text` and still send no bounds, while a user-facing reply
+  keeps its thinking deliberately. **Trigger:** the session title's own empty-reply entry, which
+  now has this lever one keyword away. **`state`-aware overlay treatment landed
   2026-07-13 ([ADR-0020 third addendum](../adr/ADR-0020-reasoning-status.md)):** the reducer now
   keeps the status event's `state` (a new `Message.statusState`) and a `"thinking"` chip renders
   distinctly (a `chip-think` modifier: the reasoning bob on its dot, an accent label, an aria

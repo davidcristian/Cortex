@@ -28,6 +28,7 @@ from datetime import UTC, datetime
 from cortex_core import (
     BUDGET_EXHAUSTED_MSG,
     DispatchBudget,
+    GenerationBounds,
     InferenceBackend,
     InferenceError,
     InferenceEvent,
@@ -80,8 +81,9 @@ class TextBackend:
         *,
         tools: Sequence[ToolSpec] = (),
         schema: JsonSchema | None = None,
+        bounds: GenerationBounds | None = None,
     ) -> AsyncIterator[InferenceEvent]:
-        del model, tools, schema
+        del model, tools, schema, bounds
         self.seen.append(tuple(messages))
         for delta in self._deltas:
             yield TextChunk(delta)
@@ -101,8 +103,9 @@ class ScriptedBackend:
         *,
         tools: Sequence[ToolSpec] = (),
         schema: JsonSchema | None = None,
+        bounds: GenerationBounds | None = None,
     ) -> AsyncIterator[InferenceEvent]:
-        del model, messages, tools, schema
+        del model, messages, tools, schema, bounds
         step = self._steps[self._call]
         self._call += 1
         for event in step:
@@ -119,8 +122,9 @@ class FailingBackend:
         *,
         tools: Sequence[ToolSpec] = (),
         schema: JsonSchema | None = None,
+        bounds: GenerationBounds | None = None,
     ) -> AsyncIterator[InferenceEvent]:
-        del model, messages, tools, schema
+        del model, messages, tools, schema, bounds
         yield TextChunk("partial ")
         msg = "backend exploded"
         raise InferenceError(msg)
@@ -140,8 +144,9 @@ class SchemaRecordingBackend:
         *,
         tools: Sequence[ToolSpec] = (),
         schema: JsonSchema | None = None,
+        bounds: GenerationBounds | None = None,
     ) -> AsyncIterator[InferenceEvent]:
-        del model, messages, tools
+        del model, messages, tools, bounds
         self.schemas.append(schema)
         for delta in self._deltas:
             yield TextChunk(delta)
@@ -605,8 +610,9 @@ class CountingFailure:
         *,
         tools: Sequence[ToolSpec] = (),
         schema: JsonSchema | None = None,
+        bounds: GenerationBounds | None = None,
     ) -> AsyncIterator[InferenceEvent]:
-        del model, messages, tools, schema
+        del model, messages, tools, schema, bounds
         self.calls += 1
         yield TextChunk("partial ")
         raise InferenceError(self._reason)
@@ -629,8 +635,9 @@ class ToolThenFailBackend:
         *,
         tools: Sequence[ToolSpec] = (),
         schema: JsonSchema | None = None,
+        bounds: GenerationBounds | None = None,
     ) -> AsyncIterator[InferenceEvent]:
-        del model, messages, tools, schema
+        del model, messages, tools, schema, bounds
         self.calls += 1
         if self.calls == 1:
             yield ToolCall(id="c1", name="read", arguments={"path": "/x"})
@@ -658,8 +665,9 @@ class HeadroomProbingBackend:
         *,
         tools: Sequence[ToolSpec] = (),
         schema: JsonSchema | None = None,
+        bounds: GenerationBounds | None = None,
     ) -> AsyncIterator[InferenceEvent]:
-        del model, messages, tools, schema
+        del model, messages, tools, schema, bounds
         probe = self._placer.place(PlacementRequest("probe", vram_gb=3.0, cpus=1.0, memory_gb=1.0))
         self.probes.append(probe.target)
         self._placer.release(probe)

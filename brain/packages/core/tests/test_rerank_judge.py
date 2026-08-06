@@ -22,7 +22,7 @@ from cortex_core import (
     ToolSpec,
 )
 from cortex_core.conversation import Message
-from cortex_core.inference import InferenceEvent, JsonSchema
+from cortex_core.inference import GenerationBounds, InferenceEvent, JsonSchema
 from cortex_core.rerank_judge import ORDER_ENVELOPE, build_rank_messages, parse_order
 
 _NOW = datetime(2026, 8, 6, 12, 0, tzinfo=UTC)
@@ -49,8 +49,9 @@ class _ScriptedBackend:
         *,
         tools: Sequence[ToolSpec] = (),
         schema: JsonSchema | None = None,
+        bounds: GenerationBounds | None = None,
     ) -> AsyncIterator[InferenceEvent]:
-        del model, tools
+        del model, tools, bounds
         self.prompts.append(messages[-1].text)
         self.schemas.append(schema)
         if self._error:

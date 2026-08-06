@@ -43,7 +43,13 @@ from cortex_core.images import (
     ImagePart,
     data_uri,
 )
-from cortex_core.inference import InferenceEvent, JsonSchema, ReasoningChunk, TextChunk
+from cortex_core.inference import (
+    GenerationBounds,
+    InferenceEvent,
+    JsonSchema,
+    ReasoningChunk,
+    TextChunk,
+)
 from cortex_core.ports import (
     BodyGateway,
     Clock,
@@ -90,6 +96,7 @@ __all__ = [
     "Confirmer",
     "Embedder",
     "EmbedderError",
+    "GenerationBounds",
     "HandoffInProgressError",
     "HandoffStore",
     "HandoffStoreError",

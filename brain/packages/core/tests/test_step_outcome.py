@@ -36,7 +36,7 @@ from cortex_core import (
     ToolResult,
     ToolSpec,
 )
-from cortex_core.inference import JsonSchema
+from cortex_core.inference import GenerationBounds, JsonSchema
 from cortex_core.loop_events import StepOutcome, ToolStep
 from cortex_core.tool_budget import DispatchBudget
 from cortex_core.tool_loop import ToolLoopContext, stream_tool_loop
@@ -70,8 +70,9 @@ class _CallThenAnswer:
         *,
         tools: Sequence[ToolSpec] = (),
         schema: JsonSchema | None = None,
+        bounds: GenerationBounds | None = None,
     ) -> AsyncIterator[InferenceEvent]:
-        del model, messages, tools, schema
+        del model, messages, tools, schema, bounds
         self._seen += 1
         if self._seen <= self._rounds:
             yield ToolCall(id=f"c{self._seen}", name=self._name, arguments={})
@@ -263,8 +264,9 @@ async def test_every_announced_dispatch_is_settled_exactly_once() -> None:
             *,
             tools: Sequence[ToolSpec] = (),
             schema: JsonSchema | None = None,
+            bounds: GenerationBounds | None = None,
         ) -> AsyncIterator[InferenceEvent]:
-            del model, messages, tools, schema
+            del model, messages, tools, schema, bounds
             self._seen += 1
             if self._seen <= 3:
                 yield ToolCall(id=f"c{self._seen}", name="read", arguments={"path": self._seen})

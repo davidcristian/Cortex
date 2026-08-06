@@ -2,7 +2,7 @@
 
 Deferred refinements from Slice 3's cortex chat and session work; the windowing decision and the summarization alternatives it weighs live in [ADR-0014](../adr/ADR-0014-history-windowing.md). Extracted from the ROADMAP's deferred-refinements section on 2026-07-15 with the entries kept verbatim; landed entries are the historical record of what each deferral became, and the index at [index.md](index.md) carries the recommended pickup order.
 
-**Open items:** the recap measurement resting on one corpus, the recap pass being unbounded and unthrottled, nothing telling the user a turn is folding.
+**Open items:** the recap measurement resting on one corpus. The unbounded fold and the fold's silence were both closed 2026-08-06, when the summary moved to on by default.
 
 **Cortex chat / session in Slice 3:**
 - **Session-history windowing landed 2026-07-03 ([ADR-0014](../adr/ADR-0014-history-windowing.md)).**
@@ -118,8 +118,11 @@ Deferred refinements from Slice 3's cortex chat and session work; the windowing 
   keeping the recent filler. **Repetition is covered too**, the single-fold arm having answered 3
   of 3 with the control failing 3 of 3. What is still one corpus is the conversation itself: still
   hand-built, still by the author, still with the fact placed where a summary would keep it, and
-  still nothing about a cortex under load. **Trigger:** any move of the default, which now wants
-  a real conversation and a retention rate nearer 1 than 2 of 3.
+  still nothing about a cortex under load. **The retention half of that trigger was answered
+  2026-08-06** and is now 3 of 3 over the same three staged sessions (the cheap-fold entry below),
+  which is what let the default move; the corpus half was not, and the default moved anyway.
+  **Trigger:** now the standing one, since the feature ships on: a real conversation, and anything
+  about a cortex under load, before this measurement is quoted as evidence about either.
 - **The recap pass is unbounded and unthrottled, and its trigger has fired (2026-08-06).** Every
   boundary move spends a full cortex generation over the newly dropped turns, serialized ahead of
   the reply, and the fold's prompt is whatever those turns say. Two knobs were consciously not
@@ -134,7 +137,8 @@ Deferred refinements from Slice 3's cortex chat and session work; the windowing 
   ([ADR-0038](../adr/ADR-0038-ranked-recall.md) re-measured-behind-the-fence addendum), and the
   second is not here but in [inference-model-manager.md](inference-model-manager.md): a fold is the
   clearest case yet for the disable-thinking lever, since unlike a reply nobody ever sees the
-  thinking it pays for. **Trigger:** already fired; this is now work rather than a watch.
+  thinking it pays for. **Closed 2026-08-06** by the cheap-fold entry below, which built both
+  knobs and that lever together.
 - **Nothing tells the user a turn is folding (opened 2026-08-06).** The fold is serialized ahead of
   the reply, so on the turn where the boundary moves the user waits the fold plus the reply with
   nothing on screen that distinguishes it from a slow model: the overlay's whisper starts breathing
@@ -145,8 +149,8 @@ Deferred refinements from Slice 3's cortex chat and session work; the windowing 
   `capabilities` closure that holds one, so an event emitted during selection would surface while
   `assemble_inference_messages` is still running. What is missing is the port: `HistoryWindow.select`
   takes a history and a session id and no sink, so the window has nothing to emit onto. Deliberately
-  not built here, on a knob that is staying off. **Trigger:** any move of the default, which turns a
-  silent fold from something a deployment opted into on every long conversation.
+  not built here, on a knob that is staying off. **Closed 2026-08-06** by the cheap-fold entry
+  below, which widened exactly that port and found this reading of the obstacle correct.
 - **A recap of tainted turns landed fenced at both ends 2026-08-06 ([ADR-0038 untrusted-recap
   addendum](../adr/ADR-0038-ranked-recall.md)).** Read against the shipped write path, the entry's
   own premise was wrong and the real exposure is a different shape. **An untrusted tool result is
@@ -204,3 +208,63 @@ Deferred refinements from Slice 3's cortex chat and session work; the windowing 
   pins the model rather than the code. Remaining from this deferral: nothing of its own, the four
   things a default move waits on being the two entries above, the disable-thinking lever in
   [inference-model-manager.md](inference-model-manager.md), and the fold's silence, opened above.
+- **The recap pass is bounded and floored, the fold is no longer silent, and the default moved to
+  on, 2026-08-06 ([ADR-0038 cheap-fold addendum](../adr/ADR-0038-ranked-recall.md)).** The two
+  entries above named four things a default move waited on and all four landed together. **The
+  diagnosis held on every point** it was checked against the tree: `drain_text` called
+  `backend.stream(model, messages, schema=schema)` and `_build_payload` put nothing else on the
+  wire, so the request carried no `max_tokens` and no `chat_template_kwargs`; `RECAP_MAX` was
+  applied by `clean_recap` to text the model had already finished; and `drain_text` keeps only
+  `TextChunk`, so the whole `ReasoningChunk` stream was decoded, paid for and dropped unread.
+  **Thinking is now off per request**, through a new `GenerationBounds` on
+  `InferenceBackend.stream` that the llama.cpp adapter renders as
+  `chat_template_kwargs: {"enable_thinking": false}`, verified against the shipped build before
+  anything was written; per request rather than per server because one resident cortex both
+  answers the user, where the compose file deliberately leaves deliberation on, and folds a recap,
+  where it is thrown away. **The request is capped** at 512 tokens, which is `RECAP_MAX` said in
+  the request's own unit and roughly six times the account the prompt produces, and the cap and
+  the switch ship together because a cap alone is a trap this repo measured: the identical prompt
+  at `max_tokens` 160 and 256 with thinking on came back `finish_reason: "length"` with 624 and
+  988 characters of reasoning and an EMPTY reply, and even at 512 it is a coin flip. **Hitting a
+  bound degrades to the plain window rather than to half a sentence:** `clean_recap` refuses a
+  reply that does not end a sentence and one longer than `RECAP_MAX`, because storing a truncated
+  account would advance `covers` past turns the missing tail never reached and the next fold reads
+  from `covers` forward, so those turns would be lost for good rather than for a turn. **A fold
+  floor** (`CORTEX_HISTORY_RECAP_MIN_CHARS`, default 2000, clamped to the character budget at the
+  composition root) stops a small boundary move from spending a pass; deferring is not skipping,
+  since the next fold reads from the unmoved `covers` and picks up everything deferred, and what
+  it costs meanwhile is a gap smaller than the floor sitting in neither the window nor the account.
+  **Measured against the request that shipped**, on the identical prompt through the real adapter:
+  378, 531 and 602 decoded tokens at 13.6 s, 18.9 s and 21.5 s became 88, 87 and 88 at 3.9 s, 3.8 s
+  and 3.9 s, and the account got slightly LONGER (369 to 382 characters against 345 to 367). Across
+  the staged five-fold arm a fold decodes 61 to 163 tokens for 2.9 s to 6.2 s with no tail at all.
+  Remaining from this deferral: nothing of its own.
+- **Nothing telling the user a turn is folding closed 2026-08-06 ([ADR-0038 cheap-fold
+  addendum](../adr/ADR-0038-ranked-recall.md)).** The entry's reading of the obstacle held exactly:
+  the seam was never the problem and the port was. `HistoryWindow.select` now takes
+  `progress: ProgressSink | None`, handed per CALL rather than held on the window, matching the
+  dispatch stamp's discipline (a sink belongs to one `Converse` stream while a window is a policy,
+  so passing it in keeps a shared window correct for every stream rather than relying on one being
+  built per stream). `CharBudgetHistoryWindow` ignores it; the summarizing window emits one
+  `StatusUpdate(state="folding", detail="summarizing the earlier part of this conversation")`
+  before the pass and only when a pass is really about to happen, so a cache hit and a deferred
+  fold stay silent rather than putting a chip on screen for work that is not happening.
+  `assemble_inference_messages` passes `caps.progress`, and because the sink writes onto the
+  stream's own queue rather than through the suspended turn generator, the chip lands before the
+  reply's first token, which a converse-level test asserts by event order. **No overlay change was
+  needed**, a generic status already rendering as a chip, which the overlay's own suite pins.
+  Remaining from this deferral: nothing.
+- **The default moved to on, 2026-08-06, on the user's standing decision now carried by numbers
+  ([ADR-0038 cheap-fold addendum](../adr/ADR-0038-ranked-recall.md)).** The previous pass refused
+  to ship it over its numbers; these are the numbers that let it ship on them. **Retention moved
+  from 2 of 3 to 3 of 3** over the same three staged sessions of five compounding folds, and the
+  final accounts now carry the reference, the hotel, the card, the adapter, the museums and the
+  transit advice together instead of keeping recent filler. A fold costs 2.9 s to 6.2 s with a
+  chip on screen saying why, against 14.5 s to 224.5 s in silence. At the shipped floor the same
+  conversation folded **once** over five boundary moves for 3.4 s of model time in total, still
+  3 of 3. `CORTEX_HISTORY_SUMMARY=false` is the same one switch it always was, pointing the other
+  way, and the new default is pinned by a test that reddens when it is flipped back. **What the
+  run also showed honestly:** at the floor, the account covered 10 of the 20 dropped messages and
+  the other 10 sat in neither the window nor the account, under the floor, which is the gap the
+  budget clamp exists to bound. Remaining from this deferral: nothing of its own; the one-corpus
+  entry above is now the only thing between this feature and a claim about real conversations.

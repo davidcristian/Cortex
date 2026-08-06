@@ -202,12 +202,7 @@ async def run_from_env(
                     vision=sight,
                 ),
                 window=build_history_window(
-                    runtime.history_char_budget,
-                    summarize=runtime.history_summary,
-                    sessions=stores.sessions,
-                    backend=backend,
-                    model=runtime.cortex_model,
-                    clock=clock,
+                    runtime, sessions=stores.sessions, backend=backend, clock=clock
                 ),
                 guardrail=build_output_guardrail(runtime.output_guardrail),
                 # The core takes a bool; the composition root maps the string (ADR-0019).

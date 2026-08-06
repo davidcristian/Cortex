@@ -15,7 +15,7 @@ the code rather than at the mercy of the collector.
 from collections.abc import AsyncGenerator, Sequence
 
 from cortex_core.conversation import Message
-from cortex_core.inference import JsonSchema, TextChunk
+from cortex_core.inference import GenerationBounds, JsonSchema, TextChunk
 from cortex_core.ports import InferenceBackend
 
 
@@ -25,20 +25,24 @@ async def drain_text(
     messages: Sequence[Message],
     *,
     schema: JsonSchema | None = None,
+    bounds: GenerationBounds | None = None,
 ) -> str:
     """Consume one completion to its end, closing the stream whatever happens, and join its text.
 
     Only assistant text (``TextChunk``) contributes: a reasoning model's ``ReasoningChunk`` and any
     ``ToolCall`` are dropped, so a caller gets the reply and never the private thinking. ``schema``
-    constrains decoding when the caller needs a fixed shape (ADR-0028). ``InferenceError``
-    propagates for the caller to decide about, and the stream is closed on that path too, which is
-    the whole reason this exists.
+    constrains decoding when the caller needs a fixed shape (ADR-0028), and ``bounds`` caps how far
+    the model may go and whether it thinks first (ADR-0038 cheap-fold addendum). Every caller here
+    is an in-turn side call whose thinking is discarded by the line above, which is exactly the
+    case ``GenerationBounds(thinking=False)`` exists for. ``InferenceError`` propagates for the
+    caller to decide about, and the stream is closed on that path too, which is the whole reason
+    this exists.
 
     The port promises only an ``AsyncIterator``, and only an async *generator* has an ``aclose``
     to call; a plain iterator holds no suspended ``finally`` and so holds no lease. Both shapes are
     live in this tree, so the close is guarded rather than assumed.
     """
-    stream = backend.stream(model, messages, schema=schema)
+    stream = backend.stream(model, messages, schema=schema, bounds=bounds)
     parts: list[str] = []
     try:
         parts = [event.text async for event in stream if isinstance(event, TextChunk)]

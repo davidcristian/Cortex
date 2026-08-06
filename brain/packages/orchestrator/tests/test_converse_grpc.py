@@ -15,6 +15,7 @@ from grpc import aio
 from cortex_core import (
     Confirmer,
     EchoInferenceBackend,
+    GenerationBounds,
     InferenceEvent,
     InMemorySessionStore,
     InMemoryToolRegistry,
@@ -147,10 +148,13 @@ class BlockingFirstTurnBackend:
         *,
         tools: Sequence[ToolSpec] = (),
         schema: JsonSchema | None = None,
+        bounds: GenerationBounds | None = None,
     ) -> AsyncIterator[InferenceEvent]:
         self.calls += 1
         if self.calls > 1:
-            async for event in self._echo.stream(model, messages, tools=tools, schema=schema):
+            async for event in self._echo.stream(
+                model, messages, tools=tools, schema=schema, bounds=bounds
+            ):
                 yield event
             return
         try:
@@ -303,8 +307,9 @@ class _SendOnceBackend:
         *,
         tools: Sequence[ToolSpec] = (),
         schema: JsonSchema | None = None,
+        bounds: GenerationBounds | None = None,
     ) -> AsyncIterator[InferenceEvent]:
-        del model, messages, tools, schema
+        del model, messages, tools, schema, bounds
         self._calls += 1
         if self._calls == 1:
             yield ToolCall(id="c1", name="send", arguments={"to": "bob@example.com"})
