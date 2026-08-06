@@ -1398,3 +1398,179 @@ The three records for this closure are [docs/refinements/vision.md](../refinemen
 line on [docs/refinements/index.md](../refinements/index.md), and this addendum. The procedure,
 including the four things about this arm that bite before the model does, is in
 [docs/runbooks/llamacpp-gpu.md](../runbooks/llamacpp-gpu.md) beside the brain tier's row.
+
+## Addendum (2026-08-06): what a 4K desktop is actually legible at, and what the knob costs
+
+The headline risk this ADR shipped with is that a 4K desktop downscaled to 1600 px renders small
+text unreadable. It was a prediction, argued from the 266-token saturation measured before
+deciding. It has now been measured, and the prediction was right about the failure and wrong about
+one of its own premises. The first mitigation was written down as "a deployment flag with no code
+at all"; the flag exists, it works, and it was not reachable from this deployment and is not safe
+to set on its own.
+
+### Agent-validated (2026-08-06, real cortex plus projector on the 24 GB card)
+
+The corpus is five synthetic 3840x2160 desktops rendered through FreeType at the physical type
+sizes a real desktop uses: a code editor and a chat client and a spreadsheet and a browser article
+at 150% scaling, which is what a 4K laptop ships at, and a terminal at 100%, which is what an
+unscaled monitor gives a person who likes small type. Between them they carry 47 ground-truth
+strings from 15 px to 52 px, over dark and light themes, at full contrast and at the grey a
+spreadsheet sets its cells in. Each screen is put through a transcription of the body's own
+pipeline, `scaled_dimensions` and the integer-floor `box_filter` of `screen_image.rs`, arithmetic
+for arithmetic, proven equal to a literal transcription of the Rust loop on four random frames, so
+the picture scored is the picture the seam would carry. The request is built by shipped code, the
+same scaffold the image arm of the injection harness uses: `CaptureScreenTool` over an in-memory
+body, `result_message`'s fence, `security_preamble_message`, and the adapter's own wire mapper. The
+ask names each ground-truth string by its context and never by its value, offers "unreadable" as an
+answer, and is answered under a JSON schema so scoring is mechanical. A hit is the ground truth
+appearing in the answer with the injection harness's confusable glyph classes folded, which can
+only be generous.
+
+**The picture the token budget buys, measured first.** One 4K screen costs the same 266 prompt
+tokens at every capture edge from 1280 px to 3840 px, so the pixels above roughly 1040x585 are
+discarded inside the encoder. `--image-max-tokens` moves that ceiling: at 1024 the same screen
+costs 629 tokens from a 1600 px capture and 1010 from a 2048 px one, saturating there; at 2048 it
+reaches 1982 tokens from a 3072 px capture. The flag is therefore **not** a no-op on this model,
+which the flag's own help text ("only used by vision models with dynamic resolution") left open.
+
+| capture edge | shipped | `--image-max-tokens 1024` | `--image-max-tokens 2048` |
+|---|---|---|---|
+| 896x504 | 211 | 211 | 211 |
+| 1280x720 | 266 | 407 | 407 |
+| 1600x900 | 266 | 629 | 629 |
+| 2048x1152 | 266 | 1010 | 1034 |
+| 3072x1728 | 266 | 1010 | 1982 |
+| 3840x2160 | 266 | 1010 | 1982 |
+
+**The legibility number.** Ground-truth strings read, out of 47, ranges over repeat runs:
+
+| server budget | capture edge | image tokens | read | answered "unreadable" |
+|---|---|---|---|---|
+| shipped | 400 px (control) | 47 | 2 | 12 to 16 |
+| shipped | **1600 px (default)** | 266 | **6 to 8** | 3 |
+| shipped | 2048 px | 266 | 4 | 9 |
+| shipped | 3072 px | 266 | 4 | 10 |
+| 1024 | 1600 px (default) | 629 | 24 to 26 | 10 to 11 |
+| 1024 | **2048 px** | 1010 | **36 to 38** | 1 to 3 |
+| 1024 | 3840 px | 1010 | 30 | 4 |
+| 2048 | 3072 px | 1982 | 36 to 37 | 1 |
+
+So the shipped deployment reads **13%** of what is on a 4K screen, the flag alone reads **53%**,
+and the flag with a 2048 px capture reads **79%**. Two rows are worth more than the headline. A
+bigger PNG at the shipped budget buys nothing at all (4 of 47 at 2048 px and at 3072 px, no better
+than 1600 px), which is the saturation restated as a legibility fact and the reason this is a
+budget question rather than a bytes question. And a full-resolution capture at the raised budget is
+**worse** than a 2048 px one (30 against 36 to 38) on the same 1010 tokens, because the encoder's
+own resize to fit its budget is a poorer filter than the body's box average, so downscaling to the
+budget in `screen_image.rs` beats handing the encoder everything.
+
+**Where it fails, which is the number a region field would be designed against.** Hits per
+physical type size, pooled over runs, with the cap height each size draws:
+
+| size | cap height | shipped, 1600 px | 1024, 1600 px | 1024, 2048 px |
+|---|---|---|---|---|
+| 15 px | 11 px | 0/24 | 0/16 | 4/16 |
+| 18 px | 12 px | 3/15 | 5/10 | 8/10 |
+| 20 px | 14 px | 4/36 | 7/24 | 18/24 |
+| 21 px | 14 px | 0/15 | 10/10 | 10/10 |
+| 26 px | 18 px | 7/18 | 12/12 | 12/12 |
+| 30 px | 20 px | 0/12 | 8/8 | 8/8 |
+| 52 px | 36 px | 3/3 | 2/2 | 2/2 |
+
+Size does not order the failures on its own, and the 30 px row is why: at the shipped budget four
+digit strings set in a 30 px serif body were read 0 of 12 while a 28 px bold count was read 3 of 3.
+Digits inside running prose fail before words do, and a bold heading survives a downscale that
+takes body text with it. Read by scene, the shipped budget reads the terminal 0 of 27, the
+spreadsheet 1 of 30, and the code editor 6 of 27; the raised budget with a 2048 px capture reads
+the editor 18 of 18, the browser 20 of 20 and the chat client 18 of 18, and still reads the
+terminal 6 of 18 and the spreadsheet 12 of 20. **The honest boundary is 21 px and up at the flag
+alone, 18 to 20 px with a 2048 px capture, and nothing rescues 15 px.**
+
+**What it costs.** Through the `model-host` sidecar on the 24 GB card, with the idle card reading
+2581 to 2651 MiB: the cortex plus its projector holds 10766 to 10815 MiB shipped, 11181 MiB at a
+1024 budget and 11726 MiB at 2048, so the recommended setting costs roughly **400 MiB**, all of it
+the micro-batch rather than the budget. That leaves the tier far inside the 11.3 GB
+`CORTEX_VRAM_CORTEX_GB` reservation, so no placer or budget change follows. Time to first token on
+the shipped-shape request, streaming with thinking on and no `max_tokens`, moves from a median 0.94
+to 1.08 s to a median 1.67 to 1.68 s, and the reply costs 744 more context tokens out of 16384.
+
+**The flag alone is a way to crash the server, which is why it is not a deployment flag.** A
+picture is decoded as one non-causal chunk, and llama.cpp asserts the micro-batch is at least that
+large. Raising `--image-max-tokens` past the engine's 512 default without raising `--ubatch-size`
+with it aborts `llama-server` inside `llama_decode` on the first oversized picture: `GGML_ASSERT`,
+SIGSEGV, container exit 139, no error reply, and vision gone for the rest of the session. This was
+met in anger on the second command of the sitting, on a 1600 px capture. It is also
+build-dependent: a locally cached `ghcr.io/ggml-org/llama.cpp:server-cuda` at b9870 survived the
+same request that aborts b10236 and b10276, which is one more argument for this ADR's standing
+"pin the image" note.
+
+### What changed, and what did not
+
+`CORTEX_IMAGE_MAX_TOKENS` is a new knob on the model-host sidecar, **defaulting to off**, so a
+stack that sets nothing comes up with a byte-identical argv (verified live: the child's
+`/proc/<pid>/cmdline` ends at the projector). Setting it emits `--image-max-tokens N` **and**
+`--ubatch-size max(N, 512)`, one knob for two flags, because the pair cannot be split without the
+abort above. It hangs off the projector, so a text-only tier neither raises its micro-batch nor
+pays the VRAM. The brain's half needed no change at all: `CORTEX_BODY_CAPTURE_MAX_EDGE` has been a
+deployment variable since this slice landed, bounded by the body's own 4096 px ceiling.
+
+**The default is not changed here.** The recommended pair costs VRAM and latency that this ADR is
+not entitled to spend on the user's behalf while `CORTEX_VRAM_SOFT_CAP_GB` exists precisely because
+the card is shared, and the honest reading of the byte table below is that a 2048 px capture moves
+a pathological screen closer to the ladder. The runbook carries the recommendation and the numbers;
+flipping the default is a decision for the maintainer.
+
+**One consequence of a 2048 px capture, measured rather than assumed.** PNG bytes for the whole
+3840x2160 frame, against the 6 MiB `MAX_CAPTURE_BYTES` ceiling: uniform noise, the incompressible
+worst case, encodes to 3.80 MB at 1600 px and **6.50 MB at 2048 px**, which is over the ceiling and
+fires the halving ladder down to 1024 px, below even the shipped view. A photographic wallpaper
+with grain reaches 4.53 MB at 2048 px and fits. Every screen in the text corpus is under 220 KB at
+every edge. So the recommendation is safe for the screens people read text off, and a genuinely
+pathological screen degrades harder than it does today. That is the ladder working, and it is a
+second argument for a region rather than a bigger frame.
+
+### One shipped claim this measurement falsifies
+
+`screen_tool.py`'s `describe` says, in its docstring, that naming the source size "lets the model
+say 'that text is too small for me to read' instead of hallucinating it". With that exact sentence
+in front of it, and with "unreadable" offered as an allowed answer in the ask, the shipped
+deployment declined on **3 of 47** strings and confidently invented the other 38: `50051` for a
+published port, `e3b0c442` for a digest prefix, `Astra Systems` for a client that is not on the
+screen. Telling the model it is looking at a shrunk view does not make it decline. The stand-in
+text keeps its other jobs (it is still the only place the source size is stated, and it is still
+free of attacker-chosen strings), but the docstring's claim is narrowed to what it does: it states
+a fact the model may use, not one it acts on. A capture the model cannot read is silently
+indistinguishable from one it can, and the raised budget helps by moving the confabulation
+threshold rather than by making refusal work.
+
+### What this leaves the region and window fields to do
+
+The deferral said take the env var first and measure before spending the proto fields. Taken, and
+the fields are **demoted rather than declined**: the entry stays open, since three things survive
+the knob.
+
+- **The smallest text.** 15 px at 100% scaling is 4 of 16 at the best setting measured, and a
+  larger budget does not fix it (2048 tokens on a 3072 px capture reads the same 4 of 16). Only
+  cutting the source region does, because the whole quantity that matters is source pixels per
+  image token.
+- **The byte ceiling.** A region is the only way to send a dense screen's interesting part without
+  pushing the frame toward the halving ladder.
+- **Privacy, which was never a legibility argument.** Reading one window means sending one window.
+
+What the fields must express follows from the measurement rather than from taste. The binding
+quantity is **source pixels per image token**, so a region has to be a rectangle in the display's
+own physical coordinates rather than a normalized one, and the useful rule a caller can then follow
+is to keep the region's long edge at or under the capture edge so no downscale happens at all. A
+`display_index` is not optional beside it, because on a multi-monitor desktop the bounding box of
+"the screen" is larger than any one screen and the ratio above is what gets worse. And a window
+handle would serve the common ask better than a rectangle, since the body knows window bounds and
+the model does not: "read the window I am looking at" is a request the model cannot express in
+pixels. Those are three fields with a consumer each, which is the bar decision 11 set.
+
+The three records for this measurement are
+[docs/refinements/vision.md](../refinements/vision.md), its line on
+[docs/refinements/index.md](../refinements/index.md), and this addendum. The procedure and the
+recommended setting are in [docs/runbooks/llamacpp-gpu.md](../runbooks/llamacpp-gpu.md), and the
+re-runnable half is `packages/inference/tests/test_image_budget_live.py`, which asserts the
+saturation, asserts the knob raises it, and proves the abort by stripping the micro-batch back off
+the shipped argv.

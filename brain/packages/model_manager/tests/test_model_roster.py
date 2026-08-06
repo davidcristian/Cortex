@@ -7,6 +7,7 @@ rather than trusted to a code review of two files.
 """
 
 import pytest
+from pydantic import ValidationError
 
 from cortex_model_manager import (
     ModelHostConfig,
@@ -176,3 +177,56 @@ def test_the_projector_is_resolved_under_the_read_only_models_mount(
     monkeypatch.setenv("CORTEX_MMPROJ_FILE_CORTEX", "mmproj.gguf")
     argv = ModelHostConfig().roster()["cortex"].argv
     assert "/srv/models/mmproj.gguf" in argv
+
+
+def test_a_raised_image_budget_carries_the_micro_batch_up_with_it(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """One knob, two flags, because the pair cannot be split without crashing the server.
+
+    A picture is decoded as one non-causal chunk and llama.cpp asserts the micro-batch is at
+    least that large, so a budget above the engine's 512 default without a matching
+    ``--ubatch-size`` aborts the process on the first oversized picture. Emitting them together
+    is what makes this knob unable to be set into that crash.
+    """
+    monkeypatch.setenv("CORTEX_MMPROJ_FILE_CORTEX", "mmproj.gguf")
+    monkeypatch.setenv("CORTEX_IMAGE_MAX_TOKENS", "1024")
+    argv = ModelHostConfig().roster()["cortex"].argv
+    assert argv[-4:] == ("--image-max-tokens", "1024", "--ubatch-size", "1024")
+
+
+def test_a_budget_under_the_engine_default_leaves_the_micro_batch_alone(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Lowering the budget must not lower the micro-batch, which every text turn also uses."""
+    monkeypatch.setenv("CORTEX_MMPROJ_FILE_CORTEX", "mmproj.gguf")
+    monkeypatch.setenv("CORTEX_IMAGE_MAX_TOKENS", "128")
+    argv = ModelHostConfig().roster()["cortex"].argv
+    assert argv[-4:] == ("--image-max-tokens", "128", "--ubatch-size", "512")
+
+
+def test_the_shipped_default_leaves_the_image_budget_to_the_model(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("CORTEX_MMPROJ_FILE_CORTEX", "mmproj.gguf")
+    monkeypatch.delenv("CORTEX_IMAGE_MAX_TOKENS", raising=False)
+    argv = ModelHostConfig().roster()["cortex"].argv
+    assert "--image-max-tokens" not in argv
+    assert argv[-2:] == ("--mmproj", "/models/mmproj.gguf")
+
+
+def test_an_image_budget_without_a_projector_costs_nothing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A text-only tier has no pictures, so the budget must not raise its micro-batch or VRAM."""
+    monkeypatch.delenv("CORTEX_MMPROJ_FILE_CORTEX", raising=False)
+    monkeypatch.setenv("CORTEX_IMAGE_MAX_TOKENS", "1024")
+    argv = ModelHostConfig().roster()["cortex"].argv
+    assert "--image-max-tokens" not in argv
+    assert "--ubatch-size" not in argv
+
+
+def test_a_negative_image_budget_is_refused(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("CORTEX_IMAGE_MAX_TOKENS", "-1")
+    with pytest.raises(ValidationError):
+        ModelHostConfig()

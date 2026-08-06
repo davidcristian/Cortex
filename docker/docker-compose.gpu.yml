@@ -76,6 +76,17 @@ services:
       # model under the same read-only mount, so no extra bind is needed.
       CORTEX_MODEL_FILE_CORTEX: "${CORTEX_MODEL_FILE_CORTEX:-google/gemma-4-12B-it-qat-q4_0-gguf/gemma-4-12b-it-qat-q4_0.gguf}"
       CORTEX_MMPROJ_FILE_CORTEX: "${CORTEX_MMPROJ_FILE_CORTEX:-}"
+      # How many tokens one picture may occupy, and with it how much of a 4K screen survives the
+      # downscale. 0 leaves the budget the model declares for itself, which measured 266 tokens on
+      # the pick and makes interface text under roughly 28 physical pixels unreadable. 1024,
+      # together with CORTEX_BODY_CAPTURE_MAX_EDGE=2048 on the brain, took a 4K corpus from 13% of
+      # ground-truth strings read to 79% for about 400 MiB of VRAM and 0.6 s of latency; the
+      # measurement and the failure boundary it leaves are in docs/runbooks/llamacpp-gpu.md.
+      # Ignored without a projector. Never set llama.cpp's
+      # --image-max-tokens by hand instead: a budget over 512 with the default micro-batch aborts
+      # the server on the first oversized picture, and this knob emits the matching --ubatch-size
+      # for exactly that reason.
+      CORTEX_IMAGE_MAX_TOKENS: "${CORTEX_IMAGE_MAX_TOKENS:-0}"
       CORTEX_NGL: "${CORTEX_NGL:-99}"
       CORTEX_CTX_SIZE: "${CORTEX_CTX_SIZE:-16384}"
       # The logical ids, which must match the brain's own (the endpoint map is static config on
