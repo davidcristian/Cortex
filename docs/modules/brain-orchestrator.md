@@ -34,7 +34,11 @@ Config (pydantic-settings; explicit constructor arguments beat the environment):
   `0` disables windowing, negative rejected);
   `history_summary: bool = False` (`CORTEX_HISTORY_SUMMARY`, ADR-0038 decision 9) recaps the
   turns the window drops instead of losing them; off by default because it spends a cortex
-  generation on the turns where the boundary moves, and ignored when the budget is `0`;
+  generation on the turns where the boundary moves, and ignored when the budget is `0`. The
+  default was re-examined 2026-08-06 and stayed off on measured numbers (ADR-0038
+  re-measured-behind-the-fence addendum): a fold costs 14.5 s to 30.8 s typically and reached
+  224.5 s, nothing on screen says a turn is folding, and over five compounding folds the fact a
+  question needed survived 2 times in 3;
   `output_guardrail: "redact" | "strict" | "off" = "redact"` (`CORTEX_OUTPUT_GUARDRAIL`,
   ADR-0015) is the model-independent laundering defense: `redact` (default) scrubs
   verbatim-untrusted-sourced URLs from the reply the user sees, `strict` (addendum) scrubs
