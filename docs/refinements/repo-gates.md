@@ -9,18 +9,18 @@ deferred-refinements section on 2026-07-15 with the entries kept verbatim; lande
 entries are the historical record of what each deferral became, and the index at
 [index.md](index.md) carries the recommended pickup order.
 
-**Open items:** 7 (`cargo clippy` for the Tauri shell in CI, moved to fix-when-it-bites
+**Open items:** 6 (`cargo clippy` for the Tauri shell in CI, moved to fix-when-it-bites
 2026-07-16; standing test-order randomization, opened as fix-when-it-bites 2026-07-18; the three
 exceptions the wrap gate did not ship, opened as fix-when-it-bites 2026-07-19 behind the landing
 of the commit-body wrap check itself; the overlay stylesheet outside the line cap, opened as
 fix-when-it-bites 2026-08-03 behind the cap reaching the overlay's TypeScript; the couplings the
 cross-language constant scan does not hold yet, opened as fix-when-it-bites 2026-08-03 behind
-that scan landing; the live pgvector run still sharing the brain's `memories` table, opened as
-fix-when-it-bites 2026-08-03 behind the live Redis runs getting a database of their own; a compose
+that scan landing; a compose
 bind default that lands in the repo tree being stageable, opened as fix-when-it-bites 2026-08-06
 when the two live ones were ignored; the rest
-landed 2026-07-16, 2026-07-19, 2026-08-03 and 2026-08-06, the last of them the core barrel at its
-300-line cap, see the outcome notes below the verbatim entries)
+landed 2026-07-16, 2026-07-19, 2026-08-03 and 2026-08-06, the last of them the live pgvector run
+sharing the brain's `memories` table, closed ahead of its trigger rather than by it,
+see the outcome notes below the verbatim entries)
 
 **Prose style ([ADR-0026](../adr/ADR-0026-prose-style-gates.md)):**
 - **Check the commit body's 72-column wrap, not only the header's length.** Opened 2026-07-18,
@@ -138,6 +138,28 @@ landed 2026-07-16, 2026-07-19, 2026-08-03 and 2026-08-06, the last of them the c
   `select count(*) from memories where id not like 'contract-%'`. Recorded at the module doc
   ([brain-memory.md](../modules/brain-memory.md)) and in its runbook
   ([memory-pgvector.md](../runbooks/memory-pgvector.md)) so the failure is legible when it lands.
+
+  **Landed 2026-08-06 ([ADR-0002 addendum on the live pgvector database](../adr/ADR-0002-toolchain-gates.md)),
+  ahead of its trigger rather than by it.** What moved it was two pieces of work queued behind it
+  rather than a failure: the judge reranker's cost fell twentyfold, so a memory-enabled deployment
+  that actually remembers things stopped being hypothetical, and the widened recall corpus that
+  decides that default would have put the first real rows in the table. The entry's own measurement
+  was reproduced before anything was changed, exactly as written: one real memory row turned
+  `check_empty_search` red at `memory_contract.py:36`. **What it became:** the live run opens the
+  `cortex_contract` database (`brain/packages/memory/tests/live_postgres.py`, the Postgres twin of
+  `live_redis.py`, rewriting the DSN's path where that one rewrites the database index and calling
+  `TRUNCATE TABLE memories` where that one calls `FLUSHDB`), emptied before the suite and after
+  every check, and `docker/postgres/live-contract-db.sql` bootstraps it through the compose by
+  including `init.sql` rather than restating the schema. The alternative this entry named,
+  re-deriving the two whole-table checks inside a `contract-` scope, was not taken: it narrows what
+  the contract proves in order to survive a shared table, and the whole point of a suite the fake
+  and the real adapter both pass is that they pass the same checks. The schema-plus-`search_path`
+  option was rejected on its failure mode, since the adapter's SQL is unqualified and a
+  `search_path` that fails to apply lands the suite, its `TRUNCATE` included, on the brain's own
+  table in silence. A machine whose data dir predates the bootstrap file gets a run that refuses to
+  start, naming the two statements that create the database, rather than one that quietly connects
+  elsewhere. Proven with a real row sitting in the brain's table: the suite passes, that table is
+  byte-identical across the run, and all four refusals were fired before being trusted.
 
 **Gate coverage ([ADR-0011](../adr/ADR-0011-body-v1.md)):**
 - **`cargo fmt` and `cargo clippy` for the two ungated Rust trees.** `just check-body` runs

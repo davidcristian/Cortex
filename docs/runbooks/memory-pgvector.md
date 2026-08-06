@@ -16,7 +16,9 @@ docker compose --project-directory . -f docker/docker-compose.yml -f docker/dock
 ```
 
 `docker/postgres/init.sql` creates the `vector` extension and the `memories` table on first
-init. Data lives in the `cortex-pgdata` named volume (not a Windows bind mount, ADR-0008).
+init, and `docker/postgres/live-contract-db.sql` creates the `cortex_contract` database the
+integration test below owns, applying that same file to it. Data lives in the `cortex-pgdata`
+named volume (not a Windows bind mount, ADR-0008).
 
 - **Sanity poke** (loopback publish on `127.0.0.1:5432`):
   `docker compose ... exec postgres psql -U cortex -d cortex -c '\dx vector'`.
@@ -33,16 +35,28 @@ cd brain && CORTEX_MEMORY_DSN=postgresql://cortex:cortex@127.0.0.1:5432/cortex \
 `--no-cov` matters. The 100% gate in the workspace addopts would otherwise fail the run.
 This runs the full `MemoryStore` contract (empty search, cosine ranking, top-k, roundtrip
 fidelity including the `scope`, and scope-filter isolation/union) against real pgvector,
-proving the adapter's SQL, which CI's canned-row fake cannot. The test cleans up its own
-`contract-%` rows.
+proving the adapter's SQL, which CI's canned-row fake cannot.
 
-**It needs the `memories` table to be empty**, unlike the live Redis suites, which take a
-logical database of their own. Two of its checks assert over the whole table (`check_empty_search`
-wants `search(k=5)` to come back empty, `check_ranks_by_similarity` wants an exact top-2), so a
-single real memory reddens the run over a correct adapter and the failure looks like an adapter
-bug. If that happens, check `select count(*) from memories where id not like 'contract-%'` before
-reading anything into the assertion. Giving this suite its own Postgres database or schema is
-recorded in [docs/refinements/repo-gates.md](../refinements/repo-gates.md).
+**Give it the DSN of the brain's database, not of its own.** The run redirects onto
+`cortex_contract` itself (`brain/packages/memory/tests/live_postgres.py`), which it empties before
+the suite and after every check, so your memories are never read, written, or deleted and the two
+checks that assert over the whole table (`check_empty_search` wants `search(k=5)` empty,
+`check_ranks_by_similarity` an exact top-2) hold however much the brain has remembered. That is
+the Redis suites' logical database in the form Postgres has for it (ADR-0002 addendum on the live
+pgvector database). Pointing `CORTEX_MEMORY_DSN` at `cortex_contract` fails the run rather than
+running there, since that would aim the brain at the database the suite empties.
+
+**If the run refuses to start** with `the cortex_contract database is missing or unbootstrapped`,
+your data dir predates that database: an initdb script never re-runs on an existing volume. Create
+it once, with the same bootstrap file, which stays mounted in the container after init:
+
+```
+docker compose ... exec postgres psql -U cortex -d cortex -c 'CREATE DATABASE cortex_contract;'
+docker compose ... exec postgres psql -U cortex -d cortex_contract -f /docker-entrypoint-initdb.d/init.sql
+```
+
+It holds nothing but the suite's own rows, so dropping it costs nothing;
+`pg-backup` dumps `-d cortex` only, and never exports it.
 
 ## Memory scoping (ADR-0008 scoping addendum)
 
@@ -94,6 +108,10 @@ docker compose ... exec postgres psql -U cortex -d cortex -c \
    ALTER TABLE memories ADD COLUMN IF NOT EXISTS tainted boolean NOT NULL DEFAULT false; \
    CREATE INDEX IF NOT EXISTS memories_scope_idx ON memories (scope);"
 ```
+
+An existing volume now has **two** databases holding that table, so run the same statements
+against `-d cortex_contract` as well, or drop and re-create it from `init.sql`; the contract run
+tests the adapter against whatever schema it finds there.
 
 ## Bring up the CPU embedder (for the end-to-end path)
 

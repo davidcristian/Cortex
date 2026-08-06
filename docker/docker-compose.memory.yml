@@ -29,6 +29,10 @@ services:
         source: ./docker/postgres/init.sql
         target: /docker-entrypoint-initdb.d/init.sql
         read_only: true
+      - type: bind
+        source: ./docker/postgres/live-contract-db.sql
+        target: /docker-entrypoint-initdb.d/live-contract-db.sql
+        read_only: true
     ports:
       # Loopback-only publish so host-side integration tests can reach it (assumption 5).
       - "127.0.0.1:5432:5432"
