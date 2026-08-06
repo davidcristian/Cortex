@@ -37,6 +37,14 @@ DEFAULT_SUBAGENT_GPU_MODEL = "subagent-gpu"
 # subagent service does.
 _REASONING_OFF = ("--chat-template-kwargs", '{"enable_thinking": false}')
 
+# llama.cpp's own micro-batch default. A picture is decoded as one non-causal chunk, and the
+# engine asserts the micro-batch is at least as large as that chunk, so a per-image token budget
+# above this number must carry the micro-batch up with it. Measured rather than inferred: raising
+# the budget alone aborts llama-server with SIGSEGV on the first oversized picture (a GGML_ASSERT
+# in llama-context, not an error reply), which takes vision down for the whole session. That is
+# why the two ride one knob here instead of two.
+_LLAMA_DEFAULT_UBATCH = 512
+
 
 class ModelHostConfig(BaseSettings):
     """Env-only settings for the supervisor sidecar. Read once, at ``main``.
@@ -70,6 +78,15 @@ class ModelHostConfig(BaseSettings):
     # runs; naming a file adds llama.cpp's --mmproj pair, and the brain then discovers the
     # capability from the running server's /props rather than from a second flag here.
     cortex_mmproj_file: str = Field(default="", validation_alias="CORTEX_MMPROJ_FILE_CORTEX")
+    # How many tokens one picture may occupy. Zero (the default) leaves the budget the model
+    # declares for itself, which on the shipped cortex saturates at 266 tokens and makes a 4K
+    # desktop's interface text unreadable below roughly 28 physical pixels. Raising it raises the
+    # resolution the projector keeps, and the measured recommendation is 1024 with a 2048 px
+    # capture (docs/runbooks/llamacpp-gpu.md). Ignored without a projector, since it is a budget
+    # for pictures and a text-only tier has none.
+    cortex_image_max_tokens: int = Field(
+        default=0, ge=0, validation_alias="CORTEX_IMAGE_MAX_TOKENS"
+    )
     cortex_ngl: int = Field(default=99, validation_alias="CORTEX_NGL")
     cortex_ctx_size: int = Field(default=16384, gt=0, validation_alias="CORTEX_CTX_SIZE")
     cortex_port: int = Field(default=8080, gt=0, le=65535)
@@ -103,7 +120,7 @@ class ModelHostConfig(BaseSettings):
                 ngl=self.cortex_ngl,
                 ctx_size=self.cortex_ctx_size,
                 parallel=1,
-                extra=self._mmproj(),
+                extra=self._vision(),
             ),
             TierArgs(
                 model=self.brain_model,
@@ -129,10 +146,25 @@ class ModelHostConfig(BaseSettings):
         """The fixed set of logical ids this daemon will ever run, keyed by id."""
         return build_roster(tier_spec(self.llama_bin, tier) for tier in self.tiers())
 
-    def _mmproj(self) -> tuple[str, ...]:
-        """llama.cpp's projector flag pair for the cortex tier, or nothing when none is named."""
+    def _vision(self) -> tuple[str, ...]:
+        """The cortex tier's vision tail: the projector, and the budget it is read at.
+
+        Both hang off the projector, because a tier with no projector has no pictures: naming a
+        token budget on a text-only deployment would raise the micro-batch, and with it the VRAM,
+        for nothing.
+        """
         path = self._path(self.cortex_mmproj_file)
-        return ("--mmproj", path) if path else ()
+        if not path:
+            return ()
+        return ("--mmproj", path, *self._image_budget())
+
+    def _image_budget(self) -> tuple[str, ...]:
+        """The per-image token budget, with the micro-batch a raised budget forces beside it."""
+        budget = self.cortex_image_max_tokens
+        if not budget:
+            return ()
+        ubatch = max(budget, _LLAMA_DEFAULT_UBATCH)
+        return ("--image-max-tokens", str(budget), "--ubatch-size", str(ubatch))
 
     def _path(self, file: str) -> str:
         """An artifact path under the read-only mount, or empty for a tier with no file."""

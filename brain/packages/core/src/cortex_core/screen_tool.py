@@ -73,8 +73,12 @@ def describe(capture: ScreenCapture) -> str:
 
     Integers and a timestamp only. It deliberately carries no window title and no application
     name: both are attacker-chosen strings, and a caption assembled from them would be the one
-    part of an untrusted screen that arrives outside the picture. Naming the source size lets
-    the model say "that text is too small for me to read" instead of hallucinating it.
+    part of an untrusted screen that arrives outside the picture. Naming the source size states
+    the fact that the picture is a shrunk view, and that is all it does: measured against a 4K
+    corpus with "unreadable" offered as an allowed answer, the cortex declined on 3 of 47
+    illegible strings and invented the other 38, so this sentence does not buy a refusal
+    (ADR-0029's legibility addendum). What moves that line is the image token budget, which is a
+    deployment setting rather than a caption.
     """
     image = capture.image
     scale = (

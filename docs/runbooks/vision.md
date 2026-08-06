@@ -30,7 +30,7 @@ The other knobs, all optional:
 | Variable | Side | Default | Meaning |
 | --- | --- | --- | --- |
 | `CORTEX_HOST_CAPTURE_NOTIFY` | host | on | `0` silences the body-authored OS notification a successful capture shows. |
-| `CORTEX_BODY_CAPTURE_MAX_EDGE` | brain | `0` | Longest edge to ask the body for, in physical pixels, **and** the edge the reply is held to on receipt. `0` leaves the body's own default (1600) and holds the reply to the 8192 px domain ceiling alone. Outside `0..8192` the brain refuses to boot. |
+| `CORTEX_BODY_CAPTURE_MAX_EDGE` | brain | `0` | Longest edge to ask the body for, in physical pixels, **and** the edge the reply is held to on receipt. `0` leaves the body's own default (1600) and holds the reply to the 8192 px domain ceiling alone. Outside `0..8192` the brain refuses to boot. Raise it to `2048` only together with `CORTEX_IMAGE_MAX_TOKENS` on the model host: on its own it sends more pixels into an encoder that discards them, and the pair is what makes a 4K screen legible ([llamacpp-gpu.md](llamacpp-gpu.md)). |
 | `CORTEX_BODY_MAX_IMAGE_BYTES` | brain | `6291456` | The byte budget, sent to the body **and** re-verified on receipt. 6 MiB, the same number as the body's own `MAX_CAPTURE_BYTES`, which `just check-crosscheck` holds it to. It may only tighten: outside `1..6291456` the brain refuses to boot, since the body clamps to its own ceiling anyway. |
 | `CORTEX_BODY_CAPTURE_TIMEOUT_S` | brain | `10.0` | The deadline on the capture call, the only one on this seam. Must be positive. |
 | `CORTEX_TOOLS_GATED` | brain | `escalate_to_brain,send_email` | Adding `capture_screen` here puts an approval card in front of every capture. See "if you want it gated" below. |
@@ -101,9 +101,13 @@ them: [docs/host/windows-capture.md](../host/windows-capture.md).
    into a rendered reply becomes screen content on the next capture).
 4. Things to expect rather than debug: GDI renders hardware-overlay and DRM-protected surfaces
    (some video players, some browsers' protected playback) **black**, silently, with no error to
-   distinguish it from a dark screen. Small text on a 4K display downscaled to 1600 px may be
-   illegible; that is the headline risk, and the first mitigation is llama.cpp's
-   `--image-max-tokens` rather than a bigger PNG.
+   distinguish it from a dark screen. Small text on a 4K display downscaled to 1600 px **is**
+   illegible at the shipped image budget, measured 2026-08-06: 6 to 8 of 47 ground-truth strings
+   read off five 4K desktops, with the model inventing the rest rather than declining. The
+   mitigation is a pair of settings, `CORTEX_IMAGE_MAX_TOKENS=1024` on the model host and
+   `CORTEX_BODY_CAPTURE_MAX_EDGE=2048` here, which takes it to 36 to 38; a bigger PNG alone changes
+   nothing. Both are off by default and the numbers, the costs and the sizes they still cannot
+   reach are in [llamacpp-gpu.md](llamacpp-gpu.md).
 
 ## What a capture does to the turn
 
