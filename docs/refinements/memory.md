@@ -2,7 +2,7 @@
 
 Deferred refinements from the Slice 5 memory work under [ADR-0008](../adr/ADR-0008-memory-v1.md): the memory store, its scoping seam, and the pure-core recall policies. Extracted from the ROADMAP's deferred-refinements section on 2026-07-15 with the entries kept verbatim; landed entries are the historical record of what each deferral became, and the index at [index.md](index.md) carries the recommended pickup order.
 
-**Open items:** 9 (the judge's default now that it is cheap, session+global union read policy, per-scope retention/eviction, cross-scope recall ranking, tiered / self-editing memory + summarization, write-salience policy, ANN index, a cross-encoder rank, auditing the candidates that were dropped). **The last two were added 2026-08-06, correcting a line and an index cell that had read 7.** The ranked-recall close did half of its own bookkeeping: it struck the model-based reranker and recall observability from this line when they landed, and it did not add the two deferrals the same close opened, which are written up at the end of the ranked-recall entry below and at [ADR-0038](../adr/ADR-0038-ranked-recall.md). A close that names what it opens and then leaves the header naming only what it shut loses an open item exactly as a count that fails to move does.
+**Open items:** 10 (the judge's default now that it is cheap and measured wider, an abstention the judge cannot express, session+global union read policy, per-scope retention/eviction, cross-scope recall ranking, tiered / self-editing memory + summarization, write-salience policy, ANN index, a cross-encoder rank, auditing the candidates that were dropped). **The tenth was added 2026-08-06 by the corpus widening, which found it; the two before it were added the same day, correcting a line and an index cell that had read 7.** The ranked-recall close did half of its own bookkeeping: it struck the model-based reranker and recall observability from this line when they landed, and it did not add the two deferrals the same close opened, which are written up at the end of the ranked-recall entry below and at [ADR-0038](../adr/ADR-0038-ranked-recall.md). A close that names what it opens and then leaves the header naming only what it shut loses an open item exactly as a count that fails to move does.
 
 **Memory in Slice 5 ([ADR-0008](../adr/ADR-0008-memory-v1.md)):**
 - **Per-session / namespaced scoping landed 2026-07-06 ([ADR-0008 scoping addendum](../adr/ADR-0008-memory-v1.md)).**
@@ -220,3 +220,30 @@ Deferred refinements from the Slice 5 memory work under [ADR-0008](../adr/ADR-00
   settles the second point on its own. Whichever way it goes, the audit trail
   (`CORTEX_MEMORY_RECALL_AUDIT=1`) reports the basis that actually ranked each recall, so a
   deployment that turns it on can tell a judged rank from a fallback after the fact.
+  **The corpus half of that trigger was answered the same day** ([ADR-0038](../adr/ADR-0038-ranked-recall.md)
+  widened-corpus section): 41 notes and 26 questions over six categories, five of which the judge
+  could have lost, scored through the shipped pool width (the cosine's top 12 of 41, `pool_factor`
+  4 at `k` 3, gold in pool for all 22 answerable). The judge is **not worse anywhere**. It ties the
+  cosine at MRR 1.000 on the three categories where the geometry is already right (an answer worded
+  in the question's own words, two near-duplicate notes, an answer buried in a clause), and beats it
+  on two: the vocabulary trap it was bought for (1.000 against 0.806) and, unplanned, superseded
+  versions, where the cosine cannot tell a dead fact from its replacement and put the stale one
+  first twice in four (1.000 against 0.750). Aggregate 1.000 against 0.902 over the 22 answerable,
+  0.75 s per recall, 12 to 20 decoded tokens. A **reversed-cosine control arm scored 0.000 in every
+  category**, so the scorer has been watched failing rather than merely trusted. **The default is
+  still the user's call and is still not flipped**; what changed is that the recommendation no
+  longer rests on a corpus cut to produce it.
+- **A considered abstention is indistinguishable from a failed rank, found by the wider corpus on
+  2026-08-06 ([ADR-0038](../adr/ADR-0038-ranked-recall.md) widened-corpus section).** Four of the
+  26 questions have no answer anywhere in the corpus, and the model got all four right: asked which
+  notes help, it replied `{"order": []}`, valid and complete rather than truncated, which was
+  confirmed by re-sampling each fallback and reading the raw text rather than inferring it from the
+  basis. `JudgeRecallPolicy.select` treats an empty parse as a failure, so all four fell back and
+  the caller got the cosine's top three irrelevant notes instead. The one thing the judge can do
+  that no geometric policy can, decline to answer, is the one thing the policy cannot express, and
+  at the port it looks exactly like an unreachable model. **Cost:** not behind the unchanged seam
+  in the cheap sense. A third `RankBasis` (an abstention distinct from `VERDICT` and from the
+  fallback bases) plus a `select` that returns an empty `Ranking` changes what a recall may hand a
+  turn, so the recaller, the audit trail and the prompt assembly each need to mean something by
+  zero hits. **Trigger:** flipping the default to `judge`, since the defect is invisible while the
+  policy is off, or the first report of memory answering a question it has nothing about.
