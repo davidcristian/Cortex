@@ -395,11 +395,17 @@ to 2651 MiB and thinking on. Six things to know about the setting you are now ru
 - **A 2048 px capture moves a pathological screen closer to the ladder, and a real one is not
   close.** Through the body's own downscale and encoder, a 4K frame at 2048 px costs 243 KB as a
   text desktop, 1.98 MB as a photographic wallpaper under two windows, 3.59 MB as a full-screen
-  photograph and 4.67 MB with heavy film grain over it: 74% of the 6 MiB ceiling at the worst
-  realistic screen, and it takes per-pixel uniform noise to actually fire the halving ladder (which
-  then drops the capture to 1024 px, below even the 1600 px view). Measured 2026-08-06 by
+  photograph and 4.67 MB with heavy film grain over it: 74% of the 6 MiB ceiling, and it takes
+  per-pixel uniform noise to actually fire the halving ladder (which then drops the capture to
+  1024 px, below even the 1600 px view). Measured 2026-08-06 by
   [`capture_bytes.rs`](../../body/crates/core/tests/capture_bytes.rs), which is why the default
   edge stopped at 2048: at a full 3840 px capture even a grainless photograph fires the ladder.
+  **The worst realistic screen is not the 4K one**, re-measured the same day: how much grain
+  survives is set by the ratio between the display and the 2048 px ask rather than by the display's
+  size, so a 2560x1440 desktop under the same grain reaches **79%** where 4K reaches 74% and
+  1920x1080 reaches 71%, the last of those crossing the seam untouched because it is already inside
+  the requested edge. On that costliest display the ladder fires one step of grain earlier than at
+  4K. Nothing a person would look at fires it at the shipped default either way.
 
 The re-runnable half is
 [`test_image_budget_live.py`](../../brain/packages/inference/tests/test_image_budget_live.py),
