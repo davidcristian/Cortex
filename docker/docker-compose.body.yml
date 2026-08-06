@@ -7,7 +7,7 @@ services:
       # Where the host body's BodyService listens, as seen from the container. 50151 is the
       # body's port (50051 is the brain's BrainService). Override the port to match the host bind.
       CORTEX_BODY_ENDPOINT: "${CORTEX_BODY_ENDPOINT:-host.docker.internal:50151}"
-      CORTEX_BODY_CAPTURE_MAX_EDGE: "${CORTEX_BODY_CAPTURE_MAX_EDGE:-0}"
+      CORTEX_BODY_CAPTURE_MAX_EDGE: "${CORTEX_BODY_CAPTURE_MAX_EDGE:-2048}"
       CORTEX_BODY_MAX_IMAGE_BYTES: "${CORTEX_BODY_MAX_IMAGE_BYTES:-6291456}"
       CORTEX_BODY_CAPTURE_TIMEOUT_S: "${CORTEX_BODY_CAPTURE_TIMEOUT_S:-10.0}"
       # auto probes the running llama-server's /props once at startup and advertises

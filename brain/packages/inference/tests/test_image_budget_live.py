@@ -136,25 +136,22 @@ def _prompt_tokens(messages: list[dict[str, object]]) -> int:
 
 
 @pytest.mark.integration
-def test_the_shipped_budget_saturates_and_the_knob_raises_it(
+def test_the_models_own_budget_saturates_and_the_knob_raises_it(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """A 4K screen costs the model's declared budget; the knob buys real resolution back."""
     png = _screen()
     with _server(_argv_tail(0, monkeypatch)):
-        shipped = _cost(png)
-    print(f"\n  shipped (no CORTEX_IMAGE_MAX_TOKENS): {shipped} prompt tokens for one 4K screen")  # noqa: T201
-    # The premise of the region-capture deferral: the default is small enough that a 4K desktop
-    # is thrown away inside the encoder, and small enough that no default deployment can meet
-    # the micro-batch assert the third arm below provokes.
-    assert shipped < _ENGINE_UBATCH
+        declared = _cost(png)
+    print(f"\n  CORTEX_IMAGE_MAX_TOKENS=0: {declared} prompt tokens for one 4K screen")  # noqa: T201
+    assert declared < _ENGINE_UBATCH
 
     with _server(_argv_tail(1024, monkeypatch)):
         raised = _cost(png)
         assert _alive(), "the raised budget aborted the server on a 4K picture"
-    print(f"  CORTEX_IMAGE_MAX_TOKENS=1024: {raised} prompt tokens for the same screen")  # noqa: T201
-    assert raised > 2 * shipped, (
-        f"the knob bought no resolution: {shipped} tokens shipped vs {raised} raised. "
+    print(f"  CORTEX_IMAGE_MAX_TOKENS=1024 (the default): {raised} tokens, same screen")  # noqa: T201
+    assert raised > 2 * declared, (
+        f"the knob bought no resolution: {declared} tokens off against {raised} raised. "
         "Either llama.cpp stopped honouring --image-max-tokens for this model, or the model's "
         "own declared budget rose above the knob."
     )

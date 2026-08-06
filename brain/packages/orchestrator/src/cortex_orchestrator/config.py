@@ -80,7 +80,7 @@ class BodyConfig(BaseSettings):
 
     backend: BodyBackendName = "none"
     endpoint: str = ""
-    capture_max_edge: int = Field(default=0, ge=0, le=MAX_IMAGE_EDGE)
+    capture_max_edge: int = Field(default=2048, ge=0, le=MAX_IMAGE_EDGE)
     max_image_bytes: int = Field(default=MAX_IMAGE_BYTES, gt=0, le=MAX_IMAGE_BYTES)
     capture_timeout_s: float = Field(default=10.0, gt=0)
 

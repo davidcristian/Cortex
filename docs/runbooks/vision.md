@@ -50,7 +50,7 @@ The other knobs, all optional:
 | Variable | Side | Default | Meaning |
 | --- | --- | --- | --- |
 | `CORTEX_HOST_CAPTURE_NOTIFY` | host | on | `0` silences the body-authored OS notification a successful capture shows. |
-| `CORTEX_BODY_CAPTURE_MAX_EDGE` | brain | `0` | Longest edge to ask the body for, in physical pixels, **and** the edge the reply is held to on receipt. `0` leaves the body's own default (1600) and holds the reply to the 8192 px domain ceiling alone. Outside `0..8192` the brain refuses to boot. Raise it to `2048` only together with `CORTEX_IMAGE_MAX_TOKENS` on the model host: on its own it sends more pixels into an encoder that discards them, and the pair is what makes a 4K screen legible ([llamacpp-gpu.md](llamacpp-gpu.md)). |
+| `CORTEX_BODY_CAPTURE_MAX_EDGE` | brain | `2048` | Longest edge to ask the body for, in physical pixels, **and** the edge the reply is held to on receipt. `2048` is the brain half of the pair that makes a 4K screen legible, and it is only worth its extra pixels because `CORTEX_IMAGE_MAX_TOKENS=1024` on the model host gives the encoder somewhere to put them ([llamacpp-gpu.md](llamacpp-gpu.md)); lower it and the other one together. `0` hands the edge back to the body's own default (1600) and holds the reply to the 8192 px domain ceiling alone. Outside `0..8192` the brain refuses to boot. |
 | `CORTEX_BODY_MAX_IMAGE_BYTES` | brain | `6291456` | The byte budget, sent to the body **and** re-verified on receipt. 6 MiB, the same number as the body's own `MAX_CAPTURE_BYTES`, which `just check-crosscheck` holds it to. It may only tighten: outside `1..6291456` the brain refuses to boot, since the body clamps to its own ceiling anyway. |
 | `CORTEX_BODY_CAPTURE_TIMEOUT_S` | brain | `10.0` | The deadline on the capture call, the only one on this seam. Must be positive. |
 | `CORTEX_TOOLS_GATED` | brain | `escalate_to_brain,send_email` | Adding `capture_screen` here puts an approval card in front of every capture. See "if you want it gated" below. |
@@ -89,7 +89,9 @@ The other knobs, all optional:
 
 **What the projector costs.** ADR-0004's 11.3 GB cortex reservation is a **with-mmproj**
 measurement, so enabling it spends budget the placer has been charging since before it loaded;
-subagent headroom is unchanged. An image costs 266 prompt tokens at any size from 720p up.
+subagent headroom is unchanged. An image costs 266 prompt tokens at any size from 720p up when the
+budget is left to the model, and 1010 at the shipped `CORTEX_IMAGE_MAX_TOKENS=1024` with the
+shipped 2048 px capture, for about 400 MiB more VRAM.
 
 **What a picture costs in time.** The cortex thinks before it answers, and on an open-ended ask a
 picture makes that near-certain (measured 2026-08-03: 10 of 10 image runs of "what is on my
@@ -127,13 +129,14 @@ them: [docs/host/windows-capture.md](../host/windows-capture.md).
    into a rendered reply becomes screen content on the next capture).
 4. Things to expect rather than debug: GDI renders hardware-overlay and DRM-protected surfaces
    (some video players, some browsers' protected playback) **black**, silently, with no error to
-   distinguish it from a dark screen. Small text on a 4K display downscaled to 1600 px **is**
-   illegible at the shipped image budget, measured 2026-08-06: 6 to 8 of 47 ground-truth strings
-   read off five 4K desktops, with the model inventing the rest rather than declining. The
-   mitigation is a pair of settings, `CORTEX_IMAGE_MAX_TOKENS=1024` on the model host and
-   `CORTEX_BODY_CAPTURE_MAX_EDGE=2048` here, which takes it to 36 to 38; a bigger PNG alone changes
-   nothing. Both are off by default and the numbers, the costs and the sizes they still cannot
-   reach are in [llamacpp-gpu.md](llamacpp-gpu.md).
+   distinguish it from a dark screen. Small text on a 4K display is the other one. Downscaled to
+   1600 px and read at the model's own image budget it **is** illegible, measured 2026-08-06: 6 to
+   8 of 47 ground-truth strings read off five 4K desktops, with the model inventing the rest rather
+   than declining. A pair of settings takes that to 36 to 38, `CORTEX_IMAGE_MAX_TOKENS=1024` on the
+   model host and `CORTEX_BODY_CAPTURE_MAX_EDGE=2048` here, and **both are the default now**; a
+   bigger PNG alone changes nothing. What they cost and the type sizes they still cannot reach (15
+   px on an unscaled monitor is unreadable at every budget tried) are in
+   [llamacpp-gpu.md](llamacpp-gpu.md).
 
 ## What a capture does to the turn
 

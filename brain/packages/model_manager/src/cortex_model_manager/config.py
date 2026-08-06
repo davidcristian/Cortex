@@ -48,7 +48,7 @@ class ModelHostConfig(BaseSettings):
     )
     cortex_mmproj_file: str = Field(default="", validation_alias="CORTEX_MMPROJ_FILE_CORTEX")
     cortex_image_max_tokens: int = Field(
-        default=0, ge=0, validation_alias="CORTEX_IMAGE_MAX_TOKENS"
+        default=1024, ge=0, validation_alias="CORTEX_IMAGE_MAX_TOKENS"
     )
     cortex_ngl: int = Field(default=99, validation_alias="CORTEX_NGL")
     cortex_ctx_size: int = Field(default=16384, gt=0, validation_alias="CORTEX_CTX_SIZE")
@@ -117,7 +117,11 @@ class ModelHostConfig(BaseSettings):
         return ("--mmproj", path, *self._image_budget())
 
     def _image_budget(self) -> tuple[str, ...]:
-        """The per-image token budget, with the micro-batch a raised budget forces beside it."""
+        """The per-image token budget, with the micro-batch a raised budget forces beside it.
+
+        Zero emits nothing at all, so turning the default off restores an argv the engine's own
+        defaults decide, rather than one that names them back at it.
+        """
         budget = self.cortex_image_max_tokens
         if not budget:
             return ()

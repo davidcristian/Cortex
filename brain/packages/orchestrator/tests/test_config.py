@@ -225,7 +225,7 @@ def test_body_defaults_to_disabled() -> None:
     assert config.backend == "none"
     assert config.endpoint == ""
     assert (config.capture_max_edge, config.max_image_bytes, config.capture_timeout_s) == (
-        0,
+        2048,
         6291456,
         10.0,
     )

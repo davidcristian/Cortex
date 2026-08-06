@@ -62,14 +62,17 @@ and the brain then discovers the capability from the running server's `/props` r
 second flag here that could disagree with it. Empty (the default) starts the tier text-only. The
 projector ships under the same read-only models mount, so no extra bind is needed.
 `CORTEX_IMAGE_MAX_TOKENS` rides beside it and decides how much of a screen survives the downscale:
-zero (the default) leaves the budget the model declares for itself, and a positive value emits
-`--image-max-tokens N` **and** `--ubatch-size max(N, 512)`. One knob for two flags is deliberate
+a positive value, `1024` by default, emits `--image-max-tokens N` **and** `--ubatch-size
+max(N, 512)`, and zero hands the budget back to the model, emitting neither flag. The default is
+raised rather than left to the model because a 4K desktop is otherwise largely illegible, and it is
+paired with the brain's own `CORTEX_BODY_CAPTURE_MAX_EDGE=2048`: half the pair buys about half the
+reading. One knob for two flags is deliberate
 and measured: a picture is decoded as one non-causal chunk, llama.cpp asserts the micro-batch
 covers it, and a raised budget without the micro-batch aborts `llama-server` with SIGSEGV on the
 first oversized picture rather than answering an error. It hangs off the projector for the same
 reason the projector hangs off its file: a text-only tier has no pictures, so it must not pay the
-micro-batch's VRAM. The measured recommendation and the failure boundary it leaves are in
-[docs/runbooks/llamacpp-gpu.md](../runbooks/llamacpp-gpu.md).
+micro-batch's VRAM. What the default costs, how to refund it, and the failure boundary it still
+leaves are in [docs/runbooks/llamacpp-gpu.md](../runbooks/llamacpp-gpu.md).
 `RosterError` is a boot-time misconfiguration. `build_supervisor(config)` wires the supervisor and
 the probe client it owns (the three timing knobs are read off those two objects by a gated test,
 because nothing else in the process observes them), `build_model_host(config)` is the composition
