@@ -136,3 +136,37 @@ async layer. So this reopens on that design work. Corrected the same day in
 [index](../refinements/index.md).
 
 No code changed here; this is a records correction at the origin ADR.
+
+## Addendum (2026-08-06): summarization's two open questions are answered; the code is not written
+
+The summarization-audit addendum above kept the slice deferred on two things, and
+[ADR-0038](ADR-0038-ranked-recall.md) settles both.
+
+**Cache, not recompute, and the reason is local to this system.** A session summary lives in Redis
+behind `SessionStore`, beside the messages and the title it derives from, keyed by the boundary it
+covers. `SessionStore` has `append`, `history`, `set_title` and a whole-session delete and **no verb
+that edits or removes a message**, so a summary of a prefix can never become wrong, only incomplete:
+a new summary folds the previous one together with the newly dropped turns, and a deleted session
+takes its summary with it. There is no invalidation path to get wrong, which is exactly why caching
+is safe here and would not be in a system with an edit verb. Recompute was priced against that at
+one full cortex generation on every turn, serialized ahead of the reply and so straight onto
+time-to-first-token, against one per boundary move. It survives a swap by construction, being text
+in the store.
+
+**The lease discipline is a helper rather than a habit.** `drain_text` (`drain.py`) runs one model
+call and leaves the adapter's acquire block in a `finally`; `generate_title` moved onto it in the
+same change, so the "sequential acquire" this ADR's audit addendum described as the title
+generator's practice is now stated in one place a future selector can simply use.
+
+**What is still deferred, and it is implementation only:** the `SessionStore` summary verbs (port,
+fake, Redis adapter, contract test), a `SummarizingHistoryWindow`, the `async` widening of
+`HistoryWindow.select` alongside it rather than as an empty async layer, and the config knob. That
+widening was deliberately **not** taken with the recall one: `RecallPolicy.select` had three waiting
+consumers and this port has one, so it waits for that one. Recorded in
+[docs/refinements/session-history.md](../refinements/session-history.md) and its
+[index](../refinements/index.md).
+
+One claim of the audit addendum did not survive re-derivation and is corrected here: it names the
+window's production caller as `_inference_messages` in `engine.py`, a method that no longer exists.
+The caller is `assemble_inference_messages` in `turn_context.py`, still `async`, so the substance
+(one caller, already async, one `await` to add) held.

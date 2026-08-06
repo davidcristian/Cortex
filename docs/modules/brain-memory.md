@@ -1,6 +1,7 @@
 # brain/packages/memory (`cortex_memory`)
 
-**Purpose.** The pgvector adapter for the core's `MemoryStore` port (ADR-0008). A thin SQL
+**Purpose.** The pgvector adapter for the core's `MemoryStore` port, plus the logging adapter for
+its `RecallAuditSink` port (ADR-0008, ADR-0038). A thin SQL
 translator over Postgres + pgvector: one row per memory, `search` ranks by cosine distance
 (`<=>`) and returns cosine *similarity* as the score, so it is observably interchangeable
 with `InMemoryMemoryStore` behind the port. No business logic, no state beyond the injected
@@ -8,6 +9,13 @@ pool (the one hard rule).
 
 **Public contract** (everything importable from `cortex_memory`; `__all__` is the API):
 
+- `LoggingRecallSink()` is a `RecallAuditSink` (`audit.py`, ADR-0038). `record(audit)` writes one
+  `cortex.memory.recall` line per recall, fields both JSON-serialized into the message and set as
+  `extra` attributes: the session, the query's *length*, the pool size, `k`, the rank basis, whether
+  keys on that basis may be compared, each kept hit's `id` / `score` / `key` / `tainted`, and the
+  time. It carries **no text at all**, neither the query nor a recalled memory, which is the tool
+  audit's "size not content" stance applied to conversation content. Attached by
+  `CORTEX_MEMORY_RECALL_AUDIT`.
 - `PgVectorMemoryStore(db: Database)` is a `MemoryStore`.
   - `add(record)` → `INSERT (id, text, embedding, scope, tainted, created_at)` with `embedding =
     $3::vector` (the vector passed as a pgvector text literal, e.g. `[0.1,0.2]`). `tainted` is the

@@ -140,9 +140,9 @@ Memory domain (Slice 5, ADR-0008):
 - `ScoredMemory` is a frozen dataclass: `record: MemoryRecord`, `score: float`. A retrieval
   hit and its similarity (higher = closer). `score` is always the store's raw cosine similarity
   in `[-1, 1]`, never the key a `RecallPolicy` ranked by, so a reranked result's order is not
-  explained by it and no caller may infer a ranking from it. A second field carrying the policy's
-  own blended relevance is declined while nothing reads a recall score (ADR-0008 relevance-field
-  addendum).
+  explained by it and no caller may infer a ranking from it. The policy's own key lives on
+  `RankedMemory` in the `Ranking` that `select` returns, never as a second field here (ADR-0008
+  relevance-field addendum, placed by ADR-0038).
 
 Structured provenance (ADR-0027 addendum; `provenance.py`, stdlib-only so `tools.py` may depend
 on it):
@@ -1031,7 +1031,10 @@ Use-case:
   embedding from the embedder, `scope` from the policy's `write_scope(session_id)`, `tainted` from
   the caller per ADR-0019), and returns it; `recall(query, *, k, session_id)` embeds `query`, fetches
   the store's `policy.candidate_k(k)` `ScoredMemory` within the policy's `read_scopes(session_id)`,
-  and returns `policy.select(...)` reranked and pruned to `k`. Stateless over the store: every memory
+  and awaits `policy.select(...)`, returning that `Ranking`'s memories reranked and pruned to `k`.
+  An optional `audit: RecallAuditSink` receives one `RecallAudit` per recall (the query, the pool
+  size, `k`, the ranking, the time) after selecting, so a recall is trailed whichever policy ran
+  (ADR-0038); `None` (the default) is the founding silent path. Stateless over the store: every memory
   lives in `MemoryStore`, so recall is identical across restarts and swaps. Wired into `TurnEngine`
   (retrieve-into-context, record-at-turn-end) when injected. The engine threads its `session_id`
   through both calls.
@@ -1053,17 +1056,39 @@ Use-case:
   never into an engine.
 - `RecallPolicy` (port, `rerank.py`) turns an over-fetched candidate pool into the final `k` hits
   (the `MemoryScope` / `HistoryWindow` pattern): `candidate_k(k)` sizes the pool the recaller fetches,
-  `select(hits, *, now, k)` reranks and prunes it. The port and the default `RawRecallPolicy` (its
-  `RAW_RECALL_POLICY` singleton keeps v1 top-`k` cosine exactly) live in `rerank.py`; the three opt-in
-  policies and their shared `_recency_blend` / `_redundancy` / `_greedy_mmr` math live in
-  `rerank_policies.py` (ADR-0008 rerank + MMR + recency-and-diversity addenda; split at the 300-line
-  cap). `RerankingRecallPolicy` blends similarity with an exponential recency decay and drops
+  `async select(hits, *, query, now, k) -> Ranking` reranks and prunes it. It is `async` so a policy
+  may call the model, and it carries the `query` because a policy that ranks by what a memory says
+  needs the question (ADR-0038); a policy that runs inference must leave its acquire block before
+  returning, which `drain_text` does. The port and the default `RawRecallPolicy` (its
+  `RAW_RECALL_POLICY` singleton keeps v1 top-`k` cosine exactly) live in `rerank.py`; the three
+  heuristic opt-in policies live in `rerank_policies.py`, their shared `recency_blend` /
+  `redundancy` / `greedy_mmr` math in `rerank_math.py`, and the model-based judge in
+  `rerank_judge.py` (ADR-0008 rerank + MMR + recency-and-diversity addenda, ADR-0038; split at the
+  300-line cap). `RerankingRecallPolicy` blends similarity with an exponential recency decay and drops
   near-duplicate memories; `MmrRecallPolicy` selects greedily for maximal marginal relevance
   (`relevance_weight` trading query-relevance against redundancy to an already-kept hit), diversifying
   beyond the reranker's near-duplicate cutoff; `RecencyMmrRecallPolicy` runs that MMR selection over
-  the recency blend rather than raw similarity, combining both axes. Selected at the composition root
-  via `CORTEX_MEMORY_RECALL`; the reported `ScoredMemory.score` stays the raw cosine, only order and
-  membership change.
+  the recency blend rather than raw similarity, combining both axes; `JudgeRecallPolicy(backend,
+  model, *, pool_factor, fallback=RAW_RECALL_POLICY)` asks the resident model to order the pool under
+  a JSON-schema-constrained request and falls back on any failure to reach or believe it, the emitted
+  basis then being the fallback's. Selected at the composition root via `CORTEX_MEMORY_RECALL`
+  (`raw`, `reranked`, `mmr`, `recency_mmr`, `judge`); the reported `ScoredMemory.score` stays the raw
+  cosine, only order and membership change.
+- `Ranking` / `RankedMemory` / `RankBasis` (`ranking.py`, ADR-0038) are what `select` returns.
+  `RankedMemory` pairs a kept `ScoredMemory` with the `key: float` its policy ordered by; `Ranking`
+  carries those hits plus the `basis` naming the quantity, and `.memories` unwraps them.
+  `RankBasis` is `ECHO` (raw cosine), `EMBER` (recency blend), `SPREAD` (MMR over cosine), `SWEEP`
+  (MMR over the blend) and `VERDICT` (the model's placing); its `comparable` property is `False` for
+  the two MMR bases, whose key was measured against the kept set at pick time and so means nothing
+  beside another hit's.
+- `RecallAudit` (`ranking.py`) is what a `RecallAuditSink` records: `session_id`, `query`,
+  `pool_size`, `k`, `ranking`, `at`. It carries conversation content, so a sink decides what it keeps
+  of it; the shipped `LoggingRecallSink` keeps none.
+- `drain_text(backend, model, messages, *, schema=None)` (`drain.py`, ADR-0038) runs one completion
+  to its end and closes the stream in a `finally`, so the adapter's `acquire` block is left before
+  the call returns and the turn's own reply is the next acquire of a sequence rather than a nested
+  one. Used by `generate_title` and by `JudgeRecallPolicy`; the guard around `aclose` is because the
+  `InferenceBackend` port promises only an `AsyncIterator`.
 - `ToolDispatcher(registry, audit, clock, *, confirmer=None, policy=DEFAULT_DISPATCH_POLICY)`
   is the turn's tool gateway and
   capability gate (ADR-0009/0013). `dispatch(call, *, stamp=UNSTAMPED, gated=False,

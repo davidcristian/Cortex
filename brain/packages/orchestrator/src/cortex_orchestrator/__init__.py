@@ -34,6 +34,7 @@ from cortex_orchestrator.converse import (
 from cortex_orchestrator.memory_builders import (
     build_memory,
     memory_scope_from_name,
+    recall_audit_from_config,
     recall_policy_from_config,
 )
 from cortex_orchestrator.progress import SeamProgressSink
@@ -115,6 +116,7 @@ __all__ = [
     "converse",
     "create_server",
     "memory_scope_from_name",
+    "recall_audit_from_config",
     "recall_policy_from_config",
     "run_from_env",
     "serve",

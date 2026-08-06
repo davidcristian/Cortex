@@ -22,9 +22,12 @@ from cortex_core import (
     RAW_RECALL_POLICY,
     Clock,
     GlobalMemoryScope,
+    InferenceBackend,
+    JudgeRecallPolicy,
     MemoryRecaller,
     MemoryScope,
     MmrRecallPolicy,
+    RecallAuditSink,
     RecallPolicy,
     RecencyMmrRecallPolicy,
     RerankingRecallPolicy,
@@ -32,7 +35,7 @@ from cortex_core import (
     SessionMemoryScope,
 )
 from cortex_embedding import LlamaCppEmbedder
-from cortex_memory import PgVectorMemoryStore
+from cortex_memory import LoggingRecallSink, PgVectorMemoryStore
 from cortex_orchestrator.builders import noop_aclose
 from cortex_orchestrator.config import MemoryConfig, MemoryScopeName
 
@@ -55,16 +58,22 @@ def memory_scope_from_name(name: MemoryScopeName) -> MemoryScope:
     return GlobalMemoryScope()
 
 
-def recall_policy_from_config(config: MemoryConfig) -> RecallPolicy:
+def recall_policy_from_config(
+    config: MemoryConfig, backend: InferenceBackend, cortex_model: str
+) -> RecallPolicy:
     """Map ``CORTEX_MEMORY_RECALL`` to its recall reranking policy (ADR-0008 rerank addendum).
 
     ``raw`` keeps v1 top-k cosine exactly (the default); ``reranked`` blends similarity with a
     recency decay and drops near-duplicates; ``mmr`` selects for maximal marginal relevance
     (query-relevance traded against diversity); ``recency_mmr`` runs that MMR selection over the
-    recency blend, combining both axes. Each is tuned by the ``CORTEX_MEMORY_RECALL_*`` knobs (each
+    recency blend, combining both axes; ``judge`` hands the pool to the resident model on the given
+    ``backend`` and ranks by what it answers (ADR-0038), falling back to ``raw`` whenever the model
+    cannot be reached or believed. Each is tuned by the ``CORTEX_MEMORY_RECALL_*`` knobs (each
     policy validates the ranges of the ones it uses). The composition root's one env->core seam for
     reranking, since the core never reads the string.
     """
+    if config.recall == "judge":
+        return JudgeRecallPolicy(backend, cortex_model, pool_factor=config.recall_pool_factor)
     if config.recall == "reranked":
         return RerankingRecallPolicy(
             half_life_seconds=config.recall_half_life_days * _SECONDS_PER_DAY,
@@ -87,8 +96,18 @@ def recall_policy_from_config(config: MemoryConfig) -> RecallPolicy:
     return RAW_RECALL_POLICY
 
 
+def recall_audit_from_config(config: MemoryConfig) -> RecallAuditSink | None:
+    """Map ``CORTEX_MEMORY_RECALL_AUDIT`` to the recall trail, or to no trail (ADR-0038).
+
+    ``True`` attaches ``LoggingRecallSink``, one structured line per recall carrying the pool, the
+    rank basis and each kept hit's key, never any text; ``False`` (the default) is the founding
+    silent recall path, where the recaller has no sink at all rather than a sink that drops.
+    """
+    return LoggingRecallSink() if config.recall_audit else None
+
+
 async def build_memory(
-    config: MemoryConfig, clock: Clock
+    config: MemoryConfig, clock: Clock, backend: InferenceBackend, cortex_model: str
 ) -> tuple[MemoryRecaller | None, SessionMemoryCascade | None, Callable[[], Awaitable[None]]]:
     """Pick the memory backend from config; return the recaller, the delete cascade, and a closer.
 
@@ -96,7 +115,9 @@ async def build_memory(
     ``pgvector`` connects an asyncpg pool and a CPU embedder client; the returned closer releases
     both. The ``scope`` config selects the recaller's namespace policy (default global, ADR-0008
     addendum) and ``recall`` its reranking policy (default raw top-k cosine, ADR-0008 rerank
-    addendum). The ``SessionMemoryCascade`` shares that store and scope but exposes only the
+    addendum), which is why the inference ``backend`` and the cortex model id reach here: the
+    model-based rank is a policy over that port (ADR-0038). ``recall_audit`` attaches the structured
+    recall trail. The ``SessionMemoryCascade`` shares that store and scope but exposes only the
     scope-guarded session-delete forget (ADR-0021), the trusted out-of-band path the turn-facing
     recaller must never carry; the server wires it into ``DeleteSession``, never into an engine.
     """
@@ -110,7 +131,8 @@ async def build_memory(
             await client.aclose()
 
         scope = memory_scope_from_name(config.scope)
-        policy = recall_policy_from_config(config)
-        recaller = MemoryRecaller(store, embedder, clock, scope=scope, policy=policy)
+        policy = recall_policy_from_config(config, backend, cortex_model)
+        audit = recall_audit_from_config(config)
+        recaller = MemoryRecaller(store, embedder, clock, scope=scope, policy=policy, audit=audit)
         return recaller, SessionMemoryCascade(store, scope), close_memory
     return None, None, noop_aclose

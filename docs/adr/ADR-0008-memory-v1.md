@@ -508,3 +508,30 @@ no procedure exists yet, so writing one is part of taking it. Its result comes b
 addendum and to [runbooks/memory-pgvector.md](../runbooks/memory-pgvector.md).
 
 No code changed here; this is a records correction at the origin ADR.
+
+## Addendum (2026-08-06): the `select` widening landed, and the relevance field is un-declined
+
+The rerank addendum's deferred **model-based reranker**, the relevance-field addendum's **declined
+blended-relevance field**, and the **recall observability** entry that decline opened all resolve in
+[ADR-0038](ADR-0038-ranked-recall.md), which widens `RecallPolicy.select` once for the three of them:
+`async def select(hits, *, query, now, k) -> Ranking`.
+
+Two things this ADR's addenda said need correcting here. **The relevance-field decline is
+reversed**, and reversed in the way its own last line predicted, as a `select` change rather than a
+field: the key a policy ranked by is `RankedMemory.key` on the ranking, so `ScoredMemory.score`
+keeps meaning the store's raw cosine and the two quantities stay distinct, which was the invariant
+the decline was protecting. Its second finding, that there is no single blend to surface, is
+answered rather than dodged: `RankBasis` names each quantity and `comparable` records that an MMR
+key was measured against the kept set and cannot be read beside another. **And the audit addendum
+undercounted the widening.** It priced `select` going async and its return widening; nobody noticed
+that `select` did not carry the query, which a policy that ranks by what a memory *says* cannot do
+without. Three changes, not two.
+
+The model rank ships as `JudgeRecallPolicy` and was measured against the shipping cosine on the real
+cortex rather than assumed: mean reciprocal rank 0.917 to 1.000, the correct note first 5 of 6 times
+against 6 of 6, on a small corpus built so the two rankings could disagree. Numbers, method and the
+honest caveats are in ADR-0038. What stays deferred in this area is recorded in
+[docs/refinements/memory.md](../refinements/memory.md) and its
+[index](../refinements/index.md): a cross-encoder rank, which wants a scoring-model port rather than
+a chat completion, and auditing the candidates that were dropped, which the two MMR bases cannot
+give a well-defined key for.

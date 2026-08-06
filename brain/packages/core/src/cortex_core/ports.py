@@ -28,6 +28,7 @@ from cortex_core.ports_stores import (
     SessionStore,
     TaskStore,
 )
+from cortex_core.ranking import RecallAudit
 from cortex_core.tools import ConfirmationRequest, ToolCall, ToolInvocation, ToolResult, ToolSpec
 
 # The six state-store ports live in ``ports_stores.py`` and the three model-lifecycle ports in
@@ -45,6 +46,7 @@ __all__ = [
     "ModelHost",
     "ModelManager",
     "PreferenceStore",
+    "RecallAuditSink",
     "ResidencyController",
     "ResidencyReporter",
     "ScheduleStore",
@@ -187,6 +189,23 @@ class ToolAuditSink(Protocol):
     """
 
     async def record(self, invocation: ToolInvocation) -> None: ...
+
+
+class RecallAuditSink(Protocol):
+    """The trail that answers "why did recall return these?" (ADR-0038 decision 5).
+
+    ``record`` takes one ``RecallAudit`` per recall, awaited after the policy has selected, so a
+    recall is audited whichever policy ran and whether or not it returned anything. The audit
+    carries the ranking, meaning each kept hit's key and the basis naming what that key is, which
+    is the first code in the tree to read a policy's own rank key.
+
+    The value carries conversation content (the query, the recalled text), so a sink decides what
+    it keeps of them; the shipped ``LoggingRecallSink`` keeps neither, exactly as the tool audit's
+    own adapter logs a result's size rather than its bytes. The fake keeps them in memory for
+    assertions.
+    """
+
+    async def record(self, audit: RecallAudit) -> None: ...
 
 
 class Confirmer(Protocol):

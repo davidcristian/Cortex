@@ -34,10 +34,12 @@ from cortex_core import (
     InMemoryBodyGateway,
     InMemoryTaskStore,
     InMemoryToolRegistry,
+    JudgeRecallPolicy,
     MemoryRecaller,
     MmrRecallPolicy,
     PlacementRequest,
     PlacementTarget,
+    RecallPolicy,
     RecencyMmrRecallPolicy,
     RecordingConfirmer,
     RerankingRecallPolicy,
@@ -62,7 +64,7 @@ from cortex_core import (
     VramBudgetPlacer,
 )
 from cortex_inference import LlamaCppBackend
-from cortex_memory import PgVectorMemoryStore
+from cortex_memory import LoggingRecallSink, PgVectorMemoryStore
 from cortex_orchestrator import (
     BodyConfig,
     InferenceConfig,
@@ -81,6 +83,7 @@ from cortex_orchestrator import (
     build_subagents,
     build_tool_registry,
     memory_scope_from_name,
+    recall_audit_from_config,
     recall_policy_from_config,
     run_from_env,
 )
@@ -196,7 +199,9 @@ async def test_build_inference_backend_selects_llamacpp_and_returns_a_closer() -
 
 async def test_build_memory_defaults_to_disabled() -> None:
     """The DB-less default: no recaller, no cascade, and a closer that is a clean no-op."""
-    memory, cascade, close = await build_memory(MemoryConfig(backend="none"), SystemClock())
+    memory, cascade, close = await build_memory(
+        MemoryConfig(backend="none"), SystemClock(), EchoInferenceBackend(), "cortex"
+    )
     assert memory is None
     assert cascade is None  # nothing to forget with no backend, so DeleteSession skips the cascade
     await close()  # no resources to release; must not raise
@@ -223,12 +228,21 @@ async def test_build_memory_selects_pgvector_and_returns_a_closer(
         dsn="postgresql://cortex@db/cortex",
         embedder_endpoint="http://llama-embed:8081",
     )
-    memory, cascade, close = await build_memory(config, SystemClock())
+    memory, cascade, close = await build_memory(
+        config, SystemClock(), EchoInferenceBackend(), "cortex"
+    )
     assert isinstance(memory, MemoryRecaller)
     assert isinstance(cascade, SessionMemoryCascade)  # DeleteSession's out-of-band forget path
     assert seen_dsn == ["postgresql://cortex@db/cortex"]
     await close()  # releases the pool and the embedder client
     assert closed == ["store"]
+
+
+def test_recall_audit_from_config_is_opt_in() -> None:
+    """The recall trail is off by default (ADR-0038): a silent path, not a sink that drops."""
+    assert recall_audit_from_config(MemoryConfig()) is None
+    audited = recall_audit_from_config(MemoryConfig(recall_audit=True))
+    assert isinstance(audited, LoggingRecallSink)
 
 
 def test_memory_scope_from_name_maps_config_to_the_policy() -> None:
@@ -237,24 +251,30 @@ def test_memory_scope_from_name_maps_config_to_the_policy() -> None:
     assert isinstance(memory_scope_from_name("session"), SessionMemoryScope)
 
 
+def _policy(config: MemoryConfig) -> RecallPolicy:
+    """`recall_policy_from_config` with the two model-rank arguments fixed (ADR-0038)."""
+    return recall_policy_from_config(config, EchoInferenceBackend(), "cortex")
+
+
 def test_recall_policy_from_config_maps_config_to_the_policy() -> None:
     """The one env→core seam for reranking: `raw` (default), `reranked`, or `mmr` (ADR-0008)."""
-    assert recall_policy_from_config(MemoryConfig()) is RAW_RECALL_POLICY
-    reranked = recall_policy_from_config(MemoryConfig(recall="reranked"))
+    assert _policy(MemoryConfig()) is RAW_RECALL_POLICY
+    reranked = _policy(MemoryConfig(recall="reranked"))
     assert isinstance(reranked, RerankingRecallPolicy)
     # The half-life knob is authored in days and reaches the policy converted to seconds.
     assert (
-        recall_policy_from_config(
-            MemoryConfig(recall="reranked", recall_half_life_days=1.0)
-        ).candidate_k(5)
+        _policy(MemoryConfig(recall="reranked", recall_half_life_days=1.0)).candidate_k(5)
         == 5 * MemoryConfig().recall_pool_factor
     )
-    mmr = recall_policy_from_config(MemoryConfig(recall="mmr"))
+    mmr = _policy(MemoryConfig(recall="mmr"))
     assert isinstance(mmr, MmrRecallPolicy)
     assert mmr.candidate_k(5) == 5 * MemoryConfig().recall_pool_factor
-    recency_mmr = recall_policy_from_config(MemoryConfig(recall="recency_mmr"))
+    recency_mmr = _policy(MemoryConfig(recall="recency_mmr"))
     assert isinstance(recency_mmr, RecencyMmrRecallPolicy)
     assert recency_mmr.candidate_k(5) == 5 * MemoryConfig().recall_pool_factor
+    judge = _policy(MemoryConfig(recall="judge"))  # the model rank (ADR-0038)
+    assert isinstance(judge, JudgeRecallPolicy)
+    assert judge.candidate_k(5) == 5 * MemoryConfig().recall_pool_factor
 
 
 async def test_build_tool_registry_defaults_to_disabled() -> None:

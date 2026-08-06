@@ -52,6 +52,26 @@ across every conversation, the founding "retrieval that grows" behavior. Set
 never recalled in another (`search` filters on `scope = ANY(read-scopes)`). It applies only when
 `CORTEX_MEMORY_BACKEND=pgvector`; the policy is selected at the composition root, never in the core.
 
+## Recall ranking and its trail (`CORTEX_MEMORY_RECALL`, ADR-0008 and ADR-0038)
+
+`raw` (the default) is top-`k` cosine exactly as it always was. `reranked`, `mmr` and `recency_mmr`
+are the heuristic policies, tuned by the `CORTEX_MEMORY_RECALL_*` knobs. `judge` is the model rank:
+it hands the over-fetched pool to the resident cortex and takes back an ordering, so it costs one
+full cortex generation per recall and needs the GPU stack up. It falls back to raw cosine whenever
+the model cannot be reached or believed, and the fallback is visible rather than silent, because the
+trail records the basis that actually ranked.
+
+Set `CORTEX_MEMORY_RECALL_AUDIT=1` to turn that trail on: one `cortex.memory.recall` line per
+recall, in the brain's container logs, carrying the pool size, the rank basis, whether keys on that
+basis may be compared, and each kept hit's memory id, cosine score and rank key. It never carries
+text, neither the query nor a recalled memory, so a line names *which* memories came back and never
+what they said; pair an id with the `memories` table when you need the content. This is the answer
+to "why did recall return these?", which used to need a throwaway script against the store.
+
+    docker compose --project-directory . -f docker/docker-compose.yml \
+      -f docker/docker-compose.gpu.yml -f docker/docker-compose.memory.yml logs -f brain \
+      | grep memory.recall
+
 ## Tainted-turn recording (`CORTEX_MEMORY_ON_TAINTED`, ADR-0019)
 
 A turn that reads untrusted content is dropped from memory by default (`skip`), so every stored
