@@ -749,3 +749,92 @@ The one open item this closes on the way is the title's own: the reasoning corte
 characters on thinking and returned no title (ADR-0021 titles addendum) was waiting on exactly this
 lever, and `TITLE_BOUNDS` is it. `CORTEX_GENERATE_TITLES` still ships off, for the reason that
 survives: it is an extra inference call per new session, now a cheap one.
+
+### The corpus widened (2026-08-06)
+
+The caveat the recommendation above carries about its own evidence is the one this section
+answers. Ten notes and six questions, every one of them the single case the judge was bought for,
+is a demonstration of a mechanism and not a measurement of a default. So the input was widened to
+41 notes and 26 questions across six categories (`packages/inference/tests/recall_corpus.py`,
+scored by `test_rerank_judge_wide_live.py`, both integration-marked), and only the first category
+is the case the original corpus was made of.
+
+**Written by the same interested party, and that caveat does not go away.** The agent that
+recommends the judge wrote these notes and these questions; no sample of real memories was
+involved. What changed is the direction of the bias rather than its presence. The original corpus
+could only produce the answer it was cut for, because every gold note answered in words its
+question never used while a distractor echoed the question's vocabulary. This one is built to be
+adversarial to its author's conclusion: `LEXICAL` questions are answered in their own words, so
+the embedding is already right and a judge can only subtract; `TWIN` puts two near-duplicate notes
+in the pool differing in the one detail asked for; `STALE` competes a superseded version against
+the current one with the recency signal in the prose alone, since the rank prompt carries no
+timestamps and neither ranking may be credited for one; `CLAUSE` buries the answer in a
+subordinate clause of a note about something else; and `ABSENT` asks four questions **nothing in
+the corpus answers**, where the correct result is no hit at all.
+
+The pool is the shipped width rather than the whole corpus. `MemoryRecaller` over-fetches
+`k * pool_factor`, so at the default `pool_factor` of 4 and `k` of 3 the judge sees the cosine's
+top 12 of 41 and never sees anything the cosine left out. The gold note was inside that pool for
+all 22 answerable questions, so nothing below is a pool miss in disguise.
+
+| category (n) | cosine (ships) | judge (bounded) | reversed (control) |
+| --- | --- | --- | --- |
+| `TRAP`, no shared words (6) | MRR 0.806, first 4/6 | **MRR 1.000, first 6/6** | MRR 0.000 |
+| `LEXICAL`, answer shares them (4) | MRR 1.000, first 4/4 | MRR 1.000, first 4/4 | MRR 0.000 |
+| `TWIN`, two plausible notes (4) | MRR 1.000, first 4/4 | MRR 1.000, first 4/4 | MRR 0.000 |
+| `STALE`, a superseded version (4) | MRR 0.750, first 2/4 | **MRR 1.000, first 4/4** | MRR 0.000 |
+| `CLAUSE`, answer buried (4) | MRR 1.000, first 4/4 | MRR 1.000, first 4/4 | MRR 0.000 |
+| `ABSENT`, no answer exists (4) | returned nothing 0/4 | returned nothing 0/4 | returned nothing 0/4 |
+| **aggregate over the 22 answerable** | **0.902** | **1.000** | **0.000** |
+
+**The judge is not worse anywhere, and it is better in exactly two places.** It wins the
+`TRAP` category it was designed for and it wins `STALE`, which nobody designed it for: asked which
+floor the team is on, the cosine cannot tell "sat on the fourth floor until the lease ran out" from
+"since the move the team sits on the ninth floor", and put the dead version first on two of the
+four. On the three categories where the geometry was already right it tied at a ceiling rather
+than overthinking its way off one, which was the specific risk `LEXICAL` was written to catch. It
+also still returns **fewer** hits than `k`, on every answerable question here (22 of 22, one note
+each), and every one of those omissions was correct, since the gold note was always the one kept.
+
+**The control fired, in both directions, which is what makes the rest of the table admissible.**
+The reversed arm ranks the same pool worst first and scores 0.000 in every category: a scorer that
+cannot fail has been watched failing. And the cosine's own behaviour splits the way the corpus
+predicted rather than being uniformly good or bad, failing on `TRAP` and `STALE` and holding 1.000
+on `LEXICAL`, `TWIN` and `CLAUSE`. A measurement whose control does not fire has measured nothing.
+Note that the cosine scores **worse on the original six here (0.806) than in the run above
+(0.917)**, which is the pool widening rather than a contradiction: the same six questions now draw
+their 12 candidates from 41 notes instead of 10, so there are more distractors available to
+outrank the gold.
+
+**The fallback rate is not zero, and the reason is the finding.** Four of 26 recalls fell back, all
+four of them `ABSENT` questions. This was checked rather than assumed, exactly because a
+schema-constrained reply cut by a token cap also lands in the fallback: each fallback was
+re-sampled and the raw reply read, and all four came back `{"order": []}`, which is valid,
+complete, well-formed JSON. **The model got these right.** It was asked which notes help answer a
+question nothing in the corpus answers, and it correctly answered "none of them".
+
+`JudgeRecallPolicy` then throws that away. `select` treats an empty parse as a failure and hands
+the query to its fallback, so the caller receives the cosine's top three irrelevant notes with the
+fallback's basis on the ranking. The one behaviour the judge has that no geometric policy can
+imitate, declining to answer, is the one behaviour the policy cannot express, and it is
+indistinguishable at the port from an unreachable model. That is a real defect and it is recorded
+as a deferral rather than fixed here (`docs/refinements/memory.md`): the fix is a third `RankBasis`
+separating a considered abstention from a failure to rank, and it changes what a recall may return
+to a turn, which is a wider blast radius than a measurement's closing commit should carry.
+
+Cost, from llama-server's own counters over the same run: **0.75 s per recall** across all 26
+(including the four that spent a model call to abstain and then paid for the cosine anyway), 12 to
+20 decoded tokens each, on prompts of 257 to 312 tokens now that the pool is 12 candidates rather
+than 10. The wider pool costs prompt-eval time and no more decoding, which is what the bounds
+predict.
+
+**The recommendation stands, with better evidence and one narrowed claim.** `CORTEX_MEMORY_RECALL`
+**still stays `raw` in this change**, because the standing decision is the user's own. What the
+wider corpus changes is that the recommendation no longer rests on a corpus built to produce it:
+the judge ties the cosine wherever the cosine is right and beats it wherever the cosine is wrong,
+on a corpus with four categories the judge could have lost. The two things a default still has to
+answer for are unchanged in kind and one is now sharper. A rank still runs on every turn that
+recalls, so 0.75 s lands on time to first token every time rather than being amortized. And a
+deployment that turns the judge on should know that **on a question its memory cannot answer, the
+judge's correct refusal is currently converted into the cosine's three wrong notes**, which is no
+worse than what `raw` does on the same question and is not the improvement the refusal was.
