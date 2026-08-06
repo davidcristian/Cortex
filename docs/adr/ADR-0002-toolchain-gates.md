@@ -175,3 +175,95 @@ that table happens to be empty. That was measured rather than assumed: with Post
 table empty the suite passes, and inserting a single real (non `contract-`) memory row reddens
 `check_empty_search` at `memory_contract.py:36` with no code changed. Recorded in
 [docs/refinements/repo-gates.md](../refinements/repo-gates.md).
+
+## Addendum (2026-08-06): the live pgvector run gets a Postgres database of its own
+
+The addendum above closed the Redis half of this defect and named the Postgres half as the
+deferral it opened. That half is closed now, on the same reasoning and with a different mechanism,
+because Postgres has no numbered-database equivalent of Redis's `SELECT n`.
+
+**The failure, reproduced before it was fixed.** With the compose Postgres up and the `memories`
+table empty, `uv run pytest -m integration --no-cov packages/memory` passed. Inserting one real
+(non `contract-`) row, `the user takes their coffee black`, turned it red at
+`memory_contract.py:36`, `assert list(await store.search((1.0, 0.0, 0.0), k=5)) == []`, with no
+code changed. So the suite was reporting on the table's contents, and the first memory the brain
+actually recorded would have blamed a correct adapter. It had stayed green only because this
+machine's table was empty, which is not a property of the code.
+
+**Decision: the live run opens the `cortex_contract` database, and the brain never does.**
+`brain/packages/memory/tests/live_postgres.py` owns the whole mechanism, as `live_redis.py` does
+for Redis: `live_dsn()` rewrites the configured `CORTEX_MEMORY_DSN`'s path onto that database (the
+database name in a DSN path is what a Postgres URL carries where a Redis URL carries the index),
+and `reset()` empties it with `TRUNCATE TABLE memories` where the Redis helper calls `FLUSHDB`.
+The suite resets before the run and after every check, so each check starts from the empty store
+the in-memory fake already grants it, and the fake and the real adapter run the identical suite.
+The checks no longer return their ids for a caller to sweep, which removes the same kind of
+coupling the Redis change removed: a test that knows how to clean up after the adapter.
+
+**Why a database and not a schema plus a `search_path`.** A schema is the cheaper isolation on
+paper: one connection string, one `CREATE EXTENSION` for the whole database, no bootstrap of a
+second catalog. It was rejected on its failure mode. `PgVectorMemoryStore`'s SQL names the table
+unqualified (`FROM memories`, `INSERT INTO memories`), so under a schema every query's destination
+is decided by a session setting rather than by the connection: a `search_path` that fails to
+apply, through a driver that drops the option, a pooled connection that resets it, or a typo,
+silently lands the whole suite on `public.memories`, and that includes this module's `TRUNCATE`.
+The isolation would then be doing exactly what it exists to prevent, and doing it quietly. With a
+database, a wrong destination is either the brain's database, which `live_dsn` refuses by name, or
+one that does not exist, which fails to connect. The other half of the argument is the bootstrap:
+`docker/postgres/init.sql` is unqualified too, so a schema needs an edited copy of it, which is a
+second definition of the schema the adapter is tested against, free to drift from the first. A
+database needs no copy at all; pgvector being installed per database rather than per schema is the
+cost, and it is one line of the same file.
+
+**The bootstrap is the same file, included rather than restated.**
+`docker/postgres/live-contract-db.sql` is a second initdb script beside `init.sql`. It runs
+`CREATE DATABASE cortex_contract`, `\connect`s to it, and `\i`s `init.sql`, so the contract
+database gets the extension, the table, and the index the brain's database gets, from the one file
+that defines them.
+
+**A machine whose data dir predates that file gets no database, and the run refuses rather than
+falling back.** An initdb script never re-runs on an existing data dir, which is the same
+constraint the runbook's in-place column migrations already live with. `live_postgres.connect()`
+answers both ways the database can be absent before any check runs: `InvalidCatalogNameError` from
+the pool, and a database that exists without the bootstrap, which it catches by asking
+`to_regclass('memories')`. Both fail the run with the two statements that create it. Auto-creating
+it from the test was rejected: it would be a test provisioning a database against whatever DSN it
+was handed, and applying the bootstrap would mean the harness reading a `docker/` file out of the
+repo, both to spare a human one paste that the runbook already carries.
+
+**Nothing about this reaches production configuration.** The adapter is untouched, no store gained
+a schema, a table prefix, or a database argument, `docker-compose.memory.yml` still points
+`CORTEX_MEMORY_DSN` at `cortex`, and no new environment variable exists to be set wrongly. The
+database name lives in one test-only module. Two guards make the truncate safe by construction:
+`live_dsn` refuses a `CORTEX_MEMORY_DSN` that already names `cortex_contract` (that would mean the
+brain is pointed at the database `reset` empties) and refuses a scheme that carries no database in
+its path, and `reset` re-reads `current_database()` from the pool it was handed and refuses to
+empty anything else, so the check sits where the damage would be rather than only where the DSN
+was built. The `pg-backup` sidecar dumps `-d cortex`, so the contract database is not in the
+plug-and-play export either.
+
+**Evidence (agent, Docker plus the real compose Postgres, 2026-08-06).** With the planted real
+memory still in the brain's table, the suite goes from that one failure to `1 passed`, and the
+brain's table is byte-identical across the run: one row, `md5` of its serialized columns
+`24dde1e28a64319ad94d3d4765de7442` before and after, while `cortex_contract` is left empty. All
+four refusals were fired rather than reasoned about, each with the exact message quoted in the
+runbook: the brain pointed at `cortex_contract` (`names database cortex_contract, which the live
+contract run reserves and empties`), a `mysql://` DSN (`names no postgresql:// database`), `reset`
+called on a pool opened against `cortex` (`refusing to empty database 'cortex'`, with the brain's
+row still there afterwards), and the two unbootstrapped states (`DROP TABLE memories` and
+`DROP DATABASE cortex_contract`), both of which print the two `CREATE DATABASE` / `psql -f`
+statements. The initdb path was proven on a fresh data dir rather than assumed, by bringing the
+same compose up under a throwaway project name: the entrypoint logs
+`running /docker-entrypoint-initdb.d/live-contract-db.sql`, `\l` lists `cortex_contract`, and
+`\dx vector` plus `\d memories` show the extension, the six columns, and `memories_scope_idx`. The
+suite still has teeth in its new database: reporting the score as raw distance rather than
+`1 - distance` reddens `check_ranks_by_similarity` at `assert hits[0].score > hits[1].score`.
+
+**Known limits.** A schema change to `init.sql` now has two databases to reach on an existing data
+dir, not one; the runbook's upgrade section says so, and both get the same `ALTER TABLE ... IF NOT
+EXISTS` statements. And the isolation reaches contract runs only: the seam-level live tests drive
+the running brain, so they necessarily use the brain's own stores. Those were read rather than
+assumed on 2026-08-06 and assert relative properties (the reminder seam filters its own
+`reminder_id`, the tools registry asserts membership in the tool list, the email reader asserts
+`INBOX` is among the folders), which is the property that makes sharing survivable when owning the
+store is not an option.

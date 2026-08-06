@@ -59,7 +59,7 @@ entries from it never added the two it opened, and there the count did move and 
 
 | Doc | Area | Open |
 | --- | --- | --- |
-| [repo-gates.md](repo-gates.md) | Line cap (the core barrel came off it 2026-08-06, split into area sub-barrels under `cortex_core._surface` with every call site unmoved, ADR-0026), dashcheck, coverage config (ADR-0026), gate coverage of the ungated Rust trees and of the overlay's TypeScript (ADR-0011), the stylesheet still outside the cap, test-runner mechanics (ADR-0002) including the live pgvector run still sharing the brain's `memories` table (the live Redis runs got a database of their own 2026-08-03), the couplings the cross-language constant scan does not hold yet (ADR-0029), and the compose bind defaults that land in the repo tree, whose two live cases were ignored 2026-08-06 while nothing checks for a third | 7 |
+| [repo-gates.md](repo-gates.md) | Line cap (the core barrel came off it 2026-08-06, split into area sub-barrels under `cortex_core._surface` with every call site unmoved, ADR-0026), dashcheck, coverage config (ADR-0026), gate coverage of the ungated Rust trees and of the overlay's TypeScript (ADR-0011), the stylesheet still outside the cap, test-runner mechanics (ADR-0002), whose live runs now each own their store after the pgvector one took the `cortex_contract` database 2026-08-06 and the Redis ones took a logical database 2026-08-03, the couplings the cross-language constant scan does not hold yet (ADR-0029), and the compose bind defaults that land in the repo tree, whose two live cases were ignored 2026-08-06 while nothing checks for a third | 6 |
 | [seam-transport.md](seam-transport.md) | `BrainTransport` retry/reconnect (ADR-0003/0024) | 4 |
 | [seam-auth.md](seam-auth.md) | Seam token auth (ADR-0016) | 1 |
 | [session-history.md](session-history.md) | Slice 3 history windowing and summarization, the recap's fold made cheap 2026-08-06 (thinking off and a token cap per request, a floor under a fold, a chip while it runs) and `CORTEX_HISTORY_SUMMARY` moved to on, leaving the one-corpus measurement as the area's only open item (ADR-0014/0038) | 1 |
@@ -1294,6 +1294,24 @@ already ignored, so the tree is clean by three separate acts of remembering rath
 that checks, and what these binds receive is GGUFs and database dumps rather than kilobytes. The
 deferral is the scan, and it is deferred rather than written because one built today would guard a
 set that is already correct ([repo-gates.md](repo-gates.md)).
+
+Repo gates went **7 to 6 later the same day**, when the live pgvector run took the
+`cortex_contract` database and stopped sharing the brain's `memories` table. The entry was
+picked up ahead of its own trigger, on two pieces of work queued behind it: the judge reranker
+became twentyfold cheaper that morning and its default was put to the user, and the widened recall
+corpus that decides that default would have written the first real memories into the table, which
+is precisely the run the entry said would redden. The measurement it recorded was reproduced
+before anything was changed, and one real row turned `check_empty_search` red exactly where the
+entry said it would. The cure is the Redis one in the mechanism Postgres has for it: a database
+rather than a numbered one, `TRUNCATE` rather than `FLUSHDB`, and `init.sql` included by a second
+initdb script rather than restated, so the two databases cannot drift. A schema plus a
+`search_path` was the cheaper option and was rejected on its failure mode, because the adapter's
+SQL is unqualified and a `search_path` that fails to apply puts the suite, `TRUNCATE` included, on
+the brain's own table without saying so. **One bookkeeping repair rides along**: the standing-open
+bucket at the end of this file never carried this entry, so it listed six repo-gates items under a
+header that read seven from 2026-08-03 to now, the header and the cell agreeing with each other
+and with nothing else. The close makes them agree at six, which is the arithmetic working out
+rather than the check working ([repo-gates.md](repo-gates.md)).
 
 Memory went **7 to 9 on 2026-08-06**, an arithmetic correction rather than new work, and the pass
 that found it repaired three more lines without moving a count. The ranked-recall close had done

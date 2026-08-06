@@ -1,9 +1,11 @@
 """Shared MemoryStore behavior checks. Every implementation must satisfy all of them.
 
 Driven by the integration test against real Postgres+pgvector; the in-memory fake is
-checked directly in cortex_core's tests. Each check generates unique memory ids (safe
-against a shared live DB) and returns them so a live run can clean up after itself.
-Embeddings are float4-exact values so the roundtrip check holds against pgvector's storage.
+checked directly in cortex_core's tests. Every check assumes an empty store, which the live run
+grants it by owning its database and emptying it per check (tests/live_postgres.py) and the fake
+grants it by construction, so both run the identical suite. Ids stay unique per check anyway
+(the table's primary key). Embeddings are float4-exact values so the roundtrip check holds
+against pgvector's storage.
 """
 
 from datetime import UTC, datetime, timedelta, timezone
@@ -31,13 +33,12 @@ def make_record(
     )
 
 
-async def check_empty_search(store: MemoryStore) -> list[str]:
+async def check_empty_search(store: MemoryStore) -> None:
     """A store with no matching rows returns an empty result, not an error."""
     assert list(await store.search((1.0, 0.0, 0.0), k=5)) == []
-    return []
 
 
-async def check_ranks_by_similarity(store: MemoryStore) -> list[str]:
+async def check_ranks_by_similarity(store: MemoryStore) -> None:
     """Search returns the most cosine-similar memory first."""
     near = make_record("near", (1.0, 0.0, 0.0))
     far = make_record("far", (0.0, 1.0, 0.0))
@@ -46,19 +47,17 @@ async def check_ranks_by_similarity(store: MemoryStore) -> list[str]:
     hits = await store.search((1.0, 0.0, 0.0), k=2)
     assert [hit.record.text for hit in hits] == ["near", "far"]
     assert hits[0].score > hits[1].score
-    return [near.id, far.id]
 
 
-async def check_top_k_truncates(store: MemoryStore) -> list[str]:
+async def check_top_k_truncates(store: MemoryStore) -> None:
     """search(k) returns at most k results."""
     records = [make_record(f"m{i}", (float(i + 1), 0.0, 0.0)) for i in range(3)]
     for record in records:
         await store.add(record)
     assert len(await store.search((1.0, 0.0, 0.0), k=1)) == 1
-    return [record.id for record in records]
 
 
-async def check_roundtrip_fidelity(store: MemoryStore) -> list[str]:
+async def check_roundtrip_fidelity(store: MemoryStore) -> None:
     """A stored memory reads back with its fields intact (float4-exact embedding; instant tz)."""
     original = make_record(
         "unicode ✓ / newline\n",
@@ -76,10 +75,9 @@ async def check_roundtrip_fidelity(store: MemoryStore) -> list[str]:
     assert hit.record.tainted is True  # the untrusted-provenance marker roundtrips (ADR-0019)
     # timestamptz normalizes to UTC, so compare the instant (not the original offset).
     assert hit.record.at == original.at
-    return [original.id]
 
 
-async def check_scope_filter_isolates_and_unions(store: MemoryStore) -> list[str]:
+async def check_scope_filter_isolates_and_unions(store: MemoryStore) -> None:
     """``scopes`` restricts candidates to those namespaces; ``None`` spans every scope."""
     a = make_record("scope-a memory", (1.0, 0.0, 0.0), scope=f"contract-a-{uuid4()}")
     b = make_record("scope-b memory", (1.0, 0.0, 0.0), scope=f"contract-b-{uuid4()}")
@@ -90,10 +88,9 @@ async def check_scope_filter_isolates_and_unions(store: MemoryStore) -> list[str
     assert b.id not in {hit.record.id for hit in only_a}  # filtered out by scope
     both = await store.search((1.0, 0.0, 0.0), k=10, scopes=[a.scope, b.scope])
     assert {a.id, b.id} <= {hit.record.id for hit in both}  # a union of the two scopes
-    return [a.id, b.id]
 
 
-async def check_delete_scope_removes_a_namespace(store: MemoryStore) -> list[str]:
+async def check_delete_scope_removes_a_namespace(store: MemoryStore) -> None:
     """``delete_scope`` hard-deletes exactly its namespace, counts it, and spares the rest."""
     scope = f"contract-del-{uuid4()}"
     other = f"contract-keep-{uuid4()}"
@@ -106,13 +103,11 @@ async def check_delete_scope_removes_a_namespace(store: MemoryStore) -> list[str
     assert list(await store.search((1.0, 0.0, 0.0), k=10, scopes=[scope])) == []  # gone
     kept = await store.search((1.0, 0.0, 0.0), k=10, scopes=[other])
     assert [hit.record.id for hit in kept] == [survivor.id]  # the other namespace is untouched
-    return [survivor.id]
 
 
-async def check_delete_scope_without_matches_returns_zero(store: MemoryStore) -> list[str]:
+async def check_delete_scope_without_matches_returns_zero(store: MemoryStore) -> None:
     """Deleting a namespace that holds nothing removes nothing and returns 0, not an error."""
     assert await store.delete_scope(f"contract-empty-{uuid4()}") == 0
-    return []
 
 
 ALL_CHECKS = (

@@ -48,6 +48,14 @@ services:
         source: ./docker/postgres/init.sql
         target: /docker-entrypoint-initdb.d/init.sql
         read_only: true
+      # The live MemoryStore contract run's own database, given the same bootstrap (ADR-0002
+      # addendum on the live-run database). Also runs once on first init, and includes the file
+      # above rather than restating its DDL. It stays mounted after init so a data dir created
+      # before it can be bootstrapped by hand from the same file (runbook: memory-pgvector.md).
+      - type: bind
+        source: ./docker/postgres/live-contract-db.sql
+        target: /docker-entrypoint-initdb.d/live-contract-db.sql
+        read_only: true
     ports:
       # Loopback-only publish so host-side integration tests can reach it (assumption 5).
       - "127.0.0.1:5432:5432"
