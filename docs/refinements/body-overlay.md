@@ -46,7 +46,11 @@ nor its account of the fix survived contact; the panel's chrome shrinking the lo
 outside the box was opened with it, and closed on 2026-08-04 on that same ride, one line of
 subscription and one line of cap, after the arithmetic it promised turned out to refuse the whole
 ride. The console tab strip's keyboard half, listed open here until then, had in fact landed on
-2026-08-03 with the entry that describes it.
+2026-08-03 with the entry that describes it. A swap dropping focus on the floor, opened 2026-08-04
+by the live region beside it and never listed up here, landed 2026-08-06 on the user's answer as the
+caret following the conversation into the composer; it opened the two entries that are open in its
+place, the same rows losing focus for gestures that swap nothing, and the draft that the caret now
+lands in belonging to no chat.
 
 **Body / overlay in Slice 8 ([ADR-0011](../adr/ADR-0011-body-v1.md)):**
 - **Multi-turn-within-one-stream + an explicit proto `Cancel` event.** One turn per `Converse`
@@ -1188,6 +1192,56 @@ ride. The console tab strip's keyboard half, listed open here until then, had in
   switcher deliberately stays open behind it. Cost is small once that is chosen (the composer's
   focus effect already exists and would need a second trigger, or the panel would take a ref);
   the deciding is the work. Nothing blocks it.
+  - **LANDED 2026-08-06 on the user's answer, which is the composer, for the delete confirm as well**
+    ([ADR-0035 addendum](../adr/ADR-0035-console-and-motion.md)). The user was offered the three
+    candidates above and took the first plainly: it is where a summon already lands, and it puts the
+    reader in the conversation that arrived. What ships is one rule, that a conversation arriving on
+    the panel takes the caret with it, as `OverlayState.arrival`, a count each swap arm raises, and
+    the composer's existing focus effect reading it (`active: boolean` became
+    `arrival: number | null`, one prop rather than two, which is one idea and also what keeps
+    `ChatView` at 299 lines rather than standing exactly on its cap).
+    **The entry's own measurement was right about one door of three.** Only the switcher row holds
+    focus for the roll: measured again at 900x900, the row keeps it at 0, 60, 150, 290 and 320ms and
+    reads `BODY` by 700ms. The other two lose it in the commit itself, by two mechanisms the entry
+    did not have. A reminder card's stack does not roll away at all, its `Collapse` being keyed on
+    the session id, so a swap remounts it and the control is gone at once; and a leaving switcher row
+    is `withdrawn` the moment `sessions` drops it, and `inert` blurs what it contains, so the delete
+    confirm reads `BODY` at 0ms too. **And the doors are not three.** `Ctrl+N` pressed with focus on
+    a switcher row holds it to 290ms and reads `BODY` at 320, so this belongs to where the gesture
+    was made rather than to which control made it, and the cycle keys reach it the same way. After,
+    every door reads the composer at 0ms and at every sample to 700ms: a switcher row, a reminder's
+    open control, a delete confirm on the open chat, `Ctrl+N` from a row, `Ctrl+↓` from the chats
+    button, and the header's pencil. **The rule needed no flag, which is the one place this differs
+    from the notice it was opened by.** Every door on an arm wants the same landing, so each arm
+    answers for its own doors and nothing travels with the action; adoption is excluded by being its
+    own arm. And the panel does not notice the caret moving under it: the switcher's roll is frame
+    for frame what it was, 108 to 273.19 with the height 518 to 352.81 over 43 frames, the largest
+    top step 25.42 before and 25.56 after, and the log's `scrollTop` identical, which is
+    `preventScroll` doing the job it was already there for. Two things this leaves behind, both
+    below: the same gestures without a swap still drop focus, and the draft the caret now lands in
+    still belongs to no chat.
+- **The switcher's and the stack's own row gestures drop focus with the row, and no swap answers
+  them.** Opened 2026-08-06 by the entry above, whose rule covers only the gestures that replace the
+  conversation. The same rows reshape and leave for other reasons, and each one loses the caret to
+  `<body>` (measured at 900x900): pressing Rename swaps the row for its editor and does not put the
+  caret in the input, committing the rename swaps it back, pressing Delete swaps the row for its
+  confirm, confirming the delete of a chat that is NOT the open one takes the row away, and acking a
+  reminder holds focus on the ack for its roll (0 and 150ms) and reads `BODY` at 350. None of them
+  is a swap, so `arrival` never hears about them, and each wants an answer of its own shape rather
+  than the composer: a rename editor wants its own input, and a row leaving wants the row that took
+  its place or the list around it. It is one decision about what a list does with focus when it
+  changes shape under the hand, plus small wiring per gesture (`SessionList.tsx`, `Reminders.tsx`).
+  Nothing blocks it.
+- **The composer's draft belongs to no chat, and the caret now lands in it.** Opened 2026-08-06 by
+  the focus rule above. The field is never unmounted, which is what keeps a draft alive across a trip
+  to the console, and it keeps it across a chat swap too: measured at 900x900, "half a question"
+  typed into the fresh chat is still in the field, caret at 15, after `Ctrl+↓` loads another
+  conversation. That was always true and was easy not to notice while focus landed on `<body>`; now
+  the caret is put in that field by the swap itself, so the first thing a reader meets in the
+  conversation that arrived is a sentence they started somewhere else. The two shapes are a draft
+  per chat (kept in the reducer beside `messages`, restored on arrival, which is what the composer's
+  local `text` state would have to give up) or a draft cleared by a swap, which is cheaper and
+  throws away work the user did. It wants the user's answer before either. Nothing blocks it.
 - **Two motions in the switcher's list are still instant, and one flag cannot smooth both.** Opened
   2026-08-03 with the switcher's per-row exit ([ADR-0035
   addendum](../adr/ADR-0035-console-and-motion.md)), which left them on purpose. The first is the

@@ -90,6 +90,11 @@ function headerTitle(
  * (`notice.ts`). What is announced is the title computed right here, so the live region and the
  * header cannot disagree about which chat arrived, in the same way the header and the switcher
  * row cannot (`headerTitle`).
+ *
+ * Focus is the arm's own decision and needs no flag, all three doors wanting the same landing: the
+ * chat arrives with the caret in the composer (`arrival`, and `Composer` for why there). Two of
+ * these doors are why that rule exists, a switcher row and a reminder's open control both sitting
+ * inside a section this swap takes away.
  */
 export function openSession(
   state: OverlayState,
@@ -106,6 +111,7 @@ export function openSession(
     sessionId,
     title,
     notice: announce ? speak(state.notice, title) : null,
+    arrival: state.arrival + 1,
     messages: loaded,
     switcherOpen: false,
     consoleTab: null,
@@ -166,6 +172,10 @@ export function adoptSession(
  * the one door and that door names the wrong chat: the button pressed is "Confirm delete" plus the
  * title of the conversation LEAVING, which says nothing about the empty one taking its place
  * (`notice.ts`). Deleting any other chat swaps nothing and stays silent.
+ *
+ * It is a swap for focus too, and the reset counts as an arrival: the confirm button is inside the
+ * row that leaves, so the caret goes to the composer of the chat that arrived rather than nowhere
+ * (`arrival`). The switcher stays open behind it, which is deliberate above and unchanged here.
  */
 export function deleteSession(
   state: OverlayState,
@@ -183,6 +193,7 @@ export function deleteSession(
     sessionId: fallbackSessionId,
     title: NEW_CHAT_TITLE,
     notice: speak(state.notice, NEW_CHAT_TITLE),
+    arrival: state.arrival + 1,
     messages: [],
     pendingConfirm: null,
     seq: 0,

@@ -218,14 +218,14 @@ export function ChatView({
           panel at its ceiling, a two-line draft left the newest reply 52px below the visible edge,
           clipped mid-line, and a draft at the field's own ceiling 122px. The reader is answering
           that reply, so it is exactly the thing that must not slide away under them. */}
-      {/* The chat is only the ACTIVE view while no console tab is up, and the field takes focus on
-          that rising edge. So coming back from the console puts the caret back in the composer
-          (with the draft and its selection intact, since this field is never unmounted) instead of
-          leaving focus on a tab strip that is fading out, which is where the click that opened the
-          console left it and which the browser is about to display:none out from under it. */}
+      {/* The chat is only the ACTIVE view while no console tab is up, so the composer is handed
+          which conversation it is sitting in only then, and null otherwise. It takes focus on every
+          change: coming back from the console puts the caret back in the draft (intact, this field
+          never being unmounted) rather than on a tab strip the browser is about to display:none out
+          from under it, and a chat arriving lands it in the conversation that arrived. */}
       <Composer
         busy={isTurnActive(state)}
-        active={open && showing}
+        arrival={open && showing ? state.arrival : null}
         onSubmit={onSubmit}
         onStop={onStop}
         onResize={log.toTail}

@@ -463,6 +463,29 @@ describe("overlayState reducer", () => {
     expect(current.notice).toEqual({ title: "New chat", count: 1 });
   });
 
+  it("counts every gesture that replaces the conversation, and nothing else, as an arrival", () => {
+    // The caret follows the conversation (`Composer`), and the count is what tells the composer a
+    // conversation arrived. Unlike the notice it is decided per ARM rather than per door, both
+    // doors on an arm wanting the same landing, so the two flag values below have to agree.
+    const listed = reduce(initialState, { kind: "sessionsLoaded", sessions: [summary("chat-7")] });
+    expect(listed.arrival).toBe(0);
+    const row = reduce(listed, { kind: "openSession", sessionId: "chat-7", messages: [], announce: false });
+    const key = reduce(row, { kind: "openSession", sessionId: "chat-7", messages: [], announce: true });
+    expect([row.arrival, key.arrival]).toEqual([1, 2]);
+    // Re-selecting the chat already open is why this is a count and not the session id: the row
+    // pressed still leaves with the list, so the caret still has to be somewhere.
+    expect(reduce(key, { kind: "openSession", sessionId: "chat-7", messages: [], announce: false }).arrival).toBe(3);
+    const pencil = reduce(key, { kind: "newChat", sessionId: "n-1", announce: false });
+    const ctrlN = reduce(pencil, { kind: "newChat", sessionId: "n-2", announce: true });
+    expect([pencil.arrival, ctrlN.arrival]).toEqual([3, 4]);
+    // The empty chat that replaces a deleted one arrives; deleting any other chat is not a swap
+    // and moves nothing, and neither is a summon, a send, or the switcher opening.
+    const open = reduce(listed, { kind: "openSession", sessionId: "chat-7", messages: [], announce: false });
+    expect(reduce(open, { kind: "sessionDeleted", sessionId: "chat-7", fallbackSessionId: "f" }).arrival).toBe(2);
+    expect(reduce(open, { kind: "sessionDeleted", sessionId: "other", fallbackSessionId: "f" }).arrival).toBe(1);
+    expect(run([{ kind: "open" }, submit("hi"), { kind: "toggleSwitcher" }]).arrival).toBe(0);
+  });
+
   it("adoptSession hydrates like openSession but keeps the overlay hidden", () => {
     const messages: SessionMessage[] = [
       { role: "user", text: "about cats", turnId: "t", atUnixMs: 1 },
@@ -473,6 +496,9 @@ describe("overlayState reducer", () => {
     // And says nothing while it does it: there is no gesture behind a restore to answer, and it
     // cannot land over something already said, every door that speaks setting `touched` first.
     expect(adopted.notice).toBeNull();
+    // Nor does it move the caret, for the same reason and one more: the panel it would be moving
+    // focus inside is shut, and shut it is `inert` (`withdrawn.ts`).
+    expect(adopted.arrival).toBe(0);
     expect(adopted.sessionId).toBe("chat-7");
     expect(adopted.title).toBe("about cats");
     expect(adopted.seq).toBe(2);

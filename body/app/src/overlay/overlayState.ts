@@ -70,6 +70,19 @@ export interface OverlayState {
   /** What the overlay's live region has to say about the conversation that arrived, or `null`
    *  when the swap that put it on screen was fired by a control already naming it (`notice.ts`). */
   readonly notice: Notice | null;
+  /**
+   * Which conversation-arrival the panel is showing, counted from the overlay's first. The caret
+   * follows the conversation: every arrival puts focus in the composer, where a summon already puts
+   * it, and `Composer` holds the whole of that rule. A count rather than the session id, because
+   * re-selecting the chat already open is still an arrival and still takes its own row away, and
+   * rather than a flag, because two arrivals in a row have to read as two events.
+   *
+   * Unlike the notice beside it this is NOT decided per door (`notice.ts`): every gesture that
+   * replaces the conversation wants the caret in one place, so each arm answers for all of its own
+   * doors and nothing travels with the action. Cold-start adoption is the one swap that does not
+   * count, having no gesture behind it to answer and running only while the panel is untouched.
+   */
+  readonly arrival: number;
   /** Fired reminders awaiting delivery, pulled on each open and acked on dismiss (ADR-0025). */
   readonly reminders: readonly DueReminder[];
   /** What the overlay knows about the brain connection, for the header indicator (`linkState`). */
@@ -150,6 +163,7 @@ export function createInitialState(sessionId: string): OverlayState {
     consoleTab: null,
     pendingConfirm: null,
     notice: null,
+    arrival: 0,
     reminders: [],
     link: INITIAL_LINK,
     capturing: false,
@@ -222,7 +236,8 @@ export function reduce(state: OverlayState, action: Action): OverlayState {
       //
       // The two doors part company on one thing only, which is whether the swap is announced. The
       // pencil is labelled "New chat" and hands back exactly that string, so it stays silent; the
-      // keystroke names nothing, so it speaks (`notice.ts`).
+      // keystroke names nothing, so it speaks (`notice.ts`). They agree about focus, as every pair
+      // of doors on one arm does: the empty chat arrives with the caret in it (`arrival`).
       return {
         ...state,
         mode: "panel",
@@ -230,6 +245,7 @@ export function reduce(state: OverlayState, action: Action): OverlayState {
         sessionId: action.sessionId,
         title: NEW_CHAT_TITLE,
         notice: action.announce ? speak(state.notice, NEW_CHAT_TITLE) : null,
+        arrival: state.arrival + 1,
         messages: [],
         switcherOpen: false,
         consoleTab: null,

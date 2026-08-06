@@ -4,9 +4,11 @@ import { SendIcon, StopIcon } from "./icons";
 
 interface ComposerProps {
   readonly busy: boolean;
-  /** True while the panel is open AND the chat is the view it is showing; the field takes focus on
-   *  the rising edge, which is a summon and also a return from the console. */
-  readonly active: boolean;
+  /** Which conversation this field is sitting in (`OverlayState.arrival`), or null while the panel
+   *  is shut or the console is over the chat. Every change to it is a landing, and the field takes
+   *  focus on each: null to a number is a summon or a return from the console, and one number to
+   *  the next is a chat arriving under an open panel. */
+  readonly arrival: number | null;
   readonly onSubmit: (text: string) => void;
   readonly onStop: () => void;
   /** Called when the pill's own height changes, before the frame that shows it. The pill is a flex
@@ -23,8 +25,9 @@ const FIELD_MAX_PX = 120;
 const STACKED = "stacked";
 
 /** The prompt input: Enter sends, Shift+Enter newlines, and the field grows with its content
- *  up to a few lines. Focus lands here whenever the panel opens (design/overlay-ux.md §7).
- *  While a turn streams the send button becomes a stop that cancels it (§3).
+ *  up to a few lines. Focus lands here whenever the panel opens (design/overlay-ux.md §7) and
+ *  whenever another conversation arrives on it. While a turn streams the send button becomes a
+ *  stop that cancels it (§3).
  *
  *  Past one line the pill restacks: on a single line the button is a flex sibling of the field,
  *  which is fine, but it reserves its column down the WHOLE pill, so every wrapped line stopped
@@ -34,7 +37,7 @@ const STACKED = "stacked";
  *  corner of the same content box, one as the last item of a bottom-aligned row and one as the
  *  last row of a column, so the switch never moves it: traced character by character over two
  *  lines, its rect was identical in all 183 samples. */
-export function Composer({ busy, active, onSubmit, onStop, onResize }: ComposerProps) {
+export function Composer({ busy, arrival, onSubmit, onStop, onResize }: ComposerProps) {
   const [text, setText] = useState("");
   const [stacked, setStacked] = useState(false);
   // Both are always mounted with the panel, so the refs are set before any effect runs.
@@ -44,8 +47,21 @@ export function Composer({ busy, active, onSubmit, onStop, onResize }: ComposerP
   // keystroke. Starts at 0, which the first measurement is free to disagree with.
   const pillHeight = useRef(0);
 
+  // WHERE THE CARET IS AFTER THE CONVERSATION CHANGES. A summon lands here, and so does a chat
+  // arriving under an already open panel, which is one rule and not two: the reader is put in the
+  // conversation on screen, in the one control that is about to be useful, and the field is never
+  // unmounted so it is always there to take it. Three gestures needed it. A switcher row, a
+  // reminder card's open control and a delete confirm each sit inside a section the swap takes
+  // away, so the control that was pressed stopped existing (a leaving row goes `inert` at once, a
+  // closing list unmounts its rows when the roll ends) and focus fell to `<body>`, outside the
+  // panel and one Tab from the top of the page.
+  //
+  // At the arrival and not at the end of the roll. The swap is one commit, so moving here means
+  // focus has already left the doomed control before its section starts rolling, rather than
+  // riding 300ms on an element that is on its way out; and the roll is the panel's own movement,
+  // which a focus landing in the middle of would be measured against.
   useEffect(() => {
-    if (active) {
+    if (arrival !== null) {
       // WITHOUT SCROLLING ANYTHING. The panel clips its overflow, which makes it a scroll container
       // the user can never scroll but the ENGINE can, and bringing a newly focused element into
       // view is exactly when it does. Coming back from the console the panel is still the console's
@@ -57,7 +73,7 @@ export function Composer({ busy, active, onSubmit, onStop, onResize }: ComposerP
       // not need bringing into view, it needs the caret.
       fieldRef.current.focus({ preventScroll: true });
     }
-  }, [active]);
+  }, [arrival]);
 
   // Both questions below are asked of the text AND of the width it is laid out at, so this is a
   // function rather than an effect body: a keystroke is not the only thing that can change the
