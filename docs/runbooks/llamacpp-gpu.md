@@ -24,6 +24,7 @@ design, AGENTS.md gate 3).
 | `CORTEX_MODELS_DIR` | host dir holding the GGUFs, mounted read-only | `./models` |
 | `CORTEX_MODEL_FILE_CORTEX` | cortex GGUF path **relative to that dir** (LM Studio nests it under `publisher/repo/`); default is the gemma-4-12B pick | `google/gemma-4-12B-it-qat-q4_0-gguf/gemma-4-12b-it-qat-q4_0.gguf` |
 | `CORTEX_MMPROJ_FILE_CORTEX` | the multimodal projector, relative to the same dir. Setting it adds llama.cpp's `--mmproj` pair to the cortex tier's argv, which is what makes `GET /props` report `modalities.vision` and therefore what makes the brain advertise `capture_screen` (ADR-0029). Empty (the default) starts text-only. See `docs/runbooks/vision.md` | `google/gemma-4-12B-it-qat-q4_0-gguf/mmproj-gemma-4-12b-it-qat-q4_0.gguf` |
+| `CORTEX_IMAGE_MAX_TOKENS` | how many tokens one picture may occupy, and with it how much of a 4K screen the cortex can read. `0` (the default) leaves the budget the model declares for itself. See the legibility section below before changing it, and never set llama.cpp's `--image-max-tokens` by hand instead | `0` |
 | `CORTEX_CTX_SIZE` | context window (KV size); **set it**. The model default (262144) alone eats ~8 GB | `16384` |
 | `CORTEX_NGL` | GPU layers to offload: `99` = all, `0` = CPU-only, partial = hybrid (ADR-0004 addendum) | `99` |
 
@@ -254,6 +255,66 @@ reported without naming its model is worse than a bad number. The alt is the exp
 reason is its projector: Qwen3.5-9B's F32 `mmproj` puts about 1900 prompt tokens of picture in
 front of the model against the pick's 450, and its uncapped vision turns run long enough that a
 full matrix is over an hour of card time. Budget for that before selecting it.
+
+## How much of a 4K screen the cortex can read, and the two knobs that decide it (ADR-0029)
+
+Vision ships at the budget the model declares for itself, which measured **266 prompt tokens for
+any capture from 1280 px up**. On a 4K desktop that is a 13% reading: of 47 ground-truth strings
+across five synthetic 3840x2160 desktops (a code editor, a terminal, a browser article, a
+spreadsheet, a chat client, from 15 px to 52 px type), the shipped deployment read 6 to 8 and
+confidently invented most of the rest. Two settings change that, and they only work together:
+
+```
+CORTEX_IMAGE_MAX_TOKENS=1024    # on the model-host sidecar (this runbook's table above)
+CORTEX_BODY_CAPTURE_MAX_EDGE=2048    # on the brain (docs/runbooks/vision.md)
+```
+
+| setting | image tokens | strings read (of 47) | cortex VRAM | time to first token |
+|---|---|---|---|---|
+| shipped (both unset) | 266 | 6 to 8 | 10766 to 10815 MiB | 0.94 to 1.08 s |
+| `CORTEX_IMAGE_MAX_TOKENS=1024` alone | 629 | 24 to 26 | 11181 MiB | |
+| **both, as above** | 1010 | **36 to 38** | 11181 MiB | 1.67 to 1.68 s |
+| `CORTEX_IMAGE_MAX_TOKENS=2048` + a 3072 px capture | 1982 | 36 to 37 | 11726 MiB | |
+
+Measured 2026-08-06 on the 24 GB card through the `model-host` sidecar, with the idle card at 2581
+to 2651 MiB and thinking on. Six things to know before turning it on.
+
+- **The recommended pair is not the default**, and turning it on is the maintainer's call: it costs
+  about 400 MiB of VRAM (all of it the micro-batch, not the budget), 0.6 s of time to first token,
+  and 744 more context tokens per capture out of 16384. It stays far inside the 11.3 GB
+  `CORTEX_VRAM_CORTEX_GB` reservation, so nothing about placement changes.
+- **Raising one without the other is close to pointless.** The budget alone leaves the body sending
+  a 1600 px picture (24 to 26 of 47); the capture edge alone sends more pixels into an encoder that
+  throws them away (4 of 47 at 2048 px and at 3072 px on the shipped budget, no better than the
+  1600 px default).
+- **Do not just send the whole screen.** A 3840 px capture at the same 1010 tokens reads *worse*
+  than a 2048 px one, 30 against 36 to 38, because the encoder's internal resize is a poorer filter
+  than the body's box average. Downscale to the budget, do not hand the encoder everything.
+- **Never set llama.cpp's `--image-max-tokens` by hand.** A budget over the engine's 512
+  micro-batch default aborts `llama-server` inside `llama_decode` on the first oversized picture
+  (`GGML_ASSERT`, SIGSEGV, container exit 139, no error reply, vision gone for the session).
+  `CORTEX_IMAGE_MAX_TOKENS` emits the matching `--ubatch-size` for exactly that reason. The abort
+  is build-dependent too: a cached `server-cuda` at b9870 survived what b10236 and b10276 abort on,
+  which is one more reason to pin the image.
+- **What it still cannot read.** 15 px type on an unscaled monitor stays at 4 of 16 at every budget
+  tried, including 1982 tokens; 20 px spreadsheet cells in their usual grey reach 18 of 24. The
+  boundary is 21 px and up on the budget alone, 18 to 20 px with the 2048 px capture. Below that,
+  region capture is the fix and it is still deferred (docs/refinements/vision.md).
+- **A 2048 px capture moves a pathological screen closer to the ladder.** Uniform noise, the
+  incompressible worst case, encodes to 3.80 MB at 1600 px and 6.50 MB at 2048 px, which is over
+  the 6 MiB ceiling and halves the capture to 1024 px, below even the shipped view. A photographic
+  wallpaper reaches 4.53 MB and fits; a text screen is under 220 KB at any edge.
+
+The re-runnable half is
+[`test_image_budget_live.py`](../../brain/packages/inference/tests/test_image_budget_live.py),
+which asserts the saturation, asserts the knob raises it, and proves the abort by stripping the
+micro-batch back off the shipped argv. Run it when llama.cpp is upgraded or the cortex pick
+changes; it needs the `cortex-model-host` image built, because the base tag drifts:
+
+```
+cd brain && CORTEX_MODELS_DIR=<the host dir holding the GGUFs> \
+  uv run pytest -m integration --no-cov -s packages/inference/tests/test_image_budget_live.py
+```
 
 ## Measured so far (2026-06-29, 24 GB card, 16K ctx, single slot, full offload)
 

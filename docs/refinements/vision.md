@@ -6,7 +6,7 @@ downscale/encode/byte-bounding policy in pure `body_core`, a GDI Windows backend
 treated as untrusted and unfenceable content. Recorded when the slice landed on 2026-07-18; the
 index at [index.md](index.md) carries the recommended pickup order.
 
-**Open items:** the user-attached image path, region and window capture, legibility at 4K, a
+**Open items:** the user-attached image path, region and window capture, a
 live-probe refresh, JPEG or WebP for photographic screens,
 an `AttachmentStore` for accountability,
 per-source memory rules, a Windows.Graphics.Capture backend, multi-monitor and DPI reporting,
@@ -34,7 +34,14 @@ A seventh, on 2026-08-04: the image arm of the injection harness ran against a r
 corpus, so its name left the line above and the count moves 16 to 15. It is the last of this ADR's
 four agent-Docker measurements, it closes whole rather than half, and its bullet keeps the number
 it produced together with the one cell where the number disagrees with the sentence the entry was
-written to confirm.
+written to confirm. An eighth, on 2026-08-06, which retires the first note above: **legibility at
+4K** was measured and mitigated, so it leaves the line and the count moves 15 to 14, and the two
+names that shared one bullet are one name now. This is the opposite bookkeeping to the swap entry's
+and the difference is worth stating, since both are halves of a shared bullet. The swap entry's two
+halves were one name, so a decrement would have hidden the open half; here the pair were two names,
+region capture keeps its own, and what closed was a risk rather than a piece of work. The bullet
+stays and stays counted, because the fix it names is still owed for the residue the knob does not
+reach.
 
 ## Vision in Slice 10 ([ADR-0029](../adr/ADR-0029-vision-screen-capture.md))
 
@@ -52,6 +59,42 @@ written to confirm.
   at all, llama.cpp's `--image-max-tokens`; the real fix is capturing a region or a window rather
   than a bigger PNG, which needs the `display_index`/`region` proto fields ADR-0029 deliberately
   refused to add without a consumer. The `CaptureRequest` value already carries the shape.
+
+  **Measured 2026-08-06, and the risk is real, the mitigation is real, and the entry was wrong
+  about the mitigation being free**
+  ([ADR-0029 legibility addendum](../adr/ADR-0029-vision-screen-capture.md)). Five synthetic
+  3840x2160 desktops carrying 47 ground-truth strings from 15 px to 52 px (a code editor, a
+  terminal, a browser article, a spreadsheet in its usual grey, a chat client; light and dark; 150%
+  scaling and 100%) were put through a transcription of the body's own `box_filter`, proven equal
+  to the Rust loop, and read by the shipped cortex through the shipped request scaffold. The
+  shipped deployment reads **6 to 8 of 47**, the flag alone reads **24 to 26**, and the flag with
+  `CORTEX_BODY_CAPTURE_MAX_EDGE=2048` reads **36 to 38**, against a 400 px control at 2. So the risk was
+  not overstated and the knob answers most of it: 13% to 79% for about 400 MiB of VRAM, 0.6 s of
+  time to first token, and 744 context tokens a capture.
+
+  Four things the entry did not have. **The flag was not reachable**: `ModelHostConfig` builds the
+  cortex tier's argv and had no way to pass it, so "a deployment flag with no code at all" was a
+  hypothesis about a deployment nobody had tried it on. **The flag alone crashes the server**: a
+  picture is one non-causal chunk and llama.cpp asserts the micro-batch covers it, so a raised
+  budget without `--ubatch-size` aborts `llama-server` with SIGSEGV on the first oversized picture,
+  met in anger on the second command of the sitting. Both are now one knob,
+  `CORTEX_IMAGE_MAX_TOKENS`, default off, emitting the pair. **A bigger PNG buys nothing**, which
+  the saturation predicted and this confirms as a legibility fact (4 of 47 at a 3072 px capture on
+  the shipped budget), and a full-resolution capture at the raised budget is *worse* than a 2048 px
+  one on identical tokens, because the encoder's own resize is a poorer filter than the body's box
+  average. And **the model does not decline**: with `describe`'s source size in front of it and
+  "unreadable" offered as an answer, the shipped deployment declined on 3 of 47 and invented the
+  rest, which narrows a claim that docstring has made since the slice landed.
+
+  **The fields are demoted, not declined, and the entry stays open.** The knob does not reach 15 px
+  text on an unscaled monitor (4 of 16 at every budget tried, including 1982 tokens), it does not
+  help the 6 MiB ceiling (uniform noise reaches 6.50 MB at a 2048 px capture and fires the halving
+  ladder), and it was never the privacy argument. The measurement is the design input the fields
+  were waiting for: the binding quantity is **source pixels per image token**, so `region` wants a
+  rectangle in the display's own physical coordinates rather than a normalized one, `display_index`
+  is required beside it because a multi-monitor bounding box makes that ratio worse, and a window
+  handle would serve "read the window I am looking at" better than a rectangle, since the body
+  knows window bounds and the model cannot express them.
 - **A cross-language check on the byte ceiling.** `MAX_CAPTURE_BYTES` (Rust) and
   `MAX_IMAGE_BYTES` (Python) are the same number, 6 MiB, and each is pinned to the literal
   `6291456` by a test in its own toolchain. **Nothing mechanical couples them**: an edit to one

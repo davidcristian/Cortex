@@ -61,7 +61,7 @@ the tree does now.
 | [email-confirmer.md](email-confirmer.md) | Email write, Confirmer, attachments, `ToolActivity` chip (ADR-0022) | 4 |
 | [body-gateway.md](body-gateway.md) | Body gateway, OS actions, hardened posture (ADR-0023) | 5 |
 | [scheduling.md](scheduling.md) | Scheduling and reminders, `TurnStamp` provenance (ADR-0025/0027) | 8 |
-| [vision.md](vision.md) | Screen capture, images, the pixel boundary (ADR-0029) | 15 |
+| [vision.md](vision.md) | Screen capture, images, the pixel boundary (ADR-0029) | 14 |
 | [cross-cutting.md](cross-cutting.md) | Pointer input, OS backends, more roles | 3 |
 
 The counts are per area as extracted; a few threads appear in two areas (the cross-cutting
@@ -1458,6 +1458,26 @@ that has siblings, and the siblings only become visible once the first one is ri
   fields ADR-0029 deliberately refused to add without a consumer, so it is a seam change with a
   design attached rather than an increment. Take the env var first and measure before spending
   the fields.
+
+  **The env var was taken and measured 2026-08-06, and the entry survives it demoted**
+  ([ADR-0029 legibility addendum](../adr/ADR-0029-vision-screen-capture.md)). Five 3840x2160
+  desktops carrying 47 ground-truth strings from 15 px to 52 px, through a transcription of the
+  body's own box filter and the shipped request scaffold: the shipped deployment reads 6 to 8 of
+  them, the raised budget alone reads 24 to 26, and the raised budget with
+  `CORTEX_BODY_CAPTURE_MAX_EDGE=2048` reads 36 to 38, against a 400 px control at 2. So 13% to 79% for
+  about 400 MiB of VRAM and 0.6 s of time to first token, and the risk this entry names was not
+  overstated. "Needs no code at all" was the wrong half of the estimate twice over, which is this
+  section's standing warning arriving on schedule: the flag was **unreachable** (nothing in
+  `ModelHostConfig` passed it to the cortex tier's argv) and it is **unsafe alone** (a budget over
+  llama.cpp's 512 micro-batch aborts the server with SIGSEGV on the first oversized picture, met in
+  anger). Both are now one knob, `CORTEX_IMAGE_MAX_TOKENS`, default off, emitting the flag and its
+  micro-batch together. What keeps the entry open is the residue the knob cannot reach: 15 px text
+  on an unscaled monitor stays at 4 of 16 even at 1982 image tokens, a 2048 px capture pushes a
+  pathological screen to 6.50 MB and into the halving ladder, and none of this was ever the privacy
+  argument. The measurement is the design input the fields were waiting for, since the binding
+  quantity turns out to be source pixels per image token: `region` wants physical display
+  coordinates rather than normalized ones, `display_index` is required beside it, and a window
+  handle would serve the common ask better than either.
 - **A cross-language check on the byte ceiling** ([vision.md](vision.md)), open from 2026-07-18
   and **closed 2026-08-03** as `scripts/crosscheck.py`, the third cross-tree scan. Its cost
   estimate held ("one small script" beside `linecap.py` and `dashcheck.py`) and its diagnosis did

@@ -23,6 +23,8 @@ DEFAULT_SUBAGENT_GPU_MODEL = "subagent-gpu"
 # subagent service does.
 _REASONING_OFF = ("--chat-template-kwargs", '{"enable_thinking": false}')
 
+_LLAMA_DEFAULT_UBATCH = 512
+
 
 class ModelHostConfig(BaseSettings):
     """Env-only settings for the supervisor sidecar. Read once, at ``main``."""
@@ -45,6 +47,9 @@ class ModelHostConfig(BaseSettings):
         default=DEFAULT_CORTEX_FILE, validation_alias="CORTEX_MODEL_FILE_CORTEX"
     )
     cortex_mmproj_file: str = Field(default="", validation_alias="CORTEX_MMPROJ_FILE_CORTEX")
+    cortex_image_max_tokens: int = Field(
+        default=0, ge=0, validation_alias="CORTEX_IMAGE_MAX_TOKENS"
+    )
     cortex_ngl: int = Field(default=99, validation_alias="CORTEX_NGL")
     cortex_ctx_size: int = Field(default=16384, gt=0, validation_alias="CORTEX_CTX_SIZE")
     cortex_port: int = Field(default=8080, gt=0, le=65535)
@@ -78,7 +83,7 @@ class ModelHostConfig(BaseSettings):
                 ngl=self.cortex_ngl,
                 ctx_size=self.cortex_ctx_size,
                 parallel=1,
-                extra=self._mmproj(),
+                extra=self._vision(),
             ),
             TierArgs(
                 model=self.brain_model,
@@ -104,10 +109,20 @@ class ModelHostConfig(BaseSettings):
         """The fixed set of logical ids this daemon will ever run, keyed by id."""
         return build_roster(tier_spec(self.llama_bin, tier) for tier in self.tiers())
 
-    def _mmproj(self) -> tuple[str, ...]:
-        """llama.cpp's projector flag pair for the cortex tier, or nothing when none is named."""
+    def _vision(self) -> tuple[str, ...]:
+        """The cortex tier's vision tail: the projector, and the budget it is read at."""
         path = self._path(self.cortex_mmproj_file)
-        return ("--mmproj", path) if path else ()
+        if not path:
+            return ()
+        return ("--mmproj", path, *self._image_budget())
+
+    def _image_budget(self) -> tuple[str, ...]:
+        """The per-image token budget, with the micro-batch a raised budget forces beside it."""
+        budget = self.cortex_image_max_tokens
+        if not budget:
+            return ()
+        ubatch = max(budget, _LLAMA_DEFAULT_UBATCH)
+        return ("--image-max-tokens", str(budget), "--ubatch-size", str(ubatch))
 
     def _path(self, file: str) -> str:
         """An artifact path under the read-only mount, or empty for a tier with no file."""
