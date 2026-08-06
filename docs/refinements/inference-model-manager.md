@@ -170,7 +170,17 @@ variants, disable-thinking / token-budget capping
   roughly 6 s before the first word on a simple screen and 15 s on a dense one against 1.2 s with
   thinking off, so this
   lever stays fix-when-it-bites and its trigger is a user who minds the wait rather than a truncated
-  reply. **`state`-aware overlay treatment landed
+  reply. **It bit hardest on 2026-08-06, on the history recap's fold**
+  ([session-history.md](session-history.md), [ADR-0038](../adr/ADR-0038-ranked-recall.md)
+  re-measured-behind-the-fence addendum), which is the clearest case for the lever yet and a
+  different one from vision: a fold's thinking is not merely unwatched, it is thrown away by
+  construction, since `drain_text` keeps `TextChunk` and drops `ReasoningChunk` before the caller
+  ever sees it. Measured over three staged sessions, a fold decoded 400 to 850 tokens typically and
+  once 6286, for an account of 330 to 650 characters, so the wait is 14.5 s to 30.8 s typically and
+  reached 224.5 s, nearly all of it spent generating text nothing reads. The token-budget half is
+  wanted here too and for the same reason (`RECAP_MAX` cuts the stored text after the model has
+  spoken, so nothing bounds the request), and both together are what a move of
+  `CORTEX_HISTORY_SUMMARY` off its default waits on. **`state`-aware overlay treatment landed
   2026-07-13 ([ADR-0020 third addendum](../adr/ADR-0020-reasoning-status.md)):** the reducer now
   keeps the status event's `state` (a new `Message.statusState`) and a `"thinking"` chip renders
   distinctly (a `chip-think` modifier: the reasoning bob on its dot, an accent label, an aria

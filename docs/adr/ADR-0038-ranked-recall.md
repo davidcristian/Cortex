@@ -419,3 +419,80 @@ what the recap adds over the window is the model call and the promotion to a dur
 artifact rather than the mere presence of the text. The numbers, the two premises the entry got
 wrong, and the residue still open are at the [ADR-0013](ADR-0013-untrusted-content.md)
 replayed-quotation addendum.
+
+### Re-measured behind the fence, and the default stays off (2026-08-06)
+
+The addendum above left one thing owed: the usefulness table was taken before the fence, and
+fencing tells a model it is reading quoted data, which could plausibly make it hedge or refuse.
+The re-run was asked for by the user together with a decision to turn the summary on if the
+number held. The number for the fence held. **The default still does not move**, and the reason
+is something the re-run found on the way rather than the fence.
+
+Same corpus, same shape, same test (`packages/inference/tests/test_history_recap_live.py`), run
+three times against the real cortex through the gpu stack:
+
+| | char budget (ships) | plus recap, fenced |
+| --- | --- | --- |
+| What the model sees | 9 messages, 295 chars | 10 messages, 1283 to 1317 chars |
+| Selection cost, boundary moved | 0.0 s | 15.2 s / 23.6 s (11.0 s unfenced) |
+| Selection cost, boundary unmoved | 0.0 s | 0.000 s |
+| Reply time to first token | 12.7 s / 7.1 s | 5.3 s / 2.7 s |
+| Answered the follow-up | no, 3 of 3 | **yes, 3 of 3** |
+
+**The control fired every time**, which is the first thing to check and is now asserted rather
+than printed: the shipped window replied "I don't have access to your personal information" in
+all three runs, so the arms really are being compared. **The fence did not cost the answer.**
+Behind it the reply is still "Your booking reference is QH7-4412.", identical to the unfenced
+reading, and no fence marker reached the reply, which is asserted too. What the fence costs is
+characters: the same account, 484 chars of it, arrives as a 1022-char message once the standing
+preface and the two markers are around it, so the recap message roughly doubled while the account
+inside it did not change.
+
+**What stops the default is the case a default runs in.** One fold is not what a long
+conversation does; it folds again at every boundary move, each fold reading the previous account
+rather than the original turns. Measured over three independent sessions of five folds each, the
+booking reference survived into the final account **2 of 3 times** and reached the reply the same
+2 of 3. The round that lost it lost the whole opening: the final account named the adapter, the
+trains and the museums, and neither the reference, nor the hotel, nor the card to charge. A recap
+of a prefix can only go incomplete rather than wrong, which is the property the cache rests on,
+and this is what incomplete looks like when it compounds.
+
+**And the fold is far more expensive than 11 s.** Across the same runs a fold cost 14.5 s to
+30.8 s typically, with outliers of 77.3 s and **224.5 s**. The server's own numbers say why: that
+224.5 s fold decoded 6286 tokens for a 370-token prompt, and a typical one decodes 400 to 850,
+while the account it stores is 330 to 650 characters, which is 80 to 160 tokens. Most of every
+fold is reasoning that `drain_text` drops on the floor, and nothing bounds it: `RECAP_MAX` cuts
+the text after the model has spoken, not the request before it. This is the same gap the session
+title has, where a reasoning cortex can spend a whole budget thinking, and it wants the same
+missing thing, a way for the inference port to ask for no thinking.
+
+**Decision: `CORTEX_HISTORY_SUMMARY` stays `False`.** The user's decision to turn it on was made
+against 11 s per boundary move and a single measured fold, and this re-run falsified both halves
+of that premise, so shipping it on would be shipping against numbers rather than on them. A turn
+that stalls for as long as 224 s with nothing on screen saying why, and a 1 in 3 chance of the
+account quietly forgetting what the conversation opened with, is not a default. It stays exactly
+one env variable away for a deployment that would rather wait than forget, which is what it was
+built to be.
+
+**What would have to change for it to move**, all four recorded in the refinements backlog:
+
+1. **A token cap on the recap request.** Already the recorded deferral, now with a number on it:
+   it is what bounds the 224 s tail, and it is the cheapest of the four.
+2. **Thinking off for the fold.** Most of the wall time is discarded reasoning. The inference port
+   cannot express it yet, which is an existing entry of its own.
+3. **A minimum fold size.** The other half of the recorded deferral. Fewer folds is directly less
+   compounding, and the loss measured here is a compounding loss.
+4. **Something on screen while it folds.** Nothing tells the user the turn is doing extra work.
+   The overlay's whisper breathes its accent mist from the moment they press enter, so a long
+   fold looks exactly like a slow model, and the `StatusUpdate` path that would say otherwise
+   (the swap conductor and the spawn batch both use it) never reaches a history window, because
+   `HistoryWindow.select` takes no progress sink. The sink itself is already in the right place:
+   `SeamProgressSink` is per Converse stream, `build_history_window` is called inside the
+   per-stream `capabilities` closure that has one, and an event emitted there rides the stream's
+   own queue rather than the turn generator, so it would surface during assembly. That is a port
+   change and it was not taken here, on a knob that is staying off.
+
+Retention is reported by the live test as a rate rather than asserted, because asserting a
+probabilistic model behaviour would pin the model rather than the code; what it asserts every
+round is that the folds really happened, that the control really failed to answer, and that no
+fence marker reached the user.

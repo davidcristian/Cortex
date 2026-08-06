@@ -83,6 +83,9 @@ class BrainRuntimeConfig(BaseSettings):
     # cached in the session store and folded forward as the boundary moves. Default off, since
     # it spends a cortex generation on the turns where the boundary moves and that lands
     # directly on time-to-first-token; a deployment that would rather pay than forget opts in.
+    # Re-examined 2026-08-06 and left off on measured numbers (ADR-0038 re-measured-behind-the-
+    # fence addendum): the fold costs 14.5 s to 30.8 s typically and reached 224.5 s, nothing on
+    # screen says a turn is folding, and an opening fact survived five compounding folds 2 of 3.
     # Ignored when the budget is 0, there being no dropped prefix to recap.
     history_summary: bool = False
     # env CORTEX_OUTPUT_GUARDRAIL is the model-independent laundering defense (ADR-0015):

@@ -999,6 +999,10 @@ Use-case:
   self-explaining body of the prepended message, and `clean_recap(raw)` is the reply cleanup
   (the `session_title.py` shape), collapsing to one paragraph and bounding at `RECAP_MAX`,
   answering `""` for a reply with nothing in it, which the window rejects rather than stores.
+  Two costs are measured rather than assumed (ADR-0038 re-measured-behind-the-fence addendum) and
+  are why the knob is still off: the fold's model call carries no token cap, so `RECAP_MAX` cuts
+  the text after the model has spoken and a fold has decoded 6286 tokens for an account of about
+  120, and folding compounds, an opening fact surviving five folds 2 times in 3.
 - `HistoryRecap(text, covers)` (`sessions.py`) is that cached account as a pure value: `covers`
   is how many messages from the START of the session `text` accounts for, which is the key the
   cache is valid under. It refuses a blank text or a `covers` below one, so an unusable recap

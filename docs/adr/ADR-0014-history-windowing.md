@@ -186,5 +186,8 @@ the char-budget selection this ADR shipped, byte for byte.
 
 The `async` widening cost one `await` at one caller, as this ADR's audit predicted, plus the
 `session_id` the audit did not: a recap cached per session has to know which session it is
-windowing. `CORTEX_HISTORY_SUMMARY` is the knob and it is off by default, measured at 11 s per
-boundary move against a shipped window that could not answer a question the recap could.
+windowing. `CORTEX_HISTORY_SUMMARY` is the knob and it is off by default, against a shipped window that
+could not answer a question the recap could. The cost first read as 11 s per boundary move; the
+re-run behind the fence found 14.5 s to 30.8 s typically and 224.5 s at worst, with the fact
+surviving five compounding folds 2 times in 3, which is why the default did not move
+([ADR-0038](ADR-0038-ranked-recall.md) re-measured-behind-the-fence addendum).

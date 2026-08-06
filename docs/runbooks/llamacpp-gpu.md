@@ -111,6 +111,40 @@ adapter surfaces as `ReasoningChunk` (the model observation CI can't make). Vali
 326 events on that prompt, reply clean and persisted==shown) is in the
 [ADR-0020 addendum](../adr/ADR-0020-reasoning-status.md).
 
+## What the history recap keeps and what it costs (ADR-0014/ADR-0038, agent-runnable)
+
+`packages/inference/tests/test_history_recap_live.py` is the measurement behind
+`CORTEX_HISTORY_SUMMARY`, and it is the one to re-run before anyone argues for moving that
+default. It runs inside the command above and takes about eleven minutes, so run it alone when
+that is all you want:
+
+```
+cd brain && CORTEX_INFERENCE_ENDPOINT=http://127.0.0.1:8080 \
+  uv run pytest -m integration --no-cov packages/inference/tests/test_history_recap_live.py -s
+```
+
+Two arms. The first asks a question whose answer dropped out of the window, once through the
+char-budget window that ships and once through the summarizing one, and prints what each sent the
+model, the fold's cost cold and cached, both replies and the time to their first tokens. The
+second stages a conversation so the boundary moves five times, each fold reading the previous
+account, and reports over three sessions how often the fact survived the fold and reached the
+reply. `-s` is required: the print IS the measurement. Retention is reported rather than asserted,
+because it varies; what the test asserts is that the folds happened, that the shipped arm really
+could not answer (a control that does not fire has measured nothing), and that no fence marker
+reached the reply.
+
+Read the fold's wall time against the server's own counters, which say where it went:
+
+```
+docker logs cortex-model-host-1 | grep "eval time ="
+```
+
+Measured 2026-08-06 on the 24 GB card: the fence costs characters and not the answer, a fold costs
+14.5 s to 30.8 s typically and reached 224.5 s at 6286 decoded tokens for an account of about 120,
+and the fact survived five compounding folds 2 times in 3, which is why the default did not move.
+The numbers and the four things a move waits on are in the
+[ADR-0038 re-measured-behind-the-fence addendum](../adr/ADR-0038-ranked-recall.md).
+
 ## Framing-efficacy probe (Slice 6.5 / ADR-0013, agent-runnable)
 
 Confirms the prompt-injection **framing** actually changes the cortex's behavior. This is the model
