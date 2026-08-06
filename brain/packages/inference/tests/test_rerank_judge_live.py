@@ -12,9 +12,18 @@ words the question does not use, and every distractor shares the question's voca
 answering nothing. That is exactly the case a cosine cannot see and the case a reranker is bought
 for; a corpus of paraphrases would flatter both. The measurement is reciprocal rank of the gold
 memory, averaged over the questions, plus how often the gold memory is placed first.
+
+Three arms since the rank's request was bounded (ADR-0038 bounded-side-calls addendum): the cosine
+that ships, the rank as it first shipped (no bounds, so the cortex deliberates before answering),
+and the rank as it sends now (no thinking, a cap sized from `k`). Cost and ranking quality are
+both reported per arm, because a rank that got cheap by no longer thinking is a different ranker
+and the quality does not follow from the cost.
+
+`-s` is required: the print IS the measurement.
 """
 
 import os
+import time
 from datetime import UTC, datetime
 
 import httpx
@@ -28,6 +37,8 @@ from cortex_core import (
     ScoredMemory,
     SingleResidentModelManager,
 )
+from cortex_core.drain import drain_text
+from cortex_core.rerank_judge import ORDER_ENVELOPE, build_rank_messages, parse_order
 from cortex_embedding import LlamaCppEmbedder
 from cortex_inference import LlamaCppBackend
 
@@ -70,9 +81,39 @@ def _reciprocal_rank(order: list[str], gold: str) -> float:
     return 1.0 / (order.index(gold) + 1) if gold in order else 0.0
 
 
+class _Arm:
+    """One ranking's score sheet over the corpus: its placings, its cost, and its fallbacks."""
+
+    def __init__(self, label: str) -> None:
+        self.label = label
+        self.reciprocal: list[float] = []
+        self.first = 0
+        self.seconds = 0.0
+        self.fell_back = 0
+
+    def record(self, ids: list[str], gold: str) -> None:
+        self.reciprocal.append(_reciprocal_rank(ids, gold))
+        self.first += int(bool(ids) and ids[0] == gold)
+
+    def line(self, n: int) -> str:
+        return (
+            f"\n{self.label}: MRR {sum(self.reciprocal) / n:.3f},"
+            f" gold first {self.first}/{n}, fell back {self.fell_back}/{n},"
+            f" {self.seconds:.1f} s over {n} questions ({self.seconds / n:.1f} s each)"
+        )
+
+
 @pytest.mark.integration
 async def test_the_model_rank_is_measured_against_the_cosine_that_ships() -> None:
-    async with httpx.AsyncClient(timeout=httpx.Timeout(120.0)) as client:
+    """Three arms: the cosine that ships, the rank as it first shipped, and the bounded rank.
+
+    The middle arm is the request `JudgeRecallPolicy` used to send, rebuilt here out of the same
+    prompt and envelope with no bounds on it, because the policy itself cannot send that request
+    any more. So the corpus scores the ranking twice, once each side of the bounds, which is the
+    thing a default move rests on: a rank that got cheap by no longer thinking is a different
+    ranker, and whether it is still the better one is not inferable from the cost.
+    """
+    async with httpx.AsyncClient(timeout=httpx.Timeout(600.0)) as client:
         embedder = LlamaCppEmbedder(client, _EMBEDDER, model="embedding")
         pool: list[ScoredMemory] = []
         vectors: dict[str, tuple[float, ...]] = {}
@@ -89,11 +130,11 @@ async def test_the_model_rank_is_measured_against_the_cosine_that_ships() -> Non
         judge = JudgeRecallPolicy(backend, _MODEL, pool_factor=1)
         raw = RawRecallPolicy()
         k = 3
-        cosine_rr: list[float] = []
-        judge_rr: list[float] = []
-        cosine_first = 0
-        judge_first = 0
-        fell_back = 0
+        cosine, unbounded, bounded = (
+            _Arm("cosine (ships)"),
+            _Arm("judge, unbounded"),
+            _Arm("judge, bounded"),
+        )
 
         for question, gold in _QUESTIONS.items():
             query = tuple(await embedder.embed(question))
@@ -106,28 +147,46 @@ async def test_the_model_rank_is_measured_against_the_cosine_that_ships() -> Non
                 reverse=True,
             )
             baseline = await raw.select(scored, query=question, now=_AT, k=k)
-            ranked = await judge.select(scored, query=question, now=_AT, k=k)
-            if ranked.basis is not RankBasis.VERDICT:
-                fell_back += 1
             baseline_ids = [r.hit.record.id for r in baseline.hits]
+            cosine.record(baseline_ids, gold)
+
+            started = time.monotonic()
+            reply = await drain_text(
+                backend,
+                _MODEL,
+                build_rank_messages(question, scored, k=k, at=_AT),
+                schema=ORDER_ENVELOPE,
+            )
+            unbounded.seconds += time.monotonic() - started
+            order = parse_order(reply, pool_size=len(scored), k=k)
+            unbounded.fell_back += int(not order)
+            unbounded_ids = [scored[i].record.id for i in order] or baseline_ids
+            unbounded.record(unbounded_ids, gold)
+
+            started = time.monotonic()
+            ranked = await judge.select(scored, query=question, now=_AT, k=k)
+            bounded.seconds += time.monotonic() - started
+            bounded.fell_back += int(ranked.basis is not RankBasis.VERDICT)
             ranked_ids = [r.hit.record.id for r in ranked.hits]
-            cosine_rr.append(_reciprocal_rank(baseline_ids, gold))
-            judge_rr.append(_reciprocal_rank(ranked_ids, gold))
-            cosine_first += int(bool(baseline_ids) and baseline_ids[0] == gold)
-            judge_first += int(bool(ranked_ids) and ranked_ids[0] == gold)
+            bounded.record(ranked_ids, gold)
+
             print(  # noqa: T201 -- the measurement IS this test's output
-                f"\nQ {question}\n  gold {gold}\n  cosine {baseline_ids}\n  judge  {ranked_ids}"
+                f"\nQ {question}\n  gold {gold}\n  cosine    {baseline_ids}"
+                f"\n  unbounded {unbounded_ids}\n  bounded   {ranked_ids}"
             )
 
         n = len(_QUESTIONS)
         print(  # noqa: T201 -- the measurement IS this test's output
-            f"\nMRR at {k}: cosine {sum(cosine_rr) / n:.3f}, judge {sum(judge_rr) / n:.3f}"
-            f"\nGold placed first: cosine {cosine_first}/{n}, judge {judge_first}/{n}"
-            f"\nFell back to cosine: {fell_back}/{n}"
+            f"\nat k={k}, {n} questions over {len(_MEMORIES)} notes:"
+            + cosine.line(n)
+            + unbounded.line(n)
+            + bounded.line(n)
         )
-        # The measurement is the point; the assertion only pins that the rank ran at all, because
-        # a reranker that silently fell back would otherwise report the baseline as its own score.
-        assert fell_back < n
+        # The measurement is the point; the assertions pin that the rank ran at all (a reranker
+        # that silently fell back would otherwise report the baseline as its own score) and that
+        # the bounds are what made it cheap rather than the model having a fast day.
+        assert bounded.fell_back < n
+        assert bounded.seconds < unbounded.seconds
 
 
 def _cosine(a: tuple[float, ...], b: tuple[float, ...]) -> float:

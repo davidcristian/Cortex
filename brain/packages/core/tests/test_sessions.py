@@ -6,6 +6,8 @@ from datetime import UTC, datetime
 import pytest
 
 from cortex_core import (
+    TITLE_BOUNDS,
+    TITLE_MAX_TOKENS,
     InferenceError,
     Message,
     ReasoningChunk,
@@ -135,6 +137,7 @@ class _ScriptedBackend:
     ) -> None:
         self._events = events
         self._fail = fail
+        self.bounds: list[GenerationBounds | None] = []
 
     async def stream(
         self,
@@ -145,7 +148,8 @@ class _ScriptedBackend:
         schema: JsonSchema | None = None,
         bounds: GenerationBounds | None = None,
     ) -> AsyncIterator[InferenceEvent]:
-        del model, messages, tools, schema, bounds
+        del model, messages, tools, schema
+        self.bounds.append(bounds)
         if self._fail is not None:
             raise self._fail
         for event in self._events:
@@ -173,3 +177,30 @@ async def test_generate_title_propagates_an_inference_error() -> None:
     backend = _ScriptedBackend([], fail=InferenceError("model down"))
     with pytest.raises(InferenceError, match="model down"):
         await generate_title(backend, "cortex", [])
+
+
+async def test_the_title_request_asks_for_no_thinking_and_a_bounded_reply() -> None:
+    """The two levers ride the request, because a title is the reply and never the thinking.
+
+    Asserted together: a cap against a model that deliberates first returns ``finish_reason:
+    "length"`` and an empty reply, so the cap alone would turn every title into the fallback.
+    """
+    backend = _ScriptedBackend([TextChunk("Cat sleep habits")])
+
+    await generate_title(backend, "cortex", [])
+
+    assert backend.bounds == [TITLE_BOUNDS]
+    assert TITLE_BOUNDS.thinking is False
+    assert TITLE_BOUNDS.max_tokens == TITLE_MAX_TOKENS
+
+
+def test_the_title_cap_is_wider_than_the_title_that_gets_stored() -> None:
+    """Why running into the cap cannot change a stored title, stated as the number it rests on.
+
+    ``clean_title`` keeps ``TITLE_MAX`` characters, so as long as the cap is worth more characters
+    than that, a reply cut at the cap was already going to be cut shorter still. Four characters
+    per token is the conservative ratio this repo's character budgets assume; the cortex measured
+    six. Lower the cap under twelve tokens and a cap-hit starts eating the stored title, which is
+    what this reddens for.
+    """
+    assert TITLE_MAX_TOKENS * 4 > TITLE_MAX

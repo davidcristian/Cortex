@@ -52,11 +52,11 @@ the tree does now.
 | [session-history.md](session-history.md) | Slice 3 history windowing and summarization, the recap's fold made cheap 2026-08-06 (thinking off and a token cap per request, a floor under a fold, a chip while it runs) and `CORTEX_HISTORY_SUMMARY` moved to on, leaving the one-corpus measurement as the area's only open item (ADR-0014/0038) | 1 |
 | [tools-mcp.md](tools-mcp.md) | Dispatch budget/cost/salience, spawn batch cap, MCP registries (ADR-0009/0010) | 6 |
 | [untrusted-content.md](untrusted-content.md) | Taint boundary, output guardrail, subagent model safety (ADR-0013/0015/0017/0019/0028), a quoted injection replayed by the plain history window, obeyed 2 of 10 on a bare turn and 0 of 10 behind either standing rule, the plain one landed for the tool-less turn (ADR-0013/0038) | 12 |
-| [memory.md](memory.md) | Store, scoping, rerank/MMR, the ranked `select` and its recall trail (ADR-0008/0038) | 6 |
-| [inference-model-manager.md](inference-model-manager.md) | Model-manager lifecycle, MTP, reasoning status (ADR-0007/0020) | 7 |
+| [memory.md](memory.md) | Store, scoping, rerank/MMR, the ranked `select` and its recall trail, and the judge's default now that bounding its request made it twenty times cheaper at the same ranking (ADR-0008/0038) | 7 |
+| [inference-model-manager.md](inference-model-manager.md) | Model-manager lifecycle, MTP, reasoning status, whose disable-thinking and token-cap halves now reach every pass that discards its own deliberation (ADR-0007/0020/0038) | 7 |
 | [subagents.md](subagents.md) | Progress reporting, spawn schema, heterogeneous roster (ADR-0010/0018) | 3 |
 | [body-overlay.md](body-overlay.md) | Overlay polish, connection indicator, proto Cancel (ADR-0011), the reserved scrollbar rail's assumed width and spent card inset, a section's roll ending 0.25px from where it was going, the two bounds the panel's section budget left behind it (a section's own frame being under no cap, and the room a closing section hands back arriving in one frame), the switcher's and the reminder stack's own row gestures dropping focus with no swap to answer them, and the whisper's follow-ups (ADR-0037): a pickable voice row, a mid-stream resize keeping the old wrap width, and kerning inside the letter boxes under a changed font (its drain-growth entry landed the day it was filed, and the console outliving a new chat, the reminder stack's per-row exit and the switcher's, the panel's watch on its own box with the arrival-aside correction that came out of it, the demo bridge over the line cap, two sections outrunning the panel on their own, the chat floor's frozen measurement of the empty state, the console tab strip's missing keyboard half, the switcher's disputed listbox role, the two motions its list still made in one frame, and a Thoughts trace opening a reply off the bottom of a full history all landed 2026-08-03, the last of them opening the chrome-side entry that landed 2026-08-04 on the same ride, alongside the cycle keys' silent swap, which opened the focus entry that landed 2026-08-06 as the caret following the conversation into the composer and opened two entries behind it, the row gestures above and the draft named below; the composer's move on a clamped shrink closed 2026-08-06 as moot, its mechanism having been deleted the day it was filed, and the retarget-and-resize pair landed 2026-08-06 as the panel measuring itself in fractional pixels, opening the roll entry that took its place; the composer's draft belonging to no chat landed 2026-08-06 too, the same day it was opened and the same day the user answered it, as unsent text keyed by session id in the reducer, which was the last entry anywhere waiting on a decision rather than on work) | 11 |
-| [session-read-seam.md](session-read-seam.md) | Session listing/read seam (ADR-0021) | 2 |
+| [session-read-seam.md](session-read-seam.md) | Session listing/read seam, the generated title's empty-reply half closed 2026-08-06 by bounding its request (ADR-0021/0038) | 2 |
 | [resource-governance.md](resource-governance.md) | Scheduler/placer budgets, NPU, drain (ADR-0012) | 5 |
 | [email-confirmer.md](email-confirmer.md) | Email write, Confirmer, attachments, `ToolActivity` chip (ADR-0022) | 4 |
 | [body-gateway.md](body-gateway.md) | Body gateway, OS actions, hardened posture (ADR-0023) | 5 |
@@ -1087,7 +1087,9 @@ delta, and real headroom is at most 342px there and 0px for the demo's own arriv
 was never as cheap as the entry priced it. And the backlog is now down to one entry anywhere whose
 blocker is a preference rather than work, where it read as two. (**Superseded 2026-08-06**, later
 the same day: that last one was answered and landed, and then so was the one it opened, so the count
-of entries waiting on a decision rather than on work is zero.)
+of entries waiting on a decision rather than on work fell to zero, and rose to one again that
+evening when bounding the recall rank's request removed the only reason its default was off and put
+`CORTEX_MEMORY_RECALL=judge` back in front of the user as a choice, [memory.md](memory.md).)
 
 Body & overlay went **12 to 13 later the same day**, when that last preference-blocked entry was
 answered and landed: a swap fired from inside a section that closes with it drops focus on the
@@ -1227,6 +1229,34 @@ test that reddens when it is flipped back. The corpus entry stays open and is no
 between this feature and a claim about real conversations, and the lever's own entry stays open
 too, since the session title and the recall rank still spend the same discarded thinking.
 
+The session title and the recall rank stopped spending it later the same day, which is the whole
+of the sentence above coming true ([ADR-0038](../adr/ADR-0038-ranked-recall.md)
+bounded-side-calls addendum, [ADR-0021 addendum](../adr/ADR-0021-session-read-seam.md)). Both were
+re-derived from the code first and both held: each ran `drain_text` with no bounds, and each threw
+away everything the model deliberated. A title now sends `max_tokens=32, thinking=False`, which is
+`TITLE_MAX` in the request's own unit, and a rank sends `24 + 8k`, computed from `k` rather than
+fixed because a schema-constrained order's length is known before it is asked for. Measured on the
+shipped cortex, a title went from 235 to 303 decoded tokens at 7.9 s to 10.4 s to **4 tokens at
+0.2 s to 0.3 s, for the same titles run for run**, and a rank from 448 to 613 tokens at 18.4 s to
+**12 to 22 tokens at 0.9 s**. Two things the residue had not predicted. **A JSON schema does not
+protect a constrained reply from a cap**: a truncated one is not JSON, so the rank falls back to
+the cosine exactly as it does for an unreachable model, which is why that cap is generous rather
+than snug. And **the capped-with-thinking trap that was a coin flip on the fold is a certainty on
+these two**, empty three times in three at each of 16, 32 and 64 tokens, because their answers are
+a few tokens and the deliberation before them is hundreds. This closes the generated title's own
+empty-reply half in [session-read-seam.md](session-read-seam.md), which had been waiting on
+precisely this lever since 2026-07-16.
+
+What it opens is a decision rather than a task, and it is the user's:
+`CORTEX_MEMORY_RECALL=judge` was left off **on cost alone**, and the cost is now 0.9 s per recall
+instead of about 12. Re-scored over the same corpus the bounded judge ranks identically to the
+unbounded one (mean reciprocal rank 1.000 against the cosine's 0.917, the right note first 6 of 6
+against 5 of 6, no fallbacks, and still fewer hits than `k` because it drops what does not help),
+so the premise the default rested on is gone. It is recorded in [memory.md](memory.md) as a
+recommendation and not taken here, because the standing choice is the user's own and because two
+things are still true: a rank runs on **every** recalling turn where a fold is cached per boundary
+move, and the corpus is ten notes and six questions hand built by the policy's author.
+
 ## Recommended order
 
 Ordered by what unblocks the most value soonest. Before starting any item, verify its claims
@@ -1234,6 +1264,16 @@ against the code (the warning above); the entry text tells you which seams it ex
 
 ### Actionable now
 
+- **The recall rank's default, which is now a decision rather than a measurement**
+  ([memory.md](memory.md)): `CORTEX_MEMORY_RECALL=judge` was left off on cost alone, and bounding
+  its request on 2026-08-06 took that cost from about 12 seconds per recall to 0.9 while the
+  ranking stayed exactly where it was (mean reciprocal rank 1.000 against the shipped cosine's
+  0.917, the right note first 6 of 6 against 5 of 6, no fallbacks, and fewer hits than `k` because
+  it drops the notes that do not help). What is left to weigh is that a rank runs on every
+  recalling turn, where the history fold it borrows the lever from is cached per boundary move, and
+  that the corpus behind both numbers is ten notes and six questions hand built by the policy's
+  author. Nothing is blocked: it is one env variable either way, and
+  `CORTEX_MEMORY_RECALL_AUDIT=1` reports which policy actually ranked each recall afterwards.
 - **The vision measurements this repo owes itself** ([vision.md](vision.md)): an image arm of the
   injection-defence harness against a rendered-payload corpus, plus the two agent-Docker checks
   ADR-0029 listed as still to run and nothing tracked until 2026-07-19 (whether thinking needs

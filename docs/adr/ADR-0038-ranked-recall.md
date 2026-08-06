@@ -624,3 +624,128 @@ author of the feature, with the needed fact placed where a summary would keep it
 is a small sample: the standing one-corpus entry does not close, and it is now the only thing
 between this feature and a claim about real conversations. Nothing has been measured about a
 cortex under load, and the fold still lands on the turn that triggers it.
+
+## Bounded-side-calls addendum (2026-08-06)
+
+The cheap-fold addendum above bounded one caller of `drain_text` and recorded its own residue: the
+session title and this ADR's own recall rank ran the same discarded-thinking pass and still sent no
+bounds. Both are bounded here, each from what its answer actually is, and the rank's measurement
+reopens the question of its default.
+
+**Re-derived from the code before anything was written**, per the standing rule that an entry
+records what somebody once measured rather than what the tree does now:
+
+- `generate_title` called `drain_text(backend, model, messages)` with no schema and no bounds, and
+  `JudgeRecallPolicy.select` called it with `schema=ORDER_ENVELOPE` and no bounds. Both held.
+- Both discard the model's deliberation before their caller sees it, because `drain_text` keeps
+  `TextChunk` and drops `ReasoningChunk`. Held, and it is the whole argument for the switch.
+- What each answer has to be: a title is a handful of words that `clean_title` collapses and cuts
+  to `TITLE_MAX`, which is 48 characters; a rank is `{"order": [n, ...]}` and nothing else, because
+  the request is schema-constrained.
+
+**Three things the residue did not say, found by measuring rather than by reasoning.**
+
+1. **A schema does not protect a constrained reply from a cap.** The concern this addendum started
+   with was that a grammar might interact with `max_tokens` in some way prose does not. It does
+   not protect it at all: the rank prompt capped below its answer came back as `{"order":`, and one
+   capped further came back as an opening markdown fence. Neither is JSON, so `parse_order` returns
+   empty and `select` takes the fallback, which is the same degraded path an unreachable model
+   takes. That is the whole interaction, and it is why the cap here is generous rather than snug:
+   running into it costs the entire judgement rather than a candidate off the end.
+2. **The trap the fold measured as a coin flip is a certainty on both of these.** The identical
+   title prompt capped at 16, 32 and 64 tokens with thinking left on came back `finish_reason:
+   "length"` with an **empty** reply three times in three, and the rank prompt did the same at the
+   same three caps. The fold could sometimes finish thinking inside 512; a title cannot, because
+   the answer is four tokens and the deliberation before it is hundreds.
+3. **The title's cap cannot change the title that gets stored**, which the recap's cannot claim.
+   `clean_title` keeps 48 characters, and a reply that reaches 32 tokens has already written past
+   them, so the cut lands beyond the stored text. Where the fold had to refuse a truncated account
+   outright (storing one would advance a boundary it only half describes), a truncated title is
+   simply a title with the same first 48 characters.
+
+### The two bounds and their sizes
+
+`TITLE_BOUNDS` is `max_tokens=32, thinking=False` (`session_title.py`). 32 is `TITLE_MAX` said in
+the request's own unit with room to spare: 48 characters is 12 tokens at the roughly 4 characters
+per token this repo's character budgets assume, and eight times the four tokens a title actually
+costs. A test pins the relation rather than the number, so lowering the cap under twelve tokens
+reddens the suite instead of quietly starting to cut stored titles.
+
+`rank_bounds(k)` is `max_tokens=24 + 8k, thinking=False` (`rerank_judge.py`), and it is **computed
+rather than fixed** because unlike prose this reply's length is known before it is asked for:
+`ORDER_ENVELOPE` admits an array of numbers and nothing else, so the only thing that varies is how
+many the caller allowed. The envelope's own punctuation measured 14 to 16 tokens, JSON decoding at
+roughly a token per character, and each further candidate adds a comma, a space and its digits. A
+constant sized for today's `k` of 5 would have started truncating silently the day a deployment
+recalled more, and silently is the operative word: the degraded path is a fallback whose only trace
+is a `RankBasis` of `ECHO` on the audit line.
+
+**The sequencing is untouched, and that is checked rather than assumed.** Neither change moves a
+call: the title still runs after `handle_turn` closes the reply's event generator, and the rank
+still runs inside `assemble_inference_messages`, which `handle_turn` awaits to completion before it
+builds the reply's generator. Both still go through `drain_text`, so the adapter's `acquire` block
+is still left in a `finally`. The live runs are evidence of the same thing from the other side:
+each drives several sequential drains through one `SingleResidentModelManager`, whose lock is
+non-reentrant, so a lease held across any of them would have deadlocked the run rather than
+reported a number.
+
+### Measured (2026-08-06)
+
+Both runs are against the real cortex (gemma-4-12B on the 24 GB card, via the gpu compose stack),
+in the same shape as the fold's pricing arm: the identical prompt each way, wall time from the
+test, decoded tokens from llama-server's own `eval time` lines. Reproduce:
+`packages/inference/tests/test_session_title_live.py` and
+`packages/inference/tests/test_rerank_judge_live.py`, both integration-marked.
+
+| one title, identical prompt | unbounded (before) | `TITLE_BOUNDS` (now) |
+| --- | --- | --- |
+| Decoded tokens | 277, 235, 303 | 4, 4, 4 |
+| Wall time | 9.7 s, 7.9 s, 10.4 s | 0.3 s, 0.2 s, 0.3 s |
+| Title produced | Cat Sleeping Habits, Cat Sleeping Preferences, Cat Sleeping Habits | the same three, run for run |
+
+The title did not change. It is the same words in the same runs, which is the strongest form the
+result could take: the deliberation the pass was paying for was not contributing to the answer it
+kept. The trap arm at the same cap with thinking on decoded the whole 32 tokens in 1.0 s and
+returned nothing at all.
+
+The rank was scored twice over the same corpus as the original measurement, ten notes and six
+questions, at `k=3`, against the same cosine baseline. The middle column is the request the policy
+used to send, rebuilt in the test out of the same prompt and envelope with no bounds on it, since
+the policy itself can no longer send it:
+
+| | cosine (ships) | judge, unbounded | judge, bounded (now) |
+| --- | --- | --- | --- |
+| Mean reciprocal rank | 0.917 | **1.000** | **1.000** |
+| Correct note placed first | 5 of 6 | **6 of 6** | **6 of 6** |
+| Fell back to cosine | n/a | 0 of 6 | 0 of 6 |
+| Decoded tokens per rank | n/a | 448 to 613 | 12 to 22 |
+| Cost per recall | 0.0 s | 18.4 s | **0.9 s** |
+
+**The bounded judge is the same judge.** It returned the identical note for all six questions, it
+still returns **fewer** hits than `k` (one note per question here, where the cosine filled three
+slots with two distractors), and it still placed the release note first on the question the cosine
+loses on the word "week". Roughly 0.2 s of the 0.9 s is evaluating the pool prompt, which no bound
+touches, and the rest is a dozen tokens of decoding.
+
+### The judge's default: a recommendation, not a flip
+
+`CORTEX_MEMORY_RECALL` **stays `raw` in this change**, and the recommendation is to move it to
+`judge` for any deployment that has memory on at all.
+
+The reason the default was `raw` was cost and only cost: the original measurement said the judge
+was better on this corpus and priced it at about 12 seconds per recall, and the choice to leave it
+off was made against that number by the user. The number is now 0.9 seconds, the quality is
+unchanged, and the premise the choice rested on is therefore gone. That is a recommendation rather
+than a flip because the standing decision is the user's own, and because two things a default has
+to answer for are still true. **A rank runs on every turn that recalls**, unlike the fold, which a
+cache pays for once per boundary move, so 0.9 s is added to time to first token on every such turn
+rather than amortized across several. And **the corpus is still ten notes and six questions, hand
+built by the author of the policy**, worded so that the answer shares no vocabulary with the
+question while a distractor shares plenty; it shows the mechanism works and it is not a benchmark.
+A deployment sets one variable either way, and the audit trail (`CORTEX_MEMORY_RECALL_AUDIT=1`)
+says which policy actually ranked each recall, so the move is observable after the fact.
+
+The one open item this closes on the way is the title's own: the reasoning cortex that spent 13,882
+characters on thinking and returned no title (ADR-0021 titles addendum) was waiting on exactly this
+lever, and `TITLE_BOUNDS` is it. `CORTEX_GENERATE_TITLES` still ships off, for the reason that
+survives: it is an extra inference call per new session, now a cheap one.

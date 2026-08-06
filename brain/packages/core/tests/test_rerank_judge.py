@@ -23,7 +23,14 @@ from cortex_core import (
 )
 from cortex_core.conversation import Message
 from cortex_core.inference import GenerationBounds, InferenceEvent, JsonSchema
-from cortex_core.rerank_judge import ORDER_ENVELOPE, build_rank_messages, parse_order
+from cortex_core.rerank_judge import (
+    ORDER_ENVELOPE,
+    RANK_ENVELOPE_TOKENS,
+    RANK_TOKENS_PER_CANDIDATE,
+    build_rank_messages,
+    parse_order,
+    rank_bounds,
+)
 
 _NOW = datetime(2026, 8, 6, 12, 0, tzinfo=UTC)
 
@@ -41,6 +48,7 @@ class _ScriptedBackend:
         self._error = error
         self.prompts: list[str] = []
         self.schemas: list[JsonSchema | None] = []
+        self.bounds: list[GenerationBounds | None] = []
 
     async def stream(
         self,
@@ -51,9 +59,10 @@ class _ScriptedBackend:
         schema: JsonSchema | None = None,
         bounds: GenerationBounds | None = None,
     ) -> AsyncIterator[InferenceEvent]:
-        del model, tools, bounds
+        del model, tools
         self.prompts.append(messages[-1].text)
         self.schemas.append(schema)
+        self.bounds.append(bounds)
         if self._error:
             msg = "llama-server is down"
             raise InferenceError(msg)
@@ -154,6 +163,43 @@ def test_parse_order_truncates_to_k() -> None:
 )
 def test_parse_order_returns_empty_for_anything_unusable(raw: str) -> None:
     assert parse_order(raw, pool_size=3, k=2) == ()
+
+
+async def test_the_rank_request_asks_for_no_thinking_and_room_for_k_picks() -> None:
+    """The two levers ride the request, and the cap is sized from the reply the schema permits.
+
+    Asserted together because a cap against a model that deliberates first comes back empty, and
+    an empty reply here is a silent fall back to the cosine this policy exists to beat.
+    """
+    policy, backend = _judge(json.dumps({"order": [1]}))
+
+    await policy.select(_pool(), query="where does state live?", now=_NOW, k=3)
+
+    assert backend.bounds == [rank_bounds(3)]
+    assert rank_bounds(3).thinking is False
+    assert rank_bounds(3).max_tokens == RANK_ENVELOPE_TOKENS + 3 * RANK_TOKENS_PER_CANDIDATE
+
+
+def test_the_rank_cap_grows_with_how_many_picks_were_asked_for() -> None:
+    """A fixed cap would truncate the day a deployment recalls more, which is what this pins."""
+    wider = rank_bounds(20).max_tokens
+    narrower = rank_bounds(5).max_tokens
+    assert wider is not None
+    assert narrower is not None
+    assert wider - narrower == 15 * RANK_TOKENS_PER_CANDIDATE
+
+
+async def test_a_reply_cut_off_by_the_cap_falls_back_like_any_other_unusable_one() -> None:
+    """What running into the cap degrades to: the fallback's ranking, and its basis on the trail.
+
+    The reply is the truncated JSON a capped constrained request really returns (measured against
+    the shipped cortex), so the degraded path is the one the model would take rather than a
+    stand-in for it.
+    """
+    policy, _ = _judge('{"order":')
+    ranking = await policy.select(_pool(), query="q", now=_NOW, k=2)
+    assert [ranked.hit.record.id for ranked in ranking.hits] == ["noise", "answer"]
+    assert ranking.basis is RankBasis.ECHO
 
 
 def test_a_long_candidate_is_truncated_in_the_prompt() -> None:

@@ -160,6 +160,42 @@ set it `false` for a deployment that would rather forget than wait, and
 dropped conversation is worth a fold. The numbers are in the
 [ADR-0038 cheap-fold addendum](../adr/ADR-0038-ranked-recall.md).
 
+## What the two other in-turn model passes cost (ADR-0021/ADR-0038, agent-runnable)
+
+The history fold is not the only pass whose thinking is thrown away before anyone reads it. The
+session title runs at the end of a session's first turn, and the recall rank runs during selection
+on every turn that recalls; both go through `drain_text`, which keeps the reply and drops the
+reasoning. Both send `thinking=False` and a cap sized from their own answer since 2026-08-06, and
+these are the arms that price them:
+
+```
+cd brain && CORTEX_INFERENCE_ENDPOINT=http://127.0.0.1:8080 \
+  uv run pytest -m integration --no-cov packages/inference/tests/test_session_title_live.py -s
+
+cd brain && CORTEX_INFERENCE_ENDPOINT=http://127.0.0.1:8080 \
+  CORTEX_MEMORY_EMBEDDER_ENDPOINT=http://127.0.0.1:8081 \
+  uv run pytest -m integration --no-cov packages/inference/tests/test_rerank_judge_live.py -s
+```
+
+The title run needs the gpu stack alone and takes about half a minute; the rank run also needs the
+memory override's CPU embedder on `:8081` and takes about two minutes, most of it the unbounded arm.
+`-s` is required for both: the print IS the measurement, and the same `docker logs
+cortex-model-host-1 | grep "eval time ="` says where the wall time went.
+
+Measured 2026-08-06 on the 24 GB card. A title went from 277, 235 and 303 decoded tokens at 9.7 s,
+7.9 s and 10.4 s to **4 tokens at 0.2 s to 0.3 s, returning the same titles run for run**. A recall
+rank went from 448 to 613 tokens at 18.4 s per recall to **12 to 22 tokens at 0.9 s**, ranking the
+corpus identically (mean reciprocal rank 1.000 against the shipped cosine's 0.917, the right note
+first 6 of 6 against 5 of 6, no fallbacks). Both trap arms confirm why the cap never ships alone:
+capped with thinking left on, each returns `finish_reason: "length"` and an empty reply, which for
+a title means the first-message derivation stands and for a rank means a silent fall back to the
+cosine. **What this changes for an operator:** `CORTEX_GENERATE_TITLES=1` now costs a third of a
+second per new session, and `CORTEX_MEMORY_RECALL=judge` costs about a second per recalling turn
+rather than twelve, which is the whole of the reason it was left off; `CORTEX_MEMORY_RECALL_AUDIT=1`
+prints the basis that actually ranked each recall, so a fallback is visible rather than silent. The
+numbers and the standing recommendation on that default are in the
+[ADR-0038 bounded-side-calls addendum](../adr/ADR-0038-ranked-recall.md).
+
 ## Framing-efficacy probe (Slice 6.5 / ADR-0013, agent-runnable)
 
 Confirms the prompt-injection **framing** actually changes the cortex's behavior. This is the model
