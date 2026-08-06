@@ -2874,3 +2874,101 @@ one with the list still up. Getting back to it is a walk rather than a step: thr
 Shift+Tab from the field reach the empty chat's own two example prompts and then its mark button,
 with the reminder stack and the rows above those, which is the tab order the panel has always had
 and is the cost the user accepted in taking the one rule.
+
+## Addendum, 2026-08-06: the panel measures itself in the pixels it actually has
+
+Two deferrals on the panel's own motion were one piece of work, and this closes both. The panel
+measured itself with `offsetHeight`, a whole number, so every move retargeted mid-stream opened its
+keyframes below the height the eye had; and its watch on its own box refused a reading while its own
+ease was running, because a running height animation overrides the box, so a resize that landed
+inside a move waited that move out. Fixing the second alone would have put the first back sixty
+times a second, which is why the pair was filed as one.
+
+**The panel now reads its used height off the computed style, and its watch asks what the panel
+WOULD be rather than what the box says.**
+
+### What was measured before
+
+Chromium at 60Hz against the demo bridge, `Element.prototype.animate` instrumented to record every
+opening keyframe, `offsetHeight` instrumented at the getter to record every read beside the
+fractional height at that instant, and frames sampled from a `ResizeObserver` registered after the
+panel's own, since `requestAnimationFrame` runs before the observer step and reads the layout the
+placement has not had its say on yet.
+
+- **The rounding is live.** At 900x1000 with the reminder stack acked, over one streamed reply: 310
+  of 330 readings of the panel's `offsetHeight` threw a sub-pixel away, worst 0.484px. All three of
+  the panel's moves opened on a whole number, and the painted top edge stepped back 0.281px at the
+  frame a retarget opened at 459 against a panel standing at 459.281.
+- **At the shipping window there is nothing to see**, as the entry said: at 640x720 with the stack
+  up the panel makes no moves of its own at all, being pinned at its ceiling.
+- **The wait is live too, and it is longer than latency alone.** At 900x1000 on an empty chat, 150px
+  appended straight into the log and 40px more 100ms into the resulting 255ms ease: the second
+  growth was invisible from t=160 to t=333, the frame that handed the element back read 514, the
+  frame after read 516.31, and the residue eased to 556 over 120ms, settled at t=465.
+- **A second rounding of the same shape was found beside it.** The bottom edge was written rounded
+  while the keyframe went to the fraction: measured at 901x1001, a whole ease painted a 324.5px edge
+  and the frame that took the animation away handed back the 325px inline value. Half a pixel, on a
+  bordered and shadowed edge, at the end of every move whose pinned edge is fractional.
+
+### The decision
+
+**The height is the used value off the computed style.** It keeps the fraction and it passes the
+check `offsetHeight` was chosen for: measured on a 356.281px box with a 1px border, `offsetHeight`
+reads 356 scaled or not, the rect reads 356.266 plain and 327.764 under `scale(0.92)`, and the used
+height reads 356.266 under both. Live, at 900x900: 120ms into a summon the panel's rect reads 511.626
+while its used height reads 518, and the session is pinned to the same 274px edge on every summon.
+
+**The watch probes what the panel would be, by handing the box back to layout for one read.** An
+`!important` inline declaration outranks the animation origin in the cascade, so `height: auto`
+important, with the element's own cap re-asserted beside it, answers the question the animation is
+hiding. At 900x1400, 60px appended and 40px more two frames into the ease: the box read 567.906 for
+both frames while the probe read 616.75 and then 667.75. Nothing paints in between and no observer
+notification comes of it, the box being back before the frame ends.
+
+**The alternative was measured rather than argued.** Taking the guard off and letting every
+notification place, which is the shape the watch's own doc rejected in prose, runs 24 animations for
+one 150px growth instead of 2: the ease restarts its own curve every frame, so the panel crawled 33px
+in the first 233ms and then dumped 40.83px in a single frame at the end, against a largest single
+frame of 26.25px with the probe.
+
+**The watch measures against the height the panel was placed FOR** (`Memory.placedFor`), not against
+the height it last looked at. A render that grows the panel is answered by the placement inside that
+render, and that placement resizes the element the watch is on; measured against a remembered
+reading, the notification one frame later reads as growth and places a second time. That doubled
+every move over one reply, 6 animations for 3 growths, each pair 3ms and 0.015px apart.
+
+### What it measures now
+
+Same instruments, same windows. At 900x1000 over one streamed reply: the panel's `offsetHeight` is
+read zero times, none of the four openings is a whole number, and the worst backward step is 0.015px,
+which is Chromium's own 1/64px grid and the floor of what can be represented. At 900x1000 with the
+40px landing inside the ease: it is answered one frame later by a retarget opening at 449.016, and
+the panel is settled at t=339 rather than t=465, the 188ms of nothing gone. At 901x1001 the inline
+edge and the keyframe are the same 324.5px and nothing steps. Across a new chat, the stack acked row
+by row, the switcher open and shut, a draft that wraps and a streamed reply, at 900x1000 and 640x720
+alike, the observer's "loop completed with undelivered notifications" error fires zero times.
+
+### The falsification proof
+
+Four reverts, each checked in place and restored, each reddening the tests that name it. Rounding
+the used height again reddens the sub-pixel keyframe test alone. Writing the bottom edge rounded
+again reddens that test and the whole-pixel-ceiling test. Putting the guard back so the watch waits
+the move out reddens the join test and the sub-pixel one. Measuring against the height last looked at
+rather than the height placed for reddens both watch-settling tests.
+
+### What this does not do
+
+**A section's own roll still measures its target with `offsetHeight`.** `Collapse` reads the whole
+number, publishes it as the height it is rolling to, and an opening roll does not fill, so the
+section hands itself back to its own layout at the end. Measured at 900x1000 over the demo: the
+reminder stack's aside is 193.75px against a 194px target and a Thoughts trace is 57.25px against 57,
+so a roll ends 0.25px away from where it was going and steps there. The panel's ride-along adds that
+rounded target to fractional heights, which puts its prediction the same 0.25px out, far under the
+2px below which nothing is animated at all. It is deferred because the reading is one line and the
+harness around it is not: the roll stand-in every per-row exit is asserted through is shared by three
+test files. Filed with the numbers in
+[refinements/body-overlay.md](../refinements/body-overlay.md).
+
+**The other boxes that measure themselves are unchanged too.** The console's tab slack, the panel
+edge's canvas and the composer's pill each read `offsetHeight` for their own purposes; only the tab
+slack reaches the panel's arithmetic, and it does so through the same 2px floor.

@@ -28,6 +28,12 @@ const ARRIVAL_MS = 440;
 export interface Memory {
   /** The geometry currently on screen, or null before the first measurement. */
   shown: Geometry | null;
+  /** The height the panel was last placed FOR: what its content asked of it, under the cap it was
+   *  given. The watch on the panel's own box compares against this rather than against the box,
+   *  because a move of the panel's own walks the box past it every frame while this stands still,
+   *  and a render that resized the panel has already been answered by the placement that ran in it.
+   *  0 before the first placement, which is always before the watch exists. */
+  placedFor: number;
   running: Animation | null;
   /** Where `running` is taking the panel. Meaningless while `running` is null or finished. */
   aim: Geometry;
@@ -60,6 +66,7 @@ export interface Memory {
 export function emptyMemory(open: boolean, view: string): Memory {
   return {
     shown: null,
+    placedFor: 0,
     running: null,
     aim: { height: 0, bottom: 0 },
     lands: 0,
@@ -83,18 +90,66 @@ export interface Placement {
 }
 
 /**
- * How tall the element is, in layout pixels.
+ * How tall the element is, in layout pixels, sub-pixels included.
  *
  * `getBoundingClientRect` is the wrong tool for this one number: it reports the box AFTER
  * transforms, and the panel is scaled through the whole summon (`scale(0.92)` easing to 1, with a
  * spring that overshoots past it). Measured at boot: the panel read 327.5px tall while its layout
  * height was 356, so every geometry taken during a summon was ~8% short, the edge the session ends
- * up pinned to included. `offsetHeight` ignores the transform and still follows a running height
- * animation, which is what makes it safe to read mid-move (verified in Chrome: an element easing
- * from 400 to 500 reports the in-flight value, and its natural one again once cancelled).
+ * up pinned to included.
+ *
+ * The used height off the computed style passes that same check and keeps the fraction the box
+ * actually has. Measured in Chromium on a 356.281px box with a 1px border: `offsetHeight` reads 356
+ * whether or not the box is scaled, the rect reads 356.266 plain and 327.764 under `scale(0.92)`,
+ * and this reads 356.266 under both. It follows a running height animation the same way (an element
+ * easing 400 to 500 reports the in-flight 409.984 and its natural height again once cancelled),
+ * which is what makes it safe to read mid-move.
+ *
+ * The whole pixel `offsetHeight` gave instead is what made a move retargeted mid-stream open its
+ * keyframes below the height the eye had, so the panel stepped back by the remainder for a frame
+ * ([ADR-0035](../../../../docs/adr/ADR-0035-console-and-motion.md), the fractional-height addendum).
+ *
+ * It reports the BORDER box, this app setting `box-sizing: border-box` on everything, so it is the
+ * same box `offsetHeight` reported. An element with no layout box (jsdom, a `display: none`
+ * ancestor, a node outside a document) has no used value to give and reports 0 here, which is what
+ * `measured.ts` reads as "nothing to publish".
  */
 export function heightOf(element: HTMLElement): number {
-  return element.offsetHeight;
+  const used = Number.parseFloat(getComputedStyle(element).height);
+  return Number.isNaN(used) ? 0 : used;
+}
+
+/**
+ * How tall the element would be right now if nothing were animating it, read WITHOUT cancelling
+ * the move in the air.
+ *
+ * A height animation overrides the used height, so while the panel's own ease runs, content that
+ * grows inside it changes nothing the box can show: the panel's watch cannot tell its own ease
+ * walking the box from a resize it should answer, and it used to answer neither until the ease
+ * landed. An `!important` inline declaration outranks the animation origin in the cascade, so
+ * handing the height back to layout for the length of one read asks the element the question the
+ * animation is hiding. Measured in Chromium at 900x1400, 60px appended into the log and 40px more
+ * two frames into the resulting ease: the box read 567.906 for both frames while this read 616.75
+ * and then 667.75, which is the growth arriving. Nothing paints in between (the override is gone
+ * before the frame ends), and the read costs no notification of its own: instrumented over the
+ * demo, the observer's "loop completed with undelivered notifications" error fired zero times.
+ *
+ * The element's own cap is re-asserted for the same read, because a move carries its ceiling in the
+ * keyframes (`panelGeometry.frame`) and that riding cap would otherwise clamp the answer to a
+ * different number every frame. Under the cap the placement actually wrote, the answer is exactly
+ * what a placement would measure: stable while the content is, and only content moves it.
+ */
+export function naturalHeightOf(element: HTMLElement): number {
+  const style = element.style;
+  const height = style.getPropertyValue("height");
+  const priority = style.getPropertyPriority("height");
+  const cap = style.getPropertyValue("max-height");
+  style.setProperty("height", "auto", "important");
+  style.setProperty("max-height", cap, "important");
+  const natural = heightOf(element);
+  style.setProperty("height", height, priority);
+  style.setProperty("max-height", cap);
+  return natural;
 }
 
 /** Where the element is right now, mid-animation: what the eye actually sees. The bottom edge is

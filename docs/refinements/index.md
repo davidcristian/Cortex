@@ -55,7 +55,7 @@ the tree does now.
 | [memory.md](memory.md) | Store, scoping, rerank/MMR (ADR-0008) | 8 |
 | [inference-model-manager.md](inference-model-manager.md) | Model-manager lifecycle, MTP, reasoning status (ADR-0007/0020) | 7 |
 | [subagents.md](subagents.md) | Progress reporting, spawn schema, heterogeneous roster (ADR-0010/0018) | 2 |
-| [body-overlay.md](body-overlay.md) | Overlay polish, connection indicator, proto Cancel (ADR-0011), the reserved scrollbar rail's assumed width and spent card inset, a mid-stream retarget restarting from a rounded height, the two bounds the panel's section budget left behind it (a section's own frame being under no cap, and the room a closing section hands back arriving in one frame), the switcher's and the reminder stack's own row gestures dropping focus with no swap to answer them, the composer's draft belonging to no chat, and the whisper's follow-ups (ADR-0037): a pickable voice row, a mid-stream resize keeping the old wrap width, and kerning inside the letter boxes under a changed font (its drain-growth entry landed the day it was filed, and the console outliving a new chat, the reminder stack's per-row exit and the switcher's, the panel's watch on its own box with the arrival-aside correction that came out of it, the demo bridge over the line cap, two sections outrunning the panel on their own, the chat floor's frozen measurement of the empty state, the console tab strip's missing keyboard half, the switcher's disputed listbox role, the two motions its list still made in one frame, and a Thoughts trace opening a reply off the bottom of a full history all landed 2026-08-03, the last of them opening the chrome-side entry that landed 2026-08-04 on the same ride, alongside the cycle keys' silent swap, which opened the focus entry that landed 2026-08-06 as the caret following the conversation into the composer and opened the two above; the composer's move on a clamped shrink closed 2026-08-06 as moot, its mechanism having been deleted the day it was filed), and a resize that lands inside the panel's own move waiting for it | 13 |
+| [body-overlay.md](body-overlay.md) | Overlay polish, connection indicator, proto Cancel (ADR-0011), the reserved scrollbar rail's assumed width and spent card inset, a section's roll ending 0.25px from where it was going, the two bounds the panel's section budget left behind it (a section's own frame being under no cap, and the room a closing section hands back arriving in one frame), the switcher's and the reminder stack's own row gestures dropping focus with no swap to answer them, the composer's draft belonging to no chat, and the whisper's follow-ups (ADR-0037): a pickable voice row, a mid-stream resize keeping the old wrap width, and kerning inside the letter boxes under a changed font (its drain-growth entry landed the day it was filed, and the console outliving a new chat, the reminder stack's per-row exit and the switcher's, the panel's watch on its own box with the arrival-aside correction that came out of it, the demo bridge over the line cap, two sections outrunning the panel on their own, the chat floor's frozen measurement of the empty state, the console tab strip's missing keyboard half, the switcher's disputed listbox role, the two motions its list still made in one frame, and a Thoughts trace opening a reply off the bottom of a full history all landed 2026-08-03, the last of them opening the chrome-side entry that landed 2026-08-04 on the same ride, alongside the cycle keys' silent swap, which opened the focus entry that landed 2026-08-06 as the caret following the conversation into the composer and opened the two above; the composer's move on a clamped shrink closed 2026-08-06 as moot, its mechanism having been deleted the day it was filed, and the retarget-and-resize pair landed 2026-08-06 as the panel measuring itself in fractional pixels, opening the roll entry that took its place) | 12 |
 | [session-read-seam.md](session-read-seam.md) | Session listing/read seam (ADR-0021) | 2 |
 | [resource-governance.md](resource-governance.md) | Scheduler/placer budgets, NPU, drain (ADR-0012) | 5 |
 | [email-confirmer.md](email-confirmer.md) | Email write, Confirmer, attachments, `ToolActivity` chip (ADR-0022) | 4 |
@@ -1400,27 +1400,32 @@ against the code (the warning above); the entry text tells you which seams it ex
   behind the console. So "one line in one reducer arm" was two lines in two, and what shipped is a
   rule rather than a keystroke's special case, that a conversation arriving on the panel brings the
   chat with it ([ADR-0035 addendum](../adr/ADR-0035-console-and-motion.md)).
-- **A move retargeted mid-stream restarts from a rounded height**
-  ([body-overlay.md](body-overlay.md)), found 2026-07-20 while re-verifying the chat floor with
-  `element.animate` instrumented. The panel measures itself with `offsetHeight`, so each token's
-  retarget opens its keyframes on a whole pixel while the eye has the fractional one, and the panel
-  steps back by the remainder for one frame (worst 0.39px, none at all at the shipping window with
-  the reminder stack up, where the one whole pixel that was measurable turned out to be a second and
-  unrelated rounding, the ceiling itself, fixed rather than filed:
-  [ADR-0035](../adr/ADR-0035-console-and-motion.md) decision 16). Listed last of the open items on purpose:
-  it is the smallest thing in this file, the floor it was found under holds regardless (the panel is
-  never below its pre-send height at any frame), and the fix costs a harness rewrite across every
-  test that fakes `offsetHeight`.
-- **A resize that lands inside the panel's own move waits for that move**
-  ([body-overlay.md](body-overlay.md)), opened 2026-08-03 with the panel's watch on its own box and
-  listed here beside the entry it belongs to. The watch refuses a reading while the panel's own ease
-  is running, because answering one would cancel that ease to measure the natural box and start
-  another once per frame, which is the entry above arriving sixty times a second. The cost is
-  latency and not a jump, measured at 900x1000 with 40px injected 100ms into a 316ms ease: the
-  growth is invisible while the animation overrides the box, the frame that hands the element back
-  reads 168 and the frame after 165.83, and the residue eases to 128 over about 120ms with no step
-  anywhere. Bounded by the 380ms move ceiling and usually far shorter. Taken on its own it would
-  simply put the retarget back, so the two are one piece of work.
+- **A move retargeted mid-stream restarts from a rounded height** and **a resize that lands inside
+  the panel's own move waits for that move** ([body-overlay.md](body-overlay.md)), found 2026-07-20
+  and 2026-08-03, **both closed 2026-08-06** as the one piece of work the second of them said they
+  were ([ADR-0035 addendum](../adr/ADR-0035-console-and-motion.md)). Both reproduced at HEAD, which
+  is worth saying in a section whose standing warning is that they often do not: 310 of 330 readings
+  of the panel's `offsetHeight` over one streamed reply threw a sub-pixel away, all three of its
+  moves opened on a whole number, and the painted top edge stepped back 0.281px; the 40px that
+  landed inside a 255ms ease was invisible for 188ms and then eased from a standstill. The panel now
+  reads its used height off the computed style, which keeps the fraction and still ignores the
+  summon's scale (356.266 under `scale(0.92)` where the rect reads 327.764), and its watch asks what
+  the panel WOULD be by handing the box back to layout for one read, an important inline declaration
+  outranking the animation origin. After: no opening is whole, the worst step is 0.015px on
+  Chromium's own 1/64px grid, and the growth is answered one frame after it lands. Two things
+  neither entry named came out of it, one fixed and one filed. The bottom edge had the identical
+  rounding and a larger one (a whole ease painted 324.5 while the element carried 325), and it is
+  fixed here. A section's own roll still measures its target with `offsetHeight` and is filed below.
+- **A section's roll ends 0.25px from where it was going**
+  ([body-overlay.md](body-overlay.md)), opened 2026-08-06 by the change above, which took the
+  panel's measurement off `offsetHeight` and left `Collapse`'s on it. An opening roll does not fill,
+  so the section hands itself back to its own layout at the end and steps by whatever the rounding
+  threw away: measured at 900x1000, the reminder stack's aside is 193.75px against a 194px target
+  and a Thoughts trace is 57.25px against 57. The panel's ride-along adds that rounded target to two
+  fractional heights, putting its prediction the same 0.25px out, which is far under the 2px below
+  which nothing is animated. Listed last of the open items for the reason its predecessor was: it is
+  the smallest thing in the file, and the reading is one line while the harness around it is three
+  test files sharing one roll stand-in that fakes `offsetHeight` on the prototype.
 
 Everything else that remains is gated on a seam or port change, on hardware that fits two model
 tiers, on a consumer that does not yet exist, or is a bounded fix-when-it-bites contingency. The
@@ -1437,8 +1442,12 @@ premise was struck across the docs that same day. On **2026-08-06** the section 
 entry of reading "None" again and did not. Everything above it had closed, and the last item whose
 whole remaining cost was a decision was answered and landed the same day (the caret following a
 chat swap into the composer), but it opened two entries behind it and they stand in its place, one
-of them a decision again. What is left beside those two is the retarget-and-resize pair, which is
-one piece of work written as two bullets and has been since the second was opened.
+of them a decision again. The retarget-and-resize pair that stood beside them, one piece of work
+written as two bullets since the second was opened, closed later that same day and opened one entry
+behind itself: the reading it moved off `offsetHeight` was the panel's, and a section's own roll
+still measures the old way. The shape repeats often enough to be worth naming. An entry that closes
+here rarely closes alone, because the thing it fixes is usually one instance of a reading or a rule
+that has siblings, and the siblings only become visible once the first one is right.
 
 ### Actionable, but a seam or port change comes first
 

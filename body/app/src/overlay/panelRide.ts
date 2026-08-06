@@ -105,7 +105,9 @@ export function rideAlong(
     shown !== null && Math.abs(shown.height - natural) >= MIN_DELTA_PX ? shown.height : squeezed;
   memory.carrying = carried === null ? null : height;
   memory.applied = bottom;
-  element.style.bottom = `${Math.round(bottom)}px`;
+  // With its fraction, for the reason `panelPlacement` gives where it writes the same edge: the
+  // slide below ends on this number and the element has to already be standing on it.
+  element.style.bottom = `${bottom}px`;
   if (carried === null && Math.abs(bottom - from) < MIN_DELTA_PX) {
     // The common case by far: nothing of the panel's own was moving and it is nowhere near its
     // ceiling, so the roll is the whole movement and nothing else on screen moves at all.

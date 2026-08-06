@@ -1,6 +1,7 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { laysEverything } from "../test-setup";
 import type { Message as MessageModel } from "../overlay/overlayState";
 import { Message } from "./Message";
 
@@ -171,11 +172,7 @@ describe("Message", () => {
     // how tall it is (`--trace-row`, overlay/measured.ts), so the pairing survives a change to the
     // chip's padding or font that nobody thinks to re-derive a constant for. Both chips are the
     // same box and either may be the only one a turn shows, so both have to say so.
-    const laid = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "offsetHeight");
-    Object.defineProperty(HTMLElement.prototype, "offsetHeight", {
-      configurable: true,
-      get: () => 28,
-    });
+    const settle = laysEverything(28);
     try {
       render(<Show message={msg({ streaming: true, status: "reasoning" })} />);
       expect(document.documentElement.style.getPropertyValue("--trace-row")).toBe("28px");
@@ -185,9 +182,7 @@ describe("Message", () => {
       expect(document.documentElement.style.getPropertyValue("--trace-row")).toBe("28px");
     } finally {
       document.documentElement.style.removeProperty("--trace-row");
-      if (laid !== undefined) {
-        Object.defineProperty(HTMLElement.prototype, "offsetHeight", laid);
-      }
+      settle();
     }
   });
 });

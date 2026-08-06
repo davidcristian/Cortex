@@ -11,17 +11,22 @@ are the historical record of what each deferral became, and the index at
 **Open items:** multi-turn-within-one-stream + proto `Cancel`, streamed
 brain status (its producer landed 2026-07-18; only the push RPC remains), the two motions the
 switcher's list still makes in one frame (its empty line arriving after the last row's exit, and a
-reorder moving every row it touches), the composer's move on a shrink against the ceiling (a
-user's choice between two designs), the two bounds the panel's section budget leaves behind it
+reorder moving every row it touches), the two bounds the panel's section budget leaves behind it
 (a section's own frame being under no cap, and the room a closing section hands back in one frame),
 the two tradeoffs the reserved scrollbar rail accepts (its width
 is assumed rather than measured off the engine, and the two 6px cards spend their whole inset on
-it), a mid-stream retarget restarting
-from a rounded height, and the whisper's three follow-ups (a pickable voice
+it), a section's roll ending 0.25px
+from where it was going, and the whisper's three follow-ups (a pickable voice
 row in the console, the wrap
 width a mid-stream resize cannot move, and kerning inside the letter boxes under a changed
 font; its drain-growth entry landed the same day it was filed, and the console outliving a new
-chat landed 2026-08-03), and a resize that lands inside the panel's own move waiting for it. The
+chat landed 2026-08-03). A mid-stream retarget restarting from a rounded height and a resize that
+lands inside the panel's own move waiting for it landed together on 2026-08-06, as the one piece of
+work they always were: the panel reads its used height with its sub-pixels and its watch asks what
+the panel would be rather than what the box says, so a growth that lands inside a move joins it one
+frame later instead of 188ms later, and the worst backward step over a streamed reply is 0.281px no
+longer but 0.015px, which is the engine's own grid. The section-roll entry above was opened by
+them, being the same reading one element down. The
 chat floor's frozen measurement of the empty state landed 2026-08-03 as the custom property it
 asked for, having been about a constant that was deleted the same day the entry was written, and
 took the second frozen number it named (`--trace-row`) with it; the rail's, the third, is
@@ -483,6 +488,33 @@ lands in belonging to no chat.
   about every 55ms. The fix is not a second observer but whatever answers the mid-stream retarget
   below, since both want a move that can be redirected from where it is without being restarted;
   taken separately, this one would simply reintroduce that harm.
+  - **LANDED 2026-08-06 with the entry below, as the pair it said it was**
+    ([ADR-0035 addendum](../adr/ADR-0035-console-and-motion.md)). The entry reproduced at HEAD
+    almost to the frame: re-traced at 900x1000 on an empty chat, 150px appended straight into the
+    log and 40px more 100ms into the resulting 255ms ease, the second growth was invisible from
+    t=160 to t=333, the frame that handed the element back read 514, the frame after read 516.31,
+    and the residue eased to 556 over 120ms, settled at t=465. What the entry did not say is that
+    the cost is not only the wait: the growth is answered from a standstill afterwards, so the
+    reader waits 188ms and then watches a second movement that could have been part of the first.
+    **The mechanism is the one the entry ruled out for the wrong reason.** It reads "the fix is not
+    a second observer", and it is not, but neither is it a change to `place`: what the watch needed
+    was to stop asking the box. A running height animation overrides the used height, so content
+    growing inside the panel changes nothing the box can show, and no observer on that box could
+    have seen it. An `!important` inline declaration outranks the animation origin in the cascade,
+    so handing the height back to layout for the length of one read (`panelMemory.naturalHeightOf`)
+    asks the question the animation is hiding: measured at 900x1400 with 60px appended and 40px more
+    two frames into the ease, the box read 567.906 for both frames while the probe read 616.75 and
+    then 667.75. Nothing paints in between and no notification comes of it. The growth is now
+    answered one frame after it lands, by a retarget opening at 449.016, and the panel is settled at
+    t=339 rather than t=465. **The alternative the entry's own doc argued against was measured
+    instead of argued**: letting every notification place runs 24 animations for one growth rather
+    than 2, the ease restarting its curve every frame, so the panel crawled 33px in the first 233ms
+    and dumped 40.83px in a single frame at the end, against a largest single frame of 26.25px with
+    the probe. One thing had to be added that neither entry named: the watch measures against the
+    height the panel was PLACED for rather than the height it last looked at, because a placement
+    resizes the element the watch is on, and measuring against a remembered reading placed a second
+    time one frame later, doubling every move (6 animations for 3 growths over one reply, each pair
+    3ms and 0.015px apart).
 - **A switcher and a reminder stack that are both full outrun the panel before the composer is
   asked for anything.** `.switcher` may be `40vh` and `.reminders` `30vh`, each capped as if it
   were alone with the panel, and at the body's 720px window that is 504px of a 547px panel with the
@@ -781,6 +813,47 @@ lands in belonging to no chat.
     way
     ([ADR-0035](../adr/ADR-0035-console-and-motion.md) decision 16). This entry remains what it says: a
     fractional used height against a rounded `offsetHeight`, while a stream retargets a move.
+  - **LANDED 2026-08-06 with the entry above, and the harness rewrite was the whole of the cost it
+    said it was** ([ADR-0035 addendum](../adr/ADR-0035-console-and-motion.md)). Re-instrumented at
+    HEAD at 900x1000 with the stack acked, over one streamed reply: 310 of 330 readings of the
+    panel's `offsetHeight` threw a sub-pixel away, worst 0.484px, all three of the panel's moves
+    opened on a whole number, and the painted top edge stepped back 0.281px at the frame a retarget
+    opened at 459 against a panel standing at 459.281. At 640x720 with the stack up there is still
+    nothing at all, the panel making no moves of its own. After: the panel's `offsetHeight` is read
+    zero times, none of the four openings is whole, and the worst step is 0.015px, which is
+    Chromium's own 1/64px grid rather than anything left to fix.
+    **The reading passes the check this entry asked for.** Measured on a 356.281px box with a 1px
+    border: `offsetHeight` reads 356 whether or not the box is scaled, the rect reads 356.266 plain
+    and 327.764 under `scale(0.92)`, and the used height reads 356.266 under both. Live at 900x900,
+    120ms into a summon, the panel's rect reads 511.626 against a used height of 518, and the
+    session is pinned to the same 274px edge on every summon.
+    **A second rounding of the same shape was found beside it and fixed in the same change.** The
+    bottom edge was written rounded while the keyframe went to the fraction, so at 901x1001 a whole
+    ease painted a 324.5px edge and the frame that removed the animation handed back 325. Half a
+    pixel, which is larger than the artefact this entry is about, on the same element in the same
+    keyframes.
+    **The harness rewrite is what the entry priced, and it landed as one helper rather than as a
+    rewrite per file.** Every fake of `offsetHeight` for a box the panel measures now says the same
+    thing through the computed style (`lays`, `laysEverything` in `body/app/src/test-setup.ts`),
+    which is four call sites across `usePanelMotion.test.ts`, `measured.test.ts`, `Panel.test.tsx`
+    and `Message.test.tsx`. The fake models the probe the way the cascade does, answering the panel's
+    own layout while an important inline height is standing, so no test asserts on a number
+    production does not read. What the entry named as wanting the same check, `Collapse` following,
+    is the one part not done and is the entry below.
+- **A section's roll ends 0.25px from where it was going.** `Collapse` measures the height it is
+  rolling to with `offsetHeight` (`body/app/src/components/Collapse.tsx`), which is a whole number,
+  and an opening roll deliberately does not fill, so the section hands itself back to its own layout
+  when the animation ends and steps by the difference. Measured 2026-08-06 at 900x1000 over the
+  demo: the reminder stack's aside is 193.75px against a 194px target, and a Thoughts trace is
+  57.25px against 57. The panel's ride-along then adds that rounded target to two fractional heights
+  (`panelRide.ts`), so its prediction of where the roll leaves the panel is out by the same amount,
+  which is far under the 2px below which nothing is animated at all. Opened 2026-08-06 by the
+  fractional-height change above, which took the panel's own measurement off `offsetHeight` and left
+  this one on it. It is deferred because the reading is one line and the harness around it is not:
+  the roll stand-in that every per-row exit is asserted through fakes `offsetHeight` on the
+  prototype and is shared by three test files, so following the panel means moving all of them. The
+  trigger is a roll whose end is visible at all: a section whose natural height lands nearer the
+  half pixel, or any report of a section settling with a flick.
 - **Opening a Thoughts trace on a panel at its ceiling pushes the reply below the fold.** The
   disclosure rolls open in place and nothing touches the history's `scrollTop`, which is the right
   default: the row stays exactly under the pointer that clicked it and the trace unfolds beneath,
