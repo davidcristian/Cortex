@@ -248,7 +248,9 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
   past it to y=240.47, so the gap ends up between two rows it was never between. The reminder stack
   only ever loses rows, so the two rules agree on every frame of it and it never had to choose.
 - **The switcher is a named list of rows, and the row says which chat is open**
-  (`components/SessionList.tsx`, ADR-0035 addendum, 2026-08-03). The `<ul>` carries `aria-label` and
+  (`components/SessionList.tsx` + `components/SessionRow.tsx`, ADR-0035 addendum, 2026-08-03; the
+  row's three shapes moved into their own file on 2026-08-06 with the caret rule below). The `<ul>`
+  carries `aria-label` and
   no role, the reminder stack's arrangement, because the `role="listbox"` it used to carry was one
   no child satisfied: an option is a leaf and a row is four buttons, and a `<li>` inside a listbox
   is not a listitem either, so Chromium announced a listbox with no options in it over three rows of
@@ -287,10 +289,8 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
   about the gesture and this one about the transition, so each arm answers for all of its own doors.
   It is a count rather than the session id because re-selecting the open chat is still an arrival and
   still takes its row away; cold-start adoption is excluded by being its own arm, and would be moving
-  focus inside an `inert` panel besides. What it does NOT reach is a row gesture that swaps nothing
-  (a rename, a delete of another chat, a reminder's ack), each still dropping focus: a deferral in
-  [refinements/body-overlay.md](../refinements/body-overlay.md). What the caret lands IN is the next
-  bullet.
+  focus inside an `inert` panel besides. What it does NOT reach is a row gesture that swaps nothing,
+  which is the bullet after next. What the caret lands IN is the next bullet.
 - **A draft belongs to the conversation it was typed into** (`OverlayState.drafts` +
   `overlay/drafts.ts` + `components/Composer.tsx`, ADR-0035 addendum, 2026-08-06). Unsent composer
   text is keyed by session id in the reducer and the field is CONTROLLED by the entry for the chat
@@ -313,6 +313,28 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
   written in. The caret lands at the END of a restored draft, the field's own answer to having its
   value assigned and the one worth having, since coming back to a half-typed thought is coming back
   to finish it.
+- **A list that reshapes under the hand keeps the caret** (`overlay/rowCaret.ts` +
+  `components/SessionRow.tsx` + `components/Reminders.tsx`, ADR-0035 addendum, 2026-08-06). The rule
+  above answers the gestures that replace the conversation; these are the ones that do not, and there
+  are thirteen of them across the two lists. Three clauses. **A row that changes shape** hands the
+  caret to the control its new shape puts in the place of the one that left: a rename opens on its
+  editor with the old title selected, closes (either way) on the pencil that opened it, a delete
+  opens on the confirm's CANCEL and closes on the trash that asked. **A row that leaves** hands it to
+  the same control in the row that inherits its place, below where there is one and above for the
+  last row, which is the composite-row reading of the list-deletion pattern and the reading these
+  rows need, having been taken out of `listbox` for being four buttons each. **A list with no row
+  left** hands it to its `anchor` prop, a control outside the list that `ChatView` holds: the
+  header's chats button for the switcher, which is still open in front of the reader, and the
+  composer's field for the reminder stack, whose section leaves with its last row. The pin toggle is
+  answered by saying nothing, its button surviving the regroup it causes. The move is a layout effect
+  at the commit, never at the end of the roll, and every focus call is `preventScroll`. `heir` and
+  `caretKey` are pure; `useRowCaret(list, anchor)` returns the function a gesture calls, and the
+  control it aims at is named through a `data-caret` attribute rather than held as a ref, because it
+  usually does not exist yet when the gesture fires. Two neighbours came with it: **both of a row's
+  overlays keep a cancelling Escape to themselves**, the window listener having dismissed the whole
+  panel on the same press, and **the `?` guard asks about `HTMLInputElement` too**, that key having
+  opened the console out from under a half-typed rename. Modified chords still reach the overlay from
+  inside an editor, which is a deferral rather than a decision made here.
 - **The empty line waits for a row and yields to one, and a row the list moves travels there**
   (`components/SessionList.tsx` + `overlay/useTravel.ts`, ADR-0035 addendum, 2026-08-03). The empty
   line is asked of `sessions` rather than of the rendered rows, so deleting the last chat puts it up

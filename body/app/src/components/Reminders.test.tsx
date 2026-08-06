@@ -19,8 +19,21 @@ const reminder = (over: Partial<DueReminder> = {}): DueReminder => ({
 
 interface Handlers {
   currentId?: string;
+  anchor?: { readonly current: HTMLElement | null };
   onDismiss?: (reminderId: string) => void;
   onOpen?: (sessionId: string) => void;
+}
+
+/** The caret's landing place when the stack empties, for the tests that are not about it. */
+const nowhere = { current: null };
+
+/** A real anchor: the composer's field, which is what the reader is left with once the last
+ *  reminder is acked and the section goes with it. */
+function anchored(): { current: HTMLTextAreaElement } {
+  const composer = document.createElement("textarea");
+  composer.setAttribute("aria-label", "Message");
+  document.body.append(composer);
+  return { current: composer };
 }
 
 const stack = (reminders: readonly DueReminder[], handlers: Handlers = {}) => (
@@ -29,6 +42,7 @@ const stack = (reminders: readonly DueReminder[], handlers: Handlers = {}) => (
     currentId={handlers.currentId ?? "open-chat"}
     onDismiss={handlers.onDismiss ?? vi.fn()}
     onOpen={handlers.onOpen ?? vi.fn()}
+    anchor={handlers.anchor ?? nowhere}
   />
 );
 
@@ -100,6 +114,7 @@ describe("Reminders", () => {
         currentId="open-chat"
         onDismiss={vi.fn()}
         onOpen={vi.fn()}
+        anchor={nowhere}
       />,
     );
     expect(screen.getByText("untrusted source")).toBeTruthy();
@@ -190,5 +205,62 @@ describe("Reminders", () => {
     });
     expect(screen.getAllByLabelText("Dismiss reminder")).toHaveLength(2);
     expect(screen.queryByText("open chat")).toBeNull();
+  });
+
+  // WHERE THE CARET GOES WHEN A ROW LEAVES (`overlay/rowCaret.ts`). Acking is the one gesture here
+  // that takes its own control away, and measured at 900x900 it held focus for its whole 300ms roll
+  // and then read `<body>` at 350ms, the row's `Collapse` unmounting what it contained.
+  it("rides the caret down the stack, so clearing what fired is one key pressed again", () => {
+    const three = [
+      reminder(),
+      reminder({ reminderId: "r-2", text: "Stretch" }),
+      reminder({ reminderId: "r-3", text: "Drink water" }),
+    ];
+    const { rerender } = renderStack(three);
+    const acks = () => screen.getAllByLabelText("Dismiss reminder");
+    fireEvent.click(acks()[1]!);
+    rerender(stack([three[0]!, three[2]!]));
+    // The row below the gap, which is where the eye already is and where the pointer already is.
+    expect(acks()).toHaveLength(2); // the acked row's roll finished with nothing to animate
+    expect(document.activeElement).toBe(acks()[1]);
+    expect(document.activeElement?.closest(".reminder")?.textContent).toContain("Drink water");
+  });
+
+  it("takes the last reminder's caret up to the row above it", () => {
+    const two = [reminder(), reminder({ reminderId: "r-2", text: "Stretch" })];
+    const { rerender } = renderStack(two);
+    fireEvent.click(screen.getAllByLabelText("Dismiss reminder")[1]!);
+    rerender(stack([two[0]!]));
+    expect(document.activeElement?.closest(".reminder")?.textContent).toContain(
+      "Stand-up in 10 minutes",
+    );
+  });
+
+  it("hands the caret to the anchor when the only reminder is acked, the stack going with it", () => {
+    // The one case this list cannot answer from inside itself: the section leaves with its last
+    // row, so there is no list to keep the caret in and what is left is the conversation under it.
+    const anchor = anchored();
+    const { rerender } = renderStack([reminder()], { anchor });
+    fireEvent.click(screen.getByLabelText("Dismiss reminder"));
+    rerender(stack([], { anchor }));
+    expect(document.activeElement).toBe(anchor.current);
+  });
+
+  it("withdraws an acked row for its exit, so the tab order cannot walk back into it", () => {
+    // The switcher's rule, arriving here. Measured at HEAD, an acked reminder kept both of its
+    // controls live and tabbable for the 300ms roll, behind a caret that had already moved on.
+    const land = stubRoll();
+    const two = [reminder(), reminder({ reminderId: "r-2", text: "Stretch" })];
+    const { rerender } = renderStack(two);
+    const slots = () => [...document.querySelectorAll<HTMLElement>(".reminder-slot")];
+    expect(slots().map((slot) => slot.hasAttribute("inert"))).toEqual([false, false]);
+    fireEvent.click(screen.getAllByLabelText("Dismiss reminder")[1]!);
+    rerender(stack([two[0]!]));
+    expect(slots()[1]!.hasAttribute("inert")).toBe(true);
+    expect(slots()[1]!.getAttribute("aria-hidden")).toBe("true");
+    // Withdrawal is per row: the one that stays is untouched.
+    expect(slots()[0]!.hasAttribute("inert")).toBe(false);
+    land();
+    expect(slots()).toHaveLength(1);
   });
 });

@@ -215,6 +215,15 @@ describe("Overlay", () => {
     // In the composer a ? is just typing, never the console.
     fireEvent.keyDown(screen.getByLabelText("Message"), { key: "?" });
     expect(controller.toggleConsole).toHaveBeenCalledOnce();
+    // And in the switcher's rename editor, which is the overlay's other field and an `<input>`
+    // rather than a textarea. The caret is put there by the pencil now (`overlay/rowCaret.ts`), so
+    // this is a question somebody can be halfway through typing: measured at 900x900 before this,
+    // "why?" left "why" in the field and the settings pane over the row being renamed.
+    const editor = document.createElement("input");
+    document.body.append(editor);
+    fireEvent.keyDown(editor, { key: "?" });
+    expect(controller.toggleConsole).toHaveBeenCalledOnce();
+    editor.remove();
   });
 
   it("Escape leaves the console in ONE press from either tab, without dismissing the panel", () => {

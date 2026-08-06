@@ -1,4 +1,4 @@
-import { type RefObject, useEffect } from "react";
+import { type RefObject, useEffect, useRef } from "react";
 
 import type { MarkStyle } from "../mark/marks";
 import { chatFloorRef } from "../overlay/measured";
@@ -77,6 +77,19 @@ export function ChatView({
   const showing = state.consoleTab === null;
   const log = useLogScroll(showing, column);
 
+  // WHERE EACH LIST SENDS THE CARET WHEN IT HAS NO ROW LEFT TO SEND IT TO. Both are lists whose
+  // rows can leave under the hand, and each keeps the caret among its own rows while it has any
+  // (`overlay/rowCaret.ts`); this view holds the two controls that answer for them when they run
+  // out, because neither is a control the list itself owns.
+  //
+  // They differ because what the reader is left with differs. Delete the last other chat and the
+  // switcher is still open in front of you, saying it has nothing, so the caret goes to the header
+  // control that opened it and would close it again. Ack the last reminder and the stack goes with
+  // it, delivery being over, and what is left is the conversation underneath, whose caret has one
+  // home: the field a summon already lands in.
+  const chatsButton = useRef<HTMLButtonElement>(null);
+  const field = useRef<HTMLTextAreaElement>(null!);
+
   // Follow the stream: each message change (and the approval card) scrolls the tail into view,
   // unless the reader has scrolled up to read (then their place holds until they return).
   useEffect(log.toTail, [log.toTail, state.messages, state.pendingConfirm]);
@@ -104,6 +117,7 @@ export function ChatView({
         <LinkDot link={state.link} />
         <button
           className="hbtn"
+          ref={chatsButton}
           onClick={onToggleSwitcher}
           aria-label="Recent chats"
           aria-expanded={state.switcherOpen}
@@ -125,6 +139,7 @@ export function ChatView({
         <SessionList
           sessions={state.sessions}
           currentId={state.sessionId}
+          anchor={chatsButton}
           // Silent: the row IS the chat's name, so announcing would read the label back.
           onSelect={(sessionId) => onSelectSession(sessionId, false)}
           onRename={onRenameSession}
@@ -146,6 +161,7 @@ export function ChatView({
         <Reminders
           reminders={state.reminders}
           currentId={state.sessionId}
+          anchor={field}
           onDismiss={onDismissReminder}
           // Announced: "open chat" names the act and not the chat, so the title is news.
           onOpen={(sessionId) => onSelectSession(sessionId, true)}
@@ -223,6 +239,7 @@ export function ChatView({
           fact stated about the text instead of the focus: the field renders this conversation's
           draft, so it changes with the conversation (`overlay/drafts.ts`). */}
       <Composer
+        field={field}
         busy={isTurnActive(state)}
         draft={draftOf(state.drafts, state.sessionId)}
         arrival={open && showing ? state.arrival : null}
