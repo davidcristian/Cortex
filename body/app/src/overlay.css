@@ -236,9 +236,12 @@
 
    VERTICAL GEOMETRY IS NOT SET HERE. `bottom` and `max-height` are written as inline styles by
    `overlay/usePanelMotion.ts`, which owns both: the panel re-centres on a view change and grows
-   UPWARD from a pinned bottom edge in between, and the ceiling it may not grow past is derived
-   from the max height so a full-height panel lands exactly centred. Two sources for those numbers
-   would drift apart; there is one, and it is the hook.
+   UPWARD from a pinned bottom edge in between, and it does that only. There is ONE bound, the
+   clear space kept at the top, and it applies to the HEIGHT (`panelGeometry.maxHeight`), so a panel
+   that reaches the top stops getting taller and the history scrolls. There used to be a second, a
+   flat maximum height, and the two together walked the bottom edge back down the screen with the
+   composer on it; it was deleted 2026-07-20 and this comment described it until 2026-08-06. Two
+   sources for those numbers would drift apart; there is one, and it is the hook.
 
    The growth is animated there too, NOT by a transition here: the panel's height is `auto` on both
    sides of a content change, so a `transition: height` never fires (measured, not assumed).

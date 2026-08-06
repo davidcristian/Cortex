@@ -556,7 +556,9 @@ describe("usePanelMotion", () => {
     // The pull lands a beat behind the summon and the panel is really 546 tall. That is the panel
     // ARRIVING with its content, not growing after the fact, so it centres on it. Pinning it to the
     // centre of the 356 instead left it 95px above its own centre and hard against its ceiling for
-    // the rest of the session, where every later shrink slid the composer.
+    // the rest of the session. (The clause that used to end this sentence, "where every later
+    // shrink slid the composer", was true of the two-bound panel and stopped being true on
+    // 2026-07-20; the cost the window prevents is the off-centre session, not a moving composer.)
     state.natural = 546;
     rerender({ open: true });
     expect(bottom()).toBe(227);

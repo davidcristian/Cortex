@@ -31,6 +31,17 @@ remaining
 "behind the unchanged port" phrasing as unverified until you have opened the port and checked
 its signature.
 
+**And an entry's own account of the CODE goes stale the same way, which is worse.** The warning
+above is about cost estimates; on 2026-08-06 it landed on itself in the harder form. The composer's
+move on a clamped shrink ([body-overlay.md](body-overlay.md)) described a mechanism deleted thirty
+two minutes after the entry was written, was restated twice on its own text, and was put to the
+user twice as a decision that had not existed since the day it was filed. Two sittings in this very
+file measured the closure and recorded it as a null result, because they were checking that their
+own change had not moved the composer rather than asking whether anything still did. So: before
+starting an entry, and before quoting one back to the user, re-derive its claim from the code and
+from a running build. An entry is a record of what somebody once measured, never a reading of what
+the tree does now.
+
 ## The docs
 
 | Doc | Area | Open |
@@ -44,7 +55,7 @@ its signature.
 | [memory.md](memory.md) | Store, scoping, rerank/MMR (ADR-0008) | 8 |
 | [inference-model-manager.md](inference-model-manager.md) | Model-manager lifecycle, MTP, reasoning status (ADR-0007/0020) | 7 |
 | [subagents.md](subagents.md) | Progress reporting, spawn schema, heterogeneous roster (ADR-0010/0018) | 2 |
-| [body-overlay.md](body-overlay.md) | Overlay polish, connection indicator, proto Cancel (ADR-0011), the composer's move on a clamped shrink, the reserved scrollbar rail's assumed width and spent card inset, a mid-stream retarget restarting from a rounded height, the two bounds the panel's section budget left behind it (a section's own frame being under no cap, and the room a closing section hands back arriving in one frame), a swap fired from inside a closing section dropping focus on the floor, and the whisper's follow-ups (ADR-0037): a pickable voice row, a mid-stream resize keeping the old wrap width, and kerning inside the letter boxes under a changed font (its drain-growth entry landed the day it was filed, and the console outliving a new chat, the reminder stack's per-row exit and the switcher's, the panel's watch on its own box with the arrival-aside correction that came out of it, the demo bridge over the line cap, two sections outrunning the panel on their own, the chat floor's frozen measurement of the empty state, the console tab strip's missing keyboard half, the switcher's disputed listbox role, the two motions its list still made in one frame, and a Thoughts trace opening a reply off the bottom of a full history all landed 2026-08-03, the last of them opening the chrome-side entry that landed 2026-08-04 on the same ride, alongside the cycle keys' silent swap, which opened the focus entry that replaces it), and a resize that lands inside the panel's own move waiting for it | 13 |
+| [body-overlay.md](body-overlay.md) | Overlay polish, connection indicator, proto Cancel (ADR-0011), the reserved scrollbar rail's assumed width and spent card inset, a mid-stream retarget restarting from a rounded height, the two bounds the panel's section budget left behind it (a section's own frame being under no cap, and the room a closing section hands back arriving in one frame), a swap fired from inside a closing section dropping focus on the floor, and the whisper's follow-ups (ADR-0037): a pickable voice row, a mid-stream resize keeping the old wrap width, and kerning inside the letter boxes under a changed font (its drain-growth entry landed the day it was filed, and the console outliving a new chat, the reminder stack's per-row exit and the switcher's, the panel's watch on its own box with the arrival-aside correction that came out of it, the demo bridge over the line cap, two sections outrunning the panel on their own, the chat floor's frozen measurement of the empty state, the console tab strip's missing keyboard half, the switcher's disputed listbox role, the two motions its list still made in one frame, and a Thoughts trace opening a reply off the bottom of a full history all landed 2026-08-03, the last of them opening the chrome-side entry that landed 2026-08-04 on the same ride, alongside the cycle keys' silent swap, which opened the focus entry that replaces it; the composer's move on a clamped shrink closed 2026-08-06 as moot, its mechanism having been deleted the day it was filed), and a resize that lands inside the panel's own move waiting for it | 12 |
 | [session-read-seam.md](session-read-seam.md) | Session listing/read seam (ADR-0021) | 2 |
 | [resource-governance.md](resource-governance.md) | Scheduler/placer budgets, NPU, drain (ADR-0012) | 5 |
 | [email-confirmer.md](email-confirmer.md) | Email write, Confirmer, attachments, `ToolActivity` chip (ADR-0022) | 4 |
@@ -679,7 +690,12 @@ of work happened between two sentences. And this is one of only two entries anyw
 whose blocker was a preference rather than work. The other is the composer's move on a shrink
 against the ceiling, also in this area, where two designs have been put to the user and neither has
 been picked; it stays open. Both are a reminder that an entry can be cheap and still sit, since
-nothing about the code was in the way of either of them.
+nothing about the code was in the way of either of them. (**Corrected 2026-08-06**: only the first
+of the two was ever blocked on a preference. The second was measured against a running build that
+day and closed as moot, both of its designs already being delivered, so what looked like a second
+standing preference was a stale entry restated. The lesson survives the correction and gains a
+sharper one beside it: an entry can be cheap, sit, and also be describing code that no longer
+exists.)
 
 Body & overlay then **held at 18 on 2026-08-03**, when the reminder stack's per-row exit landed and
 opened one entry behind it, the backlog working as intended: the hook it needed is generic, so the
@@ -732,7 +748,12 @@ and are still open were measured on both sides of the change and did not move: t
 retarget puts the panel through 2 to 3 animations per reply either way, and the composer holds its
 bottom edge at 493 through an ack and a switcher round trip either way, so the preference about a
 shrink against the ceiling that the user has twice declined to settle is not settled here by
-accident. The one entry opened is the watch's own refusal stated as work: a resize that lands while
+accident. (**Corrected 2026-08-06**: that second reading was the preference's answer and was filed
+as a null result. 493 is the composer's bottom at 640x720 with the panel against its ceiling, and
+holding it through an ack AND a switcher round trip is exactly the pair the entry said could not be
+had together. The sitting was asking whether its own change had moved the composer, which is a
+narrower question than whether anything still did, and the wider one had been answered on
+2026-07-20.) The one entry opened is the watch's own refusal stated as work: a resize that lands while
 the panel's own ease is running waits for that ease rather than joining it, which costs latency and
 not a jump (traced at 900x1000, the residue eases 40px over about 120ms with no step at the
 hand-back) and whose real fix is the mid-stream retarget's, since both want a move that can be
@@ -840,7 +861,9 @@ frame it is attached and 185px once the system font stack resolves. Two open nei
 measured on both sides and did not move, the composer holding still through an ack, a switcher round
 trip and the pencil at both viewports, and the panel showing no sub-pixel step anywhere in a
 streamed reply either way, so the user's undecided preference about a shrink against the ceiling is
-again not settled by accident.
+again not settled by accident. (**Corrected 2026-08-06**: the second of those readings was, again,
+that preference's answer taken for a null result, at both viewports this time. See the correction
+under the panel-watch sitting above and the closed entry itself.)
 
 Body & overlay then **held at 15 on 2026-08-03**, when the console tab strip's missing keyboard half
 closed in full and one entry opened behind it, the backlog working as intended. The count not moving
@@ -1000,6 +1023,27 @@ both at one server, so a same-entry batch whose ask fits the VRAM headroom once 
 That correction rides the same sentence and the same fix, so it is folded into the entry rather
 than counted, and it shrinks the prize for spreading rather than adding work.
 
+Body & overlay went **13 to 12 on 2026-08-06**, when the composer's move on a clamped shrink closed
+without any code being written and without the user picking anything, because the design choice it
+had been holding open for seventeen days stopped existing on the day it was filed. This is a
+closing species the file has not recorded before. Entries here have been wrong about a cause, a
+size, a fix and a cost; this one was wrong about whether its subject was still in the tree. The
+entry was written into the console-and-motion commit at 20:25 on 2026-07-20 and the panel's second
+bound was deleted four commits later at 20:57, moving the clamp off the pinned edge and onto the
+height, which is the entire mechanism the entry is an argument about. It was then restated on
+2026-08-04 from its own text, put to the user a second time, and deliberately left unpicked, so the
+sitting that could have caught it instead recorded a third outcome for a question that had no
+subject. Measured by hand in a browser at both viewports it was written against, the composer's own
+bounding box does not move by any amount on any frame of a clamped shrink, and a clamped switcher
+round trip returns the panel to the identical edge and height, which are the two things the entry
+says cannot both be true. The reddening is the part worth copying: the deleted clamp was put back
+at the one line that spends it, the same ack moved the composer 58px through a 96px excursion, and
+only then was the green reading worth anything. Two further corrections ride this one. The rarity
+number it was restated with, "615px of growth at a 900px viewport", is a ceiling's value read as a
+delta, and real headroom is at most 342px there and 0px for the demo's own arriving chat, so waiting
+was never as cheap as the entry priced it. And the backlog is now down to one entry anywhere whose
+blocker is a preference rather than work, where it read as two.
+
 ## Recommended order
 
 Ordered by what unblocks the most value soonest. Before starting any item, verify its claims
@@ -1094,17 +1138,24 @@ against the code (the warning above); the entry text tells you which seams it ex
   commit in it, so the record is refreshed every frame while a roll runs and played from only on a
   commit.
 - **A shrink against the ceiling still moves the composer, and the user picks the fix**
-  ([body-overlay.md](body-overlay.md)), open from 2026-07-20. Reversible switcher round trips and a
-  composer that never moves are the same statement with opposite signs once the panel is tall
-  enough to be clamped, so this is a design choice rather than a defect: as shipped the pinned edge
-  is kept unclamped (reversible, and a clamped shrink slides the composer), and the alternative
-  re-pins to the clamped edge and hands back a saved per-section edge when a roll closes. Centring
-  the summon took it from constant to rare (0px on every measured everyday case, and a chat must
-  grow 615px at a 900px viewport to reach the ceiling at all), which is why it can wait for an
-  answer instead of blocking. **Put to the user again 2026-08-04 and left unpicked by their answer**,
-  which spends the sitting on entries needing no preference instead. It stays in this bucket rather
-  than moving to another, because nothing about it is blocked on a seam, on hardware, or on a
-  consumer: it is the one actionable-now item whose whole remaining cost is a decision.
+  ([body-overlay.md](body-overlay.md)), open from 2026-07-20 and **closed 2026-08-06 as MOOT, with
+  nothing for the user to pick**. The entry held that reversible switcher round trips and a composer
+  that never moves are the same statement with opposite signs once the panel is clamped. HEAD
+  delivers both, so there is no opposition and there was never a decision to make: the mechanism the
+  entry describes, a clamp applied to the pinned EDGE, was deleted thirty two minutes after the
+  entry was written on 2026-07-20 and replaced by a clamp on the HEIGHT, which is why nothing pulls
+  the bottom edge back on a shrink. Driven by hand in a browser at 640x720 with the panel against
+  its 450px ceiling, the composer's own box top reads 445 on every frame of an ack that gives back
+  58px of content and on every frame of a switcher round trip, which returns the panel to the
+  identical 184px edge and 450px height; acked all the way off the ceiling, the panel gives the room
+  up at its TOP edge (86 to 184) with the bottom edge and the composer unmoved. Same at 900x900, at
+  a 274px edge with the composer at 535. The arm was reddened first by restoring the deleted clamp,
+  where the same ack settles the composer 58px away through a 96px excursion. Its rarity number was
+  wrong too: 615 is not a growth delta but the ceiling's VALUE for a 546px panel centred at 900px,
+  real headroom being `342 - h/2` there, at most 342px for any panel and 0px for the demo's own
+  arriving chat. **Put to the user 2026-07-20 and again 2026-08-04**, both times as a live choice,
+  and both times it had already been answered by the code. This was the one actionable-now item
+  whose whole remaining cost was a decision; the bucket now has none.
 - **A placement can be left computed for a height the panel no longer has**
   ([body-overlay.md](body-overlay.md)), found 2026-07-20 and **closed 2026-08-03** as the
   `ResizeObserver` it names, `overlay/panelWatch.ts`, driving the same placement the roll's end

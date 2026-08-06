@@ -10,7 +10,10 @@ import { centringHeight } from "./panelParts";
  * Slide the bottom edge to where the roll now running will leave it, over that same roll.
  *
  * A section rolling open can push the panel past the ceiling, and the panel is anchored by its
- * bottom edge, so something has to give: it grows downward instead. Doing that only once the roll
+ * bottom edge, so the growth has only the top edge to go to and it stops there: the prediction
+ * below is capped at the ceiling and the history gives the room up. It used to grow DOWNWARD
+ * instead, walking the composer back down the screen, and that second bound was deleted 2026-07-20;
+ * this sentence went on describing it until 2026-08-06. Sliding only once the roll
  * had ended made two beats out of one movement, and each beat overshot on its own. Traced at 60Hz:
  * opening the switcher on a panel already at its ceiling ran the top edge 12px off the top of the
  * screen and then slid the whole panel back down, and closing it dipped the top edge 120px and
