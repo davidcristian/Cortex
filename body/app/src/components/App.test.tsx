@@ -102,6 +102,31 @@ describe("App", () => {
     expect(screen.queryByText("Stand-up in 10 minutes")).toBeNull();
   });
 
+  it("lands the caret in the composer when a chat arrives on a row that leaves with it", async () => {
+    // The whole path, door to caret: the row is pressed, the switcher rolls shut, the row stops
+    // existing, and the browser has nowhere to put focus but `<body>`, one Tab from the top of the
+    // page. The chat that arrived takes it instead (`overlayState`'s arrival, `Composer`).
+    const bridge = new FakeBridge();
+    bridge.sessions = [
+      { sessionId: "s1", title: "About cats", preview: "p1", lastActivityUnixMs: 2, pinned: false },
+      { sessionId: "s2", title: "About swaps", preview: "p2", lastActivityUnixMs: 1, pinned: false },
+    ];
+    bridge.messagesBySession = { s2: [{ role: "user", text: "about swaps", turnId: "t", atUnixMs: 1 }] };
+    await renderApp(bridge);
+    activate();
+    await act(async () => {});
+    fireEvent.click(screen.getByLabelText("Recent chats"));
+    const rows = [...document.querySelectorAll<HTMLElement>(".switcher-item")];
+    const row = rows[1] as HTMLElement;
+    row.focus();
+    expect(document.activeElement).toBe(row);
+    fireEvent.click(row);
+    await act(async () => {});
+    expect(screen.getByText("about swaps")).toBeTruthy();
+    expect(row).not.toBeInTheDocument();
+    expect(document.activeElement).toBe(screen.getByLabelText("Message"));
+  });
+
   it("swaps the reminder stack in with a new chat instead of rolling it over the old one", async () => {
     const bridge = new FakeBridge();
     bridge.reminders = [

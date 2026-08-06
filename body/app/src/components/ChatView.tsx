@@ -180,7 +180,7 @@ export function ChatView({
       </div>
       <Composer
         busy={isTurnActive(state)}
-        active={open && showing}
+        arrival={open && showing ? state.arrival : null}
         onSubmit={onSubmit}
         onStop={onStop}
         onResize={log.toTail}

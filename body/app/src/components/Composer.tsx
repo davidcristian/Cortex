@@ -4,9 +4,11 @@ import { SendIcon, StopIcon } from "./icons";
 
 interface ComposerProps {
   readonly busy: boolean;
-  /** True while the panel is open AND the chat is the view it is showing; the field takes focus on
-   *  the rising edge, which is a summon and also a return from the console. */
-  readonly active: boolean;
+  /**
+   * Which conversation this field is sitting in (`OverlayState.arrival`), or null while the panel
+   * is shut or the console is over the chat.
+   */
+  readonly arrival: number | null;
   readonly onSubmit: (text: string) => void;
   readonly onStop: () => void;
   /** Called when the pill's own height changes, before the frame that shows it. The pill is a flex
@@ -23,11 +25,10 @@ const FIELD_MAX_PX = 120;
 const STACKED = "stacked";
 
 /**
- * The prompt input: Enter sends, Shift+Enter newlines, and the field grows with its content
- * up to a few lines. Focus lands here whenever the panel opens (design/overlay-ux.md §7).
- * While a turn streams the send button becomes a stop that cancels it (§3).
+ * The prompt input: Enter sends, Shift+Enter newlines, and the field grows with its content up to
+ * a few lines.
  */
-export function Composer({ busy, active, onSubmit, onStop, onResize }: ComposerProps) {
+export function Composer({ busy, arrival, onSubmit, onStop, onResize }: ComposerProps) {
   const [text, setText] = useState("");
   const [stacked, setStacked] = useState(false);
   // Both are always mounted with the panel, so the refs are set before any effect runs.
@@ -38,10 +39,10 @@ export function Composer({ busy, active, onSubmit, onStop, onResize }: ComposerP
   const pillHeight = useRef(0);
 
   useEffect(() => {
-    if (active) {
+    if (arrival !== null) {
       fieldRef.current.focus({ preventScroll: true });
     }
-  }, [active]);
+  }, [arrival]);
 
   // Both questions below are asked of the text AND of the width it is laid out at, so this is a
   // function rather than an effect body: a keystroke is not the only thing that can change the

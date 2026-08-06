@@ -57,6 +57,8 @@ export interface OverlayState {
   /** What the overlay's live region has to say about the conversation that arrived, or `null`
    *  when the swap that put it on screen was fired by a control already naming it (`notice.ts`). */
   readonly notice: Notice | null;
+  /** Which conversation-arrival the panel is showing, counted from the overlay's first. */
+  readonly arrival: number;
   /** Fired reminders awaiting delivery, pulled on each open and acked on dismiss (ADR-0025). */
   readonly reminders: readonly DueReminder[];
   /** What the overlay knows about the brain connection, for the header indicator (`linkState`). */
@@ -129,6 +131,7 @@ export function createInitialState(sessionId: string): OverlayState {
     consoleTab: null,
     pendingConfirm: null,
     notice: null,
+    arrival: 0,
     reminders: [],
     link: INITIAL_LINK,
     capturing: false,
@@ -193,6 +196,7 @@ export function reduce(state: OverlayState, action: Action): OverlayState {
         sessionId: action.sessionId,
         title: NEW_CHAT_TITLE,
         notice: action.announce ? speak(state.notice, NEW_CHAT_TITLE) : null,
+        arrival: state.arrival + 1,
         messages: [],
         switcherOpen: false,
         consoleTab: null,

@@ -24,6 +24,7 @@ function fakeController(
       consoleTab: null,
       pendingConfirm: null,
       notice: null,
+      arrival: 0,
       reminders: [],
       link: INITIAL_LINK,
       capturing: false,

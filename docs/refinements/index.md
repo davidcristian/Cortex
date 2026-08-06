@@ -55,7 +55,7 @@ the tree does now.
 | [memory.md](memory.md) | Store, scoping, rerank/MMR (ADR-0008) | 8 |
 | [inference-model-manager.md](inference-model-manager.md) | Model-manager lifecycle, MTP, reasoning status (ADR-0007/0020) | 7 |
 | [subagents.md](subagents.md) | Progress reporting, spawn schema, heterogeneous roster (ADR-0010/0018) | 2 |
-| [body-overlay.md](body-overlay.md) | Overlay polish, connection indicator, proto Cancel (ADR-0011), the reserved scrollbar rail's assumed width and spent card inset, a mid-stream retarget restarting from a rounded height, the two bounds the panel's section budget left behind it (a section's own frame being under no cap, and the room a closing section hands back arriving in one frame), a swap fired from inside a closing section dropping focus on the floor, and the whisper's follow-ups (ADR-0037): a pickable voice row, a mid-stream resize keeping the old wrap width, and kerning inside the letter boxes under a changed font (its drain-growth entry landed the day it was filed, and the console outliving a new chat, the reminder stack's per-row exit and the switcher's, the panel's watch on its own box with the arrival-aside correction that came out of it, the demo bridge over the line cap, two sections outrunning the panel on their own, the chat floor's frozen measurement of the empty state, the console tab strip's missing keyboard half, the switcher's disputed listbox role, the two motions its list still made in one frame, and a Thoughts trace opening a reply off the bottom of a full history all landed 2026-08-03, the last of them opening the chrome-side entry that landed 2026-08-04 on the same ride, alongside the cycle keys' silent swap, which opened the focus entry that replaces it; the composer's move on a clamped shrink closed 2026-08-06 as moot, its mechanism having been deleted the day it was filed), and a resize that lands inside the panel's own move waiting for it | 12 |
+| [body-overlay.md](body-overlay.md) | Overlay polish, connection indicator, proto Cancel (ADR-0011), the reserved scrollbar rail's assumed width and spent card inset, a mid-stream retarget restarting from a rounded height, the two bounds the panel's section budget left behind it (a section's own frame being under no cap, and the room a closing section hands back arriving in one frame), the switcher's and the reminder stack's own row gestures dropping focus with no swap to answer them, the composer's draft belonging to no chat, and the whisper's follow-ups (ADR-0037): a pickable voice row, a mid-stream resize keeping the old wrap width, and kerning inside the letter boxes under a changed font (its drain-growth entry landed the day it was filed, and the console outliving a new chat, the reminder stack's per-row exit and the switcher's, the panel's watch on its own box with the arrival-aside correction that came out of it, the demo bridge over the line cap, two sections outrunning the panel on their own, the chat floor's frozen measurement of the empty state, the console tab strip's missing keyboard half, the switcher's disputed listbox role, the two motions its list still made in one frame, and a Thoughts trace opening a reply off the bottom of a full history all landed 2026-08-03, the last of them opening the chrome-side entry that landed 2026-08-04 on the same ride, alongside the cycle keys' silent swap, which opened the focus entry that landed 2026-08-06 as the caret following the conversation into the composer and opened the two above; the composer's move on a clamped shrink closed 2026-08-06 as moot, its mechanism having been deleted the day it was filed), and a resize that lands inside the panel's own move waiting for it | 13 |
 | [session-read-seam.md](session-read-seam.md) | Session listing/read seam (ADR-0021) | 2 |
 | [resource-governance.md](resource-governance.md) | Scheduler/placer budgets, NPU, drain (ADR-0012) | 5 |
 | [email-confirmer.md](email-confirmer.md) | Email write, Confirmer, attachments, `ToolActivity` chip (ADR-0022) | 4 |
@@ -1044,6 +1044,23 @@ delta, and real headroom is at most 342px there and 0px for the demo's own arriv
 was never as cheap as the entry priced it. And the backlog is now down to one entry anywhere whose
 blocker is a preference rather than work, where it read as two.
 
+Body & overlay went **12 to 13 later the same day**, when that last preference-blocked entry was
+answered and landed: a swap fired from inside a section that closes with it drops focus on the
+floor, and the user picked the composer over the header's chats button and over a split that would
+have kept a delete's focus in the switcher. One rule shipped, that a conversation arriving on the
+panel takes the caret with it, and it opened two entries behind it, which is the backlog working as
+intended rather than a regression. The first is the rest of the same family: a rename, a delete of a
+chat that is not the open one, and a reminder's ack each take the pressed control away without
+replacing the conversation, so the new rule never hears about them and each still drops focus to the
+body. The second is a thing the fix made visible rather than made: the composer's draft belongs to no
+chat, so the caret is now put into a field that may still hold a sentence started in the conversation
+that just left. That second one is a preference again, so the count of entries waiting on a decision
+rather than on work is still one, and it is not the one it was this morning. Two of the closed
+entry's own claims wanted correcting, both about mechanism: only the switcher row holds focus for
+its roll, the other two doors losing it in the commit itself (a reminder stack is keyed on the chat
+and remounts, a leaving row goes `inert` at once), and the doors are not three, since any global key
+pressed while focus sits inside the switcher has the identical defect.
+
 ## Recommended order
 
 Ordered by what unblocks the most value soonest. Before starting any item, verify its claims
@@ -1340,8 +1357,37 @@ against the code (the warning above); the entry text tells you which seams it ex
   regardless of focus, which is why it did not block that answer), but the reader ends up outside
   the panel entirely. The work is deciding where focus belongs after a swap, the composer and the
   header's chats button being the two candidates and a delete wanting a third answer again, since
-  the switcher deliberately stays open behind it; the wiring is small once that is settled. Nothing
-  blocks it.
+  the switcher deliberately stays open behind it; the wiring is small once that is settled.
+  **Closed 2026-08-06** by the user's answer, which is the composer, for the delete confirm as well
+  ([ADR-0035 addendum](../adr/ADR-0035-console-and-motion.md)). One rule ships, that a conversation
+  arriving on the panel takes the caret with it, as a count each swap arm raises and the composer's
+  existing focus effect reads. Unlike the notice above it, nothing travels with the action: this
+  rule is about the transition rather than the gesture, so every door on an arm gets the same
+  landing. The entry was right about one door of its three, the switcher row, which holds focus for
+  its roll and reads the body after; the other two lose it in the commit itself, a reminder stack
+  being keyed on the chat and remounting rather than rolling, and a leaving row going `inert` at
+  once. And the doors are not three: `Ctrl+N` from a switcher row has the identical defect, so this
+  belongs to where the gesture was made rather than to which control made it. After, every door
+  that swaps reads the composer at 0ms and holds it, and the panel's roll under the swap is frame
+  for frame what it was. It opened the two entries below.
+- **The switcher's and the reminder stack's own row gestures drop focus with the row**
+  ([body-overlay.md](body-overlay.md)), opened 2026-08-06 by the answer above, whose rule reaches
+  only the gestures that replace the conversation. A rename opened, a rename committed, a delete
+  asked, a delete confirmed on a chat that is not the open one, and a reminder acked each take the
+  pressed control away and swap nothing, so each still ends on the body (the ack after its roll, the
+  rest at once, all measured at 900x900). Each wants an answer of its own shape rather than the
+  composer, a rename editor its own input and a leaving row the row or the list around it, so it is
+  one decision about what a list does with focus when it changes shape under the hand plus small
+  wiring per gesture. Nothing blocks it.
+- **The composer's draft belongs to no chat, and the caret now lands in it**
+  ([body-overlay.md](body-overlay.md)), opened 2026-08-06 by the same answer. The field is never
+  unmounted, which is what carries a draft to the console and back, and it carries it across a chat
+  swap too: measured, a half-typed question is still in the field, caret intact, after a cycle key
+  loads another conversation. That cost nothing while focus was landing on the body and costs
+  something now that the swap puts the caret there. The two shapes are a draft per chat, kept beside
+  `messages` and restored on arrival, or a draft cleared by a swap, which is cheaper and throws work
+  away; it wants the user's answer before either, and is the one entry anywhere whose blocker is a
+  preference rather than work.
 - **A new chat minted while the console is up leaves the console up**
   ([body-overlay.md](body-overlay.md)), open from 2026-07-20, when verifying the console merge put
   a name to behaviour that predates it, and **closed 2026-08-03** by the user's answer: Ctrl+N
@@ -1387,7 +1433,12 @@ rust CI job installs (no system library at all) showed it is not a marginal add 
 CI provisioning, until 2026-07-19. What changed is worth stating plainly rather than quietly: it
 was not that new work appeared, but that three actionable things had never been written down, and
 then that two more turned out to be actionable once the false "the cortex does not fit the dev GPU"
-premise was struck across the docs that same day.
+premise was struck across the docs that same day. On **2026-08-06** the section came within one
+entry of reading "None" again and did not. Everything above it had closed, and the last item whose
+whole remaining cost was a decision was answered and landed the same day (the caret following a
+chat swap into the composer), but it opened two entries behind it and they stand in its place, one
+of them a decision again. What is left beside those two is the retarget-and-resize pair, which is
+one piece of work written as two bullets and has been since the second was opened.
 
 ### Actionable, but a seam or port change comes first
 
