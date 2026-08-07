@@ -591,3 +591,101 @@ call site moved.
 The sibling this does **not** touch is the admission wall: `SubagentScheduler.admit` still charges
 every spawn its full `cpus`/`memory_gb` regardless of placement, and the placement-aware charge stays
 declined on the admission-wall addendum's own reasoning, reopening on a second GPU-capable executor.
+
+## Addendum (2026-08-07): the cortex reservation, re-measured at the shipped tier shape
+
+`CORTEX_VRAM_CORTEX_GB` moves from **11.3 to 8.6**. It is the term decision 2 subtracts from the
+soft cap on every spawn's fit-test, so it alone decides whether GPU subagent work is reachable, and
+until this sitting it had never been measured on the card the deployment runs. The two figures that
+questioned it, [ADR-0004](ADR-0004-model-lineup.md)'s own incidental note and the co-residency
+measurement at [ADR-0030](ADR-0030-brain-handoff.md), both declined to act: the first because a
+text-only start on a different llama.cpp build is not a controlled reading, the second because
+lowering the reservation widens what the placer admits and that is this ADR's decision rather than
+the handoff's. This is the controlled reading both asked for.
+
+**What was measured.** The tier at its shipped shape, read out of the running child's argv rather
+than assumed: `-ngl 99 --ctx-size 16384 --parallel 1 --jinja --mmproj <the gemma-4-12B projector>
+--image-max-tokens 1024 --ubatch-size 1024`, started by the model-host sidecar off the read-only
+mount on the 24463 MiB card, ready 30.3 s after `start`. `nvidia-smi` total used was sampled every
+0.2 to 0.3 s throughout, and every figure below is the min and max of one phase's samples.
+
+| Phase | Total used (MiB) | Above the floor (MiB) |
+| --- | --- | --- |
+| Floor, stack up and the tier stopped, immediately before the load | 1261 to 1301 (36 samples) | n/a |
+| Idle, loaded, no request served yet | 9701 to 9745 | 8400 to 8484 |
+| Long-context generation: 13180 prompt tokens, 924 decoded | 9716 to 9721 | 8415 to 8460 |
+| One vision turn, a real 1304x1172 overlay screenshot | 9742 to 9805 | 8441 to 8544 |
+| Vision on a near-full context, 13003 prompt tokens, repeated 3 times | 9762 to 9832 | 8461 to 8573 |
+| Idle again, after the images, no request | 9764 to 9818 | 8463 to 8557 |
+| Floor, tier stopped again, after the whole run | 1259 to 1308 (65 samples) | n/a |
+
+**Idle is 8400 to 8484 MiB and the peak is 8573 MiB**, both above the floor. So the tier's whole
+range under everything this deployment can send it is a little over 8.3 GiB, against the 11.3 the
+placer reserved.
+
+**How the floor was established, for every reading.** It was read twice, with the tier stopped and
+the rest of the stack standing, once immediately before the load and once immediately after the last
+arm: 1261 to 1301 MiB, then 1259 to 1308 MiB. The two brackets agree within 7 MiB at either end, so
+the Windows desktop under this session did not move while the readings were taken and the same floor
+is honestly subtracted from all of them. That mattered because the floor is not a constant of the
+machine: this repo has recorded it at 1552, at 1867 to 1932, and as high as 2836 MiB in other
+sessions, and a floor read once and reused across sessions is how a gigabyte of error reaches a
+number that bounds admission. Nothing here reuses one.
+
+**Preallocation against arrival, which is the question a reservation actually asks.** A generation
+that filled the context moved nothing: 13180 prompt tokens at 2983.16 tok/s and 924 decoded at
+50.69 tok/s ran inside 9716 to 9721 MiB, entirely within the idle band. llama.cpp takes the 16K KV
+and its compute buffers at load, so text work of any length is already paid for. What does arrive
+with the work is the vision path, about 70 to 90 MiB on the first image, and it **stays**: idle
+after the images reads 9764 to 9818 against 9701 to 9745 before them. Three repeats of the
+near-full-context vision turn landed at 9773 to 9806, 9762 to 9832 and 9767 to 9788, so the step is
+reproducible rather than a sample. The peak is therefore a load-time figure plus one late,
+permanent, small allocation, which is exactly the shape that makes a reservation cheap to size.
+
+**Two numbers in two units, which is where most of the gap was.** The old 11.3 GB is `nvidia-smi`
+**total used** with the model resident: [ADR-0004](ADR-0004-model-lineup.md)'s table says so in
+words ("VRAM is `nvidia-smi` total used, the table convention above") and
+[runbooks/llamacpp-gpu.md](../runbooks/llamacpp-gpu.md)'s header repeats it. Every other term in
+this ADR's budget is a tier's own cost: the subagent ask is one model's footprint, and the soft cap
+exists to leave the rest of the card to the user's desktop, so the desktop's own gigabyte belongs
+outside the budget, not inside one of its terms. Measured the old way, total used, this tier peaks
+at 9832 MiB, which is 9.60 GiB against 11.3 reserved; measured the way the budget means, it peaks
+at 8573 MiB. The reservation was about 1.7 GiB high in its own unit and about 2.6 GiB high in the
+budget's, and the difference between those two corrections is the floor being counted twice.
+
+**The margin, and what it is for.** 8.6 GiB is 8806 MiB, which is **233 MiB above the measured
+peak**. That covers, more than twice over, each of the three things that could move the reading:
+the sampler's own spread inside a fixed phase (21 to 70 MiB), the floor bracket's disagreement
+(7 MiB at either end), and the one allocation that genuinely arrives with the work (70 to 90 MiB
+for the first image, already inside the peak, so a second unmeasured allocation of that size is
+still covered). It does not pretend to cover a different llama.cpp build or a raised
+`CORTEX_IMAGE_MAX_TOKENS`, both of which move the tier itself; a deployment that changes either
+re-measures, which is the same rule `CORTEX_SWAP_BRAIN_VRAM_MIB` already lives under.
+
+**What the number was not chosen to do.** 8.5 would have left exactly the 5.5 GiB
+`docker-compose.subagents.yml` asks per spawn, so the shipped ask would have started landing on the
+GPU on the strength of a 131 MiB margin. That is choosing the answer. The ask is itself the term
+that is wrong: the GPU-placed subagent tier measured **3319 MiB** on this card, 3.24 GiB, so 5.5 is
+about 2.3 GiB high, and correcting a reservation to compensate for a placeholder would leave two
+wrong numbers agreeing. At 8.6 the reservation leaves 5.4 GiB of headroom, which admits one spawn at
+the tier's **measured** cost and refuses a second, and still refuses the placeholder. That the ask
+remains a placeholder is recorded as this area's own deferral rather than fixed here, because it is
+a resource ask with its own measurement and its own compose default.
+
+**What changes for a running deployment.** Under 11.3 the headroom was 2.7 GiB and nothing the
+shipped stack spawns could fit it, so every subagent overflowed to the CPU whatever the card had
+free. Under 8.6 the headroom is 5.4 GiB and a spawn declared at the tier's measured cost is
+GPU-placed. Nothing about the fit-test, the ledger, or the handoff charge changes: the
+handoff-window addendum above still replaces this term with the deep tier's declared cost for the
+length of a swap and restores it after, and the value it restores is now this one.
+
+**The instrument, and what it cannot say.** Per-process GPU attribution
+(`nvidia-smi --query-compute-apps`) returns nothing under WSL2, verified with the tier resident and
+serving, so total used minus a bracketed floor is the only reading available and every figure here
+is that. It resolves what is claimed: the difference being ruled out is about 2.8 GiB against an
+in-phase spread of at most 70 MiB. It cannot separate an allocation by the tier from the desktop
+moving by the same amount at the same instant, which is why the vision step was repeated three
+times and why the floor was read at both ends rather than once. And it says nothing about whether a
+load spilled, which is the standing lesson [ADR-0030](ADR-0030-brain-handoff.md) records: nothing
+here spilled, the card holding 14631 MiB free at the peak, but a memory reading is not what would
+have told us.

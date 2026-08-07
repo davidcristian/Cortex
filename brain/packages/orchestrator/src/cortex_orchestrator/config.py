@@ -68,10 +68,16 @@ class BrainRuntimeConfig(BaseSettings):
     # env CORTEX_VRAM_SOFT_CAP_GB is the deliberate GPU budget (ADR-0004, 14 GB); the
     # SubagentPlacer fit-tests subagents against it (ADR-0012), enforced from this slice on.
     vram_soft_cap_gb: float = Field(default=14.0, gt=0)
-    # env CORTEX_VRAM_CORTEX_GB is the resident cortex's measured footprint (~11.3 GB, ADR-0004
-    # addendum); the subagent GPU headroom is the cap minus this.
+    # env CORTEX_VRAM_CORTEX_GB is the resident cortex's measured footprint, and the subagent GPU
+    # headroom is the cap minus this. 8.6 GiB since 2026-08-07 (ADR-0012 re-measured-reservation
+    # addendum), down from the 11.3 the 2026-06-29 lineup set: measured at the shipped tier shape
+    # (16K context, -ngl 99, the projector loaded, --image-max-tokens 1024) the cortex peaks at
+    # 8524 to 8573 MiB above the idle floor, and the two figures were never in the same unit, the
+    # old one being nvidia-smi TOTAL used with the desktop's own gigabyte folded in while every
+    # other term here is a tier's own cost. The margin above the peak is 233 MiB, which covers the
+    # instrument's spread and the vision path's late allocation twice over.
     cortex_reservation_gb: float = Field(
-        default=11.3, ge=0, validation_alias="CORTEX_VRAM_CORTEX_GB"
+        default=8.6, ge=0, validation_alias="CORTEX_VRAM_CORTEX_GB"
     )
     # env CORTEX_HISTORY_CHAR_BUDGET sets how many characters of session history one turn sends
     # to the model (the newest whole turns; ADR-0014). Default ≈ 12K tokens against the

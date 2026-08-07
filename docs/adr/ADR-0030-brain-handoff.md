@@ -1593,6 +1593,13 @@ says by construction.
   observation predicted this and asked for a controlled re-measurement; this is it, and the
   reservation is left alone deliberately, since lowering it widens what the placer admits beside the
   cortex and that is a resource-governance decision with its own measurements to redo.
+  **Those measurements were redone hours later the same day and the reservation is now 8.6**
+  ([ADR-0012](ADR-0012-resource-governance.md)'s re-measured-reservation addendum). The figure this
+  bullet published was an idle one; a reservation has to cover the peak, which is 8573 MiB above a
+  floor read at both ends of the session, and the only thing that arrives with the work is the
+  vision path's 70 to 90 MiB, a filled 16K context costing nothing beyond the load. The handoff
+  charge above composes with the new value unchanged: it replaces this term for the window and
+  restores it after, and what it restores is 8.6.
 - **The reason CPU subagents are drained.** Decision 8 says the drain covers them because "the
   brain's hybrid-offload fallback and its KV want the host RAM/CPU headroom". ADR-0004's brain-pick
   addendum retired that premise on 2026-08-04: every candidate fits alone at `-ngl 99`, the hybrid
