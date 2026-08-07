@@ -57,8 +57,13 @@ Conversation domain (Slice 3):
   (`tool_name` = advertised `ToolSpec.name`, `summary` = its description first line); the loop
   emits none for a call that matched no advertised spec, so nothing the model authored, name or
   arguments, ever reaches the chip. `ToolOutcome` (ADR-0029 outcome addendum) settles it:
-  **exactly one per `ToolActivity` the turn emitted**, after the dispatch resolves, on every path
-  out of it including the gate denials and the tool's own failures. `ok` is the audit line's own
+  **exactly one per `ToolActivity` the turn itself dispatched**, after that dispatch resolves, on
+  every path
+  out of it including the gate denials and the tool's own failures. The pairing covers the turn's
+  own dispatches and not the stream (ADR-0029 delegated-pairing addendum): a delegating turn puts a
+  `ToolActivity` on the same stream per subagent tool step, through the `ProgressSink` side
+  channel, and those carry no outcome, so an unsettled activity is ordinary on the wire and the
+  body cannot tell the two apart. `ok` is the audit line's own
   verdict (`ToolInvocation.ok`), read off the same result, so a display surface and the audit
   trail cannot disagree about one dispatch. It exists for the overlay's capture indicator and may
   only ever **strengthen** what a surface claims: a capture that failed after the shutter fired
@@ -1049,7 +1054,9 @@ Use-case:
   (ADR-0029 outcome addendum; guarded by the identical condition, so steps and outcomes are
   **paired** and the only way out of a dispatch without one is the generator being closed
   mid-dispatch). The engine maps it to `ToolOutcome`; a subagent drops it, as it drops reasoning,
-  because the consent surface it feeds is over a cortex-only built-in.
+  because the consent surface it feeds is over a cortex-only built-in and because the sink it
+  would ride drops on a full buffer, so pairing across it could not be promised (the decline is
+  argued at the ADR-0029 delegated-pairing addendum, which also names the two lines reversing it).
   The yield vocabulary (`ReasoningDelta`, `ToolStep`, `StepOutcome`, `step_summary`,
   `MAX_STEP_SUMMARY_CHARS`) lives in `loop_events.py`, the line-cap split made when the
   escalation threading landed. Running one planned round of dispatches, and the `ToolLoopContext`

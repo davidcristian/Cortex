@@ -4,7 +4,9 @@ A delegating cortex turn suspends its own generator inside the spawn dispatch, s
 steps can only reach the wire through this stream's SeamProgressSink. This wires a real
 SpawnSubagentsTool into the cortex, spawns a tool-using subagent, and asserts the batch's scale
 (a StatusUpdate) and the subagent's audited step (a ToolActivity) both arrive as ServerEvents,
-alongside the cortex's own spawn_subagents chip.
+alongside the cortex's own spawn_subagents chip. It also pins what that step does NOT get: no
+ToolOutcome settles a delegated activity, the pairing being a property of the turn's own dispatches
+rather than of this stream (ADR-0029 delegated-pairing addendum).
 """
 
 from collections.abc import AsyncIterator, Mapping, Sequence
@@ -157,6 +159,25 @@ async def test_a_delegating_turn_surfaces_subagent_progress_on_the_wire() -> Non
     assert ("read", "Read a file") in [(a.tool_name, a.summary) for a in activities]
     # The reply still completed after the delegated work fed back.
     assert any(e.WhichOneof("event") == "turn_complete" for e in events)
+
+
+async def test_a_delegated_step_reaches_the_wire_announced_and_unsettled() -> None:
+    """The outcome pairing covers the turn's own dispatches and not this stream (ADR-0029).
+
+    A delegated step rides the progress sink as a ``ToolActivity`` and nothing settles it, so
+    the wire carries more activities than outcomes. Pinned rather than left as a comment
+    because the proto, the body's ``TurnEvent`` and both module docs now say exactly this, and
+    a reader on the far side cannot tell a delegated activity from the turn's own: widening
+    ``ProgressEvent`` to carry an outcome would make three published contracts wrong at once.
+    """
+    events = await _collect(converse(_delegating_factory(), _events_from(_user_turn("delegate"))))
+    activities = [
+        e.tool_activity.tool_name for e in events if e.WhichOneof("event") == "tool_activity"
+    ]
+    outcomes = [e.tool_outcome.tool_name for e in events if e.WhichOneof("event") == "tool_outcome"]
+    # The turn's own dispatch is the spawn, and it is settled exactly once.
+    assert activities == ["spawn_subagents", "read"]
+    assert outcomes == ["spawn_subagents"]
 
 
 class _AccountThenReply:

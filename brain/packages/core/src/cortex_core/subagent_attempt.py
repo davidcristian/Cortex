@@ -196,7 +196,10 @@ class PlacedAttempt:
                 # outcome addendum) is dropped like a reasoning delta: it exists for the
                 # capture indicator, which is a consent surface over a cortex-only built-in
                 # a subagent can never call, so forwarding one would put an event on the seam
-                # with no consumer at either end. Append text incrementally
+                # with no consumer at either end, and the sink it would ride drops on a full
+                # buffer, so the pairing it would claim is not one this path can keep
+                # (ADR-0029 delegated-pairing addendum, where the decline is argued and where
+                # the two lines that reverse it are named). Append text incrementally
                 # (not a comprehension) so text produced before a mid-stream failure survives.
                 if isinstance(delta, str):
                     parts.append(delta)
