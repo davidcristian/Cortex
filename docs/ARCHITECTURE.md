@@ -37,7 +37,7 @@ Three tiers share one 24 GB GPU via llama.cpp (ADR-0005; one
 
 | Tier | Role | Residency | Budget |
 |---|---|---|---|
-| Cortex | always-on conversational + routing model (multimodal, ~9-12B) | resident on GPU | ~11.3 GB, under the 14 GB soft cap (ADR-0004 addendum) |
+| Cortex | always-on conversational + routing model (multimodal, ~9-12B) | resident on GPU | 8.6 GiB reserved, re-measured 2026-08-07 at the shipped 16K shape with the projector, under the 14 GB soft cap (ADR-0012 re-measured-reservation addendum) |
 | Subagents | small (2-4B) workers for narrow delegated tasks | dynamic pool, **GPU-first with CPU overflow** (ADR-0012) | whole-model fit-test against `soft cap − cortex reservation − placed` (on GPU (`-ngl 99`) when it fits, spilled to CPU (`-ngl 0`) when not, never a straddle); plus a soft CPU/RAM admission budget |
 | Brain | large reasoning model (~31B-class) for hard problems | loaded on demand | full GPU; others evicted |
 

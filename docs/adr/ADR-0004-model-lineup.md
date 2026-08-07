@@ -376,3 +376,34 @@ evidence, the checks that make a perfect score believable, and what it does and 
 the tainted-escalation stance are in
 [ADR-0013](ADR-0013-untrusted-content.md)'s 2026-08-04 addendum. The three candidates this addendum
 rejected were not probed: an alternate adopted later buys its own harness row.
+
+## Addendum (2026-08-07): the cortex row, re-measured as note 8 asked
+
+The swap-latency addendum's note 8 recorded that the cortex tier read about 9.7 GB of `nvidia-smi`
+total at 16K text-only against the 11.0 GB this ADR measured on 2026-06-29, declined to change any
+row on the strength of it, and asked a later sitting to confirm which number the deployment pays.
+It was right to wait and right to ask: the answer moved a shipped default.
+
+Measured on the 24463 MiB card, through the model-host sidecar, at the tier's shipped shape
+(`-ngl 99 --ctx-size 16384 --parallel 1 --jinja` with the projector and `--image-max-tokens 1024`),
+the cortex costs **8400 to 8484 MiB idle and 8573 MiB at its peak**, both above a floor read with
+the tier stopped immediately before the load and again after the last arm (1261 to 1301, then 1259
+to 1308 MiB). Read the way this ADR's table reads, as total used with the model resident, the same
+peak is **9832 MiB**, so note 8's incidental 9.7 GB was very nearly right and the 11.0 and 11.3 GB
+rows above are a different llama.cpp build's numbers.
+
+**The rows above are left as they were measured**, because they are a dated comparison between four
+candidates on one build and rewriting one cell would make the table a mixture of two sessions. What
+they must not continue to do is set a live default, and that is the part this addendum changes:
+`CORTEX_VRAM_CORTEX_GB` is 8.6 from today, argued with the full table of readings at
+[ADR-0012](ADR-0012-resource-governance.md)'s re-measured-reservation addendum, which owns the
+placer's budget. The pick itself is untouched, gemma-4-12B being chosen on chat quality rather than
+on VRAM, and so is the 14 GB soft cap, which is the user's policy about the card rather than a
+measurement of anything.
+
+One correction the rows do carry, stated here so no later reader repeats the arithmetic: this ADR's
+figures are `nvidia-smi` total used, so they include whatever the Windows desktop held at the time.
+That is a fine convention for comparing candidates against each other on one afternoon, and a wrong
+one for a budget term that is subtracted from a cap alongside a per-model ask. Decision 3's
+"~11.3 GB cortex ... ~2.7 GB headroom" reads a floor into the reservation and then spends the rest
+as headroom; the headroom is really 5.4 GiB.

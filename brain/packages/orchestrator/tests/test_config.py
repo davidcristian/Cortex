@@ -12,6 +12,9 @@ from cortex_core import (
     MAX_TOOL_DISPATCHES,
     REPEAT_SALIENCE,
     SPAWN_TOOL_NAME,
+    PlacementRequest,
+    PlacementTarget,
+    VramBudgetPlacer,
 )
 from cortex_core.tool_budget import DEFAULT_TOOL_COST
 from cortex_orchestrator import (
@@ -115,7 +118,9 @@ def test_runtime_defaults_match_the_dictated_contract() -> None:
     assert config.redis_url == "redis://127.0.0.1:6379/0"
     assert config.cortex_model == "cortex"  # a LOGICAL model id (ADR-0004), never a path
     assert config.vram_soft_cap_gb == 14.0  # the deliberate GPU budget (ADR-0004)
-    assert config.cortex_reservation_gb == 11.3  # gemma-4-12B footprint (ADR-0004 addendum)
+    # The cortex tier's own peak cost, measured at its shipped shape (ADR-0012
+    # re-measured-reservation addendum), not the total-used figure the 2026-06-29 lineup set.
+    assert config.cortex_reservation_gb == 8.6
     assert config.history_char_budget == 48_000  # ≈12K of the 16K-token context (ADR-0014)
     assert config.output_guardrail == "redact"  # the laundering defense ships on (ADR-0015)
     assert config.generate_titles is False  # opt-in: an extra inference call per new session
@@ -126,6 +131,44 @@ def test_runtime_defaults_match_the_dictated_contract() -> None:
     # A fold's floor, in the unit the budget it wraps is denominated in: below one stored
     # account's worth of new material there is less to fold in than the account folded into.
     assert config.history_recap_min_chars == 2_000
+
+
+@pytest.mark.usefixtures("clean_env")
+def test_shipped_vram_budget_admits_the_measured_gpu_subagent_tier() -> None:
+    """What the shipped budget pair means, stated as placements rather than as arithmetic.
+
+    The GPU-placed subagent tier measured 3319 MiB on this stack's card, so its real ask is
+    3.24 GiB. Under the reservation the 2026-06-29 lineup set that spawn overflowed to the CPU
+    and no GPU subagent work was reachable at all; under the re-measured one it lands, and a
+    second still overflows, which is the fit the single tier process can actually serve.
+    """
+    config = BrainRuntimeConfig()
+    placer = VramBudgetPlacer(
+        soft_cap_gb=config.vram_soft_cap_gb,
+        cortex_reservation_gb=config.cortex_reservation_gb,
+    )
+    measured_tier_gb = 3319 / 1024
+    first = placer.place(PlacementRequest("a", vram_gb=measured_tier_gb, cpus=1.0, memory_gb=1.0))
+    second = placer.place(PlacementRequest("b", vram_gb=measured_tier_gb, cpus=1.0, memory_gb=1.0))
+    assert first.target is PlacementTarget.GPU
+    assert second.target is PlacementTarget.CPU
+
+
+@pytest.mark.usefixtures("clean_env")
+def test_shipped_vram_budget_still_refuses_the_compose_placeholder_ask() -> None:
+    """The reservation was not rounded to the value that would admit the shipped ask.
+
+    ``docker-compose.subagents.yml`` asks 5.5 GiB a spawn, which is about 2.3 GiB above what the
+    tier measured, and 5.5 does not fit the 5.4 GiB the re-measured reservation leaves. Naming the
+    reservation so that it did would be choosing the answer; the ask is the term that is wrong.
+    """
+    config = BrainRuntimeConfig()
+    placer = VramBudgetPlacer(
+        soft_cap_gb=config.vram_soft_cap_gb,
+        cortex_reservation_gb=config.cortex_reservation_gb,
+    )
+    placement = placer.place(PlacementRequest("a", vram_gb=5.5, cpus=1.0, memory_gb=1.0))
+    assert placement.target is PlacementTarget.CPU
 
 
 @pytest.mark.usefixtures("clean_env")

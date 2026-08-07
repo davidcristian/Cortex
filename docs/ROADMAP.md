@@ -452,8 +452,10 @@ plan bets on, with what would invalidate each:
    The soft cap is **14 GB** (env `CORTEX_VRAM_SOFT_CAP_GB`, one knob; enforced by the
    `SubagentPlacer` from Slice 8.5, ADR-0012). It is a deliberate budget rather than the
    card's size, so that the machine stays usable alongside the assistant (ADR-0004 decision
-   3). The chosen cortex (gemma-4-12B, QAT Q4) is ~11.3 GB at 16K ctx incl. the vision tower,
-   so it sits **comfortably under the cap** (~2.7 GB headroom for KV/context/vision growth).
+   3). The chosen cortex (gemma-4-12B, QAT Q4) is reserved at 8.6 GiB at 16K ctx incl. the
+   vision tower, re-measured on 2026-08-07 where the tier peaks at 8573 MiB above the idle floor
+   (it was 11.3 GB until then, a total-used reading with the desktop's own floor inside it), so it
+   sits **comfortably under the cap** with 5.4 GiB of headroom.
    The embedder runs on **CPU**; subagents are placed per spawn against the remaining
    headroom. Context size is itself budget-bounded.
 2. **Swap latency.** A cortex↔brain swap is a `llama-server` stop + start (ADR-0005),
