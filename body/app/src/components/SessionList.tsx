@@ -1,7 +1,7 @@
 import { type RefObject, useRef, useState } from "react";
 
 import type { SessionSummary } from "../bridge/types";
-import { NO_OTHER_CHATS } from "../overlay/notice";
+import { NO_OTHER_CHATS, RECENT_CHATS } from "../overlay/notice";
 import { caretKey, heir, useRowCaret } from "../overlay/rowCaret";
 import { useSectionCaret } from "../overlay/sectionCaret";
 import { usePresence } from "../overlay/usePresence";
@@ -150,7 +150,7 @@ export function SessionList({
     // buttons in them. The four buttons per row keep their own tab stops, and `Ctrl+↑` / `Ctrl+↓`
     // stay what they were: overlay-wide keys that cycle the chat without moving focus, which is
     // a listbox's job and no longer a promise this markup makes.
-    <ul className="switcher" aria-label="Recent chats" ref={card}>
+    <ul className="switcher" aria-label={RECENT_CHATS} ref={card}>
       {stack.entries.map(({ key, item: session, leaving }) => (
         // The `<li>` is outside the roll and the row inside it, the reminder stack's arrangement
         // and for the first of its two reasons: a list whose items are wrapper divs is not a list

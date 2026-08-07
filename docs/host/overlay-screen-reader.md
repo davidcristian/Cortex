@@ -53,6 +53,10 @@ right-hand column; it is what the region holds, measured, not a prediction about
 | **Delete the chat that is open** | `Chat deleted. 1 chat left. Switched to New chat.` |
 | Ack a reminder | `Reminder dismissed. 1 reminder left.` |
 | Ack the last reminder | `Reminder dismissed. No reminders left.` |
+| `Ctrl+K` from the composer to open the list | `Recent chats open. 3 chats.` |
+| `Ctrl+K` again to close it | nothing new |
+| The header's chats button, which is bound silent | nothing new, and the button's own `expanded` |
+| `Ctrl+K` with every other chat deleted | `Recent chats open. No other chats yet.` |
 | `Ctrl+N` inside an open rename editor | nothing, deliberately |
 
 The four questions the transcript answers:
@@ -63,7 +67,10 @@ The four questions the transcript answers:
    which order, and is any part of it lost.
 3. **Is the whole sentence read**, or does a reader cut a three-clause polite update short.
 4. **Does anything speak twice**, which would mean the region and some other channel are both
-   reporting the same change.
+   reporting the same change. There is one door where the design expects it and accepts it: `Ctrl+K`
+   pressed with the caret parked on the chats button, where the button's own `expanded` flips under
+   the reader and the sentence lands as well. If a reader stutters there, note it; the alternative
+   is asking the DOM where the caret is from inside a reducer, which this ADR refused.
 
 Two things to note in passing while a reader is on the overlay, since the bring-up is the expensive
 part: whether the switcher reads as a list of rows with their four buttons per row (the listbox role

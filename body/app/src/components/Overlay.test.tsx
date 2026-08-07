@@ -171,7 +171,9 @@ describe("Overlay", () => {
     const controller = fakeController("panel");
     renderOverlay(controller);
     fireEvent.keyDown(document.body, { key: "k", ctrlKey: true });
-    expect(controller.toggleSwitcher).toHaveBeenCalledOnce();
+    // Announced, which is this door's whole difference from the header's button below: the key
+    // names nothing and moves no caret, so an opened list would otherwise arrive in silence.
+    expect(controller.toggleSwitcher).toHaveBeenCalledWith(true);
     fireEvent.keyDown(document.body, { key: "ArrowUp", ctrlKey: true });
     expect(controller.cyclePrev).toHaveBeenCalledOnce();
     fireEvent.keyDown(document.body, { key: "ArrowDown", metaKey: true });

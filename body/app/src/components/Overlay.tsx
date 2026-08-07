@@ -23,7 +23,8 @@ import { Preview } from "./Preview";
 // panel is out of the accessibility tree whenever it is shut and these keys are live anyway
 // (`Announcer`). The two doors onto a fresh chat are both visible in this file, and they differ:
 // the key announces, the header's pencil is bound silent, since its label already says where it
-// goes (`overlay/notice.ts` carries the whole rule).
+// goes (`overlay/notice.ts` carries the whole rule). The switcher's two doors differ the same way
+// and for the same reason, the chats button carrying the state the key would have to say.
 interface OverlayProps {
   readonly controller: OverlayController;
   readonly dark: boolean;
@@ -103,7 +104,9 @@ export function Overlay({
         newChat(true);
       } else if (mod && event.key.toLowerCase() === "k") {
         event.preventDefault();
-        toggleSwitcher();
+        // Announced, for the reason the fresh chat's own two doors differ by: a key names nothing
+        // and moves nothing, so an opened list would arrive in silence (`overlay/notice.ts`).
+        toggleSwitcher(true);
       } else if (mod && event.key === "ArrowUp") {
         event.preventDefault();
         cyclePrev();
@@ -148,7 +151,9 @@ export function Overlay({
         onStop={stop}
         onDismiss={dismiss}
         onNewChat={() => newChat(false)}
-        onToggleSwitcher={toggleSwitcher}
+        // Silent: the chats button carries `aria-expanded`, and the caret that pressed it is
+        // standing on it, so the state is read back where the reader already is.
+        onToggleSwitcher={() => toggleSwitcher(false)}
         onSelectSession={openSession}
         onRenameSession={renameSession}
         onDeleteSession={deleteSession}
