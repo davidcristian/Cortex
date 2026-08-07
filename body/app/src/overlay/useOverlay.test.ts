@@ -507,11 +507,11 @@ describe("useOverlay", () => {
     expect(result.current.state.notice).toBeNull();
     act(() => result.current.cycleNext());
     await flush();
-    expect(result.current.state.notice?.title).toBe(result.current.state.title);
-    expect(result.current.state.notice).toEqual({ title: "title oldest", count: 1 });
+    expect(result.current.state.notice?.text).toContain(result.current.state.title);
+    expect(result.current.state.notice).toEqual({ text: "Switched to title oldest.", count: 1 });
     act(() => result.current.cyclePrev());
     await flush();
-    expect(result.current.state.notice).toEqual({ title: "title newest", count: 2 });
+    expect(result.current.state.notice).toEqual({ text: "Switched to title newest.", count: 2 });
     // The switcher's own door, over the same controller call.
     act(() => result.current.openSession("oldest", false));
     await flush();

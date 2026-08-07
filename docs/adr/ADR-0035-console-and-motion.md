@@ -3533,3 +3533,215 @@ change, so a chord the editor held is indistinguishable from a chord the applica
 silent here on purpose, because saying something means deciding what the overlay's live region may
 carry beyond "the conversation that arrived", which is the open question the silent-shrink entry
 already holds; both are filed in the same place and should be picked up together.
+
+---
+
+## Addendum, 2026-08-07: the live region says what happened to the panel, not only what arrived
+
+The cycle-keys addendum above gave the overlay one polite live region and one thing to say in it,
+the conversation that arrived. The caret addendum after it answered a list reshaping under the
+reader's hand by moving focus, and shipped no announcement, on the argument that every landing puts
+focus on a control whose accessible name says what it is. Both were right about what they did and
+neither covered what the list itself became. This addendum measures that gap and closes it: **the
+region carries a list that shrank as well as a conversation that arrived, and when one gesture does
+both it says both, in one sentence, in one region** (`overlay/notice.ts`).
+
+### What was measured before
+
+Chromium 1228 headless at 900x900 against the demo bridge over `vite dev`, reading the devtools
+accessibility tree (`Accessibility.getFullAXTree`) plus a `MutationObserver` on every node in the
+document carrying `aria-live`, `role="status"`, `role="alert"` or `role="log"`. A live region
+reports a mutation rather than a value, so the observer is the measurement and the tree is the
+context for it.
+
+**The whole live-region roster of a resting overlay is two nodes**, both `role="status"` with no
+explicit `aria-live` or `aria-atomic` written on them, both computing `live: "polite"`,
+`atomic: true`, `relevant: "additions text"`: `div.announcer`, empty, and `span.linkdot.ok`, named
+"Brain ready: cortex-orchestrator demo". The capture ring's region and a failed reply's alert are
+in neither the resting tree nor the switcher-open one, each mounting with the event it reports.
+
+| Gesture | What the list did | Live-region mutations | What the reader was told |
+| --- | --- | --- | --- |
+| Delete a chat that is not the open one | 3 rows to 2 | none | nothing |
+| Delete another | 2 rows to 1 | none | nothing |
+| Delete the last row | 1 row to the empty line | none | nothing |
+| Delete the chat that **is** open | 2 rows to 1, and the panel swaps | 1, on `.announcer` | `Switched to New chat` |
+| Ack a reminder | 3 rows to 2 | none | nothing |
+| Ack the last two | 2 rows to none, and the section goes | none | nothing |
+| A chord held by the rename editor | nothing | none | nothing |
+
+So the entry reproduced, and on the reminder stack as well as the switcher: five of the six list
+changes are silent in every region on the page.
+
+**Three things the entry did not have.** The first is the one that decided the shape. **Deleting the
+open chat is not silent**, because that arm already speaks: one `childList` mutation added
+`Switched to New chat`. The reader still hears nothing about the row that left, which is the entry's
+point, but the commit that shrinks the list is also the commit that announces, and any second region
+would therefore have two announcements in flight at once.
+
+The second is a location. The entry called the region "the panel's own announcer"; it is
+deliberately **outside** the panel, a sibling of it at the overlay's root, because a dismissed panel
+is `aria-hidden` and `inert` and the cycle keys are global, so a region inside it would be
+introducing itself to the tree in the same frame as the words it wants read. That is the fact that
+rules out one of the three shapes the entry proposed.
+
+The third is a confirmation rather than a correction, and it was checked rather than assumed: the
+count key still does what the cycle-keys addendum said it does. Three consecutive `Ctrl+N` presses
+each removed the region's child and added a fresh one holding identical text, so a second
+announcement reading exactly like the first is still a mutation.
+
+### The decision
+
+**One region, and its contract widens from "the conversation that arrived" to "what just happened to
+the panel".** A row leaving either list raises a sentence naming the write and what the list holds
+now; a delete that also swaps the conversation says both in the order they happened.
+
+The argument, in the order the evidence decides it.
+
+**A shrink destroys the fact and a held key does not, which is the test a sentence has to pass.**
+The strongest case against announcing anything is that the state on screen is the explanation. That
+holds for a chord the editor kept: focus never left the input labelled "New chat name", its value is
+unchanged, and a reader can re-read both. It does not hold for a row that left. The row is out of
+the accessibility tree by the time the caret lands, the caret has moved to a different control, and
+nothing anywhere in the tree says the list changed. The reader's own gesture is the last evidence
+they have, and a gesture is a request, not an outcome: a failed delete leaves the chat exactly where
+it was (`useSessionCatalog.deleteSession` swallows the rejection and the list stands), so "the write
+landed" is genuinely news.
+
+**Two regions cannot be settled from an accessibility tree, and one region does not have to be.**
+Deleting the open chat shrinks the list and swaps the conversation in a single reducer arm and a
+single commit. Give the list its own region and both mutate together, and whether a screen reader
+speaks both, and in which order, is its own speech queue's policy: observable in NVDA or VoiceOver,
+not in `getFullAXTree`. One region has no such question, because the order is written into the
+string here. This inverts the entry's own risk ranking, which called widening `notice` the riskiest
+of the three shapes; measured, it is the only one that does not manufacture a question this repo
+cannot answer.
+
+**And the region was never only about arrivals.** `deleteSession` has been one of its four writers
+since the cycle-keys addendum: a delete already raises a notice, it just names the empty chat that
+took the deleted one's place. Widening the contract is finishing a sentence that arm already
+started rather than repurposing a channel.
+
+#### The three shapes, and why two lose
+
+**A second region at the overlay's root.** The placement would be right, beside the announcer and
+present from the first render. It fails on the paragraph above: it puts two announcements in one
+commit and hands the ordering to the reader.
+
+**A `role="status"` line inside the switcher.** Worse, and the measurement says why in the case that
+matters most. Both lists live inside a `Collapse`, and the reminder stack's whole section is
+unmounted when its last row is acked (measured: `.reminders` is not in the document afterwards). A
+region inside the stack would therefore leave in the same commit as the sentence saying the stack is
+empty, which is the one arrangement a live region is documented not to survive, and it is the exact
+hazard the announcer's own placement was chosen to avoid. The switcher's copy would carry the
+milder form of it, sitting inside the panel's `withdrawn` subtree.
+
+**Widening `notice`.** Taken, on the two paragraphs above.
+
+#### What the sentences say, and what they leave out
+
+The title of the deleted chat is deliberately not repeated. The control the reader pressed is
+labelled "Confirm delete <title>", so the name has already been read to them; what is news is the
+outcome and the shape of the list they are still standing in. So: `Chat deleted. 2 chats left.`,
+`Chat deleted. 1 chat left.`, and for the empty list, the switcher's own line borrowed whole,
+`Chat deleted. No other chats yet.` The reminder stack answers the same way, and its last row is the
+one that matters most, since `Reminder dismissed. No reminders left.` is also the only warning that
+the section the reader was working in has gone.
+
+`NO_OTHER_CHATS` is exported from `overlay/notice.ts` and rendered by `components/SessionList.tsx`,
+so the line on screen and the sentence in the region are one string. That is the header-and-switcher
+lesson one surface down: two renderings of one fact drift, and the cheap fix is to have one fact.
+
+The arrival sentence gained a full stop with this (`Switched to New chat.`), because it is now
+sometimes the second clause of a longer utterance and punctuation is what a reader hears as the
+boundary.
+
+### How it is built
+
+`overlay/notice.ts`, 93 lines, is now the whole of what the region may carry: `speak` counts the
+announcements and joins what it was given, and `arrived`, `chatDeleted` and `reminderDismissed`
+build the sentences. Every string lives there rather than at the arm that raises it, so "what may go
+in the region" is a question with one file for an answer instead of a habit spread over four reducer
+arms. `Notice.title` became `Notice.text`, and `Announcer` renders it rather than composing a
+prefix in front of it.
+
+The arms are unchanged in shape. `sessionState.deleteSession` computes whether a row actually left
+and speaks on both of its paths, the open-chat path putting the delete in front of the arrival it
+caused. `overlayState`'s `reminderDismissed` does the same for the stack. Both guard on the list
+having really shrunk, which is the same guard the arms already applied to their lists: a repeated
+dispatch filters nothing out and must not claim a row left.
+
+### What it measures now
+
+The same run, at 900x900, after the change. Every list change produces **exactly one** `childList`
+mutation on `.announcer` and nothing anywhere else; the connection dot's region never moves.
+
+| Gesture | The region's text after |
+| --- | --- |
+| Delete a chat that is not the open one | `Chat deleted. 2 chats left.` |
+| Delete another | `Chat deleted. 1 chat left.` |
+| Delete the last row | `Chat deleted. No other chats yet.` |
+| Delete the chat that **is** open | `Chat deleted. 2 chats left. Switched to New chat.` |
+| Ack a reminder | `Reminder dismissed. 2 reminders left.` |
+| Ack the next | `Reminder dismissed. 1 reminder left.` |
+| Ack the last | `Reminder dismissed. No reminders left.` |
+| `Ctrl+↓` | `Switched to Summarize my unread email.` |
+| A chord held by the rename editor | unchanged, still silent |
+
+The roster is still two regions with the same computed attributes, the empty line still reads
+`No other chats yet` in the list's own subtree, and the caret still lands where the caret rule put
+it: `button[Delete Everything about model swaps]` after a row delete, `button[Recent chats]` when the
+switcher empties, `textarea[Message]` after the open chat goes and after the last reminder.
+
+### The mutation proof
+
+Eight, each run against the whole suite.
+
+Making the non-open delete silent again reddens two: the sentence itself, and the no-op guard's case,
+which measures the notice through the same field.
+
+Dropping the guard, so the arm speaks whether or not a row left, reddens the repeated-dispatch case
+alone, which is what pins the announcement to a row actually leaving rather than to the arm running.
+
+Dropping the delete clause from the open-chat path, leaving only the arrival, reddens the combined
+sentence and the switcher's own case.
+
+Silencing the reminder arm reddens the stack's case.
+
+Taking the count key off the region's child reddens the second-announcement-with-the-same-words
+case, which is the cycle-keys addendum's own guarantee re-proved over the new text.
+
+Making `tally` always plural reddens five, across three files, which is the pluralization being
+shared rather than restated.
+
+Giving the switcher's empty line its own copy of the words, and moving the constant, reddens both
+sides of the tie: the list's case and the region's.
+
+Joining the parts with no gap reddens the two cases that assert a whole sentence.
+
+### What this does not do
+
+**Whether a real screen reader speaks it, and in what order against a focus change, is not
+observable here.** The tree says the region mutates once, politely, with the right text; NVDA, JAWS
+and VoiceOver each decide what to do with that, and the interesting case is the delete that also
+swaps, where the same commit moves the caret into the composer and the focus announcement competes
+with the queued polite one. Filed as a Windows sitting in
+[host/overlay-screen-reader.md](../host/overlay-screen-reader.md), which is where the overlay runs
+natively and where a screen reader can be pointed at it.
+
+**A list that shrinks for a reason the reader did not cause stays silent.** `remindersLoaded`
+replaces the stack wholesale on every summon and `sessionsLoaded` replaces the chat list, so a
+reminder acked on another surface or a chat deleted elsewhere leaves without a sentence. That is
+deliberate rather than pending: announcing a change nobody made turns the region into a feed, and no
+second surface exists to make it anyway. It reopens with one.
+
+**And a held chord still says nothing about being held.** The question it shares with this entry is
+answered here, the region being allowed to carry more than an arrival, and it stays open on its own
+merits, which are different ones. Two of them are measured: the state a held chord leaves is intact
+under the reader's caret, where a departed row is destroyed, and the hold is decided in
+`SessionList`'s own state with nothing in that path touching the reducer, so publishing from it
+wants a callback through the panel, the chat view and the row plus a controller member and an
+action, where every sentence added here was already at a reducer arm. The third is a policy the
+entry would have to settle: a chord fires per keydown, and keydown repeats, so it is the one
+sentence here a reader can raise dozens of times without moving. Left in
+[refinements/body-overlay.md](../refinements/body-overlay.md) with those three written down.

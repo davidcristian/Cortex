@@ -16,16 +16,20 @@ interface AnnouncerProps {
  *
  * `role="status"` carries polite delivery and `aria-atomic` on its own, so neither is restated;
  * this is the connection dot's role one level up (`LinkDot.tsx`), which is the overlay's other
- * standing announcement. What is said is a sentence rather than a bare title, because a title read
- * out of nowhere ("Reminders and recurrence") names a thing without saying what happened to it.
+ * standing announcement. Measured over the devtools accessibility tree at 900x900, the two of them
+ * are the whole live-region roster of a resting overlay, and this one computes `live: "polite"`,
+ * `atomic: true`, `relevant: "additions text"`.
  *
- * The child is keyed by the notice's count so that a swap into a chat titled like the last one is
- * still a mutation in this region rather than a re-render that changes nothing (`notice.ts`).
+ * It renders the sentence rather than composing one, and that is the point: every string the region
+ * may carry is built in `notice.ts`, so the region has one contract and one place that states it.
+ * The child is keyed by the notice's count so that a swap into a chat titled like the last one, or
+ * a second delete leaving the same number of rows, is still a mutation in this region rather than a
+ * re-render that changes nothing (`notice.ts`).
  */
 export function Announcer({ notice }: AnnouncerProps) {
   return (
     <div className="announcer" role="status">
-      {notice === null ? null : <span key={notice.count}>Switched to {notice.title}</span>}
+      {notice === null ? null : <span key={notice.count}>{notice.text}</span>}
     </div>
   );
 }
