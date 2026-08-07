@@ -15,7 +15,10 @@ import { Preview } from "./Preview";
 // leaves the console in ONE press, whichever tab is up, else dismisses (→ orb mid-stream);
 // Ctrl/Cmd+N starts a new chat, Ctrl+↑/↓ cycle recent chats, Ctrl+K toggles the switcher
 // (ADR-0021), and ? (outside any field, where it is just typing) toggles the console's
-// shortcuts tab. A field standing in front of this listener may keep a press it would otherwise
+// shortcuts tab. All six stay live while the panel is not on screen, and all six land what they
+// act on in front of the reader: the swap keys always did, and Ctrl+K and ? do since the rule that
+// a key aimed at a surface brings that surface (`overlay/chromeState.ts`, ADR-0035 addendum).
+// A field standing in front of this listener may keep a press it would otherwise
 // lose text to, which is the switcher's rename editor and not the composer, whose text survives
 // every one of these keys (`overlay/fieldKeys.ts`).
 //
