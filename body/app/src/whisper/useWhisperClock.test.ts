@@ -150,6 +150,36 @@ describe("useWhisperClock", () => {
     expect(request.mock.calls.length).toBe(scheduled);
   });
 
+  it("rolls to the height it stands on, publishing the number its own box carries", () => {
+    const { tick } = fakeFrames();
+    const { refs, bubble, lay } = rig();
+    // The bubble's own metrics, so the target lands where a real one does: `offsetTop` is a whole
+    // number in every engine, the line box is not (14.5px at 1.55 is 22.475), so a wrapped line
+    // asks for 40 + 22.475 + 10 and no rounding of that agrees with any other.
+    bubble.style.paddingTop = "10px";
+    bubble.style.paddingLeft = "15px";
+    bubble.style.lineHeight = "22.475px";
+    lay(12, (i) => (i < 6 ? 0 : 40));
+    const { rerender } = renderHook(({ f }) => useWhisperClock(refs, f), {
+      initialProps: { f: facts({ letters: 12, confirmed: 7 }) },
+    });
+    let now = 0;
+    let published: string | null = null;
+    const run = (frames: number) => {
+      for (let i = 0; i < frames; i += 1) {
+        tick((now += 50));
+        published = bubble.getAttribute("data-morphing") ?? published;
+      }
+    };
+    run(12);
+    rerender({ f: facts({ letters: 12, confirmed: 7, streaming: false }) });
+    run(60);
+    // The panel predicts from this number and its `auto` height then follows the box to the end of
+    // the roll: the two are the same height or the prediction is out by the difference.
+    expect(published).toBe("72.5");
+    expect(bubble.style.height).toBe(`${published}px`);
+  });
+
   it("holds the settle until the mist reaches the last word (the coda)", () => {
     const { tick } = fakeFrames();
     const { refs, lay } = rig();

@@ -3365,7 +3365,8 @@ whole number to fractional heights for the length of a streamed reply. It is the
 defect above and is read from the code rather than measured: the bubble is never handed back to
 layout the way a section is, so the visible symptom may not exist. Filed unmeasured in
 [refinements/body-overlay.md](../refinements/body-overlay.md), where the first move is a live trace
-and not a change.
+and not a change. **Traced and closed the next day**, in the addendum below: the symptom is indeed
+absent and the number was wrong for a different reason than either doc had.
 
 ## Addendum, 2026-08-07: a field holds the chords it would lose text to
 
@@ -3745,3 +3746,82 @@ action, where every sentence added here was already at a reducer arm. The third 
 entry would have to settle: a chord fires per keydown, and keydown repeats, so it is the one
 sentence here a reader can raise dozens of times without moving. Left in
 [refinements/body-overlay.md](../refinements/body-overlay.md) with those three written down.
+
+## Addendum, 2026-08-07: the whisper's roll publishes the number its own box carries
+
+The addendum above closed the section roll and named one reading it had left standing, on the other
+element that drives the same contract. `useWhisperClock` announced `String(Math.round(tH))` while
+writing its box with `${s.h.toFixed(1)}px`, which is two roundings of one number again. It was filed
+unmeasured on purpose, because a bubble is never handed back to its own layout the way a section is,
+so the step that made the section's case might not exist at all. It does not. The change landed
+anyway, for a reason the entry had not imagined, and the order it demanded was kept: the trace came
+first.
+
+### What was measured before
+
+Headless Chromium at 900x1000 over the demo, `Element.prototype.animate` hooked before the app
+loaded, every painted frame sampled once the frame's rendering steps were done, and every height
+read as the used value off the computed style so the summon's scale transform is out of it.
+
+- **The mismatch is exactly half a pixel, not a fraction of one.** One reply wrapped five times and
+  the bubble published `45`, `67`, `90`, `112` and `135` while easing to 45.475, 67.475, 90.475,
+  112.475 and 135.475. `offsetTop` is a whole number in the engine, the line box is 22.475px
+  (14.5px at 1.55) and the padding is 10px, so every target lands on a x.475, and the box is written
+  to a tenth, so the height the bubble actually stands on is a x.5. Every published target was half
+  a pixel under its own box, every line, by construction rather than by luck.
+- **The step is absent, and for a stronger reason than the entry gave.** Across 172 frames inside
+  the roll there is no frame in which the panel's height moves and the bubble's does not, and the
+  panel's largest single-frame move is 3.907px against the bubble's own 3.906px of eased growth. The
+  reason is not only that the bubble keeps its inline height at the end. It is that the prediction
+  never reaches the panel's height at all: `rideAlong` finds nothing of the panel's own in the air
+  and its bottom edge already where it wants it, so it returns at its common-case branch, and
+  `Element.prototype.animate` is called zero times on the panel across the whole reply. The number
+  was computed five times, once per wrap, and discarded five times. The arithmetic itself read
+  390.469 at the last frame of a roll that settled the panel at 390.969.
+- **The prediction is also an edge, which is what the entry missed.** On an arrival `rideAlong` does
+  not merely predict: it pins the panel's bottom to the centre of the predicted height, and nothing
+  afterwards recomputes that. Dismissing to the orb mid-reply and summoning back inside the roll
+  pinned the panel to 316.59375px where the height the roll leaves it at centres on 316.34375px, and
+  the panel stood on that quarter pixel for the rest of the session. Planting `+ 20` on the
+  published target moved the same edge to 306.59375px, a move of exactly half the plant, which is
+  the gain the arithmetic predicts and the proof the published number reaches the edge.
+
+### The decision
+
+**The roll publishes `tH.toFixed(1)`, the rounding the box is written with**, so the two sides of
+the contract hold one number rather than two roundings of it. The section roll reached 0.000px by
+reading a used height that was already on the engine's grid; a bubble's target is a height it does
+not have yet, so the nearest equivalent is to publish the string the box itself will be given. What
+that leaves is Chromium's 1/64px quantization of an inline length, up to 0.0156px, which is the same
+floor the panel's own fractional-height change named and is not arithmetic this app performs.
+
+### What it measures now
+
+Same instrument, same window. The bubble publishes `45.5`, `67.5`, `90.5`, `112.5` and `135.5`, the
+ride-along's arithmetic at the last frame of the roll reads 390.969 against a settled 390.969, and
+the summon inside the roll pins 316.34375px, the centre of the height the roll leaves the panel at.
+The panel still never animates its own height during a reply, so nothing on that path moved.
+
+### The mutation proof, and the instrument's own
+
+`useWhisperClock.test.ts` gains one case that lays a wrapped line on a 22.475px line box over a whole
+`offsetTop` and asserts the published target against the height the box settles at. Rounding to a
+whole pixel reddens it (`72` against `72.5`), publishing the unrounded target reddens it (`72.475`),
+and publishing to two decimals reddens it (`72.47`); nothing else in the suite moves under any of
+the three, which is the case being bound to the contract rather than to the arithmetic.
+
+The trace was falsified before it was trusted, since a reading of "no step" is worth nothing from an
+instrument that cannot show one. Putting `offsetHeight` back into `Collapse` reproduced the section
+roll's pre-fix behaviour through this very trace: the reminder aside stands at 193.75px, its closing
+roll opened at 194 with the eye on 193.75, and the panel's `auto` height took the 0.25px step along
+in one frame, 545.75 to 546. That is the number this ADR published the day before, re-read by the
+instrument that then reported the whisper's boundaries as clean.
+
+### What this does not do
+
+**The chat floor still absorbs the first lines of a reply**, so the panel's height does not follow
+the bubble one for one until the history has given up its slack: the trace shows the panel flat at
+352 while the bubble grows from 42 to 112, and only then growing with it. That is the history doing
+its job and is not a defect, but it does mean the ride-along's prediction of the panel's height is
+approximate for reasons far larger than a rounding whenever the floor is still giving. Nothing reads
+that prediction on the ordinary path, which is why it costs nothing today.

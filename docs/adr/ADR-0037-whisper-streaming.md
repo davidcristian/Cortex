@@ -168,3 +168,28 @@ relearned.
    mid-line: the evaporation played a dozen letters short of the reply's end (the user's
    screenshot has the smudge). The clock now runs a coda of a few frames until the blob is
    within a pixel of the last word, then settles, so the reply ends where it says it does.
+
+## Addendum (2026-08-07): the roll publishes the height the box stands on
+
+Decision 2 of the addendum above gave the bubble the panel's roll contract, and the value it
+published was `String(Math.round(tH))` while the box beside it was written with
+`${s.h.toFixed(1)}px`. Two roundings of one number, on a contract whose whole purpose is that both
+sides agree. Filed as a refinement rather than fixed on sight, because a bubble is never handed back
+to its own layout the way a section is and the step that made the section's case might not exist
+here at all.
+
+Traced first, at 900x1000 in headless Chromium over the demo. It does not exist: across 172 frames
+inside one reply's roll there is no frame where the panel's height moves and the bubble's does not,
+and the panel never animates its own height during a reply, so the prediction is computed once per
+wrap and thrown away. What the trace found instead is that the published number is not only a
+prediction. On a summon landing inside the roll it is the edge the panel pins itself to, and the
+rounding put the panel on 316.59375px where the height the roll leaves it at centres on
+316.34375px, an edge it then kept for the session. The mismatch was exactly half a pixel on all five
+of the reply's wraps, `offsetTop` being whole and the line box 22.475px.
+
+The clock now publishes `tH.toFixed(1)`, the rounding the box itself is written with, so the panel
+predicts from the number the bubble will stand on. The full trace, the falsification of the
+instrument and the mutation proof are in
+[ADR-0035](ADR-0035-console-and-motion.md), which owns the roll contract and the panel's
+measurement work; the entry that demanded the measurement first is in
+[refinements/body-overlay.md](../refinements/body-overlay.md).
