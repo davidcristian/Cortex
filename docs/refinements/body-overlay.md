@@ -8,7 +8,7 @@ deferred-refinements section on 2026-07-15 with the entries kept verbatim; lande
 are the historical record of what each deferral became, and the index at
 [index.md](index.md) carries the recommended pickup order.
 
-**Open items:** 13. Multi-turn-within-one-stream + proto `Cancel`, streamed
+**Open items:** 12. Multi-turn-within-one-stream + proto `Cancel`, streamed
 brain status (its producer landed 2026-07-18; only the push RPC remains), a list the reader closes
 dropping the caret on `<body>`, a held chord saying nothing about being held, the liquid edge's
 backdrop blur,
@@ -16,8 +16,7 @@ the two bounds the panel's section budget leaves behind it
 (a section's own frame being under no cap, and the room a closing section hands back in one frame),
 the two tradeoffs the reserved scrollbar rail accepts (its width
 is assumed rather than measured off the engine, and the two 6px cards spend their whole inset on
-it), the rounded roll target the whisper's bubble
-publishes while its own height carries a decimal, and the whisper's three follow-ups (a pickable voice
+it), and the whisper's three follow-ups (a pickable voice
 row in the console, the wrap
 width a mid-stream resize cannot move, and kerning inside the letter boxes under a changed
 font; its drain-growth entry landed the same day it was filed, and the console outliving a new
@@ -107,6 +106,15 @@ real screen reader can settle went to
 [host/overlay-screen-reader.md](../host/overlay-screen-reader.md) rather than staying here, the same
 split the tier-scale mechanism took: the shape was pickable from the accessibility tree and only the
 speech is not.
+
+**Moved again 2026-08-07, thirteen to twelve, one out and none in, and read the same way.** Every
+top-level entry in this file was walked again and asked which carries a landing; the thirteen names
+above were exactly the ones left, and the index cell agreed with them one for one. **The whisper's
+rounded roll target** then closed, measured first as its own text demanded and landed the same
+sitting. Nothing was deferred behind it: the residual it leaves is Chromium's 1/64px grid, which the
+section roll above already names as the standing floor rather than as an entry, and the one thing
+the trace turned up that the entry had not imagined, the prediction doubling as the panel's pinned
+edge on an arrival, is fixed by the same line rather than filed.
 
 **Body / overlay in Slice 8 ([ADR-0011](../adr/ADR-0011-body-v1.md)):**
 - **Multi-turn-within-one-stream + an explicit proto `Cancel` event.** One turn per `Converse`
@@ -943,6 +951,56 @@ speech is not.
   first move is a live trace of a streamed reply at 900x1000 against the panel's settled height,
   and only then a change. The trigger is any panel step seen at the end of a reply, or the next
   visit to the whisper's clock.
+  - **MEASURED FIRST and then LANDED 2026-08-07, and the trace changed what the entry is about**
+    ([ADR-0035 addendum](../adr/ADR-0035-console-and-motion.md),
+    [ADR-0037 addendum](../adr/ADR-0037-whisper-streaming.md)). Headless Chromium at 900x1000 over
+    the demo, `Element.prototype.animate` hooked before the app loaded and every painted frame
+    sampled once the frame's rendering steps were done, the panel's used height read off the
+    computed style so the summon's scale transform is out of it. One reply wrapped five times. The
+    bubble published `45`, `67`, `90`, `112` and `135` while the heights it was easing to were
+    45.475, 67.475, 90.475, 112.475 and 135.475, a whole `offsetTop` plus a 22.475px line box plus
+    10px of padding landing on a x.475 every time. Its box is written to a tenth of a pixel, so the
+    height the bubble stands on at the end of each line is 45.5 through 135.5 and every published
+    target was exactly half a pixel under it, not the fraction of one the entry allowed for. At the
+    last frame of the roll the ride-along's arithmetic read 390.469 for a panel that settled at
+    390.969.
+  - **The step the entry doubted is not there, and it is not there for a stronger reason than the
+    entry gave.** Across 172 frames inside the roll there is no frame in which the panel's height
+    moves and the bubble's does not; the panel's largest single-frame move is 3.907px, which is the
+    bubble's own 3.906px of eased growth arriving one for one. The reason is not only that the
+    bubble is never handed back to layout. It is that the prediction never reaches the panel's
+    height at all: `rideAlong` finds nothing of the panel's own in the air and the bottom edge
+    already where it wants it, so it returns at its common-case branch, and `Element.prototype.animate`
+    is called zero times on the panel across the whole reply. The number was computed five times,
+    once per wrap, and discarded five times.
+  - **Two of the entry's own sentences were wrong, and one omission mattered.** The prediction is
+    not added "for the length of every streamed reply": the target only changes at a wrap and the
+    placement only re-predicts when the published number changes, so it is five predictions in a
+    reply of about three seconds and not one per token. And the error is not merely bounded by half
+    a pixel, it is half a pixel, every line, by construction. What the entry missed is that the
+    prediction is not only a prediction. On an arrival `rideAlong` also pins the panel's bottom edge
+    to the centre of the predicted height, and that edge is kept for the session. Traced by
+    dismissing to the orb mid-reply and summoning back inside the roll: the panel pinned itself to
+    316.59375px where the height the roll actually leaves it at centres on 316.34375px, and it stood
+    on the wrong quarter pixel for the rest of the session. Planting `+ 20` on the published target
+    moved that edge to 306.59375px, a move of exactly half the plant, which is the gain the
+    arithmetic predicts and the proof the published number reaches the edge.
+  - **The instrument was falsified before it was trusted.** Putting `offsetHeight` back into
+    `Collapse` reproduced the sibling's pre-fix reading exactly through this same trace: the
+    reminder aside stands at 193.75px, its closing roll opened at 194 with the eye on 193.75, and
+    the panel's `auto` height took the 0.25px step along in one frame, 545.75 to 546. A trace that
+    can see that can see anything this entry was worried about.
+  - **After: the roll publishes the number its own box carries** (`tH.toFixed(1)`, the rounding the
+    box is written with), so both sides of the contract hold one number instead of two roundings of
+    it. Same instrument, same window: the bubble publishes `45.5`, `67.5`, `90.5`, `112.5` and
+    `135.5`, the arithmetic at the last frame of the roll reads 390.969 against a settled 390.969,
+    and the summon inside the roll pins 316.34375px. The residual is 0.000px here rather than the
+    0.015px grid the panel's own change left, because the final target lands on Chromium's 1/64
+    grid; a target that does not can still differ from the box by up to 1/64px, which is that same
+    known floor and not a new deferral. `useWhisperClock.test.ts` holds the contract as one case
+    that lays a wrapped line on a 22.475px line box and asserts the published target against the
+    height the box settles at. Falsified three ways: rounding to a whole pixel, publishing the
+    unrounded target, and publishing it to two decimals each redden that case and nothing else.
 - **Opening a Thoughts trace on a panel at its ceiling pushes the reply below the fold.** The
   disclosure rolls open in place and nothing touches the history's `scrollTop`, which is the right
   default: the row stays exactly under the pointer that clicked it and the trace unfolds beneath,

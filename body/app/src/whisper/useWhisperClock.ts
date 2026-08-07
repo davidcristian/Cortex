@@ -229,8 +229,12 @@ export function useWhisperClock(refs: WhisperRefs, facts: WhisperFacts): Whisper
       // that outgrew the chat floor (traced in headless Chromium at 660x1000: eight reversals of
       // up to 6.6px in one reply; zero once the bubble announced its roll). The value is the
       // height being eased to, which is what lets the panel take its bottom edge along when a
-      // landing line would push it past the ceiling.
-      const rolling = String(Math.round(tH));
+      // landing line would push it past the ceiling, written the way the box below is written so
+      // both sides of the contract hold one number rather than two roundings of it. Rounded to a
+      // whole pixel it sat exactly 0.5px under the height the box stands on at all five lines of
+      // a reply traced at 900x1000, and a summon landing inside the roll then pinned the panel
+      // 0.25px off the centre it aimed for and kept that edge for the session.
+      const rolling = tH.toFixed(1);
       if (bubble.getAttribute(MORPHING_ATTRIBUTE) !== rolling) {
         const announced = bubble.hasAttribute(MORPHING_ATTRIBUTE);
         bubble.setAttribute(MORPHING_ATTRIBUTE, rolling);
