@@ -603,7 +603,8 @@ already holds costs more than leaving a gap would have.
 
 Design work recorded in [refinements/](../refinements/index.md) that becomes *testable* here for
 the first time: co-residency and the NPU feasibility pass. They stay in that backlog with their code
-cost. See the last section of [index.md](index.md).
+cost. See the last section of [index.md](index.md). **Co-residency was settled 2026-08-07**, by the
+agent in Docker rather than in a host sitting, and the NPU pass is what is left of this list.
 
 Three more used to be listed here, on the premise that no card the agent has can run the cortex:
 the spontaneous-pick nudge's live uptake and the model passes behind session-history summarization

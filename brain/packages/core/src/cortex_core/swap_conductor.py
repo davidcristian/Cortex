@@ -83,7 +83,8 @@ class SwapConductor:
             yield TextDelta(text=prepared)
             return
         try:
-            yield _status(DRAINING_DETAIL)
+            if not self._plan.coresident:
+                yield _status(DRAINING_DETAIL)
             if not await self._drain():
                 # The abort direction: nothing has been evicted, so the cortex is still serving
                 # and the turn simply ends with what it has.
@@ -176,8 +177,8 @@ class SwapConductor:
         await self._advance(record, HandoffState.DONE)
 
     async def _drain(self) -> bool:
-        """Quiesce the subagent pool, or answer True when there is no pool to quiesce."""
-        if self._scheduler is None:
+        """Quiesce the pool, or answer True when there is no pool, or none to quiesce it for."""
+        if self._scheduler is None or self._plan.coresident:
             return True
         return await self._scheduler.drain(timeout_s=self._plan.drain_timeout_s)
 

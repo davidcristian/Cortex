@@ -31,6 +31,7 @@ class ResidencyPlan:
     cortex_model: str
     brain_model: str
     evict_models: tuple[str, ...] = ()
+    coresident: bool = False
     drain_timeout_s: float = DEFAULT_SWAP_DRAIN_TIMEOUT_S
     load_timeout_s: float = DEFAULT_SWAP_LOAD_TIMEOUT_S
     poll_interval_s: float = DEFAULT_HEALTH_POLL_INTERVAL_S

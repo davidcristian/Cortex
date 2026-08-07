@@ -44,6 +44,15 @@ Other knobs: `CORTEX_MODEL_BRAIN` (the deep tier's logical id, default `brain`),
 `CORTEX_SWAP_DRAIN_TIMEOUT_S` (60 s), `CORTEX_SWAP_LOAD_TIMEOUT_S` (300 s),
 `CORTEX_MODELHOST_TIMEOUT_S` (60 s, one control call's deadline).
 
+**`CORTEX_SWAP_CORESIDENT` is the one knob that changes what a handoff does to the machine, and
+it is off.** Set it and a swap stops the cortex and nothing else, every `CORTEX_SWAP_EVICT_MODELS`
+tier keeps serving beside the deep model, and the subagent pool is never quiesced, so delegated
+work runs through the handoff and the deep phase may spawn. **Only set it if you have measured the
+fit on your own card**, because nothing checks it and the failure is silent: see the co-residency
+section below for what a card that cannot hold the pair does instead of refusing. Nothing else
+changes, and the swap back still starts every listed tier, which is a no-op against one that never
+stopped and a heal for one that died on its own.
+
 **One pairing to keep, because nothing validates it for you.** The sidecar's `stop` answers only
 once the child is dead and reaped, so it can legitimately take `CORTEX_MODELHOST_STOP_GRACE_S`
 (10 s) plus `CORTEX_MODELHOST_REAP_TIMEOUT_S` (30 s) before replying, **plus**
@@ -134,6 +143,43 @@ half is sub-second only while the child is **idle**; every path that evicts a ti
 answering (the cancellation restore, and the shutdown sweep) pays the whole grace per busy tier,
 which is what `stop_grace_period: 45s` on the container is sized for (3 tiers x 10 s plus slack,
 the sweep being sequential).
+
+## Co-residency, and how to tell a fit from a spill
+
+Measured 2026-08-07 by the agent on a 24 GB card (RTX 5090 Laptop, 24463 MiB, driver 610.88,
+llama.cpp build `b10236-1464c62d8`), through this same control API with the **real** tiers rather
+than stand-ins. Read the floor first and subtract it: this machine's idle reading moved between
+**1529 and 2836 MiB** inside one session, because Windows' own desktop shares the card, so about a
+gigabyte of the budget is not yours to plan with.
+
+| Configuration | `nvidia-smi` used | Free | Deep decode | Verdict |
+|---|---|---|---|---|
+| cortex alone, 16K, projector, 1024-token image budget | 11284 to 11298 MiB | | | 8448 to 8468 MiB above floor |
+| deep alone (gemma-4-31B q4_0, 8K, `-ngl 99`) | 20671 to 20723 MiB | ~3.8 GB | 25.07 to 33.28 tok/s | 19117 to 19125 MiB above floor |
+| **cortex + deep** | 23539 to 23642 MiB | ~0.5 GB | **14.80 to 17.29 tok/s** | **spilled**, 4676 MiB short |
+| **deep + gemma-4-E4B subagent tier** | 23555 to 23642 MiB | ~0.9 GB | **28.92 to 29.82 tok/s** | **fits**, peer costs 2878 MiB |
+
+**The two bottom rows read the same on `nvidia-smi` and are opposite results.** That is the whole
+warning. A card 4676 MiB short does not refuse the second load: both tiers report `ready`, the
+stream works, and the WSL2 driver quietly pages about 6 GB to system memory. The tell is decode
+rate, roughly halved, plus a prefill that collapses to 13.8 tok/s on the first request after each
+switch where a fitting pair holds 105 to 134. So **measure `predicted_per_second` from
+llama.cpp's own `timings`, on each tier, before and after**, and treat a memory reading alone as no
+evidence either way. It is the same lesson the 8 GB warning above teaches at a different scale, and
+it survives having enough card to be fooled by.
+
+What co-residency buys, on the same run and the same control API, with the artifact warm in the
+page cache: `stop(cortex)` **0.48 s**, deep tier `ready` **70.03 s** later, `stop(brain)`
+**0.89 s**, cortex `ready` **31.43 s** later, so **102.9 s** of swap either side of the deep phase
+(about 132 s cold, at ADR-0004's 99.6 s load). Without the flag every spawn is refused for all of
+it and for the deep phase too. With it, delegated work never stops. Generating on both tiers at
+once costs both (deep 18.74 tok/s, peer 22.91) and allocates nothing: 23639 MiB under load against
+23642 MiB idle, which is why a spawn onto an already-resident tier is not a VRAM decision.
+
+To reproduce, layer `docker/docker-compose.modelhost-loopback.yml`, name all three artifacts, and
+drive `POST /models/{id}/start` by hand with the cortex stopped first. The live suite has it as
+`test_a_coresident_scope_leaves_its_peer_serving_beside_the_deep_model`
+(`just brain-modelhost-live`), which skips unless the sidecar hosts all three tiers.
 
 ## Failure modes, each observed rather than reasoned about
 

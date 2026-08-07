@@ -33,6 +33,7 @@ class SwapConfig(BaseSettings):
     brain_model: str = Field(default=DEFAULT_BRAIN_MODEL, validation_alias="CORTEX_MODEL_BRAIN")
     brain_endpoint: str = ""
     evict_models: tuple[str, ...] = Field(default=(), validation_alias="CORTEX_SWAP_EVICT_MODELS")
+    coresident: bool = Field(default=False, validation_alias="CORTEX_SWAP_CORESIDENT")
     swap_drain_timeout_s: float = Field(default=DEFAULT_SWAP_DRAIN_TIMEOUT_S, ge=0)
     swap_load_timeout_s: float = Field(default=DEFAULT_SWAP_LOAD_TIMEOUT_S, ge=0)
 
@@ -69,6 +70,7 @@ class SwapConfig(BaseSettings):
             cortex_model=cortex_model,
             brain_model=self.brain_model,
             evict_models=self.evict_models,
+            coresident=self.coresident,
             drain_timeout_s=self.swap_drain_timeout_s,
             load_timeout_s=self.swap_load_timeout_s,
         )

@@ -18,8 +18,9 @@ async def swap_in(host: ModelHost, plan: ResidencyPlan, model: str, gate: Readin
     """Evict everything, start ``model``, and hold until it is actually serving."""
     try:
         await host.stop(plan.cortex_model)
-        for evicted in plan.evict_models:
-            await host.stop(evicted)
+        if not plan.coresident:
+            for evicted in plan.evict_models:
+                await host.stop(evicted)
         await host.start(model)
         state = await gate(model)
     except ModelHostError as err:
