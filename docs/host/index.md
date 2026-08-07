@@ -313,6 +313,16 @@ is the deployment's own tier shape (`config.py` gives the cortex `parallel=1`), 
 decision 14 says so itself: "The 11.3 GB default is ADR-0004's **with-mmproj** measurement". Asking
 the user to re-measure it was manufactured work, which is worse than an omission, because an
 omission does not cost a sitting.
+**Half of that reasoning did not survive 2026-08-07**, and it is corrected here rather than left
+standing. The measurement did exist and the withdrawal was still right, because this is not host
+work: the agent reaches the GPU through Docker and measured it in one sitting. What was wrong is
+the confidence that an existing figure settles the question. The 11.3 GB was `nvidia-smi` total
+used with the desktop's own floor inside it, taken on a different llama.cpp build, and it was an
+idle reading where the reservation it fed has to cover a peak. Re-measured at the shipped tier
+shape the cortex is 8400 to 8484 MiB idle and 8573 MiB at its peak above a bracketed floor, and
+`CORTEX_VRAM_CORTEX_GB` is 8.6 rather than 11.3
+([ADR-0012](../adr/ADR-0012-resource-governance.md)'s re-measured-reservation addendum). So the
+sentence to keep is that this was never the user's to do, not that there was nothing to find.
 
 ## Status convention
 
