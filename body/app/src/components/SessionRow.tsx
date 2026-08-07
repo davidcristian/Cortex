@@ -1,4 +1,5 @@
 import type { SessionSummary } from "../bridge/types";
+import { fieldKey } from "../overlay/fieldKeys";
 import { caretKey } from "../overlay/rowCaret";
 import { CheckIcon, CloseIcon, PencilIcon, PinIcon, TrashIcon } from "./icons";
 import { relativeTime } from "./relativeTime";
@@ -78,16 +79,25 @@ export function SessionRow({
             value={draft}
             onChange={(event) => onDraft(event.currentTarget.value)}
             onKeyDown={(event) => {
-              if (event.key === "Escape") {
-                // ESCAPE CLOSES THE INNERMOST THING, and this editor is the innermost thing there
-                // is. The overlay listens for Escape on the window and dismisses the panel with it,
-                // which is right when there is nothing smaller to close and wrong here: measured at
-                // 900x900, cancelling a rename took the whole panel off the screen, so the gesture
-                // that undoes a rename also ended the session. The console already gets this right
-                // one layer up, closing itself instead of dismissing; it can do that from the
-                // overlay's own handler because the overlay holds its state, and this editor's
-                // lives in the row, so the row is what says the press was answered.
-                event.stopPropagation();
+              // WHAT THIS EDITOR KEEPS FROM THE WINDOW (`overlay/fieldKeys.ts` holds the rule and
+              // the traces behind it). Two answers, one question. ESCAPE CLOSES THE INNERMOST
+              // THING, and this editor is the innermost thing there is: the overlay listens for
+              // Escape on the window and dismisses the panel with it, which is right when there is
+              // nothing smaller to close and wrong here, since measured at 900x900 cancelling a
+              // rename took the whole panel off the screen and so the gesture that undoes a rename
+              // ended the session. AND A CHORD WAITS FOR THE NAME, because the in-progress label
+              // lives in the list's state and dies with the editor with no undo behind it: measured
+              // the same way, Ctrl+N over a typed name minted a chat, closed the switcher and left
+              // the row reading its old title. The console gets the first of these right one layer
+              // up and can do it from the overlay's own handler because the overlay holds its
+              // state; this editor's lives in the row, so the row is what says a press was
+              // answered.
+              const answer = fieldKey(event);
+              if (answer === "pass") {
+                return;
+              }
+              event.stopPropagation();
+              if (answer === "cancel") {
                 onCancelRename();
               }
             }}
@@ -104,11 +114,17 @@ export function SessionRow({
       <div className="switcher-row">
         <div
           className="switcher-confirm-delete"
-          // The editor's rule, one shape over: Escape closes the innermost thing, and a question
+          // The editor's Escape, one shape over: Escape closes the innermost thing, and a question
           // standing over a row is innermost. Without it the press reached the window listener and
           // dismissed the whole panel with the question still open underneath, so the answer to
           // "delete this chat?" was waiting on the next summon. The caret is inside this box by the
           // time anyone can press it, which is what makes one handler on the box enough.
+          //
+          // The editor's OTHER half deliberately stops here: a chord passes straight through this
+          // box. The rule is about text a surface would throw away, and a confirm holds none, so
+          // Ctrl+N over an open question costs one press to ask it again. Measured at 900x900:
+          // the chat was minted, the switcher closed, the caret went to the composer, and nothing
+          // was deleted.
           onKeyDown={(event) => {
             if (event.key === "Escape") {
               event.stopPropagation();

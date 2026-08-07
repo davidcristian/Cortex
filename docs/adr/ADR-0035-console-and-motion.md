@@ -3366,3 +3366,170 @@ defect above and is read from the code rather than measured: the bubble is never
 layout the way a section is, so the visible symptom may not exist. Filed unmeasured in
 [refinements/body-overlay.md](../refinements/body-overlay.md), where the first move is a live trace
 and not a change.
+
+## Addendum, 2026-08-07: a field holds the chords it would lose text to
+
+The caret addendum above put the caret into the switcher's rename editor and answered two of the
+overlay's global keys there, Escape and `?`, while deliberately leaving the three chords alone on
+the argument that a chord is a deliberate act rather than a character somebody is typing. That was
+recorded as decided rather than measured. This addendum measures it, and the measurement moved the
+answer: **a chord passes through a field whose text the overlay keeps, and is held by a field whose
+text it would throw away** (`overlay/fieldKeys.ts`).
+
+### What was measured before
+
+Chromium at 900x900 against the demo bridge, standing in "Everything about model swaps" with the
+switcher open and `a brand new name` typed into the third row's editor. Each case is a fresh load;
+after the press, the list is reopened and its row titles read back.
+
+| Press | The editor | The panel | The name |
+| --- | --- | --- | --- |
+| `Ctrl+N` | gone, caret to the composer | title "New chat", switcher `aria-expanded=false` | discarded |
+| `Ctrl+K` | gone, **caret on `<body>`** | switcher `aria-expanded=false`, title unmoved | discarded |
+| `Ctrl+↑` | gone, caret to the composer | title "Summarize my unread email", switcher shut | discarded |
+| `Ctrl+↓` | gone, caret to the composer | title "Reminders and recurrence", switcher shut | discarded |
+| `Escape` | gone, caret to the pencil | switcher open, panel up | cancelled, as designed |
+| `Enter` | gone, caret to the pencil | switcher open, panel up | committed, as designed |
+| `?` | open, `why?` in the field | no console | untouched, as designed |
+
+So the entry reproduced on all four chords, and there is no undo for what they threw away: the
+in-progress label lives in `SessionList`'s own state and dies with the editor. Three things the
+entry did not have came out of the same run.
+
+**`Ctrl+K` also drops the caret on `<body>`.** The other three hand it to the composer, which is the
+arrival rule above doing its job; `Ctrl+K` swaps no conversation, so nothing catches it. That is the
+landing the caret addendum shipped the day before to abolish.
+
+**Two of the four keys are the field's own.** Traced on a bare single-line `<input>` holding the
+same sixteen characters, caret at offset 6, with nothing listening: `Ctrl+↑` moved the caret to 0
+and `Ctrl+↓` moved it to 16, which are start of text and end of text, while `Ctrl+N` and `Ctrl+K`
+moved neither the value nor the selection and left `defaultPrevented` false throughout. The cycle
+keys are therefore not spare inside a field, and taking them there was a collision rather than a
+priority. This is the leg of the argument the entry framed as "what a native input does elsewhere",
+answered by measuring the input rather than by recalling other applications.
+
+**And a measurement trap worth recording.** The first attempt read `Ctrl+↑` as a no-op inside the
+editor, which looks exactly like the editor answering the key and is nothing of the sort: the run
+stood in a fresh unsaved chat, and `cycleTarget` returns null going newer from a chat that is not in
+the list (`overlay/sessionState.ts`). Standing in the middle chat is what makes both directions
+live. A careless run reads that first result as the entry failing to reproduce.
+
+### The decision
+
+**An open rename editor holds a chord.** The press is stopped at the row and nothing else happens:
+the editor stays open, the caret stays in it, the name stays typed, and the switcher stays as it
+was. Enter or Escape settles it in one press, both already bound and both leaving the caret on the
+pencil, so the chord is one further press away rather than refused.
+
+The argument, in the order the costs matter.
+
+**The two harms are not the same size.** A chord that waits costs one press. A chord that fires
+costs a name with no undo anywhere: the label is not in the store, not in the reducer, and not
+recoverable from the row it was typed over. The overlay had already answered a question of exactly
+this shape a day earlier, when the draft addendum above took a draft per chat over clearing on swap
+because a half-typed question is work and swapping away is not a decision to discard it. A
+half-typed name is the same work with less protection.
+
+**The editor is already not transparent to keys.** Escape and `?` are answered there, so
+"a field passes the overlay's keys through" was already false, and consistency now argues for
+finishing the rule rather than for holding the line at two.
+
+**And the rule has to be sayable for the next field.** The `?` guard was written to be asked of the
+element type rather than of a list of selectors, so that the next field the overlay grows is covered
+on the day it is added. The chord rule needs the same property and cannot get it the same way,
+because the composer is a field too and is where a summon lands: guarding by element type would kill
+`Ctrl+N` at the one place it is most pressed. What separates them is not what they are but what
+happens to what is in them. The composer keeps every keystroke under the chat it was typed into
+(`overlay/drafts.ts`); the rename editor keeps nothing. So the rule is about the text: **a field
+that keeps its text passes chords, a field that would lose its text holds them.** A future field
+answers by saying which kind it is, in one line.
+
+#### Two answers considered and rejected
+
+**Commit the name first, then run the chord.** It looks like the best of both and is not: it turns
+an unrelated keypress into a store write nobody asked for, possibly of a half-typed word, and an
+emptied editor commits the clear-the-custom-title signal the switcher already accepts, so `Ctrl+N`
+pressed after a Backspace would silently wipe a custom title.
+
+**Cancel the name first, then run the chord.** That is today's behaviour with an extra step, and it
+destroys the same work.
+
+#### And the delete confirm deliberately keeps passing chords
+
+It is the row's other overlay and it answers Escape the same way the editor does, but the rule is
+about text a surface would throw away and a confirm holds none. Measured at 900x900: `Ctrl+N` over
+an open "Delete this chat?" minted the chat, closed the switcher, took the caret to the composer,
+and deleted nothing. Asking again costs one press on the trash, so there is nothing here for the
+rule to protect.
+
+### How it is built
+
+`overlay/fieldKeys.ts`, 76 lines, two exports and no React.
+
+`chord(press)` is the overlay's definition of a modified press, Ctrl on every platform and Cmd on
+the Mac. `components/Overlay.tsx` now asks it for its own `mod` instead of restating the test, so
+the global handler and the fields standing in front of it cannot drift into two answers that
+disagree about one key.
+
+`fieldKey(press)` answers `cancel`, `hold` or `pass`, which is one decision rather than two special
+cases: Escape closes the innermost thing, a chord waits for the text, everything else is the
+overlay's business. `?` is on the `pass` side on purpose, since it is answered one layer up by the
+element-type guard, and holding it here would duplicate a rule instead of composing with it. Escape
+is asked before the modifier, so a modified Escape still cancels.
+
+The row's editor is the one call site, and it holds a press with `stopPropagation` and never
+`preventDefault`. That is what keeps the field's own uses of a chord intact: select-all, copy,
+paste, undo, and the two caret jumps traced above all still work, and `Ctrl+↑` inside the editor now
+does what the field says it does instead of swapping the conversation out from under it.
+
+`KeyPress` is structural (`key`, `ctrlKey`, `metaKey`) rather than `KeyboardEvent`, so a React
+synthetic event and a native one are both callable and a test can state a press as an object
+literal.
+
+### What it measures now
+
+The same run, at 900x900, after the change. All four chords leave the editor open with
+`a brand new name` in it, the caret in it, the switcher `aria-expanded=true` and the title unmoved.
+Settle with Enter and the same press then does exactly what it says: `Ctrl+N` gives "New chat",
+`Ctrl+K` closes the list, `Ctrl+↑` loads "Summarize my unread email" and `Ctrl+↓` loads the renamed
+row. Inside the editor, `Ctrl+↑` and `Ctrl+↓` move the caret 6 to 0 and 6 to 16, which they could not
+do before. `?` still leaves `why?` in the field with no console, and Escape still cancels to the
+pencil.
+
+### The mutation proof
+
+Four, each run against the new tests plus the ones that were already there.
+
+Returning `pass` where `fieldKey` returns `hold` reddens two: the pure case, and the row case, which
+reports the window listener hearing all eight presses instead of none.
+
+Dropping `metaKey` from `chord` reddens five, and the extra three are the point: the overlay's own
+`Ctrl+N` and cycle-key cases go red too, which is the single definition proving it is shared rather
+than copied.
+
+Dropping the `pass` early return, so the editor keeps every key, reddens the assertion that a plain
+`?` still reaches the window. That is the guard against a fix that overshoots into the mechanism it
+was supposed to compose with.
+
+Giving the delete confirm the editor's handler reddens the confirm's own case, which pins the
+scoping decision rather than leaving it as a comment.
+
+### What this does not do
+
+**A list the reader CLOSES still drops the caret.** With no editor open and the caret on a resting
+row's pencil, `Ctrl+K` leaves `document.activeElement` on `<body>`, measured at 900x900. This
+addendum removes one door onto that (the same key from inside an editor) and leaves the rest. It is
+not a one-liner: the switcher closes four ways, two of which already answer through the arrival rule
+above, and a rule for the other two has to move the caret only when the caret is inside the list, or
+`Ctrl+K` from the composer would pull the reader out of a sentence. Filed in
+[refinements/body-overlay.md](../refinements/body-overlay.md), where the first move is the caret
+rule's own trace across the roll.
+
+**And a held chord says nothing about being held.** The press is stopped and the editor stays as it
+was, which for a reader who can see the screen is the whole explanation: an open editor with the
+caret in it and the name selected. For a reader on a screen reader it is thinner, focus sitting on
+an input labelled "New chat name" while the key produces no event, no focus move and no announced
+change, so a chord the editor held is indistinguishable from a chord the application ignored. Left
+silent here on purpose, because saying something means deciding what the overlay's live region may
+carry beyond "the conversation that arrived", which is the open question the silent-shrink entry
+already holds; both are filed in the same place and should be picked up together.

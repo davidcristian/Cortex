@@ -8,10 +8,10 @@ deferred-refinements section on 2026-07-15 with the entries kept verbatim; lande
 are the historical record of what each deferral became, and the index at
 [index.md](index.md) carries the recommended pickup order.
 
-**Open items:** 12. Multi-turn-within-one-stream + proto `Cancel`, streamed
-brain status (its producer landed 2026-07-18; only the push RPC remains), a modified chord still
-reaching the overlay from inside a row's editor, a list that shrinks saying nothing where a chat
-arriving speaks,
+**Open items:** 14. Multi-turn-within-one-stream + proto `Cancel`, streamed
+brain status (its producer landed 2026-07-18; only the push RPC remains), a list the reader closes
+dropping the caret on `<body>`, a held chord saying nothing about being held, a list that shrinks
+saying nothing where a chat arriving speaks, the liquid edge's backdrop blur,
 the two bounds the panel's section budget leaves behind it
 (a section's own frame being under no cap, and the room a closing section hands back in one frame),
 the two tradeoffs the reserved scrollbar rail accepts (its width
@@ -79,6 +79,17 @@ caret now lands in belonging to no chat, which was the whole backlog's only deci
 and closed the same day on the user's pick of a draft per chat: the unsent text is keyed by session
 id in the reducer and the composer renders the entry for the chat on screen, so the swap that moves
 the caret moves the sentence with it.
+**Corrected again 2026-08-07, and this one was a plain omission rather than a cancellation.** The
+modified chord landed as a rule about what a field would lose, taking the count to eleven, and
+opened two behind it, a list the reader closes dropping the caret and a held chord saying nothing
+about being held, taking it to thirteen. Reading the entries rather than the arithmetic then found a
+fourteenth that this line had never named at all: the liquid edge's backdrop blur, open here since
+2026-07-21, listed in the index's running record under this file the whole time and missing from
+every count this header has published since. Twelve
+was therefore wrong before today's work as well as after it, and unlike the 2026-08-06 error it hid
+behind nothing, since the index cell agreed with it. The lesson the count-by-cancellation entry
+teaches still applies and is what caught this: the only check is reading the entries the line claims
+to summarize.
 
 **Body / overlay in Slice 8 ([ADR-0011](../adr/ADR-0011-body-v1.md)):**
 - **Multi-turn-within-one-stream + an explicit proto `Cancel` event.** One turn per `Converse`
@@ -1421,8 +1432,88 @@ the caret moves the sentence with it.
   overlay grows. Neither behaviour is measured today. Cost is a few lines in `Overlay.tsx` if the
   answer is that an open editor swallows chords too, or nothing at all if the answer is that it does
   not. Nothing blocks it.
-- **A list that shrinks says nothing, where a chat arriving speaks.** Opened 2026-08-06 by the entry
-  above. The caret's landings all put focus on a control whose accessible name says what it is
+  - **LANDED 2026-08-07 as a rule about what a field would LOSE rather than about what a chord IS**
+    ([ADR-0035 addendum](../adr/ADR-0035-console-and-motion.md)). **The entry's account of the code
+    reproduced, and it was measured before anything was touched.** Chromium at 900x900 against the
+    demo bridge, standing in "Everything about model swaps" with the switcher open and "a brand new
+    name" typed into the third row's editor: `Ctrl+N` minted a chat and closed the switcher, `Ctrl+↑`
+    loaded "Summarize my unread email", `Ctrl+↓` loaded "Reminders and recurrence", and `Ctrl+K`
+    closed the list on its own. All four discarded the name, every row reading its old title when the
+    list was reopened, and nothing anywhere holds an undo for it. Escape and `?` behaved as the entry
+    said: Escape cancelled to the pencil with the panel still up, and "why?" left `why?` in the field
+    with no console over it.
+    **Three things the entry did not have.** `Ctrl+K` also left `document.activeElement` on
+    `<body>`, which is the landing the caret rule shipped the day before to abolish; the other three
+    hand the caret to the composer, which is the arrival rule doing its job. **Two of the four keys
+    are the field's own**: traced on a bare single-line `<input>` holding the same sixteen characters
+    with the caret at offset 6 and nothing listening, `Ctrl+↑` moved it to 0 and `Ctrl+↓` moved it to
+    16, those being start of text and end of text, while `Ctrl+N` and `Ctrl+K` moved neither the
+    value nor the selection. So half of this was a collision rather than a priority: the overlay was
+    taking keys the field already uses. And **the first attempt to measure `Ctrl+↑` reported a
+    no-op**, which is not the editor answering but `cycleTarget` having nowhere to go from a fresh
+    unsaved chat (`overlay/sessionState.ts`); it is recorded because a careless run reads that as
+    the entry failing to reproduce.
+    **The verdict: an open editor HOLDS a chord, and the rule is about the text and not about the
+    key.** A chord passes through a field whose text the overlay keeps and is held by a field whose
+    text it would throw away. The composer keeps every keystroke under the chat it was typed into,
+    so every global key still works from where a summon lands, which is where these keys are pressed
+    from; the rename editor keeps nothing, so it holds the chord until the reader has said what the
+    name is. That costs one press, Enter or Escape, both already bound and both leaving the caret on
+    the pencil with the chord one further press away. Firing the chord instead costs the whole name
+    with no undo, which is a different class of harm from a chord waiting, and the overlay had
+    already ruled a day earlier that a half-typed sentence is work rather than something a swap may
+    discard. Auto-committing the name first was considered and rejected: it makes a store write
+    nobody asked for, and an emptied editor commits the clear-the-custom-title signal, so `Ctrl+N`
+    after a Backspace would silently wipe a title. The delete confirm is deliberately left passing
+    chords, holding no text to lose (measured: `Ctrl+N` over an open question minted the chat, closed
+    the switcher and deleted nothing).
+    **What it cost**: `overlay/fieldKeys.ts`, a 76-line pure module holding `chord` and a `fieldKey`
+    that answers `cancel`, `hold` or `pass`, plus the row's editor handler rewritten over it. The
+    overlay's own `mod` now asks that same `chord`, so the two sides of the seam cannot drift about
+    which press is one. **The entry's stated cost was wrong**: a guard in `Overlay.tsx` would have to
+    name the editor by selector, which is the shape the `?` guard's own doc rejects, and would have
+    to spare the composer by name, which is the case that must keep working.
+    **After, measured the same way.** All four chords leave the editor open with `a brand new name`
+    in it, the caret in it, the switcher expanded and the title unmoved. Settle with Enter and the
+    same press then does what it says: `Ctrl+N` gives "New chat", `Ctrl+K` closes the list, `Ctrl+↑`
+    loads "Summarize my unread email" and `Ctrl+↓` loads the renamed row. Inside the editor `Ctrl+↑`
+    and `Ctrl+↓` now move the caret 6 to 0 and 6 to 16, which they could not do at all before, the
+    hold being `stopPropagation` and never `preventDefault`. `?` is still a character there and
+    Escape still cancels to the pencil. One thing left open behind it, below.
+- **A list the reader CLOSES drops the caret, where a list that reshapes under them keeps it.**
+  Opened 2026-08-07 by the chord entry above, which shut one door onto this and left the others
+  standing.
+  The caret rule answers a row changing shape, a row leaving, and a list running out of rows; a list
+  the reader closes is none of the three, and the rows are unmounted with it. Measured at 900x900
+  with the caret on a resting row's pencil and no editor open, `Ctrl+K` left `document.activeElement`
+  on `<body>`, outside the panel and one Tab from the top of the document, which is the same landing
+  the caret rule was built to abolish and the same one `Ctrl+K` produced from inside an editor until
+  today. The answer is not one line, which is why it is here: the switcher closes four ways and two
+  of them already answer (selecting a row swaps the chat and the arrival rule takes the caret to the
+  composer, deleting the open chat does the same), so what is wanted is a rule for the other two,
+  the key and the header's chats button, and it has to move the caret only when the caret is inside
+  the list, or `Ctrl+K` pressed from the composer would pull the reader out of a sentence. The
+  anchor the list already carries is the landing (`ChatView` holds it for exactly this reason), and
+  the reminder stack has the same question with a different answer, its section leaving with its
+  rows. Wants the same trace the caret rule took, `document.activeElement` sampled across the roll,
+  before a shape is picked. Nothing blocks it.
+- **A held chord says nothing about being held.** Opened 2026-08-07 by the chord entry above, whose
+  answer is deliberately silent: the press is stopped, the editor stays exactly as it was, and the
+  overlay makes no sound about why the key a reader just pressed did nothing. For a sighted reader
+  the state on screen is the whole of the explanation, an open editor with the caret in it and the
+  name selected, which is why it shipped this way and why the alternative was not bundled into a
+  slice that was already deciding a rule. For a reader on a screen reader it is thinner: focus is
+  on an input labelled "New chat name", `Ctrl+N` produces no event, no focus move and no announced
+  change, so nothing distinguishes a chord the editor held from a chord the application ignored.
+  The shapes are the overlay's existing live region saying the editor is waiting, a `role="status"`
+  line the editor owns, or nothing at all on the argument that a key doing nothing needs no
+  narration. This wants the same measurement in a real reader that the silent-shrink entry below
+  wants, and the two should probably be picked up together, since both are about what the region's
+  contract is allowed to carry beyond "the conversation that arrived". Nothing blocks it.
+- **A list that shrinks says nothing, where a chat arriving speaks.** Opened 2026-08-06 by the caret
+  rule further above, which is named rather than pointed at now that its chord entry and that
+  entry's own two successors stand between them. The caret's landings all put focus on a control
+  whose accessible name says what it is
   ("Delete Reminders and recurrence", "Cancel delete", the pencil carrying the new title), which is
   why no live region was added with the rule; but the change to the LIST is silent. A reader who
   deletes a chat hears the name of the control they landed on and never hears that a row left, that
