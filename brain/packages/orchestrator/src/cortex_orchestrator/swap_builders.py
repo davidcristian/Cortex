@@ -25,6 +25,7 @@ from cortex_core import (
     ResidencyPlan,
     ScriptedModelHost,
     Sleeper,
+    SubagentPlacer,
     SwappingModelManager,
 )
 from cortex_model_manager import HttpModelHost
@@ -50,15 +51,20 @@ class SwapRuntime:
     close: Callable[[], Awaitable[None]]
 
 
-def build_swap_runtime(
+def build_swap_runtime(  # noqa: PLR0913 -- one more injected collaborator than the DI ceiling
     swap: SwapConfig,
     runtime: BrainRuntimeConfig,
     inference: InferenceConfig,
     clock: Clock,
     sleeper: Sleeper,
     handoff_store_factory: Callable[[str], RedisHandoffStore] = RedisHandoffStore.from_url,
+    placer: SubagentPlacer | None = None,
 ) -> SwapRuntime | None:
     """Everything a handoff needs at process scope, or None when escalation is off.
+
+    ``placer`` is the same object the subagent pool places against, handed here so the residency
+    scope can tell it which model holds the card while a handoff runs (ADR-0030 handoff-window
+    addendum). One instance in both roles or the correction is written to a ledger nobody reads.
 
     The endpoint map is composition-root config by design (ADR-0030 decision 5): the core is
     handed logical id to URL and never discovers either. With the echo inference backend the
@@ -76,7 +82,7 @@ def build_swap_runtime(
     handoffs = handoff_store_factory(runtime.redis_url)
     return SwapRuntime(
         host=host,
-        manager=SwappingModelManager(host, endpoints, plan, clock, sleeper),
+        manager=SwappingModelManager(host, endpoints, plan, clock, sleeper, placer),
         handoffs=handoffs,
         plan=plan,
         close=_release_both(handoffs.aclose, close_host),

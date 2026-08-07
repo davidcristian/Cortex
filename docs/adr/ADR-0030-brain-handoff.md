@@ -1738,3 +1738,68 @@ behind a unit that would need converting at the seam where the two numbers meet.
   daemon's existing route on the same client. `ResidencyReporter` was split from
   `ResidencyController` to keep a read-only caller from reaching a write; there is no such
   asymmetry here.
+
+## Addendum (2026-08-07): the handoff window, as the subagent placer accounts for it
+
+The co-residency addendum above opened a refinement it could not take at the time: `VramBudgetPlacer`
+fit-tests every GPU-placed spawn against `soft_cap - cortex_reservation - placed`, and during a
+handoff both named terms are wrong. The cortex whose reservation is credited has been evicted, and
+the deep model holding 19117 to 19125 MiB of the card is charged nowhere, because it is not placed
+through the placer. Decision 8 suspends the soft cap for the window in prose and nothing in code
+read it. That was moot while every handoff drained the pool first, since no spawn could be placed
+inside the window at all; `CORTEX_SWAP_CORESIDENT` is precisely the deployment that skips the drain
+so delegation keeps flowing, which is what made the gap reachable and what makes it worth closing
+now rather than on a trigger.
+
+**The placer is told, and telling is a verb.** `SubagentPlacer` gains `charge_handoff(resident_gb=)`
+and `charge_standing()`, moved with the protocol into `ports_placement.py` for the line cap and
+re-exported from `ports.py`, so no call site moved. `VramBudgetPlacer` keeps the constructor's
+cortex figure and fit-tests against a separate resident term the two verbs set, which is what lets
+the standing figure survive the window and come back exactly. The ledger of placed spawns is
+untouched by either edge: a spawn's VRAM did not move because the card changed hands, so its
+reservation stands and its release credits the same amount.
+
+**The writer is the residency scope, at the two edges of the swap** (`residency_charge.py`,
+called from `SwappingModelManager._swap_in` and from the successful branch of `_restore`). Nothing
+else knows when the card changes hands, and the conductor's drain edges are the wrong ones: a
+co-resident handoff has no drain, and the scope is the object whose `finally` guarantees the
+reversal on every path.
+
+**What is charged is the declared figure, not a fresh reading**, and the reason is the spawn path.
+`place` is synchronous and lock-free by design, so a batch of concurrent spawns races the ledger
+correctly with no lock; reading `device_memory()` there would put an HTTP call to the sidecar inside
+every fit-test and make the whole path async, to buy accuracy the swap has already bought. The fit
+check in the addendum above compares that same `CORTEX_SWAP_BRAIN_VRAM_MIB` against what the card
+reports free at the one instant a reading is evidence, and refuses the handoff when it does not
+clear. So by the time the window matters, the declared number has been checked against the real
+card. `ResidencyPlan.brain_vram_gb` is the one conversion, MiB to the gibibyte the placer's budget
+knobs are written in.
+
+**The two compose by ordering rather than by agreement.** The charge is written before `swap_in`
+runs, so it is in force while the check reads the card and while the weights load. That direction
+closes a gap the check cannot see on its own: a spawn admitted to the GPU between the reading and
+the allocation would spend exactly the room the check just measured. The reversal waits for the far
+edge and fires only once the cortex is genuinely serving, so a restore that gave up loudly keeps the
+handoff's charge and keeps spawning on the CPU rather than admitting GPU work onto a card nobody can
+describe.
+
+**Off unless the deployment declared a figure.** With `brain_vram_mib` at its shipped zero the window
+is never entered. Charging nothing would be worse than the status quo, since it would credit the
+evicted cortex's 11.3 GB back while the deep model holds the card, so that deployment keeps exactly
+the arithmetic it always had.
+
+**Measured live** on the 24 GB card through the real sidecar and a real residency change
+(`test_a_real_swap_charges_the_placer_for_the_model_that_holds_the_card`): 15061 MiB free of 24463
+with the cortex resident, 19553 MiB free inside the window, a charge of 18.68 GiB leaving 4.32 GiB
+of headroom against the shipped 5.5 GiB ask, so one spawn lands on the GPU outside the window, on
+the CPU inside it, and on the GPU again after the restore. The test declares the deep tier's measured
+cost and starts the cheap peer tier in its place, deliberately: a 19 GB load adds minutes and no
+evidence, and the check passes either way once the cortex is evicted, there being that much room.
+
+**What this does not do**, stated as narrowly as the fit check states its own limit. It charges a
+number the deployment declared, so an under-declared figure is admitted against room that is not
+there, which is the spill entry the fit check opened and the same instrument lesson. And a spawn onto
+an already-resident tier allocates nothing (23639 MiB generating against 23642 idle), so a refusal
+inside the window costs decode speed rather than correctness; the ledger charging per spawn for a
+standing tier is the older modelling gap, and closing it is the placement-aware charge that ADR-0012
+declined on a second GPU-capable executor.

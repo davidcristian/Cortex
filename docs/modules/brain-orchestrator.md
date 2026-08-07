@@ -443,8 +443,9 @@ The service:
   `spawn_subagents` tool over a `SubagentRoster` built from `config.named_roster` (ADR-0018):
   per entry its own GPU + CPU `LlamaCppBackend` pair (one shared httpx client) and
   `PlacementRequest`, all entries sharing ONE `ResourceBudgetScheduler` and the ONE
-  `VramBudgetPlacer` built at the call site from the runtime VRAM knobs (one budget, one
-  ledger, per ADR-0012), a Redis `TaskStore`, GPU-first placement with CPU overflow,
+  `VramBudgetPlacer` built once at the root from the runtime VRAM knobs and handed to both this
+  builder and `build_swap_runtime` (one budget, one ledger, per ADR-0012, and one object, since
+  the residency scope tells that same ledger which model holds the card during a handoff), a Redis `TaskStore`, GPU-first placement with CPU overflow,
   ADR-0010/0012; the runner enforces ADR-0017 via `roster.resolve`; `tools` is the subagent
   dispatcher, pre-assembled at the root by
   `build_subagent_tools(tool_registry, clock, policy=CORTEX_TOOLS_*)`: the shared
@@ -462,7 +463,9 @@ The service:
   and stopped first in the `finally` via `stop_ticker`, with a graceful signal, then a
   `TICKER_STOP_GRACE_S` forced cancel the store's lease covers).
   The sixth opt-in adapter is the **brain handoff** (`build_swap_runtime(swap, runtime,
-  inference, clock, sleeper, handoff_store_factory)` in `swap_builders.py`, ADR-0030), which
+  inference, clock, sleeper, placer, handoff_store_factory)` in `swap_builders.py`, ADR-0030,
+  `placer` being the pool's own so the swap's two edges can recharge it, ADR-0030 handoff-window
+  addendum), which
   returns `None` unless `CORTEX_ESCALATION` is set and otherwise builds the process-wide half:
   the model host the backend name picks (the `ScriptedModelHost`, or the real `HttpModelHost` over
   a bounded control client from `build_control_client`), the `SwappingModelManager` that is BOTH
