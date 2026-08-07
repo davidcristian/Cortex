@@ -4192,3 +4192,103 @@ is that the overlay no longer claims otherwise. Whether the key should refuse in
 the delivery is a Windows sitting with NVDA, filed at
 [host/overlay-screen-reader.md](../host/overlay-screen-reader.md) with the sentences the same sitting
 already owes.
+
+## Addendum, 2026-08-07: a held chord stays silent, and the reason is what a hold cannot know
+
+The rename editor holds a chord rather than letting it fire, because the in-progress name lives in
+the list's own state and dies with the editor. The hold is silent: the press is stopped, the editor
+stays exactly as it was, and nothing is announced. The refinement filed behind it asked whether that
+silence should be broken, naming the overlay's live region, a `role="status"` line the editor owns,
+a description the input carries while a chord is pending, and nothing at all.
+
+It is **nothing at all**, and the deciding fact is not the one the entry was arguing about.
+
+### What was measured
+
+Headless Chromium 1228 at 900x900 against the demo bridge, standing in the switcher's rename editor
+on "Everything about model swaps" with `a brand new name` typed into it. For each press: the
+devtools accessibility node of whatever holds the caret, the input's value and selection before and
+after, a `MutationObserver` on every live-region-shaped node, and a `window` keydown listener
+recording whether the press got past the editor. The four bound chords were traced with the caret
+where typing leaves it, at the end of the name; the nine-press table below parks it at offset 6, so
+that a press which moves the caret has somewhere to move it in either direction.
+
+**Nothing a held chord touches is destroyed.** The focused node reads `textbox`, named `New chat
+name`, valued `a brand new name`, with no description and no `aria-describedby`, identically before
+and after each of `Ctrl+N`, `Ctrl+K`, `Ctrl+↑` and `Ctrl+↓`; the four raise zero mutations in any
+live region, and the editor is still open. The instrument is not the reason it reads clean: the same
+`MutationObserver` catches `Chat deleted. 2 chats left.` on a delete, and the same `window` listener
+records `Control`, `n` for `Ctrl+N` pressed in the composer and over an open delete confirm, both of
+which pass chords by design.
+
+**And the hold is not four keys. It is every chord there is**, which is the fact that decides this.
+`fieldKey` asks whether a press is modified and nothing else, deliberately, so that "what counts as
+a chord" has one definition on both sides of the window listener. Nine presses measured through that
+one branch:
+
+| Press | What the overlay binds | What the field did anyway |
+| --- | --- | --- |
+| `Ctrl+N` | new chat | nothing; value and caret unmoved at offset 6 |
+| `Ctrl+K` | the switcher | nothing; value and caret unmoved at offset 6 |
+| `Ctrl+↑` | cycle to the previous chat | caret 6 to 0, start of text |
+| `Ctrl+↓` | cycle to the next chat | caret 6 to 16, end of text |
+| `Ctrl+A` | nothing | selected all sixteen characters |
+| `Ctrl+←` | nothing | caret 6 to 2, a word left |
+| `Ctrl+→` | nothing | caret 6 to 7, a word right |
+| `Ctrl+Backspace` | nothing | deleted a word: `a brand new name` to `a d new name` |
+| `Ctrl+Z` | nothing | undid the whole edit, back to `Everything about model swaps` |
+
+Every one of the nine was stopped from reaching the window, and **seven of the nine did something
+anyway**, two of them changing the text. Only `Ctrl+N` and `Ctrl+K` are presses that truly do
+nothing.
+
+**Nothing filters a repeat.** Thirty consecutive `keydown` events dispatched at the editor, the
+first fresh and the other twenty nine carrying `repeat: true`, were all seen by its handler; CDP
+does not synthesise platform autorepeat, so the repeat itself is not measured here, only that the
+path has no guard in it.
+
+### The decision
+
+**The live region is refused because the sentence would be false at most of its doors.** A sentence
+raised at the `hold` branch fires on all nine presses in the table, so a reader who pressed `Ctrl+Z`
+and watched their whole name come back would be told the editor is waiting, and a reader who pressed
+`Ctrl+A` would be told it about a press that selected their text. Making the sentence true means
+teaching `fieldKeys.ts` which chords the overlay binds, which is exactly the coupling the hold rule
+removed when it decided about the text rather than about the key, and which goes stale on the day a
+fifth chord is bound.
+
+**A `role="status"` line the editor owns is refused for that reason and one more.** The editor is
+unmounted by Enter and by Escape, so a region inside it leaves in the commit after the sentence it
+would carry, which is the same defect the shrinking-list close already measured for a region inside
+the reminder stack. It would also be a second region competing with the announcer for the reader's
+speech queue, which no accessibility tree can observe.
+
+**The description on the input is refused because an accurate one is the key table in the markup.**
+"Shortcuts wait until the name is saved" is read on a field where seven of nine chords do not wait,
+so it misdescribes the field it is attached to; the accurate version enumerates `Ctrl+N`, `Ctrl+K`
+and the cycle keys, which is the same coupling one layer further out, spoken on every rename to
+serve a press most readers will never make.
+
+**And the silence passes the test the region's own contract sets.** The widening that let the region
+carry a shrinking list argued the case in terms of what a gesture destroys: a deleted row is out of
+the accessibility tree and cannot be re-read, so the fact is destroyed rather than merely unspoken.
+A held chord destroys nothing, measured to the attribute: the name, the value and the selection are
+identical across the press, so everything a reader might want is still there to be read. A key that
+did nothing, in a field that is exactly as it was, is not news.
+
+The reader is not left without an answer either. The editor announces itself when it opens, the
+tree reading `textbox` named `New chat name` valued `Everything about model swaps` with all
+twenty eight characters selected, and again when it closes: measured, Escape lands the caret on
+`button[Rename Everything about model swaps]` and Enter on `button[Rename a brand new name]`, so
+the way out reads back the name that was settled.
+
+### What this does not do
+
+**It does not claim the reader is well served by silence in general**, only that this silence is
+right. If the Windows sitting finds that a reader cannot tell a held chord from a dead application,
+the finding goes to the entry rather than to this decision, and the shape it would want is a rule
+about the overlay's whole key table rather than about one field.
+
+**And it leaves the repeat question unanswered rather than answered**, since a rule that raises no
+sentence needs no latch. Anything that later speaks per keydown in a field inherits the measurement
+above and has to bring its own guard.
