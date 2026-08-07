@@ -224,7 +224,7 @@ export function useWhisperClock(refs: WhisperRefs, facts: WhisperFacts): Whisper
       const tH = Math.max(m.breathH, fy + m.line + m.padY);
       // The bubble owns its height for the length of the stream, and says so in the panel's own
       // roll contract (`overlay/morph.ts`): placements defer while the attribute stands, so the
-      // panel's auto height follows the dev machine frame by frame instead of replaying it from a
+      // panel's auto height follows the box frame by frame instead of replaying it from a
       // render-old measurement, which snapped the top edge backwards on every token of a reply
       // that outgrew the chat floor (traced in headless Chromium at 660x1000: eight reversals of
       // up to 6.6px in one reply; zero once the bubble announced its roll). The value is the

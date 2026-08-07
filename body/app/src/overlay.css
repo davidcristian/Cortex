@@ -1736,7 +1736,7 @@
    sets `apart` when they are not); past it the pane not on screen leaves the flow, the cell is left
    to the pane that is, and the panel morphs between the two heights like any other size change.
 
-   `relative` is what makes the dev machine the containing block for that departed pane. */
+   `relative` is what makes the box the containing block for that departed pane. */
 .tabstack {
   display: grid;
   position: relative;
@@ -1948,7 +1948,7 @@
 /* The preview always dreams, and always in Lucid (see Preview.tsx for why that one), so it hands
    its whole face to the edge layers exactly as `.panel.edge-live` does: no border, no fill and no
    box-shadow of its own, since the wrapper's drop-shadow now falls from the liquid silhouette,
-   and `overflow: visible` because the edge bleeds past the dev machine on every side. The panel's clip
+   and `overflow: visible` because the edge bleeds past the box on every side. The panel's clip
    has no counterpart here: the card is four clamped lines inside its own padding, so there is
    nothing that could reach the edge to be clipped by it. */
 .preview {
