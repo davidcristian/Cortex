@@ -1119,6 +1119,8 @@ Use-case:
   the caller per ADR-0019), and returns it; `recall(query, *, k, session_id)` embeds `query`, fetches
   the store's `policy.candidate_k(k)` `ScoredMemory` within the policy's `read_scopes(session_id)`,
   and awaits `policy.select(...)`, returning that `Ranking`'s memories reranked and pruned to `k`.
+  An empty ranking is returned as no hits and never re-fetched or filled from the pool, so a policy
+  that declines (the `DEMUR` basis) leaves the turn without a memory block at all.
   An optional `audit: RecallAuditSink` receives one `RecallAudit` per recall (the query, the pool
   size, `k`, the ranking, the time) after selecting, so a recall is trailed whichever policy ran
   (ADR-0038); `None` (the default) is the founding silent path. Stateless over the store: every memory
@@ -1159,7 +1161,11 @@ Use-case:
   the recency blend rather than raw similarity, combining both axes; `JudgeRecallPolicy(backend,
   model, *, pool_factor, fallback=RAW_RECALL_POLICY)` asks the resident model to order the pool under
   a JSON-schema-constrained request and falls back on any failure to reach or believe it, the emitted
-  basis then being the fallback's. Its request carries `rank_bounds(k)`
+  basis then being the fallback's. An `order` that arrives **empty** is not a failure but the model
+  declining the whole pool, which returns an empty ranking on `DEMUR` without consulting the fallback
+  (ADR-0038 abstention addendum); `parse_order` therefore has three outcomes, `None` for a reply
+  nothing can be read out of (including one that named notes of which none exists), `()` for a
+  refusal, and the picks otherwise. Its request carries `rank_bounds(k)`
   (`max_tokens=24 + 8k`, `thinking=False`, ADR-0038 bounded-side-calls addendum), computed from `k`
   rather than fixed because `ORDER_ENVELOPE` admits an array of numbers and nothing else, so the
   reply's length is known before it is asked for; a truncated constrained reply is not JSON, so
@@ -1170,9 +1176,12 @@ Use-case:
   `RankedMemory` pairs a kept `ScoredMemory` with the `key: float` its policy ordered by; `Ranking`
   carries those hits plus the `basis` naming the quantity, and `.memories` unwraps them.
   `RankBasis` is `ECHO` (raw cosine), `EMBER` (recency blend), `SPREAD` (MMR over cosine), `SWEEP`
-  (MMR over the blend) and `VERDICT` (the model's placing); its `comparable` property is `False` for
-  the two MMR bases, whose key was measured against the kept set at pick time and so means nothing
-  beside another hit's.
+  (MMR over the blend), `VERDICT` (the model's placing) and `DEMUR` (the model read the pool and
+  answered that none of it helps, ADR-0038 abstention addendum); its `comparable` property is `False`
+  for the two MMR bases, whose key was measured against the kept set at pick time and so means
+  nothing beside another hit's, and vacuously `True` for `DEMUR`, which has no key at all. A `DEMUR`
+  ranking carrying hits is refused at construction, since a policy cannot both decline and return
+  something; an empty ranking on any other basis is legal and means the pool held nothing to rank.
 - `RecallAudit` (`ranking.py`) is what a `RecallAuditSink` records: `session_id`, `query`,
   `pool_size`, `k`, `ranking`, `at`. It carries conversation content, so a sink decides what it keeps
   of it; the shipped `LoggingRecallSink` keeps none.

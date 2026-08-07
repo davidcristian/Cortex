@@ -18,7 +18,7 @@ from cortex_core.memory import ScoredMemory
 
 
 class RankBasis(Enum):
-    """How a memory came to mind: the quantity a policy ordered by (ADR-0038 decision 4).
+    """How a memory came to mind, or why none did (ADR-0038 decision 4, abstention addendum).
 
     One word per policy, and the family's split is the finding it exists to carry. ``ECHO`` is the
     store's raw cosine, likeness and nothing else. ``EMBER`` is that likeness still warm, the
@@ -26,11 +26,19 @@ class RankBasis(Enum):
     objective over raw similarity, and ``SWEEP`` is Ember spread out, that same objective over the
     blend. ``VERDICT`` is the model's own placing of the candidates.
 
+    ``DEMUR`` is the one member that names no quantity, because there are no hits to carry one: the
+    model read the pool and answered that none of the candidates helps. It is judicial like its
+    sibling ``VERDICT`` on purpose, a demurrer being the finding that the material offered makes no
+    case even if every word of it is granted, and it is a decision by something that can be wrong
+    rather than an absence of one. That is exactly what separates it from a heuristic basis over an
+    empty ranking, which says only that there was nothing to rank.
+
     ``comparable`` is the load-bearing part: an MMR objective is computed against the kept set at
     pick time, so two ``SPREAD`` or ``SWEEP`` keys in one result were measured against different
     sets and mean nothing next to each other, while ``ECHO``, ``EMBER`` and ``VERDICT`` keys are
     per-hit quantities that do compare. A consumer that thresholds or plots a key must read this
-    first.
+    first. ``DEMUR`` sits with the comparable bases vacuously, having no key to compare with
+    anything: nothing on it was measured against a kept set, which is what the property is about.
     """
 
     ECHO = "echo"
@@ -38,6 +46,7 @@ class RankBasis(Enum):
     SPREAD = "spread"
     SWEEP = "sweep"
     VERDICT = "verdict"
+    DEMUR = "demur"
 
     @property
     def comparable(self) -> bool:
@@ -68,11 +77,22 @@ class Ranking:
 
     The basis rides the ranking rather than each hit because one ``select`` call ranks by exactly
     one quantity. An empty ranking still carries a basis: which policy declined to return anything
-    is worth knowing.
+    is worth knowing, and on ``DEMUR`` the emptiness is the answer rather than a shortfall.
+
+    That last reading is enforced rather than described: a ``DEMUR`` ranking carrying hits would
+    say a policy both declined and returned something, which no consumer could act on, so it is
+    refused at construction. The converse stays legal, since a heuristic policy handed an empty
+    pool returns an empty ranking on its own basis and means only that there was nothing to rank.
     """
 
     hits: tuple[RankedMemory, ...]
     basis: RankBasis
+
+    def __post_init__(self) -> None:
+        """Refuse the one combination that has no meaning: a declined rank that kept hits."""
+        if self.basis is RankBasis.DEMUR and self.hits:
+            msg = "a DEMUR ranking declines, so it carries no hits"
+            raise ValueError(msg)
 
     @property
     def memories(self) -> tuple[ScoredMemory, ...]:

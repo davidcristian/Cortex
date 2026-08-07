@@ -1,5 +1,6 @@
 """Behavior tests for TurnEngine: event contract, persistence, cancellation, failure."""
 
+import json
 from collections.abc import AsyncIterator, Mapping, Sequence
 from datetime import UTC, datetime, timedelta
 from uuid import UUID
@@ -29,6 +30,7 @@ from cortex_core import (
     InMemorySessionStore,
     InMemoryToolRegistry,
     JsonSchema,
+    JudgeRecallPolicy,
     MemoryRecaller,
     MemoryRecord,
     Message,
@@ -377,6 +379,44 @@ async def test_empty_memory_adds_no_context_and_records_the_exchange() -> None:
     # The completed exchange was recorded to memory at turn end.
     (recorded,) = await recaller.recall("hello", k=1, session_id="s")
     assert recorded.record.text == "User: hello\nAssistant: ok"
+
+
+async def test_a_recall_policy_that_declines_leaves_the_turn_without_a_memory_block() -> None:
+    """What a refusal means where the turn is assembled (ADR-0038 abstention addendum).
+
+    The store holds a memory the query matches, so recall has something to hand over and the
+    policy is the only thing saying it should not: the real judge, told by its model that no note
+    helps. The prompt must then be what a memory-less turn sends, with no claim in it about what
+    memory does or does not hold.
+    """
+    mem_store = InMemoryMemoryStore()
+    embedder = HashEmbedder()
+    await mem_store.add(
+        MemoryRecord(
+            id="mem-1",
+            text="I love pizza",
+            embedding=tuple(await embedder.embed("pizza")),
+            at=_START,
+        )
+    )
+    judge = JudgeRecallPolicy(
+        RecordingBackend((json.dumps({"order": []}),)), DEFAULT_CORTEX_MODEL, pool_factor=2
+    )
+    recaller = MemoryRecaller(mem_store, embedder, SystemClock(), policy=judge)
+    backend = RecordingBackend(("ok",))
+    engine = TurnEngine(
+        InMemorySessionStore(),
+        backend,
+        TickingClock(),
+        capabilities=TurnCapabilities(memory=recaller),
+        turn_id_factory=lambda: "t-1",
+    )
+
+    await _collect(engine.handle_turn("s", "pizza"))
+
+    _, messages = backend.calls[0]
+    assert [m.text for m in messages] == [PLAIN_SECURITY_PREAMBLE, "pizza"]
+    assert not any("I love pizza" in m.text for m in messages)  # the near miss stays out
 
 
 async def test_session_scope_keeps_one_conversations_memory_out_of_another() -> None:

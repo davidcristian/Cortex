@@ -10,6 +10,7 @@ from cortex_core import (
     MemoryRecord,
     MmrRecallPolicy,
     RankBasis,
+    RankedMemory,
     Ranking,
     RawRecallPolicy,
     RecallPolicy,
@@ -301,9 +302,17 @@ async def test_raw_policy_keys_each_hit_by_the_stores_own_cosine() -> None:
 def test_only_the_order_dependent_bases_refuse_comparison() -> None:
     """The family's structure IS the finding: an MMR key was measured against the kept set."""
     comparable = {basis for basis in RankBasis if basis.comparable}
-    assert comparable == {RankBasis.ECHO, RankBasis.EMBER, RankBasis.VERDICT}
+    assert comparable == {RankBasis.ECHO, RankBasis.EMBER, RankBasis.VERDICT, RankBasis.DEMUR}
     assert not RankBasis.SPREAD.comparable
     assert not RankBasis.SWEEP.comparable
+
+
+def test_a_declined_ranking_may_not_carry_hits() -> None:
+    """DEMUR says a policy kept nothing, so a DEMUR ranking holding a hit is a contradiction."""
+    kept = RankedMemory(hit=_hit("a", 0.9, (1.0, 0.0)), key=0.9)
+    with pytest.raises(ValueError, match="DEMUR ranking declines"):
+        Ranking(hits=(kept,), basis=RankBasis.DEMUR)
+    assert Ranking(hits=(), basis=RankBasis.DEMUR).memories == ()  # the empty one is the answer
 
 
 async def test_an_mmr_key_falls_as_the_kept_set_grows() -> None:

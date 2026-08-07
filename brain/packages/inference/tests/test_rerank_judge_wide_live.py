@@ -70,6 +70,7 @@ class _Tally:
         self.short = 0
         self.short_right = 0
         self.fell_back = 0
+        self.declined = 0
         self.seconds = 0.0
         self.asked = 0
 
@@ -98,11 +99,12 @@ class _Tally:
             return (
                 f"MRR {self.mrr:.3f}  first {self.first}/{self.answerable}"
                 f"  short {self.short}/{self.asked} ({self.short_right} right)"
-                f"  fallback {self.fell_back}/{self.asked}"
+                f"  declined {self.declined}/{self.asked}  fallback {self.fell_back}/{self.asked}"
             )
         return (
             f"returned nothing {self.absent_empty}/{self.absent}"
-            f"  short {self.short}/{self.asked}  fallback {self.fell_back}/{self.asked}"
+            f"  short {self.short}/{self.asked}  declined {self.declined}/{self.asked}"
+            f"  fallback {self.fell_back}/{self.asked}"
         )
 
 
@@ -154,7 +156,11 @@ async def test_the_judge_is_scored_per_category_on_a_corpus_not_built_for_it() -
             verdict = await judge.select(candidates, query=question, now=_AT, k=_K)
             elapsed = time.monotonic() - started
             judge_ids = [r.hit.record.id for r in verdict.hits]
-            fell_back = verdict.basis is not RankBasis.VERDICT
+            # Three outcomes now, not two: the judge ranked (VERDICT), the judge declined the whole
+            # pool (DEMUR, which is an answer and the thing this policy can do that the cosine
+            # cannot), or it could not be reached or believed and something else ranked.
+            declined = verdict.basis is RankBasis.DEMUR
+            fell_back = verdict.basis not in (RankBasis.VERDICT, RankBasis.DEMUR)
 
             arms["cosine (ships)"][category].record(cosine_ids, gold)
             arms["reversed (control)"][category].record(control_ids, gold)
@@ -162,14 +168,16 @@ async def test_the_judge_is_scored_per_category_on_a_corpus_not_built_for_it() -
             judged.record(judge_ids, gold)
             judged.seconds += elapsed
             judged.fell_back += int(fell_back)
+            judged.declined += int(declined)
             if gold is not None and gold in [hit.record.id for hit in candidates]:
                 # Recorded on one arm only: the pool is the cosine's, and every arm ranks it.
                 arms["cosine (ships)"][category].in_pool += 1
 
             if fell_back:
-                # A fallback is either the model declining to pick (a correct abstention that the
-                # policy cannot express) or a reply it could not parse. Only the raw text tells
-                # them apart, and the difference is the whole reading of the ABSENT column.
+                # A fallback used to be either the model declining to pick or a reply the policy
+                # could not parse, and only the raw text told them apart. The refusal now has its
+                # own basis, so a fallback here is the second kind and the probe says which reply
+                # produced it: that reading is the point of re-sampling rather than inferring.
                 probe = await drain_text(
                     backend,
                     _MODEL,
@@ -180,10 +188,11 @@ async def test_the_judge_is_scored_per_category_on_a_corpus_not_built_for_it() -
                 parsed = parse_order(probe, pool_size=len(candidates), k=_K)
                 diagnosed.append(f"    {question!r} -> {probe!r} parses to {parsed}")
 
+            outcome = " (fell back)" if fell_back else " (declined)" if declined else ""
             print(  # noqa: T201 -- the measurement IS this test's output
                 f"\n[{category.name}] {question}\n  gold {gold}"
                 f"\n  cosine   {cosine_ids}\n  judge    {judge_ids}"
-                f"{' (fell back)' if fell_back else ''}\n  control  {control_ids}"
+                f"{outcome}\n  control  {control_ids}"
             )
 
         _report(arms, diagnosed)
@@ -224,9 +233,10 @@ def _report(arms: dict[str, dict[Category, _Tally]], diagnosed: list[str]) -> No
     lines.append(
         f"judge cost {seconds:.1f} s over {len(QUESTIONS)} recalls"
         f" ({seconds / len(QUESTIONS):.2f} s each),"
+        f" declined {sum(t.declined for t in judge.values())}/{len(QUESTIONS)},"
         f" fell back {sum(t.fell_back for t in judge.values())}/{len(QUESTIONS)}"
     )
     if diagnosed:
-        lines.append("fallback replies, re-sampled to tell abstention from an unparsable reply:")
+        lines.append("fallback replies, re-sampled to read what the policy could not use:")
         lines.extend(diagnosed)
     print("\n".join(lines))  # noqa: T201 -- the measurement IS this test's output

@@ -6,6 +6,12 @@ Each line carries the pool the store offered, the basis the policy ranked on, wh
 basis may be compared with each other, and one entry per kept hit: its memory id, the store's raw
 cosine, the policy's own rank key, and the untrusted-provenance bit.
 
+A line with no hits is read through its basis, which is why no separate flag is logged for one.
+`"basis": "demur"` is the model having read a pool and answered that none of it helps (ADR-0038
+abstention addendum); any other basis with an empty `hits` is a pool that held nothing to rank; and
+a fallback after an unreachable or unbelievable model shows the fallback's own basis with the hits
+it chose. Those are three different events and the trail was collapsing the first onto the last.
+
 What it deliberately does not carry is text. The query and the recalled memories are conversation
 content, and container logs are the wrong home for them; the port hands the whole audit over so a
 different sink may decide otherwise, and this one logs the query's *length* exactly as the tool

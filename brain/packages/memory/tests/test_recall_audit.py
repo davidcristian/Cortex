@@ -18,15 +18,17 @@ _AT = datetime(2026, 8, 6, 12, 0, tzinfo=UTC)
 _PRIVATE = "the family recipe uses smoked paprika"
 
 
-def _audit(*, basis: RankBasis = RankBasis.EMBER) -> RecallAudit:
+def _audit(
+    *, basis: RankBasis = RankBasis.EMBER, ranking: Ranking | None = None, pool_size: int = 20
+) -> RecallAudit:
     record = MemoryRecord(id="m1", text=_PRIVATE, embedding=(1.0, 0.0), at=_AT, tainted=True)
     ranked = RankedMemory(hit=ScoredMemory(record=record, score=0.87), key=0.71)
     return RecallAudit(
         session_id="s1",
         query="what goes in the recipe?",
-        pool_size=20,
+        pool_size=pool_size,
         k=5,
-        ranking=Ranking(hits=(ranked,), basis=basis),
+        ranking=ranking if ranking is not None else Ranking(hits=(ranked,), basis=basis),
         at=_AT,
     )
 
@@ -57,6 +59,34 @@ async def test_the_trail_says_when_its_keys_may_not_be_compared(
     with caplog.at_level(logging.INFO, logger="cortex.memory.recall"):
         await LoggingRecallSink().record(_audit(basis=RankBasis.SPREAD))
     assert _logged(caplog)["keys_comparable"] is False
+
+
+async def test_a_declined_rank_and_an_empty_pool_are_different_lines(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Zero hits is not one event (ADR-0038 abstention addendum), so one line may not serve both.
+
+    A `demur` line is the model having read a pool and answered that none of it helps; an `echo`
+    line with no hits is a pool that held nothing to rank. The basis is what tells them apart,
+    which is why no separate flag is logged.
+    """
+    empty = Ranking(hits=(), basis=RankBasis.DEMUR)
+    with caplog.at_level(logging.INFO, logger="cortex.memory.recall"):
+        await LoggingRecallSink().record(_audit(ranking=empty))
+    declined = _logged(caplog)
+    caplog.clear()
+    with caplog.at_level(logging.INFO, logger="cortex.memory.recall"):
+        await LoggingRecallSink().record(
+            _audit(ranking=Ranking(hits=(), basis=RankBasis.ECHO), pool_size=0)
+        )
+    nothing_to_rank = _logged(caplog)
+
+    assert (declined["basis"], declined["hits"], declined["pool"]) == ("demur", [], 20)
+    assert (nothing_to_rank["basis"], nothing_to_rank["hits"], nothing_to_rank["pool"]) == (
+        "echo",
+        [],
+        0,
+    )
 
 
 async def test_the_trail_carries_no_conversation_text(caplog: pytest.LogCaptureFixture) -> None:

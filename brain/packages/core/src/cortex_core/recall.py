@@ -82,6 +82,13 @@ class MemoryRecaller:
         unwraps it: turn assembly wants hits, and widening this return would push a ranking through
         turn context and the seam for no consumer. The ranking instead goes to the ``audit`` sink
         when one is wired, which is where "why did recall return these?" is answerable.
+
+        **An empty ranking is an answer and is returned as one.** A policy may keep nothing, either
+        because the store held nothing or because the model read the pool and declined it (the
+        ``DEMUR`` basis, ADR-0038 abstention addendum), and this method neither re-runs the search
+        nor substitutes the pool: it returns no hits and the turn is assembled without a memory
+        block. The audit is written for an empty ranking exactly as for a full one, so the trail
+        distinguishes a considered refusal from an empty store by the basis it carries.
         """
         embedding = await self._embedder.embed(query)
         pool = await self._store.search(

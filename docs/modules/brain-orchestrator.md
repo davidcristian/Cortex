@@ -73,7 +73,9 @@ Config (pydantic-settings; explicit constructor arguments beat the environment):
   `recall_pool_factor` (4), and `recall_mmr_lambda` (0.5, the MMR relevance-vs-diversity dial) tuning
   knobs (`recency_mmr` reuses the recency and lambda knobs, `judge` reuses the pool factor and, since
   its request was bounded, costs about 0.9 s per recall rather than 12, which is why its default is
-  under review rather than settled, ADR-0038 bounded-side-calls addendum), plus
+  under review rather than settled, ADR-0038 bounded-side-calls addendum; `judge` is also the only
+  value under which a recall may return **nothing**, the model having read the pool and declined it,
+  ADR-0038 abstention addendum), plus
   `recall_audit: bool = False` (`CORTEX_MEMORY_RECALL_AUDIT`, ADR-0038) attaching the structured
   recall trail. `recall_policy_from_config(config, backend, cortex_model)` maps the string to the
   policy (the model rank is a policy over the inference port, which is why `build_memory` now takes

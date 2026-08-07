@@ -363,6 +363,45 @@ async def test_recall_audits_the_ranking_when_a_sink_is_wired() -> None:
     assert [ranked.hit.record.id for ranked in audit.ranking.hits] == ["m0"]
 
 
+class _DecliningRecallPolicy:
+    """A RecallPolicy that reads the pool and keeps none of it, the judge's refusal in a fake."""
+
+    def candidate_k(self, k: int) -> int:
+        return k
+
+    async def select(
+        self, hits: Sequence[ScoredMemory], *, query: str, now: datetime, k: int
+    ) -> Ranking:
+        del hits, query, now, k
+        return Ranking(hits=(), basis=RankBasis.DEMUR)
+
+
+async def test_a_declined_rank_reaches_the_turn_as_no_memories_and_the_trail_says_why() -> None:
+    """The recaller does not overrule a policy that kept nothing (ADR-0038 abstention addendum).
+
+    The store holds a matching memory, so the pool is not empty; the policy declines it, and both
+    the turn's hits and the audited ranking must say so rather than falling back to the pool.
+    """
+    store = InMemoryMemoryStore()
+    sink = RecordingRecallSink()
+    recaller = MemoryRecaller(
+        store,
+        HashEmbedder(),
+        _FixedClock(),
+        policy=_DecliningRecallPolicy(),
+        audit=sink,
+        id_factory=lambda: "m0",
+    )
+    await recaller.record("a fact", session_id="s")
+
+    assert await recaller.recall("a fact", k=3, session_id="s") == ()
+
+    (audit,) = sink.audits
+    assert audit.pool_size == 1  # there WAS something to rank, which is what makes this a refusal
+    assert audit.ranking.hits == ()
+    assert audit.ranking.basis is RankBasis.DEMUR
+
+
 async def test_recall_without_a_sink_records_nothing() -> None:
     """The founding silent path: an unwired audit is not an empty trail, it is no trail."""
     store = InMemoryMemoryStore()

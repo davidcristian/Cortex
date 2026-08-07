@@ -838,3 +838,129 @@ recalls, so 0.75 s lands on time to first token every time rather than being amo
 deployment that turns the judge on should know that **on a question its memory cannot answer, the
 judge's correct refusal is currently converted into the cosine's three wrong notes**, which is no
 worse than what `raw` does on the same question and is not the improvement the refusal was.
+
+## Abstention addendum (2026-08-07)
+
+The widened corpus above found one defect and recorded it rather than fixing it: the judge answers
+`{"order": []}` on a question nothing in memory answers, `JudgeRecallPolicy.select` reads that empty
+parse as a failure, and the turn receives the cosine's three irrelevant notes under the fallback's
+basis. This addendum is the fix. The judge may now decline, the refusal is a distinct outcome at
+every consumer of a recall, and the trail can tell it from an unreachable model.
+
+**Re-derived from the code before designing, and the backlog entry was right about the defect and
+wrong about its price.** `parse_order` did return `()` for both an unusable reply and a complete
+`{"order": []}`, and `select` did branch on `if not order` alone, so the defect was exactly as
+recorded. The entry then priced the fix as changing "what a recall may hand a turn, so the recaller,
+the audit trail and the prompt assembly each need to mean something by zero hits". Two of those
+three already did, which the entry had not checked:
+
+- `MemoryRecaller.recall` returns `ranking.memories`, so an empty ranking already left it as an
+  empty sequence, and it neither re-fetched nor substituted the pool. No change was needed beyond
+  saying so on the method.
+- `_recalled_context` (`turn_context.py`) already returned `None` on no hits, so the turn was
+  already assembled without a memory block. Also unchanged beyond its docstring.
+- `Ranking` was already constructible with no hits, and its own docstring already said an empty
+  ranking carries a basis worth knowing.
+
+So the whole of the code change is the third `RankBasis`, the three-outcome parse, and the one
+branch in `select` that tells them apart. The blast radius the entry feared is real in the sense
+that a recall may now legitimately return nothing where the judge is on, and it was already
+survivable everywhere it lands.
+
+**The basis is `DEMUR`, and the register is deliberate.** `VERDICT` won its name in decision 4 for
+being the only candidate whose word says a decision was made by something that can be wrong; its
+sibling here has to say the same about a decision to keep nothing. A demurrer is the finding that
+the material offered makes no case even if every word of it is granted, which is precisely what the
+model is asked and precisely what it answered. Alternates: `NONSUIT` is the more exact legal term
+for the same finding and was rejected as a word a reader has to look up; `SILENCE` reads as a
+sibling to `ECHO`'s sensory register but says nothing about who decided, so it would fit an empty
+store as well as a refusal, which is the confusion this member exists to end; `ABSTAIN` names a
+voter declining to decide, and the whole point is that the judge decided.
+
+**The parse now has three outcomes rather than two.** `parse_order` returns `None` for a reply
+nothing can be read out of, the empty tuple for an `order` that arrived empty, and the picks
+otherwise. A list that named notes and had none of them survive the range check returns `None`,
+not the empty tuple: a model that tried to pick and produced nothing pickable has failed, while a
+model that named none has answered. The truncation case stays on the failure side by construction,
+since a reply cut by the token cap is not JSON at all while a refusal is complete JSON, so the
+generous cap argued in the bounded-side-calls addendum keeps its whole argument. (That addendum's
+wording, "`parse_order` returns empty", now reads "returns `None`"; the behaviour it describes is
+unchanged.)
+
+**What zero hits means, stated once per consumer.**
+
+| Consumer | An empty ranking on `DEMUR` | An empty ranking on any other basis |
+| --- | --- | --- |
+| `JudgeRecallPolicy.select` | returns it; the fallback is not consulted | the fallback's own empty answer over an empty pool, which never reaches the model |
+| `MemoryRecaller.recall` | returns no hits, without re-fetching or substituting | the same, and it means the pool was empty |
+| turn assembly | no memory block at all, exactly what a memory-less turn sends | the same |
+| `LoggingRecallSink` | `"basis": "demur"` with `"hits": []` | the basis that ranked, with `"hits": []` |
+
+The trail is where the difference had to be legible, and it is carried by the basis rather than by
+a new flag: `demur` with no hits is a model that read a pool and declined it, another basis with no
+hits is a pool that held nothing to rank, and a fallback after an unreachable or unbelievable model
+shows the fallback's own basis with the hits it chose. Three events, three readings, from fields the
+line already carried.
+
+**One invariant is enforced rather than described.** `Ranking.__post_init__` refuses a `DEMUR`
+ranking that carries hits, because a policy cannot both decline and return something and no consumer
+could act on one that claimed to. The converse stays legal: a heuristic policy handed an empty pool
+returns an empty ranking on its own basis and means only that there was nothing to rank.
+
+**Turn assembly says nothing rather than saying nothing was found.** The alternative considered was
+a system message reporting that memory had nothing to offer. It was rejected: that is a claim about
+the store's contents that the assembly does not know (the judge declined a pool of candidates, which
+is not the same as memory being empty), and putting it in the prompt invites the model to answer for
+it. A turn whose memory declines sends what a memory-less turn sends.
+
+**What does not change.** The fallback stays, and it stays on the failure path it was built for: an
+unreachable model, a reply outside the envelope, a truncated one, an order of nothing that exists,
+or an empty candidate pool (where the model is never consulted, so a refusal is not available to
+report). `CORTEX_MEMORY_RECALL` still defaults to `raw`, so nothing changes for a deployment that
+has not opted into the judge, and the recommendation to move it stands where the widened corpus left
+it, with the caveat it carried about refusals now answered.
+
+### Measured (2026-08-07)
+
+The same widened corpus, rerun against the real cortex (gemma-4-12B on the 24 GB card, via the gpu
+compose stack plus the memory override's CPU embedder) on the fixed policy. Reproduce:
+`packages/inference/tests/test_rerank_judge_wide_live.py`, integration-marked, which now separates a
+refusal from a fallback in its own tally rather than counting both as "fell back".
+
+| | before (widened-corpus run) | after |
+| --- | --- | --- |
+| `ABSENT` questions returning nothing | 0 of 4 (the cosine's notes, via the fallback) | **4 of 4** |
+| Fell back over the whole corpus | 4 of 26 | **0 of 26** |
+| Aggregate MRR over the 22 answerable | 1.000 (cosine 0.902) | 1.000 (cosine 0.902) |
+| Reversed-cosine control | 0.000 | 0.000 |
+| Cost per recall | 0.75 s | 0.76 s |
+
+The four `ABSENT` questions now print as `judge [] (declined)` where they printed the cosine's three
+irrelevant notes, and the fallback column is empty for the first time: every recall in the run was
+either ranked or refused by the model itself. The ranking on the 22 answerable questions is
+unchanged, which is the result that matters, since a policy allowed to return nothing could have
+started returning nothing where it should not.
+
+Two honest notes on the rerun. The refusal costs the same as a rank (0.76 s against 0.75 s) because
+the pool prompt is evaluated either way, so declining is not a saving, it is a correct answer. And
+the "fewer hits than `k`" observation is sampled rather than fixed: this run kept one note on 21 of
+the 22 answerable questions and three on one `STALE` question, where the earlier run kept one on all
+22. The gold note was still first every time, so the variation is in what it adds after the answer,
+not in the answer.
+
+### Deferred by this addendum
+
+Recorded in [memory.md](../refinements/memory.md) with its line on
+[the index](../refinements/index.md):
+
+- **A geometric policy still cannot decline.** The refusal is the judge's alone. `RawRecallPolicy`
+  (the shipped default) and the three heuristic policies always return their nearest `k`, so a
+  deployment that has not opted into `CORTEX_MEMORY_RECALL=judge` still receives three nearest
+  misses on a question memory cannot answer: the same turn this addendum fixes, from a different
+  cause. The geometric analogue is a relevance floor, which the widened `select` return can already
+  express and no policy computes; it was declined here because a cosine threshold belongs to the
+  `Embedder` it was calibrated against and means something else behind another one, and because a
+  floor on `RawRecallPolicy` would break the one promise that policy makes, which is that recall is
+  byte-for-byte what v1 returned. It therefore wants a fifth policy rather than a knob on the
+  default. **Trigger:** a deployment that wants recall to stay geometric and still be able to say
+  nothing, or a calibration run that gives the floor a defensible number.
