@@ -146,11 +146,15 @@ Config (pydantic-settings; explicit constructor arguments beat the environment):
   are part of the standing residency every exit path converges to; `coresident`
   (`CORTEX_SWAP_CORESIDENT`, **off**) reverses that one rule, leaving those tiers serving through
   the handoff and skipping the drain window entirely, which is the deployment asserting its card
-  holds the pair (ADR-0030's co-residency addendum has the measurement and what is still
-  unchecked); `swap_drain_timeout_s` (60 s) and
+  holds the pair (ADR-0030's co-residency addendum has the measurement); `brain_vram_mib`
+  (`CORTEX_SWAP_BRAIN_VRAM_MIB`, 0) is the free device memory that deep tier needs, measured on
+  the deployment's own card, which the swap compares against the model host's reading immediately
+  before the load and refuses the handoff when it is short; `swap_drain_timeout_s` (60 s) and
   `swap_load_timeout_s` (300 s) are the swap's two bounds. Enabling escalation without a model
   host or without a brain endpoint **fails at boot**, rather than advertising a tool that could
-  only refuse. `residency_plan(cortex_model)` is the one `ResidencyPlan` the manager, the
+  only refuse, and so does co-residency on the `supervisor` host with no measured VRAM figure,
+  since that flag is a claim about a card and this is the only thing that ever tests it (the
+  card itself is read at the swap, being a number that moves while the machine runs). `residency_plan(cortex_model)` is the one `ResidencyPlan` the manager, the
   conductor, and boot recovery all read.
 - `SubagentsConfig` uses env prefix `CORTEX_SUBAGENTS_` (ADR-0010, revised by ADR-0012/0018):
   `backend: "none" | "llamacpp" = "none"` (`CORTEX_SUBAGENTS_BACKEND`), `endpoint` (the CPU

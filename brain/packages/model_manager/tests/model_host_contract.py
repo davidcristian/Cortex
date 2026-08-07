@@ -24,7 +24,7 @@ implementation where nothing can be mid-load.
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 
-from cortex_core import ModelHost, ModelHostState
+from cortex_core import DeviceMemory, ModelHost, ModelHostState
 
 # Two ids, so the swap-shaped check can watch one go down as the other comes up. Both fixtures
 # declare exactly these.
@@ -39,13 +39,16 @@ class HostUnderTest:
 
     ``serving(model, serving=...)`` decides whether that model's server answers readiness;
     ``die(model)`` makes its process disappear without anybody asking, which is the analogue of a
-    crash, a CUDA failure, or a child that could not bind its port. ``aclose`` releases whatever
-    the fixture built (the real adapter holds an HTTP client).
+    crash, a CUDA failure, or a child that could not bind its port. ``card(reading)`` is the third
+    world-condition, added with the fit check: what the GPU this host supervises reports, or
+    ``None`` for a host that can see none. ``aclose`` releases whatever the fixture built (the real
+    adapter holds an HTTP client).
     """
 
     host: ModelHost
     serving: Callable[..., None]
     die: Callable[[str], None]
+    card: Callable[[DeviceMemory | None], None]
     aclose: Callable[[], Awaitable[None]]
 
 
@@ -148,6 +151,28 @@ async def check_a_swap_leaves_only_the_model_it_swapped_in(subject: HostUnderTes
     )
 
 
+async def check_a_host_with_no_card_reports_no_device_memory(subject: HostUnderTest) -> None:
+    """``None`` is an answer the port defines, not a failure: most deployments have no GPU.
+
+    The swap is what decides that an absent reading refuses a handoff, and it can only decide
+    that if every implementation says "none" the same way instead of raising.
+    """
+    subject.card(None)
+    assert await subject.host.device_memory() is None
+
+
+async def check_a_host_with_a_card_reports_what_is_free_and_how_big_it_is(
+    subject: HostUnderTest,
+) -> None:
+    """The reading the fit check compares against, carried whole rather than as one number.
+
+    Both figures, because the refusal an operator reads has to say how much of the card was free
+    out of how much there is; a free figure alone cannot tell a small card from a busy one.
+    """
+    subject.card(DeviceMemory(free_mib=20033, total_mib=24463))
+    assert await subject.host.device_memory() == DeviceMemory(free_mib=20033, total_mib=24463)
+
+
 ALL_CHECKS: tuple[Callable[[HostUnderTest], Awaitable[None]], ...] = (
     check_a_model_nobody_started_reports_stopped,
     check_start_begins_a_load_and_is_idempotent,
@@ -156,4 +181,6 @@ ALL_CHECKS: tuple[Callable[[HostUnderTest], Awaitable[None]], ...] = (
     check_a_failed_model_is_restarted_without_being_stopped_first,
     check_stopping_a_model_that_already_died_settles_it,
     check_a_swap_leaves_only_the_model_it_swapped_in,
+    check_a_host_with_no_card_reports_no_device_memory,
+    check_a_host_with_a_card_reports_what_is_free_and_how_big_it_is,
 )

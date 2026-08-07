@@ -31,6 +31,7 @@ from cortex_core import (
     DEFAULT_SWAP_LOAD_TIMEOUT_S,
     AsyncioSleeper,
     Clock,
+    DeviceMemory,
     ModelHost,
     ModelHostError,
     ModelHostState,
@@ -91,6 +92,9 @@ class _LoadingThenReady:
             return ModelHostState.LOADING
         return ModelHostState.READY
 
+    async def device_memory(self) -> DeviceMemory | None:
+        return None
+
 
 def test_the_plan_rejects_bounds_that_could_not_govern_a_swap() -> None:
     """Bounds a swap could not be governed by are boot-time misconfigurations, not surprises."""
@@ -100,6 +104,8 @@ def test_the_plan_rejects_bounds_that_could_not_govern_a_swap() -> None:
         _plan(load_timeout_s=-1.0)
     with pytest.raises(ValueError, match="poll_interval_s must be > 0"):
         _plan(poll_interval_s=0.0)
+    with pytest.raises(ValueError, match="brain_vram_mib must be >= 0"):
+        _plan(brain_vram_mib=-1)
 
 
 def test_the_plan_defaults_its_bounds_to_the_documented_values() -> None:

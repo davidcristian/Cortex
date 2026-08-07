@@ -12,6 +12,7 @@ from cortex_core.model_host import (
     DEFAULT_HEALTH_POLL_INTERVAL_S,
     DEFAULT_SWAP_DRAIN_TIMEOUT_S,
     DEFAULT_SWAP_LOAD_TIMEOUT_S,
+    DeviceMemory,
     ModelHostState,
     ResidencyPlan,
 )
@@ -64,6 +65,7 @@ __all__ = [
     "SWAPPING_STATE",
     "SWAP_FAILED_NOTE",
     "WORKING_DETAIL",
+    "DeviceMemory",
     "EscalationRefs",
     "EscalationSlot",
     "HandoffRecord",

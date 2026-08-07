@@ -74,6 +74,15 @@ class SwapConfig(BaseSettings):
     is never quiesced, so delegated work keeps flowing and the deep phase may spawn. Off, the
     shipped rule stands unchanged: the deep model runs alone. Inert without escalation, exactly
     as the topology settings around it are.
+
+    ``CORTEX_SWAP_BRAIN_VRAM_MIB`` is what that assertion is checked against: the free device
+    memory the deep model needs, measured by the deployment on its own card. The model host is
+    the one process here that can see a GPU, so it reports what is free and the swap compares the
+    two immediately before the load, refusing the handoff when the room is not there. **It is
+    required when co-residency is on and the host is the real supervisor**, since a co-resident
+    plan is exactly a claim about room and this is the only way that claim is ever tested; with
+    the scripted host it stays optional, that backend starting no process on any card. Zero means
+    no check, which is what a deployment that evicts everything ships with.
     """
 
     model_config = SettingsConfigDict(env_prefix="CORTEX_", validate_by_name=True)
@@ -87,6 +96,7 @@ class SwapConfig(BaseSettings):
     brain_endpoint: str = ""
     evict_models: tuple[str, ...] = Field(default=(), validation_alias="CORTEX_SWAP_EVICT_MODELS")
     coresident: bool = Field(default=False, validation_alias="CORTEX_SWAP_CORESIDENT")
+    brain_vram_mib: int = Field(default=0, ge=0, validation_alias="CORTEX_SWAP_BRAIN_VRAM_MIB")
     swap_drain_timeout_s: float = Field(default=DEFAULT_SWAP_DRAIN_TIMEOUT_S, ge=0)
     swap_load_timeout_s: float = Field(default=DEFAULT_SWAP_LOAD_TIMEOUT_S, ge=0)
 
@@ -111,6 +121,28 @@ class SwapConfig(BaseSettings):
                 "start or a stop, so every swap would fail at its first step"
             )
             raise ValueError(msg)
+        return self._coresidency_needs_a_measured_fit()
+
+    def _coresidency_needs_a_measured_fit(self) -> "SwapConfig":
+        """Refuse a co-resident deployment that never said what the deep model costs.
+
+        Boot is the right place for this half and the wrong place for the reading itself. What a
+        card has free is a fact that changes by the gigabyte while the machine runs, so it is
+        read at the swap; what the deployment measured is a constant, so a stack that turned
+        co-residency on and left it unstated is misconfigured now, and saying so at boot beats
+        discovering it in the middle of somebody's handoff. It is required only against the real
+        supervisor, the backend that has a card at all.
+        """
+        if self.coresident and self.modelhost_backend == "supervisor" and not self.brain_vram_mib:
+            msg = (
+                "CORTEX_SWAP_BRAIN_VRAM_MIB is required when CORTEX_SWAP_CORESIDENT=1: keeping "
+                "peers resident through a handoff is a claim about how much of the card is "
+                "free, and nothing can check that claim without the deep model's measured cost. "
+                "A card that cannot hold the pair does not refuse the load, it pages the "
+                "overcommit to system memory and halves the deep model's decode rate "
+                "(docs/runbooks/model-swap.md)"
+            )
+            raise ValueError(msg)
         return self
 
     def residency_plan(self, cortex_model: str) -> ResidencyPlan:
@@ -124,6 +156,7 @@ class SwapConfig(BaseSettings):
             brain_model=self.brain_model,
             evict_models=self.evict_models,
             coresident=self.coresident,
+            brain_vram_mib=self.brain_vram_mib,
             drain_timeout_s=self.swap_drain_timeout_s,
             load_timeout_s=self.swap_load_timeout_s,
         )

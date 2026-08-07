@@ -199,6 +199,36 @@ def test_the_residency_plan_carries_the_tier_ids_and_both_bounds() -> None:
     # Brain-runs-alone unless the deployment says its peers fit beside the deep model.
     assert plan.coresident is False
     assert _enabled(coresident=True).residency_plan("cortex").coresident is True
+    # And no fit is checked unless the deployment measured one, which is the shipped default.
+    assert plan.brain_vram_mib == 0
+    assert _enabled(brain_vram_mib=19125).residency_plan("cortex").brain_vram_mib == 19125
+
+
+def test_co_residency_on_the_real_host_without_a_measured_fit_fails_at_boot() -> None:
+    """The flag is a claim about a card, and this is the only thing that ever tests it.
+
+    Boot rather than the swap, because a deployment that never stated the figure is misconfigured
+    from the moment it starts, and a handoff is the worst place to learn it: the cortex is already
+    stopped by then. What is deliberately NOT checked here is the card itself, which changes by
+    the gigabyte while the machine runs and is read at the swap instead.
+    """
+    with pytest.raises(ValueError, match="CORTEX_SWAP_BRAIN_VRAM_MIB is required"):
+        _enabled(
+            modelhost_backend="supervisor",
+            modelhost_endpoint="http://model-host:9300",
+            coresident=True,
+        )
+
+
+def test_co_residency_over_the_scripted_host_needs_no_measurement() -> None:
+    """That backend starts no process on any card, so a figure would assert nothing.
+
+    It is what CI and the dev loop run the whole handoff path over, and requiring a VRAM number
+    from a host that has no VRAM would be a gate that cannot fail for the deployment it is aimed
+    at while blocking the one it is not.
+    """
+    plan = _enabled(coresident=True).residency_plan("cortex")
+    assert (plan.coresident, plan.brain_vram_mib) == (True, 0)
 
 
 def test_nothing_is_built_when_escalation_is_off() -> None:

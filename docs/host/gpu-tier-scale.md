@@ -118,6 +118,9 @@ Item 5 runs on none of this: it starts its own container, so it wants the stack 
 
    `"models":["cortex","brain"]` is step 1 having worked. `"state":"stopped"` on the deep tier is
    the point above: it is in the roster and it is not running, and nothing will start it for you.
+   Since 2026-08-07 that health body also carries `device_free_mib` and `device_total_mib`, the
+   card as the sidecar's own `nvidia-smi` sees it, which is what a swap checks the deep tier's
+   declared cost against.
    `nvidia-smi` read 7916 MiB of 8188 at this moment, which is the resident cortex.
 
 4. **Stop the cortex**, which is what frees the card for the deep model. On 24 GB this is not

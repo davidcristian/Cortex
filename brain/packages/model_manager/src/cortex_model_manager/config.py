@@ -65,6 +65,12 @@ class ModelHostConfig(BaseSettings):
     stop_grace_s: float = Field(default=DEFAULT_STOP_GRACE_S, ge=0)
     reap_timeout_s: float = Field(default=DEFAULT_REAP_TIMEOUT_S, ge=0)
     probe_timeout_s: float = Field(default=5.0, gt=0)
+    # What answers "how much of the card is free" on GET /health. The NVIDIA container toolkit
+    # injects this binary alongside the driver, so the default is right wherever a GPU is
+    # reserved and absent (which reads as no card) wherever one is not; a deployment whose image
+    # puts it elsewhere names the path. It is bounded by probe_timeout_s, the same deadline the
+    # readiness probe gets, both being control-plane reads a swap step waits on.
+    nvidia_smi: str = "nvidia-smi"
     log_level: str = "info"
 
     # The three tiers. The ids must match the brain's (CORTEX_MODEL_CORTEX / CORTEX_MODEL_BRAIN /

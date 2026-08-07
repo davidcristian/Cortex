@@ -3,7 +3,8 @@
 Four routes and no more, because this API can start and stop processes on the container that
 holds the GPU and the models mount, and its client is the brain, which runs model-influenced code:
 
-    GET  /health                  the daemon is up, the roster it serves, and its stop bounds
+    GET  /health                  the daemon is up, the roster it serves, its stop bounds, and
+                                  how much of the card is free
     GET  /models/{id}             one model's state (stopped | loading | ready | failed)
     POST /models/{id}/start       begin loading it (idempotent)
     POST /models/{id}/stop        end it, returning once it is reaped (idempotent)
@@ -28,6 +29,7 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 from starlette.routing import Route
 
+from cortex_model_manager.device_memory import DeviceMemoryProbe, NoDeviceMemory
 from cortex_model_manager.supervisor import (
     ModelStatus,
     ModelSupervisor,
@@ -49,18 +51,30 @@ def build_app(
     *,
     boot_model: str,
     close: Callable[[], Awaitable[None]] = nothing_to_close,
+    device: DeviceMemoryProbe | None = None,
 ) -> Starlette:
-    """The ASGI app driving ``supervisor``, starting ``boot_model`` when it comes up."""
+    """The ASGI app driving ``supervisor``, starting ``boot_model`` when it comes up.
+
+    ``device`` reads the card this daemon's children load onto; omitted, the daemon answers that
+    it has none, which is what a CPU-only deployment truthfully has.
+    """
+    card: DeviceMemoryProbe = NoDeviceMemory() if device is None else device
 
     async def health(request: Request) -> Response:
         del request
         bounds = supervisor.stop_bounds
+        # Deliberately on this route and not a new one: it takes no per-model lock, so a caller
+        # asking how much room is left can never queue behind a stop the way a `status` can, and
+        # the brain reads it inside a swap step where that would cost a whole grace period.
+        memory = await card.read()
         return JSONResponse(
             {
                 "status": "ok",
                 "models": list(supervisor.models),
                 "stop_grace_s": bounds.stop_grace_s,
                 "reap_timeout_s": bounds.reap_timeout_s,
+                "device_free_mib": None if memory is None else memory.free_mib,
+                "device_total_mib": None if memory is None else memory.total_mib,
             }
         )
 
