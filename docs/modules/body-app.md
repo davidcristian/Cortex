@@ -362,6 +362,24 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
   on the `pass` side because the element-type guard above answers it one layer up. A hold is
   `stopPropagation` and never `preventDefault`, so select-all, copy, paste, undo and those two caret
   jumps are untouched. The delete confirm is deliberately outside the rule, holding no text to lose.
+- **A section the reader closes hands the caret to its anchor** (`overlay/sectionCaret.ts` +
+  `components/SessionList.tsx` + `components/ChatView.tsx`, ADR-0035 addendum, 2026-08-07). The third
+  landing, and the one the two rules above leave: no conversation arrives and no row moves, the whole
+  section goes and takes its controls with it, so `Ctrl+K` used to ride a row's pencil for the 300ms
+  roll and drop the caret on `<body>` at the unmount. **Only when the caret is INSIDE the section**,
+  which is what keeps `Ctrl+K` from a half-typed sentence from moving anything, and what makes the
+  header's chats button need no case of its own: its own press puts the caret on the anchor at 45ms,
+  before the close is dispatched. The anchor is the control each section already carries for its
+  emptied case, so a list that runs out of rows and a list that closes land in one place: the chats
+  button for the switcher, the composer's field for a section whose work is over. **It stands down
+  when `arrival` changed in the same commit**, which is most of the ways the switcher closes (seven
+  of its thirteen doors are chat swaps), stated in code rather than left to the composer's passive
+  effect winning a race a screen reader could hear. `useSectionCaret(section, anchor, open, arrival)`
+  fires on the true-to-false edge at the commit, the rows being mounted for their roll; `handOff` is
+  the same move told at a gesture instead, for the empty state's example chips, whose section is
+  unmounted in the commit that submits and which are the one control the overlay has that its own
+  press removes with no heir to give the caret to. The reminder stack is deliberately not wired: its
+  own three closings are each answered elsewhere.
 - **The empty line waits for a row and yields to one, and a row the list moves travels there**
   (`components/SessionList.tsx` + `overlay/useTravel.ts`, ADR-0035 addendum, 2026-08-03). The empty
   line is asked of `sessions` rather than of the rendered rows, so deleting the last chat puts it up

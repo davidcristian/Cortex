@@ -24,6 +24,8 @@ const list = (
   onDelete: (sessionId: string) => void = vi.fn(),
 ) => (
   <SessionList
+    open
+    arrival={0}
     sessions={sessions}
     currentId={currentId}
     onSelect={vi.fn()}
@@ -64,6 +66,8 @@ describe("SessionList", () => {
     const onSelect = vi.fn();
     render(
       <SessionList
+        open
+        arrival={0}
         sessions={[summary(), summary({ sessionId: "c2", title: "Second", preview: "world" })]}
         currentId="c2"
         onSelect={onSelect}
@@ -110,6 +114,8 @@ describe("SessionList", () => {
   it("shows an empty-state line when there are no chats", () => {
     render(
       <SessionList
+        open
+        arrival={0}
         sessions={[]}
         currentId="c1"
         onSelect={vi.fn()}
@@ -126,6 +132,8 @@ describe("SessionList", () => {
     const onRename = vi.fn();
     render(
       <SessionList
+        open
+        arrival={0}
         sessions={[summary(), summary({ sessionId: "c2", title: "Second" })]}
         currentId="c1"
         onSelect={vi.fn()}
@@ -151,6 +159,8 @@ describe("SessionList", () => {
     const onRename = vi.fn();
     render(
       <SessionList
+        open
+        arrival={0}
         sessions={[summary()]}
         currentId="c1"
         onSelect={vi.fn()}
@@ -170,6 +180,8 @@ describe("SessionList", () => {
     const onRename = vi.fn();
     render(
       <SessionList
+        open
+        arrival={0}
         sessions={[summary()]}
         currentId="c1"
         onSelect={vi.fn()}
@@ -192,6 +204,8 @@ describe("SessionList", () => {
     const onDelete = vi.fn();
     render(
       <SessionList
+        open
+        arrival={0}
         sessions={[summary(), summary({ sessionId: "c2", title: "Second" })]}
         currentId="c1"
         onSelect={vi.fn()}
@@ -217,6 +231,8 @@ describe("SessionList", () => {
     const onDelete = vi.fn();
     render(
       <SessionList
+        open
+        arrival={0}
         sessions={[summary()]}
         currentId="c1"
         onSelect={vi.fn()}
@@ -238,6 +254,8 @@ describe("SessionList", () => {
     const onPin = vi.fn();
     render(
       <SessionList
+        open
+        arrival={0}
         sessions={[summary()]}
         currentId="c1"
         onSelect={vi.fn()}
@@ -257,6 +275,8 @@ describe("SessionList", () => {
     const onPin = vi.fn();
     render(
       <SessionList
+        open
+        arrival={0}
         sessions={[
           summary({ sessionId: "p1", title: "Pinned", pinned: true }),
           summary({ sessionId: "r1", title: "Recent" }),
@@ -473,6 +493,8 @@ describe("SessionList", () => {
     const onRename = vi.fn();
     render(
       <SessionList
+        open
+        arrival={0}
         sessions={[summary()]}
         currentId="c1"
         onSelect={vi.fn()}

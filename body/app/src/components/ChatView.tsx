@@ -3,6 +3,7 @@ import { type RefObject, useEffect, useRef } from "react";
 import type { MarkStyle } from "../mark/marks";
 import { chatFloorRef } from "../overlay/measured";
 import { type ConsoleTab, type OverlayState, draftOf, isTurnActive } from "../overlay/overlayState";
+import { handOff } from "../overlay/sectionCaret";
 import { useLogScroll } from "../overlay/useLogScroll";
 import { BubbleMark } from "./BubbleMark";
 import { CaptureDot } from "./CaptureDot";
@@ -115,6 +116,11 @@ export function ChatView({
         <SessionList
           sessions={state.sessions}
           currentId={state.sessionId}
+          // The list answers for its own closing as well as for its own rows, and both answers are
+          // the anchor below (`overlay/sectionCaret.ts`); `arrival` is how it stands down for the
+          // closings that are really chat swaps.
+          open={state.switcherOpen}
+          arrival={state.arrival}
           anchor={chatsButton}
           // Silent: the row IS the chat's name, so announcing would read the label back.
           onSelect={(sessionId) => onSelectSession(sessionId, false)}
@@ -160,7 +166,10 @@ export function ChatView({
                   <button
                     key={prompt}
                     className="echip"
-                    onClick={() => onSubmit(prompt)}
+                    onClick={() => {
+                      onSubmit(prompt);
+                      handOff(field);
+                    }}
                     type="button"
                   >
                     {prompt}

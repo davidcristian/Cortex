@@ -9,8 +9,8 @@ are the historical record of what each deferral became, and the index at
 [index.md](index.md) carries the recommended pickup order.
 
 **Open items:** 12. Multi-turn-within-one-stream + proto `Cancel`, streamed
-brain status (its producer landed 2026-07-18; only the push RPC remains), a list the reader closes
-dropping the caret on `<body>`, a held chord saying nothing about being held, the liquid edge's
+brain status (its producer landed 2026-07-18; only the push RPC remains), a list the reader opens
+leaving the caret behind, a held chord saying nothing about being held, the liquid edge's
 backdrop blur,
 the two bounds the panel's section budget leaves behind it
 (a section's own frame being under no cap, and the room a closing section hands back in one frame),
@@ -115,6 +115,19 @@ sitting. Nothing was deferred behind it: the residual it leaves is Chromium's 1/
 section roll above already names as the standing floor rather than as an entry, and the one thing
 the trace turned up that the entry had not imagined, the prediction doubling as the panel's pinned
 edge on an arrival, is fixed by the same line rather than filed.
+
+**Held at twelve 2026-08-07, one out and one in, and both names are given here so the count cannot
+hide the movement.** Every top-level entry in this file was walked again and asked which carries a
+landing, and the twelve names above were exactly the ones left, the index cell agreeing with them one
+for one. **A list the reader closes dropping the caret** then closed, as a rule about a section
+closing rather than about a key: a section the reader closes hands the caret to its anchor, and only
+when the caret is inside the section. It opened one behind it, **a list the reader opens leaving the
+caret behind**, which is the same question asked of the other direction and is a decision rather than
+a line, since moving the caret into an opening list would pull a reader out of a half typed sentence.
+Two things the closed entry had wrong are worth carrying up here, both of the shape this header keeps
+learning: the switcher does not close four ways but thirteen, ten of which already answered, and the
+header's chats button, which the entry wanted a rule for, needs none, its own press putting the caret
+on it before the close is dispatched.
 
 **Body / overlay in Slice 8 ([ADR-0011](../adr/ADR-0011-body-v1.md)):**
 - **Multi-turn-within-one-stream + an explicit proto `Cancel` event.** One turn per `Converse`
@@ -1572,6 +1585,110 @@ edge on an arrival, is fixed by the same line rather than filed.
   the reminder stack has the same question with a different answer, its section leaving with its
   rows. Wants the same trace the caret rule took, `document.activeElement` sampled across the roll,
   before a shape is picked. Nothing blocks it.
+  - **LANDED 2026-08-07 as a rule about a section CLOSING rather than about a key**
+    ([ADR-0035 addendum](../adr/ADR-0035-console-and-motion.md)). The trace the entry asked for came
+    first, in headless Chromium at 900x900 against the demo bridge, `document.activeElement` sampled
+    every animation frame for 800ms across twenty three doors, and **the entry's own reading held**:
+    with the switcher open and the caret on a resting row's pencil, `Ctrl+K` kept the caret on that
+    pencil for the whole 300ms roll (frames at 1, 21 and 337ms) and read `<body>` at 353ms, outside
+    the panel and one Tab from the top of the document. Sampling across the roll rather than after it
+    is what showed the mechanism, and it is not the one the entry assumed: nothing is lost at the
+    gesture, because `Collapse` keeps its child mounted for the roll, and everything is lost at the
+    unmount three hundred milliseconds later.
+    **The switcher does not close four ways. It leaves the reader's reach thirteen**, which is this
+    chain's lesson arriving for the third entry running, and ten of the thirteen already answered by
+    three mechanisms rather than by the entry's one. **Seven are chat swaps** and the arrival rule
+    takes the caret to the composer, every one measured: a switcher row, `Ctrl+N`, the header's
+    pencil, `Ctrl+↑`, `Ctrl+↓`, a reminder's open control, and a delete confirm on the open chat.
+    **Two are the console arriving over the chat**, the `?` key and the hint strip's openers, where
+    the console's own selected tab takes the caret in its layout effect (measured at 26ms and 60ms),
+    so a section going inert under the caret was already answered one layer up. **One is the header's
+    chats button, and the entry was wrong to want a rule for it**: measured, the pointer's press
+    moves the caret off the row and onto the button at 45ms, before the close is dispatched at all,
+    and the keyboard can only press a button the caret is already on. **Two are the panel being
+    dismissed**, Escape and the tuck button, where the caret reads `<body>` at 39ms and at 71ms
+    because `inert` blurs what it contains, and that is right rather than open: there is nothing on
+    screen to hold a caret. **`Ctrl+K` was the whole of what was open**, in three shapes of "inside
+    the list" (a row's pencil, a row's title, and an open delete confirm's cancel), all three landing
+    on `<body>` by 354ms.
+    **The reminder stack has the same gap and it is not the stack's own control.** Its three
+    closings: acking the last row, which `useRowCaret`'s anchor already answers (the caret is in the
+    composer at 53ms); a swap, which the arrival rule answers; and the first message landing, which
+    is reached by two doors. The composer's own send is standing in the field already. The other is
+    an **example chip on the empty state**, which is in no list, has no heir, and whose press unmounts
+    the whole empty state and rolls the stack away with it: measured, the caret read `<body>` at
+    39ms. That one is answered here.
+    **The rule: a section the reader closes hands the caret to its anchor, and only when the caret is
+    inside the section.** The anchor is the control each section already carries for its emptied case
+    (`ChatView` holds both), so "this section cannot keep the caret" has one answer rather than two:
+    the header's chats button for the switcher, which is what closed the list and what would open it
+    again, and the composer's field for a section whose work is over. The composer was weighed and
+    refused for the switcher: no conversation arrived, the reader is in the chat they were already
+    in, and landing a close in the text field would make `Ctrl+K` a way into the composer, which is a
+    larger move than the reader asked for and is the arrival rule's landing rather than this one's.
+    **The guard is what makes it a rule instead of a line**, and the hazard the entry named was
+    measured rather than assumed: at HEAD, `Ctrl+K` pressed from a composer holding `half a question`
+    with the caret parked at offset 4 left the caret and the selection exactly there, so an unguarded
+    close would have introduced the defect rather than missed it. The same guard is why the chats
+    button needs no case of its own: the caret is on the anchor by the time the close lands, so the
+    rule looks and finds nothing to do.
+    **It stands down when a conversation arrived in the same commit**, which is stated in code rather
+    than left to effect ordering. The composer's focus is a passive effect and this is a layout
+    effect, so the composer would win a race anyway; but the caret would touch the chats button first
+    and that is a second focus event a screen reader may read, whichever of the two the browser
+    paints. The after trace shows the deferral working: a switcher row selected goes
+    `button.switcher-item` at 7ms straight to `textarea[Message]` at 40ms, with no frame on the chats
+    button in between.
+    **Two decision points for one rule, and the difference is what the section does with its
+    children.** The switcher is decided at the transition, because its rows are mounted for the roll
+    and "is the caret inside" is readable from the DOM in that commit; the chip is decided at the
+    gesture, because the empty state is unmounted in the very commit that submits, so by layout time
+    the caret is already on `<body>` and there is nothing left to look inside.
+    **What it cost**: `overlay/sectionCaret.ts`, 91 lines holding `handOff` (the focus, with the
+    `preventScroll` reason in one place) and `useSectionCaret(section, anchor, open, arrival)`; two
+    props on `SessionList`, which hears its own close while it is still mounted; one call in the
+    empty state's chips. The reminder stack is deliberately not wired to the hook: every closing it
+    has is answered elsewhere, so a hook there would be a rule with nothing to do.
+    **After, measured the same way, every door.** `Ctrl+K` from a row's pencil lands on
+    `button[Recent chats]` in the first sampled frame (6ms) and holds it to 802ms, and from a row's
+    title and from an open confirm's cancel by 18ms. The composer's half typed sentence is untouched,
+    caret still at offset 4. The seven swap doors still read `textarea[Message]`, the two console
+    doors still read the tab strip, the two dismissals still read `<body>`, the stack's own two acks
+    are unmoved, and the example chip now reads `textarea[Message]` at 40ms where it read `<body>`.
+    The full before and after table is in the addendum.
+    **And the panel does not notice the caret moving under it**, traced at 60Hz with the same close
+    run twice, once with the handoff and once with it neutered: 49 frames each, the top edge easing
+    108 to 139 over the roll (largest single frame 8.02px) and back to 108 over the 130ms after it,
+    the height 518 to 487 and back, seventeen distinct boxes, and every `panel.scrollTop` and history
+    `scrollTop` 0 throughout, which is `preventScroll` doing its job. The one 31px step in that trace
+    is the frame at 322ms reading the unanimated layout, the `requestAnimationFrame` artefact this
+    ADR already documents, and it is in both runs identically.
+    **The mutation proof.** Neutering the handoff reddens the hook's own case and the end to end one
+    (`expected <body> to be <button class="hbtn" ...>`, which is the defect restated); dropping the
+    arrival guard reddens the stand down case; dropping the inside the section guard reddens both the
+    unit case and the half typed sentence; removing the chip's handoff reddens the chip case alone.
+    Four mutations, four distinct rednesses, nothing else in the 661 test suite moving under any of
+    them.
+    One thing opened behind it, below, and it is the mirror of this one.
+- **A list the reader OPENS leaves the caret where it was, four Tab presses from the list.** Opened
+  2026-08-07 by the close above, which settled where the caret goes when a section closes and left
+  the other direction exactly as it found it. Measured at 900x900: `Ctrl+K` pressed from the composer
+  opens the switcher and leaves the caret in the field with its draft and selection intact, and the
+  list it just opened is not adjacent to that field in either direction (six Shift+Tab presses from
+  the composer walk the example chips, the mark button and both reminder rows without reaching a
+  switcher row). Opening it with the header's chats button is nearer but not near: the caret is on
+  the button, and the next three Tab presses are the header's own theme, new chat and dismiss
+  buttons, the fourth being the first row's title. So a keyboard reader who asks for the chat list is
+  shown it and left standing away from
+  it, which is the same complaint the closed entry made about closing, one direction over. The
+  decision is not obvious and that is why this is an entry rather than a line: moving the caret into
+  the list on open would pull a reader out of a half typed sentence, which is exactly the hazard the
+  close rule guards against, and it would have to choose a row (the open chat's, or the first) and
+  answer what happens when the list is empty. The cheaper shapes are worth weighing first, a header
+  order that puts the list next to the control that opens it, or nothing at all on the argument that
+  the reader who wants a row can Shift+Tab once from the composer if the DOM order earns it. Wants
+  the same trace, `document.activeElement` sampled across the opening roll, plus a tab order walk
+  written down. Nothing blocks it.
 - **A held chord says nothing about being held.** Opened 2026-08-07 by the chord entry above, whose
   answer is deliberately silent: the press is stopped, the editor stays exactly as it was, and the
   overlay makes no sound about why the key a reader just pressed did nothing. For a sighted reader

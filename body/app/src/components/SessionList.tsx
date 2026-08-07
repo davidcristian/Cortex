@@ -3,6 +3,7 @@ import { type RefObject, useRef, useState } from "react";
 import type { SessionSummary } from "../bridge/types";
 import { NO_OTHER_CHATS } from "../overlay/notice";
 import { caretKey, heir, useRowCaret } from "../overlay/rowCaret";
+import { useSectionCaret } from "../overlay/sectionCaret";
 import { usePresence } from "../overlay/usePresence";
 import { useTravel } from "../overlay/useTravel";
 import { withdrawn } from "../overlay/withdrawn";
@@ -12,6 +13,13 @@ import { type RowShape, SessionRow } from "./SessionRow";
 interface SessionListProps {
   readonly sessions: readonly SessionSummary[];
   readonly currentId: string;
+  /** Whether the switcher is open. The list is mounted for the length of its closing roll, so it
+   *  hears the close with its own rows still on the page, and a close the reader made under the
+   *  caret hands the caret to the anchor below (`overlay/sectionCaret.ts`). */
+  readonly open: boolean;
+  /** `OverlayState.arrival`, for the same rule: most of the ways this list closes are chat swaps,
+   *  and a caret that a conversation is arriving for belongs to the composer (`Composer`). */
+  readonly arrival: number;
   /**
    * Where the caret goes when this list has no row left to hand it to, which is the chat the
    * reader just deleted their last other one from: the header control that opened the list.
@@ -36,6 +44,8 @@ interface SessionListProps {
 export function SessionList({
   sessions,
   currentId,
+  open,
+  arrival,
   anchor,
   onSelect,
   onRename,
@@ -54,6 +64,7 @@ export function SessionList({
   const card = useRef<HTMLUListElement>(null);
   useTravel(card, ".switcher-slot");
   const caret = useRowCaret(card, anchor);
+  useSectionCaret(card, anchor, open, arrival);
 
   const startRename = (session: SessionSummary): void => {
     setRenamingId(session.sessionId);
