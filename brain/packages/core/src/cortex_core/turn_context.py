@@ -156,6 +156,12 @@ async def _recalled_context(
     """Recall the turn's memories and render them as a system-context message, or ``None`` when
     memory is disabled or nothing was recalled. A tainted memory is fenced and taints the turn
     (ADR-0019), so it re-enters as untrusted data, never trusted context.
+
+    Nothing recalled means no message, which is also how a recall policy's refusal reads here (the
+    ``DEMUR`` basis, ADR-0038 abstention addendum): a turn whose memory has nothing to offer sends
+    what a memory-less turn sends. The alternative, a message saying that nothing was found, would
+    put a claim about the store into the model's context and invite it to answer for one, which is
+    not a thing the assembly knows.
     """
     if caps.memory is None:
         return None

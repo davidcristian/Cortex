@@ -16,6 +16,8 @@ from cortex_core import (
     JudgeRecallPolicy,
     MemoryRecord,
     RankBasis,
+    RankedMemory,
+    Ranking,
     RawRecallPolicy,
     ScoredMemory,
     TextChunk,
@@ -69,6 +71,26 @@ class _ScriptedBackend:
         yield TextChunk(self._reply)
 
 
+class _CountingFallback:
+    """A RecallPolicy that counts how often it was asked, so a test can pin that it was not."""
+
+    def __init__(self) -> None:
+        self.calls = 0
+
+    def candidate_k(self, k: int) -> int:
+        return k
+
+    async def select(
+        self, hits: Sequence[ScoredMemory], *, query: str, now: datetime, k: int
+    ) -> Ranking:
+        del query, now
+        self.calls += 1
+        return Ranking(
+            hits=tuple(RankedMemory(hit=hit, key=hit.score) for hit in hits[:k]),
+            basis=RankBasis.ECHO,
+        )
+
+
 def _pool() -> list[ScoredMemory]:
     """Three candidates whose cosine order disagrees with what actually answers the question."""
     return [
@@ -120,10 +142,45 @@ async def test_a_reply_outside_the_envelope_falls_back() -> None:
 
 
 async def test_an_order_of_only_junk_falls_back() -> None:
-    """Every element out of range leaves nothing usable, which is the same as no answer."""
+    """Every element out of range means the model tried to pick and picked nothing that exists.
+
+    The discriminator against the abstention below: this reply named notes, so it is a failed rank
+    and takes the fallback, while an empty pick names none and is believed.
+    """
     policy, _ = _judge(json.dumps({"order": [99, -1]}))
     ranking = await policy.select(_pool(), query="q", now=_NOW, k=2)
     assert ranking.basis is RankBasis.ECHO
+
+
+async def test_a_model_that_picks_nothing_is_believed_rather_than_overruled() -> None:
+    """The one judgement no geometric policy can make: nothing here helps (ADR-0038).
+
+    Measured on the real cortex against questions the corpus cannot answer, the reply is a
+    complete `{"order": []}`. Read as a failure it became the cosine's three irrelevant notes,
+    which is the defect this pins shut.
+    """
+    fallback = _CountingFallback()
+    policy = JudgeRecallPolicy(
+        _ScriptedBackend(json.dumps({"order": []})), "cortex", pool_factor=4, fallback=fallback
+    )
+
+    ranking = await policy.select(_pool(), query="what is the wifi password?", now=_NOW, k=3)
+
+    assert ranking.hits == ()  # the turn is handed nothing, not the nearest three misses
+    assert ranking.basis is RankBasis.DEMUR  # and the trail says a reader declined it
+    assert fallback.calls == 0  # a refusal is an answer, so no second policy is consulted
+
+
+async def test_a_declined_rank_is_not_the_same_event_as_an_unreachable_model() -> None:
+    """Both hand the turn a ranking; only one of them means memory had nothing to say."""
+    declined, _ = _judge(json.dumps({"order": []}))
+    unreachable, _ = _judge(error=True)
+
+    refusal = await declined.select(_pool(), query="q", now=_NOW, k=3)
+    failure = await unreachable.select(_pool(), query="q", now=_NOW, k=3)
+
+    assert (refusal.basis, len(refusal.hits)) == (RankBasis.DEMUR, 0)
+    assert (failure.basis, len(failure.hits)) == (RankBasis.ECHO, 3)
 
 
 async def test_an_empty_pool_never_reaches_the_model() -> None:
@@ -159,10 +216,21 @@ def test_parse_order_truncates_to_k() -> None:
 
 @pytest.mark.parametrize(
     "raw",
-    ["not json at all", json.dumps({"picks": [0]}), json.dumps({"order": "0,1"}), json.dumps([0])],
+    [
+        "not json at all",
+        json.dumps({"picks": [0]}),
+        json.dumps({"order": "0,1"}),
+        json.dumps([0]),
+        json.dumps({"order": [99, -1]}),  # it named notes; none of them exists
+    ],
 )
-def test_parse_order_returns_empty_for_anything_unusable(raw: str) -> None:
-    assert parse_order(raw, pool_size=3, k=2) == ()
+def test_parse_order_returns_none_for_anything_unusable(raw: str) -> None:
+    assert parse_order(raw, pool_size=3, k=2) is None
+
+
+def test_parse_order_tells_an_empty_pick_apart_from_an_unusable_reply() -> None:
+    """The whole point of the three-outcome return: `[]` is an answer, not a parse failure."""
+    assert parse_order(json.dumps({"order": []}), pool_size=3, k=2) == ()
 
 
 async def test_the_rank_request_asks_for_no_thinking_and_room_for_k_picks() -> None:

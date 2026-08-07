@@ -159,14 +159,18 @@ async def test_the_model_rank_is_measured_against_the_cosine_that_ships() -> Non
             )
             unbounded.seconds += time.monotonic() - started
             order = parse_order(reply, pool_size=len(scored), k=k)
-            unbounded.fell_back += int(not order)
-            unbounded_ids = [scored[i].record.id for i in order] or baseline_ids
+            # `None` is a reply nothing can be read out of, which is what falls back. An empty
+            # pick is the model declining the pool, and on this corpus (every question has an
+            # answer in the notes) that is a wrong answer rather than a failure, so it scores as
+            # the empty result it is instead of borrowing the cosine's.
+            unbounded.fell_back += int(order is None)
+            unbounded_ids = baseline_ids if order is None else [scored[i].record.id for i in order]
             unbounded.record(unbounded_ids, gold)
 
             started = time.monotonic()
             ranked = await judge.select(scored, query=question, now=_AT, k=k)
             bounded.seconds += time.monotonic() - started
-            bounded.fell_back += int(ranked.basis is not RankBasis.VERDICT)
+            bounded.fell_back += int(ranked.basis not in (RankBasis.VERDICT, RankBasis.DEMUR))
             ranked_ids = [r.hit.record.id for r in ranked.hits]
             bounded.record(ranked_ids, gold)
 

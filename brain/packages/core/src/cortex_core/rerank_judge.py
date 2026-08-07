@@ -6,6 +6,11 @@ one that merely echoes its vocabulary. This policy hands the over-fetched pool t
 numbered list and takes back an ordering, under a JSON-schema-constrained request so the reply
 cannot arrive as prose (the ADR-0028 mechanism).
 
+It is also the only policy that can answer that nothing in the pool helps, which it returns as an
+empty ranking on the ``DEMUR`` basis rather than as a fallback (ADR-0038 abstention addendum): a
+geometric policy always has a nearest neighbour to offer, so a question memory cannot answer is a
+question only a reader can decline.
+
 It lives in the core because it depends on nothing but ports, exactly like ``SubagentRunner``. It is
 the reason ``RecallPolicy.select`` is ``async`` at all, and it obeys the selection-time lease
 discipline: the model call goes through ``drain_text``, which closes its stream in a ``finally``, so
@@ -73,10 +78,11 @@ def rank_bounds(k: int) -> GenerationBounds:
 
     **Running into the cap degrades to the fallback policy, never to a mangled order.** A cut
     reply is not JSON (measured: a rank capped below its answer came back ``{"order":``), so
-    ``parse_order`` returns empty and ``select`` falls back exactly as it does for an unreachable
+    ``parse_order`` returns ``None`` and ``select`` falls back exactly as it does for an unreachable
     model, with the fallback's own basis on the ranking so the audit trail says the model did not
     rank this one. That is why the cap is generous rather than snug: a cap reached costs the whole
-    judgement, not a candidate off the end.
+    judgement, not a candidate off the end. A cut reply cannot be mistaken for a refusal either:
+    the refusal is a complete ``{"order": []}`` and a truncation is not JSON at all.
     """
     return GenerationBounds(
         max_tokens=RANK_ENVELOPE_TOKENS + RANK_TOKENS_PER_CANDIDATE * k, thinking=False
@@ -94,26 +100,36 @@ def build_rank_messages(
     return [Message(role=Role.USER, text=body, at=at, turn_id=_RANK_TURN_ID)]
 
 
-def parse_order(raw: str, *, pool_size: int, k: int) -> tuple[int, ...]:
+def parse_order(raw: str, *, pool_size: int, k: int) -> tuple[int, ...] | None:
     """The candidate numbers the model returned: in range, de-duplicated, truncated to ``k``.
 
-    Returns empty for anything unusable (not JSON, not the envelope, an ``order`` that is not a
-    list), which is the one signal the caller needs, since every unusable reply takes the same
-    fallback. Individual bad elements are dropped rather than voiding the answer: a model that
-    hallucinates note 99 has still usefully ranked the rest, and refusing the whole reply over one
-    element throws away a good rank. ``bool`` is an ``int`` in Python and a JSON ``true`` is not a
-    note number, which is why the element check is on the exact type.
+    **Three outcomes, not two** (ADR-0038 abstention addendum). ``None`` is a reply that cannot be
+    used at all: not JSON, not the envelope, an ``order`` that is not a list, or a list that named
+    notes of which none exists. The empty tuple is a different answer entirely, an ``order`` that
+    arrived empty, which is the model saying that no candidate helps. Collapsing the two was the
+    defect this signature exists to remove: the only thing a judge can do that geometry cannot is
+    decline, and read as a failure it became the fallback's three irrelevant notes.
+
+    A list that named notes and had none of them survive is a failure rather than a refusal, since
+    the model tried to pick and produced nothing pickable. Individual bad elements are still
+    dropped rather than voiding the answer: a model that hallucinates note 99 alongside note 2 has
+    usefully ranked the rest, and refusing the whole reply over one element throws away a good
+    rank. ``bool`` is an ``int`` in Python and a JSON ``true`` is not a note number, which is why
+    the element check is on the exact type.
     """
     try:
         order: object = json.loads(raw)["order"]
     except (json.JSONDecodeError, KeyError, TypeError):
-        return ()
+        return None
     if not isinstance(order, list):
-        return ()
+        return None
+    listed = cast("list[object]", order)
     kept: list[int] = []
-    for element in cast("list[object]", order):
+    for element in listed:
         if type(element) is int and 0 <= element < pool_size and element not in kept:
             kept.append(element)
+    if listed and not kept:
+        return None
     return tuple(kept[:k])
 
 
@@ -130,6 +146,14 @@ class JudgeRecallPolicy:
     nothing usable. The ranking then carries the fallback's own basis, so the audit
     trail says what actually ranked rather than what was configured, which is the difference
     between an observable rank and a hopeful one.
+
+    **A model that picks nothing is believed, not overruled** (ADR-0038 abstention addendum). An
+    ``order`` that arrives empty is the model reading the pool and answering that no candidate
+    helps, which is the one judgement no geometric policy can make, so it returns an empty
+    ``Ranking`` on the ``DEMUR`` basis and the fallback is never consulted. The turn then carries no
+    recalled memories at all, which is what "none of these help" means; the alternative, and the
+    behaviour this replaced, was handing the turn the cosine's best irrelevant notes under a basis
+    that read as an unreachable model.
     """
 
     def __init__(
@@ -155,7 +179,7 @@ class JudgeRecallPolicy:
     async def select(
         self, hits: Sequence[ScoredMemory], *, query: str, now: datetime, k: int
     ) -> Ranking:
-        """Ask the model to order the pool; fall back on any failure to reach or parse an answer."""
+        """Ask the model to order the pool: fall back on a failure, keep nothing on a refusal."""
         if not hits:
             return await self._fallback.select(hits, query=query, now=now, k=k)
         try:
@@ -169,8 +193,10 @@ class JudgeRecallPolicy:
         except InferenceError:
             return await self._fallback.select(hits, query=query, now=now, k=k)
         order = parse_order(raw, pool_size=len(hits), k=k)
-        if not order:
+        if order is None:
             return await self._fallback.select(hits, query=query, now=now, k=k)
+        if not order:
+            return Ranking(hits=(), basis=RankBasis.DEMUR)
         return Ranking(hits=_keyed(hits, order), basis=RankBasis.VERDICT)
 
 

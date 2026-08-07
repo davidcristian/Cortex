@@ -65,7 +65,7 @@ entries from it never added the two it opened, and there the count did move and 
 | [session-history.md](session-history.md) | Slice 3 history windowing and summarization, the recap's fold made cheap 2026-08-06 (thinking off and a token cap per request, a floor under a fold, a chip while it runs) and `CORTEX_HISTORY_SUMMARY` moved to on, leaving the one-corpus measurement as the area's only open item (ADR-0014/0038) | 1 |
 | [tools-mcp.md](tools-mcp.md) | Dispatch budget/cost/salience, spawn batch cap, MCP registries (ADR-0009/0010) | 6 |
 | [untrusted-content.md](untrusted-content.md) | Taint boundary, output guardrail, subagent model safety (ADR-0013/0015/0017/0019/0028), a quoted injection replayed by the plain history window, obeyed 2 of 10 on a bare turn and 0 of 10 behind either standing rule, the plain one landed for the tool-less turn (ADR-0013/0038) | 12 |
-| [memory.md](memory.md) | Store, scoping, rerank/MMR, the ranked `select` and its recall trail, and the judge's default now that bounding its request made it twenty times cheaper at the same ranking and a 41-note corpus across six categories found it worse nowhere and better on two, plus the two the ranked-recall close opened and neither this cell nor the area header picked up until 2026-08-06, a cross-encoder rank and an audit of the candidates a rank drops, and the abstention that same widening found: the judge correctly answers "no note helps" and the policy converts that into a cosine fallback (ADR-0008/0038) | 10 |
+| [memory.md](memory.md) | Store, scoping, rerank/MMR, the ranked `select` and its recall trail, and the judge's default now that bounding its request made it twenty times cheaper at the same ranking and a 41-note corpus across six categories found it worse nowhere and better on two, plus the two the ranked-recall close opened and neither this cell nor the area header picked up until 2026-08-06, a cross-encoder rank and an audit of the candidates a rank drops, and, since the judge learned to decline on 2026-08-07, the gap that close named rather than the one it shut: the shipped geometric policies still hand a turn their nearest misses on a question memory cannot answer (ADR-0008/0038) | 10 |
 | [inference-model-manager.md](inference-model-manager.md) | Model-manager lifecycle, MTP, reasoning status, whose disable-thinking and token-cap halves now reach every pass that discards its own deliberation, leaving the user-facing reply as the whole of that entry and the count unmoved for a narrowing (ADR-0007/0020/0038) | 7 |
 | [subagents.md](subagents.md) | Progress reporting, spawn schema, heterogeneous roster (ADR-0010/0018) | 3 |
 | [body-overlay.md](body-overlay.md) | Overlay polish, connection indicator, proto Cancel (ADR-0011), the reserved scrollbar rail's assumed width and spent card inset, the rounded roll target the whisper's bubble publishes while its own height carries a decimal, the two bounds the panel's section budget left behind it (a section's own frame being under no cap, and the room a closing section hands back arriving in one frame), a modified chord still reaching the overlay from inside a row's rename editor, a list that shrinks saying nothing where a chat arriving speaks, and the whisper's follow-ups (ADR-0037): a pickable voice row, a mid-stream resize keeping the old wrap width, and kerning inside the letter boxes under a changed font (its drain-growth entry landed the day it was filed, and the console outliving a new chat, the reminder stack's per-row exit and the switcher's, the panel's watch on its own box with the arrival-aside correction that came out of it, the demo bridge over the line cap, two sections outrunning the panel on their own, the chat floor's frozen measurement of the empty state, the console tab strip's missing keyboard half, the switcher's disputed listbox role, the two motions its list still made in one frame, and a Thoughts trace opening a reply off the bottom of a full history all landed 2026-08-03, the last of them opening the chrome-side entry that landed 2026-08-04 on the same ride, alongside the cycle keys' silent swap, which opened the focus entry that landed 2026-08-06 as the caret following the conversation into the composer and opened two entries behind it, both landed the same day: the draft named below, and the row gestures that swap nothing, answered by the caret staying in the list and opening the chord and the silent-shrink entries above; the composer's move on a clamped shrink closed 2026-08-06 as moot, its mechanism having been deleted the day it was filed, and the retarget-and-resize pair landed 2026-08-06 as the panel measuring itself in fractional pixels, opening the roll entry that took its place, which landed hours later the same day as the section measuring itself the way the panel does, both published numbers reproducing first and the step at every roll boundary reading 0.000px after, and which opened the whisper-bubble target named above; the composer's draft belonging to no chat landed 2026-08-06 too, the same day it was opened and the same day the user answered it, as unsent text keyed by session id in the reducer, which was the last entry anywhere waiting on a decision rather than on work) | 12 |
@@ -1380,6 +1380,26 @@ per-row exits in two more files, and rounding it reddens exactly the one case th
 sub-pixel. In: the whisper bubble's rounded roll target, noticed in the doing, filed unmeasured
 because the honest first move there is a live trace rather than a change.
 
+Memory **held at 10 on 2026-08-07**, one out and one in, and the pair is written out in the area
+header as well as here because a count right by cancellation is the failure this page warns about
+twice over. Out: the judge's abstention, picked up ahead of its own trigger because the entry's
+stated cost was the reason to wait and the tree did not support it. The entry priced three consumers
+needing to mean something by zero hits; `MemoryRecaller.recall` already returned an empty ranking as
+no hits without re-fetching, and `turn_context.py` already assembled a turn with no memory block
+when recall came back empty, so what was left was the `DEMUR` basis, a `parse_order` that tells a
+refusal (`{"order": []}`) from a reply nothing can be read out of, and one branch. The distinction
+inside the parse is the part worth keeping: an order that named notes of which none exists is a
+failure, because a model that tried to pick and produced nothing pickable has not declined, and a
+truncated reply stays on that side by construction since it is not JSON at all while a refusal is
+complete JSON. Measured on the same 41-note corpus that found the defect, the four unanswerable
+questions return nothing 4 of 4, the whole run fell back 0 of 26 against 4 of 26, and the ranking on
+the 22 answerable questions did not move (aggregate 1.000 against the cosine's 0.902, the reversed
+control still 0.000). In: the same turn under the shipped default, which the close does not reach.
+`RawRecallPolicy` and the three heuristic policies have no way to say that nothing helps, so the
+refusal belongs to the judge alone until a relevance floor gives geometry one, and a floor needs a
+threshold that survives changing the embedding model ([memory.md](memory.md),
+[ADR-0038](../adr/ADR-0038-ranked-recall.md)).
+
 ## Recommended order
 
 Ordered by what unblocks the most value soonest. Before starting any item, verify its claims
@@ -1410,7 +1430,14 @@ against the code (the warning above); the entry text tells you which seams it ex
   a pick, so `JudgeRecallPolicy` falls back to the cosine and hands the turn three irrelevant
   notes. Needs a third `RankBasis` and a `select` that may return nothing, which changes what a
   recall can mean rather than how it ranks. **Trigger:** flipping the default to `judge`, since
-  nothing can hit this while the policy is off.
+  nothing can hit this while the policy is off. **Landed 2026-08-07 ahead of that trigger**, the
+  deferral's stated cost being the reason to wait and the code not confirming it: two of the three
+  consumers it named already meant the right thing by zero hits, so the change is the `DEMUR` basis,
+  a `parse_order` with three outcomes rather than two, and one branch in `select`. Measured on the
+  corpus that found it, the four unanswerable questions now return nothing 4 of 4, the run fell back
+  0 of 26 where it fell back 4, and the ranking on the 22 answerable questions did not move. What
+  the close leaves behind is filed in its place below: the refusal is the judge's alone, so a
+  deployment on any geometric policy still gets its nearest misses.
 - **The vision measurements this repo owes itself** ([vision.md](vision.md)): an image arm of the
   injection-defence harness against a rendered-payload corpus, plus the two agent-Docker checks
   ADR-0029 listed as still to run and nothing tracked until 2026-07-19 (whether thinking needs
@@ -2427,7 +2454,13 @@ new adapter rather than a policy, whose trigger is a measured shortfall of the j
 corpus or a latency budget it cannot meet; and **auditing the candidates a rank dropped**, which
 `RecallAudit` does not carry because a non-picked candidate's `SPREAD`/`SWEEP` key is not well
 defined, whose trigger is the first investigation that needs to know why a specific memory was not
-returned ([memory.md](memory.md)); the four guardrail tails (whitespace-split hosts, full
+returned; joined on 2026-08-07 by **a geometric policy that still cannot decline**, opened by the
+close that taught the judge to, since `RawRecallPolicy` and the three heuristic policies always
+return their nearest `k` and every deployment that has not opted into the judge therefore still
+receives three nearest misses on a question memory cannot answer, whose fix is a relevance floor on
+a fifth policy (not on the default, whose promise is byte-for-byte v1 recall) and whose trigger is a
+deployment wanting recall to stay geometric and still say nothing, or a calibration giving the floor
+a number that means something behind more than one `Embedder` ([memory.md](memory.md)); the four guardrail tails (whitespace-split hosts, full
 UTS-39 confusables, further encodings, footer heuristics), the GBNF alternative, the
 fence-without-block recall mode, per-provenance eviction, and the screening subagent
 ([untrusted-content.md](untrusted-content.md)); per-field attachment schema descriptions and

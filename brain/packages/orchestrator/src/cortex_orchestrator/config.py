@@ -221,8 +221,10 @@ class MemoryConfig(BaseSettings):
     combining both axes and reusing the recency and lambda knobs; ``judge`` asks the resident model
     to order the over-fetched pool by what each note actually says (ADR-0038), reusing
     ``recall_pool_factor`` and falling back to raw top-k cosine whenever the model cannot be reached
-    or believed. The knobs are inert under ``raw``; each policy validates the ranges of the ones it
-    uses when it is built.
+    or believed. ``judge`` is also the only policy that may return **nothing**, when the model reads
+    the pool and answers that no candidate helps, and the turn then carries no recalled memories at
+    all (ADR-0038 abstention addendum). The knobs are inert under ``raw``; each policy validates the
+    ranges of the ones it uses when it is built.
 
     ``recall_audit`` (env ``CORTEX_MEMORY_RECALL_AUDIT``, ADR-0038) turns on the recall trail: one
     structured log line per recall carrying the pool size, the rank basis, and each kept hit's id,
