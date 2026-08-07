@@ -495,6 +495,59 @@ describe("SessionList", () => {
     window.removeEventListener("keydown", listener);
   });
 
+  it("holds a chord in the editor, where the name it would throw away has no undo", () => {
+    // Measured at 900x900 before this, standing in "Everything about model swaps" with "a brand new
+    // name" typed into a row: Ctrl+N minted a chat and closed the switcher, Ctrl+↑ and Ctrl+↓ each
+    // loaded another conversation and closed it, Ctrl+K closed it on its own, and all four left the
+    // row reading its old title when the list was reopened (`overlay/fieldKeys.ts`).
+    const heard: string[] = [];
+    const listener = (event: KeyboardEvent) => heard.push(event.key);
+    window.addEventListener("keydown", listener);
+    const onRename = vi.fn();
+    render(
+      <SessionList
+        sessions={[summary()]}
+        currentId="c1"
+        onSelect={vi.fn()}
+        onRename={onRename}
+        onDelete={vi.fn()}
+        onPin={vi.fn()}
+        anchor={nowhere}
+      />,
+    );
+    fireEvent.click(screen.getByLabelText("Rename First chat"));
+    const input = screen.getByLabelText<HTMLInputElement>("New chat name");
+    fireEvent.change(input, { target: { value: "a brand new name" } });
+    for (const key of ["n", "k", "ArrowUp", "ArrowDown"]) {
+      fireEvent.keyDown(input, { key, ctrlKey: true });
+      fireEvent.keyDown(input, { key, metaKey: true });
+    }
+    expect(heard).toEqual([]);
+    // Held, not answered: the editor is where it was, holding what was typed into it, and nothing
+    // has been written. Enter and Escape are the two presses that settle it.
+    expect(screen.getByLabelText<HTMLInputElement>("New chat name").value).toBe("a brand new name");
+    expect(onRename).not.toHaveBeenCalled();
+    // Every unmodified key still goes on to the overlay, `?` included: that one is guarded there by
+    // element type, so holding it here would duplicate a rule instead of composing with it.
+    fireEvent.keyDown(input, { key: "?" });
+    expect(heard).toEqual(["?"]);
+    window.removeEventListener("keydown", listener);
+  });
+
+  it("lets a chord through the delete confirm, which holds no text to lose", () => {
+    const heard: string[] = [];
+    const listener = (event: KeyboardEvent) => heard.push(event.key);
+    window.addEventListener("keydown", listener);
+    render(list([summary()]));
+    fireEvent.click(screen.getByLabelText("Delete First chat"));
+    fireEvent.keyDown(screen.getByLabelText("Cancel delete"), { key: "n", ctrlKey: true });
+    // Measured at 900x900: a new chat, the switcher closed, the caret in the composer and nothing
+    // deleted. Asking again costs one press, so there is nothing here for the rule to protect.
+    expect(heard).toEqual(["n"]);
+    expect(screen.getByText("Delete this chat?")).toBeInTheDocument();
+    window.removeEventListener("keydown", listener);
+  });
+
   it("gives the caret back to the pencil when an editor closes, whichever way it closed", () => {
     const { rerender } = render(list([summary()]));
     fireEvent.click(screen.getByLabelText("Rename First chat"));

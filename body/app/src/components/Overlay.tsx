@@ -2,6 +2,7 @@ import { useEffect } from "react";
 
 import type { EdgeStyle } from "../edge/edges";
 import type { MarkStyle } from "../mark/marks";
+import { chord } from "../overlay/fieldKeys";
 import { latestReply } from "../overlay/overlayState";
 import type { OverlayController } from "../overlay/useOverlay";
 import { Announcer } from "./Announcer";
@@ -14,7 +15,9 @@ import { Preview } from "./Preview";
 // leaves the console in ONE press, whichever tab is up, else dismisses (→ orb mid-stream);
 // Ctrl/Cmd+N starts a new chat, Ctrl+↑/↓ cycle recent chats, Ctrl+K toggles the switcher
 // (ADR-0021), and ? (outside any field, where it is just typing) toggles the console's
-// shortcuts tab.
+// shortcuts tab. A field standing in front of this listener may keep a press it would otherwise
+// lose text to, which is the switcher's rename editor and not the composer, whose text survives
+// every one of these keys (`overlay/fieldKeys.ts`).
 //
 // It also holds the overlay's live region, which is here rather than in the panel because the
 // panel is out of the accessibility tree whenever it is shut and these keys are live anyway
@@ -80,7 +83,10 @@ export function Overlay({
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
-      const mod = event.ctrlKey || event.metaKey;
+      // What counts as a chord is asked of `overlay/fieldKeys.ts` rather than restated here,
+      // because the fields that stand in front of this listener answer the same question and the
+      // two must not drift into disagreeing about one key.
+      const mod = chord(event);
       if (event.key === "Escape") {
         // One press out of the console, whichever tab is up: it is one view now, not a settings
         // sheet stacked on a shortcut sheet, so nothing is left behind to press Esc at again.

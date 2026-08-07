@@ -181,6 +181,24 @@ describe("Overlay", () => {
     expect(controller.cyclePrev).toHaveBeenCalledOnce();
   });
 
+  it("all four chords still reach the overlay from the composer, whose text survives them", () => {
+    // The half of the rule that has to keep working (`overlay/fieldKeys.ts`): a field HOLDS a chord
+    // only when the chord would throw its text away, and this one keeps every keystroke under the
+    // chat it was typed into. It is also where a summon lands, so it is where these keys are
+    // pressed from. Reddens if the guard is ever widened from the editor to fields in general.
+    const controller = fakeController("panel");
+    renderOverlay(controller);
+    const composer = screen.getByLabelText("Message");
+    fireEvent.keyDown(composer, { key: "n", ctrlKey: true });
+    fireEvent.keyDown(composer, { key: "k", ctrlKey: true });
+    fireEvent.keyDown(composer, { key: "ArrowUp", ctrlKey: true });
+    fireEvent.keyDown(composer, { key: "ArrowDown", ctrlKey: true });
+    expect(controller.newChat).toHaveBeenCalledOnce();
+    expect(controller.toggleSwitcher).toHaveBeenCalledOnce();
+    expect(controller.cyclePrev).toHaveBeenCalledOnce();
+    expect(controller.cycleNext).toHaveBeenCalledOnce();
+  });
+
   it("routes a card answer to the controller's respondConfirm", () => {
     const controller = fakeController("panel", [], {
       pendingConfirm: {
